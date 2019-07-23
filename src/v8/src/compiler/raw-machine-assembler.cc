@@ -53,18 +53,22 @@ Node* RawMachineAssembler::RelocatableIntPtrConstant(intptr_t value,
 Schedule* RawMachineAssembler::Export() {
   // Compute the correct codegen order.
   DCHECK(schedule_->rpo_order()->empty());
+#ifndef V8_OS_STARBOARD
   OFStream os(stdout);
   if (FLAG_trace_turbo_scheduler) {
     PrintF("--- RAW SCHEDULE -------------------------------------------\n");
     os << *schedule_;
   }
+#endif  // V8_OS_STARBOARD
   schedule_->EnsureCFGWellFormedness();
   Scheduler::ComputeSpecialRPO(zone(), schedule_);
   schedule_->PropagateDeferredMark();
+#ifndef V8_OS_STARBOARD
   if (FLAG_trace_turbo_scheduler) {
     PrintF("--- EDGE SPLIT AND PROPAGATED DEFERRED SCHEDULE ------------\n");
     os << *schedule_;
   }
+#endif  // V8_OS_STARBOARD
   // Invalidate RawMachineAssembler.
   Schedule* schedule = schedule_;
   schedule_ = nullptr;

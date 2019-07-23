@@ -15,7 +15,7 @@
 // Here we are not trying to do anything fancy, just to really sanity check that
 // this is hooked up to something.
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -33,7 +33,7 @@ int Format(wchar_t* out_buffer,
   return result;
 }
 
-TEST(SbStringFormatTest, SunnyDay) {
+TEST(SbStringFormatWideTest, SunnyDay) {
   const wchar_t kExpected[] = L"a1b2c3test";
   wchar_t destination[1024] = {0};
   int result = Format(destination, SB_ARRAY_SIZE(destination), L"a%db%dc%d%s",

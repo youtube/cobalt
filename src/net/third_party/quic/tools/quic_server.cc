@@ -11,9 +11,9 @@
 #include <sys/epoll.h>
 #include <sys/socket.h>
 
+#include <cstdint>
 #include <memory>
 
-#include "base/run_loop.h"
 #include "net/third_party/quic/core/crypto/crypto_handshake.h"
 #include "net/third_party/quic/core/crypto/quic_random.h"
 #include "net/third_party/quic/core/quic_crypto_stream.h"
@@ -78,8 +78,7 @@ QuicServer::QuicServer(
       crypto_config_options_(crypto_config_options),
       version_manager_(supported_versions),
       packet_reader_(new QuicPacketReader()),
-      quic_simple_server_backend_(quic_simple_server_backend),
-      weak_factory_(this) {
+      quic_simple_server_backend_(quic_simple_server_backend) {
   Initialize();
 }
 
@@ -150,7 +149,7 @@ QuicPacketWriter* QuicServer::CreateWriter(int fd) {
 QuicDispatcher* QuicServer::CreateQuicDispatcher() {
   QuicEpollAlarmFactory alarm_factory(&epoll_server_);
   return new QuicSimpleDispatcher(
-      config_, &crypto_config_, &version_manager_,
+      &config_, &crypto_config_, &version_manager_,
       std::unique_ptr<QuicEpollConnectionHelper>(new QuicEpollConnectionHelper(
           &epoll_server_, QuicAllocator::BUFFER_POOL)),
       std::unique_ptr<QuicCryptoServerStream::Helper>(
@@ -164,17 +163,6 @@ void QuicServer::WaitForEvents() {
   epoll_server_.WaitForEventsAndExecuteCallbacks();
 }
 
-void QuicServer::Start() {
-  Run();
-  base::RunLoop().Run();
-}
-
-void QuicServer::Run() {
-  WaitForEvents();
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
-      FROM_HERE, base::BindOnce(&QuicServer::Run, weak_factory_.GetWeakPtr()));
-}
-
 void QuicServer::Shutdown() {
   if (!silent_close_) {
     // Before we shut down the epoll server, give all active sessions a chance
@@ -182,11 +170,13 @@ void QuicServer::Shutdown() {
     dispatcher_->Shutdown();
   }
 
+  epoll_server_.Shutdown();
+
   close(fd_);
   fd_ = -1;
 }
 
-void QuicServer::OnEvent(int fd, net::EpollEvent* event) {
+void QuicServer::OnEvent(int fd, QuicEpollEvent* event) {
   DCHECK_EQ(fd, fd_);
   event->out_ready_mask = 0;
 

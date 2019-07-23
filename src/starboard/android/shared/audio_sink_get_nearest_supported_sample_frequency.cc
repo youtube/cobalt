@@ -14,7 +14,7 @@
 
 #include "starboard/audio_sink.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 int SbAudioSinkGetNearestSupportedSampleFrequency(int sampling_frequency_hz) {
   if (sampling_frequency_hz <= 0) {

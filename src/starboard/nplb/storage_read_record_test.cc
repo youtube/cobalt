@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/storage.h"
 #include "starboard/nplb/file_helpers.h"
 #include "starboard/nplb/storage_helpers.h"
-#include "starboard/storage.h"
 #include "starboard/user.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -54,7 +54,6 @@ TEST(SbStorageReadRecordTest, SunnyDaySmallBuffer) {
   EXPECT_TRUE(SbStorageCloseRecord(record));
 }
 
-#if SB_API_VERSION >= 6
 TEST(SbStorageReadRecordTest, SunnyDayNamed) {
   int64_t pattern = 0;
   std::string name = ScopedRandomFile::MakeRandomFilename();
@@ -157,7 +156,6 @@ TEST(SbStorageReadRecordTest, SunnyDayNamed3) {
   ClearStorageRecord(name2.c_str());
   ClearStorageRecord();
 }
-#endif  // SB_API_VERSION >= 6
 
 TEST(SbStorageReadRecordTest, SunnyDayNonexistant) {
   ClearStorageRecord();

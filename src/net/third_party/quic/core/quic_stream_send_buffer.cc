@@ -6,12 +6,12 @@
 
 #include "net/third_party/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quic/core/quic_data_writer.h"
+#include "net/third_party/quic/core/quic_interval.h"
 #include "net/third_party/quic/core/quic_stream_send_buffer.h"
 #include "net/third_party/quic/core/quic_utils.h"
 #include "net/third_party/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quic/platform/api/quic_flags.h"
-#include "net/third_party/quic/platform/api/quic_interval.h"
 #include "net/third_party/quic/platform/api/quic_logging.h"
 
 namespace quic {
@@ -49,7 +49,7 @@ QuicStreamSendBuffer::QuicStreamSendBuffer(QuicBufferAllocator* allocator)
 
 QuicStreamSendBuffer::~QuicStreamSendBuffer() {}
 
-void QuicStreamSendBuffer::SaveStreamData(const struct iovec* iov,
+void QuicStreamSendBuffer::SaveStreamData(const struct IOVEC* iov,
                                           int iov_count,
                                           size_t iov_offset,
                                           QuicByteCount data_length) {

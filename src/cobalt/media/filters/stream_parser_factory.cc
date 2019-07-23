@@ -73,6 +73,8 @@ struct SupportedTypeInfo {
   const CodecInfo** codecs;
 };
 
+static const CodecInfo kVP09CodecInfo = {"vp09.*", CodecInfo::VIDEO, NULL,
+                                         CodecInfo::HISTOGRAM_VP9};
 static const CodecInfo kVP8CodecInfo = {"vp8", CodecInfo::VIDEO, NULL,
                                         CodecInfo::HISTOGRAM_VP8};
 static const CodecInfo kVP9CodecInfo = {"vp9*", CodecInfo::VIDEO, NULL,
@@ -85,9 +87,13 @@ static const CodecInfo kOpusCodecInfo = {"opus", CodecInfo::AUDIO, NULL,
 static const CodecInfo kAV1CodecInfo = {"av01.*", CodecInfo::VIDEO, nullptr,
                                         CodecInfo::HISTOGRAM_AV1};
 
-static const CodecInfo* kVideoWebMCodecs[] = {
-    &kVP8CodecInfo,  &kVP9CodecInfo, &kVorbisCodecInfo,
-    &kOpusCodecInfo, &kAV1CodecInfo, NULL};
+static const CodecInfo* kVideoWebMCodecs[] = {&kVP09CodecInfo,
+                                              &kVP8CodecInfo,
+                                              &kVP9CodecInfo,
+                                              &kVorbisCodecInfo,
+                                              &kOpusCodecInfo,
+                                              &kAV1CodecInfo,
+                                              NULL};
 
 static const CodecInfo* kAudioWebMCodecs[] = {&kVorbisCodecInfo,
                                               &kOpusCodecInfo, NULL};

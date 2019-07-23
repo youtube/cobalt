@@ -17,9 +17,8 @@
 #include "cobalt/extension/platform_service.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
-#include "starboard/log.h"
-#include "starboard/once.h"
-#include "starboard/string.h"
+#include "starboard/common/log.h"
+#include "starboard/common/string.h"
 
 typedef struct CobaltExtensionPlatformServicePrivate {
   void* context;
@@ -42,8 +41,6 @@ namespace {
 
 using starboard::android::shared::ScopedLocalJavaRef;
 using starboard::android::shared::JniEnvExt;
-
-bool is_initialized = false;
 
 bool Has(const char* name) {
   JniEnvExt* env = JniEnvExt::Get();
@@ -123,8 +120,15 @@ void* Send(CobaltExtensionPlatformService service,
   return output;
 }
 
-SB_ONCE_INITIALIZE_FUNCTION(CobaltExtensionPlatformServiceApi,
-                            GetOrCreatePlatformServiceApi);
+const CobaltExtensionPlatformServiceApi kPlatformServiceApi = {
+  kCobaltExtensionPlatformServiceName,
+  1,      // API version that's implemented.
+  &Has,
+  &Open,
+  &Close,
+  &Send
+};
+
 }  // namespace
 
 extern "C" SB_EXPORT_PLATFORM void
@@ -143,20 +147,8 @@ Java_dev_cobalt_coat_CobaltService_nativeSendToClient(JniEnvExt* env,
   service->receive_callback(service->context, data, length);
 }
 
-void* GetPlatformServiceApi() {
-  CobaltExtensionPlatformServiceApi* platform_service_api =
-      GetOrCreatePlatformServiceApi();
-  if (!is_initialized) {
-    platform_service_api->kName = kCobaltExtensionPlatformServiceName;
-    platform_service_api->kVersion = kPlatformServiceExtensionVersion;
-    platform_service_api->Has = &Has;
-    platform_service_api->Open = &Open;
-    platform_service_api->Close = &Close;
-    platform_service_api->Send = &Send;
-
-    is_initialized = true;
-  }
-  return platform_service_api;
+const void* GetPlatformServiceApi() {
+  return &kPlatformServiceApi;
 }
 
 }  // namespace shared

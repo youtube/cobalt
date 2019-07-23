@@ -86,7 +86,7 @@ int HostResolverMojo::Resolve(const RequestInfo& info,
                               CompletionOnceCallback callback,
                               std::unique_ptr<Request>* request,
                               const NetLogWithSource& source_net_log) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(request);
   DVLOG(1) << "Resolve " << info.host_port_pair().ToString();
 
@@ -112,7 +112,7 @@ int HostResolverMojo::Resolve(const RequestInfo& info,
 int HostResolverMojo::ResolveFromCache(const RequestInfo& info,
                                        AddressList* addresses,
                                        const NetLogWithSource& source_net_log) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DVLOG(1) << "ResolveFromCache " << info.host_port_pair().ToString();
   return ResolveFromCacheInternal(info, CacheKeyForRequest(info), addresses);
 }

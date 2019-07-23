@@ -14,7 +14,7 @@
 
 #include <net_connection.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/system.h"
 
 SbSystemConnectionType SbSystemGetConnectionType() {

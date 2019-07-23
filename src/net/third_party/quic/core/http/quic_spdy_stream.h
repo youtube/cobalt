@@ -1,7 +1,7 @@
 // Copyright 2013 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
+
 // The base class for streams which deliver data to/from an application.
 // In each direction, the data on such a stream first contains compressed
 // headers then body data.
@@ -15,8 +15,10 @@
 #include <list>
 
 #include "base/macros.h"
-#include "net/base/iovec.h"
+#include "net/third_party/quic/core/http/http_decoder.h"
+#include "net/third_party/quic/core/http/http_encoder.h"
 #include "net/third_party/quic/core/http/quic_header_list.h"
+#include "net/third_party/quic/core/http/quic_spdy_stream_body_buffer.h"
 #include "net/third_party/quic/core/quic_packets.h"
 #include "net/third_party/quic/core/quic_stream.h"
 #include "net/third_party/quic/core/quic_stream_sequencer.h"
@@ -24,12 +26,13 @@
 #include "net/third_party/quic/platform/api/quic_flags.h"
 #include "net/third_party/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quic/platform/api/quic_string.h"
-#include "net/third_party/spdy/core/spdy_framer.h"
+#include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
 #include "starboard/types.h"
 
 namespace quic {
 
 namespace test {
+class QuicSpdyStreamPeer;
 class QuicStreamPeer;
 }  // namespace test
 
@@ -56,7 +59,12 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
     virtual ~Visitor() {}
   };
 
-  QuicSpdyStream(QuicStreamId id, QuicSpdySession* spdy_session);
+  QuicSpdyStream(QuicStreamId id,
+                 QuicSpdySession* spdy_session,
+                 StreamType type);
+  QuicSpdyStream(PendingStream pending,
+                 QuicSpdySession* spdy_session,
+                 StreamType type);
   QuicSpdyStream(const QuicSpdyStream&) = delete;
   QuicSpdyStream& operator=(const QuicSpdyStream&) = delete;
   ~QuicSpdyStream() override;
@@ -96,6 +104,13 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   // QUIC_STREAM_NO_ERROR.
   void OnStreamReset(const QuicRstStreamFrame& frame) override;
 
+  // Called by the sequencer when new data is available. Decodes the data and
+  // calls OnBodyAvailable() to pass to the upper layer.
+  void OnDataAvailable() override;
+
+  // Called in OnDataAvailable() after it finishes the decoding job.
+  virtual void OnBodyAvailable() = 0;
+
   // Writes the headers contained in |header_block| to the dedicated
   // headers stream.
   virtual size_t WriteHeaders(
@@ -104,16 +119,35 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 
   // Sends |data| to the peer, or buffers if it can't be sent immediately.
-  void WriteOrBufferBody(
-      const QuicString& data,
-      bool fin,
-      QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
+  void WriteOrBufferBody(QuicStringPiece data, bool fin);
 
   // Writes the trailers contained in |trailer_block| to the dedicated
   // headers stream. Trailers will always have the FIN set.
   virtual size_t WriteTrailers(
       spdy::SpdyHeaderBlock trailer_block,
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
+
+  // Override to report newly acked bytes via ack_listener_.
+  bool OnStreamFrameAcked(QuicStreamOffset offset,
+                          QuicByteCount data_length,
+                          bool fin_acked,
+                          QuicTime::Delta ack_delay_time,
+                          QuicByteCount* newly_acked_length) override;
+
+  // Override to report bytes retransmitted via ack_listener_.
+  void OnStreamFrameRetransmitted(QuicStreamOffset offset,
+                                  QuicByteCount data_length,
+                                  bool fin_retransmitted) override;
+
+  // Does the same thing as WriteOrBufferBody except this method takes IOVEC
+  // as the data input. Right now it only calls WritevData.
+  // TODO(renjietang): Write data frame header before writing body.
+  QuicConsumedData WritevBody(const struct IOVEC* iov, int count, bool fin);
+
+  // Does the same thing as WriteOrBufferBody except this method takes
+  // memslicespan as the data input. Right now it only calls WriteMemSlices.
+  // TODO(renjietang): Write data frame header before writing body.
+  QuicConsumedData WriteBodySlices(QuicMemSliceSpan slices, bool fin);
 
   // Marks the trailers as consumed. This applies to the case where this object
   // receives headers and trailers as QuicHeaderLists via calls to
@@ -126,8 +160,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   // This block of functions wraps the sequencer's functions of the same
   // name.  These methods return uncompressed data until that has
   // been fully processed.  Then they simply delegate to the sequencer.
-  virtual size_t Readv(const struct iovec* iov, size_t iov_len);
-  virtual int GetReadableRegions(iovec* iov, size_t iov_len) const;
+  virtual size_t Readv(const struct IOVEC* iov, size_t iov_len);
+  virtual int GetReadableRegions(IOVEC* iov, size_t iov_len) const;
   void MarkConsumed(size_t num_bytes);
 
   // Returns true if header contains a valid 3-digit status and parse the status
@@ -142,6 +176,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   void set_visitor(Visitor* visitor) { visitor_ = visitor; }
 
   bool headers_decompressed() const { return headers_decompressed_; }
+
+  // Returns total amount of body bytes that have been read.
+  uint64_t total_body_bytes_read() const;
 
   const QuicHeaderList& header_list() const { return header_list_; }
 
@@ -167,6 +204,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   // will be available.
   bool IsClosed() { return sequencer()->IsClosed(); }
 
+  void OnDataFrameStart(Http3FrameLengths frame_lengths);
+  void OnDataFramePayload(QuicStringPiece payload);
+  void OnDataFrameEnd();
+
   using QuicStream::CloseWriteSide;
 
  protected:
@@ -176,14 +217,35 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   virtual void OnTrailingHeadersComplete(bool fin,
                                          size_t frame_len,
                                          const QuicHeaderList& header_list);
+  virtual size_t WriteHeadersImpl(
+      spdy::SpdyHeaderBlock header_block,
+      bool fin,
+      QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
+
   QuicSpdySession* spdy_session() const { return spdy_session_; }
   Visitor* visitor() { return visitor_; }
 
   void set_headers_decompressed(bool val) { headers_decompressed_ = val; }
 
+  void set_ack_listener(
+      QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
+    ack_listener_ = std::move(ack_listener);
+  }
+
+  const QuicIntervalSet<QuicStreamOffset>& unacked_frame_headers_offsets() {
+    return unacked_frame_headers_offsets_;
+  }
+
  private:
+  friend class test::QuicSpdyStreamPeer;
   friend class test::QuicStreamPeer;
   friend class QuicStreamUtils;
+  class HttpDecoderVisitor;
+
+  // Given the interval marked by [|offset|, |offset| + |data_length|), return
+  // the number of frame header bytes contained in it.
+  QuicByteCount GetNumFrameHeadersInInterval(QuicStreamOffset offset,
+                                             QuicByteCount data_length) const;
 
   QuicSpdySession* spdy_session_;
 
@@ -200,6 +262,22 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   bool trailers_consumed_;
   // The parsed trailers received from the peer.
   spdy::SpdyHeaderBlock received_trailers_;
+
+  // Http encoder for writing streams.
+  HttpEncoder encoder_;
+  // Http decoder for processing raw incoming stream frames.
+  HttpDecoder decoder_;
+  // Visitor of the HttpDecoder.
+  std::unique_ptr<HttpDecoderVisitor> http_decoder_visitor_;
+  // Buffer that contains decoded data of the stream.
+  QuicSpdyStreamBodyBuffer body_buffer_;
+
+  // Ack listener of this stream, and it is notified when any of written bytes
+  // are acked or retransmitted.
+  QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener_;
+
+  // Offset of unacked frame headers.
+  QuicIntervalSet<QuicStreamOffset> unacked_frame_headers_offsets_;
 };
 
 }  // namespace quic

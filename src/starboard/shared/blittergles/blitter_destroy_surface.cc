@@ -13,9 +13,16 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
-#include "starboard/log.h"
+
+#include "starboard/common/log.h"
+#include "starboard/shared/blittergles/blitter_surface.h"
 
 bool SbBlitterDestroySurface(SbBlitterSurface surface) {
-  SB_NOTREACHED();
-  return false;
+  if (!SbBlitterIsSurfaceValid(surface)) {
+    SB_DLOG(ERROR) << ": Invalid surface.";
+    return false;
+  }
+
+  delete surface;
+  return true;
 }

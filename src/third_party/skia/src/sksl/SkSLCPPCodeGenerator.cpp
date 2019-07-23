@@ -12,7 +12,7 @@
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/stdio_leaks_poem.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #endif
 
 namespace SkSL {

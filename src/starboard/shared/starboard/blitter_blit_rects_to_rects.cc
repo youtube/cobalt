@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 // A simple implementation that iterates over each of the incoming rectangles
 // and issues a SbBlitterBlitRectToRect() command for each of them.

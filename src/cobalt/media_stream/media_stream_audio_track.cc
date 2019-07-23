@@ -23,7 +23,7 @@ namespace cobalt {
 namespace media_stream {
 
 void MediaStreamAudioTrack::AddSink(MediaStreamAudioSink* sink) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (stop_callback_.is_null()) {
     sink->OnReadyStateChanged(MediaStreamTrack::kReadyStateEnded);
@@ -34,7 +34,7 @@ void MediaStreamAudioTrack::AddSink(MediaStreamAudioSink* sink) {
 }
 
 void MediaStreamAudioTrack::RemoveSink(MediaStreamAudioSink* sink) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   bool last_consumer = deliverer_.RemoveConsumer(sink);
   if (last_consumer) {
     Stop();
@@ -42,7 +42,7 @@ void MediaStreamAudioTrack::RemoveSink(MediaStreamAudioSink* sink) {
 }
 
 void MediaStreamAudioTrack::Stop() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   base::ResetAndRunIfNotNull(&stop_callback_);
 
   std::vector<MediaStreamAudioSink*> consumer_sinks_to_remove;
@@ -55,7 +55,7 @@ void MediaStreamAudioTrack::Stop() {
 
 void MediaStreamAudioTrack::OnReadyStateChanged(
     media_stream::MediaStreamTrack::ReadyState new_state) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::vector<MediaStreamAudioSink*> sinks_to_notify;
   deliverer_.GetConsumerList(&sinks_to_notify);
   for (MediaStreamAudioSink* sink : sinks_to_notify) {

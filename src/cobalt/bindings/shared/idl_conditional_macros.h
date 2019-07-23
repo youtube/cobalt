@@ -29,4 +29,10 @@
 #define COBALT_ENABLE_ON_SCREEN_KEYBOARD
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
+#if SB_API_VERSION >= 11
+// This is used to conditionally define setMaxVideoCapabilities() in
+// HTMLVideoElement.
+#define COBALT_ENABLE_SET_MAX_VIDEO_CAPABILITIES
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+
 #endif  // COBALT_BINDINGS_SHARED_IDL_CONDITIONAL_MACROS_H_

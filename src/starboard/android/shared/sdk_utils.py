@@ -29,16 +29,8 @@ import zipfile
 
 from starboard.tools import build
 
-# The API level of NDK standalone toolchain to install. This should be the
-# minimum API level on which the app is expected to run. If some feature from a
-# newer NDK level is needed, this may be increased with caution.
-# https://developer.android.com/ndk/guides/stable_apis.html
-#
-# Using 24 will lead to missing symbols on API 23 devices.
-# https://github.com/android-ndk/ndk/issues/126
-_ANDROID_NDK_API_LEVEL = '21'
-
 # Packages to install in the Android SDK.
+# We download ndk-bundle separately, so it's not in this list.
 # Get available packages from "sdkmanager --list --verbose"
 _ANDROID_SDK_PACKAGES = [
     'build-tools;28.0.3',
@@ -47,7 +39,6 @@ _ANDROID_SDK_PACKAGES = [
     'extras;android;m2repository',
     'extras;google;m2repository',
     'lldb;3.1',
-    'ndk-bundle',
     'patcher;v4',
     'platforms;android-28',
     'platform-tools',
@@ -60,6 +51,12 @@ _SDK_LICENSE_PROMPT_SLEEP_SECONDS = 5
 # Location from which to download the SDK command-line tools
 # see https://developer.android.com/studio/index.html#command-tools
 _SDK_URL = 'https://dl.google.com/android/repository/sdk-tools-linux-3859397.zip'
+
+# Location from which to download the Android NDK.
+# see https://developer.android.com/ndk/downloads (perhaps in "NDK archives")
+_NDK_ZIP_REVISION = 'android-ndk-r19c'
+_NDK_ZIP_FILE = _NDK_ZIP_REVISION + '-linux-x86_64.zip'
+_NDK_URL = 'https://dl.google.com/android/repository/' + _NDK_ZIP_FILE
 
 _STARBOARD_TOOLCHAINS_DIR = build.GetToolchainsDir()
 
@@ -93,14 +90,6 @@ _SCRIPT_HASH_PROPERTY = 'SdkUtils.Hash'
 
 with open(__file__, 'rb') as script:
   _SCRIPT_HASH = hashlib.md5(script.read()).hexdigest()
-
-
-def GetToolsPath(abi):
-  """Returns the path where the NDK standalone toolchain should be."""
-  tools_arch = _TOOLS_ABI_ARCH_MAP[abi]
-  tools_dir = 'android_toolchain_api{}_{}'.format(_ANDROID_NDK_API_LEVEL,
-                                                  tools_arch)
-  return os.path.realpath(os.path.join(_STARBOARD_TOOLCHAINS_DIR, tools_dir))
 
 
 def _CheckStamp(dir_path):
@@ -155,12 +144,6 @@ def _GetInstalledNdkRevision():
     sys.exit(1)
 
 
-def InstallSdkIfNeeded(abi):
-  """Installs appropriate SDK/NDK and NDK standalone tools if needed."""
-  _MaybeDownloadAndInstallSdkAndNdk()
-  _MaybeMakeToolchain(abi)
-
-
 def _DownloadAndUnzipFile(url, destination_path):
   dl_file, dummy_headers = urllib.urlretrieve(url)
   _UnzipFile(dl_file, destination_path)
@@ -174,7 +157,7 @@ def _UnzipFile(zip_path, dest_path):
     os.chmod(os.path.join(dest_path, info.filename), info.external_attr >> 16L)
 
 
-def _MaybeDownloadAndInstallSdkAndNdk():
+def InstallSdkIfNeeded():
   """Download the SDK and NDK if not already available."""
   # Hold an exclusive advisory lock on the _STARBOARD_TOOLCHAINS_DIR, to
   # prevent issues with modification for multiple variants.
@@ -198,18 +181,33 @@ def _MaybeDownloadAndInstallSdkAndNdk():
       logging.warning('Checking Android SDK.')
       _DownloadInstallOrUpdateSdk()
 
+    ndk_path = GetNdkPath()
     if _ANDROID_NDK_HOME:
-      logging.warning('Warning: Using Android NDK in ANDROID_NDK_HOME,'
-                      ' which is not automatically updated')
-    ndk_revision = _GetInstalledNdkRevision()
-    logging.warning('Using Android NDK version %s', ndk_revision)
+      logging.warning('Warning: ANDROID_NDK_HOME references NDK %s in %s,'
+                      ' which is not automatically updated.',
+                      _GetInstalledNdkRevision(), ndk_path)
 
     if _ANDROID_HOME or _ANDROID_NDK_HOME:
       reply = raw_input(
-          'Do you want to continue using your custom Android tools? [yN]')
+          'Do you want to continue using your custom Android tools? [y/N]')
       if reply.upper() != 'Y':
         sys.exit(1)
+    elif not _CheckStamp(ndk_path):
+      logging.warning('Downloading NDK from %s to %s', _NDK_URL, ndk_path)
+      if os.path.exists(ndk_path):
+        shutil.rmtree(ndk_path)
+      # Download the NDK into _STARBOARD_TOOLCHAINS_DIR and move the top
+      # _NDK_ZIP_REVISION directory that is in the zip to 'ndk-bundle'.
+      ndk_unzip_path = os.path.join(_STARBOARD_TOOLCHAINS_DIR,
+                                    _NDK_ZIP_REVISION)
+      if os.path.exists(ndk_unzip_path):
+        shutil.rmtree(ndk_unzip_path)
+      _DownloadAndUnzipFile(_NDK_URL, _STARBOARD_TOOLCHAINS_DIR)
+      # Move NDK into its proper final place.
+      os.rename(ndk_unzip_path, ndk_path)
+      _UpdateStamp(ndk_path)
 
+    logging.warning('Using Android NDK version %s', _GetInstalledNdkRevision())
   finally:
     fcntl.flock(toolchains_dir_fd, fcntl.LOCK_UN)
     os.close(toolchains_dir_fd)
@@ -316,33 +314,3 @@ def _DownloadInstallOrUpdateSdk():
       logging.warning('There were no SDK licenses to accept.')
 
   p.wait()
-
-
-def _MaybeMakeToolchain(abi):
-  """Run the NDK's make_standalone_toolchain.py if necessary."""
-  tools_arch = _TOOLS_ABI_ARCH_MAP[abi]
-  tools_path = GetToolsPath(abi)
-  if _CheckStamp(tools_path):
-    logging.info('NDK %s toolchain already at %s', tools_arch,
-                 _GetInstalledNdkRevision())
-    return
-
-  logging.warning('Installing NDK %s toolchain %s in %s', tools_arch,
-                  _GetInstalledNdkRevision(), tools_path)
-
-  if os.path.exists(tools_path):
-    shutil.rmtree(tools_path)
-
-  # Run the NDK script to make the standalone toolchain
-  script_path = os.path.join(GetNdkPath(), 'build', 'tools',
-                             'make_standalone_toolchain.py')
-  args = [
-      script_path, '--arch', tools_arch, '--api', _ANDROID_NDK_API_LEVEL,
-      '--stl', 'libc++', '--install-dir', tools_path
-  ]
-  script_proc = subprocess.Popen(args)
-  rc = script_proc.wait()
-  if rc != 0:
-    raise RuntimeError('%s failed.' % script_path)
-
-  _UpdateStamp(tools_path)

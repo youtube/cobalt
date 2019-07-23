@@ -20,7 +20,7 @@
 #include <sys/eventfd.h>
 #include <unistd.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/wayland/window_internal.h"

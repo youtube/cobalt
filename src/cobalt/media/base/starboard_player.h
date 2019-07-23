@@ -56,12 +56,16 @@ class StarboardPlayer {
     ~Host() {}
   };
 
+  // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
+  typedef base::Callback<SbDecodeTargetGraphicsContextProvider*()>
+      GetDecodeTargetGraphicsContextProviderFunc;
+
 #if SB_HAS(PLAYER_WITH_URL)
   typedef base::Callback<void(const char*, const unsigned char*, unsigned)>
       OnEncryptedMediaInitDataEncounteredCB;
   // Create a StarboardPlayer with url-based player.
   StarboardPlayer(
-      const scoped_refptr<base::SingleThreadTaskRunner>& message_loop,
+      const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
       const std::string& url, SbWindow window, Host* host,
       SbPlayerSetBoundsHelper* set_bounds_helper,
       bool allow_resume_after_suspend, bool prefer_decode_to_texture,
@@ -71,19 +75,23 @@ class StarboardPlayer {
 #endif  // SB_HAS(PLAYER_WITH_URL)
   // Create a StarboardPlayer with normal player
   StarboardPlayer(
-      const scoped_refptr<base::SingleThreadTaskRunner>& message_loop,
+      const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+      const GetDecodeTargetGraphicsContextProviderFunc&
+          get_decode_target_graphics_context_provider_func,
       const AudioDecoderConfig& audio_config,
       const VideoDecoderConfig& video_config, SbWindow window,
       SbDrmSystem drm_system, Host* host,
       SbPlayerSetBoundsHelper* set_bounds_helper,
       bool allow_resume_after_suspend, bool prefer_decode_to_texture,
-      VideoFrameProvider* const video_frame_provider);
+      VideoFrameProvider* const video_frame_provider,
+      const std::string& max_video_capabilities);
 
   ~StarboardPlayer();
 
   bool IsValid() const { return SbPlayerIsValid(player_); }
 
-  void UpdateVideoResolution(int frame_width, int frame_height);
+  void UpdateAudioConfig(const AudioDecoderConfig& audio_config);
+  void UpdateVideoConfig(const VideoDecoderConfig& video_config);
 
   void WriteBuffer(DemuxerStream::Type type,
                    const scoped_refptr<DecoderBuffer>& buffer);
@@ -120,7 +128,7 @@ class StarboardPlayer {
     kResuming,
   };
 
-  // This class ensures that the callbacks posted to |message_loop_| are ignored
+  // This class ensures that the callbacks posted to |task_runner_| are ignored
   // automatically once StarboardPlayer is destroyed.
   class CallbackHelper : public base::RefCountedThreadSafe<CallbackHelper> {
    public:
@@ -211,9 +219,9 @@ class StarboardPlayer {
   std::string url_;
 #endif  // SB_HAS(PLAYER_WITH_URL)
   const scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  const GetDecodeTargetGraphicsContextProviderFunc
+      get_decode_target_graphics_context_provider_func_;
   scoped_refptr<CallbackHelper> callback_helper_;
-  AudioDecoderConfig audio_config_;
-  VideoDecoderConfig video_config_;
   const SbWindow window_;
   SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
   Host* const host_;
@@ -222,9 +230,14 @@ class StarboardPlayer {
   const bool allow_resume_after_suspend_;
 
   // The following variables are only changed or accessed from the
-  // |message_loop_|.
-  int frame_width_ = 1;
-  int frame_height_ = 1;
+  // |task_runner_|.
+  AudioDecoderConfig audio_config_;
+  VideoDecoderConfig video_config_;
+  SbMediaAudioSampleInfo audio_sample_info_ = {};
+  SbMediaVideoSampleInfo video_sample_info_ = {};
+#if SB_API_VERSION < 11
+  SbMediaColorMetadata media_color_metadata;
+#endif  // SB_API_VERSION < 11
   DecodingBuffers decoding_buffers_;
   int ticket_ = SB_PLAYER_INITIAL_TICKET;
   float volume_ = 1.0f;
@@ -249,6 +262,9 @@ class StarboardPlayer {
   SbPlayerOutputMode output_mode_;
 
   VideoFrameProvider* const video_frame_provider_;
+
+  // A string of video maxmium capabilities.
+  std::string max_video_capabilities_;
 
 #if SB_HAS(PLAYER_WITH_URL)
   const bool is_url_based_;

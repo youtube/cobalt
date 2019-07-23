@@ -14,7 +14,7 @@
 
 #include "starboard/media.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 bool SbMediaIsOutputProtected() {
   // Protected output is expected to be properly enforced by the system level

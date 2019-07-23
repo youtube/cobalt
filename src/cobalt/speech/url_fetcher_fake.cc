@@ -24,7 +24,7 @@
 #include "net/base/io_buffer.h"
 #include "net/url_request/url_fetcher_delegate.h"
 #include "net/url_request/url_fetcher_response_writer.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace cobalt {
 namespace speech {
@@ -146,7 +146,7 @@ void URLFetcherFake::SetRequestContext(
 }
 
 void URLFetcherFake::Start() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (!is_chunked_upload_) {
     download_timer_.emplace();
     download_timer_->Start(
@@ -162,7 +162,7 @@ const net::URLRequestStatus& URLFetcherFake::GetStatus() const {
 int URLFetcherFake::GetResponseCode() const { return 200; }
 
 void URLFetcherFake::OnURLFetchDownloadData() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   SB_DCHECK(!is_chunked_upload_);
   std::string actual_response_string = GetMockProtoResult(download_index_);
   int64_t response_size = actual_response_string.length();

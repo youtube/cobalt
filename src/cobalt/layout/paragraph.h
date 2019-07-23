@@ -126,7 +126,7 @@ class Paragraph : public base::RefCounted<Paragraph> {
   const base::char16* GetTextBuffer() const;
 
   const icu::Locale& GetLocale() const;
-  BaseDirection GetBaseDirection() const;
+  BaseDirection base_direction() const { return base_direction_; }
 
   // Return the direction of the top directional embedding in the paragraph's
   // stack or the base direction if the stack is empty.

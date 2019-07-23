@@ -14,22 +14,14 @@
 
 #include "starboard/player.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
-#if SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
-#include "starboard/shared/starboard/player/video_dmp_writer.h"
-#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
 
 #if SB_API_VERSION < 10
 void SbPlayerWriteSample(SbPlayer player,
                          SbMediaType sample_type,
-#if SB_API_VERSION >= 6
                          const void* const* sample_buffers,
                          const int* sample_buffer_sizes,
-#else   // SB_API_VERSION >= 6
-                         const void** sample_buffers,
-                         int* sample_buffer_sizes,
-#endif  // SB_API_VERSION >= 6
                          int number_of_sample_buffers,
                          SbMediaTime sample_pts,
                          const SbMediaVideoSampleInfo* video_sample_info,
@@ -45,6 +37,14 @@ void SbPlayerWriteSample(SbPlayer player,
     return;
   }
 
+  SB_DCHECK(number_of_sample_buffers == 1);
+
+  if (number_of_sample_buffers > 1) {
+    SB_DLOG(WARNING) << "SbPlayerWriteSample() doesn't support"
+                     << " |number_of_sample_buffers| greater than one.";
+    return;
+  }
+
   if (sample_buffers == NULL) {
     SB_DLOG(WARNING) << "|sample_buffers| cannot be NULL";
     return;
@@ -57,16 +57,10 @@ void SbPlayerWriteSample(SbPlayer player,
 
   SbTime sample_timestamp = SB_MEDIA_TIME_TO_SB_TIME(sample_pts);
 
-#if SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
-  using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
-  VideoDmpWriter::OnPlayerWriteSample(
-      player, sample_type, sample_buffers, sample_buffer_sizes,
-      number_of_sample_buffers, sample_timestamp, video_sample_info,
-      sample_drm_info);
-#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
-
-  player->WriteSample(sample_type, sample_buffers, sample_buffer_sizes,
-                      number_of_sample_buffers, sample_timestamp,
-                      video_sample_info, sample_drm_info);
+  SbPlayerSampleInfo sample_info = {
+      sample_buffers[0], sample_buffer_sizes[0], sample_timestamp,
+      video_sample_info ? video_sample_info : NULL,
+      sample_drm_info ? sample_drm_info : NULL};
+  player->WriteSample(sample_type, sample_info);
 }
 #endif  // SB_API_VERSION < 10

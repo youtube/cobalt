@@ -16,9 +16,6 @@
 
 #include <memory>
 
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
-
 #include "base/threading/thread_checker.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/render_tree/filter_node.h"
@@ -27,6 +24,7 @@
 #include "cobalt/renderer/backend/egl/graphics_system.h"
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/utils.h"
+#include "cobalt/renderer/egl_and_gles.h"
 #include "cobalt/renderer/rasterizer/egl/draw_object_manager.h"
 #include "cobalt/renderer/rasterizer/egl/graphics_state.h"
 #include "cobalt/renderer/rasterizer/egl/offscreen_target_manager.h"
@@ -92,7 +90,7 @@ class HardwareRasterizer::Impl {
   std::unique_ptr<OffscreenTargetManager> offscreen_target_manager_;
 
   backend::GraphicsContextEGL* graphics_context_;
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 };
 
 HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
@@ -141,7 +139,7 @@ void HardwareRasterizer::Impl::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,
     const scoped_refptr<backend::RenderTarget>& render_target,
     const Options& options) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   backend::RenderTargetEGL* render_target_egl =
       base::polymorphic_downcast<backend::RenderTargetEGL*>(
@@ -180,7 +178,7 @@ void HardwareRasterizer::Impl::SubmitToFallbackRasterizer(
     const scoped_refptr<render_tree::Node>& render_tree,
     SkCanvas* fallback_render_target, const math::Matrix3F& transform,
     const math::RectF& scissor, float opacity, uint32_t rasterize_flags) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   TRACE_EVENT0("cobalt::renderer", "SubmitToFallbackRasterizer");
 
   if (!scissor.IsExpressibleAsRect()) {

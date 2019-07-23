@@ -65,7 +65,7 @@ v8::Local<v8::Value> CreateErrorObject(v8::Isolate* isolate,
 
 void V8cExceptionState::SetException(
     const scoped_refptr<ScriptException>& exception) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!is_exception_set_);
 
   V8cGlobalEnvironment* global_environment =
@@ -80,7 +80,7 @@ void V8cExceptionState::SetException(
 void V8cExceptionState::SetSimpleExceptionVA(SimpleExceptionType type,
                                              const char* format,
                                              va_list arguments) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!is_exception_set_);
 
   std::string error_message = base::StringPrintV(format, arguments);

@@ -14,8 +14,8 @@
 
 #include "starboard/stub/application_stub.h"
 
+#include "starboard/common/log.h"
 #include "starboard/event.h"
-#include "starboard/log.h"
 
 namespace starboard {
 namespace stub {

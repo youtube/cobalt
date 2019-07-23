@@ -53,7 +53,7 @@ class DecoderBufferCache {
       base::TimeDelta media_time, Buffers* buffers,
       KeyFrameTimestamps* key_frame_timestamps);
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   Buffers audio_buffers_;
   KeyFrameTimestamps audio_key_frame_timestamps_;

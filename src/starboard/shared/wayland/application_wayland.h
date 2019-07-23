@@ -20,10 +20,10 @@
 
 #include <deque>
 
+#include "starboard/common/mutex.h"
 #include "starboard/configuration.h"
 #include "starboard/event.h"
 #include "starboard/input.h"
-#include "starboard/mutex.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/queue_application.h"

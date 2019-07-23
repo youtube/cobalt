@@ -462,7 +462,7 @@ WebDriverModule::WebDriverModule(
       base::Bind(&WebDriverModule::IgnoreCommand, base::Unretained(this)));
 
   // The WebDriver API implementation will be called on the HTTP server thread.
-  thread_checker_.DetachFromThread();
+  DETACH_FROM_THREAD(thread_checker_);
 
   // Start the thread and create the HTTP server on that thread.
   webdriver_thread_.StartWithOptions(
@@ -486,7 +486,7 @@ void WebDriverModule::OnWindowRecreated() {
                               base::Unretained(this)));
     return;
   }
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (session_) {
     session_->RefreshWindowDriver();
   }
@@ -494,7 +494,7 @@ void WebDriverModule::OnWindowRecreated() {
 
 void WebDriverModule::StartServer(int server_port,
                                   const std::string& listen_ip) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Create a new WebDriverServer and pass in the Dispatcher.
   webdriver_server_.reset(new WebDriverServer(
       server_port, listen_ip,
@@ -510,7 +510,7 @@ void WebDriverModule::StopServerAndSession() {
 
 SessionDriver* WebDriverModule::GetSessionDriver(
     const protocol::SessionId& session_id) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   SessionDriver* session_driver = NULL;
   if (session_ && (session_->session_id() == session_id)) {
     return session_.get();
@@ -523,7 +523,7 @@ void WebDriverModule::GetServerStatus(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
     std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   result_handler->SendResult(base::nullopt, protocol::Response::kSuccess,
                              protocol::ServerStatus::ToValue(status_));
 }
@@ -533,7 +533,7 @@ void WebDriverModule::GetActiveSessions(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
     std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::vector<protocol::SessionId> sessions;
   if (session_) {
     sessions.push_back(session_->session_id());
@@ -547,7 +547,7 @@ void WebDriverModule::CreateSession(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
     std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   base::Optional<protocol::RequestedCapabilities> requested_capabilities =
       protocol::RequestedCapabilities::FromValue(parameters);
@@ -573,7 +573,7 @@ void WebDriverModule::DeleteSession(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
     std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (session_) {
     // Extract the sessionId variable from the path
@@ -594,7 +594,7 @@ void WebDriverModule::StartScreencast(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
     std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   SessionDriver* session_driver = LookUpSessionDriverOrReturnInvalidResponse(
       base::Bind(&WebDriverModule::GetSessionDriver, base::Unretained(this)),
       path_variables, result_handler.get());
@@ -617,7 +617,7 @@ void WebDriverModule::StopScreencast(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
     std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   SessionDriver* session_driver = LookUpSessionDriverOrReturnInvalidResponse(
       base::Bind(&WebDriverModule::GetSessionDriver, base::Unretained(this)),
       path_variables, result_handler.get());
@@ -638,7 +638,7 @@ void WebDriverModule::RequestScreenshot(
     const WebDriverDispatcher::PathVariableMap* path_variables,
     std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
   TRACE_EVENT0("cobalt::WebDriver", "WebDriverModule::RequestScreenshot()");
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   SessionDriver* session_driver = LookUpSessionDriverOrReturnInvalidResponse(
       base::Bind(&WebDriverModule::GetSessionDriver, base::Unretained(this)),
@@ -658,7 +658,7 @@ void WebDriverModule::Shutdown(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
     std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // It's expected that the application will terminate, so it's okay to
   // leave the request hanging.
@@ -669,7 +669,7 @@ void WebDriverModule::ElementEquals(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
     std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   SessionDriver* session_driver = LookUpSessionDriverOrReturnInvalidResponse(
       base::Bind(&WebDriverModule::GetSessionDriver, base::Unretained(this)),
@@ -699,7 +699,7 @@ void WebDriverModule::GetAttribute(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
     std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   SessionDriver* session_driver = LookUpSessionDriverOrReturnInvalidResponse(
       base::Bind(&WebDriverModule::GetSessionDriver, base::Unretained(this)),
@@ -723,7 +723,7 @@ void WebDriverModule::GetCssProperty(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
     std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   SessionDriver* session_driver = LookUpSessionDriverOrReturnInvalidResponse(
       base::Bind(&WebDriverModule::GetSessionDriver, base::Unretained(this)),
@@ -747,7 +747,7 @@ void WebDriverModule::RequestElementScreenshot(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
     std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   SessionDriver* session_driver = LookUpSessionDriverOrReturnInvalidResponse(
       base::Bind(&WebDriverModule::GetSessionDriver, base::Unretained(this)),
@@ -769,7 +769,7 @@ void WebDriverModule::GetCookieByName(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
     std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   SessionDriver* session_driver = LookUpSessionDriverOrReturnInvalidResponse(
       base::Bind(&WebDriverModule::GetSessionDriver, base::Unretained(this)),

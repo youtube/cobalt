@@ -328,9 +328,11 @@ void Heap::OnAllocationEvent(HeapObject* object, int size_in_bytes) {
     ++allocations_count_;
   } else if (FLAG_trace_allocation_stack_interval > 0) {
     ++allocations_count_;
+#ifndef V8_OS_STARBOARD
     if (allocations_count_ % FLAG_trace_allocation_stack_interval == 0) {
       isolate()->PrintStack(stdout, Isolate::kPrintStackConcise);
     }
+#endif
   }
 }
 

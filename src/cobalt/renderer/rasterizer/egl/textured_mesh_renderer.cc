@@ -14,15 +14,13 @@
 
 #include "cobalt/renderer/rasterizer/egl/textured_mesh_renderer.h"
 
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
-
 #include <string>
 #include <vector>
 
 #include "base/strings/stringprintf.h"
 #include "cobalt/math/size.h"
 #include "cobalt/renderer/backend/egl/utils.h"
+#include "cobalt/renderer/egl_and_gles.h"
 #include "third_party/glm/glm/gtc/type_ptr.hpp"
 
 namespace cobalt {
@@ -229,7 +227,7 @@ uint32 TexturedMeshRenderer::GetQuadVBO() {
 // static
 uint32 TexturedMeshRenderer::CreateVertexShader(
     const std::vector<TextureInfo>& textures) {
-  uint32 blit_vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+  uint32 blit_vertex_shader = GL_CALL_SIMPLE(glCreateShader(GL_VERTEX_SHADER));
   std::string blit_vertex_shader_source =
       "attribute vec3 a_position;"
       "attribute vec2 a_tex_coord;";
@@ -269,7 +267,8 @@ uint32 TexturedMeshRenderer::CreateVertexShader(
 namespace {
 
 uint32 CompileShader(const std::string& shader_source) {
-  uint32 blit_fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+  uint32 blit_fragment_shader =
+      GL_CALL_SIMPLE(glCreateShader(GL_FRAGMENT_SHADER));
 
   int shader_source_length = shader_source.size();
   const char* shader_source_c_str = shader_source.c_str();
@@ -283,7 +282,8 @@ uint32 CompileShader(const std::string& shader_source) {
     const GLsizei kMaxLogLength = 2048;
     GLsizei log_length = 0;
     GLchar log[kMaxLogLength];
-    glGetShaderInfoLog(blit_fragment_shader, kMaxLogLength, &log_length, log);
+    GL_CALL_SIMPLE(glGetShaderInfoLog(blit_fragment_shader, kMaxLogLength,
+                                      &log_length, log));
     DLOG(ERROR) << "shader error: " << log;
     DLOG(ERROR) << "shader source:\n" << shader_source;
   }
@@ -437,7 +437,7 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::MakeBlitProgram(
 
   // Create the blit program.
   // Setup shaders used when blitting the current texture.
-  result.gl_program_id = glCreateProgram();
+  result.gl_program_id = GL_CALL_SIMPLE(glCreateProgram());
 
   uint32 blit_vertex_shader = CreateVertexShader(textures);
   GL_CALL(glAttachShader(result.gl_program_id, blit_vertex_shader));
@@ -451,32 +451,33 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::MakeBlitProgram(
 
   GL_CALL(glLinkProgram(result.gl_program_id));
 
-  result.mvp_transform_uniform = glGetUniformLocation(
-      result.gl_program_id, "model_view_projection_transform");
+  result.mvp_transform_uniform = GL_CALL_SIMPLE(glGetUniformLocation(
+      result.gl_program_id, "model_view_projection_transform"));
   for (unsigned int i = 0; i < textures.size(); ++i) {
     std::string scale_translate_uniform_name =
         base::StringPrintf("scale_translate_%s", textures[i].name.c_str());
-    result.texcoord_scale_translate_uniforms[i] = glGetUniformLocation(
-        result.gl_program_id, scale_translate_uniform_name.c_str());
-    DCHECK_EQ(GL_NO_ERROR, glGetError());
+    result.texcoord_scale_translate_uniforms[i] =
+        GL_CALL_SIMPLE(glGetUniformLocation(
+            result.gl_program_id, scale_translate_uniform_name.c_str()));
+    DCHECK_EQ(GL_NO_ERROR, GL_CALL_SIMPLE(glGetError()));
 
     std::string texture_uniform_name =
         base::StringPrintf("texture_%s", textures[i].name.c_str());
-    result.texture_uniforms[i] = glGetUniformLocation(
-        result.gl_program_id, texture_uniform_name.c_str());
-    DCHECK_EQ(GL_NO_ERROR, glGetError());
+    result.texture_uniforms[i] = GL_CALL_SIMPLE(glGetUniformLocation(
+        result.gl_program_id, texture_uniform_name.c_str()));
+    DCHECK_EQ(GL_NO_ERROR, GL_CALL_SIMPLE(glGetError()));
 
     std::string texture_size_name =
         base::StringPrintf("texture_size_%s", textures[i].name.c_str());
-    result.texture_size_uniforms[i] =
-        glGetUniformLocation(result.gl_program_id, texture_size_name.c_str());
-    DCHECK_EQ(GL_NO_ERROR, glGetError());
+    result.texture_size_uniforms[i] = GL_CALL_SIMPLE(
+        glGetUniformLocation(result.gl_program_id, texture_size_name.c_str()));
+    DCHECK_EQ(GL_NO_ERROR, GL_CALL_SIMPLE(glGetError()));
   }
 
   // Upload the color matrix right away since it won't change from draw to draw.
   GL_CALL(glUseProgram(result.gl_program_id));
-  uint32 to_rgb_color_matrix_uniform =
-      glGetUniformLocation(result.gl_program_id, "to_rgb_color_matrix");
+  uint32 to_rgb_color_matrix_uniform = GL_CALL_SIMPLE(
+      glGetUniformLocation(result.gl_program_id, "to_rgb_color_matrix"));
   GL_CALL(glUniformMatrix4fv(to_rgb_color_matrix_uniform, 1, GL_FALSE,
                              color_matrix));
   GL_CALL(glUseProgram(0));

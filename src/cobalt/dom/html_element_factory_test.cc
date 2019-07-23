@@ -21,6 +21,7 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/html_anchor_element.h"
+#include "cobalt/dom/html_audio_element.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_br_element.h"
 #include "cobalt/dom/html_div_element.h"
@@ -53,7 +54,9 @@ class HTMLElementFactoryTest : public ::testing::Test {
  protected:
   HTMLElementFactoryTest()
       : fetcher_factory_(NULL /* network_module */),
-        loader_factory_(&fetcher_factory_, NULL /* resource loader */,
+        loader_factory_("Test" /* name */, &fetcher_factory_,
+                        NULL /* resource loader */,
+                        0 /* encoded_image_cache_capacity */,
                         base::ThreadPriority::DEFAULT),
         dom_parser_(new dom_parser::Parser()),
         dom_stat_tracker_(new DomStatTracker("HTMLElementFactoryTest")),
@@ -92,6 +95,11 @@ TEST_F(HTMLElementFactoryTest, CreateHTMLElement) {
   EXPECT_TRUE(html_element->AsHTMLAnchorElement());
   EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
             "[object HTMLAnchorElement]");
+  html_element =
+      html_element_factory_.CreateHTMLElement(document_, base::Token("audio"));
+  EXPECT_TRUE(html_element->AsHTMLAudioElement());
+  EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
+            "[object HTMLAudioElement]");
   html_element =
       html_element_factory_.CreateHTMLElement(document_, base::Token("body"));
   EXPECT_TRUE(html_element->AsHTMLBodyElement());

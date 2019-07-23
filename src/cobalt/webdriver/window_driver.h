@@ -168,7 +168,7 @@ class WindowDriver : private ElementMapping {
   const protocol::WindowId window_id_;
 
   // Bound to the WebDriver thread.
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   KeyboardEventInjector keyboard_event_injector_;
   PointerEventInjector pointer_event_injector_;

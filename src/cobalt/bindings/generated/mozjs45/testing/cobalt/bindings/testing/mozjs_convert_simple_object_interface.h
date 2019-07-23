@@ -20,6 +20,8 @@
 #ifndef MozjsConvertSimpleObjectInterface_h
 #define MozjsConvertSimpleObjectInterface_h
 
+#include "cobalt/bindings/shared/idl_conditional_macros.h"
+
 #include "base/containers/hash_tables.h"
 #include "base/lazy_instance.h"
 #include "base/memory/ref_counted.h"

@@ -19,8 +19,8 @@ namespace quic {
 namespace test {
 namespace {
 
-struct iovec MakeIovec(QuicStringPiece data) {
-  struct iovec iov = {const_cast<char*>(data.data()),
+struct IOVEC MakeIovec(QuicStringPiece data) {
+  struct IOVEC iov = {const_cast<char*>(data.data()),
                       static_cast<size_t>(data.size())};
   return iov;
 }
@@ -33,7 +33,7 @@ class QuicStreamSendBufferTest : public QuicTest {
     EXPECT_EQ(0u, send_buffer_.stream_bytes_outstanding());
     QuicString data1(1536, 'a');
     QuicString data2 = QuicString(256, 'b') + QuicString(256, 'c');
-    struct iovec iov[2];
+    struct IOVEC iov[2];
     iov[0] = MakeIovec(QuicStringPiece(data1));
     iov[1] = MakeIovec(QuicStringPiece(data2));
 

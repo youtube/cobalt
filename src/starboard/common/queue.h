@@ -24,15 +24,11 @@
 #include <algorithm>
 #include <deque>
 
-#include "starboard/condition_variable.h"
+#include "starboard/common/condition_variable.h"
+#include "starboard/common/mutex.h"
 #include "starboard/export.h"
-#include "starboard/mutex.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
-
-#ifndef __cplusplus
-#error "Only C++ files can include this header."
-#endif
 
 namespace starboard {
 

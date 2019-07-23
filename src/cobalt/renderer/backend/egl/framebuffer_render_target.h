@@ -19,6 +19,7 @@
 #include "cobalt/math/size.h"
 #include "cobalt/renderer/backend/egl/framebuffer.h"
 #include "cobalt/renderer/backend/egl/render_target.h"
+#include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {
 namespace renderer {

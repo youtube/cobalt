@@ -12,14 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
+
+#if SB_API_VERSION >= 11
+#include "starboard/shared/starboard/log_mutex.h"
+#endif  // SB_API_VERSION >= 11
 
 void SbLog(SbLogPriority priority, const char* message) {
   SB_UNREFERENCED_PARAMETER(priority);
+#if SB_API_VERSION < 11
   fprintf(stderr, "%s", message);
   fflush(stderr);
+#else   // SB_API_VERSION >= 11
+  starboard::shared::starboard::GetLoggingMutex()->Acquire();
+  fprintf(stderr, "%s", message);
+  fflush(stderr);
+  starboard::shared::starboard::GetLoggingMutex()->Release();
+#endif  // SB_API_VERSION < 11
 }

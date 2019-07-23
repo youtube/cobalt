@@ -53,6 +53,8 @@ class SplashScreenCache {
  private:
   // Lock to protect access to the cache file.
   mutable base::Lock lock_;
+  // Hash of the last read page contents.
+  mutable uint32_t last_page_hash_;
 };
 
 }  // namespace browser

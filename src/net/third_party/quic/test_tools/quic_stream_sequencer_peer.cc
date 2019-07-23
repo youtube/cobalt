@@ -7,7 +7,6 @@
 #include "net/third_party/quic/core/quic_stream_sequencer.h"
 #include "net/third_party/quic/test_tools/quic_stream_sequencer_buffer_peer.h"
 
-
 namespace quic {
 namespace test {
 

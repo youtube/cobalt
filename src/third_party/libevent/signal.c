@@ -67,6 +67,13 @@ struct event_base *evsignal_base = NULL;
 
 static void evsignal_handler(int sig);
 
+#ifdef WIN32
+#define error_is_eagain(err)			\
+	((err) == EAGAIN || (err) == WSAEWOULDBLOCK)
+#else
+#define error_is_eagain(err) ((err) == EAGAIN)
+#endif
+
 /* Callback for when the signal handler write a byte to our signaling socket */
 static void
 evsignal_cb(int fd, short what, void *arg)
@@ -79,8 +86,11 @@ evsignal_cb(int fd, short what, void *arg)
 #endif
 
 	n = recv(fd, signals, sizeof(signals), 0);
-	if (n == -1)
-		event_err(1, "%s: read", __func__);
+	if (n == -1) {
+		int err = EVUTIL_SOCKET_ERROR();
+		if (! error_is_eagain(err))
+			event_err(1, "%s: read", __func__);
+	}
 }
 
 #ifdef HAVE_SETFD
@@ -125,6 +135,7 @@ evsignal_init(struct event_base *base)
 		TAILQ_INIT(&base->sig.evsigevents[i]);
 
         evutil_make_socket_nonblocking(base->sig.ev_signal_pair[0]);
+        evutil_make_socket_nonblocking(base->sig.ev_signal_pair[1]);
 
 	event_set(&base->sig.ev_signal, base->sig.ev_signal_pair[1],
 		EV_READ | EV_PERSIST, evsignal_cb, &base->sig.ev_signal);
@@ -186,12 +197,14 @@ _evsignal_set_handler(struct event_base *base,
 	if (sigaction(evsignal, &sa, sig->sh_old[evsignal]) == -1) {
 		event_warn("sigaction");
 		free(sig->sh_old[evsignal]);
+		sig->sh_old[evsignal] = NULL;
 		return (-1);
 	}
 #else
 	if ((sh = signal(evsignal, handler)) == SIG_ERR) {
 		event_warn("signal");
 		free(sig->sh_old[evsignal]);
+		sig->sh_old[evsignal] = NULL;
 		return (-1);
 	}
 	*sig->sh_old[evsignal] = sh;
@@ -346,12 +359,19 @@ evsignal_dealloc(struct event_base *base)
 			_evsignal_restore_handler(base, i);
 	}
 
-	EVUTIL_CLOSESOCKET(base->sig.ev_signal_pair[0]);
-	base->sig.ev_signal_pair[0] = -1;
-	EVUTIL_CLOSESOCKET(base->sig.ev_signal_pair[1]);
-	base->sig.ev_signal_pair[1] = -1;
+	if (base->sig.ev_signal_pair[0] != -1) {
+		EVUTIL_CLOSESOCKET(base->sig.ev_signal_pair[0]);
+		base->sig.ev_signal_pair[0] = -1;
+	}
+	if (base->sig.ev_signal_pair[1] != -1) {
+		EVUTIL_CLOSESOCKET(base->sig.ev_signal_pair[1]);
+		base->sig.ev_signal_pair[1] = -1;
+	}
 	base->sig.sh_old_max = 0;
 
-	/* per index frees are handled in evsignal_del() */
-	free(base->sig.sh_old);
+	/* per index frees are handled in evsig_del() */
+	if (base->sig.sh_old) {
+		free(base->sig.sh_old);
+		base->sig.sh_old = NULL;
+	}
 }

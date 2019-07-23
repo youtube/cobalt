@@ -13,13 +13,44 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
-#include "starboard/log.h"
+
+#include <memory>
+
+#include "starboard/common/log.h"
+#include "starboard/memory.h"
+#include "starboard/shared/blittergles/blitter_internal.h"
 
 SbBlitterPixelData SbBlitterCreatePixelData(
     SbBlitterDevice device,
     int width,
     int height,
     SbBlitterPixelDataFormat pixel_format) {
-  SB_NOTREACHED();
-  return kSbBlitterInvalidPixelData;
+  if (!SbBlitterIsDeviceValid(device)) {
+    SB_DLOG(ERROR) << ": Invalid device.";
+    return kSbBlitterInvalidPixelData;
+  }
+  if (!SbBlitterIsPixelFormatSupportedByPixelData(device, pixel_format)) {
+    SB_DLOG(ERROR) << ": Invalid pixel format.";
+    return kSbBlitterInvalidPixelData;
+  }
+  if (width <= 0 || height <= 0) {
+    SB_DLOG(ERROR) << ": Height and width must be > 0.";
+    return kSbBlitterInvalidPixelData;
+  }
+
+  std::unique_ptr<SbBlitterPixelDataPrivate> pixel_data(
+      new SbBlitterPixelDataPrivate());
+  pixel_data->device = device;
+  pixel_data->width = width;
+  pixel_data->height = height;
+  pixel_data->format = pixel_format;
+  pixel_data->pitch_in_bytes =
+      SbBlitterBytesPerPixelForFormat(pixel_format) * width;
+  pixel_data->data = SbMemoryAllocate(height * pixel_data->pitch_in_bytes);
+  if (pixel_data->data == NULL) {
+    SB_DLOG(ERROR) << ": Failed to allocate memory for data.";
+    return kSbBlitterInvalidPixelData;
+  }
+
+  return pixel_data.release();
 }

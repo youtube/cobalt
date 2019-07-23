@@ -5,8 +5,8 @@
 #ifndef NET_THIRD_PARTY_QUIC_PLATFORM_API_QUIC_HOSTNAME_UTILS_H_
 #define NET_THIRD_PARTY_QUIC_PLATFORM_API_QUIC_HOSTNAME_UTILS_H_
 
-#include "base/macros.h"
 #include "net/third_party/quic/platform/api/quic_export.h"
+#include "net/third_party/quic/platform/api/quic_string.h"
 #include "net/third_party/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quic/platform/impl/quic_hostname_utils_impl.h"
 
@@ -22,9 +22,10 @@ class QUIC_EXPORT_PRIVATE QuicHostnameUtils {
   //  (3) contains at least one dot.
   static bool IsValidSNI(QuicStringPiece sni);
 
-  // Convert hostname to lowercase and remove the trailing '.'.
-  // WARNING: mutates |hostname| in place and returns |hostname|.
-  static char* NormalizeHostname(char* hostname);
+  // Canonicalizes the specified hostname.  This involves a wide variety of
+  // transformations, including lowercasing, removing trailing dots and IDNA
+  // conversion.
+  static QuicString NormalizeHostname(QuicStringPiece hostname);
 };
 
 }  // namespace quic

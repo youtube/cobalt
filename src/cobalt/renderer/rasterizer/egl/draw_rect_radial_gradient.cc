@@ -14,11 +14,11 @@
 
 #include "cobalt/renderer/rasterizer/egl/draw_rect_radial_gradient.h"
 
-#include <GLES2/gl2.h>
 #include <algorithm>
 
 #include "base/logging.h"
 #include "cobalt/renderer/backend/egl/utils.h"
+#include "cobalt/renderer/egl_and_gles.h"
 #include "egl/generated_shader_impl.h"
 #include "starboard/memory.h"
 

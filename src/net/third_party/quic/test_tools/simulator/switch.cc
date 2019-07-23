@@ -4,32 +4,28 @@
 
 #include <cinttypes>
 
-#include "base/format_macros.h"
 #include "net/third_party/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quic/platform/api/quic_str_cat.h"
 #include "net/third_party/quic/test_tools/simulator/switch.h"
-
-using std::string;
 
 namespace quic {
 namespace simulator {
 
 Switch::Switch(Simulator* simulator,
-               string name,
+               QuicString name,
                SwitchPortNumber port_count,
                QuicByteCount queue_capacity) {
   for (size_t port_number = 1; port_number <= port_count; port_number++) {
-    ports_.emplace_back(
-        simulator,
-        QuicStringPrintf("%s (port %" PRIuS ")", name.c_str(), port_number),
-        this, port_number, queue_capacity);
+    ports_.emplace_back(simulator,
+                        QuicStrCat(name, " (port ", port_number, ")"), this,
+                        port_number, queue_capacity);
   }
 }
 
 Switch::~Switch() {}
 
 Switch::Port::Port(Simulator* simulator,
-                   string name,
+                   QuicString name,
                    Switch* parent,
                    SwitchPortNumber port_number,
                    QuicByteCount queue_capacity)

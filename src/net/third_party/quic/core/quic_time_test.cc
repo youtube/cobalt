@@ -107,6 +107,20 @@ TEST_F(QuicTimeTest, Initialized) {
                   .IsInitialized());
 }
 
+TEST_F(QuicTimeTest, CopyConstruct) {
+  QuicTime time_1 = QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(1234);
+  EXPECT_NE(time_1, QuicTime(QuicTime::Zero()));
+  EXPECT_EQ(time_1, QuicTime(time_1));
+}
+
+TEST_F(QuicTimeTest, CopyAssignment) {
+  QuicTime time_1 = QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(1234);
+  QuicTime time_2 = QuicTime::Zero();
+  EXPECT_NE(time_1, time_2);
+  time_2 = time_1;
+  EXPECT_EQ(time_1, time_2);
+}
+
 TEST_F(QuicTimeTest, Add) {
   QuicTime time_1 = QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(1);
   QuicTime time_2 = QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(2);

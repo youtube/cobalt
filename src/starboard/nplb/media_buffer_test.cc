@@ -40,11 +40,11 @@ constexpr SbMediaVideoCodec kVideoCodecs[] = {
 
     kSbMediaVideoCodecH264,   kSbMediaVideoCodecH265, kSbMediaVideoCodecMpeg2,
     kSbMediaVideoCodecTheora, kSbMediaVideoCodecVc1,
-#if SB_API_VERSION < SB_HAS_AV1_VERSION
+#if SB_API_VERSION < 11
     kSbMediaVideoCodecVp10,
-#else   // SB_API_VERSION < SB_HAS_AV1_VERSION
+#else   // SB_API_VERSION < 11
     kSbMediaVideoCodecAv1,
-#endif  // SB_API_VERSION < SB_HAS_AV1_VERSION
+#endif  // SB_API_VERSION < 11
     kSbMediaVideoCodecVp8,    kSbMediaVideoCodecVp9,
 };
 

@@ -19,9 +19,7 @@ namespace starboard {
 namespace android {
 namespace shared {
 
-constexpr int kPlatformServiceExtensionVersion = 1;
-
-void* GetPlatformServiceApi();
+const void* GetPlatformServiceApi();
 
 }  // namespace shared
 }  // namespace android

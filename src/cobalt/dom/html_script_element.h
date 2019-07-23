@@ -135,7 +135,7 @@ class HTMLScriptElement : public HTMLElement {
 
   // Thread checker ensures all calls to DOM element are made from the same
   // thread that it is created in.
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   // Weak reference to the document at the time Prepare() started.
   base::WeakPtr<Document> document_;
   // The loader that is used for asynchronous loads.

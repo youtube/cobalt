@@ -21,7 +21,7 @@
 #include "nb/bidirectional_fit_reuse_allocator.h"
 #include "nb/first_fit_reuse_allocator.h"
 #include "nb/fixed_no_free_allocator.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace nb {
 

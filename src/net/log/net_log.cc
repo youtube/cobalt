@@ -8,6 +8,8 @@
 #include <memory>
 #include <utility>
 
+// QUIC46
+#include "base/base64.h"
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/logging.h"
@@ -15,6 +17,10 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
+// QUIC46
+#include "base/strings/string_util.h"
+#include "net/base/escape.h"
+#include "starboard/types.h"
 
 namespace net {
 
@@ -78,6 +84,37 @@ std::unique_ptr<base::Value> NetLogString16Callback(
       new base::DictionaryValue());
   event_params->SetString(name, *value);
   return std::move(event_params);
+}
+
+// QUIC46
+// IEEE 64-bit doubles have a 52-bit mantissa, and can therefore represent
+// 53-bits worth of precision (see also documentation for JavaScript's
+// Number.MAX_SAFE_INTEGER for more discussion on this).
+//
+// If the number can be represented with an int or double use that. Otherwise
+// fallback to encoding it as a string.
+template <typename T>
+base::Value NetLogNumberValueHelper(T num) {
+  // Fits in a (32-bit) int: [-2^31, 2^31 - 1]
+#if defined(STARBOARD)
+  // MSVC ejects C4146 for the actual INT_MIN value.
+  if ((!std::is_signed<T>::value || (num >= static_cast<T>(INT_MIN))) &&
+#else
+  if ((!std::is_signed<T>::value || (num >= static_cast<T>(-2147483648))) &&
+#endif
+      (num <= static_cast<T>(2147483647))) {
+    return base::Value(static_cast<int>(num));
+  }
+
+  // Fits in a double: (-2^53, 2^53)
+  if ((!std::is_signed<T>::value ||
+       (num >= static_cast<T>(-9007199254740991))) &&
+      (num <= static_cast<T>(9007199254740991))) {
+    return base::Value(static_cast<double>(num));
+  }
+
+  // Otherwise format as a string.
+  return base::Value(base::NumberToString(num));
 }
 
 }  // namespace
@@ -295,6 +332,37 @@ void NetLog::AddEntry(NetLogEventType type,
   base::AutoLock lock(lock_);
   for (auto* observer : observers_)
     observer->OnAddEntryData(entry_data);
+}
+
+
+base::Value NetLogStringValue(base::StringPiece raw) {
+  // The common case is that |raw| is ASCII. Represent this directly.
+  if (base::IsStringASCII(raw))
+    return base::Value(raw);
+
+  // For everything else (including valid UTF-8) percent-escape |raw|, and add a
+  // prefix that "tags" the value as being a percent-escaped representation.
+  //
+  // Note that the sequence E2 80 8B is U+200B (zero-width space) in UTF-8. It
+  // is added so the escaped string is not itself also ASCII (otherwise there
+  // would be ambiguity for consumers as to when the value needs to be
+  // unescaped).
+  return base::Value("%ESCAPED:\xE2\x80\x8B " + EscapeNonASCIIAndPercent(raw));
+}
+
+base::Value NetLogBinaryValue(const void* bytes, size_t length) {
+  std::string b64;
+  Base64Encode(base::StringPiece(reinterpret_cast<const char*>(bytes), length),
+               &b64);
+  return base::Value(std::move(b64));
+}
+
+base::Value NetLogNumberValue(int64_t num) {
+  return NetLogNumberValueHelper(num);
+}
+
+base::Value NetLogNumberValue(uint64_t num) {
+  return NetLogNumberValueHelper(num);
 }
 
 }  // namespace net

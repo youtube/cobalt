@@ -15,7 +15,7 @@
  */
 
 #include "glimp/gles/shader.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 namespace glimp {
 namespace gles {

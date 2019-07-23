@@ -14,7 +14,7 @@
 
 // Signal is Sunny Day tested in most of the other SbConditionVariable tests.
 
-#include "starboard/condition_variable.h"
+#include "starboard/common/condition_variable.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {

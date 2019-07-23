@@ -6,7 +6,9 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
-#endif
+#else  // V8_OS_STARBOARD
+#include "starboard/common/log.h"
+#endif  // !V8_OS_STARBOARD
 
 #if V8_TARGET_ARCH_X64
 

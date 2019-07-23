@@ -131,6 +131,7 @@ class Application {
     PrintUsage(argv[0]);
     SbSystemRequestStop(0);
   }
+  ~Application() { media_sandbox_.RegisterFrameCB(MediaSandbox::FrameCB()); }
 
  private:
   void InitializeAdaptivePlayback(const FormatGuesstimator& guesstimator) {
@@ -308,11 +309,18 @@ class Application {
       }
       int64 bytes_to_append =
           std::min(kMaxBytesToAppend, file->GetSize() - *offset);
+
+      auto current_time = player_ ? player_->GetCurrentTime() : 0;
+      auto evicted = chunk_demuxer_->EvictCodedFrames(
+          id, base::TimeDelta::FromSecondsD(current_time), bytes_to_append);
+      SB_DCHECK(evicted);
+
       file->Read(reinterpret_cast<char*>(buffer.data()), bytes_to_append);
       base::TimeDelta timestamp_offset;
-      chunk_demuxer_->AppendData(id, buffer.data(),
-                                 bytes_to_append, base::TimeDelta(),
-                                 media::kInfiniteDuration, &timestamp_offset);
+      auto appended = chunk_demuxer_->AppendData(
+          id, buffer.data(), bytes_to_append, base::TimeDelta(),
+          media::kInfiniteDuration, &timestamp_offset);
+      SB_DCHECK(appended);
 
       *offset += bytes_to_append;
     }

@@ -269,6 +269,7 @@ TEST_F(URLRequestQuicTest, TestGetRequest) {
   EXPECT_EQ(kHelloBodyValue, delegate.data_received());
 }
 
+#if !defined(HTTP_CACHE_DISABLED_FOR_STARBOARD)
 TEST_F(URLRequestQuicTest, CancelPushIfCached_SomeCached) {
   Init();
 
@@ -486,7 +487,15 @@ TEST_F(URLRequestQuicTest, DoNotCancelPushIfNotFoundInCache) {
   // Verify the reset error count received on the server side.
   EXPECT_EQ(0u, GetRstErrorCountReceivedByServer(quic::QUIC_STREAM_CANCELLED));
 }
+#endif
 
+// This test is found to be flaky in Cobalt and was disabled due to its
+// unguaranteed assumption that the two requests finish in order.
+// The response for request2 from server sometimes can arrive earlier than
+// 1st request's response. In that case, request2 is the one to receive the
+// first byte stream from the same QUICSession the requests share and request
+// will be marked as re-using the QUICSession in that case.
+#if !defined(STARBOARD)
 // Tests that if two requests use the same QUIC session, the second request
 // should not have |LoadTimingInfo::connect_timing|.
 TEST_F(URLRequestQuicTest, TestTwoRequests) {
@@ -506,6 +515,7 @@ TEST_F(URLRequestQuicTest, TestTwoRequests) {
   delegate2.set_on_complete(base::DoNothing());
   std::unique_ptr<URLRequest> request2 =
       CreateRequest(GURL(url), DEFAULT_PRIORITY, &delegate2);
+
   request->Start();
   request2->Start();
   ASSERT_TRUE(request->is_pending());
@@ -517,6 +527,7 @@ TEST_F(URLRequestQuicTest, TestTwoRequests) {
   EXPECT_EQ(kHelloBodyValue, delegate.data_received());
   EXPECT_EQ(kHelloBodyValue, delegate2.data_received());
 }
+#endif
 
 TEST_F(URLRequestQuicTest, RequestHeadersCallback) {
   Init();

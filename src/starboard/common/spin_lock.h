@@ -22,35 +22,21 @@
 #define STARBOARD_COMMON_SPIN_LOCK_H_
 
 #include "starboard/atomic.h"
-#include "starboard/thread.h"
-
-#ifndef __cplusplus
-#error "Only C++ files can include this header."
-#endif
 
 namespace starboard {
 
 const SbAtomic32 kSpinLockStateReleased = 0;
 const SbAtomic32 kSpinLockStateAcquired = 1;
 
-inline void SpinLockAcquire(SbAtomic32* atomic) {
-  while (SbAtomicAcquire_CompareAndSwap(atomic, kSpinLockStateReleased,
-                                        kSpinLockStateAcquired) ==
-         kSpinLockStateAcquired) {
-    SbThreadYield();
-  }
-}
-
-inline void SpinLockRelease(SbAtomic32* atomic) {
-  SbAtomicRelease_Store(atomic, kSpinLockStateReleased);
-}
+void SpinLockAcquire(SbAtomic32* atomic);
+void SpinLockRelease(SbAtomic32* atomic);
 
 class SpinLock {
  public:
-  SpinLock() : atomic_(kSpinLockStateReleased) {}
-  ~SpinLock() {}
-  void Acquire() { SpinLockAcquire(&atomic_); }
-  void Release() { SpinLockRelease(&atomic_); }
+  SpinLock();
+  ~SpinLock();
+  void Acquire();
+  void Release();
 
  private:
   SbAtomic32 atomic_;
@@ -59,13 +45,9 @@ class SpinLock {
 
 class ScopedSpinLock {
  public:
-  explicit ScopedSpinLock(SbAtomic32* atomic) : atomic_(atomic) {
-    SpinLockAcquire(atomic_);
-  }
-  explicit ScopedSpinLock(SpinLock& spin_lock) : atomic_(&spin_lock.atomic_) {
-    SpinLockAcquire(atomic_);
-  }
-  ~ScopedSpinLock() { SpinLockRelease(atomic_); }
+  explicit ScopedSpinLock(SbAtomic32* atomic);
+  explicit ScopedSpinLock(SpinLock& spin_lock);
+  ~ScopedSpinLock();
 
  private:
   SbAtomic32* atomic_;

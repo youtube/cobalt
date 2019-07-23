@@ -181,8 +181,8 @@ void QuicMemoryCacheBackend::AddResponse(QuicStringPiece host,
                                          SpdyHeaderBlock response_headers,
                                          QuicStringPiece response_body) {
   AddResponseImpl(host, path, QuicBackendResponse::REGULAR_RESPONSE,
-                  std::move(response_headers), response_body,
-                  SpdyHeaderBlock());
+                  std::move(response_headers), response_body, SpdyHeaderBlock(),
+                  0);
 }
 
 void QuicMemoryCacheBackend::AddResponse(QuicStringPiece host,
@@ -192,7 +192,7 @@ void QuicMemoryCacheBackend::AddResponse(QuicStringPiece host,
                                          SpdyHeaderBlock response_trailers) {
   AddResponseImpl(host, path, QuicBackendResponse::REGULAR_RESPONSE,
                   std::move(response_headers), response_body,
-                  std::move(response_trailers));
+                  std::move(response_trailers), 0);
 }
 
 void QuicMemoryCacheBackend::AddSpecialResponse(
@@ -200,7 +200,7 @@ void QuicMemoryCacheBackend::AddSpecialResponse(
     QuicStringPiece path,
     SpecialResponseType response_type) {
   AddResponseImpl(host, path, response_type, SpdyHeaderBlock(), "",
-                  SpdyHeaderBlock());
+                  SpdyHeaderBlock(), 0);
 }
 
 void QuicMemoryCacheBackend::AddSpecialResponse(
@@ -210,7 +210,18 @@ void QuicMemoryCacheBackend::AddSpecialResponse(
     QuicStringPiece response_body,
     SpecialResponseType response_type) {
   AddResponseImpl(host, path, response_type, std::move(response_headers),
-                  response_body, SpdyHeaderBlock());
+                  response_body, SpdyHeaderBlock(), 0);
+}
+
+void QuicMemoryCacheBackend::AddStopSendingResponse(
+    QuicStringPiece host,
+    QuicStringPiece path,
+    spdy::SpdyHeaderBlock response_headers,
+    QuicStringPiece response_body,
+    uint16_t stop_sending_code) {
+  AddResponseImpl(host, path, SpecialResponseType::STOP_SENDING,
+                  std::move(response_headers), response_body, SpdyHeaderBlock(),
+                  stop_sending_code);
 }
 
 QuicMemoryCacheBackend::QuicMemoryCacheBackend() : cache_initialized_(false) {}
@@ -315,13 +326,13 @@ QuicMemoryCacheBackend::~QuicMemoryCacheBackend() {
   }
 }
 
-void QuicMemoryCacheBackend::AddResponseImpl(
-    QuicStringPiece host,
-    QuicStringPiece path,
-    SpecialResponseType response_type,
-    SpdyHeaderBlock response_headers,
-    QuicStringPiece response_body,
-    SpdyHeaderBlock response_trailers) {
+void QuicMemoryCacheBackend::AddResponseImpl(QuicStringPiece host,
+                                             QuicStringPiece path,
+                                             SpecialResponseType response_type,
+                                             SpdyHeaderBlock response_headers,
+                                             QuicStringPiece response_body,
+                                             SpdyHeaderBlock response_trailers,
+                                             uint16_t stop_sending_code) {
   QuicWriterMutexLock lock(&response_mutex_);
 
   DCHECK(!host.empty()) << "Host must be populated, e.g. \"www.google.com\"";
@@ -335,6 +346,7 @@ void QuicMemoryCacheBackend::AddResponseImpl(
   new_response->set_headers(std::move(response_headers));
   new_response->set_body(response_body);
   new_response->set_trailers(std::move(response_trailers));
+  new_response->set_stop_sending_code(stop_sending_code);
   QUIC_DVLOG(1) << "Add response with key " << key;
   responses_[key] = std::move(new_response);
 }

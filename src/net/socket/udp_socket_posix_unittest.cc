@@ -232,7 +232,7 @@ class UDPSocketPosixTest : public TestWithScopedTaskEnvironment {
   DatagramBuffer* buffer_ptrs_[kNumMsgs];
   CompletionRepeatingCallback write_callback_;
 #if HAVE_SENDMMSG
-  struct iovec msg_iov_[kNumMsgs];
+  struct IOVEC msg_iov_[kNumMsgs];
   struct mmsghdr msgvec_[kNumMsgs];
 #endif
   base::WeakPtrFactory<UDPSocketPosixTest> weak_factory_;

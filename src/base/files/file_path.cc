@@ -9,7 +9,7 @@
 
 #include "starboard/types.h"
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 #include "base/logging.h"
 #include "base/macros.h"

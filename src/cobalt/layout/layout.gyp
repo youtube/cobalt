@@ -40,6 +40,14 @@
         'box_generator.h',
         'container_box.cc',
         'container_box.h',
+        'flex_container_box.cc',
+        'flex_container_box.h',
+        'flex_formatting_context.cc',
+        'flex_formatting_context.h',
+        'flex_item.cc',
+        'flex_item.h',
+        'flex_line.cc',
+        'flex_line.h',
         'letterboxed_image.cc',
         'letterboxed_image.h',
         'formatting_context.h',
@@ -101,11 +109,6 @@
       # include generated headers.
       'export_dependent_settings': [
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
-      ],
-      'conditions': [
-        ['cobalt_enable_lib == 1', {
-          'defines' : ['FORCE_VIDEO_EXTERNAL_MESH'],
-        }],
       ],
     },
 

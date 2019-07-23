@@ -18,6 +18,7 @@
 #include <memory>
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/extension/graphics.h"
 #include "cobalt/math/size.h"
 #include "cobalt/renderer/backend/render_target.h"
 
@@ -35,7 +36,7 @@ class GraphicsSystem;
 // associated with a render target on which all rendering output will appear.
 class GraphicsContext {
  public:
-  explicit GraphicsContext(GraphicsSystem* system) : system_(system) {}
+  explicit GraphicsContext(GraphicsSystem* system);
   virtual ~GraphicsContext() {}
 
   GraphicsSystem* system() const { return system_; }
@@ -75,16 +76,19 @@ class GraphicsContext {
   // Waits until all drawing is finished.
   virtual void Finish() = 0;
 
-  // Get the minimum number of frames that should be rendered per second. This
-  // value can be dynamic and must be queried periodically. This can be used
-  // to force the rasterizer to present a new frame even if nothing has changed
-  // visually. Due to the imprecision of thread scheduling, it may be necessary
-  // to specify a higher minimum fps to ensure frames aren't skipped when the
-  // throttling logic is executed a little too early.
-  virtual float GetMinimumFramesPerSecond() = 0;
+  // Get the maximum time between rendered frames. This value can be dynamic
+  // and is queried periodically. This can be used to force the rasterizer to
+  // present a new frame even if nothing has changed visually. Due to the
+  // imprecision of thread scheduling, it may be necessary to specify a lower
+  // interval time to ensure frames aren't skipped when the throttling logic
+  // is executed a little too early. Return a negative number if frames should
+  // only be presented when something changes.
+  virtual float GetMaximumFrameIntervalInMilliseconds();
 
  private:
   GraphicsSystem* system_;
+
+  const CobaltExtensionGraphicsApi* graphics_extension_;
 };
 
 }  // namespace backend

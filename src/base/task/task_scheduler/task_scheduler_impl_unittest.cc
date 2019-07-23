@@ -238,19 +238,17 @@ class TaskSchedulerImplTest
     scheduler_worker_observer_ = scheduler_worker_observer;
   }
 
-  void StartTaskScheduler() {
-    constexpr TimeDelta kSuggestedReclaimTime = TimeDelta::FromSeconds(30);
+  void StartTaskScheduler(TimeDelta reclaim_time = TimeDelta::FromSeconds(30)) {
     constexpr int kMaxNumBackgroundThreads = 1;
     constexpr int kMaxNumBackgroundBlockingThreads = 3;
     constexpr int kMaxNumForegroundThreads = 4;
     constexpr int kMaxNumForegroundBlockingThreads = 12;
 
-    scheduler_.Start(
-        {{kMaxNumBackgroundThreads, kSuggestedReclaimTime},
-         {kMaxNumBackgroundBlockingThreads, kSuggestedReclaimTime},
-         {kMaxNumForegroundThreads, kSuggestedReclaimTime},
-         {kMaxNumForegroundBlockingThreads, kSuggestedReclaimTime}},
-        scheduler_worker_observer_);
+    scheduler_.Start({{kMaxNumBackgroundThreads, reclaim_time},
+                      {kMaxNumBackgroundBlockingThreads, reclaim_time},
+                      {kMaxNumForegroundThreads, reclaim_time},
+                      {kMaxNumForegroundBlockingThreads, reclaim_time}},
+                     scheduler_worker_observer_);
   }
 
   void TearDown() override {
@@ -778,33 +776,29 @@ TEST_F(TaskSchedulerImplTest, MAYBE_IdentifiableStacks) {
 }
 #endif  // STARBOARD
 
-// This is a flaky test. The scheduler workers with SHARED thread mode will
-// be joined on exit but those with DEDICATED thread mode will only have its
-// exit conditional event signaled and therefore will exit
-// asynchronously and this test does not have any logic to ensure that
-// all the scheduler workers running on dedicated threads exit before
-// the test finishes.
-#if !defined(STARBOARD)
 TEST_F(TaskSchedulerImplTest, SchedulerWorkerObserver) {
   testing::StrictMock<test::MockSchedulerWorkerObserver> observer;
   set_scheduler_worker_observer(&observer);
 
-  // A worker should be created for each pool. After that, 8 threads should be
-  // created for single-threaded work (16 on Windows).
+  // A worker should be created for each pool. After that, 4 threads should be
+  // created for each SingleThreadTaskRunnerThreadMode (8 on Windows).
   const int kExpectedNumPoolWorkers =
       CanUseBackgroundPriorityForSchedulerWorker() ? 4 : 2;
 #if defined(OS_WIN)
-  const int kExpectedNumSingleThreadedWorkers = 16;
+  const int kExpectedNumSingleThreadedWorkersPerMode = 8;
 #else
-  const int kExpectedNumSingleThreadedWorkers = 8;
+  const int kExpectedNumSingleThreadedWorkersPerMode = 4;
 #endif
-  const int kExpectedNumWorkers =
-      kExpectedNumPoolWorkers + kExpectedNumSingleThreadedWorkers;
+  constexpr int kNumSingleThreadTaskRunnerThreadModes = 2;
 
   EXPECT_CALL(observer, OnSchedulerWorkerMainEntry())
-      .Times(kExpectedNumWorkers);
+      .Times(kExpectedNumPoolWorkers +
+             kNumSingleThreadTaskRunnerThreadModes *
+                 kExpectedNumSingleThreadedWorkersPerMode);
 
-  StartTaskScheduler();
+  // Infinite detach time to prevent workers from invoking
+  // OnSchedulerWorkerMainExit() earlier than expected.
+  StartTaskScheduler(TimeDelta::Max());
 
   std::vector<scoped_refptr<SingleThreadTaskRunner>> task_runners;
 
@@ -861,14 +855,19 @@ TEST_F(TaskSchedulerImplTest, SchedulerWorkerObserver) {
   for (auto& task_runner : task_runners)
     task_runner->PostTask(FROM_HERE, DoNothing());
 
-  EXPECT_CALL(observer, OnSchedulerWorkerMainExit()).Times(kExpectedNumWorkers);
-
-  // Allow single-threaded workers to be released.
+  // Release single-threaded workers. This should cause dedicated workers to
+  // invoke OnSchedulerWorkerMainExit().
+  observer.AllowCallsOnMainExit(kExpectedNumSingleThreadedWorkersPerMode);
   task_runners.clear();
+  observer.WaitCallsOnMainExit();
 
+  // Join all remaining workers. This should cause shared single-threaded
+  // workers and pool workers to invoke OnSchedulerWorkerMainExit().
+  observer.AllowCallsOnMainExit(kExpectedNumPoolWorkers +
+                                kExpectedNumSingleThreadedWorkersPerMode);
   TearDown();
+  observer.WaitCallsOnMainExit();
 }
-#endif
 
 }  // namespace internal
 }  // namespace base

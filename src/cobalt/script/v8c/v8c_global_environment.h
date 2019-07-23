@@ -155,7 +155,7 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
   // |v8::Isolate|.
   static const int kIsolateDataIndex = 1;
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   // Flag indicating when the destructor is called.
   bool destructing_ = false;
   v8::Isolate* isolate_;

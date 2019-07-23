@@ -443,6 +443,7 @@ LoadElimination::AbstractMaps const* LoadElimination::AbstractMaps::Extend(
 }
 
 void LoadElimination::AbstractMaps::Print() const {
+#ifndef V8_OS_STARBOARD
   for (auto pair : info_for_node_) {
     PrintF("    #%d:%s\n", pair.first->id(), pair.first->op()->mnemonic());
     OFStream os(stdout);
@@ -451,6 +452,7 @@ void LoadElimination::AbstractMaps::Print() const {
       os << "     - " << Brief(*maps[i]) << "\n";
     }
   }
+#endif
 }
 
 bool LoadElimination::AbstractState::Equals(AbstractState const* that) const {

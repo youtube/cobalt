@@ -19,6 +19,7 @@
 #include <string>
 
 #include "starboard/player.h"
+#include "starboard/shared/internal_only.h"
 
 namespace starboard {
 namespace shared {

@@ -33,9 +33,9 @@ ResourceContext::ResourceContext(EGLDisplay display, EGLConfig config)
   EGLint null_surface_attrib_list[] = {
       EGL_WIDTH, 1, EGL_HEIGHT, 1, EGL_NONE,
   };
-  null_surface_ =
-      eglCreatePbufferSurface(display, config, null_surface_attrib_list);
-  CHECK_EQ(EGL_SUCCESS, eglGetError());
+  null_surface_ = EGL_CALL_SIMPLE(
+      eglCreatePbufferSurface(display, config, null_surface_attrib_list));
+  CHECK_EQ(EGL_SUCCESS, EGL_CALL_SIMPLE(eglGetError()));
 
   // Start the resource context thread and immediately make the resource context
   // current on that thread, so that subsequent calls to

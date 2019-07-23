@@ -14,7 +14,7 @@
 
 #include "cobalt/ui_navigation/interface.h"
 
-#include "starboard/spin_lock.h"
+#include "starboard/common/spin_lock.h"
 
 namespace cobalt {
 namespace ui_navigation {
@@ -32,8 +32,8 @@ struct ItemImpl {
 };
 
 NativeItem CreateItem(NativeItemType type,
-                       const NativeCallbacks* callbacks,
-                       void* callback_context) {
+                      const NativeCallbacks* callbacks,
+                      void* callback_context) {
   SB_UNREFERENCED_PARAMETER(callbacks);
   SB_UNREFERENCED_PARAMETER(callback_context);
   return reinterpret_cast<NativeItem>(new ItemImpl(type));
@@ -58,13 +58,12 @@ void SetItemSize(NativeItem item, float width, float height) {
   SB_UNREFERENCED_PARAMETER(height);
 }
 
-void SetItemPosition(NativeItem item, float x, float y) {
+void SetItemTransform(NativeItem item, const NativeMatrix2x3* transform) {
   SB_UNREFERENCED_PARAMETER(item);
-  SB_UNREFERENCED_PARAMETER(x);
-  SB_UNREFERENCED_PARAMETER(y);
+  SB_UNREFERENCED_PARAMETER(transform);
 }
 
-bool GetItemLocalTransform(NativeItem item, NativeTransform* out_transform) {
+bool GetItemFocusTransform(NativeItem item, NativeMatrix4* out_transform) {
   SB_UNREFERENCED_PARAMETER(item);
   SB_UNREFERENCED_PARAMETER(out_transform);
   return false;
@@ -118,8 +117,8 @@ NativeInterface InitializeInterface() {
   interface.set_focus = &SetFocus;
   interface.set_item_enabled = &SetItemEnabled;
   interface.set_item_size = &SetItemSize;
-  interface.set_item_position = &SetItemPosition;
-  interface.get_item_local_transform = &GetItemLocalTransform;
+  interface.set_item_transform = &SetItemTransform;
+  interface.get_item_focus_transform = &GetItemFocusTransform;
   interface.get_item_focus_vector = &GetItemFocusVector;
   interface.set_item_container_window = &SetItemContainerWindow;
   interface.set_item_container_item = &SetItemContainerItem;

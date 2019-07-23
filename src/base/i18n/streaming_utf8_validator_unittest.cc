@@ -32,8 +32,8 @@
 #include "base/synchronization/lock.h"
 #include "base/task/post_task.h"
 #include "base/task/task_scheduler/task_scheduler.h"
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 #include "starboard/types.h"
 #include "third_party/icu/source/common/unicode/utf8.h"
 

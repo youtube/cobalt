@@ -16,8 +16,10 @@
 
 #include <GLES2/gl2.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
+#include "starboard/shared/blittergles/blitter_context.h"
 #include "starboard/shared/blittergles/blitter_internal.h"
+#include "starboard/shared/blittergles/color_shader_program.h"
 #include "starboard/shared/gles/gl_call.h"
 
 bool SbBlitterFillRect(SbBlitterContext context, SbBlitterRect rect) {
@@ -34,27 +36,13 @@ bool SbBlitterFillRect(SbBlitterContext context, SbBlitterRect rect) {
     return false;
   }
 
-  starboard::shared::blittergles::ScopedCurrentContext scoped_current_context(
-      context);
+  SbBlitterContextPrivate::ScopedCurrentContext scoped_current_context(context);
   if (scoped_current_context.InitializationError()) {
     return false;
   }
-
-  GL_CALL(glEnable(GL_SCISSOR_TEST));
-
-  // SbBlitterRect's x, y are its upper left corner in a coord plane with (0,0)
-  // at top left. Here, translate to GL's coord plane of (0,0) at bottom left,
-  // and give glScissor() the (x,y) of the rectangle's bottom left corner.
-  GL_CALL(glScissor(
-      rect.x, context->current_render_target->height - rect.y - rect.height,
-      rect.width, rect.height));
-  const float kColorMapper = 255.0;
-  GL_CALL(
-      glClearColor(SbBlitterRFromColor(context->current_color) / kColorMapper,
-                   SbBlitterGFromColor(context->current_color) / kColorMapper,
-                   SbBlitterBFromColor(context->current_color) / kColorMapper,
-                   SbBlitterAFromColor(context->current_color) / kColorMapper));
-  GL_CALL(glClear(GL_COLOR_BUFFER_BIT));
-
-  return true;
+  context->PrepareDrawState();
+  const starboard::shared::blittergles::ColorShaderProgram&
+      color_shader_program = context->GetColorShaderProgram();
+  return color_shader_program.Draw(context->current_render_target,
+                                   context->current_rgba, rect);
 }

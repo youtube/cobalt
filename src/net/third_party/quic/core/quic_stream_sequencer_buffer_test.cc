@@ -5,12 +5,11 @@
 #include "net/third_party/quic/core/quic_stream_sequencer_buffer.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <utility>
 
-#include "base/macros.h"
-#include "net/test/gtest_util.h"
 #include "net/third_party/quic/platform/api/quic_logging.h"
 #include "net/third_party/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quic/platform/api/quic_str_cat.h"
@@ -18,13 +17,13 @@
 #include "net/third_party/quic/platform/api/quic_test.h"
 #include "net/third_party/quic/test_tools/quic_stream_sequencer_buffer_peer.h"
 #include "net/third_party/quic/test_tools/quic_test_utils.h"
-#include "testing/gmock_mutant.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace quic {
 
 namespace test {
 
-char GetCharFromIOVecs(size_t offset, iovec iov[], size_t count) {
+char GetCharFromIOVecs(size_t offset, IOVEC iov[], size_t count) {
   size_t start_offset = 0;
   for (size_t i = 0; i < count; i++) {
     if (iov[i].iov_len == 0) {
@@ -38,7 +37,7 @@ char GetCharFromIOVecs(size_t offset, iovec iov[], size_t count) {
     start_offset += iov[i].iov_len;
   }
   LOG(ERROR) << "Could not locate char at offset " << offset << " in " << count
-             << " iovecs";
+             << " IOVECs";
   for (size_t i = 0; i < count; ++i) {
     LOG(ERROR) << "  iov[" << i << "].iov_len = " << iov[i].iov_len;
   }
@@ -128,6 +127,31 @@ TEST_F(QuicStreamSequencerBufferTest, OnStreamDataWithinBlock) {
   EXPECT_EQ(1824u, helper_->bytes_received().begin()->max());
   EXPECT_TRUE(helper_->CheckBufferInvariants());
   EXPECT_TRUE(helper_->IsBufferAllocated());
+}
+
+TEST_F(QuicStreamSequencerBufferTest, Move) {
+  EXPECT_FALSE(helper_->IsBufferAllocated());
+  QuicString source(1024, 'a');
+  size_t written;
+  EXPECT_EQ(QUIC_NO_ERROR,
+            buffer_->OnStreamData(800, source, &written, &error_details_));
+  BufferBlock* block_ptr = helper_->GetBlock(0);
+  for (size_t i = 0; i < source.size(); ++i) {
+    ASSERT_EQ('a', block_ptr->buffer[helper_->GetInBlockOffset(800) + i]);
+  }
+
+  QuicStreamSequencerBuffer buffer2(std::move(*buffer_));
+  QuicStreamSequencerBufferPeer helper2(&buffer2);
+
+  EXPECT_FALSE(helper_->IsBufferAllocated());
+
+  EXPECT_EQ(2, helper2.IntervalSize());
+  EXPECT_EQ(0u, helper2.ReadableBytes());
+  EXPECT_EQ(1u, helper2.bytes_received().Size());
+  EXPECT_EQ(800u, helper2.bytes_received().begin()->min());
+  EXPECT_EQ(1824u, helper2.bytes_received().begin()->max());
+  EXPECT_TRUE(helper2.CheckBufferInvariants());
+  EXPECT_TRUE(helper2.IsBufferAllocated());
 }
 
 TEST_F(QuicStreamSequencerBufferTest, OnStreamDataInvalidSource) {
@@ -293,11 +317,11 @@ TEST_F(QuicStreamSequencerBufferTest, Readv100Bytes) {
   // Write something into [0, 100).
   buffer_->OnStreamData(0, source, &written, &error_details_);
   EXPECT_TRUE(buffer_->HasBytesToRead());
-  // Read into a iovec array with total capacity of 120 bytes.
+  // Read into a IOVEC array with total capacity of 120 bytes.
   char dest[120];
-  iovec iovecs[3]{iovec{dest, 40}, iovec{dest + 40, 40}, iovec{dest + 80, 40}};
+  IOVEC IOVECs[3]{IOVEC{dest, 40}, IOVEC{dest + 40, 40}, IOVEC{dest + 80, 40}};
   size_t read;
-  EXPECT_EQ(QUIC_NO_ERROR, buffer_->Readv(iovecs, 3, &read, &error_details_));
+  EXPECT_EQ(QUIC_NO_ERROR, buffer_->Readv(IOVECs, 3, &read, &error_details_));
   QUIC_LOG(ERROR) << error_details_;
   EXPECT_EQ(100u, read);
   EXPECT_EQ(100u, buffer_->BytesConsumed());
@@ -317,9 +341,9 @@ TEST_F(QuicStreamSequencerBufferTest, ReadvAcrossBlocks) {
   char dest[512];
   while (helper_->ReadableBytes()) {
     std::fill(dest, dest + 512, 0);
-    iovec iovecs[2]{iovec{dest, 256}, iovec{dest + 256, 256}};
+    IOVEC IOVECs[2]{IOVEC{dest, 256}, IOVEC{dest + 256, 256}};
     size_t read;
-    EXPECT_EQ(QUIC_NO_ERROR, buffer_->Readv(iovecs, 2, &read, &error_details_));
+    EXPECT_EQ(QUIC_NO_ERROR, buffer_->Readv(IOVECs, 2, &read, &error_details_));
   }
   // The last read only reads the rest 50 bytes in 2nd block.
   EXPECT_EQ(QuicString(50, 'a'), QuicString(dest, 50));
@@ -336,7 +360,7 @@ TEST_F(QuicStreamSequencerBufferTest, ClearAfterRead) {
   buffer_->OnStreamData(0, source, &written, &error_details_);
   // Read first 512 bytes from buffer to make space at the beginning.
   char dest[512]{0};
-  const iovec iov{dest, 512};
+  const IOVEC iov{dest, 512};
   size_t read;
   EXPECT_EQ(QUIC_NO_ERROR, buffer_->Readv(&iov, 1, &read, &error_details_));
   // Clear() should make buffer empty while preserving BytesConsumed()
@@ -353,7 +377,7 @@ TEST_F(QuicStreamSequencerBufferTest,
   buffer_->OnStreamData(0, source, &written, &error_details_);
   // Read first 512 bytes from buffer to make space at the beginning.
   char dest[512]{0};
-  const iovec iov{dest, 512};
+  const IOVEC iov{dest, 512};
   size_t read;
   EXPECT_EQ(QUIC_NO_ERROR, buffer_->Readv(&iov, 1, &read, &error_details_));
   EXPECT_EQ(source.size(), written);
@@ -375,7 +399,7 @@ TEST_F(QuicStreamSequencerBufferTest,
   buffer_->OnStreamData(0, source, &written, &error_details_);
   // Read first 512 bytes from buffer to make space at the beginning.
   char dest[512]{0};
-  const iovec iov{dest, 512};
+  const IOVEC iov{dest, 512};
   size_t read;
   EXPECT_EQ(QUIC_NO_ERROR, buffer_->Readv(&iov, 1, &read, &error_details_));
 
@@ -395,7 +419,7 @@ TEST_F(QuicStreamSequencerBufferTest, ReadvAcrossLastBlock) {
   size_t written;
   buffer_->OnStreamData(0, source, &written, &error_details_);
   char dest[512]{0};
-  const iovec iov{dest, 512};
+  const IOVEC iov{dest, 512};
   size_t read;
   EXPECT_EQ(QUIC_NO_ERROR, buffer_->Readv(&iov, 1, &read, &error_details_));
   source = QuicString(256, 'b');
@@ -405,7 +429,7 @@ TEST_F(QuicStreamSequencerBufferTest, ReadvAcrossLastBlock) {
   // Read all data out.
   std::unique_ptr<char[]> dest1{new char[max_capacity_bytes_]};
   dest1[0] = 0;
-  const iovec iov1{dest1.get(), max_capacity_bytes_};
+  const IOVEC iov1{dest1.get(), max_capacity_bytes_};
   EXPECT_EQ(QUIC_NO_ERROR, buffer_->Readv(&iov1, 1, &read, &error_details_));
   EXPECT_EQ(max_capacity_bytes_ - 512 + 256, read);
   EXPECT_EQ(max_capacity_bytes_ + 256, buffer_->BytesConsumed());
@@ -415,7 +439,7 @@ TEST_F(QuicStreamSequencerBufferTest, ReadvAcrossLastBlock) {
 
 TEST_F(QuicStreamSequencerBufferTest, ReadvEmpty) {
   char dest[512]{0};
-  iovec iov{dest, 512};
+  IOVEC iov{dest, 512};
   size_t read;
   EXPECT_EQ(QUIC_NO_ERROR, buffer_->Readv(&iov, 1, &read, &error_details_));
   EXPECT_EQ(0u, read);
@@ -423,7 +447,7 @@ TEST_F(QuicStreamSequencerBufferTest, ReadvEmpty) {
 }
 
 TEST_F(QuicStreamSequencerBufferTest, GetReadableRegionsEmpty) {
-  iovec iovs[2];
+  IOVEC iovs[2];
   int iov_count = buffer_->GetReadableRegions(iovs, 2);
   EXPECT_EQ(0, iov_count);
   EXPECT_EQ(nullptr, iovs[iov_count].iov_base);
@@ -438,9 +462,9 @@ TEST_F(QuicStreamSequencerBufferTest, ReleaseWholeBuffer) {
   buffer_->OnStreamData(0, source, &written, &error_details_);
   EXPECT_TRUE(buffer_->HasBytesToRead());
   char dest[120];
-  iovec iovecs[3]{iovec{dest, 40}, iovec{dest + 40, 40}, iovec{dest + 80, 40}};
+  IOVEC IOVECs[3]{IOVEC{dest, 40}, IOVEC{dest + 40, 40}, IOVEC{dest + 80, 40}};
   size_t read;
-  EXPECT_EQ(QUIC_NO_ERROR, buffer_->Readv(iovecs, 3, &read, &error_details_));
+  EXPECT_EQ(QUIC_NO_ERROR, buffer_->Readv(IOVECs, 3, &read, &error_details_));
   EXPECT_EQ(100u, read);
   EXPECT_EQ(100u, buffer_->BytesConsumed());
   EXPECT_TRUE(helper_->CheckBufferInvariants());
@@ -455,7 +479,7 @@ TEST_F(QuicStreamSequencerBufferTest, GetReadableRegionsBlockedByGap) {
   size_t written;
   buffer_->OnStreamData(1, source, &written, &error_details_);
   // Try to get readable regions, but none is there.
-  iovec iovs[2];
+  IOVEC iovs[2];
   int iov_count = buffer_->GetReadableRegions(iovs, 2);
   EXPECT_EQ(0, iov_count);
 }
@@ -469,7 +493,7 @@ TEST_F(QuicStreamSequencerBufferTest, GetReadableRegionsTillEndOfBlock) {
   char dest[256];
   helper_->Read(dest, 256);
   // Get readable region from [256, 1024)
-  iovec iovs[2];
+  IOVEC iovs[2];
   int iov_count = buffer_->GetReadableRegions(iovs, 2);
   EXPECT_EQ(1, iov_count);
   EXPECT_EQ(QuicString(kBlockSizeBytes - 256, 'a'),
@@ -485,7 +509,7 @@ TEST_F(QuicStreamSequencerBufferTest, GetReadableRegionsWithinOneBlock) {
   char dest[256];
   helper_->Read(dest, 256);
   // Get readable region from [256, 1024)
-  iovec iovs[2];
+  IOVEC iovs[2];
   int iov_count = buffer_->GetReadableRegions(iovs, 2);
   EXPECT_EQ(1, iov_count);
   EXPECT_EQ(QuicString(1024 - 256, 'a'),
@@ -502,7 +526,7 @@ TEST_F(QuicStreamSequencerBufferTest,
   char dest[1024];
   helper_->Read(dest, 1024);
 
-  iovec iovs[4];
+  IOVEC iovs[4];
   int iov_count = buffer_->GetReadableRegions(iovs, 4);
   EXPECT_EQ(3, iov_count);
   EXPECT_EQ(kBlockSizeBytes - 1024, iovs[0].iov_len);
@@ -523,14 +547,14 @@ TEST_F(QuicStreamSequencerBufferTest,
   source = QuicString(1024 + 512, 'b');
   buffer_->OnStreamData(2.5 * kBlockSizeBytes - 1024, source, &written,
                         &error_details_);
-  // Use short iovec's.
-  iovec iovs[2];
+  // Use short IOVEC's.
+  IOVEC iovs[2];
   int iov_count = buffer_->GetReadableRegions(iovs, 2);
   EXPECT_EQ(2, iov_count);
   EXPECT_EQ(kBlockSizeBytes - 1024, iovs[0].iov_len);
   EXPECT_EQ(kBlockSizeBytes, iovs[1].iov_len);
-  // Use long iovec's and wrap the end of buffer.
-  iovec iovs1[5];
+  // Use long IOVEC's and wrap the end of buffer.
+  IOVEC iovs1[5];
   EXPECT_EQ(4, buffer_->GetReadableRegions(iovs1, 5));
   EXPECT_EQ(0.5 * kBlockSizeBytes, iovs1[2].iov_len);
   EXPECT_EQ(512u, iovs1[3].iov_len);
@@ -540,7 +564,7 @@ TEST_F(QuicStreamSequencerBufferTest,
 }
 
 TEST_F(QuicStreamSequencerBufferTest, GetReadableRegionEmpty) {
-  iovec iov;
+  IOVEC iov;
   EXPECT_FALSE(buffer_->GetReadableRegion(&iov));
   EXPECT_EQ(nullptr, iov.iov_base);
   EXPECT_EQ(0u, iov.iov_len);
@@ -553,7 +577,7 @@ TEST_F(QuicStreamSequencerBufferTest, GetReadableRegionBeforeGap) {
   buffer_->OnStreamData(1, source, &written, &error_details_);
   // GetReadableRegion should return false because range  [0,1) hasn't been
   // filled yet.
-  iovec iov;
+  IOVEC iov;
   EXPECT_FALSE(buffer_->GetReadableRegion(&iov));
 }
 
@@ -565,7 +589,7 @@ TEST_F(QuicStreamSequencerBufferTest, GetReadableRegionTillEndOfBlock) {
   char dest[256];
   helper_->Read(dest, 256);
   // Get readable region from [256, 1024)
-  iovec iov;
+  IOVEC iov;
   EXPECT_TRUE(buffer_->GetReadableRegion(&iov));
   EXPECT_EQ(
       QuicString(kBlockSizeBytes - 256, 'a'),
@@ -580,11 +604,130 @@ TEST_F(QuicStreamSequencerBufferTest, GetReadableRegionTillGap) {
   char dest[256];
   helper_->Read(dest, 256);
   // Get readable region from [256, 1023)
-  iovec iov;
+  IOVEC iov;
   EXPECT_TRUE(buffer_->GetReadableRegion(&iov));
   EXPECT_EQ(
       QuicString(kBlockSizeBytes - 1 - 256, 'a'),
       QuicString(reinterpret_cast<const char*>(iov.iov_base), iov.iov_len));
+}
+
+TEST_F(QuicStreamSequencerBufferTest, PrefetchEmptyBuffer) {
+  IOVEC iov;
+  EXPECT_FALSE(buffer_->PrefetchNextRegion(&iov));
+}
+
+TEST_F(QuicStreamSequencerBufferTest, PrefetchInitialBuffer) {
+  QuicString source(kBlockSizeBytes, 'a');
+  size_t written;
+  buffer_->OnStreamData(0, source, &written, &error_details_);
+  IOVEC iov;
+  EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
+  EXPECT_EQ(source, QuicString(reinterpret_cast<const char*>(iov.iov_base),
+                               iov.iov_len));
+}
+
+TEST_F(QuicStreamSequencerBufferTest, PrefetchBufferWithOffset) {
+  QuicString source(1024, 'a');
+  size_t written;
+  buffer_->OnStreamData(0, source, &written, &error_details_);
+  IOVEC iov;
+  EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
+  EXPECT_EQ(source, QuicString(reinterpret_cast<const char*>(iov.iov_base),
+                               iov.iov_len));
+  // The second frame goes into the same bucket.
+  QuicString source2(800, 'a');
+  buffer_->OnStreamData(1024, source2, &written, &error_details_);
+  EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
+  EXPECT_EQ(source2, QuicString(reinterpret_cast<const char*>(iov.iov_base),
+                                iov.iov_len));
+}
+
+TEST_F(QuicStreamSequencerBufferTest, PrefetchBufferWithMultipleBucket) {
+  const size_t data_size = 1024;
+  QuicString source(data_size, 'a');
+  size_t written;
+  buffer_->OnStreamData(0, source, &written, &error_details_);
+  IOVEC iov;
+  EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
+  EXPECT_EQ(source, QuicString(reinterpret_cast<const char*>(iov.iov_base),
+                               iov.iov_len));
+  QuicString source2(kBlockSizeBytes, 'b');
+  buffer_->OnStreamData(data_size, source2, &written, &error_details_);
+  EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
+  EXPECT_EQ(
+      QuicString(kBlockSizeBytes - data_size, 'b'),
+      QuicString(reinterpret_cast<const char*>(iov.iov_base), iov.iov_len));
+  EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
+  EXPECT_EQ(
+      QuicString(data_size, 'b'),
+      QuicString(reinterpret_cast<const char*>(iov.iov_base), iov.iov_len));
+}
+
+TEST_F(QuicStreamSequencerBufferTest, PrefetchBufferAfterBlockRetired) {
+  QuicString source(kBlockSizeBytes, 'a');
+  size_t written;
+  buffer_->OnStreamData(0, source, &written, &error_details_);
+  IOVEC iov;
+  EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
+  EXPECT_EQ(source, QuicString(reinterpret_cast<const char*>(iov.iov_base),
+                               iov.iov_len));
+  // Read the whole block so it's retired.
+  char dest[kBlockSizeBytes];
+  helper_->Read(dest, kBlockSizeBytes);
+
+  QuicString source2(300, 'b');
+  buffer_->OnStreamData(kBlockSizeBytes, source2, &written, &error_details_);
+
+  EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
+  EXPECT_EQ(source2, QuicString(reinterpret_cast<const char*>(iov.iov_base),
+                                iov.iov_len));
+}
+
+TEST_F(QuicStreamSequencerBufferTest, PrefetchContinously) {
+  QuicString source(kBlockSizeBytes, 'a');
+  size_t written;
+  buffer_->OnStreamData(0, source, &written, &error_details_);
+  IOVEC iov;
+  EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
+  EXPECT_EQ(source, QuicString(reinterpret_cast<const char*>(iov.iov_base),
+                               iov.iov_len));
+  QuicString source2(kBlockSizeBytes, 'b');
+  buffer_->OnStreamData(kBlockSizeBytes, source2, &written, &error_details_);
+  EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
+  EXPECT_EQ(source2, QuicString(reinterpret_cast<const char*>(iov.iov_base),
+                                iov.iov_len));
+}
+
+TEST_F(QuicStreamSequencerBufferTest, ConsumeMoreThanPrefetch) {
+  QuicString source(100, 'a');
+  size_t written;
+  buffer_->OnStreamData(0, source, &written, &error_details_);
+  char dest[30];
+  helper_->Read(dest, 30);
+  IOVEC iov;
+  EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
+  EXPECT_EQ(
+      QuicString(70, 'a'),
+      QuicString(reinterpret_cast<const char*>(iov.iov_base), iov.iov_len));
+  QuicString source2(100, 'b');
+  buffer_->OnStreamData(100, source2, &written, &error_details_);
+  buffer_->MarkConsumed(100);
+  EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
+  EXPECT_EQ(
+      QuicString(70, 'b'),
+      QuicString(reinterpret_cast<const char*>(iov.iov_base), iov.iov_len));
+}
+
+TEST_F(QuicStreamSequencerBufferTest, PrefetchMoreThanBufferHas) {
+  QuicString source(100, 'a');
+  size_t written;
+  buffer_->OnStreamData(0, source, &written, &error_details_);
+  IOVEC iov;
+  EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
+  EXPECT_EQ(
+      QuicString(100, 'a'),
+      QuicString(reinterpret_cast<const char*>(iov.iov_base), iov.iov_len));
+  EXPECT_FALSE(buffer_->PrefetchNextRegion(&iov));
 }
 
 TEST_F(QuicStreamSequencerBufferTest, MarkConsumedInOneBlock) {
@@ -618,7 +761,7 @@ TEST_F(QuicStreamSequencerBufferTest, MarkConsumedNotEnoughBytes) {
   // Try to consume one bytes more than available. Should return false.
   EXPECT_FALSE(buffer_->MarkConsumed(257));
   EXPECT_EQ(256u + 512u, buffer_->BytesConsumed());
-  iovec iov;
+  IOVEC iov;
   EXPECT_TRUE(buffer_->GetReadableRegion(&iov));
   EXPECT_TRUE(helper_->CheckBufferInvariants());
 }
@@ -825,7 +968,7 @@ TEST_F(QuicStreamSequencerBufferRandomIOTest, RandomWriteAndReadv) {
       case 1: {  // readv
         std::unique_ptr<char[][kMaxReadSize]> read_buf{
             new char[kNumReads][kMaxReadSize]};
-        iovec dest_iov[kNumReads];
+        IOVEC dest_iov[kNumReads];
         size_t num_to_read = 0;
         for (size_t i = 0; i < kNumReads; ++i) {
           dest_iov[i].iov_base =
@@ -885,7 +1028,7 @@ TEST_F(QuicStreamSequencerBufferRandomIOTest, RandomWriteAndConsumeInPlace) {
       }
       case 1: {  // GetReadableRegions and then MarkConsumed
         size_t num_read = rng_.RandUint64() % kMaxNumReads + 1;
-        iovec dest_iov[kMaxNumReads];
+        IOVEC dest_iov[kMaxNumReads];
         ASSERT_TRUE(helper_->CheckBufferInvariants());
         size_t actually_num_read =
             buffer_->GetReadableRegions(dest_iov, num_read);

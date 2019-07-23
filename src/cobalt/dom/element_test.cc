@@ -721,5 +721,11 @@ TEST_F(ElementTest, NodeValueAndTextContent) {
   EXPECT_EQ(NULL, root->first_child());
 }
 
+TEST_F(ElementTest, ScrollWidthHeight) {
+  scoped_refptr<Element> root = new Element(document_, base::Token("root"));
+  EXPECT_FLOAT_EQ(root->scroll_width(), 0.0f);
+  EXPECT_FLOAT_EQ(root->scroll_height(), 0.0f);
+}
+
 }  // namespace dom
 }  // namespace cobalt

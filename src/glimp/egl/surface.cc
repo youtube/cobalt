@@ -18,7 +18,7 @@
 
 #include "glimp/egl/error.h"
 #include "glimp/gles/context.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace glimp {
 namespace egl {

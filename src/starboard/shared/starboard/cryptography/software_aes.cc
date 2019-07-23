@@ -62,7 +62,7 @@
 
 #include "starboard/shared/starboard/cryptography/software_aes.h"
 
-#include "starboard/byte_swap.h"
+#include "starboard/common/byte_swap.h"
 #include "starboard/memory.h"
 #include "starboard/types.h"
 

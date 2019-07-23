@@ -14,9 +14,14 @@
 
 #include "starboard/shared/starboard/media/codec_util.h"
 
+#include <algorithm>
+#include <cctype>
+#include <string>
+
 #include "starboard/character.h"
-#include "starboard/log.h"
-#include "starboard/string.h"
+#include "starboard/common/log.h"
+#include "starboard/common/string.h"
+#include "starboard/configuration.h"
 
 namespace starboard {
 namespace shared {
@@ -37,6 +42,535 @@ int hex_to_int(char hex) {
   }
   SB_NOTREACHED();
   return 0;
+}
+
+// Read one digit hex from |str| and store into |output|. Return false if
+// the character is not a digit, return true otherwise.
+template <typename T>
+bool ReadOneDigitHex(const char* str, T* output) {
+  SB_DCHECK(str);
+
+  if (str[0] >= 'A' && str[0] <= 'F') {
+    *output = static_cast<T>((str[0] - 'A' + 10));
+    return true;
+  }
+  if (str[0] >= 'a' && str[0] <= 'f') {
+    *output = static_cast<T>((str[0] - 'a' + 10));
+    return true;
+  }
+
+  if (!SbCharacterIsDigit(str[0])) {
+    return false;
+  }
+
+  *output = static_cast<T>((str[0] - '0'));
+  return true;
+}
+
+// Read multi digit decimal from |str| until the next '.' character or end of
+// string, and store into |output|. Return false if one of the character is not
+// a digit, return true otherwise.
+template <typename T>
+bool ReadDecimalUntilDot(const char* str, T* output) {
+  SB_DCHECK(str);
+
+  *output = 0;
+  while (*str != 0 && *str != '.') {
+    if (!SbCharacterIsDigit(*str)) {
+      return false;
+    }
+    *output = *output * 10 + (*str - '0');
+    ++str;
+  }
+
+  return true;
+}
+
+// Read two digit decimal from |str| and store into |output|. Return false if
+// any character is not a digit, return true otherwise.
+template <typename T>
+bool ReadTwoDigitDecimal(const char* str, T* output) {
+  SB_DCHECK(str);
+
+  if (!SbCharacterIsDigit(str[0]) || !SbCharacterIsDigit(str[1])) {
+    return false;
+  }
+
+  *output = static_cast<T>((str[0] - '0') * 10 + (str[1] - '0'));
+  return true;
+}
+
+// Verify the format against a reference using the following rules:
+// 1. They must have the same size.
+// 2. If reference[i] is a letter, format[i] must contain the *same* letter.
+// 3. If reference[i] is a number, format[i] can contain *any* number.
+// 4. If reference[i] is '.', format[i] must also be '.'.
+// 5. If reference[i] is ?, format[i] can contain *any* character.
+// 6. If |format| is longer than |reference|, then |format[reference_size]| can
+//    not be '.' or digit.
+// For example, both "av01.0.05M.08" and "av01.0.05M.08****" match reference
+// "av01.0.05?.08", but "vp09.0.05M.08" or "vp09.0.05M.08." don't.
+// The function returns true when |format| matches |reference|.
+bool VerifyFormat(const char* format, const char* reference) {
+  auto format_size = SbStringGetLength(format);
+  auto reference_size = SbStringGetLength(reference);
+  if (format_size < reference_size) {
+    return false;
+  }
+  for (size_t i = 0; i < reference_size; ++i) {
+    if (SbCharacterIsDigit(reference[i])) {
+      if (!SbCharacterIsDigit(format[i])) {
+        return false;
+      }
+    } else if (std::isalpha(reference[i])) {
+      if (reference[i] != format[i]) {
+        return false;
+      }
+    } else if (reference[i] == '.') {
+      if (format[i] != '.') {
+        return false;
+      }
+    } else if (reference[i] != '?') {
+      return false;
+    }
+  }
+  if (format_size == reference_size) {
+    return true;
+  }
+  return format[reference_size] != '.' &&
+         !SbCharacterIsDigit(format[reference_size]);
+}
+
+// It works exactly the same as the above function, except that the size of
+// |format| has to be exactly the same as the size of |reference|.
+bool VerifyFormatStrictly(const char* format, const char* reference) {
+  if (SbStringGetLength(format) != SbStringGetLength(reference)) {
+    return false;
+  }
+  return VerifyFormat(format, reference);
+}
+
+// This function parses an av01 codec in the form of "av01.0.05M.08" or
+// "av01.0.04M.10.0.110.09.16.09.0" as
+// specificed by https://aomediacodec.github.io/av1-isobmff/#codecsparam.
+//
+// Note that the spec also supports of different chroma subsamplings but the
+// implementation always assume that it is 4:2:0 and returns false when it
+// isn't.
+bool ParseAv1Info(std::string codec,
+                  int* profile,
+                  int* level,
+                  int* bit_depth,
+                  SbMediaPrimaryId* primary_id,
+                  SbMediaTransferId* transfer_id,
+                  SbMediaMatrixId* matrix_id) {
+  // The codec can only in one of the following formats:
+  //   Full: av01.0.04M.10.0.110.09.16.09.0
+  //   Short: av01.0.05M.08
+  // When short format is used, it is assumed that the omitted parts are
+  // "0.110.01.01.01.0".
+  // All fields are fixed size and leading zero cannot be omitted, so the
+  // expected sizes are known.
+  const char kShortFormReference[] = "av01.0.05M.08";
+  const char kLongFormReference[] = "av01.0.04M.10.0.110.09.16.09.0";
+  const size_t kShortFormSize = SbStringGetLength(kShortFormReference);
+  const size_t kLongFormSize = SbStringGetLength(kLongFormReference);
+
+  // 1. Sanity check the format.
+  if (SbStringCompare(codec.c_str(), "av01.", 5) != 0) {
+    return false;
+  }
+  if (VerifyFormat(codec.c_str(), kLongFormReference)) {
+    codec.resize(kLongFormSize);
+  } else if (VerifyFormat(codec.c_str(), kShortFormReference)) {
+    codec.resize(kShortFormSize);
+  } else {
+    return false;
+  }
+
+  // 2. Parse profile, which can only be 0, 1, or 2.
+  if (codec[5] < '0' || codec[5] > '2') {
+    return false;
+  }
+  *profile = codec[5] - '0';
+
+  // 3. Parse level, which is two digit value from 0 to 23, maps to level 2.0,
+  //    2.1, 2.2, 2.3, 3.0, 3.1, 3.2, 3.3, ..., 7.0, 7.1, 7.2, 7.3.
+  int level_value;
+  if (!ReadTwoDigitDecimal(codec.c_str() + 7, &level_value)) {
+    return false;
+  }
+
+  if (level_value > 23) {
+    return false;
+  }
+  // Level x.y is represented by integer |xy|, for example, 23 means level 2.3.
+  *level = (level_value / 4 + 2) * 10 + (level_value % 4);
+
+  // 4. Parse tier, which can only be 'M' or 'H'
+  if (codec[9] != 'M' && codec[9] != 'H') {
+    return false;
+  }
+
+  // 5. Parse bit depth, which can be value 08, 10, or 12.
+  if (!ReadTwoDigitDecimal(codec.c_str() + 11, bit_depth)) {
+    return false;
+  }
+  if (*bit_depth != 8 && *bit_depth != 10 && *bit_depth != 12) {
+    return false;
+  }
+
+  // 6. Return now if it is a well-formed short form codec string.
+  *primary_id = kSbMediaPrimaryIdBt709;
+  *transfer_id = kSbMediaTransferIdBt709;
+  *matrix_id = kSbMediaMatrixIdBt709;
+
+  if (codec.size() == kShortFormSize) {
+    return true;
+  }
+
+  // 7. Parse monochrome, which can only be 0 or 1.
+  // Note that this value is not returned.
+  if (codec[14] != '0' && codec[14] != '1') {
+    return false;
+  }
+
+  // 8. Parse chroma subsampling, which we only support 110.
+  // Note that this value is not returned.
+  if (SbStringCompare(codec.c_str() + 16, "110", 3) != 0) {
+    return false;
+  }
+
+  // 9. Parse color primaries, which can be 1 to 12, and 22 (EBU Tech. 3213-E).
+  //    Note that 22 is not currently supported by Cobalt.
+  if (!ReadTwoDigitDecimal(codec.c_str() + 20, primary_id)) {
+    return false;
+  }
+  SB_LOG_IF(WARNING, *primary_id == 22)
+      << codec << " uses primary id 22 (EBU Tech. 3213-E)."
+      << " It is rejected because Cobalt doesn't support primary id 22.";
+  if (*primary_id < 1 || *primary_id > 12) {
+    return false;
+  }
+
+  // 10. Parse transfer characteristics, which can be 0 to 18.
+  if (!ReadTwoDigitDecimal(codec.c_str() + 23, transfer_id)) {
+    return false;
+  }
+  if (*transfer_id > 18) {
+    return false;
+  }
+
+  // 11. Parse matrix coefficients, which can be 0 to 14.
+  //     Note that 12, 13, and 14 are not currently supported by Cobalt.
+  if (!ReadTwoDigitDecimal(codec.c_str() + 26, matrix_id)) {
+    return false;
+  }
+  if (*matrix_id > 11) {
+    return false;
+  }
+
+  // 12. Parse color range, which can only be 0 or 1.
+  if (codec[29] != '0' && codec[29] != '1') {
+    return false;
+  }
+
+  // 13. Return
+  return true;
+}
+
+// This function parses an h264 codec in the form of {avc1|avc3}.PPCCLL as
+// specificed by https://tools.ietf.org/html/rfc6381#section-3.3.
+//
+// Note that the leading codec is not necessarily to be "avc1" or "avc3" per
+// spec but this function only parses "avc1" and "avc3".  This function returns
+// false when |codec| doesn't contain a valid codec string.
+bool ParseH264Info(const char* codec, int* profile, int* level) {
+  if (SbStringCompare(codec, "avc1.", 5) != 0 &&
+      SbStringCompare(codec, "avc3.", 5) != 0) {
+    return false;
+  }
+
+  if (SbStringGetLength(codec) != 11 || !SbCharacterIsHexDigit(codec[9]) ||
+      !SbCharacterIsHexDigit(codec[10])) {
+    return false;
+  }
+
+  *profile = hex_to_int(codec[5]) * 16 + hex_to_int(codec[6]);
+  *level = hex_to_int(codec[9]) * 16 + hex_to_int(codec[10]);
+  return true;
+}
+
+// This function parses an h265 codec as specificed by ISO IEC 14496-15 dated
+// 2012 or newer in the Annex E.3.  The codec will be in the form of:
+//   hvc1.PPP.PCPCPCPC.TLLL.CB.CB.CB.CB.CB.CB, where
+// PPP: 0 or 1 byte general_profile_space ('', 'A', 'B', or 'C') +
+//        up to two bytes profile idc.
+// PCPCPCPC: Profile compatibility, up to 32 bits hex, with leading 0 omitted.
+// TLLL: One byte tier ('L' or 'H') + up to three bytes level.
+// CB: Up to 6 constraint bytes, separated by '.'.
+// Note that the above level in decimal = 30 * real level, i.e. 93 means level
+// 3.1, 120 mean level 4.
+// Please see the comment in the code for interactions between the various
+// parts.
+bool ParseH265Info(const char* codec, int* profile, int* level) {
+  if (SbStringCompare(codec, "hev1.", 5) != 0 &&
+      SbStringCompare(codec, "hvc1.", 5) != 0) {
+    return false;
+  }
+
+  codec += 5;
+
+  // Read profile space
+  if (codec[0] == 'A' || codec[0] == 'B' || codec[0] == 'C') {
+    ++codec;
+  }
+
+  if (SbStringGetLength(codec) < 3) {
+    return false;
+  }
+
+  // Read profile
+  int general_profile_idc;
+  if (codec[1] == '.') {
+    if (!ReadDecimalUntilDot(codec, &general_profile_idc)) {
+      return false;
+    }
+    codec += 2;
+  } else if (codec[2] == '.') {
+    if (!ReadDecimalUntilDot(codec, &general_profile_idc)) {
+      return false;
+    }
+    codec += 3;
+  } else {
+    return false;
+  }
+
+  // Read profile compatibility, up to 32 bits hex.
+  const char* dot = SbStringFindCharacter(codec, '.');
+  if (dot == NULL || dot - codec == 0 || dot - codec > 8) {
+    return false;
+  }
+
+  uint32_t general_profile_compatibility_flags = 0;
+  for (int i = 0; i < 9; ++i) {
+    if (codec[0] == '.') {
+      ++codec;
+      break;
+    }
+    uint32_t hex = 0;
+    if (!ReadOneDigitHex(codec, &hex)) {
+      return false;
+    }
+    general_profile_compatibility_flags *= 16;
+    general_profile_compatibility_flags += hex;
+    ++codec;
+  }
+
+  *profile = -1;
+  if (general_profile_idc == 3 || (general_profile_compatibility_flags & 4)) {
+    *profile = 3;
+  }
+  if (general_profile_idc == 2 || (general_profile_compatibility_flags & 2)) {
+    *profile = 2;
+  }
+  if (general_profile_idc == 1 || (general_profile_compatibility_flags & 1)) {
+    *profile = 1;
+  }
+  if (*profile == -1) {
+    return false;
+  }
+
+  // Parse tier
+  if (codec[0] != 'L' && codec[0] != 'H') {
+    return false;
+  }
+  ++codec;
+
+  // Parse level in 2 or 3 digits decimal.
+  if (SbStringGetLength(codec) < 2) {
+    return false;
+  }
+  if (!ReadDecimalUntilDot(codec, level)) {
+    return false;
+  }
+  if (*level % 3 != 0) {
+    return false;
+  }
+  *level /= 3;
+  if (codec[2] == 0 || codec[2] == '.') {
+    codec += 2;
+  } else if (codec[3] == 0 || codec[3] == '.') {
+    codec += 3;
+  } else {
+    return false;
+  }
+
+  // Parse up to 6 constraint flags in the form of ".HH".
+  for (int i = 0; i < 6; ++i) {
+    if (codec[0] == 0) {
+      return true;
+    }
+    if (codec[0] != '.' || !SbCharacterIsHexDigit(codec[1]) ||
+        !SbCharacterIsHexDigit(codec[2])) {
+      return false;
+    }
+    codec += 3;
+  }
+
+  return *codec == 0;
+}
+
+// This function parses an vp09 codec in the form of "vp09.00.41.08" or
+// "vp09.02.10.10.01.09.16.09.01" as specificed by
+// https://www.webmproject.org/vp9/mp4/.  YouTube also uses the long form
+// without the last part (color range), so we also support it.
+//
+// Note that the spec also supports of different chroma subsamplings but the
+// implementation always assume that it is 4:2:0 and returns false when it
+// isn't.
+bool ParseVp09Info(const char* codec,
+                   int* profile,
+                   int* level,
+                   int* bit_depth,
+                   SbMediaPrimaryId* primary_id,
+                   SbMediaTransferId* transfer_id,
+                   SbMediaMatrixId* matrix_id) {
+  // The codec can only in one of the following formats:
+  //   Full: vp09.02.10.10.01.09.16.09.01
+  //   Short: vp09.00.41.08
+  // Note that currently the player also uses the following form:
+  //   Medium: vp09.02.10.10.01.09.16.09
+  // When short format is used, it is assumed that the omitted parts are
+  // "01.01.01.01.00".  When medium format is used, the omitted part is "00".
+  // All fields are fixed size and leading zero cannot be omitted, so the
+  // expected sizes are known.
+  const char kShortFormReference[] = "vp09.00.41.08";
+  const char kMediumFormReference[] = "vp09.02.10.10.01.09.16.09";
+  const char kLongFormReference[] = "vp09.02.10.10.01.09.16.09.01";
+  const size_t kShortFormSize = SbStringGetLength(kShortFormReference);
+  const size_t kMediumFormSize = SbStringGetLength(kMediumFormReference);
+  const size_t kLongFormSize = SbStringGetLength(kLongFormReference);
+
+  // 1. Sanity check the format.
+  if (SbStringCompare(codec, "vp09.", 5) != 0) {
+    return false;
+  }
+  if (!VerifyFormatStrictly(codec, kLongFormReference) &&
+      !VerifyFormatStrictly(codec, kMediumFormReference) &&
+      !VerifyFormatStrictly(codec, kShortFormReference)) {
+    return false;
+  }
+
+  // 2. Parse profile, which can only be 00, 01, 02, or 03.
+  if (!ReadTwoDigitDecimal(codec + 5, profile)) {
+    return false;
+  }
+  if (*profile < 0 || *profile > 3) {
+    return false;
+  }
+
+  // 3. Parse level, which is two digit value in the following list:
+  const int kLevels[] = {10, 11, 20, 21, 30, 31, 40,
+                         41, 50, 51, 52, 60, 61, 62};
+  if (!ReadTwoDigitDecimal(codec + 8, level)) {
+    return false;
+  }
+  auto end = kLevels + SB_ARRAY_SIZE(kLevels);
+  if (std::find(kLevels, end, *level) == end) {
+    return false;
+  }
+
+  // 4. Parse bit depth, which can be value 08, 10, or 12.
+  if (!ReadTwoDigitDecimal(codec + 11, bit_depth)) {
+    return false;
+  }
+  if (*bit_depth != 8 && *bit_depth != 10 && *bit_depth != 12) {
+    return false;
+  }
+
+  // 5. Return now if it is a well-formed short form codec string.
+  *primary_id = kSbMediaPrimaryIdBt709;
+  *transfer_id = kSbMediaTransferIdBt709;
+  *matrix_id = kSbMediaMatrixIdBt709;
+
+  if (SbStringGetLength(codec) == kShortFormSize) {
+    return true;
+  }
+
+  // 6. Parse chroma subsampling, which we only support 01.
+  // Note that this value is not returned.
+  int chroma;
+  if (!ReadTwoDigitDecimal(codec + 14, &chroma) || chroma != 1) {
+    return false;
+  }
+
+  // 7. Parse color primaries, which can be 1 to 12, and 22 (EBU Tech. 3213-E).
+  //    Note that 22 is not currently supported by Cobalt.
+  if (!ReadTwoDigitDecimal(codec + 17, primary_id)) {
+    return false;
+  }
+  if (*primary_id < 1 || *primary_id > 12) {
+    return false;
+  }
+
+  // 8. Parse transfer characteristics, which can be 0 to 18.
+  if (!ReadTwoDigitDecimal(codec + 20, transfer_id)) {
+    return false;
+  }
+  if (*transfer_id > 18) {
+    return false;
+  }
+
+  // 9. Parse matrix coefficients, which can be 0 to 14.
+  //     Note that 12, 13, and 14 are not currently supported by Cobalt.
+  if (!ReadTwoDigitDecimal(codec + 23, matrix_id)) {
+    return false;
+  }
+  if (*matrix_id > 11) {
+    return false;
+  }
+
+  // 10. Return now if it is a well-formed medium form codec string.
+  if (SbStringGetLength(codec) == kMediumFormSize) {
+    return true;
+  }
+
+  // 11. Parse color range, which can only be 0 or 1.
+  int color_range;
+  if (!ReadTwoDigitDecimal(codec + 26, &color_range)) {
+    return false;
+  }
+  if (color_range != 0 && color_range != 1) {
+    return false;
+  }
+
+  // 12. Return
+  return true;
+}
+
+// This function parses an vp9 codec in the form of "vp9", "vp9.0", "vp9.1", or
+// "vp9.2".
+bool ParseVp9Info(const char* codec, int* profile) {
+  SB_DCHECK(profile);
+
+  if (SbStringCompareAll(codec, "vp9") == 0) {
+    *profile = -1;
+    return true;
+  }
+  if (SbStringCompareAll(codec, "vp9.0") == 0) {
+    *profile = 0;
+    return true;
+  }
+  if (SbStringCompareAll(codec, "vp9.1") == 0) {
+    *profile = 1;
+    return true;
+  }
+  if (SbStringCompareAll(codec, "vp9.2") == 0) {
+    *profile = 2;
+    return true;
+  }
+  return false;
 }
 
 }  // namespace
@@ -62,100 +596,65 @@ SbMediaAudioCodec GetAudioCodecFromString(const char* codec) {
   return kSbMediaAudioCodecNone;
 }
 
-SbMediaVideoCodec GetVideoCodecFromString(const char* codec) {
-  if (SbStringCompare(codec, "av01.", 5) == 0) {
-#if SB_API_VERSION < SB_HAS_AV1_VERSION
-    return kSbMediaVideoCodecVp10;
-#else   // SB_API_VERSION < SB_HAS_AV1_VERSION
-    return kSbMediaVideoCodecAv1;
-#endif  // SB_API_VERSION < SB_HAS_AV1_VERSION
-  }
-  if (SbStringCompare(codec, "avc1.", 5) == 0 ||
-      SbStringCompare(codec, "avc3.", 5) == 0) {
-    return kSbMediaVideoCodecH264;
-  }
-  if (SbStringCompare(codec, "hev1.", 5) == 0 ||
-      SbStringCompare(codec, "hvc1.", 5) == 0) {
-    return kSbMediaVideoCodecH265;
-  }
-  if (SbStringCompare(codec, "vp8", 3) == 0) {
-    return kSbMediaVideoCodecVp8;
-  }
-  if (SbStringCompare(codec, "vp9", 3) == 0) {
-    return kSbMediaVideoCodecVp9;
-  }
-  return kSbMediaVideoCodecNone;
-}
+bool ParseVideoCodec(const char* codec_string,
+                     SbMediaVideoCodec* codec,
+                     int* profile,
+                     int* level,
+                     int* bit_depth,
+                     SbMediaPrimaryId* primary_id,
+                     SbMediaTransferId* transfer_id,
+                     SbMediaMatrixId* matrix_id) {
+  SB_DCHECK(codec_string);
+  SB_DCHECK(codec);
+  SB_DCHECK(profile);
+  SB_DCHECK(level);
+  SB_DCHECK(bit_depth);
+  SB_DCHECK(primary_id);
+  SB_DCHECK(transfer_id);
+  SB_DCHECK(matrix_id);
 
-bool ParseH264Info(const char* codec, int* width, int* height, int* fps) {
-  SB_DCHECK(width);
-  SB_DCHECK(height);
-  SB_DCHECK(fps);
+  *codec = kSbMediaVideoCodecNone;
+  *profile = -1;
+  *level = -1;
+  *bit_depth = 8;
+  *primary_id = kSbMediaPrimaryIdUnspecified;
+  *transfer_id = kSbMediaTransferIdUnspecified;
+  *matrix_id = kSbMediaMatrixIdUnspecified;
 
-  if (GetVideoCodecFromString(codec) != kSbMediaVideoCodecH264) {
-    return false;
+  if (SbStringCompare(codec_string, "av01.", 5) == 0) {
+#if SB_API_VERSION < 11
+    *codec = kSbMediaVideoCodecVp10;
+#else  // SB_API_VERSION < 11
+    *codec = kSbMediaVideoCodecAv1;
+#endif  // SB_API_VERSION < 11
+    return ParseAv1Info(codec_string, profile, level, bit_depth, primary_id,
+                        transfer_id, matrix_id);
   }
-
-  if (SbStringGetLength(codec) != 11 || !SbCharacterIsHexDigit(codec[9]) ||
-      !SbCharacterIsHexDigit(codec[10])) {
-    return false;
+  if (SbStringCompare(codec_string, "avc1.", 5) == 0 ||
+      SbStringCompare(codec_string, "avc3.", 5) == 0) {
+    *codec = kSbMediaVideoCodecH264;
+    return ParseH264Info(codec_string, profile, level);
   }
-
-  // According to https://en.wikipedia.org/wiki/H.264/MPEG-4_AVC#Levels, the
-  // only thing that determinates resolution and fps is level.  Profile and
-  // constraint set only affect bitrate and features.
-  //
-  // Note that a level can map to more than one resolution/fps combinations.
-  // So the returned resolution/fps is hand-picked to best fit for common cases.
-  // For example, level 4.2 indicates 1280 x 720 at 145.1 fps or 1920 x 1080 at
-  // 64.0 fps or 2048 x 1080 @ 60.9 fps.  In this case, the function returns
-  // 1920 x 1080 at 60 fps.
-  int level = hex_to_int(codec[9]) * 16 + hex_to_int(codec[10]);
-
-  // Level 3.1 is the minimum to support 720p at 30 fps.  We assume all devices
-  // can support it.
-  if (level <= 31) {
-    *width = 1280;
-    *height = 720;
-    *fps = 30;
+  if (SbStringCompare(codec_string, "hev1.", 5) == 0 ||
+      SbStringCompare(codec_string, "hvc1.", 5) == 0) {
+    *codec = kSbMediaVideoCodecH265;
+    return ParseH265Info(codec_string, profile, level);
+  }
+  if (SbStringCompare(codec_string, "vp09.", 5) == 0) {
+    *codec = kSbMediaVideoCodecVp9;
+    return ParseVp09Info(codec_string, profile, level, bit_depth, primary_id,
+                         transfer_id, matrix_id);
+  }
+  if (SbStringCompare(codec_string, "vp8", 3) == 0) {
+    *codec = kSbMediaVideoCodecVp8;
     return true;
-  } else if (level <= 32) {
-    *width = 1280;
-    *height = 720;
-    *fps = 60;
-    return true;
-  } else if (level <= 40) {
-    *width = 1920;
-    *height = 1080;
-    *fps = 30;
-    return true;
-  } else if (level <= 41) {
-    *width = 1920;
-    *height = 1080;
-    *fps = 30;
-    return true;
-  } else if (level <= 42) {
-    *width = 1920;
-    *height = 1080;
-    *fps = 60;
-    return true;
-  } else if (level <= 50) {
-    *width = 2560;
-    *height = 1440;
-    *fps = 30;
-    return true;
-  } else if (level <= 51) {
-    *width = 3840;
-    *height = 2160;
-    *fps = 30;
-    return true;
+  }
+  if (SbStringCompare(codec_string, "vp9", 3) == 0) {
+    *codec = kSbMediaVideoCodecVp9;
+    return ParseVp9Info(codec_string, profile);
   }
 
-  // Level >= 52
-  *width = 3840;
-  *height = 2160;
-  *fps = 60;
-  return true;
+  return false;
 }
 
 }  // namespace media

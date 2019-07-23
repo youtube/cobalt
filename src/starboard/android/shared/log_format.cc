@@ -15,9 +15,9 @@
 #include <stdio.h>
 #include <string>
 
-#include "starboard/log.h"
-#include "starboard/mutex.h"
-#include "starboard/string.h"
+#include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
+#include "starboard/common/string.h"
 
 namespace {
 SbMutex log_line_mutex = SB_MUTEX_INITIALIZER;

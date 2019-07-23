@@ -17,7 +17,7 @@
 #include <float.h>
 #include <math.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 bool SbDoubleIsFinite(const double d) {
   return (fpclassify(d) != FP_INFINITE);

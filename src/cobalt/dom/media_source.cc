@@ -183,7 +183,8 @@ void MediaSource::set_duration(double duration,
 }
 
 scoped_refptr<SourceBuffer> MediaSource::AddSourceBuffer(
-    const std::string& type, script::ExceptionState* exception_state) {
+    script::EnvironmentSettings* settings, const std::string& type,
+    script::ExceptionState* exception_state) {
   DLOG(INFO) << "add SourceBuffer with type " << type;
 
   if (type.empty()) {
@@ -192,7 +193,7 @@ scoped_refptr<SourceBuffer> MediaSource::AddSourceBuffer(
     return NULL;
   }
 
-  if (!IsTypeSupported(NULL, type)) {
+  if (!IsTypeSupported(settings, type)) {
     DOMException::Raise(DOMException::kNotSupportedErr, exception_state);
     return NULL;
   }
@@ -309,10 +310,14 @@ void MediaSource::ClearLiveSeekableRange(
 // static
 bool MediaSource::IsTypeSupported(script::EnvironmentSettings* settings,
                                   const std::string& type) {
-  // TODO: Remove |settings| parameter once MSE2012 is removed.
-  SB_UNREFERENCED_PARAMETER(settings);
+  DCHECK(settings);
+  DOMSettings* dom_settings =
+      base::polymorphic_downcast<DOMSettings*>(settings);
+  DCHECK(dom_settings->can_play_type_handler());
+  const bool kIsProgressive = false;
   SbMediaSupportType support_type =
-      SbMediaCanPlayMimeAndKeySystem(type.c_str(), "");
+      dom_settings->can_play_type_handler()->CanPlayType(type.c_str(), "",
+                                                         kIsProgressive);
   if (support_type == kSbMediaSupportTypeNotSupported) {
     LOG(INFO) << "MediaSource::IsTypeSupported(" << type
               << ") -> not supported/false";

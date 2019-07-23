@@ -3,11 +3,10 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quic/core/frames/quic_frame.h"
+
 #include "net/third_party/quic/core/quic_constants.h"
 #include "net/third_party/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quic/platform/api/quic_logging.h"
-
-using std::string;
 
 namespace quic {
 
@@ -27,8 +26,7 @@ QuicFrame::QuicFrame(QuicAckFrame* frame) : type(ACK_FRAME), ack_frame(frame) {}
 QuicFrame::QuicFrame(QuicMtuDiscoveryFrame frame)
     : mtu_discovery_frame(frame) {}
 
-QuicFrame::QuicFrame(QuicStopWaitingFrame* frame)
-    : type(STOP_WAITING_FRAME), stop_waiting_frame(frame) {}
+QuicFrame::QuicFrame(QuicStopWaitingFrame frame) : stop_waiting_frame(frame) {}
 
 QuicFrame::QuicFrame(QuicPingFrame frame) : ping_frame(frame) {}
 
@@ -52,6 +50,9 @@ QuicFrame::QuicFrame(QuicApplicationCloseFrame* frame)
 
 QuicFrame::QuicFrame(QuicNewConnectionIdFrame* frame)
     : type(NEW_CONNECTION_ID_FRAME), new_connection_id_frame(frame) {}
+
+QuicFrame::QuicFrame(QuicRetireConnectionIdFrame* frame)
+    : type(RETIRE_CONNECTION_ID_FRAME), retire_connection_id_frame(frame) {}
 
 QuicFrame::QuicFrame(QuicMaxStreamIdFrame frame) : max_stream_id_frame(frame) {}
 
@@ -87,14 +88,12 @@ void DeleteFrame(QuicFrame* frame) {
     case MTU_DISCOVERY_FRAME:
     case PING_FRAME:
     case MAX_STREAM_ID_FRAME:
+    case STOP_WAITING_FRAME:
     case STREAM_ID_BLOCKED_FRAME:
     case STREAM_FRAME:
       break;
     case ACK_FRAME:
       delete frame->ack_frame;
-      break;
-    case STOP_WAITING_FRAME:
-      delete frame->stop_waiting_frame;
       break;
     case RST_STREAM_FRAME:
       delete frame->rst_stream_frame;
@@ -122,6 +121,9 @@ void DeleteFrame(QuicFrame* frame) {
       break;
     case NEW_CONNECTION_ID_FRAME:
       delete frame->new_connection_id_frame;
+      break;
+    case RETIRE_CONNECTION_ID_FRAME:
+      delete frame->retire_connection_id_frame;
       break;
     case PATH_RESPONSE_FRAME:
       delete frame->path_response_frame;
@@ -161,6 +163,7 @@ bool IsControlFrame(QuicFrameType type) {
     case STREAM_ID_BLOCKED_FRAME:
     case MAX_STREAM_ID_FRAME:
     case PING_FRAME:
+    case STOP_SENDING_FRAME:
       return true;
     default:
       return false;
@@ -183,6 +186,8 @@ QuicControlFrameId GetControlFrameId(const QuicFrame& frame) {
       return frame.max_stream_id_frame.control_frame_id;
     case PING_FRAME:
       return frame.ping_frame.control_frame_id;
+    case STOP_SENDING_FRAME:
+      return frame.stop_sending_frame->control_frame_id;
     default:
       return kInvalidControlFrameId;
   }
@@ -211,6 +216,9 @@ void SetControlFrameId(QuicControlFrameId control_frame_id, QuicFrame* frame) {
     case MAX_STREAM_ID_FRAME:
       frame->max_stream_id_frame.control_frame_id = control_frame_id;
       return;
+    case STOP_SENDING_FRAME:
+      frame->stop_sending_frame->control_frame_id = control_frame_id;
+      return;
     default:
       QUIC_BUG
           << "Try to set control frame id of a frame without control frame id";
@@ -234,6 +242,15 @@ QuicFrame CopyRetransmittableControlFrame(const QuicFrame& frame) {
       break;
     case PING_FRAME:
       copy = QuicFrame(QuicPingFrame(frame.ping_frame.control_frame_id));
+      break;
+    case STOP_SENDING_FRAME:
+      copy = QuicFrame(new QuicStopSendingFrame(*frame.stop_sending_frame));
+      break;
+    case STREAM_ID_BLOCKED_FRAME:
+      copy = QuicFrame(QuicStreamIdBlockedFrame(frame.stream_id_blocked_frame));
+      break;
+    case MAX_STREAM_ID_FRAME:
+      copy = QuicFrame(QuicMaxStreamIdFrame(frame.max_stream_id_frame));
       break;
     default:
       QUIC_BUG << "Try to copy a non-retransmittable control frame: " << frame;
@@ -279,7 +296,7 @@ std::ostream& operator<<(std::ostream& os, const QuicFrame& frame) {
       break;
     }
     case STOP_WAITING_FRAME: {
-      os << "type { STOP_WAITING_FRAME } " << *(frame.stop_waiting_frame);
+      os << "type { STOP_WAITING_FRAME } " << frame.stop_waiting_frame;
       break;
     }
     case PING_FRAME: {
@@ -291,10 +308,14 @@ std::ostream& operator<<(std::ostream& os, const QuicFrame& frame) {
       break;
     }
     case APPLICATION_CLOSE_FRAME:
-      os << "type { APPLICATION_CLOSE } " << *(frame.connection_close_frame);
+      os << "type { APPLICATION_CLOSE } " << *(frame.application_close_frame);
       break;
     case NEW_CONNECTION_ID_FRAME:
       os << "type { NEW_CONNECTION_ID } " << *(frame.new_connection_id_frame);
+      break;
+    case RETIRE_CONNECTION_ID_FRAME:
+      os << "type { RETIRE_CONNECTION_ID } "
+         << *(frame.retire_connection_id_frame);
       break;
     case MAX_STREAM_ID_FRAME:
       os << "type { MAX_STREAM_ID } " << frame.max_stream_id_frame;

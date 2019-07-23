@@ -31,6 +31,10 @@
               ],
           },
       },
+      'defines': [
+        # This allows the tests to include internal only header files.
+        'STARBOARD_IMPLEMENTATION',
+      ],
       'sources': [
         '<(DEPTH)/starboard/common/test_main.cc',
         '<(DEPTH)/starboard/testing/fake_graphics_context_provider.cc',
@@ -96,6 +100,7 @@
         'condition_variable_wait_test.cc',
         'condition_variable_wait_timed_test.cc',
         'configuration_test.cc',
+        'cpu_features_get_test.cc',
         'cryptography_create_transformer_test.cc',
         'cryptography_helpers.cc',
         'cryptography_helpers.h',
@@ -116,6 +121,7 @@
         'drm_helpers.h',
         'drm_is_server_certificate_updatable_test.cc',
         'drm_update_server_certificate_test.cc',
+        'egl_test.cc',
         'extern_c_test.cc',
         'file_can_open_test.cc',
         'file_close_test.cc',
@@ -129,6 +135,7 @@
         'file_truncate_test.cc',
         'file_write_test.cc',
         'flat_map_test.cc',
+        'gles_test.cc',
         'murmurhash2_test.cc',
         'include_all.c',
         'include_all_too.c',
@@ -142,6 +149,7 @@
         # TODO: Separate functions tested by media buffer test into multiple
         # files.
         'media_buffer_test.cc',
+        'media_set_audio_write_duration_test.cc',
         'memory_align_to_page_size_test.cc',
         'memory_allocate_aligned_test.cc',
         'memory_allocate_test.cc',
@@ -275,7 +283,6 @@
         'time_get_now_test.cc',
         'time_narrow_test.cc',
         'time_zone_get_current_test.cc',
-        'time_zone_get_dst_name_test.cc',
         'time_zone_get_name_test.cc',
         'undefined_behavior_test.cc',
         'unsafe_math_test.cc',
@@ -295,6 +302,8 @@
       ],
       'dependencies': [
         '<@(cobalt_platform_dependencies)',
+        '<(DEPTH)/starboard/shared/starboard/player/player.gyp:video_dmp',
+        '<(DEPTH)/starboard/shared/starboard/player/player.gyp:player_copy_test_data',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',

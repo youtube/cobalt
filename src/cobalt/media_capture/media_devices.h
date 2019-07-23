@@ -92,7 +92,7 @@ class MediaDevices : public dom::EventTarget {
       pending_microphone_promises_;
 
   base::MessageLoop* javascript_message_loop_;
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   base::WeakPtrFactory<MediaDevices> weak_ptr_factory_;
   base::WeakPtr<MediaDevices> weak_this_;

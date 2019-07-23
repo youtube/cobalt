@@ -13,9 +13,16 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
-#include "starboard/log.h"
+
+#include "starboard/common/log.h"
+#include "starboard/shared/blittergles/blitter_context.h"
 
 bool SbBlitterSetBlending(SbBlitterContext context, bool blending) {
-  SB_NOTREACHED();
-  return false;
+  if (!SbBlitterIsContextValid(context)) {
+    SB_DLOG(ERROR) << ": Invalid context.";
+    return false;
+  }
+
+  context->blending_enabled = blending;
+  return true;
 }

@@ -21,7 +21,7 @@
 #include "base/basictypes.h"
 #include "base/containers/hash_tables.h"
 #include "base/logging.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 namespace base {
 

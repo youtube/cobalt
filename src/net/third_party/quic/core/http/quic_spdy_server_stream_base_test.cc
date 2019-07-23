@@ -17,10 +17,12 @@ namespace {
 
 class TestQuicSpdyServerStream : public QuicSpdyServerStreamBase {
  public:
-  TestQuicSpdyServerStream(QuicStreamId id, QuicSpdySession* session)
-      : QuicSpdyServerStreamBase(id, session) {}
+  TestQuicSpdyServerStream(QuicStreamId id,
+                           QuicSpdySession* session,
+                           StreamType type)
+      : QuicSpdyServerStreamBase(id, session, type) {}
 
-  void OnDataAvailable() override {}
+  void OnBodyAvailable() override {}
 };
 
 class QuicSpdyServerStreamBaseTest : public QuicTest {
@@ -30,8 +32,9 @@ class QuicSpdyServerStreamBaseTest : public QuicTest {
                                         &alarm_factory_,
                                         Perspective::IS_SERVER)) {
     stream_ = new TestQuicSpdyServerStream(
-        QuicSpdySessionPeer::GetNthClientInitiatedStreamId(session_, 0),
-        &session_);
+        GetNthClientInitiatedBidirectionalStreamId(
+            session_.connection()->transport_version(), 0),
+        &session_, BIDIRECTIONAL);
     session_.ActivateStream(QuicWrapUnique(stream_));
     helper_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
   }
@@ -55,10 +58,32 @@ TEST_F(QuicSpdyServerStreamBaseTest,
   EXPECT_FALSE(stream_->reading_stopped());
 
   EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_NO_ERROR, _)).Times(0);
-  EXPECT_CALL(session_, SendRstStream(_, QUIC_RST_ACKNOWLEDGEMENT, _)).Times(1);
+
+  if (session_.connection()->transport_version() != QUIC_VERSION_99) {
+    EXPECT_CALL(session_, SendRstStream(_, QUIC_RST_ACKNOWLEDGEMENT, _))
+        .Times(1);
+  } else {
+    // Intercept & check that the call to the QuicConnection's OnStreamReast
+    // has correct stream ID and error code -- for V99/IETF Quic, it should
+    // have the STREAM_CANCELLED error code, not RST_ACK... Capture
+    // OnStreamReset (rather than SendRstStream) because the V99 path bypasses
+    // SendRstStream, calling SendRstStreamInner directly. Mocking
+    // SendRstStreamInner is problematic since the test relies on it to perform
+    // the closing operations and getting the stream in the correct state.
+    EXPECT_CALL(*(static_cast<MockQuicConnection*>(session_.connection())),
+                OnStreamReset(stream_->id(), QUIC_STREAM_CANCELLED));
+  }
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),
                                QUIC_STREAM_CANCELLED, 1234);
   stream_->OnStreamReset(rst_frame);
+  if (session_.connection()->transport_version() == QUIC_VERSION_99) {
+    // Create and inject a STOP SENDING frame to complete the close
+    // of the stream. This is only needed for version 99/IETF QUIC.
+    QuicStopSendingFrame stop_sending(
+        kInvalidControlFrameId, stream_->id(),
+        static_cast<QuicApplicationErrorCode>(QUIC_STREAM_CANCELLED));
+    session_.OnStopSendingFrame(stop_sending);
+  }
 
   EXPECT_TRUE(stream_->reading_stopped());
   EXPECT_TRUE(stream_->write_side_closed());

@@ -15,7 +15,7 @@
 // This test doesn't test that the appropriate output was produced, but ensures
 // it compiles and runs without crashing.
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {

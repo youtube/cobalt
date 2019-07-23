@@ -23,8 +23,8 @@
 #include "starboard/accessibility.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 
 using starboard::android::shared::JniEnvExt;

@@ -113,6 +113,10 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
   static scoped_refptr<StreamParserBuffer> CopyFrom(
       Allocator* allocator, const uint8_t* data, int data_size,
       bool is_key_frame, Type type, TrackId track_id);
+  static scoped_refptr<StreamParserBuffer> CopyFrom(
+      Allocator* allocator, const uint8_t* data, int data_size,
+      const uint8_t* side_data, int side_data_size, bool is_key_frame,
+      Type type, TrackId track_id);
 
   // Decode timestamp. If not explicitly set, or set to kNoTimestamp, the
   // value will be taken from the normal timestamp.
@@ -176,8 +180,10 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
   // The default ctor creates an EOS buffer without specific stream type.
   StreamParserBuffer();
   StreamParserBuffer(Allocator* allocator, const uint8_t* data, int data_size,
+                     const uint8_t* side_data, int side_data_size,
                      bool is_key_frame, Type type, TrackId track_id);
   StreamParserBuffer(Allocator* allocator, Allocator::Allocations allocations,
+                     const uint8_t* side_data, int side_data_size,
                      bool is_key_frame, Type type, TrackId track_id);
   ~StreamParserBuffer() override;
 

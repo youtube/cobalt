@@ -27,7 +27,7 @@
 #include "net/proxy_resolution/pac_file_data.h"
 #include "net/proxy_resolution/pac_js_library.h"
 #include "net/proxy_resolution/proxy_info.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "url/gurl.h"
 #include "url/url_canon.h"
 #include "v8/include/v8.h"

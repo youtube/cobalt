@@ -14,13 +14,13 @@
 
 #include "starboard/shared/opus/opus_audio_decoder.h"
 
-#if SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
+#if SB_API_VERSION >= 11
 #include "starboard/format_string.h"
-#endif  // SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
-#include "starboard/log.h"
+#endif  // SB_API_VERSION >= 11
+#include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_util.h"
-#include "starboard/string.h"
 
 namespace starboard {
 namespace shared {
@@ -30,19 +30,21 @@ namespace {
 const int kMaxOpusFramesPerAU = 9600;
 }  // namespace
 
-OpusAudioDecoder::OpusAudioDecoder(const SbMediaAudioHeader& audio_header)
-    : audio_header_(audio_header) {
+OpusAudioDecoder::OpusAudioDecoder(
+    const SbMediaAudioSampleInfo& audio_sample_info)
+    : audio_sample_info_(audio_sample_info) {
 #if SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   working_buffer_.resize(kMaxOpusFramesPerAU *
-                         audio_header_.number_of_channels * sizeof(opus_int16));
+                         audio_sample_info_.number_of_channels *
+                         sizeof(opus_int16));
 #else   // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   working_buffer_.resize(kMaxOpusFramesPerAU *
-                         audio_header_.number_of_channels * sizeof(float));
+                         audio_sample_info_.number_of_channels * sizeof(float));
 #endif  // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
 
   int error;
-  decoder_ = opus_decoder_create(audio_header_.samples_per_second,
-                                 audio_header_.number_of_channels, &error);
+  decoder_ = opus_decoder_create(audio_sample_info_.samples_per_second,
+                                 audio_sample_info_.number_of_channels, &error);
   if (error != OPUS_OK) {
     SB_LOG(ERROR) << "Failed to create decoder with error: "
                   << opus_strerror(error);
@@ -112,9 +114,9 @@ void OpusAudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
   }
 
   scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
-      audio_header_.number_of_channels, GetSampleType(), GetStorageType(),
+      audio_sample_info_.number_of_channels, GetSampleType(), GetStorageType(),
       input_buffer->timestamp(),
-      audio_header_.number_of_channels * decoded_frames *
+      audio_sample_info_.number_of_channels * decoded_frames *
           starboard::media::GetBytesPerSample(GetSampleType()));
   SbMemoryCopy(decoded_audio->buffer(), working_buffer_.data(),
                decoded_audio->size());
@@ -178,7 +180,7 @@ SbMediaAudioFrameStorageType OpusAudioDecoder::GetStorageType() const {
 }
 
 int OpusAudioDecoder::GetSamplesPerSecond() const {
-  return audio_header_.samples_per_second;
+  return audio_sample_info_.samples_per_second;
 }
 
 }  // namespace opus

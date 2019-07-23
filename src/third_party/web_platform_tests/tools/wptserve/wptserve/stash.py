@@ -2,7 +2,6 @@ import base64
 import json
 import os
 import uuid
-from multiprocessing import Process
 from multiprocessing.managers import BaseManager, DictProxy
 
 class ServerDictManager(BaseManager):
@@ -119,7 +118,7 @@ class Stash(object):
         if internal_key in self.data:
             raise StashError("Tried to overwrite existing shared stash value "
                              "for key %s (old value was %s, new value is %s)" %
-                             (internal_key, self[str(internal_key)], value))
+                             (internal_key, self.data[str(internal_key)], value))
         else:
             self.data[internal_key] = value
 
@@ -131,7 +130,7 @@ class Stash(object):
                      the current request path)"""
         internal_key = self._wrap_key(key, path)
         value = self.data.get(internal_key, None)
-        if not value is None:
+        if value is not None:
             try:
                 self.data.pop(internal_key)
             except KeyError:

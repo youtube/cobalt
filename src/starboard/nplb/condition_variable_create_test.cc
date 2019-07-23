@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/condition_variable.h"
-#include "starboard/mutex.h"
+#include "starboard/common/condition_variable.h"
+#include "starboard/common/mutex.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {

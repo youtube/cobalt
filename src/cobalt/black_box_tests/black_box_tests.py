@@ -1,4 +1,4 @@
-# Copyright 2019 The Cobalt Authors. All Rights Reserved.
+# Copyright 2017 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ from cobalt.black_box_tests import black_box_cobalt_runner
 from cobalt.tools.automated_testing import cobalt_runner
 from proxy_server import ProxyServer
 from starboard.tools import abstract_launcher
+from starboard.tools import build
 
 _PORT_SELECTION_RETRY_LIMIT = 10
 _PORT_SELECTION_RANGE = [5000, 7000]
@@ -39,16 +40,18 @@ _SERVER_EXIT_TIMEOUT_SECONDS = 30
 _TESTS_NEEDING_SYSTEM_SIGNAL = [
     'cancel_sync_loads_when_suspended',
     'preload_font',
-    'timer_hit_in_preload',
-    'timer_hit_after_preload',
     'preload_visibility',
+    'signal_handler_doesnt_crash',
     'suspend_visibility',
+    'timer_hit_after_preload',
+    'timer_hit_in_preload',
 ]
 # These tests only need app launchers with webdriver.
 _TESTS_NO_SIGNAL = [
     'allow_eval',
     'disable_eval_with_csp',
     'persistent_cookie',
+    'web_debugger',
     'web_platform_tests',
 ]
 # Location of test files.
@@ -71,17 +74,23 @@ class BlackBoxTestCase(unittest.TestCase):
 
   def __init__(self, *args, **kwargs):
     super(BlackBoxTestCase, self).__init__(*args, **kwargs)
+    self.device_params = _device_params
+    self.platform_config = build.GetPlatformConfig(_device_params.platform)
+    self.cobalt_config = self.platform_config.GetApplicationConfiguration(
+        'cobalt')
 
   @classmethod
   def setUpClass(cls):
+    super(BlackBoxTestCase, cls).setUpClass()
     print('Running ' + cls.__name__)
 
   @classmethod
   def tearDownClass(cls):
+    super(BlackBoxTestCase, cls).tearDownClass()
     print('Done ' + cls.__name__)
 
-  def CreateCobaltRunner(self, url, target_params=[]):
-    all_target_params = target_params
+  def CreateCobaltRunner(self, url, target_params=None):
+    all_target_params = list(target_params) if target_params else []
     if _device_params.target_params is not None:
       all_target_params += _device_params.target_params
     new_runner = black_box_cobalt_runner.BlackBoxCobaltRunner(
@@ -147,7 +156,7 @@ class BlackBoxTests(object):
   def Run(self):
     if self.proxy_port_number == '-1':
       return 1
-    logging.info('Using proxy port number: %s' % self.proxy_port_number)
+    logging.info('Using proxy port number: %s', self.proxy_port_number)
 
     with ProxyServer(port=self.proxy_port_number,
                      host_resolve_map=self.host_resolve_map):
@@ -174,7 +183,7 @@ class BlackBoxTests(object):
           return port_number
         if i == _PORT_SELECTION_RETRY_LIMIT - 1:
           logging.error(
-              'Can not find unused port on target machine within %s attempts.' %
+              'Can not find unused port on target machine within %s attempts.',
               _PORT_SELECTION_RETRY_LIMIT)
           return -1
     finally:

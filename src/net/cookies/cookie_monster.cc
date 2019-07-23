@@ -404,7 +404,7 @@ CookieMonster::CookieMonster(scoped_refptr<PersistentCookieStore> store,
 // Asynchronous CookieMonster API
 
 void CookieMonster::FlushStore(base::OnceClosure callback) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (initialized_ && store_.get()) {
     store_->Flush(std::move(callback));
@@ -415,7 +415,7 @@ void CookieMonster::FlushStore(base::OnceClosure callback) {
 }
 
 void CookieMonster::SetForceKeepSessionState() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (store_)
     store_->SetForceKeepSessionState();
@@ -543,7 +543,7 @@ void CookieMonster::DeleteSessionCookiesAsync(
 
 void CookieMonster::SetCookieableSchemes(
     const std::vector<std::string>& schemes) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Calls to this method will have no effect if made after a WebView or
   // CookieManager instance has been created.
@@ -555,7 +555,7 @@ void CookieMonster::SetCookieableSchemes(
 
 // This function must be called before the CookieMonster is used.
 void CookieMonster::SetPersistSessionCookies(bool persist_session_cookies) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!initialized_);
   net_log_.AddEvent(
       NetLogEventType::COOKIE_STORE_SESSION_PERSISTENCE,
@@ -564,7 +564,7 @@ void CookieMonster::SetPersistSessionCookies(bool persist_session_cookies) {
 }
 
 bool CookieMonster::IsCookieableScheme(const std::string& scheme) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   return base::ContainsValue(cookieable_schemes_, scheme);
 }
@@ -609,7 +609,7 @@ void CookieMonster::DumpMemoryStats(
 }
 
 CookieMonster::~CookieMonster() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (channel_id_service_ && store_) {
     store_->SetBeforeFlushCallback(base::Closure());
@@ -627,7 +627,7 @@ CookieMonster::~CookieMonster() {
 }
 
 void CookieMonster::GetAllCookies(GetCookieListCallback callback) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // This function is being called to scrape the cookie list for management UI
   // or similar.  We shouldn't show expired cookies in this list since it will
@@ -659,7 +659,7 @@ void CookieMonster::GetAllCookies(GetCookieListCallback callback) {
 void CookieMonster::GetCookieListWithOptions(const GURL& url,
                                              const CookieOptions& options,
                                              GetCookieListCallback callback) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   CookieList cookies;
   if (HasCookieableScheme(url)) {
@@ -677,7 +677,7 @@ void CookieMonster::GetCookieListWithOptions(const GURL& url,
 
 void CookieMonster::DeleteAllCreatedInTimeRange(const TimeRange& creation_range,
                                                 DeleteCallback callback) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   uint32_t num_deleted = 0;
   for (auto it = cookies_.begin(); it != cookies_.end();) {
@@ -723,7 +723,7 @@ void CookieMonster::SetCookieWithOptions(const GURL& url,
                                          const std::string& cookie_line,
                                          const CookieOptions& options,
                                          SetCookiesCallback callback) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (!HasCookieableScheme(url)) {
     MaybeRunCookieCallback(std::move(callback), false);
@@ -752,7 +752,7 @@ void CookieMonster::SetCookieWithOptions(const GURL& url,
 void CookieMonster::DeleteCookie(const GURL& url,
                                  const std::string& cookie_name,
                                  base::OnceClosure callback) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (!HasCookieableScheme(url)) {
     // TODO(rdsmith): Would be good to provide a failure indication here.
@@ -795,7 +795,7 @@ void CookieMonster::DeleteCookie(const GURL& url,
 
 void CookieMonster::DeleteCanonicalCookie(const CanonicalCookie& cookie,
                                           DeleteCallback callback) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   uint32_t result = 0u;
   for (CookieMapItPair its = cookies_.equal_range(GetKey(cookie.Domain()));
@@ -820,7 +820,7 @@ void CookieMonster::DeleteCanonicalCookie(const CanonicalCookie& cookie,
 }
 
 void CookieMonster::DeleteSessionCookies(DeleteCallback callback) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   uint32_t num_deleted = 0;
   for (auto it = cookies_.begin(); it != cookies_.end();) {
@@ -842,12 +842,12 @@ void CookieMonster::DeleteSessionCookies(DeleteCallback callback) {
 }
 
 void CookieMonster::MarkCookieStoreAsInitialized() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   initialized_ = true;
 }
 
 void CookieMonster::FetchAllCookiesIfNecessary() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (store_.get() && !started_fetching_all_cookies_) {
     started_fetching_all_cookies_ = true;
     FetchAllCookies();
@@ -855,7 +855,7 @@ void CookieMonster::FetchAllCookiesIfNecessary() {
 }
 
 void CookieMonster::FetchAllCookies() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(store_.get()) << "Store must exist to initialize";
   DCHECK(!finished_fetching_all_cookies_)
       << "All cookies have already been fetched.";
@@ -870,7 +870,7 @@ void CookieMonster::FetchAllCookies() {
 void CookieMonster::OnLoaded(
     TimeTicks beginning_time,
     std::vector<std::unique_ptr<CanonicalCookie>> cookies) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   StoreLoadedCookies(std::move(cookies));
   histogram_time_blocked_on_load_->AddTime(TimeTicks::Now() - beginning_time);
 
@@ -881,7 +881,7 @@ void CookieMonster::OnLoaded(
 void CookieMonster::OnKeyLoaded(
     const std::string& key,
     std::vector<std::unique_ptr<CanonicalCookie>> cookies) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   StoreLoadedCookies(std::move(cookies));
 
@@ -908,7 +908,7 @@ void CookieMonster::OnKeyLoaded(
 
 void CookieMonster::StoreLoadedCookies(
     std::vector<std::unique_ptr<CanonicalCookie>> cookies) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Even if a key is expired, insert it so it can be garbage collected,
   // removed, and sync'd.
@@ -951,7 +951,7 @@ void CookieMonster::StoreLoadedCookies(
 }
 
 void CookieMonster::InvokeQueue() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Move all per-key tasks into the global queue, if there are any.  This is
   // protection about a race where the store learns about all cookies loading
@@ -980,7 +980,7 @@ void CookieMonster::InvokeQueue() {
 }
 
 void CookieMonster::EnsureCookiesMapIsValid() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Iterate through all the of the cookies, grouped by host.
   auto prev_range_end = cookies_.begin();
@@ -998,7 +998,7 @@ void CookieMonster::EnsureCookiesMapIsValid() {
 void CookieMonster::TrimDuplicateCookiesForKey(const std::string& key,
                                                CookieMap::iterator begin,
                                                CookieMap::iterator end) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Set of cookies ordered by creation time.
   typedef std::multiset<CookieMap::iterator, OrderByCreationTimeDesc> CookieSet;
@@ -1072,7 +1072,7 @@ void CookieMonster::FindCookiesForHostAndDomain(
     const GURL& url,
     const CookieOptions& options,
     std::vector<CanonicalCookie*>* cookies) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   const Time current_time(CurrentTime());
 
@@ -1091,7 +1091,7 @@ void CookieMonster::FindCookiesForKey(const std::string& key,
                                       const CookieOptions& options,
                                       const Time& current,
                                       std::vector<CanonicalCookie*>* cookies) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   for (CookieMapItPair its = cookies_.equal_range(key);
        its.first != its.second;) {
@@ -1127,7 +1127,7 @@ bool CookieMonster::DeleteAnyEquivalentCookie(
     bool skip_httponly,
     bool already_expired,
     base::Time* creation_date_to_inherit) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   bool found_equivalent_cookie = false;
   bool skipped_httponly = false;
@@ -1224,7 +1224,7 @@ CookieMonster::CookieMap::iterator CookieMonster::InternalInsertCookie(
     const std::string& key,
     std::unique_ptr<CanonicalCookie> cc,
     bool sync_to_store) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   CanonicalCookie* cc_ptr = cc.get();
 
   net_log_.AddEvent(NetLogEventType::COOKIE_STORE_COOKIE_ADDED,
@@ -1253,7 +1253,7 @@ void CookieMonster::SetCanonicalCookie(std::unique_ptr<CanonicalCookie> cc,
                                        bool secure_source,
                                        bool modify_http_only,
                                        SetCookiesCallback callback) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if ((cc->IsSecure() && !secure_source) ||
       (cc->IsHttpOnly() && !modify_http_only)) {
@@ -1340,7 +1340,7 @@ void CookieMonster::SetCanonicalCookie(std::unique_ptr<CanonicalCookie> cc,
 
 void CookieMonster::SetAllCookies(CookieList list,
                                   SetCookiesCallback callback) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Nuke the existing store.
   while (!cookies_.empty()) {
@@ -1373,7 +1373,7 @@ void CookieMonster::SetAllCookies(CookieList list,
 
 void CookieMonster::InternalUpdateCookieAccessTime(CanonicalCookie* cc,
                                                    const Time& current) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Based off the Mozilla code.  When a cookie has been accessed recently,
   // don't bother updating its access time again.  This reduces the number of
@@ -1392,7 +1392,7 @@ void CookieMonster::InternalUpdateCookieAccessTime(CanonicalCookie* cc,
 void CookieMonster::InternalDeleteCookie(CookieMap::iterator it,
                                          bool sync_to_store,
                                          DeletionCause deletion_cause) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Ideally, this would be asserted up where we define kChangeCauseMapping,
   // but DeletionCause's visibility (or lack thereof) forces us to make
@@ -1424,7 +1424,7 @@ void CookieMonster::InternalDeleteCookie(CookieMap::iterator it,
 // meaning of the key is different, but that's not visible to this routine).
 size_t CookieMonster::GarbageCollect(const Time& current,
                                      const std::string& key) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   size_t num_deleted = 0;
   Time safe_date(Time::Now() - TimeDelta::FromDays(kSafeFromGlobalPurgeDays));
@@ -1589,7 +1589,7 @@ size_t CookieMonster::PurgeLeastRecentMatches(CookieItVector* cookies,
                                               size_t to_protect,
                                               size_t purge_goal,
                                               bool protect_secure_cookies) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // 1. Count number of the cookies at |priority|
   size_t cookies_count_possibly_to_be_deleted = CountCookiesForPossibleDeletion(
@@ -1639,7 +1639,7 @@ size_t CookieMonster::PurgeLeastRecentMatches(CookieItVector* cookies,
 size_t CookieMonster::GarbageCollectExpired(const Time& current,
                                             const CookieMapItPair& itpair,
                                             CookieItVector* cookie_its) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   int num_deleted = 0;
   for (CookieMap::iterator it = itpair.first, end = itpair.second; it != end;) {
@@ -1662,7 +1662,7 @@ size_t CookieMonster::GarbageCollectDeleteRange(
     DeletionCause cause,
     CookieItVector::iterator it_begin,
     CookieItVector::iterator it_end) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   for (auto it = it_begin; it != it_end; it++) {
     InternalDeleteCookie((*it), true, cause);
@@ -1677,7 +1677,7 @@ size_t CookieMonster::GarbageCollectLeastRecentlyAccessed(
     CookieItVector cookie_its,
     base::Time* earliest_time) {
   DCHECK_LE(purge_goal, cookie_its.size());
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Sorts up to *and including* |cookie_its[purge_goal]| (if it exists), so
   // |earliest_time| will be properly assigned even if
@@ -1735,7 +1735,7 @@ std::string CookieMonster::GetKey(base::StringPiece domain) {
 }
 
 bool CookieMonster::HasCookieableScheme(const GURL& url) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Make sure the request is on a cookie-able url scheme.
   for (size_t i = 0; i < cookieable_schemes_.size(); ++i) {
@@ -1761,7 +1761,7 @@ bool CookieMonster::HasCookieableScheme(const GURL& url) {
 // in the constructor so that we won't take statistics right after
 // startup, to avoid bias from browsers that are started but not used.
 void CookieMonster::RecordPeriodicStats(const base::Time& current_time) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   const base::TimeDelta kRecordStatisticsIntervalTime(
       base::TimeDelta::FromSeconds(kRecordStatisticsIntervalSeconds));
@@ -1803,7 +1803,7 @@ void CookieMonster::RecordPeriodicStats(const base::Time& current_time) {
 // methods where needed.  The specific histogram macro calls on which the
 // initialization is based are included in comments below.
 void CookieMonster::InitializeHistograms() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // From UMA_HISTOGRAM_CUSTOM_COUNTS
   histogram_expiration_duration_minutes_ = base::Histogram::FactoryGet(
@@ -1841,7 +1841,7 @@ Time CookieMonster::CurrentTime() {
 }
 
 void CookieMonster::DoCookieCallback(base::OnceClosure callback) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   MarkCookieStoreAsInitialized();
   FetchAllCookiesIfNecessary();

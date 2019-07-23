@@ -17,8 +17,8 @@
 
 #include <map>
 
-#include "starboard/condition_variable.h"
-#include "starboard/mutex.h"
+#include "starboard/common/condition_variable.h"
+#include "starboard/common/mutex.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/thread.h"
 #include "third_party/ce_cdm/cdm/include/cdm.h"

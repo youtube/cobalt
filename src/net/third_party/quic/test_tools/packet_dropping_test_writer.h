@@ -5,17 +5,15 @@
 #ifndef NET_THIRD_PARTY_QUIC_TEST_TOOLS_PACKET_DROPPING_TEST_WRITER_H_
 #define NET_THIRD_PARTY_QUIC_TEST_TOOLS_PACKET_DROPPING_TEST_WRITER_H_
 
+#include <cstdint>
 #include <list>
 #include <memory>
-#include <string>
 
-#include "base/logging.h"
 #include "base/macros.h"
-#include "base/synchronization/lock.h"
-#include "net/base/ip_address.h"
 #include "net/third_party/quic/core/quic_alarm.h"
 #include "net/third_party/quic/core/quic_packet_writer_wrapper.h"
-#include "net/third_party/quic/platform/impl/quic_epoll_clock.h"
+#include "net/third_party/quic/platform/api/quic_clock.h"
+#include "net/third_party/quic/platform/api/quic_macros.h"
 #include "net/third_party/quic/test_tools/quic_test_client.h"
 #include "net/third_party/quic/test_tools/quic_test_utils.h"
 #include "starboard/types.h"
@@ -122,7 +120,7 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
   }
 
   // Useful for reproducing very flaky issues.
-  void set_seed(uint64_t seed) { simple_random_.set_seed(seed); }
+  QUIC_UNUSED void set_seed(uint64_t seed) { simple_random_.set_seed(seed); }
 
  private:
   // Writes out the next packet to the contained writer and returns the time
@@ -139,16 +137,14 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
                  std::unique_ptr<PerPacketOptions> options,
                  QuicTime send_time);
     DelayedWrite(const DelayedWrite&) = delete;
+    DelayedWrite(DelayedWrite&&) = default;
     DelayedWrite& operator=(const DelayedWrite&) = delete;
-    // TODO(rtenneti): on windows RValue reference gives errors.
-    DelayedWrite(DelayedWrite&& other);
-    // TODO(rtenneti): on windows RValue reference gives errors.
-    //    DelayedWrite& operator=(DelayedWrite&& other);
+    DelayedWrite& operator=(DelayedWrite&&) = default;
     ~DelayedWrite();
 
     QuicString buffer;
-    const QuicIpAddress self_address;
-    const QuicSocketAddress peer_address;
+    QuicIpAddress self_address;
+    QuicSocketAddress peer_address;
     std::unique_ptr<PerPacketOptions> options;
     QuicTime send_time;
   };

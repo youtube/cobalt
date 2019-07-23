@@ -51,7 +51,7 @@ class TextDecoder : public Decoder {
 
   // From Decoder.
   void DecodeChunk(const char* data, size_t size) override {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     if (suspended_) {
       return;
     }
@@ -62,7 +62,7 @@ class TextDecoder : public Decoder {
   }
 
   void DecodeChunkPassed(std::unique_ptr<std::string> data) override {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     DCHECK(data);
     if (suspended_) {
       return;
@@ -76,7 +76,7 @@ class TextDecoder : public Decoder {
   }
 
   void Finish() override {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
     if (suspended_) return;
 
@@ -110,7 +110,7 @@ class TextDecoder : public Decoder {
         load_complete_callback_(load_complete_callback),
         suspended_(false) {}
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   TextAvailableCallback text_available_callback_;
   loader::Decoder::OnCompleteFunction load_complete_callback_;
   loader::Origin last_url_origin_;

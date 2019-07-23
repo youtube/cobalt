@@ -14,7 +14,7 @@
 #endif
 
 #if defined(STARBOARD)
-#include "starboard/byte_swap.h"
+#include "starboard/common/byte_swap.h"
 #define NTOHL_OPENTYPE_SANITISER(x) SB_NET_TO_HOST_U32(x)
 #define NTOHS_OPENTYPE_SANITISER(x) SB_NET_TO_HOST_U16(x)
 #define HTONL_OPENTYPE_SANITISER(x) SB_HOST_TO_NET_U32(x)

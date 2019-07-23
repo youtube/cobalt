@@ -28,11 +28,11 @@
 #include <algorithm>
 #include <iomanip>
 
+#include "starboard/common/log.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/event.h"
 #include "starboard/input.h"
 #include "starboard/key.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/player.h"
 #include "starboard/shared/posix/time_internal.h"
@@ -610,7 +610,6 @@ unsigned int XEventStateToSbKeyModifiers(unsigned int state) {
   if (state & ShiftMask) {
     key_modifiers |= kSbKeyModifiersShift;
   }
-#if SB_API_VERSION >= 6
   if (state & Button1Mask) {
     key_modifiers |= kSbKeyModifiersPointerButtonLeft;
   }
@@ -620,7 +619,6 @@ unsigned int XEventStateToSbKeyModifiers(unsigned int state) {
   if (state & Button3Mask) {
     key_modifiers |= kSbKeyModifiersPointerButtonRight;
   }
-#endif
   // Note: Button 4 and button 5 represent vertical wheel motion. As a result,
   // Button4Mask and Button5Mask do not represent a useful mouse button state
   // since the wheel up and wheel down do not have 'buttons' that can be held
@@ -630,7 +628,6 @@ unsigned int XEventStateToSbKeyModifiers(unsigned int state) {
   return key_modifiers;
 }
 
-#if SB_API_VERSION >= 6
 SbInputVector XButtonEventToSbInputVectorDelta(XButtonEvent* event) {
   SbInputVector delta = {0, 0};
   switch (event->button) {
@@ -649,7 +646,6 @@ SbInputVector XButtonEventToSbInputVectorDelta(XButtonEvent* event) {
   }
   return delta;
 }
-#endif
 
 void XSendAtom(Window window, Atom atom) {
   // XLib is not thread-safe. Since we may be coming from another thread, we
@@ -740,6 +736,14 @@ bool ApplicationX11::DestroyWindow(SbWindow window) {
     StopX();
   }
   return true;
+}
+
+SbWindow ApplicationX11::GetFirstWindow() {
+  if (windows_.empty()) {
+    return kSbWindowInvalid;
+  }
+
+  return windows_.front();
 }
 
 namespace {
@@ -1209,12 +1213,10 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
       XButtonEvent* x_button_event = reinterpret_cast<XButtonEvent*>(x_event);
       bool is_press_event = ButtonPress == x_event->type;
       bool is_wheel_event = XButtonEventIsWheelEvent(x_button_event);
-#if SB_API_VERSION >= 6
       if (is_wheel_event && !is_press_event) {
         // unpress events from the wheel are discarded.
         return NULL;
       }
-#endif
       scoped_ptr<SbInputData> data(new SbInputData());
       SbMemorySet(data.get(), 0, sizeof(*data));
 #if SB_API_VERSION >= 10
@@ -1227,17 +1229,11 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
           is_press_event ? kSbInputEventTypePress : kSbInputEventTypeUnpress;
       data->device_type = kSbInputDeviceTypeMouse;
       if (is_wheel_event) {
-#if SB_API_VERSION >= 6
         data->pressure = NAN;
         data->size = {NAN, NAN};
         data->tilt = {NAN, NAN};
         data->type = kSbInputEventTypeWheel;
         data->delta = XButtonEventToSbInputVectorDelta(x_button_event);
-#else
-        // This version of Starboard does not support wheel event types, send
-        // keyboard event types instead.
-        data->device_type = kSbInputDeviceTypeKeyboard;
-#endif
       }
       data->device_id = kMouseDeviceId;
       data->key_modifiers = XEventStateToSbKeyModifiers(x_button_event->state);
@@ -1255,11 +1251,9 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
 #endif  // SB_API_VERSION >= 10
       data->window = FindWindow(x_motion_event->window);
       SB_DCHECK(SbWindowIsValid(data->window));
-#if SB_API_VERSION >= 6
       data->pressure = NAN;
       data->size = {NAN, NAN};
       data->tilt = {NAN, NAN};
-#endif
       data->type = kSbInputEventTypeMove;
       data->device_type = kSbInputDeviceTypeMouse;
       data->device_id = kMouseDeviceId;

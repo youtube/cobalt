@@ -14,13 +14,11 @@
 
 #include "cobalt/renderer/backend/egl/framebuffer.h"
 
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
-
 #include "base/logging.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/utils.h"
+#include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {
 namespace renderer {
@@ -33,8 +31,8 @@ FramebufferEGL::FramebufferEGL(GraphicsContextEGL* graphics_context,
   GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(graphics_context_);
 
   // Create the framebuffer object.
-  glGenFramebuffers(1, &framebuffer_handle_);
-  if (glGetError() != GL_NO_ERROR) {
+  GL_CALL_SIMPLE(glGenFramebuffers(1, &framebuffer_handle_));
+  if (GL_CALL_SIMPLE(glGetError()) != GL_NO_ERROR) {
     LOG(ERROR) << "Error creating new framebuffer.";
     error_ = true;
     return;
@@ -43,8 +41,8 @@ FramebufferEGL::FramebufferEGL(GraphicsContextEGL* graphics_context,
 
   // Create and attach a texture for color.
   GLuint color_handle = 0;
-  glGenTextures(1, &color_handle);
-  if (glGetError() != GL_NO_ERROR) {
+  GL_CALL_SIMPLE(glGenTextures(1, &color_handle));
+  if (GL_CALL_SIMPLE(glGetError()) != GL_NO_ERROR) {
     LOG(ERROR) << "Error creating new texture.";
     error_ = true;
     GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
@@ -57,9 +55,10 @@ FramebufferEGL::FramebufferEGL(GraphicsContextEGL* graphics_context,
   GL_CALL(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
   GL_CALL(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
   GL_CALL(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
-  glTexImage2D(GL_TEXTURE_2D, 0, color_format, size_.width(), size_.height(), 0,
-               color_format, GL_UNSIGNED_BYTE, 0);
-  if (glGetError() != GL_NO_ERROR) {
+  GL_CALL_SIMPLE(glTexImage2D(GL_TEXTURE_2D, 0, color_format, size_.width(),
+                              size_.height(), 0, color_format, GL_UNSIGNED_BYTE,
+                              0));
+  if (GL_CALL_SIMPLE(glGetError()) != GL_NO_ERROR) {
     LOG(ERROR) << "Error allocating new texture backing for a framebuffer.";
     error_ = true;
     GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
@@ -90,7 +89,8 @@ FramebufferEGL::FramebufferEGL(GraphicsContextEGL* graphics_context,
   }
 
   // Verify the framebuffer object is valid.
-  DCHECK_EQ(glCheckFramebufferStatus(GL_FRAMEBUFFER), GL_FRAMEBUFFER_COMPLETE);
+  DCHECK_EQ(GL_CALL_SIMPLE(glCheckFramebufferStatus(GL_FRAMEBUFFER)),
+            GL_FRAMEBUFFER_COMPLETE);
   GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 }
 
@@ -103,7 +103,7 @@ void FramebufferEGL::EnsureDepthBufferAttached(GLenum depth_format) {
     CreateDepthAttachment(depth_format);
 
     // Verify the framebuffer object is valid.
-    DCHECK_EQ(glCheckFramebufferStatus(GL_FRAMEBUFFER),
+    DCHECK_EQ(GL_CALL_SIMPLE(glCheckFramebufferStatus(GL_FRAMEBUFFER)),
               GL_FRAMEBUFFER_COMPLETE);
     GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
   }
@@ -121,15 +121,15 @@ FramebufferEGL::~FramebufferEGL() {
 }
 
 bool FramebufferEGL::CreateDepthAttachment(GLenum depth_format) {
-  glGenRenderbuffers(1, &depthbuffer_handle_);
-  if (glGetError() != GL_NO_ERROR) {
+  GL_CALL_SIMPLE(glGenRenderbuffers(1, &depthbuffer_handle_));
+  if (GL_CALL_SIMPLE(glGetError()) != GL_NO_ERROR) {
     LOG(ERROR) << "Error creating depth buffer object.";
     return false;
   }
   GL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, depthbuffer_handle_));
-  glRenderbufferStorage(GL_RENDERBUFFER, depth_format, size_.width(),
-                        size_.height());
-  if (glGetError() != GL_NO_ERROR) {
+  GL_CALL_SIMPLE(glRenderbufferStorage(GL_RENDERBUFFER, depth_format,
+                                       size_.width(), size_.height()));
+  if (GL_CALL_SIMPLE(glGetError()) != GL_NO_ERROR) {
     LOG(ERROR) << "Error allocating memory for depth buffer.";
     GL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, 0));
     GL_CALL(glDeleteRenderbuffers(1, &depthbuffer_handle_));

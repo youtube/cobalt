@@ -19,10 +19,11 @@ class MockTimeWaitListManager : public QuicTimeWaitListManager {
                           QuicAlarmFactory* alarm_factory);
   ~MockTimeWaitListManager() override;
 
-  MOCK_METHOD4(AddConnectionIdToTimeWait,
+  MOCK_METHOD5(AddConnectionIdToTimeWait,
                void(QuicConnectionId connection_id,
                     bool ietf_quic,
                     QuicTimeWaitListManager::TimeWaitAction action,
+                    EncryptionLevel encryption_level,
                     std::vector<std::unique_ptr<QuicEncryptedPacket>>*
                         termination_packets));
 
@@ -30,22 +31,42 @@ class MockTimeWaitListManager : public QuicTimeWaitListManager {
       QuicConnectionId connection_id,
       bool ietf_quic,
       QuicTimeWaitListManager::TimeWaitAction action,
+      EncryptionLevel encryption_level,
       std::vector<std::unique_ptr<QuicEncryptedPacket>>* termination_packets) {
-    QuicTimeWaitListManager::AddConnectionIdToTimeWait(
-        connection_id, ietf_quic, action, termination_packets);
+    QuicTimeWaitListManager::AddConnectionIdToTimeWait(connection_id, ietf_quic,
+                                                       action, encryption_level,
+                                                       termination_packets);
   }
 
-  MOCK_METHOD3(ProcessPacket,
+#if defined(GMOCK_NO_MOVE_MOCK)
+  void ProcessPacket(const QuicSocketAddress& server_address,
+                     const QuicSocketAddress& client_address,
+                     QuicConnectionId connection_id,
+                     PacketHeaderFormat header_format,
+                     std::unique_ptr<QuicPerPacketContext> packet_context) {}
+  void SendVersionNegotiationPacket(
+      QuicConnectionId connection_id,
+      bool ietf_quic,
+      const ParsedQuicVersionVector& supported_versions,
+      const QuicSocketAddress& server_address,
+      const QuicSocketAddress& client_address,
+      std::unique_ptr<QuicPerPacketContext> packet_context) {}
+#else
+  MOCK_METHOD5(ProcessPacket,
                void(const QuicSocketAddress& server_address,
                     const QuicSocketAddress& client_address,
-                    QuicConnectionId connection_id));
+                    QuicConnectionId connection_id,
+                    PacketHeaderFormat header_format,
+                    std::unique_ptr<QuicPerPacketContext> packet_context));
 
-  MOCK_METHOD5(SendVersionNegotiationPacket,
+  MOCK_METHOD6(SendVersionNegotiationPacket,
                void(QuicConnectionId connection_id,
                     bool ietf_quic,
                     const ParsedQuicVersionVector& supported_versions,
                     const QuicSocketAddress& server_address,
-                    const QuicSocketAddress& client_address));
+                    const QuicSocketAddress& client_address,
+                    std::unique_ptr<QuicPerPacketContext> packet_context));
+#endif
 };
 
 }  // namespace test

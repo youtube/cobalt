@@ -7,6 +7,7 @@
 
 #include "base/macros.h"
 #include "net/third_party/quic/platform/api/quic_export.h"
+#include "net/third_party/quic/platform/api/quic_string.h"
 #include "net/third_party/quic/platform/api/quic_string_piece.h"
 
 namespace quic {
@@ -21,7 +22,7 @@ class QUIC_EXPORT_PRIVATE QuicHostnameUtilsImpl {
 
   // Convert hostname to lowercase and remove the trailing '.'.
   // WARNING: mutates |hostname| in place and returns |hostname|.
-  static char* NormalizeHostname(char* hostname);
+  static QuicString NormalizeHostname(QuicStringPiece hostname);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(QuicHostnameUtilsImpl);

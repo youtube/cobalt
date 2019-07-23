@@ -14,8 +14,8 @@
 
 #include "starboard/raspi/shared/video_renderer_sink_impl.h"
 
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/log.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/time.h"
 

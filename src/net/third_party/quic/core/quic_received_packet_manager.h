@@ -13,8 +13,11 @@
 
 namespace quic {
 
+class RttStats;
+
 namespace test {
 class QuicConnectionPeer;
+class QuicReceivedPacketManagerPeer;
 }  // namespace test
 
 struct QuicConnectionStats;
@@ -27,6 +30,8 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
   QuicReceivedPacketManager& operator=(const QuicReceivedPacketManager&) =
       delete;
   virtual ~QuicReceivedPacketManager();
+
+  void SetFromConfig(const QuicConfig& config, Perspective perspective);
 
   // Updates the internal state concerning which packets have been received.
   // header: the packet header.
@@ -50,6 +55,20 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
   // received after this call.
   void DontWaitForPacketsBefore(QuicPacketNumber least_unacked);
 
+  // Called to update ack_timeout_ to the time when an ACK needs to be sent. A
+  // caller can decide whether and when to send an ACK by retrieving
+  // ack_timeout_. If ack_timeout_ is not initialized, no ACK needs to be sent.
+  // Otherwise, ACK needs to be sent by the specified time.
+  void MaybeUpdateAckTimeout(bool should_last_packet_instigate_acks,
+                             QuicPacketNumber last_received_packet_number,
+                             QuicTime time_of_last_received_packet,
+                             QuicTime now,
+                             const RttStats* rtt_stats,
+                             QuicTime::Delta delayed_ack_time);
+
+  // Resets ACK related states, called after an ACK is successfully sent.
+  void ResetAckStates();
+
   // Returns true if there are any missing packets.
   bool HasMissingPackets() const;
 
@@ -65,6 +84,13 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
 
   QuicPacketNumber GetLargestObserved() const;
 
+  // Returns peer first sending packet number to our best knowledge. If
+  // GetQuicRestartFlag(quic_enable_accept_random_ipn) is false, returns 1.
+  // Otherwise considers least_received_packet_number_ as peer first sending
+  // packet number. Please note, this function should only be called when at
+  // least one packet has been received.
+  QuicPacketNumber PeerFirstSendingPacketNumber() const;
+
   // For logging purposes.
   const QuicAckFrame& ack_frame() const { return ack_frame_; }
 
@@ -72,8 +98,35 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
     max_ack_ranges_ = max_ack_ranges;
   }
 
+  void set_save_timestamps(bool save_timestamps) {
+    save_timestamps_ = save_timestamps;
+  }
+
+  size_t min_received_before_ack_decimation() const {
+    return min_received_before_ack_decimation_;
+  }
+  void set_min_received_before_ack_decimation(size_t new_value) {
+    min_received_before_ack_decimation_ = new_value;
+  }
+
+  size_t ack_frequency_before_ack_decimation() const {
+    return ack_frequency_before_ack_decimation_;
+  }
+  void set_ack_frequency_before_ack_decimation(size_t new_value) {
+    DCHECK_GT(new_value, 0u);
+    ack_frequency_before_ack_decimation_ = new_value;
+  }
+
+  QuicTime ack_timeout() const { return ack_timeout_; }
+
+  bool decide_when_to_send_acks() const { return decide_when_to_send_acks_; }
+
  private:
   friend class test::QuicConnectionPeer;
+  friend class test::QuicReceivedPacketManagerPeer;
+
+  // Sets ack_timeout_ to |time| if ack_timeout_ is not initialized or > time.
+  void MaybeUpdateAckTimeoutTo(QuicTime time);
 
   // Least packet number of the the packet sent by the peer for which it
   // hasn't received an ack.
@@ -94,7 +147,45 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
   // Needed for calculating ack_delay_time.
   QuicTime time_largest_observed_;
 
+  // If true, save timestamps in the ack_frame_.
+  bool save_timestamps_;
+
+  // Least packet number received from peer.
+  QuicPacketNumber least_received_packet_number_;
+
   QuicConnectionStats* stats_;
+
+  AckMode ack_mode_;
+  // How many retransmittable packets have arrived without sending an ack.
+  QuicPacketCount num_retransmittable_packets_received_since_last_ack_sent_;
+  // Ack decimation will start happening after this many packets are received.
+  size_t min_received_before_ack_decimation_;
+  // Before ack decimation starts (if enabled), we ack every n-th packet.
+  size_t ack_frequency_before_ack_decimation_;
+  // The max delay in fraction of min_rtt to use when sending decimated acks.
+  float ack_decimation_delay_;
+  // When true, removes ack decimation's max number of packets(10) before
+  // sending an ack.
+  bool unlimited_ack_decimation_;
+  // When true, use a 1ms delayed ack timer if it's been an SRTT since a packet
+  // was received.
+  bool fast_ack_after_quiescence_;
+
+  // Time that an ACK needs to be sent. 0 means no ACK is pending. Used when
+  // decide_when_to_send_acks_ is true.
+  QuicTime ack_timeout_;
+
+  // The time the previous ack-instigating packet was received and processed.
+  QuicTime time_of_previous_received_packet_;
+  // Whether the most recent packet was missing before it was received.
+  bool was_last_packet_missing_;
+
+  // Last sent largest acked, which gets updated when ACK was successfully sent.
+  QuicPacketNumber last_sent_largest_acked_;
+
+  // Latched value of quic_deprecate_ack_bundling_mode and
+  // quic_rpm_decides_when_to_send_acks.
+  const bool decide_when_to_send_acks_;
 };
 
 }  // namespace quic

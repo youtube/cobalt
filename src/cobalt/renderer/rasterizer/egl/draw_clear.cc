@@ -14,9 +14,8 @@
 
 #include "cobalt/renderer/rasterizer/egl/draw_clear.h"
 
-#include <GLES2/gl2.h>
-
 #include "cobalt/renderer/backend/egl/utils.h"
+#include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {
 namespace renderer {

@@ -68,16 +68,14 @@ TEST(CSSComputedStyleDataTest, AlignSelfSettersAndGettersAreConsistent) {
   scoped_refptr<MutableCSSComputedStyleData> style =
       new MutableCSSComputedStyleData();
 
-  EXPECT_EQ(GetPropertyInitialValue(kAlignSelfProperty), style->align_self());
-  EXPECT_EQ(style->align_self(), style->GetPropertyValue(kAlignSelfProperty));
+  EXPECT_EQ(GetPropertyInitialValue(kAlignSelfProperty),
+            style->GetPropertyValue(kAlignSelfProperty));
 
   style->set_align_self(KeywordValue::GetInitial());
-  EXPECT_EQ(KeywordValue::GetInitial(), style->align_self());
   EXPECT_EQ(KeywordValue::GetInitial(),
             style->GetPropertyValue(kAlignSelfProperty));
 
   style->SetPropertyValue(kAlignSelfProperty, KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->align_self());
   EXPECT_EQ(KeywordValue::GetInherit(),
             style->GetPropertyValue(kAlignSelfProperty));
 }

@@ -17,10 +17,10 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 
-#include "starboard/condition_variable.h"
+#include "starboard/common/condition_variable.h"
+#include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
 #include "starboard/file.h"
-#include "starboard/log.h"
-#include "starboard/mutex.h"
 #include "starboard/thread.h"
 #include "starboard/types.h"
 

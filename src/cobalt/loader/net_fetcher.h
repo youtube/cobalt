@@ -57,7 +57,7 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
                                   int64_t current_network_bytes) override;
 
   net::URLFetcher* url_fetcher() const {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     return url_fetcher_.get();
   }
 
@@ -81,7 +81,7 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
 
   // Thread checker ensures all calls to the NetFetcher are made from the same
   // thread that it is created in.
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   std::unique_ptr<net::URLFetcher> url_fetcher_;
   csp::SecurityCallback security_callback_;
   // Ensure we can cancel any in-flight Start() task if we are destroyed

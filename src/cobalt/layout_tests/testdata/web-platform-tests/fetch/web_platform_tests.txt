@@ -103,7 +103,8 @@ api/request/request-clone.sub.html,PASS
 api/request/request-consume.html,DISABLE
 # Fails because blob and formData are not supported.
 api/request/request-consume-empty.html,DISABLE
-api/request/request-disturbed.html,PASS
+# Disabled due to failing test fixture
+api/request/request-disturbed.html,DISABLE
 api/request/request-error.html,PASS
 api/request/request-headers.html,PASS
 # Fails because implementation is a polyfill.
@@ -130,7 +131,8 @@ api/response/response-error.html,PASS
 # Fails because implementation is a polyfill.
 api/response/response-idl.html,DISABLE
 api/response/response-init-001.html,PASS
-api/response/response-init-002.html,PASS
+# Fails because Blob, FormData, and URLSearchParams are not supported.
+api/response/response-init-002.html,DISABLE
 api/response/response-static-error.html,PASS
 api/response/response-static-redirect.html,PASS
 api/response/response-stream-disturbed-1.html,PASS
@@ -140,3 +142,13 @@ api/response/response-stream-disturbed-4.html,PASS
 api/response/response-stream-disturbed-5.html,PASS
 # Fails because trailer is not implemented.
 api/response/response-trailer.html,DISABLE
+# Abort tests
+api/abort/general.any.html,PASS
+# Serviceworkers are not supported
+api/abort/serviceworker-intercepted.https.html,DISABLE
+# Keepalive tests require Iframes, not supported
+api/abort/keepalive.html, DISABLE
+# Cache api is not supported
+api/abort/cache.https.html, DISABLE
+# Regression test, requires iframe support
+api/abort/destroyed-context.html, DISABLE

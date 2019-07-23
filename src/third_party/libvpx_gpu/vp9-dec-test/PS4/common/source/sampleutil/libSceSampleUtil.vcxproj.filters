@@ -1,0 +1,833 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cxx;cc;s;asm</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp</Extensions>
+    </Filter>
+    <Filter Include="Source Files\graphics">
+      <UniqueIdentifier>{b1346de6-e476-4511-b903-d7900f31aa0f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\input">
+      <UniqueIdentifier>{77dd35ea-1790-4bdf-932a-211ab73b875b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\graphics\collada">
+      <UniqueIdentifier>{96fc6757-68ff-4fc1-aebf-889d255c56b7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\graphics\collada\dae">
+      <UniqueIdentifier>{fc715001-0ae0-4f30-aab3-959f7c73bc29}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\graphics\platform_gnm">
+      <UniqueIdentifier>{ecf91a0b-ee15-4b04-abf4-f61372b83438}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\audio">
+      <UniqueIdentifier>{f30bddbc-6aad-436b-8ff6-2686aac95c18}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\audio\ngs2">
+      <UniqueIdentifier>{67e01345-fdb3-473d-bcc2-772196cb6852}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Resource">
+      <UniqueIdentifier>{719af2ff-2b25-49d6-bcf2-5613eef4f3f3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\sample_util">
+      <UniqueIdentifier>{24b4b573-8fbb-49e0-a960-fe051cb20da3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\sample_util\Audio">
+      <UniqueIdentifier>{9be1ca38-b2c3-4228-a208-4fb50c69b823}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\sample_util\graphics">
+      <UniqueIdentifier>{02155831-4f6c-4313-be6c-0455083f264d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\sample_util\graphics\collada">
+      <UniqueIdentifier>{251fc1da-25f4-4982-835e-e4aab23a3ee9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\sample_util\graphics\platform_gnm">
+      <UniqueIdentifier>{9a407e69-ecd3-488e-83a3-aed61cd20707}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\sample_util\debug">
+      <UniqueIdentifier>{09e2ddc6-9563-4fae-8a60-c1c1499a9493}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\debug">
+      <UniqueIdentifier>{1a668115-ef74-4445-8af9-808390b4ad4d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\sample_util\graphics\platform_gxm">
+      <UniqueIdentifier>{8da06857-7958-4602-a123-517aa1d98f5d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\sample_util\graphics\platform_dx11">
+      <UniqueIdentifier>{8c93893c-27c0-4eb6-8205-0f7132b8615e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\graphics\platform_gxm">
+      <UniqueIdentifier>{21d0ef12-3fc4-4a49-8d9d-622a43acc513}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\graphics\platform_dx11">
+      <UniqueIdentifier>{b669e6e8-f199-4744-9a55-6e24f82088fa}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Resource\pssl">
+      <UniqueIdentifier>{c5092e21-dfbf-4506-8610-2c7790192e9e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Resource\cg">
+      <UniqueIdentifier>{3e4bb032-bb60-4124-a966-9d6261bf8549}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\audio\ngs">
+      <UniqueIdentifier>{d5851d03-29f7-4e6b-95e2-b51f3e1bb5b0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\input\psp2">
+      <UniqueIdentifier>{5805689e-aa21-46d0-a3fb-b3f0d31257db}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\input\win">
+      <UniqueIdentifier>{249df471-9168-4b5c-b3df-19fb830ecb34}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\input\orbis">
+      <UniqueIdentifier>{04f123fb-f86e-4833-9370-401bd85796c6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\sample_util\input">
+      <UniqueIdentifier>{efe408b5-ffd2-43ae-9e89-89318a99b8f1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\util">
+      <UniqueIdentifier>{18bab552-4afd-4f0f-b241-6c47ab235426}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\sample_util\system">
+      <UniqueIdentifier>{c714f3b2-b8ba-480b-8398-dcd8938f5c08}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\system">
+      <UniqueIdentifier>{c4a34eee-25ee-427d-966b-0f1123e33beb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\system\win">
+      <UniqueIdentifier>{131f6b49-ff8f-494a-a2fc-c0b44b6c3cf7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\system\orbis">
+      <UniqueIdentifier>{f9c9275c-0ccf-4206-b558-7ccbb825e264}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\system\psp2">
+      <UniqueIdentifier>{2b5f4786-b6f4-43c2-9c4d-d16e5d308abb}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="graphics\collada\dae\dae.h">
+      <Filter>Source Files\graphics\collada\dae</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\collada\dae\dae_animation.h">
+      <Filter>Source Files\graphics\collada\dae</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\collada\dae\dae_common.h">
+      <Filter>Source Files\graphics\collada\dae</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\collada\dae\dae_control.h">
+      <Filter>Source Files\graphics\collada\dae</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\collada\dae\dae_data_flow.h">
+      <Filter>Source Files\graphics\collada\dae</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\collada\dae\dae_effect.h">
+      <Filter>Source Files\graphics\collada\dae</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\collada\dae\dae_geometry.h">
+      <Filter>Source Files\graphics\collada\dae</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\collada\dae\dae_scene.h">
+      <Filter>Source Files\graphics\collada\dae</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\collada\dae\dae_transform.h">
+      <Filter>Source Files\graphics\collada\dae</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\collada\dae\dae_vscene.h">
+      <Filter>Source Files\graphics\collada\dae</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\collada\collada_internal.h">
+      <Filter>Source Files\graphics\collada</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\collada\collada_material.h">
+      <Filter>Source Files\graphics\collada</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\collada\collada_scene.h">
+      <Filter>Source Files\graphics\collada</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\collada\collada_util.h">
+      <Filter>Source Files\graphics\collada</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\platform_gnm\gnm_internal.h">
+      <Filter>Source Files\graphics\platform_gnm</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\image.h">
+      <Filter>Source Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\collada\collada_transform.h">
+      <Filter>Source Files\graphics\collada</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\graphics.h">
+      <Filter>Header Files\sample_util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\graphics\buffer.h">
+      <Filter>Header Files\sample_util\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\graphics\collada.h">
+      <Filter>Header Files\sample_util\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\graphics\constant.h">
+      <Filter>Header Files\sample_util\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\graphics\context.h">
+      <Filter>Header Files\sample_util\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\graphics\effect.h">
+      <Filter>Header Files\sample_util\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\graphics\loader.h">
+      <Filter>Header Files\sample_util\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\graphics\platform.h">
+      <Filter>Header Files\sample_util\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\graphics\program.h">
+      <Filter>Header Files\sample_util\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\graphics\sprite.h">
+      <Filter>Header Files\sample_util\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\graphics\platform_gnm\platform_gnm.h">
+      <Filter>Header Files\sample_util\graphics\platform_gnm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\graphics\collada\collada_animation.h">
+      <Filter>Header Files\sample_util\graphics\collada</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\graphics\collada\collada_base.h">
+      <Filter>Header Files\sample_util\graphics\collada</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\graphics\collada\collada_effect.h">
+      <Filter>Header Files\sample_util\graphics\collada</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\graphics\collada\collada_geometry.h">
+      <Filter>Header Files\sample_util\graphics\collada</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\graphics\collada\collada_image.h">
+      <Filter>Header Files\sample_util\graphics\collada</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\graphics\collada\collada_scene.h">
+      <Filter>Header Files\sample_util\graphics\collada</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\audio.h">
+      <Filter>Header Files\sample_util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\audio\context.h">
+      <Filter>Header Files\sample_util\Audio</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\audio\data.h">
+      <Filter>Header Files\sample_util\Audio</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\audio\voice.h">
+      <Filter>Header Files\sample_util\Audio</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\input.h">
+      <Filter>Header Files\sample_util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\sampleutil_common.h">
+      <Filter>Header Files\sample_util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\sampleutil_error.h">
+      <Filter>Header Files\sample_util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\skeleton.h">
+      <Filter>Header Files\sample_util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil.h">
+      <Filter>Header Files\sample_util</Filter>
+    </ClInclude>
+    <ClInclude Include="audio\ngs2\ngs2_internal.h">
+      <Filter>Source Files\audio\ngs2</Filter>
+    </ClInclude>
+    <ClInclude Include="audio\ngs2\ngs2_stream.h">
+      <Filter>Source Files\audio\ngs2</Filter>
+    </ClInclude>
+    <ClInclude Include="resource\resource_manager.h">
+      <Filter>Source Files\Resource</Filter>
+    </ClInclude>
+    <ClInclude Include="resource\shader_base.h">
+      <Filter>Source Files\Resource</Filter>
+    </ClInclude>
+    <ClInclude Include="resource\std_cbuffer.h">
+      <Filter>Source Files\Resource</Filter>
+    </ClInclude>
+    <ClInclude Include="stdafx.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\debug\console.h">
+      <Filter>Header Files\sample_util\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\debug\menu.h">
+      <Filter>Header Files\sample_util\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\graphics\font.h">
+      <Filter>Header Files\sample_util\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\graphics_internal.h">
+      <Filter>Source Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\graphics\platform_gxm\platform_gxm.h">
+      <Filter>Header Files\sample_util\graphics\platform_gxm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\graphics\platform_dx11\platform_dx11.h">
+      <Filter>Header Files\sample_util\graphics\platform_dx11</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\platform_gxm\gxm_internal.h">
+      <Filter>Source Files\graphics\platform_gxm</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\platform_dx11\dx11_internal.h">
+      <Filter>Source Files\graphics\platform_dx11</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\platform_gnm\image_gnm.h">
+      <Filter>Source Files\graphics\platform_gnm</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\constant_internal.h">
+      <Filter>Source Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\input\controller.h">
+      <Filter>Header Files\sample_util\input</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\input\motion.h">
+      <Filter>Header Files\sample_util\input</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\input\touch.h">
+      <Filter>Header Files\sample_util\input</Filter>
+    </ClInclude>
+    <ClInclude Include="audio\ngs\ngs_internal.h">
+      <Filter>Source Files\audio\ngs</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\platform_gxm\heap_gxm.h">
+      <Filter>Source Files\graphics\platform_gxm</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\platform_gnm\heap_gnm.h">
+      <Filter>Source Files\graphics\platform_gnm</Filter>
+    </ClInclude>
+    <ClInclude Include="util\util.h">
+      <Filter>Source Files\util</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\platform_gxm\texture_util_gxm.h">
+      <Filter>Source Files\graphics\platform_gxm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\sampleutil\system.h">
+      <Filter>Header Files\sample_util</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\platform_gnm\buffer_internal_gnm.h">
+      <Filter>Source Files\graphics\platform_gnm</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\platform_gnm\constant_internal_gnm.h">
+      <Filter>Source Files\graphics\platform_gnm</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\platform_gnm\context_internal_gnm.h">
+      <Filter>Source Files\graphics\platform_gnm</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\platform_gnm\loader_internal_gnm.h">
+      <Filter>Source Files\graphics\platform_gnm</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\platform_gnm\program_internal_gnm.h">
+      <Filter>Source Files\graphics\platform_gnm</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\platform_dx11\buffer_internal_dx11.h">
+      <Filter>Source Files\graphics\platform_dx11</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\platform_dx11\constant_internal_dx11.h">
+      <Filter>Source Files\graphics\platform_dx11</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\platform_dx11\context_internal_dx11.h">
+      <Filter>Source Files\graphics\platform_dx11</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\platform_dx11\loader_internal_dx11.h">
+      <Filter>Source Files\graphics\platform_dx11</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\platform_dx11\program_internal_dx11.h">
+      <Filter>Source Files\graphics\platform_dx11</Filter>
+    </ClInclude>
+    <ClInclude Include="sampleutil_internal.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\font_internal.h">
+      <Filter>Source Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\platform_gxm\buffer_internal_gxm.h">
+      <Filter>Source Files\graphics\platform_gxm</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\platform_gxm\constant_internal_gxm.h">
+      <Filter>Source Files\graphics\platform_gxm</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\platform_gxm\context_internal_gxm.h">
+      <Filter>Source Files\graphics\platform_gxm</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\platform_gxm\loader_internal_gxm.h">
+      <Filter>Source Files\graphics\platform_gxm</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\platform_gxm\program_internal_gxm.h">
+      <Filter>Source Files\graphics\platform_gxm</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\debug_menu_internal.h">
+      <Filter>Source Files\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\platform_dx11\font_win.h">
+      <Filter>Source Files\graphics\platform_dx11</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\platform_gnm\font_orbis.h">
+      <Filter>Source Files\graphics\platform_gnm</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\platform_gxm\font_psp2.h">
+      <Filter>Source Files\graphics\platform_gxm</Filter>
+    </ClInclude>
+    <ClInclude Include="graphics\sprite_internal.h">
+      <Filter>Source Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="input\pad_common.h">
+      <Filter>Source Files\input</Filter>
+    </ClInclude>
+    <ClInclude Include="input\controller_common.h">
+      <Filter>Source Files\input</Filter>
+    </ClInclude>
+    <ClInclude Include="audio\audio_internal.h">
+      <Filter>Source Files\audio</Filter>
+    </ClInclude>
+    <ClInclude Include="audio\ngs\ngs_module.h">
+      <Filter>Source Files\audio\ngs</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="graphics\frame_buffer.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\loader.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\program.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\effect.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\sprite.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\texture.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\collada\dae\dae_animation.cpp">
+      <Filter>Source Files\graphics\collada\dae</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\collada\dae\dae_control.cpp">
+      <Filter>Source Files\graphics\collada\dae</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\collada\dae\dae_data_flow.cpp">
+      <Filter>Source Files\graphics\collada\dae</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\collada\dae\dae_effect.cpp">
+      <Filter>Source Files\graphics\collada\dae</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\collada\dae\dae_geom.cpp">
+      <Filter>Source Files\graphics\collada\dae</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\collada\dae\dae_geometry.cpp">
+      <Filter>Source Files\graphics\collada\dae</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\collada\dae\dae_scene.cpp">
+      <Filter>Source Files\graphics\collada\dae</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\collada\dae\dae_transform.cpp">
+      <Filter>Source Files\graphics\collada\dae</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\collada\collada.cpp">
+      <Filter>Source Files\graphics\collada</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\collada\collada_animation.cpp">
+      <Filter>Source Files\graphics\collada</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\collada\collada_base.cpp">
+      <Filter>Source Files\graphics\collada</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\collada\collada_controller.cpp">
+      <Filter>Source Files\graphics\collada</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\collada\collada_effect.cpp">
+      <Filter>Source Files\graphics\collada</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\collada\collada_geometry.cpp">
+      <Filter>Source Files\graphics\collada</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\collada\collada_image.cpp">
+      <Filter>Source Files\graphics\collada</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\collada\collada_scene.cpp">
+      <Filter>Source Files\graphics\collada</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_gnm\buffer_gnm.cpp">
+      <Filter>Source Files\graphics\platform_gnm</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_gnm\constant_gnm.cpp">
+      <Filter>Source Files\graphics\platform_gnm</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_gnm\context_gnm.cpp">
+      <Filter>Source Files\graphics\platform_gnm</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_gnm\frame_buffer_gnm.cpp">
+      <Filter>Source Files\graphics\platform_gnm</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_gnm\loader_gnm.cpp">
+      <Filter>Source Files\graphics\platform_gnm</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_gnm\program_gnm.cpp">
+      <Filter>Source Files\graphics\platform_gnm</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_gnm\render_target_gnm.cpp">
+      <Filter>Source Files\graphics\platform_gnm</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_gnm\texture_gnm.cpp">
+      <Filter>Source Files\graphics\platform_gnm</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\image.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="audio\ngs2\ngs2_context.cpp">
+      <Filter>Source Files\audio\ngs2</Filter>
+    </ClCompile>
+    <ClCompile Include="audio\ngs2\ngs2_voice.cpp">
+      <Filter>Source Files\audio\ngs2</Filter>
+    </ClCompile>
+    <ClCompile Include="audio\ngs2\ngs2_data.cpp">
+      <Filter>Source Files\audio\ngs2</Filter>
+    </ClCompile>
+    <ClCompile Include="audio\ngs2\ngs2_rack.cpp">
+      <Filter>Source Files\audio\ngs2</Filter>
+    </ClCompile>
+    <ClCompile Include="audio\ngs2\ngs2_stream.cpp">
+      <Filter>Source Files\audio\ngs2</Filter>
+    </ClCompile>
+    <ClCompile Include="audio\ngs2\ngs2_thread.cpp">
+      <Filter>Source Files\audio\ngs2</Filter>
+    </ClCompile>
+    <ClCompile Include="resource\resource_manager.cpp">
+      <Filter>Source Files\Resource</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\collada\collada_util.cpp">
+      <Filter>Source Files\graphics\collada</Filter>
+    </ClCompile>
+    <ClCompile Include="skeleton.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\console.cpp">
+      <Filter>Source Files\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\menu.cpp">
+      <Filter>Source Files\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_gxm\buffer_gxm.cpp">
+      <Filter>Source Files\graphics\platform_gxm</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_gxm\constant_gxm.cpp">
+      <Filter>Source Files\graphics\platform_gxm</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_gxm\context_gxm.cpp">
+      <Filter>Source Files\graphics\platform_gxm</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_gxm\frame_buffer_gxm.cpp">
+      <Filter>Source Files\graphics\platform_gxm</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_gxm\loader_gxm.cpp">
+      <Filter>Source Files\graphics\platform_gxm</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_gxm\program_gxm.cpp">
+      <Filter>Source Files\graphics\platform_gxm</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_gxm\render_target_gxm.cpp">
+      <Filter>Source Files\graphics\platform_gxm</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_gxm\texture_gxm.cpp">
+      <Filter>Source Files\graphics\platform_gxm</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_dx11\buffer_dx11.cpp">
+      <Filter>Source Files\graphics\platform_dx11</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_dx11\constant_dx11.cpp">
+      <Filter>Source Files\graphics\platform_dx11</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_dx11\context_dx11.cpp">
+      <Filter>Source Files\graphics\platform_dx11</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_dx11\frame_buffer_dx11.cpp">
+      <Filter>Source Files\graphics\platform_dx11</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_dx11\loader_dx11.cpp">
+      <Filter>Source Files\graphics\platform_dx11</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_dx11\program_dx11.cpp">
+      <Filter>Source Files\graphics\platform_dx11</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_dx11\render_target_dx11.cpp">
+      <Filter>Source Files\graphics\platform_dx11</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_dx11\texture_dx11.cpp">
+      <Filter>Source Files\graphics\platform_dx11</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_gnm\image_gnm.cpp">
+      <Filter>Source Files\graphics\platform_gnm</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_gnm\shader_loader_gnm.cpp">
+      <Filter>Source Files\graphics\platform_gnm</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\buffer.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="audio\audio.cpp">
+      <Filter>Source Files\audio</Filter>
+    </ClCompile>
+    <ClCompile Include="input\psp2\controller_psp2.cpp">
+      <Filter>Source Files\input\psp2</Filter>
+    </ClCompile>
+    <ClCompile Include="input\psp2\touch_psp2.cpp">
+      <Filter>Source Files\input\psp2</Filter>
+    </ClCompile>
+    <ClCompile Include="input\win\controller_win.cpp">
+      <Filter>Source Files\input\win</Filter>
+    </ClCompile>
+    <ClCompile Include="input\win\touch_win.cpp">
+      <Filter>Source Files\input\win</Filter>
+    </ClCompile>
+    <ClCompile Include="audio\ngs\ngs_audio_util.cpp">
+      <Filter>Source Files\audio\ngs</Filter>
+    </ClCompile>
+    <ClCompile Include="audio\ngs\ngs_buss.cpp">
+      <Filter>Source Files\audio\ngs</Filter>
+    </ClCompile>
+    <ClCompile Include="audio\ngs\ngs_context.cpp">
+      <Filter>Source Files\audio\ngs</Filter>
+    </ClCompile>
+    <ClCompile Include="audio\ngs\ngs_data.cpp">
+      <Filter>Source Files\audio\ngs</Filter>
+    </ClCompile>
+    <ClCompile Include="audio\ngs\ngs_module.cpp">
+      <Filter>Source Files\audio\ngs</Filter>
+    </ClCompile>
+    <ClCompile Include="audio\ngs\ngs_stream.cpp">
+      <Filter>Source Files\audio\ngs</Filter>
+    </ClCompile>
+    <ClCompile Include="audio\ngs\ngs_voice.cpp">
+      <Filter>Source Files\audio\ngs</Filter>
+    </ClCompile>
+    <ClCompile Include="audio\ngs\ngs_worker_thread.cpp">
+      <Filter>Source Files\audio\ngs</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_gxm\heap_gxm.cpp">
+      <Filter>Source Files\graphics\platform_gxm</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_gnm\heap_gnm.cpp">
+      <Filter>Source Files\graphics\platform_gnm</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_gnm\memory_gnm.cpp">
+      <Filter>Source Files\graphics\platform_gnm</Filter>
+    </ClCompile>
+    <ClCompile Include="resource\dllmain.cpp">
+      <Filter>Source Files\Resource</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_dx11\image_dx11.cpp">
+      <Filter>Source Files\graphics\platform_dx11</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_gxm\image_gxm.cpp">
+      <Filter>Source Files\graphics\platform_gxm</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_gxm\texture_util_gxm.cpp">
+      <Filter>Source Files\graphics\platform_gxm</Filter>
+    </ClCompile>
+    <ClCompile Include="sampleutil_common.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="system\orbis\save_data_orbis.cpp">
+      <Filter>Source Files\system\orbis</Filter>
+    </ClCompile>
+    <ClCompile Include="system\psp2\save_data_psp2.cpp">
+      <Filter>Source Files\system\psp2</Filter>
+    </ClCompile>
+    <ClCompile Include="system\win\save_data_win.cpp">
+      <Filter>Source Files\system\win</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\font.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="util\util.cpp">
+      <Filter>Source Files\util</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\debug_menu_item_group.cpp">
+      <Filter>Source Files\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_dx11\font_win.cpp">
+      <Filter>Source Files\graphics\platform_dx11</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_gnm\font_orbis.cpp">
+      <Filter>Source Files\graphics\platform_gnm</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\platform_gxm\font_psp2.cpp">
+      <Filter>Source Files\graphics\platform_gxm</Filter>
+    </ClCompile>
+    <ClCompile Include="graphics\sprite_effect_2d.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="input\pad_common.cpp">
+      <Filter>Source Files\input</Filter>
+    </ClCompile>
+    <ClCompile Include="input\psp2\pad_psp2.cpp">
+      <Filter>Source Files\input\psp2</Filter>
+    </ClCompile>
+    <ClCompile Include="system\win\user_win.cpp">
+      <Filter>Source Files\system\win</Filter>
+    </ClCompile>
+    <ClCompile Include="system\psp2\user_psp2.cpp">
+      <Filter>Source Files\system\psp2</Filter>
+    </ClCompile>
+    <ClCompile Include="system\orbis\user_orbis.cpp">
+      <Filter>Source Files\system\orbis</Filter>
+    </ClCompile>
+    <ClCompile Include="input\orbis\pad_orbis.cpp">
+      <Filter>Source Files\input\orbis</Filter>
+    </ClCompile>
+    <ClCompile Include="input\psp2\motion_psp2.cpp">
+      <Filter>Source Files\input\psp2</Filter>
+    </ClCompile>
+    <ClCompile Include="input\win\pad_win.cpp">
+      <Filter>Source Files\input\win</Filter>
+    </ClCompile>
+    <ClCompile Include="input\controller_common.cpp">
+      <Filter>Source Files\input</Filter>
+    </ClCompile>
+    <ClCompile Include="audio\audio_data.cpp">
+      <Filter>Source Files\audio</Filter>
+    </ClCompile>
+    <ClCompile Include="util\util_streaming.cpp">
+      <Filter>Source Files\util</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="resource\sampleutil_ascii.tga">
+      <Filter>Source Files\Resource</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_clear_p.pssl">
+      <Filter>Source Files\Resource\pssl</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_v.pssl">
+      <Filter>Source Files\Resource\pssl</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_clear_vv.pssl">
+      <Filter>Source Files\Resource\pssl</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_collada_skinning_phong_f.pssl">
+      <Filter>Source Files\Resource\pssl</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_collada_skinning_phong_v.pssl">
+      <Filter>Source Files\Resource\pssl</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_fill2d_f.pssl">
+      <Filter>Source Files\Resource\pssl</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_fill2d_v.pssl">
+      <Filter>Source Files\Resource\pssl</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_point_sprite2d_f.pssl">
+      <Filter>Source Files\Resource\pssl</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_point_sprite2d_v.pssl">
+      <Filter>Source Files\Resource\pssl</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_f.pssl">
+      <Filter>Source Files\Resource\pssl</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_clear_f.cg">
+      <Filter>Source Files\Resource\cg</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_clear_v.cg">
+      <Filter>Source Files\Resource\cg</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_collada_skinning_phong_f.cg">
+      <Filter>Source Files\Resource\cg</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_collada_skinning_phong_v.cg">
+      <Filter>Source Files\Resource\cg</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_fill2d_f.cg">
+      <Filter>Source Files\Resource\cg</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_fill2d_v.cg">
+      <Filter>Source Files\Resource\cg</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_point_sprite2d_f.cg">
+      <Filter>Source Files\Resource\cg</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_point_sprite2d_v.cg">
+      <Filter>Source Files\Resource\cg</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_f.cg">
+      <Filter>Source Files\Resource\cg</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_v.cg">
+      <Filter>Source Files\Resource\cg</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_2_f.cg">
+      <Filter>Source Files\Resource\cg</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_2_v.cg">
+      <Filter>Source Files\Resource\cg</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_2_f.pssl">
+      <Filter>Source Files\Resource\pssl</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_2_v.pssl">
+      <Filter>Source Files\Resource\pssl</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_yuy2_f.pssl">
+      <Filter>Source Files\Resource\pssl</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_yuy2_v.pssl">
+      <Filter>Source Files\Resource\pssl</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_yuy2_f.cg">
+      <Filter>Source Files\Resource\cg</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_yuy2_v.cg">
+      <Filter>Source Files\Resource\cg</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_fill3d_f.pssl">
+      <Filter>Source Files\Resource\pssl</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_fill3d_v.pssl">
+      <Filter>Source Files\Resource\pssl</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_fill3d_f.cg">
+      <Filter>Source Files\Resource\cg</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_fill3d_v.cg">
+      <Filter>Source Files\Resource\cg</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_wireframe_f.pssl">
+      <Filter>Source Files\Resource\pssl</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_wireframe_v.pssl">
+      <Filter>Source Files\Resource\pssl</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_wireframe_f.cg">
+      <Filter>Source Files\Resource\cg</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_wireframe_v.cg">
+      <Filter>Source Files\Resource\cg</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_ycbcr_f.pssl">
+      <Filter>Source Files\Resource\pssl</Filter>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_ycbcr_v.pssl">
+      <Filter>Source Files\Resource\pssl</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="resource\vsoutput.hs">
+      <Filter>Source Files\Resource</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="resource\libSceSampleUtil.rc">
+      <Filter>Source Files\Resource</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+</Project>

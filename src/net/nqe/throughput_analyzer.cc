@@ -67,11 +67,11 @@ ThroughputAnalyzer::ThroughputAnalyzer(
 }
 
 ThroughputAnalyzer::~ThroughputAnalyzer() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 }
 
 void ThroughputAnalyzer::MaybeStartThroughputObservationWindow() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (disable_throughput_measurements_)
     return;
@@ -90,7 +90,7 @@ void ThroughputAnalyzer::MaybeStartThroughputObservationWindow() {
 }
 
 void ThroughputAnalyzer::EndThroughputObservationWindow() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Mark the throughput observation window as stopped by resetting the window
   // parameters.
@@ -100,7 +100,7 @@ void ThroughputAnalyzer::EndThroughputObservationWindow() {
 }
 
 bool ThroughputAnalyzer::IsCurrentlyTrackingThroughput() const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (window_start_time_.is_null())
     return false;
@@ -120,13 +120,13 @@ bool ThroughputAnalyzer::IsCurrentlyTrackingThroughput() const {
 
 void ThroughputAnalyzer::SetTickClockForTesting(
     const base::TickClock* tick_clock) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   tick_clock_ = tick_clock;
   DCHECK(tick_clock_);
 }
 
 void ThroughputAnalyzer::NotifyStartTransaction(const URLRequest& request) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (disable_throughput_measurements_)
     return;
@@ -155,7 +155,7 @@ void ThroughputAnalyzer::NotifyStartTransaction(const URLRequest& request) {
 }
 
 void ThroughputAnalyzer::NotifyBytesRead(const URLRequest& request) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (disable_throughput_measurements_)
     return;
@@ -170,7 +170,7 @@ void ThroughputAnalyzer::NotifyBytesRead(const URLRequest& request) {
 }
 
 void ThroughputAnalyzer::NotifyRequestCompleted(const URLRequest& request) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (disable_throughput_measurements_)
     return;
@@ -219,7 +219,7 @@ void ThroughputAnalyzer::NotifyRequestCompleted(const URLRequest& request) {
 bool ThroughputAnalyzer::IsHangingWindow(int64_t bits_received,
                                          base::TimeDelta duration,
                                          double downstream_kbps_double) const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (params_->throughput_hanging_requests_cwnd_size_multiplier() <= 0)
     return false;
@@ -261,7 +261,7 @@ bool ThroughputAnalyzer::IsHangingWindow(int64_t bits_received,
 
 bool ThroughputAnalyzer::MaybeGetThroughputObservation(
     int32_t* downstream_kbps) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(downstream_kbps);
 
   if (disable_throughput_measurements_)
@@ -314,7 +314,7 @@ bool ThroughputAnalyzer::MaybeGetThroughputObservation(
 }
 
 void ThroughputAnalyzer::OnConnectionTypeChanged() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // All the requests that were previously not degrading the througpput
   // computation are now spanning a connection change event. These requests
@@ -332,22 +332,22 @@ void ThroughputAnalyzer::OnConnectionTypeChanged() {
 
 void ThroughputAnalyzer::SetUseLocalHostRequestsForTesting(
     bool use_localhost_requests) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   use_localhost_requests_for_tests_ = use_localhost_requests;
 }
 
 int64_t ThroughputAnalyzer::GetBitsReceived() const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return NetworkActivityMonitor::GetInstance()->GetBytesReceived() * 8;
 }
 
 size_t ThroughputAnalyzer::CountInFlightRequests() const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return requests_.size();
 }
 
 bool ThroughputAnalyzer::DegradesAccuracy(const URLRequest& request) const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   bool private_network_request = nqe::internal::IsPrivateHost(
       request.context()->host_resolver(), HostPortPair::FromURL(request.url()));
@@ -387,7 +387,7 @@ void ThroughputAnalyzer::BoundRequestsSize() {
 }
 
 void ThroughputAnalyzer::EraseHangingRequests(const URLRequest& request) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   DCHECK_LT(0, params_->hanging_request_duration_http_rtt_multiplier());
 

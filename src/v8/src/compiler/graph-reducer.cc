@@ -89,22 +89,26 @@ Reduction GraphReducer::Reduce(Node* const node) {
         // {replacement} == {node} represents an in-place reduction. Rerun
         // all the other reducers for this node, as now there may be more
         // opportunities for reduction.
+#ifndef V8_OS_STARBOARD
         if (FLAG_trace_turbo_reduction) {
           OFStream os(stdout);
           os << "- In-place update of " << *node << " by reducer "
              << (*i)->reducer_name() << std::endl;
         }
+#endif
         skip = i;
         i = reducers_.begin();
         continue;
       } else {
         // {node} was replaced by another node.
+#ifndef V8_OS_STARBOARD
         if (FLAG_trace_turbo_reduction) {
           OFStream os(stdout);
           os << "- Replacement of " << *node << " with "
              << *(reduction.replacement()) << " by reducer "
              << (*i)->reducer_name() << std::endl;
         }
+#endif
         return reduction;
       }
     }

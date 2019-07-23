@@ -95,19 +95,19 @@ TEST_F(ChaCha20Poly1305TlsEncrypterTest, EncryptThenDecrypt) {
   ASSERT_TRUE(encrypter.SetIV("abcdefghijkl"));
   ASSERT_TRUE(decrypter.SetIV("abcdefghijkl"));
 
-  QuicPacketNumber packet_number = UINT64_C(0x123456789ABC);
+  uint64_t packet_number = UINT64_C(0x123456789ABC);
   QuicString associated_data = "associated_data";
   QuicString plaintext = "plaintext";
   char encrypted[1024];
   size_t len;
-  ASSERT_TRUE(encrypter.EncryptPacket(QuicTransportVersionMax(), packet_number,
-                                      associated_data, plaintext, encrypted,
-                                      &len, QUIC_ARRAYSIZE(encrypted)));
+  ASSERT_TRUE(encrypter.EncryptPacket(packet_number, associated_data, plaintext,
+                                      encrypted, &len,
+                                      QUIC_ARRAYSIZE(encrypted)));
   QuicStringPiece ciphertext(encrypted, len);
   char decrypted[1024];
-  ASSERT_TRUE(decrypter.DecryptPacket(QuicTransportVersionMax(), packet_number,
-                                      associated_data, ciphertext, decrypted,
-                                      &len, QUIC_ARRAYSIZE(decrypted)));
+  ASSERT_TRUE(decrypter.DecryptPacket(packet_number, associated_data,
+                                      ciphertext, decrypted, &len,
+                                      QUIC_ARRAYSIZE(decrypted)));
 }
 
 TEST_F(ChaCha20Poly1305TlsEncrypterTest, Encrypt) {

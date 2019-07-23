@@ -17,8 +17,9 @@
 #include <signal.h>
 #include <sys/socket.h>
 
+#include "starboard/common/log.h"
+#include "starboard/common/thread.h"
 #include "starboard/configuration.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/signal/signal_internal.h"
 #include "starboard/shared/starboard/application.h"
@@ -30,13 +31,13 @@ namespace signal {
 
 namespace {
 
-int UnblockSignal(int signal_id) {
+int SignalMask(int signal_id, int action) {
   sigset_t mask;
   ::sigemptyset(&mask);
   ::sigaddset(&mask, signal_id);
 
   sigset_t previous_mask;
-  return ::sigprocmask(SIG_UNBLOCK, &mask, &previous_mask);
+  return ::sigprocmask(action, &mask, &previous_mask);
 }
 
 void SetSignalHandler(int signal_id, SignalHandlerFunction handler) {
@@ -86,6 +87,28 @@ void Ignore(int signal_id) {
        handler at default.
 #endif
 
+class SignalHandlerThread : public ::starboard::Thread {
+ public:
+  SignalHandlerThread() : Thread("SignalHandlerThread") {}
+
+  void Run() override {
+    SignalMask(SIGUSR1, SIG_UNBLOCK);
+    SignalMask(SIGUSR2, SIG_UNBLOCK);
+    SignalMask(SIGCONT, SIG_UNBLOCK);
+    while (!WaitForJoin(kSbTimeMax)) {
+    }
+  }
+};
+
+void ConfigureSignalHandlerThread(bool start) {
+  static SignalHandlerThread handlerThread;
+  if (start) {
+    handlerThread.Start();
+  } else {
+    handlerThread.Join();
+  }
+}
+
 void InstallSuspendSignalHandlers() {
 #if !defined(MSG_NOSIGNAL)
   // By default in POSIX, sending to a closed socket causes a SIGPIPE
@@ -94,11 +117,17 @@ void InstallSuspendSignalHandlers() {
   // log messages may behave in surprising ways, so it's not desirable.
   SetSignalHandler(SIGPIPE, &Ignore);
 #endif
+  // Signal handlers are guaranteed to run on dedicated thread by
+  // blocking them first on the main thread calling this function early.
+  // Future created threads inherit the same block mask as per POSIX rules
+  // http://pubs.opengroup.org/onlinepubs/009695399/functions/xsh_chap02_04.html
+  SignalMask(SIGUSR1, SIG_BLOCK);
   SetSignalHandler(SIGUSR1, &Suspend);
-  UnblockSignal(SIGUSR1);
+  SignalMask(SIGUSR2, SIG_BLOCK);
   SetSignalHandler(SIGUSR2, &LowMemory);
-  UnblockSignal(SIGUSR2);
+  SignalMask(SIGCONT, SIG_BLOCK);
   SetSignalHandler(SIGCONT, &Resume);
+  ConfigureSignalHandlerThread(true);
 }
 
 void UninstallSuspendSignalHandlers() {
@@ -108,6 +137,7 @@ void UninstallSuspendSignalHandlers() {
   SetSignalHandler(SIGUSR1, SIG_DFL);
   SetSignalHandler(SIGUSR2, SIG_DFL);
   SetSignalHandler(SIGCONT, SIG_DFL);
+  ConfigureSignalHandlerThread(false);
 }
 
 }  // namespace signal

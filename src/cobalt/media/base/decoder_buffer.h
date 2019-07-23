@@ -60,6 +60,16 @@ class MEDIA_EXPORT DecoderBuffer
                                                const uint8_t* data,
                                                size_t size);
 
+  // Create a DecoderBuffer whose |data_| is copied from |data| and |side_data_|
+  // is copied from |side_data|. Buffers will be padded and aligned as necessary
+  // Data pointers must not be NULL and sizes must be >= 0. The buffer's
+  // |is_key_frame_| will default to false.
+  static scoped_refptr<DecoderBuffer> CopyFrom(Allocator* allocator, Type type,
+                                               const uint8_t* data,
+                                               size_t data_size,
+                                               const uint8_t* side_data,
+                                               size_t side_data_size);
+
   // Create a DecoderBuffer indicating we've reached end of stream.
   //
   // Calling any method other than end_of_stream() on the resulting buffer
@@ -112,6 +122,18 @@ class MEDIA_EXPORT DecoderBuffer
   void shrink_to(size_t size) {
     DCHECK_GE(static_cast<int>(size), 0);
     allocations().ShrinkTo(static_cast<int>(size));
+  }
+
+  bool has_side_data() const { return side_data_.get() != NULL; }
+
+  const uint8_t* side_data() const {
+    DCHECK(!end_of_stream());
+    return side_data_.get();
+  }
+
+  size_t side_data_size() const {
+    DCHECK(!end_of_stream());
+    return side_data_size_;
   }
 
   // A discard window indicates the amount of data which should be discard from
@@ -185,12 +207,13 @@ class MEDIA_EXPORT DecoderBuffer
   // set to NULL and |buffer_size_| to 0.  |is_key_frame_| will default to
   // false.
   DecoderBuffer(Allocator* allocator, Type type, const uint8_t* data,
-                size_t size);
+                size_t size, const uint8_t* side_data, size_t side_data_size);
 
   // Allocates a buffer to copy the data in |allocations|.  Buffer will be
   // padded and aligned as necessary.  |is_key_frame_| will default to false.
   DecoderBuffer(Allocator* allocator, Type type,
-                Allocator::Allocations allocations);
+                Allocator::Allocations allocations, const uint8_t* side_data,
+                size_t side_data_size);
 
   virtual ~DecoderBuffer();
 
@@ -220,8 +243,11 @@ class MEDIA_EXPORT DecoderBuffer
   ScopedAllocatorPtr data_;
   std::unique_ptr<DecryptConfig> decrypt_config_;
   DiscardPadding discard_padding_;
-  base::TimeDelta splice_timestamp_;
-  bool is_key_frame_;
+  base::TimeDelta splice_timestamp_ = kNoTimestamp;
+  bool is_key_frame_ = false;
+
+  size_t side_data_size_ = 0;
+  std::unique_ptr<uint8_t[]> side_data_;
 
   DISALLOW_COPY_AND_ASSIGN(DecoderBuffer);
 };

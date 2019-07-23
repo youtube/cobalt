@@ -74,8 +74,10 @@ NodeId Graph::NextNodeId() {
 }
 
 void Graph::Print() const {
+#ifndef V8_OS_STARBOARD
   OFStream os(stdout);
   os << AsRPO(*this);
+#endif
 }
 
 }  // namespace compiler

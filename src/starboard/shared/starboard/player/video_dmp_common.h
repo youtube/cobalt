@@ -19,9 +19,10 @@
 #include <functional>
 #include <vector>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"
+#include "starboard/shared/internal_only.h"
 
 #if SB_HAS(PLAYER_FILTER_TESTS)
 namespace starboard {
@@ -33,27 +34,30 @@ namespace video_dmp {
 // Video dmp file format
 // File: <Byte Order Mark> <Record>*
 //   Byte Order Mark: 0x76543210
+//   Dmp writer version number: 0x00010000
 //   Record: <4 bytes fourcc type> + <4 bytes size> + <|size| bytes binary data>
 //
 //     audio config:
 //       fourcc type: 'acfg'
 //       2 bytes audio codec type in SbMediaAudioCodec
-//       all members of SbMediaAudioHeader
+//       all members of SbMediaAudioSampleInfo
 //
 //     video config:
 //       fourcc type: 'vcfg'
 //       2 bytes video codec type in SbMediaVideoCodec
 //
-//     audio/video access unit;
+//     audio/video access unit:
 //       fourcc type: 'adat'/'vdat'
 //       <8 bytes time stamp in SbTime>
-//       <4 bytes size of key_id> + |size| bytes of key id
-//       <4 bytes size of iv> + |size| bytes of iv
-//       <4 bytes count> (0 for non-encrypted AU/frame)
-//         (subsample: 4 bytes clear size, 4 bytes encrypted size) * |count|
+//       <1 byte of drm_sample_info_present in bool>
+//         <4 bytes size of key_id> + |size| bytes of key id
+//         <4 bytes size of iv> + |size| bytes of iv
+//         <4 bytes count> (0 for non-encrypted AU/frame)
+//           (subsample: 4 bytes clear size, 4 bytes encrypted size) * |count|
 //       <4 bytes size>
 //         |size| bytes encoded binary data
-//       all members of SbMediaVideoSampleInfo for video access units
+//       all members of SbMediaAudioSampleInfo/SbMediaVideoSampleInfo
+//         for audio/video access units
 
 typedef std::function<int(const void*, int size)> WriteCB;
 typedef std::function<int(void*, int size)> ReadCB;
@@ -67,10 +71,10 @@ enum RecordType {
 
 // Helper structures to allow returning structs containing pointers without
 // explicit memory management.
-struct SbMediaAudioHeaderWithConfig : public SbMediaAudioHeader {
-  SbMediaAudioHeaderWithConfig() {}
-  SbMediaAudioHeaderWithConfig(const SbMediaAudioHeaderWithConfig& that)
-      : SbMediaAudioHeader(that),
+struct SbMediaAudioSampleInfoWithConfig : public SbMediaAudioSampleInfo {
+  SbMediaAudioSampleInfoWithConfig() {}
+  SbMediaAudioSampleInfoWithConfig(const SbMediaAudioSampleInfoWithConfig& that)
+      : SbMediaAudioSampleInfo(that),
         stored_audio_specific_config(that.stored_audio_specific_config) {
 #if SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
     audio_specific_config = stored_audio_specific_config.data();
@@ -80,7 +84,7 @@ struct SbMediaAudioHeaderWithConfig : public SbMediaAudioHeader {
                  stored_audio_specific_config.size());
 #endif  // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
   }
-  void operator=(const SbMediaAudioHeaderWithConfig& that) = delete;
+  void operator=(const SbMediaAudioSampleInfoWithConfig& that) = delete;
 
   std::vector<uint8_t> stored_audio_specific_config;
 };
@@ -105,9 +109,11 @@ struct SbMediaVideoSampleInfoWithOptionalColorMetadata
       const SbMediaVideoSampleInfoWithOptionalColorMetadata& that)
       : SbMediaVideoSampleInfo(that),
         stored_color_metadata(that.stored_color_metadata) {
+#if SB_API_VERSION < 11
     if (color_metadata) {
       color_metadata = &stored_color_metadata;
     }
+#endif  // SB_API_VERSION < 11
   }
   void operator=(const SbMediaVideoSampleInfoWithOptionalColorMetadata& that) =
       delete;
@@ -116,6 +122,7 @@ struct SbMediaVideoSampleInfoWithOptionalColorMetadata
 };
 
 const uint32_t kByteOrderMark = 0x76543210;
+const uint32_t kSupportWriterVersion = 0x00001000;
 
 void Read(const ReadCB& read_cb, void* buffer, size_t size);
 
@@ -149,8 +156,10 @@ void Write(const WriteCB& write_cb, RecordType record_type);
 
 void Read(const ReadCB& read_cb,
           bool reverse_byte_order,
-          SbMediaAudioHeaderWithConfig* audio_header);
-void Write(const WriteCB& write_cb, const SbMediaAudioHeader& audio_header);
+          SbMediaAudioSampleInfoWithConfig* audio_sample_info);
+void Write(const WriteCB& write_cb,
+           SbMediaAudioCodec audio_codec,
+           const SbMediaAudioSampleInfo& audio_sample_info);
 
 void Read(const ReadCB& read_cb,
           bool reverse_byte_order,
@@ -161,6 +170,7 @@ void Read(const ReadCB& read_cb,
           bool reverse_byte_order,
           SbMediaVideoSampleInfoWithOptionalColorMetadata* video_sample_info);
 void Write(const WriteCB& write_cb,
+           SbMediaVideoCodec video_codec,
            const SbMediaVideoSampleInfo& video_sample_info);
 
 }  // namespace video_dmp

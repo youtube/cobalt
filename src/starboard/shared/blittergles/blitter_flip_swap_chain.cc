@@ -16,7 +16,8 @@
 
 #include <EGL/egl.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
+#include "starboard/common/recursive_mutex.h"
 #include "starboard/shared/blittergles/blitter_internal.h"
 
 bool SbBlitterFlipSwapChain(SbBlitterSwapChain swap_chain) {
@@ -25,7 +26,7 @@ bool SbBlitterFlipSwapChain(SbBlitterSwapChain swap_chain) {
     return false;
   }
 
-  starboard::ScopedLock lock(swap_chain->render_target.device->mutex);
+  starboard::ScopedRecursiveLock lock(swap_chain->render_target.device->mutex);
   eglSwapBuffers(swap_chain->render_target.device->display,
                  swap_chain->surface);
   return eglGetError() == EGL_SUCCESS;

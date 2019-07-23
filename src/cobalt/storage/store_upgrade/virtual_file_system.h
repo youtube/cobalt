@@ -76,7 +76,7 @@ class VirtualFileSystem {
   typedef std::map<std::string, VirtualFile*> FileTable;
   FileTable table_;
   // Certain operations (serialize, deserialize) must run on the same thread.
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   // Lock to protect the file table. We want to support SQL queries on any
   // thread.
   base::Lock file_table_lock_;

@@ -304,6 +304,7 @@ void BlockAssessments::DropRegisters() {
 }
 
 void BlockAssessments::Print() const {
+#ifndef V8_OS_STARBOARD
   OFStream os(stdout);
   for (const auto pair : map()) {
     const InstructionOperand op = pair.first;
@@ -322,6 +323,7 @@ void BlockAssessments::Print() const {
     os << std::endl;
   }
   os << std::endl;
+#endif
 }
 
 BlockAssessments* RegisterAllocatorVerifier::CreateForBlock(

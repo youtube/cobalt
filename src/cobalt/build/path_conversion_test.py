@@ -13,9 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+import os
 import unittest
 
-import _env  # pylint: disable=unused-import
+import _env  # pylint: disable=unused-import,relative-import
 from cobalt.build.path_conversion import ConvertPath
 
 
@@ -27,12 +29,12 @@ class PathConversionTest(unittest.TestCase):
   def testOutputDirectory(self):
     self.assertEqual(
         ConvertPath('this/is/a/path.txt', output_directory='another/location'),
-        'another/location/path.txt')
+        os.path.join('another/location', 'path.txt'))
 
   def testAddPrefix(self):
     self.assertEqual(
         ConvertPath('this/is/a/path.txt', output_prefix='banana_'),
-        'this/is/a/banana_path.txt')
+        os.path.join('this/is/a', 'banana_path.txt'))
 
   def testChangeExtension(self):
     self.assertEqual(
@@ -53,7 +55,8 @@ class PathConversionTest(unittest.TestCase):
         ConvertPath(
             'if/this/is/a/path.txt',
             output_directory='then/that',
-            base_directory='if/this'), 'then/that/is/a/path.txt')
+            base_directory='if/this'),
+        os.path.join('then/that', 'is', 'a', 'path.txt'))
 
 
 if __name__ == '__main__':

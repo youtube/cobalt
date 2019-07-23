@@ -125,10 +125,15 @@ OPENSSL_MSVC_PRAGMA(warning(pop))
 #include "./internal.h"
 
 #if defined(OPENSSL_SYS_STARBOARD)
-#include "starboard/system.h"
+#include "starboard/log.h"
 #else  // !defined(OPENSSL_SYS_STARBOARD)
 #include <errno.h>
 #endif  // defined(OPENSSL_SYS_STARBOARD
+
+#if defined(STARBOARD)
+#include "starboard/system.h"
+#define bsearch SbSystemBinarySearch
+#endif
 
 
 struct err_error_st {
@@ -620,8 +625,11 @@ static int print_errors_to_file(const char* msg, size_t msg_len, void* ctx) {
   int res = fputs(msg, fp);
   return res < 0 ? 0 : 1;
 #else // defined(OPENSSL_SYS_STARBOARD)
-  SB_NOTREACHED();
-  return 0;
+  SB_DCHECK(msg[msg_len] == '\0');
+  // boringssl is fully starboardized and no FILE* should be valid here.
+  SB_DCHECK(!ctx);
+  SbLog(kSbLogPriorityError, msg);
+  return 1;
 #endif  // !defined(OPENSSL_SYS_STARBOARD)
 }
 

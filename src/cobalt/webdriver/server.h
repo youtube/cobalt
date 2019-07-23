@@ -104,7 +104,7 @@ class WebDriverServer : public net::HttpServer::Delegate {
  private:
   int GetLocalAddress(GURL* out) const;
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   HandleRequestCallback handle_request_callback_;
   std::unique_ptr<net::HttpServer> server_;
   base::CVal<std::string> server_address_;

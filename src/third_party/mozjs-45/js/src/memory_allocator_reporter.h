@@ -15,7 +15,7 @@
 #ifndef MemoryAllocatorReporter_h
 #define MemoryAllocatorReporter_h
 
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
 #include "starboard/types.h"
 
 class AllocationMetadata {

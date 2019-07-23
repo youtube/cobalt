@@ -154,7 +154,7 @@ V8cEngine::V8cEngine(const Options& options) : options_(options) {
 
 V8cEngine::~V8cEngine() {
   TRACE_EVENT0("cobalt::script", "V8cEngine::~V8cEngine");
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   IsolateFellowship::GetInstance()->platform->UnregisterIsolateOnThread(
       isolate_);
@@ -171,18 +171,18 @@ V8cEngine::~V8cEngine() {
 
 scoped_refptr<GlobalEnvironment> V8cEngine::CreateGlobalEnvironment() {
   TRACE_EVENT0("cobalt::script", "V8cEngine::CreateGlobalEnvironment()");
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return new V8cGlobalEnvironment(isolate_);
 }
 
 void V8cEngine::CollectGarbage() {
   TRACE_EVENT0("cobalt::script", "V8cEngine::CollectGarbage()");
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   isolate_->LowMemoryNotification();
 }
 
 void V8cEngine::AdjustAmountOfExternalAllocatedMemory(int64_t bytes) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   isolate_->AdjustAmountOfExternalAllocatedMemory(bytes);
 }
 

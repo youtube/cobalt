@@ -46,7 +46,7 @@ class DummyDecoder : public loader::Decoder {
 
   // From Decoder.
   void DecodeChunk(const char* data, size_t size) override {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
     // Because we load data into memory, set a maximum buffer size.
     const int kMaxBufferSize = 1024 * 1024;
@@ -57,7 +57,7 @@ class DummyDecoder : public loader::Decoder {
   }
 
   void Finish() override {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
     if (buffer_.size() == 0) {
       // No data loaded.
@@ -82,7 +82,7 @@ class DummyDecoder : public loader::Decoder {
   }
 
  private:
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   std::vector<char> buffer_;
   DoneCallback done_callback_;
   loader::Loader::OnCompleteFunction load_complete_callback_;

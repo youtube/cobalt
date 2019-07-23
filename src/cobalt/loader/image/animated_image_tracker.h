@@ -75,7 +75,7 @@ class AnimatedImageTracker {
   // Used to ensure that all AnimatedImageTracker methods are called on the
   // same thread (*not* |animated_image_decode_thread_|), the thread that we
   // were constructed on.
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 };
 
 }  // namespace image

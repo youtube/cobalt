@@ -123,11 +123,6 @@ bool QuicCryptoServerStream::ShouldSendExpectCTHeader() const {
   return handshaker()->ShouldSendExpectCTHeader();
 }
 
-QuicLongHeaderType QuicCryptoServerStream::GetLongHeaderType(
-    QuicStreamOffset offset) const {
-  return handshaker()->GetLongHeaderType(offset);
-}
-
 bool QuicCryptoServerStream::encryption_established() const {
   if (!handshaker()) {
     return false;

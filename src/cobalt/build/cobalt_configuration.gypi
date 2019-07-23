@@ -48,10 +48,6 @@
     # implement spherical video playback.
     'enable_map_to_mesh%': 0,
 
-    # Enables embedding Cobalt as a shared library within another app. This
-    # requires a 'lib' starboard implementation for the corresponding platform.
-    'cobalt_enable_lib': '<(sb_enable_lib)',
-
     # This variable defines what Cobalt's preferred strategy should be for
     # handling internally triggered application exit requests (e.g. the user
     # chooses to back out of the application).
@@ -122,7 +118,7 @@
     'cobalt_font_package_override_fallback_symbols%': -1,
 
     # Build version number.
-    'cobalt_version%': 0,
+    'cobalt_version%': '<(BUILD_NUMBER)',
 
     # Defines what kind of rasterizer will be used.  This can be adjusted to
     # force a stub graphics implementation or software graphics implementation.
@@ -234,6 +230,8 @@
     # Set to "true" to enable v8 snapshot generation at Cobalt build time.
     'cobalt_v8_buildtime_snapshot%': '<(cobalt_v8_buildtime_snapshot)',
 
+    'cobalt_enable_quic': 1,
+
     # Cache parameters
 
     # The following set of parameters define how much memory is reserved for
@@ -270,6 +268,25 @@
     # allows. It is recommended that enough memory be reserved for two RGBA
     # atlases about a quarter of the frame size.
     'offscreen_target_cache_size_in_bytes%': -1,
+
+    # Determines the capacity of the encoded image cache, which manages encoded
+    # images downloaded from a web page. These images are cached within CPU
+    # memory.  This not only reduces network traffic to download the encoded
+    # images, but also allows the downloaded images to be held during suspend.
+    # Note that there is also a cache for the decoded images whose capacity is
+    # specified in |image_cache_size_in_bytes|.  The decoded images are often
+    # cached in the GPU memory and will be released during suspend.
+    #
+    # If a system meet the following requirements:
+    # 1. Has a fast image decoder.
+    # 2. Has enough CPU memory, or has a unified memory architecture that allows
+    #    sharing of CPU and GPU memory.
+    # Then it may consider to set |encoded_image_cache_size_in_bytes| to a much
+    # bigger value, and set the value of |image_cache_size_in_bytes| to a much
+    # smaller value. This allows the app to cache significant more images.
+    #
+    # Set this to 0 can disable the cache completely.
+    'encoded_image_cache_size_in_bytes%': 1024 * 1024,
 
     # Determines the capacity of the image cache, which manages image surfaces
     # downloaded from a web page.  While it depends on the platform, often (and
@@ -571,6 +588,11 @@
       ['cobalt_v8_buildtime_snapshot == "true"', {
         'defines': [
           'COBALT_V8_BUILDTIME_SNAPSHOT=1',
+        ],
+      }],
+      ['cobalt_enable_quic == 1', {
+        'defines': [
+          'COBALT_ENABLE_QUIC',
         ],
       }]
     ],

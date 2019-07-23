@@ -15,7 +15,7 @@
 #ifndef COBALT_NETWORK_SOCKET_ADDRESS_PARSER_H_
 #define COBALT_NETWORK_SOCKET_ADDRESS_PARSER_H_
 
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 #include "url/third_party/mozilla/url_parse.h"
 
 namespace cobalt {

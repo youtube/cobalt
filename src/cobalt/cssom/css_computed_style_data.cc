@@ -192,6 +192,7 @@ CSSComputedStyleData::GetComputedInitialValue(PropertyKey key) const {
     case kFontWeightProperty:
     case kFontSizeProperty:
     case kHeightProperty:
+    case kIntersectionObserverRootMarginProperty:
     case kJustifyContentProperty:
     case kLeftProperty:
     case kLineHeightProperty:

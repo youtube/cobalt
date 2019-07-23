@@ -31,7 +31,7 @@
 #include "net/socket/next_proto.h"
 #include "net/spdy/spdy_session_pool.h"
 #include "net/ssl/ssl_client_auth_cache.h"
-#include "net/third_party/spdy/core/spdy_protocol.h"
+#include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "starboard/types.h"
 
 namespace base {
@@ -144,6 +144,11 @@ class NET_EXPORT HttpNetworkSession {
     // Enables QUIC support.
     bool enable_quic;
 
+#if defined(COBALT_QUIC46)
+    // If true, HTTPS URLs can be sent to QUIC proxies.
+    bool enable_quic_proxies_for_https_urls;
+#endif
+
     // QUIC runtime configuration options.
 
     // Versions of QUIC which may be used.
@@ -188,6 +193,10 @@ class NET_EXPORT HttpNetworkSession {
     // Specifies the reduced ping timeout subsequent connections should use when
     // a connection was timed out with open streams.
     int quic_reduced_ping_timeout_seconds;
+    // QUIC46
+    // Maximum time that a session can have no retransmittable packets on the
+    // wire.
+    int quic_retransmittable_on_wire_timeout_milliseconds;
     // Maximum time the session can be alive before crypto handshake is
     // finished.
     int quic_max_time_before_crypto_handshake_seconds;
@@ -203,6 +212,12 @@ class NET_EXPORT HttpNetworkSession {
     // If true, a new connection may be kicked off on an alternate network when
     // a connection fails on the default network before handshake is confirmed.
     bool quic_retry_on_alternate_network_before_handshake;
+    // QUIC46
+    // If true, an idle session will be migrated within the idle migration
+    // period.
+    bool quic_migrate_idle_sessions;
+    // A session can be migrated if its idle time is within this period.
+    base::TimeDelta quic_idle_session_migration_period;
     // If true, the quic stream factory may race connection from stale dns
     // result with the original dns resolution
     bool quic_race_stale_dns_on_connection;

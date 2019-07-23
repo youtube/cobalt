@@ -109,6 +109,8 @@ class AudioBufferSourceNode : public AudioNode {
   // has been added to AudioContext's |buffer_sources_|
   bool buffer_source_added_;
 
+  const float sample_rate_;
+
   DISALLOW_COPY_AND_ASSIGN(AudioBufferSourceNode);
 };
 

@@ -17,11 +17,11 @@
 #include <algorithm>
 #include <vector>
 
-#include "starboard/condition_variable.h"
+#include "starboard/common/condition_variable.h"
+#include "starboard/common/mutex.h"
 #include "starboard/configuration.h"
 #include "starboard/contrib/tizen/shared/alsa/alsa_util.h"
 #include "starboard/memory.h"
-#include "starboard/mutex.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
 

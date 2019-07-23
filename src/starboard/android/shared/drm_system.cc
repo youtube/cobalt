@@ -38,6 +38,16 @@ const jint MEDIA_DRM_KEY_STATUS_USABLE = 0;
 
 }  // namespace
 
+// This has to be defined outside the above anonymous namespace to be picked up
+// by the comparison of std::vector<SbDrmKeyId>.
+bool operator==(const SbDrmKeyId& left, const SbDrmKeyId& right) {
+  if (left.identifier_size != right.identifier_size) {
+    return false;
+  }
+  return SbMemoryCompare(left.identifier, right.identifier,
+                         left.identifier_size) == 0;
+}
+
 extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_media_MediaDrmBridge_nativeOnSessionMessage(
     JNIEnv* env,
@@ -267,16 +277,15 @@ void DrmSystem::CallDrmSessionKeyStatusesChangedCallback(
       static_cast<const char*>(session_id),
       static_cast<const char*>(session_id) + session_id_size);
 
-  bool hdcp_lost = false;
   {
     ScopedLock scoped_lock(mutex_);
-    cached_drm_key_ids_[session_id_as_string] = drm_key_ids;
-    hdcp_lost = hdcp_lost_;
-  }
-
-  if (hdcp_lost) {
-    OnInsufficientOutputProtection();
-    return;
+    if (cached_drm_key_ids_[session_id_as_string] != drm_key_ids) {
+      cached_drm_key_ids_[session_id_as_string] = drm_key_ids;
+      if (hdcp_lost_) {
+        CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
+        return;
+      }
+    }
   }
 
   key_statuses_changed_callback_(this, context_, session_id, session_id_size,
@@ -288,7 +297,16 @@ void DrmSystem::OnInsufficientOutputProtection() {
   // HDCP has lost, update the statuses of all keys in all known sessions to be
   // restricted.
   ScopedLock scoped_lock(mutex_);
+  if (hdcp_lost_) {
+    return;
+  }
   hdcp_lost_ = true;
+  CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
+}
+
+void DrmSystem::CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked() {
+  mutex_.DCheckAcquired();
+
   for (auto& iter : cached_drm_key_ids_) {
     const std::string& session_id = iter.first;
     const std::vector<SbDrmKeyId>& drm_key_ids = iter.second;

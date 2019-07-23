@@ -4,6 +4,7 @@
 
 #include "net/quic/quic_chromium_packet_reader.h"
 
+#include "base/bind.h"
 #include "base/location.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/single_thread_task_runner.h"
@@ -62,8 +63,8 @@ void QuicChromiumPacketReader::StartReading() {
       // Schedule the work through the message loop to 1) prevent infinite
       // recursion and 2) avoid blocking the thread for too long.
       base::ThreadTaskRunnerHandle::Get()->PostTask(
-          FROM_HERE, base::Bind(&QuicChromiumPacketReader::OnReadComplete,
-                                weak_factory_.GetWeakPtr(), rv));
+          FROM_HERE, base::BindOnce(&QuicChromiumPacketReader::OnReadComplete,
+                                    weak_factory_.GetWeakPtr(), rv));
     } else {
       if (!ProcessReadResult(rv)) {
         return;

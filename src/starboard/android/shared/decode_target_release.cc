@@ -16,8 +16,8 @@
 
 #include "starboard/android/shared/decode_target_internal.h"
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/common/log.h"
 #include "starboard/decode_target.h"
-#include "starboard/log.h"
 
 void SbDecodeTargetRelease(SbDecodeTarget decode_target) {
   // Most of the actual data within |decode_target| is stored in the reference

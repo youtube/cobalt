@@ -14,7 +14,7 @@
 
 #include "starboard/raspi/shared/window_internal.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace {
 const int32_t kLayer = 0;

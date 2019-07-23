@@ -17,7 +17,7 @@
 #include <GLES3/gl3.h>
 
 #include "glimp/gles/context.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace gles = glimp::gles;
 

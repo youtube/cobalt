@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef(QUIC_TRACE_DISABLED)
+
 #include "net/third_party/quic/core/quic_trace_visitor.h"
 
 #include "net/third_party/quic/platform/api/quic_endian.h"
@@ -13,7 +15,7 @@ quic_trace::EncryptionLevel EncryptionLevelToProto(EncryptionLevel level) {
   switch (level) {
     case ENCRYPTION_NONE:
       return quic_trace::ENCRYPTION_INITIAL;
-    case ENCRYPTION_INITIAL:
+    case ENCRYPTION_ZERO_RTT:
       return quic_trace::ENCRYPTION_0RTT;
     case ENCRYPTION_FORWARD_SECURE:
       return quic_trace::ENCRYPTION_1RTT;
@@ -26,14 +28,8 @@ quic_trace::EncryptionLevel EncryptionLevelToProto(EncryptionLevel level) {
 QuicTraceVisitor::QuicTraceVisitor(const QuicConnection* connection)
     : connection_(connection),
       start_time_(connection_->clock()->ApproximateNow()) {
-  // QUIC CIDs are currently represented in memory as a converted representation
-  // of the on-wire ID.  Convert it back to wire format before recording, since
-  // the standard treats it as an opaque blob.
-  QuicConnectionId connection_id =
-      QuicEndian::HostToNet64(connection->connection_id());
-  QuicString binary_connection_id(reinterpret_cast<const char*>(&connection_id),
-                                  sizeof(connection_id));
-
+  QuicString binary_connection_id(connection->connection_id().data(),
+                                  connection->connection_id().length());
   // We assume that the connection ID in gQUIC is equivalent to the
   // server-chosen client-selected ID.
   switch (connection->perspective()) {
@@ -53,7 +49,7 @@ void QuicTraceVisitor::OnPacketSent(const SerializedPacket& serialized_packet,
   quic_trace::Event* event = trace_.add_events();
   event->set_event_type(quic_trace::PACKET_SENT);
   event->set_time_us(ConvertTimestampToRecordedFormat(sent_time));
-  event->set_packet_number(serialized_packet.packet_number);
+  event->set_packet_number(serialized_packet.packet_number.ToUint64());
   event->set_packet_size(serialized_packet.encrypted_length);
   event->set_encryption_level(
       EncryptionLevelToProto(serialized_packet.encryption_level));
@@ -79,9 +75,9 @@ void QuicTraceVisitor::OnPacketSent(const SerializedPacket& serialized_packet,
         break;
 
       // New IETF frames, not used in current gQUIC version.
-      // TODO(vasilvv): actually support those.
       case APPLICATION_CLOSE_FRAME:
       case NEW_CONNECTION_ID_FRAME:
+      case RETIRE_CONNECTION_ID_FRAME:
       case MAX_STREAM_ID_FRAME:
       case STREAM_ID_BLOCKED_FRAME:
       case PATH_RESPONSE_FRAME:
@@ -134,8 +130,8 @@ void QuicTraceVisitor::PopulateFrameInfo(const QuicFrame& frame,
         quic_trace::AckBlock* block = info->add_acked_packets();
         // We record intervals as [a, b], whereas the in-memory representation
         // we currently use is [a, b).
-        block->set_first_packet(interval.min());
-        block->set_last_packet(interval.max() - 1);
+        block->set_first_packet(interval.min().ToUint64());
+        block->set_last_packet(interval.max().ToUint64() - 1);
       }
       break;
     }
@@ -206,9 +202,9 @@ void QuicTraceVisitor::PopulateFrameInfo(const QuicFrame& frame,
       break;
 
     // New IETF frames, not used in current gQUIC version.
-    // TODO(vasilvv): actually support those.
     case APPLICATION_CLOSE_FRAME:
     case NEW_CONNECTION_ID_FRAME:
+    case RETIRE_CONNECTION_ID_FRAME:
     case MAX_STREAM_ID_FRAME:
     case STREAM_ID_BLOCKED_FRAME:
     case PATH_RESPONSE_FRAME:
@@ -234,7 +230,7 @@ void QuicTraceVisitor::OnIncomingAck(
   quic_trace::Event* event = trace_.add_events();
   event->set_time_us(ConvertTimestampToRecordedFormat(ack_receive_time));
   event->set_packet_number(
-      connection_->received_packet_manager().GetLargestObserved());
+      connection_->received_packet_manager().GetLargestObserved().ToUint64());
   event->set_event_type(quic_trace::PACKET_RECEIVED);
 
   // TODO(vasilvv): consider removing this copy.
@@ -249,7 +245,7 @@ void QuicTraceVisitor::OnPacketLoss(QuicPacketNumber lost_packet_number,
   quic_trace::Event* event = trace_.add_events();
   event->set_time_us(ConvertTimestampToRecordedFormat(detection_time));
   event->set_event_type(quic_trace::PACKET_LOST);
-  event->set_packet_number(lost_packet_number);
+  event->set_packet_number(lost_packet_number.ToUint64());
   PopulateTransportState(event->mutable_transport_state());
 }
 
@@ -259,7 +255,7 @@ void QuicTraceVisitor::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame,
   event->set_time_us(ConvertTimestampToRecordedFormat(receive_time));
   event->set_event_type(quic_trace::PACKET_RECEIVED);
   event->set_packet_number(
-      connection_->received_packet_manager().GetLargestObserved());
+      connection_->received_packet_manager().GetLargestObserved().ToUint64());
 
   // TODO(vasilvv): consider removing this copy.
   QuicWindowUpdateFrame copy_of_update = frame;
@@ -332,4 +328,6 @@ void QuicTraceVisitor::PopulateTransportState(
   }
 }
 
-};  // namespace quic
+}  // namespace quic
+
+#endif  // QUIC_TRACE_DISABLED

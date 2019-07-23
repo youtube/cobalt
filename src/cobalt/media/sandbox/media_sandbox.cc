@@ -92,23 +92,8 @@ MediaSandbox::Impl::Impl(int argc, char** argv,
   renderer::RendererModule::Options renderer_options;
   renderer_module_.reset(
       new renderer::RendererModule(system_window_.get(), renderer_options));
-  MediaModule::Options media_module_options;
-#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  // Use string literals directly to avoid dependency on browser::switches.
-  if (command_line->HasSwitch("audio_decoder_stub")) {
-    media_module_options.use_audio_decoder_stub = true;
-  }
-  if (command_line->HasSwitch("null_audio_streamer")) {
-    media_module_options.use_null_audio_streamer = true;
-  }
-  if (command_line->HasSwitch("video_decoder_stub")) {
-    media_module_options.use_video_decoder_stub = true;
-  }
-#endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-
-  media_module_ = MediaModule::Create(
-      system_window_.get(), GetResourceProvider(), media_module_options);
+  media_module_.reset(
+      new MediaModule(system_window_.get(), GetResourceProvider()));
   SetupAndSubmitScene();
 }
 

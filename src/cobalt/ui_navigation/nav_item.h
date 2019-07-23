@@ -50,12 +50,12 @@ class NavItem : public base::RefCountedThreadSafe<NavItem> {
     GetInterface().set_item_size(nav_item_, width, height);
   }
 
-  void SetPosition(float x, float y) {
-    GetInterface().set_item_position(nav_item_, x, y);
+  void SetTransform(const NativeMatrix2x3* transform) {
+    GetInterface().set_item_transform(nav_item_, transform);
   }
 
-  bool GetLocalTransform(NativeTransform* out_transform) {
-    return GetInterface().get_item_local_transform(nav_item_, out_transform);
+  bool GetFocusTransform(NativeMatrix4* out_transform) {
+    return GetInterface().get_item_focus_transform(nav_item_, out_transform);
   }
 
   bool GetFocusVector(float* out_x, float* out_y) {

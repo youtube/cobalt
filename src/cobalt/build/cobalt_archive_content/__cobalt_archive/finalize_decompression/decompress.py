@@ -15,8 +15,13 @@
 # limitations under the License.
 
 
-"""This file is designed to be placed in the cobalt archive to finalize the
-decompression process."""
+"""Finalizes decompression.
+
+This is meant to be run after the zip is decompressed into the temp directory
+and includes support for special file system operations not supported by the
+zip file.
+"""
+
 
 import json
 import logging
@@ -28,26 +33,40 @@ import sys
 _SELF_DIR = os.path.dirname(__file__)
 _ARCHIVE_ROOT = os.path.join(_SELF_DIR, os.pardir, os.pardir)
 _DATA_JSON_PATH = os.path.abspath(os.path.join(_SELF_DIR, 'decompress.json'))
+_FULL_PERMISSIONS = 0o777
 
 
-def _DefineOsSymlinkForWin32():
-  """When invoked, this will define the missing os.symlink for Win32."""
-  def _CreateWin32Symlink(source, link_name):
-    cmd = 'mklink /J %s %s' % (link_name, source)
+_IS_WINDOWS = sys.platform in ['win32', 'cygwin']
+
+
+def _CreateWin32Symlink(source, link_name):
+  rc = subprocess.call('mklink /D %s %s' % (link_name, source), shell=True)
+  if rc != 0:
+    # Some older versions of windows require admin permissions for /D style
+    # reparse points. In this case fallback to using /J.
+    cmd = 'mklink /J %s %s' % (link_name, source),
     rc = subprocess.call(cmd, shell=True)
     if rc != 0:
-      logging.critical('Error using %s during %s, cwd=%s' % (rc,cmd,os.getcwd()))
-  os.symlink = _CreateWin32Symlink
+      logging.critical('Error using %s during %s, cwd=%s', rc, cmd, os.getcwd())
 
 
-if sys.platform == 'win32':
-  _DefineOsSymlinkForWin32()
+def _CreateSymlink(source, link_name):
+  if _IS_WINDOWS:
+    _CreateWin32Symlink(source, link_name)
+  else:
+    os.symlink(source, link_name)
+
+
+def _MakeDirs(path):
+  if _IS_WINDOWS:
+    # Necessary for long file name support
+    subprocess.check_call('mkdir %s' % path, shell=True)
+  else:
+    os.makedirs(path)
 
 
 def _ExtractSymlinks(cwd, symlink_dir_list):
-  if not symlink_dir_list:
-    logging.info('No directory symlinks found.')
-    return
+  """Recreates symlinks on Windows and linux."""
   prev_cwd = os.getcwd()
   cwd = os.path.normpath(cwd)
   all_ok = True
@@ -57,19 +76,19 @@ def _ExtractSymlinks(cwd, symlink_dir_list):
       link_path = os.path.abspath(link_path)
       real_path = os.path.abspath(real_path)
       if not os.path.exists(real_path):
-        os.makedirs(real_path)
+        _MakeDirs(real_path)
       if not os.path.exists(os.path.dirname(link_path)):
-        os.makedirs(os.path.dirname(link_path))
-      assert(os.path.exists(real_path))
+        _MakeDirs(os.path.dirname(link_path))
+      assert os.path.exists(real_path)
       real_path = os.path.relpath(real_path)
-      os.symlink(real_path, link_path)
+      _CreateSymlink(real_path, link_path)
       if not os.path.exists(real_path):
-        logging.critical('Error target folder %s does not exist.'
-                         % os.path.abspath(real_path))
+        logging.critical('Error target folder %s does not exist.',
+                         os.path.abspath(real_path))
         all_ok = False
       if not os.path.exists(link_path):
-        logging.critical('Error link folder %s does not exist.'
-                         % os.path.abspath(link_path))
+        logging.critical('Error link folder %s does not exist.',
+                         os.path.abspath(link_path))
         all_ok = False
   finally:
     os.chdir(prev_cwd)
@@ -79,7 +98,18 @@ def _ExtractSymlinks(cwd, symlink_dir_list):
                      '\n*******************************************')
 
 
-def _main():
+def _SetExecutionBits(cwd, executable_files):
+  if not executable_files:
+    return
+  logging.info('Setting Permissions %s on %d files',
+               _FULL_PERMISSIONS, len(executable_files))
+  for f in executable_files:
+    full_path = os.path.abspath(os.path.join(cwd, f))
+    logging.info('  %s', full_path)
+    os.chmod(full_path, _FULL_PERMISSIONS)
+
+
+def main():
   logging.basicConfig(level=logging.INFO,
                       format='%(filename)s(%(lineno)s): %(message)s')
   assert(os.path.exists(_DATA_JSON_PATH)), _DATA_JSON_PATH
@@ -87,7 +117,8 @@ def _main():
     json_str = fd.read()
   data = json.loads(json_str)
   _ExtractSymlinks(_ARCHIVE_ROOT, data.get('symlink_dir', []))
+  _SetExecutionBits(_ARCHIVE_ROOT, data.get('executable_files', []))
 
 
 if __name__ == '__main__':
-  _main()
+  main()

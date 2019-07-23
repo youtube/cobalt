@@ -12,22 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/time_zone.h"
-
-#include <time.h>
-
-#if SB_API_VERSION < 6
-const char* SbTimeZoneGetDstName() {
-  // Note tzset() is called in ApplicationAndroid::Initialize()
-
-  // Android's bionic seems not to set tzname[1] when selecting GMT
-  // because timezone is not otherwise available.
-  // But glibc returns "GMT" in both tzname[0] and tzname[1] when
-  // GMT is selected.
-  if (tzname[1][0] == '\0') {
-    return tzname[0];
-  } else {
-    return tzname[1];
-  }
-}
-#endif  // SB_API_VERSION < 6
+#error This file is deprecated with SB_API_VERSION 6.

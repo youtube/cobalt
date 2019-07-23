@@ -18,8 +18,9 @@
 #include <vector>
 
 #include "starboard/audio_sink.h"
-#include "starboard/condition_variable.h"
-#include "starboard/mutex.h"
+#include "starboard/common/condition_variable.h"
+#include "starboard/common/mutex.h"
+#include "starboard/media.h"
 #include "starboard/time.h"
 
 namespace starboard {

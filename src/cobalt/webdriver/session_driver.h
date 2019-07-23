@@ -78,7 +78,7 @@ class SessionDriver {
   bool LogMessageHandler(int severity, const char* file, int line,
                          size_t message_start, const std::string& str);
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   const protocol::SessionId session_id_;
   protocol::Capabilities capabilities_;
   CreateWindowDriverCallback create_window_driver_callback_;

@@ -197,10 +197,10 @@ class BrowserModule {
       const base::OnScreenKeyboardFocusedEvent* event);
   void OnOnScreenKeyboardBlurred(
       const base::OnScreenKeyboardBlurredEvent* event);
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#if SB_API_VERSION >= 11
   void OnOnScreenKeyboardSuggestionsUpdated(
       const base::OnScreenKeyboardSuggestionsUpdatedEvent* event);
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#endif  // SB_API_VERSION >= 11
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
 #if SB_HAS(CAPTIONS)
@@ -335,6 +335,12 @@ class BrowserModule {
   // Use the config in the form of '<string name>=<int value>' to call
   // MediaModule::SetConfiguration().
   void OnSetMediaConfig(const std::string& config);
+
+  // Sets the disabled media codecs in the debug console and in
+  // the CanPlayTypeHandler instance.
+  // Future requests to play videos with these codecs will report that these
+  // codecs are unsupported.
+  void OnDisableMediaCodecs(const std::string& codecs);
 
   // Glue function to deal with the production of the debug console render tree,
   // and will manage handing it off to the renderer.
@@ -534,6 +540,10 @@ class BrowserModule {
   base::CVal<base::cval::SizeInBytes, base::CValPublic>
       javascript_reserved_memory_;
 
+  // Stores the current list of disabled codecs, which are considered
+  // unsupported by media.
+  base::CVal<std::string, base::CValPublic> disabled_media_codecs_;
+
 #if defined(ENABLE_DEBUGGER)
   // Possibly null, but if not, will contain a reference to an instance of
   // a debug fuzzer input device manager.
@@ -553,6 +563,11 @@ class BrowserModule {
   // Command handler object for screenshot command from the debug console.
   debug::console::ConsoleCommandManager::CommandHandler
       screenshot_command_handler_;
+
+  // Command handler object for changing a list of disabled codecs for
+  // debug and testing purposes.
+  debug::console::ConsoleCommandManager::CommandHandler
+      disable_media_codecs_command_handler_;
 
   base::Optional<SuspendFuzzer> suspend_fuzzer_;
 

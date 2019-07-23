@@ -4606,6 +4606,11 @@ bool UnitTestImpl::RunAllTests() {
     return false;
   }
 
+  // Set per-thread data in case UnitTestImpl was instantiated on a different
+  // thread than RunAllTests.
+  per_thread_test_part_result_reporter_.set(
+      &default_per_thread_test_part_result_reporter_);
+
   // Do not run any test if the --help flag was specified.
   if (g_help_flag)
     return true;

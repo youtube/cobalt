@@ -18,7 +18,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/memory.h"
 
 namespace starboard {

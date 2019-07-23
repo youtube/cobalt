@@ -14,7 +14,7 @@
 #include <stddef.h>
 
 #if defined(COBALT)
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #endif
 
 static void normalize_perspective(SkScalar mat[9]) {

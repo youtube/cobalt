@@ -22,21 +22,17 @@ class MockQuicData {
   // synchronusly or asynchronously based on |mode|.
   void AddConnect(IoMode mode, int rv);
 
-#ifndef GMOCK_NO_MOVE_MOCK
   // Adds a read at the next sequence number which will read |packet|
   // synchronously or asynchronously based on |mode|.
   void AddRead(IoMode mode, std::unique_ptr<quic::QuicEncryptedPacket> packet);
-#endif
 
   // Adds a read at the next sequence number which will return |rv| either
   // synchronously or asynchronously based on |mode|.
   void AddRead(IoMode mode, int rv);
 
-#ifndef GMOCK_NO_MOVE_MOCK
   // Adds a write at the next sequence number which will write |packet|
   // synchronously or asynchronously based on |mode|.
   void AddWrite(IoMode mode, std::unique_ptr<quic::QuicEncryptedPacket> packet);
-#endif
 
   // Adds a write at the next sequence number which will return |rv| either
   // synchronously or asynchronously based on |mode|.

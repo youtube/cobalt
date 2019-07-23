@@ -19,6 +19,37 @@
   'variables': {
     'has_platform_tests%' : '<!(python ../build/file_exists.py <(DEPTH)/<(starboard_path)/starboard_platform_tests.gyp)',
   },
+  'conditions': [
+    # If 'starboard_platform_tests' is not defined by the platform, then an
+    # empty 'starboard_platform_tests' target is defined.
+    ['has_platform_tests=="False"', {
+      'targets': [
+        {
+          'target_name': 'starboard_platform_tests',
+          'type': '<(gtest_target_type)',
+          'sources': [
+            '<(DEPTH)/starboard/common/test_main.cc',
+           ],
+          'dependencies': [
+            '<(DEPTH)/starboard/starboard.gyp:starboard',
+            '<(DEPTH)/testing/gmock.gyp:gmock',
+            '<(DEPTH)/testing/gtest.gyp:gtest',
+          ],
+        },
+        {
+          'target_name': 'starboard_platform_tests_deploy',
+          'type': 'none',
+          'dependencies': [
+            'starboard_platform_tests',
+          ],
+          'variables': {
+            'executable_name': 'starboard_platform_tests',
+          },
+          'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
+        },
+      ],
+    }],
+  ],
   'targets': [
     {
       # Note that this target must be in a separate GYP file from starboard.gyp,
@@ -30,7 +61,11 @@
         '<(DEPTH)/starboard/client_porting/eztime/eztime_test.gyp:*',
         '<(DEPTH)/starboard/client_porting/icu_init/icu_init.gyp:*',
         '<(DEPTH)/starboard/client_porting/poem/poem.gyp:*',
-        '<(DEPTH)/starboard/examples/examples.gyp:*',
+	# glclear.gyp is not included as a dependency since the change to the
+	# EGL and GLES interfaces are breaking for previous versions of the
+	# Starboard API.
+        '<(DEPTH)/starboard/examples/blitter/blitter.gyp:*',
+        '<(DEPTH)/starboard/examples/window/window.gyp:*',
         '<(DEPTH)/starboard/nplb/blitter_pixel_tests/blitter_pixel_tests.gyp:*',
         '<(DEPTH)/starboard/nplb/nplb.gyp:*',
         '<(DEPTH)/starboard/starboard.gyp:*',
@@ -40,10 +75,15 @@
           'dependencies': [
             '<(DEPTH)/<(starboard_path)/starboard_platform_tests.gyp:*',
           ],
+        }, {
+          'dependencies': [
+            'starboard_platform_tests',
+          ],
         }],
         ['sb_filter_based_player==1', {
           'dependencies': [
             '<(DEPTH)/starboard/shared/starboard/player/filter/testing/player_filter_tests.gyp:*',
+            '<(DEPTH)/starboard/shared/starboard/player/filter/tools/tools.gyp:*',
           ],
         }],
       ],

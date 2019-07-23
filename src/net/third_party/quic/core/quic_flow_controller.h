@@ -18,8 +18,6 @@ class QuicFlowControllerPeer;
 class QuicConnection;
 class QuicSession;
 
-const QuicStreamId kConnectionLevelId = 0;
-
 // How much larger the session flow control window needs to be relative to any
 // stream's flow control window.
 const float kSessionFlowControlMultiplier = 1.5;
@@ -41,14 +39,16 @@ class QUIC_EXPORT_PRIVATE QuicFlowController
     : public QuicFlowControllerInterface {
  public:
   QuicFlowController(QuicSession* session,
-                     QuicConnection* connection,
                      QuicStreamId id,
-                     Perspective perspective,
+                     bool is_connection_flow_controller,
                      QuicStreamOffset send_window_offset,
                      QuicStreamOffset receive_window_offset,
+                     QuicByteCount receive_window_size_limit,
                      bool should_auto_tune_receive_window,
                      QuicFlowControllerInterface* session_flow_controller);
+
   QuicFlowController(const QuicFlowController&) = delete;
+  QuicFlowController(QuicFlowController&&) = default;
   QuicFlowController& operator=(const QuicFlowController&) = delete;
 
   ~QuicFlowController() override {}
@@ -78,8 +78,8 @@ class QUIC_EXPORT_PRIVATE QuicFlowController
   // Returns the current available send window.
   QuicByteCount SendWindowSize() const;
 
-  // Send a BLOCKED frame if appropriate.
-  void MaybeSendBlocked();
+  // Returns whether a BLOCKED frame should be sent.
+  bool ShouldSendBlocked();
 
   // Returns true if flow control send limits have been reached.
   bool IsBlocked() const;
@@ -128,9 +128,13 @@ class QUIC_EXPORT_PRIVATE QuicFlowController
   QuicSession* session_;
   QuicConnection* connection_;
 
-  // ID of stream this flow controller belongs to. This can be 0 if this is a
-  // connection level flow controller.
+  // ID of stream this flow controller belongs to. If
+  // |is_connection_flow_controller_| is false, this must be a valid stream ID.
   QuicStreamId id_;
+
+  // Whether this flow controller is the connection level flow controller
+  // instead of the flow controller for a stream. If true, |id_| is ignored.
+  bool is_connection_flow_controller_;
 
   // Tracks if this is owned by a server or a client.
   Perspective perspective_;

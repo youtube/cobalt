@@ -7,6 +7,7 @@
 #include <string>
 #include <utility>
 
+#include "base/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
@@ -15,7 +16,6 @@
 #include "net/base/net_errors.h"
 #include "net/quic/quic_chromium_client_session.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
-
 #include "starboard/memory.h"
 
 namespace net {
@@ -153,7 +153,8 @@ quic::WriteResult QuicChromiumPacketWriter::WritePacketToSocketImpl() {
                           kTrafficAnnotation);
 
   if (MaybeRetryAfterWriteError(rv))
-    return quic::WriteResult(quic::WRITE_STATUS_BLOCKED, ERR_IO_PENDING);
+    return quic::WriteResult(quic::WRITE_STATUS_BLOCKED_DATA_BUFFERED,
+                             ERR_IO_PENDING);
 
   if (rv < 0 && rv != ERR_IO_PENDING && delegate_ != nullptr) {
     // If write error, then call delegate's HandleWriteError, which
@@ -168,7 +169,7 @@ quic::WriteResult QuicChromiumPacketWriter::WritePacketToSocketImpl() {
     if (rv != ERR_IO_PENDING) {
       status = quic::WRITE_STATUS_ERROR;
     } else {
-      status = quic::WRITE_STATUS_BLOCKED;
+      status = quic::WRITE_STATUS_BLOCKED_DATA_BUFFERED;
       write_in_progress_ = true;
     }
   }
@@ -176,7 +177,7 @@ quic::WriteResult QuicChromiumPacketWriter::WritePacketToSocketImpl() {
   base::TimeDelta delta = base::TimeTicks::Now() - now;
   if (status == quic::WRITE_STATUS_OK) {
     UMA_HISTOGRAM_TIMES("Net.QuicSession.PacketWriteTime.Synchronous", delta);
-  } else if (status == quic::WRITE_STATUS_BLOCKED) {
+  } else if (quic::IsWriteBlockedStatus(status)) {
     UMA_HISTOGRAM_TIMES("Net.QuicSession.PacketWriteTime.Asynchronous", delta);
   }
 
@@ -188,12 +189,6 @@ void QuicChromiumPacketWriter::RetryPacketAfterNoBuffers() {
   quic::WriteResult result = WritePacketToSocketImpl();
   if (result.error_code != ERR_IO_PENDING)
     OnWriteComplete(result.error_code);
-}
-
-bool QuicChromiumPacketWriter::IsWriteBlockedDataBuffered() const {
-  // Chrome sockets' Write() methods buffer the data until the Write is
-  // permitted.
-  return true;
 }
 
 bool QuicChromiumPacketWriter::IsWriteBlocked() const {

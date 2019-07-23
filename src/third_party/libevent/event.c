@@ -123,7 +123,7 @@ struct event_base *current_base = NULL;
 #ifndef STARBOARD
 extern struct event_base *evsignal_base;
 #endif
-static int use_monotonic;
+static int use_monotonic = 1;
 
 /* Prototypes */
 static void	event_queue_insert(struct event_base *, struct event *, int);
@@ -180,6 +180,8 @@ gettime(struct event_base *base, struct timeval *tp)
 		return (0);
 	}
 #endif
+
+	use_monotonic = 0;
 
 	return (evutil_gettimeofday(tp, NULL));
 }
@@ -302,9 +304,14 @@ event_reinit(struct event_base *base)
 	int res = 0;
 	struct event *ev;
 
+#if 0
+	/* Right now, reinit always takes effect, since even if the
+	   backend doesn't require it, the signal socketpair code does.
+	 */
 	/* check if this event mechanism requires reinit */
 	if (!evsel->need_reinit)
 		return (0);
+#endif
 
 #ifndef STARBOARD
 	/* prevent internal delete */
@@ -348,7 +355,10 @@ event_base_priority_init(struct event_base *base, int npriorities)
 	if (base->event_count_active)
 		return (-1);
 
-	if (base->nactivequeues && npriorities != base->nactivequeues) {
+	if (npriorities == base->nactivequeues)
+		return (0);
+
+	if (base->nactivequeues) {
 		for (i = 0; i < base->nactivequeues; ++i) {
 			free(base->activequeues[i]);
 		}

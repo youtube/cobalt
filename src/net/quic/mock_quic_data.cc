@@ -15,26 +15,22 @@ void MockQuicData::AddConnect(IoMode mode, int rv) {
   connect_.reset(new MockConnect(mode, rv));
 }
 
-#ifndef GMOCK_NO_MOVE_MOCK
 void MockQuicData::AddRead(IoMode mode,
                            std::unique_ptr<quic::QuicEncryptedPacket> packet) {
   reads_.push_back(
       MockRead(mode, packet->data(), packet->length(), sequence_number_++));
   packets_.push_back(std::move(packet));
 }
-#endif
 void MockQuicData::AddRead(IoMode mode, int rv) {
   reads_.push_back(MockRead(mode, rv, sequence_number_++));
 }
 
-#ifndef GMOCK_NO_MOVE_MOCK
 void MockQuicData::AddWrite(IoMode mode,
                             std::unique_ptr<quic::QuicEncryptedPacket> packet) {
   writes_.push_back(
       MockWrite(mode, packet->data(), packet->length(), sequence_number_++));
   packets_.push_back(std::move(packet));
 }
-#endif
 
 void MockQuicData::AddWrite(IoMode mode, int rv) {
   writes_.push_back(MockWrite(mode, rv, sequence_number_++));
@@ -57,13 +53,7 @@ void MockQuicData::Resume() {
 }
 
 SequencedSocketData* MockQuicData::InitializeAndGetSequencedSocketData() {
-#ifdef STARBOARD
-  socket_data_.reset(new SequencedSocketData(
-      base::span<const MockRead>(reads_.data(), reads_.size()),
-      base::span<const MockWrite>(writes_.data(), writes_.size())));
-#else
   socket_data_.reset(new SequencedSocketData(reads_, writes_));
-#endif
   if (connect_ != nullptr)
     socket_data_->set_connect_data(*connect_);
 

@@ -18,8 +18,8 @@
 #include <vector>
 
 #include "starboard/blitter.h"
+#include "starboard/common/log.h"
 #include "starboard/file.h"
-#include "starboard/log.h"
 #include "third_party/libpng/png.h"
 
 #if SB_HAS(BLITTER)

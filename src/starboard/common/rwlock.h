@@ -20,10 +20,9 @@
 #ifndef STARBOARD_COMMON_RWLOCK_H_
 #define STARBOARD_COMMON_RWLOCK_H_
 
+#include "starboard/common/mutex.h"
 #include "starboard/common/semaphore.h"
-#include "starboard/mutex.h"
 
-#ifdef __cplusplus
 namespace starboard {
 
 // This RWLock allows concurrent access for read-only operations, while write
@@ -94,53 +93,6 @@ class ScopedWriteLock {
   SB_DISALLOW_COPY_AND_ASSIGN(ScopedWriteLock);
 };
 
-/////////////////////////////////// IMPL //////////////////////////////////////
-
-inline RWLock::RWLock() : num_readers_(0), reader_(), writer_(1) {}
-
-inline RWLock::~RWLock() {}
-
-inline void RWLock::AcquireReadLock() {
-  reader_.Acquire();
-  if (0 == num_readers_++) {
-    AcquireWriteLock();
-  }
-  reader_.Release();
-}
-
-inline void RWLock::ReleaseReadLock() {
-  reader_.Acquire();
-  if (--num_readers_ == 0) {
-    ReleaseWriteLock();
-  }
-  reader_.Release();
-}
-
-inline void RWLock::AcquireWriteLock() {
-  writer_.Take();
-}
-
-inline void RWLock::ReleaseWriteLock() {
-  writer_.Put();
-}
-
-inline ScopedReadLock::ScopedReadLock(RWLock* rw_lock) : rw_lock_(rw_lock) {
-  rw_lock_->AcquireReadLock();
-}
-
-inline ScopedReadLock::~ScopedReadLock() {
-  rw_lock_->ReleaseReadLock();
-}
-
-inline ScopedWriteLock::ScopedWriteLock(RWLock* rw_lock) : rw_lock_(rw_lock) {
-  rw_lock_->AcquireWriteLock();
-}
-
-inline ScopedWriteLock::~ScopedWriteLock() {
-  rw_lock_->ReleaseWriteLock();
-}
-
 }  // namespace starboard
-#endif  // __cplusplus
 
 #endif  // STARBOARD_COMMON_RWLOCK_H_

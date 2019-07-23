@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 
 SbSocket SbSocketAccept(SbSocket /*socket*/) {
   return kSbSocketInvalid;

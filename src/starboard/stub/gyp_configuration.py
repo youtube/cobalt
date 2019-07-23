@@ -16,7 +16,8 @@
 import logging
 
 import config.base
-import gyp_utils
+from starboard.build import clang
+from starboard.tools import build
 
 
 def CreatePlatformConfig():
@@ -45,8 +46,8 @@ class StubConfiguration(config.base.PlatformConfigBase):
   def GetEnvironmentVariables(self):
     if not hasattr(self, 'host_compiler_environment'):
       goma_supports_compiler = True
-      self.host_compiler_environment = gyp_utils.GetHostCompilerEnvironment(
-          goma_supports_compiler)
+      self.host_compiler_environment = build.GetHostCompilerEnvironment(
+          clang.GetClangSpecification(), goma_supports_compiler)
 
     env_variables = self.host_compiler_environment
     env_variables.update({

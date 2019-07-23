@@ -1,0 +1,21 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.40629.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libSceSampleUtil", "libSceSampleUtil.vcxproj", "{30A1B994-C2C6-485F-911B-FB4674366DA8}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|ORBIS = Debug|ORBIS
+		Release|ORBIS = Release|ORBIS
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{30A1B994-C2C6-485F-911B-FB4674366DA8}.Debug|ORBIS.ActiveCfg = Debug|ORBIS
+		{30A1B994-C2C6-485F-911B-FB4674366DA8}.Debug|ORBIS.Build.0 = Debug|ORBIS
+		{30A1B994-C2C6-485F-911B-FB4674366DA8}.Release|ORBIS.ActiveCfg = Release|ORBIS
+		{30A1B994-C2C6-485F-911B-FB4674366DA8}.Release|ORBIS.Build.0 = Release|ORBIS
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

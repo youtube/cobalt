@@ -48,7 +48,7 @@ StatelessRejector::StatelessRejector(
       error_(QUIC_INTERNAL_ERROR),
       version_(version),
       versions_(versions),
-      connection_id_(0),
+      connection_id_(EmptyQuicConnectionId()),
       chlo_packet_size_(chlo_packet_size),
       client_address_(client_address),
       server_address_(server_address),
@@ -133,8 +133,8 @@ void StatelessRejector::ProcessClientHello(
       version_, versions_,
       /*use_stateless_rejects=*/true, server_designated_connection_id_, clock_,
       random_, compressed_certs_cache_, params_, signed_config_,
-      QuicCryptoStream::CryptoMessageFramingOverhead(
-          version_.transport_version),
+      QuicCryptoStream::CryptoMessageFramingOverhead(version_.transport_version,
+                                                     connection_id_),
       chlo_packet_size_, std::move(cb));
 }
 

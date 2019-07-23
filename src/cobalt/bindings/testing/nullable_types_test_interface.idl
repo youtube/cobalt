@@ -16,15 +16,18 @@ interface NullableTypesTestInterface {
   attribute boolean? nullableBooleanProperty;
   attribute long? nullableNumericProperty;
   attribute DOMString? nullableStringProperty;
+  attribute TestDictionary? nullableDictionaryProperty;
   attribute ArbitraryInterface? nullableObjectProperty;
 
   boolean? nullableBooleanOperation();
   long? nullableNumericOperation();
   DOMString? nullableStringOperation();
+  TestDictionary? nullableDictionaryOperation();
   ArbitraryInterface? nullableObjectOperation();
 
   void nullableBooleanArgument(boolean? arg);
   void nullableNumericArgument(long? arg);
   void nullableStringArgument(DOMString? arg);
+  void nullableDictionaryArgument(TestDictionary? arg);
   void nullableObjectArgument(ArbitraryInterface? arg);
 };

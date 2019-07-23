@@ -14,10 +14,9 @@
 
 #include "cobalt/renderer/rasterizer/egl/draw_rrect_color_texture.h"
 
-#include <GLES2/gl2.h>
-
 #include "base/basictypes.h"
 #include "cobalt/renderer/backend/egl/utils.h"
+#include "cobalt/renderer/egl_and_gles.h"
 #include "starboard/memory.h"
 
 namespace cobalt {

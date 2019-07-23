@@ -18,11 +18,11 @@
 #include <functional>
 #include <queue>
 
+#include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
+#include "starboard/common/queue.h"
 #include "starboard/common/ref_counted.h"
-#include "starboard/log.h"
 #include "starboard/media.h"
-#include "starboard/mutex.h"
-#include "starboard/queue.h"
 #include "starboard/raspi/shared/dispmanx_util.h"
 #include "starboard/raspi/shared/open_max/dispmanx_resource_pool.h"
 #include "starboard/raspi/shared/open_max/open_max_video_decode_component.h"

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/socket.h"
 #include "starboard/nplb/socket_helpers.h"
-#include "starboard/socket.h"
 #include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

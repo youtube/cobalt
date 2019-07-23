@@ -21,7 +21,7 @@
 #include <GLES2/gl2.h>
 
 #include "starboard/blitter.h"
-#include "starboard/mutex.h"
+#include "starboard/common/recursive_mutex.h"
 #include "starboard/shared/internal_only.h"
 
 namespace starboard {
@@ -40,30 +40,12 @@ struct SbBlitterDeviceRegistry {
 
 SbBlitterDeviceRegistry* GetBlitterDeviceRegistry();
 
-// Helper class to allow one to create a RAII object that acquires the
-// SbBlitterContext object upon construction and handles binding/unbinding of
-// the egl_context field, as well as initializing fields that have deferred
-// creation.
-class ScopedCurrentContext {
- public:
-  explicit ScopedCurrentContext(SbBlitterContext context);
-  ~ScopedCurrentContext();
-
-  // Returns true if an error occurred during intialization (indicating that
-  // this object is invalid).
-  bool InitializationError() const { return error_; }
-
- private:
-  SbBlitterContext context_;
-  bool error_;
-
-  // Keeps track of whether this context was current on the calling thread.
-  bool was_current_;
-};
-
-// Will call eglMakeCurrent() and glBindFramebuffer() for context's
-// current_render_target. Returns true on success, false on failure.
-bool MakeCurrent(SbBlitterContext context);
+// Helper function to change data between Blitter and GL formats.
+void ChangeDataFormat(SbBlitterPixelDataFormat in_format,
+                      SbBlitterPixelDataFormat out_format,
+                      int pitch_in_bytes,
+                      int height,
+                      void* data);
 
 extern const EGLint kContextAttributeList[];
 
@@ -84,13 +66,18 @@ struct SbBlitterDevicePrivate {
 
   // Mutex to ensure thread-safety in all SbBlitterDevice-related function
   // calls.
-  starboard::Mutex mutex;
+  starboard::RecursiveMutex mutex;
 };
 
 struct SbBlitterRenderTargetPrivate {
   // If this SbBlitterRenderTargetPrivate object was created from a swap chain,
-  // we store a reference to it. Otherwise, it's set to NULL.
+  // we store a reference to it. Otherwise, it's set to
+  // kSbBlitterInvalidSwapChain.
   SbBlitterSwapChainPrivate* swap_chain;
+
+  // If this SbBlitterRenderTargetPrivate object was created from a surface, we
+  // store a reference to it. Otherwise, it's set to kSbBlitterInvalidSurface.
+  SbBlitterSurfacePrivate* surface;
 
   int width;
 
@@ -102,6 +89,10 @@ struct SbBlitterRenderTargetPrivate {
 
   // Keep track of the current GL framebuffer.
   GLuint framebuffer_handle;
+
+  // Sets framebuffer_handle and binds the texture from the surface field to it.
+  // On failure, sets framebuffer_handle to 0.
+  void SetFramebuffer();
 };
 
 struct SbBlitterSwapChainPrivate {
@@ -110,36 +101,22 @@ struct SbBlitterSwapChainPrivate {
   EGLSurface surface;
 };
 
-struct SbBlitterContextPrivate {
-  // Store a reference to the current rendering target.
-  SbBlitterRenderTargetPrivate* current_render_target;
-
-  // Keep track of the device used to create this context.
+struct SbBlitterPixelDataPrivate {
+  // Keep track of the device that was used to create this SbBlitterPixelData
+  // object.
   SbBlitterDevicePrivate* device;
 
-  // If we don't have any information about the display window, this field will
-  // be created with a best-guess EGLConfig.
-  EGLContext egl_context;
+  // The pitch of the pixel data, in bytes.
+  int pitch_in_bytes;
 
-  // GL framebuffers can use a dummy EGLSurface if there isn't a surface bound
-  // already.
-  EGLSurface dummy_surface;
+  int width;
 
-  // Whether or not blending is enabled on this context.
-  bool blending_enabled;
+  int height;
 
-  // The current color, used to determine the color of fill rectangles and blit
-  // call color modulation.
-  SbBlitterColor current_color;
+  SbBlitterPixelDataFormat format;
 
-  // Whether or not blits should be modulated by the current color.
-  bool modulate_blits_with_color;
-
-  // The current scissor rectangle.
-  SbBlitterRect scissor;
-
-  // Whether or not this context has been set to current or not.
-  bool is_current;
+  // Points to the pixels.
+  void* data;
 };
 
 #endif  // STARBOARD_SHARED_BLITTERGLES_BLITTER_INTERNAL_H_

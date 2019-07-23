@@ -20,9 +20,9 @@
 #ifndef STARBOARD_FORMAT_STRING_H_
 #define STARBOARD_FORMAT_STRING_H_
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
-#if SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
+#if SB_API_VERSION >= 11
 #ifdef __cplusplus
 
 extern "C++" {
@@ -59,6 +59,6 @@ SB_C_INLINE std::string FormatString(const char* format, ...) {
 
 #endif  // __cplusplus
 
-#endif  // SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
+#endif  // SB_API_VERSION >= 11
 
 #endif  // STARBOARD_FORMAT_STRING_H_

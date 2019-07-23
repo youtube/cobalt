@@ -97,7 +97,6 @@ extern "C" {
 // system. Each event is accompanied by a void* data argument, and each event
 // must define the type of the value pointed to by that data argument, if any.
 typedef enum SbEventType {
-#if SB_API_VERSION >= 6
   // Applications should perform initialization and prepare to react to
   // subsequent events, but must not initialize any graphics resources (through
   // GL or SbBlitter). The intent of this event is to allow the application to
@@ -114,7 +113,6 @@ typedef enum SbEventType {
   // call SbSystemRequestSuspend() when they are done preloading to request
   // this.
   kSbEventTypePreload,
-#endif  // SB_API_VERSION >= 6
 
   // The first event that an application receives on startup when starting
   // normally (i.e. not being preloaded). Applications should perform
@@ -182,7 +180,7 @@ typedef enum SbEventType {
   // No data argument.
   kSbEventTypeVerticalSync,
 
-#if SB_API_VERSION < SB_DEPRECATE_DISCONNECT_VERSION
+#if SB_API_VERSION < 11
   // The platform has detected a network disconnection. The platform should make
   // a best effort to send an event of this type when the network disconnects,
   // but there are likely to be cases where the platform cannot detect the
@@ -195,7 +193,7 @@ typedef enum SbEventType {
   // application start-up, and should always be sent if the network reconnects
   // since a disconnection event was sent.
   kSbEventTypeNetworkConnect,
-#endif  // SB_API_VERSION < SB_DEPRECATE_DISCONNECT_VERSION
+#endif  // SB_API_VERSION < 11
 
   // An event type reserved for scheduled callbacks. It will only be sent in
   // response to an application call to SbEventSchedule(), and it will call the
@@ -209,14 +207,12 @@ typedef enum SbEventType {
   // causes kSbEventTypeAccessibilityCaptionSettingsChanged to fire.
   kSbEventTypeAccessiblitySettingsChanged,
 
-#if SB_API_VERSION >= 6
   // An optional event that platforms may send to indicate that the application
   // may soon be terminated (or crash) due to low memory availability. The
   // application may respond by reducing memory consumption by running a Garbage
   // Collection, flushing caches, or something similar. There is no requirement
   // to respond to or handle this event, it is only advisory.
   kSbEventTypeLowMemory,
-#endif  // SB_API_VERSION >= 6
 
 #if SB_API_VERSION >= 8
   // The size or position of a SbWindow has changed. The data is
@@ -260,7 +256,7 @@ typedef enum SbEventType {
   // kSbEventOnScreenKeyboardInvalidTicket.
   kSbEventTypeOnScreenKeyboardBlurred,
 
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#if SB_API_VERSION >= 11
   // The platform has updated the on screen keyboard suggestions. This event is
   // triggered by the system or by the application's OnScreenKeyboard update
   // suggestions method. The event has int data representing a ticket. The
@@ -270,7 +266,7 @@ typedef enum SbEventType {
   // SbWindowUpdateOnScreenKeyboardSuggestions. System-triggered events have
   // ticket value kSbEventOnScreenKeyboardInvalidTicket.
   kSbEventTypeOnScreenKeyboardSuggestionsUpdated,
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#endif  // SB_API_VERSION >= 11
 
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 #if SB_HAS(CAPTIONS)

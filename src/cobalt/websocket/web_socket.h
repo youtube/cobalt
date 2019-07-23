@@ -171,7 +171,7 @@ class WebSocket : public dom::EventTarget {
   void Connect(const GURL& url, const std::vector<std::string>& sub_protocols);
 
   void SetReadyState(const uint16 ready_state) {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     ready_state_ = ready_state;
     PotentiallyAllowGarbageCollection();
   }
@@ -207,7 +207,7 @@ class WebSocket : public dom::EventTarget {
   // https://www.w3.org/TR/websockets/#dom-websocket-url
 
   GURL resolved_url_;
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   // Parsed fields that are populated in Initialize.
   bool is_secure_;

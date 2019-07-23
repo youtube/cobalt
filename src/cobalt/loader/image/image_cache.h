@@ -38,8 +38,8 @@ struct ImageResourceCacheType {
 };
 
 typedef CachedResource<ImageResourceCacheType> CachedImage;
-typedef CachedResourceReferenceWithCallbacks<ImageResourceCacheType>
-    CachedImageReferenceWithCallbacks;
+typedef WeakCachedResource<ImageResourceCacheType> WeakCachedImage;
+typedef CachedResourceReferenceWithCallbacks CachedImageReferenceWithCallbacks;
 typedef CachedImageReferenceWithCallbacks::CachedResourceReferenceVector
     CachedImageReferenceVector;
 
@@ -52,6 +52,8 @@ inline static std::unique_ptr<ImageCache> CreateImageCache(
   return std::unique_ptr<ImageCache>(new ImageCache(
       name, cache_capacity, false /*are_loading_retries_enabled*/,
       base::Bind(&loader::LoaderFactory::CreateImageLoader,
+                 base::Unretained(loader_factory)),
+      base::Bind(&loader::LoaderFactory::NotifyResourceRequested,
                  base::Unretained(loader_factory))));
 }
 

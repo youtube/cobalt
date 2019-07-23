@@ -14,12 +14,12 @@
 
 #include "starboard/shared/libvpx/vpx_video_decoder.h"
 
-#if SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
+#if SB_API_VERSION >= 11
 #include "starboard/format_string.h"
-#endif  // SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
+#endif  // SB_API_VERSION >= 11
+#include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
 #include "starboard/shared/libvpx/vpx_library_loader.h"
-#include "starboard/string.h"
 #include "starboard/thread.h"
 
 namespace starboard {
@@ -189,14 +189,13 @@ void VideoDecoder::TeardownCodec() {
 void VideoDecoder::DecodeOneBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
-
   SB_DCHECK(input_buffer);
-  const SbMediaVideoSampleInfo* sample_info = input_buffer->video_sample_info();
-  SB_DCHECK(sample_info);
-  if (!context_ || sample_info->frame_width != current_frame_width_ ||
-      sample_info->frame_height != current_frame_height_) {
-    current_frame_width_ = sample_info->frame_width;
-    current_frame_height_ = sample_info->frame_height;
+
+  const SbMediaVideoSampleInfo& sample_info = input_buffer->video_sample_info();
+  if (!context_ || sample_info.frame_width != current_frame_width_ ||
+      sample_info.frame_height != current_frame_height_) {
+    current_frame_width_ = sample_info.frame_width;
+    current_frame_height_ = sample_info.frame_height;
     TeardownCodec();
     InitializeCodec();
   }
@@ -228,12 +227,22 @@ void VideoDecoder::DecodeOneBuffer(
   }
 
   if (vpx_image->fmt != VPX_IMG_FMT_YV12) {
-    SB_DCHECK(vpx_image->fmt == VPX_IMG_FMT_I420)
-        << "Invalid vpx_image->fmt: " << vpx_image->fmt;
-    if (vpx_image->fmt != VPX_IMG_FMT_I420) {
-      ReportError(FormatString("Invalid vpx_image->fmt: %d.", vpx_image->fmt));
+    SB_DCHECK(vpx_image->fmt == VPX_IMG_FMT_I420 ||
+              vpx_image->fmt == VPX_IMG_FMT_I42016)
+        << "Unsupported vpx_image->fmt: " << vpx_image->fmt;
+    if (vpx_image->fmt != VPX_IMG_FMT_I420 &&
+        vpx_image->fmt != VPX_IMG_FMT_I42016) {
+      ReportError(
+          FormatString("Unsupported vpx_image->fmt: %d.", vpx_image->fmt));
       return;
     }
+  }
+
+  if (vpx_image->bit_depth != 8 && vpx_image->bit_depth != 10) {
+    SB_DLOG(ERROR) << "Unsupported bit depth " << vpx_image->bit_depth;
+    ReportError(
+        FormatString("Unsupported bit depth %d.", vpx_image->bit_depth));
+    return;
   }
 
   SB_DCHECK(vpx_image->stride[VPX_PLANE_Y] ==
@@ -246,7 +255,7 @@ void VideoDecoder::DecodeOneBuffer(
       vpx_image->stride[VPX_PLANE_U] != vpx_image->stride[VPX_PLANE_V] ||
       vpx_image->planes[VPX_PLANE_Y] >= vpx_image->planes[VPX_PLANE_U] ||
       vpx_image->planes[VPX_PLANE_U] >= vpx_image->planes[VPX_PLANE_V]) {
-    ReportError("Invalid yuv plane format.");
+    ReportError("Unsupported yuv plane format.");
     return;
   }
 
@@ -254,7 +263,7 @@ void VideoDecoder::DecodeOneBuffer(
   // Each component of a pixel takes one byte and they are in their own planes.
   // UV planes have half resolution both vertically and horizontally.
   scoped_refptr<CpuVideoFrame> frame = CpuVideoFrame::CreateYV12Frame(
-      current_frame_width_, current_frame_height_,
+      vpx_image->bit_depth, current_frame_width_, current_frame_height_,
       vpx_image->stride[VPX_PLANE_Y], timestamp, vpx_image->planes[VPX_PLANE_Y],
       vpx_image->planes[VPX_PLANE_U], vpx_image->planes[VPX_PLANE_V]);
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {

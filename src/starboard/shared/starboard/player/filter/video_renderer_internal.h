@@ -18,12 +18,12 @@
 #include <list>
 
 #include "starboard/atomic.h"
+#include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
 #include "starboard/common/optional.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
-#include "starboard/log.h"
 #include "starboard/media.h"
-#include "starboard/mutex.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"

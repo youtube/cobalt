@@ -28,12 +28,12 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/window_internal.h"
-#include "starboard/condition_variable.h"
+#include "starboard/common/condition_variable.h"
+#include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
+#include "starboard/common/string.h"
 #include "starboard/event.h"
-#include "starboard/log.h"
-#include "starboard/mutex.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
-#include "starboard/string.h"
 
 namespace starboard {
 namespace android {

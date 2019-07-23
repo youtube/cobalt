@@ -33,6 +33,7 @@
 #include "cobalt/layout/base_direction.h"
 #include "cobalt/layout/block_formatting_block_container_box.h"
 #include "cobalt/layout/block_level_replaced_box.h"
+#include "cobalt/layout/flex_container_box.h"
 #include "cobalt/layout/inline_container_box.h"
 #include "cobalt/layout/inline_level_replaced_box.h"
 #include "cobalt/layout/layout_boxes.h"
@@ -468,7 +469,7 @@ ContainerBoxGenerator::~ContainerBoxGenerator() {
     // prior one.
     if (prior_paragraph_->IsClosed()) {
       *paragraph_ = new Paragraph(
-          prior_paragraph_->GetLocale(), prior_paragraph_->GetBaseDirection(),
+          prior_paragraph_->GetLocale(), prior_paragraph_->base_direction(),
           prior_paragraph_->GetDirectionalEmbeddingStack(),
           context_->line_break_iterator, context_->character_break_iterator);
     } else {
@@ -482,7 +483,6 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
   switch (keyword->value()) {
     // Generate a block-level block container box.
     case cssom::KeywordValue::kBlock:
-    case cssom::KeywordValue::kFlex:
       // The block ends the current paragraph and begins a new one that ends
       // with the block, so close the current paragraph, and create a new
       // paragraph that will close when the container box generator is
@@ -490,14 +490,43 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
       CreateScopedParagraph(kCloseParagraph);
 
       container_box_ = base::WrapRefCounted(new BlockLevelBlockContainerBox(
-          css_computed_style_declaration_, (*paragraph_)->GetBaseDirection(),
+          css_computed_style_declaration_, (*paragraph_)->base_direction(),
           context_->used_style_provider, context_->layout_stat_tracker));
       break;
+    case cssom::KeywordValue::kFlex:
+      container_box_ = base::WrapRefCounted(new BlockLevelFlexContainerBox(
+          css_computed_style_declaration_, (*paragraph_)->base_direction(),
+          context_->used_style_provider, context_->layout_stat_tracker));
+      break;
+    case cssom::KeywordValue::kInlineFlex: {
+      // An inline flex container is an atomic inline and therefore is treated
+      // directionally as a neutral character and its line breaking behavior is
+      // equivalent to that of the Object Replacement Character.
+      //   https://www.w3.org/TR/css-display-3/#atomic-inline
+      //   https://www.w3.org/TR/CSS21/visuren.html#propdef-unicode-bidi
+      //   https://www.w3.org/TR/css3-text/#line-break-details
+      int32 text_position =
+          (*paragraph_)
+              ->AppendCodePoint(
+                  Paragraph::kObjectReplacementCharacterCodePoint);
+      scoped_refptr<Paragraph> prior_paragraph = *paragraph_;
+
+      // The inline flex container creates a new paragraph, which the old
+      // paragraph flows around. Create a new paragraph, which will close with
+      // the end of the flex container. However, do not close the old
+      // paragraph, because it will continue once the scope of the inline block
+      // ends.
+      CreateScopedParagraph(kDoNotCloseParagraph);
+
+      container_box_ = base::WrapRefCounted(new InlineLevelFlexContainerBox(
+          css_computed_style_declaration_, (*paragraph_)->base_direction(),
+          prior_paragraph, text_position, context_->used_style_provider,
+          context_->layout_stat_tracker));
+    } break;
     // Generate one or more inline boxes. Note that more inline boxes may be
     // generated when the original inline box is split due to participation
     // in the formatting context.
     case cssom::KeywordValue::kInline:
-    case cssom::KeywordValue::kInlineFlex:
       // If the creating HTMLElement had an explicit directionality, then append
       // a directional embedding to the paragraph. This will be popped from the
       // paragraph, when the ContainerBoxGenerator goes out of scope.
@@ -537,9 +566,10 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     // is formatted as an atomic inline-level box.
     //   https://www.w3.org/TR/CSS21/visuren.html#inline-boxes
     case cssom::KeywordValue::kInlineBlock: {
-      // An inline block is is treated directionally as a neutral character and
-      // its line breaking behavior is equivalent to that of the Object
-      // Replacement Character.
+      // An inline block is an atomic inline and therefore is treated
+      // directionally as a neutral character and its line breaking behavior is
+      // equivalent to that of the Object Replacement Character.
+      //   https://www.w3.org/TR/css-display-3/#atomic-inline
       //   https://www.w3.org/TR/CSS21/visuren.html#propdef-unicode-bidi
       //   https://www.w3.org/TR/css3-text/#line-break-details
       int32 text_position =
@@ -555,7 +585,7 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
       CreateScopedParagraph(kDoNotCloseParagraph);
 
       container_box_ = base::WrapRefCounted(new InlineLevelBlockContainerBox(
-          css_computed_style_declaration_, (*paragraph_)->GetBaseDirection(),
+          css_computed_style_declaration_, (*paragraph_)->base_direction(),
           prior_paragraph, text_position, context_->used_style_provider,
           context_->layout_stat_tracker));
     } break;

@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 #include <stdlib.h>
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 double SbStringParseDouble(const char* start, char** out_end) {
   SB_DCHECK(start != NULL) << "start must be a valid pointer";

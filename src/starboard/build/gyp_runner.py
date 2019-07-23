@@ -83,6 +83,8 @@ class GypRunner(object):
     if not self.app_configuration:
       raise RuntimeError('Unable to load an ApplicationConfiguration.')
 
+    self.platform_configuration.SetupPlatformTools(options.build_number)
+
     app_env_vars = self.app_configuration.GetEnvironmentVariables()
     if app_env_vars:
       env_vars.update(app_env_vars)
@@ -106,6 +108,12 @@ class GypRunner(object):
 
     # Make a copy of the common arguments.
     args = self.common_args[:]
+
+    logging.info('Build Number: %d', self.options.build_number)
+    build_variables = {
+        'BUILD_NUMBER': self.options.build_number,
+    }
+    _AppendVariables(build_variables, args)
 
     configuration_variables = {
         # Default deploy script. Certain platforms may choose to change this.

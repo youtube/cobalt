@@ -88,6 +88,7 @@ enum PropertyKey {
   kFontStyleProperty,
   kFontWeightProperty,
   kHeightProperty,
+  kIntersectionObserverRootMarginProperty,
   kJustifyContentProperty,
   kLeftProperty,
   kLineHeightProperty,

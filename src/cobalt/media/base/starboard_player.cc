@@ -22,7 +22,6 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
-#include "cobalt/media/base/shell_media_platform.h"
 #include "cobalt/media/base/starboard_utils.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
@@ -117,32 +116,46 @@ StarboardPlayer::StarboardPlayer(
 
 StarboardPlayer::StarboardPlayer(
     const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+    const GetDecodeTargetGraphicsContextProviderFunc&
+        get_decode_target_graphics_context_provider_func,
     const AudioDecoderConfig& audio_config,
     const VideoDecoderConfig& video_config, SbWindow window,
     SbDrmSystem drm_system, Host* host,
     SbPlayerSetBoundsHelper* set_bounds_helper, bool allow_resume_after_suspend,
     bool prefer_decode_to_texture,
-    VideoFrameProvider* const video_frame_provider)
+    VideoFrameProvider* const video_frame_provider,
+    const std::string& max_video_capabilities)
     : task_runner_(task_runner),
+      get_decode_target_graphics_context_provider_func_(
+          get_decode_target_graphics_context_provider_func),
       callback_helper_(
           new CallbackHelper(ALLOW_THIS_IN_INITIALIZER_LIST(this))),
-      audio_config_(audio_config),
-      video_config_(video_config),
       window_(window),
       drm_system_(drm_system),
       host_(host),
       set_bounds_helper_(set_bounds_helper),
       allow_resume_after_suspend_(allow_resume_after_suspend),
-      video_frame_provider_(video_frame_provider)
+      audio_config_(audio_config),
+      video_config_(video_config),
+      video_frame_provider_(video_frame_provider),
+      max_video_capabilities_(max_video_capabilities)
 #if SB_HAS(PLAYER_WITH_URL)
       ,
       is_url_based_(false)
 #endif  // SB_HAS(PLAYER_WITH_URL)
 {
+  DCHECK(!get_decode_target_graphics_context_provider_func_.is_null());
   DCHECK(audio_config.IsValidConfig() || video_config.IsValidConfig());
   DCHECK(host_);
   DCHECK(set_bounds_helper_);
   DCHECK(video_frame_provider_);
+
+  if (audio_config.IsValidConfig()) {
+    UpdateAudioConfig(audio_config);
+  }
+  if (video_config.IsValidConfig()) {
+    UpdateVideoConfig(video_config);
+  }
 
   output_mode_ = ComputeSbPlayerOutputMode(
       MediaVideoCodecToSbMediaVideoCodec(video_config.codec()), drm_system,
@@ -170,11 +183,39 @@ StarboardPlayer::~StarboardPlayer() {
   }
 }
 
-void StarboardPlayer::UpdateVideoResolution(int frame_width, int frame_height) {
+void StarboardPlayer::UpdateAudioConfig(
+    const AudioDecoderConfig& audio_config) {
   DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(audio_config.IsValidConfig());
 
-  frame_width_ = frame_width;
-  frame_height_ = frame_height;
+  LOG(INFO) << "New audio config -- " << audio_config_.AsHumanReadableString();
+
+  audio_config_ = audio_config;
+  audio_sample_info_ = MediaAudioConfigToSbMediaAudioSampleInfo(audio_config_);
+}
+
+void StarboardPlayer::UpdateVideoConfig(
+    const VideoDecoderConfig& video_config) {
+  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(video_config.IsValidConfig());
+
+  LOG(INFO) << "New video config -- " << video_config_.AsHumanReadableString();
+
+  video_config_ = video_config;
+  video_sample_info_.frame_width =
+      static_cast<int>(video_config_.natural_size().width());
+  video_sample_info_.frame_height =
+      static_cast<int>(video_config_.natural_size().height());
+#if SB_API_VERSION >= 11
+  video_sample_info_.codec =
+      MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
+  video_sample_info_.color_metadata =
+      MediaToSbMediaColorMetadata(video_config_.webm_color_metadata());
+#else   // SB_API_VERSION >= 11
+  media_color_metadata =
+      MediaToSbMediaColorMetadata(video_config_.webm_color_metadata());
+  video_sample_info_.color_metadata = &media_color_metadata;
+#endif  // SB_API_VERSION >= 11
 }
 
 void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
@@ -320,11 +361,11 @@ void StarboardPlayer::GetVideoResolution(int* frame_width, int* frame_height) {
   SbPlayerInfo2 out_player_info;
   SbPlayerGetInfo2(player_, &out_player_info);
 
-  frame_width_ = out_player_info.frame_width;
-  frame_height_ = out_player_info.frame_height;
+  video_sample_info_.frame_width = out_player_info.frame_width;
+  video_sample_info_.frame_height = out_player_info.frame_height;
 
-  *frame_width = frame_width_;
-  *frame_height = frame_height_;
+  *frame_width = video_sample_info_.frame_width;
+  *frame_height = video_sample_info_.frame_height;
 }
 
 base::TimeDelta StarboardPlayer::GetDuration() {
@@ -484,35 +525,39 @@ void StarboardPlayer::CreatePlayer() {
   TRACE_EVENT0("cobalt::media", "StarboardPlayer::CreatePlayer");
   DCHECK(task_runner_->BelongsToCurrentThread());
 
+#if SB_API_VERSION >= 11
+  SbMediaAudioCodec audio_codec = audio_sample_info_.codec;
+  SbMediaVideoCodec video_codec = video_sample_info_.codec;
+#else   // SB_API_VERSION >= 11
   SbMediaAudioCodec audio_codec = kSbMediaAudioCodecNone;
-  SbMediaAudioHeader audio_header;
-  bool has_audio = audio_config_.IsValidConfig();
-  if (has_audio) {
-    audio_header = MediaAudioConfigToSbMediaAudioHeader(audio_config_);
+  if (audio_config_.IsValidConfig()) {
     audio_codec = MediaAudioCodecToSbMediaAudioCodec(audio_config_.codec());
   }
-
   SbMediaVideoCodec video_codec = kSbMediaVideoCodecNone;
   if (video_config_.IsValidConfig()) {
     video_codec = MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
   }
+#endif  // SB_API_VERSION >= 11
 
   DCHECK(SbPlayerOutputModeSupported(output_mode_, video_codec, drm_system_));
-
-  player_ = SbPlayerCreate(window_, video_codec, audio_codec,
+  bool has_audio = audio_codec != kSbMediaAudioCodecNone;
+  player_ = SbPlayerCreate(
+      window_, video_codec, audio_codec,
 #if SB_API_VERSION < 10
-                           SB_PLAYER_NO_DURATION,
+      SB_PLAYER_NO_DURATION,
 #endif  // SB_API_VERSION < 10
-                           drm_system_, has_audio ? &audio_header : NULL,
-                           &StarboardPlayer::DeallocateSampleCB,
-                           &StarboardPlayer::DecoderStatusCB,
-                           &StarboardPlayer::PlayerStatusCB,
+      drm_system_, has_audio ? &audio_sample_info_ : NULL,
+#if SB_API_VERSION >= 11
+      max_video_capabilities_.length() > 0 ? max_video_capabilities_.c_str()
+                                           : NULL,
+#endif  // SB_API_VERSION >= 11
+      &StarboardPlayer::DeallocateSampleCB, &StarboardPlayer::DecoderStatusCB,
+      &StarboardPlayer::PlayerStatusCB,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
-                           &StarboardPlayer::PlayerErrorCB,
+      &StarboardPlayer::PlayerErrorCB,
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
-                           this, output_mode_,
-                           ShellMediaPlatform::Instance()
-                               ->GetSbDecodeTargetGraphicsContextProvider());
+      this, output_mode_,
+      get_decode_target_graphics_context_provider_func_.Run());
   DCHECK(SbPlayerIsValid(player_));
 
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
@@ -557,7 +602,7 @@ void StarboardPlayer::WriteBufferInternal(
   }
 
   const auto& allocations = buffer->allocations();
-  DCHECK_GT(allocations.number_of_buffers(), 0);
+  DCHECK_EQ(allocations.number_of_buffers(), 1);
 
   DecodingBuffers::iterator iter =
       decoding_buffers_.find(allocations.buffers()[0]);
@@ -567,48 +612,65 @@ void StarboardPlayer::WriteBufferInternal(
     ++iter->second.second;
   }
 
+  auto sample_type = DemuxerStreamTypeToSbMediaType(type);
   SbDrmSampleInfo drm_info;
   SbDrmSubSampleMapping subsample_mapping;
-  bool is_encrypted = buffer->decrypt_config();
-  SbMediaVideoSampleInfo video_info;
-
   drm_info.subsample_count = 0;
-  video_info.is_key_frame = buffer->is_key_frame();
-  video_info.frame_width = frame_width_;
-  video_info.frame_height = frame_height_;
-
-  SbMediaColorMetadata sb_media_color_metadata =
-      MediaToSbMediaColorMetadata(video_config_.webm_color_metadata());
-  video_info.color_metadata = &sb_media_color_metadata;
-
-  if (is_encrypted) {
+  if (buffer->decrypt_config()) {
     FillDrmSampleInfo(buffer, &drm_info, &subsample_mapping);
   }
 
-  auto sample_type = DemuxerStreamTypeToSbMediaType(type);
+#if SB_API_VERSION >= 11
+  DCHECK_GT(SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, sample_type), 0);
+
+  SbPlayerSampleSideData side_data = {};
+  SbPlayerSampleInfo sample_info = {};
+  sample_info.type = sample_type;
+  sample_info.buffer = allocations.buffers()[0];
+  sample_info.buffer_size = allocations.buffer_sizes()[0];
+  sample_info.timestamp = buffer->timestamp().InMicroseconds();
+
+  if (buffer->side_data_size() > 0) {
+    // We only support at most one side data currently.
+    side_data.data = buffer->side_data();
+    side_data.size = buffer->side_data_size();
+    sample_info.side_data = &side_data;
+    sample_info.side_data_count = 1;
+  }
+
+  if (sample_type == kSbMediaTypeAudio) {
+    sample_info.audio_sample_info = audio_sample_info_;
+  } else {
+    DCHECK(sample_type == kSbMediaTypeVideo);
+    sample_info.video_sample_info = video_sample_info_;
+    sample_info.video_sample_info.is_key_frame = buffer->is_key_frame();
+  }
+  if (drm_info.subsample_count > 0) {
+    sample_info.drm_info = &drm_info;
+  } else {
+    sample_info.drm_info = NULL;
+  }
+  SbPlayerWriteSample2(player_, sample_type, &sample_info, 1);
+#else  // SB_API_VERSION >= 11
+  video_sample_info_.is_key_frame = buffer->is_key_frame();
 #if SB_API_VERSION < 10
   SbPlayerWriteSample(
       player_, sample_type,
-#if SB_API_VERSION >= 6
       allocations.buffers(), allocations.buffer_sizes(),
-#else   // SB_API_VERSION >= 6
-      const_cast<const void**>(allocations.buffers()),
-      const_cast<int*>(allocations.buffer_sizes()),
-#endif  // SB_API_VERSION >= 6
       allocations.number_of_buffers(),
       SB_TIME_TO_SB_MEDIA_TIME(buffer->timestamp().InMicroseconds()),
-      type == DemuxerStream::VIDEO ? &video_info : NULL,
+      type == DemuxerStream::VIDEO ? &video_sample_info_ : NULL,
       drm_info.subsample_count > 0 ? &drm_info : NULL);
 #else   // SB_API_VERSION < 10
   DCHECK_GT(SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, sample_type), 0);
-  DCHECK_EQ(allocations.number_of_buffers(), 1);
   SbPlayerSampleInfo sample_info = {
       allocations.buffers()[0], allocations.buffer_sizes()[0],
       buffer->timestamp().InMicroseconds(),
-      type == DemuxerStream::VIDEO ? &video_info : NULL,
+      type == DemuxerStream::VIDEO ? &video_sample_info_ : NULL,
       drm_info.subsample_count > 0 ? &drm_info : NULL};
   SbPlayerWriteSample2(player_, sample_type, &sample_info, 1);
 #endif  // SB_API_VERSION < 10
+#endif  // SB_API_VERSION >= 11
 }
 
 SbDecodeTarget StarboardPlayer::GetCurrentSbDecodeTarget() {
@@ -852,14 +914,6 @@ SbPlayerOutputMode StarboardPlayer::ComputeSbUrlPlayerOutputMode(
   }
   CHECK_NE(kSbPlayerOutputModeInvalid, output_mode);
 
-#if defined(COBALT_ENABLE_LIB)
-  // When Cobalt is used as a library, it doesn't control the
-  // screen and so punch-out cannot be assumed.  You will need
-  // to implement decode-to-texture support if you wish to use
-  // Cobalt as a library and play videos with it.
-  CHECK_EQ(kSbPlayerOutputModeDecodeToTexture, output_mode)
-#endif  // defined(COBALT_ENABLE_LIB)
-
   return output_mode;
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -883,15 +937,8 @@ SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
   }
   CHECK_NE(kSbPlayerOutputModeInvalid, output_mode);
 
-#if defined(COBALT_ENABLE_LIB)
-  // When Cobalt is used as a library, it doesn't control the
-  // screen and so punch-out cannot be assumed.  You will need
-  // to implement decode-to-texture support if you wish to use
-  // Cobalt as a library and play videos with it.
-  CHECK_EQ(kSbPlayerOutputModeDecodeToTexture, output_mode)
-#endif  // defined(COBALT_ENABLE_LIB)
-
   return output_mode;
 }
+
 }  // namespace media
 }  // namespace cobalt

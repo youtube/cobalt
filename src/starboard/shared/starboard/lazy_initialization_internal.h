@@ -16,7 +16,7 @@
 #define STARBOARD_SHARED_STARBOARD_LAZY_INITIALIZATION_INTERNAL_H_
 
 #include "starboard/atomic.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/lazy_initialization_public.h"
 #include "starboard/thread.h"

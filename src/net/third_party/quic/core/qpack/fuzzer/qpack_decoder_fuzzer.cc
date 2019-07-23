@@ -14,18 +14,6 @@
 
 namespace quic {
 namespace test {
-namespace {
-
-class NoOpHeadersHandler : public QpackDecoder::HeadersHandlerInterface {
- public:
-  ~NoOpHeadersHandler() override = default;
-
-  void OnHeaderDecoded(QuicStringPiece name, QuicStringPiece value) override{};
-  void OnDecodingCompleted() override{};
-  void OnDecodingErrorDetected(QuicStringPiece error_message) override{};
-};
-
-}  // namespace
 
 // This fuzzer exercises QpackDecoder.  It should be able to cover all possible
 // code paths.  There is no point in encoding QpackDecoder's output to turn this
@@ -38,12 +26,15 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   // Process up to 64 kB fragments at a time.  Too small upper bound might not
   // provide enough coverage, too large would make fuzzing less efficient.
-  auto fragment_size_generator = std::bind(
-      &QuicFuzzedDataProvider::ConsumeUint32InRange, &provider, 1, 64 * 1024);
+  auto fragment_size_generator =
+      std::bind(&QuicFuzzedDataProvider::ConsumeIntegralInRange<uint16_t>,
+                &provider, 1, std::numeric_limits<uint16_t>::max());
 
-  QpackDecode(
-      &handler, fragment_size_generator,
-      provider.ConsumeRandomLengthString(std::numeric_limits<size_t>::max()));
+  NoopEncoderStreamErrorDelegate encoder_stream_error_delegate;
+  NoopDecoderStreamSenderDelegate decoder_stream_sender_delegate;
+  QpackDecode(&encoder_stream_error_delegate, &decoder_stream_sender_delegate,
+              &handler, fragment_size_generator,
+              provider.ConsumeRemainingBytesAsString());
 
   return 0;
 }

@@ -11,15 +11,27 @@
 #include "net/third_party/quic/core/http/spdy_utils.h"
 #include "net/third_party/quic/core/quic_alarm.h"
 #include "net/third_party/quic/platform/api/quic_logging.h"
-#include "net/third_party/spdy/core/spdy_protocol.h"
+#include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 
 using spdy::SpdyHeaderBlock;
 
 namespace quic {
 
 QuicSpdyClientStream::QuicSpdyClientStream(QuicStreamId id,
-                                           QuicSpdyClientSession* session)
-    : QuicSpdyStream(id, session),
+                                           QuicSpdyClientSession* session,
+                                           StreamType type)
+    : QuicSpdyStream(id, session, type),
+      content_length_(-1),
+      response_code_(0),
+      header_bytes_read_(0),
+      header_bytes_written_(0),
+      session_(session),
+      has_preliminary_headers_(false) {}
+
+QuicSpdyClientStream::QuicSpdyClientStream(PendingStream pending,
+                                           QuicSpdyClientSession* session,
+                                           StreamType type)
+    : QuicSpdyStream(std::move(pending), session, type),
       content_length_(-1),
       response_code_(0),
       header_bytes_read_(0),
@@ -95,14 +107,14 @@ void QuicSpdyClientStream::OnPromiseHeaderList(
   }
 }
 
-void QuicSpdyClientStream::OnDataAvailable() {
+void QuicSpdyClientStream::OnBodyAvailable() {
   // For push streams, visitor will not be set until the rendezvous
   // between server promise and client request is complete.
   if (visitor() == nullptr)
     return;
 
   while (HasBytesToRead()) {
-    struct iovec iov;
+    struct IOVEC iov;
     if (GetReadableRegions(&iov, 1) == 0) {
       // No more data to read.
       break;
@@ -139,7 +151,7 @@ size_t QuicSpdyClientStream::SendRequest(SpdyHeaderBlock headers,
   bytes_sent += header_bytes_written_;
 
   if (!body.empty()) {
-    WriteOrBufferData(body, fin, nullptr);
+    WriteOrBufferBody(body, fin);
   }
 
   return bytes_sent;

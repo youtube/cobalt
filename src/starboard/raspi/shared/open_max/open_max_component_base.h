@@ -25,9 +25,9 @@
 
 #include <vector>
 
-#include "starboard/condition_variable.h"
-#include "starboard/log.h"
-#include "starboard/mutex.h"
+#include "starboard/common/condition_variable.h"
+#include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
 #include "starboard/shared/internal_only.h"
 
 namespace starboard {

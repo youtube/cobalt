@@ -33,8 +33,8 @@
 #include "cobalt/browser/memory_tracker/tool/tool_impl.h"
 #include "cobalt/browser/memory_tracker/tool/tool_thread.h"
 #include "nb/analytics/memory_tracker_helpers.h"
+#include "starboard/common/log.h"
 #include "starboard/double.h"
-#include "starboard/log.h"
 
 namespace cobalt {
 namespace browser {

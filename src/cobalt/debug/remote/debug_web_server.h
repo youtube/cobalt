@@ -74,7 +74,7 @@ class DebugWebServer : public net::HttpServer::Delegate,
 
   void SendErrorResponseOverWebSocket(int id, const std::string& message);
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   base::Thread http_server_thread_;
   // net::HttpServer is a ref-counted object, so we have to use scoped_refptr.
   std::unique_ptr<net::HttpServer> server_;

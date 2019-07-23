@@ -1402,9 +1402,10 @@ void DrawSolidRoundedRectBorder(
     // For now we fallback to software for drawing most rounded corner borders,
     // with some situations specified above being special cased. The reason we
     // do this is to limit then number of shaders that need to be implemented.
-    NOTIMPLEMENTED() << "Warning: Software rasterizing either a solid "
-                        "rectangle, oval or circle border with different "
-                        "properties.";
+    NOTIMPLEMENTED_LOG_ONCE()
+        << "Warning: Software rasterizing either a solid "
+           "rectangle, oval or circle border with different "
+           "properties.";
     DrawSolidRoundedRectBorderSoftware(draw_state, rect, rounded_corners,
                                        content_rect, inner_rounded_corners,
                                        border);

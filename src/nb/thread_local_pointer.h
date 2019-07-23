@@ -17,6 +17,7 @@
 #ifndef NB_THREAD_LOCAL_POINTER_H_
 #define NB_THREAD_LOCAL_POINTER_H_
 
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/thread.h"
 

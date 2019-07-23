@@ -14,17 +14,18 @@
 
 #include "starboard/shared/widevine/drm_system_widevine.h"
 
+#include <algorithm>
 #include <vector>
 
 #include "starboard/character.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/mutex.h"
 #include "starboard/once.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/widevine/widevine_storage.h"
 #include "starboard/shared/widevine/widevine_timer.h"
-#include "starboard/string.h"
 #include "starboard/time.h"
 #include "third_party/ce_cdm/core/include/log.h"  // for wvcdm::InitLogging();
 #include "third_party/ce_cdm/core/include/string_conversions.h"
@@ -46,6 +47,38 @@ class WidevineClock : public wv3cdm::IClock {
     return SbTimeToPosix(SbTimeGetNow()) / kSbTimeMillisecond;
   }
 };
+
+class Registry {
+ public:
+  void Register(SbDrmSystem drm_system) {
+    SB_DCHECK(SbDrmSystemIsValid(drm_system));
+    ScopedLock scoped_lock(mutex_);
+    auto iter = std::find(drm_systems_.begin(), drm_systems_.end(), drm_system);
+    SB_DCHECK(iter == drm_systems_.end());
+    drm_systems_.push_back(drm_system);
+  }
+
+  void Unregister(SbDrmSystem drm_system) {
+    ScopedLock scoped_lock(mutex_);
+    auto iter = std::find(drm_systems_.begin(), drm_systems_.end(), drm_system);
+    SB_DCHECK(iter != drm_systems_.end());
+    drm_systems_.erase(iter);
+  }
+
+  bool Contains(SbDrmSystem drm_system) const {
+    ScopedLock scoped_lock(mutex_);
+    auto iter = std::find(drm_systems_.begin(), drm_systems_.end(), drm_system);
+    return iter != drm_systems_.end();
+  }
+
+ private:
+  Mutex mutex_;
+  // Use std::vector<> as usually there is only one active instance of widevine
+  // drm system.
+  std::vector<SbDrmSystem> drm_systems_;
+};
+
+SB_ONCE_INITIALIZE_FUNCTION(Registry, GetRegistry);
 
 std::string GetWidevineStoragePath() {
   char path[SB_FILE_MAX_PATH + 1] = {0};
@@ -212,9 +245,13 @@ DrmSystemWidevine::DrmSystemWidevine(
 #endif  // SB_API_VERSION >= 10
   cdm_.reset(wv3cdm::create(this, NULL, kEnablePrivacyMode));
   SB_DCHECK(cdm_);
+
+  GetRegistry()->Register(this);
 }
 
-DrmSystemWidevine::~DrmSystemWidevine() {}
+DrmSystemWidevine::~DrmSystemWidevine() {
+  GetRegistry()->Unregister(this);
+}
 
 // static
 bool DrmSystemWidevine::IsKeySystemSupported(const char* key_system) {
@@ -224,6 +261,11 @@ bool DrmSystemWidevine::IsKeySystemSupported(const char* key_system) {
     }
   }
   return false;
+}
+
+// static
+bool DrmSystemWidevine::IsDrmSystemWidevine(SbDrmSystem drm_system) {
+  return GetRegistry()->Contains(drm_system);
 }
 
 void DrmSystemWidevine::GenerateSessionUpdateRequest(
@@ -273,8 +315,10 @@ void DrmSystemWidevine::UpdateSession(int ticket,
   if (!pending_generate_session_update_requests_.empty()) {
     status = ProcessServerCertificateResponse(str_key);
   } else {
-    const std::string wvcdm_session_id = SbDrmSessionIdToWvdmSessionId(
-        sb_drm_session_id, sb_drm_session_id_size);
+    std::string wvcdm_session_id;
+    bool succeeded = SbDrmSessionIdToWvdmSessionId(
+        sb_drm_session_id, sb_drm_session_id_size, &wvcdm_session_id);
+    SB_DCHECK(succeeded);
     status = cdm_->update(wvcdm_session_id, str_key);
   }
   SB_DLOG(INFO) << "Update keys status " << status;
@@ -295,9 +339,16 @@ void DrmSystemWidevine::UpdateSession(int ticket,
 void DrmSystemWidevine::CloseSession(const void* sb_drm_session_id,
                                      int sb_drm_session_id_size) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-  const std::string wvcdm_session_id =
-      SbDrmSessionIdToWvdmSessionId(sb_drm_session_id, sb_drm_session_id_size);
-  cdm_->close(wvcdm_session_id);
+  std::string wvcdm_session_id;
+  bool succeeded = SbDrmSessionIdToWvdmSessionId(
+      sb_drm_session_id, sb_drm_session_id_size, &wvcdm_session_id);
+  if (succeeded) {
+    cdm_->close(wvcdm_session_id);
+  }
+#if SB_HAS(DRM_SESSION_CLOSED)
+  session_closed_callback_(this, context_, sb_drm_session_id,
+                           sb_drm_session_id_size);
+#endif  // SB_HAS(DRM_SESSION_CLOSED)
 }
 
 #if SB_API_VERSION >= 10
@@ -615,18 +666,21 @@ std::string DrmSystemWidevine::WvdmSessionIdToSbDrmSessionId(
   return wvcdm_session_id;
 }
 
-std::string DrmSystemWidevine::SbDrmSessionIdToWvdmSessionId(
+bool DrmSystemWidevine::SbDrmSessionIdToWvdmSessionId(
     const void* sb_drm_session_id,
-    int sb_drm_session_id_size) {
+    int sb_drm_session_id_size,
+    std::string* wvcdm_session_id) {
+  SB_DCHECK(wvcdm_session_id);
   const std::string str_sb_drm_session_id(
       static_cast<const char*>(sb_drm_session_id), sb_drm_session_id_size);
 #if SB_API_VERSION >= 10
   if (str_sb_drm_session_id == kFirstSbDrmSessionId) {
-    SB_DCHECK(!first_wvcdm_session_id_.empty());
-    return first_wvcdm_session_id_;
+    *wvcdm_session_id = first_wvcdm_session_id_;
+    return !first_wvcdm_session_id_.empty();
   }
 #endif  // SB_API_VERSION >= 10
-  return str_sb_drm_session_id;
+  *wvcdm_session_id = str_sb_drm_session_id;
+  return true;
 }
 
 void DrmSystemWidevine::SendServerCertificateRequest(int ticket) {

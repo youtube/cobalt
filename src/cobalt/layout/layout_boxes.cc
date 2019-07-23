@@ -14,11 +14,13 @@
 
 #include "cobalt/layout/layout_boxes.h"
 
+#include "cobalt/cssom/computed_style_utils.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/layout/anonymous_block_box.h"
 #include "cobalt/layout/container_box.h"
 #include "cobalt/layout/rect_layout_unit.h"
 #include "cobalt/layout/size_layout_unit.h"
+#include "cobalt/layout/used_style.h"
 
 namespace cobalt {
 namespace layout {
@@ -87,6 +89,11 @@ float LayoutBoxes::GetBorderEdgeHeight() const {
   return GetBoundingBorderRectangle().height();
 }
 
+math::Vector2dF LayoutBoxes::GetBorderEdgeOffsetFromContainingBlock() const {
+  DCHECK(!boxes_.empty());
+  return boxes_.front()->GetBorderBoxOffsetFromContainingBlock();
+}
+
 float LayoutBoxes::GetBorderLeftWidth() const {
   DCHECK(!boxes_.empty());
   return boxes_.front()->border_left_width().toFloat();
@@ -107,20 +114,10 @@ float LayoutBoxes::GetMarginEdgeHeight() const {
   return boxes_.front()->GetMarginBoxHeight().toFloat();
 }
 
-float LayoutBoxes::GetPaddingEdgeLeft() const {
+math::Vector2dF LayoutBoxes::GetPaddingEdgeOffset() const {
   DCHECK(!boxes_.empty());
-  return boxes_.front()
-      ->GetPaddingBoxOffsetFromRoot(false /*transform_forms_root*/)
-      .x()
-      .toFloat();
-}
-
-float LayoutBoxes::GetPaddingEdgeTop() const {
-  DCHECK(!boxes_.empty());
-  return boxes_.front()
-      ->GetPaddingBoxOffsetFromRoot(false /*transform_forms_root*/)
-      .y()
-      .toFloat();
+  return boxes_.front()->GetPaddingBoxOffsetFromRoot(
+      false /*transform_forms_root*/);
 }
 
 float LayoutBoxes::GetPaddingEdgeWidth() const {
@@ -133,6 +130,132 @@ float LayoutBoxes::GetPaddingEdgeHeight() const {
   return boxes_.front()->GetPaddingBoxHeight().toFloat();
 }
 
+math::Vector2dF LayoutBoxes::GetPaddingEdgeOffsetFromContainingBlock() const {
+  DCHECK(!boxes_.empty());
+  return boxes_.front()->GetPaddingBoxOffsetFromContainingBlock();
+}
+
+math::Vector2dF LayoutBoxes::GetContentEdgeOffset() const {
+  DCHECK(!boxes_.empty());
+  return boxes_.front()->GetContentBoxOffsetFromRoot(
+      false /*transform_forms_root*/);
+}
+
+float LayoutBoxes::GetContentEdgeWidth() const {
+  DCHECK(!boxes_.empty());
+  return boxes_.front()->width().toFloat();
+}
+
+float LayoutBoxes::GetContentEdgeHeight() const {
+  DCHECK(!boxes_.empty());
+  return boxes_.front()->height().toFloat();
+}
+
+math::Vector2dF LayoutBoxes::GetContentEdgeOffsetFromContainingBlock() const {
+  DCHECK(!boxes_.empty());
+  return boxes_.front()->GetContentBoxOffsetFromContainingBlockContentBox(
+      boxes_.front()->GetContainingBlock());
+}
+
+math::RectF LayoutBoxes::GetScrollArea(dom::Directionality dir) const {
+  // https://www.w3.org/TR/cssom-view-1/#scrolling-area
+  // For rightward and downward:
+  //   Top edge: The element's top padding edge.
+  //   Right edge: The right-most edge of the element's right padding edge and
+  //     the right margin edge of all of the element's descendants' boxes,
+  //     excluding boxes that have an ancestor of the element as their
+  //     containing block.
+  //   Bottom edge: The bottom-most edge of the element's bottom padding edge
+  //     and the bottom margin edge of all of the element's descendants' boxes,
+  //     excluding boxes that have an ancestor of the element as their
+  //     containing block.
+  //   Left edge: The element's left padding edge.
+  // See also https://www.w3.org/TR/css-overflow-3/#scrollable
+  if (boxes_.size() == 0) {
+    return math::RectF();
+  }
+
+  // Return the cached results if applicable.
+  if (scroll_area_cache_ &&
+      scroll_area_cache_->first == dir) {
+    return scroll_area_cache_->second;
+  }
+
+  // Calculate the scroll area. It should be relative to these layout boxes --
+  // not to the root.
+  math::RectF padding_area;
+  math::RectF scroll_area;
+
+  for (scoped_refptr<Box> layout_box : boxes_) {
+    // Include the box's own content and padding areas.
+    SizeLayoutUnit padding_size = layout_box->GetClampedPaddingBoxSize();
+    padding_area.Union(math::RectF(0, 0,
+                                   padding_size.width().toFloat(),
+                                   padding_size.height().toFloat()));
+    const ContainerBox* container_box = layout_box->AsContainerBox();
+    if (!container_box) {
+      continue;
+    }
+
+    std::vector<const Boxes*> child_boxes_list;
+    child_boxes_list.push_back(&container_box->child_boxes());
+
+    while (!child_boxes_list.empty()) {
+      // Process the next set of child boxes.
+      const Boxes* child_boxes = child_boxes_list.back();
+      child_boxes_list.pop_back();
+
+      for (const scoped_refptr<Box>& box : *child_boxes) {
+        // Exclude boxes that have an ancestor of |container_box| as their
+        // containing block.
+        for (const ContainerBox* container = box->GetContainingBlock();
+             container; container = container->GetContainingBlock()) {
+          if (container == container_box) {
+            // Add this box's border box to the scroll area.
+            RectLayoutUnit border_box =
+                box->GetTransformedBorderBoxFromContainingBlock(container_box);
+            scroll_area.Union(math::RectF(border_box.x().toFloat(),
+                                          border_box.y().toFloat(),
+                                          border_box.width().toFloat(),
+                                          border_box.height().toFloat()));
+
+            // Include the scrollable overflow regions of the contents provided
+            // they are visible (i.e. container has overflow: visible).
+            if (box->AsContainerBox() &&
+                !IsOverflowCropped(box->computed_style())) {
+              child_boxes_list.push_back(&box->AsContainerBox()->child_boxes());
+            }
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  scroll_area.Union(padding_area);
+
+  // Clip the scroll area according to directionality.
+  float left = scroll_area.x();
+  float right = scroll_area.right();
+  float top = padding_area.y();
+  float bottom = scroll_area.bottom();
+  switch (dir) {
+    case dom::kNoExplicitDirectionality:
+    case dom::kLeftToRightDirectionality:
+      left = padding_area.x();
+      break;
+    case dom::kRightToLeftDirectionality:
+      right = padding_area.right();
+      break;
+  }
+
+  // Cache the results to speed up future queries.
+  scroll_area_cache_.emplace(
+      dir,
+      math::RectF(left, top, right - left, bottom - top));
+  return scroll_area_cache_->second;
+}
+
 void LayoutBoxes::InvalidateSizes() {
   for (Boxes::const_iterator box_iterator = boxes_.begin();
        box_iterator != boxes_.end(); ++box_iterator) {
@@ -142,6 +265,7 @@ void LayoutBoxes::InvalidateSizes() {
       box = box->GetSplitSibling();
     } while (box != NULL);
   }
+  scroll_area_cache_.reset();
 }
 
 void LayoutBoxes::InvalidateCrossReferences() {
@@ -153,6 +277,7 @@ void LayoutBoxes::InvalidateCrossReferences() {
       box = box->GetSplitSibling();
     } while (box != NULL);
   }
+  scroll_area_cache_.reset();
 }
 
 void LayoutBoxes::InvalidateRenderTreeNodes() {

@@ -1,7 +1,7 @@
 // Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
+
 // QuicBandwidth represents a bandwidth, stored in bits per second resolution.
 
 #ifndef NET_THIRD_PARTY_QUIC_CORE_QUIC_BANDWIDTH_H_
@@ -12,7 +12,6 @@
 #include <limits>
 #include <ostream>
 
-#include "base/compiler_specific.h"
 #include "net/third_party/quic/core/quic_constants.h"
 #include "net/third_party/quic/core/quic_time.h"
 #include "net/third_party/quic/core/quic_types.h"

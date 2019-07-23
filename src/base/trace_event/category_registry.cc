@@ -13,8 +13,8 @@
 #include "base/logging.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/trace_event/trace_category.h"
+#include "starboard/common/string.h"
 #include "starboard/types.h"
-#include "starboard/string.h"
 
 namespace base {
 namespace trace_event {

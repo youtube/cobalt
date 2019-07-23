@@ -15,10 +15,16 @@
 #ifndef STARBOARD_SPIN_LOCK_H_
 #define STARBOARD_SPIN_LOCK_H_
 
-#if defined(SB_EXT_API_REFACTORING_VERSION)
+#include "starboard/configuration.h"
+
+#if SB_API_VERSION < 11
+#if defined(__cplusplus)
+extern "C++" {
 #include "starboard/common/spin_lock.h"
-#else  // !defined(SB_EXT_API_REFACTORING_VERSION)
+}  // extern "C++"
+#endif  // defined(__cplusplus)
+#else   // SB_API_VERSION > 11
 #error "File moved to //starboard/common/spin_lock.h."
-#endif  // defined(SB_EXT_API_REFACTORING_VERSION)
+#endif  // SB_API_VERSION < 11
 
 #endif  // STARBOARD_SPIN_LOCK_H_

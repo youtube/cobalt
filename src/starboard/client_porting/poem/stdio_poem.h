@@ -21,8 +21,8 @@
 
 #if !defined(POEM_NO_EMULATION)
 
-#include "starboard/memory.h"
 #include "starboard/string.h"
+#include "starboard/memory.h"
 
 #define wcsncmp(s1, s2, c) SbStringCompareWide(s1, s2, c)
 

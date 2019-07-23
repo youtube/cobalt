@@ -338,7 +338,7 @@ class NET_EXPORT UDPSocketPosix {
   int SetDiffServCodePoint(DiffServCodePoint dscp);
 
   // Resets the thread to be used for thread-safety checks.
-  void DetachFromThread();
+  DETACH_FROM_THREAD(void);
 
   // Apply |tag| to this socket.
   void ApplySocketTag(const SocketTag& tag);

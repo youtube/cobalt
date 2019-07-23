@@ -9,13 +9,27 @@
 #include "SkMatrix.h"
 
 #if defined(STARBOARD)
-#include "starboard/string.h"
+#include "starboard/common/string.h"
+#include "starboard/configuration.h"
 #define sscanf SbStringScanF
 #else
 #include <stdio.h>
 #endif
 
+#if defined(STARBOARD) && (SB_API_VERSION >= SB_EGL_AND_GL_INTERFACE_VERSION)
+#include "starboard/egl.h"
+#define EGLint SbEglInt32
+#define EGLBoolean SbEglBoolean
+#define EGL_CONTEXT_CLIENT_TYPE SB_EGL_CONTEXT_CLIENT_TYPE
+#define EGL_OPENGL_ES_API SB_EGL_OPENGL_ES_API
+#define EGL_CONTEXT_CLIENT_VERSION SB_EGL_CONTEXT_CLIENT_VERSION
+#define EGL_CALL_PREFIX ::SkiaGetEglInterface().
+#else  // !defined(STARBOARD) || (SB_API_VERSION < SB_EGL_AND_GL_INTERFACE_VERSION)
 #include <EGL/egl.h>
+#define EGL_CALL_PREFIX
+#endif  // defined(STARBOARD) && (SB_API_VERSION >= SB_EGL_AND_GL_INTERFACE_VERSION)
+
+#define EGL_CALL_SIMPLE(x) (EGL_CALL_PREFIX x)
 
 void GrGLClearErr(const GrGLInterface* gl) {
     while (GR_GL_NO_ERROR != gl->fFunctions.fGetError()) {}
@@ -39,6 +53,14 @@ const char *get_error_string(uint32_t err) {
     }
     return "Unknown";
 }
+
+#if defined(STARBOARD) && (SB_API_VERSION >= SB_EGL_AND_GL_INTERFACE_VERSION)
+const SbEglInterface& SkiaGetEglInterface() {
+    static const SbEglInterface* egl_interface = SbGetEglInterface();
+
+    return *egl_interface;
+}
+#endif  // defined(STARBOARD) && (SB_API_VERSION >= SB_EGL_AND_GL_INTERFACE_VERSION)
 }
 
 void GrGLCheckErr(const GrGLInterface* gl,
@@ -227,14 +249,17 @@ GrGLVersion GrGLGetVersionFromString(const char* versionString) {
         EGLint client_type = -1;
         EGLBoolean success = false;
         do {
-            success = eglQueryContext(eglGetCurrentDisplay(), eglGetCurrentContext(),
-                                      EGL_CONTEXT_CLIENT_TYPE, &client_type);
+            success = EGL_CALL_SIMPLE(eglQueryContext(EGL_CALL_SIMPLE(eglGetCurrentDisplay()),
+                                                      EGL_CALL_SIMPLE(eglGetCurrentContext()),
+                                                      EGL_CONTEXT_CLIENT_TYPE, &client_type));
             if (!success || (client_type != EGL_OPENGL_ES_API)) {
                 break;
             }
             EGLint client_version = -1;
-            success = eglQueryContext(eglGetCurrentDisplay(), eglGetCurrentContext(),
-                                      EGL_CONTEXT_CLIENT_VERSION, &client_version);
+            success = EGL_CALL_SIMPLE(eglQueryContext(EGL_CALL_SIMPLE(eglGetCurrentDisplay()),
+                                                      EGL_CALL_SIMPLE(eglGetCurrentContext()),
+                                                      EGL_CONTEXT_CLIENT_VERSION,
+                                                      &client_version));
             if (!success) {
                 break;
             }

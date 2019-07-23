@@ -14,7 +14,7 @@
 
 #include "starboard/window.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/raspi/shared/window_internal.h"
 
 bool SbWindowGetSize(SbWindow window, SbWindowSize* size) {

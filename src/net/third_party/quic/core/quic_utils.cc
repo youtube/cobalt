@@ -8,8 +8,11 @@
 #include <cstdint>
 
 #include "net/third_party/quic/core/quic_constants.h"
+#include "net/third_party/quic/core/quic_types.h"
 #include "net/third_party/quic/platform/api/quic_aligned.h"
+#include "net/third_party/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quic/platform/api/quic_bug_tracker.h"
+#include "net/third_party/quic/platform/api/quic_endian.h"
 #include "net/third_party/quic/platform/api/quic_flags.h"
 #include "net/third_party/quic/platform/api/quic_prefetch.h"
 #include "net/third_party/quic/platform/api/quic_string.h"
@@ -141,7 +144,7 @@ void QuicUtils::SerializeUint128Short(QuicUint128 v, uint8_t* out) {
 const char* QuicUtils::EncryptionLevelToString(EncryptionLevel level) {
   switch (level) {
     RETURN_STRING_LITERAL(ENCRYPTION_NONE);
-    RETURN_STRING_LITERAL(ENCRYPTION_INITIAL);
+    RETURN_STRING_LITERAL(ENCRYPTION_ZERO_RTT);
     RETURN_STRING_LITERAL(ENCRYPTION_FORWARD_SECURE);
     RETURN_STRING_LITERAL(NUM_ENCRYPTION_LEVELS);
   }
@@ -238,7 +241,7 @@ AddressChangeType QuicUtils::DetermineAddressChangeType(
 }
 
 // static
-void QuicUtils::CopyToBuffer(const struct iovec* iov,
+void QuicUtils::CopyToBuffer(const struct IOVEC* iov,
                              int iov_count,
                              size_t iov_offset,
                              size_t buffer_length,
@@ -288,8 +291,39 @@ void QuicUtils::CopyToBuffer(const struct iovec* iov,
 }
 
 // static
+struct IOVEC QuicUtils::MakeIovec(QuicStringPiece data) {
+  struct IOVEC iov = {const_cast<char*>(data.data()),
+                      static_cast<size_t>(data.size())};
+  return iov;
+}
+
+// static
 bool QuicUtils::IsAckable(SentPacketState state) {
   return state != NEVER_SENT && state != ACKED && state != UNACKABLE;
+}
+
+// static
+bool QuicUtils::IsRetransmittableFrame(QuicFrameType type) {
+  switch (type) {
+    case ACK_FRAME:
+    case PADDING_FRAME:
+    case STOP_WAITING_FRAME:
+    case MTU_DISCOVERY_FRAME:
+      return false;
+    default:
+      return true;
+  }
+}
+
+// static
+bool QuicUtils::IsHandshakeFrame(const QuicFrame& frame,
+                                 QuicTransportVersion transport_version) {
+  if (transport_version < QUIC_VERSION_47) {
+    return frame.type == STREAM_FRAME &&
+           frame.stream_frame.stream_id == GetCryptoStreamId(transport_version);
+  } else {
+    return frame.type == CRYPTO_FRAME;
+  }
 }
 
 // static
@@ -318,8 +352,161 @@ SentPacketState QuicUtils::RetransmissionTypeToPacketState(
 
 // static
 bool QuicUtils::IsIetfPacketHeader(uint8_t first_byte) {
-  return (first_byte & FLAGS_LONG_HEADER) ||
+  return (first_byte & FLAGS_LONG_HEADER) || (first_byte & FLAGS_FIXED_BIT) ||
          !(first_byte & FLAGS_DEMULTIPLEXING_BIT);
+}
+
+// static
+bool QuicUtils::IsIetfPacketShortHeader(uint8_t first_byte) {
+  return IsIetfPacketHeader(first_byte) && !(first_byte & FLAGS_LONG_HEADER);
+}
+
+// static
+QuicStreamId QuicUtils::GetInvalidStreamId(QuicTransportVersion version) {
+  return version == QUIC_VERSION_99 ? std::numeric_limits<QuicStreamId>::max()
+                                    : 0;
+}
+
+// static
+QuicStreamId QuicUtils::GetCryptoStreamId(QuicTransportVersion version) {
+  // TODO(nharper): Change this to return GetInvalidStreamId for version 47 or
+  // greater. Currently, too many things break with that change.
+  return version == QUIC_VERSION_99 ? 0 : 1;
+}
+
+// static
+QuicStreamId QuicUtils::GetHeadersStreamId(QuicTransportVersion version) {
+  return version == QUIC_VERSION_99 ? 4 : 3;
+}
+
+// static
+bool QuicUtils::IsClientInitiatedStreamId(QuicTransportVersion version,
+                                          QuicStreamId id) {
+  if (id == GetInvalidStreamId(version)) {
+    return false;
+  }
+  return version == QUIC_VERSION_99 ? id % 2 == 0 : id % 2 != 0;
+}
+
+// static
+bool QuicUtils::IsServerInitiatedStreamId(QuicTransportVersion version,
+                                          QuicStreamId id) {
+  if (id == GetInvalidStreamId(version)) {
+    return false;
+  }
+  return version == QUIC_VERSION_99 ? id % 2 != 0 : id % 2 == 0;
+}
+
+// static
+bool QuicUtils::IsBidirectionalStreamId(QuicStreamId id) {
+  return id % 4 < 2;
+}
+
+// static
+StreamType QuicUtils::GetStreamType(QuicStreamId id,
+                                    Perspective perspective,
+                                    bool peer_initiated) {
+  if (IsBidirectionalStreamId(id)) {
+    return BIDIRECTIONAL;
+  }
+
+  if (peer_initiated) {
+    if (perspective == Perspective::IS_SERVER) {
+      DCHECK_EQ(2u, id % 4);
+    } else {
+      DCHECK_EQ(Perspective::IS_CLIENT, perspective);
+      DCHECK_EQ(3u, id % 4);
+    }
+    return READ_UNIDIRECTIONAL;
+  }
+
+  if (perspective == Perspective::IS_SERVER) {
+    DCHECK_EQ(3u, id % 4);
+  } else {
+    DCHECK_EQ(Perspective::IS_CLIENT, perspective);
+    DCHECK_EQ(2u, id % 4);
+  }
+  return WRITE_UNIDIRECTIONAL;
+}
+
+// static
+QuicStreamId QuicUtils::StreamIdDelta(QuicTransportVersion version) {
+  return version == QUIC_VERSION_99 ? 4 : 2;
+}
+
+// static
+QuicStreamId QuicUtils::GetFirstBidirectionalStreamId(
+    QuicTransportVersion version,
+    Perspective perspective) {
+  if (perspective == Perspective::IS_CLIENT) {
+    return version == QUIC_VERSION_99 ? 4 : 3;
+  }
+  return version == QUIC_VERSION_99 ? 1 : 2;
+}
+
+// static
+QuicStreamId QuicUtils::GetFirstUnidirectionalStreamId(
+    QuicTransportVersion version,
+    Perspective perspective) {
+  if (perspective == Perspective::IS_CLIENT) {
+    return version == QUIC_VERSION_99 ? 2 : 3;
+  }
+  return version == QUIC_VERSION_99 ? 3 : 2;
+}
+
+// static
+QuicConnectionId QuicUtils::CreateRandomConnectionId() {
+  return CreateRandomConnectionId(QuicRandom::GetInstance());
+}
+
+// static
+QuicConnectionId QuicUtils::CreateRandomConnectionId(QuicRandom* random) {
+  char connection_id_bytes[kQuicDefaultConnectionIdLength];
+  random->RandBytes(connection_id_bytes, QUIC_ARRAYSIZE(connection_id_bytes));
+  return QuicConnectionId(static_cast<char*>(connection_id_bytes),
+                          QUIC_ARRAYSIZE(connection_id_bytes));
+}
+
+// static
+bool QuicUtils::VariableLengthConnectionIdAllowedForVersion(
+    QuicTransportVersion version) {
+  // TODO(dschinazi): Allow in appropriate version when supported.
+  return false;
+}
+
+// static
+QuicConnectionId QuicUtils::CreateZeroConnectionId(
+    QuicTransportVersion version) {
+  if (!VariableLengthConnectionIdAllowedForVersion(version)) {
+    char connection_id_bytes[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    return QuicConnectionId(static_cast<char*>(connection_id_bytes),
+                            QUIC_ARRAYSIZE(connection_id_bytes));
+  }
+  return EmptyQuicConnectionId();
+}
+
+// static
+bool QuicUtils::IsConnectionIdValidForVersion(QuicConnectionId connection_id,
+                                              QuicTransportVersion version) {
+  if (VariableLengthConnectionIdAllowedForVersion(version)) {
+    return true;
+  }
+  return connection_id.length() == kQuicDefaultConnectionIdLength;
+}
+
+QuicUint128 QuicUtils::GenerateStatelessResetToken(
+    QuicConnectionId connection_id) {
+  uint64_t data_bytes[3] = {0, 0, 0};
+  static_assert(sizeof(data_bytes) >= kQuicMaxConnectionIdLength,
+                "kQuicMaxConnectionIdLength changed");
+  SbMemoryCopy(data_bytes, connection_id.data(), connection_id.length());
+  // This is designed so that the common case of 64bit connection IDs
+  // produces a stateless reset token that is equal to the connection ID
+  // interpreted as a 64bit unsigned integer, to facilitate debugging.
+  return MakeQuicUint128(
+      QuicEndian::NetToHost64(sizeof(uint64_t) ^ connection_id.length() ^
+                              data_bytes[1] ^ data_bytes[2]),
+      QuicEndian::NetToHost64(data_bytes[0]));
 }
 
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds

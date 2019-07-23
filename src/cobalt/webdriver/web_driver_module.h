@@ -147,7 +147,7 @@ class WebDriverModule {
   util::CommandResult<protocol::Capabilities> CreateSessionInternal(
       const protocol::RequestedCapabilities& capabilities);
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   // All WebDriver operations including HTTP server will occur on this thread.
   base::Thread webdriver_thread_;

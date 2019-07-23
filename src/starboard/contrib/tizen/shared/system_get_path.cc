@@ -20,8 +20,8 @@
 
 #include <cstring>
 
+#include "starboard/common/string.h"
 #include "starboard/directory.h"
-#include "starboard/string.h"
 
 namespace {
 // Places up to |path_size| - 1 characters of the path to the current

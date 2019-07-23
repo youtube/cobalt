@@ -5,17 +5,18 @@
 #ifndef STARBOARD_COMMON_REF_COUNTED_H_
 #define STARBOARD_COMMON_REF_COUNTED_H_
 
+#include <algorithm>
+
 #include "starboard/atomic.h"
+#include "starboard/common/log.h"
 #include "starboard/common/thread_collision_warner.h"
-#include "starboard/log.h"
 
 namespace starboard {
-
 namespace subtle {
 
 class RefCountedBase {
  public:
-  bool HasOneRef() const { return ref_count_ == 1; }
+  bool HasOneRef() const;
 
  protected:
   RefCountedBase();

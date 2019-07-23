@@ -18,7 +18,7 @@
 
 #include <vector>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace nb {
 

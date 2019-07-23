@@ -38,6 +38,7 @@
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/transform_function_visitor.h"
 #include "cobalt/cssom/translate_function.h"
+#include "cobalt/cssom/used_style.h"
 #include "cobalt/loader/mesh/mesh_cache.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/render_tree/animations/animate_node.h"
@@ -51,6 +52,8 @@ namespace cobalt {
 namespace layout {
 
 namespace {
+
+typedef cssom::UsedLengthValueProvider<LayoutUnit> UsedLengthValueProvider;
 
 struct BackgroundImageTransformData {
   BackgroundImageTransformData(
@@ -504,7 +507,7 @@ scoped_refptr<loader::image::Image> UsedStyleProvider::ResolveURLToImage(
   DCHECK(animated_image_tracker_);
   DCHECK(image_cache_);
   scoped_refptr<loader::image::Image> image =
-      image_cache_->CreateCachedResource(url, loader::Origin())
+      image_cache_->GetOrCreateCachedResource(url, loader::Origin())
           ->TryGetResource();
   if (image && image->IsAnimated()) {
     loader::image::AnimatedImage* animated_image =
@@ -517,7 +520,7 @@ scoped_refptr<loader::image::Image> UsedStyleProvider::ResolveURLToImage(
 scoped_refptr<loader::mesh::MeshProjection>
 UsedStyleProvider::ResolveURLToMeshProjection(const GURL& url) {
   DCHECK(mesh_cache_);
-  return mesh_cache_->CreateCachedResource(url, loader::Origin())
+  return mesh_cache_->GetOrCreateCachedResource(url, loader::Origin())
       ->TryGetResource();
 }
 
@@ -576,50 +579,6 @@ LayoutUnit GetUsedNonNegativeLength(
   }
   return layout_unit;
 }
-
-class UsedLengthValueProvider : public cssom::NotReachedPropertyValueVisitor {
- public:
-  explicit UsedLengthValueProvider(LayoutUnit percentage_base,
-                                   bool calc_permitted = false)
-      : percentage_base_(percentage_base), calc_permitted_(calc_permitted) {}
-
-  void VisitLength(cssom::LengthValue* length) override {
-    depends_on_containing_block_ = false;
-
-    DCHECK_EQ(cssom::kPixelsUnit, length->unit());
-    used_length_ = LayoutUnit(length->value());
-  }
-
-  void VisitPercentage(cssom::PercentageValue* percentage) override {
-    depends_on_containing_block_ = true;
-    used_length_ = percentage->value() * percentage_base_;
-  }
-
-  void VisitCalc(cssom::CalcValue* calc) override {
-    if (!calc_permitted_) {
-      NOTREACHED();
-    }
-    depends_on_containing_block_ = true;
-    used_length_ = LayoutUnit(calc->length_value()->value()) +
-                   calc->percentage_value()->value() * percentage_base_;
-  }
-
-  bool depends_on_containing_block() const {
-    return depends_on_containing_block_;
-  }
-  const base::Optional<LayoutUnit>& used_length() const { return used_length_; }
-
- protected:
-  bool depends_on_containing_block_;
-
- private:
-  const LayoutUnit percentage_base_;
-  const bool calc_permitted_;
-
-  base::Optional<LayoutUnit> used_length_;
-
-  DISALLOW_COPY_AND_ASSIGN(UsedLengthValueProvider);
-};
 
 namespace {
 float GetUsedLengthPercentageOrCalcValue(cssom::PropertyValue* property_value,
@@ -1520,6 +1479,101 @@ class UsedMaxLengthProvider : public UsedLengthValueProvider {
   }
 };
 
+class UsedFlexBasisProvider : public UsedLengthValueProvider {
+ public:
+  explicit UsedFlexBasisProvider(LayoutUnit percentage_base)
+      : UsedLengthValueProvider(percentage_base) {}
+
+  bool flex_basis_is_auto() const { return flex_basis_is_auto_; }
+
+  void VisitKeyword(cssom::KeywordValue* keyword) override {
+    switch (keyword->value()) {
+      case cssom::KeywordValue::kAuto: {
+        flex_basis_is_auto_ = true;
+        // Leave |used_length_| in disengaged state to indicate that "auto"
+        // was the value.
+        break;
+      }
+      case cssom::KeywordValue::kContent:
+        // Leave |used_length_| in disengaged state to indicate that "content"
+        // was the value.
+        break;
+      case cssom::KeywordValue::kAbsolute:
+      case cssom::KeywordValue::kAlternate:
+      case cssom::KeywordValue::kAlternateReverse:
+      case cssom::KeywordValue::kBackwards:
+      case cssom::KeywordValue::kBaseline:
+      case cssom::KeywordValue::kBlock:
+      case cssom::KeywordValue::kBoth:
+      case cssom::KeywordValue::kBottom:
+      case cssom::KeywordValue::kBreakWord:
+      case cssom::KeywordValue::kCenter:
+      case cssom::KeywordValue::kClip:
+      case cssom::KeywordValue::kCollapse:
+      case cssom::KeywordValue::kColumn:
+      case cssom::KeywordValue::kColumnReverse:
+      case cssom::KeywordValue::kContain:
+      case cssom::KeywordValue::kCover:
+      case cssom::KeywordValue::kCurrentColor:
+      case cssom::KeywordValue::kCursive:
+      case cssom::KeywordValue::kEllipsis:
+      case cssom::KeywordValue::kEnd:
+      case cssom::KeywordValue::kEquirectangular:
+      case cssom::KeywordValue::kFantasy:
+      case cssom::KeywordValue::kFixed:
+      case cssom::KeywordValue::kFlex:
+      case cssom::KeywordValue::kFlexEnd:
+      case cssom::KeywordValue::kFlexStart:
+      case cssom::KeywordValue::kForwards:
+      case cssom::KeywordValue::kHidden:
+      case cssom::KeywordValue::kInfinite:
+      case cssom::KeywordValue::kInherit:
+      case cssom::KeywordValue::kInitial:
+      case cssom::KeywordValue::kInline:
+      case cssom::KeywordValue::kInlineBlock:
+      case cssom::KeywordValue::kInlineFlex:
+      case cssom::KeywordValue::kLeft:
+      case cssom::KeywordValue::kLineThrough:
+      case cssom::KeywordValue::kMiddle:
+      case cssom::KeywordValue::kMonoscopic:
+      case cssom::KeywordValue::kMonospace:
+      case cssom::KeywordValue::kNone:
+      case cssom::KeywordValue::kNoRepeat:
+      case cssom::KeywordValue::kNormal:
+      case cssom::KeywordValue::kNowrap:
+      case cssom::KeywordValue::kPre:
+      case cssom::KeywordValue::kPreLine:
+      case cssom::KeywordValue::kPreWrap:
+      case cssom::KeywordValue::kRelative:
+      case cssom::KeywordValue::kRepeat:
+      case cssom::KeywordValue::kReverse:
+      case cssom::KeywordValue::kRight:
+      case cssom::KeywordValue::kRow:
+      case cssom::KeywordValue::kRowReverse:
+      case cssom::KeywordValue::kSansSerif:
+      case cssom::KeywordValue::kScroll:
+      case cssom::KeywordValue::kSerif:
+      case cssom::KeywordValue::kSolid:
+      case cssom::KeywordValue::kSpaceAround:
+      case cssom::KeywordValue::kSpaceBetween:
+      case cssom::KeywordValue::kStart:
+      case cssom::KeywordValue::kStatic:
+      case cssom::KeywordValue::kStereoscopicLeftRight:
+      case cssom::KeywordValue::kStereoscopicTopBottom:
+      case cssom::KeywordValue::kStretch:
+      case cssom::KeywordValue::kTop:
+      case cssom::KeywordValue::kUppercase:
+      case cssom::KeywordValue::kVisible:
+      case cssom::KeywordValue::kWrap:
+      case cssom::KeywordValue::kWrapReverse:
+        NOTREACHED();
+    }
+  }
+
+ private:
+  bool flex_basis_is_auto_ = false;
+};
+
 }  // namespace
 
 base::Optional<LayoutUnit> GetUsedLeftIfNotAuto(
@@ -1566,20 +1620,39 @@ base::Optional<LayoutUnit> GetUsedBottomIfNotAuto(
 // way as width, except that if a value would resolve to auto for width, it
 // instead resolves to content for flex-basis.
 //   https://www.w3.org/TR/css-flexbox-1/#flex-basis-property
-base::Optional<LayoutUnit> GetUsedFlexBasisIfNotAuto(
+base::Optional<LayoutUnit> GetUsedFlexBasisIfNotContent(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const LayoutUnit& flex_container_main_size,
-    bool* flex_basis_depends_on_flex_container) {
+    const bool main_direction_is_horizontal,
+    const SizeLayoutUnit& flex_container_size,
+    bool* flex_basis_depends_on_available_space) {
   // Percentage values of flex-basis are resolved against the flex item's
   // containing block (i.e. its flex container).
   //   https://www.w3.org/TR/css-flexbox-1/#flex-basis-property
-  UsedLengthProvider used_length_provider(flex_container_main_size);
-  computed_style->flex_basis()->Accept(&used_length_provider);
-  if (flex_basis_depends_on_flex_container != NULL) {
-    *flex_basis_depends_on_flex_container =
-        used_length_provider.depends_on_containing_block();
+  LayoutUnit flex_container_main_size = main_direction_is_horizontal
+                                            ? flex_container_size.width()
+                                            : flex_container_size.height();
+  UsedFlexBasisProvider used_flex_basis_provider(flex_container_main_size);
+  computed_style->flex_basis()->Accept(&used_flex_basis_provider);
+  if (used_flex_basis_provider.flex_basis_is_auto()) {
+    // The auto keyword retrieves the value of the main size property as
+    // the used flex-basis. If that value is itself auto, then the used
+    // value is content.
+    //   https://www.w3.org/TR/css-flexbox-1/#valdef-flex-basis-auto
+    if (main_direction_is_horizontal) {
+      return GetUsedWidthIfNotAuto(computed_style, flex_container_size,
+                                   flex_basis_depends_on_available_space);
+    } else {
+      return GetUsedHeightIfNotAuto(computed_style, flex_container_size,
+                                    flex_basis_depends_on_available_space);
+    }
   }
-  return used_length_provider.used_length();
+  DCHECK(!used_flex_basis_provider.flex_basis_is_auto());
+
+  if (flex_basis_depends_on_available_space != NULL) {
+    *flex_basis_depends_on_available_space =
+        used_flex_basis_provider.depends_on_containing_block();
+  }
+  return used_flex_basis_provider.used_length();
 }
 
 base::Optional<LayoutUnit> GetUsedWidthIfNotAuto(
@@ -1599,16 +1672,11 @@ base::Optional<LayoutUnit> GetUsedWidthIfNotAuto(
 
 base::Optional<LayoutUnit> GetUsedMaxHeightIfNotNone(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const SizeLayoutUnit& containing_block_size,
-    bool* height_depends_on_containing_block) {
+    const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to height of containing block.
   //   https://www.w3.org/TR/CSS21/visudet.html#propdef-max-height
   UsedMaxLengthProvider used_length_provider(containing_block_size.height());
   computed_style->max_height()->Accept(&used_length_provider);
-  if (height_depends_on_containing_block != NULL) {
-    *height_depends_on_containing_block =
-        used_length_provider.depends_on_containing_block();
-  }
   return used_length_provider.used_length();
 }
 
@@ -1629,16 +1697,11 @@ base::Optional<LayoutUnit> GetUsedMaxWidthIfNotNone(
 
 LayoutUnit GetUsedMinHeight(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const SizeLayoutUnit& containing_block_size,
-    bool* height_depends_on_containing_block) {
+    const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to height of containing block.
   //   https://www.w3.org/TR/CSS21/visudet.html#propdef-max-height
   UsedLengthValueProvider used_length_provider(containing_block_size.height());
   computed_style->min_height()->Accept(&used_length_provider);
-  if (height_depends_on_containing_block != NULL) {
-    *height_depends_on_containing_block =
-        used_length_provider.depends_on_containing_block();
-  }
   return *used_length_provider.used_length();
 }
 
@@ -1659,12 +1722,17 @@ LayoutUnit GetUsedMinWidth(
 
 base::Optional<LayoutUnit> GetUsedHeightIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const SizeLayoutUnit& containing_block_size) {
+    const SizeLayoutUnit& containing_block_size,
+    bool* height_depends_on_containing_block) {
   // The percentage is calculated with respect to the height of the generated
   // box's containing block.
   //   https://www.w3.org/TR/CSS21/visudet.html#the-height-property
   UsedLengthProvider used_length_provider(containing_block_size.height());
   computed_style->height()->Accept(&used_length_provider);
+  if (height_depends_on_containing_block != NULL) {
+    *height_depends_on_containing_block =
+        used_length_provider.depends_on_containing_block();
+  }
   return used_length_provider.used_length();
 }
 
@@ -1774,6 +1842,18 @@ LayoutUnit GetUsedPaddingBottom(
   UsedLengthProvider used_length_provider(containing_block_size.width());
   computed_style->padding_bottom()->Accept(&used_length_provider);
   return *used_length_provider.used_length();
+}
+
+const scoped_refptr<cssom::PropertyValue>& GetUsedAlignSelf(
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>&
+        parent_computed_style) {
+  const scoped_refptr<cssom::PropertyValue>& align_self =
+      computed_style->GetPropertyValueReference(cssom::kAlignSelfProperty);
+  if (align_self != cssom::KeywordValue::GetAuto()) {
+    return align_self;
+  }
+  return parent_computed_style->align_items();
 }
 
 }  // namespace layout

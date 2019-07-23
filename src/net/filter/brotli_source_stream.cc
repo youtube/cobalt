@@ -14,6 +14,7 @@
 #if defined(STARBOARD)
 #include <brotli/decode.h>
 #else
+#include "starboard/types.h"
 #include "third_party/brotli/include/brotli/decode.h"
 #endif
 

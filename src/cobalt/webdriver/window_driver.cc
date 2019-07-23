@@ -132,15 +132,16 @@ WindowDriver::WindowDriver(
       pointer_buttons_(0),
       pointer_x_(0),
       pointer_y_(0) {
+  DCHECK(window_task_runner_);
   // The WindowDriver may have been created on some arbitrary thread (i.e. the
   // thread that owns the Window). Detach the thread checker so it can be
   // re-bound to the next thread that calls a webdriver API, which should be
   // the WebDriver thread.
-  thread_checker_.DetachFromThread();
+  DETACH_FROM_THREAD(thread_checker_);
 }
 
 WindowDriver::~WindowDriver() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Ensure ElementDrivers that this WindowDriver owns are deleted on
   // destruction of the WindowDriver.
@@ -151,10 +152,10 @@ WindowDriver::~WindowDriver() {
 
 ElementDriver* WindowDriver::GetElementDriver(
     const protocol::ElementId& element_id) {
-  if (base::MessageLoop::current()->task_runner() != window_task_runner_) {
+  if (!window_task_runner_->BelongsToCurrentThread()) {
     // It's expected that the WebDriver thread is the only other thread to call
     // this function.
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     ElementDriver* result;
     bool success = util::TryCallOnMessageLoop(
         window_task_runner_,
@@ -172,7 +173,7 @@ ElementDriver* WindowDriver::GetElementDriver(
 }
 
 util::CommandResult<protocol::Size> WindowDriver::GetWindowSize() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return util::CallWeakOnMessageLoopAndReturnResult(
       window_task_runner_,
       base::Bind(&WindowDriver::GetWeak, base::Unretained(this)),
@@ -181,7 +182,7 @@ util::CommandResult<protocol::Size> WindowDriver::GetWindowSize() {
 }
 
 util::CommandResult<void> WindowDriver::Navigate(const GURL& url) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return util::CallOnMessageLoop(
       window_task_runner_,
       base::Bind(&WindowDriver::NavigateInternal, base::Unretained(this), url),
@@ -189,7 +190,7 @@ util::CommandResult<void> WindowDriver::Navigate(const GURL& url) {
 }
 
 util::CommandResult<std::string> WindowDriver::GetCurrentUrl() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return util::CallWeakOnMessageLoopAndReturnResult(
       window_task_runner_,
       base::Bind(&WindowDriver::GetWeak, base::Unretained(this)),
@@ -198,7 +199,7 @@ util::CommandResult<std::string> WindowDriver::GetCurrentUrl() {
 }
 
 util::CommandResult<std::string> WindowDriver::GetTitle() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return util::CallWeakOnMessageLoopAndReturnResult(
       window_task_runner_,
       base::Bind(&WindowDriver::GetWeak, base::Unretained(this)),
@@ -208,7 +209,7 @@ util::CommandResult<std::string> WindowDriver::GetTitle() {
 
 util::CommandResult<protocol::ElementId> WindowDriver::FindElement(
     const protocol::SearchStrategy& strategy) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   return util::CallOnMessageLoop(
       window_task_runner_,
@@ -219,7 +220,7 @@ util::CommandResult<protocol::ElementId> WindowDriver::FindElement(
 
 util::CommandResult<std::vector<protocol::ElementId> >
 WindowDriver::FindElements(const protocol::SearchStrategy& strategy) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return util::CallOnMessageLoop(
       window_task_runner_,
       base::Bind(&WindowDriver::FindElementsInternal<ElementIdVector>,
@@ -228,7 +229,7 @@ WindowDriver::FindElements(const protocol::SearchStrategy& strategy) {
 }
 
 util::CommandResult<std::string> WindowDriver::GetSource() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return util::CallWeakOnMessageLoopAndReturnResult(
       window_task_runner_,
       base::Bind(&WindowDriver::GetWeak, base::Unretained(this)),
@@ -239,7 +240,7 @@ util::CommandResult<std::string> WindowDriver::GetSource() {
 util::CommandResult<protocol::ScriptResult> WindowDriver::Execute(
     const protocol::Script& script) {
   typedef util::CommandResult<protocol::ScriptResult> CommandResult;
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Pre-load the ScriptExecutor source so we don't hit the disk on
   // window_task_runner_.
   ScriptExecutor::LoadExecutorSourceCode();
@@ -261,7 +262,7 @@ util::CommandResult<protocol::ScriptResult> WindowDriver::Execute(
 util::CommandResult<protocol::ScriptResult> WindowDriver::ExecuteAsync(
     const protocol::Script& script) {
   typedef util::CommandResult<protocol::ScriptResult> CommandResult;
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Pre-load the ScriptExecutor source so we don't hit the disk on
   // window_task_runner_.
   ScriptExecutor::LoadExecutorSourceCode();
@@ -311,7 +312,7 @@ util::CommandResult<protocol::ElementId> WindowDriver::GetActiveElement() {
 
 util::CommandResult<void> WindowDriver::SwitchFrame(
     const protocol::FrameId& frame_id) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Cobalt doesn't support frames, but if a WebDriver client requests to
   // switch to the top-level browsing context, trivially return success.
   if (frame_id.is_top_level_browsing_context()) {
@@ -323,7 +324,7 @@ util::CommandResult<void> WindowDriver::SwitchFrame(
 
 util::CommandResult<std::vector<protocol::Cookie> >
 WindowDriver::GetAllCookies() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return util::CallWeakOnMessageLoopAndReturnResult(
       window_task_runner_,
       base::Bind(&WindowDriver::GetWeak, base::Unretained(this)),
@@ -350,7 +351,7 @@ util::CommandResult<std::vector<protocol::Cookie> > WindowDriver::GetCookie(
 
 util::CommandResult<void> WindowDriver::AddCookie(
     const protocol::Cookie& cookie) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return util::CallOnMessageLoop(window_task_runner_,
                                  base::Bind(&WindowDriver::AddCookieInternal,
                                             base::Unretained(this), cookie),
@@ -359,7 +360,7 @@ util::CommandResult<void> WindowDriver::AddCookie(
 
 util::CommandResult<void> WindowDriver::MouseMoveTo(
     const protocol::Moveto& moveto) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return util::CallOnMessageLoop(window_task_runner_,
                                  base::Bind(&WindowDriver::MouseMoveToInternal,
                                             base::Unretained(this), moveto),
@@ -368,7 +369,7 @@ util::CommandResult<void> WindowDriver::MouseMoveTo(
 
 util::CommandResult<void> WindowDriver::MouseButtonDown(
     const protocol::Button& button) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return util::CallOnMessageLoop(
       window_task_runner_,
       base::Bind(&WindowDriver::MouseButtonDownInternal, base::Unretained(this),
@@ -378,7 +379,7 @@ util::CommandResult<void> WindowDriver::MouseButtonDown(
 
 util::CommandResult<void> WindowDriver::MouseButtonUp(
     const protocol::Button& button) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return util::CallOnMessageLoop(
       window_task_runner_,
       base::Bind(&WindowDriver::MouseButtonUpInternal, base::Unretained(this),
@@ -388,7 +389,7 @@ util::CommandResult<void> WindowDriver::MouseButtonUp(
 
 util::CommandResult<void> WindowDriver::SendClick(
     const protocol::Button& button) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return util::CallOnMessageLoop(window_task_runner_,
                                  base::Bind(&WindowDriver::SendClickInternal,
                                             base::Unretained(this), button),
@@ -543,13 +544,11 @@ void WindowDriver::InitPointerEvent(dom::PointerEventInit* event) {
 
   event->set_pointer_type("mouse");
   event->set_pointer_id(kWebDriverMousePointerId);
-#if SB_API_VERSION >= 6
   event->set_width(0.0f);
   event->set_height(0.0f);
   event->set_pressure(pointer_buttons_ ? 0.5f : 0.0f);
   event->set_tilt_x(0.0f);
   event->set_tilt_y(0.0f);
-#endif
   event->set_is_primary(true);
 }
 

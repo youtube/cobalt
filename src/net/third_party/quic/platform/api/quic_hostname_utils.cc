@@ -4,8 +4,6 @@
 
 #include "net/third_party/quic/platform/api/quic_hostname_utils.h"
 
-using std::string;
-
 namespace quic {
 
 // static
@@ -14,7 +12,7 @@ bool QuicHostnameUtils::IsValidSNI(QuicStringPiece sni) {
 }
 
 // static
-char* QuicHostnameUtils::NormalizeHostname(char* hostname) {
+QuicString QuicHostnameUtils::NormalizeHostname(QuicStringPiece hostname) {
   return QuicHostnameUtilsImpl::NormalizeHostname(hostname);
 }
 

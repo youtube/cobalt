@@ -1,0 +1,155 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|ORBIS">
+      <Configuration>Debug</Configuration>
+      <Platform>ORBIS</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|ORBIS">
+      <Configuration>Release</Configuration>
+      <Platform>ORBIS</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCTargetsPath Condition="'$(VCTargetsPath12)' != '' and '$(VSVersion)' == '' and '$(VisualStudioVersion)' == ''">$(VCTargetsPath12)</VCTargetsPath>
+    <ProjectGuid>{901DB192-225E-48D3-8C4D-015A4DE1F6B4}</ProjectGuid>
+    <ProjectName>luxSimplePlayer</ProjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <PlatformToolset>v120</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <PlatformToolset>v120</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup Condition="'$(DebuggerFlavor)'=='ORBISDebugger'" Label="OverrideDebuggerDefaults">
+    <!--LocalDebuggerCommand>$(TargetPath)</LocalDebuggerCommand-->
+    <!--LocalDebuggerCommandArguments></LocalDebuggerCommandArguments-->
+    <!--LocalDebuggerTarget></LocalDebuggerTarget-->
+    <!--LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory-->
+    <!--LocalRunCommandLine></LocalRunCommandLine-->
+  </PropertyGroup>
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\OrbisWavePsslc.props" />
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\SCU.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">
+    <OutDir>$(SolutionDir)bin\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)obj\$(ProjectName)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">
+    <OutDir>$(SolutionDir)bin\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)obj\$(ProjectName)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">
+    <ClCompile>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <AdditionalIncludeDirectories>../PS4/;../PS4/common/include;../../vp9-dec-core;../../vp9-dec-core/build;../libwebm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>-lScePosix_stub_weak;-lSceVideodec_stub_weak;libScePm4Dump.a;vp9-dec-core$(PlatformArchitecture).a;libSceGnm.a;libSceGnmx.a;libSceVideoOut_stub_weak.a;libSceGpuAddress.a;libScePad_stub_weak.a;libSceGnmDriver_stub_weak.a;libSceGnf.a;libSceShaderBinary.a</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)lib\$(Configuration)</AdditionalLibraryDirectories>
+    </Link>
+    <OrbisWavePsslc>
+      <OutputFileName>$(ProjectDir)%(FileName).sb</OutputFileName>
+    </OrbisWavePsslc>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">
+    <ClCompile>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <OptimizationLevel>Levels</OptimizationLevel>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <AdditionalIncludeDirectories>../PS4/;../PS4/common/include;../../vp9-dec-core;../../vp9-dec-core/build;../libwebm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>-lScePosix_stub_weak;-lSceVideodec_stub_weak;libScePm4Dump.a;vp9-dec-core$(PlatformArchitecture).a;libSceGnm.a;libSceGnmx.a;libSceVideoOut_stub_weak.a;libSceGpuAddress.a;libScePad_stub_weak.a;libSceGnmDriver_stub_weak.a;libSceGnf.a;libSceShaderBinary.a</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)lib\$(Configuration)</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\vp9-dec-core\vp9\decoder\vp9lux_linear_allocator.cpp" />
+    <ClCompile Include="..\..\vp9-dec-core\vp9\decoder\vp9lux_thread.c" />
+    <ClCompile Include="..\libwebm\common\hdr_util.cc" />
+    <ClCompile Include="..\libwebm\mkvmuxer\mkvmuxer.cc" />
+    <ClCompile Include="..\libwebm\mkvmuxer\mkvmuxerutil.cc" />
+    <ClCompile Include="..\libwebm\mkvmuxer\mkvwriter.cc" />
+    <ClCompile Include="..\libwebm\mkvparser\mkvparser.cc" />
+    <ClCompile Include="..\libwebm\mkvparser\mkvreader.cc" />
+    <ClCompile Include="..\vpxdec\md5_utils.c" />
+    <ClCompile Include="..\vpxdec\tools_common.c" />
+    <ClCompile Include="..\vpxdec\user_malloc.cpp" />
+    <ClCompile Include="..\vpxdec\webmdec.cc" />
+    <ClCompile Include="display.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="memory_helper.cpp" />
+    <ClCompile Include="stream_metadata.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\vp9-dec-core\vp9\decoder\vp9lux_linear_allocator.h" />
+    <ClInclude Include="..\..\vp9-dec-core\vp9\decoder\vp9lux_thread.h" />
+    <ClInclude Include="..\libwebm\common\hdr_util.h" />
+    <ClInclude Include="..\libwebm\common\webmids.h" />
+    <ClInclude Include="..\libwebm\mkvmuxer\mkvmuxer.h" />
+    <ClInclude Include="..\libwebm\mkvmuxer\mkvmuxertypes.h" />
+    <ClInclude Include="..\libwebm\mkvmuxer\mkvmuxerutil.h" />
+    <ClInclude Include="..\libwebm\mkvmuxer\mkvwriter.h" />
+    <ClInclude Include="..\libwebm\mkvparser\mkvparser.h" />
+    <ClInclude Include="..\libwebm\mkvparser\mkvreader.h" />
+    <ClInclude Include="..\vpxdec\md5_utils.h" />
+    <ClInclude Include="..\vpxdec\tools_common.h" />
+    <ClInclude Include="..\vpxdec\webmdec.h" />
+    <ClInclude Include="display.h" />
+    <ClInclude Include="ivf_video_source.h" />
+    <ClInclude Include="memory_helper.h" />
+    <ClInclude Include="stream_metadata.h" />
+    <ClInclude Include="video_source.h" />
+    <ClInclude Include="webm_video_source.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <OrbisWavePsslc Include="shader_CSC_p.pssl" />
+    <OrbisWavePsslc Include="shader_vv.pssl">
+      <FileType>Document</FileType>
+      <OutputFileName Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">$(ProjectDir)%(FileName).sb</OutputFileName>
+    </OrbisWavePsslc>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\PS4\common\source\sampleutil\libSceSampleUtil.vcxproj">
+      <Project>{30a1b994-c2c6-485f-911b-fb4674366da8}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\PS4\dbg_font\dbg_font.vcxproj">
+      <Project>{43565ad8-688c-4451-a81f-2aba8e957753}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\PS4\framework\framework.vcxproj">
+      <Project>{f950cc65-80ef-4b1f-86a3-2b87b3f23c96}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\PS4\toolkit\toolkit.vcxproj">
+      <Project>{2f4ccf89-7649-4c7f-8cbf-f976b4fbc2b6}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="helper_functions.hs" />
+  </ItemGroup>
+  <Import Condition="'$(ConfigurationType)' == 'Makefile' and Exists('$(VCTargetsPath)\Platforms\$(Platform)\SCE.Makefile.$(Platform).targets')" Project="$(VCTargetsPath)\Platforms\$(Platform)\SCE.Makefile.$(Platform).targets" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\OrbisWavePsslc.targets" />
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\SCU.targets" />
+  </ImportGroup>
+</Project>

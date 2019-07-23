@@ -20,9 +20,9 @@
 #include <map>
 #include <set>
 
-#include "starboard/condition_variable.h"
-#include "starboard/mutex.h"
-#include "starboard/queue.h"
+#include "starboard/common/condition_variable.h"
+#include "starboard/common/mutex.h"
+#include "starboard/common/queue.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/types.h"

@@ -16,7 +16,6 @@
 #include "net/third_party/quic/test_tools/simulator/switch.h"
 #include "net/third_party/quic/test_tools/simulator/traffic_policer.h"
 
-using std::string;
 using testing::_;
 using testing::Return;
 using testing::StrictMock;
@@ -27,7 +26,7 @@ namespace simulator {
 // A simple counter that increments its value by 1 every specified period.
 class Counter : public Actor {
  public:
-  Counter(Simulator* simulator, string name, QuicTime::Delta period)
+  Counter(Simulator* simulator, QuicString name, QuicTime::Delta period)
       : Actor(simulator, name), value_(-1), period_(period) {
     Schedule(clock_->Now());
   }
@@ -49,19 +48,22 @@ class Counter : public Actor {
 
 class SimulatorTest : public QuicTest {};
 
-// Test that the basic event handling works.
+// Test that the basic event handling works, and that Actors can be created and
+// destroyed mid-simulation.
 TEST_F(SimulatorTest, Counters) {
   Simulator simulator;
-  Counter fast_counter(&simulator, "fast_counter",
-                       QuicTime::Delta::FromSeconds(3));
-  Counter slow_counter(&simulator, "slow_counter",
-                       QuicTime::Delta::FromSeconds(10));
+  for (int i = 0; i < 2; ++i) {
+    Counter fast_counter(&simulator, "fast_counter",
+                         QuicTime::Delta::FromSeconds(3));
+    Counter slow_counter(&simulator, "slow_counter",
+                         QuicTime::Delta::FromSeconds(10));
 
-  simulator.RunUntil(
-      [&slow_counter]() { return slow_counter.get_value() >= 10; });
+    simulator.RunUntil(
+        [&slow_counter]() { return slow_counter.get_value() >= 10; });
 
-  EXPECT_EQ(10, slow_counter.get_value());
-  EXPECT_EQ(10 * 10 / 3, fast_counter.get_value());
+    EXPECT_EQ(10, slow_counter.get_value());
+    EXPECT_EQ(10 * 10 / 3, fast_counter.get_value());
+  }
 }
 
 // A port which counts the number of packets received on it, both total and
@@ -87,7 +89,7 @@ class CounterPort : public UnconstrainedPortInterface {
     per_destination_packet_counter_.clear();
   }
 
-  QuicPacketCount CountPacketsForDestination(string destination) const {
+  QuicPacketCount CountPacketsForDestination(QuicString destination) const {
     auto result_it = per_destination_packet_counter_.find(destination);
     if (result_it == per_destination_packet_counter_.cend()) {
       return 0;
@@ -99,7 +101,7 @@ class CounterPort : public UnconstrainedPortInterface {
   QuicByteCount bytes_;
   QuicPacketCount packets_;
 
-  QuicUnorderedMap<string, QuicPacketCount> per_destination_packet_counter_;
+  QuicUnorderedMap<QuicString, QuicPacketCount> per_destination_packet_counter_;
 };
 
 // Sends the packet to the specified destination at the uplink rate.  Provides a
@@ -107,9 +109,9 @@ class CounterPort : public UnconstrainedPortInterface {
 class LinkSaturator : public Endpoint {
  public:
   LinkSaturator(Simulator* simulator,
-                string name,
+                QuicString name,
                 QuicByteCount packet_size,
-                string destination)
+                QuicString destination)
       : Endpoint(simulator, name),
         packet_size_(packet_size),
         destination_(std::move(destination)),
@@ -153,7 +155,7 @@ class LinkSaturator : public Endpoint {
 
  private:
   QuicByteCount packet_size_;
-  string destination_;
+  QuicString destination_;
 
   ConstrainedPortInterface* tx_port_;
   CounterPort rx_port_;
@@ -425,7 +427,7 @@ TEST_F(SimulatorTest, SwitchedNetwork) {
 class AlarmToggler : public Actor {
  public:
   AlarmToggler(Simulator* simulator,
-               string name,
+               QuicString name,
                QuicAlarm* alarm,
                QuicTime::Delta interval)
       : Actor(simulator, name),
@@ -589,7 +591,7 @@ TEST_F(SimulatorTest, RunFor) {
 
 class MockPacketFilter : public PacketFilter {
  public:
-  MockPacketFilter(Simulator* simulator, string name, Endpoint* endpoint)
+  MockPacketFilter(Simulator* simulator, QuicString name, Endpoint* endpoint)
       : PacketFilter(simulator, name, endpoint) {}
   MOCK_METHOD1(FilterPacket, bool(const Packet&));
 };

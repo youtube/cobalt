@@ -19,7 +19,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 #include "starboard/shared/posix/file_internal.h"
 #include "starboard/shared/posix/handle_eintr.h"

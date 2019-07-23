@@ -215,7 +215,7 @@ void WebDriverServer::OnHttpRequest(int connection_id,
                                     const net::HttpServerRequestInfo& info) {
   TRACE_EVENT0("cobalt::webdriver", "WebDriverServer::OnHttpRequest()");
 
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::string path = info.path;
   size_t query_position = path.find("?");
   // Discard any URL variables from the path

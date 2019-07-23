@@ -15,7 +15,7 @@
 #ifndef COBALT_RENDERER_RASTERIZER_EGL_SHADER_BASE_H_
 #define COBALT_RENDERER_RASTERIZER_EGL_SHADER_BASE_H_
 
-#include <GLES2/gl2.h>
+#include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {
 namespace renderer {

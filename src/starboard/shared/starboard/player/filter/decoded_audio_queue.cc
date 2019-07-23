@@ -20,7 +20,7 @@
 
 #include <algorithm>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/media.h"
 
 namespace starboard {

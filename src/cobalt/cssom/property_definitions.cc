@@ -500,6 +500,15 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
                         kImpactsBoxSizesYes, kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetAuto());
 
+  // https://www.w3.org/TR/intersection-observer/#parse-a-root-margin
+  // Not actually a new CSS property but we need it to parse an
+  // IntersectionObserver's root margin
+  SetPropertyDefinition(kIntersectionObserverRootMarginProperty,
+                        "intersection-observer-root-margin", kInheritedNo,
+                        kAnimatableNo, kImpactsChildComputedStyleNo,
+                        kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
+                        kImpactsBoxCrossReferencesNo, KeywordValue::GetAuto());
+
   // https://www.w3.org/TR/css-flexbox-1/#justify-content-property
   SetPropertyDefinition(kJustifyContentProperty, "justify-content",
                         kInheritedNo, kAnimatableNo,
@@ -1628,6 +1637,14 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
               property_name,
               GetPropertyName(kTransitionTimingFunctionProperty))) {
         return kTransitionTimingFunctionProperty;
+      }
+      return kNoneProperty;
+
+    case 33:
+      if (base::LowerCaseEqualsASCII(
+              property_name,
+              GetPropertyName(kIntersectionObserverRootMarginProperty))) {
+        return kIntersectionObserverRootMarginProperty;
       }
       return kNoneProperty;
 

@@ -5,7 +5,7 @@
 #include "nb/thread_collision_warner.h"
 
 #include "starboard/atomic.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/thread.h"
 #include "starboard/types.h"
 

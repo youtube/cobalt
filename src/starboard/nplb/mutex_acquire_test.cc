@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/mutex.h"
 #include "starboard/configuration.h"
-#include "starboard/mutex.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

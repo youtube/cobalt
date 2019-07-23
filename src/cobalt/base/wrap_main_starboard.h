@@ -36,7 +36,6 @@ void BaseEventHandler(const SbEvent* event) {
   static base::MessageLoopForUI* g_loop = NULL;
   static bool g_started = false;
   switch (event->type) {
-#if SB_API_VERSION >= 6
     case kSbEventTypePreload: {
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
 
@@ -54,7 +53,6 @@ void BaseEventHandler(const SbEvent* event) {
       g_started = true;
       break;
     }
-#endif  // SB_API_VERSION >= 6
     case kSbEventTypeStart: {
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
 
@@ -99,15 +97,13 @@ void BaseEventHandler(const SbEvent* event) {
     case kSbEventTypeUser:
     case kSbEventTypeLink:
     case kSbEventTypeVerticalSync:
-#if SB_API_VERSION < SB_DEPRECATE_DISCONNECT_VERSION
+#if SB_API_VERSION < 11
     case kSbEventTypeNetworkDisconnect:
     case kSbEventTypeNetworkConnect:
-#endif  // SB_API_VERSION < SB_DEPRECATE_DISCONNECT_VERSION
+#endif  // SB_API_VERSION < 11
     case kSbEventTypeScheduled:
     case kSbEventTypeAccessiblitySettingsChanged:
-#if SB_API_VERSION >= 6
     case kSbEventTypeLowMemory:
-#endif  // SB_API_VERSION >= 6
 #if SB_API_VERSION >= 8
     case kSbEventTypeWindowSizeChanged:
 #endif  // SB_API_VERSION >= 8
@@ -116,9 +112,9 @@ void BaseEventHandler(const SbEvent* event) {
     case kSbEventTypeOnScreenKeyboardHidden:
     case kSbEventTypeOnScreenKeyboardFocused:
     case kSbEventTypeOnScreenKeyboardBlurred:
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#if SB_API_VERSION >= 11
     case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#endif  // SB_API_VERSION >= 11
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 #if SB_HAS(CAPTIONS)
     case kSbEventTypeAccessibilityCaptionSettingsChanged:

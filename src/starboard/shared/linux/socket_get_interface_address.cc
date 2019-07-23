@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 
 // linux/if.h assumes the symbols for structs defined in ifaddrs.h are
 // already present. These includes must be above <linux/if.h> below.
@@ -34,8 +34,8 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#include "starboard/byte_swap.h"
-#include "starboard/log.h"
+#include "starboard/common/byte_swap.h"
+#include "starboard/common/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/posix/socket_internal.h"
 

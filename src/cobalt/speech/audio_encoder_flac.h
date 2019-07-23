@@ -51,7 +51,7 @@ class AudioEncoderFlac {
       size_t bytes, unsigned int samples, unsigned int current_frame,
       void* client_data);
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   // FLAC encoder.
   FLAC__StreamEncoder* encoder_;
   // Cached encoded data.

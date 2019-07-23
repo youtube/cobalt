@@ -29,7 +29,7 @@ namespace media {
 SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec);
 SbMediaVideoCodec MediaVideoCodecToSbMediaVideoCodec(VideoCodec codec);
 
-SbMediaAudioHeader MediaAudioConfigToSbMediaAudioHeader(
+SbMediaAudioSampleInfo MediaAudioConfigToSbMediaAudioSampleInfo(
     const AudioDecoderConfig& audio_decoder_config);
 
 DemuxerStream::Type SbMediaTypeToDemuxerStreamType(SbMediaType type);

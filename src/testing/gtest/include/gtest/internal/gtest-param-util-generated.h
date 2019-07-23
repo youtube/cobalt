@@ -3197,7 +3197,11 @@ class CartesianProductGenerator2
     // Advance should not be called on beyond-of-range iterators
     // so no component iterators must be beyond end of range, either.
     virtual void Advance() {
+#if defined(STARBOARD)
+      SB_DCHECK(!AtEnd());
+#else
       assert(!AtEnd());
+#endif
       ++current2_;
       if (current2_ == end2_) {
         current2_ = begin2_;

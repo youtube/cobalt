@@ -2,25 +2,28 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <cstdint>
+
 #include "net/third_party/quic/core/crypto/crypto_secret_boxer.h"
 
-#include <memory>
-
-#include "base/logging.h"
-#include "base/strings/string_util.h"
-#include "net/third_party/quic/core/crypto/quic_decrypter.h"
-#include "net/third_party/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quic/core/crypto/quic_random.h"
+#include "net/third_party/quic/platform/api/quic_logging.h"
+#include "net/third_party/quic/platform/api/quic_string.h"
 #include "third_party/boringssl/src/include/openssl/aead.h"
-#include "third_party/boringssl/src/include/openssl/crypto.h"
+#include "third_party/boringssl/src/include/openssl/err.h"
 
 namespace quic {
 
-// Defined kKeySize for GetKeySize() and SetKey().
-static const size_t kKeySize = 16;
+// kSIVNonceSize contains the number of bytes of nonce in each AES-GCM-SIV box.
+// AES-GCM-SIV takes a 12-byte nonce and, since the messages are so small, each
+// key is good for more than 2^64 source-address tokens. See table 1 of
+// https://eprint.iacr.org/2017/168.pdf
+static const size_t kSIVNonceSize = 12;
 
-// kBoxNonceSize contains the number of bytes of nonce that we use in each box.
-static const size_t kBoxNonceSize = 12;
+// AES-GCM-SIV comes in AES-128 and AES-256 flavours. The AES-256 version is
+// used here so that the key size matches the 256-bit XSalsa20 keys that we
+// used to use.
+static const size_t kBoxKeySize = 32;
 
 struct CryptoSecretBoxer::State {
   // ctxs are the initialised AEAD contexts. These objects contain the
@@ -28,19 +31,17 @@ struct CryptoSecretBoxer::State {
   std::vector<bssl::UniquePtr<EVP_AEAD_CTX>> ctxs;
 };
 
-CryptoSecretBoxer::CryptoSecretBoxer() {
-  CRYPTO_library_init();
-}
+CryptoSecretBoxer::CryptoSecretBoxer() {}
 
 CryptoSecretBoxer::~CryptoSecretBoxer() {}
 
 // static
 size_t CryptoSecretBoxer::GetKeySize() {
-  return kKeySize;
+  return kBoxKeySize;
 }
 
-// kAEAD is the AEAD used for boxing: AES-128-GCM-SIV.
-static const EVP_AEAD* (*const kAEAD)() = EVP_aead_aes_128_gcm_siv;
+// kAEAD is the AEAD used for boxing: AES-256-GCM-SIV.
+static const EVP_AEAD* (*const kAEAD)() = EVP_aead_aes_256_gcm_siv;
 
 void CryptoSecretBoxer::SetKeys(const std::vector<QuicString>& keys) {
   DCHECK(!keys.empty());
@@ -48,11 +49,12 @@ void CryptoSecretBoxer::SetKeys(const std::vector<QuicString>& keys) {
   std::unique_ptr<State> new_state(new State);
 
   for (const QuicString& key : keys) {
-    DCHECK_EQ(kKeySize, key.size());
+    DCHECK_EQ(kBoxKeySize, key.size());
     bssl::UniquePtr<EVP_AEAD_CTX> ctx(
         EVP_AEAD_CTX_new(aead, reinterpret_cast<const uint8_t*>(key.data()),
                          key.size(), EVP_AEAD_DEFAULT_TAG_LENGTH));
     if (!ctx) {
+      ERR_clear_error();
       LOG(DFATAL) << "EVP_AEAD_CTX_init failed";
       return;
     }
@@ -71,62 +73,71 @@ QuicString CryptoSecretBoxer::Box(QuicRandom* rand,
   //   n bytes of ciphertext
   //   16 bytes of authenticator
   size_t out_len =
-      kBoxNonceSize + plaintext.size() + EVP_AEAD_max_overhead(kAEAD());
+      kSIVNonceSize + plaintext.size() + EVP_AEAD_max_overhead(kAEAD());
 
   QuicString ret;
-  uint8_t* out = reinterpret_cast<uint8_t*>(base::WriteInto(&ret, out_len + 1));
+  ret.resize(out_len);
+  uint8_t* out = reinterpret_cast<uint8_t*>(const_cast<char*>(ret.data()));
 
-  // Write kBoxNonceSize bytes of random nonce to the beginning of the output
+  // Write kSIVNonceSize bytes of random nonce to the beginning of the output
   // buffer.
-  rand->RandBytes(out, kBoxNonceSize);
+  rand->RandBytes(out, kSIVNonceSize);
   const uint8_t* const nonce = out;
-  out += kBoxNonceSize;
-  out_len -= kBoxNonceSize;
+  out += kSIVNonceSize;
+  out_len -= kSIVNonceSize;
 
   size_t bytes_written;
   {
     QuicReaderMutexLock l(&lock_);
     if (!EVP_AEAD_CTX_seal(state_->ctxs[0].get(), out, &bytes_written, out_len,
-                           nonce, kBoxNonceSize,
+                           nonce, kSIVNonceSize,
                            reinterpret_cast<const uint8_t*>(plaintext.data()),
                            plaintext.size(), nullptr, 0)) {
+      ERR_clear_error();
       LOG(DFATAL) << "EVP_AEAD_CTX_seal failed";
       return "";
     }
   }
 
   DCHECK_EQ(out_len, bytes_written);
-
   return ret;
 }
 
 bool CryptoSecretBoxer::Unbox(QuicStringPiece in_ciphertext,
                               QuicString* out_storage,
                               QuicStringPiece* out) const {
-  if (in_ciphertext.size() <= kBoxNonceSize) {
+  if (in_ciphertext.size() < kSIVNonceSize) {
     return false;
   }
 
   const uint8_t* const nonce =
       reinterpret_cast<const uint8_t*>(in_ciphertext.data());
-  const uint8_t* const ciphertext = nonce + kBoxNonceSize;
-  const size_t ciphertext_len = in_ciphertext.size() - kBoxNonceSize;
+  const uint8_t* const ciphertext = nonce + kSIVNonceSize;
+  const size_t ciphertext_len = in_ciphertext.size() - kSIVNonceSize;
 
-  uint8_t* out_data = reinterpret_cast<uint8_t*>(
-      base::WriteInto(out_storage, ciphertext_len + 1));
+  out_storage->resize(ciphertext_len);
 
-  QuicReaderMutexLock l(&lock_);
-  for (const bssl::UniquePtr<EVP_AEAD_CTX>& ctx : state_->ctxs) {
-    size_t bytes_written;
-    if (EVP_AEAD_CTX_open(ctx.get(), out_data, &bytes_written, ciphertext_len,
-                          nonce, kBoxNonceSize, ciphertext, ciphertext_len,
-                          nullptr, 0)) {
-      *out = QuicStringPiece(out_storage->data(), bytes_written);
-      return true;
+  bool ok = false;
+  {
+    QuicReaderMutexLock l(&lock_);
+    for (const bssl::UniquePtr<EVP_AEAD_CTX>& ctx : state_->ctxs) {
+      size_t bytes_written;
+      if (EVP_AEAD_CTX_open(ctx.get(),
+                            reinterpret_cast<uint8_t*>(
+                                const_cast<char*>(out_storage->data())),
+                            &bytes_written, ciphertext_len, nonce,
+                            kSIVNonceSize, ciphertext, ciphertext_len, nullptr,
+                            0)) {
+        ok = true;
+        *out = QuicStringPiece(out_storage->data(), bytes_written);
+        break;
+      }
+
+      ERR_clear_error();
     }
   }
 
-  return false;
+  return ok;
 }
 
 }  // namespace quic

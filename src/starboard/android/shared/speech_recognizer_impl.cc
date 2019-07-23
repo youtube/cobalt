@@ -22,9 +22,9 @@
 
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
+#include "starboard/common/string.h"
 #include "starboard/shared/starboard/thread_checker.h"
-#include "starboard/string.h"
 
 namespace starboard {
 namespace android {

@@ -21,7 +21,7 @@
 #include "src/wasm/wasm-objects-inl.h"
 
 #if defined(STARBOARD)
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #define printf(format) SbLogRaw(format)
 #endif
 
@@ -31,9 +31,11 @@ namespace internal {
 #ifdef OBJECT_PRINT
 
 void Object::Print() {
+#ifndef V8_OS_STARBOARD
   OFStream os(stdout);
   this->Print(os);
   os << std::flush;
+#endif
 }
 
 
@@ -699,9 +701,11 @@ template void FeedbackVectorSpecBase<FeedbackVectorSpec>::Print();
 
 template <typename Derived>
 void FeedbackVectorSpecBase<Derived>::Print() {
+#ifndef V8_OS_STARBOARD
   OFStream os(stdout);
   FeedbackVectorSpecPrint(os);
   os << std::flush;
+#endif
 }
 
 template <typename Derived>
@@ -725,9 +729,11 @@ void FeedbackVectorSpecBase<Derived>::FeedbackVectorSpecPrint(
 }
 
 void FeedbackMetadata::Print() {
+#ifndef V8_OS_STARBOARD
   OFStream os(stdout);
   FeedbackMetadataPrint(os);
   os << std::flush;
+#endif
 }
 
 void FeedbackMetadata::FeedbackMetadataPrint(std::ostream& os) {  // NOLINT
@@ -749,9 +755,11 @@ void FeedbackMetadata::FeedbackMetadataPrint(std::ostream& os) {  // NOLINT
 }
 
 void FeedbackVector::Print() {
+#ifndef V8_OS_STARBOARD
   OFStream os(stdout);
   FeedbackVectorPrint(os);
   os << std::flush;
+#endif
 }
 
 void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
@@ -1658,9 +1666,11 @@ static void PrintBitMask(std::ostream& os, uint32_t value) {  // NOLINT
 
 
 void LayoutDescriptor::Print() {
+#ifndef V8_OS_STARBOARD
   OFStream os(stdout);
   this->Print(os);
   os << std::flush;
+#endif
 }
 
 void LayoutDescriptor::ShortPrint(std::ostream& os) {
@@ -1801,9 +1811,11 @@ char* String::ToAsciiArray() {
 }
 
 void DescriptorArray::Print() {
+#ifndef V8_OS_STARBOARD
   OFStream os(stdout);
   this->PrintDescriptors(os);
   os << std::flush;
+#endif
 }
 // static
 void TransitionsAccessor::PrintOneTransition(std::ostream& os, Name* key,
@@ -1843,8 +1855,10 @@ void TransitionsAccessor::PrintOneTransition(std::ostream& os, Name* key,
 }
 
 void TransitionArray::Print() {
+#ifndef V8_OS_STARBOARD
   OFStream os(stdout);
   Print(os);
+#endif
 }
 
 // TODO(ishell): unify with TransitionArrayPrint().
@@ -1882,11 +1896,13 @@ void TransitionsAccessor::PrintTransitions(std::ostream& os) {  // NOLINT
 }
 
 void TransitionsAccessor::PrintTransitionTree() {
+#ifndef V8_OS_STARBOARD
   OFStream os(stdout);
   os << "map= " << Brief(map_);
   DisallowHeapAllocation no_gc;
   PrintTransitionTree(os, 0, &no_gc);
   os << "\n" << std::flush;
+#endif
 }
 
 void TransitionsAccessor::PrintTransitionTree(std::ostream& os, int level,
@@ -1975,12 +1991,12 @@ extern void _v8_internal_Print_Code(void* object) {
               static_cast<void*>(address));
     return;
   }
-#ifdef ENABLE_DISASSEMBLER
+#if defined(ENABLE_DISASSEMBLER) && !defined(V8_OS_STARBOARD)
   i::OFStream os(stdout);
   code->Disassemble(nullptr, os, address);
-#else   // ENABLE_DISASSEMBLER
+#else   // ENABLE_DISASSEMBLER && !V8_OS_STARBOARD
   code->Print();
-#endif  // ENABLE_DISASSEMBLER
+#endif  // ENABLE_DISASSEMBLER && !V8_OS_STARBOARD
 }
 
 extern void _v8_internal_Print_FeedbackMetadata(void* object) {
@@ -2025,8 +2041,10 @@ extern void _v8_internal_Print_TransitionArray(void* object) {
 }
 
 extern void _v8_internal_Print_StackTrace() {
+#ifndef V8_OS_STARBOARD
   i::Isolate* isolate = i::Isolate::Current();
   isolate->PrintStack(stdout);
+#endif
 }
 
 extern void _v8_internal_Print_TransitionTree(void* object) {

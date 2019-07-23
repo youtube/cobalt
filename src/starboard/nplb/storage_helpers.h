@@ -15,8 +15,8 @@
 #ifndef STARBOARD_NPLB_STORAGE_HELPERS_H_
 #define STARBOARD_NPLB_STORAGE_HELPERS_H_
 
+#include "starboard/common/storage.h"
 #include "starboard/memory.h"
-#include "starboard/storage.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -28,32 +28,21 @@ const int64_t kStorageSize2 = kStorageSize * 2 + kStorageOffset;
 
 // Deletes the storage for the current user.
 static SB_C_INLINE void ClearStorageRecord() {
-#if SB_API_VERSION >= 6
   SbStorageDeleteRecord(SbUserGetCurrent(), NULL);
-#else   // SB_API_VERSION >= 6
-  SbStorageDeleteRecord(SbUserGetCurrent());
-#endif  // SB_API_VERSION >= 6
 }
 
-#if SB_API_VERSION >= 6
 // Deletes the named storage record for the current user.
 static SB_C_INLINE void ClearStorageRecord(const char* name) {
   SbStorageDeleteRecord(SbUserGetCurrent(), name);
 }
-#endif  // SB_API_VERSION >= 6
 
 // Opens the storage record for the current user, validating that it is valid.
 static SB_C_INLINE SbStorageRecord OpenStorageRecord() {
-#if SB_API_VERSION >= 6
   SbStorageRecord record = SbStorageOpenRecord(SbUserGetCurrent(), NULL);
-#else   // SB_API_VERSION >= 6
-  SbStorageRecord record = SbStorageOpenRecord(SbUserGetCurrent());
-#endif  // SB_API_VERSION >= 6
   EXPECT_TRUE(SbStorageIsValidRecord(record));
   return record;
 }
 
-#if SB_API_VERSION >= 6
 // Opens the named storage record for the current user, validating that it is
 // valid.
 static SB_C_INLINE SbStorageRecord OpenStorageRecord(const char* name) {
@@ -61,7 +50,6 @@ static SB_C_INLINE SbStorageRecord OpenStorageRecord(const char* name) {
   EXPECT_TRUE(SbStorageIsValidRecord(record));
   return record;
 }
-#endif  // SB_API_VERSION >= 6
 
 // Writes a standard pattern of |size| bytes into the given open storage
 // |record|.

@@ -81,13 +81,14 @@
 11-1-1-overflow-hidden-transform
 11-1-1-overflow-hidden-translate
 11-1-1-overflow-scroll
-# These tests are disabled until "scrollLeft" is implemented.
-#11-1-1-overflow-scroll-absolute-positioned-elements-positioned-scroller
-#11-1-1-overflow-scroll-absolute-positioned-elements-unpositioned-scroller
-#11-1-1-overflow-scroll-container-scrolled
-#11-1-1-overflow-scroll-fixed-positioned-elements-positioned-scroller
+11-1-1-overflow-scroll-absolute-positioned-elements-positioned-scroller
+11-1-1-overflow-scroll-absolute-positioned-elements-unpositioned-scroller
+11-1-1-overflow-scroll-container-scrolled
+11-1-1-overflow-scroll-fixed-positioned-elements-transformed-scroller
+11-1-1-overflow-scroll-fixed-positioned-elements-untransformed-scroller
 11-1-1-overflow-scroll-should-affect-descendants-with-z-index
 11-1-1-overflow-scroll-transform
+11-1-1-overflow-scroll-unpositioned-elements-unpositioned-scroller
 11-1-1-overflow-should-affect-descendants-with-z-index
 11-1-1-overflow-should-not-affect-descendants-contained-in-another-block
 11-1-1-overflow-visible

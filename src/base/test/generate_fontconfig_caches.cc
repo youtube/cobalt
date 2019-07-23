@@ -14,7 +14,7 @@
 #include "base/path_service.h"
 #include "base/strings/strcat.h"
 #include "base/test/fontconfig_util_linux.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/types.h"
 
 // GIANT WARNING: The point of this file is to front-load construction of the

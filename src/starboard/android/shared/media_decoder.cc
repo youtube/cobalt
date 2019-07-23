@@ -18,12 +18,12 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
-#if SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
+#if SB_API_VERSION >= 11
 #include "starboard/format_string.h"
-#endif  // SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
-#include "starboard/log.h"
+#endif  // SB_API_VERSION >= 11
+#include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
-#include "starboard/string.h"
 
 namespace starboard {
 namespace android {
@@ -76,7 +76,7 @@ const char* GetDecoderName(SbMediaType media_type) {
 
 MediaDecoder::MediaDecoder(Host* host,
                            SbMediaAudioCodec audio_codec,
-                           const SbMediaAudioHeader& audio_header,
+                           const SbMediaAudioSampleInfo& audio_sample_info,
                            SbDrmSystem drm_system)
     : media_type_(kSbMediaTypeAudio),
       host_(host),
@@ -87,17 +87,17 @@ MediaDecoder::MediaDecoder(Host* host,
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
   media_codec_bridge_ = MediaCodecBridge::CreateAudioMediaCodecBridge(
-      audio_codec, audio_header, this, j_media_crypto);
+      audio_codec, audio_sample_info, this, j_media_crypto);
   if (!media_codec_bridge_) {
     SB_LOG(ERROR) << "Failed to create audio media codec bridge.";
     return;
   }
-  if (audio_header.audio_specific_config_size > 0) {
-    // |audio_header.audio_specific_config| is guaranteed to be outlived the
-    // decoder as it is stored in |FilterBasedPlayerWorkerHandler|.
-    pending_tasks_.push_back(
-        Event(static_cast<const int8_t*>(audio_header.audio_specific_config),
-              audio_header.audio_specific_config_size));
+  if (audio_sample_info.audio_specific_config_size > 0) {
+    // |audio_sample_info.audio_specific_config| is guaranteed to be outlived
+    // the decoder as it is stored in |FilterBasedPlayerWorkerHandler|.
+    pending_tasks_.push_back(Event(
+        static_cast<const int8_t*>(audio_sample_info.audio_specific_config),
+        audio_sample_info.audio_specific_config_size));
     number_of_pending_tasks_.increment();
   }
 }
@@ -201,7 +201,7 @@ void MediaDecoder::DecoderThreadFunc() {
             !input_buffer_indices.empty() || !input_buffer_indices_.empty();
         bool can_process_input =
             pending_queue_input_buffer_task_ || (has_input && has_input_buffer);
-        if (dequeue_output_results.empty() && !can_process_input) {
+        if (dequeue_output_results_.empty() && !can_process_input) {
           if (!condition_variable_.WaitTimed(5 * kSbTimeSecond)) {
             SB_LOG_IF(ERROR, !stream_ended_.load())
                 << GetDecoderName(media_type_) << ": Wait() hits timeout.";
@@ -432,6 +432,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
     return false;
   }
 
+  is_output_restricted_ = false;
   return true;
 }
 
@@ -439,6 +440,11 @@ void MediaDecoder::HandleError(const char* action_name, jint status) {
   SB_DCHECK(status != MEDIA_CODEC_OK);
 
   bool retry = false;
+
+  if (status != MEDIA_CODEC_INSUFFICIENT_OUTPUT_PROTECTION) {
+    is_output_restricted_ = false;
+  }
+
   if (status == MEDIA_CODEC_DEQUEUE_INPUT_AGAIN_LATER) {
     // Don't bother logging a try again later status, it happens a lot.
     return;
@@ -448,6 +454,12 @@ void MediaDecoder::HandleError(const char* action_name, jint status) {
   } else if (status == MEDIA_CODEC_NO_KEY) {
     retry = true;
   } else if (status == MEDIA_CODEC_INSUFFICIENT_OUTPUT_PROTECTION) {
+    // TODO: Reduce the retry frequency when output is restricted, or when
+    // queueSecureInputBuffer() is failed in general.
+    if (is_output_restricted_) {
+      return;
+    }
+    is_output_restricted_ = true;
     drm_system_->OnInsufficientOutputProtection();
   } else {
     error_cb_(kSbPlayerErrorDecode,

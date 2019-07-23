@@ -24,6 +24,7 @@
 #include "net/dial/dial_udp_socket_factory.h"
 #include "net/server/http_server.h"
 #include "net/server/http_server_request_info.h"
+#include "starboard/types.h"
 
 namespace net {
 

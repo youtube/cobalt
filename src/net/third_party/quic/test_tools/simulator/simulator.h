@@ -26,10 +26,6 @@ class Simulator : public QuicConnectionHelperInterface {
   Simulator& operator=(const Simulator&) = delete;
   ~Simulator() override;
 
-  // Register an actor with the simulator.  Returns a handle which the actor can
-  // use to schedule and unschedule itself.
-  void AddActor(Actor* actor);
-
   // Schedule the specified actor.  This method will ensure that |actor| is
   // called at |new_time| at latest.  If Schedule() is called multiple times
   // before the Actor is called, Act() is called exactly once, at the earliest
@@ -70,6 +66,8 @@ class Simulator : public QuicConnectionHelperInterface {
   void RunFor(QuicTime::Delta time_span);
 
  private:
+  friend class Actor;
+
   class Clock : public QuicClock {
    public:
     // Do not start at zero as certain code can treat zero as an invalid
@@ -96,6 +94,12 @@ class Simulator : public QuicConnectionHelperInterface {
     // Pointer to |run_for_should_stop_| in the parent simulator.
     bool* run_for_should_stop_;
   };
+
+  // Register an actor with the simulator. Invoked by Actor constructor.
+  void AddActor(Actor* actor);
+
+  // Unregister an actor with the simulator. Invoked by Actor destructor.
+  void RemoveActor(Actor* actor);
 
   // Finds the next scheduled actor, advances time to the schedule time and
   // notifies the actor.
@@ -126,7 +130,7 @@ class Simulator : public QuicConnectionHelperInterface {
   // For each actor, maintain the time it is scheduled at.  The value for
   // unscheduled actors is QuicTime::Infinite().
   QuicUnorderedMap<Actor*, QuicTime> scheduled_times_;
-  QuicUnorderedSet<std::string> actor_names_;
+  QuicUnorderedSet<QuicString> actor_names_;
 };
 
 template <class TerminationPredicate>

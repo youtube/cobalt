@@ -15,9 +15,9 @@
 #include <app_common.h>
 #include <unistd.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/shared/nouser/user_internal.h"
-#include "starboard/string.h"
 
 namespace starboard {
 namespace shared {

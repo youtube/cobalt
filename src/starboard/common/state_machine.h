@@ -12,7 +12,6 @@
 #include "starboard/configuration.h"
 #include "starboard/export.h"
 
-#ifdef __cplusplus
 namespace starboard {
 
 // An approximate implementation of a run-to-completion (RTC) Hierarchical State
@@ -512,6 +511,5 @@ class StateMachine {
 };
 
 }  // namespace starboard
-#endif  // __cplusplus
 
 #endif  // STARBOARD_COMMON_STATE_MACHINE_H_

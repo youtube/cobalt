@@ -15,8 +15,8 @@
  */
 
 #include "nb/memory_scope.h"
-#include "starboard/mutex.h"
 #include "nb/thread_local_object.h"
+#include "starboard/common/mutex.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 

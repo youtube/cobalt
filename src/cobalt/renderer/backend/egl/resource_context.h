@@ -15,12 +15,11 @@
 #ifndef COBALT_RENDERER_BACKEND_EGL_RESOURCE_CONTEXT_H_
 #define COBALT_RENDERER_BACKEND_EGL_RESOURCE_CONTEXT_H_
 
-#include <EGL/egl.h>
-
 #include <memory>
 #include "base/callback.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread.h"
+#include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {
 namespace renderer {

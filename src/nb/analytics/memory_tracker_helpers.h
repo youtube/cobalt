@@ -26,9 +26,9 @@
 #include "nb/thread_local_boolean.h"
 #include "nb/thread_local_pointer.h"
 #include "starboard/atomic.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
 #include "starboard/memory.h"
-#include "starboard/mutex.h"
 #include "starboard/thread.h"
 #include "starboard/types.h"
 

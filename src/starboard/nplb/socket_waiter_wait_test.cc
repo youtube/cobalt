@@ -14,10 +14,10 @@
 
 #include <utility>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
+#include "starboard/common/socket.h"
 #include "starboard/nplb/socket_helpers.h"
 #include "starboard/nplb/thread_helpers.h"
-#include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"

@@ -6,6 +6,7 @@
 
 #include "net/third_party/quic/core/crypto/proof_verifier.h"
 #include "net/third_party/quic/core/quic_server_id.h"
+#include "net/third_party/quic/core/quic_types.h"
 #include "net/third_party/quic/core/quic_utils.h"
 #include "net/third_party/quic/core/tls_client_handshaker.h"
 #include "net/third_party/quic/platform/api/quic_endian.h"
@@ -81,7 +82,8 @@ TEST_F(QuicCryptoClientConfigTest, CachedState_ServerDesignatedConnectionId) {
   QuicCryptoClientConfig::CachedState state;
   EXPECT_FALSE(state.has_server_designated_connection_id());
 
-  QuicConnectionId connection_id = 1234;
+  uint64_t conn_id = 1234;
+  QuicConnectionId connection_id = TestConnectionId(conn_id);
   state.add_server_designated_connection_id(connection_id);
   EXPECT_TRUE(state.has_server_designated_connection_id());
   EXPECT_EQ(connection_id, state.GetNextServerDesignatedConnectionId());
@@ -89,18 +91,18 @@ TEST_F(QuicCryptoClientConfigTest, CachedState_ServerDesignatedConnectionId) {
 
   // Allow the ID to be set multiple times.  It's unusual that this would
   // happen, but not impossible.
-  ++connection_id;
+  connection_id = TestConnectionId(++conn_id);
   state.add_server_designated_connection_id(connection_id);
   EXPECT_TRUE(state.has_server_designated_connection_id());
   EXPECT_EQ(connection_id, state.GetNextServerDesignatedConnectionId());
-  ++connection_id;
+  connection_id = TestConnectionId(++conn_id);
   state.add_server_designated_connection_id(connection_id);
   EXPECT_EQ(connection_id, state.GetNextServerDesignatedConnectionId());
   EXPECT_FALSE(state.has_server_designated_connection_id());
 
   // Test FIFO behavior.
-  const QuicConnectionId first_cid = 0xdeadbeef;
-  const QuicConnectionId second_cid = 0xfeedbead;
+  const QuicConnectionId first_cid = TestConnectionId(0xdeadbeef);
+  const QuicConnectionId second_cid = TestConnectionId(0xfeedbead);
   state.add_server_designated_connection_id(first_cid);
   state.add_server_designated_connection_id(second_cid);
   EXPECT_TRUE(state.has_server_designated_connection_id());
@@ -199,15 +201,38 @@ TEST_F(QuicCryptoClientConfigTest, InchoateChlo) {
   QuicStringPiece alpn;
   EXPECT_TRUE(msg.GetStringPiece(kALPN, &alpn));
   EXPECT_EQ("hq", alpn);
+
+  EXPECT_EQ(msg.minimum_size(), 1024u);
 }
 
+TEST_F(QuicCryptoClientConfigTest, InchoateChloIsNotPadded) {
+  QuicCryptoClientConfig::CachedState state;
+  QuicCryptoClientConfig config(crypto_test_utils::ProofVerifierForTesting(),
+                                TlsClientHandshaker::CreateSslCtx());
+  config.set_pad_inchoate_hello(false);
+  config.set_user_agent_id("quic-tester");
+  config.set_alpn("hq");
+  QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params(
+      new QuicCryptoNegotiatedParameters);
+  CryptoHandshakeMessage msg;
+  QuicServerId server_id("www.google.com", 443, false);
+  MockRandom rand;
+  config.FillInchoateClientHello(server_id, QuicVersionMax(), &state, &rand,
+                                 /* demand_x509_proof= */ true, params, &msg);
+
+  EXPECT_EQ(msg.minimum_size(), 1u);
+}
+
+// Make sure AES-GCM is the preferred encryption algorithm if it has hardware
+// acceleration.
 TEST_F(QuicCryptoClientConfigTest, PreferAesGcm) {
   QuicCryptoClientConfig config(crypto_test_utils::ProofVerifierForTesting(),
                                 TlsClientHandshaker::CreateSslCtx());
-  if (config.aead.size() > 1)
-    EXPECT_NE(kAESG, config.aead[0]);
-  config.PreferAesGcm();
-  EXPECT_EQ(kAESG, config.aead[0]);
+  if (EVP_has_aes_hardware() == 1) {
+    EXPECT_EQ(kAESG, config.aead[0]);
+  } else {
+    EXPECT_EQ(kCC20, config.aead[0]);
+  }
 }
 
 TEST_F(QuicCryptoClientConfigTest, InchoateChloSecure) {
@@ -290,7 +315,7 @@ TEST_F(QuicCryptoClientConfigTest, FillClientHello) {
                                 TlsClientHandshaker::CreateSslCtx());
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params(
       new QuicCryptoNegotiatedParameters);
-  QuicConnectionId kConnectionId = 1234;
+  QuicConnectionId kConnectionId = TestConnectionId(1234);
   QuicString error_details;
   MockRandom rand;
   CryptoHandshakeMessage chlo;
@@ -304,6 +329,30 @@ TEST_F(QuicCryptoClientConfigTest, FillClientHello) {
   QuicVersionLabel cver;
   EXPECT_EQ(QUIC_NO_ERROR, chlo.GetVersionLabel(kVER, &cver));
   EXPECT_EQ(CreateQuicVersionLabel(QuicVersionMax()), cver);
+}
+
+TEST_F(QuicCryptoClientConfigTest, FillClientHelloNoPadding) {
+  QuicCryptoClientConfig::CachedState state;
+  QuicCryptoClientConfig config(crypto_test_utils::ProofVerifierForTesting(),
+                                TlsClientHandshaker::CreateSslCtx());
+  config.set_pad_full_hello(false);
+  QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params(
+      new QuicCryptoNegotiatedParameters);
+  QuicConnectionId kConnectionId = TestConnectionId(1234);
+  QuicString error_details;
+  MockRandom rand;
+  CryptoHandshakeMessage chlo;
+  QuicServerId server_id("www.google.com", 443, false);
+  config.FillClientHello(server_id, kConnectionId, QuicVersionMax(), &state,
+                         QuicWallTime::Zero(), &rand,
+                         nullptr,  // channel_id_key
+                         params, &chlo, &error_details);
+
+  // Verify that the version label has been set correctly in the CHLO.
+  QuicVersionLabel cver;
+  EXPECT_EQ(QUIC_NO_ERROR, chlo.GetVersionLabel(kVER, &cver));
+  EXPECT_EQ(CreateQuicVersionLabel(QuicVersionMax()), cver);
+  EXPECT_EQ(chlo.minimum_size(), 1u);
 }
 
 TEST_F(QuicCryptoClientConfigTest, ProcessServerDowngradeAttack) {
@@ -329,9 +378,9 @@ TEST_F(QuicCryptoClientConfigTest, ProcessServerDowngradeAttack) {
   QuicCryptoClientConfig config(crypto_test_utils::ProofVerifierForTesting(),
                                 TlsClientHandshaker::CreateSslCtx());
   EXPECT_EQ(QUIC_VERSION_NEGOTIATION_MISMATCH,
-            config.ProcessServerHello(msg, 0, supported_versions.front(),
-                                      supported_versions, &cached, out_params,
-                                      &error));
+            config.ProcessServerHello(
+                msg, EmptyQuicConnectionId(), supported_versions.front(),
+                supported_versions, &cached, out_params, &error));
   EXPECT_THAT(error, StartsWith("Downgrade attack detected: ServerVersions"));
 }
 
@@ -534,9 +583,10 @@ TEST_F(QuicCryptoClientConfigTest, ProcessStatelessReject) {
   // Create a dummy reject message and mark it as stateless.
   CryptoHandshakeMessage rej;
   crypto_test_utils::FillInDummyReject(&rej, /* stateless */ true);
-  const QuicConnectionId kConnectionId = 0xdeadbeef;
+  const QuicConnectionId kConnectionId = TestConnectionId(0xdeadbeef);
   const QuicString server_nonce = "SERVER_NONCE";
-  rej.SetValue(kRCID, kConnectionId);
+  const uint64_t kConnectionId64 = TestConnectionIdToUInt64(kConnectionId);
+  rej.SetValue(kRCID, kConnectionId64);
   rej.SetStringPiece(kServerNonceTag, server_nonce);
 
   // Now process the rejection.
@@ -551,7 +601,8 @@ TEST_F(QuicCryptoClientConfigTest, ProcessStatelessReject) {
                                     AllSupportedTransportVersions().front(), "",
                                     &cached, out_params, &error));
   EXPECT_TRUE(cached.has_server_designated_connection_id());
-  EXPECT_EQ(QuicEndian::NetToHost64(kConnectionId),
+  EXPECT_EQ(TestConnectionId(QuicEndian::NetToHost64(
+                TestConnectionIdToUInt64(kConnectionId))),
             cached.GetNextServerDesignatedConnectionId());
   EXPECT_EQ(server_nonce, cached.GetNextServerNonce());
 }
@@ -594,8 +645,9 @@ TEST_F(QuicCryptoClientConfigTest, ServerNonceinSHLO) {
       new QuicCryptoNegotiatedParameters);
   QuicString error_details;
   EXPECT_EQ(QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER,
-            config.ProcessServerHello(msg, 0, version, supported_versions,
-                                      &cached, out_params, &error_details));
+            config.ProcessServerHello(msg, EmptyQuicConnectionId(), version,
+                                      supported_versions, &cached, out_params,
+                                      &error_details));
   EXPECT_EQ("server hello missing server nonce", error_details);
 }
 

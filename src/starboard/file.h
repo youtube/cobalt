@@ -88,7 +88,7 @@ typedef enum SbFileError {
   kSbFileErrorNotAFile = -13,
   kSbFileErrorNotEmpty = -14,
   kSbFileErrorInvalidUrl = -15,
-#if SB_API_VERSION >= SB_FILE_ERROR_IO_API_VERSION
+#if SB_API_VERSION >= 11
   kSbFileErrorIO = -16,
   kSbFileErrorMax = -17,
 #else

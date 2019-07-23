@@ -35,9 +35,9 @@
 #include "nb/concurrent_map.h"
 #include "nb/memory_scope.h"
 #include "starboard/common/semaphore.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/file.h"
-#include "starboard/string.h"
 #include "starboard/system.h"
 
 namespace cobalt {

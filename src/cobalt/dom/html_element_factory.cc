@@ -16,6 +16,7 @@
 
 #include "base/bind.h"
 #include "cobalt/dom/html_anchor_element.h"
+#include "cobalt/dom/html_audio_element.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_br_element.h"
 #include "cobalt/dom/html_div_element.h"
@@ -58,6 +59,7 @@ scoped_refptr<HTMLElement> CreateHTMLElementWithTagNameT(
 HTMLElementFactory::HTMLElementFactory() {
   // Register HTML elements that have only one tag name in the map.
   RegisterHTMLElementWithSingleTagName<HTMLAnchorElement>();
+  RegisterHTMLElementWithSingleTagName<HTMLAudioElement>();
   RegisterHTMLElementWithSingleTagName<HTMLBodyElement>();
   RegisterHTMLElementWithSingleTagName<HTMLBRElement>();
   RegisterHTMLElementWithSingleTagName<HTMLDivElement>();

@@ -63,7 +63,7 @@ class HTMLVideoElement : public HTMLMediaElement {
  private:
   // Thread checker ensures that HTMLMediaElement::GetVideoFrameProvider() is
   // only called from the thread that the HTMLMediaElement is created in.
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   DISALLOW_COPY_AND_ASSIGN(HTMLVideoElement);
 };

@@ -14,7 +14,7 @@
 
 #include "starboard/blitter.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/blittergles/blitter_internal.h"
 
 SbBlitterRenderTarget SbBlitterGetRenderTargetFromSwapChain(

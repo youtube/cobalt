@@ -6,7 +6,7 @@
 #include "base/generated_build_date.h"
 #include "base/time/time.h"
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 TEST(BuildTime, DateLooksValid) {

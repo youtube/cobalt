@@ -1,0 +1,294 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\vpx\src\vpx_decoder.c" />
+    <ClCompile Include="..\vpx\src\vpx_codec.c" />
+    <ClCompile Include="..\vpx\src\vpx_image.c" />
+    <ClCompile Include="..\vpx_mem\vpx_mem.c" />
+    <ClCompile Include="..\vpx_scale\generic\vpx_scale.c" />
+    <ClCompile Include="..\vpx_scale\generic\yv12config.c" />
+    <ClCompile Include="..\vpx_scale\generic\yv12extend.c" />
+    <ClCompile Include="..\vpx_scale\generic\gen_scalers.c" />
+    <ClCompile Include="..\vp9\common\vp9_blockd.c" />
+    <ClCompile Include="..\vp9\common\vp9_debugmodes.c" />
+    <ClCompile Include="..\vp9\common\vp9_entropy.c" />
+    <ClCompile Include="..\vp9\common\vp9_entropymode.c" />
+    <ClCompile Include="..\vp9\common\vp9_entropymv.c" />
+    <ClCompile Include="..\vp9\common\vp9_pred_common.c" />
+    <ClCompile Include="..\vp9\common\vp9_prob.c" />
+    <ClCompile Include="..\vp9\common\vp9_scale.c" />
+    <ClCompile Include="..\vp9\common\vp9_seg_common.c" />
+    <ClCompile Include="..\vp9\common\vp9_thread.c" />
+    <ClCompile Include="..\vp9\common\vp9_tile_common.c" />
+    <ClCompile Include="..\vp9\common\vp9_loopfilter.c" />
+    <ClCompile Include="..\vp9\common\vp9_mvref_common.c" />
+    <ClCompile Include="..\vp9\common\vp9_quant_common.c" />
+    <ClCompile Include="..\vp9\common\vp9_common_data.c" />
+    <ClCompile Include="..\vp9\common\vp9_scan.c" />
+    <ClCompile Include="..\vp9\vp9_dx_iface.c" />
+    <ClCompile Include="..\vp9\decoder\vp9_decodemv.c" />
+    <ClCompile Include="..\vp9\decoder\vp9_decodeframe.c" />
+    <ClCompile Include="..\vp9\decoder\vp9_detokenize.c" />
+    <ClCompile Include="..\vp9\decoder\vp9_reader.c" />
+    <ClCompile Include="..\vp9\decoder\vp9_read_bit_buffer.c" />
+    <ClCompile Include="..\vp9\decoder\vp9_decoder.c" />
+    <ClCompile Include="..\vp9\decoder\vp9_dsubexp.c" />
+    <ClCompile Include="..\vp9\decoder\vp9lux_thread.c">
+      <Filter>lux</Filter>
+    </ClCompile>
+    <ClCompile Include="..\vpx_scale\vpx_scale_rtcd.c" />
+    <ClCompile Include="..\vp9\decoder\vp9lux_decode_block.cpp">
+      <Filter>lux</Filter>
+    </ClCompile>
+    <ClCompile Include="..\vp9\decoder\vp9lux_inter.cpp">
+      <Filter>lux</Filter>
+    </ClCompile>
+    <ClCompile Include="..\vp9\decoder\vp9lux_transform.cpp">
+      <Filter>lux</Filter>
+    </ClCompile>
+    <ClCompile Include="..\vp9\decoder\vp9lux_gpu_programs.cpp">
+      <Filter>lux</Filter>
+    </ClCompile>
+    <ClCompile Include="..\vp9\decoder\vp9lux_gpu_mem_ps4.cpp">
+      <Filter>lux</Filter>
+    </ClCompile>
+    <ClCompile Include="..\vp9\decoder\vp9lux_dec.cpp">
+      <Filter>lux</Filter>
+    </ClCompile>
+    <ClCompile Include="..\vp9\decoder\vp9lux_loopfilter.cpp">
+      <Filter>lux</Filter>
+    </ClCompile>
+    <ClCompile Include="..\vp9\decoder\vp9lux_intra.cpp">
+      <Filter>lux</Filter>
+    </ClCompile>
+    <ClCompile Include="..\vp9\decoder\vp9lux_linear_allocator.cpp">
+      <Filter>lux</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\vpx\vpx_decoder.h" />
+    <ClInclude Include="..\vpx\internal\vpx_codec_internal.h" />
+    <ClInclude Include="..\vpx\vpx_codec.h" />
+    <ClInclude Include="..\vpx\vpx_frame_buffer.h" />
+    <ClInclude Include="..\vpx\vpx_image.h" />
+    <ClInclude Include="..\vpx\vpx_integer.h" />
+    <ClInclude Include="..\vpx_mem\vpx_mem.h" />
+    <ClInclude Include="..\vpx_mem\include\vpx_mem_intrnl.h" />
+    <ClInclude Include="..\vpx_scale\yv12config.h" />
+    <ClInclude Include="..\vpx_scale\vpx_scale.h" />
+    <ClInclude Include="..\vpx_ports\asm_offsets.h" />
+    <ClInclude Include="..\vpx_ports\mem.h" />
+    <ClInclude Include="..\vpx_ports\vpx_timer.h" />
+    <ClInclude Include="..\vpx_ports\x86.h" />
+    <ClInclude Include="..\vp9\common\vp9_ppflags.h" />
+    <ClInclude Include="..\vp9\common\vp9_filter.h" />
+    <ClInclude Include="..\vp9\common\vp9_frame_buffers.h" />
+    <ClInclude Include="..\vp9\common\vp9_blockd.h" />
+    <ClInclude Include="..\vp9\common\vp9_common.h" />
+    <ClInclude Include="..\vp9\common\vp9_entropy.h" />
+    <ClInclude Include="..\vp9\common\vp9_entropymode.h" />
+    <ClInclude Include="..\vp9\common\vp9_entropymv.h" />
+    <ClInclude Include="..\vp9\common\vp9_enums.h" />
+    <ClInclude Include="..\vp9\common\vp9_loopfilter.h" />
+    <ClInclude Include="..\vp9\common\vp9_mv.h" />
+    <ClInclude Include="..\vp9\common\vp9_pred_common.h" />
+    <ClInclude Include="..\vp9\common\vp9_prob.h" />
+    <ClInclude Include="..\vp9\common\vp9_quant_common.h" />
+    <ClInclude Include="..\vp9\common\vp9_scale.h" />
+    <ClInclude Include="..\vp9\common\vp9_seg_common.h" />
+    <ClInclude Include="..\vp9\common\vp9_systemdependent.h" />
+    <ClInclude Include="..\vp9\common\vp9_textblit.h" />
+    <ClInclude Include="..\vp9\common\vp9_thread.h" />
+    <ClInclude Include="..\vp9\common\vp9_tile_common.h" />
+    <ClInclude Include="..\vp9\common\vp9_mvref_common.h" />
+    <ClInclude Include="..\vp9\common\vp9_common_data.h" />
+    <ClInclude Include="..\vp9\common\vp9_scan.h" />
+    <ClInclude Include="..\vp9\decoder\vp9_decodeframe.h" />
+    <ClInclude Include="..\vp9\decoder\vp9_dthread.h" />
+    <ClInclude Include="..\vp9\decoder\vp9_reader.h" />
+    <ClInclude Include="..\vp9\decoder\vp9_read_bit_buffer.h" />
+    <ClInclude Include="..\vp9\decoder\vp9_decodemv.h" />
+    <ClInclude Include="..\vp9\decoder\vp9_detokenize.h" />
+    <ClInclude Include="..\vp9\decoder\vp9_decoder.h" />
+    <ClInclude Include="..\vp9\decoder\vp9_dsubexp.h" />
+    <ClInclude Include="..\vpx_ports\emmintrin_compat.h" />
+    <ClInclude Include="..\vpx_ports\mem_ops.h" />
+    <ClInclude Include="..\vpx_ports\mem_ops_aligned.h" />
+    <ClInclude Include="..\vp9\decoder\vp9lux_types.h">
+      <Filter>lux</Filter>
+    </ClInclude>
+    <ClInclude Include="..\vp9\decoder\vp9lux_decode_block.h">
+      <Filter>lux</Filter>
+    </ClInclude>
+    <ClInclude Include="..\vp9\decoder\vp9lux_intra_modes_table_binary.h">
+      <Filter>lux</Filter>
+    </ClInclude>
+    <ClInclude Include="..\vp9\common\vp9lux_log.h">
+      <Filter>lux</Filter>
+    </ClInclude>
+    <ClInclude Include="..\vp9\decoder\vp9lux_thread.h">
+      <Filter>lux</Filter>
+    </ClInclude>
+    <ClInclude Include="vpx_scale_rtcd.h" />
+    <ClInclude Include="..\vpx\vpx_hw_image.h" />
+    <ClInclude Include="..\vp9\decoder\kernels\pssl_common.h">
+      <Filter>lux\kernels</Filter>
+    </ClInclude>
+    <ClInclude Include="..\vp9\decoder\kernels\pssl_idct_base.h">
+      <Filter>lux\kernels</Filter>
+    </ClInclude>
+    <ClInclude Include="..\vp9\decoder\kernels\pssl_inter_common.h">
+      <Filter>lux\kernels</Filter>
+    </ClInclude>
+    <ClInclude Include="..\vp9\decoder\vp9lux_inter.h">
+      <Filter>lux</Filter>
+    </ClInclude>
+    <ClInclude Include="..\vp9\decoder\vp9lux_transform.h">
+      <Filter>lux</Filter>
+    </ClInclude>
+    <ClInclude Include="..\vp9\decoder\vp9lux_gpu_programs.h">
+      <Filter>lux</Filter>
+    </ClInclude>
+    <ClInclude Include="..\vp9\decoder\vp9lux_dec.h">
+      <Filter>lux</Filter>
+    </ClInclude>
+    <ClInclude Include="..\vp9\decoder\vp9lux_loopfilter.h">
+      <Filter>lux</Filter>
+    </ClInclude>
+    <ClInclude Include="..\vp9\decoder\vp9lux_intra.h">
+      <Filter>lux</Filter>
+    </ClInclude>
+    <ClInclude Include="..\vp9\common\vp9_onyxc_int.h" />
+    <ClInclude Include="..\vp9\decoder\vp9lux_linear_allocator.h">
+      <Filter>lux</Filter>
+    </ClInclude>
+    <ClInclude Include="..\vp9\decoder\kernels\pssl_intra_common.h">
+      <Filter>lux\kernels</Filter>
+    </ClInclude>
+    <ClInclude Include="..\vp9\decoder\kernels\pssl_genblock_common.h">
+      <Filter>lux\kernels</Filter>
+    </ClInclude>
+    <ClInclude Include="..\vp9\decoder\kernels\pssl_lf_common.h">
+      <Filter>lux\kernels</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\vpx.def" />
+    <None Include="..\vpx\vpx_codec.mk" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="lux">
+      <UniqueIdentifier>{9c8917ac-b928-40c6-b3e4-6014d514ece6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lux\kernels">
+      <UniqueIdentifier>{7e8d8f3b-6882-4b26-a6a1-9d61b33b1f82}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="asm">
+      <UniqueIdentifier>{6c274781-a394-48cf-baf1-485def749ece}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\idct_4x4full_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\idct_8x8full_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\idct_16x16full_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\idct_32x32full_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_compound_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_main_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\intra_main_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\lf_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_ext_borders_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\idct_4x4lossless_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_main_copy_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_main_ver_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_main_hor_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_resize_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_resize_compound_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\gen_blocks_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\gen_blocks_lf_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\idct_clear_block_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\idct_4x4full_hbd_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\idct_4x4lossless_hbd_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\idct_8x8full_hbd_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\idct_16x16full_hbd_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\idct_32x32full_hbd_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\intra_main_hbd_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\intra_fillborder_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_main_hbd_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_compound_hbd_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_copy_hbd_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_ext_borders_hbd_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_hor_hbd_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_resize_compound_hbd_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_resize_hbd_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_ver_hbd_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\lf_hbd_c.pssl">
+      <Filter>lux\kernels</Filter>
+    </Compile_PSSL_To_Header>
+  </ItemGroup>
+</Project>

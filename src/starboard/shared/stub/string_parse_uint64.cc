@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 uint64_t SbStringParseUInt64(const char* /*start*/,
                              char** /*out_end*/,

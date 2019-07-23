@@ -22,26 +22,14 @@
       'type': '<(final_executable_type)',
       'conditions': [
         ['sb_evergreen != 1', {
+          'sources': [
+            'main.cc',
+          ],
           'dependencies': [
             '<(DEPTH)/cobalt/browser/browser.gyp:browser',
             '<(DEPTH)/net/net.gyp:net',
           ],
           'conditions': [
-            ['clang and target_os not in ["tvos", "android", "orbis"] and sb_target_platform not in ["linux-x64x11-clang-3-6", "linux-x86x11"]', {
-              'dependencies': [
-                '<(DEPTH)/third_party/musl/musl.gyp:c'
-              ],
-            }],
-            ['cobalt_enable_lib == 1', {
-              'sources': [
-                'lib/cobalt.def',
-                'lib/main.cc',
-              ],
-            }, {
-              'sources': [
-                'main.cc',
-              ],
-            }],
             ['cobalt_splash_screen_file != ""', {
               'dependencies': [
                 '<(DEPTH)/cobalt/browser/splash_screen/splash_screen.gyp:copy_splash_screen',
@@ -58,8 +46,8 @@
             '-Wl,--no-whole-archive',
           ],
           'dependencies': [
-            '<(DEPTH)/starboard/starboard.gyp:starboard_full',
             '<(DEPTH)/cobalt/browser/cobalt.gyp:cobalt_evergreen',
+            '<(DEPTH)/starboard/starboard.gyp:starboard_full',
           ],
         }],
       ],
@@ -99,13 +87,10 @@
             '<(DEPTH)/cobalt/base/base.gyp:base',
             '<(DEPTH)/cobalt/browser/browser.gyp:browser',
             '<(DEPTH)/net/net.gyp:net',
+            '<(DEPTH)/starboard/common/common.gyp:common',
           ],
           'sources': [
             'main.cc',
-          ],
-          # TODO: Remove once the log.h is refactored to have only C linkage dependencies.
-          'ldflags': [
-            'obj/starboard/common/common.log_message.cc.o',
           ],
           'ldflags/': [
             ['exclude', '-Wl,--wrap=eglSwapBuffers'],
@@ -114,6 +99,7 @@
             ['clang and target_os not in ["tvos", "android", "orbis"] and sb_target_platform not in ["linux-x64x11-clang-3-6", "linux-x86x11"]', {
               'dependencies': [
                 '<(DEPTH)/third_party/musl/musl.gyp:c',
+                '<(DEPTH)/third_party/llvm-project/compiler-rt/compiler-rt.gyp:compiler_rt',
                 '<(DEPTH)/third_party/llvm-project/libunwind/libunwind.gyp:unwind',
                 '<(DEPTH)/third_party/llvm-project/libcxxabi/libcxxabi.gyp:cxxabi',
                 '<(DEPTH)/third_party/llvm-project/libcxx/libcxx.gyp:cxx',

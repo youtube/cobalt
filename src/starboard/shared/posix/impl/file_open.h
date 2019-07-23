@@ -23,7 +23,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/posix/handle_eintr.h"
 
 #include "starboard/shared/internal_only.h"
@@ -127,7 +127,7 @@ SbFile FileOpen(const char* path,
         case ENOTDIR:
           *out_error = kSbFileErrorNotADirectory;
           break;
-#if SB_API_VERSION >= SB_FILE_ERROR_IO_API_VERSION
+#if SB_API_VERSION >= 11
         case EIO:
           *out_error = kSbFileErrorIO;
           break;

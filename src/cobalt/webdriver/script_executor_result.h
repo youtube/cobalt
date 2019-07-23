@@ -47,7 +47,7 @@ class ScriptExecutorResult : public script::Wrappable {
       : result_handler_(handler) {}
 
   void OnResult(const std::string& result) {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     if (result_handler_) {
       result_handler_->OnResult(result);
       result_handler_ = NULL;
@@ -55,7 +55,7 @@ class ScriptExecutorResult : public script::Wrappable {
   }
 
   void OnTimeout() {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     if (result_handler_) {
       result_handler_->OnTimeout();
       result_handler_ = NULL;
@@ -65,7 +65,7 @@ class ScriptExecutorResult : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(ScriptExecutorResult);
 
  private:
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   ResultHandler* result_handler_;
 };
 

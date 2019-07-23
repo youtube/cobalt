@@ -14,9 +14,9 @@
 
 #include "starboard/image.h"
 
+#include "starboard/common/string.h"
 #include "starboard/decode_target.h"
 #include "starboard/shared/starboard/application.h"
-#include "starboard/string.h"
 
 bool SbImageIsDecodeSupported(const char* mime_type,
                               SbDecodeTargetFormat format) {

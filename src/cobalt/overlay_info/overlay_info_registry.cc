@@ -16,8 +16,8 @@
 
 #include "base/logging.h"
 #include "base/memory/singleton.h"
-#include "starboard/mutex.h"
-#include "starboard/string.h"
+#include "starboard/common/mutex.h"
+#include "starboard/common/string.h"
 
 namespace cobalt {
 namespace overlay_info {

@@ -57,7 +57,7 @@ const JSErrorFormatString* GetErrorMessage(void* user_ref,
 
 void MozjsExceptionState::SetException(
     const scoped_refptr<ScriptException>& exception) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!is_exception_set_);
 
   MozjsGlobalEnvironment* global_environment =
@@ -77,7 +77,7 @@ void MozjsExceptionState::SetException(
 void MozjsExceptionState::SetSimpleExceptionVA(SimpleExceptionType type,
                                                const char* format,
                                                va_list arguments) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!is_exception_set_);
 
   std::string error_message = base::StringPrintV(format, arguments);

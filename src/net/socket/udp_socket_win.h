@@ -305,7 +305,7 @@ class NET_EXPORT UDPSocketWin : public base::win::ObjectWatcher::Delegate {
   int SetDiffServCodePoint(DiffServCodePoint dscp);
 
   // Resets the thread to be used for thread-safety checks.
-  void DetachFromThread();
+  DETACH_FROM_THREAD(void);
 
   // This class by default uses overlapped IO. Call this method before Open()
   // to switch to non-blocking IO.

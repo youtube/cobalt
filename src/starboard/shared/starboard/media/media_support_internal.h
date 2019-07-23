@@ -27,17 +27,42 @@ extern "C" {
 // |video_codec|. If |video_codec| is not supported under any condition, this
 // function returns |false|.
 //
-// Setting any of the parameters to |0| indicates that they shouldn't be
-// considered.
-//
 // |video_codec|: The video codec used in the media content.
-// |frame_width|: The frame width of the media content.
-// |frame_height|: The frame height of the media content.
-// |bitrate|: The bitrate of the media content.
-// |fps|: The number of frames per second in the media content.
+// |profile|: The profile in the context of |video_codec|.  It should be set to
+//            -1 when it is unknown or not applicable.
+// |level|: The level in the context of |video_codec|.  It should be set to -1
+//          when it is unknown or not applicable.
+// |bit_depth|: The color bit depth of the video.  It should be set to 8 for SDR
+//              videos, and set to 10 or 12 for HDR videos.
+// |primary_id|: The colour primaries of the video.  See definition for
+//               |SbMediaPrimaryId| in `media.h` for more details.  It should be
+//               set to |kSbMediaPrimaryIdUnspecified| when it is unknown.
+// |transfer_id|: The transfer characteristics of the video.  See definition
+//                for |SbMediaTransferId| in `media.h` for more details.  It
+//                should be set to |kSbMediaTransferIdUnspecified| when it is
+//                unknown.
+// |matrix_id|: The matrix coefficients of the video.  See definition for
+//                |SbMediaMatrixId| in `media.h` for more details.  It should be
+//                set to |kSbMediaMatrixIdUnspecified| when it is unknown.
+// |frame_width|: The frame width of the media content.  When set to 0, it
+//                indicates that the frame width shouldn't be considered.
+// |frame_height|: The frame height of the media content.  When set to 0, it
+//                indicates that the frame height shouldn't be considered.
+// |bitrate|: The bitrate of the media content.  When set to 0, it indicates
+//            that the bitrate shouldn't be considered.
+// |fps|: The number of frames per second in the media content.  When set to 0,
+//        it indicates that the fps shouldn't be considered.
 // |decode_to_texture_required|: Whether or not the resulting video frames can
 //                               be decoded and used as textures by the GPU.
 SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
+#if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
+                                       int profile,
+                                       int level,
+                                       int bit_depth,
+                                       SbMediaPrimaryId primary_id,
+                                       SbMediaTransferId transfer_id,
+                                       SbMediaMatrixId matrix_id,
+#endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
                                        int frame_width,
                                        int frame_height,
                                        int64_t bitrate,
@@ -46,10 +71,6 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                                        ,
                                        bool decode_to_texture_required
 #endif  // SB_API_VERSION >= 10
-#if SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
-                                       ,
-                                       SbMediaTransferId eotf
-#endif  // SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
                                        );
 
 // Indicates whether this platform supports |audio_codec| at |bitrate|.
@@ -61,7 +82,7 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
 SB_EXPORT bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
                                        int64_t bitrate);
 
-#if !SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
+#if !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 // Indicates whether this platform supports |transfer_id| as a transfer
 // characteristics.  If |transfer_id| is not supported under any condition, this
 // function returns |false|.
@@ -69,7 +90,7 @@ SB_EXPORT bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
 // |transfer_id|: The id of transfer charateristics listed in SbMediaTransferId.
 SB_EXPORT bool SbMediaIsTransferCharacteristicsSupported(
     SbMediaTransferId transfer_id);
-#endif  // !SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
+#endif  // !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 
 #ifdef __cplusplus
 }  // extern "C"

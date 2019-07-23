@@ -38,7 +38,7 @@
 #ifndef STARBOARD
 #include <string.h>
 #else
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #endif  // STARBOARD
 
 #include <google/protobuf/stubs/common.h>

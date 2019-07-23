@@ -4,9 +4,9 @@
 
 #include "starboard/character.h"
 #include "starboard/client_porting/eztime/eztime.h"
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/file.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
 #include "starboard/system.h"

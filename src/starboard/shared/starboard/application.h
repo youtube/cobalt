@@ -21,11 +21,11 @@
 #include <vector>
 
 #include "starboard/atomic.h"
+#include "starboard/common/condition_variable.h"
+#include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
-#include "starboard/condition_variable.h"
 #include "starboard/event.h"
-#include "starboard/log.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/command_line.h"

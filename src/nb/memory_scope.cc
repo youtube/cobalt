@@ -15,8 +15,8 @@
  */
 
 #include "nb/memory_scope.h"
-#include "starboard/log.h"
 #include "starboard/atomic.h"
+#include "starboard/common/log.h"
 
 NbMemoryScopeReporter* s_memory_reporter_ = NULL;
 

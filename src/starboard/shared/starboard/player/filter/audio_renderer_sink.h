@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_SINK_H_
 
 #include "starboard/audio_sink.h"
+#include "starboard/shared/internal_only.h"
 #include "starboard/time.h"
 
 namespace starboard {

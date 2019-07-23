@@ -14,8 +14,8 @@
 
 #include <string.h>
 
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -81,7 +81,7 @@ TEST(SbSystemGetPropertyTest, ReturnsRequired) {
 
   BasicTest(kSbSystemPropertyChipsetModelNumber, false, true, __LINE__);
   BasicTest(kSbSystemPropertyFirmwareVersion, false, true, __LINE__);
-#if SB_API_VERSION >= SB_ODM_VERSION
+#if SB_API_VERSION >= 11
   BasicTest(kSbSystemPropertyOriginalDesignManufacturerName,
             false, true, __LINE__);
 #else
@@ -126,7 +126,7 @@ TEST(SbSystemGetPropertyTest, DoesNotTouchOutputBufferOnFailureForDefinedIds) {
   UnmodifiedOnFailureTest(kSbSystemPropertyBrandName, __LINE__);
   UnmodifiedOnFailureTest(kSbSystemPropertyModelName, __LINE__);
   UnmodifiedOnFailureTest(kSbSystemPropertyModelYear, __LINE__);
-#if SB_API_VERSION >= SB_ODM_VERSION
+#if SB_API_VERSION >= 11
   UnmodifiedOnFailureTest(kSbSystemPropertyOriginalDesignManufacturerName,
                           __LINE__);
 #else
@@ -160,7 +160,7 @@ TEST(SbSystemGetPropertyTest, SpeechApiKeyNotLeaked) {
     kSbSystemPropertyManufacturerName,
     kSbSystemPropertyModelName,
     kSbSystemPropertyModelYear,
-#if SB_API_VERSION >= SB_ODM_VERSION
+#if SB_API_VERSION >= 11
     kSbSystemPropertyOriginalDesignManufacturerName,
 #else
     kSbSystemPropertyNetworkOperatorName,

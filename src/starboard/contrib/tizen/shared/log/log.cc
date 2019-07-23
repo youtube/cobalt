@@ -14,10 +14,16 @@
 * limitations under the License.
 */
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 #include <dlog/dlog.h>
 #include <string.h>
+
+#include "starboard/configuration.h"
+
+#if defined(SB_LOG_SYNCHRONIZATION)
+#include "starboard/shared/starboard/log_mutex.h"
+#endif  // defined(SB_LOG_SYNCHRONIZATION)
 
 #ifdef LOG_TAG
 #undef LOG_TAG
@@ -45,5 +51,11 @@ void SbLog(SbLogPriority priority, const char* message) {
       break;
   }
 
+#if !defined(SB_LOG_SYNCHRONIZATION)
   dlog_print(dlog_priority, LOG_TAG, "%s", message);
+#else   // defined(SB_LOG_SYNCHRONIZATION)
+  starboard::shared::starboard::GetLoggingMutex()->Acquire();
+  dlog_print(dlog_priority, LOG_TAG, "%s", message);
+  starboard::shared::starboard::GetLoggingMutex()->Release();
+#endif  // !defined(SB_LOG_SYNCHRONIZATION)
 }

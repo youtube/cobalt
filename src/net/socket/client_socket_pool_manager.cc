@@ -166,7 +166,13 @@ int InitSocketPoolHelper(ClientSocketPoolManager::SocketGroupType group_type,
                                   resolution_callback,
                                   non_ssl_combine_connect_and_write_policy));
 
+#if defined(COBALT_QUIC46)
+    // HTTPS QUIC proxy should be disabled, these changes can be removed
+    // in next rebase.
+    if (proxy_info.is_http() || proxy_info.is_https()) {
+#else
     if (proxy_info.is_http() || proxy_info.is_https() || proxy_info.is_quic()) {
+#endif
       // TODO(mmenke):  Would it be better to split these into two different
       //     socket pools?  And maybe socks4/socks5 as well?
       if (proxy_info.is_http()) {
@@ -179,7 +185,13 @@ int InitSocketPoolHelper(ClientSocketPoolManager::SocketGroupType group_type,
       request_extra_headers.GetHeader(HttpRequestHeaders::kUserAgent,
                                       &user_agent);
       scoped_refptr<SSLSocketParams> ssl_params;
+#if defined(COBALT_QUIC46)
+      // HTTPS QUIC proxy should be disabled, these changes can be removed
+      // in next rebase.
+      if (proxy_info.is_https()) {
+#else
       if (!proxy_info.is_http()) {
+#endif
         proxy_tcp_params = new TransportSocketParams(
             *proxy_host_port, disable_resolver_cache, resolution_callback,
             ssl_combine_connect_and_write_policy);

@@ -97,7 +97,7 @@ class NET_EXPORT_PRIVATE NetworkQualityStore {
   base::ObserverList<NetworkQualitiesCacheObserver>::Unchecked
       network_qualities_cache_observer_list_;
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   base::WeakPtrFactory<NetworkQualityStore> weak_ptr_factory_;
 

@@ -10,8 +10,9 @@ namespace quic {
 
 std::unique_ptr<QuicSpdyClientStream>
 QuicSimpleClientSession::CreateClientStream() {
-  return QuicMakeUnique<QuicSimpleClientStream>(GetNextOutgoingStreamId(), this,
-                                                drop_response_body_);
+  return QuicMakeUnique<QuicSimpleClientStream>(
+      GetNextOutgoingBidirectionalStreamId(), this, BIDIRECTIONAL,
+      drop_response_body_);
 }
 
 }  // namespace quic

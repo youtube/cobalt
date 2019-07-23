@@ -5,7 +5,7 @@
 #include "url/gurl.h"
 #include "base/macros.h"
 #include "base/strings/utf_string_conversions.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/url_canon.h"

@@ -17,8 +17,8 @@
 
 #include <map>
 
+#include "starboard/common/socket.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/thread.h"
 #include "starboard/types.h"

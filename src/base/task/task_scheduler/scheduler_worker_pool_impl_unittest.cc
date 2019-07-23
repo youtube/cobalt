@@ -1414,9 +1414,8 @@ TEST(TaskSchedulerWorkerPoolOverCapacityTest, VerifyCleanup) {
 // Verify that the maximum number of workers is 256 and that hitting the max
 // leaves the pool in a valid state with regards to max tasks.
 TEST_F(TaskSchedulerWorkerPoolBlockingTest, MaximumWorkersTest) {
-#ifdef STARBOARDD
-  // Devices like Raspberry Pi is unalbe to create 256 threads at once.
-  constexpr size_t kMaxNumberOfWorkers = 128;
+#ifdef STARBOARD
+  constexpr size_t kMaxNumberOfWorkers = SB_MAX_THREADS;
 #else
   constexpr size_t kMaxNumberOfWorkers = 256;
 #endif
@@ -1665,9 +1664,8 @@ INSTANTIATE_TEST_CASE_P(
 // Verify that worker detachement doesn't race with worker cleanup, regression
 // test for https://crbug.com/810464.
 TEST_F(TaskSchedulerWorkerPoolImplStartInBodyTest, RacyCleanup) {
-#ifdef STARBOARDD
-  // Devices like Raspberry Pi is unalbe to create 256 threads at once.
-  constexpr size_t kLocalMaxTasks = 128;
+#ifdef STARBOARD
+  constexpr size_t kLocalMaxTasks = SB_MAX_THREADS;
 #else
 #if defined(OS_FUCHSIA)
   // Fuchsia + QEMU doesn't deal well with *many* threads being

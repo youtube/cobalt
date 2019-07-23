@@ -19,18 +19,18 @@
 #include <functional>
 #include <set>
 
+#include "starboard/common/condition_variable.h"
+#include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
-#include "starboard/condition_variable.h"
+#include "starboard/common/string.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"
-#include "starboard/mutex.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
-#include "starboard/string.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
@@ -80,6 +80,14 @@ std::string GetTestInputDirectory() {
   return directory_path;
 }
 
+void DeallocateSampleFunc(SbPlayer player,
+                          void* context,
+                          const void* sample_buffer) {
+  SB_UNREFERENCED_PARAMETER(player);
+  SB_UNREFERENCED_PARAMETER(context);
+  SB_UNREFERENCED_PARAMETER(sample_buffer);
+}
+
 std::string ResolveTestFileName(const char* filename) {
   return GetTestInputDirectory() + SB_FILE_SEP_CHAR + filename;
 }
@@ -101,11 +109,12 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
     SB_LOG(INFO) << "Testing " << GetParam().filename;
   }
 
+  ~VideoDecoderTest() { video_decoder_->Reset(); }
+
   void SetUp() override {
     ASSERT_NE(dmp_reader_.video_codec(), kSbMediaVideoCodecNone);
     ASSERT_GT(dmp_reader_.number_of_video_buffers(), 0);
-    ASSERT_TRUE(
-        dmp_reader_.GetVideoInputBuffer(0)->video_sample_info()->is_key_frame);
+    ASSERT_TRUE(GetVideoInputBuffer(0)->video_sample_info().is_key_frame);
 
     SbPlayerOutputMode output_mode = GetParam().output_mode;
     ASSERT_TRUE(VideoDecoder::OutputModeSupported(
@@ -160,6 +169,16 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
     ScopedLock scoped_lock(mutex_);
     event_queue_.push_back(Event(kError, NULL));
   }
+
+#if SB_HAS(GLES2)
+  void AssertInvalidDecodeTarget() {
+    if (GetParam().output_mode == kSbPlayerOutputModeDecodeToTexture) {
+      auto decode_target = video_decoder_->GetCurrentDecodeTarget();
+      ASSERT_FALSE(SbDecodeTargetIsValid(decode_target));
+      fake_graphics_context_provider_.ReleaseDecodeTarget(decode_target);
+    }
+  }
+#endif  // SB_HAS(GLES2)
 
  protected:
   enum Status {
@@ -220,15 +239,15 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
     return !event_queue_.empty();
   }
 
+  void AssertValidDecodeTargetWhenSupported() {
 #if SB_HAS(GLES2)
-  void AssertValidDecodeTarget() {
     if (GetParam().output_mode == kSbPlayerOutputModeDecodeToTexture) {
-      SbDecodeTarget decode_target = video_decoder_->GetCurrentDecodeTarget();
+      auto decode_target = video_decoder_->GetCurrentDecodeTarget();
       ASSERT_TRUE(SbDecodeTargetIsValid(decode_target));
       fake_graphics_context_provider_.ReleaseDecodeTarget(decode_target);
     }
-  }
 #endif  // SB_HAS(GLES2)
+  }
 
   // This has to be called when the decoder is just initialized/reseted or when
   // status is |kNeedMoreInput|.
@@ -236,7 +255,7 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
     ASSERT_TRUE(need_more_input_);
     ASSERT_LT(index, dmp_reader_.number_of_video_buffers());
 
-    auto input_buffer = dmp_reader_.GetVideoInputBuffer(index);
+    auto input_buffer = GetVideoInputBuffer(index);
     {
       ScopedLock scoped_lock(mutex_);
       need_more_input_ = false;
@@ -345,6 +364,18 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
     need_more_input_ = true;
     end_of_stream_written_ = false;
     outstanding_inputs_.clear();
+    decoded_frames_.clear();
+  }
+
+  scoped_refptr<InputBuffer> GetVideoInputBuffer(size_t index) const {
+    auto video_sample_info =
+        dmp_reader_.GetPlayerSampleInfo(kSbMediaTypeVideo, index);
+#if SB_API_VERSION >= 11
+    return new InputBuffer(DeallocateSampleFunc, NULL, NULL, video_sample_info);
+#else   // SB_API_VERSION >= 11
+    return new InputBuffer(kSbMediaTypeVideo, DeallocateSampleFunc, NULL, NULL,
+                           video_sample_info, NULL);
+#endif  // SB_API_VERSION >= 11
   }
 
   JobQueue job_queue_;
@@ -391,11 +422,11 @@ TEST_P(VideoDecoderTest, OutputModeSupported) {
     kSbMediaVideoCodecMpeg2,
     kSbMediaVideoCodecTheora,
     kSbMediaVideoCodecVc1,
-#if SB_API_VERSION < SB_HAS_AV1_VERSION
+#if SB_API_VERSION < 11
     kSbMediaVideoCodecVp10,
-#else   // SB_API_VERSION < SB_HAS_AV1_VERSION
+#else   // SB_API_VERSION < 11
     kSbMediaVideoCodecAv1,
-#endif  // SB_API_VERSION < SB_HAS_AV1_VERSION
+#endif  // SB_API_VERSION < 11
     kSbMediaVideoCodecVp8,
     kSbMediaVideoCodecVp9
   };
@@ -410,9 +441,7 @@ TEST_P(VideoDecoderTest, OutputModeSupported) {
 #if SB_HAS(GLES2)
 TEST_P(VideoDecoderTest, GetCurrentDecodeTargetBeforeWriteInputBuffer) {
   if (GetParam().output_mode == kSbPlayerOutputModeDecodeToTexture) {
-    SbDecodeTarget decode_target = video_decoder_->GetCurrentDecodeTarget();
-    EXPECT_FALSE(SbDecodeTargetIsValid(decode_target));
-    fake_graphics_context_provider_.ReleaseDecodeTarget(decode_target);
+    AssertInvalidDecodeTarget();
   }
 }
 #endif  // SB_HAS(GLES2)
@@ -432,11 +461,11 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
     kSbMediaVideoCodecMpeg2,
     kSbMediaVideoCodecTheora,
     kSbMediaVideoCodecVc1,
-#if SB_API_VERSION < SB_HAS_AV1_VERSION
+#if SB_API_VERSION < 11
     kSbMediaVideoCodecVp10,
-#else   // SB_API_VERSION < SB_HAS_AV1_VERSION
+#else   // SB_API_VERSION < 11
     kSbMediaVideoCodecAv1,
-#endif  // SB_API_VERSION < SB_HAS_AV1_VERSION
+#endif  // SB_API_VERSION < 11
     kSbMediaVideoCodecVp8,
     kSbMediaVideoCodecVp9
   };
@@ -476,10 +505,7 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
 
 #if SB_HAS(GLES2)
           if (output_mode == kSbPlayerOutputModeDecodeToTexture) {
-            SbDecodeTarget decode_target =
-                video_decoders[i]->GetCurrentDecodeTarget();
-            EXPECT_FALSE(SbDecodeTargetIsValid(decode_target));
-            fake_graphics_context_provider_.ReleaseDecodeTarget(decode_target);
+            AssertInvalidDecodeTarget();
           }
 #endif  // SB_HAS(GLES2)
         }
@@ -488,7 +514,6 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
   }
 }
 
-#if SB_HAS(GLES2)
 TEST_P(VideoDecoderTest, SingleInput) {
   WriteSingleInput(0);
   WriteEndOfStream();
@@ -497,7 +522,7 @@ TEST_P(VideoDecoderTest, SingleInput) {
   ASSERT_NO_FATAL_FAILURE(DrainOutputs(
       &error_occurred, [=](const Event& event, bool* continue_process) {
         if (event.frame) {
-          AssertValidDecodeTarget();
+          AssertValidDecodeTargetWhenSupported();
         }
         *continue_process = true;
       }));
@@ -506,7 +531,7 @@ TEST_P(VideoDecoderTest, SingleInput) {
 
 TEST_P(VideoDecoderTest, SingleInvalidInput) {
   need_more_input_ = false;
-  auto input_buffer = dmp_reader_.GetVideoInputBuffer(0);
+  auto input_buffer = GetVideoInputBuffer(0);
   outstanding_inputs_.insert(input_buffer->timestamp());
   std::vector<uint8_t> content(input_buffer->size(), 0xab);
   // Replace the content with invalid data.
@@ -524,10 +549,9 @@ TEST_P(VideoDecoderTest, SingleInvalidInput) {
     // We don't expect the video decoder to recover from a bad input but some
     // decoders may just return an empty frame.
     ASSERT_FALSE(decoded_frames_.empty());
-    AssertValidDecodeTarget();
+    AssertValidDecodeTargetWhenSupported();
   }
 }
-#endif  // SB_HAS(GLES2)
 
 TEST_P(VideoDecoderTest, EndOfStreamWithoutAnyInput) {
   WriteEndOfStream();
@@ -553,6 +577,22 @@ TEST_P(VideoDecoderTest, ResetAfterInput) {
 
   ResetDecoderAndClearPendingEvents();
   EXPECT_FALSE(HasPendingEvents());
+}
+
+TEST_P(VideoDecoderTest, MultipleResets) {
+  for (int max_inputs = 1; max_inputs < 10; ++max_inputs) {
+    WriteMultipleInputs(0, max_inputs,
+                        [](const Event& event, bool* continue_process) {
+                          *continue_process = event.status != kBufferFull;
+                        });
+    ResetDecoderAndClearPendingEvents();
+    EXPECT_FALSE(HasPendingEvents());
+    WriteSingleInput(0);
+    WriteEndOfStream();
+    ASSERT_NO_FATAL_FAILURE(DrainOutputs());
+    ResetDecoderAndClearPendingEvents();
+    EXPECT_FALSE(HasPendingEvents());
+  }
 }
 
 TEST_P(VideoDecoderTest, MultipleInputs) {
@@ -616,13 +656,10 @@ TEST_P(VideoDecoderTest, HoldFramesUntilFull) {
   ASSERT_FALSE(error_occurred);
 }
 
-#if SB_HAS(GLES2)
 TEST_P(VideoDecoderTest, DecodeFullGOP) {
   int gop_size = 1;
   while (gop_size < dmp_reader_.number_of_video_buffers()) {
-    if (dmp_reader_.GetVideoInputBuffer(gop_size)
-            ->video_sample_info()
-            ->is_key_frame) {
+    if (GetVideoInputBuffer(gop_size)->video_sample_info().is_key_frame) {
       break;
     }
     ++gop_size;
@@ -651,14 +688,13 @@ TEST_P(VideoDecoderTest, DecodeFullGOP) {
       }));
   ASSERT_FALSE(error_occurred);
 }
-#endif  // SB_HAS(GLES2)
 
 std::vector<TestParam> GetSupportedTests() {
   SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
                                        kSbPlayerOutputModePunchOut};
 
-  const char* kFilenames[] = {"beneath_the_canopy_avc_aac.dmp",
-                              "beneath_the_canopy_vp9_opus.dmp"};
+  const char* kFilenames[] = {"beneath_the_canopy_137_avc.dmp",
+                              "beneath_the_canopy_248_vp9.dmp"};
 
   static std::vector<TestParam> test_params;
 
@@ -676,20 +712,26 @@ std::vector<TestParam> GetSupportedTests() {
         continue;
       }
 
-      auto input_buffer = dmp_reader.GetVideoInputBuffer(0);
-      const auto& video_sample_info = input_buffer->video_sample_info();
+      const auto& video_sample_info =
+          dmp_reader.GetPlayerSampleInfo(kSbMediaTypeVideo, 0)
+              .video_sample_info;
+
       if (SbMediaIsVideoSupported(
-              dmp_reader.video_codec(), video_sample_info->frame_width,
-              video_sample_info->frame_height, dmp_reader.video_bitrate(),
-              dmp_reader.video_fps()
+              dmp_reader.video_codec(),
+#if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
+              -1, -1, 8, kSbMediaPrimaryIdUnspecified,
+              kSbMediaTransferIdUnspecified, kSbMediaMatrixIdUnspecified,
+#endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
+#if SB_API_VERSION >= 11
+              video_sample_info.frame_width, video_sample_info.frame_height,
+#else   // SB_API_VERSION >= 11
+              video_sample_info->frame_width, video_sample_info->frame_height,
+#endif  // SB_API_VERSION >= 11
+              dmp_reader.video_bitrate(), dmp_reader.video_fps()
 #if SB_API_VERSION >= 10
-                  ,
+                                              ,
               false
 #endif  // SB_API_VERSION >= 10
-#if SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
-              ,
-              kSbMediaTransferIdUnspecified
-#endif  // SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
               )) {
         test_params.push_back({output_mode, filename});
       }

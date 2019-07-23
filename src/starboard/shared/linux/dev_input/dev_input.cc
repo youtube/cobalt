@@ -28,15 +28,15 @@
 #include <map>
 #include <string>
 
+#include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/directory.h"
 #include "starboard/input.h"
 #include "starboard/key.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/posix/handle_eintr.h"
 #include "starboard/shared/posix/time_internal.h"
-#include "starboard/string.h"
 
 namespace starboard {
 namespace shared {
@@ -927,11 +927,9 @@ DevInput::Event* CreateMoveEventWithKey(SbWindow window,
   data->key_location = location;
   data->key_modifiers = modifiers;
   data->position = input_vector;
-#if SB_API_VERSION >= 6
   data->pressure = NAN;
   data->size = {NAN, NAN};
   data->tilt = {NAN, NAN};
-#endif
 
   return new DevInput::Event(kSbEventTypeInput, data,
                              &Application::DeleteDestructor<SbInputData>);
@@ -958,11 +956,9 @@ DevInput::Event* CreateTouchPadEvent(SbWindow window,
   data->key_location = location;
   data->key_modifiers = modifiers;
   data->position = input_vector;
-#if SB_API_VERSION >= 6
   data->pressure = NAN;
   data->size = {NAN, NAN};
   data->tilt = {NAN, NAN};
-#endif
 
   return new DevInput::Event(kSbEventTypeInput, data,
                              &Application::DeleteDestructor<SbInputData>);

@@ -19,9 +19,9 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
+#include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/linux/x64x11/system_properties.h"
-#include "starboard/log.h"
-#include "starboard/string.h"
 
 namespace {
 
@@ -102,7 +102,7 @@ bool GetSystemProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertyFirmwareVersion:
     case kSbSystemPropertyModelName:
     case kSbSystemPropertyModelYear:
-#if SB_API_VERSION >= SB_ODM_VERSION
+#if SB_API_VERSION >= 11
     case kSbSystemPropertyOriginalDesignManufacturerName:
 #else
     case kSbSystemPropertyNetworkOperatorName:
@@ -121,7 +121,7 @@ bool GetSystemProperty(SbSystemPropertyId property_id,
       return GetPlatformUuid(out_value, value_length);
 #endif  // SB_API_VERSION < 10
 
-#if SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
+#if SB_API_VERSION >= 11
     case kSbSystemPropertyCertificationScope:
       if (kCertificationScope[0] == '\0')
         return false;
@@ -133,7 +133,7 @@ bool GetSystemProperty(SbSystemPropertyId property_id,
         return false;
       return CopyStringAndTestIfSuccess(out_value, value_length,
                                         kBase64EncodedCertificationSecret);
-#endif  // SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
+#endif  // SB_API_VERSION >= 11
 
     default:
       SB_DLOG(WARNING) << __FUNCTION__

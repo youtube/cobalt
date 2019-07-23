@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 void SbSocketFreeResolution(SbSocketResolution* resolution) {
   if (!resolution) {

@@ -201,7 +201,7 @@ class DebugDispatcher {
   // Message loop of the web module this debug dispatcher is attached to, and
   // thread checker to check access.
   base::SingleThreadTaskRunner* task_runner_;
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   // Whether the debug target (WebModule) is currently paused.
   // See description of |SetPaused| and |HandlePause| above.

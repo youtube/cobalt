@@ -1,7 +1,7 @@
 // Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
+
 // Responsible for generating packets on behalf of a QuicConnection.
 // Packets are serialized just-in-time.  Control frames are queued.
 // Ack and Feedback frames will be requested from the Connection
@@ -50,6 +50,7 @@
 #include "net/third_party/quic/core/quic_sent_packet_manager.h"
 #include "net/third_party/quic/core/quic_types.h"
 #include "net/third_party/quic/platform/api/quic_export.h"
+#include "net/third_party/quic/platform/api/quic_mem_slice_span.h"
 
 namespace quic {
 
@@ -66,6 +67,11 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
     // Consults delegate whether a packet should be generated.
     virtual bool ShouldGeneratePacket(HasRetransmittableData retransmittable,
                                       IsHandshake handshake) = 0;
+    // Called when there is data to be sent. Retrieves updated ACK frame from
+    // the delegate.
+    virtual const QuicFrames MaybeBundleAckOpportunistically() = 0;
+    // TODO(fayang): Remove these two interfaces when deprecating
+    // quic_deprecate_ack_bundling_mode.
     virtual const QuicFrame GetUpdatedAckFrame() = 0;
     virtual void PopulateStopWaitingFrame(
         QuicStopWaitingFrame* stop_waiting) = 0;
@@ -99,6 +105,14 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
                                size_t write_length,
                                QuicStreamOffset offset,
                                StreamSendingState state);
+
+  // Consumes data for CRYPTO frames sent at |level| starting at |offset| for a
+  // total of |write_length| bytes, and returns the number of bytes consumed.
+  // The data is passed into the packet creator and serialized into one or more
+  // packets.
+  size_t ConsumeCryptoData(EncryptionLevel level,
+                           size_t write_length,
+                           QuicStreamOffset offset);
 
   // Sends as many data only packets as allowed by the send algorithm and the
   // available iov.
@@ -145,6 +159,20 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
   // Creates a connectivity probing packet.
   OwningSerializedPacketPointer SerializeConnectivityProbingPacket();
 
+  // Create connectivity probing request and response packets using PATH
+  // CHALLENGE and PATH RESPONSE frames, respectively.
+  // SerializePathChallengeConnectivityProbingPacket will pad the packet to be
+  // MTU bytes long.
+  OwningSerializedPacketPointer SerializePathChallengeConnectivityProbingPacket(
+      QuicPathFrameBuffer* payload);
+
+  // If |is_padded| is true then SerializePathResponseConnectivityProbingPacket
+  // will pad the packet to be MTU bytes long, else it will not pad the packet.
+  // |payloads| is cleared.
+  OwningSerializedPacketPointer SerializePathResponseConnectivityProbingPacket(
+      const QuicDeque<QuicPathFrameBuffer>& payloads,
+      const bool is_padded);
+
   // Re-serializes frames with the original packet's packet number length.
   // Used for retransmitting packets to ensure they aren't too long.
   void ReserializeAllFrames(const QuicPendingRetransmission& retransmission,
@@ -188,21 +216,36 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
   // Set transmission type of next constructed packets.
   void SetTransmissionType(TransmissionType type);
 
-  // Set long header type of next constructed packets.
-  void SetLongHeaderType(QuicLongHeaderType type);
-
   // Allow/Disallow setting transmission type of next constructed packets.
   void SetCanSetTransmissionType(bool can_set_transmission_type);
 
   // Tries to add a message frame containing |message| and returns the status.
   MessageStatus AddMessageFrame(QuicMessageId message_id,
-                                QuicStringPiece message);
+                                QuicMemSliceSpan message);
+
+  // Called to flush ACK and STOP_WAITING frames, returns false if the flush
+  // fails.
+  bool FlushAckFrame(const QuicFrames& frames);
 
   // Returns the largest payload that will fit into a single MESSAGE frame.
   QuicPacketLength GetLargestMessagePayload() const;
 
   void set_debug_delegate(QuicPacketCreator::DebugDelegate* debug_delegate) {
     packet_creator_.set_debug_delegate(debug_delegate);
+  }
+
+  bool should_send_ack() const { return should_send_ack_; }
+
+  void set_fully_pad_crypto_hadshake_packets(bool new_value) {
+    fully_pad_crypto_handshake_packets_ = new_value;
+  }
+
+  bool fully_pad_crypto_handshake_packets() const {
+    return fully_pad_crypto_handshake_packets_;
+  }
+
+  bool deprecate_ack_bundling_mode() const {
+    return deprecate_ack_bundling_mode_;
   }
 
  private:
@@ -228,24 +271,41 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
   // Pending paddings should only be sent when there is nothing else to send.
   void SendRemainingPendingPadding();
 
+  // Called when there is data to be sent, Retrieves updated ACK frame from
+  // delegate_ and flushes it.
+  void MaybeBundleAckOpportunistically();
+
   DelegateInterface* delegate_;
 
   QuicPacketCreator packet_creator_;
   QuicFrames queued_control_frames_;
 
+  // Transmission type of the next serialized packet.
+  TransmissionType next_transmission_type_;
+
   // True if packet flusher is currently attached.
   bool flusher_attached_;
 
   // Flags to indicate the need for just-in-time construction of a frame.
+  // TODO(fayang): Remove these two booleans when deprecating
+  // quic_deprecate_ack_bundling_mode.
   bool should_send_ack_;
   bool should_send_stop_waiting_;
   // If we put a non-retransmittable frame in this packet, then we have to hold
   // a reference to it until we flush (and serialize it). Retransmittable frames
   // are referenced elsewhere so that they can later be (optionally)
   // retransmitted.
+  // TODO(fayang): Remove this when deprecating
+  // quic_deprecate_ack_bundling_mode.
   QuicStopWaitingFrame pending_stop_waiting_frame_;
 
   QuicRandom* random_generator_;
+
+  // Whether crypto handshake packets should be fully padded.
+  bool fully_pad_crypto_handshake_packets_;
+
+  // Latched value of quic_deprecate_ack_bundling_mode.
+  const bool deprecate_ack_bundling_mode_;
 };
 
 }  // namespace quic

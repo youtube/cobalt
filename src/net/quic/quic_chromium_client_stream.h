@@ -7,8 +7,6 @@
 #ifndef NET_QUIC_QUIC_CHROMIUM_CLIENT_STREAM_H_
 #define NET_QUIC_QUIC_CHROMIUM_CLIENT_STREAM_H_
 
-#ifndef QUIC_DISABLED_FOR_STARBOARD
-
 #include <vector>
 
 #include "base/callback_forward.h"
@@ -201,6 +199,13 @@ class NET_EXPORT_PRIVATE QuicChromiumClientStream
   QuicChromiumClientStream(
       quic::QuicStreamId id,
       quic::QuicSpdyClientSessionBase* session,
+      quic::StreamType type,
+      const NetLogWithSource& net_log,
+      const NetworkTrafficAnnotationTag& traffic_annotation);
+  QuicChromiumClientStream(
+      quic::PendingStream pending,
+      quic::QuicSpdyClientSessionBase* session,
+      quic::StreamType type,
       const NetLogWithSource& net_log,
       const NetworkTrafficAnnotationTag& traffic_annotation);
 
@@ -218,7 +223,7 @@ class NET_EXPORT_PRIVATE QuicChromiumClientStream
   void OnPromiseHeaderList(quic::QuicStreamId promised_id,
                            size_t frame_len,
                            const quic::QuicHeaderList& header_list) override;
-  void OnDataAvailable() override;
+  void OnBodyAvailable() override;
   void OnClose() override;
   void OnCanWrite() override;
   size_t WriteHeaders(
@@ -291,6 +296,7 @@ class NET_EXPORT_PRIVATE QuicChromiumClientStream
   bool initial_headers_sent_;
 
   quic::QuicSpdyClientSessionBase* session_;
+  quic::QuicTransportVersion quic_version_;
 
   // Set to false if this stream should not be migrated to a cellular network
   // during connection migration.
@@ -310,7 +316,5 @@ class NET_EXPORT_PRIVATE QuicChromiumClientStream
 };
 
 }  // namespace net
-
-#endif  // QUIC_DISABLED_FOR_STARBOARD
 
 #endif  // NET_QUIC_QUIC_CHROMIUM_CLIENT_STREAM_H_

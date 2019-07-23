@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 
 namespace starboard {
@@ -44,7 +44,7 @@ class PlayerComponentsImpl : public PlayerComponents {
     SB_DCHECK(max_cached_frames);
     SB_DCHECK(max_frames_per_append);
 
-    *max_cached_frames = 256 * 1024;
+    *max_cached_frames = 128 * 1024;
     *max_frames_per_append = 16384;
   }
 };

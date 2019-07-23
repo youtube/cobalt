@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <cstddef>
 #include <cstdint>
 #include <list>
 #include <memory>
@@ -12,15 +13,19 @@
 #include "net/third_party/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quic/core/http/quic_spdy_client_stream.h"
 #include "net/third_party/quic/core/quic_epoll_connection_helper.h"
+#include "net/third_party/quic/core/quic_error_codes.h"
 #include "net/third_party/quic/core/quic_framer.h"
 #include "net/third_party/quic/core/quic_packet_creator.h"
 #include "net/third_party/quic/core/quic_packet_writer_wrapper.h"
 #include "net/third_party/quic/core/quic_packets.h"
 #include "net/third_party/quic/core/quic_session.h"
 #include "net/third_party/quic/core/quic_utils.h"
+#include "net/third_party/quic/platform/api/quic_epoll.h"
+#include "net/third_party/quic/platform/api/quic_error_code_wrappers.h"
 #include "net/third_party/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quic/platform/api/quic_flags.h"
 #include "net/third_party/quic/platform/api/quic_logging.h"
+#include "net/third_party/quic/platform/api/quic_port_utils.h"
 #include "net/third_party/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quic/platform/api/quic_sleep.h"
 #include "net/third_party/quic/platform/api/quic_socket_address.h"
@@ -44,6 +49,7 @@
 #include "net/third_party/quic/test_tools/quic_server_peer.h"
 #include "net/third_party/quic/test_tools/quic_session_peer.h"
 #include "net/third_party/quic/test_tools/quic_spdy_session_peer.h"
+#include "net/third_party/quic/test_tools/quic_stream_id_manager_peer.h"
 #include "net/third_party/quic/test_tools/quic_stream_peer.h"
 #include "net/third_party/quic/test_tools/quic_stream_sequencer_peer.h"
 #include "net/third_party/quic/test_tools/quic_test_client.h"
@@ -54,12 +60,10 @@
 #include "net/third_party/quic/tools/quic_client.h"
 #include "net/third_party/quic/tools/quic_memory_cache_backend.h"
 #include "net/third_party/quic/tools/quic_server.h"
+#include "net/third_party/quic/tools/quic_simple_client_stream.h"
 #include "net/third_party/quic/tools/quic_simple_server_stream.h"
-#include "net/tools/epoll_server/epoll_server.h"
 #include "starboard/types.h"
 
-using net::EpollEvent;
-using net::EpollServer;
 using spdy::kV3LowestPriority;
 using spdy::SETTINGS_MAX_HEADER_LIST_SIZE;
 using spdy::SpdyFramer;
@@ -123,9 +127,7 @@ struct TestParams {
 // Constructs various test permutations.
 std::vector<TestParams> GetTestParams(bool use_tls_handshake,
                                       bool test_stateless_rejects) {
-  // Version 99 is default disabled, but should be exercised in EndToEnd tests
   QuicFlagSaver flags;
-  FLAGS_quic_enable_version_99 = true;
   // Divide the versions into buckets in which the intra-frame format
   // is compatible. When clients encounter QUIC version negotiation
   // they simply retransmit all packets using the new version's
@@ -135,19 +137,24 @@ std::vector<TestParams> GetTestParams(bool use_tls_handshake,
   // attempting to do 0-RTT across incompatible versions. Chromium only
   // supports a single version at a time anyway. :)
   FLAGS_quic_supports_tls_handshake = use_tls_handshake;
-  ParsedQuicVersionVector all_supported_versions = AllSupportedVersions();
-  // Buckets are separated by the handshake protocol (QUIC crypto or TLS) in
-  // use, since if the handshake protocol changes, the ClientHello/CHLO must be
+  ParsedQuicVersionVector all_supported_versions =
+      FilterSupportedVersions(AllSupportedVersions());
+
+  // Buckets are separated by versions: versions prior to QUIC_VERSION_47 use
+  // STREAM frames for the handshake, and only have QUIC crypto as the handshake
+  // protocol. Version 47 and greater use CRYPTO frames for the handshake, and
+  // must also be split based on the handshake protocol. If the handshake
+  // protocol (QUIC crypto or TLS) changes, the ClientHello/CHLO must be
   // reconstructed for the correct protocol.
-  ParsedQuicVersionVector version_buckets[2];
+  ParsedQuicVersionVector version_buckets[3];
 
   for (const ParsedQuicVersion& version : all_supported_versions) {
-    // Versions: 35+
-    // QUIC_VERSION_35 allows endpoints to independently set stream limit.
-    if (version.handshake_protocol == PROTOCOL_TLS1_3) {
+    if (version.transport_version < QUIC_VERSION_47) {
+      version_buckets[0].push_back(version);
+    } else if (version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
       version_buckets[1].push_back(version);
     } else {
-      version_buckets[0].push_back(version);
+      version_buckets[2].push_back(version);
     }
   }
 
@@ -256,7 +263,7 @@ class ClientDelegate : public PacketDroppingTestWriter::Delegate {
   explicit ClientDelegate(QuicClient* client) : client_(client) {}
   ~ClientDelegate() override = default;
   void OnCanWrite() override {
-    EpollEvent event(EPOLLOUT);
+    QuicEpollEvent event(EPOLLOUT);
     client_->epoll_network_helper()->OnEvent(client_->GetLatestFD(), &event);
   }
 
@@ -268,17 +275,20 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
  protected:
   EndToEndTest()
       : initialized_(false),
-        server_address_(QuicSocketAddress(TestLoopback(), 0)),
+        connect_to_server_on_initialize_(true),
+        server_address_(
+            QuicSocketAddress(TestLoopback(), QuicPickUnusedPortOrDie())),
         server_hostname_("test.example.com"),
         client_writer_(nullptr),
         server_writer_(nullptr),
-        negotiated_version_(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED),
+        negotiated_version_(UnsupportedQuicVersion()),
         chlo_multiplier_(0),
         stream_factory_(nullptr),
-        support_server_push_(false) {
-    // Version 99 is default disabled, but should be exercised in EndToEnd tests
-    FLAGS_quic_enable_version_99 = true;
+        support_server_push_(false),
+        override_connection_id_(nullptr) {
     FLAGS_quic_supports_tls_handshake = true;
+    SetQuicRestartFlag(quic_no_server_conn_ver_negotiation2, true);
+    SetQuicReloadableFlag(quic_no_client_conn_ver_negotiation, true);
     client_supported_versions_ = GetParam().client_supported_versions;
     server_supported_versions_ = GetParam().server_supported_versions;
     negotiated_version_ = GetParam().negotiated_version;
@@ -307,10 +317,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     AddToCache("/bar", 200, kBarResponseBody);
   }
 
-  ~EndToEndTest() override {
-    // TODO(rtenneti): port RecycleUnusedPort if needed.
-    // RecycleUnusedPort(server_address_.port());
-  }
+  ~EndToEndTest() override { QuicRecyclePort(server_address_.port()); }
 
   virtual void CreateClientWithWriter() {
     client_.reset(CreateQuicClient(client_writer_));
@@ -324,6 +331,9 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     client->UseWriter(writer);
     if (!pre_shared_key_client_.empty()) {
       client->client()->SetPreSharedKey(pre_shared_key_client_);
+    }
+    if (override_connection_id_ != nullptr) {
+      client->UseConnectionId(*override_connection_id_);
     }
     client->Connect();
     return client;
@@ -396,9 +406,6 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
       copt.push_back(kTPCC);
     }
 
-    if (support_server_push_) {
-      copt.push_back(kSPSH);
-    }
     if (GetParam().client_supports_stateless_rejects) {
       copt.push_back(kSREJ);
     }
@@ -408,15 +415,20 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     // to connect to the server.
     StartServer();
 
+    if (!connect_to_server_on_initialize_) {
+      initialized_ = true;
+      return true;
+    }
+
     CreateClientWithWriter();
-    static EpollEvent event(EPOLLOUT);
+    static QuicEpollEvent event(EPOLLOUT);
     if (client_writer_ != nullptr) {
       client_writer_->Initialize(
           QuicConnectionPeer::GetHelper(
               client_->client()->client_session()->connection()),
           QuicConnectionPeer::GetAlarmFactory(
               client_->client()->client_session()->connection()),
-          std::make_unique<ClientDelegate>(client_->client()));
+          QuicMakeUnique<ClientDelegate>(client_->client()));
     }
     initialized_ = true;
     return client_->client()->connected();
@@ -450,8 +462,6 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
       server_thread_->server()->SetPreSharedKey(pre_shared_key_server_);
     }
     server_thread_->Initialize();
-    server_address_ =
-        QuicSocketAddress(server_address_.host(), server_thread_->GetPort());
     QuicDispatcher* dispatcher =
         QuicServerPeer::GetDispatcher(server_thread_->server());
     QuicDispatcherPeer::UseWriter(dispatcher, server_writer_);
@@ -462,7 +472,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
 
     server_writer_->Initialize(QuicDispatcherPeer::GetHelper(dispatcher),
                                QuicDispatcherPeer::GetAlarmFactory(dispatcher),
-                               std::make_unique<ServerDelegate>(dispatcher));
+                               QuicMakeUnique<ServerDelegate>(dispatcher));
     if (stream_factory_ != nullptr) {
       static_cast<QuicTestServer*>(server_thread_->server())
           ->SetSpdyStreamFactory(stream_factory_);
@@ -486,26 +496,18 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   }
 
   void SetPacketLossPercentage(int32_t loss) {
-    // TODO(rtenneti): enable when we can do random packet loss tests in
-    // chrome's tree.
-    if (loss != 0 && loss != 100)
-      return;
     client_writer_->set_fake_packet_loss_percentage(loss);
     server_writer_->set_fake_packet_loss_percentage(loss);
   }
 
   void SetPacketSendDelay(QuicTime::Delta delay) {
-    // TODO(rtenneti): enable when we can do random packet send delay tests in
-    // chrome's tree.
-    // client_writer_->set_fake_packet_delay(delay);
-    // server_writer_->set_fake_packet_delay(delay);
+    client_writer_->set_fake_packet_delay(delay);
+    server_writer_->set_fake_packet_delay(delay);
   }
 
   void SetReorderPercentage(int32_t reorder) {
-    // TODO(rtenneti): enable when we can do random packet reorder tests in
-    // chrome's tree.
-    // client_writer_->set_fake_reorder_percentage(reorder);
-    // server_writer_->set_fake_reorder_percentage(reorder);
+    client_writer_->set_fake_reorder_percentage(reorder);
+    server_writer_->set_fake_reorder_percentage(reorder);
   }
 
   // Verifies that the client and server connections were both free of packets
@@ -523,7 +525,11 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     EXPECT_EQ(0u, client_stats.packets_discarded);
     // When doing 0-RTT with stateless rejects, the encrypted requests cause
     // a retranmission of the SREJ packets which are dropped by the client.
-    if (!BothSidesSupportStatelessRejects()) {
+    // When client starts with an unsupported version, the version negotiation
+    // packet sent by server for the old connection (respond for the connection
+    // close packet) will be dropped by the client.
+    if (!BothSidesSupportStatelessRejects() &&
+        !ServerSendsVersionNegotiation()) {
       EXPECT_EQ(0u, client_stats.packets_dropped);
     }
     if (!ClientSupportsIetfQuicNotSupportedByServer()) {
@@ -568,6 +574,14 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
                    .transport_version <= QUIC_VERSION_43;
   }
 
+  // Returns true when client starts with an unsupported version, and client
+  // closes connection when version negotiation is received.
+  bool ServerSendsVersionNegotiation() {
+    return GetQuicReloadableFlag(quic_no_client_conn_ver_negotiation) &&
+           GetParam().client_supported_versions[0] !=
+               GetParam().negotiated_version;
+  }
+
   bool SupportsIetfQuicWithTls(ParsedQuicVersion version) {
     return version.transport_version > QUIC_VERSION_43 &&
            version.handshake_protocol == PROTOCOL_TLS1_3;
@@ -586,18 +600,24 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     stream_factory_ = factory;
   }
 
-  QuicStreamId GetNthClientInitiatedId(int n) {
-    return QuicSpdySessionPeer::GetNthClientInitiatedStreamId(
-        *client_->client()->client_session(), n);
+  QuicStreamId GetNthClientInitiatedBidirectionalId(int n) {
+    return GetNthClientInitiatedBidirectionalStreamId(
+        client_->client()->client_session()->connection()->transport_version(),
+        n);
   }
 
-  QuicStreamId GetNthServerInitiatedId(int n) {
-    return QuicSpdySessionPeer::GetNthServerInitiatedStreamId(
-        *client_->client()->client_session(), n);
+  QuicStreamId GetNthServerInitiatedBidirectionalId(int n) {
+    return GetNthServerInitiatedBidirectionalStreamId(
+        client_->client()->client_session()->connection()->transport_version(),
+        n);
   }
 
   ScopedEnvironmentForThreads environment_;
   bool initialized_;
+  // If true, the Initialize() function will create |client_| and starts to
+  // connect to the server.
+  // Default is true.
+  bool connect_to_server_on_initialize_;
   QuicSocketAddress server_address_;
   QuicString server_hostname_;
   QuicMemoryCacheBackend memory_cache_backend_;
@@ -616,29 +636,38 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   bool support_server_push_;
   QuicString pre_shared_key_client_;
   QuicString pre_shared_key_server_;
+  QuicConnectionId* override_connection_id_;
 };
 
 // Run all end to end tests with all supported versions.
-INSTANTIATE_TEST_CASE_P(EndToEndTests,
-                        EndToEndTest,
-                        ::testing::ValuesIn(GetTestParams(false, false)));
+INSTANTIATE_TEST_SUITE_P(EndToEndTests,
+                         EndToEndTest,
+                         ::testing::ValuesIn(GetTestParams(false, false)));
 
 class EndToEndTestWithTls : public EndToEndTest {};
 
-INSTANTIATE_TEST_CASE_P(EndToEndTestsWithTls,
-                        EndToEndTestWithTls,
-                        ::testing::ValuesIn(GetTestParams(true, false)));
+INSTANTIATE_TEST_SUITE_P(EndToEndTestsWithTls,
+                         EndToEndTestWithTls,
+                         ::testing::ValuesIn(GetTestParams(true, false)));
 
 class EndToEndTestWithStatelessReject : public EndToEndTest {};
 
-INSTANTIATE_TEST_CASE_P(WithStatelessReject,
-                        EndToEndTestWithStatelessReject,
-                        ::testing::ValuesIn(GetTestParams(false, true)));
+INSTANTIATE_TEST_SUITE_P(WithStatelessReject,
+                         EndToEndTestWithStatelessReject,
+                         ::testing::ValuesIn(GetTestParams(false, true)));
 
 TEST_P(EndToEndTestWithTls, HandshakeSuccessful) {
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
   server_thread_->WaitForCryptoHandshakeConfirmed();
+  // There have been occasions where it seemed that negotiated_version_ and the
+  // version in the connection are not in sync. If it is happening, it has not
+  // been recreatable; this assert is here just to check and raise a flag if it
+  // happens.
+  ASSERT_EQ(
+      client_->client()->client_session()->connection()->transport_version(),
+      negotiated_version_.transport_version);
+
   QuicCryptoStream* crypto_stream = QuicSessionPeer::GetMutableCryptoStream(
       client_->client()->client_session());
   QuicStreamSequencer* sequencer = QuicStreamPeer::sequencer(crypto_stream);
@@ -654,7 +683,15 @@ TEST_P(EndToEndTestWithStatelessReject, SimpleRequestResponseStatless) {
 
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
-  EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
+  int expected_num_client_hellos = 2;
+  if (ServerSendsVersionNegotiation()) {
+    ++expected_num_client_hellos;
+    if (BothSidesSupportStatelessRejects()) {
+      ++expected_num_client_hellos;
+    }
+  }
+  EXPECT_EQ(expected_num_client_hellos,
+            client_->client()->GetNumSentClientHellos());
 }
 
 TEST_P(EndToEndTest, SimpleRequestResponse) {
@@ -662,7 +699,37 @@ TEST_P(EndToEndTest, SimpleRequestResponse) {
 
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
-  EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
+  int expected_num_client_hellos = 2;
+  if (ServerSendsVersionNegotiation()) {
+    ++expected_num_client_hellos;
+    if (BothSidesSupportStatelessRejects()) {
+      ++expected_num_client_hellos;
+    }
+  }
+  EXPECT_EQ(expected_num_client_hellos,
+            client_->client()->GetNumSentClientHellos());
+}
+
+TEST_P(EndToEndTest, SimpleRequestResponseZeroConnectionID) {
+  QuicConnectionId connection_id = QuicUtils::CreateZeroConnectionId(
+      GetParam().negotiated_version.transport_version);
+  override_connection_id_ = &connection_id;
+  ASSERT_TRUE(Initialize());
+
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
+  int expected_num_client_hellos = 2;
+  if (ServerSendsVersionNegotiation()) {
+    ++expected_num_client_hellos;
+    if (BothSidesSupportStatelessRejects()) {
+      ++expected_num_client_hellos;
+    }
+  }
+  EXPECT_EQ(expected_num_client_hellos,
+            client_->client()->GetNumSentClientHellos());
+  EXPECT_EQ(client_->client()->client_session()->connection()->connection_id(),
+            QuicUtils::CreateZeroConnectionId(
+                GetParam().negotiated_version.transport_version));
 }
 
 TEST_P(EndToEndTest, SimpleRequestResponseWithLargeReject) {
@@ -671,7 +738,11 @@ TEST_P(EndToEndTest, SimpleRequestResponseWithLargeReject) {
 
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
-  EXPECT_EQ(3, client_->client()->GetNumSentClientHellos());
+  if (ServerSendsVersionNegotiation()) {
+    EXPECT_EQ(4, client_->client()->GetNumSentClientHellos());
+  } else {
+    EXPECT_EQ(3, client_->client()->GetNumSentClientHellos());
+  }
 }
 
 TEST_P(EndToEndTestWithTls, SimpleRequestResponsev6) {
@@ -976,22 +1047,32 @@ TEST_P(EndToEndTest, LargePostZeroRTTFailure) {
   // torn down after the reject.  The number of hellos on the latest
   // session is 1.
   const int expected_num_hellos_latest_session =
-      BothSidesSupportStatelessRejects() ? 1 : 2;
+      (BothSidesSupportStatelessRejects() && !ServerSendsVersionNegotiation())
+          ? 1
+          : 2;
   EXPECT_EQ(expected_num_hellos_latest_session,
             client_->client()->client_session()->GetNumSentClientHellos());
-  EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
+  if (ServerSendsVersionNegotiation()) {
+    EXPECT_EQ(3, client_->client()->GetNumSentClientHellos());
+  } else {
+    EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
+  }
 
   client_->Disconnect();
 
   // The 0-RTT handshake should succeed.
   client_->Connect();
-  client_->WaitForInitialResponse();
+  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
   ASSERT_TRUE(client_->client()->connected());
   EXPECT_EQ(kFooResponseBody,
             client_->SendCustomSynchronousRequest(headers, body));
 
   EXPECT_EQ(1, client_->client()->client_session()->GetNumSentClientHellos());
-  EXPECT_EQ(1, client_->client()->GetNumSentClientHellos());
+  if (ServerSendsVersionNegotiation()) {
+    EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
+  } else {
+    EXPECT_EQ(1, client_->client()->GetNumSentClientHellos());
+  }
 
   client_->Disconnect();
 
@@ -1001,6 +1082,7 @@ TEST_P(EndToEndTest, LargePostZeroRTTFailure) {
   StartServer();
 
   client_->Connect();
+  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
   ASSERT_TRUE(client_->client()->connected());
   EXPECT_EQ(kFooResponseBody,
             client_->SendCustomSynchronousRequest(headers, body));
@@ -1011,7 +1093,11 @@ TEST_P(EndToEndTest, LargePostZeroRTTFailure) {
   // latest session is 1.
   EXPECT_EQ(expected_num_hellos_latest_session,
             client_->client()->client_session()->GetNumSentClientHellos());
-  EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
+  if (ServerSendsVersionNegotiation()) {
+    EXPECT_EQ(3, client_->client()->GetNumSentClientHellos());
+  } else {
+    EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
+  }
 
   VerifyCleanConnection(false);
 }
@@ -1028,21 +1114,31 @@ TEST_P(EndToEndTest, SynchronousRequestZeroRTTFailure) {
   // torn down after the reject.  The number of hellos on that second
   // latest session is 1.
   const int expected_num_hellos_latest_session =
-      BothSidesSupportStatelessRejects() ? 1 : 2;
+      (BothSidesSupportStatelessRejects() && !ServerSendsVersionNegotiation())
+          ? 1
+          : 2;
   EXPECT_EQ(expected_num_hellos_latest_session,
             client_->client()->client_session()->GetNumSentClientHellos());
-  EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
+  if (ServerSendsVersionNegotiation()) {
+    EXPECT_EQ(3, client_->client()->GetNumSentClientHellos());
+  } else {
+    EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
+  }
 
   client_->Disconnect();
 
   // The 0-RTT handshake should succeed.
   client_->Connect();
-  client_->WaitForInitialResponse();
+  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
   ASSERT_TRUE(client_->client()->connected());
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
 
   EXPECT_EQ(1, client_->client()->client_session()->GetNumSentClientHellos());
-  EXPECT_EQ(1, client_->client()->GetNumSentClientHellos());
+  if (ServerSendsVersionNegotiation()) {
+    EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
+  } else {
+    EXPECT_EQ(1, client_->client()->GetNumSentClientHellos());
+  }
 
   client_->Disconnect();
 
@@ -1052,6 +1148,7 @@ TEST_P(EndToEndTest, SynchronousRequestZeroRTTFailure) {
   StartServer();
 
   client_->Connect();
+  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
   ASSERT_TRUE(client_->client()->connected());
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
   // In the non-stateless case, the same session is used for both
@@ -1061,7 +1158,11 @@ TEST_P(EndToEndTest, SynchronousRequestZeroRTTFailure) {
   // latest session is 1.
   EXPECT_EQ(expected_num_hellos_latest_session,
             client_->client()->client_session()->GetNumSentClientHellos());
-  EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
+  if (ServerSendsVersionNegotiation()) {
+    EXPECT_EQ(3, client_->client()->GetNumSentClientHellos());
+  } else {
+    EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
+  }
 
   VerifyCleanConnection(false);
 }
@@ -1086,22 +1187,32 @@ TEST_P(EndToEndTest, LargePostSynchronousRequest) {
   // torn down after the reject.  The number of hellos on the latest
   // session is 1.
   const int expected_num_hellos_latest_session =
-      BothSidesSupportStatelessRejects() ? 1 : 2;
+      (BothSidesSupportStatelessRejects() && !ServerSendsVersionNegotiation())
+          ? 1
+          : 2;
   EXPECT_EQ(expected_num_hellos_latest_session,
             client_->client()->client_session()->GetNumSentClientHellos());
-  EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
+  if (ServerSendsVersionNegotiation()) {
+    EXPECT_EQ(3, client_->client()->GetNumSentClientHellos());
+  } else {
+    EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
+  }
 
   client_->Disconnect();
 
   // The 0-RTT handshake should succeed.
   client_->Connect();
-  client_->WaitForInitialResponse();
+  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
   ASSERT_TRUE(client_->client()->connected());
   EXPECT_EQ(kFooResponseBody,
             client_->SendCustomSynchronousRequest(headers, body));
 
   EXPECT_EQ(1, client_->client()->client_session()->GetNumSentClientHellos());
-  EXPECT_EQ(1, client_->client()->GetNumSentClientHellos());
+  if (ServerSendsVersionNegotiation()) {
+    EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
+  } else {
+    EXPECT_EQ(1, client_->client()->GetNumSentClientHellos());
+  }
 
   client_->Disconnect();
 
@@ -1111,6 +1222,7 @@ TEST_P(EndToEndTest, LargePostSynchronousRequest) {
   StartServer();
 
   client_->Connect();
+  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
   ASSERT_TRUE(client_->client()->connected());
   EXPECT_EQ(kFooResponseBody,
             client_->SendCustomSynchronousRequest(headers, body));
@@ -1121,7 +1233,11 @@ TEST_P(EndToEndTest, LargePostSynchronousRequest) {
   // latest session is 1.
   EXPECT_EQ(expected_num_hellos_latest_session,
             client_->client()->client_session()->GetNumSentClientHellos());
-  EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
+  if (ServerSendsVersionNegotiation()) {
+    EXPECT_EQ(3, client_->client()->GetNumSentClientHellos());
+  } else {
+    EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
+  }
 
   VerifyCleanConnection(false);
 }
@@ -1207,7 +1323,7 @@ TEST_P(EndToEndTestWithTls, DoNotSetSendAlarmIfConnectionFlowControlBlocked) {
 
   // Make sure that the stream has data pending so that it will be marked as
   // write blocked when it receives a stream level WINDOW_UPDATE.
-  stream->WriteOrBufferBody("hello", false, nullptr);
+  stream->WriteOrBufferBody("hello", false);
 
   // The stream now attempts to write, fails because it is still connection
   // level flow control blocked, and is added to the write blocked list.
@@ -1242,7 +1358,8 @@ TEST_P(EndToEndTest, InvalidStream) {
   // Force the client to write with a stream ID belonging to a nonexistent
   // server-side stream.
   QuicSpdySession* session = client_->client()->client_session();
-  QuicSessionPeer::SetNextOutgoingStreamId(session, GetNthServerInitiatedId(0));
+  QuicSessionPeer::SetNextOutgoingBidirectionalStreamId(
+      session, GetNthServerInitiatedBidirectionalId(0));
 
   client_->SendCustomSynchronousRequest(headers, body);
   EXPECT_EQ(QUIC_STREAM_CONNECTION_ERROR, client_->stream_error());
@@ -1292,7 +1409,7 @@ TEST_P(EndToEndTest, EarlyResponseWithQuicStreamNoError) {
 }
 
 // TODO(rch): this test seems to cause net_unittests timeouts :|
-TEST_P(EndToEndTestWithTls, DISABLED_MultipleTermination) {
+TEST_P(EndToEndTestWithTls, QUIC_TEST_DISABLED_IN_CHROME(MultipleTermination)) {
   ASSERT_TRUE(Initialize());
 
   // Set the offset so we won't frame.  Otherwise when we pick up termination
@@ -1333,6 +1450,8 @@ TEST_P(EndToEndTestWithTls, MaxIncomingDynamicStreamsLimitRespected) {
       kServerMaxIncomingDynamicStreams);
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  QuicConnection* client_connection =
+      client_->client()->client_session()->connection();
 
   // Make the client misbehave after negotiation.
   const int kServerMaxStreams = kMaxStreamsMinimumIncrement + 1;
@@ -1352,10 +1471,16 @@ TEST_P(EndToEndTestWithTls, MaxIncomingDynamicStreamsLimitRespected) {
     client_->SendMessage(headers, "", /*fin=*/false);
   }
   client_->WaitForResponse();
-
-  EXPECT_TRUE(client_->connected());
-  EXPECT_EQ(QUIC_REFUSED_STREAM, client_->stream_error());
-  EXPECT_EQ(QUIC_NO_ERROR, client_->connection_error());
+  if (client_connection->transport_version() != QUIC_VERSION_99) {
+    EXPECT_TRUE(client_->connected());
+    EXPECT_EQ(QUIC_REFUSED_STREAM, client_->stream_error());
+    EXPECT_EQ(QUIC_NO_ERROR, client_->connection_error());
+  } else {
+    // Version 99 disconnects the connection if we exceed the stream limit.
+    EXPECT_FALSE(client_->connected());
+    EXPECT_EQ(QUIC_STREAM_CONNECTION_ERROR, client_->stream_error());
+    EXPECT_EQ(QUIC_INVALID_STREAM_ID, client_->connection_error());
+  }
 }
 
 TEST_P(EndToEndTest, SetIndependentMaxIncomingDynamicStreamsLimits) {
@@ -1370,11 +1495,41 @@ TEST_P(EndToEndTest, SetIndependentMaxIncomingDynamicStreamsLimits) {
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
 
   // The client has received the server's limit and vice versa.
+  QuicSpdyClientSession* client_session = client_->client()->client_session();
+  size_t client_max_open_outgoing_bidirectional_streams =
+      client_session->connection()->transport_version() == QUIC_VERSION_99
+          ? QuicSessionPeer::v99_streamid_manager(client_session)
+                ->max_allowed_outgoing_bidirectional_streams()
+          : QuicSessionPeer::GetStreamIdManager(client_session)
+                ->max_open_outgoing_streams();
+  size_t client_max_open_outgoing_unidirectional_streams =
+      client_session->connection()->transport_version() == QUIC_VERSION_99
+          ? QuicSessionPeer::v99_streamid_manager(client_session)
+                ->max_allowed_outgoing_unidirectional_streams()
+          : QuicSessionPeer::GetStreamIdManager(client_session)
+                ->max_open_outgoing_streams();
   EXPECT_EQ(kServerMaxIncomingDynamicStreams,
-            client_->client()->client_session()->max_open_outgoing_streams());
+            client_max_open_outgoing_bidirectional_streams);
+  EXPECT_EQ(kServerMaxIncomingDynamicStreams,
+            client_max_open_outgoing_unidirectional_streams);
   server_thread_->Pause();
+  QuicSession* server_session = GetServerSession();
+  size_t server_max_open_outgoing_bidirectional_streams =
+      server_session->connection()->transport_version() == QUIC_VERSION_99
+          ? QuicSessionPeer::v99_streamid_manager(server_session)
+                ->max_allowed_outgoing_bidirectional_streams()
+          : QuicSessionPeer::GetStreamIdManager(server_session)
+                ->max_open_outgoing_streams();
+  size_t server_max_open_outgoing_unidirectional_streams =
+      server_session->connection()->transport_version() == QUIC_VERSION_99
+          ? QuicSessionPeer::v99_streamid_manager(server_session)
+                ->max_allowed_outgoing_unidirectional_streams()
+          : QuicSessionPeer::GetStreamIdManager(server_session)
+                ->max_open_outgoing_streams();
   EXPECT_EQ(kClientMaxIncomingDynamicStreams,
-            GetServerSession()->max_open_outgoing_streams());
+            server_max_open_outgoing_bidirectional_streams);
+  EXPECT_EQ(kClientMaxIncomingDynamicStreams,
+            server_max_open_outgoing_unidirectional_streams);
   server_thread_->Resume();
 }
 
@@ -1533,8 +1688,7 @@ TEST_P(EndToEndTest, 0ByteConnectionId) {
       client_->client()->client_session()->connection();
   QuicPacketHeader* header =
       QuicConnectionPeer::GetLastHeader(client_connection);
-  EXPECT_EQ(PACKET_0BYTE_CONNECTION_ID,
-            header->destination_connection_id_length);
+  EXPECT_EQ(CONNECTION_ID_ABSENT, header->destination_connection_id_included);
 }
 
 TEST_P(EndToEndTestWithTls, 8ByteConnectionId) {
@@ -1548,11 +1702,10 @@ TEST_P(EndToEndTestWithTls, 8ByteConnectionId) {
   QuicPacketHeader* header =
       QuicConnectionPeer::GetLastHeader(client_connection);
   if (client_connection->transport_version() > QUIC_VERSION_43) {
-    EXPECT_EQ(PACKET_0BYTE_CONNECTION_ID,
-              header->destination_connection_id_length);
+    EXPECT_EQ(CONNECTION_ID_ABSENT, header->destination_connection_id_included);
   } else {
-    EXPECT_EQ(PACKET_8BYTE_CONNECTION_ID,
-              header->destination_connection_id_length);
+    EXPECT_EQ(CONNECTION_ID_PRESENT,
+              header->destination_connection_id_included);
   }
 }
 
@@ -1568,11 +1721,10 @@ TEST_P(EndToEndTestWithTls, 15ByteConnectionId) {
   QuicPacketHeader* header =
       QuicConnectionPeer::GetLastHeader(client_connection);
   if (client_connection->transport_version() > QUIC_VERSION_43) {
-    EXPECT_EQ(PACKET_0BYTE_CONNECTION_ID,
-              header->destination_connection_id_length);
+    EXPECT_EQ(CONNECTION_ID_ABSENT, header->destination_connection_id_included);
   } else {
-    EXPECT_EQ(PACKET_8BYTE_CONNECTION_ID,
-              header->destination_connection_id_length);
+    EXPECT_EQ(CONNECTION_ID_PRESENT,
+              header->destination_connection_id_included);
   }
 }
 
@@ -1582,6 +1734,7 @@ TEST_P(EndToEndTestWithTls, ResetConnection) {
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
   client_->ResetConnection();
+  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
   EXPECT_EQ(kBarResponseBody, client_->SendSynchronousRequest("/bar"));
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
 }
@@ -1630,7 +1783,7 @@ TEST_P(EndToEndTestWithTls, StreamCancelErrorTest) {
   client_->client()->WaitForEvents();
   // Transmit the cancel, and ensure the connection is torn down properly.
   SetPacketLossPercentage(0);
-  QuicStreamId stream_id = GetNthClientInitiatedId(0);
+  QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(0);
   session->SendRstStream(stream_id, QUIC_STREAM_CANCELLED, 0);
 
   // WaitForEvents waits 50ms and returns true if there are outstanding
@@ -1704,7 +1857,7 @@ TEST_P(EndToEndTest, ConnectionMigrationClientPortChanged) {
 
   // Register the new FD for epoll events.
   int new_fd = client_->client()->GetLatestFD();
-  EpollServer* eps = client_->epoll_server();
+  QuicEpollServer* eps = client_->epoll_server();
   eps->RegisterFD(new_fd, client_->client()->epoll_network_helper(),
                   EPOLLIN | EPOLLOUT | EPOLLET);
 
@@ -1757,7 +1910,7 @@ TEST_P(EndToEndTest, DifferentFlowControlWindows) {
 
   // Open a data stream to make sure the stream level flow control is updated.
   QuicSpdyClientStream* stream = client_->GetOrCreateStream();
-  stream->WriteOrBufferBody("hello", false, nullptr);
+  stream->WriteOrBufferBody("hello", false);
 
   // Client should have the right values for server's receive window.
   EXPECT_EQ(kServerStreamIFCW,
@@ -1813,7 +1966,7 @@ TEST_P(EndToEndTest, NegotiatedServerInitialFlowControlWindow) {
 
   // Open a data stream to make sure the stream level flow control is updated.
   QuicSpdyClientStream* stream = client_->GetOrCreateStream();
-  stream->WriteOrBufferBody("hello", false, nullptr);
+  stream->WriteOrBufferBody("hello", false);
 
   // Client should have the right values for server's receive window.
   EXPECT_EQ(kExpectedStreamIFCW,
@@ -1853,9 +2006,14 @@ TEST_P(EndToEndTest, HeadersAndCryptoStreamsNoConnectionFlowControl) {
 
   QuicCryptoStream* crypto_stream = QuicSessionPeer::GetMutableCryptoStream(
       client_->client()->client_session());
-  EXPECT_LT(
-      QuicFlowControllerPeer::SendWindowSize(crypto_stream->flow_controller()),
-      kStreamIFCW);
+  // In v47 and later, the crypto handshake (sent in CRYPTO frames) is not
+  // subject to flow control.
+  if (client_->client()->client_session()->connection()->transport_version() <
+      QUIC_VERSION_47) {
+    EXPECT_LT(QuicFlowControllerPeer::SendWindowSize(
+                  crypto_stream->flow_controller()),
+              kStreamIFCW);
+  }
   EXPECT_EQ(kSessionIFCW,
             QuicFlowControllerPeer::SendWindowSize(
                 client_->client()->client_session()->flow_controller()));
@@ -2115,8 +2273,8 @@ TEST_P(EndToEndTestWithTls, ServerSendPublicResetWithDifferentConnectionId) {
     stateless_reset_token = config->ReceivedStatelessResetToken();
   }
   // Send the public reset.
-  QuicConnectionId incorrect_connection_id =
-      client_connection->connection_id() + 1;
+  QuicConnectionId incorrect_connection_id = TestConnectionId(
+      TestConnectionIdToUInt64(client_connection->connection_id()) + 1);
   QuicPublicResetPacket header;
   header.connection_id = incorrect_connection_id;
   QuicFramer framer(server_supported_versions_, QuicTime::Zero(),
@@ -2164,8 +2322,10 @@ TEST_P(EndToEndTestWithTls, ClientSendPublicResetWithDifferentConnectionId) {
   ASSERT_TRUE(Initialize());
 
   // Send the public reset.
-  QuicConnectionId incorrect_connection_id =
-      client_->client()->client_session()->connection()->connection_id() + 1;
+  QuicConnectionId incorrect_connection_id = TestConnectionId(
+      TestConnectionIdToUInt64(
+          client_->client()->client_session()->connection()->connection_id()) +
+      1);
   QuicPublicResetPacket header;
   header.connection_id = incorrect_connection_id;
   QuicFramer framer(server_supported_versions_, QuicTime::Zero(),
@@ -2193,8 +2353,8 @@ TEST_P(EndToEndTestWithTls,
   // Send the version negotiation packet.
   QuicConnection* client_connection =
       client_->client()->client_session()->connection();
-  QuicConnectionId incorrect_connection_id =
-      client_connection->connection_id() + 1;
+  QuicConnectionId incorrect_connection_id = TestConnectionId(
+      TestConnectionIdToUInt64(client_connection->connection_id()) + 1);
   std::unique_ptr<QuicEncryptedPacket> packet(
       QuicFramer::BuildVersionNegotiationPacket(
           incorrect_connection_id,
@@ -2301,9 +2461,9 @@ TEST_P(EndToEndTestWithTls, BadEncryptedData) {
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
 
   std::unique_ptr<QuicEncryptedPacket> packet(ConstructEncryptedPacket(
-      client_->client()->client_session()->connection()->connection_id(), 0,
-      false, false, 1, "At least 20 characters.", PACKET_8BYTE_CONNECTION_ID,
-      PACKET_0BYTE_CONNECTION_ID, PACKET_4BYTE_PACKET_NUMBER));
+      client_->client()->client_session()->connection()->connection_id(),
+      EmptyQuicConnectionId(), false, false, 1, "At least 20 characters.",
+      CONNECTION_ID_PRESENT, CONNECTION_ID_ABSENT, PACKET_4BYTE_PACKET_NUMBER));
   // Damage the encrypted data.
   QuicString damaged_packet(packet->data(), packet->length());
   damaged_packet[30] ^= 0x01;
@@ -2358,7 +2518,10 @@ class ServerStreamWithErrorResponseBody : public QuicSimpleServerStream {
       QuicSpdySession* session,
       QuicSimpleServerBackend* quic_simple_server_backend,
       QuicString response_body)
-      : QuicSimpleServerStream(id, session, quic_simple_server_backend),
+      : QuicSimpleServerStream(id,
+                               session,
+                               BIDIRECTIONAL,
+                               quic_simple_server_backend),
         response_body_(std::move(response_body)) {}
 
   ~ServerStreamWithErrorResponseBody() override = default;
@@ -2404,14 +2567,17 @@ class ServerStreamThatDropsBody : public QuicSimpleServerStream {
   ServerStreamThatDropsBody(QuicStreamId id,
                             QuicSpdySession* session,
                             QuicSimpleServerBackend* quic_simple_server_backend)
-      : QuicSimpleServerStream(id, session, quic_simple_server_backend) {}
+      : QuicSimpleServerStream(id,
+                               session,
+                               BIDIRECTIONAL,
+                               quic_simple_server_backend) {}
 
   ~ServerStreamThatDropsBody() override = default;
 
  protected:
-  void OnDataAvailable() override {
+  void OnBodyAvailable() override {
     while (HasBytesToRead()) {
-      struct iovec iov;
+      struct IOVEC iov;
       if (GetReadableRegions(&iov, 1) == 0) {
         // No more data to read.
         break;
@@ -2461,7 +2627,10 @@ class ServerStreamThatSendsHugeResponse : public QuicSimpleServerStream {
       QuicSpdySession* session,
       QuicSimpleServerBackend* quic_simple_server_backend,
       int64_t body_bytes)
-      : QuicSimpleServerStream(id, session, quic_simple_server_backend),
+      : QuicSimpleServerStream(id,
+                               session,
+                               BIDIRECTIONAL,
+                               quic_simple_server_backend),
         body_bytes_(body_bytes) {}
 
   ~ServerStreamThatSendsHugeResponse() override = default;
@@ -2648,9 +2817,9 @@ class EndToEndTestServerPush : public EndToEndTest {
 };
 
 // Run all server push end to end tests with all supported versions.
-INSTANTIATE_TEST_CASE_P(EndToEndTestsServerPush,
-                        EndToEndTestServerPush,
-                        ::testing::ValuesIn(GetTestParams(false, false)));
+INSTANTIATE_TEST_SUITE_P(EndToEndTestsServerPush,
+                         EndToEndTestServerPush,
+                         ::testing::ValuesIn(GetTestParams(false, false)));
 
 TEST_P(EndToEndTestServerPush, ServerPush) {
   ASSERT_TRUE(Initialize());
@@ -2930,13 +3099,13 @@ TEST_P(EndToEndTest, DISABLED_TestHugeResponseWithPacketLoss) {
   client->UseWriter(client_writer_);
   client->Connect();
   client_.reset(client);
-  static EpollEvent event(EPOLLOUT);
+  static QuicEpollEvent event(EPOLLOUT);
   client_writer_->Initialize(
       QuicConnectionPeer::GetHelper(
           client_->client()->client_session()->connection()),
       QuicConnectionPeer::GetAlarmFactory(
           client_->client()->client_session()->connection()),
-      std::make_unique<ClientDelegate>(client_->client()));
+      QuicMakeUnique<ClientDelegate>(client_->client()));
   initialized_ = true;
   ASSERT_TRUE(client_->client()->connected());
 
@@ -3038,7 +3207,6 @@ TEST_P(EndToEndTest, WindowUpdateInAck) {
   QuicConnection* client_connection =
       client_->client()->client_session()->connection();
   client_connection->set_debug_visitor(&observer);
-  QuicTransportVersion version = client_connection->transport_version();
   // 100KB body.
   QuicString body(100 * 1024, 'a');
   SpdyHeaderBlock headers;
@@ -3050,12 +3218,8 @@ TEST_P(EndToEndTest, WindowUpdateInAck) {
   EXPECT_EQ(kFooResponseBody,
             client_->SendCustomSynchronousRequest(headers, body));
   client_->Disconnect();
-  if (version != QUIC_VERSION_35) {
-    EXPECT_LT(0u, observer.num_window_update_frames());
-    EXPECT_EQ(0u, observer.num_ping_frames());
-  } else {
-    EXPECT_EQ(0u, observer.num_window_update_frames());
-  }
+  EXPECT_LT(0u, observer.num_window_update_frames());
+  EXPECT_EQ(0u, observer.num_ping_frames());
 }
 
 TEST_P(EndToEndTest, SendStatelessResetTokenInShlo) {
@@ -3063,9 +3227,76 @@ TEST_P(EndToEndTest, SendStatelessResetTokenInShlo) {
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
   QuicConfig* config = client_->client()->session()->config();
   EXPECT_TRUE(config->HasReceivedStatelessResetToken());
-  EXPECT_EQ(client_->client()->session()->connection()->connection_id(),
+  EXPECT_EQ(QuicUtils::GenerateStatelessResetToken(
+                client_->client()->session()->connection()->connection_id()),
             config->ReceivedStatelessResetToken());
   client_->Disconnect();
+}
+
+// Regression test for b/116200989.
+TEST_P(EndToEndTest,
+       SendStatelessResetIfServerConnectionClosedLocallyDuringHandshake) {
+  connect_to_server_on_initialize_ = false;
+  ASSERT_TRUE(Initialize());
+
+  server_thread_->Pause();
+  QuicDispatcher* dispatcher =
+      QuicServerPeer::GetDispatcher(server_thread_->server());
+  ASSERT_EQ(0u, dispatcher->session_map().size());
+  // Note: this writer will only used by the server connection, not the time
+  // wait list.
+  QuicDispatcherPeer::UseWriter(
+      dispatcher,
+      // This cause the first server-sent packet, a.k.a REJ, to fail.
+      new BadPacketWriter(/*packet_causing_write_error=*/0, EPERM));
+  server_thread_->Resume();
+
+  client_.reset(CreateQuicClient(client_writer_));
+  EXPECT_EQ("", client_->SendSynchronousRequest("/foo"));
+
+  if (client_->client()->client_session()->connection()->transport_version() >
+      QUIC_VERSION_43) {
+    EXPECT_EQ(QUIC_HANDSHAKE_FAILED, client_->connection_error());
+  } else {
+    EXPECT_EQ(QUIC_PUBLIC_RESET, client_->connection_error());
+  }
+}
+
+// Regression test for b/116200989.
+TEST_P(EndToEndTest,
+       SendStatelessResetIfServerConnectionClosedLocallyAfterHandshake) {
+  // Prevent the connection from expiring in the time wait list.
+  FLAGS_quic_time_wait_list_seconds = 10000;
+  connect_to_server_on_initialize_ = false;
+  ASSERT_TRUE(Initialize());
+
+  // big_response_body is 64K, which is about 48 full-sized packets.
+  const size_t kBigResponseBodySize = 65536;
+  QuicData big_response_body(new char[kBigResponseBodySize](),
+                             kBigResponseBodySize, /*owns_buffer=*/true);
+  AddToCache("/big_response", 200, big_response_body.AsStringPiece());
+
+  server_thread_->Pause();
+  QuicDispatcher* dispatcher =
+      QuicServerPeer::GetDispatcher(server_thread_->server());
+  ASSERT_EQ(0u, dispatcher->session_map().size());
+  QuicDispatcherPeer::UseWriter(
+      dispatcher,
+      // This will cause an server write error with EPERM, while sending the
+      // response for /big_response.
+      new BadPacketWriter(/*packet_causing_write_error=*/20, EPERM));
+  server_thread_->Resume();
+
+  client_.reset(CreateQuicClient(client_writer_));
+
+  // First, a /foo request with small response should succeed.
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
+
+  // Second, a /big_response request with big response should fail.
+  EXPECT_LT(client_->SendSynchronousRequest("/big_response").length(),
+            kBigResponseBodySize);
+  EXPECT_EQ(QUIC_PUBLIC_RESET, client_->connection_error());
 }
 
 // Regression test of b/70782529.
@@ -3122,7 +3353,7 @@ TEST_P(EndToEndTest, PreSharedKey) {
 }
 
 // TODO: reenable once we have a way to make this run faster.
-TEST_P(EndToEndTest, DISABLED_PreSharedKeyMismatch) {
+TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyMismatch)) {
   client_config_.set_max_time_before_crypto_handshake(
       QuicTime::Delta::FromSeconds(1));
   client_config_.set_max_idle_time_before_crypto_handshake(
@@ -3141,7 +3372,7 @@ TEST_P(EndToEndTest, DISABLED_PreSharedKeyMismatch) {
 }
 
 // TODO: reenable once we have a way to make this run faster.
-TEST_P(EndToEndTest, DISABLED_PreSharedKeyNoClient) {
+TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyNoClient)) {
   client_config_.set_max_time_before_crypto_handshake(
       QuicTime::Delta::FromSeconds(1));
   client_config_.set_max_idle_time_before_crypto_handshake(
@@ -3153,7 +3384,7 @@ TEST_P(EndToEndTest, DISABLED_PreSharedKeyNoClient) {
 }
 
 // TODO: reenable once we have a way to make this run faster.
-TEST_P(EndToEndTest, DISABLED_PreSharedKeyNoServer) {
+TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyNoServer)) {
   client_config_.set_max_time_before_crypto_handshake(
       QuicTime::Delta::FromSeconds(1));
   client_config_.set_max_idle_time_before_crypto_handshake(
@@ -3202,6 +3433,9 @@ TEST_P(EndToEndTest, RequestAndStreamRstInOnePacket) {
 TEST_P(EndToEndTest, ResetStreamOnTtlExpires) {
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  if (!client_->client()->client_session()->session_decides_what_to_write()) {
+    return;
+  }
   SetPacketLossPercentage(30);
 
   QuicSpdyClientStream* stream = client_->GetOrCreateStream();
@@ -3210,13 +3444,12 @@ TEST_P(EndToEndTest, ResetStreamOnTtlExpires) {
 
   // 1 MB body.
   QuicString body(1024 * 1024, 'a');
-  stream->WriteOrBufferBody(body, true, nullptr);
+  stream->WriteOrBufferBody(body, true);
   client_->WaitForResponse();
   EXPECT_EQ(QUIC_STREAM_TTL_EXPIRED, client_->stream_error());
 }
 
 TEST_P(EndToEndTest, SendMessages) {
-  SetQuicReloadableFlag(quic_fix_mark_for_loss_retransmission, true);
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
   QuicSession* client_session = client_->client()->client_session();
@@ -3233,22 +3466,30 @@ TEST_P(EndToEndTest, SendMessages) {
   QuicStringPiece message_buffer(message_string);
   QuicRandom* random =
       QuicConnectionPeer::GetHelper(client_connection)->GetRandomGenerator();
+  QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
   {
     QuicConnection::ScopedPacketFlusher flusher(
         client_session->connection(), QuicConnection::SEND_ACK_IF_PENDING);
     // Verify the largest message gets successfully sent.
     EXPECT_EQ(MessageResult(MESSAGE_STATUS_SUCCESS, 1),
-              client_session->SendMessage(
+              client_session->SendMessage(MakeSpan(
+                  client_session->connection()
+                      ->helper()
+                      ->GetStreamSendBufferAllocator(),
                   QuicStringPiece(message_buffer.data(),
-                                  client_session->GetLargestMessagePayload())));
+                                  client_session->GetLargestMessagePayload()),
+                  &storage)));
     // Send more messages with size (0, largest_payload] until connection is
     // write blocked.
     const int kTestMaxNumberOfMessages = 100;
     for (size_t i = 2; i <= kTestMaxNumberOfMessages; ++i) {
       size_t message_length =
           random->RandUint64() % client_session->GetLargestMessagePayload() + 1;
-      MessageResult result = client_session->SendMessage(
-          QuicStringPiece(message_buffer.data(), message_length));
+      MessageResult result = client_session->SendMessage(MakeSpan(
+          client_session->connection()
+              ->helper()
+              ->GetStreamSendBufferAllocator(),
+          QuicStringPiece(message_buffer.data(), message_length), &storage));
       if (result.status == MESSAGE_STATUS_BLOCKED) {
         // Connection is write blocked.
         break;
@@ -3258,12 +3499,17 @@ TEST_P(EndToEndTest, SendMessages) {
   }
 
   client_->WaitForDelayedAcks();
-  EXPECT_EQ(MESSAGE_STATUS_TOO_LARGE,
-            client_session
-                ->SendMessage(QuicStringPiece(
-                    message_buffer.data(),
-                    client_session->GetLargestMessagePayload() + 1))
-                .status);
+  EXPECT_EQ(
+      MESSAGE_STATUS_TOO_LARGE,
+      client_session
+          ->SendMessage(MakeSpan(
+              client_session->connection()
+                  ->helper()
+                  ->GetStreamSendBufferAllocator(),
+              QuicStringPiece(message_buffer.data(),
+                              client_session->GetLargestMessagePayload() + 1),
+              &storage))
+          .status);
   EXPECT_EQ(QUIC_NO_ERROR, client_->connection_error());
 }
 
@@ -3284,9 +3530,9 @@ class EndToEndPacketReorderingTest : public EndToEndTest {
   PacketReorderingWriter* reorder_writer_;
 };
 
-INSTANTIATE_TEST_CASE_P(EndToEndPacketReorderingTests,
-                        EndToEndPacketReorderingTest,
-                        testing::ValuesIn(GetTestParams(false, false)));
+INSTANTIATE_TEST_SUITE_P(EndToEndPacketReorderingTests,
+                         EndToEndPacketReorderingTest,
+                         testing::ValuesIn(GetTestParams(false, false)));
 
 TEST_P(EndToEndPacketReorderingTest, ReorderedConnectivityProbing) {
   ASSERT_TRUE(Initialize());
@@ -3347,6 +3593,7 @@ TEST_P(EndToEndPacketReorderingTest, Buffer0RttRequest) {
   // Only send out a CHLO.
   client_->client()->Initialize();
   client_->client()->StartConnect();
+  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
   ASSERT_TRUE(client_->client()->connected());
 
   // Send a request before handshake finishes.
@@ -3362,7 +3609,209 @@ TEST_P(EndToEndPacketReorderingTest, Buffer0RttRequest) {
   QuicConnectionStats client_stats =
       client_->client()->client_session()->connection()->GetStats();
   EXPECT_EQ(0u, client_stats.packets_lost);
-  EXPECT_EQ(1, client_->client()->GetNumSentClientHellos());
+  if (ServerSendsVersionNegotiation()) {
+    EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
+  } else {
+    EXPECT_EQ(1, client_->client()->GetNumSentClientHellos());
+  }
+}
+
+// Test that STOP_SENDING makes it to the other side. Set up a client & server,
+// create a stream (do not close it), and then send a STOP_SENDING from one
+// side. The other side should get a call to QuicStream::OnStopSending.
+// (aside, test cribbed from RequestAndStreamRstInOnePacket)
+TEST_P(EndToEndTest, SimpleStopSendingTest) {
+  const uint16_t kStopSendingTestCode = 123;
+  ASSERT_TRUE(Initialize());
+  if (negotiated_version_.transport_version != QUIC_VERSION_99) {
+    return;
+  }
+  QuicSession* client_session = client_->client()->client_session();
+  ASSERT_NE(nullptr, client_session);
+  QuicConnection* client_connection = client_session->connection();
+  ASSERT_NE(nullptr, client_connection);
+
+  // STOP_SENDING will cause the server to not to send the trailer
+  // (and the FIN) after the response body. Instead, it sends a STOP_SENDING
+  // frame for the stream.
+  QuicString response_body(1305, 'a');
+  SpdyHeaderBlock response_headers;
+  response_headers[":status"] = QuicTextUtils::Uint64ToString(200);
+  response_headers["content-length"] =
+      QuicTextUtils::Uint64ToString(response_body.length());
+  memory_cache_backend_.AddStopSendingResponse(
+      server_hostname_, "/test_url", std::move(response_headers), response_body,
+      kStopSendingTestCode);
+
+  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  client_->WaitForDelayedAcks();
+
+  QuicSession* session = client_->client()->client_session();
+  const QuicPacketCount packets_sent_before =
+      session->connection()->GetStats().packets_sent;
+
+  QuicStreamId stream_id = session->next_outgoing_bidirectional_stream_id();
+  client_->SendRequest("/test_url");
+
+  // Expect exactly one packet is sent from the block above.
+  ASSERT_EQ(packets_sent_before + 1,
+            session->connection()->GetStats().packets_sent);
+
+  // Wait for the connection to become idle.
+  client_->WaitForDelayedAcks();
+
+  // The real expectation is the test does not crash or timeout.
+  EXPECT_EQ(QUIC_NO_ERROR, client_->connection_error());
+  // And that the stop-sending code is received.
+  QuicSimpleClientStream* client_stream =
+      static_cast<QuicSimpleClientStream*>(client_->latest_created_stream());
+  ASSERT_NE(nullptr, client_stream);
+  // Make sure we have the correct stream
+  EXPECT_EQ(stream_id, client_stream->id());
+  EXPECT_EQ(kStopSendingTestCode, client_stream->last_stop_sending_code());
+}
+
+TEST_P(EndToEndTest, SimpleStopSendingRstStreamTest) {
+  ASSERT_TRUE(Initialize());
+
+  // Send a request without a fin, to keep the stream open
+  SpdyHeaderBlock headers;
+  headers[":method"] = "POST";
+  headers[":path"] = "/foo";
+  headers[":scheme"] = "https";
+  headers[":authority"] = server_hostname_;
+  client_->SendMessage(headers, "", /*fin=*/false);
+  // Stream should be open
+  ASSERT_NE(nullptr, client_->latest_created_stream());
+  EXPECT_FALSE(
+      QuicStreamPeer::write_side_closed(client_->latest_created_stream()));
+  EXPECT_FALSE(
+      QuicStreamPeer::read_side_closed(client_->latest_created_stream()));
+
+  // Send a RST_STREAM+STOP_SENDING on the stream
+  // Code is not important.
+  client_->latest_created_stream()->Reset(QUIC_BAD_APPLICATION_PAYLOAD);
+  client_->WaitForResponse();
+
+  // Stream should be gone.
+  ASSERT_EQ(nullptr, client_->latest_created_stream());
+}
+
+class BadShloPacketWriter : public QuicPacketWriterWrapper {
+ public:
+  BadShloPacketWriter() : error_returned_(false) {}
+  ~BadShloPacketWriter() override {}
+
+  WriteResult WritePacket(const char* buffer,
+                          size_t buf_len,
+                          const QuicIpAddress& self_address,
+                          const QuicSocketAddress& peer_address,
+                          quic::PerPacketOptions* options) override {
+    const WriteResult result = QuicPacketWriterWrapper::WritePacket(
+        buffer, buf_len, self_address, peer_address, options);
+    const uint8_t type_byte = buffer[0];
+    if (!error_returned_ && (type_byte & FLAGS_LONG_HEADER) &&
+        (((type_byte & 0x30) >> 4) == 1 || (type_byte & 0x7F) == 0x7C)) {
+      QUIC_DVLOG(1) << "Return write error for ZERO_RTT_PACKET";
+      error_returned_ = true;
+      return WriteResult(WRITE_STATUS_ERROR, QUIC_EMSGSIZE);
+    }
+    return result;
+  }
+
+ private:
+  bool error_returned_;
+};
+
+TEST_P(EndToEndTest, ZeroRttProtectedConnectionClose) {
+  // This test ensures ZERO_RTT_PROTECTED connection close could close a client
+  // which has switched to forward secure.
+  connect_to_server_on_initialize_ =
+      negotiated_version_.transport_version <= QUIC_VERSION_43;
+  ASSERT_TRUE(Initialize());
+  if (negotiated_version_.transport_version <= QUIC_VERSION_43) {
+    // Only runs for IETF QUIC header.
+    return;
+  }
+  server_thread_->Pause();
+  QuicDispatcher* dispatcher =
+      QuicServerPeer::GetDispatcher(server_thread_->server());
+  ASSERT_EQ(0u, dispatcher->session_map().size());
+  // Note: this writer will only used by the server connection, not the time
+  // wait list.
+  QuicDispatcherPeer::UseWriter(
+      dispatcher,
+      // This causes the first server sent ZERO_RTT_PROTECTED packet (i.e.,
+      // SHLO) to be sent, but WRITE_ERROR is returned. Such that a
+      // ZERO_RTT_PROTECTED connection close would be sent to a client with
+      // encryption level FORWARD_SECURE.
+      new BadShloPacketWriter());
+  server_thread_->Resume();
+
+  client_.reset(CreateQuicClient(client_writer_));
+  EXPECT_EQ("", client_->SendSynchronousRequest("/foo"));
+  // Verify ZERO_RTT_PROTECTED connection close is successfully processed by
+  // client which switches to FORWARD_SECURE.
+  EXPECT_EQ(QUIC_PACKET_WRITE_ERROR, client_->connection_error());
+}
+
+class BadShloPacketWriter2 : public QuicPacketWriterWrapper {
+ public:
+  BadShloPacketWriter2() : error_returned_(false) {}
+  ~BadShloPacketWriter2() override {}
+
+  WriteResult WritePacket(const char* buffer,
+                          size_t buf_len,
+                          const QuicIpAddress& self_address,
+                          const QuicSocketAddress& peer_address,
+                          quic::PerPacketOptions* options) override {
+    const uint8_t type_byte = buffer[0];
+    if ((type_byte & FLAGS_LONG_HEADER) &&
+        (((type_byte & 0x30) >> 4) == 1 || (type_byte & 0x7F) == 0x7C)) {
+      QUIC_DVLOG(1) << "Dropping ZERO_RTT_PACKET packet";
+      return WriteResult(WRITE_STATUS_OK, buf_len);
+    }
+    if (!error_returned_ && !(type_byte & FLAGS_LONG_HEADER)) {
+      QUIC_DVLOG(1) << "Return write error for short header packet";
+      error_returned_ = true;
+      return WriteResult(WRITE_STATUS_ERROR, QUIC_EMSGSIZE);
+    }
+    return QuicPacketWriterWrapper::WritePacket(buffer, buf_len, self_address,
+                                                peer_address, options);
+  }
+
+ private:
+  bool error_returned_;
+};
+
+TEST_P(EndToEndTest, ForwardSecureConnectionClose) {
+  // This test ensures ZERO_RTT_PROTECTED connection close is sent to a client
+  // which has ZERO_RTT_PROTECTED encryption level.
+  SetQuicReloadableFlag(quic_fix_termination_packets, true);
+  connect_to_server_on_initialize_ =
+      negotiated_version_.transport_version <= QUIC_VERSION_43;
+  ASSERT_TRUE(Initialize());
+  if (negotiated_version_.transport_version <= QUIC_VERSION_43) {
+    // Only runs for IETF QUIC header.
+    return;
+  }
+  server_thread_->Pause();
+  QuicDispatcher* dispatcher =
+      QuicServerPeer::GetDispatcher(server_thread_->server());
+  ASSERT_EQ(0u, dispatcher->session_map().size());
+  // Note: this writer will only used by the server connection, not the time
+  // wait list.
+  QuicDispatcherPeer::UseWriter(
+      dispatcher,
+      // This causes the all server sent ZERO_RTT_PROTECTED packets to be
+      // dropped, and first short header packet causes write error.
+      new BadShloPacketWriter2());
+  server_thread_->Resume();
+  client_.reset(CreateQuicClient(client_writer_));
+  EXPECT_EQ("", client_->SendSynchronousRequest("/foo"));
+  // Verify ZERO_RTT_PROTECTED connection close is successfully processed by
+  // client.
+  EXPECT_EQ(QUIC_PACKET_WRITE_ERROR, client_->connection_error());
 }
 
 }  // namespace

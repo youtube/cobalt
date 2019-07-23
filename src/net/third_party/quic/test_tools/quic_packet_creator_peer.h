@@ -27,7 +27,12 @@ class QuicPacketCreatorPeer {
       QuicPacketNumberLength packet_number_length);
   static QuicPacketNumberLength GetPacketNumberLength(
       QuicPacketCreator* creator);
-  static void SetPacketNumber(QuicPacketCreator* creator, QuicPacketNumber s);
+  static QuicVariableLengthIntegerLength GetRetryTokenLengthLength(
+      QuicPacketCreator* creator);
+  static QuicVariableLengthIntegerLength GetLengthLength(
+      QuicPacketCreator* creator);
+  static void SetPacketNumber(QuicPacketCreator* creator, uint64_t s);
+  static void ClearPacketNumber(QuicPacketCreator* creator);
   static void FillPacketHeader(QuicPacketCreator* creator,
                                QuicPacketHeader* header);
   static void CreateStreamFrame(QuicPacketCreator* creator,
@@ -43,6 +48,10 @@ class QuicPacketCreatorPeer {
                                              size_t buffer_len);
   static OwningSerializedPacketPointer SerializeConnectivityProbingPacket(
       QuicPacketCreator* creator);
+  static OwningSerializedPacketPointer
+  SerializePathChallengeConnectivityProbingPacket(QuicPacketCreator* creator,
+                                                  QuicPathFrameBuffer* payload);
+
   static EncryptionLevel GetEncryptionLevel(QuicPacketCreator* creator);
   static QuicFramer* framer(QuicPacketCreator* creator);
 };

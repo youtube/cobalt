@@ -20,7 +20,6 @@
 #define STARBOARD_CONDITION_VARIABLE_H_
 
 #include "starboard/export.h"
-#include "starboard/mutex.h"
 #include "starboard/thread_types.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
@@ -100,8 +99,8 @@ SB_EXPORT bool SbConditionVariableSignal(SbConditionVariable* condition);
 }  // extern "C"
 #endif
 
-#if defined(SB_EXT_API_REFACTORING_VERSION)
+#if defined(__cplusplus) && SB_API_VERSION < 11
 #include "starboard/common/condition_variable.h"
-#endif
+#endif  // defined(__cplusplus) && SB_API_VERSION < 11
 
 #endif  // STARBOARD_CONDITION_VARIABLE_H_

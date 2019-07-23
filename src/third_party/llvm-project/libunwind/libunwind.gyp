@@ -24,10 +24,12 @@
         '<(DEPTH)/third_party/musl/generated/include',
       ],
       'dependencies': [
+        '<(DEPTH)/starboard/common/common.gyp:common',
         '<(DEPTH)/third_party/musl/musl.gyp:c',
       ],
       'cflags': [
         '-nostdinc',
+        '-Wno-unused-command-line-argument',
       ],
       'cflags_cc': [
         '-std=c++11',
@@ -46,8 +48,11 @@
         '-Wno-unused-parameter',
       ],
       'defines': [
-        # This flag is set assuming the system uses pthread.
-        '_LIBCPP_HAS_THREAD_API_PTHREAD',
+        # Ensure that __external_threading is used for threading support.
+        '_LIBCPP_HAS_THREAD_API_EXTERNAL',
+        # Build libunwind with concurrency built upon Starboard mutexes and
+        # condition variables.
+        '_LIBUNWIND_HAS_STARBOARD_THREADS',
         'LLVM_PATH="<(DEPTH)/third_party/llvm-project/llvm/"',
       ],
       'sources': [
@@ -82,8 +87,8 @@
           '<(DEPTH)/third_party/musl/generated/include',
         ],
         'defines': [
-          # This flag is set assuming the system uses pthread.
-          '_LIBCPP_HAS_THREAD_API_PTHREAD',
+          # Ensure that __external_threading is used for threading support.
+          '_LIBCPP_HAS_THREAD_API_EXTERNAL',
           'LLVM_PATH="<(DEPTH)/third_party/llvm-project/llvm/"',
         ],
       },

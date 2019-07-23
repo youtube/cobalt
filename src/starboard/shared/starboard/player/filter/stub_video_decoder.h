@@ -15,7 +15,9 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_STUB_VIDEO_DECODER_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_STUB_VIDEO_DECODER_H_
 
-#include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
+#include "starboard/common/optional.h"
+#include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 
 namespace starboard {
 namespace shared {
@@ -47,6 +49,7 @@ class StubVideoDecoder : public VideoDecoder {
 
  private:
   DecoderStatusCB decoder_status_cb_;
+  optional<SbMediaVideoSampleInfo> video_sample_info_;
 };
 
 }  // namespace filter

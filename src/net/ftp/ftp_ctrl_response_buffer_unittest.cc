@@ -8,7 +8,7 @@
 
 #include "net/base/net_errors.h"
 #include "net/test/gtest_util.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"

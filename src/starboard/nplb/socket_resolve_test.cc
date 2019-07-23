@@ -14,10 +14,10 @@
 
 #include <utility>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
+#include "starboard/common/socket.h"
+#include "starboard/common/string.h"
 #include "starboard/nplb/socket_helpers.h"
-#include "starboard/socket.h"
-#include "starboard/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {

@@ -26,7 +26,7 @@
 #include "ir/SkSLWhileStatement.h"
 
 #if defined(STARBOARD)
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #define PRINTF_SKSL(format) SbLogRaw(format)
 #define PRINTFF_SKSL(format, ...) SbLogFormatF(format, __VA_ARGS__)
 #else

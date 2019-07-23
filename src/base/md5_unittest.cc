@@ -9,8 +9,8 @@
 #include <memory>
 #include <string>
 
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

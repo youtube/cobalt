@@ -14,7 +14,7 @@
 #include "net/base/sys_addrinfo.h"
 
 #if defined(STARBOARD)
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 #include "starboard/types.h"
 #endif
 

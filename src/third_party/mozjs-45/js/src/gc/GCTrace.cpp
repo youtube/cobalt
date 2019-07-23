@@ -12,7 +12,7 @@
 #include "vm/Runtime.h"
 
 #include "nb/thread_local_object.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 #include <unordered_map>
 

@@ -12,45 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/extension/platform_service.h"
-#include "starboard/log.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_API_VERSION >= SB_EXTENSIONS_API_VERSION
+#if SB_API_VERSION >= 11
 namespace starboard {
 namespace nplb {
 namespace {
 
 TEST(SbSystemGetExtension, MadeUpExtension) {
-  void* fing_longer = SbSystemGetExtension("dev.cobalt.extension.FingLonger");
+  const void* fing_longer =
+      SbSystemGetExtension("dev.cobalt.extension.FingLonger");
   EXPECT_TRUE(fing_longer == NULL);
 }
 
-TEST(SbSystemGetExtension, WebPlatformServices) {
-  const char* kExtensionName = kCobaltExtensionPlatformServiceName;
-  CobaltExtensionPlatformServiceApi* platform_service_api =
-      static_cast<CobaltExtensionPlatformServiceApi*>(
-          SbSystemGetExtension(kExtensionName));
-  if (!platform_service_api) {
-    return;
-  }
-  EXPECT_STREQ(platform_service_api->kName, kExtensionName);
-  EXPECT_EQ(platform_service_api->kVersion, 1)
-      << "PlatfomServiceApi version invalid";
-  EXPECT_TRUE(platform_service_api->Has != NULL);
-  EXPECT_TRUE(platform_service_api->Open != NULL);
-  EXPECT_TRUE(platform_service_api->Close != NULL);
-  EXPECT_TRUE(platform_service_api->Send != NULL);
-
-  CobaltExtensionPlatformServiceApi* second_platform_service_api =
-      static_cast<CobaltExtensionPlatformServiceApi*>(
-          SbSystemGetExtension(kExtensionName));
-
-  EXPECT_EQ(second_platform_service_api, platform_service_api)
-      << "Extension struct should be a singleton";
-}
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
-#endif  // SB_API_VERSION >= SB_EXTENSIONS_API_VERSION
+#endif  // SB_API_VERSION >= 11

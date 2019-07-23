@@ -17,7 +17,7 @@
 
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace starboard {
 namespace shared {

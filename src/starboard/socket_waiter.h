@@ -34,8 +34,8 @@
 #ifndef STARBOARD_SOCKET_WAITER_H_
 #define STARBOARD_SOCKET_WAITER_H_
 
-#include "starboard/export.h"
 #include "starboard/socket.h"
+#include "starboard/export.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
 

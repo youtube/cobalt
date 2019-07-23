@@ -34,7 +34,6 @@
 namespace quic {
 
 class CryptoHandshakeMessage;
-class EphemeralKeySource;
 class ProofSource;
 class QuicClock;
 class QuicRandom;
@@ -370,12 +369,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
       const CachedNetworkParameters* cached_network_params,
       std::unique_ptr<BuildServerConfigUpdateMessageResultCallback> cb) const;
 
-  // SetEphemeralKeySource installs an object that can cache ephemeral keys for
-  // a short period of time. If not set, ephemeral keys will be generated
-  // per-connection.
-  void SetEphemeralKeySource(
-      std::unique_ptr<EphemeralKeySource> ephemeral_key_source);
-
   // set_replay_protection controls whether replay protection is enabled. If
   // replay protection is disabled then no strike registers are needed and
   // frontends can share an orbit value without a shared strike-register.
@@ -387,6 +380,22 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // that a REJ message must stay under when the client doesn't present a
   // valid source-address token.
   void set_chlo_multiplier(size_t multiplier);
+
+  // When sender is allowed to not pad client hello (not standards compliant),
+  // we need to disable the client hello check.
+  void set_validate_chlo_size(bool new_value) {
+    validate_chlo_size_ = new_value;
+  }
+
+  // Returns whether the sender is allowed to not pad the client hello.
+  bool validate_chlo_size() const { return validate_chlo_size_; }
+
+  // When QUIC is tunneled through some other mechanism, source token validation
+  // may be disabled. Do not disable it if you are not providing other
+  // protection. (|true| protects against UDP amplification attack.).
+  void set_validate_source_address_token(bool new_value) {
+    validate_source_address_token_ = new_value;
+  }
 
   // set_source_address_token_future_secs sets the number of seconds into the
   // future that source-address tokens will be accepted from. Since
@@ -422,6 +431,12 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   void set_pre_shared_key(QuicStringPiece psk) {
     pre_shared_key_ = QuicString(psk);
   }
+
+  bool pad_rej() const { return pad_rej_; }
+  void set_pad_rej(bool new_value) { pad_rej_ = new_value; }
+
+  bool pad_shlo() const { return pad_shlo_; }
+  void set_pad_shlo(bool new_value) { pad_shlo_ = new_value; }
 
  private:
   friend class test::QuicCryptoServerConfigPeer;
@@ -539,7 +554,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
       QuicReferenceCountedPointer<Config> primary_config,
       QuicReferenceCountedPointer<QuicSignedServerConfig> crypto_proof,
       std::unique_ptr<ProofSource::Details> proof_source_details,
-      bool use_get_cert_chain,
       bool get_proof_failed,
       QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
           client_hello_state,
@@ -554,7 +568,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   void ProcessClientHelloAfterGetProof(
       bool found_error,
       std::unique_ptr<ProofSource::Details> proof_source_details,
-      const ValidateClientHelloResultCallback::Result& validate_chlo_result,
+      QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
+          validate_chlo_result,
       bool reject_only,
       QuicConnectionId connection_id,
       const QuicSocketAddress& client_address,
@@ -588,6 +603,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
       const ValidateClientHelloResultCallback::Result& validate_chlo_result,
       QuicConnectionId connection_id,
       const QuicSocketAddress& client_address,
+      ParsedQuicVersion version,
       const ParsedQuicVersionVector& supported_versions,
       const QuicClock* clock,
       QuicRandom* rand,
@@ -729,6 +745,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
     const QuicString client_common_set_hashes_;
     const QuicString client_cached_cert_hashes_;
     const bool sct_supported_by_client_;
+    const QuicString sni_;
     CryptoHandshakeMessage message_;
     std::unique_ptr<BuildServerConfigUpdateMessageResultCallback> cb_;
   };
@@ -743,6 +760,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
       const QuicString& client_common_set_hashes,
       const QuicString& client_cached_cert_hashes,
       bool sct_supported_by_client,
+      const QuicString& sni,
       bool ok,
       const QuicReferenceCountedPointer<ProofSource::Chain>& chain,
       const QuicString& signature,
@@ -750,6 +768,10 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
       std::unique_ptr<ProofSource::Details> details,
       CryptoHandshakeMessage message,
       std::unique_ptr<BuildServerConfigUpdateMessageResultCallback> cb) const;
+
+  // Returns true if the next config promotion should happen now.
+  bool IsNextConfigReady(QuicWallTime now) const
+      SHARED_LOCKS_REQUIRED(configs_lock_);
 
   // replay_protection_ controls whether the server enforces that handshakes
   // aren't replays.
@@ -802,10 +824,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // ssl_ctx_ contains the server configuration for doing TLS handshakes.
   bssl::UniquePtr<SSL_CTX> ssl_ctx_;
 
-  // ephemeral_key_source_ contains an object that caches ephemeral keys for a
-  // short period of time.
-  std::unique_ptr<EphemeralKeySource> ephemeral_key_source_;
-
   // These fields store configuration values. See the comments for their
   // respective setter functions.
   uint32_t source_address_token_future_secs_;
@@ -820,6 +838,23 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // If non-empty, the server will operate in the pre-shared key mode by
   // incorporating |pre_shared_key_| into the key schedule.
   QuicString pre_shared_key_;
+
+  // Whether REJ message should be padded to max packet size.
+  bool pad_rej_;
+
+  // Whether SHLO message should be padded to max packet size.
+  bool pad_shlo_;
+
+  // If client is allowed to send a small client hello (by disabling padding),
+  // server MUST not check for the client hello size.
+  // DO NOT disable this unless you have some other way of validating client.
+  // (e.g. in realtime scenarios, where quic is tunneled through ICE, ICE will
+  // do its own peer validation using STUN pings with ufrag/upass).
+  bool validate_chlo_size_;
+
+  // When source address is validated by some other means (e.g. when using ICE),
+  // source address token validation may be disabled.
+  bool validate_source_address_token_;
 };
 
 struct QUIC_EXPORT_PRIVATE QuicSignedServerConfig

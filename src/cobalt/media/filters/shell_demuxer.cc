@@ -26,7 +26,6 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/media/base/bind_to_current_loop.h"
 #include "cobalt/media/base/data_source.h"
-#include "cobalt/media/base/shell_media_platform.h"
 #include "cobalt/media/base/starboard_utils.h"
 #include "cobalt/media/base/timestamp_constants.h"
 #include "starboard/types.h"
@@ -69,9 +68,7 @@ void ShellDemuxerStream::Read(const ReadCB& read_cb) {
       --total_buffer_count_;
       buffer_queue_.pop_front();
     }
-    read_cb.Run(
-        DemuxerStream::kOk,
-        ShellMediaPlatform::Instance()->ProcessBeforeLeavingDemuxer(buffer));
+    read_cb.Run(DemuxerStream::kOk, buffer);
   } else {
     TRACE_EVENT0("media_stack", "ShellDemuxerStream::Read() request queued.");
     read_queue_.push_back(read_cb);
@@ -127,9 +124,7 @@ void ShellDemuxerStream::EnqueueBuffer(scoped_refptr<DecoderBuffer> buffer) {
     DCHECK_EQ(buffer_queue_.size(), 0);
     ReadCB read_cb(read_queue_.front());
     read_queue_.pop_front();
-    read_cb.Run(
-        DemuxerStream::kOk,
-        ShellMediaPlatform::Instance()->ProcessBeforeLeavingDemuxer(buffer));
+    read_cb.Run(DemuxerStream::kOk, buffer);
   } else {
     // save the buffer for next read request
     buffer_queue_.push_back(buffer);

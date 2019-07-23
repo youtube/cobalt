@@ -20,8 +20,6 @@
 #include "net/third_party/quic/platform/impl/quic_socket_utils.h"
 #include "starboard/types.h"
 
-#define MMSG_MORE 0
-
 namespace quic {
 
 #if MMSG_MORE
@@ -75,14 +73,14 @@ class QuicPacketReader {
   // packets_ and mmsg_hdr_ are used to supply cbuf and buf to the recvmmsg
   // call.
   struct PacketData {
-    iovec iov;
+    IOVEC iov;
     // raw_address is used for address information provided by the recvmmsg
     // call on the packets.
     struct sockaddr_storage raw_address;
     // cbuf is used for ancillary data from the kernel on recvmmsg.
     char cbuf[kCmsgSpaceForReadPacket];
     // buf is used for the data read from the kernel on recvmmsg.
-    char buf[kMaxPacketSize];
+    char buf[kMaxV4PacketSize];
   };
   PacketData packets_[kNumPacketsPerReadMmsgCall];
   mmsghdr mmsg_hdr_[kNumPacketsPerReadMmsgCall];

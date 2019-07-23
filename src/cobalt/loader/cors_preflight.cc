@@ -24,7 +24,7 @@
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "cobalt/loader/cors_preflight.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 namespace cobalt {
 namespace loader {
@@ -268,7 +268,7 @@ bool CORSPreflight::Send() {
   if (!IsPreflightNeeded()) {
     return false;
   }
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // https://fetch.spec.whatwg.org/#cors-preflight-fetch-0
 
   // 1. Let preflight be a new request whose method is 'OPTIONS', url is
@@ -310,14 +310,14 @@ bool CORSPreflight::Send() {
 }
 
 void CORSPreflight::Start() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Preflight does not allow redirect, status 300+ should not fail
   url_fetcher_->SetStopOnRedirect(true);
   url_fetcher_->Start();
 }
 
 void CORSPreflight::OnURLFetchComplete(const net::URLFetcher* source) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (source->GetStatus().status() != net::URLRequestStatus::SUCCESS) {
     error_callback_.Run();
     return;

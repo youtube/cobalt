@@ -88,6 +88,12 @@ enum TestStatus {
   kNotrun,
 };
 
+enum TestsStatus {
+  kTestsOk = 0,
+  kTestsError,
+  kTestsTimeout
+};
+
 std::string TestStatusToString(int status) {
   switch (status) {
     case kPass:
@@ -103,11 +109,30 @@ std::string TestStatusToString(int status) {
   return "FAIL";
 }
 
+std::string TestsStatusToString(int status) {
+  switch (status) {
+    case kTestsOk:
+      return "OK";
+    case kTestsError:
+      return "ERROR";
+    case kTestsTimeout:
+      return "TIMEOUT";
+  }
+  NOTREACHED();
+  return "FAIL";
+}
+
 struct TestResult {
   std::string name;
   int status;
   std::string message;
   std::string stack;
+};
+
+struct HarnessResult {
+  std::vector<TestResult> test_results;
+  int status;
+  std::string message;
 };
 
 const char* kLogSuppressions[] = {
@@ -166,9 +191,8 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
 
   // Media module
   render_tree::ResourceProviderStub resource_provider;
-  media::MediaModule::Options options;
   std::unique_ptr<media::MediaModule> media_module(
-      media::MediaModule::Create(NULL, &resource_provider, options));
+      new media::MediaModule(NULL, &resource_provider));
   std::unique_ptr<media::CanPlayTypeHandler> can_play_type_handler(
       media::MediaModule::CreateCanPlayTypeHandler());
 
@@ -203,8 +227,9 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
   return output;
 }
 
-std::vector<TestResult> ParseResults(const std::string& json_results) {
-  std::vector<TestResult> test_results;
+HarnessResult ParseResults(const std::string& json_results) {
+  HarnessResult harness_result;
+  std::vector<TestResult>& test_results = harness_result.test_results;
 
   std::unique_ptr<base::Value> root;
   base::JSONReader reader(
@@ -215,11 +240,15 @@ std::vector<TestResult> ParseResults(const std::string& json_results) {
   if (!root) {
     // Unparseable JSON, or empty string.
     LOG(ERROR) << "Web Platform Tests returned unparseable JSON test result!";
-    return test_results;
+    return harness_result;
   }
 
   base::DictionaryValue* root_as_dict;
   EXPECT_EQ(true, root->GetAsDictionary(&root_as_dict));
+
+  EXPECT_EQ(true, root_as_dict->GetInteger("status", &harness_result.status));
+  // "message" field might not be set
+  root_as_dict->GetString("message", &harness_result.message);
 
   base::ListValue* test_list;
   EXPECT_EQ(true, root_as_dict->GetList("tests", &test_list));
@@ -236,7 +265,7 @@ std::vector<TestResult> ParseResults(const std::string& json_results) {
     test_dict->GetString("stack", &result.stack);
     test_results.push_back(result);
   }
-  return test_results;
+  return harness_result;
 }
 
 ::testing::AssertionResult CheckResult(const char* /* expectation_str */,
@@ -264,6 +293,21 @@ std::vector<TestResult> ParseResults(const std::string& json_results) {
            << "Expected: " << TestStatusToString(expectation) << std::endl
            << "Actual: " << TestStatusToString(result.status) << std::endl
            << output.str();
+  }
+}
+
+::testing::AssertionResult CheckHarnessResult(const char* /* expectation_str */,
+                                              const char* /* results_str */,
+                                              WebPlatformTestInfo::State expect_status,
+                                              const HarnessResult& result) {
+  if ((expect_status == WebPlatformTestInfo::State::kPass) &&
+      (result.status != kTestsOk)) {
+    return ::testing::AssertionFailure()
+           << " Harness status :" << TestsStatusToString(result.status)
+           << std::endl
+           << result.message;
+  } else {
+    return ::testing::AssertionSuccess();
   }
 }
 
@@ -307,7 +351,9 @@ TEST_P(WebPlatformTest, Run) {
   bool got_results = false;
   std::string json_results = RunWebPlatformTest(test_url, &got_results);
   EXPECT_TRUE(got_results);
-  std::vector<TestResult> results = ParseResults(json_results);
+  HarnessResult result = ParseResults(json_results);
+  const std::vector<TestResult>& results = result.test_results;
+
   bool failed_at_least_once = false;
   for (size_t i = 0; i < results.size(); ++i) {
     const WebPlatformTestInfo& test_info = GetParam();
@@ -329,6 +375,7 @@ TEST_P(WebPlatformTest, Run) {
     }
     EXPECT_PRED_FORMAT2(CheckResult, should_pass, test_result);
   }
+  EXPECT_PRED_FORMAT2(CheckHarnessResult, GetParam().expectation, result);
 }
 
 // Disable on Windows until network stack is implemented.

@@ -20,7 +20,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #include "base/logging.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 namespace base {
 namespace {

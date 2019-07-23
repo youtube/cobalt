@@ -40,18 +40,18 @@
 //  auto res = buffer.OnStreamData(0, string_piece1, GetEpollClockNow(),
 //                                  &written);
 //
-//  // Read into a iovec array with total capacity of 120 bytes.
+//  // Read into a IOVEC array with total capacity of 120 bytes.
 //  char dest[120];
-//  iovec iovecs[3]{iovec{dest, 40}, iovec{dest + 40, 40},
-//                  iovec{dest + 80, 40}};
-//  size_t read = buffer.Readv(iovecs, 3);
+//  IOVEC IOVECs[3]{IOVEC{dest, 40}, IOVEC{dest + 40, 40},
+//                  IOVEC{dest + 80, 40}};
+//  size_t read = buffer.Readv(IOVECs, 3);
 //
 //  // Get single readable region.
-//  iovec iov;
+//  IOVEC iov;
 //  buffer.GetReadableRegion(iov);
 //
 //  // Get readable regions from [256, 1024) and consume some of it.
-//  iovec iovs[2];
+//  IOVEC iovs[2];
 //  int iov_count = buffer.GetReadableRegions(iovs, 2);
 //  // Consume some bytes in iovs, returning number of bytes having been
 //  consumed.
@@ -64,8 +64,11 @@
 #include <memory>
 
 #include "base/macros.h"
+#include "net/third_party/quic/core/quic_interval_set.h"
 #include "net/third_party/quic/core/quic_packets.h"
+#include "net/third_party/quic/core/quic_types.h"
 #include "net/third_party/quic/platform/api/quic_export.h"
+#include "net/third_party/quic/platform/api/quic_iovec.h"
 #include "net/third_party/quic/platform/api/quic_string.h"
 #include "net/third_party/quic/platform/api/quic_string_piece.h"
 
@@ -89,6 +92,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
 
   explicit QuicStreamSequencerBuffer(size_t max_capacity_bytes);
   QuicStreamSequencerBuffer(const QuicStreamSequencerBuffer&) = delete;
+  QuicStreamSequencerBuffer(QuicStreamSequencerBuffer&&) = default;
   QuicStreamSequencerBuffer& operator=(const QuicStreamSequencerBuffer&) =
       delete;
   ~QuicStreamSequencerBuffer();
@@ -107,26 +111,35 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
                              size_t* bytes_buffered,
                              QuicString* error_details);
 
-  // Reads from this buffer into given iovec array, up to number of iov_len
-  // iovec objects and returns the number of bytes read.
-  QuicErrorCode Readv(const struct iovec* dest_iov,
+  // Reads from this buffer into given IOVEC array, up to number of iov_len
+  // IOVEC objects and returns the number of bytes read.
+  QuicErrorCode Readv(const struct IOVEC* dest_iov,
                       size_t dest_count,
                       size_t* bytes_read,
                       QuicString* error_details);
 
-  // Returns the readable region of valid data in iovec format. The readable
+  // Returns the readable region of valid data in IOVEC format. The readable
   // region is the buffer region where there is valid data not yet read by
   // client.
-  // Returns the number of iovec entries in |iov| which were populated.
-  // If the region is empty, one iovec entry with 0 length
+  // Returns the number of IOVEC entries in |iov| which were populated.
+  // If the region is empty, one IOVEC entry with 0 length
   // is returned, and the function returns 0. If there are more readable
   // regions than |iov_size|, the function only processes the first
   // |iov_size| of them.
-  int GetReadableRegions(struct iovec* iov, int iov_len) const;
+  int GetReadableRegions(struct IOVEC* iov, int iov_len) const;
 
-  // Fills in one iovec with data from the next readable region.
+  // Fills in one IOVEC with data from the next readable region.
   // Returns false if there is no readable region available.
-  bool GetReadableRegion(iovec* iov) const;
+  bool GetReadableRegion(IOVEC* iov) const;
+
+  // Called to return the next region that has not been returned by this method
+  // previously.
+  // If this method is to be used along with Readv() or MarkConsumed(), make
+  // sure that they are consuming less data than is read by this method.
+  // This method only returns reference of underlying data. The caller is
+  // responsible for copying and consuming the data.
+  // Returns true if the data is read, false otherwise.
+  bool PrefetchNextRegion(IOVEC* iov);
 
   // Called after GetReadableRegions() to free up |bytes_used| space if these
   // bytes are processed.
@@ -172,7 +185,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
   // block or missing data has been reached.
   // If the block at |block_index| contains no buffered data, the block
   // should be retired.
-  // Return false on success, or false otherwise.
+  // Returns true on success, or false otherwise.
   bool RetireBlockIfEmpty(size_t block_index);
 
   // Calculate the capacity of block at specified index.
@@ -224,6 +237,12 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
 
   // Currently received data.
   QuicIntervalSet<QuicStreamOffset> bytes_received_;
+
+  // Total number of bytes that have been prefetched.
+  QuicStreamOffset total_bytes_prefetched_;
+
+  // Latched value of --quic_faster_interval_add_in_sequence_buffer.
+  const bool faster_interval_add_in_sequence_buffer_;
 };
 }  // namespace quic
 

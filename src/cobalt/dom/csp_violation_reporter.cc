@@ -122,8 +122,7 @@ CspViolationReporter::~CspViolationReporter() {}
 // https://www.w3.org/TR/CSP2/#violation-reports
 void CspViolationReporter::Report(const csp::ViolationInfo& violation_info) {
   DCHECK(message_loop_);
-  if (base::MessageLoop::current()->task_runner() !=
-      message_loop_->task_runner()) {
+  if (!message_loop_->task_runner()->BelongsToCurrentThread()) {
     message_loop_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&CspViolationReporter::Report,
                               base::Unretained(this), violation_info));

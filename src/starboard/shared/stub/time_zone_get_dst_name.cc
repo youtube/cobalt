@@ -12,10 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/time_zone.h"
-
-#if SB_API_VERSION < 6
-const char* SbTimeZoneGetDstName() {
-  return "GMT";
-}
-#endif  // SB_API_VERSION < 6
+#error This file is deprecated with SB_API_VERSION 6.

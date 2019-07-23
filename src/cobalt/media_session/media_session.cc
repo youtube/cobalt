@@ -21,9 +21,10 @@ namespace media_session {
 
 MediaSession::MediaSession(MediaSessionClient* client)
     : media_session_client_(client),
-      state_(kMediaSessionPlaybackStateNone),
+      playback_state_(kMediaSessionPlaybackStateNone),
       task_runner_(base::MessageLoop::current()->task_runner()),
-      is_change_task_queued_(false) {}
+      is_change_task_queued_(false),
+      last_position_updated_time_(0) {}
 
 MediaSession::~MediaSession() {
   ActionMap::iterator it;
@@ -38,8 +39,9 @@ void MediaSession::set_metadata(scoped_refptr<MediaMetadata> value) {
   MaybeQueueChangeTask();
 }
 
-void MediaSession::set_playback_state(MediaSessionPlaybackState state) {
-  state_ = state;
+void MediaSession::set_playback_state(
+    MediaSessionPlaybackState playback_state) {
+  playback_state_ = playback_state;
   MaybeQueueChangeTask();
 }
 
@@ -60,6 +62,12 @@ void MediaSession::SetActionHandler(
   MaybeQueueChangeTask();
 }
 
+void MediaSession::SetPositionState(base::Optional<MediaPositionState> state) {
+  last_position_updated_time_ = GetMonotonicNow();
+  media_position_state_ = state;
+  MaybeQueueChangeTask();
+}
+
 void MediaSession::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(metadata_.get());
 }
@@ -76,7 +84,7 @@ void MediaSession::MaybeQueueChangeTask() {
 
 void MediaSession::OnChanged() {
   is_change_task_queued_ = false;
-  media_session_client_->OnMediaSessionChanged();
+  media_session_client_->UpdateMediaSessionState();
 }
 
 }  // namespace media_session

@@ -65,7 +65,7 @@ class HardwareRasterizer::Impl {
 #if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
   void SetupLastFrameSurface(int width, int height);
 #endif  // #if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   backend::GraphicsContextBlitter* context_;
 
@@ -148,7 +148,7 @@ void HardwareRasterizer::Impl::Submit(
     const scoped_refptr<backend::RenderTarget>& render_target,
     const Options& options) {
   TRACE_EVENT0("cobalt::renderer", "Rasterizer::Submit()");
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   int width = render_target->GetSize().width();
   int height = render_target->GetSize().height();
@@ -236,7 +236,7 @@ void HardwareRasterizer::Impl::SubmitOffscreenToRenderTarget(
     const scoped_refptr<backend::RenderTarget>& render_target) {
   TRACE_EVENT0("cobalt::renderer",
                "Rasterizer::SubmitOffscreenToRenderTarget()");
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   SbBlitterContext context = context_->GetSbBlitterContext();
 

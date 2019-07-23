@@ -61,7 +61,7 @@ class ScreenshotManager {
  private:
   void FillScreenshot(
       int64_t token,
-      scoped_refptr<base::SingleThreadTaskRunner> expected_message_loop,
+      scoped_refptr<base::SingleThreadTaskRunner> expected_task_runner,
       loader::image::EncodedStaticImage::ImageFormat desired_format,
       std::unique_ptr<uint8[]> image_data, const math::Size& dimensions);
 
@@ -71,7 +71,7 @@ class ScreenshotManager {
       std::unordered_map<int64_t,
                          std::unique_ptr<InterfacePromiseValue::Reference>>;
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   script::EnvironmentSettings* environment_settings_ = nullptr;
   TicketToPromiseMap ticket_to_screenshot_promise_map_;
   ProvideScreenshotFunctionCallback screenshot_function_callback_;

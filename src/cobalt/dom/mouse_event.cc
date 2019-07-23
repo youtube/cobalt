@@ -142,7 +142,7 @@ float MouseEvent::offset_x() {
           node->AsElement()->AsHTMLElement();
       if (html_element && html_element->layout_boxes()) {
         target_node_padding_edge =
-            html_element->layout_boxes()->GetPaddingEdgeLeft();
+            html_element->layout_boxes()->GetPaddingEdgeOffset().x();
       }
     }
     return client_x() - target_node_padding_edge;
@@ -170,7 +170,7 @@ float MouseEvent::offset_y() const {
           node->AsElement()->AsHTMLElement();
       if (html_element && html_element->layout_boxes()) {
         target_node_padding_edge =
-            html_element->layout_boxes()->GetPaddingEdgeTop();
+            html_element->layout_boxes()->GetPaddingEdgeOffset().y();
       }
     }
     return client_y() - target_node_padding_edge;

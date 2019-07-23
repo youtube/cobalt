@@ -111,6 +111,9 @@ HttpNetworkSession::Params::Params()
       enable_http2_alternative_service(false),
       enable_websocket_over_http2(false),
       enable_quic(false),
+#if defined(COBALT_QUIC46)
+      enable_quic_proxies_for_https_urls(false),
+#endif
 #if !defined(QUIC_DISABLED_FOR_STARBOARD)
       quic_max_packet_length(quic::kDefaultMaxPacketSize),
 #endif
@@ -124,6 +127,8 @@ HttpNetworkSession::Params::Params()
 #if !defined(QUIC_DISABLED_FOR_STARBOARD)
       quic_idle_connection_timeout_seconds(kIdleConnectionTimeoutSeconds),
       quic_reduced_ping_timeout_seconds(quic::kPingTimeoutSecs),
+      quic_retransmittable_on_wire_timeout_milliseconds(
+          kDefaultRetransmittableOnWireTimeoutMillisecs),
       quic_max_time_before_crypto_handshake_seconds(
           quic::kMaxTimeForCryptoHandshakeSecs),
       quic_max_idle_time_before_crypto_handshake_seconds(
@@ -132,6 +137,10 @@ HttpNetworkSession::Params::Params()
       quic_migrate_sessions_on_network_change_v2(false),
       quic_migrate_sessions_early_v2(false),
       quic_retry_on_alternate_network_before_handshake(false),
+      // QUIC46
+      quic_migrate_idle_sessions(false),
+      quic_idle_session_migration_period(base::TimeDelta::FromSeconds(
+          kDefaultIdleSessionMigrationPeriodSeconds)),
       quic_race_stale_dns_on_connection(false),
       quic_go_away_on_path_degrading(false),
 #if !defined(QUIC_DISABLED_FOR_STARBOARD)
@@ -152,7 +161,7 @@ HttpNetworkSession::Params::Params()
       enable_channel_id(false),
       http_09_on_non_default_ports_enabled(false),
       disable_idle_sockets_close_on_memory_pressure(false) {
-  quic_supported_versions.push_back(quic::QUIC_VERSION_43);
+  quic_supported_versions.push_back(quic::QUIC_VERSION_46);
 }
 
 HttpNetworkSession::Params::Params(const Params& other) = default;
@@ -201,6 +210,7 @@ HttpNetworkSession::HttpNetworkSession(const Params& params,
           std::make_unique<WebSocketEndpointLockManager>()),
       push_delegate_(nullptr),
 #if !defined(QUIC_DISABLED_FOR_STARBOARD)
+      // QUIC46, changed constructor params.
       quic_stream_factory_(
           context.net_log,
           context.host_resolver,
@@ -211,7 +221,6 @@ HttpNetworkSession::HttpNetworkSession(const Params& params,
           context.http_server_properties,
           context.cert_verifier,
           context.ct_policy_enforcer,
-          context.channel_id_service,
           context.transport_security_state,
           context.cert_transparency_verifier,
           context.socket_performance_watcher_factory,
@@ -228,23 +237,25 @@ HttpNetworkSession::HttpNetworkSession(const Params& params,
           params.mark_quic_broken_when_network_blackholes,
           params.quic_idle_connection_timeout_seconds,
           params.quic_reduced_ping_timeout_seconds,
+          params.quic_retransmittable_on_wire_timeout_milliseconds,
           params.quic_max_time_before_crypto_handshake_seconds,
           params.quic_max_idle_time_before_crypto_handshake_seconds,
           params.quic_migrate_sessions_on_network_change_v2,
           params.quic_migrate_sessions_early_v2,
           params.quic_retry_on_alternate_network_before_handshake,
-          params.quic_race_stale_dns_on_connection,
-          params.quic_go_away_on_path_degrading,
+          params.quic_migrate_idle_sessions,
+          params.quic_idle_session_migration_period,
           params.quic_max_time_on_non_default_network,
           params.quic_max_migrations_to_non_default_network_on_write_error,
           params.quic_max_migrations_to_non_default_network_on_path_degrading,
           params.quic_allow_server_migration,
+          params.quic_race_stale_dns_on_connection,
+          params.quic_go_away_on_path_degrading,
           params.quic_race_cert_verification,
           params.quic_estimate_initial_rtt,
           params.quic_headers_include_h2_stream_dependency,
           params.quic_connection_options,
           params.quic_client_connection_options,
-          params.enable_channel_id,
           params.quic_enable_socket_recv_optimization),
 #endif
 #if !defined(COBALT_DISABLE_SPDY)
@@ -263,6 +274,7 @@ HttpNetworkSession::HttpNetworkSession(const Params& params,
       http_stream_factory_(std::make_unique<HttpStreamFactory>(this)),
       params_(params),
       context_(context) {
+
   DCHECK(proxy_resolution_service_);
   DCHECK(ssl_config_service_);
   CHECK(http_server_properties_);

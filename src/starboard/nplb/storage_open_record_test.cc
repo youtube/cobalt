@@ -14,16 +14,14 @@
 
 // Sunny Day cases tested in the read/write tests.
 
+#include "starboard/common/storage.h"
 #include "starboard/nplb/file_helpers.h"
-#include "starboard/storage.h"
 #include "starboard/user.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {
 namespace {
-
-#if SB_API_VERSION >= 6
 
 TEST(SbStorageOpenRecordTest, RainyDayInvalidUserValidName) {
   EXPECT_FALSE(SbStorageIsValidRecord(SbStorageOpenRecord(
@@ -34,14 +32,6 @@ TEST(SbStorageOpenRecordTest, RainyDayInvalidUserNullName) {
   EXPECT_FALSE(
       SbStorageIsValidRecord(SbStorageOpenRecord(kSbUserInvalid, NULL)));
 }
-
-#else  // SB_API_VERSION >= 6
-
-TEST(SbStorageOpenRecordTest, RainyDayInvalidUser) {
-  EXPECT_FALSE(SbStorageIsValidRecord(SbStorageOpenRecord(kSbUserInvalid)));
-}
-
-#endif  // SB_API_VERSION >= 6
 
 }  // namespace
 }  // namespace nplb

@@ -841,11 +841,13 @@ void BytecodeGraphBuilder::VisitBytecodes() {
   SourcePositionTableIterator source_position_iterator(
       handle(bytecode_array()->SourcePositionTable()));
 
+#ifndef V8_OS_STARBOARD
   if (FLAG_trace_environment_liveness) {
     OFStream of(stdout);
 
     bytecode_analysis.PrintLivenessTo(of);
   }
+#endif  // V8_OS_STARBOARD
 
   if (bytecode_analysis.HasOsrEntryPoint()) {
     // We peel the OSR loop and any outer loop containing it except that we

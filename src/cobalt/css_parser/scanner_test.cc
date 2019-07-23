@@ -128,6 +128,7 @@ const int property_tokens[] = {
     kFontStyleToken,
     kFontWeightToken,
     kHeightToken,
+    kIntersectionObserverRootMarginToken,
     kJustifyContentToken,
     kLeftToken,
     kLineHeightToken,

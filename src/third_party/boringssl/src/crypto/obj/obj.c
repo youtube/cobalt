@@ -75,6 +75,11 @@
 #include "obj_dat.h"
 #include "../internal.h"
 
+#if defined(STARBOARD)
+#include "starboard/system.h"
+#define bsearch SbSystemBinarySearch
+#endif
+
 
 static struct CRYPTO_STATIC_MUTEX global_added_lock = CRYPTO_STATIC_MUTEX_INIT;
 // These globals are protected by |global_added_lock|.

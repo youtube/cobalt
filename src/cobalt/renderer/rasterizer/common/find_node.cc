@@ -25,7 +25,7 @@ namespace common {
 
 class FinderNodeVisitor : public render_tree::NodeVisitor {
  public:
-  FinderNodeVisitor(NodeFilterFunction filter_function,
+  FinderNodeVisitor(NodeFilterFunction<render_tree::Node> filter_function,
                     base::Optional<NodeReplaceFunction> replace_function)
       : filter_function_(filter_function),
         replace_function_(replace_function) {}
@@ -104,7 +104,7 @@ class FinderNodeVisitor : public render_tree::NodeVisitor {
     }
   }
 
-  NodeFilterFunction filter_function_;
+  NodeFilterFunction<render_tree::Node> filter_function_;
   base::Optional<NodeReplaceFunction> replace_function_;
 
   scoped_refptr<render_tree::Node> found_node_;
@@ -114,7 +114,7 @@ class FinderNodeVisitor : public render_tree::NodeVisitor {
 template <>
 NodeSearchResult<render_tree::Node> FindNode<render_tree::Node>(
     const scoped_refptr<render_tree::Node>& tree,
-    NodeFilterFunction filter_function,
+    NodeFilterFunction<render_tree::Node> filter_function,
     base::Optional<NodeReplaceFunction> replace_function) {
   FinderNodeVisitor visitor(filter_function, replace_function);
   tree->Accept(&visitor);
@@ -129,9 +129,7 @@ NodeSearchResult<render_tree::Node> FindNode<render_tree::Node>(
   return result;
 }
 
-bool HasMapToMesh(render_tree::Node* node) {
-  auto* filter_node =
-      base::polymorphic_downcast<render_tree::FilterNode*>(node);
+bool HasMapToMesh(render_tree::FilterNode* filter_node) {
   return static_cast<bool>(filter_node->data().map_to_mesh_filter);
 }
 

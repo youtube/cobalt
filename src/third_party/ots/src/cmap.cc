@@ -18,7 +18,7 @@
 #endif
 
 #if defined(STARBOARD)
-#include "starboard/byte_swap.h"
+#include "starboard/common/byte_swap.h"
 #define NTOHS_CMAP(x) SB_NET_TO_HOST_U16(x)
 #elif defined(_WIN32)
 #include <stdlib.h>

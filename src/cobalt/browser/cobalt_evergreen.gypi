@@ -27,18 +27,15 @@
     '-Wno-bitwise-op-parentheses',
     '-Wno-shift-op-parentheses',
     '-Wno-shorten-64-to-32',
+    '-Wno-unused-command-line-argument',
   ],
   'cflags_cc': [
     '-nostdinc++',
     '-std=c++11',
-    '-stdlib=libc++',
   ],
   'ldflags': [
-    # We use -nodefaultlibs instead of -nostdlib because the latter excludes
-    # standard system startup files, which are needed when linking.
-    '-nodefaultlibs',
-    # We still need libgcc.a when linking.
-    '-lgcc',
+    '-stdlib=libc++',
+    '-nostdlib',
   ],
   'defines' : [
     # This flag is set assuming the system uses pthread.

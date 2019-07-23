@@ -24,14 +24,10 @@ WriteResult QuicDefaultPacketWriter::WritePacket(
       << "QuicDefaultPacketWriter does not accept any options.";
   WriteResult result = QuicSocketUtils::WritePacket(fd_, buffer, buf_len,
                                                     self_address, peer_address);
-  if (result.status == WRITE_STATUS_BLOCKED) {
+  if (IsWriteBlockedStatus(result.status)) {
     write_blocked_ = true;
   }
   return result;
-}
-
-bool QuicDefaultPacketWriter::IsWriteBlockedDataBuffered() const {
-  return false;
 }
 
 bool QuicDefaultPacketWriter::IsWriteBlocked() const {

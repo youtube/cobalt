@@ -18,10 +18,10 @@
 #ifndef STARBOARD_SHARED_STARBOARD_FILE_STORAGE_STORAGE_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_FILE_STORAGE_STORAGE_INTERNAL_H_
 
+#include "starboard/common/storage.h"
+#include "starboard/common/string.h"
 #include "starboard/file.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/storage.h"
-#include "starboard/string.h"
 #include "starboard/user.h"
 
 #if SB_HAS_QUIRK(HASH_FILE_NAME)
@@ -36,9 +36,7 @@
 struct SbStorageRecordPrivate {
   SbUser user;
   SbFile file;
-#if SB_API_VERSION >= 6
   std::string name;
-#endif  // SB_API_VERSION >= 6
 };
 
 namespace starboard {

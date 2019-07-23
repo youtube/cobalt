@@ -4,22 +4,50 @@
 
 #include "net/third_party/quic/core/quic_packets.h"
 
+#include "net/third_party/quic/core/quic_connection_id.h"
+#include "net/third_party/quic/core/quic_types.h"
 #include "net/third_party/quic/core/quic_utils.h"
 #include "net/third_party/quic/core/quic_versions.h"
 #include "net/third_party/quic/platform/api/quic_flags.h"
 #include "net/third_party/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quic/platform/api/quic_str_cat.h"
+#include "net/third_party/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quic/platform/api/quic_text_utils.h"
 #include "starboard/memory.h"
 
 namespace quic {
 
+QuicConnectionIdLength GetIncludedConnectionIdLength(
+    QuicConnectionId connection_id,
+    QuicConnectionIdIncluded connection_id_included) {
+  DCHECK(connection_id_included == CONNECTION_ID_PRESENT ||
+         connection_id_included == CONNECTION_ID_ABSENT);
+  return connection_id_included == CONNECTION_ID_PRESENT
+             ? static_cast<QuicConnectionIdLength>(connection_id.length())
+             : PACKET_0BYTE_CONNECTION_ID;
+}
+
+QuicConnectionIdLength GetIncludedDestinationConnectionIdLength(
+    const QuicPacketHeader& header) {
+  return GetIncludedConnectionIdLength(
+      header.destination_connection_id,
+      header.destination_connection_id_included);
+}
+
+QuicConnectionIdLength GetIncludedSourceConnectionIdLength(
+    const QuicPacketHeader& header) {
+  return GetIncludedConnectionIdLength(header.source_connection_id,
+                                       header.source_connection_id_included);
+}
+
 size_t GetPacketHeaderSize(QuicTransportVersion version,
                            const QuicPacketHeader& header) {
-  return GetPacketHeaderSize(version, header.destination_connection_id_length,
-                             header.source_connection_id_length,
-                             header.version_flag, header.nonce != nullptr,
-                             header.packet_number_length);
+  return GetPacketHeaderSize(
+      version, GetIncludedDestinationConnectionIdLength(header),
+      GetIncludedSourceConnectionIdLength(header), header.version_flag,
+      header.nonce != nullptr, header.packet_number_length,
+      header.retry_token_length_length, header.retry_token.length(),
+      header.length_length);
 }
 
 size_t GetPacketHeaderSize(
@@ -28,14 +56,20 @@ size_t GetPacketHeaderSize(
     QuicConnectionIdLength source_connection_id_length,
     bool include_version,
     bool include_diversification_nonce,
-    QuicPacketNumberLength packet_number_length) {
+    QuicPacketNumberLength packet_number_length,
+    QuicVariableLengthIntegerLength retry_token_length_length,
+    QuicByteCount retry_token_length,
+    QuicVariableLengthIntegerLength length_length) {
   if (version > QUIC_VERSION_43) {
     if (include_version) {
       // Long header.
       return kPacketHeaderTypeSize + kConnectionIdLengthSize +
              destination_connection_id_length + source_connection_id_length +
-             PACKET_4BYTE_PACKET_NUMBER + kQuicVersionSize +
-             (include_diversification_nonce ? kDiversificationNonceSize : 0);
+             (version > QUIC_VERSION_44 ? packet_number_length
+                                        : PACKET_4BYTE_PACKET_NUMBER) +
+             kQuicVersionSize +
+             (include_diversification_nonce ? kDiversificationNonceSize : 0) +
+             retry_token_length_length + retry_token_length + length_length;
     }
     // Short header.
     return kPacketHeaderTypeSize + destination_connection_id_length +
@@ -57,42 +91,48 @@ size_t GetStartOfEncryptedData(
     QuicConnectionIdLength source_connection_id_length,
     bool include_version,
     bool include_diversification_nonce,
-    QuicPacketNumberLength packet_number_length) {
+    QuicPacketNumberLength packet_number_length,
+    QuicVariableLengthIntegerLength retry_token_length_length,
+    QuicByteCount retry_token_length,
+    QuicVariableLengthIntegerLength length_length) {
   // Encryption starts before private flags.
   return GetPacketHeaderSize(
       version, destination_connection_id_length, source_connection_id_length,
-      include_version, include_diversification_nonce, packet_number_length);
+      include_version, include_diversification_nonce, packet_number_length,
+      retry_token_length_length, retry_token_length, length_length);
 }
 
 QuicPacketHeader::QuicPacketHeader()
-    : destination_connection_id(0),
-      destination_connection_id_length(PACKET_8BYTE_CONNECTION_ID),
-      source_connection_id(0),
-      source_connection_id_length(PACKET_0BYTE_CONNECTION_ID),
+    : destination_connection_id(EmptyQuicConnectionId()),
+      destination_connection_id_included(CONNECTION_ID_PRESENT),
+      source_connection_id(EmptyQuicConnectionId()),
+      source_connection_id_included(CONNECTION_ID_ABSENT),
       reset_flag(false),
       version_flag(false),
       has_possible_stateless_reset_token(false),
       packet_number_length(PACKET_4BYTE_PACKET_NUMBER),
-      version(
-          ParsedQuicVersion(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED)),
+      version(UnsupportedQuicVersion()),
       nonce(nullptr),
-      packet_number(0),
-      form(LONG_HEADER),
+      form(GOOGLE_QUIC_PACKET),
       long_packet_type(INITIAL),
-      possible_stateless_reset_token(0) {}
+      possible_stateless_reset_token(0),
+      retry_token_length_length(VARIABLE_LENGTH_INTEGER_LENGTH_0),
+      retry_token(QuicStringPiece()),
+      length_length(VARIABLE_LENGTH_INTEGER_LENGTH_0),
+      remaining_packet_length(0) {}
 
 QuicPacketHeader::QuicPacketHeader(const QuicPacketHeader& other) = default;
 
 QuicPacketHeader::~QuicPacketHeader() {}
 
 QuicPublicResetPacket::QuicPublicResetPacket()
-    : connection_id(0), nonce_proof(0) {}
+    : connection_id(EmptyQuicConnectionId()), nonce_proof(0) {}
 
 QuicPublicResetPacket::QuicPublicResetPacket(QuicConnectionId connection_id)
     : connection_id(connection_id), nonce_proof(0) {}
 
 QuicVersionNegotiationPacket::QuicVersionNegotiationPacket()
-    : connection_id(0) {}
+    : connection_id(EmptyQuicConnectionId()) {}
 
 QuicVersionNegotiationPacket::QuicVersionNegotiationPacket(
     QuicConnectionId connection_id)
@@ -118,15 +158,36 @@ QuicIetfStatelessResetPacket::~QuicIetfStatelessResetPacket() {}
 
 std::ostream& operator<<(std::ostream& os, const QuicPacketHeader& header) {
   os << "{ destination_connection_id: " << header.destination_connection_id
-     << ", destination_connection_id_length: "
-     << header.destination_connection_id_length
-     << ", source_connection_id: " << header.source_connection_id
-     << ", source_connection_id_length: " << header.source_connection_id_length
-     << ", packet_number_length: " << header.packet_number_length
+     << " ("
+     << (header.destination_connection_id_included == CONNECTION_ID_PRESENT
+             ? "present"
+             : "absent")
+     << "), source_connection_id: " << header.source_connection_id << " ("
+     << (header.source_connection_id_included == CONNECTION_ID_PRESENT
+             ? "present"
+             : "absent")
+     << "), packet_number_length: " << header.packet_number_length
      << ", reset_flag: " << header.reset_flag
      << ", version_flag: " << header.version_flag;
   if (header.version_flag) {
     os << ", version: " << ParsedQuicVersionToString(header.version);
+    if (header.long_packet_type != INVALID_PACKET_TYPE) {
+      os << ", long_packet_type: "
+         << QuicUtils::QuicLongHeaderTypetoString(header.long_packet_type);
+    }
+    if (header.retry_token_length_length != VARIABLE_LENGTH_INTEGER_LENGTH_0) {
+      os << ", retry_token_length_length: "
+         << static_cast<int>(header.retry_token_length_length);
+    }
+    if (header.retry_token.length() != 0) {
+      os << ", retry_token_length: " << header.retry_token.length();
+    }
+    if (header.length_length != VARIABLE_LENGTH_INTEGER_LENGTH_0) {
+      os << ", length_length: " << static_cast<int>(header.length_length);
+    }
+    if (header.remaining_packet_length != 0) {
+      os << ", remaining_packet_length: " << header.remaining_packet_length;
+    }
   }
   if (header.nonce != nullptr) {
     os << ", diversification_nonce: "
@@ -149,21 +210,45 @@ QuicData::~QuicData() {
   }
 }
 
-QuicPacket::QuicPacket(char* buffer,
-                       size_t length,
-                       bool owns_buffer,
-                       QuicConnectionIdLength destination_connection_id_length,
-                       QuicConnectionIdLength source_connection_id_length,
-                       bool includes_version,
-                       bool includes_diversification_nonce,
-                       QuicPacketNumberLength packet_number_length)
+QuicPacket::QuicPacket(
+    char* buffer,
+    size_t length,
+    bool owns_buffer,
+    QuicConnectionIdLength destination_connection_id_length,
+    QuicConnectionIdLength source_connection_id_length,
+    bool includes_version,
+    bool includes_diversification_nonce,
+    QuicPacketNumberLength packet_number_length,
+    QuicVariableLengthIntegerLength retry_token_length_length,
+    QuicByteCount retry_token_length,
+    QuicVariableLengthIntegerLength length_length)
     : QuicData(buffer, length, owns_buffer),
       buffer_(buffer),
       destination_connection_id_length_(destination_connection_id_length),
       source_connection_id_length_(source_connection_id_length),
       includes_version_(includes_version),
       includes_diversification_nonce_(includes_diversification_nonce),
-      packet_number_length_(packet_number_length) {}
+      packet_number_length_(packet_number_length),
+      retry_token_length_length_(retry_token_length_length),
+      retry_token_length_(retry_token_length),
+      length_length_(length_length) {}
+
+QuicPacket::QuicPacket(QuicTransportVersion version,
+                       char* buffer,
+                       size_t length,
+                       bool owns_buffer,
+                       const QuicPacketHeader& header)
+    : QuicPacket(buffer,
+                 length,
+                 owns_buffer,
+                 GetIncludedDestinationConnectionIdLength(header),
+                 GetIncludedSourceConnectionIdLength(header),
+                 header.version_flag,
+                 header.nonce != nullptr,
+                 header.packet_number_length,
+                 header.retry_token_length_length,
+                 header.retry_token.length(),
+                 header.length_length) {}
 
 QuicEncryptedPacket::QuicEncryptedPacket(const char* buffer, size_t length)
     : QuicData(buffer, length) {}
@@ -187,17 +272,21 @@ std::ostream& operator<<(std::ostream& os, const QuicEncryptedPacket& s) {
 QuicReceivedPacket::QuicReceivedPacket(const char* buffer,
                                        size_t length,
                                        QuicTime receipt_time)
-    : QuicEncryptedPacket(buffer, length),
-      receipt_time_(receipt_time),
-      ttl_(0) {}
+    : QuicReceivedPacket(buffer,
+                         length,
+                         receipt_time,
+                         false /* owns_buffer */) {}
 
 QuicReceivedPacket::QuicReceivedPacket(const char* buffer,
                                        size_t length,
                                        QuicTime receipt_time,
                                        bool owns_buffer)
-    : QuicEncryptedPacket(buffer, length, owns_buffer),
-      receipt_time_(receipt_time),
-      ttl_(0) {}
+    : QuicReceivedPacket(buffer,
+                         length,
+                         receipt_time,
+                         owns_buffer,
+                         0 /* ttl */,
+                         true /* ttl_valid */) {}
 
 QuicReceivedPacket::QuicReceivedPacket(const char* buffer,
                                        size_t length,
@@ -205,13 +294,50 @@ QuicReceivedPacket::QuicReceivedPacket(const char* buffer,
                                        bool owns_buffer,
                                        int ttl,
                                        bool ttl_valid)
+    : quic::QuicReceivedPacket(buffer,
+                               length,
+                               receipt_time,
+                               owns_buffer,
+                               ttl,
+                               ttl_valid,
+                               nullptr /* packet_headers */,
+                               0 /* headers_length */,
+                               false /* owns_header_buffer */) {}
+
+QuicReceivedPacket::QuicReceivedPacket(const char* buffer,
+                                       size_t length,
+                                       QuicTime receipt_time,
+                                       bool owns_buffer,
+                                       int ttl,
+                                       bool ttl_valid,
+                                       char* packet_headers,
+                                       size_t headers_length,
+                                       bool owns_header_buffer)
     : QuicEncryptedPacket(buffer, length, owns_buffer),
       receipt_time_(receipt_time),
-      ttl_(ttl_valid ? ttl : -1) {}
+      ttl_(ttl_valid ? ttl : -1),
+      packet_headers_(packet_headers),
+      headers_length_(headers_length),
+      owns_header_buffer_(owns_header_buffer) {}
+
+QuicReceivedPacket::~QuicReceivedPacket() {
+  if (owns_header_buffer_) {
+    delete[] static_cast<char*>(packet_headers_);
+  }
+}
 
 std::unique_ptr<QuicReceivedPacket> QuicReceivedPacket::Clone() const {
   char* buffer = new char[this->length()];
   SbMemoryCopy(buffer, this->data(), this->length());
+  if (this->packet_headers()) {
+    char* headers_buffer = new char[this->headers_length()];
+    SbMemoryCopy(headers_buffer, this->packet_headers(),
+                 this->headers_length());
+    return QuicMakeUnique<QuicReceivedPacket>(
+        buffer, this->length(), receipt_time(), true, ttl(), ttl() >= 0,
+        headers_buffer, this->headers_length(), true);
+  }
+
   return QuicMakeUnique<QuicReceivedPacket>(
       buffer, this->length(), receipt_time(), true, ttl(), ttl() >= 0);
 }
@@ -223,17 +349,19 @@ std::ostream& operator<<(std::ostream& os, const QuicReceivedPacket& s) {
 
 QuicStringPiece QuicPacket::AssociatedData(QuicTransportVersion version) const {
   return QuicStringPiece(
-      data(), GetStartOfEncryptedData(
-                  version, destination_connection_id_length_,
-                  source_connection_id_length_, includes_version_,
-                  includes_diversification_nonce_, packet_number_length_));
+      data(),
+      GetStartOfEncryptedData(version, destination_connection_id_length_,
+                              source_connection_id_length_, includes_version_,
+                              includes_diversification_nonce_,
+                              packet_number_length_, retry_token_length_length_,
+                              retry_token_length_, length_length_));
 }
 
 QuicStringPiece QuicPacket::Plaintext(QuicTransportVersion version) const {
   const size_t start_of_encrypted_data = GetStartOfEncryptedData(
       version, destination_connection_id_length_, source_connection_id_length_,
-      includes_version_, includes_diversification_nonce_,
-      packet_number_length_);
+      includes_version_, includes_diversification_nonce_, packet_number_length_,
+      retry_token_length_length_, retry_token_length_, length_length_);
   return QuicStringPiece(data() + start_of_encrypted_data,
                          length() - start_of_encrypted_data);
 }
@@ -253,9 +381,7 @@ SerializedPacket::SerializedPacket(QuicPacketNumber packet_number,
       encryption_level(ENCRYPTION_NONE),
       has_ack(has_ack),
       has_stop_waiting(has_stop_waiting),
-      transmission_type(NOT_RETRANSMISSION),
-      original_packet_number(0),
-      largest_acked(0) {}
+      transmission_type(NOT_RETRANSMISSION) {}
 
 SerializedPacket::SerializedPacket(const SerializedPacket& other) = default;
 
@@ -286,7 +412,7 @@ void ClearSerializedPacket(SerializedPacket* serialized_packet) {
   }
   serialized_packet->encrypted_buffer = nullptr;
   serialized_packet->encrypted_length = 0;
-  serialized_packet->largest_acked = 0;
+  serialized_packet->largest_acked.Clear();
 }
 
 char* CopyBuffer(const SerializedPacket& packet) {

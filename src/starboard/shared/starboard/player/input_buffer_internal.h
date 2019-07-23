@@ -32,33 +32,36 @@ namespace player {
 // This class encapsulate a media buffer.
 class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
  public:
+#if SB_API_VERSION >= 11
+  InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
+              SbPlayer player,
+              void* context,
+              const SbPlayerSampleInfo& sample_info);
+#else   // SB_API_VERSION >= 11
   InputBuffer(SbMediaType sample_type,
               SbPlayerDeallocateSampleFunc deallocate_sample_func,
               SbPlayer player,
               void* context,
-              const void* sample_buffer,
-              int sample_buffer_size,
-              SbTime sample_timestamp,
-              const SbMediaVideoSampleInfo* video_sample_info,
-              const SbDrmSampleInfo* sample_drm_info);
-  InputBuffer(SbMediaType sample_type,
-              SbPlayerDeallocateSampleFunc deallocate_sample_func,
-              SbPlayer player,
-              void* context,
-              const void* const* sample_buffers,
-              const int* sample_buffer_sizes,
-              int number_of_sample_buffers,
-              SbTime sample_timestamp,
-              const SbMediaVideoSampleInfo* video_sample_info,
-              const SbDrmSampleInfo* sample_drm_info);
+              const SbPlayerSampleInfo& sample_info,
+              const SbMediaAudioSampleInfo* audio_sample_info);
+#endif  // SB_API_VERSION >= 11
+
   ~InputBuffer();
 
   SbMediaType sample_type() const { return sample_type_; }
   const uint8_t* data() const { return data_; }
   int size() const { return size_; }
+
+  const std::vector<uint8_t>& side_data() const { return side_data_; }
+
   SbTime timestamp() const { return timestamp_; }
-  const SbMediaVideoSampleInfo* video_sample_info() const {
-    return has_video_sample_info_ ? &video_sample_info_ : NULL;
+  const SbMediaAudioSampleInfo& audio_sample_info() const {
+    SB_DCHECK(sample_type_ == kSbMediaTypeAudio);
+    return audio_sample_info_;
+  }
+  const SbMediaVideoSampleInfo& video_sample_info() const {
+    SB_DCHECK(sample_type_ == kSbMediaTypeVideo);
+    return video_sample_info_;
   }
   const SbDrmSampleInfo* drm_info() const {
     return has_drm_info_ ? &drm_info_ : NULL;
@@ -68,25 +71,29 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
   std::string ToString() const;
 
  private:
-  void TryToAssignVideoSampleInfo(
-      const SbMediaVideoSampleInfo* video_sample_info);
   void TryToAssignDrmSampleInfo(const SbDrmSampleInfo* sample_drm_info);
   void DeallocateSampleBuffer(const void* buffer);
 
-  SbMediaType sample_type_;
   SbPlayerDeallocateSampleFunc deallocate_sample_func_;
   SbPlayer player_;
   void* context_;
+
+  SbMediaType sample_type_;
   const uint8_t* data_;
   int size_;
+  std::vector<uint8_t> side_data_;
   SbTime timestamp_;
-  bool has_video_sample_info_;
+  union {
+    SbMediaAudioSampleInfo audio_sample_info_;
+    SbMediaVideoSampleInfo video_sample_info_;
+  };
+#if SB_API_VERSION < 11
   SbMediaColorMetadata color_metadata_;
-  SbMediaVideoSampleInfo video_sample_info_;
+#endif  // SB_API_VERSION < 11
   bool has_drm_info_;
   SbDrmSampleInfo drm_info_;
-  std::vector<uint8_t> flattened_data_;
   std::vector<SbDrmSubSampleMapping> subsamples_;
+  std::vector<uint8_t> flattened_data_;
 
   SB_DISALLOW_COPY_AND_ASSIGN(InputBuffer);
 };

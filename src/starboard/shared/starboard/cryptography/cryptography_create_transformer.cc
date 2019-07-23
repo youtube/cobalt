@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/cryptography.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/cryptography/cryptography_internal.h"
 #include "starboard/shared/starboard/cryptography/software_aes.h"
-#include "starboard/string.h"
 
 using starboard::shared::starboard::cryptography::AES_KEY;
 using starboard::shared::starboard::cryptography::AES_gcm128_init;

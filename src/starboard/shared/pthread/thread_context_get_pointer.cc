@@ -14,11 +14,11 @@
 
 #include "starboard/thread.h"
 
-#if SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
+#if SB_API_VERSION >= 11
 
 #include <ucontext.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/pthread/thread_context_internal.h"
 
 // TODO: Implement for e.g. Mac OSX, BSD flavors, QNX - maybe in another file.
@@ -112,4 +112,4 @@ bool SbThreadContextGetPointer(SbThreadContext context,
   }
 }
 
-#endif  // SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
+#endif  // SB_API_VERSION >= 11

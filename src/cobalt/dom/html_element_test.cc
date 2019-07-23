@@ -80,6 +80,7 @@ class MockLayoutBoxes : public LayoutBoxes {
   MOCK_CONST_METHOD0(GetBorderEdgeTop, float());
   MOCK_CONST_METHOD0(GetBorderEdgeWidth, float());
   MOCK_CONST_METHOD0(GetBorderEdgeHeight, float());
+  MOCK_CONST_METHOD0(GetBorderEdgeOffsetFromContainingBlock, math::Vector2dF());
 
   MOCK_CONST_METHOD0(GetBorderLeftWidth, float());
   MOCK_CONST_METHOD0(GetBorderTopWidth, float());
@@ -87,10 +88,19 @@ class MockLayoutBoxes : public LayoutBoxes {
   MOCK_CONST_METHOD0(GetMarginEdgeWidth, float());
   MOCK_CONST_METHOD0(GetMarginEdgeHeight, float());
 
-  MOCK_CONST_METHOD0(GetPaddingEdgeLeft, float());
-  MOCK_CONST_METHOD0(GetPaddingEdgeTop, float());
+  MOCK_CONST_METHOD0(GetPaddingEdgeOffset, math::Vector2dF());
   MOCK_CONST_METHOD0(GetPaddingEdgeWidth, float());
   MOCK_CONST_METHOD0(GetPaddingEdgeHeight, float());
+  MOCK_CONST_METHOD0(GetPaddingEdgeOffsetFromContainingBlock,
+                     math::Vector2dF());
+
+  MOCK_CONST_METHOD0(GetContentEdgeOffset, math::Vector2dF());
+  MOCK_CONST_METHOD0(GetContentEdgeWidth, float());
+  MOCK_CONST_METHOD0(GetContentEdgeHeight, float());
+  MOCK_CONST_METHOD0(GetContentEdgeOffsetFromContainingBlock,
+                     math::Vector2dF());
+
+  MOCK_CONST_METHOD1(GetScrollArea, math::RectF(dom::Directionality));
 
   MOCK_METHOD0(InvalidateSizes, void());
   MOCK_METHOD0(InvalidateCrossReferences, void());
@@ -609,8 +619,8 @@ TEST_F(HTMLElementTest, OffsetTop) {
   // ancestors.
   EXPECT_CALL(*base::polymorphic_downcast<MockLayoutBoxes*>(
                   GetFirstChildAtDepth(root_html_element, 1)->layout_boxes()),
-              GetPaddingEdgeTop())
-      .WillOnce(Return(20.0f));
+              GetPaddingEdgeOffset())
+      .WillOnce(Return(math::Vector2d(20.0f, 20.0f)));
   EXPECT_CALL(*base::polymorphic_downcast<MockLayoutBoxes*>(
                   GetFirstChildAtDepth(root_html_element, 2)->layout_boxes()),
               GetBorderEdgeTop())
@@ -658,8 +668,8 @@ TEST_F(HTMLElementTest, OffsetLeft) {
   // ancestors.
   EXPECT_CALL(*base::polymorphic_downcast<MockLayoutBoxes*>(
                   GetFirstChildAtDepth(root_html_element, 1)->layout_boxes()),
-              GetPaddingEdgeLeft())
-      .WillOnce(Return(20.0f));
+              GetPaddingEdgeOffset())
+      .WillOnce(Return(math::Vector2dF(20.0f, 20.0f)));
   EXPECT_CALL(*base::polymorphic_downcast<MockLayoutBoxes*>(
                   GetFirstChildAtDepth(root_html_element, 2)->layout_boxes()),
               GetBorderEdgeLeft())

@@ -17,7 +17,7 @@
 #endif
 
 #if V8_OS_STARBOARD
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
 #include "starboard/common/recursive_mutex.h"
 #endif
 

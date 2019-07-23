@@ -20,6 +20,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "cobalt/bindings/testing/arbitrary_interface.h"
+#include "cobalt/bindings/testing/test_dictionary.h"
 #include "cobalt/script/wrappable.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -38,6 +39,10 @@ class NullableTypesTestInterface : public script::Wrappable {
   MOCK_METHOD0(nullable_string_property, base::Optional<std::string>());
   MOCK_METHOD1(set_nullable_string_property, void(base::Optional<std::string>));
 
+  MOCK_METHOD0(nullable_dictionary_property, base::Optional<TestDictionary>());
+  MOCK_METHOD1(set_nullable_dictionary_property,
+               void(base::Optional<TestDictionary>));
+
   MOCK_METHOD0(nullable_object_property, scoped_refptr<ArbitraryInterface>());
   MOCK_METHOD1(set_nullable_object_property,
                void(scoped_refptr<ArbitraryInterface>));
@@ -45,11 +50,14 @@ class NullableTypesTestInterface : public script::Wrappable {
   MOCK_METHOD0(NullableBooleanOperation, base::Optional<bool>());
   MOCK_METHOD0(NullableNumericOperation, base::Optional<int32_t>());
   MOCK_METHOD0(NullableStringOperation, base::Optional<std::string>());
+  MOCK_METHOD0(NullableDictionaryOperation, base::Optional<TestDictionary>());
   MOCK_METHOD0(NullableObjectOperation, scoped_refptr<ArbitraryInterface>());
 
   MOCK_METHOD1(NullableBooleanArgument, void(base::Optional<bool>));
   MOCK_METHOD1(NullableNumericArgument, void(base::Optional<int32_t>));
   MOCK_METHOD1(NullableStringArgument, void(base::Optional<std::string>));
+  MOCK_METHOD1(NullableDictionaryArgument,
+               void(base::Optional<TestDictionary>));
   MOCK_METHOD1(NullableObjectArgument, void(scoped_refptr<ArbitraryInterface>));
 
   DEFINE_WRAPPABLE_TYPE(NullableTypesTestInterface);

@@ -22,4 +22,15 @@ interface HTMLVideoElement : HTMLMediaElement {
 
   // https://www.w3.org/TR/media-source/#widl-HTMLVideoElement-getVideoPlaybackQuality-VideoPlaybackQuality
   [CallWith=EnvironmentSettings] VideoPlaybackQuality getVideoPlaybackQuality();
+
+  // Sets a maximum video features contract. This communicates to the platform
+  // that the web app will not provide a video stream with features exceeding the
+  // maximums described by this function.  This can enable the platform to optimize
+  // playback pipeline for, say, a low quality video stream if it knows that it
+  // will never adapt to a higher quality stream. This function must be called
+  // *before* the src attribute is set on the element, otherwise an
+  // INVALID_STATE_ERR exception is raised. The format of the string passed in
+  // is the same as the format for the string passed in to
+  // HTMLMediaElement.canPlayType().
+  [Conditional=COBALT_ENABLE_SET_MAX_VIDEO_CAPABILITIES, RaisesException] void setMaxVideoCapabilities(DOMString max_video_capabilities);
 };

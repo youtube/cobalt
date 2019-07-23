@@ -13,10 +13,17 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
-#include "starboard/log.h"
+
+#include "starboard/common/log.h"
+#include "starboard/shared/blittergles/blitter_surface.h"
 
 bool SbBlitterGetSurfaceInfo(SbBlitterSurface surface,
                              SbBlitterSurfaceInfo* surface_info) {
-  SB_NOTREACHED();
-  return false;
+  if (!SbBlitterIsSurfaceValid(surface)) {
+    SB_DLOG(ERROR) << ": Invalid surface.";
+    return false;
+  }
+
+  *surface_info = surface->info;
+  return true;
 }

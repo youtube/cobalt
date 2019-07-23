@@ -18,7 +18,7 @@
 #ifndef STARBOARD_SHARED_FFMPEG_FFMPEG_DISPATCH_H_
 #define STARBOARD_SHARED_FFMPEG_FFMPEG_DISPATCH_H_
 
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
 #include "starboard/types.h"
 
 struct AVCodec;

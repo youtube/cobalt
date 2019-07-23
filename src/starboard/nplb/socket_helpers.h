@@ -18,7 +18,7 @@
 #include <vector>
 
 #include "starboard/common/scoped_ptr.h"
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"

@@ -4,23 +4,37 @@
 
 #include "net/third_party/quic/platform/impl/quic_epoll_clock.h"
 
+#include "net/third_party/quic/platform/api/quic_flag_utils.h"
+#include "net/third_party/quic/platform/api/quic_flags.h"
 #include "net/tools/epoll_server/epoll_server.h"
 
 namespace quic {
 
 QuicEpollClock::QuicEpollClock(net::EpollServer* epoll_server)
-    : epoll_server_(epoll_server) {}
+    : epoll_server_(epoll_server), largest_time_(QuicTime::Zero()) {}
 
-QuicEpollClock::~QuicEpollClock() = default;
+QuicEpollClock::~QuicEpollClock() {}
 
 QuicTime QuicEpollClock::ApproximateNow() const {
-  return QuicTime::Zero() + QuicTime::Delta::FromMicroseconds(
-                                epoll_server_->ApproximateNowInUsec());
+  return CreateTimeFromMicroseconds(epoll_server_->ApproximateNowInUsec());
 }
 
 QuicTime QuicEpollClock::Now() const {
-  return QuicTime::Zero() +
-         QuicTime::Delta::FromMicroseconds(epoll_server_->NowInUsec());
+  QuicTime now = CreateTimeFromMicroseconds(epoll_server_->NowInUsec());
+  if (!GetQuicReloadableFlag(quic_monotonic_epoll_clock)) {
+    return now;
+  }
+
+  if (now <= largest_time_) {
+    if (now < largest_time_) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_monotonic_epoll_clock);
+    }
+    // Time not increasing, return |largest_time_|.
+    return largest_time_;
+  }
+
+  largest_time_ = now;
+  return largest_time_;
 }
 
 QuicWallTime QuicEpollClock::WallNow() const {

@@ -15,8 +15,8 @@ namespace quic {
 class ProcessPacketInterface {
  public:
   virtual ~ProcessPacketInterface() {}
-  virtual void ProcessPacket(const QuicSocketAddress& server_address,
-                             const QuicSocketAddress& client_address,
+  virtual void ProcessPacket(const QuicSocketAddress& self_address,
+                             const QuicSocketAddress& peer_address,
                              const QuicReceivedPacket& packet) = 0;
 };
 

@@ -54,13 +54,13 @@ MojoHostResolverImpl::MojoHostResolverImpl(net::HostResolver* resolver,
     : resolver_(resolver), net_log_(net_log) {}
 
 MojoHostResolverImpl::~MojoHostResolverImpl() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 }
 
 void MojoHostResolverImpl::Resolve(
     std::unique_ptr<HostResolver::RequestInfo> request_info,
     interfaces::HostResolverRequestClientPtr client) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (request_info->is_my_ip_address()) {
     // The proxy resolver running inside a sandbox may not be able to get the
     // correct host name. Instead, fill it ourself if the request is for our own
@@ -76,7 +76,7 @@ void MojoHostResolverImpl::Resolve(
 }
 
 void MojoHostResolverImpl::DeleteJob(std::list<Job>::iterator job) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   pending_jobs_.erase(job);
 }
 
@@ -113,7 +113,7 @@ void MojoHostResolverImpl::Job::Start() {
 MojoHostResolverImpl::Job::~Job() = default;
 
 void MojoHostResolverImpl::Job::OnResolveDone(int result) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   request_.reset();
   DVLOG(1) << "Resolved " << request_info_.host_port_pair().ToString()
            << " with error " << result << " and " << result_.size()
@@ -126,7 +126,7 @@ void MojoHostResolverImpl::Job::OnResolveDone(int result) {
 }
 
 void MojoHostResolverImpl::Job::OnConnectionError() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // |resolver_service_| should always outlive us.
   DCHECK(resolver_service_);
   DVLOG(1) << "Connection error on request for "

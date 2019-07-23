@@ -49,10 +49,8 @@ constexpr char kNumTasksBeforeDetachHistogramPrefix[] =
 constexpr char kNumTasksBetweenWaitsHistogramPrefix[] =
     "TaskScheduler.NumTasksBetweenWaits.";
 constexpr char kNumThreadsHistogramPrefix[] = "TaskScheduler.NumWorkers.";
-#ifdef STARBOARDD
-// Devices like Raspberry Pi are unalbe to create 256 threads at once.
-// SbThreadCreate will fail after too many threads are created.
-constexpr size_t kMaxNumberOfWorkers = 128;
+#ifdef STARBOARD
+constexpr size_t kMaxNumberOfWorkers = SB_MAX_THREADS;
 #else
 constexpr size_t kMaxNumberOfWorkers = 256;
 #endif

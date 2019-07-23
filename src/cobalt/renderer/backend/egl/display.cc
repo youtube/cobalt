@@ -15,6 +15,7 @@
 #include "cobalt/renderer/backend/egl/display.h"
 
 #include "cobalt/renderer/backend/egl/render_target.h"
+#include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {
 namespace renderer {
@@ -47,28 +48,29 @@ DisplayRenderTargetEGL::DisplayRenderTargetEGL(EGLDisplay display,
     : display_(display), surface_(surface) {
 #if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
   // Configure the surface to preserve contents on swap.
-  EGLBoolean surface_attrib_set =
-      eglSurfaceAttrib(display_, surface_,
-                       EGL_SWAP_BEHAVIOR, EGL_BUFFER_PRESERVED);
+  EGLBoolean surface_attrib_set = EGL_CALL_SIMPLE(eglSurfaceAttrib(
+      display_, surface_, EGL_SWAP_BEHAVIOR, EGL_BUFFER_PRESERVED));
   // NOTE: Must check eglGetError() to clear any error flags and also check
   // the return value of eglSurfaceAttrib since some implementations may not
   // set the error condition.
-  content_preserved_on_swap_ =
-      eglGetError() == EGL_SUCCESS && surface_attrib_set == EGL_TRUE;
+  content_preserved_on_swap_ = EGL_CALL_SIMPLE(eglGetError()) == EGL_SUCCESS &&
+                               surface_attrib_set == EGL_TRUE;
 #endif  // #if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
 
   // Query and cache information about the surface now that we have created it.
   EGLint egl_surface_width;
   EGLint egl_surface_height;
-  eglQuerySurface(display_, surface_, EGL_WIDTH, &egl_surface_width);
-  eglQuerySurface(display_, surface_, EGL_HEIGHT, &egl_surface_height);
+  EGL_CALL_SIMPLE(
+      eglQuerySurface(display_, surface_, EGL_WIDTH, &egl_surface_width));
+  EGL_CALL_SIMPLE(
+      eglQuerySurface(display_, surface_, EGL_HEIGHT, &egl_surface_height));
   size_.SetSize(egl_surface_width, egl_surface_height);
 }
 
 const math::Size& DisplayRenderTargetEGL::GetSize() const { return size_; }
 
 DisplayRenderTargetEGL::~DisplayRenderTargetEGL() {
-  eglDestroySurface(display_, surface_);
+  EGL_CALL_SIMPLE(eglDestroySurface(display_, surface_));
 }
 
 EGLSurface DisplayRenderTargetEGL::GetSurface() const { return surface_; }

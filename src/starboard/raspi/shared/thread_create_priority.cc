@@ -17,13 +17,16 @@
 #include <sched.h>
 #include <sys/resource.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace starboard {
 namespace shared {
 namespace pthread {
 
 #if SB_HAS(THREAD_PRIORITY_SUPPORT)
+// This is the maximum priority that will be passed to SetRoundRobinScheduler().
+const int kMaxRoundRobinPriority = 2;
+
 // Note that use of sched_setscheduler() has been found to be more reliably
 // supported than pthread_setschedparam(), so we are using that.
 
@@ -31,52 +34,56 @@ void SetIdleScheduler() {
   struct sched_param thread_sched_param;
   thread_sched_param.sched_priority = 0;
   int result = sched_setscheduler(0, SCHED_IDLE, &thread_sched_param);
-  if (result != 0) {
-    SB_NOTREACHED();
-  }
+  SB_CHECK(result == 0);
 }
 
 void SetOtherScheduler() {
   struct sched_param thread_sched_param;
   thread_sched_param.sched_priority = 0;
   int result = sched_setscheduler(0, SCHED_OTHER, &thread_sched_param);
-  if (result != 0) {
-    SB_NOTREACHED();
-  }
+  SB_CHECK(result == 0);
 }
 
-// Here |priority| is a number between >= 0, where the higher the number, the
-// higher the priority.  The actual real time priority setting will be:
+// Here |priority| is a number >= 0, where the higher the number, the
+// higher the priority.
 //
-//     std::min(sched_get_priority_min(SCHED_RR) + priority,
-//              sched_get_priority_max(SCHED_RR))
-//
-// If the desired priority is not supported on this platform, we fall back to
-// SCHED_OTHER.
+// If real time priorities are not allowed, then fall back to SCHED_OTHER.
+// Otherwise, use SCHED_RR with the desired priority (or RLIMIT_RTPRIO --
+// whichever is lower).
 void SetRoundRobinScheduler(int priority) {
-  // First determine what the system has setup for the min/max priorities.
+  // Determine the minimum and maximum priorities that will be used.
   int min_priority = sched_get_priority_min(SCHED_RR);
-  int max_priority = sched_get_priority_max(SCHED_RR);
+  int max_used_priority = min_priority + kMaxRoundRobinPriority;
 
   struct rlimit rlimit_rtprio;
   getrlimit(RLIMIT_RTPRIO, &rlimit_rtprio);
 
   if (rlimit_rtprio.rlim_cur < min_priority) {
-    SB_LOG(WARNING) << "Unable to set real time round-robin thread priority "
-                    << "because `ulimit -r` is too low ("
-                    << rlimit_rtprio.rlim_cur << " < " << min_priority << ").";
-
-    // Fallback to SCHED_OTHER.
+    // Can't use the real-time scheduler at all. Use SCHED_OTHER instead.
+    // Performance will be noticeably worse than ideal.
+    SB_LOG(ERROR) << "Unable to use real-time round-robin scheduler because "
+                  << "the maximum real-time scheduling priority is too low ("
+                  << rlimit_rtprio.rlim_cur << " < " << max_used_priority
+                  <<"). Update setting using `ulimit -r` or limits.conf file.";
     SetOtherScheduler();
-  } else {
-    struct sched_param thread_sched_param;
-    thread_sched_param.sched_priority =
-        std::min(min_priority + priority, max_priority);
-    int result = sched_setscheduler(0, SCHED_RR, &thread_sched_param);
-    if (result != 0) {
-      SB_NOTREACHED();
-    }
+    return;
   }
+
+  if (rlimit_rtprio.rlim_cur < max_used_priority) {
+    // The maximum desired priority will be clamped.
+    // Performance will be slightly worse than ideal.
+    SB_LOG(WARNING) << "The maximum real-time scheduling priority is too low ("
+                    << rlimit_rtprio.rlim_cur << " < " << max_used_priority
+                    << "). Update setting using `ulimit -r` or limits.conf "
+                    << "file.";
+  }
+
+  struct sched_param thread_sched_param;
+  thread_sched_param.sched_priority =
+      std::min(min_priority + priority,
+               static_cast<int>(rlimit_rtprio.rlim_cur));
+  int result = sched_setscheduler(0, SCHED_RR, &thread_sched_param);
+  SB_CHECK(result == 0);
 }
 
 void ThreadSetPriority(SbThreadPriority priority) {
@@ -99,7 +106,7 @@ void ThreadSetPriority(SbThreadPriority priority) {
       SetRoundRobinScheduler(1);
       break;
     case kSbThreadPriorityRealTime:
-      SetRoundRobinScheduler(2);
+      SetRoundRobinScheduler(kMaxRoundRobinPriority);
       break;
     default:
       SB_NOTREACHED();

@@ -14,7 +14,7 @@ namespace quic {
 class QuicSimpleDispatcher : public QuicDispatcher {
  public:
   QuicSimpleDispatcher(
-      const QuicConfig& config,
+      const QuicConfig* config,
       const QuicCryptoServerConfig* crypto_config,
       QuicVersionManager* version_manager,
       std::unique_ptr<QuicConnectionHelperInterface> helper,
@@ -32,7 +32,8 @@ class QuicSimpleDispatcher : public QuicDispatcher {
   QuicServerSessionBase* CreateQuicSession(
       QuicConnectionId connection_id,
       const QuicSocketAddress& client_address,
-      QuicStringPiece alpn) override;
+      QuicStringPiece alpn,
+      const ParsedQuicVersion& version) override;
 
   QuicSimpleServerBackend* server_backend() {
     return quic_simple_server_backend_;

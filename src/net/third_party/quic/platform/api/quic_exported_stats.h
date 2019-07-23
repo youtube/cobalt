@@ -5,7 +5,8 @@
 #ifndef NET_THIRD_PARTY_QUIC_PLATFORM_API_QUIC_EXPORTED_STATS_H_
 #define NET_THIRD_PARTY_QUIC_PLATFORM_API_QUIC_EXPORTED_STATS_H_
 
-#include "net/third_party/quic/platform/impl/quic_exported_stats_impl.h"
+#include "net/third_party/quic/platform/impl/quic_client_stats_impl.h"
+#include "net/third_party/quic/platform/impl/quic_server_stats_impl.h"
 
 namespace quic {
 
@@ -29,8 +30,11 @@ namespace quic {
 //
 // Note: The value in |sample| must be strictly less than |enum_size|.
 
-#define QUIC_HISTOGRAM_ENUM(name, sample, enum_size, docstring) \
-  QUIC_HISTOGRAM_ENUM_IMPL(name, sample, enum_size, docstring)
+#define QUIC_HISTOGRAM_ENUM(name, sample, enum_size, docstring)          \
+  do {                                                                   \
+    QUIC_CLIENT_HISTOGRAM_ENUM_IMPL(name, sample, enum_size, docstring); \
+    QUIC_SERVER_HISTOGRAM_ENUM_IMPL(name, sample, enum_size, docstring); \
+  } while (0)
 
 //------------------------------------------------------------------------------
 // Histogram for boolean values.
@@ -38,8 +42,11 @@ namespace quic {
 // Sample usage:
 //   QUIC_HISTOGRAM_BOOL("My.Boolean", bool,
 //                       "Number of times $foo is true or false");
-#define QUIC_HISTOGRAM_BOOL(name, sample, docstring) \
-  QUIC_HISTOGRAM_BOOL_IMPL(name, sample, docstring)
+#define QUIC_HISTOGRAM_BOOL(name, sample, docstring)          \
+  do {                                                        \
+    QUIC_CLIENT_HISTOGRAM_BOOL_IMPL(name, sample, docstring); \
+    QUIC_SERVER_HISTOGRAM_BOOL_IMPL(name, sample, docstring); \
+  } while (0)
 
 //------------------------------------------------------------------------------
 // Timing histograms. These are used for collecting timing data (generally
@@ -50,13 +57,17 @@ namespace quic {
 // sample and max are unspecified, but they must be the same for one histogram.
 
 // Sample usage:
-//   QUIC_HISTOGRAM_TIMES("My.Timing.Histogram.InMs",
-//                        sample,     // Time spent in milliseconds.
-//                        10 * 1000,  // Record up to 10K milliseconds.
-//                        "Time spent in doing something");
+//   QUIC_HISTOGRAM_TIMES("My.Timing.Histogram.InMs", time_delta,
+//       QuicTime::Delta::FromSeconds(1), QuicTime::Delta::FromSecond(3600 *
+//       24), 100, "Time spent in doing operation.");
 
-#define QUIC_HISTOGRAM_TIMES(name, sample, max, docstring) \
-  QUIC_HISTOGRAM_TIMES_IMPL(name, sample, max, 50, docstring)
+#define QUIC_HISTOGRAM_TIMES(name, sample, min, max, bucket_count, docstring) \
+  do {                                                                        \
+    QUIC_CLIENT_HISTOGRAM_TIMES_IMPL(name, sample, min, max, bucket_count,    \
+                                     docstring);                              \
+    QUIC_SERVER_HISTOGRAM_TIMES_IMPL(name, sample, min, max, bucket_count,    \
+                                     docstring);                              \
+  } while (0)
 
 //------------------------------------------------------------------------------
 // Count histograms. These are used for collecting numeric data.
@@ -72,8 +83,13 @@ namespace quic {
 //                         1000,      // Record up to 1K of something.
 //                         "Number of something.");
 
-#define QUIC_HISTOGRAM_COUNTS(name, sample, max, docstring) \
-  QUIC_HISTOGRAM_COUNTS_IMPL(name, sample, max, 50, docstring)
+#define QUIC_HISTOGRAM_COUNTS(name, sample, min, max, bucket_count, docstring) \
+  do {                                                                         \
+    QUIC_CLIENT_HISTOGRAM_COUNTS_IMPL(name, sample, min, max, bucket_count,    \
+                                      docstring);                              \
+    QUIC_SERVER_HISTOGRAM_COUNTS_IMPL(name, sample, min, max, bucket_count,    \
+                                      docstring);                              \
+  } while (0)
 
 }  // namespace quic
 

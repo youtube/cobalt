@@ -14,6 +14,7 @@
 {
   'variables': {
     'has_input_events_filter' : '<!(python ../../../build/file_exists.py <(DEPTH)/starboard/android/shared/input_events_filter.cc)',
+    'has_drm_system_extension%': '<!(test -e <(DEPTH)/starboard/android/shared/drm_system_extension/drm_system_extension.gyp && echo 1 || echo 0)',
   },
   'includes': [
     '<(DEPTH)/starboard/shared/starboard/player/filter/player_filter.gypi',
@@ -84,7 +85,6 @@
         'directory_get_next.cc',
         'directory_internal.h',
         'directory_open.cc',
-        'drm_create_system.cc',
         'drm_system.cc',
         'drm_system.h',
         'egl_swap_buffers.cc',
@@ -111,6 +111,7 @@
         'log.cc',
         'log_flush.cc',
         'log_format.cc',
+        'log_internal.cc',
         'log_internal.h',
         'log_is_tty.cc',
         'log_raw.cc',
@@ -126,11 +127,9 @@
         'media_get_max_buffer_capacity.cc',
         'media_is_audio_supported.cc',
         'media_is_output_protected.cc',
-        'media_is_supported.cc',
         'media_is_video_supported.cc',
         'media_set_output_protection.cc',
         'microphone_impl.cc',
-        'player_components_impl.cc',
         'player_create.cc',
         'player_destroy.cc',
         'player_set_bounds.cc',
@@ -153,7 +152,6 @@
         'thread_create_priority.cc',
         'thread_get_name.cc',
         'thread_types_public.h',
-        'time_zone_get_dst_name.cc',
         'time_zone_get_name.cc',
         'trace_util.h',
         'video_decoder.cc',
@@ -182,8 +180,10 @@
         '<(DEPTH)/starboard/shared/dlmalloc/memory_map.cc',
         '<(DEPTH)/starboard/shared/dlmalloc/memory_protect.cc',
         '<(DEPTH)/starboard/shared/dlmalloc/memory_unmap.cc',
+        '<(DEPTH)/starboard/shared/egl/system_egl.cc',
         '<(DEPTH)/starboard/shared/gcc/atomic_gcc_public.h',
         '<(DEPTH)/starboard/shared/gles/gl_call.h',
+        '<(DEPTH)/starboard/shared/gles/system_gles2.cc',
         '<(DEPTH)/starboard/shared/internal_only.h',
         '<(DEPTH)/starboard/shared/iso/character_is_alphanumeric.cc',
         '<(DEPTH)/starboard/shared/iso/character_is_digit.cc',
@@ -346,7 +346,9 @@
         '<(DEPTH)/starboard/shared/starboard/drm/drm_close_session.cc',
         '<(DEPTH)/starboard/shared/starboard/drm/drm_destroy_system.cc',
         '<(DEPTH)/starboard/shared/starboard/drm/drm_generate_session_update_request.cc',
+        '<(DEPTH)/starboard/shared/starboard/drm/drm_is_server_certificate_updatable.cc',
         '<(DEPTH)/starboard/shared/starboard/drm/drm_system_internal.h',
+        '<(DEPTH)/starboard/shared/starboard/drm/drm_update_server_certificate.cc',
         '<(DEPTH)/starboard/shared/starboard/drm/drm_update_session.cc',
         '<(DEPTH)/starboard/shared/starboard/event_cancel.cc',
         '<(DEPTH)/starboard/shared/starboard/event_schedule.cc',
@@ -357,6 +359,8 @@
         '<(DEPTH)/starboard/shared/starboard/file_storage/storage_open_record.cc',
         '<(DEPTH)/starboard/shared/starboard/file_storage/storage_read_record.cc',
         '<(DEPTH)/starboard/shared/starboard/log_message.cc',
+        '<(DEPTH)/starboard/shared/starboard/log_mutex.cc',
+        '<(DEPTH)/starboard/shared/starboard/log_mutex.h',
         '<(DEPTH)/starboard/shared/starboard/log_raw_dump_stack.cc',
         '<(DEPTH)/starboard/shared/starboard/log_raw_format.cc',
         '<(DEPTH)/starboard/shared/starboard/media/codec_util.cc',
@@ -391,6 +395,8 @@
         '<(DEPTH)/starboard/shared/starboard/player/input_buffer_internal.h',
         '<(DEPTH)/starboard/shared/starboard/player/job_queue.cc',
         '<(DEPTH)/starboard/shared/starboard/player/job_queue.h',
+        '<(DEPTH)/starboard/shared/starboard/player/job_thread.cc',
+        '<(DEPTH)/starboard/shared/starboard/player/job_thread.h',
         '<(DEPTH)/starboard/shared/starboard/player/player_get_current_frame.cc',
         '<(DEPTH)/starboard/shared/starboard/player/player_get_info.cc',
         '<(DEPTH)/starboard/shared/starboard/player/player_get_info2.cc',
@@ -423,14 +429,13 @@
         '<(DEPTH)/starboard/shared/starboard/system_supports_resume.cc',
         '<(DEPTH)/starboard/shared/starboard/thread_checker.h',
         '<(DEPTH)/starboard/shared/starboard/window_set_default_options.cc',
+        '<(DEPTH)/starboard/shared/stub/cpu_features_get.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_create_transformer.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_destroy_transformer.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_get_tag.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_set_authenticated_data.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_set_initialization_vector.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_transform.cc',
-        '<(DEPTH)/starboard/shared/stub/drm_is_server_certificate_updatable.cc',
-        '<(DEPTH)/starboard/shared/stub/drm_update_server_certificate.cc',
         '<(DEPTH)/starboard/shared/stub/image_decode.cc',
         '<(DEPTH)/starboard/shared/stub/image_is_decode_supported.cc',
         '<(DEPTH)/starboard/shared/stub/media_set_audio_write_duration.cc',
@@ -448,17 +453,6 @@
         '<(DEPTH)/starboard/shared/stub/ui_nav_get_interface.cc',
         '<(DEPTH)/starboard/shared/stub/window_get_diagonal_size_in_inches.cc',
       ],
-      'conditions': [
-        ['has_input_events_filter=="True"', {
-          'sources': [
-            'input_events_filter.cc',
-            'input_events_filter.h',
-          ],
-          'defines': [
-            'STARBOARD_INPUT_EVENTS_FILTER',
-          ],
-        }],
-      ],
       'defines': [
         # This must be defined when building Starboard, and must not when
         # building Starboard client code.
@@ -469,6 +463,28 @@
         '<(DEPTH)/third_party/libevent/libevent.gyp:libevent',
         '<(DEPTH)/third_party/opus/opus.gyp:opus',
         'starboard_base_symbolize',
+      ],
+      'conditions': [
+        ['has_input_events_filter=="True"', {
+          'sources': [
+            'input_events_filter.cc',
+            'input_events_filter.h',
+          ],
+          'defines': [
+            'STARBOARD_INPUT_EVENTS_FILTER',
+          ],
+        }],
+        ['has_drm_system_extension==1', {
+          'dependencies': [
+            '<(DEPTH)/starboard/android/shared/drm_system_extension/drm_system_extension.gyp:drm_system_extension',
+          ],
+        }, {
+          'sources': [
+            'drm_create_system.cc',
+            'media_is_supported.cc',
+            'player_components_impl.cc',
+          ],
+        }],
       ],
     },
   ],

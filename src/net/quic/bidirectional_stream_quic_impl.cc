@@ -17,7 +17,7 @@
 #include "net/spdy/spdy_http_utils.h"
 #include "net/third_party/quic/core/quic_connection.h"
 #include "net/third_party/quic/platform/api/quic_string_piece.h"
-#include "net/third_party/spdy/core/spdy_header_block.h"
+#include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 #include "quic_http_stream.h"
 
 namespace net {
@@ -95,17 +95,17 @@ void BidirectionalStreamQuicImpl::Start(
 
   if (rv != OK) {
     base::ThreadTaskRunnerHandle::Get()->PostTask(
-        FROM_HERE, base::Bind(&BidirectionalStreamQuicImpl::NotifyError,
-                              weak_factory_.GetWeakPtr(),
-                              session_->IsCryptoHandshakeConfirmed()
-                                  ? rv
-                                  : ERR_QUIC_HANDSHAKE_FAILED));
+        FROM_HERE, base::BindOnce(&BidirectionalStreamQuicImpl::NotifyError,
+                                  weak_factory_.GetWeakPtr(),
+                                  session_->IsCryptoHandshakeConfirmed()
+                                      ? rv
+                                      : ERR_QUIC_HANDSHAKE_FAILED));
     return;
   }
 
   base::ThreadTaskRunnerHandle::Get()->PostTask(
-      FROM_HERE, base::Bind(&BidirectionalStreamQuicImpl::OnStreamReady,
-                            weak_factory_.GetWeakPtr(), rv));
+      FROM_HERE, base::BindOnce(&BidirectionalStreamQuicImpl::OnStreamReady,
+                                weak_factory_.GetWeakPtr(), rv));
 }
 
 void BidirectionalStreamQuicImpl::SendRequestHeaders() {
@@ -113,8 +113,8 @@ void BidirectionalStreamQuicImpl::SendRequestHeaders() {
   int rv = WriteHeaders();
   if (rv < 0) {
     base::ThreadTaskRunnerHandle::Get()->PostTask(
-        FROM_HERE, base::Bind(&BidirectionalStreamQuicImpl::NotifyError,
-                              weak_factory_.GetWeakPtr(), rv));
+        FROM_HERE, base::BindOnce(&BidirectionalStreamQuicImpl::NotifyError,
+                                  weak_factory_.GetWeakPtr(), rv));
   }
 }
 
@@ -174,8 +174,8 @@ void BidirectionalStreamQuicImpl::SendvData(
   if (!stream_->IsOpen()) {
     LOG(ERROR) << "Trying to send data after stream has been closed.";
     base::ThreadTaskRunnerHandle::Get()->PostTask(
-        FROM_HERE, base::Bind(&BidirectionalStreamQuicImpl::NotifyError,
-                              weak_factory_.GetWeakPtr(), ERR_UNEXPECTED));
+        FROM_HERE, base::BindOnce(&BidirectionalStreamQuicImpl::NotifyError,
+                                  weak_factory_.GetWeakPtr(), ERR_UNEXPECTED));
     return;
   }
 
@@ -186,8 +186,8 @@ void BidirectionalStreamQuicImpl::SendvData(
     int rv = WriteHeaders();
     if (rv < 0) {
       base::ThreadTaskRunnerHandle::Get()->PostTask(
-          FROM_HERE, base::Bind(&BidirectionalStreamQuicImpl::NotifyError,
-                                weak_factory_.GetWeakPtr(), rv));
+          FROM_HERE, base::BindOnce(&BidirectionalStreamQuicImpl::NotifyError,
+                                    weak_factory_.GetWeakPtr(), rv));
       return;
     }
   }
@@ -199,8 +199,9 @@ void BidirectionalStreamQuicImpl::SendvData(
 
   if (rv != ERR_IO_PENDING) {
     base::ThreadTaskRunnerHandle::Get()->PostTask(
-        FROM_HERE, base::Bind(&BidirectionalStreamQuicImpl::OnSendDataComplete,
-                              weak_factory_.GetWeakPtr(), rv));
+        FROM_HERE,
+        base::BindOnce(&BidirectionalStreamQuicImpl::OnSendDataComplete,
+                       weak_factory_.GetWeakPtr(), rv));
   }
 }
 
@@ -261,8 +262,9 @@ void BidirectionalStreamQuicImpl::OnStreamReady(int rv) {
   }
 
   base::ThreadTaskRunnerHandle::Get()->PostTask(
-      FROM_HERE, base::Bind(&BidirectionalStreamQuicImpl::ReadInitialHeaders,
-                            weak_factory_.GetWeakPtr()));
+      FROM_HERE,
+      base::BindOnce(&BidirectionalStreamQuicImpl::ReadInitialHeaders,
+                     weak_factory_.GetWeakPtr()));
 
   NotifyStreamReady();
 }
@@ -291,8 +293,9 @@ void BidirectionalStreamQuicImpl::OnReadInitialHeadersComplete(int rv) {
   negotiated_protocol_ = kProtoQUIC;
   connect_timing_ = session_->GetConnectTiming();
   base::ThreadTaskRunnerHandle::Get()->PostTask(
-      FROM_HERE, base::Bind(&BidirectionalStreamQuicImpl::ReadTrailingHeaders,
-                            weak_factory_.GetWeakPtr()));
+      FROM_HERE,
+      base::BindOnce(&BidirectionalStreamQuicImpl::ReadTrailingHeaders,
+                     weak_factory_.GetWeakPtr()));
   if (delegate_)
     delegate_->OnHeadersReceived(initial_headers_);
 }
@@ -369,8 +372,9 @@ void BidirectionalStreamQuicImpl::NotifyErrorImpl(int error,
     weak_factory_.InvalidateWeakPtrs();
     if (notify_delegate_later) {
       base::ThreadTaskRunnerHandle::Get()->PostTask(
-          FROM_HERE, base::Bind(&BidirectionalStreamQuicImpl::NotifyFailure,
-                                weak_factory_.GetWeakPtr(), delegate, error));
+          FROM_HERE,
+          base::BindOnce(&BidirectionalStreamQuicImpl::NotifyFailure,
+                         weak_factory_.GetWeakPtr(), delegate, error));
     } else {
       NotifyFailure(delegate, error);
       // |this| might be destroyed at this point.
@@ -392,8 +396,8 @@ void BidirectionalStreamQuicImpl::NotifyStreamReady() {
     int rv = WriteHeaders();
     if (rv < 0) {
       base::ThreadTaskRunnerHandle::Get()->PostTask(
-          FROM_HERE, base::Bind(&BidirectionalStreamQuicImpl::NotifyError,
-                                weak_factory_.GetWeakPtr(), rv));
+          FROM_HERE, base::BindOnce(&BidirectionalStreamQuicImpl::NotifyError,
+                                    weak_factory_.GetWeakPtr(), rv));
       return;
     }
   }

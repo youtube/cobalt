@@ -53,10 +53,12 @@ void QuicSimpleServerPacketWriter::OnWriteComplete(int rv) {
   dispatcher_->OnCanWrite();
 }
 
+#if !defined(COBALT_QUIC46)
 bool QuicSimpleServerPacketWriter::IsWriteBlockedDataBuffered() const {
   // UDPServerSocket::SendTo buffers the data until the Write is permitted.
   return true;
 }
+#endif
 
 bool QuicSimpleServerPacketWriter::IsWriteBlocked() const {
   return write_blocked_;

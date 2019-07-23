@@ -51,9 +51,16 @@ typedef base::Callback<void(PipelineStatus, const std::string&)> ErrorCB;
 // playing.
 class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
  public:
+  typedef base::Callback<void(PipelineStatus status, bool is_initial_preroll)>
+      SeekCB;
+
   // Return true if the punch through box should be rendered.  Return false if
   // no punch through box should be rendered.
   typedef base::Callback<bool(const gfx::Rect&)> SetBoundsCB;
+
+  // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
+  typedef base::Callback<SbDecodeTargetGraphicsContextProvider*()>
+      GetDecodeTargetGraphicsContextProviderFunc;
 
   // Buffering states the pipeline transitions between during playback.
   // kHaveMetadata:
@@ -76,7 +83,9 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
 
   static scoped_refptr<Pipeline> Create(
       PipelineWindow window,
-      const scoped_refptr<base::SingleThreadTaskRunner>& message_loop,
+      const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+      const GetDecodeTargetGraphicsContextProviderFunc&
+          get_decode_target_graphics_context_provider_func,
       bool allow_resume_after_suspend, MediaLog* media_log,
       VideoFrameProvider* video_frame_provider);
 
@@ -107,11 +116,12 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   virtual void Start(Demuxer* demuxer,
                      const SetDrmSystemReadyCB& set_drm_system_ready_cb,
                      const PipelineStatusCB& ended_cb, const ErrorCB& error_cb,
-                     const PipelineStatusCB& seek_cb,
+                     const SeekCB& seek_cb,
                      const BufferingStateCB& buffering_state_cb,
                      const base::Closure& duration_change_cb,
                      const base::Closure& output_mode_change_cb,
-                     const base::Closure& content_size_change_cb) = 0;
+                     const base::Closure& content_size_change_cb,
+                     const std::string& max_video_capabilities) = 0;
 
 #if SB_HAS(PLAYER_WITH_URL)
   // Build a pipeline with an url-base player.
@@ -120,7 +130,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
                          encrypted_media_init_data_encountered_cb,
                      const std::string& source_url,
                      const PipelineStatusCB& ended_cb, const ErrorCB& error_cb,
-                     const PipelineStatusCB& seek_cb,
+                     const SeekCB& seek_cb,
                      const BufferingStateCB& buffering_state_cb,
                      const base::Closure& duration_change_cb,
                      const base::Closure& output_mode_change_cb,
@@ -141,7 +151,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // succeeded.
   //
   // It is an error to call this method if the pipeline has not started.
-  virtual void Seek(base::TimeDelta time, const PipelineStatusCB& seek_cb) = 0;
+  virtual void Seek(base::TimeDelta time, const SeekCB& seek_cb) = 0;
 
   // Returns true if the media has audio.
   virtual bool HasAudio() const = 0;

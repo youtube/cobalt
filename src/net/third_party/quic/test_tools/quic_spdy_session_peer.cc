@@ -5,6 +5,7 @@
 #include "net/third_party/quic/test_tools/quic_spdy_session_peer.h"
 
 #include "net/third_party/quic/core/http/quic_spdy_session.h"
+#include "net/third_party/quic/core/quic_utils.h"
 
 namespace quic {
 namespace test {
@@ -49,37 +50,15 @@ void QuicSpdySessionPeer::SetMaxUncompressedHeaderBytes(
 }
 
 // static
-size_t QuicSpdySessionPeer::WriteHeadersImpl(
+size_t QuicSpdySessionPeer::WriteHeadersOnHeadersStream(
     QuicSpdySession* session,
     QuicStreamId id,
     spdy::SpdyHeaderBlock headers,
     bool fin,
-    int weight,
-    QuicStreamId parent_stream_id,
-    bool exclusive,
+    spdy::SpdyPriority priority,
     QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
-  return session->WriteHeadersImpl(id, std::move(headers), fin, weight,
-                                   parent_stream_id, exclusive,
-                                   std::move(ack_listener));
-}
-
-//  static
-QuicStreamId QuicSpdySessionPeer::NextStreamId(const QuicSpdySession& session) {
-  return 2;
-}
-
-//  static
-QuicStreamId QuicSpdySessionPeer::GetNthClientInitiatedStreamId(
-    const QuicSpdySession& session,
-    int n) {
-  return 5 + QuicSpdySessionPeer::NextStreamId(session) * n;
-}
-
-//  static
-QuicStreamId QuicSpdySessionPeer::GetNthServerInitiatedStreamId(
-    const QuicSpdySession& session,
-    int n) {
-  return 2 + QuicSpdySessionPeer::NextStreamId(session) * n;
+  return session->WriteHeadersOnHeadersStream(
+      id, std::move(headers), fin, priority, std::move(ack_listener));
 }
 
 }  // namespace test

@@ -13,6 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+"""Provides functions for symlinking on Windows."""
+
+
+import ctypes
+from ctypes import wintypes
+import os
+
+
 ################################################################################
 #                                  API                                         #
 ################################################################################
@@ -27,30 +36,44 @@ def FastReadReparseLink(path):
 
 
 def FastCreateReparseLink(from_folder, link_folder):
-  """Creates a reparse link. If the operation fails to create the link due to
-  to the operating system not supporting it then an OSError is raised."""
-  return _FastCreateReparseLink(from_folder, link_folder)
+  """Creates a reparse link.
+
+  Args:
+    from_folder: The folder that the link will point to.
+    link_folder: The path of the link to be created.
+
+  Returns:
+    None
+
+  If the operation fails to create the link due to the operating system not
+  supporting it then an OSError is raised.
+  """
+  _FastCreateReparseLink(from_folder, link_folder)
 
 
 ################################################################################
 #                                 IMPL                                         #
 ################################################################################
 
-import os
-from ctypes import \
-    POINTER, c_buffer, byref, addressof, c_ubyte, Structure, Union, windll
-from ctypes.wintypes import \
-    DWORD, LPCWSTR, HANDLE, LPVOID, BOOL, USHORT, ULONG, WCHAR, WinError, WinDLL
+
+DWORD = wintypes.DWORD
+LPCWSTR = wintypes.LPCWSTR
+HANDLE = wintypes.HANDLE
+LPVOID = wintypes.LPVOID
+BOOL = wintypes.BOOL
+USHORT = wintypes.USHORT
+ULONG = wintypes.ULONG
+WCHAR = wintypes.WCHAR
 
 
-kernel32 = WinDLL('kernel32')
-LPDWORD = POINTER(DWORD)
-UCHAR = c_ubyte
+kernel32 = wintypes.WinDLL('kernel32')
+LPDWORD = ctypes.POINTER(DWORD)
+UCHAR = ctypes.c_ubyte
 
 
 GetFileAttributesW = kernel32.GetFileAttributesW
 GetFileAttributesW.restype = DWORD
-GetFileAttributesW.argtypes = (LPCWSTR,) #lpFileName In
+GetFileAttributesW.argtypes = (LPCWSTR,)  # lpFileName In
 
 
 INVALID_FILE_ATTRIBUTES = 0xFFFFFFFF
@@ -59,18 +82,18 @@ FILE_ATTRIBUTE_REPARSE_POINT = 0x00400
 
 CreateFileW = kernel32.CreateFileW
 CreateFileW.restype = HANDLE
-CreateFileW.argtypes = (LPCWSTR, # lpFileName In
-                        DWORD,   # dwDesiredAccess In
-                        DWORD,   # dwShareMode In
-                        LPVOID,  # lpSecurityAttributes In_opt
-                        DWORD,   # dwCreationDisposition In
-                        DWORD,   # dwFlagsAndAttributes In
-                        HANDLE)  # hTemplateFile In_opt
+CreateFileW.argtypes = (LPCWSTR,  # lpFileName In
+                        DWORD,    # dwDesiredAccess In
+                        DWORD,    # dwShareMode In
+                        LPVOID,   # lpSecurityAttributes In_opt
+                        DWORD,    # dwCreationDisposition In
+                        DWORD,    # dwFlagsAndAttributes In
+                        HANDLE)   # hTemplateFile In_opt
 
 
 CloseHandle = kernel32.CloseHandle
 CloseHandle.restype = BOOL
-CloseHandle.argtypes = (HANDLE,) #hObject In
+CloseHandle.argtypes = (HANDLE,)  # hObject In
 
 
 INVALID_HANDLE_VALUE = HANDLE(-1).value
@@ -81,14 +104,14 @@ FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
 
 DeviceIoControl = kernel32.DeviceIoControl
 DeviceIoControl.restype = BOOL
-DeviceIoControl.argtypes = (HANDLE,  #hDevice In
-                            DWORD,   #dwIoControlCode In
-                            LPVOID,  #lpInBuffer In_opt
-                            DWORD,   #nInBufferSize In
-                            LPVOID,  #lpOutBuffer Out_opt
-                            DWORD,   #nOutBufferSize In
-                            LPDWORD, #lpBytesReturned Out_opt
-                            LPVOID)  #lpOverlapped Inout_opt
+DeviceIoControl.argtypes = (HANDLE,   # hDevice In
+                            DWORD,    # dwIoControlCode In
+                            LPVOID,   # lpInBuffer In_opt
+                            DWORD,    # nInBufferSize In
+                            LPVOID,   # lpOutBuffer Out_opt
+                            DWORD,    # nOutBufferSize In
+                            LPDWORD,  # lpBytesReturned Out_opt
+                            LPVOID)   # lpOverlapped Inout_opt
 
 
 FSCTL_GET_REPARSE_POINT = 0x000900A8
@@ -98,49 +121,56 @@ MAXIMUM_REPARSE_DATA_BUFFER_SIZE = 0x4000
 SYMBOLIC_LINK_FLAG_DIRECTORY = 0x1
 SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE = 0x2
 
-class GENERIC_REPARSE_BUFFER(Structure):
+
+class GenericReparseBuffer(ctypes.Structure):
+  """Win32 api data structure."""
   _fields_ = (('DataBuffer', UCHAR * 1),)
 
 
-class SYMBOLIC_LINK_REPARSE_BUFFER(Structure):
+class SymbolicLinkReparseBuffer(ctypes.Structure):
+  """Win32 api data structure."""
+
   _fields_ = (('SubstituteNameOffset', USHORT),
               ('SubstituteNameLength', USHORT),
               ('PrintNameOffset', USHORT),
               ('PrintNameLength', USHORT),
               ('Flags', ULONG),
               ('PathBuffer', WCHAR * 1))
+
   @property
   def print_name(self):
     arrayt = WCHAR * (self.PrintNameLength // 2)
     offset = type(self).PathBuffer.offset + self.PrintNameOffset
-    return arrayt.from_address(addressof(self) + offset).value
+    return arrayt.from_address(ctypes.addressof(self) + offset).value
 
 
-class MOUNT_POINT_REPARSE_BUFFER(Structure):
+class MountPointReparseBuffer(ctypes.Structure):
+  """Win32 api data structure."""
   _fields_ = (('SubstituteNameOffset', USHORT),
               ('SubstituteNameLength', USHORT),
               ('PrintNameOffset', USHORT),
               ('PrintNameLength', USHORT),
               ('PathBuffer', WCHAR * 1))
+
   @property
   def print_name(self):
     arrayt = WCHAR * (self.PrintNameLength // 2)
     offset = type(self).PathBuffer.offset + self.PrintNameOffset
-    return arrayt.from_address(addressof(self) + offset).value
+    return arrayt.from_address(ctypes.addressof(self) + offset).value
 
 
-class REPARSE_DATA_BUFFER(Structure):
-  class REPARSE_BUFFER(Union):
-      _fields_ = (('SymbolicLinkReparseBuffer',
-                      SYMBOLIC_LINK_REPARSE_BUFFER),
-                  ('MountPointReparseBuffer',
-                      MOUNT_POINT_REPARSE_BUFFER),
-                  ('GenericReparseBuffer',
-                      GENERIC_REPARSE_BUFFER))
+class ReparseDataBuffer(ctypes.Structure):
+  """Win32 api data structure."""
+
+  class ReparseBuffer(ctypes.Union):
+    """Win32 api data structure."""
+    _fields_ = (('SymbolicLinkReparseBuffer', SymbolicLinkReparseBuffer),
+                ('MountPointReparseBuffer', MountPointReparseBuffer),
+                ('GenericReparseBuffer', GenericReparseBuffer))
   _fields_ = (('ReparseTag', ULONG),
               ('ReparseDataLength', USHORT),
               ('Reserved', USHORT),
-              ('ReparseBuffer', REPARSE_BUFFER))
+              ('ReparseBuffer', ReparseBuffer))
   _anonymous_ = ('ReparseBuffer',)
 
 
@@ -148,17 +178,19 @@ def _ToUnicode(s):
   return s.decode('utf-8')
 
 
-__kdll = None
+_kdll = None
+
+
 def _GetKernel32Dll():
-  global __kdll
-  if __kdll:
-    return __kdll
-  __kdll = windll.LoadLibrary('kernel32.dll')
-  return __kdll
+  global _kdll
+  if _kdll:
+    return _kdll
+  _kdll = ctypes.windll.LoadLibrary('kernel32.dll')
+  return _kdll
 
 
 def _FastCreateReparseLink(from_folder, link_folder):
-  link_folder = os.path.abspath(link_folder)
+  """See api docstring, above."""
   from_folder = _ToUnicode(from_folder)
   link_folder = _ToUnicode(link_folder)
   par_dir = os.path.dirname(link_folder)
@@ -170,7 +202,7 @@ def _FastCreateReparseLink(from_folder, link_folder):
           SYMBOLIC_LINK_FLAG_DIRECTORY
   ok = kdll.CreateSymbolicLinkW(link_folder, from_folder, flags)
   if not ok or not _FastIsReparseLink(link_folder):
-    raise OSError('Could not create sym link ' + link_folder + ' to ' + \
+    raise OSError('Could not create sym link ' + link_folder + ' to ' +
                   from_folder)
 
 
@@ -183,6 +215,7 @@ def _FastIsReparseLink(path):
 
 
 def _FastReadReparseLink(path):
+  """See api docstring, above."""
   path = _ToUnicode(path)
   reparse_point_handle = CreateFileW(path,
                                      0,
@@ -194,18 +227,20 @@ def _FastReadReparseLink(path):
                                      None)
   if reparse_point_handle == INVALID_HANDLE_VALUE:
     return None
-  target_buffer = c_buffer(MAXIMUM_REPARSE_DATA_BUFFER_SIZE)
+  # Remove false positive below.
+  # pylint: disable=deprecated-method
+  target_buffer = ctypes.c_buffer(MAXIMUM_REPARSE_DATA_BUFFER_SIZE)
   n_bytes_returned = DWORD()
   io_result = DeviceIoControl(reparse_point_handle,
                               FSCTL_GET_REPARSE_POINT,
                               None, 0,
                               target_buffer, len(target_buffer),
-                              byref(n_bytes_returned),
+                              ctypes.byref(n_bytes_returned),
                               None)
   CloseHandle(reparse_point_handle)
   if not io_result:
     return None
-  rdb = REPARSE_DATA_BUFFER.from_buffer(target_buffer)
+  rdb = ReparseDataBuffer.from_buffer(target_buffer)
   if rdb.ReparseTag == IO_REPARSE_TAG_SYMLINK:
     return rdb.SymbolicLinkReparseBuffer.print_name
   elif rdb.ReparseTag == IO_REPARSE_TAG_MOUNT_POINT:

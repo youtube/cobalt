@@ -291,9 +291,9 @@ enum QuicErrorCode {
   QUIC_INVALID_MAX_DATA_FRAME_DATA = 102,
   // Received a MAX STREAM DATA frame with errors.
   QUIC_INVALID_MAX_STREAM_DATA_FRAME_DATA = 103,
-  // Received a MAX STREAM ID frame with bad data
+  // Received a MAX_STREAM_ID frame with bad data
   QUIC_MAX_STREAM_ID_DATA = 104,
-  // Received a STREAM ID BLOCKED frame with bad data
+  // Received a STREAM_ID_BLOCKED frame with bad data
   QUIC_STREAM_ID_BLOCKED_DATA = 105,
   // Error deframing a STREAM BLOCKED frame.
   QUIC_INVALID_STREAM_BLOCKED_DATA = 106,
@@ -309,8 +309,27 @@ enum QuicErrorCode {
   IETF_QUIC_PROTOCOL_VIOLATION = 113,
   QUIC_INVALID_NEW_TOKEN = 114,
 
+  // Received stream data on a WRITE_UNIDIRECTIONAL stream.
+  QUIC_DATA_RECEIVED_ON_WRITE_UNIDIRECTIONAL_STREAM = 115,
+  // Try to send stream data on a READ_UNIDIRECTIONAL stream.
+  QUIC_TRY_TO_WRITE_DATA_ON_READ_UNIDIRECTIONAL_STREAM = 116,
+
+  // RETIRE CONNECTION ID frame data is malformed.
+  QUIC_INVALID_RETIRE_CONNECTION_ID_DATA = 117,
+  //
+  // Error in a received STREAM ID BLOCKED frame. -- the stream ID is not
+  // consistent with the state of the endpoint.
+  QUIC_STREAM_ID_BLOCKED_ERROR = 118,
+  // Error in a received MAX STREAM ID frame -- the stream ID is not
+  // consistent with the state of the endpoint.
+  QUIC_MAX_STREAM_ID_ERROR = 119,
+  // Error in Http decoder
+  QUIC_HTTP_DECODER_ERROR = 120,
+  // Connection from stale host needs to be cancelled.
+  QUIC_STALE_CONNECTION_CANCELLED = 121,
+
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 115,
+  QUIC_LAST_ERROR = 122,
 };
 // QuicErrorCodes is encoded as a single octet on-the-wire.
 static_assert(static_cast<int>(QUIC_LAST_ERROR) <=
@@ -323,42 +342,6 @@ QUIC_EXPORT_PRIVATE const char* QuicRstStreamErrorCodeToString(
 
 // Returns the name of the QuicErrorCode as a char*
 QUIC_EXPORT const char* QuicErrorCodeToString(QuicErrorCode error);
-
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-// TODO(rch): Remove this once the cause of the INTERNAL_ERROR increase is
-// determined.
-enum QuicInternalErrorLocation {
-  QUIC_CHROMIUM_CLIENT_SESSION_DESTRUCTOR = 0,
-  QUIC_CONNECTION_PROTOCOL_VERSION_MISMATCH = 1,
-  QUIC_CONNECTION_VERSION_NEGOTIATION_PACKET = 2,
-  QUIC_CONNECTION_UNAUTHENTICATED_HEADER = 3,
-  QUIC_CONNECTION_WRITE_PACKET = 4,
-  QUIC_CONTROL_FRAME_MANAGER_CONTROL_FRAME_SENT = 5,
-  QUIC_CONTROL_FRAME_MANAGER_CONTROL_FRAME_ACKED = 6,
-  QUIC_CONTROL_FRAME_MANAGER_CONTROL_FRAME_LOST = 7,
-  QUIC_CONTROL_FRAME_MANAGER_RETRANSMIT_CONTROL_FRAME = 8,
-  QUIC_CRYPTO_CLIENT_HANDSHAKER_MAX_PACKET = 9,
-  QUIC_CRYPTO_CLIENT_HANDSHAKER_CHLO = 10,
-  QUIC_ERROR_CODES = 11,
-  QUIC_FRAMER = 12,
-  QUIC_HEADERS_STREAM = 13,
-  QUIC_SESSION_ON_CAN_WRITE = 14,
-  QUIC_SESSION_WRITEV_DATA = 15,
-  QUIC_SESSION_STREAM_FRAME_RETRANSMITTED = 16,
-  QUIC_SPDY_SESSION = 17,
-  QUIC_STREAM_ACKED_UNSENT_DATA = 18,
-  QUIC_STREAM_ACKED_UNSENT_FIN = 19,
-  QUIC_STREAM_SEQUENCER_BUFFER = 20,
-  QUIC_CHROMIUM_CLIENT_SESSION_CLOSE_SESSION_ON_ERROR = 21,
-  INTERNAL_ERROR_LOCATION_MAX
-};
-
-// Records the location of a QUIC internal error into a histogram.
-// TODO(rch): Remove this once the cause of the INTERNAL_ERROR increase is
-// determined.
-QUIC_EXPORT_PRIVATE
-void RecordInternalErrorLocation(QuicInternalErrorLocation location);
 
 }  // namespace quic
 

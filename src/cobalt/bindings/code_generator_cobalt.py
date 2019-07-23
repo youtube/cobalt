@@ -134,6 +134,8 @@ def get_interface_type_names_from_idl_types(info_provider, idl_type_list):
       idl_type = idl_type.resolve_typedefs(info_provider.typedefs)
       if isinstance(idl_type, IdlTypedef):
         idl_type = idl_type.idl_type
+      if idl_type.is_nullable:
+        idl_type = idl_type.inner_type
 
       if idl_type.is_interface_type:
         yield get_interface_name(idl_type)

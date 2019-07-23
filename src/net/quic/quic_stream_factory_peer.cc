@@ -101,6 +101,11 @@ void QuicStreamFactoryPeer::SetTaskRunner(
   factory->task_runner_ = task_runner;
 }
 
+void QuicStreamFactoryPeer::SetTickClock(QuicStreamFactory* factory,
+                                         const base::TickClock* tick_clock) {
+  factory->tick_clock_ = tick_clock;
+}
+
 quic::QuicTime::Delta QuicStreamFactoryPeer::GetPingTimeout(
     QuicStreamFactory* factory) {
   return factory->ping_timeout_;

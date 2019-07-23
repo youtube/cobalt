@@ -17,7 +17,7 @@
 #include <algorithm>
 #include <ostream>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/system.h"
 
 namespace base {

@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/log.h"
 #include "starboard/contrib/tizen/shared/audio/audio_sink_private.h"
-#include "starboard/log.h"
 
 bool SbAudioSinkIsValid(SbAudioSink audio_sink) {
   if (audio_sink == kSbAudioSinkInvalid) {

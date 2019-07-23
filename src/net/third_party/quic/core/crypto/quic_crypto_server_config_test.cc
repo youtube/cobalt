@@ -12,8 +12,8 @@
 #include "net/third_party/quic/core/crypto/chacha20_poly1305_encrypter.h"
 #include "net/third_party/quic/core/crypto/crypto_handshake_message.h"
 #include "net/third_party/quic/core/crypto/crypto_secret_boxer.h"
-#include "net/third_party/quic/core/crypto/crypto_server_config_protobuf.h"
 #include "net/third_party/quic/core/crypto/quic_random.h"
+#include "net/third_party/quic/core/proto/crypto_server_config.pb.h"
 #include "net/third_party/quic/core/quic_time.h"
 #include "net/third_party/quic/core/tls_server_handshaker.h"
 #include "net/third_party/quic/platform/api/quic_socket_address.h"
@@ -455,6 +455,33 @@ TEST_F(CryptoServerConfigsTest, AdvancePrimary) {
   test_peer_.SelectNewPrimaryConfig(1000);
   test_peer_.CheckConfigs({{"a", true}, {"b", false}});
   test_peer_.SelectNewPrimaryConfig(1101);
+  test_peer_.CheckConfigs({{"a", false}, {"b", true}});
+}
+
+class ValidateCallback : public ValidateClientHelloResultCallback {
+ public:
+  void Run(QuicReferenceCountedPointer<Result> result,
+           std::unique_ptr<ProofSource::Details> /* details */) override {}
+};
+
+TEST_F(CryptoServerConfigsTest, AdvancePrimaryViaValidate) {
+  SetQuicReloadableFlag(quic_fix_config_rotation, true);
+  // Check that a new primary config is enabled at the right time.
+  SetConfigs({{"a", 900, 1}, {"b", 1100, 1}});
+  test_peer_.SelectNewPrimaryConfig(1000);
+  test_peer_.CheckConfigs({{"a", true}, {"b", false}});
+  CryptoHandshakeMessage client_hello;
+  QuicIpAddress client_ip;
+  QuicSocketAddress server_address;
+  QuicTransportVersion version = QUIC_VERSION_99;
+  MockClock clock;
+  QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config(
+      new QuicSignedServerConfig);
+  std::unique_ptr<ValidateClientHelloResultCallback> done_cb(
+      new ValidateCallback);
+  clock.AdvanceTime(QuicTime::Delta::FromSeconds(1100));
+  config_.ValidateClientHello(client_hello, client_ip, server_address, version,
+                              &clock, signed_config, std::move(done_cb));
   test_peer_.CheckConfigs({{"a", false}, {"b", true}});
 }
 

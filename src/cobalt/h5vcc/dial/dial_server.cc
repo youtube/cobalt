@@ -89,7 +89,7 @@ DialServer::DialServer(script::EnvironmentSettings* settings,
 }
 
 DialServer::~DialServer() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (dial_service_proxy_) {
     dial_service_proxy_->Deregister(service_handler_);
   }
@@ -120,7 +120,7 @@ const std::string& DialServer::service_name() const {
 bool DialServer::AddHandler(
     Method method, const std::string& path,
     const DialHttpRequestCallbackWrapper::ScriptValue& handler) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   scoped_refptr<DialHttpRequestCallbackWrapper> callback =
       new DialHttpRequestCallbackWrapper(this, handler);
 
@@ -133,7 +133,7 @@ bool DialServer::AddHandler(
 // callback, if there is one registered. Return the response and status.
 std::unique_ptr<net::HttpServerResponseInfo> DialServer::RunCallback(
     const std::string& path, const net::HttpServerRequestInfo& request) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   std::unique_ptr<net::HttpServerResponseInfo> response;
   Method method = StringToMethod(request.method);

@@ -6,14 +6,14 @@
 
 namespace quic {
 
-void QuicSimpleClientStream::OnDataAvailable() {
+void QuicSimpleClientStream::OnBodyAvailable() {
   if (!drop_response_body_) {
-    QuicSpdyClientStream::OnDataAvailable();
+    QuicSpdyClientStream::OnBodyAvailable();
     return;
   }
 
   while (HasBytesToRead()) {
-    struct iovec iov;
+    struct IOVEC iov;
     if (GetReadableRegions(&iov, 1) == 0) {
       break;
     }
@@ -24,6 +24,10 @@ void QuicSimpleClientStream::OnDataAvailable() {
   } else {
     sequencer()->SetUnblocked();
   }
+}
+
+void QuicSimpleClientStream::OnStopSending(uint16_t code) {
+  last_stop_sending_code_ = code;
 }
 
 }  // namespace quic

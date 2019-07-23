@@ -84,6 +84,7 @@ CompilationJob::Status CompilationJob::PrepareJob(Isolate* isolate) {
   DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
   DisallowJavascriptExecution no_js(isolate);
 
+#ifndef V8_OS_STARBOARD
   if (FLAG_trace_opt && compilation_info()->IsOptimizing()) {
     OFStream os(stdout);
     os << "[compiling method " << Brief(*compilation_info()->closure())
@@ -91,6 +92,7 @@ CompilationJob::Status CompilationJob::PrepareJob(Isolate* isolate) {
     if (compilation_info()->is_osr()) os << " OSR";
     os << "]" << std::endl;
   }
+#endif
 
   // Delegate to the underlying implementation.
   DCHECK_EQ(state(), State::kReadyToPrepare);

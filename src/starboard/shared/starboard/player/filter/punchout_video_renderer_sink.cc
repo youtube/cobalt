@@ -14,8 +14,8 @@
 
 #include "starboard/shared/starboard/player/filter/punchout_video_renderer_sink.h"
 
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/log.h"
 #include "starboard/shared/starboard/application.h"
 
 namespace starboard {

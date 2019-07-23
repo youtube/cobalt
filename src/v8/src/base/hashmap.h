@@ -17,8 +17,8 @@
 
 #if V8_OS_STARBOARD
 
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 
 #define malloc(x) SbMemoryAllocate(x)
 #define realloc(x, y) SbMemoryReallocate(x, y)

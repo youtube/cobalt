@@ -249,8 +249,6 @@ const base::char16* Paragraph::GetTextBuffer() const {
 
 const icu::Locale& Paragraph::GetLocale() const { return locale_; }
 
-BaseDirection Paragraph::GetBaseDirection() const { return base_direction_; }
-
 BaseDirection Paragraph::GetDirectionalEmbeddingStackDirection() const {
   size_t stack_size = directional_embedding_stack_.size();
   if (stack_size > 0) {

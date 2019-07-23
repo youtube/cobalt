@@ -25,7 +25,7 @@
 #include "vm/Time.h"
 
 #if defined(STARBOARD)
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #endif
 
 using namespace js;

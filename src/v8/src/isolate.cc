@@ -1566,7 +1566,9 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
 }
 
 Object* Isolate::ThrowIllegalOperation() {
+#ifndef V8_OS_STARBOARD
   if (FLAG_stack_trace_on_illegal) PrintStack(stdout);
+#endif
   return Throw(heap()->illegal_access_string());
 }
 
@@ -2648,9 +2650,11 @@ void Isolate::Deinit() {
 
   DumpAndResetStats();
 
+#ifndef V8_OS_STARBOARD
   if (FLAG_print_deopt_stress) {
     PrintF(stdout, "=== Stress deopt counter: %u\n", stress_deopt_count_);
   }
+#endif
 
   if (cpu_profiler_) {
     cpu_profiler_->DeleteAllProfiles();
@@ -2857,8 +2861,10 @@ void PrintBuiltinSizes(Isolate* isolate) {
     const char* name = builtins->name(i);
     const char* kind = Builtins::KindNameOf(i);
     Code* code = builtins->builtin(i);
+#ifndef V8_OS_STARBOARD
     PrintF(stdout, "%s Builtin, %s, %d\n", kind, name,
            code->instruction_size());
+#endif
   }
 }
 }  // namespace
@@ -3021,10 +3027,12 @@ bool Isolate::Init(StartupDeserializer* des) {
   // Quiet the heap NaN if needed on target platform.
   if (!create_heap_objects) Assembler::QuietNaN(heap_.nan_value());
 
+#if !V8_OS_STARBOARD
   if (FLAG_trace_turbo) {
     // Create an empty file.
     std::ofstream(GetTurboCfgFileName().c_str(), std::ios_base::trunc);
   }
+#endif  // V8_OS_STARBOARD
 
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, embedder_data_)),
            Internals::kIsolateEmbedderDataOffset);
@@ -3159,6 +3167,7 @@ void Isolate::DumpAndResetStats() {
   if (turbo_statistics() != nullptr) {
     DCHECK(FLAG_turbo_stats || FLAG_turbo_stats_nvp);
 
+#ifndef V8_OS_STARBOARD
     OFStream os(stdout);
     if (FLAG_turbo_stats) {
       AsPrintableStatistics ps = {*turbo_statistics(), false};
@@ -3168,6 +3177,7 @@ void Isolate::DumpAndResetStats() {
       AsPrintableStatistics ps = {*turbo_statistics(), true};
       os << ps << std::endl;
     }
+#endif
   }
   delete turbo_statistics_;
   turbo_statistics_ = nullptr;
@@ -3925,6 +3935,7 @@ BasicBlockProfiler* Isolate::GetOrCreateBasicBlockProfiler() {
 }
 
 
+#if !V8_OS_STARBOARD
 std::string Isolate::GetTurboCfgFileName() {
   if (FLAG_trace_turbo_cfg_file == nullptr) {
     std::ostringstream os;
@@ -3934,6 +3945,7 @@ std::string Isolate::GetTurboCfgFileName() {
     return FLAG_trace_turbo_cfg_file;
   }
 }
+#endif  // !V8_OS_STARBOARD
 
 // Heap::detached_contexts tracks detached contexts as pairs
 // (number of GC since the context was detached, the context).

@@ -29,23 +29,8 @@ import starboard.tools.platform
 
 def CreateParser():
   """Returns an argparse.ArgumentParser object set up for Starboard tools."""
-  arg_parser = argparse.ArgumentParser(
+  arg_parser = CreatePlatformConfigParser(
       description='Runs application/tool executables.')
-  default_config, default_platform = build.GetDefaultConfigAndPlatform()
-  arg_parser.add_argument(
-      '-p',
-      '--platform',
-      choices=starboard.tools.platform.GetAll(),
-      default=default_platform,
-      required=not default_platform,
-      help="Device platform, eg 'linux-x64x11'.")
-  arg_parser.add_argument(
-      '-c',
-      '--config',
-      choices=starboard.tools.config.GetAll(),
-      default=default_config,
-      required=not default_config,
-      help="Build config (eg, 'qa' or 'devel')")
   arg_parser.add_argument(
       '-d',
       '--device_id',
@@ -61,4 +46,36 @@ def CreateParser():
       '--out_directory',
       help='Directory containing tool binaries or their components.'
            ' Automatically derived if absent.')
+  return arg_parser
+
+
+def CreatePlatformConfigParser(description=None, **kwargs):
+  """An arg parser suitable for building.
+
+  Args:
+    description: Description passed onto argument parser, if none then a
+        default is assigned.
+    **kwargs: are constructor arguments for the argparser.
+
+  Returns:
+    An arg parser ready to parse a command argument string.
+  """
+  if description is None:
+    description = 'Runs build related tool.'
+  arg_parser = argparse.ArgumentParser(description=description, **kwargs)
+  default_config, default_platform = build.GetDefaultConfigAndPlatform()
+  arg_parser.add_argument(
+      '-p',
+      '--platform',
+      choices=starboard.tools.platform.GetAll(),
+      default=default_platform,
+      required=not default_platform,
+      help="Device platform, eg 'linux-x64x11'.")
+  arg_parser.add_argument(
+      '-c',
+      '--config',
+      choices=starboard.tools.config.GetAll(),
+      default=default_config,
+      required=not default_config,
+      help="Build config (eg, 'qa' or 'devel')")
   return arg_parser

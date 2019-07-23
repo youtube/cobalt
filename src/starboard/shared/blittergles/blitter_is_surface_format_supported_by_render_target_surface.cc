@@ -13,11 +13,18 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
-#include "starboard/log.h"
+
+#include "starboard/common/log.h"
 
 bool SbBlitterIsSurfaceFormatSupportedByRenderTargetSurface(
     SbBlitterDevice device,
     SbBlitterSurfaceFormat surface_format) {
-  SB_NOTREACHED();
-  return false;
+  if (!SbBlitterIsDeviceValid(device)) {
+    SB_DLOG(ERROR) << ": Invalid device.";
+    return false;
+  }
+
+  // In our config attribute list, we set EGL_COLOR_BUFFER_TYPE to
+  // EGL_RGB_BUFFER, so only RGBA format OK.
+  return surface_format == kSbBlitterSurfaceFormatRGBA8;
 }

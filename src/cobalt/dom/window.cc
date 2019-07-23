@@ -206,10 +206,6 @@ Window::Window(
   html_element_context_->page_visibility_state()->AddObserver(this);
   SetCamera3D(camera_3d);
 
-  if (ui_nav_root_) {
-    ui_nav_root_->SetEnabled(true);
-  }
-
   // Document load start is deferred from this constructor so that we can be
   // guaranteed that this Window object is fully constructed before document
   // loading begins.

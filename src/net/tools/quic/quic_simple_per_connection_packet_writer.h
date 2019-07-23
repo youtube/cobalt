@@ -39,7 +39,9 @@ class QuicSimplePerConnectionPacketWriter : public quic::QuicPacketWriter {
                                 const quic::QuicIpAddress& self_address,
                                 const quic::QuicSocketAddress& peer_address,
                                 quic::PerPacketOptions* options) override;
+#if !defined(COBALT_QUIC46)
   bool IsWriteBlockedDataBuffered() const override;
+#endif
   bool IsWriteBlocked() const override;
   void SetWritable() override;
   quic::QuicByteCount GetMaxPacketSize(

@@ -84,7 +84,7 @@ class HardwareFrontendImage::HardwareBackendImage {
   explicit HardwareBackendImage(const InitializeFunction& initialize_function)
       : initialize_function_(initialize_function),
         initialized_task_executed_(false) {
-    thread_checker_.DetachFromThread();
+    DETACH_FROM_THREAD(thread_checker_);
   }
 
   ~HardwareBackendImage() {
@@ -92,24 +92,24 @@ class HardwareFrontendImage::HardwareBackendImage {
                  "HardwareBackendImage::~HardwareBackendImage()");
     // This object should always be destroyed from the thread that it was
     // constructed on.
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   }
 
   // Return true if the object was initialized due to this call, or false if
   // the image was already initialized.
   bool EnsureInitialized() {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     return ResetAndRunIfNotNull(&initialize_function_, this);
   }
 
   void InitializeTask() {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     initialized_task_executed_ = true;
     EnsureInitialized();
   }
 
   bool TryDestroy() {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     initialize_function_.Reset();
     return initialized_task_executed_;
   }
@@ -200,7 +200,7 @@ class HardwareFrontendImage::HardwareBackendImage {
                         backend::GraphicsContextEGL* cobalt_context) {
     SB_DCHECK(gr_context);
     SB_DCHECK(cobalt_context);
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
     TRACE_EVENT0("cobalt::renderer",
                  "HardwareBackendImage::CommonInitialize()");
@@ -230,12 +230,12 @@ class HardwareFrontendImage::HardwareBackendImage {
   }
 
   const sk_sp<SkImage>& GetImage() const {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     return image_;
   }
 
   const backend::TextureEGL* GetTextureEGL() const {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     return texture_.get();
   }
 
@@ -244,7 +244,7 @@ class HardwareFrontendImage::HardwareBackendImage {
   // exists.
   std::unique_ptr<backend::TextureEGL> texture_;
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   std::unique_ptr<GrBackendTexture> gr_texture_;
   sk_sp<SkImage> image_;
 

@@ -15,7 +15,7 @@
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 
 #include "starboard/audio_sink.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
@@ -53,7 +53,7 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
     SbMediaVideoCodec video_codec,
     SbMediaAudioCodec audio_codec,
     SbDrmSystem drm_system,
-    const SbMediaAudioHeader* audio_header,
+    const SbMediaAudioSampleInfo* audio_sample_info,
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider* provider)
     : JobOwner(kDetached),
@@ -63,16 +63,16 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(provider) {
   if (audio_codec != kSbMediaAudioCodecNone) {
-    audio_header_ = *audio_header;
+    audio_sample_info_ = *audio_sample_info;
 
 #if SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
-    if (audio_header_.audio_specific_config_size > 0) {
+    if (audio_sample_info_.audio_specific_config_size > 0) {
       audio_specific_config_.reset(
-          new int8_t[audio_header_.audio_specific_config_size]);
+          new int8_t[audio_sample_info_.audio_specific_config_size]);
       SbMemoryCopy(audio_specific_config_.get(),
-                   audio_header->audio_specific_config,
-                   audio_header->audio_specific_config_size);
-      audio_header_.audio_specific_config = audio_specific_config_.get();
+                   audio_sample_info->audio_specific_config,
+                   audio_sample_info->audio_specific_config_size);
+      audio_sample_info_.audio_specific_config = audio_specific_config_.get();
     }
 #endif  // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
   }
@@ -119,16 +119,17 @@ bool FilterBasedPlayerWorkerHandler::Init(
     // TODO: This is not ideal as we should really handle the creation failure
     // of audio sink inside the audio renderer to give the renderer a chance to
     // resample the decoded audio.
-    const int audio_channels = audio_header_.number_of_channels;
-    if (audio_channels > SbAudioSinkGetMaxChannels()) {
-      SB_LOG(ERROR) << "Invalid audio channels: " << audio_channels
-                    << ", it should be less than or equal to "
-                    << SbAudioSinkGetMaxChannels();
+    const int required_audio_channels = audio_sample_info_.number_of_channels;
+    const int supported_audio_channels = SbAudioSinkGetMaxChannels();
+    if (required_audio_channels > supported_audio_channels) {
+      SB_LOG(ERROR) << "Audio channels requested " << required_audio_channels
+                    << ", but currently supported less than or equal to "
+                    << supported_audio_channels;
       return false;
     }
 
     PlayerComponents::AudioParameters audio_parameters = {
-        audio_codec_, audio_header_, drm_system_};
+        audio_codec_, audio_sample_info_, drm_system_};
 
     audio_renderer_ = player_components->CreateAudioRenderer(audio_parameters);
     if (!audio_renderer_) {

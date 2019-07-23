@@ -18,8 +18,8 @@
 
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
-#include "starboard/log.h"
-#include "starboard/string.h"
+#include "starboard/common/log.h"
+#include "starboard/common/string.h"
 
 // We can't #include "base/stringize_macros.h" in Starboard
 #define STRINGIZE_NO_EXPANSION(x) #x

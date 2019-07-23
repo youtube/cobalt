@@ -9,13 +9,14 @@
     body {
       font-family: Roboto;
       font-size: 16px;
+      background-color: #FF0000;
     }
 
     .overflow-scroll {
       width: 150px;
       height: 100px;
       overflow: scroll;
-      background-color: #00FF00;
+      background-color: #000000;
     }
 
     .container {
@@ -23,14 +24,13 @@
       height: 75px;
       overflow: hidden;
       position: relative;
-      background-color: #FF0000;
+      background-color: #808080;
     }
 
     .content {
       width: 50px;
       height: 50px;
       position: absolute;
-      background-color: #0000FF;
     }
   </style>
   <script>
@@ -39,7 +39,16 @@
     }
 
     window.onload = function() {
-      document.getElementById('scroller').scrollLeft = 25;
+      var scroller = document.getElementById("scroller");
+      scroller.scrollLeft = 50;
+      if (scroller.scrollLeft != 50) {
+        console.log("FAIL" +
+          "\nValue of: scrollLeft" +
+          "\n  Actual: " + scroller.scrollLeft +
+          "\nExpected: " + 50);
+      } else {
+        document.body.style.backgroundColor = "#FFFFFF";
+      }
       if (window.testRunner) {
         window.testRunner.notifyDone();
       }
@@ -49,9 +58,12 @@
 <body>
   <div id="scroller" class="overflow-scroll">
     <div class="container">
-      <div class="content" style="transform: translateX(0px)"></div>
-      <div class="content" style="transform: translateX(75px)"></div>
-      <div class="content" style="transform: translateX(150px)"></div>
+      <div class="content"
+           style="background-color: #FF0000; transform: translateX(0px)"></div>
+      <div class="content"
+           style="background-color: #00FF00; transform: translateX(75px)"></div>
+      <div class="content"
+           style="background-color: #0000FF; transform: translateX(150px)"></div>
     </div>
   </div>
 </body>

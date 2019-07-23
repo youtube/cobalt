@@ -20,7 +20,7 @@ using quic::ConnectionCloseBehavior;
 using quic::CryptoHandshakeMessage;
 using quic::CryptoMessageParser;
 using quic::ENCRYPTION_FORWARD_SECURE;
-using quic::ENCRYPTION_INITIAL;
+using quic::ENCRYPTION_ZERO_RTT;
 using quic::kAESG;
 using quic::kC255;
 using quic::kDefaultMaxStreamsPerConnection;
@@ -108,20 +108,20 @@ bool MockCryptoClientStream::CryptoConnect() {
       }
       if (use_mock_crypter_) {
         session()->connection()->SetDecrypter(
-            ENCRYPTION_INITIAL,
+            ENCRYPTION_ZERO_RTT,
             QuicMakeUnique<MockDecrypter>(Perspective::IS_CLIENT));
         session()->connection()->SetEncrypter(
-            ENCRYPTION_INITIAL,
+            ENCRYPTION_ZERO_RTT,
             QuicMakeUnique<MockEncrypter>(Perspective::IS_CLIENT));
       } else {
         session()->connection()->SetDecrypter(
-            ENCRYPTION_INITIAL,
+            ENCRYPTION_ZERO_RTT,
             QuicMakeUnique<NullDecrypter>(Perspective::IS_CLIENT));
         session()->connection()->SetEncrypter(
-            ENCRYPTION_INITIAL,
+            ENCRYPTION_ZERO_RTT,
             QuicMakeUnique<NullEncrypter>(Perspective::IS_CLIENT));
       }
-      session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+      session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
       session()->OnCryptoHandshakeEvent(
           QuicSession::ENCRYPTION_FIRST_ESTABLISHED);
       break;

@@ -17,11 +17,11 @@
 
 #include <functional>
 
-#include "starboard/condition_variable.h"
+#include "starboard/common/condition_variable.h"
+#include "starboard/common/mutex.h"
+#include "starboard/common/queue.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
-#include "starboard/mutex.h"
-#include "starboard/queue.h"
 #include "starboard/thread.h"
 #include "starboard/window.h"
 
@@ -79,6 +79,10 @@ class FakeGraphicsContextProvider {
   void OnDecodeTargetGlesContextRunner(
       SbDecodeTargetGlesContextRunnerTarget target_function,
       void* target_function_context);
+
+  void MakeContextCurrent();
+  void MakeNoContextCurrent();
+  void DestroyContext();
 
   static void DecodeTargetGlesContextRunner(
       SbDecodeTargetGraphicsContextProvider* graphics_context_provider,

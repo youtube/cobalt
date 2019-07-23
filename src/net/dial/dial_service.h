@@ -67,7 +67,7 @@ class NET_EXPORT DialService : public base::SupportsWeakPtr<DialService> {
       ServiceHandlerMap;
   ServiceHandlerMap handlers_;
   std::string http_host_address_;
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   DISALLOW_COPY_AND_ASSIGN(DialService);
 };

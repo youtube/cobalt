@@ -99,7 +99,7 @@ MicrophoneFake::MicrophoneFake(const Options& options)
 }
 
 bool MicrophoneFake::Open() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (ShouldFail(kOpenRange)) {
     DLOG(WARNING) << "Mocking microphone open failed.";
@@ -155,7 +155,7 @@ bool MicrophoneFake::Open() {
 }
 
 int MicrophoneFake::Read(char* out_data, int data_size) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (ShouldFail(kReadRange)) {
     DLOG(WARNING) << "Mocking microphone read failed.";
@@ -174,7 +174,7 @@ int MicrophoneFake::Read(char* out_data, int data_size) {
 }
 
 bool MicrophoneFake::Close() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (read_data_from_file_) {
     audio_bus_.reset();

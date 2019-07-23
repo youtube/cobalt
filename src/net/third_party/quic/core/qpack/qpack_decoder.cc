@@ -4,389 +4,138 @@
 
 #include "net/third_party/quic/core/qpack/qpack_decoder.h"
 
+#include <limits>
+
 #include "base/logging.h"
-#include "net/third_party/http2/decoder/decode_buffer.h"
-#include "net/third_party/http2/decoder/decode_status.h"
-#include "net/third_party/quic/core/qpack/qpack_constants.h"
+#include "net/third_party/quic/platform/api/quic_ptr_util.h"
 
 namespace quic {
 
-QpackDecoder::ProgressiveDecoder::ProgressiveDecoder(
-    QpackHeaderTable* header_table,
-    QpackDecoder::HeadersHandlerInterface* handler)
-    : header_table_(header_table),
-      handler_(handler),
-      state_(State::kStart),
-      decoding_(true),
-      error_detected_(false),
-      literal_name_(false),
-      literal_value_(false),
-      name_length_(0),
-      value_length_(0),
-      is_huffman_(false) {}
+QpackDecoder::QpackDecoder(
+    EncoderStreamErrorDelegate* encoder_stream_error_delegate,
+    QpackDecoderStreamSender::Delegate* decoder_stream_sender_delegate)
+    : encoder_stream_error_delegate_(encoder_stream_error_delegate),
+      encoder_stream_receiver_(this),
+      decoder_stream_sender_(decoder_stream_sender_delegate) {
+  DCHECK(encoder_stream_error_delegate_);
+  DCHECK(decoder_stream_sender_delegate);
+}
 
-void QpackDecoder::ProgressiveDecoder::Decode(QuicStringPiece data) {
-  DCHECK(decoding_);
+QpackDecoder::~QpackDecoder() {}
 
-  if (data.empty() || error_detected_) {
-    return;
-  }
+void QpackDecoder::SetMaximumDynamicTableCapacity(
+    uint64_t maximum_dynamic_table_capacity) {
+  header_table_.SetMaximumDynamicTableCapacity(maximum_dynamic_table_capacity);
+}
 
-  while (true) {
-    size_t bytes_consumed = 0;
+void QpackDecoder::OnStreamReset(QuicStreamId stream_id) {
+  decoder_stream_sender_.SendStreamCancellation(stream_id);
+}
 
-    switch (state_) {
-      case State::kStart:
-        bytes_consumed = DoStart(data);
-        break;
-      case State::kVarintResume:
-        bytes_consumed = DoVarintResume(data);
-        break;
-      case State::kVarintDone:
-        DoVarintDone();
-        break;
-      case State::kReadName:
-        bytes_consumed = DoReadName(data);
-        break;
-      case State::kDecodeName:
-        DoDecodeName();
-        break;
-      case State::kValueLengthStart:
-        bytes_consumed = DoValueLengthStart(data);
-        break;
-      case State::kValueLengthResume:
-        bytes_consumed = DoValueLengthResume(data);
-        break;
-      case State::kValueLengthDone:
-        DoValueLengthDone();
-        break;
-      case State::kReadValue:
-        bytes_consumed = DoReadValue(data);
-        break;
-      case State::kDecodeValue:
-        DoDecodeValue();
-        break;
-      case State::kDone:
-        DoDone();
-        break;
-    }
+void QpackDecoder::DecodeEncoderStreamData(QuicStringPiece data) {
+  encoder_stream_receiver_.Decode(data);
+}
 
-    if (error_detected_) {
+void QpackDecoder::OnInsertWithNameReference(bool is_static,
+                                             uint64_t name_index,
+                                             QuicStringPiece value) {
+  if (is_static) {
+    auto entry = header_table_.LookupEntry(/* is_static = */ true, name_index);
+    if (!entry) {
+      encoder_stream_error_delegate_->OnEncoderStreamError(
+          "Invalid static table entry.");
       return;
     }
 
-    DCHECK_LE(bytes_consumed, data.size());
-
-    data = QuicStringPiece(data.data() + bytes_consumed,
-                           data.size() - bytes_consumed);
-
-    // Stop processing if no more data but next state would require it.
-    if (data.empty() && (state_ != State::kVarintDone) &&
-        (state_ != State::kDecodeName) && (state_ != State::kValueLengthDone) &&
-        (state_ != State::kDecodeValue) && (state_ != State::kDone)) {
-      return;
+    entry = header_table_.InsertEntry(entry->name(), value);
+    if (!entry) {
+      encoder_stream_error_delegate_->OnEncoderStreamError(
+          "Error inserting entry with name reference.");
     }
-  }
-}
-
-void QpackDecoder::ProgressiveDecoder::EndHeaderBlock() {
-  DCHECK(decoding_);
-  decoding_ = false;
-
-  if (error_detected_) {
     return;
   }
 
-  if (state_ == State::kStart) {
-    handler_->OnDecodingCompleted();
-  } else {
-    OnError("Incomplete header block.");
-  }
-}
-
-size_t QpackDecoder::ProgressiveDecoder::DoStart(QuicStringPiece data) {
-  DCHECK(!data.empty());
-
-  size_t prefix_length = 0;
-  if ((data[0] & kIndexedHeaderFieldOpcodeMask) == kIndexedHeaderFieldOpcode) {
-    if ((data[0] & kIndexedHeaderFieldStaticBit) !=
-        kIndexedHeaderFieldStaticBit) {
-      // TODO(bnc): Implement.
-      OnError("Indexed Header Field with dynamic entry not implemented.");
-      return 0;
-    }
-    prefix_length = kIndexedHeaderFieldPrefixLength;
-    literal_name_ = false;
-    literal_value_ = false;
-  } else if ((data[0] & kIndexedHeaderFieldPostBaseOpcodeMask) ==
-             kIndexedHeaderFieldPostBaseOpcode) {
-    // TODO(bnc): Implement.
-    OnError("Indexed Header Field With Post-Base Index not implemented.");
-    return 0;
-  } else if ((data[0] & kLiteralHeaderFieldNameReferenceOpcodeMask) ==
-             kLiteralHeaderFieldNameReferenceOpcode) {
-    if ((data[0] & kLiteralHeaderFieldNameReferenceStaticBit) !=
-        kLiteralHeaderFieldNameReferenceStaticBit) {
-      // TODO(bnc): Implement.
-      OnError(
-          "Literal Header Field With Name Reference with dynamic entry not "
-          "implemented.");
-      return 0;
-    }
-    prefix_length = kLiteralHeaderFieldNameReferencePrefixLength;
-    literal_name_ = false;
-    literal_value_ = true;
-  } else if ((data[0] & kLiteralHeaderFieldPostBaseOpcodeMask) ==
-             kLiteralHeaderFieldPostBaseOpcode) {
-    // TODO(bnc): Implement.
-    OnError(
-        "Literal Header Field With Post-Base Name Reference not implemented.");
-    return 0;
-  } else {
-    DCHECK_EQ(kLiteralHeaderFieldOpcode,
-              data[0] & kLiteralHeaderFieldOpcodeMask);
-
-    is_huffman_ =
-        (data[0] & kLiteralNameHuffmanMask) == kLiteralNameHuffmanMask;
-    prefix_length = kLiteralHeaderFieldPrefixLength;
-    literal_name_ = true;
-    literal_value_ = true;
-  }
-
-  http2::DecodeBuffer buffer(data.data() + 1, data.size() - 1);
-  http2::DecodeStatus status =
-      varint_decoder_.Start(data[0], prefix_length, &buffer);
-
-  size_t bytes_consumed = 1 + buffer.Offset();
-  switch (status) {
-    case http2::DecodeStatus::kDecodeDone:
-      state_ = State::kVarintDone;
-      return bytes_consumed;
-    case http2::DecodeStatus::kDecodeInProgress:
-      state_ = State::kVarintResume;
-      return bytes_consumed;
-    case http2::DecodeStatus::kDecodeError:
-      OnError("Encoded integer too large.");
-      return bytes_consumed;
-  }
-#if defined(STARBOARD)
-  NOTREACHED();
-  return 0;
-#endif
-}
-
-size_t QpackDecoder::ProgressiveDecoder::DoVarintResume(QuicStringPiece data) {
-  DCHECK(!data.empty());
-
-  http2::DecodeBuffer buffer(data);
-  http2::DecodeStatus status = varint_decoder_.Resume(&buffer);
-
-  size_t bytes_consumed = buffer.Offset();
-  switch (status) {
-    case http2::DecodeStatus::kDecodeDone:
-      state_ = State::kVarintDone;
-      return bytes_consumed;
-    case http2::DecodeStatus::kDecodeInProgress:
-      DCHECK_EQ(bytes_consumed, data.size());
-      DCHECK(buffer.Empty());
-      return bytes_consumed;
-    case http2::DecodeStatus::kDecodeError:
-      OnError("Encoded integer too large.");
-      return bytes_consumed;
-  }
-#if defined(STARBOARD)
-  NOTREACHED();
-  return 0;
-#endif
-}
-
-void QpackDecoder::ProgressiveDecoder::DoVarintDone() {
-  if (literal_name_) {
-    name_length_ = varint_decoder_.value();
-    name_.clear();
-    name_.reserve(name_length_);
-    // Do not handle empty names differently.  (They are probably forbidden by
-    // higher layers, but it is not enforced in this class.)  If there is no
-    // more data to read, then processing stalls, but the instruction is not
-    // complete without the value, so OnHeaderDecoded() could not be called yet
-    // anyway.
-    state_ = State::kReadName;
+  uint64_t absolute_index;
+  if (!EncoderStreamRelativeIndexToAbsoluteIndex(name_index, &absolute_index)) {
+    encoder_stream_error_delegate_->OnEncoderStreamError(
+        "Invalid relative index.");
     return;
   }
 
-  auto entry = header_table_->LookupEntry(varint_decoder_.value());
+  const QpackEntry* entry =
+      header_table_.LookupEntry(/* is_static = */ false, absolute_index);
   if (!entry) {
-    OnError("Invalid static table index.");
+    encoder_stream_error_delegate_->OnEncoderStreamError(
+        "Dynamic table entry not found.");
+    return;
+  }
+  entry = header_table_.InsertEntry(entry->name(), value);
+  if (!entry) {
+    encoder_stream_error_delegate_->OnEncoderStreamError(
+        "Error inserting entry with name reference.");
+  }
+}
+
+void QpackDecoder::OnInsertWithoutNameReference(QuicStringPiece name,
+                                                QuicStringPiece value) {
+  const QpackEntry* entry = header_table_.InsertEntry(name, value);
+  if (!entry) {
+    encoder_stream_error_delegate_->OnEncoderStreamError(
+        "Error inserting literal entry.");
+  }
+}
+
+void QpackDecoder::OnDuplicate(uint64_t index) {
+  uint64_t absolute_index;
+  if (!EncoderStreamRelativeIndexToAbsoluteIndex(index, &absolute_index)) {
+    encoder_stream_error_delegate_->OnEncoderStreamError(
+        "Invalid relative index.");
     return;
   }
 
-  if (literal_value_) {
-    name_.assign(entry->name().data(), entry->name().size());
-    state_ = State::kValueLengthStart;
+  const QpackEntry* entry =
+      header_table_.LookupEntry(/* is_static = */ false, absolute_index);
+  if (!entry) {
+    encoder_stream_error_delegate_->OnEncoderStreamError(
+        "Dynamic table entry not found.");
     return;
   }
-
-  // Call OnHeaderDecoded() here instead of changing to State::kDone
-  // to prevent copying two strings.
-  handler_->OnHeaderDecoded(entry->name(), entry->value());
-  state_ = State::kStart;
+  entry = header_table_.InsertEntry(entry->name(), entry->value());
+  if (!entry) {
+    encoder_stream_error_delegate_->OnEncoderStreamError(
+        "Error inserting duplicate entry.");
+  }
 }
 
-size_t QpackDecoder::ProgressiveDecoder::DoReadName(QuicStringPiece data) {
-  DCHECK(!data.empty());
-  // |name_length_| might be zero.
-  DCHECK_LE(name_.size(), name_length_);
+void QpackDecoder::OnSetDynamicTableCapacity(uint64_t capacity) {
+  if (!header_table_.SetDynamicTableCapacity(capacity)) {
+    encoder_stream_error_delegate_->OnEncoderStreamError(
+        "Error updating dynamic table capacity.");
+  }
+}
 
-  size_t bytes_consumed = std::min(name_length_ - name_.size(), data.size());
-  name_.append(data.data(), bytes_consumed);
+void QpackDecoder::OnErrorDetected(QuicStringPiece error_message) {
+  encoder_stream_error_delegate_->OnEncoderStreamError(error_message);
+}
 
-  DCHECK_LE(name_.size(), name_length_);
-  if (name_.size() == name_length_) {
-    state_ = State::kDecodeName;
+bool QpackDecoder::EncoderStreamRelativeIndexToAbsoluteIndex(
+    uint64_t relative_index,
+    uint64_t* absolute_index) const {
+  if (relative_index == std::numeric_limits<uint64_t>::max() ||
+      relative_index + 1 > std::numeric_limits<uint64_t>::max() -
+                               header_table_.inserted_entry_count()) {
+    return false;
   }
 
-  return bytes_consumed;
+  *absolute_index = header_table_.inserted_entry_count() - relative_index - 1;
+  return true;
 }
 
-void QpackDecoder::ProgressiveDecoder::DoDecodeName() {
-  DCHECK_EQ(name_.size(), name_length_);
-
-  if (is_huffman_) {
-    huffman_decoder_.Reset();
-    // HpackHuffmanDecoder::Decode() cannot perform in-place decoding.
-    QuicString decoded_name;
-    huffman_decoder_.Decode(name_, &decoded_name);
-    if (!huffman_decoder_.InputProperlyTerminated()) {
-      OnError("Error in Huffman-encoded name.");
-      return;
-    }
-    name_ = decoded_name;
-  }
-
-  state_ = State::kValueLengthStart;
-}
-
-size_t QpackDecoder::ProgressiveDecoder::DoValueLengthStart(
-    QuicStringPiece data) {
-  DCHECK(!data.empty());
-  DCHECK(literal_value_);
-
-  is_huffman_ =
-      (data[0] & kLiteralValueHuffmanMask) == kLiteralValueHuffmanMask;
-
-  http2::DecodeBuffer buffer(data.data() + 1, data.size() - 1);
-  http2::DecodeStatus status =
-      varint_decoder_.Start(data[0], kLiteralValuePrefixLength, &buffer);
-
-  size_t bytes_consumed = 1 + buffer.Offset();
-  switch (status) {
-    case http2::DecodeStatus::kDecodeDone:
-      state_ = State::kValueLengthDone;
-      return bytes_consumed;
-    case http2::DecodeStatus::kDecodeInProgress:
-      state_ = State::kValueLengthResume;
-      return bytes_consumed;
-    case http2::DecodeStatus::kDecodeError:
-      OnError("ValueLen too large.");
-      return bytes_consumed;
-  }
-#if defined(STARBOARD)
-  NOTREACHED();
-  return 0;
-#endif
-}
-
-size_t QpackDecoder::ProgressiveDecoder::DoValueLengthResume(
-    QuicStringPiece data) {
-  DCHECK(!data.empty());
-
-  http2::DecodeBuffer buffer(data);
-  http2::DecodeStatus status = varint_decoder_.Resume(&buffer);
-
-  size_t bytes_consumed = buffer.Offset();
-  switch (status) {
-    case http2::DecodeStatus::kDecodeDone:
-      state_ = State::kValueLengthDone;
-      return bytes_consumed;
-    case http2::DecodeStatus::kDecodeInProgress:
-      DCHECK_EQ(bytes_consumed, data.size());
-      DCHECK(buffer.Empty());
-      return bytes_consumed;
-    case http2::DecodeStatus::kDecodeError:
-      OnError("ValueLen too large.");
-      return bytes_consumed;
-  }
-#if defined(STARBOARD)
-  NOTREACHED();
-  return 0;
-#endif
-}
-
-void QpackDecoder::ProgressiveDecoder::DoValueLengthDone() {
-  value_.clear();
-  value_length_ = varint_decoder_.value();
-
-  // If value is empty, skip DoReadValue() and DoDecodeValue() and jump directly
-  // to DoDone().  This is so that OnHeaderDecoded() is called even if there is
-  // no more data.
-  if (value_length_ == 0) {
-    state_ = State::kDone;
-    return;
-  }
-
-  value_.reserve(value_length_);
-  state_ = State::kReadValue;
-}
-
-size_t QpackDecoder::ProgressiveDecoder::DoReadValue(QuicStringPiece data) {
-  DCHECK(!data.empty());
-  DCHECK_LT(0u, value_length_);
-  DCHECK_LT(value_.size(), value_length_);
-
-  size_t bytes_consumed = std::min(value_length_ - value_.size(), data.size());
-  value_.append(data.data(), bytes_consumed);
-
-  DCHECK_LE(value_.size(), value_length_);
-  if (value_.size() == value_length_) {
-    state_ = State::kDecodeValue;
-  }
-  return bytes_consumed;
-}
-
-void QpackDecoder::ProgressiveDecoder::DoDecodeValue() {
-  DCHECK_EQ(value_.size(), value_length_);
-
-  if (is_huffman_) {
-    huffman_decoder_.Reset();
-    // HpackHuffmanDecoder::Decode() cannot perform in-place decoding.
-    QuicString decoded_value;
-    huffman_decoder_.Decode(value_, &decoded_value);
-    if (!huffman_decoder_.InputProperlyTerminated()) {
-      OnError("Error in Huffman-encoded value.");
-      return;
-    }
-    value_ = decoded_value;
-  }
-
-  state_ = State::kDone;
-}
-
-void QpackDecoder::ProgressiveDecoder::DoDone() {
-  handler_->OnHeaderDecoded(name_, value_);
-  state_ = State::kStart;
-}
-
-void QpackDecoder::ProgressiveDecoder::OnError(QuicStringPiece error_message) {
-  DCHECK(!error_detected_);
-
-  error_detected_ = true;
-  handler_->OnDecodingErrorDetected(error_message);
-}
-
-std::unique_ptr<QpackDecoder::ProgressiveDecoder>
-QpackDecoder::DecodeHeaderBlock(
-    QpackDecoder::HeadersHandlerInterface* handler) {
-  return std::make_unique<ProgressiveDecoder>(&header_table_, handler);
+std::unique_ptr<QpackProgressiveDecoder> QpackDecoder::DecodeHeaderBlock(
+    QuicStreamId stream_id,
+    QpackProgressiveDecoder::HeadersHandlerInterface* handler) {
+  return QuicMakeUnique<QpackProgressiveDecoder>(
+      stream_id, &header_table_, &decoder_stream_sender_, handler);
 }
 
 }  // namespace quic

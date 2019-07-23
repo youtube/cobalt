@@ -11,7 +11,7 @@
 // functions.
 
 #if defined(STARBOARD)
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #else
 #include <stdlib.h>
 #endif

@@ -16,7 +16,7 @@
 
 #include <unistd.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 int64_t SbSystemGetTotalCPUMemory() {
   long pages = sysconf(_SC_PHYS_PAGES);     // NOLINT[runtime/int]

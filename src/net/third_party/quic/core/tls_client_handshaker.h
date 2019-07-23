@@ -6,7 +6,6 @@
 #define NET_THIRD_PARTY_QUIC_CORE_TLS_CLIENT_HANDSHAKER_H_
 
 #include "net/third_party/quic/core/crypto/proof_verifier.h"
-#include "net/third_party/quic/core/crypto/quic_tls_adapter.h"
 #include "net/third_party/quic/core/quic_crypto_client_stream.h"
 #include "net/third_party/quic/core/quic_crypto_stream.h"
 #include "net/third_party/quic/core/tls_handshaker.h"
@@ -47,7 +46,6 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   QuicString chlo_hash() const override;
 
   // From QuicCryptoClientStream::HandshakerDelegate and TlsHandshaker
-  QuicLongHeaderType GetLongHeaderType(QuicStreamOffset offset) const override;
   bool encryption_established() const override;
   bool handshake_confirmed() const override;
   const QuicCryptoNegotiatedParameters& crypto_negotiated_params()
@@ -84,10 +82,11 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
 
   bool SetTransportParameters();
   bool ProcessTransportParameters(QuicString* error_details);
-  void AdvanceHandshake() override;
   void FinishHandshake();
 
-  void CloseConnection(const QuicString& reason_phrase);
+  void AdvanceHandshake() override;
+  void CloseConnection(QuicErrorCode error,
+                       const QuicString& reason_phrase) override;
 
   // Certificate verification functions:
 

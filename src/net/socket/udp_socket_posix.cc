@@ -815,7 +815,7 @@ int UDPSocketPosix::InternalRecvFromNonConnectedSocket(IOBuffer* buf,
                                                        IPEndPoint* address) {
   int bytes_transferred;
 
-  struct iovec iov = {};
+  struct IOVEC iov = {};
   iov.iov_base = buf->data();
   iov.iov_len = buf_len;
 

@@ -337,7 +337,7 @@ void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector* vector,
   }
   vector->set_profiler_ticks(0);
 
-#ifdef V8_TRACE_FEEDBACK_UPDATES
+#if defined(V8_TRACE_FEEDBACK_UPDATES) && !defined(V8_OS_STARBOARD)
   if (FLAG_trace_feedback_updates) {
     int slot_count = vector->metadata()->slot_count();
 

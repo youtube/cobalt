@@ -35,7 +35,7 @@
 #include "net/socket/socket_descriptor.h"
 #include "net/socket/socket_tag.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 
 namespace net {
 
@@ -405,6 +405,8 @@ class NET_EXPORT UDPSocketStarboard {
                     CompletionOnceCallback callback);
 
   int InternalConnect(const IPEndPoint& address);
+  // Reads data from a UDP socket, if address is not nullptr, the sender's
+  // address will be copied to |*address|.
   int InternalRecvFrom(IOBuffer* buf, int buf_len, IPEndPoint* address);
   int InternalSendTo(IOBuffer* buf, int buf_len, const IPEndPoint* address);
 

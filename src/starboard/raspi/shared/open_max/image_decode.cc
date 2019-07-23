@@ -14,7 +14,7 @@
 
 #include "starboard/image.h"
 
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
 #include "starboard/raspi/shared/open_max/open_max_image_decode_component.h"
 
 namespace open_max = starboard::raspi::shared::open_max;

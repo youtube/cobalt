@@ -9,14 +9,13 @@
 #ifndef NET_HTTP_TRANSPORT_SECURITY_STATE_STATIC_H_
 #define NET_HTTP_TRANSPORT_SECURITY_STATE_STATIC_H_
 
-#include <stdint.h>
-
 #ifdef STARBOARD
 #error "do not compile this big file as Cobalt does not need it."
 #endif
 
 #include "base/stl_util.h"
 #include "net/http/transport_security_state_source.h"
+#include "starboard/types.h"
 
 // These are SubjectPublicKeyInfo hashes for public key pinning. The
 // hashes are SHA256 digests.

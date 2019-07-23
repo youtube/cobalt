@@ -31,7 +31,7 @@
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_session_pool.h"
 #include "net/ssl/ssl_config_service_defaults.h"
-#include "net/third_party/spdy/core/spdy_protocol.h"
+#include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_storage.h"
 #include "starboard/types.h"
@@ -176,6 +176,11 @@ struct SpdySessionDependencies {
 
   ~SpdySessionDependencies();
 
+  HostResolver* GetHostResolver() {
+    return alternate_host_resolver ? alternate_host_resolver.get()
+                                   : host_resolver.get();
+  }
+
   static std::unique_ptr<HttpNetworkSession> SpdyCreateSession(
       SpdySessionDependencies* session_deps);
 
@@ -191,6 +196,8 @@ struct SpdySessionDependencies {
 
   // NOTE: host_resolver must be ordered before http_auth_handler_factory.
   std::unique_ptr<MockHostResolverBase> host_resolver;
+  // For using a HostResolver not derived from MockHostResolverBase.
+  std::unique_ptr<HostResolver> alternate_host_resolver;
   std::unique_ptr<CertVerifier> cert_verifier;
   std::unique_ptr<ChannelIDService> channel_id_service;
   std::unique_ptr<TransportSecurityState> transport_security_state;

@@ -39,7 +39,9 @@ typedef enum SbLogPriority {
   kSbLogPriorityFatal,
 } SbLogPriority;
 
-// Writes |message| to the platform's debug output log.
+// Writes |message| to the platform's debug output log. This method is
+// thread-safe, and responsible for ensuring that the output from multiple
+// threads is not mixed.
 //
 // |priority|: The SbLogPriority at which the message should be logged. Note
 //   that passing |kSbLogPriorityFatal| does not terminate the program. Such a
@@ -99,7 +101,8 @@ void SbLogFormatF(const char* format, ...) {
   va_end(args);
 }
 
-// Flushes the log buffer on some platforms.
+// Flushes the log buffer on some platforms. This method is safe to call from
+// multiple threads.
 SB_EXPORT void SbLogFlush();
 
 // Indicates whether the log output goes to a TTY or is being redirected.
@@ -109,8 +112,8 @@ SB_EXPORT bool SbLogIsTty();
 }  // extern "C"
 #endif
 
-#if defined(SB_EXT_API_REFACTORING_VERSION)
+#if SB_API_VERSION < 11
 #include "starboard/common/log.h"
-#endif
+#endif  // SB_API_VERSION < 11
 
 #endif  // STARBOARD_LOG_H_

@@ -13,11 +13,22 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
-#include "starboard/log.h"
+
+#include <GLES2/gl2.h>
+
+#include "starboard/common/log.h"
+#include "starboard/shared/blittergles/blitter_internal.h"
+#include "starboard/shared/gles/gl_call.h"
 
 bool SbBlitterIsPixelFormatSupportedByDownloadSurfacePixels(
     SbBlitterSurface surface,
     SbBlitterPixelDataFormat pixel_format) {
-  SB_NOTREACHED();
-  return false;
+  if (!SbBlitterIsSurfaceValid(surface)) {
+    SB_DLOG(ERROR) << ": Invalid surface.";
+    return false;
+  }
+
+  // glReadPixels() always supports GL_RGBA with type GL_UNSIGNED_BYTE.
+  return SbBlitterPixelDataFormatToSurfaceFormat(pixel_format) ==
+         kSbBlitterSurfaceFormatRGBA8;
 }

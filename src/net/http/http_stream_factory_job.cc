@@ -58,7 +58,7 @@
 #include "net/spdy/spdy_session_pool.h"
 #include "net/ssl/channel_id_service.h"
 #include "net/ssl/ssl_cert_request_info.h"
-#include "net/third_party/spdy/core/spdy_protocol.h"
+#include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "url/url_constants.h"
 
 namespace net {
@@ -201,9 +201,9 @@ HttpStreamFactory::Job::Job(Delegate* delegate,
           (ShouldForceQuic(session, destination, origin_url, proxy_info) &&
            !(proxy_info.is_quic() && using_ssl_))),
 #else
-      quic_version_(quic_version),
       using_quic_(false),
 #endif
+      quic_version_(quic_version),
       expect_spdy_(alternative_protocol == kProtoHTTP2 && !using_quic_),
       using_spdy_(false),
       should_reconsider_proxy_(false),
@@ -661,7 +661,7 @@ void HttpStreamFactory::Job::RunLoop(int result) {
                   connection_->ssl_error_response_info().cert_request_info)));
       return;
 
-    case ERR_HTTPS_PROXY_TUNNEL_RESPONSE: {
+    case ERR_HTTPS_PROXY_TUNNEL_RESPONSE_REDIRECT: {
       DCHECK(connection_.get());
       DCHECK(connection_->socket());
       DCHECK(establishing_tunnel_);
@@ -801,6 +801,14 @@ int HttpStreamFactory::Job::DoStart() {
     return ERR_UNSAFE_PORT;
   }
 
+  if (!session_->params().enable_quic_proxies_for_https_urls &&
+      proxy_info_.is_quic() && !request_info_.url.SchemeIs(url::kHttpScheme)) {
+#if defined(STARBOARD)
+    NOTREACHED() << "HTTPS quic proxies is not supported";
+#endif
+    return ERR_NOT_IMPLEMENTED;
+  }
+
   next_state_ = STATE_WAIT;
   return OK;
 }
@@ -910,6 +918,16 @@ int HttpStreamFactory::Job::DoInitConnectionImpl() {
 
 #if !defined(QUIC_DISABLED_FOR_STARBOARD)
   if (using_quic_) {
+#if defined(COBALT_QUIC46)
+    // HTTPS QUIC proxy should be disabled, these changes can be removed
+    // in next rebase.
+    if (proxy_info_.is_quic() &&
+        !request_info_.url.SchemeIs(url::kHttpScheme)) {
+      NOTREACHED();
+      // TODO(rch): support QUIC proxies for HTTPS urls.
+      return ERR_NOT_IMPLEMENTED;
+    }
+#endif
     HostPortPair destination;
     SSLConfig* ssl_config;
     GURL url(request_info_.url);
@@ -986,7 +1004,13 @@ int HttpStreamFactory::Job::DoInitConnectionImpl() {
   }
 #endif
 
+#if defined(COBALT_QUIC46)
+  // HTTPS QUIC proxy should be disabled, these changes can be removed
+  // in next rebase.
+  if (proxy_info_.is_http() || proxy_info_.is_https())
+#else
   if (proxy_info_.is_http() || proxy_info_.is_https() || proxy_info_.is_quic())
+#endif
     establishing_tunnel_ = using_ssl_;
 
   HttpServerProperties* http_server_properties =
@@ -1131,7 +1155,7 @@ int HttpStreamFactory::Job::DoInitConnectionComplete(int result) {
   }
 
   if (result == ERR_PROXY_AUTH_REQUESTED ||
-      result == ERR_HTTPS_PROXY_TUNNEL_RESPONSE) {
+      result == ERR_HTTPS_PROXY_TUNNEL_RESPONSE_REDIRECT) {
     DCHECK(!ssl_started);
     // Other state (i.e. |using_ssl_|) suggests that |connection_| will have an
     // SSL socket, but there was an error before that could happen.  This
@@ -1265,8 +1289,14 @@ int HttpStreamFactory::Job::DoCreateStream() {
   if (!using_spdy_) {
     DCHECK(!expect_spdy_);
     // We may get ftp scheme when fetching ftp resources through proxy.
+#if defined(COBALT_QUIC46)
+    // HTTPS QUIC proxy should be disabled, these changes can be removed
+    // in next rebase.
+    bool using_proxy = (proxy_info_.is_http() || proxy_info_.is_https()) &&
+#else
     bool using_proxy = (proxy_info_.is_http() || proxy_info_.is_https() ||
                         proxy_info_.is_quic()) &&
+#endif
                        (request_info_.url.SchemeIs(url::kHttpScheme) ||
                         request_info_.url.SchemeIs(url::kFtpScheme));
     if (is_websocket_) {

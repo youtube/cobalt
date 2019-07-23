@@ -7,6 +7,15 @@
 
 namespace net {
 
+#if defined(COBALT_QUIC46)
+// Net Category used in Tracing.
+constexpr const char* NetTracingCategory() {
+  // Declared as a constexpr function to have an external linkage and to be
+  // known at compile-time.
+  return "disabled-by-default-net";
+}
+#endif
+
 // Net Category used in Tracing.
 extern const char kNetTracingCategory[];
 

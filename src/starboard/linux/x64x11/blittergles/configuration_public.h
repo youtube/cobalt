@@ -26,4 +26,8 @@
 #undef SB_HAS_BLITTER
 #define SB_HAS_BLITTER 1
 
+// Linux implementation of Blitter API does not support NV12 textures.
+#undef SB_HAS_NV12_TEXTURE_SUPPORT
+#define SB_HAS_NV12_TEXTURE_SUPPORT 0
+
 #endif  // STARBOARD_LINUX_X64X11_BLITTERGLES_CONFIGURATION_PUBLIC_H_

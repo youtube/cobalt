@@ -129,7 +129,7 @@ void HTMLLinkElement::Obtain() {
   TRACK_MEMORY_SCOPE("DOM");
   TRACE_EVENT0("cobalt::dom", "HTMLLinkElement::Obtain()");
   // Custom, not in any spec.
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   Document* document = node_document();
 
@@ -188,7 +188,7 @@ void HTMLLinkElement::Obtain() {
 
 void HTMLLinkElement::OnContentProduced(const loader::Origin& last_url_origin,
                                         std::unique_ptr<std::string> content) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(content);
   TRACK_MEMORY_SCOPE("DOM");
   TRACE_EVENT0("cobalt::dom", "HTMLLinkElement::OnContentProduced()");
@@ -229,7 +229,7 @@ void HTMLLinkElement::OnLoadingComplete(
 
   if (!error) return;
 
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   TRACE_EVENT0("cobalt::dom", "HTMLLinkElement::OnLoadingComplete()");
 
   LOG(ERROR) << *error;
@@ -275,7 +275,7 @@ void HTMLLinkElement::OnStylesheetLoaded(Document* document,
 }
 
 void HTMLLinkElement::ReleaseLoader() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(loader_);
   loader_.reset();
 }

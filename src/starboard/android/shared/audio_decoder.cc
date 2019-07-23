@@ -18,7 +18,7 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/memory.h"
 
 // Can be locally set to |1| for verbose audio decoding.  Verbose audio
@@ -66,13 +66,13 @@ void* IncrementPointerByBytes(void* pointer, int offset) {
 }  // namespace
 
 AudioDecoder::AudioDecoder(SbMediaAudioCodec audio_codec,
-                           const SbMediaAudioHeader& audio_header,
+                           const SbMediaAudioSampleInfo& audio_sample_info,
                            SbDrmSystem drm_system)
     : audio_codec_(audio_codec),
-      audio_header_(audio_header),
+      audio_sample_info_(audio_sample_info),
       sample_type_(GetSupportedSampleType()),
-      output_sample_rate_(audio_header.samples_per_second),
-      output_channel_count_(audio_header.number_of_channels),
+      output_sample_rate_(audio_sample_info.samples_per_second),
+      output_channel_count_(audio_sample_info.number_of_channels),
       drm_system_(static_cast<DrmSystem*>(drm_system)) {
   if (!InitializeCodec()) {
     SB_LOG(ERROR) << "Failed to initialize audio decoder.";
@@ -169,7 +169,7 @@ void AudioDecoder::Reset() {
 bool AudioDecoder::InitializeCodec() {
   SB_DCHECK(!media_decoder_);
   media_decoder_.reset(
-      new MediaDecoder(this, audio_codec_, audio_header_, drm_system_));
+      new MediaDecoder(this, audio_codec_, audio_sample_info_, drm_system_));
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
       media_decoder_->Initialize(error_cb_);
@@ -187,26 +187,15 @@ void AudioDecoder::ProcessOutputBuffer(
   SB_DCHECK(output_cb_);
   SB_DCHECK(dequeue_output_result.index >= 0);
 
-  if (dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM) {
-    media_codec_bridge->ReleaseOutputBuffer(dequeue_output_result.index, false);
-    {
-      starboard::ScopedLock lock(decoded_audios_mutex_);
-      decoded_audios_.push(new DecodedAudio());
-    }
-
-    Schedule(output_cb_);
-    return;
-  }
-
-  ScopedJavaByteBuffer byte_buffer(
-      media_codec_bridge->GetOutputBuffer(dequeue_output_result.index));
-  SB_DCHECK(!byte_buffer.IsNull());
-
   if (dequeue_output_result.num_bytes > 0) {
+    ScopedJavaByteBuffer byte_buffer(
+        media_codec_bridge->GetOutputBuffer(dequeue_output_result.index));
+    SB_DCHECK(!byte_buffer.IsNull());
+
     int16_t* data = static_cast<int16_t*>(IncrementPointerByBytes(
         byte_buffer.address(), dequeue_output_result.offset));
     int size = dequeue_output_result.num_bytes;
-    if (2 * audio_header_.samples_per_second == output_sample_rate_) {
+    if (2 * audio_sample_info_.samples_per_second == output_sample_rate_) {
       // The audio is encoded using implicit HE-AAC.  As the audio sink has
       // been created already we try to down-mix the decoded data to half of
       // its channels so the audio sink can play it with the correct pitch.
@@ -218,11 +207,11 @@ void AudioDecoder::ProcessOutputBuffer(
     }
 
     scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
-        audio_header_.number_of_channels, GetSampleType(), GetStorageType(),
-        dequeue_output_result.presentation_time_microseconds, size);
+        audio_sample_info_.number_of_channels, GetSampleType(),
+        GetStorageType(), dequeue_output_result.presentation_time_microseconds,
+        size);
 
     SbMemoryCopy(decoded_audio->buffer(), data, size);
-    media_codec_bridge->ReleaseOutputBuffer(dequeue_output_result.index, false);
 
     {
       starboard::ScopedLock lock(decoded_audios_mutex_);
@@ -231,9 +220,18 @@ void AudioDecoder::ProcessOutputBuffer(
                           << decoded_audios_.front()->timestamp();
     }
     Schedule(output_cb_);
-  } else {
-    media_codec_bridge->ReleaseOutputBuffer(dequeue_output_result.index, false);
   }
+
+  // BUFFER_FLAG_END_OF_STREAM may come with the last valid output buffer.
+  if (dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM) {
+    {
+      starboard::ScopedLock lock(decoded_audios_mutex_);
+      decoded_audios_.push(new DecodedAudio());
+    }
+    Schedule(output_cb_);
+  }
+
+  media_codec_bridge->ReleaseOutputBuffer(dequeue_output_result.index, false);
 }
 
 void AudioDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {

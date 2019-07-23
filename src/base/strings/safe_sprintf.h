@@ -15,7 +15,7 @@
 #endif
 
 #include "base/base_export.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/types.h"
 
 namespace base {

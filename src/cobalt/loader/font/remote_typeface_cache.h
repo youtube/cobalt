@@ -45,7 +45,7 @@ struct RemoteTypefaceResourceCacheType {
 };
 
 typedef CachedResource<RemoteTypefaceResourceCacheType> CachedRemoteTypeface;
-typedef CachedResourceReferenceWithCallbacks<RemoteTypefaceResourceCacheType>
+typedef CachedResourceReferenceWithCallbacks
     CachedRemoteTypefaceReferenceWithCallbacks;
 typedef CachedRemoteTypefaceReferenceWithCallbacks::
     CachedResourceReferenceVector CachedRemoteTypefaceReferenceVector;

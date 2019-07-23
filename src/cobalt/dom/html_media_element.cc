@@ -26,7 +26,6 @@
 #include "base/message_loop/message_loop.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/base/user_log.h"
 #include "cobalt/cssom/map_to_mesh_function.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
@@ -69,25 +68,6 @@ namespace {
 #define MLOG() EAT_STREAM_PARAMETERS
 
 #endif  // LOG_MEDIA_ELEMENT_ACTIVITIES
-
-// This struct manages the user log information for HTMLMediaElement count.
-struct HTMLMediaElementCountLog {
-  HTMLMediaElementCountLog() : count(0) {
-    base::UserLog::Register(base::UserLog::kHTMLMediaElementCountIndex,
-                            "MediaElementCnt", &count, sizeof(count));
-  }
-  ~HTMLMediaElementCountLog() {
-    base::UserLog::Deregister(base::UserLog::kHTMLMediaElementCountIndex);
-  }
-
-  int count;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(HTMLMediaElementCountLog);
-};
-
-base::LazyInstance<HTMLMediaElementCountLog>::DestructorAtExit
-    html_media_element_count_log = LAZY_INSTANCE_INITIALIZER;
 
 loader::RequestMode GetRequestMode(
     const base::Optional<std::string>& cross_origin_attribute) {
@@ -171,14 +151,12 @@ HTMLMediaElement::HTMLMediaElement(Document* document, base::Token tag_name)
       request_mode_(loader::kNoCORSMode) {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::HTMLMediaElement()");
   MLOG();
-  html_media_element_count_log.Get().count++;
 }
 
 HTMLMediaElement::~HTMLMediaElement() {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::~HTMLMediaElement()");
   MLOG();
   ClearMediaSource();
-  html_media_element_count_log.Get().count--;
 }
 
 scoped_refptr<MediaError> HTMLMediaElement::error() const {
@@ -267,9 +245,24 @@ std::string HTMLMediaElement::CanPlayType(const std::string& mime_type,
   DLOG_IF(ERROR, !key_system.empty())
       << "CanPlayType() only accepts one parameter but (" << key_system
       << ") is passed as a second parameter.";
-  std::string result =
+  const bool kIsProgressive = true;
+  auto support_type =
       html_element_context()->can_play_type_handler()->CanPlayType(
-          true, mime_type, key_system);
+          mime_type, key_system, kIsProgressive);
+  std::string result = "";
+  switch (support_type) {
+    case kSbMediaSupportTypeNotSupported:
+      result = "";
+      break;
+    case kSbMediaSupportTypeMaybe:
+      result = "maybe";
+      break;
+    case kSbMediaSupportTypeProbably:
+      result = "probably";
+      break;
+    default:
+      NOTREACHED();
+  }
   MLOG() << "(" << mime_type << ", " << key_system << ") => " << result;
   LOG(INFO) << "HTMLMediaElement::canPlayType(" << mime_type << ", "
             << key_system << ") -> " << result;
@@ -1621,6 +1614,10 @@ std::string HTMLMediaElement::SourceURL() const {
   return media_source_url_.spec();
 }
 
+std::string HTMLMediaElement::MaxVideoCapabilities() const {
+  return max_video_capabilities_;
+}
+
 bool HTMLMediaElement::PreferDecodeToTexture() {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::PreferDecodeToTexture()");
 
@@ -1720,6 +1717,17 @@ void HTMLMediaElement::ClearMediaSource() {
     media_source_->Close();
     media_source_ = NULL;
   }
+}
+
+void HTMLMediaElement::SetMaxVideoCapabilities(
+    const std::string& max_video_capabilities,
+    script::ExceptionState* exception_state) {
+  if (GetAttribute("src").value_or("").length() > 0) {
+    LOG(WARNING) << "Cannot set maxmium capabilities after src is defined.";
+    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    return;
+  }
+  max_video_capabilities_ = max_video_capabilities;
 }
 
 }  // namespace dom

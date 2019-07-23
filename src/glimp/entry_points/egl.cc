@@ -22,7 +22,7 @@
 #include "glimp/egl/error.h"
 #include "glimp/egl/get_proc_address_impl.h"
 #include "glimp/egl/scoped_egl_lock.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace egl = glimp::egl;
 

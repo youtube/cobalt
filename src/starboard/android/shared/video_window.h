@@ -22,16 +22,31 @@ namespace starboard {
 namespace android {
 namespace shared {
 
-// Returns the surface which video should be rendered.  This is the surface
-// that owns the native window returned by |GetVideoWindow|.
-jobject GetVideoSurface();
+class VideoSurfaceHolder {
+ public:
+  // OnSurfaceDestroyed() will be invoked when surface is destroyed. When this
+  // function is called, the decoder no longer owns the surface. Calling
+  // AcquireVideoSurface(), ReleaseVideoSurface(), GetVideoWindowSize() or
+  // ClearVideoWindow() in this function may cause dead lock.
+  virtual void OnSurfaceDestroyed() = 0;
 
-// Returns the native window into which video should be rendered.
-ANativeWindow* GetVideoWindow();
+ protected:
+  ~VideoSurfaceHolder() {}
 
-// Clear the video window by painting it Black.  This function is safe to call
-// regardless of whether the video window has been initialized or not.
-void ClearVideoWindow();
+  // Returns the surface which video should be rendered. Surface cannot be
+  // acquired before last holder release the surface.
+  jobject AcquireVideoSurface();
+
+  // Release the surface to make the surface available for other holder.
+  void ReleaseVideoSurface();
+
+  // Get the native window size. Return false if don't have available native
+  // window.
+  bool GetVideoWindowSize(int* width, int* height);
+
+  // Clear the video window by painting it Black.
+  void ClearVideoWindow();
+};
 
 }  // namespace shared
 }  // namespace android

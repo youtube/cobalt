@@ -3,12 +3,14 @@
 // found in the LICENSE file.
 
 #include "starboard/common/ref_counted.h"
-
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace starboard {
-
 namespace subtle {
+
+bool RefCountedBase::HasOneRef() const {
+  return ref_count_ == 1;
+}
 
 RefCountedBase::RefCountedBase()
     : ref_count_(0)

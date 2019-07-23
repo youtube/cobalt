@@ -15,11 +15,12 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_STUB_AUDIO_DECODER_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_STUB_AUDIO_DECODER_H_
 
+#include <queue>
+
 #include "starboard/common/ref_counted.h"
+#include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
-
-#include <queue>
 
 namespace starboard {
 namespace shared {
@@ -29,7 +30,7 @@ namespace filter {
 
 class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
  public:
-  explicit StubAudioDecoder(const SbMediaAudioHeader& audio_header);
+  explicit StubAudioDecoder(const SbMediaAudioSampleInfo& audio_sample_info);
 
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
 
@@ -51,7 +52,7 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
  private:
   OutputCB output_cb_;
   SbMediaAudioSampleType sample_type_;
-  SbMediaAudioHeader audio_header_;
+  SbMediaAudioSampleInfo audio_sample_info_;
   bool stream_ended_;
   std::queue<scoped_refptr<DecodedAudio> > decoded_audios_;
   scoped_refptr<InputBuffer> last_input_buffer_;

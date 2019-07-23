@@ -45,17 +45,17 @@ DialService::DialService() {
 }
 
 DialService::~DialService() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   Terminate();
 }
 
 const std::string& DialService::http_host_address() const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return http_host_address_;
 }
 
 void DialService::Terminate() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Note that we may not have the last ref to http_server_, so we can't control
   // where it gets destroyed. Ensure we stop it on the right thread.
   if (http_server_) {
@@ -66,7 +66,7 @@ void DialService::Terminate() {
 }
 
 void DialService::Register(const scoped_refptr<DialServiceHandler>& handler) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   TRACE_EVENT0("net::dial", __FUNCTION__);
   DCHECK(handler);
   const std::string& path = handler->service_name();
@@ -76,7 +76,7 @@ void DialService::Register(const scoped_refptr<DialServiceHandler>& handler) {
 }
 
 void DialService::Deregister(const scoped_refptr<DialServiceHandler>& handler) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   TRACE_EVENT0("net::dial", __FUNCTION__);
   DCHECK(handler);
   for (ServiceHandlerMap::iterator it = handlers_.begin();
@@ -93,7 +93,7 @@ scoped_refptr<DialServiceHandler> DialService::GetHandler(
     std::string* handler_path) {
   // This function should only be called by DialHttpServer, to find a handler
   // to respond to an incoming request.
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   DCHECK(handler_path != NULL);
   TRACE_EVENT0("net::dial", __FUNCTION__);

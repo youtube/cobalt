@@ -7,17 +7,15 @@
 
 #include "net/third_party/quic/core/quic_alarm.h"
 #include "net/third_party/quic/core/quic_alarm_factory.h"
+#include "net/third_party/quic/core/quic_one_block_arena.h"
+#include "net/third_party/quic/platform/api/quic_epoll.h"
 
-namespace quic {}  // namespace quic
-namespace net {
-class EpollServer;
-}  // namespace net
 namespace quic {
 
-// Creates alarms that use the supplied net::EpollServer for timing and firing.
+// Creates alarms that use the supplied EpollServer for timing and firing.
 class QuicEpollAlarmFactory : public QuicAlarmFactory {
  public:
-  explicit QuicEpollAlarmFactory(net::EpollServer* epoll_server);
+  explicit QuicEpollAlarmFactory(QuicEpollServer* eps);
   QuicEpollAlarmFactory(const QuicEpollAlarmFactory&) = delete;
   QuicEpollAlarmFactory& operator=(const QuicEpollAlarmFactory&) = delete;
   ~QuicEpollAlarmFactory() override;
@@ -29,7 +27,7 @@ class QuicEpollAlarmFactory : public QuicAlarmFactory {
       QuicConnectionArena* arena) override;
 
  private:
-  net::EpollServer* epoll_server_;  // Not owned.
+  QuicEpollServer* epoll_server_;  // Not owned.
 };
 
 }  // namespace quic

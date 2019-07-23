@@ -15,12 +15,11 @@
 #ifndef COBALT_RENDERER_BACKEND_EGL_TEXTURE_H_
 #define COBALT_RENDERER_BACKEND_EGL_TEXTURE_H_
 
-#include <GLES2/gl2.h>
-
 #include <memory>
 #include "base/callback.h"
 #include "cobalt/renderer/backend/egl/render_target.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
+#include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {
 namespace renderer {
@@ -50,7 +49,7 @@ class TextureEGL {
   // of manually calling gl_
   TextureEGL(GraphicsContextEGL* graphics_context, GLuint gl_handle,
              const math::Size& size, GLenum format, GLenum target,
-             const base::Closure& delete_function);
+             base::OnceClosure&& delete_function);
 
   // Create a texture from a pre-existing offscreen render target.
   TextureEGL(GraphicsContextEGL* graphics_context,
@@ -92,7 +91,7 @@ class TextureEGL {
 
   // If non-null, will be called upon destruction instead of manually deleting
   // the texture via glDeleteTextures().
-  base::Closure delete_function_;
+  base::OnceClosure delete_function_;
 };
 
 }  // namespace backend

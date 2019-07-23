@@ -269,12 +269,18 @@
 # include <sys/stat.h>
 #endif  // !_WIN32_WCE
 #else  // !defined(STARBOARD)
+#include <memory>
+
+#include "starboard/common/log.h"
+#include "starboard/common/spin_lock.h"
+#include "starboard/common/string.h"
 #include "starboard/directory.h"
-#include "starboard/log.h"
 #include "starboard/file.h"
+#include "starboard/log.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
+#include "starboard/mutex.h"
 #include "starboard/system.h"
+#include "starboard/thread.h"
 #include "starboard/types.h"
 #endif  // !defined(STARBOARD)
 
@@ -363,6 +369,10 @@
 # define GTEST_STDLIB_CXX11 1
 #endif
 
+#if defined(STARBOARD)
+// All Cobalt platforms should be able to use C++11 features.
+#define GTEST_STDLIB_CXX11 1
+#endif
 // Only use C++11 library features if the library provides them.
 #if GTEST_STDLIB_CXX11
 # define GTEST_HAS_STD_BEGIN_AND_END_ 1
@@ -1464,6 +1474,113 @@ void SetInjectableArgvs(const ::std::vector<testing::internal::string>*
 #endif  // GTEST_HAS_DEATH_TEST
 
 // Defines synchronization primitives.
+#if defined(GTEST_OS_STARBOARD)
+
+class Mutex {
+ public:
+  enum MutexType { kStatic = 0, kDynamic = 1 };
+
+  // We rely on kStaticMutex being 0 as it is to what the linker initializes
+  // type_ in static mutexes.  critical_section_ will be initialized lazily
+  // in ThreadSafeLazyInit().
+  enum StaticConstructorSelector { kStaticMutex = 0 };
+
+  // This constructor intentionally does nothing.  It relies on type_ being
+  // statically initialized to 0 (effectively setting it to kStatic) and on
+  // ThreadSafeLazyInit() to lazily initialize the rest of the members.
+  explicit Mutex(StaticConstructorSelector /*dummy*/) {}
+
+  Mutex() : type_(kDynamic) { SbMutexCreate(&mutex_); }
+  ~Mutex() {
+    if (type_ != kStatic) {
+      SbMutexDestroy(&mutex_);
+    }
+  }
+  void Lock() {
+    LazyInit();
+    SbMutexAcquire(&mutex_);
+  }
+  void Unlock() { SbMutexRelease(&mutex_); }
+  void AssertHeld() const {}
+
+ private:
+  void LazyInit() {
+    if (type_ == kStatic && !initialized_) {
+      static starboard::SpinLock s_lock;
+      s_lock.Acquire();
+      if (!initialized_) {
+        SbMutexCreate(&mutex_);
+        initialized_ = true;
+      }
+      s_lock.Release();
+    }
+  }
+  SbMutex mutex_;
+  friend class GTestMutexLock;
+  bool initialized_ = false;
+  // For static mutexes, we rely on type_ member being initialized to zero
+  // by the linker.
+  MutexType type_;
+};
+
+#define GTEST_DECLARE_STATIC_MUTEX_(mutex) \
+  extern ::testing::internal::Mutex mutex
+
+#define GTEST_DEFINE_STATIC_MUTEX_(mutex) \
+  ::testing::internal::Mutex mutex(::testing::internal::Mutex::kStaticMutex)
+
+// We cannot name this class MutexLock because the ctor declaration would
+// conflict with a macro named MutexLock, which is defined on some
+// platforms. That macro is used as a defensive measure to prevent against
+// inadvertent misuses of MutexLock like "MutexLock(&mu)" rather than
+// "MutexLock l(&mu)".  Hence the typedef trick below.
+class GTestMutexLock {
+ public:
+  explicit GTestMutexLock(Mutex* mutex) : mutex_(mutex) {
+    mutex_->Lock();
+  }  // NOLINT
+  ~GTestMutexLock() { mutex_->Unlock(); }
+
+ private:
+  Mutex* mutex_;
+};
+
+typedef GTestMutexLock MutexLock;
+
+template <typename T>
+class ThreadLocal {
+ public:
+  ThreadLocal() {
+    key_ = SbThreadCreateLocalKey(
+        [](void* value) { delete static_cast<T*>(value); });
+    SB_DCHECK(key_ != kSbThreadLocalKeyInvalid);
+  }
+  explicit ThreadLocal(const T& value) : ThreadLocal() { set(value); }
+  ~ThreadLocal() {
+    SbThreadDestroyLocalKey(key_);
+  }
+  T* pointer() { return GetOrCreateValue(); }
+  const T* pointer() const { return GetOrCreateValue(); }
+  const T& get() const { return *pointer(); }
+  void set(const T& value) { *GetOrCreateValue() = value; }
+
+ private:
+  T* GetOrCreateValue() const {
+    T* ptr = static_cast<T*>(SbThreadGetLocalValue(key_));
+    if (ptr) {
+      return ptr;
+    } else {
+      T* new_value = new T();
+      bool is_set = SbThreadSetLocalValue(key_, new_value);
+      SB_DCHECK(is_set);
+      return new_value;
+    }
+  }
+
+  SbThreadLocalKey key_;
+};
+
+#else  // GTEST_OS_STARBOARD
 #if GTEST_IS_THREADSAFE
 # if GTEST_HAS_PTHREAD
 // Sleeps for (roughly) n milliseconds.  This function is only for testing
@@ -2201,6 +2318,7 @@ class ThreadLocal {
 };
 
 #endif  // GTEST_IS_THREADSAFE
+#endif  // GTEST_OS_STARBOARD
 
 // Returns the number of threads running in the process, or 0 to indicate that
 // we cannot detect it.

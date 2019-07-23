@@ -22,7 +22,7 @@ DecoderBufferCache::DecoderBufferCache()
 
 void DecoderBufferCache::AddBuffer(DemuxerStream::Type type,
                                    const scoped_refptr<DecoderBuffer>& buffer) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (type == DemuxerStream::AUDIO) {
     audio_buffers_.push_back(buffer);
@@ -40,7 +40,7 @@ void DecoderBufferCache::AddBuffer(DemuxerStream::Type type,
 
 void DecoderBufferCache::ClearSegmentsBeforeMediaTime(
     base::TimeDelta media_time) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   audio_buffer_index_ -= ClearSegmentsBeforeMediaTime(
       media_time, &audio_buffers_, &audio_key_frame_timestamps_);
@@ -49,7 +49,7 @@ void DecoderBufferCache::ClearSegmentsBeforeMediaTime(
 }
 
 void DecoderBufferCache::ClearAll() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   audio_buffers_.clear();
   audio_key_frame_timestamps_.clear();
@@ -60,7 +60,7 @@ void DecoderBufferCache::ClearAll() {
 }
 
 void DecoderBufferCache::StartResuming() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   audio_buffer_index_ = 0;
   video_buffer_index_ = 0;
@@ -68,7 +68,7 @@ void DecoderBufferCache::StartResuming() {
 
 scoped_refptr<DecoderBuffer> DecoderBufferCache::GetBuffer(
     DemuxerStream::Type type) const {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (type == DemuxerStream::AUDIO) {
     if (audio_buffer_index_ < audio_buffers_.size()) {
@@ -85,7 +85,7 @@ scoped_refptr<DecoderBuffer> DecoderBufferCache::GetBuffer(
 }
 
 void DecoderBufferCache::AdvanceToNextBuffer(DemuxerStream::Type type) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (type == DemuxerStream::AUDIO) {
     ++audio_buffer_index_;

@@ -15,27 +15,8 @@
 #ifndef COBALT_RENDERER_BACKEND_EGL_UTILS_H_
 #define COBALT_RENDERER_BACKEND_EGL_UTILS_H_
 
-#include <EGL/egl.h>
-#include <GLES2/gl2.h>
-
 #include "base/logging.h"
-
-// Provide an easy method of calling EGL and GL function and verifying that they
-// did not generate any errors.  CHECKs is used for EGL calls for release-build
-// error checking.  DCHECKs are used for GL calls instead of CHECKs because
-// GL calls are expected to occur much more frequently.
-
-#define GL_CALL(x) \
-    do {\
-      x;\
-      DCHECK_EQ(GL_NO_ERROR, glGetError());\
-    } while (false)
-
-#define EGL_CALL(x) \
-    do {\
-      x;\
-      CHECK_EQ(EGL_SUCCESS, eglGetError());\
-    } while (false)
+#include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {
 namespace renderer {

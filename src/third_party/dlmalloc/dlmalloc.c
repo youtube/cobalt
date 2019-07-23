@@ -597,7 +597,7 @@ MAX_RELEASE_CHECK_RATE   default: 4095 unless not HAVE_MMAP
 
 #if defined(STARBOARD)
 #include "dlmalloc_config.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
 #include "starboard/system.h"

@@ -15,10 +15,12 @@
 #ifndef COBALT_TRACE_EVENT_JSON_FILE_OUTPUTTER_H_
 #define COBALT_TRACE_EVENT_JSON_FILE_OUTPUTTER_H_
 
+#include "base/callback.h"
 #include "base/files/file_path.h"
 #include "base/files/platform_file.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/ref_counted_memory.h"
+#include "base/trace_event/trace_log.h"
 
 namespace cobalt {
 namespace trace_event {
@@ -31,13 +33,17 @@ class JSONFileOutputter {
   explicit JSONFileOutputter(const base::FilePath& output_path);
   ~JSONFileOutputter();
 
-  void OutputTraceData(
-      const scoped_refptr<base::RefCountedString>& event_string,
-      bool has_more_events);
+  // Write all content held inside |trace_log| to |file_|.  Returns true on
+  // success, otherwise returns false.
+  bool Output(base::trace_event::TraceLog* trace_log);
 
   bool GetError() const { return file_ == base::kInvalidPlatformFile; }
 
  private:
+  void OutputTraceData(
+      base::OnceClosure finished_cb,
+      const scoped_refptr<base::RefCountedString>& event_string,
+      bool has_more_events);
   void Write(const char* buffer, int length);
   void Close();
 

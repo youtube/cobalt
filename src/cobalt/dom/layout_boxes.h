@@ -16,7 +16,10 @@
 #define COBALT_DOM_LAYOUT_BOXES_H_
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/dom/directionality.h"
 #include "cobalt/dom/dom_rect_list.h"
+#include "cobalt/math/rect_f.h"
+#include "cobalt/math/vector2d_f.h"
 
 namespace cobalt {
 namespace dom {
@@ -56,6 +59,7 @@ class LayoutBoxes {
   virtual float GetBorderEdgeTop() const = 0;
   virtual float GetBorderEdgeWidth() const = 0;
   virtual float GetBorderEdgeHeight() const = 0;
+  virtual math::Vector2dF GetBorderEdgeOffsetFromContainingBlock() const = 0;
 
   // Returns the border width (thickness) values.
   virtual float GetBorderLeftWidth() const = 0;
@@ -68,10 +72,21 @@ class LayoutBoxes {
 
   // Returns padding edge values.
   // See https://www.w3.org/TR/CSS21/box.html#box-dimensions
-  virtual float GetPaddingEdgeLeft() const = 0;
-  virtual float GetPaddingEdgeTop() const = 0;
+  virtual math::Vector2dF GetPaddingEdgeOffset() const = 0;
   virtual float GetPaddingEdgeWidth() const = 0;
   virtual float GetPaddingEdgeHeight() const = 0;
+  virtual math::Vector2dF GetPaddingEdgeOffsetFromContainingBlock() const = 0;
+
+  // Returns content edge values.
+  // See https://www.w3.org/TR/CSS21/box.html#box-dimensions
+  virtual math::Vector2dF GetContentEdgeOffset() const = 0;
+  virtual float GetContentEdgeWidth() const = 0;
+  virtual float GetContentEdgeHeight() const = 0;
+  virtual math::Vector2dF GetContentEdgeOffsetFromContainingBlock() const = 0;
+
+  // Return scrolling area.
+  // See https://www.w3.org/TR/cssom-view-1/#scrolling-area
+  virtual math::RectF GetScrollArea(Directionality dir) const = 0;
 
   // Invalidate the sizes of the layout boxes so that they'll be recalculated
   // during the next layout.

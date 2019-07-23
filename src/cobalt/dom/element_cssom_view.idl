@@ -12,13 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-element-interface
+// The spec for extensions to the element interface has changed, but some of
+// the implementation has not been updated to the new spec.
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-element-interface
+//   https://www.w3.org/TR/cssom-view-1/#extension-to-the-element-interface
 
 partial interface Element {
+  // https://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-element-interface
   DOMRectList getClientRects();
   DOMRect getBoundingClientRect();
   readonly attribute double clientTop;
   readonly attribute double clientLeft;
   readonly attribute double clientWidth;
   readonly attribute double clientHeight;
+
+  // https://www.w3.org/TR/cssom-view-1/#extension-to-the-element-interface
+  attribute unrestricted double scrollTop;
+  attribute unrestricted double scrollLeft;
+  readonly attribute long scrollWidth;
+  readonly attribute long scrollHeight;
 };

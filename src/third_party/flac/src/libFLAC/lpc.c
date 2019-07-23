@@ -42,7 +42,7 @@
 #include <stdio.h>
 #endif
 #if defined(STARBOARD)
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #define fprintf(stderr, format, ...) SbLogFormatF(format, __VA_ARGS__)
 #endif
 

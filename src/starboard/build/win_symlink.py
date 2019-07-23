@@ -13,9 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This file provides functions that provide symlinking of folders. This is
-necessary because os.symlink in python 2.7 is missing for Windows.
+"""Provides functions for symlinking on Windows.
 
 Reparse points: Are os-level symlinks for folders which can be created without
 admin access. Symlinks for folders are supported using this mechanism. Note
@@ -24,10 +22,14 @@ are often skipped or treated as files by the various python path manipulation
 functions in os and shutil modules. rmtree() as a replacement for
 shutil.rmtree() is provided.
 
-Junction points: Are low level file system symlinks. We do not support these
-yet because creating them requires admin level acccess, or Windows 10 Insiders
-build 14972, which is not widely available yet.
 """
+
+import logging
+import os
+import shutil
+import stat
+import subprocess
+import time
 
 
 ################################################################################
@@ -36,38 +38,66 @@ build 14972, which is not widely available yet.
 
 
 def CreateReparsePoint(from_folder, link_folder):
-  """ Mimics os.symlink for usage. If link cannot be created then an OSError
-  is raised."""
+  """Mimics os.symlink for usage.
+
+  Args:
+    from_folder: Path of target directory.
+    link_folder: Path to create link.
+
+  Returns:
+    None.
+
+  Raises:
+    OSError if link cannot be created
+  """
   return _CreateReparsePoint(from_folder, link_folder)
 
 
 def ReadReparsePoint(path):
-  """ Mimics os.readlink for usage. """
+  """Mimics os.readlink for usage."""
   return _ReadReparsePoint(path)
 
 
 def IsReparsePoint(path):
-  """ Mimics os.islink for usage. """
+  """Mimics os.islink for usage."""
   return _IsReparsePoint(path)
 
 
 def UnlinkReparsePoint(link_dir):
-  """ Mimics os.unlink for usage. The sym link_dir is removed."""
+  """Mimics os.unlink for usage. The sym link_dir is removed."""
   return _UnlinkReparsePoint(link_dir)
 
 
 def RmtreeShallow(dirpath):
-  """ Like shutil.rmtree on linux, which deletes symlinks but doesn't follow
-  them. Note that shutil.rmtree on windows will follow the symlink and delete
-  the files in the original directory!"""
+  """Emulates shutil.rmtree on linux.
+
+  Will delete symlinks but doesn't follow them. Note that shutil.rmtree on
+  windows will follow the symlink and delete the files in the original
+  directory!
+
+  Args:
+    dirpath: The start path to delete files.
+  """
   return _RmtreeShallow(dirpath)
 
 
 def OsWalk(top, topdown=True, onerror=None, followlinks=False):
-  """ Like os.walk() but correctly handles windows reparse points as symlinks.
+  """Emulates os.walk() on linux.
+
+  Args:
+    top: see os.walk(...)
+    topdown: see os.walk(...)
+    onerror: see os.walk(...)
+    followlinks: see os.walk(...)
+
+  Returns:
+    see os.walk(...)
+
+  Correctly handles windows reparse points as symlinks.
   All symlink directories are returned in the directory list and the caller must
   call IsReparsePoint() on the path to determine whether the directory is
-  real or a symlink."""
+  real or a symlink.
+  """
   return _OsWalk(top, topdown, onerror, followlinks)
 
 
@@ -76,31 +106,25 @@ def OsWalk(top, topdown=True, onerror=None, followlinks=False):
 ################################################################################
 
 
-import os
-import shutil
-import subprocess
-import stat
-import tempfile
-import time
-import traceback
+_RETRY_TIMES = 10
 
 
 def _RemoveEmptyDirectory(path):
-  _RETRY_TIMES = 10
+  """Removes a directory with retry amounts."""
   for i in range(0, _RETRY_TIMES):
     try:
       os.chmod(path, stat.S_IWRITE)
       os.rmdir(path)
       return
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
       if i == _RETRY_TIMES-1:
         raise
       else:
         time.sleep(.1)
-        pass
 
 
-def _RmtreeShallow(root_dir):
+def _RmtreeOsWalk(root_dir):
+  """Walks the directory structure to delete directories and files."""
   del_dirs = []  # Defer deletion of directories.
   if _IsReparsePoint(root_dir):
     _UnlinkReparsePoint(root_dir)
@@ -121,13 +145,29 @@ def _RmtreeShallow(root_dir):
     try:
       if os.path.isdir(d):
         shutil.rmtree(d)
-    except Exception as err:
-      traceback.print_exc()
-      print('Error while deleting: ' + str(err))
+    except Exception as err:  # pylint: disable=broad-except
+      logging.exception('Error while deleting: %s', err)
+
+
+def _RmtreeShellCmd(root_dir):
+  subprocess.call(['cmd', '/c', 'rmdir', '/S', '/Q', root_dir])
+
+
+def _RmtreeShallow(root_dir):
+  """See RmtreeShallow() for documentation."""
+  try:
+    # This can fail if there are very long file names.
+    _RmtreeOsWalk(root_dir)
+  except OSError:
+    # This fallback will handle very long file. Note that it is VERY slow
+    # in comparison to the _RmtreeOsWalk() version.
+    _RmtreeShellCmd(root_dir)
+  if os.path.isdir(root_dir):
+    logging.error('Directory %s still exists.', root_dir)
 
 
 def _ReadReparsePointShell(path):
-  path = os.path.abspath(path)
+  """Implements reading a reparse point via a shell command."""
   cmd_parts = ['fsutil', 'reparsepoint', 'query', path]
   try:
     out = subprocess.check_output(cmd_parts)
@@ -136,66 +176,70 @@ def _ReadReparsePointShell(path):
     return None
   try:
     lines = out.splitlines()
-    lines = [ l for l in lines if "Print Name:" in l ]
+    lines = [l for l in lines if 'Print Name:' in l]
     if not lines:
       return None
     out = lines[0].split()
     return out[2]
-  except Exception as err:
-    traceback.print_exc()
-    print err
+  except Exception as err:  # pylint: disable=broad-except
+    logging.exception(err)
     return None
 
 
 def _ReadReparsePoint(path):
   try:
-    from win_symlink_fast import FastReadReparseLink
-    return FastReadReparseLink(path)
-  except Exception as err:
-    # Fallback
-    print(__file__ + ' error: ' + str(err) + \
-          ', falling back to command line version.')
+    # pylint: disable=g-import-not-at-top
+    import win_symlink_fast
+    return win_symlink_fast.FastReadReparseLink(path)
+  except Exception as err:  # pylint: disable=broad-except
+    logging.exception(' error: %s, falling back to command line version.', err)
     return _ReadReparsePointShell(path)
 
 
 def _IsReparsePoint(path):
   try:
-    from win_symlink_fast import FastIsReparseLink
-    return FastIsReparseLink(path)
-  except  Exception as err:
-    print(__file__ + ' error: ' + str(err) + \
-          ', falling back to command line version.')
-    return None != _ReadReparsePointShell(path)
+    # pylint: disable=g-import-not-at-top
+    import win_symlink_fast
+    return win_symlink_fast.FastIsReparseLink(path)
+  except  Exception as err:  # pylint: disable=broad-except
+    logging.exception(' error: %s, falling back to command line version.', err)
+    return None is not _ReadReparsePointShell(path)
 
 
 def _CreateReparsePoint(from_folder, link_folder):
-  link_folder = os.path.abspath(link_folder)
+  """See api version above for doc string."""
   if os.path.isdir(link_folder):
     _RemoveEmptyDirectory(link_folder)
   else:
     _UnlinkReparsePoint(link_folder)  # Deletes if it exists.
   try:
-    from win_symlink_fast import FastCreateReparseLink
-    FastCreateReparseLink(from_folder, link_folder)
+    # pylint: disable=g-import-not-at-top
+    import win_symlink_fast
+    win_symlink_fast.FastCreateReparseLink(from_folder, link_folder)
     return
-  except OSError as os_err:
-    # The operating system doesn't support the call.
+  except OSError:
     pass
-  except Exception as err:
-    print(__file__ + ' unexpected error: ' + str(err) + \
-          ', from='+from_folder+', link='+link_folder+ \
-          ', falling back to command line version.')
+  except Exception as err:  # pylint: disable=broad-except
+    logging.exception('unexpected error: %s, from=%s, link=%s, falling back to '
+                      'command line version.', err, from_folder, link_folder)
   par_dir = os.path.dirname(link_folder)
   if not os.path.isdir(par_dir):
     os.makedirs(par_dir)
-  cmd_parts = ['cmd', '/c', 'mklink', '/j', link_folder, from_folder]
-  subprocess.check_output(cmd_parts)
+  try:
+    subprocess.check_output(
+        ['cmd', '/c', 'mklink', '/d', link_folder, from_folder],
+        stderr=subprocess.STDOUT)
+  except subprocess.CalledProcessError:
+    # Fallback to junction points, which require less privileges to create.
+    subprocess.check_output(
+        ['cmd', '/c', 'mklink', '/j', link_folder, from_folder])
   if not _IsReparsePoint(link_folder):
-    raise OSError('Could not create sym link ' + link_folder + ' to ' + \
-                  from_folder)
+    raise OSError('Could not create sym link %s to %s' %
+                  (link_folder, from_folder))
 
 
 def _UnlinkReparsePoint(link_dir):
+  """See api above for docstring."""
   if not _IsReparsePoint(link_dir):
     return
   cmd_parts = ['fsutil', 'reparsepoint', 'delete', link_dir]
@@ -204,16 +248,16 @@ def _UnlinkReparsePoint(link_dir):
   if os.path.isdir(link_dir):
     try:
       _RemoveEmptyDirectory(link_dir)
-    except Exception as err:
-      print(__file__ + " could not remove " + link_dir)
-      print(str(err))
+    except Exception as err:  # pylint: disable=broad-except
+      logging.exception('could not remove %s because of %s', link_dir, err)
   if _IsReparsePoint(link_dir):
-    raise IOError("Link still exists: " + _ReadReparsePoint(link_dir))
+    raise IOError('Link still exists: %s' % _ReadReparsePoint(link_dir))
   if os.path.isdir(link_dir):
-    print("WARNING - Link as folder still exists: " + link_dir)
+    logging.info('WARNING - Link as folder still exists: %s', link_dir)
 
 
 def _IsSamePath(p1, p2):
+  """Returns true if p1 and p2 represent the same path."""
   if not p1:
     p1 = None
   if not p2:
@@ -228,11 +272,12 @@ def _IsSamePath(p1, p2):
     return True
   try:
     return os.stat(p1) == os.stat(p2)
-  except:
+  except Exception:  # pylint: disable=broad-except
     return False
 
 
 def _OsWalk(top, topdown, onerror, followlinks):
+  """See api version of OsWalk above, for docstring."""
   try:
     names = os.listdir(top)
   except OSError as err:
@@ -254,99 +299,3 @@ def _OsWalk(top, topdown, onerror, followlinks):
         yield x
   if not topdown:
     yield top, dirs, nondirs
-
-
-def UnitTest():
-  """Tests that a small directory hierarchy can be created and then symlinked,
-  and then removed."""
-  tmp_dir = os.path.join(tempfile.gettempdir(), 'win_symlink')
-  from_dir = os.path.join(tmp_dir, 'from_dir')
-  test_txt = os.path.join(from_dir, 'test.txt')
-  inner_dir = os.path.join(from_dir, 'inner_dir')
-  link_dir = os.path.join(tmp_dir, 'link')
-  link_dir2 = os.path.join(tmp_dir, 'link2')
-  if IsReparsePoint(link_dir):
-    print "Deleting previous link_dir:", link_dir
-    UnlinkReparsePoint(link_dir)
-  else:
-    print "Previous link dir does not exist."
-  print "from_dir:", os.path.abspath(from_dir)
-  print "link_dir:", os.path.abspath(link_dir)
-  print "link_dir exists? ", _ReadReparsePoint(link_dir)
-
-  if not os.path.isdir(from_dir):
-    os.makedirs(from_dir)
-  if not os.path.isdir(inner_dir):
-    os.makedirs(inner_dir)
-  with open(test_txt, 'w') as fd:
-    fd.write('hello world')
-
-  # Check that the ReadReparsePoint handles non link objects ok.
-  if ReadReparsePoint(from_dir):
-    raise IOError("Exepected ReadReparsePoint() to return None for " + from_dir)
-  if ReadReparsePoint(test_txt):
-    raise IOError("Exepected ReadReparsePoint() to return None for " + test_txt)
-
-  CreateReparsePoint(from_dir, link_dir)
-
-  link_created_ok = IsReparsePoint(link_dir)
-  if link_created_ok:
-    print("Link created: " + str(link_created_ok))
-  else:
-    raise IOError("Failed to create link " + link_dir)
-
-  if not os.path.exists(link_dir):
-    raise IOError('os.path.exists(link_dir) is False.')
-
-  CreateReparsePoint(from_dir, link_dir2)
-  if not IsReparsePoint(link_dir2):
-    raise IOError("Failed to create link " + link_dir2)
-  UnlinkReparsePoint(link_dir2)
-  if os.path.exists(link_dir2):
-    raise IOError("Still exists: " + link_dir2)
-
-  from_dir_2 = ReadReparsePoint(link_dir)
-  if _IsSamePath(from_dir_2, from_dir):
-    print "Link exists."
-  else:
-    raise IOError("Link mismatch: " + from_dir_2 + ' != ' + from_dir)
-  def GetAllPaths(start_dir, followlinks):
-    paths = []
-    for root, dirs, files in OsWalk(tmp_dir, followlinks=followlinks):
-      for name in files:
-        path = os.path.join(root, name)
-        paths.append(path)
-      for name in dirs:
-        path = os.path.join(root, name)
-        paths.append(path)
-    return paths
-  def PathTypeToString(path):
-    if IsReparsePoint(path):
-      return 'link'
-    if os.path.isdir(path):
-      return 'dir'
-    return 'file'
-  paths_nofollow_links = GetAllPaths(tmp_dir, followlinks=False)
-  paths_follow_links = GetAllPaths(tmp_dir, followlinks=True)
-  print '\nOsWalk Follow links:'
-  for path in paths_follow_links:
-    print '  ' + path + ' (' + PathTypeToString(path) + ')'
-  print '\nOsWalk No-Follow links:'
-  for path in paths_nofollow_links:
-    print '  ' + path + ' (' + PathTypeToString(path) + ')'
-  print ''
-
-  assert(link_dir in paths_nofollow_links)
-  assert(link_dir in paths_follow_links)
-  assert(os.path.join(link_dir, 'test.txt') in paths_follow_links)
-  assert(not os.path.join(link_dir, 'test.txt') in paths_nofollow_links)
-  RmtreeShallow(link_dir)
-  if os.path.exists(link_dir):
-    raise IOError("Link dir " + link_dir + " still exists.")
-  if not os.path.exists(from_dir):
-    raise IOError("From Dir " + from_dir + " was deleted!")
-  print "Test completed."
-
-
-if __name__ == "__main__":
-  UnitTest()

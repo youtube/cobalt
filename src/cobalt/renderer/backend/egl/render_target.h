@@ -15,9 +15,8 @@
 #ifndef COBALT_RENDERER_BACKEND_EGL_RENDER_TARGET_H_
 #define COBALT_RENDERER_BACKEND_EGL_RENDER_TARGET_H_
 
-#include <EGL/egl.h>
-
 #include "cobalt/renderer/backend/render_target.h"
+#include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {
 namespace renderer {

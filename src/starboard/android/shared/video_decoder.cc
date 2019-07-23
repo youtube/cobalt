@@ -25,14 +25,13 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
-#include "starboard/android/shared/video_window.h"
 #include "starboard/android/shared/window_internal.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
-#include "starboard/string.h"
 #include "starboard/thread.h"
 
 namespace starboard {
@@ -170,7 +169,8 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
       decode_target_(kSbDecodeTargetInvalid),
       frame_width_(0),
       frame_height_(0),
-      first_buffer_received_(false) {
+      first_buffer_received_(false),
+      surface_condition_variable_(surface_destroy_mutex_) {
   if (!InitializeCodec()) {
     SB_LOG(ERROR) << "Failed to initialize video decoder.";
     TeardownCodec();
@@ -221,6 +221,7 @@ SbTime VideoDecoder::GetPrerollTimeout() const {
 void VideoDecoder::WriteInputBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(input_buffer);
+  SB_DCHECK(input_buffer->sample_type() == kSbMediaTypeVideo);
   SB_DCHECK(decoder_status_cb_);
 
   if (!first_buffer_received_) {
@@ -229,12 +230,12 @@ void VideoDecoder::WriteInputBuffer(
 
     // If color metadata is present and is not an identity mapping, then
     // teardown the codec so it can be reinitalized with the new metadata.
-    auto* color_metadata = input_buffer->video_sample_info()->color_metadata;
-    if (color_metadata && !IsIdentity(*color_metadata)) {
+    auto& color_metadata = input_buffer->video_sample_info().color_metadata;
+    if (!IsIdentity(color_metadata)) {
       SB_DCHECK(!color_metadata_) << "Unexpected residual color metadata.";
       SB_LOG(INFO) << "Reinitializing codec with HDR color metadata.";
       TeardownCodec();
-      color_metadata_ = *color_metadata;
+      color_metadata_ = color_metadata;
     }
 
     // Re-initialize the codec now if it was torn down either in |Reset| or
@@ -278,6 +279,7 @@ void VideoDecoder::Reset() {
 }
 
 bool VideoDecoder::InitializeCodec() {
+  SB_DCHECK(BelongsToCurrentThread());
   // Setup the output surface object.  If we are in punch-out mode, target
   // the passed in Android video surface.  If we are in decode-to-texture
   // mode, create a surface from a new texture target and use that as the
@@ -285,7 +287,10 @@ bool VideoDecoder::InitializeCodec() {
   jobject j_output_surface = NULL;
   switch (output_mode_) {
     case kSbPlayerOutputModePunchOut: {
-      j_output_surface = GetVideoSurface();
+      j_output_surface = AcquireVideoSurface();
+      if (j_output_surface) {
+        owns_video_surface_ = true;
+      }
     } break;
     case kSbPlayerOutputModeDecodeToTexture: {
       // A width and height of (0, 0) is provided here because Android doesn't
@@ -313,14 +318,12 @@ bool VideoDecoder::InitializeCodec() {
     return false;
   }
 
-  ANativeWindow* video_window = GetVideoWindow();
-  if (!video_window) {
+  int width, height;
+  if (!GetVideoWindowSize(&width, &height)) {
     SB_LOG(ERROR)
         << "Can't initialize the codec since we don't have a video window.";
     return false;
   }
-  int width = ANativeWindow_getWidth(video_window);
-  int height = ANativeWindow_getHeight(video_window);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
@@ -338,6 +341,11 @@ bool VideoDecoder::InitializeCodec() {
 }
 
 void VideoDecoder::TeardownCodec() {
+  SB_DCHECK(BelongsToCurrentThread());
+  if (owns_video_surface_) {
+    ReleaseVideoSurface();
+    owns_video_surface_ = false;
+  }
   media_decoder_.reset();
   color_metadata_ = starboard::nullopt;
 
@@ -499,6 +507,21 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
   } else {
     return kSbDecodeTargetInvalid;
   }
+}
+
+void VideoDecoder::OnSurfaceDestroyed() {
+  if (!BelongsToCurrentThread()) {
+    // Wait until codec is stoped.
+    ScopedLock lock(surface_destroy_mutex_);
+    Schedule(std::bind(&VideoDecoder::OnSurfaceDestroyed, this));
+    surface_condition_variable_.WaitTimed(kSbTimeSecond);
+    return;
+  }
+  // When this function is called, the decoder no longer owns the surface.
+  owns_video_surface_ = false;
+  TeardownCodec();
+  ScopedLock lock(surface_destroy_mutex_);
+  surface_condition_variable_.Signal();
 }
 
 }  // namespace shared

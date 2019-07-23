@@ -12,8 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/log.h"
+#include <android/log.h>
+
+#include "starboard/android/shared/log_internal.h"
+#include "starboard/common/log.h"
+#include "starboard/thread.h"
 
 void SbLogRaw(const char* message) {
-  SbLog(kSbLogPriorityInfo, message);
+  __android_log_write(ANDROID_LOG_INFO, "starboard", message);
+  SbThreadSleep(::starboard::android::shared::GetLogSleepTime());
 }

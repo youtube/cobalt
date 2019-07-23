@@ -12,25 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/storage.h"
+#include "starboard/common/storage.h"
 
 #include "starboard/file.h"
 #include "starboard/shared/starboard/file_storage/storage_internal.h"
 #include "starboard/user.h"
 
-bool SbStorageDeleteRecord(SbUser user
-#if SB_API_VERSION >= 6
-                           ,
-                           const char* name
-#endif  // SB_API_VERSION >= 6
-                           ) {
+bool SbStorageDeleteRecord(SbUser user, const char* name) {
   if (!SbUserIsValid(user)) {
     return false;
   }
-
-#if SB_API_VERSION < 6
-  const char* name = NULL;
-#endif  // SB_API_VERSION < 6
 
   char path[SB_FILE_MAX_PATH];
   bool success = starboard::shared::starboard::GetUserStorageFilePath(

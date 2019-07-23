@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 int SbStringConcatWide(wchar_t* /*out_destination*/,
                        const wchar_t* /*source*/,

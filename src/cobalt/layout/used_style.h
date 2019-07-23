@@ -16,6 +16,7 @@
 #define COBALT_LAYOUT_USED_STYLE_H_
 
 #include "cobalt/cssom/css_computed_style_data.h"
+#include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/linear_gradient_value.h"
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/property_value.h"
@@ -333,33 +334,33 @@ base::Optional<LayoutUnit> GetUsedRightIfNotAuto(
 base::Optional<LayoutUnit> GetUsedBottomIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size);
-base::Optional<LayoutUnit> GetUsedFlexBasisIfNotAuto(
+base::Optional<LayoutUnit> GetUsedFlexBasisIfNotContent(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const LayoutUnit& flex_container_main_size,
-    bool* flex_basis_depends_on_flex_container);
+    const bool main_direction_is_horizontal,
+    const SizeLayoutUnit& flex_container_size,
+    bool* flex_basis_depends_on_available_space);
 base::Optional<LayoutUnit> GetUsedWidthIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size,
     bool* width_depends_on_containing_block);
 base::Optional<LayoutUnit> GetUsedMaxHeightIfNotNone(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const SizeLayoutUnit& containing_block_size,
-    bool* height_depends_on_containing_block);
+    const SizeLayoutUnit& containing_block_size);
 base::Optional<LayoutUnit> GetUsedMaxWidthIfNotNone(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size,
     bool* width_depends_on_containing_block);
 LayoutUnit GetUsedMinHeight(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const SizeLayoutUnit& containing_block_size,
-    bool* height_depends_on_containing_block);
+    const SizeLayoutUnit& containing_block_size);
 LayoutUnit GetUsedMinWidth(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size,
     bool* width_depends_on_containing_block);
 base::Optional<LayoutUnit> GetUsedHeightIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const SizeLayoutUnit& containing_block_size);
+    const SizeLayoutUnit& containing_block_size,
+    bool* height_depends_on_containing_block);
 base::Optional<LayoutUnit> GetUsedMarginLeftIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size);
@@ -392,6 +393,11 @@ LayoutUnit GetUsedPaddingRight(
 LayoutUnit GetUsedPaddingBottom(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size);
+
+const scoped_refptr<cobalt::cssom::PropertyValue>& GetUsedAlignSelf(
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>&
+        parent_computed_style);
 
 }  // namespace layout
 }  // namespace cobalt

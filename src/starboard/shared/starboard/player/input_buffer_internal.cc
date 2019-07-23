@@ -18,139 +18,78 @@
 #include <numeric>
 #include <sstream>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/memory.h"
+#include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard {
 namespace shared {
 namespace starboard {
 namespace player {
 
-namespace {
-
-std::string GetHexRepresentation(const uint8_t* data, int size) {
-  const char kBinToHex[] = "0123456789abcdef";
-
-  std::string result;
-
-  for (int i = 0; i < size; ++i) {
-    result += kBinToHex[data[i] / 16];
-    result += kBinToHex[data[i] % 16];
-    if (i != size - 1) {
-      result += ' ';
-    }
-  }
-
-  return result;
-}
-
-std::string GetStringRepresentation(const uint8_t* data, int size) {
-  std::string result;
-
-  for (int i = 0; i < size; ++i) {
-    if (std::isspace(data[i])) {
-      result += ' ';
-    } else if (std::isprint(data[i])) {
-      result += data[i];
-    } else {
-      result += '?';
-    }
-  }
-
-  return result;
-}
-
-std::string GetMixedRepresentation(const uint8_t* data,
-                                   int size,
-                                   int bytes_per_line) {
-  std::string result;
-
-  for (int i = 0; i < size; i += bytes_per_line) {
-    if (i + bytes_per_line <= size) {
-      result += GetHexRepresentation(data + i, bytes_per_line);
-      result += " | ";
-      result += GetStringRepresentation(data + i, bytes_per_line);
-      result += '\n';
-    } else {
-      int bytes_left = size - i;
-      result += GetHexRepresentation(data + i, bytes_left);
-      result += std::string((bytes_per_line - bytes_left) * 3, ' ');
-      result += " | ";
-      result += GetStringRepresentation(data + i, bytes_left);
-      result += std::string(bytes_per_line - bytes_left, ' ');
-      result += '\n';
-    }
-  }
-
-  return result;
-}
-
-}  // namespace
-
-InputBuffer::InputBuffer(SbMediaType sample_type,
-                         SbPlayerDeallocateSampleFunc deallocate_sample_func,
+#if SB_API_VERSION >= 11
+InputBuffer::InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
                          SbPlayer player,
                          void* context,
-                         const void* sample_buffer,
-                         int sample_buffer_size,
-                         SbTime sample_timestamp,
-                         const SbMediaVideoSampleInfo* video_sample_info,
-                         const SbDrmSampleInfo* sample_drm_info)
-    : sample_type_(sample_type),
-      deallocate_sample_func_(deallocate_sample_func),
+                         const SbPlayerSampleInfo& sample_info)
+    : deallocate_sample_func_(deallocate_sample_func),
       player_(player),
       context_(context),
-      data_(static_cast<const uint8_t*>(sample_buffer)),
-      size_(sample_buffer_size),
-      timestamp_(sample_timestamp) {
+      sample_type_(sample_info.type),
+      data_(static_cast<const uint8_t*>(sample_info.buffer)),
+      size_(sample_info.buffer_size),
+      timestamp_(sample_info.timestamp) {
   SB_DCHECK(deallocate_sample_func);
-  TryToAssignVideoSampleInfo(video_sample_info);
-  TryToAssignDrmSampleInfo(sample_drm_info);
-}
 
-InputBuffer::InputBuffer(SbMediaType sample_type,
-                         SbPlayerDeallocateSampleFunc deallocate_sample_func,
-                         SbPlayer player,
-                         void* context,
-                         const void* const* sample_buffers,
-                         const int* sample_buffer_sizes,
-                         int number_of_sample_buffers,
-                         SbTime sample_timestamp,
-                         const SbMediaVideoSampleInfo* video_sample_info,
-                         const SbDrmSampleInfo* sample_drm_info)
-    : sample_type_(sample_type),
-      deallocate_sample_func_(deallocate_sample_func),
-      player_(player),
-      context_(context),
-      timestamp_(sample_timestamp) {
-  SB_DCHECK(deallocate_sample_func);
-  SB_DCHECK(number_of_sample_buffers > 0);
-
-  TryToAssignVideoSampleInfo(video_sample_info);
-  TryToAssignDrmSampleInfo(sample_drm_info);
-
-  if (number_of_sample_buffers == 1) {
-    data_ = static_cast<const uint8_t*>(sample_buffers[0]);
-    size_ = sample_buffer_sizes[0];
-  } else if (number_of_sample_buffers > 1) {
-    // TODO: This simply concatenating multi-part buffers into one large
-    // buffer.  It serves the purpose to test the Cobalt media code work with
-    // multi-part sample buffer but we should proper implement InputBuffer to
-    // ensure that the concatenating of multi-part buffers is handled inside
-    // the renderers or the decoders so the SbPlayer implementation won't use
-    // too much memory.
-    size_ = std::accumulate(sample_buffer_sizes,
-                            sample_buffer_sizes + number_of_sample_buffers, 0);
-    flattened_data_.reserve(size_);
-    for (int i = 0; i < number_of_sample_buffers; ++i) {
-      const uint8_t* data = static_cast<const uint8_t*>(sample_buffers[i]);
-      flattened_data_.insert(flattened_data_.end(), data,
-                             data + sample_buffer_sizes[i]);
-    }
-    DeallocateSampleBuffer(sample_buffers[0]);
-    data_ = flattened_data_.data();
+  if (sample_type_ == kSbMediaTypeAudio) {
+    audio_sample_info_ = sample_info.audio_sample_info;
+  } else {
+    SB_DCHECK(sample_type_ == kSbMediaTypeVideo);
+    video_sample_info_ = sample_info.video_sample_info;
+  }
+  TryToAssignDrmSampleInfo(sample_info.drm_info);
+  if (sample_info.side_data_count > 0) {
+    SB_DCHECK(sample_info.side_data_count == 1);
+    SB_DCHECK(sample_info.side_data);
+    SB_DCHECK(sample_info.side_data->type == kMatroskaBlockAdditional);
+    SB_DCHECK(sample_info.side_data->data);
+    // Make a copy anyway as it is possible to release |data_| earlier in
+    // SetDecryptedContent().
+    side_data_.assign(
+        sample_info.side_data->data,
+        sample_info.side_data->data + sample_info.side_data->size);
   }
 }
+#else   // SB_API_VERSION >= 11
+InputBuffer::InputBuffer(SbMediaType sample_type,
+                         SbPlayerDeallocateSampleFunc dealloate_sample_func,
+                         SbPlayer player,
+                         void* context,
+                         const SbPlayerSampleInfo& sample_info,
+                         const SbMediaAudioSampleInfo* audio_sample_info)
+    : deallocate_sample_func_(dealloate_sample_func),
+      player_(player),
+      context_(context),
+      sample_type_(sample_type),
+      data_(static_cast<const uint8_t*>(sample_info.buffer)),
+      size_(sample_info.buffer_size),
+      timestamp_(sample_info.timestamp) {
+  SB_DCHECK(deallocate_sample_func_);
+
+  if (sample_type_ == kSbMediaTypeVideo) {
+    SB_DCHECK(sample_info.video_sample_info);
+    video_sample_info_ = *sample_info.video_sample_info;
+    if (video_sample_info_.color_metadata) {
+      color_metadata_ = *video_sample_info_.color_metadata;
+      video_sample_info_.color_metadata = &color_metadata_;
+    }
+  } else {
+    SB_DCHECK(sample_type_ == kSbMediaTypeAudio && audio_sample_info);
+    audio_sample_info_ = *audio_sample_info;
+  }
+  TryToAssignDrmSampleInfo(sample_info.drm_info);
+}
+#endif  // SB_API_VERSION >= 11
 
 InputBuffer::~InputBuffer() {
   DeallocateSampleBuffer(data_);
@@ -167,19 +106,21 @@ void InputBuffer::SetDecryptedContent(const void* buffer, int size) {
   } else {
     data_ = NULL;
   }
-  size_ = size;
   has_drm_info_ = false;
 }
 
 std::string InputBuffer::ToString() const {
   std::stringstream ss;
   ss << "========== " << (has_drm_info_ ? "encrypted " : "clear ")
-     << (sample_type_ == kSbMediaTypeAudio ? "audio" : "video")
-     << " sample @ timestamp: " << timestamp_ << " in " << size_
+     << (sample_type() == kSbMediaTypeAudio ? "audio" : "video")
+     << " sample @ timestamp: " << timestamp() << " in " << size()
      << " bytes ==========\n";
-  if (has_video_sample_info_) {
-    ss << video_sample_info_.frame_width << " x "
-       << video_sample_info_.frame_height << '\n';
+  if (sample_type() == kSbMediaTypeAudio) {
+    ss << audio_sample_info().samples_per_second << '\n';
+  } else {
+    SB_DCHECK(sample_type() == kSbMediaTypeVideo);
+    ss << video_sample_info().frame_width << " x "
+       << video_sample_info().frame_height << '\n';
   }
   if (has_drm_info_) {
     ss << "iv: "
@@ -194,25 +135,14 @@ std::string InputBuffer::ToString() const {
          << drm_info_.subsample_mapping[i].encrypted_byte_count << "\n";
     }
   }
-  ss << GetMixedRepresentation(data_, size_, 16) << '\n';
+  if (!side_data_.empty()) {
+    ss << "side data: "
+       << GetHexRepresentation(side_data_.data(),
+                               static_cast<int>(side_data_.size()))
+       << '\n';
+  }
+  ss << GetMixedRepresentation(data(), size(), 16) << '\n';
   return ss.str();
-}
-
-void InputBuffer::TryToAssignVideoSampleInfo(
-    const SbMediaVideoSampleInfo* video_sample_info) {
-  has_video_sample_info_ = video_sample_info != NULL;
-
-  if (!has_video_sample_info_) {
-    return;
-  }
-
-  video_sample_info_ = *video_sample_info;
-  if (video_sample_info_.color_metadata) {
-    color_metadata_ = *video_sample_info_.color_metadata;
-    video_sample_info_.color_metadata = &color_metadata_;
-  } else {
-    video_sample_info_.color_metadata = NULL;
-  }
 }
 
 void InputBuffer::TryToAssignDrmSampleInfo(

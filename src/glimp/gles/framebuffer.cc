@@ -15,7 +15,7 @@
  */
 
 #include "glimp/gles/framebuffer.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace glimp {
 namespace gles {

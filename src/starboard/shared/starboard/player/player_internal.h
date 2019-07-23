@@ -31,6 +31,7 @@ struct SbPlayerPrivate {
   static SbPlayerPrivate* CreateInstance(
       SbMediaAudioCodec audio_codec,
       SbMediaVideoCodec video_codec,
+      const SbMediaAudioSampleInfo* audio_sample_info,
       SbPlayerDeallocateSampleFunc sample_deallocate_func,
       SbPlayerDecoderStatusFunc decoder_status_func,
       SbPlayerStatusFunc player_status_func,
@@ -41,13 +42,12 @@ struct SbPlayerPrivate {
       starboard::scoped_ptr<PlayerWorker::Handler> player_worker_handler);
 
   void Seek(SbTime seek_to_time, int ticket);
+#if SB_API_VERSION >= 11
+  void WriteSample(const SbPlayerSampleInfo& sample_info);
+#else   // SB_API_VERSION >= 11
   void WriteSample(SbMediaType sample_type,
-                   const void* const* sample_buffers,
-                   const int* sample_buffer_sizes,
-                   int number_of_sample_buffers,
-                   SbTime sample_time,
-                   const SbMediaVideoSampleInfo* video_sample_info,
-                   const SbDrmSampleInfo* sample_drm_info);
+                   const SbPlayerSampleInfo& sample_info);
+#endif  // SB_API_VERSION >= 11
   void WriteEndOfStream(SbMediaType stream_type);
   void SetBounds(int z_index, int x, int y, int width, int height);
 
@@ -70,6 +70,7 @@ struct SbPlayerPrivate {
   SbPlayerPrivate(
       SbMediaAudioCodec audio_codec,
       SbMediaVideoCodec video_codec,
+      const SbMediaAudioSampleInfo* audio_sample_info,
       SbPlayerDeallocateSampleFunc sample_deallocate_func,
       SbPlayerDecoderStatusFunc decoder_status_func,
       SbPlayerStatusFunc player_status_func,
@@ -86,6 +87,9 @@ struct SbPlayerPrivate {
 
   SbPlayerDeallocateSampleFunc sample_deallocate_func_;
   void* context_;
+#if SB_API_VERSION < 11
+  SbMediaAudioSampleInfo audio_sample_info_;
+#endif  // SB_API_VERSION < 11
 
   starboard::Mutex mutex_;
   int ticket_ = SB_PLAYER_INITIAL_TICKET;

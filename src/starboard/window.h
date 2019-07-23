@@ -109,7 +109,7 @@ SB_EXPORT SbWindow SbWindowCreate(const SbWindowOptions* options);
 //
 // A return value of 0 means that starboard does not know what the
 // screen diagonal is.
-#if SB_API_VERSION >= SB_HAS_SCREEN_DIAGONAL_API_VERSION
+#if SB_API_VERSION >= 11
 SB_EXPORT float SbWindowGetDiagonalSizeInInches(SbWindow window);
 #endif
 
@@ -206,7 +206,7 @@ SB_EXPORT void SbWindowFocusOnScreenKeyboard(SbWindow window, int ticket);
 // is not showing does nothing and does not fire any event.
 SB_EXPORT void SbWindowBlurOnScreenKeyboard(SbWindow window, int ticket);
 
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#if SB_API_VERSION >= 11
 // Update the on screen keyboard custom suggestions. Fire
 // kSbEventTypeOnScreenKeyboardSuggestionsUpdated.
 // kSbEventTypeOnScreenKeyboardSuggestionsUpdated has data |ticket|. The
@@ -222,7 +222,7 @@ SB_EXPORT void SbWindowUpdateOnScreenKeyboardSuggestions(
 // returns false, then calling SbWindowUpdateOnScreenKeyboardSuggestions() will
 // be undefined.
 SB_EXPORT bool SbWindowOnScreenKeyboardSuggestionsSupported(SbWindow window);
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#endif  // SB_API_VERSION >= 11
 
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 

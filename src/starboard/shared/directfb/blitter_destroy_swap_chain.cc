@@ -15,7 +15,7 @@
 #include <directfb.h>
 
 #include "starboard/blitter.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/directfb/blitter_internal.h"
 
 SB_EXPORT bool SbBlitterDestroySwapChain(SbBlitterSwapChain swap_chain) {

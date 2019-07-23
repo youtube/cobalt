@@ -146,8 +146,8 @@ AnonymousBlockBox::UpdateRectOfInFlowChildBoxes(
   std::unique_ptr<InlineFormattingContext> inline_formatting_context(
       new InlineFormattingContext(
           computed_style()->line_height(), used_font_->GetFontMetrics(),
-          child_layout_params, GetBaseDirection(),
-          computed_style()->text_align(), computed_style()->font_size(),
+          child_layout_params, base_direction(), computed_style()->text_align(),
+          computed_style()->font_size(),
           GetUsedLength(computed_style()->text_indent()),
           LayoutUnit(ellipsis_width)));
 

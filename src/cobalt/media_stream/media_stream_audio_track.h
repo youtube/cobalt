@@ -83,7 +83,7 @@ class MediaStreamAudioTrack : public MediaStreamTrack {
   void OnData(const ShellAudioBus& audio_bus, base::TimeTicks reference_time);
   void OnSetFormat(const media_stream::AudioParameters& params);
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   MediaStreamAudioDeliverer<MediaStreamAudioSink> deliverer_;
 
   MediaStreamAudioTrack(const MediaStreamAudioTrack&) = delete;

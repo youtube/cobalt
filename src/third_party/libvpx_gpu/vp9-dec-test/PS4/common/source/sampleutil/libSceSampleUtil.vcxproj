@@ -1,0 +1,1301 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|ORBIS">
+      <Configuration>Debug</Configuration>
+      <Platform>ORBIS</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|ORBIS">
+      <Configuration>Release</Configuration>
+      <Platform>ORBIS</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{30A1B994-C2C6-485F-911B-FB4674366DA8}</ProjectGuid>
+    <ProjectName>libSceSampleUtil</ProjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">
+    <ClCompile>
+      <PreprocessorDefinitions>_DEBUG;SCE_SAMPLE_UTIL_ASSERTS_ENABLED=1;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+<AdditionalIncludeDirectories>$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\include\external\tinyxml;$(ProjectDir)\..\sampleutil;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>-frtti  -Wno-unknown-pragmas  -Wnull-conversion %(AdditionalOptions)</AdditionalOptions>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Lib>
+      <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PreprocessorDefinitions>_DEBUG;SCE_SAMPLE_UTIL_ASSERTS_ENABLED=1;SCE_SAMPLE_UTIL_BUILD;SCE_DBG_LOGGING_ENABLED=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalIncludeDirectories>$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\include\external\tinyxml;$(ProjectDir)\..\sampleutil;$(SCE_PSP2_SDK_DIR)\target\include_common;$(CG_INC_PATH);$(SCE_PSP2_SDK_DIR)\host_tools\include;$(SCE_ORBIS_SDK_DIR)\host_tools\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+    </ClCompile>
+    <Lib>
+      <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
+    </Lib>
+    <Link>
+      <AdditionalLibraryDirectories>$(CG_LIB64_PATH);$(SCE_ORBIS_SDK_DIR)\host_tools\lib;$(SCE_ORBIS_SAMPLE_DIR)\sample_code\common\lib.x64\external;$(SCE_PSP2_SDK_DIR)\host_tools\lib.x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>tinyxml.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">
+    <ClCompile>
+      <PreprocessorDefinitions>SCE_SAMPLE_UTIL_ASSERTS_ENABLED=1;SCE_SAMPLE_UTIL_RELEASE=1;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <OptimizationLevel>Level2</OptimizationLevel>
+<AdditionalIncludeDirectories>$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\include\external\tinyxml;$(ProjectDir)\..\sampleutil;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>-frtti  -Wno-unknown-pragmas %(AdditionalOptions)</AdditionalOptions>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Warnings>MoreWarnings</Warnings>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <PreprocessorDefinitions>SCE_SAMPLE_UTIL_ASSERTS_ENABLED=1;SCE_SAMPLE_UTIL_BUILD;SCE_DBG_LOGGING_ENABLED=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <OptimizationLevel>Level2</OptimizationLevel>
+      <AdditionalIncludeDirectories>$(ProjectDir)\..\..\include;$(ProjectDir)\..\..\include\external\tinyxml;$(ProjectDir)\..\sampleutil;$(SCE_PSP2_SDK_DIR)\target\include_common;$(CG_INC_PATH);$(SCE_PSP2_SDK_DIR)\host_tools\include;$(SCE_ORBIS_SDK_DIR)\host_tools\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(CG_LIB64_PATH);$(SCE_ORBIS_SDK_DIR)\host_tools\lib;$(SCE_ORBIS_SAMPLE_DIR)\sample_code\common\lib.x64\external;$(SCE_PSP2_SDK_DIR)\host_tools\lib.x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>tinyxml.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\include\sampleutil.h" />
+    <ClInclude Include="..\..\include\sampleutil\audio.h" />
+    <ClInclude Include="..\..\include\sampleutil\audio\context.h" />
+    <ClInclude Include="..\..\include\sampleutil\audio\data.h" />
+    <ClInclude Include="..\..\include\sampleutil\audio\voice.h" />
+    <ClInclude Include="..\..\include\sampleutil\debug\console.h" />
+    <ClInclude Include="..\..\include\sampleutil\debug\menu.h" />
+    <ClInclude Include="..\..\include\sampleutil\graphics.h" />
+    <ClInclude Include="..\..\include\sampleutil\graphics\buffer.h" />
+    <ClInclude Include="..\..\include\sampleutil\graphics\collada.h" />
+    <ClInclude Include="..\..\include\sampleutil\graphics\collada\collada_animation.h" />
+    <ClInclude Include="..\..\include\sampleutil\graphics\collada\collada_base.h" />
+    <ClInclude Include="..\..\include\sampleutil\graphics\collada\collada_effect.h" />
+    <ClInclude Include="..\..\include\sampleutil\graphics\collada\collada_geometry.h" />
+    <ClInclude Include="..\..\include\sampleutil\graphics\collada\collada_image.h" />
+    <ClInclude Include="..\..\include\sampleutil\graphics\collada\collada_scene.h" />
+    <ClInclude Include="..\..\include\sampleutil\graphics\constant.h" />
+    <ClInclude Include="..\..\include\sampleutil\graphics\context.h" />
+    <ClInclude Include="..\..\include\sampleutil\graphics\effect.h" />
+    <ClInclude Include="..\..\include\sampleutil\graphics\font.h" />
+    <ClInclude Include="..\..\include\sampleutil\graphics\loader.h" />
+    <ClInclude Include="..\..\include\sampleutil\graphics\platform.h" />
+    <ClInclude Include="..\..\include\sampleutil\graphics\platform_dx11\platform_dx11.h" />
+    <ClInclude Include="..\..\include\sampleutil\graphics\platform_gnm\platform_gnm.h" />
+    <ClInclude Include="..\..\include\sampleutil\graphics\platform_gxm\platform_gxm.h" />
+    <ClInclude Include="..\..\include\sampleutil\graphics\program.h" />
+    <ClInclude Include="..\..\include\sampleutil\graphics\sprite.h" />
+    <ClInclude Include="..\..\include\sampleutil\input.h" />
+    <ClInclude Include="..\..\include\sampleutil\input\controller.h" />
+    <ClInclude Include="..\..\include\sampleutil\input\motion.h" />
+    <ClInclude Include="..\..\include\sampleutil\input\touch.h" />
+    <ClInclude Include="..\..\include\sampleutil\sampleutil_common.h" />
+    <ClInclude Include="..\..\include\sampleutil\sampleutil_error.h" />
+    <ClInclude Include="..\..\include\sampleutil\skeleton.h" />
+    <ClInclude Include="..\..\include\sampleutil\system.h" />
+    <ClInclude Include="audio\audio_internal.h" />
+    <ClInclude Include="audio\ngs2\ngs2_internal.h" />
+    <ClInclude Include="audio\ngs2\ngs2_stream.h" />
+    <ClInclude Include="audio\ngs\ngs_internal.h" />
+    <ClInclude Include="audio\ngs\ngs_module.h" />
+    <ClInclude Include="debug\debug_menu_internal.h" />
+    <ClInclude Include="graphics\collada\collada_internal.h" />
+    <ClInclude Include="graphics\collada\collada_material.h" />
+    <ClInclude Include="graphics\collada\collada_scene.h" />
+    <ClInclude Include="graphics\collada\collada_transform.h" />
+    <ClInclude Include="graphics\collada\collada_util.h" />
+    <ClInclude Include="graphics\collada\dae\dae.h" />
+    <ClInclude Include="graphics\collada\dae\dae_animation.h" />
+    <ClInclude Include="graphics\collada\dae\dae_common.h" />
+    <ClInclude Include="graphics\collada\dae\dae_control.h" />
+    <ClInclude Include="graphics\collada\dae\dae_data_flow.h" />
+    <ClInclude Include="graphics\collada\dae\dae_effect.h" />
+    <ClInclude Include="graphics\collada\dae\dae_geometry.h" />
+    <ClInclude Include="graphics\collada\dae\dae_scene.h" />
+    <ClInclude Include="graphics\collada\dae\dae_transform.h" />
+    <ClInclude Include="graphics\collada\dae\dae_vscene.h" />
+    <ClInclude Include="graphics\constant_internal.h" />
+    <ClInclude Include="graphics\font_internal.h" />
+    <ClInclude Include="graphics\graphics_internal.h" />
+    <ClInclude Include="graphics\image.h" />
+    <ClInclude Include="graphics\platform_dx11\buffer_internal_dx11.h" />
+    <ClInclude Include="graphics\platform_dx11\constant_internal_dx11.h" />
+    <ClInclude Include="graphics\platform_dx11\context_internal_dx11.h" />
+    <ClInclude Include="graphics\platform_dx11\dx11_internal.h" />
+    <ClInclude Include="graphics\platform_dx11\font_win.h" />
+    <ClInclude Include="graphics\platform_dx11\loader_internal_dx11.h" />
+    <ClInclude Include="graphics\platform_dx11\program_internal_dx11.h" />
+    <ClInclude Include="graphics\platform_gnm\buffer_internal_gnm.h" />
+    <ClInclude Include="graphics\platform_gnm\constant_internal_gnm.h" />
+    <ClInclude Include="graphics\platform_gnm\context_internal_gnm.h" />
+    <ClInclude Include="graphics\platform_gnm\font_orbis.h" />
+    <ClInclude Include="graphics\platform_gnm\gnm_internal.h" />
+    <ClInclude Include="graphics\platform_gnm\heap_gnm.h" />
+    <ClInclude Include="graphics\platform_gnm\image_gnm.h" />
+    <ClInclude Include="graphics\platform_gnm\loader_internal_gnm.h" />
+    <ClInclude Include="graphics\platform_gnm\program_internal_gnm.h" />
+    <ClInclude Include="graphics\platform_gxm\buffer_internal_gxm.h" />
+    <ClInclude Include="graphics\platform_gxm\constant_internal_gxm.h" />
+    <ClInclude Include="graphics\platform_gxm\context_internal_gxm.h" />
+    <ClInclude Include="graphics\platform_gxm\font_psp2.h" />
+    <ClInclude Include="graphics\platform_gxm\gxm_internal.h" />
+    <ClInclude Include="graphics\platform_gxm\heap_gxm.h" />
+    <ClInclude Include="graphics\platform_gxm\loader_internal_gxm.h" />
+    <ClInclude Include="graphics\platform_gxm\program_internal_gxm.h" />
+    <ClInclude Include="graphics\platform_gxm\texture_util_gxm.h" />
+    <ClInclude Include="graphics\sprite_internal.h" />
+    <ClInclude Include="input\controller_common.h" />
+    <ClInclude Include="input\pad_common.h" />
+    <ClInclude Include="resource\resource_manager.h" />
+    <ClInclude Include="resource\shader_base.h" />
+    <ClInclude Include="resource\std_cbuffer.h" />
+    <ClInclude Include="sampleutil_internal.h" />
+    <ClInclude Include="stdafx.h" />
+    <ClInclude Include="util\util.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="audio\audio.cpp" />
+    <ClCompile Include="audio\audio_data.cpp" />
+    <ClCompile Include="audio\ngs2\ngs2_context.cpp" />
+    <ClCompile Include="audio\ngs2\ngs2_data.cpp" />
+    <ClCompile Include="audio\ngs2\ngs2_rack.cpp" />
+    <ClCompile Include="audio\ngs2\ngs2_stream.cpp" />
+    <ClCompile Include="audio\ngs2\ngs2_thread.cpp" />
+    <ClCompile Include="audio\ngs2\ngs2_voice.cpp" />
+    <ClCompile Include="audio\ngs\ngs_audio_util.cpp" />
+    <ClCompile Include="audio\ngs\ngs_buss.cpp" />
+    <ClCompile Include="audio\ngs\ngs_context.cpp" />
+    <ClCompile Include="audio\ngs\ngs_data.cpp" />
+    <ClCompile Include="audio\ngs\ngs_module.cpp" />
+    <ClCompile Include="audio\ngs\ngs_stream.cpp" />
+    <ClCompile Include="audio\ngs\ngs_voice.cpp" />
+    <ClCompile Include="audio\ngs\ngs_worker_thread.cpp" />
+    <ClCompile Include="debug\console.cpp" />
+    <ClCompile Include="debug\debug_menu_item_group.cpp" />
+    <ClCompile Include="debug\menu.cpp" />
+    <ClCompile Include="graphics\buffer.cpp" />
+    <ClCompile Include="graphics\collada\collada.cpp" />
+    <ClCompile Include="graphics\collada\collada_animation.cpp" />
+    <ClCompile Include="graphics\collada\collada_base.cpp" />
+    <ClCompile Include="graphics\collada\collada_controller.cpp" />
+    <ClCompile Include="graphics\collada\collada_effect.cpp" />
+    <ClCompile Include="graphics\collada\collada_geometry.cpp" />
+    <ClCompile Include="graphics\collada\collada_image.cpp" />
+    <ClCompile Include="graphics\collada\collada_scene.cpp" />
+    <ClCompile Include="graphics\collada\collada_util.cpp" />
+    <ClCompile Include="graphics\collada\dae\dae_animation.cpp" />
+    <ClCompile Include="graphics\collada\dae\dae_control.cpp" />
+    <ClCompile Include="graphics\collada\dae\dae_data_flow.cpp" />
+    <ClCompile Include="graphics\collada\dae\dae_effect.cpp" />
+    <ClCompile Include="graphics\collada\dae\dae_geom.cpp" />
+    <ClCompile Include="graphics\collada\dae\dae_geometry.cpp" />
+    <ClCompile Include="graphics\collada\dae\dae_scene.cpp" />
+    <ClCompile Include="graphics\collada\dae\dae_transform.cpp" />
+    <ClCompile Include="graphics\effect.cpp" />
+    <ClCompile Include="graphics\font.cpp" />
+    <ClCompile Include="graphics\frame_buffer.cpp" />
+    <ClCompile Include="graphics\image.cpp" />
+    <ClCompile Include="graphics\loader.cpp" />
+    <ClCompile Include="graphics\platform_dx11\buffer_dx11.cpp" />
+    <ClCompile Include="graphics\platform_dx11\constant_dx11.cpp" />
+    <ClCompile Include="graphics\platform_dx11\context_dx11.cpp" />
+    <ClCompile Include="graphics\platform_dx11\font_win.cpp" />
+    <ClCompile Include="graphics\platform_dx11\frame_buffer_dx11.cpp" />
+    <ClCompile Include="graphics\platform_dx11\image_dx11.cpp" />
+    <ClCompile Include="graphics\platform_dx11\loader_dx11.cpp" />
+    <ClCompile Include="graphics\platform_dx11\program_dx11.cpp" />
+    <ClCompile Include="graphics\platform_dx11\render_target_dx11.cpp" />
+    <ClCompile Include="graphics\platform_dx11\texture_dx11.cpp" />
+    <ClCompile Include="graphics\platform_gnm\buffer_gnm.cpp" />
+    <ClCompile Include="graphics\platform_gnm\constant_gnm.cpp" />
+    <ClCompile Include="graphics\platform_gnm\context_gnm.cpp" />
+    <ClCompile Include="graphics\platform_gnm\font_orbis.cpp" />
+    <ClCompile Include="graphics\platform_gnm\frame_buffer_gnm.cpp" />
+    <ClCompile Include="graphics\platform_gnm\heap_gnm.cpp" />
+    <ClCompile Include="graphics\platform_gnm\image_gnm.cpp" />
+    <ClCompile Include="graphics\platform_gnm\loader_gnm.cpp" />
+    <ClCompile Include="graphics\platform_gnm\memory_gnm.cpp" />
+    <ClCompile Include="graphics\platform_gnm\program_gnm.cpp" />
+    <ClCompile Include="graphics\platform_gnm\render_target_gnm.cpp" />
+    <ClCompile Include="graphics\platform_gnm\shader_loader_gnm.cpp" />
+    <ClCompile Include="graphics\platform_gnm\texture_gnm.cpp" />
+    <ClCompile Include="graphics\platform_gxm\buffer_gxm.cpp" />
+    <ClCompile Include="graphics\platform_gxm\constant_gxm.cpp" />
+    <ClCompile Include="graphics\platform_gxm\context_gxm.cpp" />
+    <ClCompile Include="graphics\platform_gxm\font_psp2.cpp" />
+    <ClCompile Include="graphics\platform_gxm\frame_buffer_gxm.cpp" />
+    <ClCompile Include="graphics\platform_gxm\heap_gxm.cpp" />
+    <ClCompile Include="graphics\platform_gxm\image_gxm.cpp" />
+    <ClCompile Include="graphics\platform_gxm\loader_gxm.cpp" />
+    <ClCompile Include="graphics\platform_gxm\program_gxm.cpp" />
+    <ClCompile Include="graphics\platform_gxm\render_target_gxm.cpp" />
+    <ClCompile Include="graphics\platform_gxm\texture_gxm.cpp" />
+    <ClCompile Include="graphics\platform_gxm\texture_util_gxm.cpp" />
+    <ClCompile Include="graphics\program.cpp" />
+    <ClCompile Include="graphics\sprite.cpp" />
+    <ClCompile Include="graphics\sprite_effect_2d.cpp" />
+    <ClCompile Include="graphics\texture.cpp" />
+    <ClCompile Include="input\controller_common.cpp" />
+    <ClCompile Include="input\orbis\pad_orbis.cpp" />
+    <ClCompile Include="input\pad_common.cpp" />
+    <ClCompile Include="input\psp2\controller_psp2.cpp" />
+    <ClCompile Include="input\psp2\motion_psp2.cpp" />
+    <ClCompile Include="input\psp2\pad_psp2.cpp" />
+    <ClCompile Include="input\psp2\touch_psp2.cpp" />
+    <ClCompile Include="input\win\controller_win.cpp" />
+    <ClCompile Include="input\win\pad_win.cpp" />
+    <ClCompile Include="input\win\touch_win.cpp" />
+    <ClCompile Include="resource\dllmain.cpp" />
+    <ClCompile Include="resource\resource_manager.cpp" />
+    <ClCompile Include="sampleutil_common.cpp" />
+    <ClCompile Include="skeleton.cpp" />
+    <ClCompile Include="system\orbis\save_data_orbis.cpp" />
+    <ClCompile Include="system\orbis\user_orbis.cpp" />
+    <ClCompile Include="system\psp2\save_data_psp2.cpp" />
+    <ClCompile Include="system\psp2\user_psp2.cpp" />
+    <ClCompile Include="system\win\save_data_win.cpp" />
+    <ClCompile Include="system\win\user_win.cpp" />
+    <ClCompile Include="util\util.cpp" />
+    <ClCompile Include="util\util_streaming.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="resource\sampleutil_fill2d_f.pssl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">
+      </AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">
+      </AdditionalInputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_fill2d_v.pssl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="resource\sampleutil_clear_p.pssl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_clear_vv.pssl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="resource\sampleutil_point_sprite2d_f.pssl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">
+      </AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">
+      </AdditionalInputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_point_sprite2d_v.pssl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_f.pssl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_v.pssl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_collada_skinning_phong_f.pssl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_collada_skinning_phong_v.pssl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis  "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_ascii.tga">
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+copy "%(FullPath)" "$(IntDir)%(Filename).tga"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).tga" "%(Filename).obj"
+popd
+</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">if not exist "$(IntDir)" md "$(IntDir)"
+copy "%(FullPath)" "$(IntDir)%(Filename).tga"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).tga" "%(Filename).obj"
+popd
+</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "%(FullPath)" -b2e PSP2,_binary_%(Filename)_tga_start,_binary_%(Filename)_tga_size -o "$(IntDir)%(Filename)_tga.obj"
+</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">$(IntDir)%(Filename).obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_tga.obj;%(Outputs)</Outputs>
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+copy "%(FullPath)" "$(IntDir)%(Filename).tga"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).tga" "%(Filename).obj"
+popd
+</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">if not exist "$(IntDir)" md "$(IntDir)"
+copy "%(FullPath)" "$(IntDir)%(Filename).tga"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).tga" "%(Filename).obj"
+popd
+</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "%(FullPath)" -b2e PSP2,_binary_%(Filename)_tga_start,_binary_%(Filename)_tga_size -o "$(IntDir)%(Filename)_tga.obj"
+</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">$(IntDir)%(Filename).obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename).obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_tga.obj;%(Outputs)</Outputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="resource\sampleutil_clear_f.cg">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_fp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_fp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</ExcludedFromBuild>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_clear_v.cg">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_vp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_vp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</ExcludedFromBuild>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_collada_skinning_phong_f.cg">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_fp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_fp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</ExcludedFromBuild>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_collada_skinning_phong_v.cg">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_vp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_vp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</ExcludedFromBuild>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_fill2d_f.cg">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_fp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_fp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</ExcludedFromBuild>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_fill2d_v.cg">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_vp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_vp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</ExcludedFromBuild>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_point_sprite2d_f.cg">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_fp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_fp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</ExcludedFromBuild>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_point_sprite2d_v.cg">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_vp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_vp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</ExcludedFromBuild>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_f.cg">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_fp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_fp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</ExcludedFromBuild>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_v.cg">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_vp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_vp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</ExcludedFromBuild>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_2_f.cg">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_fp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_fp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</ExcludedFromBuild>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_2_v.cg">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_vp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_vp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</ExcludedFromBuild>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_2_f.pssl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_2_v.pssl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_yuy2_f.cg">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_fp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_fp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_yuy2_f.pssl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">true</ExcludedFromBuild>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_yuy2_v.cg">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_vp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_vp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_yuy2_v.pssl">
+      <FileType>Document</FileType>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">true</ExcludedFromBuild>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_fill3d_f.cg">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_fp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_fp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_fill3d_f.pssl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">true</ExcludedFromBuild>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_sb.obj;</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_sb.obj;</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_fill3d_v.cg">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_vp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_vp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_fill3d_v.pssl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">true</ExcludedFromBuild>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_sb.obj;</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_sb.obj;</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_wireframe_f.cg">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_fp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_fp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_wireframe_f.pssl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_wireframe_v.cg">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_vp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">"$(SCE_PSP2_SDK_DIR)"\host_tools\bin\psp2cgc.exe --profile sce_vp_psp2 "%(FullPath)" -o "$(IntDir)%(Filename).gxp"
+"$(SCE_PSP2_SDK_DIR)"\host_tools\build\bin\psp2bin.exe "$(IntDir)%(Filename).gxp" -b2e PSP2,_binary_%(Filename)_gxp_start,_binary_%(Filename)_gxp_size,4 -o "$(IntDir)%(Filename)_gxp.obj"
+</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|PSVita'">$(IntDir)%(Filename)_gxp.obj;%(Outputs)</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_wireframe_v.pssl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">$(IntDir)%(Filename)_sb.obj;%(Outputs)</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_ycbcr_f.pssl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd
+</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_ps_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd
+</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Compiling Fragment Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">$(IntDir)%(Filename)_sb.obj</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="resource\sampleutil_sprite2d_ycbcr_v.pssl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd
+</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">if not exist "$(IntDir)" md "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-wave-psslc.exe" -profile sce_vs_vs_orbis "%(FullPath)" -o "$(IntDir)%(Filename).sb"
+pushd "$(IntDir)"
+"$(SCE_ORBIS_SDK_DIR)\host_tools\bin\orbis-objcopy.exe"  -I binary -O elf64-x86-64  -B i386 "%(Filename).sb" "%(Filename)_sb.obj"
+popd
+</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">$(IntDir)%(Filename)_sb.obj</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Compiling Vertex Shader: "%(FullPath)"</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">$(IntDir)%(Filename)_sb.obj</Outputs>
+    </CustomBuild>
+    <None Include="resource\vsoutput.hs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="resource\libSceSampleUtil.rc" />
+  </ItemGroup>
+  <Import Condition="'$(ConfigurationType)' == 'Makefile' and Exists('$(VCTargetsPath)\Platforms\$(Platform)\SCE.Makefile.$(Platform).targets')" Project="$(VCTargetsPath)\Platforms\$(Platform)\SCE.Makefile.$(Platform).targets" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

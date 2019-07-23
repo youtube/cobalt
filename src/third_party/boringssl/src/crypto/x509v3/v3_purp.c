@@ -70,6 +70,11 @@
 
 #include "../internal.h"
 
+#if defined(STARBOARD)
+#include "starboard/system.h"
+#define bsearch SbSystemBinarySearch
+#endif
+
 #define V1_ROOT (EXFLAG_V1|EXFLAG_SS)
 #define ku_reject(x, usage) \
         (((x)->ex_flags & EXFLAG_KUSAGE) && !((x)->ex_kusage & (usage)))

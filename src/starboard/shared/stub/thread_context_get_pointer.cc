@@ -14,7 +14,7 @@
 
 #include "starboard/thread.h"
 
-#if SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
+#if SB_API_VERSION >= 11
 bool SbThreadContextGetPointer(SbThreadContext context,
                                SbThreadContextProperty property,
                                void** out_value) {
@@ -23,4 +23,4 @@ bool SbThreadContextGetPointer(SbThreadContext context,
   SB_UNREFERENCED_PARAMETER(out_value);
   return false;
 }
-#endif  // SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
+#endif  // SB_API_VERSION >= 11

@@ -29,6 +29,22 @@ This document records all notable changes made to Cobalt since the last release.
    `UNREFERENCED_PARAMETER` has been removed, but `SB_UNREFERENCED_PARAMETER`
    will continue to be supported.
 
+ - **MediaSession actions and action details have changed to match the spec**
+
+   MediaSession now uses the newly specified `seekto` action instead of the
+   Cobalt 19 `seek` action, which has been removed. Also added `skipad` and
+   `stop` to the recognized actions, but the web app may not handle them yet.
+   The `MediaSessionClient` now uses a generated POD class for the IDL
+   `MediaSessionActionDetails` dictionary rather than an inner `Data` class when
+   invoking actions. (see: https://wicg.github.io/mediasession)
+
+- **MediaSession supports setPositionState() function**
+
+  MediaSession now supports the newly specified `setPositionState()` function.
+  `MediaSessionClient` now provides an immutable `MediaSessionState` object
+  that may be copied and queried on any thread to get a coherent view of
+  attributes set by the the web app on the `MediaSession`.
+
 ## Version 19
  - **Add support for V8 JavaScript Engine**
 

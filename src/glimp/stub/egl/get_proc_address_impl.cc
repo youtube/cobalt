@@ -20,7 +20,7 @@
 #include "glimp/egl/scoped_egl_lock.h"
 #include "glimp/stub/egl/display_impl.h"
 #include "nb/polymorphic_downcast.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 namespace glimp {
 namespace egl {

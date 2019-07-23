@@ -10,8 +10,8 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 
 namespace cobalt {
 namespace media {
@@ -514,6 +514,11 @@ VideoCodec StringToVideoCodec(const std::string& codec_id) {
   if (codec_id == "vp8" || codec_id == "vp8.0") return kCodecVP8;
   if (codec_id == "vp9" || codec_id == "vp9.0" || codec_id == "vp9.1" ||
       codec_id == "vp9.2") {
+    return kCodecVP9;
+  }
+  // We don't parse the full codec string as it must have been checked by
+  // isTypeSupported() before passing into this function.
+  if (codec_id.substr(0, 5) == "vp09.") {
     return kCodecVP9;
   }
   gfx::ColorSpace color_space;

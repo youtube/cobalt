@@ -159,7 +159,7 @@ class AsyncCertNetFetcherImpl {
   // Not owned. |context_| must outlive the AsyncCertNetFetcherImpl.
   URLRequestContext* context_ = nullptr;
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   DISALLOW_COPY_AND_ASSIGN(AsyncCertNetFetcherImpl);
 };
@@ -616,11 +616,11 @@ void Job::FailRequest(Error error) {
 AsyncCertNetFetcherImpl::AsyncCertNetFetcherImpl(URLRequestContext* context)
     : context_(context) {
   // Allow creation to happen from another thread.
-  thread_checker_.DetachFromThread();
+  DETACH_FROM_THREAD(thread_checker_);
 }
 
 AsyncCertNetFetcherImpl::~AsyncCertNetFetcherImpl() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   jobs_.clear();
 }
 
@@ -631,7 +631,7 @@ bool JobComparator::operator()(const Job* job1, const Job* job2) const {
 void AsyncCertNetFetcherImpl::Fetch(
     std::unique_ptr<RequestParams> request_params,
     scoped_refptr<RequestCore> request) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // If there is an in-progress job that matches the request parameters use it.
   // Otherwise start a new job.
@@ -651,7 +651,7 @@ void AsyncCertNetFetcherImpl::Fetch(
 }
 
 void AsyncCertNetFetcherImpl::Shutdown() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   for (const auto& job : jobs_) {
     job.first->Cancel();
   }
@@ -666,7 +666,7 @@ struct JobToRequestParamsComparator {
 };
 
 Job* AsyncCertNetFetcherImpl::FindJob(const RequestParams& params) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // The JobSet is kept in sorted order so items can be found using binary
   // search.
@@ -678,7 +678,7 @@ Job* AsyncCertNetFetcherImpl::FindJob(const RequestParams& params) {
 }
 
 std::unique_ptr<Job> AsyncCertNetFetcherImpl::RemoveJob(Job* job) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto it = jobs_.find(job);
   CHECK(it != jobs_.end());
   std::unique_ptr<Job> owned_job = std::move(it->second);

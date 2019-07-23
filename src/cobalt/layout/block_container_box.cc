@@ -151,19 +151,9 @@ void BlockContainerBox::UpdateContentHeightAndMargins(
 void BlockContainerBox::UpdateContentSizeAndMargins(
     const LayoutParams& layout_params) {
   base::Optional<LayoutUnit> maybe_height = GetUsedHeightIfNotAuto(
-      computed_style(), layout_params.containing_block_size);
+      computed_style(), layout_params.containing_block_size, NULL);
   bool width_depends_on_containing_block;
-  base::Optional<LayoutUnit> maybe_width = GetUsedWidthIfNotAuto(
-      computed_style(), layout_params.containing_block_size,
-      &width_depends_on_containing_block);
-  base::Optional<LayoutUnit> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
-      computed_style(), layout_params.containing_block_size);
-  base::Optional<LayoutUnit> maybe_margin_right = GetUsedMarginRightIfNotAuto(
-      computed_style(), layout_params.containing_block_size);
-  base::Optional<LayoutUnit> maybe_left = GetUsedLeftIfNotAuto(
-      computed_style(), layout_params.containing_block_size);
-  base::Optional<LayoutUnit> maybe_right = GetUsedRightIfNotAuto(
-      computed_style(), layout_params.containing_block_size);
+
   base::Optional<LayoutUnit> maybe_top = GetUsedTopIfNotAuto(
       computed_style(), layout_params.containing_block_size);
   base::Optional<LayoutUnit> maybe_bottom = GetUsedBottomIfNotAuto(
@@ -173,42 +163,60 @@ void BlockContainerBox::UpdateContentSizeAndMargins(
   base::Optional<LayoutUnit> maybe_margin_bottom = GetUsedMarginBottomIfNotAuto(
       computed_style(), layout_params.containing_block_size);
 
-  UpdateContentWidthAndMargins(layout_params.containing_block_size.width(),
-                               layout_params.shrink_to_fit_width_forced,
-                               width_depends_on_containing_block, maybe_left,
-                               maybe_right, maybe_margin_left,
-                               maybe_margin_right, maybe_width, maybe_height);
-
-  // If the tentative used width is greater than 'max-width', the rules above
-  // are applied again, but this time using the computed value of 'max-width' as
-  // the computed value for 'width'.
-  //   https://www.w3.org/TR/CSS21/visudet.html#min-max-widths
-  bool max_width_depends_on_containing_block;
-  base::Optional<LayoutUnit> maybe_max_width = GetUsedMaxWidthIfNotNone(
-      computed_style(), layout_params.containing_block_size,
-      &max_width_depends_on_containing_block);
-  if (maybe_max_width && width() > maybe_max_width.value()) {
-    UpdateContentWidthAndMargins(
-        layout_params.containing_block_size.width(),
-        layout_params.shrink_to_fit_width_forced,
-        max_width_depends_on_containing_block, maybe_left, maybe_right,
-        maybe_margin_left, maybe_margin_right, maybe_max_width, maybe_height);
+  if (layout_params.freeze_height) {
+    maybe_height = height();
   }
 
-  // If the resulting width is smaller than 'min-width', the rules above are
-  // applied again, but this time using the value of 'min-width' as the computed
-  // value for 'width'.
-  //   https://www.w3.org/TR/CSS21/visudet.html#min-max-widths
-  bool min_width_depends_on_containing_block;
-  base::Optional<LayoutUnit> min_width =
-      GetUsedMinWidth(computed_style(), layout_params.containing_block_size,
-                      &min_width_depends_on_containing_block);
-  if (width() < min_width.value()) {
+  if (!layout_params.freeze_width) {
+    base::Optional<LayoutUnit> maybe_width = GetUsedWidthIfNotAuto(
+        computed_style(), layout_params.containing_block_size,
+        &width_depends_on_containing_block);
+    base::Optional<LayoutUnit> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
+        computed_style(), layout_params.containing_block_size);
+    base::Optional<LayoutUnit> maybe_margin_right = GetUsedMarginRightIfNotAuto(
+        computed_style(), layout_params.containing_block_size);
+    base::Optional<LayoutUnit> maybe_left = GetUsedLeftIfNotAuto(
+        computed_style(), layout_params.containing_block_size);
+    base::Optional<LayoutUnit> maybe_right = GetUsedRightIfNotAuto(
+        computed_style(), layout_params.containing_block_size);
+
     UpdateContentWidthAndMargins(layout_params.containing_block_size.width(),
                                  layout_params.shrink_to_fit_width_forced,
-                                 min_width_depends_on_containing_block,
-                                 maybe_left, maybe_right, maybe_margin_left,
-                                 maybe_margin_right, min_width, maybe_height);
+                                 width_depends_on_containing_block, maybe_left,
+                                 maybe_right, maybe_margin_left,
+                                 maybe_margin_right, maybe_width, maybe_height);
+
+    // If the tentative used width is greater than 'max-width', the rules above
+    // are applied again, but this time using the computed value of 'max-width'
+    // as the computed value for 'width'.
+    //   https://www.w3.org/TR/CSS21/visudet.html#min-max-widths
+    bool max_width_depends_on_containing_block;
+    base::Optional<LayoutUnit> maybe_max_width = GetUsedMaxWidthIfNotNone(
+        computed_style(), layout_params.containing_block_size,
+        &max_width_depends_on_containing_block);
+    if (maybe_max_width && width() > maybe_max_width.value()) {
+      UpdateContentWidthAndMargins(
+          layout_params.containing_block_size.width(),
+          layout_params.shrink_to_fit_width_forced,
+          max_width_depends_on_containing_block, maybe_left, maybe_right,
+          maybe_margin_left, maybe_margin_right, maybe_max_width, maybe_height);
+    }
+
+    // If the resulting width is smaller than 'min-width', the rules above are
+    // applied again, but this time using the value of 'min-width' as the
+    // computed value for 'width'.
+    //   https://www.w3.org/TR/CSS21/visudet.html#min-max-widths
+    bool min_width_depends_on_containing_block;
+    base::Optional<LayoutUnit> min_width =
+        GetUsedMinWidth(computed_style(), layout_params.containing_block_size,
+                        &min_width_depends_on_containing_block);
+    if (width() < min_width.value()) {
+      UpdateContentWidthAndMargins(layout_params.containing_block_size.width(),
+                                   layout_params.shrink_to_fit_width_forced,
+                                   min_width_depends_on_containing_block,
+                                   maybe_left, maybe_right, maybe_margin_left,
+                                   maybe_margin_right, min_width, maybe_height);
+    }
   }
 
   UpdateContentHeightAndMargins(layout_params.containing_block_size, maybe_top,
@@ -219,10 +227,8 @@ void BlockContainerBox::UpdateContentSizeAndMargins(
   // applied again, but this time using the value of 'max-height' as the
   // computed value for 'height'.
   //   https://www.w3.org/TR/CSS21/visudet.html#min-max-heights
-  bool max_height_depends_on_containing_block;
   base::Optional<LayoutUnit> maybe_max_height = GetUsedMaxHeightIfNotNone(
-      computed_style(), layout_params.containing_block_size,
-      &max_height_depends_on_containing_block);
+      computed_style(), layout_params.containing_block_size);
   if (maybe_max_height && height() > maybe_max_height.value()) {
     UpdateContentHeightAndMargins(layout_params.containing_block_size,
                                   maybe_top, maybe_bottom, maybe_margin_top,
@@ -233,10 +239,8 @@ void BlockContainerBox::UpdateContentSizeAndMargins(
   // applied again, but this time using the value of 'min-height' as the
   // computed value for 'height'.
   //   https://www.w3.org/TR/CSS21/visudet.html#min-max-heights
-  bool min_height_depends_on_containing_block;
   base::Optional<LayoutUnit> min_height =
-      GetUsedMinHeight(computed_style(), layout_params.containing_block_size,
-                       &min_height_depends_on_containing_block);
+      GetUsedMinHeight(computed_style(), layout_params.containing_block_size);
   if (height() < min_height.value()) {
     UpdateContentHeightAndMargins(layout_params.containing_block_size,
                                   maybe_top, maybe_bottom, maybe_margin_top,
@@ -301,12 +305,13 @@ LayoutUnit BlockContainerBox::GetBaselineOffsetFromTopMarginEdge() const {
       GetMarginBoxHeight());
 }
 
-scoped_refptr<ContainerBox> BlockContainerBox::TrySplitAtEnd() {
-  return scoped_refptr<ContainerBox>();
+BlockContainerBox* BlockContainerBox::AsBlockContainerBox() { return this; }
+const BlockContainerBox* BlockContainerBox::AsBlockContainerBox() const {
+  return this;
 }
 
-BaseDirection BlockContainerBox::GetBaseDirection() const {
-  return base_direction_;
+scoped_refptr<ContainerBox> BlockContainerBox::TrySplitAtEnd() {
+  return scoped_refptr<ContainerBox>();
 }
 
 bool BlockContainerBox::IsTransformable() const { return true; }

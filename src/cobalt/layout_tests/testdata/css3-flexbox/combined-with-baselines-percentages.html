@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<!--
+ | Combined tests for basic functionality of CSS Flexible Box Layout Module.
+ |   https://www.w3.org/TR/css-flexbox-1
+ | This test also shows some differences with Chrome due to missing
+ | implementation of content-based minimum size.
+ -->
+<html>
+<head>
+<style>
+  body {
+    margin: 0px;
+    font-family: Roboto;
+    background-color: #808080;
+    font-size: 12px;
+  }
+  .sized {
+    width: 250px;
+    height: 250px;
+  }
+  .vsized {
+    height: 40px;
+  }
+  .small {
+    width: 100px;
+    min-height: 40px;
+  }
+  .flex {
+    display:flex;
+    color: #99b9f3;
+    background-color: #ffee00;
+    opacity: 0.75;
+  }
+  .inlineflex {
+    display:inline-flex;
+    color: #99b9f3;
+    background-color: #ffee08;
+    opacity: 0.75;
+  }
+  .container {
+    overflow: hidden;
+    flex-flow: row wrap;
+    justify-content: space-around;
+    align-items: center;
+    align-content: flex-end; #space-between;
+    min-width: 2px;
+    padding: 2px;
+    border: 2px solid #000060;
+    outline: 2px solid #00f000;
+    margin: 6px;
+  }
+  .item {
+    flex: 1 1 100px;
+    background-color: #0047ab; /* blue */
+    margin: 2px;
+    order: 0;
+  }
+  .blue {
+    background-color: #0047ab;
+  }
+  .green {
+    background-color: #007700;
+  }
+
+</style>
+</head>
+<body>
+
+<span>
+  <div style="display: inline-block; width: 200px">
+    <div class="flex container" style="width: 600px;">
+      <span class="blue" style="flex-basis: 1%;">SSS3bwa</span>
+    </div>
+    <div class="flex container" style="width: 600px;">
+      <span class="blue" style="width: 1%;">SSS3bwb</span>
+    </div>
+
+  </div>
+</span>
+
+Overlapped
+<div class="vsized flex container" style="">
+  <span class="blue" style="flex-basis: 20%; margin: 0px; border: 0px; padding: 0px; align-self:center;">WWWW</span>
+  <span class="blue" style="flex-basis: 95%; margin: 0px; border: 0px; padding: 0px; align-self:center;">XXXX</span>
+</div>
+[5]
+
+(1)
+<div class="small inlineflex container">
+  <span class="blue" style="flex-basis: 20%;">a</span>
+</div>
+(2a)
+<div class="inlineflex container">
+  <span class="blue">AAa</span>
+</div>
+(2b)
+<div class="inlineflex container">
+  <span class="blue" style="overflow:hidden; flex-basis: 20px;">AAb</span>
+</div>
+(2c)
+<div class="inlineflex container">
+  <span class="blue" style="overflow:hidden; flex-basis: 20px; max-width:21px;">AAc</span>
+</div>
+(3)
+<div class="inlineflex container green">
+<div class="inlineflex container">
+  <span class="blue" style="overflow:hidden; flex-basis: 50%;">DDD</span>
+</div>
+</div>
+(4a)
+<div class="vsized inlineflex container">
+  <span class="blue" style="flex-basis: 12%;">VVVV</span>
+</div>
+(4b)
+<div class="vsized inlineflex container">
+  <span class="blue" style="flex-basis: 12%; max-width:25px;">VVVV</span>
+</div>
+(5)
+<div class="vsized inlineflex container" style="min-width: 100px">
+  <span class="blue" style="flex-basis: 12%; max-width:25px;">VVVV</span>
+</div>
+(6)
+<div class="vsized inlineflex container" style="max-width: 5px;">
+  <span class="blue">VVVV</span>
+</div>
+(7)
+<div class="vsized inlineflex container" style="max-width: 5px; overflow: visible;">
+  <span class="blue">VVVV</span>
+</div>
+(8)
+
+<div class="flex" style="flex-flow: row wrap; height:75px; ">
+
+<div>block first</div>
+<div style="position: abolute;">block abs</div>
+anonymous item 3
+
+<div style="margin-left:auto; margin-right:auto">block middle</div>
+<span style="display:inline; margin-left:auto;">
+    span item 4a
+    <span style="display: block">"span 4b"</span>
+    span item 4c
+</span>
+</div>
+
+
+</body>
+</html>
+

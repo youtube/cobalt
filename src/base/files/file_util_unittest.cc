@@ -66,8 +66,8 @@
 
 #if defined(OS_ANDROID)
 #include "base/android/content_uri_utils.h"
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 #include "starboard/types.h"
 #endif
 

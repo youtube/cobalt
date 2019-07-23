@@ -22,8 +22,8 @@
 #include <vector>
 
 #include "nb/hash.h"
-#include "starboard/log.h"
-#include "starboard/mutex.h"
+#include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
 
 namespace nb {
 

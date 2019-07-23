@@ -644,7 +644,7 @@ class NET_EXPORT NetworkQualityEstimator
   // corresponding observation has been added on the current network.
   bool cached_estimate_applied_;
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   NetLogWithSource net_log_;
 

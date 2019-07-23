@@ -30,19 +30,23 @@
 
 namespace quic {
 
+// TODO(nharper): HkdfExpandLabel and SetKeyAndIV (below) implement what is
+// specified in draft-ietf-quic-tls-16. The latest editors' draft has changed
+// derivation again, and this will need to be updated to reflect those (and any
+// other future) changes.
 // static
-std::vector<uint8_t> CryptoUtils::QhkdfExpand(
+std::vector<uint8_t> CryptoUtils::HkdfExpandLabel(
     const EVP_MD* prf,
     const std::vector<uint8_t>& secret,
     const QuicString& label,
     size_t out_len) {
   bssl::ScopedCBB quic_hkdf_label;
   CBB inner_label;
-  const char label_prefix[] = "QUIC ";
-  // The minimum possible length for the QuicHkdfLabel is 10 bytes - 2 bytes for
+  const char label_prefix[] = "quic ";
+  // The minimum possible length for the QuicHkdfLabel is 9 bytes - 2 bytes for
   // Length, plus 1 byte for the length of the inner label, plus the length of
-  // that label (which is at least 6), plus 1 byte at the end.
-  if (!CBB_init(quic_hkdf_label.get(), 10) ||
+  // that label (which is at least 5), plus 1 byte at the end.
+  if (!CBB_init(quic_hkdf_label.get(), 9) ||
       !CBB_add_u16(quic_hkdf_label.get(), out_len) ||
       !CBB_add_u8_length_prefixed(quic_hkdf_label.get(), &inner_label) ||
       !CBB_add_bytes(&inner_label,
@@ -70,10 +74,10 @@ std::vector<uint8_t> CryptoUtils::QhkdfExpand(
 void CryptoUtils::SetKeyAndIV(const EVP_MD* prf,
                               const std::vector<uint8_t>& pp_secret,
                               QuicCrypter* crypter) {
-  std::vector<uint8_t> key =
-      CryptoUtils::QhkdfExpand(prf, pp_secret, "key", crypter->GetKeySize());
+  std::vector<uint8_t> key = CryptoUtils::HkdfExpandLabel(
+      prf, pp_secret, "key", crypter->GetKeySize());
   std::vector<uint8_t> iv =
-      CryptoUtils::QhkdfExpand(prf, pp_secret, "iv", crypter->GetIVSize());
+      CryptoUtils::HkdfExpandLabel(prf, pp_secret, "iv", crypter->GetIVSize());
   crypter->SetKey(
       QuicStringPiece(reinterpret_cast<char*>(key.data()), key.size()));
   crypter->SetIV(
@@ -82,9 +86,9 @@ void CryptoUtils::SetKeyAndIV(const EVP_MD* prf,
 
 namespace {
 
-const uint8_t kQuicVersion1Salt[] = {0xaf, 0xc8, 0x24, 0xec, 0x5f, 0xc7, 0x7e,
-                                     0xca, 0x1e, 0x9d, 0x36, 0xf3, 0x7f, 0xb2,
-                                     0xd4, 0x65, 0x18, 0xc3, 0x66, 0x39};
+const uint8_t kInitialSalt[] = {0x9c, 0x10, 0x8f, 0x98, 0x52, 0x0a, 0x5c,
+                                0x5c, 0x32, 0x96, 0x8e, 0x95, 0x0e, 0x8a,
+                                0x2c, 0x5f, 0xe0, 0x6d, 0x6c, 0x38};
 
 const char kPreSharedKeyLabel[] = "QUIC PSK";
 
@@ -92,28 +96,28 @@ const char kPreSharedKeyLabel[] = "QUIC PSK";
 
 // static
 void CryptoUtils::CreateTlsInitialCrypters(Perspective perspective,
+                                           QuicTransportVersion version,
                                            QuicConnectionId connection_id,
                                            CrypterPair* crypters) {
+  QUIC_BUG_IF(!QuicUtils::IsConnectionIdValidForVersion(connection_id, version))
+      << "CreateTlsInitialCrypters: attempted to use connection ID "
+      << connection_id << " which is invalid with version "
+      << QuicVersionToString(version);
   const EVP_MD* hash = EVP_sha256();
-
-  uint8_t connection_id_bytes[sizeof(connection_id)];
-  for (size_t i = 0; i < sizeof(connection_id); ++i) {
-    connection_id_bytes[i] =
-        (connection_id >> ((sizeof(connection_id) - i - 1) * 8)) & 0xff;
-  }
 
   std::vector<uint8_t> handshake_secret;
   handshake_secret.resize(EVP_MAX_MD_SIZE);
   size_t handshake_secret_len;
-  if (!HKDF_extract(handshake_secret.data(), &handshake_secret_len, hash,
-                    connection_id_bytes, arraysize(connection_id_bytes),
-                    kQuicVersion1Salt, arraysize(kQuicVersion1Salt))) {
-    QUIC_BUG << "HKDF_extract failed when creating initial crypters";
-  }
+  const bool hkdf_extract_success = HKDF_extract(
+      handshake_secret.data(), &handshake_secret_len, hash,
+      reinterpret_cast<const uint8_t*>(connection_id.data()),
+      connection_id.length(), kInitialSalt, QUIC_ARRAYSIZE(kInitialSalt));
+  QUIC_BUG_IF(!hkdf_extract_success)
+      << "HKDF_extract failed when creating initial crypters";
   handshake_secret.resize(handshake_secret_len);
 
-  const QuicString client_label = "client hs";
-  const QuicString server_label = "server hs";
+  const QuicString client_label = "client in";
+  const QuicString server_label = "server in";
   QuicString encryption_label, decryption_label;
   if (perspective == Perspective::IS_CLIENT) {
     encryption_label = client_label;
@@ -123,13 +127,13 @@ void CryptoUtils::CreateTlsInitialCrypters(Perspective perspective,
     decryption_label = client_label;
   }
   crypters->encrypter = QuicMakeUnique<Aes128GcmEncrypter>();
-  std::vector<uint8_t> encryption_secret =
-      QhkdfExpand(hash, handshake_secret, encryption_label, EVP_MD_size(hash));
+  std::vector<uint8_t> encryption_secret = HkdfExpandLabel(
+      hash, handshake_secret, encryption_label, EVP_MD_size(hash));
   SetKeyAndIV(hash, encryption_secret, crypters->encrypter.get());
 
   crypters->decrypter = QuicMakeUnique<Aes128GcmDecrypter>();
-  std::vector<uint8_t> decryption_secret =
-      QhkdfExpand(hash, handshake_secret, decryption_label, EVP_MD_size(hash));
+  std::vector<uint8_t> decryption_secret = HkdfExpandLabel(
+      hash, handshake_secret, decryption_label, EVP_MD_size(hash));
   SetKeyAndIV(hash, decryption_secret, crypters->decrypter.get());
 }
 

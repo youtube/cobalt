@@ -178,29 +178,29 @@ TEST_F(ShellRBSPStreamTest, ReadUEV) {
   uint32 uev = 0;
   uint32 uev_n = 0;
   f_n_minus_2 = 0;
-  ASSERT_TRUE(fib_stream.ReadUEV(uev));
+  ASSERT_TRUE(fib_stream.ReadUEV(&uev));
   ASSERT_EQ(uev, f_n_minus_2);
-  ASSERT_TRUE(fib_stream_no_sequence.ReadUEV(uev_n));
+  ASSERT_TRUE(fib_stream_no_sequence.ReadUEV(&uev_n));
   ASSERT_EQ(uev_n, f_n_minus_2);
 
   f_n_minus_1 = 1;
-  ASSERT_TRUE(fib_stream.ReadUEV(uev));
+  ASSERT_TRUE(fib_stream.ReadUEV(&uev));
   ASSERT_EQ(uev, f_n_minus_1);
-  ASSERT_TRUE(fib_stream_no_sequence.ReadUEV(uev_n));
+  ASSERT_TRUE(fib_stream_no_sequence.ReadUEV(&uev_n));
   ASSERT_EQ(uev_n, f_n_minus_1);
 
   for (int i = 2; i < 47; i++) {
     uint32 f_n = f_n_minus_1 + f_n_minus_2;
-    ASSERT_TRUE(fib_stream.ReadUEV(uev));
+    ASSERT_TRUE(fib_stream.ReadUEV(&uev));
     ASSERT_EQ(uev, f_n);
-    ASSERT_TRUE(fib_stream_no_sequence.ReadUEV(uev_n));
+    ASSERT_TRUE(fib_stream_no_sequence.ReadUEV(&uev_n));
     ASSERT_EQ(uev_n, f_n);
     f_n_minus_2 = f_n_minus_1;
     f_n_minus_1 = f_n;
   }
   // subsequent call to ReadUEV should fail
-  ASSERT_FALSE(fib_stream.ReadUEV(uev));
-  ASSERT_FALSE(fib_stream_no_sequence.ReadUEV(uev_n));
+  ASSERT_FALSE(fib_stream.ReadUEV(&uev));
+  ASSERT_FALSE(fib_stream_no_sequence.ReadUEV(&uev_n));
 }
 
 TEST_F(ShellRBSPStreamTest, ReadSEV) {
@@ -235,18 +235,18 @@ TEST_F(ShellRBSPStreamTest, ReadSEV) {
   l_n_minus_1 = 2;
   int32 sev = 0;
   int32 sev_n = 0;
-  ASSERT_TRUE(lucas_seq_stream.ReadSEV(sev));
+  ASSERT_TRUE(lucas_seq_stream.ReadSEV(&sev));
   ASSERT_EQ(sev, 1);
-  ASSERT_TRUE(lucas_deseq_stream.ReadSEV(sev_n));
+  ASSERT_TRUE(lucas_deseq_stream.ReadSEV(&sev_n));
   ASSERT_EQ(sev_n, 1);
-  ASSERT_TRUE(lucas_seq_stream.ReadSEV(sev));
+  ASSERT_TRUE(lucas_seq_stream.ReadSEV(&sev));
   ASSERT_EQ(sev, -2);
-  ASSERT_TRUE(lucas_deseq_stream.ReadSEV(sev_n));
+  ASSERT_TRUE(lucas_deseq_stream.ReadSEV(&sev_n));
   ASSERT_EQ(sev_n, -2);
   for (int i = 2; i < 44; ++i) {
     int32 l_n = l_n_minus_1 + l_n_minus_2;
-    ASSERT_TRUE(lucas_seq_stream.ReadSEV(sev));
-    ASSERT_TRUE(lucas_deseq_stream.ReadSEV(sev_n));
+    ASSERT_TRUE(lucas_seq_stream.ReadSEV(&sev));
+    ASSERT_TRUE(lucas_deseq_stream.ReadSEV(&sev_n));
     if (i % 2) {
       ASSERT_EQ(-sev, l_n);
       ASSERT_EQ(-sev_n, l_n);
@@ -258,8 +258,8 @@ TEST_F(ShellRBSPStreamTest, ReadSEV) {
     l_n_minus_1 = l_n;
   }
   // subsequent calls to ReadSEV should fail
-  ASSERT_FALSE(lucas_seq_stream.ReadSEV(sev));
-  ASSERT_FALSE(lucas_deseq_stream.ReadSEV(sev_n));
+  ASSERT_FALSE(lucas_seq_stream.ReadSEV(&sev));
+  ASSERT_FALSE(lucas_deseq_stream.ReadSEV(&sev_n));
 }
 
 static const uint8 kTestRBSPExpGolombTooBig[] = {
@@ -292,13 +292,13 @@ TEST_F(ShellRBSPStreamTest, ReadUEVTooLarge) {
                               sizeof(kTestRBSPExpGolombTooBig));
   // first call should succeed
   uint32 uev = 0;
-  ASSERT_TRUE(uev_too_big.ReadUEV(uev));
+  ASSERT_TRUE(uev_too_big.ReadUEV(&uev));
   ASSERT_EQ(uev, 43689);
   // as should the second call
-  ASSERT_TRUE(uev_too_big.ReadUEV(uev));
+  ASSERT_TRUE(uev_too_big.ReadUEV(&uev));
   ASSERT_EQ(uev, 2147483648u);
   // third should fail
-  ASSERT_FALSE(uev_too_big.ReadUEV(uev));
+  ASSERT_FALSE(uev_too_big.ReadUEV(&uev));
 }
 
 TEST_F(ShellRBSPStreamTest, ReadSEVTooLarge) {
@@ -307,13 +307,13 @@ TEST_F(ShellRBSPStreamTest, ReadSEVTooLarge) {
                               sizeof(kTestRBSPExpGolombTooBig));
   // first call should succeed
   int32 sev = 0;
-  ASSERT_TRUE(sev_too_big.ReadSEV(sev));
+  ASSERT_TRUE(sev_too_big.ReadSEV(&sev));
   ASSERT_EQ(sev, 21845);
   // as should the second call
-  ASSERT_TRUE(sev_too_big.ReadSEV(sev));
+  ASSERT_TRUE(sev_too_big.ReadSEV(&sev));
   ASSERT_EQ(sev, -1073741824);
   // third should fail
-  ASSERT_FALSE(sev_too_big.ReadSEV(sev));
+  ASSERT_FALSE(sev_too_big.ReadSEV(&sev));
 }
 
 TEST_F(ShellRBSPStreamTest, ReadBit) {
@@ -338,17 +338,17 @@ TEST_F(ShellRBSPStreamTest, ReadBit) {
   for (std::list<bool>::iterator it = padded_ones.begin();
        it != padded_ones.end(); ++it) {
     uint8 bit = 0;
-    ASSERT_TRUE(seq_stream.ReadBit(bit));
-    ASSERT_EQ(*it, bit);
+    ASSERT_TRUE(seq_stream.ReadBit(&bit));
+    ASSERT_EQ(*it, static_cast<bool>(bit));
     uint8 deseq_bit = 0;
-    ASSERT_TRUE(deseq_stream.ReadBit(deseq_bit));
-    ASSERT_EQ(*it, deseq_bit);
+    ASSERT_TRUE(deseq_stream.ReadBit(&deseq_bit));
+    ASSERT_EQ(*it, static_cast<bool>(deseq_bit));
   }
 
   // there should be less than a byte in the either stream
   uint8 fail_byte = 0;
-  ASSERT_FALSE(seq_stream.ReadByte(fail_byte));
-  ASSERT_FALSE(deseq_stream.ReadByte(fail_byte));
+  ASSERT_FALSE(seq_stream.ReadByte(&fail_byte));
+  ASSERT_FALSE(deseq_stream.ReadByte(&fail_byte));
 }
 
 TEST_F(ShellRBSPStreamTest, ReadByte) {
@@ -367,11 +367,11 @@ TEST_F(ShellRBSPStreamTest, ReadByte) {
   ShellRBSPStream aa_stream(aabuff.get(), aabuff_size);
   for (int i = 0; i < 16; ++i) {
     uint8 aa = 0;
-    ASSERT_TRUE(aa_stream.ReadByte(aa));
+    ASSERT_TRUE(aa_stream.ReadByte(&aa));
     ASSERT_EQ(aa, 0xaa);
     // read the zero separator bit
     uint8 zero = 0;
-    ASSERT_TRUE(aa_stream.ReadBit(zero));
+    ASSERT_TRUE(aa_stream.ReadBit(&zero));
     ASSERT_EQ(zero, 0);
   }
 
@@ -405,51 +405,51 @@ TEST_F(ShellRBSPStreamTest, ReadByte) {
   for (int i = 0; i < 24; ++i) {
     // read the leading 1 bit
     uint8 seq_bit = 0;
-    ASSERT_TRUE(zseq_stream.ReadBit(seq_bit));
+    ASSERT_TRUE(zseq_stream.ReadBit(&seq_bit));
     ASSERT_EQ(seq_bit, 1);
     uint8 dseq_bit = 0;
-    ASSERT_TRUE(zdseq_stream.ReadBit(dseq_bit));
+    ASSERT_TRUE(zdseq_stream.ReadBit(&dseq_bit));
     ASSERT_EQ(dseq_bit, 1);
     // read 4 zeros
     uint8 seq_byte = 0;
-    ASSERT_TRUE(zseq_stream.ReadByte(seq_byte));
+    ASSERT_TRUE(zseq_stream.ReadByte(&seq_byte));
     ASSERT_EQ(seq_byte, 0);
-    ASSERT_TRUE(zseq_stream.ReadByte(seq_byte));
+    ASSERT_TRUE(zseq_stream.ReadByte(&seq_byte));
     ASSERT_EQ(seq_byte, 0);
-    ASSERT_TRUE(zseq_stream.ReadByte(seq_byte));
+    ASSERT_TRUE(zseq_stream.ReadByte(&seq_byte));
     ASSERT_EQ(seq_byte, 0);
-    ASSERT_TRUE(zseq_stream.ReadByte(seq_byte));
+    ASSERT_TRUE(zseq_stream.ReadByte(&seq_byte));
     ASSERT_EQ(seq_byte, 0);
     uint8 dseq_byte = 0;
-    ASSERT_TRUE(zdseq_stream.ReadByte(dseq_byte));
+    ASSERT_TRUE(zdseq_stream.ReadByte(&dseq_byte));
     ASSERT_EQ(dseq_byte, 0);
-    ASSERT_TRUE(zdseq_stream.ReadByte(dseq_byte));
+    ASSERT_TRUE(zdseq_stream.ReadByte(&dseq_byte));
     ASSERT_EQ(dseq_byte, 0);
-    ASSERT_TRUE(zdseq_stream.ReadByte(dseq_byte));
+    ASSERT_TRUE(zdseq_stream.ReadByte(&dseq_byte));
     ASSERT_EQ(dseq_byte, 0);
-    ASSERT_TRUE(zdseq_stream.ReadByte(dseq_byte));
+    ASSERT_TRUE(zdseq_stream.ReadByte(&dseq_byte));
     ASSERT_EQ(dseq_byte, 0);
     // read the 3
-    ASSERT_TRUE(zseq_stream.ReadByte(seq_byte));
+    ASSERT_TRUE(zseq_stream.ReadByte(&seq_byte));
     ASSERT_EQ(seq_byte, 0x03);
-    ASSERT_TRUE(zdseq_stream.ReadByte(dseq_byte));
+    ASSERT_TRUE(zdseq_stream.ReadByte(&dseq_byte));
     ASSERT_EQ(dseq_byte, 0x03);
     // read the remaining 4 zeros
-    ASSERT_TRUE(zseq_stream.ReadByte(seq_byte));
+    ASSERT_TRUE(zseq_stream.ReadByte(&seq_byte));
     ASSERT_EQ(seq_byte, 0);
-    ASSERT_TRUE(zseq_stream.ReadByte(seq_byte));
+    ASSERT_TRUE(zseq_stream.ReadByte(&seq_byte));
     ASSERT_EQ(seq_byte, 0);
-    ASSERT_TRUE(zseq_stream.ReadByte(seq_byte));
+    ASSERT_TRUE(zseq_stream.ReadByte(&seq_byte));
     ASSERT_EQ(seq_byte, 0);
-    ASSERT_TRUE(zseq_stream.ReadByte(seq_byte));
+    ASSERT_TRUE(zseq_stream.ReadByte(&seq_byte));
     ASSERT_EQ(seq_byte, 0);
-    ASSERT_TRUE(zdseq_stream.ReadByte(dseq_byte));
+    ASSERT_TRUE(zdseq_stream.ReadByte(&dseq_byte));
     ASSERT_EQ(dseq_byte, 0);
-    ASSERT_TRUE(zdseq_stream.ReadByte(dseq_byte));
+    ASSERT_TRUE(zdseq_stream.ReadByte(&dseq_byte));
     ASSERT_EQ(dseq_byte, 0);
-    ASSERT_TRUE(zdseq_stream.ReadByte(dseq_byte));
+    ASSERT_TRUE(zdseq_stream.ReadByte(&dseq_byte));
     ASSERT_EQ(dseq_byte, 0);
-    ASSERT_TRUE(zdseq_stream.ReadByte(dseq_byte));
+    ASSERT_TRUE(zdseq_stream.ReadByte(&dseq_byte));
     ASSERT_EQ(dseq_byte, 0);
   }
 }
@@ -466,7 +466,7 @@ TEST_F(ShellRBSPStreamTest, ReadBits) {
   ShellRBSPStream seventeen_ones_stream(seventeen_ones_buff.get(),
                                         seventeen_ones_size);
   uint32 seventeen_ones_word = 0;
-  ASSERT_TRUE(seventeen_ones_stream.ReadBits(17, seventeen_ones_word));
+  ASSERT_TRUE(seventeen_ones_stream.ReadBits(17, &seventeen_ones_word));
   ASSERT_EQ(seventeen_ones_word, 0x0001ffff);
 
   // serialize all powers of two from 2^0 to 2^31
@@ -483,12 +483,12 @@ TEST_F(ShellRBSPStreamTest, ReadBits) {
   // ReadBits(0) should succeed and not modify the value of the ref output or
   // internal bit iterator
   uint32 dont_touch = 0xfeedfeed;
-  ASSERT_TRUE(pows_stream.ReadBits(0, dont_touch));
+  ASSERT_TRUE(pows_stream.ReadBits(0, &dont_touch));
   ASSERT_EQ(dont_touch, 0xfeedfeed);
   // compare deserializations
   for (int i = 0; i < 32; ++i) {
     uint32 bits = 0;
-    ASSERT_TRUE(pows_stream.ReadBits(i + 1, bits));
+    ASSERT_TRUE(pows_stream.ReadBits(i + 1, &bits));
     ASSERT_EQ(bits, (uint32)(1 << i));
   }
 }
@@ -515,17 +515,17 @@ TEST_F(ShellRBSPStreamTest, SkipBytes) {
     if (i % 2) {
       ASSERT_TRUE(nines_stream.SkipBytes(1));
       uint8 bit = 0;
-      ASSERT_TRUE(nines_stream.ReadBit(bit));
+      ASSERT_TRUE(nines_stream.ReadBit(&bit));
       uint32 ninebits = 0;
-      ASSERT_TRUE(nines_deseq_stream.ReadBits(9, ninebits));
+      ASSERT_TRUE(nines_deseq_stream.ReadBits(9, &ninebits));
       ASSERT_EQ(ninebits, i);
       ASSERT_EQ(ninebits & 1, bit);
     } else {
       ASSERT_TRUE(nines_deseq_stream.SkipBytes(1));
       uint8 bit = 0;
-      ASSERT_TRUE(nines_deseq_stream.ReadBit(bit));
+      ASSERT_TRUE(nines_deseq_stream.ReadBit(&bit));
       uint32 ninebits = 0;
-      ASSERT_TRUE(nines_stream.ReadBits(9, ninebits));
+      ASSERT_TRUE(nines_stream.ReadBits(9, &ninebits));
       ASSERT_EQ(ninebits, i);
       ASSERT_EQ(ninebits & 1, bit);
     }
@@ -552,39 +552,39 @@ TEST_F(ShellRBSPStreamTest, SkipBytes) {
                                           run_length_deseq_size);
   // read first bit, skip first byte from each stream, read next bit
   uint8 bit = 0;
-  ASSERT_TRUE(run_length_stream.ReadBit(bit));
+  ASSERT_TRUE(run_length_stream.ReadBit(&bit));
   ASSERT_EQ(bit, 1);
   bit = 0;
-  ASSERT_TRUE(run_length_deseq_stream.ReadBit(bit));
+  ASSERT_TRUE(run_length_deseq_stream.ReadBit(&bit));
   ASSERT_EQ(bit, 1);
   ASSERT_TRUE(run_length_stream.SkipBytes(1));
   ASSERT_TRUE(run_length_deseq_stream.SkipBytes(1));
   bit = 0;
-  ASSERT_TRUE(run_length_stream.ReadBit(bit));
+  ASSERT_TRUE(run_length_stream.ReadBit(&bit));
   ASSERT_EQ(bit, 1);
   bit = 0;
-  ASSERT_TRUE(run_length_deseq_stream.ReadBit(bit));
+  ASSERT_TRUE(run_length_deseq_stream.ReadBit(&bit));
   ASSERT_EQ(bit, 1);
 
   for (int i = 2; i < 256; ++i) {
     // read first byte in seq stream, make sure it matches value
     uint8 byte = 0;
-    ASSERT_TRUE(run_length_stream.ReadByte(byte));
+    ASSERT_TRUE(run_length_stream.ReadByte(&byte));
     ASSERT_EQ(byte, i);
     // skip the rest of the byte field
     ASSERT_TRUE(run_length_stream.SkipBytes(i - 1));
     bit = 0;
     // read the separating one bit
-    ASSERT_TRUE(run_length_stream.ReadBit(bit));
+    ASSERT_TRUE(run_length_stream.ReadBit(&bit));
     ASSERT_EQ(bit, 1);
     // read last byte in deseq stream, so skip bytes first
     ASSERT_TRUE(run_length_deseq_stream.SkipBytes(i - 1));
     byte = 0;
-    ASSERT_TRUE(run_length_deseq_stream.ReadByte(byte));
+    ASSERT_TRUE(run_length_deseq_stream.ReadByte(&byte));
     ASSERT_EQ(byte, i);
     // read the separating one bit
     bit = 0;
-    ASSERT_TRUE(run_length_deseq_stream.ReadBit(bit));
+    ASSERT_TRUE(run_length_deseq_stream.ReadBit(&bit));
     ASSERT_EQ(bit, 1);
   }
 
@@ -619,7 +619,7 @@ TEST_F(ShellRBSPStreamTest, SkipBits) {
     // read the ones from the zeros stream
     for (int j = 0; j < i; ++j) {
       uint8 bit = 0;
-      ASSERT_TRUE(skip_ohs.ReadBit(bit));
+      ASSERT_TRUE(skip_ohs.ReadBit(&bit));
       ASSERT_EQ(bit, 1);
     }
     // skip the ohs
@@ -627,7 +627,7 @@ TEST_F(ShellRBSPStreamTest, SkipBits) {
     // read the ohs from the ones stream
     for (int j = 0; j < i; ++j) {
       uint8 bit = 0;
-      ASSERT_TRUE(skip_ones.ReadBit(bit));
+      ASSERT_TRUE(skip_ones.ReadBit(&bit));
       ASSERT_EQ(bit, 0);
     }
   }

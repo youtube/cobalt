@@ -14,7 +14,7 @@
 
 #include "starboard/media.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 bool SbMediaSetOutputProtection(bool enabled) {
   // Output is always protected from a starboard application perspective, so

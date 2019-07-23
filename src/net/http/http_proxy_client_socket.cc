@@ -461,7 +461,7 @@ int HttpProxyClientSocket::DoReadHeadersComplete(int result) {
           &redirect_load_timing_info_);
       transport_.reset();
       http_stream_parser_.reset();
-      return ERR_HTTPS_PROXY_TUNNEL_RESPONSE;
+      return ERR_HTTPS_PROXY_TUNNEL_RESPONSE_REDIRECT;
 
     case 407:  // Proxy Authentication Required
       // We need this status code to allow proxy authentication.  Our

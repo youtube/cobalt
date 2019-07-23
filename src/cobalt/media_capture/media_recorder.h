@@ -75,42 +75,42 @@ class MediaRecorder : public media_stream::MediaStreamAudioSink,
 
   // EventHandlers.
   const EventListenerScriptValue* onstart() const {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     return GetAttributeEventListener(base::Tokens::start());
   }
 
   void set_onstart(const EventListenerScriptValue& event_listener) {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     SetAttributeEventListener(base::Tokens::start(), event_listener);
   }
 
   const EventListenerScriptValue* onstop() const {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     return GetAttributeEventListener(base::Tokens::stop());
   }
 
   void set_onstop(const EventListenerScriptValue& event_listener) {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     SetAttributeEventListener(base::Tokens::stop(), event_listener);
   }
 
   const EventListenerScriptValue* onerror() const {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     return GetAttributeEventListener(base::Tokens::error());
   }
 
   void set_onerror(const EventListenerScriptValue& event_listener) {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     SetAttributeEventListener(base::Tokens::error(), event_listener);
   }
 
   const EventListenerScriptValue* ondataavailable() const {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     return GetAttributeEventListener(base::Tokens::dataavailable());
   }
 
   void set_ondataavailable(const EventListenerScriptValue& event_listener) {
-    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     SetAttributeEventListener(base::Tokens::dataavailable(), event_listener);
   }
 
@@ -141,7 +141,7 @@ class MediaRecorder : public media_stream::MediaStreamAudioSink,
   void CalculateLastInSliceAndWriteData(
       std::unique_ptr<std::vector<uint8>> data, base::TimeTicks timecode);
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   // |audio_encoder_| lives on the microphone thread.
   std::unique_ptr<encoders::AudioEncoder> audio_encoder_;

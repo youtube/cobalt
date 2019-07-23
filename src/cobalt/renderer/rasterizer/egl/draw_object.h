@@ -15,8 +15,6 @@
 #ifndef COBALT_RENDERER_RASTERIZER_EGL_DRAW_OBJECT_H_
 #define COBALT_RENDERER_RASTERIZER_EGL_DRAW_OBJECT_H_
 
-#include <GLES2/gl2.h>
-
 #include "base/callback.h"
 #include "base/optional.h"
 #include "cobalt/base/type_id.h"
@@ -25,6 +23,7 @@
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/rounded_corners.h"
 #include "cobalt/renderer/backend/egl/texture.h"
+#include "cobalt/renderer/egl_and_gles.h"
 #include "cobalt/renderer/rasterizer/egl/graphics_state.h"
 #include "cobalt/renderer/rasterizer/egl/shader_program_manager.h"
 

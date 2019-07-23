@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 
 #include <errno.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/posix/socket_internal.h"
 
 namespace sbposix = starboard::shared::posix;

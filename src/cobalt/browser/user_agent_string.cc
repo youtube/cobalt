@@ -20,109 +20,13 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "cobalt/browser/switches.h"
-#if defined(COBALT_ENABLE_LIB)
-#include "cobalt/browser/lib/exported/user_agent.h"
-#endif
 #include "cobalt/renderer/get_default_rasterizer_for_platform.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/version.h"
 #include "cobalt_build_id.h"  // NOLINT(build/include)
-#include "starboard/log.h"
-#include "starboard/string.h"
+#include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/system.h"
-
-// Setup CobaltLib overrides for some user agent components.
-#if defined(COBALT_ENABLE_LIB)
-
-namespace {
-
-// Max length including null terminator.
-const size_t kUserAgentPlatformSuffixMaxLength = 128;
-char g_user_agent_platform_suffix[kUserAgentPlatformSuffixMaxLength] = {0};
-
-bool g_device_type_override_set = false;
-SbSystemDeviceType g_device_type_override = kSbSystemDeviceTypeUnknown;
-
-// Max length including null terminator.
-const size_t kPropertyMaxLength = 512;
-bool g_brand_name_override_set = false;
-char g_brand_name_override[kPropertyMaxLength] = {0};
-bool g_model_name_override_set = false;
-char g_model_name_override[kPropertyMaxLength] = {0};
-
-bool CopyStringAndTestIfSuccess(char* out_value, size_t value_length,
-                                const char* from_value) {
-  if (strlen(from_value) + 1 > value_length) return false;
-  base::strlcpy(out_value, from_value, value_length);
-  return true;
-}
-
-}  // namespace
-
-// Allow host app to append a suffix to the reported platform name.
-bool CbLibUserAgentSetPlatformNameSuffix(const char* suffix) {
-  if (!CopyStringAndTestIfSuccess(g_user_agent_platform_suffix,
-                                  kPropertyMaxLength, suffix)) {
-    // If the suffix is too large then nothing is appended to the platform.
-    g_user_agent_platform_suffix[0] = '\0';
-    return false;
-  }
-
-  return true;
-}
-
-bool CbLibUserAgentSetBrandNameOverride(const char* value) {
-  if (!value) {
-    g_brand_name_override_set = false;
-    return true;
-  }
-
-  if (CopyStringAndTestIfSuccess(g_brand_name_override, kPropertyMaxLength,
-                                 value)) {
-    g_brand_name_override_set = true;
-    return true;
-  }
-
-  // Failed to reset/set value.
-  return false;
-}
-
-bool CbLibUserAgentSetModelNameOverride(const char* value) {
-  if (!value) {
-    g_model_name_override_set = false;
-    return true;
-  }
-
-  if (CopyStringAndTestIfSuccess(g_model_name_override, kPropertyMaxLength,
-                                 value)) {
-    g_model_name_override_set = true;
-    return true;
-  }
-
-  // Failed to reset/set value.
-  return false;
-}
-
-bool CbLibUserAgentSetDeviceTypeOverride(SbSystemDeviceType device_type) {
-  switch (device_type) {
-    case kSbSystemDeviceTypeBlueRayDiskPlayer:
-    case kSbSystemDeviceTypeGameConsole:
-    case kSbSystemDeviceTypeOverTheTopBox:
-    case kSbSystemDeviceTypeSetTopBox:
-    case kSbSystemDeviceTypeTV:
-    case kSbSystemDeviceTypeDesktopPC:
-    case kSbSystemDeviceTypeAndroidTV:
-    case kSbSystemDeviceTypeUnknown:
-      g_device_type_override_set = true;
-      g_device_type_override = device_type;
-      return true;
-    default:
-      g_device_type_override_set = false;
-      return false;
-  }
-}
-
-#endif  // defined(COBALT_ENABLE_LIB)
 
 namespace cobalt {
 namespace browser {
@@ -212,7 +116,7 @@ UserAgentPlatformInfo GetUserAgentPlatformInfoFromSystem() {
   SbSystemDeviceType device_type = SbSystemGetDeviceType();
 
   // Original Design Manufacturer (ODM)
-#if SB_API_VERSION >= SB_ODM_VERSION
+#if SB_API_VERSION >= 11
   result = SbSystemGetProperty(kSbSystemPropertyOriginalDesignManufacturerName,
                                value, kSystemPropertyMaxLength);
 #else
@@ -295,25 +199,6 @@ UserAgentPlatformInfo GetUserAgentPlatformInfoFromSystem() {
   if (connection_type != kSbSystemConnectionTypeUnknown) {
     platform_info.connection_type = connection_type;
   }
-
-#if defined(COBALT_ENABLE_LIB)
-  if (g_user_agent_platform_suffix[0] != '\0') {
-    platform_info.os_name_and_version += "; ";
-    platform_info.os_name_and_version += g_user_agent_platform_suffix;
-  }
-
-  // Check for overrided values, to see if a client of CobaltLib has explicitly
-  // requested that some values be overridden.
-  if (g_device_type_override_set) {
-    platform_info.device_type = g_device_type_override;
-  }
-  if (g_brand_name_override_set) {
-    platform_info.brand = g_brand_name_override;
-  }
-  if (g_model_name_override_set) {
-    platform_info.model = g_model_name_override;
-  }
-#endif  // defined(COBALT_ENABLE_LIB)
 
   return platform_info;
 }

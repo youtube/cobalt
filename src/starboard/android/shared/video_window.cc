@@ -21,8 +21,10 @@
 #include <jni.h>
 
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
 #include "starboard/configuration.h"
-#include "starboard/log.h"
+#include "starboard/once.h"
 #include "starboard/shared/gles/gl_call.h"
 
 namespace starboard {
@@ -31,10 +33,14 @@ namespace shared {
 
 namespace {
 
+// Global video surface pointer mutex.
+SB_ONCE_INITIALIZE_FUNCTION(Mutex, GetViewSurfaceMutex);
 // Global pointer to the single video surface.
 jobject g_j_video_surface = NULL;
 // Global pointer to the single video window.
 ANativeWindow* g_native_video_window = NULL;
+// Global video surface pointer holder.
+VideoSurfaceHolder* g_video_surface_holder = NULL;
 
 }  // namespace
 
@@ -43,32 +49,61 @@ Java_dev_cobalt_media_VideoSurfaceView_nativeOnVideoSurfaceChanged(
     JNIEnv* env,
     jobject unused_this,
     jobject surface) {
+  ScopedLock lock(*GetViewSurfaceMutex());
+  if (g_video_surface_holder) {
+    g_video_surface_holder->OnSurfaceDestroyed();
+    g_video_surface_holder = NULL;
+  }
   if (g_j_video_surface) {
-    // TODO: Ensure that the decoder isn't still using the surface.
     env->DeleteGlobalRef(g_j_video_surface);
+    g_j_video_surface = NULL;
   }
   if (g_native_video_window) {
-    // TODO: Ensure that the decoder isn't still using the window.
     ANativeWindow_release(g_native_video_window);
+    g_native_video_window = NULL;
   }
   if (surface) {
     g_j_video_surface = env->NewGlobalRef(surface);
     g_native_video_window = ANativeWindow_fromSurface(env, surface);
-  } else {
-    g_j_video_surface = NULL;
-    g_native_video_window = NULL;
   }
 }
 
-jobject GetVideoSurface() {
+jobject VideoSurfaceHolder::AcquireVideoSurface() {
+  ScopedLock lock(*GetViewSurfaceMutex());
+  SB_DCHECK(g_video_surface_holder == NULL);
+  if (g_video_surface_holder != NULL) {
+    return NULL;
+  }
+  if (!g_j_video_surface) {
+    return NULL;
+  }
+  g_video_surface_holder = this;
   return g_j_video_surface;
 }
 
-ANativeWindow* GetVideoWindow() {
-  return g_native_video_window;
+void VideoSurfaceHolder::ReleaseVideoSurface() {
+  ScopedLock lock(*GetViewSurfaceMutex());
+  if (g_video_surface_holder == this) {
+    g_video_surface_holder = NULL;
+  }
 }
 
-void ClearVideoWindow() {
+bool VideoSurfaceHolder::GetVideoWindowSize(int* width, int* height) {
+  ScopedLock lock(*GetViewSurfaceMutex());
+  if (g_native_video_window == NULL) {
+    return false;
+  } else {
+    *width = ANativeWindow_getWidth(g_native_video_window);
+    *height = ANativeWindow_getHeight(g_native_video_window);
+    return true;
+  }
+}
+
+void VideoSurfaceHolder::ClearVideoWindow() {
+  // Lock *GetViewSurfaceMutex() here, to avoid releasing g_native_video_window
+  // during painting.
+  ScopedLock lock(*GetViewSurfaceMutex());
+
   if (!g_native_video_window) {
     SB_LOG(INFO) << "Tried to clear video window when it was null.";
     return;

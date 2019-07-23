@@ -3290,6 +3290,7 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kFlexWrapProperty:
     case kFontFamilyProperty:
     case kFontStyleProperty:
+    case kIntersectionObserverRootMarginProperty:
     case kJustifyContentProperty:
     case kOpacityProperty:
     case kOrderProperty:
@@ -3428,6 +3429,7 @@ void CalculateComputedStyleContext::OnComputedStyleCalculated(
     case kFontStyleProperty:
     case kFontWeightProperty:
     case kHeightProperty:
+    case kIntersectionObserverRootMarginProperty:
     case kJustifyContentProperty:
     case kLeftProperty:
     case kLineHeightProperty:

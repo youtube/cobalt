@@ -21,6 +21,7 @@ import logging
 import os
 import subprocess
 import sys
+import starboard.tools.goma
 
 import _env  # pylint: disable=unused-import
 from starboard.tools import config
@@ -47,20 +48,6 @@ class ClangSpecification(object):
     assert version
     self.revision = revision
     self.version = version
-
-
-# TODO: Factor out references to Goma.
-def _EnsureGomaRunning():
-  """Ensure goma is running."""
-
-  cmd_line = ['goma_ctl.py', 'ensure_start']
-  try:
-    subprocess.check_output(cmd_line, stderr=subprocess.STDOUT)
-    return True
-  except subprocess.CalledProcessError as e:
-    logging.error('goma failed to start.\nCommand: %s\n%s', ' '.join(e.cmd),
-                  e.output)
-    return False
 
 
 def _CheckConfig(key, raw_value, value):
@@ -148,15 +135,6 @@ def GypDebugOptions():
   return debug_modes
 
 
-def Which(filename):
-  """Searches the environment's PATH for |filename|, returning the first."""
-  for path in os.environ['PATH'].split(os.pathsep):
-    full_name = os.path.join(path, filename)
-    if os.path.exists(full_name) and os.path.isfile(full_name):
-      return full_name
-  return None
-
-
 def GetToolchainsDir():
   """Gets the directory that contains all downloaded toolchains."""
   home_dir = os.environ.get('HOME')
@@ -217,34 +195,7 @@ def EnsureClangAvailable(clang_spec):
   return _GetClangInstallPath(clang_spec)
 
 
-def FindAndInitGoma():
-  """Checks if goma is installed and makes sure that it's initialized.
-
-  Returns:
-    True if goma was found and correctly initialized.
-  """
-
-  # GOMA is only supported on Linux.
-  if not sys.platform.startswith('linux'):
-    return False
-
-  # See if we can find gomacc somewhere the path.
-  gomacc_path = Which('gomacc')
-
-  if 'USE_GOMA' in os.environ:
-    use_goma = int(os.environ['USE_GOMA'])
-    if use_goma and not gomacc_path:
-      logging.critical('goma was requested but gomacc not found in PATH.')
-      sys.exit(1)
-  else:
-    use_goma = bool(gomacc_path)
-
-  if use_goma:
-    use_goma = _EnsureGomaRunning()
-  return use_goma
-
-
-def GetHostCompilerEnvironment(clang_spec, goma_supports_compiler=False):
+def GetHostCompilerEnvironment(clang_spec, goma_supports_compiler):
   """Return the host compiler toolchain environment."""
 
   toolchain_dir = EnsureClangAvailable(clang_spec)
@@ -260,8 +211,7 @@ def GetHostCompilerEnvironment(clang_spec, goma_supports_compiler=False):
       'ARTHINFLAGS_host': 'rcsT',
   }
   # Check if goma is installed. Initialize if needed and use if possible.
-  if goma_supports_compiler and FindAndInitGoma():
-    logging.info('Using Goma')
+  if goma_supports_compiler and starboard.tools.goma.FindAndStartGoma():
     host_clang_environment.update({
         'CC_host': 'gomacc ' + cc_clang,
         'CXX_host': 'gomacc ' + cxx_clang,

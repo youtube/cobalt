@@ -15,7 +15,7 @@
 #include "starboard/contrib/tizen/shared/alsa/alsa_util.h"
 
 #include <pulse/error.h>
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace starboard {
 namespace shared {

@@ -29,7 +29,7 @@ template <int V>
 class AudioDecoderImpl : public AudioDecoder {
  public:
   static AudioDecoder* Create(SbMediaAudioCodec audio_codec,
-                              const SbMediaAudioHeader& audio_header);
+                              const SbMediaAudioSampleInfo& audio_sample_info);
 };
 
 }  // namespace ffmpeg

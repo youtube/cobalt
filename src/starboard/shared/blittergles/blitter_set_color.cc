@@ -14,7 +14,8 @@
 
 #include "starboard/blitter.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
+#include "starboard/shared/blittergles/blitter_context.h"
 #include "starboard/shared/blittergles/blitter_internal.h"
 
 bool SbBlitterSetColor(SbBlitterContext context, SbBlitterColor color) {
@@ -23,6 +24,14 @@ bool SbBlitterSetColor(SbBlitterContext context, SbBlitterColor color) {
     return false;
   }
 
-  context->current_color = color;
+  const float kColorMapper = 255.0f;
+  float alpha = SbBlitterAFromColor(color) / kColorMapper;
+  context->current_rgba[0] =
+      alpha * (SbBlitterRFromColor(color) / kColorMapper);
+  context->current_rgba[1] =
+      alpha * (SbBlitterGFromColor(color) / kColorMapper);
+  context->current_rgba[2] =
+      alpha * (SbBlitterBFromColor(color) / kColorMapper);
+  context->current_rgba[3] = alpha;
   return true;
 }

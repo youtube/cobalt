@@ -212,7 +212,7 @@ WebSocket::WebSocket(script::EnvironmentSettings* settings,
 
 void WebSocket::set_binary_type(const std::string& binary_type,
                                 script::ExceptionState* exception_state) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Per spec:
   // "On setting, if the new value is either the string "blob" or the string
   // "arraybuffer", then set the IDL attribute to this new value.
@@ -229,7 +229,7 @@ void WebSocket::set_binary_type(const std::string& binary_type,
 
 // Implements spec at https://www.w3.org/TR/websockets/#dom-websocket-close.
 void WebSocket::Close(script::ExceptionState* exception_state) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   const std::string empty_reason;
   Close(net::kWebSocketNormalClosure, empty_reason, exception_state);
@@ -238,7 +238,7 @@ void WebSocket::Close(script::ExceptionState* exception_state) {
 // Implements spec at https://www.w3.org/TR/websockets/#dom-websocket-close.
 void WebSocket::Close(const uint16 code,
                       script::ExceptionState* exception_state) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   const std::string empty_reason;
   Close(code, empty_reason, exception_state);
@@ -247,7 +247,7 @@ void WebSocket::Close(const uint16 code,
 // Implements spec at https://www.w3.org/TR/websockets/#dom-websocket-close.
 void WebSocket::Close(const uint16 code, const std::string& reason,
                       script::ExceptionState* exception_state) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Per spec @ https://www.w3.org/TR/websockets/#dom-websocket-close
   // "If reason is longer than 123 bytes, then throw a SyntaxError exception and
@@ -304,7 +304,7 @@ bool WebSocket::CheckReadyState(script::ExceptionState* exception_state) {
 // Implements spec at https://www.w3.org/TR/websockets/#dom-websocket-send.
 void WebSocket::Send(const std::string& data,
                      script::ExceptionState* exception_state) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(impl_);
   if (!CheckReadyState(exception_state)) {
     return;
@@ -320,7 +320,7 @@ void WebSocket::Send(const std::string& data,
 // Implements spec at https://www.w3.org/TR/websockets/#dom-websocket-send.
 void WebSocket::Send(const scoped_refptr<dom::Blob>& data,
                      script::ExceptionState* exception_state) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(impl_);
   if (!CheckReadyState(exception_state)) {
     return;
@@ -341,7 +341,7 @@ void WebSocket::Send(const scoped_refptr<dom::Blob>& data,
 // Implements spec at https://www.w3.org/TR/websockets/#dom-websocket-send.
 void WebSocket::Send(const script::Handle<script::ArrayBuffer>& data,
                      script::ExceptionState* exception_state) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(impl_);
   if (!CheckReadyState(exception_state)) {
     return;
@@ -361,7 +361,7 @@ void WebSocket::Send(const script::Handle<script::ArrayBuffer>& data,
 // Implements spect at https://www.w3.org/TR/websockets/#dom-websocket-send.
 void WebSocket::Send(const script::Handle<script::ArrayBufferView>& data,
                      script::ExceptionState* exception_state) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(impl_);
   if (!CheckReadyState(exception_state)) {
     return;
@@ -426,7 +426,7 @@ void WebSocket::Initialize(script::EnvironmentSettings* settings,
                            const std::string& url,
                            const std::vector<std::string>& sub_protocols,
                            script::ExceptionState* exception_state) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   buffered_amount_ = 0;
   binary_type_ = dom::MessageEvent::kBlob;
   is_secure_ = false;
@@ -568,7 +568,7 @@ dom::CspDelegate* WebSocket::csp_delegate() const {
 
 void WebSocket::Connect(const GURL& url,
                         const std::vector<std::string>& sub_protocols) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(settings_);
 
   GURL origin_gurl = settings_->base_url().GetOrigin();

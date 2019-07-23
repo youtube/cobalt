@@ -8,6 +8,7 @@
 #include <string>
 
 #include "base/time/time.h"
+#include "net/base/ip_endpoint.h"
 #include "net/base/net_export.h"
 #include "net/base/proxy_server.h"
 #include "net/http/http_vary_data.h"
@@ -58,6 +59,10 @@ class NET_EXPORT HttpResponseInfo {
     CONNECTION_INFO_QUIC_99 = 22,
     CONNECTION_INFO_QUIC_44 = 23,
     CONNECTION_INFO_QUIC_45 = 24,
+    // QUIC46
+    CONNECTION_INFO_QUIC_46 = 25,
+    CONNECTION_INFO_QUIC_47 = 26,
+
     NUM_OF_CONNECTION_INFOS,
   };
 

@@ -16,7 +16,7 @@
 #endif
 
 #if defined(STARBOARD)
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #else
 #include <stdio.h>
 #endif  // defined(STARBOARD)

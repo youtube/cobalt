@@ -13,9 +13,15 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
-#include "starboard/log.h"
+
+#include "starboard/common/log.h"
+#include "starboard/shared/blittergles/blitter_internal.h"
 
 int SbBlitterGetPixelDataPitchInBytes(SbBlitterPixelData pixel_data) {
-  SB_NOTREACHED();
-  return -1;
+  if (!SbBlitterIsPixelDataValid(pixel_data)) {
+    SB_DLOG(ERROR) << ": Invalid pixel data.";
+    return -1;
+  }
+
+  return pixel_data->pitch_in_bytes;
 }

@@ -16,11 +16,11 @@
 
 #include "nb/simple_thread.h"
 
-#include "starboard/mutex.h"
+#include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
-#include "starboard/log.h"
 
 namespace nb {
 

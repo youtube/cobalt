@@ -16,7 +16,10 @@
 
 #include <functional>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
+#if SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
+#include "starboard/shared/starboard/player/video_dmp_writer.h"
+#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
 
 namespace {
 
@@ -40,6 +43,7 @@ int SbPlayerPrivate::number_of_players_ = 0;
 SbPlayerPrivate::SbPlayerPrivate(
     SbMediaAudioCodec audio_codec,
     SbMediaVideoCodec video_codec,
+    const SbMediaAudioSampleInfo* audio_sample_info,
     SbPlayerDeallocateSampleFunc sample_deallocate_func,
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,
@@ -51,6 +55,12 @@ SbPlayerPrivate::SbPlayerPrivate(
     : sample_deallocate_func_(sample_deallocate_func),
       context_(context),
       media_time_updated_at_(SbTimeGetMonotonicNow()) {
+#if SB_API_VERSION < 11
+  if (audio_codec != kSbMediaAudioCodecNone) {
+    SB_DCHECK(audio_sample_info);
+    audio_sample_info_ = *audio_sample_info;
+  }
+#endif  // SB_API_VERSION < 11
   worker_ = starboard::make_scoped_ptr(PlayerWorker::CreateInstance(
       audio_codec, video_codec, player_worker_handler.Pass(),
       std::bind(&SbPlayerPrivate::UpdateMediaInfo, this, _1, _2, _3, _4),
@@ -67,6 +77,7 @@ SbPlayerPrivate::SbPlayerPrivate(
 SbPlayerPrivate* SbPlayerPrivate::CreateInstance(
     SbMediaAudioCodec audio_codec,
     SbMediaVideoCodec video_codec,
+    const SbMediaAudioSampleInfo* audio_sample_info,
     SbPlayerDeallocateSampleFunc sample_deallocate_func,
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,
@@ -75,13 +86,13 @@ SbPlayerPrivate* SbPlayerPrivate::CreateInstance(
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
     void* context,
     starboard::scoped_ptr<PlayerWorker::Handler> player_worker_handler) {
-  SbPlayerPrivate* ret =
-      new SbPlayerPrivate(audio_codec, video_codec, sample_deallocate_func,
-                          decoder_status_func, player_status_func,
+  SbPlayerPrivate* ret = new SbPlayerPrivate(
+      audio_codec, video_codec, audio_sample_info, sample_deallocate_func,
+      decoder_status_func, player_status_func,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
-                          player_error_func,
+      player_error_func,
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
-                          context, player_worker_handler.Pass());
+      context, player_worker_handler.Pass());
 
   if (ret && ret->worker_) {
     return ret;
@@ -102,25 +113,39 @@ void SbPlayerPrivate::Seek(SbTime seek_to_time, int ticket) {
   worker_->Seek(seek_to_time, ticket);
 }
 
-void SbPlayerPrivate::WriteSample(
-    SbMediaType sample_type,
-    const void* const* sample_buffers,
-    const int* sample_buffer_sizes,
-    int number_of_sample_buffers,
-    SbTime sample_timestamp,
-    const SbMediaVideoSampleInfo* video_sample_info,
-    const SbDrmSampleInfo* sample_drm_info) {
-  if (sample_type == kSbMediaTypeVideo) {
+#if SB_API_VERSION >= 11
+void SbPlayerPrivate::WriteSample(const SbPlayerSampleInfo& sample_info) {
+  if (sample_info.type == kSbMediaTypeVideo) {
     ++total_video_frames_;
-    frame_width_ = video_sample_info->frame_width;
-    frame_height_ = video_sample_info->frame_height;
+    frame_width_ = sample_info.video_sample_info.frame_width;
+    frame_height_ = sample_info.video_sample_info.frame_height;
   }
-  starboard::scoped_refptr<InputBuffer> input_buffer = new InputBuffer(
-      sample_type, sample_deallocate_func_, this, context_, sample_buffers,
-      sample_buffer_sizes, number_of_sample_buffers, sample_timestamp,
-      video_sample_info, sample_drm_info);
+  starboard::scoped_refptr<InputBuffer> input_buffer =
+      new InputBuffer(sample_deallocate_func_, this, context_, sample_info);
+#if SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
+  using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
+  VideoDmpWriter::OnPlayerWriteSample(this, input_buffer);
+#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
   worker_->WriteSample(input_buffer);
 }
+#else  // SB_API_VERSION >= 11
+void SbPlayerPrivate::WriteSample(SbMediaType sample_type,
+                                  const SbPlayerSampleInfo& sample_info) {
+  if (sample_type == kSbMediaTypeVideo) {
+    ++total_video_frames_;
+    frame_width_ = sample_info.video_sample_info->frame_width;
+    frame_height_ = sample_info.video_sample_info->frame_height;
+  }
+  starboard::scoped_refptr<InputBuffer> input_buffer =
+      new InputBuffer(sample_type, sample_deallocate_func_, this, context_,
+                      sample_info, &audio_sample_info_);
+#if SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
+  using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
+  VideoDmpWriter::OnPlayerWriteSample(this, input_buffer);
+#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
+  worker_->WriteSample(input_buffer);
+}
+#endif  // SB_API_VERSION >= 11
 
 void SbPlayerPrivate::WriteEndOfStream(SbMediaType stream_type) {
   worker_->WriteEndOfStream(stream_type);

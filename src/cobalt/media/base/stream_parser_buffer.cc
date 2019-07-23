@@ -22,11 +22,20 @@ scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
     Type type, TrackId track_id) {
   scoped_refptr<StreamParserBuffer> stream_parser_buffer =
       base::WrapRefCounted(new StreamParserBuffer(
-          allocator, data, data_size, is_key_frame, type, track_id));
+          allocator, data, data_size, NULL, 0, is_key_frame, type, track_id));
   if (!stream_parser_buffer->has_data()) {
     return NULL;
   }
   return stream_parser_buffer;
+}
+
+scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
+    Allocator* allocator, const uint8_t* data, int data_size,
+    const uint8_t* side_data, int side_data_size, bool is_key_frame, Type type,
+    TrackId track_id) {
+  return base::WrapRefCounted(
+      new StreamParserBuffer(allocator, data, data_size, side_data,
+                             side_data_size, is_key_frame, type, track_id));
 }
 
 DecodeTimestamp StreamParserBuffer::GetDecodeTimestamp() const {
@@ -48,9 +57,11 @@ StreamParserBuffer::StreamParserBuffer()
 
 StreamParserBuffer::StreamParserBuffer(Allocator* allocator,
                                        const uint8_t* data, int data_size,
-                                       bool is_key_frame, Type type,
-                                       TrackId track_id)
-    : DecoderBuffer(allocator, type, data, data_size),
+                                       const uint8_t* side_data,
+                                       int side_data_size, bool is_key_frame,
+                                       Type type, TrackId track_id)
+    : DecoderBuffer(allocator, type, data, data_size, side_data,
+                    side_data_size),
       decode_timestamp_(kNoDecodeTimestamp()),
       config_id_(kInvalidConfigId),
       track_id_(track_id),
@@ -70,9 +81,10 @@ StreamParserBuffer::StreamParserBuffer(Allocator* allocator,
 
 StreamParserBuffer::StreamParserBuffer(Allocator* allocator,
                                        Allocator::Allocations allocations,
-                                       bool is_key_frame, Type type,
-                                       TrackId track_id)
-    : DecoderBuffer(allocator, type, allocations),
+                                       const uint8_t* side_data,
+                                       int side_data_size, bool is_key_frame,
+                                       Type type, TrackId track_id)
+    : DecoderBuffer(allocator, type, allocations, side_data, side_data_size),
       decode_timestamp_(kNoDecodeTimestamp()),
       config_id_(kInvalidConfigId),
       track_id_(track_id),
@@ -203,7 +215,8 @@ scoped_refptr<StreamParserBuffer> StreamParserBuffer::Clone() const {
   }
 
   scoped_refptr<StreamParserBuffer> clone = new StreamParserBuffer(
-      allocator(), allocations(), is_key_frame(), type(), track_id());
+      allocator(), allocations(), side_data(), side_data_size(), is_key_frame(),
+      type(), track_id());
   clone->SetDecodeTimestamp(GetDecodeTimestamp());
   clone->SetConfigId(GetConfigId());
   clone->set_timestamp(timestamp());

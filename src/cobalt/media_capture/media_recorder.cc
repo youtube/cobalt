@@ -83,7 +83,7 @@ namespace media_capture {
 void MediaRecorder::Start(int32 timeslice,
                           script::ExceptionState* exception_state) {
   DCHECK(stream_);
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Following the spec at
   // https://www.w3.org/TR/mediastream-recording/#mediarecorder-methods:
 
@@ -150,7 +150,7 @@ void MediaRecorder::Start(int32 timeslice,
 }
 
 void MediaRecorder::Stop(script::ExceptionState* exception_state) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (recording_state_ == kRecordingStateInactive) {
     dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
@@ -255,14 +255,14 @@ MediaRecorder::MediaRecorder(
 }
 
 MediaRecorder::~MediaRecorder() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (recording_state_ != kRecordingStateInactive) {
     UnsubscribeFromTrack();
   }
 }
 
 void MediaRecorder::StopRecording() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(stream_);
   DCHECK_NE(recording_state_, kRecordingStateInactive);
 
@@ -278,7 +278,7 @@ void MediaRecorder::StopRecording() {
 }
 
 void MediaRecorder::UnsubscribeFromTrack() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(stream_);
   script::Sequence<scoped_refptr<media_stream::MediaStreamTrack>>&
       audio_tracks = stream_->GetAudioTracks();
@@ -296,7 +296,7 @@ void MediaRecorder::UnsubscribeFromTrack() {
 }
 
 void MediaRecorder::DoOnDataCallback(base::TimeTicks timecode) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (buffer_.empty()) {
     DLOG(WARNING) << "No data was recorded.";
@@ -319,7 +319,7 @@ void MediaRecorder::DoOnDataCallback(base::TimeTicks timecode) {
 
 void MediaRecorder::WriteData(std::unique_ptr<std::vector<uint8>> data,
                               bool last_in_slice, base::TimeTicks timecode) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (data) {
     buffer_.insert(buffer_.end(), data->begin(), data->end());
@@ -335,7 +335,7 @@ void MediaRecorder::WriteData(std::unique_ptr<std::vector<uint8>> data,
 
 void MediaRecorder::CalculateLastInSliceAndWriteData(
     std::unique_ptr<std::vector<uint8>> data, base::TimeTicks timecode) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   base::TimeTicks now = base::TimeTicks::Now();
   bool last_in_slice = now > slice_origin_timestamp_ + timeslice_;

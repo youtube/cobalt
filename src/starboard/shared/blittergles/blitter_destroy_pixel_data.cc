@@ -13,9 +13,21 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
-#include "starboard/log.h"
+
+#include "starboard/common/log.h"
+#include "starboard/memory.h"
+#include "starboard/shared/blittergles/blitter_internal.h"
 
 bool SbBlitterDestroyPixelData(SbBlitterPixelData pixel_data) {
-  SB_NOTREACHED();
-  return false;
+  if (!SbBlitterIsPixelDataValid(pixel_data)) {
+    SB_DLOG(ERROR) << ": Invalid pixel data.";
+    return false;
+  }
+
+  if (pixel_data->data != NULL) {
+    SbMemoryDeallocate(pixel_data->data);
+  }
+
+  delete pixel_data;
+  return true;
 }

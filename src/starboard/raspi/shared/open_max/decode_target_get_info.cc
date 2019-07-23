@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/log.h"
 #include "starboard/decode_target.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/raspi/shared/open_max/decode_target_internal.h"
 

@@ -39,8 +39,8 @@ namespace testing {
 
 class DerivedDictionary : public cobalt::bindings::testing::TestDictionary {
  public:
-  DerivedDictionary() {
-    additional_member_ = false;
+  DerivedDictionary()
+    : additional_member_(false) {
   }
 
   DerivedDictionary(const DerivedDictionary& other)

@@ -6,6 +6,7 @@
 
 #include "net/third_party/quic/core/quic_constants.h"
 #include "net/third_party/quic/platform/api/quic_test.h"
+#include "net/third_party/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quic/test_tools/simulator/quic_endpoint.h"
 #include "net/third_party/quic/test_tools/simulator/simulator.h"
 #include "net/third_party/quic/test_tools/simulator/switch.h"
@@ -23,11 +24,12 @@ const QuicTime::Delta kDelay = QuicTime::Delta::FromMilliseconds(20);
 class QuicTraceVisitorTest : public QuicTest {
  public:
   QuicTraceVisitorTest() {
+    QuicConnectionId connection_id = test::TestConnectionId();
     simulator::Simulator simulator;
     simulator::QuicEndpoint client(&simulator, "Client", "Server",
-                                   Perspective::IS_CLIENT, 42);
+                                   Perspective::IS_CLIENT, connection_id);
     simulator::QuicEndpoint server(&simulator, "Server", "Client",
-                                   Perspective::IS_SERVER, 42);
+                                   Perspective::IS_SERVER, connection_id);
 
     const QuicBandwidth kBandwidth = QuicBandwidth::FromKBitsPerSecond(1000);
     const QuicByteCount kBdp = kBandwidth * (2 * kDelay);
@@ -111,8 +113,7 @@ TEST_F(QuicTraceVisitorTest, SentStream) {
       }
 
       ASSERT_GT(info.length(), 0u);
-      offsets.Add(QuicIntervalSet<QuicStreamOffset>(
-          info.offset(), info.offset() + info.length()));
+      offsets.Add(info.offset(), info.offset() + info.length());
     }
   }
 
@@ -133,20 +134,22 @@ TEST_F(QuicTraceVisitorTest, AckPackets) {
 
         const quic_trace::AckInfo& info = frame.ack_info();
         for (const auto& block : info.acked_packets()) {
-          packets.Add(block.first_packet(), block.last_packet() + 1);
+          packets.Add(QuicPacketNumber(block.first_packet()),
+                      QuicPacketNumber(block.last_packet()) + 1);
         }
       }
     }
     if (packet.event_type() == quic_trace::PACKET_LOST) {
-      packets.Add(packet.packet_number(), packet.packet_number() + 1);
+      packets.Add(QuicPacketNumber(packet.packet_number()),
+                  QuicPacketNumber(packet.packet_number()) + 1);
     }
   }
 
   ASSERT_EQ(1u, packets.Size());
-  EXPECT_EQ(1u, packets.begin()->min());
+  EXPECT_EQ(QuicPacketNumber(1u), packets.begin()->min());
   // We leave some room (20 packets) for the packets which did not receive
   // conclusive status at the end of simulation.
-  EXPECT_GT(packets.rbegin()->max(), packets_sent_ - 20);
+  EXPECT_GT(packets.rbegin()->max(), QuicPacketNumber(packets_sent_ - 20));
 }
 
 TEST_F(QuicTraceVisitorTest, TransportState) {

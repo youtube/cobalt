@@ -64,7 +64,8 @@ class SigUnmaskStack {
 #endif
 }  // namespace
 
-#if V8_TRAP_HANDLER_SUPPORTED && V8_OS_LINUX
+#if V8_TRAP_HANDLER_SUPPORTED && V8_OS_LINUX && V8_TARGET_ARCH_X64 && \
+    !V8_OS_ANDROID
 #if defined(STARBOARD)
 bool TryHandleSignal(int signum, siginfo_t* info, ucontext_t* context) {
   SB_NOTREACHED();

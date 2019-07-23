@@ -4,7 +4,6 @@
 
 #include "net/third_party/quic/test_tools/quic_stream_sequencer_buffer_peer.h"
 
-#include "net/test/gtest_util.h"
 #include "net/third_party/quic/platform/api/quic_flags.h"
 #include "net/third_party/quic/platform/api/quic_logging.h"
 #include "net/third_party/quic/platform/api/quic_test.h"
@@ -25,7 +24,7 @@ QuicStreamSequencerBufferPeer::QuicStreamSequencerBufferPeer(
 // size of the destination. Returns the number of bytes read. Reading from
 // an empty buffer_->returns 0.
 size_t QuicStreamSequencerBufferPeer::Read(char* dest_buffer, size_t size) {
-  iovec dest;
+  IOVEC dest;
   dest.iov_base = dest_buffer, dest.iov_len = size;
   size_t bytes_read;
   QuicString error_details;

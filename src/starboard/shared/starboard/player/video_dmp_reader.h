@@ -18,11 +18,12 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/file.h"
-#include "starboard/log.h"
 #include "starboard/media.h"
-#include "starboard/shared/starboard/player/input_buffer_internal.h"
+#include "starboard/player.h"
+#include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/video_dmp_common.h"
 
 #if SB_HAS(PLAYER_FILTER_TESTS)
@@ -58,7 +59,21 @@ class VideoDmpReader {
     std::vector<uint8_t> data_;
   };
 
-  typedef AccessUnit AudioAccessUnit;
+  class AudioAccessUnit : public AccessUnit {
+   public:
+    AudioAccessUnit(SbTime timestamp,
+                    const SbDrmSampleInfoWithSubSampleMapping* drm_sample_info,
+                    std::vector<uint8_t> data,
+                    const SbMediaAudioSampleInfoWithConfig& audio_sample_info)
+        : AccessUnit(timestamp, drm_sample_info, std::move(data)),
+          audio_sample_info_(audio_sample_info) {}
+    const SbMediaAudioSampleInfo& audio_sample_info() const {
+      return audio_sample_info_;
+    }
+
+   private:
+    SbMediaAudioSampleInfoWithConfig audio_sample_info_;
+  };
 
   class VideoAccessUnit : public AccessUnit {
    public:
@@ -81,7 +96,9 @@ class VideoDmpReader {
   ~VideoDmpReader();
 
   SbMediaAudioCodec audio_codec() const { return audio_codec_; }
-  const SbMediaAudioHeader& audio_header() const { return audio_header_; }
+  const SbMediaAudioSampleInfo& audio_sample_info() const {
+    return audio_sample_info_;
+  }
   int64_t audio_bitrate() const { return audio_bitrate_; }
 
   SbMediaVideoCodec video_codec() const { return video_codec_; }
@@ -89,12 +106,16 @@ class VideoDmpReader {
   int video_fps() const { return video_fps_; }
 
   size_t number_of_audio_buffers() const { return audio_access_units_.size(); }
-  scoped_refptr<InputBuffer> GetAudioInputBuffer(size_t index) const;
 
   size_t number_of_video_buffers() const { return video_access_units_.size(); }
-  scoped_refptr<InputBuffer> GetVideoInputBuffer(size_t index) const;
+
+  SbPlayerSampleInfo GetPlayerSampleInfo(SbMediaType type, size_t index) const;
+  SbMediaAudioSampleInfo GetAudioSampleInfo(size_t index) const;
 
  private:
+  VideoDmpReader(const VideoDmpReader&) = delete;
+  VideoDmpReader& operator=(const VideoDmpReader&) = delete;
+
   void Parse();
   AudioAccessUnit ReadAudioAccessUnit();
   VideoAccessUnit ReadVideoAccessUnit();
@@ -105,7 +126,7 @@ class VideoDmpReader {
   bool reverse_byte_order_;
 
   SbMediaAudioCodec audio_codec_ = kSbMediaAudioCodecNone;
-  SbMediaAudioHeaderWithConfig audio_header_;
+  SbMediaAudioSampleInfoWithConfig audio_sample_info_;
   int64_t audio_bitrate_ = 0;
 
   SbMediaVideoCodec video_codec_ = kSbMediaVideoCodecNone;

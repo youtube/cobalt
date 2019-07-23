@@ -12,42 +12,63 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <EGL/egl.h>
-#include <GLES2/gl2.h>
 #include <math.h>
 
 #include <iomanip>
 
+#include "starboard/common/log.h"
 #include "starboard/event.h"
 #include "starboard/input.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/system.h"
 #include "starboard/window.h"
 
+#if SB_API_VERSION >= 11
+#include "starboard/egl.h"
+#include "starboard/gles.h"
+#else   // SB_API_VERSION >= 11
+#error "This demo requires SB_API_VERSION >= 11."
+#endif  // SB_API_VERSION >= 11
+
+#define EGL_CALL(x)                                                    \
+  do {                                                                 \
+    SbGetEglInterface()->x;                                            \
+    SB_DCHECK((SbGetEglInterface()->eglGetError()) == SB_EGL_SUCCESS); \
+  } while (false)
+
+#define EGL_CALL_SIMPLE(x) (SbGetEglInterface()->x)
+
+#define GL_CALL(x)                                                     \
+  do {                                                                 \
+    SbGetGlesInterface()->x;                                           \
+    SB_DCHECK((SbGetGlesInterface()->glGetError()) == SB_GL_NO_ERROR); \
+  } while (false)
+
+#define GL_CALL_SIMPLE(x) (SbGetGlesInterface()->x)
+
 namespace {
 
-EGLint const kAttributeList[] = {EGL_RED_SIZE,
-                                 8,
-                                 EGL_GREEN_SIZE,
-                                 8,
-                                 EGL_BLUE_SIZE,
-                                 8,
-                                 EGL_ALPHA_SIZE,
-                                 8,
-                                 EGL_STENCIL_SIZE,
-                                 0,
-                                 EGL_BUFFER_SIZE,
-                                 32,
-                                 EGL_SURFACE_TYPE,
-                                 EGL_WINDOW_BIT | EGL_PBUFFER_BIT,
-                                 EGL_COLOR_BUFFER_TYPE,
-                                 EGL_RGB_BUFFER,
-                                 EGL_CONFORMANT,
-                                 EGL_OPENGL_ES2_BIT,
-                                 EGL_RENDERABLE_TYPE,
-                                 EGL_OPENGL_ES2_BIT,
-                                 EGL_NONE};
+SbEglInt32 const kAttributeList[] = {SB_EGL_RED_SIZE,
+                                     8,
+                                     SB_EGL_GREEN_SIZE,
+                                     8,
+                                     SB_EGL_BLUE_SIZE,
+                                     8,
+                                     SB_EGL_ALPHA_SIZE,
+                                     8,
+                                     SB_EGL_STENCIL_SIZE,
+                                     0,
+                                     SB_EGL_BUFFER_SIZE,
+                                     32,
+                                     SB_EGL_SURFACE_TYPE,
+                                     SB_EGL_WINDOW_BIT | SB_EGL_PBUFFER_BIT,
+                                     SB_EGL_COLOR_BUFFER_TYPE,
+                                     SB_EGL_RGB_BUFFER,
+                                     SB_EGL_CONFORMANT,
+                                     SB_EGL_OPENGL_ES2_BIT,
+                                     SB_EGL_RENDERABLE_TYPE,
+                                     SB_EGL_OPENGL_ES2_BIT,
+                                     SB_EGL_NONE};
 }  // namespace
 
 class Application {
@@ -71,12 +92,12 @@ class Application {
   // The SbWindow within which we will perform our rendering.
   SbWindow window_;
 
-  EGLDisplay display_;
-  EGLSurface surface_;
-  EGLContext context_;
+  SbEglDisplay display_;
+  SbEglSurface surface_;
+  SbEglContext context_;
 
-  EGLint egl_surface_width_;
-  EGLint egl_surface_height_;
+  SbEglInt32 egl_surface_width_;
+  SbEglInt32 egl_surface_height_;
 };
 
 Application::Application() {
@@ -87,87 +108,84 @@ Application::Application() {
   window_ = SbWindowCreate(&options);
   SB_CHECK(SbWindowIsValid(window_));
 
-  display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
-  SB_CHECK(EGL_NO_DISPLAY != display_);
+  display_ = EGL_CALL_SIMPLE(eglGetDisplay(SB_EGL_DEFAULT_DISPLAY));
+  SB_CHECK(SB_EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError()));
+  SB_CHECK(SB_EGL_NO_DISPLAY != display_);
 
-  eglInitialize(display_, NULL, NULL);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
+  EGL_CALL(eglInitialize(display_, NULL, NULL));
 
   // Some EGL drivers can return a first config that doesn't allow
-  // eglCreateWindowSurface(), with no differences in EGLConfig attribute values
-  // from configs that do allow that. To handle that, we have to attempt
+  // eglCreateWindowSurface(), with no differences in SbEglConfig attribute
+  // values from configs that do allow that. To handle that, we have to attempt
   // eglCreateWindowSurface() until we find a config that succeeds.
 
   // First, query how many configs match the given attribute list.
-  EGLint num_configs = 0;
-  eglChooseConfig(display_, kAttributeList, NULL, 0, &num_configs);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
+  SbEglInt32 num_configs = 0;
+  EGL_CALL(eglChooseConfig(display_, kAttributeList, NULL, 0, &num_configs));
   SB_CHECK(0 != num_configs);
 
   // Allocate space to receive the matching configs and retrieve them.
-  EGLConfig* configs = reinterpret_cast<EGLConfig*>(
-      SbMemoryAllocate(num_configs * sizeof(EGLConfig)));
-  eglChooseConfig(display_, kAttributeList, configs, num_configs, &num_configs);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
+  SbEglConfig* configs = reinterpret_cast<SbEglConfig*>(
+      SbMemoryAllocate(num_configs * sizeof(SbEglConfig)));
+  EGL_CALL(eglChooseConfig(display_, kAttributeList, configs, num_configs,
+                           &num_configs));
 
-  EGLNativeWindowType native_window =
-      (EGLNativeWindowType)SbWindowGetPlatformHandle(window_);
-  EGLConfig config;
+  SbEglNativeWindowType native_window =
+      (SbEglNativeWindowType)SbWindowGetPlatformHandle(window_);
+  SbEglConfig config;
 
   // Find the first config that successfully allow a window surface to be
   // created.
   for (int config_number = 0; config_number < num_configs; ++config_number) {
     config = configs[config_number];
-    surface_ = eglCreateWindowSurface(display_, config, native_window, NULL);
-    if (EGL_SUCCESS == eglGetError())
+    surface_ = EGL_CALL_SIMPLE(
+        eglCreateWindowSurface(display_, config, native_window, NULL));
+    if (SB_EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError()))
       break;
   }
-  SB_DCHECK(surface_ != EGL_NO_SURFACE);
+  SB_DCHECK(surface_ != SB_EGL_NO_SURFACE);
 
   SbMemoryDeallocate(configs);
 
-  eglQuerySurface(display_, surface_, EGL_WIDTH, &egl_surface_width_);
-  eglQuerySurface(display_, surface_, EGL_HEIGHT, &egl_surface_height_);
+  EGL_CALL(
+      eglQuerySurface(display_, surface_, SB_EGL_WIDTH, &egl_surface_width_));
+  EGL_CALL(
+      eglQuerySurface(display_, surface_, SB_EGL_HEIGHT, &egl_surface_height_));
   SB_DCHECK(egl_surface_width_ > 0);
   SB_DCHECK(egl_surface_height_ > 0);
 
   // Create the GLES2 or GLEX3 Context.
-  context_ = EGL_NO_CONTEXT;
-  EGLint context_attrib_list[] = {
-      EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE,
+  context_ = SB_EGL_NO_CONTEXT;
+  SbEglInt32 context_attrib_list[] = {
+      SB_EGL_CONTEXT_CLIENT_VERSION, 3, SB_EGL_NONE,
   };
 #if defined(GLES3_SUPPORTED)
   // Attempt to create an OpenGL ES 3.0 context.
-  context_ =
-      eglCreateContext(display_, config, EGL_NO_CONTEXT, context_attrib_list);
+  context_ = EGL_CALL_SIMPLE(eglCreateContext(
+      display_, config, SB_EGL_NO_CONTEXT, context_attrib_list));
 #endif
-  if (context_ == EGL_NO_CONTEXT) {
+  if (context_ == SB_EGL_NO_CONTEXT) {
     // Create an OpenGL ES 2.0 context.
     context_attrib_list[1] = 2;
-    context_ =
-        eglCreateContext(display_, config, EGL_NO_CONTEXT, context_attrib_list);
+    context_ = EGL_CALL_SIMPLE(eglCreateContext(
+        display_, config, SB_EGL_NO_CONTEXT, context_attrib_list));
   }
-  SB_CHECK(EGL_SUCCESS == eglGetError());
-  SB_CHECK(context_ != EGL_NO_CONTEXT);
+  SB_CHECK(SB_EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError()));
+  SB_CHECK(context_ != SB_EGL_NO_CONTEXT);
 
   /* connect the context to the surface */
-  eglMakeCurrent(display_, surface_, surface_, context_);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
+  EGL_CALL(eglMakeCurrent(display_, surface_, surface_, context_));
 
   RenderScene();
 }
 
 Application::~Application() {
   // Cleanup all used resources.
-  eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
-  eglDestroyContext(display_, context_);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
-  eglDestroySurface(display_, surface_);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
-  eglTerminate(display_);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
+  EGL_CALL(eglMakeCurrent(display_, SB_EGL_NO_SURFACE, SB_EGL_NO_SURFACE,
+                          SB_EGL_NO_CONTEXT));
+  EGL_CALL(eglDestroyContext(display_, context_));
+  EGL_CALL(eglDestroySurface(display_, surface_));
+  EGL_CALL(eglTerminate(display_));
   SbWindowDestroy(window_);
 }
 
@@ -189,7 +207,7 @@ float getIntensity(int frame, float rate) {
 void Application::RenderScene() {
   // Render a moving and color changing rectangle using glClear() and
   // glScissor().
-  glEnable(GL_SCISSOR_TEST);
+  GL_CALL_SIMPLE(glEnable(SB_GL_SCISSOR_TEST));
 
   float radian = 2 * M_PI * frame_ / 600.0f;
   int offset_x = egl_surface_height_ * sin(radian) / 3.6;
@@ -201,22 +219,13 @@ void Application::RenderScene() {
   int center_x = (egl_surface_width_ - block_width) / 2;
   int center_y = (egl_surface_height_ - block_height) / 2;
 
-  glScissor(center_x + offset_x, center_y + offset_y, block_width,
-            block_height);
-  SB_CHECK(GL_NO_ERROR == glGetError());
-
-  glClearColor(getIntensity(frame_, 55.0f), getIntensity(frame_, 60.0f),
-               getIntensity(frame_, 62.5f), 1.0);
-  SB_CHECK(GL_NO_ERROR == glGetError());
-
-  glClear(GL_COLOR_BUFFER_BIT);
-  SB_CHECK(GL_NO_ERROR == glGetError());
-
-  glFlush();
-  SB_CHECK(GL_NO_ERROR == glGetError());
-
-  eglSwapBuffers(display_, surface_);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
+  GL_CALL(glScissor(center_x + offset_x, center_y + offset_y, block_width,
+                    block_height));
+  GL_CALL(glClearColor(getIntensity(frame_, 55.0f), getIntensity(frame_, 60.0f),
+                       getIntensity(frame_, 62.5f), 1.0));
+  GL_CALL(glClear(SB_GL_COLOR_BUFFER_BIT));
+  GL_CALL(glFlush());
+  EGL_CALL(eglSwapBuffers(display_, surface_));
 
   // Schedule another frame render ASAP.
   SbEventSchedule(&Application::RenderSceneEventCallback, this, 0);

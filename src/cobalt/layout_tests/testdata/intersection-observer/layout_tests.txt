@@ -1,0 +1,13 @@
+element-in-containing-block-chain-has-overflow-clip-with-padding-and-border
+element-in-containing-block-chain-has-overflow-clip-without-padding-or-border
+multiple-observers-with-different-roots-and-targets
+no-intersection-when-root-is-not-in-containing-block-chain-of-target
+previous-threshold-index-and-is-intersecting-fields-should-be-updated
+root-has-nonzero-padding-and-border
+root-has-nonzero-padding-and-border-and-overflow-clip
+root-has-nonzero-root-margin
+root-intersects-with-multiple-targets
+root-is-viewport-and-target-is-partially-visible
+target-has-nonzero-padding-and-border
+target-with-nonzero-area-is-edge-adjacent-to-root
+target-with-zero-area-is-edge-adjacent-to-root

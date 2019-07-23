@@ -21,7 +21,7 @@
 #include "base/posix/eintr_wrapper.h"
 #include "base/time/time.h"
 #include "nb/memory_scope.h"
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 #include "starboard/socket_waiter.h"
 
 namespace base {
@@ -113,7 +113,7 @@ bool MessagePumpIOStarboard::Watch(SbSocket socket,
   DCHECK(mode == WATCH_READ || mode == WATCH_WRITE || mode == WATCH_READ_WRITE);
   // Watch should be called on the pump thread. It is not threadsafe, and your
   // watcher may never be registered.
-  DCHECK(watch_socket_caller_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(watch_socket_caller_checker_);
 
   int interests = kSbSocketWaiterInterestNone;
   if (mode & WATCH_READ) {

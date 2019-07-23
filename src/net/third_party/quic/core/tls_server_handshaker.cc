@@ -64,8 +64,9 @@ TlsServerHandshaker::TlsServerHandshaker(QuicCryptoStream* stream,
       proof_source_(proof_source),
       crypto_negotiated_params_(new QuicCryptoNegotiatedParameters) {
   CrypterPair crypters;
-  CryptoUtils::CreateTlsInitialCrypters(Perspective::IS_SERVER,
-                                        session->connection_id(), &crypters);
+  CryptoUtils::CreateTlsInitialCrypters(
+      Perspective::IS_SERVER, session->connection()->transport_version(),
+      session->connection_id(), &crypters);
   session->connection()->SetEncrypter(ENCRYPTION_NONE,
                                       std::move(crypters.encrypter));
   session->connection()->SetDecrypter(ENCRYPTION_NONE,
@@ -75,7 +76,8 @@ TlsServerHandshaker::TlsServerHandshaker(QuicCryptoStream* stream,
   SSL_set_accept_state(ssl());
 
   if (!SetTransportParameters()) {
-    CloseConnection("Failed to set Transport Parameters");
+    CloseConnection(QUIC_HANDSHAKE_FAILED,
+                    "Failed to set Transport Parameters");
   }
 }
 
@@ -133,12 +135,6 @@ bool TlsServerHandshaker::ShouldSendExpectCTHeader() const {
   return false;
 }
 
-QuicLongHeaderType TlsServerHandshaker::GetLongHeaderType(
-    QuicStreamOffset /*offset*/) const {
-  // TODO(fayang): Returns the right value when actually using TLS handshaker.
-  return HANDSHAKE;
-}
-
 bool TlsServerHandshaker::encryption_established() const {
   return encryption_established_;
 }
@@ -186,20 +182,22 @@ void TlsServerHandshaker::AdvanceHandshake() {
     default:
       should_close = true;
   }
-  if (should_close) {
+  if (should_close && state_ != STATE_CONNECTION_CLOSED) {
     QUIC_LOG(WARNING) << "SSL_do_handshake failed; SSL_get_error returns "
                       << ssl_error << ", state_ = " << state_;
+#if defined(STARBOARD)
+    ERR_print_errors_fp(nullptr);
+#else
     ERR_print_errors_fp(stderr);
-    CloseConnection("TLS Handshake failed");
+#endif
+    CloseConnection(QUIC_HANDSHAKE_FAILED, "TLS handshake failed");
   }
 }
 
-void TlsServerHandshaker::CloseConnection(const QuicString& reason_phrase) {
-  // TODO(nharper): Instead of QUIC_HANDSHAKE_FAILED, this should be
-  // TLS_HANDSHAKE_FAILED (0x0201), but according to quic_error_codes.h,
-  // we only send 1-byte error codes right now.
+void TlsServerHandshaker::CloseConnection(QuicErrorCode error,
+                                          const QuicString& reason_phrase) {
   state_ = STATE_CONNECTION_CLOSED;
-  stream()->CloseConnectionWithDetails(QUIC_HANDSHAKE_FAILED, reason_phrase);
+  stream()->CloseConnectionWithDetails(error, reason_phrase);
 }
 
 bool TlsServerHandshaker::ProcessTransportParameters(
@@ -217,8 +215,7 @@ bool TlsServerHandshaker::ProcessTransportParameters(
   }
   if (CryptoUtils::ValidateClientHelloVersion(
           client_params.version, session()->connection()->version(),
-          session()->connection()->supported_versions(),
-          error_details) != QUIC_NO_ERROR ||
+          session()->supported_versions(), error_details) != QUIC_NO_ERROR ||
       session()->config()->ProcessTransportParameters(
           client_params, CLIENT, error_details) != QUIC_NO_ERROR) {
     return false;
@@ -231,8 +228,8 @@ bool TlsServerHandshaker::ProcessTransportParameters(
 bool TlsServerHandshaker::SetTransportParameters() {
   TransportParameters server_params;
   server_params.perspective = Perspective::IS_SERVER;
-  server_params.supported_versions = CreateQuicVersionLabelVector(
-      session()->connection()->supported_versions());
+  server_params.supported_versions =
+      CreateQuicVersionLabelVector(session()->supported_versions());
   server_params.version =
       CreateQuicVersionLabel(session()->connection()->version());
 
@@ -254,31 +251,8 @@ bool TlsServerHandshaker::SetTransportParameters() {
 void TlsServerHandshaker::FinishHandshake() {
   QUIC_LOG(INFO) << "Server: handshake finished";
   state_ = STATE_HANDSHAKE_COMPLETE;
-  std::vector<uint8_t> client_secret, server_secret;
-  if (!DeriveSecrets(&client_secret, &server_secret)) {
-    CloseConnection("Failed to derive shared secrets");
-    return;
-  }
-
-  QUIC_LOG(INFO) << "Server: setting crypters";
-  std::unique_ptr<QuicEncrypter> initial_encrypter =
-      CreateEncrypter(server_secret);
-  session()->connection()->SetEncrypter(ENCRYPTION_INITIAL,
-                                        std::move(initial_encrypter));
-  std::unique_ptr<QuicEncrypter> encrypter = CreateEncrypter(server_secret);
-  session()->connection()->SetEncrypter(ENCRYPTION_FORWARD_SECURE,
-                                        std::move(encrypter));
-
-  std::unique_ptr<QuicDecrypter> initial_decrypter =
-      CreateDecrypter(client_secret);
-  session()->connection()->SetDecrypter(ENCRYPTION_INITIAL,
-                                        std::move(initial_decrypter));
-  std::unique_ptr<QuicDecrypter> decrypter = CreateDecrypter(client_secret);
-  session()->connection()->SetAlternativeDecrypter(ENCRYPTION_FORWARD_SECURE,
-                                                   std::move(decrypter), true);
 
   session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-
   session()->NeuterUnencryptedData();
   encryption_established_ = true;
   handshake_confirmed_ = true;
@@ -386,7 +360,7 @@ int TlsServerHandshaker::SelectCertificate(int* out_alert) {
 
   QuicString error_details;
   if (!ProcessTransportParameters(&error_details)) {
-    CloseConnection(error_details);
+    CloseConnection(QUIC_HANDSHAKE_FAILED, error_details);
     *out_alert = SSL_AD_INTERNAL_ERROR;
     return SSL_TLSEXT_ERR_ALERT_FATAL;
   }

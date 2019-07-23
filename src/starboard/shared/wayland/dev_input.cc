@@ -17,9 +17,9 @@
 #include <linux/input.h>
 #include <string.h>
 
+#include "starboard/common/log.h"
 #include "starboard/input.h"
 #include "starboard/key.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/wayland/application_wayland.h"

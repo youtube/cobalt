@@ -40,7 +40,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientSessionBase
   // |promised_by_url|.
   QuicSpdyClientSessionBase(QuicConnection* connection,
                             QuicClientPushPromiseIndex* push_promise_index,
-                            const QuicConfig& config);
+                            const QuicConfig& config,
+                            const ParsedQuicVersionVector& supported_versions);
   QuicSpdyClientSessionBase(const QuicSpdyClientSessionBase&) = delete;
   QuicSpdyClientSessionBase& operator=(const QuicSpdyClientSessionBase&) =
       delete;
@@ -111,7 +112,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientSessionBase
   bool ShouldReleaseHeadersStreamSequencerBuffer() override;
 
   size_t get_max_promises() const {
-    return max_open_incoming_streams() * kMaxPromisedStreamsMultiplier;
+    return max_open_incoming_unidirectional_streams() *
+           kMaxPromisedStreamsMultiplier;
   }
 
   QuicClientPushPromiseIndex* push_promise_index() {

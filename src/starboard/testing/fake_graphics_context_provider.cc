@@ -71,12 +71,10 @@ FakeGraphicsContextProvider::FakeGraphicsContextProvider()
 
 FakeGraphicsContextProvider::~FakeGraphicsContextProvider() {
 #if SB_HAS(GLES2)
+  functor_queue_.Put(
+      std::bind(&FakeGraphicsContextProvider::DestroyContext, this));
   functor_queue_.Wake();
   SbThreadJoin(decode_target_context_thread_, NULL);
-  eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
-  eglDestroyContext(display_, context_);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
   eglDestroySurface(display_, surface_);
   SB_CHECK(EGL_SUCCESS == eglGetError());
   eglTerminate(display_);
@@ -192,8 +190,7 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   SB_CHECK(EGL_SUCCESS == eglGetError());
   SB_CHECK(context_ != EGL_NO_CONTEXT);
 
-  eglMakeCurrent(display_, surface_, surface_, context_);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
+  MakeContextCurrent();
 
   decoder_target_provider_.egl_display = display_;
   decoder_target_provider_.egl_context = context_;
@@ -203,6 +200,10 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   decode_target_context_thread_ = SbThreadCreate(
       0, kSbThreadPriorityNormal, kSbThreadNoAffinity, true, "dt_context",
       &FakeGraphicsContextProvider::ThreadEntryPoint, this);
+  MakeNoContextCurrent();
+
+  functor_queue_.Put(
+      std::bind(&FakeGraphicsContextProvider::MakeContextCurrent, this));
 }
 
 void FakeGraphicsContextProvider::ReleaseDecodeTargetOnGlesContextThread(
@@ -236,6 +237,25 @@ void FakeGraphicsContextProvider::OnDecodeTargetGlesContextRunner(
       this, &mutex, &condition_variable, target_function,
       target_function_context));
   condition_variable.Wait();
+}
+
+void FakeGraphicsContextProvider::MakeContextCurrent() {
+  SB_CHECK(EGL_NO_DISPLAY != display_);
+  eglMakeCurrent(display_, surface_, surface_, context_);
+  EGLint error = eglGetError();
+  SB_CHECK(EGL_SUCCESS == error) << " eglGetError " << error;
+}
+
+void FakeGraphicsContextProvider::MakeNoContextCurrent() {
+  eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+  SB_CHECK(EGL_SUCCESS == eglGetError());
+}
+
+void FakeGraphicsContextProvider::DestroyContext() {
+  MakeNoContextCurrent();
+  eglDestroyContext(display_, context_);
+  EGLint error = eglGetError();
+  SB_CHECK(EGL_SUCCESS == error) << " eglGetError " << error;
 }
 
 // static

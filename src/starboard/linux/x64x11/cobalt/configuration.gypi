@@ -15,12 +15,6 @@
 {
   'variables': {
     'enable_map_to_mesh%': 1,
-    'enable_key_statuses_callback%': '<!(test -e ../../third_party/cdm/cdm/include/content_decryption_module.h && grep -q GetKeys ../../third_party/cdm/cdm/include/content_decryption_module.h && echo 1 || echo 0)',
-  },
-  'target_defaults': {
-    'defines': [
-      'ENABLE_KEY_STATUSES_CALLBACK=<(enable_key_statuses_callback)',
-    ],
   },
 
   'includes': [

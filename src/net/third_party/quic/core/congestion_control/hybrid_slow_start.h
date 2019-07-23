@@ -1,7 +1,7 @@
 // Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
+
 // This class is a helper class to TcpCubicSender.
 // Slow start is the initial startup phase of TCP, it lasts until first packet
 // loss. This class implements hybrid slow start of the TCP cubic send side

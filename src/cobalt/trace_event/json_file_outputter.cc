@@ -25,8 +25,10 @@
 #include "base/strings/string_piece.h"
 #include "cobalt/trace_event/switches.h"
 #endif
+#include "base/synchronization/waitable_event.h"
+#include "base/threading/thread.h"
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 namespace cobalt {
 namespace trace_event {
@@ -74,9 +76,34 @@ JSONFileOutputter::~JSONFileOutputter() {
   Close();
 }
 
+bool JSONFileOutputter::Output(base::trace_event::TraceLog* trace_log) {
+  if (GetError()) {
+    return false;
+  }
+  base::Thread thread("json_outputter");
+  thread.Start();
+
+  base::WaitableEvent waitable_event;
+  auto output_callback =
+      base::Bind(&JSONFileOutputter::OutputTraceData, base::Unretained(this),
+                 base::BindRepeating(&base::WaitableEvent::Signal,
+                                     base::Unretained(&waitable_event)));
+  // Write out the actual data by calling Flush().  Within Flush(), this
+  // will call OutputTraceData(), possibly multiple times.  We have to do this
+  // on a thread as there will be task posted to the current thread for data
+  // writing.
+  thread.message_loop()->task_runner()->PostTask(
+      FROM_HERE,
+      base::BindRepeating(&base::trace_event::TraceLog::Flush,
+                          base::Unretained(trace_log), output_callback, false));
+  waitable_event.Wait();
+  return true;
+}
+
 void JSONFileOutputter::OutputTraceData(
+    base::OnceClosure finished_cb,
     const scoped_refptr<base::RefCountedString>& event_string,
-    bool /*has_more_events*/) {
+    bool has_more_events) {
   DCHECK(!GetError());
 
   // This function is usually called as a callback by
@@ -89,6 +116,9 @@ void JSONFileOutputter::OutputTraceData(
   const std::string& event_str = event_string->data();
   Write(event_str.c_str(), event_str.size());
   ++output_trace_event_call_count_;
+  if (!has_more_events) {
+    std::move(finished_cb).Run();
+  }
 }
 
 void JSONFileOutputter::Write(const char* buffer, int length) {

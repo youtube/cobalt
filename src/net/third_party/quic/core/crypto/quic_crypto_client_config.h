@@ -12,6 +12,7 @@
 
 #include "base/macros.h"
 #include "net/third_party/quic/core/crypto/crypto_handshake.h"
+#include "net/third_party/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quic/core/quic_packets.h"
 #include "net/third_party/quic/core/quic_server_id.h"
 #include "net/third_party/quic/platform/api/quic_export.h"
@@ -335,11 +336,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   // suffix will be used to initialize the cached state for this server.
   void AddCanonicalSuffix(const QuicString& suffix);
 
-  // Prefers AES-GCM (kAESG) over other AEAD algorithms. Call this method if
-  // the CPU has hardware acceleration for AES-GCM. This method can only be
-  // called after SetDefaults().
-  void PreferAesGcm();
-
   // Saves the |user_agent_id| that will be passed in QUIC's CHLO message.
   void set_user_agent_id(const QuicString& user_agent_id) {
     user_agent_id_ = user_agent_id;
@@ -355,6 +351,14 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   void set_pre_shared_key(QuicStringPiece psk) {
     pre_shared_key_ = QuicString(psk);
   }
+
+  bool pad_inchoate_hello() const { return pad_inchoate_hello_; }
+  void set_pad_inchoate_hello(bool new_value) {
+    pad_inchoate_hello_ = new_value;
+  }
+
+  bool pad_full_hello() const { return pad_full_hello_; }
+  void set_pad_full_hello(bool new_value) { pad_full_hello_ = new_value; }
 
  private:
   // Sets the members to reasonable, default values.
@@ -407,6 +411,20 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   // If non-empty, the client will operate in the pre-shared key mode by
   // incorporating |pre_shared_key_| into the key schedule.
   QuicString pre_shared_key_;
+
+  // In QUIC, technically, client hello should be fully padded.
+  // However, fully padding on slow network connection (e.g. 50kbps) can add
+  // 150ms latency to one roundtrip. Therefore, you can disable padding of
+  // individual messages. It is recommend to leave at least one message in
+  // each direction fully padded (e.g. full CHLO and SHLO), but if you know
+  // the lower-bound MTU, you don't need to pad all of them (keep in mind that
+  // it's not OK to do it according to the standard).
+  //
+  // Also, if you disable padding, you must disable (change) the
+  // anti-amplification protection. You should only do so if you have some
+  // other means of verifying the client.
+  bool pad_inchoate_hello_ = true;
+  bool pad_full_hello_ = true;
 };
 
 }  // namespace quic

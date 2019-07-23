@@ -6,6 +6,7 @@
 
 #include <cstdint>
 
+#include "net/third_party/quic/core/quic_connection_id.h"
 #include "net/third_party/quic/core/quic_data_reader.h"
 #include "net/third_party/quic/core/quic_utils.h"
 #include "net/third_party/quic/platform/api/quic_arraysize.h"
@@ -38,9 +39,9 @@ std::vector<TestParams> GetTestParams() {
 
 class QuicDataWriterTest : public QuicTestWithParam<TestParams> {};
 
-INSTANTIATE_TEST_CASE_P(QuicDataWriterTests,
-                        QuicDataWriterTest,
-                        ::testing::ValuesIn(GetTestParams()));
+INSTANTIATE_TEST_SUITE_P(QuicDataWriterTests,
+                         QuicDataWriterTest,
+                         ::testing::ValuesIn(GetTestParams()));
 
 TEST_P(QuicDataWriterTest, SanityCheckUFloat16Consts) {
   // Check the arithmetic on the constants - otherwise the values below make
@@ -248,26 +249,67 @@ TEST_P(QuicDataWriterTest, RoundTripUFloat16) {
 }
 
 TEST_P(QuicDataWriterTest, WriteConnectionId) {
-  uint64_t connection_id = 0x0011223344556677;
+  QuicConnectionId connection_id =
+      TestConnectionId(UINT64_C(0x0011223344556677));
   char big_endian[] = {
       0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
   };
-  const int kBufferLength = sizeof(connection_id);
-  char buffer[kBufferLength];
-  QuicDataWriter writer(kBufferLength, buffer, GetParam().endianness);
-  writer.WriteConnectionId(connection_id);
-  test::CompareCharArraysWithHexError("connection_id", buffer, kBufferLength,
-                                      big_endian, kBufferLength);
+  EXPECT_EQ(connection_id.length(), QUIC_ARRAYSIZE(big_endian));
+  ASSERT_LE(connection_id.length(), kQuicMaxConnectionIdLength);
+  char buffer[kQuicMaxConnectionIdLength];
+  QuicDataWriter writer(connection_id.length(), buffer, GetParam().endianness);
+  EXPECT_TRUE(writer.WriteConnectionId(connection_id));
+  test::CompareCharArraysWithHexError("connection_id", buffer,
+                                      connection_id.length(), big_endian,
+                                      connection_id.length());
 
-  uint64_t read_connection_id;
-  QuicDataReader reader(buffer, kBufferLength, GetParam().endianness);
-  reader.ReadConnectionId(&read_connection_id);
+  QuicConnectionId read_connection_id;
+  QuicDataReader reader(buffer, connection_id.length(), GetParam().endianness);
+  EXPECT_TRUE(
+      reader.ReadConnectionId(&read_connection_id, QUIC_ARRAYSIZE(big_endian)));
   EXPECT_EQ(connection_id, read_connection_id);
+}
+
+TEST_P(QuicDataWriterTest, EmptyConnectionIds) {
+  QuicConnectionId empty_connection_id = EmptyQuicConnectionId();
+  char buffer[2];
+  QuicDataWriter writer(QUIC_ARRAYSIZE(buffer), buffer, GetParam().endianness);
+  EXPECT_TRUE(writer.WriteConnectionId(empty_connection_id));
+  EXPECT_TRUE(writer.WriteUInt8(1));
+  EXPECT_TRUE(writer.WriteConnectionId(empty_connection_id));
+  EXPECT_TRUE(writer.WriteUInt8(2));
+  EXPECT_TRUE(writer.WriteConnectionId(empty_connection_id));
+  EXPECT_FALSE(writer.WriteUInt8(3));
+
+  EXPECT_EQ(buffer[0], 1);
+  EXPECT_EQ(buffer[1], 2);
+
+  QuicConnectionId read_connection_id = TestConnectionId();
+  uint8_t read_byte;
+  QuicDataReader reader(buffer, QUIC_ARRAYSIZE(buffer), GetParam().endianness);
+  EXPECT_TRUE(reader.ReadConnectionId(&read_connection_id, 0));
+  EXPECT_EQ(read_connection_id, empty_connection_id);
+  EXPECT_TRUE(reader.ReadUInt8(&read_byte));
+  EXPECT_EQ(read_byte, 1);
+  // Reset read_connection_id to something else to verify that
+  // ReadConnectionId properly sets it back to empty.
+  read_connection_id = TestConnectionId();
+  EXPECT_TRUE(reader.ReadConnectionId(&read_connection_id, 0));
+  EXPECT_EQ(read_connection_id, empty_connection_id);
+  EXPECT_TRUE(reader.ReadUInt8(&read_byte));
+  EXPECT_EQ(read_byte, 2);
+  read_connection_id = TestConnectionId();
+  EXPECT_TRUE(reader.ReadConnectionId(&read_connection_id, 0));
+  EXPECT_EQ(read_connection_id, empty_connection_id);
+  EXPECT_FALSE(reader.ReadUInt8(&read_byte));
 }
 
 TEST_P(QuicDataWriterTest, WriteTag) {
   char CHLO[] = {
-      'C', 'H', 'L', 'O',
+      'C',
+      'H',
+      'L',
+      'O',
   };
   const int kBufferLength = sizeof(QuicTag);
   char buffer[kBufferLength];
@@ -766,7 +808,9 @@ TEST_P(QuicDataWriterTest, VarIntGoodTargetedValues) {
 TEST_P(QuicDataWriterTest, VarIntBadTargetedValues) {
   char buffer[kVarIntBufferLength];
   uint64_t failing_values[] = {
-      0x4000000000000000, 0x4000000000000001, 0xfffffffffffffffe,
+      0x4000000000000000,
+      0x4000000000000001,
+      0xfffffffffffffffe,
       0xffffffffffffffff,
   };
   for (uint64_t test_val : failing_values) {
@@ -900,6 +944,76 @@ TEST_P(QuicDataWriterTest, MultiVarInt1) {
   EXPECT_FALSE(reader.ReadVarInt62(&test_val));
 }
 
+// Test writing varints with a forced length.
+TEST_P(QuicDataWriterTest, VarIntFixedLength) {
+  char buffer[90];
+  SbMemorySet(buffer, 0, sizeof(buffer));
+  QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
+                        Endianness::NETWORK_BYTE_ORDER);
+
+  writer.WriteVarInt62(1, VARIABLE_LENGTH_INTEGER_LENGTH_1);
+  writer.WriteVarInt62(1, VARIABLE_LENGTH_INTEGER_LENGTH_2);
+  writer.WriteVarInt62(1, VARIABLE_LENGTH_INTEGER_LENGTH_4);
+  writer.WriteVarInt62(1, VARIABLE_LENGTH_INTEGER_LENGTH_8);
+
+  writer.WriteVarInt62(63, VARIABLE_LENGTH_INTEGER_LENGTH_1);
+  writer.WriteVarInt62(63, VARIABLE_LENGTH_INTEGER_LENGTH_2);
+  writer.WriteVarInt62(63, VARIABLE_LENGTH_INTEGER_LENGTH_4);
+  writer.WriteVarInt62(63, VARIABLE_LENGTH_INTEGER_LENGTH_8);
+
+  writer.WriteVarInt62(64, VARIABLE_LENGTH_INTEGER_LENGTH_2);
+  writer.WriteVarInt62(64, VARIABLE_LENGTH_INTEGER_LENGTH_4);
+  writer.WriteVarInt62(64, VARIABLE_LENGTH_INTEGER_LENGTH_8);
+
+  writer.WriteVarInt62(16383, VARIABLE_LENGTH_INTEGER_LENGTH_2);
+  writer.WriteVarInt62(16383, VARIABLE_LENGTH_INTEGER_LENGTH_4);
+  writer.WriteVarInt62(16383, VARIABLE_LENGTH_INTEGER_LENGTH_8);
+
+  writer.WriteVarInt62(16384, VARIABLE_LENGTH_INTEGER_LENGTH_4);
+  writer.WriteVarInt62(16384, VARIABLE_LENGTH_INTEGER_LENGTH_8);
+
+  writer.WriteVarInt62(1073741823, VARIABLE_LENGTH_INTEGER_LENGTH_4);
+  writer.WriteVarInt62(1073741823, VARIABLE_LENGTH_INTEGER_LENGTH_8);
+
+  writer.WriteVarInt62(1073741824, VARIABLE_LENGTH_INTEGER_LENGTH_8);
+
+  QuicDataReader reader(buffer, sizeof(buffer), Endianness::NETWORK_BYTE_ORDER);
+
+  uint64_t test_val = 0;
+  for (int i = 0; i < 4; ++i) {
+    EXPECT_TRUE(reader.ReadVarInt62(&test_val));
+    EXPECT_EQ(test_val, 1u);
+  }
+  for (int i = 0; i < 4; ++i) {
+    EXPECT_TRUE(reader.ReadVarInt62(&test_val));
+    EXPECT_EQ(test_val, 63u);
+  }
+
+  for (int i = 0; i < 3; ++i) {
+    EXPECT_TRUE(reader.ReadVarInt62(&test_val));
+    EXPECT_EQ(test_val, 64u);
+  }
+  for (int i = 0; i < 3; ++i) {
+    EXPECT_TRUE(reader.ReadVarInt62(&test_val));
+    EXPECT_EQ(test_val, 16383u);
+  }
+
+  for (int i = 0; i < 2; ++i) {
+    EXPECT_TRUE(reader.ReadVarInt62(&test_val));
+    EXPECT_EQ(test_val, 16384u);
+  }
+  for (int i = 0; i < 2; ++i) {
+    EXPECT_TRUE(reader.ReadVarInt62(&test_val));
+    EXPECT_EQ(test_val, 1073741823u);
+  }
+
+  EXPECT_TRUE(reader.ReadVarInt62(&test_val));
+  EXPECT_EQ(test_val, 1073741824u);
+
+  // We are at the end of the buffer so this should fail.
+  EXPECT_FALSE(reader.ReadVarInt62(&test_val));
+}
+
 // Test encoding/decoding stream-id values.
 void EncodeDecodeStreamId(uint64_t value_in, bool expected_decode_result) {
   char buffer[1 * kMultiVarCount];
@@ -955,6 +1069,34 @@ TEST_P(QuicDataWriterTest, WriteRandomBytes) {
 
   EXPECT_TRUE(writer.WriteRandomBytes(&random, 20));
   test::CompareCharArraysWithHexError("random", buffer, 20, expected, 20);
+}
+
+TEST_P(QuicDataWriterTest, PeekVarInt62Length) {
+  // In range [0, 63], variable length should be 1 byte.
+  char buffer[20];
+  QuicDataWriter writer(20, buffer, NETWORK_BYTE_ORDER);
+  EXPECT_TRUE(writer.WriteVarInt62(50));
+  QuicDataReader reader(buffer, 20, NETWORK_BYTE_ORDER);
+  EXPECT_EQ(1, reader.PeekVarInt62Length());
+  // In range (63-16383], variable length should be 2 byte2.
+  char buffer2[20];
+  QuicDataWriter writer2(20, buffer2, NETWORK_BYTE_ORDER);
+  EXPECT_TRUE(writer2.WriteVarInt62(100));
+  QuicDataReader reader2(buffer2, 20, NETWORK_BYTE_ORDER);
+  EXPECT_EQ(2, reader2.PeekVarInt62Length());
+  // In range (16383, 1073741823], variable length should be 4 bytes.
+  char buffer3[20];
+  QuicDataWriter writer3(20, buffer3, NETWORK_BYTE_ORDER);
+  EXPECT_TRUE(writer3.WriteVarInt62(20000));
+  QuicDataReader reader3(buffer3, 20, NETWORK_BYTE_ORDER);
+  EXPECT_EQ(4, reader3.PeekVarInt62Length());
+  // In range (1073741823, 4611686018427387903], variable length should be 8
+  // bytes.
+  char buffer4[20];
+  QuicDataWriter writer4(20, buffer4, NETWORK_BYTE_ORDER);
+  EXPECT_TRUE(writer4.WriteVarInt62(2000000000));
+  QuicDataReader reader4(buffer4, 20, NETWORK_BYTE_ORDER);
+  EXPECT_EQ(8, reader4.PeekVarInt62Length());
 }
 
 }  // namespace

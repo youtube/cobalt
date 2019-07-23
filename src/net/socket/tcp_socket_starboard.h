@@ -26,7 +26,7 @@
 #include "net/socket/socket_tag.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 
 namespace net {
 

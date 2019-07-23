@@ -13,10 +13,20 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
-#include "starboard/log.h"
+
+#include "starboard/common/log.h"
+#include "starboard/shared/blittergles/blitter_surface.h"
 
 SbBlitterRenderTarget SbBlitterGetRenderTargetFromSurface(
     SbBlitterSurface surface) {
-  SB_NOTREACHED();
-  return kSbBlitterInvalidRenderTarget;
+  if (!SbBlitterIsSurfaceValid(surface)) {
+    SB_DLOG(ERROR) << ": Invalid surface.";
+    return kSbBlitterInvalidRenderTarget;
+  }
+
+  if (surface->render_target == NULL) {
+    return kSbBlitterInvalidRenderTarget;
+  }
+
+  return surface->render_target;
 }

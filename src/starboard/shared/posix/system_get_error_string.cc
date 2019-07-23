@@ -19,8 +19,8 @@
 #include <errno.h>
 #include <string.h>
 
+#include "starboard/common/string.h"
 #include "starboard/configuration.h"
-#include "starboard/string.h"
 
 int SbSystemGetErrorString(SbSystemError error,
                            char* out_string,

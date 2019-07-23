@@ -1,7 +1,7 @@
 // Copyright (c) 2014 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
+
 // Implements Proportional Rate Reduction (PRR) per RFC 6937.
 
 #ifndef NET_THIRD_PARTY_QUIC_CORE_CONGESTION_CONTROL_PRR_SENDER_H_

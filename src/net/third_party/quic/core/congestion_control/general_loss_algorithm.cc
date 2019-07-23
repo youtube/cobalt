@@ -30,23 +30,25 @@ static const int kDefaultAdaptiveLossDelayShift = 4;
 GeneralLossAlgorithm::GeneralLossAlgorithm() : GeneralLossAlgorithm(kNack) {}
 
 GeneralLossAlgorithm::GeneralLossAlgorithm(LossDetectionType loss_type)
-    : loss_detection_timeout_(QuicTime::Zero()), largest_lost_(0) {
+    : loss_detection_timeout_(QuicTime::Zero()),
+      least_in_flight_(1),
+      packet_number_space_(NUM_PACKET_NUMBER_SPACES) {
   SetLossDetectionType(loss_type);
 }
 
 void GeneralLossAlgorithm::SetLossDetectionType(LossDetectionType loss_type) {
   loss_detection_timeout_ = QuicTime::Zero();
-  largest_sent_on_spurious_retransmit_ = 0;
+  largest_sent_on_spurious_retransmit_.Clear();
   loss_type_ = loss_type;
   reordering_shift_ = loss_type == kAdaptiveTime
                           ? kDefaultAdaptiveLossDelayShift
                           : kDefaultLossDelayShift;
   if (GetQuicReloadableFlag(quic_eighth_rtt_loss_detection) &&
       loss_type == kTime) {
-    QUIC_FLAG_COUNT(quic_reloadable_flag_quic_eighth_rtt_loss_detection);
+    QUIC_RELOADABLE_FLAG_COUNT(quic_eighth_rtt_loss_detection);
     reordering_shift_ = 3;
   }
-  largest_previously_acked_ = 0;
+  largest_previously_acked_.Clear();
 }
 
 LossDetectionType GeneralLossAlgorithm::GetLossDetectionType() const {
@@ -59,8 +61,25 @@ void GeneralLossAlgorithm::DetectLosses(
     QuicTime time,
     const RttStats& rtt_stats,
     QuicPacketNumber largest_newly_acked,
+    const AckedPacketVector& packets_acked,
     LostPacketVector* packets_lost) {
   loss_detection_timeout_ = QuicTime::Zero();
+  if (!packets_acked.empty() &&
+      packets_acked.front().packet_number == least_in_flight_) {
+    if (least_in_flight_ + packets_acked.size() - 1 == largest_newly_acked) {
+      // Optimization for the case when no packet is missing.
+      least_in_flight_ = largest_newly_acked + 1;
+      largest_previously_acked_ = largest_newly_acked;
+      return;
+    }
+    // There is hole in acked_packets, increment least_in_flight_ if possible.
+    for (const auto& acked : packets_acked) {
+      if (acked.packet_number != least_in_flight_) {
+        break;
+      }
+      ++least_in_flight_;
+    }
+  }
   QuicTime::Delta max_rtt =
       std::max(rtt_stats.previous_srtt(), rtt_stats.latest_rtt());
   QuicTime::Delta loss_delay =
@@ -68,18 +87,29 @@ void GeneralLossAlgorithm::DetectLosses(
                max_rtt + (max_rtt >> reordering_shift_));
   QuicPacketNumber packet_number = unacked_packets.GetLeastUnacked();
   auto it = unacked_packets.begin();
-  if (largest_lost_ >= packet_number) {
-    if (largest_lost_ > unacked_packets.largest_sent_packet()) {
-      QUIC_BUG << "largest_lost: " << largest_lost_
-               << " is greater than largest_sent_packet: "
-               << unacked_packets.largest_sent_packet();
+  if (least_in_flight_.IsInitialized() && least_in_flight_ >= packet_number) {
+    if (least_in_flight_ > unacked_packets.largest_sent_packet() + 1) {
+      QUIC_BUG << "least_in_flight: " << least_in_flight_
+               << " is greater than largest_sent_packet + 1: "
+               << unacked_packets.largest_sent_packet() + 1;
     } else {
-      it += (largest_lost_ - packet_number + 1);
-      packet_number = largest_lost_ + 1;
+      it += (least_in_flight_ - packet_number);
+      packet_number = least_in_flight_;
     }
   }
+  // Clear least_in_flight_.
+  least_in_flight_.Clear();
+  DCHECK(!unacked_packets.use_uber_loss_algorithm() ||
+         packet_number_space_ ==
+             unacked_packets.GetPacketNumberSpace(largest_newly_acked));
   for (; it != unacked_packets.end() && packet_number <= largest_newly_acked;
        ++it, ++packet_number) {
+    if (unacked_packets.use_uber_loss_algorithm() &&
+        unacked_packets.GetPacketNumberSpace(it->encryption_level) !=
+            packet_number_space_) {
+      // Skip packets of different packet number space.
+      continue;
+    }
     if (!it->in_flight) {
       continue;
     }
@@ -94,7 +124,8 @@ void GeneralLossAlgorithm::DetectLosses(
     } else if (loss_type_ == kLazyFack) {
       // Require two in order acks to invoke FACK, which avoids spuriously
       // retransmitting packets when one packet is reordered by a large amount.
-      if (largest_newly_acked > largest_previously_acked_ &&
+      if (largest_previously_acked_.IsInitialized() &&
+          largest_newly_acked > largest_previously_acked_ &&
           largest_previously_acked_ > packet_number &&
           largest_previously_acked_ - packet_number >=
               (kNumberOfNacksBeforeRetransmission - 1)) {
@@ -106,12 +137,26 @@ void GeneralLossAlgorithm::DetectLosses(
     // Only early retransmit(RFC5827) when the last packet gets acked and
     // there are retransmittable packets in flight.
     // This also implements a timer-protected variant of FACK.
-    if (unacked_packets.largest_sent_retransmittable_packet() <=
-            largest_newly_acked ||
+    QuicPacketNumber largest_sent_retransmittable_packet;
+    if (unacked_packets.use_uber_loss_algorithm()) {
+      // Use largest_sent_retransmittable_packet of corresponding packet number
+      // space for timer based loss detection.
+      largest_sent_retransmittable_packet =
+          unacked_packets.GetLargestSentRetransmittableOfPacketNumberSpace(
+              packet_number_space_);
+    } else {
+      largest_sent_retransmittable_packet =
+          unacked_packets.largest_sent_retransmittable_packet();
+    }
+    if (largest_sent_retransmittable_packet <= largest_newly_acked ||
         loss_type_ == kTime || loss_type_ == kAdaptiveTime) {
       QuicTime when_lost = it->sent_time + loss_delay;
       if (time < when_lost) {
         loss_detection_timeout_ = when_lost;
+        if (!least_in_flight_.IsInitialized()) {
+          // At this point, packet_number is in flight and not detected as lost.
+          least_in_flight_ = packet_number;
+        }
         break;
       }
       packets_lost->push_back(LostPacket(packet_number, it->bytes_sent));
@@ -124,12 +169,16 @@ void GeneralLossAlgorithm::DetectLosses(
       packets_lost->push_back(LostPacket(packet_number, it->bytes_sent));
       continue;
     }
+    if (!least_in_flight_.IsInitialized()) {
+      // At this point, packet_number is in flight and not detected as lost.
+      least_in_flight_ = packet_number;
+    }
+  }
+  if (!least_in_flight_.IsInitialized()) {
+    // There is no in flight packet.
+    least_in_flight_ = largest_newly_acked + 1;
   }
   largest_previously_acked_ = largest_newly_acked;
-  if (!packets_lost->empty()) {
-    DCHECK_LT(largest_lost_, packets_lost->back().packet_number);
-    largest_lost_ = packets_lost->back().packet_number;
-  }
 }
 
 QuicTime GeneralLossAlgorithm::GetLossTimeout() const {
@@ -154,7 +203,7 @@ void GeneralLossAlgorithm::SpuriousRetransmitDetected(
   QuicTime::Delta max_rtt =
       std::max(rtt_stats.previous_srtt(), rtt_stats.latest_rtt());
   if (GetQuicReloadableFlag(quic_fix_adaptive_time_loss)) {
-    QUIC_FLAG_COUNT(quic_reloadable_flag_quic_fix_adaptive_time_loss);
+    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_adaptive_time_loss);
     while ((max_rtt >> reordering_shift_) <= extra_time_needed &&
            reordering_shift_ > 0) {
       --reordering_shift_;
@@ -162,7 +211,8 @@ void GeneralLossAlgorithm::SpuriousRetransmitDetected(
     return;
   }
 
-  if (spurious_retransmission <= largest_sent_on_spurious_retransmit_) {
+  if (largest_sent_on_spurious_retransmit_.IsInitialized() &&
+      spurious_retransmission <= largest_sent_on_spurious_retransmit_) {
     return;
   }
   largest_sent_on_spurious_retransmit_ = unacked_packets.largest_sent_packet();
@@ -171,6 +221,16 @@ void GeneralLossAlgorithm::SpuriousRetransmitDetected(
     proposed_extra_time = max_rtt >> reordering_shift_;
     --reordering_shift_;
   } while (proposed_extra_time < extra_time_needed && reordering_shift_ > 0);
+}
+
+void GeneralLossAlgorithm::SetPacketNumberSpace(
+    PacketNumberSpace packet_number_space) {
+  if (packet_number_space_ < NUM_PACKET_NUMBER_SPACES) {
+    QUIC_BUG << "Cannot switch packet_number_space";
+    return;
+  }
+
+  packet_number_space_ = packet_number_space;
 }
 
 }  // namespace quic

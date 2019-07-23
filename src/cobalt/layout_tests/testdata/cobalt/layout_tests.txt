@@ -1,6 +1,7 @@
 100-dynamically-created-nested-elements
 100-nested-elements
 block-and-inline-block-display
+btoa-with-null-char
 changing-css-text-triggers-layout
 console-trace-should-not-crash
 divs-with-background-color-and-text
@@ -17,6 +18,7 @@ positioned-boxes-with-same-z-index-are-processed-in-insertion-order
 relative-font-size
 screenshot
 screenshot-with-animation
+simple-transform-stacked
 simple-transform-text
 transform-translate-with-em-units
 transform-with-background-color
@@ -25,4 +27,3 @@ user-agent-style-sheet-display
 user-agent-test
 window-onerror
 woff2-decoding
-btoa-with-null-char

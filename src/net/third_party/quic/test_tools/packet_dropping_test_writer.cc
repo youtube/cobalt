@@ -4,9 +4,6 @@
 
 #include "net/third_party/quic/test_tools/packet_dropping_test_writer.h"
 
-#include <limits>
-
-#include "base/rand_util.h"
 #include "net/third_party/quic/core/quic_epoll_connection_helper.h"
 #include "net/third_party/quic/platform/api/quic_logging.h"
 #include "net/third_party/quic/platform/impl/quic_socket_utils.h"
@@ -53,7 +50,6 @@ PacketDroppingTestWriter::PacketDroppingTestWriter()
     : clock_(nullptr),
       cur_buffer_size_(0),
       num_calls_to_write_(0),
-      config_mutex_(),
       fake_packet_loss_percentage_(0),
       fake_drop_first_n_packets_(0),
       fake_blocked_socket_percentage_(0),
@@ -62,7 +58,7 @@ PacketDroppingTestWriter::PacketDroppingTestWriter()
       fake_bandwidth_(QuicBandwidth::Zero()),
       buffer_size_(0),
       num_consecutive_packet_lost_(0) {
-  uint32_t seed = base::RandInt(0, std::numeric_limits<int32_t>::max());
+  uint64_t seed = QuicRandom::GetInstance()->RandUint64();
   QUIC_LOG(INFO) << "Seeding packet loss with " << seed;
   simple_random_.set_seed(seed);
 }
@@ -249,17 +245,6 @@ PacketDroppingTestWriter::DelayedWrite::DelayedWrite(
       peer_address(peer_address),
       options(std::move(options)),
       send_time(send_time) {}
-
-// TODO(rtenneti): on windows RValue reference gives errors.
-PacketDroppingTestWriter::DelayedWrite::DelayedWrite(
-    PacketDroppingTestWriter::DelayedWrite&& other) = default;
-
-// TODO(rtenneti): on windows RValue reference gives errors.
-// IPAddress has no move assignment operator.
-//
-// PacketDroppingTestWriter::DelayedWrite&
-// PacketDroppingTestWriter::DelayedWrite::operator=(
-//    PacketDroppingTestWriter::DelayedWrite&& other) = default;
 
 PacketDroppingTestWriter::DelayedWrite::~DelayedWrite() = default;
 

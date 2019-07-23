@@ -8,7 +8,6 @@
 #include "net/third_party/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quic/test_tools/crypto_test_utils.h"
 
-
 namespace quic {
 namespace test {
 

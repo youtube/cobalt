@@ -112,7 +112,7 @@ NetFetcher::NetFetcher(const GURL& url,
 }
 
 void NetFetcher::Start() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   const GURL& original_url = url_fetcher_->GetOriginalURL();
   if (security_callback_.is_null() ||
       security_callback_.Run(original_url, false /* did not redirect */)) {
@@ -125,7 +125,7 @@ void NetFetcher::Start() {
 }
 
 void NetFetcher::OnURLFetchResponseStarted(const net::URLFetcher* source) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (source->GetURL() != source->GetOriginalURL()) {
     // A redirect occured. Re-check the security policy.
     if (!security_callback_.is_null() &&
@@ -164,7 +164,7 @@ void NetFetcher::OnURLFetchResponseStarted(const net::URLFetcher* source) {
 }
 
 void NetFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   const net::URLRequestStatus& status = source->GetStatus();
   const int response_code = source->GetResponseCode();
   if (status.is_success() && IsResponseCodeSuccess(response_code)) {
@@ -221,7 +221,7 @@ void NetFetcher::OnURLFetchDownloadProgress(const net::URLFetcher* source,
 }
 
 NetFetcher::~NetFetcher() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   start_callback_.Cancel();
 }
 

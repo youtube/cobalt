@@ -47,6 +47,8 @@ class PerformanceTiming : public script::Wrappable {
  private:
   ~PerformanceTiming();
 
+  // The navigation start time relative to January 1, 1970.
+  base::TimeDelta navigation_start_;
   scoped_refptr<base::OffsetClock> navigation_start_clock_;
 
   DISALLOW_COPY_AND_ASSIGN(PerformanceTiming);

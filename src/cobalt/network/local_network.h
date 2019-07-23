@@ -15,7 +15,7 @@
 #ifndef COBALT_NETWORK_LOCAL_NETWORK_H_
 #define COBALT_NETWORK_LOCAL_NETWORK_H_
 
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 
 namespace cobalt {
 namespace network {

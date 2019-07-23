@@ -23,6 +23,7 @@
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
 #include "starboard/thread.h"
+#include "starboard/time.h"
 #include "starboard/types.h"
 
 namespace starboard {
@@ -33,9 +34,7 @@ class atomic_bool;
 class Thread {
  public:
   struct Options {
-    Options() : stack_size(0),  // Signal for default stack size.
-                priority_(kSbThreadNoPriority),
-                joinable(true) {}
+    Options();
     int64_t stack_size;
     SbThreadPriority priority_;
     bool joinable = true;

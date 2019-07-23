@@ -7,7 +7,7 @@
 #include <iostream>
 #include <list>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // Enables some verbose logging for debugging the state machine test and

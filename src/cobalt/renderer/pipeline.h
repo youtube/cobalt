@@ -205,7 +205,7 @@ class Pipeline {
   base::Optional<base::RepeatingTimer> rasterize_timer_;
 
   // ThreadChecker for use by the rasterizer_thread_ defined below.
-  base::ThreadChecker rasterizer_thread_checker_;
+  THREAD_CHECKER(rasterizer_thread_checker_);
 
   // The thread that all rasterization will take place within.
   base::Thread rasterizer_thread_;

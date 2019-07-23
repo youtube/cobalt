@@ -18,14 +18,14 @@
 #include <unordered_map>
 
 #include "starboard/atomic.h"
+#include "starboard/common/log.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/common/semaphore.h"
+#include "starboard/common/socket.h"
+#include "starboard/common/string.h"
 #include "starboard/file.h"
-#include "starboard/log.h"
 #include "starboard/shared/starboard/application.h"
-#include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
-#include "starboard/string.h"
 #include "starboard/system.h"
 
 namespace starboard {

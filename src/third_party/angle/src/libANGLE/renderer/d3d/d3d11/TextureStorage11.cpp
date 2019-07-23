@@ -30,7 +30,7 @@
 #include "libANGLE/renderer/d3d/EGLImageD3D.h"
 #include "libANGLE/renderer/d3d/TextureD3D.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace
 {

@@ -17,8 +17,8 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/log_internal.h"
 #include "starboard/common/semaphore.h"
+#include "starboard/common/string.h"
 #include "starboard/shared/starboard/command_line.h"
-#include "starboard/string.h"
 #include "starboard/thread.h"
 
 namespace starboard {

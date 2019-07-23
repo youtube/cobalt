@@ -27,6 +27,7 @@ class QuicStreamPeer {
   static void SetWriteSideClosed(bool value, QuicStream* stream);
   static void SetStreamBytesWritten(QuicStreamOffset stream_bytes_written,
                                     QuicStream* stream);
+  static bool write_side_closed(QuicStream* stream);
   static bool read_side_closed(QuicStream* stream);
   static void CloseReadSide(QuicStream* stream);
 
@@ -47,10 +48,6 @@ class QuicStreamPeer {
   static QuicSession* session(QuicStream* stream);
 
   static QuicStreamSendBuffer& SendBuffer(QuicStream* stream);
-
-  static void set_ack_listener(
-      QuicStream* stream,
-      QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 };
 
 }  // namespace test

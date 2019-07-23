@@ -61,6 +61,7 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   ~DrmSystemWidevine() override;
 
   static bool IsKeySystemSupported(const char* key_system);
+  static bool IsDrmSystemWidevine(SbDrmSystem drm_system);
 
   // From |SbDrmSystemPrivate|.
   void GenerateSessionUpdateRequest(int ticket,
@@ -80,6 +81,8 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   DecryptStatus Decrypt(InputBuffer* buffer) override;
 
 #if SB_API_VERSION >= 10
+  bool IsServerCertificateUpdatable() override { return true; }
+
   // This function is called by the app to explicitly set the server
   // certificate.  For an app that supports this feature, it should call this
   // function before calling any other functions like
@@ -135,8 +138,9 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   int GetAndResetTicket(const std::string& sb_drm_session_id);
   std::string WvdmSessionIdToSbDrmSessionId(
       const std::string& wvcdm_session_id);
-  std::string SbDrmSessionIdToWvdmSessionId(const void* sb_drm_session_id,
-                                            int sb_drm_session_id_size);
+  bool SbDrmSessionIdToWvdmSessionId(const void* sb_drm_session_id,
+                                     int sb_drm_session_id_size,
+                                     std::string* wvcdm_session_id);
 
   // Generates a special key message to ask for the server certificate.  When
   // the license server receives the request, it will send back the server

@@ -64,6 +64,13 @@ struct GrGlyph {
 
     ///////////////////////////////////////////////////////////////////////////
 
+    static inline bool Fits(const SkIRect& bounds) {
+        return SkTFitsIn<int16_t>(bounds.fLeft) &&
+               SkTFitsIn<int16_t>(bounds.fTop) &&
+               SkTFitsIn<int16_t>(bounds.fRight) &&
+               SkTFitsIn<int16_t>(bounds.fBottom);
+    }
+
     static inline unsigned ExtractSubPixelBitsFromFixed(SkFixed pos) {
         // two most significant fraction bits from fixed-point
         return (pos >> 14) & 3;

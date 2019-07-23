@@ -30,10 +30,12 @@ class Writer {
   explicit Writer(Vector<byte> buffer) : buffer_(buffer) {}
   template <typename T>
   void Write(const T& value) {
+#ifndef V8_OS_STARBOARD
     if (FLAG_wasm_trace_serialization) {
       OFStream os(stdout);
       os << "wrote: " << (size_t)value << " sized: " << sizeof(T) << std::endl;
     }
+#endif
     DCHECK_GE(buffer_.size(), sizeof(T));
     memcpy(buffer_.start(), reinterpret_cast<const byte*>(&value), sizeof(T));
     buffer_ = buffer_ + sizeof(T);
@@ -45,10 +47,12 @@ class Writer {
       memcpy(buffer_.start(), data.start(), data.size());
       buffer_ = buffer_ + data.size();
     }
+#ifndef V8_OS_STARBOARD
     if (FLAG_wasm_trace_serialization) {
       OFStream os(stdout);
       os << "wrote vector of " << data.size() << " elements" << std::endl;
     }
+#endif
   }
   Vector<byte> current_buffer() const { return buffer_; }
 
@@ -66,10 +70,12 @@ class Reader {
     T ret;
     memcpy(reinterpret_cast<byte*>(&ret), buffer_.start(), sizeof(T));
     buffer_ = buffer_ + sizeof(T);
+#ifndef V8_OS_STARBOARD
     if (FLAG_wasm_trace_serialization) {
       OFStream os(stdout);
       os << "read: " << (size_t)ret << " sized: " << sizeof(T) << std::endl;
     }
+#endif
     return ret;
   }
 
@@ -85,10 +91,12 @@ class Reader {
       memcpy(data.start(), buffer_.start(), data.size());
       buffer_ = buffer_ + data.size();
     }
+#ifndef V8_OS_STARBOARD
     if (FLAG_wasm_trace_serialization) {
       OFStream os(stdout);
       os << "read vector of " << data.size() << " elements" << std::endl;
     }
+#endif
   }
 
   Vector<const byte> current_buffer() const { return buffer_; }

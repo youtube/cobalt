@@ -25,7 +25,7 @@
 #include "cobalt/browser/memory_tracker/tool/util.h"
 #include "cobalt/script/util/stack_trace_helpers.h"
 #include "nb/memory_scope.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 namespace cobalt {
 namespace browser {

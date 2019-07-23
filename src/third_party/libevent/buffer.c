@@ -34,11 +34,9 @@
 #include <windows.h>
 #endif
 
-#ifdef HAVE_VASPRINTF
+#if defined(HAVE_VASPRINTF) && !defined(_GNU_SOURCE)
 /* If we have vasprintf, we need to define this before we include stdio.h. */
-#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
-#endif
 #endif
 
 #include <sys/types.h>
@@ -66,6 +64,7 @@
 #include "event.h"
 #include "config.h"
 #include "evutil.h"
+#include "./log.h"
 
 struct evbuffer *
 evbuffer_new(void)
@@ -145,7 +144,8 @@ evbuffer_add_vprintf(struct evbuffer *buf, const char *fmt, va_list ap)
 	va_list aq;
 
 	/* make sure that at least some space is available */
-	evbuffer_expand(buf, 64);
+	if (evbuffer_expand(buf, 64) < 0)
+		return (-1);
 	for (;;) {
 		size_t used = buf->misalign + buf->off;
 		buffer = (char *)buf->buffer + buf->off;
@@ -250,6 +250,92 @@ evbuffer_readline(struct evbuffer *buffer)
 	return (line);
 }
 
+
+char *
+evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
+		enum evbuffer_eol_style eol_style)
+{
+	u_char *data = EVBUFFER_DATA(buffer);
+	u_char *start_of_eol, *end_of_eol;
+	size_t len = EVBUFFER_LENGTH(buffer);
+	char *line;
+	unsigned int i, n_to_copy, n_to_drain;
+
+	if (n_read_out)
+		*n_read_out = 0;
+
+	/* depending on eol_style, set start_of_eol to the first character
+	 * in the newline, and end_of_eol to one after the last character. */
+	switch (eol_style) {
+	case EVBUFFER_EOL_ANY:
+		for (i = 0; i < len; i++) {
+			if (data[i] == '\r' || data[i] == '\n')
+				break;
+		}
+		if (i == len)
+			return (NULL);
+		start_of_eol = data+i;
+		++i;
+		for ( ; i < len; i++) {
+			if (data[i] != '\r' && data[i] != '\n')
+				break;
+		}
+		end_of_eol = data+i;
+		break;
+	case EVBUFFER_EOL_CRLF:
+		end_of_eol = memchr(data, '\n', len);
+		if (!end_of_eol)
+			return (NULL);
+		if (end_of_eol > data && *(end_of_eol-1) == '\r')
+			start_of_eol = end_of_eol - 1;
+		else
+			start_of_eol = end_of_eol;
+		end_of_eol++; /*point to one after the LF. */
+		break;
+	case EVBUFFER_EOL_CRLF_STRICT: {
+		u_char *cp = data;
+		while ((cp = memchr(cp, '\r', len-(cp-data)))) {
+			if (cp < data+len-1 && *(cp+1) == '\n')
+				break;
+			if (++cp >= data+len) {
+				cp = NULL;
+				break;
+			}
+		}
+		if (!cp)
+			return (NULL);
+		start_of_eol = cp;
+		end_of_eol = cp+2;
+		break;
+	}
+	case EVBUFFER_EOL_LF:
+		start_of_eol = memchr(data, '\n', len);
+		if (!start_of_eol)
+			return (NULL);
+		end_of_eol = start_of_eol + 1;
+		break;
+	default:
+		return (NULL);
+	}
+
+	n_to_copy = start_of_eol - data;
+	n_to_drain = end_of_eol - data;
+
+	if ((line = malloc(n_to_copy+1)) == NULL) {
+		event_warn("%s: out of memory\n", __func__);
+		return (NULL);
+	}
+
+	memcpy(line, data, n_to_copy);
+	line[n_to_copy] = '\0';
+
+	evbuffer_drain(buffer, n_to_drain);
+	if (n_read_out)
+		*n_read_out = (size_t)n_to_copy;
+
+	return (line);
+}
+
 /* Adds data to an event buffer */
 
 static void
@@ -260,31 +346,47 @@ evbuffer_align(struct evbuffer *buf)
 	buf->misalign = 0;
 }
 
+#ifndef SIZE_MAX
+#define SIZE_MAX ((size_t)-1)
+#endif
+
 /* Expands the available space in the event buffer to at least datlen */
 
 int
 evbuffer_expand(struct evbuffer *buf, size_t datlen)
 {
-	size_t need = buf->misalign + buf->off + datlen;
+	size_t used = buf->misalign + buf->off;
+
+	assert(buf->totallen >= used);
 
 	/* If we can fit all the data, then we don't have to do anything */
-	if (buf->totallen >= need)
+	if (buf->totallen - used >= datlen)
 		return (0);
+	/* If we would need to overflow to fit this much data, we can't
+	 * do anything. */
+	if (datlen > SIZE_MAX - buf->off)
+		return (-1);
 
 	/*
 	 * If the misalignment fulfills our data needs, we just force an
 	 * alignment to happen.  Afterwards, we have enough space.
 	 */
-	if (buf->misalign >= datlen) {
+	if (buf->totallen - buf->off >= datlen) {
 		evbuffer_align(buf);
 	} else {
 		void *newbuf;
 		size_t length = buf->totallen;
+		size_t need = buf->off + datlen;
 
 		if (length < 256)
 			length = 256;
-		while (length < need)
-			length <<= 1;
+		if (need < SIZE_MAX / 2) {
+			while (length < need) {
+				length <<= 1;
+			}
+		} else {
+			length = need;
+		}
 
 		if (buf->orig_buffer != buf->buffer)
 			evbuffer_align(buf);
@@ -301,10 +403,10 @@ evbuffer_expand(struct evbuffer *buf, size_t datlen)
 int
 evbuffer_add(struct evbuffer *buf, const void *data, size_t datlen)
 {
-	size_t need = buf->misalign + buf->off + datlen;
+	size_t used = buf->misalign + buf->off;
 	size_t oldoff = buf->off;
 
-	if (buf->totallen < need) {
+	if (buf->totallen - used < datlen) {
 		if (evbuffer_expand(buf, datlen) == -1)
 			return (-1);
 	}

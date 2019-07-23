@@ -427,6 +427,12 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
 
       is_render_tree_pending_ = false;
     }
+
+    // Run the Update Intersection Observation Steps
+    // https://www.w3.org/TR/intersection-observer/#update-intersection-observations-algo
+    document->intersection_observer_task_manager()
+        ->UpdateIntersectionObservations();
+
     TRACE_EVENT_END0("cobalt::layout", kBenchmarkStatLayout);
   }
 

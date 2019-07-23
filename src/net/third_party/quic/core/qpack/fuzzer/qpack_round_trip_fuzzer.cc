@@ -9,7 +9,7 @@
 #include "net/third_party/quic/core/qpack/qpack_encoder_test_utils.h"
 #include "net/third_party/quic/platform/api/quic_fuzzed_data_provider.h"
 #include "net/third_party/quic/platform/api/quic_string.h"
-#include "net/third_party/spdy/core/spdy_header_block.h"
+#include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 
 namespace quic {
 namespace test {
@@ -25,7 +25,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   // Build test header list.
   spdy::SpdyHeaderBlock header_list;
-  uint8_t header_count = provider.ConsumeUint8();
+  uint8_t header_count = provider.ConsumeIntegral<uint8_t>();
   for (uint8_t header_index = 0; header_index < header_count; ++header_index) {
     if (provider.remaining_bytes() == 0) {
       // Do not add more headers if there is no more fuzzer data.
@@ -34,7 +34,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
     QuicString name;
     QuicString value;
-    switch (provider.ConsumeUint8()) {
+    switch (provider.ConsumeIntegral<uint8_t>()) {
       case 0:
         // Static table entry with no header value.
         name = ":authority";
@@ -119,16 +119,23 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   // Process up to 64 kB fragments at a time.  Too small upper bound might not
   // provide enough coverage, too large would make fuzzing less efficient.
-  auto fragment_size_generator = std::bind(
-      &QuicFuzzedDataProvider::ConsumeUint32InRange, &provider, 1, 64 * 1024);
+  auto fragment_size_generator =
+      std::bind(&QuicFuzzedDataProvider::ConsumeIntegralInRange<uint16_t>,
+                &provider, 1, std::numeric_limits<uint16_t>::max());
 
   // Encode header list.
-  QuicString encoded_header_block =
-      QpackEncode(fragment_size_generator, &header_list);
+  NoopDecoderStreamErrorDelegate decoder_stream_error_delegate;
+  NoopEncoderStreamSenderDelegate encoder_stream_sender_delegate;
+  QuicString encoded_header_block = QpackEncode(
+      &decoder_stream_error_delegate, &encoder_stream_sender_delegate,
+      fragment_size_generator, &header_list);
 
   // Decode header block.
   TestHeadersHandler handler;
-  QpackDecode(&handler, fragment_size_generator, encoded_header_block);
+  NoopEncoderStreamErrorDelegate encoder_stream_error_delegate;
+  NoopDecoderStreamSenderDelegate decoder_stream_sender_delegate;
+  QpackDecode(&encoder_stream_error_delegate, &decoder_stream_sender_delegate,
+              &handler, fragment_size_generator, encoded_header_block);
 
   // Since header block has been produced by encoding a header list, it must be
   // valid.

@@ -102,9 +102,8 @@ BlockFormattingBlockContainerBox::GetOrAddAnonymousBlockBox() {
     new_computed_style_declaration->set_animations(
         new web_animations::AnimationSet());
     scoped_refptr<AnonymousBlockBox> new_anonymous_block_box(
-        new AnonymousBlockBox(new_computed_style_declaration,
-                              GetBaseDirection(), used_style_provider(),
-                              layout_stat_tracker()));
+        new AnonymousBlockBox(new_computed_style_declaration, base_direction(),
+                              used_style_provider(), layout_stat_tracker()));
     anonymous_block_box = new_anonymous_block_box.get();
     PushBackDirectChild(new_anonymous_block_box);
   }

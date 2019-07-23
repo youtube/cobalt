@@ -74,6 +74,10 @@
 #include "src/register-configuration.h"
 #include "src/utils.h"
 
+#if V8_OS_STARBOARD
+#include "starboard/common/log.h"
+#endif  // V8_OS_STARBOARD
+
 namespace v8 {
 namespace internal {
 
@@ -606,17 +610,33 @@ void PrintCode(Handle<Code> code, CompilationInfo* info) {
 #endif  // ENABLE_DISASSEMBLER
 }
 
+// These classes act identical to their counterpart, *except* they inherit from
+// std::ostream and not std::ofstream. This distinction makes it so that they
+// can be used exactly the same, but they will not internally write to any
+// files. This change removes file related leaks from //v8.
+#if V8_OS_STARBOARD
+struct TurboCfgFile : public std::ostream {
+  explicit TurboCfgFile(Isolate*) : std::ostream(nullptr) {
+    SB_LOG(WARNING) << "Cannot trace generated TurboFan IR for Starboard.";
+  }
+};
+struct TurboJsonFile : public std::ostream {
+  TurboJsonFile(CompilationInfo*, std::ios_base::openmode) : std::ostream(nullptr) {
+    SB_LOG(WARNING) << "Cannot trace generated TurboFan IR for Starboard.";
+  }
+};
+#else   // !V8_OS_STARBOARD
 struct TurboCfgFile : public std::ofstream {
   explicit TurboCfgFile(Isolate* isolate)
       : std::ofstream(isolate->GetTurboCfgFileName().c_str(),
                       std::ios_base::app) {}
 };
-
 struct TurboJsonFile : public std::ofstream {
   TurboJsonFile(CompilationInfo* info, std::ios_base::openmode mode)
       : std::ofstream(GetVisualizerLogFileName(info, nullptr, "json").get(),
                       mode) {}
 };
+#endif  // V8_OS_STARBOARD
 
 void TraceSchedule(CompilationInfo* info, Isolate* isolate,
                    Schedule* schedule) {

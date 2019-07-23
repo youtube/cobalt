@@ -1,7 +1,7 @@
 // Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
+
 // A toy server, which listens on a specified address for QUIC traffic and
 // handles incoming responses.
 //
@@ -14,15 +14,15 @@
 #include <memory>
 
 #include "base/macros.h"
-#include "net/quic/quic_chromium_connection_helper.h"
 #include "net/third_party/quic/core/crypto/quic_crypto_server_config.h"
 #include "net/third_party/quic/core/quic_config.h"
+#include "net/third_party/quic/core/quic_epoll_connection_helper.h"
 #include "net/third_party/quic/core/quic_framer.h"
 #include "net/third_party/quic/core/quic_packet_writer.h"
 #include "net/third_party/quic/core/quic_version_manager.h"
+#include "net/third_party/quic/platform/api/quic_epoll.h"
 #include "net/third_party/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quic/tools/quic_simple_server_backend.h"
-#include "net/tools/epoll_server/epoll_server.h"
 
 namespace quic {
 
@@ -33,7 +33,7 @@ class QuicServerPeer;
 class QuicDispatcher;
 class QuicPacketReader;
 
-class QuicServer : public net::EpollCallbackInterface {
+class QuicServer : public QuicEpollCallbackInterface {
  public:
   QuicServer(std::unique_ptr<ProofSource> proof_source,
              QuicSimpleServerBackend* quic_simple_server_backend);
@@ -47,7 +47,7 @@ class QuicServer : public net::EpollCallbackInterface {
 
   ~QuicServer() override;
 
-  std::string Name() const override { return "QuicServer"; }
+  QuicString Name() const override { return "QuicServer"; }
 
   // Start listening on the specified address.
   bool CreateUDPSocketAndListen(const QuicSocketAddress& address);
@@ -55,19 +55,16 @@ class QuicServer : public net::EpollCallbackInterface {
   // Wait up to 50ms, and handle any events which occur.
   void WaitForEvents();
 
-  void Start();
-  void Run();
-
   // Server deletion is imminent.  Start cleaning up the epoll server.
   virtual void Shutdown();
 
-  // From net::EpollCallbackInterface
-  void OnRegistration(net::EpollServer* eps, int fd, int event_mask) override {}
+  // From EpollCallbackInterface
+  void OnRegistration(QuicEpollServer* eps, int fd, int event_mask) override {}
   void OnModification(int fd, int event_mask) override {}
-  void OnEvent(int fd, net::EpollEvent* event) override;
+  void OnEvent(int fd, QuicEpollEvent* event) override;
   void OnUnregistration(int fd, bool replaced) override {}
 
-  void OnShutdown(net::EpollServer* eps, int fd) override {}
+  void OnShutdown(QuicEpollServer* eps, int fd) override {}
 
   void SetChloMultiplier(size_t multiplier) {
     crypto_config_.set_chlo_multiplier(multiplier);
@@ -90,7 +87,7 @@ class QuicServer : public net::EpollCallbackInterface {
 
   const QuicConfig& config() const { return config_; }
   const QuicCryptoServerConfig& crypto_config() const { return crypto_config_; }
-  net::EpollServer* epoll_server() { return &epoll_server_; }
+  QuicEpollServer* epoll_server() { return &epoll_server_; }
 
   QuicDispatcher* dispatcher() { return dispatcher_.get(); }
 
@@ -111,7 +108,7 @@ class QuicServer : public net::EpollCallbackInterface {
   // Accepts data from the framer and demuxes clients to sessions.
   std::unique_ptr<QuicDispatcher> dispatcher_;
   // Frames incoming packets and hands them to the dispatcher.
-  net::EpollServer epoll_server_;
+  QuicEpollServer epoll_server_;
 
   // The port the server is listening on.
   int port_;
@@ -148,8 +145,6 @@ class QuicServer : public net::EpollCallbackInterface {
   std::unique_ptr<QuicPacketReader> packet_reader_;
 
   QuicSimpleServerBackend* quic_simple_server_backend_;  // unowned.
-
-  base::WeakPtrFactory<QuicServer> weak_factory_;
 };
 
 }  // namespace quic

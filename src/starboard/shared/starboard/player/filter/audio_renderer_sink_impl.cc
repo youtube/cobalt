@@ -15,7 +15,7 @@
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
 
 #include "starboard/audio_sink.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
 namespace starboard {

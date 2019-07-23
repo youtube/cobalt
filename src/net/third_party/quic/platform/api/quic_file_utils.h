@@ -7,21 +7,20 @@
 
 #include <vector>
 
+#include "net/third_party/quic/platform/api/quic_export.h"
 #include "net/third_party/quic/platform/api/quic_string.h"
-#include "net/third_party/quic/platform/impl/quic_file_utils_impl.h"
+#include "net/third_party/quic/platform/api/quic_string_piece.h"
 
 namespace quic {
 
 // Traverses the directory |dirname| and retuns all of the files
 // it contains.
-std::vector<QuicString> ReadFileContents(const QuicString& dirname) {
-  return ReadFileContentsImpl(dirname);
-}
+QUIC_EXPORT_PRIVATE std::vector<QuicString> ReadFileContents(
+    const QuicString& dirname);
 
 // Reads the contents of |filename| as a string into |contents|.
-void ReadFileContents(const QuicString& filename, QuicString* contents) {
-  ReadFileContentsImpl(filename, contents);
-}
+QUIC_EXPORT_PRIVATE void ReadFileContents(QuicStringPiece filename,
+                                          QuicString* contents);
 
 }  // namespace quic
 

@@ -29,7 +29,7 @@
 #include "net/spdy/spdy_session_key.h"
 #include "net/ssl/ssl_config_service.h"
 #include "net/third_party/quic/core/quic_versions.h"
-#include "net/third_party/spdy/core/spdy_protocol.h"
+#include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "starboard/types.h"
 
 namespace base {

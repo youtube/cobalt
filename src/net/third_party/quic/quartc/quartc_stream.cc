@@ -4,38 +4,51 @@
 
 #include "net/third_party/quic/quartc/quartc_stream.h"
 
+#include <memory>
+#include <utility>
+
+#include "net/third_party/quic/core/quic_ack_listener_interface.h"
+#include "net/third_party/quic/core/quic_error_codes.h"
+#include "net/third_party/quic/core/quic_stream_send_buffer.h"
+#include "net/third_party/quic/core/quic_stream_sequencer.h"
+#include "net/third_party/quic/core/quic_stream_sequencer_buffer.h"
+#include "net/third_party/quic/core/quic_types.h"
+#include "net/third_party/quic/platform/api/quic_ptr_util.h"
+#include "net/third_party/quic/platform/api/quic_reference_counted.h"
 #include "net/third_party/quic/platform/api/quic_string_piece.h"
 
 namespace quic {
 
 QuartcStream::QuartcStream(QuicStreamId id, QuicSession* session)
-    : QuicStream(id, session, /*is_static=*/false) {
+    : QuicStream(id, session, /*is_static=*/false, BIDIRECTIONAL) {
+  sequencer()->set_level_triggered(true);
+}
+
+QuartcStream::QuartcStream(PendingStream pending)
+    : QuicStream(std::move(pending), BIDIRECTIONAL) {
   sequencer()->set_level_triggered(true);
 }
 
 QuartcStream::~QuartcStream() {}
 
 void QuartcStream::OnDataAvailable() {
-  // Do not deliver data until the entire stream's data is available.
-  if (deliver_on_complete_ &&
-      sequencer()->ReadableBytes() + sequencer()->NumBytesConsumed() <
-          sequencer()->close_offset()) {
-    return;
-  }
+  bool fin = sequencer()->ReadableBytes() + sequencer()->NumBytesConsumed() ==
+             sequencer()->close_offset();
 
-  struct iovec iov;
-  while (sequencer()->GetReadableRegion(&iov)) {
-    DCHECK(delegate_);
-    delegate_->OnReceived(this, reinterpret_cast<const char*>(iov.iov_base),
-                          iov.iov_len);
-    sequencer()->MarkConsumed(iov.iov_len);
-  }
-  // All the data has been received if the sequencer is closed.
-  // Notify the delegate by calling the callback function one more time with
-  // iov_len = 0.
+  // Upper bound on number of readable regions.  Each complete block's worth of
+  // data crosses at most one region boundary.  The remainder may cross one more
+  // boundary.  Number of regions is one more than the number of region
+  // boundaries crossed.
+  size_t iov_length = sequencer()->ReadableBytes() /
+                          QuicStreamSequencerBuffer::kBlockSizeBytes +
+                      2;
+  std::unique_ptr<IOVEC[]> IOVECs = QuicMakeUnique<IOVEC[]>(iov_length);
+  iov_length = sequencer()->GetReadableRegions(IOVECs.get(), iov_length);
+
+  sequencer()->MarkConsumed(
+      delegate_->OnReceived(this, IOVECs.get(), iov_length, fin));
   if (sequencer()->IsClosed()) {
     OnFinRead();
-    delegate_->OnReceived(this, reinterpret_cast<const char*>(iov.iov_base), 0);
   }
 }
 
@@ -60,6 +73,20 @@ void QuartcStream::OnDataBuffered(
   delegate_->OnBufferChanged(this);
 }
 
+bool QuartcStream::OnStreamFrameAcked(QuicStreamOffset offset,
+                                      QuicByteCount data_length,
+                                      bool fin_acked,
+                                      QuicTime::Delta ack_delay_time,
+                                      QuicByteCount* newly_acked_length) {
+  // Previous losses of acked data are no longer relevant to the retransmission
+  // count.  Once data is acked, it will never be retransmitted.
+  lost_frame_counter_.RemoveInterval(
+      QuicInterval<QuicStreamOffset>(offset, offset + data_length));
+
+  return QuicStream::OnStreamFrameAcked(offset, data_length, fin_acked,
+                                        ack_delay_time, newly_acked_length);
+}
+
 void QuartcStream::OnStreamFrameRetransmitted(QuicStreamOffset offset,
                                               QuicByteCount data_length,
                                               bool fin_retransmitted) {
@@ -75,12 +102,17 @@ void QuartcStream::OnStreamFrameLost(QuicStreamOffset offset,
                                      bool fin_lost) {
   QuicStream::OnStreamFrameLost(offset, data_length, fin_lost);
 
+  lost_frame_counter_.AddInterval(
+      QuicInterval<QuicStreamOffset>(offset, offset + data_length));
+
   DCHECK(delegate_);
   delegate_->OnBufferChanged(this);
 }
 
 void QuartcStream::OnCanWrite() {
-  if (cancel_on_loss_ && HasPendingRetransmission()) {
+  if (lost_frame_counter_.MaxCount() >
+          static_cast<size_t>(max_retransmission_count_) &&
+      HasPendingRetransmission()) {
     Reset(QUIC_STREAM_CANCELLED);
     return;
   }
@@ -88,23 +120,28 @@ void QuartcStream::OnCanWrite() {
 }
 
 bool QuartcStream::cancel_on_loss() {
-  return cancel_on_loss_;
+  return max_retransmission_count_ == 0;
 }
 
 void QuartcStream::set_cancel_on_loss(bool cancel_on_loss) {
-  cancel_on_loss_ = cancel_on_loss;
+  if (cancel_on_loss) {
+    max_retransmission_count_ = 0;
+  } else {
+    max_retransmission_count_ = std::numeric_limits<int>::max();
+  }
 }
 
-bool QuartcStream::deliver_on_complete() {
-  return deliver_on_complete_;
+int QuartcStream::max_retransmission_count() const {
+  return max_retransmission_count_;
 }
 
-void QuartcStream::set_deliver_on_complete(bool deliver_on_complete) {
-  deliver_on_complete_ = deliver_on_complete;
+void QuartcStream::set_max_retransmission_count(int max_retransmission_count) {
+  max_retransmission_count_ = max_retransmission_count;
 }
 
 QuicByteCount QuartcStream::BytesPendingRetransmission() {
-  if (cancel_on_loss_) {
+  if (lost_frame_counter_.MaxCount() >
+      static_cast<size_t>(max_retransmission_count_)) {
     return 0;  // Lost bytes will never be retransmitted.
   }
   QuicByteCount bytes = 0;
@@ -112,6 +149,10 @@ QuicByteCount QuartcStream::BytesPendingRetransmission() {
     bytes += interval.Length();
   }
   return bytes;
+}
+
+QuicStreamOffset QuartcStream::ReadOffset() {
+  return sequencer()->NumBytesConsumed();
 }
 
 void QuartcStream::FinishWriting() {

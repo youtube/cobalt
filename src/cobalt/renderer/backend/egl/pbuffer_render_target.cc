@@ -14,9 +14,8 @@
 
 #include "cobalt/renderer/backend/egl/pbuffer_render_target.h"
 
-#include <GLES2/gl2.h>
-
 #include "cobalt/renderer/backend/egl/utils.h"
+#include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {
 namespace renderer {
@@ -42,9 +41,9 @@ PBufferRenderTargetEGL::PBufferRenderTargetEGL(EGLDisplay display,
     surface_attrib_list[4] = EGL_NONE;
   }
 
-  surface_ =
-    eglCreatePbufferSurface(display_, config_, surface_attrib_list);
-  if (eglGetError() != EGL_SUCCESS) {
+  surface_ = EGL_CALL_SIMPLE(
+      eglCreatePbufferSurface(display_, config_, surface_attrib_list));
+  if (EGL_CALL_SIMPLE(eglGetError()) != EGL_SUCCESS) {
     surface_ = EGL_NO_SURFACE;
   }
 }

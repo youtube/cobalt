@@ -16,7 +16,7 @@
 
 #if defined(SB_USE_SB_MICROPHONE)
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace cobalt {
 namespace speech {

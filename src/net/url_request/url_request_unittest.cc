@@ -178,8 +178,8 @@ namespace {
 
 namespace test_default {
 #include "net/http/transport_security_state_static_unittest_default.h"
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 #include "starboard/types.h"
 }
 

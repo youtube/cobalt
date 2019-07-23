@@ -18,11 +18,11 @@
 #include <sstream>
 #include <string>
 
-#include "starboard/log.h"
-#include "starboard/mutex.h"
+#include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
+#include "starboard/common/string.h"
 #include "starboard/once.h"
 #include "starboard/shared/starboard/application.h"
-#include "starboard/string.h"
 
 #if SB_HAS(PLAYER_FILTER_TESTS)
 namespace starboard {
@@ -89,6 +89,7 @@ VideoDmpWriter::VideoDmpWriter() : file_(kSbFileInvalid) {
   write_cb_ = std::bind(&VideoDmpWriter::WriteToFile, this, _1, _2);
 
   Write(write_cb_, kByteOrderMark);
+  Write(write_cb_, kSupportWriterVersion);
 }
 
 VideoDmpWriter::~VideoDmpWriter() {
@@ -96,11 +97,12 @@ VideoDmpWriter::~VideoDmpWriter() {
 }
 
 // static
-void VideoDmpWriter::OnPlayerCreate(SbPlayer player,
-                                    SbMediaVideoCodec video_codec,
-                                    SbMediaAudioCodec audio_codec,
-                                    SbDrmSystem drm_system,
-                                    const SbMediaAudioHeader* audio_header) {
+void VideoDmpWriter::OnPlayerCreate(
+    SbPlayer player,
+    SbMediaAudioCodec audio_codec,
+    SbMediaVideoCodec video_codec,
+    SbDrmSystem drm_system,
+    const SbMediaAudioSampleInfo* audio_sample_info) {
   // TODO: Allow dump of drm initialization data
   SB_UNREFERENCED_PARAMETER(drm_system);
 
@@ -109,27 +111,23 @@ void VideoDmpWriter::OnPlayerCreate(SbPlayer player,
     return;
   }
   map->Register(player);
-  map->Get(player)->DumpConfigs(video_codec, audio_codec, audio_header);
+  VideoDmpWriter* dmp_writer = map->Get(player);
+#if SB_API_VERSION < 11
+  dmp_writer->audio_codec_ = audio_codec;
+  dmp_writer->video_codec_ = video_codec;
+#endif  // SB_API_VERSION < 11
+  dmp_writer->DumpConfigs(video_codec, audio_codec, audio_sample_info);
 }
 
 // static
 void VideoDmpWriter::OnPlayerWriteSample(
     SbPlayer player,
-    SbMediaType sample_type,
-    const void* const* sample_buffers,
-    const int* sample_buffer_sizes,
-    int number_of_sample_buffers,
-    SbTime sample_timestamp,
-    const SbMediaVideoSampleInfo* video_sample_info,
-    const SbDrmSampleInfo* drm_sample_info) {
+    const scoped_refptr<InputBuffer>& input_buffer) {
   PlayerToWriterMap* map = GetOrCreatePlayerToWriterMap();
   if (!map->dump_video_data()) {
     return;
   }
-  map->Get(player)->DumpAccessUnit(sample_type, sample_buffers,
-                                   sample_buffer_sizes,
-                                   number_of_sample_buffers, sample_timestamp,
-                                   video_sample_info, drm_sample_info);
+  map->Get(player)->DumpAccessUnit(input_buffer);
 }
 
 // static
@@ -141,14 +139,15 @@ void VideoDmpWriter::OnPlayerDestroy(SbPlayer player) {
   map->Unregister(player);
 }
 
-void VideoDmpWriter::DumpConfigs(SbMediaVideoCodec video_codec,
-                                 SbMediaAudioCodec audio_codec,
-                                 const SbMediaAudioHeader* audio_header) {
+void VideoDmpWriter::DumpConfigs(
+    SbMediaVideoCodec video_codec,
+    SbMediaAudioCodec audio_codec,
+    const SbMediaAudioSampleInfo* audio_sample_info) {
   Write(write_cb_, kRecordTypeAudioConfig);
   Write(write_cb_, audio_codec);
   if (audio_codec != kSbMediaAudioCodecNone) {
-    SB_DCHECK(audio_header);
-    Write(write_cb_, *audio_header);
+    SB_DCHECK(audio_sample_info);
+    Write(write_cb_, audio_codec, *audio_sample_info);
   }
 
   Write(write_cb_, kRecordTypeVideoConfig);
@@ -156,21 +155,18 @@ void VideoDmpWriter::DumpConfigs(SbMediaVideoCodec video_codec,
 }
 
 void VideoDmpWriter::DumpAccessUnit(
-    SbMediaType sample_type,
-    const void* const* sample_buffers,
-    const int* sample_buffer_sizes,
-    int number_of_sample_buffers,
-    SbTime sample_timestamp,
-    const SbMediaVideoSampleInfo* video_sample_info,
-    const SbDrmSampleInfo* drm_sample_info) {
-  SB_DCHECK(number_of_sample_buffers == 1);
+    const scoped_refptr<InputBuffer>& input_buffer) {
+  const SbMediaType& sample_type = input_buffer->sample_type();
+  const void* sample_buffer = static_cast<const void*>(input_buffer->data());
+  const int& sample_buffer_size = input_buffer->size();
+  const SbTime& sample_timestamp = input_buffer->timestamp();
+  const SbDrmSampleInfo* drm_sample_info = input_buffer->drm_info();
 
   if (sample_type == kSbMediaTypeAudio) {
     Write(write_cb_, kRecordTypeAudioAccessUnit);
-  } else if (sample_type == kSbMediaTypeVideo) {
-    Write(write_cb_, kRecordTypeVideoAccessUnit);
   } else {
-    SB_NOTREACHED() << sample_type;
+    SB_DCHECK(sample_type == kSbMediaTypeVideo);
+    Write(write_cb_, kRecordTypeVideoAccessUnit);
   }
 
   Write(write_cb_, sample_timestamp);
@@ -183,13 +179,26 @@ void VideoDmpWriter::DumpAccessUnit(
   } else {
     Write(write_cb_, false);
   }
-  Write(write_cb_, static_cast<uint32_t>(sample_buffer_sizes[0]));
-  Write(write_cb_, sample_buffers[0],
-        static_cast<size_t>(sample_buffer_sizes[0]));
+  Write(write_cb_, static_cast<uint32_t>(sample_buffer_size));
+  Write(write_cb_, sample_buffer, static_cast<size_t>(sample_buffer_size));
 
-  if (sample_type == kSbMediaTypeVideo) {
-    SB_DCHECK(video_sample_info);
-    Write(write_cb_, *video_sample_info);
+  if (sample_type == kSbMediaTypeAudio) {
+    const SbMediaAudioSampleInfo& audio_sample_info =
+        input_buffer->audio_sample_info();
+#if SB_API_VERSION >= 11
+    Write(write_cb_, audio_sample_info.codec, audio_sample_info);
+#else   // SB_API_VERSION >= 11
+    Write(write_cb_, audio_codec_, audio_sample_info);
+#endif  // SB_API_VERSION >= 11
+  } else {
+    SB_DCHECK(sample_type == kSbMediaTypeVideo);
+    const SbMediaVideoSampleInfo& video_sample_info =
+        input_buffer->video_sample_info();
+#if SB_API_VERSION >= 11
+    Write(write_cb_, video_sample_info.codec, video_sample_info);
+#else   // SB_API_VERSION >= 11
+    Write(write_cb_, video_codec_, video_sample_info);
+#endif  // SB_API_VERSION >= 11
   }
 }
 

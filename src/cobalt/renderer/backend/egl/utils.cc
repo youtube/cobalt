@@ -14,8 +14,7 @@
 
 #include "cobalt/renderer/backend/egl/utils.h"
 
-#include <EGL/egl.h>
-#include <GLES2/gl2ext.h>
+#include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {
 namespace renderer {
@@ -27,10 +26,10 @@ EGLContext CreateGLES3Context(EGLDisplay display, EGLConfig config,
   EGLint context_attrib_list[] = {
       EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE,
   };
-  EGLContext context =
-      eglCreateContext(display, config, share_context, context_attrib_list);
+  EGLContext context = EGL_CALL_SIMPLE(
+      eglCreateContext(display, config, share_context, context_attrib_list));
 
-  if (eglGetError() != EGL_SUCCESS) {
+  if (EGL_CALL_SIMPLE(eglGetError()) != EGL_SUCCESS) {
     // Some drivers, such as Mesa 3D on Linux, do support GL ES 3, and report
     // it as the version when queried (via glGetString(GL_VERSION)), however
     // for some reason they do not initialize correctly unless 2 is provided
@@ -39,9 +38,9 @@ EGLContext CreateGLES3Context(EGLDisplay display, EGLConfig config,
     EGLint context_attrib_list_gles2[] = {
         EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE,
     };
-    context = eglCreateContext(display, config, share_context,
-                               context_attrib_list_gles2);
-    CHECK_EQ(EGL_SUCCESS, eglGetError());
+    context = EGL_CALL_SIMPLE(eglCreateContext(display, config, share_context,
+                                               context_attrib_list_gles2));
+    CHECK_EQ(EGL_SUCCESS, EGL_CALL_SIMPLE(eglGetError()));
   }
 
   return context;

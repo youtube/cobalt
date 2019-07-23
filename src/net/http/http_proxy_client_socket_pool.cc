@@ -197,7 +197,7 @@ int HttpProxyConnectJob::HandleConnectResult(int result) {
     error_response_info_ = client_socket_->GetAdditionalErrorState();
 
   if (result == OK || result == ERR_PROXY_AUTH_REQUESTED ||
-      result == ERR_HTTPS_PROXY_TUNNEL_RESPONSE) {
+      result == ERR_HTTPS_PROXY_TUNNEL_RESPONSE_REDIRECT) {
     SetSocket(std::move(client_socket_));
   }
   return result;

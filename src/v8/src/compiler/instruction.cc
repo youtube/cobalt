@@ -97,11 +97,13 @@ bool InstructionOperand::InterferesWith(const InstructionOperand& other) const {
 }
 
 void InstructionOperand::Print(const RegisterConfiguration* config) const {
+#ifndef V8_OS_STARBOARD
   OFStream os(stdout);
   PrintableInstructionOperand wrapper;
   wrapper.register_configuration_ = config;
   wrapper.op_ = *this;
   os << wrapper << std::endl;
+#endif
 }
 
 void InstructionOperand::Print() const { Print(GetRegConfig()); }
@@ -227,6 +229,7 @@ std::ostream& operator<<(std::ostream& os,
 }
 
 void MoveOperands::Print(const RegisterConfiguration* config) const {
+#ifndef V8_OS_STARBOARD
   OFStream os(stdout);
   PrintableInstructionOperand wrapper;
   wrapper.register_configuration_ = config;
@@ -234,6 +237,7 @@ void MoveOperands::Print(const RegisterConfiguration* config) const {
   os << wrapper << " = ";
   wrapper.op_ = source();
   os << wrapper << std::endl;
+#endif
 }
 
 void MoveOperands::Print() const { Print(GetRegConfig()); }
@@ -345,11 +349,13 @@ bool Instruction::AreMovesRedundant() const {
 }
 
 void Instruction::Print(const RegisterConfiguration* config) const {
+#ifndef V8_OS_STARBOARD
   OFStream os(stdout);
   PrintableInstruction wrapper;
   wrapper.instr_ = this;
   wrapper.register_configuration_ = config;
   os << wrapper << std::endl;
+#endif
 }
 
 void Instruction::Print() const { Print(GetRegConfig()); }
@@ -965,23 +971,27 @@ void InstructionSequence::SetSourcePosition(const Instruction* instr,
 }
 
 void InstructionSequence::Print(const RegisterConfiguration* config) const {
+#ifndef V8_OS_STARBOARD
   OFStream os(stdout);
   PrintableInstructionSequence wrapper;
   wrapper.register_configuration_ = config;
   wrapper.sequence_ = this;
   os << wrapper << std::endl;
+#endif
 }
 
 void InstructionSequence::Print() const { Print(GetRegConfig()); }
 
 void InstructionSequence::PrintBlock(const RegisterConfiguration* config,
                                      int block_id) const {
+#ifndef V8_OS_STARBOARD
   OFStream os(stdout);
   RpoNumber rpo = RpoNumber::FromInt(block_id);
   const InstructionBlock* block = InstructionBlockAt(rpo);
   CHECK(block->rpo_number() == rpo);
   PrintableInstructionBlock printable_block = {config, block, this};
   os << printable_block << std::endl;
+#endif
 }
 
 void InstructionSequence::PrintBlock(int block_id) const {

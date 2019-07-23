@@ -9,7 +9,7 @@ namespace quic {
 
 QuicNewConnectionIdFrame::QuicNewConnectionIdFrame()
     : control_frame_id(kInvalidControlFrameId),
-      connection_id(0),
+      connection_id(EmptyQuicConnectionId()),
       sequence_number(0) {}
 
 QuicNewConnectionIdFrame::QuicNewConnectionIdFrame(

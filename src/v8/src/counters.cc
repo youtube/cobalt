@@ -494,8 +494,10 @@ bool RuntimeCallStats::IsCalledOnTheSameThread() {
 }
 
 void RuntimeCallStats::Print() {
+#ifndef V8_OS_STARBOARD
   OFStream os(stdout);
   Print(os);
+#endif
 }
 
 void RuntimeCallStats::Print(std::ostream& os) {

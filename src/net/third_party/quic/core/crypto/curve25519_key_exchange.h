@@ -7,7 +7,6 @@
 
 #include <cstdint>
 
-#include "base/compiler_specific.h"
 #include "net/third_party/quic/core/crypto/key_exchange.h"
 #include "net/third_party/quic/platform/api/quic_export.h"
 #include "net/third_party/quic/platform/api/quic_string.h"

@@ -9,25 +9,21 @@
 
 namespace quic {
 
+// The default hasher used by hash tables.
+template <typename Key>
+using QuicDefaultHasher = QuicDefaultHasherImpl<Key>;
+
 // A general-purpose unordered map.
-template <typename Key,
-          typename Value,
-          typename Hash = typename QuicUnorderedMapImpl<Key, Value>::hasher,
-          typename Eq = typename QuicUnorderedMapImpl<Key, Value>::key_equal,
-          typename Alloc =
-              typename QuicUnorderedMapImpl<Key, Value>::allocator_type>
-using QuicUnorderedMap = QuicUnorderedMapImpl<Key, Value, Hash, Eq, Alloc>;
+template <typename Key, typename Value, typename Hash = QuicDefaultHasher<Key>>
+using QuicUnorderedMap = QuicUnorderedMapImpl<Key, Value, Hash>;
 
 // A general-purpose unordered set.
-template <typename Key,
-          typename Hash = typename QuicUnorderedSetImpl<Key>::hasher,
-          typename Eq = typename QuicUnorderedSetImpl<Key>::key_equal,
-          typename Alloc = typename QuicUnorderedSetImpl<Key>::allocator_type>
-using QuicUnorderedSet = QuicUnorderedSetImpl<Key, Hash, Eq, Alloc>;
+template <typename Key, typename Hash = QuicDefaultHasher<Key>>
+using QuicUnorderedSet = QuicUnorderedSetImpl<Key, Hash>;
 
 // A map which offers insertion-ordered iteration.
-template <typename Key, typename Value>
-using QuicLinkedHashMap = QuicLinkedHashMapImpl<Key, Value>;
+template <typename Key, typename Value, typename Hash = QuicDefaultHasher<Key>>
+using QuicLinkedHashMap = QuicLinkedHashMapImpl<Key, Value, Hash>;
 
 // Used for maps that are typically small, then it is faster than (for example)
 // hash_map which is optimized for large data sets. QuicSmallMap upgrades itself
@@ -36,11 +32,6 @@ using QuicLinkedHashMap = QuicLinkedHashMapImpl<Key, Value>;
 // DOES NOT GUARANTEE POINTER OR ITERATOR STABILITY!
 template <typename Key, typename Value, int Size>
 using QuicSmallMap = QuicSmallMapImpl<Key, Value, Size>;
-
-// A data structure used to represent a sorted set of non-empty, non-adjacent,
-// and mutually disjoint intervals.
-template <typename T>
-using QuicIntervalSet = QuicIntervalSetImpl<T>;
 
 // Represents a simple queue which may be backed by a list or
 // a flat circular buffer.

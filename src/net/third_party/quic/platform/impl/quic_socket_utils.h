@@ -19,6 +19,9 @@
 #include "net/third_party/quic/core/quic_types.h"
 #include "starboard/types.h"
 
+#define MMSG_MORE 0
+#define MMSG_MORE_NO_ANDROID 0
+
 namespace quic {
 class QuicIpAddress;
 class QuicSocketAddress;
@@ -56,8 +59,59 @@ const int kCmsgSpaceForReadPacket =
     kCmsgSpaceForRecvQueueOverflow + kCmsgSpaceForIpv4 + kCmsgSpaceForIpv6 +
     kCmsgSpaceForLinuxTimestamping + kCmsgSpaceForTTL;
 
+// QuicMsgHdr is used to build msghdr objects that can be used send packets via
+// ::sendmsg.
+//
+// Example:
+//   // cbuf holds control messages(cmsgs). The size is determined from what
+//   // cmsgs will be set for this msghdr.
+//   char cbuf[kCmsgSpaceForIp + kCmsgSpaceForSegmentSize];
+//   QuicMsgHdr hdr(packet_buf, packet_buf_len, peer_addr, cbuf, sizeof(cbuf));
+//
+//   // Set IP in cmsgs.
+//   hdr.SetIpInNextCmsg(self_addr);
+//
+//   // Set GSO size in cmsgs.
+//   *hdr.GetNextCmsgData<uint16_t>(SOL_UDP, UDP_SEGMENT) = 1200;
+//
+//   QuicSocketUtils::WritePacket(fd, hdr);
+class QuicMsgHdr {
+ public:
+  QuicMsgHdr(const char* buffer,
+             size_t buf_len,
+             const QuicSocketAddress& peer_address,
+             char* cbuf,
+             size_t cbuf_size);
+
+  // Set IP info in the next cmsg. Both IPv4 and IPv6 are supported.
+  void SetIpInNextCmsg(const QuicIpAddress& self_address);
+
+  template <typename DataType>
+  DataType* GetNextCmsgData(int cmsg_level, int cmsg_type) {
+    return reinterpret_cast<DataType*>(
+        GetNextCmsgDataInternal(cmsg_level, cmsg_type, sizeof(DataType)));
+  }
+
+  const msghdr* hdr() const { return &hdr_; }
+
+ protected:
+  void* GetNextCmsgDataInternal(int cmsg_level,
+                                int cmsg_type,
+                                size_t data_size);
+
+  msghdr hdr_;
+  IOVEC iov_;
+  sockaddr_storage raw_peer_address_;
+  char* cbuf_;
+  const size_t cbuf_size_;
+  // The last cmsg populated so far. nullptr means nothing has been populated.
+  cmsghdr* cmsg_;
+};
+
 class QuicSocketUtils {
  public:
+  QuicSocketUtils() = delete;
+
   // Fills in |address| if |hdr| contains IP_PKTINFO or IPV6_PKTINFO. Fills in
   // |timestamp| if |hdr| contains |SO_TIMESTAMPING|. |address| and |timestamp|
   // must not be null.
@@ -120,6 +174,14 @@ class QuicSocketUtils {
                                  const QuicIpAddress& self_address,
                                  const QuicSocketAddress& peer_address);
 
+  // Writes the packet in |hdr| to the socket, using ::sendmsg.
+  static WriteResult WritePacket(int fd, const QuicMsgHdr& hdr);
+
+  // Set IP(self_address) in |cmsg_data|. Does not touch other fields in the
+  // containing cmsghdr.
+  static void SetIpInfoInCmsgData(const QuicIpAddress& self_address,
+                                  void* cmsg_data);
+
   // A helper for WritePacket which fills in the cmsg with the supplied self
   // address.
   // Returns the length of the packet info structure used.
@@ -133,9 +195,6 @@ class QuicSocketUtils {
                              int32_t receive_buffer_size,
                              int32_t send_buffer_size,
                              bool* overflow_supported);
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(QuicSocketUtils);
 };
 
 }  // namespace quic

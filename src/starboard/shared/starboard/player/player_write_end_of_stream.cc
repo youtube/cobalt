@@ -14,7 +14,7 @@
 
 #include "starboard/player.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
 void SbPlayerWriteEndOfStream(SbPlayer player, SbMediaType stream_type) {

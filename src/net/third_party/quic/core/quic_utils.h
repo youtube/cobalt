@@ -9,10 +9,13 @@
 #include <cstdint>
 
 #include "base/macros.h"
-#include "net/base/iovec.h"
+#include "net/third_party/quic/core/crypto/quic_random.h"
+#include "net/third_party/quic/core/frames/quic_frame.h"
 #include "net/third_party/quic/core/quic_error_codes.h"
 #include "net/third_party/quic/core/quic_types.h"
+#include "net/third_party/quic/core/quic_versions.h"
 #include "net/third_party/quic/platform/api/quic_export.h"
+#include "net/third_party/quic/platform/api/quic_iovec.h"
 #include "net/third_party/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quic/platform/api/quic_string.h"
 #include "net/third_party/quic/platform/api/quic_string_piece.h"
@@ -71,16 +74,27 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   // Copies |buffer_length| bytes from iov starting at offset |iov_offset| into
   // buffer. |iov| must be at least iov_offset+length total length and buffer
   // must be at least |length| long.
-  static void CopyToBuffer(const struct iovec* iov,
+  static void CopyToBuffer(const struct IOVEC* iov,
                            int iov_count,
                            size_t iov_offset,
                            size_t buffer_length,
                            char* buffer);
 
+  // Creates an IOVEC pointing to the same data as |data|.
+  static struct IOVEC MakeIovec(QuicStringPiece data);
+
   // Returns true if a packet is ackable. A packet is unackable if it can never
   // be acked. Occurs when a packet is never sent, after it is acknowledged
   // once, or if it's a crypto packet we never expect to receive an ack for.
   static bool IsAckable(SentPacketState state);
+
+  // Returns true if frame with |type| is retransmittable. A retransmittable
+  // frame should be retransmitted if it is detected as lost.
+  static bool IsRetransmittableFrame(QuicFrameType type);
+
+  // Returns true if |frame| is a handshake frame in version |version|.
+  static bool IsHandshakeFrame(const QuicFrame& frame,
+                               QuicTransportVersion transport_version);
 
   // Returns packet state corresponding to |retransmission_type|.
   static SentPacketState RetransmissionTypeToPacketState(
@@ -89,6 +103,74 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   // Returns true if header with |first_byte| is considered as an IETF QUIC
   // packet header.
   static bool IsIetfPacketHeader(uint8_t first_byte);
+
+  // Returns true if header with |first_byte| is considered as an IETF QUIC
+  // short packet header.
+  static bool IsIetfPacketShortHeader(uint8_t first_byte);
+
+  // Returns ID to denote an invalid stream of |version|.
+  static QuicStreamId GetInvalidStreamId(QuicTransportVersion version);
+
+  // Returns crypto stream ID of |version|.
+  static QuicStreamId GetCryptoStreamId(QuicTransportVersion version);
+
+  // Returns headers stream ID of |version|.
+  static QuicStreamId GetHeadersStreamId(QuicTransportVersion version);
+
+  // Returns true if |id| is considered as client initiated stream ID.
+  static bool IsClientInitiatedStreamId(QuicTransportVersion version,
+                                        QuicStreamId id);
+
+  // Returns true if |id| is considered as server initiated stream ID.
+  static bool IsServerInitiatedStreamId(QuicTransportVersion version,
+                                        QuicStreamId id);
+
+  // Returns true if |id| is considered as bidirectional stream ID. Only used in
+  // v99.
+  static bool IsBidirectionalStreamId(QuicStreamId id);
+
+  // Returns stream type.  Either |perspective| or |peer_initiated| would be
+  // enough together with |id|.  This method enforces that the three parameters
+  // are consistent.  Only used in v99.
+  static StreamType GetStreamType(QuicStreamId id,
+                                  Perspective perspective,
+                                  bool peer_initiated);
+
+  // Returns the delta between consecutive stream IDs of the same type.
+  static QuicStreamId StreamIdDelta(QuicTransportVersion version);
+
+  // Returns the first initiated bidirectional stream ID of |perspective|.
+  static QuicStreamId GetFirstBidirectionalStreamId(
+      QuicTransportVersion version,
+      Perspective perspective);
+
+  // Returns the first initiated unidirectional stream ID of |perspective|.
+  static QuicStreamId GetFirstUnidirectionalStreamId(
+      QuicTransportVersion version,
+      Perspective perspective);
+
+  // Generates a random 64bit connection ID.
+  static QuicConnectionId CreateRandomConnectionId();
+
+  // Generates a random 64bit connection ID using the provided QuicRandom.
+  static QuicConnectionId CreateRandomConnectionId(QuicRandom* random);
+
+  // Returns true if the QUIC version allows variable length connection IDs.
+  static bool VariableLengthConnectionIdAllowedForVersion(
+      QuicTransportVersion version);
+
+  // Returns true if the connection ID is valid for this QUIC version.
+  static bool IsConnectionIdValidForVersion(QuicConnectionId connection_id,
+                                            QuicTransportVersion version);
+
+  // Returns a connection ID suitable for QUIC use-cases that do not need the
+  // connection ID for multiplexing. If the version allows variable lengths,
+  // a connection of length zero is returned, otherwise 64bits set to zero.
+  static QuicConnectionId CreateZeroConnectionId(QuicTransportVersion version);
+
+  // Generates a 128bit stateless reset token based on a connection ID.
+  static QuicUint128 GenerateStatelessResetToken(
+      QuicConnectionId connection_id);
 };
 
 }  // namespace quic

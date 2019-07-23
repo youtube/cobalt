@@ -4,7 +4,7 @@
 
 #include "url/url_canon_icu.h"
 #include "base/macros.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/icu/source/common/unicode/ucnv.h"

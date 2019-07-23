@@ -64,6 +64,11 @@
 #include <openssl/obj.h>
 #include <openssl/stack.h>
 
+#if defined(STARBOARD)
+#include "starboard/system.h"
+#define bsearch SbSystemBinarySearch
+#endif
+
 DEFINE_STACK_OF(ASN1_STRING_TABLE)
 
 static STACK_OF(ASN1_STRING_TABLE) *stable = NULL;

@@ -20,53 +20,30 @@
 #ifndef STARBOARD_COMMON_CONDITION_VARIABLE_H_
 #define STARBOARD_COMMON_CONDITION_VARIABLE_H_
 
-#ifdef __cplusplus
-extern "C++" {
-#include <deque>
-}  // extern "C++"
-#endif
-
+#include "starboard/common/mutex.h"
 #include "starboard/condition_variable.h"
-#include "starboard/mutex.h"
-#include "starboard/thread_types.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
 
-#ifdef __cplusplus
 namespace starboard {
 
 // Inline class wrapper for SbConditionVariable.
 class ConditionVariable {
  public:
-  explicit ConditionVariable(const Mutex& mutex)
-      : mutex_(&mutex), condition_() {
-    SbConditionVariableCreate(&condition_, mutex_->mutex());
-  }
-
-  ~ConditionVariable() { SbConditionVariableDestroy(&condition_); }
+  explicit ConditionVariable(const Mutex& mutex);
+  ~ConditionVariable();
 
   // Releases the mutex and waits for the condition to become true. When this
   // function returns the mutex will have been re-acquired.
-  void Wait() const {
-    mutex_->debugSetReleased();
-    SbConditionVariableWait(&condition_, mutex_->mutex());
-    mutex_->debugSetAcquired();
-  }
+  void Wait() const;
 
   // Returns |true| if this condition variable was signaled. Otherwise |false|
   // means that the condition variable timed out. In either case the
   // mutex has been re-acquired once this function returns.
-  bool WaitTimed(SbTime duration) const {
-    mutex_->debugSetReleased();
-    bool was_signaled = SbConditionVariableIsSignaled(
-        SbConditionVariableWaitTimed(&condition_, mutex_->mutex(), duration));
-    mutex_->debugSetAcquired();
-    return was_signaled;
-  }
+  bool WaitTimed(SbTime duration) const;
 
-  void Broadcast() const { SbConditionVariableBroadcast(&condition_); }
-
-  void Signal() const { SbConditionVariableSignal(&condition_); }
+  void Broadcast() const;
+  void Signal() const;
 
  private:
   const Mutex* mutex_;
@@ -74,6 +51,5 @@ class ConditionVariable {
 };
 
 }  // namespace starboard
-#endif
 
 #endif  // STARBOARD_COMMON_CONDITION_VARIABLE_H_

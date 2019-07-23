@@ -44,6 +44,7 @@
         '-Wwrite-strings',
         '-Wshorten-64-to-32',
         '-Wno-error',
+        '-Wno-unused-command-line-argument',
       ],
       'defines' : [
         # If not defined, this symbol is used to detect this function's presence in the C library
@@ -100,7 +101,7 @@
         'defines': [
           'LIBCXXABI_USE_LLVM_UNWINDER',
         ],
-      }
+      },
     }
   ]
 }

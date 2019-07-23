@@ -15,12 +15,12 @@
 #include "cobalt/dom/element.h"
 
 #include <algorithm>
+#include <ctime>
 
 #include "base/lazy_instance.h"
 #include "base/strings/string_util.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/base/user_log.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/selector.h"
 #include "cobalt/dom/document.h"
@@ -47,39 +47,15 @@ namespace {
 
 const char kStyleAttributeName[] = "style";
 
-// This struct manages the user log information for Node count.
-struct ElementCountLog {
- public:
-  ElementCountLog() : count(0) {
-    base::UserLog::Register(base::UserLog::kElementCountIndex, "ElementCnt",
-                            &count, sizeof(count));
-  }
-  ~ElementCountLog() {
-    base::UserLog::Deregister(base::UserLog::kElementCountIndex);
-  }
-
-  int count;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(ElementCountLog);
-};
-
-base::LazyInstance<ElementCountLog>::DestructorAtExit element_count_log =
-    LAZY_INSTANCE_INITIALIZER;
-
 }  // namespace
 
 Element::Element(Document* document)
-    : Node(document), animations_(new web_animations::AnimationSet()) {
-  ++(element_count_log.Get().count);
-}
+    : Node(document), animations_(new web_animations::AnimationSet()) {}
 
 Element::Element(Document* document, base::Token local_name)
     : Node(document),
       local_name_(local_name),
-      animations_(new web_animations::AnimationSet()) {
-  ++(element_count_log.Get().count);
-}
+      animations_(new web_animations::AnimationSet()) {}
 
 base::Optional<std::string> Element::text_content() const {
   TRACK_MEMORY_SCOPE("DOM");
@@ -649,9 +625,31 @@ void Element::CollectStyleSheetsOfElementAndDescendants(
   }
 }
 
+void Element::RegisterIntersectionObserverTarget(
+    const scoped_refptr<IntersectionObserver>& observer) {
+  if (!intersection_observer_target_) {
+    intersection_observer_target_ = std::unique_ptr<IntersectionObserverTarget>(
+        new IntersectionObserverTarget(this));
+  }
+  intersection_observer_target_->RegisterIntersectionObserver(observer);
+}
+
+void Element::UnregisterIntersectionObserverTarget(
+    const scoped_refptr<IntersectionObserver>& observer) {
+  intersection_observer_target_->UnregisterIntersectionObserver(observer);
+}
+
+void Element::UpdateIntersectionObservationsForTarget(
+    const scoped_refptr<IntersectionObserver>& observer) {
+  intersection_observer_target_->UpdateIntersectionObservationsForTarget(
+      observer);
+}
+
 scoped_refptr<HTMLElement> Element::AsHTMLElement() { return NULL; }
 
-Element::~Element() { --(element_count_log.Get().count); }
+// Explicitly defined because DOMTokenList is forward declared and held by
+// scoped_refptr in Element's header.
+Element::~Element() {}
 
 void Element::TraceMembers(script::Tracer* tracer) {
   Node::TraceMembers(tracer);

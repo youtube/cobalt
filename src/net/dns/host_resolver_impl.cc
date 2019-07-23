@@ -670,6 +670,24 @@ class HostResolverImpl::RequestImpl
     return address_results_;
   }
 
+#if defined(COBALT_QUIC46)
+  const base::Optional<HostCache::EntryStaleness>& GetStaleInfo()
+      const override {
+    DCHECK(complete_);
+    return stale_info_;
+  }
+
+  void set_stale_info(HostCache::EntryStaleness stale_info) {
+    // Should only be called at most once and before request is marked
+    // completed.
+    DCHECK(!complete_);
+    DCHECK(!stale_info_);
+    DCHECK(!parameters_.is_speculative);
+
+    stale_info_ = std::move(stale_info);
+  }
+#endif
+
   void set_address_results(const AddressList& address_results) {
     // Should only be called at most once and before request is marked
     // completed.
@@ -680,7 +698,11 @@ class HostResolverImpl::RequestImpl
     address_results_ = address_results;
   }
 
+#if defined(COBALT_QUIC46)
+  void ChangeRequestPriority(RequestPriority priority) override;
+#else
   void ChangeRequestPriority(RequestPriority priority);
+#endif
 
   void AssignJob(Job* job) {
     DCHECK(job);
@@ -758,6 +780,9 @@ class HostResolverImpl::RequestImpl
 
   bool complete_;
   base::Optional<AddressList> address_results_;
+#if defined(COBALT_QUIC46)
+  base::Optional<HostCache::EntryStaleness> stale_info_;
+#endif
 
   base::TimeTicks request_time_;
 
@@ -2432,7 +2457,7 @@ int HostResolverImpl::Resolve(RequestImpl* request) {
       request->request_host(), request->parameters().dns_query_type,
       request->parameters().source, request->host_resolver_flags(),
       request->parameters().allow_cached_response, false /* allow_stale */,
-      nullptr /* stale_info */, request->source_net_log(), &addresses, &key);
+      nullptr /*stale_info*/, request->source_net_log(), &addresses, &key);
   if (rv == OK && !request->parameters().is_speculative) {
     request->set_address_results(
         EnsurePortOnAddressList(addresses, request->request_host().port()));

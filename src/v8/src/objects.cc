@@ -2605,6 +2605,9 @@ bool Object::IterationHasObservableEffects() {
 }
 
 void Object::ShortPrint(FILE* out) {
+#if defined(V8_OS_STARBOARD)
+  if (out == nullptr) return;
+#endif
   OFStream os(out);
   os << Brief(this);
 }
@@ -4269,7 +4272,7 @@ void MigrateFastToSlow(Handle<JSObject> object, Handle<Map> new_map,
 
   isolate->counters()->props_to_dictionary()->Increment();
 
-#ifdef DEBUG
+#if defined(DEBUG) && !defined(V8_OS_STARBOARD)
   if (FLAG_trace_normalization) {
     OFStream os(stdout);
     os << "Object properties have been normalized:\n";
@@ -4416,12 +4419,14 @@ Handle<Map> Map::CopyGeneralizeAllFields(Handle<Map> map,
         field_type = handle(
             map->instance_descriptors()->GetFieldType(modify_index), isolate);
       }
+#ifndef V8_OS_STARBOARD
       map->PrintGeneralization(
           stdout, reason, modify_index, new_map->NumberOfOwnDescriptors(),
           new_map->NumberOfOwnDescriptors(), details.location() == kDescriptor,
           details.representation(), Representation::Tagged(), field_type,
           MaybeHandle<Object>(), FieldType::Any(isolate),
           MaybeHandle<Object>());
+#endif
     }
   }
   new_map->set_elements_kind(elements_kind);
@@ -4628,6 +4633,7 @@ void Map::GeneralizeField(Handle<Map> map, int modify_index,
   field_owner->dependent_code()->DeoptimizeDependentCodeGroup(
       isolate, DependentCode::kFieldOwnerGroup);
 
+#ifndef V8_OS_STARBOARD
   if (FLAG_trace_generalization) {
     map->PrintGeneralization(
         stdout, "field type generalization", modify_index,
@@ -4635,6 +4641,7 @@ void Map::GeneralizeField(Handle<Map> map, int modify_index,
         details.representation(), details.representation(), old_field_type,
         MaybeHandle<Object>(), new_field_type, MaybeHandle<Object>());
   }
+#endif
 }
 
 // TODO(ishell): remove.
@@ -5960,9 +5967,11 @@ void JSObject::MigrateInstance(Handle<JSObject> object) {
   Handle<Map> map = Map::Update(original_map);
   map->set_is_migration_target(true);
   MigrateToMap(object, map);
+#ifndef V8_OS_STARBOARD
   if (FLAG_trace_migration) {
     object->PrintInstanceMigration(stdout, *original_map, *map);
   }
+#endif
 #if VERIFY_HEAP
   if (FLAG_verify_heap) {
     object->JSObjectVerify();
@@ -5981,9 +5990,11 @@ bool JSObject::TryMigrateInstance(Handle<JSObject> object) {
     return false;
   }
   JSObject::MigrateToMap(object, new_map);
+#ifndef V8_OS_STARBOARD
   if (FLAG_trace_migration && *original_map != object->map()) {
     object->PrintInstanceMigration(stdout, *original_map, object->map());
   }
+#endif
 #if VERIFY_HEAP
   if (FLAG_verify_heap) {
     object->JSObjectVerify();
@@ -6445,7 +6456,7 @@ Handle<NumberDictionary> JSObject::NormalizeElements(Handle<JSObject> object) {
 
   isolate->counters()->elements_to_dictionary()->Increment();
 
-#ifdef DEBUG
+#if defined(DEBUG) && !defined(V8_OS_STARBOARD)
   if (FLAG_trace_normalization) {
     OFStream os(stdout);
     os << "Object elements have been normalized:\n";
@@ -9769,9 +9780,11 @@ Handle<Map> Map::ReconfigureExistingProperty(Handle<Map> map, int descriptor,
                                    "GenAll_AttributesMismatchProtoMap");
   }
 
+#ifndef V8_OS_STARBOARD
   if (FLAG_trace_generalization) {
     map->PrintReconfiguration(stdout, descriptor, kind, attributes);
   }
+#endif
 
   Isolate* isolate = map->GetIsolate();
 
@@ -13092,6 +13105,9 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
 
 
 void JSFunction::PrintName(FILE* out) {
+#if defined(V8_OS_STARBOARD)
+  if (out == nullptr) return;
+#endif
   std::unique_ptr<char[]> name = shared()->DebugName()->ToCString();
   PrintF(out, "%s", name.get());
 }
@@ -15646,10 +15662,12 @@ void JSObject::TransitionElementsKind(Handle<JSObject> object,
     // only requires a map change.
     Handle<Map> new_map = GetElementsTransitionMap(object, to_kind);
     MigrateToMap(object, new_map);
+#ifndef V8_OS_STARBOARD
     if (FLAG_trace_elements_transitions) {
       Handle<FixedArrayBase> elms(object->elements());
       PrintElementsTransition(stdout, object, from_kind, elms, to_kind, elms);
     }
+#endif
   } else {
     DCHECK((IsSmiElementsKind(from_kind) && IsDoubleElementsKind(to_kind)) ||
            (IsDoubleElementsKind(from_kind) && IsObjectElementsKind(to_kind)));
@@ -15771,9 +15789,11 @@ void Dictionary<Derived, Shape>::Print(std::ostream& os) {
 }
 template <typename Derived, typename Shape>
 void Dictionary<Derived, Shape>::Print() {
+#ifndef V8_OS_STARBOARD
   OFStream os(stdout);
   Print(os);
   os << std::endl;
+#endif
 }
 #endif
 

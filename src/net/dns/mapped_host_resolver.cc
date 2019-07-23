@@ -26,6 +26,15 @@ class MappedHostResolver::AlwaysErrorRequestImpl
     return *nullopt_address_list;
   }
 
+#if defined(COBALT_QUIC46)
+  const base::Optional<HostCache::EntryStaleness>& GetStaleInfo()
+      const override {
+    static const base::NoDestructor<base::Optional<HostCache::EntryStaleness>>
+        nullopt_result;
+    return *nullopt_result;
+  }
+#endif
+
  private:
   const int error_;
 };

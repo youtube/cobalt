@@ -16,7 +16,8 @@
 
 #include <EGL/egl.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
+#include "starboard/shared/blittergles/blitter_context.h"
 #include "starboard/shared/blittergles/blitter_internal.h"
 #include "starboard/shared/gles/gl_call.h"
 
@@ -37,6 +38,12 @@ bool SbBlitterDestroyDevice(SbBlitterDevice device) {
                    << "been created before.";
     return false;
   }
+
+  starboard::shared::blittergles::SbBlitterContextRegistry* context_registry =
+      starboard::shared::blittergles::GetBlitterContextRegistry();
+  starboard::ScopedLock context_lock(context_registry->mutex);
+  delete context_registry->context;
+  context_registry->in_use = false;
 
   // Release all resources associated with device.
   EGL_CALL(eglMakeCurrent(device_registry->default_device->display,

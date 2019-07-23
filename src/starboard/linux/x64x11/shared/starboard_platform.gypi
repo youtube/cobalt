@@ -36,8 +36,8 @@
     ],
 
     'starboard_platform_dependencies': [
-      '<(DEPTH)/third_party/libjpeg/libjpeg.gyp:libjpeg',
       '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
+      '<(DEPTH)/third_party/libjpeg/libjpeg.gyp:libjpeg',
     ],
 
     # Exclude shared implementations specified by the included .gypi if this

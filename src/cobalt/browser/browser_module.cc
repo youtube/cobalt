@@ -51,8 +51,8 @@
 #include "cobalt/overlay_info/overlay_info_registry.h"
 #include "nb/memory_scope.h"
 #include "starboard/atomic.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration.h"
-#include "starboard/string.h"
 #include "starboard/system.h"
 #include "starboard/time.h"
 
@@ -151,6 +151,17 @@ const char kScreenshotCommandShortHelp[] = "Takes a screenshot.";
 const char kScreenshotCommandLongHelp[] =
     "Creates a screenshot of the most recent layout tree and writes it "
     "to disk. Logs the filename of the screenshot to the console when done.";
+
+// Debug console command `disable_media_codecs` for disabling a list of codecs
+// by treating them as unsupported
+const char kDisableMediaCodecsCommand[] = "disable_media_codecs";
+const char kDisableMediaCodecsCommandShortHelp[] =
+    "Specify a semicolon-seperated list of disabled media codecs.";
+const char kDisableMediaCodecsCommandLongHelp[] =
+    "Disabling Media Codecs will force the app to claim they are not "
+    "supported. This "
+    "is useful when trying to target testing to certain codecs, since other "
+    "codecs will get picked as a fallback as a result.";
 
 void ScreenshotCompleteCallback(const base::FilePath& output_path) {
   DLOG(INFO) << "Screenshot written to " << output_path.value();
@@ -260,6 +271,9 @@ BrowserModule::BrowserModule(const GURL& url,
           "The total memory that is reserved by the JavaScript engine, which "
           "includes both parts that have live JavaScript values, as well as "
           "preallocated space for future values."),
+      disabled_media_codecs_(
+          "Media.DisabledMediaCodecs", "",
+          "List of codecs that should currently be reported as unsupported."),
 #if defined(ENABLE_DEBUGGER)
       ALLOW_THIS_IN_INITIALIZER_LIST(fuzzer_toggle_command_handler_(
           kFuzzerToggleCommand,
@@ -273,6 +287,12 @@ BrowserModule::BrowserModule(const GURL& url,
           kScreenshotCommand,
           base::Bind(&OnScreenshotMessage, base::Unretained(this)),
           kScreenshotCommandShortHelp, kScreenshotCommandLongHelp)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(disable_media_codecs_command_handler_(
+          kDisableMediaCodecsCommand,
+          base::Bind(&BrowserModule::OnDisableMediaCodecs,
+                     base::Unretained(this)),
+          kDisableMediaCodecsCommandShortHelp,
+          kDisableMediaCodecsCommandLongHelp)),
 #endif  // defined(ENABLE_DEBUGGER)
       has_resumed_(base::WaitableEvent::ResetPolicy::MANUAL,
                    base::WaitableEvent::InitialState::NOT_SIGNALED),
@@ -366,6 +386,21 @@ BrowserModule::BrowserModule(const GURL& url,
     suspend_fuzzer_.emplace();
   }
 #endif  // ENABLE_DEBUGGER && ENABLE_DEBUG_COMMAND_LINE_SWITCHES
+
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  if (command_line->HasSwitch(switches::kDisableMediaCodecs)) {
+    std::string codecs =
+        command_line->GetSwitchValueASCII(switches::kDisableMediaCodecs);
+    if (!codecs.empty()) {
+#if defined(ENABLE_DEBUGGER)
+      OnDisableMediaCodecs(codecs);
+#else   // ENABLE_DEBUGGER
+      // Here command line switches are enabled but the debug console is not.
+      can_play_type_handler_->SetDisabledMediaCodecs(codecs);
+#endif  // ENABLE_DEBUGGER
+    }
+  }
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   if (application_state_ == base::kApplicationStateStarted ||
       application_state_ == base::kApplicationStatePaused) {
@@ -933,7 +968,7 @@ void BrowserModule::OnOnScreenKeyboardBlurred(
   }
 }
 
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#if SB_API_VERSION >= 11
 void BrowserModule::OnOnScreenKeyboardSuggestionsUpdated(
     const base::OnScreenKeyboardSuggestionsUpdatedEvent* event) {
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
@@ -942,7 +977,7 @@ void BrowserModule::OnOnScreenKeyboardSuggestionsUpdated(
     web_module_->InjectOnScreenKeyboardSuggestionsUpdatedEvent(event->ticket());
   }
 }
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#endif  // SB_API_VERSION >= 11
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
 #if SB_HAS(CAPTIONS)
@@ -996,6 +1031,11 @@ void BrowserModule::OnSetMediaConfig(const std::string& config) {
   } else {
     LOG(WARNING) << "Failed to set " << tokens[0] << " to " << value;
   }
+}
+
+void BrowserModule::OnDisableMediaCodecs(const std::string& codecs) {
+  disabled_media_codecs_ = codecs;
+  can_play_type_handler_->SetDisabledMediaCodecs(codecs);
 }
 
 void BrowserModule::QueueOnDebugConsoleRenderTreeProduced(
@@ -1576,9 +1616,9 @@ void BrowserModule::InitializeSystemWindow() {
   options_.media_module_options.allow_resume_after_suspend =
       SbSystemSupportsResume();
 #endif  // SB_API_VERSION >= 10
-  media_module_ =
-      media::MediaModule::Create(system_window_.get(), GetResourceProvider(),
-                                 options_.media_module_options);
+  media_module_.reset(new media::MediaModule(system_window_.get(),
+                                             GetResourceProvider(),
+                                             options_.media_module_options));
 
   if (web_module_) {
     web_module_->SetCamera3D(input_device_manager_->camera_3d());
@@ -1762,6 +1802,8 @@ void BrowserModule::ApplyAutoMemSettings() {
   }
 
   // Web Module options.
+  options_.web_module_options.encoded_image_cache_capacity =
+      static_cast<int>(auto_mem_->encoded_image_cache_size_in_bytes()->value());
   options_.web_module_options.image_cache_capacity =
       static_cast<int>(auto_mem_->image_cache_size_in_bytes()->value());
   options_.web_module_options.remote_typeface_cache_capacity = static_cast<int>(

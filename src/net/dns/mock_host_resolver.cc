@@ -109,6 +109,21 @@ class MockHostResolverBase::RequestImpl
     return address_results_;
   }
 
+#if defined(COBALT_QUIC46)
+  const base::Optional<HostCache::EntryStaleness>& GetStaleInfo()
+      const override {
+    NOTIMPLEMENTED() << "MockHostResolverBase::RequestImpl::GetStaleInfo() "
+                        "always return empty base::Optional.";
+    return stale_info_;
+  }
+
+  void ChangeRequestPriority(RequestPriority priority) override {
+    priority_ = priority;
+  }
+
+  RequestPriority priority() const { return priority_; }
+#endif
+
   void set_address_results(const AddressList& address_results) {
     // Should only be called at most once and before request is marked
     // completed.
@@ -162,6 +177,11 @@ class MockHostResolverBase::RequestImpl
   // outstanding request objects.
   base::WeakPtr<MockHostResolverBase> resolver_;
   bool complete_;
+#if defined(COBALT_QUIC46)
+  base::Optional<HostCache::EntryStaleness> stale_info_;
+
+  RequestPriority priority_;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(RequestImpl);
 };
@@ -318,6 +338,19 @@ void MockHostResolverBase::ResolveAllPending() {
         base::Bind(&MockHostResolverBase::ResolveNow, AsWeakPtr(), i->first));
   }
 }
+
+#if defined(COBALT_QUIC46)
+MockHostResolverBase::RequestImpl* MockHostResolverBase::request(size_t id) {
+  RequestMap::iterator request = requests_.find(id);
+  DCHECK(request != requests_.end());
+  return (*request).second;
+}
+
+RequestPriority MockHostResolverBase::request_priority(size_t id) {
+  DCHECK(request(id));
+  return request(id)->priority();
+}
+#endif
 
 // start id from 1 to distinguish from NULL RequestHandle
 MockHostResolverBase::MockHostResolverBase(bool use_caching)
@@ -721,6 +754,15 @@ class HangingHostResolver::RequestImpl
 
   void ChangeRequestPriority(RequestPriority priority) override {}
 
+#if defined(COBALT_QUIC46)
+  const base::Optional<HostCache::EntryStaleness>& GetStaleInfo()
+      const override {
+    NOTIMPLEMENTED() << "MockHostResolverBase::RequestImpl::GetStaleInfo() "
+                        "always return empty base::Optional.";
+    return stale_info_;
+  }
+#endif
+
  private:
   // Use a WeakPtr as the resolver may be destroyed while there are still
   // outstanding request objects.
@@ -728,6 +770,10 @@ class HangingHostResolver::RequestImpl
   bool is_running_;
 #if defined(STARBOARD)
   base::Optional<AddressList> fake_address;
+#endif
+
+#if defined(COBALT_QUIC46)
+  base::Optional<HostCache::EntryStaleness> stale_info_;
 #endif
 
   DISALLOW_COPY_AND_ASSIGN(RequestImpl);

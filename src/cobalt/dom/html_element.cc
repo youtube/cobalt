@@ -14,6 +14,7 @@
 
 #include "cobalt/dom/html_element.h"
 
+#include <algorithm>
 #include <map>
 #include <memory>
 
@@ -21,7 +22,6 @@
 #include "base/message_loop/message_loop_task_runner.h"
 #include "base/strings/string_number_conversions.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/base/user_log.h"
 #include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/cascaded_style.h"
 #include "cobalt/cssom/computed_style.h"
@@ -37,6 +37,7 @@
 #include "cobalt/dom/dom_string_map.h"
 #include "cobalt/dom/focus_event.h"
 #include "cobalt/dom/html_anchor_element.h"
+#include "cobalt/dom/html_audio_element.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_br_element.h"
 #include "cobalt/dom/html_div_element.h"
@@ -72,20 +73,6 @@ namespace {
 // commonly used value of -1 is reserved.
 // https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/tabindex
 const int32 kUiNavFocusTabIndexThreshold = -2;
-
-// This struct manages the user log information for Node count.
-struct HtmlElementCountLog {
- public:
-  HtmlElementCountLog() : count(0) {
-    base::UserLog::Register(base::UserLog::kHtmlElementCountIndex,
-                            "HtmlElementCnt", &count, sizeof(count));
-  }
-  ~HtmlElementCountLog() {
-    base::UserLog::Deregister(base::UserLog::kHtmlElementCountIndex);
-  }
-
-  int count;
-};
 
 struct NonTrivialStaticFields {
   NonTrivialStaticFields() {
@@ -143,8 +130,6 @@ struct NonTrivialStaticFields {
       size_invalidation_property_checker;
   cssom::CSSComputedStyleData::PropertySetMatcher
       cross_references_invalidation_property_checker;
-
-  HtmlElementCountLog html_element_count_log;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NonTrivialStaticFields);
@@ -360,6 +345,260 @@ float HTMLElement::client_height() {
   return layout_boxes_->GetPaddingEdgeHeight();
 }
 
+// Algorithm for scrollWidth:
+//   https://www.w3.org/TR/cssom-view-1/#dom-element-scrollwidth
+int32 HTMLElement::scroll_width() {
+  // 1. Let document be the element's node document.
+  // 2. If document is not the active document, return zero and terminate
+  //    these steps.
+  if (!node_document() || !node_document()->window()) {
+    return 0;
+  }
+
+  node_document()->DoSynchronousLayout();
+
+  int32 element_scroll_width = 0;
+  if (layout_boxes_) {
+    element_scroll_width = static_cast<int32>(
+        layout_boxes_->GetScrollArea(directionality_).width());
+  }
+
+  // 3. Let viewport width be the width of the viewport excluding the width of
+  //    the scroll bar, if any, or zero if there is no viewport.
+  // 4. If the element is the root element and document is not in quirks mode
+  //    return max(viewport scrolling area width, viewport width).
+  // 5. If the element is the HTML body element, document is in quirks mode
+  //    and the element is not potentially scrollable, return max(viewport
+  //    scrolling area width, viewport width).
+  if (IsRootElement()) {
+    return std::max(node_document()->viewport_size().width(),
+                    element_scroll_width);
+  }
+
+  // 6. If the element does not have any associated CSS layout box return zero
+  //    and terminate these steps.
+  // 7. Return the width of the element's scrolling area.
+  return element_scroll_width;
+}
+
+// Algorithm for scrollHeight:
+//   https://www.w3.org/TR/cssom-view-1/#dom-element-scrollheight
+int32 HTMLElement::scroll_height() {
+  // 1. Let document be the element's node document.
+  // 2. If document is not the active document, return zero and terminate
+  //    these steps.
+  if (!node_document() || !node_document()->window()) {
+    return 0;
+  }
+
+  node_document()->DoSynchronousLayout();
+
+  int32 element_scroll_height = 0;
+  if (layout_boxes_) {
+    element_scroll_height = static_cast<int32>(
+        layout_boxes_->GetScrollArea(directionality_).height());
+  }
+
+  // 3. Let viewport height be the height of the viewport excluding the height
+  //    of the scroll bar, if any, or zero if there is no viewport.
+  // 4. If the element is the root element and document is not in quirks mode
+  //    return max(viewport scrolling area height, viewport height).
+  // 5. If the element is the HTML body element, document is in quirks mode
+  //    and the element is not potentially scrollable, return max(viewport
+  //    scrolling area height, viewport height).
+  if (IsRootElement()) {
+    return std::max(node_document()->viewport_size().height(),
+                    element_scroll_height);
+  }
+
+  // 6. If the element does not have any associated CSS layout box return zero
+  //    and terminate these steps.
+  // 7. Return the height of the element's scrolling area.
+  return element_scroll_height;
+}
+
+// Algorithm for scrollLeft:
+//   https://www.w3.org/TR/cssom-view-1/#dom-element-scrollleft
+float HTMLElement::scroll_left() {
+  // This is only partially implemented and will only work for elements with
+  // UI navigation containers.
+
+  // 1. Let document be the element's node document.
+  // 2. If document is not the active document, return zero and terminate these
+  //    steps.
+  // 3. Let window be the value of document's defaultView attribute.
+  // 4. If window is null, return zero and terminate these steps.
+  if (!node_document() || !node_document()->window()) {
+    return 0.0f;
+  }
+
+  node_document()->DoSynchronousLayout();
+
+  if (!ui_nav_item_ || !ui_nav_item_->IsContainer()) {
+    return 0.0f;
+  }
+
+  // 5. If the element is the root element and document is in quirks mode,
+  //    return zero and terminate these steps.
+  // 6. If the element is the root element return the value of scrollX on
+  //    window.
+  // 7. If the element is the HTML body element, document is in quirks mode, and
+  //    the element is not potentially scrollable, return the value of scrollX
+  //    on window.
+
+  // 8. If the element does not have any associated CSS layout box, return zero
+  //    and terminate these steps.
+  if (!layout_boxes_) {
+    return 0.0f;
+  }
+
+  // 9. Return the x-coordinate of the scrolling area at the alignment point
+  //    with the left of the padding edge of the element.
+  float left, top;
+  ui_nav_item_->GetContentOffset(&left, &top);
+  return left;
+}
+
+// Algorithm for scrollTop:
+//   https://www.w3.org/TR/cssom-view-1/#dom-element-scrolltop
+float HTMLElement::scroll_top() {
+  // This is only partially implemented and will only work for elements with
+  // UI navigation containers.
+
+  // 1. Let document be the element's node document.
+  // 2. If document is not the active document, return zero and terminate these
+  //    steps.
+  // 3. Let window be the value of document's defaultView attribute.
+  // 4. If window is null, return zero and terminate these steps.
+  if (!node_document() || !node_document()->window()) {
+    return 0.0f;
+  }
+
+  node_document()->DoSynchronousLayout();
+
+  if (!ui_nav_item_ || !ui_nav_item_->IsContainer()) {
+    return 0.0f;
+  }
+
+  // 5. If the element is the root element and document is in quirks mode,
+  //    return zero and terminate these steps.
+  // 6. If the element is the root element return the value of scrollY on
+  //    window.
+  // 7. If the element is the HTML body element, document is in quirks mode, and
+  //    the element is not potentially scrollable, return the value of scrollY
+  //    on window.
+
+  // 8. If the element does not have any associated CSS layout box, return zero
+  //    and terminate these steps.
+  if (!layout_boxes_) {
+    return 0.0f;
+  }
+
+  // 9. Return the y-coordinate of the scrolling area at the alignment point
+  //    with the top of the padding edge of the element.
+  float left, top;
+  ui_nav_item_->GetContentOffset(&left, &top);
+  return top;
+}
+
+// Algorithm for scrollLeft:
+//   https://www.w3.org/TR/cssom-view-1/#dom-element-scrollleft
+void HTMLElement::set_scroll_left(float x) {
+  // This is only partially implemented and will only work for elements with
+  // UI navigation containers.
+
+  // 1. Let x be the given value.
+  // 2. Normalize non-finite values for x.
+
+  // 3. Let document be the element's node document.
+  // 4. If document is not the active document, terminate these steps.
+  // 5. Let window be the value of document's defaultView attribute.
+  // 6. If window is null, terminate these steps.
+  if (!node_document() || !node_document()->window()) {
+    return;
+  }
+
+  node_document()->DoSynchronousLayout();
+
+  if (!ui_nav_item_ || !ui_nav_item_->IsContainer()) {
+    return;
+  }
+
+  // 7. If the element is the root element and document is in quirks mode,
+  //    terminate these steps.
+  // 8. If the element is the root element invoke scroll() on window with x as
+  //    first argument and scrollY on window as second argument, and terminate
+  //    these steps.
+  // 9. If the element is the HTML body element, document is in quirks mode, and
+  //    the element is not potentially scrollable, invoke scroll() on window
+  //    with x as first argument and scrollY on window as second argument, and
+  //    terminate these steps.
+
+  // 10. If the element does not have any associated CSS layout box, the element
+  //     has no associated scrolling box, or the element has no overflow,
+  //     terminate these steps.
+  if (!layout_boxes_ ||
+      scroll_width() <= layout_boxes_->GetPaddingEdgeWidth() ) {
+    // Make sure the UI navigation container is set to the expected 0.
+    x = 0.0f;
+  }
+
+  // 11. Scroll the element to x,scrollTop, with the scroll behavior being
+  //     "auto".
+  float left, top;
+  ui_nav_item_->GetContentOffset(&left, &top);
+  ui_nav_item_->SetContentOffset(x, top);
+}
+
+// Algorithm for scrollTop:
+//   https://www.w3.org/TR/cssom-view-1/#dom-element-scrolltop
+void HTMLElement::set_scroll_top(float y) {
+  // This is only partially implemented and will only work for elements with
+  // UI navigation containers.
+
+  // 1. Let y be the given value.
+  // 2. Normalize non-finite values for y.
+
+  // 3. Let document be the element's node document.
+  // 4. If document is not the active document, terminate these steps.
+  // 5. Let window be the value of document's defaultView attribute.
+  // 6. If window is null, terminate these steps.
+  if (!node_document() || !node_document()->window()) {
+    return;
+  }
+
+  node_document()->DoSynchronousLayout();
+
+  if (!ui_nav_item_ || !ui_nav_item_->IsContainer()) {
+    return;
+  }
+
+  // 7. If the element is the root element and document is in quirks mode,
+  //    terminate these steps.
+  // 8. If the element is the root element invoke scroll() on window with
+  //    scrollX on window as first argument and y as second argument, and
+  //    terminate these steps.
+  // 9. If the element is the HTML body element, document is in quirks mode, and
+  //    the element is not potentially scrollable, invoke scroll() on window
+  //    with scrollX as first argument and y as second argument, and terminate
+  //    these steps.
+
+  // 10. If the element does not have any associated CSS layout box, the element
+  //     has no associated scrolling box, or the element has no overflow,
+  //     terminate these steps.
+  if (!layout_boxes_ ||
+      scroll_height() <= layout_boxes_->GetPaddingEdgeHeight()) {
+    // Make sure the UI navigation container is set to the expected 0.
+    y = 0.0f;
+  }
+
+  // 11. Scroll the element to scrollLeft,y, with the scroll behavior being
+  //     "auto".
+  float left, top;
+  ui_nav_item_->GetContentOffset(&left, &top);
+  ui_nav_item_->SetContentOffset(left, y);
+}
+
 // Algorithm for offsetParent:
 //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetparent
 Element* HTMLElement::offset_parent() {
@@ -441,7 +680,7 @@ float HTMLElement::offset_top() {
 
   DCHECK(offset_parent_html_element->layout_boxes());
   return layout_boxes_->GetBorderEdgeTop() -
-         offset_parent_html_element->layout_boxes()->GetPaddingEdgeTop();
+         offset_parent_html_element->layout_boxes()->GetPaddingEdgeOffset().y();
 }
 
 // Algorithm for offset_left:
@@ -480,7 +719,7 @@ float HTMLElement::offset_left() {
 
   DCHECK(offset_parent_html_element->layout_boxes());
   return layout_boxes_->GetBorderEdgeLeft() -
-         offset_parent_html_element->layout_boxes()->GetPaddingEdgeLeft();
+         offset_parent_html_element->layout_boxes()->GetPaddingEdgeOffset().x();
 }
 
 // Algorithm for offset_width:
@@ -533,8 +772,11 @@ scoped_refptr<Node> HTMLElement::Duplicate() const {
           ->html_element_factory()
           ->CreateHTMLElement(document, local_name());
   new_html_element->CopyAttributes(*this);
-  new_html_element->CopyDirectionality(*this);
   new_html_element->style_->AssignFrom(*this->style_);
+
+  // Copy cached attributes.
+  new_html_element->tabindex_ = tabindex_;
+  new_html_element->directionality_ = directionality_;
 
   return new_html_element;
 }
@@ -576,6 +818,10 @@ void HTMLElement::OnCSSMutation() {
 }
 
 scoped_refptr<HTMLAnchorElement> HTMLElement::AsHTMLAnchorElement() {
+  return NULL;
+}
+
+scoped_refptr<HTMLAudioElement> HTMLElement::AsHTMLAudioElement() {
   return NULL;
 }
 
@@ -750,8 +996,6 @@ void HTMLElement::UpdateComputedStyleRecursively(
     return;
   }
 
-  RegisterUiNavigationParent();
-
   // Update computed style for this element's descendants. Note that if
   // descendant_computed_styles_valid_ flag is not set, the ancestors should
   // still be considered invalid, which forces the computes styles to be updated
@@ -815,6 +1059,12 @@ void HTMLElement::PurgeCachedBackgroundImages() {
 bool HTMLElement::IsDisplayed() const {
   return ancestors_are_displayed_ == kAncestorsAreDisplayed &&
          computed_style()->display() != cssom::KeywordValue::GetNone();
+}
+
+bool HTMLElement::IsRootElement() {
+  // The html element represents the root of an HTML document.
+  //   https://www.w3.org/TR/2014/REC-html5-20141028/semantics.html#the-root-element
+  return AsHTMLHtmlElement().get() != NULL;
 }
 
 void HTMLElement::InvalidateComputedStylesOfNodeAndDescendants() {
@@ -919,7 +1169,6 @@ HTMLElement::HTMLElement(Document* document, base::Token local_name)
       matching_rules_valid_(false) {
   css_computed_style_declaration_->set_animations(animations());
   style_->set_mutation_observer(this);
-  ++(non_trivial_static_fields.Get().html_element_count_log.count);
   dom_stat_tracker_->OnHtmlElementCreated();
 }
 
@@ -931,17 +1180,12 @@ HTMLElement::~HTMLElement() {
     ui_nav_item_ = nullptr;
   }
 
-  --(non_trivial_static_fields.Get().html_element_count_log.count);
   if (IsInDocument()) {
     dom_stat_tracker_->OnHtmlElementRemovedFromDocument();
   }
   dom_stat_tracker_->OnHtmlElementDestroyed();
 
   style_->set_mutation_observer(NULL);
-}
-
-void HTMLElement::CopyDirectionality(const HTMLElement& other) {
-  directionality_ = other.directionality_;
 }
 
 void HTMLElement::OnInsertedIntoDocument() {
@@ -978,6 +1222,7 @@ void HTMLElement::OnMutation() { InvalidateMatchingRulesRecursively(); }
 
 void HTMLElement::OnSetAttribute(const std::string& name,
                                  const std::string& value) {
+  // Be sure to update HTMLElement::Duplicate() to copy over values as needed.
   if (name == "dir") {
     SetDirectionality(value);
   } else if (name == "tabindex") {
@@ -1587,56 +1832,6 @@ void HTMLElement::UpdateUiNavigationType() {
   }
 }
 
-void HTMLElement::RegisterUiNavigationParent() {
-  if (!ui_nav_item_) {
-    return;
-  }
-
-  // Register this HTML element's UI navigation item as a content of its parent
-  // UI navigation item. Walk up the containing block chain.
-  // https://www.w3.org/TR/CSS21/visudet.html#containing-block-details
-  scoped_refptr<ui_navigation::NavItem> parent_item;
-  scoped_refptr<cssom::PropertyValue> position = computed_style()->position();
-
-  for (Node* ancestor_node = parent_node();;
-       ancestor_node = ancestor_node->parent_node()) {
-    if (!ancestor_node || position == cssom::KeywordValue::GetFixed()) {
-      if (node_document() && node_document()->window()) {
-        parent_item = node_document()->window()->GetUiNavRoot();
-      }
-      break;
-    }
-
-    Element* ancestor_element = ancestor_node->AsElement();
-    if (!ancestor_element) {
-      continue;
-    }
-
-    HTMLElement* ancestor_html_element = ancestor_element->AsHTMLElement();
-    if (!ancestor_html_element) {
-      continue;
-    }
-
-    if (position == cssom::KeywordValue::GetAbsolute() &&
-        ancestor_html_element->computed_style()->position() ==
-            cssom::KeywordValue::GetStatic()) {
-      continue;
-    }
-
-    const scoped_refptr<ui_navigation::NavItem>& potential_parent_item =
-        ancestor_html_element->GetUiNavItem();
-    if (potential_parent_item && potential_parent_item->IsContainer()) {
-      parent_item = potential_parent_item;
-      break;
-    }
-
-    // Look for this ancestor's containing block.
-    position = ancestor_html_element->computed_style()->position();
-  }
-
-  ui_nav_item_->SetContainerItem(parent_item);
-}
-
 void HTMLElement::ClearActiveBackgroundImages() {
   if (html_element_context() &&
       html_element_context()->animated_image_tracker()) {
@@ -1682,7 +1877,7 @@ void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
           absolute_url);
 
       scoped_refptr<loader::image::CachedImage> cached_image =
-          html_element_context()->image_cache()->CreateCachedResource(
+          html_element_context()->image_cache()->GetOrCreateCachedResource(
               absolute_url, loader::Origin());
       base::Closure loaded_callback = base::Bind(
           &HTMLElement::OnBackgroundImageLoaded, base::Unretained(this));
@@ -1701,12 +1896,6 @@ void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
 void HTMLElement::OnBackgroundImageLoaded() {
   node_document()->RecordMutation();
   InvalidateLayoutBoxRenderTreeNodes();
-}
-
-bool HTMLElement::IsRootElement() {
-  // The html element represents the root of an HTML document.
-  //   https://www.w3.org/TR/2014/REC-html5-20141028/semantics.html#the-root-element
-  return AsHTMLHtmlElement().get() != NULL;
 }
 
 }  // namespace dom

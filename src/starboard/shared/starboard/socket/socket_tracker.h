@@ -19,11 +19,11 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/mutex.h"
 #include "starboard/common/optional.h"
+#include "starboard/common/socket.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
-#include "starboard/mutex.h"
-#include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"

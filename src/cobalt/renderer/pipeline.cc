@@ -150,7 +150,7 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
   // rasterizer_thread_checker_ to be associated with the rasterizer thread,
   // so we detach it here and let it reattach itself to the rasterizer thread
   // when CalledOnValidThread() is called on rasterizer_thread_checker_ below.
-  rasterizer_thread_checker_.DetachFromThread();
+  DETACH_FROM_THREAD(rasterizer_thread_checker_);
 
   base::Thread::Options thread_options(base::MessageLoop::TYPE_DEFAULT,
                                        kRendererThreadStackSize);
@@ -272,7 +272,7 @@ void Pipeline::TimeFence(base::TimeDelta time_fence) {
 }
 
 void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
-  DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(rasterizer_thread_checker_);
   DCHECK(render_tree_submission.render_tree.get());
 
   TRACE_EVENT0("cobalt::renderer", "Pipeline::SetNewRenderTree()");
@@ -309,7 +309,7 @@ void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
 }
 
 void Pipeline::ClearCurrentRenderTree() {
-  DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(rasterizer_thread_checker_);
   TRACE_EVENT0("cobalt::renderer", "Pipeline::ClearCurrentRenderTree()");
 
   ResetSubmissionQueue();
@@ -318,7 +318,7 @@ void Pipeline::ClearCurrentRenderTree() {
 
 void Pipeline::RasterizeCurrentTree() {
   TRACK_MEMORY_SCOPE("Renderer");
-  DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(rasterizer_thread_checker_);
   TRACE_EVENT0("cobalt::renderer", "Pipeline::RasterizeCurrentTree()");
 
   base::TimeTicks start_rasterize_time = base::TimeTicks::Now();
@@ -331,11 +331,11 @@ void Pipeline::RasterizeCurrentTree() {
   bool force_rasterize = submit_even_if_render_tree_is_unchanged_ ||
       fps_overlay_update_pending_;
 
-  float minimum_fps = graphics_context_ ?
-      graphics_context_->GetMinimumFramesPerSecond() : 0;
-  if (minimum_fps > 0) {
+  float maximum_frame_interval_milliseconds = graphics_context_ ?
+      graphics_context_->GetMaximumFrameIntervalInMilliseconds() : -1.0f;
+  if (maximum_frame_interval_milliseconds >= 0.0f) {
     base::TimeDelta max_time_between_rasterize =
-        base::TimeDelta::FromSecondsD(1.0 / minimum_fps);
+        base::TimeDelta::FromMillisecondsD(maximum_frame_interval_milliseconds);
     if (start_rasterize_time - last_rasterize_time_ >
         max_time_between_rasterize) {
       force_rasterize = true;
@@ -519,7 +519,7 @@ bool Pipeline::RasterizeSubmissionToRenderTarget(
 void Pipeline::InitializeRasterizerThread(
     const CreateRasterizerFunction& create_rasterizer_function) {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::InitializeRasterizerThread");
-  DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(rasterizer_thread_checker_);
   rasterizer_ = create_rasterizer_function.Run();
   rasterizer_created_event_.Signal();
 
@@ -538,7 +538,7 @@ void Pipeline::InitializeRasterizerThread(
 
 void Pipeline::ShutdownSubmissionQueue() {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::ShutdownSubmissionQueue()");
-  DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(rasterizer_thread_checker_);
 
   // Clear out our time fence data, especially |post_fence_submission_| which
   // may refer to a render tree.
@@ -565,7 +565,7 @@ void Pipeline::ShutdownSubmissionQueue() {
 
 void Pipeline::ShutdownRasterizerThread() {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::ShutdownRasterizerThread()");
-  DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(rasterizer_thread_checker_);
 
   // Shutdown the FPS overlay which may reference render trees.
   fps_overlay_ = base::nullopt;
@@ -683,7 +683,7 @@ void PrintFPS(const base::CValCollectionTimerStatsFlushResults& results) {
 
 void Pipeline::FrameStatsOnFlushCallback(
     const base::CValCollectionTimerStatsFlushResults& flush_results) {
-  DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(rasterizer_thread_checker_);
 
   if (enable_fps_overlay_) {
     if (!fps_overlay_) {

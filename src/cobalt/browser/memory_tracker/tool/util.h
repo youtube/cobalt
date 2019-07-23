@@ -23,7 +23,7 @@
 #include "base/callback.h"
 #include "base/logging.h"
 #include "base/time/time.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/types.h"
 
 namespace cobalt {

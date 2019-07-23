@@ -17,8 +17,8 @@
 
 #include <float.h>  // for DBL_MIN
 #include <math.h>   // for HUGE_VAL
+#include "starboard/common/string.h"
 #include "starboard/double.h"
-#include "starboard/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {

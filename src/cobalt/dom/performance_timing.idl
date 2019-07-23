@@ -15,5 +15,6 @@
 // https://www.w3.org/TR/navigation-timing/#sec-navigation-timing-interface
 
 interface PerformanceTiming {
+  // Returns the navigation start time relative to January 1, 1970.
   readonly attribute unsigned long long navigationStart;
 };

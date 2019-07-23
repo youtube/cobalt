@@ -31,7 +31,7 @@
 #include "../rand/internal.h"
 
 #if defined(STARBOARD)
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #define fprintf(stderr, ...) SbLogFormatF(__VA_ARGS__)
 #endif
 

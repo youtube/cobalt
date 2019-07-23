@@ -17,16 +17,14 @@
 #include <GLES2/gl2.h>
 
 #include "glimp/gles/context.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace gles = glimp::gles;
 
 namespace {
 gles::Context* GetCurrentContext() {
   gles::Context* context = gles::Context::GetTLSCurrentContext();
-  if (!context) {
-    SB_DLOG(WARNING) << "GL ES command issued while no context was current.";
-  }
+  SB_DCHECK(context) << "GL ES command issued while no context was current.";
   return context;
 }
 }

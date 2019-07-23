@@ -107,8 +107,10 @@ typedef base::Callback<void(const std::string&, const std::string&,
     OnNeedKeyCB;
 
 WebMediaPlayerImpl::WebMediaPlayerImpl(
-    PipelineWindow window, WebMediaPlayerClient* client,
-    WebMediaPlayerDelegate* delegate,
+    PipelineWindow window,
+    const Pipeline::GetDecodeTargetGraphicsContextProviderFunc&
+        get_decode_target_graphics_context_provider_func,
+    WebMediaPlayerClient* client, WebMediaPlayerDelegate* delegate,
     DecoderBuffer::Allocator* buffer_allocator, bool allow_resume_after_suspend,
     const scoped_refptr<MediaLog>& media_log)
     : pipeline_thread_("media_pipeline"),
@@ -140,6 +142,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
 
   pipeline_thread_.Start();
   pipeline_ = Pipeline::Create(window, pipeline_thread_.task_runner(),
+                               get_decode_target_graphics_context_provider_func,
                                allow_resume_after_suspend_, media_log_.get(),
                                video_frame_provider_.get());
 
@@ -587,7 +590,8 @@ void WebMediaPlayerImpl::SetDrmSystemReadyCB(
   }
 }
 
-void WebMediaPlayerImpl::OnPipelineSeek(PipelineStatus status) {
+void WebMediaPlayerImpl::OnPipelineSeek(PipelineStatus status,
+                                        bool is_initial_preroll) {
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
   state_.starting = false;
   state_.seeking = false;
@@ -605,8 +609,10 @@ void WebMediaPlayerImpl::OnPipelineSeek(PipelineStatus status) {
   // Update our paused time.
   if (state_.paused) state_.paused_time = pipeline_->GetMediaTime();
 
-  const bool eos_played = false;
-  GetClient()->TimeChanged(eos_played);
+  if (is_initial_preroll) {
+    const bool kEosPlayed = false;
+    GetClient()->TimeChanged(kEosPlayed);
+  }
 }
 
 void WebMediaPlayerImpl::OnPipelineEnded(PipelineStatus status) {
@@ -616,8 +622,8 @@ void WebMediaPlayerImpl::OnPipelineEnded(PipelineStatus status) {
     return;
   }
 
-  const bool eos_played = true;
-  GetClient()->TimeChanged(eos_played);
+  const bool kEosPlayed = true;
+  GetClient()->TimeChanged(kEosPlayed);
 }
 
 void WebMediaPlayerImpl::OnPipelineError(PipelineStatus error,
@@ -802,7 +808,8 @@ void WebMediaPlayerImpl::StartPipeline(Demuxer* demuxer) {
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineBufferingState),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDurationChanged),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnOutputModeChanged),
-      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnContentSizeChanged));
+      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnContentSizeChanged),
+      GetClient()->MaxVideoCapabilities());
 }
 
 void WebMediaPlayerImpl::SetNetworkState(WebMediaPlayer::NetworkState state) {

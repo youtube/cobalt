@@ -84,7 +84,7 @@ class FileFetcher : public Fetcher {
 
   // Thread checker ensures all calls to the FileFetcher are made from the same
   // thread that it is created in.
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   // Size of the buffer that FileFetcher will use to load data.
   int32 buffer_size_;
   // Handle of the input file.

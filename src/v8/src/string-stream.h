@@ -132,7 +132,13 @@ class StringStream final {
 
   // Getting the message out.
   void OutputToFile(FILE* out);
-  void OutputToStdOut() { OutputToFile(stdout); }
+  void OutputToStdOut() {
+#if defined(V8_OS_STARBOARD)
+    OutputToFile(nullptr);
+#else
+    OutputToFile(stdout);
+#endif
+  }
   void Log(Isolate* isolate);
   Handle<String> ToString(Isolate* isolate);
   std::unique_ptr<char[]> ToCString() const;

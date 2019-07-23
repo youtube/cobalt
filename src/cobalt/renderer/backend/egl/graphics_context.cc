@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <GLES2/gl2.h>
 #include <algorithm>
 #include <memory>
 
@@ -28,6 +27,7 @@
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
 #include "cobalt/renderer/backend/egl/utils.h"
+#include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {
 namespace renderer {
@@ -37,7 +37,7 @@ namespace {
 
 bool HasExtension(const char* extension) {
   const char* raw_extension_string =
-      reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
+      reinterpret_cast<const char*>(GL_CALL_SIMPLE(glGetString(GL_EXTENSIONS)));
   DCHECK(raw_extension_string);
 
   return strstr(raw_extension_string, extension) != NULL;
@@ -59,9 +59,9 @@ GraphicsContextEGL::GraphicsContextEGL(GraphicsSystem* parent_system,
   EGLint context_attrib_list[] = {
       EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE,
   };
-  context_ =
-      eglCreateContext(display, config, EGL_NO_CONTEXT, context_attrib_list);
-  CHECK_EQ(EGL_SUCCESS, eglGetError());
+  context_ = EGL_CALL_SIMPLE(
+      eglCreateContext(display, config, EGL_NO_CONTEXT, context_attrib_list));
+  CHECK_EQ(EGL_SUCCESS, EGL_CALL_SIMPLE(eglGetError()));
 #endif
 
   // Create a dummy EGLSurface object to be assigned as the target surface
@@ -82,10 +82,6 @@ GraphicsContextEGL::GraphicsContextEGL(GraphicsSystem* parent_system,
     ANNOTATE_SCOPED_MEMORY_LEAK;
     ComputeReadPixelsNeedVerticalFlip();
   }
-
-  get_minimum_frames_per_second_ =
-      reinterpret_cast<decltype(get_minimum_frames_per_second_)>(
-          eglGetProcAddress("eglGetMinimumFramesPerSecondCOBALT"));
 }
 
 GraphicsSystemEGL* GraphicsContextEGL::system_egl() {
@@ -169,9 +165,9 @@ bool GraphicsContextEGL::ComputeReadPixelsNeedVerticalFlip() {
 
 void GraphicsContextEGL::SetupBlitObjects() {
   // Setup shaders used when blitting the current texture.
-  blit_program_ = glCreateProgram();
+  blit_program_ = GL_CALL_SIMPLE(glCreateProgram());
 
-  blit_vertex_shader_ = glCreateShader(GL_VERTEX_SHADER);
+  blit_vertex_shader_ = GL_CALL_SIMPLE(glCreateShader(GL_VERTEX_SHADER));
   const char* blit_vertex_shader_source =
       "attribute vec2 a_position;"
       "attribute vec2 a_tex_coord;"
@@ -186,7 +182,7 @@ void GraphicsContextEGL::SetupBlitObjects() {
   GL_CALL(glCompileShader(blit_vertex_shader_));
   GL_CALL(glAttachShader(blit_program_, blit_vertex_shader_));
 
-  blit_fragment_shader_ = glCreateShader(GL_FRAGMENT_SHADER);
+  blit_fragment_shader_ = GL_CALL_SIMPLE(glCreateShader(GL_FRAGMENT_SHADER));
   const char* blit_fragment_shader_source =
       "precision mediump float;"
       "varying vec2 v_tex_coord;"
@@ -262,8 +258,8 @@ void GraphicsContextEGL::SafeEglMakeCurrent(RenderTargetEGL* surface) {
     return;
   }
 
-  eglMakeCurrent(display_, egl_surface, egl_surface, context_);
-  EGLint make_current_error = eglGetError();
+  EGL_CALL_SIMPLE(eglMakeCurrent(display_, egl_surface, egl_surface, context_));
+  EGLint make_current_error = EGL_CALL_SIMPLE(eglGetError());
   if (make_current_error != EGL_SUCCESS) {
     LOG(ERROR) << "eglMakeCurrent ERROR: " << make_current_error;
     if (make_current_error == EGL_BAD_ALLOC ||
@@ -453,7 +449,7 @@ std::unique_ptr<uint8_t[]> GraphicsContextEGL::DownloadPixelDataAsRGBA(
     GL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
                                    GL_TEXTURE_2D, texture->gl_handle(), 0));
     DCHECK_EQ(GL_FRAMEBUFFER_COMPLETE,
-              glCheckFramebufferStatus(GL_FRAMEBUFFER));
+              GL_CALL_SIMPLE(glCheckFramebufferStatus(GL_FRAMEBUFFER)));
 
     GL_CALL(glReadPixels(0, 0, texture->GetSize().width(),
                          texture->GetSize().height(), GL_RGBA, GL_UNSIGNED_BYTE,
@@ -490,14 +486,6 @@ std::unique_ptr<uint8_t[]> GraphicsContextEGL::DownloadPixelDataAsRGBA(
 void GraphicsContextEGL::Finish() {
   ScopedMakeCurrent scoped_current_context(this);
   GL_CALL(glFinish());
-}
-
-float GraphicsContextEGL::GetMinimumFramesPerSecond() {
-  if (get_minimum_frames_per_second_) {
-    return get_minimum_frames_per_second_(display_);
-  } else {
-    return 0;
-  }
 }
 
 void GraphicsContextEGL::Blit(GLuint texture, int x, int y, int width,
@@ -542,9 +530,9 @@ void GraphicsContextEGL::SwapBuffers(RenderTargetEGL* surface) {
   // current implementation of eglSwapBuffers() does nothing for PBuffers,
   // so only check for framebuffer render targets.
   if (surface->GetPlatformHandle() == 0) {
-    eglSwapInterval(display_, COBALT_EGL_SWAP_INTERVAL);
-    eglSwapBuffers(display_, surface->GetSurface());
-    EGLint swap_err = eglGetError();
+    EGL_CALL_SIMPLE(eglSwapInterval(display_, COBALT_EGL_SWAP_INTERVAL));
+    EGL_CALL_SIMPLE(eglSwapBuffers(display_, surface->GetSurface()));
+    EGLint swap_err = EGL_CALL_SIMPLE(eglGetError());
     if (swap_err != EGL_SUCCESS) {
       LOG(WARNING) << "Marking surface bad after swap error " << std::hex
                    << swap_err;

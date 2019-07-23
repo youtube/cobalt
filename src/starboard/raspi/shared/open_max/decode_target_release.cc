@@ -17,7 +17,7 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/raspi/shared/open_max/decode_target_internal.h"
 
 void SbDecodeTargetRelease(SbDecodeTarget target) {

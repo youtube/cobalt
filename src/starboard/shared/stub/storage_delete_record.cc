@@ -12,13 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/storage.h"
+#include "starboard/common/storage.h"
 
-bool SbStorageDeleteRecord(SbUser /*user*/
-#if SB_API_VERSION >= 6
-                           ,
-                           const char* /*name*/
-#endif  // SB_API_VERSION >= 6
-                           ) {
+bool SbStorageDeleteRecord(SbUser /*user*/, const char* /*name*/) {
   return false;
 }

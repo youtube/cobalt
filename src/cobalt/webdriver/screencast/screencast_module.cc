@@ -44,7 +44,7 @@ ScreencastModule::ScreencastModule(
       no_screenshots_pending_(base::WaitableEvent::ResetPolicy::MANUAL,
                               base::WaitableEvent::InitialState::NOT_SIGNALED),
       num_screenshots_processing_(0) {
-  thread_checker_.DetachFromThread();
+  DETACH_FROM_THREAD(thread_checker_);
 
   screenshot_dispatcher_->RegisterCommand(
       WebDriverServer::kGet, "/screenshot/:id",
@@ -73,7 +73,7 @@ ScreencastModule::~ScreencastModule() {
 
 void ScreencastModule::StartServer(int server_port,
                                    const std::string& listen_ip) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Create a new WebDriverServer and pass in the Dispatcher.
 
   screenshot_server_.reset(new WebDriverServer(
@@ -93,7 +93,7 @@ void ScreencastModule::StartServer(int server_port,
 }
 
 void ScreencastModule::StopTimer() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   screenshot_timer_.reset();
 
   if (num_screenshots_processing_ < 1) {
@@ -102,7 +102,7 @@ void ScreencastModule::StopTimer() {
 }
 
 void ScreencastModule::StopServer() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Clear out queue of requests.
   while (!incoming_requests_.empty()) {
     scoped_refptr<WaitingRequest> next_request = incoming_requests_.front();
@@ -120,7 +120,7 @@ void ScreencastModule::PutRequestInQueue(
     const WebDriverDispatcher::PathVariableMap* path_variables,
     std::unique_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
   TRACE_EVENT0("cobalt::Screencast", "ScreencastModule::PutRequestInQueue()");
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   scoped_refptr<WaitingRequest> current_request = new WaitingRequest;
   current_request->result_handler = std::move(result_handler);
@@ -147,7 +147,7 @@ void ScreencastModule::SendScreenshotToNextInQueue(
                               base::Unretained(this), screenshot));
     return;
   }
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   num_screenshots_processing_--;
   // If the timer is off we can check if it's ready to be shutdown.

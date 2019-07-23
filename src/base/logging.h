@@ -22,7 +22,7 @@
 #include "build/build_config.h"
 
 #if defined(STARBOARD)
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/system.h"
 #include "starboard/types.h"
 #endif

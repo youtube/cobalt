@@ -42,6 +42,7 @@
 #include "cobalt/dom/document_timeline.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/dom/intersection_observer_task_manager.h"
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/node.h"
 #include "cobalt/dom/pointer_state.h"
@@ -425,6 +426,10 @@ class Document : public Node,
   // unable to provide them.
   void OnRootElementUnableToProvideOffsetDimensions();
 
+  IntersectionObserverTaskManager* intersection_observer_task_manager() const {
+    return intersection_observer_task_manager_;
+  }
+
   DEFINE_WRAPPABLE_TYPE(Document);
   void TraceMembers(script::Tracer* tracer) override;
 
@@ -551,6 +556,9 @@ class Document : public Node,
 
   // Whether or not rendering is currently postponed.
   bool render_postponed_;
+
+  scoped_refptr<IntersectionObserverTaskManager>
+      intersection_observer_task_manager_;
 };
 
 }  // namespace dom

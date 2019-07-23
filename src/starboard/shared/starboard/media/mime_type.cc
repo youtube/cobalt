@@ -15,8 +15,8 @@
 #include "starboard/shared/starboard/media/mime_type.h"
 
 #include "starboard/character.h"
-#include "starboard/log.h"
-#include "starboard/string.h"
+#include "starboard/common/log.h"
+#include "starboard/common/string.h"
 
 namespace starboard {
 namespace shared {

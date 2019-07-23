@@ -41,6 +41,8 @@ class QuicEpollClock : public QuicClock {
 
  protected:
   net::EpollServer* epoll_server_;
+  // Largest time returned from Now() so far.
+  mutable QuicTime largest_time_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(QuicEpollClock);

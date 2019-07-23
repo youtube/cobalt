@@ -21,7 +21,7 @@
 #include "base/observer_list.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 #include "starboard/socket_waiter.h"
 
 namespace base {
@@ -168,7 +168,7 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
   SbSocketWaiter waiter_;
 
   ObserverList<IOObserver> io_observers_;
-  ThreadChecker watch_socket_caller_checker_;
+  THREAD_CHECKER(watch_socket_caller_checker_);
   DISALLOW_COPY_AND_ASSIGN(MessagePumpIOStarboard);
 };
 

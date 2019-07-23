@@ -60,7 +60,7 @@ class XMLDecoder : public loader::Decoder {
   // of libxml2's SAX parser.
   std::unique_ptr<LibxmlXMLParserWrapper> libxml_xml_parser_wrapper_;
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
   const loader::Decoder::OnCompleteFunction load_complete_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(XMLDecoder);

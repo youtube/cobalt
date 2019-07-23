@@ -61,4 +61,8 @@ class ScopedEnvironmentForThreadsImpl {
   base::test::ScopedTaskEnvironment scoped_task_environment_;
 };
 
+#define QUIC_TEST_DISABLED_IN_CHROME_IMPL(name) DISABLED_##name
+
+std::string QuicGetTestMemoryCachePathImpl();
+
 #endif  // NET_THIRD_PARTY_QUIC_PLATFORM_IMPL_QUIC_TEST_IMPL_H_

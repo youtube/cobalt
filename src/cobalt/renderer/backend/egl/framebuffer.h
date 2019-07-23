@@ -15,10 +15,10 @@
 #ifndef COBALT_RENDERER_BACKEND_EGL_FRAMEBUFFER_H_
 #define COBALT_RENDERER_BACKEND_EGL_FRAMEBUFFER_H_
 
-#include <GLES2/gl2.h>
 #include <memory>
 
 #include "cobalt/math/size.h"
+#include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {
 namespace renderer {

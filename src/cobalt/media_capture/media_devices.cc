@@ -26,7 +26,7 @@
 #include "cobalt/speech/microphone.h"
 #include "cobalt/speech/microphone_fake.h"
 #include "cobalt/speech/microphone_starboard.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 namespace cobalt {
 namespace media_capture {
@@ -163,7 +163,7 @@ void MediaDevices::OnMicrophoneError(
                               error, message));
     return;
   }
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   DLOG(INFO) << "MediaDevices::OnMicrophoneError " << message;
   pending_microphone_track_ = nullptr;
@@ -183,7 +183,7 @@ void MediaDevices::OnMicrophoneStopped() {
         FROM_HERE, base::Bind(&MediaDevices::OnMicrophoneStopped, weak_this_));
     return;
   }
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   audio_source_ = nullptr;
   pending_microphone_track_ = nullptr;
@@ -202,7 +202,7 @@ void MediaDevices::OnMicrophoneSuccess() {
         FROM_HERE, base::Bind(&MediaDevices::OnMicrophoneSuccess, this));
     return;
   }
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   using media_stream::MediaStream;
   MediaStream::TrackSequences audio_tracks;

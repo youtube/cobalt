@@ -18,8 +18,8 @@
 #include <algorithm>
 
 #include "memory_allocator_reporter.h"
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 
 namespace js {
 namespace oom {

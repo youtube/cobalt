@@ -14,7 +14,7 @@
 
 #include "starboard/shared/wayland/window_internal.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace {
 

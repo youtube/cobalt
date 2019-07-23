@@ -42,6 +42,7 @@ class AutoMem {
                    const AutoMemSettings& build_settings);
   ~AutoMem();
 
+  const IntSetting* encoded_image_cache_size_in_bytes() const;
   const IntSetting* image_cache_size_in_bytes() const;
   const IntSetting* javascript_gc_threshold_in_bytes() const;
   // This setting represents all others cpu-memory consuming systems within
@@ -79,6 +80,7 @@ class AutoMem {
   std::vector<MemorySetting*> AllMemorySettingsMutable();
 
   // All of the following are included in AllMemorySettings().
+  std::unique_ptr<IntSetting> encoded_image_cache_size_in_bytes_;
   std::unique_ptr<IntSetting> image_cache_size_in_bytes_;
   std::unique_ptr<IntSetting> javascript_gc_threshold_in_bytes_;
   std::unique_ptr<IntSetting> misc_cobalt_cpu_size_in_bytes_;

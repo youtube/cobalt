@@ -43,10 +43,7 @@
     'COBALT_EGL_SWAP_INTERVAL=<(cobalt_egl_swap_interval)',
   ],
   'dependencies': [
-    '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
-  ],
-  'export_dependent_settings': [
-    '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
+    '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
   ],
 
   'conditions': [

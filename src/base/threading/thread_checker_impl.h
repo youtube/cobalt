@@ -10,6 +10,7 @@
 #include "base/sequence_token.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/platform_thread.h"
+#include "starboard/common/spin_lock.h"
 
 namespace base {
 
@@ -36,8 +37,13 @@ class BASE_EXPORT ThreadCheckerImpl {
 
   // Members are mutable so that CalledOnValidThread() can set them.
 
+#if defined(STARBOARD)
+  // Don't use a mutex since the number of mutexes is limited on some platforms.
+  mutable SbAtomic32 members_lock_ = starboard::kSpinLockStateReleased;
+#else   // defined(STARBOARD)
   // Synchronizes access to all members.
   mutable base::Lock lock_;
+#endif  // defined(STARBOARD)
 
   // Thread on which CalledOnValidThread() may return true.
   mutable PlatformThreadRef thread_id_;

@@ -17,9 +17,9 @@
 
 #include <utility>
 
+#include "starboard/common/socket.h"
 #include "starboard/memory.h"
 #include "starboard/nplb/socket_helpers.h"
-#include "starboard/socket.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"

@@ -134,7 +134,7 @@ namespace {
 
 void MaybePrintAst(ParseInfo* parse_info, CompilationInfo* compilation_info) {
   if (!FLAG_print_ast) return;
-
+#ifndef V8_OS_STARBOARD
   OFStream os(stdout);
   std::unique_ptr<char[]> name = compilation_info->GetDebugName();
   os << "[generating bytecode for function: "
@@ -145,6 +145,7 @@ void MaybePrintAst(ParseInfo* parse_info, CompilationInfo* compilation_info) {
             .PrintProgram(compilation_info->literal())
      << std::endl;
 #endif  // DEBUG
+#endif  // V8_OS_STARBOARD
 }
 
 bool ShouldPrintBytecode(Handle<SharedFunctionInfo> shared) {
@@ -211,6 +212,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
     return FAILED;
   }
 
+#ifndef V8_OS_STARBOARD
   if (ShouldPrintBytecode(compilation_info()->shared_info())) {
     OFStream os(stdout);
     std::unique_ptr<char[]> name = compilation_info()->GetDebugName();
@@ -219,6 +221,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
     bytecodes->Disassemble(os);
     os << std::flush;
   }
+#endif  // V8_OS_STARBOARD
 
   compilation_info()->SetBytecodeArray(bytecodes);
   compilation_info()->SetCode(

@@ -63,7 +63,8 @@ void ScreenshotFunction(
     const scoped_refptr<render_tree::Node>& node,
     const base::Optional<math::Rect>& clip_rect,
     const dom::ScreenshotManager::OnUnencodedImageCallback& callback) {
-  if (base::MessageLoop::current()->task_runner() != expected_message_loop) {
+  if (expected_message_loop &&
+      !expected_message_loop->BelongsToCurrentThread()) {
     expected_message_loop->PostTask(
         FROM_HERE, base::Bind(&ScreenshotFunction, expected_message_loop,
                               pixel_tester, node, clip_rect, callback));
@@ -241,6 +242,10 @@ INSTANTIATE_TEST_CASE_P(
     CSSConditional3LayoutTests, Layout,
     ::testing::ValuesIn(EnumerateLayoutTests("css3-conditional")),
     GetTestName());
+// Custom CSS Flexible Box (https://www.w3.org/TR/css-flexbox-1) test cases.
+INSTANTIATE_TEST_CASE_P(
+    CSSFlexbox3LayoutTests, Layout,
+    ::testing::ValuesIn(EnumerateLayoutTests("css3-flexbox")), GetTestName());
 // Custom CSS Font (https://www.w3.org/TR/css3-fonts/) test cases.
 INSTANTIATE_TEST_CASE_P(
     CSS3FontsLayoutTests, Layout,
@@ -292,6 +297,12 @@ INSTANTIATE_TEST_CASE_P(
     ClusterFuzzLayoutTests, Layout,
     ::testing::ValuesIn(EnumerateLayoutTests("cluster-fuzz")),
     GetTestName());
+
+// Intersection Observer API (https://www.w3.org/TR/intersection-observer/) test
+// cases
+INSTANTIATE_TEST_CASE_P(
+    IntersectionObserverLayoutTests, Layout,
+    ::testing::ValuesIn(EnumerateLayoutTests("intersection-observer")));
 
 // Disable on Windows until network stack is implemented.
 #if !defined(COBALT_WIN)

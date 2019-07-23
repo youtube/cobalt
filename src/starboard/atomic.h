@@ -405,7 +405,7 @@ inline SbAtomic64 Release_Load(volatile const SbAtomic64* ptr) {
 
 #ifdef __cplusplus
 
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
 
 extern "C++" {
 namespace starboard {

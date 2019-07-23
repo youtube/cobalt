@@ -11,9 +11,10 @@
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/eztime/eztime.h"
+#include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
+#include "starboard/configuration.h"
 #include "starboard/file.h"
-#include "starboard/log.h"
-#include "starboard/mutex.h"
 #include "starboard/system.h"
 #include "starboard/time.h"
 typedef SbFile FileHandle;
@@ -115,7 +116,7 @@ typedef pthread_mutex_t* MutexHandle;
 
 #if defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include "base/posix/safe_strerror.h"
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/types.h"
 #endif
 
@@ -550,8 +551,10 @@ void SetMinLogLevel(int level) {
   g_min_log_level = std::min(LOG_FATAL, level);
 
 #if defined(STARBOARD)
+#if SB_API_VERSION < 11
   starboard::logging::SetMinLogLevel(
       LogLevelToStarboardLogPriority(std::min(LOG_FATAL, level)));
+#endif
 #endif
 }
 
@@ -996,8 +999,11 @@ void LogMessage::Init(const char* file, int line) {
   stream_ <<  '[';
   if (g_log_prefix)
     stream_ << g_log_prefix << ':';
+#ifndef STARBOARD
+  // Cobalt and cobalt unittests are both single thread applciation.
   if (g_log_process_id)
     stream_ << CurrentProcessId() << ':';
+#endif
   if (g_log_thread_id)
     stream_ << base::PlatformThread::CurrentId() << ':';
   if (g_log_timestamp) {
@@ -1042,8 +1048,11 @@ void LogMessage::Init(const char* file, int line) {
 #endif
 #endif
   }
+#ifndef STARBOARD
+  // Cobalt does not want tickcounts.
   if (g_log_tickcount)
     stream_ << TickCount() << ':';
+#endif
   if (severity_ >= 0)
     stream_ << log_severity_name(severity_);
   else

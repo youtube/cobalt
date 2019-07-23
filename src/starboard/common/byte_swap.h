@@ -20,14 +20,12 @@
 #ifndef STARBOARD_COMMON_BYTE_SWAP_H_
 #define STARBOARD_COMMON_BYTE_SWAP_H_
 
+#include <algorithm>
+
 #include "starboard/byte_swap.h"
 #include "starboard/types.h"
 
-#ifdef __cplusplus
-
-extern "C++" {
-
-#include <algorithm>
+namespace starboard {
 
 template <typename T>
 T SbByteSwap(T value) {
@@ -66,8 +64,6 @@ inline uint64_t SbByteSwap(uint64_t value) {
   return SbByteSwapU64(value);
 }
 
-}  // extern "C++"
-
-#endif
+}  // namespace starboard
 
 #endif  // STARBOARD_COMMON_BYTE_SWAP_H_

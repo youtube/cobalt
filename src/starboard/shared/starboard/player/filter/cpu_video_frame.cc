@@ -14,7 +14,7 @@
 
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/memory.h"
 
 namespace starboard {
@@ -75,6 +75,16 @@ void EnsureYUVToRGBLookupTableInitialized() {
 
 uint8_t ClampColorComponent(int component) {
   return s_clamp_table[component + 512];
+}
+
+void Copy10bitsPlane(uint8_t* destination, const uint8_t* source, int pixels) {
+  const uint16_t* source_in_uint16 = reinterpret_cast<const uint16_t*>(source);
+  while (pixels > 0) {
+    *destination = static_cast<uint8_t>(*source_in_uint16 / 4);
+    ++source_in_uint16;
+    ++destination;
+    --pixels;
+  }
 }
 
 }  // namespace
@@ -155,38 +165,59 @@ scoped_refptr<CpuVideoFrame> CpuVideoFrame::ConvertTo(
 }
 
 // static
-scoped_refptr<CpuVideoFrame> CpuVideoFrame::CreateYV12Frame(int width,
-                                                            int height,
-                                                            int pitch_in_bytes,
-                                                            SbTime timestamp,
-                                                            const uint8_t* y,
-                                                            const uint8_t* u,
-                                                            const uint8_t* v) {
+scoped_refptr<CpuVideoFrame> CpuVideoFrame::CreateYV12Frame(
+    int bit_depth,
+    int width,
+    int height,
+    int source_pitch_in_bytes,
+    SbTime timestamp,
+    const uint8_t* y,
+    const uint8_t* u,
+    const uint8_t* v) {
+  SB_DCHECK(bit_depth == 8 || bit_depth == 10);
+
   scoped_refptr<CpuVideoFrame> frame(new CpuVideoFrame(timestamp));
   frame->format_ = kYV12;
   frame->width_ = width;
   frame->height_ = height;
+
+  auto destination_pitch_in_bytes = source_pitch_in_bytes;
+  if (bit_depth == 10) {
+    // Reduce destination pitch to half as it will be converted into 8 bits.
+    destination_pitch_in_bytes /= 2;
+  }
 
   // U/V planes generally have half resolution of the Y plane.  However, in the
   // extreme case that any dimension of Y plane is odd, we want to have an
   // extra pixel on U/V planes.
   int uv_height = height / 2 + height % 2;
   int uv_width = width / 2 + width % 2;
-  int uv_pitch_in_bytes = pitch_in_bytes / 2 + pitch_in_bytes % 2;
+  int uv_pitch_in_bytes =
+      destination_pitch_in_bytes / 2 + destination_pitch_in_bytes % 2;
 
-  int y_plane_size_in_bytes = height * pitch_in_bytes;
+  int y_plane_size_in_bytes = height * destination_pitch_in_bytes;
   int uv_plane_size_in_bytes = uv_height * uv_pitch_in_bytes;
   frame->pixel_buffer_.reset(
       new uint8_t[y_plane_size_in_bytes + uv_plane_size_in_bytes * 2]);
-  SbMemoryCopy(frame->pixel_buffer_.get(), y, y_plane_size_in_bytes);
-  SbMemoryCopy(frame->pixel_buffer_.get() + y_plane_size_in_bytes, u,
-               uv_plane_size_in_bytes);
-  SbMemoryCopy(frame->pixel_buffer_.get() + y_plane_size_in_bytes +
-                   uv_plane_size_in_bytes,
-               v, uv_plane_size_in_bytes);
 
-  frame->planes_.push_back(
-      Plane(width, height, pitch_in_bytes, frame->pixel_buffer_.get()));
+  if (bit_depth == 8) {
+    SbMemoryCopy(frame->pixel_buffer_.get(), y, y_plane_size_in_bytes);
+    SbMemoryCopy(frame->pixel_buffer_.get() + y_plane_size_in_bytes, u,
+                 uv_plane_size_in_bytes);
+    SbMemoryCopy(frame->pixel_buffer_.get() + y_plane_size_in_bytes +
+                     uv_plane_size_in_bytes,
+                 v, uv_plane_size_in_bytes);
+  } else {
+    Copy10bitsPlane(frame->pixel_buffer_.get(), y, y_plane_size_in_bytes);
+    Copy10bitsPlane(frame->pixel_buffer_.get() + y_plane_size_in_bytes, u,
+                    uv_plane_size_in_bytes);
+    Copy10bitsPlane(frame->pixel_buffer_.get() + y_plane_size_in_bytes +
+                        uv_plane_size_in_bytes,
+                    v, uv_plane_size_in_bytes);
+  }
+
+  frame->planes_.push_back(Plane(width, height, destination_pitch_in_bytes,
+                                 frame->pixel_buffer_.get()));
   frame->planes_.push_back(
       Plane(uv_width, uv_height, uv_pitch_in_bytes,
             frame->pixel_buffer_.get() + y_plane_size_in_bytes));

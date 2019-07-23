@@ -13,11 +13,11 @@ namespace quic {
 namespace test {
 
 // static
-QuicPacketNumber QuicFramerPeer::CalculatePacketNumberFromWire(
+uint64_t QuicFramerPeer::CalculatePacketNumberFromWire(
     QuicFramer* framer,
     QuicPacketNumberLength packet_number_length,
     QuicPacketNumber last_packet_number,
-    QuicPacketNumber packet_number) {
+    uint64_t packet_number) {
   return framer->CalculatePacketNumberFromWire(
       packet_number_length, last_packet_number, packet_number);
 }
@@ -39,6 +39,8 @@ void QuicFramerPeer::SetLargestPacketNumber(QuicFramer* framer,
 void QuicFramerPeer::SetPerspective(QuicFramer* framer,
                                     Perspective perspective) {
   framer->perspective_ = perspective;
+  framer->infer_packet_header_type_from_version_ =
+      perspective == Perspective::IS_CLIENT;
 }
 
 // static
@@ -74,8 +76,9 @@ bool QuicFramerPeer::AppendCryptoFrame(QuicFramer* framer,
 // static
 bool QuicFramerPeer::ProcessIetfAckFrame(QuicFramer* framer,
                                          QuicDataReader* reader,
+                                         uint64_t frame_type,
                                          QuicAckFrame* ack_frame) {
-  return framer->ProcessIetfAckFrame(reader, ack_frame);
+  return framer->ProcessIetfAckFrame(reader, frame_type, ack_frame);
 }
 
 // static
@@ -211,17 +214,18 @@ bool QuicFramerPeer::ProcessMaxStreamDataFrame(QuicFramer* framer,
 }
 
 // static
-bool QuicFramerPeer::AppendMaxStreamIdFrame(QuicFramer* framer,
-                                            const QuicMaxStreamIdFrame& frame,
-                                            QuicDataWriter* writer) {
-  return framer->AppendMaxStreamIdFrame(frame, writer);
+bool QuicFramerPeer::AppendMaxStreamsFrame(QuicFramer* framer,
+                                           const QuicMaxStreamIdFrame& frame,
+                                           QuicDataWriter* writer) {
+  return framer->AppendMaxStreamsFrame(frame, writer);
 }
 
 // static
-bool QuicFramerPeer::ProcessMaxStreamIdFrame(QuicFramer* framer,
-                                             QuicDataReader* reader,
-                                             QuicMaxStreamIdFrame* frame) {
-  return framer->ProcessMaxStreamIdFrame(reader, frame);
+bool QuicFramerPeer::ProcessMaxStreamsFrame(QuicFramer* framer,
+                                            QuicDataReader* reader,
+                                            QuicMaxStreamIdFrame* frame,
+                                            uint64_t frame_type) {
+  return framer->ProcessMaxStreamsFrame(reader, frame, frame_type);
 }
 
 // static
@@ -253,19 +257,19 @@ bool QuicFramerPeer::ProcessStreamBlockedFrame(QuicFramer* framer,
 }
 
 // static
-bool QuicFramerPeer::AppendStreamIdBlockedFrame(
+bool QuicFramerPeer::AppendStreamsBlockedFrame(
     QuicFramer* framer,
     const QuicStreamIdBlockedFrame& frame,
     QuicDataWriter* writer) {
-  return framer->AppendStreamIdBlockedFrame(frame, writer);
+  return framer->AppendStreamsBlockedFrame(frame, writer);
 }
 
 // static
-bool QuicFramerPeer::ProcessStreamIdBlockedFrame(
-    QuicFramer* framer,
-    QuicDataReader* reader,
-    QuicStreamIdBlockedFrame* frame) {
-  return framer->ProcessStreamIdBlockedFrame(reader, frame);
+bool QuicFramerPeer::ProcessStreamsBlockedFrame(QuicFramer* framer,
+                                                QuicDataReader* reader,
+                                                QuicStreamIdBlockedFrame* frame,
+                                                uint64_t frame_type) {
+  return framer->ProcessStreamsBlockedFrame(reader, frame, frame_type);
 }
 
 // static
@@ -282,6 +286,22 @@ bool QuicFramerPeer::ProcessNewConnectionIdFrame(
     QuicDataReader* reader,
     QuicNewConnectionIdFrame* frame) {
   return framer->ProcessNewConnectionIdFrame(reader, frame);
+}
+
+// static
+bool QuicFramerPeer::AppendRetireConnectionIdFrame(
+    QuicFramer* framer,
+    const QuicRetireConnectionIdFrame& frame,
+    QuicDataWriter* writer) {
+  return framer->AppendRetireConnectionIdFrame(frame, writer);
+}
+
+// static
+bool QuicFramerPeer::ProcessRetireConnectionIdFrame(
+    QuicFramer* framer,
+    QuicDataReader* reader,
+    QuicRetireConnectionIdFrame* frame) {
+  return framer->ProcessRetireConnectionIdFrame(reader, frame);
 }
 
 // static
@@ -311,12 +331,6 @@ QuicEncrypter* QuicFramerPeer::GetEncrypter(QuicFramer* framer,
 }
 
 // static
-void QuicFramerPeer::SetLastPacketIsIetfQuic(QuicFramer* framer,
-                                             bool last_packet_is_ietf_quic) {
-  framer->last_packet_is_ietf_quic_ = last_packet_is_ietf_quic;
-}
-
-// static
 size_t QuicFramerPeer::ComputeFrameLength(
     QuicFramer* framer,
     const QuicFrame& frame,
@@ -324,6 +338,13 @@ size_t QuicFramerPeer::ComputeFrameLength(
     QuicPacketNumberLength packet_number_length) {
   return framer->ComputeFrameLength(frame, last_frame_in_packet,
                                     packet_number_length);
+}
+
+// static
+void QuicFramerPeer::SetFirstSendingPacketNumber(QuicFramer* framer,
+                                                 uint64_t packet_number) {
+  *const_cast<QuicPacketNumber*>(&framer->first_sending_packet_number_) =
+      QuicPacketNumber(packet_number);
 }
 
 }  // namespace test

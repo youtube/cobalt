@@ -14,13 +14,13 @@
 
 #include "starboard/shared/libaom/aom_video_decoder.h"
 
-#if SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
+#if SB_API_VERSION >= 11
 #include "starboard/format_string.h"
-#endif  // SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
+#endif  // SB_API_VERSION >= 11
+#include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
-#include "starboard/log.h"
 #include "starboard/shared/libaom/aom_library_loader.h"
-#include "starboard/string.h"
 
 namespace starboard {
 namespace shared {
@@ -40,11 +40,11 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       decode_target_(kSbDecodeTargetInvalid) {
-#if SB_API_VERSION < SB_HAS_AV1_VERSION
+#if SB_API_VERSION < 11
   SB_DCHECK(video_codec == kSbMediaVideoCodecVp10);
-#else   // SB_API_VERSION < SB_HAS_AV1_VERSION
+#else   // SB_API_VERSION < 11
   SB_DCHECK(video_codec == kSbMediaVideoCodecAv1);
-#endif  // SB_API_VERSION < SB_HAS_AV1_VERSION
+#endif  // SB_API_VERSION < 11
   SB_DCHECK(is_aom_supported());
 }
 
@@ -152,6 +152,7 @@ void VideoDecoder::InitializeCodec() {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
 
   aom_codec_dec_cfg_t aom_config = {0};
+  aom_config.threads = 8;
   aom_config.allow_lowbitdepth = 1;
 
   context_.reset(new aom_codec_ctx_t());
@@ -191,14 +192,13 @@ void VideoDecoder::TeardownCodec() {
 void VideoDecoder::DecodeOneBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
-
   SB_DCHECK(input_buffer);
-  const SbMediaVideoSampleInfo* sample_info = input_buffer->video_sample_info();
-  SB_DCHECK(sample_info);
-  if (!context_ || sample_info->frame_width != current_frame_width_ ||
-      sample_info->frame_height != current_frame_height_) {
-    current_frame_width_ = sample_info->frame_width;
-    current_frame_height_ = sample_info->frame_height;
+
+  const SbMediaVideoSampleInfo& sample_info = input_buffer->video_sample_info();
+  if (!context_ || sample_info.frame_width != current_frame_width_ ||
+      sample_info.frame_height != current_frame_height_) {
+    current_frame_width_ = sample_info.frame_width;
+    current_frame_height_ = sample_info.frame_height;
     TeardownCodec();
     InitializeCodec();
   }
@@ -229,12 +229,22 @@ void VideoDecoder::DecodeOneBuffer(
   }
 
   if (aom_image->fmt != AOM_IMG_FMT_YV12) {
-    SB_DCHECK(aom_image->fmt == AOM_IMG_FMT_I420)
-        << "Invalid aom_image->fmt: " << aom_image->fmt;
-    if (aom_image->fmt != AOM_IMG_FMT_I420) {
-      ReportError(FormatString("Invalid aom_image->fmt: %d.", aom_image->fmt));
+    SB_DCHECK(aom_image->fmt == AOM_IMG_FMT_I420 ||
+              aom_image->fmt == AOM_IMG_FMT_I42016)
+        << "Unsupported aom_image->fmt: " << aom_image->fmt;
+    if (aom_image->fmt != AOM_IMG_FMT_I420 &&
+        aom_image->fmt != AOM_IMG_FMT_I42016) {
+      ReportError(
+          FormatString("Unsupported aom_image->fmt: %d.", aom_image->fmt));
       return;
     }
+  }
+
+  if (aom_image->bit_depth != 8 && aom_image->bit_depth != 10) {
+    SB_DLOG(ERROR) << "Unsupported bit depth " << aom_image->bit_depth;
+    ReportError(
+        FormatString("Unsupported bit depth %d.", aom_image->bit_depth));
+    return;
   }
 
   SB_DCHECK(aom_image->stride[AOM_PLANE_Y] ==
@@ -247,7 +257,7 @@ void VideoDecoder::DecodeOneBuffer(
       aom_image->stride[AOM_PLANE_U] != aom_image->stride[AOM_PLANE_V] ||
       aom_image->planes[AOM_PLANE_Y] >= aom_image->planes[AOM_PLANE_U] ||
       aom_image->planes[AOM_PLANE_U] >= aom_image->planes[AOM_PLANE_V]) {
-    ReportError("Invalid yuv plane format.");
+    ReportError("Unsupported yuv plane format.");
     return;
   }
 
@@ -255,7 +265,7 @@ void VideoDecoder::DecodeOneBuffer(
   // Each component of a pixel takes one byte and they are in their own planes.
   // UV planes have half resolution both vertically and horizontally.
   scoped_refptr<CpuVideoFrame> frame = CpuVideoFrame::CreateYV12Frame(
-      current_frame_width_, current_frame_height_,
+      aom_image->bit_depth, current_frame_width_, current_frame_height_,
       aom_image->stride[AOM_PLANE_Y], timestamp, aom_image->planes[AOM_PLANE_Y],
       aom_image->planes[AOM_PLANE_U], aom_image->planes[AOM_PLANE_V]);
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {

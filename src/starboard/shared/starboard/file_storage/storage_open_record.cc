@@ -12,26 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/storage.h"
+#include "starboard/common/storage.h"
 
+#include "starboard/common/log.h"
 #include "starboard/file.h"
-#include "starboard/log.h"
 #include "starboard/shared/starboard/file_storage/storage_internal.h"
 #include "starboard/user.h"
 
-SbStorageRecord SbStorageOpenRecord(SbUser user
-#if SB_API_VERSION >= 6
-                                    ,
-                                    const char* name
-#endif  // SB_API_VERSION >= 6
-                                    ) {
+SbStorageRecord SbStorageOpenRecord(SbUser user, const char* name) {
   if (!SbUserIsValid(user)) {
     return kSbStorageInvalidRecord;
   }
-
-#if SB_API_VERSION < 6
-  const char* name = NULL;
-#endif  // SB_API_VERSION < 6
 
   char path[SB_FILE_MAX_PATH];
   bool success = starboard::shared::starboard::GetUserStorageFilePath(
@@ -52,10 +43,8 @@ SbStorageRecord SbStorageOpenRecord(SbUser user
   SB_DCHECK(SbStorageIsValidRecord(result));
   result->user = user;
   result->file = file;
-#if SB_API_VERSION >= 6
   if (name) {
     result->name = name;
   }
-#endif
   return result;
 }

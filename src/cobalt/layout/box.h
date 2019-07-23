@@ -16,6 +16,7 @@
 #define COBALT_LAYOUT_BOX_H_
 
 #include <iosfwd>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -32,6 +33,7 @@
 #include "cobalt/layout/rect_layout_unit.h"
 #include "cobalt/layout/size_layout_unit.h"
 #include "cobalt/layout/vector2d_layout_unit.h"
+#include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/point_f.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/math/vector2d.h"
@@ -50,12 +52,16 @@ struct RoundedCorners;
 namespace layout {
 
 class AnonymousBlockBox;
+class BlockContainerBox;
 class ContainerBox;
 class TextBox;
 class UsedStyleProvider;
 
 struct LayoutParams {
-  LayoutParams() : shrink_to_fit_width_forced(false) {}
+  LayoutParams()
+      : shrink_to_fit_width_forced(false),
+        freeze_width(false),
+        freeze_height(false) {}
 
   // Normally the used values of "width", "margin-left", and "margin-right" are
   // calculated by choosing the 1 out of 10 algorithms based on the computed
@@ -74,6 +80,11 @@ struct LayoutParams {
   // https://www.w3.org/TR/CSS21/visudet.html#shrink-to-fit-float
   bool shrink_to_fit_width_forced;
 
+  // These overrides are used for flex items when they are sized by the
+  // container.
+  bool freeze_width;
+  bool freeze_height;
+
   // Many box positions and sizes are calculated with respect to the edges of
   // a rectangular box called a containing block.
   //   https://www.w3.org/TR/CSS21/visuren.html#containing-block
@@ -81,9 +92,20 @@ struct LayoutParams {
 
   bool operator==(const LayoutParams& rhs) const {
     return shrink_to_fit_width_forced == rhs.shrink_to_fit_width_forced &&
+           freeze_width == rhs.freeze_width &&
+           freeze_height == rhs.freeze_height &&
            containing_block_size == rhs.containing_block_size;
   }
 };
+
+inline std::ostream& operator<<(std::ostream& stream,
+                                const LayoutParams& params) {
+  stream << "{shrink_to_fit_width_forced=" << params.shrink_to_fit_width_forced
+         << " freeze_width=" << params.freeze_width
+         << " freeze_height=" << params.freeze_height
+         << " containing_block_size=" << params.containing_block_size << "}";
+  return stream;
+}
 
 // A base class for all boxes.
 //
@@ -192,11 +214,6 @@ class Box : public base::RefCounted<Box> {
   // Do not confuse with the formatting context that the element may establish.
   virtual Level GetLevel() const = 0;
 
-  // Returns true if "overflow" should be treated as hidden. This is true for
-  // overflow "auto", "hidden", and "scroll".
-  //   https://www.w3.org/TR/CSS21/visufx.html#overflow
-  bool IsOverflowHidden() const;
-
   // Returns true if the box is positioned (e.g. position is non-static or
   // transform is not None).  Intuitively, this is true if the element does
   // not follow standard layout flow rules for determining its position.
@@ -290,6 +307,9 @@ class Box : public base::RefCounted<Box> {
   LayoutUnit GetMarginBoxWidth() const;
   LayoutUnit GetMarginBoxHeight() const;
 
+  math::Matrix3F GetMarginBoxTransformFromContainingBlock(
+      const ContainerBox* containing_block) const;
+
   Vector2dLayoutUnit GetMarginBoxOffsetFromRoot(
       bool transform_forms_root) const;
   const Vector2dLayoutUnit& margin_box_offset_from_containing_block() const {
@@ -305,6 +325,8 @@ class Box : public base::RefCounted<Box> {
   // Border box.
   RectLayoutUnit GetBorderBoxFromRoot(bool transform_forms_root) const;
   RectLayoutUnit GetTransformedBorderBoxFromRoot() const;
+  RectLayoutUnit GetTransformedBorderBoxFromContainingBlock(
+      const ContainerBox* containing_block) const;
 
   LayoutUnit GetBorderBoxWidth() const;
   LayoutUnit GetBorderBoxHeight() const;
@@ -313,6 +335,9 @@ class Box : public base::RefCounted<Box> {
   Vector2dLayoutUnit GetBorderBoxOffsetFromRoot(
       bool transform_forms_root) const;
   Vector2dLayoutUnit GetBorderBoxOffsetFromMarginBox() const;
+  Vector2dLayoutUnit GetBorderBoxOffsetFromContainingBlock() const;
+  LayoutUnit GetBorderBoxLeftEdgeOffsetFromContainingBlock() const;
+  LayoutUnit GetBorderBoxTopEdgeOffsetFromContainingBlock() const;
 
   // Padding box.
   LayoutUnit GetPaddingBoxWidth() const;
@@ -322,6 +347,11 @@ class Box : public base::RefCounted<Box> {
   Vector2dLayoutUnit GetPaddingBoxOffsetFromRoot(
       bool transform_forms_root) const;
   Vector2dLayoutUnit GetPaddingBoxOffsetFromBorderBox() const;
+  LayoutUnit GetPaddingBoxLeftEdgeOffsetFromMarginBox() const;
+  LayoutUnit GetPaddingBoxTopEdgeOffsetFromMarginBox() const;
+  Vector2dLayoutUnit GetPaddingBoxOffsetFromContainingBlock() const;
+  LayoutUnit GetPaddingBoxLeftEdgeOffsetFromContainingBlock() const;
+  LayoutUnit GetPaddingBoxTopEdgeOffsetFromContainingBlock() const;
 
   // Content box.
   LayoutUnit width() const { return content_size_.width(); }
@@ -344,6 +374,10 @@ class Box : public base::RefCounted<Box> {
       BaseDirection base_direction) const;
   LayoutUnit GetContentBoxEndEdgeOffsetFromContainingBlock(
       BaseDirection base_direction) const;
+
+  // Return the size difference between the content and margin box on an axis.
+  LayoutUnit GetContentToMarginHorizontal() const;
+  LayoutUnit GetContentToMarginVertical() const;
 
   // The height of each inline-level box in the line box is calculated. For
   // replaced elements, inline-block elements, and inline-table elements, this
@@ -522,6 +556,8 @@ class Box : public base::RefCounted<Box> {
   // Poor man's reflection.
   virtual AnonymousBlockBox* AsAnonymousBlockBox();
   virtual const AnonymousBlockBox* AsAnonymousBlockBox() const;
+  virtual BlockContainerBox* AsBlockContainerBox();
+  virtual const BlockContainerBox* AsBlockContainerBox() const;
   virtual ContainerBox* AsContainerBox();
   virtual const ContainerBox* AsContainerBox() const;
   virtual TextBox* AsTextBox();
@@ -564,12 +600,11 @@ class Box : public base::RefCounted<Box> {
         static_cast<const Box*>(this)->GetStackingContext());
   }
 
-  // TODO: This only depends on the computed style, maybe this function should
-  //       move into a newly created CSSComputedStyleDeclaration type?  This
-  //       would apply to other values such as IsPositioned().
-  //
   // Returns the z-index of this box, based on its computed style.
   int GetZIndex() const;
+
+  // Returns the order value of this box, based on its computed style.
+  int GetOrder() const;
 
   // Invalidates the parent of the box, used in box generation for partial
   // layout.
@@ -810,11 +845,14 @@ class Box : public base::RefCounted<Box> {
       render_tree::animations::AnimateNode::Builder* animate_node_builder,
       const math::Vector2dF& border_node_offset);
 
-  // If this box should be controlled by the UI navigation system, then add
-  // an animation to query the UI navigation system for updates.
-  scoped_refptr<render_tree::Node> RenderAndAnimateUiNavigation(
+  // This adds an animation to reflect content scrolling by the UI navigation
+  // system. Call this only if IsOverflowAnimatedByUiNavigation().
+  scoped_refptr<render_tree::Node> RenderAndAnimateUiNavigationContainer(
       const scoped_refptr<render_tree::Node>& node_to_animate,
       render_tree::animations::AnimateNode::Builder* animate_node_builder);
+
+  // Configure the box's UI navigation item with the box's position, size, etc.
+  void UpdateUiNavigationItem();
 
   // The css_computed_style_declaration_ member references the
   // cssom::CSSComputedStyleDeclaration object owned by the HTML Element from
@@ -892,6 +930,11 @@ class Box : public base::RefCounted<Box> {
   // For write access to parent/containing_block members.
   friend class ContainerBox;
   friend class LayoutBoxes;
+  friend class FlexContainerBox;
+  friend class FlexFormattingContext;
+  friend class FlexLine;
+  friend class MainAxisHorizontalFlexItem;
+  friend class MainAxisVerticalFlexItem;
 
   DISALLOW_COPY_AND_ASSIGN(Box);
 };

@@ -67,6 +67,7 @@ class FormattingContext {
   LayoutUnit auto_height_;
   base::Optional<LayoutUnit> maybe_baseline_offset_from_top_content_edge_;
 
+  friend class FlexContainerBox;
   DISALLOW_COPY_AND_ASSIGN(FormattingContext);
 };
 

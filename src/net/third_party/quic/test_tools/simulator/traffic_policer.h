@@ -1,7 +1,7 @@
 // Copyright (c) 2016 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
+
 #ifndef NET_THIRD_PARTY_QUIC_TEST_TOOLS_SIMULATOR_TRAFFIC_POLICER_H_
 #define NET_THIRD_PARTY_QUIC_TEST_TOOLS_SIMULATOR_TRAFFIC_POLICER_H_
 
@@ -20,7 +20,7 @@ namespace simulator {
 class TrafficPolicer : public PacketFilter {
  public:
   TrafficPolicer(Simulator* simulator,
-                 std::string name,
+                 QuicString name,
                  QuicByteCount initial_bucket_size,
                  QuicByteCount max_bucket_size,
                  QuicBandwidth target_bandwidth,
@@ -45,7 +45,7 @@ class TrafficPolicer : public PacketFilter {
   QuicTime last_refill_time_;
 
   // Maps each destination to the number of tokens it has left.
-  QuicUnorderedMap<std::string, QuicByteCount> token_buckets_;
+  QuicUnorderedMap<QuicString, QuicByteCount> token_buckets_;
 };
 
 }  // namespace simulator

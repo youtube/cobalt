@@ -23,14 +23,14 @@
 #include <string>
 
 #include "starboard/atomic.h"
+#include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
 #include "starboard/common/semaphore.h"
+#include "starboard/common/socket.h"
+#include "starboard/common/string.h"
 #include "starboard/common/thread.h"
-#include "starboard/log.h"
-#include "starboard/mutex.h"
 #include "starboard/once.h"
-#include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
-#include "starboard/string.h"
 
 #ifndef NET_LOG_PORT
 // Default port was generated from a random number generator.

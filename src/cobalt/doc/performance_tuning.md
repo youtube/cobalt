@@ -204,10 +204,11 @@ value of `SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER` in your platform's
 aspect, you should ensure that `SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER`
 is set to `0`.  If the platform needs a new frame submitted periodically,
 an alternative to setting `SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER` to `1`
-for OpenGL ES platforms is to have `eglGetProcAddress()` return a function
-when queried for `eglGetMinimumFramesPerSecondCOBALT`:
+is to implement the Cobalt Extension "dev.cobalt.extension.Graphics" and
+report the maximum frame interval via `GetMaximumFrameIntervalInMilliseconds`.
 
-`EGLint eglGetMinimumFramesPerSecondCOBALT(EGLDisplay display)`
+See `SbSystemGetExtension` and
+[`CobaltExtensionGraphicsApi`](../extension/graphics.h).
 
 Every `cobalt_minimum_frame_time_in_milliseconds`, this function will be queried
 to determine if a new frame should be presented even if the scene has not

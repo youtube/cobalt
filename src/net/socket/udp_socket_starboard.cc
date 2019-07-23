@@ -32,16 +32,8 @@
 #include "net/log/net_log_source.h"
 #include "net/log/net_log_source_type.h"
 #include "net/socket/udp_net_log_parameters.h"
-#include "starboard/socket.h"
+#include "starboard/common/socket.h"
 #include "starboard/system.h"
-
-namespace {
-
-static const int kBindRetries = 10;
-static const int kPortStart = 1024;
-static const int kPortEnd = 65535;
-
-}  // namespace net
 
 namespace net {
 
@@ -186,7 +178,9 @@ int UDPSocketStarboard::Write(IOBuffer* buf,
                               int buf_len,
                               CompletionOnceCallback callback,
                               const NetworkTrafficAnnotationTag&) {
-  return SendToOrWrite(buf, buf_len, NULL, std::move(callback));
+  DCHECK(remote_address_);
+  return SendToOrWrite(buf, buf_len, remote_address_.get(),
+                       std::move(callback));
 }
 
 int UDPSocketStarboard::SendTo(IOBuffer* buf,
@@ -249,22 +243,14 @@ int UDPSocketStarboard::InternalConnect(const IPEndPoint& address) {
   DCHECK(!remote_address_.get());
 
   int rv = 0;
-  if (bind_type_ == DatagramSocket::RANDOM_BIND) {
-    rv = RandomBind(address.GetFamily() == ADDRESS_FAMILY_IPV4 ?
-                        IPAddress::IPv4AllZeros() : IPAddress::IPv6AllZeros());
-  }
-  // else connect() does the DatagramSocket::DEFAULT_BIND
+  // Cobalt does random bind despite bind_type_ because we do not connect
+  // UDP sockets but Chromium does. And if a socket does recvfrom() without
+  // any sendto() before, it needs to be bound to have a local port.
+  rv = RandomBind(address.GetFamily() == ADDRESS_FAMILY_IPV4 ?
+                      IPAddress::IPv4AllZeros() : IPAddress::IPv6AllZeros());
 
   if (rv != OK)
     return rv;
-
-  SbSocketAddress sb_address;
-  if (!address.ToSbSocketAddress(&sb_address))
-    return ERR_FAILED;
-
-  SbSocketError sb_error = SbSocketConnect(socket_, &sb_address);
-  if (sb_error != kSbSocketOk)
-    return MapSocketError(sb_error);
 
   remote_address_.reset(new IPEndPoint(address));
 
@@ -321,7 +307,7 @@ int UDPSocketStarboard::AllowAddressReuse() {
   DCHECK(!is_connected());
   DCHECK(SbSocketIsValid(socket_));
 
-  return SbSocketSetReuseAddress(socket_, true) ? 1 : 0;
+  return SbSocketSetReuseAddress(socket_, true) ? OK : ERR_FAILED;
 }
 
 int UDPSocketStarboard::SetBroadcast(bool broadcast) {
@@ -329,7 +315,7 @@ int UDPSocketStarboard::SetBroadcast(bool broadcast) {
   DCHECK(!is_connected());
   DCHECK(SbSocketIsValid(socket_));
 
-  return SbSocketSetBroadcast(socket_, broadcast) ? 1 : 0;
+  return SbSocketSetBroadcast(socket_, broadcast) ? OK : ERR_FAILED;
 }
 
 void UDPSocketStarboard::ReadWatcher::OnSocketReadyToRead(SbSocket /*socket*/) {
@@ -438,8 +424,10 @@ int UDPSocketStarboard::InternalRecvFrom(IOBuffer* buf,
   int result;
   if (bytes_transferred >= 0) {
     result = bytes_transferred;
-    if (!address || !address->FromSbSocketAddress(&sb_address)) {
-      result = ERR_FAILED;
+    // Passing in NULL address is allowed. This is only to align with other
+    // platform's implementation.
+    if (address && !address->FromSbSocketAddress(&sb_address)) {
+      result = ERR_ADDRESS_INVALID;
     }
   } else {
     result = MapLastSocketError(socket_);
@@ -489,14 +477,6 @@ int UDPSocketStarboard::DoBind(const IPEndPoint& address) {
 }
 
 int UDPSocketStarboard::RandomBind(const IPAddress& address) {
-  DCHECK_EQ(bind_type_, DatagramSocket::RANDOM_BIND);
-
-  for (int i = 0; i < kBindRetries; ++i) {
-    int rv = DoBind(IPEndPoint(address, base::RandInt(kPortStart, kPortEnd)));
-    if (rv != ERR_ADDRESS_IN_USE)
-      return rv;
-  }
-
   return DoBind(IPEndPoint(address, 0));
 }
 
@@ -564,7 +544,8 @@ void UDPSocketStarboard::DetachFromThread() {
 
 void UDPSocketStarboard::ApplySocketTag(const SocketTag&) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  NOTREACHED();
+  // SocketTag is not applicable to Starboard, see socket_tag.h for more info.
+  NOTIMPLEMENTED_LOG_ONCE();
 }
 
 UDPSocketStarboardSender::UDPSocketStarboardSender() {}

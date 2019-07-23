@@ -37,7 +37,6 @@
     "in_app_dial",
     "render_dirty_region_only",
     "sb_allows_memory_tracking",
-    "sb_enable_lib",
     "tizen_os",
   ]
 }

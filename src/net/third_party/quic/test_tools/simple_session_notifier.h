@@ -5,6 +5,7 @@
 #ifndef NET_THIRD_PARTY_QUIC_TEST_TOOLS_SIMPLE_SESSION_NOTIFIER_H_
 #define NET_THIRD_PARTY_QUIC_TEST_TOOLS_SIMPLE_SESSION_NOTIFIER_H_
 
+#include "net/third_party/quic/core/quic_interval_set.h"
 #include "net/third_party/quic/core/session_notifier_interface.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -30,6 +31,11 @@ class SimpleSessionNotifier : public SessionNotifierInterface {
   void WriteOrBufferRstStream(QuicStreamId id,
                               QuicRstStreamErrorCode error,
                               QuicStreamOffset bytes_written);
+
+  // Tries to write CRYPTO data and returns the number of bytes written.
+  size_t WriteCryptoData(EncryptionLevel level,
+                         QuicByteCount data_length,
+                         QuicStreamOffset offset);
 
   // Neuters unencrypted data of crypto stream.
   void NeuterUnencryptedData();
@@ -132,6 +138,8 @@ class SimpleSessionNotifier : public SessionNotifierInterface {
   // Transferred crypto bytes according to encryption levels.
   QuicIntervalSet<QuicStreamOffset>
       crypto_bytes_transferred_[NUM_ENCRYPTION_LEVELS];
+
+  StreamState crypto_state_[NUM_ENCRYPTION_LEVELS];
 
   QuicConnection* connection_;
 };

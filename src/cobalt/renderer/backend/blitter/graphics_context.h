@@ -40,8 +40,6 @@ class GraphicsContextBlitter : public GraphicsContext {
       const scoped_refptr<RenderTarget>& render_target) override;
   void Finish() override;
 
-  float GetMinimumFramesPerSecond() override { return 0.0f; }
-
   SbBlitterContext GetSbBlitterContext() const { return context_; }
   SbBlitterDevice GetSbBlitterDevice() const { return device_; }
 

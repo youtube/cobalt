@@ -52,7 +52,9 @@ class QuicSimpleServerPacketWriter : public quic::QuicPacketWriter {
   void OnWriteComplete(int rv);
 
   // quic::QuicPacketWriter implementation:
+#if !defined(COBALT_QUIC46)
   bool IsWriteBlockedDataBuffered() const override;
+#endif
   bool IsWriteBlocked() const override;
   void SetWritable() override;
   quic::QuicByteCount GetMaxPacketSize(

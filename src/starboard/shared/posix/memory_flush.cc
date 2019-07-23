@@ -22,7 +22,7 @@
 #include <sys/cachectl.h>
 #endif
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 #if !SB_CAN(MAP_EXECUTABLE_MEMORY)
 #error "You shouldn't implement SbMemoryFlush unless you can map " \

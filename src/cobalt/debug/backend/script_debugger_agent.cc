@@ -62,7 +62,7 @@ JSONObject ScriptDebuggerAgent::Freeze() {
 }
 
 bool ScriptDebuggerAgent::RunCommand(const Command& command) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Use an internal ID to store the pending command until we get a response.
   int command_id = ++last_command_id_;

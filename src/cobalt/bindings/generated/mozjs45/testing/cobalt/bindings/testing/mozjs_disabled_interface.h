@@ -20,10 +20,8 @@
 #ifndef MozjsDisabledInterface_h
 #define MozjsDisabledInterface_h
 
-
-// This must be included above the check for NO_ENABLE_CONDITIONAL_INTERFACE, since
-// NO_ENABLE_CONDITIONAL_INTERFACE may be defined within.
 #include "cobalt/bindings/shared/idl_conditional_macros.h"
+
 
 #if defined(NO_ENABLE_CONDITIONAL_INTERFACE)
 

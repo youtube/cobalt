@@ -79,7 +79,7 @@ class ScreencastModule {
   // All operations including HTTP server will occur on this thread.
   base::Thread screenshot_thread_;
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   // Thus command dispatcher is responsible for pattern recognition of the URL
   // request, mapping requests to handler functions, handling invalid requests,

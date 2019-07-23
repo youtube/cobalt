@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/mutex.h"
+#include "starboard/common/mutex.h"
 
 SbMutexResult SbMutexAcquire(SbMutex* /*mutex*/) {
   return kSbMutexDestroyed;

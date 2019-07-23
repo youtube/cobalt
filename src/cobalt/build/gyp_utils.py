@@ -24,8 +24,6 @@ import urllib2
 
 import _env  # pylint: disable=unused-import
 from cobalt.tools import paths
-from starboard.build import clang
-from starboard.tools import build
 
 
 _VERSION_SERVER_URL = 'https://carbon-airlock-95823.appspot.com/build_version/generate'  # pylint:disable=line-too-long
@@ -130,9 +128,3 @@ def GetConstantValue(file_path, constant_name):
   expression = match.group(1)
   value = eval(expression)  # pylint:disable=eval-used
   return value
-
-
-def GetHostCompilerEnvironment(goma_supports_compiler=False):
-  # Assume the same clang that Starboard declares.
-  return build.GetHostCompilerEnvironment(clang.GetClangSpecification(),
-                                          goma_supports_compiler)

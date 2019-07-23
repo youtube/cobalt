@@ -51,7 +51,7 @@ void H5vccAccountManager::RequestUnpairing(
 
 void H5vccAccountManager::PostOperation(
     OperationType operation_type, const AccessTokenCallbackHolder& callback) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   AccessTokenCallbackReference* token_callback =
       new AccessTokenCallbackHolder::Reference(this, callback);
   pending_callbacks_.push_back(
@@ -65,7 +65,7 @@ void H5vccAccountManager::PostOperation(
 }
 
 H5vccAccountManager::~H5vccAccountManager() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Give the UserAuthorizer a chance to abort any long running pending requests
   // before the message loop gets shut down.
   user_authorizer_->Shutdown();
@@ -142,7 +142,7 @@ void H5vccAccountManager::PostResult(
 void H5vccAccountManager::SendResult(
     AccessTokenCallbackReference* token_callback, const std::string& token,
     uint64_t expiration_in_seconds) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::vector<std::unique_ptr<AccessTokenCallbackReference>>::iterator found =
       std::find_if(pending_callbacks_.begin(), pending_callbacks_.end(),
                    [token_callback](

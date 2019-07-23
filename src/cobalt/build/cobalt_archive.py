@@ -15,6 +15,32 @@
 # limitations under the License.
 
 
+"""Tools for creating and extracting a Cobalt Archive."""
+
+import argparse
+import fnmatch
+import hashlib
+import json
+import logging
+import os
+import random
+import stat
+import sys
+import time
+import zipfile
+
+import _env  # pylint: disable=relative-import,unused-import
+from cobalt.build import cobalt_archive_extract
+import starboard.build.filelist as filelist
+import starboard.build.port_symlink as port_symlink
+from starboard.tools.app_launcher_packager import CopyAppLauncherTools
+from starboard.tools.build import GetPlatformConfig
+from starboard.tools.config import GetAll as GetAllConfigs
+import starboard.tools.paths as paths
+from starboard.tools.platform import GetAll as GetAllPlatforms
+from starboard.tools.util import SetupDefaultLoggingConfig
+
+
 ################################################################################
 #                                  API                                         #
 ################################################################################
@@ -25,24 +51,26 @@ def MakeCobaltArchiveFromFileList(output_archive_path,
                                   platform_name,
                                   platform_sdk_version,
                                   config,
-                                  additional_buildinfo_dict={}):
-  additional_buildinfo_dict = dict(additional_buildinfo_dict)
-  b = Bundler(archive_zip_path=output_archive_path)
-  b.MakeArchive(platform_name=platform_name,
-                platform_sdk_version=platform_sdk_version,
-                config=config,
-                file_list=input_file_list,
-                additional_buildinfo_dict=additional_buildinfo_dict)
+                                  additional_buildinfo_dict=None):
+  if additional_buildinfo_dict is None:
+    additional_buildinfo_dict = {}
+  archive = CobaltArchive(archive_zip_path=output_archive_path)
+  archive.MakeArchive(platform_name=platform_name,
+                      platform_sdk_version=platform_sdk_version,
+                      config=config,
+                      file_list=input_file_list,
+                      additional_buildinfo_dict=additional_buildinfo_dict)
 
 
 def MakeCobaltArchiveFromSource(output_archive_path,
                                 platform_name,
                                 config,
                                 platform_sdk_version,
-                                additional_buildinfo_dict={},
+                                additional_buildinfo_dict=None,
                                 include_black_box_tests=False):
-  """ Returns None, failure is signaled via exception. """
-  additional_buildinfo_dict = dict(additional_buildinfo_dict)
+  """Returns None, failure is signaled via exception."""
+  if additional_buildinfo_dict is None:
+    additional_buildinfo_dict = {}
   _MakeCobaltArchiveFromSource(
       output_archive_path=output_archive_path,
       platform_name=platform_name,
@@ -54,52 +82,19 @@ def MakeCobaltArchiveFromSource(output_archive_path,
 
 def ExtractCobaltArchive(input_zip_path, output_directory_path, outstream=None):
   """Returns True if the extract operation was successfull."""
-  b = Bundler(archive_zip_path=input_zip_path)
-  return b.ExtractTo(output_dir=output_directory_path, outstream=outstream)
+  archive = CobaltArchive(archive_zip_path=input_zip_path)
+  return archive.ExtractTo(output_dir=output_directory_path,
+                           outstream=outstream)
 
 
 def ReadCobaltArchiveInfo(input_zip_path):
-  b = Bundler(archive_zip_path=input_zip_path)
-  return b.ReadMetaData()
+  archive = CobaltArchive(archive_zip_path=input_zip_path)
+  return archive.ReadMetaData()
 
 
 ################################################################################
 #                                 IMPL                                         #
 ################################################################################
-
-
-import argparse
-import hashlib
-import json
-import md5
-import os
-import random
-import shutil
-import subprocess
-import sys
-import tempfile
-import time
-import traceback
-import zipfile
-
-from sets import Set
-
-import _env
-
-from starboard.build.port_symlink \
-    import IsSymLink, IsWindows, MakeSymLink, ReadSymLink, Rmtree, OsWalk
-
-from starboard.tools.app_launcher_packager import CopyAppLauncherTools
-from starboard.tools.paths import BuildOutputDirectory, REPOSITORY_ROOT
-
-from starboard.build.filelist import \
-    FileList, GetFileType, TempFileSystem, \
-    TYPE_NONE, TYPE_SYMLINK_DIR, TYPE_DIRECTORY, TYPE_FILE
-
-from starboard.build.port_symlink import Rmtree
-from starboard.tools.build import GetPlatformConfig
-from starboard.tools.config import GetAll as GetAllConfigs
-from starboard.tools.platform import GetAll as GetAllPlatforms
 
 
 # Source resource paths.
@@ -111,49 +106,43 @@ _SRC_CONTENT_PATH = os.path.join(_SELF_DIR, 'cobalt_archive_content')
 # is normalized to '/'.
 _OUT_ARCHIVE_ROOT = '__cobalt_archive'
 _OUT_FINALIZE_DECOMPRESSION_PATH = '%s/%s' % (_OUT_ARCHIVE_ROOT,
-                                             'finalize_decompression')
+                                              'finalize_decompression')
 _OUT_METADATA_PATH = '%s/%s' % (_OUT_ARCHIVE_ROOT, 'metadata.json')
-_OUT_DECOMP_PY = '%s/%s' % (_OUT_FINALIZE_DECOMPRESSION_PATH,
-                           'decompress.py')
 _OUT_DECOMP_JSON = '%s/%s' % (_OUT_FINALIZE_DECOMPRESSION_PATH,
-                             'decompress.json')
+                              'decompress.json')
 
 
-class Bundler:
-  """Bundler is a utility for managing device bundles of codes. It is
-  used for creating the zip file and also unzipping."""
+class CobaltArchive(object):
+  """CobaltArchive is a utility generating archives."""
+
   def __init__(self, archive_zip_path):
     self.archive_zip_path = archive_zip_path
 
   def ExtractTo(self, output_dir, outstream=None):
     """Returns True if all files were extracted, False otherwise."""
-    outstream = outstream if outstream else sys.stdout
-    assert(os.path.exists(self.archive_zip_path))
-    print('UNZIPPING ' + self.archive_zip_path + ' -> ' + output_dir)
-    ok = _ExtractFiles(self.archive_zip_path, output_dir, outstream)
-    # Now that all files have been extracted, execute the final decompress
-    # step.
-    decomp_py = os.path.abspath(os.path.join(output_dir, _OUT_DECOMP_PY))
-    assert(os.path.isfile(decomp_py)), decomp_py
-    cmd_str = 'python ' + decomp_py
-    outstream.write('Executing: %s\n' % cmd_str)
-    rc = subprocess.call(cmd_str, shell=True, stdout=outstream,
-                         stderr=outstream)
-    ok &= rc is 0
-    return ok
+    return cobalt_archive_extract.ExtractTo(
+        self.archive_zip_path, output_dir, outstream)
 
   def ReadMetaData(self):
-    with zipfile.ZipFile(self.archive_zip_path, 'r', allowZip64=True) as zf:
-      json_str = zf.read(_OUT_METADATA_PATH)
+    json_str = self.ReadFile(_OUT_METADATA_PATH)
     return json.loads(json_str)
+
+  def ReadFile(self, file_path):
+    with zipfile.ZipFile(self.archive_zip_path, 'r', allowZip64=True) as zf:
+      return zf.read(file_path)
 
   def MakeArchive(self,
                   platform_name,
                   platform_sdk_version,
                   config,
                   file_list,  # class FileList
-                  additional_buildinfo_dict={}):
-    if not config in GetAllConfigs():
+                  additional_buildinfo_dict=None):
+    """Creates an archive for the given platform and config."""
+    logging.info('Making cobalt archive...')
+    is_windows = port_symlink.IsWindows()
+    if additional_buildinfo_dict is None:
+      additional_buildinfo_dict = {}
+    if config not in GetAllConfigs():
       raise ValueError('Expected %s to be one of %s'
                        % (config, GetAllConfigs()))
     additional_buildinfo_dict = dict(additional_buildinfo_dict)  # Copy
@@ -166,9 +155,9 @@ class Bundler:
                          compression=zipfile.ZIP_DEFLATED,
                          allowZip64=True) as zf:
       # Copy the cobalt_archive_content directory into the root of the archive.
-      content_file_list = FileList()
+      content_file_list = filelist.FileList()
       content_file_list.AddAllFilesInPath(root_dir=_SRC_CONTENT_PATH,
-                                          sub_dir=_SRC_CONTENT_PATH)
+                                          sub_path=_SRC_CONTENT_PATH)
       for file_path, archive_path in content_file_list.file_list:
         # Skip the fake metadata.json file because the real one
         # is a generated in it's place.
@@ -178,14 +167,35 @@ class Bundler:
       # Write out the metadata.
       zf.writestr(_OUT_METADATA_PATH, build_info_str)
       if file_list.file_list:
-        print('  Compressing ' + str(len(file_list.file_list)) + ' files')
-      for file_path, archive_path in file_list.file_list:
-        # TODO: Use and implement _FoldIdenticalFiles() to reduce duplicate
-        # files. This will help platforms like nxswitch which include a lot
-        # of duplicate files for the sdk.
-        zf.write(file_path, arcname=archive_path)
+        logging.info('  Compressing %d files', len(file_list.file_list))
+
+      executable_files = []
+      n_file_list = len(file_list.file_list)
+      progress_set = set()
+      for i in range(n_file_list):
+        # Logging every 5% increment during compression step.
+        prog = int((float(i)/n_file_list) * 100)
+        if prog not in progress_set:
+          progress_set.add(prog)
+          logging.info('  Compressed %d%%...', prog)
+        file_path, archive_path = file_list.file_list[i]
+        if not is_windows:
+          perms = _GetFilePermissions(file_path)
+          if (stat.S_IXUSR) & perms:
+            executable_files.append(archive_path)
+        # TODO(niteris): Use and implement _FoldIdenticalFiles() to reduce
+        # duplicate files. This will help platforms like nxswitch which include
+        # a lot of duplicate files for the sdk.
+        try:
+          zf.write(file_path, arcname=archive_path)
+        except WindowsError:  # pylint: disable=undefined-variable
+          # Happens for long file path names.
+          zf.write(cobalt_archive_extract.ToWinUncPath(file_path),
+                   arcname=archive_path)
+
       if file_list.symlink_dir_list:
-        print('  Compressing ' + str(len(file_list.symlink_dir_list)) + ' symlinks')
+        logging.info('  Compressing %d symlinks',
+                     len(file_list.symlink_dir_list))
       # Generate the decompress.json file used by decompress.py.
       # Removes the first element which is the root directory, which is not
       # important for symlink creation.
@@ -193,10 +203,12 @@ class Bundler:
       # Replace '\\' with '/'
       symlink_dir_list = [_ToUnixPaths(l) for l in symlink_dir_list]
       decompress_json_str = _JsonDumpPrettyPrint({
-        'symlink_dir': symlink_dir_list,
-        'symlink_dir_doc': '[link_dir_path, target_dir_path]'
+          'symlink_dir': symlink_dir_list,
+          'symlink_dir_doc': '[link_dir_path, target_dir_path]',
+          'executable_files': executable_files,
       })
       zf.writestr(_OUT_DECOMP_JSON, decompress_json_str)
+      logging.info('Done...')
 
 
 def _ToUnixPaths(path_list):
@@ -206,18 +218,12 @@ def _ToUnixPaths(path_list):
   return out
 
 
+def _GetFilePermissions(path):
+  return stat.S_IMODE(os.stat(path).st_mode)
+
+
 def _JsonDumpPrettyPrint(data):
   return json.dumps(data, sort_keys=True, indent=4, separators=(',', ': '))
-
-
-def _CheckChildPathIsUnderParentPath(child_path, parent_path):
-  parent_path = os.path.join(
-      os.path.realpath(parent_path), '')
-  f = os.path.realpath(child_path)
-  common_prefix = os.path.commonprefix([child_path, parent_path])
-  if common_prefix != parent_path:
-    raise ValueError('Bundle files MUST be located under ' + \
-                       parent_path + ', BadFile = ' + f)
 
 
 def _MakeDirs(path):
@@ -225,36 +231,59 @@ def _MakeDirs(path):
     os.makedirs(path)
 
 
-def _FindPossibleDeployDirs(build_root):
+def _FindPossibleDeployPaths(build_root):
+  """Searches for folders that are likely required for archiving."""
   out = []
-  root_dirs = os.listdir(build_root)
-  for d in root_dirs:
-    if d in ('gen', 'gypfiles', 'obj', 'obj.host'):
+  # Ultimately, this function should not be needed as each platform should
+  # implement GetDeployPathPatterns(). This is stop-gap for platforms that do
+  # not have GetDeployPathPatterns() implemented yet.
+  root_paths = os.listdir(build_root)
+  for p in root_paths:
+    if p in ('gen', 'gypfiles', 'gyp-win-tool', 'obj', 'obj.host'):
       continue
-    d = os.path.join(build_root, d)
-    if os.path.isfile(d):
+    if p.endswith('.pdb'):
+      continue  # Skip pdb files for size (only applies to Windows).
+    p = os.path.join(build_root, p)
+    if os.path.isfile(p):
+      out.append(p)
       continue
-    if IsSymLink(d):
+    if port_symlink.IsSymLink(p):
       continue
-    out.append(os.path.normpath(d))
+    out.append(os.path.normpath(p))
   return out
 
 
-def _GetDeployDirs(platform_name, config):
+def _PathMatchesPatterns(file_path, patterns):
+  for p in patterns:
+    if fnmatch.fnmatch(file_path, p):
+      logging.debug('pattern %s matched %s', p, file_path)
+      return True
+  logging.debug('Skipping %s', file_path)
+  return False
+
+
+def _GetDeployPaths(platform_name, config):
+  """Returns a list of paths that should be included in the archive."""
   try:
     gyp_config = GetPlatformConfig(platform_name)
-    return gyp_config.GetDeployDirs()
-  except NotImplementedError:
-    # TODO: Investigate why Logging.info(...) eats messages even when
-    # the logging module is set to logging level INFO or DEBUG and when
-    # this is fixed then replace the print functions in this file with logging.
-    print('\n********************************************************\n'
-          '%s: specific deploy directories not found, auto \n'
-          'including possible deploy directories from build root.'
-          '\n********************************************************\n'
-          % __file__)
-    build_root = BuildOutputDirectory(platform_name, config)
-    return _FindPossibleDeployDirs(build_root)
+    patterns = gyp_config.GetDeployPathPatterns()
+    logging.info('Found platform include patterns: [%s]', ', '.join(patterns))
+    out_directory = paths.BuildOutputDirectory(platform_name, config)
+    out_paths = []
+    for root, _, files in port_symlink.OsWalk(out_directory):
+      for f in files:
+        full_path = os.path.join(root, f)
+        file_path = os.path.relpath(full_path, out_directory)
+        if _PathMatchesPatterns(file_path, patterns):
+          out_paths.append(file_path)
+    return out_paths
+  except NotImplementedError:  # Abstract class throws NotImplementedError.
+    logging.warning('** AUTO INCLUDE: ** Specific deploy paths were not found '
+                    'so including known possible deploy paths from the '
+                    'platform out directory.')
+    build_root = paths.BuildOutputDirectory(platform_name, config)
+    deploy_paths = _FindPossibleDeployPaths(build_root)
+    return deploy_paths
 
 
 def _MakeCobaltArchiveFromSource(output_archive_path,
@@ -263,37 +292,39 @@ def _MakeCobaltArchiveFromSource(output_archive_path,
                                  platform_sdk_version,
                                  additional_buildinfo_dict,
                                  include_black_box_tests):
+  """Finds necessary files and makes an archive."""
   _MakeDirs(os.path.dirname(output_archive_path))
-  out_directory = BuildOutputDirectory(platform_name, config)
+  out_directory = paths.BuildOutputDirectory(platform_name, config)
   root_dir = os.path.abspath(os.path.join(out_directory, '..', '..'))
-  flist = FileList()
-  inc_dirs = _GetDeployDirs(platform_name, config)
-  print 'Adding binary files to bundle...'
-  for path in inc_dirs:
+  flist = filelist.FileList()
+  inc_paths = _GetDeployPaths(platform_name, config)
+  logging.info('Adding binary files to bundle...')
+  for path in inc_paths:
     path = os.path.join(out_directory, path)
     if not os.path.exists(path):
-      print 'Skipping deploy directory', path, 'because it does not exist.'
+      logging.info('Skipping deploy path %s because it does not exist.',
+                   path)
       continue
-    print '  adding ' + os.path.abspath(path)
-    flist.AddAllFilesInPath(root_dir=root_dir, sub_dir=path)
-  print '...done'
+    logging.info('  adding %s', os.path.abspath(path))
+    flist.AddAllFilesInPath(root_dir=root_dir, sub_path=path)
+  logging.info('...done')
   launcher_tools_path = os.path.join(
       os.path.dirname(output_archive_path),
       '____app_launcher')
   if os.path.exists(launcher_tools_path):
-    Rmtree(launcher_tools_path)
-  print ('Adding app_launcher_files to bundle in ' +
-         os.path.abspath(launcher_tools_path))
+    port_symlink.Rmtree(launcher_tools_path)
+  logging.info('Adding app_launcher_files to bundle in %s',
+               os.path.abspath(launcher_tools_path))
 
   try:
-    CopyAppLauncherTools(repo_root=REPOSITORY_ROOT,
+    CopyAppLauncherTools(repo_root=paths.REPOSITORY_ROOT,
                          dest_root=launcher_tools_path,
                          additional_glob_patterns=[],
                          include_black_box_tests=include_black_box_tests)
     flist.AddAllFilesInPath(root_dir=launcher_tools_path,
-                            sub_dir=launcher_tools_path)
-    print '...done'
-    print 'Making cobalt archive...'
+                            sub_path=launcher_tools_path)
+    logging.info('...done')
+
     MakeCobaltArchiveFromFileList(
         output_archive_path,
         input_file_list=flist,
@@ -301,23 +332,31 @@ def _MakeCobaltArchiveFromSource(output_archive_path,
         platform_sdk_version=platform_sdk_version,
         config=config,
         additional_buildinfo_dict=additional_buildinfo_dict)
-    print '...done'
+    logging.info('...done')
   finally:
-    Rmtree(launcher_tools_path)
+    port_symlink.Rmtree(launcher_tools_path)
 
 
-# TODO: Implement into bundler. This is unit tested at this time.
-# Returns files_list, copy_list, where file_list is a list of physical
-# files, and copy_list contains a 2-tuple of [physical_file, copy_location]
-# that describes which files should be copied.
-# Example:
-#  files, copy_list = _FoldIdenticalFiles(['in0/test.txt', 'in1/test.txt'])
-#  Output:
-#    files => ['in0/test.txt']
-#    copy_list => ['in0/test.txt', 'in1/test.txt']
 def _FoldIdenticalFiles(file_path_list):
+  """Takes input files and determines which are md5 identical and folds them.
+
+  TODO: Implement into Cobalt Archive.
+
+  Example:
+    files, copy_list = _FoldIdenticalFiles(['in0/test.txt', 'in1/test.txt'])
+    Output:
+      files => ['in0/test.txt']
+      copy_list => ['in0/test.txt', 'in1/test.txt']
+
+  Args:
+    file_path_list: A list of files that will be processed.
+
+  Returns:
+    A 2-tuple (files, copy_list) where files is a list of physical files and
+    copy_list is the list of files that are identical.
+  """
   # Remove duplicates.
-  file_path_list = list(Set(file_path_list))
+  file_path_list = list(set(file_path_list))
   file_path_list.sort()
   def Md5File(fpath):
     hash_md5 = hashlib.md5()
@@ -337,17 +376,17 @@ def _FoldIdenticalFiles(file_path_list):
     files = file_map.get(entry, [])
     files.append(file_path)
     file_map[entry] = files
-  for (fname, fsize), path_list in file_map.iteritems():
-    assert(len(path_list))
+  for (fname, fsize), path_list in file_map.iteritems():  # pylint: disable=unused-variable
+    assert path_list
     phy_file_list.append(path_list[0])
     if len(path_list) == 1:
       continue
     else:
-      md5_dict = { Md5File(path_list[0]): path_list[0]  }
+      md5_dict = {Md5File(path_list[0]): path_list[0]}
       for tail_file in path_list[1:]:
         new_md5 = Md5File(tail_file)
         matching_file = md5_dict.get(new_md5, None)
-        if matching_file != None:
+        if matching_file is not None:
           # Match found.
           copy_list.append((matching_file, tail_file))
         else:
@@ -358,141 +397,18 @@ def _FoldIdenticalFiles(file_path_list):
 
 def _GenerateBuildInfoStr(platform_name, platform_sdk_version,
                           config, additional_buildinfo_dict):
-  from time import gmtime, strftime
+  """Generates a build info string (for the metadata file)."""
   build_info = dict(additional_buildinfo_dict)  # Copy dict.
-  build_info['archive_time_RFC_2822'] = \
-      strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime())
+  build_info['archive_time_RFC_2822'] = (
+      time.strftime('%a, %d %b %Y %H:%M:%S +0000', time.gmtime()))
   build_info['archive_time_local'] = time.asctime()
   build_info['platform'] = platform_name
   build_info['config'] = config
   build_info['sdk_version'] = platform_sdk_version
   # Can be used by clients for caching reasons.
-  build_info['random_uint64'] = random.randint(0, 0xffffffffffffffff)
+  build_info['nonce'] = random.randint(0, 0xffffffffffffffff)
   build_info_str = _JsonDumpPrettyPrint(build_info)
   return build_info_str
-
-
-def _AddFilesAndSymlinksToZip(open_zipfile, archive_file_list):
-  sym_links = []
-  for path, archive_name in archive_file_list:
-    if IsSymLink(path):
-      sym_links.append([path, archive_name])
-    else:
-      open_zipfile.write(path, arcname=archive_name)
-  for path, archive_name in sym_links:
-    zinfo = zipfile.ZipInfo(path)
-    link_path = ReadSymLink(path)
-    zinfo.filename = rel_path
-    zinfo.comment = json.dumps({'symlink': link_path})
-    open_zipfile.writestr(zinfo, rel_path, compress_type=zipfile.ZIP_DEFLATED)
-
-
-# Returns True if all files were extracted, else False.
-def _ExtractFiles(input_zip_path, output_dir, outstream):
-  all_ok = True
-  with zipfile.ZipFile(input_zip_path, 'r', allowZip64=True) as zf:
-    for zinfo in zf.infolist():
-      try:
-        zf.extract(zinfo, path=output_dir)
-      except Exception as err:
-        msg = 'Exception happend during bundle extraction: ' + str(err) + '\n'
-        outstream.write(msg)
-        all_ok = False
-  return all_ok
-
-
-################################################################################
-#                              UNIT TEST                                       #
-################################################################################
-
-
-def _UnitTestBundler_ExtractTo():
-  flist = FileList()
-  tf = TempFileSystem()
-  tf.Clear()
-  tf.Make()
-  flist.AddSymLink(tf.root_in_tmp, tf.sym_dir)
-  bundle_zip = os.path.join(tf.root_tmp, 'bundle.zip')
-  b = Bundler(bundle_zip)
-  b.MakeArchive(platform_name='fake',
-                platform_sdk_version='fake_sdk',
-                config='devel',
-                file_list=flist)
-  out_dir = os.path.join(tf.root_tmp, 'out')
-  b.ExtractTo(out_dir)
-  out_from_dir = os.path.join(out_dir, 'from_dir')
-  out_from_dir_lnk = os.path.join(out_dir, 'from_dir_lnk')
-  assert(GetFileType(out_from_dir) == TYPE_DIRECTORY)
-  assert(GetFileType(out_from_dir_lnk) == TYPE_SYMLINK_DIR)
-  resolved_from_link_path = os.path.join(out_dir, ReadSymLink(out_from_dir_lnk))
-  assert(os.path.abspath(out_from_dir) ==
-         os.path.abspath(resolved_from_link_path))
-
-
-def _UnitTestBundler_MakesDeployInfo():
-  flist = FileList()
-  tf = TempFileSystem()
-  tf.Clear()
-  tf.Make()
-  bundle_zip = os.path.join(tf.root_tmp, 'bundle.zip')
-  b = Bundler(bundle_zip)
-  b.MakeArchive(platform_name='fake',
-                platform_sdk_version='fake_sdk',
-                config='devel',
-                file_list=flist)
-  out_dir = os.path.join(tf.root_tmp, 'out')
-  b.ExtractTo(out_dir)
-  out_metadata_file = os.path.join(out_dir, _OUT_METADATA_PATH)
-  assert(GetFileType(out_metadata_file) == TYPE_FILE)
-  with open(out_metadata_file) as fd:
-    text = fd.read()
-    js = json.loads(text)
-    assert(js)
-    assert(js['sdk_version'] == 'fake_sdk')
-    assert(js['platform'] == 'fake')
-    assert(js['config'] == 'devel')
-
-
-def _UnitTest_FoldIdenticalFiles():
-  tf_root = TempFileSystem('bundler_fold')
-  tf_root.Clear()
-  tf1 = TempFileSystem(os.path.join('bundler_fold', '1'))
-  tf2 = TempFileSystem(os.path.join('bundler_fold', '2'))
-  tf1.Make()
-  tf2.Make()
-  flist = FileList()
-  subdirs = [tf1.root_in_tmp, tf2.root_in_tmp]
-  flist.AddAllFilesInPaths(tf_root.root_tmp, subdirs)
-  flist.Print()
-  identical_files = [tf1.test_txt, tf2.test_txt]
-  physical_files, copy_files = _FoldIdenticalFiles(identical_files)
-  assert(tf1.test_txt == physical_files[0])
-  assert(tf1.test_txt in copy_files[0][0])
-  assert(tf2.test_txt in copy_files[0][1])
-
-
-def _UnitTest():
-  tests = [
-    ['UnitTestBundler_ExtractTo', _UnitTestBundler_ExtractTo],
-    ['UnitTestBundler_MakesDeployInfo', _UnitTestBundler_MakesDeployInfo],
-    ['UnitTest_FoldIdenticalFiles', _UnitTest_FoldIdenticalFiles],
-  ]
-  failed_tests = []
-  for name, test in tests:
-    try:
-      print('\n' + name + ' started.')
-      test()
-      print(name + ' passed.')
-    except Exception as err:
-      failed_tests.append(name)
-      traceback.print_exc()
-      print('Error happened during test ' + name)
-
-  if failed_tests:
-    print '\n\nThe following tests failed: ' + ','.join(failed_tests)
-    return 1
-  else:
-    return 0
 
 
 ################################################################################
@@ -502,9 +418,10 @@ def _UnitTest():
 
 def _MakeCobaltPlatformArchive(platform, config, output_zip,
                                include_black_box_tests):
+  """Makes a Cobalt Archive, prompting for missing platform/config."""
   if not platform:
     platform = raw_input('platform: ')
-  if not platform in GetAllPlatforms():
+  if platform not in GetAllPlatforms():
     raise ValueError('Platform "%s" not recognized, expected one of: \n%s'
                      % (platform, GetAllPlatforms()))
   if not config:
@@ -519,12 +436,13 @@ def _MakeCobaltPlatformArchive(platform, config, output_zip,
       platform,
       config,
       platform_sdk_version='TEST',
-      additional_buildinfo_dict={},
+      additional_buildinfo_dict=None,
       include_black_box_tests=include_black_box_tests)
   time_delta = time.time() - start_time
   if not os.path.isfile(output_zip):
     raise ValueError('Expected zip file at ' + output_zip)
-  print '\nGenerated: %s in %d seconds' % (output_zip, int(time_delta))
+  logging.info('\nGenerated: %s in %d seconds', output_zip, int(time_delta))
+
 
 # Returns True/False
 def _DecompressArchive(in_zip, out_path):
@@ -536,30 +454,26 @@ def _DecompressArchive(in_zip, out_path):
                               output_directory_path=out_path)
 
 
-def _main():
-  # Create a private parser that will print the full help whenever the command
-  # line fails to fully parse.
+def _CreateArgumentParser():
+  """Creates a parser that will print the full help on failure to parse."""
+
   class MyParser(argparse.ArgumentParser):
+
     def error(self, message):
       sys.stderr.write('error: %s\n' % message)
       self.print_help()
       sys.exit(2)
   help_msg = (
-    'Example 1:\n'
-    '  python cobalt_archive.py --create --platform nxswitch'
-    ' --config devel --out_path <OUT_ZIP>\n\n'
-    'Example 2:\n'
-    '  python cobalt_archive.py --extract --in_path <ARCHIVE_PATH.ZIP>'
-    ' --out_path <OUT_DIR>')
+      'Example 1:\n'
+      '  python cobalt_archive.py --create --platform nxswitch'
+      ' --config devel --out_path <OUT_ZIP>\n\n'
+      'Example 2:\n'
+      '  python cobalt_archive.py --extract --in_path <ARCHIVE_PATH.ZIP>'
+      ' --out_path <OUT_DIR>')
   # Enables new lines in the description and epilog.
   formatter_class = argparse.RawDescriptionHelpFormatter
   parser = MyParser(epilog=help_msg, formatter_class=formatter_class)
   group = parser.add_mutually_exclusive_group(required=True)
-  group.add_argument(
-      '-u',
-      '--unit_test',
-      help='Run cobalt archive UnitTest',
-      action='store_true')
   group.add_argument(
       '-c',
       '--create',
@@ -588,10 +502,16 @@ def _main():
   parser.add_argument('--include_black_box_tests',
                       help='Optional, used for --create to add blackbox tests',
                       action='store_true')
-  args = parser.parse_args()
-  if args.unit_test:
-    sys.exit(_UnitTest())
-  elif args.create:
+  return parser
+
+
+def main():
+  SetupDefaultLoggingConfig()
+  parser = _CreateArgumentParser()
+  args, unknown_args = parser.parse_known_args()
+  if unknown_args:
+    logging.warning('Unknown (ignored) args: %s', unknown_args)
+  if args.create:
     _MakeCobaltPlatformArchive(
         platform=args.platform,
         config=args.config,
@@ -607,4 +527,4 @@ def _main():
 
 
 if __name__ == '__main__':
-  _main()
+  main()

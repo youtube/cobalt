@@ -4,7 +4,7 @@
 
 #include "net/dns/dns_util.h"
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {

@@ -14,8 +14,8 @@
 
 #include "starboard/player.h"
 
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/log.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 
 bool SbPlayerOutputModeSupported(SbPlayerOutputMode output_mode,

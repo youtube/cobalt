@@ -13,7 +13,7 @@
 #include "src/globals.h"
 
 #if V8_OS_STARBOARD
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #define strlen(s) SbStringGetLength(s)
 #endif
 

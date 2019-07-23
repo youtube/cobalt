@@ -14,7 +14,7 @@
 
 #include "starboard/types.h"
 
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 
 #include "base/bind.h"
 #include "base/files/file_descriptor_watcher_posix.h"

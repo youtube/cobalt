@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_MEDIA_MEDIA_UTIL_H_
 #define STARBOARD_SHARED_STARBOARD_MEDIA_MEDIA_UTIL_H_
 
+#include <ostream>
 #include <string>
 
 #include "starboard/media.h"
@@ -27,6 +28,11 @@ namespace starboard {
 namespace media {
 
 bool IsAudioOutputSupported(SbMediaAudioCodingType coding_type, int channels);
+
+bool IsSDRVideo(int bit_depth,
+                SbMediaPrimaryId primary_id,
+                SbMediaTransferId transfer_id,
+                SbMediaMatrixId matrix_id);
 
 // Turns |eotf| into value of SbMediaTransferId.  If |eotf| isn't recognized the
 // function returns kSbMediaTransferIdReserved0.
@@ -63,9 +69,38 @@ int GetBytesPerSample(SbMediaAudioSampleType sample_type);
 SbMediaSupportType CanPlayMimeAndKeySystem(const MimeType& mime_type,
                                            const char* key_system);
 
+const char* GetCodecName(SbMediaAudioCodec codec);
+const char* GetCodecName(SbMediaVideoCodec codec);
+const char* GetPrimaryIdName(SbMediaPrimaryId primary_id);
+const char* GetTransferIdName(SbMediaTransferId transfer_id);
+const char* GetMatrixIdName(SbMediaMatrixId matrix_id);
+const char* GetRangeIdName(SbMediaRangeId range_id);
+
 }  // namespace media
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
+
+bool operator==(const SbMediaColorMetadata& metadata_1,
+                const SbMediaColorMetadata& metadata_2);
+bool operator==(const SbMediaVideoSampleInfo& sample_info_1,
+                const SbMediaVideoSampleInfo& sample_info_2);
+
+bool operator!=(const SbMediaColorMetadata& metadata_1,
+                const SbMediaColorMetadata& metadata_2);
+bool operator!=(const SbMediaVideoSampleInfo& sample_info_1,
+                const SbMediaVideoSampleInfo& sample_info_2);
+
+// For logging use only.
+std::ostream& operator<<(std::ostream& os,
+                         const SbMediaColorMetadata& metadata);
+std::ostream& operator<<(std::ostream& os,
+                         const SbMediaVideoSampleInfo& sample_info);
+
+std::string GetHexRepresentation(const uint8_t* data, int size);
+std::string GetStringRepresentation(const uint8_t* data, int size);
+std::string GetMixedRepresentation(const uint8_t* data,
+                                   int size,
+                                   int bytes_per_line);
 
 #endif  // STARBOARD_SHARED_STARBOARD_MEDIA_MEDIA_UTIL_H_

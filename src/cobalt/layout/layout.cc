@@ -80,6 +80,12 @@ void UpdateComputedStylesAndLayoutBoxTree(
     (*initial_containing_block)->set_blend_background_color(false);
   }
 
+  // Associate the UI navigation root with the initial containing block.
+  if (document->window()) {
+    (*initial_containing_block)->SetUiNavItem(
+        document->window()->GetUiNavRoot());
+  }
+
   // Generate boxes.
   if (document->html()) {
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatBoxGeneration);
@@ -88,7 +94,7 @@ void UpdateComputedStylesAndLayoutBoxTree(
         base::StopWatch::kAutoStartOn, layout_stat_tracker);
 
     ScopedParagraph scoped_paragraph(
-        new Paragraph(locale, (*initial_containing_block)->GetBaseDirection(),
+        new Paragraph(locale, (*initial_containing_block)->base_direction(),
                       Paragraph::DirectionalEmbeddingStack(),
                       line_break_iterator, character_break_iterator));
     BoxGenerator::Context context(

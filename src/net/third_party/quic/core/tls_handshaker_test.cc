@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "net/third_party/quic/core/quic_utils.h"
 #include "net/third_party/quic/core/tls_client_handshaker.h"
 #include "net/third_party/quic/core/tls_server_handshaker.h"
 #include "net/third_party/quic/platform/api/quic_arraysize.h"
@@ -13,6 +14,9 @@
 #include "net/third_party/quic/test_tools/mock_quic_session_visitor.h"
 #include "net/third_party/quic/test_tools/quic_test_utils.h"
 
+// Cobalt has BoringSSL from Chromium m70 which does not have the QUIC
+// API to support TLSHandshaker. TLSHandshaker is disabled in production.
+#if !defined(COBALT_QUIC46)
 namespace quic {
 namespace test {
 namespace {
@@ -139,10 +143,6 @@ class TestQuicCryptoStream : public QuicCryptoStream {
 
   virtual TlsHandshaker* handshaker() const = 0;
 
-  QuicLongHeaderType GetLongHeaderType(QuicStreamOffset offset) const override {
-    return handshaker()->GetLongHeaderType(offset);
-  }
-
   bool encryption_established() const override {
     return handshaker()->encryption_established();
   }
@@ -160,26 +160,41 @@ class TestQuicCryptoStream : public QuicCryptoStream {
     return handshaker()->crypto_message_parser();
   }
 
-  void WriteCryptoData(const QuicStringPiece& data) override {
-    pending_writes_.push_back(QuicString(data));
+  void WriteCryptoData(EncryptionLevel level, QuicStringPiece data) override {
+    pending_writes_.push_back(std::make_pair(QuicString(data), level));
   }
 
-  const std::vector<QuicString>& pending_writes() { return pending_writes_; }
+  const std::vector<std::pair<QuicString, EncryptionLevel>>& pending_writes() {
+    return pending_writes_;
+  }
 
   // Sends the pending frames to |stream| and clears the array of pending
   // writes.
-  void SendFramesToStream(QuicCryptoStream* stream) {
+  void SendCryptoMessagesToPeer(QuicCryptoStream* stream) {
     QUIC_LOG(INFO) << "Sending " << pending_writes_.size() << " frames";
+    // This is a minimal re-implementation of QuicCryptoStream::OnDataAvailable.
+    // It doesn't work to call QuicStream::OnStreamFrame because
+    // QuicCryptoStream::OnDataAvailable currently (as an implementation detail)
+    // relies on the QuicConnection to know the EncryptionLevel to pass into
+    // CryptoMessageParser::ProcessInput. Since the crypto messages in this test
+    // never reach the framer or connection and never get encrypted/decrypted,
+    // QuicCryptoStream::OnDataAvailable isn't able to call ProcessInput with
+    // the correct EncryptionLevel. Instead, that can be short-circuited by
+    // directly calling ProcessInput here.
     for (size_t i = 0; i < pending_writes_.size(); ++i) {
-      QuicStreamFrame frame(kCryptoStreamId, false, stream->stream_bytes_read(),
-                            pending_writes_[i]);
-      stream->OnStreamFrame(frame);
+      if (!stream->crypto_message_parser()->ProcessInput(
+              pending_writes_[i].first, pending_writes_[i].second)) {
+        CloseConnectionWithDetails(
+            stream->crypto_message_parser()->error(),
+            stream->crypto_message_parser()->error_detail());
+        break;
+      }
     }
     pending_writes_.clear();
   }
 
  private:
-  std::vector<QuicString> pending_writes_;
+  std::vector<std::pair<QuicString, EncryptionLevel>> pending_writes_;
 };
 
 class TestQuicCryptoClientStream : public TestQuicCryptoStream {
@@ -241,12 +256,12 @@ class TestQuicCryptoServerStream : public TestQuicCryptoStream {
   std::unique_ptr<TlsServerHandshaker> handshaker_;
 };
 
-void MoveStreamFrames(TestQuicCryptoStream* client,
-                      TestQuicCryptoStream* server) {
+void ExchangeHandshakeMessages(TestQuicCryptoStream* client,
+                               TestQuicCryptoStream* server) {
   while (!client->pending_writes().empty() ||
          !server->pending_writes().empty()) {
-    client->SendFramesToStream(server);
-    server->SendFramesToStream(client);
+    client->SendCryptoMessagesToPeer(server);
+    server->SendCryptoMessagesToPeer(client);
   }
 }
 
@@ -290,7 +305,7 @@ TEST_F(TlsHandshakerTest, CryptoHandshake) {
   EXPECT_CALL(*client_conn_, CloseConnection(_, _, _)).Times(0);
   EXPECT_CALL(*server_conn_, CloseConnection(_, _, _)).Times(0);
   client_stream_->CryptoConnect();
-  MoveStreamFrames(client_stream_, server_stream_);
+  ExchangeHandshakeMessages(client_stream_, server_stream_);
 
   EXPECT_TRUE(client_stream_->handshake_confirmed());
   EXPECT_TRUE(client_stream_->encryption_established());
@@ -308,12 +323,12 @@ TEST_F(TlsHandshakerTest, HandshakeWithAsyncProofSource) {
 
   // Start handshake.
   client_stream_->CryptoConnect();
-  MoveStreamFrames(client_stream_, server_stream_);
+  ExchangeHandshakeMessages(client_stream_, server_stream_);
 
   ASSERT_EQ(proof_source->NumPendingCallbacks(), 1);
   proof_source->InvokePendingCallback(0);
 
-  MoveStreamFrames(client_stream_, server_stream_);
+  ExchangeHandshakeMessages(client_stream_, server_stream_);
 
   EXPECT_TRUE(client_stream_->handshake_confirmed());
   EXPECT_TRUE(client_stream_->encryption_established());
@@ -331,7 +346,7 @@ TEST_F(TlsHandshakerTest, CancelPendingProofSource) {
 
   // Start handshake.
   client_stream_->CryptoConnect();
-  MoveStreamFrames(client_stream_, server_stream_);
+  ExchangeHandshakeMessages(client_stream_, server_stream_);
 
   ASSERT_EQ(proof_source->NumPendingCallbacks(), 1);
   server_stream_ = nullptr;
@@ -349,12 +364,12 @@ TEST_F(TlsHandshakerTest, HandshakeWithAsyncProofVerifier) {
 
   // Start handshake.
   client_stream_->CryptoConnect();
-  MoveStreamFrames(client_stream_, server_stream_);
+  ExchangeHandshakeMessages(client_stream_, server_stream_);
 
   ASSERT_EQ(proof_verifier->NumPendingCallbacks(), 1u);
   proof_verifier->InvokePendingCallback(0);
 
-  MoveStreamFrames(client_stream_, server_stream_);
+  ExchangeHandshakeMessages(client_stream_, server_stream_);
 
   EXPECT_TRUE(client_stream_->handshake_confirmed());
   EXPECT_TRUE(client_stream_->encryption_established());
@@ -362,46 +377,40 @@ TEST_F(TlsHandshakerTest, HandshakeWithAsyncProofVerifier) {
   EXPECT_TRUE(server_stream_->encryption_established());
 }
 
-TEST_F(TlsHandshakerTest, ClientConnectionClosedOnTlsAlert) {
+TEST_F(TlsHandshakerTest, ClientConnectionClosedOnTlsError) {
   // Have client send ClientHello.
   client_stream_->CryptoConnect();
   EXPECT_CALL(*client_conn_, CloseConnection(QUIC_HANDSHAKE_FAILED, _, _));
 
-  // Send fake "internal_error" fatal TLS alert from server to client.
-  char alert_msg[] = {
-      // TLSPlaintext struct:
-      21,          // ContentType alert
-      0x03, 0x01,  // ProcotolVersion legacy_record_version
-      0, 2,        // uint16 length
-      // Alert struct (TLSPlaintext fragment):
-      2,   // AlertLevel fatal
-      80,  // AlertDescription internal_error
+  // Send a zero-length ServerHello from server to client.
+  char bogus_handshake_message[] = {
+      // Handshake struct (RFC 8446 appendix B.3)
+      2,        // HandshakeType server_hello
+      0, 0, 0,  // uint24 length
   };
-  QuicStreamFrame alert(kCryptoStreamId, false,
-                        client_stream_->stream_bytes_read(),
-                        QuicStringPiece(alert_msg, QUIC_ARRAYSIZE(alert_msg)));
-  client_stream_->OnStreamFrame(alert);
+  server_stream_->WriteCryptoData(
+      ENCRYPTION_NONE,
+      QuicStringPiece(bogus_handshake_message,
+                      QUIC_ARRAYSIZE(bogus_handshake_message)));
+  server_stream_->SendCryptoMessagesToPeer(client_stream_);
 
   EXPECT_FALSE(client_stream_->handshake_confirmed());
 }
 
-TEST_F(TlsHandshakerTest, ServerConnectionClosedOnTlsAlert) {
+TEST_F(TlsHandshakerTest, ServerConnectionClosedOnTlsError) {
   EXPECT_CALL(*server_conn_, CloseConnection(QUIC_HANDSHAKE_FAILED, _, _));
 
-  // Send fake "internal_error" fatal TLS alert from client to server.
-  char alert_msg[] = {
-      // TLSPlaintext struct:
-      21,          // ContentType alert
-      0x03, 0x01,  // ProcotolVersion legacy_record_version
-      0, 2,        // uint16 length
-      // Alert struct (TLSPlaintext fragment):
-      2,   // AlertLevel fatal
-      80,  // AlertDescription internal_error
+  // Send a zero-length ClientHello from client to server.
+  char bogus_handshake_message[] = {
+      // Handshake struct (RFC 8446 appendix B.3)
+      1,        // HandshakeType client_hello
+      0, 0, 0,  // uint24 length
   };
-  QuicStreamFrame alert(kCryptoStreamId, false,
-                        server_stream_->stream_bytes_read(),
-                        QuicStringPiece(alert_msg, QUIC_ARRAYSIZE(alert_msg)));
-  server_stream_->OnStreamFrame(alert);
+  client_stream_->WriteCryptoData(
+      ENCRYPTION_NONE,
+      QuicStringPiece(bogus_handshake_message,
+                      QUIC_ARRAYSIZE(bogus_handshake_message)));
+  client_stream_->SendCryptoMessagesToPeer(server_stream_);
 
   EXPECT_FALSE(server_stream_->handshake_confirmed());
 }
@@ -409,3 +418,4 @@ TEST_F(TlsHandshakerTest, ServerConnectionClosedOnTlsAlert) {
 }  // namespace
 }  // namespace test
 }  // namespace quic
+#endif

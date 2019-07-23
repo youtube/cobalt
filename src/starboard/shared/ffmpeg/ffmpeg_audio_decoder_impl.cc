@@ -18,13 +18,13 @@
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder_impl.h"
 
 #include "starboard/audio_sink.h"
-#if SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
+#if SB_API_VERSION >= 11
 #include "starboard/format_string.h"
-#endif  // SB_API_VERSION >= SB_MOVE_FORMAT_STRING_VERSION
-#include "starboard/log.h"
+#endif  // SB_API_VERSION >= 11
+#include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_util.h"
-#include "starboard/string.h"
 
 namespace starboard {
 namespace shared {
@@ -66,12 +66,12 @@ const bool g_registered =
 
 AudioDecoderImpl<FFMPEG>::AudioDecoderImpl(
     SbMediaAudioCodec audio_codec,
-    const SbMediaAudioHeader& audio_header)
+    const SbMediaAudioSampleInfo& audio_sample_info)
     : audio_codec_(audio_codec),
       codec_context_(NULL),
       av_frame_(NULL),
       stream_ended_(false),
-      audio_header_(audio_header) {
+      audio_sample_info_(audio_sample_info) {
   SB_DCHECK(g_registered) << "Decoder Specialization registration failed.";
   SB_DCHECK(GetFfmpegCodecIdByMediaCodec(audio_codec) != AV_CODEC_ID_NONE)
       << "Unsupported audio codec " << audio_codec;
@@ -89,8 +89,8 @@ AudioDecoderImpl<FFMPEG>::~AudioDecoderImpl() {
 // static
 AudioDecoder* AudioDecoderImpl<FFMPEG>::Create(
     SbMediaAudioCodec audio_codec,
-    const SbMediaAudioHeader& audio_header) {
-  return new AudioDecoderImpl<FFMPEG>(audio_codec, audio_header);
+    const SbMediaAudioSampleInfo& audio_sample_info) {
+  return new AudioDecoderImpl<FFMPEG>(audio_codec, audio_sample_info);
 }
 
 void AudioDecoderImpl<FFMPEG>::Initialize(const OutputCB& output_cb,
@@ -158,7 +158,7 @@ void AudioDecoderImpl<FFMPEG>::Decode(
   int decoded_audio_size = ffmpeg_->av_samples_get_buffer_size(
       NULL, codec_context_->channels, av_frame_->nb_samples,
       codec_context_->sample_fmt, 1);
-  audio_header_.samples_per_second = codec_context_->sample_rate;
+  audio_sample_info_.samples_per_second = codec_context_->sample_rate;
 
   if (decoded_audio_size > 0) {
     scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
@@ -261,7 +261,7 @@ SbMediaAudioFrameStorageType AudioDecoderImpl<FFMPEG>::GetStorageType() const {
 }
 
 int AudioDecoderImpl<FFMPEG>::GetSamplesPerSecond() const {
-  return audio_header_.samples_per_second;
+  return audio_sample_info_.samples_per_second;
 }
 
 void AudioDecoderImpl<FFMPEG>::InitializeCodec() {
@@ -281,21 +281,23 @@ void AudioDecoderImpl<FFMPEG>::InitializeCodec() {
     codec_context_->request_sample_fmt = AV_SAMPLE_FMT_FLT;
   }
 
-  codec_context_->channels = audio_header_.number_of_channels;
-  codec_context_->sample_rate = audio_header_.samples_per_second;
+  codec_context_->channels = audio_sample_info_.number_of_channels;
+  codec_context_->sample_rate = audio_sample_info_.samples_per_second;
   codec_context_->extradata = NULL;
   codec_context_->extradata_size = 0;
 
   if (codec_context_->codec_id == AV_CODEC_ID_OPUS &&
-      audio_header_.audio_specific_config_size > 0) {
+      audio_sample_info_.audio_specific_config_size > 0) {
     // AV_INPUT_BUFFER_PADDING_SIZE is not defined in ancient avcodec.h.  Use a
     // large enough padding here explicitly.
     const int kAvInputBufferPaddingSize = 256;
-    codec_context_->extradata_size = audio_header_.audio_specific_config_size;
+    codec_context_->extradata_size =
+        audio_sample_info_.audio_specific_config_size;
     codec_context_->extradata = static_cast<uint8_t*>(ffmpeg_->av_malloc(
         codec_context_->extradata_size + kAvInputBufferPaddingSize));
     SB_DCHECK(codec_context_->extradata);
-    SbMemoryCopy(codec_context_->extradata, audio_header_.audio_specific_config,
+    SbMemoryCopy(codec_context_->extradata,
+                 audio_sample_info_.audio_specific_config,
                  codec_context_->extradata_size);
     SbMemorySet(codec_context_->extradata + codec_context_->extradata_size, 0,
                 kAvInputBufferPaddingSize);

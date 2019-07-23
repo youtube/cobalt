@@ -28,6 +28,10 @@
 #include "src/runtime/runtime.h"
 #include "src/zone/zone.h"
 
+#if V8_OS_STARBOARD
+#include "starboard/common/log.h"
+#endif  // V8_OS_STARBOARD
+
 namespace v8 {
 
 namespace base {
@@ -1837,10 +1841,12 @@ class PostponeInterruptsScope BASE_EMBEDDED {
 class CodeTracer final : public Malloced {
  public:
   explicit CodeTracer(int isolate_id) : file_(nullptr), scope_depth_(0) {
+#ifndef V8_OS_STARBOARD
     if (!ShouldRedirect()) {
       file_ = stdout;
       return;
     }
+#endif
 
     if (FLAG_redirect_code_traces_to == nullptr) {
       SNPrintF(filename_,

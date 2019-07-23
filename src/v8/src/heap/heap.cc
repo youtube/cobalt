@@ -4551,7 +4551,9 @@ void Heap::CollectCodeStatistics() {
 
 void Heap::Print() {
   if (!HasBeenSetUp()) return;
+#ifndef V8_OS_STARBOARD
   isolate()->PrintStack(stdout);
+#endif
 
   for (SpaceIterator it(this); it.has_next();) {
     it.next()->Print();

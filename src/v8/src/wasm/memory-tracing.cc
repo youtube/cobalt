@@ -6,6 +6,10 @@
 
 #include "src/utils.h"
 
+#if V8_OS_STARBOARD
+#include "starboard/common/log.h"
+#endif  // V8_OS_STARBOARD
+
 namespace v8 {
 namespace internal {
 namespace wasm {

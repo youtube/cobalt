@@ -32,7 +32,7 @@
 
 #ifdef STARBOARD
 #include <string.h>
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #undef __builtin_strlen
 #define __builtin_strlen SbStringGetLength
 #undef strlen
@@ -47,8 +47,8 @@
 #include <google/protobuf/stubs/int128.h>
 
 #ifdef STARBOARD
-#include "starboard/log.h"
-#include "starboard/mutex.h"
+#include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
 #include "starboard/system.h"
 #define abort SbSystemBreakIntoDebugger
 #define fflush(stderr) SbLogFlush()

@@ -15,7 +15,7 @@
 #include "starboard/player.h"
 
 #include "starboard/android/shared/cobalt/android_media_session_client.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
 using starboard::android::shared::cobalt::kPaused;

@@ -901,6 +901,9 @@ const char* RawOpcodeName(WasmOpcode opcode) {
 bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
                       const wasm::WasmModule* module,
                       PrintLocals print_locals) {
+#if defined(V8_OS_STARBOARD)
+  return false;
+#else
   OFStream os(stdout);
   Zone zone(allocator, ZONE_NAME);
   WasmDecoder<Decoder::kNoValidate> decoder(module, body.sig, body.start,
@@ -1024,6 +1027,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
   }
 
   return decoder.ok();
+#endif
 }
 
 BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, size_t num_locals,

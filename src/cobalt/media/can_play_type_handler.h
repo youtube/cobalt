@@ -17,15 +17,18 @@
 
 #include <string>
 
+#include "starboard/media.h"
+
 namespace cobalt {
 namespace media {
 
 class CanPlayTypeHandler {
  public:
   virtual ~CanPlayTypeHandler() {}
-  virtual std::string CanPlayType(bool is_progressive,
-                                  const std::string& mime_type,
-                                  const std::string& key_system) = 0;
+  virtual SbMediaSupportType CanPlayType(const std::string& mime_type,
+                                         const std::string& key_system,
+                                         bool is_progressive) const = 0;
+  virtual void SetDisabledMediaCodecs(const std::string& codecs) = 0;
 
  protected:
   CanPlayTypeHandler() {}

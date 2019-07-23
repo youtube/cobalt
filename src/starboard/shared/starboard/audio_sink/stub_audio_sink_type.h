@@ -15,7 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_AUDIO_SINK_STUB_AUDIO_SINK_TYPE_H_
 #define STARBOARD_SHARED_STARBOARD_AUDIO_SINK_STUB_AUDIO_SINK_TYPE_H_
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 

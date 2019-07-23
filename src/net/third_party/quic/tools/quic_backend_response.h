@@ -6,7 +6,7 @@
 #define NET_THIRD_PARTY_QUIC_TOOLS_QUIC_BACKEND_RESPONSE_H_
 
 #include "net/third_party/quic/core/http/spdy_utils.h"
-#include "net/third_party/quic/platform/api/quic_url.h"
+#include "net/third_party/quic/tools/quic_url.h"
 
 namespace quic {
 
@@ -39,6 +39,9 @@ class QuicBackendResponse {
     INCOMPLETE_RESPONSE,   // The server will act as if there is a non-empty
                            // trailer but it will not be sent, as a result, FIN
                            // will not be sent too.
+    STOP_SENDING,          // Acts like INCOMPLETE_RESPONSE in that the entire
+                           // response is not sent. After sending what is sent,
+                           // the server will send a STOP_SENDING.
   };
   QuicBackendResponse();
 
@@ -65,12 +68,15 @@ class QuicBackendResponse {
   void set_body(QuicStringPiece body) {
     body_.assign(body.data(), body.size());
   }
+  uint16_t stop_sending_code() const { return stop_sending_code_; }
+  void set_stop_sending_code(uint16_t code) { stop_sending_code_ = code; }
 
  private:
   SpecialResponseType response_type_;
   spdy::SpdyHeaderBlock headers_;
   spdy::SpdyHeaderBlock trailers_;
   QuicString body_;
+  uint16_t stop_sending_code_;
 };
 
 }  // namespace quic

@@ -16,8 +16,8 @@
 
 #include "base/files/file_util.h"
 #include "base/logging.h"
+#include "starboard/common/string.h"
 #include "starboard/directory.h"
-#include "starboard/string.h"
 
 namespace cobalt {
 namespace media {

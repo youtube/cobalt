@@ -17,11 +17,12 @@ from __future__ import print_function
 
 import imp
 import os
-from subprocess import call
+import subprocess
 
-import gyp_utils
-import starboard.android.shared.sdk_utils as sdk_utils
+from starboard.android.shared import sdk_utils
+from starboard.build import clang as clang_build
 from starboard.build.platform_configuration import PlatformConfiguration
+from starboard.tools import build
 from starboard.tools.testing import test_filter
 from starboard.tools.toolchain import ar
 from starboard.tools.toolchain import bash
@@ -34,12 +35,30 @@ _APK_DIR = os.path.join(os.path.dirname(__file__), os.path.pardir, 'apk')
 _APK_BUILD_ID_FILE = os.path.join(_APK_DIR, 'build.id')
 _COBALT_GRADLE = os.path.join(_APK_DIR, 'cobalt-gradle.sh')
 
-# Maps the Android ABI to the name of the toolchain.
-_ABI_TOOLCHAIN_NAME = {
-    'x86': 'i686-linux-android',
-    'armeabi': 'arm-linux-androideabi',
-    'armeabi-v7a': 'arm-linux-androideabi',
-    'arm64-v8a': 'aarch64-linux-android',
+# The API level of NDK tools to use. This should be the minimum API level on
+# which the app is expected to run. If some feature from a newer NDK level is
+# needed, this may be increased with caution.
+# https://developer.android.com/ndk/guides/stable_apis.html
+#
+# Using 24 will lead to missing symbols on API 23 devices.
+# https://github.com/android-ndk/ndk/issues/126
+_ANDROID_NDK_API_LEVEL = '21'
+
+# Maps the Android ABI to the clang & ar executable names.
+_ABI_TOOL_NAMES = {
+    'x86': ('i686-linux-android{}-clang'.format(_ANDROID_NDK_API_LEVEL),
+            'i686-linux-android-ar'),
+    'x86_64': ('x86_64-linux-android{}-clang'.format(_ANDROID_NDK_API_LEVEL),
+               'x86_64-linux-android-ar'),
+    'armeabi':
+        ('armv7a-linux-androideabi{}-clang'.format(_ANDROID_NDK_API_LEVEL),
+         'armv7a-linux-androideabi-ar'),
+    'armeabi-v7a':
+        ('armv7a-linux-androideabi{}-clang'.format(_ANDROID_NDK_API_LEVEL),
+         'arm-linux-androideabi-ar'),
+    'arm64-v8a':
+        ('aarch64-linux-android{}-clang'.format(_ANDROID_NDK_API_LEVEL),
+         'aarch64-linux-android-ar'),
 }
 
 
@@ -57,7 +76,6 @@ class AndroidConfiguration(PlatformConfiguration):
 
     self.android_abi = android_abi
 
-    self.host_compiler_environment = gyp_utils.GetHostCompilerEnvironment()
     self.android_home = sdk_utils.GetSdkPath()
     self.android_ndk_home = sdk_utils.GetNdkPath()
 
@@ -90,6 +108,10 @@ class AndroidConfiguration(PlatformConfiguration):
     })
     return variables
 
+  def GetDeployPathPatterns(self):
+    """example src/out/android-arm64/devel/cobalt.apk"""
+    return ['*.apk']
+
   def GetGeneratorVariables(self, configuration):
     _ = configuration
     generator_variables = {
@@ -97,12 +119,13 @@ class AndroidConfiguration(PlatformConfiguration):
     }
     return generator_variables
 
-  def GetEnvironmentVariables(self):
-    sdk_utils.InstallSdkIfNeeded(self.android_abi)
-    call([_COBALT_GRADLE, '--reset'])
+  def SetupPlatformTools(self, build_number):
+    sdk_utils.InstallSdkIfNeeded()
+    subprocess.call([_COBALT_GRADLE, '--reset'])
     with open(_APK_BUILD_ID_FILE, 'w') as build_id_file:
-      build_id_file.write('{}'.format(gyp_utils.GetBuildNumber()))
+      build_id_file.write('{}'.format(build_number))
 
+  def GetEnvironmentVariables(self):
     env_variables = {}
 
     # Android builds tend to consume significantly more memory than the
@@ -118,12 +141,11 @@ class AndroidConfiguration(PlatformConfiguration):
 
   def GetTargetToolchain(self):
     if not self._target_toolchain:
-      tool_prefix = os.path.join(
-          sdk_utils.GetToolsPath(self.android_abi), 'bin',
-          _ABI_TOOLCHAIN_NAME[self.android_abi] + '-')
-      cc_path = tool_prefix + 'clang'
-      cxx_path = tool_prefix + 'clang++'
-      ar_path = tool_prefix + 'ar'
+      tool_prefix = os.path.join(sdk_utils.GetNdkPath(), 'toolchains', 'llvm',
+                                 'prebuilt', 'linux-x86_64', 'bin', '')
+      cc_path = tool_prefix + _ABI_TOOL_NAMES[self.android_abi][0]
+      cxx_path = cc_path + '++'
+      ar_path = tool_prefix + _ABI_TOOL_NAMES[self.android_abi][1]
       clang_flags = [
           # We'll pretend not to be Linux, but Starboard instead.
           '-U__linux__',
@@ -217,6 +239,9 @@ class AndroidConfiguration(PlatformConfiguration):
 
   def GetHostToolchain(self):
     if not self._host_toolchain:
+      if not hasattr(self, 'host_compiler_environment'):
+        self.host_compiler_environment = build.GetHostCompilerEnvironment(
+            clang_build.GetClangSpecification(), False)
       cc_path = self.host_compiler_environment['CC_host'],
       cxx_path = self.host_compiler_environment['CXX_host']
       self._host_toolchain = [
@@ -247,12 +272,8 @@ class AndroidConfiguration(PlatformConfiguration):
     return filters
 
   # A map of failing or crashing tests per target.
-  __FILTERED_TESTS = {
+  __FILTERED_TESTS = {  # pylint: disable=invalid-name
       'player_filter_tests': [
-          'AudioDecoderTests/AudioDecoderTest.EndOfStreamWithoutAnyInput/0',
-          'AudioDecoderTests/AudioDecoderTest.MultipleInputs/0',
-          'AudioDecoderTests/AudioDecoderTest.ResetBeforeInput/0',
-          'AudioDecoderTests/AudioDecoderTest.SingleInput/0',
           'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/0',
           'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/1',
           'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/2',

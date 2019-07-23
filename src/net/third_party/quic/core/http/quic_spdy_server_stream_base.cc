@@ -11,8 +11,14 @@
 namespace quic {
 
 QuicSpdyServerStreamBase::QuicSpdyServerStreamBase(QuicStreamId id,
-                                                   QuicSpdySession* session)
-    : QuicSpdyStream(id, session) {}
+                                                   QuicSpdySession* session,
+                                                   StreamType type)
+    : QuicSpdyStream(id, session, type) {}
+
+QuicSpdyServerStreamBase::QuicSpdyServerStreamBase(PendingStream pending,
+                                                   QuicSpdySession* session,
+                                                   StreamType type)
+    : QuicSpdyStream(std::move(pending), session, type) {}
 
 void QuicSpdyServerStreamBase::CloseWriteSide() {
   if (!fin_received() && !rst_received() && sequencer()->ignore_read_data() &&

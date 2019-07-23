@@ -11,7 +11,7 @@
 #include "SkTypes.h"
 
 #if defined(STARBOARD)
-#include "starboard/string.h"
+#include "starboard/common/string.h"
 #include "starboard/system.h"
 #else
 #include <stdlib.h>

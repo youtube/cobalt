@@ -83,6 +83,14 @@ body {
   background: rgba(80, 128, 80, 0.6);
 }
 
+.message.debug {
+  color: rgb(192, 192, 192);
+}
+
+.message.debug.console {
+  background: rgba(96, 96, 96, 0.6);
+}
+
 .message.warning {
   color: rgb(255, 255, 128);
 }

@@ -13,11 +13,19 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
-#include "starboard/log.h"
+
+#include "starboard/common/log.h"
 
 bool SbBlitterIsPixelFormatSupportedByPixelData(
     SbBlitterDevice device,
     SbBlitterPixelDataFormat pixel_format) {
-  SB_NOTREACHED();
-  return false;
+  if (!SbBlitterIsDeviceValid(device)) {
+    SB_DLOG(ERROR) << ": Invalid device.";
+    return false;
+  }
+
+  // GL textures can support GL_ALPHA and GL_RGBA.
+  return pixel_format == kSbBlitterPixelDataFormatA8 ||
+         SbBlitterPixelDataFormatToSurfaceFormat(pixel_format) ==
+             kSbBlitterSurfaceFormatRGBA8;
 }

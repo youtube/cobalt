@@ -64,12 +64,14 @@ SbMediaVideoCodec MediaVideoCodecToSbMediaVideoCodec(VideoCodec codec) {
       return kSbMediaVideoCodecVp8;
     case kCodecVP9:
       return kSbMediaVideoCodecVp9;
+    case kCodecHEVC:
+      return kSbMediaVideoCodecH265;
     case kCodecAV1:
-#if SB_API_VERSION >= SB_HAS_AV1_VERSION
+#if SB_API_VERSION >= 11
       return kSbMediaVideoCodecAv1;
-#else  // SB_API_VERSION >= SB_HAS_AV1_VERSION
+#else  // SB_API_VERSION >= 11
       return kSbMediaVideoCodecVp10;
-#endif  // SB_API_VERSION >= SB_HAS_AV1_VERSION
+#endif  // SB_API_VERSION >= 11
     default:
       // Cobalt only supports a subset of video codecs defined by Chromium.
       DLOG(ERROR) << "Unsupported video codec "
@@ -80,39 +82,45 @@ SbMediaVideoCodec MediaVideoCodecToSbMediaVideoCodec(VideoCodec codec) {
   return kSbMediaVideoCodecNone;
 }
 
-SbMediaAudioHeader MediaAudioConfigToSbMediaAudioHeader(
+SbMediaAudioSampleInfo MediaAudioConfigToSbMediaAudioSampleInfo(
     const AudioDecoderConfig& audio_decoder_config) {
-  SbMediaAudioHeader audio_header;
+  SbMediaAudioSampleInfo audio_sample_info;
 
+#if SB_API_VERSION >= 11
+  audio_sample_info.codec =
+      MediaAudioCodecToSbMediaAudioCodec(audio_decoder_config.codec());
+#endif  // SB_API_VERSION >= 11
   // TODO: Make this work with non AAC audio.
-  audio_header.format_tag = 0x00ff;
-  audio_header.number_of_channels =
+  audio_sample_info.format_tag = 0x00ff;
+  audio_sample_info.number_of_channels =
       ChannelLayoutToChannelCount(audio_decoder_config.channel_layout());
-  audio_header.samples_per_second = audio_decoder_config.samples_per_second();
-  audio_header.average_bytes_per_second = 1;
-  audio_header.block_alignment = 4;
-  audio_header.bits_per_sample = audio_decoder_config.bits_per_channel();
+  audio_sample_info.samples_per_second =
+      audio_decoder_config.samples_per_second();
+  audio_sample_info.average_bytes_per_second = 1;
+  audio_sample_info.block_alignment = 4;
+  audio_sample_info.bits_per_sample = audio_decoder_config.bits_per_channel();
 
 #if SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
-  audio_header.audio_specific_config_size =
+  audio_sample_info.audio_specific_config_size =
       static_cast<uint16_t>(audio_decoder_config.extra_data().size());
-  if (audio_header.audio_specific_config_size == 0) {
-    audio_header.audio_specific_config = NULL;
+  if (audio_sample_info.audio_specific_config_size == 0) {
+    audio_sample_info.audio_specific_config = NULL;
   } else {
-    audio_header.audio_specific_config = &audio_decoder_config.extra_data()[0];
+    audio_sample_info.audio_specific_config =
+        &audio_decoder_config.extra_data()[0];
   }
 #else   // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
-  audio_header.audio_specific_config_size = static_cast<uint16_t>(
+  audio_sample_info.audio_specific_config_size = static_cast<uint16_t>(
       std::min(audio_decoder_config.extra_data().size(),
-               sizeof(audio_header.audio_specific_config)));
-  if (audio_header.audio_specific_config_size > 0) {
-    SbMemoryCopy(audio_header.audio_specific_config,
+               sizeof(audio_sample_info.audio_specific_config)));
+  if (audio_sample_info.audio_specific_config_size > 0) {
+    SbMemoryCopy(audio_sample_info.audio_specific_config,
                  &audio_decoder_config.extra_data()[0],
-                 audio_header.audio_specific_config_size);
+                 audio_sample_info.audio_specific_config_size);
   }
 #endif  // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
 
-  return audio_header;
+  return audio_sample_info;
 }
 
 DemuxerStream::Type SbMediaTypeToDemuxerStreamType(SbMediaType type) {

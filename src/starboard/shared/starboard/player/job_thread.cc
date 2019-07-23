@@ -14,7 +14,7 @@
 
 #include "starboard/shared/starboard/player/job_thread.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace starboard {
 namespace shared {

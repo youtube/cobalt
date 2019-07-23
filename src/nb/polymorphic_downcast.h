@@ -17,7 +17,7 @@
 #ifndef NB_POLYMORPHIC_DOWNCAST_H_
 #define NB_POLYMORPHIC_DOWNCAST_H_
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace nb {
 

@@ -14,7 +14,7 @@
 
 #include "starboard/shared/wayland/native_display_type.h"
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #include "starboard/shared/wayland/application_wayland.h"
 
 NativeDisplayType WaylandNativeDisplayType() {

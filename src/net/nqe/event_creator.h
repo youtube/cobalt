@@ -46,7 +46,7 @@ class NET_EXPORT_PRIVATE EventCreator {
   //  The network quality when the net log event was last added.
   NetworkQuality past_network_quality_;
 
-  base::ThreadChecker thread_checker_;
+  THREAD_CHECKER(thread_checker_);
 
   DISALLOW_COPY_AND_ASSIGN(EventCreator);
 };

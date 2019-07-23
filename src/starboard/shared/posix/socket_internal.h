@@ -19,8 +19,8 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 
+#include "starboard/common/socket.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/types.h"
 

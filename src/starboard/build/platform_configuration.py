@@ -142,6 +142,18 @@ class PlatformConfiguration(object):
     assert self._application_configuration
     return self._application_configuration
 
+  def SetupPlatformTools(self, build_number):
+    """Install tools, SDKs, etc. needed to build for the platform.
+
+    Installs tools needed to build for this platform, possibly downloading
+    and/or interacting with the user to do so. Raises a RuntimeError if the
+    tools can't be installed or something is wrong that will prevent building.
+
+    Args:
+      build_number: The number identifying this build, generated at GYP time.
+    """
+    pass
+
   def GetIncludes(self):
     """Get a list of absolute paths to gypi files to include in order.
 
@@ -295,13 +307,15 @@ class PlatformConfiguration(object):
     """
     return []
 
-  def GetDeployDirs(self):
-    """Gets directories that need to be deployed to the device.
+  def GetDeployPathPatterns(self):
+    """Gets deployment paths patterns for files to be included for deployement.
 
-       Returns:
-         A list of paths within the PRODUCT_DIR (src/out/<PLATFORM>_<CONFIG>)
-         that need to be deployed in order for the platform launcher to run the
-         target executable(s).
+    Example: ['deploy/*.exe', 'content/*']
+
+    Returns:
+      A list of path wildcard patterns within the PRODUCT_DIR
+      (src/out/<PLATFORM>_<CONFIG>) that need to be deployed in order for the
+      platform launcher to run target executable(s).
     """
     raise NotImplementedError()
 

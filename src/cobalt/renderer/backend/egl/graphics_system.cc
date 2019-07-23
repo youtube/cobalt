@@ -35,6 +35,8 @@
 #include "glimp/tracing/tracing.h"
 #endif
 
+#include "cobalt/renderer/egl_and_gles.h"
+
 namespace cobalt {
 namespace renderer {
 namespace backend {
@@ -75,7 +77,8 @@ base::Optional<ChooseConfigResult> ChooseConfig(
     // just return the first config that matches the provided attributes.
     EGLint num_configs;
     EGLConfig config;
-    eglChooseConfig(display, attribute_list, &config, 1, &num_configs);
+    EGL_CALL_SIMPLE(
+        eglChooseConfig(display, attribute_list, &config, 1, &num_configs));
     DCHECK_GE(1, num_configs);
 
     if (num_configs == 1) {
@@ -93,21 +96,20 @@ base::Optional<ChooseConfigResult> ChooseConfig(
   // test to see if we can successfully call eglCreateWindowSurface() with them.
   // Return the first config that succeeds the above test.
   EGLint num_configs = 0;
-  eglChooseConfig(display, attribute_list, NULL, 0, &num_configs);
-  CHECK_EQ(EGL_SUCCESS, eglGetError());
+  EGL_CALL(eglChooseConfig(display, attribute_list, NULL, 0, &num_configs));
   CHECK_LT(0, num_configs);
 
   std::unique_ptr<EGLConfig[]> configs(new EGLConfig[num_configs]);
-  eglChooseConfig(display, attribute_list, configs.get(), num_configs,
-                  &num_configs);
+  EGL_CALL_SIMPLE(eglChooseConfig(display, attribute_list, configs.get(),
+                                  num_configs, &num_configs));
 
   EGLNativeWindowType native_window =
       (EGLNativeWindowType)(system_window->GetWindowHandle());
 
   for (EGLint i = 0; i < num_configs; ++i) {
-    EGLSurface surface =
-        eglCreateWindowSurface(display, configs[i], native_window, NULL);
-    if (EGL_SUCCESS == eglGetError()) {
+    EGLSurface surface = EGL_CALL_SIMPLE(
+        eglCreateWindowSurface(display, configs[i], native_window, NULL));
+    if (EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError())) {
       // We did it, we found a config that allows us to successfully create
       // a surface.  Return the config along with the created surface.
       ChooseConfigResult result;
@@ -133,9 +135,9 @@ GraphicsSystemEGL::GraphicsSystemEGL(
   glimp::SetTraceEventImplementation(&s_glimp_to_base_trace_event_bridge);
 #endif  // #if defined(ENABLE_GLIMP_TRACING)
 
-  display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+  display_ = EGL_CALL_SIMPLE(eglGetDisplay(EGL_DEFAULT_DISPLAY));
   CHECK_NE(EGL_NO_DISPLAY, display_);
-  CHECK_EQ(EGL_SUCCESS, eglGetError());
+  CHECK_EQ(EGL_SUCCESS, EGL_CALL_SIMPLE(eglGetError()));
 
   {
     // Despite eglTerminate() being used in the destructor, the current
@@ -204,10 +206,10 @@ GraphicsSystemEGL::~GraphicsSystemEGL() {
   resource_context_.reset();
 
   if (window_surface_ != EGL_NO_SURFACE) {
-    eglDestroySurface(display_, window_surface_);
+    EGL_CALL_SIMPLE(eglDestroySurface(display_, window_surface_));
   }
 
-  eglTerminate(display_);
+  EGL_CALL_SIMPLE(eglTerminate(display_));
 }
 
 std::unique_ptr<Display> GraphicsSystemEGL::CreateDisplay(
@@ -220,8 +222,9 @@ std::unique_ptr<Display> GraphicsSystemEGL::CreateDisplay(
   } else {
     EGLNativeWindowType native_window =
         (EGLNativeWindowType)(system_window->GetWindowHandle());
-    surface = eglCreateWindowSurface(display_, config_, native_window, NULL);
-    CHECK_EQ(EGL_SUCCESS, eglGetError());
+    surface = EGL_CALL_SIMPLE(
+        eglCreateWindowSurface(display_, config_, native_window, NULL));
+    CHECK_EQ(EGL_SUCCESS, EGL_CALL_SIMPLE(eglGetError()));
   }
 
   return std::unique_ptr<Display>(new DisplayEGL(display_, surface));

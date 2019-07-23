@@ -1,0 +1,677 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|ORBIS">
+      <Configuration>Debug</Configuration>
+      <Platform>ORBIS</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|ORBIS">
+      <Configuration>Release</Configuration>
+      <Platform>ORBIS</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{DCE19DAF-69AC-46DB-B14A-39F0FAA5DB74}</ProjectGuid>
+    <RootNamespace>vpx</RootNamespace>
+    <Keyword>ManagedCProj</Keyword>
+    <ProjectName>vp9-dec-core</ProjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>Clang</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(ProgramFiles)\SCE\ORBIS SDKs\3.500\host_tools\msbuild\SceShader.props" />
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\OrbisWavePsslc.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>$(SolutionDir)..\lib\msvs10\$(Configuration)\win$(PlatformArchitecture)\</OutDir>
+    <IntDir>$(SolutionDir)..\obj\msvs10\$(ProjectName)\$(Configuration)\win$(PlatformArchitecture)\</IntDir>
+    <TargetName>$(ProjectName)$(PlatformArchitecture)</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>$(SolutionDir)..\lib\msvs10\$(Configuration)\win$(PlatformArchitecture)\</OutDir>
+    <IntDir>$(SolutionDir)..\obj\msvs10\$(ProjectName)\$(Configuration)\win$(PlatformArchitecture)\</IntDir>
+    <TargetName>$(ProjectName)$(PlatformArchitecture)</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">
+    <TargetName>$(ProjectName)</TargetName>
+    <GnmUseGnm>true</GnmUseGnm>
+    <GnmUseGnmx>true</GnmUseGnmx>
+    <GnmUseAddressLibrary>true</GnmUseAddressLibrary>
+    <GnmUseLibShaderBinary>true</GnmUseLibShaderBinary>
+    <GnmUseGNF>true</GnmUseGNF>
+    <GnmUseTextureTool>false</GnmUseTextureTool>
+    <GnmUsePM4Dump>true</GnmUsePM4Dump>
+    <GnmUseSampleCommon>false</GnmUseSampleCommon>
+    <GnmProjectType>SampleLib</GnmProjectType>
+    <OutDir>$(SolutionDir)lib\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)obj\$(ProjectName)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(SolutionDir)..\lib\msvs10\$(Configuration)\win$(PlatformArchitecture)\</OutDir>
+    <IntDir>$(SolutionDir)..\obj\msvs10\$(ProjectName)\$(Configuration)\win$(PlatformArchitecture)\</IntDir>
+    <TargetName>$(ProjectName)$(PlatformArchitecture)</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>$(SolutionDir)..\lib\msvs10\$(Configuration)\win$(PlatformArchitecture)\</OutDir>
+    <IntDir>$(SolutionDir)..\obj\msvs10\$(ProjectName)\$(Configuration)\win$(PlatformArchitecture)\</IntDir>
+    <TargetName>$(ProjectName)$(PlatformArchitecture)</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">
+    <TargetName>$(ProjectName)</TargetName>
+    <OutDir>$(SolutionDir)lib\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)obj\$(ProjectName)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <PreBuildEvent>
+      <Command>cd ./script
+call amd_build.bat</Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>.;..;$(SolutionDir)/../../Thirdparty/amd/mcl/1.6/amdmcl/inc;$(ProjectDir)build_$(Platform);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+    </ClCompile>
+    <Lib>
+      <AdditionalLibraryDirectories>
+      </AdditionalLibraryDirectories>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>.;..;$(SolutionDir)/../../Thirdparty/amd/mcl/1.6/amdmcl/inc;$(ProjectDir)build_$(Platform);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+    </ClCompile>
+    <Lib>
+      <AdditionalLibraryDirectories>
+      </AdditionalLibraryDirectories>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+    </Lib>
+    <ProjectReference>
+      <LinkLibraryDependencies>true</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>.;..;$(SolutionDir)../Thirdparty/amd/mcl/1.6/amdmcl/inc;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>LUXOFT_VP9_ENABLE_SCALING;_DEBUG;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </ClCompile>
+    <Lib>
+      <AdditionalLibraryDirectories>
+      </AdditionalLibraryDirectories>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+    </Lib>
+    <ProjectReference>
+      <LinkLibraryDependencies>true</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <PreBuildEvent>
+      <Command>cd ./script
+call amd_build.bat</Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <Optimization>MaxSpeed</Optimization>
+      <AdditionalIncludeDirectories>.;..;$(SolutionDir)/../../Thirdparty/amd/mcl/1.6/amdmcl/inc;$(ProjectDir)build_$(Platform);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+    </ClCompile>
+    <Lib>
+      <AdditionalLibraryDirectories>
+      </AdditionalLibraryDirectories>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <PreBuildEvent>
+      <Command>cd ./script
+call amd_build.bat</Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <Optimization>MaxSpeed</Optimization>
+      <AdditionalIncludeDirectories>.;..;$(SolutionDir)/../../Thirdparty/amd/mcl/1.6/amdmcl/inc;$(ProjectDir)build_$(Platform);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+    </ClCompile>
+    <Lib>
+      <AdditionalLibraryDirectories>$(AMDAPPSDKROOT)\lib\x86_64;</AdditionalLibraryDirectories>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <Optimization>MaxSpeed</Optimization>
+      <AdditionalIncludeDirectories>.;..;$(SolutionDir)../Thirdparty/amd/mcl/1.6/amdmcl/inc;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>LUXOFT_VP9_ENABLE_SCALING;WIN32;NDEBUG;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <OptimizationLevel>Level3</OptimizationLevel>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <LinkTimeOptimization>true</LinkTimeOptimization>
+      <NoStrictAliasing>true</NoStrictAliasing>
+      <UnrollLoops>false</UnrollLoops>
+    </ClCompile>
+    <Lib>
+      <AdditionalLibraryDirectories>$(AMDAPPSDKROOT)\lib\x86_64;</AdditionalLibraryDirectories>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\vp9\common\vp9_scale.c" />
+    <ClCompile Include="..\vp9\common\vp9_scan.c" />
+    <ClCompile Include="..\vp9\decoder\vp9lux_inter.cpp" />
+    <ClCompile Include="..\vp9\decoder\vp9lux_decode_block.cpp" />
+    <ClCompile Include="..\vp9\decoder\vp9lux_intra.cpp" />
+    <ClCompile Include="..\vp9\decoder\vp9lux_linear_allocator.cpp" />
+    <ClCompile Include="..\vp9\decoder\vp9lux_loopfilter.cpp" />
+    <ClCompile Include="..\vp9\decoder\vp9lux_dec.cpp">
+      <OptimizationLevel Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Levels</OptimizationLevel>
+    </ClCompile>
+    <ClCompile Include="..\vp9\decoder\vp9lux_gpu_mem_ps4.cpp">
+      <OptimizationLevel Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Levels</OptimizationLevel>
+      <LinkTimeOptimization Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">false</LinkTimeOptimization>
+    </ClCompile>
+    <ClCompile Include="..\vp9\decoder\vp9lux_gpu_programs.cpp" />
+    <ClCompile Include="..\vp9\decoder\vp9lux_thread.c" />
+    <ClCompile Include="..\vp9\decoder\vp9lux_transform.cpp" />
+    <ClCompile Include="..\vpx\src\vpx_decoder.c">
+      <ObjectFileName>$(IntDir)vpx_src_vpx_decoder.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\vpx\src\vpx_codec.c">
+      <ObjectFileName>$(IntDir)vpx_src_vpx_codec.obj</ObjectFileName>
+      <OptimizationLevel Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Level3</OptimizationLevel>
+      <LinkTimeOptimization Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">true</LinkTimeOptimization>
+    </ClCompile>
+    <ClCompile Include="..\vpx\src\vpx_image.c">
+      <ObjectFileName>$(IntDir)vpx_src_vpx_image.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\vpx_mem\vpx_mem.c">
+      <ObjectFileName>$(IntDir)vpx_mem_vpx_mem.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\vpx_scale\generic\vpx_scale.c">
+      <ObjectFileName>$(IntDir)vpx_scale_generic_vpx_scale.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\vpx_scale\generic\yv12config.c">
+      <ObjectFileName>$(IntDir)vpx_scale_generic_yv12config.obj</ObjectFileName>
+      <OptimizationLevel Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Level3</OptimizationLevel>
+      <LinkTimeOptimization Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">true</LinkTimeOptimization>
+    </ClCompile>
+    <ClCompile Include="..\vpx_scale\generic\yv12extend.c">
+      <ObjectFileName>$(IntDir)vpx_scale_generic_yv12extend.obj</ObjectFileName>
+      <OptimizationLevel Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Level3</OptimizationLevel>
+      <LinkTimeOptimization Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">true</LinkTimeOptimization>
+    </ClCompile>
+    <ClCompile Include="..\vpx_scale\generic\gen_scalers.c">
+      <ObjectFileName>$(IntDir)vpx_scale_generic_gen_scalers.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\vpx_scale\vpx_scale_rtcd.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\vp9\common\vp9_blockd.c">
+      <ObjectFileName>$(IntDir)vp9_common_vp9_blockd.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\vp9\common\vp9_debugmodes.c">
+      <ObjectFileName>$(IntDir)vp9_common_vp9_debugmodes.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\vp9\common\vp9_entropy.c">
+      <ObjectFileName>$(IntDir)vp9_common_vp9_entropy.obj</ObjectFileName>
+      <OptimizationLevel Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Level3</OptimizationLevel>
+    </ClCompile>
+    <ClCompile Include="..\vp9\common\vp9_entropymode.c">
+      <ObjectFileName>$(IntDir)vp9_common_vp9_entropymode.obj</ObjectFileName>
+      <OptimizationLevel Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Level3</OptimizationLevel>
+    </ClCompile>
+    <ClCompile Include="..\vp9\common\vp9_entropymv.c">
+      <ObjectFileName>$(IntDir)vp9_common_vp9_entropymv.obj</ObjectFileName>
+      <OptimizationLevel Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Level3</OptimizationLevel>
+    </ClCompile>
+    <ClCompile Include="..\vp9\common\vp9_pred_common.c">
+      <ObjectFileName>$(IntDir)vp9_common_vp9_pred_common.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\vp9\common\vp9_prob.c">
+      <ObjectFileName>$(IntDir)vp9_common_vp9_prob.obj</ObjectFileName>
+      <OptimizationLevel Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Level3</OptimizationLevel>
+    </ClCompile>
+    <ClCompile Include="..\vp9\common\vp9_seg_common.c">
+      <ObjectFileName>$(IntDir)vp9_common_vp9_seg_common.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\vp9\common\vp9_thread.c">
+      <ObjectFileName>$(IntDir)vp9_common_vp9_thread.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\vp9\common\vp9_tile_common.c">
+      <ObjectFileName>$(IntDir)vp9_common_vp9_tile_common.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\vp9\common\vp9_loopfilter.c">
+      <ObjectFileName>$(IntDir)vp9_common_vp9_loopfilter.obj</ObjectFileName>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\vp9\common\vp9_mvref_common.c">
+      <ObjectFileName>$(IntDir)vp9_common_vp9_mvref_common.obj</ObjectFileName>
+      <OptimizationLevel Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Levels</OptimizationLevel>
+    </ClCompile>
+    <ClCompile Include="..\vp9\common\vp9_quant_common.c">
+      <ObjectFileName>$(IntDir)vp9_common_vp9_quant_common.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\vp9\common\vp9_common_data.c">
+      <ObjectFileName>$(IntDir)vp9_common_vp9_common_data.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\vp9\vp9_dx_iface.c">
+      <ObjectFileName>$(IntDir)vp9_vp9_dx_iface.obj</ObjectFileName>
+      <OptimizationLevel Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Level3</OptimizationLevel>
+      <LinkTimeOptimization Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">true</LinkTimeOptimization>
+    </ClCompile>
+    <ClCompile Include="..\vp9\decoder\vp9_decodemv.c">
+      <ObjectFileName>$(IntDir)vp9_decoder_vp9_decodemv.obj</ObjectFileName>
+      <OptimizationLevel Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Levels</OptimizationLevel>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">-Wno-unused-function %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <ClCompile Include="..\vp9\decoder\vp9_decodeframe.c">
+      <ObjectFileName>$(IntDir)vp9_decoder_vp9_decodeframe.obj</ObjectFileName>
+      <OptimizationLevel Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Level3</OptimizationLevel>
+    </ClCompile>
+    <ClCompile Include="..\vp9\decoder\vp9_detokenize.c">
+      <ObjectFileName>$(IntDir)vp9_decoder_vp9_detokenize.obj</ObjectFileName>
+      <OptimizationLevel Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Level3</OptimizationLevel>
+      <UnrollLoops Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">false</UnrollLoops>
+    </ClCompile>
+    <ClCompile Include="..\vp9\decoder\vp9_reader.c">
+      <ObjectFileName>$(IntDir)vp9_decoder_vp9_reader.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\vp9\decoder\vp9_read_bit_buffer.c">
+      <ObjectFileName>$(IntDir)vp9_decoder_vp9_read_bit_buffer.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\vp9\decoder\vp9_decoder.c">
+      <ObjectFileName>$(IntDir)vp9_decoder_vp9_decoder.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\vp9\decoder\vp9_dsubexp.c">
+      <ObjectFileName>$(IntDir)vp9_decoder_vp9_dsubexp.obj</ObjectFileName>
+      <OptimizationLevel Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">Level3</OptimizationLevel>
+    </ClCompile>
+    <None Include="..\vpx.def" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\vp9\common\vp9lux_log.h" />
+    <ClInclude Include="..\vp9\common\vp9_onyxc_int.h" />
+    <ClInclude Include="..\vp9\common\vp9_scale.h" />
+    <ClInclude Include="..\vp9\common\vp9_scan.h" />
+    <ClInclude Include="..\vp9\decoder\kernels\pssl_common.h" />
+    <ClInclude Include="..\vp9\decoder\kernels\pssl_genblock_common.h" />
+    <ClInclude Include="..\vp9\decoder\kernels\pssl_idct_base.h" />
+    <ClInclude Include="..\vp9\decoder\kernels\pssl_inter_common.h" />
+    <ClInclude Include="..\vp9\decoder\kernels\pssl_intra_common.h" />
+    <ClInclude Include="..\vp9\decoder\kernels\pssl_lf_common.h" />
+    <ClInclude Include="..\vp9\decoder\vp9lux_inter.h" />
+    <ClInclude Include="..\vp9\decoder\vp9lux_decode_block.h" />
+    <ClInclude Include="..\vp9\decoder\vp9lux_intra_modes_table_binary.h" />
+    <ClInclude Include="..\vp9\decoder\vp9lux_intra.h" />
+    <ClInclude Include="..\vp9\decoder\vp9lux_linear_allocator.h" />
+    <ClInclude Include="..\vp9\decoder\vp9lux_loopfilter.h" />
+    <ClInclude Include="..\vp9\decoder\vp9lux_dec.h" />
+    <ClInclude Include="..\vp9\decoder\vp9lux_gpu_programs.h" />
+    <ClInclude Include="..\vp9\decoder\vp9lux_thread.h" />
+    <ClInclude Include="..\vp9\decoder\vp9lux_transform.h" />
+    <ClInclude Include="..\vp9\decoder\vp9lux_types.h" />
+    <ClInclude Include="..\vpx\vpx_decoder.h" />
+    <ClInclude Include="..\vpx\internal\vpx_codec_internal.h" />
+    <ClInclude Include="..\vpx\vpx_codec.h" />
+    <ClInclude Include="..\vpx\vpx_frame_buffer.h" />
+    <ClInclude Include="..\vpx\vpx_hw_image.h" />
+    <ClInclude Include="..\vpx\vpx_image.h" />
+    <ClInclude Include="..\vpx\vpx_integer.h" />
+    <ClInclude Include="..\vpx_mem\vpx_mem.h" />
+    <ClInclude Include="..\vpx_mem\include\vpx_mem_intrnl.h" />
+    <ClInclude Include="..\vpx_scale\yv12config.h" />
+    <ClInclude Include="..\vpx_scale\vpx_scale.h" />
+    <ClInclude Include="..\vpx_ports\asm_offsets.h" />
+    <ClInclude Include="..\vpx_ports\mem.h" />
+    <ClInclude Include="..\vpx_ports\vpx_timer.h" />
+    <ClInclude Include="..\vpx_ports\x86.h" />
+    <ClInclude Include="..\vp9\common\vp9_ppflags.h" />
+    <ClInclude Include="..\vp9\common\vp9_filter.h" />
+    <ClInclude Include="..\vp9\common\vp9_frame_buffers.h" />
+    <ClInclude Include="..\vp9\common\vp9_blockd.h" />
+    <ClInclude Include="..\vp9\common\vp9_common.h" />
+    <ClInclude Include="..\vp9\common\vp9_entropy.h" />
+    <ClInclude Include="..\vp9\common\vp9_entropymode.h" />
+    <ClInclude Include="..\vp9\common\vp9_entropymv.h" />
+    <ClInclude Include="..\vp9\common\vp9_enums.h" />
+    <ClInclude Include="..\vp9\common\vp9_loopfilter.h" />
+    <ClInclude Include="..\vp9\common\vp9_mv.h" />
+    <ClInclude Include="..\vp9\common\vp9_pred_common.h" />
+    <ClInclude Include="..\vp9\common\vp9_prob.h" />
+    <ClInclude Include="..\vp9\common\vp9_quant_common.h" />
+    <ClInclude Include="..\vp9\common\vp9_seg_common.h" />
+    <ClInclude Include="..\vp9\common\vp9_systemdependent.h" />
+    <ClInclude Include="..\vp9\common\vp9_textblit.h" />
+    <ClInclude Include="..\vp9\common\vp9_thread.h" />
+    <ClInclude Include="..\vp9\common\vp9_tile_common.h" />
+    <ClInclude Include="..\vp9\common\vp9_mvref_common.h" />
+    <ClInclude Include="..\vp9\common\vp9_common_data.h" />
+    <ClInclude Include="..\vp9\decoder\vp9_decodeframe.h" />
+    <ClInclude Include="..\vp9\decoder\vp9_dthread.h" />
+    <ClInclude Include="..\vp9\decoder\vp9_reader.h" />
+    <ClInclude Include="..\vp9\decoder\vp9_read_bit_buffer.h" />
+    <ClInclude Include="..\vp9\decoder\vp9_decodemv.h" />
+    <ClInclude Include="..\vp9\decoder\vp9_detokenize.h" />
+    <ClInclude Include="..\vp9\decoder\vp9_decoder.h" />
+    <ClInclude Include="..\vp9\decoder\vp9_dsubexp.h" />
+    <ClInclude Include="..\vpx_ports\emmintrin_compat.h" />
+    <ClInclude Include="..\vpx_ports\mem_ops.h" />
+    <ClInclude Include="..\vpx_ports\mem_ops_aligned.h" />
+    <ClInclude Include="vpx_scale_rtcd.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">false</ExcludedFromBuild>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\vpx\vpx_codec.mk" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\idct_16x16full_c.pssl">
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\idct_32x32full_c.pssl">
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\idct_8x8full_c.pssl">
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_compound_c.pssl">
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_main_c.pssl">
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_ext_borders_c.pssl">
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\intra_main_c.pssl">
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\lf_c.pssl">
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\idct_4x4full_c.pssl">
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\idct_4x4lossless_c.pssl">
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_resize_c.pssl">
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_resize_compound_c.pssl">
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_main_copy_c.pssl">
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_main_hor_c.pssl">
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_main_ver_c.pssl">
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\gen_blocks_c.pssl">
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\idct_clear_block_c.pssl">
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\gen_blocks_lf_c.pssl">
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\idct_16x16full_hbd_c.pssl">
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">sce_cs_orbis</Profile>
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\idct_32x32full_hbd_c.pssl">
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">sce_cs_orbis</Profile>
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\idct_4x4full_hbd_c.pssl">
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">sce_cs_orbis</Profile>
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\idct_4x4lossless_hbd_c.pssl">
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">sce_cs_orbis</Profile>
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\idct_8x8full_hbd_c.pssl">
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">sce_cs_orbis</Profile>
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\intra_main_hbd_c.pssl">
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">sce_cs_orbis</Profile>
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\intra_fillborder_c.pssl">
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">sce_cs_orbis</Profile>
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_main_hbd_c.pssl">
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">sce_cs_orbis</Profile>
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_compound_hbd_c.pssl">
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">sce_cs_orbis</Profile>
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\lf_hbd_c.pssl">
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_ext_borders_hbd_c.pssl">
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">sce_cs_orbis</Profile>
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_resize_compound_hbd_c.pssl">
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">sce_cs_orbis</Profile>
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_resize_hbd_c.pssl">
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">sce_cs_orbis</Profile>
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_copy_hbd_c.pssl">
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">sce_cs_orbis</Profile>
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_hor_hbd_c.pssl">
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">sce_cs_orbis</Profile>
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+    <Compile_PSSL_To_Header Include="..\vp9\decoder\kernels\inter_ver_hbd_c.pssl">
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|ORBIS'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">sce_cs_orbis</Profile>
+      <Profile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">sce_cs_orbis</Profile>
+      <FileType>Document</FileType>
+    </Compile_PSSL_To_Header>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(ProgramFiles)\SCE\ORBIS SDKs\3.500\host_tools\msbuild\SceShader.targets" />
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\OrbisWavePsslc.targets" />
+  </ImportGroup>
+</Project>

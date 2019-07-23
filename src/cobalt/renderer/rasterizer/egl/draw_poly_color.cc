@@ -14,13 +14,13 @@
 
 #include "cobalt/renderer/rasterizer/egl/draw_poly_color.h"
 
-#include <GLES2/gl2.h>
 #include <algorithm>
 
 #include "base/logging.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/renderer/backend/egl/utils.h"
+#include "cobalt/renderer/egl_and_gles.h"
 #include "egl/generated_shader_impl.h"
 #include "starboard/memory.h"
 

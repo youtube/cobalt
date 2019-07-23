@@ -15,7 +15,7 @@
 #include "starboard/system.h"
 
 #include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 using starboard::android::shared::JniEnvExt;
 

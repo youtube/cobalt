@@ -39,7 +39,7 @@ void AnnotateMozCrashReason(const char* aReason);
 #endif
 
 #if defined(STARBOARD)
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 #else
 #include <stddef.h>
 #include <stdio.h>

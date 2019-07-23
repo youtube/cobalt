@@ -17,8 +17,8 @@
 
 #include <queue>
 
+#include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
-#include "starboard/mutex.h"
 #include "starboard/raspi/shared/dispmanx_util.h"
 
 namespace starboard {

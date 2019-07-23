@@ -14,10 +14,8 @@
 
 #include "starboard/blitter.h"
 
-#include <EGL/egl.h>
-
-#include "starboard/log.h"
-#include "starboard/shared/blittergles/blitter_internal.h"
+#include "starboard/common/log.h"
+#include "starboard/shared/blittergles/blitter_context.h"
 
 bool SbBlitterDestroyContext(SbBlitterContext context) {
   if (!SbBlitterIsContextValid(context)) {
@@ -25,29 +23,12 @@ bool SbBlitterDestroyContext(SbBlitterContext context) {
     return false;
   }
 
-  if (context->egl_context != EGL_NO_CONTEXT) {
-    starboard::ScopedLock lock(context->device->mutex);
+  starboard::shared::blittergles::SbBlitterContextRegistry* context_registry =
+      starboard::shared::blittergles::GetBlitterContextRegistry();
+  starboard::ScopedLock lock(context_registry->mutex);
 
-    // For now, we assume context is already unbound, as we bind and unbind
-    // context after every Blitter API call that uses it.
-    // TODO: Optimize eglMakeCurrent calls, so rebinding is not needed for every
-    // API call.
-    eglDestroyContext(context->device->display, context->egl_context);
-    if (eglGetError() != EGL_SUCCESS) {
-      SB_DLOG(ERROR) << ": Failed to destroy egl_context.";
-      return false;
-    }
-  }
+  context_registry->in_use = false;
+  context = kSbBlitterInvalidContext;
 
-  if (context->dummy_surface != EGL_NO_SURFACE) {
-    starboard::ScopedLock lock(context->device->mutex);
-    eglDestroySurface(context->device->display, context->dummy_surface);
-    if (eglGetError() != EGL_SUCCESS) {
-      SB_DLOG(ERROR) << ": Failed to destroy dummy_surface.";
-      return false;
-    }
-  }
-
-  delete context;
   return true;
 }

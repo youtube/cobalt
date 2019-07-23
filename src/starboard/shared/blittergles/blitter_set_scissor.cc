@@ -13,9 +13,25 @@
 // limitations under the License.
 
 #include "starboard/blitter.h"
-#include "starboard/log.h"
+
+#include "starboard/common/log.h"
+#include "starboard/shared/blittergles/blitter_context.h"
 
 bool SbBlitterSetScissor(SbBlitterContext context, SbBlitterRect rect) {
-  SB_NOTREACHED();
-  return false;
+  if (!SbBlitterIsContextValid(context)) {
+    SB_DLOG(ERROR) << ": Invalid context.";
+    return false;
+  }
+  if (rect.width < 0 || rect.height < 0) {
+    SB_DLOG(ERROR) << ": Width and heigh must both be >= 0.";
+    return false;
+  }
+  if (!SbBlitterIsRenderTargetValid(context->current_render_target)) {
+    SB_DLOG(ERROR) << ": Render target must be previously specified on a "
+                   << "context before setting the scissor.";
+    return false;
+  }
+
+  context->scissor = rect;
+  return true;
 }

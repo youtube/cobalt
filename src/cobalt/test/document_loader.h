@@ -52,7 +52,8 @@ class DocumentLoader : public dom::DocumentObserver {
         dom_parser_(new dom_parser::Parser()),
         resource_provider_stub_(new render_tree::ResourceProviderStub()),
         loader_factory_(new loader::LoaderFactory(
-            &fetcher_factory_, resource_provider_stub_.get(),
+            "Test" /* name */, &fetcher_factory_, resource_provider_stub_.get(),
+            0 /* encoded_image_cache_capacity */,
             base::ThreadPriority::BACKGROUND)),
         image_cache_(loader::image::CreateImageCache(
             "Test.ImageCache", 32U * 1024 * 1024, loader_factory_.get())),

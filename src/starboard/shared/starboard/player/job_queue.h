@@ -18,9 +18,11 @@
 #include <functional>
 #include <map>
 
-#include "starboard/condition_variable.h"
-#include "starboard/mutex.h"
+#include "starboard/common/condition_variable.h"
+#include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/thread.h"
 #include "starboard/time.h"
 
 #ifndef __cplusplus

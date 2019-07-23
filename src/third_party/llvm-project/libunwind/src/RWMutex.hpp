@@ -14,7 +14,9 @@
 #ifndef __RWMUTEX_HPP__
 #define __RWMUTEX_HPP__
 
-#if defined(_WIN32)
+#if defined(_LIBUNWIND_HAS_STARBOARD_THREADS)
+#include "starboard/common/rwlock.h"
+#elif defined(_WIN32)
 #include <windows.h>
 #elif !defined(_LIBUNWIND_HAS_NO_THREADS)
 #include <pthread.h>
@@ -22,7 +24,40 @@
 
 namespace libunwind {
 
-#if defined(_LIBUNWIND_HAS_NO_THREADS)
+#if defined(_LIBUNWIND_HAS_STARBOARD_THREADS)
+
+// RWMutex implements a readers-writer mutex on top of the core Starboard
+// interface.
+class _LIBUNWIND_HIDDEN RWMutex {
+public:
+  RWMutex() = default;
+  ~RWMutex() = default;
+
+  bool lock_shared() {
+    _lock.AcquireReadLock();
+    return true;
+  }
+
+  bool unlock_shared() {
+    _lock.ReleaseReadLock();
+    return true;
+  }
+
+  bool lock() {
+    _lock.AcquireWriteLock();
+    return true;
+  }
+
+  bool unlock() {
+    _lock.ReleaseWriteLock();
+    return true;
+  }
+
+private:
+  starboard::RWLock _lock;
+};
+
+#elif defined(_LIBUNWIND_HAS_NO_THREADS)
 
 class _LIBUNWIND_HIDDEN RWMutex {
 public:

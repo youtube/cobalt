@@ -17,7 +17,7 @@
 #include <sstream>
 #include <utility>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace starboard {
 namespace shared {

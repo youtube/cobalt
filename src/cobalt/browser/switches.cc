@@ -23,10 +23,6 @@ namespace switches {
 // message needs to be inserted to the help_map manually.
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 
-const char kAudioDecoderStub[] = "audio_decoder_stub";
-const char kAudioDecoderStubHelp[] =
-    "Decode audio data using ShellRawAudioDecoderStub.";
-
 const char kDebugConsoleMode[] = "debug_console";
 const char kDebugConsoleModeHelp[] =
     "Switches different debug console modes: on | hud | off";
@@ -59,6 +55,14 @@ const char kForceDeterministicRenderingHelp[] =
     "very similar, even if it is not exactly the same.  Setting this flag "
     "avoids that kind of behavior, allowing strict screen-diff tests to pass.";
 
+const char kDisableMediaCodecs[] = "disable_media_codecs";
+const char kDisableMediaCodecsHelp[] =
+    "Disables the semicolon-separated list of codecs that will be treated as "
+    "unsupported for media playback. Used for debugging and testing purposes."
+    "It uses sub-string match to determine whether a codec is disabled, for "
+    "example, setting the value to \"avc;hvc\" will disable any h264 and h265 "
+    "playbacks.";
+
 const char kDisableRasterizerCaching[] = "disable_rasterizer_caching";
 const char kDisableRasterizerCachingHelp[] =
     "Disables caching of rasterized render tree nodes; caching improves "
@@ -77,9 +81,6 @@ const char kDisableSplashScreenOnReloadsHelp[] =
 
 const char kDisableWebDriver[] = "disable_webdriver";
 const char kDisableWebDriverHelp[] = "Do not create the WebDriver server.";
-
-const char kDisableWebmVp9[] = "disable_webm_vp9";
-const char kDisableWebmVp9Help[] = "Disable webm/vp9.";
 
 const char kExtraWebFileDir[] = "web_file_path";
 const char kExtraWebFileDirHelp[] =
@@ -111,11 +112,6 @@ const char kMinCompatibilityVersionHelp[] =
 const char kMinLogLevel[] = "min_log_level";
 const char kMinLogLevelHelp[] =
     "Set the minimum logging level: info|warning|error|fatal.";
-
-const char kNullAudioStreamer[] = "null_audio_streamer";
-const char kNullAudioStreamerHelp[] =
-    "Use the NullAudioStreamer. Audio will be decoded but will not play back. "
-    "No audio output library will be initialized or used.";
 
 const char kNullSavegame[] = "null_savegame";
 const char kNullSavegameHelp[] =
@@ -185,10 +181,6 @@ const char kUseTTSHelp[] =
     "speech synthesis API. If the platform doesn't have speech synthesis, "
     "TTSLogger will be used instead.";
 
-extern const char kVideoDecoderStub[] = "video_decoder_stub";
-extern const char kVideoDecoderStubHelp[] =
-    "Decode video data using ShellRawVideoDecoderStub.";
-
 const char kWebDriverListenIp[] = "webdriver_listen_ip";
 const char kWebDriverListenIpHelp[] =
     "IP that the WebDriver server should be listening on. (INADDR_ANY if "
@@ -224,6 +216,12 @@ const char kEnableMapToMeshRectanglarHelp[] =
     "video on platforms that do not support stereoscopy natively, letting the "
     "client apply a stereo mesh projection (one that differs for each eye).";
 
+const char kEncodedImageCacheSizeInBytes[] =
+    "encoded_image_cache_size_in_bytes";
+const char kEncodedImageCacheSizeInBytesHelp[] =
+    "Determines the capacity of the encoded image cache which manages encoded "
+    "images downloaded from a web page. The cache uses CPU memory.";
+
 const char kForceMigrationForStoragePartitioning[] =
     "force_migration_for_storage_partitioning";
 const char kForceMigrationForStoragePartitioningHelp[] =
@@ -252,8 +250,8 @@ const char kHelpHelp[] = "Prints help information of cobalt command";
 const char kImageCacheSizeInBytes[] = "image_cache_size_in_bytes";
 const char kImageCacheSizeInBytesHelp[] =
     "Determines the capacity of the image cache which manages image "
-    "surfaces300 downloaded from a web page.  While it depends on the "
-    "platform, often (and ideally) these images are cached within GPU memory.";
+    "surfaces downloaded from a web page.  While it depends on the platform, "
+    "often (and ideally) these images are cached within GPU memory.";
 
 const char kInitialURL[] = "url";
 const char kInitialURLHelp[] =
@@ -384,26 +382,23 @@ std::string HelpMessage() {
   std::string help_message;
   std::map<const char*, const char*> help_map {
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-    {kAudioDecoderStub, kAudioDecoderStubHelp},
-        {kDebugConsoleMode, kDebugConsoleModeHelp},
+    {kDebugConsoleMode, kDebugConsoleModeHelp},
 #if defined(ENABLE_DEBUGGER)
         {kWaitForWebDebugger, kWaitForWebDebuggerHelp},
 #endif  // ENABLE_DEBUGGER
         {kDisableImageAnimations, kDisableImageAnimationsHelp},
         {kForceDeterministicRendering, kForceDeterministicRenderingHelp},
+        {kDisableMediaCodecs, kDisableMediaCodecsHelp},
         {kDisableRasterizerCaching, kDisableRasterizerCachingHelp},
         {kDisableSignIn, kDisableSignInHelp},
         {kDisableSplashScreenOnReloads, kDisableSplashScreenOnReloadsHelp},
         {kDisableWebDriver, kDisableWebDriverHelp},
-        {kDisableWebmVp9, kDisableWebmVp9Help},
         {kExtraWebFileDir, kExtraWebFileDirHelp},
         {kFakeMicrophone, kFakeMicrophoneHelp},
         {kIgnoreCertificateErrors, kIgnoreCertificateErrorsHelp},
         {kInputFuzzer, kInputFuzzerHelp}, {kMemoryTracker, kMemoryTrackerHelp},
         {kMinCompatibilityVersion, kMinCompatibilityVersionHelp},
-        {kMinLogLevel, kMinLogLevelHelp},
-        {kNullAudioStreamer, kNullAudioStreamerHelp},
-        {kNullSavegame, kNullSavegameHelp},
+        {kMinLogLevel, kMinLogLevelHelp}, {kNullSavegame, kNullSavegameHelp},
         {kDisablePartialLayout, kDisablePartialLayoutHelp}, {kProd, kProdHelp},
         {kRemoteDebuggingPort, kRemoteDebuggingPortHelp},
         {kRequireCSP, kRequireCSPHelp},
@@ -413,8 +408,7 @@ std::string HelpMessage() {
         {kSuspendFuzzer, kSuspendFuzzerHelp}, {kTimedTrace, kTimedTraceHelp},
         {kUserAgent, kUserAgentHelp},
         {kUserAgentOsNameVersion, kUserAgentOsNameVersionHelp},
-        {kUseTTS, kUseTTSHelp}, {kVideoDecoderStub, kVideoDecoderStubHelp},
-        {kWebDriverListenIp, kWebDriverListenIpHelp},
+        {kUseTTS, kUseTTSHelp}, {kWebDriverListenIp, kWebDriverListenIpHelp},
         {kWebDriverPort, kWebDriverPortHelp},
 #if SB_HAS(ON_SCREEN_KEYBOARD)
         {kDisableOnScreenKeyboard, kDisableOnScreenKeyboardHelp},
@@ -424,6 +418,7 @@ std::string HelpMessage() {
         {kDisableJavaScriptJit, kDisableJavaScriptJitHelp},
         {kDisableTimerResolutionLimit, kDisableTimerResolutionLimitHelp},
         {kEnableMapToMeshRectanglar, kEnableMapToMeshRectanglarHelp},
+        {kEncodedImageCacheSizeInBytes, kEncodedImageCacheSizeInBytesHelp},
         {kForceMigrationForStoragePartitioning,
          kForceMigrationForStoragePartitioningHelp},
         {kFPSPrint, kFPSPrintHelp}, {kFPSOverlay, kFPSOverlayHelp},

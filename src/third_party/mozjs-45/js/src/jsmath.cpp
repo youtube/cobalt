@@ -60,6 +60,8 @@
 #if defined(STARBOARD)
 #undef HAVE_ARC4RANDOM
 #define HAVE_LOG2 1
+// cbrt() is defined in musl.
+#define HAVE_CBRT 1
 #endif
 
 using namespace js;
