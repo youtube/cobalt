@@ -28,11 +28,6 @@ namespace layout {
 
 class FlexFormattingContext : public FormattingContext {
  public:
-  struct ItemParameters {
-    LayoutUnit flex_base_size;
-    LayoutUnit hypothetical_main_size;
-  };
-
   FlexFormattingContext(const LayoutParams& layout_params,
                         bool main_direction_is_horizontal,
                         bool direction_is_reversed);
@@ -47,11 +42,12 @@ class FlexFormattingContext : public FormattingContext {
   void EstimateStaticPosition(Box* child_box);
 
   // Collects the flex item into a flex line.
-  void CollectItemIntoLine(Box* item);
+  void CollectItemIntoLine(std::unique_ptr<FlexItem>&& item);
 
   // layout flex items and determine cross size.
   void ResolveFlexibleLengthsAndCrossSizes(
-      const base::Optional<LayoutUnit>& cross_space, LayoutUnit min_cross_space,
+      const base::Optional<LayoutUnit>& cross_space,
+      const base::Optional<LayoutUnit>& min_cross_space,
       const base::Optional<LayoutUnit>& max_cross_space,
       const scoped_refptr<cssom::PropertyValue>& align_content);
 
@@ -65,20 +61,12 @@ class FlexFormattingContext : public FormattingContext {
     return layout_params_.containing_block_size;
   }
 
-  const ItemParameters& GetItemParameters(Box* item) {
-    return item_parameters_.find(item)->second;
-  }
-
-  void SetItemParameters(Box* item, const ItemParameters& parameters) {
-    item_parameters_.insert(std::make_pair(item, parameters));
-  }
-
-  LayoutUnit GetFlexBaseSize(Box* item) {
-    return GetItemParameters(item).flex_base_size;
-  }
-
-  LayoutUnit GetHypotheticalMainSize(Box* item) {
-    return GetItemParameters(item).hypothetical_main_size;
+  void SetContainerMainSize(LayoutUnit size) {
+    if (main_direction_is_horizontal_) {
+      layout_params_.containing_block_size.set_width(size);
+    } else {
+      layout_params_.containing_block_size.set_height(size);
+    }
   }
 
   void set_multi_line(bool val) { multi_line_ = val; }
@@ -86,7 +74,7 @@ class FlexFormattingContext : public FormattingContext {
   LayoutUnit GetBaseline();
 
  private:
-  const LayoutParams layout_params_;
+  LayoutParams layout_params_;
   const bool main_direction_is_horizontal_;
   const bool direction_is_reversed_;
   bool multi_line_ = false;
@@ -94,7 +82,6 @@ class FlexFormattingContext : public FormattingContext {
   LayoutUnit main_size_;
   LayoutUnit cross_size_;
 
-  base::hash_map<Box*, ItemParameters> item_parameters_;
   std::vector<std::unique_ptr<FlexLine>> lines_;
 
   DISALLOW_COPY_AND_ASSIGN(FlexFormattingContext);

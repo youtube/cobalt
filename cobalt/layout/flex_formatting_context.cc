@@ -35,7 +35,11 @@ FlexFormattingContext::~FlexFormattingContext() {}
 
 void FlexFormattingContext::UpdateRect(Box* child_box) {
   DCHECK(!child_box->IsAbsolutelyPositioned());
-  child_box->UpdateSize(layout_params_);
+  {
+    LayoutParams child_layout_params(layout_params_);
+    child_layout_params.shrink_to_fit_width_forced = true;
+    child_box->UpdateSize(child_layout_params);
+  }
 
   // Shrink-to-fit doesn't exists anymore by itself in CSS3. It is called the
   // fit-content size, which is derived from the 'min-content' and 'max-content'
@@ -54,10 +58,10 @@ void FlexFormattingContext::UpdateRect(Box* child_box) {
 void FlexFormattingContext::EstimateStaticPosition(Box* child_box) {
   DCHECK(child_box->IsAbsolutelyPositioned());
   child_box->UpdateSize(layout_params_);
-  // TODO set static position? Also, memoize because there may be multiple...
 }
 
-void FlexFormattingContext::CollectItemIntoLine(Box* item) {
+void FlexFormattingContext::CollectItemIntoLine(
+    std::unique_ptr<FlexItem>&& item) {
   // Collect flex items into flex lines:
   //   https://www.w3.org/TR/css-flexbox-1/#algo-line-break
   if (lines_.empty()) {
@@ -65,25 +69,19 @@ void FlexFormattingContext::CollectItemIntoLine(Box* item) {
                                      main_direction_is_horizontal_,
                                      direction_is_reversed_, main_size_));
   }
-  ItemParameters parameters = GetItemParameters(item);
 
-  if (multi_line_) {
-    if (lines_.back()->TryAddItem(item, parameters.flex_base_size,
-                                  parameters.hypothetical_main_size)) {
-      return;
-    } else {
-      lines_.emplace_back(new FlexLine(layout_params_,
-                                       main_direction_is_horizontal_,
-                                       direction_is_reversed_, main_size_));
-    }
+  if (multi_line_ && !lines_.back()->CanAddItem(*item)) {
+    lines_.emplace_back(new FlexLine(layout_params_,
+                                     main_direction_is_horizontal_,
+                                     direction_is_reversed_, main_size_));
   }
 
-  lines_.back()->AddItem(item, parameters.flex_base_size,
-                         parameters.hypothetical_main_size);
+  lines_.back()->AddItem(std::move(item));
 }
 
 void FlexFormattingContext::ResolveFlexibleLengthsAndCrossSizes(
-    const base::Optional<LayoutUnit>& cross_space, LayoutUnit min_cross_space,
+    const base::Optional<LayoutUnit>& cross_space,
+    const base::Optional<LayoutUnit>& min_cross_space,
     const base::Optional<LayoutUnit>& max_cross_space,
     const scoped_refptr<cssom::PropertyValue>& align_content) {
   if (lines_.empty()) {
@@ -118,8 +116,8 @@ void FlexFormattingContext::ResolveFlexibleLengthsAndCrossSizes(
   //   https://www.w3.org/TR/css-flexbox-1/#change-201403-clamp-single-line
   if (!multi_line_) {
     LayoutUnit line_cross_size = lines_.front()->cross_size();
-    if (line_cross_size < min_cross_space) {
-      lines_.front()->set_cross_size(min_cross_space);
+    if (min_cross_space && line_cross_size < *min_cross_space) {
+      lines_.front()->set_cross_size(*min_cross_space);
     } else if (max_cross_space && line_cross_size > *max_cross_space) {
       lines_.front()->set_cross_size(*max_cross_space);
     }
@@ -142,8 +140,8 @@ void FlexFormattingContext::ResolveFlexibleLengthsAndCrossSizes(
     cross_size_ = total_cross_size;
   }
   // Clamped by the used min and max cross sizes of the flex container.
-  if (cross_size_ < min_cross_space) {
-    cross_size_ = min_cross_space;
+  if (min_cross_space && cross_size_ < *min_cross_space) {
+    cross_size_ = *min_cross_space;
   } else if (max_cross_space && cross_size_ > *max_cross_space) {
     cross_size_ = *max_cross_space;
   }
