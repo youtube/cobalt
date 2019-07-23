@@ -32,12 +32,16 @@ void HTMLAnchorElement::OnSetAttribute(const std::string& name,
     if (!ResolveAndSetURL(value)) {
       url_utils_.set_url(GURL(value));
     }
+  } else {
+    HTMLElement::OnSetAttribute(name, value);
   }
 }
 
 void HTMLAnchorElement::OnRemoveAttribute(const std::string& name) {
   if (name == "href") {
     url_utils_.set_url(GURL());
+  } else {
+    HTMLElement::OnRemoveAttribute(name);
   }
 }
 
