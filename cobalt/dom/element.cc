@@ -239,7 +239,7 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
   if (document && GetRootNode() == document) {
     document->OnDOMMutation();
   }
-  OnSetAttribute(name, value);
+  OnSetAttribute(attr_name, value);
 }
 
 // Algorithm for RemoveAttribute:
@@ -301,7 +301,7 @@ void Element::RemoveAttribute(const std::string& name) {
   if (document && GetRootNode() == document) {
     document->OnDOMMutation();
   }
-  OnRemoveAttribute(name);
+  OnRemoveAttribute(attr_name);
 }
 
 // Algorithm for tag_name:
