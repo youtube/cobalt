@@ -88,10 +88,10 @@ class FlexContainerBox : public BlockContainerBox {
   base::Optional<LayoutUnit> main_space_;
   base::Optional<LayoutUnit> cross_space_;
 
-  LayoutUnit min_main_space_;
+  base::Optional<LayoutUnit> min_main_space_;
   base::Optional<LayoutUnit> max_main_space_;
 
-  LayoutUnit min_cross_space_;
+  base::Optional<LayoutUnit> min_cross_space_;
   base::Optional<LayoutUnit> max_cross_space_;
 
   LayoutUnit baseline_;

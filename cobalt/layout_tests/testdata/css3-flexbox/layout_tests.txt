@@ -1,3 +1,5 @@
 combined-order-and-multiline
 combined-positioning-tests
+combined-shrinking-and-justify-content
 combined-with-baselines-percentages
+content-based-minimum-size

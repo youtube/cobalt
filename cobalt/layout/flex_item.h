@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "base/optional.h"
 #include "cobalt/layout/box.h"
 #include "cobalt/layout/layout_unit.h"
 
@@ -28,22 +29,23 @@ namespace layout {
 class FlexItem {
  public:
   // Disallow Copy and Assign.
-  FlexItem(const FlexItem&) = delete;
+  explicit FlexItem(const FlexItem&) = delete;
   FlexItem& operator=(const FlexItem&) = delete;
-
-  // Default move constructor to make the class emplace constructible.
-  FlexItem(FlexItem&& that) = default;
+  explicit FlexItem(FlexItem&& that) = delete;
 
   virtual ~FlexItem() = default;
 
-  FlexItem(Box* box, LayoutUnit flex_base_size,
-           LayoutUnit hypothetical_main_size);
+  FlexItem(Box* box, bool main_direction_is_horizontal);
 
-  static std::unique_ptr<FlexItem> Create(bool main_direction_is_horizontal_,
-                                          Box* box, LayoutUnit flex_base_size,
-                                          LayoutUnit hypothetical_main_size);
+  static std::unique_ptr<FlexItem> Create(Box* box,
+                                          bool main_direction_is_horizontal);
 
   Box* box() const { return box_; }
+  const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style()
+      const {
+    return box()->computed_style();
+  }
+
   LayoutUnit flex_base_size() const { return flex_base_size_; }
   LayoutUnit hypothetical_main_size() const { return hypothetical_main_size_; }
 
@@ -76,57 +78,79 @@ class FlexItem {
   const scoped_refptr<cobalt::cssom::PropertyValue>&
   GetUsedJustifyContentPropertyValue();
 
+  // Determine the flex base size.
+  //   https://www.w3.org/TR/css-flexbox-1/#flex-base-size
+  void DetermineFlexBaseSize(const LayoutParams& layout_params,
+                             const base::Optional<LayoutUnit>& main_space,
+                             bool container_shrink_to_fit_width_forced);
+
+  // Determine the hypothetical main size.
+  //   https://www.w3.org/TR/css-flexbox-1/#hypothetical-main-size
+  void DetermineHypotheticalMainSize(const SizeLayoutUnit& available_space);
+
+  base::Optional<LayoutUnit> GetContentBasedMinimumSize(
+      const SizeLayoutUnit& containing_block_size) const;
+
   // Return the size difference between the content and margin box on the main
   // axis.
-  virtual LayoutUnit GetContentToMarginMainAxis() = 0;
+  virtual LayoutUnit GetContentToMarginMainAxis() const = 0;
 
   // Return the size difference between the content and margin box on the cross
   // axis.
-  virtual LayoutUnit GetContentToMarginCrossAxis() = 0;
+  virtual LayoutUnit GetContentToMarginCrossAxis() const = 0;
+
+  // Return the used style for the size in the main axis.
+  virtual base::Optional<LayoutUnit> GetUsedMainAxisSizeIfNotAuto(
+      const SizeLayoutUnit& containing_block_size) const = 0;
 
   // Return the used style for the min size in the main axis.
-  virtual LayoutUnit GetUsedMinMainAxisSize(
-      const SizeLayoutUnit& containing_block_size) = 0;
+  virtual base::Optional<LayoutUnit> GetUsedMinMainAxisSizeIfNotAuto(
+      const SizeLayoutUnit& containing_block_size) const = 0;
 
   // Return the used style for the min size in the cross axis.
-  virtual LayoutUnit GetUsedMinCrossAxisSize(
-      const SizeLayoutUnit& containing_block_size) = 0;
+  virtual base::Optional<LayoutUnit> GetUsedMinCrossAxisSizeIfNotAuto(
+      const SizeLayoutUnit& containing_block_size) const = 0;
 
   // Return the used style for the max size in the main axis.
   virtual base::Optional<LayoutUnit> GetUsedMaxMainAxisSizeIfNotNone(
-      const SizeLayoutUnit& containing_block_size) = 0;
+      const SizeLayoutUnit& containing_block_size) const = 0;
 
   // Return the used style for the max size in the cross axis.
   virtual base::Optional<LayoutUnit> GetUsedMaxCrossAxisSizeIfNotNone(
-      const SizeLayoutUnit& containing_block_size) = 0;
+      const SizeLayoutUnit& containing_block_size) const = 0;
 
   // Determine the hypothetical cross size.
-  // https://www.w3.org/TR/css-flexbox-1/#algo-cross-item
+  //   https://www.w3.org/TR/css-flexbox-1/#algo-cross-item
   virtual void DetermineHypotheticalCrossSize(
       const LayoutParams& layout_params) = 0;
 
-  virtual LayoutUnit GetMarginBoxMainSize() = 0;
-  virtual LayoutUnit GetMarginBoxCrossSize() = 0;
+  virtual LayoutUnit GetContentBoxMainSize() const = 0;
+  virtual LayoutUnit GetMarginBoxMainSize() const = 0;
+  virtual LayoutUnit GetMarginBoxCrossSize() const = 0;
 
   // Return true if the computed cross axis size is auto.
-  virtual bool CrossSizeIsAuto() = 0;
+  virtual bool CrossSizeIsAuto() const = 0;
   // Return true if the margin at the main axis start is auto.
-  virtual bool MarginMainStartIsAuto() = 0;
+  virtual bool MarginMainStartIsAuto() const = 0;
   // Return true if the margin at the main axis end is auto.
-  virtual bool MarginMainEndIsAuto() = 0;
+  virtual bool MarginMainEndIsAuto() const = 0;
   // Return true if the margin at the cross axis start is auto.
-  virtual bool MarginCrossStartIsAuto() = 0;
+  virtual bool MarginCrossStartIsAuto() const = 0;
   // Return true if the margin at the cross axis end is auto.
-  virtual bool MarginCrossEndIsAuto() = 0;
+  virtual bool MarginCrossEndIsAuto() const = 0;
 
   virtual void SetCrossSize(LayoutUnit cross_size) = 0;
   virtual void SetMainAxisStart(LayoutUnit position) = 0;
   virtual void SetCrossAxisStart(LayoutUnit position) = 0;
 
  private:
+  // Return true if the overflow is visible
+  bool OverflowIsVisible() const;
+
   Box* const box_ = nullptr;
-  const LayoutUnit flex_base_size_ = LayoutUnit();
-  const LayoutUnit hypothetical_main_size_ = LayoutUnit();
+  const bool main_direction_is_horizontal_;
+  LayoutUnit flex_base_size_ = LayoutUnit();
+  LayoutUnit hypothetical_main_size_ = LayoutUnit();
 
   LayoutUnit target_main_size_ = LayoutUnit();
   LayoutUnit flex_space_ = LayoutUnit();
@@ -135,6 +159,19 @@ class FlexItem {
   bool max_violation_ = false;
   bool min_violation_ = false;
 };
+
+#ifdef COBALT_BOX_DUMP_ENABLED
+
+inline std::ostream& operator<<(std::ostream& stream, const FlexItem& item) {
+  stream << "flex_base_size= " << item.flex_base_size()
+         << " hypothetical_main_size = " << item.hypothetical_main_size()
+         << " target_main_size = " << item.target_main_size()
+         << " flex_space =" << item.flex_space() << "  box " << *item.box()
+         << " flex_factor = " << item.flex_factor();
+  return stream;
+}
+
+#endif  // COBALT_BOX_DUMP_ENABLED
 
 }  // namespace layout
 }  // namespace cobalt
