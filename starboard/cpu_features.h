@@ -31,6 +31,10 @@
 
 #if SB_API_VERSION >= 11
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum SbCPUFeaturesArchitecture {
   kSbCPUFeaturesArchitectureArm,
   kSbCPUFeaturesArchitectureArm64,
@@ -313,6 +317,10 @@ typedef struct SbCPUFeatures {
 // If this function returns false, it means the CPU architecture is unknown and
 // all fields in |features| are invalid.
 SB_EXPORT bool SbCPUFeaturesGet(SbCPUFeatures* features);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif  // SB_API_VERSION >= 11
 #endif  // STARBOARD_CPU_FEATURES_H_
