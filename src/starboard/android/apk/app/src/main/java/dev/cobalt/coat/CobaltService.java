@@ -57,6 +57,8 @@ public abstract class CobaltService {
   public abstract ResponseToClient receiveFromClient(byte[] data);
 
   /** Close the service. */
+  @SuppressWarnings("unused")
+  @UsedByNative
   public abstract void close();
 
   /** Send data from the service to the client. */

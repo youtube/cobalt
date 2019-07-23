@@ -301,12 +301,15 @@ void MediaDecoder::JoinOnThreads() {
     decoder_thread_ = kSbThreadInvalid;
   }
 
-  host_->OnFlushing();
-  jint status = media_codec_bridge_->Flush();
-  if (status != MEDIA_CODEC_OK) {
-    SB_LOG(ERROR) << "Failed to flush media codec.";
+  if (is_valid()) {
+    host_->OnFlushing();
+
+    jint status = media_codec_bridge_->Flush();
+    if (status != MEDIA_CODEC_OK) {
+      SB_LOG(ERROR) << "Failed to flush media codec.";
+    }
+    host_ = NULL;
   }
-  host_ = NULL;
 }
 
 void MediaDecoder::CollectPendingData_Locked(

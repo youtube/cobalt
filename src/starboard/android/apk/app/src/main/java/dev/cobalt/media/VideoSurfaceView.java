@@ -18,7 +18,6 @@ import static dev.cobalt.media.Log.TAG;
 
 import android.content.Context;
 import android.graphics.Color;
-import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.view.Surface;
 import android.view.SurfaceHolder;
@@ -31,13 +30,7 @@ import dev.cobalt.util.Log;
  */
 public class VideoSurfaceView extends SurfaceView {
 
-  public static native void nativeOnLayoutNeeded();
-
-  public static native void nativeOnLayoutScheduled();
-
-  public static native void nativeOnGlobalLayout();
-
-  private Rect videoBounds;
+  private static Surface currentSurface = null;
 
   public VideoSurfaceView(Context context) {
     super(context);
@@ -60,24 +53,12 @@ public class VideoSurfaceView extends SurfaceView {
   }
 
   private void initialize(Context context) {
-    videoBounds = new Rect();
     setBackgroundColor(Color.TRANSPARENT);
     getHolder().addCallback(new SurfaceHolderCallback());
 
     // TODO: Avoid recreating the surface when the player bounds change.
     // Recreating the surface is time-consuming and complicates synchronizing
     // punch-out video when the position / size is animated.
-  }
-
-  public boolean updateVideoBounds(final int x, final int y, final int width, final int height) {
-    if (videoBounds.left != x
-        || videoBounds.top != y
-        || videoBounds.right != x + width
-        || videoBounds.bottom != y + height) {
-      videoBounds.set(x, y, x + width, y + height);
-      return true;
-    }
-    return false;
   }
 
   private native void nativeOnVideoSurfaceChanged(Surface surface);
@@ -88,7 +69,8 @@ public class VideoSurfaceView extends SurfaceView {
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-      nativeOnVideoSurfaceChanged(holder.getSurface());
+      currentSurface = holder.getSurface();
+      nativeOnVideoSurfaceChanged(currentSurface);
     }
 
     @Override
@@ -102,7 +84,12 @@ public class VideoSurfaceView extends SurfaceView {
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
-      nativeOnVideoSurfaceChanged(null);
+      currentSurface = null;
+      nativeOnVideoSurfaceChanged(currentSurface);
     }
+  }
+
+  public static Surface getCurrentSurface() {
+    return currentSurface;
   }
 }

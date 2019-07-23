@@ -1,4 +1,4 @@
-// Copyright 2018 The Cobalt Authors. All Rights Reserved.
+// Copyright 2019 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,12 +14,18 @@
 
 #include "starboard/drm.h"
 
+#include "starboard/log.h"
+#include "starboard/shared/starboard/drm/drm_system_internal.h"
+
 #if SB_API_VERSION >= 10
 
 bool SbDrmIsServerCertificateUpdatable(SbDrmSystem drm_system) {
-  SB_UNREFERENCED_PARAMETER(drm_system);
+  if (!SbDrmSystemIsValid(drm_system)) {
+    SB_DLOG(ERROR) << "Invalid DRM system.";
+    return false;
+  }
 
-  return true;
+  return drm_system->IsServerCertificateUpdatable();
 }
 
 #endif  // SB_API_VERSION >= 10

@@ -49,7 +49,8 @@ class DrmSystem : public ::SbDrmSystemPrivate {
                      int session_id_size);
   void CloseSession(const void* session_id, int session_id_size) override;
   DecryptStatus Decrypt(InputBuffer* buffer) override;
-#if SB_API_VERSION >= 10
+
+  bool IsServerCertificateUpdatable() override { return false; }
   void UpdateServerCertificate(int ticket,
                                const void* certificate,
                                int certificate_size) override {
@@ -57,7 +58,6 @@ class DrmSystem : public ::SbDrmSystemPrivate {
     SB_UNREFERENCED_PARAMETER(certificate);
     SB_UNREFERENCED_PARAMETER(certificate_size);
   }
-#endif  // SB_API_VERSION >= 10
 
   jobject GetMediaCrypto() const { return j_media_crypto_; }
   void CallUpdateRequestCallback(int ticket,

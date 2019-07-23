@@ -32,9 +32,13 @@ namespace shared {
 
 const int64_t kSecondInMicroseconds = 1000 * 1000;
 
-inline bool IsWidevine(const char* key_system) {
+inline bool IsWidevineL1(const char* key_system) {
   return SbStringCompareAll(key_system, "com.widevine") == 0 ||
          SbStringCompareAll(key_system, "com.widevine.alpha") == 0;
+}
+
+inline bool IsWidevineL3(const char* key_system) {
+  return SbStringCompareAll(key_system, "com.youtube.widevine.l3") == 0;
 }
 
 // Map a supported |SbMediaAudioCodec| into its corresponding mime type

@@ -395,6 +395,17 @@ Java_dev_cobalt_coat_CobaltA11yHelper_nativeInjectKeyEvent(JNIEnv* env,
   ApplicationAndroid::Get()->SendKeyboardInject(static_cast<SbKey>(key));
 }
 
+extern "C" SB_EXPORT_PLATFORM jboolean
+Java_dev_cobalt_coat_KeyboardInputConnection_nativeHasOnScreenKeyboard(
+    JniEnvExt* env,
+    jobject unused_this) {
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+  return JNI_TRUE;
+#else   // SB_HAS(ON_SCREEN_KEYBOARD)
+  return JNI_FALSE;
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+}
+
 #if SB_HAS(ON_SCREEN_KEYBOARD)
 
 void ApplicationAndroid::SbWindowShowOnScreenKeyboard(SbWindow window,

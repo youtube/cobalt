@@ -14,6 +14,7 @@
 
 #include "starboard/shared/widevine/drm_system_widevine.h"
 
+#include <algorithm>
 #include <vector>
 
 #include "starboard/character.h"
@@ -46,6 +47,38 @@ class WidevineClock : public wv3cdm::IClock {
     return SbTimeToPosix(SbTimeGetNow()) / kSbTimeMillisecond;
   }
 };
+
+class Registry {
+ public:
+  void Register(SbDrmSystem drm_system) {
+    SB_DCHECK(SbDrmSystemIsValid(drm_system));
+    ScopedLock scoped_lock(mutex_);
+    auto iter = std::find(drm_systems_.begin(), drm_systems_.end(), drm_system);
+    SB_DCHECK(iter == drm_systems_.end());
+    drm_systems_.push_back(drm_system);
+  }
+
+  void Unregister(SbDrmSystem drm_system) {
+    ScopedLock scoped_lock(mutex_);
+    auto iter = std::find(drm_systems_.begin(), drm_systems_.end(), drm_system);
+    SB_DCHECK(iter != drm_systems_.end());
+    drm_systems_.erase(iter);
+  }
+
+  bool Contains(SbDrmSystem drm_system) const {
+    ScopedLock scoped_lock(mutex_);
+    auto iter = std::find(drm_systems_.begin(), drm_systems_.end(), drm_system);
+    return iter != drm_systems_.end();
+  }
+
+ private:
+  Mutex mutex_;
+  // Use std::vector<> as usually there is only one active instance of widevine
+  // drm system.
+  std::vector<SbDrmSystem> drm_systems_;
+};
+
+SB_ONCE_INITIALIZE_FUNCTION(Registry, GetRegistry);
 
 std::string GetWidevineStoragePath() {
   char path[SB_FILE_MAX_PATH + 1] = {0};
@@ -212,9 +245,13 @@ DrmSystemWidevine::DrmSystemWidevine(
 #endif  // SB_API_VERSION >= 10
   cdm_.reset(wv3cdm::create(this, NULL, kEnablePrivacyMode));
   SB_DCHECK(cdm_);
+
+  GetRegistry()->Register(this);
 }
 
-DrmSystemWidevine::~DrmSystemWidevine() {}
+DrmSystemWidevine::~DrmSystemWidevine() {
+  GetRegistry()->Unregister(this);
+}
 
 // static
 bool DrmSystemWidevine::IsKeySystemSupported(const char* key_system) {
@@ -224,6 +261,11 @@ bool DrmSystemWidevine::IsKeySystemSupported(const char* key_system) {
     }
   }
   return false;
+}
+
+// static
+bool DrmSystemWidevine::IsDrmSystemWidevine(SbDrmSystem drm_system) {
+  return GetRegistry()->Contains(drm_system);
 }
 
 void DrmSystemWidevine::GenerateSessionUpdateRequest(
