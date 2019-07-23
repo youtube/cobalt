@@ -51,7 +51,7 @@ void HTMLImageElement::PurgeCachedBackgroundImagesOfNodeAndDescendants() {
 }
 
 void HTMLImageElement::OnSetAttribute(const std::string& name,
-                                      const std::string& /* value */) {
+                                      const std::string& value) {
   // A user agent that obtains images immediately must synchronously update the
   // image data of an img element whenever that element is created with a src
   // attribute. A user agent that obtains images immediately must also
@@ -59,6 +59,8 @@ void HTMLImageElement::OnSetAttribute(const std::string& name,
   // has its src or crossorigin attribute set, changed, or removed.
   if (name == "src") {
     UpdateImageData();
+  } else {
+    HTMLElement::OnSetAttribute(name, value);
   }
 }
 
@@ -70,6 +72,8 @@ void HTMLImageElement::OnRemoveAttribute(const std::string& name) {
   // has its src or crossorigin attribute set, changed, or removed.
   if (name == "src") {
     UpdateImageData();
+  } else {
+    HTMLElement::OnRemoveAttribute(name);
   }
 }
 
