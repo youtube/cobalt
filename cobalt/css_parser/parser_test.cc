@@ -6346,6 +6346,20 @@ TEST_F(ParserTest, ParsesMinHeight) {
   EXPECT_EQ(cssom::kPixelsUnit, min_height->unit());
 }
 
+TEST_F(ParserTest, ParsesMinHeightAuto) {
+  // 'auto' is also the initial value for min-height in CSS3. It is set to a
+  // length value first, to ensure that the property does not have the initial
+  // value for the test.
+  //   https://www.w3.org/TR/css-sizing-3/#min-size-properties
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("min-height: 100px; min-height: auto;",
+                                        source_location_);
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kMinHeightProperty));
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(),
+            style->GetPropertyValue(cssom::kMinHeightProperty));
+}
+
 TEST_F(ParserTest, ParsesMinWidth) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("min-width: 100px;", source_location_);
@@ -6357,6 +6371,20 @@ TEST_F(ParserTest, ParsesMinWidth) {
   ASSERT_TRUE(min_width);
   EXPECT_FLOAT_EQ(100, min_width->value());
   EXPECT_EQ(cssom::kPixelsUnit, min_width->unit());
+}
+
+TEST_F(ParserTest, ParsesMinWidthAuto) {
+  // 'auto' is also the initial value for min-width in CSS3. It is set to a
+  // length value first, to ensure that the property does not have the initial
+  // value for the test.
+  //   https://www.w3.org/TR/css-sizing-3/#min-size-properties
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("min-width: 100px; min-width: auto;",
+                                        source_location_);
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kMinWidthProperty));
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(),
+            style->GetPropertyValue(cssom::kMinWidthProperty));
 }
 
 TEST_F(ParserTest, ParsesOpacity) {

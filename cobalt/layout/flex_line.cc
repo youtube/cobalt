@@ -35,35 +35,22 @@ FlexLine::FlexLine(const LayoutParams& layout_params,
   items_outer_main_size_ = LayoutUnit(0);
 }
 
-bool FlexLine::TryAddItem(Box* box, LayoutUnit flex_base_size,
-                          LayoutUnit hypothetical_main_size) {
-  auto item = FlexItem::Create(main_direction_is_horizontal_, box,
-                               flex_base_size, hypothetical_main_size);
-
+bool FlexLine::CanAddItem(const FlexItem& item) const {
   LayoutUnit outer_main_size =
-      hypothetical_main_size + item->GetContentToMarginMainAxis();
-
+      item.hypothetical_main_size() + item.GetContentToMarginMainAxis();
   LayoutUnit next_main_size = items_outer_main_size_ + outer_main_size;
-
   if (!items_.empty() && next_main_size > main_size_) {
     return false;
   }
-
-  items_outer_main_size_ = next_main_size;
-  items_.emplace_back(item.release());
   return true;
 }
 
-void FlexLine::AddItem(Box* box, LayoutUnit flex_base_size,
-                       LayoutUnit hypothetical_main_size) {
-  auto item = FlexItem::Create(main_direction_is_horizontal_, box,
-                               flex_base_size, hypothetical_main_size);
-
+void FlexLine::AddItem(std::unique_ptr<FlexItem>&& item) {
   LayoutUnit outer_main_size =
-      hypothetical_main_size + item->GetContentToMarginMainAxis();
+      item->hypothetical_main_size() + item->GetContentToMarginMainAxis();
 
   items_outer_main_size_ += outer_main_size;
-  items_.emplace_back(item.release());
+  items_.emplace_back(std::move(item));
 }
 
 void FlexLine::ResolveFlexibleLengthsAndCrossSize() {
@@ -91,13 +78,22 @@ void FlexLine::ResolveFlexibleLengthsAndCrossSize() {
     //   greater than its hypothetical main size.
     // - if using the flex shrink factor: any item that has a flex base size
     //   smaller than its hypothetical main size.
+    LayoutUnit hypothetical_main_size = item->hypothetical_main_size();
+
     if (0 == item->flex_factor() ||
         (flex_factor_grow_ &&
-         (item->flex_base_size() > item->hypothetical_main_size())) ||
+         (item->flex_base_size() > hypothetical_main_size)) ||
         (!flex_factor_grow_ &&
-         (item->flex_base_size() < item->hypothetical_main_size()))) {
+         (item->flex_base_size() < hypothetical_main_size))) {
       // Freeze, setting its target main size to its hypothetical main size.
-      item->set_target_main_size(item->hypothetical_main_size());
+      base::Optional<LayoutUnit> content_based_minimum_size =
+          item->GetContentBasedMinimumSize(
+              layout_params_.containing_block_size);
+      if (content_based_minimum_size.has_value()) {
+        hypothetical_main_size =
+            std::max(hypothetical_main_size, *content_based_minimum_size);
+      }
+      item->set_target_main_size(hypothetical_main_size);
 
       // 3. Calculate initial free space.
       // For frozen items, use their outer target main size;
@@ -149,7 +145,10 @@ void FlexLine::ResolveFlexibleLengthsAndCrossSize() {
           initial_free_space * unfrozen_flex_factor_sum;
       // If the magnitude of this value is less than the magnitude of the
       // remaining free space, use this as the remaining free space.
-      if (free_space_magnitude < remaining_free_space) {
+      if ((free_space_magnitude >= LayoutUnit() &&
+           free_space_magnitude < remaining_free_space) ||
+          (free_space_magnitude < LayoutUnit() &&
+           free_space_magnitude > remaining_free_space)) {
         remaining_free_space = free_space_magnitude;
       }
     }
@@ -190,15 +189,22 @@ void FlexLine::ResolveFlexibleLengthsAndCrossSize() {
     LayoutUnit unclamped_size = LayoutUnit();
     LayoutUnit clamped_size = LayoutUnit();
     for (auto& item : flexible_items) {
-      LayoutUnit used_min_space =
-          item->GetUsedMinMainAxisSize(layout_params_.containing_block_size);
+      base::Optional<LayoutUnit> maybe_used_min_space;
+      if (flex_factor_grow_) {
+        maybe_used_min_space = item->GetUsedMinMainAxisSizeIfNotAuto(
+            layout_params_.containing_block_size);
+      } else {
+        maybe_used_min_space = item->GetContentBasedMinimumSize(
+            layout_params_.containing_block_size);
+      }
       base::Optional<LayoutUnit> used_max_space =
           item->GetUsedMaxMainAxisSizeIfNotNone(
               layout_params_.containing_block_size);
 
       unclamped_size += item->target_main_size();
-      if (item->target_main_size() < used_min_space) {
-        item->set_target_main_size(used_min_space);
+      if (maybe_used_min_space &&
+          (item->target_main_size() < *maybe_used_min_space)) {
+        item->set_target_main_size(*maybe_used_min_space);
         item->set_min_violation(true);
       } else if (used_max_space && item->target_main_size() > *used_max_space) {
         item->set_target_main_size(*used_max_space);
@@ -307,40 +313,34 @@ void FlexLine::CalculateCrossSize() {
 void FlexLine::DetermineUsedCrossSizes(LayoutUnit container_cross_size) {
   // 11. Determine the used cross size of each flex item->
   //   https://www.w3.org/TR/css-flexbox-1/#algo-stretch
-  if (main_direction_is_horizontal_) {
-    SizeLayoutUnit containing_block_size(LayoutUnit(), container_cross_size);
-    for (auto& item : items_) {
-      // If a flex item has align-self: stretch,
-      // its computed cross size property is auto,
-      // and neither of its cross-axis margins are auto,
-      if (item->GetUsedAlignSelfPropertyValue() ==
-              cssom::KeywordValue::GetStretch() &&
-          item->CrossSizeIsAuto() && !item->MarginCrossStartIsAuto() &&
-          !item->MarginCrossEndIsAuto()) {
-        // The used outer cross size is the used cross size of its flex line,
-        // clamped according to the item's used min and max cross sizes.
-        LayoutUnit cross_size =
-            cross_size_ - item->GetContentToMarginCrossAxis();
-        LayoutUnit min_cross_size =
-            item->GetUsedMinMainAxisSize(containing_block_size);
-        if (min_cross_size > cross_size) {
-          cross_size = min_cross_size;
-        }
-        base::Optional<LayoutUnit> max_cross_size =
-            item->GetUsedMaxCrossAxisSizeIfNotNone(containing_block_size);
-        if (max_cross_size && *max_cross_size < cross_size) {
-          cross_size = *max_cross_size;
-        }
-        item->SetCrossSize(cross_size);
-
-        // TODO: If the flex item has align-self: stretch, redo layout for its
-        // contents, treating this used size as its definite cross size so that
-        // percentage-sized children can be resolved.
+  SizeLayoutUnit containing_block_size(LayoutUnit(), container_cross_size);
+  for (auto& item : items_) {
+    // If a flex item has align-self: stretch,
+    // its computed cross size property is auto,
+    // and neither of its cross-axis margins are auto,
+    if (item->GetUsedAlignSelfPropertyValue() ==
+            cssom::KeywordValue::GetStretch() &&
+        item->CrossSizeIsAuto() && !item->MarginCrossStartIsAuto() &&
+        !item->MarginCrossEndIsAuto()) {
+      // The used outer cross size is the used cross size of its flex line,
+      // clamped according to the item's used min and max cross sizes.
+      LayoutUnit cross_size = cross_size_ - item->GetContentToMarginCrossAxis();
+      base::Optional<LayoutUnit> min_cross_size =
+          item->GetUsedMinCrossAxisSizeIfNotAuto(containing_block_size);
+      if (min_cross_size && (*min_cross_size > cross_size)) {
+        cross_size = *min_cross_size;
       }
+      base::Optional<LayoutUnit> max_cross_size =
+          item->GetUsedMaxCrossAxisSizeIfNotNone(containing_block_size);
+      if (max_cross_size && *max_cross_size < cross_size) {
+        cross_size = *max_cross_size;
+      }
+      item->SetCrossSize(cross_size);
+
+      // TODO: If the flex item has align-self: stretch, redo layout for its
+      // contents, treating this used size as its definite cross size so that
+      // percentage-sized children can be resolved.
     }
-  } else {
-    // TODO: implement this for column flex containers.
-    NOTIMPLEMENTED() << "Column flex boxes not yet implemented.";
   }
 }
 
@@ -358,12 +358,6 @@ void FlexLine::DoMainAxisAlignment() {
   // 12. Distribute any remaining free space.
   //   https://www.w3.org/TR/css-flexbox-1/#algo-main-align
 
-  // TODO implement for row-reverse, column, and column-reverse.
-  if (!main_direction_is_horizontal_) {
-    // TODO: implement this for column flex containers.
-    NOTIMPLEMENTED() << "Column flex boxes not yet implemented.";
-  }
-
   // If the remaining free space is positive and at least one main-axis margin
   // on this line is auto, distribute the free space equally among these
   // margins.
@@ -377,8 +371,8 @@ void FlexLine::DoMainAxisAlignment() {
     auto_margins[margin_idx++] = auto_main_end;
     auto_margin_count += (auto_main_start ? 1 : 0) + (auto_main_end ? 1 : 0);
   }
+  LayoutUnit leftover_free_space = main_size_ - items_outer_main_size_;
   if (auto_margin_count > 0) {
-    LayoutUnit leftover_free_space = main_size_ - items_outer_main_size_;
     LayoutUnit free_space_between = leftover_free_space / auto_margin_count;
 
     margin_idx = 0;
@@ -400,9 +394,16 @@ void FlexLine::DoMainAxisAlignment() {
   const scoped_refptr<cobalt::cssom::PropertyValue>& justify_content =
       items_.front()->GetUsedJustifyContentPropertyValue();
 
-  if (justify_content == cssom::KeywordValue::GetFlexStart()) {
+  bool leftover_free_space_is_negative = leftover_free_space < LayoutUnit();
+
+  if (justify_content == cssom::KeywordValue::GetFlexStart() ||
+      (leftover_free_space_is_negative &&
+       justify_content == cssom::KeywordValue::GetSpaceBetween())) {
     // Flex items are packed toward the start of the line.
     //   https://www.w3.org/TR/css-flexbox-1/#valdef-justify-content-flex-start
+    // If the leftover free-space is negative, space-between is identical to
+    // flex-start.
+    //   https://www.w3.org/TR/css-flexbox-1/#valdef-justify-content-space-between
     LayoutUnit pos = LayoutUnit();
     for (auto& item : items_) {
       LayoutUnit main_size = item->GetMarginBoxMainSize();
@@ -420,10 +421,15 @@ void FlexLine::DoMainAxisAlignment() {
       pos -= main_size;
       SetMainAxisPosition(pos, item.get());
     }
-  } else if (justify_content == cssom::KeywordValue::GetCenter()) {
+  } else if (justify_content == cssom::KeywordValue::GetCenter() ||
+             (leftover_free_space_is_negative &&
+              justify_content == cssom::KeywordValue::GetSpaceAround())) {
     // Flex items are packed toward the center of the line.
     //   https://www.w3.org/TR/css-flexbox-1/#valdef-justify-content-center
-    LayoutUnit pos = (main_size_ - items_outer_main_size_) / 2;
+    // If the leftover free-space is negative, space-around is identical to
+    // center.
+    //   https://www.w3.org/TR/css-flexbox-1/#valdef-justify-content-space-around
+    LayoutUnit pos = leftover_free_space / 2;
     for (auto& item : items_) {
       LayoutUnit main_size = item->GetMarginBoxMainSize();
       SetMainAxisPosition(pos, item.get());
@@ -432,7 +438,6 @@ void FlexLine::DoMainAxisAlignment() {
   } else if (justify_content == cssom::KeywordValue::GetSpaceBetween()) {
     // Flex items are evenly distributed in the line.
     //   https://www.w3.org/TR/css-flexbox-1/#valdef-justify-content-space-between
-    LayoutUnit leftover_free_space = main_size_ - items_outer_main_size_;
     LayoutUnit free_space_between =
         (items_.size() < 2)
             ? LayoutUnit()
@@ -447,7 +452,6 @@ void FlexLine::DoMainAxisAlignment() {
     // Flex items are evenly distributed in the line, with half-size spaces on
     // either end.
     //   https://www.w3.org/TR/css-flexbox-1/#valdef-justify-content-space-around
-    LayoutUnit leftover_free_space = main_size_ - items_outer_main_size_;
     LayoutUnit free_space_between =
         leftover_free_space / static_cast<int>(items_.size());
     LayoutUnit free_space_before = free_space_between / 2;
@@ -465,10 +469,6 @@ void FlexLine::DoMainAxisAlignment() {
 }
 
 void FlexLine::DoCrossAxisAlignment(LayoutUnit line_cross_axis_start) {
-  if (!main_direction_is_horizontal_) {
-    NOTIMPLEMENTED() << "Column flex boxes not yet implemented.";
-  }
-
   line_cross_axis_start_ = line_cross_axis_start;
   // Algorithm for cross axis alignment:
   //   https://www.w3.org/TR/css-flexbox-1/#cross-alignment
