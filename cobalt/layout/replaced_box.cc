@@ -449,12 +449,16 @@ void ReplacedBox::UpdateContentSizeAndMargins(
 
     base::Optional<LayoutUnit> maybe_max_width = GetUsedMaxWidthIfNotNone(
         computed_style(), layout_params.containing_block_size, NULL);
-    LayoutUnit min_width = GetUsedMinWidth(
-        computed_style(), layout_params.containing_block_size, NULL);
+    LayoutUnit min_width =
+        GetUsedMinWidthIfNotAuto(computed_style(),
+                                 layout_params.containing_block_size, NULL)
+            .value_or(LayoutUnit());
     base::Optional<LayoutUnit> maybe_max_height = GetUsedMaxHeightIfNotNone(
         computed_style(), layout_params.containing_block_size);
     LayoutUnit min_height =
-        GetUsedMinHeight(computed_style(), layout_params.containing_block_size);
+        GetUsedMinHeightIfNotAuto(computed_style(),
+                                  layout_params.containing_block_size)
+            .value_or(LayoutUnit());
 
     // The values w and h stand for the results of the width and height
     // computations ignoring the 'min-width', 'min-height', 'max-width' and
