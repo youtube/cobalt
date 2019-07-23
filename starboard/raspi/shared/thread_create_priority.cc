@@ -27,6 +27,19 @@ namespace pthread {
 // This is the maximum priority that will be passed to SetRoundRobinScheduler().
 const int kMaxRoundRobinPriority = 2;
 
+// Permissions are needed to allow usage non-default thread schedulers and
+// thread priorities. Specifically, /etc/security/limits.conf should set
+// "rtprio" and "nice" limits. "rtprio" will allow use of the real-time
+// schedulers, and "nice" will allow use of nice priorities as well as allow
+// SCHED_IDLE threads to increase their priority. If the user is 'pi', then
+// limits.conf should have the following lines:
+//   @pi hard rtprio 99
+//   @pi soft rtprio 99
+//   @pi hard nice -20
+//   @pi soft nice -20
+const char kSchedulerErrorMessage[] = "Unable to set scheduler. Please update "
+    "limits.conf to set 'rtprio' limit to 99 and 'nice' limit to -20.";
+
 // Note that use of sched_setscheduler() has been found to be more reliably
 // supported than pthread_setschedparam(), so we are using that.
 
@@ -34,14 +47,14 @@ void SetIdleScheduler() {
   struct sched_param thread_sched_param;
   thread_sched_param.sched_priority = 0;
   int result = sched_setscheduler(0, SCHED_IDLE, &thread_sched_param);
-  SB_CHECK(result == 0);
+  SB_CHECK(result == 0) << kSchedulerErrorMessage;
 }
 
 void SetOtherScheduler() {
   struct sched_param thread_sched_param;
   thread_sched_param.sched_priority = 0;
   int result = sched_setscheduler(0, SCHED_OTHER, &thread_sched_param);
-  SB_CHECK(result == 0);
+  SB_CHECK(result == 0) << kSchedulerErrorMessage;
 }
 
 // Here |priority| is a number >= 0, where the higher the number, the
@@ -83,7 +96,7 @@ void SetRoundRobinScheduler(int priority) {
       std::min(min_priority + priority,
                static_cast<int>(rlimit_rtprio.rlim_cur));
   int result = sched_setscheduler(0, SCHED_RR, &thread_sched_param);
-  SB_CHECK(result == 0);
+  SB_CHECK(result == 0) << kSchedulerErrorMessage;
 }
 
 void ThreadSetPriority(SbThreadPriority priority) {
