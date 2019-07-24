@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/log.h"
 #include "starboard/shared/alsa/alsa_audio_sink_type.h"
 #include "starboard/shared/pulse/pulse_audio_sink_type.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
@@ -23,7 +24,10 @@ bool is_fallback_to_alsa = false;
 // static
 void SbAudioSinkPrivate::PlatformInitialize() {
   starboard::shared::pulse::PlatformInitialize();
-  if (!GetPrimaryType()) {
+  if (GetPrimaryType()) {
+    SB_LOG(INFO) << "Use PulseAudio";
+  } else {
+    SB_LOG(INFO) << "Use ALSA";
     starboard::shared::alsa::PlatformInitialize();
     is_fallback_to_alsa = true;
   }
