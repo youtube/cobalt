@@ -111,7 +111,7 @@ bool DoPKCS12(const std::vector<std::string> &args) {
             off < sizeof(password) - 1) ||
            (n == -1 && errno == EINTR));
 
-  char *newline = reinterpret_cast<char *>(OPENSSL_memchr(password, '\n', off));
+  char *newline = const_cast<char *>(reinterpret_cast<const char *>(OPENSSL_memchr(password, '\n', off)));
   if (newline == NULL) {
     return false;
   }
