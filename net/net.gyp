@@ -183,6 +183,8 @@
         'cert/internal/trust_store_collection.h',
         'cert/internal/trust_store_in_memory.cc',
         'cert/internal/trust_store_in_memory.h',
+        'cert/internal/trust_store_in_memory_starboard.cc',
+        'cert/internal/trust_store_in_memory_starboard.h',
         'cert/internal/verify_certificate_chain.cc',
         'cert/internal/verify_certificate_chain.h',
         'cert/internal/verify_name_match.cc',
