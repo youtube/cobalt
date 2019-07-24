@@ -261,6 +261,7 @@
         '<(DEPTH)/starboard/shared/starboard/audio_sink/audio_sink_create.cc',
         '<(DEPTH)/starboard/shared/starboard/audio_sink/audio_sink_destroy.cc',
         '<(DEPTH)/starboard/shared/starboard/audio_sink/audio_sink_get_max_channels_5_1.cc',
+        '<(DEPTH)/starboard/shared/starboard/audio_sink/audio_sink_get_min_buffer_size_in_frames.cc',
         '<(DEPTH)/starboard/shared/starboard/audio_sink/audio_sink_get_nearest_supported_sample_frequency.cc',
         '<(DEPTH)/starboard/shared/starboard/audio_sink/audio_sink_is_audio_frame_storage_type_supported_interleaved_only.cc',
         '<(DEPTH)/starboard/shared/starboard/audio_sink/audio_sink_is_audio_sample_type_supported_float32_only.cc',
