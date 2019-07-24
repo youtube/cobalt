@@ -249,6 +249,7 @@
         '<(DEPTH)/starboard/shared/starboard/application.cc',
         '<(DEPTH)/starboard/shared/starboard/audio_sink/audio_sink_create.cc',
         '<(DEPTH)/starboard/shared/starboard/audio_sink/audio_sink_destroy.cc',
+        '<(DEPTH)/starboard/shared/starboard/audio_sink/audio_sink_get_min_buffer_size_in_frames.cc',
         '<(DEPTH)/starboard/shared/starboard/audio_sink/audio_sink_internal.cc',
         '<(DEPTH)/starboard/shared/starboard/audio_sink/audio_sink_internal.h',
         '<(DEPTH)/starboard/shared/starboard/audio_sink/audio_sink_is_valid.cc',

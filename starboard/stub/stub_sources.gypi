@@ -31,6 +31,7 @@
         '<(DEPTH)/starboard/shared/stub/audio_sink_create.cc',
         '<(DEPTH)/starboard/shared/stub/audio_sink_destroy.cc',
         '<(DEPTH)/starboard/shared/stub/audio_sink_get_max_channels.cc',
+        '<(DEPTH)/starboard/shared/stub/audio_sink_get_min_buffer_size_in_frames.cc',
         '<(DEPTH)/starboard/shared/stub/audio_sink_get_nearest_supported_sample_frequency.cc',
         '<(DEPTH)/starboard/shared/stub/audio_sink_is_audio_frame_storage_type_supported.cc',
         '<(DEPTH)/starboard/shared/stub/audio_sink_is_audio_sample_type_supported.cc',

@@ -46,6 +46,7 @@
         'audio_sink_create_test.cc',
         'audio_sink_destroy_test.cc',
         'audio_sink_get_max_channels_test.cc',
+        'audio_sink_get_min_buffer_size_in_frames_test.cc',
         'audio_sink_get_nearest_supported_sample_frequency_test.cc',
         'audio_sink_helpers.cc',
         'audio_sink_helpers.h',
