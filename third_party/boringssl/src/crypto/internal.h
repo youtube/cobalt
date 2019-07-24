@@ -155,6 +155,9 @@ extern "C" {
     defined(OPENSSL_AARCH64) || defined(OPENSSL_PPC64LE)
 // OPENSSL_cpuid_setup initializes the platform-specific feature cache.
 void OPENSSL_cpuid_setup(void);
+#if defined(STARBOARD)
+void OPENSSL_cpuid_setup_starboard(void);
+#endif
 #endif
 
 
