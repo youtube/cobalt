@@ -2,14 +2,20 @@
 #define _STDIO_IMPL_H
 
 #include <stdio.h>
-#include "syscall.h"
 #include "libc.h"
+
+// When STARBOARD is defined we only want to include the definition of _IO_FILE,
+// a.k.a. FILE, along with a few constants used when working with wide strings.
+
+#ifndef STARBOARD
+#include "syscall.h"
 
 #define UNGET 8
 
 #define FFINALLOCK(f) ((f)->lock>=0 ? __lockfile((f)) : 0)
 #define FLOCK(f) int __need_unlock = ((f)->lock>=0 ? __lockfile((f)) : 0)
 #define FUNLOCK(f) do { if (__need_unlock) __unlockfile((f)); } while (0)
+#endif  // STARBOARD
 
 #define F_PERM 1
 #define F_NORD 4
@@ -50,6 +56,7 @@ struct _IO_FILE {
 	struct __locale_struct *locale;
 };
 
+#ifndef STARBOARD
 size_t __stdio_read(FILE *, unsigned char *, size_t);
 size_t __stdio_write(FILE *, const unsigned char *, size_t);
 size_t __stdout_write(FILE *, const unsigned char *, size_t);
@@ -93,5 +100,6 @@ void __ofl_unlock(void);
 /* Caller-allocated FILE * operations */
 FILE *__fopen_rb_ca(const char *, FILE *, unsigned char *, size_t);
 int __fclose_ca(FILE *);
+#endif  // STARBOARD
 
 #endif
