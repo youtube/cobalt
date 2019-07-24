@@ -677,7 +677,11 @@ scoped_refptr<HTMLElement> Element::AsHTMLElement() { return NULL; }
 
 // Explicitly defined because DOMTokenList is forward declared and held by
 // scoped_refptr in Element's header.
-Element::~Element() {}
+Element::~Element() {
+  // Reset the ElementIntersectionObserverModule so that functions such as
+  // UnregisterIntersectionRoot/Target will not be called on deleted objects.
+  element_intersection_observer_module_.reset();
+}
 
 void Element::TraceMembers(script::Tracer* tracer) {
   Node::TraceMembers(tracer);
