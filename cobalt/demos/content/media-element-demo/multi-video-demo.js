@@ -37,7 +37,7 @@ class Player {
   }
 
   onsourceopen() {
-    if (this.video_url.base::EndsWith('.mp4')) {
+    if (this.video_url.endsWith('.mp4')) {
         this.video_source_buffer = this.mediasource.addSourceBuffer(
                                        'video/mp4; codecs="avc1.640028"');
       } else {
