@@ -35,8 +35,10 @@ SbMediaAudioSampleType GetSupportedSampleType() {
 }  // namespace
 
 StubAudioDecoder::StubAudioDecoder(
+    SbMediaAudioCodec audio_codec,
     const SbMediaAudioSampleInfo& audio_sample_info)
     : sample_type_(GetSupportedSampleType()),
+      audio_codec_(audio_codec),
       audio_sample_info_(audio_sample_info),
       stream_ended_(false) {}
 
@@ -67,13 +69,11 @@ void StubAudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
     size_t size = diff * GetSamplesPerSecond() * sample_size *
                   audio_sample_info_.number_of_channels / kSbTimeSecond;
     size -= size % (sample_size * audio_sample_info_.number_of_channels);
-#if SB_API_VERSION >= 11
-    if (audio_sample_info_.codec == kSbMediaAudioCodecAac) {
+    if (audio_codec_ == kSbMediaAudioCodecAac) {
       // Frame size for AAC is fixed at 1024, so fake the output size such that
       // number of frames matches up.
       size = sample_size * audio_sample_info_.number_of_channels * 1024;
     }
-#endif
 
     decoded_audios_.push(new DecodedAudio(
         audio_sample_info_.number_of_channels, GetSampleType(),
@@ -109,13 +109,11 @@ void StubAudioDecoder::WriteEndOfStream() {
         GetSampleType() == kSbMediaAudioSampleTypeInt16Deprecated ? 2 : 4;
     fake_size -=
         fake_size % (sample_size * audio_sample_info_.number_of_channels);
-#if SB_API_VERSION >= 11
-    if (audio_sample_info_.codec == kSbMediaAudioCodecAac) {
+    if (audio_codec_ == kSbMediaAudioCodecAac) {
       // Frame size for AAC is fixed at 1024, so fake the output size such that
       // number of frames matches up.
       fake_size = sample_size * audio_sample_info_.number_of_channels * 1024;
     }
-#endif
     decoded_audios_.push(new DecodedAudio(
         audio_sample_info_.number_of_channels, GetSampleType(),
         GetStorageType(), last_input_buffer_->timestamp(), fake_size));
