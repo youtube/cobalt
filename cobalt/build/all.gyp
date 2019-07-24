@@ -86,6 +86,7 @@
         '<(DEPTH)/cobalt/websocket/websocket.gyp:*',
         '<(DEPTH)/cobalt/xhr/xhr.gyp:*',
         '<(DEPTH)/crypto/crypto.gyp:crypto_unittests',
+        '<(DEPTH)/third_party/boringssl/boringssl_tool.gyp:*',
         '<(DEPTH)/net/net.gyp:net_unittests',
         '<(DEPTH)/sql/sql.gyp:sql_unittests',
       ],
