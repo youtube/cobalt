@@ -243,7 +243,16 @@ class StarboardSystemCerts {
     cert_dir_path = cert_dir_path.Append("ssl").Append("certs");
     auto sb_certs_directory =
         SbDirectoryOpen(cert_dir_path.value().c_str(), nullptr);
-    DCHECK(SbDirectoryIsValid(sb_certs_directory));
+    if (!SbDirectoryIsValid(sb_certs_directory)) {
+      // Unit tests, for example, do not use production certificates.
+#if defined(STARBOARD_BUILD_TYPE_QA) || defined(STARBOARD_BUILD_TYPE_GOLD)
+      SB_CHECK(false);
+#else
+      DLOG(WARNING) << "ssl/certs directory is not valid, no root certificates"
+                       " will be loaded";
+#endif
+      return;
+    }
 
     SbDirectoryEntry dir_entry;
     // SbFileOpen params
