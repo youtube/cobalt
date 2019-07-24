@@ -47,9 +47,6 @@
         '-Wno-unused-command-line-argument',
       ],
       'defines' : [
-        # If not defined, this symbol is used to detect this function's presence in the C library
-        # at runtime.
-        'HAVE___CXA_THREAD_ATEXIT_IMPL',
         # This macro is used to disable extern template declarations in the libc++
         # headers. The intended use case is for clients who wish to use the libc++
         # headers without taking a dependency on the libc++ library itself.
@@ -75,7 +72,6 @@
         'src/cxa_handlers.cpp',
         'src/cxa_handlers.hpp',
         'src/cxa_personality.cpp',
-        'src/cxa_thread_atexit.cpp',
         'src/cxa_unexpected.cpp',
         'src/cxa_vector.cpp',
         'src/cxa_virtual.cpp',
@@ -96,6 +92,9 @@
       'sources!': [
         # We utilize exception handling and the following file breaks the build.
         'src/cxa_noexception.cpp',
+
+        # Not needed and leaks __cxa_thread_atexit_impl.
+        'src/cxa_thread_atexit.cpp',
       ],
       'all_dependent_settings': {
         'defines': [
