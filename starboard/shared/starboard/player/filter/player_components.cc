@@ -86,14 +86,15 @@ void PlayerComponents::CreateStubAudioComponents(
 #if SB_API_VERSION >= 11
   auto decoder_creator = [](const SbMediaAudioSampleInfo& audio_sample_info,
                             SbDrmSystem drm_system) {
-    return scoped_ptr<AudioDecoder>(new StubAudioDecoder(audio_sample_info));
+    return scoped_ptr<AudioDecoder>(
+        new StubAudioDecoder(audio_sample_info.codec, audio_sample_info));
   };
   audio_decoder->reset(
       new AdaptiveAudioDecoder(audio_parameters.audio_sample_info,
                                audio_parameters.drm_system, decoder_creator));
 #else   // SB_API_VERSION >= 11
-  audio_decoder->reset(
-      new StubAudioDecoder(audio_parameters.audio_sample_info));
+  audio_decoder->reset(new StubAudioDecoder(
+      audio_parameters.audio_codec, audio_parameters.audio_sample_info));
 #endif  // SB_API_VERISON >= 11
   audio_renderer_sink->reset(new AudioRendererSinkImpl);
 }
