@@ -93,10 +93,14 @@ SbAudioSink SbAudioSinkCreate(
   }
 
   if (auto type = SbAudioSinkPrivate::GetFallbackType()) {
+    SB_LOG(WARNING) << "Primary audio sink failed to create, use fallback.";
     return type->Create(channels, sampling_frequency_hz, audio_sample_type,
                         audio_frame_storage_type, frame_buffers,
                         frame_buffers_size_in_frames, update_source_status_func,
                         consume_frames_func, context);
+  } else {
+    SB_LOG(WARNING) << "Primary audio sink failed to create,"
+                    << " fallback is not enabled.";
   }
 
   return kSbAudioSinkInvalid;
