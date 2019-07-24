@@ -30,7 +30,8 @@ namespace filter {
 
 class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
  public:
-  explicit StubAudioDecoder(const SbMediaAudioSampleInfo& audio_sample_info);
+  StubAudioDecoder(SbMediaAudioCodec audio_codec,
+                   const SbMediaAudioSampleInfo& audio_sample_info);
 
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
 
@@ -52,6 +53,7 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
  private:
   OutputCB output_cb_;
   SbMediaAudioSampleType sample_type_;
+  SbMediaAudioCodec audio_codec_;
   SbMediaAudioSampleInfo audio_sample_info_;
   bool stream_ended_;
   std::queue<scoped_refptr<DecodedAudio> > decoded_audios_;
