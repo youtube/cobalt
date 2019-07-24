@@ -105,6 +105,7 @@
       '<(boringssl_root)/crypto/chacha/chacha.c',
       '<(boringssl_root)/crypto/cipher_extra/cipher_extra.c',
       '<(boringssl_root)/crypto/cipher_extra/derive_key.c',
+      '<(boringssl_root)/crypto/cipher_extra/e_aesccm.c',
       '<(boringssl_root)/crypto/cipher_extra/e_aesctrhmac.c',
       '<(boringssl_root)/crypto/cipher_extra/e_aesgcmsiv.c',
       '<(boringssl_root)/crypto/cipher_extra/e_chacha20poly1305.c',
