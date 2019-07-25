@@ -15,10 +15,6 @@
 #include "starboard/configuration.h"
 #include "starboard/image.h"
 
-#if !SB_HAS(GRAPHICS)
-#error "SbImageDecode requires SB_HAS(GRAPHICS)."
-#endif
-
 SbDecodeTarget SbImageDecode(SbDecodeTargetGraphicsContextProvider* provider,
                              void* data,
                              int data_size,

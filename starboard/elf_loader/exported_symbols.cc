@@ -72,7 +72,7 @@ namespace starboard {
 namespace elf_loader {
 
 ExportedSymbols::ExportedSymbols() {
-    map_["SbAccessibilityGetDisplaySettings"] =
+  map_["SbAccessibilityGetDisplaySettings"] =
       reinterpret_cast<const void*>(SbAccessibilityGetDisplaySettings);
   map_["SbAccessibilityGetTextToSpeechSettings"] =
       reinterpret_cast<const void*>(SbAccessibilityGetTextToSpeechSettings);
@@ -114,7 +114,11 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(SbConditionVariableWait);
   map_["SbConditionVariableWaitTimed"] =
       reinterpret_cast<const void*>(SbConditionVariableWaitTimed);
+
+#if SB_API_VERSION >= 11
   map_["SbCPUFeaturesGet"] = reinterpret_cast<const void*>(SbCPUFeaturesGet);
+#endif
+
   map_["SbDecodeTargetGetInfo"] =
       reinterpret_cast<const void*>(SbDecodeTargetGetInfo);
   map_["SbDecodeTargetRelease"] =
@@ -137,10 +141,14 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(SbDrmDestroySystem);
   map_["SbDrmGenerateSessionUpdateRequest"] =
       reinterpret_cast<const void*>(SbDrmGenerateSessionUpdateRequest);
+
+#if SB_API_VERSION >= 10
   map_["SbDrmIsServerCertificateUpdatable"] =
       reinterpret_cast<const void*>(SbDrmIsServerCertificateUpdatable);
   map_["SbDrmUpdateServerCertificate"] =
       reinterpret_cast<const void*>(SbDrmUpdateServerCertificate);
+#endif
+
   map_["SbDrmUpdateSession"] =
       reinterpret_cast<const void*>(SbDrmUpdateSession);
   map_["SbEventCancel"] = reinterpret_cast<const void*>(SbEventCancel);
@@ -173,6 +181,8 @@ ExportedSymbols::ExportedSymbols() {
   map_["SbLogRawFormat"] = reinterpret_cast<const void*>(SbLogRawFormat);
   map_["SbMediaCanPlayMimeAndKeySystem"] =
       reinterpret_cast<const void*>(SbMediaCanPlayMimeAndKeySystem);
+
+#if SB_API_VERSION >= 10
   map_["SbMediaGetAudioBufferBudget"] =
       reinterpret_cast<const void*>(SbMediaGetAudioBufferBudget);
   map_["SbMediaGetBufferAlignment"] =
@@ -196,8 +206,13 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(SbMediaIsBufferPoolAllocateOnDemand);
   map_["SbMediaIsBufferUsingMemoryPool"] =
       reinterpret_cast<const void*>(SbMediaIsBufferUsingMemoryPool);
+#endif
+
+#if SB_API_VERSION >= 11
   map_["SbMediaSetAudioWriteDuration"] =
       reinterpret_cast<const void*>(SbMediaSetAudioWriteDuration);
+#endif
+
   map_["SbMemoryAllocateAlignedUnchecked"] =
       reinterpret_cast<const void*>(SbMemoryAllocateAlignedUnchecked);
   map_["SbMemoryAllocateUnchecked"] =
@@ -208,13 +223,23 @@ ExportedSymbols::ExportedSymbols() {
   map_["SbMemoryFree"] = reinterpret_cast<const void*>(SbMemoryFree);
   map_["SbMemoryFreeAligned"] =
       reinterpret_cast<const void*>(SbMemoryFreeAligned);
+
+#if SB_HAS(MMAP)
   map_["SbMemoryMap"] = reinterpret_cast<const void*>(SbMemoryMap);
+#endif
   map_["SbMemoryMove"] = reinterpret_cast<const void*>(SbMemoryMove);
+
+#if SB_API_VERSION >= 10 && SB_HAS(MMAP)
   map_["SbMemoryProtect"] = reinterpret_cast<const void*>(SbMemoryProtect);
+#endif
+
   map_["SbMemoryReallocateUnchecked"] =
       reinterpret_cast<const void*>(SbMemoryReallocateUnchecked);
   map_["SbMemorySet"] = reinterpret_cast<const void*>(SbMemorySet);
+
+#if SB_HAS(MMAP)
   map_["SbMemoryUnmap"] = reinterpret_cast<const void*>(SbMemoryUnmap);
+#endif
 
 #if SB_HAS(MICROPHONE)
   map_["SbMicrophoneClose"] = reinterpret_cast<const void*>(SbMicrophoneClose);
@@ -241,20 +266,33 @@ ExportedSymbols::ExportedSymbols() {
   map_["SbPlayerDestroy"] = reinterpret_cast<const void*>(SbPlayerDestroy);
   map_["SbPlayerGetCurrentFrame"] =
       reinterpret_cast<const void*>(SbPlayerGetCurrentFrame);
+
+#if SB_API_VERSION >= 10
   map_["SbPlayerGetInfo2"] = reinterpret_cast<const void*>(SbPlayerGetInfo2);
   map_["SbPlayerGetMaximumNumberOfSamplesPerWrite"] =
       reinterpret_cast<const void*>(SbPlayerGetMaximumNumberOfSamplesPerWrite);
+
+#endif
+
   map_["SbPlayerOutputModeSupported"] =
       reinterpret_cast<const void*>(SbPlayerOutputModeSupported);
+
+#if SB_API_VERSION >= 10
   map_["SbPlayerSeek2"] = reinterpret_cast<const void*>(SbPlayerSeek2);
+#endif
+
   map_["SbPlayerSetBounds"] = reinterpret_cast<const void*>(SbPlayerSetBounds);
   map_["SbPlayerSetPlaybackRate"] =
       reinterpret_cast<const void*>(SbPlayerSetPlaybackRate);
   map_["SbPlayerSetVolume"] = reinterpret_cast<const void*>(SbPlayerSetVolume);
   map_["SbPlayerWriteEndOfStream"] =
       reinterpret_cast<const void*>(SbPlayerWriteEndOfStream);
+
+#if SB_API_VERSION >= 10
   map_["SbPlayerWriteSample2"] =
       reinterpret_cast<const void*>(SbPlayerWriteSample2);
+#endif
+
   map_["SbSocketAccept"] = reinterpret_cast<const void*>(SbSocketAccept);
   map_["SbSocketBind"] = reinterpret_cast<const void*>(SbSocketBind);
   map_["SbSocketClearLastError"] = reinterpret_cast<const void*>(SbSocketClearLastError);
@@ -317,6 +355,9 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(SbSpeechRecognizerStart);
   map_["SbSpeechRecognizerStop"] =
       reinterpret_cast<const void*>(SbSpeechRecognizerStop);
+#endif
+
+#if SB_HAS(SPEECH_SYNTHESIS)
   map_["SbSpeechSynthesisCancel"] =
       reinterpret_cast<const void*>(SbSpeechSynthesisCancel);
   map_["SbSpeechSynthesisSpeak"] =
@@ -376,8 +417,12 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(SbSystemGetDeviceType);
   map_["SbSystemGetErrorString"] =
       reinterpret_cast<const void*>(SbSystemGetErrorString);
+
+#if SB_API_VERSION >= 11
   map_["SbSystemGetExtension"] =
       reinterpret_cast<const void*>(SbSystemGetExtension);
+#endif
+
   map_["SbSystemGetLastError"] =
       reinterpret_cast<const void*>(SbSystemGetLastError);
   map_["SbSystemGetLocaleId"] =
@@ -417,11 +462,19 @@ ExportedSymbols::ExportedSymbols() {
   map_["SbSystemRequestUnpause"] =
       reinterpret_cast<const void*>(SbSystemRequestUnpause);
   map_["SbSystemSort"] = reinterpret_cast<const void*>(SbSystemSort);
+
+#if SB_API_VERSION >= 10
   map_["SbSystemSupportsResume"] =
       reinterpret_cast<const void*>(SbSystemSupportsResume);
+#endif
+
   map_["SbSystemSymbolize"] = reinterpret_cast<const void*>(SbSystemSymbolize);
+
+#if SB_API_VERSION >= 11
   map_["SbThreadContextGetPointer"] =
       reinterpret_cast<const void*>(SbThreadContextGetPointer);
+#endif
+
   map_["SbThreadCreate"] = reinterpret_cast<const void*>(SbThreadCreate);
   map_["SbThreadCreateLocalKey"] =
       reinterpret_cast<const void*>(SbThreadCreateLocalKey);
@@ -435,14 +488,19 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(SbThreadGetLocalValue);
   map_["SbThreadIsEqual"] = reinterpret_cast<const void*>(SbThreadIsEqual);
   map_["SbThreadJoin"] = reinterpret_cast<const void*>(SbThreadJoin);
+
+#if SB_API_VERSION >= 11
   map_["SbThreadSamplerCreate"] =
       reinterpret_cast<const void*>(SbThreadSamplerCreate);
+
   map_["SbThreadSamplerDestroy"] =
       reinterpret_cast<const void*>(SbThreadSamplerDestroy);
   map_["SbThreadSamplerFreeze"] =
       reinterpret_cast<const void*>(SbThreadSamplerFreeze);
   map_["SbThreadSamplerThaw"] =
       reinterpret_cast<const void*>(SbThreadSamplerThaw);
+#endif
+
   map_["SbThreadSetLocalValue"] =
       reinterpret_cast<const void*>(SbThreadSetLocalValue);
   map_["SbThreadSetName"] = reinterpret_cast<const void*>(SbThreadSetName);
@@ -450,29 +508,40 @@ ExportedSymbols::ExportedSymbols() {
   map_["SbThreadYield"] = reinterpret_cast<const void*>(SbThreadYield);
   map_["SbTimeGetMonotonicNow"] =
       reinterpret_cast<const void*>(SbTimeGetMonotonicNow);
+
+#if SB_HAS(TIME_THREAD_NOW)
   map_["SbTimeGetMonotonicThreadNow"] =
       reinterpret_cast<const void*>(SbTimeGetMonotonicThreadNow);
+#endif
+
   map_["SbTimeGetNow"] = reinterpret_cast<const void*>(SbTimeGetNow);
   map_["SbTimeZoneGetCurrent"] =
       reinterpret_cast<const void*>(SbTimeZoneGetCurrent);
   map_["SbTimeZoneGetName"] = reinterpret_cast<const void*>(SbTimeZoneGetName);
+
 #if SB_API_VERSION >= SB_UI_NAVIGATION_VERSION
   map_["SbUiNavGetInterface"] =
       reinterpret_cast<const void*>(SbUiNavGetInterface);
 #endif
+
   map_["SbUserGetCurrent"] = reinterpret_cast<const void*>(SbUserGetCurrent);
   map_["SbUserGetProperty"] = reinterpret_cast<const void*>(SbUserGetProperty);
   map_["SbUserGetPropertySize"] =
       reinterpret_cast<const void*>(SbUserGetPropertySize);
   map_["SbWindowCreate"] = reinterpret_cast<const void*>(SbWindowCreate);
   map_["SbWindowDestroy"] = reinterpret_cast<const void*>(SbWindowDestroy);
+
+#if SB_API_VERSION >= 11
   map_["SbWindowGetDiagonalSizeInInches"] =
       reinterpret_cast<const void*>(SbWindowGetDiagonalSizeInInches);
+#endif
+
   map_["SbWindowGetPlatformHandle"] =
       reinterpret_cast<const void*>(SbWindowGetPlatformHandle);
   map_["SbWindowGetSize"] = reinterpret_cast<const void*>(SbWindowGetSize);
   map_["SbWindowSetDefaultOptions"] =
       reinterpret_cast<const void*>(SbWindowSetDefaultOptions);
+
 #ifdef LOCAL_TEST_WITH_API_LEAKS
   map_["atexit"] = reinterpret_cast<const void*>(atexit);
   map_["btowc"] = reinterpret_cast<const void*>(btowc);
