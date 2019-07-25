@@ -141,6 +141,11 @@ void ElementIntersectionObserverModule::
       base::WrapRefCounted(new IntersectionObserverEntry(init_dict)));
 }
 
+void ElementIntersectionObserverModule::TraceMembers(script::Tracer* tracer) {
+  tracer->TraceItems(root_registered_intersection_observers_);
+  tracer->TraceItems(target_registered_intersection_observers_);
+}
+
 void ElementIntersectionObserverModule::AddLayoutTargetForObserver(
     IntersectionObserver* observer) {
   layout::IntersectionObserverTarget::OnIntersectionCallback

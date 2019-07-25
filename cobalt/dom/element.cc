@@ -688,6 +688,7 @@ void Element::TraceMembers(script::Tracer* tracer) {
 
   tracer->Trace(named_node_map_);
   tracer->Trace(class_list_);
+  tracer->Trace(element_intersection_observer_module_);
 }
 
 bool Element::GetBooleanAttribute(const std::string& name) const {
