@@ -580,6 +580,8 @@ class TestRunner(object):
         for line in filtered_tests:
           logging.info("    %s", line)
       logging.info("")  # formatting newline.
+      logging.info("  RETURN CODE: %d", return_code)
+      logging.info("")  # formatting newline.
 
     overall_status = "SUCCEEDED"
     result = True
