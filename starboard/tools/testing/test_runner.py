@@ -534,12 +534,12 @@ class TestRunner(object):
         logging.info("")  # formatting newline.
 
       test_status = "SUCCEEDED"
-      # If |return_code| is non-zero, the tests either crashed or failed.
-      if return_code != 0:
-        # If |run_count| is zero the tests crashed.
-        if run_count == 0 or actual_failed_count > 0 or flaky_failed_count > 0:
-          error = True
-          test_status = "FAILED"
+
+      # Always mark as FAILED if we have a non-zero return code, or failing
+      # test.
+      if return_code != 0 or actual_failed_count > 0 or flaky_failed_count > 0:
+        error = True
+        test_status = "FAILED"
         failed_test_groups.append(target_name)
 
       logging.info("%s: %s.", target_name, test_status)
