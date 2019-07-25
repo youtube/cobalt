@@ -181,6 +181,7 @@ bool IntersectionObserver::Notify() {
 }
 
 void IntersectionObserver::TraceMembers(script::Tracer* tracer) {
+  tracer->Trace(root_);
   tracer->TraceItems(observation_targets_);
   tracer->TraceItems(queued_entries_);
 }

@@ -19,6 +19,7 @@
 
 #include "cobalt/dom/intersection_observer.h"
 #include "cobalt/math/rect_f.h"
+#include "cobalt/script/tracer.h"
 
 namespace cobalt {
 namespace dom {
@@ -28,7 +29,7 @@ class Element;
 // This helper class groups the methods and  data related to the root and target
 // elements outlined in the intersection observer spec.
 // https://www.w3.org/TR/intersection-observer
-class ElementIntersectionObserverModule {
+class ElementIntersectionObserverModule : public script::Traceable {
  public:
   typedef std::vector<scoped_refptr<IntersectionObserver>>
       IntersectionObserverVector;
@@ -55,6 +56,8 @@ class ElementIntersectionObserverModule {
       math::RectF root_bounds, math::RectF target_rect,
       math::RectF intersection_rect, bool is_intersecting,
       float intersection_ratio);
+
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   void InvalidateLayoutBoxesForElement();
