@@ -15,10 +15,6 @@
 #include "starboard/configuration.h"
 #include "starboard/image.h"
 
-#if !SB_HAS(GRAPHICS)
-#error "Requires SB_HAS(GRAPHICS)."
-#endif
-
 bool SbImageIsDecodeSupported(const char* mime_type,
                               SbDecodeTargetFormat format) {
   SB_UNREFERENCED_PARAMETER(mime_type);
