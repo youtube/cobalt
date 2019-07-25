@@ -267,9 +267,12 @@ typedef struct SbCPUFeatures {
   // under the key "model name" or "Processor".
   const char* brand;
 
-  // Processor cache line size in bytes. Queried from /proc/cpuinfo or
+  // Processor cache line size in bytes of Level 1 instruction cache and data
+  // cache. Queried by sysconf(_SC_LEVEL1_ICACHE_LINESIZE) and
+  // sysconf(_SC_LEVEL1_DCACHE_LINESIZE), or from files /proc/cpuinfo,
   // /proc/self/auxv, or CPUID with CLFLUSH instruction.
-  int32_t cache_size;
+  int32_t icache_line_size;
+  int32_t dcache_line_size;
 
   // Processor has floating-point unit on-chip.
   bool has_fpu;
