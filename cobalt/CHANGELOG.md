@@ -3,11 +3,22 @@
 This document records all notable changes made to Cobalt since the last release.
 
 ## Version 20
- - **Improvements and Bug Fixes**
-  - Fix bug where Cobalt would not refresh the layout when the textContent
-    property of a DOM TextNode is modified.
 
- - **Add support for decoding JPEG images as multi-plane YUV**
+ - **Support for QUIC and SPDY is now enabled.**
+
+   QUIC and SPDY networking protocol support is added and these are enabled by
+   default (if the server supports the protocol).  This reduces roundtrip
+   overhead and will improve networking overhead performance, especially on
+   lower quality connections.
+
+ - **BoringSSL replaces OpenSSL enabling architecture-specific optimizations.**
+
+   The update to BoringSSL brings with it the introduction of assembly-optimized
+   architecture-specific optimizations that can bring a 5x speed up to
+   cryptographic functions.  This is especially useful when decrypting TLS for
+   high-bandwidth video.
+
+ - **Added support for decoding JPEG images as multi-plane YUV.**
 
    JPEG images are decoded into RGBA in previous versions of Cobalt.  The native
    format of most JPEG images is YV12, which takes only 3/8 of memory compare to
@@ -18,6 +29,108 @@ This document records all notable changes made to Cobalt since the last release.
    This feature can also be enabled/disabled explicitly by passing command line
    parameter "allow_image_decoding_to_multi_plane" to Cobalt with value "true"
    or "false".
+
+ - **Improved image cache purge strategy.**
+
+   Cobalt's image cache is now more aware of which images are likely to be
+   reused (e.g. the ones referenced by HTMLImageElements, even if they are not
+   currently displayed), and will now prioritize purging completely unreferenced
+   images before weakly referenced images.
+
+ - **Added support for encoded image caching.**
+
+   Cobalt now has support for caching the encoded image data fetched from the
+   network.  This enables Cobalt to keep the cached encoded image data resident
+   so that when the user resumes, Cobalt does not need to do a network fetch
+   for images again.  The size of this cache can be adjusted via the gyp
+   option `encoded_image_cache_size_in_bytes`, or the command line switch
+   `--encoded_image_cache_size_in_bytes`.
+
+ - **Added support for Device Authentication URL signing.**
+
+   Cobalt will now add URL parameters signed with the device's secret key and
+   certification scope to the initial URL.
+
+ - **Updated Chromium net and base libraries from m25 to m70.**
+
+   Cobalt now has rebased its m25 net and base libraries to Chromium's m70
+   version of those libraries, bringing with it more functionality, better
+   performance, and fewer bugs.
+
+ - **Media Codec Support.**
+
+   Cobalt now supports the AV1 codec, the HEVC (H.265) codec, Dolby Digital
+   (AC-3) and Dolby Digital Plus (Enhanced AC-3, or EAC-3).
+
+ - **Flexbox support added.**
+
+   Cobalt now supports the Flexible Box Module, enabling web applications to
+   take advantage of the more expressive layout model.
+
+ - **Support added for Chromium DevTools with V8.**
+
+   Cobalt now supports the Chromium DevTools to help debug web applications.
+   You can access it on non-gold builds by first starting Cobalt, and then using
+   a browser to navigate to `http://YOUR_DEVICE_IP:9222`.  The Elements,
+   Sources, Console and Performance panels are supported.
+
+ - **Support added for Intersection Observer Web API.**
+
+   Cobalt now supports the Intersection Observer Web API to enable more
+   performant checking of whether HTML elements are visible or not.  Note that
+   Cobalt's implementation currently does not support triggering visibility
+   events that occur during CSS animation/transition playback.
+
+ - **Support for custom interface HTMLVideoElement.setMaxVideoCapabilities()**
+
+   This allows the web application to express a guarantee to the platform's
+   video player that a video will never exceed a maximum quality in a particular
+   property.  You could use this for example to indicate that a video will never
+   adapt past a maximum resolution.
+
+ - **Platform Services API added**
+
+   This API enables web applications to communicate directly to
+   platform-specific services and systems, assuming the platform explicitly
+   enables the given service.
+
+ - **EGL/GLES-based reference implementation of the Blitter API now available.**
+
+   The Blitter API is now much easier to test locally on desktop computers or
+   any device that already supports EGL/GLES.  The new platform configuration
+   is named `linux-x64x11-blittergles`.
+
+ - **Add support for AbortController to the  Fetch API.**
+
+   The Fetch API is now updated to support the `AbortController` feature.
+
+ - **Support added for HTMLAudioElement HTML tag.**
+
+   This can be used to play audio-only media.
+
+ - **Add support for CSS3 Media Queries “dpi” value.**
+
+   This can be used by the web application to adjust its layout depending
+   on the physical size of the display device, if known.
+
+ - **Add support for scrollWidth, scrollHeight, scrollLeft, and scrollTop.**
+
+   The web application can now query and set scroll properties of containers.
+
+ - **Initial support for Cobalt Evergreen automatic software updater added.**
+
+   Cobalt is transitioning towards a runtime-linkable environment in order to
+   support automatic software updates.  Changes have been made around the
+   Starboard interface in anticipation of this.  Most notably, the EGL/GLES
+   interface is no longer assumed to be available but rather Cobalt will now
+   query the Starboard implementation for a structure of function pointers that
+   implement the EGL/GLES APIs.
+
+   Part of this process involves moving options that were formerly build-time
+   options to be instead run-time options.  This will primarily be enabled
+   by the new Starboard extensions framework.  An example of an platform
+   specific option added in this way can be found in
+   `cobalt/extension/graphis.h`.
 
  - **Cobalt code assumes that no errors are generated for unused parameters**
 
@@ -44,6 +157,19 @@ This document records all notable changes made to Cobalt since the last release.
   `MediaSessionClient` now provides an immutable `MediaSessionState` object
   that may be copied and queried on any thread to get a coherent view of
   attributes set by the the web app on the `MediaSession`.
+
+ - **Improvements and Bug Fixes**
+
+   - Fix bug where Cobalt would not refresh the layout when the textContent
+     property of a DOM TextNode is modified.
+   - Media codecs can now be disabled with the “--disable_media_codecs” command
+     line option to help with debugging.
+   - Enable “--proxy” command line flag in gold builds of Cobalt.
+   - Add `GetMaximumFrameIntervalInMilliseconds()` platform Cobalt configuration
+     setting (in `cobalt/extension/graphics.h`) to allow a platform to indicate a
+     minimum framerate causing Cobalt to rerender the display even if nothing has
+     changed after the specified interval.
+
 
 ## Version 19
  - **Add support for V8 JavaScript Engine**
