@@ -23,10 +23,10 @@
 #include "cobalt/network/persistent_cookie_store.h"
 #include "cobalt/network/proxy_config_service.h"
 #include "net/cert/cert_net_fetcher.h"
+#include "net/cert/cert_verifier.h"
 #include "net/cert/cert_verify_proc.h"
 #include "net/cert/ct_policy_enforcer.h"
 #include "net/cert/do_nothing_ct_verifier.h"
-#include "net/cert/multi_threaded_cert_verifier.h"
 #include "net/cert_net/cert_net_fetcher_impl.h"
 #include "net/dns/host_cache.h"
 #include "net/http/http_auth_handler_factory.h"
@@ -85,8 +85,10 @@ URLRequestContext::URLRequestContext(
   storage_.set_ct_policy_enforcer(std::unique_ptr<net::CTPolicyEnforcer>(
       new net::DefaultCTPolicyEnforcer()));
   DCHECK(ct_policy_enforcer());
-  storage_.set_cert_verifier(std::make_unique<net::MultiThreadedCertVerifier>(
-      net::CertVerifyProc::CreateDefault()));
+  // As of Chromium m70 net, CreateDefault will return a caching multi-thread
+  // cert verifier, the verification cache will usually cache 25-40
+  // results in a single session which can take up to 100KB memory.
+  storage_.set_cert_verifier(net::CertVerifier::CreateDefault());
   storage_.set_transport_security_state(
       std::make_unique<net::TransportSecurityState>());
   // TODO[***REMOVED***]: Investigate if we want the cert transparency verifier.
@@ -107,10 +109,7 @@ URLRequestContext::URLRequestContext(
 #if defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
   params.ignore_certificate_errors = ignore_certificate_errors;
   if (ignore_certificate_errors) {
-    auto* multi_threaded_cert_verifier =
-        base::polymorphic_downcast<net::MultiThreadedCertVerifier*>(
-            cert_verifier());
-    multi_threaded_cert_verifier->set_ignore_errors(true);
+    cert_verifier()->set_ignore_certificate_errors(true);
     LOG(INFO) << "ignore_certificate_errors option specified, Certificate "
                  "validation results will be ignored but error message will "
                  "still be displayed.";
