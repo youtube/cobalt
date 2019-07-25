@@ -52,6 +52,9 @@ class StubVideoDecoder : public VideoDecoder {
  private:
   DecoderStatusCB decoder_status_cb_;
   optional<SbMediaVideoSampleInfo> video_sample_info_;
+#if SB_API_VERSION < 11
+  SbMediaColorMetadata color_metadata_;
+#endif  // SB_API_VERSION < 11
 
   // std::set<> keeps frame timestamps sorted in ascending order.
   std::set<SbTime> output_event_frame_times_;
