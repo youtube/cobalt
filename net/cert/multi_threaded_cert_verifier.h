@@ -68,7 +68,9 @@ class NET_EXPORT_PRIVATE MultiThreadedCertVerifier : public CertVerifier {
 #if defined(STARBOARD) && defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
   // Used to disable certificate verification errors for testing/developerment
   // purpose.
-  void set_ignore_errors(bool ignore_errors) { ignore_errors_ = ignore_errors; }
+  void set_ignore_certificate_errors(bool ignore_certificate_errors) {
+    ignore_certificate_errors_ = ignore_certificate_errors;
+  }
 #endif
 
  private:
@@ -131,7 +133,7 @@ class NET_EXPORT_PRIVATE MultiThreadedCertVerifier : public CertVerifier {
   bool should_record_histograms_ = true;
 
 #if defined(STARBOARD) && defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
-  bool ignore_errors_ = false;
+  bool ignore_certificate_errors_ = false;
 #endif
 
   THREAD_CHECKER(thread_checker_);
