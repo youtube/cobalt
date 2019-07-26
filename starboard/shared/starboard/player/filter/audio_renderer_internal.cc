@@ -518,6 +518,7 @@ void AudioRenderer::OnFirstOutput() {
       max_cached_frames_, this);
   if (!audio_renderer_sink_->HasStarted()) {
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
+    SB_LOG(ERROR) << "Failed to start audio sink.";
     error_cb_(kSbPlayerErrorDecode, "failed to start audio sink");
 #else   // SB_HAS(PLAYER_ERROR_MESSAGE)
     error_cb_();
@@ -721,7 +722,8 @@ void AudioRenderer::CheckAudioSinkStatus() {
                     << " time since last check, which is too frequently.";
   }
 
-  sink_callbacks_since_last_check_.store(0);
+  auto sink_callbacks_since_last_check =
+      sink_callbacks_since_last_check_.exchange(0);
 
   if (paused_ || playback_rate_ == 0.0) {
     return;
@@ -735,7 +737,9 @@ void AudioRenderer::CheckAudioSinkStatus() {
                      << elapsed / kSbTimeSecond << " seconds, with "
                      << total_frames_sent_to_sink_ -
                             total_frames_consumed_by_sink_
-                     << " frames in sink.";
+                     << " frames in sink, " << (underflow_ ? "underflow, " : "")
+                     << sink_callbacks_since_last_check
+                     << " callbacks since last check.";
   }
   Schedule(std::bind(&AudioRenderer::CheckAudioSinkStatus, this),
            kCheckAudioSinkStatusInterval);
