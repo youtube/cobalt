@@ -115,16 +115,7 @@ SbBlitterDevice SbBlitterCreateDefaultDevice() {
     return kSbBlitterInvalidDevice;
   }
 
-  // When running on Xvfb, sometimes ANGLE fails to open the default X display.
-  // By retrying, we increase the chances that eglInitialize() will succeed.
-  // This is a temporary fix.
-  int max_tries = 3, num_tries = 0;
-  bool initialized = false;
-  do {
-    initialized = eglInitialize(device->display, NULL, NULL);
-    ++num_tries;
-  } while (!initialized && num_tries < max_tries);
-  if (!initialized) {
+  if (!eglInitialize(device->display, NULL, NULL)) {
     SB_DLOG(ERROR) << ": Failed to initialize device.";
     return kSbBlitterInvalidDevice;
   }
