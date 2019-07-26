@@ -1015,7 +1015,7 @@ void HTMLElement::UpdateComputedStyleRecursively(
   descendant_computed_styles_valid_ = true;
 }
 
-void HTMLElement::MarkDisplayNoneOnNodeAndDescendants() {
+void HTMLElement::MarkNotDisplayedOnNodeAndDescendants() {
   // While we do want to clear the animations immediately, we also want to
   // ensure that they are also reset starting with the next computed style
   // update.  This ensures that for example a transition will not be triggered
@@ -1039,7 +1039,7 @@ void HTMLElement::MarkDisplayNoneOnNodeAndDescendants() {
     }
   }
 
-  MarkDisplayNoneOnDescendants();
+  MarkNotDisplayedOnDescendants();
 }
 
 void HTMLElement::PurgeCachedBackgroundImagesOfNodeAndDescendants() {
@@ -1727,7 +1727,7 @@ void HTMLElement::UpdateComputedStyle(
   }
 
   if (invalidation_flags.mark_descendants_as_display_none) {
-    MarkDisplayNoneOnDescendants();
+    MarkNotDisplayedOnDescendants();
   }
   if (invalidation_flags.invalidate_computed_styles_of_descendants) {
     InvalidateComputedStylesOfDescendants();
