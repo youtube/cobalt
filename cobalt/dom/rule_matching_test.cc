@@ -35,11 +35,16 @@
 #include "cobalt/dom/testing/stub_window.h"
 #include "cobalt/dom_parser/parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "cobalt/script/script_exception.h"
+#include "cobalt/script/testing/mock_exception_state.h"
 
 using cobalt::cssom::ViewportSize;
 
 namespace cobalt {
 namespace dom {
+
+using script::testing::MockExceptionState;
+using ::testing::StrictMock;
 
 class RuleMatchingTest : public ::testing::Test {
  protected:
@@ -774,6 +779,13 @@ TEST_F(RuleMatchingTest, QuerySelectorAllShouldReturnAllMatches) {
 
   node_list = QuerySelectorAll(document_, "span", css_parser_.get());
   EXPECT_EQ(0, node_list->length());
+}
+
+TEST_F(RuleMatchingTest, ElementMatches) {
+  scoped_refptr<Element> root = new Element(document_, base::Token("root"));
+  StrictMock<MockExceptionState> exception_state;
+  EXPECT_TRUE(root->Matches("root", &exception_state));
+  EXPECT_FALSE(root->Matches("r", &exception_state));
 }
 
 TEST_F(RuleMatchingTest, StyleElementRemoval) {
