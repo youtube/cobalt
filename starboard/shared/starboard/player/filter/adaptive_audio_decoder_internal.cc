@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 
+#include "starboard/audio_sink.h"
+#include "starboard/common/log.h"
 #include "starboard/common/reset_and_return.h"
 
 namespace starboard {
@@ -25,6 +27,8 @@ namespace filter {
 using common::ResetAndReturn;
 
 #if SB_API_VERSION >= 11
+const int kDefaultOutputSamplesPerSecond = 48000;
+
 bool IsResetDecoderNecessary(const SbMediaAudioSampleInfo& current_info,
                              const SbMediaAudioSampleInfo& new_info) {
   if (current_info.codec != new_info.codec) {
@@ -118,6 +122,31 @@ void AdaptiveAudioDecoder::WriteEndOfStream() {
   if (audio_decoder_) {
     audio_decoder_->WriteEndOfStream();
   } else {
+    // It's possible that WriteEndOfStream() is called without any
+    // other input. In that case, we need to give |output_sample_type_|,
+    // |output_storage_type_| and |output_samples_per_second_| default
+    // value.
+    if (!first_output_received_) {
+      first_output_received_ = true;
+      if (SbAudioSinkIsAudioSampleTypeSupported(
+              kSbMediaAudioSampleTypeFloat32)) {
+        output_sample_type_ = kSbMediaAudioSampleTypeFloat32;
+      } else if (SbAudioSinkIsAudioSampleTypeSupported(
+                     kSbMediaAudioSampleTypeInt16Deprecated)) {
+        output_sample_type_ = kSbMediaAudioSampleTypeInt16Deprecated;
+      } else {
+        SB_NOTREACHED();
+      }
+      if (SbAudioSinkIsAudioFrameStorageTypeSupported(
+              kSbMediaAudioFrameStorageTypeInterleaved)) {
+        output_storage_type_ = kSbMediaAudioFrameStorageTypeInterleaved;
+      } else {
+        SB_NOTREACHED();
+      }
+      output_samples_per_second_ =
+          SbAudioSinkGetNearestSupportedSampleFrequency(
+              kDefaultOutputSamplesPerSecond);
+    }
     decoded_audios_.push(new DecodedAudio);
     Schedule(output_cb_);
   }
