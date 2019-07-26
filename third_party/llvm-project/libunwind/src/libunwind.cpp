@@ -374,7 +374,12 @@ bool logAPIs() {
   static bool checked = false;
   static bool log = false;
   if (!checked) {
-    log = (getenv("LIBUNWIND_PRINT_APIS") != NULL);
+    log =
+#if defined(LIBUNWIND_PRINT_APIS)
+        true;
+#else  // !defined(LIBUNWIND_PRINT_APIS)
+        false;
+#endif // defined(LIBUNWIND_PRINT_APIS)
     checked = true;
   }
   return log;
@@ -386,7 +391,12 @@ bool logUnwinding() {
   static bool checked = false;
   static bool log = false;
   if (!checked) {
-    log = (getenv("LIBUNWIND_PRINT_UNWINDING") != NULL);
+    log =
+#if defined(LIBUNWIND_PRINT_UNWINDING)
+        true;
+#else  // !defined(LIBUNWIND_PRINT_UNWINDING)
+        false;
+#endif // defined(LIBUNWIND_PRINT_UNWINDING)
     checked = true;
   }
   return log;
@@ -398,7 +408,12 @@ bool logDWARF() {
   static bool checked = false;
   static bool log = false;
   if (!checked) {
-    log = (getenv("LIBUNWIND_PRINT_DWARF") != NULL);
+    log =
+#if defined(LIBUNWIND_PRINT_DWARF)
+        true;
+#else  // !defined(LIBUNWIND_PRINT_DWARF)
+        false;
+#endif // defined(LIBUNWIND_PRINT_DWARF)
     checked = true;
   }
   return log;
