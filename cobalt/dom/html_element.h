@@ -278,7 +278,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
       const base::TimeDelta& style_change_event_time,
       AncestorsAreDisplayed ancestor_is_displayed);
 
-  void MarkDisplayNoneOnNodeAndDescendants() override;
+  void MarkNotDisplayedOnNodeAndDescendants() override;
   void PurgeCachedBackgroundImagesOfNodeAndDescendants() override;
   void InvalidateComputedStylesOfNodeAndDescendants() override;
   void InvalidateLayoutBoxesOfNodeAndAncestors() override;
