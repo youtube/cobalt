@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <deque>
 #include <functional>
+#include <map>
 #include <set>
 
 #include "starboard/common/condition_variable.h"
@@ -454,14 +455,14 @@ class VideoDecoderTest
   std::set<SbTime> outstanding_inputs_;
   std::deque<scoped_refptr<VideoFrame>> decoded_frames_;
 
-  std::map<size_t, uint8_t> invalid_inputs_;
-
  private:
   SbPlayerPrivate player_;
   scoped_ptr<VideoRenderAlgorithm> video_render_algorithm_;
   scoped_refptr<VideoRendererSink> video_renderer_sink_;
 
   bool end_of_stream_written_ = false;
+
+  std::map<size_t, uint8_t> invalid_inputs_;
 };
 
 TEST_P(VideoDecoderTest, PrerollFrameCount) {
