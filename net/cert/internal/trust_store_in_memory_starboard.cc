@@ -104,8 +104,9 @@ scoped_refptr<ParsedCertificate> TrustStoreInMemoryStarboard::TryLoadCert(
   SbFileError out_error;
   char cert_buffer[kCertBufferSize];
   base::FilePath cert_path = GetCertificateDirPath().Append(cert_file_name);
-  SbFile sb_cert_file = SbFileOpen(cert_path.value().c_str(), kSbFileOpenOnly,
-                                   nullptr, &out_error);
+  SbFile sb_cert_file =
+      SbFileOpen(cert_path.value().c_str(), kSbFileOpenOnly | kSbFileRead,
+                 nullptr, &out_error);
   // The file was in certs directory when we iterated the directory at startup,
   // opening it should not fail.
   if (!SbFileIsValid(sb_cert_file)) {
