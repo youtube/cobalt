@@ -422,6 +422,12 @@ TEST_P(AudioDecoderTest, EndOfStreamWithoutAnyInput) {
 
   ASSERT_NO_FATAL_FAILURE(DrainOutputs());
   ASSERT_FALSE(last_decoded_audio_);
+
+  ASSERT_TRUE(
+      SbAudioSinkIsAudioSampleTypeSupported(audio_decoder_->GetSampleType()));
+  ASSERT_TRUE(SbAudioSinkIsAudioFrameStorageTypeSupported(
+      audio_decoder_->GetStorageType()));
+  ASSERT_TRUE(audio_decoder_->GetSamplesPerSecond());
 }
 
 TEST_P(AudioDecoderTest, ResetBeforeInput) {
