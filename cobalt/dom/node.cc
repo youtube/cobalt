@@ -497,8 +497,8 @@ void Node::OnRemovedFromDocument() {
   }
 }
 
-void Node::MarkDisplayNoneOnNodeAndDescendants() {
-  MarkDisplayNoneOnDescendants();
+void Node::MarkNotDisplayedOnNodeAndDescendants() {
+  MarkNotDisplayedOnDescendants();
 }
 
 void Node::PurgeCachedBackgroundImagesOfNodeAndDescendants() {
@@ -517,10 +517,10 @@ void Node::InvalidateLayoutBoxesOfNodeAndDescendants() {
   InvalidateLayoutBoxesOfDescendants();
 }
 
-void Node::MarkDisplayNoneOnDescendants() {
+void Node::MarkNotDisplayedOnDescendants() {
   Node* child = first_child_.get();
   while (child) {
-    child->MarkDisplayNoneOnNodeAndDescendants();
+    child->MarkNotDisplayedOnNodeAndDescendants();
     child = child->next_sibling_.get();
   }
 }
@@ -772,6 +772,7 @@ void Node::Remove(const scoped_refptr<Node>& node, bool suppress_observers) {
   bool was_inserted_to_document = node->inserted_into_document_;
   if (was_inserted_to_document) {
     node->OnRemovedFromDocument();
+    node->MarkNotDisplayedOnNodeAndDescendants();
   }
 
   // 1. 5. Not needed by Cobalt.
