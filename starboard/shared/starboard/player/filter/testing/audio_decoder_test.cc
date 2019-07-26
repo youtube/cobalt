@@ -16,6 +16,7 @@
 
 #include <deque>
 #include <functional>
+#include <map>
 
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
@@ -165,8 +166,6 @@ class AudioDecoderTest
 
     last_input_buffer_ = GetAudioInputBuffer(index);
 
-    outstanding_inputs_.insert(last_input_buffer_->timestamp());
-
     audio_decoder_->Decode(last_input_buffer_, consumed_cb());
   }
 
@@ -190,9 +189,14 @@ class AudioDecoderTest
   }
 
   void WriteMultipleInputs(size_t start_index,
-                           size_t number_of_inputs_to_write) {
+                           size_t number_of_inputs_to_write,
+                           bool* error_occurred = NULL) {
     ASSERT_LE(start_index + number_of_inputs_to_write,
               dmp_reader_.number_of_audio_buffers());
+
+    if (error_occurred) {
+      *error_occurred = false;
+    }
 
     ASSERT_NO_FATAL_FAILURE(WriteSingleInput(start_index));
     ++start_index;
@@ -206,6 +210,11 @@ class AudioDecoderTest
         ++start_index;
         --number_of_inputs_to_write;
         continue;
+      }
+      if (event == kError) {
+        ASSERT_TRUE(error_occurred);
+        *error_occurred = true;
+        return;
       }
       ASSERT_EQ(kOutput, event);
       scoped_refptr<DecodedAudio> decoded_audio;
@@ -281,7 +290,6 @@ class AudioDecoderTest
     can_accept_more_input_ = true;
     last_input_buffer_ = NULL;
     last_decoded_audio_ = NULL;
-    outstanding_inputs_.clear();
     eos_written_ = false;
   }
 
@@ -304,14 +312,27 @@ class AudioDecoderTest
     auto player_sample_info =
         dmp_reader_.GetPlayerSampleInfo(kSbMediaTypeAudio, index);
 #if SB_API_VERSION >= 11
-    return new InputBuffer(DeallocateSampleFunc, NULL, NULL,
-                           player_sample_info);
+    auto input_buffer =
+        new InputBuffer(DeallocateSampleFunc, NULL, NULL, player_sample_info);
 #else   // SB_API_VERSION >= 11
     SbMediaAudioSampleInfo audio_sample_info =
         dmp_reader_.GetAudioSampleInfo(index);
-    return new InputBuffer(kSbMediaTypeAudio, DeallocateSampleFunc, NULL, NULL,
-                           player_sample_info, &audio_sample_info);
+    auto input_buffer =
+        new InputBuffer(kSbMediaTypeAudio, DeallocateSampleFunc, NULL, NULL,
+                        player_sample_info, &audio_sample_info);
 #endif  // SB_API_VERSION >= 11
+    auto iter = invalid_inputs_.find(index);
+    if (iter != invalid_inputs_.end()) {
+      std::vector<uint8_t> content(input_buffer->size(), iter->second);
+      // Replace the content with invalid data.
+      input_buffer->SetDecryptedContent(content.data(),
+                                        static_cast<int>(content.size()));
+    }
+    return input_buffer;
+  }
+
+  void UseInvalidDataForInput(size_t index, uint8_t byte_to_fill) {
+    invalid_inputs_[index] = byte_to_fill;
   }
 
   void WriteEndOfStream() {
@@ -355,11 +376,9 @@ class AudioDecoderTest
   scoped_refptr<InputBuffer> last_input_buffer_;
   scoped_refptr<DecodedAudio> last_decoded_audio_;
 
-  // List of timestamps of InputBuffers provided to the Decoder so far, sorted
-  // in ascending order.
-  std::set<SbTime> outstanding_inputs_;
-
   bool eos_written_ = false;
+
+  std::map<size_t, uint8_t> invalid_inputs_;
 };
 
 TEST_P(AudioDecoderTest, ThreeMoreDecoders) {
@@ -414,24 +433,48 @@ TEST_P(AudioDecoderTest, SingleInputHEAAC) {
 }
 
 TEST_P(AudioDecoderTest, SingleInvalidInput) {
-  can_accept_more_input_ = false;
-  last_input_buffer_ = GetAudioInputBuffer(0);
-  std::vector<uint8_t> content(last_input_buffer_->size(), 0xab);
-  // Replace the content with invalid data.
-  last_input_buffer_->SetDecryptedContent(content.data(),
-                                          static_cast<int>(content.size()));
-  audio_decoder_->Decode(last_input_buffer_, consumed_cb());
+  UseInvalidDataForInput(0, 0xab);
 
+  WriteSingleInput(0);
   WriteEndOfStream();
 
-  bool error_occurred = false;
+  bool error_occurred = true;
   ASSERT_NO_FATAL_FAILURE(DrainOutputs(&error_occurred));
-  // The decoder is allowed to either signal an error or return dummy audio
-  // data but not both.
-  if (error_occurred) {
-    ASSERT_FALSE(last_decoded_audio_);
-  } else {
-    ASSERT_TRUE(last_decoded_audio_);
+}
+
+TEST_P(AudioDecoderTest, MultipleValidInputsAfterInvalidInput) {
+  const size_t kMaxNumberOfInputToWrite = 10;
+  const size_t number_of_input_to_write =
+      std::min(kMaxNumberOfInputToWrite, dmp_reader_.number_of_audio_buffers());
+
+  UseInvalidDataForInput(0, 0xab);
+
+  bool error_occurred = true;
+  // Write first few frames.  The first one is invalid and the rest are valid.
+  WriteMultipleInputs(0, number_of_input_to_write, &error_occurred);
+
+  if (!error_occurred) {
+    WriteEndOfStream();
+    ASSERT_NO_FATAL_FAILURE(DrainOutputs(&error_occurred));
+  }
+}
+
+TEST_P(AudioDecoderTest, MultipleInvalidInput) {
+  const size_t kMaxNumberOfInputToWrite = 128;
+  const size_t number_of_input_to_write =
+      std::min(kMaxNumberOfInputToWrite, dmp_reader_.number_of_audio_buffers());
+  // Replace the content of the first few input buffers with invalid data.
+  // Every test instance loads its own copy of data so this won't affect other
+  // tests.
+  for (size_t i = 0; i < number_of_input_to_write; ++i) {
+    UseInvalidDataForInput(i, static_cast<uint8_t>(0xab + i));
+  }
+
+  bool error_occurred = true;
+  WriteMultipleInputs(0, number_of_input_to_write, &error_occurred);
+  if (!error_occurred) {
+    WriteEndOfStream();
+    ASSERT_NO_FATAL_FAILURE(DrainOutputs(&error_occurred));
   }
 }
 
