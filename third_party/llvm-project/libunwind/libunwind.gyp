@@ -53,6 +53,9 @@
         # Build libunwind with concurrency built upon Starboard mutexes and
         # condition variables.
         '_LIBUNWIND_HAS_STARBOARD_THREADS',
+        'LIBUNWIND_PRINT_APIS',
+        'LIBUNWIND_PRINT_DWARF',
+        'LIBUNWIND_PRINT_UNWINDING',
         'LLVM_PATH="<(DEPTH)/third_party/llvm-project/llvm/"',
       ],
       'sources': [
