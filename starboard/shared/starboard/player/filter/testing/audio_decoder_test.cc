@@ -320,6 +320,22 @@ class AudioDecoderTest
     eos_written_ = true;
   }
 
+  void AssertInvalidOutputFormat() {
+    SbMediaAudioSampleType output_sample_type = audio_decoder_->GetSampleType();
+    ASSERT_TRUE(output_sample_type == kSbMediaAudioSampleTypeFloat32 ||
+                output_sample_type == kSbMediaAudioSampleTypeInt16Deprecated);
+
+    SbMediaAudioFrameStorageType output_storage_type =
+        audio_decoder_->GetStorageType();
+    ASSERT_TRUE(output_storage_type ==
+                    kSbMediaAudioFrameStorageTypeInterleaved ||
+                output_storage_type == kSbMediaAudioFrameStorageTypePlanar);
+
+    int output_samples_per_second = audio_decoder_->GetSamplesPerSecond();
+    ASSERT_TRUE(output_samples_per_second > 0 &&
+                output_samples_per_second <= 480000);
+  }
+
   Mutex event_queue_mutex_;
   std::deque<Event> event_queue_;
 
@@ -373,6 +389,7 @@ TEST_P(AudioDecoderTest, SingleInput) {
 
   ASSERT_NO_FATAL_FAILURE(DrainOutputs());
   ASSERT_TRUE(last_decoded_audio_);
+  ASSERT_NO_FATAL_FAILURE(AssertInvalidOutputFormat());
 }
 
 TEST_P(AudioDecoderTest, SingleInputHEAAC) {
@@ -387,6 +404,7 @@ TEST_P(AudioDecoderTest, SingleInputHEAAC) {
 
   ASSERT_NO_FATAL_FAILURE(DrainOutputs());
   ASSERT_TRUE(last_decoded_audio_);
+  ASSERT_NO_FATAL_FAILURE(AssertInvalidOutputFormat());
   if (last_decoded_audio_->frames() == kAacFrameSize) {
     return;
   }
@@ -422,12 +440,7 @@ TEST_P(AudioDecoderTest, EndOfStreamWithoutAnyInput) {
 
   ASSERT_NO_FATAL_FAILURE(DrainOutputs());
   ASSERT_FALSE(last_decoded_audio_);
-
-  ASSERT_TRUE(
-      SbAudioSinkIsAudioSampleTypeSupported(audio_decoder_->GetSampleType()));
-  ASSERT_TRUE(SbAudioSinkIsAudioFrameStorageTypeSupported(
-      audio_decoder_->GetStorageType()));
-  ASSERT_TRUE(audio_decoder_->GetSamplesPerSecond());
+  ASSERT_NO_FATAL_FAILURE(AssertInvalidOutputFormat());
 }
 
 TEST_P(AudioDecoderTest, ResetBeforeInput) {
@@ -438,6 +451,7 @@ TEST_P(AudioDecoderTest, ResetBeforeInput) {
 
   ASSERT_NO_FATAL_FAILURE(DrainOutputs());
   ASSERT_TRUE(last_decoded_audio_);
+  ASSERT_NO_FATAL_FAILURE(AssertInvalidOutputFormat());
 }
 
 TEST_P(AudioDecoderTest, MultipleInputs) {
@@ -451,6 +465,7 @@ TEST_P(AudioDecoderTest, MultipleInputs) {
 
   ASSERT_NO_FATAL_FAILURE(DrainOutputs());
   ASSERT_TRUE(last_decoded_audio_);
+  ASSERT_NO_FATAL_FAILURE(AssertInvalidOutputFormat());
 }
 
 #if SB_API_VERSION >= 11
@@ -502,6 +517,7 @@ TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
   WriteEndOfStream();
   ASSERT_NO_FATAL_FAILURE(DrainOutputs());
   ASSERT_TRUE(last_decoded_audio_);
+  ASSERT_NO_FATAL_FAILURE(AssertInvalidOutputFormat());
 }
 
 #endif  // SB_API_VERSION >= 11
