@@ -27,7 +27,32 @@ namespace filter {
 using common::ResetAndReturn;
 
 #if SB_API_VERSION >= 11
-const int kDefaultOutputSamplesPerSecond = 48000;
+SbMediaAudioSampleType GetDefaultSupportedAudioSampleType() {
+  if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)) {
+    return kSbMediaAudioSampleTypeFloat32;
+  }
+  if (SbAudioSinkIsAudioSampleTypeSupported(
+          kSbMediaAudioSampleTypeInt16Deprecated)) {
+    return kSbMediaAudioSampleTypeInt16Deprecated;
+  }
+  SB_NOTREACHED();
+  return kSbMediaAudioSampleTypeFloat32;
+}
+
+SbMediaAudioFrameStorageType GetDefaultSupportedAudioFrameStorageType() {
+  if (SbAudioSinkIsAudioFrameStorageTypeSupported(
+          kSbMediaAudioFrameStorageTypeInterleaved)) {
+    return kSbMediaAudioFrameStorageTypeInterleaved;
+  }
+  SB_NOTREACHED();
+  return kSbMediaAudioFrameStorageTypeInterleaved;
+}
+
+int GetDefaultSupportedAudioSamplesPerSecond() {
+  const int kDefaultOutputSamplesPerSecond = 48000;
+  return SbAudioSinkGetNearestSupportedSampleFrequency(
+      kDefaultOutputSamplesPerSecond);
+}
 
 bool IsResetDecoderNecessary(const SbMediaAudioSampleInfo& current_info,
                              const SbMediaAudioSampleInfo& new_info) {
@@ -128,24 +153,9 @@ void AdaptiveAudioDecoder::WriteEndOfStream() {
     // value.
     if (!first_output_received_) {
       first_output_received_ = true;
-      if (SbAudioSinkIsAudioSampleTypeSupported(
-              kSbMediaAudioSampleTypeFloat32)) {
-        output_sample_type_ = kSbMediaAudioSampleTypeFloat32;
-      } else if (SbAudioSinkIsAudioSampleTypeSupported(
-                     kSbMediaAudioSampleTypeInt16Deprecated)) {
-        output_sample_type_ = kSbMediaAudioSampleTypeInt16Deprecated;
-      } else {
-        SB_NOTREACHED();
-      }
-      if (SbAudioSinkIsAudioFrameStorageTypeSupported(
-              kSbMediaAudioFrameStorageTypeInterleaved)) {
-        output_storage_type_ = kSbMediaAudioFrameStorageTypeInterleaved;
-      } else {
-        SB_NOTREACHED();
-      }
-      output_samples_per_second_ =
-          SbAudioSinkGetNearestSupportedSampleFrequency(
-              kDefaultOutputSamplesPerSecond);
+      output_sample_type_ = GetDefaultSupportedAudioSampleType();
+      output_storage_type_ = GetDefaultSupportedAudioFrameStorageType();
+      output_samples_per_second_ = GetDefaultSupportedAudioSamplesPerSecond();
     }
     decoded_audios_.push(new DecodedAudio);
     Schedule(output_cb_);
