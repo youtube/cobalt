@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
 #include <memory>
 
 #include "cobalt/audio/audio_device.h"
@@ -30,11 +31,7 @@ typedef media::ShellAudioBus ShellAudioBus;
 
 namespace {
 const int kRenderBufferSizeFrames = 1024;
-// AudioDevice will keep writing silence frames at the end of playback until the
-// buffer is full to ensure the audible frames being played on platforms with
-// strict underflow control. A large |kFramesPerChannel| will increase the
-// silence between two sounds. So it shouldn't be set to a very large number.
-const int kFramesPerChannel = kRenderBufferSizeFrames * 8;
+const int kDefaultFramesPerChannel = 8 * kRenderBufferSizeFrames;
 }  // namespace
 
 class AudioDevice::Impl {
@@ -64,6 +61,7 @@ class AudioDevice::Impl {
   int number_of_channels_;
   SbMediaAudioSampleType output_sample_type_;
   RenderCallback* render_callback_;
+  int frames_per_channel_;
 
   // The |render_callback_| returns audio data in planar form.  So we read it
   // into |input_audio_bus_| and convert it into interleaved form and store in
@@ -90,11 +88,19 @@ AudioDevice::Impl::Impl(int number_of_channels, RenderCallback* callback)
     : number_of_channels_(number_of_channels),
       output_sample_type_(GetPreferredOutputStarboardSampleType()),
       render_callback_(callback),
+#if SB_API_VERSION >= 11
+      frames_per_channel_(std::max(SbAudioSinkGetMinBufferSizeInFrames(
+                                       number_of_channels, output_sample_type_,
+                                       kStandardOutputSampleRate),
+                                   kDefaultFramesPerChannel)),
+#else  // SB_API_VERSION >= 11
+      frames_per_channel_(kDefaultFramesPerChannel),
+#endif  // SB_API_VERSION >= 11
       input_audio_bus_(static_cast<size_t>(number_of_channels),
                        static_cast<size_t>(kRenderBufferSizeFrames),
                        GetPreferredOutputSampleType(), ShellAudioBus::kPlanar),
       output_frame_buffer_(
-          new uint8[kFramesPerChannel * number_of_channels_ *
+          new uint8[frames_per_channel_ * number_of_channels_ *
                     GetStarboardSampleTypeSize(output_sample_type_)]) {
   DCHECK(number_of_channels_ == 1 || number_of_channels_ == 2)
       << "Invalid number of channels: " << number_of_channels_;
@@ -109,7 +115,7 @@ AudioDevice::Impl::Impl(int number_of_channels, RenderCallback* callback)
   audio_sink_ = SbAudioSinkCreate(
       number_of_channels_, kStandardOutputSampleRate, output_sample_type_,
       kSbMediaAudioFrameStorageTypeInterleaved, frame_buffers_,
-      kFramesPerChannel, &AudioDevice::Impl::UpdateSourceStatusFunc,
+      frames_per_channel_, &AudioDevice::Impl::UpdateSourceStatusFunc,
       &AudioDevice::Impl::ConsumeFramesFunc, this);
   DCHECK(SbAudioSinkIsValid(audio_sink_));
 }
@@ -168,7 +174,7 @@ void AudioDevice::Impl::UpdateSourceStatus(int* frames_in_buffer,
   DCHECK_GE(frames_rendered_, frames_consumed_);
   *frames_in_buffer = static_cast<int>(frames_rendered_ - frames_consumed_);
 
-  if ((kFramesPerChannel - *frames_in_buffer) >= kRenderBufferSizeFrames) {
+  if ((frames_per_channel_ - *frames_in_buffer) >= kRenderBufferSizeFrames) {
     // If there was silence last time we were called, then the buffer has
     // already been zeroed out and we don't need to do it again.
     if (!was_silence_last_update_) {
@@ -197,7 +203,7 @@ void AudioDevice::Impl::UpdateSourceStatus(int* frames_in_buffer,
     was_silence_last_update_ = silence;
   }
 
-  *offset_in_frames = frames_consumed_ % kFramesPerChannel;
+  *offset_in_frames = frames_consumed_ % frames_per_channel_;
 }
 
 void AudioDevice::Impl::ConsumeFrames(int frames_consumed) {
@@ -208,7 +214,7 @@ template <typename InputType, typename OutputType>
 inline void AudioDevice::Impl::FillOutputAudioBusForType() {
   // Determine the offset into the audio bus that represents the tail of
   // buffered data.
-  uint64 channel_offset = frames_rendered_ % kFramesPerChannel;
+  uint64 channel_offset = frames_rendered_ % frames_per_channel_;
 
   OutputType* output_buffer =
       reinterpret_cast<OutputType*>(output_frame_buffer_.get());
