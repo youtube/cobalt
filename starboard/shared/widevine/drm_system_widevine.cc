@@ -320,6 +320,7 @@ void DrmSystemWidevine::UpdateSession(int ticket,
         sb_drm_session_id, sb_drm_session_id_size, &wvcdm_session_id);
     SB_DCHECK(succeeded);
     status = cdm_->update(wvcdm_session_id, str_key);
+    first_update_session_received_.store(true);
   }
   SB_DLOG(INFO) << "Update keys status " << status;
 #if SB_API_VERSION >= 10
@@ -393,6 +394,10 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
 
   if (drm_info == NULL || drm_info->initialization_vector_size == 0) {
     return kSuccess;
+  }
+
+  if (!first_update_session_received_.load()) {
+    return kRetry;
   }
 
   // Adapt |buffer| and |drm_info| to a |cdm::InputBuffer|.
