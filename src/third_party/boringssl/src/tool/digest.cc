@@ -37,9 +37,7 @@ OPENSSL_MSVC_PRAGMA(warning(push, 3))
 OPENSSL_MSVC_PRAGMA(warning(pop))
 #include <io.h>
 #define PATH_MAX MAX_PATH
-#if !defined(STARBOARD)
 typedef int ssize_t;
-#endif
 #endif
 
 #include <openssl/digest.h>
