@@ -14,6 +14,7 @@
 
 #include "cobalt/layout/box_intersection_observer_module.h"
 
+#include "base/trace_event/trace_event.h"
 #include "cobalt/layout/box.h"
 
 namespace cobalt {
@@ -45,6 +46,9 @@ bool BoxIntersectionObserverModule::BoxContainsIntersectionObserverRoot(
 }
 
 void BoxIntersectionObserverModule::UpdateIntersectionObservations() {
+  TRACE_EVENT0(
+      "cobalt::layout",
+      "BoxIntersectionObserverModule::UpdateIntersectionObservations()");
   ContainerBox* container_box = box_->AsContainerBox();
   if (!container_box) {
     return;
