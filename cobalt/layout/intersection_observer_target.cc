@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <vector>
 
+#include "base/trace_event/trace_event.h"
 #include "cobalt/cssom/computed_style_utils.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/layout/box.h"
@@ -29,6 +30,9 @@ namespace layout {
 
 void IntersectionObserverTarget::UpdateIntersectionObservationsForTarget(
     ContainerBox* target_box) {
+  TRACE_EVENT0(
+      "cobalt::layout",
+      "IntersectionObserverTarget::UpdateIntersectionObservationsForTarget()");
   // Walk up the containing block chain looking for the box referencing the
   // IntersectionObserverRoot corresponding to this IntersectionObserverTarget.
   // Skip further processing for the target if it is not a descendant of the
