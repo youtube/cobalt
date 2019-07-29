@@ -990,6 +990,13 @@ void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
   container_box_before_split->SetUiNavItem(html_element->GetUiNavItem());
   boxes_.push_back(container_box_before_split);
 
+  BoxIntersectionObserverModule::IntersectionObserverRootVector roots =
+      html_element->GetLayoutIntersectionObserverRoots();
+  BoxIntersectionObserverModule::IntersectionObserverTargetVector targets =
+      html_element->GetLayoutIntersectionObserverTargets();
+  container_box_before_split->AddIntersectionObserverRootsAndTargets(
+      std::move(roots), std::move(targets));
+
   AppendPseudoElementToLine(html_element, dom::kBeforePseudoElementType);
 
   // Generate child boxes.

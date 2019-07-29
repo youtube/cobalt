@@ -21,6 +21,7 @@
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
+#include "starboard/shared/starboard/player/filter/stub_player_components_impl.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -37,6 +38,8 @@ namespace filter {
 namespace testing {
 namespace {
 
+using ::testing::Bool;
+using ::testing::Combine;
 using ::testing::ValuesIn;
 using std::vector;
 using std::string;
@@ -88,13 +91,14 @@ string ResolveTestFileName(const char* filename) {
 
 // TODO: Avoid reading same dmp file repeatly.
 class AdaptiveAudioDecoderTest
-    : public ::testing::TestWithParam<vector<const char*>> {
+    : public ::testing::TestWithParam<std::tuple<vector<const char*>, bool>> {
  protected:
   enum Event { kConsumed, kOutput, kError };
 
-  AdaptiveAudioDecoderTest() {
-    vector<const char*> params = GetParam();
-    for (auto filename : params) {
+  AdaptiveAudioDecoderTest()
+      : test_filenames_(std::get<0>(GetParam())),
+        using_stub_decoder_(std::get<1>(GetParam())) {
+    for (auto filename : test_filenames_) {
       dmp_readers_.emplace_back(
           new VideoDmpReader(ResolveTestFileName(filename).c_str()));
     }
@@ -105,9 +109,11 @@ class AdaptiveAudioDecoderTest
       }
       return std::move(accumulated) + "->" + str;
     };
-    string description = std::accumulate(params.begin(), params.end(), string(),
-                                         accumulate_operation);
-    SB_LOG(INFO) << "Testing: " << description;
+    string description =
+        std::accumulate(test_filenames_.begin(), test_filenames_.end(),
+                        string(), accumulate_operation);
+    SB_LOG(INFO) << "Testing: " << description
+                 << (using_stub_decoder_ ? " (with stub decoder)." : ".");
   }
 
   void SetUp() override {
@@ -121,8 +127,14 @@ class AdaptiveAudioDecoderTest
         dmp_readers_[0]->audio_codec(), dmp_readers_[0]->audio_sample_info(),
         kSbDrmSystemInvalid};
 
-    scoped_ptr<PlayerComponents> components = PlayerComponents::Create();
     scoped_ptr<AudioRendererSink> audio_renderer_sink;
+    scoped_ptr<PlayerComponents> components;
+    if (using_stub_decoder_) {
+      components = make_scoped_ptr<StubPlayerComponentsImpl>(
+          new StubPlayerComponentsImpl);
+    } else {
+      components = PlayerComponents::Create();
+    }
     components->CreateAudioComponents(audio_parameters, &audio_decoder_,
                                       &audio_renderer_sink);
     ASSERT_TRUE(audio_decoder_);
@@ -202,6 +214,16 @@ class AdaptiveAudioDecoderTest
     }
   }
 
+  void AssertExpectedAndOutputFramesMatch(int expected_output_frames) {
+    if (using_stub_decoder_) {
+      // The number of output frames is not applicable in the case of the
+      // StubAudioDecoder, because it is not actually doing any decoding work.
+      return;
+    }
+    ASSERT_LE(abs(expected_output_frames - num_of_output_frames_),
+              dmp_readers_.size());
+  }
+
   vector<std::unique_ptr<VideoDmpReader>> dmp_readers_;
   scoped_refptr<DecodedAudio> last_decoded_audio_;
   int num_of_output_frames_ = 0;
@@ -262,6 +284,13 @@ class AdaptiveAudioDecoderTest
     num_of_output_frames_ += last_decoded_audio_->frames();
   }
 
+  // Test parameter for the filenames to load with the VideoDmpReader.
+  std::vector<const char*> test_filenames_;
+
+  // Test parameter to configure whether the test is run with the
+  // StubAudioDecoder, or the platform-specific AudioDecoderImpl.
+  bool using_stub_decoder_;
+
   JobQueue job_queue_;
   scoped_ptr<AudioDecoder> audio_decoder_;
 
@@ -300,8 +329,7 @@ TEST_P(AdaptiveAudioDecoderTest, SingleInput) {
   // |expected_output_frames|. Each time to switch decoder, it may have one
   // sample difference in output due to integer conversion. The total difference
   // should not exceed the length of |dmp_readers_|.
-  ASSERT_LE(abs(expected_output_frames - num_of_output_frames_),
-            dmp_readers_.size());
+  AssertExpectedAndOutputFramesMatch(expected_output_frames);
 }
 
 TEST_P(AdaptiveAudioDecoderTest, MultipleInput) {
@@ -334,8 +362,7 @@ TEST_P(AdaptiveAudioDecoderTest, MultipleInput) {
   // |expected_output_frames|. Each time to switch decoder, it may have one
   // sample difference in ouput due to integer conversion. The total difference
   // should not exceed the length of |dmp_readers_|.
-  ASSERT_LE(abs(expected_output_frames - num_of_output_frames_),
-            dmp_readers_.size());
+  AssertExpectedAndOutputFramesMatch(expected_output_frames);
 }
 
 vector<vector<const char*>> GetSupportedTests() {
@@ -391,7 +418,7 @@ vector<vector<const char*>> GetSupportedTests() {
 
 INSTANTIATE_TEST_CASE_P(AdaptiveAudioDecoderTests,
                         AdaptiveAudioDecoderTest,
-                        ValuesIn(GetSupportedTests()));
+                        Combine(ValuesIn(GetSupportedTests()), Bool()));
 
 }  // namespace
 }  // namespace testing

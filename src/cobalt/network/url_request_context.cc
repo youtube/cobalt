@@ -153,9 +153,6 @@ URLRequestContext::URLRequestContext(
 
   storage_.set_job_factory(
       std::unique_ptr<net::URLRequestJobFactory>(job_factory));
-  if (!net::GetGlobalCertNetFetcher()) {
-    net::SetGlobalCertNetFetcher(net::CreateCertNetFetcher(this));
-  }
 }
 
 URLRequestContext::~URLRequestContext() {}

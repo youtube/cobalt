@@ -35,7 +35,6 @@
 #include "cobalt/base/language.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/network/network_module.h"
-#include "cobalt/speech/google_streaming_api.pb.h"
 #include "cobalt/speech/microphone.h"
 #include "cobalt/speech/speech_configuration.h"
 #include "cobalt/speech/speech_recognition_error.h"
@@ -85,7 +84,9 @@ GURL AppendQueryParameter(const GURL& url, const std::string& new_query,
 }
 
 SpeechRecognitionResultList::SpeechRecognitionResults
-ProcessProtoSuccessResults(const proto::SpeechRecognitionEvent& event) {
+ProcessProtoSuccessResults(proto::SpeechRecognitionEvent event) {
+  // This method handles wrappables and should run on the MainWebModule thread.
+
   DCHECK_EQ(event.status(), proto::SpeechRecognitionEvent::STATUS_SUCCESS);
 
   SpeechRecognitionResultList::SpeechRecognitionResults results;
@@ -117,8 +118,9 @@ ProcessProtoSuccessResults(const proto::SpeechRecognitionEvent& event) {
 
 // TODO: Feed error messages when creating SpeechRecognitionError.
 void ProcessAndFireErrorEvent(
-    const proto::SpeechRecognitionEvent& event,
-    const GoogleSpeechService::EventCallback& event_callback) {
+    proto::SpeechRecognitionEvent event,
+    GoogleSpeechService::EventCallback event_callback) {
+  // This method handles wrappables and should run on the MainWebModule thread.
   scoped_refptr<dom::Event> error_event;
   switch (event.status()) {
     case proto::SpeechRecognitionEvent::STATUS_SUCCESS:
@@ -162,6 +164,12 @@ void ProcessAndFireErrorEvent(
   event_callback.Run(error_event);
 }
 
+void HandleNetworkResponseFailure(
+    const GoogleSpeechService::EventCallback& event_callback) {
+  event_callback.Run(new SpeechRecognitionError(
+      kSpeechRecognitionErrorCodeNetwork, "Network response failure."));
+}
+
 bool IsResponseCodeSuccess(int response_code) {
   // NetFetcher only considers success to be if the network request
   // was successful *and* we get a 2xx response back.
@@ -181,7 +189,11 @@ GoogleSpeechService::GoogleSpeechService(
       started_(false),
       event_callback_(event_callback),
       fetcher_creator_(fetcher_creator),
-      thread_("speech_recognizer") {
+      thread_("speech_recognizer"),
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          weak_this_(weak_ptr_factory_.GetWeakPtr())),
+      wrappables_task_runner_(base::MessageLoop::current()->task_runner()) {
   thread_.StartWithOptions(
       base::Thread::Options(base::MessageLoop::TYPE_IO, 0));
 }
@@ -240,14 +252,20 @@ void GoogleSpeechService::OnURLFetchDownloadProgress(
         }
 
         if (event.status() == proto::SpeechRecognitionEvent::STATUS_SUCCESS) {
-          ProcessAndFireSuccessEvent(ProcessProtoSuccessResults(event));
+          wrappables_task_runner_->PostTask(
+              FROM_HERE,
+              base::Bind(&GoogleSpeechService::ProcessAndFireSuccessEvent,
+                         weak_this_, event));
         } else {
-          ProcessAndFireErrorEvent(event, event_callback_);
+          wrappables_task_runner_->PostTask(
+              FROM_HERE,
+              base::Bind(&ProcessAndFireErrorEvent, event, event_callback_));
         }
       }
     } else {
-      event_callback_.Run(new SpeechRecognitionError(
-          kSpeechRecognitionErrorCodeNetwork, "Network response failure."));
+      wrappables_task_runner_->PostTask(
+          FROM_HERE,
+          base::Bind(&HandleNetworkResponseFailure, event_callback_));
     }
   }
 }
@@ -358,10 +376,17 @@ void GoogleSpeechService::StopInternal() {
   downstream_fetcher_.reset();
   encoder_.reset();
 
-  // Clear the final results.
-  final_results_.clear();
+  wrappables_task_runner_->PostTask(
+      FROM_HERE,
+      base::Bind(&GoogleSpeechService::ClearFinalResults, weak_this_));
   // Clear any remaining audio data.
   chunked_byte_buffer_.Clear();
+}
+
+void GoogleSpeechService::ClearFinalResults() {
+  // This method handles wrappables and should run on the MainWebModule thread.
+  DCHECK(wrappables_task_runner_->BelongsToCurrentThread());
+  final_results_.clear();
 }
 
 void GoogleSpeechService::UploadAudioDataInternal(
@@ -384,8 +409,11 @@ void GoogleSpeechService::UploadAudioDataInternal(
 }
 
 void GoogleSpeechService::ProcessAndFireSuccessEvent(
-    const SpeechRecognitionResults& new_results) {
-  DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
+    proto::SpeechRecognitionEvent event) {
+  // This method handles wrappables and should run on the MainWebModule thread.
+  DCHECK(wrappables_task_runner_->BelongsToCurrentThread());
+
+  SpeechRecognitionResults new_results = ProcessProtoSuccessResults(event);
 
   SpeechRecognitionResults success_results;
   size_t total_size = final_results_.size() + new_results.size();

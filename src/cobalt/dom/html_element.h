@@ -278,7 +278,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
       const base::TimeDelta& style_change_event_time,
       AncestorsAreDisplayed ancestor_is_displayed);
 
-  void MarkDisplayNoneOnNodeAndDescendants() override;
+  void MarkNotDisplayedOnNodeAndDescendants() override;
   void PurgeCachedBackgroundImagesOfNodeAndDescendants() override;
   void InvalidateComputedStylesOfNodeAndDescendants() override;
   void InvalidateLayoutBoxesOfNodeAndAncestors() override;
@@ -346,6 +346,11 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   void OnInsertedIntoDocument() override;
   void OnRemovedFromDocument() override;
 
+  // From Element.
+  void OnSetAttribute(const std::string& name,
+                      const std::string& value) override;
+  void OnRemoveAttribute(const std::string& name) override;
+
   // HTMLElement keeps a pointer to the dom stat tracker to ensure that it can
   // make stat updates even after its weak pointer to its document has been
   // deleted. This is protected because some derived classes need access to it.
@@ -354,11 +359,6 @@ class HTMLElement : public Element, public cssom::MutationObserver {
  private:
   // From Node.
   void OnMutation() override;
-
-  // From Element.
-  void OnSetAttribute(const std::string& name,
-                      const std::string& value) override;
-  void OnRemoveAttribute(const std::string& name) override;
 
   bool IsFocusable();
   bool HasTabindexFocusFlag() const;

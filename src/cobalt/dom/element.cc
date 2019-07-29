@@ -15,7 +15,6 @@
 #include "cobalt/dom/element.h"
 
 #include <algorithm>
-#include <ctime>
 
 #include "base/lazy_instance.h"
 #include "base/strings/string_util.h"
@@ -240,7 +239,7 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
   if (document && GetRootNode() == document) {
     document->OnDOMMutation();
   }
-  OnSetAttribute(name, value);
+  OnSetAttribute(attr_name, value);
 }
 
 // Algorithm for RemoveAttribute:
@@ -302,7 +301,7 @@ void Element::RemoveAttribute(const std::string& name) {
   if (document && GetRootNode() == document) {
     document->OnDOMMutation();
   }
-  OnRemoveAttribute(name);
+  OnRemoveAttribute(attr_name);
 }
 
 // Algorithm for tag_name:
@@ -625,37 +624,71 @@ void Element::CollectStyleSheetsOfElementAndDescendants(
   }
 }
 
-void Element::RegisterIntersectionObserverTarget(
-    const scoped_refptr<IntersectionObserver>& observer) {
-  if (!intersection_observer_target_) {
-    intersection_observer_target_ = std::unique_ptr<IntersectionObserverTarget>(
-        new IntersectionObserverTarget(this));
+void Element::RegisterIntersectionObserverRoot(IntersectionObserver* observer) {
+  EnsureIntersectionObserverModuleInitialized();
+  element_intersection_observer_module_->RegisterIntersectionObserverForRoot(
+      observer);
+}
+
+void Element::UnregisterIntersectionObserverRoot(
+    IntersectionObserver* observer) {
+  if (element_intersection_observer_module_) {
+    element_intersection_observer_module_
+        ->UnregisterIntersectionObserverForRoot(observer);
   }
-  intersection_observer_target_->RegisterIntersectionObserver(observer);
+}
+
+void Element::RegisterIntersectionObserverTarget(
+    IntersectionObserver* observer) {
+  EnsureIntersectionObserverModuleInitialized();
+  element_intersection_observer_module_->RegisterIntersectionObserverForTarget(
+      observer);
 }
 
 void Element::UnregisterIntersectionObserverTarget(
-    const scoped_refptr<IntersectionObserver>& observer) {
-  intersection_observer_target_->UnregisterIntersectionObserver(observer);
+    IntersectionObserver* observer) {
+  element_intersection_observer_module_
+      ->UnregisterIntersectionObserverForTarget(observer);
 }
 
-void Element::UpdateIntersectionObservationsForTarget(
-    const scoped_refptr<IntersectionObserver>& observer) {
-  intersection_observer_target_->UpdateIntersectionObservationsForTarget(
-      observer);
+ElementIntersectionObserverModule::LayoutIntersectionObserverRootVector
+Element::GetLayoutIntersectionObserverRoots() {
+  ElementIntersectionObserverModule::LayoutIntersectionObserverRootVector
+      layout_roots;
+  if (element_intersection_observer_module_) {
+    layout_roots = element_intersection_observer_module_
+                       ->GetLayoutIntersectionObserverRootsForElement();
+  }
+  return layout_roots;
+}
+
+ElementIntersectionObserverModule::LayoutIntersectionObserverTargetVector
+Element::GetLayoutIntersectionObserverTargets() {
+  ElementIntersectionObserverModule::LayoutIntersectionObserverTargetVector
+      layout_targets;
+  if (element_intersection_observer_module_) {
+    layout_targets = element_intersection_observer_module_
+                         ->GetLayoutIntersectionObserverTargetsForElement();
+  }
+  return layout_targets;
 }
 
 scoped_refptr<HTMLElement> Element::AsHTMLElement() { return NULL; }
 
 // Explicitly defined because DOMTokenList is forward declared and held by
 // scoped_refptr in Element's header.
-Element::~Element() {}
+Element::~Element() {
+  // Reset the ElementIntersectionObserverModule so that functions such as
+  // UnregisterIntersectionRoot/Target will not be called on deleted objects.
+  element_intersection_observer_module_.reset();
+}
 
 void Element::TraceMembers(script::Tracer* tracer) {
   Node::TraceMembers(tracer);
 
   tracer->Trace(named_node_map_);
   tracer->Trace(class_list_);
+  tracer->Trace(element_intersection_observer_module_);
 }
 
 bool Element::GetBooleanAttribute(const std::string& name) const {
@@ -693,6 +726,14 @@ std::string Element::GetDebugName() {
 void Element::HTMLParseError(const std::string& error) {
   // TODO: Report line / column number.
   LOG(WARNING) << "Error when parsing inner HTML or outer HTML: " << error;
+}
+
+void Element::EnsureIntersectionObserverModuleInitialized() {
+  if (!element_intersection_observer_module_) {
+    element_intersection_observer_module_ =
+        std::unique_ptr<ElementIntersectionObserverModule>(
+            new ElementIntersectionObserverModule(this));
+  }
 }
 
 }  // namespace dom

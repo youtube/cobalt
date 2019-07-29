@@ -36,9 +36,10 @@
 # define OPENSSL_NO_POSIX_IO
 #endif
 
-#ifndef OPENSSL_NO_FP_API
-# define OPENSSL_NO_FP_API
-#endif
+// Benchmarking tool requires FP API to read certs and keys
+//#ifndef OPENSSL_NO_FP_API
+// # define OPENSSL_NO_FP_API
+//#endif
 
 #ifndef OPENSSL_NO_DSO
 # define OPENSSL_NO_DSO

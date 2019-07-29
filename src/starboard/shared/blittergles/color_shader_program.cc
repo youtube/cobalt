@@ -15,6 +15,18 @@
 #include "starboard/shared/blittergles/color_shader_program.h"
 
 #include <GLES2/gl2.h>
+#if defined(ADDRESS_SANITIZER)
+// By default, Leak Sanitizer and Address Sanitizer is expected to exist
+// together. However, this is not true for all platforms.
+// HAS_LEAK_SANTIZIER=0 explicitly removes the Leak Sanitizer from code.
+#ifndef HAS_LEAK_SANITIZER
+#define HAS_LEAK_SANITIZER 1
+#endif  // HAS_LEAK_SANITIZER
+#endif  // defined(ADDRESS_SANITIZER)
+
+#if HAS_LEAK_SANITIZER
+#include <sanitizer/lsan_interface.h>
+#endif  // HAS_LEAK_SANITIZER
 
 #include "starboard/blitter.h"
 #include "starboard/shared/blittergles/blitter_internal.h"
@@ -73,6 +85,29 @@ bool ColorShaderProgram::Draw(SbBlitterRenderTarget render_target,
   GL_CALL(glDisableVertexAttribArray(kPositionAttribute));
   GL_CALL(glUseProgram(0));
   return success;
+}
+
+void ColorShaderProgram::DummyDraw(SbBlitterRenderTarget render_target) const {
+  GL_CALL(glUseProgram(GetProgramHandle()));
+
+  float vertices[8];
+  SetNDC(SbBlitterMakeRect(0, 0, 1, 1), render_target->width,
+         render_target->height, vertices);
+  GL_CALL(glVertexAttribPointer(kPositionAttribute, 2, GL_FLOAT, GL_FALSE, 0,
+                                vertices));
+  GL_CALL(glEnableVertexAttribArray(kPositionAttribute));
+  GL_CALL(glVertexAttrib4f(kColorAttribute, 0.0f, 0.0f, 0.0f, 0.0f));
+
+#if HAS_LEAK_SANITIZER
+  __lsan_disable();
+#endif  // HAS_LEAK_SANITIZER
+  glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+#if HAS_LEAK_SANITIZER
+  __lsan_enable();
+#endif  // HAS_LEAK_SANITIZER
+
+  GL_CALL(glDisableVertexAttribArray(kPositionAttribute));
+  GL_CALL(glUseProgram(0));
 }
 
 }  // namespace blittergles

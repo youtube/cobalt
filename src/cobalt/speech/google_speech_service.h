@@ -24,6 +24,7 @@
 #include "cobalt/media/base/shell_audio_bus.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/speech/audio_encoder_flac.h"
+#include "cobalt/speech/google_streaming_api.pb.h"
 #include "cobalt/speech/speech_recognition_config.h"
 #include "cobalt/speech/speech_recognition_event.h"
 #include "content/browser/speech/chunked_byte_buffer.h"
@@ -78,9 +79,12 @@ class GoogleSpeechService : public net::URLFetcherDelegate {
  private:
   void StartInternal(const SpeechRecognitionConfig& config, int sample_rate);
   void StopInternal();
+  // This method handles wrappables and should run on the MainWebModule thread.
+  void ClearFinalResults();
   void UploadAudioDataInternal(std::unique_ptr<ShellAudioBus> audio_bus,
                                bool is_last_chunk);
-  void ProcessAndFireSuccessEvent(const SpeechRecognitionResults& new_results);
+  // This method handles wrappables, and so it must run on the MainWebModule.
+  void ProcessAndFireSuccessEvent(proto::SpeechRecognitionEvent event);
 
   // This is used for creating fetchers.
   network::NetworkModule* network_module_;
@@ -105,6 +109,11 @@ class GoogleSpeechService : public net::URLFetcherDelegate {
   base::Thread thread_;
   // Stores fetched response.
   CobaltURLFetcherStringWriter* download_data_writer_ = nullptr;
+
+  // Use a task runner to deal with all wrappables.
+  base::WeakPtrFactory<GoogleSpeechService> weak_ptr_factory_;
+  base::WeakPtr<GoogleSpeechService> weak_this_;
+  scoped_refptr<base::SingleThreadTaskRunner> const wrappables_task_runner_;
 };
 
 }  // namespace speech

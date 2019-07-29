@@ -473,6 +473,11 @@ class TestRunner(object):
     total_flaky_failed_count = 0
     total_filtered_count = 0
 
+    print  # Explicit print for empty formatting line.
+    logging.info("TEST RUN COMPLETE.")
+    if results:
+      print  # Explicit print for empty formatting line.
+
     # If the number of run tests from a test binary cannot be
     # determined, assume an error occurred while running it.
     error = False
@@ -513,8 +518,7 @@ class TestRunner(object):
         for test_case in flaky_failed_tests:
           for retry in range(_FLAKY_RETRY_LIMIT):
             retry_result = self._RunTest(target_name, test_case)
-            # Explicit print used to have an empty newline for formatting.
-            print
+            print  # Explicit print for empty formatting line.
             if retry_result[2] == 1:
               flaky_passed_tests.append(test_case)
               logging.info("%s succeeded on run #%d!\n", test_case, retry + 2)
@@ -529,20 +533,17 @@ class TestRunner(object):
       else:
         logging.info("")  # formatting newline.
 
-      logging.info("TEST RUN COMPLETE. RESULTS BELOW:")
-      logging.info("")  # formatting newline.
-
       test_status = "SUCCEEDED"
-      # If |return_code| is non-zero, the tests either crashed or failed.
-      if return_code != 0:
-        # If |run_count| is zero the tests crashed.
-        if run_count == 0 or actual_failed_count > 0 or flaky_failed_count > 0:
-          error = True
-          test_status = "FAILED"
+
+      # Always mark as FAILED if we have a non-zero return code, or failing
+      # test.
+      if return_code != 0 or actual_failed_count > 0 or flaky_failed_count > 0:
+        error = True
+        test_status = "FAILED"
         failed_test_groups.append(target_name)
 
       logging.info("%s: %s.", target_name, test_status)
-      if return_code != 0 and run_count == 0:
+      if return_code != 0 and run_count == 0 and filtered_count == 0:
         logging.info("  Results not available.  Did the test crash?")
         logging.info("")  # formatting newline.
         continue
@@ -578,6 +579,8 @@ class TestRunner(object):
         logging.info("  FILTERED TESTS:")
         for line in filtered_tests:
           logging.info("    %s", line)
+      logging.info("")  # formatting newline.
+      logging.info("  RETURN CODE: %d", return_code)
       logging.info("")  # formatting newline.
 
     overall_status = "SUCCEEDED"

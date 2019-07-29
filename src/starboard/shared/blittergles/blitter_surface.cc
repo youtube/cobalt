@@ -29,22 +29,22 @@ SbBlitterSurfacePrivate::~SbBlitterSurfacePrivate() {
   }
 }
 
-void SbBlitterSurfacePrivate::SetTexture(void* pixel_data) {
+bool SbBlitterSurfacePrivate::SetTexture(void* pixel_data) {
   SbBlitterContextPrivate::ScopedCurrentContext scoped_current_context;
   if (scoped_current_context.InitializationError()) {
-    return;
+    return false;
   }
   glGenTextures(1, &color_texture_handle);
   if (color_texture_handle == 0) {
     SB_DLOG(ERROR) << ": Error creating new texture.";
-    return;
+    return false;
   }
   glBindTexture(GL_TEXTURE_2D, color_texture_handle);
   if (glGetError() != GL_NO_ERROR) {
     GL_CALL(glDeleteTextures(1, &color_texture_handle));
     color_texture_handle = 0;
     SB_DLOG(ERROR) << ": Error binding new texture.";
-    return;
+    return false;
   }
   GL_CALL(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
   GL_CALL(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
@@ -59,8 +59,9 @@ void SbBlitterSurfacePrivate::SetTexture(void* pixel_data) {
     GL_CALL(glDeleteTextures(1, &color_texture_handle));
     color_texture_handle = 0;
     SB_DLOG(ERROR) << ": Error allocating new texture backing.";
-    return;
+    return false;
   }
 
   GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
+  return true;
 }

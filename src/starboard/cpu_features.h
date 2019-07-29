@@ -31,6 +31,10 @@
 
 #if SB_API_VERSION >= 11
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum SbCPUFeaturesArchitecture {
   kSbCPUFeaturesArchitectureArm,
   kSbCPUFeaturesArchitectureArm64,
@@ -263,9 +267,12 @@ typedef struct SbCPUFeatures {
   // under the key "model name" or "Processor".
   const char* brand;
 
-  // Processor cache line size in bytes. Queried from /proc/cpuinfo or
+  // Processor cache line size in bytes of Level 1 instruction cache and data
+  // cache. Queried by sysconf(_SC_LEVEL1_ICACHE_LINESIZE) and
+  // sysconf(_SC_LEVEL1_DCACHE_LINESIZE), or from files /proc/cpuinfo,
   // /proc/self/auxv, or CPUID with CLFLUSH instruction.
-  int32_t cache_size;
+  int32_t icache_line_size;
+  int32_t dcache_line_size;
 
   // Processor has floating-point unit on-chip.
   bool has_fpu;
@@ -313,6 +320,10 @@ typedef struct SbCPUFeatures {
 // If this function returns false, it means the CPU architecture is unknown and
 // all fields in |features| are invalid.
 SB_EXPORT bool SbCPUFeaturesGet(SbCPUFeatures* features);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif  // SB_API_VERSION >= 11
 #endif  // STARBOARD_CPU_FEATURES_H_

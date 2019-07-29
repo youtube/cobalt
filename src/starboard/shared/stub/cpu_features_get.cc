@@ -13,34 +13,23 @@
 // limitations under the License.
 
 #include "starboard/cpu_features.h"
+#include "starboard/shared/starboard/cpu_features.h"
 
 #include <string.h>
 
 #if SB_API_VERSION >= 11
 
+using starboard::shared::SetArmFeaturesInvalid;
+using starboard::shared::SetGeneralFeaturesInvalid;
+using starboard::shared::SetX86FeaturesInvalid;
+
 bool SbCPUFeaturesGet(SbCPUFeatures* features) {
   memset(features, 0, sizeof(*features));
   features->architecture = kSbCPUFeaturesArchitectureUnknown;
-  features->brand = "";
-  features->cache_size = -1;
-  features->has_fpu = false;
-  features->hwcap = 0;
-  features->hwcap2 = 0;
 
-  features->arm.implementer = -1;
-  features->arm.variant = -1;
-  features->arm.revision = -1;
-  features->arm.architecture_generation = -1;
-  features->arm.part = -1;
-
-  features->x86.vendor = "";
-  features->x86.family = -1;
-  features->x86.ext_family = -1;
-  features->x86.model = -1;
-  features->x86.ext_model = -1;
-  features->x86.stepping = -1;
-  features->x86.type = -1;
-  features->x86.signature = -1;
+  SetGeneralFeaturesInvalid(features);
+  SetArmFeaturesInvalid(features);
+  SetX86FeaturesInvalid(features);
 
   return false;
 }

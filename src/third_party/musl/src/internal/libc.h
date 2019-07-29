@@ -51,8 +51,10 @@ void __lock(volatile int *) ATTR_LIBC_VISIBILITY;
 void __unlock(volatile int *) ATTR_LIBC_VISIBILITY;
 int __lockfile(FILE *) ATTR_LIBC_VISIBILITY;
 void __unlockfile(FILE *) ATTR_LIBC_VISIBILITY;
+#ifndef STARBOARD
 #define LOCK(x) __lock(x)
 #define UNLOCK(x) __unlock(x)
+#endif // STARBOARD
 
 void __synccall(void (*)(void *), void *);
 int __setxid(int, int, int, int);

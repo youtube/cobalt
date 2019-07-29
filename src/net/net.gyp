@@ -183,6 +183,8 @@
         'cert/internal/trust_store_collection.h',
         'cert/internal/trust_store_in_memory.cc',
         'cert/internal/trust_store_in_memory.h',
+        'cert/internal/trust_store_in_memory_starboard.cc',
+        'cert/internal/trust_store_in_memory_starboard.h',
         'cert/internal/verify_certificate_chain.cc',
         'cert/internal/verify_certificate_chain.h',
         'cert/internal/verify_name_match.cc',
@@ -431,10 +433,8 @@
         'cert/cert_verify_proc.h',
         # TODO[johnx]: Investigate why net deprecated openssl verifier and
         # if justified switch back to builtin verifier.
-        # 'cert/cert_verify_proc_builtin.cc',
-        # 'cert/cert_verify_proc_builtin.h',
-        'cert/cert_verify_proc_openssl.cc',
-        'cert/cert_verify_proc_openssl.h',
+        'cert/cert_verify_proc_builtin.cc',
+        'cert/cert_verify_proc_builtin.h',
         'cert/ct_log_response_parser.cc',
         'cert/ct_log_response_parser.h',
         'cert/ct_log_verifier.cc',

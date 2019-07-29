@@ -2625,7 +2625,11 @@ TEST_F(HostResolverImplTest, ResolveStaleFromCacheError) {
 // https://crbug.com/115051 is fixed.
 
 // Test the retry attempts simulating host resolver proc that takes too long.
+#if defined(STARBOARD)
+TEST_F(HostResolverImplTest, FLAKY_MultipleAttempts) {
+#else
 TEST_F(HostResolverImplTest, MultipleAttempts) {
+#endif
   // Total number of attempts would be 3 and we want the 3rd attempt to resolve
   // the host. First and second attempt will be forced to wait until they get
   // word that a resolution has completed. The 3rd resolution attempt will try
@@ -2636,7 +2640,13 @@ TEST_F(HostResolverImplTest, MultipleAttempts) {
   // Add a little bit of extra fudge to the delay to allow reasonable
   // flexibility for time > vs >= etc.  We don't need to fail the test if we
   // retry at t=6001 instead of t=6000.
+#if defined(STARBOARD)
+  // The 1 millisecond delay is not enough on some of Cobalt's Linux platforms
+  // to ensure all delayed tasks are executed.
+  base::TimeDelta kSleepFudgeFactor = base::TimeDelta::FromMilliseconds(30);
+#else
   base::TimeDelta kSleepFudgeFactor = base::TimeDelta::FromMilliseconds(1);
+#endif
 
   scoped_refptr<LookupAttemptHostResolverProc> resolver_proc(
       new LookupAttemptHostResolverProc(

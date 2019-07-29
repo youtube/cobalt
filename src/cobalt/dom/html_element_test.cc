@@ -68,6 +68,11 @@ ACTION_P(InvokeCallback0, callback) {
 
 const char kFooBarDeclarationString[] = "foo: bar;";
 const char kDisplayInlineDeclarationString[] = "display: inline;";
+const char* kHtmlElementTagNames[] = {
+  // "audio", "script", and "video" are excluded since they need more setup.
+  "a", "body", "br", "div", "head", "h1", "html", "img", "link",
+  "meta", "p", "span", "style", "title"
+};
 
 class MockLayoutBoxes : public LayoutBoxes {
  public:
@@ -204,31 +209,48 @@ HTMLElementTest::CreateHTMLElementTreeWithMockLayoutBoxes(
 }
 
 TEST_F(HTMLElementTest, Dir) {
-  scoped_refptr<HTMLElement> html_element =
-      document_->CreateElement("div")->AsHTMLElement();
-  EXPECT_EQ("", html_element->dir());
+  for (size_t i = 0; i < arraysize(kHtmlElementTagNames); ++i) {
+    scoped_refptr<HTMLElement> html_element =
+        document_->CreateElement(kHtmlElementTagNames[i])->AsHTMLElement();
+    EXPECT_EQ("", html_element->dir());
 
-  html_element->set_dir("invalid");
-  EXPECT_EQ("", html_element->dir());
+    html_element->set_dir("invalid");
+    EXPECT_EQ("", html_element->dir());
 
-  html_element->set_dir("ltr");
-  EXPECT_EQ("ltr", html_element->dir());
+    html_element->set_dir("ltr");
+    EXPECT_EQ("ltr", html_element->dir());
 
-  html_element->set_dir("rtl");
-  EXPECT_EQ("rtl", html_element->dir());
+    html_element->set_dir("rtl");
+    EXPECT_EQ("rtl", html_element->dir());
 
-  // Value "auto" is not supported.
-  html_element->set_dir("auto");
-  EXPECT_EQ("", html_element->dir());
+    // Value "auto" is not supported.
+    html_element->set_dir("auto");
+    EXPECT_EQ("", html_element->dir());
+
+    html_element->SetAttribute("Dir", "rtl");
+    EXPECT_EQ("rtl", html_element->dir());
+
+    html_element->RemoveAttribute("diR");
+    EXPECT_EQ("", html_element->dir());
+  }
 }
 
 TEST_F(HTMLElementTest, TabIndex) {
-  scoped_refptr<HTMLElement> html_element =
-      document_->CreateElement("div")->AsHTMLElement();
-  EXPECT_EQ(0, html_element->tab_index());
+  for (size_t i = 0; i < arraysize(kHtmlElementTagNames); ++i) {
+    scoped_refptr<HTMLElement> html_element =
+        document_->CreateElement(kHtmlElementTagNames[i])->AsHTMLElement();
 
-  html_element->set_tab_index(-1);
-  EXPECT_EQ(-1, html_element->tab_index());
+    EXPECT_EQ(0, html_element->tab_index());
+
+    html_element->set_tab_index(-1);
+    EXPECT_EQ(-1, html_element->tab_index());
+
+    html_element->SetAttribute("tabIndex", "-2");
+    EXPECT_EQ(-2, html_element->tab_index());
+
+    html_element->RemoveAttribute("Tabindex");
+    EXPECT_EQ(0, html_element->tab_index());
+  }
 }
 
 TEST_F(HTMLElementTest, Focus) {

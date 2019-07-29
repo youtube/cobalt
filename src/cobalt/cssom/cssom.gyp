@@ -233,7 +233,6 @@
         'unicode_range_value.h',
         'universal_selector.cc',
         'universal_selector.h',
-        'used_style.h',
         'user_agent_style_sheet.cc',
         'user_agent_style_sheet.h',
         'url_src_value.cc',

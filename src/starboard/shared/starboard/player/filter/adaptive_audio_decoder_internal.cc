@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 
+#include "starboard/audio_sink.h"
+#include "starboard/common/log.h"
 #include "starboard/common/reset_and_return.h"
 
 namespace starboard {
@@ -25,6 +27,33 @@ namespace filter {
 using common::ResetAndReturn;
 
 #if SB_API_VERSION >= 11
+SbMediaAudioSampleType GetDefaultSupportedAudioSampleType() {
+  if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)) {
+    return kSbMediaAudioSampleTypeFloat32;
+  }
+  if (SbAudioSinkIsAudioSampleTypeSupported(
+          kSbMediaAudioSampleTypeInt16Deprecated)) {
+    return kSbMediaAudioSampleTypeInt16Deprecated;
+  }
+  SB_NOTREACHED();
+  return kSbMediaAudioSampleTypeFloat32;
+}
+
+SbMediaAudioFrameStorageType GetDefaultSupportedAudioFrameStorageType() {
+  if (SbAudioSinkIsAudioFrameStorageTypeSupported(
+          kSbMediaAudioFrameStorageTypeInterleaved)) {
+    return kSbMediaAudioFrameStorageTypeInterleaved;
+  }
+  SB_NOTREACHED();
+  return kSbMediaAudioFrameStorageTypeInterleaved;
+}
+
+int GetDefaultSupportedAudioSamplesPerSecond() {
+  const int kDefaultOutputSamplesPerSecond = 48000;
+  return SbAudioSinkGetNearestSupportedSampleFrequency(
+      kDefaultOutputSamplesPerSecond);
+}
+
 bool IsResetDecoderNecessary(const SbMediaAudioSampleInfo& current_info,
                              const SbMediaAudioSampleInfo& new_info) {
   if (current_info.codec != new_info.codec) {
@@ -118,6 +147,16 @@ void AdaptiveAudioDecoder::WriteEndOfStream() {
   if (audio_decoder_) {
     audio_decoder_->WriteEndOfStream();
   } else {
+    // It's possible that WriteEndOfStream() is called without any
+    // other input. In that case, we need to give |output_sample_type_|,
+    // |output_storage_type_| and |output_samples_per_second_| default
+    // value.
+    if (!first_output_received_) {
+      first_output_received_ = true;
+      output_sample_type_ = GetDefaultSupportedAudioSampleType();
+      output_storage_type_ = GetDefaultSupportedAudioFrameStorageType();
+      output_samples_per_second_ = GetDefaultSupportedAudioSamplesPerSecond();
+    }
     decoded_audios_.push(new DecodedAudio);
     Schedule(output_cb_);
   }

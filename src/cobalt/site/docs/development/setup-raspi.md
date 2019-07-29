@@ -23,6 +23,18 @@ Cobalt as the sysroot system libraries will differ in the latest version of
 Raspbian.
 </aside>
 
+Cobalt assumes the Raspberry Pi is configured to use non-default thread
+schedulers and priorities. Ensure that **/etc/security/limits.conf** sets
+**rtprio** and **nice** limits for the user. For example, if the user is **pi**,
+then limits.conf should have the following lines:
+
+```
+@pi hard rtprio 99
+@pi soft rtprio 99
+@pi hard nice -20
+@pi soft nice -20
+```
+
 The following commands update the package configuration on your Raspberry Pi
 so that Cobalt can run properly:
 
@@ -63,7 +75,7 @@ Raspberry Pi.
     1.  Run `mkdir -p $RASPI_HOME/sysroot`
     1.  Run:
 
-        ``` 
+        ```
         rsync -avzh --safe-links \
               --delete-after pi@$RASPI_ADDR:/{opt,lib,usr} \
               --exclude="lib/firmware" --exclude="lib/modules" \

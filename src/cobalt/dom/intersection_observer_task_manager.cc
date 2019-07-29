@@ -71,23 +71,6 @@ void IntersectionObserverTaskManager::QueueIntersectionObserverTask() {
                  base::Unretained(this)));
 }
 
-void IntersectionObserverTaskManager::UpdateIntersectionObservations() {
-  TRACE_EVENT0(
-      "cobalt::dom",
-      "IntersectionObserverTaskManager::UpdateIntersectionObservations()");
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
-  // https://www.w3.org/TR/intersection-observer/#update-intersection-observations-algo
-  // To run the update intersection observations steps for a Document document
-  // given a timestamp time, run these steps: 1. Let observer list be a list of
-  // all IntersectionObservers whose root is in the DOM tree of document.
-  // 2. For each observer in observer list, run a set of subtasks (subtasks are
-  //    implemented in IntersectionObserver::UpdateObservationTargets):
-  for (auto observer : observer_list_) {
-    observer->UpdateObservationTargets();
-  }
-}
-
 void IntersectionObserverTaskManager::TraceMembers(script::Tracer* tracer) {
   tracer->TraceItems(observer_list_);
 }

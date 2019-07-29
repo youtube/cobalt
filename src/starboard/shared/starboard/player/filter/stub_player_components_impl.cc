@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/log.h"
+#include "starboard/shared/starboard/player/filter/stub_player_components_impl.h"
+
 #include "starboard/shared/starboard/player/filter/player_components.h"
 
 namespace starboard {
@@ -21,37 +22,9 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-class PlayerComponentsImpl : public PlayerComponents {
-  void CreateAudioComponents(
-      const AudioParameters& audio_parameters,
-      scoped_ptr<AudioDecoder>* audio_decoder,
-      scoped_ptr<AudioRendererSink>* audio_renderer_sink) override {
-    CreateStubAudioComponents(audio_parameters, audio_decoder,
-                              audio_renderer_sink);
-  }
-
-  void CreateVideoComponents(
-      const VideoParameters& video_parameters,
-      scoped_ptr<VideoDecoder>* video_decoder,
-      scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
-      scoped_refptr<VideoRendererSink>* video_renderer_sink) override {
-    CreateStubVideoComponents(video_parameters, video_decoder,
-                              video_render_algorithm, video_renderer_sink);
-  }
-
-  void GetAudioRendererParams(int* max_cached_frames,
-                              int* max_frames_per_append) const override {
-    SB_DCHECK(max_cached_frames);
-    SB_DCHECK(max_frames_per_append);
-
-    *max_cached_frames = 128 * 1024;
-    *max_frames_per_append = 16384;
-  }
-};
-
 // static
 scoped_ptr<PlayerComponents> PlayerComponents::Create() {
-  return make_scoped_ptr<PlayerComponents>(new PlayerComponentsImpl);
+  return make_scoped_ptr<PlayerComponents>(new StubPlayerComponentsImpl);
 }
 
 // static

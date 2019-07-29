@@ -25,8 +25,8 @@
 #include "cobalt/base/token.h"
 #include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/dom/dom_exception.h"
+#include "cobalt/dom/element_intersection_observer_module.h"
 #include "cobalt/dom/intersection_observer.h"
-#include "cobalt/dom/intersection_observer_target.h"
 #include "cobalt/dom/node.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/web_animations/animation_set.h"
@@ -199,17 +199,14 @@ class Element : public Node {
     return animations_;
   }
 
-  void RegisterIntersectionObserverTarget(
-      const scoped_refptr<IntersectionObserver>& observer);
-
-  void UnregisterIntersectionObserverTarget(
-      const scoped_refptr<IntersectionObserver>& observer);
-
-  // Queues an IntersectionObserverEntry if the thresholdIndex or isIntersecting
-  // properties have changed for the IntersectionObserverRegistration record
-  // corresponding to the given observer and this element (the target).
-  void UpdateIntersectionObservationsForTarget(
-      const scoped_refptr<IntersectionObserver>& observer);
+  void RegisterIntersectionObserverRoot(IntersectionObserver* observer);
+  void UnregisterIntersectionObserverRoot(IntersectionObserver* observer);
+  void RegisterIntersectionObserverTarget(IntersectionObserver* observer);
+  void UnregisterIntersectionObserverTarget(IntersectionObserver* observer);
+  ElementIntersectionObserverModule::LayoutIntersectionObserverRootVector
+  GetLayoutIntersectionObserverRoots();
+  ElementIntersectionObserverModule::LayoutIntersectionObserverTargetVector
+  GetLayoutIntersectionObserverTargets();
 
   DEFINE_WRAPPABLE_TYPE(Element);
   void TraceMembers(script::Tracer* tracer) override;
@@ -243,6 +240,8 @@ class Element : public Node {
   // Callback for error when parsing inner / outer HTML.
   void HTMLParseError(const std::string& error);
 
+  void EnsureIntersectionObserverModuleInitialized();
+
   // Local name of the element.
   base::Token local_name_;
   // A map that holds the actual element attributes.
@@ -261,7 +260,8 @@ class Element : public Node {
   // A set of all animations currently applied to this element.
   scoped_refptr<web_animations::AnimationSet> animations_;
 
-  std::unique_ptr<IntersectionObserverTarget> intersection_observer_target_;
+  std::unique_ptr<ElementIntersectionObserverModule>
+      element_intersection_observer_module_;
 };
 
 }  // namespace dom

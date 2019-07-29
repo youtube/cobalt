@@ -706,6 +706,11 @@ void Box::RenderAndAnimate(
     UpdateUiNavigationItem();
   }
 
+  // Update intersection observers for any targets represented by this box.
+  if (box_intersection_observer_module_) {
+    box_intersection_observer_module_->UpdateIntersectionObservations();
+  }
+
   // The painting order is:
   // - background color.
   // - background image.
@@ -2100,6 +2105,31 @@ bool Box::ApplyTransformActionToCoordinates(
     }
   }
   return true;
+}
+
+void Box::AddIntersectionObserverRootsAndTargets(
+    BoxIntersectionObserverModule::IntersectionObserverRootVector&& roots,
+    BoxIntersectionObserverModule::IntersectionObserverTargetVector&& targets) {
+  if (!box_intersection_observer_module_) {
+    box_intersection_observer_module_ =
+        std::unique_ptr<BoxIntersectionObserverModule>(
+            new BoxIntersectionObserverModule(this));
+  }
+
+  box_intersection_observer_module_->AddIntersectionObserverRoots(
+      std::move(roots));
+  box_intersection_observer_module_->AddIntersectionObserverTargets(
+      std::move(targets));
+}
+
+bool Box::ContainsIntersectionObserverRoot(
+    const scoped_refptr<IntersectionObserverRoot>& intersection_observer_root)
+    const {
+  if (box_intersection_observer_module_) {
+    return box_intersection_observer_module_
+        ->BoxContainsIntersectionObserverRoot(intersection_observer_root);
+  }
+  return false;
 }
 
 }  // namespace layout

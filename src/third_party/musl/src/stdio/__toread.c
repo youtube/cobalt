@@ -13,9 +13,12 @@ int __toread(FILE *f)
 	return (f->flags & F_EOF) ? EOF : 0;
 }
 
+// This function is unused, and leaks __stdio_exit_needed.
+#ifndef STARBOARD
 void __stdio_exit_needed(void);
 
 void __toread_needs_stdio_exit()
 {
 	__stdio_exit_needed();
 }
+#endif  // STARBOARD

@@ -100,7 +100,8 @@ TEST(SbCPUFeaturesGetTest, SunnyDay) {
     EXPECT_EQ(kSbCPUFeaturesArchitectureUnknown, features.architecture);
     EXPECT_NE(nullptr, features.brand);
     EXPECT_EQ(0, strlen(features.brand));
-    EXPECT_EQ(kFeatureValueInvalid, features.cache_size);
+    EXPECT_EQ(kFeatureValueInvalid, features.icache_line_size);
+    EXPECT_EQ(kFeatureValueInvalid, features.dcache_line_size);
     EXPECT_FALSE(features.has_fpu);
     EXPECT_EQ(0, features.hwcap);
     EXPECT_EQ(0, features.hwcap2);
