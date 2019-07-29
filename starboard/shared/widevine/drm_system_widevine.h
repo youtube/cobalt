@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/atomic.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
@@ -208,6 +209,8 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   int number_of_session_updates_sent_ = 0;
   int maximum_number_of_session_updates_ = std::numeric_limits<int>::max();
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+
+  atomic_bool first_update_session_received_{false};
 };
 
 }  // namespace widevine
