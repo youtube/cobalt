@@ -80,6 +80,10 @@ AudioRenderer::AudioRenderer(scoped_ptr<AudioDecoder> decoder,
       process_audio_data_job_(
           std::bind(&AudioRenderer::ProcessAudioData, this)),
       audio_renderer_sink_(audio_renderer_sink.Pass()) {
+  SB_DLOG(INFO) << "Creating AudioRenderer with " << channels_ << " channels, "
+                << bytes_per_frame_ << " bytes per frame, "
+                << max_cached_frames_ << " max cached frames, and "
+                << max_frames_per_append_ << " max frames per append.";
   SB_DCHECK(decoder_ != NULL);
   SB_DCHECK(max_frames_per_append_ > 0);
   SB_DCHECK(max_cached_frames_ >= max_frames_per_append_ * 2);
@@ -93,6 +97,10 @@ AudioRenderer::AudioRenderer(scoped_ptr<AudioDecoder> decoder,
 }
 
 AudioRenderer::~AudioRenderer() {
+  SB_DLOG(INFO) << "Destroying AudioRenderer with " << channels_
+                << " channels, " << bytes_per_frame_ << " bytes per frame, "
+                << max_cached_frames_ << " max cached frames, and "
+                << max_frames_per_append_ << " max frames per append.";
   SB_DCHECK(BelongsToCurrentThread());
 }
 
