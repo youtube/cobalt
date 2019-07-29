@@ -44,6 +44,8 @@
         'backend/render_layer.h',
         'backend/render_overlay.cc',
         'backend/render_overlay.h',
+        'backend/runtime_agent.cc',
+        'backend/runtime_agent.h',
         'backend/script_debugger_agent.cc',
         'backend/script_debugger_agent.h',
         'backend/tracing_agent.cc',
