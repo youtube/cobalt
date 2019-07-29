@@ -98,8 +98,6 @@
             '<(DEPTH)/starboard/starboard_all.gyp:starboard_all',
           ],
         }],
-      ],
-      'conditions': [
         ['target_arch in ["x86", "x64", "arm", "arm64"]', {
           'dependencies': [
             '<(DEPTH)/starboard/elf_loader/elf_loader.gyp:elf_loader',
