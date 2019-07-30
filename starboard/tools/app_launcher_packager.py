@@ -66,6 +66,8 @@ import _env  # pylint: disable=unused-import
 from paths import REPOSITORY_ROOT
 from paths import THIRD_PARTY_ROOT
 sys.path.append(THIRD_PARTY_ROOT)
+from cobalt.build import cobalt_archive_extract
+import starboard.build.port_symlink as port_symlink
 import starboard.tools.platform
 import jinja2
 
@@ -168,10 +170,18 @@ def _WritePlatformsInfo(repo_root, dest_root):
 
 def _CopyAppLauncherTools(repo_root, dest_root, additional_glob_patterns,
                           include_black_box_tests):
-  # Step 1: Remove previous output directory if it exists
+  # Step 1: Make sure dest_root is an absolute path.
+  logging.info('Copying App Launcher tools to = %s', dest_root)
+  dest_root = os.path.normpath(dest_root)
+  if not os.path.isabs(dest_root):
+    dest_root = os.path.join(os.getcwd(), dest_root)
+  if port_symlink.IsWindows():
+    dest_root = cobalt_archive_extract.ToWinUncPath(dest_root)
+  logging.info('Absolute destination path = %s', dest_root)
+  # Step 2: Remove previous output directory if it exists
   if os.path.isdir(dest_root):
     shutil.rmtree(dest_root)
-  # Step 2: Find all glob files from specified search directories.
+  # Step 3: Find all glob files from specified search directories.
   include_glob_patterns = _INCLUDE_FILE_PATTERNS
   if additional_glob_patterns:
     include_glob_patterns += additional_glob_patterns
@@ -190,7 +200,7 @@ def _CopyAppLauncherTools(repo_root, dest_root, additional_glob_patterns,
   copy_list = list(set(copy_list))
   copy_list.sort()
   folders_logged = set()
-  # Step 3: Copy the src files to the destination directory.
+  # Step 4: Copy the src files to the destination directory.
   for src in copy_list:
     tail_path = os.path.relpath(src, repo_root)
     dst = os.path.join(dest_root, tail_path)
@@ -202,7 +212,7 @@ def _CopyAppLauncherTools(repo_root, dest_root, additional_glob_patterns,
       folders_logged.add(src_folder)
       logging.info(src_folder + ' -> ' + os.path.dirname(dst))
     shutil.copy2(src, dst)
-  # Step 4: Re-write the platform infos file in the new repo copy.
+  # Step 5: Re-write the platform infos file in the new repo copy.
   _WritePlatformsInfo(repo_root, dest_root)
 
 
