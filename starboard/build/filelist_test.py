@@ -21,9 +21,15 @@ import unittest
 
 import _env  # pylint: disable=relative-import,unused-import
 
+from cobalt.build import cobalt_archive_extract
 from starboard.build import filelist
 from starboard.build import port_symlink
 from starboard.tools import util
+
+
+LONG_DIR_NAME_1 = 'really_l' + 'o' * 120 + 'ng_dir_name'
+LONG_DIR_NAME_2 = 'another_really_l' + 'o' * 120 + 'ng_dir_name'
+LONG_SUB_DIRS = os.path.join(LONG_DIR_NAME_1, LONG_DIR_NAME_2)
 
 
 def _MakeDirs(path):
@@ -50,6 +56,15 @@ class TempFileSystem(object):
     port_symlink.MakeSymLink(self.from_dir, self.sym_dir)
     with open(self.test_txt, 'w') as fd:
       fd.write('TEST')
+
+  def MakeLongPathFile(self):
+    long_path_txt = os.path.join(self.from_dir, LONG_SUB_DIRS, 'test2.txt')
+    self.long_path_txt = long_path_txt
+    if port_symlink.IsWindows():
+      long_path_txt = cobalt_archive_extract.ToWinUncPath(long_path_txt)
+    _MakeDirs(os.path.dirname(long_path_txt))
+    with open(long_path_txt, 'w') as fd:
+      fd.write('TEST BIS')
 
   def Clear(self):
     port_symlink.Rmtree(self.root_tmp)
@@ -99,10 +114,15 @@ class FileListTest(unittest.TestCase):
   def testAddAllFilesInPath(self):
     tf = TempFileSystem()
     tf.Make()
+    tf.MakeLongPathFile()
     flist = filelist.FileList()
     flist.AddAllFilesInPath(tf.root_in_tmp, tf.root_in_tmp)
     self.assertTrue(flist.symlink_dir_list)
-    self.assertTrue(flist.file_list)
+    expected_file_list = [
+        [tf.test_txt, os.path.join('from_dir', 'test.txt')],
+        [tf.long_path_txt,
+         os.path.join('from_dir', LONG_SUB_DIRS , 'test2.txt')]]
+    self.assertEqual(flist.file_list, expected_file_list)
 
   def testAddSymlink(self):
     tf = TempFileSystem()
@@ -114,7 +134,7 @@ class FileListTest(unittest.TestCase):
     self.assertFalse(flist.file_list)
 
   def testAddRelativeSymlink(self):
-    """Tests the that adding a relative symlink works as expected."""
+    """Tests that adding a relative symlink works as expected."""
     tf = TempFileSystem()
     tf.Make()
     flist = filelist.FileList()

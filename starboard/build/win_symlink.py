@@ -31,6 +31,8 @@ import stat
 import subprocess
 import time
 
+from cobalt.build import cobalt_archive_extract
+
 
 ################################################################################
 #                                  API                                         #
@@ -278,15 +280,20 @@ def _IsSamePath(p1, p2):
 
 def _OsWalk(top, topdown, onerror, followlinks):
   """See api version of OsWalk above, for docstring."""
+  # Need an absolute path to use listdir and isdir with long paths.
+  top_abs_path = top
+  if not os.path.isabs(top_abs_path):
+    top_abs_path = os.path.join(os.getcwd(), top_abs_path)
+  top_abs_path = cobalt_archive_extract.ToWinUncPath(top)
   try:
-    names = os.listdir(top)
+    names = os.listdir(top_abs_path)
   except OSError as err:
     if onerror is not None:
       onerror(err)
     return
   dirs, nondirs = [], []
   for name in names:
-    if os.path.isdir(os.path.join(top, name)):
+    if os.path.isdir(os.path.join(top_abs_path, name)):
       dirs.append(name)
     else:
       nondirs.append(name)
