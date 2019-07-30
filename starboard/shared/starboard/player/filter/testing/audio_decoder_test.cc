@@ -148,7 +148,6 @@ class AudioDecoderTest
       SbThreadSleep(kSbTimeMillisecond);
     }
     *event = kError;
-    FAIL();
   }
 
   // TODO: Add test to ensure that |consumed_cb| is not reused by the decoder.

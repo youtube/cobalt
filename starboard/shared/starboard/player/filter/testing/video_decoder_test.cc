@@ -243,7 +243,6 @@ class VideoDecoderTest
       SbThreadSleep(kSbTimeMillisecond);
     }
     event->status = kError;
-    FAIL();
   }
 
   bool HasPendingEvents() {
