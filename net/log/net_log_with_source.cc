@@ -94,7 +94,6 @@ void NetLogWithSource::EndEvent(
 
 void NetLogWithSource::AddEventWithNetErrorCode(NetLogEventType event_type,
                                                 int net_error) const {
-  DCHECK_NE(ERR_IO_PENDING, net_error);
   if (net_error >= 0) {
     AddEvent(event_type);
   } else {
