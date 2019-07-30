@@ -45,12 +45,16 @@ class FileList(object):
       self.AddFile(root_dir, sub_path)
     elif not os.path.isdir(sub_path):
       raise IOError('Expected root directory to exist: %s' % sub_path)
+    cwd = os.getcwd()
     for root, dirs, files in port_symlink.OsWalk(sub_path):
+      # Do not use os.path.abspath as it does not work on Win for long paths.
+      if not os.path.isabs(root):
+        root = os.path.join(cwd, root)
       for f in files:
-        full_path = os.path.abspath(os.path.join(root, f))
+        full_path = os.path.join(root, f)
         all_files.append(full_path)
       for dir_name in dirs:
-        full_path = os.path.abspath(os.path.join(root, dir_name))
+        full_path = os.path.join(root, dir_name)
         if port_symlink.IsSymLink(full_path):
           all_symlinks.append(full_path)
     for f in all_files + all_symlinks:
@@ -84,11 +88,18 @@ class FileList(object):
 
 
 def _ResolveSymLink(link_file):
+  """Returns the absolute path of the resolved link. This path should exist."""
   target_path = port_symlink.ReadSymLink(link_file)
-  if os.path.exists(target_path):  # Absolute path
+  if os.path.isabs(target_path):  # Absolute path
+    assert os.path.exists(target_path), (
+        'Path {} does not exist.'.format(target_path))
     return target_path
-  else:
-    return os.path.join(link_file, target_path)  # Relative path from link_file.
+  else:  # Relative path from link_file.
+    abs_path = os.path.normpath(os.path.join(link_file, target_path))
+    assert os.path.exists(abs_path), (
+        'Path {} does not exist (link file: {}, target_path: {})'.format(
+            abs_path, link_file, target_path))
+    return abs_path
 
 
 def _FallbackOsGetRelPath(path, start_dir):
@@ -103,24 +114,27 @@ def _FallbackOsGetRelPath(path, start_dir):
 
 
 def _OsGetRelpath(path, start_dir):
+  path = os.path.normpath(path)
+  start_dir = os.path.normpath(start_dir)
+  # Use absolute paths for Windows (nt paths checks the drive specifier).
+  # Do not use os.path.abspath as it does not work on Win for long paths.
+  if not os.path.isabs(path):
+    path = os.path.join(os.getcwd(), path)
+  if not os.path.isabs(start_dir):
+    start_dir = os.path.join(os.getcwd(), start_dir)
   try:
     return os.path.relpath(path, start_dir)
   except ValueError:
     try:
-      # Windows: nt paths checks the drive specifier, which is given by the
-      # abspath operation.
-      return os.path.relpath(os.path.abspath(path), os.path.abspath(start_dir))
-    except ValueError:
-      try:
-        # Last resort: do a string comparison to get relative path.
-        # Fixes issue b/134589032
-        rel_path = _FallbackOsGetRelPath(path, start_dir)
-        if not os.path.exists(os.path.join(start_dir, rel_path)):
-          raise ValueError('% does not exist.' % os.path.abspath(rel_path))
-        return rel_path
-      except ValueError as err:
-        logging.exception('Error %s while calling os.path.relpath(%s, %s)',
-                          err, path, start_dir)
+      # Do a string comparison to get relative path.
+      # Fixes issue b/134589032
+      rel_path = _FallbackOsGetRelPath(path, start_dir)
+      if not os.path.exists(os.path.join(start_dir, rel_path)):
+        raise ValueError('%s does not exist.' % os.path.abspath(rel_path))
+      return rel_path
+    except ValueError as err:
+      logging.exception('Error %s while calling os.path.relpath(%s, %s)',
+                        err, path, start_dir)
 
 
 TYPE_NONE = 'NONE'
