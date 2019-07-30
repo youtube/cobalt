@@ -298,7 +298,6 @@ class AndroidConfiguration(PlatformConfiguration):
           'VideoDecoderTests/VideoDecoderTest.SingleInput/1',
           'VideoDecoderTests/VideoDecoderTest.SingleInput/2',
           'VideoDecoderTests/VideoDecoderTest.SingleInput/3',
-          'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput/*',
           'VideoDecoderTests/VideoDecoderTest'
           '.MultipleValidInputsAfterInvalidKeyFrame/*',
           'VideoDecoderTests/VideoDecoderTest.MultipleInvalidInput/*',
