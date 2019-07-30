@@ -145,10 +145,10 @@ bool MessagePumpIOStarboard::Watch(SbSocket socket,
   }
 
   // Set current interest mask and waiter for this event.
-  bool result =
-      SbSocketWaiterAdd(waiter_, socket, controller, OnSocketWaiterNotification,
-                        interests, persistent);
-  DCHECK(result);
+  if (!SbSocketWaiterAdd(waiter_, socket, controller,
+                         OnSocketWaiterNotification, interests, persistent)) {
+    return false;
+  }
 
   controller->Init(socket, persistent);
   controller->set_watcher(delegate);
