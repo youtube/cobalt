@@ -170,11 +170,4 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
           # Windows encounters some issue with FakeGraphicsContextProvider.
           'SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest.*',
       ],
-      'player_filter_tests': [
-          # TODO: debug these failures.
-          'AudioDecoderTests/AudioDecoderTest.SingleInvalidInput/0',
-          'VideoDecoderTests/VideoDecoderTest'
-          '.MultipleValidInputsAfterInvalidKeyFrame/*',
-          'VideoDecoderTests/VideoDecoderTest.MultipleInvalidInput/*',
-      ],
   }
