@@ -24,6 +24,8 @@ namespace {
 // https://developer.android.com/reference/android/media/MediaFormat.html#COLOR_RANGE_FULL.
 const jint COLOR_RANGE_FULL = 1;
 const jint COLOR_RANGE_LIMITED = 2;
+// Not defined in MediaFormat. Represents unspecified color ID range.
+const jint COLOR_RANGE_UNSPECIFIED = 0;
 
 const jint COLOR_STANDARD_BT2020 = 6;
 const jint COLOR_STANDARD_BT601_NTSC = 4;
@@ -70,6 +72,8 @@ jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
       return COLOR_RANGE_LIMITED;
     case kSbMediaRangeIdFull:
       return COLOR_RANGE_FULL;
+    case kSbMediaRangeIdUnspecified:
+      return COLOR_RANGE_UNSPECIFIED;
     default:
       return COLOR_VALUE_UNKNOWN;
   }
