@@ -81,7 +81,7 @@ class AudioSinkTestEnvironment {
   }
   void SetIsPlaying(bool is_playing);
   void AppendFrame(int frames_to_append);
-  int GetFrameBufferFreeSpaceAmount() const;
+  int GetFrameBufferFreeSpaceInFrames() const;
 
   // The following functions return true when the expected condition are met.
   // Return false on timeout.
@@ -90,6 +90,8 @@ class AudioSinkTestEnvironment {
   bool WaitUntilAllFramesAreConsumed();
 
  private:
+  void AppendFrame_Locked(int frames_to_append);
+  int GetFrameBufferFreeSpaceInFrames_Locked() const;
   void OnUpdateSourceStatus(int* frames_in_buffer,
                             int* offset_in_frames,
                             bool* is_playing,
