@@ -66,8 +66,8 @@ TEST(SbAudioSinkTest, MultipleAppendAndConsume) {
   environment.AppendFrame(frames_to_append);
 
   EXPECT_TRUE(environment.WaitUntilSomeFramesAreConsumed());
-  ASSERT_GT(environment.GetFrameBufferFreeSpaceAmount(), 0);
-  environment.AppendFrame(environment.GetFrameBufferFreeSpaceAmount());
+  ASSERT_GT(environment.GetFrameBufferFreeSpaceInFrames(), 0);
+  environment.AppendFrame(environment.GetFrameBufferFreeSpaceInFrames());
   EXPECT_TRUE(environment.WaitUntilAllFramesAreConsumed());
 }
 
@@ -82,10 +82,10 @@ TEST(SbAudioSinkTest, Pause) {
   int frames_to_append = frame_buffers.frames_per_channel();
   environment.AppendFrame(frames_to_append);
 
-  int free_space = environment.GetFrameBufferFreeSpaceAmount();
+  int free_space = environment.GetFrameBufferFreeSpaceInFrames();
   EXPECT_TRUE(environment.WaitUntilUpdateStatusCalled());
   EXPECT_TRUE(environment.WaitUntilUpdateStatusCalled());
-  EXPECT_EQ(free_space, environment.GetFrameBufferFreeSpaceAmount());
+  EXPECT_EQ(free_space, environment.GetFrameBufferFreeSpaceInFrames());
   environment.SetIsPlaying(true);
   EXPECT_TRUE(environment.WaitUntilSomeFramesAreConsumed());
 }
@@ -101,8 +101,8 @@ TEST(SbAudioSinkTest, Underflow) {
 
   EXPECT_TRUE(environment.WaitUntilSomeFramesAreConsumed());
   SbThreadSleep(250 * kSbTimeMillisecond);
-  ASSERT_GT(environment.GetFrameBufferFreeSpaceAmount(), 0);
-  environment.AppendFrame(environment.GetFrameBufferFreeSpaceAmount());
+  ASSERT_GT(environment.GetFrameBufferFreeSpaceInFrames(), 0);
+  environment.AppendFrame(environment.GetFrameBufferFreeSpaceInFrames());
   EXPECT_TRUE(environment.WaitUntilAllFramesAreConsumed());
 }
 
@@ -117,7 +117,7 @@ TEST(SbAudioSinkTest, ContinuousAppend) {
   int frames_to_append = sample_rate / 4;
 
   while (frames_to_append > 0) {
-    int free_space = environment.GetFrameBufferFreeSpaceAmount();
+    int free_space = environment.GetFrameBufferFreeSpaceInFrames();
     environment.AppendFrame(std::min(free_space, frames_to_append));
     frames_to_append -= std::min(free_space, frames_to_append);
     ASSERT_TRUE(environment.WaitUntilSomeFramesAreConsumed());
