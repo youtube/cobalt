@@ -52,6 +52,14 @@ bool NodeCanRenderWithOpacity(render_tree::Node* node) {
   return false;
 }
 
+bool IsOpaque(float opacity) {
+  return opacity >= 254.5f / 255.0f;
+}
+
+bool IsTransparent(float opacity) {
+  return opacity <= 0.5f / 255.0f;
+}
+
 }  // namespace utils
 }  // namespace common
 }  // namespace rasterizer
