@@ -47,6 +47,9 @@ namespace renderer {
 namespace rasterizer {
 namespace egl {
 
+using common::utils::IsOpaque;
+using common::utils::IsTransparent;
+
 namespace {
 
 typedef float ColorTransformMatrix[16];
@@ -75,8 +78,6 @@ const ColorTransformMatrix& GetColorTransformMatrixInColumnMajor(
   DCHECK_EQ(format, kMultiPlaneImageFormatYUV3PlaneBT709);
   return kBT709ColorTransformMatrixInColumnMajor;
 }
-
-bool IsOpaque(float opacity) { return opacity >= 0.999f; }
 
 bool IsUniformSolidColor(const render_tree::Border& border) {
   return border.left.style == render_tree::kBorderStyleSolid &&
@@ -413,10 +414,10 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
   if (data.opacity_filter && !data.viewport_filter && !data.blur_filter &&
       !data.map_to_mesh_filter) {
     const float filter_opacity = data.opacity_filter->opacity();
-    if (filter_opacity <= 0.0f) {
+    if (IsTransparent(filter_opacity)) {
       // Totally transparent. Ignore the source.
       return;
-    } else if (filter_opacity >= 1.0f) {
+    } else if (IsOpaque(filter_opacity)) {
       // Totally opaque. Render like normal.
       data.source->Accept(this);
       return;
@@ -1111,7 +1112,7 @@ void RenderTreeNodeVisitor::AddClear(const math::RectF& rect,
   // clear command instead of a more general draw command, to give the GL
   // driver a better chance to optimize.
   if (!draw_state_.rounded_scissor_corners &&
-      draw_state_.transform.IsIdentity() && draw_state_.opacity == 1.0f) {
+      draw_state_.transform.IsIdentity() && IsOpaque(draw_state_.opacity)) {
     math::Rect old_scissor = draw_state_.scissor;
     draw_state_.scissor.Intersect(math::Rect::RoundFromRectF(rect));
     std::unique_ptr<DrawObject> draw_clear(
