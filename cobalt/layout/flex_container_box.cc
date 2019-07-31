@@ -212,9 +212,7 @@ void FlexContainerBox::UpdateContentSizeAndMargins(
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
-    if (child_box->IsAbsolutelyPositioned()) {
-      flex_formatting_context.EstimateStaticPosition(child_box);
-    } else {
+    if (!child_box->IsAbsolutelyPositioned()) {
       flex_formatting_context.UpdateRect(child_box);
 
       auto item = FlexItem::Create(child_box, main_direction_is_horizontal);
@@ -287,9 +285,8 @@ void FlexContainerBox::UpdateContentSizeAndMargins(
   // 5. Collect flex items into flex lines.
   flex_formatting_context.set_multi_line(ContainerIsMultiLine());
   for (auto& item : items) {
-    if (!item->box()->IsAbsolutelyPositioned()) {
-      flex_formatting_context.CollectItemIntoLine(std::move(item));
-    }
+    DCHECK(!item->box()->IsAbsolutelyPositioned());
+    flex_formatting_context.CollectItemIntoLine(std::move(item));
   }
 
   // Perform remaining steps of the layout of the items.
@@ -302,17 +299,6 @@ void FlexContainerBox::UpdateContentSizeAndMargins(
   } else {
     set_width(flex_formatting_context.cross_size());
   }
-
-  // Layout positioned child boxes.
-
-  // TODO: Check if this should be content box instead of padding box.
-  //  https://www.w3.org/TR/css-flexbox-1/#abspos-items
-  LayoutParams absolute_child_layout_params;
-  absolute_child_layout_params.containing_block_size.set_width(
-      GetPaddingBoxWidth());
-  absolute_child_layout_params.containing_block_size.set_height(
-      GetPaddingBoxHeight());
-  UpdateRectOfPositionedChildBoxes(layout_params, absolute_child_layout_params);
 
   base::Optional<LayoutUnit> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
       computed_style(), layout_params.containing_block_size);
@@ -396,12 +382,8 @@ void FlexContainerBox::AddChild(const scoped_refptr<Box>& child_box) {
   TextBox* text_box = child_box->AsTextBox();
   switch (child_box->GetLevel()) {
     case kBlockLevel:
-      if (!child_box->IsAbsolutelyPositioned()) {
-        PushBackDirectChild(child_box);
-        break;
-      }
-    // Fall through if child is out-of-flow.
-
+      PushBackDirectChild(child_box);
+      break;
     case kInlineLevel:
       if (text_box && !text_box->HasNonCollapsibleText()) {
         // Text boxes with only white space are not rendered, just as if

@@ -55,11 +55,6 @@ void FlexFormattingContext::UpdateRect(Box* child_box) {
   set_auto_height(child_box->height());
 }
 
-void FlexFormattingContext::EstimateStaticPosition(Box* child_box) {
-  DCHECK(child_box->IsAbsolutelyPositioned());
-  child_box->UpdateSize(layout_params_);
-}
-
 void FlexFormattingContext::CollectItemIntoLine(
     std::unique_ptr<FlexItem>&& item) {
   // Collect flex items into flex lines:
