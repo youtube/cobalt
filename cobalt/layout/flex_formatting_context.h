@@ -37,10 +37,6 @@ class FlexFormattingContext : public FormattingContext {
   // the internal state in the preparation for the next child.
   void UpdateRect(Box* child_box);
 
-  // Estimates the static position of the given child box. In CSS 2.1 the static
-  // position is only defined for absolutely positioned boxes.
-  void EstimateStaticPosition(Box* child_box);
-
   // Collects the flex item into a flex line.
   void CollectItemIntoLine(std::unique_ptr<FlexItem>&& item);
 
