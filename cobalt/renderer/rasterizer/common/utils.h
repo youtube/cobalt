@@ -32,6 +32,13 @@ namespace utils {
 // offscreen target, then rendering that target with opacity.
 bool NodeCanRenderWithOpacity(render_tree::Node* node);
 
+// Returns whether the given opacity [0,1] should be considered fully opaque.
+bool IsOpaque(float opacity);
+
+// Returns whether the given opacity [0,1] should be considered fully
+// transparent.
+bool IsTransparent(float opacity);
+
 }  // namespace utils
 }  // namespace common
 }  // namespace rasterizer
