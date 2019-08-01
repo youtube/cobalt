@@ -103,6 +103,20 @@ TEST(SbDirectoryGetNextTest, FailureInvalidAndNull) {
   EXPECT_FALSE(SbDirectoryGetNext(kSbDirectoryInvalid, NULL));
 }
 
+TEST(SbDirectoryGetNextTest, FailureOnEmptyDirectory) {
+  ScopedRandomFile dir(ScopedRandomFile::kDontCreate);
+  const std::string& path = dir.filename();
+  ASSERT_TRUE(SbDirectoryCreate(path.c_str()));
+  SbFileError error = kSbFileErrorMax;
+  SbDirectory directory = SbDirectoryOpen(path.c_str(), &error);
+  ASSERT_TRUE(SbDirectoryIsValid(directory));
+  ASSERT_EQ(kSbFileOk, error);
+
+  SbDirectoryEntry entry = {0};
+  EXPECT_FALSE(SbDirectoryGetNext(directory, &entry));
+  ASSERT_TRUE(SbDirectoryClose(directory));
+}
+
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
