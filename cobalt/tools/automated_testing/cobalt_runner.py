@@ -247,7 +247,8 @@ class CobaltRunner(object):
 
   def _KillLauncher(self):
     """Kills the launcher and its attached Cobalt instance."""
-    self.ExecuteJavaScript('window.close();')
+    if self.CanExecuteJavaScript():
+      self.ExecuteJavaScript('window.close();')
 
     self.runner_thread.join(COBALT_EXIT_TIMEOUT_SECONDS)
     if self.runner_thread.isAlive():
@@ -304,6 +305,9 @@ class CobaltRunner(object):
         # we must interrupt it.
         thread.interrupt_main()
     return 0
+
+  def CanExecuteJavaScript(self):
+    return self.webdriver is not None
 
   def ExecuteJavaScript(self, js_code):
     return self.webdriver.execute_script(js_code)
