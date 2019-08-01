@@ -41,6 +41,9 @@ class Raspi0PlatformConfig(shared_configuration.RaspiPlatformConfig):
           # TODO: debug these failures.
           'SbPlayerTest.MultiPlayer',  # crashes
       ],
+      # Temporarily disable all player_filter_tests, just to see if it still
+      # crashes on raspi-0.
+      'player_filter_tests': ['*'],
   }
 
 
