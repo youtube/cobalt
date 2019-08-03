@@ -1,0 +1,39 @@
+platform:
+  - x86
+
+skip_branch_with_pr: true
+
+install:
+  - set PATH=C:\cygwin\bin;%PATH%
+  - set DIST=ots-windows-dist
+  - appveyor DownloadFile "http://raw.githubusercontent.com/swig/cccl/master/cccl"
+  - call "%VS140COMNTOOLS%\..\..\VC\vcvarsall.bat" %PLATFORM%
+
+build_script:
+  - set CC=./cccl
+  - set CXX=./cccl
+  - set CXXFLAGS='-D_HAS_EXCEPTIONS=0 -D_STATIC_CPPLIB'
+  - bash -c "./autogen.sh && ./configure --enable-debug --prefix=$PWD/$DIST"
+  - ps: $env:OTS_VERSION = grep PACKAGE_VERSION config.h | cut --% -d'"' -f2
+  - make
+
+test_script:
+  - make check || (cat `find -name '*.log'` && false)
+
+after_build:
+  - set ARCHIVE=ots-%OTS_VERSION%-windows
+  - make install-strip
+  - mkdir -p %ARCHIVE%
+  - cp %DIST%/bin/* %ARCHIVE%
+  - 7z a %ARCHIVE%.zip %ARCHIVE%
+
+artifacts:
+  - path: /ots-*-windows.zip/
+
+deploy:
+  provider: GitHub
+  auth_token:
+    secure: "Mcg1hVyyuN6rVAvSj55POVX4C14JhWwL9UrP2tQAFTqk3Muke0ttyfYKZfeU4zAi"
+  draft: true
+  on:
+    appveyor_repo_tag: true
