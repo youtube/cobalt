@@ -1,0 +1,67 @@
+diff -pu -r a/net/third_party/nss/ssl/sslauth.c b/net/third_party/nss/ssl/sslauth.c
+--- a/net/third_party/nss/ssl/sslauth.c	2012-04-25 07:50:12.000000000 -0700
++++ b/net/third_party/nss/ssl/sslauth.c	2012-11-09 15:22:49.448098805 -0800
+@@ -28,6 +28,41 @@ SSL_PeerCertificate(PRFileDesc *fd)
+ }
+ 
+ /* NEED LOCKS IN HERE.  */
++SECStatus
++SSL_PeerCertificateChain(PRFileDesc *fd, CERTCertificate **certs,
++			 unsigned int *numCerts, unsigned int maxNumCerts)
++{
++    sslSocket *ss;
++    ssl3CertNode* cur;
++
++    ss = ssl_FindSocket(fd);
++    if (!ss) {
++	SSL_DBG(("%d: SSL[%d]: bad socket in PeerCertificateChain",
++		 SSL_GETPID(), fd));
++	return SECFailure;
++    }
++    if (!ss->opt.useSecurity)
++	return SECFailure;
++
++    if (ss->sec.peerCert == NULL) {
++      *numCerts = 0;
++      return SECSuccess;
++    }
++
++    *numCerts = 1;  /* for the leaf certificate */
++    if (maxNumCerts > 0)
++	certs[0] = CERT_DupCertificate(ss->sec.peerCert);
++
++    for (cur = ss->ssl3.peerCertChain; cur; cur = cur->next) {
++	if (*numCerts < maxNumCerts)
++	    certs[*numCerts] = CERT_DupCertificate(cur->cert);
++	(*numCerts)++;
++    }
++
++    return SECSuccess;
++}
++
++/* NEED LOCKS IN HERE.  */
+ CERTCertificate *
+ SSL_LocalCertificate(PRFileDesc *fd)
+ {
+diff -pu -r a/net/third_party/nss/ssl/ssl.h b/net/third_party/nss/ssl/ssl.h
+--- a/net/third_party/nss/ssl/ssl.h	2012-09-21 14:58:43.000000000 -0700
++++ b/net/third_party/nss/ssl/ssl.h	2012-11-09 15:22:49.448098805 -0800
+@@ -398,6 +398,18 @@ SSL_IMPORT SECStatus SSL_SecurityStatus(
+ SSL_IMPORT CERTCertificate *SSL_PeerCertificate(PRFileDesc *fd);
+ 
+ /*
++** Return references to the certificates presented by the SSL peer.
++** |maxNumCerts| must contain the size of the |certs| array. On successful
++** return, |*numCerts| contains the number of certificates available and
++** |certs| will contain references to as many certificates as would fit.
++** Therefore if |*numCerts| contains a value less than or equal to
++** |maxNumCerts|, then all certificates were returned.
++*/
++SSL_IMPORT SECStatus SSL_PeerCertificateChain(
++	PRFileDesc *fd, CERTCertificate **certs,
++	unsigned int *numCerts, unsigned int maxNumCerts);
++
++/*
+ ** Authenticate certificate hook. Called when a certificate comes in
+ ** (because of SSL_REQUIRE_CERTIFICATE in SSL_Enable) to authenticate the
+ ** certificate.

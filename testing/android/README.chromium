@@ -1,0 +1,3 @@
+apk-based runner for Chromium unit test bundles.  Many of these files
+are templates for generating an apk specific to a test bundle.
+See generate_native_test.py or discuss with OWNERS.
