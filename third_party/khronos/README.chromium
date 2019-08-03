@@ -1,0 +1,44 @@
+Name: Khronos header files
+Short Name: khronos_headers
+URL: http://www.khronos.org/registry
+Version: unknown
+Date: 2012-02-01
+License: MIT/X11, SGI Free Software License B
+Security Critical: no
+
+Description:
+This package contains header files for the EGL and OpenGL ES 2.0 APIs from
+Khronos. They are used for compiling code against these APIs as well as for
+generating the GL binding initialization logic.
+
+MIT/X11 (BSD like) license is for {EGL,KHR}/*, SGI Free Software License B is
+for GLES2/*.
+
+Local Modifications:
+
+GLES2/gl2.h
+ - Added GL_CONTEXT_LOST constant.
+ - Added include of gl2chromium.h
+GLES2/gl2ext.h
+ - Added Chromium and Angle extensions.
+ - Added GL_ANGLE_instanced_arrays
+ - Added GL_ARB_robustness (subsetted)
+ - Added GL_ARB_texture_rectangle (subsetted)
+ - Added GL_CHROMIUM_async_pixel_transfers
+ - Added GL_CHROMIUM_bind_uniform_location
+ - Added GL_CHROMIUM_command_buffer_latency_query
+ - Added GL_CHROMIUM_command_buffer_query
+ - Added GL_CHROMIUM_copy_texture
+ - Added GL_CHROMIUM_get_error_query
+ - Added GL_CHROMIUM_gpu_memory_manager
+ - Added GL_CHROMIUM_iosurface
+ - Added GL_CHROMIUM_lose_context
+ - Added GL_CHROMIUM_pixel_transfer_buffer_object
+ - Added GL_CHROMIUM_texture_from_image
+ - Added GL_EXT_framebuffer_multisample
+ - Added GL_NVX_gpu_memory_info
+ - Added include of gl2chromium.h
+EGL/eglplatform.h
+ - Added EGLNative*Type for Mac.
+DEPS
+ - Added DEPS file to prevent inclusion of external dependencies.
