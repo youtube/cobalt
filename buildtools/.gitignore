@@ -1,5 +1,4 @@
 *.pyc
-clang_format/script/
 third_party/libc++/trunk
 third_party/libc++abi/trunk
 third_party/libunwind/trunk
