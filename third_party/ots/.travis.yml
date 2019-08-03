@@ -1,0 +1,62 @@
+language: cpp
+
+dist: trusty
+sudo: false
+
+matrix:
+  include:
+    - os: linux
+      compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-6
+      env: MATRIX_EVAL="CC='gcc-6' && CXX='g++-6'"
+    - os: linux
+      compiler: clang
+    - os: osx
+      compiler: clang
+
+addons:
+  apt:
+    packages:
+      - fonts-inconsolata
+      - fonts-takao-gothic
+      - fonts-takao-mincho
+      - fonts-takao-pgothic
+
+install:
+  - ./autogen.sh
+
+script:
+  - ./configure --enable-debug --prefix=$PWD/dist
+  - export OTS_VERSION=$(grep PACKAGE_VERSION config.h | cut -d'"' -f2)
+  - make distcheck || (cat `find -name '*.log'` && false)
+  - make install-strip
+  - make dist
+
+before_deploy:
+  - export ARCHIVE=ots-$OTS_VERSION-$TRAVIS_OS_NAME
+  - export DEPLOY1=$ARCHIVE.zip
+  - export DEPLOY2=ots-$OTS_VERSION.tar.gz
+  - mkdir -p $ARCHIVE
+  - cp dist/bin/* $ARCHIVE
+  - zip -r $DEPLOY1 $ARCHIVE
+
+deploy:
+  provider: releases
+  api_key:
+    - secure: "TLW/tIpobbvcJvEyZNJcdUL1c1Xt91vaxMegUGKvXnyT56Rxn6joLYUVhfFmz6cOKtDG4F409aAXJr60BL8iQ/xra9a8uD4Y+WKgPinQo9O8CViv1bsQpGV2rfBpNQ5UUYU/t09ReicPQNHGb0ONFRnLxmcQLo8eJzlKE1MdOoA="
+  file:
+    - "${DEPLOY1}"
+    - "${DEPLOY2}"
+  skip_cleanup: true
+  draft: true
+  overwrite: true
+  tag_name: $TRAVIS_TAG
+  on:
+    tags: true
+    branch: master
+    condition: $CC = clang
