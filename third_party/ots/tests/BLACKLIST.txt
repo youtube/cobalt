@@ -1,0 +1,137 @@
+# Required table(s) are missing.
+Gungseouche.ttf
+HeadlineA.ttf
+LastResort.ttf
+NISC18030.ttf
+PCmyoungjo.ttf
+Pilgiche.ttf
+
+# Bad vhea version 10001.
+AppleGothic.ttf
+AppleMyungjo.ttf
+
+# cmap: Range glyph reference too high
+InaiMathi.ttf
+
+# The length field of a table is weird.
+homa.ttf
+nazli.ttf
+titr.ttf
+ume-tgc4.ttf
+ume-tgs4.ttf
+ume-tgc5.ttf
+ume-tgs5.ttf
+ume-tms3.ttf
+
+# Table(s) are not 4-byte aligned.
+UnBatang.ttf
+UnBom.ttf
+UnDotum.ttf
+UnGraphic.ttf
+UnGungseo.ttf
+UnJamoBatang.ttf
+UnJamoDotum.ttf
+UnJamoNovel.ttf
+UnJamoSora.ttf
+UnPenheulim.ttf
+UnPen.ttf
+UnPilgiBold.ttf
+UnPilgi.ttf
+UnShinmun.ttf
+UnTaza.ttf
+UnYetgul.ttf
+
+# Tables are not sorted by table tags.
+f500.ttf
+
+# Malformed SFNT table; unexpected entry selector
+misakimn.ttf
+misaki.ttf
+
+# Malformed CMAP table; Subtables are not sorted by platform ID
+ani.ttf
+Caliban.ttf
+
+# Malformed CMAP table; Entries in a 3-0-4 or 3-1-4 subtable are not sorted.
+LucidaSansOblique.ttf
+LucidaTypewriterOblique.ttf
+bkai00mp.ttf
+bsmi00lp.ttf
+modelwor.ttf
+
+# Malformed CMAP table; "search range" in a 3-0-4 or 3-1-4 subtable are invalid.
+cmmi10.ttf
+cmsy10.ttf
+msam10.ttf
+
+# Malformed CMAP table; The 3-10-12 table is too short.
+BPG_Chveulebrivi.ttf
+BPG_Chveulebrivi_bold.ttf
+
+# No supported cmap subtable found
+Apple Chancery.ttf
+Apple Color Emoji.ttf
+Apple Symbols.ttf
+BigCaslon.ttf
+DroidSansFallback.ttf
+DroidSansJapanese.ttf
+华文宋体.ttf
+华文楷体.ttf
+Apple Symbols.ttc
+
+# Malformed HMTX table; The table is too short.
+mona.ttf
+
+# CMAP glyph id is out of range.
+Chalkduster.ttf
+Diwan Thuluth.ttf
+Optima.ttc
+Osaka.ttf
+OsakaMono.ttf
+Samyak-Oriya.ttf
+ZapfDingbats.ttf
+
+# Unsupported CFF table; "supplemental encoding" is not supported at the moment. This should be fixed in the future.
+Walbf___.otf
+
+# GDEF MarkAttachClassDef offset is invalid.
+ManchuFont.ttf
+arianamu.ttf
+summersby.ttf
+
+# Bad glyph flag
+DroidSansFallbackFull.ttf
+Skia.ttf
+
+# incorrect entrySelector for table directory
+NanumMyeongjo.ttf
+NanumMyeongjoBold.ttf
+
+# CFF parsing failure.
+Yu Gothic Bold.otf
+Yu Gothic Medium.otf
+YuppySC-Regular.otf
+YuppyTC-Regular.otf
+
+# XXX: check why those are failing
+SagarNormal.ttf
+oriya.ttf
+GohaTibebZemen.ttf
+malayalam.ttf
+AkaashNormal.ttf
+
+# XXX check those Apple fonts too
+Arial Unicode.ttf
+Damascus.ttc
+Didot.ttc
+Iowan Old Style.ttc
+Phosphate.ttc
+Seravek.ttc
+Shree714.ttc
+AquaKana.ttc
+
+# Failed to sanitize previous output!
+LucidaGrande.ttc
+
+# FFTM: misaligned table
+wqy-microhei.ttc
