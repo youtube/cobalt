@@ -1,0 +1,45 @@
+diff -pu -r a/net/third_party/nss/ssl/sslsecur.c b/net/third_party/nss/ssl/sslsecur.c
+--- a/net/third_party/nss/ssl/sslsecur.c	2012-05-24 13:34:51.000000000 -0700
++++ b/net/third_party/nss/ssl/sslsecur.c	2012-11-09 15:15:21.901558709 -0800
+@@ -1312,6 +1312,10 @@ SSL_SetURL(PRFileDesc *fd, const char *u
+ SECStatus
+ SSL_SetTrustAnchors(PRFileDesc *fd, CERTCertList *certList)
+ {
++    PORT_SetError(PR_NOT_IMPLEMENTED_ERROR);
++    PR_NOT_REACHED("not implemented");
++    return SECFailure;
++#if 0
+     sslSocket *   ss = ssl_FindSocket(fd);
+     CERTDistNames *names = NULL;
+ 
+@@ -1339,6 +1343,7 @@ SSL_SetTrustAnchors(PRFileDesc *fd, CERT
+     ssl_Release1stHandshakeLock(ss);
+ 
+     return SECSuccess;
++#endif
+ }
+ 
+ /*
+diff -pu -r a/net/third_party/nss/ssl/sslsock.c b/net/third_party/nss/ssl/sslsock.c
+--- a/net/third_party/nss/ssl/sslsock.c	2012-09-24 16:57:42.000000000 -0700
++++ b/net/third_party/nss/ssl/sslsock.c	2012-11-09 15:15:21.901558709 -0800
+@@ -1603,6 +1603,11 @@ SSL_GetSRTPCipher(PRFileDesc *fd, PRUint
+ PRFileDesc *
+ SSL_ReconfigFD(PRFileDesc *model, PRFileDesc *fd)
+ {
++    PORT_SetError(PR_NOT_IMPLEMENTED_ERROR);
++    PR_NOT_REACHED("not implemented");
++    return NULL;
++
++#if 0
+     sslSocket * sm = NULL, *ss = NULL;
+     int i;
+     sslServerCerts * mc = NULL;
+@@ -1711,6 +1716,7 @@ SSL_ReconfigFD(PRFileDesc *model, PRFile
+     return fd;
+ loser:
+     return NULL;
++#endif
+ }
+ 
+ PRBool
