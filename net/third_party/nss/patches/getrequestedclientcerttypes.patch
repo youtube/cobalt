@@ -1,0 +1,87 @@
+diff -pu -r a/net/third_party/nss/ssl/ssl3con.c b/net/third_party/nss/ssl/ssl3con.c
+--- a/net/third_party/nss/ssl/ssl3con.c	2012-11-09 15:39:36.842891686 -0800
++++ b/net/third_party/nss/ssl/ssl3con.c	2012-11-09 15:47:24.309734248 -0800
+@@ -5946,6 +5946,9 @@ ssl3_HandleCertificateRequest(sslSocket 
+     if (rv != SECSuccess)
+     	goto loser;		/* malformed, alert has been sent */
+ 
++    PORT_Assert(!ss->requestedCertTypes);
++    ss->requestedCertTypes = &cert_types;
++
+     arena = ca_list.arena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
+     if (arena == NULL)
+     	goto no_mem;
+@@ -6135,6 +6138,7 @@ loser:
+     PORT_SetError(errCode);
+     rv = SECFailure;
+ done:
++    ss->requestedCertTypes = NULL;
+     if (arena != NULL)
+     	PORT_FreeArena(arena, PR_FALSE);
+ #ifdef NSS_PLATFORM_CLIENT_AUTH
+diff -pu -r a/net/third_party/nss/ssl/ssl.h b/net/third_party/nss/ssl/ssl.h
+--- a/net/third_party/nss/ssl/ssl.h	2012-11-09 15:44:43.337377864 -0800
++++ b/net/third_party/nss/ssl/ssl.h	2012-11-09 15:47:24.309734248 -0800
+@@ -709,6 +709,16 @@ SSL_IMPORT SECStatus SSL_ReHandshakeWith
+                                                 PRBool flushCache,
+                                                 PRIntervalTime timeout);
+ 
++/* Returns a SECItem containing the certificate_types field of the
++** CertificateRequest message.  Each byte of the data is a TLS
++** ClientCertificateType value, and they are ordered from most preferred to
++** least.  This function should only be called from the
++** SSL_GetClientAuthDataHook callback, and will return NULL if called at any
++** other time.  The returned value is valid only until the callback returns, and
++** should not be freed.
++*/
++SSL_IMPORT const SECItem *
++SSL_GetRequestedClientCertificateTypes(PRFileDesc *fd);
+ 
+ #ifdef SSL_DEPRECATED_FUNCTION 
+ /* deprecated!
+diff -pu -r a/net/third_party/nss/ssl/sslimpl.h b/net/third_party/nss/ssl/sslimpl.h
+--- a/net/third_party/nss/ssl/sslimpl.h	2012-11-09 15:39:36.942893150 -0800
++++ b/net/third_party/nss/ssl/sslimpl.h	2012-11-09 15:47:24.309734248 -0800
+@@ -1141,6 +1141,10 @@ struct sslSocketStr {
+     unsigned int     sizeCipherSpecs;
+ const unsigned char *  preferredCipher;
+ 
++    /* TLS ClientCertificateTypes requested during HandleCertificateRequest. */
++    /* Will be NULL at all other times. */
++    const SECItem      *requestedCertTypes;
++
+     ssl3KeyPair *         stepDownKeyPair;	/* RSA step down keys */
+ 
+     /* Callbacks */
+diff -pu -r a/net/third_party/nss/ssl/sslsock.c b/net/third_party/nss/ssl/sslsock.c
+--- a/net/third_party/nss/ssl/sslsock.c	2012-11-09 15:44:43.337377864 -0800
++++ b/net/third_party/nss/ssl/sslsock.c	2012-11-09 15:47:24.309734248 -0800
+@@ -1926,6 +1926,20 @@ SSL_HandshakeResumedSession(PRFileDesc *
+     return SECSuccess;
+ }
+ 
++const SECItem *
++SSL_GetRequestedClientCertificateTypes(PRFileDesc *fd)
++{
++  sslSocket *ss = ssl_FindSocket(fd);
++
++  if (!ss) {
++      SSL_DBG(("%d: SSL[%d]: bad socket in "
++               "SSL_GetRequestedClientCertificateTypes", SSL_GETPID(), fd));
++      return NULL;
++  }
++
++  return ss->requestedCertTypes;
++}
++
+ /************************************************************************/
+ /* The following functions are the TOP LEVEL SSL functions.
+ ** They all get called through the NSPRIOMethods table below.
+@@ -2957,6 +2971,7 @@ ssl_NewSocket(PRBool makeLocks, SSLProto
+ 	    sc->serverKeyPair   = NULL;
+ 	    sc->serverKeyBits   = 0;
+ 	}
++	ss->requestedCertTypes = NULL;
+ 	ss->stepDownKeyPair    = NULL;
+ 	ss->dbHandle           = CERT_GetDefaultCertDB();
+ 

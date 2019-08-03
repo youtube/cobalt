@@ -1,0 +1,102 @@
+<!--
+  Copyright (c) 2012 The Chromium Authors. All rights reserved.
+  Use of this source code is governed by a BSD-style license that can be
+  found in the LICENSE file.
+-->
+<project default="error">
+  <property name="ant.project.name" value="${APK_NAME}"/>
+  <!--
+    Gyp will pass CONFIGURATION_NAME as the target for ant to build. These targets will call the
+    appropriate sdk tools target.
+  -->
+  <target name="Debug" depends="debug"/>
+  <target name="Release" depends="release"/>
+  <!-- __LB_SHELL__
+    Map LbShell configurations into Android build system configurations
+  -->
+  <target name="Android_Debug" depends="debug"/>
+  <target name="Android_Devel" depends="debug"/>
+  <target name="Android_QA" depends="debug"/>
+  <target name="Android_Gold" depends="release"/>
+  <target name="error">
+    <fail message="CONFIGURATION_NAME should be passed as a target to ant."/>
+  </target>
+
+  <description>
+    Building ${ant.project.name}.apk
+  </description>
+  <import file="common.xml"/>
+
+  <property-location
+      name="out.dir"
+      location="${PRODUCT_DIR}/${PACKAGE_NAME}"
+      check-exists="false"
+  />
+
+  <path id="javac.srcdirs.additional">
+    <filelist files="${ADDITIONAL_SRC_DIRS}"/>
+    <filelist files="${GENERATED_SRC_DIRS}"/>
+  </path>
+
+  <!--
+    Include additional resource folders in the apk, e.g. content/.../res.  We
+    list the res folders in project.library.res.folder.path and the
+    corresponding java packages in project.library.packages, which must be
+    semicolon-delimited while ADDITIONAL_RES_PACKAGES is space-delimited, hence
+    the javascript task.
+  -->
+
+  <path id="project.library.res.folder.path">
+    <filelist files="${ADDITIONAL_RES_DIRS}"/>
+  </path>
+  <!-- __LB_SHELL__
+    javascript isn't supported in stock Apache Ant(TM) version 1.8.2
+    so we are going to disable this section for now.
+  <script language="javascript">
+    var before = project.getProperty("ADDITIONAL_RES_PACKAGES");
+    project.setProperty("project.library.packages", before.replaceAll(" ", ";"));
+  </script>
+  -->
+  <property-value name="target.abi" value="${APP_ABI}"/>
+  <property name="resource.absolute.dir" value="${RESOURCE_DIR}"/>
+  <property-value name="gen.absolute.dir" value="${out.dir}/gen"/>
+  <property-location name="native.libs.absolute.dir" location="${out.dir}/libs"
+      check-exists="false"/>
+
+  <property-value name="version.code" value="${APP_MANIFEST_VERSION_CODE}"/>
+  <property-value name="version.name" value="${APP_MANIFEST_VERSION_NAME}"/>
+
+  <!--
+    We use the PROGUARD_ENABLED flag for enabling proguard. By default proguard is enabled for
+    Release builds if proguard.config is set. Setting proguard.config even to an empty string will
+    enable proguard. Set this property only when we have explicitly enabled proguard.
+  -->
+  <condition property="proguard.config" value="${PROGUARD_FLAGS}">
+    <istrue value="${PROGUARD_ENABLED}"/>
+  </condition>
+  <!-- TODO(shashishekhar): Enable emma and code-coverage filters. -->
+
+  <condition property="asset.absolute.dir"
+      value="${out.dir}/assets"
+      else="${ASSET_DIR}">
+    <equals arg1="${ASSET_DIR}" arg2=""/>
+  </condition>
+
+  <!-- Set the output directory for the final apk to the ${apks.dir}. -->
+  <property-location name="out.final.file"
+      location="${apks.dir}/${ant.project.name}.apk"
+      check-exists="false"/>
+
+  <!-- Classpath for javac -->
+  <path id="javac.custom.classpath">
+    <filelist files="${INPUT_JARS_PATHS}"/>
+  </path>
+
+  <path id="out.dex.jar.input.ref">
+    <path refid="javac.custom.classpath"/>
+  </path>
+
+  <import file="sdk-targets.xml"/>
+  <import file="${sdk.dir}/tools/ant/build.xml"/>
+</project>
+
