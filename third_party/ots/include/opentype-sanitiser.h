@@ -5,7 +5,6 @@
 #ifndef OPENTYPE_SANITISER_H_
 #define OPENTYPE_SANITISER_H_
 
-#include <cstring>
 #define MEMCPY_OPENTYPE_SANITISER std::memcpy
 
 #if defined(STARBOARD)
@@ -42,6 +41,7 @@ typedef unsigned __int64 uint64_t;
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <cstring>
 
 #define OTS_TAG(c1,c2,c3,c4) ((uint32_t)((((uint8_t)(c1))<<24)|(((uint8_t)(c2))<<16)|(((uint8_t)(c3))<<8)|((uint8_t)(c4))))
 #define OTS_UNTAG(tag)       ((char)((tag)>>24)), ((char)((tag)>>16)), ((char)((tag)>>8)), ((char)(tag))

@@ -9,7 +9,6 @@
 #include <utility>
 #include <vector>
 
-#include <cstring>
 #define MEMCPY_CMAP std::memcpy
 
 #if defined(STARBOARD)
