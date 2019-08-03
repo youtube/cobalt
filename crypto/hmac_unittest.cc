@@ -82,8 +82,7 @@ TEST(HMACTest, HmacSafeBrowsingResponseTest) {
   unsigned char calculated_hmac[kSHA1DigestSize];
 
   EXPECT_TRUE(hmac.Sign(message_data, calculated_hmac, kSHA1DigestSize));
-  EXPECT_EQ(0,
-            memcmp(kReceivedHmac, calculated_hmac, kSHA1DigestSize));
+  EXPECT_EQ(0, memcmp(kReceivedHmac, calculated_hmac, kSHA1DigestSize));
 }
 
 // Test cases from RFC 2202 section 3
@@ -179,8 +178,7 @@ TEST(HMACTest, RFC4231TestCase6) {
 
   EXPECT_EQ(kSHA256DigestSize, hmac.DigestLength());
   EXPECT_TRUE(hmac.Sign(data, calculated_hmac, kSHA256DigestSize));
-  EXPECT_EQ(
-      0, memcmp(kKnownHMACSHA256, calculated_hmac, kSHA256DigestSize));
+  EXPECT_EQ(0, memcmp(kKnownHMACSHA256, calculated_hmac, kSHA256DigestSize));
 }
 
 // Based on NSS's FIPS HMAC power-up self-test.
@@ -221,8 +219,7 @@ TEST(HMACTest, NSSFIPSPowerUpSelfTest) {
 
   EXPECT_EQ(kSHA1DigestSize, hmac.DigestLength());
   EXPECT_TRUE(hmac.Sign(message_data, calculated_hmac, kSHA1DigestSize));
-  EXPECT_EQ(0,
-            memcmp(kKnownHMACSHA1, calculated_hmac, kSHA1DigestSize));
+  EXPECT_EQ(0, memcmp(kKnownHMACSHA1, calculated_hmac, kSHA1DigestSize));
   EXPECT_TRUE(hmac.Verify(
       message_data,
       base::StringPiece(reinterpret_cast<const char*>(kKnownHMACSHA1),
@@ -237,8 +234,7 @@ TEST(HMACTest, NSSFIPSPowerUpSelfTest) {
   unsigned char calculated_hmac2[kSHA256DigestSize];
 
   EXPECT_TRUE(hmac2.Sign(message_data, calculated_hmac2, kSHA256DigestSize));
-  EXPECT_EQ(0, memcmp(kKnownHMACSHA256, calculated_hmac2,
-                               kSHA256DigestSize));
+  EXPECT_EQ(0, memcmp(kKnownHMACSHA256, calculated_hmac2, kSHA256DigestSize));
 }
 
 TEST(HMACTest, HMACObjectReuse) {
@@ -251,8 +247,7 @@ TEST(HMACTest, HMACObjectReuse) {
                             kSimpleHmacCases[i].data_len);
     unsigned char digest[kSHA1DigestSize];
     EXPECT_TRUE(hmac.Sign(data_string, digest, kSHA1DigestSize));
-    EXPECT_EQ(0, memcmp(kSimpleHmacCases[i].digest, digest,
-                                 kSHA1DigestSize));
+    EXPECT_EQ(0, memcmp(kSimpleHmacCases[i].digest, digest, kSHA1DigestSize));
   }
 }
 

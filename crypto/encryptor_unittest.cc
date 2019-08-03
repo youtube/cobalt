@@ -421,8 +421,7 @@ TEST(EncryptorTest, EncryptAES256CBC) {
   EXPECT_TRUE(encryptor.Encrypt(plaintext, &ciphertext));
 
   EXPECT_EQ(sizeof(kRawCiphertext), ciphertext.size());
-  EXPECT_EQ(
-      0, memcmp(ciphertext.data(), kRawCiphertext, ciphertext.size()));
+  EXPECT_EQ(0, memcmp(ciphertext.data(), kRawCiphertext, ciphertext.size()));
 
   std::string decrypted;
   EXPECT_TRUE(encryptor.Decrypt(ciphertext, &decrypted));

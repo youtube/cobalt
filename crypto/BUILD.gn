@@ -97,7 +97,9 @@ component("crypto") {
   ]
 
   if (!is_starboard) {
-    public_deps = [ "//third_party/boringssl" ]
+  public_deps = [
+    "//third_party/boringssl",
+  ]
   }
 
   if ((!is_mac && !is_ios) || is_starboard) {
@@ -232,13 +234,15 @@ group("platform") {
     deps = [ "//starboard" ]
     public_deps = [ "//third_party/boringssl:crypto" ]
   } else {
-    public_deps = [ "//third_party/boringssl" ]
+  public_deps = [
+    "//third_party/boringssl",
+  ]
 
-    # Link in NSS if it is used for the platform certificate library
-    # (use_nss_certs).
-    if (use_nss_certs) {
-      public_configs = [ ":platform_config" ]
-      public_configs += [ "//build/config/linux/nss:system_nss_no_ssl_config" ]
-    }
+  # Link in NSS if it is used for the platform certificate library
+  # (use_nss_certs).
+  if (use_nss_certs) {
+    public_configs = [ ":platform_config" ]
+    public_configs += [ "//build/config/linux/nss:system_nss_no_ssl_config" ]
+  }
   }
 }
