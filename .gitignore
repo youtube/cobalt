@@ -1,0 +1,7 @@
+PS3_PPU_*
+*.gyp_lb*
+*.gyp_jsc*
+*.pyc
+*~
+.*.sw?
+SRV/
