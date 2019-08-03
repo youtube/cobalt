@@ -1,0 +1,18 @@
+# GYP-generated files.
+Makefile
+*.Makefile
+*.mk
+*.xcodeproj
+
+# Output directory.
+out/
+
+# Python object files.
+*.pyc
+
+# Ignoring backup files.
+*~
+
+# Configure logs from protobuf.
+config.status
+config.log
