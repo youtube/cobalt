@@ -55,7 +55,6 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com). */
 
-#include <openssl/opensslconf.h>
 #if !defined(OPENSSL_SYS_STARBOARD)
 #include <stdio.h>
 #endif  // !defined(OPENSSL_SYS_STARBOARD)

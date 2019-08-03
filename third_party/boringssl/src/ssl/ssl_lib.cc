@@ -348,8 +348,8 @@ int ssl_log_secret(const SSL *ssl, const char *label, const uint8_t *secret,
   ScopedCBB cbb;
   uint8_t *out;
   size_t out_len;
-  if (!CBB_init(cbb.get(), strlen(label) + 1 +
-                               SSL3_RANDOM_SIZE * 2 + 1 + secret_len * 2 + 1) ||
+  if (!CBB_init(cbb.get(), strlen(label) + 1 + SSL3_RANDOM_SIZE * 2 + 1 +
+                          secret_len * 2 + 1) ||
       !CBB_add_bytes(cbb.get(), (const uint8_t *)label, strlen(label)) ||
       !CBB_add_bytes(cbb.get(), (const uint8_t *)" ", 1) ||
       !cbb_add_hex(cbb.get(), ssl->s3->client_random, SSL3_RANDOM_SIZE) ||

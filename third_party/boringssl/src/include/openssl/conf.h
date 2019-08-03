@@ -59,7 +59,6 @@
 
 #include <openssl/base.h>
 
-#include <openssl/lhash.h>
 #include <openssl/stack.h>
 #include <openssl/lhash.h>
 

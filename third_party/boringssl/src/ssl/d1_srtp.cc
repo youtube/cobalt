@@ -147,8 +147,7 @@ static int find_profile_by_name(const char *profile_name,
                                 size_t len) {
   const SRTP_PROTECTION_PROFILE *p = kSRTPProfiles;
   while (p->name) {
-    if (len == strlen(p->name) &&
-        !strncmp(p->name, profile_name, len)) {
+    if (len == strlen(p->name) && !strncmp(p->name, profile_name, len)) {
       *pptr = p;
       return 1;
     }
@@ -175,9 +174,8 @@ static int ssl_ctx_make_profiles(
     col = strchr(ptr, ':');
 
     const SRTP_PROTECTION_PROFILE *profile;
-    if (!find_profile_by_name(
-            ptr, &profile,
-            col ? (size_t)(col - ptr) : strlen(ptr))) {
+    if (!find_profile_by_name(ptr, &profile,
+                              col ? (size_t)(col - ptr) : strlen(ptr))) {
       OPENSSL_PUT_ERROR(SSL, SSL_R_SRTP_UNKNOWN_PROTECTION_PROFILE);
       return 0;
     }
