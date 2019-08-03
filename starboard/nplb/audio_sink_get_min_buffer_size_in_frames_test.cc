@@ -28,7 +28,7 @@ TEST(SbAudioSinkGetMinBufferSizeInFramesTest, SunnyDay) {
   int max_channels = SbAudioSinkGetMaxChannels();
   int min_required_frames = SbAudioSinkGetMinBufferSizeInFrames(
       max_channels, sample_type,
-      SbAudioSinkGetNearestSupportedSampleFrequency(kDefaultSampleFrequenc));
+      SbAudioSinkGetNearestSupportedSampleFrequency(kDefaultSampleFrequency));
 
   EXPECT_GT(min_required_frames, 0);
   EXPECT_LE(min_required_frames, 10 * 1024);
@@ -36,7 +36,7 @@ TEST(SbAudioSinkGetMinBufferSizeInFramesTest, SunnyDay) {
   if (max_channels > 1) {
     min_required_frames = SbAudioSinkGetMinBufferSizeInFrames(
         1, sample_type,
-        SbAudioSinkGetNearestSupportedSampleFrequency(kDefaultSampleFrequenc));
+        SbAudioSinkGetNearestSupportedSampleFrequency(kDefaultSampleFrequency));
 
     EXPECT_GT(min_required_frames, 0);
     EXPECT_LE(min_required_frames, 10 * 1024);
@@ -44,7 +44,7 @@ TEST(SbAudioSinkGetMinBufferSizeInFramesTest, SunnyDay) {
   if (max_channels > 2) {
     min_required_frames = SbAudioSinkGetMinBufferSizeInFrames(
         2, sample_type,
-        SbAudioSinkGetNearestSupportedSampleFrequency(kDefaultSampleFrequenc));
+        SbAudioSinkGetNearestSupportedSampleFrequency(kDefaultSampleFrequency));
 
     EXPECT_GT(min_required_frames, 0);
     EXPECT_LE(min_required_frames, 10 * 1024);
