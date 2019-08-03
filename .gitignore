@@ -1,0 +1,6 @@
+build
+dist
+*.pyc
+*.pyc.d
+*.py,cover
+json5.egg-info
