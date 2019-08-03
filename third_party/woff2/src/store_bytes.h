@@ -12,8 +12,7 @@
 
 #include <inttypes.h>
 #include <stddef.h>
-
-#include <cstring>
+#include <string.h>
 #define MEMCPY_STORE_BYTES memcpy
 
 #include "./port.h"
