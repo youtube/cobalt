@@ -100,8 +100,9 @@ void InputBuffer::SetDecryptedContent(const void* buffer, int size) {
   DeallocateSampleBuffer(data_);
 
   if (size > 0) {
-    flattened_data_.resize(size);
-    SbMemoryCopy(flattened_data_.data(), buffer, size);
+    flattened_data_.clear();
+    flattened_data_.assign(static_cast<const uint8_t*>(buffer),
+                           static_cast<const uint8_t*>(buffer) + size);
     data_ = flattened_data_.data();
   } else {
     data_ = NULL;
