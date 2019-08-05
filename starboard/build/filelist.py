@@ -34,8 +34,8 @@ class FileList(object):
   """Makes it easy to include files for things like archive operations."""
 
   def __init__(self):
-    self.file_list = []  # List of 2-tuples: file_path, archive_path
-    self.symlink_dir_list = []  # Same
+    self.file_list = []  # List of (file_path, archive_path)
+    self.symlink_dir_list = []  # List of (file_path, link_path, target_path)
 
   def AddAllFilesInPath(self, root_dir, sub_path):
     """Starting at the root path, the sub_paths are searched for files."""
@@ -95,7 +95,8 @@ def _ResolveSymLink(link_file):
         'Path {} does not exist.'.format(target_path))
     return target_path
   else:  # Relative path from link_file.
-    abs_path = os.path.normpath(os.path.join(link_file, target_path))
+    abs_path = os.path.normpath(
+        os.path.join(os.path.dirname(link_file), target_path))
     assert os.path.exists(abs_path), (
         'Path {} does not exist (link file: {}, target_path: {})'.format(
             abs_path, link_file, target_path))
