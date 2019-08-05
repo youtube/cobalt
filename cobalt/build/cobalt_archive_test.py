@@ -79,6 +79,7 @@ class CobaltArchiveTest(unittest.TestCase):
     tf = filelist_test.TempFileSystem()
     tf.Clear()
     tf.Make()
+    flist.AddFile(tf.root_in_tmp, tf.test_txt)
     flist.AddSymLink(tf.root_in_tmp, tf.sym_dir)
     bundle_zip = os.path.join(tf.root_tmp, 'bundle.zip')
     car = cobalt_archive.CobaltArchive(bundle_zip)
