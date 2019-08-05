@@ -36,6 +36,26 @@ const jint MEDIA_DRM_KEY_STATUS_OUTPUT_NOT_ALLOWED = 2;
 const jint MEDIA_DRM_KEY_STATUS_PENDING = 3;
 const jint MEDIA_DRM_KEY_STATUS_USABLE = 0;
 
+// They must have the same values as defined in MediaDrm.KeyRequest.
+const jint REQUEST_TYPE_INITIAL = 0;
+const jint REQUEST_TYPE_RENEWAL = 1;
+const jint REQUEST_TYPE_RELEASE = 2;
+
+SbDrmSessionRequestType SbDrmSessionRequestTypeFromMediaDrmKeyRequestType(
+    jint request_type) {
+  if (request_type == REQUEST_TYPE_INITIAL) {
+    return kSbDrmSessionRequestTypeLicenseRequest;
+  }
+  if (request_type == REQUEST_TYPE_RENEWAL) {
+    return kSbDrmSessionRequestTypeLicenseRenewal;
+  }
+  if (request_type == REQUEST_TYPE_RELEASE) {
+    return kSbDrmSessionRequestTypeLicenseRelease;
+  }
+  SB_NOTREACHED();
+  return kSbDrmSessionRequestTypeLicenseRequest;
+}
+
 }  // namespace
 
 // This has to be defined outside the above anonymous namespace to be picked up
@@ -68,9 +88,10 @@ Java_dev_cobalt_media_MediaDrmBridge_nativeOnSessionMessage(
 
   DrmSystem* drm_system = reinterpret_cast<DrmSystem*>(native_media_drm_bridge);
   SB_DCHECK(drm_system);
-  drm_system->CallUpdateRequestCallback(ticket, session_id_elements,
-                                        session_id_size, message_elements,
-                                        message_size, kNoUrl);
+  drm_system->CallUpdateRequestCallback(
+      ticket, SbDrmSessionRequestTypeFromMediaDrmKeyRequestType(request_type),
+      session_id_elements, session_id_size, message_elements, message_size,
+      kNoUrl);
   env->ReleaseByteArrayElements(j_session_id, session_id_elements, JNI_ABORT);
   env->ReleaseByteArrayElements(j_message, message_elements, JNI_ABORT);
 }
@@ -255,15 +276,15 @@ DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
 }
 
 void DrmSystem::CallUpdateRequestCallback(int ticket,
+                                          SbDrmSessionRequestType request_type,
                                           const void* session_id,
                                           int session_id_size,
                                           const void* content,
                                           int content_size,
                                           const char* url) {
   update_request_callback_(this, context_, ticket, kSbDrmStatusSuccess,
-                           kSbDrmSessionRequestTypeLicenseRequest, NULL,
-                           session_id, session_id_size, content, content_size,
-                           url);
+                           request_type, NULL, session_id, session_id_size,
+                           content, content_size, url);
 }
 
 void DrmSystem::CallDrmSessionKeyStatusesChangedCallback(
