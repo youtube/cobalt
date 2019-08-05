@@ -205,10 +205,14 @@ public class AudioTrackBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   private int getUnderrunCount() {
-    if (audioTrack == null) {
-      Log.e(TAG, "Unable to call getUnderrunCount() with NULL audio track.");
-      return 0;
+    if (Build.VERSION.SDK_INT >= 24) {
+      if (audioTrack == null) {
+        Log.e(TAG, "Unable to call getUnderrunCount() with NULL audio track.");
+        return 0;
+      }
+      return audioTrack.getUnderrunCount();
     }
-    return audioTrack.getUnderrunCount();
+    // The funtion getUnderrunCount() is added in API level 24.
+    return 0;
   }
 }
