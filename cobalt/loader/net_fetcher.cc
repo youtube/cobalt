@@ -160,7 +160,7 @@ void NetFetcher::OnURLFetchResponseStarted(const net::URLFetcher* source) {
     return HandleError(msg).InvalidateThis();
   }
 
-  SetLastUrlOrigin(Origin(source->GetURL()));
+  last_url_origin_ = Origin(source->GetURL());
 }
 
 void NetFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
@@ -189,7 +189,7 @@ void NetFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
         status.error() == net::ERR_CONNECTION_RESET ||
         status.error() == net::ERR_CONNECTION_CLOSED ||
         status.error() == net::ERR_CONNECTION_ABORTED) {
-      SetFailedFromTransientError();
+      did_fail_from_transient_error_ = true;
     }
 
     std::string msg(base::StringPrintf(

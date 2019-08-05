@@ -62,6 +62,12 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
   }
 
  private:
+  // Fetcher interface
+  Origin last_url_origin() const override { return last_url_origin_; }
+  bool did_fail_from_transient_error() const override {
+    return did_fail_from_transient_error_;
+  }
+
   void Start();
 
   // Empty struct to ensure the caller of |HandleError()| knows that |this|
@@ -93,6 +99,13 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
   bool request_cross_origin_;
   // The request's origin.
   Origin origin_;
+
+  // Indicates whether the resource is cross-origin.
+  Origin last_url_origin_;
+
+  // Whether or not the fetcher failed from an error that is considered
+  // transient, indicating that the same fetch may later succeed.
+  bool did_fail_from_transient_error_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(NetFetcher);
 };
