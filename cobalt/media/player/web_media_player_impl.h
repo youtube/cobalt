@@ -157,6 +157,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   base::Time GetStartDate() const override;
 #endif  // SB_HAS(PLAYER_WITH_URL)
   float GetCurrentTime() const override;
+  float GetPlaybackRate() const override;
 
   // Get rate of loading the resource.
   int32 GetDataRate() const override;

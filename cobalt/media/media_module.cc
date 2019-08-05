@@ -111,23 +111,6 @@ class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
   std::vector<std::string> disabled_media_codecs_;
 };
 
-void RunClosureAndSignal(const base::Closure& closure,
-                         base::WaitableEvent* event) {
-  closure.Run();
-  event->Signal();
-}
-
-void RunClosureOnMessageLoopAndWait(
-    const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
-    const base::Closure& closure) {
-  base::WaitableEvent waitable_event(
-      base::WaitableEvent::ResetPolicy::MANUAL,
-      base::WaitableEvent::InitialState::NOT_SIGNALED);
-  task_runner->PostTask(
-      FROM_HERE, base::Bind(&RunClosureAndSignal, closure, &waitable_event));
-  waitable_event.Wait();
-}
-
 }  // namespace
 
 std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
@@ -146,33 +129,7 @@ std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
 }
 
 void MediaModule::Suspend() {
-  RunClosureOnMessageLoopAndWait(
-      task_runner_,
-      base::Bind(&MediaModule::SuspendTask, base::Unretained(this)));
-  resource_provider_ = NULL;
-}
-
-void MediaModule::Resume(render_tree::ResourceProvider* resource_provider) {
-  resource_provider_ = resource_provider;
-  RunClosureOnMessageLoopAndWait(
-      task_runner_,
-      base::Bind(&MediaModule::ResumeTask, base::Unretained(this)));
-}
-
-void MediaModule::RegisterPlayer(WebMediaPlayer* player) {
-  RunClosureOnMessageLoopAndWait(task_runner_,
-                                 base::Bind(&MediaModule::RegisterPlayerTask,
-                                            base::Unretained(this), player));
-}
-
-void MediaModule::UnregisterPlayer(WebMediaPlayer* player) {
-  RunClosureOnMessageLoopAndWait(task_runner_,
-                                 base::Bind(&MediaModule::UnregisterPlayerTask,
-                                            base::Unretained(this), player));
-}
-
-void MediaModule::SuspendTask() {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  starboard::ScopedLock scoped_lock(players_lock_);
 
   suspended_ = true;
 
@@ -183,10 +140,14 @@ void MediaModule::SuspendTask() {
       iter->first->Suspend();
     }
   }
+
+  resource_provider_ = NULL;
 }
 
-void MediaModule::ResumeTask() {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+void MediaModule::Resume(render_tree::ResourceProvider* resource_provider) {
+  starboard::ScopedLock scoped_lock(players_lock_);
+
+  resource_provider_ = resource_provider;
 
   for (Players::iterator iter = players_.begin(); iter != players_.end();
        ++iter) {
@@ -199,8 +160,8 @@ void MediaModule::ResumeTask() {
   suspended_ = false;
 }
 
-void MediaModule::RegisterPlayerTask(WebMediaPlayer* player) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+void MediaModule::RegisterPlayer(WebMediaPlayer* player) {
+  starboard::ScopedLock scoped_lock(players_lock_);
 
   DCHECK(players_.find(player) == players_.end());
   players_.insert(std::make_pair(player, false));
@@ -210,11 +171,21 @@ void MediaModule::RegisterPlayerTask(WebMediaPlayer* player) {
   }
 }
 
-void MediaModule::UnregisterPlayerTask(WebMediaPlayer* player) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+void MediaModule::UnregisterPlayer(WebMediaPlayer* player) {
+  starboard::ScopedLock scoped_lock(players_lock_);
 
   DCHECK(players_.find(player) != players_.end());
   players_.erase(players_.find(player));
+}
+
+void MediaModule::EnumerateWebMediaPlayers(
+    const EnumeratePlayersCB& enumerate_callback) const {
+  starboard::ScopedLock scoped_lock(players_lock_);
+
+  for (Players::const_iterator iter = players_.begin(); iter != players_.end();
+       ++iter) {
+    enumerate_callback.Run(iter->first);
+  }
 }
 
 std::unique_ptr<CanPlayTypeHandler> MediaModule::CreateCanPlayTypeHandler() {
