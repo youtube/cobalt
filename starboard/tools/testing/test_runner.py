@@ -517,14 +517,16 @@ class TestRunner(object):
         flaky_passed_tests = []
         for test_case in flaky_failed_tests:
           for retry in range(_FLAKY_RETRY_LIMIT):
-            retry_result = self._RunTest(target_name, test_case)
+            # Sometimes the returned test "name" includes information about the
+            # parameter that was passed to it. This needs to be stripped off.
+            retry_result = self._RunTest(target_name, test_case.split(",")[0])
             print  # Explicit print for empty formatting line.
             if retry_result[2] == 1:
               flaky_passed_tests.append(test_case)
               logging.info("%s succeeded on run #%d!\n", test_case, retry + 2)
               break
             else:
-              logging.warning("%s Failed. Re-running...\n", test_case)
+              logging.warning("%s failed. Re-running...\n", test_case)
         # Remove newly passing flaky tests from failing flaky test list.
         for test_case in flaky_passed_tests:
           flaky_failed_tests.remove(test_case)
