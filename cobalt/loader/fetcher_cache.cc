@@ -21,36 +21,47 @@
 
 namespace cobalt {
 namespace loader {
+namespace {
 
-class FetcherCache::CachedFetcherHandler : public Fetcher::Handler {
+// Wraps a Fetcher::Handler and saves all data fetched and its associated
+// information.
+class CachedFetcherHandler : public Fetcher::Handler {
  public:
   typedef base::Callback<void(
-      CachedFetcherHandler* handler, const std::string& url,
+      const std::string& url,
       const scoped_refptr<net::HttpResponseHeaders>& headers,
-      const Origin& last_url_origin, std::string* data)>
+      const Origin& last_url_origin, bool did_fail_from_transient_error,
+      std::string* data)>
       SuccessCallback;
-  typedef base::Callback<void(CachedFetcherHandler* handler)> FailureCallback;
 
   CachedFetcherHandler(const std::string& url, Fetcher::Handler* handler,
-                       const SuccessCallback& on_success_callback,
-                       const FailureCallback& on_failure_callback)
+                       const SuccessCallback& on_success_callback)
       : url_(url),
         handler_(handler),
-        on_success_callback_(on_success_callback),
-        on_failure_callback_(on_failure_callback) {
+        on_success_callback_(on_success_callback) {
     DCHECK(handler_);
     DCHECK(!on_success_callback_.is_null());
-    DCHECK(!on_failure_callback_.is_null());
+  }
+
+  // Attach a wrapping fetcher so it can be used when forwarding the callbacks.
+  // This ensures that the underlying handler sees the same Fetcher object in
+  // the callback as the one returned by CreateCachedFetcher().
+  void AttachFetcher(Fetcher* wrapping_fetcher) {
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+    DCHECK(!wrapping_fetcher_);
+    DCHECK(wrapping_fetcher);
+    wrapping_fetcher_ = wrapping_fetcher;
   }
 
  private:
   // From Fetcher::Handler.
   LoadResponseType OnResponseStarted(
-      Fetcher* fetcher,
+      Fetcher*,
       const scoped_refptr<net::HttpResponseHeaders>& headers) override {
     // TODO: Respect HttpResponseHeaders::GetMaxAgeValue().
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-    auto response = handler_->OnResponseStarted(fetcher, headers);
+    DCHECK(wrapping_fetcher_);
+    auto response = handler_->OnResponseStarted(wrapping_fetcher_, headers);
     if (response == kLoadResponseContinue && headers) {
       headers_ = headers;
       auto content_length = headers_->GetContentLength();
@@ -61,46 +72,120 @@ class FetcherCache::CachedFetcherHandler : public Fetcher::Handler {
     return response;
   }
 
-  void OnReceived(Fetcher* fetcher, const char* data, size_t size) override {
+  void OnReceived(Fetcher*, const char* data, size_t size) override {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+    DCHECK(wrapping_fetcher_);
     data_.insert(data_.end(), data, data + size);
-    handler_->OnReceived(fetcher, data, size);
+    handler_->OnReceived(wrapping_fetcher_, data, size);
   }
-  void OnReceivedPassed(Fetcher* fetcher,
-                        std::unique_ptr<std::string> data) override {
+
+  void OnReceivedPassed(Fetcher*, std::unique_ptr<std::string> data) override {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+    DCHECK(wrapping_fetcher_);
     data_.insert(data_.end(), data->begin(), data->end());
-    handler_->OnReceivedPassed(fetcher, std::move(data));
+    handler_->OnReceivedPassed(wrapping_fetcher_, std::move(data));
   }
-  void OnDone(Fetcher* fetcher) override {
+
+  void OnDone(Fetcher*) override {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-    last_url_origin_ = fetcher->last_url_origin();
-    handler_->OnDone(fetcher);
-    on_success_callback_.Run(this, url_, headers_, last_url_origin_, &data_);
+    DCHECK(wrapping_fetcher_);
+    handler_->OnDone(wrapping_fetcher_);
+    on_success_callback_.Run(
+        url_, headers_, wrapping_fetcher_->last_url_origin(),
+        wrapping_fetcher_->did_fail_from_transient_error(), &data_);
   }
-  void OnError(Fetcher* fetcher, const std::string& error) override {
+
+  void OnError(Fetcher*, const std::string& error) override {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-    handler_->OnError(fetcher, error);
-    on_failure_callback_.Run(this);
+    DCHECK(wrapping_fetcher_);
+    handler_->OnError(wrapping_fetcher_, error);
   }
 
   THREAD_CHECKER(thread_checker_);
 
   const std::string url_;
+  Fetcher* wrapping_fetcher_ = nullptr;
   Fetcher::Handler* const handler_;
   const SuccessCallback on_success_callback_;
-  const FailureCallback on_failure_callback_;
 
   scoped_refptr<net::HttpResponseHeaders> headers_;
-  Origin last_url_origin_;
   std::string data_;
 };
+
+// Wraps an underlying, real Fetcher for an ongoing request, so we can ensure
+// that |handler_| is deleted when the Fetcher object is deleted.
+class OngoingFetcher : public Fetcher {
+ public:
+  OngoingFetcher(std::unique_ptr<CachedFetcherHandler> handler,
+                 const Loader::FetcherCreator& real_fetcher_creator)
+      : Fetcher(handler.get()), handler_(std::move(handler)) {
+    DCHECK(handler_);
+    handler_->AttachFetcher(this);
+    fetcher_ = real_fetcher_creator.Run(handler_.get());
+  }
+  ~OngoingFetcher() override { DCHECK_CALLED_ON_VALID_THREAD(thread_checker_); }
+
+  Origin last_url_origin() const override {
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+    // Some Fetchers may call callbacks inside its ctor, in such case |fetcher_|
+    // hasn't been assigned and a default value is returned.
+    return fetcher_ ? fetcher_->last_url_origin() : Origin();
+  }
+  bool did_fail_from_transient_error() const override {
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+    // Some Fetchers may call callbacks inside its ctor, in such case |fetcher_|
+    // hasn't been assigned and a default value is returned.
+    return fetcher_ ? fetcher_->did_fail_from_transient_error() : false;
+  }
+
+ private:
+  THREAD_CHECKER(thread_checker_);
+
+  std::unique_ptr<CachedFetcherHandler> handler_;
+  std::unique_ptr<Fetcher> fetcher_;
+};
+
+// Fulfills the request directly using the data passed to ctor.
+class CachedFetcher : public Fetcher {
+ public:
+  CachedFetcher(const GURL& url,
+                const scoped_refptr<net::HttpResponseHeaders>& headers,
+                const char* data, size_t size, const Origin& last_url_origin,
+                bool did_fail_from_transient_error, Handler* handler)
+      : Fetcher(handler),
+        last_url_origin_(last_url_origin),
+        did_fail_from_transient_error_(did_fail_from_transient_error) {
+    auto response_type = handler->OnResponseStarted(this, headers);
+    if (response_type == kLoadResponseAbort) {
+      std::string error_msg(base::StringPrintf(
+          "Handler::OnResponseStarted() aborted URL %s", url.spec().c_str()));
+      handler->OnError(this, error_msg.c_str());
+      return;
+    }
+    handler->OnReceived(this, data, size);
+    handler->OnDone(this);
+  }
+
+  Origin last_url_origin() const override { return last_url_origin_; }
+  bool did_fail_from_transient_error() const override {
+    return did_fail_from_transient_error_;
+  }
+
+ private:
+  Origin last_url_origin_;
+  bool did_fail_from_transient_error_;
+};
+
+}  // namespace
 
 class FetcherCache::CacheEntry {
  public:
   CacheEntry(const scoped_refptr<net::HttpResponseHeaders>& headers,
-             const Origin& last_url_origin, std::string* data)
-      : headers_(headers), last_url_origin_(last_url_origin) {
+             const Origin& last_url_origin, bool did_fail_from_transient_error,
+             std::string* data)
+      : headers_(headers),
+        last_url_origin_(last_url_origin),
+        did_fail_from_transient_error_(did_fail_from_transient_error) {
     DCHECK(data);
     data_.swap(*data);
   }
@@ -113,6 +198,9 @@ class FetcherCache::CacheEntry {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     return last_url_origin_;
   }
+  bool did_fail_from_transient_error() const {
+    return did_fail_from_transient_error_;
+  }
   const char* data() const {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     return data_.data();
@@ -121,31 +209,18 @@ class FetcherCache::CacheEntry {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     return data_.size();
   }
+  size_t capacity() const {
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+    return data_.capacity();
+  }
 
  private:
   THREAD_CHECKER(thread_checker_);
 
   scoped_refptr<net::HttpResponseHeaders> headers_;
   Origin last_url_origin_;
+  bool did_fail_from_transient_error_;
   std::string data_;
-};
-
-class FetcherCache::CachedFetcher : public Fetcher {
- public:
-  CachedFetcher(const GURL& url, const FetcherCache::CacheEntry& entry,
-                Handler* handler)
-      : Fetcher(handler) {
-    SetLastUrlOrigin(entry.last_url_origin());
-    auto response_type = handler->OnResponseStarted(this, entry.headers());
-    if (response_type == kLoadResponseAbort) {
-      std::string error_msg(base::StringPrintf(
-          "Handler::OnResponseStarted() aborted URL %s", url.spec().c_str()));
-      handler->OnError(this, error_msg.c_str());
-      return;
-    }
-    handler->OnReceived(this, entry.data(), entry.size());
-    handler->OnDone(this);
-  }
 };
 
 FetcherCache::FetcherCache(const char* name, size_t capacity)
@@ -159,11 +234,6 @@ FetcherCache::FetcherCache(const char* name, size_t capacity)
 
 FetcherCache::~FetcherCache() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
-  while (!ongoing_fetchers_.empty()) {
-    delete *ongoing_fetchers_.begin();
-    ongoing_fetchers_.erase(ongoing_fetchers_.begin());
-  }
 
   while (!cache_entries_.empty()) {
     delete cache_entries_.begin()->second;
@@ -206,34 +276,35 @@ std::unique_ptr<Fetcher> FetcherCache::CreateCachedFetcher(
     auto entry = iterator->second;
     cache_entries_.erase(iterator);
     cache_entries_.insert(std::make_pair(url.spec(), entry));
-    return std::unique_ptr<Fetcher>(new CachedFetcher(url, *entry, handler));
+    return std::unique_ptr<Fetcher>(
+        new CachedFetcher(url, entry->headers(), entry->data(), entry->size(),
+                          entry->last_url_origin(),
+                          entry->did_fail_from_transient_error(), handler));
   }
 
-  auto cached_handler = new CachedFetcherHandler(
+  std::unique_ptr<CachedFetcherHandler> cached_handler(new CachedFetcherHandler(
       url.spec(), handler,
-      base::Bind(&FetcherCache::OnFetchSuccess, base::Unretained(this)),
-      base::Bind(&FetcherCache::OnFetchFailure, base::Unretained(this)));
-  ongoing_fetchers_.insert(cached_handler);
-  return real_fetcher_creator.Run(cached_handler);
+      base::Bind(&FetcherCache::OnFetchSuccess, base::Unretained(this))));
+  return std::unique_ptr<Fetcher>(
+      new OngoingFetcher(std::move(cached_handler), real_fetcher_creator));
 }
 
 void FetcherCache::OnFetchSuccess(
-    CachedFetcherHandler* handler, const std::string& url,
+    const std::string& url,
     const scoped_refptr<net::HttpResponseHeaders>& headers,
-    const Origin& last_url_origin, std::string* data) {
+    const Origin& last_url_origin, bool did_fail_from_transient_error,
+    std::string* data) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(data);
 
-  auto iterator = ongoing_fetchers_.find(handler);
-  DCHECK(iterator != ongoing_fetchers_.end());
-
   if (data->size() <= capacity_) {
-    auto entry = new CacheEntry(headers, last_url_origin, data);
-    total_size_ += entry->size();
+    auto entry = new CacheEntry(headers, last_url_origin,
+                                did_fail_from_transient_error, data);
+    total_size_ += entry->capacity();
     cache_entries_.insert(std::make_pair(url, entry));
     while (total_size_ > capacity_) {
       DCHECK(!cache_entries_.empty());
-      total_size_ -= cache_entries_.begin()->second->size();
+      total_size_ -= cache_entries_.begin()->second->capacity();
       delete cache_entries_.begin()->second;
       cache_entries_.erase(cache_entries_.begin());
       --count_resources_cached_;
@@ -241,18 +312,6 @@ void FetcherCache::OnFetchSuccess(
     ++count_resources_cached_;
     memory_size_in_bytes_ = total_size_;
   }
-
-  delete *iterator;
-  ongoing_fetchers_.erase(iterator);
-}
-
-void FetcherCache::OnFetchFailure(CachedFetcherHandler* handler) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
-  auto iterator = ongoing_fetchers_.find(handler);
-  DCHECK(iterator != ongoing_fetchers_.end());
-  delete *iterator;
-  ongoing_fetchers_.erase(iterator);
 }
 
 }  // namespace loader
