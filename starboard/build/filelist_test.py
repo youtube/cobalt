@@ -38,7 +38,15 @@ def _MakeDirs(path):
 
 
 class TempFileSystem(object):
-  """Generates a test file structure with file/dir/symlink for testing."""
+  """Generates a test file structure with file/dir/symlink for testing.
+
+  <temp_dir>
+   |-> <root_sub_dir>
+   |   |-> in
+   |   |   |-> from_dir
+   |   |   |   |-> test.txt
+   |   |   |-> from_dir_lnk -> <temp_dir>/<root_sub_dir>/in/from_dir
+  """
 
   def __init__(self, root_sub_dir='bundler'):
     root_sub_dir = os.path.normpath(root_sub_dir)
@@ -46,9 +54,9 @@ class TempFileSystem(object):
     if os.path.exists(self.root_tmp):
       port_symlink.Rmtree(self.root_tmp)
     self.root_in_tmp = os.path.join(self.root_tmp, 'in')
-    self.test_txt = os.path.join(self.root_in_tmp, 'from_dir', 'test.txt')
     self.sym_dir = os.path.join(self.root_in_tmp, 'from_dir_lnk')
     self.from_dir = os.path.join(self.root_in_tmp, 'from_dir')
+    self.test_txt = os.path.join(self.from_dir, 'test.txt')
 
   def Make(self):
     _MakeDirs(self.root_in_tmp)
@@ -138,20 +146,24 @@ class FileListTest(unittest.TestCase):
     tf = TempFileSystem()
     tf.Make()
     flist = filelist.FileList()
-    in2 = os.path.join(tf.root_in_tmp, 'in2')
-    target_path = os.path.relpath(tf.from_dir, in2)
+    in2 = os.path.join(tf.root_in_tmp, 'subdir', 'in2')
+    target_path = os.path.relpath(tf.from_dir, os.path.dirname(in2))
     # Sanity check that target_path is relative.
-    self.assertIn('..', target_path)
+    self.assertEqual(target_path, os.path.join('..', 'from_dir'))
+    # Create the link and check that it points to the correct folder.
     port_symlink.MakeSymLink(target_path, in2)
     self.assertTrue(port_symlink.IsSymLink(in2))
-    read_back_target_path = port_symlink.ReadSymLink(in2)
-    self.assertIn('..', read_back_target_path)
+    self.assertEqual(port_symlink.ReadSymLink(in2), target_path)
+    self.assertEqual(os.listdir(in2), ['test.txt'])
+    # Add the symlink to flist and check its content.
     flist.AddFile(tf.root_tmp, in2)
     flist.Print()
     self.assertTrue(flist.symlink_dir_list)
-    symlink_entry = flist.symlink_dir_list[0][1:]
-    expected = [os.path.join('in', 'in2'), os.path.join('in', 'from_dir')]
-    self.assertEqual(expected, symlink_entry)
+    expected = [
+        tf.root_tmp,
+        os.path.join('in', 'subdir', 'in2'),
+        os.path.join('in', 'from_dir')]
+    self.assertEqual(flist.symlink_dir_list[0], expected)
 
   def testOsGetRelpathFallback(self):
     # Tests issue b/134589032
