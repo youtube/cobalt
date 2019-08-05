@@ -1,6 +1,7 @@
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
+#include "libc.h"
 
 #if FLT_EVAL_METHOD==0 || FLT_EVAL_METHOD==1
 #define EPS DBL_EPSILON
@@ -31,3 +32,7 @@ double rint(double x)
 		return s ? -0.0 : 0;
 	return y;
 }
+
+#ifdef COBALT_MUSL_W_GLIBC_HEADERS
+weak_alias(rint_internal, rint);
+#endif  // COBALT_MUSL_W_GLIBC_HEADERS
