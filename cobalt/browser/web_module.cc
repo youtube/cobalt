@@ -594,6 +594,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
   media_source_registry_.reset(new dom::MediaSource::Registry);
 
   media_session_client_ = media_session::MediaSessionClient::Create();
+  media_session_client_->SetMediaPlayerFactory(data.web_media_player_factory);
 
   system_caption_settings_ = new cobalt::dom::captions::SystemCaptionSettings();
 
@@ -1076,6 +1077,7 @@ void WebModule::Impl::SetCamera3D(
 void WebModule::Impl::SetWebMediaPlayerFactory(
     media::WebMediaPlayerFactory* web_media_player_factory) {
   window_->set_web_media_player_factory(web_media_player_factory);
+  media_session_client_->SetMediaPlayerFactory(web_media_player_factory);
 }
 
 void WebModule::Impl::SetApplicationState(base::ApplicationState state) {
