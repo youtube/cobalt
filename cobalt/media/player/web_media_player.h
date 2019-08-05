@@ -132,6 +132,7 @@ class WebMediaPlayer {
   virtual base::Time GetStartDate() const = 0;
 #endif  // SB_HAS(PLAYER_WITH_URL)
   virtual float GetCurrentTime() const = 0;
+  virtual float GetPlaybackRate() const = 0;
 
   // Get rate of loading the resource.
   virtual int GetDataRate() const = 0;
