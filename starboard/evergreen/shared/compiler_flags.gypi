@@ -110,7 +110,6 @@
       '-isystem<(cobalt_repo_root)/third_party/musl/include',
       '-isystem<(cobalt_repo_root)/third_party/musl/arch/x86_64',
       '-isystem<(cobalt_repo_root)/third_party/musl/arch/generic',
-      '-isystem<(cobalt_repo_root)/third_party/musl/generated/include',
     ],
     'cflags_cc': [
       '-nostdinc++',
