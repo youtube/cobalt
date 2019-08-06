@@ -25,6 +25,9 @@ namespace media_session {
 
 namespace {
 
+// Delay to re-query position state after an action has been invoked.
+const base::TimeDelta kUpdateDelay = base::TimeDelta::FromMilliseconds(250);
+
 // Guess the media position state for the media session.
 void GuessMediaPositionState(MediaSessionState* session_state,
     const media::WebMediaPlayer** guess_player,
@@ -59,6 +62,12 @@ void GuessMediaPositionState(MediaSessionState* session_state,
 }
 
 }  // namespace
+
+MediaSessionClient::~MediaSessionClient() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  // Prevent any outstanding MediaSession::OnChanged tasks from calling this.
+  media_session_->media_session_client_ = nullptr;
+}
 
 void MediaSessionClient::SetMediaPlayerFactory(
     const media::WebMediaPlayerFactory* factory) {
@@ -180,34 +189,10 @@ void MediaSessionClient::InvokeActionInternal(
   }
 
   it->second->value().Run(*details);
-}
 
-MediaSessionState MediaSessionClient::GetMediaSessionState() {
-  MediaSessionState session_state;
-  ComputeMediaSessionState(&session_state);
-  return session_state;
-}
-
-void MediaSessionClient::ComputeMediaSessionState(
-    MediaSessionState* session_state) {
-  DCHECK(media_session_->task_runner_);
-  if (!media_session_->task_runner_->BelongsToCurrentThread()) {
-    media_session_->task_runner_->PostBlockingTask(
-        FROM_HERE,
-        base::Bind(&MediaSessionClient::ComputeMediaSessionState,
-                   base::Unretained(this), base::Unretained(session_state)));
-    return;
-  }
-
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  *session_state = session_state_;
-
-  // Compute the media position state if it's not set in the media session.
-  if (!session_state->has_position_state() && media_player_factory_) {
-    const media::WebMediaPlayer* player = nullptr;
-    media_player_factory_->EnumerateWebMediaPlayers(
-        base::BindRepeating(&GuessMediaPositionState,
-                            session_state, &player));
+  // Queue a session update to reflect the effects of the action.
+  if (!media_session_->media_position_state_) {
+    media_session_->MaybeQueueChangeTask(kUpdateDelay);
   }
 }
 
@@ -223,6 +208,7 @@ void MediaSessionClient::UpdateMediaSessionState() {
     metadata->set_album(session_metadata->album());
     metadata->set_artwork(session_metadata->artwork());
   }
+
   session_state_ = MediaSessionState(
       metadata,
       media_session_->last_position_updated_time_,
@@ -230,11 +216,23 @@ void MediaSessionClient::UpdateMediaSessionState() {
       ComputeActualPlaybackState(),
       ComputeAvailableActions());
 
-  // Compute the media position state as needed.
-  MediaSessionState current_session_state;
-  ComputeMediaSessionState(&current_session_state);
+  // Compute the media position state if it's not set in the media session.
+  if (!media_session_->media_position_state_ && media_player_factory_) {
+    const media::WebMediaPlayer* player = nullptr;
+    media_player_factory_->EnumerateWebMediaPlayers(
+        base::BindRepeating(&GuessMediaPositionState,
+                            &session_state_, &player));
 
-  OnMediaSessionStateChanged(current_session_state);
+    // The media duration may be reported as 0 when seeking. Re-query the
+    // media session state after a delay.
+    if (session_state_.actual_playback_state() ==
+            kMediaSessionPlaybackStatePlaying &&
+        session_state_.duration() == 0) {
+      media_session_->MaybeQueueChangeTask(kUpdateDelay);
+    }
+  }
+
+  OnMediaSessionStateChanged(session_state_);
 }
 
 }  // namespace media_session
