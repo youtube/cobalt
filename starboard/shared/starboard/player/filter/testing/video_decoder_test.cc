@@ -113,7 +113,8 @@ class VideoDecoderTest
         output_mode_(std::get<0>(GetParam()).output_mode),
         using_stub_decoder_(std::get<1>(GetParam())),
         dmp_reader_(ResolveTestFileName(test_filename_).c_str()) {
-    SB_LOG(INFO) << "Testing " << test_filename_
+    SB_LOG(INFO) << "Testing " << test_filename_ << ", output mode "
+                 << output_mode_
                  << (using_stub_decoder_ ? " with stub video decoder." : ".");
   }
 
@@ -198,7 +199,8 @@ class VideoDecoderTest
   enum Status {
     kNeedMoreInput = VideoDecoder::kNeedMoreInput,
     kBufferFull = VideoDecoder::kBufferFull,
-    kError
+    kError,
+    kTimeout
   };
 
   struct Event {
@@ -242,7 +244,7 @@ class VideoDecoderTest
       }
       SbThreadSleep(kSbTimeMillisecond);
     }
-    event->status = kError;
+    event->status = kTimeout;
   }
 
   bool HasPendingEvents() {
@@ -313,7 +315,7 @@ class VideoDecoderTest
         ASSERT_NO_FATAL_FAILURE(WriteSingleInput(start_index));
         ++start_index;
         --number_of_inputs_to_write;
-      } else if (event.status == kError) {
+      } else if (event.status == kError || event.status == kTimeout) {
         // Assume that the caller does't expect an error when |event_cb| isn't
         // provided.
         ASSERT_TRUE(event_cb);
@@ -355,7 +357,7 @@ class VideoDecoderTest
     while (!end_of_stream_decoded) {
       Event event;
       ASSERT_NO_FATAL_FAILURE(WaitForNextEvent(&event));
-      if (event.status == kError) {
+      if (event.status == kError || event.status == kTimeout) {
         if (error_occurred) {
           *error_occurred = true;
         } else {
@@ -590,7 +592,10 @@ TEST_P(VideoDecoderTest, SingleInput) {
   ASSERT_NO_FATAL_FAILURE(DrainOutputs(
       &error_occurred, [=](const Event& event, bool* continue_process) {
         if (event.frame) {
-          AssertValidDecodeTargetWhenSupported();
+          // TODO: On some platforms, decode texture will be ready only after
+          // rendered by renderer, so decode target is not always available
+          // at this point. We should provide a mock renderer and then check
+          // the decode target here with AssertValidDecodeTargetWhenSupported().
         }
         *continue_process = true;
       }));
@@ -618,19 +623,23 @@ TEST_P(VideoDecoderTest, MultipleValidInputsAfterInvalidKeyFrame) {
   UseInvalidDataForInput(0, 0xab);
 
   bool error_occurred = false;
-
+  bool timeout_occurred = false;
   // Write first few frames.  The first one is invalid and the rest are valid.
   WriteMultipleInputs(0, number_of_input_to_write,
                       [&](const Event& event, bool* continue_process) {
+                        if (event.status == kTimeout) {
+                          timeout_occurred = true;
+                          *continue_process = false;
+                          return;
+                        }
                         if (event.status == kError) {
                           error_occurred = true;
                           *continue_process = false;
                           return;
                         }
-
                         *continue_process = event.status != kBufferFull;
                       });
-
+  ASSERT_FALSE(timeout_occurred);
   if (!error_occurred) {
     GetDecodeTargetWhenSupported();
     WriteEndOfStream();
@@ -653,8 +662,14 @@ TEST_P(VideoDecoderTest, MultipleInvalidInput) {
   }
 
   bool error_occurred = false;
+  bool timeout_occurred = false;
   WriteMultipleInputs(0, number_of_input_to_write,
                       [&](const Event& event, bool* continue_process) {
+                        if (event.status == kTimeout) {
+                          timeout_occurred = true;
+                          *continue_process = false;
+                          return;
+                        }
                         if (event.status == kError) {
                           error_occurred = true;
                           *continue_process = false;
@@ -663,7 +678,7 @@ TEST_P(VideoDecoderTest, MultipleInvalidInput) {
 
                         *continue_process = event.status != kBufferFull;
                       });
-
+  ASSERT_FALSE(timeout_occurred);
   if (!error_occurred) {
     GetDecodeTargetWhenSupported();
     WriteEndOfStream();
@@ -691,21 +706,34 @@ TEST_P(VideoDecoderTest, ResetBeforeInput) {
 
 TEST_P(VideoDecoderTest, ResetAfterInput) {
   const size_t kMaxInputToWrite = 10;
-  WriteMultipleInputs(0, kMaxInputToWrite,
-                      [](const Event& event, bool* continue_process) {
-                        *continue_process = event.status != kBufferFull;
-                      });
-
+  bool error_occurred = false;
+  WriteMultipleInputs(
+      0, kMaxInputToWrite, [&](const Event& event, bool* continue_process) {
+        if (event.status == kTimeout || event.status == kError) {
+          error_occurred = true;
+          *continue_process = false;
+          return;
+        }
+        *continue_process = event.status != kBufferFull;
+      });
+  ASSERT_FALSE(error_occurred);
   ResetDecoderAndClearPendingEvents();
   EXPECT_FALSE(HasPendingEvents());
 }
 
 TEST_P(VideoDecoderTest, MultipleResets) {
   for (int max_inputs = 1; max_inputs < 10; ++max_inputs) {
-    WriteMultipleInputs(0, max_inputs,
-                        [](const Event& event, bool* continue_process) {
-                          *continue_process = event.status != kBufferFull;
-                        });
+    bool error_occurred = false;
+    WriteMultipleInputs(
+        0, max_inputs, [&](const Event& event, bool* continue_process) {
+          if (event.status == kTimeout || event.status == kError) {
+            error_occurred = true;
+            *continue_process = false;
+            return;
+          }
+          *continue_process = event.status != kBufferFull;
+        });
+    ASSERT_FALSE(error_occurred);
     ResetDecoderAndClearPendingEvents();
     EXPECT_FALSE(HasPendingEvents());
     WriteSingleInput(0);
@@ -721,14 +749,20 @@ TEST_P(VideoDecoderTest, MultipleInputs) {
   const size_t number_of_expected_decoded_frames = std::min(
       kMaxNumberOfExpectedDecodedFrames, dmp_reader_.number_of_video_buffers());
   size_t frames_decoded = 0;
+  bool error_occurred = false;
   ASSERT_NO_FATAL_FAILURE(WriteMultipleInputs(
       0, dmp_reader_.number_of_video_buffers(),
       [&](const Event& event, bool* continue_process) {
-        SB_UNREFERENCED_PARAMETER(event);
+        if (event.status == kTimeout || event.status == kError) {
+          error_occurred = true;
+          *continue_process = false;
+          return;
+        }
         frames_decoded += decoded_frames_.size();
         decoded_frames_.clear();
         *continue_process = frames_decoded < number_of_expected_decoded_frames;
       }));
+  ASSERT_FALSE(error_occurred);
   if (frames_decoded < number_of_expected_decoded_frames) {
     WriteEndOfStream();
     ASSERT_NO_FATAL_FAILURE(DrainOutputs());
@@ -738,39 +772,51 @@ TEST_P(VideoDecoderTest, MultipleInputs) {
 TEST_P(VideoDecoderTest, Preroll) {
   SbTimeMonotonic start = SbTimeGetMonotonicNow();
   SbTime preroll_timeout = video_decoder_->GetPrerollTimeout();
+  bool error_occurred = false;
   ASSERT_NO_FATAL_FAILURE(WriteMultipleInputs(
       0, dmp_reader_.number_of_video_buffers(),
-      [=](const Event& event, bool* continue_process) {
-        SB_UNREFERENCED_PARAMETER(event);
+      [&](const Event& event, bool* continue_process) {
+        if (event.status == kError) {
+          error_occurred = true;
+          *continue_process = false;
+          return;
+        }
         if (decoded_frames_.size() >= video_decoder_->GetPrerollFrameCount()) {
           *continue_process = false;
           return;
         }
         if (SbTimeGetMonotonicNow() - start >= preroll_timeout) {
+          // After preroll timeout, we should get at least 1 decoded frame.
+          ASSERT_GT(decoded_frames_.size(), 0);
           *continue_process = false;
           return;
         }
         *continue_process = true;
         return;
       }));
+  ASSERT_FALSE(error_occurred);
 }
 
 TEST_P(VideoDecoderTest, HoldFramesUntilFull) {
+  bool error_occurred = false;
   ASSERT_NO_FATAL_FAILURE(WriteMultipleInputs(
       0, dmp_reader_.number_of_video_buffers(),
-      [=](const Event& event, bool* continue_process) {
-        SB_UNREFERENCED_PARAMETER(event);
+      [&](const Event& event, bool* continue_process) {
+        if (event.status == kTimeout || event.status == kError) {
+          error_occurred = true;
+          *continue_process = false;
+          return;
+        }
         *continue_process = decoded_frames_.size() <
                             video_decoder_->GetMaxNumberOfCachedFrames();
       }));
+  ASSERT_FALSE(error_occurred);
   WriteEndOfStream();
   if (decoded_frames_.size() >= video_decoder_->GetMaxNumberOfCachedFrames()) {
     return;
   }
-  bool error_occurred = false;
   ASSERT_NO_FATAL_FAILURE(DrainOutputs(
       &error_occurred, [=](const Event& event, bool* continue_process) {
-        SB_UNREFERENCED_PARAMETER(event);
         *continue_process = decoded_frames_.size() <
                             video_decoder_->GetMaxNumberOfCachedFrames();
       }));
@@ -785,24 +831,27 @@ TEST_P(VideoDecoderTest, DecodeFullGOP) {
     }
     ++gop_size;
   }
-
+  bool error_occurred = false;
   ASSERT_NO_FATAL_FAILURE(WriteMultipleInputs(
-      0, gop_size, [=](const Event& event, bool* continue_process) {
-        SB_UNREFERENCED_PARAMETER(event);
-        while (decoded_frames_.size() >=
-               video_decoder_->GetPrerollFrameCount()) {
+      0, gop_size, [&](const Event& event, bool* continue_process) {
+        if (event.status == kTimeout || event.status == kError) {
+          error_occurred = true;
+          *continue_process = false;
+          return;
+        }
+        // Keep 1 decoded frame, assuming it's used by renderer.
+        while (decoded_frames_.size() > 1) {
           decoded_frames_.pop_front();
         }
         *continue_process = true;
       }));
+  ASSERT_FALSE(error_occurred);
   WriteEndOfStream();
 
-  bool error_occurred = true;
   ASSERT_NO_FATAL_FAILURE(DrainOutputs(
       &error_occurred, [=](const Event& event, bool* continue_process) {
-        SB_UNREFERENCED_PARAMETER(event);
-        while (decoded_frames_.size() >=
-               video_decoder_->GetMaxNumberOfCachedFrames()) {
+        // Keep 1 decoded frame, assuming it's used by renderer.
+        while (decoded_frames_.size() > 1) {
           decoded_frames_.pop_front();
         }
         *continue_process = true;

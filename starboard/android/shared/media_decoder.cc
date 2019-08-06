@@ -303,7 +303,11 @@ void MediaDecoder::JoinOnThreads() {
 
   if (is_valid()) {
     host_->OnFlushing();
-
+    // After |decoder_thread_| is ended and before |media_codec_bridge_| is
+    // flushed, OnMediaCodecOutputBufferAvailable() would still be called.
+    // So that, |dequeue_output_results_| may not be empty. As we call
+    // JoinOnThreads() in destructor and DequeueOutputResult is consisted of
+    // plain data, it's fine to let destructor delete |dequeue_output_results_|.
     jint status = media_codec_bridge_->Flush();
     if (status != MEDIA_CODEC_OK) {
       SB_LOG(ERROR) << "Failed to flush media codec.";
