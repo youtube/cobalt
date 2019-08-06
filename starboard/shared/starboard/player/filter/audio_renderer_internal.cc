@@ -478,7 +478,8 @@ void AudioRenderer::UpdateVariablesOnSinkThread_Locked(
       total_frames_consumed_by_sink_ - silence_frames_consumed_on_sink_thread_);
   underflow_ |=
       frames_in_buffer_on_sink_thread_ < kFramesInBufferBeginUnderflow;
-  if (is_eos_reached_on_sink_thread_) {
+  if (is_eos_reached_on_sink_thread_ ||
+      frames_in_buffer_on_sink_thread_ >= buffered_frames_to_start_) {
     underflow_ = false;
   }
   is_playing_on_sink_thread_ = !paused_ && !seeking_ && !underflow_;
@@ -501,6 +502,9 @@ void AudioRenderer::OnFirstOutput() {
           *decoder_sample_rate_);
   time_stretcher_.Initialize(sink_sample_type_, channels_,
                              destination_sample_rate);
+
+  // Start play after have enough buffered frames to play 0.2s.
+  buffered_frames_to_start_ = destination_sample_rate * 0.2;
 
   SbMediaAudioSampleType source_sample_type = decoder_->GetSampleType();
   SbMediaAudioFrameStorageType source_storage_type = decoder_->GetStorageType();
@@ -664,7 +668,6 @@ bool AudioRenderer::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
       seeking_ = false;
       Schedule(prerolled_cb_);
     }
-    underflow_ = false;
   }
 
   if (seeking_ || playback_rate_ == 0.0) {
