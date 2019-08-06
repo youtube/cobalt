@@ -36,19 +36,19 @@ MediaSession::~MediaSession() {
 
 void MediaSession::set_metadata(scoped_refptr<MediaMetadata> value) {
   metadata_ = value;
-  MaybeQueueChangeTask();
+  MaybeQueueChangeTask(base::TimeDelta());
 }
 
 void MediaSession::set_playback_state(
     MediaSessionPlaybackState playback_state) {
   playback_state_ = playback_state;
-  MaybeQueueChangeTask();
+  MaybeQueueChangeTask(base::TimeDelta());
 }
 
 void MediaSession::SetActionHandler(
     MediaSessionAction action, const MediaSessionActionHandlerHolder& handler) {
   // See algorithm https://wicg.github.io/mediasession/#actions-model
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(), task_runner_);
+  DCHECK(task_runner_->BelongsToCurrentThread());
   ActionMap::iterator it = action_map_.find(action);
 
   if (it != action_map_.end()) {
@@ -59,32 +59,41 @@ void MediaSession::SetActionHandler(
     action_map_[action] = new MediaSessionActionHandlerReference(this, handler);
   }
 
-  MaybeQueueChangeTask();
+  MaybeQueueChangeTask(base::TimeDelta());
 }
 
 void MediaSession::SetPositionState(base::Optional<MediaPositionState> state) {
   last_position_updated_time_ = GetMonotonicNow();
   media_position_state_ = state;
-  MaybeQueueChangeTask();
+  MaybeQueueChangeTask(base::TimeDelta());
 }
 
 void MediaSession::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(metadata_.get());
 }
 
-void MediaSession::MaybeQueueChangeTask() {
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(), task_runner_);
+bool MediaSession::IsChangeTaskQueuedForTesting() const {
+  DCHECK(task_runner_->BelongsToCurrentThread());
+  return is_change_task_queued_;
+}
+
+void MediaSession::MaybeQueueChangeTask(base::TimeDelta delay) {
+  DCHECK(task_runner_->BelongsToCurrentThread());
   if (is_change_task_queued_) {
     return;
   }
   is_change_task_queued_ = true;
-  task_runner_->PostTask(
-      FROM_HERE, base::Bind(&MediaSession::OnChanged, base::Unretained(this)));
+  task_runner_->PostDelayedTask(
+      FROM_HERE,
+      base::Bind(&MediaSession::OnChanged, this),
+      delay);
 }
 
 void MediaSession::OnChanged() {
   is_change_task_queued_ = false;
-  media_session_client_->UpdateMediaSessionState();
+  if (media_session_client_) {
+    media_session_client_->UpdateMediaSessionState();
+  }
 }
 
 }  // namespace media_session
