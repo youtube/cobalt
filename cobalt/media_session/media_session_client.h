@@ -41,7 +41,7 @@ class MediaSessionClient {
       : media_session_(media_session),
         platform_playback_state_(kMediaSessionPlaybackStateNone) {}
 
-  virtual ~MediaSessionClient() {}
+  virtual ~MediaSessionClient();
 
   // Creates platform-specific instance.
   static std::unique_ptr<MediaSessionClient> Create();
@@ -76,9 +76,6 @@ class MediaSessionClient {
     InvokeActionInternal(std::move(details));
   }
 
-  // Returns a copy of the current MediaSessionState.
-  MediaSessionState GetMediaSessionState();
-
   // Invoked on the browser thread when any metadata, position state, playback
   // state, or supported session actions change.
   virtual void OnMediaSessionStateChanged(
@@ -92,7 +89,6 @@ class MediaSessionClient {
   const media::WebMediaPlayerFactory* media_player_factory_ = nullptr;
 
   void UpdateMediaSessionState();
-  void ComputeMediaSessionState(MediaSessionState* session_state);
   MediaSessionPlaybackState ComputeActualPlaybackState() const;
   MediaSessionState::AvailableActionsSet ComputeAvailableActions() const;
 

@@ -25,6 +25,8 @@
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/testing/fake_script_value.h"
 #include "cobalt/script/wrappable.h"
+#include "starboard/time.h"
+#include "starboard/thread.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -62,7 +64,25 @@ class MockMediaSessionClient : public MediaSessionClient {
   MockMediaSession& mock_session() {
     return static_cast<MockMediaSession&>(*GetMediaSession().get());
   }
-  MOCK_METHOD1(OnMediaSessionStateChanged, void(const MediaSessionState&));
+  void OnMediaSessionStateChanged(const MediaSessionState& session_state)
+      override {
+    session_state_ = session_state;
+    ++session_change_count_;
+  }
+  void WaitForSessionStateChange() {
+    size_t current_change_count = session_change_count_;
+    while (GetMediaSession()->IsChangeTaskQueuedForTesting()) {
+      base::RunLoop().RunUntilIdle();
+      if (current_change_count != session_change_count_) {
+        break;
+      }
+      SbThreadSleep(kSbTimeMillisecond);
+    }
+  }
+  MediaSessionState GetMediaSessionState() const { return session_state_; }
+  size_t GetMediaSessionChangeCount() const { return session_change_count_; }
+  MediaSessionState session_state_;
+  size_t session_change_count_ = 0;
 };
 
 MATCHER_P(SeekTime, time, "") {
@@ -79,99 +99,86 @@ MATCHER_P(SeekNoOffset, action, "") {
 
 TEST(MediaSessionTest, MediaSessionTest) {
   base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
-  base::RunLoop run_loop;
 
   MockMediaSessionClient client;
-
-  ON_CALL(client, OnMediaSessionStateChanged(_))
-      .WillByDefault(InvokeWithoutArgs(&run_loop, &base::RunLoop::Quit));
-  EXPECT_CALL(client, OnMediaSessionStateChanged(_)).Times(1);
-
   scoped_refptr<MediaSession> session = client.GetMediaSession();
 
-  base::RunLoop().RunUntilIdle();
-  EXPECT_EQ(kMediaSessionPlaybackStateNone,
-            client.GetMediaSessionState().actual_playback_state());
+  EXPECT_EQ(kMediaSessionPlaybackStateNone, session->playback_state());
 
   session->set_playback_state(kMediaSessionPlaybackStatePlaying);
 
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   EXPECT_EQ(kMediaSessionPlaybackStatePlaying,
             client.GetMediaSessionState().actual_playback_state());
 
-  run_loop.Run();
+  EXPECT_EQ(client.GetMediaSessionChangeCount(), 1);
 }
 
 TEST(MediaSessionTest, ActualPlaybackState) {
   base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
-  base::RunLoop run_loop;
 
   MockMediaSessionClient client;
-
-  ON_CALL(client, OnMediaSessionStateChanged(_))
-      .WillByDefault(InvokeWithoutArgs(&run_loop, &base::RunLoop::Quit));
-  EXPECT_CALL(client, OnMediaSessionStateChanged(_)).Times(AtLeast(2));
-
   scoped_refptr<MediaSession> session = client.GetMediaSession();
 
-  base::RunLoop().RunUntilIdle();
+  // Trigger a session state change without impacting playback state.
+  session->set_metadata(new MediaMetadata);
+  client.WaitForSessionStateChange();
+  EXPECT_EQ(client.GetMediaSessionChangeCount(), 1);
+
   EXPECT_EQ(kMediaSessionPlaybackStateNone,
             client.GetMediaSessionState().actual_playback_state());
 
   client.UpdatePlatformPlaybackState(kMediaSessionPlaybackStatePlaying);
 
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   EXPECT_EQ(kMediaSessionPlaybackStatePlaying,
             client.GetMediaSessionState().actual_playback_state());
 
   session->set_playback_state(kMediaSessionPlaybackStatePlaying);
 
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   EXPECT_EQ(kMediaSessionPlaybackStatePlaying,
             client.GetMediaSessionState().actual_playback_state());
 
   session->set_playback_state(kMediaSessionPlaybackStatePaused);
 
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   EXPECT_EQ(kMediaSessionPlaybackStatePlaying,
             client.GetMediaSessionState().actual_playback_state());
 
   client.UpdatePlatformPlaybackState(kMediaSessionPlaybackStatePaused);
 
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   EXPECT_EQ(kMediaSessionPlaybackStatePaused,
             client.GetMediaSessionState().actual_playback_state());
 
   session->set_playback_state(kMediaSessionPlaybackStateNone);
 
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   EXPECT_EQ(kMediaSessionPlaybackStateNone,
             client.GetMediaSessionState().actual_playback_state());
 
   client.UpdatePlatformPlaybackState(kMediaSessionPlaybackStateNone);
 
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   EXPECT_EQ(kMediaSessionPlaybackStateNone,
             client.GetMediaSessionState().actual_playback_state());
 
-  run_loop.Run();
+  EXPECT_GE(client.GetMediaSessionChangeCount(), 2);
 }
 
 TEST(MediaSessionTest, NullActionClears) {
   base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
-  base::RunLoop run_loop;
 
   MockMediaSessionClient client;
-  MediaSessionState state;
-
-  ON_CALL(client, OnMediaSessionStateChanged(_))
-      .WillByDefault(InvokeWithoutArgs(&run_loop, &base::RunLoop::Quit));
-  EXPECT_CALL(client, OnMediaSessionStateChanged(_)).Times(AtLeast(0));
-
   scoped_refptr<MediaSession> session = client.GetMediaSession();
 
-  base::RunLoop().RunUntilIdle();
-  state = client.GetMediaSessionState();
+  // Trigger a session state change without impacting playback state.
+  session->set_metadata(new MediaMetadata);
+  client.WaitForSessionStateChange();
+  EXPECT_EQ(client.GetMediaSessionChangeCount(), 1);
+
+  MediaSessionState state = client.GetMediaSessionState();
   EXPECT_EQ(kMediaSessionPlaybackStateNone, state.actual_playback_state());
   EXPECT_EQ(0, state.available_actions().to_ulong());
 
@@ -184,30 +191,30 @@ TEST(MediaSessionTest, NullActionClears) {
   FakeScriptValue<MediaSession::MediaSessionActionHandler> null_holder(NULL);
 
   session->SetActionHandler(kMediaSessionActionPlay, holder);
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   EXPECT_EQ(1, client.GetMediaSessionState().available_actions().to_ulong());
   client.InvokeAction(kMediaSessionActionPlay);
 
   session->SetActionHandler(kMediaSessionActionPlay, null_holder);
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   EXPECT_EQ(0, client.GetMediaSessionState().available_actions().to_ulong());
   client.InvokeAction(kMediaSessionActionPlay);
+
+  EXPECT_GE(client.GetMediaSessionChangeCount(), 3);
 }
 
 TEST(MediaSessionTest, AvailableActions) {
   base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
-  base::RunLoop run_loop;
 
   MockMediaSessionClient client;
   MediaSessionState state;
-
-  ON_CALL(client, OnMediaSessionStateChanged(_))
-      .WillByDefault(InvokeWithoutArgs(&run_loop, &base::RunLoop::Quit));
-  EXPECT_CALL(client, OnMediaSessionStateChanged(_)).Times(AtLeast(0));
-
   scoped_refptr<MediaSession> session = client.GetMediaSession();
 
-  base::RunLoop().RunUntilIdle();
+  // Trigger a session state change without impacting playback state.
+  session->set_metadata(new MediaMetadata);
+  client.WaitForSessionStateChange();
+  EXPECT_EQ(client.GetMediaSessionChangeCount(), 1);
+
   state = client.GetMediaSessionState();
   EXPECT_EQ(kMediaSessionPlaybackStateNone, state.actual_playback_state());
   EXPECT_EQ(0, state.available_actions().to_ulong());
@@ -218,28 +225,28 @@ TEST(MediaSessionTest, AvailableActions) {
 
   session->SetActionHandler(kMediaSessionActionPlay, holder);
 
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   state = client.GetMediaSessionState();
   EXPECT_EQ(1 << kMediaSessionActionPlay,
             state.available_actions().to_ulong());
 
   session->SetActionHandler(kMediaSessionActionPause, holder);
 
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   state = client.GetMediaSessionState();
   EXPECT_EQ(1 << kMediaSessionActionPlay,
             state.available_actions().to_ulong());
 
   session->SetActionHandler(kMediaSessionActionSeekto, holder);
 
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   state = client.GetMediaSessionState();
   EXPECT_EQ(1 << kMediaSessionActionPlay | 1 << kMediaSessionActionSeekto,
             state.available_actions().to_ulong());
 
   client.UpdatePlatformPlaybackState(kMediaSessionPlaybackStatePlaying);
 
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   state = client.GetMediaSessionState();
   EXPECT_EQ(kMediaSessionPlaybackStatePlaying, state.actual_playback_state());
   EXPECT_EQ(1 << kMediaSessionActionPause | 1 << kMediaSessionActionSeekto,
@@ -247,7 +254,7 @@ TEST(MediaSessionTest, AvailableActions) {
 
   session->set_playback_state(kMediaSessionPlaybackStatePlaying);
 
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   state = client.GetMediaSessionState();
   EXPECT_EQ(kMediaSessionPlaybackStatePlaying, state.actual_playback_state());
   EXPECT_EQ(1 << kMediaSessionActionPause | 1 << kMediaSessionActionSeekto,
@@ -255,7 +262,7 @@ TEST(MediaSessionTest, AvailableActions) {
 
   session->set_playback_state(kMediaSessionPlaybackStatePaused);
 
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   state = client.GetMediaSessionState();
   EXPECT_EQ(kMediaSessionPlaybackStatePlaying, state.actual_playback_state());
   EXPECT_EQ(1 << kMediaSessionActionPause | 1 << kMediaSessionActionSeekto,
@@ -263,7 +270,7 @@ TEST(MediaSessionTest, AvailableActions) {
 
   session->set_playback_state(kMediaSessionPlaybackStatePlaying);
 
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   state = client.GetMediaSessionState();
   EXPECT_EQ(kMediaSessionPlaybackStatePlaying, state.actual_playback_state());
   EXPECT_EQ(1 << kMediaSessionActionPause | 1 << kMediaSessionActionSeekto,
@@ -271,7 +278,7 @@ TEST(MediaSessionTest, AvailableActions) {
 
   client.UpdatePlatformPlaybackState(kMediaSessionPlaybackStatePaused);
 
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   state = client.GetMediaSessionState();
   EXPECT_EQ(kMediaSessionPlaybackStatePlaying, state.actual_playback_state());
   EXPECT_EQ(1 << kMediaSessionActionPause | 1 << kMediaSessionActionSeekto,
@@ -279,7 +286,7 @@ TEST(MediaSessionTest, AvailableActions) {
 
   session->set_playback_state(kMediaSessionPlaybackStateNone);
 
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   state = client.GetMediaSessionState();
   EXPECT_EQ(kMediaSessionPlaybackStateNone, state.actual_playback_state());
   EXPECT_EQ(1 << kMediaSessionActionPlay | 1 << kMediaSessionActionSeekto,
@@ -287,7 +294,7 @@ TEST(MediaSessionTest, AvailableActions) {
 
   session->set_playback_state(kMediaSessionPlaybackStatePaused);
 
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   state = client.GetMediaSessionState();
   EXPECT_EQ(kMediaSessionPlaybackStatePaused, state.actual_playback_state());
   EXPECT_EQ(1 << kMediaSessionActionPlay | 1 << kMediaSessionActionSeekto,
@@ -295,25 +302,17 @@ TEST(MediaSessionTest, AvailableActions) {
 
   client.UpdatePlatformPlaybackState(kMediaSessionPlaybackStateNone);
 
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   state = client.GetMediaSessionState();
   EXPECT_EQ(kMediaSessionPlaybackStatePaused, state.actual_playback_state());
   EXPECT_EQ(1 << kMediaSessionActionPlay | 1 << kMediaSessionActionSeekto,
             state.available_actions().to_ulong());
-
-  run_loop.Run();
 }
 
 TEST(MediaSessionTest, SeekDetails) {
   base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
-  base::RunLoop run_loop;
 
   MockMediaSessionClient client;
-
-  ON_CALL(client, OnMediaSessionStateChanged(_))
-      .WillByDefault(InvokeWithoutArgs(&run_loop, &base::RunLoop::Quit));
-  EXPECT_CALL(client, OnMediaSessionStateChanged(_)).Times(AtLeast(0));
-
   scoped_refptr<MediaSession> session = client.GetMediaSession();
 
   MockCallbackFunction cf;
@@ -351,18 +350,15 @@ TEST(MediaSessionTest, SeekDetails) {
   details->set_action(kMediaSessionActionSeekbackward);
   details->set_seek_offset(5.6);
   client.InvokeAction(std::move(details));
+
+  client.WaitForSessionStateChange();
+  EXPECT_GE(client.GetMediaSessionChangeCount(), 0);
 }
 
 TEST(MediaSessionTest, PositionState) {
   base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
-  base::RunLoop run_loop;
 
   MockMediaSessionClient client;
-
-  ON_CALL(client, OnMediaSessionStateChanged(_))
-      .WillByDefault(InvokeWithoutArgs(&run_loop, &base::RunLoop::Quit));
-  EXPECT_CALL(client, OnMediaSessionStateChanged(_)).Times(AtLeast(3));
-
   MockMediaSession& session = client.mock_session();
   MediaSessionState state;
 
@@ -373,8 +369,12 @@ TEST(MediaSessionTest, PositionState) {
   position_state->set_duration(100.0);
   position_state->set_position(10.0);
 
+  // Trigger a session state change without impacting playback state.
+  session.set_metadata(new MediaMetadata);
+  client.WaitForSessionStateChange();
+  EXPECT_EQ(client.GetMediaSessionChangeCount(), 1);
+
   // Position state not yet reported
-  base::RunLoop().RunUntilIdle();
   state = client.GetMediaSessionState();
   EXPECT_EQ(0,
             state.GetCurrentPlaybackPosition(start_time + 999 * kSbTimeSecond));
@@ -385,7 +385,7 @@ TEST(MediaSessionTest, PositionState) {
   EXPECT_CALL(session, GetMonotonicNow()).WillOnce(Return(start_time));
   position_state->set_playback_rate(1.0);
   session.SetPositionState(position_state);
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   state = client.GetMediaSessionState();
   EXPECT_EQ((10 + 50) * kSbTimeSecond,
             state.GetCurrentPlaybackPosition(start_time + 50 * kSbTimeSecond));
@@ -398,7 +398,7 @@ TEST(MediaSessionTest, PositionState) {
   EXPECT_CALL(session, GetMonotonicNow()).WillOnce(Return(start_time));
   position_state->set_playback_rate(2.0);
   session.SetPositionState(position_state);
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   state = client.GetMediaSessionState();
   EXPECT_EQ((10 + 2 * 20) * kSbTimeSecond,
             state.GetCurrentPlaybackPosition(start_time + 20 * kSbTimeSecond));
@@ -411,7 +411,7 @@ TEST(MediaSessionTest, PositionState) {
   EXPECT_CALL(session, GetMonotonicNow()).WillOnce(Return(start_time));
   position_state->set_playback_rate(-1.0);
   session.SetPositionState(position_state);
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   state = client.GetMediaSessionState();
   EXPECT_EQ(0 * kSbTimeSecond,
             state.GetCurrentPlaybackPosition(start_time + 20 * kSbTimeSecond));
@@ -425,7 +425,7 @@ TEST(MediaSessionTest, PositionState) {
   position_state->set_duration(std::numeric_limits<double>::infinity());
   position_state->set_playback_rate(1.0);
   session.SetPositionState(position_state);
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   state = client.GetMediaSessionState();
   EXPECT_EQ(10 * kSbTimeSecond + 1 * kSbTimeDay,
             state.GetCurrentPlaybackPosition(start_time + 1 * kSbTimeDay));
@@ -436,7 +436,7 @@ TEST(MediaSessionTest, PositionState) {
   // (Actual playback rate is 0.0, so position is the last reported position.
   //  The web app should update position and playback states together.)
   session.set_playback_state(kMediaSessionPlaybackStatePaused);
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   state = client.GetMediaSessionState();
   EXPECT_EQ(10 * kSbTimeSecond,
             state.GetCurrentPlaybackPosition(start_time + 999 * kSbTimeSecond));
@@ -447,32 +447,32 @@ TEST(MediaSessionTest, PositionState) {
   // Position state cleared
   EXPECT_CALL(session, GetMonotonicNow()).WillOnce(Return(start_time));
   session.SetPositionState(base::nullopt);
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   state = client.GetMediaSessionState();
   EXPECT_EQ(0,
             state.GetCurrentPlaybackPosition(start_time + 999 * kSbTimeSecond));
   EXPECT_EQ(0, state.duration());
   EXPECT_EQ(0.0, state.actual_playback_rate());
+
+  EXPECT_GE(client.GetMediaSessionChangeCount(), 3);
 }
 
 TEST(MediaSessionTest, Metadata) {
   base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
-  base::RunLoop run_loop;
 
   MockMediaSessionClient client;
-
-  ON_CALL(client, OnMediaSessionStateChanged(_))
-      .WillByDefault(InvokeWithoutArgs(&run_loop, &base::RunLoop::Quit));
-  EXPECT_CALL(client, OnMediaSessionStateChanged(_)).Times(AtLeast(0));
-
   MockMediaSession& session = client.mock_session();
   MediaSessionState state;
 
   MediaMetadataInit init_metadata;
   base::Optional<MediaMetadataInit> state_metadata;
 
+  // Trigger a session state change without impacting metadata.
+  session.set_playback_state(kMediaSessionPlaybackStateNone);
+  client.WaitForSessionStateChange();
+  EXPECT_EQ(client.GetMediaSessionChangeCount(), 1);
+
   // Metadata not yet set
-  base::RunLoop().RunUntilIdle();
   state = client.GetMediaSessionState();
   state_metadata = state.metadata();
   EXPECT_FALSE(state.has_metadata());
@@ -491,7 +491,7 @@ TEST(MediaSessionTest, Metadata) {
   session.set_metadata(
       scoped_refptr<MediaMetadata>(new MediaMetadata(init_metadata)));
 
-  base::RunLoop().RunUntilIdle();
+  client.WaitForSessionStateChange();
   state = client.GetMediaSessionState();
   state_metadata = state.metadata();
   EXPECT_TRUE(state.has_metadata());
@@ -501,6 +501,8 @@ TEST(MediaSessionTest, Metadata) {
   EXPECT_EQ("album", state_metadata->album());
   EXPECT_EQ(1, state_metadata->artwork().size());
   EXPECT_EQ("http://art.image", state_metadata->artwork().at(0).src());
+
+  EXPECT_GE(client.GetMediaSessionChangeCount(), 2);
 }
 
 }  // namespace
