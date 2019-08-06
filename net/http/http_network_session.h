@@ -400,6 +400,11 @@ class NET_EXPORT HttpNetworkSession {
   // Disable QUIC for new streams.
   void DisableQuic();
 
+#if defined(STARBOARD)
+  // Toggle QUIC support for new streams.
+  void ToggleQuic();
+#endif  // defined(STARBOARD)
+
  private:
   friend class HttpNetworkSessionPeer;
 
