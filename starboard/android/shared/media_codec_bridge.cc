@@ -258,18 +258,6 @@ MediaCodecBridge::~MediaCodecBridge() {
   j_reused_get_output_format_result_ = NULL;
 }
 
-DequeueInputResult MediaCodecBridge::DequeueInputBuffer(jlong timeout_us) {
-  JniEnvExt* env = JniEnvExt::Get();
-  env->CallVoidMethodOrAbort(
-      j_media_codec_bridge_, "dequeueInputBuffer",
-      "(JLdev/cobalt/media/MediaCodecBridge$DequeueInputResult;)V", timeout_us,
-      j_reused_dequeue_input_result_);
-  return {env->CallIntMethodOrAbort(j_reused_dequeue_input_result_, "status",
-                                    "()I"),
-          env->CallIntMethodOrAbort(j_reused_dequeue_input_result_, "index",
-                                    "()I")};
-}
-
 jobject MediaCodecBridge::GetInputBuffer(jint index) {
   SB_DCHECK(index >= 0);
   return JniEnvExt::Get()->CallObjectMethodOrAbort(
@@ -320,26 +308,6 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
       index, offset, j_iv.Get(), j_key_id.Get(), j_clear_bytes.Get(),
       j_encrypted_bytes.Get(), subsample_count, CRYPTO_MODE_AES_CTR, 0, 0,
       presentation_time_microseconds);
-}
-
-DequeueOutputResult MediaCodecBridge::DequeueOutputBuffer(jlong timeout_us) {
-  JniEnvExt* env = JniEnvExt::Get();
-  env->CallVoidMethodOrAbort(
-      j_media_codec_bridge_, "dequeueOutputBuffer",
-      "(JLdev/cobalt/media/MediaCodecBridge$DequeueOutputResult;)V", timeout_us,
-      j_reused_dequeue_output_result_);
-  return {env->CallIntMethodOrAbort(j_reused_dequeue_output_result_, "status",
-                                    "()I"),
-          env->CallIntMethodOrAbort(j_reused_dequeue_output_result_, "index",
-                                    "()I"),
-          env->CallIntMethodOrAbort(j_reused_dequeue_output_result_, "flags",
-                                    "()I"),
-          env->CallIntMethodOrAbort(j_reused_dequeue_output_result_, "offset",
-                                    "()I"),
-          env->CallLongMethodOrAbort(j_reused_dequeue_output_result_,
-                                     "presentationTimeMicroseconds", "()J"),
-          env->CallIntMethodOrAbort(j_reused_dequeue_output_result_, "numBytes",
-                                    "()I")};
 }
 
 jobject MediaCodecBridge::GetOutputBuffer(jint index) {
