@@ -30,6 +30,7 @@
       'dependencies': [
         '<(DEPTH)/cobalt/audio/audio.gyp:audio',
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/debug/debug.gyp:console_command_manager',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/loader/loader.gyp:loader',
         '<(DEPTH)/cobalt/network/network.gyp:network',
