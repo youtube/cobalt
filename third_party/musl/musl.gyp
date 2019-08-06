@@ -57,7 +57,6 @@
         '-isystem<(DEPTH)/third_party/musl/include',
         '-isystem<(DEPTH)/third_party/musl/arch/x86_64',
         '-isystem<(DEPTH)/third_party/musl/arch/generic',
-        '-isystem<(DEPTH)/third_party/musl/generated/include',
         '-w',
       ],
       'direct_dependent_settings': {
