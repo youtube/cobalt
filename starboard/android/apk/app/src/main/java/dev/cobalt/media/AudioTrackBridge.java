@@ -16,6 +16,7 @@ package dev.cobalt.media;
 
 import static dev.cobalt.media.Log.TAG;
 
+import android.annotation.TargetApi;
 import android.media.AudioAttributes;
 import android.media.AudioFormat;
 import android.media.AudioManager;
@@ -206,13 +207,18 @@ public class AudioTrackBridge {
   @UsedByNative
   private int getUnderrunCount() {
     if (Build.VERSION.SDK_INT >= 24) {
-      if (audioTrack == null) {
-        Log.e(TAG, "Unable to call getUnderrunCount() with NULL audio track.");
-        return 0;
-      }
-      return audioTrack.getUnderrunCount();
+      return getUnderrunCountV24();
     }
     // The funtion getUnderrunCount() is added in API level 24.
     return 0;
+  }
+
+  @TargetApi(24)
+  private int getUnderrunCountV24() {
+    if (audioTrack == null) {
+      Log.e(TAG, "Unable to call getUnderrunCount() with NULL audio track.");
+      return 0;
+    }
+    return audioTrack.getUnderrunCount();
   }
 }
