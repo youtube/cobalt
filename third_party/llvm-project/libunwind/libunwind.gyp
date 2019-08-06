@@ -20,8 +20,6 @@
       'include_dirs': [
         'include',
         '<(DEPTH)/third_party/llvm-project/libcxx/include',
-        '<(DEPTH)/third_party/musl/include',
-        '<(DEPTH)/third_party/musl/generated/include',
       ],
       'dependencies': [
         '<(DEPTH)/starboard/common/common.gyp:common',
@@ -86,8 +84,6 @@
       'all_dependent_settings': {
         'include_dirs': [
           '<(DEPTH)/third_party/llvm-project/libcxx/include',
-          '<(DEPTH)/third_party/musl/include',
-          '<(DEPTH)/third_party/musl/generated/include',
         ],
         'defines': [
           # Ensure that __external_threading is used for threading support.
