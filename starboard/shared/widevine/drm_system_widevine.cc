@@ -41,6 +41,11 @@ const int kInitializationVectorSize = 16;
 const char* kWidevineKeySystem[] = {"com.widevine", "com.widevine.alpha"};
 const char kWidevineStorageFileName[] = "wvcdm.dat";
 
+// Key usage may be blocked due to incomplete HDCP authentication which could
+// take up to 5 seconds. For such a case it is good to give a try few times to
+// get HDCP authentication complete. We set a timeout of 6 seconds for retries.
+const SbTimeMonotonic kUnblockKeyRetryTimeout = kSbTimeSecond * 6;
+
 class WidevineClock : public wv3cdm::IClock {
  public:
   int64_t now() override {
@@ -459,6 +464,18 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
           SB_DLOG(ERROR) << "Decrypt status: kNoKey";
           return kRetry;
         }
+        if (status == wv3cdm::kKeyUsageBlockedByPolicy) {
+          {
+            ScopedLock lock(unblock_key_retry_mutex_);
+            if (!unblock_key_retry_start_time_) {
+              unblock_key_retry_start_time_ = SbTimeGetMonotonicNow();
+            }
+          }
+          if (SbTimeGetMonotonicNow() - unblock_key_retry_start_time_.value() <
+              kUnblockKeyRetryTimeout) {
+            return kRetry;
+          }
+        }
         SB_DLOG(ERROR) << "Decrypt status " << status;
         SB_DLOG(ERROR) << "Key ID "
                        << wvcdm::b2a_hex(
@@ -467,7 +484,10 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
                                           drm_info->identifier_size));
         return kFailure;
       }
-
+      {
+        ScopedLock lock(unblock_key_retry_mutex_);
+        unblock_key_retry_start_time_ = nullopt;
+      }
       input.data += subsample.encrypted_byte_count;
       output.data += subsample.encrypted_byte_count;
       output.data_length -= subsample.encrypted_byte_count;
