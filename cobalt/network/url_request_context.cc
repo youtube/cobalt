@@ -22,6 +22,7 @@
 #include "cobalt/network/network_delegate.h"
 #include "cobalt/network/persistent_cookie_store.h"
 #include "cobalt/network/proxy_config_service.h"
+#include "cobalt/network/switches.h"
 #include "net/cert/cert_net_fetcher.h"
 #include "net/cert/cert_verifier.h"
 #include "net/cert/cert_verify_proc.h"
@@ -49,13 +50,30 @@ net::ProxyConfig CreateCustomProxyConfig(const std::string& proxy_rules) {
   proxy_config.proxy_rules().ParseFromString(proxy_rules);
   return proxy_config;
 }
+
+#if defined(ENABLE_DEBUGGER)
+const char kQUICToggleCommand[] = "quic_toggle";
+const char kQUICToggleCommandShortHelp[] = "Toggles QUIC support on/off.";
+const char kQUICToggleCommandLongHelp[] =
+    "Each time this is called, it will toggle whether QUIC support is "
+    "enabled or not. The new value will apply for new streams.";
+#endif  // defined(ENABLE_DEBUGGER)
+
 }  // namespace
 
 URLRequestContext::URLRequestContext(
     storage::StorageManager* storage_manager, const std::string& custom_proxy,
     net::NetLog* net_log, bool ignore_certificate_errors,
     scoped_refptr<base::SingleThreadTaskRunner> network_task_runner)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(storage_(this)) {
+    : ALLOW_THIS_IN_INITIALIZER_LIST(storage_(this))
+#if defined(ENABLE_DEBUGGER)
+      ,
+      ALLOW_THIS_IN_INITIALIZER_LIST(quic_toggle_command_handler_(
+          kQUICToggleCommand,
+          base::Bind(&URLRequestContext::OnQuicToggle, base::Unretained(this)),
+          kQUICToggleCommandShortHelp, kQUICToggleCommandLongHelp))
+#endif  // defined(ENABLE_DEBUGGER)
+{
   if (storage_manager) {
     persistent_cookie_store_ =
         new PersistentCookieStore(storage_manager, network_task_runner);
@@ -104,7 +122,8 @@ URLRequestContext::URLRequestContext(
 
   net::HttpNetworkSession::Params params;
 #if defined(COBALT_ENABLE_QUIC)
-  params.enable_quic = true;
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  params.enable_quic = !command_line->HasSwitch(switches::kDisableQuic);
 #endif
 #if defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
   params.ignore_certificate_errors = ignore_certificate_errors;
@@ -162,6 +181,13 @@ void URLRequestContext::SetProxy(const std::string& proxy_rules) {
   proxy_resolution_service()->ResetConfigService(
       std::make_unique<ProxyConfigService>(proxy_config));
 }
+
+#if defined(ENABLE_DEBUGGER)
+void URLRequestContext::OnQuicToggle(const std::string& /*message*/) {
+  DCHECK(storage_.http_network_session());
+  storage_.http_network_session()->ToggleQuic();
+}
+#endif  // defined(ENABLE_DEBUGGER)
 
 }  // namespace network
 }  // namespace cobalt
