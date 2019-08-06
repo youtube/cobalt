@@ -551,28 +551,6 @@ class MediaCodecBridge {
 
   @SuppressWarnings("unused")
   @UsedByNative
-  private void dequeueInputBuffer(long timeoutUs, DequeueInputResult outDequeueInputResult) {
-    int status = MEDIA_CODEC_ERROR;
-    int index = -1;
-    try {
-      int indexOrStatus = mMediaCodec.dequeueInputBuffer(timeoutUs);
-      if (indexOrStatus >= 0) { // index!
-        status = MEDIA_CODEC_OK;
-        index = indexOrStatus;
-      } else if (indexOrStatus == MediaCodec.INFO_TRY_AGAIN_LATER) {
-        status = MEDIA_CODEC_DEQUEUE_INPUT_AGAIN_LATER;
-      } else {
-        throw new AssertionError("Unexpected index_or_status: " + indexOrStatus);
-      }
-    } catch (Exception e) {
-      Log.e(TAG, "Failed to dequeue input buffer", e);
-    }
-    outDequeueInputResult.mStatus = status;
-    outDequeueInputResult.mIndex = index;
-  }
-
-  @SuppressWarnings("unused")
-  @UsedByNative
   private int flush() {
     try {
       mFlushed = true;
@@ -779,47 +757,6 @@ class MediaCodecBridge {
       // TODO: May need to report the error to the caller. crbug.com/356498.
       Log.e(TAG, "Failed to release output buffer", e);
     }
-  }
-
-  @SuppressWarnings({"unused", "deprecation"})
-  @UsedByNative
-  private void dequeueOutputBuffer(long timeoutUs, DequeueOutputResult outDequeueOutputResult) {
-    int status = MEDIA_CODEC_ERROR;
-    int index = -1;
-    try {
-      int indexOrStatus = mMediaCodec.dequeueOutputBuffer(info, timeoutUs);
-      if (info.presentationTimeUs < mLastPresentationTimeUs) {
-        // TODO: return a special code through DequeueOutputResult
-        // to notify the native code that the frame has a wrong presentation
-        // timestamp and should be skipped.
-        info.presentationTimeUs = mLastPresentationTimeUs;
-      }
-      mLastPresentationTimeUs = info.presentationTimeUs;
-
-      if (indexOrStatus >= 0) { // index!
-        status = MEDIA_CODEC_OK;
-        index = indexOrStatus;
-      } else if (indexOrStatus == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
-        status = MEDIA_CODEC_OUTPUT_BUFFERS_CHANGED;
-      } else if (indexOrStatus == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-        status = MEDIA_CODEC_OUTPUT_FORMAT_CHANGED;
-        MediaFormat newFormat = mMediaCodec.getOutputFormat();
-      } else if (indexOrStatus == MediaCodec.INFO_TRY_AGAIN_LATER) {
-        status = MEDIA_CODEC_DEQUEUE_OUTPUT_AGAIN_LATER;
-      } else {
-        throw new AssertionError("Unexpected index_or_status: " + indexOrStatus);
-      }
-    } catch (IllegalStateException e) {
-      status = MEDIA_CODEC_ERROR;
-      Log.e(TAG, "Failed to dequeue output buffer", e);
-    }
-
-    outDequeueOutputResult.mStatus = status;
-    outDequeueOutputResult.mIndex = index;
-    outDequeueOutputResult.mFlags = info.flags;
-    outDequeueOutputResult.mOffset = info.offset;
-    outDequeueOutputResult.mPresentationTimeMicroseconds = info.presentationTimeUs;
-    outDequeueOutputResult.mNumBytes = info.size;
   }
 
   @SuppressWarnings("unused")

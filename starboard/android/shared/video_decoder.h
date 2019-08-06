@@ -62,6 +62,11 @@ class VideoDecoder
                   const ErrorCB& error_cb) override;
   size_t GetPrerollFrameCount() const override;
   SbTime GetPrerollTimeout() const override;
+  // As we hold output buffers received from MediaCodec, the max number of
+  // cached frames depends on the max number of output buffers in MediaCodec,
+  // which is device dependent. The media decoder may stall if we hold all
+  // output buffers. But it would continue working once we release output
+  // buffer.
   size_t GetMaxNumberOfCachedFrames() const override { return 12; }
 
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
@@ -71,6 +76,8 @@ class VideoDecoder
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
   bool is_valid() const { return media_decoder_ != NULL; }
+
+  void OnNewTextureAvailable();
 
  private:
   // Attempt to initialize the codec.  Returns whether initialization was
@@ -122,6 +129,8 @@ class VideoDecoder
 
   bool first_buffer_received_;
   volatile SbTime first_buffer_timestamp_;
+  atomic_bool has_new_texture_available_;
+  atomic_bool first_texture_received_;
 
   // Use |owns_video_surface_| only on decoder thread, to avoid unnecessary
   // invocation of ReleaseVideoSurface(), though ReleaseVideoSurface() would
