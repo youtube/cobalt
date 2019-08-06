@@ -43,7 +43,10 @@ class Raspi0PlatformConfig(shared_configuration.RaspiPlatformConfig):
       ],
       # Temporarily disable all player_filter_tests, just to see if it still
       # crashes on raspi-0.
-      'player_filter_tests': ['*'],
+      'player_filter_tests': [
+          'AdaptiveAudioDecoderTest.*', 'AudioDecoderTest.*',
+          'AudioRendererTest.*', 'MediaTimeProviderImplTest.*'
+      ],
   }
 
 
