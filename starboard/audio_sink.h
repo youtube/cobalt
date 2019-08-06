@@ -170,6 +170,25 @@ SB_EXPORT bool SbAudioSinkIsAudioSampleTypeSupported(
 SB_EXPORT bool SbAudioSinkIsAudioFrameStorageTypeSupported(
     SbMediaAudioFrameStorageType audio_frame_storage_type);
 
+#if SB_API_VERSION >= 11
+// Returns the minimum frames required by audio sink to play without underflows.
+// Returns -1, if |channels|, |sample_type| or |sampling_frequency_hz| is not
+// supported. It's user's responsibility to ensure that there're enough
+// frames written into audio sink during playing, or it may have underflows.
+//
+// |channels|: The number of audio channels, such as left and right channels
+// in stereo audio.
+// |audio_sample_type|: The type of each sample of the audio data --
+// |int16|, |float32|, etc.
+// |sampling_frequency_hz|: The sample frequency of the audio data being
+// streamed. For example, 22,000 Hz means 22,000 sample elements represents
+// one second of audio data.
+SB_EXPORT int SbAudioSinkGetMinBufferSizeInFrames(
+    int channels,
+    SbMediaAudioSampleType sample_type,
+    int sampling_frequency_hz);
+#endif  // SB_API_VERSION >= 11
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
