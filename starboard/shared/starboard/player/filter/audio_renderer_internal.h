@@ -104,6 +104,9 @@ class AudioRenderer : public MediaTimeProvider,
 
   const int max_cached_frames_;
   const int max_frames_per_append_;
+  // |buffered_frames_to_start_| would be initialized in OnFirstOutput().
+  // Before it's initialized, set it to a large number.
+  int buffered_frames_to_start_ = 48 * 1024;
 
   ErrorCB error_cb_;
   PrerolledCB prerolled_cb_;
