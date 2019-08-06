@@ -622,3 +622,9 @@ Added attribute macro `SB_NORETURN` to allow functions to be marked as noreturn.
 ### Mark `SbSystemBreakIntoDebugger` `SB_NORETURN`.
 Add `SB_NORETURN` to declaration of `SbSystemBreakIntoDebugger`, to allow it to
 be used in a manner similar to `abort`.
+
+### Introduce `SbAudioSinkGetMinBufferSizeInFrames()`
+
+Introduce `SbAudioSinkGetMinBufferSizeInFrames()` to `starboard/audio_sink.h`
+which communicates to the platform how many audio frames are required to ensure
+that audio sink can keep playing without underflow.
