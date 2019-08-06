@@ -23,6 +23,10 @@
 #include "net/url_request/url_request_context_getter.h"
 #include "net/url_request/url_request_context_storage.h"
 
+#if defined(ENABLE_DEBUGGER)
+#include "cobalt/debug/console/command_manager.h"
+#endif  // ENABLE_DEBUGGER
+
 namespace cobalt {
 namespace storage {
 class StorageManager;
@@ -44,6 +48,16 @@ class URLRequestContext : public net::URLRequestContext {
   net::URLRequestContextStorage storage_;
   scoped_refptr<net::CookieMonster::PersistentCookieStore>
       persistent_cookie_store_;
+
+#if defined(ENABLE_DEBUGGER)
+  // Command handler object for toggling the input fuzzer on/off.
+  debug::console::ConsoleCommandManager::CommandHandler
+      quic_toggle_command_handler_;
+
+  // Toggles the input fuzzer on/off.  Ignores the parameter.
+  void OnQuicToggle(const std::string&);
+#endif  // defined(ENABLE_DEBUGGER)
+
   DISALLOW_COPY_AND_ASSIGN(URLRequestContext);
 };
 

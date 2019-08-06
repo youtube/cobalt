@@ -274,7 +274,6 @@ HttpNetworkSession::HttpNetworkSession(const Params& params,
       http_stream_factory_(std::make_unique<HttpStreamFactory>(this)),
       params_(params),
       context_(context) {
-
   DCHECK(proxy_resolution_service_);
   DCHECK(ssl_config_service_);
   CHECK(http_server_properties_);
@@ -554,6 +553,12 @@ bool HttpNetworkSession::IsQuicEnabled() const {
 void HttpNetworkSession::DisableQuic() {
   params_.enable_quic = false;
 }
+
+#if defined(STARBOARD)
+void HttpNetworkSession::ToggleQuic() {
+  params_.enable_quic = !params_.enable_quic;
+}
+#endif  // defined(STARBOARD)
 
 ClientSocketPoolManager* HttpNetworkSession::GetSocketPoolManager(
     SocketPoolType pool_type) {
