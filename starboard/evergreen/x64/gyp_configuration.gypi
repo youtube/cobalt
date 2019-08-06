@@ -19,7 +19,7 @@
   'variables': {
     'target_arch%': 'x64',
     'yasm_exists': 1,
-    'sb_target_platform': 'evergreen-x64-sbversion-12',
+    'sb_target_platform': 'evergreen-x64',
     'enable_map_to_mesh': 1,
 
     'compiler_flags': [
@@ -37,18 +37,18 @@
       # Enable GNU extensions to get prototypes like ffsl.
       '_GNU_SOURCE=1',
     ],
-    'default_configuration': 'evergreen-x64-sbversion-12_debug',
+    'default_configuration': 'evergreen-x64_debug',
     'configurations': {
-      'evergreen-x64-sbversion-12_debug': {
+      'evergreen-x64_debug': {
         'inherit_from': ['debug_base'],
       },
-      'evergreen-x64-sbversion-12_devel': {
+      'evergreen-x64_devel': {
         'inherit_from': ['devel_base'],
       },
-      'evergreen-x64-sbversion-12_qa': {
+      'evergreen-x64_qa': {
         'inherit_from': ['qa_base'],
       },
-      'evergreen-x64-sbversion-12_gold': {
+      'evergreen-x64_gold': {
         'inherit_from': ['gold_base'],
       },
     }, # end of configurations
