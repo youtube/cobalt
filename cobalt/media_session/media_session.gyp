@@ -38,7 +38,8 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types'
+        '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
+        '<(DEPTH)/cobalt/math/math.gyp:math',
       ],
       # This target doesn't generate any headers, but it exposes generated
       # header files (for idl dictionaries) through this module's public header
