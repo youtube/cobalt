@@ -163,6 +163,12 @@ int UDPSocketStarboard::RecvFrom(IOBuffer* buf,
           &read_socket_watcher_, &read_watcher_)) {
     PLOG(ERROR) << "WatchSocket failed on read";
     Error result = MapLastSocketError(socket_);
+    if (result == ERR_IO_PENDING) {
+      // Watch(...) might call SbSocketWaiterAdd() which does not guarantee
+      // setting system error on failure, but we need to treat this as an
+      // error since watching the socket failed.
+      result = ERR_FAILED;
+    }
     LogRead(result, NULL, NULL);
     return result;
   }
