@@ -447,6 +447,7 @@
         '<(DEPTH)/starboard/shared/stub/system_hide_splash_screen.cc',
         '<(DEPTH)/starboard/shared/stub/system_request_pause.cc',
         '<(DEPTH)/starboard/shared/stub/system_request_unpause.cc',
+        '<(DEPTH)/starboard/shared/stub/system_sign_with_certification_secret_key.cc',
         '<(DEPTH)/starboard/shared/stub/thread_context_get_pointer.cc',
         '<(DEPTH)/starboard/shared/stub/thread_sampler_create.cc',
         '<(DEPTH)/starboard/shared/stub/thread_sampler_destroy.cc',
