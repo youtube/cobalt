@@ -30,11 +30,8 @@ SbDrmSystem SbDrmCreateSystem(
     const char* key_system,
     void* context,
     SbDrmSessionUpdateRequestFunc update_request_callback,
-    SbDrmSessionUpdatedFunc session_updated_callback
-#if SB_HAS(DRM_KEY_STATUSES)
-    ,
+    SbDrmSessionUpdatedFunc session_updated_callback,
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback
-#endif  // SB_HAS(DRM_KEY_STATUSES)
 #if SB_API_VERSION >= 10
     ,
     SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback,
@@ -45,11 +42,9 @@ SbDrmSystem SbDrmCreateSystem(
   if (!update_request_callback || !session_updated_callback) {
     return kSbDrmSystemInvalid;
   }
-#if SB_HAS(DRM_KEY_STATUSES)
   if (!key_statuses_changed_callback) {
     return kSbDrmSystemInvalid;
   }
-#endif  // SB_HAS(DRM_KEY_STATUSES)
 #if SB_API_VERSION >= 10
   if (!server_certificate_updated_callback || !session_closed_callback) {
     return kSbDrmSystemInvalid;
@@ -63,10 +58,8 @@ SbDrmSystem SbDrmCreateSystem(
                 << "premium content playback resolution may be limited.";
   return new DrmSystemWidevine(context, update_request_callback,
                                session_updated_callback
-#if SB_HAS(DRM_KEY_STATUSES)
                                ,
                                key_statuses_changed_callback
-#endif  // SB_HAS(DRM_KEY_STATUSES)
 #if SB_API_VERSION >= 10
                                ,
                                server_certificate_updated_callback

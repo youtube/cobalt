@@ -76,14 +76,12 @@ typedef struct SbDrmSubSampleMapping {
   int32_t encrypted_byte_count;
 } SbDrmSubSampleMapping;
 
-#if SB_HAS(DRM_KEY_STATUSES)
 typedef struct SbDrmKeyId {
   // The ID of the license (or key) required to decrypt this sample. For
   // PlayReady, this is the license GUID in packed little-endian binary form.
   uint8_t identifier[16];
   int identifier_size;
 } SbDrmKeyId;
-#endif  // SB_HAS(DRM_KEY_STATUSES)
 
 // All the optional information needed per sample for encrypted samples.
 typedef struct SbDrmSampleInfo {
@@ -187,7 +185,6 @@ typedef void (*SbDrmSessionUpdatedFunc)(SbDrmSystem drm_system,
 // A callback for notifications that the status of one or more keys in a session
 // has been changed.  All keys of the session and their new status will be
 // passed along.  Any keys not in the list is considered as deleted.
-#if SB_HAS(DRM_KEY_STATUSES)
 typedef void (*SbDrmSessionKeyStatusesChangedFunc)(
     SbDrmSystem drm_system,
     void* context,
@@ -196,7 +193,6 @@ typedef void (*SbDrmSessionKeyStatusesChangedFunc)(
     int number_of_keys,
     const SbDrmKeyId* key_ids,
     const SbDrmKeyStatus* key_statuses);
-#endif  // SB_HAS(DRM_KEY_STATUSES)
 
 // A callback for signalling that a session has been closed by the SbDrmSystem
 #if SB_HAS(DRM_SESSION_CLOSED)
@@ -284,11 +280,6 @@ SB_EXPORT SbDrmSystem SbDrmCreateSystem(
 
 #elif SB_HAS(DRM_SESSION_CLOSED)
 
-#if !SB_HAS(DRM_KEY_STATUSES)
-#error "Platforms with SB_HAS_DRM_SESSION_CLOSED must also set "
-    "SB_HAS_DRM_KEY_STATUSES"
-#endif  // !SB_HAS(DRM_KEY_STATUSES)
-
 SB_EXPORT SbDrmSystem SbDrmCreateSystem(
     const char* key_system,
     void* context,
@@ -297,7 +288,7 @@ SB_EXPORT SbDrmSystem SbDrmCreateSystem(
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
     SbDrmSessionClosedFunc session_closed_callback);
 
-#elif SB_HAS(DRM_KEY_STATUSES)
+#else  // SB_HAS(DRM_SESSION_CLOSED)
 
 SB_EXPORT SbDrmSystem SbDrmCreateSystem(
     const char* key_system,
@@ -306,15 +297,7 @@ SB_EXPORT SbDrmSystem SbDrmCreateSystem(
     SbDrmSessionUpdatedFunc session_updated_callback,
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback);
 
-#else  // SB_HAS(DRM_KEY_STATUSES)
-
-SB_EXPORT SbDrmSystem
-SbDrmCreateSystem(const char* key_system,
-                  void* context,
-                  SbDrmSessionUpdateRequestFunc update_request_callback,
-                  SbDrmSessionUpdatedFunc session_updated_callback);
-
-#endif  // SB_HAS(DRM_KEY_STATUSES)
+#endif  // SB_HAS(DRM_SESSION_CLOSED)
 
 // Asynchronously generates a session update request payload for
 // |initialization_data|, of |initialization_data_size|, in case sensitive

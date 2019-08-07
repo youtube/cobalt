@@ -41,10 +41,8 @@ MediaKeySession::MediaKeySession(
     : ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
       drm_system_(drm_system),
       drm_system_session_(drm_system->CreateSession(
-#if SB_HAS(DRM_KEY_STATUSES)
           base::Bind(&MediaKeySession::OnSessionUpdateKeyStatuses,
                      base::AsWeakPtr(this))
-#endif  // SB_HAS(DRM_KEY_STATUSES)
 #if SB_HAS(DRM_SESSION_CLOSED)
               ,
           base::Bind(&MediaKeySession::OnSessionClosed,
