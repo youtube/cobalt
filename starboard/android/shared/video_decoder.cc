@@ -163,12 +163,7 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
-      decode_target_(kSbDecodeTargetInvalid),
-      frame_width_(0),
-      frame_height_(0),
-      first_buffer_received_(false),
       has_new_texture_available_(false),
-      first_texture_received_(false),
       surface_condition_variable_(surface_destroy_mutex_) {
   if (!InitializeCodec()) {
     SB_LOG(ERROR) << "Failed to initialize video decoder.";
@@ -369,23 +364,35 @@ void VideoDecoder::TeardownCodec() {
   media_decoder_.reset();
   color_metadata_ = starboard::nullopt;
 
-  starboard::ScopedLock lock(decode_target_mutex_);
-  if (SbDecodeTargetIsValid(decode_target_)) {
-    // Remove OnFrameAvailableListener to make sure the callback
-    // would not be called.
-    JniEnvExt* env = JniEnvExt::Get();
-    env->CallVoidMethodOrAbort(decode_target_->data->surface_texture,
-                               "removeOnFrameAvailableListener", "()V");
+  SbDecodeTarget decode_target_to_release = kSbDecodeTargetInvalid;
+  {
+    starboard::ScopedLock lock(decode_target_mutex_);
+    if (SbDecodeTargetIsValid(decode_target_)) {
+      // Remove OnFrameAvailableListener to make sure the callback
+      // would not be called.
+      JniEnvExt* env = JniEnvExt::Get();
+      env->CallVoidMethodOrAbort(decode_target_->data->surface_texture,
+                                 "removeOnFrameAvailableListener", "()V");
 
-    has_new_texture_available_.store(false);
-    first_texture_received_.store(false);
-
+      decode_target_to_release = decode_target_;
+      decode_target_ = kSbDecodeTargetInvalid;
+      first_texture_received_ = false;
+      has_new_texture_available_.store(false);
+    } else {
+      // If |decode_target_| is not created, |first_texture_received_| and
+      // |has_new_texture_available_| should always be false.
+      SB_DCHECK(!first_texture_received_);
+      SB_DCHECK(!has_new_texture_available_.load());
+    }
+  }
+  // Release SbDecodeTarget on renderer thread. As |decode_target_mutex_| may
+  // be required in renderer thread, SbDecodeTargetReleaseInGlesContext() must
+  // be called when |decode_target_mutex_| is not locked, or we may get
+  // deadlock.
+  if (SbDecodeTargetIsValid(decode_target_to_release)) {
     SbDecodeTargetReleaseInGlesContext(decode_target_graphics_context_provider_,
                                        decode_target_);
-    decode_target_ = kSbDecodeTargetInvalid;
   }
-  SB_DCHECK(!has_new_texture_available_.load());
-  SB_DCHECK(!first_texture_received_.load());
 }
 
 void VideoDecoder::ProcessOutputBuffer(
@@ -512,7 +519,6 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
   // We must take a lock here since this function can be called from a separate
   // thread.
   starboard::ScopedLock lock(decode_target_mutex_);
-
   if (SbDecodeTargetIsValid(decode_target_)) {
     bool has_new_texture = has_new_texture_available_.exchange(false);
     if (has_new_texture) {
@@ -534,12 +540,12 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
       decode_target_->data->info.width = 1;
       decode_target_->data->info.height = 1;
 
-      if (!first_texture_received_.load()) {
-        first_texture_received_.store(true);
+      if (!first_texture_received_) {
+        first_texture_received_ = true;
       }
     }
 
-    if (first_texture_received_.load()) {
+    if (first_texture_received_) {
       SbDecodeTarget out_decode_target = new SbDecodeTargetPrivate;
       out_decode_target->data = decode_target_->data;
       return out_decode_target;
