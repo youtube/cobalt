@@ -82,7 +82,10 @@ that data to the application via `SbWindowGetDiagonalSizeInInches()`.
 The system properties `kSbSystemPropertyCertificationScope` and
 `kSbSystemPropertyBase64EncodedCertificationSecret` have been added to enable
 client apps to perform device authentication.  The values will be queried by
-calls to `SbSystemGetProperty()` in `starboard/system.h`.
+calls to `SbSystemGetProperty()` in `starboard/system.h`. An alternative to
+providing the `kSbSystemPropertyBase64EncodedCertificationSecret` property is
+to implement the SbSystemSignWithCertificationSecretKey() function, enabling
+the key to remain private and secure.
 
 ### Add support for `SbThreadSampler` and `SbThreadContext`.
 
