@@ -193,11 +193,8 @@ const char DrmSystemWidevine::kFirstSbDrmSessionId[] = "initialdrmsessionid";
 DrmSystemWidevine::DrmSystemWidevine(
     void* context,
     SbDrmSessionUpdateRequestFunc session_update_request_callback,
-    SbDrmSessionUpdatedFunc session_updated_callback
-#if SB_HAS(DRM_KEY_STATUSES)
-    ,
+    SbDrmSessionUpdatedFunc session_updated_callback,
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback
-#endif  // SB_HAS(DRM_KEY_STATUSES)
 #if SB_API_VERSION >= 10
     ,
     SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback
@@ -212,9 +209,7 @@ DrmSystemWidevine::DrmSystemWidevine(
     : context_(context),
       session_update_request_callback_(session_update_request_callback),
       session_updated_callback_(session_updated_callback),
-#if SB_HAS(DRM_KEY_STATUSES)
       key_statuses_changed_callback_(key_statuses_changed_callback),
-#endif  // SB_HAS(DRM_KEY_STATUSES)
 #if SB_API_VERSION >= 10
       server_certificate_updated_callback_(server_certificate_updated_callback),
 #endif  // SB_API_VERSION >= 10
@@ -587,7 +582,6 @@ void DrmSystemWidevine::onMessage(const std::string& wvcdm_session_id,
 
 void DrmSystemWidevine::onKeyStatusesChange(
     const std::string& wvcdm_session_id) {
-#if SB_HAS(DRM_KEY_STATUSES)
   wv3cdm::KeyStatusMap key_statuses;
   wv3cdm::Status status = cdm_->getKeyStatuses(wvcdm_session_id, &key_statuses);
 
@@ -613,9 +607,6 @@ void DrmSystemWidevine::onKeyStatusesChange(
   key_statuses_changed_callback_(this, context_, sb_drm_session_id.c_str(),
                                  sb_drm_session_id.size(), sb_key_ids.size(),
                                  sb_key_ids.data(), sb_key_statuses.data());
-#else   // SB_HAS(DRM_KEY_STATUSES)
-  SB_UNREFERENCED_PARAMETER(wvcdm_session_id);
-#endif  // SB_HAS(DRM_KEY_STATUSES)
 }
 
 void DrmSystemWidevine::onRemoveComplete(const std::string& wvcdm_session_id) {

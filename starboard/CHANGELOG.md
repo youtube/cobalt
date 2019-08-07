@@ -153,6 +153,14 @@ The new interface enables the platform to communicate to the application which
 CPU features are available, which can enable the application to perform certain
 CPU-specific optimizations (e.g. SIMD).
 
+### Deprecated SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER and
+SB_HAS_DRM_KEY_STATUSES.
+
+These macros must always be set to 1 for Starboard version 6 or later. They will
+be removed in a future version.  Any implementation that supports Starboard
+version 6 or later should be modified to no longer depend on these macros, with
+the assumption that their values are always 1.
+
 
 ## Version 10
 

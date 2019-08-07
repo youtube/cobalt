@@ -119,7 +119,7 @@ TEST(SbDrmTest, NullCallbacks) {
       EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
       SbDrmDestroySystem(drm_system);
     }
-#elif SB_HAS(DRM_KEY_STATUSES)
+#else   // SB_HAS(DRM_SESSION_CLOSED)
     {
       SbDrmSystem drm_system = SbDrmCreateSystem(
           key_system, NULL /* context */,
@@ -143,21 +143,7 @@ TEST(SbDrmTest, NullCallbacks) {
       EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
       SbDrmDestroySystem(drm_system);
     }
-#else
-    {
-      SbDrmSystem drm_system = SbDrmCreateSystem(
-          key_system, NULL /* context */,
-          NULL /* session_update_request_func */, DummySessionUpdatedFunc);
-      EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
-    }
-    {
-      SbDrmSystem drm_system = SbDrmCreateSystem(
-          key_system, NULL /* context */, DummySessionUpdateRequestFunc,
-          NULL /* session_updated_func */);
-      EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
-      SbDrmDestroySystem(drm_system);
-    }
-#endif  // SB_HAS(DRM_KEY_STATUSES)
+#endif  // SB_HAS(DRM_SESSION_CLOSED)
   }
 }
 #endif  // SB_API_VERSION >= 10

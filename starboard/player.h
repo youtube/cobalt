@@ -407,11 +407,9 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 //   Otherwise, |audio_sample_info| can be NULL. See media.h for the format of
 //   the |SbMediaAudioSampleInfo| struct.
 #endif  // SB_API_VERSION < 11
-#if SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
 //   Note that |audio_specific_config| is a pointer and the content it points to
 //   is no longer valid after this function returns.  The implementation has to
 //   make a copy of the content if it is needed after the function returns.
-#endif  // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
 #if SB_API_VERSION >= 11
 // |max_video_capabilities|: This string communicates the video maximums to the
 //   platform. The web app will not provide a video stream exceeding the

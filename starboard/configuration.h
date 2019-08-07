@@ -567,24 +567,6 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "SB_MEDIA_GPU_BUFFER_BUDGET is deprecated."
 #endif  // defined(SB_MEDIA_GPU_BUFFER_BUDGET)
 
-#if defined(SB_HAS_DRM_KEY_STATUSES)
-#if !SB_HAS(DRM_KEY_STATUSES)
-#error "SB_HAS_DRM_KEY_STATUSES is required for Starboard 6 or later."
-#endif  // !SB_HAS(DRM_KEY_STATUSES)
-#else   // defined(SB_HAS_DRM_KEY_STATUSES)
-#define SB_HAS_DRM_KEY_STATUSES 1
-#endif  // defined(SB_HAS_DRM_KEY_STATUSES)
-
-#if defined(SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER)
-#if !SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
-#error \
-    "SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER is required for Starboard 6 " \
-       "or later."
-#endif  // !SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
-#else   // defined(SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER)
-#define SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER 1
-#endif  // defined(SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER)
-
 #if SB_API_VERSION >= 11
 #if defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 #if !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
@@ -703,5 +685,29 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #define SB_HAS_GRAPHICS 0
 #endif
 #endif
+
+// Deprecated feature macros
+// These feature macros are deprecated in Starboard version 6 and later, and are
+// no longer referenced by application code.  They will be removed in a future
+// version.  Any Starboard implementation that supports Starboard version 6 or
+// later should be modified to no longer depend on these macros, with the
+// assumption that their values are always 1.
+#if defined(SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER)
+#if !SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
+#error \
+    "SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER is required for Starboard 6 " \
+       "or later."
+#endif  // !SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
+#else   // defined(SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER)
+#define SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER 1
+#endif  // defined(SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER)
+
+#if defined(SB_HAS_DRM_KEY_STATUSES)
+#if !SB_HAS(DRM_KEY_STATUSES)
+#error "SB_HAS_DRM_KEY_STATUSES is required for Starboard 6 or later."
+#endif  // !SB_HAS(DRM_KEY_STATUSES)
+#else   // defined(SB_HAS_DRM_KEY_STATUSES)
+#define SB_HAS_DRM_KEY_STATUSES 1
+#endif  // defined(SB_HAS_DRM_KEY_STATUSES)
 
 #endif  // STARBOARD_CONFIGURATION_H_

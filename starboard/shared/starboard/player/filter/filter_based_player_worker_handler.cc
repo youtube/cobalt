@@ -65,7 +65,6 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
   if (audio_codec != kSbMediaAudioCodecNone) {
     audio_sample_info_ = *audio_sample_info;
 
-#if SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
     if (audio_sample_info_.audio_specific_config_size > 0) {
       audio_specific_config_.reset(
           new int8_t[audio_sample_info_.audio_specific_config_size]);
@@ -74,7 +73,6 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
                    audio_sample_info->audio_specific_config_size);
       audio_sample_info_.audio_specific_config = audio_specific_config_.get();
     }
-#endif  // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
   }
 
   update_job_ = std::bind(&FilterBasedPlayerWorkerHandler::Update, this);
