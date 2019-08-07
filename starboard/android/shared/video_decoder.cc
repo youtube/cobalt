@@ -391,7 +391,7 @@ void VideoDecoder::TeardownCodec() {
   // deadlock.
   if (SbDecodeTargetIsValid(decode_target_to_release)) {
     SbDecodeTargetReleaseInGlesContext(decode_target_graphics_context_provider_,
-                                       decode_target_);
+                                       decode_target_to_release);
   }
 }
 
