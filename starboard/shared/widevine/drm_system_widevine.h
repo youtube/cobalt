@@ -42,11 +42,8 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   DrmSystemWidevine(
       void* context,
       SbDrmSessionUpdateRequestFunc update_request_callback,
-      SbDrmSessionUpdatedFunc session_updated_callback
-#if SB_HAS(DRM_KEY_STATUSES)
-      ,
+      SbDrmSessionUpdatedFunc session_updated_callback,
       SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback
-#endif  // SB_HAS(DRM_KEY_STATUSES)
 #if SB_API_VERSION >= 10
       ,
       SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback
@@ -164,9 +161,7 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   void* const context_;
   const SbDrmSessionUpdateRequestFunc session_update_request_callback_;
   const SbDrmSessionUpdatedFunc session_updated_callback_;
-#if SB_HAS(DRM_KEY_STATUSES)
   const SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback_;
-#endif  // SB_HAS(DRM_KEY_STATUSES)
 #if SB_API_VERSION >= 10
   const SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback_;
 #endif  // SB_API_VERSION >= 10

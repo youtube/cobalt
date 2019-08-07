@@ -496,11 +496,7 @@ typedef struct SbMediaAudioSampleInfo {
 
   // The AudioSpecificConfig, as specified in ISO/IEC-14496-3, section 1.6.2.1:
   // http://read.pudn.com/downloads98/doc/comm/401153/14496/ISO_IEC_14496-3%20Part%203%20Audio/C036083E_SUB1.PDF
-#if SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
   const void* audio_specific_config;
-#else  // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
-  int8_t audio_specific_config[8];
-#endif  // SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
 } SbMediaAudioSampleInfo;
 
 #if SB_API_VERSION < 11
