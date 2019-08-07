@@ -179,11 +179,15 @@ class AudioDecoderTest
       *decoded_audio = local_decoded_audio;
       return;
     }
-    if (last_decoded_audio_) {
+    // TODO: Adaptive audio decoder outputs may don't have timestamp info.
+    // Currently, we skip timestamp check if the outputs don't have timestamp
+    // info. Enable it after we fix timestamp issues.
+    if (local_decoded_audio->timestamp() && last_decoded_audio_) {
       ASSERT_LT(last_decoded_audio_->timestamp(),
                 local_decoded_audio->timestamp());
     }
     last_decoded_audio_ = local_decoded_audio;
+    num_of_output_frames_ += last_decoded_audio_->frames();
     *decoded_audio = local_decoded_audio;
   }
 
@@ -356,6 +360,15 @@ class AudioDecoderTest
                 output_samples_per_second <= 480000);
   }
 
+  void AssertExpectedAndOutputFramesMatch(int expected_output_frames) {
+    if (using_stub_decoder_) {
+      // The number of output frames is not applicable in the case of the
+      // StubAudioDecoder, because it is not actually doing any decoding work.
+      return;
+    }
+    ASSERT_LE(abs(expected_output_frames - num_of_output_frames_), 1);
+  }
+
   Mutex event_queue_mutex_;
   std::deque<Event> event_queue_;
 
@@ -378,6 +391,8 @@ class AudioDecoderTest
   bool eos_written_ = false;
 
   std::map<size_t, uint8_t> invalid_inputs_;
+
+  int num_of_output_frames_ = 0;
 };
 
 TEST_P(AudioDecoderTest, ThreeMoreDecoders) {
@@ -423,12 +438,14 @@ TEST_P(AudioDecoderTest, SingleInputHEAAC) {
   ASSERT_NO_FATAL_FAILURE(DrainOutputs());
   ASSERT_TRUE(last_decoded_audio_);
   ASSERT_NO_FATAL_FAILURE(AssertInvalidOutputFormat());
-  if (last_decoded_audio_->frames() == kAacFrameSize) {
-    return;
-  }
-  auto sample_info = dmp_reader_.audio_sample_info();
-  ASSERT_EQ(sample_info.samples_per_second * 2,
-            audio_decoder_->GetSamplesPerSecond());
+
+  int input_sample_rate =
+      last_input_buffer_->audio_sample_info().samples_per_second;
+  int output_sample_rate = audio_decoder_->GetSamplesPerSecond();
+  ASSERT_NE(0, output_sample_rate);
+  int expected_output_frames =
+      kAacFrameSize * output_sample_rate / input_sample_rate;
+  AssertExpectedAndOutputFramesMatch(expected_output_frames);
 }
 
 TEST_P(AudioDecoderTest, SingleInvalidInput) {
