@@ -18,14 +18,10 @@
 
 #include "cobalt/browser/application.h"
 
-#include <algorithm>
-#include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "base/base64.h"
-#include "base/base64url.h"
 #include "base/command_line.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
@@ -57,6 +53,7 @@
 #include "cobalt/base/version_compatibility.h"
 #endif  // defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
 #include "cobalt/base/window_size_changed_event.h"
+#include "cobalt/browser/device_authentication.h"
 #include "cobalt/browser/memory_settings/auto_mem_settings.h"
 #include "cobalt/browser/memory_tracker/tool.h"
 #include "cobalt/browser/switches.h"
@@ -68,8 +65,6 @@
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #include "cobalt/system_window/input_event.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
-#include "crypto/hmac.h"
-#include "net/base/escape.h"
 #include "starboard/configuration.h"
 #include "url/gurl.h"
 
@@ -159,56 +154,6 @@ std::string GetWebDriverListenIp() {
 }
 #endif  // ENABLE_WEBDRIVER
 
-#if SB_API_VERSION >= 11
-std::string NumberToFourByteString(size_t n) {
-  std::string str;
-  str += static_cast<char>(((n & 0xff000000) >> 24));
-  str += static_cast<char>(((n & 0x00ff0000) >> 16));
-  str += static_cast<char>(((n & 0x0000ff00) >> 8));
-  str += static_cast<char>((n & 0x000000ff));
-  return str;
-}
-
-std::string BuildMessageFragment(const std::string& key,
-                                 const std::string& value) {
-  std::string msg_fragment = NumberToFourByteString(key.length()) + key +
-                             NumberToFourByteString(value.length()) + value;
-  return msg_fragment;
-}
-
-std::string ComputeSignature(const std::string& cert_scope,
-                             const std::string& start_time,
-                             const std::string& base_64_secret) {
-  const size_t kSHA256DigestSize = 32;
-
-  // Build signed_msg from cert_scope and start_time.
-  std::string signed_msg = BuildMessageFragment("cert_scope", cert_scope);
-  signed_msg += BuildMessageFragment("start_time", start_time);
-
-  // Decode secret from base_64_secret.
-  std::string secret;
-  base::Base64Decode(base_64_secret, &secret);
-
-  // Generate signature from signed_msg using HMAC-SHA256.
-  unsigned char signature_hash[kSHA256DigestSize] = {0};
-  crypto::HMAC hmac(crypto::HMAC::SHA256);
-  if (!hmac.Init(secret)) {
-    DLOG(ERROR) << "Unable to initialize HMAC-SHA256.";
-  }
-  if (!hmac.Sign(signed_msg, signature_hash, kSHA256DigestSize)) {
-    DLOG(ERROR) << "Unable to sign HMAC-SHA256.";
-  }
-  std::string signature(signature_hash, signature_hash + kSHA256DigestSize);
-
-  // Encode base_64_url_signature from signature.
-  std::string base_64_url_signature;
-  base::Base64UrlEncode(signature, base::Base64UrlEncodePolicy::OMIT_PADDING,
-                        &base_64_url_signature);
-
-  return base_64_url_signature;
-}
-#endif  // SB_API_VERSION >= 11
-
 GURL GetInitialURL() {
   GURL initial_url = GURL(kDefaultURL);
   // Allow the user to override the default URL via a command line parameter.
@@ -224,59 +169,21 @@ GURL GetInitialURL() {
   }
 
 #if SB_API_VERSION >= 11
-  // Get cert_scope and base_64_secret
-  const size_t kCertificationScopeLength = 1023;
-  char cert_scope_property[kCertificationScopeLength + 1] = {0};
-  bool result =
-      SbSystemGetProperty(kSbSystemPropertyCertificationScope,
-                          cert_scope_property, kCertificationScopeLength);
-  if (!result) {
-    DLOG(ERROR) << "Unable to get kSbSystemPropertyCertificationScope";
-    return initial_url;
-  }
-  std::string cert_scope(cert_scope_property);
-
-  const size_t kBase64EncodedCertificationSecretLength = 1023;
-  char base_64_secret_property[kBase64EncodedCertificationSecretLength + 1] = {
-      0};
-  result = SbSystemGetProperty(
-      kSbSystemPropertyBase64EncodedCertificationSecret,
-      base_64_secret_property, kBase64EncodedCertificationSecretLength);
-  if (!result) {
-    DLOG(ERROR)
-        << "Unable to get kSbSystemPropertyBase64EncodedCertificationSecret";
-    return initial_url;
-  }
-  std::string base_64_secret(base_64_secret_property);
-
-  // Get current unix time in seconds.
-  std::string start_time =
-      std::to_string(static_cast<int64>(base::Time::Now().ToDoubleT()));
-
-  // Add signed_query to the initial_url.
-  std::map<std::string, std::string> signed_query;
-  signed_query["cert_scope"] = cert_scope;
-  signed_query["start_time"] = start_time;
-  signed_query["sig"] =
-      ComputeSignature(cert_scope, start_time, base_64_secret);
-
+  // Append the device authentication query parameters based on the platform's
+  // certification secret to the initial URL.
   std::string query = initial_url.query();
-  std::map<std::string, std::string>::iterator it = signed_query.begin();
-  while (it != signed_query.end()) {
-    std::string key = it->first;
-    std::string value = it->second;
-
-    if (!query.empty()) query += "&";
-    query += net::EscapeQueryParamValue(key, true);
-    if (!value.empty()) {
-      query += "=" + net::EscapeQueryParamValue(value, true);
-    }
-    it++;
+  std::string device_authentication_query_string =
+      GetDeviceAuthenticationSignedURLQueryString();
+  if (!query.empty() && !device_authentication_query_string.empty()) {
+    query += "&";
   }
+  query += device_authentication_query_string;
 
-  GURL::Replacements replacements;
-  replacements.SetQueryStr(query);
-  initial_url = initial_url.ReplaceComponents(replacements);
+  if (!query.empty()) {
+    GURL::Replacements replacements;
+    replacements.SetQueryStr(query);
+    initial_url = initial_url.ReplaceComponents(replacements);
+  }
 #endif  // SB_API_VERSION >= 11
 
   return initial_url;
