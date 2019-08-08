@@ -56,7 +56,9 @@ scoped_refptr<dom::DOMRectList> LayoutBoxes::GetClientRects() const {
   for (Boxes::const_iterator box_iterator = client_rect_boxes.begin();
        box_iterator != client_rect_boxes.end(); ++box_iterator) {
     RectLayoutUnit transformed_border_box(
-        (*box_iterator)->GetTransformedBorderBoxFromRoot());
+        (*box_iterator)
+            ->GetTransformedBoxFromRoot(
+                (*box_iterator)->GetBorderBoxFromMarginBox()));
     dom_rect_list->AppendDOMRect(
         new dom::DOMRect(transformed_border_box.x().toFloat(),
                          transformed_border_box.y().toFloat(),
@@ -181,7 +183,8 @@ math::RectF LayoutBoxes::GetScrollArea(dom::Directionality dir) const {
           if (container == container_box) {
             // Add this box's border box to the scroll area.
             RectLayoutUnit border_box =
-                box->GetTransformedBorderBoxFromContainingBlock(container_box);
+                box->GetTransformedBoxFromContainingBlock(
+                    container_box, box->GetBorderBoxFromMarginBox());
             scroll_area.Union(math::RectF(border_box.x().toFloat(),
                                           border_box.y().toFloat(),
                                           border_box.width().toFloat(),
