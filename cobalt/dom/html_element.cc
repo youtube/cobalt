@@ -910,6 +910,24 @@ void HTMLElement::ClearRuleMatchingStateOnElementAndDescendants() {
   }
 }
 
+void HTMLElement::ClearRuleMatchingStateOnElementAndSiblingsAndDescendants() {
+  HTMLElement::ClearRuleMatchingStateOnElementAndDescendants();
+  for (Element* element = previous_element_sibling(); element;
+       element = element->previous_element_sibling()) {
+    HTMLElement* html_element = element->AsHTMLElement();
+    if (html_element) {
+      html_element->ClearRuleMatchingStateOnElementAndDescendants();
+    }
+  }
+  for (Element* element = next_element_sibling(); element;
+       element = element->next_element_sibling()) {
+    HTMLElement* html_element = element->AsHTMLElement();
+    if (html_element) {
+      html_element->ClearRuleMatchingStateOnElementAndDescendants();
+    }
+  }
+}
+
 void HTMLElement::InvalidateMatchingRulesRecursively() {
   InvalidateMatchingRulesRecursivelyInternal(true /*is_initial_element*/);
 }
