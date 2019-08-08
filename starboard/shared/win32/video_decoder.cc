@@ -138,14 +138,12 @@ VideoDecoder::VideoDecoder(
     SbMediaVideoCodec video_codec,
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
-    SbDrmSystem drm_system)
+    SbDrmSystem drm_system,
+    bool texture_RGBA)
     : video_codec_(video_codec),
       graphics_context_provider_(graphics_context_provider),
       drm_system_(drm_system),
-      decoder_thread_(kSbThreadInvalid),
-      decoder_thread_stop_requested_(false),
-      decoder_thread_stopped_(false),
-      current_decode_target_(kSbDecodeTargetInvalid) {
+      texture_RGBA_(texture_RGBA) {
   SB_DCHECK(output_mode == kSbPlayerOutputModeDecodeToTexture);
 
   HardwareDecoderContext hardware_context = GetDirectXForHardwareDecoding();
@@ -339,7 +337,7 @@ SbDecodeTarget VideoDecoder::CreateDecodeTarget() {
     if (!SbDecodeTargetIsValid(decode_target)) {
       decode_target = new HardwareDecodeTargetPrivate(
           d3d_device_, video_device_, video_context_, video_enumerator_,
-          video_processor_, video_sample, video_area);
+          video_processor_, video_sample, video_area, texture_RGBA_);
     }
 
     // Release the video_sample before releasing the reset lock.

@@ -41,7 +41,8 @@ class VideoDecoder
   VideoDecoder(SbMediaVideoCodec video_codec,
                SbPlayerOutputMode output_mode,
                SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
-               SbDrmSystem drm_system);
+               SbDrmSystem drm_system,
+               bool texture_RGBA = false);
   ~VideoDecoder() override;
 
   // Queries for support without creating the vp9 decoder. The function caches
@@ -128,9 +129,9 @@ class VideoDecoder
   scoped_ptr<DecryptingDecoder> decoder_;
   RECT video_area_;
 
-  SbThread decoder_thread_;
-  volatile bool decoder_thread_stop_requested_;
-  bool decoder_thread_stopped_;
+  SbThread decoder_thread_ = kSbThreadInvalid;
+  volatile bool decoder_thread_stop_requested_ = false;
+  bool decoder_thread_stopped_ = false;
   Mutex thread_lock_;
   std::list<std::unique_ptr<Event> > thread_events_;
 
@@ -150,8 +151,10 @@ class VideoDecoder
   int priming_output_count_;
 
   Mutex decode_target_lock_;
-  SbDecodeTarget current_decode_target_;
+  SbDecodeTarget current_decode_target_ = kSbDecodeTargetInvalid;
   std::list<SbDecodeTarget> prev_decode_targets_;
+
+  bool texture_RGBA_;
 };
 
 }  // namespace win32

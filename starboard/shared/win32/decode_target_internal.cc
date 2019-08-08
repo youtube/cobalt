@@ -42,8 +42,9 @@ void SbDecodeTargetRelease(SbDecodeTarget decode_target) {
 
 SbDecodeTargetFormat SbDecodeTargetGetFormat(SbDecodeTarget decode_target) {
   // Note that kSbDecodeTargetFormat2PlaneYUVNV12 represents DXGI_FORMAT_NV12.
-  SB_DCHECK(kSbDecodeTargetFormat2PlaneYUVNV12 ==
-            decode_target->info.format);
+  // kSbDecodeTargetFormat1PlaneRGBA represents DXGI_FORMAT_R10G10B10A2_UNORM.
+  SB_DCHECK(kSbDecodeTargetFormat2PlaneYUVNV12 == decode_target->info.format ||
+            kSbDecodeTargetFormat1PlaneRGBA == decode_target->info.format);
   return decode_target->info.format;
 }
 

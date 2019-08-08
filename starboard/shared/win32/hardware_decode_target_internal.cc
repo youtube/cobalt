@@ -43,6 +43,7 @@ const GUID kCobaltDxgiBuffer = {
     {0X9c, 0X31, 0Xf6, 0X1b, 0Xd8, 0Xae, 0X3b, 0X0d}};
 
 ComPtr<ID3D11Texture2D> AllocateTexture(const ComPtr<ID3D11Device>& d3d_device,
+                                        SbDecodeTargetFormat format,
                                         int width,
                                         int height) {
   ComPtr<ID3D11Texture2D> texture;
@@ -51,7 +52,17 @@ ComPtr<ID3D11Texture2D> AllocateTexture(const ComPtr<ID3D11Device>& d3d_device,
   texture_desc.Height = height;
   texture_desc.MipLevels = 1;
   texture_desc.ArraySize = 1;
-  texture_desc.Format = DXGI_FORMAT_NV12;
+  switch (format) {
+    case kSbDecodeTargetFormat2PlaneYUVNV12:
+      texture_desc.Format = DXGI_FORMAT_NV12;
+      break;
+    case kSbDecodeTargetFormat1PlaneRGBA:
+      texture_desc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
+      break;
+    default:
+      SB_NOTREACHED();
+  }
+
   texture_desc.SampleDesc.Count = 1;
   texture_desc.SampleDesc.Quality = 0;
   texture_desc.Usage = D3D11_USAGE_DEFAULT;
@@ -120,19 +131,35 @@ HardwareDecodeTargetPrivate::HardwareDecodeTargetPrivate(
     const ComPtr<ID3D11VideoProcessorEnumerator>& video_enumerator,
     const ComPtr<ID3D11VideoProcessor>& video_processor,
     const ComPtr<IMFSample>& video_sample,
-    const RECT& video_area) {
+    const RECT& video_area,
+    bool texture_RGBA)
+    : texture_RGBA_(texture_RGBA) {
   SbMemorySet(&info, 0, sizeof(info));
-  info.format = kSbDecodeTargetFormat2PlaneYUVNV12;
   info.is_opaque = true;
   info.width = video_area.right;
   info.height = video_area.bottom;
 
-  d3d_texture = AllocateTexture(d3d_device, info.width, info.height);
+  if (texture_RGBA_) {
+    info.format = kSbDecodeTargetFormat1PlaneRGBA;
+  } else {
+    info.format = kSbDecodeTargetFormat2PlaneYUVNV12;
+  }
+
+  d3d_texture =
+      AllocateTexture(d3d_device, info.format, info.width, info.height);
   if (video_sample) {
     UpdateTexture(d3d_texture, video_device, video_context, video_enumerator,
                   video_processor, video_sample, video_area);
   }
 
+  if (texture_RGBA_) {
+    InitTextureRGBA();
+  } else {
+    InitTextureYUV();
+  }
+}
+
+void HardwareDecodeTargetPrivate::InitTextureYUV() {
   SbDecodeTargetInfoPlane* planeY = &(info.planes[kSbDecodeTargetPlaneY]);
   SbDecodeTargetInfoPlane* planeUV = &(info.planes[kSbDecodeTargetPlaneUV]);
 
@@ -250,17 +277,89 @@ HardwareDecodeTargetPrivate::HardwareDecodeTargetPrivate(
   SB_DCHECK(SUCCEEDED(hr));
 }
 
+void HardwareDecodeTargetPrivate::InitTextureRGBA() {
+  SbDecodeTargetInfoPlane* planeRGBA = &(info.planes[kSbDecodeTargetPlaneRGBA]);
+
+  planeRGBA->width = info.width;
+  planeRGBA->height = info.height;
+  planeRGBA->content_region.left = 0;
+  planeRGBA->content_region.top = info.height;
+  planeRGBA->content_region.right = info.width;
+  planeRGBA->content_region.bottom = 0;
+
+  EGLint RGBA_texture_attributes[] = {EGL_WIDTH,
+                                      static_cast<EGLint>(info.width),
+                                      EGL_HEIGHT,
+                                      static_cast<EGLint>(info.height),
+                                      EGL_TEXTURE_TARGET,
+                                      EGL_TEXTURE_2D,
+                                      EGL_TEXTURE_FORMAT,
+                                      EGL_TEXTURE_RGBA,
+                                      EGL_NONE};
+
+  EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+
+  EGLConfig config;
+  EGLint attribute_list[] = {EGL_SURFACE_TYPE,  // this must be first
+                             EGL_WINDOW_BIT | EGL_PBUFFER_BIT,
+                             EGL_RED_SIZE,
+                             10,
+                             EGL_GREEN_SIZE,
+                             10,
+                             EGL_BLUE_SIZE,
+                             10,
+                             EGL_ALPHA_SIZE,
+                             2,
+                             EGL_BIND_TO_TEXTURE_RGBA,
+                             EGL_TRUE,
+                             EGL_RENDERABLE_TYPE,
+                             EGL_OPENGL_ES2_BIT,
+                             EGL_NONE};
+
+  EGLint num_configs;
+  bool ok = eglChooseConfig(display, attribute_list, &config, 1, &num_configs);
+  SB_DCHECK(ok);
+  SB_DCHECK(num_configs == 1);
+
+  GLuint gl_textures[2] = {0};
+  glGenTextures(2, gl_textures);
+  SB_DCHECK(glGetError() == GL_NO_ERROR);
+
+  surface[0] = eglCreatePbufferFromClientBuffer(display, EGL_D3D_TEXTURE_ANGLE,
+                                                d3d_texture.Get(), config,
+                                                RGBA_texture_attributes);
+
+  SB_DCHECK(surface[0] != EGL_NO_SURFACE);
+
+  glBindTexture(GL_TEXTURE_2D, gl_textures[0]);
+  SB_DCHECK(glGetError() == GL_NO_ERROR);
+
+  ok = eglBindTexImage(display, surface[0], EGL_BACK_BUFFER);
+  SB_DCHECK(ok);
+
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+  planeRGBA->texture = gl_textures[0];
+  planeRGBA->gl_texture_target = GL_TEXTURE_2D;
+  planeRGBA->gl_texture_format = GL_RED_EXT;
+}
+
 HardwareDecodeTargetPrivate::~HardwareDecodeTargetPrivate() {
-  glDeleteTextures(1, &(info.planes[kSbDecodeTargetPlaneY].texture));
-  glDeleteTextures(1, &(info.planes[kSbDecodeTargetPlaneUV].texture));
+  if (!texture_RGBA_) {
+    glDeleteTextures(1, &(info.planes[kSbDecodeTargetPlaneY].texture));
+    glDeleteTextures(1, &(info.planes[kSbDecodeTargetPlaneUV].texture));
+  }
 
   EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
 
   eglReleaseTexImage(display, surface[0], EGL_BACK_BUFFER);
   eglDestroySurface(display, surface[0]);
 
-  eglReleaseTexImage(display, surface[1], EGL_BACK_BUFFER);
-  eglDestroySurface(display, surface[1]);
+  if (!texture_RGBA_) {
+    eglReleaseTexImage(display, surface[1], EGL_BACK_BUFFER);
+    eglDestroySurface(display, surface[1]);
+  }
 }
 
 bool HardwareDecodeTargetPrivate::Update(
@@ -281,6 +380,7 @@ bool HardwareDecodeTargetPrivate::Update(
   // exactly, otherwise the shader may sample invalid texels along the
   // texture border.
   if (info.format != kSbDecodeTargetFormat2PlaneYUVNV12 ||
+      info.format != kSbDecodeTargetFormat1PlaneRGBA ||
       info.is_opaque != true || info.width != video_area.right ||
       info.height != video_area.bottom) {
     return false;

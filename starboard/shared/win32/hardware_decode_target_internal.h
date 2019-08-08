@@ -25,9 +25,10 @@
 
 struct HardwareDecodeTargetPrivate : public SbDecodeTargetPrivate {
   template <typename T>
-  using ComPtr = Microsoft::WRL::ComPtr<T>;
+  using ComPtr = ::Microsoft::WRL::ComPtr<T>;
 
   ComPtr<ID3D11Texture2D> d3d_texture;
+  bool texture_RGBA_;
 
   // EGLSurface is defined as void* in "third_party/angle/include/EGL/egl.h".
   // Use void* directly here to avoid `egl.h` being included broadly.
@@ -40,7 +41,8 @@ struct HardwareDecodeTargetPrivate : public SbDecodeTargetPrivate {
       const ComPtr<ID3D11VideoProcessorEnumerator>& video_enumerator,
       const ComPtr<ID3D11VideoProcessor>& video_processor,
       const ComPtr<IMFSample>& video_sample,
-      const RECT& video_area);
+      const RECT& video_area,
+      bool texture_RGBA);
   ~HardwareDecodeTargetPrivate() override;
 
   // Update the existing texture with the given video_sample's data.
@@ -54,6 +56,8 @@ struct HardwareDecodeTargetPrivate : public SbDecodeTargetPrivate {
               const ComPtr<ID3D11VideoProcessor>& video_processor,
               const ComPtr<IMFSample>& video_sample,
               const RECT& video_area);
+  void InitTextureRGBA();
+  void InitTextureYUV();
 };
 
 #endif  // STARBOARD_SHARED_WIN32_HARDWARE_DECODE_TARGET_INTERNAL_H_
