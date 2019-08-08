@@ -19,8 +19,8 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
-#include "cobalt/dom/c_val_key_list.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/script/sequence.h"
 
 namespace cobalt {
 namespace dom {
@@ -29,7 +29,7 @@ class CValView : public script::Wrappable {
  public:
   CValView();
 
-  scoped_refptr<CValKeyList> Keys();
+  script::Sequence<std::string> Keys();
   base::Optional<std::string> GetValue(const std::string& name);
   std::string GetPrettyValue(const std::string& name);
 
