@@ -87,22 +87,11 @@ const float kBT709ColorMatrix[16] = {
     1.164f, 2.112f, 0.0f,   -1.12875f, 0.0f,   0.0f,    0.0f,    1.0f};
 
 // Used for 10bit unnormalized YUV images.
-const float k10BitBT2020ColorMatrix[16] = {64 * 1.163746465f,
-                                           -64 * 0.028815145f,
-                                           64 * 2.823537589f,
-                                           -1.470095f,
-                                           64 * 1.164383561f,
-                                           -64 * 0.258509894f,
-                                           64 * 0.379693635f,
-                                           -0.133366f,
-                                           64 * 1.164383561f,
-                                           64 * 2.385315708f,
-                                           64 * 0.021554502f,
-                                           -1.276209f,
-                                           0.0f,
-                                           0.0f,
-                                           0.0f,
-                                           1.0f};
+const float k10BitBT2020ColorMatrix[16] = {
+    64 * 1.1678f, 0.0f,          64 * 1.6835f,  -0.96925f,
+    64 * 1.1678f, 64 * -0.1878f, 64 * -0.6522f, 0.30025f,
+    64 * 1.1678f, 64 * 2.1479f,  0.0f,          -1.12875f,
+    0.0f,         0.0f,          0.0f,          1.0f};
 
 const float* GetColorMatrixForImageType(
     TexturedMeshRenderer::Image::Type type) {
