@@ -14,23 +14,21 @@
 
 #include "cobalt/dom/c_val_view.h"
 
-#include <set>
+#include <algorithm>
 
 #include "cobalt/base/c_val.h"
+#include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/dom/dom_settings.h"
 
 namespace cobalt {
 namespace dom {
 
 CValView::CValView() {}
 
-scoped_refptr<CValKeyList> CValView::Keys() {
-  scoped_refptr<CValKeyList> key_list(new CValKeyList);
-  typedef std::set<std::string> CValKeySet;
-  CValKeySet key_set = base::CValManager::GetInstance()->GetOrderedCValNames();
-  for (CValKeySet::iterator key_iter = key_set.begin();
-       key_iter != key_set.end(); ++key_iter) {
-    key_list->AppendKey(*key_iter);
-  }
+script::Sequence<std::string> CValView::Keys() {
+  auto key_set = base::CValManager::GetInstance()->GetOrderedCValNames();
+  script::Sequence<std::string> key_list;
+  std::copy(key_set.begin(), key_set.end(), std::back_inserter(key_list));
   return key_list;
 }
 
