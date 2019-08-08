@@ -52,7 +52,6 @@
         '../dom/audio_track.idl',
         '../dom/audio_track_list.idl',
         '../dom/blob.idl',
-        '../dom/c_val_key_list.idl',
         '../dom/c_val_view.idl',
         '../dom/camera_3d.idl',
         '../dom/captions/system_caption_settings.idl',
