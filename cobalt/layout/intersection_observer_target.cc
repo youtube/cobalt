@@ -48,7 +48,8 @@ void IntersectionObserverTarget::UpdateIntersectionObservationsForTarget(
 
   // Let targetRect be target's bounding border box.
   RectLayoutUnit target_transformed_border_box(
-      target_box->GetTransformedBorderBoxFromRoot());
+      target_box->GetTransformedBoxFromRoot(
+          target_box->GetBorderBoxFromMarginBox()));
   math::RectF target_rect =
       math::RectF(target_transformed_border_box.x().toFloat(),
                   target_transformed_border_box.y().toFloat(),
@@ -141,7 +142,8 @@ math::RectF IntersectionObserverTarget::GetRootBounds(
     // Otherwise, it's the result of running the getBoundingClientRect()
     // algorithm on the intersection root.
     RectLayoutUnit root_transformed_border_box(
-        root_box->GetTransformedBorderBoxFromRoot());
+        root_box->GetTransformedBoxFromRoot(
+            root_box->GetBorderBoxFromMarginBox()));
     root_bounds_without_margins =
         math::RectF(root_transformed_border_box.x().toFloat(),
                     root_transformed_border_box.y().toFloat(),
@@ -189,10 +191,14 @@ math::RectF IntersectionObserverTarget::ComputeIntersectionBetweenTargetAndRoot(
   math::RectF intersection_rect = target_rect;
 
   // Let container be the containing block of the target.
-  math::Vector2dF total_offset_from_containing_block =
-      target_box->GetBorderBoxOffsetFromContainingBlock();
   const ContainerBox* prev_container = target_box;
   const ContainerBox* container = prev_container->GetContainingBlock();
+  RectLayoutUnit box_from_containing_block =
+      target_box->GetTransformedBoxFromContainingBlock(
+          container, target_box->GetBorderBoxFromMarginBox());
+  math::Vector2dF total_offset_from_containing_block =
+      math::Vector2dF(box_from_containing_block.x().toFloat(),
+                      box_from_containing_block.y().toFloat());
 
   // While container is not the intersection root:
   while (container != root_box) {
@@ -225,12 +231,18 @@ math::RectF IntersectionObserverTarget::ComputeIntersectionBetweenTargetAndRoot(
     // container. (Note: The containing block of an element with 'position:
     // absolute' is formed by the padding edge of the ancestor.
     // https://www.w3.org/TR/CSS2/visudet.html)
-    math::Vector2dF next_offset_from_containing_block =
+    RectLayoutUnit next_box_from_containing_block =
         prev_container->computed_style()->position() ==
                 cssom::KeywordValue::GetAbsolute()
-            ? container->GetPaddingBoxOffsetFromContainingBlock()
-            : container->GetContentBoxOffsetFromContainingBlockContentBox(
-                  container->GetContainingBlock());
+            ? container->GetTransformedBoxFromContainingBlock(
+                  container->GetContainingBlock(),
+                  container->GetPaddingBoxFromMarginBox())
+            : container->GetTransformedBoxFromContainingBlockContentBox(
+                  container->GetContainingBlock(),
+                  container->GetContentBoxFromMarginBox());
+    math::Vector2dF next_offset_from_containing_block =
+        math::Vector2dF(next_box_from_containing_block.x().toFloat(),
+                        next_box_from_containing_block.y().toFloat());
     total_offset_from_containing_block += next_offset_from_containing_block;
 
     prev_container = container;
@@ -242,14 +254,17 @@ math::RectF IntersectionObserverTarget::ComputeIntersectionBetweenTargetAndRoot(
   // (Note: The containing block of an element with 'position: absolute'
   // is formed by the padding edge of the ancestor.
   // https://www.w3.org/TR/CSS2/visudet.html)
-  math::Vector2dF containing_block_offset_from_origin =
+  RectLayoutUnit containing_block_box_from_origin =
       prev_container->computed_style()->position() ==
                   cssom::KeywordValue::GetAbsolute() &&
               !IsOverflowCropped(container->computed_style())
-          ? container->GetPaddingBoxOffsetFromRoot(
-                false /*transform_forms_root*/)
-          : container->GetContentBoxOffsetFromRoot(
-                false /*transform_forms_root*/);
+          ? container->GetTransformedBoxFromRoot(
+                container->GetPaddingBoxFromMarginBox())
+          : container->GetTransformedBoxFromRoot(
+                container->GetContentBoxFromMarginBox());
+  math::Vector2dF containing_block_offset_from_origin =
+      math::Vector2dF(containing_block_box_from_origin.x().toFloat(),
+                      containing_block_box_from_origin.y().toFloat());
 
   intersection_rect.set_x(total_offset_from_containing_block.x() +
                           containing_block_offset_from_origin.x());

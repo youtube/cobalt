@@ -252,6 +252,17 @@ class Box : public base::RefCounted<Box> {
   Vector2dLayoutUnit GetContainingBlockOffsetFromItsContentBox(
       const ContainerBox* containing_block) const;
 
+  // Returns boxes relative to the root or containing block, that take into
+  // account transforms.
+  RectLayoutUnit GetTransformedBoxFromRoot(
+      const RectLayoutUnit& box_from_margin_box) const;
+  RectLayoutUnit GetTransformedBoxFromContainingBlock(
+      const ContainerBox* containing_block,
+      const RectLayoutUnit& box_from_margin_box) const;
+  RectLayoutUnit GetTransformedBoxFromContainingBlockContentBox(
+      const ContainerBox* containing_block,
+      const RectLayoutUnit& box_from_margin_box) const;
+
   // Used values of "left" and "top" are publicly readable and writable so that
   // they can be calculated and adjusted by the formatting context of the parent
   // box.
@@ -325,40 +336,34 @@ class Box : public base::RefCounted<Box> {
 
   // Border box.
   RectLayoutUnit GetBorderBoxFromRoot(bool transform_forms_root) const;
-  RectLayoutUnit GetTransformedBorderBoxFromRoot() const;
-  RectLayoutUnit GetTransformedBorderBoxFromContainingBlock(
-      const ContainerBox* containing_block) const;
 
   LayoutUnit GetBorderBoxWidth() const;
   LayoutUnit GetBorderBoxHeight() const;
   SizeLayoutUnit GetClampedBorderBoxSize() const;
 
+  RectLayoutUnit GetBorderBoxFromMarginBox() const;
   Vector2dLayoutUnit GetBorderBoxOffsetFromRoot(
       bool transform_forms_root) const;
   Vector2dLayoutUnit GetBorderBoxOffsetFromMarginBox() const;
-  Vector2dLayoutUnit GetBorderBoxOffsetFromContainingBlock() const;
-  LayoutUnit GetBorderBoxLeftEdgeOffsetFromContainingBlock() const;
-  LayoutUnit GetBorderBoxTopEdgeOffsetFromContainingBlock() const;
 
   // Padding box.
   LayoutUnit GetPaddingBoxWidth() const;
   LayoutUnit GetPaddingBoxHeight() const;
   SizeLayoutUnit GetClampedPaddingBoxSize() const;
 
+  RectLayoutUnit GetPaddingBoxFromMarginBox() const;
   Vector2dLayoutUnit GetPaddingBoxOffsetFromRoot(
       bool transform_forms_root) const;
   Vector2dLayoutUnit GetPaddingBoxOffsetFromBorderBox() const;
   LayoutUnit GetPaddingBoxLeftEdgeOffsetFromMarginBox() const;
   LayoutUnit GetPaddingBoxTopEdgeOffsetFromMarginBox() const;
-  Vector2dLayoutUnit GetPaddingBoxOffsetFromContainingBlock() const;
-  LayoutUnit GetPaddingBoxLeftEdgeOffsetFromContainingBlock() const;
-  LayoutUnit GetPaddingBoxTopEdgeOffsetFromContainingBlock() const;
 
   // Content box.
   LayoutUnit width() const { return content_size_.width(); }
   LayoutUnit height() const { return content_size_.height(); }
   const SizeLayoutUnit& content_box_size() const { return content_size_; }
 
+  RectLayoutUnit GetContentBoxFromMarginBox() const;
   Vector2dLayoutUnit GetContentBoxOffsetFromRoot(
       bool transform_forms_root) const;
   Vector2dLayoutUnit GetContentBoxOffsetFromMarginBox() const;
