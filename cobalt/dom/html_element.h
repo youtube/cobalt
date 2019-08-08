@@ -233,6 +233,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   void ClearRuleMatchingStateOnElementAndAncestors(
       bool invalidate_tree_matching_rules);
   void ClearRuleMatchingStateOnElementAndDescendants();
+  void ClearRuleMatchingStateOnElementAndSiblingsAndDescendants();
 
   // Returns the cached matching rules of this element.
   cssom::RulesWithCascadePrecedence* matching_rules() {
