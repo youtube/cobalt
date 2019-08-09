@@ -61,12 +61,29 @@
 
 #include <openssl/base.h>
 
+#include "starboard/atomic.h"
+#include "starboard/condition_variable.h"
+#include "starboard/mutex.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
 
-#if defined(OPENSSL_NO_THREADS)
+#if defined(STARBOARD)
+typedef struct crypto_mutex_st {
+  // It would be nice to use starboard::RWLock. However, that's a C++ class, so
+  // it can't even be included in this C header. It's possible to use an opaque
+  // pointer to it, but then an allocation would be needed or we somehow embed
+  // a byte array that is sizeof(starboard::RWLock) without including the
+  // declaration. Avoid the complication and just implement the RWMutex using
+  // starboard C structs.
+  SbMutex mutex;
+  SbConditionVariable condition;
+  size_t readers;
+  bool writing;
+} CRYPTO_MUTEX;
+#elif defined(OPENSSL_NO_THREADS)
 typedef struct crypto_mutex_st {
   char padding;  // Empty structs have different sizes in C and C++.
 } CRYPTO_MUTEX;
@@ -98,7 +115,11 @@ typedef union crypto_mutex_st {
 // as C code that might not set -std=c11. So, in practice, it's not possible to
 // do that. Instead we statically assert that the size and native alignment of
 // a plain uint32_t and an _Atomic uint32_t are equal in refcount_c11.c.
+#if defined(STARBOARD)
+typedef SbAtomic32 CRYPTO_refcount_t;
+#else
 typedef uint32_t CRYPTO_refcount_t;
+#endif
 
 
 // Deprecated functions.
