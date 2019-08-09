@@ -163,6 +163,11 @@ class Pipeline {
   // needs to be shutdown from there.
   void ShutdownRasterizerThread();
 
+  // This method releases the rasterizer. This is exposed separately from
+  // ShutdownRasterizerThread() so it can be executed after tasks that may
+  // be posted by ShutdownRasterizerThread().
+  void ShutdownRasterizer() { rasterizer_.reset(); }
+
 #if defined(ENABLE_DEBUGGER)
   void OnDumpCurrentRenderTree(const std::string&);
   void OnToggleFpsStdout(const std::string&);
