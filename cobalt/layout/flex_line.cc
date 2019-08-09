@@ -268,7 +268,6 @@ void FlexLine::CalculateCrossSize() {
   // Algorithm for Calculate the cross size of each flex line.
   //   https://www.w3.org/TR/css-flexbox-1/#algo-cross-line
 
-  LayoutUnit max_baseline_to_top = LayoutUnit();
   LayoutUnit max_baseline_to_bottom = LayoutUnit();
   LayoutUnit max_hypothetical_cross_size = LayoutUnit();
   for (auto& item : items_) {
@@ -283,15 +282,13 @@ void FlexLine::CalculateCrossSize() {
       // hypothetical outer cross-start edge,
       LayoutUnit baseline_to_top =
           item->box()->GetBaselineOffsetFromTopMarginEdge();
-      if (baseline_to_top > max_baseline_to_top) {
-        max_baseline_to_top = baseline_to_top;
-      }
+      max_baseline_to_top_ = std::max(
+          max_baseline_to_top_.value_or(LayoutUnit()), baseline_to_top);
       // and the largest of the distances between each item's baseline and its
       // hypothetical outer cross-end edge,
       LayoutUnit baseline_to_bottom = item->box()->height() - baseline_to_top;
-      if (baseline_to_bottom > max_baseline_to_bottom) {
-        max_baseline_to_bottom = baseline_to_bottom;
-      }
+      max_baseline_to_bottom =
+          std::max(max_baseline_to_bottom, baseline_to_bottom);
     } else {
       // 2. Among all the items not collected by the previous step, find the
       // largest outer hypothetical cross size.
@@ -303,7 +300,7 @@ void FlexLine::CalculateCrossSize() {
   }
   // ... and sum these two values.
   LayoutUnit max_baseline_cross_size =
-      max_baseline_to_top + max_baseline_to_bottom;
+      max_baseline_to_top_.value_or(LayoutUnit()) + max_baseline_to_bottom;
 
   // 3. The used cross-size of the flex line is the largest of the numbers
   // found in the previous two steps and zero.
@@ -469,7 +466,6 @@ void FlexLine::DoMainAxisAlignment() {
 }
 
 void FlexLine::DoCrossAxisAlignment(LayoutUnit line_cross_axis_start) {
-  line_cross_axis_start_ = line_cross_axis_start;
   // Algorithm for cross axis alignment:
   //   https://www.w3.org/TR/css-flexbox-1/#cross-alignment
   // 13. Resolve cross-axis auto margins.
@@ -494,6 +490,11 @@ void FlexLine::DoCrossAxisAlignment(LayoutUnit line_cross_axis_start) {
       } else if (align_self == cssom::KeywordValue::GetCenter()) {
         cross_axis_start = (cross_size_ - cross_size) / 2;
       } else if (align_self == cssom::KeywordValue::GetBaseline()) {
+        if (main_direction_is_horizontal_ && max_baseline_to_top_.has_value()) {
+          LayoutUnit baseline_to_top =
+              item->box()->GetBaselineOffsetFromTopMarginEdge();
+          cross_axis_start = *max_baseline_to_top_ - baseline_to_top;
+        }
       } else {
         DCHECK((align_self == cssom::KeywordValue::GetFlexStart()) ||
                (align_self == cssom::KeywordValue::GetStretch()));
@@ -504,14 +505,15 @@ void FlexLine::DoCrossAxisAlignment(LayoutUnit line_cross_axis_start) {
 }
 
 LayoutUnit FlexLine::GetBaseline() {
-  // TODO: Complete implementation of flex container baselines.
-  //   https://www.w3.org/TR/css-flexbox-1/#flex-baselines
-
-  LayoutUnit baseline = LayoutUnit();
-  if (!items_.empty()) {
-    baseline = items_.front()->box()->GetBaselineOffsetFromTopMarginEdge();
+  if (max_baseline_to_top_.has_value()) {
+    return *max_baseline_to_top_;
   }
-  return line_cross_axis_start_ + baseline;
+  LayoutUnit baseline = cross_size_;
+  if (!items_.empty()) {
+    Box* box = items_.front()->box();
+    baseline = box->top() + box->GetBaselineOffsetFromTopMarginEdge();
+  }
+  return baseline;
 }
 
 }  // namespace layout

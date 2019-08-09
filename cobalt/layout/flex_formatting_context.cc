@@ -79,10 +79,6 @@ void FlexFormattingContext::ResolveFlexibleLengthsAndCrossSizes(
     const base::Optional<LayoutUnit>& min_cross_space,
     const base::Optional<LayoutUnit>& max_cross_space,
     const scoped_refptr<cssom::PropertyValue>& align_content) {
-  if (lines_.empty()) {
-    return;
-  }
-
   // Algorithm for Flex Layout:
   //   https://www.w3.org/TR/css-flexbox-1/#layout-algorithm
 
@@ -139,6 +135,10 @@ void FlexFormattingContext::ResolveFlexibleLengthsAndCrossSizes(
     cross_size_ = *min_cross_space;
   } else if (max_cross_space && cross_size_ > *max_cross_space) {
     cross_size_ = *max_cross_space;
+  }
+
+  if (lines_.empty()) {
+    return;
   }
 
   LayoutUnit leftover_cross_size = cross_size_ - total_cross_size;
@@ -206,12 +206,9 @@ LayoutUnit FlexFormattingContext::GetBaseline() {
     NOTIMPLEMENTED() << "Column flex boxes not yet implemented.";
   }
 
-  // TODO: Complete implementation of flex container baselines.
-  //   https://www.w3.org/TR/css-flexbox-1/#flex-baselines
-
-  LayoutUnit baseline = LayoutUnit();
+  LayoutUnit baseline = cross_size_;
   if (!lines_.empty()) {
-    if (direction_is_reversed_) {
+    if (direction_is_reversed_ && !main_direction_is_horizontal_) {
       baseline = lines_.back()->GetBaseline();
     } else {
       baseline = lines_.front()->GetBaseline();
