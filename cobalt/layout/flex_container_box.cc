@@ -315,7 +315,11 @@ void FlexContainerBox::UpdateContentSizeAndMargins(
 
   set_margin_top(maybe_margin_top.value_or(LayoutUnit()));
   set_margin_bottom(maybe_margin_bottom.value_or(LayoutUnit()));
-  baseline_ = flex_formatting_context.GetBaseline();
+  if (child_boxes().empty()) {
+    baseline_ = GetBorderBoxHeight();
+  } else {
+    baseline_ = flex_formatting_context.GetBaseline();
+  }
 }
 
 WrapResult FlexContainerBox::TryWrapAt(
@@ -363,8 +367,6 @@ bool FlexContainerBox::AffectsBaselineInBlockFormattingContext() const {
 }
 
 LayoutUnit FlexContainerBox::GetBaselineOffsetFromTopMarginEdge() const {
-  // TODO: Complete implementation of flex container baselines.
-  //   https://www.w3.org/TR/css-flexbox-1/#flex-baselines
   return GetContentBoxOffsetFromMarginBox().y() + baseline_;
 }
 

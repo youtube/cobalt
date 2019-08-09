@@ -15,9 +15,11 @@
 #ifndef COBALT_LAYOUT_FLEX_LINE_H_
 #define COBALT_LAYOUT_FLEX_LINE_H_
 
+#include <memory>
 #include <vector>
 
 #include "base/logging.h"
+#include "base/optional.h"
 #include "cobalt/layout/box.h"
 #include "cobalt/layout/flex_item.h"
 #include "cobalt/layout/layout_unit.h"
@@ -66,10 +68,10 @@ class FlexLine {
 
   bool flex_factor_grow_;
   LayoutUnit items_outer_main_size_;
-  LayoutUnit line_cross_axis_start_;
   std::vector<std::unique_ptr<FlexItem>> items_;
 
   LayoutUnit cross_size_;
+  base::Optional<LayoutUnit> max_baseline_to_top_;
 };
 
 }  // namespace layout
