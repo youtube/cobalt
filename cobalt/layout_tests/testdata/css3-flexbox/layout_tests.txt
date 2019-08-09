@@ -1,3 +1,4 @@
+combined-baseline
 combined-order-and-multiline
 combined-positioning-tests
 combined-shrinking-and-justify-content
