@@ -116,6 +116,10 @@
 #include <assert.h>
 #include <string.h>
 
+#include "starboard/atomic.h"
+#include "starboard/once.h"
+#include "starboard/thread.h"
+
 #if !defined(__cplusplus)
 #if defined(__GNUC__) && \
     (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__) < 40800
@@ -370,7 +374,10 @@ static inline int constant_time_select_int(crypto_word_t mask, int a, int b) {
 
 // Thread-safe initialisation.
 
-#if defined(OPENSSL_NO_THREADS)
+#if defined(STARBOARD)
+typedef SbOnceControl CRYPTO_once_t;
+#define CRYPTO_ONCE_INIT SB_ONCE_INITIALIZER
+#elif defined(OPENSSL_NO_THREADS)
 typedef uint32_t CRYPTO_once_t;
 #define CRYPTO_ONCE_INIT 0
 #elif defined(OPENSSL_WINDOWS_THREADS)
@@ -390,13 +397,21 @@ typedef pthread_once_t CRYPTO_once_t;
 //
 // The |once| argument must be a |CRYPTO_once_t| that has been initialised with
 // the value |CRYPTO_ONCE_INIT|.
+#if defined(STARBOARD)
+#define CRYPTO_once SbOnce
+#else
 OPENSSL_EXPORT void CRYPTO_once(CRYPTO_once_t *once, void (*init)(void));
+#endif
 
 
 // Reference counting.
 
 // CRYPTO_REFCOUNT_MAX is the value at which the reference count saturates.
+#if defined(STARBOARD)
+#define CRYPTO_REFCOUNT_MAX 0x7fffffff
+#else
 #define CRYPTO_REFCOUNT_MAX 0xffffffff
+#endif
 
 // CRYPTO_refcount_inc atomically increments the value at |*count| unless the
 // value would overflow. It's safe for multiple threads to concurrently call
@@ -426,7 +441,13 @@ OPENSSL_EXPORT int CRYPTO_refcount_dec_and_test_zero(CRYPTO_refcount_t *count);
 // thread.h as a structure large enough to fit the real type. The global lock is
 // a different type so it may be initialized with platform initializer macros.
 
-#if defined(OPENSSL_NO_THREADS)
+#if defined(STARBOARD)
+struct CRYPTO_STATIC_MUTEX {
+  SbAtomic32 initialized;
+  CRYPTO_MUTEX mutex;
+};
+#define CRYPTO_STATIC_MUTEX_INIT { 0 }
+#elif defined(OPENSSL_NO_THREADS)
 struct CRYPTO_STATIC_MUTEX {
   char padding;  // Empty structs have different sizes in C and C++.
 };
