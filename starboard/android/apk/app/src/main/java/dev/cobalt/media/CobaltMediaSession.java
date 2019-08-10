@@ -144,6 +144,12 @@ public class CobaltMediaSession
             Log.i(TAG, "MediaSession action: SEEK " + pos);
             nativeInvokeAction(PlaybackStateCompat.ACTION_SEEK_TO, pos);
           }
+
+          @Override
+          public void onStop() {
+            Log.i(TAG, "MediaSession action: STOP");
+            nativeInvokeAction(PlaybackState.ACTION_STOP);
+          }
         });
     // |metadataBuilder| may still have no fields at this point, yielding empty metadata.
     mediaSession.setMetadata(metadataBuilder.build());

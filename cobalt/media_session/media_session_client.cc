@@ -131,6 +131,13 @@ MediaSessionClient::ComputeAvailableActions() const {
       result[kMediaSessionActionPlay] = false;
       break;
     case kMediaSessionPlaybackStateNone:
+      // Not defined in the spec: disable Seekbackward, Seekforward, SeekTo, &
+      // Stop when no media is playing.
+      result[kMediaSessionActionSeekbackward] = false;
+      result[kMediaSessionActionSeekforward] = false;
+      result[kMediaSessionActionSeekto] = false;
+      result[kMediaSessionActionStop] = false;
+    // Fall-through intended (None case falls through to Paused case).
     case kMediaSessionPlaybackStatePaused:
       // "Otherwise, remove pause from available actions."
       result[kMediaSessionActionPause] = false;
