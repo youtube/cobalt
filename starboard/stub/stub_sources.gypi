@@ -258,6 +258,7 @@
         '<(DEPTH)/starboard/shared/stub/system_request_stop.cc',
         '<(DEPTH)/starboard/shared/stub/system_request_suspend.cc',
         '<(DEPTH)/starboard/shared/stub/system_request_unpause.cc',
+        '<(DEPTH)/starboard/shared/stub/system_sign_with_certification_secret_key.cc',
         '<(DEPTH)/starboard/shared/stub/system_sort.cc',
         '<(DEPTH)/starboard/shared/stub/system_supports_resume.cc',
         '<(DEPTH)/starboard/shared/stub/system_symbolize.cc',
