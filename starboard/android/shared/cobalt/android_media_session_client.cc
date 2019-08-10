@@ -43,6 +43,7 @@ using ::cobalt::media_session::kMediaSessionActionPlay;
 using ::cobalt::media_session::kMediaSessionActionSeekto;
 using ::cobalt::media_session::kMediaSessionActionSeekbackward;
 using ::cobalt::media_session::kMediaSessionActionSeekforward;
+using ::cobalt::media_session::kMediaSessionActionStop;
 using ::cobalt::media_session::kMediaSessionActionPrevioustrack;
 using ::cobalt::media_session::kMediaSessionActionNexttrack;
 using ::cobalt::media_session::kMediaSessionPlaybackStateNone;
@@ -57,7 +58,7 @@ using ::starboard::android::shared::ScopedLocalJavaRef;
 namespace {
 
 // These constants are from android.media.session.PlaybackState
-const jlong kPlaybackStateActionStop = 1 << 0;  // not supported
+const jlong kPlaybackStateActionStop = 1 << 0;
 const jlong kPlaybackStateActionPause = 1 << 1;
 const jlong kPlaybackStateActionPlay = 1 << 2;
 const jlong kPlaybackStateActionRewind = 1 << 3;
@@ -92,6 +93,9 @@ jlong MediaSessionActionsToPlaybackStateActions(
   }
   if (actions[kMediaSessionActionSeekto]) {
     result |= kPlaybackStateActionSeekTo;
+  }
+  if (actions[kMediaSessionActionStop]) {
+    result |= kPlaybackStateActionStop;
   }
   return result;
 }
@@ -131,6 +135,9 @@ MediaSessionAction PlaybackStateActionToMediaSessionAction(jlong action) {
       break;
     case kPlaybackStateActionSeekTo:
       result = kMediaSessionActionSeekto;
+      break;
+    case kPlaybackStateActionStop:
+      result = kMediaSessionActionStop;
       break;
     default:
       SB_NOTREACHED() << "Unsupported MediaSessionAction 0x"
