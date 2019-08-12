@@ -558,6 +558,30 @@ void SetMinLogLevel(int level) {
 #endif
 }
 
+#if defined(OFFICIAL_BUILD)
+int GetMinLogLevel() {
+  return LOG_NUM_SEVERITIES;
+}
+
+bool ShouldCreateLogMessage(int /*severity*/) {
+  return false;
+}
+
+int GetVlogVerbosity() {
+  return LOG_INFO - GetMinLogLevel();
+}
+
+int GetVlogLevelHelper(const char* /*file*/, size_t /*N*/) {
+  return GetVlogVerbosity();
+}
+
+void SetLogItems(bool /*enable_process_id*/, bool /*enable_thread_id*/,
+                 bool /*enable_timestamp*/, bool /*enable_tickcount*/) {}
+
+void SetLogPrefix(const char* /*prefix*/) {}
+
+#else  // defined(OFFICIAL_BUILD)
+
 int GetMinLogLevel() {
   return g_min_log_level;
 }
@@ -600,6 +624,7 @@ void SetLogPrefix(const char* prefix) {
          base::ContainsOnlyChars(prefix, "abcdefghijklmnopqrstuvwxyz"));
   g_log_prefix = prefix;
 }
+#endif  // defined(OFFICIAL_BUILD)
 
 void SetShowErrorDialogs(bool enable_dialogs) {
   show_error_dialogs = enable_dialogs;
