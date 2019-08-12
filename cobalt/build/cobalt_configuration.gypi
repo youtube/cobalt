@@ -534,6 +534,7 @@
       'COBALT_BUILD_TYPE_GOLD',
       'COBALT_FORCE_CSP',
       'COBALT_FORCE_HTTPS',
+      'OFFICIAL_BUILD',  # Chromium base relies on this.
       'TRACING_DISABLED',
     ],
   },
