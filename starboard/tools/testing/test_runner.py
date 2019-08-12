@@ -252,7 +252,7 @@ class TestRunner(object):
 
   def _GetAllTestEnvVariables(self):
     """Gets all environment variables used for tests on the given platform."""
-    env_variables = self._platform_config.GetTestEnvVariables()
+    env_variables = {}
     for test, test_env in self._app_config.GetTestEnvVariables().iteritems():
       if test in env_variables:
         env_variables[test].update(test_env)
@@ -271,7 +271,9 @@ class TestRunner(object):
     """
 
     # Get the environment variables for the test target
-    env = self.test_env_vars.get(target_name, {})
+    env = {}
+    env.update(self._platform_config.GetTestEnvVariables())
+    env.update(self.test_env_vars.get(target_name, {}))
 
     # Set up a pipe for processing test output
     read_fd, write_fd = os.pipe()
@@ -301,9 +303,21 @@ class TestRunner(object):
     self.threads.append(test_launcher)
     self.threads.append(test_reader)
 
+    dump_params = " ARGS:" + " ".join(test_params) if test_params else ""
+    dump_env = " ENV VARS: " + ";".join(
+        "{}={}".format(k, v) for k, v in env.items()) if env else ""
+    # Output either the name of the test target or the specific test case
+    # being run.
+    # pylint: disable=g-long-ternary
+    sys.stdout.write("Starting {}{}{}".format(
+        target_name, dump_params, dump_env))
+
     if self.dry_run:
-      sys.stdout.write("{} {}\n".format(target_name, test_params)
-                       if test_params else "{}\n".format(target_name))
+      # Output a newline before running the test target / case.
+      sys.stdout.write("\n")
+
+      if test_params:
+        sys.stdout.write(" {}\n".format(test_params))
       write_pipe.close()
       read_pipe.close()
 
