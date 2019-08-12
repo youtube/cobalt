@@ -1572,7 +1572,7 @@ class ThreadLocal {
     } else {
       T* new_value = new T();
       bool is_set = SbThreadSetLocalValue(key_, new_value);
-      SB_DCHECK(is_set);
+      SB_CHECK(is_set);
       return new_value;
     }
   }
