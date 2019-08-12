@@ -39,6 +39,8 @@ const char* kV8CommandLineFlags[] = {"--optimize_for_size",
                                      // ScriptValue::*Reference do not currently
                                      // support incremental tracing.
                                      "--noincremental_marking_wrappers",
+                                     "--noexpose_wasm",
+                                     "--novalidate_asm",
 #if defined(COBALT_GC_ZEAL)
                                      "--gc_interval=1200"
 #endif
