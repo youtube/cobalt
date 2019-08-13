@@ -14,19 +14,6 @@
 
 #include "starboard/elf_loader/exported_symbols.h"
 
-// TODO: Remove these once the API leaks are fixed.
-//#define LOCAL_TEST_WITH_API_LEAKS
-#ifdef LOCAL_TEST_WITH_API_LEAKS
-#include <dlfcn.h>
-#include <fcntl.h>
-#include <nl_types.h>
-#include <setjmp.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
-#endif
-
 #include "starboard/accessibility.h"
 #include "starboard/audio_sink.h"
 #include "starboard/byte_swap.h"
@@ -58,16 +45,6 @@
 #include "starboard/time_zone.h"
 #include "starboard/ui_navigation.h"
 
-// TODO: cleanup these hack as we fix the API leaks
-
-void tmp_dl_iterate_phdr() {
-  SB_LOG(INFO) << "tmp_dl_iterate_phdr";
-}
-
-void tmp__cxa_thread_atexit_impl() {
-  SB_LOG(INFO) << "tmp__cxa_thread_atexit_impl";
-}
-
 namespace starboard {
 namespace elf_loader {
 
@@ -79,6 +56,10 @@ ExportedSymbols::ExportedSymbols() {
   map_["SbAudioSinkCreate"] = reinterpret_cast<const void*>(SbAudioSinkCreate);
   map_["SbAudioSinkDestroy"] =
       reinterpret_cast<const void*>(SbAudioSinkDestroy);
+#if SB_API_VERSION >= 11
+  map_["SbAudioSinkGetMinBufferSizeInFrames"] =
+      reinterpret_cast<const void*>(SbAudioSinkGetMinBufferSizeInFrames);
+#endif
   map_["SbAudioSinkGetNearestSupportedSampleFrequency"] =
       reinterpret_cast<const void*>(
           SbAudioSinkGetNearestSupportedSampleFrequency);
@@ -461,6 +442,12 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(SbSystemRequestSuspend);
   map_["SbSystemRequestUnpause"] =
       reinterpret_cast<const void*>(SbSystemRequestUnpause);
+
+#if SB_API_VERSION >= 11
+  map_["SbSystemSignWithCertificationSecretKey"] =
+      reinterpret_cast<const void*>(SbSystemSignWithCertificationSecretKey);
+#endif
+
   map_["SbSystemSort"] = reinterpret_cast<const void*>(SbSystemSort);
 
 #if SB_API_VERSION >= 10
@@ -541,40 +528,11 @@ ExportedSymbols::ExportedSymbols() {
   map_["SbWindowGetSize"] = reinterpret_cast<const void*>(SbWindowGetSize);
   map_["SbWindowSetDefaultOptions"] =
       reinterpret_cast<const void*>(SbWindowSetDefaultOptions);
-
-#ifdef LOCAL_TEST_WITH_API_LEAKS
-  map_["atexit"] = reinterpret_cast<const void*>(atexit);
-  map_["btowc"] = reinterpret_cast<const void*>(btowc);
-  map_["__ctype_get_mb_cur_max"] =
-  map_["__cxa_thread_atexit_impl"] =
-      reinterpret_cast<const void*>(tmp__cxa_thread_atexit_impl);
-  map_["dladdr"] = reinterpret_cast<const void*>(dladdr);
-  map_["dl_iterate_phdr"] = reinterpret_cast<const void*>(tmp_dl_iterate_phdr);
-  map_["longjmp"] = reinterpret_cast<const void*>(longjmp);
-  map_["mbrlen"] = reinterpret_cast<const void*>(mbrlen);
-  map_["mbrtowc"] = reinterpret_cast<const void*>(mbrtowc);
-  map_["mbsnrtowcs"] = reinterpret_cast<const void*>(mbsnrtowcs);
-  map_["mbsrtowcs"] = reinterpret_cast<const void*>(mbsrtowcs);
-  map_["mbtowc"] = reinterpret_cast<const void*>(mbtowc);
-
-  map_["setjmp"] = reinterpret_cast<const void*>(setjmp);
-  map_["wcrtomb"] = reinterpret_cast<const void*>(wcrtomb);
-  map_["wcsnrtombs"] = reinterpret_cast<const void*>(wcsnrtombs);
-  map_["wcstod"] = reinterpret_cast<const void*>(wcstod);
-  map_["wcstof"] = reinterpret_cast<const void*>(wcstof);
-  map_["wcstol"] = reinterpret_cast<const void*>(wcstol);
-  map_["wcstold"] = reinterpret_cast<const void*>(wcstold);
-  map_["wcstoll"] = reinterpret_cast<const void*>(wcstoll);
-  map_["wcstoul"] = reinterpret_cast<const void*>(wcstoul);
-  map_["wcstoull"] = reinterpret_cast<const void*>(wcstoull);
-  map_["wcsxfrm_l"] = reinterpret_cast<const void*>(wcsxfrm_l);
-  map_["wctob"] = reinterpret_cast<const void*>(wctob);
-#endif
 }
 
 const void* ExportedSymbols::Lookup(const char* name) {
   const void* ret = map_[name];
-  SB_CHECK(ret);
+  SB_CHECK(ret) << name;
   return ret;
 }
 }  // namespace elf_loader
