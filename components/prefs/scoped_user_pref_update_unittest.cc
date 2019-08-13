@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "components/prefs/scoped_user_pref_update.h"
 #include "components/prefs/mock_pref_change_callback.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_registry_simple.h"
-#include "components/prefs/scoped_user_pref_update.h"
 #include "components/prefs/testing_pref_service.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -72,9 +72,7 @@ TEST_F(ScopedUserPrefUpdateTest, RegularUse) {
 TEST_F(ScopedUserPrefUpdateTest, NeverTouchAnything) {
   const base::DictionaryValue* old_value = prefs_.GetDictionary(kPref);
   EXPECT_CALL(observer_, OnPreferenceChanged(_)).Times(0);
-  {
-    DictionaryPrefUpdate update(&prefs_, kPref);
-  }
+  { DictionaryPrefUpdate update(&prefs_, kPref); }
   const base::DictionaryValue* new_value = prefs_.GetDictionary(kPref);
   EXPECT_EQ(old_value, new_value);
   Mock::VerifyAndClearExpectations(&observer_);

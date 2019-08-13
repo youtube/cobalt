@@ -2,13 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROME_UPDATER_UPDATER_H_
-#define CHROME_UPDATER_UPDATER_H_
-
-namespace updater {
+#ifndef COBALT_UPDATER_UPDATER_H_
+#define COBALT_UPDATER_UPDATER_H_
 
 int UpdaterMain(int argc, const char* const* argv);
 
-}  // namespace updater
-
-#endif  // CHROME_UPDATER_UPDATER_H_
+#endif  // COBALT_UPDATER_UPDATER_H_

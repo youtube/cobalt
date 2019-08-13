@@ -98,8 +98,7 @@ class COMPONENTS_PREFS_EXPORT PrefRegistry
                           uint32_t flags);
 
   // Allows subclasses to hook into pref registration.
-  virtual void OnPrefRegistered(const std::string& path,
-                                uint32_t flags);
+  virtual void OnPrefRegistered(const std::string& path, uint32_t flags);
 
   scoped_refptr<DefaultPrefStore> defaults_;
 

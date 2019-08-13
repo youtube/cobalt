@@ -19,7 +19,7 @@
 #include "base/task/post_task.h"
 #include "base/task/task_traits.h"
 #include "base/test/scoped_path_override.h"
-#include "base/test/task_environment.h"
+#include "base/test/scoped_task_environment.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/values.h"
 #include "base/version.h"
@@ -177,7 +177,7 @@ class UpdateClientTest : public testing::Test {
  private:
   static constexpr int kNumWorkerThreads_ = 2;
 
-  base::test::TaskEnvironment task_environment_;
+  base::test::ScopedTaskEnvironment scoped_task_environment_;
   base::RunLoop runloop_;
 
   scoped_refptr<update_client::TestConfigurator> config_ =
@@ -196,12 +196,11 @@ UpdateClientTest::UpdateClientTest() {
   metadata_ = std::make_unique<PersistedData>(pref_.get(), nullptr);
 }
 
-UpdateClientTest::~UpdateClientTest() {
-}
+UpdateClientTest::~UpdateClientTest() {}
 
 void UpdateClientTest::RunThreads() {
   runloop_.Run();
-  task_environment_.RunUntilIdle();
+  scoped_task_environment_.RunUntilIdle();
 }
 
 base::FilePath UpdateClientTest::TestFilePath(const char* file) {
@@ -310,9 +309,11 @@ TEST_F(UpdateClientTest, OneCrxNoUpdate) {
   MockObserver observer;
   InSequence seq;
   EXPECT_CALL(observer, OnEvent(Events::COMPONENT_CHECKING_FOR_UPDATES,
-                                "jebgalgnebhfojomionfpkfelancnnkf")).Times(1);
+                                "jebgalgnebhfojomionfpkfelancnnkf"))
+      .Times(1);
   EXPECT_CALL(observer, OnEvent(Events::COMPONENT_NOT_UPDATED,
-                                "jebgalgnebhfojomionfpkfelancnnkf")).Times(1);
+                                "jebgalgnebhfojomionfpkfelancnnkf"))
+      .Times(1);
 
   update_client->AddObserver(&observer);
 
@@ -509,23 +510,29 @@ TEST_F(UpdateClientTest, TwoCrxUpdateNoUpdate) {
   {
     InSequence seq;
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_CHECKING_FOR_UPDATES,
-                                  "jebgalgnebhfojomionfpkfelancnnkf")).Times(1);
+                                  "jebgalgnebhfojomionfpkfelancnnkf"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_FOUND,
-                                  "jebgalgnebhfojomionfpkfelancnnkf")).Times(1);
+                                  "jebgalgnebhfojomionfpkfelancnnkf"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_DOWNLOADING,
                                   "jebgalgnebhfojomionfpkfelancnnkf"))
         .Times(AtLeast(1));
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_READY,
-                                  "jebgalgnebhfojomionfpkfelancnnkf")).Times(1);
+                                  "jebgalgnebhfojomionfpkfelancnnkf"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATED,
-                                  "jebgalgnebhfojomionfpkfelancnnkf")).Times(1);
+                                  "jebgalgnebhfojomionfpkfelancnnkf"))
+        .Times(1);
   }
   {
     InSequence seq;
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_CHECKING_FOR_UPDATES,
-                                  "abagagagagagagagagagagagagagagag")).Times(1);
+                                  "abagagagagagagagagagagagagagagag"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_NOT_UPDATED,
-                                  "abagagagagagagagagagagagagagagag")).Times(1);
+                                  "abagagagagagagagagagagagagagagag"))
+        .Times(1);
   }
 
   update_client->AddObserver(&observer);
@@ -922,16 +929,20 @@ TEST_F(UpdateClientTest, TwoCrxUpdateNoCrxComponentData) {
   {
     InSequence seq;
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_CHECKING_FOR_UPDATES,
-                                  "jebgalgnebhfojomionfpkfelancnnkf")).Times(1);
+                                  "jebgalgnebhfojomionfpkfelancnnkf"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_FOUND,
-                                  "jebgalgnebhfojomionfpkfelancnnkf")).Times(1);
+                                  "jebgalgnebhfojomionfpkfelancnnkf"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_DOWNLOADING,
                                   "jebgalgnebhfojomionfpkfelancnnkf"))
         .Times(AtLeast(1));
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_READY,
-                                  "jebgalgnebhfojomionfpkfelancnnkf")).Times(1);
+                                  "jebgalgnebhfojomionfpkfelancnnkf"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATED,
-                                  "jebgalgnebhfojomionfpkfelancnnkf")).Times(1);
+                                  "jebgalgnebhfojomionfpkfelancnnkf"))
+        .Times(1);
   }
   {
     InSequence seq;
@@ -1267,9 +1278,11 @@ TEST_F(UpdateClientTest, TwoCrxUpdateDownloadTimeout) {
   {
     InSequence seq;
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_CHECKING_FOR_UPDATES,
-                                  "jebgalgnebhfojomionfpkfelancnnkf")).Times(1);
+                                  "jebgalgnebhfojomionfpkfelancnnkf"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_FOUND,
-                                  "jebgalgnebhfojomionfpkfelancnnkf")).Times(1);
+                                  "jebgalgnebhfojomionfpkfelancnnkf"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_DOWNLOADING,
                                   "jebgalgnebhfojomionfpkfelancnnkf"))
         .Times(AtLeast(1));
@@ -1288,18 +1301,23 @@ TEST_F(UpdateClientTest, TwoCrxUpdateDownloadTimeout) {
   {
     InSequence seq;
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_CHECKING_FOR_UPDATES,
-                                  "ihfokbkgjpifnbbojhneepfflplebdkc")).Times(1);
+                                  "ihfokbkgjpifnbbojhneepfflplebdkc"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_FOUND,
-                                  "ihfokbkgjpifnbbojhneepfflplebdkc")).Times(1);
+                                  "ihfokbkgjpifnbbojhneepfflplebdkc"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_WAIT,
-                                  "ihfokbkgjpifnbbojhneepfflplebdkc")).Times(1);
+                                  "ihfokbkgjpifnbbojhneepfflplebdkc"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_DOWNLOADING,
                                   "ihfokbkgjpifnbbojhneepfflplebdkc"))
         .Times(AtLeast(1));
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_READY,
-                                  "ihfokbkgjpifnbbojhneepfflplebdkc")).Times(1);
+                                  "ihfokbkgjpifnbbojhneepfflplebdkc"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATED,
-                                  "ihfokbkgjpifnbbojhneepfflplebdkc")).Times(1);
+                                  "ihfokbkgjpifnbbojhneepfflplebdkc"))
+        .Times(1);
   }
 
   update_client->AddObserver(&observer);
@@ -1564,27 +1582,35 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdate) {
   {
     InSequence seq;
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_CHECKING_FOR_UPDATES,
-                                  "ihfokbkgjpifnbbojhneepfflplebdkc")).Times(1);
+                                  "ihfokbkgjpifnbbojhneepfflplebdkc"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_FOUND,
-                                  "ihfokbkgjpifnbbojhneepfflplebdkc")).Times(1);
+                                  "ihfokbkgjpifnbbojhneepfflplebdkc"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_DOWNLOADING,
                                   "ihfokbkgjpifnbbojhneepfflplebdkc"))
         .Times(AtLeast(1));
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_READY,
-                                  "ihfokbkgjpifnbbojhneepfflplebdkc")).Times(1);
+                                  "ihfokbkgjpifnbbojhneepfflplebdkc"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATED,
-                                  "ihfokbkgjpifnbbojhneepfflplebdkc")).Times(1);
+                                  "ihfokbkgjpifnbbojhneepfflplebdkc"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_CHECKING_FOR_UPDATES,
-                                  "ihfokbkgjpifnbbojhneepfflplebdkc")).Times(1);
+                                  "ihfokbkgjpifnbbojhneepfflplebdkc"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_FOUND,
-                                  "ihfokbkgjpifnbbojhneepfflplebdkc")).Times(1);
+                                  "ihfokbkgjpifnbbojhneepfflplebdkc"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_DOWNLOADING,
                                   "ihfokbkgjpifnbbojhneepfflplebdkc"))
         .Times(AtLeast(1));
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_READY,
-                                  "ihfokbkgjpifnbbojhneepfflplebdkc")).Times(1);
+                                  "ihfokbkgjpifnbbojhneepfflplebdkc"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATED,
-                                  "ihfokbkgjpifnbbojhneepfflplebdkc")).Times(1);
+                                  "ihfokbkgjpifnbbojhneepfflplebdkc"))
+        .Times(1);
   }
 
   update_client->AddObserver(&observer);
@@ -1633,8 +1659,8 @@ TEST_F(UpdateClientTest, OneCrxInstallError) {
 
       unpack_path_ = unpack_path;
       EXPECT_TRUE(base::DirectoryExists(unpack_path_));
-      base::PostTask(
-          FROM_HERE, {base::ThreadPool(), base::MayBlock()},
+      base::PostTaskWithTraits(
+          FROM_HERE, {base::MayBlock()},
           base::BindOnce(std::move(callback),
                          CrxInstaller::Result(InstallError::GENERIC_ERROR)));
     }
@@ -1812,14 +1838,17 @@ TEST_F(UpdateClientTest, OneCrxInstallError) {
   {
     InSequence seq;
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_CHECKING_FOR_UPDATES,
-                                  "jebgalgnebhfojomionfpkfelancnnkf")).Times(1);
+                                  "jebgalgnebhfojomionfpkfelancnnkf"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_FOUND,
-                                  "jebgalgnebhfojomionfpkfelancnnkf")).Times(1);
+                                  "jebgalgnebhfojomionfpkfelancnnkf"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_DOWNLOADING,
                                   "jebgalgnebhfojomionfpkfelancnnkf"))
         .Times(AtLeast(1));
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_READY,
-                                  "jebgalgnebhfojomionfpkfelancnnkf")).Times(1);
+                                  "jebgalgnebhfojomionfpkfelancnnkf"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_ERROR,
                                   "jebgalgnebhfojomionfpkfelancnnkf"))
         .Times(1);
@@ -2097,28 +2126,36 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdateFailsFullUpdateSucceeds) {
   {
     InSequence seq;
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_CHECKING_FOR_UPDATES,
-                                  "ihfokbkgjpifnbbojhneepfflplebdkc")).Times(1);
+                                  "ihfokbkgjpifnbbojhneepfflplebdkc"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_FOUND,
-                                  "ihfokbkgjpifnbbojhneepfflplebdkc")).Times(1);
+                                  "ihfokbkgjpifnbbojhneepfflplebdkc"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_DOWNLOADING,
                                   "ihfokbkgjpifnbbojhneepfflplebdkc"))
         .Times(AtLeast(1));
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_READY,
-                                  "ihfokbkgjpifnbbojhneepfflplebdkc")).Times(1);
+                                  "ihfokbkgjpifnbbojhneepfflplebdkc"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATED,
-                                  "ihfokbkgjpifnbbojhneepfflplebdkc")).Times(1);
+                                  "ihfokbkgjpifnbbojhneepfflplebdkc"))
+        .Times(1);
 
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_CHECKING_FOR_UPDATES,
-                                  "ihfokbkgjpifnbbojhneepfflplebdkc")).Times(1);
+                                  "ihfokbkgjpifnbbojhneepfflplebdkc"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_FOUND,
-                                  "ihfokbkgjpifnbbojhneepfflplebdkc")).Times(1);
+                                  "ihfokbkgjpifnbbojhneepfflplebdkc"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_DOWNLOADING,
                                   "ihfokbkgjpifnbbojhneepfflplebdkc"))
         .Times(AtLeast(1));
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_READY,
-                                  "ihfokbkgjpifnbbojhneepfflplebdkc")).Times(1);
+                                  "ihfokbkgjpifnbbojhneepfflplebdkc"))
+        .Times(1);
     EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATED,
-                                  "ihfokbkgjpifnbbojhneepfflplebdkc")).Times(1);
+                                  "ihfokbkgjpifnbbojhneepfflplebdkc"))
+        .Times(1);
   }
 
   update_client->AddObserver(&observer);
@@ -2246,13 +2283,17 @@ TEST_F(UpdateClientTest, OneCrxNoUpdateQueuedCall) {
   MockObserver observer;
   InSequence seq;
   EXPECT_CALL(observer, OnEvent(Events::COMPONENT_CHECKING_FOR_UPDATES,
-                                "jebgalgnebhfojomionfpkfelancnnkf")).Times(1);
+                                "jebgalgnebhfojomionfpkfelancnnkf"))
+      .Times(1);
   EXPECT_CALL(observer, OnEvent(Events::COMPONENT_NOT_UPDATED,
-                                "jebgalgnebhfojomionfpkfelancnnkf")).Times(1);
+                                "jebgalgnebhfojomionfpkfelancnnkf"))
+      .Times(1);
   EXPECT_CALL(observer, OnEvent(Events::COMPONENT_CHECKING_FOR_UPDATES,
-                                "jebgalgnebhfojomionfpkfelancnnkf")).Times(1);
+                                "jebgalgnebhfojomionfpkfelancnnkf"))
+      .Times(1);
   EXPECT_CALL(observer, OnEvent(Events::COMPONENT_NOT_UPDATED,
-                                "jebgalgnebhfojomionfpkfelancnnkf")).Times(1);
+                                "jebgalgnebhfojomionfpkfelancnnkf"))
+      .Times(1);
 
   update_client->AddObserver(&observer);
 
@@ -2430,16 +2471,20 @@ TEST_F(UpdateClientTest, OneCrxInstall) {
   MockObserver observer;
   InSequence seq;
   EXPECT_CALL(observer, OnEvent(Events::COMPONENT_CHECKING_FOR_UPDATES,
-                                "jebgalgnebhfojomionfpkfelancnnkf")).Times(1);
+                                "jebgalgnebhfojomionfpkfelancnnkf"))
+      .Times(1);
   EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_FOUND,
-                                "jebgalgnebhfojomionfpkfelancnnkf")).Times(1);
+                                "jebgalgnebhfojomionfpkfelancnnkf"))
+      .Times(1);
   EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_DOWNLOADING,
                                 "jebgalgnebhfojomionfpkfelancnnkf"))
       .Times(AtLeast(1));
   EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATE_READY,
-                                "jebgalgnebhfojomionfpkfelancnnkf")).Times(1);
+                                "jebgalgnebhfojomionfpkfelancnnkf"))
+      .Times(1);
   EXPECT_CALL(observer, OnEvent(Events::COMPONENT_UPDATED,
-                                "jebgalgnebhfojomionfpkfelancnnkf")).Times(1);
+                                "jebgalgnebhfojomionfpkfelancnnkf"))
+      .Times(1);
 
   update_client->AddObserver(&observer);
 

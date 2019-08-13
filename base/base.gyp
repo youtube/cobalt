@@ -142,6 +142,8 @@
         'files/file_util.cc',
         'files/file_util.h',
         'files/file_util_starboard.cc',
+        'files/important_file_writer.cc',
+        'files/important_file_writer.h',
         'files/platform_file.h',
         'files/scoped_file.cc',
         'files/scoped_file.h',

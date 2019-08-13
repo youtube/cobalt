@@ -35,7 +35,7 @@ class JsonPrefStoreLossyWriteTest;
 class SequencedTaskRunner;
 class WriteCallbacksObserver;
 class Value;
-}
+}  // namespace base
 
 // A writable PrefStore implementation that is used for user preferences.
 class COMPONENTS_PREFS_EXPORT JsonPrefStore
@@ -67,9 +67,8 @@ class COMPONENTS_PREFS_EXPORT JsonPrefStore
   JsonPrefStore(const base::FilePath& pref_filename,
                 std::unique_ptr<PrefFilter> pref_filter = nullptr,
                 scoped_refptr<base::SequencedTaskRunner> file_task_runner =
-                    base::CreateSequencedTaskRunner(
-                        {base::ThreadPool(), base::MayBlock(),
-                         base::TaskPriority::USER_VISIBLE,
+                    base::CreateSequencedTaskRunnerWithTraits(
+                        {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
                          base::TaskShutdownBehavior::BLOCK_SHUTDOWN}));
 
   // PrefStore overrides:

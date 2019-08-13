@@ -30,8 +30,8 @@ class COMPONENTS_PREFS_EXPORT CommandLinePrefStore : public ValueMapPrefStore {
 
   // Apply command-line switches to the corresponding preferences of the switch
   // map, where the value associated with the switch is a string.
-  void ApplyStringSwitches(
-      const SwitchToPreferenceMapEntry string_switch_map[], size_t size);
+  void ApplyStringSwitches(const SwitchToPreferenceMapEntry string_switch_map[],
+                           size_t size);
 
   // Apply command-line switches to the corresponding preferences of the switch
   // map, where the value associated with the switch is a path.
@@ -41,14 +41,14 @@ class COMPONENTS_PREFS_EXPORT CommandLinePrefStore : public ValueMapPrefStore {
   // Apply command-line switches to the corresponding preferences of the switch
   // map, where the value associated with the switch is an integer.
   void ApplyIntegerSwitches(
-      const SwitchToPreferenceMapEntry integer_switch_map[], size_t size);
+      const SwitchToPreferenceMapEntry integer_switch_map[],
+      size_t size);
 
   // Apply command-line switches to the corresponding preferences of the
   // boolean switch map.
   void ApplyBooleanSwitches(
       const BooleanSwitchToPreferenceMapEntry boolean_switch_map[],
       size_t size);
-
 
  protected:
   explicit CommandLinePrefStore(const base::CommandLine* command_line);

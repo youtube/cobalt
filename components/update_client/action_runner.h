@@ -23,7 +23,7 @@ namespace base {
 class CommandLine;
 class Process;
 class SingleThreadTaskRunner;
-}
+}  // namespace base
 
 namespace update_client {
 

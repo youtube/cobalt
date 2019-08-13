@@ -48,8 +48,8 @@ void CommandLinePrefStore::ApplyIntegerSwitches(
     size_t size) {
   for (size_t i = 0; i < size; ++i) {
     if (command_line_->HasSwitch(integer_switch[i].switch_name)) {
-      std::string str_value = command_line_->GetSwitchValueASCII(
-          integer_switch[i].switch_name);
+      std::string str_value =
+          command_line_->GetSwitchValueASCII(integer_switch[i].switch_name);
       int int_value = 0;
       if (!base::StringToInt(str_value, &int_value)) {
         LOG(ERROR) << "The value " << str_value << " of "
@@ -65,8 +65,9 @@ void CommandLinePrefStore::ApplyIntegerSwitches(
 }
 
 void CommandLinePrefStore::ApplyBooleanSwitches(
-      const CommandLinePrefStore::BooleanSwitchToPreferenceMapEntry
-      boolean_switch_map[], size_t size) {
+    const CommandLinePrefStore::BooleanSwitchToPreferenceMapEntry
+        boolean_switch_map[],
+    size_t size) {
   for (size_t i = 0; i < size; ++i) {
     if (command_line_->HasSwitch(boolean_switch_map[i].switch_name)) {
       SetValue(boolean_switch_map[i].preference_path,

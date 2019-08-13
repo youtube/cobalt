@@ -75,9 +75,8 @@ void InstallComplete(
     InstallOnBlockingTaskRunnerCompleteCallback callback,
     const base::FilePath& unpack_path,
     const CrxInstaller::Result& result) {
-  base::PostTask(
-      FROM_HERE,
-      {base::ThreadPool(), base::TaskPriority::BEST_EFFORT, base::MayBlock()},
+  base::PostTaskWithTraits(
+      FROM_HERE, {base::TaskPriority::BEST_EFFORT, base::MayBlock()},
       base::BindOnce(
           [](scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
              InstallOnBlockingTaskRunnerCompleteCallback callback,
@@ -142,10 +141,11 @@ void UnpackCompleteOnBlockingTaskRunner(
     return;
   }
 
-  base::PostTask(FROM_HERE, kTaskTraits,
-                 base::BindOnce(&InstallOnBlockingTaskRunner, main_task_runner,
-                                result.unpack_path, result.public_key,
-                                fingerprint, installer, std::move(callback)));
+  base::PostTaskWithTraits(
+      FROM_HERE, kTaskTraits,
+      base::BindOnce(&InstallOnBlockingTaskRunner, main_task_runner,
+                     result.unpack_path, result.public_key, fingerprint,
+                     installer, std::move(callback)));
 }
 
 void StartInstallOnBlockingTaskRunner(
@@ -756,7 +756,7 @@ void Component::StateUpdatingDiff::DoHandle() {
 
   component.NotifyObservers(Events::COMPONENT_UPDATE_READY);
 
-  base::CreateSequencedTaskRunner(kTaskTraits)
+  base::CreateSequencedTaskRunnerWithTraits(kTaskTraits)
       ->PostTask(
           FROM_HERE,
           base::BindOnce(
@@ -818,7 +818,7 @@ void Component::StateUpdating::DoHandle() {
 
   component.NotifyObservers(Events::COMPONENT_UPDATE_READY);
 
-  base::CreateSequencedTaskRunner(kTaskTraits)
+  base::CreateSequencedTaskRunnerWithTraits(kTaskTraits)
       ->PostTask(FROM_HERE,
                  base::BindOnce(
                      &update_client::StartInstallOnBlockingTaskRunner,

@@ -33,6 +33,12 @@
             '<(DEPTH)/cobalt/browser/splash_screen/splash_screen.gyp:copy_splash_screen',
           ],
         }],
+        # TODO: fix std=c++14 to allow more platforms
+        ['target_os == "linux" and target_arch in ["x86", "x64"] and sb_target_platform not in ["linux-x64x11-clang-3-6", "linux-x86x11"]', {
+          'dependencies': [
+            '<(DEPTH)/cobalt/updater/updater.gyp:updater',
+          ],
+        }],
       ],
     },
     {

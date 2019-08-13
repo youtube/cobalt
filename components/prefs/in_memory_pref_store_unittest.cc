@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "base/test/task_environment.h"
+#include "base/test/scoped_task_environment.h"
 #include "base/values.h"
 #include "components/prefs/persistent_pref_store_unittest.h"
 #include "components/prefs/pref_store_observer_mock.h"
@@ -18,11 +18,12 @@ const char kTestPref[] = "test.pref";
 
 class InMemoryPrefStoreTest : public testing::Test {
  public:
-  InMemoryPrefStoreTest() { }
+  InMemoryPrefStoreTest() {}
 
   void SetUp() override { store_ = new InMemoryPrefStore(); }
+
  protected:
-  base::test::TaskEnvironment task_environment_;
+  base::test::ScopedTaskEnvironment scoped_task_environment_;
   scoped_refptr<InMemoryPrefStore> store_;
   PrefStoreObserverMock observer_;
 };
@@ -107,7 +108,7 @@ TEST_F(InMemoryPrefStoreTest, ReadPrefs) {
 }
 
 TEST_F(InMemoryPrefStoreTest, CommitPendingWriteWithCallback) {
-  TestCommitPendingWriteWithCallback(store_.get(), &task_environment_);
+  TestCommitPendingWriteWithCallback(store_.get(), &scoped_task_environment_);
 }
 
 }  // namespace

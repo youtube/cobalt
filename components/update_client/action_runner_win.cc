@@ -34,9 +34,10 @@ void ActionRunner::RunCommand(const base::CommandLine& cmdline) {
   options.start_hidden = true;
   base::Process process = base::LaunchProcess(cmdline, options);
 
-  base::PostTask(FROM_HERE, kTaskTraitsRunCommand,
-                 base::BindOnce(&ActionRunner::WaitForCommand,
-                                base::Unretained(this), std::move(process)));
+  base::PostTaskWithTraits(
+      FROM_HERE, kTaskTraitsRunCommand,
+      base::BindOnce(&ActionRunner::WaitForCommand, base::Unretained(this),
+                     std::move(process)));
 }
 
 void ActionRunner::WaitForCommand(base::Process process) {
@@ -66,7 +67,7 @@ base::CommandLine ActionRunner::MakeCommandLine(
 }
 
 void ActionRunner::RunRecoveryCRXElevated(const base::FilePath& crx_path) {
-  base::CreateCOMSTATaskRunner(
+  base::CreateCOMSTATaskRunnerWithTraits(
       kTaskTraitsRunCommand, base::SingleThreadTaskRunnerThreadMode::DEDICATED)
       ->PostTask(FROM_HERE,
                  base::BindOnce(&ActionRunner::RunRecoveryCRXElevatedInSTA,

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROME_UPDATER_PATCHER_H_
-#define CHROME_UPDATER_PATCHER_H_
+#ifndef COBALT_UPDATER_PATCHER_H_
+#define COBALT_UPDATER_PATCHER_H_
 
 #include <memory>
 
@@ -28,4 +28,4 @@ class PatcherFactory : public update_client::PatcherFactory {
 
 }  // namespace updater
 
-#endif  // CHROME_UPDATER_PATCHER_H_
+#endif  // COBALT_UPDATER_PATCHER_H_

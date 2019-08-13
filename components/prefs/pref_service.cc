@@ -117,9 +117,9 @@ PrefService::~PrefService() {
   // Export value of is_incognito_profile to a string so that `grep`
   // is a sufficient tool to analyze crashdumps.
   char is_incognito_profile_string[32];
-  strncpy(is_incognito_profile_string,
-          is_incognito_profile ? "is_incognito: yes" : "is_incognito: no",
-          sizeof(is_incognito_profile_string));
+  base::strlcpy(is_incognito_profile_string,
+                is_incognito_profile ? "is_incognito: yes" : "is_incognito: no",
+                sizeof(is_incognito_profile_string));
   base::debug::Alias(&is_incognito_profile_string);
 }
 

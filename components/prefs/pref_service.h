@@ -48,7 +48,7 @@ class ScopedDictionaryPrefUpdate;
 namespace subtle {
 class PrefMemberBase;
 class ScopedUserPrefUpdateBase;
-}
+}  // namespace subtle
 
 // Base class for PrefServices. You can use the base class to read and
 // interact with preferences, but not to register new preferences; for

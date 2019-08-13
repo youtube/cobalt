@@ -6,11 +6,9 @@
 
 #include "base/logging.h"
 #include "base/strings/stringprintf.h"
-#include "base/system/sys_info.h"
-#include "build/branding_buildflags.h"
+#include "base/sys_info.h"
 #include "build/build_config.h"
 #include "components/update_client/update_query_params_delegate.h"
-#include "components/version_info/version_info.h"
 
 #if defined(OS_WIN)
 #include "base/win/windows_version.h"
@@ -39,6 +37,8 @@ const char kOs[] =
     "fuchsia";
 #elif defined(OS_OPENBSD)
     "openbsd";
+#elif defined(OS_STARBOARD)
+    "starboard";
 #else
 #error "unknown os"
 #endif
@@ -64,11 +64,11 @@ const char kArch[] =
 
 const char kChrome[] = "chrome";
 
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-const char kCrx[] = "chromecrx";
+#if defined(GOOGLE_CHROME_BUILD)
+const char kChromeCrx[] = "chromecrx";
 #else
-const char kCrx[] = "chromiumcrx";
-#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
+const char kChromiumCrx[] = "chromiumcrx";
+#endif  // defined(GOOGLE_CHROME_BUILD)
 
 UpdateQueryParamsDelegate* g_delegate = nullptr;
 
@@ -78,7 +78,12 @@ UpdateQueryParamsDelegate* g_delegate = nullptr;
 std::string UpdateQueryParams::Get(ProdId prod) {
   return base::StringPrintf(
       "os=%s&arch=%s&os_arch=%s&nacl_arch=%s&prod=%s%s&acceptformat=crx2,crx3",
-      kOs, kArch, base::SysInfo().OperatingSystemArchitecture().c_str(),
+      kOs, kArch,
+#if !defined(OS_STARBOARD)
+      base::SysInfo().OperatingSystemArchitecture().c_str(),
+#else
+      "",
+#endif
       GetNaclArch(), GetProdIdString(prod),
       g_delegate ? g_delegate->GetExtraParams().c_str() : "");
 }
@@ -90,7 +95,11 @@ const char* UpdateQueryParams::GetProdIdString(UpdateQueryParams::ProdId prod) {
       return kChrome;
       break;
     case UpdateQueryParams::CRX:
-      return kCrx;
+#if defined(GOOGLE_CHROME_BUILD)
+      return kChromeCrx;
+#else
+      return kChromiumCrx;
+#endif
       break;
   }
   return kUnknown;
@@ -137,7 +146,9 @@ const char* UpdateQueryParams::GetNaclArch() {
 
 // static
 std::string UpdateQueryParams::GetProdVersion() {
-  return version_info::GetVersionNumber();
+  // TODO: fill in prod versoin number
+  // return version_info::GetVersionNumber();
+  return "0.0.1";
 }
 
 // static

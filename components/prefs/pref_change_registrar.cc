@@ -34,8 +34,8 @@ void PrefChangeRegistrar::Add(const std::string& path,
     NOTREACHED();
     return;
   }
-  DCHECK(!IsObserved(path)) << "Already had pref, \"" << path
-                            << "\", registered.";
+  DCHECK(!IsObserved(path))
+      << "Already had pref, \"" << path << "\", registered.";
 
   service_->AddPrefObserver(path, this);
   observers_[path] = obs;

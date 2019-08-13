@@ -18,7 +18,7 @@
 namespace base {
 class Value;
 class FilePath;
-}
+}  // namespace base
 
 // A simple implementation of PrefRegistry.
 class COMPONENTS_PREFS_EXPORT PrefRegistrySimple : public PrefRegistry {

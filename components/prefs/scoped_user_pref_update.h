@@ -21,7 +21,7 @@ class PrefService;
 namespace base {
 class DictionaryValue;
 class ListValue;
-}
+}  // namespace base
 
 namespace subtle {
 
@@ -85,17 +85,11 @@ class ScopedUserPrefUpdate : public subtle::ScopedUserPrefUpdateBase {
   // The ownership of the return value remains with the user pref store.
   // Virtual so it can be overriden in subclasses that transform the value
   // before returning it (for example to return a subelement of a dictionary).
-  virtual T* Get() {
-    return static_cast<T*>(GetValueOfType(type_enum_value));
-  }
+  virtual T* Get() { return static_cast<T*>(GetValueOfType(type_enum_value)); }
 
-  T& operator*() {
-    return *Get();
-  }
+  T& operator*() { return *Get(); }
 
-  T* operator->() {
-    return Get();
-  }
+  T* operator->() { return Get(); }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ScopedUserPrefUpdate);

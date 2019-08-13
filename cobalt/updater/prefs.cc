@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/updater/prefs.h"
+#include "cobalt/updater/prefs.h"
 
 #include "base/files/file_path.h"
 #include "base/memory/scoped_refptr.h"
-#include "chrome/updater/util.h"
+#include "cobalt/updater/util.h"
 #include "components/prefs/json_pref_store.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
@@ -17,8 +17,7 @@ namespace updater {
 
 std::unique_ptr<PrefService> CreatePrefService() {
   base::FilePath product_data_dir;
-  if (!GetProductDirectory(&product_data_dir))
-    return nullptr;
+  if (!GetProductDirectory(&product_data_dir)) return nullptr;
 
   PrefServiceFactory pref_service_factory;
   pref_service_factory.set_user_prefs(base::MakeRefCounted<JsonPrefStore>(

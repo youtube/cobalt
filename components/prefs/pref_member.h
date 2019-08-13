@@ -68,13 +68,9 @@ class COMPONENTS_PREFS_EXPORT PrefMemberBase : public PrefObserver {
     void MoveToSequence(scoped_refptr<base::SequencedTaskRunner> task_runner);
 
     // See PrefMember<> for description.
-    bool IsManaged() const {
-      return is_managed_;
-    }
+    bool IsManaged() const { return is_managed_; }
 
-    bool IsUserModifiable() const {
-      return is_user_modifiable_;
-    }
+    bool IsUserModifiable() const { return is_user_modifiable_; }
 
    protected:
     friend class base::RefCountedThreadSafe<Internal>;
@@ -116,9 +112,7 @@ class COMPONENTS_PREFS_EXPORT PrefMemberBase : public PrefObserver {
   void OnPreferenceChanged(PrefService* service,
                            const std::string& pref_name) override;
 
-  void VerifyValuePrefName() const {
-    DCHECK(!pref_name_.empty());
-  }
+  void VerifyValuePrefName() const { DCHECK(!pref_name_.empty()); }
 
   // This method is used to do the actual sync with the preference.
   // Note: it is logically const, because it doesn't modify the state
@@ -149,9 +143,9 @@ class COMPONENTS_PREFS_EXPORT PrefMemberBase : public PrefObserver {
 
 // This function implements StringListPrefMember::UpdateValue().
 // It is exposed here for testing purposes.
-bool COMPONENTS_PREFS_EXPORT PrefMemberVectorStringUpdate(
-    const base::Value& value,
-    std::vector<std::string>* string_vector);
+bool COMPONENTS_PREFS_EXPORT
+PrefMemberVectorStringUpdate(const base::Value& value,
+                             std::vector<std::string>* string_vector);
 
 }  // namespace subtle
 
@@ -188,9 +182,7 @@ class PrefMember : public subtle::PrefMemberBase {
   // and |IsUserModifiable| can still be called from the other sequence but
   // the results will no longer update from the PrefService.
   // This method should only be called on the UI thread.
-  void Destroy() {
-    subtle::PrefMemberBase::Destroy();
-  }
+  void Destroy() { subtle::PrefMemberBase::Destroy(); }
 
   // Moves the PrefMember to another sequence, allowing read accesses from
   // there. Changes from the PrefService will be propagated asynchronously
@@ -230,9 +222,7 @@ class PrefMember : public subtle::PrefMemberBase {
   }
 
   // Provided as a convenience.
-  ValueType operator*() const {
-    return GetValue();
-  }
+  ValueType operator*() const { return GetValue(); }
 
   // Set the value of the member variable.
   // This method should only be called on the UI thread.
@@ -244,9 +234,7 @@ class PrefMember : public subtle::PrefMemberBase {
   }
 
   // Returns the pref name.
-  const std::string& GetPrefName() const {
-    return pref_name();
-  }
+  const std::string& GetPrefName() const { return pref_name(); }
 
  private:
   class Internal : public subtle::PrefMemberBase::Internal {
@@ -310,8 +298,9 @@ COMPONENTS_PREFS_EXPORT bool PrefMember<int>::Internal::UpdateValueInternal(
     const base::Value& value) const;
 
 template <>
-COMPONENTS_PREFS_EXPORT void
-PrefMember<double>::UpdatePref(const double& value);
+
+COMPONENTS_PREFS_EXPORT void PrefMember<double>::UpdatePref(
+    const double& value);
 
 template <>
 COMPONENTS_PREFS_EXPORT bool PrefMember<double>::Internal::UpdateValueInternal(

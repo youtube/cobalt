@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/updater/unzipper.h"
+#include "cobalt/updater/unzipper.h"
 
 #include <utility>
+#include "base/callback.h"
 #include "base/files/file_path.h"
-#include "third_party/zlib/google/zip.h"
+// #include "third_party/zlib/google/zip.h"
 
 namespace updater {
 
@@ -16,10 +17,11 @@ class UnzipperImpl : public update_client::Unzipper {
  public:
   UnzipperImpl() = default;
 
-  void Unzip(const base::FilePath& zip_path,
-             const base::FilePath& output_path,
+  void Unzip(const base::FilePath& zip_path, const base::FilePath& output_path,
              UnzipCompleteCallback callback) override {
-    std::move(callback).Run(zip::Unzip(zip_path, output_path));
+    // TODO: zip::Unzip() is not ported to third_party/zlib yet.
+    // std::move(callback).Run(zip::Unzip(zip_path, output_path));
+    SB_NOTREACHED();
   }
 };
 

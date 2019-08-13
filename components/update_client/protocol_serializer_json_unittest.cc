@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "components/update_client/protocol_serializer_json.h"
-
 #include <memory>
 #include <string>
 #include <utility>
@@ -12,12 +10,12 @@
 #include "base/optional.h"
 #include "base/values.h"
 #include "base/version.h"
-#include "build/branding_buildflags.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/update_client/activity_data_service.h"
 #include "components/update_client/persisted_data.h"
 #include "components/update_client/protocol_definition.h"
 #include "components/update_client/protocol_serializer.h"
+#include "components/update_client/protocol_serializer_json.h"
 #include "components/update_client/updater_state.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/re2/src/re2/re2.h"
@@ -116,11 +114,11 @@ TEST(SerializeRequestJSON, UpdaterStateAttributes) {
       R"("os":{"arch":"[,-.\w]+","platform":"OS",("sp":"[\s\w]+",)?)"
       R"("version":"[-.\w]+"},"prodchannel":"channel","prodversion":"1.0",)"
       R"("protocol":"3.1","requestid":"{[-\w]{36}}","sessionid":"{[-\w]{36}}",)"
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+#if defined(GOOGLE_CHROME_BUILD)
       R"("updater":{"autoupdatecheckenabled":false,"ismachine":true,)"
       R"("lastchecked":2,"laststarted":1,"name":"Omaha","updatepolicy":-1,)"
       R"("version":"1\.2\.3\.4"},)"
-#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
+#endif  // GOOGLE_CHROME_BUILD
       R"("updaterchannel":"channel","updaterversion":"1.0"(,"wow64":true)?}})";
   EXPECT_TRUE(RE2::FullMatch(request, regex)) << request;
 }
