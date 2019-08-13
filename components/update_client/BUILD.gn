@@ -126,7 +126,6 @@ static_library("update_client") {
 
   deps = [
     "//base",
-    "//build:branding_buildflags",
     "//components/client_update_protocol",
     "//components/crx_file",
     "//components/prefs",
@@ -225,7 +224,6 @@ source_set("unit_tests") {
     ":unzip_impl",
     ":update_client",
     "//base",
-    "//build:branding_buildflags",
     "//components/crx_file",
     "//components/prefs",
     "//components/prefs:test_support",

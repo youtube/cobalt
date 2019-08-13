@@ -52,8 +52,8 @@ void InMemoryPrefStore::SetValue(const std::string& key,
 }
 
 void InMemoryPrefStore::SetValueSilently(const std::string& key,
-                                      std::unique_ptr<base::Value> value,
-                                      uint32_t flags) {
+                                         std::unique_ptr<base::Value> value,
+                                         uint32_t flags) {
   DCHECK(value);
   prefs_.SetValue(key, base::Value::FromUniquePtrValue(std::move(value)));
 }

@@ -12,14 +12,14 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/values.h"
+#include "components/courgette/courgette.h"
+#include "components/courgette/third_party/bsdiff/bsdiff.h"
 #include "components/services/patch/in_process_file_patcher.h"
 #include "components/update_client/component_patcher_operation.h"
 #include "components/update_client/component_patcher_unittest.h"
 #include "components/update_client/patch/patch_impl.h"
 #include "components/update_client/test_installer.h"
 #include "components/update_client/update_client_errors.h"
-#include "courgette/courgette.h"
-#include "courgette/third_party/bsdiff/bsdiff.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
@@ -64,7 +64,8 @@ base::FilePath test_file(const char* file) {
 namespace update_client {
 
 ComponentPatcherOperationTest::ComponentPatcherOperationTest()
-    : task_environment_(base::test::TaskEnvironment::MainThreadType::IO) {
+    : scoped_task_environment_(
+          base::test::ScopedTaskEnvironment::MainThreadType::IO) {
   EXPECT_TRUE(unpack_dir_.CreateUniqueTempDir());
   EXPECT_TRUE(input_dir_.CreateUniqueTempDir());
   EXPECT_TRUE(installed_dir_.CreateUniqueTempDir());
@@ -72,8 +73,7 @@ ComponentPatcherOperationTest::ComponentPatcherOperationTest()
       base::MakeRefCounted<ReadOnlyTestInstaller>(installed_dir_.GetPath());
 }
 
-ComponentPatcherOperationTest::~ComponentPatcherOperationTest() {
-}
+ComponentPatcherOperationTest::~ComponentPatcherOperationTest() {}
 
 // Verify that a 'create' delta update operation works correctly.
 TEST_F(ComponentPatcherOperationTest, CheckCreateOperation) {
@@ -93,7 +93,7 @@ TEST_F(ComponentPatcherOperationTest, CheckCreateOperation) {
   op->Run(command_args.get(), input_dir_.GetPath(), unpack_dir_.GetPath(),
           nullptr,
           base::BindOnce(&TestCallback::Set, base::Unretained(&callback)));
-  task_environment_.RunUntilIdle();
+  scoped_task_environment_.RunUntilIdle();
 
   EXPECT_EQ(true, callback.called_);
   EXPECT_EQ(UnpackerError::kNone, callback.error_);
@@ -121,7 +121,7 @@ TEST_F(ComponentPatcherOperationTest, CheckCopyOperation) {
   op->Run(command_args.get(), input_dir_.GetPath(), unpack_dir_.GetPath(),
           installer_.get(),
           base::BindOnce(&TestCallback::Set, base::Unretained(&callback)));
-  task_environment_.RunUntilIdle();
+  scoped_task_environment_.RunUntilIdle();
 
   EXPECT_EQ(true, callback.called_);
   EXPECT_EQ(UnpackerError::kNone, callback.error_);
@@ -158,7 +158,7 @@ TEST_F(ComponentPatcherOperationTest, CheckCourgetteOperation) {
   op->Run(command_args.get(), input_dir_.GetPath(), unpack_dir_.GetPath(),
           installer_.get(),
           base::BindOnce(&TestCallback::Set, base::Unretained(&callback)));
-  task_environment_.RunUntilIdle();
+  scoped_task_environment_.RunUntilIdle();
 
   EXPECT_EQ(true, callback.called_);
   EXPECT_EQ(UnpackerError::kNone, callback.error_);
@@ -196,7 +196,7 @@ TEST_F(ComponentPatcherOperationTest, CheckBsdiffOperation) {
   op->Run(command_args.get(), input_dir_.GetPath(), unpack_dir_.GetPath(),
           installer_.get(),
           base::BindOnce(&TestCallback::Set, base::Unretained(&callback)));
-  task_environment_.RunUntilIdle();
+  scoped_task_environment_.RunUntilIdle();
 
   EXPECT_EQ(true, callback.called_);
   EXPECT_EQ(UnpackerError::kNone, callback.error_);

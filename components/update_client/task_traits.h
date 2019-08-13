@@ -10,16 +10,16 @@
 namespace update_client {
 
 constexpr base::TaskTraits kTaskTraits = {
-    base::ThreadPool(), base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+    base::MayBlock(), base::TaskPriority::BEST_EFFORT,
     base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN};
 
 constexpr base::TaskTraits kTaskTraitsBackgroundDownloader = {
-    base::ThreadPool(), base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+    base::MayBlock(), base::TaskPriority::BEST_EFFORT,
     base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN};
 
 // This task joins a process, hence .WithBaseSyncPrimitives().
 constexpr base::TaskTraits kTaskTraitsRunCommand = {
-    base::ThreadPool(), base::MayBlock(), base::WithBaseSyncPrimitives(),
+    base::MayBlock(), base::WithBaseSyncPrimitives(),
     base::TaskPriority::BEST_EFFORT,
     base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN};
 

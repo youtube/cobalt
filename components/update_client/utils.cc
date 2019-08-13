@@ -69,7 +69,7 @@ bool VerifyFileHash256(const base::FilePath& filepath,
       expected_hash.size() != crypto::kSHA256Length) {
     return false;
   }
-
+#if !defined(OS_STARBOARD)
   base::MemoryMappedFile mmfile;
   if (!mmfile.Initialize(filepath))
     return false;
@@ -81,6 +81,10 @@ bool VerifyFileHash256(const base::FilePath& filepath,
   hasher->Finish(actual_hash, sizeof(actual_hash));
 
   return memcmp(actual_hash, &expected_hash[0], sizeof(actual_hash)) == 0;
+#else
+  // TODO: compute the hash without using base::MemoryMappedFile
+  return false;
+#endif
 }
 
 bool IsValidBrand(const std::string& brand) {

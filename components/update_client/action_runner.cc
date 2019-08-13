@@ -13,6 +13,7 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/task/post_task.h"
+#include "base/threading/sequenced_task_runner_handle.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "build/build_config.h"
 #include "components/crx_file/crx_verifier.h"
@@ -40,7 +41,7 @@ void ActionRunner::Run(Callback run_complete) {
 
   run_complete_ = std::move(run_complete);
 
-  base::CreateSequencedTaskRunner(kTaskTraits)
+  base::CreateSequencedTaskRunnerWithTraits(kTaskTraits)
       ->PostTask(
           FROM_HERE,
           base::BindOnce(&ActionRunner::RunOnTaskRunner, base::Unretained(this),

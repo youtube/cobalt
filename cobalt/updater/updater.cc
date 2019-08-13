@@ -2,81 +2,67 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/updater/updater.h"
+#include "cobalt/updater/updater.h"
 
-#include <stdint.h>
-
-#include <iterator>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "base/at_exit.h"
-#include "base/bind.h"
+#include "base/callback_forward.h"
 #include "base/command_line.h"
-#include "base/files/file_path.h"
 #include "base/logging.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/message_loop/message_pump_type.h"
+#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/run_loop.h"
 #include "base/stl_util.h"
+#include "base/sys_info.h"
 #include "base/task/post_task.h"
-#include "base/task/single_thread_task_executor.h"
-#include "base/task/thread_pool/thread_pool.h"
+#include "base/task/task_scheduler/initialization_util.h"
+#include "base/task/task_scheduler/task_scheduler.h"
 #include "base/task_runner.h"
 #include "base/threading/platform_thread.h"
-#include "base/threading/thread_restrictions.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/time/time.h"
-#include "build/build_config.h"
-#include "chrome/updater/configurator.h"
-#include "chrome/updater/crash_client.h"
-#include "chrome/updater/crash_reporter.h"
-#include "chrome/updater/installer.h"
-#include "chrome/updater/updater_constants.h"
-#include "chrome/updater/updater_version.h"
-#include "chrome/updater/util.h"
-#include "components/crash/core/common/crash_key.h"
+#include "cobalt/updater/configurator.h"
+#include "cobalt/updater/crash_client.h"
+#include "cobalt/updater/crash_reporter.h"
 #include "components/prefs/pref_service.h"
 #include "components/update_client/crx_update_item.h"
 #include "components/update_client/update_client.h"
+#include "starboard/event.h"
 
-#if defined(OS_WIN)
-#include "chrome/updater/win/setup/setup.h"
-#include "chrome/updater/win/setup/uninstall.h"
-#endif
+// For testing, CRX id is jebgalgnebhfojomionfpkfelancnnkf.
+const uint8_t jebg_hash[] = {0x94, 0x16, 0x0b, 0x6d, 0x41, 0x75, 0xe9, 0xec,
+                             0x8e, 0xd5, 0xfa, 0x54, 0xb0, 0xd2, 0xdd, 0xa5,
+                             0x6e, 0x05, 0x6b, 0xe8, 0x73, 0x47, 0xf6, 0xc4,
+                             0x11, 0x9f, 0xbc, 0xb3, 0x09, 0xb3, 0x5b, 0x40};
 
-// To install the updater, run:
-// "updater.exe --install --enable-logging --v=1 --vmodule=*/chrome/updater/*"
-// from the build directory. The program needs a number of dependencies which
-// are available in the build out directory.
-// To uninstall, run "updater.exe --uninstall" from its install directory or
-// from the build out directory. Doing this will make the program delete its
-// install directory using a shim cmd script.
-namespace updater {
-
-namespace {
-
-// For now, use the Flash CRX for testing.
-// CRX id is mimojjlkmoijpicakmndhoigimigcmbb.
-const uint8_t mimo_hash[] = {0xc8, 0xce, 0x99, 0xba, 0xce, 0x89, 0xf8, 0x20,
-                             0xac, 0xd3, 0x7e, 0x86, 0x8c, 0x86, 0x2c, 0x11,
-                             0xb9, 0x40, 0xc5, 0x55, 0xaf, 0x08, 0x63, 0x70,
-                             0x54, 0xf9, 0x56, 0xd3, 0xe7, 0x88, 0xba, 0x8c};
-
-void ThreadPoolStart() {
-  base::ThreadPoolInstance::CreateAndStartWithDefaultParams("Updater");
+// TODO: adjust config values if necessary.
+void TaskSchedulerStart() {
+  base::TaskScheduler::Create("Updater");
+  const auto task_scheduler_init_params =
+      std::make_unique<base::TaskScheduler::InitParams>(
+          base::SchedulerWorkerPoolParams(
+              base::RecommendedMaxNumberOfThreadsInPool(3, 8, 0.1, 0),
+              base::TimeDelta::FromSeconds(30)),
+          base::SchedulerWorkerPoolParams(
+              base::RecommendedMaxNumberOfThreadsInPool(3, 8, 0.1, 0),
+              base::TimeDelta::FromSeconds(40)),
+          base::SchedulerWorkerPoolParams(
+              base::RecommendedMaxNumberOfThreadsInPool(8, 32, 0.3, 0),
+              base::TimeDelta::FromSeconds(30)),
+          base::SchedulerWorkerPoolParams(
+              base::RecommendedMaxNumberOfThreadsInPool(8, 32, 0.3, 0),
+              base::TimeDelta::FromSeconds(60)));
+  base::TaskScheduler::GetInstance()->Start(*task_scheduler_init_params);
 }
 
-void ThreadPoolStop() {
-  base::ThreadPoolInstance::Get()->Shutdown();
-}
+void TaskSchedulerStop() { base::TaskScheduler::GetInstance()->Shutdown(); }
 
-void QuitLoop(base::OnceClosure quit_closure) {
-  std::move(quit_closure).Run();
-}
+void QuitLoop(base::OnceClosure quit_closure) { std::move(quit_closure).Run(); }
 
 class Observer : public update_client::UpdateClient::Observer {
  public:
@@ -98,173 +84,70 @@ class Observer : public update_client::UpdateClient::Observer {
   DISALLOW_COPY_AND_ASSIGN(Observer);
 };
 
-// The log file is created in DIR_LOCAL_APP_DATA or DIR_APP_DATA.
-void InitLogging(const base::CommandLine& command_line) {
-  logging::LoggingSettings settings;
-  base::FilePath log_dir;
-  GetProductDirectory(&log_dir);
-  const auto log_file = log_dir.Append(FILE_PATH_LITERAL("updater.log"));
-  settings.log_file_path = log_file.value().c_str();
-  settings.logging_dest = logging::LOG_TO_ALL;
-  logging::InitLogging(settings);
-  logging::SetLogItems(true,    // enable_process_id
-                       true,    // enable_thread_id
-                       true,    // enable_timestamp
-                       false);  // enable_tickcount
-  VLOG(1) << "Log file " << settings.log_file_path;
-}
+void Return5() {}
 
-void InitializeUpdaterMain() {
-  crash_reporter::InitializeCrashKeys();
-
-  static crash_reporter::CrashKeyString<16> crash_key_process_type(
-      "process_type");
-  crash_key_process_type.Set("updater");
-
-  if (CrashClient::GetInstance()->InitializeCrashReporting())
-    VLOG(1) << "Crash reporting initialized.";
-  else
-    VLOG(1) << "Crash reporting is not available.";
-
-  StartCrashReporter(UPDATER_VERSION_STRING);
-
-  ThreadPoolStart();
-}
-
-void TerminateUpdaterMain() {
-  ThreadPoolStop();
-}
-
-int UpdaterInstall() {
-#if defined(OS_WIN)
-  return Setup();
-#else
-  return -1;
-#endif
-}
-
-int UpdaterUninstall() {
-#if defined(OS_WIN)
-  return Uninstall();
-#else
-  return -1;
-#endif
-}
-
-int UpdaterUpdateApps() {
-  auto installer = base::MakeRefCounted<Installer>(
-      std::vector<uint8_t>(std::cbegin(mimo_hash), std::cend(mimo_hash)));
-  installer->FindInstallOfApp();
-  const auto component = installer->MakeCrxComponent();
-
-  base::SingleThreadTaskExecutor main_task_executor(base::MessagePumpType::UI);
-  base::RunLoop runloop;
-  DCHECK(base::ThreadTaskRunnerHandle::IsSet());
-
-  auto config = base::MakeRefCounted<Configurator>();
-  {
-    base::ScopedDisallowBlocking no_blocking_allowed;
-
-    auto update_client = update_client::UpdateClientFactory(config);
-
-    Observer observer(update_client);
-    update_client->AddObserver(&observer);
-
-    const std::vector<std::string> ids = {installer->crx_id()};
-    update_client->Update(
-        ids,
-        base::BindOnce(
-            [](const update_client::CrxComponent& component,
-               const std::vector<std::string>& ids)
-                -> std::vector<base::Optional<update_client::CrxComponent>> {
-              DCHECK_EQ(1u, ids.size());
-              return {component};
-            },
-            component),
-        true,
-        base::BindOnce(
-            [](base::OnceClosure closure, update_client::Error error) {
-              base::ThreadTaskRunnerHandle::Get()->PostTask(
-                  FROM_HERE, base::BindOnce(&QuitLoop, std::move(closure)));
-            },
-            runloop.QuitWhenIdleClosure()));
-
-    runloop.Run();
-
-    const auto& update_item = observer.crx_update_item();
-    switch (update_item.state) {
-      case update_client::ComponentState::kUpdated:
-        VLOG(1) << "Update success.";
-        break;
-      case update_client::ComponentState::kUpToDate:
-        VLOG(1) << "No updates.";
-        break;
-      case update_client::ComponentState::kUpdateError:
-        VLOG(1) << "Updater error: " << update_item.error_code << ".";
-        break;
-      default:
-        NOTREACHED();
-        break;
-    }
-    update_client->RemoveObserver(&observer);
-    update_client = nullptr;
-  }
-
-  {
-    base::RunLoop runloop;
-    config->GetPrefService()->CommitPendingWrite(base::BindOnce(
-        [](base::OnceClosure quit_closure) { std::move(quit_closure).Run(); },
-        runloop.QuitWhenIdleClosure()));
-    runloop.Run();
-  }
-
-  return 0;
-}
-
-}  // namespace
-
-int HandleUpdaterCommands(const base::CommandLine* command_line) {
-  DCHECK(!command_line->HasSwitch(kCrashHandlerSwitch));
-
-  if (command_line->HasSwitch(kCrashMeSwitch)) {
-    int* ptr = nullptr;
-    return *ptr;
-  }
-
-  if (command_line->HasSwitch(kInstallSwitch)) {
-    return UpdaterInstall();
-  }
-
-  if (command_line->HasSwitch(kUninstallSwitch)) {
-    return UpdaterUninstall();
-  }
-
-  if (command_line->HasSwitch(kUpdateAppsSwitch)) {
-    return UpdaterUpdateApps();
-  }
-
-  VLOG(1) << "Unknown command line switch.";
-  return -1;
+namespace {
+// TODO: initiate an updater_module in browser/application.h, and bind these
+// variables
+base::MessageLoopForUI* g_loop = nullptr;
+scoped_refptr<update_client::UpdateClient> uclient;
+Observer* observer = nullptr;
 }
 
 int UpdaterMain(int argc, const char* const* argv) {
-  base::PlatformThread::SetName("UpdaterMain");
   base::AtExitManager exit_manager;
 
-  base::CommandLine::Init(argc, argv);
-  const auto* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(kTestSwitch))
-    return 0;
+  // TODO: enable crash report with dependency on CrashPad
 
-  InitLogging(*command_line);
+  // updater::crash_reporter::InitializeCrashKeys();
 
-  if (command_line->HasSwitch(kCrashHandlerSwitch))
-    return CrashReporterMain();
+  // static crash_reporter::CrashKeyString<16> crash_key_process_type(
+  //     "process_type");
+  // crash_key_process_type.Set("updater");
 
-  InitializeUpdaterMain();
-  const auto result = HandleUpdaterCommands(command_line);
-  TerminateUpdaterMain();
-  return result;
+  // if (CrashClient::GetInstance()->InitializeCrashReporting())
+  //   VLOG(1) << "Crash reporting initialized.";
+  // else
+  //   VLOG(1) << "Crash reporting is not available.";
+
+  // StartCrashReporter(UPDATER_VERSION_STRING);
+
+  TaskSchedulerStart();
+
+  g_loop = new base::MessageLoopForUI();
+  g_loop->Start();
+
+  DCHECK(base::ThreadTaskRunnerHandle::IsSet());
+  base::PlatformThread::SetName("UpdaterMain");
+
+  auto config = base::MakeRefCounted<updater::Configurator>();
+  uclient = update_client::UpdateClientFactory(config);
+  observer = new Observer(uclient);
+  uclient->AddObserver(observer);
+
+  const std::vector<std::string> ids = {"jebgalgnebhfojomionfpkfelancnnkf"};
+
+  base::Closure func_cb = base::Bind(&Return5);
+
+  uclient->Update(
+      ids,
+      base::BindOnce(
+          [](const std::vector<std::string>& ids)
+              -> std::vector<base::Optional<update_client::CrxComponent>> {
+            update_client::CrxComponent component;
+            component.name = "jebg";
+            component.pk_hash.assign(jebg_hash,
+                                     jebg_hash + base::size(jebg_hash));
+            component.version = base::Version("0.0");
+            return {component};
+          }),
+      true,
+      base::BindOnce(
+          [](base::OnceClosure closure, update_client::Error error) {
+            base::ThreadTaskRunnerHandle::Get()->PostTask(
+                FROM_HERE, base::BindOnce(&QuitLoop, std::move(closure)));
+          },
+          func_cb));
+
+  return 0;
 }
-
-}  // namespace updater

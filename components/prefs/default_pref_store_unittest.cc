@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/macros.h"
 #include "components/prefs/default_pref_store.h"
+#include "base/macros.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using base::Value;
@@ -15,9 +15,7 @@ class MockPrefStoreObserver : public PrefStore::Observer {
   explicit MockPrefStoreObserver(DefaultPrefStore* pref_store);
   ~MockPrefStoreObserver() override;
 
-  int change_count() {
-    return change_count_;
-  }
+  int change_count() { return change_count_; }
 
   // PrefStore::Observer implementation:
   void OnPrefValueChanged(const std::string& key) override;
@@ -63,4 +61,3 @@ TEST(DefaultPrefStoreTest, NotifyPrefValueChanged) {
   pref_store->ReplaceDefaultValue(kPrefKey, Value("bar"));
   EXPECT_EQ(1, observer.change_count());
 }
-

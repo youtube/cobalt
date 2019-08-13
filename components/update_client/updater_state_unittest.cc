@@ -3,11 +3,9 @@
 // found in the LICENSE file.
 
 #include "components/update_client/updater_state.h"
-
 #include "base/macros.h"
 #include "base/time/time.h"
 #include "base/version.h"
-#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -44,7 +42,7 @@ TEST_F(UpdaterStateTest, Serialize) {
   EXPECT_STREQ("1", attributes.at("autoupdatecheckenabled").c_str());
   EXPECT_STREQ("1", attributes.at("updatepolicy").c_str());
 
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+#if defined(GOOGLE_CHROME_BUILD)
 #if defined(OS_WIN)
   // The value of "ismachine".
   EXPECT_STREQ("0", UpdaterState::GetState(false)->at("ismachine").c_str());
@@ -58,7 +56,7 @@ TEST_F(UpdaterStateTest, Serialize) {
   EXPECT_EQ(0UL, UpdaterState::GetState(true)->count("ismachine"));
   EXPECT_STREQ("Keystone", UpdaterState::GetState(false)->at("name").c_str());
 #endif  // OS_WIN
-#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
+#endif  // GOOGLE_CHROME_BUILD
 
   // Tests some of the remaining values.
   updater_state = UpdaterState(false);

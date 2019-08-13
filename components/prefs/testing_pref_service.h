@@ -113,7 +113,7 @@ class TestingPrefServiceSimple
   DISALLOW_COPY_AND_ASSIGN(TestingPrefServiceSimple);
 };
 
-template<>
+template <>
 TestingPrefServiceBase<PrefService, PrefRegistry>::TestingPrefServiceBase(
     TestingPrefStore* managed_prefs,
     TestingPrefStore* extension_prefs,
@@ -122,10 +122,9 @@ TestingPrefServiceBase<PrefService, PrefRegistry>::TestingPrefServiceBase(
     PrefRegistry* pref_registry,
     PrefNotifierImpl* pref_notifier);
 
-template<class SuperPrefService, class ConstructionPrefRegistry>
-TestingPrefServiceBase<
-    SuperPrefService, ConstructionPrefRegistry>::~TestingPrefServiceBase() {
-}
+template <class SuperPrefService, class ConstructionPrefRegistry>
+TestingPrefServiceBase<SuperPrefService,
+                       ConstructionPrefRegistry>::~TestingPrefServiceBase() {}
 
 template <class SuperPrefService, class ConstructionPrefRegistry>
 const base::Value* TestingPrefServiceBase<

@@ -12,14 +12,14 @@
 #include "base/task/post_task.h"
 #include "base/task/task_traits.h"
 #include "base/values.h"
+
 #include "components/update_client/update_client_errors.h"
 #include "components/update_client/utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace update_client {
 
-TestInstaller::TestInstaller() : error_(0), install_count_(0) {
-}
+TestInstaller::TestInstaller() : error_(0), install_count_(0) {}
 
 TestInstaller::~TestInstaller() {
   // The unpack path is deleted unconditionally by the component state code,
@@ -44,8 +44,8 @@ void TestInstaller::Install(const base::FilePath& unpack_path,
 
 void TestInstaller::InstallComplete(Callback callback,
                                     const Result& result) const {
-  base::PostTask(FROM_HERE, {base::ThreadPool(), base::MayBlock()},
-                 base::BindOnce(std::move(callback), result));
+  base::PostTaskWithTraits(FROM_HERE, {base::MayBlock()},
+                           base::BindOnce(std::move(callback), result));
 }
 
 bool TestInstaller::GetInstalledFile(const std::string& file,
@@ -58,11 +58,9 @@ bool TestInstaller::Uninstall() {
 }
 
 ReadOnlyTestInstaller::ReadOnlyTestInstaller(const base::FilePath& install_dir)
-    : install_directory_(install_dir) {
-}
+    : install_directory_(install_dir) {}
 
-ReadOnlyTestInstaller::~ReadOnlyTestInstaller() {
-}
+ReadOnlyTestInstaller::~ReadOnlyTestInstaller() {}
 
 bool ReadOnlyTestInstaller::GetInstalledFile(const std::string& file,
                                              base::FilePath* installed_file) {

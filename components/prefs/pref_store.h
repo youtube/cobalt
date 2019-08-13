@@ -15,7 +15,7 @@
 namespace base {
 class DictionaryValue;
 class Value;
-}
+}  // namespace base
 
 // This is an abstract interface for reading and writing from/to a persistent
 // preference store, used by PrefService. An implementation using a JSON file

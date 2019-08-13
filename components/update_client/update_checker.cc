@@ -130,7 +130,7 @@ void UpdateCheckerImpl::CheckForUpdates(
   ids_checked_ = ids_checked;
   update_check_callback_ = std::move(update_check_callback);
 
-  base::PostTaskAndReply(
+  base::PostTaskWithTraitsAndReply(
       FROM_HERE, kTaskTraits,
       base::BindOnce(&UpdateCheckerImpl::ReadUpdaterStateAttributes,
                      base::Unretained(this)),
@@ -224,10 +224,9 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
                      base::Unretained(this)));
 }
 
-void UpdateCheckerImpl::OnRequestSenderComplete(
-    int error,
-    const std::string& response,
-    int retry_after_sec) {
+void UpdateCheckerImpl::OnRequestSenderComplete(int error,
+                                                const std::string& response,
+                                                int retry_after_sec) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   if (error) {

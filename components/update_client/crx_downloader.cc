@@ -30,8 +30,7 @@ CrxDownloader::DownloadMetrics::DownloadMetrics()
       error(0),
       downloaded_bytes(-1),
       total_bytes(-1),
-      download_time_ms(0) {
-}
+      download_time_ms(0) {}
 
 // On Windows, the first downloader in the chain is a background downloader,
 // which uses the BITS service.
@@ -120,7 +119,7 @@ void CrxDownloader::OnDownloadComplete(
   DCHECK(thread_checker_.CalledOnValidThread());
 
   if (!result.error)
-    base::PostTask(
+    base::PostTaskWithTraits(
         FROM_HERE, kTaskTraits,
         base::BindOnce(&CrxDownloader::VerifyResponse, base::Unretained(this),
                        is_handled, result, download_metrics));

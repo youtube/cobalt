@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/updater/crash_reporter.h"
+#include "cobalt/updater/crash_reporter.h"
 
 #include <map>
 #include <memory>
@@ -17,11 +17,11 @@
 #include "base/strings/string16.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
-#include "chrome/updater/updater_constants.h"
-#include "chrome/updater/updater_version.h"
-#include "chrome/updater/util.h"
-#include "third_party/crashpad/crashpad/client/crashpad_client.h"
-#include "third_party/crashpad/crashpad/handler/handler_main.h"
+#include "cobalt/updater/updater_constants.h"
+// #include "cobalt/updater/updater_version.h"
+#include "cobalt/updater/util.h"
+// #include "third_party/crashpad/crashpad/client/crashpad_client.h"
+// #include "third_party/crashpad/crashpad/handler/handler_main.h"
 
 namespace {
 

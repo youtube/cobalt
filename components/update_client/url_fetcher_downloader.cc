@@ -21,7 +21,7 @@
 namespace {
 
 constexpr base::TaskTraits kTaskTraits = {
-    base::ThreadPool(), base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+    base::MayBlock(), base::TaskPriority::BEST_EFFORT,
     base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN};
 
 }  // namespace
@@ -40,7 +40,7 @@ UrlFetcherDownloader::~UrlFetcherDownloader() {
 
 void UrlFetcherDownloader::DoStartDownload(const GURL& url) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  base::PostTaskAndReply(
+  base::PostTaskWithTraitsAndReply(
       FROM_HERE, kTaskTraits,
       base::BindOnce(&UrlFetcherDownloader::CreateDownloadDir,
                      base::Unretained(this)),
@@ -136,7 +136,7 @@ void UrlFetcherDownloader::OnNetworkFetcherComplete(base::FilePath file_path,
 
   // Delete the download directory in the error cases.
   if (error && !download_dir_.empty())
-    base::PostTask(
+    base::PostTaskWithTraits(
         FROM_HERE, kTaskTraits,
         base::BindOnce(IgnoreResult(&base::DeleteFile), download_dir_, true));
 

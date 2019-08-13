@@ -365,17 +365,13 @@ TEST(PrefServiceTest, WriteablePrefStoreFlags) {
     uint32_t write_flags;
   };
   const RegistrationToWriteFlags kRegistrationToWriteFlags[] = {
-      {"none",
-       PrefRegistry::NO_REGISTRATION_FLAGS,
+      {"none", PrefRegistry::NO_REGISTRATION_FLAGS,
        WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS},
-      {"lossy",
-       PrefRegistry::LOSSY_PREF,
+      {"lossy", PrefRegistry::LOSSY_PREF,
        WriteablePrefStore::LOSSY_PREF_WRITE_FLAG},
-      {"custom",
-       kCustomRegistrationFlag,
+      {"custom", kCustomRegistrationFlag,
        WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS},
-      {"lossyandcustom",
-       PrefRegistry::LOSSY_PREF | kCustomRegistrationFlag,
+      {"lossyandcustom", PrefRegistry::LOSSY_PREF | kCustomRegistrationFlag,
        WriteablePrefStore::LOSSY_PREF_WRITE_FLAG}};
 
   for (size_t i = 0; i < base::size(kRegistrationToWriteFlags); ++i) {

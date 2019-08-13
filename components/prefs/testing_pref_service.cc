@@ -51,8 +51,7 @@ TestingPrefServiceSimple::TestingPrefServiceSimple()
           new PrefRegistrySimple(),
           new PrefNotifierImpl()) {}
 
-TestingPrefServiceSimple::~TestingPrefServiceSimple() {
-}
+TestingPrefServiceSimple::~TestingPrefServiceSimple() {}
 
 PrefRegistrySimple* TestingPrefServiceSimple::registry() {
   return static_cast<PrefRegistrySimple*>(DeprecatedGetPrefRegistry());

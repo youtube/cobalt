@@ -15,12 +15,12 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/task/post_task.h"
 #include "base/threading/sequenced_task_runner_handle.h"
+#include "components/courgette/courgette.h"
+#include "components/courgette/third_party/bsdiff/bsdiff.h"
 #include "components/update_client/patcher.h"
 #include "components/update_client/update_client.h"
 #include "components/update_client/update_client_errors.h"
 #include "components/update_client/utils.h"
-#include "courgette/courgette.h"
-#include "courgette/third_party/bsdiff/bsdiff.h"
 
 namespace update_client {
 
@@ -53,11 +53,9 @@ DeltaUpdateOp* CreateDeltaUpdateOp(const std::string& operation,
   return nullptr;
 }
 
-DeltaUpdateOp::DeltaUpdateOp() {
-}
+DeltaUpdateOp::DeltaUpdateOp() {}
 
-DeltaUpdateOp::~DeltaUpdateOp() {
-}
+DeltaUpdateOp::~DeltaUpdateOp() {}
 
 void DeltaUpdateOp::Run(const base::DictionaryValue* command_args,
                         const base::FilePath& input_dir,
@@ -108,11 +106,9 @@ UnpackerError DeltaUpdateOp::CheckHash() {
              : UnpackerError::kDeltaVerificationFailure;
 }
 
-DeltaUpdateOpCopy::DeltaUpdateOpCopy() {
-}
+DeltaUpdateOpCopy::DeltaUpdateOpCopy() {}
 
-DeltaUpdateOpCopy::~DeltaUpdateOpCopy() {
-}
+DeltaUpdateOpCopy::~DeltaUpdateOpCopy() {}
 
 UnpackerError DeltaUpdateOpCopy::DoParseArguments(
     const base::DictionaryValue* command_args,
@@ -135,11 +131,9 @@ void DeltaUpdateOpCopy::DoRun(ComponentPatcher::Callback callback) {
     std::move(callback).Run(UnpackerError::kNone, 0);
 }
 
-DeltaUpdateOpCreate::DeltaUpdateOpCreate() {
-}
+DeltaUpdateOpCreate::DeltaUpdateOpCreate() {}
 
-DeltaUpdateOpCreate::~DeltaUpdateOpCreate() {
-}
+DeltaUpdateOpCreate::~DeltaUpdateOpCreate() {}
 
 UnpackerError DeltaUpdateOpCreate::DoParseArguments(
     const base::DictionaryValue* command_args,
@@ -156,10 +150,14 @@ UnpackerError DeltaUpdateOpCreate::DoParseArguments(
 }
 
 void DeltaUpdateOpCreate::DoRun(ComponentPatcher::Callback callback) {
+#if !defined(OS_STARBOARD)
   if (!base::Move(patch_abs_path_, output_abs_path_))
     std::move(callback).Run(UnpackerError::kDeltaOperationFailure, 0);
   else
     std::move(callback).Run(UnpackerError::kNone, 0);
+#else
+  std::move(callback).Run(UnpackerError::kDeltaOperationFailure, 0);
+#endif
 }
 
 DeltaUpdateOpPatch::DeltaUpdateOpPatch(const std::string& operation,
@@ -168,8 +166,7 @@ DeltaUpdateOpPatch::DeltaUpdateOpPatch(const std::string& operation,
   DCHECK(operation == kBsdiff || operation == kCourgette);
 }
 
-DeltaUpdateOpPatch::~DeltaUpdateOpPatch() {
-}
+DeltaUpdateOpPatch::~DeltaUpdateOpPatch() {}
 
 UnpackerError DeltaUpdateOpPatch::DoParseArguments(
     const base::DictionaryValue* command_args,

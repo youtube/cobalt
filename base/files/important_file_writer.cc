@@ -198,7 +198,9 @@ bool ImportantFileWriter::WriteFileAtomically(const FilePath& path,
   }
 
   base::File::Error replace_file_error = base::File::FILE_OK;
+#if !defined(OS_STARBOARD)
   if (!ReplaceFile(tmp_file_path, path, &replace_file_error)) {
+#endif
     UmaHistogramExactLinearWithSuffix("ImportantFile.FileRenameError",
                                       histogram_suffix, -replace_file_error,
                                       -base::File::FILE_ERROR_MAX);
@@ -206,9 +208,11 @@ bool ImportantFileWriter::WriteFileAtomically(const FilePath& path,
                "could not rename temporary file");
     DeleteTmpFile(tmp_file_path, histogram_suffix);
     return false;
+#if !defined(OS_STARBOARD)
   }
 
   return true;
+#endif
 }
 
 ImportantFileWriter::ImportantFileWriter(

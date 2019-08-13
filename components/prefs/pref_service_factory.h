@@ -19,7 +19,7 @@ class PrefService;
 namespace base {
 class FilePath;
 class SequencedTaskRunner;
-}
+}  // namespace base
 
 // A class that allows convenient building of PrefService.
 class COMPONENTS_PREFS_EXPORT PrefServiceFactory {

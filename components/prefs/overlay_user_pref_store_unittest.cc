@@ -3,10 +3,9 @@
 // found in the LICENSE file.
 
 #include "components/prefs/overlay_user_pref_store.h"
-
 #include <memory>
 
-#include "base/test/task_environment.h"
+#include "base/test/scoped_task_environment.h"
 #include "base/values.h"
 #include "components/prefs/persistent_pref_store_unittest.h"
 #include "components/prefs/pref_store_observer_mock.h"
@@ -41,7 +40,7 @@ class OverlayUserPrefStoreTest : public testing::Test {
 
   ~OverlayUserPrefStoreTest() override {}
 
-  base::test::TaskEnvironment task_environment_;
+  base::test::ScopedTaskEnvironment scoped_task_environment_;
   scoped_refptr<TestingPrefStore> underlay_;
   scoped_refptr<OverlayUserPrefStore> overlay_;
 };
@@ -276,7 +275,7 @@ TEST_F(OverlayUserPrefStoreTest, GetValues) {
 }
 
 TEST_F(OverlayUserPrefStoreTest, CommitPendingWriteWithCallback) {
-  TestCommitPendingWriteWithCallback(overlay_.get(), &task_environment_);
+  TestCommitPendingWriteWithCallback(overlay_.get(), &scoped_task_environment_);
 }
 
 }  // namespace base
