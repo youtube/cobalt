@@ -203,9 +203,6 @@ void VideoDecoder::RunLoop() {
       stream_ended = true;
     } else if (event->type == Event::kReset) {
       ScopedLock scoped_lock(mutex_);
-      component.Flush();
-      stream_ended = false;
-      eos_written = false;
 
       while (!freed_buffers_.empty()) {
         component.DropOutputBuffer(freed_buffers_.front());
@@ -216,6 +213,10 @@ void VideoDecoder::RunLoop() {
         component.DropOutputBuffer(filled_buffers_.front());
         filled_buffers_.pop();
       }
+
+      component.Flush();
+      stream_ended = false;
+      eos_written = false;
     } else {
       SB_NOTREACHED() << "event type " << event->type;
     }
