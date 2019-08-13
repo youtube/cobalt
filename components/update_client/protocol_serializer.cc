@@ -13,7 +13,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
-#include "base/system/sys_info.h"
+#include "base/sys_info.h"
 #include "base/version.h"
 #include "build/build_config.h"
 #include "components/update_client/activity_data_service.h"
@@ -41,6 +41,9 @@ std::string GetOSVersion() {
   const auto ver = base::win::OSInfo::GetInstance()->version_number();
   return base::StringPrintf("%d.%d.%d.%d", ver.major, ver.minor, ver.build,
                             ver.patch);
+#elif defined(OS_STARBOARD)
+  // TODO: fill in OS version.
+  return "";
 #else
   return base::SysInfo().OperatingSystemVersion();
 #endif
@@ -127,7 +130,12 @@ protocol_request::Request MakeProtocolRequest(
   request.os.platform = os_long_name;
   request.os.version = GetOSVersion();
   request.os.service_pack = GetServicePack();
+#if defined(OS_STARBOARD)
+  // TODO: fill in arch.
+  request.os.arch = "";
+#else
   request.os.arch = base::SysInfo().OperatingSystemArchitecture();
+#endif
 
   if (updater_state_attributes) {
     request.updater = base::make_optional<protocol_request::Updater>();

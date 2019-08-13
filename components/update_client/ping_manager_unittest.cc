@@ -16,7 +16,7 @@
 #include "base/json/json_reader.h"
 #include "base/memory/ref_counted.h"
 #include "base/run_loop.h"
-#include "base/test/task_environment.h"
+#include "base/test/scoped_task_environment.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/version.h"
 #include "components/update_client/component.h"
@@ -58,12 +58,13 @@ class PingManagerTest : public testing::Test,
   std::string response_;
 
  private:
-  base::test::TaskEnvironment task_environment_;
+  base::test::ScopedTaskEnvironment scoped_task_environment_;
   base::OnceClosure quit_closure_;
 };
 
 PingManagerTest::PingManagerTest()
-    : task_environment_(base::test::TaskEnvironment::MainThreadType::IO) {
+    : scoped_task_environment_(
+          base::test::ScopedTaskEnvironment::MainThreadType::IO) {
   config_ = base::MakeRefCounted<TestConfigurator>();
 }
 
@@ -74,7 +75,7 @@ void PingManagerTest::SetUp() {
 void PingManagerTest::TearDown() {
   // Run the threads until they are idle to allow the clean up
   // of the network interceptors on the IO thread.
-  task_environment_.RunUntilIdle();
+  scoped_task_environment_.RunUntilIdle();
   ping_manager_ = nullptr;
 }
 
@@ -133,41 +134,41 @@ TEST_P(PingManagerTest, SendPing) {
 
     EXPECT_EQ(1, interceptor->GetCount()) << interceptor->GetRequestsAsString();
     const auto msg = interceptor->GetRequestBody(0);
-      const auto root = base::JSONReader::Read(msg);
-      ASSERT_TRUE(root);
-      const auto* request = root->FindKey("request");
-      ASSERT_TRUE(request);
-      EXPECT_TRUE(request->FindKey("@os"));
-      EXPECT_EQ("fake_prodid", request->FindKey("@updater")->GetString());
-      EXPECT_EQ("crx2,crx3", request->FindKey("acceptformat")->GetString());
-      EXPECT_TRUE(request->FindKey("arch"));
-      EXPECT_EQ("cr", request->FindKey("dedup")->GetString());
-      EXPECT_LT(0, request->FindPath({"hw", "physmemory"})->GetInt());
-      EXPECT_EQ("fake_lang", request->FindKey("lang")->GetString());
-      EXPECT_TRUE(request->FindKey("nacl_arch"));
-      EXPECT_EQ("fake_channel_string",
-                request->FindKey("prodchannel")->GetString());
-      EXPECT_EQ("30.0", request->FindKey("prodversion")->GetString());
-      EXPECT_EQ("3.1", request->FindKey("protocol")->GetString());
-      EXPECT_TRUE(request->FindKey("requestid"));
-      EXPECT_TRUE(request->FindKey("sessionid"));
-      EXPECT_EQ("fake_channel_string",
-                request->FindKey("updaterchannel")->GetString());
-      EXPECT_EQ("30.0", request->FindKey("updaterversion")->GetString());
+    const auto root = base::JSONReader::Read(msg);
+    ASSERT_TRUE(root);
+    const auto* request = root->FindKey("request");
+    ASSERT_TRUE(request);
+    EXPECT_TRUE(request->FindKey("@os"));
+    EXPECT_EQ("fake_prodid", request->FindKey("@updater")->GetString());
+    EXPECT_EQ("crx2,crx3", request->FindKey("acceptformat")->GetString());
+    EXPECT_TRUE(request->FindKey("arch"));
+    EXPECT_EQ("cr", request->FindKey("dedup")->GetString());
+    EXPECT_LT(0, request->FindPath({"hw", "physmemory"})->GetInt());
+    EXPECT_EQ("fake_lang", request->FindKey("lang")->GetString());
+    EXPECT_TRUE(request->FindKey("nacl_arch"));
+    EXPECT_EQ("fake_channel_string",
+              request->FindKey("prodchannel")->GetString());
+    EXPECT_EQ("30.0", request->FindKey("prodversion")->GetString());
+    EXPECT_EQ("3.1", request->FindKey("protocol")->GetString());
+    EXPECT_TRUE(request->FindKey("requestid"));
+    EXPECT_TRUE(request->FindKey("sessionid"));
+    EXPECT_EQ("fake_channel_string",
+              request->FindKey("updaterchannel")->GetString());
+    EXPECT_EQ("30.0", request->FindKey("updaterversion")->GetString());
 
-      EXPECT_TRUE(request->FindPath({"os", "arch"})->is_string());
-      EXPECT_EQ("Fake Operating System",
-                request->FindPath({"os", "platform"})->GetString());
-      EXPECT_TRUE(request->FindPath({"os", "version"})->is_string());
+    EXPECT_TRUE(request->FindPath({"os", "arch"})->is_string());
+    EXPECT_EQ("Fake Operating System",
+              request->FindPath({"os", "platform"})->GetString());
+    EXPECT_TRUE(request->FindPath({"os", "version"})->is_string());
 
-      const auto& app = request->FindKey("app")->GetList()[0];
-      EXPECT_EQ("abc", app.FindKey("appid")->GetString());
-      EXPECT_EQ("1.0", app.FindKey("version")->GetString());
-      const auto& event = app.FindKey("event")->GetList()[0];
-      EXPECT_EQ(1, event.FindKey("eventresult")->GetInt());
-      EXPECT_EQ(3, event.FindKey("eventtype")->GetInt());
-      EXPECT_EQ("2.0", event.FindKey("nextversion")->GetString());
-      EXPECT_EQ("1.0", event.FindKey("previousversion")->GetString());
+    const auto& app = request->FindKey("app")->GetList()[0];
+    EXPECT_EQ("abc", app.FindKey("appid")->GetString());
+    EXPECT_EQ("1.0", app.FindKey("version")->GetString());
+    const auto& event = app.FindKey("event")->GetList()[0];
+    EXPECT_EQ(1, event.FindKey("eventresult")->GetInt());
+    EXPECT_EQ(3, event.FindKey("eventtype")->GetInt());
+    EXPECT_EQ("2.0", event.FindKey("nextversion")->GetString());
+    EXPECT_EQ("1.0", event.FindKey("previousversion")->GetString());
 
     // Check the ping request does not carry the specific extra request headers.
     const auto headers = std::get<1>(interceptor->GetRequests()[0]);
@@ -194,17 +195,17 @@ TEST_P(PingManagerTest, SendPing) {
 
     EXPECT_EQ(1, interceptor->GetCount()) << interceptor->GetRequestsAsString();
     const auto msg = interceptor->GetRequestBody(0);
-      const auto root = base::JSONReader::Read(msg);
-      ASSERT_TRUE(root);
-      const auto* request = root->FindKey("request");
-      const auto& app = request->FindKey("app")->GetList()[0];
-      EXPECT_EQ("abc", app.FindKey("appid")->GetString());
-      EXPECT_EQ("1.0", app.FindKey("version")->GetString());
-      const auto& event = app.FindKey("event")->GetList()[0];
-      EXPECT_EQ(0, event.FindKey("eventresult")->GetInt());
-      EXPECT_EQ(3, event.FindKey("eventtype")->GetInt());
-      EXPECT_EQ("2.0", event.FindKey("nextversion")->GetString());
-      EXPECT_EQ("1.0", event.FindKey("previousversion")->GetString());
+    const auto root = base::JSONReader::Read(msg);
+    ASSERT_TRUE(root);
+    const auto* request = root->FindKey("request");
+    const auto& app = request->FindKey("app")->GetList()[0];
+    EXPECT_EQ("abc", app.FindKey("appid")->GetString());
+    EXPECT_EQ("1.0", app.FindKey("version")->GetString());
+    const auto& event = app.FindKey("event")->GetList()[0];
+    EXPECT_EQ(0, event.FindKey("eventresult")->GetInt());
+    EXPECT_EQ(3, event.FindKey("eventtype")->GetInt());
+    EXPECT_EQ("2.0", event.FindKey("nextversion")->GetString());
+    EXPECT_EQ("1.0", event.FindKey("previousversion")->GetString());
     interceptor->Reset();
   }
 
@@ -234,26 +235,26 @@ TEST_P(PingManagerTest, SendPing) {
 
     EXPECT_EQ(1, interceptor->GetCount()) << interceptor->GetRequestsAsString();
     const auto msg = interceptor->GetRequestBody(0);
-      const auto root = base::JSONReader::Read(msg);
-      ASSERT_TRUE(root);
-      const auto* request = root->FindKey("request");
-      const auto& app = request->FindKey("app")->GetList()[0];
-      EXPECT_EQ("abc", app.FindKey("appid")->GetString());
-      EXPECT_EQ("1.0", app.FindKey("version")->GetString());
-      const auto& event = app.FindKey("event")->GetList()[0];
-      EXPECT_EQ(0, event.FindKey("eventresult")->GetInt());
-      EXPECT_EQ(3, event.FindKey("eventtype")->GetInt());
-      EXPECT_EQ("2.0", event.FindKey("nextversion")->GetString());
-      EXPECT_EQ("1.0", event.FindKey("previousversion")->GetString());
-      EXPECT_EQ(4, event.FindKey("differrorcat")->GetInt());
-      EXPECT_EQ(20, event.FindKey("differrorcode")->GetInt());
-      EXPECT_EQ(-10, event.FindKey("diffextracode1")->GetInt());
-      EXPECT_EQ(0, event.FindKey("diffresult")->GetInt());
-      EXPECT_EQ(1, event.FindKey("errorcat")->GetInt());
-      EXPECT_EQ(2, event.FindKey("errorcode")->GetInt());
-      EXPECT_EQ(-1, event.FindKey("extracode1")->GetInt());
-      EXPECT_EQ("next fp", event.FindKey("nextfp")->GetString());
-      EXPECT_EQ("prev fp", event.FindKey("previousfp")->GetString());
+    const auto root = base::JSONReader::Read(msg);
+    ASSERT_TRUE(root);
+    const auto* request = root->FindKey("request");
+    const auto& app = request->FindKey("app")->GetList()[0];
+    EXPECT_EQ("abc", app.FindKey("appid")->GetString());
+    EXPECT_EQ("1.0", app.FindKey("version")->GetString());
+    const auto& event = app.FindKey("event")->GetList()[0];
+    EXPECT_EQ(0, event.FindKey("eventresult")->GetInt());
+    EXPECT_EQ(3, event.FindKey("eventtype")->GetInt());
+    EXPECT_EQ("2.0", event.FindKey("nextversion")->GetString());
+    EXPECT_EQ("1.0", event.FindKey("previousversion")->GetString());
+    EXPECT_EQ(4, event.FindKey("differrorcat")->GetInt());
+    EXPECT_EQ(20, event.FindKey("differrorcode")->GetInt());
+    EXPECT_EQ(-10, event.FindKey("diffextracode1")->GetInt());
+    EXPECT_EQ(0, event.FindKey("diffresult")->GetInt());
+    EXPECT_EQ(1, event.FindKey("errorcat")->GetInt());
+    EXPECT_EQ(2, event.FindKey("errorcode")->GetInt());
+    EXPECT_EQ(-1, event.FindKey("extracode1")->GetInt());
+    EXPECT_EQ("next fp", event.FindKey("nextfp")->GetString());
+    EXPECT_EQ("prev fp", event.FindKey("previousfp")->GetString());
     interceptor->Reset();
   }
 
@@ -274,16 +275,16 @@ TEST_P(PingManagerTest, SendPing) {
 
     EXPECT_EQ(1, interceptor->GetCount()) << interceptor->GetRequestsAsString();
     const auto msg = interceptor->GetRequestBody(0);
-      const auto root = base::JSONReader::Read(msg);
-      ASSERT_TRUE(root);
-      const auto* request = root->FindKey("request");
-      const auto& app = request->FindKey("app")->GetList()[0];
-      EXPECT_EQ("abc", app.FindKey("appid")->GetString());
-      EXPECT_EQ("1.0", app.FindKey("version")->GetString());
-      const auto& event = app.FindKey("event")->GetList()[0];
-      EXPECT_EQ(0, event.FindKey("eventresult")->GetInt());
-      EXPECT_EQ(3, event.FindKey("eventtype")->GetInt());
-      EXPECT_EQ("1.0", event.FindKey("previousversion")->GetString());
+    const auto root = base::JSONReader::Read(msg);
+    ASSERT_TRUE(root);
+    const auto* request = root->FindKey("request");
+    const auto& app = request->FindKey("app")->GetList()[0];
+    EXPECT_EQ("abc", app.FindKey("appid")->GetString());
+    EXPECT_EQ("1.0", app.FindKey("version")->GetString());
+    const auto& event = app.FindKey("event")->GetList()[0];
+    EXPECT_EQ(0, event.FindKey("eventresult")->GetInt());
+    EXPECT_EQ(3, event.FindKey("eventtype")->GetInt());
+    EXPECT_EQ("1.0", event.FindKey("previousversion")->GetString());
     interceptor->Reset();
   }
 
@@ -301,17 +302,17 @@ TEST_P(PingManagerTest, SendPing) {
 
     EXPECT_EQ(1, interceptor->GetCount()) << interceptor->GetRequestsAsString();
     const auto msg = interceptor->GetRequestBody(0);
-      const auto root = base::JSONReader::Read(msg);
-      ASSERT_TRUE(root);
-      const auto* request = root->FindKey("request");
-      const auto& app = request->FindKey("app")->GetList()[0];
-      EXPECT_EQ("abc", app.FindKey("appid")->GetString());
-      EXPECT_EQ("1.2.3.4", app.FindKey("version")->GetString());
-      const auto& event = app.FindKey("event")->GetList()[0];
-      EXPECT_EQ(1, event.FindKey("eventresult")->GetInt());
-      EXPECT_EQ(4, event.FindKey("eventtype")->GetInt());
-      EXPECT_EQ("1.2.3.4", event.FindKey("previousversion")->GetString());
-      EXPECT_EQ("0", event.FindKey("nextversion")->GetString());
+    const auto root = base::JSONReader::Read(msg);
+    ASSERT_TRUE(root);
+    const auto* request = root->FindKey("request");
+    const auto& app = request->FindKey("app")->GetList()[0];
+    EXPECT_EQ("abc", app.FindKey("appid")->GetString());
+    EXPECT_EQ("1.2.3.4", app.FindKey("version")->GetString());
+    const auto& event = app.FindKey("event")->GetList()[0];
+    EXPECT_EQ(1, event.FindKey("eventresult")->GetInt());
+    EXPECT_EQ(4, event.FindKey("eventtype")->GetInt());
+    EXPECT_EQ("1.2.3.4", event.FindKey("previousversion")->GetString());
+    EXPECT_EQ("0", event.FindKey("nextversion")->GetString());
     interceptor->Reset();
   }
 
@@ -358,58 +359,58 @@ TEST_P(PingManagerTest, SendPing) {
 
     EXPECT_EQ(1, interceptor->GetCount()) << interceptor->GetRequestsAsString();
     const auto msg = interceptor->GetRequestBody(0);
-      const auto root = base::JSONReader::Read(msg);
-      ASSERT_TRUE(root);
-      const auto* request = root->FindKey("request");
-      const auto& app = request->FindKey("app")->GetList()[0];
-      EXPECT_EQ("abc", app.FindKey("appid")->GetString());
-      EXPECT_EQ("1.0", app.FindKey("version")->GetString());
-      EXPECT_EQ(4u, app.FindKey("event")->GetList().size());
-      {
-        const auto& event = app.FindKey("event")->GetList()[0];
-        EXPECT_EQ(1, event.FindKey("eventresult")->GetInt());
-        EXPECT_EQ(3, event.FindKey("eventtype")->GetInt());
-        EXPECT_EQ("2.0", event.FindKey("nextversion")->GetString());
-        EXPECT_EQ("1.0", event.FindKey("previousversion")->GetString());
-      }
-      {
-        const auto& event = app.FindKey("event")->GetList()[1];
-        EXPECT_EQ(0, event.FindKey("eventresult")->GetInt());
-        EXPECT_EQ(14, event.FindKey("eventtype")->GetInt());
-        EXPECT_EQ(987, event.FindKey("download_time_ms")->GetDouble());
-        EXPECT_EQ(123, event.FindKey("downloaded")->GetDouble());
-        EXPECT_EQ("direct", event.FindKey("downloader")->GetString());
-        EXPECT_EQ(-1, event.FindKey("errorcode")->GetInt());
-        EXPECT_EQ("2.0", event.FindKey("nextversion")->GetString());
-        EXPECT_EQ("1.0", event.FindKey("previousversion")->GetString());
-        EXPECT_EQ(456, event.FindKey("total")->GetDouble());
-        EXPECT_EQ("http://host1/path1", event.FindKey("url")->GetString());
-      }
-      {
-        const auto& event = app.FindKey("event")->GetList()[2];
-        EXPECT_EQ(1, event.FindKey("eventresult")->GetInt());
-        EXPECT_EQ(14, event.FindKey("eventtype")->GetInt());
-        EXPECT_EQ(9870, event.FindKey("download_time_ms")->GetDouble());
-        EXPECT_EQ(1230, event.FindKey("downloaded")->GetDouble());
-        EXPECT_EQ("bits", event.FindKey("downloader")->GetString());
-        EXPECT_EQ("2.0", event.FindKey("nextversion")->GetString());
-        EXPECT_EQ("1.0", event.FindKey("previousversion")->GetString());
-        EXPECT_EQ(4560, event.FindKey("total")->GetDouble());
-        EXPECT_EQ("http://host2/path2", event.FindKey("url")->GetString());
-      }
-      {
-        const auto& event = app.FindKey("event")->GetList()[3];
-        EXPECT_EQ(1, event.FindKey("eventresult")->GetInt());
-        EXPECT_EQ(14, event.FindKey("eventtype")->GetInt());
-        EXPECT_EQ(9007199254740990,
-                  event.FindKey("download_time_ms")->GetDouble());
-        EXPECT_EQ(9007199254740992, event.FindKey("downloaded")->GetDouble());
-        EXPECT_EQ("bits", event.FindKey("downloader")->GetString());
-        EXPECT_EQ("2.0", event.FindKey("nextversion")->GetString());
-        EXPECT_EQ("1.0", event.FindKey("previousversion")->GetString());
-        EXPECT_EQ(9007199254740991, event.FindKey("total")->GetDouble());
-        EXPECT_EQ("http://host3/path3", event.FindKey("url")->GetString());
-      }
+    const auto root = base::JSONReader::Read(msg);
+    ASSERT_TRUE(root);
+    const auto* request = root->FindKey("request");
+    const auto& app = request->FindKey("app")->GetList()[0];
+    EXPECT_EQ("abc", app.FindKey("appid")->GetString());
+    EXPECT_EQ("1.0", app.FindKey("version")->GetString());
+    EXPECT_EQ(4u, app.FindKey("event")->GetList().size());
+    {
+      const auto& event = app.FindKey("event")->GetList()[0];
+      EXPECT_EQ(1, event.FindKey("eventresult")->GetInt());
+      EXPECT_EQ(3, event.FindKey("eventtype")->GetInt());
+      EXPECT_EQ("2.0", event.FindKey("nextversion")->GetString());
+      EXPECT_EQ("1.0", event.FindKey("previousversion")->GetString());
+    }
+    {
+      const auto& event = app.FindKey("event")->GetList()[1];
+      EXPECT_EQ(0, event.FindKey("eventresult")->GetInt());
+      EXPECT_EQ(14, event.FindKey("eventtype")->GetInt());
+      EXPECT_EQ(987, event.FindKey("download_time_ms")->GetDouble());
+      EXPECT_EQ(123, event.FindKey("downloaded")->GetDouble());
+      EXPECT_EQ("direct", event.FindKey("downloader")->GetString());
+      EXPECT_EQ(-1, event.FindKey("errorcode")->GetInt());
+      EXPECT_EQ("2.0", event.FindKey("nextversion")->GetString());
+      EXPECT_EQ("1.0", event.FindKey("previousversion")->GetString());
+      EXPECT_EQ(456, event.FindKey("total")->GetDouble());
+      EXPECT_EQ("http://host1/path1", event.FindKey("url")->GetString());
+    }
+    {
+      const auto& event = app.FindKey("event")->GetList()[2];
+      EXPECT_EQ(1, event.FindKey("eventresult")->GetInt());
+      EXPECT_EQ(14, event.FindKey("eventtype")->GetInt());
+      EXPECT_EQ(9870, event.FindKey("download_time_ms")->GetDouble());
+      EXPECT_EQ(1230, event.FindKey("downloaded")->GetDouble());
+      EXPECT_EQ("bits", event.FindKey("downloader")->GetString());
+      EXPECT_EQ("2.0", event.FindKey("nextversion")->GetString());
+      EXPECT_EQ("1.0", event.FindKey("previousversion")->GetString());
+      EXPECT_EQ(4560, event.FindKey("total")->GetDouble());
+      EXPECT_EQ("http://host2/path2", event.FindKey("url")->GetString());
+    }
+    {
+      const auto& event = app.FindKey("event")->GetList()[3];
+      EXPECT_EQ(1, event.FindKey("eventresult")->GetInt());
+      EXPECT_EQ(14, event.FindKey("eventtype")->GetInt());
+      EXPECT_EQ(9007199254740990,
+                event.FindKey("download_time_ms")->GetDouble());
+      EXPECT_EQ(9007199254740992, event.FindKey("downloaded")->GetDouble());
+      EXPECT_EQ("bits", event.FindKey("downloader")->GetString());
+      EXPECT_EQ("2.0", event.FindKey("nextversion")->GetString());
+      EXPECT_EQ("1.0", event.FindKey("previousversion")->GetString());
+      EXPECT_EQ(9007199254740991, event.FindKey("total")->GetDouble());
+      EXPECT_EQ("http://host3/path3", event.FindKey("url")->GetString());
+    }
     interceptor->Reset();
   }
 }

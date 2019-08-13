@@ -399,8 +399,8 @@ void CleanupJob(const ComPtr<IBackgroundCopyJob>& job) {
 BackgroundDownloader::BackgroundDownloader(
     std::unique_ptr<CrxDownloader> successor)
     : CrxDownloader(std::move(successor)),
-      com_task_runner_(
-          base::CreateCOMSTATaskRunner(kTaskTraitsBackgroundDownloader)),
+      com_task_runner_(base::CreateCOMSTATaskRunnerWithTraits(
+          kTaskTraitsBackgroundDownloader)),
       git_cookie_bits_manager_(0),
       git_cookie_job_(0) {}
 
@@ -494,7 +494,7 @@ void BackgroundDownloader::OnDownloading() {
     return;
   }
 
-  bool is_handled =  false;
+  bool is_handled = false;
   switch (job_state) {
     case BG_JOB_STATE_TRANSFERRED:
       is_handled = OnStateTransferred();
@@ -847,9 +847,7 @@ HRESULT BackgroundDownloader::ClearGit() {
   if (FAILED(hr))
     return hr;
 
-  const DWORD cookies[] = {
-      git_cookie_job_, git_cookie_bits_manager_
-  };
+  const DWORD cookies[] = {git_cookie_job_, git_cookie_bits_manager_};
 
   for (auto cookie : cookies) {
     // TODO(sorin): check the result of the call, see crbug.com/644857.

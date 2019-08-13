@@ -4,7 +4,7 @@
 
 #include "components/update_client/update_query_params.h"
 #include "base/strings/stringprintf.h"
-#include "base/system/sys_info.h"
+#include "base/sys_info.h"
 #include "components/update_client/update_query_params_delegate.h"
 #include "components/version_info/version_info.h"
 #include "testing/gtest/include/gtest/gtest.h"

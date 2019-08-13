@@ -15,8 +15,7 @@
 PrefRegistry::PrefRegistry()
     : defaults_(base::MakeRefCounted<DefaultPrefStore>()) {}
 
-PrefRegistry::~PrefRegistry() {
-}
+PrefRegistry::~PrefRegistry() {}
 
 uint32_t PrefRegistry::GetRegistrationFlags(
     const std::string& pref_name) const {
@@ -60,11 +59,11 @@ void PrefRegistry::RegisterPreference(const std::string& path,
                                       uint32_t flags) {
   base::Value::Type orig_type = default_value.type();
   DCHECK(orig_type != base::Value::Type::NONE &&
-         orig_type != base::Value::Type::BINARY) <<
-         "invalid preference type: " << orig_type;
+         orig_type != base::Value::Type::BINARY)
+      << "invalid preference type: " << orig_type;
   DCHECK(!defaults_->GetValue(path, nullptr))
       << "Trying to register a previously registered pref: " << path;
-  DCHECK(!base::Contains(registration_flags_, path))
+  DCHECK(!base::ContainsKey(registration_flags_, path))
       << "Trying to register a previously registered pref: " << path;
 
   defaults_->SetDefaultValue(path, std::move(default_value));
@@ -79,5 +78,4 @@ void PrefRegistry::RegisterForeignPref(const std::string& path) {
   DCHECK(inserted);
 }
 
-void PrefRegistry::OnPrefRegistered(const std::string& path,
-                                    uint32_t flags) {}
+void PrefRegistry::OnPrefRegistered(const std::string& path, uint32_t flags) {}

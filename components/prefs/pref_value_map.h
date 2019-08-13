@@ -16,7 +16,7 @@
 namespace base {
 class DictionaryValue;
 class Value;
-}
+}  // namespace base
 
 // A generic string to value map used by the PrefStore implementations.
 class COMPONENTS_PREFS_EXPORT PrefValueMap {

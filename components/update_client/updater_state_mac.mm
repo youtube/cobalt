@@ -25,7 +25,7 @@ const base::FilePath::CharType kKeystonePlist[] = FILE_PATH_LITERAL(
 // Gets a value from the updater settings. Returns a retained object.
 // T should be a toll-free Foundation framework type. See Apple's
 // documentation for toll-free bridging.
-template<class T>
+template <class T>
 base::scoped_nsobject<T> GetUpdaterSettingsValue(NSString* value_name) {
   CFStringRef app_id = CFSTR("com.google.Keystone.Agent");
   base::ScopedCFTypeRef<CFPropertyListRef> plist(
@@ -47,23 +47,20 @@ base::Time GetUpdaterSettingsTime(NSString* value_name) {
 base::Version GetVersionFromPlist(const base::FilePath& info_plist) {
   base::mac::ScopedNSAutoreleasePool scoped_pool;
   NSData* data =
-      [NSData dataWithContentsOfFile:
-          base::mac::FilePathToNSString(info_plist)];
+      [NSData dataWithContentsOfFile:base::mac::FilePathToNSString(info_plist)];
   if ([data length] == 0) {
     return base::Version();
   }
   NSDictionary* all_keys = base::mac::ObjCCastStrict<NSDictionary>(
       [NSPropertyListSerialization propertyListWithData:data
-          options:NSPropertyListImmutable
-           format:nil
-            error:nil]);
+                                                options:NSPropertyListImmutable
+                                                 format:nil
+                                                  error:nil]);
   if (all_keys == nil) {
     return base::Version();
   }
-  CFStringRef version =
-      base::mac::GetValueFromDictionary<CFStringRef>(
-          base::mac::NSToCFCast(all_keys),
-          kCFBundleVersionKey);
+  CFStringRef version = base::mac::GetValueFromDictionary<CFStringRef>(
+      base::mac::NSToCFCast(all_keys), kCFBundleVersionKey);
   if (version == NULL) {
     return base::Version();
   }
@@ -79,8 +76,8 @@ std::string UpdaterState::GetUpdaterName() {
 base::Version UpdaterState::GetUpdaterVersion(bool /*is_machine*/) {
   // System Keystone trumps user one, so check this one first
   base::FilePath local_library;
-  bool success = base::mac::GetLocalDirectory(NSLibraryDirectory,
-                                              &local_library);
+  bool success =
+      base::mac::GetLocalDirectory(NSLibraryDirectory, &local_library);
   DCHECK(success);
   base::FilePath system_bundle_plist = local_library.Append(kKeystonePlist);
   base::Version system_keystone = GetVersionFromPlist(system_bundle_plist);
@@ -106,7 +103,8 @@ bool UpdaterState::IsAutoupdateCheckEnabled() {
   // Applies only to older versions of Keystone.
   base::scoped_nsobject<NSNumber> timeInterval =
       GetUpdaterSettingsValue<NSNumber>(@"checkInterval");
-  if (!timeInterval.get()) return true;
+  if (!timeInterval.get())
+    return true;
   int value = [timeInterval intValue];
 
   return 0 < value && value < (24 * 60 * 60);

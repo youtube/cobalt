@@ -17,8 +17,6 @@
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 
-#if !defined(STARBOARD)
-
 namespace base {
 
 class SequencedTaskRunner;
@@ -159,7 +157,5 @@ class BASE_EXPORT ImportantFileWriter {
 };
 
 }  // namespace base
-
-#endif  // #if !defined(STARBOARD)
 
 #endif  // BASE_FILES_IMPORTANT_FILE_WRITER_H_

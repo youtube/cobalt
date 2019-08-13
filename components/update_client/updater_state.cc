@@ -7,11 +7,12 @@
 
 #include <utility>
 
+#if defined(OS_WIN) || (defined(OS_MACOSX) && !defined(OS_IOS))
 #include "base/enterprise_util.h"
+#endif  // OS_WIN or Mac
 #include "base/strings/string16.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
-#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 
 namespace update_client {
@@ -41,14 +42,14 @@ std::unique_ptr<UpdaterState::Attributes> UpdaterState::GetState(
 void UpdaterState::ReadState() {
   is_enterprise_managed_ = base::IsMachineExternallyManaged();
 
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+#if defined(GOOGLE_CHROME_BUILD)
   updater_name_ = GetUpdaterName();
   updater_version_ = GetUpdaterVersion(is_machine_);
   last_autoupdate_started_ = GetUpdaterLastStartedAU(is_machine_);
   last_checked_ = GetUpdaterLastChecked(is_machine_);
   is_autoupdate_check_enabled_ = IsAutoupdateCheckEnabled();
   update_policy_ = GetUpdatePolicy();
-#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
+#endif  // GOOGLE_CHROME_BUILD
 }
 #endif  // OS_WIN or Mac
 

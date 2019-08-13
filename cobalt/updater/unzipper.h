@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROME_UPDATER_UNZIPPER_H_
-#define CHROME_UPDATER_UNZIPPER_H_
+#ifndef COBALT_UPDATER_UNZIPPER_H_
+#define COBALT_UPDATER_UNZIPPER_H_
 
 #include <memory>
 
@@ -28,4 +28,4 @@ class UnzipperFactory : public update_client::UnzipperFactory {
 
 }  // namespace updater
 
-#endif  // CHROME_UPDATER_UNZIPPER_H_
+#endif  // COBALT_UPDATER_UNZIPPER_H_

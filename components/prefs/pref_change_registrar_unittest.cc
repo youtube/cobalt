@@ -175,9 +175,9 @@ TEST_F(ObserveSetOfPreferencesTest, Observe) {
   using testing::Mock;
 
   PrefChangeRegistrar pref_set;
-  PrefChangeRegistrar::NamedChangeCallback callback = base::Bind(
-      &ObserveSetOfPreferencesTest::OnPreferenceChanged,
-      base::Unretained(this));
+  PrefChangeRegistrar::NamedChangeCallback callback =
+      base::Bind(&ObserveSetOfPreferencesTest::OnPreferenceChanged,
+                 base::Unretained(this));
   pref_set.Init(pref_service_.get());
   pref_set.Add(kHomePage, callback);
   pref_set.Add(kHomePageIsNewTabPage, callback);

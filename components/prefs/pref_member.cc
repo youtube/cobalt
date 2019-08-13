@@ -61,8 +61,9 @@ void PrefMemberBase::MoveToSequence(
 void PrefMemberBase::OnPreferenceChanged(PrefService* service,
                                          const std::string& pref_name) {
   VerifyValuePrefName();
-  UpdateValueFromPref((!setting_value_ && !observer_.is_null()) ?
-      base::Bind(observer_, pref_name) : base::Closure());
+  UpdateValueFromPref((!setting_value_ && !observer_.is_null())
+                          ? base::Bind(observer_, pref_name)
+                          : base::Closure());
 }
 
 void PrefMemberBase::UpdateValueFromPref(const base::Closure& callback) const {
@@ -71,10 +72,8 @@ void PrefMemberBase::UpdateValueFromPref(const base::Closure& callback) const {
   DCHECK(pref);
   if (!internal())
     CreateInternal();
-  internal()->UpdateValue(pref->GetValue()->DeepCopy(),
-                          pref->IsManaged(),
-                          pref->IsUserModifiable(),
-                          callback);
+  internal()->UpdateValue(pref->GetValue()->DeepCopy(), pref->IsManaged(),
+                          pref->IsUserModifiable(), callback);
 }
 
 void PrefMemberBase::VerifyPref() const {
@@ -92,7 +91,8 @@ PrefMemberBase::Internal::Internal()
     : owning_task_runner_(base::SequencedTaskRunnerHandle::Get()),
       is_managed_(false),
       is_user_modifiable_(false) {}
-PrefMemberBase::Internal::~Internal() { }
+
+PrefMemberBase::Internal::~Internal() {}
 
 bool PrefMemberBase::Internal::IsOnCorrectSequence() const {
   return owning_task_runner_->RunsTasksInCurrentSequence();
@@ -174,8 +174,8 @@ void PrefMember<double>::UpdatePref(const double& value) {
 }
 
 template <>
-bool PrefMember<double>::Internal::UpdateValueInternal(const base::Value& value)
-    const {
+bool PrefMember<double>::Internal::UpdateValueInternal(
+    const base::Value& value) const {
   return value.GetAsDouble(&value_);
 }
 
@@ -186,8 +186,7 @@ void PrefMember<std::string>::UpdatePref(const std::string& value) {
 
 template <>
 bool PrefMember<std::string>::Internal::UpdateValueInternal(
-    const base::Value& value)
-    const {
+    const base::Value& value) const {
   return value.GetAsString(&value_);
 }
 
@@ -198,8 +197,7 @@ void PrefMember<base::FilePath>::UpdatePref(const base::FilePath& value) {
 
 template <>
 bool PrefMember<base::FilePath>::Internal::UpdateValueInternal(
-    const base::Value& value)
-    const {
+    const base::Value& value) const {
   return base::GetValueAsFilePath(value, &value_);
 }
 

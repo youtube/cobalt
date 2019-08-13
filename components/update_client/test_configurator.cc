@@ -51,8 +51,7 @@ TestConfigurator::TestConfigurator()
           base::MakeRefCounted<NetworkFetcherChromiumFactory>(
               test_shared_loader_factory_)) {}
 
-TestConfigurator::~TestConfigurator() {
-}
+TestConfigurator::~TestConfigurator() {}
 
 int TestConfigurator::InitialDelay() const {
   return initial_time_;
