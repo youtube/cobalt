@@ -42,7 +42,7 @@ class MediaKeys : public script::Wrappable,
   typedef script::Handle<script::Promise<bool>> BoolPromiseHandle;
   typedef script::ScriptValue<script::Promise<bool>> BoolPromiseValue;
 
-  MediaKeys(const std::string& key_system,
+  MediaKeys(const scoped_refptr<media::DrmSystem>& drm_system,
             script::ScriptValueFactory* script_value_factory);
 
   scoped_refptr<media::DrmSystem> drm_system() const { return drm_system_; }
