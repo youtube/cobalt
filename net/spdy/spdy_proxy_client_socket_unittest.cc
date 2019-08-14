@@ -881,9 +881,9 @@ TEST_P(SpdyProxyClientSocketTest, ReadAuthResponseBody) {
 }
 
 #if defined(STARBOARD)
-TEST_P(SpdyProxyClientSocketTest, ReadErrorResponseBody) {
-#else
 TEST_P(SpdyProxyClientSocketTest, FLAKY_ReadErrorResponseBody) {
+#else
+TEST_P(SpdyProxyClientSocketTest, ReadErrorResponseBody) {
 #endif
   spdy::SpdySerializedFrame conn(ConstructConnectRequestFrame());
   MockWrite writes[] = {
