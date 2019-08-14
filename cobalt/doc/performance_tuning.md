@@ -408,11 +408,12 @@ to generate this data:
 1. The command line option, "--timed_trace=XX" will instruct Cobalt to trace
    upon startup, for XX seconds (e.g. "--timed_trace=25").  When completed,
    the output will be written to the file `timed_trace.json`.
-2. Using the debug console (hit CTRL+O on a keyboard once or twice), type in the
-   command "d.trace()" and hit enter.  Cobalt will begin a trace.  After
-   some time has passed (and presumably you have performed some actions), you
-   can open the debug console again and type "d.trace()" again to end the trace.
-   The trace output will be written to the file `triggered_trace.json`.
+2. Using the debug console (hit CTRL+O on a keyboard once or twice), type in
+   the command "h5vcc.traceEvent.start()" and hit enter.  Cobalt will begin a
+   trace.  After some time has passed (and presumably you have performed some
+   actions), you can open the debug console again and type
+   "h5vcc.traceEvent.stop()" again to end the trace.
+   The trace output will be written to the file `h5vcc_trace_event.json`.
 
 The directory the output files will be placed within is the directory that the
 Starboard function `SbSystemGetPath()` returns with a `path_id` of
