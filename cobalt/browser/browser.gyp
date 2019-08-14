@@ -128,6 +128,7 @@
       ],
       'dependencies': [
         '<@(cobalt_platform_dependencies)',
+        '<(DEPTH)/cobalt/accessibility/accessibility.gyp:accessibility',
         '<(DEPTH)/cobalt/account/account.gyp:account',
         '<(DEPTH)/cobalt/audio/audio.gyp:audio',
         '<(DEPTH)/cobalt/base/base.gyp:base',

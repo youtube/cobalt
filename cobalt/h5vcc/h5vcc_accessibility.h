@@ -18,6 +18,8 @@
 #include <memory>
 
 #include "base/message_loop/message_loop.h"
+#include "cobalt/accessibility/screen_reader.h"
+#include "cobalt/accessibility/tts_engine.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/script/callback_function.h"
@@ -63,6 +65,8 @@ class H5vccAccessibility : public script::Wrappable {
   base::EventDispatcher* event_dispatcher_;
   std::unique_ptr<H5vccAccessibilityCallbackReference>
       high_contrast_text_listener_;
+  std::unique_ptr<accessibility::TTSEngine> tts_engine_;
+  std::unique_ptr<accessibility::ScreenReader> screen_reader_;
 
   DISALLOW_COPY_AND_ASSIGN(H5vccAccessibility);
 };

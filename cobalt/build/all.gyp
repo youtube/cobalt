@@ -31,6 +31,7 @@
       'type': 'none',
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base_unittests',
+        '<(DEPTH)/cobalt/accessibility/accessibility_test.gyp:*',
         '<(DEPTH)/cobalt/audio/audio.gyp:*',
         '<(DEPTH)/cobalt/audio/audio_test.gyp:*',
         '<(DEPTH)/cobalt/base/base.gyp:*',

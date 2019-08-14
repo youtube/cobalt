@@ -16,6 +16,9 @@
 
 #include "base/command_line.h"
 #include "base/message_loop/message_loop.h"
+#include "cobalt/accessibility/starboard_tts_engine.h"
+#include "cobalt/accessibility/tts_engine.h"
+#include "cobalt/accessibility/tts_logger.h"
 #include "cobalt/base/accessibility_settings_changed_event.h"
 #include "cobalt/browser/switches.h"
 #include "starboard/accessibility.h"
@@ -37,6 +40,20 @@ bool ShouldForceTextToSpeech() {
   return false;
 }
 
+#if SB_HAS(SPEECH_SYNTHESIS)
+bool IsTextToSpeechEnabled() {
+  // Check if the tts feature is enabled in Starboard.
+  SbAccessibilityTextToSpeechSettings tts_settings = {0};
+  // Check platform settings.
+  if (SbAccessibilityGetTextToSpeechSettings(&tts_settings)) {
+    return tts_settings.has_text_to_speech_setting &&
+           tts_settings.is_text_to_speech_enabled;
+  }
+
+  return false;
+}
+#endif  // SB_HAS(SPEECH_SYNTHESIS)
+
 }  // namespace
 
 H5vccAccessibility::H5vccAccessibility(
@@ -50,6 +67,26 @@ H5vccAccessibility::H5vccAccessibility(
   event_dispatcher_->AddEventCallback(
       base::AccessibilitySettingsChangedEvent::TypeId(),
       on_application_event_callback_);
+  if (ShouldForceTextToSpeech()) {
+#if SB_HAS(SPEECH_SYNTHESIS)
+    // Create a StarboardTTSEngine if the platform has speech synthesis.
+    tts_engine_.reset(new accessibility::StarboardTTSEngine());
+#else
+    tts_engine_.reset(new accessibility::TTSLogger());
+#endif
+  }
+
+#if SB_HAS(SPEECH_SYNTHESIS)
+  if (!tts_engine_ && IsTextToSpeechEnabled()) {
+    // Create a StarboardTTSEngine if TTS is enabled.
+    tts_engine_.reset(new accessibility::StarboardTTSEngine());
+  }
+#endif
+
+  if (tts_engine_) {
+    screen_reader_.reset(new accessibility::ScreenReader(
+        window->document(), tts_engine_.get(), mutation_observer_task_manager));
+  }
 }
 
 H5vccAccessibility::~H5vccAccessibility() {
@@ -58,12 +95,16 @@ H5vccAccessibility::~H5vccAccessibility() {
       on_application_event_callback_);
 }
 
-bool H5vccAccessibility::built_in_screen_reader() const { return false; }
+bool H5vccAccessibility::built_in_screen_reader() const {
+  return screen_reader_ && screen_reader_->enabled();
+}
 
 void H5vccAccessibility::set_built_in_screen_reader(bool value) {
-  if (value) {
+  if (!screen_reader_) {
     LOG(WARNING) << "h5vcc.accessibility.builtInScreenReader: not available";
+    return;
   }
+  screen_reader_->set_enabled(value);
 }
 
 bool H5vccAccessibility::high_contrast_text() const {
