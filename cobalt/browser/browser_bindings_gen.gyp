@@ -174,7 +174,6 @@
         '../h5vcc/h5vcc_runtime_event_target.idl',
         '../h5vcc/h5vcc_settings.idl',
         '../h5vcc/h5vcc_sso.idl',
-        '../h5vcc/h5vcc_storage.idl',
         '../h5vcc/h5vcc_system.idl',
         '../h5vcc/h5vcc_trace_event.idl',
 
