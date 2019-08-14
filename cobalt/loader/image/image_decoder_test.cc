@@ -68,8 +68,8 @@ class MockImageDecoder : public Decoder {
   void ExpectCallWithError(const base::Optional<std::string>& error);
 
  protected:
-  ::testing::StrictMock<MockImageDecoderCallback> image_decoder_callback_;
   render_tree::ResourceProviderStub resource_provider_;
+  ::testing::StrictMock<MockImageDecoderCallback> image_decoder_callback_;
   std::unique_ptr<Decoder> image_decoder_;
 };
 
@@ -785,6 +785,9 @@ TEST(ImageDecoderTest, DecodeWEBPImageWithMultipleChunks) {
 
 // Test that we can properly decode animated WEBP image.
 TEST(ImageDecoderTest, DecodeAnimatedWEBPImage) {
+  base::Thread thread("AnimatedWebP test");
+  thread.Start();
+
   MockImageDecoder image_decoder;
   image_decoder.ExpectCallWithError(base::nullopt);
 
@@ -799,11 +802,8 @@ TEST(ImageDecoderTest, DecodeAnimatedWEBPImage) {
           image_decoder.image().get());
   ASSERT_TRUE(animated_webp_image);
 
-  base::Thread thread("AnimatedWebP test");
-  thread.Start();
   animated_webp_image->Play(thread.task_runner());
   animated_webp_image->Stop();
-  thread.Stop();
 
   // The image should contain the whole undecoded data from the file.
   EXPECT_EQ(4261474u, animated_webp_image->GetEstimatedSizeInBytes());
@@ -814,6 +814,9 @@ TEST(ImageDecoderTest, DecodeAnimatedWEBPImage) {
 
 // Test that we can properly decode animated WEBP image in multiple chunks.
 TEST(ImageDecoderTest, DecodeAnimatedWEBPImageWithMultipleChunks) {
+  base::Thread thread("AnimatedWebP test");
+  thread.Start();
+
   MockImageDecoder image_decoder;
   image_decoder.ExpectCallWithError(base::nullopt);
 
@@ -831,11 +834,8 @@ TEST(ImageDecoderTest, DecodeAnimatedWEBPImageWithMultipleChunks) {
           image_decoder.image().get());
   ASSERT_TRUE(animated_webp_image);
 
-  base::Thread thread("AnimatedWebP test");
-  thread.Start();
   animated_webp_image->Play(thread.task_runner());
   animated_webp_image->Stop();
-  thread.Stop();
 
   // The image should contain the whole undecoded data from the file.
   EXPECT_EQ(4261474u, animated_webp_image->GetEstimatedSizeInBytes());
