@@ -18,9 +18,9 @@
 // APIs which allow clients to call non-standard native functions that we
 // expose.
 //
-// For example we provide a h5vcc.storage.ClearCookies(), which can empty the
-// cookie jar in response to the user's request. Other H5vcc modules expose
-// audio capabilities about the platform, or run an in-app DIAL server.
+// For example we provide a h5vcc.accessibility.textToSpeech, which tells
+// whether the platform supports text-to-speech capability. Other H5vcc
+// modules can run an in-app DIAL server or expose availables CVals.
 //
 // The H5vcc node should just be a collection of readonly sub-nodes.
 // This is created by the BrowserModule and passed directly to the Window
@@ -37,7 +37,6 @@ interface H5vcc {
   readonly attribute H5vccSettings settings;
   [Conditional=COBALT_ENABLE_SSO]
       readonly attribute H5vccSso sso;
-  readonly attribute H5vccStorage storage;
   readonly attribute H5vccSystem system;
   readonly attribute H5vccTraceEvent traceEvent;
 };
