@@ -102,7 +102,9 @@ DrmSystem::DrmSystem(const char* key_system)
       message_loop_(base::MessageLoop::current()->task_runner()),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       weak_this_(weak_ptr_factory_.GetWeakPtr()) {
-  DCHECK_NE(kSbDrmSystemInvalid, wrapped_drm_system_);
+  if (!is_valid()) {
+    SB_LOG(ERROR) << "Failed to initialize the underlying wrapped DrmSystem.";
+  }
 }
 
 DrmSystem::~DrmSystem() { SbDrmDestroySystem(wrapped_drm_system_); }

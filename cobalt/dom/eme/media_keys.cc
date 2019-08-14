@@ -23,10 +23,11 @@ namespace cobalt {
 namespace dom {
 namespace eme {
 
-MediaKeys::MediaKeys(const std::string& key_system,
+MediaKeys::MediaKeys(const scoped_refptr<media::DrmSystem>& drm_system,
                      script::ScriptValueFactory* script_value_factory)
-    : script_value_factory_(script_value_factory),
-      drm_system_(new media::DrmSystem(key_system.c_str())) {}
+    : script_value_factory_(script_value_factory), drm_system_(drm_system) {
+  SB_DCHECK(drm_system_->is_valid()) << "DrmSystem provided on initialization is invalid.";
+}
 
 // See https://www.w3.org/TR/encrypted-media/#dom-mediakeys-createsession.
 scoped_refptr<MediaKeySession> MediaKeys::CreateSession(
