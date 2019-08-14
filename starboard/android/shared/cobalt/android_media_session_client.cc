@@ -23,7 +23,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/once.h"
-#include "starboard/player.h"
 
 namespace starboard {
 namespace android {
@@ -178,10 +177,6 @@ class AndroidMediaSessionClient : public MediaSessionClient {
   // Protected by "mutex"
   static AndroidMediaSessionClient* active_client;
 
-  // TODO: Pass the necessary info through web MediaSession so we don't need to
-  // short-circuit to the player implementation to get info about the playback.
-  static SbPlayer active_player;
-
   static void OnceInit() { SbMutexCreate(&mutex); }
 
  public:
@@ -215,15 +210,6 @@ class AndroidMediaSessionClient : public MediaSessionClient {
     SbMutexRelease(&mutex);
   }
 
-  static void UpdateActiveSessionPlatformPlayer(SbPlayer player) {
-    SbOnce(&once_flag, OnceInit);
-    SbMutexAcquire(&mutex);
-
-    active_player = player;
-
-    SbMutexRelease(&mutex);
-  }
-
   AndroidMediaSessionClient() {}
 
   virtual ~AndroidMediaSessionClient() {
@@ -248,12 +234,6 @@ class AndroidMediaSessionClient : public MediaSessionClient {
       active_client = this;
     } else if (active_client == this) {
       active_client = NULL;
-    }
-
-    SbPlayerInfo2 player_info;
-    SbMemorySet(&player_info, 0, sizeof(player_info));
-    if (active_player != kSbPlayerInvalid) {
-      SbPlayerGetInfo2(active_player, &player_info);
     }
     SbMutexRelease(&mutex);
 
@@ -314,8 +294,8 @@ class AndroidMediaSessionClient : public MediaSessionClient {
         "(IJJFLjava/lang/String;Ljava/lang/String;Ljava/lang/String;"
             "[Ldev/cobalt/media/MediaImage;)V",
         playback_state, playback_state_actions,
-        player_info.current_media_timestamp / kSbTimeMillisecond,
-        static_cast<jfloat>(player_info.playback_rate),
+        session_state.current_playback_position() / kSbTimeMillisecond,
+        static_cast<jfloat>(session_state.actual_playback_rate()),
         j_title.Get(), j_artist.Get(), j_album.Get(), j_artwork.Get());
   }
 };
@@ -323,7 +303,6 @@ class AndroidMediaSessionClient : public MediaSessionClient {
 SbOnceControl AndroidMediaSessionClient::once_flag = SB_ONCE_INITIALIZER;
 SbMutex AndroidMediaSessionClient::mutex;
 AndroidMediaSessionClient* AndroidMediaSessionClient::active_client = NULL;
-SbPlayer AndroidMediaSessionClient::active_player = kSbPlayerInvalid;
 
 void UpdateActiveSessionPlatformPlaybackState(PlaybackState state) {
   MediaSessionPlaybackState media_session_state =
@@ -331,10 +310,6 @@ void UpdateActiveSessionPlatformPlaybackState(PlaybackState state) {
 
   AndroidMediaSessionClient::UpdateActiveSessionPlatformPlaybackState(
       media_session_state);
-}
-
-void UpdateActiveSessionPlatformPlayer(SbPlayer player) {
-  AndroidMediaSessionClient::UpdateActiveSessionPlatformPlayer(player);
 }
 
 }  // namespace cobalt
