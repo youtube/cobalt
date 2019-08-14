@@ -148,7 +148,7 @@ public class CobaltMediaSession
           @Override
           public void onStop() {
             Log.i(TAG, "MediaSession action: STOP");
-            nativeInvokeAction(PlaybackState.ACTION_STOP);
+            nativeInvokeAction(PlaybackStateCompat.ACTION_STOP);
           }
         });
     // |metadataBuilder| may still have no fields at this point, yielding empty metadata.
