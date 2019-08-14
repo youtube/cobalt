@@ -25,8 +25,8 @@
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/testing/fake_script_value.h"
 #include "cobalt/script/wrappable.h"
-#include "starboard/time.h"
 #include "starboard/thread.h"
+#include "starboard/time.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -241,8 +241,7 @@ TEST(MediaSessionTest, AvailableActions) {
 
   client.WaitForSessionStateChange();
   state = client.GetMediaSessionState();
-  EXPECT_EQ(1 << kMediaSessionActionPlay | 1 << kMediaSessionActionSeekto,
-            state.available_actions().to_ulong());
+  EXPECT_EQ(1 << kMediaSessionActionPlay, state.available_actions().to_ulong());
 
   client.UpdatePlatformPlaybackState(kMediaSessionPlaybackStatePlaying);
 
@@ -289,8 +288,7 @@ TEST(MediaSessionTest, AvailableActions) {
   client.WaitForSessionStateChange();
   state = client.GetMediaSessionState();
   EXPECT_EQ(kMediaSessionPlaybackStateNone, state.actual_playback_state());
-  EXPECT_EQ(1 << kMediaSessionActionPlay | 1 << kMediaSessionActionSeekto,
-            state.available_actions().to_ulong());
+  EXPECT_EQ(1 << kMediaSessionActionPlay, state.available_actions().to_ulong());
 
   session->set_playback_state(kMediaSessionPlaybackStatePaused);
 
