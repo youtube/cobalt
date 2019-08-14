@@ -142,6 +142,8 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
 
   SbDrmSystem wrapped_drm_system() { return wrapped_drm_system_; }
 
+  bool is_valid() const { return SbDrmSystemIsValid(wrapped_drm_system_); }
+
   std::unique_ptr<Session> CreateSession(
       SessionUpdateKeyStatusesCallback session_update_key_statuses_callback
 #if SB_HAS(DRM_SESSION_CLOSED)
