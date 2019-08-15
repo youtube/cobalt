@@ -22,7 +22,7 @@
 #include "base/basictypes.h"
 #include "cobalt/css_parser/grammar.h"
 #include "cobalt/cssom/media_feature_names.h"
-#include "third_party/icu/source/common/unicode/umachine.h"
+#include "unicode/umachine.h"
 
 namespace cobalt {
 namespace css_parser {

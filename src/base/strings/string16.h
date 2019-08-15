@@ -30,6 +30,7 @@
 
 #include <functional>
 #include <string>
+#include <unicode/uvernum.h>
 
 #include "starboard/types.h"
 
@@ -53,7 +54,11 @@ typedef std::wstring string16;
 
 namespace base {
 
+#if U_ICU_VERSION_MAJOR_NUM >= 59
+typedef char16_t char16;
+#else
 typedef uint16_t char16;
+#endif
 
 // char16 versions of the functions required by string16_char_traits; these
 // are based on the wide character functions of similar names ("w" or "wcs"
