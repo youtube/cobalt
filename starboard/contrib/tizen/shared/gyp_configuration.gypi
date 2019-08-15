@@ -78,6 +78,7 @@
       '__STDC_FORMAT_MACROS', # so that we get PRI*
       # Enable GNU extensions to get prototypes like ffsl.
       '_GNU_SOURCE=1',
+      'U_HAVE_STD_STRING=1',
     ],
     'cflags': [
       '-pthread',
