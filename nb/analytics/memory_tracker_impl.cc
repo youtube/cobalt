@@ -38,7 +38,7 @@ namespace {
 // This class allows std containers to bypass memory reporting.
 template <typename T>
 class RawAllocator : public std::allocator<T> {
-public:
+ public:
   typedef typename std::allocator<T>::pointer pointer;
   typedef typename std::allocator<T>::const_pointer const_pointer;
   typedef typename std::allocator<T>::reference reference;
@@ -54,7 +54,7 @@ public:
   RawAllocator(const RawAllocator<U>& x) {}
 
   pointer allocate(size_type n,
-    std::allocator<void>::const_pointer hint = NULL) {
+                   std::allocator<void>::const_pointer hint = NULL) {
     void* ptr = SbMemoryAllocateNoReport(n * sizeof(value_type));
     return static_cast<pointer>(ptr);
   }
@@ -89,7 +89,6 @@ class MemoryTrackerImpl::ThreadLocalBool_NoReport {
       return false;
     }
     return entry.Value();
-
   }
 
  private:
@@ -101,15 +100,12 @@ class MemoryTrackerImpl::ThreadLocalBool_NoReport {
   using VectorPair = std::vector<PairType, RawAllocator<PairType>>;
   // The InnerMap is backed by the vector. The FlatMap transforms the vector
   // into a map interface.
-  using InnerMap = starboard::FlatMap<SbThreadId, bool,
-                                      std::less<SbThreadId>,
-                                      VectorPair>;
+  using InnerMap =
+      starboard::FlatMap<SbThreadId, bool, std::less<SbThreadId>, VectorPair>;
   // Concurrent map uses distributed locking to achieve a highly concurrent
   // unsorted map.
-  using ThreadMap = ConcurrentMap<SbThreadId,
-                                  bool,
-                                  std::hash<SbThreadId>,
-                                  InnerMap>;
+  using ThreadMap =
+      ConcurrentMap<SbThreadId, bool, std::hash<SbThreadId>, InnerMap>;
 
   ThreadMap thread_map_;
 };
@@ -147,8 +143,7 @@ void MemoryTrackerImpl::PushAllocationGroup(AllocationGroup* alloc_group) {
 
 AllocationGroup* MemoryTrackerImpl::PeekAllocationGroup() {
   DisableMemoryTrackingInScope no_tracking(this);
-  AllocationGroup* out =
-      allocation_group_stack_tls_.GetOrCreate()->Peek();
+  AllocationGroup* out = allocation_group_stack_tls_.GetOrCreate()->Peek();
   if (out == NULL) {
     out = alloc_group_map_.GetDefaultUnaccounted();
   }
@@ -157,7 +152,10 @@ AllocationGroup* MemoryTrackerImpl::PeekAllocationGroup() {
 
 void MemoryTrackerImpl::PopAllocationGroup() {
   DisableMemoryTrackingInScope no_tracking(this);
-  AllocationGroupStack* alloc_tls = allocation_group_stack_tls_.GetOrCreate();
+  AllocationGroupStack* alloc_tls = allocation_group_stack_tls_.GetIfExists();
+  if (!alloc_tls) {
+    return;
+  }
   alloc_tls->Pop();
   AllocationGroup* group = alloc_tls->Peek();
   // We don't allow null, so if this is encountered then push the
@@ -286,8 +284,7 @@ void MemoryTrackerImpl::Initialize(
     NbMemoryScopeReporter* memory_scope_reporter) {
   SbMemoryReporter mem_reporter = {
       MemoryTrackerImpl::OnMalloc, MemoryTrackerImpl::OnDealloc,
-      MemoryTrackerImpl::OnMapMem, MemoryTrackerImpl::OnUnMapMem,
-      this};
+      MemoryTrackerImpl::OnMapMem, MemoryTrackerImpl::OnUnMapMem, this};
 
   NbMemoryScopeReporter mem_scope_reporter = {
       MemoryTrackerImpl::OnPushAllocationGroup,
@@ -363,8 +360,7 @@ bool MemoryTrackerImpl::AddMemoryTracking(const void* memory, size_t size) {
 
   // End all memory tracking in subsequent data structures.
   DisableMemoryTrackingInScope no_memory_tracking(this);
-  AllocationGroupStack* alloc_stack =
-      allocation_group_stack_tls_.GetOrCreate();
+  AllocationGroupStack* alloc_stack = allocation_group_stack_tls_.GetOrCreate();
   AllocationGroup* group = alloc_stack->Peek();
   if (!group) {
     group = alloc_group_map_.GetDefaultUnaccounted();

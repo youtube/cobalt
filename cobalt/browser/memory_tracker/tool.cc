@@ -34,7 +34,9 @@
 #include "cobalt/browser/memory_tracker/tool/tool_thread.h"
 #include "nb/analytics/memory_tracker_helpers.h"
 #include "starboard/common/log.h"
+#include "starboard/configuration.h"
 #include "starboard/double.h"
+#include "starboard/file.h"
 
 namespace cobalt {
 namespace browser {
@@ -87,25 +89,93 @@ struct SwitchVal {
 
 class SbLogger : public AbstractLogger {
  public:
-  void Output(const char* str) override { SbLogRaw(str); }
+  void Output(const char* str) override { LOG(INFO) << str; }
   void Flush() override { SbLogFlush(); }
 };
 
+class FileLogger : public AbstractLogger {
+ public:
+  explicit FileLogger(const std::string& filename);
+  ~FileLogger();
+  void Output(const char* str) override {
+    if (SbFileIsValid(log_file_)) {
+      SbFileWrite(log_file_, str, static_cast<int>(strlen(str)));
+      SbFileFlush(log_file_);
+    } else {
+      LOG(INFO) << str;
+    }
+  }
+  void Flush() override { SbLogFlush(); }
+
+ private:
+  SbFile log_file_;
+};
+
+FileLogger::FileLogger(const std::string& filename)
+    : log_file_(kSbFileInvalid) {
+  char file_name_buff[2048] = {};
+  SbSystemGetPath(kSbSystemPathDebugOutputDirectory, file_name_buff,
+                  arraysize(file_name_buff));
+  std::string path(file_name_buff);
+  if (!path.empty()) {  // Protect against a dangling "/" at end.
+    const int back_idx_signed = static_cast<int>(path.length()) - 1;
+    if (back_idx_signed >= 0) {
+      const size_t idx = back_idx_signed;
+      if (path[idx] == SB_FILE_SEP_CHAR) {
+        path.erase(idx);
+      }
+    }
+  }
+  path.push_back(SB_FILE_SEP_CHAR);
+  path.append(filename);
+  int flags = kSbFileCreateAlways | kSbFileWrite;
+  bool created_ok = false;
+  SbFileError error_code = kSbFileOk;
+  log_file_ = SbFileOpen(path.c_str(), flags, &created_ok, &error_code);
+  if (log_file_ == kSbFileInvalid || !created_ok) {
+    LOG(ERROR) << "Error creating log file";
+    return;
+  } else {
+    LOG(INFO) << "Logging to file: " << path;
+  }
+}
+
+FileLogger::~FileLogger() {
+  SbFileClose(log_file_);
+  log_file_ = kSbFileInvalid;
+}  // namespace
+
 // Parses out the toolname for a tool command.
 // Example:
-//   INPUT:  "tool_name(arg)"
+//   INPUT:  "tool_name(arg):filename"
 //   OUTPUT: "tool_name"
 std::string ParseToolName(const std::string& command_arg) {
   const size_t first_open_paren_idx = command_arg.find('(');
   if (first_open_paren_idx == std::string::npos) {
-    return command_arg;
+    const size_t first_colon_idx = command_arg.find(':');
+    if (first_colon_idx == std::string::npos) {
+      return command_arg;
+    }
+    return command_arg.substr(0, first_colon_idx);
   }
   return command_arg.substr(0, first_open_paren_idx);
 }
 
+// Parses out the output filename for a tool command.
+// Example:
+//   INPUT:  "tool_name(arg):filename"
+//   OUTPUT: "filename"
+std::string ParseFileName(const std::string& command_arg) {
+  const size_t first_colon_idx = command_arg.find(':');
+  if (first_colon_idx == std::string::npos) {
+    return "";
+  }
+  return command_arg.substr(1 + first_colon_idx);
+}
+
 // Parses out the arguments for a tool.
 // Example:
-//   INPUT:  "tool_name(arg)"
+//   INPUT:  "tool_name(arg):filename"
 //   OUTPUT: "arg"
 std::string ParseToolArg(const std::string& command_arg) {
   const size_t first_open_paren_idx = command_arg.find('(');
@@ -250,6 +320,7 @@ std::unique_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
 
   std::string tool_name = ParseToolName(command_arg);
   std::string tool_arg = ParseToolArg(command_arg);
+  std::string filename = ParseFileName(command_arg);
 
   // FAST OUT - is a thread type not selected? Then print out a help menu
   // and request that the app should shut down.
@@ -263,13 +334,13 @@ std::unique_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
          it != switch_map.end(); ++it) {
       const std::string& name = it->first;
       const SwitchVal& val = it->second;
-      ss << "    memory_tracker=" << name << " "
-         << "\"" << val.help_msg << "\"\n";
+      ss << "    memory_tracker=" << name << " \n" << val.help_msg;
     }
-    ss << "\n";
-    SbLogRaw(ss.str().c_str());
+    ss << "\nIf the string has a colon, then the name after the colon is used\n"
+          "as the filename for output.\n"
+          "For example: \"leak_tracer:leaks.csv\"\n";
+    LOG(INFO) << ss.str();
     ss.str("");  // Clears the contents of stringstream.
-    SbLogFlush();
 
     // Try and turn off all logging so that the stdout is less likely to be
     // polluted by interleaving output.
@@ -282,9 +353,6 @@ std::unique_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
 
     found_it = switch_map.find(continuous_printer_tool.tool_name);
 
-    ss << "Defaulting to tool: " << found_it->first << "\n";
-    SbLogRaw(ss.str().c_str());
-    SbLogFlush();
     // One more help message and 1-second pause. Then continue on with the
     // execution as normal.
     const SbTime one_second = 1000 * kSbTimeMillisecond;
@@ -423,9 +491,15 @@ std::unique_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
 
   if (tool_ptr.get()) {
     DisableMemoryTrackerInScope disable_in_scope(memory_tracker);
-    base::SimpleThread* thread =
-        new ToolThread(memory_tracker,  // May be NULL.
-                       tool_ptr.release(), new SbLogger);
+    AbstractLogger* logger = NULL;
+    if (!filename.empty()) {
+      logger = new FileLogger(filename);
+    }
+    if (!logger) {
+      logger = new SbLogger;
+    }
+    base::SimpleThread* thread = new ToolThread(memory_tracker,  // May be NULL.
+                                                tool_ptr.release(), logger);
     return std::unique_ptr<Tool>(new MemoryTrackerThreadImpl(thread));
   } else {
     return std::unique_ptr<Tool>();
