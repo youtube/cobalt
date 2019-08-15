@@ -34,7 +34,9 @@
         '<(DEPTH)/starboard/contrib/tizen/shared/system_has_capability.cc',
         '<(DEPTH)/starboard/contrib/tizen/shared/thread_create.cc',
         '<(DEPTH)/starboard/contrib/tizen/shared/thread_join.cc',
+        '<(DEPTH)/starboard/shared/dlmalloc/memory_map.cc',
         '<(DEPTH)/starboard/shared/dlmalloc/memory_protect.cc',
+        '<(DEPTH)/starboard/shared/dlmalloc/memory_unmap.cc',
         '<(DEPTH)/starboard/shared/gcc/atomic_gcc_public.h',
         '<(DEPTH)/starboard/shared/iso/character_is_alphanumeric.cc',
         '<(DEPTH)/starboard/shared/iso/character_is_digit.cc',
@@ -234,6 +236,25 @@
         '<(DEPTH)/starboard/contrib/tizen/shared/system.gyp:wayland-egl',
         '<(DEPTH)/third_party/libevent/libevent.gyp:libevent',
         'starboard_base_symbolize',
+      ],
+      'conditions': [
+        ['use_dlmalloc_allocator==1', {
+          'sources': [
+            '<(DEPTH)/starboard/shared/dlmalloc/memory_allocate_aligned_unchecked.cc',
+            '<(DEPTH)/starboard/shared/dlmalloc/memory_allocate_unchecked.cc',
+            '<(DEPTH)/starboard/shared/dlmalloc/memory_free.cc',
+            '<(DEPTH)/starboard/shared/dlmalloc/memory_free_aligned.cc',
+            '<(DEPTH)/starboard/shared/dlmalloc/memory_reallocate_unchecked.cc',
+          ],
+        }, {
+          'sources': [
+            '<(DEPTH)/starboard/shared/iso/memory_allocate_unchecked.cc',
+            '<(DEPTH)/starboard/shared/iso/memory_free.cc',
+            '<(DEPTH)/starboard/shared/iso/memory_reallocate_unchecked.cc',
+            '<(DEPTH)/starboard/shared/posix/memory_allocate_aligned_unchecked.cc',
+            '<(DEPTH)/starboard/shared/posix/memory_free_aligned.cc',
+          ],
+        }],
       ],
     },
   ],
