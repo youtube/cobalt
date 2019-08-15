@@ -21,6 +21,7 @@
 #include "cobalt/browser/memory_tracker/tool/params.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #include "starboard/common/string.h"
+#include "starboard/configuration.h"
 #include "starboard/types.h"
 
 namespace cobalt {
@@ -134,12 +135,13 @@ std::string LogWriterTool::MemoryLogPath() {
     const int back_idx_signed = static_cast<int>(path.length()) - 1;
     if (back_idx_signed >= 0) {
       const size_t idx = back_idx_signed;
-      if (path[idx] == '/') {
+      if (path[idx] == SB_FILE_SEP_CHAR) {
         path.erase(idx);
       }
     }
   }
-  path.append("/memory_log.txt");
+  path.push_back(SB_FILE_SEP_CHAR);
+  path.append("memory_log.txt");
   return path;
 }
 

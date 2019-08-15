@@ -386,6 +386,15 @@ struct SecurityFlags {
 // accessed.
 base::LazyInstance<NonTrivialStaticFields>::DestructorAtExit
     non_trivial_static_fields = LAZY_INSTANCE_INITIALIZER;
+
+#if defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
+const char kMemoryTrackerCommand[] = "memory_tracker";
+const char kMemoryTrackerCommandShortHelp[] = "Create a memory tracker.";
+const char kMemoryTrackerCommandLongHelp[] =
+    "Create a memory tracker of the given type. Use an empty string to see the "
+    "available trackers.";
+#endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
+
 }  // namespace
 
 // Static user logs
@@ -405,7 +414,17 @@ int Application::network_connect_count_ = 0;
 int Application::network_disconnect_count_ = 0;
 
 Application::Application(const base::Closure& quit_closure, bool should_preload)
-    : message_loop_(base::MessageLoop::current()), quit_closure_(quit_closure) {
+    : message_loop_(base::MessageLoop::current()),
+      quit_closure_(quit_closure)
+#if defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
+      ,
+      ALLOW_THIS_IN_INITIALIZER_LIST(memory_tracker_command_handler_(
+          kMemoryTrackerCommand,
+          base::Bind(&Application::OnMemoryTrackerCommand,
+                     base::Unretained(this)),
+          kMemoryTrackerCommandShortHelp, kMemoryTrackerCommandLongHelp))
+#endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
+{
   DCHECK(!quit_closure_.is_null());
   // Check to see if a timed_trace has been set, indicating that we should
   // begin a timed trace upon startup.
@@ -583,11 +602,13 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
 
   EnableUsingStubImageDecoderIfRequired();
 
+#if defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
   if (command_line->HasSwitch(switches::kMemoryTracker)) {
     std::string command_arg =
         command_line->GetSwitchValueASCII(switches::kMemoryTracker);
     memory_tracker_tool_ = memory_tracker::CreateMemoryTrackerTool(command_arg);
   }
+#endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
 
   if (command_line->HasSwitch(switches::kDisableImageAnimations)) {
     options.web_module_options.enable_image_animations = false;
@@ -724,7 +745,9 @@ Application::~Application() {
   // and involves a thread join. If this were to hang the app then having
   // the destruction at this point gives a real file-line number and a place
   // for the debugger to land.
+#if defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
   memory_tracker_tool_.reset(NULL);
+#endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
 
   // Unregister event callbacks.
   event_dispatcher_.RemoveEventCallback(base::DeepLinkEvent::TypeId(),
@@ -1104,6 +1127,24 @@ void Application::UpdatePeriodicStats() {
 void Application::DispatchEventInternal(base::Event* event) {
   event_dispatcher_.DispatchEvent(std::unique_ptr<base::Event>(event));
 }
+
+#if defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
+void Application::OnMemoryTrackerCommand(const std::string& message) {
+  if (base::MessageLoop::current() != message_loop_) {
+    message_loop_->task_runner()->PostTask(
+        FROM_HERE, base::Bind(&Application::OnMemoryTrackerCommand,
+                              base::Unretained(this), message));
+    return;
+  }
+
+  if (memory_tracker_tool_) {
+    LOG(ERROR) << "Can not create a memory tracker when one is already active.";
+    return;
+  }
+  LOG(WARNING) << "Creating \"" << message << "\" memory tracker.";
+  memory_tracker_tool_ = memory_tracker::CreateMemoryTrackerTool(message);
+}
+#endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
 
 }  // namespace browser
 }  // namespace cobalt
