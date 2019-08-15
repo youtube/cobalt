@@ -20,6 +20,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/time/time.h"
+#include "cobalt/browser/memory_tracker/tool/buffered_file_writer.h"
 #include "cobalt/browser/memory_tracker/tool/params.h"
 #include "cobalt/browser/memory_tracker/tool/tool_impl.h"
 #include "starboard/memory_reporter.h"
