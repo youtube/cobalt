@@ -56,21 +56,6 @@ base::Optional<int> DebugConsoleModeStringToInt(
   }
 }
 
-// Convert from mode to string.
-std::string DebugConsoleModeIntToString(int mode) {
-  switch (mode) {
-    case debug::console::DebugHub::kDebugConsoleHud:
-      return kDebugConsoleHudString;
-    case debug::console::DebugHub::kDebugConsoleOn:
-      return kDebugConsoleOnString;
-    case debug::console::DebugHub::kDebugConsoleOff:
-      return kDebugConsoleOffString;
-    default:
-      NOTREACHED();
-      return kDebugConsoleOffString;
-  }
-}
-
 // Returns the debug console mode as specified by the command line.
 // If unspecified by the command line, base::nullopt is returned.
 base::Optional<int> GetDebugConsoleModeFromCommandLine() {
