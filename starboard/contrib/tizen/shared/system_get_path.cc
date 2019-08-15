@@ -132,15 +132,6 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
 
       SbDirectoryCreate(path);
       break;
-    case kSbSystemPathSourceDirectory:
-      if (!GetPackageDirectory(path, kPathSize)) {
-        return false;
-      }
-      if (SbStringConcat(path, "/content/dir_source_root", kPathSize) >=
-          kPathSize) {
-        return false;
-      }
-      break;
     case kSbSystemPathTempDirectory:
       if (SbStringCopy(path, "/tmp/cobalt", kPathSize) >= kPathSize) {
         return false;
