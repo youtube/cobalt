@@ -15,7 +15,6 @@
       'OPENSSL_NO_DTLS1',
     ],
     'cflags': [
-      '-g',
       '-fPIC',
       '-fvisibility=hidden',
     ],
