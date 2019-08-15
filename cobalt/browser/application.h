@@ -16,9 +16,11 @@
 #define COBALT_BROWSER_APPLICATION_H_
 
 #include <memory>
+#include <string>
 
 #include "base/callback.h"
 #include "base/command_line.h"
+#include "base/macros.h"
 #include "base/message_loop/message_loop.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/account/account_manager.h"
@@ -33,8 +35,9 @@
 #endif
 
 #if defined(ENABLE_DEBUGGER)
+#include "cobalt/debug/console/command_manager.h"
 #include "cobalt/debug/remote/debug_web_server.h"
-#endif
+#endif  // ENABLE_DEBUGGER
 
 namespace cobalt {
 namespace browser {
@@ -56,13 +59,6 @@ class Application {
  protected:
   base::MessageLoop* message_loop() { return message_loop_; }
 
- private:
-  // The message loop that will handle UI events.
-  base::MessageLoop* message_loop_;
-
-  const base::Closure quit_closure_;
-
- protected:
   // Called to handle a network event.
   void OnNetworkEvent(const base::Event* event);
 
@@ -179,6 +175,11 @@ class Application {
   void UpdatePeriodicStats();
   void DispatchEventInternal(base::Event* event);
 
+  // The message loop that will handle UI events.
+  base::MessageLoop* message_loop_;
+
+  const base::Closure quit_closure_;
+
   static ssize_t available_memory_;
   static int64 lifetime_in_ms_;
 
@@ -196,7 +197,18 @@ class Application {
 
   base::RepeatingTimer stats_update_timer_;
 
+#if defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
   std::unique_ptr<memory_tracker::Tool> memory_tracker_tool_;
+
+  // Command handler object for creating a memory tracker.
+  debug::console::ConsoleCommandManager::CommandHandler
+      memory_tracker_command_handler_;
+
+  // Create a memory tracker with the given message
+  void OnMemoryTrackerCommand(const std::string& message);
+#endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
+
+  DISALLOW_COPY_AND_ASSIGN(Application);
 };
 
 }  // namespace browser
