@@ -3,6 +3,9 @@
 # found in the LICENSE file.
 
 {
+  'variables': {
+    'optimize_target_for_speed': 1,
+  },
   'targets': [
     {
       # This is the target that all Cobalt modules should depend on if they

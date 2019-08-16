@@ -14,6 +14,7 @@
 
 {
   'variables': {
+    'optimize_target_for_speed': 1,
     'sb_pedantic_warnings': 1,
   },
 

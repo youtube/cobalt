@@ -3,6 +3,7 @@
   'variables': {
     'asm_target_arch%': '<(target_arch)',
     'boringssl_root%': '<(DEPTH)/third_party/boringssl/src',
+    'optimize_target_for_speed': 1,
   },
 
   'target_defaults': {
@@ -278,8 +279,8 @@
 
             # For |target_os=="win"| an ASM rule uses ml.exe (aka MS Macro Assembler)
             # which we can't use with GNU format. As soon as ASM rule will be fixed
-            # for using GNU Assembler, to accelerate "crypto" with assembler 
-            # implementations just remove target_os=="win" from abowe condition 
+            # for using GNU Assembler, to accelerate "crypto" with assembler
+            # implementations just remove target_os=="win" from abowe condition
             # |'asm_target_arch=="none" or target_os=="win"'| which currently
             # sets OPENSSL_NO_ASM for "win" too
 

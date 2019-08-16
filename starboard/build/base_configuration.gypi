@@ -118,6 +118,10 @@
     # Used to indicate that the player is filter based.
     'sb_filter_based_player%': 1,
 
+    # This variable dictates whether a given gyp target should be compiled with
+    # optimization flags for size vs. speed.
+    'optimize_target_for_speed%': 0,
+
     # Compiler configuration.
 
     # The following variables are used to specify compiler and linker
@@ -142,15 +146,35 @@
     'linker_flags_devel%': [],
     'defines_devel%': [],
 
+    # For qa and gold configs, different compiler flags may be specified for
+    # gyp targets that should be built for size than for speed. Targets which
+    # specify 'optimize_target_for_speed == 1', will compile with flags:
+    #   ['compiler_flags_*<config>', 'compiler_flags_*<config>_speed'].
+    # Otherwise, targets will use compiler flags:
+    #   ['compiler_flags_*<config>', 'compiler_flags_*<config>_size'].
+    # Platforms may decide to use the same optimization flags for both
+    # target types by leaving the '*_size' and '*_speed' variables empty.
     'compiler_flags_qa%': [],
+    'compiler_flags_qa_size%': [],
+    'compiler_flags_qa_speed%': [],
     'compiler_flags_c_qa%': [],
+    'compiler_flags_c_qa_size%': [],
+    'compiler_flags_c_qa_speed%': [],
     'compiler_flags_cc_qa%': [],
+    'compiler_flags_cc_qa_size%': [],
+    'compiler_flags_cc_qa_speed%': [],
     'linker_flags_qa%': [],
     'defines_qa%': [],
 
     'compiler_flags_gold%': [],
+    'compiler_flags_gold_size%': [],
+    'compiler_flags_gold_speed%': [],
     'compiler_flags_c_gold%': [],
+    'compiler_flags_c_gold_size%': [],
+    'compiler_flags_c_gold_speed%': [],
     'compiler_flags_cc_gold%': [],
+    'compiler_flags_cc_gold_size%': [],
+    'compiler_flags_cc_gold_speed%': [],
     'linker_flags_gold%': [],
     'defines_gold%': [],
 
@@ -208,6 +232,11 @@
       # value it has during early variable expansion. That's enough to make
       # it available during target conditional processing.
       'sb_pedantic_warnings%': '<(sb_pedantic_warnings)',
+
+      # This workaround is used to surface the default setting for the variable
+      # 'optimize_target_for_speed' if the gyp target does not explicitly set
+      # it.
+      'optimize_target_for_speed%': '<(optimize_target_for_speed)',
     },
     'cflags': [ '<@(compiler_flags)' ],
     'ldflags': [ '<@(linker_flags)' ],
@@ -286,9 +315,35 @@
       'qa_base': {
         'abstract': 1,
         # optimize:
-        'cflags': [ '<@(compiler_flags_qa)' ],
-        'cflags_c': [ '<@(compiler_flags_c_qa)' ],
-        'cflags_cc': [ '<@(compiler_flags_cc_qa)' ],
+        'target_conditions': [
+          ['optimize_target_for_speed==1', {
+            'cflags': [
+              '<@(compiler_flags_qa)',
+              '<@(compiler_flags_qa_speed)',
+            ],
+            'cflags_c': [
+              '<@(compiler_flags_c_qa)',
+              '<@(compiler_flags_c_qa_speed)',
+            ],
+            'cflags_cc': [
+              '<@(compiler_flags_cc_qa)',
+              '<@(compiler_flags_cc_qa_speed)',
+            ],
+          }, {
+            'cflags': [
+              '<@(compiler_flags_qa)',
+              '<@(compiler_flags_qa_size)',
+            ],
+            'cflags_c': [
+              '<@(compiler_flags_c_qa)',
+              '<@(compiler_flags_c_qa_size)',
+            ],
+            'cflags_cc': [
+              '<@(compiler_flags_cc_qa)',
+              '<@(compiler_flags_cc_qa_size)',
+            ],
+          }]
+        ],
         'ldflags': [ '<@(linker_flags_qa)' ],
         'defines': [
           '<@(defines_qa)',
@@ -299,9 +354,35 @@
       'gold_base': {
         'abstract': 1,
         # optimize:
-        'cflags': [ '<@(compiler_flags_gold)' ],
-        'cflags_c': [ '<@(compiler_flags_c_gold)' ],
-        'cflags_cc': [ '<@(compiler_flags_cc_gold)' ],
+        'target_conditions': [
+          ['optimize_target_for_speed==1', {
+            'cflags': [
+              '<@(compiler_flags_gold)',
+              '<@(compiler_flags_gold_speed)',
+            ],
+            'cflags_c': [
+              '<@(compiler_flags_c_gold)',
+              '<@(compiler_flags_c_gold_speed)',
+            ],
+            'cflags_cc': [
+              '<@(compiler_flags_cc_gold)',
+              '<@(compiler_flags_cc_gold_speed)',
+            ],
+          }, {
+            'cflags': [
+              '<@(compiler_flags_gold)',
+              '<@(compiler_flags_gold_size)',
+            ],
+            'cflags_c': [
+              '<@(compiler_flags_c_gold)',
+              '<@(compiler_flags_c_gold_size)',
+            ],
+            'cflags_cc': [
+              '<@(compiler_flags_cc_gold)',
+              '<@(compiler_flags_cc_gold_size)',
+            ],
+          }]
+        ],
         'ldflags': [ '<@(linker_flags_gold)' ],
         'defines': [
           '<@(defines_gold)',
