@@ -21,6 +21,7 @@
         'STARBOARD_NO_LOCAL_ISSUER',
         'QUIC_TRACE_DISABLED',
         'COBALT_QUIC46',
+        'COMMON_CERT_SET_DISABLED_FOR_STARBOARD',
       ],
       'direct_dependent_settings': {
         'defines': [
@@ -29,6 +30,7 @@
           'STARBOARD_NO_LOCAL_ISSUER',
           'QUIC_TRACE_DISABLED',
           'COBALT_QUIC46',
+          'COMMON_CERT_SET_DISABLED_FOR_STARBOARD',
         ],
       },
       'include_dirs': [
@@ -2209,7 +2211,7 @@
         'third_party/quic/core/crypto/chacha20_poly1305_tls_decrypter_test.cc',
         'third_party/quic/core/crypto/chacha20_poly1305_tls_encrypter_test.cc',
         'third_party/quic/core/crypto/channel_id_test.cc',
-        'third_party/quic/core/crypto/common_cert_set_test.cc',
+        # 'third_party/quic/core/crypto/common_cert_set_test.cc',
         'third_party/quic/core/crypto/crypto_framer_test.cc',
         'third_party/quic/core/crypto/crypto_handshake_message_test.cc',
         'third_party/quic/core/crypto/crypto_secret_boxer_test.cc',
