@@ -24,6 +24,7 @@ namespace common_cert_set_3 {
 
 namespace {
 
+#if !defined(COMMON_CERT_SET_DISABLED_FOR_STARBOARD)
 struct CertSet {
   // num_certs contains the number of certificates in this set.
   size_t num_certs;
@@ -70,6 +71,7 @@ int Compare(QuicStringPiece a, const unsigned char* b, size_t b_len) {
   }
   return 0;
 }
+#endif
 
 // CommonCertSetsQUIC implements the CommonCertSets interface using the default
 // certificate sets.
@@ -77,11 +79,18 @@ class CommonCertSetsQUIC : public CommonCertSets {
  public:
   // CommonCertSets interface.
   QuicStringPiece GetCommonHashes() const override {
+#if defined(COMMON_CERT_SET_DISABLED_FOR_STARBOARD)
+    return QuicStringPiece();
+#else
     return QuicStringPiece(reinterpret_cast<const char*>(kSetHashes),
                            sizeof(uint64_t) * QUIC_ARRAYSIZE(kSetHashes));
+#endif
   }
 
   QuicStringPiece GetCert(uint64_t hash, uint32_t index) const override {
+#if defined(COMMON_CERT_SET_DISABLED_FOR_STARBOARD)
+    NOTIMPLEMENTED() << "common cert set is disabled!";
+#else
     for (size_t i = 0; i < QUIC_ARRAYSIZE(kSets); i++) {
       if (kSets[i].hash == hash) {
         if (index < kSets[i].num_certs) {
@@ -92,6 +101,7 @@ class CommonCertSetsQUIC : public CommonCertSets {
         break;
       }
     }
+#endif
 
     return QuicStringPiece();
   }
@@ -100,6 +110,9 @@ class CommonCertSetsQUIC : public CommonCertSets {
                  QuicStringPiece common_set_hashes,
                  uint64_t* out_hash,
                  uint32_t* out_index) const override {
+#if defined(COMMON_CERT_SET_DISABLED_FOR_STARBOARD)
+    NOTIMPLEMENTED() << "common cert set is disabled!";
+#else
     if (common_set_hashes.size() % sizeof(uint64_t) != 0) {
       return false;
     }
@@ -139,6 +152,7 @@ class CommonCertSetsQUIC : public CommonCertSets {
         }
       }
     }
+#endif
 
     return false;
   }
