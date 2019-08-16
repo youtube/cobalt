@@ -18,12 +18,7 @@
  # Checks if object implements interface.
  #}
 {% macro check_if_object_implements_interface() %}
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !{{binding_class}}::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface({{binding_class}}::GetTemplate(isolate), isolate, object)) {
     return;
   }
 {%- endmacro %}
@@ -262,9 +257,8 @@
 {% do arguments_list.append('&exception_state') if raises_exception %}
 {%- endmacro %}
 
-{% macro call_nonvoid_function(return_type, function_name, arguments,
-                               impl_class, is_static) %}
-  if (!exception_state.is_exception_set()) {
+{% macro call_nonvoid_function_internal(function_name, arguments,
+                                impl_class, is_static) %}
 {% if not is_static %}
     ToJSValue(isolate,
               impl->{{function_name}}({{arguments|join(", ")}}),
@@ -274,28 +268,50 @@
               {{impl_class}}::{{function_name}}({{arguments|join(', ')}}),
               &result_value);
 {% endif %}
-  }
 {%- endmacro %}
 
-{% macro call_void_function(function_name, arguments, impl_class, is_static,
-                            cobalt_impl_prefix) %}
+{% macro call_void_function_internal(function_name, arguments,
+                                impl_class, is_static, cobalt_impl_prefix) %}
 {% if not is_static %}
   {{cobalt_impl_prefix}}impl->{{function_name}}({{arguments|join(", ")}});
 {% else %}
   {{impl_class}}::{{function_name}}({{arguments|join(', ')}});
 {% endif %}
+{%- endmacro %}
+
+{% macro get_cobalt_value(impl_class, cobalt_type, function_name, arguments,
+                                raises_exception, call_with, is_static, cobalt_impl_prefix) %}
+  {{ add_extra_arguments(arguments, raises_exception, call_with) }}
+{% if cobalt_type == "void" %}
+  {{call_void_function_internal(function_name, arguments,
+                                impl_class, is_static) -}}
+{% else %}
+  {{call_nonvoid_function_internal(function_name, arguments,
+                                impl_class, is_static) -}}
+{% endif %}
+{%- endmacro %}
+
+{% macro call_nonvoid_function(return_type, function_name, arguments,
+                               impl_class, is_static) %}
+  if (!exception_state.is_exception_set()) {
+
+  {{call_nonvoid_function_internal(function_name, arguments,
+                                impl_class, is_static) -}}
+  }
+{%- endmacro %}
+
+{% macro call_void_function(function_name, arguments, impl_class, is_static,
+                            cobalt_impl_prefix) %}
+{{ call_void_function_internal(function_name, arguments, impl_class, is_static,
+                      cobalt_impl_prefix) -}}
   result_value = v8::Undefined(isolate);
 {%- endmacro %}
 
 {% macro get_impl_class_instance(impl_class) %}
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  {{impl_class}}* impl = script::v8c::shared_bindings::get_impl_from_object<{{impl_class}}>(object);
+  if (!impl) {
     return;
   }
-  {{impl_class}}* impl =
-      wrapper_private->wrappable<{{impl_class}}>().get();
 {%- endmacro %}
 
 {% macro static_function_prologue() %}
@@ -373,9 +389,7 @@
 {# In the case there is only one resolution condition, we do not need the arg. #}
 {% if resolution_tests|length > 1 %}
       v8::Local<v8::Value> arg = info[{{distinguishing_argument_index}}];
-      V8cGlobalEnvironment* global_environment =
-          V8cGlobalEnvironment::GetFromIsolate(isolate);
-      WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+      WrapperFactory* wrapper_factory = V8cGlobalEnvironment::GetFromIsolate(isolate)->wrapper_factory();
       v8::Local<v8::Object> object;
       if (arg->IsObject()) {
         object = arg->ToObject();
