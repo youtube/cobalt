@@ -8,6 +8,7 @@
 
 #include <stdint.h>
 
+#if !defined(COMMON_CERT_SET_DISABLED_FOR_STARBOARD)
 #include "net/third_party/quic/core/crypto/common_cert_set_2a.inc"
 #include "net/third_party/quic/core/crypto/common_cert_set_2b.inc"
 
@@ -127,3 +128,4 @@ static const size_t kLens[] = {
 };
 
 static const uint64_t kHash = UINT64_C(0xe81a92926081e801);
+#endif
