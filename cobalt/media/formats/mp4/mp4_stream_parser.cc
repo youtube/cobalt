@@ -203,7 +203,7 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
     const SampleDescription& samp_descr =
         track->media.information.sample_table.description;
 
-    // TODO(strobe): When codec reconfigurations are supported, detect and send
+    // TODO: When codec reconfigurations are supported, detect and send
     // a codec reconfiguration for fragments using a sample description index
     // different from the previous one
     size_t desc_idx = 0;
@@ -337,7 +337,7 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
         return false;
       }
 
-      // TODO(strobe): Recover correct crop box
+      // TODO: Recover correct crop box
       gfx::Size coded_size(entry.width, entry.height);
       gfx::Rect visible_rect(coded_size);
 
@@ -459,7 +459,7 @@ bool MP4StreamParser::ParseMoof(BoxReader* reader) {
 
 void MP4StreamParser::OnEncryptedMediaInitData(
     const std::vector<ProtectionSystemSpecificHeader>& headers) {
-  // TODO(strobe): ensure that the value of init_data (all PSSH headers
+  // TODO: ensure that the value of init_data (all PSSH headers
   // concatenated in arbitrary order) matches the EME spec.
   // See https://www.w3.org/Bugs/Public/show_bug.cgi?id=17673.
   size_t total_size = 0;
