@@ -289,14 +289,23 @@ class AndroidMediaSessionClient : public MediaSessionClient {
       }
     }
 
+    jlong duration = session_state.duration();
+    // Set duration to negative if duration is unknown or infinite, as with live
+    // playback.
+    // https://developer.android.com/reference/android/support/v4/media/MediaMetadataCompat#METADATA_KEY_DURATION
+    if (duration == kSbTimeMax) {
+      duration = -1;
+    }
+
     env->CallStarboardVoidMethodOrAbort(
         "updateMediaSession",
         "(IJJFLjava/lang/String;Ljava/lang/String;Ljava/lang/String;"
-            "[Ldev/cobalt/media/MediaImage;)V",
+        "[Ldev/cobalt/media/MediaImage;J)V",
         playback_state, playback_state_actions,
         session_state.current_playback_position() / kSbTimeMillisecond,
         static_cast<jfloat>(session_state.actual_playback_rate()),
-        j_title.Get(), j_artist.Get(), j_album.Get(), j_artwork.Get());
+        j_title.Get(), j_artist.Get(), j_album.Get(), j_artwork.Get(),
+        duration);
   }
 };
 
