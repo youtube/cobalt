@@ -179,21 +179,13 @@ bool DebugConsole::InjectOnScreenKeyboardInputEvent(
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
 void DebugConsole::SetMode(int mode) {
-  int mode_to_save;
-  {
-    base::AutoLock lock(mode_mutex_);
-    mode_ = mode;
-    mode_to_save = mode_;
-  }
+  base::AutoLock lock(mode_mutex_);
+  mode_ = mode;
 }
 
 void DebugConsole::CycleMode() {
-  int mode_to_save;
-  {
-    base::AutoLock lock(mode_mutex_);
-    mode_ = (mode_ + 1) % debug::console::DebugHub::kDebugConsoleNumModes;
-    mode_to_save = mode_;
-  }
+  base::AutoLock lock(mode_mutex_);
+  mode_ = (mode_ + 1) % debug::console::DebugHub::kDebugConsoleNumModes;
 }
 
 int DebugConsole::GetMode() {
