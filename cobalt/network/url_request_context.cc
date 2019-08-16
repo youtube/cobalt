@@ -109,7 +109,7 @@ URLRequestContext::URLRequestContext(
   storage_.set_cert_verifier(net::CertVerifier::CreateDefault());
   storage_.set_transport_security_state(
       std::make_unique<net::TransportSecurityState>());
-  // TODO[***REMOVED***]: Investigate if we want the cert transparency verifier.
+  // TODO: Investigate if we want the cert transparency verifier.
   storage_.set_cert_transparency_verifier(
       std::make_unique<net::DoNothingCTVerifier>());
   storage_.set_ssl_config_service(

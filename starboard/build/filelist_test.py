@@ -166,7 +166,6 @@ class FileListTest(unittest.TestCase):
     self.assertEqual(flist.symlink_dir_list[0], expected)
 
   def testOsGetRelpathFallback(self):
-    # Tests issue b/134589032
     path = (
         'src/out/tmp/cobalt_archive/archive/____app_launcher/third_party/'
         'web_platform_tests/custom-elements/registering-custom-elements/'
