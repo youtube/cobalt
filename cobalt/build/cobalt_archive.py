@@ -185,7 +185,7 @@ class CobaltArchive(object):
           perms = _GetFilePermissions(file_path)
           if (stat.S_IXUSR) & perms:
             executable_files.append(archive_path)
-        # TODO(***REMOVED***): Use and implement _FoldIdenticalFiles() to reduce
+        # TODO: Use and implement _FoldIdenticalFiles() to reduce
         # duplicate files. This will help platforms like nxswitch which include
         # a lot of duplicate files for the sdk.
         try:

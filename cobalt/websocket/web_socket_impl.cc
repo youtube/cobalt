@@ -212,7 +212,7 @@ bool WebSocketImpl::SendHelper(const net::WebSocketFrameHeader::OpCode op_code,
     delegate_task_runner_->PostTask(FROM_HERE, do_send_closure);
   }
 
-  // TODO[***REMOVED***]:Change to void function?
+  // TODO: Change to void function?
   return true;
 }
 

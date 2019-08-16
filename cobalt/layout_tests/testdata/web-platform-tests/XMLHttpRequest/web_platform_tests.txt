@@ -152,7 +152,7 @@ send-entity-body-document-bogus.htm,FAIL
 # SyntaxError: Unexpected EOF
 # js_error: send-entity-body-document.htm,FAIL
 send-entity-body-empty.htm,FAIL
-# TODO[***REMOVED***]: re-enable this after Cobalt wpt refactoring.
+# TODO: re-enable this after Cobalt wpt refactoring.
 send-entity-body-get-head-async.htm,PASS
 send-entity-body-get-head.htm,FAIL
 send-entity-body-none.htm,FAIL
