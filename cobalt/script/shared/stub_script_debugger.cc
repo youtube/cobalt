@@ -73,6 +73,15 @@ class StubScriptDebugger : public ScriptDebugger {
     return kNone;
   }
 
+  // The AsyncTask functions will be called regardless whether there's a
+  // functioning debugger, so don't call NOTIMPLEMENTED() to avoid log spam.
+  void AsyncTaskScheduled(void* task, const std::string& name,
+                          bool recurring) override {}
+  void AsyncTaskStarted(void* task) override {}
+  void AsyncTaskFinished(void* task) override {}
+  void AsyncTaskCanceled(void* task) override {}
+  void AllAsyncTasksCanceled() override {}
+
  private:
   GlobalEnvironment* global_environment_;
   Delegate* delegate_;

@@ -21,6 +21,7 @@
 #include "base/callback.h"
 #include "base/message_loop/message_loop.h"
 #include "base/optional.h"
+#include "cobalt/base/debugger_hooks.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/local_storage_database.h"
@@ -74,7 +75,8 @@ class WindowTest : public ::testing::Test {
         base::Closure() /* window_minimize */, NULL, NULL, NULL,
         dom::Window::OnStartDispatchEventCallback(),
         dom::Window::OnStopDispatchEventCallback(),
-        dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL);
+        dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL,
+        null_debugger_hooks_);
   }
 
   ~WindowTest() override {}
@@ -88,6 +90,7 @@ class WindowTest : public ::testing::Test {
   std::unique_ptr<script::JavaScriptEngine> engine_;
   scoped_refptr<script::GlobalEnvironment> global_environment_;
   GURL url_;
+  base::NullDebuggerHooks null_debugger_hooks_;
   scoped_refptr<Window> window_;
 };
 

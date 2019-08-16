@@ -23,6 +23,7 @@
 #include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/threading/platform_thread.h"
+#include "cobalt/base/debugger_hooks.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/dom_settings.h"
@@ -76,7 +77,8 @@ class StubWindow {
         base::Closure() /* window_minimize */, NULL, NULL, NULL,
         dom::Window::OnStartDispatchEventCallback(),
         dom::Window::OnStopDispatchEventCallback(),
-        dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL);
+        dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL,
+        null_debugger_hooks_);
     environment_settings_ =
         environment_settings.get()
             ? std::move(environment_settings)
@@ -114,6 +116,7 @@ class StubWindow {
   std::unique_ptr<script::EnvironmentSettings> environment_settings_;
   std::unique_ptr<script::JavaScriptEngine> engine_;
   scoped_refptr<script::GlobalEnvironment> global_environment_;
+  base::NullDebuggerHooks null_debugger_hooks_;
   scoped_refptr<dom::Window> window_;
 };
 

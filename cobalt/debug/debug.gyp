@@ -34,6 +34,8 @@
         'backend/debug_module.h',
         'backend/debug_script_runner.cc',
         'backend/debug_script_runner.h',
+        'backend/debugger_hooks_impl.cc',
+        'backend/debugger_hooks_impl.h',
         'backend/dom_agent.cc',
         'backend/dom_agent.h',
         'backend/log_agent.cc',
