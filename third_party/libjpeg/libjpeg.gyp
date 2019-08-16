@@ -5,6 +5,9 @@
 {
   # This file handles building both with our local libjpeg and with the system
   # libjpeg.
+  'variables': {
+    'optimize_target_for_speed': 1,
+  },
   'conditions': [
     ['use_system_libjpeg==0', {
       'targets': [
