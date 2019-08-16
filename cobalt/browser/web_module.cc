@@ -38,7 +38,6 @@
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/web_module_stat_tracker.h"
 #include "cobalt/css_parser/parser.h"
-#include "cobalt/debug/backend/debug_module.h"
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/element.h"
@@ -68,6 +67,10 @@
 #include "cobalt/storage/storage_manager.h"
 #include "starboard/accessibility.h"
 #include "starboard/common/log.h"
+
+#if defined(ENABLE_DEBUGGER)
+#include "cobalt/debug/backend/debug_module.h"
+#endif  // defined(ENABLE_DEBUGGER)
 
 namespace cobalt {
 namespace browser {
@@ -420,6 +423,12 @@ class WebModule::Impl {
   base::WaitableEvent wait_for_web_debugger_finished_ = {
       base::WaitableEvent::ResetPolicy::MANUAL,
       base::WaitableEvent::InitialState::NOT_SIGNALED};
+
+  // Interface to report behaviour relevant to the web debugger.
+  debug::backend::DebuggerHooksImpl debugger_hooks_;
+#else
+  // Null implementation used in gold builds without checking ENABLE_DEBUGGER.
+  base::NullDebuggerHooks debugger_hooks_;
 #endif  // ENABLE_DEBUGGER
 
   // DocumentObserver that observes the loading document.
@@ -656,8 +665,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
                  base::Unretained(this)),
       base::Bind(&WebModule::Impl::OnStopDispatchEvent, base::Unretained(this)),
       data.options.provide_screenshot_function, &synchronous_loader_interrupt_,
-      data.ui_nav_root, data.options.csp_insecure_allowed_token,
-      data.dom_max_element_depth, data.options.video_playback_rate_multiplier,
+      debugger_hooks_, data.ui_nav_root,
+      data.options.csp_insecure_allowed_token, data.dom_max_element_depth,
+      data.options.video_playback_rate_multiplier,
 #if defined(ENABLE_TEST_RUNNER)
       data.options.layout_trigger == layout::LayoutManager::kTestRunnerMode
           ? dom::Window::kClockTypeTestRunner
@@ -735,8 +745,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
       new debug::backend::RenderOverlay(render_tree_produced_callback_));
 
   debug_module_.reset(new debug::backend::DebugModule(
-      window_->console(), global_environment_.get(), debug_overlay_.get(),
-      resource_provider_, window_, data.options.debugger_state));
+      &debugger_hooks_, window_->console(), global_environment_.get(),
+      debug_overlay_.get(), resource_provider_, window_,
+      data.options.debugger_state));
 #endif  // ENABLE_DEBUGGER
 
   is_running_ = true;
