@@ -95,15 +95,25 @@
       '-frtti',
     ],
     'compiler_flags_qa': [
-      '-O2',
       '-Wno-unused-but-set-variable',
+    ],
+    'compiler_flags_qa_size': [
+      '-Os',
+    ],
+    'compiler_flags_qa_speed': [
+      '-O2',
     ],
     'compiler_flags_cc_qa': [
       '-fno-rtti',
     ],
     'compiler_flags_gold': [
-      '-O2',
       '-Wno-unused-but-set-variable',
+    ],
+    'compiler_flags_gold_size': [
+      '-Os',
+    ],
+    'compiler_flags_gold_speed': [
+      '-O2',
     ],
     'compiler_flags_cc_gold': [
       '-fno-rtti',
