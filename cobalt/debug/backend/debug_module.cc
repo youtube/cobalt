@@ -66,30 +66,33 @@ void StoreAgentState(base::DictionaryValue* state_dict,
 
 }  // namespace
 
-DebugModule::DebugModule(dom::Console* console,
+DebugModule::DebugModule(DebuggerHooksImpl* debugger_hooks,
+                         dom::Console* console,
                          script::GlobalEnvironment* global_environment,
                          RenderOverlay* render_overlay,
                          render_tree::ResourceProvider* resource_provider,
                          dom::Window* window, DebuggerState* debugger_state) {
-  ConstructionData data(console, global_environment,
+  ConstructionData data(debugger_hooks, console, global_environment,
                         base::MessageLoop::current(), render_overlay,
                         resource_provider, window, debugger_state);
   Build(data);
 }
 
-DebugModule::DebugModule(dom::Console* console,
+DebugModule::DebugModule(DebuggerHooksImpl* debugger_hooks,
+                         dom::Console* console,
                          script::GlobalEnvironment* global_environment,
                          RenderOverlay* render_overlay,
                          render_tree::ResourceProvider* resource_provider,
                          dom::Window* window, DebuggerState* debugger_state,
                          base::MessageLoop* message_loop) {
-  ConstructionData data(console, global_environment, message_loop,
-                        render_overlay, resource_provider, window,
+  ConstructionData data(debugger_hooks, console, global_environment,
+                        message_loop, render_overlay, resource_provider, window,
                         debugger_state);
   Build(data);
 }
 
 DebugModule::~DebugModule() {
+  debugger_hooks_->DetachDebugger();
   if (!is_frozen_) {
     // Shutting down without navigating. Give everything a chance to cleanup by
     // freezing, but throw away the state.
@@ -139,6 +142,9 @@ void DebugModule::BuildInternal(const ConstructionData& data,
   debug_backend_ = WrapRefCounted(new DebugBackend(
       data.global_environment, script_debugger_.get(),
       base::Bind(&DebugModule::SendEvent, base::Unretained(this))));
+
+  debugger_hooks_ = data.debugger_hooks;
+  debugger_hooks_->AttachDebugger(script_debugger_.get());
 
   // Create render layers for the agents that need them and chain them
   // together. Ownership will be passed to the agent that uses each layer.

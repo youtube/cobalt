@@ -130,6 +130,7 @@ Window::Window(
     const ScreenshotManager::ProvideScreenshotFunctionCallback&
         screenshot_function_callback,
     base::WaitableEvent* synchronous_loader_interrupt,
+    const base::DebuggerHooks& debugger_hooks,
     const scoped_refptr<ui_navigation::NavItem>& ui_nav_root,
     int csp_insecure_allowed_token, int dom_max_element_depth,
     float video_playback_rate_multiplier, ClockType clock_type,
@@ -173,7 +174,8 @@ Window::Window(
       ALLOW_THIS_IN_INITIALIZER_LIST(
           relay_on_load_event_(new RelayLoadEvent(this))),
       console_(new Console(execution_state)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(window_timers_(new WindowTimers(this))),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          window_timers_(new WindowTimers(this, debugger_hooks))),
       ALLOW_THIS_IN_INITIALIZER_LIST(animation_frame_request_callback_list_(
           new AnimationFrameRequestCallbackList(this))),
       crypto_(new Crypto()),

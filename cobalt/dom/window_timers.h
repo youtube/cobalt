@@ -20,6 +20,7 @@
 #include "base/containers/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "base/timer/timer.h"
+#include "cobalt/base/debugger_hooks.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
@@ -31,8 +32,11 @@ class WindowTimers {
  public:
   typedef script::CallbackFunction<void()> TimerCallback;
   typedef script::ScriptValue<TimerCallback> TimerCallbackArg;
-  explicit WindowTimers(script::Wrappable* const owner)
-      : current_timer_index_(0), owner_(owner) {}
+  explicit WindowTimers(script::Wrappable* const owner,
+                        const base::DebuggerHooks& debugger_hooks)
+      : current_timer_index_(0),
+        owner_(owner),
+        debugger_hooks_(debugger_hooks) {}
   ~WindowTimers() {}
 
   int SetTimeout(const TimerCallbackArg& handler, int timeout);
@@ -82,6 +86,7 @@ class WindowTimers {
   Timers timers_;
   int current_timer_index_;
   script::Wrappable* const owner_;
+  const base::DebuggerHooks& debugger_hooks_;
 
   // Set to false when we're about to shutdown, to ensure that no new JavaScript
   // is fired as we are waiting for it to drain.
