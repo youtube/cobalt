@@ -106,7 +106,7 @@ void OnDropChannel(bool was_clean, uint16_t code, const std::string& reason) {
 void CobaltWebSocketEventHandler::OnSSLCertificateError(
     std::unique_ptr<net::SSLErrorCallbacks> ssl_error_callbacks,
     const GURL& /*url*/, const SSLInfo& ssl_info, bool /*fatal*/) {
-  // TODO[johnx]: determine if there are circumstances we want to continue
+  // TODO: determine if there are circumstances we want to continue
   // the request.
   DLOG(WARNING) << "SSL cert failure occured, cancelling connection";
   ssl_error_callbacks->CancelSSLRequest(-1, ssl_info);

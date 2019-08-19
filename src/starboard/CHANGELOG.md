@@ -82,7 +82,10 @@ that data to the application via `SbWindowGetDiagonalSizeInInches()`.
 The system properties `kSbSystemPropertyCertificationScope` and
 `kSbSystemPropertyBase64EncodedCertificationSecret` have been added to enable
 client apps to perform device authentication.  The values will be queried by
-calls to `SbSystemGetProperty()` in `starboard/system.h`.
+calls to `SbSystemGetProperty()` in `starboard/system.h`. An alternative to
+providing the `kSbSystemPropertyBase64EncodedCertificationSecret` property is
+to implement the SbSystemSignWithCertificationSecretKey() function, enabling
+the key to remain private and secure.
 
 ### Add support for `SbThreadSampler` and `SbThreadContext`.
 
@@ -152,6 +155,14 @@ API can be found in `/starboard/egl.h` and `/starboard/gles.h`.
 The new interface enables the platform to communicate to the application which
 CPU features are available, which can enable the application to perform certain
 CPU-specific optimizations (e.g. SIMD).
+
+### Deprecated SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER and
+SB_HAS_DRM_KEY_STATUSES.
+
+These macros must always be set to 1 for Starboard version 6 or later. They will
+be removed in a future version.  Any implementation that supports Starboard
+version 6 or later should be modified to no longer depend on these macros, with
+the assumption that their values are always 1.
 
 
 ## Version 10
@@ -622,3 +633,9 @@ Added attribute macro `SB_NORETURN` to allow functions to be marked as noreturn.
 ### Mark `SbSystemBreakIntoDebugger` `SB_NORETURN`.
 Add `SB_NORETURN` to declaration of `SbSystemBreakIntoDebugger`, to allow it to
 be used in a manner similar to `abort`.
+
+### Introduce `SbAudioSinkGetMinBufferSizeInFrames()`
+
+Introduce `SbAudioSinkGetMinBufferSizeInFrames()` to `starboard/audio_sink.h`
+which communicates to the platform how many audio frames are required to ensure
+that audio sink can keep playing without underflow.

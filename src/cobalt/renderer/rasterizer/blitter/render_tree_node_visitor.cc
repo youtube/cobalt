@@ -51,6 +51,8 @@ namespace renderer {
 namespace rasterizer {
 namespace blitter {
 
+using common::utils::IsOpaque;
+using common::utils::IsTransparent;
 using math::Matrix3F;
 using math::Rect;
 using math::RectF;
@@ -154,9 +156,9 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
   }
 
   if (!filter_node->data().opacity_filter ||
-      filter_node->data().opacity_filter->opacity() == 1.0f) {
+      IsOpaque(filter_node->data().opacity_filter->opacity())) {
     source->Accept(this);
-  } else if (filter_node->data().opacity_filter->opacity() != 0.0f) {
+  } else if (!IsTransparent(filter_node->data().opacity_filter->opacity())) {
     // If the opacity is set to 0, the contents are invisible and we are
     // trivially done.  However, if we made it into this branch, then
     // we know that opacity is in the range (0, 1), exclusive.
@@ -254,7 +256,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
                 -local_matrix.Get(1, 2) * image_size.height()));
 
   // Render the image.
-  if (render_state_.opacity < 1.0f) {
+  if (!IsOpaque(render_state_.opacity)) {
     SbBlitterSetBlending(context_, true);
     SbBlitterSetModulateBlitsWithColor(context_, true);
     SbBlitterSetColor(
@@ -336,12 +338,7 @@ void RenderRectNodeBorder(SbBlitterContext context, ColorRGBA color, float left,
                           const RectF& rect) {
   SbBlitterColor blitter_color = RenderTreeToBlitterColor(color);
   SbBlitterSetColor(context, blitter_color);
-
-  if (SbBlitterAFromColor(blitter_color) < 255) {
-    SbBlitterSetBlending(context, true);
-  } else {
-    SbBlitterSetBlending(context, false);
-  }
+  SbBlitterSetBlending(context, !IsOpaque(color.a()));
 
   // We draw four rectangles, one for each border edge.  They have the following
   // layout:
@@ -407,11 +404,11 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
               rect_node->data().background_brush.get());
       ColorRGBA color = solid_color_brush->color();
 
-      if (render_state_.opacity < 1.0f) {
+      if (!IsOpaque(render_state_.opacity)) {
         color.set_a(color.a() * render_state_.opacity);
       }
 
-      SbBlitterSetBlending(context_, color.a() < 1.0f);
+      SbBlitterSetBlending(context_, !IsOpaque(color.a()));
       SbBlitterSetColor(context_, RenderTreeToBlitterColor(color));
 
       SbBlitterFillRect(context_, RectFToBlitterRect(transformed_rect));
@@ -448,7 +445,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
           border.bottom.width * render_state_.transform.scale().y();
 
       ColorRGBA color = border.left.color;
-      if (render_state_.opacity < 1.0f) {
+      if (!IsOpaque(render_state_.opacity)) {
         color.set_a(color.a() * render_state_.opacity);
       }
       RenderRectNodeBorder(context_, color, left_width, right_width, top_width,
@@ -493,7 +490,7 @@ void RenderTreeNodeVisitor::RenderWithSoftwareRenderer(
 
   SbBlitterSetBlending(context_, true);
 
-  if (render_state_.opacity < 1.0f) {
+  if (!IsOpaque(render_state_.opacity)) {
     SbBlitterSetModulateBlitsWithColor(context_, true);
     SbBlitterSetColor(
         context_,

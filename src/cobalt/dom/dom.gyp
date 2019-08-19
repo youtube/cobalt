@@ -39,8 +39,6 @@
         'blob_property_bag.h',
         'buffer_source.cc',
         'buffer_source.h',
-        'c_val_key_list.cc',
-        'c_val_key_list.h',
         'c_val_view.cc',
         'c_val_view.h',
         'camera_3d.cc',

@@ -1,0 +1,33 @@
+diff -ur x86_64-linux-gnu-gcc-6.3.0.orig/gcc-6.3.0/libgcc/config/aarch64/linux-unwind.h x86_64-linux-gnu-gcc-6.3.0/gcc-6.3.0/libgcc/config/aarch64/linux-unwind.h
+--- x86_64-linux-gnu-gcc-6.3.0.orig/gcc-6.3.0/libgcc/config/aarch64/linux-unwind.h	2016-01-04 06:30:50.000000000 -0800
++++ x86_64-linux-gnu-gcc-6.3.0/gcc-6.3.0/libgcc/config/aarch64/linux-unwind.h	2019-08-13 14:11:12.318898306 -0700
+@@ -52,7 +52,7 @@
+   struct rt_sigframe
+   {
+     siginfo_t info;
+-    struct ucontext uc;
++    ucontext_t uc;
+   };
+ 
+   struct rt_sigframe *rt_;
+diff -ur x86_64-linux-gnu-gcc-6.3.0.orig/gcc-6.3.0/libgcc/config/i386/linux-unwind.h x86_64-linux-gnu-gcc-6.3.0/gcc-6.3.0/libgcc/config/i386/linux-unwind.h
+--- x86_64-linux-gnu-gcc-6.3.0.orig/gcc-6.3.0/libgcc/config/i386/linux-unwind.h	2016-01-04 06:30:50.000000000 -0800
++++ x86_64-linux-gnu-gcc-6.3.0/gcc-6.3.0/libgcc/config/i386/linux-unwind.h	2019-08-13 14:11:20.386855553 -0700
+@@ -58,7 +58,7 @@
+   if (*(unsigned char *)(pc+0) == 0x48
+       && *(unsigned long long *)(pc+1) == RT_SIGRETURN_SYSCALL)
+     {
+-      struct ucontext *uc_ = context->cfa;
++      ucontext_t *uc_ = context->cfa;
+       /* The void * cast is necessary to avoid an aliasing warning.
+          The aliasing warning is correct, but should not be a problem
+          because it does not alias anything.  */
+@@ -138,7 +138,7 @@
+ 	siginfo_t *pinfo;
+ 	void *puc;
+ 	siginfo_t info;
+-	struct ucontext uc;
++	ucontext_t uc;
+       } *rt_ = context->cfa;
+       /* The void * cast is necessary to avoid an aliasing warning.
+          The aliasing warning is correct, but should not be a problem

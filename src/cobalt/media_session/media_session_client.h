@@ -19,6 +19,7 @@
 #include <memory>
 
 #include "base/threading/thread_checker.h"
+#include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/media_session/media_session.h"
 #include "cobalt/media_session/media_session_action_details.h"
 #include "cobalt/media_session/media_session_state.h"
@@ -40,13 +41,19 @@ class MediaSessionClient {
       : media_session_(media_session),
         platform_playback_state_(kMediaSessionPlaybackStateNone) {}
 
-  virtual ~MediaSessionClient() {}
+  virtual ~MediaSessionClient();
 
   // Creates platform-specific instance.
   static std::unique_ptr<MediaSessionClient> Create();
 
   // Retrieves the singleton MediaSession associated with this client.
   scoped_refptr<MediaSession>& GetMediaSession() { return media_session_; }
+
+  // The web app should set the MediaPositionState of the MediaSession object.
+  // However, if that is not done, then query the web media player factory to
+  // guess which player is associated with the media session to get the media
+  // position state. The player factory must outlive the media session client.
+  void SetMediaPlayerFactory(const media::WebMediaPlayerFactory* factory);
 
   // Sets the platform's current playback state. This is used to compute
   // the "guessed playback state"
@@ -69,9 +76,6 @@ class MediaSessionClient {
     InvokeActionInternal(std::move(details));
   }
 
-  // Returns a copy of the current MediaSessionState.
-  MediaSessionState GetMediaSessionState();
-
   // Invoked on the browser thread when any metadata, position state, playback
   // state, or supported session actions change.
   virtual void OnMediaSessionStateChanged(
@@ -82,9 +86,9 @@ class MediaSessionClient {
   scoped_refptr<MediaSession> media_session_;
   MediaSessionState session_state_;
   MediaSessionPlaybackState platform_playback_state_;
+  const media::WebMediaPlayerFactory* media_player_factory_ = nullptr;
 
   void UpdateMediaSessionState();
-  void GetMediaSessionStateInternal(MediaSessionState* session_state);
   MediaSessionPlaybackState ComputeActualPlaybackState() const;
   MediaSessionState::AvailableActionsSet ComputeAvailableActions() const;
 

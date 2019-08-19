@@ -49,7 +49,8 @@ This document records all notable changes made to Cobalt since the last release.
  - **Added support for Device Authentication URL signing.**
 
    Cobalt will now add URL parameters signed with the device's secret key and
-   certification scope to the initial URL.
+   certification scope to the initial URL.  For more information, see
+   [doc/device_authentication.md](doc/device_authentication.md).
 
  - **Updated Chromium net and base libraries from m25 to m70.**
 

@@ -114,8 +114,8 @@ SbBlitterDevice SbBlitterCreateDefaultDevice() {
     SB_DLOG(ERROR) << ": Failed to get EGL display connection.";
     return kSbBlitterInvalidDevice;
   }
-  eglInitialize(device->display, NULL, NULL);
-  if (eglGetError() != EGL_SUCCESS) {
+
+  if (!eglInitialize(device->display, NULL, NULL)) {
     SB_DLOG(ERROR) << ": Failed to initialize device.";
     return kSbBlitterInvalidDevice;
   }

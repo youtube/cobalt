@@ -50,6 +50,14 @@ class NET_EXPORT CachingCertVerifier : public CertVerifier,
              const NetLogWithSource& net_log) override;
   void SetConfig(const Config& config) override;
 
+#if defined(STARBOARD) && defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
+  // Used to disable certificate verification errors for testing/development
+  // purpose.
+  void set_ignore_certificate_errors(bool ignore_certificate_errors) override {
+    verifier_->set_ignore_certificate_errors(ignore_certificate_errors);
+  }
+#endif
+
  private:
   FRIEND_TEST_ALL_PREFIXES(CachingCertVerifierTest, CacheHit);
   FRIEND_TEST_ALL_PREFIXES(CachingCertVerifierTest, Visitor);

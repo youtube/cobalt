@@ -113,7 +113,6 @@ def _OsGetRelpath(path, start_dir):
     except ValueError:
       try:
         # Last resort: do a string comparison to get relative path.
-        # Fixes issue b/134589032
         rel_path = _FallbackOsGetRelPath(path, start_dir)
         if not os.path.exists(os.path.join(start_dir, rel_path)):
           raise ValueError('% does not exist.' % os.path.abspath(rel_path))

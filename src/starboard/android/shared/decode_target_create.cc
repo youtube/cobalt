@@ -37,7 +37,7 @@ jobject CreateSurfaceTexture(int gl_texture_id) {
   JniEnvExt* env = JniEnvExt::Get();
 
   jobject local_surface_texture = env->NewObjectOrAbort(
-      "android/graphics/SurfaceTexture", "(I)V", gl_texture_id);
+      "dev/cobalt/media/VideoSurfaceTexture", "(I)V", gl_texture_id);
 
   jobject global_surface_texture =
       env->ConvertLocalRefToGlobalRef(local_surface_texture);

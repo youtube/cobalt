@@ -115,7 +115,7 @@ std::unique_ptr<base::DictionaryValue> NetLogConstants::GetConstants() {
   {
     std::unique_ptr<base::DictionaryValue> dict(new base::DictionaryValue());
 
-    // TODO[johnx]: find out where the corresponding integer number for each
+    // TODO: find out where the corresponding integer number for each
     // event phase lives and replace the following hard-coded number with them.
     dict->SetInteger("PHASE_BEGIN", 0);
     dict->SetInteger("PHASE_END", 1);

@@ -66,6 +66,14 @@
 #include "gtest/gtest-test-part.h"
 #include "gtest/gtest-typed-test.h"
 
+#if defined(COBALT_BUILD_TYPE_QA)
+#error You cannot build unit tests in qa builds.
+#endif
+
+#if defined(COBALT_BUILD_TYPE_GOLD)
+#error You cannot build unit tests in gold builds.
+#endif
+
 // Depending on the platform, different string classes are available.
 // On Linux, in addition to ::std::string, Google also makes use of
 // class ::string, which has the same interface as ::std::string, but

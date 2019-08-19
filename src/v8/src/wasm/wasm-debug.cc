@@ -92,7 +92,13 @@ MaybeHandle<String> GetLocalName(Isolate* isolate,
 }
 
 class InterpreterHandle {
+  // This was causing cascading build errors when compiling v8 for the older
+  // clang compilers.Some private variables of this class have their move
+  // constructor implicitly deleted. Trying to fix that causes a chain of
+  // deleting the move constructor for multiple classes.
+#if !defined(V8_OS_STARBOARD)
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(InterpreterHandle);
+#endif
   Isolate* isolate_;
   const WasmModule* module_;
   WasmInterpreter interpreter_;

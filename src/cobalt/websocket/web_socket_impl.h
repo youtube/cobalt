@@ -72,7 +72,7 @@ class WebSocketImpl : public base::RefCountedThreadSafe<WebSocketImpl> {
   void Close(const net::WebSocketError code, const std::string& reason);
 
   // These are legacy API from old net::SocketStream::Delegate.
-  // TODO[johnx]: investigate if we need to remove these.
+  // TODO: investigate if we need to remove these.
   // Called when the socket stream has been closed.
   void OnClose(bool was_clean = true,
                int error_code = net::kWebSocketNormalClosure,

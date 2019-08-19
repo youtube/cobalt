@@ -207,15 +207,15 @@ void BlockContainerBox::UpdateContentSizeAndMargins(
     // computed value for 'width'.
     //   https://www.w3.org/TR/CSS21/visudet.html#min-max-widths
     bool min_width_depends_on_containing_block;
-    base::Optional<LayoutUnit> min_width =
-        GetUsedMinWidth(computed_style(), layout_params.containing_block_size,
-                        &min_width_depends_on_containing_block);
-    if (width() < min_width.value()) {
-      UpdateContentWidthAndMargins(layout_params.containing_block_size.width(),
-                                   layout_params.shrink_to_fit_width_forced,
-                                   min_width_depends_on_containing_block,
-                                   maybe_left, maybe_right, maybe_margin_left,
-                                   maybe_margin_right, min_width, maybe_height);
+    base::Optional<LayoutUnit> maybe_min_width = GetUsedMinWidthIfNotAuto(
+        computed_style(), layout_params.containing_block_size,
+        &min_width_depends_on_containing_block);
+    if (maybe_min_width && (width() < maybe_min_width.value_or(LayoutUnit()))) {
+      UpdateContentWidthAndMargins(
+          layout_params.containing_block_size.width(),
+          layout_params.shrink_to_fit_width_forced,
+          min_width_depends_on_containing_block, maybe_left, maybe_right,
+          maybe_margin_left, maybe_margin_right, maybe_min_width, maybe_height);
     }
   }
 
@@ -239,9 +239,9 @@ void BlockContainerBox::UpdateContentSizeAndMargins(
   // applied again, but this time using the value of 'min-height' as the
   // computed value for 'height'.
   //   https://www.w3.org/TR/CSS21/visudet.html#min-max-heights
-  base::Optional<LayoutUnit> min_height =
-      GetUsedMinHeight(computed_style(), layout_params.containing_block_size);
-  if (height() < min_height.value()) {
+  base::Optional<LayoutUnit> min_height = GetUsedMinHeightIfNotAuto(
+      computed_style(), layout_params.containing_block_size);
+  if (min_height && (height() < min_height.value())) {
     UpdateContentHeightAndMargins(layout_params.containing_block_size,
                                   maybe_top, maybe_bottom, maybe_margin_top,
                                   maybe_margin_bottom, min_height);

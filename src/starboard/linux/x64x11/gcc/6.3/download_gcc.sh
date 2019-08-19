@@ -24,7 +24,8 @@ toolchain_folder="x86_64-linux-gnu-${toolchain_name}-${version}"
 binary_path="gcc/bin/g++"
 build_duration="about 40 minutes"
 
-cd $(dirname $0)
+scriptfolder=$(dirname $(realpath $0))
+cd ${scriptfolder}
 source ../../toolchain_paths.sh
 
 (
@@ -35,7 +36,14 @@ source ../../toolchain_paths.sh
     wget -c http://ftpmirror.gnu.org/gcc/gcc-${version}/${file}.sig
     wget -c http://ftp.gnu.org/gnu/gnu-keyring.gpg
     signature_invalid=`gpg --verify --no-default-keyring --keyring ./gnu-keyring.gpg ${file}.sig`
-    if [ $signature_invalid ]; then echo "Invalid signature" ; exit 1 ; fi
+    if [ $signature_invalid ]; then
+      echo "Invalid signature for " $file
+      exit 1
+    fi
+    echo "f06ae7f3f790fbf0f018f6d40e844451e6bc3b7bc96e128e63b09825c1f8b29f  gcc-6.3.0.tar.bz2" | sha256sum -c || (
+      echo "Invalid Checksum for " $file
+      exit 1
+    )
     rm -rf gcc-${version}
     tar -xjf ${file}
     cd gcc-${version}
@@ -43,8 +51,19 @@ source ../../toolchain_paths.sh
     if [ -f ./contrib/download_prerequisites ]; then
       ./contrib/download_prerequisites
     fi
+
+    cat <<EOF  | sha256sum -c || ( echo "Invalid Checksum for prerequisites"; exit 1 )
+c7e75a08a8d49d2082e4caee1591a05d11b9d5627514e678f02d66a124bcf2ba  mpfr-2.4.2.tar.bz2
+936162c0312886c21581002b79932829aa048cfaf9937c6265aeaa14f1cd1775  gmp-4.3.2.tar.bz2
+e664603757251fd8a352848276497a4c79b7f8b21fd8aedd5cc0598a38fee3e4  mpc-0.8.1.tar.gz
+8ceebbf4d9a81afa2b4449113cee4b7cb14a687d7a549a963deb5e2a41458b6b  isl-0.15.tar.bz2
+EOF
     cd ${toolchain_path}
   fi
+
+  # Patches for compiling with gcc 7.2
+  patch -p1 <${scriptfolder}/ucontext.diff
+  patch -p1 <${scriptfolder}/nosanitizer.diff
 
   # Create clean build folder for gcc
   rm -rf gcc gcc-${version}-build

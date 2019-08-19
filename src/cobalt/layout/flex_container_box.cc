@@ -15,6 +15,7 @@
 #include "cobalt/layout/flex_container_box.h"
 
 #include <algorithm>
+#include <vector>
 
 #include "cobalt/cssom/computed_style.h"
 #include "cobalt/cssom/keyword_value.h"
@@ -54,12 +55,12 @@ void FlexContainerBox::DetermineAvailableSpace(
       computed_style(), layout_params.containing_block_size,
       &height_depends_on_containing_block);
 
-  LayoutUnit min_width = GetUsedMinWidth(
+  base::Optional<LayoutUnit> min_width = GetUsedMinWidthIfNotAuto(
       computed_style(), layout_params.containing_block_size, NULL);
   base::Optional<LayoutUnit> max_width = GetUsedMaxWidthIfNotNone(
       computed_style(), layout_params.containing_block_size, NULL);
-  LayoutUnit min_height =
-      GetUsedMinHeight(computed_style(), layout_params.containing_block_size);
+  base::Optional<LayoutUnit> min_height = GetUsedMinHeightIfNotAuto(
+      computed_style(), layout_params.containing_block_size);
   base::Optional<LayoutUnit> max_height = GetUsedMaxHeightIfNotNone(
       computed_style(), layout_params.containing_block_size);
 
@@ -147,104 +148,25 @@ void FlexContainerBox::DetermineAvailableSpace(
   }
 
   if (main_space) {
-    if (max_main_space_ && main_space.value() > max_main_space_.value()) {
+    if (max_main_space_ && *main_space > *max_main_space_) {
       main_space = max_main_space_;
     }
-    if (main_space.value() < min_main_space_) {
+    if (min_main_space_ && *main_space < *min_main_space_) {
       main_space = min_main_space_;
     }
   }
 
   if (cross_space) {
-    if (max_cross_space_ && cross_space_.value() > max_cross_space_.value()) {
+    if (max_cross_space_ && *cross_space_ > *max_cross_space_) {
       cross_space = max_cross_space_;
     }
-    if (cross_space.value() < min_cross_space_) {
-      cross_space = min_cross_space_;
+    if (min_cross_space_ && *cross_space < *min_cross_space_) {
+      cross_space = *min_cross_space_;
     }
   }
 
   main_space_ = main_space;
   cross_space_ = cross_space;
-}
-
-LayoutUnit FlexContainerBox::DetermineFlexBaseSize(
-    Box* item, const LayoutParams& layout_params,
-    bool container_shrink_to_fit_width_forced) {
-  // Absolutely positioned boxes are not flex items.
-  DCHECK(!item->IsAbsolutelyPositioned());
-
-  // All flex items are block container boxes.
-  DCHECK(item->AsBlockContainerBox());
-
-  bool main_direction_is_horizontal = MainDirectionIsHorizontal();
-
-  // Algorithm for determine the flex base size and hypothetical main size of
-  // each item.
-  //   https://www.w3.org/TR/css-flexbox-1/#algo-main-item
-
-  // A. If the item has a definite used flex basis, that's the flex base size.
-  bool flex_basis_depends_on_available_space;
-  base::Optional<LayoutUnit> flex_basis = GetUsedFlexBasisIfNotContent(
-      item->computed_style(), main_direction_is_horizontal,
-      layout_params.containing_block_size,
-      &flex_basis_depends_on_available_space);
-  bool flex_basis_is_definite =
-      flex_basis && (!flex_basis_depends_on_available_space || main_space_);
-  if (flex_basis_is_definite) {
-    return flex_basis.value();
-  }
-
-  // B. If the flex item has an intrinsic aspect ratio, a used flex basis of
-  //    content, and a definite cross size, then the flex base size is
-  //    calculated from its inner cross size and the flex item's intrinsic
-  //    aspect ratio.
-  // Sizing from intrinsic ratio is not supported.
-
-  bool flex_basis_is_content_or_depends_on_available_space =
-      !flex_basis || flex_basis_depends_on_available_space;
-  // C. If the used flex basis is content or depends on its available space, and
-  //    the flex container is being sized under a min-content or max-content
-  //    constraint, size the item under that constraint. The flex base size is
-  //    the item's resulting main size.
-  if (flex_basis_is_content_or_depends_on_available_space &&
-      container_shrink_to_fit_width_forced) {
-    LayoutParams child_layout_params(layout_params);
-    child_layout_params.shrink_to_fit_width_forced = true;
-    item->UpdateSize(child_layout_params);
-    return main_direction_is_horizontal ? item->width() : item->height();
-  }
-
-  // D. Otherwise, if the used flex basis is content or depends on its available
-  //    space, the available main size is infinite, and the flex item's inline
-  //    axis is parallel to the main axis, lay the item out using the rules for
-  //    a box in an orthogonal flow. The flex base size is the item's
-  //    max-content main size.
-  //
-  if (flex_basis_is_content_or_depends_on_available_space &&
-      main_direction_is_horizontal && !main_space_) {
-    // Calculate the max-content main size.
-    LayoutParams child_layout_params(layout_params);
-    child_layout_params.shrink_to_fit_width_forced = true;
-    item->UpdateSize(child_layout_params);
-    return item->width();
-  }
-
-  // E. Otherwise, size the item into the available space using its used flex
-  //    basis in place of its main size, treating a value of content as
-  //    max-content. If a cross size is needed to determine the main size (e.g.
-  //    when the flex item's main size is in its block axis) and the flex item's
-  //    cross size is auto and not definite, in this calculation use fit-content
-  //    as the flex item's cross size. The flex base size is the item's
-  //    resulting main size.
-  // TODO: handle 'if (!main_direction_is_horizontal)' and auto
-  // height, see above.
-  LayoutParams child_layout_params(layout_params);
-  if (!flex_basis) {
-    child_layout_params.shrink_to_fit_width_forced = true;
-  }
-  item->UpdateSize(child_layout_params);
-  return main_direction_is_horizontal ? item->width() : item->height();
 }
 
 // From |Box|.
@@ -281,51 +203,24 @@ void FlexContainerBox::UpdateContentSizeAndMargins(
   LayoutParams child_layout_params;
   child_layout_params.containing_block_size = available_space;
 
-  // TODO: Verify if this is correct, including the call to |UpdateRect| below.
-  // Not setting this appears to result in incorrect hypothetical main size.
-  child_layout_params.shrink_to_fit_width_forced = true;
-
   FlexFormattingContext flex_formatting_context(
       child_layout_params, main_direction_is_horizontal, DirectionIsReversed());
+
+  std::vector<std::unique_ptr<FlexItem>> items;
+  items.reserve(child_boxes().size());
 
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
-    if (child_box->IsAbsolutelyPositioned()) {
-      flex_formatting_context.EstimateStaticPosition(child_box);
-    } else {
+    if (!child_box->IsAbsolutelyPositioned()) {
       flex_formatting_context.UpdateRect(child_box);
 
-      FlexFormattingContext::ItemParameters parameters;
-      parameters.flex_base_size =
-          DetermineFlexBaseSize(child_box, child_layout_params,
-                                layout_params.shrink_to_fit_width_forced);
-      // The hypothetical main size is the item's flex base size clamped
-      // according to its used min and max main sizes.
-      if (main_direction_is_horizontal) {
-        LayoutUnit min_width =
-            GetUsedMinWidth(child_box->computed_style(), available_space, NULL);
-        parameters.hypothetical_main_size =
-            std::max(min_width, parameters.flex_base_size);
-        base::Optional<LayoutUnit> max_width = GetUsedMaxWidthIfNotNone(
-            child_box->computed_style(), available_space, NULL);
-        if (max_width) {
-          parameters.hypothetical_main_size =
-              std::min(max_width.value(), parameters.hypothetical_main_size);
-        }
-      } else {
-        LayoutUnit min_height =
-            GetUsedMinHeight(child_box->computed_style(), available_space);
-        parameters.hypothetical_main_size =
-            std::max(min_height, parameters.flex_base_size);
-        base::Optional<LayoutUnit> max_height = GetUsedMaxHeightIfNotNone(
-            child_box->computed_style(), available_space);
-        if (max_height) {
-          parameters.hypothetical_main_size =
-              std::min(max_height.value(), parameters.hypothetical_main_size);
-        }
-      }
-      flex_formatting_context.SetItemParameters(child_box, parameters);
+      auto item = FlexItem::Create(child_box, main_direction_is_horizontal);
+      item->DetermineFlexBaseSize(child_layout_params, main_space_,
+                                  layout_params.shrink_to_fit_width_forced);
+      item->DetermineHypotheticalMainSize(
+          child_layout_params.containing_block_size);
+      items.emplace_back(std::move(item));
     }
   }
 
@@ -371,11 +266,11 @@ void FlexContainerBox::UpdateContentSizeAndMargins(
   }
 
   LayoutUnit main_size = flex_formatting_context.main_size();
-  if (max_main_space_ && main_size > max_main_space_.value()) {
-    main_size = max_main_space_.value();
+  if (max_main_space_ && main_size > *max_main_space_) {
+    main_size = *max_main_space_;
   }
-  if (main_size < min_main_space_) {
-    main_size = min_main_space_;
+  if (min_main_space_ && main_size < *min_main_space_) {
+    main_size = *min_main_space_;
   }
   flex_formatting_context.set_main_size(main_size);
 
@@ -384,16 +279,14 @@ void FlexContainerBox::UpdateContentSizeAndMargins(
   } else {
     set_height(main_size);
   }
+  flex_formatting_context.SetContainerMainSize(main_size);
 
   // Main Size Determination:
   // 5. Collect flex items into flex lines.
   flex_formatting_context.set_multi_line(ContainerIsMultiLine());
-  for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
-       child_box_iterator != child_boxes().end(); ++child_box_iterator) {
-    Box* child_box = *child_box_iterator;
-    if (!child_box->IsAbsolutelyPositioned()) {
-      flex_formatting_context.CollectItemIntoLine(child_box);
-    }
+  for (auto& item : items) {
+    DCHECK(!item->box()->IsAbsolutelyPositioned());
+    flex_formatting_context.CollectItemIntoLine(std::move(item));
   }
 
   // Perform remaining steps of the layout of the items.
@@ -406,17 +299,6 @@ void FlexContainerBox::UpdateContentSizeAndMargins(
   } else {
     set_width(flex_formatting_context.cross_size());
   }
-
-  // Layout positioned child boxes.
-
-  // TODO: Check if this should be content box instead of padding box.
-  //  https://www.w3.org/TR/css-flexbox-1/#abspos-items
-  LayoutParams absolute_child_layout_params;
-  absolute_child_layout_params.containing_block_size.set_width(
-      GetPaddingBoxWidth());
-  absolute_child_layout_params.containing_block_size.set_height(
-      GetPaddingBoxHeight());
-  UpdateRectOfPositionedChildBoxes(layout_params, absolute_child_layout_params);
 
   base::Optional<LayoutUnit> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
       computed_style(), layout_params.containing_block_size);
@@ -433,7 +315,11 @@ void FlexContainerBox::UpdateContentSizeAndMargins(
 
   set_margin_top(maybe_margin_top.value_or(LayoutUnit()));
   set_margin_bottom(maybe_margin_bottom.value_or(LayoutUnit()));
-  baseline_ = flex_formatting_context.GetBaseline();
+  if (child_boxes().empty()) {
+    baseline_ = GetBorderBoxHeight();
+  } else {
+    baseline_ = flex_formatting_context.GetBaseline();
+  }
 }
 
 WrapResult FlexContainerBox::TryWrapAt(
@@ -481,8 +367,6 @@ bool FlexContainerBox::AffectsBaselineInBlockFormattingContext() const {
 }
 
 LayoutUnit FlexContainerBox::GetBaselineOffsetFromTopMarginEdge() const {
-  // TODO: Complete implementation of flex container baselines.
-  //   https://www.w3.org/TR/css-flexbox-1/#flex-baselines
   return GetContentBoxOffsetFromMarginBox().y() + baseline_;
 }
 
@@ -500,12 +384,8 @@ void FlexContainerBox::AddChild(const scoped_refptr<Box>& child_box) {
   TextBox* text_box = child_box->AsTextBox();
   switch (child_box->GetLevel()) {
     case kBlockLevel:
-      if (!child_box->IsAbsolutelyPositioned()) {
-        PushBackDirectChild(child_box);
-        break;
-      }
-    // Fall through if child is out-of-flow.
-
+      PushBackDirectChild(child_box);
+      break;
     case kInlineLevel:
       if (text_box && !text_box->HasNonCollapsibleText()) {
         // Text boxes with only white space are not rendered, just as if

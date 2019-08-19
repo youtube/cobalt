@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<!--
+ | Combined tests for basic functionality of CSS Flexible Box Layout Module.
+ |   https://www.w3.org/TR/css-flexbox-1
+ -->
+<html>
+<head>
+<style>
+  body {
+    margin: 0px;
+    font-family: Roboto;
+    background-color: #808080;
+    font-size: 12px;
+  }
+  .vsized {
+    height: 38px;
+  }
+  .flex {
+    display: flex;
+    color: #99b9f3;
+    background-color: #ffee00;
+    opacity: 0.75;
+  }
+  .inlineflex {
+    display: inline-flex;
+    color: #99b9f3;
+    background-color: #ffee01;
+    opacity: 0.75;
+  }
+  .row {
+    flex-flow: row wrap;
+   }
+  .column {
+    flex-flow: column wrap;
+   }
+  .container {
+    overflow: hidden;
+    min-width: 2px;
+    padding: 2px;
+    border: 2px solid #000060;
+    outline: 2px solid #00f000;
+    margin: 6px;
+    border-bottom-width: 10px;
+  }
+  .item {
+    flex: 1 1 50px;
+    /* blue */
+    margin: 1px;
+    order: 0;
+  }
+  div > span {
+    background-color: #0047ab;
+  }
+</style>
+</head>
+<body>
+<div>
+
+-hg
+<div class="vsized inlineflex row container">
+  <span style="align-self: flex-end;">end</span>
+  <span style="align-self: flex-start;">start</span>
+  <span style="align-self: center;">center</span>
+  <span class="vsized" style="align-self: stretch;">stretch</span>
+</div>
+hg-hg
+<div class="vsized inlineflex row container">
+  <span style="align-self: center;">center</span>
+  <span style="align-self: flex-end;">end</span>
+  <span style="align-self: flex-start;">start</span>
+  <span class="vsized" style="align-self: stretch;">stretch</span>
+</div>
+hg-hg
+<div class="vsized inlineflex row container">
+  <span style="align-self: flex-start;">start</span>
+  <span style="align-self: flex-end;">end</span>
+  <span style="align-self: center;">center</span>
+  <span class="vsized" style="align-self: stretch;">stretch</span>
+</div>
+hg- 
+</div><div>
+-hg
+<div class="vsized inlineflex row container">
+  <span style="align-self: flex-start;">start</span>
+  <span style="align-self: flex-end;">end</span>
+  <span style="align-self: center;">center</span>
+  <span style="align-self: baseline;">hg</span>
+  <span style="margin-top: auto; font-size: 2em; align-self: baseline;">hg</span>
+  <span class="vsized" style="align-self: stretch;">stretch</span>
+</div>
+hg-hg
+<div class="vsized inlineflex row container">
+  <span style="align-self: flex-start;">start</span>
+  <span style="align-self: flex-end;">end</span>
+  <span style="align-self: center;">center</span>
+  <span style="margin-top: auto; font-size: 2em; align-self: baseline;">hg</span>
+  <span class="vsized" style="align-self: stretch;">stretch</span>
+</div>
+hg-hg
+<div class="vsized inlineflex row container">
+  <span style="align-self: flex-start;">start</span>
+  <span style="align-self: flex-end;">end</span>
+  <span style="align-self: center;">center</span>
+  <span style="align-self: baseline;">hg</span>
+  <span style="font-size: 2em; align-self: baseline;">hg</span>
+  <span class="vsized" style="align-self: stretch;">stretch</span>
+</div>
+hg- 
+</div><div>
+-hg
+<div class="vsized inlineflex row container">
+  <span style="align-self: baseline;">hg</span>
+  <span style="font-size: 2em; align-self: baseline;">hg</span>
+  <span style="align-self: flex-start;">start</span>
+  <span style="align-self: flex-end;">end</span>
+  <span style="align-self: center;">center</span>
+  <span class="vsized" style="align-self: stretch;">stretch</span>
+</div>
+hg-hg
+<div class="vsized inlineflex row container">
+  <span style="font-size: 2em; align-self: baseline;">hg</span>
+  <span style="align-self: baseline;">hg</span>
+  <span style="align-self: flex-start;">start</span>
+  <span style="align-self: flex-end;">end</span>
+  <span style="align-self: center;">center</span>
+  <span class="vsized" style="align-self: stretch;">stretch</span>
+</div>
+hg-hg
+<div class="vsized inlineflex row container">
+  <span style="align-self: flex-start;">start</span>
+  <span style="align-self: flex-end;">end</span>
+  <span style="align-self: center;">center</span>
+  <span class="vsized" style="align-self: stretch;">stretch</span>
+  <span style="font-size: 2em; align-self: baseline;">hg</span>
+  <span style="align-self: baseline;">hg</span>
+</div>
+hg- 
+</div><div>
+-hg
+<div class="vsized inlineflex row container">
+  <span style="display: inline-block; align-self: center; width: 10px; height: 20px;"></span>
+  <span style="align-self: flex-start;">start</span>
+  <span style="align-self: flex-end;">end</span>
+  <span style="align-self: center;">center</span>
+  <span class="vsized" style="align-self: stretch;">stretch</span>
+</div>
+hg-hg
+<div class="vsized inlineflex row container">
+</div>
+hg-hg
+<div class="vsized inlineflex row container">
+  <span></span>
+</div>
+hg-hg
+<div class="vsized inlineflex column container">
+  <span style="display: inline-block; width: 10px; height: 10px;"></span>
+  <span style="display: inline-block; width: 10px; height: 10px;"></span>
+  <span style="display: inline-block; width: 10px; height: 10px;"></span>
+</div>
+hg-hg
+<div class="vsized inlineflex column container">
+  <span style="display: inline-block; width: 10px; height: 30px;"></span>
+</div>
+hg-hg
+<div class="vsized inlineflex column container">
+  <span style="display: inline-block; width: 10px; height: 10px;"></span>
+</div>
+hg-hg
+<div class="vsized inlineflex column container">
+  <span></span>
+</div>
+hg-hg
+<div class="vsized inlineflex column container">
+</div>
+hg-
+
+</div>
+
+</body>
+</html>
+

@@ -1,0 +1,17 @@
+diff -ur x86_64-linux-gnu-gcc-6.3.0.orig/gcc-6.3.0/libsanitizer/configure.tgt x86_64-linux-gnu-gcc-6.3.0/gcc-6.3.0/libsanitizer/configure.tgt
+--- x86_64-linux-gnu-gcc-6.3.0.orig/gcc-6.3.0/libsanitizer/configure.tgt	2015-11-23 01:07:18.000000000 -0800
++++ x86_64-linux-gnu-gcc-6.3.0/gcc-6.3.0/libsanitizer/configure.tgt	2019-08-13 15:41:51.394524015 -0700
+@@ -21,13 +21,6 @@
+ # Filter out unsupported systems.
+ TSAN_TARGET_DEPENDENT_OBJECTS=
+ case "${target}" in
+-  x86_64-*-linux* | i?86-*-linux*)
+-	if test x$ac_cv_sizeof_void_p = x8; then
+-		TSAN_SUPPORTED=yes
+-		LSAN_SUPPORTED=yes
+-		TSAN_TARGET_DEPENDENT_OBJECTS=tsan_rtl_amd64.lo
+-	fi
+-	;;
+   powerpc*-*-linux*)
+ 	;;
+   sparc*-*-linux*)

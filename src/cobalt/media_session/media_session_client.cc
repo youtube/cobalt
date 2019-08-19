@@ -15,10 +15,65 @@
 #include "cobalt/media_session/media_session_client.h"
 
 #include <algorithm>
+#include <cmath>
 #include <memory>
+
+#include "starboard/time.h"
 
 namespace cobalt {
 namespace media_session {
+
+namespace {
+
+// Delay to re-query position state after an action has been invoked.
+const base::TimeDelta kUpdateDelay = base::TimeDelta::FromMilliseconds(250);
+
+// Guess the media position state for the media session.
+void GuessMediaPositionState(MediaSessionState* session_state,
+    const media::WebMediaPlayer** guess_player,
+    const media::WebMediaPlayer* current_player) {
+  // Assume the player with the biggest video size is the one controlled by the
+  // media session. This isn't perfect, so it's best that the web app set the
+  // media position state explicitly.
+  if (*guess_player == nullptr ||
+      (*guess_player)->GetNaturalSize().GetArea() <
+      current_player->GetNaturalSize().GetArea()) {
+    *guess_player = current_player;
+
+    MediaPositionState position_state;
+    float duration = (*guess_player)->GetDuration();
+    if (std::isfinite(duration)) {
+      position_state.set_duration(duration);
+    } else if (std::isinf(duration)) {
+      position_state.set_duration(kSbTimeMax);
+    } else {
+      position_state.set_duration(0.0);
+    }
+    position_state.set_playback_rate((*guess_player)->GetPlaybackRate());
+    position_state.set_position((*guess_player)->GetCurrentTime());
+
+    *session_state = MediaSessionState(
+        session_state->metadata(),
+        SbTimeGetMonotonicNow(),
+        position_state,
+        session_state->actual_playback_state(),
+        session_state->available_actions());
+  }
+}
+
+}  // namespace
+
+MediaSessionClient::~MediaSessionClient() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  // Prevent any outstanding MediaSession::OnChanged tasks from calling this.
+  media_session_->media_session_client_ = nullptr;
+}
+
+void MediaSessionClient::SetMediaPlayerFactory(
+    const media::WebMediaPlayerFactory* factory) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  media_player_factory_ = factory;
+}
 
 MediaSessionPlaybackState MediaSessionClient::ComputeActualPlaybackState()
     const {
@@ -76,6 +131,13 @@ MediaSessionClient::ComputeAvailableActions() const {
       result[kMediaSessionActionPlay] = false;
       break;
     case kMediaSessionPlaybackStateNone:
+      // Not defined in the spec: disable Seekbackward, Seekforward, SeekTo, &
+      // Stop when no media is playing.
+      result[kMediaSessionActionSeekbackward] = false;
+      result[kMediaSessionActionSeekforward] = false;
+      result[kMediaSessionActionSeekto] = false;
+      result[kMediaSessionActionStop] = false;
+    // Fall-through intended (None case falls through to Paused case).
     case kMediaSessionPlaybackStatePaused:
       // "Otherwise, remove pause from available actions."
       result[kMediaSessionActionPause] = false;
@@ -134,26 +196,11 @@ void MediaSessionClient::InvokeActionInternal(
   }
 
   it->second->value().Run(*details);
-}
 
-MediaSessionState MediaSessionClient::GetMediaSessionState() {
-  MediaSessionState session_state;
-  GetMediaSessionStateInternal(&session_state);
-  return session_state;
-}
-
-void MediaSessionClient::GetMediaSessionStateInternal(
-    MediaSessionState* session_state) {
-  DCHECK(media_session_->task_runner_);
-  if (!media_session_->task_runner_->BelongsToCurrentThread()) {
-    media_session_->task_runner_->PostBlockingTask(
-        FROM_HERE,
-        base::Bind(&MediaSessionClient::GetMediaSessionStateInternal,
-                   base::Unretained(this), base::Unretained(session_state)));
-    return;
+  // Queue a session update to reflect the effects of the action.
+  if (!media_session_->media_position_state_) {
+    media_session_->MaybeQueueChangeTask(kUpdateDelay);
   }
-
-  *session_state = session_state_;
 }
 
 void MediaSessionClient::UpdateMediaSessionState() {
@@ -168,12 +215,30 @@ void MediaSessionClient::UpdateMediaSessionState() {
     metadata->set_album(session_metadata->album());
     metadata->set_artwork(session_metadata->artwork());
   }
+
   session_state_ = MediaSessionState(
       metadata,
       media_session_->last_position_updated_time_,
       media_session_->media_position_state_,
       ComputeActualPlaybackState(),
       ComputeAvailableActions());
+
+  // Compute the media position state if it's not set in the media session.
+  if (!media_session_->media_position_state_ && media_player_factory_) {
+    const media::WebMediaPlayer* player = nullptr;
+    media_player_factory_->EnumerateWebMediaPlayers(
+        base::BindRepeating(&GuessMediaPositionState,
+                            &session_state_, &player));
+
+    // The media duration may be reported as 0 when seeking. Re-query the
+    // media session state after a delay.
+    if (session_state_.actual_playback_state() ==
+            kMediaSessionPlaybackStatePlaying &&
+        session_state_.duration() == 0) {
+      media_session_->MaybeQueueChangeTask(kUpdateDelay);
+    }
+  }
+
   OnMediaSessionStateChanged(session_state_);
 }
 

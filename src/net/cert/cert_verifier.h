@@ -181,6 +181,14 @@ class NET_EXPORT CertVerifier {
   // the preferred underlying cryptographic libraries, using the specified
   // configuration.
   static std::unique_ptr<CertVerifier> CreateDefault();
+
+#if defined(STARBOARD) && defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
+  // Used to disable certificate verification errors for testing/development
+  // purpose.
+  virtual void set_ignore_certificate_errors(bool ignore_certificate_errors) {
+    NOTREACHED();
+  }
+#endif
 };
 
 // Overloads for comparing two configurations. Note, comparison is shallow -

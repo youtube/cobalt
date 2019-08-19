@@ -62,6 +62,11 @@ class VideoDecoder
                   const ErrorCB& error_cb) override;
   size_t GetPrerollFrameCount() const override;
   SbTime GetPrerollTimeout() const override;
+  // As we hold output buffers received from MediaCodec, the max number of
+  // cached frames depends on the max number of output buffers in MediaCodec,
+  // which is device dependent. The media decoder may stall if we hold all
+  // output buffers. But it would continue working once we release output
+  // buffer.
   size_t GetMaxNumberOfCachedFrames() const override { return 12; }
 
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
@@ -71,6 +76,8 @@ class VideoDecoder
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
   bool is_valid() const { return media_decoder_ != NULL; }
+
+  void OnNewTextureAvailable();
 
  private:
   // Attempt to initialize the codec.  Returns whether initialization was
@@ -100,7 +107,7 @@ class VideoDecoder
 
   // If decode-to-texture is enabled, then we store the decode target texture
   // inside of this |decode_target_| member.
-  SbDecodeTarget decode_target_;
+  SbDecodeTarget decode_target_ = kSbDecodeTargetInvalid;
 
   // Since GetCurrentDecodeTarget() needs to be called from an arbitrary thread
   // to obtain the current decode target (which ultimately ends up being a
@@ -109,8 +116,8 @@ class VideoDecoder
   starboard::Mutex decode_target_mutex_;
 
   // The width and height of the latest decoded frame.
-  int32_t frame_width_;
-  int32_t frame_height_;
+  int32_t frame_width_ = 0;
+  int32_t frame_height_ = 0;
 
   // The last enqueued |SbMediaColorMetadata|.
   optional<SbMediaColorMetadata> color_metadata_;
@@ -120,8 +127,10 @@ class VideoDecoder
   atomic_int32_t number_of_frames_being_decoded_;
   scoped_refptr<Sink> sink_;
 
-  bool first_buffer_received_;
+  bool first_buffer_received_ = false;
+  bool first_texture_received_ = false;
   volatile SbTime first_buffer_timestamp_;
+  atomic_bool has_new_texture_available_;
 
   // Use |owns_video_surface_| only on decoder thread, to avoid unnecessary
   // invocation of ReleaseVideoSurface(), though ReleaseVideoSurface() would

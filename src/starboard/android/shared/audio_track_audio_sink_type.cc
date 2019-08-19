@@ -15,13 +15,12 @@
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 
 #include <algorithm>
-#include <deque>
+#include <vector>
 
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
-#include "starboard/common/mutex.h"
-#include "starboard/common/scoped_ptr.h"
-#include "starboard/thread.h"
+namespace {
+starboard::android::shared::AudioTrackAudioSinkType*
+    audio_track_audio_sink_type_;
+}
 
 namespace starboard {
 namespace android {
@@ -33,13 +32,14 @@ namespace {
 // we will repeatedly allocate a large byte array which cannot be consumed by
 // audio track completely.
 const int kMaxFramesPerRequest = 65536;
-
 const jint kNoOffset = 0;
-
 const size_t kSilenceFramesPerAppend = 1024;
-// 6 (max channels) * 4 (max sample size) * kSilenceFramesPerAppend, the number
-// is to ensure we always have at least 1024 frames silence to write.
-const uint8_t kSilenceBuffer[24 * kSilenceFramesPerAppend] = {0};
+
+const int kAudioSinkBufferSize = 4 * 1024;
+const int kMaxRequiredFrames = 16 * 1024;
+const int kDefaultRequiredFrames = 8 * 1024;
+const int kRequiredFramesIncrement = 2 * 1024;
+const int kMinStablePlayedFrames = 12 * 1024;
 
 // Helper function to compute the size of the two valid starboard audio sample
 // types.
@@ -71,62 +71,7 @@ void* IncrementPointerByBytes(void* pointer, size_t offset) {
   return static_cast<uint8_t*>(pointer) + offset;
 }
 
-class AudioTrackAudioSink : public SbAudioSinkPrivate {
- public:
-  AudioTrackAudioSink(
-      Type* type,
-      int channels,
-      int sampling_frequency_hz,
-      SbMediaAudioSampleType sample_type,
-      SbAudioSinkFrameBuffers frame_buffers,
-      int frames_per_channel,
-      SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-      SbAudioSinkConsumeFramesFunc consume_frame_func,
-      void* context);
-  ~AudioTrackAudioSink() override;
-
-  bool IsAudioTrackValid() const { return j_audio_track_bridge_; }
-  bool IsType(Type* type) override { return type_ == type; }
-  void SetPlaybackRate(double playback_rate) override {
-    SB_DCHECK(playback_rate >= 0.0);
-    if (playback_rate != 0.0 && playback_rate != 1.0) {
-      SB_NOTIMPLEMENTED() << "TODO: Only playback rates of 0.0 and 1.0 are "
-                             "currently supported.";
-      playback_rate = (playback_rate > 0.0) ? 1.0 : 0.0;
-    }
-    ScopedLock lock(mutex_);
-    playback_rate_ = playback_rate;
-  }
-
-  void SetVolume(double volume) override;
-
- private:
-  static void* ThreadEntryPoint(void* context);
-  void AudioThreadFunc();
-
-  int WriteData(JniEnvExt* env, const void* buffer, int size);
-
-  Type* type_;
-  int channels_;
-  int sampling_frequency_hz_;
-  SbMediaAudioSampleType sample_type_;
-  void* frame_buffer_;
-  int frames_per_channel_;
-  SbAudioSinkUpdateSourceStatusFunc update_source_status_func_;
-  SbAudioSinkConsumeFramesFunc consume_frame_func_;
-  void* context_;
-  int last_playback_head_position_;
-  jobject j_audio_track_bridge_;
-  jobject j_audio_data_;
-
-  volatile bool quit_;
-  SbThread audio_out_thread_;
-
-  starboard::Mutex mutex_;
-  double playback_rate_;
-
-  int written_frames_;
-};
+}  // namespace
 
 AudioTrackAudioSink::AudioTrackAudioSink(
     Type* type,
@@ -135,6 +80,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     SbMediaAudioSampleType sample_type,
     SbAudioSinkFrameBuffers frame_buffers,
     int frames_per_channel,
+    int preferred_buffer_size,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     SbAudioSinkConsumeFramesFunc consume_frame_func,
     void* context)
@@ -167,7 +113,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
       j_audio_output_manager.Get(), "createAudioTrackBridge",
       "(IIII)Ldev/cobalt/media/AudioTrackBridge;",
       GetAudioFormatSampleType(sample_type_), sampling_frequency_hz_, channels_,
-      frames_per_channel);
+      preferred_buffer_size);
   if (!j_audio_track_bridge) {
     return;
   }
@@ -212,6 +158,17 @@ AudioTrackAudioSink::~AudioTrackAudioSink() {
     env->DeleteGlobalRef(j_audio_data_);
     j_audio_data_ = NULL;
   }
+}
+
+void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
+  SB_DCHECK(playback_rate >= 0.0);
+  if (playback_rate != 0.0 && playback_rate != 1.0) {
+    SB_NOTIMPLEMENTED() << "TODO: Only playback rates of 0.0 and 1.0 are "
+                           "currently supported.";
+    playback_rate = (playback_rate > 0.0) ? 1.0 : 0.0;
+  }
+  ScopedLock lock(mutex_);
+  playback_rate_ = playback_rate;
 }
 
 // static
@@ -305,8 +262,11 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       // its buffer is fully filled once.
       if (is_eos_reached) {
         // Currently AudioDevice and AudioRenderer will write tail silence.
-        // It should be reached only in tests.
-        WriteData(env, kSilenceBuffer, kSilenceFramesPerAppend);
+        // It should be reached only in tests. It's not ideal to allocate
+        // a new silence buffer every time.
+        std::vector<uint8_t> silence_buffer(
+            channels_ * GetSampleSize(sample_type_) * kSilenceFramesPerAppend);
+        WriteData(env, silence_buffer.data(), kSilenceFramesPerAppend);
       }
       SbThreadSleep(10 * kSbTimeMillisecond);
       continue;
@@ -384,7 +344,30 @@ void AudioTrackAudioSink::SetVolume(double volume) {
   }
 }
 
-}  // namespace
+int AudioTrackAudioSink::GetUnderrunCount() {
+  auto* env = JniEnvExt::Get();
+  jint underrun_count = env->CallIntMethodOrAbort(j_audio_track_bridge_,
+                                                  "getUnderrunCount", "()I");
+  return underrun_count;
+}
+
+// static
+int AudioTrackAudioSinkType::GetMinBufferSizeInFrames(
+    int channels,
+    SbMediaAudioSampleType sample_type,
+    int sampling_frequency_hz) {
+  SB_DCHECK(audio_track_audio_sink_type_);
+
+  return audio_track_audio_sink_type_->min_required_frames_.load();
+}
+
+AudioTrackAudioSinkType::AudioTrackAudioSinkType()
+    : min_required_frames_tester_(kAudioSinkBufferSize,
+                                  kMaxRequiredFrames,
+                                  kDefaultRequiredFrames,
+                                  kRequiredFramesIncrement,
+                                  kMinStablePlayedFrames),
+      min_required_frames_(kMaxRequiredFrames) {}
 
 SbAudioSink AudioTrackAudioSinkType::Create(
     int channels,
@@ -396,10 +379,18 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     SbAudioSinkConsumeFramesFunc consume_frames_func,
     void* context) {
+  // Try to create AudioTrack with the same size buffer as in renderer. But
+  // AudioTrack would not start playing until the buffer is fully filled once. A
+  // large buffer may cause AudioTrack not able to start. And Cobalt now write
+  // no more than 1s of audio data and no more than 0.5 ahead to starboard
+  // player, limit the buffer size to store at most 0.5s of audio data.
+  int preferred_buffer_size =
+      std::min(frames_per_channel, sampling_frequency_hz / 2) * channels *
+      GetSampleSize(audio_sample_type);
   AudioTrackAudioSink* audio_sink = new AudioTrackAudioSink(
       this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
-      frames_per_channel, update_source_status_func, consume_frames_func,
-      context);
+      frames_per_channel, preferred_buffer_size, update_source_status_func,
+      consume_frames_func, context);
   if (!audio_sink->IsAudioTrackValid()) {
     SB_DLOG(ERROR)
         << "AudioTrackAudioSinkType::Create failed to create audio track";
@@ -409,13 +400,32 @@ SbAudioSink AudioTrackAudioSinkType::Create(
   return audio_sink;
 }
 
+void AudioTrackAudioSinkType::TestMinRequiredFrames() {
+  auto onMinRequiredFramesForWebAudioReceived =
+      [&](int number_of_channels, SbMediaAudioSampleType sample_type,
+          int sample_rate, int min_required_frames) {
+        SB_LOG(INFO) << "Received min required frames " << min_required_frames
+                     << " for " << number_of_channels << " channels, "
+                     << sample_rate << "hz.";
+        min_required_frames_.store(min_required_frames);
+      };
+
+  SbMediaAudioSampleType sample_type = kSbMediaAudioSampleTypeFloat32;
+  if (!SbAudioSinkIsAudioSampleTypeSupported(sample_type)) {
+    sample_type = kSbMediaAudioSampleTypeInt16Deprecated;
+    SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(sample_type));
+  }
+
+  // Currently, cobalt only use |min_required_frames_| for web audio, which
+  // only supports 48k mono or stereo sound. It should be fine now to only
+  // test 48k stereo sound.
+  min_required_frames_tester_.StartTest(2, sample_type, 48000,
+                                        onMinRequiredFramesForWebAudioReceived);
+}
+
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
-
-namespace {
-SbAudioSinkPrivate::Type* audio_track_audio_sink_type_;
-}  // namespace
 
 // static
 void SbAudioSinkPrivate::PlatformInitialize() {
@@ -424,6 +434,7 @@ void SbAudioSinkPrivate::PlatformInitialize() {
       new starboard::android::shared::AudioTrackAudioSinkType;
   SetPrimaryType(audio_track_audio_sink_type_);
   EnableFallbackToStub();
+  audio_track_audio_sink_type_->TestMinRequiredFrames();
 }
 
 // static
