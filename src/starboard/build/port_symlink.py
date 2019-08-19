@@ -104,7 +104,7 @@ def _MakeSymLink(from_folder, link_folder):
 
 
 def _ReadSymLink(link_path):
-  """Returns a absolute path to the folder referred to by the link_path."""
+  """Returns the path (abs. or rel.) to the folder referred to by link_path."""
   if IsWindows():
     # pylint: disable=g-import-not-at-top
     from starboard.build import win_symlink

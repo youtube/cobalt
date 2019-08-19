@@ -65,33 +65,32 @@ def _MakeDirs(path):
     os.makedirs(path)
 
 
-def _ExtractSymlinks(cwd, symlink_dir_list):
+def _ExtractSymlinks(archive_root, symlink_dir_list):
   """Recreates symlinks on Windows and linux."""
-  prev_cwd = os.getcwd()
-  cwd = os.path.normpath(cwd)
+  archive_root = os.path.normpath(archive_root)
+  if _IS_WINDOWS:
+    archive_root = '\\\\?\\' + archive_root
+  for link_path, real_path in symlink_dir_list:
+    # link_path and real_path are assumed to be both relative paths.
+    real_path = os.path.normpath(real_path)
+    link_path = os.path.normpath(link_path)
+    target_path = os.path.relpath(real_path, os.path.dirname(link_path))
+    link_path = os.path.join(archive_root, link_path)
+    if not os.path.exists(os.path.dirname(link_path)):
+      _MakeDirs(os.path.dirname(link_path))
+    _CreateSymlink(target_path, link_path)
+  # Check that all the symlinks point to an existing directory.
   all_ok = True
-  try:
-    os.chdir(cwd)
-    for link_path, real_path in symlink_dir_list:
-      link_path = os.path.abspath(link_path)
-      real_path = os.path.abspath(real_path)
-      if not os.path.exists(real_path):
-        _MakeDirs(real_path)
-      if not os.path.exists(os.path.dirname(link_path)):
-        _MakeDirs(os.path.dirname(link_path))
-      assert os.path.exists(real_path)
-      real_path = os.path.relpath(real_path)
-      _CreateSymlink(real_path, link_path)
-      if not os.path.exists(real_path):
-        logging.critical('Error target folder %s does not exist.',
-                         os.path.abspath(real_path))
-        all_ok = False
-      if not os.path.exists(link_path):
-        logging.critical('Error link folder %s does not exist.',
-                         os.path.abspath(link_path))
-        all_ok = False
-  finally:
-    os.chdir(prev_cwd)
+  cwd = os.getcwd()
+  for link_path, _ in symlink_dir_list:
+    link_path = os.path.join(archive_root, link_path)
+    try:
+      # This will raise an error if the link points to an invalid directory.
+      os.chdir(link_path)
+    except:
+      all_ok = False
+    finally:
+      os.chdir(cwd)
   if not all_ok:
     logging.critical('\n*******************************************'
                      '\nErrors happended during symlink extraction.'

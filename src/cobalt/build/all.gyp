@@ -31,7 +31,6 @@
       'type': 'none',
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base_unittests',
-        '<(DEPTH)/cobalt/accessibility/accessibility_test.gyp:*',
         '<(DEPTH)/cobalt/audio/audio.gyp:*',
         '<(DEPTH)/cobalt/audio/audio_test.gyp:*',
         '<(DEPTH)/cobalt/base/base.gyp:*',
@@ -96,6 +95,11 @@
             '<(DEPTH)/nb/nb_test.gyp:nb_test',
             '<(DEPTH)/nb/nb_test.gyp:reuse_allocator_benchmark',
             '<(DEPTH)/starboard/starboard_all.gyp:starboard_all',
+          ],
+        }],
+        ['target_arch in ["x86", "x64", "arm", "arm64"]', {
+          'dependencies': [
+            '<(DEPTH)/starboard/elf_loader/elf_loader.gyp:elf_loader',
           ],
         }],
       ],

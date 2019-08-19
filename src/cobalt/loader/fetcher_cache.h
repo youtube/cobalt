@@ -42,24 +42,21 @@ class FetcherCache {
   void NotifyResourceRequested(const std::string& url);
 
  private:
-  class CachedFetcherHandler;
   class CacheEntry;
-  class CachedFetcher;
 
   std::unique_ptr<Fetcher> CreateCachedFetcher(
       const GURL& url, const Loader::FetcherCreator& real_fetcher_creator,
       Fetcher::Handler* handler);
-  void OnFetchSuccess(CachedFetcherHandler* handler, const std::string& url,
+  void OnFetchSuccess(const std::string& url,
                       const scoped_refptr<net::HttpResponseHeaders>& headers,
-                      const Origin& last_url_origin, std::string* data);
-  void OnFetchFailure(CachedFetcherHandler* handler);
+                      const Origin& last_url_origin,
+                      bool did_fail_from_transient_error, std::string* data);
 
   THREAD_CHECKER(thread_checker_);
 
   const size_t capacity_;
   size_t total_size_ = 0;
 
-  base::hash_set<CachedFetcherHandler*> ongoing_fetchers_;
   net::linked_hash_map<std::string, CacheEntry*> cache_entries_;
 
   base::CVal<base::cval::SizeInBytes, base::CValPublic> memory_size_in_bytes_;

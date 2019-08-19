@@ -131,13 +131,5 @@ devtools.InheritedStyleEntry = function(node) {
   this.matchedCSSRules = _matchedRules(node);
 }
 
-// Polyfill Element.matches()
-// https://developer.mozilla.org/en-US/docs/Web/API/Element/matches
-Element.prototype.matches = Element.prototype.matches || function(s) {
-  var matches = document.querySelectorAll(s), i = matches.length;
-  while (--i >= 0 && matches.item(i) != this) {}
-  return i > -1;
-};
-
 // TODO: Pass debugBackend from C++ instead of getting it from the window.
 })(window.debugBackend);

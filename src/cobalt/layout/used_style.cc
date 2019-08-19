@@ -1475,6 +1475,93 @@ class UsedMaxLengthProvider : public UsedLengthValueProvider {
   }
 };
 
+class UsedMinLengthProvider : public UsedLengthValueProvider {
+ public:
+  explicit UsedMinLengthProvider(LayoutUnit percentage_base)
+      : UsedLengthValueProvider(percentage_base) {}
+
+  void VisitKeyword(cssom::KeywordValue* keyword) override {
+    switch (keyword->value()) {
+      case cssom::KeywordValue::kAuto:
+        depends_on_containing_block_ = false;
+        // Leave |used_length_| in disengaged state to indicate that "auto"
+        // was the value.
+        break;
+
+      case cssom::KeywordValue::kAbsolute:
+      case cssom::KeywordValue::kAlternate:
+      case cssom::KeywordValue::kAlternateReverse:
+      case cssom::KeywordValue::kBackwards:
+      case cssom::KeywordValue::kBaseline:
+      case cssom::KeywordValue::kBlock:
+      case cssom::KeywordValue::kBoth:
+      case cssom::KeywordValue::kBottom:
+      case cssom::KeywordValue::kBreakWord:
+      case cssom::KeywordValue::kCenter:
+      case cssom::KeywordValue::kClip:
+      case cssom::KeywordValue::kCollapse:
+      case cssom::KeywordValue::kColumn:
+      case cssom::KeywordValue::kColumnReverse:
+      case cssom::KeywordValue::kContain:
+      case cssom::KeywordValue::kContent:
+      case cssom::KeywordValue::kCover:
+      case cssom::KeywordValue::kCurrentColor:
+      case cssom::KeywordValue::kCursive:
+      case cssom::KeywordValue::kEllipsis:
+      case cssom::KeywordValue::kEnd:
+      case cssom::KeywordValue::kEquirectangular:
+      case cssom::KeywordValue::kFantasy:
+      case cssom::KeywordValue::kFixed:
+      case cssom::KeywordValue::kFlex:
+      case cssom::KeywordValue::kFlexEnd:
+      case cssom::KeywordValue::kFlexStart:
+      case cssom::KeywordValue::kForwards:
+      case cssom::KeywordValue::kHidden:
+      case cssom::KeywordValue::kInfinite:
+      case cssom::KeywordValue::kInherit:
+      case cssom::KeywordValue::kInitial:
+      case cssom::KeywordValue::kInline:
+      case cssom::KeywordValue::kInlineBlock:
+      case cssom::KeywordValue::kInlineFlex:
+      case cssom::KeywordValue::kLeft:
+      case cssom::KeywordValue::kLineThrough:
+      case cssom::KeywordValue::kMiddle:
+      case cssom::KeywordValue::kMonoscopic:
+      case cssom::KeywordValue::kMonospace:
+      case cssom::KeywordValue::kNone:
+      case cssom::KeywordValue::kNoRepeat:
+      case cssom::KeywordValue::kNormal:
+      case cssom::KeywordValue::kNowrap:
+      case cssom::KeywordValue::kPre:
+      case cssom::KeywordValue::kPreLine:
+      case cssom::KeywordValue::kPreWrap:
+      case cssom::KeywordValue::kRelative:
+      case cssom::KeywordValue::kRepeat:
+      case cssom::KeywordValue::kReverse:
+      case cssom::KeywordValue::kRight:
+      case cssom::KeywordValue::kRow:
+      case cssom::KeywordValue::kRowReverse:
+      case cssom::KeywordValue::kSansSerif:
+      case cssom::KeywordValue::kScroll:
+      case cssom::KeywordValue::kSerif:
+      case cssom::KeywordValue::kSolid:
+      case cssom::KeywordValue::kSpaceAround:
+      case cssom::KeywordValue::kSpaceBetween:
+      case cssom::KeywordValue::kStart:
+      case cssom::KeywordValue::kStatic:
+      case cssom::KeywordValue::kStereoscopicLeftRight:
+      case cssom::KeywordValue::kStereoscopicTopBottom:
+      case cssom::KeywordValue::kStretch:
+      case cssom::KeywordValue::kTop:
+      case cssom::KeywordValue::kUppercase:
+      case cssom::KeywordValue::kVisible:
+      case cssom::KeywordValue::kWrap:
+      case cssom::KeywordValue::kWrapReverse:
+        NOTREACHED();
+    }
+  }
+};
+
 class UsedFlexBasisProvider : public UsedLengthValueProvider {
  public:
   explicit UsedFlexBasisProvider(LayoutUnit percentage_base)
@@ -1485,6 +1572,7 @@ class UsedFlexBasisProvider : public UsedLengthValueProvider {
   void VisitKeyword(cssom::KeywordValue* keyword) override {
     switch (keyword->value()) {
       case cssom::KeywordValue::kAuto: {
+        depends_on_containing_block_ = false;
         flex_basis_is_auto_ = true;
         // Leave |used_length_| in disengaged state to indicate that "auto"
         // was the value.
@@ -1691,29 +1779,29 @@ base::Optional<LayoutUnit> GetUsedMaxWidthIfNotNone(
   return used_length_provider.used_length();
 }
 
-LayoutUnit GetUsedMinHeight(
+base::Optional<LayoutUnit> GetUsedMinHeightIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size) {
   // Percentages: refer to height of containing block.
   //   https://www.w3.org/TR/CSS21/visudet.html#propdef-max-height
-  UsedLengthValueProvider used_length_provider(containing_block_size.height());
+  UsedMinLengthProvider used_length_provider(containing_block_size.height());
   computed_style->min_height()->Accept(&used_length_provider);
-  return *used_length_provider.used_length();
+  return used_length_provider.used_length();
 }
 
-LayoutUnit GetUsedMinWidth(
+base::Optional<LayoutUnit> GetUsedMinWidthIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const SizeLayoutUnit& containing_block_size,
     bool* width_depends_on_containing_block) {
   // Percentages: refer to width of containing block.
   //   https://www.w3.org/TR/CSS21/visudet.html#propdef-min-width
-  UsedLengthValueProvider used_length_provider(containing_block_size.width());
+  UsedMinLengthProvider used_length_provider(containing_block_size.width());
   computed_style->min_width()->Accept(&used_length_provider);
   if (width_depends_on_containing_block != NULL) {
     *width_depends_on_containing_block =
         used_length_provider.depends_on_containing_block();
   }
-  return *used_length_provider.used_length();
+  return used_length_provider.used_length();
 }
 
 base::Optional<LayoutUnit> GetUsedHeightIfNotAuto(

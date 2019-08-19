@@ -28,6 +28,8 @@
         'application.h',
         'browser_module.cc',
         'browser_module.h',
+        'device_authentication.cc',
+        'device_authentication.h',
         'lifecycle_observer.h',
         'memory_settings/auto_mem.cc',
         'memory_settings/auto_mem.h',
@@ -126,7 +128,6 @@
       ],
       'dependencies': [
         '<@(cobalt_platform_dependencies)',
-        '<(DEPTH)/cobalt/accessibility/accessibility.gyp:accessibility',
         '<(DEPTH)/cobalt/account/account.gyp:account',
         '<(DEPTH)/cobalt/audio/audio.gyp:audio',
         '<(DEPTH)/cobalt/base/base.gyp:base',
@@ -219,6 +220,7 @@
       'target_name': 'browser_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'device_authentication_test.cc',
         'storage_upgrade_handler_test.cc',
         'memory_settings/auto_mem_test.cc',
         'memory_settings/auto_mem_settings_test.cc',

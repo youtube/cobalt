@@ -12,8 +12,6 @@ set including platform and configuration data. The calling signature is
 therefore *stable* and any Cobalt archive can be run the same binaries/tests
 using the same shell command.
 
-Please see go/cobalt-archive-doc
-
 Example:
     python __cobalt_archive/run/run_cobalt.py --device_id IP
 

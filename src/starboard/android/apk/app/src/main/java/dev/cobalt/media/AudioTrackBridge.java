@@ -16,6 +16,7 @@ package dev.cobalt.media;
 
 import static dev.cobalt.media.Log.TAG;
 
+import android.annotation.TargetApi;
 import android.media.AudioAttributes;
 import android.media.AudioFormat;
 import android.media.AudioManager;
@@ -35,24 +36,8 @@ public class AudioTrackBridge {
   private AudioTimestamp audioTimestamp = new AudioTimestamp();
   private long maxFramePositionSoFar = 0;
 
-  private int GetFrameSize(int sampleType, int channelCount) {
-    switch (sampleType) {
-      case AudioFormat.ENCODING_PCM_16BIT:
-        {
-          return 2 * channelCount;
-        }
-      case AudioFormat.ENCODING_PCM_FLOAT:
-        {
-          return 4 * channelCount;
-        }
-      default:
-        {
-          throw new RuntimeException("Unsupported sample type: " + sampleType);
-        }
-    }
-  }
-
-  public AudioTrackBridge(int sampleType, int sampleRate, int channelCount, int framesPerChannel) {
+  public AudioTrackBridge(
+      int sampleType, int sampleRate, int channelCount, int preferredBufferSizeInBytes) {
     int channelConfig;
     switch (channelCount) {
       case 1:
@@ -80,33 +65,16 @@ public class AudioTrackBridge {
             .setChannelMask(channelConfig)
             .build();
 
-    // Try to create AudioTrack with the same size buffer as in renderer. But AudioTrack would not
-    // start playing until the buffer is fully filled once. A large buffer may cause
-    // AudioTrack not able to start. And we now pass no more than 1s of audio data to
-    // starboard player, limit the buffer size to store at most 0.5s of audio data.
-    int audioTrackBufferSize =
-        Math.min(framesPerChannel, sampleRate / 2) * GetFrameSize(sampleType, channelCount);
+    int audioTrackBufferSize = preferredBufferSizeInBytes;
     while (audioTrackBufferSize > 0) {
       try {
-        if (Build.VERSION.SDK_INT >= 26) {
-          audioTrack =
-              new AudioTrack.Builder()
-                  .setAudioAttributes(attributes)
-                  .setAudioFormat(format)
-                  .setBufferSizeInBytes(audioTrackBufferSize)
-                  .setTransferMode(AudioTrack.MODE_STREAM)
-                  .setSessionId(AudioManager.AUDIO_SESSION_ID_GENERATE)
-                  .setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
-                  .build();
-        } else {
-          audioTrack =
-              new AudioTrack(
-                  attributes,
-                  format,
-                  audioTrackBufferSize,
-                  AudioTrack.MODE_STREAM,
-                  AudioManager.AUDIO_SESSION_ID_GENERATE);
-        }
+        audioTrack =
+            new AudioTrack(
+                attributes,
+                format,
+                audioTrackBufferSize,
+                AudioTrack.MODE_STREAM,
+                AudioManager.AUDIO_SESSION_ID_GENERATE);
       } catch (Exception e) {
         audioTrack = null;
       }
@@ -120,8 +88,10 @@ public class AudioTrackBridge {
     Log.i(
         TAG,
         String.format(
-            "AudioTrack created with buffer size %d.  The minimum buffer size is %d.",
+            "AudioTrack created with buffer size %d (prefered: %d).  The minimum buffer size is"
+                + " %d.",
             audioTrackBufferSize,
+            preferredBufferSizeInBytes,
             AudioTrack.getMinBufferSize(sampleRate, channelConfig, sampleType)));
   }
 
@@ -231,5 +201,24 @@ public class AudioTrackBridge {
     maxFramePositionSoFar = audioTimestamp.framePosition;
 
     return audioTimestamp;
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  private int getUnderrunCount() {
+    if (Build.VERSION.SDK_INT >= 24) {
+      return getUnderrunCountV24();
+    }
+    // The funtion getUnderrunCount() is added in API level 24.
+    return 0;
+  }
+
+  @TargetApi(24)
+  private int getUnderrunCountV24() {
+    if (audioTrack == null) {
+      Log.e(TAG, "Unable to call getUnderrunCount() with NULL audio track.");
+      return 0;
+    }
+    return audioTrack.getUnderrunCount();
   }
 }

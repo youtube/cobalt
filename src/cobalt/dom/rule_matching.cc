@@ -356,18 +356,6 @@ Element* MatchSelectorAndElement(cssom::Selector* selector, Element* element,
   return selector_matcher.element();
 }
 
-bool MatchRuleAndElement(cssom::CSSStyleRule* rule, Element* element) {
-  for (cssom::Selectors::const_iterator selector_iterator =
-           rule->selectors().begin();
-       selector_iterator != rule->selectors().end(); ++selector_iterator) {
-    DCHECK(*selector_iterator);
-    if (MatchSelectorAndElement(selector_iterator->get(), element, true)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 void GatherCandidateNodesFromSelectorNodesMap(
     cssom::SimpleSelectorType simple_selector_type,
     cssom::CombinatorType combinator_type,
@@ -958,6 +946,18 @@ scoped_refptr<Element> QuerySelector(Node* node, const std::string& selectors,
     child = iterator.Next();
   }
   return NULL;
+}
+
+bool MatchRuleAndElement(cssom::CSSStyleRule* rule, Element* element) {
+  for (cssom::Selectors::const_iterator selector_iterator =
+           rule->selectors().begin();
+       selector_iterator != rule->selectors().end(); ++selector_iterator) {
+    DCHECK(*selector_iterator);
+    if (MatchSelectorAndElement(selector_iterator->get(), element, true)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 scoped_refptr<NodeList> QuerySelectorAll(Node* node,

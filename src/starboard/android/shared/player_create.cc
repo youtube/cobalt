@@ -28,7 +28,6 @@ using starboard::shared::starboard::player::PlayerWorker;
 using starboard::android::shared::cobalt::kPlaying;
 using starboard::android::shared::cobalt::
     UpdateActiveSessionPlatformPlaybackState;
-using starboard::android::shared::cobalt::UpdateActiveSessionPlatformPlayer;
 
 SbPlayer SbPlayerCreate(SbWindow window,
                         SbMediaVideoCodec video_codec,
@@ -115,8 +114,6 @@ SbPlayer SbPlayerCreate(SbWindow window,
   // Set the bounds to initialize the VideoSurfaceView. The initial values don't
   // matter.
   SbPlayerSetBounds(player, 0, 0, 0, 0, 0);
-
-  UpdateActiveSessionPlatformPlayer(player);
 
   return player;
 }

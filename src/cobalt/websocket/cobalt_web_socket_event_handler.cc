@@ -110,7 +110,7 @@ void CobaltWebSocketEventHandler::OnSSLCertificateError(
     std::unique_ptr<net::WebSocketEventInterface::SSLErrorCallbacks>
         ssl_error_callbacks,
     const GURL& /*url*/, const net::SSLInfo& /*ssl_info*/, bool /*fatal*/) {
-  // TODO[johnx]: determine if there are circumstances we want to continue
+  // TODO: determine if there are circumstances we want to continue
   // the request.
   DLOG(WARNING) << "SSL cert failure occured, cancelling connection";
   ssl_error_callbacks->CancelSSLRequest(net::ERR_BAD_SSL_CLIENT_AUTH_CERT,

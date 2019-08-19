@@ -21,12 +21,15 @@
 #include <string.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <unordered_map>
 #include <vector>
 
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include <memory>
 #include <string>
+#include <vector>
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -35,6 +38,7 @@
 #include "starboard/input.h"
 #include "starboard/key.h"
 #include "starboard/memory.h"
+#include "starboard/once.h"
 #include "starboard/shared/posix/handle_eintr.h"
 #include "starboard/shared/posix/time_internal.h"
 
@@ -60,8 +64,141 @@ enum TouchPadPositionState {
   kTouchPadPositionAll = kTouchPadPositionX | kTouchPadPositionY
 };
 
+class ControllerTuning {
+ public:
+  ~ControllerTuning() {}
+
+  uint16_t GetKeyCode(uint16_t from);
+  void MapKeyCode(uint16_t from, uint16_t to) { key_map_[from] = to; }
+
+  float GetMinimumFlat() { return minimum_flat_; }
+  void SetMinimumFlat(float value) { minimum_flat_ = value; }
+
+ protected:
+  // Only create this object from DeviceMap::CreateControllerTuning()
+  ControllerTuning() {}
+
+ private:
+  std::unordered_map<int, int> key_map_;
+  float minimum_flat_ = 0;
+
+  friend class DeviceMap;
+};
+
+uint16_t ControllerTuning::GetKeyCode(uint16_t from) {
+  auto mapped_code = key_map_.find(from);
+  if (mapped_code != key_map_.end()) {
+    return mapped_code->second;
+  }
+  return from;
+}
+
+class DeviceMap {
+ public:
+  DeviceMap();
+  ~DeviceMap() = delete;
+
+  // Gets the singleton instance of the default DeviceMap. This
+  // is created the first time it is used.
+  static DeviceMap* Get();
+
+  // Return the controller tuning object for a given device. Return null if none
+  // is registered.
+  ControllerTuning* GetControllerTuning(const std::string& device) const;
+
+ private:
+  // Create a controllertuning object.
+  ControllerTuning* CreateControllerTuning();
+
+  // Register a controller tuning object for a given device.
+  void RegisterControllerTuning(const std::string& device,
+                                ControllerTuning* tuning);
+
+  std::unordered_map<std::string, ControllerTuning*> device_map_;
+
+  // Registry for all known controller tunings.
+  std::vector<std::unique_ptr<ControllerTuning>> controller_tunings_;
+};
+
+DeviceMap::DeviceMap() {
+  // Add key mappings for the Xbox controllers.
+  ControllerTuning* xbox_one_controller = CreateControllerTuning();
+  RegisterControllerTuning("Microsoft X-Box One S pad", xbox_one_controller);
+  RegisterControllerTuning("Microsoft X-Box One pad", xbox_one_controller);
+  RegisterControllerTuning("Microsoft X-Box 360 pad", xbox_one_controller);
+  xbox_one_controller->SetMinimumFlat(0.125);
+  xbox_one_controller->MapKeyCode(BTN_NORTH, BTN_WEST);  // Map for 'X'
+  xbox_one_controller->MapKeyCode(BTN_WEST, BTN_NORTH);  // Map for 'Y'
+  xbox_one_controller->MapKeyCode(BTN_TL, BTN_TL2);      // Map for left bumper.
+  xbox_one_controller->MapKeyCode(BTN_TR, BTN_TR2);  // Map for right bumper.
+
+  // Add key mappings for the PlayStation 4 controller.
+  ControllerTuning* ps4_controller = CreateControllerTuning();
+  RegisterControllerTuning("Sony Interactive Entertainment Wireless Controller",
+                           ps4_controller);
+  RegisterControllerTuning("Sony Computer Entertainment Wireless Controller",
+                           ps4_controller);
+  RegisterControllerTuning("Sony PLAYSTATION(R)3 Controller", ps4_controller);
+
+  ps4_controller->MapKeyCode(BTN_TL2, BTN_TL);  // Map for left trigger.
+  ps4_controller->MapKeyCode(BTN_TR2, BTN_TR);  // Map for right trigger.
+  ps4_controller->MapKeyCode(BTN_TL, BTN_TL2);  // Map for left bumper.
+  ps4_controller->MapKeyCode(BTN_TR, BTN_TR2);  // Map for right bumper.
+
+  // Add key mappings for the Horipad Switch wired controller.
+  ControllerTuning* switch_controller = CreateControllerTuning();
+  RegisterControllerTuning("HORI CO.,LTD. HORIPAD S", switch_controller);
+
+  switch_controller->MapKeyCode(BTN_C, BTN_SOUTH);     // Map for 'A'.
+  switch_controller->MapKeyCode(BTN_A, BTN_NORTH);     // Map for 'Y'.
+  switch_controller->MapKeyCode(BTN_NORTH, BTN_WEST);  // Map for 'X'.
+  switch_controller->MapKeyCode(BTN_WEST, BTN_TL2);    // Map for left bumper.
+  switch_controller->MapKeyCode(BTN_Z, BTN_TR2);       // Map for right bumper.
+
+  switch_controller->MapKeyCode(BTN_THUMBL, BTN_SELECT);  // Map for 'capture'.
+  switch_controller->MapKeyCode(BTN_MODE, KEY_HOME);      // Map for 'home'.
+
+  switch_controller->MapKeyCode(BTN_TL2, KEY_KPMINUS);  // Map for '-'.
+  switch_controller->MapKeyCode(BTN_TR2, KEY_KPPLUS);   // Map for '+'.
+
+  switch_controller->MapKeyCode(BTN_SELECT, BTN_THUMBL);  // Map for left hat.
+  switch_controller->MapKeyCode(BTN_START, BTN_THUMBR);   // Map for right hat.
+}
+
+void DeviceMap::RegisterControllerTuning(const std::string& device,
+                                         ControllerTuning* tuning) {
+  SB_DCHECK(GetControllerTuning(device) == NULL ||
+            GetControllerTuning(device) == tuning);
+  device_map_[device] = tuning;
+}
+
+ControllerTuning* DeviceMap::CreateControllerTuning() {
+  ControllerTuning* tuning = new ControllerTuning();
+  controller_tunings_.emplace_back(tuning);
+  return tuning;
+}
+
+ControllerTuning* DeviceMap::GetControllerTuning(
+    const std::string& device) const {
+  auto mapped_device = device_map_.find(device);
+  if (mapped_device != device_map_.end()) {
+    return mapped_device->second;
+  }
+  return NULL;
+}
+
+SB_ONCE_INITIALIZE_FUNCTION(DeviceMap, GetDeviceMap);
+
+DeviceMap* DeviceMap::Get() {
+  DeviceMap* device_map = GetDeviceMap();
+  return device_map;
+}
+
 struct InputDeviceInfo {
   InputDeviceInfo() : fd(-1), touchpad_position_state(kTouchPadPositionNone) {}
+
+  // Device Name
+  std::string name;
 
   // File descriptor open for the device
   FileDescriptor fd;
@@ -69,6 +206,7 @@ struct InputDeviceInfo {
   std::map<int, struct input_absinfo> axis_info;
   std::map<int, float> axis_value;
   int touchpad_position_state;
+  ControllerTuning* tuning;
 };
 
 bool IsTouchpadPositionKnown(InputDeviceInfo* device_info) {
@@ -92,21 +230,22 @@ class DevInputImpl : public DevInput {
   // Converts an input_event into a kSbEventInput Application::Event. The caller
   // is responsible for deleting the returned event.
   Event* InputToApplicationEvent(const struct input_event& event,
-                                 InputDeviceInfo* device_info,
-                                 int modifiers);
+                                 int modifiers,
+                                 InputDeviceInfo* device_info);
 
   // Converts an input_event containing a key input into a kSbEventInput
   // Application::Event. The caller is responsible for deleting the returned
   // event.
   Event* KeyInputToApplicationEvent(const struct input_event& event,
-                                    int modifiers);
+                                    int modifiers,
+                                    InputDeviceInfo* device_info);
 
   // Converts an input_event containing an axis event into a kSbEventInput
   // Application::Event. The caller is responsible for deleting the returned
   // event.
   Event* AxisInputToApplicationEvent(const struct input_event& event,
-                                     InputDeviceInfo* device_info,
-                                     int modifiers);
+                                     int modifiers,
+                                     InputDeviceInfo* device_info);
 
   // The window to attribute /dev/input events to.
   SbWindow window_;
@@ -432,34 +571,28 @@ SbKey KeyCodeToSbKey(uint16_t code) {
       return kSbKeyGamepadDPadLeft;
     case BTN_DPAD_RIGHT:
       return kSbKeyGamepadDPadRight;
-    // The mapping for the buttons below can vary from controller to controller.
-    // TODO: Include button mapping for controllers with different layout.
-    case BTN_B:
-      return kSbKeyGamepad1;
-    case BTN_C:
-      return kSbKeyGamepad2;
-    case BTN_A:
-      return kSbKeyGamepad3;
-    case BTN_X:
-      return kSbKeyGamepad4;
-    case BTN_Y:
-      return kSbKeyGamepadLeftBumper;
-    case BTN_Z:
-      return kSbKeyGamepadRightBumper;
     case BTN_TL2:
-      return kSbKeyGamepad5;
+      return kSbKeyGamepadLeftBumper;
     case BTN_TR2:
-      return kSbKeyGamepad6;
+      return kSbKeyGamepadRightBumper;
+    case BTN_SOUTH:
+      return kSbKeyGamepad1;
+    case BTN_EAST:
+      return kSbKeyGamepad2;
+    case BTN_WEST:
+      return kSbKeyGamepad3;
+    case BTN_NORTH:
+      return kSbKeyGamepad4;
     case BTN_SELECT:
-      return kSbKeyGamepadLeftStick;
+      return kSbKeyGamepad5;
     case BTN_START:
-      return kSbKeyGamepadRightStick;
+      return kSbKeyGamepad6;
     case BTN_MODE:
       return kSbKeyGamepadSystem;
     case BTN_THUMBL:
-      return kSbKeyGamepad1;
+      return kSbKeyGamepadLeftStick;
     case BTN_THUMBR:
-      return kSbKeyGamepad1;
+      return kSbKeyGamepadRightStick;
   }
   SB_DLOG(WARNING) << "Unknown code: 0x" << std::hex << code;
   return kSbKeyUnknown;
@@ -494,19 +627,26 @@ bool IsBitSet(const std::vector<uint8_t>& bitset, int bit) {
   return !!(bitset.at(bit / 8) & (1 << (bit % 8)));
 }
 
-bool IsAxisFlat(float median, const struct input_absinfo& axis_info) {
+bool IsAxisFlat(int minimum_flat,
+                float rest_value,
+                const struct input_absinfo& axis_info) {
   SB_DCHECK((axis_info.flat * 2) <= (axis_info.maximum - axis_info.minimum));
-  return (axis_info.flat != 0) && (axis_info.value > median - axis_info.flat) &&
-         (axis_info.value < median + axis_info.flat);
+  int flat = std::max(minimum_flat, axis_info.flat);
+  return (flat != 0) && (axis_info.value > rest_value - flat) &&
+         (axis_info.value < rest_value + flat);
 }
 
-float GetAxisValue(const struct input_absinfo& axis_info) {
+float GetAxisValue(bool is_trigger,
+                   float minimum_flat,
+                   const struct input_absinfo& axis_info) {
   float median =
       static_cast<float>(axis_info.maximum + axis_info.minimum) / 2.0f;
-  if (IsAxisFlat(median, axis_info))
-    return 0;
   float range = static_cast<float>(axis_info.maximum - axis_info.minimum);
   float radius = range / 2.0f;
+  if (IsAxisFlat(minimum_flat * radius, is_trigger ? axis_info.minimum : median,
+                 axis_info)) {
+    return is_trigger ? -1 : 0;
+  }
   // Scale the axis value to [-1, 1].
   float axis_value = (static_cast<float>(axis_info.value) - median) / radius;
 
@@ -532,11 +672,22 @@ void GetInputDeviceAbsoluteAxisInfo(int axis,
       return;
     }
     info->axis_info.insert(std::make_pair(axis, axis_info));
-    info->axis_value.insert(std::make_pair(axis, GetAxisValue(axis_info)));
+    bool is_trigger = axis == ABS_Z || axis == ABS_RZ;
+    info->axis_value.insert(std::make_pair(
+        axis,
+        GetAxisValue(is_trigger, info->tuning->GetMinimumFlat(), axis_info)));
   }
 }
 
 void GetInputDeviceInfo(InputDeviceInfo* info) {
+  char device_name[1024];
+  if (ioctl(info->fd, EVIOCGNAME(sizeof(device_name)), device_name) >= 0) {
+    size_t length = strnlen(device_name, sizeof(device_name));
+    info->name.assign(device_name, length);
+  }
+
+  info->tuning = DeviceMap::Get()->GetControllerTuning(info->name);
+
   std::vector<uint8_t> axis_bits(BytesNeededForBitSet(KEY_MAX));
   int result =
       ioctl(info->fd, EVIOCGBIT(EV_ABS, axis_bits.size()), axis_bits.data());
@@ -811,7 +962,7 @@ DevInput::Event* DevInputImpl::PollNextSystemEvent() {
       continue;
     }
 
-    return InputToApplicationEvent(event, &device, modifiers);
+    return InputToApplicationEvent(event, modifiers, &device);
   }
   return NULL;
 }
@@ -968,8 +1119,8 @@ DevInput::Event* CreateTouchPadEvent(SbWindow window,
 
 DevInput::Event* DevInputImpl::AxisInputToApplicationEvent(
     const struct input_event& event,
-    InputDeviceInfo* device_info,
-    int modifiers) {
+    int modifiers,
+    InputDeviceInfo* device_info) {
   SB_DCHECK(event.type == EV_ABS);
   SbKey key = kSbKeyUnknown;
   float axis_value = 0;
@@ -978,7 +1129,9 @@ DevInput::Event* DevInputImpl::AxisInputToApplicationEvent(
   if (axis_info_it != device_info->axis_info.end()) {
     struct input_absinfo& axis_info = axis_info_it->second;
     axis_info.value = event.value;
-    axis_value = GetAxisValue(axis_info);
+    bool is_trigger = event.code == ABS_Z || event.code == ABS_RZ;
+    axis_value = GetAxisValue(is_trigger, device_info->tuning->GetMinimumFlat(),
+                              axis_info);
     float& stored_axis_value = device_info->axis_value[event.code];
     previous_axis_value = stored_axis_value;
     if (previous_axis_value == axis_value) {
@@ -1009,21 +1162,21 @@ DevInput::Event* DevInputImpl::AxisInputToApplicationEvent(
       return CreateMoveEventWithKey(window_, key, location, modifiers,
                                     input_vector);
     }
-    case ABS_Z:
+    case ABS_RX:
       input_vector.x = axis_value;
       input_vector.y = device_info->axis_value[ABS_RZ];
       key = kSbKeyGamepadRightStickLeft;
       location = kSbKeyLocationRight;
       return CreateMoveEventWithKey(window_, key, location, modifiers,
                                     input_vector);
-    case ABS_RZ:
+    case ABS_RY:
       input_vector.x = device_info->axis_value[ABS_Z];
       input_vector.y = axis_value;
       key = kSbKeyGamepadRightStickUp;
       location = kSbKeyLocationRight;
       return CreateMoveEventWithKey(window_, key, location, modifiers,
                                     input_vector);
-    case ABS_RX: {
+    case ABS_Z: {
       key = kSbKeyGamepadLeftTrigger;
       location = kSbKeyLocationLeft;
       // For trigger buttons, the range is [0..1].
@@ -1033,7 +1186,7 @@ DevInput::Event* DevInputImpl::AxisInputToApplicationEvent(
                                         previous_trigger_value, key, location,
                                         modifiers, event);
     }
-    case ABS_RY: {
+    case ABS_RZ: {
       key = kSbKeyGamepadRightTrigger;
       location = kSbKeyLocationRight;
       // For trigger buttons, the range is [0..1].
@@ -1120,9 +1273,18 @@ DevInput::Event* DevInputImpl::AxisInputToApplicationEvent(
 
 DevInput::Event* DevInputImpl::KeyInputToApplicationEvent(
     const struct input_event& event,
-    int modifiers) {
+    int modifiers,
+    InputDeviceInfo* device_info) {
   SB_DCHECK(event.type == EV_KEY);
   SB_DCHECK(event.value <= 2);
+
+  SbKey key = KeyCodeToSbKey(device_info->tuning
+                                 ? device_info->tuning->GetKeyCode(event.code)
+                                 : event.code);
+  if (key == kSbKeyUnknown) {
+    return NULL;
+  }
+
   SbInputData* data = new SbInputData();
   SbMemorySet(data, 0, sizeof(*data));
 #if SB_API_VERSION >= 10
@@ -1133,7 +1295,7 @@ DevInput::Event* DevInputImpl::KeyInputToApplicationEvent(
       (event.value == 0 ? kSbInputEventTypeUnpress : kSbInputEventTypePress);
   data->device_type = kSbInputDeviceTypeKeyboard;
   data->device_id = kKeyboardDeviceId;
-  data->key = KeyCodeToSbKey(event.code);
+  data->key = key;
   data->key_location = KeyCodeToSbKeyLocation(event.code);
   data->key_modifiers = modifiers;
   return new Event(kSbEventTypeInput, data,
@@ -1142,15 +1304,15 @@ DevInput::Event* DevInputImpl::KeyInputToApplicationEvent(
 
 DevInput::Event* DevInputImpl::InputToApplicationEvent(
     const struct input_event& event,
-    InputDeviceInfo* device_info,
-    int modifiers) {
+    int modifiers,
+    InputDeviceInfo* device_info) {
   // EV_ABS events are axis values: Sticks, dpad, and touchpad.
   // https://www.kernel.org/doc/Documentation/input/event-codes.txt
   switch (event.type) {
     case EV_ABS:
-      return AxisInputToApplicationEvent(event, device_info, modifiers);
+      return AxisInputToApplicationEvent(event, modifiers, device_info);
     case EV_KEY:
-      return KeyInputToApplicationEvent(event, modifiers);
+      return KeyInputToApplicationEvent(event, modifiers, device_info);
   }
   return NULL;
 }

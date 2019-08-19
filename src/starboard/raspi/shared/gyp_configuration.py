@@ -107,7 +107,6 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
           # TODO: debug these failures.
           'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput/0',
           'VideoDecoderTests/VideoDecoderTest.MultipleResets/0',
-          'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput/*',
           'VideoDecoderTests/VideoDecoderTest'
           '.MultipleValidInputsAfterInvalidKeyFrame/*',
           'VideoDecoderTests/VideoDecoderTest.MultipleInvalidInput/*',

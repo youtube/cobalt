@@ -483,6 +483,14 @@ float WebMediaPlayerImpl::GetCurrentTime() const {
   return static_cast<float>(pipeline_->GetMediaTime().InSecondsF());
 }
 
+float WebMediaPlayerImpl::GetPlaybackRate() const {
+  DCHECK_EQ(main_loop_, base::MessageLoop::current());
+  if (state_.paused) {
+    return 0.0f;
+  }
+  return state_.playback_rate;
+}
+
 int WebMediaPlayerImpl::GetDataRate() const {
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
 

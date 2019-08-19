@@ -48,8 +48,6 @@
         'h5vcc_runtime_event_target.h',
         'h5vcc_settings.cc',
         'h5vcc_settings.h',
-        'h5vcc_storage.cc',
-        'h5vcc_storage.h',
         'h5vcc_system.cc',
         'h5vcc_system.h',
         'h5vcc_trace_event.cc',

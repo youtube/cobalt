@@ -880,7 +880,11 @@ TEST_P(SpdyProxyClientSocketTest, ReadAuthResponseBody) {
   AssertSyncReadEquals(kMsg2, kLen2);
 }
 
+#if defined(STARBOARD)
+TEST_P(SpdyProxyClientSocketTest, FLAKY_ReadErrorResponseBody) {
+#else
 TEST_P(SpdyProxyClientSocketTest, ReadErrorResponseBody) {
+#endif
   spdy::SpdySerializedFrame conn(ConstructConnectRequestFrame());
   MockWrite writes[] = {
       CreateMockWrite(conn, 0, SYNCHRONOUS),

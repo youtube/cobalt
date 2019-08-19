@@ -242,7 +242,6 @@ bool Relocations::ApplyRelocation(const rel_t* rel) {
 #if defined(USE_RELA)
 bool Relocations::ApplyResolvedReloc(const Rela* rela, Addr sym_addr) {
   const Word rela_type = ELF_R_TYPE(rela->r_info);
-  const Word rela_symbol = ELF_R_SYM(rela->r_info);
   const Sword addend = rela->r_addend;
   const Addr reloc = static_cast<Addr>(rela->r_offset + base_memory_address_);
 
@@ -274,10 +273,6 @@ bool Relocations::ApplyResolvedReloc(const Rela* rela, Addr sym_addr) {
       SB_LOG(INFO) << "  R_AARCH64_RELATIVE target=" << std::hex << target
                    << " " << *target
                    << " bias=" << base_memory_address_ + addend;
-      if (!rela_symbol) {
-        SB_LOG(ERROR) << "Invalid relative relocation with symbol";
-        return false;
-      }
       *target = base_memory_address_ + addend;
       break;
 
@@ -302,11 +297,6 @@ bool Relocations::ApplyResolvedReloc(const Rela* rela, Addr sym_addr) {
       break;
 
     case R_X86_64_RELATIVE:
-      if (rela_symbol) {
-        SB_LOG(ERROR) << "Invalid R_X86_64_RELATIVE";
-        return false;
-      }
-
       SB_LOG(INFO) << "  R_X86_64_RELATIVE target=" << std::hex << target << " "
                    << *target << " bias=" << base_memory_address_ + addend;
       *target = base_memory_address_ + addend;
@@ -331,8 +321,6 @@ bool Relocations::ApplyResolvedReloc(const Rela* rela, Addr sym_addr) {
 #else
 bool Relocations::ApplyResolvedReloc(const Rel* rel, Addr sym_addr) {
   const Word rel_type = ELF_R_TYPE(rel->r_info);
-  const Word rel_symbol = ELF_R_SYM(rel->r_info);
-
   const Addr reloc = static_cast<Addr>(rel->r_offset + base_memory_address_);
 
   SB_LOG(INFO) << "  rel reloc=0x" << std::hex << reloc << " offset=0x"
@@ -369,10 +357,6 @@ bool Relocations::ApplyResolvedReloc(const Rel* rel, Addr sym_addr) {
     case R_ARM_RELATIVE:
       SB_LOG(INFO) << "  RR_ARM_RELATIVE target=" << std::hex << target << " "
                    << *target << " bias=" << base_memory_address_;
-      if (!rel_symbol) {
-        SB_LOG(ERROR) << "Invalid relative relocation with symbol";
-        return false;
-      }
       *target += base_memory_address_;
       break;
 
@@ -401,10 +385,6 @@ bool Relocations::ApplyResolvedReloc(const Rel* rel, Addr sym_addr) {
       break;
 
     case R_386_RELATIVE:
-      if (rel_symbol) {
-        SB_LOG(ERROR) << "Invalid relative relocation with symbol";
-        return false;
-      }
       SB_LOG(INFO) << "  R_386_RELATIVE target=" << std::hex << target << " "
                    << *target << " bias=" << base_memory_address_;
 

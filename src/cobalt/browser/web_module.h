@@ -26,7 +26,6 @@
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
-#include "cobalt/accessibility/tts_engine.h"
 #include "cobalt/base/address_sanitizer.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/browser/lifecycle_observer.h"

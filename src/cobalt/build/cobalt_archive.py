@@ -80,7 +80,9 @@ def MakeCobaltArchiveFromSource(output_archive_path,
       include_black_box_tests=include_black_box_tests)
 
 
-def ExtractCobaltArchive(input_zip_path, output_directory_path, outstream=None):
+def ExtractCobaltArchive(input_zip_path,
+                         output_directory_path,
+                         outstream=None):
   """Returns True if the extract operation was successfull."""
   archive = CobaltArchive(archive_zip_path=input_zip_path)
   return archive.ExtractTo(output_dir=output_directory_path,
@@ -183,7 +185,7 @@ class CobaltArchive(object):
           perms = _GetFilePermissions(file_path)
           if (stat.S_IXUSR) & perms:
             executable_files.append(archive_path)
-        # TODO(niteris): Use and implement _FoldIdenticalFiles() to reduce
+        # TODO: Use and implement _FoldIdenticalFiles() to reduce
         # duplicate files. This will help platforms like nxswitch which include
         # a lot of duplicate files for the sdk.
         try:
@@ -295,7 +297,8 @@ def _MakeCobaltArchiveFromSource(output_archive_path,
   """Finds necessary files and makes an archive."""
   _MakeDirs(os.path.dirname(output_archive_path))
   out_directory = paths.BuildOutputDirectory(platform_name, config)
-  root_dir = os.path.abspath(os.path.join(out_directory, '..', '..'))
+  root_dir = os.path.abspath(
+      os.path.normpath(os.path.join(out_directory, '..', '..')))
   flist = filelist.FileList()
   inc_paths = _GetDeployPaths(platform_name, config)
   logging.info('Adding binary files to bundle...')
@@ -427,7 +430,7 @@ def _MakeCobaltPlatformArchive(platform, config, output_zip,
   if not config:
     config = raw_input('config: ')
   if not output_zip:
-    output_zip = raw_input('output_zip: ')
+    output_zip = os.path.normpath(raw_input('output_zip: '))
   if not output_zip.endswith('.zip'):
     output_zip += '.zip'
   start_time = time.time()
@@ -515,7 +518,7 @@ def main():
     _MakeCobaltPlatformArchive(
         platform=args.platform,
         config=args.config,
-        output_zip=args.out_path,
+        output_zip=os.path.normpath(args.out_path),
         include_black_box_tests=args.include_black_box_tests)
     sys.exit(0)
   elif args.extract:

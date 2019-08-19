@@ -14,7 +14,7 @@
 
 // This is a non-standard API, used to access Cobalt's CVal system.
 interface CValView {
-  [NewObject] CValKeyList keys();
+  [NewObject] sequence<DOMString> keys();
   DOMString? getValue(DOMString name);
   DOMString getPrettyValue(DOMString name);
 };

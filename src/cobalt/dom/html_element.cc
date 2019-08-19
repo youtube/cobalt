@@ -910,6 +910,24 @@ void HTMLElement::ClearRuleMatchingStateOnElementAndDescendants() {
   }
 }
 
+void HTMLElement::ClearRuleMatchingStateOnElementAndSiblingsAndDescendants() {
+  HTMLElement::ClearRuleMatchingStateOnElementAndDescendants();
+  for (Element* element = previous_element_sibling(); element;
+       element = element->previous_element_sibling()) {
+    HTMLElement* html_element = element->AsHTMLElement();
+    if (html_element) {
+      html_element->ClearRuleMatchingStateOnElementAndDescendants();
+    }
+  }
+  for (Element* element = next_element_sibling(); element;
+       element = element->next_element_sibling()) {
+    HTMLElement* html_element = element->AsHTMLElement();
+    if (html_element) {
+      html_element->ClearRuleMatchingStateOnElementAndDescendants();
+    }
+  }
+}
+
 void HTMLElement::InvalidateMatchingRulesRecursively() {
   InvalidateMatchingRulesRecursivelyInternal(true /*is_initial_element*/);
 }
@@ -1327,6 +1345,13 @@ void HTMLElement::RunFocusingSteps() {
 
   // Set the focus item for the UI navigation system.
   if (ui_nav_item_ && !ui_nav_item_->IsContainer()) {
+    // Only navigation items attached to the root container are interactable.
+    // If the item is not registered with a container, then force a layout to
+    // connect items to their containers and eventually to the root container.
+    if (!ui_nav_item_->GetContainerItem()) {
+      // UI navigation items are updated as part of generating the render tree.
+      node_document()->DoSynchronousLayoutAndGetRenderTree();
+    }
     ui_nav_item_->Focus();
   }
 }

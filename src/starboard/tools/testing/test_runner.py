@@ -288,7 +288,7 @@ class TestRunner(object):
 
   def _GetAllTestEnvVariables(self):
     """Gets all environment variables used for tests on the given platform."""
-    env_variables = self._platform_config.GetTestEnvVariables()
+    env_variables = {}
     for test, test_env in self._app_config.GetTestEnvVariables().iteritems():
       if test in env_variables:
         env_variables[test].update(test_env)
@@ -309,7 +309,9 @@ class TestRunner(object):
     """
 
     # Get the environment variables for the test target
-    env = self.test_env_vars.get(target_name, {})
+    env = {}
+    env.update(self._platform_config.GetTestEnvVariables())
+    env.update(self.test_env_vars.get(target_name, {}))
 
     # Set up a pipe for processing test output
     read_fd, write_fd = os.pipe()
@@ -362,13 +364,19 @@ class TestRunner(object):
     self.threads.append(test_launcher)
     self.threads.append(test_reader)
 
+    dump_params = " ARGS:" + " ".join(test_params) if test_params else ""
+    dump_env = " ENV VARS: " + ";".join(
+        "{}={}".format(k, v) for k, v in env.items()) if env else ""
     # Output either the name of the test target or the specific test case
     # being run.
     # pylint: disable=g-long-ternary
-    sys.stdout.write(
-        "Starting {}".format(test_name if test_name else target_name))
+    sys.stdout.write("Starting {}{}{}".format(
+        test_name if test_name else target_name, dump_params, dump_env))
 
     if self.dry_run:
+      # Output a newline before running the test target / case.
+      sys.stdout.write("\n")
+
       if test_params:
         sys.stdout.write(" {}\n".format(test_params))
       write_pipe.close()
@@ -517,14 +525,16 @@ class TestRunner(object):
         flaky_passed_tests = []
         for test_case in flaky_failed_tests:
           for retry in range(_FLAKY_RETRY_LIMIT):
-            retry_result = self._RunTest(target_name, test_case)
+            # Sometimes the returned test "name" includes information about the
+            # parameter that was passed to it. This needs to be stripped off.
+            retry_result = self._RunTest(target_name, test_case.split(",")[0])
             print  # Explicit print for empty formatting line.
             if retry_result[2] == 1:
               flaky_passed_tests.append(test_case)
               logging.info("%s succeeded on run #%d!\n", test_case, retry + 2)
               break
             else:
-              logging.warning("%s Failed. Re-running...\n", test_case)
+              logging.warning("%s failed. Re-running...\n", test_case)
         # Remove newly passing flaky tests from failing flaky test list.
         for test_case in flaky_passed_tests:
           flaky_failed_tests.remove(test_case)

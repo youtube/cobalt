@@ -90,13 +90,13 @@ void VideoRenderAlgorithmImpl::Render(
     if (frames->front()->timestamp() != last_frame_timestamp_) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
       auto now = SbTimeGetMonotonicNow();
-      SB_LOG(ERROR) << "Dropping frame @ " << frames->front()->timestamp()
-                    << " microseconds, the elasped media time/system time from"
-                    << " last Render() call are "
-                    << media_time - media_time_of_last_render_call_ << "/"
-                    << now - system_time_of_last_render_call_
-                    << " microseconds, with " << frames->size()
-                    << " frames in the backlog.";
+      SB_LOG(WARNING)
+          << "Dropping frame @ " << frames->front()->timestamp()
+          << " microseconds, the elasped media time/system time from"
+          << " last Render() call are "
+          << media_time - media_time_of_last_render_call_ << "/"
+          << now - system_time_of_last_render_call_ << " microseconds, with "
+          << frames->size() << " frames in the backlog.";
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
       ++dropped_frames_;
     }

@@ -33,6 +33,9 @@ const char kNetLogCaptureMode[] = "net_log_capture_mode";
 const char kUserAgent[] = "user_agent";
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
+// Switch to disable use of the Quic network protocol.
+const char kDisableQuic[] = "disable_quic";
+
 }  // namespace switches
 }  // namespace network
 }  // namespace cobalt

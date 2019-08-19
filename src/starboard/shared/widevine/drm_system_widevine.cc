@@ -41,6 +41,11 @@ const int kInitializationVectorSize = 16;
 const char* kWidevineKeySystem[] = {"com.widevine", "com.widevine.alpha"};
 const char kWidevineStorageFileName[] = "wvcdm.dat";
 
+// Key usage may be blocked due to incomplete HDCP authentication which could
+// take up to 5 seconds. For such a case it is good to give a try few times to
+// get HDCP authentication complete. We set a timeout of 6 seconds for retries.
+const SbTimeMonotonic kUnblockKeyRetryTimeout = kSbTimeSecond * 6;
+
 class WidevineClock : public wv3cdm::IClock {
  public:
   int64_t now() override {
@@ -193,11 +198,8 @@ const char DrmSystemWidevine::kFirstSbDrmSessionId[] = "initialdrmsessionid";
 DrmSystemWidevine::DrmSystemWidevine(
     void* context,
     SbDrmSessionUpdateRequestFunc session_update_request_callback,
-    SbDrmSessionUpdatedFunc session_updated_callback
-#if SB_HAS(DRM_KEY_STATUSES)
-    ,
+    SbDrmSessionUpdatedFunc session_updated_callback,
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback
-#endif  // SB_HAS(DRM_KEY_STATUSES)
 #if SB_API_VERSION >= 10
     ,
     SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback
@@ -212,9 +214,7 @@ DrmSystemWidevine::DrmSystemWidevine(
     : context_(context),
       session_update_request_callback_(session_update_request_callback),
       session_updated_callback_(session_updated_callback),
-#if SB_HAS(DRM_KEY_STATUSES)
       key_statuses_changed_callback_(key_statuses_changed_callback),
-#endif  // SB_HAS(DRM_KEY_STATUSES)
 #if SB_API_VERSION >= 10
       server_certificate_updated_callback_(server_certificate_updated_callback),
 #endif  // SB_API_VERSION >= 10
@@ -320,6 +320,7 @@ void DrmSystemWidevine::UpdateSession(int ticket,
         sb_drm_session_id, sb_drm_session_id_size, &wvcdm_session_id);
     SB_DCHECK(succeeded);
     status = cdm_->update(wvcdm_session_id, str_key);
+    first_update_session_received_.store(true);
   }
   SB_DLOG(INFO) << "Update keys status " << status;
 #if SB_API_VERSION >= 10
@@ -395,6 +396,10 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
     return kSuccess;
   }
 
+  if (!first_update_session_received_.load()) {
+    return kRetry;
+  }
+
   // Adapt |buffer| and |drm_info| to a |cdm::InputBuffer|.
   SB_DCHECK(drm_info->initialization_vector_size == kInitializationVectorSize);
   std::vector<uint8_t> initialization_vector(
@@ -459,6 +464,18 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
           SB_DLOG(ERROR) << "Decrypt status: kNoKey";
           return kRetry;
         }
+        if (status == wv3cdm::kKeyUsageBlockedByPolicy) {
+          {
+            ScopedLock lock(unblock_key_retry_mutex_);
+            if (!unblock_key_retry_start_time_) {
+              unblock_key_retry_start_time_ = SbTimeGetMonotonicNow();
+            }
+          }
+          if (SbTimeGetMonotonicNow() - unblock_key_retry_start_time_.value() <
+              kUnblockKeyRetryTimeout) {
+            return kRetry;
+          }
+        }
         SB_DLOG(ERROR) << "Decrypt status " << status;
         SB_DLOG(ERROR) << "Key ID "
                        << wvcdm::b2a_hex(
@@ -467,7 +484,10 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
                                           drm_info->identifier_size));
         return kFailure;
       }
-
+      {
+        ScopedLock lock(unblock_key_retry_mutex_);
+        unblock_key_retry_start_time_ = nullopt;
+      }
       input.data += subsample.encrypted_byte_count;
       output.data += subsample.encrypted_byte_count;
       output.data_length -= subsample.encrypted_byte_count;
@@ -582,7 +602,6 @@ void DrmSystemWidevine::onMessage(const std::string& wvcdm_session_id,
 
 void DrmSystemWidevine::onKeyStatusesChange(
     const std::string& wvcdm_session_id) {
-#if SB_HAS(DRM_KEY_STATUSES)
   wv3cdm::KeyStatusMap key_statuses;
   wv3cdm::Status status = cdm_->getKeyStatuses(wvcdm_session_id, &key_statuses);
 
@@ -608,9 +627,6 @@ void DrmSystemWidevine::onKeyStatusesChange(
   key_statuses_changed_callback_(this, context_, sb_drm_session_id.c_str(),
                                  sb_drm_session_id.size(), sb_key_ids.size(),
                                  sb_key_ids.data(), sb_key_statuses.data());
-#else   // SB_HAS(DRM_KEY_STATUSES)
-  SB_UNREFERENCED_PARAMETER(wvcdm_session_id);
-#endif  // SB_HAS(DRM_KEY_STATUSES)
 }
 
 void DrmSystemWidevine::onRemoveComplete(const std::string& wvcdm_session_id) {

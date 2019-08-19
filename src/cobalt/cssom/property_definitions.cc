@@ -570,18 +570,18 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
                         kImpactsBoxCrossReferencesNo, KeywordValue::GetNone());
 
   // https://www.w3.org/TR/CSS2/visudet.html#propdef-min-height
+  // https://www.w3.org/TR/css-sizing-3/#min-size-properties
   SetPropertyDefinition(kMinHeightProperty, "min-height", kInheritedNo,
                         kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
-                        kImpactsBoxCrossReferencesNo,
-                        new LengthValue(0, kPixelsUnit));
+                        kImpactsBoxCrossReferencesNo, KeywordValue::GetAuto());
 
   // https://www.w3.org/TR/CSS2/visudet.html#propdef-min-width
+  // https://www.w3.org/TR/css-sizing-3/#min-size-properties
   SetPropertyDefinition(kMinWidthProperty, "min-width", kInheritedNo,
                         kAnimatableNo, kImpactsChildComputedStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
-                        kImpactsBoxCrossReferencesNo,
-                        new LengthValue(0, kPixelsUnit));
+                        kImpactsBoxCrossReferencesNo, KeywordValue::GetAuto());
 
   // https://www.w3.org/TR/css3-color/#opacity
   SetPropertyDefinition(kOpacityProperty, "opacity", kInheritedNo,

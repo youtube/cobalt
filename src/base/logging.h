@@ -411,8 +411,13 @@ const LogSeverity LOG_0 = LOG_ERROR;
 // As special cases, we can assume that LOG_IS_ON(FATAL) always holds. Also,
 // LOG_IS_ON(DFATAL) always holds in debug mode. In particular, CHECK()s will
 // always fire if they fail.
+
+#if defined(OFFICIAL_BUILD)
+#define LOG_IS_ON(severity) false
+#else  // defined(OFFICIAL_BUILD)
 #define LOG_IS_ON(severity) \
   (::logging::ShouldCreateLogMessage(::logging::LOG_##severity))
+#endif  // defined(OFFICIAL_BUILD)
 
 // We can't do any caching tricks with VLOG_IS_ON() like the
 // google-glog version since it requires GCC extensions.  This means

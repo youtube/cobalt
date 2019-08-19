@@ -49,13 +49,13 @@ class LinuxX64X11Gcc63Configuration(shared_configuration.LinuxConfiguration):
     return variables
 
   def GetEnvironmentVariables(self):
-    env_variables = super(LinuxX64X11Gcc63Configuration,
-                          self).GetEnvironmentVariables()
     toolchain_bin_dir = os.path.join(self.toolchain_dir, 'bin')
-    env_variables.update({
+    env_variables = {
         'CC': os.path.join(toolchain_bin_dir, 'gcc'),
         'CXX': os.path.join(toolchain_bin_dir, 'g++'),
-    })
+        'CC_HOST': os.path.join(toolchain_bin_dir, 'gcc'),
+        'CXX_HOST': os.path.join(toolchain_bin_dir, 'g++'),
+    }
     return env_variables
 
 

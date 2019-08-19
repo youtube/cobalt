@@ -80,6 +80,10 @@ AudioRenderer::AudioRenderer(scoped_ptr<AudioDecoder> decoder,
       process_audio_data_job_(
           std::bind(&AudioRenderer::ProcessAudioData, this)),
       audio_renderer_sink_(audio_renderer_sink.Pass()) {
+  SB_DLOG(INFO) << "Creating AudioRenderer with " << channels_ << " channels, "
+                << bytes_per_frame_ << " bytes per frame, "
+                << max_cached_frames_ << " max cached frames, and "
+                << max_frames_per_append_ << " max frames per append.";
   SB_DCHECK(decoder_ != NULL);
   SB_DCHECK(max_frames_per_append_ > 0);
   SB_DCHECK(max_cached_frames_ >= max_frames_per_append_ * 2);
@@ -93,6 +97,10 @@ AudioRenderer::AudioRenderer(scoped_ptr<AudioDecoder> decoder,
 }
 
 AudioRenderer::~AudioRenderer() {
+  SB_DLOG(INFO) << "Destroying AudioRenderer with " << channels_
+                << " channels, " << bytes_per_frame_ << " bytes per frame, "
+                << max_cached_frames_ << " max cached frames, and "
+                << max_frames_per_append_ << " max frames per append.";
   SB_DCHECK(BelongsToCurrentThread());
 }
 
@@ -470,7 +478,8 @@ void AudioRenderer::UpdateVariablesOnSinkThread_Locked(
       total_frames_consumed_by_sink_ - silence_frames_consumed_on_sink_thread_);
   underflow_ |=
       frames_in_buffer_on_sink_thread_ < kFramesInBufferBeginUnderflow;
-  if (is_eos_reached_on_sink_thread_) {
+  if (is_eos_reached_on_sink_thread_ ||
+      frames_in_buffer_on_sink_thread_ >= buffered_frames_to_start_) {
     underflow_ = false;
   }
   is_playing_on_sink_thread_ = !paused_ && !seeking_ && !underflow_;
@@ -493,6 +502,9 @@ void AudioRenderer::OnFirstOutput() {
           *decoder_sample_rate_);
   time_stretcher_.Initialize(sink_sample_type_, channels_,
                              destination_sample_rate);
+
+  // Start play after have enough buffered frames to play 0.2s.
+  buffered_frames_to_start_ = destination_sample_rate * 0.2;
 
   SbMediaAudioSampleType source_sample_type = decoder_->GetSampleType();
   SbMediaAudioFrameStorageType source_storage_type = decoder_->GetStorageType();
@@ -656,7 +668,6 @@ bool AudioRenderer::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
       seeking_ = false;
       Schedule(prerolled_cb_);
     }
-    underflow_ = false;
   }
 
   if (seeking_ || playback_rate_ == 0.0) {

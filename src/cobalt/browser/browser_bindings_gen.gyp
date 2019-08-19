@@ -52,7 +52,6 @@
         '../dom/audio_track.idl',
         '../dom/audio_track_list.idl',
         '../dom/blob.idl',
-        '../dom/c_val_key_list.idl',
         '../dom/c_val_view.idl',
         '../dom/camera_3d.idl',
         '../dom/captions/system_caption_settings.idl',
@@ -175,7 +174,6 @@
         '../h5vcc/h5vcc_runtime_event_target.idl',
         '../h5vcc/h5vcc_settings.idl',
         '../h5vcc/h5vcc_sso.idl',
-        '../h5vcc/h5vcc_storage.idl',
         '../h5vcc/h5vcc_system.idl',
         '../h5vcc/h5vcc_trace_event.idl',
 

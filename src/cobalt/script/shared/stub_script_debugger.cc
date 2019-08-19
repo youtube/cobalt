@@ -14,36 +14,36 @@
 
 #include <memory>
 
-#include "cobalt/script/script_debugger.h"
-
 #include "base/logging.h"
+#include "cobalt/script/global_environment.h"
+#include "cobalt/script/script_debugger.h"
+#include "cobalt/script/source_code.h"
 
 namespace cobalt {
 namespace script {
 
 class StubScriptDebugger : public ScriptDebugger {
  public:
-  StubScriptDebugger(GlobalEnvironment* global_environment,
-                     Delegate* delegate) {
-    NOTIMPLEMENTED();
-  }
-  ~StubScriptDebugger() override { NOTIMPLEMENTED(); }
+  StubScriptDebugger(GlobalEnvironment* global_environment, Delegate* delegate)
+      : global_environment_(global_environment), delegate_(delegate) {}
+  ~StubScriptDebugger() override {}
 
-  void Attach(const std::string& state) override { NOTIMPLEMENTED(); }
-  std::string Detach() override {
-    NOTIMPLEMENTED();
-    return std::string();
-  }
+  void Attach(const std::string& state) override {}
+  std::string Detach() override { return std::string(); }
 
   bool EvaluateDebuggerScript(const std::string& js_code,
                               std::string* out_result_utf8) override {
-    return false;
+    // The stub just evaluates debugger scripts as if they are part of the page.
+    scoped_refptr<script::SourceCode> source_code =
+        script::SourceCode::CreateSourceCode(
+            js_code, base::SourceLocation("[object StubScriptDebugger]", 1, 1));
+    return global_environment_->EvaluateScript(source_code, out_result_utf8);
   }
 
   std::set<std::string> SupportedProtocolDomains() override {
-    NOTIMPLEMENTED();
     return std::set<std::string>();
   }
+
   bool DispatchProtocolMessage(const std::string& method,
                                const std::string& message) override {
     NOTIMPLEMENTED();
@@ -70,9 +70,12 @@ class StubScriptDebugger : public ScriptDebugger {
 
   PauseOnExceptionsState SetPauseOnExceptions(
       PauseOnExceptionsState state) override {
-    NOTIMPLEMENTED();
     return kNone;
   }
+
+ private:
+  GlobalEnvironment* global_environment_;
+  Delegate* delegate_;
 };
 
 // Static factory method declared in public interface.

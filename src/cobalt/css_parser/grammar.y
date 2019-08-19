@@ -4304,8 +4304,12 @@ intersection_observer_root_margin_property_value:
 
 // Specifies the minimum content height of boxes.
 //   https://www.w3.org/TR/CSS21/visudet.html#propdef-min-height
+//   https://www.w3.org/TR/css-sizing-3/#min-size-properties
 min_height_property_value:
-    positive_length_percent_property_value
+    kAutoToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetAuto().get());
+  }
+  | positive_length_percent_property_value
   | common_values
   ;
 
@@ -5736,8 +5740,12 @@ width_property_value:
 
 // Specifies the minimum content width of boxes.
 //   https://www.w3.org/TR/CSS2/visudet.html#propdef-min-width
+//   https://www.w3.org/TR/css-sizing-3/#min-size-properties
 min_width_property_value:
-    positive_length_percent_property_value
+    kAutoToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetAuto().get());
+  }
+  | positive_length_percent_property_value
   | common_values
   ;
 

@@ -21,9 +21,15 @@ import unittest
 
 import _env  # pylint: disable=relative-import,unused-import
 
+from cobalt.build import cobalt_archive_extract
 from starboard.build import filelist
 from starboard.build import port_symlink
 from starboard.tools import util
+
+
+LONG_DIR_NAME_1 = 'really_l' + 'o' * 120 + 'ng_dir_name'
+LONG_DIR_NAME_2 = 'another_really_l' + 'o' * 120 + 'ng_dir_name'
+LONG_SUB_DIRS = os.path.join(LONG_DIR_NAME_1, LONG_DIR_NAME_2)
 
 
 def _MakeDirs(path):
@@ -32,7 +38,15 @@ def _MakeDirs(path):
 
 
 class TempFileSystem(object):
-  """Generates a test file structure with file/dir/symlink for testing."""
+  """Generates a test file structure with file/dir/symlink for testing.
+
+  <temp_dir>
+   |-> <root_sub_dir>
+   |   |-> in
+   |   |   |-> from_dir
+   |   |   |   |-> test.txt
+   |   |   |-> from_dir_lnk -> <temp_dir>/<root_sub_dir>/in/from_dir
+  """
 
   def __init__(self, root_sub_dir='bundler'):
     root_sub_dir = os.path.normpath(root_sub_dir)
@@ -40,9 +54,9 @@ class TempFileSystem(object):
     if os.path.exists(self.root_tmp):
       port_symlink.Rmtree(self.root_tmp)
     self.root_in_tmp = os.path.join(self.root_tmp, 'in')
-    self.test_txt = os.path.join(self.root_in_tmp, 'from_dir', 'test.txt')
     self.sym_dir = os.path.join(self.root_in_tmp, 'from_dir_lnk')
     self.from_dir = os.path.join(self.root_in_tmp, 'from_dir')
+    self.test_txt = os.path.join(self.from_dir, 'test.txt')
 
   def Make(self):
     _MakeDirs(self.root_in_tmp)
@@ -50,6 +64,15 @@ class TempFileSystem(object):
     port_symlink.MakeSymLink(self.from_dir, self.sym_dir)
     with open(self.test_txt, 'w') as fd:
       fd.write('TEST')
+
+  def MakeLongPathFile(self):
+    long_path_txt = os.path.join(self.from_dir, LONG_SUB_DIRS, 'test2.txt')
+    self.long_path_txt = long_path_txt
+    if port_symlink.IsWindows():
+      long_path_txt = cobalt_archive_extract.ToWinUncPath(long_path_txt)
+    _MakeDirs(os.path.dirname(long_path_txt))
+    with open(long_path_txt, 'w') as fd:
+      fd.write('TEST BIS')
 
   def Clear(self):
     port_symlink.Rmtree(self.root_tmp)
@@ -99,10 +122,15 @@ class FileListTest(unittest.TestCase):
   def testAddAllFilesInPath(self):
     tf = TempFileSystem()
     tf.Make()
+    tf.MakeLongPathFile()
     flist = filelist.FileList()
     flist.AddAllFilesInPath(tf.root_in_tmp, tf.root_in_tmp)
     self.assertTrue(flist.symlink_dir_list)
-    self.assertTrue(flist.file_list)
+    expected_file_list = [
+        [tf.test_txt, os.path.join('from_dir', 'test.txt')],
+        [tf.long_path_txt,
+         os.path.join('from_dir', LONG_SUB_DIRS , 'test2.txt')]]
+    self.assertEqual(flist.file_list, expected_file_list)
 
   def testAddSymlink(self):
     tf = TempFileSystem()
@@ -114,27 +142,30 @@ class FileListTest(unittest.TestCase):
     self.assertFalse(flist.file_list)
 
   def testAddRelativeSymlink(self):
-    """Tests the that adding a relative symlink works as expected."""
+    """Tests that adding a relative symlink works as expected."""
     tf = TempFileSystem()
     tf.Make()
     flist = filelist.FileList()
-    in2 = os.path.join(tf.root_in_tmp, 'in2')
-    target_path = os.path.relpath(tf.from_dir, in2)
+    in2 = os.path.join(tf.root_in_tmp, 'subdir', 'in2')
+    target_path = os.path.relpath(tf.from_dir, os.path.dirname(in2))
     # Sanity check that target_path is relative.
-    self.assertIn('..', target_path)
+    self.assertEqual(target_path, os.path.join('..', 'from_dir'))
+    # Create the link and check that it points to the correct folder.
     port_symlink.MakeSymLink(target_path, in2)
     self.assertTrue(port_symlink.IsSymLink(in2))
-    read_back_target_path = port_symlink.ReadSymLink(in2)
-    self.assertIn('..', read_back_target_path)
+    self.assertEqual(port_symlink.ReadSymLink(in2), target_path)
+    self.assertEqual(os.listdir(in2), ['test.txt'])
+    # Add the symlink to flist and check its content.
     flist.AddFile(tf.root_tmp, in2)
     flist.Print()
     self.assertTrue(flist.symlink_dir_list)
-    symlink_entry = flist.symlink_dir_list[0][1:]
-    expected = [os.path.join('in', 'in2'), os.path.join('in', 'from_dir')]
-    self.assertEqual(expected, symlink_entry)
+    expected = [
+        tf.root_tmp,
+        os.path.join('in', 'subdir', 'in2'),
+        os.path.join('in', 'from_dir')]
+    self.assertEqual(flist.symlink_dir_list[0], expected)
 
   def testOsGetRelpathFallback(self):
-    # Tests issue b/134589032
     path = (
         'src/out/tmp/cobalt_archive/archive/____app_launcher/third_party/'
         'web_platform_tests/custom-elements/registering-custom-elements/'

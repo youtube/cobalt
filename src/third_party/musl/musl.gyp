@@ -57,7 +57,6 @@
         '-isystem<(DEPTH)/third_party/musl/include',
         '-isystem<(DEPTH)/third_party/musl/arch/x86_64',
         '-isystem<(DEPTH)/third_party/musl/arch/generic',
-        '-isystem<(DEPTH)/third_party/musl/generated/include',
         '-w',
       ],
       'direct_dependent_settings': {
@@ -77,19 +76,25 @@
       'conditions': [
         ['musl_arch in ["i386", "x86_64", "aarch64"]', {
           'sources': [
-            'src/fenv/<(musl_arch)/fenv.s'
+            'src/fenv/<(musl_arch)/fenv.s',
+            'src/setjmp/<(musl_arch)/setjmp.s',
+            'src/setjmp/<(musl_arch)/longjmp.s',
           ],
         }],
         ['musl_arch == "arm"', {
           'sources': [
             'src/fenv/arm/fenv.c',
-            'src/fenv/arm/fenv-hf.S'
+            'src/fenv/arm/fenv-hf.S',
+            'src/setjmp/<(musl_arch)/setjmp.s',
+            'src/setjmp/<(musl_arch)/longjmp.s',
           ],
         }],
         ['musl_arch == "mips"', {
           'sources': [
             'src/fenv/mips/fenv.S,',
-            'src/fenv/mips/fenv-sf.c'
+            'src/fenv/mips/fenv-sf.c',
+            'src/setjmp/<(musl_arch)/setjmp.S',
+            'src/setjmp/<(musl_arch)/longjmp.S',
           ],
         }],
         ['musl_arch in ["i386", "x86_64"]', {
@@ -123,6 +128,7 @@
             'src/starboard/ctype/__ctype_get_mb_cur_max.c',
             'src/starboard/errno/__errno_location.c',
             'src/starboard/exit/abort.c',
+            'src/starboard/hwcap/sethwcap.c',
             'src/starboard/locale/freelocale.c',
             'src/starboard/locale/langinfo.c',
             'src/starboard/locale/localeconv.c',

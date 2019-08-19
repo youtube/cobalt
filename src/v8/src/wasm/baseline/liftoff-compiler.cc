@@ -62,8 +62,13 @@ class MovableLabel {
 
 class LiftoffCompiler {
  public:
+  // This was causing cascading build errors when compiling v8 for the older
+  // clang compilers.Some private variables of this class have their move
+  // constructor implicitly deleted. Trying to fix that causes a chain of
+  // deleting the move constructor for multiple classes.
+#if !defined(V8_OS_STARBOARD)
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(LiftoffCompiler);
-
+#endif
   // TODO(clemensh): Make this a template parameter.
   static constexpr wasm::Decoder::ValidateFlag validate =
       wasm::Decoder::kValidate;

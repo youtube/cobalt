@@ -163,6 +163,12 @@ int UDPSocketStarboard::RecvFrom(IOBuffer* buf,
           &read_socket_watcher_, &read_watcher_)) {
     PLOG(ERROR) << "WatchSocket failed on read";
     Error result = MapLastSocketError(socket_);
+    if (result == ERR_IO_PENDING) {
+      // Watch(...) might call SbSocketWaiterAdd() which does not guarantee
+      // setting system error on failure, but we need to treat this as an
+      // error since watching the socket failed.
+      result = ERR_FAILED;
+    }
     LogRead(result, NULL, NULL);
     return result;
   }
@@ -801,7 +807,9 @@ int UDPSocketStarboard::SetDoNotFragment() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(SbSocketIsValid(socket_));
 
-  NOTIMPLEMENTED();
+  // Starboard does not supported sending non-fragmented packets yet.
+  // All QUIC Streams call this function at initialization, setting sockets to
+  // send non-fragmented packets may have a slight performance boost.
   return ERR_NOT_IMPLEMENTED;
 }
 

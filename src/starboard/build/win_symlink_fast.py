@@ -119,7 +119,9 @@ IO_REPARSE_TAG_MOUNT_POINT = 0xA0000003
 IO_REPARSE_TAG_SYMLINK = 0xA000000C
 MAXIMUM_REPARSE_DATA_BUFFER_SIZE = 0x4000
 SYMBOLIC_LINK_FLAG_DIRECTORY = 0x1
+# Developer Mode must be enabled in order to use the following flag.
 SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE = 0x2
+SYMLINK_FLAG_RELATIVE = 0x1
 
 
 class GenericReparseBuffer(ctypes.Structure):
@@ -143,6 +145,16 @@ class SymbolicLinkReparseBuffer(ctypes.Structure):
     offset = type(self).PathBuffer.offset + self.PrintNameOffset
     return arrayt.from_address(ctypes.addressof(self) + offset).value
 
+  @property
+  def substitute_name(self):
+    arrayt = WCHAR * (self.SubstituteNameLength // 2)
+    offset = type(self).PathBuffer.offset + self.SubstituteNameOffset
+    return arrayt.from_address(ctypes.addressof(self) + offset).value
+
+  @property
+  def is_relative_path(self):
+    return bool(self.Flags & SYMLINK_FLAG_RELATIVE)
+
 
 class MountPointReparseBuffer(ctypes.Structure):
   """Win32 api data structure."""
@@ -156,6 +168,12 @@ class MountPointReparseBuffer(ctypes.Structure):
   def print_name(self):
     arrayt = WCHAR * (self.PrintNameLength // 2)
     offset = type(self).PathBuffer.offset + self.PrintNameOffset
+    return arrayt.from_address(ctypes.addressof(self) + offset).value
+
+  @property
+  def substitute_name(self):
+    arrayt = WCHAR * (self.SubstituteNameLength // 2)
+    offset = type(self).PathBuffer.offset + self.SubstituteNameOffset
     return arrayt.from_address(ctypes.addressof(self) + offset).value
 
 

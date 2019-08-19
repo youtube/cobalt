@@ -24,9 +24,9 @@ branch="release_36"
 
 binary_path="llvm/Release+Asserts/bin/clang++"
 
-# This version of clang depends on libstdc++-7, version 7.3.0.
+# This version of clang depends on libstdc++-7, version 7.4.0.
 # The package "libstdc++-7-dev" provides that version.
-libstdcxx_version="7.3.0"
+libstdcxx_version="7.4.0"
 libstdcxx_path="libstdc++-7"
 libstdcxx_symlink_folder="${libstdcxx_path}/lib/gcc/x86_64-linux-gnu"
 symlink_path="${libstdcxx_symlink_folder}/${libstdcxx_version}"
