@@ -10,12 +10,6 @@ This is based off of section B in the README.chromium file.
    it back until you find the first non-Cobalt change, and then checking out
    that commit.
 
-   e.g.
-
-   ```
-   git checkout origin/STOCK_ICU56_M53
-   ```
-
 2. Set ICU_ROOT to the directory of the ICU source code in the Cobalt source
    tree, e.g. `$COBALT_SRC_ROOT/src/third_party/icu`.
 
