@@ -144,6 +144,10 @@ class COBALT_EXPORT ShellAudioBus {
     DCHECK_EQ(sample_type_, kFloat32);
     *reinterpret_cast<float*>(GetSamplePtr(channel, frame)) = sample;
   }
+  void SetInt16Sample(size_t channel, size_t frame, int16 sample) {
+    DCHECK_EQ(sample_type_, kInt16);
+    *reinterpret_cast<int16*>(GetSamplePtr(channel, frame)) = sample;
+  }
   uint8* GetSamplePtr(size_t channel, size_t frame);
   const uint8* GetSamplePtr(size_t channel, size_t frame) const;
 
