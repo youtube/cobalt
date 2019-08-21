@@ -15,14 +15,17 @@
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
 #include "starboard/shared/starboard/application.h"
+#include "starboard/shared/starboard/audio_sink/audio_sink_type.h"
 #include "starboard/shared/starboard/audio_sink/stub_audio_sink_type.h"
 #include "starboard/shared/starboard/command_line.h"
 
 namespace {
 
+using ::starboard::shared::starboard::audio_sink::AudioSinkType;
+
 bool is_fallback_to_stub_enabled;
-SbAudioSinkPrivate::Type* primary_audio_sink_type;
-SbAudioSinkPrivate::Type* fallback_audio_sink_type;
+AudioSinkType* primary_audio_sink_type;
+AudioSinkType* fallback_audio_sink_type;
 
 // Command line switch that controls whether we default to the stub audio sink,
 // even when the primary audio sink may be available.
@@ -46,12 +49,12 @@ void SbAudioSinkPrivate::TearDown() {
 }
 
 // static
-void SbAudioSinkPrivate::SetPrimaryType(Type* type) {
+void SbAudioSinkPrivate::SetPrimaryAudioSinkType(AudioSinkType* type) {
   primary_audio_sink_type = type;
 }
 
 // static
-SbAudioSinkPrivate::Type* SbAudioSinkPrivate::GetPrimaryType() {
+AudioSinkType* SbAudioSinkPrivate::GetPrimaryAudioSinkType() {
   return primary_audio_sink_type;
 }
 // static
@@ -59,7 +62,7 @@ void SbAudioSinkPrivate::EnableFallbackToStub() {
   is_fallback_to_stub_enabled = true;
 }
 // static
-SbAudioSinkPrivate::Type* SbAudioSinkPrivate::GetFallbackType() {
+AudioSinkType* SbAudioSinkPrivate::GetFallbackAudioSinkType() {
   if (is_fallback_to_stub_enabled) {
     return fallback_audio_sink_type;
   }
@@ -67,17 +70,17 @@ SbAudioSinkPrivate::Type* SbAudioSinkPrivate::GetFallbackType() {
 }
 
 // static
-SbAudioSinkPrivate::Type* SbAudioSinkPrivate::GetPreferredType() {
-  SbAudioSinkPrivate::Type* audio_sink_type = NULL;
+AudioSinkType* SbAudioSinkPrivate::GetPreferredAudioSinkType() {
+  AudioSinkType* audio_sink_type = NULL;
   auto command_line =
-      starboard::shared::starboard::Application::Get()->GetCommandLine();
+      ::starboard::shared::starboard::Application::Get()->GetCommandLine();
   if (!command_line->HasSwitch(kUseStubAudioSink)) {
-    audio_sink_type = SbAudioSinkPrivate::GetPrimaryType();
+    audio_sink_type = SbAudioSinkPrivate::GetPrimaryAudioSinkType();
   }
   if (!audio_sink_type) {
     SB_LOG(WARNING) << "Primary audio sink type not selected or missing, "
                        "opting to use Fallback instead.";
-    audio_sink_type = SbAudioSinkPrivate::GetFallbackType();
+    audio_sink_type = SbAudioSinkPrivate::GetFallbackAudioSinkType();
   }
   if (audio_sink_type == NULL) {
     SB_LOG(WARNING) << "Fallback audio sink type is not enabled.";

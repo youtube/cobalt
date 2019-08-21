@@ -26,6 +26,7 @@
 #include "starboard/common/mutex.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
+#include "starboard/shared/starboard/audio_sink/audio_sink_type.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 #include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/thread.h"
@@ -97,7 +98,7 @@ class XAudioAudioSink : public SbAudioSinkPrivate {
     }
   }
 
-  bool IsType(Type* type) override;
+  bool IsAudioSinkType(const AudioSinkType* type) const override;
   void SetPlaybackRate(double playback_rate) override {
     SB_DCHECK(playback_rate >= 0.0);
     if (playback_rate != 0.0 && playback_rate != 1.0) {
@@ -167,8 +168,9 @@ class XAudioAudioSink : public SbAudioSinkPrivate {
   double current_volume_;
 };
 
-class XAudioAudioSinkType : public SbAudioSinkPrivate::Type,
-                            private IXAudio2EngineCallback {
+class XAudioAudioSinkType
+    : public ::starboard::shared::starboard::audio_sink::AudioSinkType,
+      private IXAudio2EngineCallback {
  public:
   XAudioAudioSinkType();
 
@@ -183,10 +185,11 @@ class XAudioAudioSinkType : public SbAudioSinkPrivate::Type,
       int frame_buffers_size_in_frames,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
       SbAudioSinkConsumeFramesFunc consume_frames_func,
-      void* context);
+      void* context) override;
 
-  bool IsValid(SbAudioSink audio_sink) override {
-    return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
+  bool IsValid(SbAudioSink audio_sink) const override {
+    return audio_sink != kSbAudioSinkInvalid &&
+           audio_sink->IsAudioSinkType(this);
   }
 
   void Destroy(SbAudioSink audio_sink) override;
@@ -287,7 +290,7 @@ XAudioAudioSink::XAudioAudioSink(
   CHECK_HRESULT_OK(source_voice_->Stop(0));
 }
 
-bool XAudioAudioSink::IsType(Type* type) {
+bool XAudioAudioSink::IsAudioSinkType(const AudioSinkType* type) const {
   return type_ == type;
 }
 
@@ -596,21 +599,21 @@ void XAudioAudioSinkType::OnProcessingPassStart() {
 }  // namespace starboard
 
 namespace {
-SbAudioSinkPrivate::Type* audio_sink_;
+starboard::shared::starboard::audio_sink::AudioSinkType* audio_sink_;
 }  // namespace
 
 // static
 void SbAudioSinkPrivate::PlatformInitialize() {
   SB_DCHECK(!audio_sink_);
   audio_sink_ = new starboard::shared::win32::XAudioAudioSinkType();
-  SetPrimaryType(audio_sink_);
+  SetPrimaryAudioSinkType(audio_sink_);
   EnableFallbackToStub();
 }
 
 // static
 void SbAudioSinkPrivate::PlatformTearDown() {
-  SB_DCHECK(audio_sink_ == GetPrimaryType());
-  SetPrimaryType(nullptr);
+  SB_DCHECK(audio_sink_ == GetPrimaryAudioSinkType());
+  SetPrimaryAudioSinkType(nullptr);
   delete audio_sink_;
   audio_sink_ = nullptr;
 }

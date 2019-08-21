@@ -24,7 +24,7 @@ bool is_fallback_to_alsa = false;
 // static
 void SbAudioSinkPrivate::PlatformInitialize() {
   starboard::shared::pulse::PlatformInitialize();
-  if (GetPrimaryType()) {
+  if (GetPrimaryAudioSinkType()) {
     SB_LOG(INFO) << "Use PulseAudio";
   } else {
     SB_LOG(INFO) << "Use ALSA";
