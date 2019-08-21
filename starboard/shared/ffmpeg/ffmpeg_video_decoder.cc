@@ -307,7 +307,9 @@ void VideoDecoder::InitializeCodec() {
   codec_context_->error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK;
   codec_context_->thread_count = 2;
   codec_context_->opaque = this;
+#if defined(CODEC_FLAG_EMU_EDGE)
   codec_context_->flags |= CODEC_FLAG_EMU_EDGE;
+#endif
 #if LIBAVUTIL_VERSION_MAJOR > 52
   codec_context_->get_buffer2 = AllocateBuffer;
 #else   // LIBAVUTIL_VERSION_MAJOR > 52
