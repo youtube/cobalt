@@ -273,6 +273,19 @@ must be set explicitly in `gyp_configuration.gypi`.
 
 **Tags:** *framerate, startup, browse-to-watch, input latency*
 
+#### Optimize for size vs speed
+
+For qa and gold configs, different compiler flags can be used for gyp targets
+which should be optimized for size vs speed. This can be used to reduce the
+executable size with minimal impact on performance. On top of the base
+`compiler_flags_qa` and `compiler_flags_gold`, the gyp variables
+`compiler_flags_qa_size`, `compiler_flags_qa_speed`, `compiler_flags_gold_size`,
+and `compiler_flags_gold_speed` will be used. Performance-critical gyp targets
+specify `optimize_target_for_speed`: 1, and these will use compiler flags
+`compiler_flags_<config>` + `compiler_flags_<config>_speed`; other gyp targets
+will use `compiler_flags_<config>` + `compiler_flags_<config>_size`.
+
+**Tags:** *cpu memory, package size*
 
 #### Link Time Optimization (LTO)
 If your toolchain supports it, it is recommended that you enable the LTO
