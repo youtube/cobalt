@@ -159,6 +159,15 @@ This document records all notable changes made to Cobalt since the last release.
   that may be copied and queried on any thread to get a coherent view of
   attributes set by the the web app on the `MediaSession`.
 
+- **Add support for size vs speed compiler flags**
+
+  Performance-critical gyp targets now specify `optimize_target_for_speed`: 1.
+  For gold configs, these targets will use compiler flags `compiler_flags_gold`
+  and `compiler_flags_gold_speed`; other targets will use `compiler_flags_gold`
+  and `compiler_flags_gold_size`. For qa configs, the respective variables are
+  `compiler_flags_qa_speed` and `compiler_flags_qa_size`. Only the qa and gold
+  configs support these types of compiler flag gyp variables.
+
  - **Improvements and Bug Fixes**
 
    - Fix bug where Cobalt would not refresh the layout when the textContent
