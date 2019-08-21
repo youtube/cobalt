@@ -29,14 +29,16 @@ namespace {
 
 class StubAudioSink : public SbAudioSinkPrivate {
  public:
-  StubAudioSink(Type* type,
+  StubAudioSink(AudioSinkType* type,
                 int sampling_frequency_hz,
                 SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
                 SbAudioSinkConsumeFramesFunc consume_frame_func,
                 void* context);
   ~StubAudioSink() override;
 
-  bool IsType(Type* type) override { return type_ == type; }
+  bool IsAudioSinkType(const AudioSinkType* type) const override {
+    return type_ == type;
+  }
   void SetPlaybackRate(double playback_rate) override {
     SB_UNREFERENCED_PARAMETER(playback_rate);
     SB_NOTIMPLEMENTED();
@@ -50,7 +52,7 @@ class StubAudioSink : public SbAudioSinkPrivate {
   static void* ThreadEntryPoint(void* context);
   void AudioThreadFunc();
 
-  Type* type_;
+  AudioSinkType* type_;
   SbAudioSinkUpdateSourceStatusFunc update_source_status_func_;
   SbAudioSinkConsumeFramesFunc consume_frame_func_;
   void* context_;
@@ -64,7 +66,7 @@ class StubAudioSink : public SbAudioSinkPrivate {
 };
 
 StubAudioSink::StubAudioSink(
-    Type* type,
+    AudioSinkType* type,
     int sampling_frequency_hz,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     SbAudioSinkConsumeFramesFunc consume_frame_func,

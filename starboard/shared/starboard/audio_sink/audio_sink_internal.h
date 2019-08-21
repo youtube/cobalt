@@ -18,32 +18,17 @@
 #include "starboard/audio_sink.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/audio_sink/audio_sink_type.h"
 
 struct SbAudioSinkPrivate {
-  class Type {
-   public:
-    virtual ~Type() {}
-
-    virtual SbAudioSink Create(
-        int channels,
-        int sampling_frequency_hz,
-        SbMediaAudioSampleType audio_sample_type,
-        SbMediaAudioFrameStorageType audio_frame_storage_type,
-        SbAudioSinkFrameBuffers frame_buffers,
-        int frame_buffers_size_in_frames,
-        SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-        SbAudioSinkConsumeFramesFunc consume_frames_func,
-        void* context) = 0;
-    virtual bool IsValid(SbAudioSink audio_sink) = 0;
-    virtual void Destroy(SbAudioSink audio_sink) = 0;
-  };
-
+  typedef ::starboard::shared::starboard::audio_sink::AudioSinkType
+      AudioSinkType;
   virtual ~SbAudioSinkPrivate() {}
   virtual void SetPlaybackRate(double playback_rate) = 0;
 
   virtual void SetVolume(double volume) = 0;
 
-  virtual bool IsType(Type* type) = 0;
+  virtual bool IsAudioSinkType(const AudioSinkType* type) const = 0;
 
   // The following two functions will be called during application startup and
   // termination.
@@ -51,19 +36,19 @@ struct SbAudioSinkPrivate {
   static void TearDown();
   // This function has to be called inside PlatformInitialize() and
   // PlatformTearDown() to set or clear the primary audio sink type.
-  static void SetPrimaryType(Type* type);
-  static Type* GetPrimaryType();
+  static void SetPrimaryAudioSinkType(AudioSinkType* type);
+  static AudioSinkType* GetPrimaryAudioSinkType();
   // This function can only be called inside PlatformInitialize().  Once it is
-  // called, GetFallbackType() will return a valid Type that can be used to
-  // create audio sink stubs.
+  // called, GetFallbackAudioSinkType() will return a valid AudioSinkType that
+  // can be used to create audio sink stubs.
   static void EnableFallbackToStub();
-  // Return a valid Type to create a fallback audio sink if fallback to stub is
-  // enabled.  Otherwise return NULL.
-  static Type* GetFallbackType();
+  // Return a valid AudioSinkType to create a fallback audio sink if fallback to
+  // stub is enabled.  Otherwise return NULL.
+  static AudioSinkType* GetFallbackAudioSinkType();
 
   // Return a valid Type, choosing the Primary type if available, otherwise
   // Fallback. If Fallback is not enabled, then returns NULL.
-  static Type* GetPreferredType();
+  static AudioSinkType* GetPreferredAudioSinkType();
 
   // Individual implementation has to provide implementation of the following
   // functions, which will be called inside Initialize() and TearDown().

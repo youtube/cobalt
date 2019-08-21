@@ -74,7 +74,7 @@ void* IncrementPointerByBytes(void* pointer, size_t offset) {
 }  // namespace
 
 AudioTrackAudioSink::AudioTrackAudioSink(
-    Type* type,
+    AudioSinkType* type,
     int channels,
     int sampling_frequency_hz,
     SbMediaAudioSampleType sample_type,
@@ -432,15 +432,15 @@ void SbAudioSinkPrivate::PlatformInitialize() {
   SB_DCHECK(!audio_track_audio_sink_type_);
   audio_track_audio_sink_type_ =
       new starboard::android::shared::AudioTrackAudioSinkType;
-  SetPrimaryType(audio_track_audio_sink_type_);
+  SetPrimaryAudioSinkType(audio_track_audio_sink_type_);
   EnableFallbackToStub();
   audio_track_audio_sink_type_->TestMinRequiredFrames();
 }
 
 // static
 void SbAudioSinkPrivate::PlatformTearDown() {
-  SB_DCHECK(audio_track_audio_sink_type_ == GetPrimaryType());
-  SetPrimaryType(NULL);
+  SB_DCHECK(audio_track_audio_sink_type_ == GetPrimaryAudioSinkType());
+  SetPrimaryAudioSinkType(NULL);
   delete audio_track_audio_sink_type_;
   audio_track_audio_sink_type_ = NULL;
 }
