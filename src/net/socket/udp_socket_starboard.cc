@@ -807,7 +807,9 @@ int UDPSocketStarboard::SetDoNotFragment() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(SbSocketIsValid(socket_));
 
-  NOTIMPLEMENTED();
+  // Starboard does not supported sending non-fragmented packets yet.
+  // All QUIC Streams call this function at initialization, setting sockets to
+  // send non-fragmented packets may have a slight performance boost.
   return ERR_NOT_IMPLEMENTED;
 }
 

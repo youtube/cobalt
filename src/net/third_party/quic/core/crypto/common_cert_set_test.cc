@@ -192,6 +192,7 @@ static const unsigned char kGIACertificate3[] = {
 
 class CommonCertSetsTest : public QuicTest {};
 
+#if !defined(COMMON_CERT_SET_DISABLED_FOR_STARBOARD)
 TEST_F(CommonCertSetsTest, FindGIA_2) {
   QuicStringPiece gia(reinterpret_cast<const char*>(kGIACertificate2),
                       sizeof(kGIACertificate2));
@@ -233,6 +234,7 @@ TEST_F(CommonCertSetsTest, FindGIA_3) {
   ASSERT_EQ(gia.size(), gia_copy.size());
   EXPECT_EQ(0, SbMemoryCompare(gia.data(), gia_copy.data(), gia.size()));
 }
+#endif  // COMMON_CERT_SET_DISABLED_FOR_STARBOARD
 
 TEST_F(CommonCertSetsTest, NonMatch) {
   const CommonCertSets* sets(CommonCertSets::GetInstanceQUIC());

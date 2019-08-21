@@ -22,7 +22,7 @@
 #include "base/macros.h"
 #include "base/observer_list.h"
 #include "base/synchronization/lock.h"
-#include "cobalt/network/net_log_logger.h"
+#include "net/log/file_net_log_observer.h"
 #include "net/log/net_log.h"
 
 namespace cobalt {
@@ -35,7 +35,7 @@ class CobaltNetLog : public ::net::NetLog {
   ~CobaltNetLog() override;
 
  private:
-  std::unique_ptr<NetLogLogger> net_log_logger_;
+  std::unique_ptr<net::FileNetLogObserver> net_log_logger_;
 
   DISALLOW_COPY_AND_ASSIGN(CobaltNetLog);
 };

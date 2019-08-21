@@ -21,7 +21,9 @@
 #include <vector>
 
 #include "starboard/atomic.h"
+#include "starboard/common/optional.h"
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/mutex.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/thread.h"
@@ -199,6 +201,9 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
 #endif  // SB_API_VERSION >= 10
 
   volatile bool quitting_ = false;
+
+  Mutex unblock_key_retry_mutex_;
+  optional<SbTimeMonotonic> unblock_key_retry_start_time_;
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   int number_of_session_updates_sent_ = 0;
