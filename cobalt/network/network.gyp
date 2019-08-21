@@ -70,8 +70,6 @@
             'cobalt_net_log.h',
             'net_log_constants.cc',
             'net_log_constants.h',
-            'net_log_logger.cc',
-            'net_log_logger.h',
           ],
           'defines': [
             'ENABLE_NETWORK_LOGGING',
