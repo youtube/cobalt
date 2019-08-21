@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "base/macros.h"
 #include "net/cookies/cookie_monster.h"
 #include "net/log/net_log.h"
 #include "net/url_request/url_request_context.h"

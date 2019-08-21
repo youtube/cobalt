@@ -359,13 +359,14 @@ public class CobaltMediaSession
       final String title,
       final String artist,
       final String album,
-      final MediaImage[] artwork) {
+      final MediaImage[] artwork,
+      final long duration) {
     mainHandler.post(
         new Runnable() {
           @Override
           public void run() {
             updateMediaSessionInternal(
-                playbackState, actions, positionMs, speed, title, artist, album, artwork);
+                playbackState, actions, positionMs, speed, title, artist, album, artwork, duration);
           }
         });
   }
@@ -379,7 +380,8 @@ public class CobaltMediaSession
       String title,
       String artist,
       String album,
-      MediaImage[] artwork) {
+      MediaImage[] artwork,
+      final long duration) {
     checkMainLooperThread();
 
     // Always keep track of what the HTML5 app thinks the playback state is so we can configure the
@@ -420,7 +422,8 @@ public class CobaltMediaSession
     Log.i(
         TAG,
         String.format(
-            "MediaSession state: %s, position: %d ms, speed: %f x", stateName, positionMs, speed));
+            "MediaSession state: %s, position: %d ms, speed: %f x, duration: %d ms",
+            stateName, positionMs, speed, duration));
 
     playbackStateBuilder =
         new PlaybackStateCompat.Builder()
@@ -435,7 +438,8 @@ public class CobaltMediaSession
         .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist)
         .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album)
         .putBitmap(
-            MediaMetadataCompat.METADATA_KEY_ALBUM_ART, artworkLoader.getOrLoadArtwork(artwork));
+            MediaMetadataCompat.METADATA_KEY_ALBUM_ART, artworkLoader.getOrLoadArtwork(artwork))
+        .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, duration);
     // Update the metadata as soon as we can - even before artwork is loaded.
     mediaSession.setMetadata(metadataBuilder.build());
   }
