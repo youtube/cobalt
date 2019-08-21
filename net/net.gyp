@@ -278,6 +278,8 @@
         'http/transport_security_state_source.h',
         'log/net_log.cc',
         'log/net_log.h',
+        'log/file_net_log_observer.cc',
+        'log/file_net_log_observer.h',
         'log/net_log_capture_mode.cc',
         'log/net_log_capture_mode.h',
         'log/net_log_entry.cc',
