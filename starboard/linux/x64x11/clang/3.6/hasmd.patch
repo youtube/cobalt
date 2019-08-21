@@ -1,0 +1,11 @@
+--- x86_64-linux-gnu-clang-3.6.orig/llvm/include/llvm/IR/ValueMap.h	2019-08-21 11:38:34.282434856 -0700
++++ x86_64-linux-gnu-clang-3.6/llvm/include/llvm/IR/ValueMap.h	2019-08-21 11:33:41.327987115 -0700
+@@ -101,7 +101,7 @@
+ 
+   ~ValueMap() {}
+ 
+-  bool hasMD() const { return MDMap; }
++  bool hasMD() const { return static_cast<bool>(MDMap); }
+   MDMapT &MD() {
+     if (!MDMap)
+       MDMap.reset(new MDMapT);
