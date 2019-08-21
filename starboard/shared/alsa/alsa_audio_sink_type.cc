@@ -26,18 +26,19 @@
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 #include "starboard/shared/alsa/alsa_util.h"
+#include "starboard/shared/starboard/audio_sink/audio_sink_type.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
-
-namespace starboard {
-namespace shared {
-namespace alsa {
-namespace {
 
 using starboard::ScopedLock;
 using starboard::ScopedTryLock;
 using starboard::shared::alsa::AlsaGetBufferedFrames;
 using starboard::shared::alsa::AlsaWriteFrames;
+
+namespace starboard {
+namespace shared {
+namespace alsa {
+namespace {
 
 // The maximum number of frames that can be written to ALSA once.  It must be a
 // power of 2.  It is also used as the ALSA polling size.  A small number will
@@ -81,7 +82,7 @@ void* IncrementPointerByBytes(void* pointer, size_t offset) {
 //    silence to ALSA.
 class AlsaAudioSink : public SbAudioSinkPrivate {
  public:
-  AlsaAudioSink(Type* type,
+  AlsaAudioSink(AudioSinkType* type,
                 int channels,
                 int sampling_frequency_hz,
                 SbMediaAudioSampleType sample_type,
@@ -92,7 +93,9 @@ class AlsaAudioSink : public SbAudioSinkPrivate {
                 void* context);
   ~AlsaAudioSink() override;
 
-  bool IsType(Type* type) override { return type_ == type; }
+  bool IsAudioSinkType(const AudioSinkType* type) const override {
+    return type_ == type;
+  }
 
   void SetPlaybackRate(double playback_rate) override {
     ScopedLock lock(mutex_);
@@ -126,7 +129,7 @@ class AlsaAudioSink : public SbAudioSinkPrivate {
                    int frames_in_buffer,
                    int offset_in_frames);
 
-  Type* type_;
+  AudioSinkType* type_;
   SbAudioSinkUpdateSourceStatusFunc update_source_status_func_;
   SbAudioSinkConsumeFramesFunc consume_frame_func_;
   void* context_;
@@ -140,8 +143,8 @@ class AlsaAudioSink : public SbAudioSinkPrivate {
   SbMediaAudioSampleType sample_type_;
 
   SbThread audio_out_thread_;
-  starboard::Mutex mutex_;
-  starboard::ConditionVariable creation_signal_;
+  Mutex mutex_;
+  ConditionVariable creation_signal_;
 
   SbTime time_to_wait_;
 
@@ -155,7 +158,7 @@ class AlsaAudioSink : public SbAudioSinkPrivate {
 };
 
 AlsaAudioSink::AlsaAudioSink(
-    Type* type,
+    AudioSinkType* type,
     int channels,
     int sampling_frequency_hz,
     SbMediaAudioSampleType sample_type,
@@ -225,7 +228,7 @@ void AlsaAudioSink::AudioThreadFunc() {
       sample_type_ == kSbMediaAudioSampleTypeFloat32 ? SND_PCM_FORMAT_FLOAT_LE
                                                      : SND_PCM_FORMAT_S16;
 
-  playback_handle_ = starboard::shared::alsa::AlsaOpenPlaybackDevice(
+  playback_handle_ = shared::alsa::AlsaOpenPlaybackDevice(
       channels_, sampling_frequency_hz_, kFramesPerRequest,
       kALSABufferSizeInFrames, alsa_sample_type);
   {
@@ -246,7 +249,7 @@ void AlsaAudioSink::AudioThreadFunc() {
     }
   }
 
-  starboard::shared::alsa::AlsaCloseDevice(playback_handle_);
+  shared::alsa::AlsaCloseDevice(playback_handle_);
   ScopedLock lock(mutex_);
   playback_handle_ = NULL;
 }
@@ -396,7 +399,8 @@ void AlsaAudioSink::WriteFrames(double playback_rate,
   }
 }
 
-class AlsaAudioSinkType : public SbAudioSinkPrivate::Type {
+class AlsaAudioSinkType
+    : public ::starboard::shared::starboard::audio_sink::AudioSinkType {
  public:
   SbAudioSink Create(
       int channels,
@@ -407,10 +411,11 @@ class AlsaAudioSinkType : public SbAudioSinkPrivate::Type {
       int frames_per_channel,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
       SbAudioSinkConsumeFramesFunc consume_frames_func,
-      void* context);
+      void* context) override;
 
-  bool IsValid(SbAudioSink audio_sink) override {
-    return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
+  bool IsValid(SbAudioSink audio_sink) const override {
+    return audio_sink != kSbAudioSinkInvalid &&
+           audio_sink->IsAudioSinkType(this);
   }
 
   void Destroy(SbAudioSink audio_sink) override {
@@ -454,15 +459,16 @@ AlsaAudioSinkType* alsa_audio_sink_type_;
 void PlatformInitialize() {
   SB_DCHECK(!alsa_audio_sink_type_);
   alsa_audio_sink_type_ = new AlsaAudioSinkType();
-  SbAudioSinkPrivate::SetPrimaryType(alsa_audio_sink_type_);
+  SbAudioSinkPrivate::SetPrimaryAudioSinkType(alsa_audio_sink_type_);
 }
 
 // static
 void PlatformTearDown() {
   SB_DCHECK(alsa_audio_sink_type_);
-  SB_DCHECK(alsa_audio_sink_type_ == SbAudioSinkPrivate::GetPrimaryType());
+  SB_DCHECK(alsa_audio_sink_type_ ==
+            SbAudioSinkPrivate::GetPrimaryAudioSinkType());
 
-  SbAudioSinkPrivate::SetPrimaryType(NULL);
+  SbAudioSinkPrivate::SetPrimaryAudioSinkType(NULL);
   delete alsa_audio_sink_type_;
   alsa_audio_sink_type_ = NULL;
 }

@@ -15,13 +15,14 @@
 #include "starboard/audio_sink.h"
 
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
+#include "starboard/shared/starboard/audio_sink/audio_sink_type.h"
 
 bool SbAudioSinkIsValid(SbAudioSink audio_sink) {
-  SbAudioSinkPrivate::Type* type = SbAudioSinkPrivate::GetPrimaryType();
+  auto type = SbAudioSinkPrivate::GetPrimaryAudioSinkType();
   if (type && type->IsValid(audio_sink)) {
     return true;
   }
-  type = SbAudioSinkPrivate::GetFallbackType();
+  type = SbAudioSinkPrivate::GetFallbackAudioSinkType();
   if (type && type->IsValid(audio_sink)) {
     return true;
   }

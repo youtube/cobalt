@@ -28,13 +28,15 @@
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
+#include "starboard/shared/starboard/audio_sink/audio_sink_type.h"
 #include "starboard/thread.h"
 
 namespace starboard {
 namespace android {
 namespace shared {
 
-class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
+class AudioTrackAudioSinkType
+    : public ::starboard::shared::starboard::audio_sink::AudioSinkType {
  public:
   static int GetMinBufferSizeInFrames(int channels,
                                       SbMediaAudioSampleType sample_type,
@@ -51,10 +53,11 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
       int frames_per_channel,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
       SbAudioSinkConsumeFramesFunc consume_frames_func,
-      void* context);
+      void* context) override;
 
-  bool IsValid(SbAudioSink audio_sink) override {
-    return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
+  bool IsValid(SbAudioSink audio_sink) const override {
+    return audio_sink != kSbAudioSinkInvalid &&
+           audio_sink->IsAudioSinkType(this);
   }
 
   void Destroy(SbAudioSink audio_sink) override {
@@ -75,7 +78,7 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
 class AudioTrackAudioSink : public SbAudioSinkPrivate {
  public:
   AudioTrackAudioSink(
-      Type* type,
+      AudioSinkType* type,
       int channels,
       int sampling_frequency_hz,
       SbMediaAudioSampleType sample_type,
@@ -88,7 +91,9 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
   ~AudioTrackAudioSink() override;
 
   bool IsAudioTrackValid() const { return j_audio_track_bridge_; }
-  bool IsType(Type* type) override { return type_ == type; }
+  bool IsAudioSinkType(const AudioSinkType* type) const override {
+    return type_ == type;
+  }
   void SetPlaybackRate(double playback_rate) override;
 
   void SetVolume(double volume) override;
@@ -100,7 +105,7 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
 
   int WriteData(JniEnvExt* env, const void* buffer, int size);
 
-  Type* type_;
+  AudioSinkType* type_;
   int channels_;
   int sampling_frequency_hz_;
   SbMediaAudioSampleType sample_type_;
