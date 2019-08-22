@@ -17,6 +17,7 @@
   ],
   'variables': {
     'generated_include_directory': '<(SHARED_INTERMEDIATE_DIR)/mozjs-45/include',
+    'optimize_target_for_speed': 1,
 
     'common_cflags': [
       '-include',

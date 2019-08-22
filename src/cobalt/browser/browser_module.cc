@@ -1754,16 +1754,24 @@ void BrowserModule::StartOrResumeInternalPostStateUpdate() {
 ViewportSize BrowserModule::GetViewportSize() {
   // We trust the renderer module for width and height the most, if it exists.
   if (renderer_module_) {
-    math::Size size = renderer_module_->render_target_size();
+    math::Size target_size = renderer_module_->render_target_size();
     // ...but get the diagonal from one of the other modules.
     float diagonal_inches = 0;
     if (system_window_) {
       diagonal_inches = system_window_->GetDiagonalSizeInches();
+      // For those platforms that can have a main window size smaller than the
+      // render target size, the system_window_ size (if exists) should be
+      // trusted over the renderer_module_ render target size.
+      math::Size window_size = system_window_->GetWindowSize();
+      if (window_size.width() <= target_size.width() &&
+          window_size.height() <= target_size.height()) {
+        target_size = window_size;
+      }
     } else if (options_.requested_viewport_size) {
       diagonal_inches = options_.requested_viewport_size->diagonal_inches();
     }
 
-    ViewportSize v(size.width(), size.height(), diagonal_inches);
+    ViewportSize v(target_size.width(), target_size.height(), diagonal_inches);
     return v;
   }
 

@@ -33,7 +33,8 @@ symlink_path="${libstdcxx_symlink_folder}/${libstdcxx_version}"
 
 build_duration="about 20 minutes"
 
-cd $(dirname $0)
+scriptfolder=$(dirname $(realpath $0))
+cd ${scriptfolder}
 source ../../toolchain_paths.sh
 
 (
@@ -50,6 +51,11 @@ source ../../toolchain_paths.sh
   cd ../projects/
   git clone --branch ${branch} https://git.llvm.org/git/compiler-rt.git/
   cd ${toolchain_path}
+
+  # Patch for compiling with gcc newer than version 7.
+  patch -p1 <${scriptfolder}/hasmd.patch
+  patch -p1 <${scriptfolder}/ustat_size.patch
+  patch -d llvm/projects/compiler-rt/ -p0 <${scriptfolder}/sigaltstack.patch
 
   cd llvm
   # Specify a bootstrap compiler that is known to be available.
