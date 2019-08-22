@@ -61,6 +61,10 @@ struct SbAudioSinkPrivate {
   // enabled.  Otherwise return NULL.
   static Type* GetFallbackType();
 
+  // Return a valid Type, choosing the Primary type if available, otherwise
+  // Fallback. If Fallback is not enabled, then returns NULL.
+  static Type* GetPreferredType();
+
   // Individual implementation has to provide implementation of the following
   // functions, which will be called inside Initialize() and TearDown().
   static void PlatformInitialize();
