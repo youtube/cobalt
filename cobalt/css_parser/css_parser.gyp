@@ -14,6 +14,7 @@
 
 {
   'variables': {
+    'optimize_target_for_speed': 1,
     'sb_pedantic_warnings': 1,
 
     # Define the platform specific Bison binary.
@@ -35,7 +36,7 @@
       'type': 'none',
       'sources': [
         'grammar.h',
-	'grammar.y'
+        'grammar.y'
       ],
       # Generated header files are stored in the intermediate directory
       # under their module sub-directory.
