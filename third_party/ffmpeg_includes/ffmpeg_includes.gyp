@@ -35,5 +35,12 @@
         'include_dirs': [ 'ffmpeg.57.107.100' ],
       },
     },
+    {
+      'target_name': 'ffmpeg.58.35.100',
+      'type': 'none',
+      'direct_dependent_settings': {
+        'include_dirs': [ 'ffmpeg.58.35.100' ],
+      },
+    },
   ],
 }
