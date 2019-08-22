@@ -54,6 +54,8 @@ class FlexLine {
 
   LayoutUnit GetBaseline();
 
+  LayoutUnit items_outer_main_size() { return items_outer_main_size_; }
+
  private:
   LayoutUnit GetOuterMainSizeOfBox(Box* box,
                                    LayoutUnit content_main_size) const;

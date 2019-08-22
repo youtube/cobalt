@@ -38,7 +38,8 @@ class FlexFormattingContext : public FormattingContext {
   void UpdateRect(Box* child_box);
 
   // Collects the flex item into a flex line.
-  void CollectItemIntoLine(std::unique_ptr<FlexItem>&& item);
+  void CollectItemIntoLine(LayoutUnit main_space,
+                           std::unique_ptr<FlexItem>&& item);
 
   // layout flex items and determine cross size.
   void ResolveFlexibleLengthsAndCrossSizes(
@@ -47,8 +48,6 @@ class FlexFormattingContext : public FormattingContext {
       const base::Optional<LayoutUnit>& max_cross_space,
       const scoped_refptr<cssom::PropertyValue>& align_content);
 
-  LayoutUnit main_size() const { return main_size_; }
-  void set_main_size(LayoutUnit value) { main_size_ = value; }
   LayoutUnit cross_size() const { return cross_size_; }
 
   const LayoutParams& layout_params() const { return layout_params_; }
@@ -69,14 +68,18 @@ class FlexFormattingContext : public FormattingContext {
 
   LayoutUnit GetBaseline();
 
+  // Used to calculate the "auto" size in the main direction of the box that
+  // establishes this formatting context.
+  LayoutUnit fit_content_main_size() const { return fit_content_main_size_; }
+
  private:
   LayoutParams layout_params_;
   const bool main_direction_is_horizontal_;
   const bool direction_is_reversed_;
   bool multi_line_ = false;
 
-  LayoutUnit main_size_;
   LayoutUnit cross_size_;
+  LayoutUnit fit_content_main_size_;
 
   std::vector<std::unique_ptr<FlexLine>> lines_;
 
