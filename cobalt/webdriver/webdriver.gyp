@@ -15,6 +15,10 @@
 {
   'includes': [ '../build/contents_dir.gypi' ],
 
+  'variables': {
+    'optimize_target_for_speed': 1,
+  },
+
   'targets': [
     {
       'target_name': 'webdriver',
