@@ -47,8 +47,11 @@ AudioDecoder* AudioDecoder::Create(SbMediaAudioCodec audio_codec,
     case 571:
       audio_decoder = AudioDecoderImpl<571>::Create(audio_codec, audio_header);
       break;
+    case 581:
+      audio_decoder = AudioDecoderImpl<581>::Create(audio_codec, audio_header);
+      break;
     default:
-      SB_NOTREACHED() << "Unsupported FFMPEG specialization " << std::hex
+      SB_LOG(WARNING) << "Unsupported FFMPEG specialization "
                       << ffmpeg->specialization_version();
       break;
   }
