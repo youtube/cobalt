@@ -13,6 +13,9 @@
 # limitations under the License.
 
 {
+  'variables': {
+    'optimize_target_for_speed': 1,
+  },
   'targets': [
     # Code shared by both the hardware and software Blitter rasterizers.
     {
