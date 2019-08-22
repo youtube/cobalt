@@ -1,4 +1,5 @@
 combined-baseline
+combined-container-sizing-edge-cases
 combined-order-and-multiline
 combined-positioning-tests
 combined-shrinking-and-justify-content
