@@ -65,14 +65,46 @@ void AudioRendererSinkImpl::Start(
     RenderCallback* render_callback) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(!HasStarted());
+  SB_DCHECK(channels > 0 && channels <= SbAudioSinkGetMaxChannels());
+  SB_DCHECK(sampling_frequency_hz > 0);
+  SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(audio_sample_type));
+  SB_DCHECK(
+      SbAudioSinkIsAudioFrameStorageTypeSupported(audio_frame_storage_type));
+  SB_DCHECK(frame_buffers);
+  SB_DCHECK(frames_per_channel > 0);
 
   Stop();
   render_callback_ = render_callback;
-  audio_sink_ = SbAudioSinkCreate(
-      channels, sampling_frequency_hz, audio_sample_type,
-      audio_frame_storage_type, frame_buffers, frames_per_channel,
-      &AudioRendererSinkImpl::UpdateSourceStatusFunc,
-      &AudioRendererSinkImpl::ConsumeFramesFunc, this);
+  audio_sink_ = kSbAudioSinkInvalid;
+  SbAudioSinkPrivate::Type* audio_sink_type =
+      SbAudioSinkPrivate::GetPreferredType();
+  if (audio_sink_type) {
+    audio_sink_ = audio_sink_type->Create(
+        channels, sampling_frequency_hz, audio_sample_type,
+        audio_frame_storage_type, frame_buffers, frames_per_channel,
+        &AudioRendererSinkImpl::UpdateSourceStatusFunc,
+        &AudioRendererSinkImpl::ConsumeFramesFunc, this);
+    if (!audio_sink_type->IsValid(audio_sink_)) {
+      SB_LOG(WARNING) << "Created invalid SbAudioSink from "
+                         "SbAudioSinkPrivate::Type. Destroying and "
+                         "resetting.";
+      audio_sink_type->Destroy(audio_sink_);
+      audio_sink_ = kSbAudioSinkInvalid;
+      auto fallback_type = SbAudioSinkPrivate::GetFallbackType();
+      if (fallback_type) {
+        audio_sink_ = fallback_type->Create(
+            channels, sampling_frequency_hz, audio_sample_type,
+            audio_frame_storage_type, frame_buffers, frames_per_channel,
+            &AudioRendererSinkImpl::UpdateSourceStatusFunc,
+            &AudioRendererSinkImpl::ConsumeFramesFunc, this);
+        if (!fallback_type->IsValid(audio_sink_)) {
+          SB_LOG(ERROR) << "Failed to create SbAudioSink from Fallback type.";
+          fallback_type->Destroy(audio_sink_);
+          audio_sink_ = kSbAudioSinkInvalid;
+        }
+      }
+    }
+  }
   if (!SbAudioSinkIsValid(audio_sink_)) {
     return;
   }
