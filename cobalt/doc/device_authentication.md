@@ -1,7 +1,7 @@
 # Device Authentication
 
 Starting in Cobalt 20, initial URL requests will now have query parameters
-appended to them signed by the platform's secret key, provided to them during
+appended to them signed by the platform's secret key.  The key is provided during
 the certification process.  The key must be stored in secure storage on the
 device.
 
