@@ -585,6 +585,7 @@ void TraceLog::GetKnownCategoryGroups(
 
 void TraceLog::SetEnabled(const TraceConfig& trace_config,
                           uint8_t modes_to_enable) {
+#if !defined(TRACING_DISABLED)
   DCHECK(trace_config.process_filter_config().IsEnabled(process_id_));
 
   AutoLock lock(lock_);
@@ -671,6 +672,7 @@ void TraceLog::SetEnabled(const TraceConfig& trace_config,
     }
   }
   dispatching_to_observers_ = false;
+#endif  // !defined(TRACING_DISABLED)
 }
 
 void TraceLog::SetArgumentFilterPredicate(
