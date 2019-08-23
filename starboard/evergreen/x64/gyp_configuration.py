@@ -30,7 +30,7 @@ class EvergreenX64Configuration(shared_configuration.EvergreenConfiguration):
 
   def __init__(self,
                platform_name='evergreen-x64',
-               asan_enabled_by_default=True,
+               asan_enabled_by_default=False,
                goma_supports_compiler=True):
     # pylint: disable=useless-super-delegation
     super(EvergreenX64Configuration,

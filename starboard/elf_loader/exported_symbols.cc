@@ -20,6 +20,7 @@
 #include "starboard/character.h"
 #include "starboard/condition_variable.h"
 #include "starboard/cpu_features.h"
+#include "starboard/cryptography.h"
 #include "starboard/decode_target.h"
 #include "starboard/directory.h"
 #include "starboard/double.h"
@@ -49,6 +50,56 @@ namespace starboard {
 namespace elf_loader {
 
 ExportedSymbols::ExportedSymbols() {
+  map_["SbAudioSinkGetMaxChannels"] =
+      reinterpret_cast<const void*>(SbAudioSinkGetMaxChannels);
+  map_["SbByteSwapS16"] = reinterpret_cast<const void*>(SbByteSwapS16);
+  map_["SbByteSwapS32"] = reinterpret_cast<const void*>(SbByteSwapS32);
+  map_["SbByteSwapS64"] = reinterpret_cast<const void*>(SbByteSwapS64);
+  map_["SbCharacterIsAlphanumeric"] =
+      reinterpret_cast<const void*>(SbCharacterIsAlphanumeric);
+  map_["SbCharacterIsUpper"] =
+      reinterpret_cast<const void*>(SbCharacterIsUpper);
+  map_["SbCryptographyCreateTransformer"] =
+      reinterpret_cast<const void*>(SbCryptographyCreateTransformer);
+  map_["SbCryptographyDestroyTransformer"] =
+      reinterpret_cast<const void*>(SbCryptographyDestroyTransformer);
+  map_["SbCryptographyGetTag"] =
+      reinterpret_cast<const void*>(SbCryptographyGetTag);
+  map_["SbCryptographySetAuthenticatedData"] =
+      reinterpret_cast<const void*>(SbCryptographySetAuthenticatedData);
+  map_["SbCryptographySetInitializationVector"] =
+      reinterpret_cast<const void*>(SbCryptographySetInitializationVector);
+  map_["SbCryptographyTransform"] =
+      reinterpret_cast<const void*>(SbCryptographyTransform);
+  map_["SbLogRawDumpStack"] = reinterpret_cast<const void*>(SbLogRawDumpStack);
+
+#if SB_API_VERSION >= 10
+  map_["SbMediaGetBufferStorageType"] =
+      reinterpret_cast<const void*>(SbMediaGetBufferStorageType);
+#endif  // SB_API_VERSION >= 10
+
+#if SB_CAN(MAP_EXECUTABLE_MEMORY)
+  map_["SbMemoryFlush"] = reinterpret_cast<const void*>(SbMemoryFlush);
+#endif  // SB_CAN(MAP_EXECUTABLE_MEMORY)
+
+  map_["SbMemoryGetStackBounds"] =
+      reinterpret_cast<const void*>(SbMemoryGetStackBounds);
+  map_["SbStringCompareWide"] =
+      reinterpret_cast<const void*>(SbStringCompareWide);
+  map_["SbStringConcatWide"] =
+      reinterpret_cast<const void*>(SbStringConcatWide);
+  map_["SbStringCopyWide"] = reinterpret_cast<const void*>(SbStringCopyWide);
+  map_["SbStringGetLengthWide"] =
+      reinterpret_cast<const void*>(SbStringGetLengthWide);
+  map_["SbThreadGetName"] = reinterpret_cast<const void*>(SbThreadGetName);
+
+#if SB_API_VERSION >= 11
+  map_["SbThreadSamplerIsSupported"] =
+      reinterpret_cast<const void*>(SbThreadSamplerIsSupported);
+#endif  // SB_API_VERSION >= 11
+
+  map_["SbUserGetSignedIn"] = reinterpret_cast<const void*>(SbUserGetSignedIn);
+
   map_["SbAccessibilityGetDisplaySettings"] =
       reinterpret_cast<const void*>(SbAccessibilityGetDisplaySettings);
   map_["SbAccessibilityGetTextToSpeechSettings"] =
@@ -536,5 +587,6 @@ const void* ExportedSymbols::Lookup(const char* name) {
   SB_CHECK(ret) << name;
   return ret;
 }
+
 }  // namespace elf_loader
 }  // namespace starboard
