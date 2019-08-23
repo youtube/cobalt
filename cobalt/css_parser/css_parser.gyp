@@ -14,7 +14,6 @@
 
 {
   'variables': {
-    'optimize_target_for_speed': 1,
     'sb_pedantic_warnings': 1,
 
     # Define the platform specific Bison binary.
