@@ -17,12 +17,27 @@
     {
       'target_name': 'starboard_glclear_example',
       'type': '<(final_executable_type)',
+      'conditions': [
+        ['sb_evergreen == 1', {
+          'dependencies': [
+            '<(DEPTH)/starboard/client_porting/eztime/eztime.gyp:eztime',
+            '<(DEPTH)/third_party/llvm-project/compiler-rt/compiler-rt.gyp:compiler_rt',
+            '<(DEPTH)/third_party/llvm-project/libcxx/libcxx.gyp:cxx',
+            '<(DEPTH)/third_party/llvm-project/libcxxabi/libcxxabi.gyp:cxxabi',
+            '<(DEPTH)/third_party/llvm-project/libunwind/libunwind.gyp:unwind',
+            '<(DEPTH)/third_party/musl/musl.gyp:c',
+          ],
+        }, {
+          'dependencies': [
+            '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
+          ],
+        }],
+      ],
       'sources': [
         'main.cc',
       ],
       'dependencies': [
         '<(DEPTH)/starboard/starboard.gyp:starboard',
-        '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
       ],
     },
     {

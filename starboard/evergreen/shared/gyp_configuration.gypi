@@ -19,6 +19,8 @@
   'variables': {
     'sb_evergreen': 1,
 
+    'final_executable_type': 'shared_library',
+
     'compiler_flags': [
       # We'll pretend not to be Linux, but Starboard instead.
       '-U__linux__',
