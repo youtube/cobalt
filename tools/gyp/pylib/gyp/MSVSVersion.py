@@ -79,12 +79,18 @@ class VisualStudioVersion(object):
       return [os.path.normpath(os.path.join(sdk_dir, 'Bin/SetEnv.Cmd')),
               '/' + target_arch]
     else:
-      # We don't use VC/vcvarsall.bat for x86 because vcvarsall calls
+      # For VS2012: We don't use VC/vcvarsall.bat for x86 because vcvarsall calls
       # vcvars32, which it can only find if VS??COMNTOOLS is set, which it
       # isn't always.
+      # Starting from VS2017 the tools layout was changed and we need
+      # to account for that.
       if target_arch == 'x86':
-        return [os.path.normpath(
-          os.path.join(self.path, 'Common7/Tools/vsvars32.bat'))]
+        batCandidate = os.path.normpath(
+          os.path.join(self.path, 'Common7/Tools/vsvars32.bat'))
+        if not os.path.exists(batCandidate):
+          batCandidate = os.path.normpath(
+          os.path.join(self.path, 'VC/Auxiliary/Build/vcvars32.bat'))
+        return [batCandidate]
       else:
         assert target_arch == 'x64'
         arg = 'x86_amd64'
@@ -92,8 +98,12 @@ class VisualStudioVersion(object):
             os.environ.get('PROCESSOR_ARCHITEW6432') == 'AMD64'):
           # Use the 64-on-64 compiler if we can.
           arg = 'amd64'
-        return [os.path.normpath(
-            os.path.join(self.path, 'VC/vcvarsall.bat')), arg]
+        batCandidate = os.path.normpath(
+            os.path.join(self.path, 'VC/vcvarsall.bat'))
+        if not os.path.exists(batCandidate):
+          batCandidate = os.path.normpath(
+            os.path.join(self.path, 'VC/Auxiliary/Build/vcvarsall.bat'))
+        return [batCandidate, arg]
 
 
 def _RegistryQueryBase(sysdir, key, value):
@@ -311,6 +321,8 @@ def _DetectVisualStudioVersions(versions_to_check, force_express,
         path = os.path.join(vs_install_dir, r'Common7\IDE')
       else:
         path = r'C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\Common7\IDE'
+        if not os.path.exists(path):
+          path = r'C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\Common7\IDE'
       path = _ConvertToCygpath(path)
       full_path = os.path.join(path, 'devenv.exe')
       if os.path.exists(full_path) and version in version_to_year:
