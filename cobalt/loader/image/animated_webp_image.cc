@@ -173,22 +173,37 @@ void AnimatedWebPImage::StopInternal() {
 
 void AnimatedWebPImage::StartDecoding() {
   TRACE_EVENT0("cobalt::loader::image", "AnimatedWebPImage::StartDecoding()");
+  lock_.AssertAcquired();
   current_frame_time_ = base::TimeTicks::Now();
-  task_runner_->PostTask(FROM_HERE, base::Bind(&AnimatedWebPImage::DecodeFrames,
-                                               base::Unretained(this)));
+  if (task_runner_->BelongsToCurrentThread()) {
+    DecodeFrames();
+  } else {
+    task_runner_->PostTask(FROM_HERE,
+                           base::Bind(&AnimatedWebPImage::LockAndDecodeFrames,
+                                      base::Unretained(this)));
+  }
+}
+
+void AnimatedWebPImage::LockAndDecodeFrames() {
+  TRACE_EVENT0("cobalt::loader::image",
+               "AnimatedWebPImage::LockAndDecodeFrames()");
+  DCHECK(task_runner_->BelongsToCurrentThread());
+
+  base::AutoLock lock(lock_);
+  DecodeFrames();
 }
 
 void AnimatedWebPImage::DecodeFrames() {
   TRACE_EVENT0("cobalt::loader::image", "AnimatedWebPImage::DecodeFrames()");
   TRACK_MEMORY_SCOPE("Rendering");
+  lock_.AssertAcquired();
   DCHECK(is_playing_ && received_first_frame_);
   DCHECK(task_runner_->BelongsToCurrentThread());
 
-  base::AutoLock lock(lock_);
-
   if (decode_closure_.callback().is_null()) {
     decode_closure_.Reset(
-        base::Bind(&AnimatedWebPImage::DecodeFrames, base::Unretained(this)));
+        base::Bind(&AnimatedWebPImage::LockAndDecodeFrames,
+                   base::Unretained(this)));
   }
 
   if (AdvanceFrame()) {
