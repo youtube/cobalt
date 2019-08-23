@@ -207,9 +207,13 @@
 #define GR_MAX_OFFSCREEN_AA_DIM 512
 
 // Log the file and line number for assertions.
+#if defined(COBALT_BUILD_TYPE_GOLD)
+#define SkDebugf(...) (void)0
+#else
 #define SkDebugf(...) SkDebugf_FileLine(__FILE__, __LINE__, false, __VA_ARGS__)
 SK_API void SkDebugf_FileLine(const char* file, int line, bool fatal,
                               const char* format, ...);
+#endif  // defined(COBALT_BUILD_TYPE_GOLD)
 
 // Marking the debug print as "fatal" will cause a debug break, so we don't need
 // a separate crash call here.
