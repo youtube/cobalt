@@ -5,7 +5,6 @@
 {
   'variables': {
     'chromium_code': 1,
-    'optimize_target_for_speed': 1,
   },
   'targets': [
     {
