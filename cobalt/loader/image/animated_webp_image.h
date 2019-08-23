@@ -75,8 +75,11 @@ class AnimatedWebPImage : public AnimatedImage {
   // decode.
   void StartDecoding();
 
-  // Decodes all frames until current time.
+  // Decodes all frames until current time.  Assumes |lock_| is acquired.
   void DecodeFrames();
+
+  // Acquires |lock_| and calls DecodeFrames().
+  void LockAndDecodeFrames();
 
   // Decodes the frame with the given index, returns if it succeeded.
   bool DecodeOneFrame(int frame_index);
