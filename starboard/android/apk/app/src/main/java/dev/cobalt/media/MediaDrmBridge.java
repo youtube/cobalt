@@ -90,6 +90,35 @@ public class MediaDrmBridge {
 
   private MediaCrypto mMediaCrypto;
 
+  // Return value type for calls to updateSession(), which contains whether or not the call
+  // succeeded, and optionally an error message (that is empty on success).
+  @UsedByNative
+  private static class UpdateSessionResult {
+    public enum Status {
+      SUCCESS,
+      FAILURE
+    }
+
+    // Whether or not the update session attempt succeeded or failed.
+    private boolean mIsSuccess;
+
+    // Descriptive error message or details, in the scenario where the update session call failed.
+    private String mErrorMessage;
+
+    public UpdateSessionResult(Status status, String errorMessage) {
+      this.mIsSuccess = status == Status.SUCCESS;
+      this.mErrorMessage = errorMessage;
+    }
+
+    public boolean isSuccess() {
+      return mIsSuccess;
+    }
+
+    public String getErrorMessage() {
+      return mErrorMessage;
+    }
+  }
+
   /**
    * Create a new MediaDrmBridge with the Widevine crypto scheme.
    *
@@ -220,16 +249,22 @@ public class MediaDrmBridge {
    * @param response Response data from the server.
    */
   @UsedByNative
-  boolean updateSession(byte[] sessionId, byte[] response) {
+  UpdateSessionResult updateSession(int ticket, byte[] sessionId, byte[] response) {
     Log.d(TAG, "updateSession()");
     if (mMediaDrm == null) {
       Log.e(TAG, "updateSession() called when MediaDrm is null.");
-      return false;
+      return new UpdateSessionResult(
+          UpdateSessionResult.Status.FAILURE,
+          "Null MediaDrm object when calling updateSession(). StackTrace: "
+              + android.util.Log.getStackTraceString(new Throwable()));
     }
 
     if (!sessionExists(sessionId)) {
       Log.e(TAG, "updateSession tried to update a session that does not exist.");
-      return false;
+      return new UpdateSessionResult(
+          UpdateSessionResult.Status.FAILURE,
+          "Failed to update session because it does not exist. StackTrace: "
+              + android.util.Log.getStackTraceString(new Throwable()));
     }
 
     try {
@@ -246,16 +281,32 @@ public class MediaDrmBridge {
         // Pass null to indicate that KeyStatus isn't supported.
         nativeOnKeyStatusChange(mNativeMediaDrmBridge, sessionId, null);
       }
-      return true;
+      return new UpdateSessionResult(UpdateSessionResult.Status.SUCCESS, "");
     } catch (NotProvisionedException e) {
       // TODO: Should we handle this?
-      Log.e(TAG, "failed to provide key response", e);
+      Log.e(TAG, "Failed to provide key response", e);
+      release();
+      return new UpdateSessionResult(
+          UpdateSessionResult.Status.FAILURE,
+          "Update session failed due to lack of provisioning. StackTrace: "
+              + android.util.Log.getStackTraceString(e));
     } catch (DeniedByServerException e) {
-      Log.e(TAG, "failed to provide key response", e);
+      Log.e(TAG, "Failed to provide key response.", e);
+      release();
+      return new UpdateSessionResult(
+          UpdateSessionResult.Status.FAILURE,
+          "Update session failed because we were denied by server. StackTrace: "
+              + android.util.Log.getStackTraceString(e));
+    } catch (Exception e) {
+      Log.e(TAG, "", e);
+      release();
+      return new UpdateSessionResult(
+          UpdateSessionResult.Status.FAILURE,
+          "Update session failed. Caught exception: "
+              + e.getMessage()
+              + " StackTrace: "
+              + android.util.Log.getStackTraceString(e));
     }
-    Log.e(TAG, "Update session failed.");
-    release();
-    return false;
   }
 
   /**
