@@ -155,8 +155,10 @@ void SbEventHandle(const SbEvent* event) {
 
       if (data->argument_count < 2) {
         SB_LOG(INFO) << "Usage: audio_dmp_player <dmp file name>";
-        SB_LOG(INFO) << "e.g. audio_dmp_player beneath_the_canopy_140_aac.dmp";
-        SB_LOG(INFO) << "     audio_dmp_player beneath_the_canopy_249_opus.dmp";
+        SB_LOG(INFO)
+            << "e.g. audio_dmp_player beneath_the_canopy_aac_stereo.dmp";
+        SB_LOG(INFO)
+            << "     audio_dmp_player beneath_the_canopy_opus_stereo.dmp";
         SbSystemRequestStop(0);
         return;
       }
