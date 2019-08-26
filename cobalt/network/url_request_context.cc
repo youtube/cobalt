@@ -124,6 +124,7 @@ URLRequestContext::URLRequestContext(
 #if defined(COBALT_ENABLE_QUIC)
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   params.enable_quic = !command_line->HasSwitch(switches::kDisableQuic);
+  params.use_quic_for_unknown_origins = params.enable_quic;
 #endif
 #if defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
   params.ignore_certificate_errors = ignore_certificate_errors;
