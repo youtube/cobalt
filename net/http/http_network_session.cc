@@ -114,6 +114,9 @@ HttpNetworkSession::Params::Params()
 #if defined(COBALT_QUIC46)
       enable_quic_proxies_for_https_urls(false),
 #endif
+#if defined(STARBOARD)
+      use_quic_for_unknown_origins(false),
+#endif
 #if !defined(QUIC_DISABLED_FOR_STARBOARD)
       quic_max_packet_length(quic::kDefaultMaxPacketSize),
 #endif
@@ -557,6 +560,10 @@ void HttpNetworkSession::DisableQuic() {
 #if defined(STARBOARD)
 void HttpNetworkSession::ToggleQuic() {
   params_.enable_quic = !params_.enable_quic;
+}
+
+bool HttpNetworkSession::UseQuicForUnknownOrigin() const {
+  return params_.use_quic_for_unknown_origins;
 }
 #endif  // defined(STARBOARD)
 
