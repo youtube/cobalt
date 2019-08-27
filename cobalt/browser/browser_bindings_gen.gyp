@@ -47,6 +47,8 @@
         '../cssom/style_sheet.idl',
         '../cssom/style_sheet_list.idl',
 
+        '../dom/abort_controller.idl',
+        '../dom/abort_signal.idl',
         '../dom/animation_event.idl',
         '../dom/attr.idl',
         '../dom/audio_track.idl',
