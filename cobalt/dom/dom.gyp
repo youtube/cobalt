@@ -23,6 +23,10 @@
       'target_name': 'dom',
       'type': 'static_library',
       'sources': [
+        'abort_controller.h',
+        'abort_controller.cc',
+        'abort_signal.h',
+        'abort_signal.cc',
         'animation_event.h',
         'animation_frame_request_callback_list.cc',
         'animation_frame_request_callback_list.h',
