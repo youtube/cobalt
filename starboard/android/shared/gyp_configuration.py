@@ -209,8 +209,10 @@ class AndroidConfiguration(PlatformConfiguration):
           # Use the static LLVM libc++.
           '-static-libstdc++',
 
-          # Mimic build/cmake/android.toolchain.cmake in the Android NDK.
-          '-Wl,--build-id',
+          # Mimic build/cmake/android.toolchain.cmake in the Android NDK, but
+          # force build-id to sha1, so that older lldb versions can still find
+          # debugsymbols, see https://github.com/android-ndk/ndk/issues/885
+          '-Wl,--build-id=sha1',
           '-Wl,--warn-shared-textrel',
           '-Wl,--fatal-warnings',
           '-Wl,--gc-sections',
