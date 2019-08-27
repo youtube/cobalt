@@ -78,9 +78,6 @@
   const URL_SLOT = Symbol('url')
   const IS_ABORTED_SLOT = Symbol('is_aborted')
   const SIGNAL_SLOT = Symbol('signal')
-  const ONABORT_SLOT = Symbol('onabort')
-  const ABORT_HASH_SLOT = Symbol('abort_hash')
-  const LISTENERS_SLOT = Symbol('listeners')
 
   // Forbidden headers corresponding to various header guard types.
   const INVALID_HEADERS_REQUEST = [
@@ -533,66 +530,6 @@
     return upcased
   }
 
-  // https://dom.spec.whatwg.org/#interface-AbortSignal
-  function AbortSignal(input) {
-    this[ONABORT_SLOT] = null
-    if(input instanceof AbortSignal) {
-      this[ONABORT_SLOT] = input.onabort
-      this[ABORT_HASH_SLOT] = input[ABORT_HASH_SLOT]
-      this[LISTENERS_SLOT] = input[LISTENERS_SLOT]
-    } else {
-      this[ABORT_HASH_SLOT] = { is_aborted: false }
-      this[LISTENERS_SLOT] = {}
-    }
-
-    defineProperties(this,{
-      'aborted': { get: () => this[ABORT_HASH_SLOT].is_aborted },
-      'onabort': {
-        get: () => this[ONABORT_SLOT],
-        set: value => this[ONABORT_SLOT] = value
-      }
-    })
-  }
-  AbortSignal.prototype.constructor = AbortSignal
-  AbortSignal.prototype.dispatchEvent =  function(ev){
-    if(ev.type === 'abort') {
-      this[ABORT_HASH_SLOT].is_aborted = true
-      if(typeof this[ONABORT_SLOT] === 'function') {
-        this[ONABORT_SLOT].call(this,ev)
-      }
-    }
-    if (!(ev.type in this[LISTENERS_SLOT])) {
-      return
-    }
-    const type_listener_array = this[LISTENERS_SLOT][ev.type]
-    for (var i = type_listener_array.length - 1; i >= 0; i--) {
-      type_listener_array[i].call(this,ev)
-    }
-    return !ev.defaultPrevented
-  }
-  AbortSignal.prototype.addEventListener = function(listener_type, listener) {
-    if (!(listener_type in this[LISTENERS_SLOT])) {
-      this[LISTENERS_SLOT][listener_type] = []
-    }
-    this[LISTENERS_SLOT][listener_type].push(listener)
-  }
-  AbortSignal.prototype.removeEventListener = function(listener_type, listener) {
-    if (!(listener_type in this[LISTENERS_SLOT])) {
-      return
-    }
-    const type_listener_array = this[LISTENERS_SLOT][type]
-    for (var i = 0, l = type_listener_array.length; i < l; i++) {
-      if (type_listener_array[i] === listener) {
-        type_listener_array.splice(i, 1)
-        return
-      }
-    }
-  }
-  AbortSignal.prototype.clone = function() {
-    return new AbortSignal(this)
-  }
-  self.AbortSignal = AbortSignal
-
   // https://fetch.spec.whatwg.org/#request-class
   function Request(input, init) {
     // When cloning a request, |init| will have the non-standard member
@@ -602,6 +539,15 @@
     init = init || {}
     var body = init.body || init.cloneBody
     var headersInit = init.headers
+
+    // AbortSignal cannot be constructed directly, so create a temporary
+    // AbortController and steal its signal. This signal is only used to follow
+    // another signal, so the controller isn't needed.
+    var tempController = new AbortController()
+    this[SIGNAL_SLOT] = tempController.signal
+
+    // Let signal be null.
+    var signal = null
 
     if (input instanceof Request) {
       this[URL_SLOT] = input.url
@@ -623,15 +569,8 @@
         input[BODY_USED_SLOT] = true
       }
 
-      if(('signal' in init) && (init.signal == null)) {
-        this[SIGNAL_SLOT] = new AbortSignal()
-      } else {
-        if('signal' in init) {
-          this[SIGNAL_SLOT] = init.signal
-        } else {
-          this[SIGNAL_SLOT] = input[SIGNAL_SLOT]
-        }
-      }
+      // Set signal to input's signal.
+      signal = input[SIGNAL_SLOT]
     } else {
       this[URL_SLOT] = String(input)
       if (!FetchInternal.isUrlValid(this[URL_SLOT],
@@ -640,12 +579,6 @@
       }
       this[MODE_SLOT] = 'cors'
       this[CREDENTIALS_SLOT] = 'same-origin'
-
-      if ((init.signal) && !(init.signal == null) ) {
-        this[SIGNAL_SLOT] = new AbortSignal(init.signal)
-      } else {
-        this[SIGNAL_SLOT] = new AbortSignal()
-      }
     }
 
     if (init.window !== undefined && init.window !== null) {
@@ -706,6 +639,17 @@
     if ((this[METHOD_SLOT] === 'GET' || this[METHOD_SLOT] === 'HEAD') && body) {
       throw new TypeError('Request body is not allowed for GET or HEAD')
     }
+
+    // If init["signal"] exists, then set signal to it.
+    if ('signal' in init) {
+      signal = init.signal
+    }
+
+    // If signal is not null, then make r's signal follow signal.
+    if (signal) {
+      this[SIGNAL_SLOT].follow(signal)
+    }
+
     this._initBody(body)
   }
 
@@ -717,7 +661,7 @@
       this[BODY_SLOT] = streams[0]
       cloneBody = streams[1]
     }
-    return new Request(this, { cloneBody: cloneBody, signal: this[SIGNAL_SLOT].clone() })
+    return new Request(this, { cloneBody: cloneBody, signal: this[SIGNAL_SLOT] })
   }
 
   defineProperties(Request.prototype, {
@@ -1008,15 +952,6 @@
       }
     })
   }
-
-  // https://dom.spec.whatwg.org/#interface-abortcontroller
-  function AbortController() {
-    defineProperty(this, 'signal', {value: new AbortSignal(), writable: false})
-  }
-  AbortController.prototype.abort = function() {
-    this.signal.dispatchEvent(new Event('abort'))
-  }
-  self.AbortController = AbortController
 
   self.fetch.polyfill = true
 })(this);
