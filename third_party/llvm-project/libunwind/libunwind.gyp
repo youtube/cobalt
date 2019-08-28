@@ -71,7 +71,6 @@
         'src/libunwind_ext.h',
         'src/Registers.hpp',
         'src/RWMutex.hpp',
-        'src/Unwind_AppleExtras.cpp',
         'src/UnwindCursor.hpp',
         'src/Unwind-EHABI.cpp',
         'src/Unwind-EHABI.h',
@@ -91,6 +90,13 @@
           'LLVM_PATH="<(DEPTH)/third_party/llvm-project/llvm/"',
         ],
       },
+      'conditions': [
+        ['target_os == "tvos"', {
+          'sources': [
+            'src/Unwind_AppleExtras.cpp',
+          ],
+        }],
+      ],
     }
   ]
 }

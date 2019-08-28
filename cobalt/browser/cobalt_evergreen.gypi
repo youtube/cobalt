@@ -38,8 +38,8 @@
     '-nostdlib',
   ],
   'defines' : [
-    # This flag is set assuming the system uses pthread.
-    '_LIBCPP_HAS_THREAD_API_PTHREAD',
+    # Ensure that the Starboardized __external_threading file is included.
+    '_LIBCPP_HAS_THREAD_API_EXTERNAL',
     '_LIBCPP_HAS_MUSL_LIBC',
   ],
 }

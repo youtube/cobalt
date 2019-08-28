@@ -276,7 +276,8 @@ ExportedSymbols::ExportedSymbols() {
 
   map_["SbSocketAccept"] = reinterpret_cast<const void*>(SbSocketAccept);
   map_["SbSocketBind"] = reinterpret_cast<const void*>(SbSocketBind);
-  map_["SbSocketClearLastError"] = reinterpret_cast<const void*>(SbSocketClearLastError);
+  map_["SbSocketClearLastError"] =
+      reinterpret_cast<const void*>(SbSocketClearLastError);
   map_["SbSocketConnect"] = reinterpret_cast<const void*>(SbSocketConnect);
   map_["SbSocketCreate"] = reinterpret_cast<const void*>(SbSocketCreate);
   map_["SbSocketDestroy"] = reinterpret_cast<const void*>(SbSocketDestroy);
