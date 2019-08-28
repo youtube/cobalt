@@ -108,7 +108,6 @@
       '-isystem<(cobalt_repo_root)/third_party/llvm-project/libunwind/include',
       '-isystem<(cobalt_repo_root)/third_party/llvm-project/libcxx/include',
       '-isystem<(cobalt_repo_root)/third_party/musl/include',
-      '-isystem<(cobalt_repo_root)/third_party/musl/arch/x86_64',
       '-isystem<(cobalt_repo_root)/third_party/musl/arch/generic',
     ],
     'cflags_cc': [
