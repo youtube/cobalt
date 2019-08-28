@@ -36,6 +36,7 @@
 #include "gtest/gtest-spi.h"
 
 #if GTEST_OS_STARBOARD
+#include "starboard/client_porting/eztime/eztime.h"
 #include "starboard/system.h"
 #else
 #include <ctype.h>
@@ -3592,6 +3593,7 @@ std::string FormatTimeInMillisAsSeconds(TimeInMillis ms) {
   return ss.str();
 }
 
+#if !GTEST_OS_STARBOARD
 static bool PortableLocaltime(time_t seconds, struct tm* out) {
 #if defined(_MSC_VER)
   return localtime_s(out, &seconds) == 0;
@@ -3607,13 +3609,24 @@ static bool PortableLocaltime(time_t seconds, struct tm* out) {
   return localtime_r(&seconds, out) != NULL;
 #endif
 }
+#endif
 
 // Converts the given epoch time in milliseconds to a date string in the ISO
 // 8601 format, without the timezone information.
 std::string FormatEpochTimeInMillisAsIso8601(TimeInMillis ms) {
+// EzTimeExploded has the same members, and member names, as struct tm and can
+// be silently inserted here to provide an even more portable (Starboardized)
+// locale time.
+#if GTEST_OS_STARBOARD
+  EzTimeExploded time_struct;
+  const EzTimeT seconds = static_cast<EzTimeT>(ms / 1000);
+  if (EzTimeTExplodeLocal(&seconds, &time_struct) == NULL) {
+#else
   struct tm time_struct;
-  if (!PortableLocaltime(static_cast<time_t>(ms / 1000), &time_struct))
+  if (!PortableLocaltime(static_cast<time_t>(ms / 1000), &time_struct)) {
+#endif
     return "";
+  }
   // YYYY-MM-DDThh:mm:ss
   return StreamableToString(time_struct.tm_year + 1900) + "-" +
       String::FormatIntWidth2(time_struct.tm_mon + 1) + "-" +
