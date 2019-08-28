@@ -35,6 +35,13 @@ interaction with different web server behavior.
      $ python path/to/black_box_tests.py --platform linux-x64x11 --config devel
        --test_name preload_font
 
+     You can apply --gtest_filter through --target_params, e.g.
+     $ python path/to/black_box_tests.py --platform linux-x64x11 --config devel
+       --test_name web_platform_tests
+       --target_params="--gtest_filter=fetch/*"
+
+     Note: When declaring a gtest_filter, it will override the filters defined
+     in GetWebPlatformTestFilters in configuration.py.
 
 ## Tests
 
