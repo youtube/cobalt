@@ -61,9 +61,6 @@
         '<(DEPTH)/starboard/client_porting/eztime/eztime_test.gyp:*',
         '<(DEPTH)/starboard/client_porting/icu_init/icu_init.gyp:*',
         '<(DEPTH)/starboard/client_porting/poem/poem.gyp:*',
-	# glclear.gyp is not included as a dependency since the change to the
-	# EGL and GLES interfaces are breaking for previous versions of the
-	# Starboard API.
         '<(DEPTH)/starboard/examples/blitter/blitter.gyp:*',
         '<(DEPTH)/starboard/examples/window/window.gyp:*',
         '<(DEPTH)/starboard/nplb/blitter_pixel_tests/blitter_pixel_tests.gyp:*',
@@ -71,6 +68,11 @@
         '<(DEPTH)/starboard/starboard.gyp:*',
       ],
       'conditions': [
+        ['gl_type != "none"', {
+          'dependencies': [
+            '<(DEPTH)/starboard/examples/glclear/glclear.gyp:starboard_glclear_example',
+          ],
+        }],
         ['has_platform_tests=="True"', {
           'dependencies': [
             '<(DEPTH)/<(starboard_path)/starboard_platform_tests.gyp:*',
