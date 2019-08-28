@@ -233,7 +233,6 @@ TEST_P(EmbeddedTestServerTest, GetURLWithHostname) {
   }
 }
 
-#if !defined(STARBOARD_NO_LOCAL_ISSUER)
 TEST_P(EmbeddedTestServerTest, RegisterRequestHandler) {
   server_->RegisterRequestHandler(base::BindRepeating(
       &EmbeddedTestServerTest::HandleRequest, base::Unretained(this), "/test",
@@ -310,7 +309,6 @@ TEST_P(EmbeddedTestServerTest, DefaultNotFoundResponse) {
   EXPECT_EQ(URLRequestStatus::SUCCESS, fetcher->GetStatus().status());
   EXPECT_EQ(HTTP_NOT_FOUND, fetcher->GetResponseCode());
 }
-#endif  // defined(STARBOARD_NO_LOCAL_ISSUER)
 
 TEST_P(EmbeddedTestServerTest, ConnectionListenerAccept) {
   ASSERT_TRUE(server_->Start());
@@ -331,7 +329,6 @@ TEST_P(EmbeddedTestServerTest, ConnectionListenerAccept) {
   EXPECT_FALSE(connection_listener_.DidReadFromSocket());
 }
 
-#if !defined(STARBOARD_NO_LOCAL_ISSUER)
 TEST_P(EmbeddedTestServerTest, ConnectionListenerRead) {
   ASSERT_TRUE(server_->Start());
 
@@ -392,7 +389,6 @@ TEST_P(EmbeddedTestServerTest, ConcurrentFetches) {
   EXPECT_EQ("No chocolates", GetContentFromFetcher(*fetcher3));
   EXPECT_EQ("text/plain", GetContentTypeFromFetcher(*fetcher3));
 }
-#endif  // defined(STARBOARD_NO_LOCAL_ISSUER)
 
 namespace {
 

@@ -112,10 +112,8 @@ TEST(TestRootCertsTest, OverrideTrust) {
   int good_status =
       verify_proc->Verify(test_cert.get(), "127.0.0.1", std::string(), flags,
                           NULL, CertificateList(), &good_verify_result);
-#if !defined(STARBOARD_NO_LOCAL_ISSUER)
   EXPECT_THAT(good_status, IsOk());
   EXPECT_EQ(0u, good_verify_result.cert_status);
-#endif
 
   test_roots->Clear();
   EXPECT_TRUE(test_roots->IsEmpty());

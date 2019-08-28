@@ -3217,7 +3217,6 @@ TEST_F(URLRequestTest, SecureCookiePrefixNonsecure) {
   }
 }
 
-#if !defined(STARBOARD_NO_LOCAL_ISSUER)
 TEST_F(URLRequestTest, SecureCookiePrefixSecure) {
   EmbeddedTestServer https_server(EmbeddedTestServer::TYPE_HTTPS);
   https_server.AddDefaultHandlers(
@@ -3255,7 +3254,6 @@ TEST_F(URLRequestTest, SecureCookiePrefixSecure) {
     EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
   }
 }
-#endif  // defined(STARBOARD_NO_LOCAL_ISSUER)
 
 // Tests that secure cookies can't be set on non-secure origins if strict secure
 // cookies are enabled.
@@ -3301,7 +3299,6 @@ TEST_F(URLRequestTest, StrictSecureCookiesOnNonsecureOrigin) {
   }
 }
 
-#if !defined(STARBOARD_NO_LOCAL_ISSUER)
 // Tests that secure cookies can be set on secure origins even if strict secure
 // cookies are enabled.
 TEST_F(URLRequestTest, StrictSecureCookiesOnSecureOrigin) {
@@ -3341,7 +3338,6 @@ TEST_F(URLRequestTest, StrictSecureCookiesOnSecureOrigin) {
     EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
   }
 }
-#endif  // defined(STARBOARD_NO_LOCAL_ISSUER)
 
 // The parameter is true for same-site and false for cross-site requests.
 class URLRequestTestParameterizedSameSite
@@ -3373,7 +3369,6 @@ INSTANTIATE_TEST_CASE_P(URLRequestTest,
                         URLRequestTestParameterizedSameSite,
                         ::testing::Bool());
 
-#if !defined(STARBOARD_NO_LOCAL_ISSUER)
 TEST_P(URLRequestTestParameterizedSameSite, CookieAgeMetrics) {
   const bool same_site = GetParam();
   const std::string kInitiatingHost = same_site ? kHost_ : kCrossHost_;
@@ -3465,7 +3460,6 @@ TEST_P(URLRequestTestParameterizedSameSite, CookieAgeMetrics) {
     EXPECT_TRUE(d.data_received().find("cookie2=value2") != std::string::npos);
   }
 }
-#endif
 
 // Cookies with secure attribute (no HSTS) --> k1pSecureAttribute
 TEST_P(URLRequestTestParameterizedSameSite,
@@ -6608,7 +6602,6 @@ TEST_F(URLRequestTestHTTP, ResponseHeadersTest) {
 // TODO(svaldez): iOS tests are flaky with EmbeddedTestServer and transport
 // security state. (see http://crbug.com/550977).
 #if !defined(OS_IOS)
-#if !defined(STARBOARD_NO_LOCAL_ISSUER)
 TEST_F(URLRequestTestHTTP, ProcessSTS) {
   EmbeddedTestServer https_test_server(net::EmbeddedTestServer::TYPE_HTTPS);
   https_test_server.SetSSLConfig(
@@ -6643,7 +6636,6 @@ TEST_F(URLRequestTestHTTP, ProcessSTS) {
   EXPECT_FALSE(pkp_state.HasPublicKeyPins());
 #endif
 }
-#endif  // defined(STARBOARD_NO_LOCAL_ISSUER)
 
 TEST_F(URLRequestTestHTTP, STSNotProcessedOnIP) {
   EmbeddedTestServer https_test_server(net::EmbeddedTestServer::TYPE_HTTPS);
@@ -6673,7 +6665,6 @@ const char kExpectCTStaticHostname[] = "expect-ct.preloaded.test";
 const char kHPKPReportUri[] = "https://hpkp-report.test";
 }  // namespace
 
-#if !defined(STARBOARD_NO_LOCAL_ISSUER)
 // Tests that enabling HPKP on a domain does not affect the HSTS
 // validity/expiration.
 TEST_F(URLRequestTestHTTP, ProcessPKP) {
@@ -6709,7 +6700,6 @@ TEST_F(URLRequestTestHTTP, ProcessPKP) {
   EXPECT_EQ(report_uri, pkp_state.report_uri);
   EXPECT_NE(sts_state.expiry, pkp_state.expiry);
 }
-#endif  // defined(STARBOARD_NO_LOCAL_ISSUER)
 
 // Tests that reports get sent on HPKP violations when a report-uri is set.
 TEST_F(URLRequestTestHTTP, ProcessPKPAndSendReport) {
@@ -6978,7 +6968,6 @@ TEST_F(URLRequestTestHTTP, PKPBypassRecorded) {
   EXPECT_TRUE(request->ssl_info().pkp_bypassed);
 }
 
-#if !defined(STARBOARD_NO_LOCAL_ISSUER)
 TEST_F(URLRequestTestHTTP, ProcessSTSOnce) {
   EmbeddedTestServer https_test_server(net::EmbeddedTestServer::TYPE_HTTPS);
   https_test_server.SetSSLConfig(
@@ -7089,7 +7078,6 @@ TEST_F(URLRequestTestHTTP, ProcessSTSAndPKP2) {
   EXPECT_TRUE(sts_state.include_subdomains);
   EXPECT_FALSE(pkp_state.include_subdomains);
 }
-#endif  // defined(STARBOARD_NO_LOCAL_ISSUER)
 
 // An ExpectCTReporter that records the number of times OnExpectCTFailed() was
 // called.
@@ -7429,7 +7417,6 @@ TEST_F(URLRequestTestHTTP, DontProcessReportToHeaderHTTP) {
   EXPECT_TRUE(reporting_service.headers().empty());
 }
 
-#if !defined(STARBOARD_NO_LOCAL_ISSUER)
 TEST_F(URLRequestTestHTTP, ProcessReportToHeaderHTTPS) {
   EmbeddedTestServer https_test_server(net::EmbeddedTestServer::TYPE_HTTPS);
   https_test_server.RegisterRequestHandler(
@@ -7454,7 +7441,6 @@ TEST_F(URLRequestTestHTTP, ProcessReportToHeaderHTTPS) {
   EXPECT_EQ(request_url, reporting_service.headers()[0].url);
   EXPECT_EQ("foo, bar", reporting_service.headers()[0].header_value);
 }
-#endif
 
 TEST_F(URLRequestTestHTTP, DontProcessReportToHeaderInvalidHttps) {
   EmbeddedTestServer https_test_server(net::EmbeddedTestServer::TYPE_HTTPS);
@@ -7603,7 +7589,6 @@ TEST_F(URLRequestTestHTTP, DontProcessNelHeaderHttp) {
   EXPECT_TRUE(nel_service.headers().empty());
 }
 
-#if !defined(STARBOARD_NO_LOCAL_ISSUER)
 TEST_F(URLRequestTestHTTP, ProcessNelHeaderHttps) {
   EmbeddedTestServer https_test_server(net::EmbeddedTestServer::TYPE_HTTPS);
   https_test_server.RegisterRequestHandler(base::BindRepeating(&SendNelHeader));
@@ -7630,7 +7615,6 @@ TEST_F(URLRequestTestHTTP, ProcessNelHeaderHttps) {
   EXPECT_TRUE(nel_service.headers()[0].MatchesAddressList(address_list));
   EXPECT_EQ("foo", nel_service.headers()[0].value);
 }
-#endif
 
 TEST_F(URLRequestTestHTTP, DontProcessNelHeaderInvalidHttps) {
   EmbeddedTestServer https_test_server(net::EmbeddedTestServer::TYPE_HTTPS);
@@ -7731,7 +7715,6 @@ TEST_F(URLRequestTestHTTP, ForwardErrorToNelHttps_Mock) {
   URLRequestFilter::GetInstance()->ClearHandlers();
 }
 
-#if !defined(STARBOARD_NO_LOCAL_ISSUER)
 // Also test with a real server, to exercise interactions with
 // URLRequestHttpJob.
 TEST_F(URLRequestTestHTTP, ForwardErrorToNelHttps_Real) {
@@ -7759,7 +7742,6 @@ TEST_F(URLRequestTestHTTP, ForwardErrorToNelHttps_Real) {
   EXPECT_EQ(0, nel_service.errors()[0].status_code);
   EXPECT_EQ(ERR_EMPTY_RESPONSE, nel_service.errors()[0].type);
 }
-#endif  // defined(STARBOARD_NO_LOCAL_ISSUER)
 
 TEST_F(URLRequestTestHTTP, NelReportUserAgentWithHeaderWithSettings) {
   EmbeddedTestServer https_test_server(net::EmbeddedTestServer::TYPE_HTTPS);
@@ -9653,7 +9635,7 @@ TEST_F(URLRequestTestReferrerPolicy, HTTPToCrossOriginHTTP) {
   VerifyReferrerAfterRedirect(URLRequest::NO_REFERRER, GURL(), GURL());
 }
 
-#if !defined(STARBOARD_NO_LOCAL_ISSUER)
+
 TEST_F(URLRequestTestReferrerPolicy, HTTPSToSameOriginHTTPS) {
   InstantiateSameOriginServers(net::EmbeddedTestServer::TYPE_HTTPS);
   GURL referrer = origin_server()->GetURL("/path/to/file.html");
@@ -9815,7 +9797,6 @@ TEST_F(URLRequestTestReferrerPolicy, HTTPSToHTTP) {
 
   VerifyReferrerAfterRedirect(URLRequest::NO_REFERRER, GURL(), GURL());
 }
-#endif  // defined(STARBOARD_NO_LOCAL_ISSUER)
 
 class HTTPSRequestTest : public TestWithScopedTaskEnvironment {
  public:
@@ -9832,7 +9813,6 @@ class HTTPSRequestTest : public TestWithScopedTaskEnvironment {
   TestURLRequestContext default_context_;
 };
 
-#if !defined(STARBOARD_NO_LOCAL_ISSUER)
 TEST_F(HTTPSRequestTest, HTTPSGetTest) {
   EmbeddedTestServer test_server(net::EmbeddedTestServer::TYPE_HTTPS);
   test_server.AddDefaultHandlers(
@@ -9859,7 +9839,6 @@ TEST_F(HTTPSRequestTest, HTTPSGetTest) {
               r->GetSocketAddress().port());
   }
 }
-#endif  // defined(STARBOARD_NO_LOCAL_ISSUER)
 
 TEST_F(HTTPSRequestTest, HTTPSMismatchedTest) {
   EmbeddedTestServer test_server(net::EmbeddedTestServer::TYPE_HTTPS);
@@ -10237,7 +10216,6 @@ class TestSSLPrivateKey : public SSLPrivateKey {
 
 }  // namespace
 
-#if !defined(STARBOARD_NO_LOCAL_ISSUER)
 // TODO(davidben): Test the rest of the code. Specifically,
 // - Filtering which certificates to select.
 // - Getting a certificate request in an SSL renegotiation sending the
@@ -10359,7 +10337,6 @@ TEST_F(HTTPSRequestTest, ClientAuth) {
     EXPECT_EQ(2, private_key->sign_count());
   }
 }
-#endif  // defined(STARBOARD_NO_LOCAL_ISSUER)
 
 // Test that private keys that fail to sign anything get evicted from the cache.
 TEST_F(HTTPSRequestTest, ClientAuthFailSigning) {
@@ -10439,7 +10416,6 @@ TEST_F(HTTPSRequestTest, ClientAuthFailSigning) {
   }
 }
 
-#if !defined(STARBOARD_NO_LOCAL_ISSUER)
 // Test that cached private keys that fail to sign anything trigger a
 // retry. This is so we handle unplugged smartcards
 // gracefully. https://crbug.com/813022.
@@ -10522,7 +10498,6 @@ TEST_F(HTTPSRequestTest, ClientAuthFailSigningRetry) {
     EXPECT_EQ(0, d.bytes_received());
   }
 }
-#endif  // defined(STARBOARD_NO_LOCAL_ISSUER)
 #endif  // !defiend(OS_IOS)
 #if !defined(STARBOARD)
 #if !defined(OS_IOS)
