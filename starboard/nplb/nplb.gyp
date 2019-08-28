@@ -150,6 +150,7 @@
         # TODO: Separate functions tested by media buffer test into multiple
         # files.
         'media_buffer_test.cc',
+        'media_set_audio_write_duration_test.cc',
         'memory_align_to_page_size_test.cc',
         'memory_allocate_aligned_test.cc',
         'memory_allocate_test.cc',
@@ -163,6 +164,7 @@
         'memory_map_test.cc',
         'memory_move_test.cc',
         'memory_reallocate_test.cc',
+        'memory_reporter_test.cc',
         'memory_set_test.cc',
         'microphone_close_test.cc',
         'microphone_create_test.cc',
@@ -309,27 +311,6 @@
         '<(DEPTH)/testing/gtest.gyp:gtest',
       ],
       'conditions': [
-        ['sb_evergreen == 1', {
-          'dependencies': [
-            '<(DEPTH)/starboard/client_porting/eztime/eztime.gyp:eztime',
-            '<(DEPTH)/third_party/llvm-project/compiler-rt/compiler-rt.gyp:compiler_rt',
-            '<(DEPTH)/third_party/llvm-project/libcxx/libcxx.gyp:cxx',
-            '<(DEPTH)/third_party/llvm-project/libcxxabi/libcxxabi.gyp:cxxabi',
-            '<(DEPTH)/third_party/llvm-project/libunwind/libunwind.gyp:unwind',
-            '<(DEPTH)/third_party/musl/musl.gyp:c',
-          ],
-        }, {
-          'sources': [
-            # Segfaults for Cobalt Evergreen, need to debug.
-            'memory_reporter_test.cc',
-          ],
-        }],
-        ['sb_evergreen != 1 or target_arch != "arm"', {
-          'sources': [
-            # Sefaults for arm32 Cobalt Evergreen, need to debug.
-            'media_set_audio_write_duration_test.cc',
-          ],
-        }],
         ['gl_type != "none"', {
           'dependencies': [
              # This is needed because SbPlayerTest depends on
