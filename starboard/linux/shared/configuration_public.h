@@ -50,9 +50,6 @@
 // Whether the current platform provides the standard header sys/types.h.
 #define SB_HAS_SYS_TYPES_H 1
 
-// Whether the current platform provides the standard header wchar.h.
-#define SB_HAS_WCHAR_H 1
-
 // Whether the current platform provides the standard header limits.h.
 #define SB_HAS_LIMITS_H 1
 
