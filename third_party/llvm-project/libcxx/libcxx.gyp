@@ -54,7 +54,6 @@
       'defines': [
         '_LIBCPP_BUILDING_LIBRARY',
         '_LIBCPP_HAS_MUSL_LIBC',
-        '_LIBCPP_HAS_NO_STDIN',
         # This macro is used to build libcxxabi with libunwind.
         'LIBCXX_BUILDING_LIBCXXABI',
       ],
@@ -81,7 +80,6 @@
         'src/future.cpp',
         'src/hash.cpp',
         'src/ios.cpp',
-        'src/iostream.cpp',
         'src/locale.cpp',
         'src/memory.cpp',
         'src/mutex.cpp',
