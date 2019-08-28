@@ -36,7 +36,6 @@
 #include "gtest/gtest-spi.h"
 
 #if GTEST_OS_STARBOARD
-#include "starboard/client_porting/poem/eztime_poem.h"
 #include "starboard/system.h"
 #else
 #include <ctype.h>
