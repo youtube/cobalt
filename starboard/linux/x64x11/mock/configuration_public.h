@@ -115,9 +115,6 @@
 // Whether the current platform provides the standard header inttypes.h.
 #define SB_HAS_INTTYPES_H 1
 
-// Whether the current platform provides the standard header wchar.h.
-#define SB_HAS_WCHAR_H 1
-
 // Whether the current platform provides the standard header limits.h.
 #define SB_HAS_LIMITS_H 1
 

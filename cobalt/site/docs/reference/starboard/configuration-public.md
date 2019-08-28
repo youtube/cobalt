@@ -161,7 +161,6 @@ title: "Starboard Configuration Reference Guide"
 | **`SB_HAS_STDINT_H`**<br><br>Whether the current platform provides the standard header stdint.h.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_INTTYPES_H`**<br><br>Whether the current platform provides the standard header inttypes.h.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_SYS_TYPES_H`**<br><br>Whether the current platform provides the standard header sys/types.h.<br><br>The default value in the Stub implementation is `0` |
-| **`SB_HAS_WCHAR_H`**<br><br>Whether the current platform provides the standard header wchar.h.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_LIMITS_H`**<br><br>Whether the current platform provides the standard header limits.h.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_FLOAT_H`**<br><br>Whether the current platform provides the standard header float.h.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_SSIZE_T`**<br><br>Whether the current platform provides ssize_t.<br><br>The default value in the Stub implementation is `1` |
