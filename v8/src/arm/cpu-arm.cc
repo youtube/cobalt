@@ -8,7 +8,7 @@
 #include <sys/mman.h>  // for cache flushing.
 #undef MAP_TYPE
 #else
-#include <sys/syscall.h>  // for cache flushing.
+#define __ARM_NR_cacheflush 0x0f0002  // for cache flushing.
 #endif
 #endif
 

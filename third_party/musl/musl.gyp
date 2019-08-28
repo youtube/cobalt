@@ -55,7 +55,7 @@
         # no-unknown-pragmas  -w shift-op-parentheses
         '-nobuiltininc',
         '-isystem<(DEPTH)/third_party/musl/include',
-        '-isystem<(DEPTH)/third_party/musl/arch/x86_64',
+        '-isystem<(DEPTH)/third_party/musl/arch/<(musl_arch)',
         '-isystem<(DEPTH)/third_party/musl/arch/generic',
         '-w',
       ],
