@@ -46,9 +46,10 @@
 #include "starboard/time_zone.h"
 #include "starboard/ui_navigation.h"
 
-#define REGISTER_SYMBOL(s)                           \
-    do {                                             \
-      map_[#s] = reinterpret_cast<const void*>(s);   \
+#define REGISTER_SYMBOL(s) REGISTER_SYMBOL_AS(s, s)
+#define REGISTER_SYMBOL_AS(k, v)                    \
+    do {                                            \
+      map_[#k] = reinterpret_cast<const void*>(&v); \
     } while (0)
 
 namespace starboard {

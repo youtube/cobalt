@@ -97,13 +97,6 @@
           ],
           'conditions': [
             ['clang and target_os not in ["tvos", "android", "orbis"] and sb_target_platform not in ["linux-x64x11-clang-3-6", "linux-x86x11"]', {
-              'dependencies': [
-                '<(DEPTH)/third_party/musl/musl.gyp:c',
-                '<(DEPTH)/third_party/llvm-project/compiler-rt/compiler-rt.gyp:compiler_rt',
-                '<(DEPTH)/third_party/llvm-project/libunwind/libunwind.gyp:unwind',
-                '<(DEPTH)/third_party/llvm-project/libcxxabi/libcxxabi.gyp:cxxabi',
-                '<(DEPTH)/third_party/llvm-project/libcxx/libcxx.gyp:cxx',
-              ],
               'includes': [ '<(DEPTH)/cobalt/browser/cobalt_evergreen.gypi' ],
             }],
             ['cobalt_splash_screen_file != ""', {
