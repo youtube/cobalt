@@ -309,24 +309,11 @@
         '<(DEPTH)/testing/gtest.gyp:gtest',
       ],
       'conditions': [
-        ['sb_evergreen == 1', {
-          'dependencies': [
-            '<(DEPTH)/starboard/client_porting/eztime/eztime.gyp:eztime',
-            '<(DEPTH)/third_party/llvm-project/compiler-rt/compiler-rt.gyp:compiler_rt',
-            '<(DEPTH)/third_party/llvm-project/libcxx/libcxx.gyp:cxx',
-            '<(DEPTH)/third_party/llvm-project/libcxxabi/libcxxabi.gyp:cxxabi',
-            '<(DEPTH)/third_party/llvm-project/libunwind/libunwind.gyp:unwind',
-            '<(DEPTH)/third_party/musl/musl.gyp:c',
-          ],
-        }, {
+        ['sb_evergreen != 1', {
           'sources': [
-            # Segfaults for Cobalt Evergreen, need to debug.
+            # Segfaults for Cobalt Evergreen.
             'memory_reporter_test.cc',
-          ],
-        }],
-        ['sb_evergreen != 1 or target_arch != "arm"', {
-          'sources': [
-            # Sefaults for arm32 Cobalt Evergreen, need to debug.
+            # Segfaults or causes unresolved symbols for Cobalt Evergreen.
             'media_set_audio_write_duration_test.cc',
           ],
         }],
