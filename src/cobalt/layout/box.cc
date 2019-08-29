@@ -207,6 +207,56 @@ Vector2dLayoutUnit Box::GetContainingBlockOffsetFromItsContentBox(
              : Vector2dLayoutUnit();
 }
 
+RectLayoutUnit Box::GetTransformedBoxFromRoot(
+    const RectLayoutUnit& box_from_margin_box) const {
+  return GetTransformedBoxFromContainingBlock(nullptr, box_from_margin_box);
+}
+
+RectLayoutUnit Box::GetTransformedBoxFromContainingBlock(
+    const ContainerBox* containing_block,
+    const RectLayoutUnit& box_from_margin_box) const {
+  // Get the transform for the margin box from the containing block and
+  // add the box offset from the margin box to the beginning of the transform.
+  math::Matrix3F transform =
+      GetMarginBoxTransformFromContainingBlock(containing_block) *
+      math::TranslateMatrix(box_from_margin_box.x().toFloat(),
+                            box_from_margin_box.y().toFloat());
+
+  // Transform the box.
+  const int kNumPoints = 4;
+  math::PointF box_corners[kNumPoints] = {
+      {0.0f, 0.0f},
+      {box_from_margin_box.width().toFloat(), 0.0f},
+      {0.0f, box_from_margin_box.height().toFloat()},
+      {box_from_margin_box.width().toFloat(),
+       box_from_margin_box.height().toFloat()},
+  };
+
+  for (int i = 0; i < kNumPoints; ++i) {
+    box_corners[i] = transform * box_corners[i];
+  }
+
+  // Return the bounding box for the transformed points.
+  math::PointF min_corner(box_corners[0]);
+  math::PointF max_corner(box_corners[0]);
+  for (int i = 1; i < kNumPoints; ++i) {
+    min_corner.SetToMin(box_corners[i]);
+    max_corner.SetToMax(box_corners[i]);
+  }
+
+  return RectLayoutUnit(LayoutUnit(min_corner.x()), LayoutUnit(min_corner.y()),
+                        LayoutUnit(max_corner.x() - min_corner.x()),
+                        LayoutUnit(max_corner.y() - min_corner.y()));
+}
+
+RectLayoutUnit Box::GetTransformedBoxFromContainingBlockContentBox(
+    const ContainerBox* containing_block,
+    const RectLayoutUnit& box_from_margin_box) const {
+  return GetContainingBlockOffsetFromItsContentBox(containing_block) +
+         GetTransformedBoxFromContainingBlock(containing_block,
+                                              box_from_margin_box);
+}
+
 void Box::SetStaticPositionLeftFromParent(LayoutUnit left) {
   if (left != static_position_offset_from_parent_.x()) {
     static_position_offset_from_parent_.set_x(left);
@@ -374,46 +424,6 @@ RectLayoutUnit Box::GetBorderBoxFromRoot(bool transform_forms_root) const {
                         GetBorderBoxWidth(), GetBorderBoxHeight());
 }
 
-RectLayoutUnit Box::GetTransformedBorderBoxFromRoot() const {
-  return GetTransformedBorderBoxFromContainingBlock(nullptr);
-}
-
-RectLayoutUnit Box::GetTransformedBorderBoxFromContainingBlock(
-    const ContainerBox* containing_block) const {
-  // Get the transform for the margin box from the containing block and
-  // add the border box offset to the beginning of the transform.
-  Vector2dLayoutUnit border_box_offset = GetBorderBoxOffsetFromMarginBox();
-  math::Matrix3F transform =
-      GetMarginBoxTransformFromContainingBlock(containing_block) *
-      math::TranslateMatrix(border_box_offset.x().toFloat(),
-                            border_box_offset.y().toFloat());
-
-  // Transform the border box.
-  const int kNumPoints = 4;
-  math::PointF border_box_corners[kNumPoints] = {
-    { 0.0f, 0.0f },
-    { GetBorderBoxWidth().toFloat(), 0.0f },
-    { 0.0f, GetBorderBoxHeight().toFloat() },
-    { GetBorderBoxWidth().toFloat(), GetBorderBoxHeight().toFloat() },
-  };
-
-  for (int i = 0; i < kNumPoints; ++i) {
-    border_box_corners[i] = transform * border_box_corners[i];
-  }
-
-  // Return the bounding box for the transformed points.
-  math::PointF min_corner(border_box_corners[0]);
-  math::PointF max_corner(border_box_corners[0]);
-  for (int i = 1; i < kNumPoints; ++i) {
-    min_corner.SetToMin(border_box_corners[i]);
-    max_corner.SetToMax(border_box_corners[i]);
-  }
-
-  return RectLayoutUnit(LayoutUnit(min_corner.x()), LayoutUnit(min_corner.y()),
-                        LayoutUnit(max_corner.x() - min_corner.x()),
-                        LayoutUnit(max_corner.y() - min_corner.y()));
-}
-
 LayoutUnit Box::GetBorderBoxWidth() const {
   return border_left_width() + GetPaddingBoxWidth() + border_right_width();
 }
@@ -431,6 +441,11 @@ SizeLayoutUnit Box::GetClampedBorderBoxSize() const {
                         std::max(LayoutUnit(0), GetBorderBoxHeight()));
 }
 
+RectLayoutUnit Box::GetBorderBoxFromMarginBox() const {
+  return RectLayoutUnit(margin_left(), margin_top(), GetBorderBoxWidth(),
+                        GetBorderBoxHeight());
+}
+
 Vector2dLayoutUnit Box::GetBorderBoxOffsetFromRoot(
     bool transform_forms_root) const {
   return GetMarginBoxOffsetFromRoot(transform_forms_root) +
@@ -439,19 +454,6 @@ Vector2dLayoutUnit Box::GetBorderBoxOffsetFromRoot(
 
 Vector2dLayoutUnit Box::GetBorderBoxOffsetFromMarginBox() const {
   return Vector2dLayoutUnit(margin_left(), margin_top());
-}
-
-Vector2dLayoutUnit Box::GetBorderBoxOffsetFromContainingBlock() const {
-  return Vector2dLayoutUnit(GetBorderBoxLeftEdgeOffsetFromContainingBlock(),
-                            GetBorderBoxTopEdgeOffsetFromContainingBlock());
-}
-
-LayoutUnit Box::GetBorderBoxLeftEdgeOffsetFromContainingBlock() const {
-  return left() + GetBorderBoxOffsetFromMarginBox().x();
-}
-
-LayoutUnit Box::GetBorderBoxTopEdgeOffsetFromContainingBlock() const {
-  return top() + GetBorderBoxOffsetFromMarginBox().y();
 }
 
 LayoutUnit Box::GetPaddingBoxWidth() const {
@@ -471,6 +473,11 @@ SizeLayoutUnit Box::GetClampedPaddingBoxSize() const {
                         std::max(LayoutUnit(0), GetPaddingBoxHeight()));
 }
 
+RectLayoutUnit Box::GetPaddingBoxFromMarginBox() const {
+  return RectLayoutUnit(GetPaddingBoxLeftEdgeOffsetFromMarginBox(),
+                        GetPaddingBoxTopEdgeOffsetFromMarginBox(),
+                        GetPaddingBoxWidth(), GetPaddingBoxHeight());
+}
 Vector2dLayoutUnit Box::GetPaddingBoxOffsetFromRoot(
     bool transform_forms_root) const {
   return GetBorderBoxOffsetFromRoot(transform_forms_root) +
@@ -489,17 +496,10 @@ LayoutUnit Box::GetPaddingBoxTopEdgeOffsetFromMarginBox() const {
   return margin_top() + border_top_width();
 }
 
-Vector2dLayoutUnit Box::GetPaddingBoxOffsetFromContainingBlock() const {
-  return Vector2dLayoutUnit(GetPaddingBoxLeftEdgeOffsetFromContainingBlock(),
-                            GetPaddingBoxTopEdgeOffsetFromContainingBlock());
-}
-
-LayoutUnit Box::GetPaddingBoxLeftEdgeOffsetFromContainingBlock() const {
-  return left() + GetPaddingBoxLeftEdgeOffsetFromMarginBox();
-}
-
-LayoutUnit Box::GetPaddingBoxTopEdgeOffsetFromContainingBlock() const {
-  return top() + GetPaddingBoxTopEdgeOffsetFromMarginBox();
+RectLayoutUnit Box::GetContentBoxFromMarginBox() const {
+  return RectLayoutUnit(GetContentBoxLeftEdgeOffsetFromMarginBox(),
+                        GetContentBoxTopEdgeOffsetFromMarginBox(), width(),
+                        height());
 }
 
 Vector2dLayoutUnit Box::GetContentBoxOffsetFromRoot(

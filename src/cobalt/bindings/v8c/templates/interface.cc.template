@@ -16,6 +16,7 @@
 
 {% from 'macros.cc.template' import add_extra_arguments %}
 {% from 'macros.cc.template' import call_cobalt_function %}
+{% from 'macros.cc.template' import get_cobalt_value %}
 {% from 'macros.cc.template' import check_if_object_implements_interface with context %}
 {% from 'macros.cc.template' import constructor_implementation with context %}
 {% from 'macros.cc.template' import function_implementation with context %}
@@ -50,6 +51,7 @@
 #include "cobalt/script/v8c/v8c_property_enumerator.h"
 #include "cobalt/script/v8c/v8c_value_handle.h"
 #include "cobalt/script/v8c/wrapper_private.h"
+#include "cobalt/script/v8c/common_v8c_bindings_code.h"
 #include "v8/include/v8.h"
 
 {% endblock includes %}
@@ -393,42 +395,32 @@ void DummyConstructor(const v8::FunctionCallbackInfo<v8::Value>& info) {
 {% else %}
 void {{attribute.idl_name}}AttributeGetter(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.Holder();
 
-{% if attribute.is_static %}
-{{ static_function_prologue() -}}
-{% endif %}
-
-{% if not attribute.is_static %}
-{{ check_if_object_implements_interface() }}
-{{ nonstatic_function_prologue(impl_class) }}
-{% endif %}
-
-{{ call_cobalt_function(impl_class, attribute.type,
+  script::v8c::shared_bindings::AttributeGetterImpl<{{impl_class}}, {{binding_class}}>(info,
+                    {{ "true" if attribute.is_static else "false"}},
+                    {{ "true" if attribute.type == "void" else "false"}},
+                    [](v8::Isolate* isolate, {{impl_class}}* impl,
+                       cobalt::script::ExceptionState& exception_state,
+                       v8::Local<v8::Value>& result_value) {
+    {{ get_cobalt_value(impl_class, attribute.type,
                         attribute.getter_function_name, [],
                         attribute.raises_exception, attribute.call_with,
                         attribute.is_static) }}
-  if (exception_state.is_exception_set()) {
-    return;
-  }
-  info.GetReturnValue().Set(result_value);
+  });
 }
 
 {% if attribute.has_setter %}
 void {{attribute.idl_name}}AttributeSetter(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.Holder();
-  v8::Local<v8::Value> v8_value = info[0];
-
-{% if attribute.is_static %}
-{{ static_function_prologue() }}
-{% else %}
-{{ check_if_object_implements_interface() }}
-{{ nonstatic_function_prologue(impl_class)}}
-{% endif %} {#- attribute.is_static #}
+  script::v8c::shared_bindings::AttributeSetterImpl<{{impl_class}}, {{binding_class}}>(info,
+                    {{ "true" if attribute.is_static else "false"}},
+                    {{ "true" if attribute.type == "void" else "false"}},
+                    [](v8::Isolate* isolate, {{impl_class}}* impl,
+                       V8cExceptionState& exception_state,
+                       v8::Local<v8::Value>& result_value,
+                       v8::Local<v8::Value> v8_value) {
 {{ set_attribute_implementation(attribute, impl_class) -}}
+  });
 }
 {% endif %} {#- attribute.has_setter #}
 
@@ -466,33 +458,15 @@ void {{operation.idl_name}}{{boundFunctionSuffix}}(const v8::FunctionCallbackInf
 
 {% if stringifier %}
 void Stringifier(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.Holder();
-  V8cExceptionState exception_state(isolate);
+  auto* impl = script::v8c::shared_bindings::get_impl_class_from_info<{{impl_class}}, {{binding_class}}>(info);
 
-  {{ check_if_object_implements_interface() }}
-
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-
-  // |WrapperPrivate::GetFromObject| can fail if |object| is not a |Wrapper|
-  // object.
-  if (!wrapper_private) {
-    exception_state.SetSimpleException(cobalt::script::kStringifierProblem);
-    return;
-  }
-
-  {{impl_class}}* impl =
-      wrapper_private->wrappable<{{impl_class}}>().get();
   if (!impl) {
-    exception_state.SetSimpleException(cobalt::script::kStringifierProblem);
-    NOTREACHED();
     return;
   }
   std::string stringified = impl->{{stringifier.name}}();
 
   v8::Local<v8::Value> v8_stringified;
-  ToJSValue(isolate, stringified, &v8_stringified);
+  ToJSValue(info.GetIsolate(), stringified, &v8_stringified);
 
   info.GetReturnValue().Set(v8_stringified);
 }
@@ -570,12 +544,7 @@ void InitializeTemplate(v8::Isolate* isolate) {
     // A spicy hack from Chromium in order to achieve
     // https://heycam.github.io/webidl/#es-DOMException-specialness
     // See https://cs.chromium.org/chromium/src/third_party/WebKit/Source/bindings/templates/interface_base.cpp.tmpl?l=630&rcl=0f7c2c752bb24ad08c17017e4e68401093fe76a0
-    v8::Local<v8::FunctionTemplate> intrinsic_error_prototype_interface_template =
-        v8::FunctionTemplate::New(isolate);
-    intrinsic_error_prototype_interface_template->RemovePrototype();
-    intrinsic_error_prototype_interface_template->SetIntrinsicDataProperty(
-        NewInternalString(isolate, "prototype"), v8::kErrorPrototype);
-    function_template->Inherit(intrinsic_error_prototype_interface_template);
+    script::v8c::shared_bindings::set_intrinsic_error_prototype_interface_template(isolate, function_template);
   }
 {% endif %}
 
@@ -631,59 +600,27 @@ void InitializeTemplate(v8::Isolate* isolate) {
 #if defined({{attribute.conditional}})
 {% endif %}
   {
-    // The name of the property is the identifier of the attribute.
-    v8::Local<v8::String> name = NewInternalString(
-        isolate,
-        "{{attribute.idl_name}}");
+{% if not attribute.is_constructor_attribute %}
 
+    script::v8c::shared_bindings::set_property_for_nonconstructor_attribute(
+                  isolate,
     // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
     // true, [[Configurable]]: configurable }, where: configurable is false if
     // the attribute was declared with the [Unforgeable] extended attribute and
     // true otherwise;
-    bool configurable = {{ "false" if attribute.is_unforgeable else "true"}};
-    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
-        configurable ? v8::None : v8::DontDelete);
-
-    // G is the attribute getter created given the attribute, the interface, and
-    // the relevant Realm of the object that is the location of the property;
-    // and
-    //
-    // S is the attribute setter created given the attribute, the interface, and
-    // the relevant Realm of the object that is the location of the property.
-{% if not attribute.is_constructor_attribute %}
-    v8::Local<v8::FunctionTemplate> getter =
-        v8::FunctionTemplate::New(isolate, {{attribute.idl_name}}AttributeGetter);
+                  {{ "false" if attribute.is_unforgeable else "true"}},
+                  {{ "true" if attribute.has_setter else "false"}},
+                  {{ "true" if attribute.on_interface else "false"}},
+                  {{ "true" if attribute.on_instance else "false"}},
+                  function_template,
+                  instance_template,
+                  prototype_template,
+                  "{{attribute.idl_name}}"
+                  ,{{attribute.idl_name}}AttributeGetter
 {% if attribute.has_setter %}
-    v8::Local<v8::FunctionTemplate> setter =
-        v8::FunctionTemplate::New(isolate, {{attribute.idl_name}}AttributeSetter);
-{% else %}
-    v8::Local<v8::FunctionTemplate> setter;
+                  ,{{attribute.idl_name}}AttributeSetter
 {% endif %}
-
-    // The location of the property is determined as follows:
-{% if attribute.on_interface %}
-    // Operations installed on the interface object must be static methods, so
-    // no need to specify a signature, i.e. no need to do type check against a
-    // holder.
-
-    // If the attribute is a static attribute, then there is a single
-    // corresponding property and it exists on the interface's interface object.
-    function_template->
-{% elif attribute.on_instance %}
-    // Otherwise, if the attribute is unforgeable on the interface or if the
-    // interface was declared with the [Global] extended attribute, then the
-    // property exists on every object that implements the interface.
-    instance_template->
-{% else %}
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
-    prototype_template->
-{% endif %}
-        SetAccessorProperty(
-            name,
-            getter,
-            setter,
-            attributes);
+                  );
 
 {% else %} {#- not attribute.is_constructor_attribute #}
     {
@@ -701,7 +638,6 @@ void InitializeTemplate(v8::Isolate* isolate) {
 {% endif %}
       );
     }
-
 {% endif %} {#- not attribute.is_constructor_attribute #}
   }
 {% if attribute.conditional %}

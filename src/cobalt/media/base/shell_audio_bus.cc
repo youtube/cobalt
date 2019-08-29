@@ -362,25 +362,51 @@ void ShellAudioBus::Mix(const ShellAudioBus& source) {
 void ShellAudioBus::Mix(const ShellAudioBus& source,
                         const std::vector<float>& matrix) {
   DCHECK_EQ(channels() * source.channels(), matrix.size());
-  DCHECK_EQ(sample_type_, kFloat32);
-  DCHECK_EQ(source.sample_type_, kFloat32);
+  DCHECK_EQ(sample_type_, source.sample_type_);
+
   if (channels() * source.channels() != matrix.size() ||
-      sample_type_ != kFloat32 || source.sample_type_ != kFloat32) {
+      sample_type_ != source.sample_type_) {
     ZeroAllFrames();
     return;
   }
 
-  size_t frames = std::min(frames_, source.frames_);
-  for (size_t dest_channel = 0; dest_channel < channels_; ++dest_channel) {
-    for (size_t frame = 0; frame < frames; ++frame) {
-      float mixed_sample = 0.f;
-      for (size_t src_channel = 0; src_channel < source.channels_;
-           ++src_channel) {
-        mixed_sample += source.GetFloat32Sample(src_channel, frame) *
-                        matrix[dest_channel * source.channels_ + src_channel];
+  if (sample_type_ == kFloat32) {
+    size_t frames = std::min(frames_, source.frames_);
+    for (size_t dest_channel = 0; dest_channel < channels_; ++dest_channel) {
+      for (size_t frame = 0; frame < frames; ++frame) {
+        float mixed_sample = 0.f;
+        for (size_t src_channel = 0; src_channel < source.channels_;
+             ++src_channel) {
+          float val = source.GetFloat32Sample(src_channel, frame) *
+                      matrix[dest_channel * source.channels_ + src_channel];
+          mixed_sample += val;
+        }
+        mixed_sample += GetFloat32Sample(dest_channel, frame);
+        SetFloat32Sample(dest_channel, frame, mixed_sample);
       }
-      mixed_sample += GetFloat32Sample(dest_channel, frame);
-      SetFloat32Sample(dest_channel, frame, mixed_sample);
+    }
+  } else {
+    DCHECK_EQ(sample_type_, kInt16);
+    size_t frames = std::min(frames_, source.frames_);
+    for (size_t dest_channel = 0; dest_channel < channels_; ++dest_channel) {
+      for (size_t frame = 0; frame < frames; ++frame) {
+        int mixed_sample = 0;
+        for (size_t src_channel = 0; src_channel < source.channels_;
+             ++src_channel) {
+          mixed_sample += source.GetInt16Sample(src_channel, frame) *
+                          matrix[dest_channel * source.channels_ + src_channel];
+        }
+        mixed_sample += GetInt16Sample(dest_channel, frame);
+        if (mixed_sample > std::numeric_limits<int16>::max()) {
+          SetInt16Sample(dest_channel, frame,
+                         std::numeric_limits<int16>::max());
+        } else if (mixed_sample < std::numeric_limits<int16>::min()) {
+          SetInt16Sample(dest_channel, frame,
+                         std::numeric_limits<int16>::min());
+        } else {
+          SetInt16Sample(dest_channel, frame, mixed_sample);
+        }
+      }
     }
   }
 }

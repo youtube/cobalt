@@ -17,15 +17,17 @@
     # RasPi 2 is ARMv7
     'arm_version': 7,
     'armv7': 1,
+    'arm_fpu': 'neon-vfpv4',
     'arm_neon': 1,
     'arm_float_abi': 'hard',
 
     'compiler_flags': [
       # Optimize for Raspberry Pi 2 chips.
       '-march=armv7-a',
-      '-mtune=cortex-a8',
       '-mfloat-abi=hard',
       '-mfpu=neon-vfpv4',
+      '-mcpu=cortex-a8',
+      '-mtune=cortex-a8',
     ],
   },
 }

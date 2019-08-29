@@ -30,25 +30,43 @@
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 
+#define EGL_CALL_PREFIX SbGetEglInterface()->
+#define GL_CALL_PREFIX SbGetGlInterface()->
+
+#define EGL_CALL(x)                                             \
+  do {                                                          \
+    EGL_CALL_PREFIX x;                                          \
+    SB_DCHECK(EGL_CALL_PREFIX eglGetError() == SB_EGL_SUCCESS); \
+  } while (false)
+
+#define GL_CALL(x)                                            \
+  do {                                                        \
+    GL_CALL_PREFIX x;                                         \
+    SB_DCHECK(GL_CALL_PREFIX glGetError() == SB_GL_NO_ERROR); \
+  } while (false)
+
+#define EGL_CALL_SIMPLE(x) (EGL_CALL_PREFIX x)
+#define GL_CALL_SIMPLE(x) (GL_CALL_PREFIX x)
+
 namespace starboard {
 namespace testing {
 
 namespace {
 
 #if SB_HAS(GLES2)
-EGLint const kAttributeList[] = {EGL_RED_SIZE,
-                                 8,
-                                 EGL_GREEN_SIZE,
-                                 8,
-                                 EGL_BLUE_SIZE,
-                                 8,
-                                 EGL_ALPHA_SIZE,
-                                 8,
-                                 EGL_SURFACE_TYPE,
-                                 EGL_WINDOW_BIT | EGL_PBUFFER_BIT,
-                                 EGL_RENDERABLE_TYPE,
-                                 EGL_OPENGL_ES2_BIT,
-                                 EGL_NONE};
+SbEglInt32 const kAttributeList[] = {SB_EGL_RED_SIZE,
+                                     8,
+                                     SB_EGL_GREEN_SIZE,
+                                     8,
+                                     SB_EGL_BLUE_SIZE,
+                                     8,
+                                     SB_EGL_ALPHA_SIZE,
+                                     8,
+                                     SB_EGL_SURFACE_TYPE,
+                                     SB_EGL_WINDOW_BIT | SB_EGL_PBUFFER_BIT,
+                                     SB_EGL_RENDERABLE_TYPE,
+                                     SB_EGL_OPENGL_ES2_BIT,
+                                     SB_EGL_NONE};
 #endif  // SB_HAS(GLES2)
 
 }  // namespace
@@ -56,9 +74,9 @@ EGLint const kAttributeList[] = {EGL_RED_SIZE,
 FakeGraphicsContextProvider::FakeGraphicsContextProvider()
     :
 #if SB_HAS(GLES2)
-      display_(EGL_NO_DISPLAY),
-      surface_(EGL_NO_SURFACE),
-      context_(EGL_NO_CONTEXT),
+      display_(SB_EGL_NO_DISPLAY),
+      surface_(SB_EGL_NO_SURFACE),
+      context_(SB_EGL_NO_CONTEXT),
 #endif  // SB_HAS(GLES2)
       window_(kSbWindowInvalid) {
   InitializeWindow();
@@ -75,10 +93,8 @@ FakeGraphicsContextProvider::~FakeGraphicsContextProvider() {
       std::bind(&FakeGraphicsContextProvider::DestroyContext, this));
   functor_queue_.Wake();
   SbThreadJoin(decode_target_context_thread_, NULL);
-  eglDestroySurface(display_, surface_);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
-  eglTerminate(display_);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
+  EGL_CALL(eglDestroySurface(display_, surface_));
+  EGL_CALL(eglTerminate(display_));
 #endif  // SB_HAS(GLES2)
   SbWindowDestroy(window_);
 }
@@ -126,18 +142,18 @@ void FakeGraphicsContextProvider::InitializeWindow() {
 
 #if SB_HAS(GLES2)
 void FakeGraphicsContextProvider::InitializeEGL() {
-  display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
-  SB_CHECK(EGL_NO_DISPLAY != display_);
+  display_ = EGL_CALL_SIMPLE(eglGetDisplay(SB_EGL_DEFAULT_DISPLAY));
+  SB_DCHECK(SB_EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError()));
+  SB_CHECK(SB_EGL_NO_DISPLAY != display_);
 
 #if HAS_LEAK_SANITIZER
   __lsan_disable();
 #endif  // HAS_LEAK_SANITIZER
-  eglInitialize(display_, NULL, NULL);
+  EGL_CALL_SIMPLE(eglInitialize(display_, NULL, NULL));
 #if HAS_LEAK_SANITIZER
   __lsan_enable();
 #endif  // HAS_LEAK_SANITIZER
-  SB_CHECK(EGL_SUCCESS == eglGetError());
+  SB_DCHECK(SB_EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError()));
 
   // Some EGL drivers can return a first config that doesn't allow
   // eglCreateWindowSurface(), with no differences in EGLConfig attribute values
@@ -145,50 +161,50 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   // eglCreateWindowSurface() until we find a config that succeeds.
 
   // First, query how many configs match the given attribute list.
-  EGLint num_configs = 0;
-  eglChooseConfig(display_, kAttributeList, NULL, 0, &num_configs);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
+  SbEglInt32 num_configs = 0;
+  EGL_CALL(eglChooseConfig(display_, kAttributeList, NULL, 0, &num_configs));
   SB_CHECK(0 != num_configs);
 
   // Allocate space to receive the matching configs and retrieve them.
-  EGLConfig* configs = reinterpret_cast<EGLConfig*>(
-      SbMemoryAllocate(num_configs * sizeof(EGLConfig)));
-  eglChooseConfig(display_, kAttributeList, configs, num_configs, &num_configs);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
+  SbEglConfig* configs = reinterpret_cast<SbEglConfig*>(
+      SbMemoryAllocate(num_configs * sizeof(SbEglConfig)));
+  EGL_CALL(eglChooseConfig(display_, kAttributeList, configs, num_configs,
+                           &num_configs));
 
-  EGLNativeWindowType native_window =
-      (EGLNativeWindowType)SbWindowGetPlatformHandle(window_);
-  EGLConfig config = EGLConfig();
+  SbEglNativeWindowType native_window =
+      (SbEglNativeWindowType)SbWindowGetPlatformHandle(window_);
+  SbEglConfig config = SbEglConfig();
 
   // Find the first config that successfully allow a window surface to be
   // created.
   for (int config_number = 0; config_number < num_configs; ++config_number) {
     config = configs[config_number];
-    surface_ = eglCreateWindowSurface(display_, config, native_window, NULL);
-    if (EGL_SUCCESS == eglGetError())
+    surface_ = EGL_CALL_SIMPLE(
+        eglCreateWindowSurface(display_, config, native_window, NULL));
+    if (SB_EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError()))
       break;
   }
-  SB_DCHECK(surface_ != EGL_NO_SURFACE);
+  SB_DCHECK(surface_ != SB_EGL_NO_SURFACE);
 
   SbMemoryDeallocate(configs);
 
   // Create the GLES2 or GLEX3 Context.
-  EGLint context_attrib_list[] = {
-      EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE,
+  SbEglInt32 context_attrib_list[] = {
+      SB_EGL_CONTEXT_CLIENT_VERSION, 3, SB_EGL_NONE,
   };
 #if defined(GLES3_SUPPORTED)
   // Attempt to create an OpenGL ES 3.0 context.
-  context_ =
-      eglCreateContext(display_, config, EGL_NO_CONTEXT, context_attrib_list);
+  context_ = EGL_CALL_SIMPLE(eglCreateContext(
+      display_, config, SB_EGL_NO_CONTEXT, context_attrib_list));
 #endif
-  if (context_ == EGL_NO_CONTEXT) {
+  if (context_ == SB_EGL_NO_CONTEXT) {
     // Create an OpenGL ES 2.0 context.
     context_attrib_list[1] = 2;
-    context_ =
-        eglCreateContext(display_, config, EGL_NO_CONTEXT, context_attrib_list);
+    context_ = EGL_CALL_SIMPLE(eglCreateContext(
+        display_, config, SB_EGL_NO_CONTEXT, context_attrib_list));
   }
-  SB_CHECK(EGL_SUCCESS == eglGetError());
-  SB_CHECK(context_ != EGL_NO_CONTEXT);
+  SB_CHECK(SB_EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError()));
+  SB_CHECK(context_ != SB_EGL_NO_CONTEXT);
 
   MakeContextCurrent();
 
@@ -240,22 +256,22 @@ void FakeGraphicsContextProvider::OnDecodeTargetGlesContextRunner(
 }
 
 void FakeGraphicsContextProvider::MakeContextCurrent() {
-  SB_CHECK(EGL_NO_DISPLAY != display_);
-  eglMakeCurrent(display_, surface_, surface_, context_);
-  EGLint error = eglGetError();
-  SB_CHECK(EGL_SUCCESS == error) << " eglGetError " << error;
+  SB_CHECK(SB_EGL_NO_DISPLAY != display_);
+  EGL_CALL_SIMPLE(eglMakeCurrent(display_, surface_, surface_, context_));
+  SbEglInt32 error = EGL_CALL_SIMPLE(eglGetError());
+  SB_CHECK(SB_EGL_SUCCESS == error) << " eglGetError " << error;
 }
 
 void FakeGraphicsContextProvider::MakeNoContextCurrent() {
-  eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
+  EGL_CALL(eglMakeCurrent(display_, SB_EGL_NO_SURFACE, SB_EGL_NO_SURFACE,
+                          SB_EGL_NO_CONTEXT));
 }
 
 void FakeGraphicsContextProvider::DestroyContext() {
   MakeNoContextCurrent();
-  eglDestroyContext(display_, context_);
-  EGLint error = eglGetError();
-  SB_CHECK(EGL_SUCCESS == error) << " eglGetError " << error;
+  EGL_CALL_SIMPLE(eglDestroyContext(display_, context_));
+  SbEglInt32 error = EGL_CALL_SIMPLE(eglGetError());
+  SB_CHECK(SB_EGL_SUCCESS == error) << " eglGetError " << error;
 }
 
 // static

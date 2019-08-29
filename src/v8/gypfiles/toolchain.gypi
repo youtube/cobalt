@@ -181,7 +181,7 @@
               'CAN_USE_VFP3_INSTRUCTIONS',
             ],
           }],
-          [ 'arm_fpu=="vfpv3"', {
+          [ 'arm_fpu=="vfpv3" or arm_fpu=="neon-vfpv4"', {
             'defines': [
               'CAN_USE_VFP3_INSTRUCTIONS',
               'CAN_USE_VFP32DREGS',
