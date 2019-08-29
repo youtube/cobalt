@@ -98,10 +98,8 @@ class SbMediaSetAudioWriteDurationTest
     sample_info.buffer_size = player_sample_info.buffer_size;
     sample_info.timestamp = player_sample_info.timestamp;
     sample_info.drm_info = NULL;
-#if SB_API_VERSION >= 11
     sample_info.type = kSbMediaTypeAudio;
     sample_info.audio_sample_info = dmp_reader_.audio_sample_info();
-#endif  // SB_API_VERSION >= 11
 
     SbPlayer player = pending_decoder_status_->player;
     SbMediaType type = pending_decoder_status_->type;
@@ -149,9 +147,7 @@ class SbMediaSetAudioWriteDurationTest
     SbPlayer player = SbPlayerCreate(
         fake_graphics_context_provider_.window(), kSbMediaVideoCodecNone,
         kAudioCodec, kSbDrmSystemInvalid, &audio_sample_info,
-#if SB_API_VERSION >= 11
         NULL /* max_video_capabilities */,
-#endif  // SB_API_VERSION >= 11
         DummyDeallocateSampleFunc, DecoderStatusFunc, PlayerStatusFunc,
         DummyErrorFunc, this /* context */, output_mode,
         fake_graphics_context_provider_.decoder_target_provider());

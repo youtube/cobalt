@@ -132,9 +132,6 @@ TEST_F(SbPlayerTest, NullCallbacks) {
       SbPlayer player = SbPlayerCreate(
           fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
           kSbMediaAudioCodecAac,
-#if SB_API_VERSION < 10
-          SB_PLAYER_NO_DURATION,
-#endif  // SB_API_VERSION < 10
           kSbDrmSystemInvalid, &audio_sample_info,
 #if SB_API_VERSION >= 11
           NULL /* max_video_capabilities */,
@@ -155,9 +152,6 @@ TEST_F(SbPlayerTest, NullCallbacks) {
       SbPlayer player = SbPlayerCreate(
           fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
           kSbMediaAudioCodecAac,
-#if SB_API_VERSION < 10
-          SB_PLAYER_NO_DURATION,
-#endif  // SB_API_VERSION < 10
           kSbDrmSystemInvalid, &audio_sample_info,
 #if SB_API_VERSION >= 11
           NULL /* max_video_capabilities */,
@@ -178,9 +172,6 @@ TEST_F(SbPlayerTest, NullCallbacks) {
       SbPlayer player = SbPlayerCreate(
           fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
           kSbMediaAudioCodecAac,
-#if SB_API_VERSION < 10
-          SB_PLAYER_NO_DURATION,
-#endif  // SB_API_VERSION < 10
           kSbDrmSystemInvalid, &audio_sample_info,
 #if SB_API_VERSION >= 11
           NULL /* max_video_capabilities */,
@@ -202,9 +193,6 @@ TEST_F(SbPlayerTest, NullCallbacks) {
       SbPlayer player = SbPlayerCreate(
           fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
           kSbMediaAudioCodecAac,
-#if SB_API_VERSION < 10
-          SB_PLAYER_NO_DURATION,
-#endif  // SB_API_VERSION < 10
           kSbDrmSystemInvalid, &audio_sample_info,
 #if SB_API_VERSION >= 11
           NULL /* max_video_capabilities */,
@@ -281,9 +269,6 @@ TEST_F(SbPlayerTest, AudioOnly) {
     SbPlayer player = SbPlayerCreate(
         fake_graphics_context_provider_.window(), kSbMediaVideoCodecNone,
         kAudioCodec,
-#if SB_API_VERSION < 10
-        SB_PLAYER_NO_DURATION,
-#endif  // SB_API_VERSION < 10
         kSbDrmSystemInvalid, &audio_sample_info,
 #if SB_API_VERSION >= 11
         NULL /* max_video_capabilities */,
@@ -303,9 +288,7 @@ TEST_F(SbPlayerTest, AudioOnly) {
     SbPlayerDestroy(player);
   }
 }
-#endif  // SB_API_VERSION >= 10
 
-#if SB_API_VERSION >= 10
 TEST_F(SbPlayerTest, MultiPlayer) {
   SbMediaAudioSampleInfo audio_sample_info = GetDefaultAudioSampleInfo();
   SbDrmSystem kDrmSystem = kSbDrmSystemInvalid;
