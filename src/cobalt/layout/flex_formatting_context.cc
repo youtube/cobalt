@@ -29,7 +29,8 @@ FlexFormattingContext::FlexFormattingContext(const LayoutParams& layout_params,
                                              bool direction_is_reversed)
     : layout_params_(layout_params),
       main_direction_is_horizontal_(main_direction_is_horizontal),
-      direction_is_reversed_(direction_is_reversed) {}
+      direction_is_reversed_(direction_is_reversed),
+      fit_content_main_size_(LayoutUnit()) {}
 
 FlexFormattingContext::~FlexFormattingContext() {}
 
@@ -49,29 +50,38 @@ void FlexFormattingContext::UpdateRect(Box* child_box) {
   //   https://www.w3.org/TR/css-flexbox-1/#intrinsic-sizes
   // Note that for column flex-direction, this is the intrinsic cross size.
 
-  // TODO handle !main_direction_is_horizontal_
-  set_shrink_to_fit_width(shrink_to_fit_width() + child_box->width() +
-                          child_box->GetContentToMarginHorizontal());
+  if (main_direction_is_horizontal_) {
+    fit_content_main_size_ = shrink_to_fit_width() + child_box->width() +
+                             child_box->GetContentToMarginHorizontal();
+    set_shrink_to_fit_width(fit_content_main_size_);
+  } else {
+    fit_content_main_size_ +=
+        child_box->height() + child_box->GetContentToMarginVertical();
+  }
   set_auto_height(child_box->height());
 }
 
 void FlexFormattingContext::CollectItemIntoLine(
-    std::unique_ptr<FlexItem>&& item) {
+    LayoutUnit main_space, std::unique_ptr<FlexItem>&& item) {
   // Collect flex items into flex lines:
   //   https://www.w3.org/TR/css-flexbox-1/#algo-line-break
   if (lines_.empty()) {
     lines_.emplace_back(new FlexLine(layout_params_,
                                      main_direction_is_horizontal_,
-                                     direction_is_reversed_, main_size_));
+                                     direction_is_reversed_, main_space));
+    fit_content_main_size_ = LayoutUnit();
   }
 
+  DCHECK(!lines_.empty());
   if (multi_line_ && !lines_.back()->CanAddItem(*item)) {
     lines_.emplace_back(new FlexLine(layout_params_,
                                      main_direction_is_horizontal_,
-                                     direction_is_reversed_, main_size_));
+                                     direction_is_reversed_, main_space));
   }
 
   lines_.back()->AddItem(std::move(item));
+  fit_content_main_size_ =
+      std::max(fit_content_main_size_, lines_.back()->items_outer_main_size());
 }
 
 void FlexFormattingContext::ResolveFlexibleLengthsAndCrossSizes(
@@ -201,11 +211,6 @@ void FlexFormattingContext::ResolveFlexibleLengthsAndCrossSizes(
 }
 
 LayoutUnit FlexFormattingContext::GetBaseline() {
-  if (!main_direction_is_horizontal_) {
-    // TODO: implement this for column flex containers.
-    NOTIMPLEMENTED() << "Column flex boxes not yet implemented.";
-  }
-
   LayoutUnit baseline = cross_size_;
   if (!lines_.empty()) {
     if (direction_is_reversed_ && !main_direction_is_horizontal_) {

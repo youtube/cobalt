@@ -59,6 +59,14 @@
       ],
     },
     {
+      'target_name': 'ffmpeg.58.35.100',
+      'type': '<(library)',
+      'sources': [ '<@(ffmpeg_specialization_sources)' ],
+      'dependencies': [
+        '<(DEPTH)/third_party/ffmpeg_includes/ffmpeg_includes.gyp:ffmpeg.58.35.100',
+      ],
+    },
+    {
       'target_name': 'ffmpeg_dynamic_load',
       'type': '<(library)',
       'sources': [
@@ -68,6 +76,7 @@
         '<@(ffmpeg_dispatch_sources)',
       ],
       'dependencies': [
+        'ffmpeg.58.35.100',
         'ffmpeg.57.107.100',
         'libav.54.35.1',
         'libav.56.1.0',

@@ -17,15 +17,15 @@
 
 #include "starboard/client_porting/poem/string_leaks_poem.h"
 
-#include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
-
 #include <dlfcn.h>
+
 #include <map>
 
 #include "starboard/common/log.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/common/string.h"
 #include "starboard/once.h"
+#include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
 #include "starboard/shared/starboard/lazy_initialization_internal.h"
 
 namespace starboard {
@@ -163,33 +163,29 @@ bool FFMPEGDispatchImpl::OpenLibraries() {
   for (auto version_iterator = versions_.rbegin();
        version_iterator != versions_.rend(); ++version_iterator) {
     LibraryMajorVersions& versions = version_iterator->second;
-    avutil_ = dlopen(
-        GetVersionedLibraryName(kAVUtilLibraryName, versions.avutil).c_str(),
-        RTLD_NOW | RTLD_GLOBAL);
+    std::string library_file =
+        GetVersionedLibraryName(kAVUtilLibraryName, versions.avutil);
+    avutil_ = dlopen(library_file.c_str(), RTLD_NOW | RTLD_GLOBAL);
     if (!avutil_) {
-      SB_DLOG(WARNING) << "Unable to open shared library "
-                       << kAVUtilLibraryName;
+      SB_DLOG(WARNING) << "Unable to open shared library " << library_file;
       continue;
     }
 
-    avcodec_ = dlopen(
-        GetVersionedLibraryName(kAVCodecLibraryName, versions.avcodec).c_str(),
-        RTLD_NOW | RTLD_GLOBAL);
+    library_file =
+        GetVersionedLibraryName(kAVCodecLibraryName, versions.avcodec);
+    avcodec_ = dlopen(library_file.c_str(), RTLD_NOW | RTLD_GLOBAL);
     if (!avcodec_) {
-      SB_DLOG(WARNING) << "Unable to open shared library "
-                       << kAVCodecLibraryName;
+      SB_DLOG(WARNING) << "Unable to open shared library " << library_file;
       dlclose(avutil_);
       avutil_ = NULL;
       continue;
     }
 
-    avformat_ =
-        dlopen(GetVersionedLibraryName(kAVFormatLibraryName, versions.avformat)
-                   .c_str(),
-               RTLD_NOW | RTLD_GLOBAL);
+    library_file =
+        GetVersionedLibraryName(kAVFormatLibraryName, versions.avformat);
+    avformat_ = dlopen(library_file.c_str(), RTLD_NOW | RTLD_GLOBAL);
     if (!avformat_) {
-      SB_DLOG(WARNING) << "Unable to open shared library "
-                       << kAVFormatLibraryName;
+      SB_DLOG(WARNING) << "Unable to open shared library " << library_file;
       dlclose(avcodec_);
       avcodec_ = NULL;
       dlclose(avutil_);
@@ -198,6 +194,36 @@ bool FFMPEGDispatchImpl::OpenLibraries() {
     }
     SB_DCHECK(is_valid());
     break;
+  }
+  if (!is_valid()) {
+    // Attempt to load the libraries without a version number.
+    // This allows loading of the libraries on machines where a versioned and
+    // supported library is not available. Additionally, if this results in a
+    // library version being loaded that is not supported, then the decoder
+    // instantiation can output a more informative log message.
+    avutil_ = dlopen(kAVUtilLibraryName, RTLD_NOW | RTLD_GLOBAL);
+    if (!avutil_) {
+      SB_DLOG(WARNING) << "Unable to open shared library "
+                       << kAVUtilLibraryName;
+    }
+
+    avcodec_ = dlopen(kAVCodecLibraryName, RTLD_NOW | RTLD_GLOBAL);
+    if (!avcodec_) {
+      SB_DLOG(WARNING) << "Unable to open shared library "
+                       << kAVCodecLibraryName;
+      dlclose(avutil_);
+      avutil_ = NULL;
+    }
+
+    avformat_ = dlopen(kAVFormatLibraryName, RTLD_NOW | RTLD_GLOBAL);
+    if (!avformat_) {
+      SB_DLOG(WARNING) << "Unable to open shared library "
+                       << kAVFormatLibraryName;
+      dlclose(avcodec_);
+      avcodec_ = NULL;
+      dlclose(avutil_);
+      avutil_ = NULL;
+    }
   }
   return is_valid();
 }

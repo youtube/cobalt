@@ -23,6 +23,8 @@
         'callback_function_conversion.h',
         'cobalt_platform.cc',
         'cobalt_platform.h',
+        'common_v8c_bindings_code.cc',
+        'common_v8c_bindings_code.h',
         'conversion_helpers.cc',
         'conversion_helpers.h',
         'entry_scope.h',

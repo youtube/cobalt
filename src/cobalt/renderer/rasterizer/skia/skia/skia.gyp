@@ -3,9 +3,6 @@
 # found in the LICENSE file.
 
 {
-  'variables': {
-    'optimize_target_for_speed': 1,
-  },
   'targets': [
     {
       # This is the target that all Cobalt modules should depend on if they
@@ -24,6 +21,14 @@
       'export_dependent_settings': [
         'skia_library',
       ],
+      'conditions': [
+        # Skia should normally be optimized for speed. However, the direct-gles
+        # rasterizer rarely uses skia and normally caches its output anyway, so
+        # optimize skia for size in its case.
+        ['rasterizer_type != "direct-gles"', {
+          'variables': { 'optimize_target_for_speed': 1 },
+        }],
+      ],
     },
 
     {
@@ -34,6 +39,14 @@
         'skia_common.gypi',
         'skia_library.gypi',
         'skia_sksl.gypi',
+      ],
+      'conditions': [
+        # Skia should normally be optimized for speed. However, the direct-gles
+        # rasterizer rarely uses skia and normally caches its output anyway, so
+        # optimize skia for size in its case.
+        ['rasterizer_type != "direct-gles"', {
+          'variables': { 'optimize_target_for_speed': 1 },
+        }],
       ],
     },
 
