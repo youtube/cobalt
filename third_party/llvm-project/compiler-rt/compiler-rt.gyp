@@ -44,6 +44,36 @@
         'lib/builtins/udivmodti4.c',
         'lib/builtins/umodti3.c',
       ],
+      'conditions': [
+        ['sb_evergreen == 1 and target_arch == "arm"', {
+          'sources': [
+            'lib/builtins/divdi3.c',
+            'lib/builtins/divmoddi4.c',
+            'lib/builtins/divmodsi4.c',
+            'lib/builtins/divsi3.c',
+            'lib/builtins/fixdfdi.c',
+            'lib/builtins/fixsfdi.c',
+            'lib/builtins/fixunsdfdi.c',
+            'lib/builtins/fixunssfdi.c',
+            'lib/builtins/floatdidf.c',
+            'lib/builtins/floatdisf.c',
+            'lib/builtins/floatundidf.c',
+            'lib/builtins/floatundisf.c',
+            'lib/builtins/udivmoddi4.c',
+            'lib/builtins/udivmodsi4.c',
+            'lib/builtins/udivsi3.c',
+
+            'lib/builtins/arm/aeabi_idivmod.S',
+            'lib/builtins/arm/aeabi_ldivmod.S',
+            'lib/builtins/arm/aeabi_memcmp.S',
+            'lib/builtins/arm/aeabi_memcpy.S',
+            'lib/builtins/arm/aeabi_memmove.S',
+            'lib/builtins/arm/aeabi_memset.S',
+            'lib/builtins/arm/aeabi_uidivmod.S',
+            'lib/builtins/arm/aeabi_uldivmod.S',
+          ],
+        }],
+      ]
     }
   ]
 }
