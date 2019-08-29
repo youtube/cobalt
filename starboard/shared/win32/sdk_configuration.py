@@ -144,6 +144,10 @@ class SdkConfiguration:
       sdk_installer.InstallSdkIfNecessary('winsdk', self.required_sdk_version)
 
     self.windows_sdk_path = os.path.dirname(self.windows_sdk_bin_dir)
+    # Fix path to the SDK root, regardless if environment variables point to
+    # bin or parent dir.
+    if os.path.basename(self.windows_sdk_path) == 'bin':
+      self.windows_sdk_path = os.path.abspath(os.path.join(self.windows_sdk_path,'..'))
 
     # Maybe override Visual Studio install directory with environment variable.
     self.vs_install_dir = \
