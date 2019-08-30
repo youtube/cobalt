@@ -42,6 +42,7 @@
       ['clang==1', {
         'linker_flags': [
           '-fuse-ld=lld',
+          '-nostdlib',
         ],
         'common_clang_flags': [
           '-fcolor-diagnostics',
