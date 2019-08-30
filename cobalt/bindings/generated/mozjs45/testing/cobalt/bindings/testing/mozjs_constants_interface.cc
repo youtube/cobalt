@@ -143,48 +143,8 @@ bool DummyConstructor(JSContext* context, unsigned int argc, JS::Value* vp) {
   return false;
 }
 
-bool get_INTEGER_CONSTANT(
-    JSContext* context, unsigned argc, JS::Value* vp) {
-  COMPILE_ASSERT(ConstantsInterface::kIntegerConstant == 5,
-                 ValueForConstantsInterface_kIntegerConstantDoesNotMatchIDL);
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
-  if (!args.thisv().isObject()) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kTypeError, "Invalid this.");
-    return false;
-  }
-  JS::RootedObject object(context, &args.thisv().toObject());
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-  ToJSValue(context, 5, &result_value);
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
-  return !exception_state.is_exception_set();
-}
-bool get_DOUBLE_CONSTANT(
-    JSContext* context, unsigned argc, JS::Value* vp) {
-  DCHECK_EQ(2.718, ConstantsInterface::kDoubleConstant) <<
-      "The value for ConstantsInterface::kDoubleConstant does not match "
-      "the value in the interface definition.";
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
-  if (!args.thisv().isObject()) {
-    MozjsExceptionState exception(context);
-    exception.SetSimpleException(script::kTypeError, "Invalid this.");
-    return false;
-  }
-  JS::RootedObject object(context, &args.thisv().toObject());
-  MozjsExceptionState exception_state(context);
-  JS::RootedValue result_value(context);
-  ToJSValue(context, 2.718, &result_value);
-  if (!exception_state.is_exception_set()) {
-    args.rval().set(result_value);
-  }
-  return !exception_state.is_exception_set();
-}
-
 bool HasInstance(JSContext *context, JS::HandleObject type,
-                   JS::MutableHandleValue vp, bool *success) {
+                 JS::MutableHandleValue vp, bool *success) {
   JS::RootedObject global_object(
       context, JS_GetGlobalForObject(context, type));
   DCHECK(global_object);
@@ -242,21 +202,7 @@ const JSClass interface_object_class_definition = {
 };
 
 
-
 const JSPropertySpec prototype_properties[] = {
-  {
-      "INTEGER_CONSTANT",
-      JSPROP_PERMANENT | JSPROP_SHARED | JSPROP_ENUMERATE,
-      { { &get_INTEGER_CONSTANT, NULL } },
-      JSNATIVE_WRAPPER(NULL)
-  },
-  {
-      "DOUBLE_CONSTANT",
-      JSPROP_PERMANENT | JSPROP_SHARED | JSPROP_ENUMERATE,
-      { { &get_DOUBLE_CONSTANT, NULL } },
-      JSNATIVE_WRAPPER(NULL)
-  },
-
   JS_PS_END
 };
 
@@ -265,19 +211,6 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
-  {
-    "INTEGER_CONSTANT",
-    JSPROP_SHARED | JSPROP_ENUMERATE,
-    { { &get_INTEGER_CONSTANT, NULL } },
-    JSNATIVE_WRAPPER(NULL),
-  },
-  {
-    "DOUBLE_CONSTANT",
-    JSPROP_SHARED | JSPROP_ENUMERATE,
-    { { &get_DOUBLE_CONSTANT, NULL } },
-    JSNATIVE_WRAPPER(NULL),
-  },
-
   JS_PS_END
 };
 
@@ -343,10 +276,33 @@ void InitializePrototypeAndInterfaceObject(
       NULL, NULL);
   DCHECK(success);
 
-  // Define interface object properties (including constants).
+  // Define constants.
+  {
+    success = JS_DefineProperty(context, rooted_prototype,
+        "INTEGER_CONSTANT", 5,
+        JSPROP_READONLY | JSPROP_ENUMERATE | JSPROP_PERMANENT, NULL, NULL);
+    DCHECK(success);
+    success = JS_DefineProperty(context, rooted_interface_object,
+        "INTEGER_CONSTANT", 5,
+        JSPROP_READONLY | JSPROP_ENUMERATE | JSPROP_PERMANENT, NULL, NULL);
+    DCHECK(success);
+  }
+  {
+    success = JS_DefineProperty(context, rooted_prototype,
+        "DOUBLE_CONSTANT", 2.718,
+        JSPROP_READONLY | JSPROP_ENUMERATE | JSPROP_PERMANENT, NULL, NULL);
+    DCHECK(success);
+    success = JS_DefineProperty(context, rooted_interface_object,
+        "DOUBLE_CONSTANT", 2.718,
+        JSPROP_READONLY | JSPROP_ENUMERATE | JSPROP_PERMANENT, NULL, NULL);
+    DCHECK(success);
+  }
+
+  // Define interface object properties (excluding constants).
   success = JS_DefineProperties(context, rooted_interface_object,
                                 interface_object_properties);
   DCHECK(success);
+
   // Define interface object functions (static).
   success = JS_DefineFunctions(context, rooted_interface_object,
                                interface_object_functions);

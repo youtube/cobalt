@@ -143,9 +143,8 @@ bool DummyConstructor(JSContext* context, unsigned int argc, JS::Value* vp) {
   return false;
 }
 
-
 bool HasInstance(JSContext *context, JS::HandleObject type,
-                   JS::MutableHandleValue vp, bool *success) {
+                 JS::MutableHandleValue vp, bool *success) {
   JS::RootedObject global_object(
       context, JS_GetGlobalForObject(context, type));
   DCHECK(global_object);
@@ -364,7 +363,6 @@ bool Stringifier(JSContext* context, unsigned argc, JS::Value *vp) {
 }
 
 const JSPropertySpec prototype_properties[] = {
-
   {  // Read/Write property
     "theStringifierAttribute",
     JSPROP_SHARED | JSPROP_ENUMERATE,
@@ -380,7 +378,6 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
-
   JS_PS_END
 };
 
@@ -446,10 +443,11 @@ void InitializePrototypeAndInterfaceObject(
       NULL, NULL);
   DCHECK(success);
 
-  // Define interface object properties (including constants).
+  // Define interface object properties (excluding constants).
   success = JS_DefineProperties(context, rooted_interface_object,
                                 interface_object_properties);
   DCHECK(success);
+
   // Define interface object functions (static).
   success = JS_DefineFunctions(context, rooted_interface_object,
                                interface_object_functions);
