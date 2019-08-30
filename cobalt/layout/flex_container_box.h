@@ -114,7 +114,11 @@ class FlexContainerBox : public BlockContainerBox {
 
   // First step of the line length determination.
   void DetermineAvailableSpace(const LayoutParams& layout_params,
-                               bool main_direction_is_horizontal);
+                               bool main_direction_is_horizontal,
+                               bool width_depends_on_containing_block,
+                               const base::Optional<LayoutUnit>& maybe_width,
+                               bool height_depends_on_containing_block,
+                               const base::Optional<LayoutUnit>& maybe_height);
 
   // Determine the flex base size and hypothetical main size of the item.
   //   https://www.w3.org/TR/css-flexbox-1/#algo-main-item

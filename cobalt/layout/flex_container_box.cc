@@ -38,22 +38,17 @@ FlexContainerBox::FlexContainerBox(
 FlexContainerBox::~FlexContainerBox() {}
 
 void FlexContainerBox::DetermineAvailableSpace(
-    const LayoutParams& layout_params, bool main_direction_is_horizontal) {
+    const LayoutParams& layout_params, bool main_direction_is_horizontal,
+    bool width_depends_on_containing_block,
+    const base::Optional<LayoutUnit>& maybe_width,
+    bool height_depends_on_containing_block,
+    const base::Optional<LayoutUnit>& maybe_height) {
   // Line Length Determination:
   //   https://www.w3.org/TR/css-flexbox-1/#line-sizing
   // 2. Determine the available main and cross space for the flex items.
   base::Optional<LayoutUnit> main_space;
   base::Optional<LayoutUnit> cross_space;
   bool main_space_depends_on_containing_block;
-
-  bool width_depends_on_containing_block;
-  base::Optional<LayoutUnit> maybe_width = GetUsedWidthIfNotAuto(
-      computed_style(), layout_params.containing_block_size,
-      &width_depends_on_containing_block);
-  bool height_depends_on_containing_block;
-  base::Optional<LayoutUnit> maybe_height = GetUsedHeightIfNotAuto(
-      computed_style(), layout_params.containing_block_size,
-      &height_depends_on_containing_block);
 
   base::Optional<LayoutUnit> min_width = GetUsedMinWidthIfNotAuto(
       computed_style(), layout_params.containing_block_size, NULL);
@@ -175,7 +170,19 @@ void FlexContainerBox::UpdateContentSizeAndMargins(
   //   https://www.w3.org/TR/css-flexbox-1/#line-sizing
   // 2. Determine the available main and cross space for the flex items.
   //      https://www.w3.org/TR/css-flexbox-1/#algo-available
-  DetermineAvailableSpace(layout_params, main_direction_is_horizontal);
+
+  bool width_depends_on_containing_block;
+  base::Optional<LayoutUnit> maybe_width = GetUsedWidthIfNotAuto(
+      computed_style(), layout_params.containing_block_size,
+      &width_depends_on_containing_block);
+  bool height_depends_on_containing_block;
+  base::Optional<LayoutUnit> maybe_height = GetUsedHeightIfNotAuto(
+      computed_style(), layout_params.containing_block_size,
+      &height_depends_on_containing_block);
+
+  DetermineAvailableSpace(layout_params, main_direction_is_horizontal,
+                          width_depends_on_containing_block, maybe_width,
+                          height_depends_on_containing_block, maybe_height);
 
   // 3. Determine the flex base size and hypothetical main size of each item.
   //      https://www.w3.org/TR/css-flexbox-1/#algo-main-item
@@ -209,21 +216,42 @@ void FlexContainerBox::UpdateContentSizeAndMargins(
     }
   }
 
+  base::Optional<LayoutUnit> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
+      computed_style(), layout_params.containing_block_size);
+  base::Optional<LayoutUnit> maybe_margin_right = GetUsedMarginRightIfNotAuto(
+      computed_style(), layout_params.containing_block_size);
+  base::Optional<LayoutUnit> maybe_left = GetUsedLeftIfNotAuto(
+      computed_style(), layout_params.containing_block_size);
+  base::Optional<LayoutUnit> maybe_right = GetUsedRightIfNotAuto(
+      computed_style(), layout_params.containing_block_size);
+
+  base::Optional<LayoutUnit> maybe_margin_top = GetUsedMarginTopIfNotAuto(
+      computed_style(), layout_params.containing_block_size);
+  base::Optional<LayoutUnit> maybe_margin_bottom = GetUsedMarginBottomIfNotAuto(
+      computed_style(), layout_params.containing_block_size);
+
+  if (IsAbsolutelyPositioned()) {
+    UpdateWidthAssumingAbsolutelyPositionedBox(
+        layout_params.containing_block_size.width(), maybe_left, maybe_right,
+        maybe_width, maybe_margin_left, maybe_margin_right, maybe_height);
+
+    base::Optional<LayoutUnit> maybe_top = GetUsedTopIfNotAuto(
+        computed_style(), layout_params.containing_block_size);
+    base::Optional<LayoutUnit> maybe_bottom = GetUsedBottomIfNotAuto(
+        computed_style(), layout_params.containing_block_size);
+
+    UpdateHeightAssumingAbsolutelyPositionedBox(
+        layout_params.containing_block_size.height(), maybe_top, maybe_bottom,
+        maybe_height, maybe_margin_top, maybe_margin_bottom,
+        flex_formatting_context);
+  }
+
   LayoutUnit main_size = LayoutUnit();
   // 4. Determine the main size of the flex container using the rules of the
   // formatting context in which it participates.
   if (main_direction_is_horizontal) {
     if (!layout_params.freeze_width) {
       bool width_depends_on_containing_block = true;
-      base::Optional<LayoutUnit> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
-          computed_style(), layout_params.containing_block_size);
-      base::Optional<LayoutUnit> maybe_margin_right =
-          GetUsedMarginRightIfNotAuto(computed_style(),
-                                      layout_params.containing_block_size);
-      base::Optional<LayoutUnit> maybe_left = GetUsedLeftIfNotAuto(
-          computed_style(), layout_params.containing_block_size);
-      base::Optional<LayoutUnit> maybe_right = GetUsedRightIfNotAuto(
-          computed_style(), layout_params.containing_block_size);
 
       UpdateContentWidthAndMargins(
           layout_params.containing_block_size.width(),
@@ -281,19 +309,8 @@ void FlexContainerBox::UpdateContentSizeAndMargins(
     set_width(flex_formatting_context.cross_size());
   }
 
-  base::Optional<LayoutUnit> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
-      computed_style(), layout_params.containing_block_size);
-  base::Optional<LayoutUnit> maybe_margin_right = GetUsedMarginRightIfNotAuto(
-      computed_style(), layout_params.containing_block_size);
-
   set_margin_left(maybe_margin_left.value_or(LayoutUnit()));
   set_margin_right(maybe_margin_right.value_or(LayoutUnit()));
-
-  base::Optional<LayoutUnit> maybe_margin_top = GetUsedMarginTopIfNotAuto(
-      computed_style(), layout_params.containing_block_size);
-  base::Optional<LayoutUnit> maybe_margin_bottom = GetUsedMarginBottomIfNotAuto(
-      computed_style(), layout_params.containing_block_size);
-
   set_margin_top(maybe_margin_top.value_or(LayoutUnit()));
   set_margin_bottom(maybe_margin_bottom.value_or(LayoutUnit()));
   if (child_boxes().empty()) {
