@@ -103,7 +103,7 @@ void FlexFormattingContext::ResolveFlexibleLengthsAndCrossSizes(
 
   // If the flex container is single-line and has a definite cross size, the
   // cross size of the flex line is the flex container's inner cross size.
-  if (!multi_line_ && cross_space) {
+  if (!multi_line_ && cross_space && !lines_.empty()) {
     lines_.front()->set_cross_size(*cross_space);
   } else {
     // Otherwise, for each flex line:
@@ -115,7 +115,7 @@ void FlexFormattingContext::ResolveFlexibleLengthsAndCrossSizes(
   // If the flex container is single-line, then clamp the line's cross-size
   // to be within the container's computed min and max cross sizes.
   //   https://www.w3.org/TR/css-flexbox-1/#change-201403-clamp-single-line
-  if (!multi_line_) {
+  if (!multi_line_ && !lines_.empty()) {
     LayoutUnit line_cross_size = lines_.front()->cross_size();
     if (min_cross_space && line_cross_size < *min_cross_space) {
       lines_.front()->set_cross_size(*min_cross_space);
