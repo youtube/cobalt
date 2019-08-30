@@ -251,8 +251,6 @@ void FlexContainerBox::UpdateContentSizeAndMargins(
   // formatting context in which it participates.
   if (main_direction_is_horizontal) {
     if (!layout_params.freeze_width) {
-      bool width_depends_on_containing_block = true;
-
       UpdateContentWidthAndMargins(
           layout_params.containing_block_size.width(),
           layout_params.shrink_to_fit_width_forced,
