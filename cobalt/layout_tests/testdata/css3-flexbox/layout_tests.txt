@@ -5,3 +5,5 @@ combined-positioning-tests
 combined-shrinking-and-justify-content
 combined-with-baselines-percentages
 content-based-minimum-size
+flex-items-flexibility
+positioned-containers
