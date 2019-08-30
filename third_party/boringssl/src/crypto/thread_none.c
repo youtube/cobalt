@@ -14,7 +14,7 @@
 
 #include "internal.h"
 
-#if defined(OPENSSL_NO_THREADS) && !defined(STARBOARD)
+#if defined(OPENSSL_NO_THREADS)
 
 void CRYPTO_MUTEX_init(CRYPTO_MUTEX *lock) {}
 
@@ -56,4 +56,4 @@ int CRYPTO_set_thread_local(thread_local_data_t index, void *value,
   return 1;
 }
 
-#endif  // OPENSSL_NO_THREADS && !STARBOARD
+#endif  // OPENSSL_NO_THREADS
