@@ -136,6 +136,7 @@
 #endif
 #endif
 
+#if !defined(STARBOARD)
 #if !defined(OPENSSL_NO_THREADS) && \
     (!defined(OPENSSL_WINDOWS) || defined(__MINGW32__))
 #include <pthread.h>
@@ -149,6 +150,7 @@ OPENSSL_MSVC_PRAGMA(warning(push, 3))
 #include <windows.h>
 OPENSSL_MSVC_PRAGMA(warning(pop))
 #endif
+#endif  // !defined(STARBOARD)
 
 #if defined(__cplusplus)
 extern "C" {
