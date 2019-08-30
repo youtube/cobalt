@@ -149,9 +149,8 @@ bool DummyConstructor(JSContext* context, unsigned int argc, JS::Value* vp) {
   return false;
 }
 
-
 bool HasInstance(JSContext *context, JS::HandleObject type,
-                   JS::MutableHandleValue vp, bool *success) {
+                 JS::MutableHandleValue vp, bool *success) {
   JS::RootedObject global_object(
       context, JS_GetGlobalForObject(context, type));
   DCHECK(global_object);
@@ -773,7 +772,6 @@ bool fcn_nullableBooleanArgument(
   return !exception_state.is_exception_set();
 }
 
-
 bool fcn_nullableBooleanOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -825,7 +823,6 @@ bool fcn_nullableBooleanOperation(
   }
   return !exception_state.is_exception_set();
 }
-
 
 bool fcn_nullableDictionaryArgument(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -891,7 +888,6 @@ bool fcn_nullableDictionaryArgument(
   return !exception_state.is_exception_set();
 }
 
-
 bool fcn_nullableDictionaryOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -943,7 +939,6 @@ bool fcn_nullableDictionaryOperation(
   }
   return !exception_state.is_exception_set();
 }
-
 
 bool fcn_nullableNumericArgument(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -1009,7 +1004,6 @@ bool fcn_nullableNumericArgument(
   return !exception_state.is_exception_set();
 }
 
-
 bool fcn_nullableNumericOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -1061,7 +1055,6 @@ bool fcn_nullableNumericOperation(
   }
   return !exception_state.is_exception_set();
 }
-
 
 bool fcn_nullableObjectArgument(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -1127,7 +1120,6 @@ bool fcn_nullableObjectArgument(
   return !exception_state.is_exception_set();
 }
 
-
 bool fcn_nullableObjectOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -1179,7 +1171,6 @@ bool fcn_nullableObjectOperation(
   }
   return !exception_state.is_exception_set();
 }
-
 
 bool fcn_nullableStringArgument(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -1245,7 +1236,6 @@ bool fcn_nullableStringArgument(
   return !exception_state.is_exception_set();
 }
 
-
 bool fcn_nullableStringOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -1298,10 +1288,7 @@ bool fcn_nullableStringOperation(
   return !exception_state.is_exception_set();
 }
 
-
-
 const JSPropertySpec prototype_properties[] = {
-
   {  // Read/Write property
     "nullableBooleanProperty",
     JSPROP_SHARED | JSPROP_ENUMERATE,
@@ -1370,7 +1357,6 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
-
   JS_PS_END
 };
 
@@ -1436,10 +1422,11 @@ void InitializePrototypeAndInterfaceObject(
       NULL, NULL);
   DCHECK(success);
 
-  // Define interface object properties (including constants).
+  // Define interface object properties (excluding constants).
   success = JS_DefineProperties(context, rooted_interface_object,
                                 interface_object_properties);
   DCHECK(success);
+
   // Define interface object functions (static).
   success = JS_DefineFunctions(context, rooted_interface_object,
                                interface_object_functions);

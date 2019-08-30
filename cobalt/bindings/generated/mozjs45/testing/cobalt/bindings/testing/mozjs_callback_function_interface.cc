@@ -147,9 +147,8 @@ bool DummyConstructor(JSContext* context, unsigned int argc, JS::Value* vp) {
   return false;
 }
 
-
 bool HasInstance(JSContext *context, JS::HandleObject type,
-                   JS::MutableHandleValue vp, bool *success) {
+                 JS::MutableHandleValue vp, bool *success) {
   JS::RootedObject global_object(
       context, JS_GetGlobalForObject(context, type));
   DCHECK(global_object);
@@ -471,7 +470,6 @@ bool fcn_takesFunctionThatReturnsString(
   return !exception_state.is_exception_set();
 }
 
-
 bool fcn_takesFunctionWithNullableParameters(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -535,7 +533,6 @@ bool fcn_takesFunctionWithNullableParameters(
   result_value.set(JS::UndefinedHandleValue);
   return !exception_state.is_exception_set();
 }
-
 
 bool fcn_takesFunctionWithOneParameter(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -601,7 +598,6 @@ bool fcn_takesFunctionWithOneParameter(
   return !exception_state.is_exception_set();
 }
 
-
 bool fcn_takesFunctionWithSeveralParameters(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -665,7 +661,6 @@ bool fcn_takesFunctionWithSeveralParameters(
   result_value.set(JS::UndefinedHandleValue);
   return !exception_state.is_exception_set();
 }
-
 
 bool fcn_takesVoidFunction(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -731,10 +726,7 @@ bool fcn_takesVoidFunction(
   return !exception_state.is_exception_set();
 }
 
-
-
 const JSPropertySpec prototype_properties[] = {
-
   {  // Read/Write property
     "callbackAttribute",
     JSPROP_SHARED | JSPROP_ENUMERATE,
@@ -770,7 +762,6 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
-
   JS_PS_END
 };
 
@@ -836,10 +827,11 @@ void InitializePrototypeAndInterfaceObject(
       NULL, NULL);
   DCHECK(success);
 
-  // Define interface object properties (including constants).
+  // Define interface object properties (excluding constants).
   success = JS_DefineProperties(context, rooted_interface_object,
                                 interface_object_properties);
   DCHECK(success);
+
   // Define interface object functions (static).
   success = JS_DefineFunctions(context, rooted_interface_object,
                                interface_object_functions);
