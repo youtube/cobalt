@@ -324,6 +324,14 @@ WrapResult FlexContainerBox::TryWrapAt(
     WrapAtPolicy wrap_at_policy, WrapOpportunityPolicy wrap_opportunity_policy,
     bool is_line_existence_justified, LayoutUnit available_width,
     bool should_collapse_trailing_white_space) {
+  DCHECK(!IsAbsolutelyPositioned());
+  // Wrapping is not allowed until the line's existence is justified, meaning
+  // that wrapping cannot occur before the box. Given that this box cannot be
+  // split, no wrappable point is available.
+  if (!is_line_existence_justified) {
+    return kWrapResultNoWrap;
+  }
+
   return (GetLevel() == kInlineLevel) ? kWrapResultWrapBefore
                                       : kWrapResultNoWrap;
 }
