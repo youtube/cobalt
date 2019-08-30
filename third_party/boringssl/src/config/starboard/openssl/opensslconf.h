@@ -97,11 +97,6 @@
 #ifndef OPENSSL_NO_WHIRLPOOL
 # define OPENSSL_NO_WHIRLPOOL
 #endif
-// We set OPENSSL_NO_THREADS in boringssl.gyp. Set OPENSSL_THREADS here makes no
-// sense.
-// #ifndef OPENSSL_THREADS
-// # define OPENSSL_THREADS
-// #endif
 
 #ifndef OPENSSL_NO_DYNAMIC_ENGINE
 # define OPENSSL_NO_DYNAMIC_ENGINE
