@@ -77,7 +77,6 @@
           'OPENSSL_NO_SEED',
           'OPENSSL_NO_STORE',
           'OPENSSL_NO_SOCK',  # Added by Cobalt to remove unused socket code.
-          'OPENSSL_NO_THREADS',  # Added by Cobalt to reduce overall threads count.
           'OPENSSL_NO_WHIRLPOOL',
           'OPENSSL_NO_POSIX_IO',
         ],
