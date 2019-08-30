@@ -1,0 +1,11 @@
+# DOMException
+ecmascript-binding/es-exceptions/DOMException-constants.any.html,PASS
+# Fails because Cobalt IDL type 'exception' is enumerable.
+ecmascript-binding/es-exceptions/DOMException-constructor-and-prototype.any.html,DISABLE
+# Fails because Cobalt converts undefined to the DOMString "undefined" rather
+# than taking on the default value specified in the IDL.
+ecmascript-binding/es-exceptions/DOMException-constructor-behavior.any.html,DISABLE
+# Fails because typeof DOMException does not match typeof Error.
+ecmascript-binding/es-exceptions/DOMException-custom-bindings.any.html,DISABLE
+# Fails because iframes are not supported.
+ecmascript-binding/es-exceptions/exceptions.html,DISABLE
