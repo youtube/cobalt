@@ -40,6 +40,10 @@
 
 #include <cstdlib>
 
+#if defined(ANDROID) && SB_IS(ARCH_ARM)
+#include <asm/hwcap.h>
+#endif
+
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/cpu_features.h"
 
@@ -49,7 +53,8 @@ namespace {
 
 #if SB_IS(ARCH_ARM)
 
-#if SB_IS(32_BIT)
+// Android hwcap.h defines these flags conditionally, depending on target arch
+#if SB_IS(32_BIT) || defined(ANDROID)
 // See <arch/arm/include/uapi/asm/hwcap.h> kernel header.
 #define HWCAP_VFP (1 << 6)
 #define HWCAP_IWMMXT (1 << 9)

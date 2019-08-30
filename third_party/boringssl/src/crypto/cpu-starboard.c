@@ -72,7 +72,7 @@ static bool starboard_cpuid_setup_x86(void) {
 static bool starboard_cpuid_setup_x86(void) { return true; }
 #endif // defined(OPENSSL_X86 || OPENSSL_X86_64)
 
-#if defined(OPENSSL_ARM)
+#if defined(OPENSSL_ARM) || defined(OPENSSL_AARCH64)
 
 #include <openssl/arm_arch.h>
 
@@ -108,7 +108,7 @@ static bool starboard_cpuid_setup_arm() {
 
 #else
 static bool starboard_cpuid_setup_arm(void) { return true; }
-#endif // OPENSSL_ARM
+#endif // OPENSSL_ARM || OPENSSL_AARCH64
 
 void OPENSSL_cpuid_setup_starboard(void) {
     if (!starboard_cpuid_setup_arm() ||
