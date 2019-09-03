@@ -33,6 +33,7 @@ H5vcc::H5vcc(const Settings& settings, const scoped_refptr<dom::Window>& window,
 #if defined(COBALT_ENABLE_SSO)
   sso_ = new H5vccSso();
 #endif
+  storage_ = new H5vccStorage(settings.network_module);
   system_ = new H5vccSystem();
   trace_event_ = new H5vccTraceEvent();
 }
@@ -46,6 +47,7 @@ void H5vcc::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(runtime_);
   tracer->Trace(settings_);
   tracer->Trace(sso_);
+  tracer->Trace(storage_);
   tracer->Trace(system_);
   tracer->Trace(trace_event_);
 }
