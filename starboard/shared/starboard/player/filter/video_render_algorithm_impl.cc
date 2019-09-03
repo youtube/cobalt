@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_INTERNAL_H_
-#define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_INTERNAL_H_
-
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
 
 #include "starboard/common/log.h"
@@ -130,5 +127,3 @@ void VideoRenderAlgorithmImpl::Render(
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
-
-#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_INTERNAL_H_
