@@ -52,6 +52,7 @@
 #include "cobalt/script/v8c/v8c_property_enumerator.h"
 #include "cobalt/script/v8c/v8c_value_handle.h"
 #include "cobalt/script/v8c/wrapper_private.h"
+#include "cobalt/script/v8c/common_v8c_bindings_code.h"
 #include "v8/include/v8.h"
 
 
@@ -114,34 +115,31 @@ void DummyConstructor(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 void staticAttributeAttributeGetter(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.Holder();
-
-  V8cExceptionState exception_state{isolate};
-  v8::Local<v8::Value> result_value;
-
-
-
-  if (!exception_state.is_exception_set()) {
-    ToJSValue(isolate,
+  script::v8c::shared_bindings::AttributeGetterImpl<StaticPropertiesInterface,
+                                                    V8cStaticPropertiesInterface>(
+                    info,
+                    true,
+                    false,
+                    [](v8::Isolate* isolate, StaticPropertiesInterface* impl,
+                       cobalt::script::ExceptionState& exception_state,
+                       v8::Local<v8::Value>& result_value) {
+  
+      ToJSValue(isolate,
               StaticPropertiesInterface::static_attribute(),
               &result_value);
-  }
-  if (exception_state.is_exception_set()) {
-    return;
-  }
-  info.GetReturnValue().Set(result_value);
+
+  });
 }
 
 void staticAttributeAttributeSetter(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.Holder();
-  v8::Local<v8::Value> v8_value = info[0];
-
-  V8cExceptionState exception_state{isolate};
-  v8::Local<v8::Value> result_value;
-
+  script::v8c::shared_bindings::AttributeSetterImpl<StaticPropertiesInterface, V8cStaticPropertiesInterface>(info,
+                    true,
+                    false,
+                    [](v8::Isolate* isolate, StaticPropertiesInterface* impl,
+                       V8cExceptionState& exception_state,
+                       v8::Local<v8::Value>& result_value,
+                       v8::Local<v8::Value> v8_value) {
   TypeTraits<std::string >::ConversionType value;
   FromJSValue(isolate, v8_value, kNoConversionFlags, &exception_state,
               &value);
@@ -150,8 +148,9 @@ void staticAttributeAttributeSetter(
   }
 
   StaticPropertiesInterface::set_static_attribute(value);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
   return;
+});
 }
 
 
@@ -163,7 +162,7 @@ void staticFunctionStaticMethod1(
 
 
   StaticPropertiesInterface::StaticFunction();
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 void staticFunctionStaticMethod2(
@@ -190,7 +189,7 @@ void staticFunctionStaticMethod2(
   }
 
   StaticPropertiesInterface::StaticFunction(arg);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 void staticFunctionStaticMethod3(
@@ -217,7 +216,7 @@ void staticFunctionStaticMethod3(
   }
 
   StaticPropertiesInterface::StaticFunction(arg);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 void staticFunctionStaticMethod4(
@@ -264,7 +263,7 @@ void staticFunctionStaticMethod4(
   }
 
   StaticPropertiesInterface::StaticFunction(arg1, arg2, arg3);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 void staticFunctionStaticMethod5(
@@ -311,7 +310,7 @@ void staticFunctionStaticMethod5(
   }
 
   StaticPropertiesInterface::StaticFunction(arg1, arg2, arg3);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 
@@ -333,9 +332,7 @@ void staticFunctionStaticMethod(const v8::FunctionCallbackInfo<v8::Value>& info)
       // Overload resolution algorithm details found here:
       //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
       v8::Local<v8::Value> arg = info[0];
-      V8cGlobalEnvironment* global_environment =
-          V8cGlobalEnvironment::GetFromIsolate(isolate);
-      WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+      WrapperFactory* wrapper_factory = V8cGlobalEnvironment::GetFromIsolate(isolate)->wrapper_factory();
       v8::Local<v8::Object> object;
       if (arg->IsObject()) {
         object = arg->ToObject();
@@ -361,9 +358,7 @@ void staticFunctionStaticMethod(const v8::FunctionCallbackInfo<v8::Value>& info)
       // Overload resolution algorithm details found here:
       //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
       v8::Local<v8::Value> arg = info[2];
-      V8cGlobalEnvironment* global_environment =
-          V8cGlobalEnvironment::GetFromIsolate(isolate);
-      WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+      WrapperFactory* wrapper_factory = V8cGlobalEnvironment::GetFromIsolate(isolate)->wrapper_factory();
       v8::Local<v8::Object> object;
       if (arg->IsObject()) {
         object = arg->ToObject();
@@ -445,43 +440,24 @@ void InitializeTemplate(v8::Isolate* isolate) {
   // corresponding property. The characteristics of this property are as
   // follows:
   {
-    // The name of the property is the identifier of the attribute.
-    v8::Local<v8::String> name = NewInternalString(
-        isolate,
-        "staticAttribute");
 
+    script::v8c::shared_bindings::set_property_for_nonconstructor_attribute(
+                  isolate,
     // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
     // true, [[Configurable]]: configurable }, where: configurable is false if
     // the attribute was declared with the [Unforgeable] extended attribute and
     // true otherwise;
-    bool configurable = true;
-    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
-        configurable ? v8::None : v8::DontDelete);
-
-    // G is the attribute getter created given the attribute, the interface, and
-    // the relevant Realm of the object that is the location of the property;
-    // and
-    //
-    // S is the attribute setter created given the attribute, the interface, and
-    // the relevant Realm of the object that is the location of the property.
-    v8::Local<v8::FunctionTemplate> getter =
-        v8::FunctionTemplate::New(isolate, staticAttributeAttributeGetter);
-    v8::Local<v8::FunctionTemplate> setter =
-        v8::FunctionTemplate::New(isolate, staticAttributeAttributeSetter);
-
-    // The location of the property is determined as follows:
-    // Operations installed on the interface object must be static methods, so
-    // no need to specify a signature, i.e. no need to do type check against a
-    // holder.
-
-    // If the attribute is a static attribute, then there is a single
-    // corresponding property and it exists on the interface's interface object.
-    function_template->
-        SetAccessorProperty(
-            name,
-            getter,
-            setter,
-            attributes);
+                  true,
+                  true,
+                  true,
+                  false,
+                  function_template,
+                  instance_template,
+                  prototype_template,
+                  "staticAttribute"
+                  ,staticAttributeAttributeGetter
+                  ,staticAttributeAttributeSetter
+                  );
 
   }
 

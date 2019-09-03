@@ -52,6 +52,7 @@
 #include "cobalt/script/v8c/v8c_property_enumerator.h"
 #include "cobalt/script/v8c/v8c_value_handle.h"
 #include "cobalt/script/v8c/wrapper_private.h"
+#include "cobalt/script/v8c/common_v8c_bindings_code.h"
 #include "v8/include/v8.h"
 
 
@@ -116,31 +117,24 @@ void DummyConstructor(const v8::FunctionCallbackInfo<v8::Value>& info) {
 void longFunctionNoArgsMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cOperationsTestInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cOperationsTestInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  OperationsTestInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             OperationsTestInterface>(object);
+  if (!impl) {
     return;
   }
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
 
   if (!exception_state.is_exception_set()) {
     ToJSValue(isolate,
               impl->LongFunctionNoArgs(),
               &result_value);
-  }
+}
   if (!exception_state.is_exception_set()) {
     info.GetReturnValue().Set(result_value);
   }
@@ -152,31 +146,24 @@ void longFunctionNoArgsMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
 void objectFunctionNoArgsMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cOperationsTestInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cOperationsTestInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  OperationsTestInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             OperationsTestInterface>(object);
+  if (!impl) {
     return;
   }
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
 
   if (!exception_state.is_exception_set()) {
     ToJSValue(isolate,
               impl->ObjectFunctionNoArgs(),
               &result_value);
-  }
+}
   if (!exception_state.is_exception_set()) {
     info.GetReturnValue().Set(result_value);
   }
@@ -188,25 +175,18 @@ void objectFunctionNoArgsMethod(const v8::FunctionCallbackInfo<v8::Value>& info)
 void optionalArgumentWithDefaultMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cOperationsTestInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cOperationsTestInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  OperationsTestInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             OperationsTestInterface>(object);
+  if (!impl) {
     return;
   }
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
   // Optional arguments with default values
   TypeTraits<double >::ConversionType arg1 =
       2.718;
@@ -224,7 +204,7 @@ void optionalArgumentWithDefaultMethod(const v8::FunctionCallbackInfo<v8::Value>
   }
 
   impl->OptionalArgumentWithDefault(arg1);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 
@@ -233,25 +213,18 @@ void optionalArgumentWithDefaultMethod(const v8::FunctionCallbackInfo<v8::Value>
 void optionalArgumentsMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cOperationsTestInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cOperationsTestInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  OperationsTestInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             OperationsTestInterface>(object);
+  if (!impl) {
     return;
   }
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
   const size_t kMinArguments = 1;
   if (info.Length() < kMinArguments) {
     exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
@@ -300,19 +273,19 @@ void optionalArgumentsMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
     case 1:
       {
           impl->OptionalArguments(arg1);
-          result_value = v8::Undefined(isolate);
+        result_value = v8::Undefined(isolate);
       }
       break;
     case 2:
       {
           impl->OptionalArguments(arg1, arg2);
-          result_value = v8::Undefined(isolate);
+        result_value = v8::Undefined(isolate);
       }
       break;
     case 3:
       {
           impl->OptionalArguments(arg1, arg2, arg3);
-          result_value = v8::Undefined(isolate);
+        result_value = v8::Undefined(isolate);
       }
       break;
     default:
@@ -326,25 +299,18 @@ void optionalArgumentsMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
 void optionalNullableArgumentsWithDefaultsMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cOperationsTestInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cOperationsTestInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  OperationsTestInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             OperationsTestInterface>(object);
+  if (!impl) {
     return;
   }
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
   // Optional arguments with default values
   TypeTraits<base::Optional<bool > >::ConversionType arg1 =
       base::nullopt;
@@ -375,7 +341,7 @@ void optionalNullableArgumentsWithDefaultsMethod(const v8::FunctionCallbackInfo<
   }
 
   impl->OptionalNullableArgumentsWithDefaults(arg1, arg2);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 
@@ -384,53 +350,39 @@ void overloadedFunctionMethod1(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cOperationsTestInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cOperationsTestInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  OperationsTestInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             OperationsTestInterface>(object);
+  if (!impl) {
     return;
   }
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
 
   impl->OverloadedFunction();
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 void overloadedFunctionMethod2(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cOperationsTestInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cOperationsTestInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  OperationsTestInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             OperationsTestInterface>(object);
+  if (!impl) {
     return;
   }
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
   const size_t kMinArguments = 1;
   if (info.Length() < kMinArguments) {
     exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
@@ -449,32 +401,25 @@ void overloadedFunctionMethod2(
   }
 
   impl->OverloadedFunction(arg);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 void overloadedFunctionMethod3(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cOperationsTestInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cOperationsTestInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  OperationsTestInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             OperationsTestInterface>(object);
+  if (!impl) {
     return;
   }
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
   const size_t kMinArguments = 1;
   if (info.Length() < kMinArguments) {
     exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
@@ -493,32 +438,25 @@ void overloadedFunctionMethod3(
   }
 
   impl->OverloadedFunction(arg);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 void overloadedFunctionMethod4(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cOperationsTestInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cOperationsTestInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  OperationsTestInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             OperationsTestInterface>(object);
+  if (!impl) {
     return;
   }
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
   const size_t kMinArguments = 3;
   if (info.Length() < kMinArguments) {
     exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
@@ -557,32 +495,25 @@ void overloadedFunctionMethod4(
   }
 
   impl->OverloadedFunction(arg1, arg2, arg3);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 void overloadedFunctionMethod5(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cOperationsTestInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cOperationsTestInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  OperationsTestInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             OperationsTestInterface>(object);
+  if (!impl) {
     return;
   }
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
   const size_t kMinArguments = 3;
   if (info.Length() < kMinArguments) {
     exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
@@ -621,7 +552,7 @@ void overloadedFunctionMethod5(
   }
 
   impl->OverloadedFunction(arg1, arg2, arg3);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 
@@ -643,9 +574,7 @@ void overloadedFunctionMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
       // Overload resolution algorithm details found here:
       //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
       v8::Local<v8::Value> arg = info[0];
-      V8cGlobalEnvironment* global_environment =
-          V8cGlobalEnvironment::GetFromIsolate(isolate);
-      WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+      WrapperFactory* wrapper_factory = V8cGlobalEnvironment::GetFromIsolate(isolate)->wrapper_factory();
       v8::Local<v8::Object> object;
       if (arg->IsObject()) {
         object = arg->ToObject();
@@ -671,9 +600,7 @@ void overloadedFunctionMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
       // Overload resolution algorithm details found here:
       //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
       v8::Local<v8::Value> arg = info[2];
-      V8cGlobalEnvironment* global_environment =
-          V8cGlobalEnvironment::GetFromIsolate(isolate);
-      WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+      WrapperFactory* wrapper_factory = V8cGlobalEnvironment::GetFromIsolate(isolate)->wrapper_factory();
       v8::Local<v8::Object> object;
       if (arg->IsObject()) {
         object = arg->ToObject();
@@ -704,25 +631,18 @@ void overloadedNullableMethod1(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cOperationsTestInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cOperationsTestInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  OperationsTestInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             OperationsTestInterface>(object);
+  if (!impl) {
     return;
   }
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
   const size_t kMinArguments = 1;
   if (info.Length() < kMinArguments) {
     exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
@@ -741,32 +661,25 @@ void overloadedNullableMethod1(
   }
 
   impl->OverloadedNullable(arg);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 void overloadedNullableMethod2(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cOperationsTestInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cOperationsTestInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  OperationsTestInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             OperationsTestInterface>(object);
+  if (!impl) {
     return;
   }
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
   const size_t kMinArguments = 1;
   if (info.Length() < kMinArguments) {
     exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
@@ -785,7 +698,7 @@ void overloadedNullableMethod2(
   }
 
   impl->OverloadedNullable(arg);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 
@@ -797,9 +710,7 @@ void overloadedNullableMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
       // Overload resolution algorithm details found here:
       //     http://heycam.github.io/webidl/#dfn-overload-resolution-algorithm
       v8::Local<v8::Value> arg = info[0];
-      V8cGlobalEnvironment* global_environment =
-          V8cGlobalEnvironment::GetFromIsolate(isolate);
-      WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+      WrapperFactory* wrapper_factory = V8cGlobalEnvironment::GetFromIsolate(isolate)->wrapper_factory();
       v8::Local<v8::Object> object;
       if (arg->IsObject()) {
         object = arg->ToObject();
@@ -830,31 +741,24 @@ void overloadedNullableMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
 void stringFunctionNoArgsMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cOperationsTestInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cOperationsTestInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  OperationsTestInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             OperationsTestInterface>(object);
+  if (!impl) {
     return;
   }
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
 
   if (!exception_state.is_exception_set()) {
     ToJSValue(isolate,
               impl->StringFunctionNoArgs(),
               &result_value);
-  }
+}
   if (!exception_state.is_exception_set()) {
     info.GetReturnValue().Set(result_value);
   }
@@ -866,25 +770,18 @@ void stringFunctionNoArgsMethod(const v8::FunctionCallbackInfo<v8::Value>& info)
 void variadicPrimitiveArgumentsMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cOperationsTestInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cOperationsTestInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  OperationsTestInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             OperationsTestInterface>(object);
+  if (!impl) {
     return;
   }
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
   // Variadic argument
   TypeTraits<std::vector<int32_t> >::ConversionType bools;
 
@@ -906,7 +803,7 @@ void variadicPrimitiveArgumentsMethod(const v8::FunctionCallbackInfo<v8::Value>&
   }
 
   impl->VariadicPrimitiveArguments(bools);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 
@@ -915,25 +812,18 @@ void variadicPrimitiveArgumentsMethod(const v8::FunctionCallbackInfo<v8::Value>&
 void variadicStringArgumentsAfterOptionalArgumentMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cOperationsTestInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cOperationsTestInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  OperationsTestInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             OperationsTestInterface>(object);
+  if (!impl) {
     return;
   }
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
   // Optional arguments
   TypeTraits<bool >::ConversionType optionalArg;
   // Variadic argument
@@ -979,13 +869,13 @@ void variadicStringArgumentsAfterOptionalArgumentMethod(const v8::FunctionCallba
     case 0:
       {
           impl->VariadicStringArgumentsAfterOptionalArgument();
-          result_value = v8::Undefined(isolate);
+        result_value = v8::Undefined(isolate);
       }
       break;
     case 2:
       {
           impl->VariadicStringArgumentsAfterOptionalArgument(optionalArg, strings);
-          result_value = v8::Undefined(isolate);
+        result_value = v8::Undefined(isolate);
       }
       break;
     default:
@@ -999,25 +889,18 @@ void variadicStringArgumentsAfterOptionalArgumentMethod(const v8::FunctionCallba
 void voidFunctionLongArgMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cOperationsTestInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cOperationsTestInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  OperationsTestInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             OperationsTestInterface>(object);
+  if (!impl) {
     return;
   }
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
   const size_t kMinArguments = 1;
   if (info.Length() < kMinArguments) {
     exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
@@ -1036,7 +919,7 @@ void voidFunctionLongArgMethod(const v8::FunctionCallbackInfo<v8::Value>& info) 
   }
 
   impl->VoidFunctionLongArg(arg);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 
@@ -1045,28 +928,21 @@ void voidFunctionLongArgMethod(const v8::FunctionCallbackInfo<v8::Value>& info) 
 void voidFunctionNoArgsMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cOperationsTestInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cOperationsTestInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  OperationsTestInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             OperationsTestInterface>(object);
+  if (!impl) {
     return;
   }
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
 
   impl->VoidFunctionNoArgs();
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 
@@ -1075,25 +951,18 @@ void voidFunctionNoArgsMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
 void voidFunctionObjectArgMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cOperationsTestInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cOperationsTestInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  OperationsTestInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             OperationsTestInterface>(object);
+  if (!impl) {
     return;
   }
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
   const size_t kMinArguments = 1;
   if (info.Length() < kMinArguments) {
     exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
@@ -1112,7 +981,7 @@ void voidFunctionObjectArgMethod(const v8::FunctionCallbackInfo<v8::Value>& info
   }
 
   impl->VoidFunctionObjectArg(arg);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 
@@ -1121,25 +990,18 @@ void voidFunctionObjectArgMethod(const v8::FunctionCallbackInfo<v8::Value>& info
 void voidFunctionStringArgMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cOperationsTestInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cOperationsTestInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  OperationsTestInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             OperationsTestInterface>(object);
+  if (!impl) {
     return;
   }
-  OperationsTestInterface* impl =
-      wrapper_private->wrappable<OperationsTestInterface>().get();
   const size_t kMinArguments = 1;
   if (info.Length() < kMinArguments) {
     exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
@@ -1158,7 +1020,7 @@ void voidFunctionStringArgMethod(const v8::FunctionCallbackInfo<v8::Value>& info
   }
 
   impl->VoidFunctionStringArg(arg);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 
@@ -1187,7 +1049,7 @@ void overloadedFunctionStaticMethod1(
   }
 
   OperationsTestInterface::OverloadedFunction(arg);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 void overloadedFunctionStaticMethod2(
@@ -1224,7 +1086,7 @@ void overloadedFunctionStaticMethod2(
   }
 
   OperationsTestInterface::OverloadedFunction(arg1, arg2);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 
