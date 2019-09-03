@@ -30,6 +30,7 @@ class VideoRenderAlgorithm : public ::starboard::shared::starboard::player::
   void Render(MediaTimeProvider* media_time_provider,
               std::list<scoped_refptr<VideoFrame>>* frames,
               VideoRendererSink::DrawFrameCB draw_frame_cb) override;
+  void Reset() override {}
   int GetDroppedFrames() override { return dropped_frames_; }
 
  private:

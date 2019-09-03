@@ -49,6 +49,7 @@ class VideoRenderAlgorithm {
   virtual void Render(MediaTimeProvider* media_time_provider,
                       std::list<scoped_refptr<VideoFrame>>* frames,
                       VideoRendererSink::DrawFrameCB draw_frame_cb) = 0;
+  virtual void Reset() = 0;
   virtual int GetDroppedFrames() = 0;
 };
 

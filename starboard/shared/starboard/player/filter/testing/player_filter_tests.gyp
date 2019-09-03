@@ -24,6 +24,8 @@
         '<(DEPTH)/starboard/shared/starboard/player/filter/testing/audio_renderer_internal_test.cc',
         '<(DEPTH)/starboard/shared/starboard/player/filter/testing/media_time_provider_impl_test.cc',
         '<(DEPTH)/starboard/shared/starboard/player/filter/testing/video_decoder_test.cc',
+        '<(DEPTH)/starboard/shared/starboard/player/filter/testing/video_frame_cadence_pattern_generator_test.cc',
+        '<(DEPTH)/starboard/shared/starboard/player/filter/testing/video_frame_rate_estimator_test.cc',
         '<(DEPTH)/starboard/testing/fake_graphics_context_provider.cc',
         '<(DEPTH)/starboard/testing/fake_graphics_context_provider.h',
       ],
