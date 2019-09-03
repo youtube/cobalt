@@ -5943,6 +5943,9 @@ flex_two_property_values:
     std::unique_ptr<FlexShorthand> flex(new FlexShorthand());
     flex->grow = new cssom::NumberValue($1);
     flex->shrink = new cssom::NumberValue($2);
+    // When omitted from the flex shorthand, flex-basis specified value is 0.
+    //  https://www.w3.org/TR/css-flexbox-1/#valdef-flex-flex-basis
+    flex->basis = new cssom::LengthValue(0, cssom::kPixelsUnit);
     $$ = flex.release();
   }
   | non_negative_number flex_basis_element {
