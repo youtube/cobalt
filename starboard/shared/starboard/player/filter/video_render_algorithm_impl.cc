@@ -171,7 +171,7 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
     SB_DCHECK(cadence_pattern_generator_.has_cadence());
 
     if (current_frame_rendered_times_ >=
-        cadence_pattern_generator_.GetCurrentFrameDisplayTimes()) {
+        cadence_pattern_generator_.GetNumberOfTimesCurrentFrameDisplays()) {
       frames->pop_front();
       cadence_pattern_generator_.AdvanceToNextFrame();
       break;
@@ -209,7 +209,7 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
       SB_LOG(WARNING)
           << "Frame @ " << frames->front()->timestamp()
           << " microseconds should be displayed "
-          << cadence_pattern_generator_.GetCurrentFrameDisplayTimes()
+          << cadence_pattern_generator_.GetNumberOfTimesCurrentFrameDisplays()
           << " times, but is displayed " << current_frame_rendered_times_
           << " times, the elasped media time/system time from last Render()"
           << " call are " << media_time - media_time_of_last_render_call_ << "/"

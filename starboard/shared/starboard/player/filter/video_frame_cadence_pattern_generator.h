@@ -41,7 +41,10 @@ class VideoFrameCadencePatternGenerator {
            frame_rate_ != kInvalidFrameRate;
   }
 
-  int GetCurrentFrameDisplayTimes() const;
+  // Get the number of times current frame is going to be displayed under the
+  // current refresh rate and video frame rate.  For example, the first frame
+  // of a 24 fps video should be displayed 3 times if the refresh rate is 60.
+  int GetNumberOfTimesCurrentFrameDisplays() const;
   void AdvanceToNextFrame();
 
   void Reset(double refresh_rate);

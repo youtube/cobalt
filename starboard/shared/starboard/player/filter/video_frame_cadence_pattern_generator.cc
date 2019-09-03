@@ -43,7 +43,8 @@ void VideoFrameCadencePatternGenerator::UpdateFrameRate(double frame_rate) {
   frame_rate_ = frame_rate;
 }
 
-int VideoFrameCadencePatternGenerator::GetCurrentFrameDisplayTimes() const {
+int VideoFrameCadencePatternGenerator::GetNumberOfTimesCurrentFrameDisplays()
+    const {
   SB_DCHECK(refresh_rate_ != kInvalidRefreshRate);
   SB_DCHECK(frame_rate_ != kInvalidFrameRate);
 
