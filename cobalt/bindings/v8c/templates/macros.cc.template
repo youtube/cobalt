@@ -294,8 +294,7 @@
 {% macro call_nonvoid_function(return_type, function_name, arguments,
                                impl_class, is_static) %}
   if (!exception_state.is_exception_set()) {
-
-  {{call_nonvoid_function_internal(function_name, arguments,
+{{call_nonvoid_function_internal(function_name, arguments,
                                 impl_class, is_static) -}}
   }
 {%- endmacro %}
@@ -308,7 +307,9 @@
 {%- endmacro %}
 
 {% macro get_impl_class_instance(impl_class) %}
-  {{impl_class}}* impl = script::v8c::shared_bindings::get_impl_from_object<{{impl_class}}>(object);
+  {{impl_class}}* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             {{impl_class}}>(object);
   if (!impl) {
     return;
   }
