@@ -5050,8 +5050,6 @@ TEST_F(ParserTest, ParsesFlexOneTwo) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("flex: 1 2;", source_location_);
 
-  // The keyword none expands to 0 0 auto.
-  //   https://www.w3.org/TR/css-flexbox-1/#valdef-flex-none
   ASSERT_TRUE(style->IsDeclared(cssom::kFlexGrowProperty));
   scoped_refptr<cssom::NumberValue> flex_grow =
       dynamic_cast<cssom::NumberValue*>(
@@ -5066,17 +5064,20 @@ TEST_F(ParserTest, ParsesFlexOneTwo) {
   ASSERT_TRUE(flex_shrink);
   EXPECT_FLOAT_EQ(2, flex_shrink->value());
 
+  // When omitted from the flex shorthand, flex-basis specified value is 0.
+  //   https://www.w3.org/TR/css-flexbox-1/#valdef-flex-flex-basis
   ASSERT_TRUE(style->IsDeclared(cssom::kFlexBasisProperty));
-  EXPECT_EQ(cssom::KeywordValue::GetInitial(),
-            style->GetPropertyValue(cssom::kFlexBasisProperty));
+  scoped_refptr<cssom::LengthValue> flex_basis =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kFlexBasisProperty).get());
+  ASSERT_TRUE(flex_basis);
+  EXPECT_FLOAT_EQ(0, flex_basis->value());
 }
 
 TEST_F(ParserTest, ParsesFlexOneTwoZero) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("flex: 1 2 0;", source_location_);
 
-  // The keyword none expands to 0 0 auto.
-  //   https://www.w3.org/TR/css-flexbox-1/#valdef-flex-none
   ASSERT_TRUE(style->IsDeclared(cssom::kFlexGrowProperty));
   scoped_refptr<cssom::NumberValue> flex_grow =
       dynamic_cast<cssom::NumberValue*>(
@@ -5103,8 +5104,6 @@ TEST_F(ParserTest, ParsesFlexZeroBasis) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("flex: 0 100px;", source_location_);
 
-  // The keyword none expands to 0 0 auto.
-  //   https://www.w3.org/TR/css-flexbox-1/#valdef-flex-none
   ASSERT_TRUE(style->IsDeclared(cssom::kFlexGrowProperty));
   scoped_refptr<cssom::NumberValue> flex_grow =
       dynamic_cast<cssom::NumberValue*>(
@@ -5158,8 +5157,6 @@ TEST_F(ParserTest, ParsesFlexAbsoluteBasisZero) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("flex: 100px 0;", source_location_);
 
-  // The keyword none expands to 0 0 auto.
-  //   https://www.w3.org/TR/css-flexbox-1/#valdef-flex-none
   ASSERT_TRUE(style->IsDeclared(cssom::kFlexGrowProperty));
   scoped_refptr<cssom::NumberValue> flex_grow =
       dynamic_cast<cssom::NumberValue*>(
@@ -5184,8 +5181,6 @@ TEST_F(ParserTest, ParsesFlexAbsoluteBasisOneTwo) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("flex: 100px 1 2;", source_location_);
 
-  // The keyword none expands to 0 0 auto.
-  //   https://www.w3.org/TR/css-flexbox-1/#valdef-flex-none
   ASSERT_TRUE(style->IsDeclared(cssom::kFlexGrowProperty));
   scoped_refptr<cssom::NumberValue> flex_grow =
       dynamic_cast<cssom::NumberValue*>(
