@@ -34,9 +34,9 @@ TEST(VideoFrameCadencePatternGeneratorTest, 120fpsFrameRateOn60fpsRefreshRate) {
   generator.UpdateRefreshRateAndMaybeReset(60);
   generator.UpdateFrameRate(120);
   for (int i = 0; i < kTimesToIterate; ++i) {
-    ASSERT_EQ(generator.GetCurrentFrameDisplayTimes(), 1);
+    ASSERT_EQ(generator.GetNumberOfTimesCurrentFrameDisplays(), 1);
     generator.AdvanceToNextFrame();
-    ASSERT_EQ(generator.GetCurrentFrameDisplayTimes(), 0);
+    ASSERT_EQ(generator.GetNumberOfTimesCurrentFrameDisplays(), 0);
     generator.AdvanceToNextFrame();
   }
 }
@@ -47,7 +47,7 @@ TEST(VideoFrameCadencePatternGeneratorTest, 60fpsFrameRateOn60fpsRefreshRate) {
   generator.UpdateRefreshRateAndMaybeReset(60);
   generator.UpdateFrameRate(60);
   for (int i = 0; i < kTimesToIterate; ++i) {
-    ASSERT_EQ(generator.GetCurrentFrameDisplayTimes(), 1);
+    ASSERT_EQ(generator.GetNumberOfTimesCurrentFrameDisplays(), 1);
     generator.AdvanceToNextFrame();
   }
 }
@@ -58,7 +58,7 @@ TEST(VideoFrameCadencePatternGeneratorTest, 30fpsFrameRateOn60fpsRefreshRate) {
   generator.UpdateRefreshRateAndMaybeReset(60);
   generator.UpdateFrameRate(30);
   for (int i = 0; i < kTimesToIterate; ++i) {
-    ASSERT_EQ(generator.GetCurrentFrameDisplayTimes(), 2);
+    ASSERT_EQ(generator.GetNumberOfTimesCurrentFrameDisplays(), 2);
     generator.AdvanceToNextFrame();
   }
 }
@@ -69,7 +69,7 @@ TEST(VideoFrameCadencePatternGeneratorTest, 30fpsFrameRateOn30fpsRefreshRate) {
   generator.UpdateRefreshRateAndMaybeReset(30);
   generator.UpdateFrameRate(30);
   for (int i = 0; i < kTimesToIterate; ++i) {
-    ASSERT_EQ(generator.GetCurrentFrameDisplayTimes(), 1);
+    ASSERT_EQ(generator.GetNumberOfTimesCurrentFrameDisplays(), 1);
     generator.AdvanceToNextFrame();
   }
 }
@@ -80,15 +80,15 @@ TEST(VideoFrameCadencePatternGeneratorTest, 25fpsFrameRateOn60fpsRefreshRate) {
   generator.UpdateRefreshRateAndMaybeReset(60);
   generator.UpdateFrameRate(25);
   for (int i = 0; i < kTimesToIterate; ++i) {
-    ASSERT_EQ(generator.GetCurrentFrameDisplayTimes(), 3);
+    ASSERT_EQ(generator.GetNumberOfTimesCurrentFrameDisplays(), 3);
     generator.AdvanceToNextFrame();
-    ASSERT_EQ(generator.GetCurrentFrameDisplayTimes(), 2);
+    ASSERT_EQ(generator.GetNumberOfTimesCurrentFrameDisplays(), 2);
     generator.AdvanceToNextFrame();
-    ASSERT_EQ(generator.GetCurrentFrameDisplayTimes(), 3);
+    ASSERT_EQ(generator.GetNumberOfTimesCurrentFrameDisplays(), 3);
     generator.AdvanceToNextFrame();
-    ASSERT_EQ(generator.GetCurrentFrameDisplayTimes(), 2);
+    ASSERT_EQ(generator.GetNumberOfTimesCurrentFrameDisplays(), 2);
     generator.AdvanceToNextFrame();
-    ASSERT_EQ(generator.GetCurrentFrameDisplayTimes(), 2);
+    ASSERT_EQ(generator.GetNumberOfTimesCurrentFrameDisplays(), 2);
     generator.AdvanceToNextFrame();
   }
 }
@@ -99,9 +99,9 @@ TEST(VideoFrameCadencePatternGeneratorTest, 24fpsFrameRateOn60fpsRefreshRate) {
   generator.UpdateRefreshRateAndMaybeReset(60);
   generator.UpdateFrameRate(24);
   for (int i = 0; i < kTimesToIterate; ++i) {
-    ASSERT_EQ(generator.GetCurrentFrameDisplayTimes(), 3);
+    ASSERT_EQ(generator.GetNumberOfTimesCurrentFrameDisplays(), 3);
     generator.AdvanceToNextFrame();
-    ASSERT_EQ(generator.GetCurrentFrameDisplayTimes(), 2);
+    ASSERT_EQ(generator.GetNumberOfTimesCurrentFrameDisplays(), 2);
     generator.AdvanceToNextFrame();
   }
 }
