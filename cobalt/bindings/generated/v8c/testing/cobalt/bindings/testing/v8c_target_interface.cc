@@ -50,6 +50,7 @@
 #include "cobalt/script/v8c/v8c_property_enumerator.h"
 #include "cobalt/script/v8c/v8c_value_handle.h"
 #include "cobalt/script/v8c/wrapper_private.h"
+#include "cobalt/script/v8c/common_v8c_bindings_code.h"
 #include "v8/include/v8.h"
 
 
@@ -112,28 +113,21 @@ void DummyConstructor(const v8::FunctionCallbackInfo<v8::Value>& info) {
 void implementedInterfaceFunctionMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cTargetInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cTargetInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  TargetInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             TargetInterface>(object);
+  if (!impl) {
     return;
   }
-  TargetInterface* impl =
-      wrapper_private->wrappable<TargetInterface>().get();
 
   impl->ImplementedInterfaceFunction();
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 
@@ -142,28 +136,21 @@ void implementedInterfaceFunctionMethod(const v8::FunctionCallbackInfo<v8::Value
 void partialInterfaceFunctionMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cTargetInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cTargetInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  TargetInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             TargetInterface>(object);
+  if (!impl) {
     return;
   }
-  TargetInterface* impl =
-      wrapper_private->wrappable<TargetInterface>().get();
 
   impl->PartialInterfaceFunction();
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 

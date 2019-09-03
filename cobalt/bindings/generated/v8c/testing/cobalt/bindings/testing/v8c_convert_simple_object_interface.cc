@@ -50,6 +50,7 @@
 #include "cobalt/script/v8c/v8c_property_enumerator.h"
 #include "cobalt/script/v8c/v8c_value_handle.h"
 #include "cobalt/script/v8c/wrapper_private.h"
+#include "cobalt/script/v8c/common_v8c_bindings_code.h"
 #include "v8/include/v8.h"
 
 
@@ -123,25 +124,18 @@ void Constructor(const v8::FunctionCallbackInfo<v8::Value>& info) {
 void convertSimpleObjectToMapTestMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cConvertSimpleObjectInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cConvertSimpleObjectInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  ConvertSimpleObjectInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             ConvertSimpleObjectInterface>(object);
+  if (!impl) {
     return;
   }
-  ConvertSimpleObjectInterface* impl =
-      wrapper_private->wrappable<ConvertSimpleObjectInterface>().get();
   const size_t kMinArguments = 1;
   if (info.Length() < kMinArguments) {
     exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
@@ -160,7 +154,7 @@ void convertSimpleObjectToMapTestMethod(const v8::FunctionCallbackInfo<v8::Value
   }
 
   impl->ConvertSimpleObjectToMapTest(value, &exception_state);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 

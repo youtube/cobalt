@@ -395,17 +395,18 @@ void DummyConstructor(const v8::FunctionCallbackInfo<v8::Value>& info) {
 {% else %}
 void {{attribute.idl_name}}AttributeGetter(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-
-  script::v8c::shared_bindings::AttributeGetterImpl<{{impl_class}}, {{binding_class}}>(info,
+  script::v8c::shared_bindings::AttributeGetterImpl<{{impl_class}},
+                                                    {{binding_class}}>(
+                    info,
                     {{ "true" if attribute.is_static else "false"}},
                     {{ "true" if attribute.type == "void" else "false"}},
                     [](v8::Isolate* isolate, {{impl_class}}* impl,
                        cobalt::script::ExceptionState& exception_state,
                        v8::Local<v8::Value>& result_value) {
-    {{ get_cobalt_value(impl_class, attribute.type,
-                        attribute.getter_function_name, [],
-                        attribute.raises_exception, attribute.call_with,
-                        attribute.is_static) }}
+{{ get_cobalt_value(impl_class, attribute.type,
+                    attribute.getter_function_name, [],
+                    attribute.raises_exception, attribute.call_with,
+                    attribute.is_static) }}
   });
 }
 

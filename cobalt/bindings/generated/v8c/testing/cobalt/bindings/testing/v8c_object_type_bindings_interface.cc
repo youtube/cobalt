@@ -56,6 +56,7 @@
 #include "cobalt/script/v8c/v8c_property_enumerator.h"
 #include "cobalt/script/v8c/v8c_value_handle.h"
 #include "cobalt/script/v8c/wrapper_private.h"
+#include "cobalt/script/v8c/common_v8c_bindings_code.h"
 #include "v8/include/v8.h"
 
 
@@ -122,67 +123,31 @@ void DummyConstructor(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 void arbitraryObjectAttributeGetter(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.Holder();
-
-
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cObjectTypeBindingsInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return;
-  }
-  V8cExceptionState exception_state{isolate};
-  v8::Local<v8::Value> result_value;
-
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
-    return;
-  }
-  ObjectTypeBindingsInterface* impl =
-      wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
-
-
-  if (!exception_state.is_exception_set()) {
-    ToJSValue(isolate,
+  script::v8c::shared_bindings::AttributeGetterImpl<ObjectTypeBindingsInterface,
+                                                    V8cObjectTypeBindingsInterface>(
+                    info,
+                    false,
+                    false,
+                    [](v8::Isolate* isolate, ObjectTypeBindingsInterface* impl,
+                       cobalt::script::ExceptionState& exception_state,
+                       v8::Local<v8::Value>& result_value) {
+  
+      ToJSValue(isolate,
               impl->arbitrary_object(),
               &result_value);
-  }
-  if (exception_state.is_exception_set()) {
-    return;
-  }
-  info.GetReturnValue().Set(result_value);
+
+  });
 }
 
 void arbitraryObjectAttributeSetter(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.Holder();
-  v8::Local<v8::Value> v8_value = info[0];
-
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cObjectTypeBindingsInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return;
-  }
-  V8cExceptionState exception_state{isolate};
-  v8::Local<v8::Value> result_value;
-
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
-    return;
-  }
-  ObjectTypeBindingsInterface* impl =
-      wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
+  script::v8c::shared_bindings::AttributeSetterImpl<ObjectTypeBindingsInterface, V8cObjectTypeBindingsInterface>(info,
+                    false,
+                    false,
+                    [](v8::Isolate* isolate, ObjectTypeBindingsInterface* impl,
+                       V8cExceptionState& exception_state,
+                       v8::Local<v8::Value>& result_value,
+                       v8::Local<v8::Value> v8_value) {
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ConversionType value;
   FromJSValue(isolate, v8_value, kNoConversionFlags, &exception_state,
               &value);
@@ -191,114 +156,59 @@ void arbitraryObjectAttributeSetter(
   }
 
   impl->set_arbitrary_object(value);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
   return;
+});
 }
 
 
 void baseInterfaceAttributeGetter(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.Holder();
-
-
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cObjectTypeBindingsInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return;
-  }
-  V8cExceptionState exception_state{isolate};
-  v8::Local<v8::Value> result_value;
-
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
-    return;
-  }
-  ObjectTypeBindingsInterface* impl =
-      wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
-
-
-  if (!exception_state.is_exception_set()) {
-    ToJSValue(isolate,
+  script::v8c::shared_bindings::AttributeGetterImpl<ObjectTypeBindingsInterface,
+                                                    V8cObjectTypeBindingsInterface>(
+                    info,
+                    false,
+                    false,
+                    [](v8::Isolate* isolate, ObjectTypeBindingsInterface* impl,
+                       cobalt::script::ExceptionState& exception_state,
+                       v8::Local<v8::Value>& result_value) {
+  
+      ToJSValue(isolate,
               impl->base_interface(),
               &result_value);
-  }
-  if (exception_state.is_exception_set()) {
-    return;
-  }
-  info.GetReturnValue().Set(result_value);
+
+  });
 }
 
 
 
 void derivedInterfaceAttributeGetter(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.Holder();
-
-
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cObjectTypeBindingsInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return;
-  }
-  V8cExceptionState exception_state{isolate};
-  v8::Local<v8::Value> result_value;
-
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
-    return;
-  }
-  ObjectTypeBindingsInterface* impl =
-      wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
-
-
-  if (!exception_state.is_exception_set()) {
-    ToJSValue(isolate,
+  script::v8c::shared_bindings::AttributeGetterImpl<ObjectTypeBindingsInterface,
+                                                    V8cObjectTypeBindingsInterface>(
+                    info,
+                    false,
+                    false,
+                    [](v8::Isolate* isolate, ObjectTypeBindingsInterface* impl,
+                       cobalt::script::ExceptionState& exception_state,
+                       v8::Local<v8::Value>& result_value) {
+  
+      ToJSValue(isolate,
               impl->derived_interface(),
               &result_value);
-  }
-  if (exception_state.is_exception_set()) {
-    return;
-  }
-  info.GetReturnValue().Set(result_value);
+
+  });
 }
 
 void derivedInterfaceAttributeSetter(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.Holder();
-  v8::Local<v8::Value> v8_value = info[0];
-
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cObjectTypeBindingsInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return;
-  }
-  V8cExceptionState exception_state{isolate};
-  v8::Local<v8::Value> result_value;
-
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
-    return;
-  }
-  ObjectTypeBindingsInterface* impl =
-      wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
+  script::v8c::shared_bindings::AttributeSetterImpl<ObjectTypeBindingsInterface, V8cObjectTypeBindingsInterface>(info,
+                    false,
+                    false,
+                    [](v8::Isolate* isolate, ObjectTypeBindingsInterface* impl,
+                       V8cExceptionState& exception_state,
+                       v8::Local<v8::Value>& result_value,
+                       v8::Local<v8::Value> v8_value) {
   TypeTraits<scoped_refptr<DerivedInterface> >::ConversionType value;
   FromJSValue(isolate, v8_value, kNoConversionFlags, &exception_state,
               &value);
@@ -307,74 +217,39 @@ void derivedInterfaceAttributeSetter(
   }
 
   impl->set_derived_interface(value);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
   return;
+});
 }
 
 
 void objectPropertyAttributeGetter(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.Holder();
-
-
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cObjectTypeBindingsInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return;
-  }
-  V8cExceptionState exception_state{isolate};
-  v8::Local<v8::Value> result_value;
-
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
-    return;
-  }
-  ObjectTypeBindingsInterface* impl =
-      wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
-
-
-  if (!exception_state.is_exception_set()) {
-    ToJSValue(isolate,
+  script::v8c::shared_bindings::AttributeGetterImpl<ObjectTypeBindingsInterface,
+                                                    V8cObjectTypeBindingsInterface>(
+                    info,
+                    false,
+                    false,
+                    [](v8::Isolate* isolate, ObjectTypeBindingsInterface* impl,
+                       cobalt::script::ExceptionState& exception_state,
+                       v8::Local<v8::Value>& result_value) {
+  
+      ToJSValue(isolate,
               impl->object_property(),
               &result_value);
-  }
-  if (exception_state.is_exception_set()) {
-    return;
-  }
-  info.GetReturnValue().Set(result_value);
+
+  });
 }
 
 void objectPropertyAttributeSetter(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.Holder();
-  v8::Local<v8::Value> v8_value = info[0];
-
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cObjectTypeBindingsInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return;
-  }
-  V8cExceptionState exception_state{isolate};
-  v8::Local<v8::Value> result_value;
-
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
-    return;
-  }
-  ObjectTypeBindingsInterface* impl =
-      wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
+  script::v8c::shared_bindings::AttributeSetterImpl<ObjectTypeBindingsInterface, V8cObjectTypeBindingsInterface>(info,
+                    false,
+                    false,
+                    [](v8::Isolate* isolate, ObjectTypeBindingsInterface* impl,
+                       V8cExceptionState& exception_state,
+                       v8::Local<v8::Value>& result_value,
+                       v8::Local<v8::Value> v8_value) {
   TypeTraits<::cobalt::script::ValueHandle >::ConversionType value;
   FromJSValue(isolate, v8_value, (kConversionFlagNullable | kConversionFlagObjectOnly), &exception_state,
               &value);
@@ -383,8 +258,9 @@ void objectPropertyAttributeSetter(
   }
 
   impl->set_object_property(value);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
   return;
+});
 }
 
 
@@ -443,146 +319,86 @@ void InitializeTemplate(v8::Isolate* isolate) {
   // corresponding property. The characteristics of this property are as
   // follows:
   {
-    // The name of the property is the identifier of the attribute.
-    v8::Local<v8::String> name = NewInternalString(
-        isolate,
-        "arbitraryObject");
 
+    script::v8c::shared_bindings::set_property_for_nonconstructor_attribute(
+                  isolate,
     // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
     // true, [[Configurable]]: configurable }, where: configurable is false if
     // the attribute was declared with the [Unforgeable] extended attribute and
     // true otherwise;
-    bool configurable = true;
-    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
-        configurable ? v8::None : v8::DontDelete);
-
-    // G is the attribute getter created given the attribute, the interface, and
-    // the relevant Realm of the object that is the location of the property;
-    // and
-    //
-    // S is the attribute setter created given the attribute, the interface, and
-    // the relevant Realm of the object that is the location of the property.
-    v8::Local<v8::FunctionTemplate> getter =
-        v8::FunctionTemplate::New(isolate, arbitraryObjectAttributeGetter);
-    v8::Local<v8::FunctionTemplate> setter =
-        v8::FunctionTemplate::New(isolate, arbitraryObjectAttributeSetter);
-
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
-    prototype_template->
-        SetAccessorProperty(
-            name,
-            getter,
-            setter,
-            attributes);
+                  true,
+                  true,
+                  false,
+                  false,
+                  function_template,
+                  instance_template,
+                  prototype_template,
+                  "arbitraryObject"
+                  ,arbitraryObjectAttributeGetter
+                  ,arbitraryObjectAttributeSetter
+                  );
 
   }
   {
-    // The name of the property is the identifier of the attribute.
-    v8::Local<v8::String> name = NewInternalString(
-        isolate,
-        "baseInterface");
 
+    script::v8c::shared_bindings::set_property_for_nonconstructor_attribute(
+                  isolate,
     // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
     // true, [[Configurable]]: configurable }, where: configurable is false if
     // the attribute was declared with the [Unforgeable] extended attribute and
     // true otherwise;
-    bool configurable = true;
-    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
-        configurable ? v8::None : v8::DontDelete);
-
-    // G is the attribute getter created given the attribute, the interface, and
-    // the relevant Realm of the object that is the location of the property;
-    // and
-    //
-    // S is the attribute setter created given the attribute, the interface, and
-    // the relevant Realm of the object that is the location of the property.
-    v8::Local<v8::FunctionTemplate> getter =
-        v8::FunctionTemplate::New(isolate, baseInterfaceAttributeGetter);
-    v8::Local<v8::FunctionTemplate> setter;
-
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
-    prototype_template->
-        SetAccessorProperty(
-            name,
-            getter,
-            setter,
-            attributes);
+                  true,
+                  false,
+                  false,
+                  false,
+                  function_template,
+                  instance_template,
+                  prototype_template,
+                  "baseInterface"
+                  ,baseInterfaceAttributeGetter
+                  );
 
   }
   {
-    // The name of the property is the identifier of the attribute.
-    v8::Local<v8::String> name = NewInternalString(
-        isolate,
-        "derivedInterface");
 
+    script::v8c::shared_bindings::set_property_for_nonconstructor_attribute(
+                  isolate,
     // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
     // true, [[Configurable]]: configurable }, where: configurable is false if
     // the attribute was declared with the [Unforgeable] extended attribute and
     // true otherwise;
-    bool configurable = true;
-    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
-        configurable ? v8::None : v8::DontDelete);
-
-    // G is the attribute getter created given the attribute, the interface, and
-    // the relevant Realm of the object that is the location of the property;
-    // and
-    //
-    // S is the attribute setter created given the attribute, the interface, and
-    // the relevant Realm of the object that is the location of the property.
-    v8::Local<v8::FunctionTemplate> getter =
-        v8::FunctionTemplate::New(isolate, derivedInterfaceAttributeGetter);
-    v8::Local<v8::FunctionTemplate> setter =
-        v8::FunctionTemplate::New(isolate, derivedInterfaceAttributeSetter);
-
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
-    prototype_template->
-        SetAccessorProperty(
-            name,
-            getter,
-            setter,
-            attributes);
+                  true,
+                  true,
+                  false,
+                  false,
+                  function_template,
+                  instance_template,
+                  prototype_template,
+                  "derivedInterface"
+                  ,derivedInterfaceAttributeGetter
+                  ,derivedInterfaceAttributeSetter
+                  );
 
   }
   {
-    // The name of the property is the identifier of the attribute.
-    v8::Local<v8::String> name = NewInternalString(
-        isolate,
-        "objectProperty");
 
+    script::v8c::shared_bindings::set_property_for_nonconstructor_attribute(
+                  isolate,
     // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
     // true, [[Configurable]]: configurable }, where: configurable is false if
     // the attribute was declared with the [Unforgeable] extended attribute and
     // true otherwise;
-    bool configurable = true;
-    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
-        configurable ? v8::None : v8::DontDelete);
-
-    // G is the attribute getter created given the attribute, the interface, and
-    // the relevant Realm of the object that is the location of the property;
-    // and
-    //
-    // S is the attribute setter created given the attribute, the interface, and
-    // the relevant Realm of the object that is the location of the property.
-    v8::Local<v8::FunctionTemplate> getter =
-        v8::FunctionTemplate::New(isolate, objectPropertyAttributeGetter);
-    v8::Local<v8::FunctionTemplate> setter =
-        v8::FunctionTemplate::New(isolate, objectPropertyAttributeSetter);
-
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
-    prototype_template->
-        SetAccessorProperty(
-            name,
-            getter,
-            setter,
-            attributes);
+                  true,
+                  true,
+                  false,
+                  false,
+                  function_template,
+                  instance_template,
+                  prototype_template,
+                  "objectProperty"
+                  ,objectPropertyAttributeGetter
+                  ,objectPropertyAttributeSetter
+                  );
 
   }
 
