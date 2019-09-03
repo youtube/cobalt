@@ -125,7 +125,9 @@ class PlayerComponentsImpl : public PlayerComponents {
       }
     }
 
-    video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
+    video_render_algorithm->reset(new VideoRenderAlgorithmImpl([]() {
+      return 60.;  // default refresh rate
+    }));
     if (video_parameters.output_mode == kSbPlayerOutputModeDecodeToTexture) {
       *video_renderer_sink = NULL;
     } else {

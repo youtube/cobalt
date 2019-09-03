@@ -182,6 +182,8 @@ void VideoRenderer::Seek(SbTime seek_to_time) {
   buffering_state_ = kWaitForBuffer;
   end_of_stream_decoded_.store(false);
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+
+  algorithm_->Reset();  // This is also guarded by sink_frames_mutex_.
 }
 
 bool VideoRenderer::CanAcceptMoreData() const {
@@ -273,8 +275,11 @@ void VideoRenderer::OnDecoderStatus(VideoDecoder::Status status,
       }
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
       ScopedLock scoped_lock(decoder_frames_mutex_);
-      decoder_frames_.push_back(frame);
-      number_of_frames_.increment();
+      if (decoder_frames_.empty() || frame->is_end_of_stream() ||
+          frame->timestamp() > decoder_frames_.back()->timestamp()) {
+        decoder_frames_.push_back(frame);
+        number_of_frames_.increment();
+      }
     }
 
     if (number_of_frames_.load() >=
