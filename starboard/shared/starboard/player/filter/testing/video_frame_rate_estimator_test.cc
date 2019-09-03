@@ -187,6 +187,12 @@ TEST(VideoFrameRateEstimatorTest, 30fpsTo60fpsTransitionWithMultipleFrames) {
 
   SkipFrames(1, &frames, &estimator);
   ASSERT_NEAR(estimator.frame_rate(), 60, kFrameRateEpisilon);
+
+  SkipFrames(2, &frames, &estimator);
+  ASSERT_NEAR(estimator.frame_rate(), 60, kFrameRateEpisilon);
+
+  SkipFrames(1, &frames, &estimator);
+  ASSERT_NEAR(estimator.frame_rate(), 60, kFrameRateEpisilon);
 }
 
 TEST(VideoFrameRateEstimatorTest, 30fpsTo60fpsTo30fps) {

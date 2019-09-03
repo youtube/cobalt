@@ -51,10 +51,11 @@ class VideoFrameRateEstimator {
   double frame_rate() const { return frame_rate_; }
 
  private:
-  // If two frame durations are different for more than the following value,
-  // they will be considered to be different.
+  // If the ratio of two frame estimated rates is not in the range
+  // (1 - |kFrameDurationRatioEpsilon|, 1 + |kFrameDurationEpsilon|), then the
+  // transition is treated like a discontinuity.
   static constexpr double kFrameDurationRatioEpsilon = 0.1;
-  // If the difference between the calculated frame rate and a nearby integer
+  // If the difference between the calculated frame rate and the nearest integer
   // frame rate is less than the following value, the integer frame rate will be
   // used.
   static constexpr double kFrameRateEpsilon = 0.1;
