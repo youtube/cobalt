@@ -55,6 +55,9 @@
   const IsReadableStreamDisturbed = self.IsReadableStreamDisturbed
   const IsReadableStreamLocked = self.IsReadableStreamLocked
 
+  const ABORT_ERROR = 'AbortError'
+  const ABORT_MESSAGE = 'Aborted'
+
   const ERROR_INVALID_HEADERS_INIT =
       'Constructing Headers with invalid parameters'
   const ERROR_NETWORK_REQUEST_FAILED = 'Network request failed'
@@ -259,18 +262,6 @@
     }
     return false
   }
-
-  const ABORT_ERROR_ID = 20
-  var AbortException = function() {
-    defineProperties(this, {
-      'message': { value: 'Aborted', writable: false},
-      'name' : { value: 'AbortError', writable: false},
-      'code': { value: ABORT_ERROR_ID, writable: false}
-    })
-  }
-  // TODO: This doesn't work under unit tests, should be implemented in IDL
-  // AbortException.prototype = DOMException
-  AbortException.prototype.constructor = AbortException
 
   // https://fetch.spec.whatwg.org/#headers-class
   function Headers(init) {
@@ -496,7 +487,7 @@
 
     this.arrayBuffer = function() {
       if (this[IS_ABORTED_SLOT]) {
-        return Promise.reject(new AbortException())
+        return Promise.reject(new DOMException(ABORT_MESSAGE, ABORT_ERROR))
       }
       return consumeBodyAsUint8Array(this).then(function(data) {
         return data.buffer
@@ -505,7 +496,7 @@
 
     this.text = function() {
       if (this[IS_ABORTED_SLOT]) {
-        return Promise.reject(new AbortException())
+        return Promise.reject(new DOMException(ABORT_MESSAGE, ABORT_ERROR))
       }
       return consumeBodyAsUint8Array(this).then(function(data) {
         return FetchInternal.decodeFromUTF8(data)
@@ -514,7 +505,7 @@
 
     this.json = function() {
       if (this[IS_ABORTED_SLOT]) {
-        return Promise.reject(new AbortException())
+        return Promise.reject(new DOMException(ABORT_MESSAGE, ABORT_ERROR))
       }
       return this.text().then(JSON.parse)
     }
@@ -807,7 +798,7 @@
       //    Abort fetch with p, request, and null.
       //    Return p.
       if (request.signal.aborted) {
-        return reject(new AbortException())
+        return reject(new DOMException(ABORT_MESSAGE, ABORT_ERROR))
       }
 
       // 5. If requests clients global object is a ServiceWorkerGlobalScope object,
@@ -824,46 +815,22 @@
         }
       })
 
-      var cleanup = function() {
+      var handleAbort = function() {
         if (!cancelled) {
           cancelled = true
           responseStream.cancel()
           if(responseStreamController) {
             try {
-              responseStreamController.close()
+              ReadableStreamDefaultControllerError(responseStreamController,
+                  new DOMException(ABORT_MESSAGE, ABORT_ERROR))
             } catch(_) {}
           }
           setTimeout(function() {
               try {
                 xhr.abort()
               } catch(_) {}
-            },0)
-          }
-      }
-
-      // Intercept getReader calls, and patch returned reader objects for abort
-      // This is required to make reader calls reject correctly with Abort
-      // as a result
-      const getReader_original = responseStream.getReader
-      responseStream.getReader = function() {
-        var reader = getReader_original.bind(this).call()
-        const read_original = reader.read
-        const closed_original = reader.closed
-        reader.read = function() {
-          if(request[SIGNAL_SLOT] && request[SIGNAL_SLOT].aborted) {
-            cleanup()
-            return Promise.reject(new AbortException())
-          }
-          return read_original.bind(this).call()
+            }, 0)
         }
-        defineProperty(reader,'closed',{ get: function() {
-            if(request[SIGNAL_SLOT] && request[SIGNAL_SLOT].aborted) {
-              cleanup()
-              return Promise.reject(new AbortException())
-            }
-            return closed_original
-          }})
-        return reader
       }
 
       xhr.onload = function() {
@@ -890,8 +857,8 @@
               // 8.2 Abort fetch with p, request, and responseObject.
               // 8.3 Terminate the ongoing fetch with the aborted flag set.
               response[IS_ABORTED_SLOT] = true
-              cleanup()
-              reject(new AbortException())
+              handleAbort()
+              reject(new DOMException(ABORT_MESSAGE, ABORT_ERROR))
             })
 
             response[TYPE_SLOT] = isCORSMode ? 'cors' : 'basic'
