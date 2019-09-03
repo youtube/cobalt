@@ -50,6 +50,7 @@
 #include "cobalt/script/v8c/v8c_property_enumerator.h"
 #include "cobalt/script/v8c/v8c_value_handle.h"
 #include "cobalt/script/v8c/wrapper_private.h"
+#include "cobalt/script/v8c/common_v8c_bindings_code.h"
 #include "v8/include/v8.h"
 
 
@@ -102,14 +103,12 @@ void NamedPropertyGetterCallback(
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  AnonymousNamedIndexedGetterInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             AnonymousNamedIndexedGetterInterface>(object);
+  if (!impl) {
     return;
   }
-  AnonymousNamedIndexedGetterInterface* impl =
-      wrapper_private->wrappable<AnonymousNamedIndexedGetterInterface>().get();
   std::string property_name = *v8::String::Utf8Value(isolate, property);
   if (!impl->CanQueryNamedProperty(property_name)) {
     return;
@@ -119,7 +118,7 @@ void NamedPropertyGetterCallback(
     ToJSValue(isolate,
               impl->AnonymousNamedGetter(property_name),
               &result_value);
-  }
+}
   if (exception_state.is_exception_set()) {
     return;
   }
@@ -132,14 +131,12 @@ void NamedPropertyQueryCallback(
     const v8::PropertyCallbackInfo<v8::Integer>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  AnonymousNamedIndexedGetterInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             AnonymousNamedIndexedGetterInterface>(object);
+  if (!impl) {
     return;
   }
-  AnonymousNamedIndexedGetterInterface* impl =
-      wrapper_private->wrappable<AnonymousNamedIndexedGetterInterface>().get();
   std::string property_name = *v8::String::Utf8Value(isolate, property);
   bool result = impl->CanQueryNamedProperty(property_name);
   if (!result) {
@@ -162,14 +159,12 @@ void NamedPropertyEnumeratorCallback(
     const v8::PropertyCallbackInfo<v8::Array>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  AnonymousNamedIndexedGetterInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             AnonymousNamedIndexedGetterInterface>(object);
+  if (!impl) {
     return;
   }
-  AnonymousNamedIndexedGetterInterface* impl =
-      wrapper_private->wrappable<AnonymousNamedIndexedGetterInterface>().get();
   v8::Local<v8::Array> array = v8::Array::New(isolate);
   V8cPropertyEnumerator property_enumerator(isolate, &array);
   impl->EnumerateNamedProperties(&property_enumerator);
@@ -186,14 +181,12 @@ void NamedPropertySetterCallback(
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  AnonymousNamedIndexedGetterInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             AnonymousNamedIndexedGetterInterface>(object);
+  if (!impl) {
     return;
   }
-  AnonymousNamedIndexedGetterInterface* impl =
-      wrapper_private->wrappable<AnonymousNamedIndexedGetterInterface>().get();
   std::string property_name = *v8::String::Utf8Value(isolate, property);
   TypeTraits<std::string>::ConversionType native_value;
   FromJSValue(isolate, value, kNoConversionFlags,
@@ -203,7 +196,7 @@ void NamedPropertySetterCallback(
   }
 
   impl->AnonymousNamedSetter(property_name, native_value);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
   if (exception_state.is_exception_set()) {
     return;
   }
@@ -222,14 +215,12 @@ void IndexedPropertyGetterCallback(
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  AnonymousNamedIndexedGetterInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             AnonymousNamedIndexedGetterInterface>(object);
+  if (!impl) {
     return;
   }
-  AnonymousNamedIndexedGetterInterface* impl =
-      wrapper_private->wrappable<AnonymousNamedIndexedGetterInterface>().get();
   if (index >= impl->length()) {
     // |index| is out of bounds, so return undefined.
     return;
@@ -239,7 +230,7 @@ void IndexedPropertyGetterCallback(
     ToJSValue(isolate,
               impl->AnonymousIndexedGetter(index),
               &result_value);
-  }
+}
   info.GetReturnValue().Set(result_value);
 }
 
@@ -254,14 +245,12 @@ void IndexedPropertyEnumeratorCallback(
     const v8::PropertyCallbackInfo<v8::Array>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  AnonymousNamedIndexedGetterInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             AnonymousNamedIndexedGetterInterface>(object);
+  if (!impl) {
     return;
   }
-  AnonymousNamedIndexedGetterInterface* impl =
-      wrapper_private->wrappable<AnonymousNamedIndexedGetterInterface>().get();
   const uint32_t length = impl->length();
   v8::Local<v8::Array> array = v8::Array::New(isolate, length);
   for (uint32_t i = 0; i < length; ++i) {
@@ -288,14 +277,12 @@ void IndexedPropertySetterCallback(
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  AnonymousNamedIndexedGetterInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             AnonymousNamedIndexedGetterInterface>(object);
+  if (!impl) {
     return;
   }
-  AnonymousNamedIndexedGetterInterface* impl =
-      wrapper_private->wrappable<AnonymousNamedIndexedGetterInterface>().get();
   if (index >= impl->length()) {
     return;
   }
@@ -307,7 +294,7 @@ void IndexedPropertySetterCallback(
   }
 
   impl->AnonymousIndexedSetter(index, native_value);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
   if (exception_state.is_exception_set()) {
     return;
   }
@@ -326,40 +313,20 @@ void DummyConstructor(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 void lengthAttributeGetter(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.Holder();
-
-
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cAnonymousNamedIndexedGetterInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return;
-  }
-  V8cExceptionState exception_state{isolate};
-  v8::Local<v8::Value> result_value;
-
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
-    return;
-  }
-  AnonymousNamedIndexedGetterInterface* impl =
-      wrapper_private->wrappable<AnonymousNamedIndexedGetterInterface>().get();
-
-
-  if (!exception_state.is_exception_set()) {
-    ToJSValue(isolate,
+  script::v8c::shared_bindings::AttributeGetterImpl<AnonymousNamedIndexedGetterInterface,
+                                                    V8cAnonymousNamedIndexedGetterInterface>(
+                    info,
+                    false,
+                    false,
+                    [](v8::Isolate* isolate, AnonymousNamedIndexedGetterInterface* impl,
+                       cobalt::script::ExceptionState& exception_state,
+                       v8::Local<v8::Value>& result_value) {
+  
+      ToJSValue(isolate,
               impl->length(),
               &result_value);
-  }
-  if (exception_state.is_exception_set()) {
-    return;
-  }
-  info.GetReturnValue().Set(result_value);
+
+  });
 }
 
 
@@ -419,38 +386,23 @@ void InitializeTemplate(v8::Isolate* isolate) {
   // corresponding property. The characteristics of this property are as
   // follows:
   {
-    // The name of the property is the identifier of the attribute.
-    v8::Local<v8::String> name = NewInternalString(
-        isolate,
-        "length");
 
+    script::v8c::shared_bindings::set_property_for_nonconstructor_attribute(
+                  isolate,
     // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
     // true, [[Configurable]]: configurable }, where: configurable is false if
     // the attribute was declared with the [Unforgeable] extended attribute and
     // true otherwise;
-    bool configurable = true;
-    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
-        configurable ? v8::None : v8::DontDelete);
-
-    // G is the attribute getter created given the attribute, the interface, and
-    // the relevant Realm of the object that is the location of the property;
-    // and
-    //
-    // S is the attribute setter created given the attribute, the interface, and
-    // the relevant Realm of the object that is the location of the property.
-    v8::Local<v8::FunctionTemplate> getter =
-        v8::FunctionTemplate::New(isolate, lengthAttributeGetter);
-    v8::Local<v8::FunctionTemplate> setter;
-
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
-    prototype_template->
-        SetAccessorProperty(
-            name,
-            getter,
-            setter,
-            attributes);
+                  true,
+                  false,
+                  false,
+                  false,
+                  function_template,
+                  instance_template,
+                  prototype_template,
+                  "length"
+                  ,lengthAttributeGetter
+                  );
 
   }
 
