@@ -131,7 +131,7 @@ This document records all notable changes made to Cobalt since the last release.
    options to be instead run-time options.  This will primarily be enabled
    by the new Starboard extensions framework.  An example of an platform
    specific option added in this way can be found in
-   `cobalt/extension/graphis.h`.
+   `cobalt/extension/graphics.h`.
 
  - **Cobalt code assumes that no errors are generated for unused parameters**
 
