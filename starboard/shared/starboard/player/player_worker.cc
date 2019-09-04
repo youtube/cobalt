@@ -240,7 +240,7 @@ void PlayerWorker::DoSeek(SbTime seek_to_time, int ticket) {
   SB_DCHECK(!error_occurred_);
   SB_DCHECK(ticket_ != ticket);
 
-  SB_DLOG(INFO) << "Try to seek to timestamp " << seek_to_time / kSbTimeSecond;
+  SB_DLOG(INFO) << "Try to seek to " << seek_to_time << " microseconds.";
 
   if (write_pending_sample_job_token_.is_valid()) {
     job_queue_->RemoveJobByToken(write_pending_sample_job_token_);

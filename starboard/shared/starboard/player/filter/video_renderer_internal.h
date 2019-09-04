@@ -143,6 +143,8 @@ class VideoRenderer : JobQueue::JobOwner {
   SbTimeMonotonic time_of_last_lag_warning_;
 
   SbTimeMonotonic time_of_last_render_call_ = -1;
+
+  SbTimeMonotonic first_input_written_at_ = 0;
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 };
 
