@@ -77,7 +77,9 @@ class MicrophoneAudioSource : public MediaStreamAudioSource {
   void OnMicrophoneError(speech::MicrophoneManager::MicrophoneError error,
                          std::string error_message);
 
-  scoped_refptr<base::SingleThreadTaskRunner> javascript_message_loop_;
+  scoped_refptr<base::SingleThreadTaskRunner> javascript_thread_task_runner_;
+
+  base::WeakPtrFactory<MicrophoneAudioSource> weak_ptr_factory_;
 
   // These are passed into |microphone_manager_| below, so they must be
   // defined before it.
