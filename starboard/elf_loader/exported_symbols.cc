@@ -278,7 +278,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMemoryFlush);
 #endif  // SB_CAN(MAP_EXECUTABLE_MEMORY)
 
-#if SB_HAS(MICROPHONE)
+#if SB_API_VERSION >= 12 || SB_HAS(MICROPHONE)
   REGISTER_SYMBOL(SbMicrophoneClose);
   REGISTER_SYMBOL(SbMicrophoneCreate);
   REGISTER_SYMBOL(SbMicrophoneDestroy);

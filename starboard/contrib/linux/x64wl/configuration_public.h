@@ -96,10 +96,6 @@
 // Include the Linux configuration that's common between all Desktop Linuxes.
 #include "starboard/linux/shared/configuration_public.h"
 
-// The current platform has microphone supported.
-#undef SB_HAS_MICROPHONE
-#define SB_HAS_MICROPHONE 1
-
 #if SB_API_VERSION >= 8
 // Whether the current platform implements the on screen keyboard interface.
 #define SB_HAS_ON_SCREEN_KEYBOARD 0
