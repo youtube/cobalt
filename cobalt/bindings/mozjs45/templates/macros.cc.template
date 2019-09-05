@@ -196,11 +196,17 @@
   if (args.length() > {{loop.index0 + non_optional_arguments|length}}) {
     JS::RootedValue optional_value{{loop.index0}}(
         context, args[{{loop.index0 + non_optional_arguments|length}}]);
-    FromJSValue(context,
-                optional_value{{loop.index0}},
-                {{argument.conversion_flags}},
-                &exception_state,
-                &{{argument.name}});
+{% if argument.default_value %}
+    if (!optional_value{{loop.index0}}.isUndefined()) {
+{% else %}
+    {
+{% endif %}
+      FromJSValue(context,
+                  optional_value{{loop.index0}},
+                  {{argument.conversion_flags}},
+                  &exception_state,
+                  &{{argument.name}});
+    }
     if (exception_state.is_exception_set()) {
       return false;
     }

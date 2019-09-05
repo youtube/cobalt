@@ -162,11 +162,17 @@
 {% endif %}
   if (info.Length() > {{loop.index0 + non_optional_arguments|length}}) {
     v8::Local<v8::Value> optional_value{{loop.index0}} = info[{{loop.index0 + non_optional_arguments|length}}];
-    FromJSValue(isolate,
-                optional_value{{loop.index0}},
-                {{argument.conversion_flags}},
-                &exception_state,
-                &{{argument.name}});
+{% if argument.default_value %}
+    if (!optional_value{{loop.index0}}->IsUndefined()) {
+{% else %}
+    {
+{% endif %}
+      FromJSValue(isolate,
+                  optional_value{{loop.index0}},
+                  {{argument.conversion_flags}},
+                  &exception_state,
+                  &{{argument.name}});
+    }
     if (exception_state.is_exception_set()) {
       return;
     }
