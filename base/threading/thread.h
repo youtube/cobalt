@@ -27,6 +27,10 @@ namespace base {
 class MessagePump;
 class RunLoop;
 
+#if defined(STARBOARD)
+const size_t kUnitTestStackSize = 1024 * 1024;
+#endif
+
 namespace sequence_manager {
 class SequenceManager;
 }  // namespace sequence_manager

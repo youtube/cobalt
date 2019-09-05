@@ -132,6 +132,9 @@ class EmbeddedTestServerTest
   void SetUp() override {
     base::Thread::Options thread_options;
     thread_options.message_loop_type = base::MessageLoop::TYPE_IO;
+#if defined(STARBOARD)
+    thread_options.stack_size = base::kUnitTestStackSize;
+#endif
     ASSERT_TRUE(io_thread_.StartWithOptions(thread_options));
 
     request_context_getter_ =
@@ -588,7 +591,8 @@ TEST_P(EmbeddedTestServerThreadingTest, RunTest) {
 #if defined(STARBOARD)
   // Some platforms have low default stack size that can't support unit tests.
   ASSERT_TRUE(
-      base::PlatformThread::Create(256 * 1024, &delegate, &thread_handle));
+      base::PlatformThread::Create(base::kUnitTestStackSize, &delegate,
+                                   &thread_handle));
 #else
   ASSERT_TRUE(base::PlatformThread::Create(0, &delegate, &thread_handle));
 #endif
