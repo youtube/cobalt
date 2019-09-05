@@ -265,9 +265,6 @@
 
 // --- I/O Configuration -----------------------------------------------------
 
-// Whether the current platform has microphone supported.
-#define SB_HAS_MICROPHONE 0
-
 // Whether the current platform supports on screen keyboard.
 #define SB_HAS_ON_SCREEN_KEYBOARD 0
 

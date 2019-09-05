@@ -486,8 +486,9 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_MAX_THREAD_NAME_LENGTH."
 #endif
 
-#if !defined(SB_HAS_MICROPHONE)
-#error "Your platform must define SB_HAS_MICROPHONE in API versions 2 or later."
+#if (SB_API_VERSION < 12 && !defined(SB_HAS_MICROPHONE))
+#error \
+    "Your platform must define SB_HAS_MICROPHONE in API versions 11 or earlier."
 #endif
 
 #if !defined(SB_HAS_TIME_THREAD_NOW)
