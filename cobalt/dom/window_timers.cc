@@ -81,8 +81,8 @@ void WindowTimers::ClearInterval(int handle) {
   Timers::iterator timer = timers_.find(handle);
   if (timer != timers_.end()) {
     debugger_hooks_.AsyncTaskCanceled(timer->second);
+    timers_.erase(timer);
   }
-  timers_.erase(timer);
 }
 
 void WindowTimers::ClearAllIntervalsAndTimeouts() {
