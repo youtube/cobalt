@@ -587,11 +587,13 @@ bool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
   if (args.length() > 2) {
     JS::RootedValue optional_value0(
         context, args[2]);
-    FromJSValue(context,
-                optional_value0,
-                kNoConversionFlags,
-                &exception_state,
-                &defaultArg);
+    if (!optional_value0.isUndefined()) {
+      FromJSValue(context,
+                  optional_value0,
+                  kNoConversionFlags,
+                  &exception_state,
+                  &defaultArg);
+    }
     if (exception_state.is_exception_set()) {
       return false;
     }

@@ -785,11 +785,13 @@ bool fcn_setTimeout(
   if (args.length() > 1) {
     JS::RootedValue optional_value0(
         context, args[1]);
-    FromJSValue(context,
-                optional_value0,
-                kNoConversionFlags,
-                &exception_state,
-                &timeout);
+    {
+      FromJSValue(context,
+                  optional_value0,
+                  kNoConversionFlags,
+                  &exception_state,
+                  &timeout);
+    }
     if (exception_state.is_exception_set()) {
       return false;
     }

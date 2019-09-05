@@ -193,11 +193,13 @@ void optionalArgumentWithDefaultMethod(const v8::FunctionCallbackInfo<v8::Value>
   size_t num_set_arguments = 1;
   if (info.Length() > 0) {
     v8::Local<v8::Value> optional_value0 = info[0];
-    FromJSValue(isolate,
-                optional_value0,
-                (kConversionFlagRestricted),
-                &exception_state,
-                &arg1);
+    if (!optional_value0->IsUndefined()) {
+      FromJSValue(isolate,
+                  optional_value0,
+                  (kConversionFlagRestricted),
+                  &exception_state,
+                  &arg1);
+    }
     if (exception_state.is_exception_set()) {
       return;
     }
@@ -247,11 +249,13 @@ void optionalArgumentsMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   size_t num_set_arguments = 1;
   if (info.Length() > 1) {
     v8::Local<v8::Value> optional_value0 = info[1];
-    FromJSValue(isolate,
-                optional_value0,
-                kNoConversionFlags,
-                &exception_state,
-                &arg2);
+    {
+      FromJSValue(isolate,
+                  optional_value0,
+                  kNoConversionFlags,
+                  &exception_state,
+                  &arg2);
+    }
     if (exception_state.is_exception_set()) {
       return;
     }
@@ -259,11 +263,13 @@ void optionalArgumentsMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
   if (info.Length() > 2) {
     v8::Local<v8::Value> optional_value1 = info[2];
-    FromJSValue(isolate,
-                optional_value1,
-                kNoConversionFlags,
-                &exception_state,
-                &arg3);
+    {
+      FromJSValue(isolate,
+                  optional_value1,
+                  kNoConversionFlags,
+                  &exception_state,
+                  &arg3);
+    }
     if (exception_state.is_exception_set()) {
       return;
     }
@@ -319,22 +325,26 @@ void optionalNullableArgumentsWithDefaultsMethod(const v8::FunctionCallbackInfo<
   size_t num_set_arguments = 2;
   if (info.Length() > 0) {
     v8::Local<v8::Value> optional_value0 = info[0];
-    FromJSValue(isolate,
-                optional_value0,
-                (kConversionFlagNullable),
-                &exception_state,
-                &arg1);
+    if (!optional_value0->IsUndefined()) {
+      FromJSValue(isolate,
+                  optional_value0,
+                  (kConversionFlagNullable),
+                  &exception_state,
+                  &arg1);
+    }
     if (exception_state.is_exception_set()) {
       return;
     }
   }
   if (info.Length() > 1) {
     v8::Local<v8::Value> optional_value1 = info[1];
-    FromJSValue(isolate,
-                optional_value1,
-                (kConversionFlagNullable),
-                &exception_state,
-                &arg2);
+    if (!optional_value1->IsUndefined()) {
+      FromJSValue(isolate,
+                  optional_value1,
+                  (kConversionFlagNullable),
+                  &exception_state,
+                  &arg2);
+    }
     if (exception_state.is_exception_set()) {
       return;
     }
@@ -831,11 +841,13 @@ void variadicStringArgumentsAfterOptionalArgumentMethod(const v8::FunctionCallba
   size_t num_set_arguments = 0;
   if (info.Length() > 0) {
     v8::Local<v8::Value> optional_value0 = info[0];
-    FromJSValue(isolate,
-                optional_value0,
-                kNoConversionFlags,
-                &exception_state,
-                &optionalArg);
+    {
+      FromJSValue(isolate,
+                  optional_value0,
+                  kNoConversionFlags,
+                  &exception_state,
+                  &optionalArg);
+    }
     if (exception_state.is_exception_set()) {
       return;
     }

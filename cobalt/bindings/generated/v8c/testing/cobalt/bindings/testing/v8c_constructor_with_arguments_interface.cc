@@ -137,11 +137,13 @@ void Constructor(const v8::FunctionCallbackInfo<v8::Value>& info) {
   size_t num_set_arguments = 3;
   if (info.Length() > 2) {
     v8::Local<v8::Value> optional_value0 = info[2];
-    FromJSValue(isolate,
-                optional_value0,
-                kNoConversionFlags,
-                &exception_state,
-                &defaultArg);
+    if (!optional_value0->IsUndefined()) {
+      FromJSValue(isolate,
+                  optional_value0,
+                  kNoConversionFlags,
+                  &exception_state,
+                  &defaultArg);
+    }
     if (exception_state.is_exception_set()) {
       return;
     }
