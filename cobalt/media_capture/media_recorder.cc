@@ -196,12 +196,16 @@ void MediaRecorder::OnSetFormat(const media_stream::AudioParameters& params) {
   // Add some padding to the end of the buffer to account for jitter in
   // scheduling, etc.
   // This allows us to potentially avoid unnecessary resizing.
-  base::TimeDelta recommended_time_slice =
-      timeslice_ +
-      base::TimeDelta::FromMilliseconds(kSchedulingLatencyBufferMilliseconds);
-  int64 buffer_size_hint =
-      GetRecommendedBufferSizeInBytes(recommended_time_slice, bits_per_second);
-  buffer_.reserve(static_cast<size_t>(buffer_size_hint));
+  // If the timeslice is using the default maximum long value, do not reserve
+  // space for buffer as we don't know how much is needed.
+  if (!timeslice_unspecified_) {
+    base::TimeDelta recommended_time_slice =
+        timeslice_ +
+        base::TimeDelta::FromMilliseconds(kSchedulingLatencyBufferMilliseconds);
+    int64 buffer_size_hint = GetRecommendedBufferSizeInBytes(
+        recommended_time_slice, bits_per_second);
+    buffer_.reserve(static_cast<size_t>(buffer_size_hint));
+  }
 }
 
 void MediaRecorder::OnReadyStateChanged(
@@ -274,6 +278,7 @@ void MediaRecorder::StopRecording() {
   WriteData(std::move(empty), true, now);
 
   timeslice_ = base::TimeDelta::FromSeconds(0);
+  timeslice_unspecified_ = false;
   DispatchEvent(new dom::Event(base::Tokens::stop()));
 }
 
