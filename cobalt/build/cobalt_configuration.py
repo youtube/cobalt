@@ -136,6 +136,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'layout_tests',
         'loader_test',
         'math_test',
+        'media_capture_test',
         'media_session_test',
         'media_stream_test',
         'memory_store_test',
