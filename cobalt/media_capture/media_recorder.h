@@ -68,6 +68,7 @@ class MediaRecorder : public media_stream::MediaStreamAudioSink,
   void Start(int32 timeslice, script::ExceptionState* exception_state);
 
   void Start(script::ExceptionState* exception_state) {
+    timeslice_unspecified_ = true;
     Start(kint32max, exception_state);
   }
 
@@ -162,6 +163,8 @@ class MediaRecorder : public media_stream::MediaStreamAudioSink,
 
   base::WeakPtrFactory<MediaRecorder> weak_ptr_factory_;
   base::WeakPtr<MediaRecorder> weak_this_;
+
+  bool timeslice_unspecified_ = false;
 };
 
 }  // namespace media_capture
