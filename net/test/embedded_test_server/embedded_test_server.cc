@@ -178,6 +178,9 @@ void EmbeddedTestServer::StartAcceptingConnections() {
   base::Thread::Options thread_options;
   thread_options.message_loop_type = base::MessageLoop::TYPE_IO;
   io_thread_.reset(new base::Thread("EmbeddedTestServer IO Thread"));
+#if defined(STARBOARD)
+  thread_options.stack_size = base::kUnitTestStackSize;
+#endif
   CHECK(io_thread_->StartWithOptions(thread_options));
   CHECK(io_thread_->WaitUntilThreadStarted());
 
