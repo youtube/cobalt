@@ -185,11 +185,13 @@ void optionalEnumWithDefaultMethod(const v8::FunctionCallbackInfo<v8::Value>& in
   size_t num_set_arguments = 1;
   if (info.Length() > 0) {
     v8::Local<v8::Value> optional_value0 = info[0];
-    FromJSValue(isolate,
-                optional_value0,
-                kNoConversionFlags,
-                &exception_state,
-                &value);
+    if (!optional_value0->IsUndefined()) {
+      FromJSValue(isolate,
+                  optional_value0,
+                  kNoConversionFlags,
+                  &exception_state,
+                  &value);
+    }
     if (exception_state.is_exception_set()) {
       return;
     }

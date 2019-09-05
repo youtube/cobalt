@@ -357,11 +357,13 @@ bool fcn_optionalArgumentWithDefault(
   if (args.length() > 0) {
     JS::RootedValue optional_value0(
         context, args[0]);
-    FromJSValue(context,
-                optional_value0,
-                (kConversionFlagRestricted),
-                &exception_state,
-                &arg1);
+    if (!optional_value0.isUndefined()) {
+      FromJSValue(context,
+                  optional_value0,
+                  (kConversionFlagRestricted),
+                  &exception_state,
+                  &arg1);
+    }
     if (exception_state.is_exception_set()) {
       return false;
     }
@@ -437,11 +439,13 @@ bool fcn_optionalArguments(
   if (args.length() > 1) {
     JS::RootedValue optional_value0(
         context, args[1]);
-    FromJSValue(context,
-                optional_value0,
-                kNoConversionFlags,
-                &exception_state,
-                &arg2);
+    {
+      FromJSValue(context,
+                  optional_value0,
+                  kNoConversionFlags,
+                  &exception_state,
+                  &arg2);
+    }
     if (exception_state.is_exception_set()) {
       return false;
     }
@@ -450,11 +454,13 @@ bool fcn_optionalArguments(
   if (args.length() > 2) {
     JS::RootedValue optional_value1(
         context, args[2]);
-    FromJSValue(context,
-                optional_value1,
-                kNoConversionFlags,
-                &exception_state,
-                &arg3);
+    {
+      FromJSValue(context,
+                  optional_value1,
+                  kNoConversionFlags,
+                  &exception_state,
+                  &arg3);
+    }
     if (exception_state.is_exception_set()) {
       return false;
     }
@@ -537,11 +543,13 @@ bool fcn_optionalNullableArgumentsWithDefaults(
   if (args.length() > 0) {
     JS::RootedValue optional_value0(
         context, args[0]);
-    FromJSValue(context,
-                optional_value0,
-                (kConversionFlagNullable),
-                &exception_state,
-                &arg1);
+    if (!optional_value0.isUndefined()) {
+      FromJSValue(context,
+                  optional_value0,
+                  (kConversionFlagNullable),
+                  &exception_state,
+                  &arg1);
+    }
     if (exception_state.is_exception_set()) {
       return false;
     }
@@ -549,11 +557,13 @@ bool fcn_optionalNullableArgumentsWithDefaults(
   if (args.length() > 1) {
     JS::RootedValue optional_value1(
         context, args[1]);
-    FromJSValue(context,
-                optional_value1,
-                (kConversionFlagNullable),
-                &exception_state,
-                &arg2);
+    if (!optional_value1.isUndefined()) {
+      FromJSValue(context,
+                  optional_value1,
+                  (kConversionFlagNullable),
+                  &exception_state,
+                  &arg2);
+    }
     if (exception_state.is_exception_set()) {
       return false;
     }
@@ -1305,11 +1315,13 @@ bool fcn_variadicStringArgumentsAfterOptionalArgument(
   if (args.length() > 0) {
     JS::RootedValue optional_value0(
         context, args[0]);
-    FromJSValue(context,
-                optional_value0,
-                kNoConversionFlags,
-                &exception_state,
-                &optionalArg);
+    {
+      FromJSValue(context,
+                  optional_value0,
+                  kNoConversionFlags,
+                  &exception_state,
+                  &optionalArg);
+    }
     if (exception_state.is_exception_set()) {
       return false;
     }

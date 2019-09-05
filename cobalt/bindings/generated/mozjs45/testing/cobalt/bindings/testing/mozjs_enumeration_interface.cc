@@ -346,11 +346,13 @@ bool fcn_optionalEnumWithDefault(
   if (args.length() > 0) {
     JS::RootedValue optional_value0(
         context, args[0]);
-    FromJSValue(context,
-                optional_value0,
-                kNoConversionFlags,
-                &exception_state,
-                &value);
+    if (!optional_value0.isUndefined()) {
+      FromJSValue(context,
+                  optional_value0,
+                  kNoConversionFlags,
+                  &exception_state,
+                  &value);
+    }
     if (exception_state.is_exception_set()) {
       return false;
     }
