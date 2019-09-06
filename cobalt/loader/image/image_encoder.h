@@ -29,13 +29,7 @@ namespace image {
 class EncodedStaticImage : public Image {
  public:
   enum class ImageFormat {
-// kJPEG uses jpeg_utils, and jpeg_utils pulls in libjpeg-turbo as an additional
-// dependency, which increases the size of the cobalt binary. Because jpeg_utils
-// is only used for screencasting, which is only needed for non-gold builds, we
-// can disable kJPEG for gold builds.
-#if !defined(COBALT_BUILD_TYPE_GOLD)
     kJPEG,
-#endif
     kPNG,
     kWEBP,
   };
