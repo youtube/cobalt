@@ -44,8 +44,8 @@ class CSSAnimationsAdapter : public cssom::AnimationSet::EventHandler {
   // From cssom::AnimationSet::EventHandler.
   void OnAnimationStarted(const cssom::Animation& css_animation,
                           cssom::AnimationSet* animation_set) override;
-  void OnAnimationRemoved(const cssom::Animation& css_animation,
-                          cssom::Animation::IsCanceled is_canceled) override;
+  void OnAnimationEnded(const cssom::Animation& css_animation) override;
+  void OnAnimationRemoved(const cssom::Animation& css_animation) override;
 
  private:
   // The AnimationWithEventHandler struct maintains a reference to the Animation
