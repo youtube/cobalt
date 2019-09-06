@@ -208,7 +208,7 @@ void FlexContainerBox::UpdateContentSizeAndMargins(
       flex_formatting_context.UpdateRect(child_box);
 
       auto item = FlexItem::Create(child_box, main_direction_is_horizontal);
-      item->DetermineFlexBaseSize(child_layout_params, main_space_,
+      item->DetermineFlexBaseSize(main_space_,
                                   layout_params.shrink_to_fit_width_forced);
       item->DetermineHypotheticalMainSize(
           child_layout_params.containing_block_size);
