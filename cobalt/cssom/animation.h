@@ -31,10 +31,6 @@ namespace cssom {
 // animation references.
 class Animation {
  public:
-  // The enum IsCanceled is used as a flag to indicate if a removed animation
-  // is canceled or removed after finishing.
-  enum IsCanceled { kIsNotCanceled, kIsCanceled };
-
   // Determines how the animation should interact with the style before the
   // animation starts and after it ends.
   enum FillMode {
