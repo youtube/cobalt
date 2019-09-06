@@ -341,7 +341,6 @@ bool FlexItem::OverflowIsVisible() const {
 }
 
 void FlexItem::DetermineFlexBaseSize(
-    const LayoutParams& layout_params,
     const base::Optional<LayoutUnit>& main_space,
     bool container_shrink_to_fit_width_forced) {
   // Absolutely positioned boxes are not flex items.
@@ -358,7 +357,7 @@ void FlexItem::DetermineFlexBaseSize(
   bool flex_basis_depends_on_available_space;
   base::Optional<LayoutUnit> flex_basis = GetUsedFlexBasisIfNotContent(
       computed_style(), main_direction_is_horizontal_,
-      layout_params.containing_block_size,
+      main_space.value_or(LayoutUnit()),
       &flex_basis_depends_on_available_space);
   bool flex_basis_is_definite =
       flex_basis && (!flex_basis_depends_on_available_space || main_space);

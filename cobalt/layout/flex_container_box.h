@@ -120,11 +120,6 @@ class FlexContainerBox : public BlockContainerBox {
                                bool height_depends_on_containing_block,
                                const base::Optional<LayoutUnit>& maybe_height);
 
-  // Determine the flex base size and hypothetical main size of the item.
-  //   https://www.w3.org/TR/css-flexbox-1/#algo-main-item
-  LayoutUnit DetermineFlexBaseSize(Box* item, const LayoutParams& layout_params,
-                                   bool container_shrink_to_fit_width_forced);
-
   AnonymousBlockBox* GetLastChildAsAnonymousBlockBox();
   AnonymousBlockBox* GetOrAddAnonymousBlockBox();
 

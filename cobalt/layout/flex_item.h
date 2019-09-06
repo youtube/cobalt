@@ -80,8 +80,7 @@ class FlexItem {
 
   // Determine the flex base size.
   //   https://www.w3.org/TR/css-flexbox-1/#flex-base-size
-  void DetermineFlexBaseSize(const LayoutParams& layout_params,
-                             const base::Optional<LayoutUnit>& main_space,
+  void DetermineFlexBaseSize(const base::Optional<LayoutUnit>& main_space,
                              bool container_shrink_to_fit_width_forced);
 
   // Determine the hypothetical main size.
