@@ -17,7 +17,6 @@
 
 {
   'variables': {
-    'target_arch%': 'x64',
     'yasm_exists': 1,
     'sb_target_platform': 'evergreen-x64',
     'enable_map_to_mesh': 1,
@@ -56,5 +55,6 @@
   'includes': [
     '<(DEPTH)/starboard/evergreen/shared/gyp_configuration.gypi',
     '<(DEPTH)/starboard/evergreen/shared/compiler_flags.gypi',
+    '<(DEPTH)/starboard/evergreen/x64/architecture.gypi',
   ],
 }

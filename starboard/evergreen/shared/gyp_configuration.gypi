@@ -42,6 +42,8 @@
     'defines' : [
       '_LIBCPP_HAS_MUSL_LIBC',
       '__STDC_FORMAT_MACROS', # so that we get PRI*
+      # File format of the shared object we will generate.
+      '__ELF__',
     ],
   },
 }
