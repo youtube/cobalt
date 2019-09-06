@@ -43,12 +43,16 @@ scoped_refptr<loader::image::EncodedStaticImage> CompressRGBAImage(
           kPitchSizeInBytes, &num_bytes);
       break;
     }
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
     case ImageFormat::kJPEG: {
       compressed_data = renderer::test::jpeg_utils::EncodeRGBAToBuffer(
           image_data, dimensions.width(), dimensions.height(),
           kPitchSizeInBytes, &num_bytes);
       break;
     }
+#endif
+
     case ImageFormat::kWEBP:
       NOTIMPLEMENTED();
       return nullptr;
