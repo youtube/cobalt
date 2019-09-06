@@ -44,20 +44,14 @@ scoped_refptr<loader::image::EncodedStaticImage> CompressRGBAImage(
       break;
     }
 
-    case ImageFormat::kJPEG: {
-// jpeg_utils pulls in libjpeg-turbo as an additional dependency, which
-// increases the size of the cobalt binary. Because jpeg_utils is only used for
-// screencasting, which is only needed for non-gold builds, we can disable this
-// logic for gold builds.
 #if !defined(COBALT_BUILD_TYPE_GOLD)
+    case ImageFormat::kJPEG: {
       compressed_data = renderer::test::jpeg_utils::EncodeRGBAToBuffer(
           image_data, dimensions.width(), dimensions.height(),
           kPitchSizeInBytes, &num_bytes);
       break;
-#else
-      NOTREACHED();
-#endif
     }
+#endif
 
     case ImageFormat::kWEBP:
       NOTIMPLEMENTED();
