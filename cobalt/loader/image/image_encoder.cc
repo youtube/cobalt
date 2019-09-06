@@ -43,12 +43,22 @@ scoped_refptr<loader::image::EncodedStaticImage> CompressRGBAImage(
           kPitchSizeInBytes, &num_bytes);
       break;
     }
+<<<<<<< HEAD   (483b82 Correct a mistake reporting AllowAddressReuse() error in dia)
+=======
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+>>>>>>> CHANGE (02366e Remove ImageFormat::kJPEG from gold builds)
     case ImageFormat::kJPEG: {
       compressed_data = renderer::test::jpeg_utils::EncodeRGBAToBuffer(
           image_data, dimensions.width(), dimensions.height(),
           kPitchSizeInBytes, &num_bytes);
       break;
     }
+<<<<<<< HEAD   (483b82 Correct a mistake reporting AllowAddressReuse() error in dia)
+=======
+#endif
+
+>>>>>>> CHANGE (02366e Remove ImageFormat::kJPEG from gold builds)
     case ImageFormat::kWEBP:
       NOTIMPLEMENTED();
       return nullptr;
