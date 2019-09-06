@@ -192,37 +192,38 @@ void CSSAnimationsAdapter::OnAnimationStarted(
   web_animation->Play();
 }
 
+void CSSAnimationsAdapter::OnAnimationEnded(
+    const cssom::Animation& css_animation) {
+  // An animation has entered the "after phase", so we should correspondingly
+  // fire the animationend event.
+  //   https://drafts.csswg.org/date/2015-03-02/web-animations-css-integration/#css-animations-events
+  // Cobalt assumes that the CSSOM does not change during computed style
+  // calculation. Post to dispatch the event asynchronously here to avoid
+  // calling event handlers during computed style calculation, which in turn
+  // may modify CSSOM and require restart of the computed style calculation.
+  animatable_->GetEventTarget()->PostToDispatchEvent(
+      FROM_HERE,
+      new AnimationEvent(
+          base::Tokens::animationend(), css_animation.name(),
+          static_cast<float>(css_animation.duration().InMillisecondsF() *
+                             css_animation.iteration_count())));
+}
+
 void CSSAnimationsAdapter::OnAnimationRemoved(
-    const cssom::Animation& css_animation,
-    cssom::Animation::IsCanceled is_canceled) {
+    const cssom::Animation& css_animation) {
   // If a CSS Animation is removed from an element, its corresponding
   // Web Animations animation should be stopped and removed also.
   AnimationMap::iterator found = animation_map_.find(css_animation.name());
-  if (animation_map_.end() != found) {
-    if (is_canceled == cssom::Animation::kIsNotCanceled) {
-      // An animation has entered the "after phase", so we should
-      // correspondingly fire the animationend event.
-      //   https://drafts.csswg.org/date/2015-03-02/web-animations-css-integration/#css-animations-events
-      // Cobalt assumes that the CSSOM does not change during computed style
-      // calculation. Post to dispatch the event asynchronously here to avoid
-      // calling event handlers during computed style calculation, which in turn
-      // may modify CSSOM and require restart of the computed style calculation.
-      animatable_->GetEventTarget()->PostToDispatchEvent(
-          FROM_HERE,
-          new AnimationEvent(
-              base::Tokens::animationend(), css_animation.name(),
-              static_cast<float>(css_animation.duration().InMillisecondsF() *
-                                 css_animation.iteration_count())));
-    }
+  DCHECK(animation_map_.end() != found);
 
-    found->second->animation->Cancel();
-    delete found->second;
-    animation_map_.erase(found);
-  }
+  found->second->animation->Cancel();
+  delete found->second;
+  animation_map_.erase(found);
 }
 
 void CSSAnimationsAdapter::HandleAnimationEnterAfterPhase(
     cssom::AnimationSet* animation_set) {
+  // The update processing handles signalling when an animation ends.
   DCHECK(animatable_->GetDefaultTimeline()->current_time());
   base::TimeDelta current_time = base::TimeDelta::FromMillisecondsD(
       animatable_->GetDefaultTimeline()->current_time().value_or(0));
