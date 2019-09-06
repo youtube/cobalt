@@ -296,6 +296,8 @@ class AndroidConfiguration(PlatformConfiguration):
           # These are failing on the internal test lab network that doesn't
           # support IPv6.
           'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
+          '.SunnyDayDestination/1',
+          'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
           '.SunnyDaySourceForDestination/1',
           'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
           '.SunnyDaySourceNotLoopback/1',
