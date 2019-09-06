@@ -1706,16 +1706,13 @@ base::Optional<LayoutUnit> GetUsedBottomIfNotAuto(
 //   https://www.w3.org/TR/css-flexbox-1/#flex-basis-property
 base::Optional<LayoutUnit> GetUsedFlexBasisIfNotContent(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const bool main_direction_is_horizontal,
-    const SizeLayoutUnit& flex_container_size,
+    bool main_direction_is_horizontal,
+    LayoutUnit main_space,
     bool* flex_basis_depends_on_available_space) {
   // Percentage values of flex-basis are resolved against the flex item's
   // containing block (i.e. its flex container).
   //   https://www.w3.org/TR/css-flexbox-1/#flex-basis-property
-  LayoutUnit flex_container_main_size = main_direction_is_horizontal
-                                            ? flex_container_size.width()
-                                            : flex_container_size.height();
-  UsedFlexBasisProvider used_flex_basis_provider(flex_container_main_size);
+  UsedFlexBasisProvider used_flex_basis_provider(main_space);
   computed_style->flex_basis()->Accept(&used_flex_basis_provider);
   if (used_flex_basis_provider.flex_basis_is_auto()) {
     // The auto keyword retrieves the value of the main size property as
@@ -1723,9 +1720,11 @@ base::Optional<LayoutUnit> GetUsedFlexBasisIfNotContent(
     // value is content.
     //   https://www.w3.org/TR/css-flexbox-1/#valdef-flex-basis-auto
     if (main_direction_is_horizontal) {
+      SizeLayoutUnit flex_container_size(main_space, LayoutUnit());
       return GetUsedWidthIfNotAuto(computed_style, flex_container_size,
                                    flex_basis_depends_on_available_space);
     } else {
+      SizeLayoutUnit flex_container_size(LayoutUnit(), main_space);
       return GetUsedHeightIfNotAuto(computed_style, flex_container_size,
                                     flex_basis_depends_on_available_space);
     }
