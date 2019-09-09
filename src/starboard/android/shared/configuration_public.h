@@ -81,22 +81,6 @@
 // available on this platform. For a definitive measure, the application should
 // still call SbSystemGetNumberOfProcessors at runtime.
 
-// Whether the current platform is expected to have many cores (> 6), or a
-// wildly varying number of cores.
-#define SB_HAS_MANY_CORES 1
-
-// Whether the current platform is expected to have exactly 1 core.
-#define SB_HAS_1_CORE 0
-
-// Whether the current platform is expected to have exactly 2 cores.
-#define SB_HAS_2_CORES 0
-
-// Whether the current platform is expected to have exactly 4 cores.
-#define SB_HAS_4_CORES 0
-
-// Whether the current platform is expected to have exactly 6 cores.
-#define SB_HAS_6_CORES 0
-
 // Whether the current platform's thread scheduler will automatically balance
 // threads between cores, as opposed to systems where threads will only ever run
 // on the specifically pinned core.
@@ -129,9 +113,6 @@
 
 // Whether the current platform provides the standard header inttypes.h.
 #define SB_HAS_INTTYPES_H 1
-
-// Whether the current platform provides the standard header wchar.h.
-#define SB_HAS_WCHAR_H 1
 
 // Whether the current platform provides the standard header limits.h.
 #define SB_HAS_LIMITS_H 1

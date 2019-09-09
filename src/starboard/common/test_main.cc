@@ -24,4 +24,9 @@ int InitAndRunAllTests(int argc, char** argv) {
 }
 }  // namespace
 
+// When we are building Evergreen we need to export SbEventHandle so that the
+// ELF loader can find and invoke it.
+#if SB_IS(EVERGREEN)
+SB_EXPORT
+#endif  // SB_IS(EVERGREEN)
 STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests);

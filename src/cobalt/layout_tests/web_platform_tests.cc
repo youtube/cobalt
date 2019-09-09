@@ -297,9 +297,8 @@ HarnessResult ParseResults(const std::string& json_results) {
 }
 
 ::testing::AssertionResult CheckHarnessResult(const char* /* expectation_str */,
-                                              const char* /* results_str */,
-                                              WebPlatformTestInfo::State expect_status,
-                                              const HarnessResult& result) {
+    const char* /* results_str */, WebPlatformTestInfo::State expect_status,
+    const HarnessResult& result) {
   if ((expect_status == WebPlatformTestInfo::State::kPass) &&
       (result.status != kTestsOk)) {
     return ::testing::AssertionFailure()
@@ -422,6 +421,10 @@ INSTANTIATE_TEST_CASE_P(streams, WebPlatformTest,
                         ::testing::ValuesIn(EnumerateWebPlatformTests(
                             "streams", "'ReadableStream' in this")),
                         GetTestName());
+
+INSTANTIATE_TEST_CASE_P(webidl, WebPlatformTest,
+    ::testing::ValuesIn(EnumerateWebPlatformTests("WebIDL")),
+    GetTestName());
 
 #endif  // !defined(COBALT_WIN)
 

@@ -50,6 +50,7 @@
 #include "cobalt/script/v8c/v8c_property_enumerator.h"
 #include "cobalt/script/v8c/v8c_value_handle.h"
 #include "cobalt/script/v8c/wrapper_private.h"
+#include "cobalt/script/v8c/common_v8c_bindings_code.h"
 #include "v8/include/v8.h"
 
 
@@ -112,28 +113,21 @@ void DummyConstructor(const v8::FunctionCallbackInfo<v8::Value>& info) {
 void onSuccessMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cPromiseInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cPromiseInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  PromiseInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             PromiseInterface>(object);
+  if (!impl) {
     return;
   }
-  PromiseInterface* impl =
-      wrapper_private->wrappable<PromiseInterface>().get();
 
   impl->OnSuccess();
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 
@@ -142,31 +136,24 @@ void onSuccessMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
 void returnBooleanPromiseMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cPromiseInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cPromiseInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  PromiseInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             PromiseInterface>(object);
+  if (!impl) {
     return;
   }
-  PromiseInterface* impl =
-      wrapper_private->wrappable<PromiseInterface>().get();
 
   if (!exception_state.is_exception_set()) {
     ToJSValue(isolate,
               impl->ReturnBooleanPromise(),
               &result_value);
-  }
+}
   if (!exception_state.is_exception_set()) {
     info.GetReturnValue().Set(result_value);
   }
@@ -178,31 +165,24 @@ void returnBooleanPromiseMethod(const v8::FunctionCallbackInfo<v8::Value>& info)
 void returnInterfacePromiseMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cPromiseInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cPromiseInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  PromiseInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             PromiseInterface>(object);
+  if (!impl) {
     return;
   }
-  PromiseInterface* impl =
-      wrapper_private->wrappable<PromiseInterface>().get();
 
   if (!exception_state.is_exception_set()) {
     ToJSValue(isolate,
               impl->ReturnInterfacePromise(),
               &result_value);
-  }
+}
   if (!exception_state.is_exception_set()) {
     info.GetReturnValue().Set(result_value);
   }
@@ -214,31 +194,24 @@ void returnInterfacePromiseMethod(const v8::FunctionCallbackInfo<v8::Value>& inf
 void returnStringPromiseMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cPromiseInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cPromiseInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  PromiseInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             PromiseInterface>(object);
+  if (!impl) {
     return;
   }
-  PromiseInterface* impl =
-      wrapper_private->wrappable<PromiseInterface>().get();
 
   if (!exception_state.is_exception_set()) {
     ToJSValue(isolate,
               impl->ReturnStringPromise(),
               &result_value);
-  }
+}
   if (!exception_state.is_exception_set()) {
     info.GetReturnValue().Set(result_value);
   }
@@ -250,31 +223,24 @@ void returnStringPromiseMethod(const v8::FunctionCallbackInfo<v8::Value>& info) 
 void returnVoidPromiseMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cPromiseInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cPromiseInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  PromiseInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             PromiseInterface>(object);
+  if (!impl) {
     return;
   }
-  PromiseInterface* impl =
-      wrapper_private->wrappable<PromiseInterface>().get();
 
   if (!exception_state.is_exception_set()) {
     ToJSValue(isolate,
               impl->ReturnVoidPromise(),
               &result_value);
-  }
+}
   if (!exception_state.is_exception_set()) {
     info.GetReturnValue().Set(result_value);
   }

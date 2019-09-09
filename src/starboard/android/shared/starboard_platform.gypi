@@ -432,7 +432,7 @@
         '<(DEPTH)/starboard/shared/starboard/system_supports_resume.cc',
         '<(DEPTH)/starboard/shared/starboard/thread_checker.h',
         '<(DEPTH)/starboard/shared/starboard/window_set_default_options.cc',
-        '<(DEPTH)/starboard/shared/stub/cpu_features_get.cc',
+        '<(DEPTH)/starboard/shared/linux/cpu_features_get.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_create_transformer.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_destroy_transformer.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_get_tag.cc',

@@ -436,13 +436,15 @@ TEST(UsedStyleTest, UsedFlexBasisAutoDependsOnFlexContainer) {
   SizeLayoutUnit flex_container_size(LayoutUnit(200), LayoutUnit(80));
   bool depends_on_flex_container = false;
   auto used_flex_basis = GetUsedFlexBasisIfNotContent(
-      computed_style, true, flex_container_size, &depends_on_flex_container);
+      computed_style, true, flex_container_size.width(),
+      &depends_on_flex_container);
   EXPECT_TRUE(depends_on_flex_container);
   EXPECT_FALSE(used_flex_basis);
 
   depends_on_flex_container = false;
-  used_flex_basis = GetUsedFlexBasisIfNotContent(
-      computed_style, false, flex_container_size, &depends_on_flex_container);
+  used_flex_basis = GetUsedFlexBasisIfNotContent(computed_style, false,
+                                                 flex_container_size.height(),
+                                                 &depends_on_flex_container);
   EXPECT_TRUE(depends_on_flex_container);
   EXPECT_FALSE(used_flex_basis);
 }
@@ -454,14 +456,16 @@ TEST(UsedStyleTest, UsedFlexBasisPercentDependsOnFlexContainerMainSize) {
   SizeLayoutUnit flex_container_size(LayoutUnit(200), LayoutUnit(80));
   bool depends_on_flex_container = false;
   auto used_flex_basis = GetUsedFlexBasisIfNotContent(
-      computed_style, true, flex_container_size, &depends_on_flex_container);
+      computed_style, true, flex_container_size.width(),
+      &depends_on_flex_container);
   EXPECT_TRUE(depends_on_flex_container);
   EXPECT_TRUE(used_flex_basis);
   EXPECT_EQ(*used_flex_basis, LayoutUnit(50));
 
   depends_on_flex_container = false;
-  used_flex_basis = GetUsedFlexBasisIfNotContent(
-      computed_style, false, flex_container_size, &depends_on_flex_container);
+  used_flex_basis = GetUsedFlexBasisIfNotContent(computed_style, false,
+                                                 flex_container_size.height(),
+                                                 &depends_on_flex_container);
   EXPECT_TRUE(depends_on_flex_container);
   EXPECT_TRUE(used_flex_basis);
   EXPECT_EQ(*used_flex_basis, LayoutUnit(20));
@@ -475,14 +479,16 @@ TEST(UsedStyleTest, UsedFlexBasisLengthValue) {
   SizeLayoutUnit flex_container_size(LayoutUnit(200), LayoutUnit(80));
   bool depends_on_flex_container = false;
   auto used_flex_basis = GetUsedFlexBasisIfNotContent(
-      computed_style, true, flex_container_size, &depends_on_flex_container);
+      computed_style, true, flex_container_size.width(),
+      &depends_on_flex_container);
   EXPECT_FALSE(depends_on_flex_container);
   EXPECT_TRUE(used_flex_basis);
   EXPECT_EQ(*used_flex_basis, LayoutUnit(25));
 
   depends_on_flex_container = false;
-  used_flex_basis = GetUsedFlexBasisIfNotContent(
-      computed_style, false, flex_container_size, &depends_on_flex_container);
+  used_flex_basis = GetUsedFlexBasisIfNotContent(computed_style, false,
+                                                 flex_container_size.height(),
+                                                 &depends_on_flex_container);
   EXPECT_FALSE(depends_on_flex_container);
   EXPECT_TRUE(used_flex_basis);
   EXPECT_EQ(*used_flex_basis, LayoutUnit(25));

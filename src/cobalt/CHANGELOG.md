@@ -2,6 +2,14 @@
 
 This document records all notable changes made to Cobalt since the last release.
 
+## Version 21
+
+ - **DevTools shows asynchronous stack traces.**
+
+  When stopped at a breakpoint within the handler function for an asynchronous
+  operation, the call stack in DevTools now shows both the current function as
+  well as the function where the asynchronous operation was initiated.
+
 ## Version 20
 
  - **Support for QUIC and SPDY is now enabled.**
@@ -131,7 +139,7 @@ This document records all notable changes made to Cobalt since the last release.
    options to be instead run-time options.  This will primarily be enabled
    by the new Starboard extensions framework.  An example of an platform
    specific option added in this way can be found in
-   `cobalt/extension/graphis.h`.
+   `cobalt/extension/graphics.h`.
 
  - **Cobalt code assumes that no errors are generated for unused parameters**
 

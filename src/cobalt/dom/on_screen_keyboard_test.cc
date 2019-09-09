@@ -19,6 +19,7 @@
 #include "base/callback.h"
 #include "base/optional.h"
 #include "base/threading/platform_thread.h"
+#include "cobalt/base/debugger_hooks.h"
 #include "cobalt/bindings/testing/utils.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/cssom/viewport_size.h"
@@ -225,7 +226,7 @@ class OnScreenKeyboardTest : public ::testing::Test {
             dom::Window::OnStartDispatchEventCallback(),
             dom::Window::OnStopDispatchEventCallback(),
             dom::ScreenshotManager::ProvideScreenshotFunctionCallback(),
-            NULL)) {
+            NULL, null_debugger_hooks_)) {
     global_environment_->CreateGlobalObject(window_,
                                             environment_settings_.get());
     on_screen_keyboard_bridge_->window_ = window_;
@@ -273,6 +274,7 @@ class OnScreenKeyboardTest : public ::testing::Test {
   std::unique_ptr<script::JavaScriptEngine> engine_;
   scoped_refptr<script::GlobalEnvironment> global_environment_;
   std::unique_ptr<OnScreenKeyboardMockBridge> on_screen_keyboard_bridge_;
+  base::NullDebuggerHooks null_debugger_hooks_;
   scoped_refptr<Window> window_;
 };
 

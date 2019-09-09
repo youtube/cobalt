@@ -150,7 +150,6 @@
         # TODO: Separate functions tested by media buffer test into multiple
         # files.
         'media_buffer_test.cc',
-        'media_set_audio_write_duration_test.cc',
         'memory_align_to_page_size_test.cc',
         'memory_allocate_aligned_test.cc',
         'memory_allocate_test.cc',
@@ -164,7 +163,6 @@
         'memory_map_test.cc',
         'memory_move_test.cc',
         'memory_reallocate_test.cc',
-        'memory_reporter_test.cc',
         'memory_set_test.cc',
         'microphone_close_test.cc',
         'microphone_create_test.cc',
@@ -311,6 +309,14 @@
         '<(DEPTH)/testing/gtest.gyp:gtest',
       ],
       'conditions': [
+        ['sb_evergreen != 1', {
+          'sources': [
+            # Segfaults for Cobalt Evergreen.
+            'memory_reporter_test.cc',
+            # Segfaults or causes unresolved symbols for Cobalt Evergreen.
+            'media_set_audio_write_duration_test.cc',
+          ],
+        }],
         ['gl_type != "none"', {
           'dependencies': [
              # This is needed because SbPlayerTest depends on

@@ -43,6 +43,7 @@ int WindowTimers::SetTimeout(const TimerCallbackArg& handler, int timeout) {
                             base::Unretained(this), handle));
     timers_[handle] = new TimerInfo(
         owner_, std::unique_ptr<base::internal::TimerBase>(timer), handler);
+    debugger_hooks_.AsyncTaskScheduled(timers_[handle], "SetTimeout");
   } else {
     timers_[handle] = nullptr;
   }
@@ -68,6 +69,7 @@ int WindowTimers::SetInterval(const TimerCallbackArg& handler, int timeout) {
                             base::Unretained(this), handle));
     timers_[handle] = new TimerInfo(
         owner_, std::unique_ptr<base::internal::TimerBase>(timer), handler);
+    debugger_hooks_.AsyncTaskScheduled(timers_[handle], "SetInterval");
   } else {
     timers_[handle] = nullptr;
   }
@@ -75,14 +77,26 @@ int WindowTimers::SetInterval(const TimerCallbackArg& handler, int timeout) {
   return handle;
 }
 
-void WindowTimers::ClearInterval(int handle) { timers_.erase(handle); }
+void WindowTimers::ClearInterval(int handle) {
+  Timers::iterator timer = timers_.find(handle);
+  if (timer != timers_.end()) {
+    debugger_hooks_.AsyncTaskCanceled(timer->second);
+    timers_.erase(timer);
+  }
+}
 
-void WindowTimers::ClearAllIntervalsAndTimeouts() { timers_.clear(); }
+void WindowTimers::ClearAllIntervalsAndTimeouts() {
+  for (auto& timer_entry : timers_) {
+    debugger_hooks_.AsyncTaskCanceled(timer_entry.second);
+  }
+  timers_.clear();
+}
 
 void WindowTimers::DisableCallbacks() {
   callbacks_active_ = false;
   // Immediately cancel any pending timers.
   for (auto& timer_entry : timers_) {
+    debugger_hooks_.AsyncTaskCanceled(timer_entry.second);
     timer_entry.second = nullptr;
   }
 }
@@ -117,16 +131,21 @@ void WindowTimers::RunTimerCallback(int handle) {
   // The callback is now being run. Track it in the global stats.
   GlobalStats::GetInstance()->StartJavaScriptEvent();
 
-  // Keep a |TimerInfo| reference, so it won't be released when running the
-  // callback.
-  scoped_refptr<TimerInfo> timer_info = timer->second;
-  timer_info->callback_reference().value().Run();
+  {
+    // Keep a |TimerInfo| reference, so it won't be released when running the
+    // callback.
+    scoped_refptr<TimerInfo> timer_info = timer->second;
+    base::ScopedAsyncTask async_task(debugger_hooks_, timer_info);
+    timer_info->callback_reference().value().Run();
+  }
+
   // After running the callback, double check whether the timer is still there
   // since it might be deleted inside the callback.
   timer = timers_.find(handle);
   // If the timer is not deleted and is not running, it means it is an oneshot
   // timer and has just fired the shot, and it should be deleted now.
   if (timer != timers_.end() && !timer->second->timer()->IsRunning()) {
+    debugger_hooks_.AsyncTaskCanceled(timer->second);
     timers_.erase(timer);
   }
 

@@ -21,6 +21,7 @@
 #include "base/callback.h"
 #include "base/optional.h"
 #include "base/threading/platform_thread.h"
+#include "cobalt/base/debugger_hooks.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/custom_event_init.h"
@@ -86,7 +87,8 @@ class CustomEventTest : public ::testing::Test {
         base::Closure() /* window_minimize */, NULL, NULL, NULL,
         dom::Window::OnStartDispatchEventCallback(),
         dom::Window::OnStopDispatchEventCallback(),
-        dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL);
+        dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL,
+        null_debugger_hooks_);
     global_environment_->CreateGlobalObject(window_,
                                             environment_settings_.get());
   }
@@ -105,6 +107,7 @@ class CustomEventTest : public ::testing::Test {
   std::unique_ptr<loader::LoaderFactory> loader_factory_;
   dom::LocalStorageDatabase local_storage_database_;
   GURL url_;
+  base::NullDebuggerHooks null_debugger_hooks_;
   scoped_refptr<Window> window_;
 };
 

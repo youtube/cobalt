@@ -20,6 +20,7 @@
 #include "base/memory/ptr_util.h"
 #include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/number_value.h"
+#include "cobalt/layout/block_container_box.h"
 #include "cobalt/layout/box.h"
 #include "cobalt/layout/container_box.h"
 #include "cobalt/layout/used_style.h"
@@ -340,7 +341,6 @@ bool FlexItem::OverflowIsVisible() const {
 }
 
 void FlexItem::DetermineFlexBaseSize(
-    const LayoutParams& layout_params,
     const base::Optional<LayoutUnit>& main_space,
     bool container_shrink_to_fit_width_forced) {
   // Absolutely positioned boxes are not flex items.
@@ -357,7 +357,7 @@ void FlexItem::DetermineFlexBaseSize(
   bool flex_basis_depends_on_available_space;
   base::Optional<LayoutUnit> flex_basis = GetUsedFlexBasisIfNotContent(
       computed_style(), main_direction_is_horizontal_,
-      layout_params.containing_block_size,
+      main_space.value_or(LayoutUnit()),
       &flex_basis_depends_on_available_space);
   bool flex_basis_is_definite =
       flex_basis && (!flex_basis_depends_on_available_space || main_space);
@@ -434,21 +434,14 @@ base::Optional<LayoutUnit> FlexItem::GetContentBasedMinimumSize(
   // size suggestion is that size (clamped by its max main size property if
   // it's definite). It is otherwise undefined.
   //   https://www.w3.org/TR/css-flexbox-1/#specified-size-suggestion
-  base::Optional<LayoutUnit> specified_min_size_suggestion =
-      GetUsedMinMainAxisSizeIfNotAuto(containing_block_size);
-
   base::Optional<LayoutUnit> specified_size_suggestion =
       GetUsedMainAxisSizeIfNotAuto(containing_block_size);
-  if (specified_size_suggestion.has_value()) {
-    return specified_min_size_suggestion;
-  }
-
   base::Optional<LayoutUnit> maybe_max_main_size =
       GetUsedMaxMainAxisSizeIfNotNone(containing_block_size);
-  if (specified_min_size_suggestion.has_value() &&
-      maybe_max_main_size.has_value()) {
-    specified_min_size_suggestion =
-        std::min(*maybe_max_main_size, *specified_min_size_suggestion);
+  if (maybe_max_main_size.has_value() &&
+      specified_size_suggestion.has_value()) {
+    specified_size_suggestion =
+        std::min(*maybe_max_main_size, *specified_size_suggestion);
   }
 
   // The content size suggestion is the min-content size in the main axis,
@@ -456,28 +449,40 @@ base::Optional<LayoutUnit> FlexItem::GetContentBasedMinimumSize(
   //   https://www.w3.org/TR/css-flexbox-1/#content-size-suggestion
   base::Optional<LayoutUnit> content_size_suggestion;
   if (OverflowIsVisible()) {
-    content_size_suggestion = GetContentBoxMainSize();
+    if (main_direction_is_horizontal_) {
+      base::Optional<LayoutUnit> maybe_height =
+          GetUsedHeightIfNotAuto(computed_style(), containing_block_size, NULL);
+      content_size_suggestion =
+          box()->AsBlockContainerBox()->GetShrinkToFitWidth(
+              containing_block_size.width(), maybe_height);
+    } else {
+      content_size_suggestion = GetContentBoxMainSize();
+    }
     if (maybe_max_main_size.has_value()) {
       content_size_suggestion =
           std::min(*maybe_max_main_size, *content_size_suggestion);
     }
   }
 
-  if (!specified_min_size_suggestion.has_value()) {
-    // If the box has neither a specified size suggestion nor an aspect ratio,
-    // its content-based minimum size is the content size suggestion.
-    return content_size_suggestion;
-  } else {
-    if (content_size_suggestion.has_value()) {
-      // In general, the content-based minimum size of a flex item is the
-      // smaller of its content size suggestion and its specified size
-      // suggestion.
-      specified_min_size_suggestion =
-          std::min(*content_size_suggestion, *specified_min_size_suggestion);
-      return specified_min_size_suggestion;
-    }
+  // If the box has neither a specified size suggestion nor an aspect ratio,
+  // its content-based minimum size is the content size suggestion.
+  base::Optional<LayoutUnit> content_based_minimum_size =
+      content_size_suggestion;
+  // In general, the content-based minimum size of a flex item is the smaller
+  // of its content size suggestion and its specified size suggestion.
+  if (content_size_suggestion.has_value() &&
+      specified_size_suggestion.has_value()) {
+    content_based_minimum_size =
+        std::min(*content_size_suggestion, *specified_size_suggestion);
   }
-  return specified_min_size_suggestion;
+
+  base::Optional<LayoutUnit> specified_min_size_suggestion =
+      GetUsedMinMainAxisSizeIfNotAuto(containing_block_size);
+  if (specified_min_size_suggestion.has_value()) {
+    content_based_minimum_size = specified_min_size_suggestion;
+  }
+
+  return content_based_minimum_size;
 }
 
 }  // namespace layout

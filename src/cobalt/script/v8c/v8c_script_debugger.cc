@@ -241,6 +241,27 @@ void V8cScriptDebugger::StopTracing() {
   tracing_controller->StopTracing();
 }
 
+void V8cScriptDebugger::AsyncTaskScheduled(void* task, const std::string& name,
+                                           bool recurring) {
+  inspector_->asyncTaskScheduled(ToStringView(name), task, recurring);
+}
+
+void V8cScriptDebugger::AsyncTaskStarted(void* task) {
+  inspector_->asyncTaskStarted(task);
+}
+
+void V8cScriptDebugger::AsyncTaskFinished(void* task) {
+  inspector_->asyncTaskFinished(task);
+}
+
+void V8cScriptDebugger::AsyncTaskCanceled(void* task) {
+  inspector_->asyncTaskCanceled(task);
+}
+
+void V8cScriptDebugger::AllAsyncTasksCanceled() {
+  inspector_->allAsyncTasksCanceled();
+}
+
 // v8_inspector::V8InspectorClient implementation.
 void V8cScriptDebugger::runMessageLoopOnPause(int contextGroupId) {
   DCHECK(contextGroupId == kContextGroupId);
@@ -270,7 +291,7 @@ void V8cScriptDebugger::consoleAPIMessage(
   if (url.length()) {
     std::ostringstream oss;
     oss << ": " << FromStringView(url) << ", Line " << lineNumber << ", Col "
-       << columnNumber;
+        << columnNumber;
     source = oss.str();
   }
 

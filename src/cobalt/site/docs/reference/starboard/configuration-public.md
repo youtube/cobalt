@@ -22,11 +22,6 @@ title: "Starboard Configuration Reference Guide"
 | **`SB_HAS_64_BIT_LONG`**<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_64_BIT_POINTERS`**<br><br>The default value in the Stub implementation is `0` |
 | **`SB_HAS_64_BIT_LONG`**<br><br>The default value in the Stub implementation is `0` |
-| **`SB_HAS_MANY_CORES`**<br><br> Whether the current platform is expected to have many cores (> 6), or a wildly varying number of cores.<br><br>The default value in the Stub implementation is `1` |
-| **`SB_HAS_1_CORE`**<br><br>Whether the current platform is expected to have exactly 1 core.<br><br>The default value in the Stub implementation is `0` |
-| **`SB_HAS_2_CORES`**<br><br>Whether the current platform is expected to have exactly 2 cores.<br><br>The default value in the Stub implementation is `0` |
-| **`SB_HAS_4_CORES`**<br><br>Whether the current platform is expected to have exactly 4 cores.<br><br>The default value in the Stub implementation is `0` |
-| **`SB_HAS_6_CORES`**<br><br>Whether the current platform is expected to have exactly 6 cores.<br><br>The default value in the Stub implementation is `0` |
 | **`SB_HAS_CROSS_CORE_SCHEDULER`**<br><br>Whether the current platform's thread scheduler will automatically balance threads between cores, as opposed to systems where threads will only ever run on the specifically pinned core.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES`**<br><br>Some platforms will not align variables on the stack with an alignment greater than 16 bytes. Platforms where this is the case should define the following quirk.<br><br>By default, this property is undefined. |
 | **`SB_HAS_QUIRK_THREAD_AFFINITY_UNSUPPORTED`**<br><br>Some platforms do not have thread affinity support. Platforms where this is the case should define the following quirk.<br><br>By default, this property is undefined. |
@@ -161,7 +156,6 @@ title: "Starboard Configuration Reference Guide"
 | **`SB_HAS_STDINT_H`**<br><br>Whether the current platform provides the standard header stdint.h.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_INTTYPES_H`**<br><br>Whether the current platform provides the standard header inttypes.h.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_SYS_TYPES_H`**<br><br>Whether the current platform provides the standard header sys/types.h.<br><br>The default value in the Stub implementation is `0` |
-| **`SB_HAS_WCHAR_H`**<br><br>Whether the current platform provides the standard header wchar.h.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_LIMITS_H`**<br><br>Whether the current platform provides the standard header limits.h.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_FLOAT_H`**<br><br>Whether the current platform provides the standard header float.h.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_SSIZE_T`**<br><br>Whether the current platform provides ssize_t.<br><br>The default value in the Stub implementation is `1` |

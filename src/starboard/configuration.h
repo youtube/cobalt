@@ -499,15 +499,6 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "New versions of Starboard specify player output mode at runtime."
 #endif
 
-#if (SB_HAS(MANY_CORES) && (SB_HAS(1_CORE) || SB_HAS(2_CORES) ||    \
-                            SB_HAS(4_CORES) || SB_HAS(6_CORES))) || \
-    (SB_HAS(1_CORE) &&                                              \
-     (SB_HAS(2_CORES) || SB_HAS(4_CORES) || SB_HAS(6_CORES))) ||    \
-    (SB_HAS(2_CORES) && (SB_HAS(4_CORES) || SB_HAS(6_CORES))) ||    \
-    (SB_HAS(4_CORES) && SB_HAS(6_CORES))
-#error "Only one SB_HAS_{MANY, 1, 2, 4, 6}_CORE[S] can be defined per platform."
-#endif
-
 #if !defined(SB_HAS_THREAD_PRIORITY_SUPPORT)
 #error "Your platform must define SB_HAS_THREAD_PRIORITY_SUPPORT."
 #endif

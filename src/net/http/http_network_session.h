@@ -149,6 +149,12 @@ class NET_EXPORT HttpNetworkSession {
     bool enable_quic_proxies_for_https_urls;
 #endif
 
+#if defined(STARBOARD)
+    // If true, request to an origin without recorded alt-svc info will
+    // try to establish both QUIC and TCP connections and use the faster one.
+    bool use_quic_for_unknown_origins;
+#endif
+
     // QUIC runtime configuration options.
 
     // Versions of QUIC which may be used.
@@ -403,6 +409,9 @@ class NET_EXPORT HttpNetworkSession {
 #if defined(STARBOARD)
   // Toggle QUIC support for new streams.
   void ToggleQuic();
+
+  // Whether to try QUIC connection for origins without alt-svc on record.
+  bool UseQuicForUnknownOrigin() const;
 #endif  // defined(STARBOARD)
 
  private:

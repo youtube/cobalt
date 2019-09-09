@@ -662,6 +662,9 @@ void XSendAtom(Window window, Atom atom) {
   XCloseDisplay(display);
 }
 
+// Remain compatible with the older glibc found on previous Ubuntu distros.
+__asm__(".symver quick_exit,quick_exit@GLIBC_2.10");
+
 // X IO error handler. Called if we lose our connection to the X server.
 int IOErrorHandler(Display* display) {
   // Not much we can do here except immediately exit.

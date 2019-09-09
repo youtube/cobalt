@@ -2,6 +2,11 @@
 #include <stdint.h>
 #include "libc.h"
 
+#if defined(STARBOARD)
+#include "starboard/system.h"
+#endif  // defined(STARBOARD)
+
+#if !defined(STARBOARD)
 static void dummy()
 {
 }
@@ -24,11 +29,16 @@ static void libc_exit_fini(void)
 }
 
 weak_alias(libc_exit_fini, __libc_exit_fini);
+#endif  // !defined(STARBOARD)
 
 _Noreturn void exit(int code)
 {
+#if defined(STARBOARD)
+	SbSystemBreakIntoDebugger();
+#else   // !defined(STARBOARD)
 	__funcs_on_exit();
 	__libc_exit_fini();
 	__stdio_exit();
 	_Exit(code);
+#endif  // defined(STARBOARD)
 }
