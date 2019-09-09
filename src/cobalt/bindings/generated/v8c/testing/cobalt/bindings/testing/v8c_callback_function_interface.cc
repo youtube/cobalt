@@ -52,6 +52,7 @@
 #include "cobalt/script/v8c/v8c_property_enumerator.h"
 #include "cobalt/script/v8c/v8c_value_handle.h"
 #include "cobalt/script/v8c/wrapper_private.h"
+#include "cobalt/script/v8c/common_v8c_bindings_code.h"
 #include "v8/include/v8.h"
 
 
@@ -114,67 +115,31 @@ void DummyConstructor(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 void callbackAttributeAttributeGetter(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.Holder();
-
-
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cCallbackFunctionInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return;
-  }
-  V8cExceptionState exception_state{isolate};
-  v8::Local<v8::Value> result_value;
-
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
-    return;
-  }
-  CallbackFunctionInterface* impl =
-      wrapper_private->wrappable<CallbackFunctionInterface>().get();
-
-
-  if (!exception_state.is_exception_set()) {
-    ToJSValue(isolate,
+  script::v8c::shared_bindings::AttributeGetterImpl<CallbackFunctionInterface,
+                                                    V8cCallbackFunctionInterface>(
+                    info,
+                    false,
+                    false,
+                    [](v8::Isolate* isolate, CallbackFunctionInterface* impl,
+                       cobalt::script::ExceptionState& exception_state,
+                       v8::Local<v8::Value>& result_value) {
+  
+      ToJSValue(isolate,
               impl->callback_attribute(),
               &result_value);
-  }
-  if (exception_state.is_exception_set()) {
-    return;
-  }
-  info.GetReturnValue().Set(result_value);
+
+  });
 }
 
 void callbackAttributeAttributeSetter(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.Holder();
-  v8::Local<v8::Value> v8_value = info[0];
-
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cCallbackFunctionInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return;
-  }
-  V8cExceptionState exception_state{isolate};
-  v8::Local<v8::Value> result_value;
-
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
-    return;
-  }
-  CallbackFunctionInterface* impl =
-      wrapper_private->wrappable<CallbackFunctionInterface>().get();
+  script::v8c::shared_bindings::AttributeSetterImpl<CallbackFunctionInterface, V8cCallbackFunctionInterface>(info,
+                    false,
+                    false,
+                    [](v8::Isolate* isolate, CallbackFunctionInterface* impl,
+                       V8cExceptionState& exception_state,
+                       v8::Local<v8::Value>& result_value,
+                       v8::Local<v8::Value> v8_value) {
   TypeTraits<CallbackFunctionInterface::VoidFunction >::ConversionType value;
   FromJSValue(isolate, v8_value, kNoConversionFlags, &exception_state,
               &value);
@@ -183,74 +148,39 @@ void callbackAttributeAttributeSetter(
   }
 
   impl->set_callback_attribute(value);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
   return;
+});
 }
 
 
 void nullableCallbackAttributeAttributeGetter(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.Holder();
-
-
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cCallbackFunctionInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return;
-  }
-  V8cExceptionState exception_state{isolate};
-  v8::Local<v8::Value> result_value;
-
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
-    return;
-  }
-  CallbackFunctionInterface* impl =
-      wrapper_private->wrappable<CallbackFunctionInterface>().get();
-
-
-  if (!exception_state.is_exception_set()) {
-    ToJSValue(isolate,
+  script::v8c::shared_bindings::AttributeGetterImpl<CallbackFunctionInterface,
+                                                    V8cCallbackFunctionInterface>(
+                    info,
+                    false,
+                    false,
+                    [](v8::Isolate* isolate, CallbackFunctionInterface* impl,
+                       cobalt::script::ExceptionState& exception_state,
+                       v8::Local<v8::Value>& result_value) {
+  
+      ToJSValue(isolate,
               impl->nullable_callback_attribute(),
               &result_value);
-  }
-  if (exception_state.is_exception_set()) {
-    return;
-  }
-  info.GetReturnValue().Set(result_value);
+
+  });
 }
 
 void nullableCallbackAttributeAttributeSetter(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.Holder();
-  v8::Local<v8::Value> v8_value = info[0];
-
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cCallbackFunctionInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
-    return;
-  }
-  V8cExceptionState exception_state{isolate};
-  v8::Local<v8::Value> result_value;
-
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
-    return;
-  }
-  CallbackFunctionInterface* impl =
-      wrapper_private->wrappable<CallbackFunctionInterface>().get();
+  script::v8c::shared_bindings::AttributeSetterImpl<CallbackFunctionInterface, V8cCallbackFunctionInterface>(info,
+                    false,
+                    false,
+                    [](v8::Isolate* isolate, CallbackFunctionInterface* impl,
+                       V8cExceptionState& exception_state,
+                       v8::Local<v8::Value>& result_value,
+                       v8::Local<v8::Value> v8_value) {
   TypeTraits<CallbackFunctionInterface::VoidFunction >::ConversionType value;
   FromJSValue(isolate, v8_value, (kConversionFlagNullable), &exception_state,
               &value);
@@ -259,8 +189,9 @@ void nullableCallbackAttributeAttributeSetter(
   }
 
   impl->set_nullable_callback_attribute(value);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
   return;
+});
 }
 
 
@@ -268,25 +199,18 @@ void nullableCallbackAttributeAttributeSetter(
 void takesFunctionThatReturnsStringMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cCallbackFunctionInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cCallbackFunctionInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  CallbackFunctionInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             CallbackFunctionInterface>(object);
+  if (!impl) {
     return;
   }
-  CallbackFunctionInterface* impl =
-      wrapper_private->wrappable<CallbackFunctionInterface>().get();
   const size_t kMinArguments = 1;
   if (info.Length() < kMinArguments) {
     exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
@@ -305,7 +229,7 @@ void takesFunctionThatReturnsStringMethod(const v8::FunctionCallbackInfo<v8::Val
   }
 
   impl->TakesFunctionThatReturnsString(cb);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 
@@ -314,25 +238,18 @@ void takesFunctionThatReturnsStringMethod(const v8::FunctionCallbackInfo<v8::Val
 void takesFunctionWithNullableParametersMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cCallbackFunctionInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cCallbackFunctionInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  CallbackFunctionInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             CallbackFunctionInterface>(object);
+  if (!impl) {
     return;
   }
-  CallbackFunctionInterface* impl =
-      wrapper_private->wrappable<CallbackFunctionInterface>().get();
   const size_t kMinArguments = 1;
   if (info.Length() < kMinArguments) {
     exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
@@ -351,7 +268,7 @@ void takesFunctionWithNullableParametersMethod(const v8::FunctionCallbackInfo<v8
   }
 
   impl->TakesFunctionWithNullableParameters(cb);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 
@@ -360,25 +277,18 @@ void takesFunctionWithNullableParametersMethod(const v8::FunctionCallbackInfo<v8
 void takesFunctionWithOneParameterMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cCallbackFunctionInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cCallbackFunctionInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  CallbackFunctionInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             CallbackFunctionInterface>(object);
+  if (!impl) {
     return;
   }
-  CallbackFunctionInterface* impl =
-      wrapper_private->wrappable<CallbackFunctionInterface>().get();
   const size_t kMinArguments = 1;
   if (info.Length() < kMinArguments) {
     exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
@@ -397,7 +307,7 @@ void takesFunctionWithOneParameterMethod(const v8::FunctionCallbackInfo<v8::Valu
   }
 
   impl->TakesFunctionWithOneParameter(cb);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 
@@ -406,25 +316,18 @@ void takesFunctionWithOneParameterMethod(const v8::FunctionCallbackInfo<v8::Valu
 void takesFunctionWithSeveralParametersMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cCallbackFunctionInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cCallbackFunctionInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  CallbackFunctionInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             CallbackFunctionInterface>(object);
+  if (!impl) {
     return;
   }
-  CallbackFunctionInterface* impl =
-      wrapper_private->wrappable<CallbackFunctionInterface>().get();
   const size_t kMinArguments = 1;
   if (info.Length() < kMinArguments) {
     exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
@@ -443,7 +346,7 @@ void takesFunctionWithSeveralParametersMethod(const v8::FunctionCallbackInfo<v8:
   }
 
   impl->TakesFunctionWithSeveralParameters(cb);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 
@@ -452,25 +355,18 @@ void takesFunctionWithSeveralParametersMethod(const v8::FunctionCallbackInfo<v8:
 void takesVoidFunctionMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Object> object = info.Holder();
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!WrapperPrivate::HasWrapperPrivate(object) ||
-      !V8cCallbackFunctionInterface::GetTemplate(isolate)->HasInstance(object)) {
-    V8cExceptionState exception(isolate);
-    exception.SetSimpleException(script::kDoesNotImplementInterface);
+  if (!script::v8c::shared_bindings::object_implements_interface(V8cCallbackFunctionInterface::GetTemplate(isolate), isolate, object)) {
     return;
   }
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
-  WrapperPrivate* wrapper_private =
-      WrapperPrivate::GetFromWrapperObject(object);
-  if (!wrapper_private) {
-    NOTIMPLEMENTED();
+  CallbackFunctionInterface* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             CallbackFunctionInterface>(object);
+  if (!impl) {
     return;
   }
-  CallbackFunctionInterface* impl =
-      wrapper_private->wrappable<CallbackFunctionInterface>().get();
   const size_t kMinArguments = 1;
   if (info.Length() < kMinArguments) {
     exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
@@ -489,7 +385,7 @@ void takesVoidFunctionMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   impl->TakesVoidFunction(cb);
-  result_value = v8::Undefined(isolate);
+result_value = v8::Undefined(isolate);
 
 }
 
@@ -549,75 +445,45 @@ void InitializeTemplate(v8::Isolate* isolate) {
   // corresponding property. The characteristics of this property are as
   // follows:
   {
-    // The name of the property is the identifier of the attribute.
-    v8::Local<v8::String> name = NewInternalString(
-        isolate,
-        "callbackAttribute");
 
+    script::v8c::shared_bindings::set_property_for_nonconstructor_attribute(
+                  isolate,
     // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
     // true, [[Configurable]]: configurable }, where: configurable is false if
     // the attribute was declared with the [Unforgeable] extended attribute and
     // true otherwise;
-    bool configurable = true;
-    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
-        configurable ? v8::None : v8::DontDelete);
-
-    // G is the attribute getter created given the attribute, the interface, and
-    // the relevant Realm of the object that is the location of the property;
-    // and
-    //
-    // S is the attribute setter created given the attribute, the interface, and
-    // the relevant Realm of the object that is the location of the property.
-    v8::Local<v8::FunctionTemplate> getter =
-        v8::FunctionTemplate::New(isolate, callbackAttributeAttributeGetter);
-    v8::Local<v8::FunctionTemplate> setter =
-        v8::FunctionTemplate::New(isolate, callbackAttributeAttributeSetter);
-
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
-    prototype_template->
-        SetAccessorProperty(
-            name,
-            getter,
-            setter,
-            attributes);
+                  true,
+                  true,
+                  false,
+                  false,
+                  function_template,
+                  instance_template,
+                  prototype_template,
+                  "callbackAttribute"
+                  ,callbackAttributeAttributeGetter
+                  ,callbackAttributeAttributeSetter
+                  );
 
   }
   {
-    // The name of the property is the identifier of the attribute.
-    v8::Local<v8::String> name = NewInternalString(
-        isolate,
-        "nullableCallbackAttribute");
 
+    script::v8c::shared_bindings::set_property_for_nonconstructor_attribute(
+                  isolate,
     // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
     // true, [[Configurable]]: configurable }, where: configurable is false if
     // the attribute was declared with the [Unforgeable] extended attribute and
     // true otherwise;
-    bool configurable = true;
-    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
-        configurable ? v8::None : v8::DontDelete);
-
-    // G is the attribute getter created given the attribute, the interface, and
-    // the relevant Realm of the object that is the location of the property;
-    // and
-    //
-    // S is the attribute setter created given the attribute, the interface, and
-    // the relevant Realm of the object that is the location of the property.
-    v8::Local<v8::FunctionTemplate> getter =
-        v8::FunctionTemplate::New(isolate, nullableCallbackAttributeAttributeGetter);
-    v8::Local<v8::FunctionTemplate> setter =
-        v8::FunctionTemplate::New(isolate, nullableCallbackAttributeAttributeSetter);
-
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
-    prototype_template->
-        SetAccessorProperty(
-            name,
-            getter,
-            setter,
-            attributes);
+                  true,
+                  true,
+                  false,
+                  false,
+                  function_template,
+                  instance_template,
+                  prototype_template,
+                  "nullableCallbackAttribute"
+                  ,nullableCallbackAttributeAttributeGetter
+                  ,nullableCallbackAttributeAttributeSetter
+                  );
 
   }
 

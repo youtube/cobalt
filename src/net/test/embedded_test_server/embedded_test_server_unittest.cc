@@ -132,6 +132,9 @@ class EmbeddedTestServerTest
   void SetUp() override {
     base::Thread::Options thread_options;
     thread_options.message_loop_type = base::MessageLoop::TYPE_IO;
+#if defined(STARBOARD)
+    thread_options.stack_size = base::kUnitTestStackSize;
+#endif
     ASSERT_TRUE(io_thread_.StartWithOptions(thread_options));
 
     request_context_getter_ =
@@ -233,7 +236,6 @@ TEST_P(EmbeddedTestServerTest, GetURLWithHostname) {
   }
 }
 
-#if !defined(STARBOARD_NO_LOCAL_ISSUER)
 TEST_P(EmbeddedTestServerTest, RegisterRequestHandler) {
   server_->RegisterRequestHandler(base::BindRepeating(
       &EmbeddedTestServerTest::HandleRequest, base::Unretained(this), "/test",
@@ -310,7 +312,6 @@ TEST_P(EmbeddedTestServerTest, DefaultNotFoundResponse) {
   EXPECT_EQ(URLRequestStatus::SUCCESS, fetcher->GetStatus().status());
   EXPECT_EQ(HTTP_NOT_FOUND, fetcher->GetResponseCode());
 }
-#endif  // defined(STARBOARD_NO_LOCAL_ISSUER)
 
 TEST_P(EmbeddedTestServerTest, ConnectionListenerAccept) {
   ASSERT_TRUE(server_->Start());
@@ -331,7 +332,6 @@ TEST_P(EmbeddedTestServerTest, ConnectionListenerAccept) {
   EXPECT_FALSE(connection_listener_.DidReadFromSocket());
 }
 
-#if !defined(STARBOARD_NO_LOCAL_ISSUER)
 TEST_P(EmbeddedTestServerTest, ConnectionListenerRead) {
   ASSERT_TRUE(server_->Start());
 
@@ -392,7 +392,6 @@ TEST_P(EmbeddedTestServerTest, ConcurrentFetches) {
   EXPECT_EQ("No chocolates", GetContentFromFetcher(*fetcher3));
   EXPECT_EQ("text/plain", GetContentTypeFromFetcher(*fetcher3));
 }
-#endif  // defined(STARBOARD_NO_LOCAL_ISSUER)
 
 namespace {
 
@@ -592,7 +591,8 @@ TEST_P(EmbeddedTestServerThreadingTest, RunTest) {
 #if defined(STARBOARD)
   // Some platforms have low default stack size that can't support unit tests.
   ASSERT_TRUE(
-      base::PlatformThread::Create(256 * 1024, &delegate, &thread_handle));
+      base::PlatformThread::Create(base::kUnitTestStackSize, &delegate,
+                                   &thread_handle));
 #else
   ASSERT_TRUE(base::PlatformThread::Create(0, &delegate, &thread_handle));
 #endif

@@ -162,11 +162,17 @@
 {% endif %}
   if (info.Length() > {{loop.index0 + non_optional_arguments|length}}) {
     v8::Local<v8::Value> optional_value{{loop.index0}} = info[{{loop.index0 + non_optional_arguments|length}}];
-    FromJSValue(isolate,
-                optional_value{{loop.index0}},
-                {{argument.conversion_flags}},
-                &exception_state,
-                &{{argument.name}});
+{% if argument.default_value %}
+    if (!optional_value{{loop.index0}}->IsUndefined()) {
+{% else %}
+    {
+{% endif %}
+      FromJSValue(isolate,
+                  optional_value{{loop.index0}},
+                  {{argument.conversion_flags}},
+                  &exception_state,
+                  &{{argument.name}});
+    }
     if (exception_state.is_exception_set()) {
       return;
     }
@@ -294,8 +300,7 @@
 {% macro call_nonvoid_function(return_type, function_name, arguments,
                                impl_class, is_static) %}
   if (!exception_state.is_exception_set()) {
-
-  {{call_nonvoid_function_internal(function_name, arguments,
+{{call_nonvoid_function_internal(function_name, arguments,
                                 impl_class, is_static) -}}
   }
 {%- endmacro %}
@@ -308,7 +313,9 @@
 {%- endmacro %}
 
 {% macro get_impl_class_instance(impl_class) %}
-  {{impl_class}}* impl = script::v8c::shared_bindings::get_impl_from_object<{{impl_class}}>(object);
+  {{impl_class}}* impl =
+          script::v8c::shared_bindings::get_impl_from_object<
+             {{impl_class}}>(object);
   if (!impl) {
     return;
   }

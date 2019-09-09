@@ -17,43 +17,70 @@
 namespace cobalt {
 namespace dom {
 namespace {
+
+// https://heycam.github.io/webidl/#dfn-error-names-table
+const char* kCodeToErrorName[] = {
+  "",
+  "IndexSizeError",
+  "DOMStringSizeError",
+  "HierarchyRequestError",
+  "WrongDocumentError",
+  "InvalidCharacterError",
+  "NoDataAllowedError",
+  "NoModificationAllowedError",
+  "NotFoundError",
+  "NotSupportedError",
+  "InUseAttributeError",
+  "InvalidStateError",
+  "SyntaxError",
+  "InvalidModificationError",
+  "NamespaceError",
+  "InvalidAccessError",
+  "ValidationError",
+  "TypeMismatchError",
+  "SecurityError",
+  "NetworkError",
+  "AbortError",
+  "URLMismatchError",
+  "QuotaExceededError",
+  "TimeoutError",
+  "InvalidNodeTypeError",
+  "DataCloneError",
+};
+
 const char* GetErrorName(DOMException::ExceptionCode code) {
+  // Use the table for errors that have a corresponding code.
+  static_assert(arraysize(kCodeToErrorName) ==
+                DOMException::kHighestErrCodeValue + 1,
+                "Mismatch number of entries in error table");
+  if (code <= DOMException::kHighestErrCodeValue) {
+    return kCodeToErrorName[code];
+  }
+
   // Error names are enumerated here:
   //   http://heycam.github.io/webidl/#idl-DOMException-error-names
   switch (code) {
-    case DOMException::kNone:
-      return "";
-    case DOMException::kIndexSizeErr:
-      return "IndexSizeError";
-    case DOMException::kInvalidCharacterErr:
-      return "InvalidCharacterError";
-    case DOMException::kNoModificationAllowedErr:
-      return "NoModificationAllowedError";
-    case DOMException::kNotFoundErr:
-      return "NotFoundError";
-    case DOMException::kNotSupportedErr:
-      return "NotSupportedError";
-    case DOMException::kInvalidStateErr:
-      return "InvalidStateError";
-    case DOMException::kSyntaxErr:
-      return "SyntaxError";
-    case DOMException::kInvalidAccessErr:
-      return "InvalidAccessError";
-    case DOMException::kTypeMismatchErr:
-      return "TypeMismatchError";
-    case DOMException::kSecurityErr:
-      return "SecurityError";
-    case DOMException::kQuotaExceededErr:
-      return "QuotaExceededError";
     case DOMException::kReadOnlyErr:
       return "ReadOnlyError";
     case DOMException::kInvalidPointerIdErr:
       return "InvalidPointerId";
     case DOMException::kNotAllowedErr:
       return "NotAllowedError";
+    default:
+      NOTREACHED();
+      break;
   }
-  NOTREACHED();
+
   return "";
+}
+
+DOMException::ExceptionCode GetErrorCode(const std::string& name) {
+  for (size_t i = 0; i < arraysize(kCodeToErrorName); ++i) {
+    if (name == kCodeToErrorName[i]) {
+      return static_cast<DOMException::ExceptionCode>(i);
+    }
+  }
+  return DOMException::kNone;
 }
 
 // The code attribute's getter must return the legacy code indicated in the
@@ -73,6 +100,11 @@ DOMException::DOMException(ExceptionCode code)
 DOMException::DOMException(ExceptionCode code, const std::string& message)
     : code_(GetLegacyCodeValue(code)),
       name_(GetErrorName(code)),
+      message_(message) {}
+
+DOMException::DOMException(const std::string& message, const std::string& name)
+    : code_(GetErrorCode(name)),
+      name_(name),
       message_(message) {}
 
 // static

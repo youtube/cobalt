@@ -147,9 +147,8 @@ bool DummyConstructor(JSContext* context, unsigned int argc, JS::Value* vp) {
   return false;
 }
 
-
 bool HasInstance(JSContext *context, JS::HandleObject type,
-                   JS::MutableHandleValue vp, bool *success) {
+                 JS::MutableHandleValue vp, bool *success) {
   JS::RootedObject global_object(
       context, JS_GetGlobalForObject(context, type));
   DCHECK(global_object);
@@ -259,7 +258,6 @@ bool fcn_longFunctionNoArgs(
   return !exception_state.is_exception_set();
 }
 
-
 bool fcn_objectFunctionNoArgs(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -312,7 +310,6 @@ bool fcn_objectFunctionNoArgs(
   return !exception_state.is_exception_set();
 }
 
-
 bool fcn_optionalArgumentWithDefault(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -360,11 +357,13 @@ bool fcn_optionalArgumentWithDefault(
   if (args.length() > 0) {
     JS::RootedValue optional_value0(
         context, args[0]);
-    FromJSValue(context,
-                optional_value0,
-                (kConversionFlagRestricted),
-                &exception_state,
-                &arg1);
+    if (!optional_value0.isUndefined()) {
+      FromJSValue(context,
+                  optional_value0,
+                  (kConversionFlagRestricted),
+                  &exception_state,
+                  &arg1);
+    }
     if (exception_state.is_exception_set()) {
       return false;
     }
@@ -374,7 +373,6 @@ bool fcn_optionalArgumentWithDefault(
   result_value.set(JS::UndefinedHandleValue);
   return !exception_state.is_exception_set();
 }
-
 
 bool fcn_optionalArguments(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -441,11 +439,13 @@ bool fcn_optionalArguments(
   if (args.length() > 1) {
     JS::RootedValue optional_value0(
         context, args[1]);
-    FromJSValue(context,
-                optional_value0,
-                kNoConversionFlags,
-                &exception_state,
-                &arg2);
+    {
+      FromJSValue(context,
+                  optional_value0,
+                  kNoConversionFlags,
+                  &exception_state,
+                  &arg2);
+    }
     if (exception_state.is_exception_set()) {
       return false;
     }
@@ -454,11 +454,13 @@ bool fcn_optionalArguments(
   if (args.length() > 2) {
     JS::RootedValue optional_value1(
         context, args[2]);
-    FromJSValue(context,
-                optional_value1,
-                kNoConversionFlags,
-                &exception_state,
-                &arg3);
+    {
+      FromJSValue(context,
+                  optional_value1,
+                  kNoConversionFlags,
+                  &exception_state,
+                  &arg3);
+    }
     if (exception_state.is_exception_set()) {
       return false;
     }
@@ -491,7 +493,6 @@ bool fcn_optionalArguments(
       return false;
   }
 }
-
 
 bool fcn_optionalNullableArgumentsWithDefaults(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -542,11 +543,13 @@ bool fcn_optionalNullableArgumentsWithDefaults(
   if (args.length() > 0) {
     JS::RootedValue optional_value0(
         context, args[0]);
-    FromJSValue(context,
-                optional_value0,
-                (kConversionFlagNullable),
-                &exception_state,
-                &arg1);
+    if (!optional_value0.isUndefined()) {
+      FromJSValue(context,
+                  optional_value0,
+                  (kConversionFlagNullable),
+                  &exception_state,
+                  &arg1);
+    }
     if (exception_state.is_exception_set()) {
       return false;
     }
@@ -554,11 +557,13 @@ bool fcn_optionalNullableArgumentsWithDefaults(
   if (args.length() > 1) {
     JS::RootedValue optional_value1(
         context, args[1]);
-    FromJSValue(context,
-                optional_value1,
-                (kConversionFlagNullable),
-                &exception_state,
-                &arg2);
+    if (!optional_value1.isUndefined()) {
+      FromJSValue(context,
+                  optional_value1,
+                  (kConversionFlagNullable),
+                  &exception_state,
+                  &arg2);
+    }
     if (exception_state.is_exception_set()) {
       return false;
     }
@@ -568,7 +573,6 @@ bool fcn_optionalNullableArgumentsWithDefaults(
   result_value.set(JS::UndefinedHandleValue);
   return !exception_state.is_exception_set();
 }
-
 bool fcn_overloadedFunction1(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -984,7 +988,6 @@ bool fcn_overloadedFunction(
   exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
   return false;
 }
-
 bool fcn_overloadedNullable1(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -1146,7 +1149,6 @@ bool fcn_overloadedNullable(
   return false;
 }
 
-
 bool fcn_stringFunctionNoArgs(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -1198,7 +1200,6 @@ bool fcn_stringFunctionNoArgs(
   }
   return !exception_state.is_exception_set();
 }
-
 
 bool fcn_variadicPrimitiveArguments(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -1266,7 +1267,6 @@ bool fcn_variadicPrimitiveArguments(
   return !exception_state.is_exception_set();
 }
 
-
 bool fcn_variadicStringArgumentsAfterOptionalArgument(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -1315,11 +1315,13 @@ bool fcn_variadicStringArgumentsAfterOptionalArgument(
   if (args.length() > 0) {
     JS::RootedValue optional_value0(
         context, args[0]);
-    FromJSValue(context,
-                optional_value0,
-                kNoConversionFlags,
-                &exception_state,
-                &optionalArg);
+    {
+      FromJSValue(context,
+                  optional_value0,
+                  kNoConversionFlags,
+                  &exception_state,
+                  &optionalArg);
+    }
     if (exception_state.is_exception_set()) {
       return false;
     }
@@ -1370,7 +1372,6 @@ bool fcn_variadicStringArgumentsAfterOptionalArgument(
       return false;
   }
 }
-
 
 bool fcn_voidFunctionLongArg(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -1436,7 +1437,6 @@ bool fcn_voidFunctionLongArg(
   return !exception_state.is_exception_set();
 }
 
-
 bool fcn_voidFunctionNoArgs(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -1482,7 +1482,6 @@ bool fcn_voidFunctionNoArgs(
   result_value.set(JS::UndefinedHandleValue);
   return !exception_state.is_exception_set();
 }
-
 
 bool fcn_voidFunctionObjectArg(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -1548,7 +1547,6 @@ bool fcn_voidFunctionObjectArg(
   return !exception_state.is_exception_set();
 }
 
-
 bool fcn_voidFunctionStringArg(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -1612,7 +1610,6 @@ bool fcn_voidFunctionStringArg(
   result_value.set(JS::UndefinedHandleValue);
   return !exception_state.is_exception_set();
 }
-
 bool staticfcn_overloadedFunction1(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -1715,10 +1712,7 @@ bool staticfcn_overloadedFunction(
   return false;
 }
 
-
-
 const JSPropertySpec prototype_properties[] = {
-
   JS_PS_END
 };
 
@@ -1769,7 +1763,6 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
-
   JS_PS_END
 };
 
@@ -1838,10 +1831,11 @@ void InitializePrototypeAndInterfaceObject(
       NULL, NULL);
   DCHECK(success);
 
-  // Define interface object properties (including constants).
+  // Define interface object properties (excluding constants).
   success = JS_DefineProperties(context, rooted_interface_object,
                                 interface_object_properties);
   DCHECK(success);
+
   // Define interface object functions (static).
   success = JS_DefineFunctions(context, rooted_interface_object,
                                interface_object_functions);

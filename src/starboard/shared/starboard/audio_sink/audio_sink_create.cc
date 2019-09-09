@@ -15,13 +15,7 @@
 #include "starboard/audio_sink.h"
 
 #include "starboard/common/log.h"
-#include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
-#include "starboard/shared/starboard/command_line.h"
-
-namespace {
-const char kUseStubAudioSinkSwitch[] = "use_stub_audio_sink";
-}  // namespace
 
 SbAudioSink SbAudioSinkCreate(
     int channels,
@@ -76,32 +70,29 @@ SbAudioSink SbAudioSinkCreate(
     return kSbAudioSinkInvalid;
   }
 
-  auto command_line =
-      starboard::shared::starboard::Application::Get()->GetCommandLine();
-  if (!command_line->HasSwitch(kUseStubAudioSinkSwitch)) {
-    if (auto type = SbAudioSinkPrivate::GetPrimaryType()) {
-      SbAudioSink audio_sink = type->Create(
-          channels, sampling_frequency_hz, audio_sample_type,
-          audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
-          update_source_status_func, consume_frames_func, context);
-      if (type->IsValid(audio_sink)) {
-        return audio_sink;
-      } else {
-        type->Destroy(audio_sink);
-      }
-    }
+  auto audio_sink_type = SbAudioSinkPrivate::GetPreferredType();
+  if (!audio_sink_type) {
+    return kSbAudioSinkInvalid;
   }
-
-  if (auto type = SbAudioSinkPrivate::GetFallbackType()) {
-    SB_LOG(WARNING) << "Primary audio sink failed to create, use fallback.";
-    return type->Create(channels, sampling_frequency_hz, audio_sample_type,
-                        audio_frame_storage_type, frame_buffers,
-                        frame_buffers_size_in_frames, update_source_status_func,
-                        consume_frames_func, context);
-  } else {
-    SB_LOG(WARNING) << "Primary audio sink failed to create,"
-                    << " fallback is not enabled.";
+  SbAudioSink audio_sink = audio_sink_type->Create(
+      channels, sampling_frequency_hz, audio_sample_type,
+      audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
+      update_source_status_func, consume_frames_func, context);
+  if (audio_sink_type->IsValid(audio_sink)) {
+    return audio_sink;
   }
-
+  audio_sink_type->Destroy(audio_sink);
+  auto fallback_audio_sink_type = SbAudioSinkPrivate::GetFallbackType();
+  if (!fallback_audio_sink_type) {
+    return kSbAudioSinkInvalid;
+  }
+  audio_sink = fallback_audio_sink_type->Create(
+      channels, sampling_frequency_hz, audio_sample_type,
+      audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
+      update_source_status_func, consume_frames_func, context);
+  if (fallback_audio_sink_type->IsValid(audio_sink)) {
+    return audio_sink;
+  }
+  fallback_audio_sink_type->Destroy(audio_sink);
   return kSbAudioSinkInvalid;
 }

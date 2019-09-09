@@ -18,7 +18,6 @@
         # TODO[johnx]: find out how we can verify local cert issuer and
         # re-enable this test. Consider adding a binary cert for local issuer
         # for debug builds.
-        'STARBOARD_NO_LOCAL_ISSUER',
         'QUIC_TRACE_DISABLED',
         'COBALT_QUIC46',
         'COMMON_CERT_SET_DISABLED_FOR_STARBOARD',
@@ -27,7 +26,6 @@
         'defines': [
           'HTTP_CACHE_DISABLED_FOR_STARBOARD',
           'ENABLE_BUILT_IN_DNS',
-          'STARBOARD_NO_LOCAL_ISSUER',
           'QUIC_TRACE_DISABLED',
           'COBALT_QUIC46',
           'COMMON_CERT_SET_DISABLED_FOR_STARBOARD',

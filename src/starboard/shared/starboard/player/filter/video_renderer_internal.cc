@@ -119,6 +119,9 @@ void VideoRenderer::WriteSample(
 
   if (!first_input_written_) {
     first_input_written_ = true;
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+    first_input_written_at_ = SbTimeGetMonotonicNow();
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
     absolute_time_of_first_input_ = SbTimeGetMonotonicNow();
   }
 
@@ -277,6 +280,11 @@ void VideoRenderer::OnDecoderStatus(VideoDecoder::Status status,
     if (number_of_frames_.load() >=
             static_cast<int32_t>(decoder_->GetPrerollFrameCount()) &&
         seeking_.exchange(false)) {
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+      SB_LOG(INFO) << "Video preroll takes "
+                   << SbTimeGetMonotonicNow() - first_input_written_at_
+                   << " microseconds.";
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
       Schedule(prerolled_cb_);
     }
   }
