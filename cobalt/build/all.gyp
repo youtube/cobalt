@@ -88,6 +88,7 @@
         '<(DEPTH)/third_party/boringssl/boringssl_tool.gyp:*',
         '<(DEPTH)/net/net.gyp:net_unittests',
         '<(DEPTH)/sql/sql.gyp:sql_unittests',
+        '<(DEPTH)/starboard/elf_loader/elf_loader.gyp:elf_loader',
       ],
       'conditions': [
         ['OS=="starboard"', {
@@ -95,11 +96,6 @@
             '<(DEPTH)/nb/nb_test.gyp:nb_test',
             '<(DEPTH)/nb/nb_test.gyp:reuse_allocator_benchmark',
             '<(DEPTH)/starboard/starboard_all.gyp:starboard_all',
-          ],
-        }],
-        ['target_arch in ["x86", "x64", "arm", "arm64"]', {
-          'dependencies': [
-            '<(DEPTH)/starboard/elf_loader/elf_loader.gyp:elf_loader',
           ],
         }],
       ],
