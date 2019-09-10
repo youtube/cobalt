@@ -81,9 +81,7 @@ void DialUdpServer::CreateAndBind() {
     return;
   }
 
-  thread_.message_loop()->task_runner()->PostTask(
-      FROM_HERE, base::Bind(&DialUdpServer::AcceptAndProcessConnection,
-                            base::Unretained(this)));
+  AcceptAndProcessConnection();
 }
 
 void DialUdpServer::Shutdown() {
@@ -115,11 +113,17 @@ void DialUdpServer::AcceptAndProcessConnection() {
   if (!is_running_ || !socket_.get()) {
     return;
   }
-  if (socket_->RecvFrom(
-          read_buf_.get(), kReadBufferSize, &client_address_,
-          base::Bind(&DialUdpServer::DidRead, base::Unretained(this))) == OK) {
-    DidRead(net::OK);
+  auto err_code = socket_->RecvFrom(
+      read_buf_.get(), kReadBufferSize, &client_address_,
+      base::Bind(&DialUdpServer::DidRead, base::Unretained(this)));
+  if (err_code > 0) {
+    // RecvFrom can also return the number of received bytes right away as well.
+    DidRead(err_code);
+  } else if (err_code != ERR_IO_PENDING) {
+    DCHECK(err_code == OK) << "RecvFrom returned bad error code: " << err_code;
   }
+  // otherwise, RecvFrom returned -1 and will execute DidRead when any data is
+  // received.
 }
 
 void DialUdpServer::DidClose(UDPSocket* server) {}
@@ -143,13 +147,19 @@ void DialUdpServer::DidRead(int bytes_read) {
     // After optimization, some compiler will dereference and get response size
     // later than passing response.
     auto response_size = response->size();
-    socket_->SendTo(fake_buffer.get(), response_size, client_address_,
-                    base::Bind([](scoped_refptr<WrappedIOBuffer>,
-                                  std::unique_ptr<std::string>, int /*rv*/) {},
-                               fake_buffer, base::Passed(&response)));
+    auto sent_num = socket_->SendTo(
+        fake_buffer.get(), response_size, client_address_,
+        base::Bind([](scoped_refptr<WrappedIOBuffer>,
+                      std::unique_ptr<std::string>, int /*rv*/) {},
+                   fake_buffer, base::Passed(&response)));
+    DCHECK_EQ(sent_num, response_size);
   }
-  // Now post another RecvFrom to the MessageLoop to take the next request.
-  thread_.message_loop()->task_runner()->PostTask(
+
+  // Register a watcher on the message loop and wait for the next dial message.
+  // If we call AcceptAndProcessConnection directly, the function could call
+  // DidRead and quickly increase stack size or even loop infinitely if the
+  // socket can always provide messages through RecvFrom.
+  thread_.task_runner()->PostTask(
       FROM_HERE, base::Bind(&DialUdpServer::AcceptAndProcessConnection,
                             base::Unretained(this)));
 }
@@ -183,7 +193,8 @@ bool DialUdpServer::ParseSearchRequest(const std::string& request) {
 
 bool DialUdpServer::IsValidMSearchRequest(const HttpServerRequestInfo& info) {
   if (info.method != "M-SEARCH") {
-    DVLOG(1) << "Invalid M-Search: SSDP method incorrect.";
+    DVLOG(1) << "Invalid M-Search: SSDP method incorrect. Received method: "
+             << info.method;
     return false;
   }
 

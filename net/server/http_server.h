@@ -92,7 +92,7 @@ class HttpServer {
 #if defined(STARBOARD)
   bool static ParseHeaders(const std::string& request,
                            HttpServerRequestInfo* info) {
-    size_t pos;
+    size_t pos = 0;
     return ParseHeaders(request.c_str(), request.length(), info, &pos);
   }
 #endif
