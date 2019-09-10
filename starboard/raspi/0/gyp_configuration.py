@@ -41,10 +41,12 @@ class Raspi0PlatformConfig(shared_configuration.RaspiPlatformConfig):
           # TODO: debug these failures.
           'SbPlayerTest.MultiPlayer',  # crashes
       ],
-      # Consistently failing. If all tests are individually filtered it still
-      # fails due to SIGABRT despite no tests run.
       'player_filter_tests': [
-          test_filter.FILTER_ALL
+          #TODO: debug these failures
+          'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/0',
+          'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull/0',
+          'VideoDecoderTests/VideoDecoderTest.MultipleInputs/0',
+          'VideoDecoderTests/VideoDecoderTest.Preroll/0',
       ]
   }
 
