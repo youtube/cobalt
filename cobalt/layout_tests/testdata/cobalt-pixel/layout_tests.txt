@@ -1,0 +1,3 @@
+aliasing-solid-borders
+aliasing-solid-color
+aliasing-texture
