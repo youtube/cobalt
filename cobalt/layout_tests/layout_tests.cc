@@ -98,13 +98,11 @@ struct GetTestName {
   }
 };
 
-}  // namespace
-
-class Layout : public ::testing::TestWithParam<TestInfo> {};
-TEST_P(Layout, Test) {
+void RunTest(const TestInfo& test_info,
+             renderer::RenderTreePixelTester::Options pixel_tester_options) {
   // Output the name of the current input file so that it is visible in test
   // output.
-  std::cout << "(" << GetParam() << ")" << std::endl;
+  std::cout << "(" << test_info << ")" << std::endl;
 
   // Setup a message loop for the current thread since we will be constructing
   // a WebModule, which requires a message loop to exist for the current
@@ -113,7 +111,6 @@ TEST_P(Layout, Test) {
 
   // Setup the pixel tester we will use to perform pixel tests on the render
   // trees output by the web module.
-  renderer::RenderTreePixelTester::Options pixel_tester_options;
   pixel_tester_options.output_failed_test_details =
       base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kOutputFailedTestDetails);
@@ -127,8 +124,8 @@ TEST_P(Layout, Test) {
   // room for tests to maneuver within and speed at which pixel tests can be
   // done.
   const ViewportSize kDefaultViewportSize(640, 360);
-  ViewportSize viewport_size = GetParam().viewport_size
-                                   ? *GetParam().viewport_size
+  ViewportSize viewport_size = test_info.viewport_size
+                                   ? *test_info.viewport_size
                                    : kDefaultViewportSize;
 
   renderer::RenderTreePixelTester pixel_tester(
@@ -136,7 +133,7 @@ TEST_P(Layout, Test) {
       GetTestOutputRootDirectory(), pixel_tester_options);
 
   browser::WebModule::LayoutResults layout_results = SnapshotURL(
-      GetParam().url, viewport_size, pixel_tester.GetResourceProvider(),
+      test_info.url, viewport_size, pixel_tester.GetResourceProvider(),
       base::Bind(&ScreenshotFunction,
                  base::MessageLoop::current()->task_runner(),
                  base::Unretained(&pixel_tester)));
@@ -158,16 +155,33 @@ TEST_P(Layout, Test) {
       twice_animated_node->source();
 
   bool results =
-      pixel_tester.TestTree(static_render_tree, GetParam().base_file_path);
+      pixel_tester.TestTree(static_render_tree, test_info.base_file_path);
 
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kRebaseline) ||
       (!results && base::CommandLine::ForCurrentProcess()->HasSwitch(
                        switches::kRebaselineFailedTests))) {
-    pixel_tester.Rebaseline(static_render_tree, GetParam().base_file_path);
+    pixel_tester.Rebaseline(static_render_tree, test_info.base_file_path);
   }
 
   EXPECT_TRUE(results);
+}
+
+}  // namespace
+
+// This test does a fuzzy pixel compare with the expected output.
+class Layout : public ::testing::TestWithParam<TestInfo> {};
+TEST_P(Layout, Test) {
+  RunTest(GetParam(), renderer::RenderTreePixelTester::Options());
+}
+
+// This test does an exact pixel compare with the expected output.
+class LayoutExact : public ::testing::TestWithParam<TestInfo> {};
+TEST_P(LayoutExact, Test) {
+  renderer::RenderTreePixelTester::Options pixel_tester_options;
+  pixel_tester_options.gaussian_blur_sigma = 0;
+  pixel_tester_options.acceptable_channel_range = 0;
+  RunTest(GetParam(), pixel_tester_options);
 }
 
 // Cobalt-specific test cases.
@@ -312,6 +326,12 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::ValuesIn(EnumerateLayoutTests("csp")),
     GetTestName());
 #endif  // !defined(COBALT_WIN)
+
+// Pixel-perfect tests.
+INSTANTIATE_TEST_CASE_P(
+    CobaltPixelTests, LayoutExact,
+    ::testing::ValuesIn(EnumerateLayoutTests("cobalt-pixel")),
+    GetTestName());
 
 }  // namespace layout_tests
 }  // namespace cobalt
