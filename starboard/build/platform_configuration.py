@@ -328,6 +328,7 @@ class PlatformConfiguration(object):
       A list of strings of test target names.
     """
     return [
+        'elf_loader_test',
         'nplb',
         'nplb_blitter_pixel_tests',
         'player_filter_tests',
