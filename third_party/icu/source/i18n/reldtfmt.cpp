@@ -488,30 +488,13 @@ void RelativeDateFormat::loadDates(UErrorCode &status) {
         int32_t patternsSize = ures_getSize(dateTimePatterns);
         if (patternsSize > kDateTime) {
             int32_t resStrLen = 0;
-
             int32_t glueIndex = kDateTime;
-            if (patternsSize >= (DateFormat::kDateTimeOffset + DateFormat::kShort + 1)) {
-                // Get proper date time format
-                switch (fDateStyle) { 
-                case kFullRelative: 
-                case kFull: 
-                    glueIndex = kDateTimeOffset + kFull; 
-                    break; 
-                case kLongRelative: 
-                case kLong: 
-                    glueIndex = kDateTimeOffset + kLong; 
-                    break; 
-                case kMediumRelative: 
-                case kMedium: 
-                    glueIndex = kDateTimeOffset + kMedium; 
-                    break;         
-                case kShortRelative: 
-                case kShort: 
-                    glueIndex = kDateTimeOffset + kShort; 
-                    break; 
-                default: 
-                    break; 
-                } 
+            if (patternsSize >= (kDateTimeOffset + kShort + 1)) {
+                int32_t offsetIncrement = (fDateStyle & ~kRelative); // Remove relative bit.
+                if (offsetIncrement >= (int32_t)kFull &&
+                    offsetIncrement <= (int32_t)kShortRelative) {
+                    glueIndex = kDateTimeOffset + offsetIncrement;
+                }
             }
 
             const UChar *resStr = ures_getStringByIndex(dateTimePatterns, glueIndex, &resStrLen, &tempStatus);
