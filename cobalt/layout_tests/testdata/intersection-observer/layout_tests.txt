@@ -16,4 +16,5 @@ target-has-nonzero-padding-and-border
 target-with-nonzero-area-is-edge-adjacent-to-root
 target-with-zero-area-is-edge-adjacent-to-root
 target-undergoes-transition
+unobserving-elements-without-calling-observe-should-not-crash
 unobserved-targets-do-not-get-included-in-next-update
