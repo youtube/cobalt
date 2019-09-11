@@ -292,13 +292,4 @@ class AndroidConfiguration(PlatformConfiguration):
           # the following tests depend upon.
           'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders/*',
       ],
-      'nplb': [
-          # These are failing on the internal test lab network that doesn't
-          # support IPv6.
-          'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
-          '.SunnyDaySourceForDestination/1',
-          'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
-          '.SunnyDaySourceNotLoopback/1',
-          'SbSocketAddressTypes/SbSocketResolveTest.Localhost/1',
-      ],
   }
