@@ -679,8 +679,10 @@ void Element::RegisterIntersectionObserverTarget(
 
 void Element::UnregisterIntersectionObserverTarget(
     IntersectionObserver* observer) {
-  element_intersection_observer_module_
-      ->UnregisterIntersectionObserverForTarget(observer);
+  if (element_intersection_observer_module_) {
+    element_intersection_observer_module_
+        ->UnregisterIntersectionObserverForTarget(observer);
+  }
 }
 
 ElementIntersectionObserverModule::LayoutIntersectionObserverRootVector
