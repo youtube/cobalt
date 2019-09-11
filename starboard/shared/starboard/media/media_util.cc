@@ -42,6 +42,11 @@ bool IsSupportedAudioCodec(const MimeType& mime_type,
   if (audio_codec == kSbMediaAudioCodecNone) {
     return false;
   }
+
+  // TODO: allow platform-specific rejection of a combination of codec &
+  // number of channels, by passing channels to SbMediaAudioIsSupported and /
+  // or SbMediaIsSupported.
+
   if (SbStringGetLength(key_system) != 0) {
     if (!SbMediaIsSupported(kSbMediaVideoCodecNone, audio_codec, key_system)) {
       return false;
@@ -50,6 +55,13 @@ bool IsSupportedAudioCodec(const MimeType& mime_type,
 
   int channels = mime_type.GetParamIntValue("channels", kDefaultAudioChannels);
   if (!IsAudioOutputSupported(kSbMediaAudioCodingTypePcm, channels)) {
+    return false;
+  }
+
+  // Disable Opus5.1 on all platforms pending fixes to some cross-platform
+  // issues.
+  if (audio_codec == kSbMediaAudioCodecOpus && channels > 2) {
+    SB_DLOG(ERROR) << "Rejecting opus with more than 2 channels";
     return false;
   }
 
