@@ -88,7 +88,10 @@ void ElementIntersectionObserverModule::UnregisterIntersectionObserverForTarget(
     InvalidateLayoutBoxesForElement();
     return;
   }
-  NOTREACHED()
+  // Give a warning instead of an error, because it is possible to attempt to
+  // call "unobserve" on an element that has not had "observe" called on it by
+  // this observer.
+  DLOG(WARNING)
       << "Did not find an intersection observer to unregister for the target.";
 }
 
