@@ -14,6 +14,9 @@
 
 #include "starboard/testing/fake_graphics_context_provider.h"
 
+#include "starboard/common/condition_variable.h"
+#include "starboard/common/mutex.h"
+
 #if defined(ADDRESS_SANITIZER)
 // By default, Leak Sanitizer and Address Sanitizer is expected to exist
 // together. However, this is not true for all platforms.
@@ -101,15 +104,40 @@ FakeGraphicsContextProvider::~FakeGraphicsContextProvider() {
 
 #if SB_HAS(GLES2)
 
-void FakeGraphicsContextProvider::ReleaseDecodeTarget(
-    SbDecodeTarget decode_target) {
+void FakeGraphicsContextProvider::RunOnGlesContextThread(
+    const std::function<void()>& functor) {
+  if (SbThreadIsCurrent(decode_target_context_thread_)) {
+    functor();
+    return;
+  }
   Mutex mutex;
   ConditionVariable condition_variable(mutex);
   ScopedLock scoped_lock(mutex);
 
-  functor_queue_.Put(std::bind(
-      &FakeGraphicsContextProvider::ReleaseDecodeTargetOnGlesContextThread,
-      this, &mutex, &condition_variable, decode_target));
+  functor_queue_.Put(functor);
+  functor_queue_.Put([&]() {
+    ScopedLock scoped_lock(mutex);
+    condition_variable.Signal();
+  });
+  condition_variable.Wait();
+}
+
+void FakeGraphicsContextProvider::ReleaseDecodeTarget(
+    SbDecodeTarget decode_target) {
+  if (SbThreadIsCurrent(decode_target_context_thread_)) {
+    SbDecodeTargetRelease(decode_target);
+    return;
+  }
+
+  Mutex mutex;
+  ConditionVariable condition_variable(mutex);
+  ScopedLock scoped_lock(mutex);
+
+  functor_queue_.Put(std::bind(SbDecodeTargetRelease, decode_target));
+  functor_queue_.Put([&]() {
+    ScopedLock scoped_lock(mutex);
+    condition_variable.Signal();
+  });
   condition_variable.Wait();
 }
 
@@ -222,36 +250,23 @@ void FakeGraphicsContextProvider::InitializeEGL() {
       std::bind(&FakeGraphicsContextProvider::MakeContextCurrent, this));
 }
 
-void FakeGraphicsContextProvider::ReleaseDecodeTargetOnGlesContextThread(
-    Mutex* mutex,
-    ConditionVariable* condition_variable,
-    SbDecodeTarget decode_target) {
-  SbDecodeTargetRelease(decode_target);
-  ScopedLock scoped_lock(*mutex);
-  condition_variable->Signal();
-}
-
-void FakeGraphicsContextProvider::RunDecodeTargetFunctionOnGlesContextThread(
-    Mutex* mutex,
-    ConditionVariable* condition_variable,
-    SbDecodeTargetGlesContextRunnerTarget target_function,
-    void* target_function_context) {
-  target_function(target_function_context);
-  ScopedLock scoped_lock(*mutex);
-  condition_variable->Signal();
-}
-
 void FakeGraphicsContextProvider::OnDecodeTargetGlesContextRunner(
     SbDecodeTargetGlesContextRunnerTarget target_function,
     void* target_function_context) {
+  if (SbThreadIsCurrent(decode_target_context_thread_)) {
+    target_function(target_function_context);
+    return;
+  }
+
   Mutex mutex;
   ConditionVariable condition_variable(mutex);
   ScopedLock scoped_lock(mutex);
 
-  functor_queue_.Put(std::bind(
-      &FakeGraphicsContextProvider::RunDecodeTargetFunctionOnGlesContextThread,
-      this, &mutex, &condition_variable, target_function,
-      target_function_context));
+  functor_queue_.Put(std::bind(target_function, target_function_context));
+  functor_queue_.Put([&]() {
+    ScopedLock scoped_lock(mutex);
+    condition_variable.Signal();
+  });
   condition_variable.Wait();
 }
 
