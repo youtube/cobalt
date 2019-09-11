@@ -19,6 +19,7 @@
 #include "starboard/byte_swap.h"
 #include "starboard/character.h"
 #include "starboard/condition_variable.h"
+#include "starboard/configuration.h"
 #include "starboard/cpu_features.h"
 #include "starboard/cryptography.h"
 #include "starboard/decode_target.h"
@@ -56,7 +57,6 @@ namespace starboard {
 namespace elf_loader {
 
 ExportedSymbols::ExportedSymbols() {
-  REGISTER_SYMBOL(SbAccessibilityGetCaptionSettings);
   REGISTER_SYMBOL(SbAccessibilityGetDisplaySettings);
   REGISTER_SYMBOL(SbAccessibilityGetTextToSpeechSettings);
   REGISTER_SYMBOL(SbAudioSinkCreate);
@@ -274,6 +274,10 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbWindowGetPlatformHandle);
   REGISTER_SYMBOL(SbWindowGetSize);
   REGISTER_SYMBOL(SbWindowSetDefaultOptions);
+
+#if SB_HAS(CAPTIONS)
+  REGISTER_SYMBOL(SbAccessibilityGetCaptionSettings);
+#endif  // SB_HAS(CAPTIONS)
 
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
   REGISTER_SYMBOL(SbMemoryFlush);
