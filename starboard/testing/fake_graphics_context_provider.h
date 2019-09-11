@@ -17,8 +17,6 @@
 
 #include <functional>
 
-#include "starboard/common/condition_variable.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/queue.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
@@ -48,6 +46,7 @@ class FakeGraphicsContextProvider {
   }
 
 #if SB_HAS(GLES2)
+  void RunOnGlesContextThread(const std::function<void()>& functor);
   void ReleaseDecodeTarget(SbDecodeTarget decode_target);
 #endif  // SB_HAS(GLES2)
 
@@ -61,16 +60,6 @@ class FakeGraphicsContextProvider {
 
 #if SB_HAS(GLES2)
   void InitializeEGL();
-
-  void ReleaseDecodeTargetOnGlesContextThread(
-      Mutex* mutex,
-      ConditionVariable* condition_variable,
-      SbDecodeTarget decode_target);
-  void RunDecodeTargetFunctionOnGlesContextThread(
-      Mutex* mutex,
-      ConditionVariable* condition_variable,
-      SbDecodeTargetGlesContextRunnerTarget target_function,
-      void* target_function_context);
 
   void OnDecodeTargetGlesContextRunner(
       SbDecodeTargetGlesContextRunnerTarget target_function,
