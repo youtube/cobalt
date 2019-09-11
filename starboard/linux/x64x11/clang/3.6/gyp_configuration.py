@@ -55,10 +55,6 @@ class LinuxX64X11Clang36Configuration(shared_configuration.LinuxConfiguration):
     variables = super(LinuxX64X11Clang36Configuration,
                       self).GetVariables(config_name)
     variables.update({
-        'javascript_engine':
-            'mozjs-45',
-        'cobalt_enable_jit':
-            0,
         'GCC_TOOLCHAIN_FOLDER':
             '\"%s\"' % os.path.join(self.toolchain_top_dir, 'libstdc++-7'),
     })
