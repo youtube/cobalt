@@ -187,10 +187,15 @@ class VideoDecoderTest
 
 #if SB_HAS(GLES2)
   void AssertInvalidDecodeTarget() {
-    if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
-      auto decode_target = video_decoder_->GetCurrentDecodeTarget();
-      ASSERT_FALSE(SbDecodeTargetIsValid(decode_target));
-      fake_graphics_context_provider_.ReleaseDecodeTarget(decode_target);
+    if (output_mode_ == kSbPlayerOutputModeDecodeToTexture &&
+        !using_stub_decoder_) {
+      volatile bool is_decode_target_valid = true;
+      fake_graphics_context_provider_.RunOnGlesContextThread([&]() {
+        SbDecodeTarget decode_target = video_decoder_->GetCurrentDecodeTarget();
+        is_decode_target_valid = SbDecodeTargetIsValid(decode_target);
+        SbDecodeTargetRelease(decode_target);
+      });
+      ASSERT_FALSE(is_decode_target_valid);
     }
   }
 #endif  // SB_HAS(GLES2)
@@ -227,6 +232,7 @@ class VideoDecoderTest
     SbTimeMonotonic start = SbTimeGetMonotonicNow();
     while (SbTimeGetMonotonicNow() - start < timeout) {
       job_queue_.RunUntilIdle();
+      GetDecodeTargetWhenSupported();
       {
         ScopedLock scoped_lock(mutex_);
         if (!event_queue_.empty()) {
@@ -256,20 +262,26 @@ class VideoDecoderTest
 
   void GetDecodeTargetWhenSupported() {
 #if SB_HAS(GLES2)
-    if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
-      SbDecodeTarget decode_target = video_decoder_->GetCurrentDecodeTarget();
-      fake_graphics_context_provider_.ReleaseDecodeTarget(decode_target);
+    if (output_mode_ == kSbPlayerOutputModeDecodeToTexture &&
+        !using_stub_decoder_) {
+      fake_graphics_context_provider_.RunOnGlesContextThread([&]() {
+        SbDecodeTargetRelease(video_decoder_->GetCurrentDecodeTarget());
+      });
     }
 #endif  // SB_HAS(GLES2)
   }
 
   void AssertValidDecodeTargetWhenSupported() {
 #if SB_HAS(GLES2)
+    volatile bool is_decode_target_valid = false;
     if (output_mode_ == kSbPlayerOutputModeDecodeToTexture &&
         !using_stub_decoder_) {
-      SbDecodeTarget decode_target = video_decoder_->GetCurrentDecodeTarget();
-      ASSERT_TRUE(SbDecodeTargetIsValid(decode_target));
-      fake_graphics_context_provider_.ReleaseDecodeTarget(decode_target);
+      fake_graphics_context_provider_.RunOnGlesContextThread([&]() {
+        SbDecodeTarget decode_target = video_decoder_->GetCurrentDecodeTarget();
+        is_decode_target_valid = SbDecodeTargetIsValid(decode_target);
+        SbDecodeTargetRelease(decode_target);
+      });
+      ASSERT_TRUE(is_decode_target_valid);
     }
 #endif  // SB_HAS(GLES2)
   }
@@ -509,9 +521,6 @@ TEST_P(VideoDecoderTest, OutputModeSupported) {
 TEST_P(VideoDecoderTest, GetCurrentDecodeTargetBeforeWriteInputBuffer) {
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     AssertInvalidDecodeTarget();
-    SbDecodeTarget decode_target = video_decoder_->GetCurrentDecodeTarget();
-    EXPECT_FALSE(SbDecodeTargetIsValid(decode_target));
-    fake_graphics_context_provider_.ReleaseDecodeTarget(decode_target);
   }
 }
 #endif  // SB_HAS(GLES2)
