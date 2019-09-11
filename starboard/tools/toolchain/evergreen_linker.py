@@ -30,7 +30,7 @@ class SharedLibraryLinker(clangxx.DynamicLinkerBase,
                      '-X '
                      '-v '
                      '--eh-frame-hdr '
-                     '-m armelf_linux_eabi '
+                     '{2} '
                      '-shared '
                      '-o $out '
                      '-L{1} '
@@ -40,4 +40,4 @@ class SharedLibraryLinker(clangxx.DynamicLinkerBase,
                      '-nostdlib '
                      '--whole-archive '
                      '--no-whole-archive '
-                     '@$rspfile'.format(lld_path, self.GetPath()))
+                     '@$rspfile'.format(lld_path, self.GetPath(), *extra_flags))
