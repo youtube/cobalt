@@ -64,7 +64,8 @@ class EvergreenARMConfiguration(shared_configuration.EvergreenConfiguration):
           ar.StaticThinLinker(),
           ar.StaticLinker(),
           clangxx.ExecutableLinker(path=cxx_path),
-          evergreen_linker.SharedLibraryLinker(path=cxx_path_root),
+          evergreen_linker.SharedLibraryLinker(
+              path=cxx_path_root, extra_flags=['-m armelf']),
           cp.Copy(),
           touch.Stamp(),
           bash.Shell(),
