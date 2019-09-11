@@ -1964,12 +1964,10 @@
         'der/parser_unittest.cc',
 
         # dial is a legacy component we kept from old Chromium net.
-        # TODO[johnx]: re-enable dial tests. Currently they are crashing due to
-        # improper usage of modified net classes like HttpNetworkTransaction.
-        # 'dial/dial_http_server_unittest.cc',
-        # 'dial/dial_service_unittest.cc',
-        # 'dial/dial_test_helpers.h',
-        # 'dial/dial_udp_server_unittests.cc',
+        'dial/dial_http_server_unittest.cc',
+        'dial/dial_service_unittest.cc',
+        'dial/dial_test_helpers.h',
+        'dial/dial_udp_server_unittests.cc',
 
         # disk_cache component is disabled because only http cache depends on
         # it and Cobalt does not support http cache yet.

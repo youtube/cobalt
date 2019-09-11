@@ -6,6 +6,7 @@
 
 #include "base/bind.h"
 #include "base/message_loop/message_loop.h"
+#include "base/test/scoped_task_environment.h"
 #include "net/dial/dial_test_helpers.h"
 #include "net/server/http_server_request_info.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -16,6 +17,7 @@ namespace net {
 
 class DialServiceTest : public testing::Test {
  protected:
+  base::test::ScopedTaskEnvironment scoped_task_env_;
   std::unique_ptr<DialService> service_;
 
   virtual void TearDown() override { service_.reset(); }
