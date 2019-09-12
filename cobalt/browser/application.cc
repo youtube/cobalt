@@ -78,6 +78,10 @@ const int kStatUpdatePeriodMs = 1000;
 
 const char kDefaultURL[] = "https://www.youtube.com/tv";
 
+#if defined(ENABLE_ABOUT_SCHEME)
+const char kAboutBlankURL[] = "about:blank";
+#endif  // defined(ENABLE_ABOUT_SCHEME)
+
 bool IsStringNone(const std::string& str) {
   return !base::strcasecmp(str.c_str(), "none");
 }
@@ -159,12 +163,22 @@ GURL GetInitialURL() {
   // Allow the user to override the default URL via a command line parameter.
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kInitialURL)) {
-    GURL url = GURL(command_line->GetSwitchValueASCII(switches::kInitialURL));
+    std::string url_switch =
+        command_line->GetSwitchValueASCII(switches::kInitialURL);
+#if defined(ENABLE_ABOUT_SCHEME)
+    // Check the switch itself since some non-empty strings parse to empty URLs.
+    if (url_switch.empty()) {
+      LOG(ERROR) << "URL from parameter is empty, using " << kAboutBlankURL;
+      return GURL(kAboutBlankURL);
+    }
+#endif  // defined(ENABLE_ABOUT_SCHEME)
+    GURL url = GURL(url_switch);
     if (url.is_valid()) {
       initial_url = url;
     } else {
-      DLOG(ERROR) << "URL from parameter " << command_line
-                  << " is not valid, using default URL.";
+      LOG(ERROR) << "URL \"" << url_switch
+                 << "\" from parameter is not valid, using default URL "
+                 << initial_url;
     }
   }
 
