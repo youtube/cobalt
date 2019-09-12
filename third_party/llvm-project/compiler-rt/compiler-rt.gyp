@@ -73,6 +73,22 @@
             'lib/builtins/arm/aeabi_uldivmod.S',
           ],
         }],
+        ['sb_evergreen == 1 and target_arch == "arm64"', {
+          'sources': [
+            'lib/builtins/addtf3.c',
+            'lib/builtins/comparetf2.c',
+            'lib/builtins/divtf3.c',
+            'lib/builtins/extenddftf2.c',
+            'lib/builtins/extendsftf2.c',
+            'lib/builtins/fixtfsi.c',
+            'lib/builtins/floatsitf.c',
+            'lib/builtins/floatunsitf.c',
+            'lib/builtins/multf3.c',
+            'lib/builtins/subtf3.c',
+            'lib/builtins/trunctfdf2.c',
+            'lib/builtins/trunctfsf2.c',
+          ],
+        }],
       ]
     }
   ]

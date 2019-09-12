@@ -90,6 +90,14 @@
       'sources': [
         'sandbox.cc',
       ],
+      'conditions': [
+        # TODO: Remove this dependency once MediaSession is migrated to use CobaltExtensions.
+        ['target_os == "android"', {
+          'dependencies': [
+            '<(DEPTH)/starboard/android/shared/cobalt/cobalt_platform.gyp:cobalt_platform',
+          ],
+        }],
+      ],
     },
     {
       # To properly function the system loader requires the starboard
