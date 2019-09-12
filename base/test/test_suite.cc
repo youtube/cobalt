@@ -202,6 +202,7 @@ TestSuite::TestSuite(int argc, wchar_t** argv) {
 TestSuite::~TestSuite() {
   if (initialized_command_line_)
     CommandLine::Reset();
+  logging::CloseLogFile();
 }
 
 void TestSuite::InitializeFromCommandLine(int argc, char** argv) {
