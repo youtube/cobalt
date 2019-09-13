@@ -69,25 +69,3 @@ void SbLog(SbLogPriority priority, const char* message) {
   // and we end up losing crucial logs. The test runner specifies a sleep time.
   SbThreadSleep(::starboard::android::shared::GetLogSleepTime());
 }
-
-// Helper to write messages to logcat even when Android non-warning/non-error
-// logging is stripped from the app with Proguard.
-extern "C" SB_EXPORT_PLATFORM jint
-Java_dev_cobalt_util_Log_nativeWrite(JniEnvExt* env,
-                                     jobject unused_clazz,
-                                     jchar priority,
-                                     jstring tag,
-                                     jstring msg,
-                                     jobject throwable) {
-  char log_method_name[2] = {static_cast<char>(priority), '\0'};
-  if (throwable == nullptr) {
-    return env->CallStaticIntMethodOrAbort(
-        "android.util.Log", log_method_name,
-        "(Ljava/lang/String;Ljava/lang/String;)I", tag, msg);
-  } else {
-    return env->CallStaticIntMethodOrAbort(
-        "android.util.Log", log_method_name,
-        "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)I",
-        tag, msg, throwable);
-  }
-}
