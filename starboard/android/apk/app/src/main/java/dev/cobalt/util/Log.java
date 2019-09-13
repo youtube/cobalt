@@ -14,58 +14,103 @@
 
 package dev.cobalt.util;
 
+import java.lang.reflect.Method;
+
 /**
- * API for sending Starboard log output. This uses a JNI helper rather than directly calling Android
- * logging so that it remains in the app even when Android logging is stripped by Proguard.
+ * Logging wrapper to allow for better control of Proguard log stripping. Many dependent
+ * configurations have rules to strip logs which makes it hard to control from the app.
+ *
+ * <p>The implementation is using reflection.
  */
 public final class Log {
   public static final String TAG = "starboard";
 
+  private static Method logV;
+  private static Method logD;
+  private static Method logI;
+  private static Method logW;
+  private static Method logE;
+
+  static {
+    initLogging();
+  }
+
   private Log() {}
 
-  private static native int nativeWrite(char priority, String tag, String msg, Throwable tr);
+  private static void initLogging() {
+    try {
+      logV =
+          android.util.Log.class.getDeclaredMethod(
+              "v", String.class, String.class, Throwable.class);
+      logD =
+          android.util.Log.class.getDeclaredMethod(
+              "d", String.class, String.class, Throwable.class);
+      logI =
+          android.util.Log.class.getDeclaredMethod(
+              "i", String.class, String.class, Throwable.class);
+      logW =
+          android.util.Log.class.getDeclaredMethod(
+              "w", String.class, String.class, Throwable.class);
+      logE =
+          android.util.Log.class.getDeclaredMethod(
+              "e", String.class, String.class, Throwable.class);
+    } catch (Throwable e) {
+      // ignore
+    }
+  }
+
+  private static int logWithMethod(Method logMethod, String tag, String msg, Throwable tr) {
+    try {
+      if (logMethod != null) {
+        return (int) logMethod.invoke(null, tag, msg, tr);
+      }
+    } catch (Throwable e) {
+      // ignore
+    }
+    return 0;
+  }
 
   public static int v(String tag, String msg) {
-    return nativeWrite('v', tag, msg, null);
+    return logWithMethod(logV, tag, msg, null);
   }
 
   public static int v(String tag, String msg, Throwable tr) {
-    return nativeWrite('v', tag, msg, tr);
+    return logWithMethod(logV, tag, msg, tr);
   }
 
   public static int d(String tag, String msg) {
-    return nativeWrite('d', tag, msg, null);
+    return logWithMethod(logD, tag, msg, null);
   }
 
   public static int d(String tag, String msg, Throwable tr) {
-    return nativeWrite('d', tag, msg, tr);
+    return logWithMethod(logD, tag, msg, tr);
   }
 
   public static int i(String tag, String msg) {
-    return nativeWrite('i', tag, msg, null);
+    return logWithMethod(logI, tag, msg, null);
   }
 
   public static int i(String tag, String msg, Throwable tr) {
-    return nativeWrite('i', tag, msg, tr);
+    return logWithMethod(logI, tag, msg, tr);
   }
 
   public static int w(String tag, String msg) {
-    return nativeWrite('w', tag, msg, null);
+    return logWithMethod(logW, tag, msg, null);
   }
 
   public static int w(String tag, String msg, Throwable tr) {
-    return nativeWrite('w', tag, msg, tr);
+    return logWithMethod(logW, tag, msg, tr);
   }
 
   public static int w(String tag, Throwable tr) {
-    return nativeWrite('w', tag, "", tr);
+    return logWithMethod(logW, tag, "", tr);
   }
 
   public static int e(String tag, String msg) {
-    return nativeWrite('e', tag, msg, null);
+    return logWithMethod(logE, tag, msg, null);
   }
 
   public static int e(String tag, String msg, Throwable tr) {
-    return nativeWrite('e', tag, msg, tr);
+    return logWithMethod(logE, tag, msg, tr);
   }
 }
