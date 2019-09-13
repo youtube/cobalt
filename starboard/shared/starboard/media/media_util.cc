@@ -58,13 +58,6 @@ bool IsSupportedAudioCodec(const MimeType& mime_type,
     return false;
   }
 
-  // Disable Opus5.1 on all platforms pending fixes to some cross-platform
-  // issues.
-  if (audio_codec == kSbMediaAudioCodecOpus && channels > 2) {
-    SB_DLOG(ERROR) << "Rejecting opus with more than 2 channels";
-    return false;
-  }
-
   int bitrate = mime_type.GetParamIntValue("bitrate", kDefaultBitRate);
 
   if (!SbMediaIsAudioSupported(audio_codec, bitrate)) {
