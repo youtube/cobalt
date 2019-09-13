@@ -25,11 +25,8 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
-#include "starboard/thread.h"
-
-#if SB_API_VERSION >= 11
 #include "starboard/shared/starboard/log_mutex.h"
-#endif  // SB_API_VERSION >= 11
+#include "starboard/thread.h"
 
 using starboard::android::shared::JniEnvExt;
 using starboard::android::shared::ScopedLocalJavaRef;
