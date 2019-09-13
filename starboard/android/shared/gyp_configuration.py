@@ -292,4 +292,9 @@ class AndroidConfiguration(PlatformConfiguration):
           'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders/2',
           'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders/3',
       ],
+      'nplb': [
+          # This test is failing because localhost is not defined for IPv6 in
+          # /etc/hosts.
+          'SbSocketAddressTypes/SbSocketResolveTest.Localhost/1',
+      ],
   }
