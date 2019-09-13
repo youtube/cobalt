@@ -327,19 +327,22 @@ ReuseAllocatorBase::FreeBlockSet::iterator ReuseAllocatorBase::ExpandToFit(
     std::size_t alignment) {
   void* ptr = NULL;
   std::size_t size_to_try = 0;
+  // We try to allocate in unit of |allocation_increment_| to minimize
+  // fragmentation.
   if (allocation_increment_ > size) {
-    size_to_try = std::max(size, allocation_increment_);
-    if (max_capacity_ && capacity_ + size_to_try > max_capacity_) {
-      return free_blocks_.end();
+    size_to_try = allocation_increment_;
+    if (!max_capacity_ || capacity_ + size_to_try <= max_capacity_) {
+      ptr = fallback_allocator_->AllocateForAlignment(&size_to_try, alignment);
     }
-    ptr = fallback_allocator_->AllocateForAlignment(&size_to_try, alignment);
   }
+  // |ptr| being null indicates the above allocation failed, or in the rare case
+  // |size| is larger than |allocation_increment_|. Try to allocate a block of
+  // |size| instead for both cases.
   if (ptr == NULL) {
     size_to_try = size;
-    if (max_capacity_ && capacity_ + size_to_try > max_capacity_) {
-      return free_blocks_.end();
+    if (!max_capacity_ || capacity_ + size_to_try <= max_capacity_) {
+      ptr = fallback_allocator_->AllocateForAlignment(&size_to_try, alignment);
     }
-    ptr = fallback_allocator_->AllocateForAlignment(&size_to_try, alignment);
   }
   if (ptr != NULL) {
     fallback_allocations_.push_back(ptr);
@@ -350,6 +353,7 @@ ReuseAllocatorBase::FreeBlockSet::iterator ReuseAllocatorBase::ExpandToFit(
     return free_blocks_.end();
   }
 
+  // If control reaches here, then the prior allocation attempts have failed.
   // We failed to allocate for |size| from the fallback allocator, try to
   // allocate the difference between |size| and the size of the right most block
   // in the hope that they are continuous and can be connect to a block that is

@@ -28,7 +28,7 @@ int SbMediaGetBufferAllocationUnit() {
   // Use define forwarded from GYP variable.
   return COBALT_MEDIA_BUFFER_ALLOCATION_UNIT;
 #else   // defined(COBALT_MEDIA_BUFFER_ALLOCATION_UNIT
-  return 1 * 1024 * 1024;
+  return 4 * 1024 * 1024;
 #endif  // defined(COBALT_MEDIA_BUFFER_ALLOCATION_UNIT
 }
 #endif  // SB_API_VERSION >= 10
