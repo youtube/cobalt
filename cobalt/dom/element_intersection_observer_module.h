@@ -39,7 +39,7 @@ class ElementIntersectionObserverModule : public script::Traceable {
       LayoutIntersectionObserverTargetVector;
 
   explicit ElementIntersectionObserverModule(Element* element);
-  ~ElementIntersectionObserverModule() {}
+  ~ElementIntersectionObserverModule();
 
   void RegisterIntersectionObserverForRoot(IntersectionObserver* observer);
   void UnregisterIntersectionObserverForRoot(IntersectionObserver* observer);
