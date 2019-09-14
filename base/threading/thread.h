@@ -282,8 +282,8 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   // Called just after the message loop ends
   virtual void CleanUp() {}
 
-  static void SetThreadWasQuitProperly(bool flag);
-  static bool GetThreadWasQuitProperly();
+  void SetThreadWasQuitProperly(bool flag);
+  bool GetThreadWasQuitProperly();
 
   // Bind this Thread to an existing MessageLoop instead of starting a new one.
   // TODO(gab): Remove this after ios/ has undergone the same surgery as
@@ -358,6 +358,14 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
 
   // The name of the thread.  Used for debugging purposes.
   const std::string name_;
+
+#ifndef NDEBUG
+  // We use this member variable to record whether or not a thread exited
+  // because its Stop method was called.  This allows us to catch cases where
+  // MessageLoop::QuitWhenIdle() is called directly, which is unexpected when
+  // using a Thread to setup and run a MessageLoop.
+  bool was_quit_properly_;
+#endif
 
   // Signaled when the created thread gets ready to use the message loop.
   mutable WaitableEvent start_event_;
