@@ -149,7 +149,7 @@ class LibxmlParserWrapper {
   // depth deeper than this will be discarded.
   const int dom_max_element_depth_;
   const base::SourceLocation first_chunk_location_;
-  const loader::Decoder::OnCompleteFunction& load_complete_callback_;
+  const loader::Decoder::OnCompleteFunction load_complete_callback_;
 
   bool depth_limit_exceeded_;
   IssueSeverity max_severity_;

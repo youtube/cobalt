@@ -422,6 +422,10 @@ void WebSocket::OnReceivedData(bool is_text_frame,
                                             response_type_code, data));
 }
 
+void WebSocket::OnWriteDone(uint64_t bytes_written) {
+  buffered_amount_ -= bytes_written;
+}
+
 void WebSocket::Initialize(script::EnvironmentSettings* settings,
                            const std::string& url,
                            const std::vector<std::string>& sub_protocols,
