@@ -127,6 +127,10 @@ class CobaltWebSocketEventHandler : public net::WebSocketEventInterface {
       base::OnceCallback<void(const net::AuthCredentials*)> callback,
       base::Optional<net::AuthCredentials>* credentials) override;
 
+  // Called when a write completes, and |bytes_written| indicates how many bytes
+  // were written.
+  virtual void OnWriteDone(uint64_t bytes_written) override;
+
  protected:
   CobaltWebSocketEventHandler() {}
 

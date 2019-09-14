@@ -229,6 +229,11 @@ class MockWebSocketEventInterface : public WebSocketEventInterface {
                    scoped_refptr<HttpResponseHeaders>,
                    const HostPortPair&,
                    base::Optional<AuthCredentials>*));
+#if defined(STARBOARD)
+  // We don't mock this in order to avoid significant modifications to this
+  // file for a Cobalt-specific addition.
+  void OnWriteDone(uint64_t bytes_written) override {};
+#endif
 };
 
 // This fake EventInterface is for tests which need a WebSocketEventInterface
@@ -264,6 +269,9 @@ class FakeWebSocketEventInterface : public WebSocketEventInterface {
     *credentials = base::nullopt;
     return OK;
   }
+#if defined(STARBOARD)
+  void OnWriteDone(uint64_t bytes_written) override {};
+#endif
 };
 
 // This fake WebSocketStream is for tests that require a WebSocketStream but are

@@ -66,7 +66,9 @@ void CobaltWebSocketEventHandler::OnDataFrame(
   if (message_type_ == net::WebSocketFrameHeader::kOpCodeControlUnused) {
     message_type_ = type;
   }
-  DCHECK_EQ(message_type_, type);
+  if (type != net::WebSocketFrameHeader::kOpCodeContinuation) {
+    DCHECK_EQ(message_type_, type);
+  }
   frame_data_.push_back(std::make_pair(std::move(buffer), buffer_size));
   if (fin) {
     std::size_t message_length = GetMessageLength(frame_data_);
@@ -124,6 +126,10 @@ int CobaltWebSocketEventHandler::OnAuthRequired(
     base::Optional<net::AuthCredentials>* /*credentials*/) {
   NOTIMPLEMENTED();
   return net::OK;
+}
+
+void CobaltWebSocketEventHandler::OnWriteDone(uint64_t bytes_written) {
+  creator_->OnWriteDone(bytes_written);
 }
 
 }  // namespace websocket
