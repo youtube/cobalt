@@ -28,17 +28,6 @@
 
 namespace base {
 
-namespace {
-
-// We use this thread-local variable to record whether or not a thread exited
-// because its Stop method was called.  This allows us to catch cases where
-// MessageLoop::QuitWhenIdle() is called directly, which is unexpected when
-// using a Thread to setup and run a MessageLoop.
-base::LazyInstance<base::ThreadLocalBoolean>::Leaky lazy_tls_bool =
-    LAZY_INSTANCE_INITIALIZER;
-
-}  // namespace
-
 Thread::Options::Options() = default;
 
 Thread::Options::Options(MessageLoop::Type type, size_t size)
@@ -52,6 +41,9 @@ Thread::Thread(const std::string& name)
     : id_event_(WaitableEvent::ResetPolicy::MANUAL,
                 WaitableEvent::InitialState::NOT_SIGNALED),
       name_(name),
+#ifndef NDEBUG
+      was_quit_properly_(false),
+#endif
       start_event_(WaitableEvent::ResetPolicy::MANUAL,
                    WaitableEvent::InitialState::NOT_SIGNALED) {
   // Only bind the sequence on Start(): the state is constant between
@@ -264,16 +256,18 @@ void Thread::Run(RunLoop* run_loop) {
 
 // static
 void Thread::SetThreadWasQuitProperly(bool flag) {
-  lazy_tls_bool.Pointer()->Set(flag);
+#ifndef NDEBUG
+  was_quit_properly_ = flag;
+#endif
 }
 
 // static
 bool Thread::GetThreadWasQuitProperly() {
-  bool quit_properly = true;
 #ifndef NDEBUG
-  quit_properly = lazy_tls_bool.Pointer()->Get();
+  return was_quit_properly_;
+#else
+  return true;
 #endif
-  return quit_properly;
 }
 
 void Thread::SetMessageLoop(MessageLoop* message_loop) {
