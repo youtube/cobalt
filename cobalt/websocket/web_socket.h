@@ -98,6 +98,8 @@ class WebSocket : public dom::EventTarget {
 
   void OnReceivedData(bool is_text_frame,
                       scoped_refptr<net::IOBufferWithSize> data);
+  void OnWriteDone(uint64_t bytes_written);
+
   void OnError() { this->DispatchEvent(new dom::Event(base::Tokens::error())); }
 
   // EventHandlers.
