@@ -25,34 +25,51 @@
 namespace cobalt {
 namespace speech {
 
-namespace {
-
-using cobalt::speech::StarboardSpeechRecognizer;
-
-void OnSpeechDetected(void* context, bool detected) {
+// static
+void StarboardSpeechRecognizer::OnSpeechDetected(void* context, bool detected) {
   StarboardSpeechRecognizer* recognizer =
       static_cast<StarboardSpeechRecognizer*>(context);
-  recognizer->OnRecognizerSpeechDetected(detected);
+  recognizer->message_loop_->task_runner()->PostTask(
+      FROM_HERE,
+      base::Bind(&StarboardSpeechRecognizer::OnRecognizerSpeechDetected,
+                 recognizer->weak_factory_.GetWeakPtr(), detected));
 }
 
-void OnError(void* context, SbSpeechRecognizerError error) {
+// static
+void StarboardSpeechRecognizer::OnError(void* context,
+                                        SbSpeechRecognizerError error) {
   StarboardSpeechRecognizer* recognizer =
       static_cast<StarboardSpeechRecognizer*>(context);
-  recognizer->OnRecognizerError(error);
+  recognizer->message_loop_->task_runner()->PostTask(
+      FROM_HERE, base::Bind(&StarboardSpeechRecognizer::OnRecognizerError,
+                            recognizer->weak_factory_.GetWeakPtr(), error));
 }
 
-void OnResults(void* context, SbSpeechResult* results, int results_size,
-               bool is_final) {
+// static
+void StarboardSpeechRecognizer::OnResults(void* context,
+                                          SbSpeechResult* results,
+                                          int results_size, bool is_final) {
   StarboardSpeechRecognizer* recognizer =
       static_cast<StarboardSpeechRecognizer*>(context);
-  recognizer->OnRecognizerResults(results, results_size, is_final);
-}
 
-}  // namespace
+  std::vector<SpeechRecognitionAlternative::Data> results_copy;
+  results_copy.reserve(results_size);
+  for (int i = 0; i < results_size; ++i) {
+    results_copy.emplace_back(SpeechRecognitionAlternative::Data{
+        results[i].transcript, results[i].confidence});
+  }
+
+  recognizer->message_loop_->task_runner()->PostTask(
+      FROM_HERE, base::BindOnce(&StarboardSpeechRecognizer::OnRecognizerResults,
+                                recognizer->weak_factory_.GetWeakPtr(),
+                                std::move(results_copy), is_final));
+}
 
 StarboardSpeechRecognizer::StarboardSpeechRecognizer(
     const EventCallback& event_callback)
-    : SpeechRecognizer(event_callback) {
+    : SpeechRecognizer(event_callback),
+      message_loop_(base::MessageLoop::current()),
+      weak_factory_(this) {
   SbSpeechRecognizerHandler handler = {&OnSpeechDetected, &OnError, &OnResults,
                                        this};
   speech_recognizer_ = SbSpeechRecognizerCreate(&handler);
@@ -135,18 +152,14 @@ void StarboardSpeechRecognizer::OnRecognizerError(
   RunEventCallback(error_event);
 }
 
-void StarboardSpeechRecognizer::OnRecognizerResults(SbSpeechResult* results,
-                                                    int results_size,
-                                                    bool is_final) {
+void StarboardSpeechRecognizer::OnRecognizerResults(
+    std::vector<SpeechRecognitionAlternative::Data>&& results, bool is_final) {
   SpeechRecognitionResultList::SpeechRecognitionResults recognition_results;
   SpeechRecognitionResult::SpeechRecognitionAlternatives alternatives;
-  for (int i = 0; i < results_size; ++i) {
+  for (auto& result : results) {
     scoped_refptr<SpeechRecognitionAlternative> alternative(
-        new SpeechRecognitionAlternative(results[i].transcript,
-                                         results[i].confidence));
+        new SpeechRecognitionAlternative(std::move(result)));
     alternatives.push_back(alternative);
-    // Platform implementation allocates memory of |transcript|.
-    SbMemoryDeallocate(results[i].transcript);
   }
   scoped_refptr<SpeechRecognitionResult> recognition_result(
       new SpeechRecognitionResult(alternatives, is_final));
