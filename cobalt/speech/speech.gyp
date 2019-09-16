@@ -43,7 +43,6 @@
         'speech_configuration.h',
         'speech_recognition.cc',
         'speech_recognition.h',
-        'speech_recognition_alternative.cc',
         'speech_recognition_alternative.h',
         'speech_recognition_config.h',
         'speech_recognition_error.cc',
