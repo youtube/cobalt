@@ -5,6 +5,7 @@
 
 """Test harness for chromium clang tools."""
 
+import argparse
 import difflib
 import glob
 import json
@@ -31,10 +32,10 @@ def _GenerateCompileCommands(files, include_paths):
   files = [f.replace('\\', '/') for f in files]
   include_path_flags = ' '.join('-I %s' % include_path.replace('\\', '/')
                                 for include_path in include_paths)
-  return json.dumps([{'directory': '.',
-                      'command': 'clang++ -std=c++11 -fsyntax-only %s -c %s' % (
-                          include_path_flags, f),
-                      'file': f} for f in files], indent=2)
+  return json.dumps([{'directory': os.path.dirname(f),
+                      'command': 'clang++ -std=c++14 -fsyntax-only %s -c %s' % (
+                          include_path_flags, os.path.basename(f)),
+                      'file': os.path.basename(f)} for f in files], indent=2)
 
 
 def _NumberOfTestsToString(tests):
@@ -42,10 +43,13 @@ def _NumberOfTestsToString(tests):
   return '%d test%s' % (tests, 's' if tests != 1 else '')
 
 
-def _RunToolAndApplyEdits(tools_clang_scripts_directory,
-                          tool_to_test,
-                          test_directory_for_tool,
-                          actual_files):
+def _ApplyTool(tools_clang_scripts_directory,
+               tool_to_test,
+               tool_path,
+               tool_args,
+               test_directory_for_tool,
+               actual_files,
+               apply_edits):
   try:
     # Stage the test files in the git index. If they aren't staged, then
     # run_tool.py will skip them when applying replacements.
@@ -53,46 +57,62 @@ def _RunToolAndApplyEdits(tools_clang_scripts_directory,
     args.extend(actual_files)
     _RunGit(args)
 
-    # Launch the following pipeline:
+    # Launch the following pipeline if |apply_edits| is True:
     #     run_tool.py ... | extract_edits.py | apply_edits.py ...
+    # Otherwise just the first step is done and the result is written to
+    #   actual_files[0].
+    processes = []
     args = ['python',
             os.path.join(tools_clang_scripts_directory, 'run_tool.py')]
     extra_run_tool_args_path = os.path.join(test_directory_for_tool,
-                                            "run_tool.args")
+                                            'run_tool.args')
     if os.path.exists(extra_run_tool_args_path):
-        with open(extra_run_tool_args_path, 'r') as extra_run_tool_args_file:
-            extra_run_tool_args = extra_run_tool_args_file.readlines()
-            args.extend([arg.strip() for arg in extra_run_tool_args])
-    args.extend([
-            tool_to_test,
-            test_directory_for_tool])
+      with open(extra_run_tool_args_path, 'r') as extra_run_tool_args_file:
+        extra_run_tool_args = extra_run_tool_args_file.readlines()
+        args.extend([arg.strip() for arg in extra_run_tool_args])
+    args.extend(['--tool', tool_to_test, '-p', test_directory_for_tool])
+
+    if tool_path:
+      args.extend(['--tool-path', tool_path])
+    if tool_args:
+      for arg in tool_args:
+        args.append('--tool-arg=%s' % arg)
 
     args.extend(actual_files)
-    run_tool = subprocess.Popen(args, stdout=subprocess.PIPE)
+    processes.append(subprocess.Popen(args, stdout=subprocess.PIPE))
 
-    args = ['python',
-            os.path.join(tools_clang_scripts_directory, 'extract_edits.py')]
-    extract_edits = subprocess.Popen(args, stdin=run_tool.stdout,
-                                     stdout=subprocess.PIPE)
+    if apply_edits:
+      args = [
+          'python',
+          os.path.join(tools_clang_scripts_directory, 'extract_edits.py')
+      ]
+      processes.append(subprocess.Popen(
+          args, stdin=processes[-1].stdout, stdout=subprocess.PIPE))
 
-    args = ['python',
-            os.path.join(tools_clang_scripts_directory, 'apply_edits.py'),
-            test_directory_for_tool]
-    apply_edits = subprocess.Popen(args, stdin=extract_edits.stdout,
-                                   stdout=subprocess.PIPE)
+      args = [
+          'python',
+          os.path.join(tools_clang_scripts_directory, 'apply_edits.py'), '-p',
+          test_directory_for_tool
+      ]
+      processes.append(subprocess.Popen(
+          args, stdin=processes[-1].stdout, stdout=subprocess.PIPE))
 
     # Wait for the pipeline to finish running + check exit codes.
-    stdout, _ = apply_edits.communicate()
-    for process in [run_tool, extract_edits, apply_edits]:
+    stdout, _ = processes[-1].communicate()
+    for process in processes:
       process.wait()
       if process.returncode != 0:
-        print "Failure while running the tool."
+        print 'Failure while running the tool.'
         return process.returncode
 
-    # Reformat the resulting edits via: git cl format.
-    args = ['cl', 'format']
-    args.extend(actual_files)
-    _RunGit(args)
+    if apply_edits:
+      # Reformat the resulting edits via: git cl format.
+      args = ['cl', 'format']
+      args.extend(actual_files)
+      _RunGit(args)
+    else:
+      with open(actual_files[0], 'w') as output_file:
+        output_file.write(stdout)
 
     return 0
 
@@ -105,12 +125,23 @@ def _RunToolAndApplyEdits(tools_clang_scripts_directory,
 
 
 def main(argv):
-  if len(argv) < 1:
-    print 'Usage: test_tool.py <clang tool>'
-    print '  <clang tool> is the clang tool to be tested.'
-    sys.exit(1)
-
-  tool_to_test = argv[0]
+  parser = argparse.ArgumentParser()
+  parser.add_argument(
+      '--apply-edits',
+      action='store_true',
+      help='Applies the edits to the original test files and compares the '
+           'reformatted new files with the expected files.')
+  parser.add_argument(
+      '--tool-arg', nargs='?', action='append',
+      help='optional arguments passed to the tool')
+  parser.add_argument(
+      '--tool-path', nargs='?',
+      help='optional path to the tool directory')
+  parser.add_argument('tool_name',
+                      nargs=1,
+                      help='Clang tool to be tested.')
+  args = parser.parse_args(argv)
+  tool_to_test = args.tool_name[0]
   print '\nTesting %s\n' % tool_to_test
   tools_clang_scripts_directory = os.path.dirname(os.path.realpath(__file__))
   tools_clang_directory = os.path.dirname(tools_clang_scripts_directory)
@@ -120,10 +151,15 @@ def main(argv):
                                   'compile_commands.json')
   source_files = glob.glob(os.path.join(test_directory_for_tool,
                                         '*-original.cc'))
+  ext = 'cc' if args.apply_edits else 'txt'
   actual_files = ['-'.join([source_file.rsplit('-', 1)[0], 'actual.cc'])
                   for source_file in source_files]
-  expected_files = ['-'.join([source_file.rsplit('-', 1)[0], 'expected.cc'])
+  expected_files = ['-'.join([source_file.rsplit('-', 1)[0], 'expected.' + ext])
                     for source_file in source_files]
+  if not args.apply_edits and len(actual_files) != 1:
+    print 'Only one test file is expected for testing without apply-edits.'
+    return 1
+
   include_paths = []
   include_paths.append(
       os.path.realpath(os.path.join(tools_clang_directory, '../..')))
@@ -151,8 +187,10 @@ def main(argv):
 
   # Run the tool.
   os.chdir(test_directory_for_tool)
-  exitcode = _RunToolAndApplyEdits(tools_clang_scripts_directory, tool_to_test,
-                                   test_directory_for_tool, actual_files)
+  exitcode = _ApplyTool(tools_clang_scripts_directory, tool_to_test,
+                        args.tool_path, args.tool_arg,
+                        test_directory_for_tool, actual_files,
+                        args.apply_edits)
   if (exitcode != 0):
     return exitcode
 
@@ -163,9 +201,9 @@ def main(argv):
     print '[ RUN      ] %s' % os.path.relpath(actual)
     expected_output = actual_output = None
     with open(expected, 'r') as f:
-      expected_output = f.readlines()
+      expected_output = f.read().splitlines()
     with open(actual, 'r') as f:
-      actual_output = f.readlines()
+      actual_output =  f.read().splitlines()
     if actual_output != expected_output:
       failed += 1
       for line in difflib.unified_diff(expected_output, actual_output,
