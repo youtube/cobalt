@@ -30,6 +30,10 @@ class DecodeTargetContextRunner {
       SbDecodeTargetGraphicsContextProvider* provider);
   void RunOnGlesContext(std::function<void()> function);
 
+  SbDecodeTargetGraphicsContextProvider* context_provider() const {
+    return provider_;
+  }
+
  private:
   SbDecodeTargetGraphicsContextProvider* provider_;
 };
