@@ -88,7 +88,7 @@
         '<(DEPTH)/third_party/boringssl/boringssl_tool.gyp:*',
         '<(DEPTH)/net/net.gyp:net_unittests',
         '<(DEPTH)/sql/sql.gyp:sql_unittests',
-        '<(DEPTH)/starboard/elf_loader/elf_loader.gyp:elf_loader',
+        '<(DEPTH)/starboard/elf_loader/elf_loader.gyp:elf_loader_test',
       ],
       'conditions': [
         ['OS=="starboard"', {
