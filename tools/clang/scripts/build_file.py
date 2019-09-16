@@ -22,17 +22,20 @@ _PROBABLY_CLANG_RE = re.compile(r'clang(?:\+\+)?$')
 def ParseArgs():
   parser = argparse.ArgumentParser(
       description='Utility to build one Chromium file for debugging clang')
-  parser.add_argument('-p', default='.', help='path to the compile database')
-  parser.add_argument('--generate-compdb',
-                      help='regenerate the compile database')
-  parser.add_argument('--prefix',
-                      help='optional prefix to prepend, e.g. --prefix=lldb')
+  parser.add_argument('-p', required=True, help='path to the compile database')
+  parser.add_argument(
+      '--generate-compdb',
+      action='store_true',
+      help='regenerate the compile database')
+  parser.add_argument(
+      '--prefix', help='optional prefix to prepend, e.g. --prefix=lldb')
   parser.add_argument(
       '--compiler',
       help='compiler to override the compiler specied in the compile db')
-  parser.add_argument('--suffix',
-                      help='optional suffix to append, e.g.' +
-                      ' --suffix="-Xclang -ast-dump -fsyntax-only"')
+  parser.add_argument(
+      '--suffix',
+      help='optional suffix to append, e.g.' +
+      ' --suffix="-Xclang -ast-dump -fsyntax-only"')
   parser.add_argument('target_file', help='file to build')
   return parser.parse_args()
 
@@ -73,11 +76,12 @@ def main():
   args = ParseArgs()
   os.chdir(args.p)
   if args.generate_compdb:
-    compile_db.GenerateWithNinja('.')
+    with open('compile_commands.json', 'w') as f:
+      f.write(compile_db.GenerateWithNinja('.'))
   db = compile_db.Read('.')
   for record in db:
-    if os.path.normpath(os.path.join(args.p, record[
-        'file'])) == args.target_file:
+    if os.path.normpath(os.path.join(args.p,
+                                     record['file'])) == args.target_file:
       return BuildIt(record, args.prefix, args.compiler, args.suffix)
   print 'error: could not find %s in compile DB!' % args.target_file
   return 1
