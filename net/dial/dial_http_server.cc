@@ -15,7 +15,9 @@
 #include "net/dial/dial_service.h"
 #include "net/dial/dial_service_handler.h"
 #include "net/dial/dial_system_config.h"
+#include "net/server/http_connection.h"
 #include "net/server/http_server_request_info.h"
+#include "net/socket/stream_socket.h"
 #include "net/socket/tcp_server_socket.h"
 
 #if defined(__LB_SHELL__)
@@ -200,18 +202,11 @@ void DialHttpServer::SendDeviceDescriptionManifest(int conn_id) {
   const char* friendly_name = friendly_name_str.c_str();
 #endif
 
-  std::string request_body = base::StringPrintf(
+  std::string response_body = base::StringPrintf(
       kDdXmlFormat, friendly_name, system_config->manufacturer_name(),
       system_config->model_name(), system_config->model_uuid());
 
   HttpServerResponseInfo response_info(HTTP_OK);
-  std::string response_body = base::StringPrintf(
-      "Application-URL: %s\r\n"
-      "Content-Length: %d\r\n"
-      "\r\n"
-      "%s\r\n",
-      application_url().c_str(), static_cast<int>(request_body.length()),
-      request_body.c_str());
   response_info.SetBody(response_body, kXmlMimeType);
   response_info.AddHeader("Application-URL", application_url().c_str());
 
