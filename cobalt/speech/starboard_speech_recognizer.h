@@ -15,6 +15,9 @@
 #ifndef COBALT_SPEECH_STARBOARD_SPEECH_RECOGNIZER_H_
 #define COBALT_SPEECH_STARBOARD_SPEECH_RECOGNIZER_H_
 
+#include <vector>
+
+#include "base/message_loop/message_loop.h"
 #include "cobalt/speech/speech_configuration.h"
 #include "cobalt/speech/speech_recognition_result_list.h"
 #include "cobalt/speech/speech_recognizer.h"
@@ -38,15 +41,29 @@ class StarboardSpeechRecognizer : public SpeechRecognizer {
   void Start(const SpeechRecognitionConfig& config) override;
   void Stop() override;
 
-  void OnRecognizerSpeechDetected(bool detected);
-  void OnRecognizerError(SbSpeechRecognizerError error);
-  void OnRecognizerResults(SbSpeechResult* results, int results_size,
-                           bool is_final);
-
  private:
+  static void OnSpeechDetected(void* context, bool detected);
+  void OnRecognizerSpeechDetected(bool detected);
+  static void OnError(void* context, SbSpeechRecognizerError error);
+  void OnRecognizerError(SbSpeechRecognizerError error);
+  static void OnResults(void* context, SbSpeechResult* results,
+                        int results_size, bool is_final);
+  void OnRecognizerResults(
+      std::vector<SpeechRecognitionAlternative::Data>&& results, bool is_final);
+
   SbSpeechRecognizer speech_recognizer_;
   // Used for accumulating final results.
   SpeechRecognitionResults final_results_;
+
+  // Track the message loop that created this object so that our callbacks can
+  // post back to it.
+  base::MessageLoop* message_loop_;
+
+  // We have our callbacks post events back to us using weak pointers, in case
+  // this object is destroyed while those tasks are in flight.  Note that it
+  // is impossible for the callbacks to be called after this object is
+  // destroyed, since SbSpeechRecognizerDestroy() ensures this.
+  base::WeakPtrFactory<StarboardSpeechRecognizer> weak_factory_;
 };
 
 }  // namespace speech
