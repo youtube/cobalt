@@ -68,6 +68,7 @@ def _ParseEditsFromStdin(build_directory):
     A dictionary mapping filenames to the associated edits.
   """
   path_to_resolved_path = {}
+
   def _ResolvePath(path):
     if path in path_to_resolved_path:
       return path_to_resolved_path[path]
@@ -86,12 +87,13 @@ def _ParseEditsFromStdin(build_directory):
 
   edits = collections.defaultdict(list)
   for line in sys.stdin:
-    line = line.rstrip("\n\r")
+    line = line.rstrip('\n\r')
     try:
       edit_type, path, offset, length, replacement = line.split(':::', 4)
       replacement = replacement.replace('\0', '\n')
       path = _ResolvePath(path)
-      if not path: continue
+      if not path:
+        continue
       edits[path].append(Edit(edit_type, int(offset), int(length), replacement))
     except ValueError:
       sys.stderr.write('Unable to parse edit: %s\n' % line)
@@ -147,10 +149,10 @@ def _ApplyEdits(edits):
     error_count += tmp_error_count
     done_files += 1
     percentage = (float(done_files) / len(edits)) * 100
-    sys.stderr.write('Applied %d edits (%d errors) to %d files [%.2f%%]\r' %
+    sys.stdout.write('Applied %d edits (%d errors) to %d files [%.2f%%]\r' %
                      (edit_count, error_count, done_files, percentage))
 
-  sys.stderr.write('\n')
+  sys.stdout.write('\n')
   return -error_count
 
 
@@ -202,7 +204,8 @@ def _ExtendDeletionIfElementIsInList(contents, offset):
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument(
-      'build_directory',
+      '-p',
+      required=True,
       help='path to the build dir (dir that edit paths are relative to)')
   parser.add_argument(
       'path_filter',
@@ -211,10 +214,9 @@ def main():
   args = parser.parse_args()
 
   filenames = set(_GetFilesFromGit(args.path_filter))
-  edits = _ParseEditsFromStdin(args.build_directory)
+  edits = _ParseEditsFromStdin(args.p)
   return _ApplyEdits(
-      {k: v for k, v in edits.iteritems()
-            if os.path.realpath(k) in filenames})
+      {k: v for k, v in edits.iteritems() if os.path.realpath(k) in filenames})
 
 
 if __name__ == '__main__':
