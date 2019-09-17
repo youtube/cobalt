@@ -426,6 +426,10 @@ INSTANTIATE_TEST_CASE_P(webidl, WebPlatformTest,
     ::testing::ValuesIn(EnumerateWebPlatformTests("WebIDL")),
     GetTestName());
 
+INSTANTIATE_TEST_CASE_P(websockets, WebPlatformTest,
+    ::testing::ValuesIn(EnumerateWebPlatformTests("websockets")),
+    GetTestName());
+
 #endif  // !defined(COBALT_WIN)
 
 }  // namespace layout_tests

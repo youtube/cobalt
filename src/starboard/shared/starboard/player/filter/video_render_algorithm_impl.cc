@@ -22,13 +22,23 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-VideoRenderAlgorithmImpl::VideoRenderAlgorithmImpl()
-    : last_frame_timestamp_(-1), dropped_frames_(0) {}
+VideoRenderAlgorithmImpl::VideoRenderAlgorithmImpl(
+    const GetRefreshRateFn& get_refresh_rate_fn)
+    : get_refresh_rate_fn_(get_refresh_rate_fn) {
+  if (get_refresh_rate_fn_) {
+    SB_LOG(INFO) << "VideoRenderAlgorithmImpl will render with cadence control";
+  }
+}
 
 void VideoRenderAlgorithmImpl::Render(
     MediaTimeProvider* media_time_provider,
     std::list<scoped_refptr<VideoFrame>>* frames,
     VideoRendererSink::DrawFrameCB draw_frame_cb) {
+  // TODO: Enable RenderWithCadence() on all platforms, and replace Render()
+  //       with RenderWithCadence().
+  if (get_refresh_rate_fn_) {
+    return RenderWithCadence(media_time_provider, frames, draw_frame_cb);
+  }
   SB_DCHECK(media_time_provider);
   SB_DCHECK(frames);
 
@@ -82,7 +92,7 @@ void VideoRenderAlgorithmImpl::Render(
   // like frame 30 is displayed twice (for sample timestamps 19 and 31);
   // however, the "early advance" logic from above would force frame 30 to
   // move onto frame 40 on sample timestamp 31.
-  while (frames->size() > 1 &&
+  while (frames->size() > 1 && !frames->front()->is_end_of_stream() &&
          frames->front()->timestamp() + kMediaTimeThreshold < media_time) {
     if (frames->front()->timestamp() != last_frame_timestamp_) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
@@ -111,6 +121,124 @@ void VideoRenderAlgorithmImpl::Render(
     if (draw_frame_cb) {
       auto status = draw_frame_cb(frames->front(), 0);
       if (status == VideoRendererSink::kReleased) {
+        frames->pop_front();
+      }
+    }
+  }
+
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  media_time_of_last_render_call_ = media_time;
+  system_time_of_last_render_call_ = SbTimeGetMonotonicNow();
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+}
+
+void VideoRenderAlgorithmImpl::Reset() {
+  if (get_refresh_rate_fn_) {
+    last_frame_timestamp_ = -1;
+    current_frame_rendered_times_ = -1;
+    cadence_pattern_generator_.Reset(get_refresh_rate_fn_());
+    frame_rate_estimate_.Reset();
+  }
+}
+
+void VideoRenderAlgorithmImpl::RenderWithCadence(
+    MediaTimeProvider* media_time_provider,
+    std::list<scoped_refptr<VideoFrame>>* frames,
+    VideoRendererSink::DrawFrameCB draw_frame_cb) {
+  SB_DCHECK(media_time_provider);
+  SB_DCHECK(frames);
+  SB_DCHECK(get_refresh_rate_fn_);
+
+  if (frames->empty() || frames->front()->is_end_of_stream()) {
+    // Nothing to render.
+    return;
+  }
+
+  bool is_audio_playing;
+  bool is_audio_eos_played;
+  bool is_underflow;
+  SbTime media_time = media_time_provider->GetCurrentMediaTime(
+      &is_audio_playing, &is_audio_eos_played, &is_underflow);
+
+  while (frames->size() > 1 && !frames->front()->is_end_of_stream() &&
+         frames->front()->timestamp() < media_time) {
+    frame_rate_estimate_.Update(*frames);
+    auto frame_rate = frame_rate_estimate_.frame_rate();
+    SB_DCHECK(frame_rate != VideoFrameRateEstimator::kInvalidFrameRate);
+    cadence_pattern_generator_.UpdateRefreshRateAndMaybeReset(
+        get_refresh_rate_fn_());
+    cadence_pattern_generator_.UpdateFrameRate(frame_rate);
+    SB_DCHECK(cadence_pattern_generator_.has_cadence());
+
+    if (current_frame_rendered_times_ >=
+        cadence_pattern_generator_.GetNumberOfTimesCurrentFrameDisplays()) {
+      frames->pop_front();
+      cadence_pattern_generator_.AdvanceToNextFrame();
+      break;
+    }
+
+    auto second_iter = frames->begin();
+    ++second_iter;
+
+    if ((*second_iter)->is_end_of_stream() ||
+        (*second_iter)->timestamp() > media_time) {
+      break;
+    }
+
+    auto frame_duration =
+        static_cast<SbTime>(kSbTimeSecond / get_refresh_rate_fn_());
+    if ((*second_iter)->timestamp() > media_time - frame_duration) {
+      break;
+    }
+
+    if (frames->front()->timestamp() != last_frame_timestamp_) {
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+      auto now = SbTimeGetMonotonicNow();
+      SB_LOG(WARNING)
+          << "Dropping frame @ " << frames->front()->timestamp()
+          << " microseconds, the elasped media time/system time from"
+          << " last Render() call are "
+          << media_time - media_time_of_last_render_call_ << "/"
+          << now - system_time_of_last_render_call_ << " microseconds, with "
+          << frames->size() << " frames in the backlog.";
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+      ++dropped_frames_;
+    } else {
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+      auto now = SbTimeGetMonotonicNow();
+      SB_LOG(WARNING)
+          << "Frame @ " << frames->front()->timestamp()
+          << " microseconds should be displayed "
+          << cadence_pattern_generator_.GetNumberOfTimesCurrentFrameDisplays()
+          << " times, but is displayed " << current_frame_rendered_times_
+          << " times, the elasped media time/system time from last Render()"
+          << " call are " << media_time - media_time_of_last_render_call_ << "/"
+          << now - system_time_of_last_render_call_ << " microseconds, the"
+          << " video is at " << frame_rate_estimate_.frame_rate() << " fps,"
+          << " media time is " << media_time;
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+    }
+    frames->pop_front();
+    cadence_pattern_generator_.AdvanceToNextFrame();
+  }
+
+  if (is_audio_eos_played) {
+    while (frames->size() > 1) {
+      frames->pop_back();
+    }
+  }
+
+  if (!frames->front()->is_end_of_stream()) {
+    if (last_frame_timestamp_ == frames->front()->timestamp()) {
+      ++current_frame_rendered_times_;
+    } else {
+      current_frame_rendered_times_ = 1;
+      last_frame_timestamp_ = frames->front()->timestamp();
+    }
+    if (draw_frame_cb) {
+      auto status = draw_frame_cb(frames->front(), 0);
+      if (status == VideoRendererSink::kReleased) {
+        cadence_pattern_generator_.AdvanceToNextFrame();
         frames->pop_front();
       }
     }
