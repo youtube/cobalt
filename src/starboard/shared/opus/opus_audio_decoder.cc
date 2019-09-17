@@ -28,6 +28,25 @@ namespace opus {
 
 namespace {
 const int kMaxOpusFramesPerAU = 9600;
+
+typedef struct {
+  int nb_streams;
+  int nb_coupled_streams;
+  unsigned char mapping[8];
+} VorbisLayout;
+
+/* Index is nb_channel-1 */
+static const VorbisLayout vorbis_mappings[8] = {
+    {1, 0, {0}},                      /* 1: mono */
+    {1, 1, {0, 1}},                   /* 2: stereo */
+    {2, 1, {0, 2, 1}},                /* 3: 1-d surround */
+    {2, 2, {0, 1, 2, 3}},             /* 4: quadraphonic surround */
+    {3, 2, {0, 4, 1, 2, 3}},          /* 5: 5-channel surround */
+    {4, 2, {0, 4, 1, 2, 3, 5}},       /* 6: 5.1 surround */
+    {4, 3, {0, 4, 1, 2, 3, 5, 6}},    /* 7: 6.1 surround */
+    {5, 3, {0, 6, 1, 2, 3, 4, 5, 7}}, /* 8: 7.1 surround */
+};
+
 }  // namespace
 
 OpusAudioDecoder::OpusAudioDecoder(
@@ -43,8 +62,17 @@ OpusAudioDecoder::OpusAudioDecoder(
 #endif  // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
 
   int error;
-  decoder_ = opus_decoder_create(audio_sample_info_.samples_per_second,
-                                 audio_sample_info_.number_of_channels, &error);
+  int channels = audio_sample_info_.number_of_channels;
+  if (channels > 8 || channels < 1) {
+    SB_LOG(ERROR) << "Can't create decoder with " << channels << " channels";
+    return;
+  }
+
+  decoder_ = opus_multistream_decoder_create(
+      audio_sample_info_.samples_per_second, channels,
+      vorbis_mappings[channels - 1].nb_streams,
+      vorbis_mappings[channels - 1].nb_coupled_streams,
+      vorbis_mappings[channels - 1].mapping, &error);
   if (error != OPUS_OK) {
     SB_LOG(ERROR) << "Failed to create decoder with error: "
                   << opus_strerror(error);
@@ -56,7 +84,7 @@ OpusAudioDecoder::OpusAudioDecoder(
 
 OpusAudioDecoder::~OpusAudioDecoder() {
   if (decoder_) {
-    opus_decoder_destroy(decoder_);
+    opus_multistream_decoder_destroy(decoder_);
   }
 }
 
@@ -86,15 +114,15 @@ void OpusAudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
   }
 
 #if SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
-  const char kDecodeFunctionName[] = "opus_decode";
-  int decoded_frames = opus_decode(
+  const char kDecodeFunctionName[] = "opus_multistream_decode";
+  int decoded_frames = opus_multistream_decode(
       decoder_, static_cast<const unsigned char*>(input_buffer->data()),
       input_buffer->size(),
       reinterpret_cast<opus_int16*>(working_buffer_.data()),
       kMaxOpusFramesPerAU, 0);
 #else   // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
-  const char kDecodeFunctionName[] = "opus_decode_float";
-  int decoded_frames = opus_decode_float(
+  const char kDecodeFunctionName[] = "opus_multistream_decode_float";
+  int decoded_frames = opus_multistream_decode_float(
       decoder_, static_cast<const unsigned char*>(input_buffer->data()),
       input_buffer->size(), reinterpret_cast<float*>(working_buffer_.data()),
       kMaxOpusFramesPerAU, 0);

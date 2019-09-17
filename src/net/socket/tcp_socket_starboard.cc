@@ -24,15 +24,17 @@ namespace net {
 
 TCPSocketStarboard::TCPSocketStarboard(
     std::unique_ptr<SocketPerformanceWatcher> socket_performance_watcher,
-    NetLog* net_log, const NetLogSource& source)
+    NetLog* net_log,
+    const NetLogSource& source)
     : socket_performance_watcher_(std::move(socket_performance_watcher)),
       socket_(kSbSocketInvalid),
       family_(ADDRESS_FAMILY_UNSPECIFIED),
       logging_multiple_connect_attempts_(false),
       net_log_(NetLogWithSource::Make(net_log, NetLogSourceType::SOCKET)),
-      listening_(false), waiting_connect_(false) {
-  net_log_.BeginEvent(
-      NetLogEventType::SOCKET_ALIVE, source.ToEventParametersCallback());
+      listening_(false),
+      waiting_connect_(false) {
+  net_log_.BeginEvent(NetLogEventType::SOCKET_ALIVE,
+                      source.ToEventParametersCallback());
 }
 
 TCPSocketStarboard::~TCPSocketStarboard() {
@@ -180,11 +182,24 @@ int TCPSocketStarboard::AcceptInternal(
   }
 
   SbSocketAddress sb_address;
-  if (!SbSocketGetLocalAddress(new_socket, &sb_address)) {
-    SbSocketDestroy(new_socket);
-    int net_error = ERR_FAILED;
-    net_log_.EndEventWithNetErrorCode(NetLogEventType::TCP_ACCEPT, net_error);
-    return net_error;
+  char unused_byte;
+  // We use ReceiveFrom to get peer address of the newly connected socket.
+  int received = SbSocketReceiveFrom(new_socket, &unused_byte, 0, &sb_address);
+  if (received != 0) {
+    int net_error = MapLastSocketError(new_socket);
+    if (net_error != OK && net_error != ERR_IO_PENDING) {
+      SbSocketDestroy(new_socket);
+      net_log_.EndEventWithNetErrorCode(NetLogEventType::TCP_ACCEPT, net_error);
+      return net_error;
+    } else {
+      // SbSocketReceiveFrom could return -1 and setting net_error to OK on
+      // some platforms, it is non-fatal. And we are not returning
+      // ERR_IO_PENDING to try again because 1. Some tests hang and time out
+      // waiting for Accept() to succeed and 2. Peer address is unused in
+      // most use cases. Chromium implementations get the address from accept()
+      // directly, but Starboard API is incapable of that.
+      LOG(WARNING) << "Could not get peer address for the server socket.";
+    }
   }
 
   IPEndPoint ip_end_point;
@@ -195,15 +210,15 @@ int TCPSocketStarboard::AcceptInternal(
     return net_error;
   }
 
-  std::unique_ptr<TCPSocketStarboard> tcp_socket(new TCPSocketStarboard(
-      nullptr, net_log_.net_log(), net_log_.source()));
+  std::unique_ptr<TCPSocketStarboard> tcp_socket(
+      new TCPSocketStarboard(nullptr, net_log_.net_log(), net_log_.source()));
   int adopt_result = tcp_socket->AdoptConnectedSocket(new_socket, ip_end_point);
   if (adopt_result != OK) {
     if (!SbSocketDestroy(new_socket)) {
       DPLOG(ERROR) << "SbSocketDestroy";
     }
-    net_log_.EndEventWithNetErrorCode(
-        NetLogEventType::TCP_ACCEPT, adopt_result);
+    net_log_.EndEventWithNetErrorCode(NetLogEventType::TCP_ACCEPT,
+                                      adopt_result);
     return adopt_result;
   }
 
@@ -476,8 +491,8 @@ int TCPSocketStarboard::DoRead(IOBuffer* buf, int buf_len) {
   int bytes_read = SbSocketReceiveFrom(socket_, buf->data(), buf_len, NULL);
 
   if (bytes_read >= 0) {
-    net_log_.AddByteTransferEvent(
-        NetLogEventType::SOCKET_BYTES_RECEIVED, bytes_read, buf->data());
+    net_log_.AddByteTransferEvent(NetLogEventType::SOCKET_BYTES_RECEIVED,
+                                  bytes_read, buf->data());
     NetworkActivityMonitor::GetInstance()->IncrementBytesReceived(bytes_read);
 
     return bytes_read;
@@ -534,8 +549,8 @@ int TCPSocketStarboard::DoWrite(IOBuffer* buf, int buf_len) {
   int bytes_sent = SbSocketSendTo(socket_, buf->data(), buf_len, NULL);
 
   if (bytes_sent >= 0) {
-    net_log_.AddByteTransferEvent(
-        NetLogEventType::SOCKET_BYTES_SENT, bytes_sent, buf->data());
+    net_log_.AddByteTransferEvent(NetLogEventType::SOCKET_BYTES_SENT,
+                                  bytes_sent, buf->data());
     NetworkActivityMonitor::GetInstance()->IncrementBytesSent(bytes_sent);
 
     return bytes_sent;

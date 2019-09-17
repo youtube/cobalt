@@ -17,7 +17,7 @@
 
 #include "starboard/microphone.h"
 
-#if SB_HAS(MICROPHONE)
+#if SB_API_VERSION >= 12 || SB_HAS(MICROPHONE)
 
 namespace starboard {
 namespace nplb {
@@ -27,6 +27,6 @@ const int kNormallyUsedSampleRateInHz = 16000;
 }  // namespace nplb
 }  // namespace starboard
 
-#endif  // SB_HAS(MICROPHONE)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(MICROPHONE)
 
 #endif  // STARBOARD_NPLB_MICROPHONE_HELPERS_H_

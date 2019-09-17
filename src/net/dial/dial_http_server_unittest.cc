@@ -8,10 +8,12 @@
 #include "dial_service_handler.h"
 
 #include "base/strings/string_split.h"
+#include "base/test/scoped_task_environment.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
+#include "net/cert/cert_verifier.h"
 #include "net/cert/ct_policy_enforcer.h"
 #include "net/cert/multi_log_ct_verifier.h"
 #include "net/dial/dial_service.h"
@@ -39,6 +41,10 @@ using ::testing::Eq;
 using ::testing::Invoke;
 using ::testing::Return;
 
+constexpr net::NetworkTrafficAnnotationTag kNetworkTrafficAnnotation =
+    net::DefineNetworkTrafficAnnotation("dial_http_server_test",
+                                        "dial_http_server_test");
+
 // Data our mock service handler will send to the dial HTTP server.
 struct ResponseData {
   ResponseData() : response_code_(0), succeeded_(false) {}
@@ -58,23 +64,46 @@ class DialHttpServerTest : public testing::Test {
   std::unique_ptr<HttpNetworkTransaction> client_;
   scoped_refptr<MockServiceHandler> handler_;
   std::unique_ptr<ResponseData> test_response_;
-  // We need an IO message loop for TCP connection.
-  base::MessageLoopForIO message_loop_for_io_;
+  // The task environment mainly gives us an IO message loop that's needed for
+  // TCP connection.
+  base::test::ScopedTaskEnvironment scoped_task_env_;
+  HttpServerProperties* http_server_properties_;
 
-  DialHttpServerTest() { handler_ = new MockServiceHandler("Foo"); }
+  // The following instances are usually stored in URLRequestContextStorage
+  // but we don't need URLRequestContext and therefore can not have the
+  // URLRequestContextStorage.
+  SSLConfigService* ssl_config_service_;
+  ProxyResolutionService* proxy_resolution_service_;
+  TransportSecurityState* transport_security_state_;
+  MultiLogCTVerifier* cert_transparency_verifier_;
+  CTPolicyEnforcer* ct_policy_enforcer_;
+  CertVerifier* cert_verifier_;
+  HostResolver* host_resolver_;
+
+  DialHttpServerTest()
+      : scoped_task_env_(
+            base::test::ScopedTaskEnvironment::MainThreadType::IO) {
+    handler_ = new MockServiceHandler("Foo");
+  }
 
   void InitHttpClientLibrary() {
     HttpNetworkSession::Params params;
     HttpNetworkSession::Context context;
-    context.proxy_resolution_service =
+    context.proxy_resolution_service = proxy_resolution_service_ =
         ProxyResolutionService::CreateDirect().release();
-    context.http_server_properties = new HttpServerPropertiesImpl();
-    context.ssl_config_service = new SSLConfigServiceDefaults();
-    context.http_server_properties = new HttpServerPropertiesImpl();
-    context.transport_security_state = new TransportSecurityState();
-    context.cert_transparency_verifier = new MultiLogCTVerifier();
-    context.ct_policy_enforcer = new DefaultCTPolicyEnforcer();
-    context.host_resolver = new MockHostResolver();
+    context.http_server_properties = http_server_properties_ =
+        new HttpServerPropertiesImpl();
+    context.ssl_config_service = ssl_config_service_ =
+        new SSLConfigServiceDefaults();
+    context.transport_security_state = transport_security_state_ =
+        new TransportSecurityState();
+    context.cert_transparency_verifier = cert_transparency_verifier_ =
+        new MultiLogCTVerifier();
+    context.ct_policy_enforcer = ct_policy_enforcer_ =
+        new DefaultCTPolicyEnforcer();
+    context.host_resolver = host_resolver_ = new MockHostResolver();
+    context.cert_verifier = cert_verifier_ =
+        CertVerifier::CreateDefault().release();
     session_.reset(new HttpNetworkSession(params, context));
     client_.reset(new HttpNetworkTransaction(net::RequestPriority::MEDIUM,
                                              session_.get()));
@@ -91,11 +120,18 @@ class DialHttpServerTest : public testing::Test {
     dial_service_->Deregister(handler_);
     dial_service_.reset(NULL);
 
-    const HttpNetworkSession::Context& context = session_->context();
-    delete context.proxy_resolution_service;
-    delete context.http_server_properties;
-    delete context.host_resolver;
-    delete context.ssl_config_service;
+    client_.reset();
+    // We need to cleanup session_ for its destructor's dependency on
+    // ssl_config_service_;
+    session_.reset();
+    delete http_server_properties_;
+    delete ssl_config_service_;
+    delete proxy_resolution_service_;
+    delete transport_security_state_;
+    delete cert_transparency_verifier_;
+    delete ct_policy_enforcer_;
+    delete cert_verifier_;
+    delete host_resolver_;
   }
 
   const HttpResponseInfo* GetResponse(const HttpRequestInfo& req) {
@@ -117,6 +153,8 @@ class DialHttpServerTest : public testing::Test {
     req.url = GURL("http://" + addr_.ToString() + path);
     req.method = method;
     req.load_flags = LOAD_BYPASS_PROXY | LOAD_DISABLE_CACHE;
+    req.traffic_annotation =
+        MutableNetworkTrafficAnnotationTag(kNetworkTrafficAnnotation);
     return req;
   }
 

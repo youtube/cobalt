@@ -28,22 +28,28 @@ namespace speech {
 //   https://dvcs.w3.org/hg/speech-api/raw-file/9a0075d25326/speechapi.html#speechreco-alternative
 class SpeechRecognitionAlternative : public script::Wrappable {
  public:
-  SpeechRecognitionAlternative(const std::string& transcript, float confidence);
+  struct Data {
+    // The transcript string represents the raw words that the user spoke.
+    std::string transcript;
+    // The confidence represents a numeric estimate between 0 and 1 of how
+    // confident the recognition system is that the recognition is correct. A
+    // higher number means the system is more confident.
+    float confidence;
+  };
 
-  const std::string& transcript() const { return transcript_; }
-  float confidence() const { return confidence_; }
+  SpeechRecognitionAlternative(const std::string& transcript, float confidence)
+      : data_({transcript, confidence}) {}
+  explicit SpeechRecognitionAlternative(Data&& data) : data_(std::move(data)) {}
+
+  const std::string& transcript() const { return data_.transcript; }
+  float confidence() const { return data_.confidence; }
 
   DEFINE_WRAPPABLE_TYPE(SpeechRecognitionAlternative);
 
  private:
   ~SpeechRecognitionAlternative() override {}
 
-  // The transcript string represents the raw words that the user spoke.
-  std::string transcript_;
-  // The confidence represents a numeric estimate between 0 and 1 of how
-  // confident the recognition system is that the recognition is correct. A
-  // higher number means the system is more confident.
-  float confidence_;
+  const Data data_;
 
   DISALLOW_COPY_AND_ASSIGN(SpeechRecognitionAlternative);
 };

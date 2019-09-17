@@ -19,6 +19,7 @@
 #include "starboard/byte_swap.h"
 #include "starboard/character.h"
 #include "starboard/condition_variable.h"
+#include "starboard/configuration.h"
 #include "starboard/cpu_features.h"
 #include "starboard/cryptography.h"
 #include "starboard/decode_target.h"
@@ -274,11 +275,15 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbWindowGetSize);
   REGISTER_SYMBOL(SbWindowSetDefaultOptions);
 
+#if SB_HAS(CAPTIONS)
+  REGISTER_SYMBOL(SbAccessibilityGetCaptionSettings);
+#endif  // SB_HAS(CAPTIONS)
+
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
   REGISTER_SYMBOL(SbMemoryFlush);
 #endif  // SB_CAN(MAP_EXECUTABLE_MEMORY)
 
-#if SB_HAS(MICROPHONE)
+#if SB_API_VERSION >= 12 || SB_HAS(MICROPHONE)
   REGISTER_SYMBOL(SbMicrophoneClose);
   REGISTER_SYMBOL(SbMicrophoneCreate);
   REGISTER_SYMBOL(SbMicrophoneDestroy);

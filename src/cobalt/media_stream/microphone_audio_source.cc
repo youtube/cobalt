@@ -161,12 +161,16 @@ void MicrophoneAudioSource::OnMicrophoneError(
   LOG(ERROR) << "Got a microphone error. Category[" << microphone_error_category
              << "] " << error_message;
 
+  // StopSource() may result in the destruction of |this|, so we must ensure
+  // that we do not reference members after this call.
+  auto error_callback = error_callback_;
+
   // This will notify downstream objects audio track, and source that there will
   // be no more data.
   StopSource();
 
-  if (!error_callback_.is_null()) {
-    error_callback_.Run(error, error_message);
+  if (!error_callback.is_null()) {
+    error_callback.Run(error, error_message);
   }
 }
 

@@ -29,6 +29,29 @@ ElementIntersectionObserverModule::ElementIntersectionObserverModule(
     Element* element)
     : element_(element) {}
 
+ElementIntersectionObserverModule::~ElementIntersectionObserverModule() {
+  // The intersection observer vectors may hold the last reference to the
+  // corresponding intersection observer object. Since the intersection observer
+  // dtor calls UnregisterIntersectionObserverForRoot, make sure the call
+  // doesn't try to release the scoped_refptr<IntersectionObserver> again during
+  // destruction.
+  IntersectionObserverVector temp_root_registered_observers;
+  IntersectionObserverVector temp_target_registered_observers;
+
+  // Swap out the intersection observer vectors so that the call to
+  // UnregisterIntersectionObserverForRoot won't do anything, as the objects are
+  // already being destroyed here.
+  temp_root_registered_observers.swap(root_registered_intersection_observers_);
+  temp_target_registered_observers.swap(
+      target_registered_intersection_observers_);
+
+  // Force destruction of the intersection observer objects here so that the
+  // call to UnregisterIntersectionObserverForRoot occurs before this object is
+  // fully destroyed.
+  temp_root_registered_observers.clear();
+  temp_target_registered_observers.clear();
+}
+
 void ElementIntersectionObserverModule::RegisterIntersectionObserverForRoot(
     IntersectionObserver* observer) {
   auto it = std::find(root_registered_intersection_observers_.begin(),
@@ -58,7 +81,7 @@ void ElementIntersectionObserverModule::UnregisterIntersectionObserverForRoot(
     InvalidateLayoutBoxesForElement();
     return;
   }
-  NOTREACHED()
+  DLOG(WARNING)
       << "Did not find an intersection observer to unregister for the root.";
 }
 
@@ -88,7 +111,7 @@ void ElementIntersectionObserverModule::UnregisterIntersectionObserverForTarget(
     InvalidateLayoutBoxesForElement();
     return;
   }
-  NOTREACHED()
+  DLOG(WARNING)
       << "Did not find an intersection observer to unregister for the target.";
 }
 

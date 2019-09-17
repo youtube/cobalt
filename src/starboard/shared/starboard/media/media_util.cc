@@ -42,6 +42,11 @@ bool IsSupportedAudioCodec(const MimeType& mime_type,
   if (audio_codec == kSbMediaAudioCodecNone) {
     return false;
   }
+
+  // TODO: allow platform-specific rejection of a combination of codec &
+  // number of channels, by passing channels to SbMediaAudioIsSupported and /
+  // or SbMediaIsSupported.
+
   if (SbStringGetLength(key_system) != 0) {
     if (!SbMediaIsSupported(kSbMediaVideoCodecNone, audio_codec, key_system)) {
       return false;

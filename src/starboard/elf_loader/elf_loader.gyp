@@ -90,6 +90,14 @@
       'sources': [
         'sandbox.cc',
       ],
+      'conditions': [
+        # TODO: Remove this dependency once MediaSession is migrated to use CobaltExtensions.
+        ['target_os == "android"', {
+          'dependencies': [
+            '<(DEPTH)/starboard/android/shared/cobalt/cobalt_platform.gyp:cobalt_platform',
+          ],
+        }],
+      ],
     },
     {
       # To properly function the system loader requires the starboard
@@ -123,18 +131,37 @@
       'type': '<(gtest_target_type)',
       'sources': [
         '<(DEPTH)/starboard/common/test_main.cc',
-        'elf_loader_test.cc',
-        'elf_header_test.cc',
-        'dynamic_section_test.cc',
-        'program_table_test.cc',
-        'relocations_test.cc',
       ],
       'dependencies': [
-        'elf_loader',
         '<(DEPTH)/starboard/starboard.gyp:starboard_full',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
       ],
+      'conditions': [
+        ['target_arch in ["x86", "x64", "arm", "arm64"] and target_os in ["linux", "android" ] ', {
+          'sources': [
+            'elf_loader_test.cc',
+            'elf_header_test.cc',
+            'dynamic_section_test.cc',
+            'program_table_test.cc',
+            'relocations_test.cc',
+          ],
+          'dependencies': [
+            'elf_loader',
+          ],
+        }],
+      ],
+    },
+    {
+      'target_name': 'elf_loader_test_deploy',
+      'type': 'none',
+      'dependencies': [
+        'elf_loader_test',
+      ],
+      'variables': {
+        'executable_name': 'elf_loader_test',
+      },
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
   ]
 }

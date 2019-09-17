@@ -293,14 +293,8 @@ class AndroidConfiguration(PlatformConfiguration):
           'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders/*',
       ],
       'nplb': [
-          # These are failing on the internal test lab network that doesn't
-          # support IPv6.
-          'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
-          '.SunnyDayDestination/1',
-          'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
-          '.SunnyDaySourceForDestination/1',
-          'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
-          '.SunnyDaySourceNotLoopback/1',
+          # This test is failing because localhost is not defined for IPv6 in
+          # /etc/hosts.
           'SbSocketAddressTypes/SbSocketResolveTest.Localhost/1',
       ],
   }

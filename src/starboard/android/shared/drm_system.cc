@@ -235,13 +235,22 @@ void DrmSystem::UpdateSession(int ticket,
       ByteArrayFromRaw(session_id, session_id_size));
   ScopedLocalJavaRef<jbyteArray> j_response(ByteArrayFromRaw(key, key_size));
 
-  jboolean status = JniEnvExt::Get()->CallBooleanMethodOrAbort(
-      j_media_drm_bridge_, "updateSession", "([B[B)Z", j_session_id.Get(),
-      j_response.Get());
-  session_updated_callback_(
-      this, context_, ticket,
-      status == JNI_TRUE ? kSbDrmStatusSuccess : kSbDrmStatusUnknownError, NULL,
-      session_id, session_id_size);
+  auto env = JniEnvExt::Get();
+  ScopedLocalJavaRef<jobject> update_result(env->CallObjectMethodOrAbort(
+      j_media_drm_bridge_, "updateSession",
+      "(I[B[B)Ldev/cobalt/media/MediaDrmBridge$UpdateSessionResult;",
+      static_cast<jint>(ticket), j_session_id.Get(), j_response.Get()));
+  jboolean update_success =
+      env->CallBooleanMethodOrAbort(update_result.Get(), "isSuccess", "()Z");
+  ScopedLocalJavaRef<jstring> error_msg_java(env->CallObjectMethodOrAbort(
+      update_result.Get(), "getErrorMessage", "()Ljava/lang/String;"));
+  std::string error_msg =
+      env->GetStringStandardUTFOrAbort(error_msg_java.Get());
+  session_updated_callback_(this, context_, ticket,
+                            update_success == JNI_TRUE
+                                ? kSbDrmStatusSuccess
+                                : kSbDrmStatusUnknownError,
+                            error_msg.c_str(), session_id, session_id_size);
 }
 
 void DrmSystem::CloseSession(const void* session_id, int session_id_size) {

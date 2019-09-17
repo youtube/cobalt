@@ -141,6 +141,15 @@ class NET_EXPORT WebSocketEventInterface {
       base::OnceCallback<void(const AuthCredentials*)> callback,
       base::Optional<AuthCredentials>* credentials) = 0;
 
+#if defined(STARBOARD)
+  // Added so that Cobalt's websocket implementation can reduce its count for
+  // bufferdAmount of send data.
+
+  // Called when a write completes, and |bytes_written| indicates how many bytes
+  // were written.
+  virtual void OnWriteDone(uint64_t bytes_written) = 0;
+#endif  // defined(STARBOARD)
+
  protected:
   WebSocketEventInterface() {}
 
