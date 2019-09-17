@@ -74,7 +74,9 @@ def _VerifyConfig(config):
   """Ensures a platform or app config is self-consistent."""
   targets = config.GetTestTargets()
   filters = config.GetTestFilters()
-  filter_targets = [f.target_name for f in filters]
+  filter_targets = [
+      f.target_name for f in filters if f != test_filter.DISABLE_TESTING
+  ]
 
   # Filters must be defined in the same config as the targets they're filtering,
   # platform filters in platform config, and app filters in app config.
