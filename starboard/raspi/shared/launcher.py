@@ -44,7 +44,7 @@ def _SigIntOrSigTermHandler(signum, frame):
 class Launcher(abstract_launcher.AbstractLauncher):
   """Class for launching Cobalt/tools on Raspi."""
 
-  _STARTUP_TIMEOUT_SECONDS = 1200
+  _STARTUP_TIMEOUT_SECONDS = 1800
 
   _RASPI_USERNAME = 'pi'
   _RASPI_PASSWORD = 'raspberry'
