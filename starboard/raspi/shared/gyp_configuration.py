@@ -49,6 +49,7 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
         'sysroot': self.sysroot,
         'include_path_platform_deploy_gypi':
             'starboard/raspi/shared/platform_deploy.gypi',
+        'STRIP': os.environ['STRIP'],
     })
 
     return variables
@@ -64,6 +65,7 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
     env_variables.update({
         'CC': os.path.join(toolchain_bin_dir, 'arm-linux-gnueabihf-gcc'),
         'CXX': os.path.join(toolchain_bin_dir, 'arm-linux-gnueabihf-g++'),
+        'STRIP': os.path.join(toolchain_bin_dir, 'arm-linux-gnueabihf-strip'),
     })
     return env_variables
 

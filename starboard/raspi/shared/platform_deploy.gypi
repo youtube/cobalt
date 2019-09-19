@@ -12,5 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 {
-  'includes': [ '<(DEPTH)/starboard/linux/shared/platform_deploy.gypi' ],
+  'variables': {
+    'executable_file': '<(PRODUCT_DIR)/<(executable_name)',
+    'deploy_executable_file': '<(target_deploy_dir)/<(executable_name)',
+  },
+  'includes': [ '<(DEPTH)/starboard/build/collect_deploy_content.gypi' ],
+  'actions': [
+    {
+      'action_name': 'deploy_executable',
+      'message': 'Strip executable: <(deploy_executable_file)',
+      'inputs': [
+        '<(executable_file)',
+        '<(content_deploy_stamp_file)',
+      ],
+      'outputs': [ '<(deploy_executable_file)' ],
+      'action': [
+        '<(STRIP)',
+        '-o', '<(deploy_executable_file)',
+        '<(executable_file)',
+      ],
+    },
+  ],
 }
