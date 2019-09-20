@@ -185,14 +185,17 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   JSContext* context_;
   int garbage_collection_count_;
   WeakHeapObjectManager weak_object_manager_;
-  std::unordered_map<Wrappable*, CountedHeapObject> kept_alive_objects_;
   std::unique_ptr<ReferencedObjectMap> referenced_objects_;
-  std::vector<InterfaceData> cached_interface_data_;
 
+  // Beware the order of destruction. Anything which references the JSContext
+  // should be destroyed before ~ContextDestructor.
   ContextDestructor context_destructor_;
+
   std::unique_ptr<WrapperFactory> wrapper_factory_;
   std::unique_ptr<MozjsScriptValueFactory> script_value_factory_;
   JS::Heap<JSObject*> global_object_proxy_;
+  std::vector<InterfaceData> cached_interface_data_;
+  std::unordered_map<Wrappable*, CountedHeapObject> kept_alive_objects_;
   EnvironmentSettings* environment_settings_;
   // TODO: Should be |std::unordered_set| once C++11 is enabled.
   base::hash_set<Traceable*> visited_traceables_;
