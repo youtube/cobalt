@@ -15,7 +15,6 @@
 
 import cobalt.tools.webdriver_benchmark_config as wb_config
 from starboard.raspi.shared.cobalt import configuration as shared_configuration
-from starboard.tools.testing import test_filter
 
 
 class CobaltRaspiZeroConfiguration(
@@ -29,14 +28,3 @@ class CobaltRaspiZeroConfiguration(
 
   def GetDefaultSampleSize(self):
     return wb_config.REDUCED_SIZE
-
-  def GetTestFilters(self):
-    filters = super(CobaltRaspiZeroConfiguration, self).GetTestFilters()
-    filters.extend([
-        # Consistently failing CalledOnValidSequence() check despite all tests
-        # passing.
-        test_filter.TestFilter(
-            'media_capture_test',
-            'MediaRecorderTest.DifferentThreadForAudioSource')
-    ])
-    return filters
