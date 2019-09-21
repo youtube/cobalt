@@ -251,7 +251,7 @@ TEST(CircularBufferShellTest, Peek) {
 
     EXPECT_EQ(10, bytes_peeked);
     IsSame(UNSET_DATA, destination, 9);
-    IsSame(UNSET_DATA + 9 + bytes_peeked, destination + 9 + bytes_peeked,
+    IsSame(&UNSET_DATA[9] + bytes_peeked, destination + 9 + bytes_peeked,
            sizeof(UNSET_DATA) - 9 - bytes_peeked);
     IsSame(kTestData, destination + 9, 10);
     peek_offset += bytes_peeked;
@@ -264,7 +264,7 @@ TEST(CircularBufferShellTest, Peek) {
 
     EXPECT_EQ(7, bytes_peeked);
     IsSame(UNSET_DATA, destination, 9);
-    IsSame(UNSET_DATA + 9 + bytes_peeked, destination + 9 + bytes_peeked,
+    IsSame(&UNSET_DATA[9] + bytes_peeked, destination + 9 + bytes_peeked,
            sizeof(UNSET_DATA) - 9 - bytes_peeked);
     IsSame(kTestData + peek_offset, destination + 9, bytes_peeked);
     peek_offset += bytes_peeked;
@@ -277,7 +277,7 @@ TEST(CircularBufferShellTest, Peek) {
 
     EXPECT_EQ(3, bytes_peeked);
     IsSame(UNSET_DATA, destination, 9);
-    IsSame(UNSET_DATA + 9 + bytes_peeked, destination + 9 + bytes_peeked,
+    IsSame(&UNSET_DATA[9] + bytes_peeked, destination + 9 + bytes_peeked,
            sizeof(UNSET_DATA) - 9 - bytes_peeked);
     IsSame(kTestData + peek_offset, destination + 9, bytes_peeked);
     peek_offset += bytes_peeked;
