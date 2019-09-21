@@ -14,6 +14,7 @@
 #include "base/containers/flat_map.h"
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
+#include "cobalt/network/network_module.h"
 #include "components/update_client/configurator.h"
 
 class GURL;
@@ -38,7 +39,7 @@ namespace updater {
 
 class Configurator : public update_client::Configurator {
  public:
-  Configurator();
+  explicit Configurator(network::NetworkModule* network_module);
 
   // Configurator for update_client::Configurator.
   int InitialDelay() const override;
