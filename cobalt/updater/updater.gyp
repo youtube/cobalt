@@ -20,6 +20,8 @@
       'sources': [
         'configurator.cc',
         'configurator.h',
+        'network_fetcher.cc',
+        'network_fetcher.h',
         # TODO: enable crash report later with crashpad dependency
         #'crash_client.cc',
         #'crash_client.h',
@@ -40,6 +42,9 @@
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/net/net.gyp:net',
+        '<(DEPTH)/cobalt/loader/loader.gyp:loader',
+        '<(DEPTH)/cobalt/network/network.gyp:network',
         '<(DEPTH)/components/prefs/prefs.gyp:prefs',
         '<(DEPTH)/components/update_client/update_client.gyp:update_client',
         '<(DEPTH)/url/url.gyp:url',
@@ -51,6 +56,7 @@
       'dependencies': [
         'updater',
         '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/cobalt/debug/debug.gyp:console_command_manager',
         '<(DEPTH)/starboard/starboard.gyp:starboard_full',
       ],
       'sources': [
