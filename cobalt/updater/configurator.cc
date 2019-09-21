@@ -6,6 +6,7 @@
 
 #include "base/version.h"
 
+#include "cobalt/updater/network_fetcher.h"
 #include "cobalt/updater/patcher.h"
 #include "cobalt/updater/prefs.h"
 #include "cobalt/updater/unzipper.h"
@@ -29,9 +30,11 @@ const int kDelayOneHour = kDelayOneMinute * 60;
 namespace cobalt {
 namespace updater {
 
-Configurator::Configurator()
+Configurator::Configurator(network::NetworkModule* network_module)
     : pref_service_(CreatePrefService()),
       unzip_factory_(base::MakeRefCounted<UnzipperFactory>()),
+      network_fetcher_factory_(
+          base::MakeRefCounted<NetworkFetcherFactoryCobalt>(network_module)),
       patch_factory_(base::MakeRefCounted<PatcherFactory>()) {}
 Configurator::~Configurator() = default;
 
@@ -74,7 +77,7 @@ std::string Configurator::GetDownloadPreference() const { return {}; }
 
 scoped_refptr<update_client::NetworkFetcherFactory>
 Configurator::GetNetworkFetcherFactory() {
-  return nullptr;
+  return network_fetcher_factory_;
 }
 
 scoped_refptr<update_client::UnzipperFactory>
