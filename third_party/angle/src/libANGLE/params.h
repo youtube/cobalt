@@ -36,13 +36,20 @@ class ParamTypeInfo
 
     constexpr bool hasDynamicType(const ParamTypeInfo &typeInfo) const
     {
-        return mSelfClass == typeInfo.mSelfClass ||
+        return areEqual(mSelfClass, typeInfo.mSelfClass) ||
                (mParentTypeInfo && mParentTypeInfo->hasDynamicType(typeInfo));
     }
 
     constexpr bool isValid() const { return mSelfClass != nullptr; }
 
   private:
+    // This function performs a compile-time comparison of string literals.
+    // This function cannot be made more beautiful [without C++ 14].
+    constexpr bool areEqual(const char* lhs, const char* rhs) const
+    {
+        return (*lhs == *rhs) && ((*lhs == 0) || (areEqual(lhs + 1, rhs + 1)));
+    }
+
     const char *mSelfClass;
     const ParamTypeInfo *mParentTypeInfo;
 };
