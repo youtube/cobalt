@@ -20,7 +20,7 @@
 
 namespace {
 
-constexpr base::TaskTraits kTaskTraits = {
+const base::TaskTraits kTaskTraits = {
     base::MayBlock(), base::TaskPriority::BEST_EFFORT,
     base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN};
 
