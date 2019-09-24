@@ -191,9 +191,9 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   // should be destroyed before ~ContextDestructor.
   ContextDestructor context_destructor_;
 
+  JS::Heap<JSObject*> global_object_proxy_;
   std::unique_ptr<WrapperFactory> wrapper_factory_;
   std::unique_ptr<MozjsScriptValueFactory> script_value_factory_;
-  JS::Heap<JSObject*> global_object_proxy_;
   std::vector<InterfaceData> cached_interface_data_;
   std::unordered_map<Wrappable*, CountedHeapObject> kept_alive_objects_;
   EnvironmentSettings* environment_settings_;
