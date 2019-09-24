@@ -34,6 +34,7 @@
         '<(DEPTH)/starboard/nplb/blitter_pixel_tests/blitter_pixel_tests.gyp:*',
         '<(DEPTH)/starboard/nplb/nplb.gyp:*',
         '<(DEPTH)/starboard/starboard.gyp:*',
+        '<(DEPTH)/starboard/tools/tools.gyp:*',
       ],
       'conditions': [
         ['has_platform_tests=="True"', {
