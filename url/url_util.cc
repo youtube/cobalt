@@ -10,6 +10,7 @@
 #include "base/logging.h"
 #include "base/strings/string_util.h"
 #include "starboard/common/string.h"
+#include "starboard/configuration.h"
 #include "starboard/memory.h"
 #include "starboard/types.h"
 #include "url/url_canon_internal.h"
@@ -220,6 +221,7 @@ bool DoCanonicalize(const CHAR* spec,
   }
 
   Parsed parsed_input;
+#ifndef STARBOARD
 #ifdef WIN32
   // For Windows, we allow things that look like absolute Windows paths to be
   // fixed up magically to file URLs. This is done for IE compatibility. For
@@ -237,6 +239,7 @@ bool DoCanonicalize(const CHAR* spec,
     return CanonicalizeFileURL(spec, spec_len, parsed_input, charset_converter,
                                output, output_parsed);
   }
+#endif
 #endif
 
   Component scheme;
