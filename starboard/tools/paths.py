@@ -23,5 +23,8 @@ STARBOARD_ROOT = os.path.abspath(
 # The absolute path to the root of the project.
 REPOSITORY_ROOT = os.path.abspath(os.path.join(STARBOARD_ROOT, os.path.pardir))
 
+# The absolute path to the third_party directory.
+THIRD_PARTY_ROOT = os.path.join(REPOSITORY_ROOT, 'third_party')
+
 # The absolute path to the build output directory.
 BUILD_OUTPUT_ROOT = os.path.join(REPOSITORY_ROOT, 'out')
