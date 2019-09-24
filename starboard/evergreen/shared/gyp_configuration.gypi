@@ -18,6 +18,7 @@
 {
   'variables': {
     'sb_evergreen': 1,
+    'sb_speech_supported': 0,
 
     'final_executable_type': 'shared_library',
     'gtest_target_type': 'shared_library',
