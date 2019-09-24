@@ -95,8 +95,7 @@
         'LIBXML_WRITER_ENABLED',
       ],
       'cflags_cc': [
-        # TODO: conform to c++11 instead.
-        '-std=c++14',
+        '-std=c++11',
       ],
     }
   ]
