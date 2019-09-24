@@ -14,23 +14,8 @@
 
 {
   'includes': [
-    '<(DEPTH)/starboard/stub/stub_sources.gypi',
-  ],
-  'targets': [
-    {
-      'target_name': 'starboard_platform',
-      'type': 'static_library',
-      'sources': [
-        '<@(stub_sources)',
-        'atomic_public.h',
-        'configuration_public.h',
-        'thread_types_public.h',
-      ],
-      'defines': [
-        # This must be defined when building Starboard, and must not when
-        # building Starboard client code.
-        'STARBOARD_IMPLEMENTATION',
-      ],
-    },
+    # Note that we are 'includes'ing a 'gyp' file, not a 'gypi' file.  The idea
+    # is that we just want this file to *be* the parent gyp file.
+    '<(DEPTH)/starboard/evergreen/shared/starboard_platform.gyp',
   ],
 }
