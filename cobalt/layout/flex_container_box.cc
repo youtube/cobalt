@@ -311,8 +311,11 @@ void FlexContainerBox::UpdateContentSizeAndMargins(
   set_margin_right(maybe_margin_right.value_or(LayoutUnit()));
   set_margin_top(maybe_margin_top.value_or(LayoutUnit()));
   set_margin_bottom(maybe_margin_bottom.value_or(LayoutUnit()));
-  if (child_boxes().empty()) {
-    baseline_ = GetBorderBoxHeight();
+
+  UpdateRectOfPositionedChildBoxes(child_layout_params, layout_params);
+
+  if (items.empty()) {
+    baseline_ = GetPaddingBoxHeight() + border_bottom_width() + margin_bottom();
   } else {
     baseline_ = flex_formatting_context.GetBaseline();
   }
@@ -480,8 +483,7 @@ void FlexContainerBox::EnsureBoxesAreInOrderModifiedDocumentOrder() {
 }
 
 AnonymousBlockBox* FlexContainerBox::GetLastChildAsAnonymousBlockBox() {
-  return child_boxes().empty() ? NULL
-                               : child_boxes().back()->AsAnonymousBlockBox();
+  return NULL;
 }
 
 AnonymousBlockBox* FlexContainerBox::GetOrAddAnonymousBlockBox() {
