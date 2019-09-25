@@ -15,6 +15,9 @@
 #ifndef COBALT_LAYOUT_FLEX_CONTAINER_BOX_H_
 #define COBALT_LAYOUT_FLEX_CONTAINER_BOX_H_
 
+#include <memory>
+
+#include "base/optional.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/layout/base_direction.h"
 #include "cobalt/layout/block_container_box.h"
