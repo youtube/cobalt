@@ -10,6 +10,9 @@
 
 #include <EGL/eglext.h>
 
+#if defined(STARBOARD)
+#include "angle_hdr.h"
+#endif  // STARBOARD
 #include "libANGLE/features.h"
 #include "libANGLE/renderer/d3d/d3d11/formatutils11.h"
 #include "libANGLE/renderer/d3d/d3d11/NativeWindow11.h"
@@ -22,6 +25,12 @@
 #include "libANGLE/renderer/d3d/d3d11/shaders/compiled/passthrough2d11vs.h"
 #include "libANGLE/renderer/d3d/d3d11/shaders/compiled/passthroughrgba2d11ps.h"
 #include "libANGLE/renderer/d3d/d3d11/shaders/compiled/passthroughrgba2dms11ps.h"
+
+#if defined(STARBOARD)
+#include <initguid.h>
+#include <dxgi1_4.h>
+#include <dxgi1_6.h>
+#endif  // STARBOARD
 
 #ifdef ANGLE_ENABLE_KEYEDMUTEX
 #define ANGLE_RESOURCE_SHARE_TYPE D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX
@@ -752,6 +761,37 @@ EGLint SwapChain11::swapRect(EGLint x, EGLint y, EGLint width, EGLint height)
     {
         return result;
     }
+
+#if defined(STARBOARD)
+    if (IsHdrAngleModeEnabled())
+    {
+        if (mCurrentColorSpace != DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020)
+        {
+            IDXGISwapChain3 *swapChain3 = static_cast<IDXGISwapChain3 *>(mSwapChain);
+            result = swapChain3->SetColorSpace1(DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020);
+            if (FAILED(result))
+            {
+                ERR() << "Color space DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020 setup failed.";
+                return EGL_BAD_CONFIG;
+            }
+            mCurrentColorSpace = DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
+        }
+    }
+    else
+    {
+        if (mCurrentColorSpace != DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709)
+        {
+            IDXGISwapChain3 *swapChain3 = static_cast<IDXGISwapChain3 *>(mSwapChain);
+            result = swapChain3->SetColorSpace1(DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709);
+            if (FAILED(result))
+            {
+                ERR() << "Color space DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709 setup failed.";
+                return EGL_BAD_CONFIG;
+            }
+            mCurrentColorSpace = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
+        }
+    }
+#endif  // STARBOARD
 
     mRenderer->onSwap();
 

@@ -170,6 +170,13 @@ class ProgramD3D : public ProgramImpl
     gl::Error getPixelExecutableForOutputLayout(const std::vector<GLenum> &outputLayout,
                                                 ShaderExecutableD3D **outExectuable,
                                                 gl::InfoLog *infoLog);
+#if defined(STARBOARD)
+    gl::Error getPixelExecutableForHdrFramebuffer(const gl::Framebuffer *fbo,
+                                                  ShaderExecutableD3D **outExectuable);
+    gl::Error getPixelExecutableForHdrOutputLayout(const std::vector<GLenum> &outputLayout,
+                                                   ShaderExecutableD3D **outExectuable,
+                                                   gl::InfoLog *infoLog);
+#endif  // STARBOARD
     gl::Error getVertexExecutableForInputLayout(const gl::InputLayout &inputLayout,
                                                 ShaderExecutableD3D **outExectuable,
                                                 gl::InfoLog *infoLog);
@@ -396,7 +403,9 @@ class ProgramD3D : public ProgramImpl
     std::vector<std::unique_ptr<PixelExecutable>> mPixelExecutables;
     std::vector<std::unique_ptr<ShaderExecutableD3D>> mGeometryExecutables;
     std::unique_ptr<ShaderExecutableD3D> mComputeExecutable;
-
+#if defined(STARBOARD)
+    std::unique_ptr<PixelExecutable> mPixelHdrExecutable;
+#endif  // STARBOARD
     std::string mVertexHLSL;
     angle::CompilerWorkaroundsD3D mVertexWorkarounds;
 
