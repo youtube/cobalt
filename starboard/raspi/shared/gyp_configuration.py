@@ -49,7 +49,7 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
         'sysroot': self.sysroot,
         'include_path_platform_deploy_gypi':
             'starboard/raspi/shared/platform_deploy.gypi',
-        'STRIP': os.environ['STRIP'],
+        'STRIP': os.environ.get('STRIP')
     })
 
     return variables
