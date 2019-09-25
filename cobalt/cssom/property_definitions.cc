@@ -884,7 +884,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetShorthandPropertyDefinition(kBorderRadiusProperty, "border-radius",
                                  border_radius_longhand_properties);
 
-  //   https://www.w3.org/TR/css3-background/#border
+  //   https://www.w3.org/TR/css-backgrounds-3/#propdef-border
   LonghandPropertySet border_longhand_properties;
   border_longhand_properties.insert(kBorderColorProperty);
   border_longhand_properties.insert(kBorderStyleProperty);
