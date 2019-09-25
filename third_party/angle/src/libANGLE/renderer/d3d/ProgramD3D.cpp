@@ -1148,6 +1148,76 @@ void ProgramD3D::setSeparable(bool /* separable */)
 {
 }
 
+#if defined(STARBOARD)
+gl::Error ProgramD3D::getPixelExecutableForHdrFramebuffer(const gl::Framebuffer *fbo,
+                                                          ShaderExecutableD3D **outExecutable)
+{
+    mPixelShaderOutputFormatCache.clear();
+
+    const FramebufferD3D *fboD3D = GetImplAs<FramebufferD3D>(fbo);
+    const gl::AttachmentList &colorbuffers = fboD3D->getColorAttachmentsForRender();
+
+    for (size_t colorAttachment = 0; colorAttachment < colorbuffers.size(); ++colorAttachment)
+    {
+        const gl::FramebufferAttachment *colorbuffer = colorbuffers[colorAttachment];
+
+        if (colorbuffer)
+        {
+            mPixelShaderOutputFormatCache.push_back(colorbuffer->getBinding() == GL_BACK
+                                                        ? GL_COLOR_ATTACHMENT0
+                                                        : colorbuffer->getBinding());
+        }
+        else
+        {
+            mPixelShaderOutputFormatCache.push_back(GL_NONE);
+        }
+    }
+
+    return getPixelExecutableForHdrOutputLayout(mPixelShaderOutputFormatCache, outExecutable,
+                                                nullptr);
+}
+
+gl::Error ProgramD3D::getPixelExecutableForHdrOutputLayout(
+    const std::vector<GLenum> &outputSignature,
+    ShaderExecutableD3D **outExecutable,
+    gl::InfoLog *infoLog)
+{
+    if (mPixelHdrExecutable)
+    {
+        *outExecutable = mPixelHdrExecutable->shaderExecutable();
+        return gl::NoError();
+    }
+
+    std::string finalPixelHLSL = mDynamicHLSL->generatePixelShaderForHdrOutputSignature(
+        mPixelHLSL, mPixelShaderKey, mUsesFragDepth, outputSignature);
+
+    // Generate new pixel executable
+    ShaderExecutableD3D *pixelExecutable = nullptr;
+
+    gl::InfoLog tempInfoLog;
+    gl::InfoLog *currentInfoLog = infoLog ? infoLog : &tempInfoLog;
+
+    ANGLE_TRY(mRenderer->compileToExecutable(
+        *currentInfoLog, finalPixelHLSL, SHADER_PIXEL, mStreamOutVaryings,
+        (mState.getTransformFeedbackBufferMode() == GL_SEPARATE_ATTRIBS), mPixelWorkarounds,
+        &pixelExecutable));
+
+    if (pixelExecutable)
+    {
+        mPixelHdrExecutable =
+            std::unique_ptr<PixelExecutable>(new PixelExecutable(outputSignature, pixelExecutable));
+    }
+    else if (!infoLog)
+    {
+        ERR() << "Error compiling BT709 to BT2020 pixel executable:" << std::endl
+              << tempInfoLog.str() << std::endl;
+    }
+
+    *outExecutable = pixelExecutable;
+    return gl::NoError();
+}
+#endif  // STARBOARD
+
 gl::Error ProgramD3D::getPixelExecutableForFramebuffer(const gl::Framebuffer *fbo,
                                                        ShaderExecutableD3D **outExecutable)
 {
@@ -2328,6 +2398,9 @@ void ProgramD3D::reset()
 {
     mVertexExecutables.clear();
     mPixelExecutables.clear();
+#if defined(STARBOARD)
+    mPixelHdrExecutable.reset();
+#endif  // STARBOARD
 
     for (auto &geometryExecutable : mGeometryExecutables)
     {

@@ -13,6 +13,9 @@
 #include <versionhelpers.h>
 #include <sstream>
 
+#if defined(STARBOARD)
+#include "angle_hdr.h"
+#endif  // STARBOARD
 #include "common/tls.h"
 #include "common/utilities.h"
 #include "libANGLE/Buffer.h"
@@ -377,6 +380,35 @@ int GetWrapBits(GLenum wrap)
 }
 
 const uint32_t ScratchMemoryBufferLifetime = 1000;
+
+#if defined(STARBOARD)
+angle::Format::ID GetTextureFormatId(const gl::ContextState &data)
+{
+    const auto &glState    = data.getState();
+    ProgramD3D *programD3D = GetImplAs<ProgramD3D>(glState.getProgram());
+
+    gl::SamplerType type      = gl::SAMPLER_PIXEL;
+    unsigned int samplerRange = programD3D->getUsedSamplerRange(type);
+    for (unsigned int i = 0; i < samplerRange; i++)
+    {
+        GLint textureUnit = programD3D->getSamplerMapping(type, i, data.getCaps());
+        if (textureUnit != -1)
+        {
+            gl::Texture *texture = data.getState().getSamplerTexture(
+                textureUnit, programD3D->getSamplerTextureType(type, i));
+            ASSERT(texture);
+            rx::TextureD3D *textureD3D = GetImplAs<TextureD3D>(texture);
+            TextureStorage *texStorage = nullptr;
+            textureD3D->getNativeTexture(&texStorage);
+            if (texStorage)
+            {
+                return GetAs<TextureStorage11_2D>(texStorage)->getFormat().id;
+            }
+        }
+    }
+    return angle::Format::ID::NONE;
+}
+#endif  // STARBOARD
 
 }  // anonymous namespace
 
@@ -2455,7 +2487,30 @@ gl::Error Renderer11::applyShaders(const gl::ContextState &data, GLenum drawMode
 
     const gl::Framebuffer *drawFramebuffer = glState.getDrawFramebuffer();
     ShaderExecutableD3D *pixelExe          = nullptr;
+#if defined(STARBOARD)
+    // While 10-bit HDR video is playing we run the pixel shader to apply color space for all UI
+    // elements conversion from 8-bit to 10-bit for all draw calls that do not involve the HDR video
+    // texture (look at spec ITU - R BT .2100 - 2(07 / 2018) for BT709 to BT2020 transform). This
+    // conversion  is applicable only once when we draw to the display - drawFramebuffer->id() is 0.
+    if (IsHdrAngleModeEnabled() && drawFramebuffer->id() == 0)
+    {
+        if (GetTextureFormatId(data) == angle::Format::ID::R10G10B10A2_UNORM ||
+            GetTextureFormatId(data) == angle::Format::ID::R16_UNORM)
+        {
+            ANGLE_TRY(programD3D->getPixelExecutableForFramebuffer(drawFramebuffer, &pixelExe));
+        }
+        else
+        {
+            ANGLE_TRY(programD3D->getPixelExecutableForHdrFramebuffer(drawFramebuffer, &pixelExe));
+        }
+    }
+    else
+    {
+        ANGLE_TRY(programD3D->getPixelExecutableForFramebuffer(drawFramebuffer, &pixelExe));
+    }
+#else
     ANGLE_TRY(programD3D->getPixelExecutableForFramebuffer(drawFramebuffer, &pixelExe));
+#endif  // STARBOARD
 
     ShaderExecutableD3D *geometryExe = nullptr;
     ANGLE_TRY(

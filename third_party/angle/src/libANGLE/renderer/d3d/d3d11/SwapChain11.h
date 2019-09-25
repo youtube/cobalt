@@ -114,6 +114,9 @@ class SwapChain11 final : public SwapChainD3D
 
     EGLint mEGLSamples;
     LONGLONG mQPCFrequency;
+#if defined(STARBOARD)
+    DXGI_COLOR_SPACE_TYPE mCurrentColorSpace = DXGI_COLOR_SPACE_CUSTOM;
+#endif // STARBOARD
 };
 
 }  // namespace rx

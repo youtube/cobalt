@@ -264,6 +264,15 @@ gl::Error TextureStorage11::getSRV(const gl::TextureState &textureState,
     return gl::NoError();
 }
 
+#if defined(STARBOARD)
+const angle::Format &TextureStorage11_2D::getFormat()
+{
+    D3D11_TEXTURE2D_DESC desc = {0};
+    mTexture->GetDesc(&desc);
+    return d3d11_angle::GetFormat(desc.Format);
+}
+#endif  // STARBOARD
+
 gl::Error TextureStorage11::getCachedOrCreateSRV(const SRVKey &key,
                                                  ID3D11ShaderResourceView **outSRV)
 {

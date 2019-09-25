@@ -173,6 +173,9 @@ class TextureStorage11_2D : public TextureStorage11
     gl::Error releaseAssociatedImage(const gl::ImageIndex &index, Image11 *incomingImage) override;
 
     gl::Error useLevelZeroWorkaroundTexture(bool useLevelZeroTexture) override;
+#if defined(STARBOARD)
+    const angle::Format &getFormat();
+#endif // STARBOARD
 
   protected:
     gl::Error getSwizzleTexture(ID3D11Resource **outTexture) override;
