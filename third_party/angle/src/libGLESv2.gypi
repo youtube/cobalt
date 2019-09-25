@@ -14,6 +14,7 @@
             '<(DEPTH)/third_party/angle/src/common/MemoryBuffer.cpp',
             '<(DEPTH)/third_party/angle/src/common/MemoryBuffer.h',
             '<(DEPTH)/third_party/angle/src/common/Optional.h',
+            '<(DEPTH)/third_party/angle/src/common/angle_hdr.cpp',
             '<(DEPTH)/third_party/angle/src/common/angleutils.cpp',
             '<(DEPTH)/third_party/angle/src/common/angleutils.h',
             '<(DEPTH)/third_party/angle/src/common/bitset_utils.h',
@@ -92,6 +93,7 @@
         'libangle_includes':
         [
             '<(DEPTH)/third_party/angle/include/angle_gl.h',
+            '<(DEPTH)/third_party/angle/include/angle_hdr.h',
             '<(DEPTH)/third_party/angle/include/export.h',
             '<(DEPTH)/third_party/angle/include/EGL/egl.h',
             '<(DEPTH)/third_party/angle/include/EGL/eglext.h',

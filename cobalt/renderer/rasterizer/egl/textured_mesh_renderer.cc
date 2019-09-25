@@ -85,10 +85,17 @@ const float kBT709ColorMatrix[16] = {
     1.164f, 2.112f, 0.0f,   -1.12875f, 0.0f,   0.0f,    0.0f,    1.0f};
 
 // Used for 10bit unnormalized YUV images.
+// Y is between 64 and 940 inclusive. U and V are between 64 and 960 inclusive.
+// it is 1023/(940-64) = 1.1678 for Y and 1023/(960-64) = 1.1417 for U and V.
+// 64 is the scale factor for 10 bit.
+// Input YUV must be subtracted by (0.0625, 0.5, 0.5), so
+// -1.1678 * 0.0625  - 0 * 0.5         - 1.6835 * 0.5    = -0.9147
+// -1.1678 * 0.0625  -(-0.1878 * 0.5)  - (-0.6522 * 0.5) = 0.347
+// -1.1678 * 0.0625  - (2.1479f * 0.5) - 0 * 0.5         = -1.1469
 const float k10BitBT2020ColorMatrix[16] = {
-    64 * 1.1678f, 0.0f,          64 * 1.6835f,  -0.96925f,
-    64 * 1.1678f, 64 * -0.1878f, 64 * -0.6522f, 0.30025f,
-    64 * 1.1678f, 64 * 2.1479f,  0.0f,          -1.12875f,
+    64 * 1.1678f, 0.0f,          64 * 1.6835f,  -0.9147f,
+    64 * 1.1678f, 64 * -0.1878f, 64 * -0.6522f, 0.347f,
+    64 * 1.1678f, 64 * 2.1479f,  0.0f,          -1.1469f,
     0.0f,         0.0f,          0.0f,          1.0f};
 
 const float* GetColorMatrixForImageType(
