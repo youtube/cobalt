@@ -99,6 +99,7 @@ public class CobaltMediaSession
   }
 
   private void setMediaSession() {
+    Log.i(TAG, "MediaSession new");
     mediaSession = new MediaSessionCompat(context, TAG);
     mediaSession.setFlags(MEDIA_SESSION_FLAG_HANDLES_TRANSPORT_CONTROLS);
     mediaSession.setCallback(
@@ -188,6 +189,7 @@ public class CobaltMediaSession
     mediaSession.setActive(playbackState != PLAYBACK_STATE_NONE);
     if (deactivating) {
       // Suspending lands here.
+      Log.i(TAG, "MediaSession release");
       mediaSession.release();
     }
   }
@@ -319,13 +321,17 @@ public class CobaltMediaSession
   }
 
   public void suspend() {
-    mainHandler.post(
-        new Runnable() {
-          @Override
-          public void run() {
-            suspendInternal();
-          }
-        });
+    if (Looper.getMainLooper() == Looper.myLooper()) {
+      suspendInternal();
+    } else {
+      mainHandler.post(
+          new Runnable() {
+            @Override
+            public void run() {
+              suspendInternal();
+            }
+          });
+    }
   }
 
   private void suspendInternal() {
