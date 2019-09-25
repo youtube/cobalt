@@ -110,6 +110,11 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
     ref_count_ = 0;
     wrapper_.SetWeak(this, &WrapperPrivate::Callback,
                      v8::WeakCallbackType::kParameter);
+    // There is no guarantee that the finalization callback provided to SetWeak
+    // will be called, so release the wrappable's reference now. This will help
+    // ensure the wrappable is destroyed before the GlobalEnvironment is
+    // destroyed.
+    wrappable_ = nullptr;
   }
 
  private:
