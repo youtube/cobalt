@@ -11,6 +11,7 @@
 #include "base/memory/ref_counted.h"
 #include "components/update_client/patcher.h"
 
+namespace cobalt {
 namespace updater {
 
 class PatcherFactory : public update_client::PatcherFactory {
@@ -27,5 +28,6 @@ class PatcherFactory : public update_client::PatcherFactory {
 };
 
 }  // namespace updater
+}  // namespace cobalt
 
 #endif  // COBALT_UPDATER_PATCHER_H_

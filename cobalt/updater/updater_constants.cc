@@ -4,6 +4,7 @@
 
 #include "cobalt/updater/updater_constants.h"
 
+namespace cobalt {
 namespace updater {
 
 const char kCrashMeSwitch[] = "crash-me";
@@ -28,3 +29,4 @@ extern const char kAppsDir[] = "apps";
 extern const char kUninstallScript[] = "uninstall.cmd";
 
 }  // namespace updater
+}  // namespace cobalt

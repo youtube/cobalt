@@ -11,6 +11,7 @@
 #include "base/memory/ref_counted.h"
 #include "components/update_client/unzipper.h"
 
+namespace cobalt {
 namespace updater {
 
 class UnzipperFactory : public update_client::UnzipperFactory {
@@ -27,5 +28,6 @@ class UnzipperFactory : public update_client::UnzipperFactory {
 };
 
 }  // namespace updater
+}  // namespace cobalt
 
 #endif  // COBALT_UPDATER_UNZIPPER_H_

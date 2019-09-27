@@ -2,14 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROME_UPDATER_CRASH_REPORTER_H_
-#define CHROME_UPDATER_CRASH_REPORTER_H_
+#ifndef COBALT_UPDATER_CRASH_REPORTER_H_
+#define COBALT_UPDATER_CRASH_REPORTER_H_
 
 #include <string>
 
 #include "base/strings/string16.h"
 #include "build/build_config.h"
 
+namespace cobalt {
 namespace updater {
 
 // Starts a new instance of this executable running as the crash reporter
@@ -34,5 +35,6 @@ void UseCrashReporter(const base::string16& ipc_pipe_name);
 #endif  // OS_WIN
 
 }  // namespace updater
+}  // namespace cobalt
 
-#endif  // CHROME_UPDATER_CRASH_REPORTER_H_
+#endif  // COBALT_UPDATER_CRASH_REPORTER_H_

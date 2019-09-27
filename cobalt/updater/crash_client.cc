@@ -37,6 +37,7 @@ int __cdecl HandleWinProcException(EXCEPTION_POINTERS* exception_pointers) {
 
 }  // namespace
 
+namespace cobalt {
 namespace updater {
 
 CrashClient::CrashClient() = default;
@@ -157,3 +158,4 @@ bool CrashClient::IsUploadEnabled() {
 }
 
 }  // namespace updater
+}  // namespace cobalt

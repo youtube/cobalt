@@ -9,10 +9,12 @@
 
 class PrefService;
 
+namespace cobalt {
 namespace updater {
 
 std::unique_ptr<PrefService> CreatePrefService();
 
 }  // namespace updater
+}  // namespace cobalt
 
 #endif  // COBALT_UPDATER_PREFS_H_

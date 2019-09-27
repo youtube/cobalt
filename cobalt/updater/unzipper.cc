@@ -9,6 +9,7 @@
 #include "base/files/file_path.h"
 // #include "third_party/zlib/google/zip.h"
 
+namespace cobalt {
 namespace updater {
 
 namespace {
@@ -36,3 +37,4 @@ std::unique_ptr<update_client::Unzipper> UnzipperFactory::Create() const {
 UnzipperFactory::~UnzipperFactory() = default;
 
 }  // namespace updater
+}  // namespace cobalt

@@ -26,6 +26,7 @@ const int kDelayOneHour = kDelayOneMinute * 60;
 
 }  // namespace
 
+namespace cobalt {
 namespace updater {
 
 Configurator::Configurator()
@@ -119,3 +120,4 @@ update_client::RecoveryCRXElevator Configurator::GetRecoveryCRXElevator()
 }
 
 }  // namespace updater
+}  // namespace cobalt
