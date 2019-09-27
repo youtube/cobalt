@@ -14,6 +14,7 @@
 # limitations under the License.
 """Linux implementation of Starboard launcher abstraction."""
 
+import errno
 import os
 import signal
 import socket
@@ -34,8 +35,8 @@ def GetProcessStatus(pid):
   Args:
     pid: process id of specified cobalt instance.
   """
-  output = subprocess.check_output(
-      ["ps -o state= -p {}".format(pid)], shell=True)
+  output = subprocess.check_output(["ps -o state= -p {}".format(pid)],
+                                   shell=True)
   return output
 
 
@@ -57,6 +58,21 @@ class Launcher(abstract_launcher.AbstractLauncher):
     env.update(self.env_variables)
     self.full_env = env
 
+    # Ensure that if the binary has code coverage or profiling instrumentation,
+    # the output will be written to a file in the coverage_directory named as
+    # the target_name with '.profraw' postfixed.
+    if self.coverage_directory:
+      target_profraw = os.path.join(self.coverage_directory,
+                                    target_name + ".profraw")
+      env.update({"LLVM_PROFILE_FILE": target_profraw})
+
+      # Remove any stale profraw file that may already exist.
+      try:
+        os.remove(target_profraw)
+      except OSError as e:
+        if e.errno != errno.ENOENT:
+          raise
+
     self.proc = None
     self.pid = None
 
@@ -68,7 +84,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
         stdout=self.output_file,
         stderr=self.output_file,
         env=self.full_env,
-        close_fds=True)
+        close_fds=True,
+        cwd=self.out_directory)
     self.pid = self.proc.pid
     self.proc.wait()
     return self.proc.returncode
@@ -111,10 +128,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
     """Wait for Cobalt to turn to target status within specified timeout limit.
 
     Args:
-      target_status: A character representing application status:
-                        R-running;
-                        T-stopped/suspended;
-                        S-sleep/paused;
+      target_status: A character representing application status: R-running;
+        T-stopped/suspended; S-sleep/paused;
       timeout:       Time limit in unit of seconds.
     """
     elapsed_time = 0

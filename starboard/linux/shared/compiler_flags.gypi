@@ -147,6 +147,23 @@
           '-Wno-undefined-var-template',
         ],
       }],
+      ['use_source_code_coverage==1', {
+        'cflags': [
+          # Enable Source Based Code Coverage instrumentation.
+          # See https://clang.llvm.org/docs/SourceBasedCodeCoverage.html
+          '-fprofile-instr-generate',
+          '-fcoverage-mapping',
+        ],
+        'ldflags': [
+          # Enable Source Based Code Coverage instrumentation.
+          # See https://clang.llvm.org/docs/SourceBasedCodeCoverage.html
+          '-fprofile-instr-generate',
+          '-fcoverage-mapping',
+        ],
+        'defines': [
+          'USE_SOURCE_CODE_COVERAGE',
+        ],
+      }],
       ['use_asan==1', {
         'cflags': [
           '-fsanitize=address',

@@ -212,6 +212,11 @@ class TestRunner(object):
     self.device_id = device_id
     self.target_params = target_params
     self.out_directory = out_directory
+    if not self.out_directory:
+      self.out_directory = paths.BuildOutputDirectory(self.platform,
+                                                      self.config)
+    self.coverage_directory = os.path.join(self.out_directory, "coverage")
+
     self._platform_config = build.GetPlatformConfig(platform)
     self._app_config = self._platform_config.GetApplicationConfiguration(
         application_name)
@@ -230,6 +235,30 @@ class TestRunner(object):
       self.test_targets = self._GetTestTargets(platform_tests_only)
 
     self.test_env_vars = self._GetAllTestEnvVariables()
+
+  def _Exec(self, cmd_list, output_file=None):
+    """Execute a command in a subprocess."""
+    try:
+      msg = "Executing:\n    " + " ".join(cmd_list)
+      logging.info(msg)
+      if output_file:
+        with open(output_file, "wb") as out:
+          p = subprocess.Popen(
+              cmd_list,
+              stdout=out,
+              universal_newlines=True,
+              cwd=self.out_directory)
+      else:
+        p = subprocess.Popen(
+            cmd_list,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+            cwd=self.out_directory)
+      p.wait()
+      return p.returncode
+    except KeyboardInterrupt:
+      p.kill()
+      return 1
 
   def _GetSpecifiedTestTargets(self, specified_targets):
     """Sets up specified test targets for a given platform and configuration.
@@ -261,7 +290,7 @@ class TestRunner(object):
     """Collects all test targets for a given platform and configuration.
 
     Args:
-      platform_only: If True then only the platform tests are fetched.
+      platform_tests_only: If True then only the platform tests are fetched.
 
     Returns:
       A mapping from names of test binaries to lists of filters for
@@ -358,6 +387,7 @@ class TestRunner(object):
         target_params=test_params,
         output_file=write_pipe,
         out_directory=self.out_directory,
+        coverage_directory=self.coverage_directory,
         env_variables=env)
 
     test_reader = TestLineReader(read_pipe)
@@ -628,18 +658,13 @@ class TestRunner(object):
     result = True
 
     try:
-      if self.out_directory:
-        out_directory = self.out_directory
-      else:
-        out_directory = paths.BuildOutputDirectory(self.platform, self.config)
-
       if ninja_flags:
         extra_flags = [ninja_flags]
       else:
         extra_flags = []
 
-      build_tests.BuildTargets(self.test_targets, out_directory, self.dry_run,
-                               extra_flags)
+      build_tests.BuildTargets(self.test_targets, self.out_directory,
+                               self.dry_run, extra_flags)
 
     except subprocess.CalledProcessError as e:
       result = False
@@ -660,6 +685,47 @@ class TestRunner(object):
       results.append(self._RunTest(test_target))
 
     return self._ProcessAllTestResults(results)
+
+  def GenerateCoverageReport(self):
+    """Generate the source code coverage report."""
+    available_profraw_files = []
+    available_targets = []
+    for target in sorted(self.test_targets.keys()):
+      profraw_file = os.path.join(self.coverage_directory, target + ".profraw")
+      if os.path.isfile(profraw_file):
+        available_profraw_files.append(profraw_file)
+        available_targets.append(target)
+
+    # If there are no profraw files, then there is no work to do.
+    if not available_profraw_files:
+      return
+
+    report_name = "report"
+    profdata_name = os.path.join(self.coverage_directory,
+                                 report_name + ".profdata")
+    merge_cmd_list = [
+        "llvm-profdata", "merge", "-sparse=true", "-o", profdata_name
+    ]
+    merge_cmd_list += available_profraw_files
+
+    self._Exec(merge_cmd_list)
+    show_cmd_list = [
+        "llvm-cov", "show", "-instr-profile=" + profdata_name, "-format=html",
+        "-output-dir=" + os.path.join(self.coverage_directory, "html"),
+        available_targets[0]
+    ]
+    show_cmd_list += ["-object=" + target for target in available_targets[1:]]
+    self._Exec(show_cmd_list)
+
+    report_cmd_list = [
+        "llvm-cov", "report", "-instr-profile=" + profdata_name,
+        available_targets[0]
+    ]
+    report_cmd_list += ["-object=" + target for target in available_targets[1:]]
+    self._Exec(
+        report_cmd_list,
+        output_file=os.path.join(self.coverage_directory, report_name + ".txt"))
+    return
 
 
 def main():
@@ -752,6 +818,8 @@ def main():
 
   if args.run:
     run_success = runner.RunAllTests()
+
+  runner.GenerateCoverageReport()
 
   # If either step has failed, count the whole test run as failed.
   if not build_success or not run_success:
