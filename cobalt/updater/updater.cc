@@ -34,6 +34,8 @@
 #include "components/update_client/update_client.h"
 #include "starboard/event.h"
 
+namespace {
+
 // For testing, CRX id is jebgalgnebhfojomionfpkfelancnnkf.
 const uint8_t jebg_hash[] = {0x94, 0x16, 0x0b, 0x6d, 0x41, 0x75, 0xe9, 0xec,
                              0x8e, 0xd5, 0xfa, 0x54, 0xb0, 0xd2, 0xdd, 0xa5,
@@ -86,13 +88,16 @@ class Observer : public update_client::UpdateClient::Observer {
 
 void Return5() {}
 
-namespace {
 // TODO: initiate an updater_module in browser/application.h, and bind these
 // variables
 base::MessageLoopForUI* g_loop = nullptr;
 scoped_refptr<update_client::UpdateClient> uclient;
 Observer* observer = nullptr;
-}
+
+}  // namespace
+
+namespace cobalt {
+namespace updater {
 
 int UpdaterMain(int argc, const char* const* argv) {
   base::AtExitManager exit_manager;
@@ -120,7 +125,7 @@ int UpdaterMain(int argc, const char* const* argv) {
   DCHECK(base::ThreadTaskRunnerHandle::IsSet());
   base::PlatformThread::SetName("UpdaterMain");
 
-  auto config = base::MakeRefCounted<updater::Configurator>();
+  auto config = base::MakeRefCounted<Configurator>();
   uclient = update_client::UpdateClientFactory(config);
   observer = new Observer(uclient);
   uclient->AddObserver(observer);
@@ -151,3 +156,6 @@ int UpdaterMain(int argc, const char* const* argv) {
 
   return 0;
 }
+
+}  // namespace updater
+}  // namespace cobalt

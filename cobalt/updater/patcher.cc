@@ -11,6 +11,7 @@
 #include "components/courgette/courgette.h"
 #include "components/courgette/third_party/bsdiff/bsdiff.h"
 
+namespace cobalt {
 namespace updater {
 
 namespace {
@@ -52,3 +53,4 @@ scoped_refptr<update_client::Patcher> PatcherFactory::Create() const {
 PatcherFactory::~PatcherFactory() = default;
 
 }  // namespace updater
+}  // namespace cobalt

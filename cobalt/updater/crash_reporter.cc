@@ -50,6 +50,7 @@ void RemoveSwitchIfExisting(const char* switch_to_remove,
 
 }  // namespace
 
+namespace cobalt {
 namespace updater {
 
 void StartCrashReporter(const std::string& version) {
@@ -144,3 +145,4 @@ void UseCrashReporter(const base::string16& ipc_pipe_name) {
 #endif  // OS_WIN
 
 }  // namespace updater
+}  // namespace cobalt

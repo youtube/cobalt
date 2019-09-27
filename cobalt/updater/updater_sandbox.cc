@@ -17,6 +17,6 @@
 
 void SbEventHandle(const SbEvent* event) {
   if (event->type == kSbEventTypeStart) {
-    UpdaterMain(0, nullptr);
+    cobalt::updater::UpdaterMain(0, nullptr);
   }
 }
