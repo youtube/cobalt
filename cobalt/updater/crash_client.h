@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROME_UPDATER_CRASH_CLIENT_H_
-#define CHROME_UPDATER_CRASH_CLIENT_H_
+#ifndef COBALT_UPDATER_CRASH_CLIENT_H_
+#define COBALT_UPDATER_CRASH_CLIENT_H_
 
 #include <memory>
 #include <string>
@@ -20,6 +20,7 @@ namespace crashpad {
 class CrashReportDatabase;
 }  // namespace crashpad
 
+namespace cobalt {
 namespace updater {
 
 // This class manages interaction with the crash reporter.
@@ -56,5 +57,6 @@ class CrashClient {
 };
 
 }  // namespace updater
+}  // namespace cobalt
 
-#endif  // CHROME_UPDATER_CRASH_CLIENT_H_
+#endif  // COBALT_UPDATER_CRASH_CLIENT_H_

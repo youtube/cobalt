@@ -13,6 +13,7 @@
 #include "components/prefs/pref_service_factory.h"
 #include "components/update_client/update_client.h"
 
+namespace cobalt {
 namespace updater {
 
 std::unique_ptr<PrefService> CreatePrefService() {
@@ -30,3 +31,4 @@ std::unique_ptr<PrefService> CreatePrefService() {
 }
 
 }  // namespace updater
+}  // namespace cobalt

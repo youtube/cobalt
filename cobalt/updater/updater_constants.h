@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROME_UPDATER_UPDATER_CONSTANTS_H_
-#define CHROME_UPDATER_UPDATER_CONSTANTS_H_
+#ifndef COBALT_UPDATER_UPDATER_CONSTANTS_H_
+#define COBALT_UPDATER_UPDATER_CONSTANTS_H_
 
+namespace cobalt {
 namespace updater {
 
 // Command line switches.
@@ -69,5 +70,6 @@ extern const char kUninstallScript[];
 const int kCustomInstallErrorCreateAppInstallDirectory = 0;
 
 }  // namespace updater
+}  // namespace cobalt
 
-#endif  // CHROME_UPDATER_UPDATER_CONSTANTS_H_
+#endif  // COBALT_UPDATER_UPDATER_CONSTANTS_H_

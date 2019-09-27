@@ -33,6 +33,7 @@ class NetworkFetcherFactory;
 class ProtocolHandlerFactory;
 }  // namespace update_client
 
+namespace cobalt {
 namespace updater {
 
 class Configurator : public update_client::Configurator {
@@ -83,5 +84,6 @@ class Configurator : public update_client::Configurator {
 };
 
 }  // namespace updater
+}  // namespace cobalt
 
 #endif  // COBALT_UPDATER_CONFIGURATOR_H_
