@@ -17,6 +17,7 @@
 #include <string>
 
 #include "starboard/common/condition_variable.h"
+#include "starboard/common/instance_counter.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/reset_and_return.h"
 #include "starboard/memory.h"
@@ -44,6 +45,8 @@ const int kPlayerStackSize = 0;
 //       Also this should be configurable for platforms with very limited video
 //       backlogs.
 const SbTimeMonotonic kWritePendingSampleDelay = 8 * kSbTimeMillisecond;
+
+DECLARE_INSTANCE_COUNTER(PlayerWorker);
 
 struct ThreadParam {
   explicit ThreadParam(PlayerWorker* player_worker)
@@ -84,6 +87,8 @@ PlayerWorker* PlayerWorker::CreateInstance(
 }
 
 PlayerWorker::~PlayerWorker() {
+  ON_INSTANCE_RELEASED(PlayerWorker);
+
   if (SbThreadIsValid(thread_)) {
     job_queue_->Schedule(std::bind(&PlayerWorker::DoStop, this));
     SbThreadJoin(thread_, NULL);
@@ -122,6 +127,8 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
       player_state_(kSbPlayerStateInitialized) {
   SB_DCHECK(handler_ != NULL);
   SB_DCHECK(update_media_info_cb_);
+
+  ON_INSTANCE_CREATED(PlayerWorker);
 
   ThreadParam thread_param(this);
   thread_ = SbThreadCreate(kPlayerStackSize, kSbThreadPriorityHigh,

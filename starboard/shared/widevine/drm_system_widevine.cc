@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "starboard/character.h"
+#include "starboard/common/instance_counter.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/string.h"
@@ -45,6 +46,8 @@ const char kWidevineStorageFileName[] = "wvcdm.dat";
 // take up to 5 seconds. For such a case it is good to give a try few times to
 // get HDCP authentication complete. We set a timeout of 6 seconds for retries.
 const SbTimeMonotonic kUnblockKeyRetryTimeout = kSbTimeSecond * 6;
+
+DECLARE_INSTANCE_COUNTER(DrmSystemWidevine);
 
 class WidevineClock : public wv3cdm::IClock {
  public:
@@ -225,6 +228,8 @@ DrmSystemWidevine::DrmSystemWidevine(
   SB_DCHECK(!company_name.empty());
   SB_DCHECK(!model_name.empty());
 
+  ON_INSTANCE_CREATED(DrmSystemWidevine);
+
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   using shared::starboard::Application;
 
@@ -250,6 +255,8 @@ DrmSystemWidevine::DrmSystemWidevine(
 }
 
 DrmSystemWidevine::~DrmSystemWidevine() {
+  ON_INSTANCE_RELEASED(DrmSystemWidevine);
+
   GetRegistry()->Unregister(this);
 }
 
