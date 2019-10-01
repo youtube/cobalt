@@ -25,6 +25,7 @@
 #include "base/logging.h"
 #include "base/message_loop/message_loop.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/base/instance_counter.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/cssom/map_to_mesh_function.h"
 #include "cobalt/dom/csp_delegate.h"
@@ -68,6 +69,8 @@ namespace {
 #define MLOG() EAT_STREAM_PARAMETERS
 
 #endif  // LOG_MEDIA_ELEMENT_ACTIVITIES
+
+DECLARE_INSTANCE_COUNTER(HTMLMediaElement);
 
 loader::RequestMode GetRequestMode(
     const base::Optional<std::string>& cross_origin_attribute) {
@@ -151,12 +154,14 @@ HTMLMediaElement::HTMLMediaElement(Document* document, base::Token tag_name)
       request_mode_(loader::kNoCORSMode) {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::HTMLMediaElement()");
   MLOG();
+  ON_INSTANCE_CREATED(HTMLMediaElement);
 }
 
 HTMLMediaElement::~HTMLMediaElement() {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::~HTMLMediaElement()");
   MLOG();
   ClearMediaSource();
+  ON_INSTANCE_RELEASED(HTMLMediaElement);
 }
 
 scoped_refptr<MediaError> HTMLMediaElement::error() const {

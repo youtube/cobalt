@@ -17,6 +17,7 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/common/instance_counter.h"
 
 namespace {
 
@@ -40,6 +41,8 @@ const jint MEDIA_DRM_KEY_STATUS_USABLE = 0;
 const jint REQUEST_TYPE_INITIAL = 0;
 const jint REQUEST_TYPE_RENEWAL = 1;
 const jint REQUEST_TYPE_RELEASE = 2;
+
+DECLARE_INSTANCE_COUNTER(AndroidDrmSystem)
 
 SbDrmSessionRequestType SbDrmSessionRequestTypeFromMediaDrmKeyRequestType(
     jint request_type) {
@@ -180,6 +183,8 @@ DrmSystem::DrmSystem(
       j_media_drm_bridge_(NULL),
       j_media_crypto_(NULL),
       hdcp_lost_(false) {
+  ON_INSTANCE_CREATED(AndroidDrmSystem);
+
   JniEnvExt* env = JniEnvExt::Get();
   j_media_drm_bridge_ = env->CallStaticObjectMethodOrAbort(
       "dev/cobalt/media/MediaDrmBridge", "create",
@@ -199,6 +204,8 @@ DrmSystem::DrmSystem(
 }
 
 DrmSystem::~DrmSystem() {
+  ON_INSTANCE_RELEASED(AndroidDrmSystem);
+
   JniEnvExt* env = JniEnvExt::Get();
   if (j_media_crypto_) {
     env->DeleteGlobalRef(j_media_crypto_);
