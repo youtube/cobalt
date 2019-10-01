@@ -20,9 +20,12 @@
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/message_loop/message_loop.h"
+#include "cobalt/base/instance_counter.h"
 
 namespace cobalt {
 namespace media {
+
+DECLARE_INSTANCE_COUNTER(DrmSystem);
 
 DrmSystem::Session::Session(
     DrmSystem* drm_system
@@ -102,12 +105,18 @@ DrmSystem::DrmSystem(const char* key_system)
       message_loop_(base::MessageLoop::current()->task_runner()),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       weak_this_(weak_ptr_factory_.GetWeakPtr()) {
+  ON_INSTANCE_CREATED(DrmSystem);
+
   if (!is_valid()) {
     SB_LOG(ERROR) << "Failed to initialize the underlying wrapped DrmSystem.";
   }
 }
 
-DrmSystem::~DrmSystem() { SbDrmDestroySystem(wrapped_drm_system_); }
+DrmSystem::~DrmSystem() {
+  ON_INSTANCE_RELEASED(DrmSystem);
+
+  SbDrmDestroySystem(wrapped_drm_system_);
+}
 
 std::unique_ptr<DrmSystem::Session> DrmSystem::CreateSession(
     SessionUpdateKeyStatusesCallback session_update_key_statuses_callback

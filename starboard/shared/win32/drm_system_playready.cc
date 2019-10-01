@@ -19,6 +19,7 @@
 #include <sstream>
 #include <vector>
 
+#include "starboard/common/instance_counter.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/string.h"
@@ -30,6 +31,8 @@ namespace {
 
 const char kPlayReadyKeySystem[] = "com.youtube.playready";
 const bool kLogPlayreadyChallengeResponse = false;
+
+DECLARE_INSTANCE_COUNTER(DrmSystemPlayready);
 
 std::string GetHexRepresentation(const void* data, size_t size) {
   const char kHex[] = "0123456789ABCDEF";
@@ -104,12 +107,17 @@ DrmSystemPlayready::DrmSystemPlayready(
   SB_DCHECK(key_statuses_changed_callback);
   SB_DCHECK(session_closed_callback);
 
+  ON_INSTANCE_CREATED(DrmSystemPlayready);
+
   ScopedLock lock(GetActiveDrmSystems()->mutex_);
   GetActiveDrmSystems()->active_systems_.push_back(this);
 }
 
 DrmSystemPlayready::~DrmSystemPlayready() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
+
+  ON_INSTANCE_RELEASED(DrmSystemPlayready);
+
   ScopedLock lock(GetActiveDrmSystems()->mutex_);
   auto& active_systems = GetActiveDrmSystems()->active_systems_;
   active_systems.erase(std::remove(
