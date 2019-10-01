@@ -110,7 +110,6 @@ class MediaCodecBridge {
 
   ~MediaCodecBridge();
 
-  DequeueInputResult DequeueInputBuffer(jlong timeout_us);
   // It is the responsibility of the client to manage the lifetime of the
   // jobject that |GetInputBuffer| returns.
   jobject GetInputBuffer(jint index);
@@ -124,7 +123,6 @@ class MediaCodecBridge {
                               const SbDrmSampleInfo& drm_sample_info,
                               jlong presentation_time_microseconds);
 
-  DequeueOutputResult DequeueOutputBuffer(jlong timeout_us);
   // It is the responsibility of the client to manage the lifetime of the
   // jobject that |GetOutputBuffer| returns.
   jobject GetOutputBuffer(jint index);
@@ -159,8 +157,6 @@ class MediaCodecBridge {
   // playback.  We mitigate this by reusing these output objects between calls
   // to |DequeueInputBuffer|, |DequeueOutputBuffer|, and
   // |GetOutputDimensions|.
-  jobject j_reused_dequeue_input_result_ = NULL;
-  jobject j_reused_dequeue_output_result_ = NULL;
   jobject j_reused_get_output_format_result_ = NULL;
 
   SB_DISALLOW_COPY_AND_ASSIGN(MediaCodecBridge);
