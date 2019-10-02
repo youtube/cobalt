@@ -83,9 +83,9 @@ class Application {
 #endif  // SB_API_VERSION >= 11
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
-#if SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   void OnCaptionSettingsChangedEvent(const base::Event* event);
-#endif  // SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 
   // Called when a navigation occurs in the BrowserModule.
   void WebModuleRecreated();
@@ -114,9 +114,9 @@ class Application {
   base::EventCallback on_screen_keyboard_suggestions_updated_event_callback_;
 #endif  // SB_API_VERSION >= 11
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
-#if SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   base::EventCallback on_caption_settings_changed_event_callback_;
-#endif  // SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 
   // Thread checkers to ensure that callbacks for network and application events
   // always occur on the same thread.

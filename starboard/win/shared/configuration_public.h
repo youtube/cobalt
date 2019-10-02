@@ -276,8 +276,11 @@
 
 // --- Media Configuration ---------------------------------------------------
 
-// Whether the current platform supports captions.
+// Whether the current platform supports captions. Implementation is required
+// after Starboard version 11.
+#if SB_API_VERSION < 12
 #define SB_HAS_CAPTIONS 0
+#endif  // SB_API_VERSION < 12
 
 // Whether the current platform has a DRM session closed callback.
 #define SB_HAS_DRM_SESSION_CLOSED 1
