@@ -269,11 +269,11 @@ typedef enum SbEventType {
 #endif  // SB_API_VERSION >= 11
 
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
-#if SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   // One or more of the fields returned by SbAccessibilityGetCaptionSettings
   // has changed.
   kSbEventTypeAccessibilityCaptionSettingsChanged,
-#endif  // SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 } SbEventType;
 
 // Structure representing a Starboard event and its data.
