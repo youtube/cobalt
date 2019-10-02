@@ -278,10 +278,6 @@
 
 // --- Media Configuration ---------------------------------------------------
 
-// Specifies whether this platform supports retrieving system-level closed
-// caption settings
-#define SB_HAS_CAPTIONS 1
-
 // The maximum audio bitrate the platform can decode.  The following value
 // equals to 5M bytes per seconds which is more than enough for compressed
 // audio.
