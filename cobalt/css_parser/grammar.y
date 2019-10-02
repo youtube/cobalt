@@ -14,11 +14,15 @@
 
 // This file contains a definition of CSS grammar.
 
-// A reentrant parser.
-%pure_parser
+%require "3.0"
 
-// yyparse()'s first and only parameter.
+// A reentrant parser.
+%define api.pure full
+
+// The first parameter of yyparse().
 %parse-param { ParserImpl* parser_impl }
+// The third parameter of yylex() and the second parameter of yyparse().
+%param { Scanner* scanner }
 
 %{
 // Specify how the location of an action should be calculated in terms
@@ -33,13 +37,10 @@
     Current.first_column = Rhs[0].first_column;  \
     Current.line_start   = Rhs[0].line_start;    \
   }
-
-// yylex()'s third parameter.
-#define YYLEX_PARAM &(parser_impl->scanner())
 %}
 
 // Token values returned by a scanner.
-%union TokenValue {
+%union {
   float real;
   int integer;
   TrivialIntPair integer_pair;
@@ -881,7 +882,7 @@
 // ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
 
 maybe_whitespace:
-    /* empty */
+    %empty
   | maybe_whitespace kWhitespaceToken
   ;
 
@@ -1123,7 +1124,7 @@ evaluated_media_type:
 //   https://www.w3.org/TR/css3-mediaqueries/#media0
 media_query:
   // @media  {}
-    /* empty */ {
+    %empty {
     $$ = AddRef(new cssom::MediaQuery(true));
   }
   // @media (name:value)... {}
@@ -2202,7 +2203,7 @@ auto:
 // and <real> types has to be prepended with this rule.
 //   https://www.w3.org/TR/css3-syntax/#consume-a-number
 maybe_sign_token:
-    /* empty */ { $$ = 1; }
+    %empty { $$ = 1; }
   | '+' { $$ = 1; }
   | '-' { $$ = -1; }
   ;
@@ -2614,7 +2615,7 @@ background_property_element:
   ;
 
 maybe_background_size_property_value:
-    /* empty */ {
+    %empty {
     $$ = NULL;
   }
   | '/' maybe_whitespace background_size_property_value_without_common_values {
@@ -2669,7 +2670,7 @@ background_position_and_repeat_combination:
   ;
 
 final_background_layer_without_position_and_repeat:
-    /* empty */ {
+    %empty {
     // Initialize the background shorthand which is to be filled in by
     // subsequent reductions.
     $$ = new BackgroundShorthandLayer();
@@ -2685,7 +2686,7 @@ final_background_layer_without_position_and_repeat:
 // Only the final background layer is allowed to set the background color.
 //   https://www.w3.org/TR/css3-background/#ltfinal-bg-layergt
 final_background_layer:
-    /* empty */ {
+    %empty {
     // Initialize the background shorthand which is to be filled in by
     // subsequent reductions.
     $$ = new BackgroundShorthandLayer();
@@ -2939,7 +2940,7 @@ at_position:
   ;
 
 maybe_at_position:
-    /* empty */ {
+    %empty {
     $$ = NULL;
   }
   | at_position
@@ -3240,7 +3241,7 @@ background_size_property_value:
 // border-style properties.
 //   https://www.w3.org/TR/css3-background/#border-color
 border_color_property_list:
-    /* empty */ {
+    %empty {
     $$ = new cssom::PropertyListValue::Builder();
   }
   | border_color_property_list color {
@@ -3290,7 +3291,7 @@ line_style_with_common_values:
 // 'border-style' sets the style of the border, unless there is a border-image.
 //   https://www.w3.org/TR/css3-background/#border-style
 border_style_property_list:
-    /* empty */ {
+    %empty {
     $$ = new cssom::PropertyListValue::Builder();
   }
   | border_style_property_list line_style {
@@ -3331,7 +3332,7 @@ border_width_element_with_common_values:
   ;
 
 border_width_property_list:
-    /* empty */ {
+    %empty {
     $$ = new cssom::PropertyListValue::Builder();
   }
   | border_width_property_list border_width_element {
@@ -3403,7 +3404,7 @@ border_property_element:
   ;
 
 border_property_list:
-    /* empty */ {
+    %empty {
     $$ = new BorderShorthand();
   }
   | border_property_list border_property_element {
@@ -3473,7 +3474,7 @@ box_shadow_property_element:
   ;
 
 box_shadow_list:
-    /* empty */ {
+    %empty {
     $$ = new ShadowPropertyInfo();
   }
   | box_shadow_list box_shadow_property_element {
@@ -3873,7 +3874,7 @@ optional_font_element:
   ;
 
 optional_font_value_list:
-    /* empty */ {
+    %empty {
     // Initialize the result, to be filled in by
     // non_empty_optional_font_value_list
     $$ = new FontShorthand();
@@ -4291,7 +4292,7 @@ text_shadow_property_element:
   ;
 
 text_shadow_list:
-    /* empty */ {
+    %empty {
     $$ = new ShadowPropertyInfo();
   }
   | text_shadow_list text_shadow_property_element {
@@ -4448,7 +4449,7 @@ transform_function:
 // One or more transform functions separated by whitespace.
 //   https://www.w3.org/TR/css3-transforms/#typedef-transform-list
 transform_list:
-    /* empty */ {
+    %empty {
     $$ = new cssom::TransformFunctionListValue::Builder();
   }
   | transform_list transform_function {
@@ -4578,7 +4579,7 @@ time_list_property_value:
 
 
 maybe_steps_start_or_end_parameter:
-    /* empty */ {
+    %empty {
     // Default value is 'end'.
     $$ = cssom::SteppingTimingFunction::kEnd;
   }
@@ -4910,7 +4911,7 @@ single_animation_element:
   ;
 
 single_animation:
-    /* empty */ {
+    %empty {
     // Initialize the result, to be filled in by single_animation_element
     $$ = new SingleAnimationShorthand();
   }
@@ -5115,7 +5116,7 @@ single_transition_element:
   ;
 
 single_transition:
-    /* empty */ {
+    %empty {
     // Initialize the result, to be filled in by single_transition_element
     $$ = new SingleTransitionShorthand();
   }
@@ -5295,7 +5296,7 @@ max_width_property_value:
   ;
 
 maybe_important:
-    /* empty */ { $$ = false; }
+    %empty { $$ = false; }
   | kImportantToken maybe_whitespace { $$ = true; }
   ;
 
@@ -5346,7 +5347,7 @@ animatable_property_token:
 // Consume a declaration.
 //   https://www.w3.org/TR/css3-syntax/#consume-a-declaration0
 maybe_declaration:
-    /* empty */ { $$ = NULL; }
+    %empty { $$ = NULL; }
   | kAnimationDelayToken maybe_whitespace colon
       animation_delay_property_value maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kAnimationDelayProperty,
@@ -6407,7 +6408,7 @@ rule:
   ;
 
 rule_list:
-    /* empty */ {
+    %empty {
     $$ = AddRef(new cssom::CSSRuleList());
   }
   | rule_list rule {
@@ -6593,7 +6594,7 @@ cobalt_mtm_function_name:
   ;
 
 cobalt_mtm_resolution_matched_mesh_list:
-    /* empty */ {
+    %empty {
     $$ = new cssom::MapToMeshFunction::ResolutionMatchedMeshListBuilder();
   }
   // Specifies a different mesh for a particular image resolution.
@@ -6642,7 +6643,7 @@ number_matrix:
   ;
 
 maybe_cobalt_mtm_stereo_mode:
-    /* empty */ {
+    %empty {
     $$ = AddRef(cssom::KeywordValue::GetMonoscopic().get());
   }
   | comma cobalt_mtm_stereo_mode {

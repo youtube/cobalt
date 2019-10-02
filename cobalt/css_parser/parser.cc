@@ -225,7 +225,7 @@ class ParserImpl {
     callback.Run(message + "\n" + input);
   }
 
-  friend int yyparse(ParserImpl* parser_impl);
+  friend int yyparse(ParserImpl* parser_impl, Scanner* scanner);
 };
 
 // TODO: Stop deduplicating warnings.
@@ -384,7 +384,7 @@ bool ParserImpl::Parse() {
   // see http://www.gnu.org/software/bison/manual/html_node/Parser-Function.html
   TRACE_EVENT0("cobalt::css_parser", "ParseImpl::Parse");
   last_syntax_error_location_ = base::nullopt;
-  int error_code(yyparse(this));
+  int error_code(yyparse(this, &scanner_));
   switch (error_code) {
     case 0:
       // Parsed successfully or was able to recover from errors.
@@ -492,7 +492,7 @@ std::string ParserImpl::FormatMessage(const std::string& message_type,
 // syntax error. Most of error reporting is implemented in semantic actions
 // in the grammar.
 inline void yyerror(YYLTYPE* source_location, ParserImpl* parser_impl,
-                    const char* /*message*/) {
+                     Scanner* /*scanner*/, const char* /*message*/) {
   parser_impl->set_last_syntax_error_location(*source_location);
 }
 
