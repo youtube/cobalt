@@ -22,40 +22,6 @@ from ctypes import wintypes
 import os
 
 
-################################################################################
-#                                  API                                         #
-################################################################################
-
-
-def FastIsReparseLink(path):
-  return _FastIsReparseLink(path)
-
-
-def FastReadReparseLink(path):
-  return _FastReadReparseLink(path)
-
-
-def FastCreateReparseLink(from_folder, link_folder):
-  """Creates a reparse link.
-
-  Args:
-    from_folder: The folder that the link will point to.
-    link_folder: The path of the link to be created.
-
-  Returns:
-    None
-
-  If the operation fails to create the link due to the operating system not
-  supporting it then an OSError is raised.
-  """
-  _FastCreateReparseLink(from_folder, link_folder)
-
-
-################################################################################
-#                                 IMPL                                         #
-################################################################################
-
-
 DWORD = wintypes.DWORD
 LPCWSTR = wintypes.LPCWSTR
 HANDLE = wintypes.HANDLE
@@ -207,8 +173,19 @@ def _GetKernel32Dll():
   return _kdll
 
 
-def _FastCreateReparseLink(from_folder, link_folder):
-  """See api docstring, above."""
+def FastCreateReparseLink(from_folder, link_folder):
+  """Creates a reparse link.
+
+  Args:
+    from_folder: The folder that the link will point to.
+    link_folder: The path of the link to be created.
+
+  Returns:
+    None
+
+  Raises:
+    OSError: if link cannot be created
+  """
   from_folder = _ToUnicode(from_folder)
   link_folder = _ToUnicode(link_folder)
   par_dir = os.path.dirname(link_folder)
@@ -219,12 +196,12 @@ def _FastCreateReparseLink(from_folder, link_folder):
   flags = SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE | \
           SYMBOLIC_LINK_FLAG_DIRECTORY
   ok = kdll.CreateSymbolicLinkW(link_folder, from_folder, flags)
-  if not ok or not _FastIsReparseLink(link_folder):
+  if not ok or not FastIsReparseLink(link_folder):
     raise OSError('Could not create sym link ' + link_folder + ' to ' +
                   from_folder)
 
 
-def _FastIsReparseLink(path):
+def FastIsReparseLink(path):
   path = _ToUnicode(path)
   result = GetFileAttributesW(path)
   if result == INVALID_FILE_ATTRIBUTES:
@@ -232,7 +209,7 @@ def _FastIsReparseLink(path):
   return bool(result & FILE_ATTRIBUTE_REPARSE_POINT)
 
 
-def _FastReadReparseLink(path):
+def FastReadReparseLink(path):
   """See api docstring, above."""
   path = _ToUnicode(path)
   reparse_point_handle = CreateFileW(path,

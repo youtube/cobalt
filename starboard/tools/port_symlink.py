@@ -29,18 +29,18 @@ import _env  # pylint: disable=relative-import,unused-import
 from starboard.tools import util
 
 
-################################################################################
-#                                  API                                         #
-################################################################################
-
-
 def IsWindows():
-  return _IsWindows()
+  return sys.platform in ['win32', 'cygwin']
 
 
-# Platform neutral version os os.path.islink()
 def IsSymLink(path):
-  return _IsSymLink(path=path)
+  """Platform neutral version os os.path.islink()"""
+  if IsWindows():
+    # pylint: disable=g-import-not-at-top
+    from starboard.tools import win_symlink
+    return win_symlink.IsReparsePoint(path)
+  else:
+    return os.path.islink(path)
 
 
 def MakeSymLink(from_folder, link_folder):
@@ -53,61 +53,20 @@ def MakeSymLink(from_folder, link_folder):
   Returns:
     None
   """
-  _MakeSymLink(from_folder=from_folder, link_folder=link_folder)
-
-
-def ReadSymLink(link_path):
-  return _ReadSymLink(link_path=link_path)
-
-
-def DelSymLink(link_path):
-  return _DelSymLink(link_path=link_path)
-
-
-def Rmtree(path):
-  return _Rmtree(path=path)
-
-
-def OsWalk(root_dir, topdown=True, onerror=None, followlinks=False):
-  return _OsWalk(root_dir=root_dir,
-                 topdown=topdown,
-                 onerror=onerror,
-                 followlinks=followlinks)
-
-
-################################################################################
-#                                 IMPL                                         #
-################################################################################
-
-
-def _IsWindows():
-  return sys.platform in ['win32', 'cygwin']
-
-
-def _IsSymLink(path):
-  if _IsWindows():
+  if IsWindows():
     # pylint: disable=g-import-not-at-top
-    from starboard.build import win_symlink
-    return win_symlink.IsReparsePoint(path)
-  else:
-    return os.path.islink(path)
-
-
-def _MakeSymLink(from_folder, link_folder):
-  if _IsWindows():
-    # pylint: disable=g-import-not-at-top
-    from starboard.build import win_symlink
+    from starboard.tools import win_symlink
     win_symlink.CreateReparsePoint(from_folder, link_folder)
   else:
     util.MakeDirs(os.path.dirname(link_folder))
     os.symlink(from_folder, link_folder)
 
 
-def _ReadSymLink(link_path):
+def ReadSymLink(link_path):
   """Returns the path (abs. or rel.) to the folder referred to by link_path."""
   if IsWindows():
     # pylint: disable=g-import-not-at-top
-    from starboard.build import win_symlink
+    from starboard.tools import win_symlink
     path = win_symlink.ReadReparsePoint(link_path)
   else:
     try:
@@ -117,22 +76,22 @@ def _ReadSymLink(link_path):
   return path
 
 
-def _DelSymLink(link_path):
+def DelSymLink(link_path):
   if IsWindows():
     # pylint: disable=g-import-not-at-top
-    from starboard.build import win_symlink
+    from starboard.tools import win_symlink
     win_symlink.UnlinkReparsePoint(link_path)
   else:
     os.unlink(link_path)
 
 
-def _Rmtree(path):
+def Rmtree(path):
   """See Rmtree() for documentation of this function."""
   if not os.path.exists(path):
     return
-  if _IsWindows():
+  if IsWindows():
     # pylint: disable=g-import-not-at-top
-    from starboard.build import win_symlink
+    from starboard.tools import win_symlink
     win_symlink.RmtreeShallow(path)
   else:
     if os.path.islink(path):
@@ -141,10 +100,10 @@ def _Rmtree(path):
       shutil.rmtree(path)
 
 
-def _OsWalk(root_dir, topdown=True, onerror=None, followlinks=False):
+def OsWalk(root_dir, topdown=True, onerror=None, followlinks=False):
   if IsWindows():
     # pylint: disable=g-import-not-at-top
-    from starboard.build import win_symlink
+    from starboard.tools import win_symlink
     return win_symlink.OsWalk(root_dir, topdown, onerror, followlinks)
   else:
     return os.walk(root_dir, topdown, onerror, followlinks)

@@ -19,7 +19,7 @@ import os
 import sys
 
 import _env  # pylint: disable=unused-import, relative-import
-from starboard.build import port_symlink
+from starboard.tools import port_symlink
 
 
 def main():

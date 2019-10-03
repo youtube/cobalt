@@ -34,80 +34,6 @@ import time
 from cobalt.build import cobalt_archive_extract
 
 
-################################################################################
-#                                  API                                         #
-################################################################################
-
-
-def CreateReparsePoint(from_folder, link_folder):
-  """Mimics os.symlink for usage.
-
-  Args:
-    from_folder: Path of target directory.
-    link_folder: Path to create link.
-
-  Returns:
-    None.
-
-  Raises:
-    OSError if link cannot be created
-  """
-  return _CreateReparsePoint(from_folder, link_folder)
-
-
-def ReadReparsePoint(path):
-  """Mimics os.readlink for usage."""
-  return _ReadReparsePoint(path)
-
-
-def IsReparsePoint(path):
-  """Mimics os.islink for usage."""
-  return _IsReparsePoint(path)
-
-
-def UnlinkReparsePoint(link_dir):
-  """Mimics os.unlink for usage. The sym link_dir is removed."""
-  return _UnlinkReparsePoint(link_dir)
-
-
-def RmtreeShallow(dirpath):
-  """Emulates shutil.rmtree on linux.
-
-  Will delete symlinks but doesn't follow them. Note that shutil.rmtree on
-  windows will follow the symlink and delete the files in the original
-  directory!
-
-  Args:
-    dirpath: The start path to delete files.
-  """
-  return _RmtreeShallow(dirpath)
-
-
-def OsWalk(top, topdown=True, onerror=None, followlinks=False):
-  """Emulates os.walk() on linux.
-
-  Args:
-    top: see os.walk(...)
-    topdown: see os.walk(...)
-    onerror: see os.walk(...)
-    followlinks: see os.walk(...)
-
-  Returns:
-    see os.walk(...)
-
-  Correctly handles windows reparse points as symlinks.
-  All symlink directories are returned in the directory list and the caller must
-  call IsReparsePoint() on the path to determine whether the directory is
-  real or a symlink.
-  """
-  return _OsWalk(top, topdown, onerror, followlinks)
-
-
-################################################################################
-#                                 IMPL                                         #
-################################################################################
-
-
 _RETRY_TIMES = 10
 
 
@@ -128,8 +54,8 @@ def _RemoveEmptyDirectory(path):
 def _RmtreeOsWalk(root_dir):
   """Walks the directory structure to delete directories and files."""
   del_dirs = []  # Defer deletion of directories.
-  if _IsReparsePoint(root_dir):
-    _UnlinkReparsePoint(root_dir)
+  if IsReparsePoint(root_dir):
+    UnlinkReparsePoint(root_dir)
     return
   for root, dirs, files in OsWalk(root_dir, followlinks=False):
     for name in files:
@@ -137,8 +63,8 @@ def _RmtreeOsWalk(root_dir):
       os.remove(path)
     for name in dirs:
       path = os.path.join(root, name)
-      if _IsReparsePoint(path):
-        _UnlinkReparsePoint(path)
+      if IsReparsePoint(path):
+        UnlinkReparsePoint(path)
       else:
         del_dirs.append(path)
   # At this point, all files should be deleted and all symlinks should be
@@ -155,8 +81,16 @@ def _RmtreeShellCmd(root_dir):
   subprocess.call(['cmd', '/c', 'rmdir', '/S', '/Q', root_dir])
 
 
-def _RmtreeShallow(root_dir):
-  """See RmtreeShallow() for documentation."""
+def RmtreeShallow(root_dir):
+  """Emulates shutil.rmtree on linux.
+
+  Will delete symlinks but doesn't follow them. Note that shutil.rmtree on
+  windows will follow the symlink and delete the files in the original
+  directory!
+
+  Args:
+    root_dir: The start path to delete files.
+  """
   try:
     # This can fail if there are very long file names.
     _RmtreeOsWalk(root_dir)
@@ -168,7 +102,7 @@ def _RmtreeShallow(root_dir):
     logging.error('Directory %s still exists.', root_dir)
 
 
-def _ReadReparsePointShell(path):
+def ReadReparsePointShell(path):
   """Implements reading a reparse point via a shell command."""
   cmd_parts = ['fsutil', 'reparsepoint', 'query', path]
   try:
@@ -188,32 +122,45 @@ def _ReadReparsePointShell(path):
     return None
 
 
-def _ReadReparsePoint(path):
+def ReadReparsePoint(path):
+  """Mimics os.readlink for usage."""
   try:
     # pylint: disable=g-import-not-at-top
     import win_symlink_fast
     return win_symlink_fast.FastReadReparseLink(path)
   except Exception as err:  # pylint: disable=broad-except
     logging.exception(' error: %s, falling back to command line version.', err)
-    return _ReadReparsePointShell(path)
+    return ReadReparsePointShell(path)
 
 
-def _IsReparsePoint(path):
+def IsReparsePoint(path):
+  """Mimics os.islink for usage."""
   try:
     # pylint: disable=g-import-not-at-top
     import win_symlink_fast
     return win_symlink_fast.FastIsReparseLink(path)
   except  Exception as err:  # pylint: disable=broad-except
     logging.exception(' error: %s, falling back to command line version.', err)
-    return None is not _ReadReparsePointShell(path)
+    return None is not ReadReparsePointShell(path)
 
 
-def _CreateReparsePoint(from_folder, link_folder):
-  """See api version above for doc string."""
+def CreateReparsePoint(from_folder, link_folder):
+  """Mimics os.symlink for usage.
+
+  Args:
+    from_folder: Path of target directory.
+    link_folder: Path to create link.
+
+  Returns:
+    None.
+
+  Raises:
+    OSError: if link cannot be created
+  """
   if os.path.isdir(link_folder):
     _RemoveEmptyDirectory(link_folder)
   else:
-    _UnlinkReparsePoint(link_folder)  # Deletes if it exists.
+    UnlinkReparsePoint(link_folder)  # Deletes if it exists.
   try:
     # pylint: disable=g-import-not-at-top
     import win_symlink_fast
@@ -235,14 +182,14 @@ def _CreateReparsePoint(from_folder, link_folder):
     # Fallback to junction points, which require less privileges to create.
     subprocess.check_output(
         ['cmd', '/c', 'mklink', '/j', link_folder, from_folder])
-  if not _IsReparsePoint(link_folder):
+  if not IsReparsePoint(link_folder):
     raise OSError('Could not create sym link %s to %s' %
                   (link_folder, from_folder))
 
 
-def _UnlinkReparsePoint(link_dir):
-  """See api above for docstring."""
-  if not _IsReparsePoint(link_dir):
+def UnlinkReparsePoint(link_dir):
+  """Mimics os.unlink for usage. The sym link_dir is removed."""
+  if not IsReparsePoint(link_dir):
     return
   cmd_parts = ['fsutil', 'reparsepoint', 'delete', link_dir]
   subprocess.check_output(cmd_parts)
@@ -252,8 +199,8 @@ def _UnlinkReparsePoint(link_dir):
       _RemoveEmptyDirectory(link_dir)
     except Exception as err:  # pylint: disable=broad-except
       logging.exception('could not remove %s because of %s', link_dir, err)
-  if _IsReparsePoint(link_dir):
-    raise IOError('Link still exists: %s' % _ReadReparsePoint(link_dir))
+  if IsReparsePoint(link_dir):
+    raise IOError('Link still exists: %s' % ReadReparsePoint(link_dir))
   if os.path.isdir(link_dir):
     logging.info('WARNING - Link as folder still exists: %s', link_dir)
 
@@ -278,8 +225,23 @@ def _IsSamePath(p1, p2):
     return False
 
 
-def _OsWalk(top, topdown, onerror, followlinks):
-  """See api version of OsWalk above, for docstring."""
+def OsWalk(top, topdown=True, onerror=None, followlinks=False):
+  """Emulates os.walk() on linux.
+
+  Args:
+    top: see os.walk(...)
+    topdown: see os.walk(...)
+    onerror: see os.walk(...)
+    followlinks: see os.walk(...)
+
+  Yields:
+    see os.walk(...)
+
+  Correctly handles windows reparse points as symlinks.
+  All symlink directories are returned in the directory list and the caller must
+  call IsReparsePoint() on the path to determine whether the directory is
+  real or a symlink.
+  """
   # Need an absolute path to use listdir and isdir with long paths.
   top_abs_path = top
   if not os.path.isabs(top_abs_path):
@@ -301,8 +263,8 @@ def _OsWalk(top, topdown, onerror, followlinks):
     yield top, dirs, nondirs
   for name in dirs:
     new_path = os.path.join(top, name)
-    if followlinks or not _IsReparsePoint(new_path):
-      for x in _OsWalk(new_path, topdown, onerror, followlinks):
+    if followlinks or not IsReparsePoint(new_path):
+      for x in OsWalk(new_path, topdown, onerror, followlinks):
         yield x
   if not topdown:
     yield top, dirs, nondirs
