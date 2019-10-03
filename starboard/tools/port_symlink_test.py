@@ -21,7 +21,7 @@ import unittest
 
 import _env  # pylint: disable=relative-import,unused-import
 
-from starboard.build import port_symlink
+from starboard.tools import port_symlink
 from starboard.tools import util
 
 

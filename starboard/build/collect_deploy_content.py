@@ -22,7 +22,7 @@ import os
 import sys
 
 import _env  # pylint: disable=unused-import
-import starboard.build.port_symlink as port_symlink
+import starboard.tools.port_symlink as port_symlink
 
 
 # The name of an environment variable that when set to |'1'|, signals to us that

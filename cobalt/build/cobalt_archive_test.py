@@ -26,7 +26,7 @@ import _env  # pylint: disable=relative-import,unused-import
 from cobalt.build import cobalt_archive
 from starboard.build import filelist
 from starboard.build import filelist_test
-from starboard.build import port_symlink
+from starboard.tools import port_symlink
 from starboard.tools import util
 
 
