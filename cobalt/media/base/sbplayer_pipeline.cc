@@ -1313,6 +1313,9 @@ void SbPlayerPipeline::SuspendTask(base::WaitableEvent* done_event) {
   }
 
   if (player_) {
+    // Cancel pending delayed calls to OnNeedData. After player_->Resume(),
+    // |player_| will call OnNeedData again.
+    audio_read_delayed_ = false;
     player_->Suspend();
   }
 
