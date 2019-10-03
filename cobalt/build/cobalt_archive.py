@@ -32,12 +32,12 @@ import zipfile
 import _env  # pylint: disable=relative-import,unused-import
 from cobalt.build import cobalt_archive_extract
 import starboard.build.filelist as filelist
-import starboard.build.port_symlink as port_symlink
 from starboard.tools.app_launcher_packager import CopyAppLauncherTools
 from starboard.tools.build import GetPlatformConfig
 from starboard.tools.config import GetAll as GetAllConfigs
 import starboard.tools.paths as paths
 from starboard.tools.platform import GetAll as GetAllPlatforms
+import starboard.tools.port_symlink as port_symlink
 from starboard.tools.util import SetupDefaultLoggingConfig
 
 

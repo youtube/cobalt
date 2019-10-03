@@ -23,10 +23,10 @@ import _env  # pylint: disable=relative-import,unused-import
 
 
 if __name__ == '__main__' and sys.platform == 'win32':
-  from starboard.build import port_symlink_test  # pylint: disable=g-import-not-at-top
-  from starboard.build import win_symlink  # pylint: disable=g-import-not-at-top
-  from starboard.build import win_symlink_fast  # pylint: disable=g-import-not-at-top
+  from starboard.tools import port_symlink_test  # pylint: disable=g-import-not-at-top
   from starboard.tools import util  # pylint: disable=g-import-not-at-top
+  from starboard.tools import win_symlink  # pylint: disable=g-import-not-at-top
+  from starboard.tools import win_symlink_fast  # pylint: disable=g-import-not-at-top
 
   # Override the port_symlink_test symlink functions to point to our win_symlink
   # and win_symlink_fast versions.

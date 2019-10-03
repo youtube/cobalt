@@ -34,7 +34,7 @@ sys.path.append(THIRD_PARTY_ROOT)
 # pylint: disable=g-import-not-at-top,g-bad-import-order
 from cobalt.build import cobalt_archive_extract
 import jinja2
-import starboard.build.port_symlink as port_symlink
+from starboard.tools import port_symlink
 import starboard.tools.platform
 
 # Default python directories to app launcher resources.
