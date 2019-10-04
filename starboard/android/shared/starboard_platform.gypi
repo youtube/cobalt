@@ -421,7 +421,6 @@
         '<(DEPTH)/starboard/shared/starboard/speech_recognizer/speech_recognizer_create.cc',
         '<(DEPTH)/starboard/shared/starboard/speech_recognizer/speech_recognizer_destroy.cc',
         '<(DEPTH)/starboard/shared/starboard/speech_recognizer/speech_recognizer_internal.h',
-        '<(DEPTH)/starboard/shared/starboard/speech_recognizer/speech_recognizer_is_supported.cc',
         '<(DEPTH)/starboard/shared/starboard/speech_recognizer/speech_recognizer_start.cc',
         '<(DEPTH)/starboard/shared/starboard/speech_recognizer/speech_recognizer_stop.cc',
         '<(DEPTH)/starboard/shared/starboard/string_concat.cc',

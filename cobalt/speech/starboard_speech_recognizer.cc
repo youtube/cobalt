@@ -26,11 +26,6 @@ namespace cobalt {
 namespace speech {
 
 // static
-bool StarboardSpeechRecognizer::IsSupported() {
-  return SbSpeechRecognizerIsSupported();
-}
-
-// static
 void StarboardSpeechRecognizer::OnSpeechDetected(void* context, bool detected) {
   StarboardSpeechRecognizer* recognizer =
       static_cast<StarboardSpeechRecognizer*>(context);
