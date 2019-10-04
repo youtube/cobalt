@@ -37,7 +37,7 @@ from starboard.tools.build import GetPlatformConfig
 from starboard.tools.config import GetAll as GetAllConfigs
 import starboard.tools.paths as paths
 from starboard.tools.platform import GetAll as GetAllPlatforms
-import starboard.tools.port_symlink as port_symlink
+from starboard.tools import port_symlink
 from starboard.tools.util import SetupDefaultLoggingConfig
 
 
@@ -192,8 +192,7 @@ class CobaltArchive(object):
           zf.write(file_path, arcname=archive_path)
         except WindowsError:  # pylint: disable=undefined-variable
           # Happens for long file path names.
-          zf.write(cobalt_archive_extract.ToWinUncPath(file_path),
-                   arcname=archive_path)
+          zf.write(port_symlink.ToLongPath(file_path), arcname=archive_path)
 
       if file_list.symlink_dir_list:
         logging.info('  Compressing %d symlinks',
