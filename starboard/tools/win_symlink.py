@@ -31,10 +31,28 @@ import stat
 import subprocess
 import time
 
-from cobalt.build import cobalt_archive_extract
-
 
 _RETRY_TIMES = 10
+
+
+def ToDevicePath(dos_path, encoding=None):
+  r"""Convert to a device path to avoid MAX_PATH limits on Windows.
+
+  https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#maximum-path-length-limitation
+
+  Args:
+    dos_path: Path to a file that's not already a device path.
+    encoding: Optional character encoding of dos_path, if it's not unicode.
+
+  Returns:
+    Absolute device path starting with "\\?\".
+  """
+  if not isinstance(dos_path, unicode) and encoding is not None:
+    dos_path = dos_path.decode(encoding)
+  path = os.path.abspath(dos_path)
+  if path.startswith(u'\\\\'):
+    return u'\\\\?\\UNC\\' + path[2:]
+  return u'\\\\?\\' + path
 
 
 def _RemoveEmptyDirectory(path):
@@ -246,7 +264,7 @@ def OsWalk(top, topdown=True, onerror=None, followlinks=False):
   top_abs_path = top
   if not os.path.isabs(top_abs_path):
     top_abs_path = os.path.join(os.getcwd(), top_abs_path)
-  top_abs_path = cobalt_archive_extract.ToWinUncPath(top)
+  top_abs_path = ToDevicePath(top)
   try:
     names = os.listdir(top_abs_path)
   except OSError as err:

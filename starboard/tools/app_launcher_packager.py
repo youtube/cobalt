@@ -32,7 +32,6 @@ from paths import REPOSITORY_ROOT
 from paths import THIRD_PARTY_ROOT
 sys.path.append(THIRD_PARTY_ROOT)
 # pylint: disable=g-import-not-at-top,g-bad-import-order
-from cobalt.build import cobalt_archive_extract
 import jinja2
 from starboard.tools import port_symlink
 import starboard.tools.platform
@@ -165,8 +164,7 @@ def _PrepareDestination(dest_root):  # pylint: disable=missing-docstring
   dest_root = os.path.normpath(dest_root)
   if not os.path.isabs(dest_root):
     dest_root = os.path.join(os.getcwd(), dest_root)
-  if port_symlink.IsWindows():
-    dest_root = cobalt_archive_extract.ToWinUncPath(dest_root)
+  dest_root = port_symlink.ToLongPath(dest_root)
   logging.info('Absolute destination path = %s', dest_root)
   # Remove previous output directory if it exists
   if os.path.isdir(dest_root):

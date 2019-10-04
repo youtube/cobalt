@@ -43,11 +43,6 @@ def ExtractTo(archive_zip_path, output_dir, outstream=None):
                     outstream=outstream)
 
 
-def ToWinUncPath(dos_path, encoding=None):
-  """Returns a windows UNC path which enables long path names in win32 apis."""
-  return _ToWinUncPath(dos_path, encoding)
-
-
 ################################################################################
 #                                 IMPL                                         #
 ################################################################################
@@ -64,7 +59,9 @@ _OUT_DECOMP_JSON = '%s/%s' % (_OUT_FINALIZE_DECOMPRESSION_PATH,
 _IS_WINDOWS = sys.platform in ['win32', 'cygwin']
 
 
-def _ToWinUncPath(dos_path, encoding=None):
+# Same as starboard.tools.win_symlink.ToDevicePath(), but we don't want to
+# import anything except standard Python modules into this module.
+def _ToDevicePath(dos_path, encoding=None):
   """Windows supports long file names when using a UNC path."""
   assert _IS_WINDOWS
   do_convert = (not isinstance(dos_path, unicode) and encoding is not None)
@@ -77,7 +74,7 @@ def _ToWinUncPath(dos_path, encoding=None):
 
 
 def _GetZipFileClass():
-  """Get the ZipFile class for the platform"""
+  """Get the ZipFile class for the platform."""
   if not _IS_WINDOWS:
     return zipfile.ZipFile
   else:
@@ -85,7 +82,7 @@ def _GetZipFileClass():
       """Handles extracting to paths longer than 255 characters."""
 
       def _extract_member(self, member, targetpath, pwd):
-        targetpath = _ToWinUncPath(targetpath)
+        targetpath = _ToDevicePath(targetpath)
         return zipfile.ZipFile._extract_member(self, member, targetpath, pwd)
     return ZipFileLongPaths
 

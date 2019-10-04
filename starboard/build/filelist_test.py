@@ -68,8 +68,7 @@ class TempFileSystem(object):
   def MakeLongPathFile(self):
     long_path_txt = os.path.join(self.from_dir, LONG_SUB_DIRS, 'test2.txt')
     self.long_path_txt = long_path_txt
-    if port_symlink.IsWindows():
-      long_path_txt = cobalt_archive_extract.ToWinUncPath(long_path_txt)
+    long_path_txt = port_symlink.ToLongPath(long_path_txt)
     _MakeDirs(os.path.dirname(long_path_txt))
     with open(long_path_txt, 'w') as fd:
       fd.write('TEST BIS')

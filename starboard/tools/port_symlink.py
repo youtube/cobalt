@@ -33,6 +33,15 @@ def IsWindows():
   return sys.platform in ['win32', 'cygwin']
 
 
+def ToLongPath(path):
+  """Converts to a path that supports long filenames."""
+  if IsWindows():
+    # pylint: disable=g-import-not-at-top
+    from starboard.tools import win_symlink
+    return win_symlink.ToDevicePath(path)
+  else:
+    return path
+
 def IsSymLink(path):
   """Platform neutral version os os.path.islink()"""
   if IsWindows():
