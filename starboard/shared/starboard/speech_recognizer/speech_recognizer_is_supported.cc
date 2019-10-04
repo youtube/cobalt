@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2019 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,9 +16,8 @@
 
 #if SB_API_VERSION >= 12 || SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
 
-SbSpeechRecognizer SbSpeechRecognizerCreate(
-    const SbSpeechRecognizerHandler* /*handler*/) {
-  return kSbSpeechRecognizerInvalid;
+bool SbSpeechRecognizerIsSupported() {
+  return true;
 }
 
 #endif  // SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
