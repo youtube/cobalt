@@ -18,7 +18,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/speech_recognizer.h"
 
-#if SB_API_VERSION >= 12 || SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
+#if SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
 struct SbSpeechRecognizerPrivate {
   virtual ~SbSpeechRecognizerPrivate() {}
   virtual bool Start(const SbSpeechConfiguration* configuration) = 0;
