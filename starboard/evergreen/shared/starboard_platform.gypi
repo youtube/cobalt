@@ -17,6 +17,7 @@
       '<(DEPTH)/starboard/shared/stub/speech_recognizer_cancel.cc',
       '<(DEPTH)/starboard/shared/stub/speech_recognizer_create.cc',
       '<(DEPTH)/starboard/shared/stub/speech_recognizer_destroy.cc',
+      '<(DEPTH)/starboard/shared/stub/speech_recognizer_is_supported.cc',
       '<(DEPTH)/starboard/shared/stub/speech_recognizer_start.cc',
       '<(DEPTH)/starboard/shared/stub/speech_recognizer_stop.cc',
       '<(DEPTH)/starboard/shared/stub/speech_synthesis_cancel.cc',
