@@ -21,6 +21,7 @@
       '<(DEPTH)/starboard/shared/stub/speech_recognizer_start.cc',
       '<(DEPTH)/starboard/shared/stub/speech_recognizer_stop.cc',
       '<(DEPTH)/starboard/shared/stub/speech_synthesis_cancel.cc',
+      '<(DEPTH)/starboard/shared/stub/speech_synthesis_is_supported.cc',
       '<(DEPTH)/starboard/shared/stub/speech_synthesis_speak.cc',
     ],
   },
