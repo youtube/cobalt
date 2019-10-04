@@ -321,6 +321,7 @@ static_library("starboard_platform") {
     "//starboard/shared/stub/speech_recognizer_cancel.cc",
     "//starboard/shared/stub/speech_recognizer_create.cc",
     "//starboard/shared/stub/speech_recognizer_destroy.cc",
+    "//starboard/shared/stub/speech_recognizer_is_supported.cc",
     "//starboard/shared/stub/speech_recognizer_start.cc",
     "//starboard/shared/stub/speech_recognizer_stop.cc",
     "//starboard/shared/stub/speech_synthesis_cancel.cc",
