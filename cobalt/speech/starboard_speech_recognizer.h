@@ -32,7 +32,6 @@ namespace speech {
 // receives the speech recognition results from there.
 class StarboardSpeechRecognizer : public SpeechRecognizer {
  public:
-  static bool IsSupported();
   typedef SpeechRecognitionResultList::SpeechRecognitionResults
       SpeechRecognitionResults;
 
