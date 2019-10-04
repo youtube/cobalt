@@ -298,7 +298,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMemoryUnmap);
 #endif
 
-#if SB_HAS(SPEECH_SYNTHESIS)
+#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(SPEECH_SYNTHESIS)
   REGISTER_SYMBOL(SbSpeechSynthesisCancel);
   REGISTER_SYMBOL(SbSpeechSynthesisSpeak);
 #endif
@@ -359,6 +359,10 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbThreadSamplerIsSupported);
   REGISTER_SYMBOL(SbThreadSamplerThaw);
   REGISTER_SYMBOL(SbWindowGetDiagonalSizeInInches);
+#endif
+
+#if SB_API_VERSION >= SB_EVERGREEN_VERSION
+  REGISTER_SYMBOL(SbSpeechSynthesisIsSupported);
 #endif
 }
 

@@ -72,6 +72,7 @@ class SpeechSynthesis : public dom::EventTarget {
  private:
   ~SpeechSynthesis() override;
 
+  bool SpeechSynthesisIsSupported();
   void DispatchErrorEvent(
       const scoped_refptr<SpeechSynthesisUtterance>& utterance,
       SpeechSynthesisErrorCode error_code);
