@@ -87,7 +87,6 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'storage_upgrade_test',
         'trace_event_test',
         'web_animations_test',
-        'web_platform_tests',
         'webdriver_test',
         'xhr_test',
     ]
