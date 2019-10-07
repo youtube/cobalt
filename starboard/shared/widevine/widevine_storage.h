@@ -30,8 +30,13 @@ namespace widevine {
 // Widevine to store persistent data like device provisioning.
 class WidevineStorage : public ::widevine::Cdm::IStorage {
  public:
+  // This key is restricted to internal use only.
+  static const char kCobaltWidevineKeyboxChecksumKey[];
+
   explicit WidevineStorage(const std::string& path_name);
 
+  // For these accessor methods the |name| field cannot be
+  // |kCobaltWidevineKeyboxChecksumKey|.
   bool read(const std::string& name, std::string* data) override;
   bool write(const std::string& name, const std::string& data) override;
   bool exists(const std::string& name) override;
@@ -44,6 +49,11 @@ class WidevineStorage : public ::widevine::Cdm::IStorage {
   bool list(std::vector<std::string>* records) override;
 
  private:
+  bool readInternal(const std::string& name, std::string* data) const;
+  bool writeInternal(const std::string& name, const std::string& data);
+  bool existsInternal(const std::string& name) const;
+  bool removeInternal(const std::string& name);
+
   Mutex lock_;
   std::string path_name_;
   std::map<std::string, std::string> cache_;

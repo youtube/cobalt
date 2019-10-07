@@ -34,6 +34,7 @@
     'platform_oem_sources': [
       '<(DEPTH)/starboard/keyboxes/<(sb_widevine_platform)/<(sb_widevine_platform).h',
       '<(DEPTH)/starboard/keyboxes/<(sb_widevine_platform)/<(sb_widevine_platform)_client.c',
+      '<(DEPTH)/starboard/shared/widevine/widevine_keybox_hash.cc',
       '<(DEPTH)/starboard/shared/widevine/wv_keybox.cc',
     ],
    },
