@@ -129,7 +129,9 @@ def _WritePlatformsInfo(repo_root, dest_root):
   for p in starboard.tools.platform.GetAll():
     platform_path = os.path.relpath(
         starboard.tools.platform.Get(p).path, repo_root)
-    platforms_map[p] = platform_path
+    # Store posix paths even on Windows so MH Linux hosts can use them.
+    # The template has code to re-normalize them when used on Windows hosts.
+    platforms_map[p] = platform_path.replace('\\', '/')
   template = jinja2.Template(
       open(os.path.join(current_dir, 'platform.py.template')).read())
   with open(os.path.join(dest_dir, 'platform.py'), 'w+') as f:
