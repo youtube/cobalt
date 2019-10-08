@@ -14,14 +14,10 @@
 
 #include "starboard/window.h"
 
-#include "starboard/android/shared/application_android.h"
+#if SB_API_VERSION >= SB_EVERGREEN_VERSION
 
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
-void SbWindowShowOnScreenKeyboard(SbWindow window,
-                                  const char* input_text,
-                                  int ticket) {
-  starboard::android::shared::ApplicationAndroid::Get()
-      ->SbWindowShowOnScreenKeyboard(window, input_text, ticket);
-  return;
+bool SbWindowOnScreenKeyboardIsSupported() {
+  return false;
 }
-#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
+
+#endif

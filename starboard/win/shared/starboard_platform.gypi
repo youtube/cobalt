@@ -153,7 +153,17 @@
       '<(DEPTH)/starboard/shared/starboard/net_log.h',
       '<(DEPTH)/starboard/shared/stub/ui_nav_get_interface.cc',
       '<(DEPTH)/starboard/shared/stub/system_get_extensions.cc',
+      '<(DEPTH)/starboard/shared/stub/window_blur_on_screen_keyboard.cc',
+      '<(DEPTH)/starboard/shared/stub/window_focus_on_screen_keyboard.cc',
       '<(DEPTH)/starboard/shared/stub/window_get_diagonal_size_in_inches.cc',
+      '<(DEPTH)/starboard/shared/stub/window_get_on_screen_keyboard_bounding_rect.cc',
+      '<(DEPTH)/starboard/shared/stub/window_hide_on_screen_keyboard.cc',
+      '<(DEPTH)/starboard/shared/stub/window_is_on_screen_keyboard_shown.cc',
+      '<(DEPTH)/starboard/shared/stub/window_on_screen_keyboard_is_supported.cc',
+      '<(DEPTH)/starboard/shared/stub/window_on_screen_keyboard_suggestions_supported.cc',
+      '<(DEPTH)/starboard/shared/stub/window_set_on_screen_keyboard_keep_focus.cc',
+      '<(DEPTH)/starboard/shared/stub/window_show_on_screen_keyboard.cc',
+      '<(DEPTH)/starboard/shared/stub/window_update_on_screen_keyboard_suggestions.cc',
     ],
 
     'starboard_platform_dependent_files': [
