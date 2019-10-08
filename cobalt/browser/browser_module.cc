@@ -252,13 +252,14 @@ BrowserModule::BrowserModule(const GURL& url,
           &storage_manager_, event_dispatcher_,
           options_.network_module_options),
       splash_screen_cache_(new SplashScreenCache()),
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
       on_screen_keyboard_bridge_(
-          options.enable_on_screen_keyboard
+          OnScreenKeyboardStarboardBridge::IsSupported() &&
+                  options.enable_on_screen_keyboard
               ? new OnScreenKeyboardStarboardBridge(base::Bind(
                     &BrowserModule::GetSbWindow, base::Unretained(this)))
               : NULL),
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
       web_module_loaded_(base::WaitableEvent::ResetPolicy::MANUAL,
                          base::WaitableEvent::InitialState::NOT_SIGNALED),
       web_module_recreated_callback_(options_.web_module_recreated_callback),
@@ -931,7 +932,7 @@ void BrowserModule::OnWindowSizeChanged(const ViewportSize& viewport_size,
 }
 #endif  // SB_API_VERSION >= 8
 
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
 void BrowserModule::OnOnScreenKeyboardShown(
     const base::OnScreenKeyboardShownEvent* event) {
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
@@ -982,7 +983,7 @@ void BrowserModule::OnOnScreenKeyboardSuggestionsUpdated(
   }
 }
 #endif  // SB_API_VERSION >= 11
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
 
 #if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 void BrowserModule::OnCaptionSettingsChanged(
@@ -1080,7 +1081,7 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
 
 #endif  // defined(ENABLE_DEBUGGER)
 
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
 void BrowserModule::OnOnScreenKeyboardInputEventProduced(
     base::Token type, const dom::InputEventInit& event) {
   TRACE_EVENT0("cobalt::browser",
@@ -1105,7 +1106,7 @@ void BrowserModule::OnOnScreenKeyboardInputEventProduced(
 
   InjectOnScreenKeyboardInputEventToMainWebModule(type, event);
 }
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
 
 void BrowserModule::OnKeyEventProduced(base::Token type,
                                        const dom::KeyboardEventInit& event) {
@@ -1190,7 +1191,7 @@ void BrowserModule::InjectKeyEventToMainWebModule(
   web_module_->InjectKeyboardEvent(type, event);
 }
 
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
 void BrowserModule::InjectOnScreenKeyboardInputEventToMainWebModule(
     base::Token type, const dom::InputEventInit& event) {
   TRACE_EVENT0(
@@ -1208,7 +1209,7 @@ void BrowserModule::InjectOnScreenKeyboardInputEventToMainWebModule(
   DCHECK(web_module_);
   web_module_->InjectOnScreenKeyboardInputEvent(type, event);
 }
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
 
 void BrowserModule::OnError(const GURL& url, const std::string& error) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnError()");
@@ -1609,10 +1610,10 @@ void BrowserModule::InitializeSystemWindow() {
       base::Bind(&BrowserModule::OnPointerEventProduced,
                  base::Unretained(this)),
       base::Bind(&BrowserModule::OnWheelEventProduced, base::Unretained(this)),
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
       base::Bind(&BrowserModule::OnOnScreenKeyboardInputEventProduced,
                  base::Unretained(this)),
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
       system_window_.get());
   InstantiateRendererModule();
 

@@ -363,6 +363,7 @@ ExportedSymbols::ExportedSymbols() {
 #if SB_API_VERSION >= SB_EVERGREEN_VERSION
   REGISTER_SYMBOL(SbSpeechRecognizerIsSupported);
   REGISTER_SYMBOL(SbSpeechSynthesisIsSupported);
+  REGISTER_SYMBOL(SbWindowOnScreenKeyboardIsSupported);
 #endif
 }
 

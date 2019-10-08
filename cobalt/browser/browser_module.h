@@ -190,7 +190,7 @@ class BrowserModule {
                            float video_pixel_ratio);
 #endif  // SB_API_VERSION >= 8
 
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
   void OnOnScreenKeyboardShown(const base::OnScreenKeyboardShownEvent* event);
   void OnOnScreenKeyboardHidden(const base::OnScreenKeyboardHiddenEvent* event);
   void OnOnScreenKeyboardFocused(
@@ -201,7 +201,7 @@ class BrowserModule {
   void OnOnScreenKeyboardSuggestionsUpdated(
       const base::OnScreenKeyboardSuggestionsUpdatedEvent* event);
 #endif  // SB_API_VERSION >= 11
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
 
 #if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   void OnCaptionSettingsChanged(
@@ -253,13 +253,13 @@ class BrowserModule {
   // persist the user's preference.
   void SaveDebugConsoleMode();
 
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
   // Glue function to deal with the production of an input event from an on
   // screen keyboard input device, and manage handing it off to the web module
   // for interpretation.
   void OnOnScreenKeyboardInputEventProduced(base::Token type,
                                             const dom::InputEventInit& event);
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
 
   // Glue function to deal with the production of a keyboard input event from a
   // keyboard input device, and manage handing it off to the web module for
@@ -278,12 +278,12 @@ class BrowserModule {
   // interpretation.
   void OnWheelEventProduced(base::Token type, const dom::WheelEventInit& event);
 
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
   // Injects an on screen keyboard input event directly into the main web
   // module.
   void InjectOnScreenKeyboardInputEventToMainWebModule(
       base::Token type, const dom::InputEventInit& event);
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
 
   // Injects a key event directly into the main web module, useful for setting
   // up an input fuzzer whose input should be sent directly to the main
