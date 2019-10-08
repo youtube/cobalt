@@ -115,7 +115,7 @@ void BaseEventHandler(const SbEvent* event) {
 #if SB_API_VERSION >= 8
     case kSbEventTypeWindowSizeChanged:
 #endif  // SB_API_VERSION >= 8
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeOnScreenKeyboardShown:
     case kSbEventTypeOnScreenKeyboardHidden:
     case kSbEventTypeOnScreenKeyboardFocused:
@@ -123,7 +123,7 @@ void BaseEventHandler(const SbEvent* event) {
 #if SB_API_VERSION >= 11
     case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
 #endif  // SB_API_VERSION >= 11
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
 #if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
     case kSbEventTypeAccessibilityCaptionSettingsChanged:
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)

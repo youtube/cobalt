@@ -286,7 +286,7 @@ class WebModule : public LifecycleObserver {
             float layout_refresh_rate, const Options& options);
   ~WebModule();
 
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
   // Injects an on screen keyboard input event into the web module. The value
   // for type represents beforeinput or input.
   void InjectOnScreenKeyboardInputEvent(base::Token type,
@@ -304,7 +304,7 @@ class WebModule : public LifecycleObserver {
   // module.
   void InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket);
 #endif  // SB_API_VERSION >= 11
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
 
   // Injects a keyboard event into the web module. The value for type
   // represents the event name, for example 'keydown' or 'keyup'.

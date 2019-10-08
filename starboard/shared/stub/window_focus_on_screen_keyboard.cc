@@ -1,4 +1,4 @@
-// Copyright 2018 The Cobalt Authors. All Rights Reserved.
+// Copyright 2019 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,14 +14,8 @@
 
 #include "starboard/window.h"
 
-#include "starboard/android/shared/application_android.h"
+#if SB_API_VERSION >= SB_EVERGREEN_VERSION
 
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
-void SbWindowShowOnScreenKeyboard(SbWindow window,
-                                  const char* input_text,
-                                  int ticket) {
-  starboard::android::shared::ApplicationAndroid::Get()
-      ->SbWindowShowOnScreenKeyboard(window, input_text, ticket);
-  return;
-}
-#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
+void SbWindowFocusOnScreenKeyboard(SbWindow /* window */, int /* ticket */) {}
+
+#endif

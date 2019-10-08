@@ -21,7 +21,7 @@
 #include "cobalt/dom/on_screen_keyboard_bridge.h"
 #include "starboard/window.h"
 
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
 namespace cobalt {
 namespace browser {
 
@@ -35,6 +35,8 @@ class OnScreenKeyboardStarboardBridge : public dom::OnScreenKeyboardBridge {
       : sb_window_provider_(sb_window_provider) {
     DCHECK(!sb_window_provider_.is_null());
   }
+
+  static bool IsSupported();
 
   void Show(const char* input_text, int ticket) override;
 
@@ -63,5 +65,5 @@ class OnScreenKeyboardStarboardBridge : public dom::OnScreenKeyboardBridge {
 
 }  // namespace browser
 }  // namespace cobalt
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
 #endif  // COBALT_BROWSER_ON_SCREEN_KEYBOARD_STARBOARD_BRIDGE_H_

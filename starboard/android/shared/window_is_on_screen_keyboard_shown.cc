@@ -18,11 +18,11 @@
 
 using starboard::android::shared::JniEnvExt;
 
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
 bool SbWindowIsOnScreenKeyboardShown(SbWindow window) {
   JniEnvExt* env = JniEnvExt::Get();
   jboolean is_keyboard_shown =
       env->CallStarboardBooleanMethodOrAbort("isKeyboardShowing", "()Z");
   return is_keyboard_shown;
 }
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
