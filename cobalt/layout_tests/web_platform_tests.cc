@@ -155,6 +155,9 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
   // Network module
   network::NetworkModule::Options net_options;
   net_options.https_requirement = network::kHTTPSOptional;
+  std::string custom_proxy =
+      CommandLine::ForCurrentProcess()->GetSwitchValueASCII("proxy");
+  if (!custom_proxy.empty()) net_options.custom_proxy = custom_proxy;
   network::NetworkModule network_module(net_options);
 
   // Media module
@@ -268,14 +271,8 @@ TEST_P(WebPlatformTest, Run) {
   std::string test_server =
       CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
           "web-platform-test-server");
-  if (test_server.empty()) {
-    FilePath url_path = GetTestInputRootDirectory()
-                        .Append(FILE_PATH_LITERAL("web-platform-tests"));
-    url_path = url_path.Append(FILE_PATH_LITERAL("lab.url"));
-    file_util::ReadFileToString(url_path, &test_server);
-    TrimWhitespaceASCII(test_server, TRIM_ALL, &test_server);
-    ASSERT_FALSE(test_server.empty());
-  }
+  if (test_server.empty()) test_server = "http://web-platform.test:8000";
+
   GURL test_url = GURL(test_server).Resolve(GetParam().url);
 
   std::cout << "(" << test_url << ")" << std::endl;
