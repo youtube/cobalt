@@ -402,6 +402,7 @@ static_library("starboard_platform") {
     "//starboard/shared/stub/time_get_monotonic_now.cc",
     "//starboard/shared/stub/time_get_monotonic_thread_now.cc",
     "//starboard/shared/stub/time_get_now.cc",
+    "//starboard/shared/posix/time_is_time_thread_now_supported.cc",
     "//starboard/shared/stub/time_zone_get_current.cc",
     "//starboard/shared/stub/time_zone_get_dst_name.cc",
     "//starboard/shared/stub/time_zone_get_name.cc",

@@ -303,7 +303,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSpeechSynthesisSpeak);
 #endif
 
-#if SB_HAS(TIME_THREAD_NOW)
+#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(TIME_THREAD_NOW)
   REGISTER_SYMBOL(SbTimeGetMonotonicThreadNow);
 #endif
 
@@ -363,6 +363,7 @@ ExportedSymbols::ExportedSymbols() {
 #if SB_API_VERSION >= SB_EVERGREEN_VERSION
   REGISTER_SYMBOL(SbSpeechRecognizerIsSupported);
   REGISTER_SYMBOL(SbSpeechSynthesisIsSupported);
+  REGISTER_SYMBOL(SbTimeIsTimeThreadNowSupported);
   REGISTER_SYMBOL(SbWindowOnScreenKeyboardIsSupported);
 #endif
 }

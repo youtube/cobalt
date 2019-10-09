@@ -997,7 +997,9 @@ class BASE_EXPORT ThreadTicks : public time_internal::TimeBase<ThreadTicks> {
   // Returns true if ThreadTicks::Now() is supported on this system.
   static bool IsSupported() WARN_UNUSED_RESULT {
 #if defined(STARBOARD)
-#if SB_HAS(TIME_THREAD_NOW)
+#if SB_API_VERSION >= SB_EVERGREEN_VERSION
+    return SbTimeIsTimeThreadNowSupported();
+#elif SB_HAS(TIME_THREAD_NOW)
     return true;
 #else
     return false;

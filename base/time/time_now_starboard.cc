@@ -62,12 +62,14 @@ bool TimeTicks::IsConsistentAcrossProcesses() {
 
 namespace subtle {
 ThreadTicks ThreadTicksNowIgnoringOverride() {
-#if SB_HAS(TIME_THREAD_NOW)
-  return ThreadTicks() +
-         TimeDelta::FromMicroseconds(SbTimeGetMonotonicThreadNow());
-#else
-  return ThreadTicks();
+#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(TIME_THREAD_NOW)
+#if SB_API_VERSION >= SB_EVERGREEN_VERSION
+  if (SbTimeIsTimeThreadNowSupported())
 #endif
+    return ThreadTicks() +
+           TimeDelta::FromMicroseconds(SbTimeGetMonotonicThreadNow());
+#endif
+  return ThreadTicks();
 }
 }  // namespace subtle
 
