@@ -47,4 +47,13 @@
       '__ELF__',
     ],
   },
+  'conditions': [
+    # TODO: Enable these includes for all Evergreen targets.
+    ['target_arch=="arm"', {
+      'includes': [
+        '<(DEPTH)/starboard/evergreen/shared/sabi.gypi',
+        '<(DEPTH)/starboard/evergreen/shared/sabi_flags.gypi',
+      ],
+    }],
+  ],
 }

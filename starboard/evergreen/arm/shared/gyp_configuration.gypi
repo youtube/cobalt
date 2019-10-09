@@ -29,7 +29,6 @@
       '-fuse-ld=lld',
     ],
   },
-
   'target_defaults': {
     'defines' : [
       # Ensure that the Starboardized __external_threading file is included.
@@ -42,7 +41,7 @@
     ],
   },
   'includes': [
-    '<(DEPTH)/starboard/evergreen/shared/gyp_configuration.gypi',
     '<(DEPTH)/starboard/evergreen/shared/compiler_flags.gypi',
+    '<(DEPTH)/starboard/evergreen/shared/gyp_configuration.gypi',
   ],
 }
