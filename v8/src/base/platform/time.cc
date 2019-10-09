@@ -654,7 +654,9 @@ bool TimeTicks::IsHighResolutionClockWorking() {
 
 bool ThreadTicks::IsSupported() {
 #if V8_OS_STARBOARD
-#if SB_HAS(TIME_THREAD_NOW)
+#if SB_API_VERSION >= SB_EVERGREEN_VERSION
+  return SbTimeIsTimeThreadNowSupported();
+#elif SB_HAS(TIME_THREAD_NOW)
   return true;
 #else
   return false;
@@ -672,7 +674,11 @@ bool ThreadTicks::IsSupported() {
 
 ThreadTicks ThreadTicks::Now() {
 #if V8_OS_STARBOARD
-#if SB_HAS(TIME_THREAD_NOW)
+#if SB_API_VERSION >= SB_EVERGREEN_VERSION
+  if (SbTimeIsTimeThreadNowSupported())
+    return ThreadTicks(SbTimeGetMonotonicThreadNow());
+  UNREACHABLE();
+#elif SB_HAS(TIME_THREAD_NOW)
   return ThreadTicks(SbTimeGetMonotonicThreadNow());
 #else
   UNREACHABLE();
