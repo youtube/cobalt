@@ -26,6 +26,7 @@ shutil.rmtree() is provided.
 
 import logging
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -122,22 +123,21 @@ def RmtreeShallow(root_dir):
 
 def ReadReparsePointShell(path):
   """Implements reading a reparse point via a shell command."""
-  cmd_parts = ['fsutil', 'reparsepoint', 'query', path]
+  cmd_parts = ['cmd', '/C', 'dir', os.path.dirname(path)]
   try:
     out = subprocess.check_output(cmd_parts)
   except subprocess.CalledProcessError:
     # Expected if the link doesn't exist.
     return None
   try:
-    lines = out.splitlines()
-    lines = [l for l in lines if 'Print Name:' in l]
-    if not lines:
-      return None
-    out = lines[0].split()
-    return out[2]
+    pattern = re.compile('.*<SYMLINKD>[ ]+%s \\[(.*)]' % os.path.basename(path))
+    for l in out.splitlines():
+      m = pattern.match(l)
+      if m:
+        return m.group(1)
   except Exception as err:  # pylint: disable=broad-except
     logging.exception(err)
-    return None
+  return None
 
 
 def ReadReparsePoint(path):
