@@ -37,7 +37,9 @@
     }, # end of configurations
   },
   'includes': [
-    '<(DEPTH)/starboard/evergreen/arm/hardfp/architecture.gypi',
+    # This JSON file also happens to be valid GYP configuration language so we
+    # include it here. Slightly hacky, highly effective.
+    '<(DEPTH)/starboard/evergreen/arm/hardfp/sabi.json',
     '<(DEPTH)/starboard/evergreen/arm/shared/gyp_configuration.gypi',
   ],
 }
