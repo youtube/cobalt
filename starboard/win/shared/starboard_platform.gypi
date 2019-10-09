@@ -317,6 +317,8 @@
         '<(DEPTH)/starboard/shared/stub/thread_sampler_freeze.cc',
         '<(DEPTH)/starboard/shared/stub/thread_sampler_is_supported.cc',
         '<(DEPTH)/starboard/shared/stub/thread_sampler_thaw.cc',
+        '<(DEPTH)/starboard/shared/stub/time_get_monotonic_thread_now.cc',
+        '<(DEPTH)/starboard/shared/stub/time_is_time_thread_now_supported.cc',
         '<(DEPTH)/starboard/shared/win32/adapter_utils.cc',
         '<(DEPTH)/starboard/shared/win32/adapter_utils.h',
         '<(DEPTH)/starboard/shared/win32/atomic_public.h',

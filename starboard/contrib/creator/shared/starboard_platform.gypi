@@ -165,6 +165,7 @@
       '<(DEPTH)/starboard/shared/posix/time_get_monotonic_now.cc',
       '<(DEPTH)/starboard/shared/posix/time_get_monotonic_thread_now.cc',
       '<(DEPTH)/starboard/shared/posix/time_get_now.cc',
+      '<(DEPTH)/starboard/shared/posix/time_is_time_thread_now_supported.cc',
       '<(DEPTH)/starboard/shared/posix/time_zone_get_current.cc',
       '<(DEPTH)/starboard/shared/posix/time_zone_get_name.cc',
       '<(DEPTH)/starboard/shared/pthread/condition_variable_broadcast.cc',
