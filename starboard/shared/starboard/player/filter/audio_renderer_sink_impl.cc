@@ -76,8 +76,8 @@ void AudioRendererSinkImpl::Start(
   Stop();
   render_callback_ = render_callback;
   audio_sink_ = kSbAudioSinkInvalid;
-  audio_sink::AudioSinkType* audio_sink_type =
-      SbAudioSinkPrivate::GetPreferredAudioSinkType();
+  SbAudioSinkPrivate::Type* audio_sink_type =
+      SbAudioSinkPrivate::GetPreferredType();
   if (audio_sink_type) {
     audio_sink_ = audio_sink_type->Create(
         channels, sampling_frequency_hz, audio_sample_type,
@@ -90,7 +90,7 @@ void AudioRendererSinkImpl::Start(
                          "resetting.";
       audio_sink_type->Destroy(audio_sink_);
       audio_sink_ = kSbAudioSinkInvalid;
-      auto fallback_type = SbAudioSinkPrivate::GetFallbackAudioSinkType();
+      auto fallback_type = SbAudioSinkPrivate::GetFallbackType();
       if (fallback_type) {
         audio_sink_ = fallback_type->Create(
             channels, sampling_frequency_hz, audio_sample_type,

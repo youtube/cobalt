@@ -28,15 +28,13 @@
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
-#include "starboard/shared/starboard/audio_sink/audio_sink_type.h"
 #include "starboard/thread.h"
 
 namespace starboard {
 namespace android {
 namespace shared {
 
-class AudioTrackAudioSinkType
-    : public ::starboard::shared::starboard::audio_sink::AudioSinkType {
+class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
  public:
   static int GetMinBufferSizeInFrames(int channels,
                                       SbMediaAudioSampleType sample_type,
@@ -53,11 +51,10 @@ class AudioTrackAudioSinkType
       int frames_per_channel,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
       SbAudioSinkConsumeFramesFunc consume_frames_func,
-      void* context) override;
+      void* context);
 
-  bool IsValid(SbAudioSink audio_sink) const override {
-    return audio_sink != kSbAudioSinkInvalid &&
-           audio_sink->IsAudioSinkType(this);
+  bool IsValid(SbAudioSink audio_sink) override {
+    return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
   }
 
   void Destroy(SbAudioSink audio_sink) override {
@@ -78,7 +75,7 @@ class AudioTrackAudioSinkType
 class AudioTrackAudioSink : public SbAudioSinkPrivate {
  public:
   AudioTrackAudioSink(
-      AudioSinkType* type,
+      Type* type,
       int channels,
       int sampling_frequency_hz,
       SbMediaAudioSampleType sample_type,
@@ -91,9 +88,7 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
   ~AudioTrackAudioSink() override;
 
   bool IsAudioTrackValid() const { return j_audio_track_bridge_; }
-  bool IsAudioSinkType(const AudioSinkType* type) const override {
-    return type_ == type;
-  }
+  bool IsType(Type* type) override { return type_ == type; }
   void SetPlaybackRate(double playback_rate) override;
 
   void SetVolume(double volume) override;
@@ -105,7 +100,7 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
 
   int WriteData(JniEnvExt* env, const void* buffer, int size);
 
-  AudioSinkType* type_;
+  Type* type_;
   int channels_;
   int sampling_frequency_hz_;
   SbMediaAudioSampleType sample_type_;
