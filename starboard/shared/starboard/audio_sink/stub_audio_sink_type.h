@@ -18,14 +18,13 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
-#include "starboard/shared/starboard/audio_sink/audio_sink_type.h"
 
 namespace starboard {
 namespace shared {
 namespace starboard {
 namespace audio_sink {
 
-class StubAudioSinkType : public AudioSinkType {
+class StubAudioSinkType : public SbAudioSinkPrivate::Type {
  public:
   SbAudioSink Create(
       int channels,
@@ -36,11 +35,10 @@ class StubAudioSinkType : public AudioSinkType {
       int frame_buffers_size_in_frames,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
       SbAudioSinkConsumeFramesFunc consume_frames_func,
-      void* context) override;
+      void* context);
 
-  bool IsValid(SbAudioSink audio_sink) const override {
-    return audio_sink != kSbAudioSinkInvalid &&
-           audio_sink->IsAudioSinkType(this);
+  bool IsValid(SbAudioSink audio_sink) override {
+    return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
   }
 
   void Destroy(SbAudioSink audio_sink) override {

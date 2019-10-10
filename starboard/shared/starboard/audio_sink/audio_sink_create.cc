@@ -16,7 +16,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
-#include "starboard/shared/starboard/audio_sink/audio_sink_type.h"
 
 SbAudioSink SbAudioSinkCreate(
     int channels,
@@ -71,7 +70,7 @@ SbAudioSink SbAudioSinkCreate(
     return kSbAudioSinkInvalid;
   }
 
-  auto audio_sink_type = SbAudioSinkPrivate::GetPreferredAudioSinkType();
+  auto audio_sink_type = SbAudioSinkPrivate::GetPreferredType();
   if (!audio_sink_type) {
     return kSbAudioSinkInvalid;
   }
@@ -83,8 +82,7 @@ SbAudioSink SbAudioSinkCreate(
     return audio_sink;
   }
   audio_sink_type->Destroy(audio_sink);
-  auto fallback_audio_sink_type =
-      SbAudioSinkPrivate::GetFallbackAudioSinkType();
+  auto fallback_audio_sink_type = SbAudioSinkPrivate::GetFallbackType();
   if (!fallback_audio_sink_type) {
     return kSbAudioSinkInvalid;
   }
