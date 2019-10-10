@@ -26,7 +26,6 @@
 #include "starboard/common/mutex.h"
 #include "starboard/shared/pulse/pulse_dynamic_load_dispatcher.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
-#include "starboard/shared/starboard/audio_sink/audio_sink_type.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
@@ -62,7 +61,7 @@ class PulseAudioSink : public SbAudioSinkPrivate {
                  void* context);
   ~PulseAudioSink() override;
 
-  bool IsAudioSinkType(const AudioSinkType* type) const override;
+  bool IsType(Type* type) override;
 
   void SetPlaybackRate(double playback_rate) override;
   void SetVolume(double volume) override;
@@ -104,7 +103,7 @@ class PulseAudioSink : public SbAudioSinkPrivate {
   atomic_bool is_paused_;
 };
 
-class PulseAudioSinkType : public shared::starboard::audio_sink::AudioSinkType {
+class PulseAudioSinkType : public SbAudioSinkPrivate::Type {
  public:
   PulseAudioSinkType();
   ~PulseAudioSinkType() override;
@@ -118,10 +117,9 @@ class PulseAudioSinkType : public shared::starboard::audio_sink::AudioSinkType {
       int frames_per_channel,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
       SbAudioSinkConsumeFramesFunc consume_frames_func,
-      void* context) override;
-  bool IsValid(SbAudioSink audio_sink) const override {
-    return audio_sink != kSbAudioSinkInvalid &&
-           audio_sink->IsAudioSinkType(this);
+      void* context);
+  bool IsValid(SbAudioSink audio_sink) override {
+    return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
   }
   void Destroy(SbAudioSink audio_sink) override;
 
@@ -185,8 +183,8 @@ PulseAudioSink::~PulseAudioSink() {
   }
 }
 
-bool PulseAudioSink::IsAudioSinkType(const AudioSinkType* type) const {
-  return static_cast<AudioSinkType*>(type_) == type;
+bool PulseAudioSink::IsType(Type* type) {
+  return static_cast<Type*>(type_) == type;
 }
 
 void PulseAudioSink::SetPlaybackRate(double playback_rate) {
@@ -539,17 +537,16 @@ void PlatformInitialize() {
       std::unique_ptr<PulseAudioSinkType>(new PulseAudioSinkType());
   if (audio_sink_type->Initialize()) {
     pulse_audio_sink_type_ = audio_sink_type.release();
-    SbAudioSinkPrivate::SetPrimaryAudioSinkType(pulse_audio_sink_type_);
+    SbAudioSinkPrivate::SetPrimaryType(pulse_audio_sink_type_);
   }
 }
 
 // static
 void PlatformTearDown() {
   SB_DCHECK(pulse_audio_sink_type_);
-  SB_DCHECK(pulse_audio_sink_type_ ==
-            SbAudioSinkPrivate::GetPrimaryAudioSinkType());
+  SB_DCHECK(pulse_audio_sink_type_ == SbAudioSinkPrivate::GetPrimaryType());
 
-  SbAudioSinkPrivate::SetPrimaryAudioSinkType(NULL);
+  SbAudioSinkPrivate::SetPrimaryType(NULL);
   delete pulse_audio_sink_type_;
   pulse_audio_sink_type_ = NULL;
   pulse_unload_library();
