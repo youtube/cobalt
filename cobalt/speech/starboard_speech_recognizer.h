@@ -38,6 +38,8 @@ class StarboardSpeechRecognizer : public SpeechRecognizer {
   explicit StarboardSpeechRecognizer(const EventCallback& event_callback);
   ~StarboardSpeechRecognizer();
 
+  static bool IsSupported();
+
   void Start(const SpeechRecognitionConfig& config) override;
   void Stop() override;
 
