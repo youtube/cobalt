@@ -36,7 +36,7 @@ SpeechRecognitionManager::SpeechRecognitionManager(
       event_callback_(event_callback),
       state_(kStopped) {
 #if defined(SB_USE_SB_SPEECH_RECOGNIZER)
-  if (SbSpeechRecognizerIsSupported()) {
+  if (StarboardSpeechRecognizer::IsSupported()) {
     SB_UNREFERENCED_PARAMETER(network_module);
     SB_UNREFERENCED_PARAMETER(microphone_options);
     recognizer_.reset(new StarboardSpeechRecognizer(base::Bind(
