@@ -76,6 +76,8 @@
 // parameters are.
 #define SB_UI_NAVIGATION_VERSION SB_EXPERIMENTAL_API_VERSION
 
+#define SB_EVERGREEN_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
