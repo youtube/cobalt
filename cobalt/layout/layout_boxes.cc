@@ -211,7 +211,6 @@ math::RectF LayoutBoxes::GetScrollArea(dom::Directionality dir) const {
   float top = padding_area.y();
   float bottom = scroll_area.bottom();
   switch (dir) {
-    case dom::kNoExplicitDirectionality:
     case dom::kLeftToRightDirectionality:
       left = padding_area.x();
       break;

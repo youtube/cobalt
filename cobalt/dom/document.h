@@ -194,6 +194,9 @@ class Document : public Node,
   //
   const scoped_refptr<Location>& location() const;
 
+  std::string dir() const;
+  void set_dir(const std::string& value);
+
   scoped_refptr<HTMLBodyElement> body() const;
   void set_body(const scoped_refptr<HTMLBodyElement>& body);
 
