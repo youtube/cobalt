@@ -37,14 +37,7 @@
 
 namespace {
 
-// For testing, CRX id is jebgalgnebhfojomionfpkfelancnnkf.
-const char kTestId[] = "jebgalgnebhfojomionfpkfelancnnkf";
-const uint8_t kTestIdHash[] = {0x94, 0x16, 0x0b, 0x6d, 0x41, 0x75, 0xe9, 0xec,
-                               0x8e, 0xd5, 0xfa, 0x54, 0xb0, 0xd2, 0xdd, 0xa5,
-                               0x6e, 0x05, 0x6b, 0xe8, 0x73, 0x47, 0xf6, 0xc4,
-                               0x11, 0x9f, 0xbc, 0xb3, 0x09, 0xb3, 0x5b, 0x40};
-
-// TODO: adjust config values if necessary.
+// TODO: use randomized scheduling.
 void TaskSchedulerStart() {
   base::TaskScheduler::Create("Updater");
   const auto task_scheduler_init_params =
@@ -141,7 +134,7 @@ int UpdaterMain(int argc, const char* const* argv) {
   observer.reset(new Observer(uclient));
   uclient->AddObserver(observer.get());
 
-  const std::vector<std::string> ids = {kTestId};
+  const std::vector<std::string> ids = {config->GetAppGuid()};
 
   base::Closure func_cb = base::Bind(&Return5);
 
@@ -151,9 +144,7 @@ int UpdaterMain(int argc, const char* const* argv) {
           [](const std::vector<std::string>& ids)
               -> std::vector<base::Optional<update_client::CrxComponent>> {
             update_client::CrxComponent component;
-            component.name = "jebg";
-            component.pk_hash.assign(kTestIdHash,
-                                     kTestIdHash + base::size(kTestIdHash));
+            component.name = "cobalt_test";
             component.version = base::Version("0.0");
             return {component};
           }),

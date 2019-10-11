@@ -55,7 +55,7 @@ std::vector<GURL> Configurator::PingUrl() const { return UpdateUrl(); }
 std::string Configurator::GetProdId() const { return "updater"; }
 
 base::Version Configurator::GetBrowserVersion() const {
-  return base::Version("0.0.1");  // version_info::GetVersion();
+  return base::Version("0.0.0.1");  // version_info::GetVersion();
 }
 
 std::string Configurator::GetChannel() const { return {}; }
@@ -95,7 +95,8 @@ bool Configurator::EnabledComponentUpdates() const { return false; }
 
 bool Configurator::EnabledBackgroundDownloader() const { return false; }
 
-bool Configurator::EnabledCupSigning() const { return true; }
+// TODO: enable cup signing
+bool Configurator::EnabledCupSigning() const { return false; }
 
 PrefService* Configurator::GetPrefService() const {
   return pref_service_.get();
@@ -110,7 +111,9 @@ bool Configurator::IsPerUserInstall() const { return true; }
 
 std::vector<uint8_t> Configurator::GetRunActionKeyHash() const { return {}; }
 
-std::string Configurator::GetAppGuid() const { return {}; }
+std::string Configurator::GetAppGuid() const {
+  return "{6D4E53F3-CC64-4CB8-B6BD-AB0B8F300E1C}";
+}
 
 std::unique_ptr<update_client::ProtocolHandlerFactory>
 Configurator::GetProtocolHandlerFactory() const {

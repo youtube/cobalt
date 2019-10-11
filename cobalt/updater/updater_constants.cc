@@ -20,7 +20,7 @@ const char kLoggingLevelSwitch[] = "v";
 const char kLoggingModuleSwitch[] = "vmodule";
 
 const char kUpdaterJSONDefaultUrl[] =
-    "https://update.googleapis.com/service/update2/json";
+    "https://omaha-qa.sandbox.google.com/service/update2/json";
 const char kCrashUploadURL[] = "https://clients2.google.com/cr/report";
 const char kCrashStagingUploadURL[] =
     "https://clients2.google.com/cr/staging_report";
