@@ -286,6 +286,33 @@ scoped_refptr<Element> Document::GetElementById(const std::string& id) const {
 
 const scoped_refptr<Location>& Document::location() const { return location_; }
 
+// Algorithm for dir:
+//   https://html.spec.whatwg.org/commit-snapshots/ebcac971c2add28a911283899da84ec509876c44/#dom-dir
+std::string Document::dir() const {
+  // The dir IDL attribute on Document objects must reflect the dir content
+  // attribute of the html element, if any, limited to only known values. If
+  // there is no such element, then the attribute must return the empty string
+  // and do nothing on setting.
+  HTMLHtmlElement* html_element = html();
+  if (!html_element) {
+    return "";
+  }
+  return html_element->dir();
+}
+
+// Algorithm for dir:
+//   https://html.spec.whatwg.org/commit-snapshots/ebcac971c2add28a911283899da84ec509876c44/#dom-dir
+void Document::set_dir(const std::string& value) {
+  // The dir IDL attribute on Document objects must reflect the dir content
+  // attribute of the html element, if any, limited to only known values. If
+  // there is no such element, then the attribute must return the empty string
+  // and do nothing on setting.
+  HTMLHtmlElement* html_element = html();
+  if (html_element) {
+    html_element->set_dir(value);
+  }
+}
+
 // Algorithm for body:
 //   https://www.w3.org/TR/html5/dom.html#dom-document-body
 scoped_refptr<HTMLBodyElement> Document::body() const {
