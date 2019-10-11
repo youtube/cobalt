@@ -222,17 +222,20 @@ bool IsSDRVideo(int bit_depth,
   }
 
   if (primary_id != kSbMediaPrimaryIdBt709 &&
-      primary_id != kSbMediaPrimaryIdUnspecified) {
+      primary_id != kSbMediaPrimaryIdUnspecified &&
+      primary_id != kSbMediaPrimaryIdSmpte170M) {
     return false;
   }
 
   if (transfer_id != kSbMediaTransferIdBt709 &&
-      transfer_id != kSbMediaTransferIdUnspecified) {
+      transfer_id != kSbMediaTransferIdUnspecified &&
+      transfer_id != kSbMediaTransferIdSmpte170M) {
     return false;
   }
 
   if (matrix_id != kSbMediaMatrixIdBt709 &&
-      matrix_id != kSbMediaMatrixIdUnspecified) {
+      matrix_id != kSbMediaMatrixIdUnspecified &&
+      matrix_id != kSbMediaMatrixIdSmpte170M) {
     return false;
   }
 
