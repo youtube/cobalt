@@ -406,6 +406,8 @@ void BoxGenerator::VisitBrElement(dom::HTMLBRElement* br_element) {
 
 namespace {
 
+typedef dom::HTMLElement::DirState DirState;
+
 class ContainerBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
  public:
   enum CloseParagraph {
@@ -413,12 +415,12 @@ class ContainerBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
     kCloseParagraph,
   };
 
-  ContainerBoxGenerator(dom::Directionality directionality,
+  ContainerBoxGenerator(DirState element_dir,
                         const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
                             css_computed_style_declaration,
                         scoped_refptr<Paragraph>* paragraph,
                         const BoxGenerator::Context* context)
-      : directionality_(directionality),
+      : element_dir_(element_dir),
         css_computed_style_declaration_(css_computed_style_declaration),
         context_(context),
         has_scoped_directional_embedding_(false),
@@ -433,7 +435,7 @@ class ContainerBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
  private:
   void CreateScopedParagraph(CloseParagraph close_prior_paragraph);
 
-  const dom::Directionality directionality_;
+  const DirState element_dir_;
   const scoped_refptr<cssom::CSSComputedStyleDeclaration>
       css_computed_style_declaration_;
   const BoxGenerator::Context* context_;
@@ -532,10 +534,11 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
       // paragraph, when the ContainerBoxGenerator goes out of scope.
       // https://dev.w3.org/html5/spec-preview/global-attributes.html#the-directionality
       // http://unicode.org/reports/tr9/#Explicit_Directional_Embeddings
-      if (directionality_ == dom::kLeftToRightDirectionality) {
+      // http://unicode.org/reports/tr9/#Markup_And_Formatting
+      if (element_dir_ == DirState::kDirLeftToRight) {
         has_scoped_directional_embedding_ = true;
         (*paragraph_)->AppendCodePoint(Paragraph::kLeftToRightEmbedCodePoint);
-      } else if (directionality_ == dom::kRightToLeftDirectionality) {
+      } else if (element_dir_ == DirState::kDirRightToLeft) {
         has_scoped_directional_embedding_ = true;
         (*paragraph_)->AppendCodePoint(Paragraph::kRightToLeftEmbedCodePoint);
       }
@@ -675,9 +678,9 @@ void ContainerBoxGenerator::CreateScopedParagraph(
   // it is inherited from the parent element.
   // https://dev.w3.org/html5/spec-preview/global-attributes.html#the-directionality
   BaseDirection base_direction;
-  if (directionality_ == dom::kLeftToRightDirectionality) {
+  if (element_dir_ == DirState::kDirLeftToRight) {
     base_direction = kLeftToRightBaseDirection;
-  } else if (directionality_ == dom::kRightToLeftDirectionality) {
+  } else if (element_dir_ == DirState::kDirRightToLeft) {
     base_direction = kRightToLeftBaseDirection;
   } else {
     base_direction = prior_paragraph_->GetDirectionalEmbeddingStackDirection();
@@ -880,7 +883,7 @@ void BoxGenerator::AppendPseudoElementToLine(
   pseudo_element->reset_layout_boxes();
 
   ContainerBoxGenerator pseudo_element_box_generator(
-      dom::kNoExplicitDirectionality,
+      DirState::kDirNotDefined,
       pseudo_element->css_computed_style_declaration(), paragraph_, context_);
   pseudo_element->computed_style()->display()->Accept(
       &pseudo_element_box_generator);
@@ -966,7 +969,7 @@ void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
       html_element->css_computed_style_declaration());
 
   ContainerBoxGenerator container_box_generator(
-      html_element->directionality(),
+      html_element->dir_state(),
       html_element == context_->ignore_background_element
           ? StripBackground(element_style)
           : element_style,
