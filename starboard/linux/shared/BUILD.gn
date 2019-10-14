@@ -391,6 +391,7 @@ source_set("starboard_platform") {
     "//starboard/shared/posix/socket_internal.cc",
     "//starboard/shared/posix/socket_is_connected.cc",
     "//starboard/shared/posix/socket_is_connected_and_idle.cc",
+    "//starboard/shared/posix/socket_is_ipv6_supported.cc",
     "//starboard/shared/posix/socket_join_multicast_group.cc",
     "//starboard/shared/posix/socket_listen.cc",
     "//starboard/shared/posix/socket_receive_from.cc",

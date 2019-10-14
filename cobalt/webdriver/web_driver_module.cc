@@ -148,11 +148,16 @@ ElementDriver* LookUpElementDriverOrReturnInvalidResponse(
 
 }  // namespace
 
-#if SB_HAS(IPV6)
-const char WebDriverModule::kDefaultListenIp[] = "::";
+// static
+const char* WebDriverModule::GetDefaultListenIp() {
+#if SB_API_VERSION >= SB_IPV6_REQUIRED_VERSION
+  return SbSocketIsIpv6Supported() ? "::" : "0.0.0.0";
+#elif SB_HAS(IPV6)
+  return "::";
 #else
-const char WebDriverModule::kDefaultListenIp[] = "0.0.0.0";
+  return "0.0.0.0";
 #endif
+}
 
 WebDriverModule::WebDriverModule(
     int server_port, const std::string& listen_ip,
@@ -603,7 +608,7 @@ void WebDriverModule::StartScreencast(
 
     int port = 3003;
     screencast_driver_module_.reset(new screencast::ScreencastModule(
-        port, webdriver::WebDriverModule::kDefaultListenIp,
+        port, webdriver::WebDriverModule::GetDefaultListenIp(),
         get_screenshot_function_));
 
     CommandResult result =

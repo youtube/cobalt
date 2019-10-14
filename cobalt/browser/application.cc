@@ -146,7 +146,7 @@ std::string GetWebDriverListenIp() {
   // The default IP on which the webdriver server should listen for incoming
   // connections.
   std::string webdriver_listen_ip =
-      webdriver::WebDriverModule::kDefaultListenIp;
+      webdriver::WebDriverModule::GetDefaultListenIp();
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kWebDriverListenIp)) {

@@ -176,6 +176,7 @@
         '<(DEPTH)/starboard/shared/stub/socket_get_local_address.cc',
         '<(DEPTH)/starboard/shared/stub/socket_is_connected.cc',
         '<(DEPTH)/starboard/shared/stub/socket_is_connected_and_idle.cc',
+        '<(DEPTH)/starboard/shared/stub/socket_is_ipv6_supported.cc',
         '<(DEPTH)/starboard/shared/stub/socket_join_multicast_group.cc',
         '<(DEPTH)/starboard/shared/stub/socket_listen.cc',
         '<(DEPTH)/starboard/shared/stub/socket_receive_from.cc',
