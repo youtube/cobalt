@@ -327,6 +327,10 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMemoryUnmap);
 #endif
 
+#if SB_API_VERSION >= SB_IPV6_REQUIRED_VERSION
+  REGISTER_SYMBOL(SbSocketIsIpv6Supported);
+#endif
+
 #if SB_API_VERSION >= SB_SPEECH_SYNTHESIS_REQUIRED_VERSION || \
     SB_HAS(SPEECH_SYNTHESIS)
   REGISTER_SYMBOL(SbSpeechSynthesisCancel);

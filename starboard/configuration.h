@@ -85,6 +85,11 @@
 // This change also deprecates the SB_HAS_CAPTIONS flag.
 #define SB_CAPTIONS_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Require compilation with Ipv6.
+// Cobalt must be able to determine at runtime if the system supportes Ipv6.
+// Ipv6 can be disabled by defining SB_HAS_IPV6 to 0.
+#define SB_IPV6_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // Require the memory mapping API.
 // The system must implement the memory mapping functions in
 // `starboard/memory.h` and `starboard/shared/dlmalloc.h` or use the provided

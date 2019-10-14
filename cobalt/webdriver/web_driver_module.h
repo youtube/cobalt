@@ -49,9 +49,11 @@ class WebDriverModule {
       CreateSessionDriverCB;
   typedef Screenshot::GetScreenshotFunction GetScreenshotFunction;
   typedef base::Callback<void(const std::string&)> SetProxyFunction;
-  // Use this as the default listen_ip. It means "any interface on the local
-  // machine" eg INADDR_ANY.
-  static const char kDefaultListenIp[];
+
+  // Returns the default listen_ip. The default listen_ip means "any interface
+  // on the local machine" eg INADDR_ANY.
+  static const char* GetDefaultListenIp();
+
   WebDriverModule(int server_port, const std::string& listen_ip,
                   const CreateSessionDriverCB& create_session_driver_cb,
                   const GetScreenshotFunction& get_screenshot_function,

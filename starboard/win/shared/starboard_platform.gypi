@@ -256,6 +256,7 @@
         '<(DEPTH)/starboard/shared/nouser/user_get_property.cc',
         '<(DEPTH)/starboard/shared/nouser/user_get_signed_in.cc',
         '<(DEPTH)/starboard/shared/nouser/user_internal.cc',
+        '<(DEPTH)/starboard/shared/posix/socket_is_ipv6_supported.cc',
         '<(DEPTH)/starboard/shared/starboard/application.cc',
         '<(DEPTH)/starboard/shared/starboard/audio_sink/audio_sink_create.cc',
         '<(DEPTH)/starboard/shared/starboard/audio_sink/audio_sink_destroy.cc',
