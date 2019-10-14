@@ -82,8 +82,11 @@ class EvergreenConfiguration(platform_configuration.PlatformConfiguration):
 
   __FILTERED_TESTS = {  # pylint: disable=invalid-name
       'nplb': ['SbDrmTest.AnySupportedKeySystems',],
-      'player_filter_tests': [
-          # These tests have memory leaks related to av_malloc.
-          'AudioDecoderTests/AudioDecoderTest.*',
-      ],
+
+      # player_filter_tests test the platform's Starboard implementation of
+      # the filter-based player, which is not exposed through the Starboard
+      # interface. Since Evergreen has no visibility of the platform's
+      # specific Starboard implementation, rely on the platform to test this
+      # directly instead.
+      'player_filter_tests': [test_filter.FILTER_ALL],
   }
