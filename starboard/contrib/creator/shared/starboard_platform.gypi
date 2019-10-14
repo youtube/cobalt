@@ -138,6 +138,7 @@
       '<(DEPTH)/starboard/shared/posix/socket_internal.cc',
       '<(DEPTH)/starboard/shared/posix/socket_is_connected.cc',
       '<(DEPTH)/starboard/shared/posix/socket_is_connected_and_idle.cc',
+      '<(DEPTH)/starboard/shared/posix/socket_is_ipv6_supportec.cc',
       '<(DEPTH)/starboard/shared/posix/socket_join_multicast_group.cc',
       '<(DEPTH)/starboard/shared/posix/socket_listen.cc',
       '<(DEPTH)/starboard/shared/posix/socket_receive_from.cc',
