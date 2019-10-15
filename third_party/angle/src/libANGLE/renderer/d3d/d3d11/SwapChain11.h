@@ -89,7 +89,11 @@ class SwapChain11 final : public SwapChainD3D
     d3d11::RenderTargetView mBackBufferRTView;
     ID3D11ShaderResourceView *mBackBufferSRView;
 
+#if defined(STARBOARD)
+    bool mNeedsOffscreenTexture;
+#else
     const bool mNeedsOffscreenTexture;
+#endif
     ID3D11Texture2D *mOffscreenTexture;
     d3d11::RenderTargetView mOffscreenRTView;
     ID3D11ShaderResourceView *mOffscreenSRView;
