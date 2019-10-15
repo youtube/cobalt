@@ -362,13 +362,17 @@ void ApplicationAndroid::SendAndroidCommand(AndroidCommand::CommandType type,
 }
 
 void ApplicationAndroid::ProcessAndroidInput() {
-  SB_DCHECK(input_events_generator_);
   AInputEvent* android_event = NULL;
   while (AInputQueue_getEvent(input_queue_, &android_event) >= 0) {
     SB_LOG(INFO) << "Android input: type="
                  << AInputEvent_getType(android_event);
     if (AInputQueue_preDispatchEvent(input_queue_, android_event)) {
         continue;
+    }
+    if (!input_events_generator_) {
+      SB_DLOG(WARNING) << "Android input event ignored without an SbWindow.";
+      AInputQueue_finishEvent(input_queue_, android_event, false);
+      continue;
     }
     InputEventsGenerator::Events app_events;
     bool handled = input_events_generator_->CreateInputEventsFromAndroidEvent(
@@ -385,7 +389,10 @@ void ApplicationAndroid::ProcessKeyboardInject() {
   int err = read(keyboard_inject_readfd_, &key, sizeof(key));
   SB_DCHECK(err >= 0) << "Keyboard inject read failed: errno=" << errno;
   SB_LOG(INFO) << "Keyboard inject: " << key;
-
+  if (!input_events_generator_) {
+    SB_DLOG(WARNING) << "Injected input event ignored without an SbWindow.";
+    return;
+  }
   InputEventsGenerator::Events app_events;
   input_events_generator_->CreateInputEventsFromSbKey(key, &app_events);
   for (int i = 0; i < app_events.size(); ++i) {
