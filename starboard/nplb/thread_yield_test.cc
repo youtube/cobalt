@@ -27,10 +27,8 @@ inline bool IsYielder(int trial, int index) {
   return (trial % 2 ? (index % 2 != 0) : (index % 2 == 0));
 }
 
-// This number was experimentally determined on my desktop to be close to the
-// minimum number of loops for the yielders to lose very consistently. The more
-// loops, the more the yielders should fall behind.
-const int kLoops = 1000;
+// The more loops, the more the yielders should fall behind.
+const int kLoops = 10000;
 
 void* YieldingEntryPoint(void* context) {
   for (int i = 0; i < kLoops; ++i) {
@@ -76,7 +74,7 @@ TEST(SbThreadYieldTest, SunnyDayRace) {
     SbThreadAffinity affinity = 0;
     // We want enough racers such that the threads must contend for cpu time,
     // and enough data for the averages to be consistently divergent.
-    const int64_t kRacers = 16;
+    const int64_t kRacers = 32;
     SbThread threads[kRacers];
     SbTimeMonotonic end_times[kRacers] = {0};
     for (int i = 0; i < kRacers; ++i) {
