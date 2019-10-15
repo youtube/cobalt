@@ -238,7 +238,7 @@ TEST_P(SbMediaSetAudioWriteDurationTest, WriteLimitedInput) {
   SbPlayerDestroy(player);
 }
 
-TEST_P(SbMediaSetAudioWriteDurationTest, FLAKY_WriteContinuedLimitedInput) {
+TEST_P(SbMediaSetAudioWriteDurationTest, WriteContinuedLimitedInput) {
   ASSERT_NE(dmp_reader_.audio_codec(), kSbMediaAudioCodecNone);
   ASSERT_GT(dmp_reader_.number_of_audio_buffers(), 0);
 
