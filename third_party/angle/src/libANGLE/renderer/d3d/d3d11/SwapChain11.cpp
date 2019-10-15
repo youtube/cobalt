@@ -569,6 +569,16 @@ EGLint SwapChain11::reset(EGLint backbufferWidth, EGLint backbufferHeight, EGLin
             device, mRenderer->getDxgiFactory(), getSwapChainNativeFormat(), backbufferWidth,
             backbufferHeight, getD3DSamples(), &mSwapChain);
 
+#if defined(STARBOARD)
+        // When an application is run in as a service, which is Session 0, a very specific error is
+        // returned. To allow unit tests to continue, silently continue using an offscreen texture.
+        bool failed_in_session_0 = FAILED(result) && result == DXGI_ERROR_NOT_CURRENTLY_AVAILABLE;
+        if (failed_in_session_0)
+        {
+            mNeedsOffscreenTexture = true;
+        }
+        else
+#endif
         if (FAILED(result))
         {
             ERR() << "Could not create additional swap chains or offscreen surfaces, "
@@ -585,6 +595,27 @@ EGLint SwapChain11::reset(EGLint backbufferWidth, EGLint backbufferHeight, EGLin
             }
         }
 
+#if defined(STARBOARD)
+        if (mSwapChain)
+        {
+            if (mRenderer->getRenderer11DeviceCaps().supportsDXGI1_2)
+            {
+                mSwapChain1 = d3d11::DynamicCastComObject<IDXGISwapChain1>(mSwapChain);
+            }
+
+            result = mSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&mBackBufferTexture);
+            ASSERT(SUCCEEDED(result));
+            d3d11::SetDebugName(mBackBufferTexture, "Back buffer texture");
+
+            gl::Error err = mRenderer->allocateResourceNoDesc(mBackBufferTexture, &mBackBufferRTView);
+            ASSERT(!err.isError());
+            mBackBufferRTView.setDebugName("Back buffer render target");
+
+            result = device->CreateShaderResourceView(mBackBufferTexture, nullptr, &mBackBufferSRView);
+            ASSERT(SUCCEEDED(result));
+            d3d11::SetDebugName(mBackBufferSRView, "Back buffer shader resource view");
+        }
+#else
         if (mRenderer->getRenderer11DeviceCaps().supportsDXGI1_2)
         {
             mSwapChain1 = d3d11::DynamicCastComObject<IDXGISwapChain1>(mSwapChain);
@@ -601,6 +632,7 @@ EGLint SwapChain11::reset(EGLint backbufferWidth, EGLint backbufferHeight, EGLin
         result = device->CreateShaderResourceView(mBackBufferTexture, nullptr, &mBackBufferSRView);
         ASSERT(SUCCEEDED(result));
         d3d11::SetDebugName(mBackBufferSRView, "Back buffer shader resource view");
+#endif
     }
 
     mFirstSwap = true;

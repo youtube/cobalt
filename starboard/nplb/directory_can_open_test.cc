@@ -41,6 +41,7 @@ TEST(SbDirectoryCanOpenTest, FailureEmpty) {
 TEST(SbDirectoryCanOpenTest, FailureRegularFile) {
   starboard::nplb::ScopedRandomFile file;
 
+  EXPECT_TRUE(SbFileExists(file.filename().c_str()));
   EXPECT_FALSE(SbDirectoryCanOpen(file.filename().c_str()));
 }
 

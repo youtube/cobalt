@@ -26,7 +26,6 @@
 namespace {
 
 using Microsoft::WRL::ComPtr;
-using starboard::shared::win32::CheckResult;
 
 // {3C3A43AB-C69B-46C9-AA8D-B0CFFCD4596D}
 const GUID kCobaltNv12BindChroma = {

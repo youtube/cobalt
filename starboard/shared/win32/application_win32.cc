@@ -150,7 +150,19 @@ bool ApplicationWin32::DestroyWindow(SbWindow window) {
   if (!SbWindowIsValid(window) || window != window_.get()) {
     return false;
   }
+
+  HWND window_handle = window_->GetWindowHandle();
   window_.reset();
+
+  if (!::DestroyWindow(window_handle)) {
+    SB_LOG(WARNING) << "Unable to destroy window";
+  }
+
+  if (!::UnregisterClass(kWindowClassName, NULL)) {
+    SB_LOG(ERROR) << "Failed to unregister window class.";
+    DebugLogWinError();
+  }
+
   return true;
 }
 
@@ -226,12 +238,13 @@ LRESULT ApplicationWin32::WindowProcess(HWND hWnd,
           ProcessWinKeyEvent(GetCoreWindow(), msg, w_param, l_param);
       break;
     case WM_DESTROY:
-      SB_LOG(INFO) << "Received destroy message; posting Quit message";
-      // Pause and suspend the application first so we can do some cleanup
-      // before the window is destroyed (e.g. stopping rasterization).
-      DispatchAndDelete(new Event(kSbEventTypePause, NULL, NULL));
-      DispatchAndDelete(new Event(kSbEventTypeSuspend, NULL, NULL));
-      PostQuitMessage(0);
+      if (window_.get()) {
+        // Pause and suspend the application first so we can do some cleanup
+        // before the window is destroyed (e.g. stopping rasterization).
+        DispatchAndDelete(new Event(kSbEventTypePause, NULL, NULL));
+        DispatchAndDelete(new Event(kSbEventTypeSuspend, NULL, NULL));
+        PostQuitMessage(0);
+      }
       break;
     default:
       return DefWindowProcW(hWnd, msg, w_param, l_param);

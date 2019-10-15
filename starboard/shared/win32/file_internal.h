@@ -79,7 +79,7 @@ inline bool PathEndsWith(const std::wstring& path, const wchar_t* filename) {
 
   size_t path_offset = path.size() - filename_length;
 
-  return wcscmp(path.c_str() + path_offset, filename) == 0;
+  return _wcsicmp(path.c_str() + path_offset, filename) == 0;
 }
 
 // Path's from cobalt use "/" as a path separator. This function will

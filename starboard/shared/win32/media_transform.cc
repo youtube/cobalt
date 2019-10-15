@@ -46,8 +46,12 @@ MediaTransform::MediaTransform(CLSID clsid)
       stream_begun_(false),
       discontinuity_(true),
       throttle_inputs_(false) {
+  transform_ = nullptr;
   HRESULT hr = CreateDecoderTransform(clsid, &transform_);
-  CheckResult(hr);
+  if (FAILED(hr) || !transform_) {
+    transform_ = nullptr;
+    state_ = kDrained;
+  }
 }
 
 MediaTransform::MediaTransform(
@@ -64,7 +68,7 @@ MediaTransform::MediaTransform(
 bool MediaTransform::TryWrite(const ComPtr<IMFSample>& input) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
-  if (state_ != kCanAcceptInput) {
+  if (state_ != kCanAcceptInput || !transform_) {
     return false;
   }
 
@@ -97,7 +101,7 @@ ComPtr<IMFSample> MediaTransform::TryRead(ComPtr<IMFMediaType>* new_type) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(new_type);
 
-  if (state_ == kDrained) {
+  if (state_ == kDrained || !transform_) {
     return NULL;
   }
 
@@ -175,6 +179,10 @@ bool MediaTransform::drained() const {
   return state_ == kDrained;
 }
 
+bool MediaTransform::HasValidTransform() const {
+  return transform_ ? true : false;
+}
+
 void MediaTransform::ResetFromDrained() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(drained());
@@ -186,34 +194,40 @@ void MediaTransform::ResetFromDrained() {
 
 ComPtr<IMFMediaType> MediaTransform::GetCurrentInputType() {
   ComPtr<IMFMediaType> type;
+  SB_DCHECK(transform_);
   HRESULT hr = transform_->GetInputCurrentType(kStreamId, type.GetAddressOf());
   CheckResult(hr);
   return type;
 }
 
 void MediaTransform::SetInputType(const ComPtr<IMFMediaType>& input_type) {
+  SB_DCHECK(transform_);
   HRESULT hr = transform_->SetInputType(0, input_type.Get(), 0);
   CheckResult(hr);
 }
 
 std::vector<ComPtr<IMFMediaType>> MediaTransform::GetAvailableInputTypes() {
+  SB_DCHECK(transform_);
   return GetAllInputMediaTypes(kStreamId, transform_.Get());
 }
 
 ComPtr<IMFMediaType> MediaTransform::GetCurrentOutputType() {
   ComPtr<IMFMediaType> type;
+  SB_DCHECK(transform_);
   HRESULT hr = transform_->GetOutputCurrentType(kStreamId, type.GetAddressOf());
   CheckResult(hr);
   return type;
 }
 
 void MediaTransform::SetOutputType(const ComPtr<IMFMediaType>& output_type) {
+  SB_DCHECK(transform_);
   HRESULT hr = transform_->SetOutputType(0, output_type.Get(), 0);
   CheckResult(hr);
 }
 
 std::vector<ComPtr<IMFMediaType>> MediaTransform::GetAvailableOutputTypes() {
   std::vector<ComPtr<IMFMediaType>> output_types;
+  SB_DCHECK(transform_);
 
   for (DWORD i = 0;; ++i) {
     ComPtr<IMFMediaType> curr_type;
@@ -229,6 +243,7 @@ std::vector<ComPtr<IMFMediaType>> MediaTransform::GetAvailableOutputTypes() {
 }
 
 void MediaTransform::SetOutputTypeBySubType(GUID subtype) {
+  SB_DCHECK(transform_);
   for (int index = 0;; ++index) {
     ComPtr<IMFMediaType> media_type;
     HRESULT hr =
@@ -249,6 +264,7 @@ void MediaTransform::SetOutputTypeBySubType(GUID subtype) {
 }
 
 ComPtr<IMFAttributes> MediaTransform::GetAttributes() {
+  SB_DCHECK(transform_);
   ComPtr<IMFAttributes> attributes;
   HRESULT hr = transform_->GetAttributes(attributes.GetAddressOf());
   CheckResult(hr);
@@ -256,6 +272,7 @@ ComPtr<IMFAttributes> MediaTransform::GetAttributes() {
 }
 
 ComPtr<IMFAttributes> MediaTransform::GetOutputStreamAttributes() {
+  SB_DCHECK(transform_);
   ComPtr<IMFAttributes> attributes;
   HRESULT hr =
       transform_->GetOutputStreamAttributes(0, attributes.GetAddressOf());
@@ -264,6 +281,7 @@ ComPtr<IMFAttributes> MediaTransform::GetOutputStreamAttributes() {
 }
 
 ComPtr<IMFSampleProtection> MediaTransform::GetSampleProtection() {
+  SB_DCHECK(transform_);
   ComPtr<IMFSampleProtection> sample_protection;
   HRESULT hr = transform_.As(&sample_protection);
   CheckResult(hr);
@@ -272,6 +290,7 @@ ComPtr<IMFSampleProtection> MediaTransform::GetSampleProtection() {
 
 void MediaTransform::GetStreamCount(DWORD* input_stream_count,
                                     DWORD* output_stream_count) {
+  SB_DCHECK(transform_);
   SB_DCHECK(input_stream_count);
   SB_DCHECK(output_stream_count);
   HRESULT hr =
@@ -279,9 +298,10 @@ void MediaTransform::GetStreamCount(DWORD* input_stream_count,
   CheckResult(hr);
 }
 
-void MediaTransform::SendMessage(MFT_MESSAGE_TYPE msg, ULONG_PTR data /*= 0*/) {
-  HRESULT hr = transform_->ProcessMessage(msg, data);
-  CheckResult(hr);
+HRESULT MediaTransform::SendMessage(MFT_MESSAGE_TYPE msg,
+                                    ULONG_PTR data /*= 0*/) {
+  SB_DCHECK(transform_);
+  return transform_->ProcessMessage(msg, data);
 }
 
 void MediaTransform::Reset() {
@@ -295,6 +315,7 @@ void MediaTransform::Reset() {
 
 void MediaTransform::PrepareOutputDataBuffer(
     MFT_OUTPUT_DATA_BUFFER* output_data_buffer) {
+  SB_DCHECK(transform_);
   output_data_buffer->dwStreamID = kStreamId;
   output_data_buffer->pSample = NULL;
   output_data_buffer->dwStatus = 0;
@@ -329,6 +350,7 @@ void MediaTransform::PrepareOutputDataBuffer(
 
 HRESULT MediaTransform::ProcessOutput(ComPtr<IMFSample>* sample) {
   SB_DCHECK(sample);
+  SB_DCHECK(transform_);
 
   MFT_OUTPUT_DATA_BUFFER output_data_buffer;
   PrepareOutputDataBuffer(&output_data_buffer);

@@ -26,7 +26,6 @@ bool SbAudioSinkIsAudioSampleTypeSupported(
     case kSbMediaAudioSampleTypeFloat32:
       return true;
     default:
-      SB_NOTREACHED();
       return false;
   }
 }

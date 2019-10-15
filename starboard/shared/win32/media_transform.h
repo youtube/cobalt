@@ -22,7 +22,6 @@
 
 #include <vector>
 
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
@@ -65,6 +64,8 @@ class MediaTransform {
   // attributes.
   void ResetFromDrained();
 
+  bool HasValidTransform() const;
+
   Microsoft::WRL::ComPtr<IMFMediaType> GetCurrentInputType();
   void SetInputType(const Microsoft::WRL::ComPtr<IMFMediaType>& type);
   std::vector<Microsoft::WRL::ComPtr<IMFMediaType>> GetAvailableInputTypes();
@@ -80,7 +81,7 @@ class MediaTransform {
   Microsoft::WRL::ComPtr<IMFSampleProtection> GetSampleProtection();
   void GetStreamCount(DWORD* input_streamcount, DWORD* output_stream_count);
 
-  void SendMessage(MFT_MESSAGE_TYPE msg, ULONG_PTR data = 0);
+  HRESULT SendMessage(MFT_MESSAGE_TYPE msg, ULONG_PTR data = 0);
 
   // Reset the media transform to its original state.
   void Reset();

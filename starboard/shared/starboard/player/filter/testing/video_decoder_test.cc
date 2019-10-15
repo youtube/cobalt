@@ -130,10 +130,7 @@ class VideoDecoderTest
         output_mode, dmp_reader_.video_codec(), kSbDrmSystemInvalid));
 
     PlayerComponents::VideoParameters video_parameters = {
-        &player_,
-        dmp_reader_.video_codec(),
-        kSbDrmSystemInvalid,
-        output_mode,
+        &player_, dmp_reader_.video_codec(), kSbDrmSystemInvalid, output_mode,
         fake_graphics_context_provider_.decoder_target_provider()};
 
     scoped_ptr<PlayerComponents> components;
@@ -156,6 +153,11 @@ class VideoDecoderTest
     video_decoder_->Initialize(
         std::bind(&VideoDecoderTest::OnDecoderStatusUpdate, this, _1, _2),
         std::bind(&VideoDecoderTest::OnError, this));
+    if (HasPendingEvents()) {
+      bool error_occurred = false;
+      ASSERT_NO_FATAL_FAILURE(DrainOutputs(&error_occurred));
+      ASSERT_FALSE(error_occurred);
+    }
   }
 
   void Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
@@ -562,9 +564,7 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
 
         for (int i = 0; i < kDecodersToCreate; ++i) {
           PlayerComponents::VideoParameters video_parameters = {
-              &players[i],
-              dmp_reader_.video_codec(),
-              kSbDrmSystemInvalid,
+              &players[i], dmp_reader_.video_codec(), kSbDrmSystemInvalid,
               output_mode,
               fake_graphics_context_provider_.decoder_target_provider()};
 
@@ -587,6 +587,11 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
             AssertInvalidDecodeTarget();
           }
 #endif  // SB_HAS(GLES2)
+        }
+        if (HasPendingEvents()) {
+          bool error_occurred = false;
+          ASSERT_NO_FATAL_FAILURE(DrainOutputs(&error_occurred));
+          ASSERT_FALSE(error_occurred);
         }
       }
     }

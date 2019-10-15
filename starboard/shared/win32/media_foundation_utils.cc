@@ -30,8 +30,6 @@ namespace starboard {
 namespace shared {
 namespace win32 {
 
-using ::starboard::shared::win32::CheckResult;
-
 namespace {
 
 #define MAKE_GUID_PAIR(X) std::pair<GUID, std::string>(X, #X)

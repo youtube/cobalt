@@ -48,7 +48,6 @@ std::string GetFormatHresultMessage(HRESULT hr) {
   return ss.str();
 }
 
-
 #define MAKE_HR_PAIR(X) std::pair<HRESULT, std::string>(X, #X)
 const std::pair<HRESULT, std::string> kHresultValueStrings[] = {
   MAKE_HR_PAIR(S_OK),
@@ -151,7 +150,7 @@ bool FindHResultEnumString(HRESULT hr, std::string* output) {
   return false;
 }
 
-}
+}  // namespace
 
 std::ostream& operator<<(std::ostream& os, const Win32ErrorCode& error_code) {
   LPWSTR error_message;

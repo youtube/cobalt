@@ -20,7 +20,7 @@
 
 #include <windows.h>
 
-#include <iostream>
+#include <ostream>
 #include <string>
 
 #include "starboard/common/log.h"
@@ -47,10 +47,11 @@ void DebugLogWinError();
 
 std::string HResultToString(HRESULT hr);
 
-inline void CheckResult(HRESULT hr) {
-  SB_DCHECK(SUCCEEDED(hr)) << "HRESULT was " << std::hex << hr
-      << " which translates to\n---> \"" << HResultToString(hr) << "\"";
-}
+#define CheckResult(hr) do { \
+  SB_DCHECK(SUCCEEDED(hr)) << "HRESULT was " << std::hex << hr \
+      << " which translates to\n---> \"" \
+      << ::starboard::shared::win32::HResultToString(hr) << "\""; \
+  } while (0)
 
 }  // namespace win32
 }  // namespace shared

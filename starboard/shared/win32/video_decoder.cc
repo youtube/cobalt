@@ -24,6 +24,7 @@
 
 // Include this after all other headers to avoid introducing redundant
 // definitions from other header files.
+#include <codecapi.h>  // For CODECAPI_*
 #include <initguid.h>  // For DXVA_ModeVP9_VLD_Profile0
 
 namespace starboard {
@@ -60,7 +61,7 @@ const int kDecodeTargetCacheSize = 2;
 #ifdef ENABLE_VP9_8K_SUPPORT
 const int kMaxDecodeTargetWidth = 7680;
 const int kMaxDecodeTargetHeight = 4320;
-#else  // ENABLE_VP9_8K_SUPPORT
+#else   // ENABLE_VP9_8K_SUPPORT
 const int kMaxDecodeTargetWidth = 3840;
 const int kMaxDecodeTargetHeight = 2160;
 #endif  // ENABLE_VP9_8K_SUPPOR
@@ -85,22 +86,59 @@ struct CreateDecodeTargetContext {
   SbDecodeTarget out_decode_target;
 };
 
-scoped_ptr<MediaTransform> CreateVideoTransform(const GUID& decoder_guid,
-    const GUID& input_guid, const GUID& output_guid,
+scoped_ptr<MediaTransform> CreateVideoTransform(
+    const GUID& decoder_guid,
+    const GUID& input_guid,
+    const GUID& output_guid,
     const IMFDXGIDeviceManager* device_manager) {
   scoped_ptr<MediaTransform> media_transform(new MediaTransform(decoder_guid));
-
+  if (!media_transform->HasValidTransform()) {
+    // Decoder Transform setup failed
+    return scoped_ptr<MediaTransform>().Pass();
+  }
   media_transform->EnableInputThrottle(true);
-  media_transform->SendMessage(MFT_MESSAGE_SET_D3D_MANAGER,
-                               ULONG_PTR(device_manager));
+
+  ComPtr<IMFAttributes> attributes = media_transform->GetAttributes();
+  if (!attributes) {
+    // Decoder Transform setup failed
+    return scoped_ptr<MediaTransform>().Pass();
+  }
+
+  UINT32 is_d3d_aware_attribute = false;
+  HRESULT hr = attributes->GetUINT32(MF_SA_D3D_AWARE, &is_d3d_aware_attribute);
+  if (SUCCEEDED(hr) && is_d3d_aware_attribute) {
+    // Ignore the return value, an error is expected when running in Session 0.
+    hr = media_transform->SendMessage(MFT_MESSAGE_SET_D3D_MANAGER,
+                                      ULONG_PTR(device_manager));
+    if (FAILED(hr)) {
+      SB_LOG(WARNING)
+          << "Unable to set device manager for d3d aware decoder, "
+             "disabling DXVA.";
+      hr = attributes->SetUINT32(CODECAPI_AVDecVideoAcceleration_H264, FALSE);
+      if (FAILED(hr)) {
+        SB_LOG(WARNING) << "Unable to disable DXVA.";
+        return scoped_ptr<MediaTransform>().Pass();
+      }
+    } else {
+      hr = attributes->SetUINT32(CODECAPI_AVDecVideoAcceleration_H264, TRUE);
+      if (FAILED(hr)) {
+        SB_LOG(INFO) << "Unable to enable DXVA for video decoder.";
+      }
+    }
+  } else {
+    SB_LOG(WARNING) << "Video decoder is not D3D aware, decoding may be slow.";
+  }
 
   // Tell the decoder to allocate resources for the maximum resolution in
-  // order to minimize hitching on resolution changes.
-  ComPtr<IMFAttributes> attributes = media_transform->GetAttributes();
-  CheckResult(attributes->SetUINT32(MF_MT_DECODER_USE_MAX_RESOLUTION, 1));
+  // order to minimize glitching on resolution changes.
+  if (FAILED(attributes->SetUINT32(MF_MT_DECODER_USE_MAX_RESOLUTION, 1))) {
+    return scoped_ptr<MediaTransform>().Pass();
+  }
 
   ComPtr<IMFMediaType> input_type;
-  CheckResult(MFCreateMediaType(&input_type));
+  if (FAILED(MFCreateMediaType(&input_type)) || !input_type) {
+    return scoped_ptr<MediaTransform>().Pass();
+  }
   CheckResult(input_type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video));
   CheckResult(input_type->SetGUID(MF_MT_SUBTYPE, input_guid));
   CheckResult(input_type->SetUINT32(MF_MT_INTERLACE_MODE,
@@ -149,11 +187,14 @@ VideoDecoder::VideoDecoder(
   HardwareDecoderContext hardware_context = GetDirectXForHardwareDecoding();
   d3d_device_ = hardware_context.dx_device_out;
   device_manager_ = hardware_context.dxgi_device_manager_out;
-  CheckResult(d3d_device_.As(&video_device_));
+  HRESULT hr = d3d_device_.As(&video_device_);
+  if (FAILED(hr)) {
+    return;
+  }
 
   ComPtr<ID3D11DeviceContext> d3d_context;
   d3d_device_->GetImmediateContext(d3d_context.GetAddressOf());
-  CheckResult(d3d_context.As(&video_context_));
+  d3d_context.As(&video_context_);
 }
 
 VideoDecoder::~VideoDecoder() {
@@ -213,7 +254,12 @@ void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
   SB_DCHECK(error_cb);
   decoder_status_cb_ = decoder_status_cb;
   error_cb_ = error_cb;
-  InitializeCodec();
+  if (video_device_) {
+    InitializeCodec();
+  }
+  if (!decoder_) {
+    error_cb_(kSbPlayerErrorDecode, "Cannot initialize codec.");
+  }
 }
 
 void VideoDecoder::WriteInputBuffer(
@@ -225,7 +271,7 @@ void VideoDecoder::WriteInputBuffer(
 
   ScopedLock lock(thread_lock_);
   thread_events_.emplace_back(
-      new Event{ Event::kWriteInputBuffer, input_buffer });
+      new Event{Event::kWriteInputBuffer, input_buffer});
 }
 
 void VideoDecoder::WriteEndOfStream() {
@@ -234,7 +280,7 @@ void VideoDecoder::WriteEndOfStream() {
   EnsureDecoderThreadRunning();
 
   ScopedLock lock(thread_lock_);
-  thread_events_.emplace_back(new Event{ Event::kWriteEndOfStream });
+  thread_events_.emplace_back(new Event{Event::kWriteEndOfStream});
 }
 
 void VideoDecoder::Reset() {
@@ -258,14 +304,17 @@ void VideoDecoder::Reset() {
   }
 
   decoder_status_cb_(kReleaseAllFrames, nullptr);
-  decoder_->Reset();
+  if (decoder_) {
+    decoder_->Reset();
+  }
 }
 
 SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
   // Ensure the decode target is created on the render thread.
-  CreateDecodeTargetContext decode_target_context = { this };
-  graphics_context_provider_->gles_context_runner(graphics_context_provider_,
-      &VideoDecoder::CreateDecodeTargetHelper, &decode_target_context);
+  CreateDecodeTargetContext decode_target_context = {this};
+  graphics_context_provider_->gles_context_runner(
+      graphics_context_provider_, &VideoDecoder::CreateDecodeTargetHelper,
+      &decode_target_context);
 
   ScopedLock lock(decode_target_lock_);
   if (SbDecodeTargetIsValid(decode_target_context.out_decode_target)) {
@@ -353,17 +402,27 @@ void VideoDecoder::InitializeCodec() {
   // updated.
   switch (video_codec_) {
     case kSbMediaVideoCodecH264: {
-      media_transform = CreateVideoTransform(
-          CLSID_MSH264DecoderMFT, MFVideoFormat_H264, MFVideoFormat_NV12,
-          device_manager_.Get());
+      media_transform =
+          CreateVideoTransform(CLSID_MSH264DecoderMFT, MFVideoFormat_H264,
+                               MFVideoFormat_NV12, device_manager_.Get());
       priming_output_count_ = 0;
+      if (!media_transform) {
+        SB_LOG(WARNING) << "H264 hardware decoder creation failed.";
+        return;
+      }
       break;
     }
     case kSbMediaVideoCodecVp9: {
-      media_transform = CreateVideoTransform(
-          CLSID_MSVPxDecoder, MFVideoFormat_VP90, MFVideoFormat_NV12,
-          device_manager_.Get());
-      priming_output_count_ = kVp9PrimingFrameCount;
+      if (IsHardwareVp9DecoderSupported()) {
+        media_transform =
+            CreateVideoTransform(CLSID_MSVPxDecoder, MFVideoFormat_VP90,
+                                 MFVideoFormat_NV12, device_manager_.Get());
+        priming_output_count_ = kVp9PrimingFrameCount;
+      }
+      if (!media_transform) {
+        SB_LOG(WARNING) << "VP9 hardware decoder creation failed.";
+        return;
+      }
       break;
     }
     default: { SB_NOTREACHED(); }
@@ -375,13 +434,15 @@ void VideoDecoder::InitializeCodec() {
 
   DWORD input_stream_count = 0;
   DWORD output_stream_count = 0;
+  SB_DCHECK(transform);
   transform->GetStreamCount(&input_stream_count, &output_stream_count);
   SB_DCHECK(1 == input_stream_count);
   SB_DCHECK(1 == output_stream_count);
 
   ComPtr<IMFAttributes> attributes = transform->GetAttributes();
+  SB_DCHECK(attributes);
   CheckResult(attributes->SetUINT32(MF_SA_MINIMUM_OUTPUT_SAMPLE_COUNT,
-      kMaxOutputSamples));
+                                    kMaxOutputSamples));
 
   UpdateVideoArea(transform->GetCurrentOutputType());
 
@@ -389,8 +450,9 @@ void VideoDecoder::InitializeCodec() {
   // or we can't draw them later via ANGLE.
   ComPtr<IMFAttributes> output_attributes =
       transform->GetOutputStreamAttributes();
-  CheckResult(output_attributes->SetUINT32(MF_SA_D3D11_BINDFLAGS,
-      D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DECODER));
+  SB_DCHECK(output_attributes);
+  CheckResult(output_attributes->SetUINT32(
+      MF_SA_D3D11_BINDFLAGS, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DECODER));
 
   // The resolution and framerate will adjust to the actual content data.
   D3D11_VIDEO_PROCESSOR_CONTENT_DESC content_desc = {};
@@ -408,6 +470,7 @@ void VideoDecoder::InitializeCodec() {
       &content_desc, video_enumerator_.GetAddressOf()));
   CheckResult(video_device_->CreateVideoProcessor(
       video_enumerator_.Get(), 0, video_processor_.GetAddressOf()));
+  SB_DCHECK(video_context_);
   video_context_->VideoProcessorSetStreamFrameFormat(
       video_processor_.Get(), MediaTransform::kStreamId,
       D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE);
@@ -418,14 +481,16 @@ void VideoDecoder::InitializeCodec() {
 void VideoDecoder::ShutdownCodec() {
   SB_DCHECK(!SbThreadIsValid(decoder_thread_));
   SB_DCHECK(thread_outputs_.empty());
-  SB_DCHECK(decoder_ != nullptr);
+  if (!decoder_) {
+    return;
+  }
 
   // Work around a VP9 decoder crash. All IMFSamples and anything that may
   // reference them indirectly (the d3d texture in SbDecodeTarget) must be
   // released before releasing the IMFTransform. Do this on the render thread
   // since graphics resources are being released.
-  graphics_context_provider_->gles_context_runner(graphics_context_provider_,
-      &VideoDecoder::ReleaseDecodeTargets, this);
+  graphics_context_provider_->gles_context_runner(
+      graphics_context_provider_, &VideoDecoder::ReleaseDecodeTargets, this);
 
   // Microsoft recommendeds stalling to let other systems release their
   // references to the IMFSamples.
@@ -461,6 +526,10 @@ void VideoDecoder::EnsureDecoderThreadRunning() {
   SB_DCHECK(!decoder_thread_stopped_);
 
   if (!SbThreadIsValid(decoder_thread_)) {
+    if (!decoder_) {
+      error_cb_(kSbPlayerErrorDecode, "Cannot initialize codec.");
+      return;
+    }
     SB_DCHECK(decoder_ != nullptr);
     SB_DCHECK(thread_events_.empty());
     decoder_thread_stop_requested_ = false;

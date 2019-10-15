@@ -32,18 +32,7 @@ class CobaltWinWin32Configuration(cobalt_configuration.CobaltConfiguration):
 
   def GetTestFilters(self):
     filters = super(CobaltWinWin32Configuration, self).GetTestFilters()
-    filtered_tests = dict(self.__FILTERED_TESTS)  # Copy.
-    # On the VWware buildbot doesn't have a lot of video memory and
-    # the following tests will fail or crash the system. Therefore they
-    # are filtered out.
-    # UPDATE: This might actually be a memory leak:
-    #   https://b.***REMOVED***/issues/113123413
-    # TODO: Remove these filters once the bug has been addressed.
-    if self.vmware:
-      filtered_tests.update({'layout_tests': [test_filter.FILTER_ALL]})
-      filtered_tests.update({'renderer_test': [test_filter.FILTER_ALL]})
-
-    for target, tests in filtered_tests.iteritems():
+    for target, tests in self.__FILTERED_TESTS.iteritems():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
@@ -55,11 +44,4 @@ class CobaltWinWin32Configuration(cobalt_configuration.CobaltConfiguration):
     return filters
 
   __FILTERED_TESTS = {
-      'renderer_test': [
-          'ResourceProviderTest.ManyTexturesCanBeCreatedAndDestroyedQuickly', # Flaky.
-          'ResourceProviderTest.TexturesCanBeCreatedFromSecondaryThread',
-          'PixelTest.Width1Image',
-          'PixelTest.Height1Image',
-          'PixelTest.Area1Image',
-      ],
   }

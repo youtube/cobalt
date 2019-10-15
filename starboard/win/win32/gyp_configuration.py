@@ -63,73 +63,44 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
       return [test_filter.DISABLE_TESTING]
     else:
       filters = super(WinWin32PlatformConfig, self).GetTestFilters()
-      filtered_tests = dict(self.__FILTERED_TESTS)  # Copy.
-      # On the VWware buildbot doesn't have a lot of video memory and
-      # the following tests will fail or crash the system. Therefore they
-      # are filtered out.
-      # UPDATE: This might actually be a memory leak:
-      #   https://b.***REMOVED***/issues/113123413
-      # TODO: Remove these filters once the bug has been addressed.
-      if self.vmware:
-        filtered_tests.update({'player_filter_tests': [test_filter.FILTER_ALL]})
-        # TODO: Figure out why these tests are flaky on buildbot.
-        nplb_tests = filtered_tests.get('nplb', [])
-        nplb_tests.append('RWLock.*HoldsLockForTime')
-        nplb_tests.append('Semaphore.*ThreadTakesWait_TimeExpires')
-        filtered_tests.update({'nplb': nplb_tests })
-
-      for target, tests in filtered_tests.iteritems():
+      for target, tests in self.__FILTERED_TESTS.iteritems():
         filters.extend(test_filter.TestFilter(target, test) for test in tests)
       return filters
 
   __FILTERED_TESTS = {
       'nplb': [
-          # TODO: Check these unit tests and fix them!
-          'SbAudioSinkCreateTest.MultiSink',
-          'SbAudioSinkCreateTest.RainyDayInvalid*',
-          'SbAudioSinkCreateTest.SunnyDay',
-          'SbAudioSinkCreateTest.SunnyDayAllCombinations',
-          'SbAudioSinkIsAudioSampleTypeSupportedTest.SunnyDay',
-          'SbAudioSinkTest.*',
-
-          # TODO: Find out why these are flaky!
-          'SbDirectoryCanOpenTest.SunnyDay',
-          'SbDirectoryGetNextTest.SunnyDay',
-          'SbDirectoryGetNextTest.FailureNullEntry',
-          'SbDirectoryOpenTest.SunnyDay',
-          'SbDirectoryOpenTest.SunnyDayWithNullError',
-          'SbDirectoryOpenTest.ManySunnyDay',
-          'SbDirectoryOpenTest.FailsInvalidPath',
-          'SbSocketWaiterWakeUpTest.CallFromOtherThreadWakesUp',
-
-          'SbMicrophoneCloseTest.SunnyDayCloseAreCalledMultipleTimes',
-          'SbMicrophoneOpenTest.SunnyDay',
-          'SbMicrophoneOpenTest.SunnyDayNoClose',
-          'SbMicrophoneOpenTest.SunnyDayMultipleOpenCalls',
-          'SbMicrophoneReadTest.SunnyDay',
-          'SbMicrophoneReadTest.SunnyDayReadIsLargerThanMinReadSize',
-          'SbMicrophoneReadTest.RainyDayAudioBufferIsNULL',
-          'SbMicrophoneReadTest.RainyDayAudioBufferSizeIsSmallerThanMinReadSize',
-          'SbMicrophoneReadTest.RainyDayAudioBufferSizeIsSmallerThanRequestedSize',
-          'SbMicrophoneReadTest.RainyDayOpenCloseAndRead',
-          'SbMicrophoneReadTest.SunnyDayOpenSleepCloseAndOpenRead',
-
-          'SbPlayerTest.Audioless',
-          'SbPlayerTest.AudioOnly',
-          'SbPlayerTest.NullCallbacks',
+          # This single test takes >15 minutes.
           'SbPlayerTest.MultiPlayer',
-          'SbPlayerTest.SunnyDay',
-
-          # Flaky tests in debug mode.
-          'SbConditionVariableWaitTimedTest.*',
-          'SbThreadYieldTest.SunnyDayRace',
-
-          'SbSocketJoinMulticastGroupTest.SunnyDay',
+          # This test fails on win-win32 devel builds, because the compiler
+          # performs an optimization that defeats the SB_C_NOINLINE 'noinline'
+          # attribute.
           'SbSystemGetStackTest.SunnyDayStackDirection',
-          # Fails when subtracting infinity and expecting NaN:
-          # for EXPECT_TRUE(SbDoubleIsNan(infinity + -infinity))
-          'SbUnsafeMathTest.NaNDoubleSunnyDay',
        ],
+      'player_filter_tests': [
+          # This test fails on win-win32.
+          'AudioDecoderTests/AudioDecoderTest.MultipleInvalidInput/0',
+          # These tests fail on our VMs for win-win32 builds due to missing
+          # or non functioning system video decoders.
+          'VideoDecoderTests/VideoDecoderTest.PrerollFrameCount/0',
+          'VideoDecoderTests/VideoDecoderTest.MaxNumberOfCachedFrames/0',
+          'VideoDecoderTests/VideoDecoderTest.PrerollTimeout/0',
+          'VideoDecoderTests/VideoDecoderTest.OutputModeSupported/0',
+          'VideoDecoderTests/VideoDecoderTest.GetCurrentDecodeTargetBeforeWriteInputBuffer/0',
+          'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders/0',
+          'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders/1',
+          'VideoDecoderTests/VideoDecoderTest.SingleInput/0',
+          'VideoDecoderTests/VideoDecoderTest.SingleInvalidKeyFrame/0',
+          'VideoDecoderTests/VideoDecoderTest.MultipleValidInputsAfterInvalidKeyFrame/0',
+          'VideoDecoderTests/VideoDecoderTest.MultipleInvalidInput/0',
+          'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput/0',
+          'VideoDecoderTests/VideoDecoderTest.ResetBeforeInput/0',
+          'VideoDecoderTests/VideoDecoderTest.ResetAfterInput/0',
+          'VideoDecoderTests/VideoDecoderTest.MultipleResets/0',
+          'VideoDecoderTests/VideoDecoderTest.MultipleInputs/0',
+          'VideoDecoderTests/VideoDecoderTest.Preroll/0',
+          'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull/0',
+          'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/0',
+],
   }
 
   def GetVariables(self, configuration):
