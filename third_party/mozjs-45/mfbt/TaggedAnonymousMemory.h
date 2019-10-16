@@ -48,12 +48,12 @@ MozTaggedAnonymousMmap(void* aAddr, size_t aLength, int aProt, int aFlags,
 {
   // Starboard has no concept of passing an address into mmap.
   SB_DCHECK(aAddr == nullptr);
-#if SB_HAS(MMAP)
+#if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
   return SbMemoryMap(aLength, aProt, aTag);
-#else  // SB_HAS(MMAP)
+#else   // SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
   SB_NOTIMPLEMENTED();
   return nullptr;
-#endif  // SB_HAS(MMAP)
+#endif  // SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
 }
 
 static inline int

@@ -21,7 +21,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_HAS(MMAP)
+#if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
 const size_t kSize = SB_MEMORY_PAGE_SIZE * 8;
 const void* kFailed = SB_MEMORY_MAP_FAILED;
 
@@ -293,7 +293,7 @@ TEST(SbMemoryMapTest, CanChangeMemoryProtection) {
 }
 #endif  // SB_API_VERSION >= 10
 
-#endif  // SB_HAS(MMAP)
+#endif  // SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
 
 }  // namespace
 }  // namespace nplb

@@ -65,10 +65,10 @@ typedef void* SbPageVirtualMemory;
 // Platforms that have OS support for the virtual region ("MORECORE") behavior
 // will enable SB_HAS_VIRTUAL_REGIONS in configuration_public.h.
 //
-// Platforms that support SbMap() must enable SB_HAS_MMAP in their
-// configuration_public.h file. dlmalloc is very flexible and if a platform
-// can't implement virtual regions, it will use Map() for all allocations,
-// merging adjacent allocations when it can.
+// Platforms that support SbMap() must be at least starboard version 12 or
+// enable SB_HAS_MMAP in their configuration_public.h file. dlmalloc is very
+// flexible and if a platform can't implement virtual regions, it will use
+// Map() for all allocations, merging adjacent allocations when it can.
 //
 // If a platform can't use Map(), it will just use MORECORE for everything.
 // Currently we believe a mixture of both provides best behavior, but more
@@ -105,7 +105,7 @@ int SbPageUnmapAndFreePhysical(SbPageVirtualMemory virtual_address,
 size_t SbPageGetVirtualRegionSize();
 #endif
 
-#if SB_HAS(MMAP)
+#if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
 // Allocates |size_bytes| worth of physical memory pages and maps them into an
 // available virtual region. On some platforms, |name| appears in the debugger
 // and can be up to 32 bytes. Returns SB_MEMORY_MAP_FAILED on failure, as NULL
@@ -135,7 +135,7 @@ bool SbPageUnmapUntracked(void* virtual_address, size_t size_bytes);
 // |virtual_address|, to |flags|, returning |true| on success.
 bool SbPageProtect(void* virtual_address, int64_t size_bytes, int flags);
 #endif
-#endif  // SB_HAS(MMAP)
+#endif  // SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
 
 // Returns the total amount, in bytes, of physical memory available. Should
 // always be a multiple of SB_MEMORY_PAGE_SIZE.

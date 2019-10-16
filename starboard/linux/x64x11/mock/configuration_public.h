@@ -348,10 +348,6 @@
 // it.
 #define SB_MEMORY_PAGE_SIZE 4096
 
-// Whether this platform has and should use an MMAP function to map physical
-// memory to the virtual address space.
-#define SB_HAS_MMAP 0
-
 // Whether this platform can map executable memory. Implies SB_HAS_MMAP. This is
 // required for platforms that want to JIT.
 #define SB_CAN_MAP_EXECUTABLE_MEMORY 0

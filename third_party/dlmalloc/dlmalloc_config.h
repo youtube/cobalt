@@ -98,7 +98,7 @@
 
 // Adapt Starboard configuration to old LBShell-style configuration.
 #if defined(STARBOARD)
-#if SB_HAS(MMAP)
+#if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
 #define LB_HAS_MMAP
 #endif
 #if SB_HAS(VIRTUAL_REGIONS)
@@ -128,7 +128,7 @@
 
 #if defined(STARBOARD)
 
-#if SB_HAS(MMAP)
+#if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
 #define DEFAULT_MMAP_THRESHOLD SB_DEFAULT_MMAP_THRESHOLD
 #endif
 
