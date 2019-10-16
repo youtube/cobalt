@@ -193,7 +193,7 @@ SB_DEPRECATED_EXTERNAL(
 SB_DEPRECATED_EXTERNAL(
     SB_EXPORT void SbMemoryFreeAligned(void* memory));
 
-#if SB_HAS(MMAP)
+#if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
 // Allocates |size_bytes| worth of physical memory pages and maps them into
 // an available virtual region. This function returns |SB_MEMORY_MAP_FAILED|
 // on failure. |NULL| is a valid return value.
@@ -235,7 +235,7 @@ SB_EXPORT bool SbMemoryProtect(void* virtual_address,
 // memory that has been written to and might be executed in the future.
 SB_EXPORT void SbMemoryFlush(void* virtual_address, int64_t size_bytes);
 #endif
-#endif  // SB_HAS(MMAP)
+#endif  // SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
 
 // Gets the stack bounds for the current thread.
 //

@@ -17,7 +17,9 @@
 #include "starboard/common/scoped_ptr.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_API_VERSION >= 12 && SB_HAS(MMAP) && SB_CAN(MAP_EXECUTABLE_MEMORY)
+#if SB_API_VERSION >= 12 &&                                         \
+    (SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)) && \
+    SB_CAN(MAP_EXECUTABLE_MEMORY)
 namespace starboard {
 namespace elf_loader {
 
@@ -37,4 +39,5 @@ TEST_F(ElfLoaderTest, Initialize) {
 }  // namespace
 }  // namespace elf_loader
 }  // namespace starboard
-#endif  // SB_API_VERSION >= 12 && SB_HAS(MMAP) && SB_CAN(MAP_EXECUTABLE_MEMORY)
+#endif  // SB_API_VERSION >= 12 && (SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION
+        // || SB_HAS(MMAP)) && SB_CAN(MAP_EXECUTABLE_MEMORY)

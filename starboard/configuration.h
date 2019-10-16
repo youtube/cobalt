@@ -85,6 +85,13 @@
 // This change also deprecates the SB_HAS_CAPTIONS flag.
 #define SB_CAPTIONS_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Require the memory mapping API.
+// The system must implement the memory mapping functions in
+// `starboard/memory.h` and `starboard/shared/dlmalloc.h` or use the provided
+// stub implementations.
+// This change also deprecates the SB_HAS_MMAP flag.
+#define SB_MMAP_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // Require speech recognizer API.
 // The system must implement the functions in `starboard/speech_recognizer.h`
 // or use the provided stub implementations.

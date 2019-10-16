@@ -322,6 +322,11 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMicrophoneRead);
 #endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(MICROPHONE)
 
+#if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
+  REGISTER_SYMBOL(SbMemoryMap);
+  REGISTER_SYMBOL(SbMemoryUnmap);
+#endif
+
 #if SB_API_VERSION >= SB_SPEECH_SYNTHESIS_REQUIRED_VERSION || \
     SB_HAS(SPEECH_SYNTHESIS)
   REGISTER_SYMBOL(SbSpeechSynthesisCancel);
@@ -351,6 +356,9 @@ ExportedSymbols::ExportedSymbols() {
 #endif
 
 #if SB_API_VERSION >= 10
+#if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
+  REGISTER_SYMBOL(SbMemoryProtect);
+#endif
   REGISTER_SYMBOL(SbDrmIsServerCertificateUpdatable);
   REGISTER_SYMBOL(SbDrmUpdateServerCertificate);
   REGISTER_SYMBOL(SbMediaGetAudioBufferBudget);

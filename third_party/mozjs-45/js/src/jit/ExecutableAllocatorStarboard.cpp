@@ -50,7 +50,7 @@ js::jit::AllocateExecutableMemory(void* addr, size_t bytes, unsigned permissions
 #if !SB_CAN(MAP_EXECUTABLE_MEMORY)
     SB_NOTREACHED();
     return nullptr;
-#elif !SB_HAS(MMAP)
+#elif !(SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP))
     SB_NOTIMPLEMENTED();
     return nullptr;
 #else
@@ -63,12 +63,12 @@ void
 js::jit::DeallocateExecutableMemory(void* addr, size_t bytes, size_t pageSize)
 {
     MOZ_ASSERT(bytes % pageSize == 0);
-#if SB_HAS(MMAP)
+#if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
     mozilla::DebugOnly<bool> result = SbMemoryUnmap(addr, bytes);
     MOZ_ASSERT(result);
-#else  // SB_HAS(MMAP)
+#else   // SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
     SB_NOTIMPLEMENTED();
-#endif  // SB_HAS(MMAP)
+#endif  // SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
 }
 
 ExecutablePool::Allocation
