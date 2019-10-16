@@ -50,11 +50,20 @@ class CobaltLinuxConfiguration(cobalt_configuration.CobaltConfiguration):
 
   def GetWebPlatformTestFilters(self):
     filters = super(CobaltLinuxConfiguration, self).GetWebPlatformTestFilters()
-    filters += [
-        'xhr/WebPlatformTest.Run/XMLHttpRequest_send_timeout_events_htm',
-        'streams/WebPlatformTest.Run/streams_readable_streams_templated_html',
-        'cors/WebPlatformTest.Run/cors_preflight_failure_htm',
-    ]
+    filters.extend([
+        # These tests are timing-sensitive, and are thus flaky on slower builds
+        test_filter.TestFilter(
+            'web_platform_tests',
+            'xhr/WebPlatformTest.Run/XMLHttpRequest_send_timeout_events_htm',
+            'debug'),
+        test_filter.TestFilter(
+            'web_platform_tests',
+            'streams/WebPlatformTest.Run/streams_readable_streams_templated_html',
+            'debug'),
+        test_filter.TestFilter(
+            'web_platform_tests',
+            'cors/WebPlatformTest.Run/cors_preflight_failure_htm', 'devel')
+    ])
     return filters
 
   def GetTestEnvVariables(self):
