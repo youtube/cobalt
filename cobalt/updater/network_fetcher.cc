@@ -80,14 +80,18 @@ void NetworkFetcher::PostRequest(
     PostRequestCompleteCallback post_request_complete_callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  SB_LOG(INFO) << "url = " << url;
-  SB_LOG(INFO) << "post_data = " << post_data;
+  SB_LOG(INFO) << "PostRequest url = " << url;
+  SB_LOG(INFO) << "PostRequest post_data = " << post_data;
 
   response_started_callback_ = std::move(response_started_callback);
   progress_callback_ = std::move(progress_callback);
   post_request_complete_callback_ = std::move(post_request_complete_callback);
 
   CreateUrlFetcher(url, net::URLFetcher::POST);
+
+  auto* download_data_writer = new CobaltURLFetcherStringWriter();
+  url_fetcher_->SaveResponseWithWriter(
+      std::unique_ptr<CobaltURLFetcherStringWriter>(download_data_writer));
 
   for (const auto& header : post_additional_headers) {
     url_fetcher_->AddExtraRequestHeader(header.first + ": " + header.second);
@@ -106,6 +110,9 @@ void NetworkFetcher::DownloadToFile(
     ProgressCallback progress_callback,
     DownloadToFileCompleteCallback download_to_file_complete_callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  SB_LOG(INFO) << "DownloadToFile url = " << url;
+  SB_LOG(INFO) << "DownloadToFile file_path = " << file_path;
 
   response_started_callback_ = std::move(response_started_callback);
   progress_callback_ = std::move(progress_callback);
@@ -143,7 +150,7 @@ void NetworkFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
 
   if (!status.is_success() || !IsResponseCodeSuccess(response_code)) {
     std::string msg(base::StringPrintf(
-        "NetworkFetcher error on %s: %s, response code %d",
+        "NetworkFetcher error on %s : %s, response code %d",
         source->GetURL().spec().c_str(),
         net::ErrorToString(status.error()).c_str(), response_code));
     return HandleError(msg).InvalidateThis();
@@ -168,10 +175,6 @@ void NetworkFetcher::CreateUrlFetcher(
   url_fetcher_->SetRequestContext(
       network_module_->url_request_context_getter().get());
 
-  auto* download_data_writer = new CobaltURLFetcherStringWriter();
-  url_fetcher_->SaveResponseWithWriter(
-      std::unique_ptr<CobaltURLFetcherStringWriter>(download_data_writer));
-
   // Request mode is kCORSModeOmitCredentials.
   const uint32 kDisableCookiesAndCacheLoadFlags =
       net::LOAD_NORMAL | net::LOAD_DO_NOT_SAVE_COOKIES |
@@ -186,9 +189,20 @@ void NetworkFetcher::CreateUrlFetcher(
 void NetworkFetcher::OnPostRequestComplete(const net::URLFetcher* source,
                                            const int status_error) {
   std::unique_ptr<std::string> response_body;
-  if (!source->GetResponseAsString(response_body.get())) {
-    SB_LOG(ERROR) << "PostRequest failed to get response as string.";
+  auto* download_data_writer =
+      base::polymorphic_downcast<CobaltURLFetcherStringWriter*>(
+          source->GetResponseWriter());
+  if (download_data_writer) {
+    response_body = download_data_writer->data();
   }
+
+  if (response_body->empty()) {
+    SB_LOG(ERROR) << "PostRequest got empty response.";
+  }
+
+  SB_LOG(INFO) << "OnPostRequestComplete response_body = "
+               << *response_body.get();
+
   net::HttpResponseHeaders* response_headers = source->GetResponseHeaders();
   std::move(post_request_complete_callback_)
       .Run(std::move(response_body), status_error,
@@ -204,6 +218,8 @@ void NetworkFetcher::OnDownloadToFileComplete(const net::URLFetcher* source,
   if (!source->GetResponseAsFilePath(true, &response_file)) {
     SB_LOG(ERROR) << "DownloadToFile failed to get response from a file";
   }
+  SB_LOG(INFO) << "OnDownloadToFileComplete response_file = " << response_file;
+
   std::move(download_to_file_complete_callback_)
       .Run(response_file, status_error,
            source->GetResponseHeaders()
