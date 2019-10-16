@@ -37,16 +37,23 @@ class WebPlatformTests(black_box_tests.BlackBoxTestCase):
       target_params = []
 
       filters = self.cobalt_config.GetWebPlatformTestFilters()
+      used_filters = []
 
-      if test_filter.DISABLE_TESTING in filters:
-        return
+      for filter in filters:
+        if filter == test_filter.DISABLE_TESTING:
+          return
+        if filter == test_filter.FILTER_ALL:
+          return
+        if isinstance(filter, test_filter.TestFilter):
+          if filter.config and filter.config != self.device_params.config:
+            continue
+          used_filters.append(filter.test_name)
+        else:
+          used_filters.append(filter)
 
-      if test_filter.FILTER_ALL in filters:
-        return
-
-      if filters:
-        target_params.append('--gtest_filter=-{}'.format(':'.join(
-            filters)))
+      if used_filters:
+        target_params.append('--gtest_filter=-{}'.format(
+            ':'.join(used_filters)))
 
       if self.device_params.target_params:
         target_params += self.device_params.target_params
