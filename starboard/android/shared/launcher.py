@@ -227,8 +227,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # Device isn't connected. Run ADB connect.
     # Does not use the ADBCommandBuilder class because this command should be
     # run without targeting a specific device.
-    p = subprocess.Popen([_ADB, 'connect', self.device_id], stderr=_DEV_NULL,
-                         stdout=subprocess.PIPE, close_fds=True)
+    p = subprocess.Popen([_ADB, 'connect', '{}:5555'.format(self.device_id)],
+                         stderr=_DEV_NULL, stdout=subprocess.PIPE,
+                         close_fds=True)
     result = p.stdout.readlines()[0]
     p.wait()
 
