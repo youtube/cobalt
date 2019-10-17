@@ -221,6 +221,7 @@ static_library("starboard_platform") {
     "//starboard/shared/stub/drm_system_internal.h",
     "//starboard/shared/stub/drm_update_server_certificate.cc",
     "//starboard/shared/stub/drm_update_session.cc",
+    "//starboard/shared/stub/file_atomic_replace.cc",
     "//starboard/shared/stub/file_can_open.cc",
     "//starboard/shared/stub/file_close.cc",
     "//starboard/shared/stub/file_delete.cc",
