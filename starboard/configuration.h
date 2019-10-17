@@ -95,6 +95,10 @@
 
 #define SB_EVERGREEN_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Introduce the Starboard function SbFileAtomicReplace() to provide the ability
+// to atomically replace the content of a file.
+#define SB_FILE_ATOMIC_REPLACE_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
