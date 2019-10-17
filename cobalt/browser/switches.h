@@ -123,6 +123,8 @@ extern const char kMaxCobaltGpuUsage[];
 extern const char kMaxCobaltGpuUsageHelp[];
 extern const char kOffscreenTargetCacheSizeInBytes[];
 extern const char kOffscreenTargetCacheSizeInBytesHelp[];
+extern const char kOmitDeviceAuthenticationQueryParameters[];
+extern const char kOmitDeviceAuthenticationQueryParametersHelp[];
 extern const char kProxy[];
 extern const char kProxyHelp[];
 extern const char kQrCodeOverlay[];

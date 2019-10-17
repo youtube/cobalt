@@ -140,6 +140,11 @@ TEST(DeviceAuthenticationTest,
           "yacs", "11111111", "11111111111111111111111111111111111111111111"));
 }
 
+TEST(DeviceAuthenticationTest, NoCertSignatureImpliesNoQueryParameters) {
+  EXPECT_EQ("", GetDeviceAuthenticationSignedURLQueryStringFromComponents(
+                    "my_cert_scope", "1234", ""));
+}
+
 #endif  // SB_API_VERSION >= 11
 
 }  // namespace browser

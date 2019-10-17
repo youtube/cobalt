@@ -146,6 +146,10 @@ std::string GetDeviceAuthenticationSignedURLQueryStringFromComponents(
   CHECK(!cert_scope.empty());
   CHECK(!start_time.empty());
 
+  if (base64_signature.empty()) {
+    return std::string();
+  }
+
   std::map<std::string, std::string> signed_query_components;
   signed_query_components["cert_scope"] = cert_scope;
   signed_query_components["start_time"] = start_time;
