@@ -358,7 +358,7 @@ void FlexLine::DoMainAxisAlignment() {
   // If the remaining free space is positive and at least one main-axis margin
   // on this line is auto, distribute the free space equally among these
   // margins.
-  std::vector<bool> auto_margins(items_.size());
+  std::vector<bool> auto_margins(items_.size() * 2);
   int auto_margin_count = 0;
   int margin_idx = 0;
   for (auto& item : items_) {
