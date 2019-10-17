@@ -25,38 +25,6 @@
 // the current value of SB_MAXIMUM_API_VERSION at the time of implementation.
 #define SB_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// --- Architecture Configuration --------------------------------------------
-
-// Whether the current platform is big endian. SB_IS_LITTLE_ENDIAN will be
-// automatically set based on this.
-#define SB_IS_BIG_ENDIAN 0
-
-// Whether the current platform is an ARM architecture.
-#define SB_IS_ARCH_ARM 1
-
-// Whether the current platform is a MIPS architecture.
-#define SB_IS_ARCH_MIPS 0
-
-// Whether the current platform is a PPC architecture.
-#define SB_IS_ARCH_PPC 0
-
-// Whether the current platform is an x86 architecture.
-#define SB_IS_ARCH_X86 0
-
-// 64-bit architecture.
-#define SB_IS_32_BIT 0
-#define SB_IS_64_BIT 1
-
-// Whether the current platform's pointers are 32-bit.
-// Whether the current platform's longs are 32-bit.
-#define SB_HAS_32_BIT_POINTERS 0
-#define SB_HAS_32_BIT_LONG 0
-
-// Whether the current platform's pointers are 64-bit.
-// Whether the current platform's longs are 64-bit.
-#define SB_HAS_64_BIT_POINTERS 1
-#define SB_HAS_64_BIT_LONG 1
-
 // Configuration parameters that allow the application to make some general
 // compile-time decisions with respect to the the number of cores likely to be
 // available on this platform. For a definitive measure, the application should
