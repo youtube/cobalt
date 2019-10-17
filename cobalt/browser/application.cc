@@ -169,20 +169,23 @@ GURL GetInitialURL() {
   }
 
 #if SB_API_VERSION >= 11
-  // Append the device authentication query parameters based on the platform's
-  // certification secret to the initial URL.
-  std::string query = initial_url.query();
-  std::string device_authentication_query_string =
-      GetDeviceAuthenticationSignedURLQueryString();
-  if (!query.empty() && !device_authentication_query_string.empty()) {
-    query += "&";
-  }
-  query += device_authentication_query_string;
+  if (!command_line->HasSwitch(
+          switches::kOmitDeviceAuthenticationQueryParameters)) {
+    // Append the device authentication query parameters based on the platform's
+    // certification secret to the initial URL.
+    std::string query = initial_url.query();
+    std::string device_authentication_query_string =
+        GetDeviceAuthenticationSignedURLQueryString();
+    if (!query.empty() && !device_authentication_query_string.empty()) {
+      query += "&";
+    }
+    query += device_authentication_query_string;
 
-  if (!query.empty()) {
-    GURL::Replacements replacements;
-    replacements.SetQueryStr(query);
-    initial_url = initial_url.ReplaceComponents(replacements);
+    if (!query.empty()) {
+      GURL::Replacements replacements;
+      replacements.SetQueryStr(query);
+      initial_url = initial_url.ReplaceComponents(replacements);
+    }
   }
 #endif  // SB_API_VERSION >= 11
 
