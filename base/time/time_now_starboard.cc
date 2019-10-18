@@ -62,8 +62,9 @@ bool TimeTicks::IsConsistentAcrossProcesses() {
 
 namespace subtle {
 ThreadTicks ThreadTicksNowIgnoringOverride() {
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(TIME_THREAD_NOW)
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION
+#if SB_API_VERSION >= SB_TIME_THREAD_NOW_REQUIRED_VERSION || \
+    SB_HAS(TIME_THREAD_NOW)
+#if SB_API_VERSION >= SB_TIME_THREAD_NOW_REQUIRED_VERSION
   if (SbTimeIsTimeThreadNowSupported())
 #endif
     return ThreadTicks() +
