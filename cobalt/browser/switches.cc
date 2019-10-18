@@ -190,11 +190,13 @@ const char kWebDriverPort[] = "webdriver_port";
 const char kWebDriverPortHelp[] =
     "Port that the WebDriver server should be listening on.";
 
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
+    SB_HAS(ON_SCREEN_KEYBOARD)
 const char kDisableOnScreenKeyboard[] = "disable_on_screen_keyboard";
 const char kDisableOnScreenKeyboardHelp[] =
     "Disable the on screen keyboard for testing.";
-#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+        // SB_HAS(ON_SCREEN_KEYBOARD)
 
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
@@ -410,9 +412,11 @@ std::string HelpMessage() {
         {kUserAgentOsNameVersion, kUserAgentOsNameVersionHelp},
         {kUseTTS, kUseTTSHelp}, {kWebDriverListenIp, kWebDriverListenIpHelp},
         {kWebDriverPort, kWebDriverPortHelp},
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
+    SB_HAS(ON_SCREEN_KEYBOARD)
         {kDisableOnScreenKeyboard, kDisableOnScreenKeyboardHelp},
-#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+        // SB_HAS(ON_SCREEN_KEYBOARD)
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
         {kDisableJavaScriptJit, kDisableJavaScriptJitHelp},
