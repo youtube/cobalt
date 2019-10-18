@@ -288,6 +288,9 @@ class AndroidConfiguration(PlatformConfiguration):
           '.MultipleValidInputsAfterInvalidKeyFrame/*',
           'VideoDecoderTests/VideoDecoderTest.MultipleInvalidInput/*',
 
+          # These hit a DCHECK in AudioChannelLayoutMixerImpl::Mix()
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.*',
+
           # Android currently does not support multi-video playback, which
           # the following tests depend upon.
           'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders/*',
