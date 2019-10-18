@@ -219,7 +219,8 @@ typedef enum SbEventType {
   // SbEventWindowSizeChangedData.
   kSbEventTypeWindowSizeChanged,
 #endif  // SB_API_VERSION >= 8
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
+    SB_HAS(ON_SCREEN_KEYBOARD)
   // The platform has shown the on screen keyboard. This event is triggered by
   // the system or by the application's OnScreenKeyboard show method. The event
   // has int data representing a ticket. The ticket is used by the application
@@ -268,7 +269,8 @@ typedef enum SbEventType {
   kSbEventTypeOnScreenKeyboardSuggestionsUpdated,
 #endif  // SB_API_VERSION >= 11
 
-#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+        // SB_HAS(ON_SCREEN_KEYBOARD)
 #if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
   // One or more of the fields returned by SbAccessibilityGetCaptionSettings
   // has changed.

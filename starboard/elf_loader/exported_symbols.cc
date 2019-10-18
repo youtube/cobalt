@@ -355,6 +355,10 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSpeechSynthesisIsSupported);
 #endif
 
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION
+  REGISTER_SYMBOL(SbWindowOnScreenKeyboardIsSupported);
+#endif
+
 #if SB_API_VERSION >= 10
 #if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
   REGISTER_SYMBOL(SbMemoryProtect);
@@ -397,8 +401,7 @@ ExportedSymbols::ExportedSymbols() {
 
 #if SB_API_VERSION >= SB_EVERGREEN_VERSION
   REGISTER_SYMBOL(SbTimeIsTimeThreadNowSupported);
-  REGISTER_SYMBOL(SbWindowOnScreenKeyboardIsSupported);
-#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION
+#endif
 }
 
 const void* ExportedSymbols::Lookup(const char* name) {

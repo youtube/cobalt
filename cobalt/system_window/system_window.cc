@@ -156,7 +156,8 @@ void SystemWindow::DispatchInputEvent(const SbInputData& data,
     }
   }
 
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
+    SB_HAS(ON_SCREEN_KEYBOARD)
   std::unique_ptr<InputEvent> input_event(
       new InputEvent(timestamp, type, data.device_id, key_code, modifiers,
                      is_repeat, math::PointF(data.position.x, data.position.y),
@@ -165,14 +166,16 @@ void SystemWindow::DispatchInputEvent(const SbInputData& data,
                      math::PointF(data.tilt.x, data.tilt.y),
                      data.input_text ? data.input_text : "",
                      data.is_composing ? data.is_composing : false));
-#else   // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
+#else   // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+        // SB_HAS(ON_SCREEN_KEYBOARD)
   std::unique_ptr<InputEvent> input_event(
       new InputEvent(timestamp, type, data.device_id, key_code, modifiers,
                      is_repeat, math::PointF(data.position.x, data.position.y),
                      math::PointF(data.delta.x, data.delta.y), pressure,
                      math::PointF(data.size.x, data.size.y),
                      math::PointF(data.tilt.x, data.tilt.y)));
-#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+        // SB_HAS(ON_SCREEN_KEYBOARD)
   event_dispatcher()->DispatchEvent(
       std::unique_ptr<base::Event>(input_event.release()));
 }
@@ -249,12 +252,14 @@ void SystemWindow::HandleInputEvent(const SbInputData& data) {
       DispatchInputEvent(data, InputEvent::kKeyMove, false /* is_repeat */);
       break;
     }
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
+    SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbInputEventTypeInput: {
       DispatchInputEvent(data, InputEvent::kInput, false /* is_repeat */);
       break;
     }
-#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+        // SB_HAS(ON_SCREEN_KEYBOARD)
     default:
       break;
   }
