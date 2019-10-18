@@ -85,6 +85,14 @@
 // This change also deprecates the SB_HAS_CAPTIONS flag.
 #define SB_CAPTIONS_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Require speech recognizer API.
+// The system must implement the functions in `starboard/speech_recognizer.h`
+// or use the provided stub implementations.
+// The speech recognizer can be disabled by implementing the function
+// `SbSpeechRecognizerIsSupported()` to return `false` as the stub
+// implementation does.
+#define SB_SPEECH_RECOGNIZER_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // Require the speech synthesis API.
 // The system must implement the speech synthesis function in
 // `starboard/speech_synthesis.h` or use the provided stub implementations.
@@ -604,11 +612,12 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif  // defined(SB_HAS_DRM_SESSION_CLOSED)
 #endif  // SB_API_VERSION >= 10
 
-#if SB_API_VERSION >= 5
+#if SB_API_VERSION < SB_SPEECH_RECOGNIZER_IS_REQUIRED && SB_API_VERSION >= 5
 #if !defined(SB_HAS_SPEECH_RECOGNIZER)
 #error "Your platform must define SB_HAS_SPEECH_RECOGNIZER."
 #endif  // !defined(SB_HAS_SPEECH_RECOGNIZER)
-#endif  // SB_API_VERSION >= 5
+#endif  // SB_API_VERSION < SB_SPEECH_RECOGNIZER_IS_REQUIRED && SB_API_VERSION
+        // >= 5
 
 #if SB_API_VERSION >= 8
 #if !defined(SB_HAS_ON_SCREEN_KEYBOARD)
