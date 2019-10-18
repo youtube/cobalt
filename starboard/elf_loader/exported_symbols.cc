@@ -298,7 +298,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMemoryUnmap);
 #endif
 
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(SPEECH_SYNTHESIS)
+#if SB_API_VERSION >= SB_SPEECH_SYNTHESIS_REQUIRED_VERSION || \
+    SB_HAS(SPEECH_SYNTHESIS)
   REGISTER_SYMBOL(SbSpeechSynthesisCancel);
   REGISTER_SYMBOL(SbSpeechSynthesisSpeak);
 #endif
@@ -318,6 +319,10 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSpeechRecognizerStart);
   REGISTER_SYMBOL(SbSpeechRecognizerStop);
 #endif
+#endif
+
+#if SB_API_VERSION >= SB_SPEECH_SYNTHESIS_REQUIRED_VERSION
+  REGISTER_SYMBOL(SbSpeechSynthesisIsSupported);
 #endif
 
 #if SB_API_VERSION >= 10
@@ -362,7 +367,6 @@ ExportedSymbols::ExportedSymbols() {
 
 #if SB_API_VERSION >= SB_EVERGREEN_VERSION
   REGISTER_SYMBOL(SbSpeechRecognizerIsSupported);
-  REGISTER_SYMBOL(SbSpeechSynthesisIsSupported);
   REGISTER_SYMBOL(SbTimeIsTimeThreadNowSupported);
   REGISTER_SYMBOL(SbWindowOnScreenKeyboardIsSupported);
 #endif
