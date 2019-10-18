@@ -116,6 +116,14 @@
 // implementation does.
 #define SB_SPEECH_SYNTHESIS_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Require the time thread now API.
+// The system must implement the time thread now functions in
+// `starboard/time.h` or use the provided stub implementations.
+// Time thread now can be disabled by implementing the function
+// `SbTimeIsTimeThreadNowSupported()` to return false as the stub
+// implementation does.
+#define SB_TIME_THREAD_NOW_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
+
 #define SB_EVERGREEN_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // Introduce the Starboard function SbFileAtomicReplace() to provide the ability

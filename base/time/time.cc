@@ -30,7 +30,8 @@ TimeNowFunction g_time_now_from_system_time_function =
 TimeTicksNowFunction g_time_ticks_now_function =
     &subtle::TimeTicksNowIgnoringOverride;
 
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(TIME_THREAD_NOW)
+#if SB_API_VERSION >= SB_TIME_THREAD_NOW_REQUIRED_VERSION || \
+    SB_HAS(TIME_THREAD_NOW)
 ThreadTicksNowFunction g_thread_ticks_now_function =
     &subtle::ThreadTicksNowIgnoringOverride;
 #endif
@@ -323,8 +324,9 @@ std::ostream& operator<<(std::ostream& os, TimeTicks time_ticks) {
 
 // static
 ThreadTicks ThreadTicks::Now() {
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(TIME_THREAD_NOW)
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION
+#if SB_API_VERSION >= SB_TIME_THREAD_NOW_REQUIRED_VERSION || \
+    SB_HAS(TIME_THREAD_NOW)
+#if SB_API_VERSION >= SB_TIME_THREAD_NOW_REQUIRED_VERSION
   if (SbTimeIsTimeThreadNowSupported())
 #endif
     return internal::g_thread_ticks_now_function();

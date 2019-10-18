@@ -87,11 +87,12 @@ void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
 }
 
 int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION
+#if SB_API_VERSION >= SB_TIME_THREAD_NOW_REQUIRED_VERSION
   if (!SbTimeIsTimeThreadNowSupported()) return -1;
 #endif
 
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(TIME_THREAD_NOW)
+#if SB_API_VERSION >= SB_TIME_THREAD_NOW_REQUIRED_VERSION || \
+    SB_HAS(TIME_THREAD_NOW)
   SbTimeMonotonic thread_now = SbTimeGetMonotonicThreadNow();
   *secs = thread_now / kSbTimeSecond;
   *usecs = thread_now % kSbTimeSecond;

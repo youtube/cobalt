@@ -14,7 +14,7 @@
 
 #include "starboard/time.h"
 
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION
+#if SB_API_VERSION >= SB_TIME_THREAD_NOW_REQUIRED_VERSION
 
 bool SbTimeIsTimeThreadNowSupported() {
   return true;
