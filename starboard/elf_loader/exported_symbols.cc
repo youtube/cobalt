@@ -332,14 +332,19 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbTimeGetMonotonicThreadNow);
 #endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(TIME_THREAD_NOW)
 
-#if SB_API_VERSION >= 5 && \
-    (SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(SPEECH_RECOGNIZER))
+#if SB_API_VERSION >= 5
+#if SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION
+  REGISTER_SYMBOL(SbSpeechRecognizerIsSupported);
+#endif
+#if SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION || \
+    SB_HAS(SPEECH_RECOGNIZER)
   REGISTER_SYMBOL(SbSpeechRecognizerCreate);
   REGISTER_SYMBOL(SbSpeechRecognizerDestroy);
   REGISTER_SYMBOL(SbSpeechRecognizerStart);
   REGISTER_SYMBOL(SbSpeechRecognizerStop);
-#endif  // SB_API_VERSION >= 5 && (SB_API_VERSION >= SB_EVERGREEN_VERSION ||
-        // SB_HAS(SPEECH_RECOGNIZER))
+#endif  // SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION ||
+        // SB_HAS(SPEECH_RECOGNIZER)
+#endif  // SB_API_VERSION >= 5
 
 #if SB_API_VERSION >= SB_SPEECH_SYNTHESIS_REQUIRED_VERSION
   REGISTER_SYMBOL(SbSpeechSynthesisIsSupported);
@@ -383,7 +388,6 @@ ExportedSymbols::ExportedSymbols() {
 #endif  // SB_API_VERSION >= 11
 
 #if SB_API_VERSION >= SB_EVERGREEN_VERSION
-  REGISTER_SYMBOL(SbSpeechRecognizerIsSupported);
   REGISTER_SYMBOL(SbTimeIsTimeThreadNowSupported);
   REGISTER_SYMBOL(SbWindowOnScreenKeyboardIsSupported);
 #endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION

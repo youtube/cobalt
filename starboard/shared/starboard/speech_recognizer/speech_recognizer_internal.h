@@ -18,7 +18,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/speech_recognizer.h"
 
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION || \
+#if SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION || \
     SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
 struct SbSpeechRecognizerPrivate {
   virtual ~SbSpeechRecognizerPrivate() {}
@@ -29,7 +29,8 @@ struct SbSpeechRecognizerPrivate {
       const SbSpeechRecognizerHandler* handler);
   static void DestroySpeechRecognizer(SbSpeechRecognizer speech_recognizer);
 };
-#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(SPEECH_RECOGNIZER)
+#endif  // SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION ||
+        // SB_HAS(SPEECH_RECOGNIZER)
         // && SB_API_VERSION >= 5
 
 #endif  // STARBOARD_SHARED_STARBOARD_SPEECH_RECOGNIZER_SPEECH_RECOGNIZER_INTERNAL_H_
