@@ -76,6 +76,15 @@
 // parameters are.
 #define SB_UI_NAVIGATION_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Require the captions API
+// The system must implement the captions functions in
+// `starboard/accessibility.h` or use the provided stub implementations.
+// System caption can be disabled by implementing the function
+// `SbAccessibilityGetCaptionSettings(SbAccessibilityCaptionSettings*
+// caption_settings)` to return false as the stub implementation does.
+// This change also deprecates the SB_HAS_CAPTIONS flag.
+#define SB_CAPTIONS_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
+
 #define SB_EVERGREEN_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------

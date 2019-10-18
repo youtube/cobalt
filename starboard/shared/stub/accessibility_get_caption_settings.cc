@@ -17,9 +17,9 @@
 #include "starboard/accessibility.h"
 #include "starboard/memory.h"
 
-#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
 bool SbAccessibilityGetCaptionSettings(
     SbAccessibilityCaptionSettings* caption_settings) {
   return false;
 }
-#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
