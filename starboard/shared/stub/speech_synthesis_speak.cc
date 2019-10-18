@@ -14,7 +14,8 @@
 
 #include "starboard/speech_synthesis.h"
 
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(SPEECH_SYNTHESIS)
+#if SB_API_VERSION >= SB_SPEECH_SYNTHESIS_REQUIRED_VERSION || \
+    SB_HAS(SPEECH_SYNTHESIS)
 
 void SbSpeechSynthesisSpeak(const char* text) {}
 

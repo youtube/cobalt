@@ -85,6 +85,14 @@
 // This change also deprecates the SB_HAS_CAPTIONS flag.
 #define SB_CAPTIONS_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Require the speech synthesis API.
+// The system must implement the speech synthesis function in
+// `starboard/speech_synthesis.h` or use the provided stub implementations.
+// Speech synthesis can be disabled by implementing the function
+// `SbSpeechSynthesisIsSupported()` to return false as the stub
+// implementation does.
+#define SB_SPEECH_SYNTHESIS_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
+
 #define SB_EVERGREEN_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
