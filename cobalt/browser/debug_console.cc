@@ -168,7 +168,8 @@ bool DebugConsole::FilterPointerEvent(base::Token type,
   return false;
 }
 
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
+    SB_HAS(ON_SCREEN_KEYBOARD)
 bool DebugConsole::InjectOnScreenKeyboardInputEvent(
     base::Token type, const dom::InputEventInit& event) {
   // Assume here the full debug console is visible - pass all events to its
@@ -176,7 +177,8 @@ bool DebugConsole::InjectOnScreenKeyboardInputEvent(
   web_module_->InjectOnScreenKeyboardInputEvent(type, event);
   return false;
 }
-#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+        // SB_HAS(ON_SCREEN_KEYBOARD)
 
 void DebugConsole::SetMode(int mode) {
   base::AutoLock lock(mode_mutex_);

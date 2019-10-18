@@ -14,7 +14,7 @@
 
 #include "starboard/window.h"
 
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION
 
 void SbWindowShowOnScreenKeyboard(SbWindow /* window */,
                                   const char* /* input_text */,

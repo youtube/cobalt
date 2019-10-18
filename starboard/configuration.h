@@ -92,6 +92,14 @@
 // This change also deprecates the SB_HAS_MMAP flag.
 #define SB_MMAP_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Require the on screen keyboard API.
+// The system must implement the on screen keyboard functions in
+// `starboard/window.h` or use the provided stub implementations.
+// The on screen keyboard can be disabled by implementing the function
+// `SbWindowOnScreenKeyboardIsSupported()` to return false
+// as the stub implementation does.
+#define SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // Require speech recognizer API.
 // The system must implement the functions in `starboard/speech_recognizer.h`
 // or use the provided stub implementations.
@@ -626,11 +634,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif  // SB_API_VERSION < SB_SPEECH_RECOGNIZER_IS_REQUIRED && SB_API_VERSION
         // >= 5
 
-#if SB_API_VERSION >= 8
+#if SB_API_VERSION < SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION && \
+    SB_API_VERSION >= 8
 #if !defined(SB_HAS_ON_SCREEN_KEYBOARD)
 #error "Your platform must define SB_HAS_ON_SCREEN_KEYBOARD."
 #endif  // !defined(SB_HAS_ON_SCREEN_KEYBOARD)
-#endif  // SB_API_VERSION >= 8
+#endif  // SB_API_VERSION < SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION &&
+        // SB_API_VERSION >= 8
 
 #if SB_HAS(ON_SCREEN_KEYBOARD) && (SB_API_VERSION < 8)
 #error "SB_HAS_ON_SCREEN_KEYBOARD not supported in this API version."
