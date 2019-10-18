@@ -203,10 +203,10 @@ class BrowserModule {
 #endif  // SB_API_VERSION >= 11
 #endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
 
-#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
   void OnCaptionSettingsChanged(
       const base::AccessibilityCaptionSettingsChangedEvent* event);
-#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
 
  private:
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
