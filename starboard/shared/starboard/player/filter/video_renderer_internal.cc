@@ -318,8 +318,19 @@ void VideoRenderer::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
   {
     ScopedLock scoped_lock_decoder_frames(decoder_frames_mutex_);
     sink_frames_mutex_.Acquire();
-    sink_frames_.insert(sink_frames_.end(), decoder_frames_.begin(),
-                        decoder_frames_.end());
+    for (auto decoder_frame : decoder_frames_) {
+      if (sink_frames_.empty()) {
+        sink_frames_.push_back(decoder_frame);
+        continue;
+      }
+      if (sink_frames_.back()->is_end_of_stream()) {
+        continue;
+      }
+      if (decoder_frame->is_end_of_stream() ||
+          decoder_frame->timestamp() > sink_frames_.back()->timestamp()) {
+        sink_frames_.push_back(decoder_frame);
+      }
+    }
     decoder_frames_.clear();
   }
   size_t number_of_sink_frames = sink_frames_.size();
