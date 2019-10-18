@@ -14,10 +14,10 @@
 
 #include "starboard/speech_recognizer.h"
 
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION
+#if SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION
 
 bool SbSpeechRecognizerIsSupported() {
   return true;
 }
 
-#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION
+#endif  // SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION

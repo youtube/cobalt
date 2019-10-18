@@ -35,7 +35,7 @@
 #include "starboard/export.h"
 #include "starboard/types.h"
 
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION || \
+#if SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION || \
     SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
 
 #ifdef __cplusplus
@@ -146,7 +146,7 @@ struct SbSpeechRecognizerHandler {
   void* context;
 };
 
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION
+#if SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION
 // Returns whether the platform supports SbSpeechRecognizer.
 SB_EXPORT bool SbSpeechRecognizerIsSupported();
 #endif
@@ -200,7 +200,8 @@ SB_EXPORT void SbSpeechRecognizerDestroy(SbSpeechRecognizer recognizer);
 }  // extern "C"
 #endif
 
-#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(SPEECH_RECOGNIZER)
+#endif  // SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION ||
+        // SB_HAS(SPEECH_RECOGNIZER)
         // && SB_API_VERSION >= 5
 
 #endif  // STARBOARD_SPEECH_RECOGNIZER_H_
