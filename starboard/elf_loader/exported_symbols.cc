@@ -333,7 +333,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSpeechSynthesisSpeak);
 #endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(SPEECH_SYNTHESIS)
 
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(TIME_THREAD_NOW)
+#if SB_API_VERSION >= SB_TIME_THREAD_NOW_REQUIRED_VERSION || \
+    SB_HAS(TIME_THREAD_NOW)
   REGISTER_SYMBOL(SbTimeGetMonotonicThreadNow);
 #endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(TIME_THREAD_NOW)
 
@@ -357,6 +358,10 @@ ExportedSymbols::ExportedSymbols() {
 
 #if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION
   REGISTER_SYMBOL(SbWindowOnScreenKeyboardIsSupported);
+#endif
+
+#if SB_API_VERSION >= SB_TIME_THREAD_NOW_REQUIRED_VERSION
+  REGISTER_SYMBOL(SbTimeIsTimeThreadNowSupported);
 #endif
 
 #if SB_API_VERSION >= 10
@@ -398,10 +403,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbThreadSamplerThaw);
   REGISTER_SYMBOL(SbWindowGetDiagonalSizeInInches);
 #endif  // SB_API_VERSION >= 11
-
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION
-  REGISTER_SYMBOL(SbTimeIsTimeThreadNowSupported);
-#endif
 }
 
 const void* ExportedSymbols::Lookup(const char* name) {
