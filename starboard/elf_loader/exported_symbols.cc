@@ -46,6 +46,7 @@
 #include "starboard/thread.h"
 #include "starboard/time_zone.h"
 #include "starboard/ui_navigation.h"
+#include "starboard/window.h"
 
 #define REGISTER_SYMBOL(s) REGISTER_SYMBOL_AS(s, s)
 #define REGISTER_SYMBOL_AS(k, v)                    \
@@ -275,15 +276,43 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbWindowGetSize);
   REGISTER_SYMBOL(SbWindowSetDefaultOptions);
 
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
-  REGISTER_SYMBOL(SbAccessibilityGetCaptionSettings);
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
-
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
   REGISTER_SYMBOL(SbMemoryFlush);
 #endif  // SB_CAN(MAP_EXECUTABLE_MEMORY)
 
-#if SB_API_VERSION >= 12 || SB_HAS(MICROPHONE)
+#if SB_HAS(MMAP)
+  REGISTER_SYMBOL(SbMemoryMap);
+  REGISTER_SYMBOL(SbMemoryUnmap);
+#if SB_API_VERSION >= 10
+  REGISTER_SYMBOL(SbMemoryProtect);
+#endif  // SB_API_VERSION >= 10
+#endif  // SB_HAS(MMAP)
+
+#if SB_API_VERSION >= SB_UI_NAVIGATION_VERSION
+  REGISTER_SYMBOL(SbUiNavGetInterface);
+#endif  // SB_API_VERSION >= SB_UI_NAVIGATION_VERSION
+
+#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
+  REGISTER_SYMBOL(SbWindowBlurOnScreenKeyboard);
+  REGISTER_SYMBOL(SbWindowFocusOnScreenKeyboard);
+  REGISTER_SYMBOL(SbWindowGetOnScreenKeyboardBoundingRect);
+  REGISTER_SYMBOL(SbWindowHideOnScreenKeyboard);
+  REGISTER_SYMBOL(SbWindowIsOnScreenKeyboardShown);
+  REGISTER_SYMBOL(SbWindowSetOnScreenKeyboardKeepFocus);
+  REGISTER_SYMBOL(SbWindowShowOnScreenKeyboard);
+#if SB_API_VERSION >= 11
+  REGISTER_SYMBOL(SbWindowOnScreenKeyboardSuggestionsSupported);
+  REGISTER_SYMBOL(SbWindowUpdateOnScreenKeyboardSuggestions);
+#elif SB_API_VERSION >= SB_EVERGREEN_VERSION
+  REGISTER_SYMBOL(SbWindowOnScreenKeyboardIsSupported);
+#endif  // SB_API_VERSION >= 11
+#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
+
+#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+  REGISTER_SYMBOL(SbAccessibilityGetCaptionSettings);
+#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+
+#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(MICROPHONE)
   REGISTER_SYMBOL(SbMicrophoneClose);
   REGISTER_SYMBOL(SbMicrophoneCreate);
   REGISTER_SYMBOL(SbMicrophoneDestroy);
@@ -291,44 +320,32 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMicrophoneIsSampleRateSupported);
   REGISTER_SYMBOL(SbMicrophoneOpen);
   REGISTER_SYMBOL(SbMicrophoneRead);
-#endif
-
-#if SB_HAS(MMAP)
-  REGISTER_SYMBOL(SbMemoryMap);
-  REGISTER_SYMBOL(SbMemoryUnmap);
-#endif
+#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(MICROPHONE)
 
 #if SB_API_VERSION >= SB_SPEECH_SYNTHESIS_REQUIRED_VERSION || \
     SB_HAS(SPEECH_SYNTHESIS)
   REGISTER_SYMBOL(SbSpeechSynthesisCancel);
   REGISTER_SYMBOL(SbSpeechSynthesisSpeak);
-#endif
+#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(SPEECH_SYNTHESIS)
 
 #if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(TIME_THREAD_NOW)
   REGISTER_SYMBOL(SbTimeGetMonotonicThreadNow);
-#endif
+#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(TIME_THREAD_NOW)
 
-#if SB_API_VERSION >= SB_UI_NAVIGATION_VERSION
-  REGISTER_SYMBOL(SbUiNavGetInterface);
-#endif
-
-#if SB_API_VERSION >= 5
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(SPEECH_RECOGNIZER)
+#if SB_API_VERSION >= 5 && \
+    (SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(SPEECH_RECOGNIZER))
   REGISTER_SYMBOL(SbSpeechRecognizerCreate);
   REGISTER_SYMBOL(SbSpeechRecognizerDestroy);
   REGISTER_SYMBOL(SbSpeechRecognizerStart);
   REGISTER_SYMBOL(SbSpeechRecognizerStop);
-#endif
-#endif
+#endif  // SB_API_VERSION >= 5 && (SB_API_VERSION >= SB_EVERGREEN_VERSION ||
+        // SB_HAS(SPEECH_RECOGNIZER))
 
 #if SB_API_VERSION >= SB_SPEECH_SYNTHESIS_REQUIRED_VERSION
   REGISTER_SYMBOL(SbSpeechSynthesisIsSupported);
 #endif
 
 #if SB_API_VERSION >= 10
-#if SB_HAS(MMAP)
-  REGISTER_SYMBOL(SbMemoryProtect);
-#endif
   REGISTER_SYMBOL(SbDrmIsServerCertificateUpdatable);
   REGISTER_SYMBOL(SbDrmUpdateServerCertificate);
   REGISTER_SYMBOL(SbMediaGetAudioBufferBudget);
@@ -348,7 +365,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbPlayerSeek2);
   REGISTER_SYMBOL(SbPlayerWriteSample2);
   REGISTER_SYMBOL(SbSystemSupportsResume);
-#endif
+#endif  // SB_API_VERSION >= 10
 
 #if SB_API_VERSION >= 11
   REGISTER_SYMBOL(SbAudioSinkGetMinBufferSizeInFrames);
@@ -363,13 +380,13 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbThreadSamplerIsSupported);
   REGISTER_SYMBOL(SbThreadSamplerThaw);
   REGISTER_SYMBOL(SbWindowGetDiagonalSizeInInches);
-#endif
+#endif  // SB_API_VERSION >= 11
 
 #if SB_API_VERSION >= SB_EVERGREEN_VERSION
   REGISTER_SYMBOL(SbSpeechRecognizerIsSupported);
   REGISTER_SYMBOL(SbTimeIsTimeThreadNowSupported);
   REGISTER_SYMBOL(SbWindowOnScreenKeyboardIsSupported);
-#endif
+#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION
 }
 
 const void* ExportedSymbols::Lookup(const char* name) {
