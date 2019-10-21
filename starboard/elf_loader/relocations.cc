@@ -29,8 +29,6 @@ Relocations::Relocations(Addr base_memory_address,
       plt_got_(NULL),
       relocations_(0),
       relocations_size_(0),
-      android_relocations_(NULL),
-      android_relocations_size_(0),
       has_text_relocations_(false),
       has_symbolic_(false),
       exported_symbols_(exported_symbols) {}
@@ -52,13 +50,9 @@ bool Relocations::InitRelocations() {
 #if defined(USE_RELA)
       case DT_REL:
       case DT_RELSZ:
-      case DT_ANDROID_REL:
-      case DT_ANDROID_RELSZ:
 #else
       case DT_RELA:
       case DT_RELASZ:
-      case DT_ANDROID_RELA:
-      case DT_ANDROID_RELASZ:
 #endif
         SB_LOG(ERROR) << "unsupported relocation type";
         return false;
@@ -109,47 +103,11 @@ bool Relocations::InitRelocations() {
                      << " size=" << dyn_value;
         relocations_size_ = dyn_value;
         break;
-#if defined(USE_RELA)
-      case DT_ANDROID_RELA:
-#else
-      case DT_ANDROID_REL:
-#endif
-        SB_LOG(INFO) << "  "
-                     << ((tag == DT_ANDROID_REL) ? "DT_ANDROID_REL"
-                                                 : "DT_ANDROID_RELA")
-                     << " addr=" << std::hex
-                     << (dyn_addr - base_memory_address_);
-        if (android_relocations_) {
-          SB_LOG(ERROR) << "Multiple DT_ANDROID_* sections defined.";
-          return false;
-        }
-        android_relocations_ = reinterpret_cast<uint8_t*>(dyn_addr);
-        break;
-#if defined(USE_RELA)
-      case DT_ANDROID_RELASZ:
-#else
-      case DT_ANDROID_RELSZ:
-#endif
-        SB_LOG(ERROR) << "  DT_ANDROID_RELSZ NOT IMPELMENTED";
-        android_relocations_size_ = dyn_value;
-        break;
       case DT_RELR:
-      case DT_ANDROID_RELR:
-        SB_LOG(ERROR) << "  DT_RELR NOT IMPELMENTED";
-        break;
-      case DT_ANDROID_RELRSZ:
       case DT_RELRSZ:
         SB_LOG(ERROR) << "  DT_RELRSZ NOT IMPELMENTED";
         break;
       case DT_RELRENT:
-      case DT_ANDROID_RELRENT:
-        if (dyn_value != sizeof(Relr)) {
-          SB_LOG(ERROR) << "Invalid DT_RELRENT value=" << std::hex
-                        << static_cast<int>(dyn_value)
-                        << " expected=" << static_cast<int>(sizeof(Relr));
-          return false;
-        }
-        break;
       case DT_PLTGOT:
         SB_LOG(INFO) << "DT_PLTGOT addr=0x" << std::hex
                      << (dyn_addr - base_memory_address_);
