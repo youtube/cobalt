@@ -79,9 +79,6 @@ class Relocations {
   Addr relocations_;
   size_t relocations_size_;
 
-  uint8_t* android_relocations_;
-  size_t android_relocations_size_;
-
   bool has_text_relocations_;
   bool has_symbolic_;
 
