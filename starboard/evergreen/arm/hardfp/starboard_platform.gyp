@@ -19,7 +19,7 @@
   'includes': [
     # Note that we are 'includes'ing a 'gyp' file, not a 'gypi' file.  The idea
     # is that we just want this file to *be* the parent gyp file.
-    '<(DEPTH)/starboard/evergreen/arm/shared/starboard_platform.gyp',
+    '<(DEPTH)/starboard/evergreen/shared/starboard_platform.gyp',
   ],
 }
 
