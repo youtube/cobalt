@@ -525,6 +525,11 @@ public class StarboardBridge {
     return false;
   }
 
+  /** Return the CobaltMediaSession. */
+  public CobaltMediaSession cobaltMediaSession() {
+    return cobaltMediaSession;
+  }
+
   public void registerCobaltService(CobaltService.Factory factory) {
     cobaltServiceFactories.put(factory.getServiceName(), factory);
   }
@@ -550,6 +555,7 @@ public class StarboardBridge {
     }
     CobaltService service = factory.createCobaltService(nativeService);
     if (service != null) {
+      service.receiveStarboardBridge(this);
       cobaltServices.put(serviceName, service);
     }
     return service;

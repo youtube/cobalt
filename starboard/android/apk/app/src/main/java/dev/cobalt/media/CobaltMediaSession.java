@@ -88,6 +88,13 @@ public class CobaltMediaSession
   private boolean transientPause = false;
   private boolean suspended = true;
 
+  /** LifecycleCallback to notify listeners when |mediaSession| becomes active or inactive. */
+  public interface LifecycleCallback {
+    void onMediaSessionLifecycle(boolean isActive, MediaSessionCompat.Token token);
+  }
+
+  private LifecycleCallback lifecycleCallback = null;
+
   public CobaltMediaSession(
       Context context, Holder<Activity> activityHolder, UpdateVolumeListener volumeListener) {
     this.context = context;
@@ -96,6 +103,14 @@ public class CobaltMediaSession
     this.volumeListener = volumeListener;
     artworkLoader = new ArtworkLoader(this, DisplayUtil.getDisplaySize(context));
     setMediaSession();
+  }
+
+  public void setLifecycleCallback(LifecycleCallback lifecycleCallback) {
+    this.lifecycleCallback = lifecycleCallback;
+    if (lifecycleCallback != null) {
+      lifecycleCallback.onMediaSessionLifecycle(
+          this.mediaSession.isActive(), this.mediaSession.getSessionToken());
+    }
   }
 
   private void setMediaSession() {
@@ -187,6 +202,10 @@ public class CobaltMediaSession
       setMediaSession();
     }
     mediaSession.setActive(playbackState != PLAYBACK_STATE_NONE);
+    if (lifecycleCallback != null) {
+      lifecycleCallback.onMediaSessionLifecycle(
+          this.mediaSession.isActive(), this.mediaSession.getSessionToken());
+    }
     if (deactivating) {
       // Suspending lands here.
       Log.i(TAG, "MediaSession release");
