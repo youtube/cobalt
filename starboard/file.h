@@ -163,16 +163,12 @@ SB_EXPORT bool SbFileClose(SbFile file);
 #if SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION
 
 // Replaces the content of the file at |path| with |data|. Returns whether the
-// contents of the file were replaced.
-//
-// Note that the replacement of the content is an atomic operation. The file
-// will either have all of the data, or none.
+// contents of the file were replaced. The replacement of the content is an
+// atomic operation. The file will either have all of the data, or none.
 //
 // |path|: The path to the file whose contents should be replaced.
 // |data|: The data to replace the file contents with.
-// |data_size|: The amount of |data|, in bytes, to be written to the file. Thus,
-//              if |data_size| is smaller than the total size of |data|, only
-//              part of |data| is written to the file.
+// |data_size|: The amount of |data|, in bytes, to be written to the file.
 SB_EXPORT bool SbFileAtomicReplace(const char* path,
                                    const char* data,
                                    int64_t data_size);

@@ -109,9 +109,7 @@ SB_EXPORT int64_t SbStorageReadRecord(SbStorageRecord record,
 //
 // |record|: The record to be written to.
 // |data|: The data to write to the record.
-// |data_size|: The amount of |data|, in bytes, to write to the record. Thus,
-//   if |data_size| is smaller than the total size of |data|, only part of
-//   |data| is written to the record.
+// |data_size|: The amount of |data|, in bytes, to write to the record.
 SB_EXPORT bool SbStorageWriteRecord(SbStorageRecord record,
                                     const char* data,
                                     int64_t data_size);
