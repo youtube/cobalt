@@ -57,6 +57,13 @@
           # architectures. Thus, -mfloat-abi and -mfpu would simply be ignored.
         ],
       }],
+      # x64
+      ['target_arch=="x64"', {
+        'compiler_flags': [
+          '-march=x86-64',
+          '-target', 'x86_64-unknown-linux-elf',
+        ],
+      }],
     ],
   },
 }

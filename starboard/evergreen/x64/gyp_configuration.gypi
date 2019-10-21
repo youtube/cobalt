@@ -55,6 +55,5 @@
   'includes': [
     '<(DEPTH)/starboard/evergreen/shared/gyp_configuration.gypi',
     '<(DEPTH)/starboard/evergreen/shared/compiler_flags.gypi',
-    '<(DEPTH)/starboard/evergreen/x64/architecture.gypi',
   ],
 }
