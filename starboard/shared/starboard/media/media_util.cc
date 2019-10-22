@@ -115,15 +115,19 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
 
   std::string eotf = mime_type.GetParamStringValue("eotf", "");
   if (!eotf.empty()) {
-    SB_LOG_IF(WARNING, transfer_id != kSbMediaTransferIdUnspecified)
-        << "transfer_id " << transfer_id << " set by the codec string \""
-        << codec << "\" will be overwritten by the eotf attribute " << eotf;
-    transfer_id = GetTransferIdFromString(eotf);
+    SbMediaTransferId transfer_id_from_eotf = GetTransferIdFromString(eotf);
     // If the eotf is not known, reject immediately - without checking with
     // the platform.
-    if (transfer_id == kSbMediaTransferIdUnknown) {
+    if (transfer_id_from_eotf == kSbMediaTransferIdUnknown) {
       return false;
     }
+    if (transfer_id != kSbMediaTransferIdUnspecified &&
+        transfer_id != transfer_id_from_eotf) {
+      SB_LOG_IF(WARNING, transfer_id != kSbMediaTransferIdUnspecified)
+          << "transfer_id " << transfer_id << " set by the codec string \""
+          << codec << "\" will be overwritten by the eotf attribute " << eotf;
+    }
+    transfer_id = transfer_id_from_eotf;
 #if !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
     if (!SbMediaIsTransferCharacteristicsSupported(transfer_id)) {
       return false;
