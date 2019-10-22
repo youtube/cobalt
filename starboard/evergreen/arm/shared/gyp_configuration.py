@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Starboard Evergreen ARM platform configuration."""
+"""Starboard Evergreen ARM shared platform configuration for gyp_cobalt."""
 
 from starboard.build import clang as clang_build
 from starboard.evergreen.shared import gyp_configuration as shared_configuration
@@ -25,17 +25,18 @@ from starboard.tools.toolchain import evergreen_linker
 from starboard.tools.toolchain import touch
 
 
-class EvergreenARMConfiguration(shared_configuration.EvergreenConfiguration):
+class EvergreenArmConfiguration(shared_configuration.EvergreenConfiguration):
   """Starboard Evergreen ARM platform configuration."""
 
   def __init__(self,
                platform_name='evergreen-arm',
                asan_enabled_by_default=False,
-               goma_supports_compiler=True):
+               goma_supports_compiler=True,
+               sabi_json_path=None):
     # pylint: disable=useless-super-delegation
-    super(EvergreenARMConfiguration,
+    super(EvergreenArmConfiguration,
           self).__init__(platform_name, asan_enabled_by_default,
-                         goma_supports_compiler)
+                         goma_supports_compiler, sabi_json_path)
     self._host_toolchain = None
 
   def GetTargetToolchain(self):
@@ -73,8 +74,9 @@ class EvergreenARMConfiguration(shared_configuration.EvergreenConfiguration):
     return self._host_toolchain
 
   def GetTestFilters(self):
-    return super(EvergreenARMConfiguration, self).GetTestFilters()
+    # pylint: disable=useless-super-delegation
+    return super(EvergreenArmConfiguration, self).GetTestFilters()
 
 
 def CreatePlatformConfig():
-  return EvergreenARMConfiguration()
+  return EvergreenArmConfiguration()
