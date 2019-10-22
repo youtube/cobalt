@@ -253,6 +253,9 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
       scoped_refptr<DecodedAudio> resampler_output =
           resampler_->WriteEndOfStream();
       if (resampler_output && resampler_output->size() > 0) {
+        if (channel_mixer_) {
+          resampler_output = channel_mixer_->Mix(resampler_output);
+        }
         decoded_audios_.push(resampler_output);
         Schedule(output_cb_);
       }
@@ -271,14 +274,12 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
     return;
   }
 
+  SB_DCHECK(input_audio_sample_info_.number_of_channels ==
+            decoded_audio->channels());
   if (!output_format_checked_) {
     SB_DCHECK(!resampler_);
+    SB_DCHECK(!channel_mixer_);
     output_format_checked_ = true;
-    if (decoded_audio->channels() != output_number_of_channels_) {
-      channel_mixer_ = AudioChannelLayoutMixer::Create(
-          output_sample_type_, output_storage_type_,
-          output_number_of_channels_);
-    }
     if (audio_decoder_->GetSampleType() != output_sample_type_ ||
         audio_decoder_->GetStorageType() != output_storage_type_ ||
         audio_decoder_->GetSamplesPerSecond() != output_samples_per_second_) {
@@ -286,16 +287,22 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
           audio_decoder_->GetSampleType(), audio_decoder_->GetStorageType(),
           audio_decoder_->GetSamplesPerSecond(), output_sample_type_,
           output_storage_type_, output_samples_per_second_,
+          input_audio_sample_info_.number_of_channels);
+    }
+    if (input_audio_sample_info_.number_of_channels !=
+        output_number_of_channels_) {
+      channel_mixer_ = AudioChannelLayoutMixer::Create(
+          output_sample_type_, output_storage_type_,
           output_number_of_channels_);
     }
-  }
-  if (channel_mixer_) {
-    decoded_audio = channel_mixer_->Mix(decoded_audio);
   }
   if (resampler_) {
     decoded_audio = resampler_->Resample(decoded_audio);
   }
   if (decoded_audio && decoded_audio->size() > 0) {
+    if (channel_mixer_) {
+      decoded_audio = channel_mixer_->Mix(decoded_audio);
+    }
     decoded_audios_.push(decoded_audio);
     Schedule(output_cb_);
   }
