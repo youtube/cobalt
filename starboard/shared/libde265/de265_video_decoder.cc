@@ -249,7 +249,7 @@ void VideoDecoder::ProcessDecodedImage(bool flushing) {
   int strides[kImagePlanes];
 
   auto bit_depth = de265_get_bits_per_pixel(image, 0);
-  if (bit_depth != 8 && bit_depth != 10) {
+  if (bit_depth != 8 && bit_depth != 10 && bit_depth != 12) {
     SB_DLOG(ERROR) << "Unsupported bit depth " << bit_depth;
     ReportError(FormatString("Unsupported bit depth %d.", bit_depth));
     return;
