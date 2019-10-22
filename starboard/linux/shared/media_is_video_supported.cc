@@ -53,7 +53,7 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
   SB_UNREFERENCED_PARAMETER(level);
 
   if (!IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id)) {
-    if (bit_depth != 10) {
+    if (bit_depth != 10 && bit_depth != 12) {
       return false;
     }
     if (video_codec != kSbMediaVideoCodecAv1 &&
