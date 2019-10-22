@@ -28,8 +28,10 @@ class EvergreenConfiguration(platform_configuration.PlatformConfiguration):
   def __init__(self,
                platform,
                asan_enabled_by_default=True,
-               goma_supports_compiler=True):
+               goma_supports_compiler=True,
+               sabi_json_path=None):
     self.goma_supports_compiler = goma_supports_compiler
+    self.sabi_json_path = sabi_json_path
     super(EvergreenConfiguration, self).__init__(platform,
                                                  asan_enabled_by_default)
     self.AppendApplicationConfigurationPath(os.path.dirname(__file__))
@@ -73,6 +75,9 @@ class EvergreenConfiguration(platform_configuration.PlatformConfiguration):
         'CXX': self.host_compiler_environment['CXX_host'],
     })
     return env_variables
+
+  def GetPathToSabiJsonFile(self):
+    return self.sabi_json_path
 
   def GetTestFilters(self):
     filters = super(EvergreenConfiguration, self).GetTestFilters()

@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Starboard Evergreen X64 platform configuration."""
+"""Starboard evergreen-x64 platform configuration for gyp_cobalt."""
 
 import os.path
 
@@ -34,11 +34,12 @@ class EvergreenX64Configuration(shared_configuration.EvergreenConfiguration):
   def __init__(self,
                platform_name='evergreen-x64',
                asan_enabled_by_default=False,
-               goma_supports_compiler=True):
+               goma_supports_compiler=True,
+               sabi_json_path=None):
     # pylint: disable=useless-super-delegation
     super(EvergreenX64Configuration,
           self).__init__(platform_name, asan_enabled_by_default,
-                         goma_supports_compiler)
+                         goma_supports_compiler, sabi_json_path)
     self._host_toolchain = None
 
   def GetTargetToolchain(self):
@@ -96,4 +97,5 @@ class EvergreenX64Configuration(shared_configuration.EvergreenConfiguration):
 
 
 def CreatePlatformConfig():
-  return EvergreenX64Configuration()
+  return EvergreenX64Configuration(
+      sabi_json_path='starboard/evergreen/sabi/x64/sabi.json')
