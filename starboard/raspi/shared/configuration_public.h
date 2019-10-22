@@ -20,6 +20,16 @@
 // The API version implemented by this platform.
 #define SB_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Configuration parameters that allow the application to make some general
+// compile-time decisions with respect to the the number of cores likely to be
+// available on this platform. For a definitive measure, the application should
+// still call SbSystemGetNumberOfProcessors at runtime.
+
+// Whether the current platform's thread scheduler will automatically balance
+// threads between cores, as opposed to systems where threads will only ever run
+// on the specifically pinned core.
+#define SB_HAS_CROSS_CORE_SCHEDULER 1
+
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
