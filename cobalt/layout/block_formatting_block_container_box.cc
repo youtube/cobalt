@@ -62,10 +62,15 @@ void BlockFormattingBlockContainerBox::AddChild(
 std::unique_ptr<FormattingContext>
 BlockFormattingBlockContainerBox::UpdateRectOfInFlowChildBoxes(
     const LayoutParams& child_layout_params) {
+  // Only collapse in-flow, block-level boxes. Do not collapse root element and
+  // the initial containing block.
+  bool is_collapsable = !IsAbsolutelyPositioned() &&
+                        GetLevel() == Box::kBlockLevel && parent() &&
+                        parent()->parent();
   // Lay out child boxes in the normal flow.
   //   https://www.w3.org/TR/CSS21/visuren.html#normal-flow
   std::unique_ptr<BlockFormattingContext> block_formatting_context(
-      new BlockFormattingContext(child_layout_params));
+      new BlockFormattingContext(child_layout_params, is_collapsable));
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
@@ -75,6 +80,11 @@ BlockFormattingBlockContainerBox::UpdateRectOfInFlowChildBoxes(
       block_formatting_context->UpdateRect(child_box);
     }
   }
+
+  if (!child_boxes().empty() && is_collapsable) {
+    block_formatting_context->CollapseContainingMargins(this);
+  }
+
   return std::unique_ptr<FormattingContext>(block_formatting_context.release());
 }
 

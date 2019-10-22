@@ -35,8 +35,13 @@ namespace layout {
 // to update the position of the subsequent children passed to it.
 class BlockFormattingContext : public FormattingContext {
  public:
-  explicit BlockFormattingContext(const LayoutParams& layout_params);
+  explicit BlockFormattingContext(const LayoutParams& layout_params,
+                                  const bool is_margin_collapsable);
   ~BlockFormattingContext() override;
+
+  // Updates the top and bottom margins of the containing box after children
+  // have been processed.
+  void CollapseContainingMargins(Box* containing_box);
 
   // Calculates the position and size of the given child box and updates
   // the internal state in the preparation for the next child.
@@ -48,9 +53,13 @@ class BlockFormattingContext : public FormattingContext {
 
  private:
   void UpdatePosition(Box* child_box);
+  LayoutUnit CollapseMargins(const LayoutUnit box_margin,
+                             const LayoutUnit adjoining_margin);
 
+  const bool is_margin_collapsable_;
   const LayoutParams layout_params_;
   LayoutUnit collapsing_margin_;
+  base::Optional<LayoutUnit> context_margin_top_;
 
   DISALLOW_COPY_AND_ASSIGN(BlockFormattingContext);
 };
