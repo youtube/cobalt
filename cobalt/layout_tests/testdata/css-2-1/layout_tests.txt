@@ -110,6 +110,11 @@
 18-4-outline-animation
 18-4-outline-overflow-hidden
 8-1-margin-should-be-transparent
+8-3-1-in-flow-siblings-should-form-collapsed-margin
+8-3-1-inline-level-boxes-should-not-form-collapsed-margin
+8-3-1-parent-and-first-in-flow-child-should-form-collapsed-margin
+8-3-1-parent-and-last-in-flow-child-should-form-collapsed-margin
+8-3-1-parent-with-non-auto-height-should-not-form-collapsed-margin
 8-3-margin-percentage-should-refer-containing-block-width
 8-3-negative-margins-should-be-allowed
 8-3-negative_margins-should-be-allowed-to-produce_negative-box-widths
