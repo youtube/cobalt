@@ -46,6 +46,7 @@ _INCLUDE_FILE_PATTERNS = [
     # jinja2 required by this app_launcher_packager.py script.
     ('third_party/jinja2', '*.py'),
     ('third_party/markupsafe', '*.py'),  # Required by third_party/jinja2
+    ('tools/lbshell', '*.py'),  # Required to test old branches.
 ]
 
 _INCLUDE_BLACK_BOX_TESTS_PATTERNS = [
