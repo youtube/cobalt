@@ -77,10 +77,21 @@ uint8_t ClampColorComponent(int component) {
   return s_clamp_table[component + 512];
 }
 
-void Copy10bitsPlane(uint8_t* destination, const uint8_t* source, int pixels) {
+void CopyPlane(int bit_depth,
+               uint8_t* destination,
+               const uint8_t* source,
+               int pixels) {
+  if (bit_depth == 8) {
+    SbMemoryCopy(destination, source, pixels);
+    return;
+  }
+  SB_DCHECK(bit_depth == 10 || bit_depth == 12);
+
+  const int conversion_factor = 1 << (bit_depth - 8);
+
   const uint16_t* source_in_uint16 = reinterpret_cast<const uint16_t*>(source);
   while (pixels > 0) {
-    *destination = static_cast<uint8_t>(*source_in_uint16 / 4);
+    *destination = static_cast<uint8_t>(*source_in_uint16 / conversion_factor);
     ++source_in_uint16;
     ++destination;
     --pixels;
@@ -174,7 +185,7 @@ scoped_refptr<CpuVideoFrame> CpuVideoFrame::CreateYV12Frame(
     const uint8_t* y,
     const uint8_t* u,
     const uint8_t* v) {
-  SB_DCHECK(bit_depth == 8 || bit_depth == 10);
+  SB_DCHECK(bit_depth == 8 || bit_depth == 10 || bit_depth == 12);
 
   scoped_refptr<CpuVideoFrame> frame(new CpuVideoFrame(timestamp));
   frame->format_ = kYV12;
@@ -182,7 +193,7 @@ scoped_refptr<CpuVideoFrame> CpuVideoFrame::CreateYV12Frame(
   frame->height_ = height;
 
   auto destination_pitch_in_bytes = source_pitch_in_bytes;
-  if (bit_depth == 10) {
+  if (bit_depth == 10 || bit_depth == 12) {
     // Reduce destination pitch to half as it will be converted into 8 bits.
     destination_pitch_in_bytes /= 2;
   }
@@ -200,21 +211,13 @@ scoped_refptr<CpuVideoFrame> CpuVideoFrame::CreateYV12Frame(
   frame->pixel_buffer_.reset(
       new uint8_t[y_plane_size_in_bytes + uv_plane_size_in_bytes * 2]);
 
-  if (bit_depth == 8) {
-    SbMemoryCopy(frame->pixel_buffer_.get(), y, y_plane_size_in_bytes);
-    SbMemoryCopy(frame->pixel_buffer_.get() + y_plane_size_in_bytes, u,
-                 uv_plane_size_in_bytes);
-    SbMemoryCopy(frame->pixel_buffer_.get() + y_plane_size_in_bytes +
-                     uv_plane_size_in_bytes,
-                 v, uv_plane_size_in_bytes);
-  } else {
-    Copy10bitsPlane(frame->pixel_buffer_.get(), y, y_plane_size_in_bytes);
-    Copy10bitsPlane(frame->pixel_buffer_.get() + y_plane_size_in_bytes, u,
-                    uv_plane_size_in_bytes);
-    Copy10bitsPlane(frame->pixel_buffer_.get() + y_plane_size_in_bytes +
-                        uv_plane_size_in_bytes,
-                    v, uv_plane_size_in_bytes);
-  }
+  CopyPlane(bit_depth, frame->pixel_buffer_.get(), y, y_plane_size_in_bytes);
+  CopyPlane(bit_depth, frame->pixel_buffer_.get() + y_plane_size_in_bytes, u,
+            uv_plane_size_in_bytes);
+  CopyPlane(bit_depth,
+            frame->pixel_buffer_.get() + y_plane_size_in_bytes +
+                uv_plane_size_in_bytes,
+            v, uv_plane_size_in_bytes);
 
   frame->planes_.push_back(Plane(width, height, destination_pitch_in_bytes,
                                  frame->pixel_buffer_.get()));
