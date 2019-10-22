@@ -583,6 +583,12 @@ class TestRunner(object):
         error = True
         test_status = "FAILED"
         failed_test_groups.append(target_name)
+        # Be specific about the cause of failure if it was caused due to crash
+        # upon exit. Normal Gtest failures have return_code = 1; test crashes
+        # yield different return codes (e.g. segfault has return_code = 11).
+        if (return_code != 1 and actual_failed_count == 0 and
+            flaky_failed_count == 0):
+          test_status = "FAILED (CRASHED)"
 
       logging.info("%s: %s.", target_name, test_status)
       if return_code != 0 and run_count == 0 and filtered_count == 0:
