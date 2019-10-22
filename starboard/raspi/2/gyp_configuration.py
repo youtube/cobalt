@@ -15,6 +15,8 @@
 
 from starboard.raspi.shared import gyp_configuration as shared_configuration
 
+_SABI_JSON_PATH = 'starboard/evergreen/sabi/arm/hardfp/sabi.json'
+
 
 class Raspi2PlatformConfig(shared_configuration.RaspiPlatformConfig):
 
@@ -28,6 +30,9 @@ class Raspi2PlatformConfig(shared_configuration.RaspiPlatformConfig):
         'cobalt_enable_jit': 1,
     })
     return variables
+
+  def GetPathToSabiJsonFile(self):
+    return _SABI_JSON_PATH
 
 
 def CreatePlatformConfig():

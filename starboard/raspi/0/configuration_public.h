@@ -64,16 +64,6 @@
 #define SB_HAS_64_BIT_LONG 0
 #endif
 
-// Configuration parameters that allow the application to make some general
-// compile-time decisions with respect to the the number of cores likely to be
-// available on this platform. For a definitive measure, the application should
-// still call SbSystemGetNumberOfProcessors at runtime.
-
-// Whether the current platform's thread scheduler will automatically balance
-// threads between cores, as opposed to systems where threads will only ever run
-// on the specifically pinned core.
-#define SB_HAS_CROSS_CORE_SCHEDULER 1
-
 #include "starboard/raspi/shared/configuration_public.h"
 
 #endif  // STARBOARD_RASPI_0_CONFIGURATION_PUBLIC_H_
