@@ -97,6 +97,24 @@
       'cflags_cc': [
         '-std=c++11',
       ],
-    }
+    },
+    {
+      'target_name': 'update_client_test',
+      'type': '<(gtest_target_type)',
+      'sources': [
+        'utils_unittest.cc',
+      ],
+      'dependencies': [
+        ':update_client',
+        '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
+        '<(DEPTH)/testing/gmock.gyp:gmock',
+        '<(DEPTH)/testing/gtest.gyp:gtest',
+      ],
+      # TODO: backport the test to c++11
+      'cflags_cc': [
+        '-std=c++14',
+      ],
+    },
   ]
 }

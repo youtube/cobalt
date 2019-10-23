@@ -62,6 +62,7 @@ std::string GetCrxIdFromPublicKeyHash(const std::vector<uint8_t>& pk_hash) {
   return result;
 }
 
+#if defined(OS_STARBOARD)
 bool VerifyFileHash256(const base::FilePath& filepath,
                        const std::string& expected_hash_str) {
   std::vector<uint8_t> expected_hash;
@@ -69,7 +70,49 @@ bool VerifyFileHash256(const base::FilePath& filepath,
       expected_hash.size() != crypto::kSHA256Length) {
     return false;
   }
-#if !defined(OS_STARBOARD)
+
+  base::File source_file(filepath,
+                         base::File::FLAG_OPEN | base::File::FLAG_READ);
+  if (!source_file.IsValid()) {
+    DPLOG(ERROR) << "VerifyFileHash256(): Unable to open source file: "
+                 << filepath.value();
+    return false;
+  }
+
+  const size_t kBufferSize = 32768;
+  std::vector<char> buffer(kBufferSize);
+  uint8_t actual_hash[crypto::kSHA256Length] = {0};
+  std::unique_ptr<crypto::SecureHash> hasher(
+      crypto::SecureHash::Create(crypto::SecureHash::SHA256));
+
+  while (true) {
+    int bytes_read = source_file.ReadAtCurrentPos(&buffer[0], buffer.size());
+    if (bytes_read < 0) {
+      DPLOG(ERROR) << "VerifyFileHash256(): error reading from source file: "
+                   << filepath.value();
+
+      return false;
+    }
+
+    if (bytes_read == 0) {
+      break;
+    }
+
+    hasher->Update(&buffer[0], bytes_read);
+  }
+
+  hasher->Finish(actual_hash, sizeof(actual_hash));
+
+  return memcmp(actual_hash, &expected_hash[0], sizeof(actual_hash)) == 0;
+}
+#else
+bool VerifyFileHash256(const base::FilePath& filepath,
+                       const std::string& expected_hash_str) {
+  std::vector<uint8_t> expected_hash;
+  if (!base::HexStringToBytes(expected_hash_str, &expected_hash) ||
+      expected_hash.size() != crypto::kSHA256Length) {
+    return false;
+  }
   base::MemoryMappedFile mmfile;
   if (!mmfile.Initialize(filepath))
     return false;
@@ -81,11 +124,8 @@ bool VerifyFileHash256(const base::FilePath& filepath,
   hasher->Finish(actual_hash, sizeof(actual_hash));
 
   return memcmp(actual_hash, &expected_hash[0], sizeof(actual_hash)) == 0;
-#else
-  // TODO: compute the hash without using base::MemoryMappedFile
-  return false;
-#endif
 }
+#endif
 
 bool IsValidBrand(const std::string& brand) {
   const size_t kMaxBrandSize = 4;
