@@ -37,8 +37,13 @@
     ],
     'compiler_flags_gold': [
       '-fno-rtti',
-      '-O2',
       '-gline-tables-only',
+    ],
+    'compiler_flags_gold_size': [
+      '-Os',
+    ],
+    'compiler_flags_gold_speed': [
+      '-O2',
     ],
     'conditions': [
       ['clang==1', {
