@@ -93,6 +93,8 @@ bool operator!=(const SbMediaVideoSampleInfo& sample_info_1,
 
 // For logging use only.
 std::ostream& operator<<(std::ostream& os,
+                         const SbMediaMasteringMetadata& metadata);
+std::ostream& operator<<(std::ostream& os,
                          const SbMediaColorMetadata& metadata);
 std::ostream& operator<<(std::ostream& os,
                          const SbMediaVideoSampleInfo& sample_info);
