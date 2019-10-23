@@ -118,14 +118,6 @@
             ['OS=="android"', {
               'toolsets': ['target', 'host'],
             }],
-            ['OS=="starboard" or OS=="lb_shell"', {
-              # NOTE: This library is not used in Cobalt, so completely
-              # disabling it to prove it. If re-enabled, will have to be ported
-              # to Starboard. Alternatively, we could delete it from the repo.
-              'sources/': [
-                ['exclude', '.*'],
-              ],
-            }],
           ],
         }, {
           'direct_dependent_settings': {
@@ -161,6 +153,9 @@
             '-Wno-parentheses-equality',
           ],
         }],
+      ],
+      'dependencies': [
+        'zlib',
       ],
     }
   ],
