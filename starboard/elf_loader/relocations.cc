@@ -45,7 +45,7 @@ bool Relocations::InitRelocations() {
     Addr dyn_value = dynamic[i].d_un.d_val;
     uintptr_t dyn_addr = base_memory_address_ + dynamic[i].d_un.d_ptr;
     Addr tag = dynamic[i].d_tag;
-    SB_LOG(INFO) << "InitRelocations: tag=" << tag;
+    SB_DLOG(INFO) << "InitRelocations: tag=" << tag;
     switch (tag) {
 #if defined(USE_RELA)
       case DT_REL:
@@ -57,7 +57,7 @@ bool Relocations::InitRelocations() {
         SB_LOG(ERROR) << "unsupported relocation type";
         return false;
       case DT_PLTREL:
-        SB_LOG(INFO) << "  DT_PLTREL value=" << dyn_value;
+        SB_DLOG(INFO) << "  DT_PLTREL value=" << dyn_value;
 #if defined(USE_RELA)
         if (dyn_value != DT_RELA) {
           SB_LOG(ERROR) << "unsupported DT_PLTREL  expected DT_RELA";
@@ -71,22 +71,22 @@ bool Relocations::InitRelocations() {
 #endif
         break;
       case DT_JMPREL:
-        SB_LOG(INFO) << "  DT_JMPREL addr=0x" << std::hex
-                     << (dyn_addr - base_memory_address_);
+        SB_DLOG(INFO) << "  DT_JMPREL addr=0x" << std::hex
+                      << (dyn_addr - base_memory_address_);
         plt_relocations_ = dyn_addr;
         break;
       case DT_PLTRELSZ:
         plt_relocations_size_ = dyn_value;
-        SB_LOG(INFO) << "  DT_PLTRELSZ size=" << dyn_value;
+        SB_DLOG(INFO) << "  DT_PLTRELSZ size=" << dyn_value;
         break;
 #if defined(USE_RELA)
       case DT_RELA:
 #else
       case DT_REL:
 #endif
-        SB_LOG(INFO) << "  " << ((tag == DT_RELA) ? "DT_RELA" : "DT_REL")
-                     << " addr=" << std::hex
-                     << (dyn_addr - base_memory_address_);
+        SB_DLOG(INFO) << "  " << ((tag == DT_RELA) ? "DT_RELA" : "DT_REL")
+                      << " addr=" << std::hex
+                      << (dyn_addr - base_memory_address_);
         if (relocations_) {
           SB_LOG(ERROR)
               << "Unsupported DT_RELA/DT_REL combination in dynamic section";
@@ -99,8 +99,8 @@ bool Relocations::InitRelocations() {
 #else
       case DT_RELSZ:
 #endif
-        SB_LOG(INFO) << "  " << ((tag == DT_RELASZ) ? "DT_RELASZ" : "DT_RELSZ")
-                     << " size=" << dyn_value;
+        SB_DLOG(INFO) << "  " << ((tag == DT_RELASZ) ? "DT_RELASZ" : "DT_RELSZ")
+                      << " size=" << dyn_value;
         relocations_size_ = dyn_value;
         break;
       case DT_RELR:
@@ -109,16 +109,16 @@ bool Relocations::InitRelocations() {
         break;
       case DT_RELRENT:
       case DT_PLTGOT:
-        SB_LOG(INFO) << "DT_PLTGOT addr=0x" << std::hex
-                     << (dyn_addr - base_memory_address_);
+        SB_DLOG(INFO) << "DT_PLTGOT addr=0x" << std::hex
+                      << (dyn_addr - base_memory_address_);
         plt_got_ = reinterpret_cast<Addr*>(dyn_addr);
         break;
       case DT_TEXTREL:
-        SB_LOG(INFO) << "  DT_TEXTREL";
+        SB_DLOG(INFO) << "  DT_TEXTREL";
         has_text_relocations_ = true;
         break;
       case DT_SYMBOLIC:
-        SB_LOG(INFO) << "  DT_SYMBOLIC";
+        SB_DLOG(INFO) << "  DT_SYMBOLIC";
         has_symbolic_ = true;
         break;
       case DT_FLAGS:
@@ -127,9 +127,9 @@ bool Relocations::InitRelocations() {
         if (dyn_value & DF_SYMBOLIC)
           has_symbolic_ = true;
 
-        SB_LOG(INFO) << "  DT_FLAGS has_text_relocations="
-                     << has_text_relocations_
-                     << " has_symbolic=" << has_symbolic_;
+        SB_DLOG(INFO) << "  DT_FLAGS has_text_relocations="
+                      << has_text_relocations_
+                      << " has_symbolic=" << has_symbolic_;
 
         break;
       default:
@@ -165,7 +165,7 @@ bool Relocations::ApplyRelocations(const rel_t* rel, size_t rel_count) {
     return true;
 
   for (size_t rel_n = 0; rel_n < rel_count; rel++, rel_n++) {
-    SB_LOG(INFO) << "  Relocation " << rel_n + 1 << " of " << rel_count;
+    SB_DLOG(INFO) << "  Relocation " << rel_n + 1 << " of " << rel_count;
 
     if (!ApplyRelocation(rel))
       return false;
@@ -180,9 +180,9 @@ bool Relocations::ApplyRelocation(const rel_t* rel) {
 
   Addr sym_addr = 0;
   Addr reloc = static_cast<Addr>(rel->r_offset + base_memory_address_);
-  SB_LOG(INFO) << "  offset=0x" << std::hex << rel->r_offset
-               << " type=" << std::dec << rel_type << " reloc=0x" << std::hex
-               << reloc << " symbol=" << rel_symbol;
+  SB_DLOG(INFO) << "  offset=0x" << std::hex << rel->r_offset
+                << " type=" << std::dec << rel_type << " reloc=0x" << std::hex
+                << reloc << " symbol=" << rel_symbol;
 
   if (rel_type == 0)
     return true;
@@ -203,34 +203,34 @@ bool Relocations::ApplyResolvedReloc(const Rela* rela, Addr sym_addr) {
   const Sword addend = rela->r_addend;
   const Addr reloc = static_cast<Addr>(rela->r_offset + base_memory_address_);
 
-  SB_LOG(INFO) << "  rela reloc=0x" << std::hex << reloc << " offset=0x"
-               << rela->r_offset << " type=" << std::dec << rela_type
-               << " addend=0x" << std::hex << addend;
+  SB_DLOG(INFO) << "  rela reloc=0x" << std::hex << reloc << " offset=0x"
+                << rela->r_offset << " type=" << std::dec << rela_type
+                << " addend=0x" << std::hex << addend;
   Addr* target = reinterpret_cast<Addr*>(reloc);
   switch (rela_type) {
 #if SB_IS(ARCH_ARM) && SB_IS(64_BIT)
     case R_AARCH64_JUMP_SLOT:
-      SB_LOG(INFO) << "  R_AARCH64_JUMP_SLOT target=" << std::hex << target
-                   << " addr=" << (sym_addr + addend);
+      SB_DLOG(INFO) << "  R_AARCH64_JUMP_SLOT target=" << std::hex << target
+                    << " addr=" << (sym_addr + addend);
       *target = sym_addr + addend;
       break;
 
     case R_AARCH64_GLOB_DAT:
-      SB_LOG(INFO) << " R_AARCH64_GLOB_DAT target=" << std::hex << target
-                   << " addr=" << (sym_addr + addend);
+      SB_DLOG(INFO) << " R_AARCH64_GLOB_DAT target=" << std::hex << target
+                    << " addr=" << (sym_addr + addend);
       *target = sym_addr + addend;
       break;
 
     case R_AARCH64_ABS64:
-      SB_LOG(INFO) << "  R_AARCH64_ABS64 target=" << std::hex << target << " "
-                   << *target << " addr=" << sym_addr + addend;
+      SB_DLOG(INFO) << "  R_AARCH64_ABS64 target=" << std::hex << target << " "
+                    << *target << " addr=" << sym_addr + addend;
       *target += sym_addr + addend;
       break;
 
     case R_AARCH64_RELATIVE:
-      SB_LOG(INFO) << "  R_AARCH64_RELATIVE target=" << std::hex << target
-                   << " " << *target
-                   << " bias=" << base_memory_address_ + addend;
+      SB_DLOG(INFO) << "  R_AARCH64_RELATIVE target=" << std::hex << target
+                    << " " << *target
+                    << " bias=" << base_memory_address_ + addend;
       *target = base_memory_address_ + addend;
       break;
 
@@ -242,21 +242,22 @@ bool Relocations::ApplyResolvedReloc(const Rela* rela, Addr sym_addr) {
 
 #if SB_IS(ARCH_X86) && SB_IS(64_BIT)
     case R_X86_64_JMP_SLOT:
-      SB_LOG(INFO) << "  R_X86_64_JMP_SLOT target=" << std::hex << target
-                   << " addr=" << (sym_addr + addend);
+      SB_DLOG(INFO) << "  R_X86_64_JMP_SLOT target=" << std::hex << target
+                    << " addr=" << (sym_addr + addend);
       *target = sym_addr + addend;
       break;
 
     case R_X86_64_GLOB_DAT:
-      SB_LOG(INFO) << "  R_X86_64_GLOB_DAT target=" << std::hex << target
-                   << " addr=" << (sym_addr + addend);
+      SB_DLOG(INFO) << "  R_X86_64_GLOB_DAT target=" << std::hex << target
+                    << " addr=" << (sym_addr + addend);
 
       *target = sym_addr + addend;
       break;
 
     case R_X86_64_RELATIVE:
-      SB_LOG(INFO) << "  R_X86_64_RELATIVE target=" << std::hex << target << " "
-                   << *target << " bias=" << base_memory_address_ + addend;
+      SB_DLOG(INFO) << "  R_X86_64_RELATIVE target=" << std::hex << target
+                    << " " << *target
+                    << " bias=" << base_memory_address_ + addend;
       *target = base_memory_address_ + addend;
       break;
 
@@ -281,40 +282,40 @@ bool Relocations::ApplyResolvedReloc(const Rel* rel, Addr sym_addr) {
   const Word rel_type = ELF_R_TYPE(rel->r_info);
   const Addr reloc = static_cast<Addr>(rel->r_offset + base_memory_address_);
 
-  SB_LOG(INFO) << "  rel reloc=0x" << std::hex << reloc << " offset=0x"
-               << rel->r_offset << " type=" << std::dec << rel_type;
+  SB_DLOG(INFO) << "  rel reloc=0x" << std::hex << reloc << " offset=0x"
+                << rel->r_offset << " type=" << std::dec << rel_type;
 
   Addr* target = reinterpret_cast<Addr*>(reloc);
   switch (rel_type) {
 #if SB_IS(ARCH_ARM) && SB_IS(32_BIT)
     case R_ARM_JUMP_SLOT:
-      SB_LOG(INFO) << "  R_ARM_JUMP_SLOT target=" << std::hex << target
-                   << " addr=" << sym_addr;
+      SB_DLOG(INFO) << "  R_ARM_JUMP_SLOT target=" << std::hex << target
+                    << " addr=" << sym_addr;
       *target = sym_addr;
       break;
 
     case R_ARM_GLOB_DAT:
-      SB_LOG(INFO) << "  R_ARM_GLOB_DAT target=" << std::hex << target
-                   << " addr=" << sym_addr;
+      SB_DLOG(INFO) << "  R_ARM_GLOB_DAT target=" << std::hex << target
+                    << " addr=" << sym_addr;
       *target = sym_addr;
       break;
 
     case R_ARM_ABS32:
-      SB_LOG(INFO) << "  R_ARM_ABS32 target=" << std::hex << target << " "
-                   << *target << " addr=" << sym_addr;
+      SB_DLOG(INFO) << "  R_ARM_ABS32 target=" << std::hex << target << " "
+                    << *target << " addr=" << sym_addr;
       *target += sym_addr;
       break;
 
     case R_ARM_REL32:
-      SB_LOG(INFO) << "  R_ARM_REL32 target=" << std::hex << target << " "
-                   << *target << " addr=" << sym_addr
-                   << " offset=" << rel->r_offset;
+      SB_DLOG(INFO) << "  R_ARM_REL32 target=" << std::hex << target << " "
+                    << *target << " addr=" << sym_addr
+                    << " offset=" << rel->r_offset;
       *target += sym_addr - rel->r_offset;
       break;
 
     case R_ARM_RELATIVE:
-      SB_LOG(INFO) << "  RR_ARM_RELATIVE target=" << std::hex << target << " "
-                   << *target << " bias=" << base_memory_address_;
+      SB_DLOG(INFO) << "  RR_ARM_RELATIVE target=" << std::hex << target << " "
+                    << *target << " bias=" << base_memory_address_;
       *target += base_memory_address_;
       break;
 
@@ -329,35 +330,35 @@ bool Relocations::ApplyResolvedReloc(const Rel* rel, Addr sym_addr) {
 
 #if SB_IS(ARCH_X86) && SB_IS(32_BIT)
     case R_386_JMP_SLOT:
-      SB_LOG(INFO) << "  R_386_JMP_SLOT target=" << std::hex << target
-                   << " addr=" << sym_addr;
+      SB_DLOG(INFO) << "  R_386_JMP_SLOT target=" << std::hex << target
+                    << " addr=" << sym_addr;
 
       *target = sym_addr;
       break;
 
     case R_386_GLOB_DAT:
-      SB_LOG(INFO) << "  R_386_GLOB_DAT target=" << std::hex << target
-                   << " addr=" << sym_addr;
+      SB_DLOG(INFO) << "  R_386_GLOB_DAT target=" << std::hex << target
+                    << " addr=" << sym_addr;
       *target = sym_addr;
 
       break;
 
     case R_386_RELATIVE:
-      SB_LOG(INFO) << "  R_386_RELATIVE target=" << std::hex << target << " "
-                   << *target << " bias=" << base_memory_address_;
+      SB_DLOG(INFO) << "  R_386_RELATIVE target=" << std::hex << target << " "
+                    << *target << " bias=" << base_memory_address_;
 
       *target += base_memory_address_;
       break;
 
     case R_386_32:
-      SB_LOG(INFO) << "  R_386_32 target=" << std::hex << target << " "
-                   << *target << " addr=" << sym_addr;
+      SB_DLOG(INFO) << "  R_386_32 target=" << std::hex << target << " "
+                    << *target << " addr=" << sym_addr;
       *target += sym_addr;
       break;
 
     case R_386_PC32:
-      SB_LOG(INFO) << "  R_386_PC32 target=" << std::hex << target << " "
-                   << *target << " addr=" << sym_addr << " reloc=" << reloc;
+      SB_DLOG(INFO) << "  R_386_PC32 target=" << std::hex << target << " "
+                    << *target << " addr=" << sym_addr << " reloc=" << reloc;
       *target += (sym_addr - reloc);
       break;
 #endif
@@ -435,7 +436,7 @@ bool Relocations::ResolveSymbol(Word rel_type,
                                 Addr reloc,
                                 Addr* sym_addr) {
   const char* sym_name = dynamic_section_->LookupNameById(rel_symbol);
-  SB_LOG(INFO) << "Resolve: " << sym_name;
+  SB_DLOG(INFO) << "Resolve: " << sym_name;
   const void* address = NULL;
 
   const Sym* sym = dynamic_section_->LookupByName(sym_name);
@@ -445,7 +446,7 @@ bool Relocations::ResolveSymbol(Word rel_type,
     address = exported_symbols_->Lookup(sym_name);
   }
 
-  SB_LOG(INFO) << "Resolve: address=0x" << std::hex << address;
+  SB_DLOG(INFO) << "Resolve: address=0x" << std::hex << address;
 
   if (address) {
     // The symbol was found, so compute its address.

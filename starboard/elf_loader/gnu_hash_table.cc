@@ -97,20 +97,20 @@ bool GnuHashTable::IsValid() const {
 const Sym* GnuHashTable::LookupByName(const char* symbol_name,
                                       const Sym* symbol_table,
                                       const char* string_table) const {
-  SB_LOG(INFO) << "GnuHashTable::LookupByName: " << symbol_name;
+  SB_DLOG(INFO) << "GnuHashTable::LookupByName: " << symbol_name;
   uint32_t hash = GnuHash(symbol_name);
 
-  SB_LOG(INFO) << "GnuHashTable::LookupByName: hash=" << hash;
-  SB_LOG(INFO) << "GnuHashTable::LookupByName: ELF_BITS=" << ELF_BITS;
+  SB_DLOG(INFO) << "GnuHashTable::LookupByName: hash=" << hash;
+  SB_DLOG(INFO) << "GnuHashTable::LookupByName: ELF_BITS=" << ELF_BITS;
 
   // First, bloom filter test.
   Addr word = bloom_filter_[(hash / ELF_BITS) & bloom_word_mask_];
 
-  SB_LOG(INFO) << "GnuHashTable::LookupByName: word=" << word;
+  SB_DLOG(INFO) << "GnuHashTable::LookupByName: word=" << word;
   Addr mask = (Addr(1) << (hash % ELF_BITS)) |
               (Addr(1) << ((hash >> bloom_shift_) % ELF_BITS));
 
-  SB_LOG(INFO) << "GnuHashTable::LookupByName: mask=" << mask;
+  SB_DLOG(INFO) << "GnuHashTable::LookupByName: mask=" << mask;
   if ((word & mask) != mask)
     return NULL;
 
