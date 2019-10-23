@@ -103,6 +103,20 @@
         ],
       }],
     ],
+    'defines_debug': [
+      # Enable debug mode for the C++ standard library.
+      # https://gcc.gnu.org/onlinedocs/libstdc%2B%2B/manual/debug_mode_using.html
+      # https://libcxx.llvm.org/docs/DesignDocs/DebugMode.html
+      '_GLIBCXX_DEBUG',
+      '_LIBCPP_DEBUG=1',
+    ],
+    'defines_devel': [
+      # Enable debug mode for the C++ standard library.
+      # https://gcc.gnu.org/onlinedocs/libstdc%2B%2B/manual/debug_mode_using.html
+      # https://libcxx.llvm.org/docs/DesignDocs/DebugMode.html
+      '_GLIBCXX_DEBUG',
+      '_LIBCPP_DEBUG=0',
+    ],
   },
 
   'target_defaults': {
