@@ -525,6 +525,17 @@
         'src/string/wmemmove.c',
         'src/string/wmemset.c',
       ]
+    },
+    {
+      'target_name': 'musl_unittests',
+      'type': '<(gtest_target_type)',
+      'sources': [
+        'test/type_size_test.cc',
+      ],
+      'dependencies': [
+        'c',
+        '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
+      ],
     }
   ]
 }

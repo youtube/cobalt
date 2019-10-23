@@ -98,6 +98,11 @@
             '<(DEPTH)/starboard/starboard_all.gyp:starboard_all',
           ],
         }],
+        ['sb_evergreen==1', {
+          'dependencies': [
+            '<(DEPTH)/third_party/musl/musl.gyp:musl_unittests',
+          ],
+        }],
       ],
     },
   ],
