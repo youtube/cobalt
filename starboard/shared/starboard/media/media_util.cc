@@ -582,13 +582,28 @@ bool operator!=(const SbMediaVideoSampleInfo& sample_info_1,
 }
 
 std::ostream& operator<<(std::ostream& os,
+                         const SbMediaMasteringMetadata& metadata) {
+  os << "r(" << metadata.primary_r_chromaticity_x << ", "
+     << metadata.primary_r_chromaticity_y << "), g("
+     << metadata.primary_g_chromaticity_x << ", "
+     << metadata.primary_g_chromaticity_y << "), b("
+     << metadata.primary_b_chromaticity_x << ", "
+     << metadata.primary_b_chromaticity_y << "), white("
+     << metadata.white_point_chromaticity_x << ", "
+     << metadata.white_point_chromaticity_y << "), luminance("
+     << metadata.luminance_min << " to " << metadata.luminance_max << ")";
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os,
                          const SbMediaColorMetadata& metadata) {
   using starboard::shared::starboard::media::GetPrimaryIdName;
   using starboard::shared::starboard::media::GetTransferIdName;
   using starboard::shared::starboard::media::GetMatrixIdName;
   using starboard::shared::starboard::media::GetRangeIdName;
   os << metadata.bits_per_channel
-     << " bits, primary: " << GetPrimaryIdName(metadata.primaries)
+     << " bits, mastering metadata: " << metadata.mastering_metadata
+     << ", primary: " << GetPrimaryIdName(metadata.primaries)
      << ", transfer: " << GetTransferIdName(metadata.transfer)
      << ", matrix: " << GetMatrixIdName(metadata.matrix)
      << ", range: " << GetRangeIdName(metadata.range);
