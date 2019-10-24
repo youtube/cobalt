@@ -1328,6 +1328,12 @@ bool BrowserModule::FilterKeyEventForHotkeys(
       // F5 reloads the page.
       Reload();
     }
+  } else if (event.ctrl_key() && event.key_code() == dom::keycode::kS) {
+    if (type == base::Tokens::keydown()) {
+      // Ctrl+S suspends Cobalt.
+      SbSystemRequestSuspend();
+    }
+    return false;
   }
 #endif  // defined(ENABLE_DEBUGGER)
 
