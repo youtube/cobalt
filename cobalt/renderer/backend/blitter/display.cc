@@ -19,7 +19,7 @@
 #include "cobalt/renderer/backend/blitter/render_target.h"
 #include "cobalt/system_window/system_window.h"
 
-#if SB_HAS(BLITTER)
+#if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
 
 namespace cobalt {
 namespace renderer {
@@ -97,4 +97,4 @@ scoped_refptr<RenderTarget> DisplayBlitter::GetRenderTarget() {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // #if SB_HAS(BLITTER)
+#endif  // #if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)

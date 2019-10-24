@@ -19,7 +19,7 @@
 #include "cobalt/renderer/rasterizer/common/scratch_surface_cache.h"
 #include "starboard/blitter.h"
 
-#if SB_HAS(BLITTER)
+#if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
 
 namespace cobalt {
 namespace renderer {
@@ -82,6 +82,6 @@ class CachedScratchSurface {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // SB_HAS(BLITTER)
+#endif  // SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
 
 #endif  // COBALT_RENDERER_RASTERIZER_BLITTER_SCRATCH_SURFACE_CACHE_H_
