@@ -17,7 +17,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "starboard/blitter.h"
 
-#if SB_HAS(BLITTER)
+#if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
 
 namespace cobalt {
 namespace renderer {
@@ -95,4 +95,4 @@ SbBlitterSurface CachedScratchSurface::GetSurface() {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // SB_HAS(BLITTER)
+#endif  // SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)

@@ -22,7 +22,7 @@
 #include "starboard/blitter.h"
 #include "starboard/common/optional.h"
 
-#if SB_HAS(BLITTER)
+#if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
 
 namespace cobalt {
 namespace renderer {
@@ -50,6 +50,6 @@ class GraphicsSystemBlitter : public GraphicsSystem {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // #if SB_HAS(BLITTER)
+#endif  // #if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
 
 #endif  // COBALT_RENDERER_BACKEND_BLITTER_GRAPHICS_SYSTEM_H_
