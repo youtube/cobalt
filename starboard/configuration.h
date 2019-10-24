@@ -76,7 +76,15 @@
 // parameters are.
 #define SB_UI_NAVIGATION_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Require the captions API
+// Require the blitter API.
+// The system must implement the blitter functions in `starboard/blitter.h`
+// or use the provided stub implementations. The provided stubs will return
+// responses that denote failures. The system should implement
+// `SbBlitterIsBlitterSupported()` to return false when blitter is not
+// supported.
+#define SB_BLITTER_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Require the captions API.
 // The system must implement the captions functions in
 // `starboard/accessibility.h` or use the provided stub implementations.
 // System caption can be disabled by implementing the function
@@ -733,7 +741,8 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 
 // Specifies whether this platform has any kind of supported graphics system.
 #if !defined(SB_HAS_GRAPHICS)
-#if SB_HAS(GLES2) || SB_HAS(BLITTER)
+#if SB_HAS(GLES2) || SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || \
+    SB_HAS(BLITTER)
 #define SB_HAS_GRAPHICS 1
 #else
 #define SB_HAS_GRAPHICS 0

@@ -64,7 +64,7 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
 
 #endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 #if SB_API_VERSION >= 10
-#if SB_HAS(BLITTER)
+#if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
   if (decode_to_texture_required) {
     return false;
   }
@@ -72,7 +72,7 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
   // Assume that all non-Blitter Linux platforms can play decode-to-texture
   // video just as well as normal video.
   SB_UNREFERENCED_PARAMETER(decode_to_texture_required);
-#endif  // SB_HAS(BLITTER)
+#endif  // SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
 #endif  // SB_API_VERSION >= 10
 
   return ((video_codec == kSbMediaVideoCodecAv1 && is_aom_supported()) ||
