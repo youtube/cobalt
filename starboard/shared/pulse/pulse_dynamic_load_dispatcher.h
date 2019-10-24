@@ -31,8 +31,16 @@ extern int (*pa_context_connect)(pa_context*,
                                  pa_context_flags_t,
                                  const pa_spawn_api*);
 extern void (*pa_context_disconnect)(pa_context*);
+extern pa_cvolume* (*pa_cvolume_set)(pa_cvolume*, unsigned, pa_volume_t);
+extern uint32_t (*pa_stream_get_index)(const pa_stream*);
 extern pa_context_state_t (*pa_context_get_state)(pa_context*);
 extern pa_context* (*pa_context_new)(pa_mainloop_api*, const char*);
+extern pa_operation* (*pa_context_set_sink_input_volume)(
+    pa_context*,
+    uint32_t,
+    const pa_cvolume*,
+    pa_context_success_cb_t,
+    void*);
 extern void (*pa_context_set_state_callback)(pa_context*,
                                              pa_context_notify_cb_t,
                                              void*);
