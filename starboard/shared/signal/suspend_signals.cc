@@ -54,15 +54,10 @@ void SetSignalHandler(int signal_id, SignalHandlerFunction handler) {
   ::sigaction(signal_id, &action, NULL);
 }
 
-void SuspendDone(void* /*context*/) {
-  // Stop all thread execution after fully transitioning into Suspended.
-  raise(SIGSTOP);
-}
-
 void Suspend(int signal_id) {
   SignalMask(kAllSignals, SIG_BLOCK);
   LogSignalCaught(signal_id);
-  starboard::Application::Get()->Suspend(NULL, &SuspendDone);
+  SbSystemRequestSuspend();
   SignalMask(kAllSignals, SIG_UNBLOCK);
 }
 
