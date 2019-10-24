@@ -15,6 +15,8 @@
 #ifndef STARBOARD_RASPI_SHARED_APPLICATION_DISPMANX_H_
 #define STARBOARD_RASPI_SHARED_APPLICATION_DISPMANX_H_
 
+#include <memory>
+
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
 #include "starboard/raspi/shared/dispmanx_util.h"
@@ -33,7 +35,7 @@ namespace shared {
 class ApplicationDispmanx
     : public ::starboard::shared::starboard::QueueApplication {
  public:
-  ApplicationDispmanx() : window_(kSbWindowInvalid), input_(NULL) {}
+  ApplicationDispmanx() : window_(kSbWindowInvalid) {}
   ~ApplicationDispmanx() override {}
 
   static ApplicationDispmanx* Get() {
@@ -48,6 +50,8 @@ class ApplicationDispmanx
   // --- Application overrides ---
   void Initialize() override;
   void Teardown() override;
+  void OnSuspend() override;
+  void OnResume() override;
   void AcceptFrame(SbPlayer player,
                    const scoped_refptr<VideoFrame>& frame,
                    int z_index,
@@ -85,7 +89,7 @@ class ApplicationDispmanx
   SbWindow window_;
 
   // The /dev/input input handler. Only set when there is an open window.
-  ::starboard::shared::dev_input::DevInput* input_;
+  std::unique_ptr<::starboard::shared::dev_input::DevInput> input_;
 };
 
 }  // namespace shared
