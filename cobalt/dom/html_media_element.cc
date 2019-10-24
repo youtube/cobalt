@@ -598,6 +598,10 @@ void HTMLMediaElement::OnInsertedIntoDocument() {
   if (!src.empty()) {
     set_src(src);
   }
+
+  if (HasAttribute("muted")) {
+    set_muted(true);
+  }
 }
 
 void HTMLMediaElement::TraceMembers(script::Tracer* tracer) {
@@ -1604,7 +1608,7 @@ void HTMLMediaElement::PlaybackStateChanged() {
 
 void HTMLMediaElement::SawUnsupportedTracks() { NOTIMPLEMENTED(); }
 
-float HTMLMediaElement::Volume() const { return volume(NULL); }
+float HTMLMediaElement::Volume() const { return muted_ ? 0 : volume(NULL); }
 
 void HTMLMediaElement::SourceOpened(ChunkDemuxer* chunk_demuxer) {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::SourceOpened()");
