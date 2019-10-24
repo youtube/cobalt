@@ -49,7 +49,7 @@ SbWindow ApplicationDispmanx::CreateWindow(const SbWindowOptions* options) {
 
   SB_DCHECK(IsDispmanxInitialized());
   window_ = new SbWindowPrivate(*display_, options);
-  input_ = DevInput::Create(window_);
+  input_.reset(DevInput::Create(window_));
 
   video_renderer_.reset(new DispmanxVideoRenderer(*display_, kVideoLayer));
 
@@ -62,10 +62,6 @@ bool ApplicationDispmanx::DestroyWindow(SbWindow window) {
   }
 
   SB_DCHECK(IsDispmanxInitialized());
-
-  SB_DCHECK(input_);
-  delete input_;
-  input_ = NULL;
 
   SB_DCHECK(window_ == window);
   delete window;
@@ -81,6 +77,25 @@ void ApplicationDispmanx::Initialize() {
 void ApplicationDispmanx::Teardown() {
   ShutdownDispmanx();
   SbAudioSinkPrivate::TearDown();
+}
+
+void ApplicationDispmanx ::OnSuspend() {
+  // |window_| has not been initialized if Cobalt is in a preloaded state.
+  if (window_) {
+    video_renderer_->HideElement();
+
+    // Destroy the DevInput object so that other processes can access input
+    // devices while Cobalt is in a suspended state.
+    input_.reset();
+  }
+}
+
+void ApplicationDispmanx::OnResume() {
+  if (window_) {
+    input_.reset(DevInput::Create(window_));
+
+    video_renderer_->ShowElement();
+  }
 }
 
 void ApplicationDispmanx::AcceptFrame(SbPlayer player,

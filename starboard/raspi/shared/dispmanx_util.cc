@@ -164,6 +164,20 @@ void DispmanxVideoRenderer::Update(
   frame_ = video_frame;
 }
 
+void DispmanxVideoRenderer::HideElement() {
+  DispmanxResource transparent_resource_;
+  element_->ChangeSource(transparent_resource_);
+
+  // |frame| != |hidden_frame_| ensures that the call to Update() in
+  // ShowElement() actually updates the video renderer with the desired video
+  // frame.
+  hidden_frame_ = std::move(frame_);
+}
+
+void DispmanxVideoRenderer::ShowElement() {
+  Update(hidden_frame_);
+}
+
 }  // namespace shared
 }  // namespace raspi
 }  // namespace starboard
