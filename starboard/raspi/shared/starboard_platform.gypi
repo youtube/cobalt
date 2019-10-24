@@ -14,6 +14,7 @@
 {
   'includes': [
     '<(DEPTH)/starboard/shared/starboard/player/filter/player_filter.gypi',
+    '<(DEPTH)/starboard/stub/blitter_stub_sources.gypi',
   ],
   'variables': {
     'sb_pedantic_warnings': 1,
@@ -38,6 +39,7 @@
       'target_name': 'starboard_platform',
       'type': 'static_library',
       'sources': [
+        '<@(blitter_stub_sources)',
         '<@(filter_based_player_sources)',
         '<(DEPTH)/starboard/linux/shared/atomic_public.h',
         '<(DEPTH)/starboard/linux/shared/configuration_public.h',

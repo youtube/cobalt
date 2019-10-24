@@ -14,9 +14,11 @@
 {
   'includes': [
     '<(DEPTH)/starboard/shared/starboard/player/filter/player_filter.gypi',
+    '<(DEPTH)/starboard/stub/blitter_stub_sources.gypi',
   ],
   'variables': {
     'starboard_platform_sources': [
+      '<@(blitter_stub_sources)',
       '<@(filter_based_player_sources)',
       '<(DEPTH)/starboard/contrib/creator/shared/media_is_video_supported.cc',
       '<(DEPTH)/starboard/contrib/creator/shared/player_components_impl.cc',

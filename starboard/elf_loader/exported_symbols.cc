@@ -16,6 +16,7 @@
 
 #include "starboard/accessibility.h"
 #include "starboard/audio_sink.h"
+#include "starboard/blitter.h"
 #include "starboard/byte_swap.h"
 #include "starboard/character.h"
 #include "starboard/condition_variable.h"
@@ -275,6 +276,10 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbWindowGetPlatformHandle);
   REGISTER_SYMBOL(SbWindowGetSize);
   REGISTER_SYMBOL(SbWindowSetDefaultOptions);
+
+#if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION
+  REGISTER_SYMBOL(SbBlitterIsBlitterSupported);
+#endif
 
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
   REGISTER_SYMBOL(SbMemoryFlush);

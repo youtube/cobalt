@@ -159,7 +159,7 @@ bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
                                        SbDrmSystem drm_system) {
   SB_UNREFERENCED_PARAMETER(codec);
   SB_UNREFERENCED_PARAMETER(drm_system);
-#if SB_HAS(BLITTER)
+#if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
   return output_mode == kSbPlayerOutputModePunchOut;
 #endif
 
