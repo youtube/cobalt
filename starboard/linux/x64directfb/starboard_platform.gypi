@@ -43,6 +43,7 @@
         '<(DEPTH)/starboard/shared/directfb/blitter_get_render_target_from_swap_chain.cc',
         '<(DEPTH)/starboard/shared/directfb/blitter_get_surface_info.cc',
         '<(DEPTH)/starboard/shared/directfb/blitter_internal.cc',
+        '<(DEPTH)/starboard/shared/directfb/blitter_is_blitter_supported.cc',
         '<(DEPTH)/starboard/shared/directfb/blitter_is_pixel_format_supported_by_download_surface_pixels.cc',
         '<(DEPTH)/starboard/shared/directfb/blitter_is_pixel_format_supported_by_pixel_data.cc',
         '<(DEPTH)/starboard/shared/directfb/blitter_is_surface_format_supported_by_render_target_surface.cc',
@@ -62,6 +63,7 @@
         '<(DEPTH)/starboard/shared/stub/system_gles.cc',
     ],
     'starboard_platform_sources!': [
+        '<@(blitter_stub_sources)',
         '<(DEPTH)/starboard/shared/egl/system_egl.cc',
         '<(DEPTH)/starboard/shared/egl/system_gles2.cc',
     ],

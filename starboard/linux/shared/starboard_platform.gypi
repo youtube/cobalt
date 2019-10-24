@@ -14,6 +14,7 @@
 {
   'includes': [
     '<(DEPTH)/starboard/shared/starboard/player/filter/player_filter.gypi',
+    '<(DEPTH)/starboard/stub/blitter_stub_sources.gypi',
   ],
   'variables': {
     'variables': {
@@ -23,6 +24,7 @@
     # This has_cdm gets exported to gyp files that include this one.
     'has_cdm%': '<(has_cdm)',
     'starboard_platform_sources': [
+      '<@(blitter_stub_sources)',
       '<@(filter_based_player_sources)',
       '<(DEPTH)/starboard/linux/shared/atomic_public.h',
       '<(DEPTH)/starboard/linux/shared/audio_sink_type_dispatcher.cc',
