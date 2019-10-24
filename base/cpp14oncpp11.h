@@ -162,44 +162,54 @@ using add_const_t = typename add_const<T>::type;
 template<typename T>
 using add_volatile_t = typename add_volatile<T>::type;
 
-template< class C > 
+template< class C >
 auto rbegin( C& c ) -> decltype(c.rbegin()) {
   return c.rbegin();
 }
 
-template< class C > 
+template< class C >
 auto rbegin( const C& c ) -> decltype(c.rbegin()) {
   return c.rbegin();
 }
 
-template< class T, size_t N > 
+template< class T, size_t N >
 reverse_iterator<T*> rbegin( T (&array)[N] ) {
   return reverse_iterator<T*>(array + N);
 }
 
-template< class C > 
+template <class C>
+constexpr auto cbegin(const C& c) -> decltype(std::begin(c)) {
+  return std::begin(c);
+}
+
+template< class C >
 auto crbegin( const C& c ) -> decltype(std::rbegin(c)) {
   return std::rbegin(c);
 }
 
-template< class C > 
+template< class C >
 auto rend( C& c ) -> decltype(c.rend()) {
   return c.rend();
 }
 
-template< class C > 
+template< class C >
 auto rend( const C& c ) -> decltype(c.rend()) {
   return c.rend();
 }
 
-template< class T, size_t N > 
+template< class T, size_t N >
 reverse_iterator<T*> rend( T (&array)[N] ) {
   return reverse_iterator<T*>(array);
 }
 
-template< class C > 
+template< class C >
 auto crend( const C& c ) -> decltype(std::rend(c)) {
   return std::rend(c);
+}
+
+template <class C>
+constexpr auto cend(const C& c) -> decltype(std::end(c)) {
+  return std::end(c);
 }
 #endif
 

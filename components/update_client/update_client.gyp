@@ -94,9 +94,6 @@
         'LIBXML_READER_ENABLED',
         'LIBXML_WRITER_ENABLED',
       ],
-      'cflags_cc': [
-        '-std=c++11',
-      ],
     },
     {
       'target_name': 'update_client_test',
@@ -110,10 +107,6 @@
         '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
-      ],
-      # TODO: backport the test to c++11
-      'cflags_cc': [
-        '-std=c++14',
       ],
     },
   ]
