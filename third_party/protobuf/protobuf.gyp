@@ -46,6 +46,8 @@
             'clang_warning_flags': [
               # protobuf-3 contains a few functions that are unused.
               '-Wno-unused-function',
+              # protobuf-3 mixes generated enum types.
+              '-Wno-enum-compare-switch',
             ],
           },
           # Required for component builds. See http://crbug.com/172800.
