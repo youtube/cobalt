@@ -23,7 +23,7 @@
 
   // Exercise all of the extras utils:
   // - v8.createPrivateSymbol
-  // - v8.simpleBind, v8.uncurryThis
+  // - v8.uncurryThis
   // - v8.InternalPackedArray
   // - v8.createPromise, v8.resolvePromise, v8.rejectPromise
 
@@ -35,7 +35,7 @@
   const apply = v8.uncurryThis(Function.prototype.apply);
 
   const Promise = global.Promise;
-  const Promise_resolve = v8.simpleBind(Promise.resolve, Promise);
+  const Promise_resolve = Promise.resolve.bind(Promise);
 
   const arrayToTest = new v8.InternalPackedArray();
   arrayToTest.push(1);
@@ -48,6 +48,22 @@
   const arraysOK = arrayToTest.length === 2 && arrayToTest[0] === "c" &&
       arrayToTest[1] === 1 && slicedArray.length === 2 &&
       slicedArray[0] === "c" && slicedArray[1] === 1;
+
+  binding.testCreatePromise = function() {
+    return v8.createPromise();
+  }
+
+  binding.testCreatePromiseWithParent = function(parent) {
+    return v8.createPromise(parent);
+  }
+
+  binding.testRejectPromise = function(promise, reason) {
+    return v8.rejectPromise(promise, reason);
+  }
+
+  binding.testResolvePromise = function(promise, resolution) {
+    return v8.resolvePromise(promise, resolution);
+  }
 
   binding.testExtraCanUseUtils = function() {
     const fulfilledPromise = v8.createPromise();
@@ -64,7 +80,7 @@
     const rejectedPromise = v8.createPromise();
     v8.rejectPromise(rejectedPromise, apply(function (arg1, arg2) {
       return (arg1 === arg2 && arg2 === 'x') ? 3 : -1;
-    }, null, new v8.InternalPackedArray('x', 'x')));
+    }, null, ['x', 'x']));
 
     const rejectedButHandledPromise = v8.createPromise();
     v8.rejectPromise(rejectedButHandledPromise, 4);
@@ -87,6 +103,10 @@
                         promiseStateToString(fulfilledPromise) + ' ' +
                         promiseStateToString(rejectedPromise);
 
+    const uncurryThis = v8.uncurryThis(function (a, b, c, d, e) {
+      return (this + a + b + c + d + e) === 21;
+    })(1, 2, 3, 4, 5, 6);
+
     return {
       privateSymbol: v8.createPrivateSymbol('sym'),
       fulfilledPromise, // should be fulfilled with 1
@@ -95,7 +115,8 @@
       rejectedButHandledPromise, // should be rejected but have a handler
       promiseStates, // should be the string "pending fulfilled rejected"
       promiseIsPromise: v8.isPromise(fulfilledPromise), // should be true
-      thenableIsPromise: v8.isPromise({ then() { } })  // should be false
+      thenableIsPromise: v8.isPromise({ then() { } }),  // should be false
+      uncurryThis // should be true
     };
   };
 })

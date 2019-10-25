@@ -26,8 +26,8 @@
 //    needs to increment twice (which the compiler should be able to detect and
 //    optimize).
 
-#ifndef BASE_ATOMICOPS_INTERNALS_PORTABLE_H_
-#define BASE_ATOMICOPS_INTERNALS_PORTABLE_H_
+#ifndef V8_BASE_ATOMICOPS_INTERNALS_PORTABLE_H_
+#define V8_BASE_ATOMICOPS_INTERNALS_PORTABLE_H_
 
 #include <atomic>
 
@@ -56,6 +56,13 @@ inline void SeqCst_MemoryFence() {
   std::atomic_thread_fence(std::memory_order_seq_cst);
 #endif  //  defined(__GLIBCXX__)
 #endif  //  defined(V8_OS_STARBOARD)
+}
+
+inline Atomic16 Relaxed_CompareAndSwap(volatile Atomic16* ptr,
+                                       Atomic16 old_value, Atomic16 new_value) {
+  __atomic_compare_exchange_n(ptr, &old_value, new_value, false,
+                              __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+  return old_value;
 }
 
 inline Atomic32 Relaxed_CompareAndSwap(volatile Atomic32* ptr,
@@ -138,6 +145,10 @@ inline void Relaxed_Store(volatile Atomic8* ptr, Atomic8 value) {
 #endif
 }
 
+inline void Relaxed_Store(volatile Atomic16* ptr, Atomic16 value) {
+  __atomic_store_n(ptr, value, __ATOMIC_RELAXED);
+}
+
 inline void Relaxed_Store(volatile Atomic32* ptr, Atomic32 value) {
 #if defined(V8_OS_STARBOARD)
   SbAtomicNoBarrier_Store(ptr, value);
@@ -160,6 +171,10 @@ inline Atomic8 Relaxed_Load(volatile const Atomic8* ptr) {
 #else
   return __atomic_load_n(ptr, __ATOMIC_RELAXED);
 #endif
+}
+
+inline Atomic16 Relaxed_Load(volatile const Atomic16* ptr) {
+  return __atomic_load_n(ptr, __ATOMIC_RELAXED);
 }
 
 inline Atomic32 Relaxed_Load(volatile const Atomic32* ptr) {

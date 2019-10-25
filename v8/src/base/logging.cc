@@ -5,11 +5,9 @@
 #include "src/base/logging.h"
 
 #include <cctype>
-#if !V8_OS_STARBOARD
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
-#endif
 
 #include "src/base/debug/stack_trace.h"
 #include "src/base/platform/platform.h"
@@ -55,7 +53,12 @@ void PrettyPrintChar(std::ostream& os, int ch) {
 }
 
 void DefaultDcheckHandler(const char* file, int line, const char* message) {
+#ifdef DEBUG
   V8_Fatal(file, line, "Debug check failed: %s.", message);
+#else
+  // This case happens only for unit tests.
+  V8_Fatal("Debug check failed: %s.", message);
+#endif
 }
 
 }  // namespace
@@ -121,26 +124,72 @@ DEFINE_CHECK_OP_IMPL(GT)
 }  // namespace base
 }  // namespace v8
 
+namespace {
+
+// FailureMessage is a stack allocated object which has a special marker field
+// at the start and at the end. This makes it possible to retrieve the embedded
+// message from the stack.
+//
+class FailureMessage {
+ public:
+  explicit FailureMessage(const char* format, va_list arguments) {
+    memset(&message_, 0, arraysize(message_));
+    v8::base::OS::VSNPrintF(&message_[0], arraysize(message_), format,
+                            arguments);
+  }
+
+  static const uintptr_t kStartMarker = 0xdecade10;
+  static const uintptr_t kEndMarker = 0xdecade11;
+  static const int kMessageBufferSize = 512;
+
+  uintptr_t start_marker_ = kStartMarker;
+  char message_[kMessageBufferSize];
+  uintptr_t end_marker_ = kEndMarker;
+};
+
+}  // namespace
+
+#ifdef DEBUG
 void V8_Fatal(const char* file, int line, const char* format, ...) {
-#if !V8_OS_STARBOARD
+#else
+void V8_Fatal(const char* format, ...) {
+  const char* file = "";
+  int line = 0;
+#endif
+  va_list arguments;
+  va_start(arguments, format);
+  // Format the error message into a stack object for later retrieveal by the
+  // crash processor.
+  FailureMessage message(format, arguments);
+  va_end(arguments);
+
   fflush(stdout);
   fflush(stderr);
-#endif
+  // Print the formatted message to stdout without cropping the output.
   v8::base::OS::PrintError("\n\n#\n# Fatal error in %s, line %d\n# ", file,
                            line);
-  va_list arguments;
+
+  // Print the error message.
   va_start(arguments, format);
   v8::base::OS::VPrintError(format, arguments);
   va_end(arguments);
-  v8::base::OS::PrintError("\n#\n");
+  // Print the message object's address to force stack allocation.
+  v8::base::OS::PrintError("\n#\n#\n#\n#FailureMessage Object: %p", &message);
 
   if (v8::base::g_print_stack_trace) v8::base::g_print_stack_trace();
 
-#if !V8_OS_STARBOARD
   fflush(stderr);
-#endif
   v8::base::OS::Abort();
 }
+
+#if !defined(DEBUG) && defined(OFFICIAL_BUILD)
+void V8_FatalNoContext() {
+  v8::base::OS::PrintError("V8 CHECK or FATAL\n");
+  if (v8::base::g_print_stack_trace) v8::base::g_print_stack_trace();
+  fflush(stderr);
+  v8::base::OS::Abort();
+}
+#endif
 
 void V8_Dcheck(const char* file, int line, const char* message) {
   v8::base::g_dcheck_function(file, line, message);

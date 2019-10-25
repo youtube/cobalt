@@ -9,12 +9,15 @@ Dummy test suite extension with some flaky fruity tests.
 from testrunner.local import testsuite
 from testrunner.objects import testcase
 
+
+class TestLoader(testsuite.TestLoader):
+  def _list_test_filenames(self):
+    return ['bananaflakes']
+
+
 class TestSuite(testsuite.TestSuite):
-  def ListTests(self, context):
-    return map(
-        self._create_test,
-        ['bananaflakes'],
-    )
+  def _test_loader_class(self):
+    return TestLoader
 
   def _test_class(self):
     return TestCase
@@ -24,8 +27,8 @@ class TestCase(testcase.TestCase):
   def get_shell(self):
     return 'd8_mocked.py'
 
-  def _get_files_params(self, ctx):
+  def _get_files_params(self):
     return [self.name]
 
-def GetSuite(name, root):
-  return TestSuite(name, root)
+def GetSuite(*args, **kwargs):
+  return TestSuite(*args, **kwargs)

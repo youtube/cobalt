@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/interpreter/control-flow-builders.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -13,7 +13,7 @@ namespace interpreter {
 BreakableControlFlowBuilder::~BreakableControlFlowBuilder() {
   BindBreakTarget();
   DCHECK(break_labels_.empty() || break_labels_.is_bound());
-  if (block_coverage_builder_ != nullptr && needs_continuation_counter()) {
+  if (block_coverage_builder_ != nullptr) {
     block_coverage_builder_->IncrementBlockCounter(
         node_, SourceRangeKind::kContinuation);
   }
@@ -47,10 +47,6 @@ void BreakableControlFlowBuilder::EmitJumpIfNull(BytecodeLabels* sites) {
 
 LoopBuilder::~LoopBuilder() {
   DCHECK(continue_labels_.empty() || continue_labels_.is_bound());
-  // Restore the parent jump table.
-  if (generator_jump_table_location_ != nullptr) {
-    *generator_jump_table_location_ = parent_generator_jump_table_;
-  }
 }
 
 void LoopBuilder::LoopHeader() {
@@ -60,26 +56,6 @@ void LoopBuilder::LoopHeader() {
   // and misplaced between the headers.
   DCHECK(break_labels_.empty() && continue_labels_.empty());
   builder()->Bind(&loop_header_);
-}
-
-void LoopBuilder::LoopHeaderInGenerator(
-    BytecodeJumpTable** generator_jump_table, int first_resume_id,
-    int resume_count) {
-  // Bind all the resume points that are inside the loop to be at the loop
-  // header.
-  for (int id = first_resume_id; id < first_resume_id + resume_count; ++id) {
-    builder()->Bind(*generator_jump_table, id);
-  }
-
-  // Create the loop header.
-  LoopHeader();
-
-  // Create a new jump table for after the loop header for only these
-  // resume points.
-  generator_jump_table_location_ = generator_jump_table;
-  parent_generator_jump_table_ = *generator_jump_table;
-  *generator_jump_table =
-      builder()->AllocateJumpTable(resume_count, first_resume_id);
 }
 
 void LoopBuilder::LoopBody() {
@@ -94,7 +70,6 @@ void LoopBuilder::JumpToHeader(int loop_depth) {
   int level = Min(loop_depth, AbstractCode::kMaxLoopNestingMarker - 1);
   // Loop must have closed form, i.e. all loop elements are within the loop,
   // the loop header precedes the body and next elements in the loop.
-  DCHECK(loop_header_.is_bound());
   builder()->JumpLoop(&loop_header_, level);
 }
 
@@ -103,7 +78,7 @@ void LoopBuilder::BindContinueTarget() { continue_labels_.Bind(builder()); }
 SwitchBuilder::~SwitchBuilder() {
 #ifdef DEBUG
   for (auto site : case_sites_) {
-    DCHECK(site.is_bound());
+    DCHECK(!site.has_referrer_jump() || site.is_bound());
   }
 #endif
 }
@@ -132,7 +107,6 @@ void TryCatchBuilder::BeginTry(Register context) {
 void TryCatchBuilder::EndTry() {
   builder()->MarkTryEnd(handler_id_);
   builder()->Jump(&exit_);
-  builder()->Bind(&handler_);
   builder()->MarkHandler(handler_id_, catch_prediction_);
 
   if (block_coverage_builder_ != nullptr) {
