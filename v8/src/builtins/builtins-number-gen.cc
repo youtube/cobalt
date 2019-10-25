@@ -5,7 +5,7 @@
 #include "src/builtins/builtins-math-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
-#include "src/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler.h"
 #include "src/ic/binary-op-assembler.h"
 
 namespace v8 {
@@ -101,31 +101,8 @@ TF_BUILTIN(AllocateHeapNumber, CodeStubAssembler) {
 
 // ES6 #sec-number.isinteger
 TF_BUILTIN(NumberIsInteger, CodeStubAssembler) {
-  Node* number = Parameter(Descriptor::kNumber);
-
-  Label return_true(this), return_false(this);
-
-  // Check if {number} is a Smi.
-  GotoIf(TaggedIsSmi(number), &return_true);
-
-  // Check if {number} is a HeapNumber.
-  GotoIfNot(IsHeapNumber(number), &return_false);
-
-  // Load the actual value of {number}.
-  Node* number_value = LoadHeapNumberValue(number);
-
-  // Truncate the value of {number} to an integer (or an infinity).
-  Node* integer = Float64Trunc(number_value);
-
-  // Check if {number}s value matches the integer (ruling out the infinities).
-  Branch(Float64Equal(Float64Sub(number_value, integer), Float64Constant(0.0)),
-         &return_true, &return_false);
-
-  BIND(&return_true);
-  Return(TrueConstant());
-
-  BIND(&return_false);
-  Return(FalseConstant());
+  TNode<Object> number = CAST(Parameter(Descriptor::kNumber));
+  Return(SelectBooleanConstant(IsInteger(number)));
 }
 
 // ES6 #sec-number.isnan
@@ -153,37 +130,8 @@ TF_BUILTIN(NumberIsNaN, CodeStubAssembler) {
 
 // ES6 #sec-number.issafeinteger
 TF_BUILTIN(NumberIsSafeInteger, CodeStubAssembler) {
-  Node* number = Parameter(Descriptor::kNumber);
-
-  Label return_true(this), return_false(this);
-
-  // Check if {number} is a Smi.
-  GotoIf(TaggedIsSmi(number), &return_true);
-
-  // Check if {number} is a HeapNumber.
-  GotoIfNot(IsHeapNumber(number), &return_false);
-
-  // Load the actual value of {number}.
-  Node* number_value = LoadHeapNumberValue(number);
-
-  // Truncate the value of {number} to an integer (or an infinity).
-  Node* integer = Float64Trunc(number_value);
-
-  // Check if {number}s value matches the integer (ruling out the infinities).
-  GotoIfNot(
-      Float64Equal(Float64Sub(number_value, integer), Float64Constant(0.0)),
-      &return_false);
-
-  // Check if the {integer} value is in safe integer range.
-  Branch(Float64LessThanOrEqual(Float64Abs(integer),
-                                Float64Constant(kMaxSafeInteger)),
-         &return_true, &return_false);
-
-  BIND(&return_true);
-  Return(TrueConstant());
-
-  BIND(&return_false);
-  Return(FalseConstant());
+  TNode<Object> number = CAST(Parameter(Descriptor::kNumber));
+  Return(SelectBooleanConstant(IsSafeInteger(number)));
 }
 
 // ES6 #sec-number.parsefloat
@@ -280,7 +228,7 @@ TF_BUILTIN(NumberParseFloat, CodeStubAssembler) {
 }
 
 // ES6 #sec-number.parseint
-TF_BUILTIN(NumberParseInt, CodeStubAssembler) {
+TF_BUILTIN(ParseInt, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* input = Parameter(Descriptor::kString);
   Node* radix = Parameter(Descriptor::kRadix);
@@ -319,12 +267,14 @@ TF_BUILTIN(NumberParseInt, CodeStubAssembler) {
       GotoIf(Float64Equal(input_value, ChangeInt32ToFloat64(input_value32)),
              &if_inputissigned32);
 
-      // Check if the absolute {input} value is in the ]0.01,1e9[ range.
+      // Check if the absolute {input} value is in the [1,1<<31[ range.
+      // Take the generic path for the range [0,1[ because the result
+      // could be -0.
       Node* input_value_abs = Float64Abs(input_value);
 
-      GotoIfNot(Float64LessThan(input_value_abs, Float64Constant(1e9)),
+      GotoIfNot(Float64LessThan(input_value_abs, Float64Constant(1u << 31)),
                 &if_generic);
-      Branch(Float64LessThan(Float64Constant(0.01), input_value_abs),
+      Branch(Float64LessThanOrEqual(Float64Constant(1), input_value_abs),
              &if_inputissigned32, &if_generic);
 
       // Return the truncated int32 value, and return the tagged result.
@@ -355,10 +305,18 @@ TF_BUILTIN(NumberParseInt, CodeStubAssembler) {
   }
 }
 
+// ES6 #sec-number.parseint
+TF_BUILTIN(NumberParseInt, CodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* input = Parameter(Descriptor::kString);
+  Node* radix = Parameter(Descriptor::kRadix);
+  Return(CallBuiltin(Builtins::kParseInt, context, input, radix));
+}
+
 // ES6 #sec-number.prototype.valueof
 TF_BUILTIN(NumberPrototypeValueOf, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
 
   Node* result = ToThisValue(context, receiver, PrimitiveType::kNumber,
                              "Number.prototype.valueOf");
@@ -434,13 +392,9 @@ TF_BUILTIN(Add, AddStubAssembler) {
 
       BIND(&if_right_smi);
       {
-        // Try fast Smi addition first, bail out if it overflows.
-        Node* pair = IntPtrAddWithOverflow(BitcastTaggedToWord(left),
-                                           BitcastTaggedToWord(right));
-        Node* overflow = Projection(1, pair);
         Label if_overflow(this);
-        GotoIf(overflow, &if_overflow);
-        Return(BitcastWordToTaggedSigned(Projection(0, pair)));
+        TNode<Smi> result = TrySmiAdd(CAST(left), CAST(right), &if_overflow);
+        Return(result);
 
         BIND(&if_overflow);
         {
@@ -571,23 +525,21 @@ TF_BUILTIN(Add, AddStubAssembler) {
   BIND(&string_add_convert_left);
   {
     // Convert {left} to a String and concatenate it with the String {right}.
-    Callable callable =
-        CodeFactory::StringAdd(isolate(), STRING_ADD_CONVERT_LEFT, NOT_TENURED);
-    Return(CallStub(callable, context, var_left.value(), var_right.value()));
+    TailCallBuiltin(Builtins::kStringAdd_ConvertLeft, context, var_left.value(),
+                    var_right.value());
   }
 
   BIND(&string_add_convert_right);
   {
     // Convert {right} to a String and concatenate it with the String {left}.
-    Callable callable = CodeFactory::StringAdd(
-        isolate(), STRING_ADD_CONVERT_RIGHT, NOT_TENURED);
-    Return(CallStub(callable, context, var_left.value(), var_right.value()));
+    TailCallBuiltin(Builtins::kStringAdd_ConvertRight, context,
+                    var_left.value(), var_right.value());
   }
 
   BIND(&do_bigint_add);
   {
-    Return(CallRuntime(Runtime::kBigIntBinaryOp, context, var_left.value(),
-                       var_right.value(), SmiConstant(Operation::kAdd)));
+    TailCallBuiltin(Builtins::kBigIntAdd, context, var_left.value(),
+                    var_right.value());
   }
 
   BIND(&do_double_add);
@@ -729,12 +681,10 @@ TF_BUILTIN(Subtract, NumberBuiltinsAssembler) {
 
   BIND(&do_smi_sub);
   {
-    // Try a fast Smi subtraction first, bail out if it overflows.
-    Node* pair = IntPtrSubWithOverflow(BitcastTaggedToWord(var_left.value()),
-                                       BitcastTaggedToWord(var_right.value()));
-    Node* overflow = Projection(1, pair);
-    Label if_overflow(this), if_notoverflow(this);
-    Branch(overflow, &if_overflow, &if_notoverflow);
+    Label if_overflow(this);
+    TNode<Smi> result = TrySmiSub(CAST(var_left.value()),
+                                  CAST(var_right.value()), &if_overflow);
+    Return(result);
 
     BIND(&if_overflow);
     {
@@ -742,9 +692,6 @@ TF_BUILTIN(Subtract, NumberBuiltinsAssembler) {
       var_right_double.Bind(SmiToFloat64(var_right.value()));
       Goto(&do_double_sub);
     }
-
-    BIND(&if_notoverflow);
-    Return(BitcastWordToTaggedSigned(Projection(0, pair)));
   }
 
   BIND(&do_double_sub);
@@ -829,7 +776,7 @@ TF_BUILTIN(Negate, NumberBuiltinsAssembler) {
                       &do_bigint);
 
   BIND(&do_smi);
-  { Return(SmiMul(var_input.value(), SmiConstant(-1))); }
+  { Return(SmiMul(CAST(var_input.value()), SmiConstant(-1))); }
 
   BIND(&do_double);
   {
@@ -857,7 +804,7 @@ TF_BUILTIN(Multiply, NumberBuiltinsAssembler) {
 
   BIND(&do_smi_mul);
   // The result is not necessarily a smi, in case of overflow.
-  Return(SmiMul(var_left.value(), var_right.value()));
+  Return(SmiMul(CAST(var_left.value()), CAST(var_right.value())));
 
   BIND(&do_double_mul);
   Node* value = Float64Mul(var_left_double.value(), var_right_double.value());
@@ -885,8 +832,8 @@ TF_BUILTIN(Divide, NumberBuiltinsAssembler) {
   {
     // TODO(jkummerow): Consider just always doing a double division.
     Label bailout(this);
-    Node* dividend = var_left.value();
-    Node* divisor = var_right.value();
+    TNode<Smi> dividend = CAST(var_left.value());
+    TNode<Smi> divisor = CAST(var_right.value());
 
     // Do floating point division if {divisor} is zero.
     GotoIf(SmiEqual(divisor, SmiConstant(0)), &bailout);
@@ -904,8 +851,8 @@ TF_BUILTIN(Divide, NumberBuiltinsAssembler) {
     }
     BIND(&dividend_is_not_zero);
 
-    Node* untagged_divisor = SmiToWord32(divisor);
-    Node* untagged_dividend = SmiToWord32(dividend);
+    Node* untagged_divisor = SmiToInt32(divisor);
+    Node* untagged_dividend = SmiToInt32(dividend);
 
     // Do floating point division if {dividend} is kMinInt (or kMinInt - 1
     // if the Smi size is 31) and {divisor} is -1.
@@ -929,7 +876,7 @@ TF_BUILTIN(Divide, NumberBuiltinsAssembler) {
     Node* truncated = Int32Mul(untagged_result, untagged_divisor);
     // Do floating point division if the remainder is not 0.
     GotoIf(Word32NotEqual(untagged_dividend, truncated), &bailout);
-    Return(SmiFromWord32(untagged_result));
+    Return(SmiFromInt32(untagged_result));
 
     // Bailout: convert {dividend} and {divisor} to double and do double
     // division.
@@ -966,7 +913,7 @@ TF_BUILTIN(Modulus, NumberBuiltinsAssembler) {
                        &var_left_double, &var_right_double, &do_bigint_mod);
 
   BIND(&do_smi_mod);
-  Return(SmiMod(var_left.value(), var_right.value()));
+  Return(SmiMod(CAST(var_left.value()), CAST(var_right.value())));
 
   BIND(&do_double_mod);
   Node* value = Float64Mod(var_left_double.value(), var_right_double.value());
@@ -1049,8 +996,8 @@ TF_BUILTIN(Equal, CodeStubAssembler) {
 }
 
 TF_BUILTIN(StrictEqual, CodeStubAssembler) {
-  Node* lhs = Parameter(Descriptor::kLeft);
-  Node* rhs = Parameter(Descriptor::kRight);
+  TNode<Object> lhs = CAST(Parameter(Descriptor::kLeft));
+  TNode<Object> rhs = CAST(Parameter(Descriptor::kRight));
 
   Return(StrictEqual(lhs, rhs));
 }

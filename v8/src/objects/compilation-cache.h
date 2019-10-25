@@ -5,8 +5,11 @@
 #ifndef V8_OBJECTS_COMPILATION_CACHE_H_
 #define V8_OBJECTS_COMPILATION_CACHE_H_
 
+#include "src/objects/feedback-cell.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/js-regexp.h"
+#include "src/objects/shared-function-info.h"
+#include "src/roots/roots.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -16,7 +19,7 @@ namespace internal {
 
 class CompilationCacheShape : public BaseShape<HashTableKey*> {
  public:
-  static inline bool IsMatch(HashTableKey* key, Object* value) {
+  static inline bool IsMatch(HashTableKey* key, Object value) {
     return key->IsMatch(value);
   }
 
@@ -24,34 +27,47 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
     return key->Hash();
   }
 
-  static inline uint32_t RegExpHash(String* string, Smi* flags);
+  static inline uint32_t RegExpHash(String string, Smi flags);
 
-  static inline uint32_t StringSharedHash(String* source,
-                                          SharedFunctionInfo* shared,
+  static inline uint32_t StringSharedHash(String source,
+                                          SharedFunctionInfo shared,
                                           LanguageMode language_mode,
                                           int position);
 
-  static inline uint32_t HashForObject(Isolate* isolate, Object* object);
+  static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
 
   static const int kPrefixSize = 0;
   static const int kEntrySize = 3;
 };
 
-class InfoVectorPair {
+class InfoCellPair {
  public:
-  InfoVectorPair() : shared_(nullptr), vector_cell_(nullptr) {}
-  InfoVectorPair(SharedFunctionInfo* shared, Cell* vector_cell)
-      : shared_(shared), vector_cell_(vector_cell) {}
+  InfoCellPair() {}
+  inline InfoCellPair(SharedFunctionInfo shared, FeedbackCell feedback_cell);
 
-  SharedFunctionInfo* shared() const { return shared_; }
-  Cell* vector() const { return vector_cell_; }
+  FeedbackCell feedback_cell() const {
+    DCHECK(is_compiled_scope_.is_compiled());
+    return feedback_cell_;
+  }
+  SharedFunctionInfo shared() const {
+    DCHECK(is_compiled_scope_.is_compiled());
+    return shared_;
+  }
 
-  bool has_shared() const { return shared_ != nullptr; }
-  bool has_vector() const { return vector_cell_ != nullptr; }
+  bool has_feedback_cell() const {
+    return !feedback_cell_.is_null() && is_compiled_scope_.is_compiled();
+  }
+  bool has_shared() const {
+    // Only return true if SFI is compiled - the bytecode could have been
+    // flushed while it's in the compilation cache, and not yet have been
+    // removed form the compilation cache.
+    return !shared_.is_null() && is_compiled_scope_.is_compiled();
+  }
 
  private:
-  SharedFunctionInfo* shared_;
-  Cell* vector_cell_;
+  IsCompiledScope is_compiled_scope_;
+  SharedFunctionInfo shared_;
+  FeedbackCell feedback_cell_;
 };
 
 // This cache is used in two different variants. For regexp caching, it simply
@@ -68,40 +84,37 @@ class InfoVectorPair {
 class CompilationCacheTable
     : public HashTable<CompilationCacheTable, CompilationCacheShape> {
  public:
-  // Find cached value for a string key, otherwise return null.
-  Handle<Object> Lookup(Handle<String> src, Handle<Context> context,
-                        LanguageMode language_mode);
-  InfoVectorPair LookupScript(Handle<String> src, Handle<Context> context,
-                              LanguageMode language_mode);
-  InfoVectorPair LookupEval(Handle<String> src,
-                            Handle<SharedFunctionInfo> shared,
-                            Handle<Context> native_context,
-                            LanguageMode language_mode, int position);
+  NEVER_READ_ONLY_SPACE
+  static MaybeHandle<SharedFunctionInfo> LookupScript(
+      Handle<CompilationCacheTable> table, Handle<String> src,
+      Handle<Context> native_context, LanguageMode language_mode);
+  static InfoCellPair LookupEval(Handle<CompilationCacheTable> table,
+                                 Handle<String> src,
+                                 Handle<SharedFunctionInfo> shared,
+                                 Handle<Context> native_context,
+                                 LanguageMode language_mode, int position);
   Handle<Object> LookupRegExp(Handle<String> source, JSRegExp::Flags flags);
-  static Handle<CompilationCacheTable> Put(Handle<CompilationCacheTable> cache,
-                                           Handle<String> src,
-                                           Handle<Context> context,
-                                           LanguageMode language_mode,
-                                           Handle<Object> value);
   static Handle<CompilationCacheTable> PutScript(
       Handle<CompilationCacheTable> cache, Handle<String> src,
-      Handle<Context> context, LanguageMode language_mode,
-      Handle<SharedFunctionInfo> value, Handle<Cell> literals);
+      Handle<Context> native_context, LanguageMode language_mode,
+      Handle<SharedFunctionInfo> value);
   static Handle<CompilationCacheTable> PutEval(
       Handle<CompilationCacheTable> cache, Handle<String> src,
       Handle<SharedFunctionInfo> outer_info, Handle<SharedFunctionInfo> value,
-      Handle<Context> native_context, Handle<Cell> literals, int position);
+      Handle<Context> native_context, Handle<FeedbackCell> feedback_cell,
+      int position);
   static Handle<CompilationCacheTable> PutRegExp(
-      Handle<CompilationCacheTable> cache, Handle<String> src,
+      Isolate* isolate, Handle<CompilationCacheTable> cache, Handle<String> src,
       JSRegExp::Flags flags, Handle<FixedArray> value);
-  void Remove(Object* value);
+  void Remove(Object value);
   void Age();
   static const int kHashGenerations = 10;
 
   DECL_CAST(CompilationCacheTable)
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheTable);
+  OBJECT_CONSTRUCTORS(CompilationCacheTable,
+                      HashTable<CompilationCacheTable, CompilationCacheShape>);
 };
 
 }  // namespace internal
