@@ -331,6 +331,7 @@
           ['(OS == "win" or target_arch=="xb1") and component=="shared_library"', {
             'msvs_disabled_warnings': [
               4251,  # class 'std::xx' needs to have dll-interface.
+              4715,  # Not all control paths return a value.
             ],
           }],
         ],

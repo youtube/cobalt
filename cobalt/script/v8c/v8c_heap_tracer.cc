@@ -55,13 +55,12 @@ void V8cHeapTracer::TracePrologue() {
   }
 }
 
-bool V8cHeapTracer::AdvanceTracing(double deadline_in_ms,
-                                   AdvanceTracingActions actions) {
+bool V8cHeapTracer::AdvanceTracing(double deadline_in_ms) {
   TRACE_EVENT0("cobalt::script", "V8cHeapTracer::AdvanceTracing");
 
-  while (actions.force_completion ==
-             v8::EmbedderHeapTracer::ForceCompletionAction::FORCE_COMPLETION ||
-         platform_->MonotonicallyIncreasingTime() < deadline_in_ms) {
+  double start_time = platform_->MonotonicallyIncreasingTime();
+  while (platform_->MonotonicallyIncreasingTime() - start_time <
+         deadline_in_ms) {
     if (frontier_.empty()) {
       return false;
     }
@@ -74,7 +73,8 @@ bool V8cHeapTracer::AdvanceTracing(double deadline_in_ms,
       Wrappable* wrappable = base::polymorphic_downcast<Wrappable*>(traceable);
       auto pair_range = reference_map_.equal_range(wrappable);
       for (auto it = pair_range.first; it != pair_range.second; ++it) {
-        it->second->Get().RegisterExternalReference(isolate_);
+        // Tell v8 this object is referenced on Cobalt heap.
+        RegisterEmbedderReference(it->second->traced_global());
       }
       WrapperFactory* wrapper_factory =
           V8cGlobalEnvironment::GetFromIsolate(isolate_)->wrapper_factory();
@@ -82,7 +82,7 @@ bool V8cHeapTracer::AdvanceTracing(double deadline_in_ms,
           wrapper_factory->MaybeGetWrapperPrivate(
               static_cast<Wrappable*>(traceable));
       if (maybe_wrapper_private) {
-        maybe_wrapper_private->Mark();
+        RegisterEmbedderReference(maybe_wrapper_private->traced_global());
       }
     }
 
@@ -92,6 +92,8 @@ bool V8cHeapTracer::AdvanceTracing(double deadline_in_ms,
   return true;
 }
 
+bool V8cHeapTracer::IsTracingDone() { return frontier_.empty(); }
+
 void V8cHeapTracer::TraceEpilogue() {
   TRACE_EVENT0("cobalt::script", "V8cHeapTracer::TraceEpilogue");
 
@@ -99,19 +101,9 @@ void V8cHeapTracer::TraceEpilogue() {
   visited_.clear();
 }
 
-void V8cHeapTracer::EnterFinalPause() {
+void V8cHeapTracer::EnterFinalPause(EmbedderStackState stack_state) {
   TRACE_EVENT0("cobalt::script", "V8cHeapTracer::EnterFinalPause");
 }
-
-void V8cHeapTracer::AbortTracing() {
-  TRACE_EVENT0("cobalt::script", "V8cHeapTracer::AbortTracing");
-
-  LOG(WARNING) << "Tracing aborted.";
-  frontier_.clear();
-  visited_.clear();
-}
-
-size_t V8cHeapTracer::NumberOfWrappersToTrace() { return frontier_.size(); }
 
 void V8cHeapTracer::Trace(Traceable* traceable) {
   MaybeAddToFrontier(traceable);

@@ -10,6 +10,10 @@
 #include "src/utils/utils.h"
 #include "src/utils/vector.h"
 
+#if V8_OS_STARBOARD
+#include "starboard/common/log.h"
+#endif  // V8_OS_STARBOARD
+
 namespace v8 {
 namespace internal {
 namespace wasm {
@@ -38,9 +42,15 @@ void TraceMemoryOperation(ExecutionTier tier, const MemoryTracingInfo* info,
       SNPrintF(value, "???");
   }
   const char* eng = ExecutionTierToString(tier);
+#if V8_OS_STARBOARD
+  SbLogFormatF("%-11s func:%6d+0x%-6x%s %08x val: %s\n", eng, func_index,
+         position, info->is_store ? " store to" : "load from", info->address,
+         value.begin());
+#else
   printf("%-11s func:%6d+0x%-6x%s %08x val: %s\n", eng, func_index, position,
          info->is_store ? " store to" : "load from", info->address,
          value.begin());
+#endif
 }
 
 }  // namespace wasm

@@ -35,16 +35,25 @@ class V8cHeapTracer final : public v8::EmbedderHeapTracer,
  public:
   explicit V8cHeapTracer(v8::Isolate* isolate) : isolate_(isolate) {}
 
+  // V8 EmbedderHeapTracer API
   void RegisterV8References(
       const std::vector<std::pair<void*, void*>>& embedder_fields) override;
   void TracePrologue() override;
-  bool AdvanceTracing(double deadline_in_ms,
-                      AdvanceTracingActions actions) override;
+  bool AdvanceTracing(double deadline_in_ms) override;
+  bool IsTracingDone() override;
   void TraceEpilogue() override;
-  void EnterFinalPause() override;
-  void AbortTracing() override;
-  size_t NumberOfWrappersToTrace() override;
+  void EnterFinalPause(EmbedderStackState stack_state) override;
+  // IsRootForNonTracingGC provides an opportunity for us to get quickly
+  // perished reference deleted in scavenger GCs. But that requires the ability
+  // to determine whether a v8 object is reference by anything in Cobalt heap.
+  // Cobalt does have the reference_map_ that tracks all ScriptValues but Cobalt
+  // does not track referencers of all wrappables yet. So we don't have the
+  // ability to exploit this feature yet.
 
+  // bool IsRootForNonTracingGC(const v8::TracedGlobal<v8::Value>& handle)
+  // override
+
+  // Cobalt Tracer API
   void Trace(Traceable* traceable) override;
 
   void AddReferencedObject(Wrappable* owner,

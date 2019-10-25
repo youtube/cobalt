@@ -33,6 +33,10 @@
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif
 
+#if defined(V8_OS_STARBOARD)
+#include "src/poems.h"
+#endif
+
 #define TRACE_HEAP(...)                                   \
   do {                                                    \
     if (FLAG_trace_wasm_native_heap) PrintF(__VA_ARGS__); \
@@ -1540,32 +1544,44 @@ NativeModuleModificationScope::~NativeModuleModificationScope() {
   }
 }
 
+// Disabling these code currently to fix API leaks, wasm module will be removed
+// as a whole later.
+#if !defined(V8_OS_STARBOARD)
 namespace {
 thread_local WasmCodeRefScope* current_code_refs_scope = nullptr;
 }  // namespace
+#endif
 
 WasmCodeRefScope::WasmCodeRefScope()
+#if !defined(V8_OS_STARBOARD)
     : previous_scope_(current_code_refs_scope) {
   current_code_refs_scope = this;
 }
+#else
+    : previous_scope_(nullptr) {}
+#endif
 
 WasmCodeRefScope::~WasmCodeRefScope() {
+#if !defined(V8_OS_STARBOARD)
   DCHECK_EQ(this, current_code_refs_scope);
   current_code_refs_scope = previous_scope_;
   std::vector<WasmCode*> code_ptrs;
   code_ptrs.reserve(code_ptrs_.size());
   code_ptrs.assign(code_ptrs_.begin(), code_ptrs_.end());
   WasmCode::DecrementRefCount(VectorOf(code_ptrs));
+#endif
 }
 
 // static
 void WasmCodeRefScope::AddRef(WasmCode* code) {
+#if !defined(V8_OS_STARBOARD)
   DCHECK_NOT_NULL(code);
   WasmCodeRefScope* current_scope = current_code_refs_scope;
   DCHECK_NOT_NULL(current_scope);
   auto entry = current_scope->code_ptrs_.insert(code);
   // If we added a new entry, increment the ref counter.
   if (entry.second) code->IncRef();
+#endif
 }
 
 }  // namespace wasm

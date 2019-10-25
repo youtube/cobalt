@@ -403,7 +403,6 @@ class WebTestHttpd(object):
             assert certificate is not None and os.path.exists(certificate)
 
         try:
-            self.logger.info("Initializing http server on %s:%s" % (host, port))
             self.httpd = server_cls((host, port),
                                     handler_cls,
                                     self.router,
@@ -419,7 +418,7 @@ class WebTestHttpd(object):
 
             _host, self.port = self.httpd.socket.getsockname()
         except Exception:
-            self.logger.exception('Init failed! %s:%s may already be in use.' % (host, port))
+            self.logger.error('Init failed! You may need to modify your hosts file. Refer to README.md.')
             raise
 
     def start(self, block=False):

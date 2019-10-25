@@ -29,7 +29,7 @@
           'input_files': [
             'browser_protocol.pdl',
             'browser_protocol-1.3.json',
-            '<(DEPTH)/v8/src/inspector/js_protocol.json',
+            '<(DEPTH)/v8/include/js_protocol.pdl',
           ],
           'stamp_file': '<(SHARED_INTERMEDIATE_DIR)/cobalt/debug/remote/inspector_protocol/browser_protocol.stamp',
         },
@@ -57,7 +57,7 @@
           'script_path': '<(DEPTH)/third_party/inspector_protocol/concatenate_protocols.py',
           'input_files': [
             'browser_protocol.pdl',
-            '<(DEPTH)/v8/src/inspector/js_protocol.json',
+            '<(DEPTH)/v8/include/js_protocol.pdl',
           ],
           'output_file': '<(SHARED_INTERMEDIATE_DIR)/cobalt/debug/remote/inspector_protocol/inspector_protocol.json',
         },

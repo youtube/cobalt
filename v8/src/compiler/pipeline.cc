@@ -93,6 +93,10 @@
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/wasm-engine.h"
 
+#if V8_OS_STARBOARD
+#include "starboard/common/log.h"
+#endif  // V8_OS_STARBOARD
+
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -574,7 +578,11 @@ void PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
     if (!script->source().IsUndefined(isolate)) {
       CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
       Object source_name = script->name();
+#if defined(V8_OS_STARBOARD)
+      #define os SB_LOG(INFO)
+#else
       OFStream os(tracing_scope.file());
+#endif
       os << "--- FUNCTION SOURCE (";
       if (source_name.IsString()) {
         os << String::cast(source_name).ToCString().get() << ":";
@@ -594,6 +602,9 @@ void PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
       }
 
       os << "\n--- END ---\n";
+#if defined(V8_OS_STARBOARD)
+      #undef os
+#endif
     }
   }
 }
@@ -604,7 +615,11 @@ void PrintInlinedFunctionInfo(
     OptimizedCompilationInfo* info, Isolate* isolate, int source_id,
     int inlining_id, const OptimizedCompilationInfo::InlinedFunctionHolder& h) {
   CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
+#if defined(V8_OS_STARBOARD)
+      #define os SB_LOG(INFO)
+#else
   OFStream os(tracing_scope.file());
+#endif
   os << "INLINE (" << h.shared_info->DebugName().ToCString().get() << ") id{"
      << info->optimization_id() << "," << source_id << "} AS " << inlining_id
      << " AT ";
@@ -615,6 +630,9 @@ void PrintInlinedFunctionInfo(
     os << "<?>";
   }
   os << std::endl;
+#if defined(V8_OS_STARBOARD)
+      #undef os
+#endif
 }
 
 // Print the source of all functions that participated in this optimizing
@@ -623,6 +641,7 @@ void PrintParticipatingSource(OptimizedCompilationInfo* info,
                               Isolate* isolate) {
   AllowDeferredHandleDereference allow_deference_for_print_code;
 
+#if !defined(DISABLE_GRAPHS_STARBOARD)
   SourceIdAssigner id_assigner(info->inlined_functions().size());
   PrintFunctionSource(info, isolate, -1, info->shared_info());
   const auto& inlined = info->inlined_functions();
@@ -631,11 +650,13 @@ void PrintParticipatingSource(OptimizedCompilationInfo* info,
     PrintFunctionSource(info, isolate, source_id, inlined[id].shared_info);
     PrintInlinedFunctionInfo(info, isolate, source_id, id, inlined[id]);
   }
+#endif
 }
 
 // Print the code after compiling it.
 void PrintCode(Isolate* isolate, Handle<Code> code,
                OptimizedCompilationInfo* info) {
+#if !defined(DISABLE_GRAPHS_STARBOARD)
   if (FLAG_print_opt_source && info->IsOptimizing()) {
     PrintParticipatingSource(info, isolate);
   }
@@ -686,12 +707,14 @@ void PrintCode(Isolate* isolate, Handle<Code> code,
     os << "--- End code ---\n";
   }
 #endif  // ENABLE_DISASSEMBLER
+#endif  // DISABLE_GRAPHS_STARBOARD
 }
 
 void TraceSchedule(OptimizedCompilationInfo* info, PipelineData* data,
                    Schedule* schedule, const char* phase_name) {
   if (info->trace_turbo_json_enabled()) {
     AllowHandleDereference allow_deref;
+#if !defined(DISABLE_GRAPHS_STARBOARD)
     TurboJsonFile json_of(info, std::ios_base::app);
     json_of << "{\"name\":\"" << phase_name << "\",\"type\":\"schedule\""
             << ",\"data\":\"";
@@ -702,6 +725,7 @@ void TraceSchedule(OptimizedCompilationInfo* info, PipelineData* data,
       json_of << AsEscapedUC16ForJSON(c);
     }
     json_of << "\"},\n";
+#endif
   }
   if (info->trace_turbo_graph_enabled() || FLAG_trace_turbo_scheduler) {
     AllowHandleDereference allow_deref;
@@ -806,11 +830,13 @@ PipelineStatistics* CreatePipelineStatistics(Handle<Script> script,
   }
 
   if (info->trace_turbo_json_enabled()) {
+#if !defined(DISABLE_GRAPHS_STARBOARD)
     TurboJsonFile json_of(info, std::ios_base::trunc);
     json_of << "{\"function\" : ";
     JsonPrintFunctionSource(json_of, -1, info->GetDebugName(), script, isolate,
                             info->shared_info());
     json_of << ",\n\"phases\":[";
+#endif
   }
 
   return pipeline_statistics;
@@ -832,6 +858,7 @@ PipelineStatistics* CreatePipelineStatistics(
   }
 
   if (info->trace_turbo_json_enabled()) {
+#if !defined(DISABLE_GRAPHS_STARBOARD)
     TurboJsonFile json_of(info, std::ios_base::trunc);
     std::unique_ptr<char[]> function_name = info->GetDebugName();
     json_of << "{\"function\":\"" << function_name.get() << "\", \"source\":\"";
@@ -853,6 +880,7 @@ PipelineStatistics* CreatePipelineStatistics(
       insert_comma = true;
     }
     json_of << "],\n\"phases\":[";
+#endif
   }
 
   return pipeline_statistics;
@@ -1118,6 +1146,7 @@ CompilationJob::Status WasmHeapStubCompilationJob::PrepareJobImpl(
        << "Begin compiling method " << info_.GetDebugName().get()
        << " using TurboFan" << std::endl;
   }
+#if !defined(DISABLE_GRAPHS_STARBOARD)
   if (info_.trace_turbo_graph_enabled()) {  // Simple textual RPO.
     StdoutStream{} << "-- wasm stub " << Code::Kind2String(info_.code_kind())
                    << " graph -- " << std::endl
@@ -1129,6 +1158,7 @@ CompilationJob::Status WasmHeapStubCompilationJob::PrepareJobImpl(
     json_of << "{\"function\":\"" << info_.GetDebugName().get()
             << "\", \"source\":\"\",\n\"phases\":[";
   }
+#endif  // DISABLE_GRAPHS_STARBOARD
   pipeline_.RunPrintAndVerify("V8.WasmMachineCode", true);
   return CompilationJob::SUCCEEDED;
 }
@@ -1868,12 +1898,14 @@ struct InstructionSelectionPhase {
       data->set_compilation_failed();
     }
     if (data->info()->trace_turbo_json_enabled()) {
+#if !defined(DISABLE_GRAPHS_STARBOARD)
       TurboJsonFile json_of(data->info(), std::ios_base::app);
       json_of << "{\"name\":\"" << phase_name()
               << "\",\"type\":\"instructions\""
               << InstructionRangesAsJSON{data->sequence(),
                                          &selector.instr_origins()}
               << "},\n";
+#endif
     }
   }
 };
@@ -2087,10 +2119,12 @@ struct PrintGraphPhase {
     if (info->trace_turbo_json_enabled()) {  // Print JSON.
       AllowHandleDereference allow_deref;
 
+#if !defined(DISABLE_GRAPHS_STARBOARD)
       TurboJsonFile json_of(info, std::ios_base::app);
       json_of << "{\"name\":\"" << phase << "\",\"type\":\"graph\",\"data\":"
               << AsJSON(*graph, data->source_positions(), data->node_origins())
               << "},\n";
+#endif
     }
 
     if (info->trace_turbo_scheduled_enabled()) {
@@ -2104,6 +2138,7 @@ struct PrintGraphPhase {
 
       AllowHandleDereference allow_deref;
       CodeTracer::Scope tracing_scope(data->GetCodeTracer());
+#if !defined(DISABLE_GRAPHS_STARBOARD)
       OFStream os(tracing_scope.file());
       os << "-- Graph after " << phase << " -- " << std::endl;
       os << AsScheduledGraph(schedule);
@@ -2113,6 +2148,7 @@ struct PrintGraphPhase {
       OFStream os(tracing_scope.file());
       os << "-- Graph after " << phase << " -- " << std::endl;
       os << AsRPO(*graph);
+#endif
     }
   }
 };
@@ -2165,10 +2201,12 @@ bool PipelineImpl::CreateGraph() {
        << "Begin compiling method " << info()->GetDebugName().get()
        << " using TurboFan" << std::endl;
   }
+#if !defined(DISABLE_GRAPHS_STARBOARD)
   if (info()->trace_turbo_json_enabled()) {
     TurboCfgFile tcf(isolate());
     tcf << AsC1VCompilation(info());
   }
+#endif
 
   data->source_positions()->AddDecorator();
   if (data->info()->trace_turbo_json_enabled()) {
@@ -2374,6 +2412,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     OFStream os(tracing_scope.file());
     os << "---------------------------------------------------\n"
        << "Begin compiling " << debug_name << " using TurboFan" << std::endl;
+#if !defined(DISABLE_GRAPHS_STARBOARD)
     if (info.trace_turbo_json_enabled()) {
       TurboJsonFile json_of(&info, std::ios_base::trunc);
       json_of << "{\"function\" : ";
@@ -2382,6 +2421,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
                               Handle<SharedFunctionInfo>());
       json_of << ",\n\"phases\":[";
     }
+#endif
     pipeline.Run<PrintGraphPhase>("V8.TFMachineCode");
   }
 
@@ -2456,6 +2496,7 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
        << " using TurboFan" << std::endl;
   }
 
+#if !defined(DISABLE_GRAPHS_STARBOARD)
   if (info.trace_turbo_graph_enabled()) {  // Simple textual RPO.
     StdoutStream{} << "-- wasm stub " << Code::Kind2String(kind) << " graph -- "
                    << std::endl
@@ -2467,6 +2508,7 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
     json_of << "{\"function\":\"" << info.GetDebugName().get()
             << "\", \"source\":\"\",\n\"phases\":[";
   }
+#endif
 
   pipeline.RunPrintAndVerify("V8.WasmNativeStubMachineCode", true);
   pipeline.ComputeScheduledGraph();
@@ -2489,6 +2531,7 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
 
   DCHECK(result.succeeded());
 
+#if !defined(DISABLE_GRAPHS_STARBOARD)
   if (info.trace_turbo_json_enabled()) {
     TurboJsonFile json_of(&info, std::ios_base::app);
     json_of << "{\"name\":\"disassembly\",\"type\":\"disassembly\",\"data\":\"";
@@ -2505,6 +2548,7 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
     json_of << "\"}\n]";
     json_of << "\n}";
   }
+#endif  // DISABLE_GRAPHS_STARBOARD
 
   if (info.trace_turbo_json_enabled() || info.trace_turbo_graph_enabled()) {
     CodeTracer::Scope tracing_scope(data.GetCodeTracer());
@@ -2562,11 +2606,13 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
 
   PipelineImpl pipeline(&data);
 
+#if !defined(DISABLE_GRAPHS_STARBOARD)
   if (info->trace_turbo_json_enabled()) {
     TurboJsonFile json_of(info, std::ios_base::trunc);
     json_of << "{\"function\":\"" << info->GetDebugName().get()
             << "\", \"source\":\"\",\n\"phases\":[";
   }
+#endif
   // TODO(rossberg): Should this really be untyped?
   pipeline.RunPrintAndVerify("V8.TFMachineCode", true);
 
@@ -2682,6 +2728,7 @@ void Pipeline::GenerateCodeForWasmFunction(
   result->protected_instructions = code_generator->GetProtectedInstructions();
   result->result_tier = wasm::ExecutionTier::kTurbofan;
 
+#if !defined(DISABLE_GRAPHS_STARBOARD)
   if (data.info()->trace_turbo_json_enabled()) {
     TurboJsonFile json_of(data.info(), std::ios_base::app);
     json_of << "{\"name\":\"disassembly\",\"type\":\"disassembly\",\"data\":\"";
@@ -2698,6 +2745,7 @@ void Pipeline::GenerateCodeForWasmFunction(
     json_of << "\"}\n]";
     json_of << "\n}";
   }
+#endif  // DISABLE_GRAPHS_STARBOARD
 
   if (data.info()->trace_turbo_json_enabled() ||
       data.info()->trace_turbo_graph_enabled()) {
@@ -2794,12 +2842,14 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
     return false;
   }
 
+#if !defined(DISABLE_GRAPHS_STARBOARD)
   if (info()->trace_turbo_json_enabled() && !data->MayHaveUnverifiableGraph()) {
     AllowHandleDereference allow_deref;
     TurboCfgFile tcf(isolate());
     tcf << AsC1V("CodeGen", data->schedule(), data->source_positions(),
                  data->sequence());
   }
+#endif
 
   if (info()->trace_turbo_json_enabled()) {
     std::ostringstream source_position_output;
@@ -2911,6 +2961,7 @@ void PipelineImpl::AssembleCode(Linkage* linkage,
   data->InitializeCodeGenerator(linkage, std::move(buffer));
 
   Run<AssembleCodePhase>();
+#if !defined(DISABLE_GRAPHS_STARBOARD)
   if (data->info()->trace_turbo_json_enabled()) {
     TurboJsonFile json_of(data->info(), std::ios_base::app);
     json_of << "{\"name\":\"code generation\""
@@ -2918,6 +2969,7 @@ void PipelineImpl::AssembleCode(Linkage* linkage,
             << InstructionStartsAsJSON{&data->code_generator()->instr_starts()};
     json_of << "},\n";
   }
+#endif
   data->DeleteInstructionZone();
   data->EndPhaseKind();
 }
@@ -2963,6 +3015,7 @@ MaybeHandle<Code> PipelineImpl::FinalizeCode(bool retire_broker) {
   info()->SetCode(code);
   PrintCode(isolate(), code, info());
 
+#if !defined(DISABLE_GRAPHS_STARBOARD)
   if (info()->trace_turbo_json_enabled()) {
     TurboJsonFile json_of(info(), std::ios_base::app);
 
@@ -2991,6 +3044,7 @@ MaybeHandle<Code> PipelineImpl::FinalizeCode(bool retire_broker) {
        << "Finished compiling method " << info()->GetDebugName().get()
        << " using TurboFan" << std::endl;
   }
+#endif  // DISABLE_GRAPHS_STARBOARD
   return code;
 }
 
@@ -3022,6 +3076,7 @@ namespace {
 
 void TraceSequence(OptimizedCompilationInfo* info, PipelineData* data,
                    const char* phase_name) {
+#if !defined(DISABLE_GRAPHS_STARBOARD)
   if (info->trace_turbo_json_enabled()) {
     AllowHandleDereference allow_deref;
     TurboJsonFile json_of(info, std::ios_base::app);
@@ -3036,6 +3091,7 @@ void TraceSequence(OptimizedCompilationInfo* info, PipelineData* data,
     os << "----- Instruction sequence " << phase_name << " -----\n"
        << *data->sequence();
   }
+#endif
 }
 
 }  // namespace
@@ -3084,20 +3140,24 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
               ->RangesDefinedInDeferredStayInDeferred());
   }
 
+#if !defined(DISABLE_GRAPHS_STARBOARD)
   if (info()->trace_turbo_json_enabled() && !data->MayHaveUnverifiableGraph()) {
     TurboCfgFile tcf(isolate());
     tcf << AsC1VRegisterAllocationData("PreAllocation",
                                        data->register_allocation_data());
   }
+#endif
 
   if (info()->is_turbo_preprocess_ranges()) {
     Run<SplinterLiveRangesPhase>();
+#if !defined(DISABLE_GRAPHS_STARBOARD)
     if (info()->trace_turbo_json_enabled() &&
         !data->MayHaveUnverifiableGraph()) {
       TurboCfgFile tcf(isolate());
       tcf << AsC1VRegisterAllocationData("PostSplinter",
                                          data->register_allocation_data());
     }
+#endif
   }
 
   Run<AllocateGeneralRegistersPhase<LinearScanAllocator>>();
@@ -3138,11 +3198,13 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
     verifier->VerifyGapMoves();
   }
 
+#if !defined(DISABLE_GRAPHS_STARBOARD)
   if (info()->trace_turbo_json_enabled() && !data->MayHaveUnverifiableGraph()) {
     TurboCfgFile tcf(isolate());
     tcf << AsC1VRegisterAllocationData("CodeGen",
                                        data->register_allocation_data());
   }
+#endif
 
   data->DeleteRegisterAllocationZone();
 }

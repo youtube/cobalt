@@ -21,6 +21,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/message_loop/message_loop.h"
 #include "base/synchronization/lock.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "v8/include/libplatform/libplatform.h"
 #include "v8/include/v8-platform.h"
 #include "v8/include/v8.h"
@@ -45,7 +46,6 @@ class CobaltPlatform : public v8::Platform {
   void RegisterIsolateOnThread(v8::Isolate* isolate,
                                base::MessageLoop* message_loop);
   void UnregisterIsolateOnThread(v8::Isolate* isolate);
-  void RunV8Task(v8::Isolate* isolate, std::unique_ptr<v8::Task> task);
 
   // v8::Platform APIs.
   v8::PageAllocator* GetPageAllocator() override {
@@ -60,21 +60,21 @@ class CobaltPlatform : public v8::Platform {
     return default_platform_->OnCriticalMemoryPressure(length);
   }
 
+  int NumberOfWorkerThreads() {
+    return default_platform_->NumberOfWorkerThreads();
+  }
+
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
-      v8::Isolate* isolate) override {
-    return default_platform_->GetForegroundTaskRunner(isolate);
+      v8::Isolate* isolate) override;
+
+  void CallOnWorkerThread(std::unique_ptr<v8::Task> task) override {
+    default_platform_->CallOnWorkerThread(std::move(task));
   }
 
-  std::shared_ptr<v8::TaskRunner> GetBackgroundTaskRunner(
-      v8::Isolate* isolate) override {
-    return default_platform_->GetBackgroundTaskRunner(isolate);
-  }
-
-  void CallOnBackgroundThread(v8::Task* task,
-                              ExpectedRuntime expected_runtime) override {
-    // DefaultPlatform initializes threads running in the background to do
-    // requested background work.
-    default_platform_->CallOnBackgroundThread(task, expected_runtime);
+  virtual void CallDelayedOnWorkerThread(std::unique_ptr<v8::Task> task,
+                                         double delay_in_seconds) {
+    default_platform_->CallDelayedOnWorkerThread(std::move(task),
+                                                 delay_in_seconds);
   }
 
   // Post task on the message loop of the isolate's corresponding
@@ -109,27 +109,48 @@ class CobaltPlatform : public v8::Platform {
   std::unique_ptr<v8::Platform> default_platform_;
 
   struct TaskBeforeRegistration {
-    TaskBeforeRegistration(double delay_in_seconds, v8::Task* task)
+    TaskBeforeRegistration(double delay_in_seconds,
+                           std::unique_ptr<v8::Task> task)
         : target_time(base::TimeTicks::Now() +
                       base::TimeDelta::FromSecondsD(delay_in_seconds)),
-          task(task) {}
+          task(std::move(task)) {}
     base::TimeTicks target_time;
     std::unique_ptr<v8::Task> task;
   };
-  struct MessageLoopMapEntry {
-    // If tasks are posted before isolate is registered, we record their delay
-    // and post them when isolate is registered.
-    std::vector<std::unique_ptr<TaskBeforeRegistration>>
-        tasks_before_registration;
-    base::MessageLoop* message_loop = NULL;
-  };
-  typedef std::map<v8::Isolate*, std::unique_ptr<MessageLoopMapEntry>>
-      MessageLoopMap;
+  class CobaltV8TaskRunner : public v8::TaskRunner {
+   public:
+    CobaltV8TaskRunner();
+    // v8::TaskRunner API
+    void PostTask(std::unique_ptr<v8::Task> task) override;
+    void PostDelayedTask(std::unique_ptr<v8::Task> task,
+                         double delay_in_seconds) override;
+    void PostIdleTask(std::unique_ptr<v8::IdleTask> task) override {}
+    // TODO: Investigate if we want to enable Idle task and/or non-netable
+    // tasks.
+    bool IdleTasksEnabled() override { return false; }
 
-  MessageLoopMapEntry* FindOrAddMapEntry(v8::Isolate* isolate);
+    // custom helper methods
+    void SetTaskRunner(base::SingleThreadTaskRunner* task_runner);
+    void RunV8Task(std::unique_ptr<v8::Task> task);
+
+   private:
+    // We keep raw pointer instead of scoped_refptr because this class can be
+    // posted with refptr and keeping a reference to task_runner_ might create
+    // reference cycle. Also this class should be guaranteed to live shorter
+    // than the thread.
+    base::SingleThreadTaskRunner* task_runner_;
+    base::WeakPtrFactory<CobaltV8TaskRunner> weak_ptr_factory_;
+    // If tasks are posted before isolate is registered, we record their delay
+    // and post them when isolate is registered to a thread.
+    std::vector<std::unique_ptr<TaskBeforeRegistration>>
+        tasks_before_registration_;
+    base::Lock lock_;
+  };
+  typedef std::map<v8::Isolate*, std::shared_ptr<CobaltV8TaskRunner>>
+      TaskRunnerMap;
 
   // A lookup table of isolate to its main thread's task runner.
-  MessageLoopMap message_loop_map_;
+  TaskRunnerMap v8_task_runner_map_;
   base::Lock lock_;
 
   DISALLOW_COPY_AND_ASSIGN(CobaltPlatform);

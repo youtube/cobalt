@@ -19,6 +19,10 @@
 #include "src/objects/property-cell.h"
 #include "src/wasm/wasm-objects.h"
 
+#if defined(V8_OS_STARBOARD)
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#endif
+
 namespace v8 {
 namespace internal {
 

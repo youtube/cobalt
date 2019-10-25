@@ -170,7 +170,7 @@
       'type': 'none',
       'hard_dependency': 1,
       'dependencies': [
-        '<(DEPTH)/v8/src/v8.gyp:v8_base',
+        '<(DEPTH)/v8/src/v8.gyp:v8',
         '<(DEPTH)/v8/src/v8.gyp:v8_initializers',
         '<(DEPTH)/v8/src/v8.gyp:v8_libplatform',
       ],
@@ -184,7 +184,6 @@
           'action_name': 'update_snapshot_time',
           'inputs': [
             '<(touch_script_path)',
-            '<(PRODUCT_DIR)/obj/v8/src/<(STATIC_LIB_PREFIX)v8_base<(STATIC_LIB_SUFFIX)',
             '<(PRODUCT_DIR)/obj/v8/src/<(STATIC_LIB_PREFIX)v8_initializers<(STATIC_LIB_SUFFIX)',
             '<(PRODUCT_DIR)/obj/v8/src/<(STATIC_LIB_PREFIX)v8_libplatform<(STATIC_LIB_SUFFIX)',
           ],

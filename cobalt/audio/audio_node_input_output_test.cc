@@ -118,13 +118,13 @@ class AudioNodeInputOutputTest : public ::testing::Test {
     return environment_settings_.get();
   }
 
+ protected:
+  base::MessageLoop message_loop_;
+
  private:
   std::unique_ptr<script::JavaScriptEngine> engine_;
   scoped_refptr<script::GlobalEnvironment> global_environment_;
   std::unique_ptr<script::EnvironmentSettings> environment_settings_;
-
- protected:
-  base::MessageLoop message_loop_;
 };
 
 TEST_F(AudioNodeInputOutputTest, StereoToStereoSpeakersLayoutTest) {

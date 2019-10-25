@@ -176,20 +176,24 @@ BasicBlock* Schedule::NewBasicBlock() {
 }
 
 void Schedule::PlanNode(BasicBlock* block, Node* node) {
+#ifndef V8_OS_STARBOARD
   if (FLAG_trace_turbo_scheduler) {
     StdoutStream{} << "Planning #" << node->id() << ":"
                    << node->op()->mnemonic() << " for future add to B"
                    << block->id() << "\n";
   }
+#endif
   DCHECK_NULL(this->block(node));
   SetBlockForNode(block, node);
 }
 
 void Schedule::AddNode(BasicBlock* block, Node* node) {
+#ifndef V8_OS_STARBOARD
   if (FLAG_trace_turbo_scheduler) {
     StdoutStream{} << "Adding #" << node->id() << ":" << node->op()->mnemonic()
                    << " to B" << block->id() << "\n";
   }
+#endif
   DCHECK(this->block(node) == nullptr || this->block(node) == block);
   block->AddNode(node);
   SetBlockForNode(block, node);

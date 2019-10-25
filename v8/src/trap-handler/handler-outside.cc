@@ -19,6 +19,11 @@
 //
 // For the code that runs in the trap handler itself, see handler-inside.cc.
 
+#if defined(V8_OS_STARBOARD)
+#include "starboard/system.h"
+#define __builtin_abort SbSystemBreakIntoDebugger
+#endif
+
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,6 +34,15 @@
 
 #include "src/trap-handler/trap-handler-internal.h"
 #include "src/trap-handler/trap-handler.h"
+
+#if V8_OS_STARBOARD
+#include "src/poems.h"
+#endif
+
+#if defined(V8_OS_STARBOARD)
+#include "starboard/system.h"
+#define abort SbSystemBreakIntoDebugger
+#endif
 
 namespace {
 size_t gNextCodeObject = 0;
@@ -234,7 +248,13 @@ void ReleaseHandlerData(int index) {
   free(data);
 }
 
+#if defined(V8_OS_STARBOARD)
+int* GetThreadInWasmThreadLocalAddress() {
+  return nullptr;
+}
+#else
 int* GetThreadInWasmThreadLocalAddress() { return &g_thread_in_wasm_code; }
+#endif
 
 size_t GetRecoveredTrapCount() {
   return gRecoveredTrapCount.load(std::memory_order_relaxed);

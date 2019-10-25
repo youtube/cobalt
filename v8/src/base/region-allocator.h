@@ -9,7 +9,6 @@
 
 #include "src/base/address-region.h"
 #include "src/base/utils/random-number-generator.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
 namespace base {
@@ -152,11 +151,6 @@ class V8_BASE_EXPORT RegionAllocator final {
   // For two coalescing regions merges |next| to |prev| and deletes |next|.
   void Merge(AllRegionsSet::iterator prev_iter,
              AllRegionsSet::iterator next_iter);
-
-  FRIEND_TEST(RegionAllocatorTest, AllocateRegionRandom);
-  FRIEND_TEST(RegionAllocatorTest, Fragmentation);
-  FRIEND_TEST(RegionAllocatorTest, FindRegion);
-  FRIEND_TEST(RegionAllocatorTest, Contains);
 
   DISALLOW_COPY_AND_ASSIGN(RegionAllocator);
 };

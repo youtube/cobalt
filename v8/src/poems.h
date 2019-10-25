@@ -74,4 +74,17 @@ static SB_C_INLINE char* PoemFindCharacterInString(const char* str,
 #define strchr(s, c) PoemFindCharacterInString(s, c)
 #define memchr(s, c, n) SbMemoryFindByte(s, c, n)
 
+// No-ops for now
+#define fopen(x)
+#define fclose(x)
+#define feof(x) 1
+#define fgets(x, y, z) nullptr
+#define ferror(x) 1
+#define fseek(x, y, z) 1
+#define fread(x, y, z, q) 0
+#define ftell(x) -1L
+#define puts(x)
+#define fputs(x)
+
+
 #endif  // V8_SRC_POEMS_H_

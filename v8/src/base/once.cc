@@ -10,6 +10,11 @@
 #include <sched.h>
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/thread.h"
+#define sched_yield SbThreadYield
+#endif
+
 namespace v8 {
 namespace base {
 

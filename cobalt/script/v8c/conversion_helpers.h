@@ -135,8 +135,7 @@ inline void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
   DCHECK_EQ(conversion_flags, kNoConversionFlags)
       << "No conversion flags supported.";
   DCHECK(out_boolean);
-  v8::MaybeLocal<v8::Boolean> maybe_boolean =
-      value->ToBoolean(isolate->GetCurrentContext());
+  v8::MaybeLocal<v8::Boolean> maybe_boolean = value->ToBoolean(isolate);
   v8::Local<v8::Boolean> boolean;
   if (!maybe_boolean.ToLocal(&boolean)) {
     // TODO: Handle this failure case.  It apparently can't happen in
@@ -674,11 +673,7 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
       return;
     }
 
-    bool done_as_bool;
-    if (!done->BooleanValue(context).To(&done_as_bool)) {
-      return;
-    }
-    if (done_as_bool) {
+    if (done->BooleanValue(isolate)) {
       break;
     }
 

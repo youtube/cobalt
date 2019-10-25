@@ -126,6 +126,10 @@
 #endif  // V8_TARGET_ARCH_X64
 #endif  // V8_OS_WIN
 
+#if defined(V8_OS_STARBOARD)
+#include "src/poems.h"
+#endif
+
 namespace v8 {
 
 /*
@@ -2928,7 +2932,7 @@ MaybeLocal<String> Message::GetSourceLine(Local<Context> context) const {
 void Message::PrintCurrentStackTrace(Isolate* isolate, FILE* out) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i_isolate->PrintCurrentStackTrace(out);
+  i_isolate->PrintCurrentStackTrace(nullptr);
 }
 
 // --- S t a c k T r a c e ---
@@ -5568,7 +5572,7 @@ bool V8::TryHandleSignal(int signum, void* info, void* context) {
 
 #if V8_OS_WIN
 bool TryHandleWebAssemblyTrapWindows(EXCEPTION_POINTERS* exception) {
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 && !DISABLE_WASM_STARBOARD
   return i::trap_handler::TryHandleWasmTrap(exception);
 #endif
   return false;
@@ -7204,9 +7208,13 @@ v8::ArrayBuffer::Contents::Contents(void* data, size_t byte_length,
 }
 
 void WasmMemoryDeleter(void* buffer, size_t lenght, void* info) {
+#if defined(DISABLE_WASM_STARBOARD)
+  CHECK(false);
+#else
   internal::wasm::WasmEngine* engine =
       reinterpret_cast<internal::wasm::WasmEngine*>(info);
   CHECK(engine->memory_tracker()->FreeWasmMemory(nullptr, buffer));
+#endif
 }
 
 void ArrayBufferDeleter(void* buffer, size_t length, void* info) {
@@ -7417,7 +7425,11 @@ i::Handle<i::JSArrayBuffer> SetupSharedArrayBuffer(
   i::Handle<i::JSArrayBuffer> obj =
       i_isolate->factory()->NewJSArrayBuffer(i::SharedFlag::kShared);
   bool is_wasm_memory =
+#if defined(DISABLE_WASM_STARBOARD)
+      false;
+#else
       i_isolate->wasm_engine()->memory_tracker()->IsWasmMemory(data);
+#endif
   i::JSArrayBuffer::Setup(obj, i_isolate,
                           mode == ArrayBufferCreationMode::kExternalized, data,
                           byte_length, i::SharedFlag::kShared, is_wasm_memory);
@@ -8362,8 +8374,10 @@ int Isolate::ContextDisposedNotification(bool dependant_context) {
       // of that context.
       // A handle scope for the native context.
       i::HandleScope handle_scope(isolate);
+#if !defined(DISABLE_WASM_STARBOARD)
       isolate->wasm_engine()->DeleteCompileJobsOnContext(
           isolate->native_context());
+#endif
     }
   }
   // TODO(ahaas): move other non-heap activity out of the heap call.
@@ -8975,9 +8989,13 @@ bool debug::Script::GetPossibleBreakpoints(
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   if (script->type() == i::Script::TYPE_WASM &&
       this->SourceMappingURL().IsEmpty()) {
+#if defined(DISABLE_WASM_STARBOARD)
+    return false;
+#else
     i::WasmModuleObject module_object =
         i::WasmModuleObject::cast(script->wasm_module_object());
     return module_object.GetPossibleBreakpoints(start, end, locations);
+#endif
   }
 
   i::Script::InitLineEnds(script);
@@ -9025,6 +9043,9 @@ bool debug::Script::GetPossibleBreakpoints(
 int debug::Script::GetSourceOffset(const debug::Location& location) const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   if (script->type() == i::Script::TYPE_WASM) {
+#if defined(DISABLE_WASM_STARBOARD)
+    return 0;
+#else
     if (this->SourceMappingURL().IsEmpty()) {
       return i::WasmModuleObject::cast(script->wasm_module_object())
                  .GetFunctionOffset(location.GetLineNumber()) +
@@ -9032,6 +9053,7 @@ int debug::Script::GetSourceOffset(const debug::Location& location) const {
     }
     DCHECK_EQ(0, location.GetLineNumber());
     return location.GetColumnNumber();
+#endif
   }
 
   int line = std::max(location.GetLineNumber() - script->line_offset(), 0);
