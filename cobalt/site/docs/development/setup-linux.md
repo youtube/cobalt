@@ -62,7 +62,7 @@ SSH into another machine and run the binary on that machine.
 
 1.  Build the code by navigating to the `src` directory in your new
     `cobalt` directory and running the following command. You must
-    specify a platform when running this command. On goobuntu, the
+    specify a platform when running this command. On Ubuntu Linux, the
     canonical platform is `linux-x64x11`.
 
     You can also use the `-C` command-line flag to specify a `build_type`.
