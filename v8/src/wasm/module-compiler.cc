@@ -37,6 +37,10 @@
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
 
+#if defined(V8_OS_STARBOARD)
+#include "src/poems.h"
+#endif
+
 #define TRACE_COMPILE(...)                             \
   do {                                                 \
     if (FLAG_trace_wasm_compiler) PrintF(__VA_ARGS__); \
@@ -92,21 +96,33 @@ class BackgroundCompileToken {
       : native_module_(native_module) {}
 
   void Cancel() {
+#if !defined(DISABLE_WASM_STARBOARD)
     base::SharedMutexGuard<base::kExclusive> mutex_guard(&mutex_);
+#endif
     native_module_.reset();
   }
 
  private:
   friend class BackgroundCompileScope;
+  // Cobalt does not use wasm, disabling this code to remove dependency on
+  // SharedMutex. All wasm code will be removed in a later attempt.
+#if !defined(DISABLE_WASM_STARBOARD)
   base::SharedMutex mutex_;
+#endif
   std::weak_ptr<NativeModule> native_module_;
 
   std::shared_ptr<NativeModule> StartScope() {
+#if !defined(DISABLE_WASM_STARBOARD)
     mutex_.LockShared();
+#endif
     return native_module_.lock();
   }
 
+#if defined(DISABLE_WASM_STARBOARD)
+  void ExitScope() {}
+#else
   void ExitScope() { mutex_.UnlockShared(); }
+#endif
 };
 
 class CompilationStateImpl;
@@ -153,7 +169,10 @@ class CompilationUnitQueues {
       queues_[task_id].next_steal_task_id = next_task_id(task_id);
     }
     for (auto& atomic_counter : num_units_) {
+    // API leak
+#if !defined(DISABLE_WASM_STARBOARD)
       std::atomic_init(&atomic_counter, size_t{0});
+#endif
     }
   }
 
@@ -183,6 +202,7 @@ class CompilationUnitQueues {
     DCHECK_LT(0, baseline_units.size() + top_tier_units.size());
     // Add to the individual queues in a round-robin fashion. No special care is
     // taken to balance them; they will be balanced by work stealing.
+#if !defined(DISABLE_WASM_STARBOARD)
     int queue_to_add = next_queue_to_add.load(std::memory_order_relaxed);
     while (!next_queue_to_add.compare_exchange_weak(
         queue_to_add, next_task_id(queue_to_add), std::memory_order_relaxed)) {
@@ -212,6 +232,7 @@ class CompilationUnitQueues {
         }
       }
     }
+#endif
   }
 
   // Get the current total number of units in all queues. This is only a
@@ -219,9 +240,11 @@ class CompilationUnitQueues {
   // if this method returns non-zero.
   size_t GetTotalSize() const {
     size_t total = 0;
+#if !defined(DISABLE_WASM_STARBOARD)
     for (auto& atomic_counter : num_units_) {
       total += atomic_counter.load(std::memory_order_relaxed);
     }
+#endif
     return total;
   }
 
@@ -258,7 +281,9 @@ class CompilationUnitQueues {
 
   struct BigUnitsQueue {
     BigUnitsQueue() {
+#if !defined(DISABLE_WASM_STARBOARD)
       for (auto& atomic : has_units) std::atomic_init(&atomic, false);
+#endif
     }
 
     base::Mutex mutex;
@@ -282,9 +307,11 @@ class CompilationUnitQueues {
   }
 
   int GetLowestTierWithUnits() const {
+#if !defined(DISABLE_WASM_STARBOARD)
     for (int tier = 0; tier < kNumTiers; ++tier) {
       if (num_units_[tier].load(std::memory_order_relaxed) > 0) return tier;
     }
+#endif
     return kNumTiers;
   }
 
@@ -323,9 +350,11 @@ class CompilationUnitQueues {
 
   base::Optional<WasmCompilationUnit> GetBigUnitOfTier(int tier) {
     // Fast-path without locking.
+#if !defined(DISABLE_WASM_STARBOARD)
     if (!big_units_queue_.has_units[tier].load(std::memory_order_relaxed)) {
       return {};
     }
+#endif
     base::MutexGuard guard(&big_units_queue_.mutex);
     if (big_units_queue_.units[tier].empty()) return {};
     WasmCompilationUnit unit = big_units_queue_.units[tier].top().unit;
@@ -405,7 +434,11 @@ class CompilationStateImpl {
   void SetError();
 
   bool failed() const {
+#if !defined(DISABLE_WASM_STARBOARD)
     return compile_failed_.load(std::memory_order_relaxed);
+#else
+    return false;
+#endif
   }
 
   bool baseline_compilation_finished() const {
@@ -443,6 +476,7 @@ class CompilationStateImpl {
     // Execute for at least 50ms. Try to distribute deadlines of different tasks
     // such that every 5ms one task stops. No task should execute longer than
     // 200ms though.
+#if !defined(DISABLE_WASM_STARBOARD)
     constexpr double kMinLimit = 50. / base::Time::kMillisecondsPerSecond;
     constexpr double kMaxLimit = 200. / base::Time::kMillisecondsPerSecond;
     constexpr double kGapBetweenTasks = 5. / base::Time::kMillisecondsPerSecond;
@@ -460,6 +494,9 @@ class CompilationStateImpl {
       }
       // Otherwise, retry with the updated {next_deadline}.
     }
+#else
+    return 0;
+#endif
   }
 
  private:
@@ -2403,10 +2440,12 @@ void CompilationStateImpl::RestartBackgroundTasks() {
 
 void CompilationStateImpl::SetError() {
   bool expected = false;
+#if !defined(DISABLE_WASM_STARBOARD)
   if (!compile_failed_.compare_exchange_strong(expected, true,
                                                std::memory_order_relaxed)) {
     return;  // Already failed before.
   }
+#endif
 
   base::MutexGuard callbacks_guard(&callbacks_mutex_);
   for (auto& callback : callbacks_) {

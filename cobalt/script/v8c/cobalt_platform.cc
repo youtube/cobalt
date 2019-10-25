@@ -14,6 +14,7 @@
 
 #include <memory>
 
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/v8c/cobalt_platform.h"
 
 #include "base/logging.h"
@@ -22,90 +23,98 @@ namespace cobalt {
 namespace script {
 namespace v8c {
 
-CobaltPlatform::MessageLoopMapEntry* CobaltPlatform::FindOrAddMapEntry(
-    v8::Isolate* isolate) {
-  auto iter = message_loop_map_.find(isolate);
-  // Because of the member unique_ptr, we need explicit creation.
-  if (iter == message_loop_map_.end()) {
-    auto new_entry = std::unique_ptr<CobaltPlatform::MessageLoopMapEntry>(
-        new CobaltPlatform::MessageLoopMapEntry());
-    message_loop_map_.emplace(std::make_pair(isolate, std::move(new_entry)));
+CobaltPlatform::CobaltV8TaskRunner::CobaltV8TaskRunner()
+    : ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)) {}
+
+void CobaltPlatform::CobaltV8TaskRunner::PostTask(
+    std::unique_ptr<v8::Task> task) {
+  PostDelayedTask(std::move(task), 0);
+}
+
+void CobaltPlatform::CobaltV8TaskRunner::PostDelayedTask(
+    std::unique_ptr<v8::Task> task, double delay_in_seconds) {
+  base::AutoLock auto_lock(lock_);
+  if (task_runner_) {
+    task_runner_->PostDelayedTask(
+        FROM_HERE,
+        base::Bind(&CobaltPlatform::CobaltV8TaskRunner::RunV8Task,
+                   weak_ptr_factory_.GetWeakPtr(), base::Passed(&task)),
+        base::TimeDelta::FromSecondsD(delay_in_seconds));
+  } else {
+    tasks_before_registration_.push_back(
+        std::unique_ptr<TaskBeforeRegistration>(
+            new TaskBeforeRegistration(delay_in_seconds, std::move(task))));
   }
-  DCHECK(message_loop_map_[isolate]);
-  return message_loop_map_[isolate].get();
+}
+
+void CobaltPlatform::CobaltV8TaskRunner::SetTaskRunner(
+    base::SingleThreadTaskRunner* task_runner) {
+  base::AutoLock auto_lock(lock_);
+  task_runner_ = task_runner;
+  DCHECK(task_runner);
+  for (unsigned int i = 0; i < tasks_before_registration_.size(); ++i) {
+    std::unique_ptr<v8::Task> scoped_task =
+        std::move(tasks_before_registration_[i]->task);
+    base::TimeDelta delay = std::max(
+        tasks_before_registration_[i]->target_time - base::TimeTicks::Now(),
+        base::TimeDelta::FromSeconds(0));
+    task_runner_->PostDelayedTask(
+        FROM_HERE,
+        base::Bind(&CobaltPlatform::CobaltV8TaskRunner::RunV8Task,
+                   weak_ptr_factory_.GetWeakPtr(), base::Passed(&scoped_task)),
+        delay);
+  }
+  tasks_before_registration_.clear();
+}
+
+void CobaltPlatform::CobaltV8TaskRunner::RunV8Task(
+    std::unique_ptr<v8::Task> task) {
+  task->Run();
+}
+
+std::shared_ptr<v8::TaskRunner> CobaltPlatform::GetForegroundTaskRunner(
+    v8::Isolate* isolate) {
+  base::AutoLock auto_lock(lock_);
+  std::shared_ptr<CobaltPlatform::CobaltV8TaskRunner> task_runner;
+  if (v8_task_runner_map_.find(isolate) == v8_task_runner_map_.end()) {
+    task_runner = std::make_shared<CobaltPlatform::CobaltV8TaskRunner>();
+    v8_task_runner_map_.emplace(isolate, task_runner);
+  } else {
+    task_runner = v8_task_runner_map_[isolate];
+  }
+  DCHECK(task_runner);
+  return task_runner;
 }
 
 void CobaltPlatform::RegisterIsolateOnThread(v8::Isolate* isolate,
                                              base::MessageLoop* message_loop) {
-  base::AutoLock auto_lock(lock_);
-  auto* message_loop_entry = FindOrAddMapEntry(isolate);
-  message_loop_entry->message_loop = message_loop;
-  if (!message_loop) {
-    DLOG(WARNING) << "Isolate is registered without a valid message loop!";
-    return;
-  }
-  std::vector<std::unique_ptr<TaskBeforeRegistration>> task_vec;
-  task_vec.swap(message_loop_entry->tasks_before_registration);
-  DCHECK(message_loop_entry->tasks_before_registration.empty());
-  for (unsigned int i = 0; i < task_vec.size(); ++i) {
-    std::unique_ptr<v8::Task> scoped_task(task_vec[i]->task.release());
-    base::TimeDelta delay =
-        std::max(task_vec[i]->target_time - base::TimeTicks::Now(),
-                 base::TimeDelta::FromSeconds(0));
-    message_loop->task_runner()->PostDelayedTask(
-        FROM_HERE,
-        base::Bind(&CobaltPlatform::RunV8Task, base::Unretained(this), isolate,
-                   base::Passed(&scoped_task)),
-        delay);
-  }
+  auto task_runner = GetForegroundTaskRunner(isolate);
+  CobaltPlatform::CobaltV8TaskRunner* cobalt_v8_task_runner =
+      base::polymorphic_downcast<CobaltPlatform::CobaltV8TaskRunner*>(
+          task_runner.get());
+  cobalt_v8_task_runner->SetTaskRunner(message_loop->task_runner().get());
 }
 
 void CobaltPlatform::UnregisterIsolateOnThread(v8::Isolate* isolate) {
   base::AutoLock auto_lock(lock_);
-  MessageLoopMap::iterator iter = message_loop_map_.find(isolate);
-  if (iter != message_loop_map_.end()) {
-    message_loop_map_.erase(iter);
+  auto iter = v8_task_runner_map_.find(isolate);
+  if (iter != v8_task_runner_map_.end()) {
+    v8_task_runner_map_.erase(iter);
   } else {
     DLOG(WARNING) << "Isolate is not in the map and can not be unregistered.";
   }
 }
 
-void CobaltPlatform::RunV8Task(v8::Isolate* isolate,
-                               std::unique_ptr<v8::Task> task) {
-  {
-    base::AutoLock auto_lock(lock_);
-    MessageLoopMap::iterator iter = message_loop_map_.find(isolate);
-    if (iter == message_loop_map_.end() || !iter->second->message_loop) {
-      DLOG(WARNING) << "V8 foreground task executes after isolate "
-                       "unregistered, aborting.";
-      return;
-    }
-  }
-  task->Run();
-}
-
 void CobaltPlatform::CallOnForegroundThread(v8::Isolate* isolate,
                                             v8::Task* task) {
-  CallDelayedOnForegroundThread(isolate, task, 0);
+  GetForegroundTaskRunner(isolate)->PostTask(std::unique_ptr<v8::Task>(task));
 }
 
 void CobaltPlatform::CallDelayedOnForegroundThread(v8::Isolate* isolate,
                                                    v8::Task* task,
                                                    double delay_in_seconds) {
-  base::AutoLock auto_lock(lock_);
-  auto* message_loop_entry = FindOrAddMapEntry(isolate);
-  if (message_loop_entry->message_loop != NULL) {
-    std::unique_ptr<v8::Task> scoped_task(task);
-    message_loop_entry->message_loop->task_runner()->PostDelayedTask(
-        FROM_HERE,
-        base::Bind(&CobaltPlatform::RunV8Task, base::Unretained(this), isolate,
-                   base::Passed(&scoped_task)),
-        base::TimeDelta::FromSecondsD(delay_in_seconds));
-  } else {
-    message_loop_map_[isolate]->tasks_before_registration.push_back(
-        std::unique_ptr<TaskBeforeRegistration>(
-            new TaskBeforeRegistration(delay_in_seconds, task)));
-  }
+  GetForegroundTaskRunner(isolate)->PostDelayedTask(
+      std::unique_ptr<v8::Task>(task), delay_in_seconds);
 }
 
 }  // namespace v8c

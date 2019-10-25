@@ -18,7 +18,9 @@
 #include "src/utils/memcopy.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
+// #if !defined(DISABLE_WASM_STARBOARD)
 #include "src/wasm/wasm-limits.h"
+// #endif
 
 namespace v8 {
 namespace internal {

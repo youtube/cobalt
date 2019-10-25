@@ -1750,9 +1750,11 @@ void Scheduler::SealFinalSchedule() {
 
 void Scheduler::FuseFloatingControl(BasicBlock* block, Node* node) {
   TRACE("--- FUSE FLOATING CONTROL ----------------------------------\n");
+#ifndef V8_OS_STARBOARD
   if (FLAG_trace_turbo_scheduler) {
     StdoutStream{} << "Schedule before control flow fusion:\n" << *schedule_;
   }
+#endif
 
   // Iterate on phase 1: Build control-flow graph.
   control_flow_builder_->Run(block, node);
@@ -1793,9 +1795,11 @@ void Scheduler::FuseFloatingControl(BasicBlock* block, Node* node) {
   scheduled_nodes_.resize(schedule_->BasicBlockCount());
   MovePlannedNodes(block, schedule_->block(node));
 
+#ifndef V8_OS_STARBOARD
   if (FLAG_trace_turbo_scheduler) {
     StdoutStream{} << "Schedule after control flow fusion:\n" << *schedule_;
   }
+#endif
 }
 
 

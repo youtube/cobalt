@@ -12,6 +12,10 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
 
+#if V8_OS_STARBOARD
+#include "src/poems.h"
+#endif
+
 #ifdef V8_USE_PERFETTO
 #include "base/trace_event/common/trace_event_common.h"
 #include "perfetto/trace/chrome/chrome_trace_event.pbzero.h"

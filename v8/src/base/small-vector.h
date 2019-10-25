@@ -12,6 +12,19 @@
 #include "src/base/bits.h"
 #include "src/base/macros.h"
 
+#if defined(STARBOARD)
+// These common Starboard API replacements are not needed for evergreen but
+// some builds can not find definitions for free/malloc above Starboard.
+#include "starboard/memory.h"
+#include "starboard/string.h"
+
+#define malloc(x) SbMemoryAllocate(x)
+#define realloc(x, y) SbMemoryReallocate(x, y)
+#define free(x) SbMemoryDeallocate(x)
+#define memcpy(x, y, z) SbMemoryCopy(x, y, z)
+#define calloc(x, y) SbMemoryCalloc(x, y)
+#endif
+
 namespace v8 {
 namespace base {
 
@@ -170,5 +183,13 @@ class SmallVector {
 
 }  // namespace base
 }  // namespace v8
+
+#if defined(STARBOARD)
+#undef malloc
+#undef realloc
+#undef free
+#undef memcpy
+#undef calloc
+#endif
 
 #endif  // V8_BASE_SMALL_VECTOR_H_

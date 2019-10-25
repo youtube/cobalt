@@ -24,7 +24,7 @@ V8_EXPORT_PRIVATE void MemMove(void* dest, const void* src, size_t size) {
   // on all architectures we currently support.
   (*memmove_function)(dest, src, size);
 }
-#elif V8_OS_POSIX && V8_HOST_ARCH_ARM
+#elif (V8_OS_POSIX || V8_OS_STARBOARD) && V8_HOST_ARCH_ARM
 void MemCopyUint16Uint8Wrapper(uint16_t* dest, const uint8_t* src,
                                size_t chars) {
   uint16_t* limit = dest + chars;
@@ -49,7 +49,7 @@ void init_memcopy_functions() {
     memmove_function = reinterpret_cast<MemMoveFunction>(
         d.InstructionStartOfBuiltin(Builtins::kMemMove));
   }
-#elif V8_OS_POSIX && V8_HOST_ARCH_ARM
+#elif (V8_OS_POSIX || V8_OS_STARBOARD) && V8_HOST_ARCH_ARM
   if (Isolate::CurrentEmbeddedBlobIsBinaryEmbedded()) {
     EmbeddedData d = EmbeddedData::FromBlob();
     memcopy_uint8_function = reinterpret_cast<MemCopyUint8Function>(

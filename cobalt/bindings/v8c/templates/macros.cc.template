@@ -386,6 +386,7 @@
 {% macro overload_resolution_implementation(
       overload_context, bound_function_prefix) %}
   v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
   switch(info.Length()) {
 {% for length, distinguishing_argument_index, resolution_tests in
@@ -399,7 +400,7 @@
       WrapperFactory* wrapper_factory = V8cGlobalEnvironment::GetFromIsolate(isolate)->wrapper_factory();
       v8::Local<v8::Object> object;
       if (arg->IsObject()) {
-        object = arg->ToObject();
+        object = arg->ToObject(context).ToLocalChecked();
       }
 {% endif %}
 {% for test, overload in resolution_tests %}

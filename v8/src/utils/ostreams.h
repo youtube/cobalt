@@ -5,9 +5,11 @@
 #ifndef V8_UTILS_OSTREAMS_H_
 #define V8_UTILS_OSTREAMS_H_
 
+#if !defined(V8_OS_STARBOARD)
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
+#endif
 #include <ostream>  // NOLINT
 #include <streambuf>
 
@@ -18,6 +20,7 @@
 namespace v8 {
 namespace internal {
 
+#if !defined(V8_OS_STARBOARD)
 class V8_EXPORT_PRIVATE OFStreamBase : public std::streambuf {
  public:
   explicit OFStreamBase(FILE* f);
@@ -30,6 +33,7 @@ class V8_EXPORT_PRIVATE OFStreamBase : public std::streambuf {
   int_type overflow(int_type c) override;
   std::streamsize xsputn(const char* s, std::streamsize n) override;
 };
+#endif  // !defined(V8_OS_STARBOARD)
 
 // Output buffer and stream writing into debugger's command window.
 class V8_EXPORT_PRIVATE DbgStreamBuf : public std::streambuf {
@@ -60,7 +64,9 @@ class V8_EXPORT_PRIVATE OFStream : public std::ostream {
   ~OFStream() override = default;
 
  private:
+#if !defined(V8_OS_STARBOARD)
   OFStreamBase buf_;
+#endif  // !defined(V8_OS_STARBOARD)
 };
 
 #if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
@@ -85,7 +91,11 @@ class StdoutStream : public std::ostream {
 #else
 class StdoutStream : public OFStream {
  public:
+#if defined(STARBOARD)
+  StdoutStream() : OFStream(nullptr) {}
+#else
   StdoutStream() : OFStream(stdout) {}
+#endif
 };
 #endif
 

@@ -16,6 +16,11 @@
 #include <pthread.h>  // NOLINT
 #endif
 
+#if V8_OS_STARBOARD
+#include "starboard/common/mutex.h"
+#include "starboard/common/recursive_mutex.h"
+#endif
+
 namespace v8 {
 namespace base {
 
@@ -58,6 +63,8 @@ class V8_BASE_EXPORT Mutex final {
   using NativeHandle = pthread_mutex_t;
 #elif V8_OS_WIN
   using NativeHandle = SRWLOCK;
+#elif V8_OS_STARBOARD
+  using NativeHandle = SbMutex;
 #endif
 
   NativeHandle& native_handle() {
@@ -156,6 +163,8 @@ class V8_BASE_EXPORT RecursiveMutex final {
   using NativeHandle = pthread_mutex_t;
 #elif V8_OS_WIN
   using NativeHandle = CRITICAL_SECTION;
+#elif V8_OS_STARBOARD
+  using NativeHandle = starboard::RecursiveMutex;
 #endif
 
   NativeHandle native_handle_;
@@ -197,6 +206,7 @@ using LazyRecursiveMutex =
 // only one writer can do so.
 // The SharedMutex class is non-copyable.
 
+#if !defined(STARBOARD)
 class V8_BASE_EXPORT SharedMutex final {
  public:
   SharedMutex();
@@ -250,6 +260,7 @@ class V8_BASE_EXPORT SharedMutex final {
 
   DISALLOW_COPY_AND_ASSIGN(SharedMutex);
 };
+#endif  // STARBOARD
 
 // -----------------------------------------------------------------------------
 // LockGuard
@@ -291,6 +302,7 @@ using MutexGuard = LockGuard<Mutex>;
 
 enum MutexSharedType : bool { kShared = true, kExclusive = false };
 
+#if !defined(STARBOARD)
 template <MutexSharedType kIsShared,
           NullBehavior Behavior = NullBehavior::kRequireNotNull>
 class SharedMutexGuard final {
@@ -323,6 +335,7 @@ class SharedMutexGuard final {
 
   DISALLOW_COPY_AND_ASSIGN(SharedMutexGuard);
 };
+#endif  // STARBOARD
 
 }  // namespace base
 }  // namespace v8

@@ -16,6 +16,10 @@
 #endif
 #include "src/strings/string-stream.h"
 
+#if defined(V8_OS_STARBOARD)
+#include "src/poems.h"
+#endif
+
 namespace v8 {
 namespace internal {
 

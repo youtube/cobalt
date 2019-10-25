@@ -331,7 +331,11 @@ class UnbufferedCharacterStream : public Utf16CharacterStream {
 
 // Provides a unbuffered utf-16 view on the bytes from the underlying
 // ByteStream.
+#if defined(STARBOARD)
+class RelocatingCharacterStream final
+#else
 class RelocatingCharacterStream
+#endif
     : public UnbufferedCharacterStream<OnHeapStream> {
  public:
   template <class... TArgs>
@@ -422,7 +426,11 @@ bool BufferedUtf16CharacterStream::ReadBlock() {
 // TODO(verwaest): Decode utf8 chunks into utf16 chunks on the blink side
 // instead so we don't need to buffer.
 
+#if defined(STARBOARD)
+class Utf8ExternalStreamingStream final : public BufferedUtf16CharacterStream {
+#else
 class Utf8ExternalStreamingStream : public BufferedUtf16CharacterStream {
+#endif
  public:
   Utf8ExternalStreamingStream(
       ScriptCompiler::ExternalSourceStream* source_stream)

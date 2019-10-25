@@ -34,7 +34,7 @@
     'variables': {
       'cobalt_webapi_extension_source_idl_files%': [],
       'cobalt_webapi_extension_generated_header_idl_files%': [],
-      'cobalt_v8_buildtime_snapshot%': "true",
+      'cobalt_v8_buildtime_snapshot%': 1,
     },
 
     # Whether Cobalt is being built.
@@ -586,7 +586,7 @@
           'ENABLE_DEBUGGER',
         ],
       }],
-      ['cobalt_v8_buildtime_snapshot == "true"', {
+      ['cobalt_v8_buildtime_snapshot == 1', {
         'defines': [
           'COBALT_V8_BUILDTIME_SNAPSHOT=1',
         ],
@@ -595,7 +595,14 @@
         'defines': [
           'COBALT_ENABLE_QUIC',
         ],
-      }]
+      }],
+      ['host_os=="win"', {
+        # A few flags to mute MSVC compiler errors that does not appear on Linux.
+        'compiler_flags_host': [
+          '/wd4267',  # Possible loss of precision from size_t to a smaller type.
+          '/wd4715',  # Not all control paths return value.
+        ],
+      }],
     ],
   }, # end of target_defaults
 

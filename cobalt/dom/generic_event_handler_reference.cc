@@ -43,6 +43,7 @@ GenericEventHandlerReference::GenericEventHandlerReference(
 GenericEventHandlerReference::GenericEventHandlerReference(
     script::Wrappable* wrappable, const GenericEventHandlerReference& other) {
   if (other.event_listener_reference_) {
+    DCHECK(!other.event_listener_reference_->referenced_value().IsNull());
     event_listener_reference_.reset(new EventListenerScriptValue::Reference(
         wrappable, other.event_listener_reference_->referenced_value()));
   } else if (other.on_error_event_listener_reference_) {

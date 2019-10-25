@@ -6,7 +6,9 @@
 #define V8_SNAPSHOT_EMBEDDED_PLATFORM_EMBEDDED_FILE_WRITER_BASE_H_
 
 #include <cinttypes>
+#if !defined(V8_OS_STARBOARD)
 #include <cstdio>  // For FILE.
+#endif
 #include <memory>
 
 namespace v8 {

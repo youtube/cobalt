@@ -3608,28 +3608,36 @@ class RepresentationSelector {
   }
 
   void PrintOutputInfo(NodeInfo* info) {
+#ifndef V8_OS_STARBOARD
     if (FLAG_trace_representation) {
       StdoutStream{} << info->representation();
     }
+#endif
   }
 
   void PrintRepresentation(MachineRepresentation rep) {
+#ifndef V8_OS_STARBOARD
     if (FLAG_trace_representation) {
       StdoutStream{} << rep;
     }
+#endif
   }
 
   void PrintTruncation(Truncation truncation) {
+#ifndef V8_OS_STARBOARD
     if (FLAG_trace_representation) {
       StdoutStream{} << truncation.description() << std::endl;
     }
+#endif
   }
 
   void PrintUseInfo(UseInfo info) {
+#ifndef V8_OS_STARBOARD
     if (FLAG_trace_representation) {
       StdoutStream{} << info.representation() << ":"
                      << info.truncation().description();
     }
+#endif
   }
 
  private:

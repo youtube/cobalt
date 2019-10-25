@@ -36,18 +36,6 @@ namespace v8c {
 
 namespace {
 
-void VisitWeakHandlesForMinorGC(v8::Isolate* isolate) {
-  class V8cPersistentHandleVisitor : public v8::PersistentHandleVisitor {
-   public:
-    void VisitPersistentHandle(v8::Persistent<v8::Value>* value,
-                               uint16_t class_id) override {
-      DCHECK(value);
-      value->MarkActive();
-    }
-  } visitor;
-  isolate->VisitWeakHandles(&visitor);
-}
-
 size_t UsedHeapSize(v8::Isolate* isolate) {
   v8::HeapStatistics heap_statistics;
   isolate->GetHeapStatistics(&heap_statistics);
@@ -60,7 +48,6 @@ void GCPrologueCallback(v8::Isolate* isolate, v8::GCType type,
     case v8::kGCTypeScavenge:
       TRACE_EVENT_BEGIN1("cobalt::script", "MinorGC", "usedHeapSizeBefore",
                          UsedHeapSize(isolate));
-      VisitWeakHandlesForMinorGC(isolate);
       break;
     case v8::kGCTypeMarkSweepCompact:
       TRACE_EVENT_BEGIN2("cobalt::script", "MajorGC", "usedHeapSizeBefore",

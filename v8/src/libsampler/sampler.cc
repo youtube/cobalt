@@ -4,6 +4,10 @@
 
 #include "src/libsampler/sampler.h"
 
+#if V8_OS_STARBOARD
+#include "starboard/thread.h"
+#endif  // V8_OS_STARBOARD
+
 #ifdef USE_SIGNALS
 
 #include <errno.h>
@@ -166,6 +170,45 @@ enum { REG_RBP = 10, REG_RSP = 15, REG_RIP = 16 };
 
 namespace v8 {
 namespace sampler {
+
+#if V8_OS_STARBOARD
+#if SB_API_VERSION >= 11
+
+class Sampler::PlatformData {
+ public:
+  PlatformData()
+      : thread_(SbThreadGetCurrent()),
+        thread_sampler_(kSbThreadSamplerInvalid) {}
+  ~PlatformData() { ReleaseThreadSampler(); }
+
+  SbThreadSampler EnsureThreadSampler() {
+    if (thread_sampler_ == kSbThreadSamplerInvalid) {
+      thread_sampler_ = SbThreadSamplerCreate(thread_);
+    }
+    return thread_sampler_;
+  }
+
+  void ReleaseThreadSampler() {
+    if (thread_sampler_ != kSbThreadSamplerInvalid) {
+      SbThreadSamplerDestroy(thread_sampler_);
+      thread_sampler_ = kSbThreadSamplerInvalid;
+    }
+  }
+
+ private:
+  SbThread thread_;
+  SbThreadSampler thread_sampler_;
+};
+
+#else  // SB_API_VERSION >= 11
+
+class Sampler::PlatformData {
+ public:
+  PlatformData() = default;
+};
+
+#endif  // SB_API_VERSION >= 11
+#endif  // V8_OS_STARBOARD
 
 #if defined(USE_SIGNALS)
 
@@ -535,6 +578,9 @@ Sampler::~Sampler() {
 void Sampler::Start() {
   DCHECK(!IsActive());
   SetActive(true);
+#if V8_OS_STARBOARD && SB_API_VERSION >= 11
+  platform_data()->EnsureThreadSampler();
+#endif  // V8_OS_STARBOARD && SB_API_VERSION >= 11
 #if defined(USE_SIGNALS)
   SignalHandler::IncreaseSamplerCount();
   SamplerManager::instance()->AddSampler(this);
@@ -542,6 +588,9 @@ void Sampler::Start() {
 }
 
 void Sampler::Stop() {
+#if V8_OS_STARBOARD && SB_API_VERSION >= 11
+  platform_data()->ReleaseThreadSampler();
+#endif  // V8_OS_STARBOARD && SB_API_VERSION >= 11
 #if defined(USE_SIGNALS)
   SamplerManager::instance()->RemoveSampler(this);
   SignalHandler::DecreaseSamplerCount();
@@ -549,6 +598,37 @@ void Sampler::Stop() {
   DCHECK(IsActive());
   SetActive(false);
 }
+
+#if V8_OS_STARBOARD
+#if SB_API_VERSION >= 11
+
+void Sampler::DoSample() {
+  SbThreadSampler thread_sampler = platform_data()->EnsureThreadSampler();
+  SbThreadContext context = SbThreadSamplerFreeze(thread_sampler);
+  if (!SbThreadContextIsValid(context)) {
+    return;
+  }
+  v8::RegisterState state;
+  if (SbThreadContextGetPointer(context, kSbThreadContextInstructionPointer,
+                                &state.pc) &&
+      SbThreadContextGetPointer(context, kSbThreadContextStackPointer,
+                                &state.sp) &&
+      SbThreadContextGetPointer(context, kSbThreadContextFramePointer,
+                                &state.fp)) {
+    SampleStack(state);
+  }
+  SbThreadSamplerThaw(thread_sampler);
+}
+
+#else   // SB_API_VERSION >= 11
+
+void Sampler::DoSample() {
+  // TODO: emit this message to the JS console instead.
+  base::OS::PrintError("Profiling is not supported on this platform.\n");
+}
+
+#endif  // SB_API_VERSION >= 11
+#endif  // V8_OS_STARBOARD
 
 #if defined(USE_SIGNALS)
 

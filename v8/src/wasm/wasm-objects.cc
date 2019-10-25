@@ -30,6 +30,10 @@
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-text.h"
 
+#if defined(V8_OS_STARBOARD)
+#include "src/poems.h"
+#endif
+
 #define TRACE(...)                                      \
   do {                                                  \
     if (FLAG_trace_wasm_instances) PrintF(__VA_ARGS__); \

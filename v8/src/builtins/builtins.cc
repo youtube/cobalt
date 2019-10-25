@@ -213,8 +213,13 @@ void Builtins::PrintBuiltinSize() {
     const char* builtin_name = name(i);
     const char* kind = KindNameOf(i);
     Code code = builtin(i);
+#if defined(V8_OS_STARBOARD)
+    PrintF((FILE*)nullptr, "%s Builtin, %s, %d\n", kind, builtin_name,
+           code.InstructionSize());
+#else
     PrintF(stdout, "%s Builtin, %s, %d\n", kind, builtin_name,
            code.InstructionSize());
+#endif
   }
 }
 

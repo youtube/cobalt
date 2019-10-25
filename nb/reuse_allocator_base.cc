@@ -346,7 +346,6 @@ ReuseAllocatorBase::FreeBlockSet::iterator ReuseAllocatorBase::ExpandToFit(
     capacity_ += size_to_try;
     return AddFreeBlock(MemoryBlock(ptr, size_to_try));
   }
-
   if (free_blocks_.empty()) {
     return free_blocks_.end();
   }

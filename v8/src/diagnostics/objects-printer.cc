@@ -69,6 +69,11 @@
 #include "torque-generated/class-definitions-tq-inl.h"
 #include "torque-generated/internal-class-definitions-tq-inl.h"
 
+#if defined(STARBOARD)
+#include "starboard/common/log.h"
+#define printf(format) SbLogRaw(format)
+#endif
+
 namespace v8 {
 namespace internal {
 
