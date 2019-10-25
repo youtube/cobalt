@@ -15,7 +15,10 @@
 #ifndef STARBOARD_ELF_LOADER_ELF_LOADER_H_
 #define STARBOARD_ELF_LOADER_ELF_LOADER_H_
 
+#include <string>
+
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/configuration.h"
 
 namespace starboard {
 namespace elf_loader {
@@ -26,22 +29,38 @@ class ElfLoaderImpl;
 class ElfLoader {
  public:
   ElfLoader();
+  ~ElfLoader();
 
-  // Loads the shared library
-  bool Load(const char* file_name);
+  // Gets the current instance of the ELF Loader. SB_DCHECKS if called before
+  // the ELF Loader has been constructed.
+  static ElfLoader* Get();
+
+  // Loads the shared library. Returns false if |library_path| or |content_path|
+  // is empty, or if the library could not be loaded.
+  bool Load(const std::string& library_path, const std::string& content_path);
 
   // Looks up the symbol address in the
   // shared library.
   void* LookupSymbol(const char* symbol);
 
-  ~ElfLoader();
+  const std::string& GetLibraryPath() const { return library_path_; }
+  const std::string& GetContentPath() const { return content_path_; }
 
  private:
+  // The paths to the loaded shared library and it's content.
+  std::string library_path_;
+  std::string content_path_;
+
+  // The ELF Loader implementation.
   scoped_ptr<ElfLoaderImpl> impl_;
+
+  // The single ELF Loader instance.
+  static ElfLoader* g_instance;
 
   SB_DISALLOW_COPY_AND_ASSIGN(ElfLoader);
 };
 
 }  // namespace elf_loader
 }  // namespace starboard
+
 #endif  // STARBOARD_ELF_LOADER_ELF_LOADER_H_
