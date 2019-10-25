@@ -28,7 +28,7 @@ namespace {
 bool FirstRectIsBigger(const math::Rect& a, const math::Rect& b) {
   const int area_a = a.width() * a.height();
   const int area_b = b.width() * b.height();
-  return (area_a > area_b);
+  return (area_a > area_b) || (area_a == area_b && (a.width() > b.width()));
 }
 }  // namespace
 
