@@ -20,6 +20,10 @@
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-value.h"
 
+#if defined(V8_OS_STARBOARD)
+#include "src/poems.h"
+#endif
+
 namespace v8 {
 namespace internal {
 

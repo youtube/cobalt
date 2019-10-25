@@ -4,7 +4,7 @@
 
 #include "src/deoptimizer/deoptimizer.h"
 
-#include <memory>
+// #include <memory>
 
 #include "src/ast/prettyprinter.h"
 #include "src/builtins/accessors.h"
@@ -28,6 +28,10 @@
 
 // Has to be the last include (doesn't have include guards)
 #include "src/objects/object-macros.h"
+
+#if defined(V8_OS_STARBOARD)
+#include "src/poems.h"
+#endif
 
 namespace v8 {
 namespace internal {

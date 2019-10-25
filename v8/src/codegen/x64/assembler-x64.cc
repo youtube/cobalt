@@ -504,7 +504,8 @@ void Assembler::FinalizeJumpOptimizationInfo() {
 win64_unwindinfo::BuiltinUnwindInfo Assembler::GetUnwindInfo() const {
   DCHECK(options().collect_win64_unwind_info);
   DCHECK_NOT_NULL(xdata_encoder_);
-  return xdata_encoder_->unwinding_info();
+  return win64_unwindinfo::BuiltinUnwindInfo();
+  // return xdata_encoder_->unwinding_info();
 }
 #endif
 

@@ -4,7 +4,9 @@
 
 #include "src/base/platform/mutex.h"
 
+#if !V8_OS_STARBOARD
 #include <errno.h>
+#endif
 
 namespace v8 {
 namespace base {
@@ -155,6 +157,7 @@ bool RecursiveMutex::TryLock() {
   return true;
 }
 
+#if !defined(STARBOARD)
 SharedMutex::SharedMutex() { pthread_rwlock_init(&native_handle_, nullptr); }
 
 SharedMutex::~SharedMutex() {
@@ -193,6 +196,7 @@ bool SharedMutex::TryLockShared() {
 bool SharedMutex::TryLockExclusive() {
   return pthread_rwlock_trywrlock(&native_handle_) == 0;
 }
+#endif  // STARBOARD
 
 #elif V8_OS_WIN
 
@@ -292,6 +296,43 @@ bool SharedMutex::TryLockShared() {
 
 bool SharedMutex::TryLockExclusive() {
   return TryAcquireSRWLockExclusive(&native_handle_);
+}
+
+#elif V8_OS_STARBOARD
+
+Mutex::Mutex() {
+  SbMutexCreate(&native_handle_);
+}
+
+Mutex::~Mutex() {
+  SbMutexDestroy(&native_handle_);
+}
+
+void Mutex::Lock() {
+  SbMutexAcquire(&native_handle_);
+}
+
+void Mutex::Unlock() {
+  SbMutexRelease(&native_handle_);
+}
+
+RecursiveMutex::RecursiveMutex() {
+}
+
+RecursiveMutex::~RecursiveMutex() {
+
+}
+
+void RecursiveMutex::Lock() {
+  native_handle_.Acquire();
+}
+
+void RecursiveMutex::Unlock() {
+  native_handle_.Release();
+}
+
+bool RecursiveMutex::TryLock() {
+  return native_handle_.AcquireTry();
 }
 
 #endif  // V8_OS_POSIX

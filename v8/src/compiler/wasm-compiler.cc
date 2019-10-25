@@ -4745,7 +4745,6 @@ Node* WasmGraphBuilder::MemoryInit(uint32_t data_segment_index, Node* dst,
     Node* seg_size = SetEffect(graph()->NewNode(m->Load(MachineType::Uint32()),
                                                 seg_size_array, scaled_index,
                                                 Effect(), Control()));
-
     // Bounds check the src index against the segment size.
     src_fail = BoundsCheckRange(src, &size, seg_size, position);
   }
@@ -6198,6 +6197,7 @@ std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
 #undef COMPARE_SIG_FOR_BUILTIN_F64
 #undef COMPARE_SIG_FOR_BUILTIN_F32_F64
 
+
     if (IsClassConstructor(shared.kind())) {
       // Class constructor will throw anyway.
       return std::make_pair(WasmImportCallKind::kUseCallBuiltin, callable);
@@ -6611,10 +6611,13 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
     info.SetWasmRuntimeExceptionSupport();
   }
 
+// API leak
+#if !defined(DISABLE_GRAPHS_STARBOARD)
   if (info.trace_turbo_json_enabled()) {
     TurboCfgFile tcf;
     tcf << AsC1VCompilation(&info);
   }
+#endif  // DISABLE_GRAPHS_STARBOARD
 
   NodeOriginTable* node_origins = info.trace_turbo_json_enabled()
                                       ? new (&zone)

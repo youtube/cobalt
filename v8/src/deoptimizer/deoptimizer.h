@@ -23,6 +23,21 @@
 #include "src/utils/boxed-float.h"
 #include "src/zone/zone-chunk-list.h"
 
+#if defined(STARBOARD)
+// These common Starboard API replacements are not needed for evergreen but
+// some builds can not find definitions for free/malloc above Starboard.
+#include "starboard/common/string.h"
+#include "starboard/memory.h"
+
+#define malloc(x) SbMemoryAllocate(x)
+#define realloc(x, y) SbMemoryReallocate(x, y)
+#define free(x) SbMemoryDeallocate(x)
+#define memcpy(x, y, z) SbMemoryCopy(x, y, z)
+#define calloc(x, y) SbMemoryCalloc(x, y)
+#define strdup(s) SbStringDuplicate(s)
+
+#endif  // STARBOARD
+
 namespace v8 {
 namespace internal {
 
@@ -1040,5 +1055,14 @@ class DeoptimizedFrameInfo : public Malloced {
 
 }  // namespace internal
 }  // namespace v8
+
+#if STARBOARD
+#undef malloc
+#undef realloc
+#undef free
+#undef memcpy
+#undef calloc
+#undef strdup
+#endif  // STARBOARD
 
 #endif  // V8_DEOPTIMIZER_DEOPTIMIZER_H_

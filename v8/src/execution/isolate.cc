@@ -4,10 +4,14 @@
 
 #include "src/execution/isolate.h"
 
+#if !V8_OS_STARBOARD
 #include <stdlib.h>
+#endif  // V8_OS_STARBOARD
 
 #include <atomic>
+#if !defined(V8_OS_STARBOARD)
 #include <fstream>  // NOLINT(readability/streams)
+#endif
 #include <memory>
 #include <sstream>
 #include <unordered_map>
@@ -84,6 +88,10 @@
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uobject.h"
 #endif  // V8_INTL_SUPPORT
+
+#if V8_OS_STARBOARD
+#include "src/poems.h"
+#endif
 
 #if defined(V8_OS_WIN_X64)
 #include "src/diagnostics/unwinding-info-win64.h"
@@ -1506,16 +1514,16 @@ Object Isolate::Throw(Object raw_exception, MessageLocation* location) {
   Handle<Object> exception(raw_exception, this);
 
   if (FLAG_print_all_exceptions) {
-    printf("=========================================================\n");
-    printf("Exception thrown:\n");
+    PrintF("=========================================================\n");
+    PrintF("Exception thrown:\n");
     if (location) {
       Handle<Script> script = location->script();
       Handle<Object> name(script->GetNameOrSourceURL(), this);
-      printf("at ");
+      PrintF("at ");
       if (name->IsString() && String::cast(*name).length() > 0)
         String::cast(*name).PrintOn(stdout);
       else
-        printf("<anonymous>");
+        PrintF("<anonymous>");
 // Script::GetLineNumber and Script::GetColumnNumber can allocate on the heap to
 // initialize the line_ends array, so be careful when calling them.
 #ifdef DEBUG
@@ -1523,7 +1531,7 @@ Object Isolate::Throw(Object raw_exception, MessageLocation* location) {
 #else
       if ((false)) {
 #endif
-        printf(", %d:%d - %d:%d\n",
+        PrintF(", %d:%d - %d:%d\n",
                Script::GetLineNumber(script, location->start_pos()) + 1,
                Script::GetColumnNumber(script, location->start_pos()),
                Script::GetLineNumber(script, location->end_pos()) + 1,
@@ -1531,13 +1539,14 @@ Object Isolate::Throw(Object raw_exception, MessageLocation* location) {
         // Make sure to update the raw exception pointer in case it moved.
         raw_exception = *exception;
       } else {
-        printf(", line %d\n", script->GetLineNumber(location->start_pos()) + 1);
+        PrintF(", line %d\n", script->GetLineNumber(location->start_pos()) + 1);
       }
     }
     raw_exception.Print();
-    printf("Stack Trace:\n");
+    PrintF("Stack Trace:\n");
     PrintStack(stdout);
-    printf("=========================================================\n");
+
+    PrintF("=========================================================\n");
   }
 
   // Determine whether a message needs to be created for the given exception
@@ -3532,10 +3541,12 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
   if (!create_heap_objects)
     Assembler::QuietNaN(ReadOnlyRoots(this).nan_value());
 
+#if !V8_OS_STARBOARD
   if (FLAG_trace_turbo) {
     // Create an empty file.
     std::ofstream(GetTurboCfgFileName(this).c_str(), std::ios_base::trunc);
   }
+#endif  // V8_OS_STARBOARD
 
   {
     HandleScope scope(this);

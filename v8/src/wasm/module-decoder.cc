@@ -277,6 +277,7 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   void DumpModule(const Vector<const byte> module_bytes) {
+#if !defined(STARBOARD)
     std::string path;
     if (FLAG_dump_wasm_module_path) {
       path = FLAG_dump_wasm_module_path;
@@ -298,6 +299,7 @@ class ModuleDecoderImpl : public Decoder {
       }
       fclose(wasm_file);
     }
+#endif  // !defined(STARBOARD)
   }
 
   void StartDecoding(Counters* counters, AccountingAllocator* allocator) {

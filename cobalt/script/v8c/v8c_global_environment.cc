@@ -39,31 +39,36 @@ namespace v8c {
 
 namespace {
 
-std::string ExceptionToString(const v8::TryCatch& try_catch) {
-  v8::HandleScope handle_scope(v8::Isolate::GetCurrent());
-  v8::String::Utf8Value exception(try_catch.Exception());
+std::string ExceptionToString(v8::Isolate* isolate,
+                              const v8::TryCatch& try_catch) {
+  v8::HandleScope handle_scope(isolate);
+  v8::String::Utf8Value exception(isolate, try_catch.Exception());
   v8::Local<v8::Message> message(try_catch.Message());
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
   std::string string;
   if (message.IsEmpty()) {
     string.append(base::StringPrintf("%s\n", *exception));
   } else {
-    v8::String::Utf8Value filename(message->GetScriptOrigin().ResourceName());
-    int linenum = message->GetLineNumber();
+    v8::String::Utf8Value filename(isolate,
+                                   message->GetScriptOrigin().ResourceName());
+    int linenum;
+    linenum = message->GetLineNumber(context).To(&linenum) ? linenum : -1;
     int colnum = message->GetStartColumn();
     string.append(base::StringPrintf("%s:%i:%i %s\n", *filename, linenum,
                                      colnum, *exception));
-    v8::String::Utf8Value sourceline(message->GetSourceLine());
+    v8::String::Utf8Value sourceline(
+        isolate, message->GetSourceLine(context).ToLocalChecked());
     string.append(base::StringPrintf("%s\n", *sourceline));
   }
   return string;
 }
 
-std::string ToStringOrNull(v8::Local<v8::Value> value) {
+std::string ToStringOrNull(v8::Isolate* isolate, v8::Local<v8::Value> value) {
   if (value.IsEmpty() || !value->IsString()) {
     return "";
   }
-  return *v8::String::Utf8Value(value.As<v8::String>());
+  return *v8::String::Utf8Value(isolate, value.As<v8::String>());
 }
 
 }  // namespace
@@ -139,7 +144,7 @@ bool V8cGlobalEnvironment::EvaluateScript(
     // it to the MessageHandler.
     MessageHandler(try_catch.Message(), try_catch.Exception());
     if (out_result_utf8) {
-      *out_result_utf8 = ExceptionToString(try_catch);
+      *out_result_utf8 = ExceptionToString(isolate_, try_catch);
     }
     return false;
   }
@@ -201,7 +206,7 @@ std::vector<StackFrame> V8cGlobalEnvironment::GetStackTrace(int max_frames) {
 
   std::vector<StackFrame> result;
   for (int i = 0; i < stack_trace->GetFrameCount(); i++) {
-    v8::Local<v8::StackFrame> stack_frame = stack_trace->GetFrame(i);
+    v8::Local<v8::StackFrame> stack_frame = stack_trace->GetFrame(isolate_, i);
     v8::String::Utf8Value function_name(isolate_,
                                         stack_frame->GetFunctionName());
     v8::String::Utf8Value script_name(isolate_, stack_frame->GetScriptName());
@@ -381,8 +386,9 @@ void V8cGlobalEnvironment::MessageHandler(v8::Local<v8::Message> message,
 
   v8::Local<v8::Context> context = isolate->GetEnteredContext();
   ErrorReport error_report;
-  error_report.message = *v8::String::Utf8Value(message->Get());
-  error_report.filename = ToStringOrNull(message->GetScriptResourceName());
+  error_report.message = *v8::String::Utf8Value(isolate, message->Get());
+  error_report.filename =
+      ToStringOrNull(isolate, message->GetScriptResourceName());
   int line_number = 0;
   int column_number = 0;
   if (message->GetLineNumber(context).To(&line_number) &&

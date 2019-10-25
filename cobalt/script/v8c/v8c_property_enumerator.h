@@ -40,7 +40,10 @@ class V8cPropertyEnumerator : public cobalt::script::PropertyEnumerator {
         v8::String::NewFromUtf8(isolate_, property_name.c_str(),
                                 v8::NewStringType::kNormal)
             .ToLocalChecked();
-    (*array_)->Set(i, property_name_as_string);
+    auto maybe_bool = (*array_)->Set(isolate_->GetCurrentContext(), i,
+                                     property_name_as_string);
+    // Ensure the Set operation succeeds.
+    DCHECK(maybe_bool.ToChecked());
   }
 
  private:

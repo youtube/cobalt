@@ -19,6 +19,10 @@
 #include "unicode/uchar.h"
 #endif  // V8_INTL_SUPPORT
 
+#if defined(V8_OS_STARBOARD)
+#include "src/poems.h"
+#endif
+
 namespace v8 {
 namespace internal {
 

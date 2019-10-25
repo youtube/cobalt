@@ -8,7 +8,9 @@
 #include <vector>
 
 #include "src/common/globals.h"
+#if !defined(DISABLE_WASM_STARBOARD)
 #include "src/wasm/wasm-limits.h"
+#endif
 
 namespace v8 {
 namespace internal {

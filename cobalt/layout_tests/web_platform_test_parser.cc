@@ -23,6 +23,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "base/test/scoped_task_environment.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/layout_tests/test_utils.h"
 #include "cobalt/script/global_environment.h"
@@ -103,6 +104,7 @@ std::vector<WebPlatformTestInfo> EnumerateWebPlatformTests(
   if (precondition) {
     // Evaluate the javascript precondition. Enumerate the web platform tests
     // only if the precondition is true.
+    base::test::ScopedTaskEnvironment task_env_;
     std::unique_ptr<script::JavaScriptEngine> engine =
         script::JavaScriptEngine::CreateEngine();
     scoped_refptr<script::GlobalEnvironment> global_environment =
