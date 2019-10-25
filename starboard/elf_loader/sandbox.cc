@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/log.h"
-#include "starboard/event.h"
+#include <string>
 
+#include "starboard/common/log.h"
 #include "starboard/elf_loader/elf_loader.h"
+#include "starboard/elf_loader/elf_loader_switches.h"
+#include "starboard/event.h"
+#include "starboard/shared/starboard/command_line.h"
 
 starboard::elf_loader::ElfLoader g_elfLoader;
 
@@ -25,21 +28,48 @@ void SbEventHandle(const SbEvent* event) {
   switch (event->type) {
     case kSbEventTypeStart: {
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
-      if (!g_sb_event_func && data->argument_count == 2) {
-        if (!g_elfLoader.Load(data->argument_values[1])) {
-          SB_LOG(INFO) << "Failed to load library";
+      if (!g_sb_event_func) {
+        const starboard::shared::starboard::CommandLine command_line(
+            data->argument_count,
+            const_cast<const char**>(data->argument_values));
+        std::string library_path =
+            command_line.GetSwitchValue(
+                starboard::elf_loader::kEvergreenLibrary);
+        std::string content_path =
+            command_line.GetSwitchValue(
+                starboard::elf_loader::kEvergreenContent);
+
+        if (library_path.empty()) {
+          SB_LOG(ERROR) << "Library must be specified with --"
+                        << starboard::elf_loader::kEvergreenLibrary
+                        << "=/path/to/library.";
+          return;
+        }
+        if (content_path.empty()) {
+          SB_LOG(ERROR) << "Content must be specified with --"
+                        << starboard::elf_loader::kEvergreenContent
+                        << "=/path/to/content/directory.";
+          return;
+        }
+        if (!g_elfLoader.Load(library_path, content_path)) {
+          SB_LOG(INFO) << "Failed to load library at '" << library_path << "'.";
           return;
         }
 
-        SB_LOG(INFO) << "Successfully loaded library\n";
-        void* p = g_elfLoader.LookupSymbol("SbEventHandle");
-        if (p != NULL) {
-          SB_LOG(INFO) << "Symbol Lookup succeeded address=0x" << std::hex << p;
-          g_sb_event_func = (void (*)(const SbEvent*))p;
-          g_sb_event_func(event);
-        } else {
-          SB_LOG(INFO) << "Symbol Lookup failed\n";
+        SB_LOG(INFO) << "Successfully loaded '" << library_path << "'.";
+
+        g_sb_event_func = reinterpret_cast<void (*)(const SbEvent*)>(
+            g_elfLoader.LookupSymbol("SbEventHandle"));
+
+        if (!g_sb_event_func) {
+          SB_LOG(INFO) << "Failed to find SbEventHandle.";
+          return;
         }
+
+        SB_LOG(INFO) << "Found SbEventHandle at address=0x" << std::hex
+                     << g_sb_event_func << ".";
+
+        g_sb_event_func(event);
       }
       break;
     }

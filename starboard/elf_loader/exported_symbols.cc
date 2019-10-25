@@ -27,6 +27,7 @@
 #include "starboard/directory.h"
 #include "starboard/double.h"
 #include "starboard/egl.h"
+#include "starboard/elf_loader/elf_loader_shims.h"
 #include "starboard/event.h"
 #include "starboard/file.h"
 #include "starboard/gles.h"
@@ -230,7 +231,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSystemGetLastError);
   REGISTER_SYMBOL(SbSystemGetLocaleId);
   REGISTER_SYMBOL(SbSystemGetNumberOfProcessors);
-  REGISTER_SYMBOL(SbSystemGetPath);
   REGISTER_SYMBOL(SbSystemGetProperty);
   REGISTER_SYMBOL(SbSystemGetRandomData);
   REGISTER_SYMBOL(SbSystemGetRandomUInt64);
@@ -276,6 +276,11 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbWindowGetPlatformHandle);
   REGISTER_SYMBOL(SbWindowGetSize);
   REGISTER_SYMBOL(SbWindowSetDefaultOptions);
+  REGISTER_SYMBOL_AS(SbSystemGetPath, SbSystemGetPathShim);
+
+#if SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION
+  REGISTER_SYMBOL(SbFileAtomicReplace);
+#endif  // SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION
 
 #if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION
   REGISTER_SYMBOL(SbBlitterIsBlitterSupported);

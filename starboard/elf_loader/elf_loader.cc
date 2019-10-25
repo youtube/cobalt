@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include "starboard/elf_loader/elf_loader.h"
+
+#include "starboard/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/elf_loader/elf_loader_impl.h"
 #include "starboard/elf_loader/file_impl.h"
@@ -20,18 +22,50 @@
 namespace starboard {
 namespace elf_loader {
 
-ElfLoader::~ElfLoader() {}
+ElfLoader* ElfLoader::g_instance = NULL;
 
-bool ElfLoader::Load(const char* file_name) {
-  return impl_->Load(file_name);
+ElfLoader::ElfLoader() {
+  ElfLoader* old_instance =
+      reinterpret_cast<ElfLoader*>(SbAtomicAcquire_CompareAndSwapPtr(
+          reinterpret_cast<SbAtomicPtr*>(&g_instance),
+          reinterpret_cast<SbAtomicPtr>(reinterpret_cast<void*>(NULL)),
+          reinterpret_cast<SbAtomicPtr>(this)));
+  SB_DCHECK(!old_instance);
+  SB_UNREFERENCED_PARAMETER(old_instance);
+
+  impl_.reset(new ElfLoaderImpl());
+}
+
+ElfLoader::~ElfLoader() {
+  ElfLoader* old_instance =
+      reinterpret_cast<ElfLoader*>(SbAtomicAcquire_CompareAndSwapPtr(
+          reinterpret_cast<SbAtomicPtr*>(&g_instance),
+          reinterpret_cast<SbAtomicPtr>(this),
+          reinterpret_cast<SbAtomicPtr>(reinterpret_cast<void*>(NULL))));
+  SB_DCHECK(old_instance);
+  SB_DCHECK(old_instance == this);
+}
+
+ElfLoader* ElfLoader::Get() {
+  ElfLoader* elf_loader = reinterpret_cast<ElfLoader*>(
+      SbAtomicAcquire_LoadPtr(reinterpret_cast<SbAtomicPtr*>(&g_instance)));
+  SB_DCHECK(elf_loader);
+  return elf_loader;
+}
+
+bool ElfLoader::Load(const std::string& library_path,
+                     const std::string& content_path) {
+  library_path_ = library_path;
+  content_path_ = content_path;
+
+  if (library_path.empty() || content_path.empty()) {
+    return false;
+  }
+  return impl_->Load(library_path_.c_str());
 }
 
 void* ElfLoader::LookupSymbol(const char* symbol) {
   return impl_->LookupSymbol(symbol);
-}
-
-ElfLoader::ElfLoader() {
-  impl_.reset(new ElfLoaderImpl());
 }
 
 }  // namespace elf_loader
