@@ -201,6 +201,9 @@
     # Set to 1 to enable H5vccCrashLog.
     'enable_crash_log%': 0,
 
+    # Set to 1 to enable H5vccMetrics.
+    'enable_metrics%': 0,
+
     # Set to 1 to enable H5vccSSO (Single Sign On).
     'enable_sso%': 0,
 

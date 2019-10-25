@@ -32,6 +32,8 @@ interface H5vcc {
   readonly attribute H5vccAudioConfigArray audioConfig;
   [Conditional=COBALT_ENABLE_CRASH_LOG]
       readonly attribute H5vccCrashLog crashLog;
+  [Conditional=COBALT_ENABLE_METRICS]
+      readonly attribute H5vccMetrics metrics;
   readonly attribute CValView cVal;
   readonly attribute H5vccRuntime runtime;
   readonly attribute H5vccSettings settings;

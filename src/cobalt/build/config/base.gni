@@ -198,6 +198,11 @@ if (!defined(enable_crash_log)) {
   enable_crash_log = false
 }
 
+# Set to true to enable H5vccMetrics.
+if (!defined(enable_metrics)) {
+  enable_metrics = false
+}
+
 # Set to true to enable H5vccSSO (Single Sign On).
 if (!defined(enable_sso)) {
   enable_sso = false

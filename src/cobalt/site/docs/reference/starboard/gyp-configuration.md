@@ -56,6 +56,7 @@ title: "Starboard: gyp_configuration Reference Guide"
 | **`enable_configure_request_job_factory`**<br><br> Set to 1 to enable setting Interceptors on the URLRequestJobFactory<br><br>The default value is `0`. |
 | **`enable_crash_log`**<br><br> Set to 1 to enable H5vccCrashLog.<br><br>The default value is `0`. |
 | **`enable_map_to_mesh`**<br><br> Enable support for the map to mesh filter, which is primarily used to implement spherical video playback.<br><br>The default value is `0`. |
+| **`enable_metrics`**<br><br> Set to 1 to enable H5vccMetrics.<br><br>The default value is `0`.<br><br><ul><li>Histograms: You can filter the set of histograms shown on `"h5vcc-embedded://histograms.html"` by specifying a prefix. For example, `"h5vcc-embedded://histograms.html?Extensions.Load"` will show only histograms whose names match the pattern "Extensions.Load*".</li></ul> |
 | **`enable_spdy`**<br><br> Set to 1 to compile with SPDY support.<br><br>The default value is `0`. |
 | **`enable_sso`**<br><br> Set to 1 to enable H5vccSSO (Single Sign On).<br><br>The default value is `0`. |
 | **`enable_xhr_header_filtering`**<br><br> Set to 1 to enable filtering of HTTP headers before sending.<br><br>The default value is `0`. |

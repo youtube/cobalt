@@ -88,6 +88,20 @@
             ],
           },
         }],
+        ['enable_metrics == 1', {
+          'sources': [
+            'h5vcc_metrics.cc',
+            'h5vcc_metrics.h',
+          ],
+          'defines': [
+            'COBALT_ENABLE_METRICS',
+          ],
+          'direct_dependent_settings': {
+            'defines': [
+              'COBALT_ENABLE_METRICS',
+            ],
+          },
+        }],
         ['enable_sso == 1', {
           'sources': [
             'h5vcc_sso.cc',

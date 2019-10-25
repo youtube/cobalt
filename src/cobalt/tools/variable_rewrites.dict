@@ -30,6 +30,7 @@
     "enable_debugger",
     "enable_fake_microphone",
     "enable_file_scheme",
+    "enable_metrics",
     "enable_network_logging",
     "enable_webdriver",
     "enable_spdy",

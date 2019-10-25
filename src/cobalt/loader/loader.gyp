@@ -229,6 +229,15 @@
           'message': 'Embedding layout resources in "<(input_directory)" into header file, "<(output_path)".',
         },
       ],
+      'conditions': [
+        ['enable_metrics == 1', {
+          'sources': [
+            '<(input_directory)/histograms.css',
+            '<(input_directory)/histograms.html',
+            '<(input_directory)/histograms.js',
+          ]
+        }],
+      ],
       'direct_dependent_settings': {
         'include_dirs': [
           '<(SHARED_INTERMEDIATE_DIR)',

@@ -696,9 +696,9 @@ bool Histogram::AddSamplesFromPickle(PickleIterator* iter) {
 // The following methods provide a graphical histogram display.
 void Histogram::WriteHTMLGraph(std::string* output) const {
   // TBD(jar) Write a nice HTML bar chart, with divs an mouse-overs etc.
-  output->append("<PRE>");
+  output->append("<div>");
   WriteAsciiImpl(true, "<br>", output);
-  output->append("</PRE>");
+  output->append("</div>");
 }
 
 void Histogram::WriteAscii(std::string* output) const {
