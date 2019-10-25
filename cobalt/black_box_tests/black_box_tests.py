@@ -60,14 +60,8 @@ _TEST_DIR_PATH = 'cobalt.black_box_tests.tests.'
 _device_params = None
 # Binding address used to create the test server.
 _binding_address = None
-
-
-def GetDeviceParams():
-
-  global _device_params
-  _device_params = cobalt_runner.GetDeviceParamsFromCommandLine()
-  # Keep other modules from seeing these args
-  sys.argv = sys.argv[:1]
+# Port used to create the web platform test http server.
+_wpt_http_port = None
 
 
 class BlackBoxTestCase(unittest.TestCase):
@@ -100,9 +94,11 @@ class BlackBoxTestCase(unittest.TestCase):
   def GetBindingAddress(self):
     return _binding_address
 
+  def GetWptHttpPort(self):
+    return _wpt_http_port
+
 
 def LoadTests(platform, config, device_id, out_directory):
-
   launcher = abstract_launcher.LauncherFactory(
       platform,
       'cobalt',
@@ -127,19 +123,38 @@ def LoadTests(platform, config, device_id, out_directory):
 class BlackBoxTests(object):
   """Helper class to run all black box tests and return results."""
 
-  def __init__(self, test_name=None, proxy_port_number=None):
+  def __init__(self, server_binding_address, proxy_address=None,
+               proxy_port=None, test_name=None, wpt_http_port=None):
     logging.basicConfig(level=logging.DEBUG)
-    GetDeviceParams()
 
-    # Port number used to create the proxy server. If the --proxy target param
-    # is not set, a random free port is used.
-    if proxy_port_number is None:
-      proxy_port_number = str(self.GetUnusedPort(_binding_address))
-      _device_params.target_params.append('--proxy=%s:%s' % (_binding_address,
-                                                             proxy_port_number))
+    # Setup global variables used by test cases
+    global _device_params
+    _device_params = cobalt_runner.GetDeviceParamsFromCommandLine()
+    # Keep other modules from seeing these args
+    sys.argv = sys.argv[:1]
+    global _binding_address
+    _binding_address = server_binding_address
+    # Port used to create the web platform test http server. If not specified,
+    # a random free port is used.
+    if wpt_http_port is None:
+      wpt_http_port = str(self.GetUnusedPort([server_binding_address]))
+    global _wpt_http_port
+    _wpt_http_port = wpt_http_port
+    _device_params.target_params.append(
+        '--web-platform-test-server=http://web-platform.test:%s' %
+        wpt_http_port)
 
+    # Port used to create the proxy server. If not specified, a random free
+    # port is used.
+    if proxy_port is None:
+      proxy_port = str(self.GetUnusedPort([server_binding_address]))
+    if proxy_address is None:
+      proxy_address = server_binding_address
+    _device_params.target_params.append('--proxy=%s:%s' %
+                                        (proxy_address, proxy_port))
+
+    self.proxy_port = proxy_port
     self.test_name = test_name
-    self.proxy_port_number = proxy_port_number
 
     # Test domains used in web platform tests to be resolved to the server
     # binding address.
@@ -151,14 +166,14 @@ class BlackBoxTests(object):
         'xn--n8j6ds53lwwkrqhv28a.web-platform.test',
         'xn--lve-6lad.web-platform.test'
     ]
-    self.host_resolve_map = dict([(host, _binding_address) for host in hosts])
+    self.host_resolve_map = dict([(host, server_binding_address) for host in hosts])
 
   def Run(self):
-    if self.proxy_port_number == '-1':
+    if self.proxy_port == '-1':
       return 1
-    logging.info('Using proxy port number: %s', self.proxy_port_number)
+    logging.info('Using proxy port: %s', self.proxy_port)
 
-    with ProxyServer(port=self.proxy_port_number,
+    with ProxyServer(port=self.proxy_port,
                      host_resolve_map=self.host_resolve_map):
       if self.test_name:
         suite = unittest.TestLoader().loadTestsFromModule(
@@ -171,42 +186,66 @@ class BlackBoxTests(object):
           verbosity=0, stream=sys.stdout).run(suite).wasSuccessful()
       return return_code
 
-  def GetUnusedPort(self, machine_address):
-    """Find a free port on the machine address by pinging with socket."""
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+  def GetUnusedPort(self, addresses):
+    """Find a free port on the list of addresses by pinging with sockets."""
+    SOCKET_SUCCESS = 0
+
+    if not addresses:
+      logging.error('Can not find unused port on invalid addresses.')
+      return -1
+
+    socks = []
+    for address in addresses:
+      socks.append((address, socket.socket(socket.AF_INET, socket.SOCK_STREAM)))
     try:
-      for i in range(1, _PORT_SELECTION_RETRY_LIMIT):
-        port_number = random.randint(_PORT_SELECTION_RANGE[0],
-                                     _PORT_SELECTION_RANGE[1])
-        result = sock.connect_ex((machine_address, port_number))
-        if result != 0:
-          return port_number
-        if i == _PORT_SELECTION_RETRY_LIMIT - 1:
-          logging.error(
-              'Can not find unused port on target machine within %s attempts.',
-              _PORT_SELECTION_RETRY_LIMIT)
-          return -1
+      for _ in range(_PORT_SELECTION_RETRY_LIMIT):
+        port = random.randint(_PORT_SELECTION_RANGE[0], _PORT_SELECTION_RANGE[1])
+        unused = True
+        for sock in socks:
+          result = sock[1].connect_ex((sock[0], port))
+          if result == SOCKET_SUCCESS:
+            ununsed = False
+            break
+        if unused:
+          return port
+      logging.error(
+          'Can not find unused port on addresses within %s attempts.' %
+          _PORT_SELECTION_RETRY_LIMIT)
+      return -1
     finally:
-      sock.close()
+      for sock in socks:
+        sock[1].close()
 
 
 def main():
   parser = argparse.ArgumentParser()
-  parser.add_argument('--test_name',
-                      help=('Name of test to be run. If not specified, all '
-                            'tests are run.'))
   parser.add_argument('--server_binding_address',
                       default='127.0.0.1',
                       help='Binding address used to create the test server.')
-  parser.add_argument('--proxy_port_number',
-                      help=('Port number used to create the proxy http server'
-                            'that all black box tests are run through. If not'
+  parser.add_argument('--proxy_address',
+                      default=None,
+                      help=('Address to the proxy server that all black box'
+                            'tests are run through. If not specified, the'
+                            'server binding address is used.'))
+  parser.add_argument('--proxy_port',
+                      default=None,
+                      help=('Port used to create the proxy server that all'
+                            'black box tests are run through. If not'
                             'specified, a random free port is used.'))
+  parser.add_argument('--test_name',
+                      default=None,
+                      help=('Name of test to be run. If not specified, all '
+                            'tests are run.'))
+  parser.add_argument('--wpt_http_port',
+                      default=None,
+                       help=('Port used to create the web platform test http'
+                             'server. If not specified, a random free port is'
+                             'used.'))
   args, _ = parser.parse_known_args()
 
-  global _binding_address
-  _binding_address = args.server_binding_address
-  test_object = BlackBoxTests(args.test_name, args.proxy_port_number)
+  test_object = BlackBoxTests(args.server_binding_address, args.proxy_address,
+                              args.proxy_port, args.test_name,
+                              args.wpt_http_port)
   sys.exit(test_object.Run())
 
 
