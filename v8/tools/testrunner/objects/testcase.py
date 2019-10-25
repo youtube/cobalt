@@ -37,10 +37,33 @@ from ..local import utils
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 
+# Patterns for additional resource files on Android. Files that are not covered
+# by one of the other patterns below will be specified in the resources section.
+RESOURCES_PATTERN = re.compile(r"//\s+Resources:(.*)")
+# Pattern to auto-detect files to push on Android for statements like:
+# load("path/to/file.js")
+LOAD_PATTERN = re.compile(
+    r"(?:load|readbuffer|read)\((?:'|\")([^'\"]+)(?:'|\")\)")
+# Pattern to auto-detect files to push on Android for statements like:
+# import "path/to/file.js"
+MODULE_RESOURCES_PATTERN_1 = re.compile(
+    r"(?:import|export)(?:\(| )(?:'|\")([^'\"]+)(?:'|\")")
+# Pattern to auto-detect files to push on Android for statements like:
+# import foobar from "path/to/file.js"
+MODULE_RESOURCES_PATTERN_2 = re.compile(
+    r"(?:import|export).*from (?:'|\")([^'\"]+)(?:'|\")")
+
+TIMEOUT_LONG = "long"
+
+try:
+  cmp             # Python 2
+except NameError:
+  def cmp(x, y):  # Python 3
+    return (x > y) - (x < y)
 
 
 class TestCase(object):
-  def __init__(self, suite, path, name):
+  def __init__(self, suite, path, name, test_config):
     self.suite = suite        # TestSuite object
 
     self.path = path          # string, e.g. 'div-mod', 'test-api/foo'
@@ -49,59 +72,39 @@ class TestCase(object):
     self.variant = None       # name of the used testing variant
     self.variant_flags = []   # list of strings, flags specific to this test
 
-    self.id = None  # int, used to map result back to TestCase instance
-    self.run = 1  # The nth time this test is executed.
-    self.cmd = None
-
     # Fields used by the test processors.
     self.origin = None # Test that this test is subtest of.
     self.processor = None # Processor that created this subtest.
     self.procid = '%s/%s' % (self.suite.name, self.name) # unique id
     self.keep_output = False # Can output of this test be dropped
 
+    # Test config contains information needed to build the command.
+    self._test_config = test_config
+    self._random_seed = None # Overrides test config value if not None
+
+    # Outcomes
     self._statusfile_outcomes = None
-    self._expected_outcomes = None # optimization: None == [statusfile.PASS]
+    self.expected_outcomes = None
     self._statusfile_flags = None
+
     self._prepare_outcomes()
 
   def create_subtest(self, processor, subtest_id, variant=None, flags=None,
-                     keep_output=False):
+                     keep_output=False, random_seed=None):
     subtest = copy.copy(self)
     subtest.origin = self
     subtest.processor = processor
     subtest.procid += '.%s' % subtest_id
-    subtest.keep_output = keep_output
+    subtest.keep_output |= keep_output
+    if random_seed:
+      subtest._random_seed = random_seed
+    if flags:
+      subtest.variant_flags = subtest.variant_flags + flags
     if variant is not None:
       assert self.variant is None
       subtest.variant = variant
-      subtest.variant_flags = flags
       subtest._prepare_outcomes()
     return subtest
-
-  def create_variant(self, variant, flags, procid_suffix=None):
-    """Makes a shallow copy of the object and updates variant, variant flags and
-    all fields that depend on it, e.g. expected outcomes.
-
-    Args
-      variant       - variant name
-      flags         - flags that should be added to origin test's variant flags
-      procid_suffix - for multiple variants with the same name set suffix to
-        keep procid unique.
-    """
-    other = copy.copy(self)
-    if not self.variant_flags:
-      other.variant_flags = flags
-    else:
-      other.variant_flags = self.variant_flags + flags
-    other.variant = variant
-    if procid_suffix:
-      other.procid += '[%s-%s]' % (variant, procid_suffix)
-    else:
-      other.procid += '[%s]' % variant
-
-    other._prepare_outcomes(variant != self.variant)
-
-    return other
 
   def _prepare_outcomes(self, force_update=True):
     if force_update or self._statusfile_outcomes is None:
@@ -140,7 +143,8 @@ class TestCase(object):
 
   @property
   def do_skip(self):
-    return statusfile.SKIP in self._statusfile_outcomes
+    return (statusfile.SKIP in self._statusfile_outcomes and
+            not self.suite.test_config.run_skipped)
 
   @property
   def is_slow(self):
@@ -160,43 +164,59 @@ class TestCase(object):
   def only_standard_variant(self):
     return statusfile.NO_VARIANTS in self._statusfile_outcomes
 
-  def get_command(self, context):
-    params = self._get_cmd_params(context)
+  def get_command(self):
+    params = self._get_cmd_params()
     env = self._get_cmd_env()
-    shell, shell_flags = self._get_shell_with_flags(context)
-    timeout = self._get_timeout(params, context.timeout)
-    return self._create_cmd(shell, shell_flags + params, env, timeout, context)
+    shell = self.get_shell()
+    if utils.IsWindows():
+      shell += '.exe'
+    shell_flags = self._get_shell_flags()
+    timeout = self._get_timeout(params)
+    return self._create_cmd(shell, shell_flags + params, env, timeout)
 
-  def _get_cmd_params(self, ctx):
+  def _get_cmd_params(self):
     """Gets command parameters and combines them in the following order:
       - files [empty by default]
+      - random seed
       - extra flags (from command line)
       - user flags (variant/fuzzer flags)
-      - statusfile flags
       - mode flags (based on chosen mode)
       - source flags (from source code) [empty by default]
+      - test-suite flags
+      - statusfile flags
 
     The best way to modify how parameters are created is to only override
     methods for getting partial parameters.
     """
     return (
-        self._get_files_params(ctx) +
-        self._get_extra_flags(ctx) +
+        self._get_files_params() +
+        self._get_random_seed_flags() +
+        self._get_extra_flags() +
         self._get_variant_flags() +
-        self._get_statusfile_flags() +
-        self._get_mode_flags(ctx) +
+        self._get_mode_flags() +
         self._get_source_flags() +
-        self._get_suite_flags(ctx)
+        self._get_suite_flags() +
+        self._get_statusfile_flags()
     )
 
   def _get_cmd_env(self):
     return {}
 
-  def _get_files_params(self, ctx):
+  def _get_files_params(self):
     return []
 
-  def _get_extra_flags(self, ctx):
-    return ctx.extra_flags
+  def _get_timeout_param(self):
+    return None
+
+  def _get_random_seed_flags(self):
+    return ['--random-seed=%d' % self.random_seed]
+
+  @property
+  def random_seed(self):
+    return self._random_seed or self._test_config.random_seed
+
+  def _get_extra_flags(self):
+    return self._test_config.extra_flags
 
   def _get_variant_flags(self):
     return self.variant_flags
@@ -208,50 +228,49 @@ class TestCase(object):
     """
     return self._statusfile_flags
 
-  def _get_mode_flags(self, ctx):
-    return ctx.mode_flags
+  def _get_mode_flags(self):
+    return self._test_config.mode_flags
 
   def _get_source_flags(self):
     return []
 
-  def _get_suite_flags(self, ctx):
+  def _get_suite_flags(self):
     return []
 
-  def _get_shell_with_flags(self, ctx):
-    shell = self.get_shell()
-    shell_flags = []
-    if shell == 'd8':
-      shell_flags.append('--test')
-    if utils.IsWindows():
-      shell += '.exe'
-    if ctx.random_seed:
-      shell_flags.append('--random-seed=%s' % ctx.random_seed)
-    return shell, shell_flags
+  def _get_shell_flags(self):
+    return []
 
-  def _get_timeout(self, params, timeout):
+  def _get_timeout(self, params):
+    timeout = self._test_config.timeout
     if "--stress-opt" in params:
       timeout *= 4
+    if "--jitless" in params:
+      timeout *= 2
+    if "--no-opt" in params:
+      timeout *= 2
     if "--noenable-vfp3" in params:
       timeout *= 2
-
-    # TODO(majeski): make it slow outcome dependent.
-    timeout *= 2
+    if self._get_timeout_param() == TIMEOUT_LONG:
+      timeout *= 10
+    if self.is_slow:
+      timeout *= 4
     return timeout
 
   def get_shell(self):
-    return 'd8'
+    raise NotImplementedError()
 
   def _get_suffix(self):
     return '.js'
 
-  def _create_cmd(self, shell, params, env, timeout, ctx):
+  def _create_cmd(self, shell, params, env, timeout):
     return command.Command(
-      cmd_prefix=ctx.command_prefix,
-      shell=os.path.abspath(os.path.join(ctx.shell_dir, shell)),
+      cmd_prefix=self._test_config.command_prefix,
+      shell=os.path.abspath(os.path.join(self._test_config.shell_dir, shell)),
       args=params,
       env=env,
       timeout=timeout,
-      verbose=ctx.verbose
+      verbose=self._test_config.verbose,
+      resources_func=self._get_resources,
     )
 
   def _parse_source_flags(self, source=None):
@@ -271,6 +290,18 @@ class TestCase(object):
   def _get_source_path(self):
     return None
 
+  def _get_resources(self):
+    """Returns a list of absolute paths with additional files needed by the
+    test case.
+
+    Used to push additional files to Android devices.
+    """
+    return []
+
+  def skip_predictable(self):
+    """Returns True if the test case is not suitable for predictable testing."""
+    return True
+
   @property
   def output_proc(self):
     if self.expected_outcomes is outproc.OUTCOMES_PASS:
@@ -281,18 +312,63 @@ class TestCase(object):
     # Make sure that test cases are sorted correctly if sorted without
     # key function. But using a key function is preferred for speed.
     return cmp(
-        (self.suite.name, self.name, self.variant_flags),
-        (other.suite.name, other.name, other.variant_flags)
+        (self.suite.name, self.name, self.variant),
+        (other.suite.name, other.name, other.variant)
     )
-
-  def __hash__(self):
-    return hash((self.suite.name, self.name, ''.join(self.variant_flags)))
 
   def __str__(self):
     return self.suite.name + '/' + self.name
 
-  # TODO(majeski): Rename `id` field or `get_id` function since they're
-  # unrelated.
-  def get_id(self):
-    return '%s/%s %s' % (
-        self.suite.name, self.name, ' '.join(self.variant_flags))
+
+class D8TestCase(TestCase):
+  def get_shell(self):
+    return "d8"
+
+  def _get_shell_flags(self):
+    return ['--test']
+
+  def _get_resources_for_file(self, file):
+    """Returns for a given file a list of absolute paths of files needed by the
+    given file.
+    """
+    with open(file) as f:
+      source = f.read()
+    result = []
+    def add_path(path):
+      result.append(os.path.abspath(path.replace('/', os.path.sep)))
+    for match in RESOURCES_PATTERN.finditer(source):
+      # There are several resources per line. Relative to base dir.
+      for path in match.group(1).strip().split():
+        add_path(path)
+    for match in LOAD_PATTERN.finditer(source):
+      # Files in load statements are relative to base dir.
+      add_path(match.group(1))
+    for match in MODULE_RESOURCES_PATTERN_1.finditer(source):
+      # Imported files are relative to the file importing them.
+      add_path(os.path.join(os.path.dirname(file), match.group(1)))
+    for match in MODULE_RESOURCES_PATTERN_2.finditer(source):
+      # Imported files are relative to the file importing them.
+      add_path(os.path.join(os.path.dirname(file), match.group(1)))
+    return result
+
+  def _get_resources(self):
+    """Returns the list of files needed by a test case."""
+    if not self._get_source_path():
+      return []
+    result = set()
+    to_check = [self._get_source_path()]
+    # Recurse over all files until reaching a fixpoint.
+    while to_check:
+      next_resource = to_check.pop()
+      result.add(next_resource)
+      for resource in self._get_resources_for_file(next_resource):
+        # Only add files that exist on disc. The pattens we check for give some
+        # false positives otherwise.
+        if resource not in result and os.path.exists(resource):
+          to_check.append(resource)
+    return sorted(list(result))
+
+  def skip_predictable(self):
+    """Returns True if the test case is not suitable for predictable testing."""
+    return (statusfile.FAIL in self.expected_outcomes or
+            self.output_proc.negative)

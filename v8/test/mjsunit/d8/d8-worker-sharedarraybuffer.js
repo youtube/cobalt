@@ -28,24 +28,24 @@
 // Flags: --harmony-sharedarraybuffer
 
 if (this.Worker) {
-  (function TestTransfer() {
+  (function TestClone() {
     var workerScript =
       `onmessage = function(m) {
         var sab = m;
         var ta = new Uint32Array(sab);
         if (sab.byteLength !== 16) {
-          throw new Error('SharedArrayBuffer transfer byteLength');
+          throw new Error('SharedArrayBuffer clone byteLength');
         }
         for (var i = 0; i < 4; ++i) {
           if (ta[i] !== i) {
-            throw new Error('SharedArrayBuffer transfer value ' + i);
+            throw new Error('SharedArrayBuffer clone value ' + i);
           }
         }
         // Atomically update ta[0]
         Atomics.store(ta, 0, 100);
       };`;
 
-    var w = new Worker(workerScript);
+    var w = new Worker(workerScript, {type: 'string'});
 
     var sab = new SharedArrayBuffer(16);
     var ta = new Uint32Array(sab);
@@ -53,7 +53,7 @@ if (this.Worker) {
       ta[i] = i;
     }
 
-    // Transfer SharedArrayBuffer
+    // Clone SharedArrayBuffer
     w.postMessage(sab);
     assertEquals(16, sab.byteLength);  // ArrayBuffer should not be neutered.
 
@@ -68,7 +68,7 @@ if (this.Worker) {
     assertEquals(16, sab.byteLength);  // Still not neutered.
   })();
 
-  (function TestTransferMulti() {
+  (function TestCloneMulti() {
     var workerScript =
       `onmessage = function(msg) {
        var sab = msg.sab;
@@ -84,7 +84,7 @@ if (this.Worker) {
     var id;
     var workers = [];
     for (id = 0; id < 4; ++id) {
-      workers[id] = new Worker(workerScript);
+      workers[id] = new Worker(workerScript, {type: 'string'});
       workers[id].postMessage({sab: sab, id: id});
     }
 

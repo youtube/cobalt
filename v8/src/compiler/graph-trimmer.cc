@@ -16,7 +16,7 @@ GraphTrimmer::GraphTrimmer(Zone* zone, Graph* graph)
 }
 
 
-GraphTrimmer::~GraphTrimmer() {}
+GraphTrimmer::~GraphTrimmer() = default;
 
 
 void GraphTrimmer::TrimGraph() {
@@ -35,9 +35,8 @@ void GraphTrimmer::TrimGraph() {
       if (!IsLive(user)) {
 #ifndef V8_OS_STARBOARD
         if (FLAG_trace_turbo_trimming) {
-          OFStream os(stdout);
-          os << "DeadLink: " << *user << "(" << edge.index() << ") -> " << *live
-             << std::endl;
+          StdoutStream{} << "DeadLink: " << *user << "(" << edge.index()
+                         << ") -> " << *live << std::endl;
         }
 #endif
         edge.UpdateTo(nullptr);

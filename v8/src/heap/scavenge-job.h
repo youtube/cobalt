@@ -5,8 +5,8 @@
 #ifndef V8_HEAP_SCAVENGE_JOB_H_
 #define V8_HEAP_SCAVENGE_JOB_H_
 
-#include "src/cancelable-task.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
+#include "src/tasks/cancelable-task.h"
 
 namespace v8 {
 namespace internal {
@@ -64,7 +64,7 @@ class V8_EXPORT_PRIVATE ScavengeJob {
   static const int kAverageIdleTimeMs = 5;
   // The number of bytes to be allocated in new space before the next idle
   // task is posted.
-  static const size_t kBytesAllocatedBeforeNextIdleTask = 512 * KB;
+  static const size_t kBytesAllocatedBeforeNextIdleTask = 1024 * KB;
   // The minimum size of allocated new space objects to trigger a scavenge.
   static const size_t kMinAllocationLimit = 512 * KB;
   // The allocation limit cannot exceed this fraction of the new space capacity.

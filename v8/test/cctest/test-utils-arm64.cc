@@ -25,14 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/v8.h"
-
-#include "src/arm64/assembler-arm64-inl.h"
-#include "src/arm64/utils-arm64.h"
-#include "src/base/template-utils.h"
-#include "src/macro-assembler-inl.h"
-#include "test/cctest/cctest.h"
 #include "test/cctest/test-utils-arm64.h"
+
+#include "src/base/template-utils.h"
+#include "src/codegen/arm64/assembler-arm64-inl.h"
+#include "src/codegen/arm64/utils-arm64.h"
+#include "src/codegen/macro-assembler-inl.h"
+#include "src/init/v8.h"
+#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
@@ -205,9 +205,11 @@ bool EqualNzcv(uint32_t expected, uint32_t result) {
   return true;
 }
 
-
-bool EqualRegisters(const RegisterDump* a, const RegisterDump* b) {
-  for (unsigned i = 0; i < kNumberOfRegisters; i++) {
+bool EqualV8Registers(const RegisterDump* a, const RegisterDump* b) {
+  CPURegList available_regs = kCallerSaved;
+  available_regs.Combine(kCalleeSaved);
+  while (!available_regs.IsEmpty()) {
+    int i = available_regs.PopLowestIndex().code();
     if (a->xreg(i) != b->xreg(i)) {
       printf("x%d\t Expected 0x%016" PRIx64 "\t Found 0x%016" PRIx64 "\n",
              i, a->xreg(i), b->xreg(i));
@@ -233,7 +235,7 @@ RegList PopulateRegisterArray(Register* w, Register* x, Register* r,
   RegList list = 0;
   int i = 0;
   for (unsigned n = 0; (n < kNumberOfRegisters) && (i < reg_count); n++) {
-    if (((1UL << n) & allowed) != 0) {
+    if (((1ULL << n) & allowed) != 0) {
       // Only assign allowed registers.
       if (r) {
         r[i] = Register::Create(n, reg_size);
@@ -244,7 +246,7 @@ RegList PopulateRegisterArray(Register* w, Register* x, Register* r,
       if (w) {
         w[i] = Register::Create(n, kWRegSizeInBits);
       }
-      list |= (1UL << n);
+      list |= (1ULL << n);
       i++;
     }
   }
@@ -259,7 +261,7 @@ RegList PopulateVRegisterArray(VRegister* s, VRegister* d, VRegister* v,
   RegList list = 0;
   int i = 0;
   for (unsigned n = 0; (n < kNumberOfVRegisters) && (i < reg_count); n++) {
-    if (((1UL << n) & allowed) != 0) {
+    if (((1ULL << n) & allowed) != 0) {
       // Only assigned allowed registers.
       if (v) {
         v[i] = VRegister::Create(n, reg_size);
@@ -270,7 +272,7 @@ RegList PopulateVRegisterArray(VRegister* s, VRegister* d, VRegister* v,
       if (s) {
         s[i] = VRegister::Create(n, kSRegSizeInBits);
       }
-      list |= (1UL << n);
+      list |= (1ULL << n);
       i++;
     }
   }
@@ -284,10 +286,10 @@ RegList PopulateVRegisterArray(VRegister* s, VRegister* d, VRegister* v,
 void Clobber(MacroAssembler* masm, RegList reg_list, uint64_t const value) {
   Register first = NoReg;
   for (unsigned i = 0; i < kNumberOfRegisters; i++) {
-    if (reg_list & (1UL << i)) {
+    if (reg_list & (1ULL << i)) {
       Register xn = Register::Create(i, kXRegSizeInBits);
-      // We should never write into csp here.
-      CHECK(!xn.Is(csp));
+      // We should never write into sp here.
+      CHECK(!xn.Is(sp));
       if (!xn.IsZero()) {
         if (!first.IsValid()) {
           // This is the first register we've hit, so construct the literal.
@@ -307,7 +309,7 @@ void Clobber(MacroAssembler* masm, RegList reg_list, uint64_t const value) {
 void ClobberFP(MacroAssembler* masm, RegList reg_list, double const value) {
   VRegister first = NoVReg;
   for (unsigned i = 0; i < kNumberOfVRegisters; i++) {
-    if (reg_list & (1UL << i)) {
+    if (reg_list & (1ULL << i)) {
       VRegister dn = VRegister::Create(i, kDRegSizeInBits);
       if (!first.IsValid()) {
         // This is the first register we've hit, so construct the literal.
@@ -337,8 +339,6 @@ void Clobber(MacroAssembler* masm, CPURegList reg_list) {
 
 
 void RegisterDump::Dump(MacroAssembler* masm) {
-  CHECK(__ StackPointer().Is(csp));
-
   // Ensure that we don't unintentionally clobber any registers.
   RegList old_tmp_list = masm->TmpList()->list();
   RegList old_fptmp_list = masm->FPTmpList()->list();
@@ -368,13 +368,13 @@ void RegisterDump::Dump(MacroAssembler* masm) {
   // Load the address where we will dump the state.
   __ Mov(dump_base, reinterpret_cast<uint64_t>(&dump_));
 
-  // Dump the stack pointer (csp and wcsp).
+  // Dump the stack pointer (sp and wsp).
   // The stack pointer cannot be stored directly; it needs to be moved into
   // another register first. Also, we pushed four X registers, so we need to
   // compensate here.
-  __ Add(tmp, csp, 4 * kXRegSize);
+  __ Add(tmp, sp, 4 * kXRegSize);
   __ Str(tmp, MemOperand(dump_base, sp_offset));
-  __ Add(tmp_w, wcsp, 4 * kXRegSize);
+  __ Add(tmp_w, wsp, 4 * kXRegSize);
   __ Str(tmp_w, MemOperand(dump_base, wsp_offset));
 
   // Dump X registers.

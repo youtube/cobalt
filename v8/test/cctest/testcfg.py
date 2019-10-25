@@ -25,6 +25,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import os
 import shutil
 
@@ -36,24 +39,29 @@ from testrunner.objects import testcase
 SHELL = 'cctest'
 
 
-class TestSuite(testsuite.TestSuite):
-  def ListTests(self, context):
-    shell = os.path.abspath(os.path.join(context.shell_dir, SHELL))
+class TestLoader(testsuite.TestLoader):
+  def _list_test_filenames(self):
+    shell = os.path.abspath(os.path.join(self.test_config.shell_dir, SHELL))
     if utils.IsWindows():
       shell += ".exe"
     cmd = command.Command(
-        cmd_prefix=context.command_prefix,
+        cmd_prefix=self.test_config.command_prefix,
         shell=shell,
-        args=["--list"] + context.extra_flags)
+        args=["--list"] + self.test_config.extra_flags)
     output = cmd.execute()
+    # TODO make errors visible (see duplicated code in 'unittests')
     if output.exit_code != 0:
-      print cmd
-      print output.stdout
-      print output.stderr
+      print(cmd)
+      print(output.stdout)
+      print(output.stderr)
       return []
-    tests = map(self._create_test, output.stdout.strip().split())
-    tests.sort(key=lambda t: t.path)
-    return tests
+
+    return sorted(output.stdout.strip().split())
+
+
+class TestSuite(testsuite.TestSuite):
+  def _test_loader_class(self):
+    return TestLoader
 
   def _test_class(self):
     return TestCase
@@ -63,9 +71,21 @@ class TestCase(testcase.TestCase):
   def get_shell(self):
     return SHELL
 
-  def _get_files_params(self, ctx):
+  def _get_files_params(self):
     return [self.path]
 
+  def _get_resources(self):
+    # Bytecode-generator tests are the only ones requiring extra files on
+    # Android.
+    parts = self.name.split('/')
+    if parts[0] == 'test-bytecode-generator':
+      expectation_file = os.path.join(
+          self.suite.root, 'interpreter', 'bytecode_expectations',
+          '%s.golden' % parts[1])
+      if os.path.exists(expectation_file):
+        return [expectation_file]
+    return []
 
-def GetSuite(name, root):
-  return TestSuite(name, root)
+
+def GetSuite(*args, **kwargs):
+  return TestSuite(*args, **kwargs)

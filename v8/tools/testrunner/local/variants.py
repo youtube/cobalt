@@ -4,26 +4,57 @@
 
 # Use this to run several variants of the tests.
 ALL_VARIANT_FLAGS = {
+  "assert_types": [["--assert-types"]],
   "code_serializer": [["--cache=code"]],
   "default": [[]],
   "future": [["--future"]],
+  "gc_stats": [["--gc-stats=1"]],
   # Alias of exhaustive variants, but triggering new test framework features.
   "infra_staging": [[]],
-  "liftoff": [["--liftoff"]],
+  "interpreted_regexp": [["--regexp-interpret-all"]],
+  "jitless": [["--jitless"]],
   "minor_mc": [["--minor-mc"]],
   # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
   # would not force optimization too. It turns into a Nop. Please see
   # https://chromium-review.googlesource.com/c/452620/ for more discussion.
-  "nooptimization": [["--noopt"]],
+  # For WebAssembly, we test "Liftoff-only" in the nooptimization variant and
+  # "TurboFan-only" in the stress variant. The WebAssembly configuration is
+  # independent of JS optimizations, so we can combine those configs.
+  "nooptimization": [["--no-opt", "--liftoff", "--no-wasm-tier-up"]],
   "slow_path": [["--force-slow-path"]],
-  "stress": [["--stress-opt", "--always-opt"]],
-  "stress_background_compile": [["--background-compile", "--stress-background-compile"]],
+  "stress": [["--stress-opt", "--always-opt", "--no-liftoff",
+              "--no-wasm-tier-up"]],
+  "stress_js_bg_compile_wasm_code_gc": [["--stress-background-compile",
+                                         "--wasm-code-gc",
+                                         "--stress-wasm-code-gc"]],
   "stress_incremental_marking":  [["--stress-incremental-marking"]],
   # Trigger stress sampling allocation profiler with sample interval = 2^14
   "stress_sampling": [["--stress-sampling-allocation-profiler=16384"]],
   "trusted": [["--no-untrusted-code-mitigations"]],
-  "wasm_traps": [["--wasm_trap_handler", "--invoke-weak-callbacks", "--wasm-jit-to-native"]],
-  "wasm_no_native": [["--no-wasm-jit-to-native"]],
+  "no_wasm_traps": [["--no-wasm-trap-handler"]],
 }
 
-ALL_VARIANTS = set(ALL_VARIANT_FLAGS.keys())
+SLOW_VARIANTS = set([
+  'stress',
+  'nooptimization',
+])
+
+FAST_VARIANTS = set([
+  'default'
+])
+
+
+def _variant_order_key(v):
+  if v in SLOW_VARIANTS:
+    return 0
+  if v in FAST_VARIANTS:
+    return 100
+  return 50
+
+ALL_VARIANTS = sorted(ALL_VARIANT_FLAGS.keys(),
+                      key=_variant_order_key)
+
+# Check {SLOW,FAST}_VARIANTS entries
+for variants in [SLOW_VARIANTS, FAST_VARIANTS]:
+  for v in variants:
+    assert v in ALL_VARIANT_FLAGS

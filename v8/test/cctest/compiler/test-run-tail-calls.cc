@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/assembler-inl.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/code-stub-assembler.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/macro-assembler.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
@@ -21,10 +22,10 @@ namespace {
 
 // Function that takes a number of pointer-sized integer arguments, calculates a
 // weighted sum of them and returns it.
-Handle<Code> BuildCallee(Isolate* isolate, CallDescriptor* descriptor) {
-  CodeAssemblerTester tester(isolate, descriptor, "callee");
+Handle<Code> BuildCallee(Isolate* isolate, CallDescriptor* call_descriptor) {
+  CodeAssemblerTester tester(isolate, call_descriptor, "callee");
   CodeStubAssembler assembler(tester.state());
-  int param_count = static_cast<int>(descriptor->StackParameterCount());
+  int param_count = static_cast<int>(call_descriptor->StackParameterCount());
   Node* sum = __ IntPtrConstant(0);
   for (int i = 0; i < param_count; ++i) {
     Node* product = __ IntPtrMul(__ Parameter(i), __ IntPtrConstant(i + 1));
@@ -36,9 +37,9 @@ Handle<Code> BuildCallee(Isolate* isolate, CallDescriptor* descriptor) {
 
 // Function that tail-calls another function with a number of pointer-sized
 // integer arguments.
-Handle<Code> BuildCaller(Isolate* isolate, CallDescriptor* descriptor,
+Handle<Code> BuildCaller(Isolate* isolate, CallDescriptor* call_descriptor,
                          CallDescriptor* callee_descriptor) {
-  CodeAssemblerTester tester(isolate, descriptor, "caller");
+  CodeAssemblerTester tester(isolate, call_descriptor, "caller");
   CodeStubAssembler assembler(tester.state());
   std::vector<Node*> params;
   // The first parameter is always the callee.
@@ -108,6 +109,7 @@ CallDescriptor* CreateDescriptorForStackArguments(Zone* zone,
 void TestHelper(int n, int m) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
+  CanonicalHandleScope canonical(isolate);
   Zone* zone = scope.main_zone();
   CallDescriptor* caller_descriptor =
       CreateDescriptorForStackArguments(zone, n);
