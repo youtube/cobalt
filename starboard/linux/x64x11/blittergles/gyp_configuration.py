@@ -21,4 +21,5 @@ from starboard.linux.x64x11 import gyp_configuration as parent_configuration
 
 def CreatePlatformConfig():
   return parent_configuration.LinuxX64X11Configuration(
-      'linux-x64x11-blittergles')
+      'linux-x64x11-blittergles',
+      sabi_json_path='starboard/evergreen/sabi/x64/sabi.json')

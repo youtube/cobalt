@@ -17,4 +17,6 @@ from starboard.linux.x64x11 import gyp_configuration as linux_configuration
 
 
 def CreatePlatformConfig():
-  return linux_configuration.LinuxX64X11Configuration('linux-x64x11-gczeal')
+  return linux_configuration.LinuxX64X11Configuration(
+      'linux-x64x11-gczeal',
+      sabi_json_path='starboard/evergreen/sabi/x64/sabi.json')

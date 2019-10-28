@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The Starboard configuration for X86_64. Other devices will have
+// The Starboard configuration for x64. Other devices will have
 // specific Starboard implementations.
 
 // Other source files should never include this header directly, but should

@@ -167,4 +167,8 @@
       }],
     ],
   }, # end of target_defaults
+
+  'includes': [
+    '<(DEPTH)/starboard/evergreen/sabi/sabi.gypi',
+  ],
 }

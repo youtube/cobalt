@@ -376,7 +376,7 @@
 // --- Platform Specific Audits ----------------------------------------------
 
 #if !defined(__GNUC__)
-#error "Evergreen-x64 builds need a GCC-like compiler (for the moment)."
+#error "Evergreen-arm64 builds need a GCC-like compiler (for the moment)."
 #endif
 
 #endif  // STARBOARD_EVERGREEN_ARM64_CONFIGURATION_PUBLIC_H_
