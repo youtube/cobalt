@@ -65,4 +65,8 @@
       '_GNU_SOURCE=1',
     ],
   }, # end of target_defaults
+
+  'includes': [
+    '<(DEPTH)/starboard/evergreen/sabi/sabi.gypi',
+  ],
 }

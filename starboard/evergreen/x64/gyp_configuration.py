@@ -29,7 +29,7 @@ from starboard.tools.toolchain import touch
 
 
 class EvergreenX64Configuration(shared_configuration.EvergreenConfiguration):
-  """Starboard Evergreen X64 platform configuration."""
+  """Starboard Evergreen x64 platform configuration."""
 
   def __init__(self,
                platform_name='evergreen-x64',
