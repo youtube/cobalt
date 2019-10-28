@@ -233,7 +233,8 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
           << " call are " << media_time - media_time_of_last_render_call_ << "/"
           << now - system_time_of_last_render_call_ << " microseconds, the"
           << " video is at " << frame_rate_estimate_.frame_rate() << " fps,"
-          << " media time is " << media_time;
+          << " media time is " << media_time << ", backlog " << frames->size()
+          << " frames.";
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
     }
     frames->pop_front();
