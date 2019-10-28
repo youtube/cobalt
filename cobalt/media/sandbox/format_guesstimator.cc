@@ -17,7 +17,18 @@
 #include <algorithm>
 #include <vector>
 
+#include "base/bind.h"
 #include "base/path_service.h"
+#include "base/time/time.h"
+#include "cobalt/media/base/audio_codecs.h"
+#include "cobalt/media/base/audio_decoder_config.h"
+#include "cobalt/media/base/demuxer_stream.h"
+#include "cobalt/media/base/media_tracks.h"
+#include "cobalt/media/base/video_codecs.h"
+#include "cobalt/media/base/video_decoder_config.h"
+#include "cobalt/media/filters/chunk_demuxer.h"
+#include "cobalt/media/sandbox/web_media_player_helper.h"
+#include "cobalt/render_tree/image.h"
 #include "net/base/filename_util.h"
 #include "net/base/url_util.h"
 #include "starboard/common/string.h"
@@ -30,6 +41,21 @@ namespace media {
 namespace sandbox {
 
 namespace {
+
+// Container to organize the pairs of supported mime types and their codecs.
+struct SupportedTypeCodecInfo {
+  std::string mime;
+  std::string codecs;
+};
+
+// The possible mime and codec configurations that are supported by cobalt.
+const std::vector<SupportedTypeCodecInfo> kSupportedTypesAndCodecs = {
+    {"audio/mp4", "mp4a.40.2"},     {"audio/webm", "opus"},
+
+    {"video/mp4", "av01.0.05M.08"}, {"video/mp4", "avc1.640028, mp4a.40.2"},
+    {"video/mp4", "avc1.640028"},   {"video/mp4", "hvc1.1.6.H150.90"},
+    {"video/webm", "vp9"},
+};
 
 // Can be called as:
 //   IsFormat("https://example.com/audio.mp4", ".mp4")
@@ -54,11 +80,12 @@ base::FilePath ResolvePath(const std::string& path) {
   return base::FilePath();
 }
 
-// Read the first 4096 bytes of the local file specified by |path|.  If the size
-// of the size is less than 4096 bytes, the function reads all of its content.
+// Read the first 256kb of the local file specified by |path|.  If the size
+// of the file is less than 256kb, the function reads all of its content.
 std::vector<uint8_t> ReadHeader(const base::FilePath& path) {
-  const int64_t kHeaderSize = 4096;
-
+  // Size of the input file to be read into memory for checking the validity
+  // of ChunkDemuxer::AppendData() calls.
+  const int64_t kHeaderSize = 256 * 1024;  // 256kb
   starboard::ScopedFile file(path.value().c_str(),
                              kSbFileOpenOnly | kSbFileRead);
   int64_t bytes_to_read = std::min(kHeaderSize, file.GetSize());
@@ -71,21 +98,14 @@ std::vector<uint8_t> ReadHeader(const base::FilePath& path) {
   return buffer;
 }
 
-// Find the first occurrence of |str| in |data|.  If there is no |str| contained
-// inside |data|, it returns -1.
-off_t FindString(const std::vector<uint8_t>& data, const char* str) {
-  size_t size_of_str = SbStringGetLength(str);
-  for (off_t offset = 0; offset + size_of_str < data.size(); ++offset) {
-    if (SbMemoryCompare(data.data() + offset, str, size_of_str) == 0) {
-      return offset;
-    }
-  }
-  return -1;
+void OnInitSegmentReceived(std::unique_ptr<MediaTracks> tracks) {
+  SB_UNREFERENCED_PARAMETER(tracks);
 }
 
 }  // namespace
 
-FormatGuesstimator::FormatGuesstimator(const std::string& path_or_url) {
+FormatGuesstimator::FormatGuesstimator(const std::string& path_or_url,
+                                       MediaModule* media_module) {
   GURL url(path_or_url);
   if (url.is_valid()) {
     // If it is a url, assume that it is a progressive video.
@@ -96,11 +116,7 @@ FormatGuesstimator::FormatGuesstimator(const std::string& path_or_url) {
   if (path.empty() || !SbFileCanOpen(path.value().c_str(), kSbFileRead)) {
     return;
   }
-  if (IsFormat(path_or_url, ".mp4")) {
-    InitializeAsMp4(path);
-  } else if (IsFormat(path_or_url, ".webm")) {
-    InitializeAsWebM(path);
-  }
+  InitializeAsAdaptive(path, media_module);
 }
 
 void FormatGuesstimator::InitializeAsProgressive(const GURL& url) {
@@ -113,49 +129,78 @@ void FormatGuesstimator::InitializeAsProgressive(const GURL& url) {
   codecs_ = "avc1.640028, mp4a.40.2";
 }
 
-void FormatGuesstimator::InitializeAsMp4(const base::FilePath& path) {
+void FormatGuesstimator::InitializeAsAdaptive(const base::FilePath& path,
+                                              MediaModule* media_module) {
   std::vector<uint8_t> header = ReadHeader(path);
-  if (FindString(header, "ftyp") == -1) {
-    return;
-  }
-  if (FindString(header, "dash") == -1) {
-    progressive_url_ = net::FilePathToFileURL(path);
-    mime_ = "video/mp4";
-    codecs_ = "avc1.640028, mp4a.40.2";
-    return;
-  }
-  if (FindString(header, "vide") != -1) {
-    if (FindString(header, "avcC") != -1) {
-      adaptive_path_ = path;
-      mime_ = "video/mp4";
-      codecs_ = "avc1.640028";
-      return;
-    }
-    if (FindString(header, "hvcC") != -1) {
-      adaptive_path_ = path;
-      mime_ = "video/mp4";
-      codecs_ = "hvc1.1.6.H150.90";
-      return;
-    }
-    return;
-  }
-  if (FindString(header, "soun") != -1) {
-    adaptive_path_ = path;
-    mime_ = "audio/mp4";
-    codecs_ = "mp4a.40.2";
-    return;
-  }
-}
 
-void FormatGuesstimator::InitializeAsWebM(const base::FilePath& path) {
-  std::vector<uint8_t> header = ReadHeader(path);
-  adaptive_path_ = path;
-  if (FindString(header, "OpusHead") == -1) {
-    mime_ = "video/webm";
-    codecs_ = "vp9";
-  } else {
-    mime_ = "audio/webm";
-    codecs_ = "opus";
+  for (const auto& expected_supported_info : kSupportedTypesAndCodecs) {
+    DCHECK(mime_.empty());
+    DCHECK(codecs_.empty());
+
+    ChunkDemuxer* chunk_demuxer = NULL;
+    WebMediaPlayerHelper::ChunkDemuxerOpenCB open_cb = base::Bind(
+        [](ChunkDemuxer** handle, ChunkDemuxer* chunk_demuxer) -> void {
+          *handle = chunk_demuxer;
+        },
+        &chunk_demuxer);
+    // We create a new |web_media_player_helper| every iteration in order to
+    // obtain a handle to a new |ChunkDemuxer| without any accumulated state as
+    // a result of previous calls to |AddId| and |AppendData| methods.
+    WebMediaPlayerHelper web_media_player_helper(media_module, open_cb);
+
+    // |chunk_demuxer| will be set when |open_cb| is called asynchronously
+    // during initialization of |web_media_player_helper|. Wait until it is set
+    // before proceeding.
+    while (!chunk_demuxer) {
+      base::RunLoop().RunUntilIdle();
+    }
+
+    const std::string id = "stream";
+    if (chunk_demuxer->AddId(id, expected_supported_info.mime,
+                             expected_supported_info.codecs) !=
+        ChunkDemuxer::kOk) {
+      continue;
+    }
+
+    chunk_demuxer->SetTracksWatcher(id, base::Bind(OnInitSegmentReceived));
+
+    base::TimeDelta unused_timestamp;
+    if (!chunk_demuxer->AppendData(id, header.data(), header.size(),
+                                   base::TimeDelta(), media::kInfiniteDuration,
+                                   &unused_timestamp)) {
+      // Failing to |AppendData()| means the chosen format is not the file's
+      // true format.
+      continue;
+    }
+
+    // Succeeding |AppendData()| may be a false positive (i.e. the expected
+    // configuration does not match with the configuration determined by the
+    // ChunkDemuxer). To confirm, we check the decoder configuration determined
+    // by the ChunkDemuxer against the chosen format.
+    if (auto demuxer_stream =
+            chunk_demuxer->GetStream(DemuxerStream::Type::AUDIO)) {
+      const AudioDecoderConfig& decoder_config =
+          demuxer_stream->audio_decoder_config();
+      if (StringToAudioCodec(expected_supported_info.codecs) ==
+          decoder_config.codec()) {
+        adaptive_path_ = path;
+        mime_ = expected_supported_info.mime;
+        codecs_ = expected_supported_info.codecs;
+        break;
+      }
+      continue;
+    }
+    auto demuxer_stream = chunk_demuxer->GetStream(DemuxerStream::Type::VIDEO);
+    DCHECK(demuxer_stream);
+    const VideoDecoderConfig& decoder_config =
+        demuxer_stream->video_decoder_config();
+    if (StringToVideoCodec(expected_supported_info.codecs) ==
+        decoder_config.codec()) {
+      adaptive_path_ = path;
+      mime_ = expected_supported_info.mime;
+      codecs_ = expected_supported_info.codecs;
+      break;
+    }
   }
 }
 

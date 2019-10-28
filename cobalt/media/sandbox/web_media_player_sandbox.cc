@@ -114,8 +114,10 @@ class Application {
                        base::FilePath(FILE_PATH_LITERAL(
                            "media_source_sandbox_trace.json"))) {
     if (argc > 1) {
-      FormatGuesstimator guesstimator1(argv[argc - 1]);
-      FormatGuesstimator guesstimator2(argv[argc - 2]);
+      FormatGuesstimator guesstimator1(argv[argc - 1],
+                                       media_sandbox_.GetMediaModule());
+      FormatGuesstimator guesstimator2(argv[argc - 2],
+                                       media_sandbox_.GetMediaModule());
 
       if (!guesstimator1.is_valid()) {
         SB_LOG(ERROR) << "Invalid path or url: " << argv[argc - 1];
