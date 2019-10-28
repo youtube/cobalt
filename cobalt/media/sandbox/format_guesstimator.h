@@ -19,6 +19,7 @@
 
 #include "base/files/file_path.h"
 #include "base/logging.h"
+#include "cobalt/media/media_module.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -30,7 +31,7 @@ namespace sandbox {
 // will be identified as progressive mp4.
 class FormatGuesstimator {
  public:
-  explicit FormatGuesstimator(const std::string& path_or_url);
+  FormatGuesstimator(const std::string& path_or_url, MediaModule* media_module);
 
   bool is_valid() const { return is_progressive() || is_adaptive(); }
   bool is_progressive() const { return progressive_url_.is_valid(); }
@@ -63,8 +64,8 @@ class FormatGuesstimator {
 
  private:
   void InitializeAsProgressive(const GURL& url);
-  void InitializeAsMp4(const base::FilePath& path);
-  void InitializeAsWebM(const base::FilePath& path);
+  void InitializeAsAdaptive(const base::FilePath& path,
+                            MediaModule* media_module);
 
   GURL progressive_url_;
   base::FilePath adaptive_path_;
