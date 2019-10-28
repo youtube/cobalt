@@ -24,9 +24,15 @@ from starboard.tools import build
 class LinuxX64X11Clang36Configuration(shared_configuration.LinuxConfiguration):
   """Starboard Linux X64 X11 Clang 3.6 platform configuration."""
 
-  def __init__(self, platform, asan_enabled_by_default=False):
+  def __init__(self,
+               platform,
+               asan_enabled_by_default=False,
+               sabi_json_path=None):
     super(LinuxX64X11Clang36Configuration, self).__init__(
-        platform, asan_enabled_by_default, goma_supports_compiler=False)
+        platform,
+        asan_enabled_by_default,
+        goma_supports_compiler=False,
+        sabi_json_path=sabi_json_path)
 
     self.toolchain_top_dir = os.path.join(build.GetToolchainsDir(),
                                           'x86_64-linux-gnu-clang-3.6')
@@ -63,7 +69,9 @@ class LinuxX64X11Clang36Configuration(shared_configuration.LinuxConfiguration):
 
 def CreatePlatformConfig():
   try:
-    return LinuxX64X11Clang36Configuration('linux-x64x11-clang-3-6')
+    return LinuxX64X11Clang36Configuration(
+        'linux-x64x11-clang-3-6',
+        sabi_json_path='starboard/evergreen/sabi/x64/sabi.json')
   except RuntimeError as e:
     logging.critical(e)
     return None

@@ -26,10 +26,11 @@ class CobaltLinuxX64DirectFbConfiguration(
   def __init__(self,
                platform='linux-x64directfb',
                asan_enabled_by_default=False,
-               goma_supported_by_compiler=True):
+               goma_supported_by_compiler=True,
+               sabi_json_path=None):
     super(CobaltLinuxX64DirectFbConfiguration,
           self).__init__(platform, asan_enabled_by_default,
-                         goma_supported_by_compiler)
+                         goma_supported_by_compiler, sabi_json_path)
 
   def GetTestFilters(self):
     filters = (
@@ -70,4 +71,5 @@ class CobaltLinuxX64DirectFbConfiguration(
 
 
 def CreatePlatformConfig():
-  return CobaltLinuxX64DirectFbConfiguration()
+  return CobaltLinuxX64DirectFbConfiguration(
+      sabi_json_path='starboard/evergreen/sabi/x64/sabi.json')

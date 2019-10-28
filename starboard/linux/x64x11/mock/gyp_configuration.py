@@ -18,9 +18,10 @@ from starboard.build import platform_configuration
 from starboard.tools import build
 from starboard.tools.testing import test_filter
 
+_SABI_JSON_PATH = 'starboard/evergreen/sabi/x64/sabi.json'
 
-class LinuxX64X11MockConfiguration(
-    platform_configuration.PlatformConfiguration):
+
+class LinuxX64X11MockConfiguration(platform_configuration.PlatformConfiguration):
   """Starboard mock platform configuration."""
 
   def GetBuildFormat(self):
@@ -54,6 +55,9 @@ class LinuxX64X11MockConfiguration(
         'CXX': self.host_compiler_environment['CXX_host'],
     })
     return env_variables
+
+  def GetPathToSabiJsonFile(self):
+    return _SABI_JSON_PATH
 
 
 def CreatePlatformConfig():

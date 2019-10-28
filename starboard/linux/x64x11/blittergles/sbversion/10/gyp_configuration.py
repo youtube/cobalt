@@ -16,10 +16,10 @@
 # though it may have been modified since its creation.
 """Starboard Linux X64X11 Blittergles Sbversion 10 platform configuration."""
 
-
 from starboard.linux.x64x11 import gyp_configuration as parent_configuration
 
 
 def CreatePlatformConfig():
   return parent_configuration.LinuxX64X11Configuration(
-      'linux-x64x11-blittergles-sbversion-10')
+      'linux-x64x11-blittergles-sbversion-10',
+      sabi_json_path='starboard/evergreen/sabi/x64/sabi.json')

@@ -31,9 +31,13 @@ class LinuxX64X11Configuration(shared_configuration.LinuxConfiguration):
   def __init__(self,
                platform_name='linux-x64x11',
                asan_enabled_by_default=True,
-               goma_supports_compiler=True):
+               goma_supports_compiler=True,
+               sabi_json_path=None):
     super(LinuxX64X11Configuration, self).__init__(
-        platform_name, asan_enabled_by_default, goma_supports_compiler)
+        platform_name,
+        asan_enabled_by_default,
+        goma_supports_compiler,
+        sabi_json_path=sabi_json_path)
 
   def GetTargetToolchain(self):
     return self.GetHostToolchain()
@@ -77,4 +81,5 @@ class LinuxX64X11Configuration(shared_configuration.LinuxConfiguration):
 
 
 def CreatePlatformConfig():
-  return LinuxX64X11Configuration()
+  return LinuxX64X11Configuration(
+      sabi_json_path='starboard/evergreen/sabi/x64/sabi.json')
