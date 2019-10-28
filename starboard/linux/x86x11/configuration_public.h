@@ -12,37 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// The Starboard configuration for Desktop x86 Linux. Other devices will have
+// specific Starboard implementations, even if they ultimately are running some
+// version of Linux.
+
+// Other source files should never include this header directly, but should
+// include the generic "starboard/configuration.h" instead.
+
 #ifndef STARBOARD_LINUX_X86X11_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_LINUX_X86X11_CONFIGURATION_PUBLIC_H_
-
-// --- Architecture Configuration --------------------------------------------
-
-// Whether the current platform is big endian. SB_IS_LITTLE_ENDIAN will be
-// automatically set based on this.
-#define SB_IS_BIG_ENDIAN 0
-
-// Whether the current platform is an ARM architecture.
-#define SB_IS_ARCH_ARM 0
-
-// Whether the current platform is a MIPS architecture.
-#define SB_IS_ARCH_MIPS 0
-
-// Whether the current platform is a PPC architecture.
-#define SB_IS_ARCH_PPC 0
-
-// Whether the current platform is an x86 architecture.
-#define SB_IS_ARCH_X86 1
-
-// Whether the current platform is a 32-bit architecture or 64-bit architecture.
-#define SB_IS_32_BIT 1
-#define SB_IS_64_BIT 0
-
-// Whether the current platform's pointers are 32-bit or 64-bit.
-// Whether the current platform's longs are 32-bit or 64-bit.
-#define SB_HAS_32_BIT_POINTERS 1
-#define SB_HAS_32_BIT_LONG 1
-#define SB_HAS_64_BIT_POINTERS 0
-#define SB_HAS_64_BIT_LONG 0
 
 // Configuration parameters that allow the application to make some general
 // compile-time decisions with respect to the the number of cores likely to be

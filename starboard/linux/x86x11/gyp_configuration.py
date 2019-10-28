@@ -24,7 +24,8 @@ class LinuxX86Configuration(parent_configuration.LinuxConfiguration):
   def __init__(self,
                platform_name='linux-x86x11',
                asan_enabled_by_default=True,
-               goma_supports_compiler=True):
+               goma_supports_compiler=True,
+               sabi_json_path=None):
     self.host_compiler_environment = {
         'CC_host': '/usr/bin/clang',
         'CXX_host': '/usr/bin/clang++',
@@ -32,10 +33,13 @@ class LinuxX86Configuration(parent_configuration.LinuxConfiguration):
         'ARFLAGS_host': 'rcs',
         'ARTHINFLAGS_host': 'rcsT',
     }
-    super(LinuxX86Configuration,
-          self).__init__(platform_name, asan_enabled_by_default,
-                         goma_supports_compiler)
+    super(LinuxX86Configuration, self).__init__(
+        platform_name,
+        asan_enabled_by_default,
+        goma_supports_compiler,
+        sabi_json_path)
 
 
 def CreatePlatformConfig():
-  return LinuxX86Configuration()
+  return LinuxX86Configuration(
+      sabi_json_path='starboard/evergreen/sabi/ia32/sabi.json')
