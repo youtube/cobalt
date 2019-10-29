@@ -20,7 +20,7 @@ from starboard.linux.x64x11 import gyp_configuration as parent_configuration
 
 
 class LinuxX64X11BlitterglesSbversion6Configuration(
-    parent_configuration.LinuxX64X11Configuration('linux-x64x11-blittergles')):
+    parent_configuration.LinuxX64X11Configuration):
 
   def GetVariables(self, config_name):
     variables = super(LinuxX64X11BlitterglesSbversion6Configuration,
@@ -35,5 +35,5 @@ class LinuxX64X11BlitterglesSbversion6Configuration(
 
 
 def CreatePlatformConfig():
-  return parent_configuration.LinuxX64X11Configuration(
+  return LinuxX64X11BlitterglesSbversion6Configuration(
       'linux-x64x11-blittergles-sbversion-6')
