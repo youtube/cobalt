@@ -4,6 +4,22 @@
 
 {
   'conditions': [
+    ['clang==1', {
+      'target_defaults': {
+        'cflags': [
+          # protobuf-3 contains a few functions that are unused.
+          '-Wno-unused-function',
+          # protobuf-3 mixes generated enum types.
+          '-Wno-enum-compare-switch',
+        ],
+        'cflags_host': [
+          # protobuf-3 contains a few functions that are unused.
+          '-Wno-unused-function',
+          # protobuf-3 mixes generated enum types.
+          '-Wno-enum-compare-switch',
+        ]
+      },
+    }],
     ['use_system_protobuf==0', {
       'conditions': [
         ['OS=="win"', {
@@ -42,14 +58,6 @@
           'includes': [
             'protobuf_lite.gypi',
           ],
-          'variables': {
-            'clang_warning_flags': [
-              # protobuf-3 contains a few functions that are unused.
-              '-Wno-unused-function',
-              # protobuf-3 mixes generated enum types.
-              '-Wno-enum-compare-switch',
-            ],
-          },
           # Required for component builds. See http://crbug.com/172800.
           'defines': [
             'LIBPROTOBUF_EXPORTS',
@@ -80,12 +88,6 @@
           'includes': [
             'protobuf_lite.gypi',
           ],
-          'variables': {
-            'clang_warning_flags': [
-              # protobuf-3 contains a few functions that are unused.
-              '-Wno-unused-function',
-            ],
-          },
           'sources': [
             'src/google/protobuf/any.cc',
             'src/google/protobuf/any.h',
@@ -404,12 +406,6 @@
             "src/google/protobuf/compiler/zip_writer.cc",
             "src/google/protobuf/compiler/zip_writer.h",
           ],
-          'variables': {
-            'clang_warning_flags': [
-              # protobuf-3 contains a few functions that are unused.
-              '-Wno-unused-function',
-            ],
-          },
           'dependencies': [
             'protobuf_full_do_not_use',
           ],
