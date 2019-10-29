@@ -24,8 +24,8 @@
     # the preprocessor to assemble an include file path, so we have to do
     # the concatenation here in GYP.
     # http://stackoverflow.com/questions/29601786/c-preprocessor-building-a-path-string
-    'GLIMP_EGLPLATFORM_INCLUDE="../../<(target_arch)/eglplatform_public.h"',
-    'GLIMP_KHRPLATFORM_INCLUDE="../../<(target_arch)/khrplatform_public.h"',
+    'GLIMP_EGLPLATFORM_INCLUDE="../../<(sb_target_platform)/eglplatform_public.h"',
+    'GLIMP_KHRPLATFORM_INCLUDE="../../<(sb_target_platform)/khrplatform_public.h"',
     # Uncomment the define below to enable and use tracing inside glimp.
     # 'ENABLE_GLIMP_TRACING',
 ],
