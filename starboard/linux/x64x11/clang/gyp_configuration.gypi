@@ -14,7 +14,7 @@
 
 {
   'includes': [
-    '../libraries.gypi',
     '../../shared/gyp_configuration.gypi',
+    '../../shared/libraries.gypi',
   ],
 }
