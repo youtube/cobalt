@@ -33,15 +33,8 @@ int (*pa_context_connect)(pa_context*,
                           pa_context_flags_t,
                           const pa_spawn_api*) = NULL;
 void (*pa_context_disconnect)(pa_context*) = NULL;
-pa_cvolume* (*pa_cvolume_set)(pa_cvolume*, unsigned, pa_volume_t) = NULL;
-uint32_t (*pa_stream_get_index)(const pa_stream*) = NULL;
 pa_context_state_t (*pa_context_get_state)(pa_context*) = NULL;
 pa_context* (*pa_context_new)(pa_mainloop_api*, const char*) = NULL;
-pa_operation* (*pa_context_set_sink_input_volume)(pa_context*,
-                                                  uint32_t,
-                                                  const pa_cvolume*,
-                                                  pa_context_success_cb_t,
-                                                  void*) = NULL;
 void (*pa_context_set_state_callback)(pa_context*,
                                       pa_context_notify_cb_t,
                                       void*) = NULL;
@@ -114,10 +107,8 @@ bool pulse_load_library() {
   INITSYMBOL(pa_context_disconnect);
   INITSYMBOL(pa_context_get_state);
   INITSYMBOL(pa_context_new);
-  INITSYMBOL(pa_context_set_sink_input_volume)
   INITSYMBOL(pa_context_set_state_callback);
   INITSYMBOL(pa_context_unref);
-  INITSYMBOL(pa_cvolume_set);
   INITSYMBOL(pa_frame_size);
   INITSYMBOL(pa_mainloop_free);
   INITSYMBOL(pa_mainloop_get_api);
@@ -127,7 +118,6 @@ bool pulse_load_library() {
   INITSYMBOL(pa_stream_connect_playback);
   INITSYMBOL(pa_stream_cork);
   INITSYMBOL(pa_stream_disconnect);
-  INITSYMBOL(pa_stream_get_index);
   INITSYMBOL(pa_stream_get_state);
   INITSYMBOL(pa_stream_get_time);
   INITSYMBOL(pa_stream_is_corked);
