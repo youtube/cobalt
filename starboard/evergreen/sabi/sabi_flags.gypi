@@ -64,6 +64,13 @@
           '-target', 'x86_64-unknown-linux-elf',
         ],
       }],
+      # ia32
+      ['target_arch=="ia32"', {
+        'compiler_flags': [
+          '-march=i686',
+          '-target', 'i686-unknown-unknown-elf',
+        ],
+      }],
     ],
   },
 }

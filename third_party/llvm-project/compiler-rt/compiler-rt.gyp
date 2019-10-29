@@ -89,6 +89,14 @@
             'lib/builtins/trunctfsf2.c',
           ],
         }],
+        ['sb_evergreen == 1 and target_arch == "ia32"', {
+          'sources': [
+            'lib/builtins/i386/divdi3.S',
+            'lib/builtins/i386/moddi3.S',
+            'lib/builtins/i386/udivdi3.S',
+            'lib/builtins/i386/umoddi3.S',
+          ],
+        }],
       ]
     }
   ]
