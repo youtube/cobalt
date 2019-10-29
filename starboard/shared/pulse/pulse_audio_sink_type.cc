@@ -240,12 +240,8 @@ bool PulseAudioSink::WriteFrameIfNecessary(pa_context* context) {
     pa_cvolume_set(
         &cvol, channels_,
         (PA_VOLUME_NORM - PA_VOLUME_MUTED) * volume_.load() + PA_VOLUME_MUTED);
-    uint32_t sink_input_index = pa_stream_get_index(stream_);
-    SB_DCHECK(sink_input_index != PA_INVALID_INDEX);
-    pa_operation* op = pa_context_set_sink_input_volume(
-        context, sink_input_index, &cvol, NULL, NULL);
-    SB_DCHECK(op);
-    pa_operation_unref(op);
+    pa_context_set_sink_input_volume(context, pa_stream_get_index(stream_),
+                                     &cvol, NULL, NULL);
   }
   bool pulse_paused = pa_stream_is_corked(stream_) == 1;
   // Calculate consumed frames.
