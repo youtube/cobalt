@@ -20,6 +20,7 @@
 
 #include "base/callback.h"
 #include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/math/size.h"
 #include "cobalt/media/base/video_frame_provider.h"
 #include "cobalt/media/media_module.h"
 #include "cobalt/media/player/web_media_player.h"
@@ -39,11 +40,12 @@ class WebMediaPlayerHelper {
   // Ctor to create an adaptive pipeline.  |open_cb| will be called when the
   // ChunkDemuxer is ready to add source buffers.
   WebMediaPlayerHelper(MediaModule* media_module,
-                       const ChunkDemuxerOpenCB& chunk_demuxer_open_cb);
+                       const ChunkDemuxerOpenCB& chunk_demuxer_open_cb,
+                       const math::Size& viewport_size);
   // Ctor to create a progressive pipeline.
   WebMediaPlayerHelper(MediaModule* media_module,
                        loader::FetcherFactory* fetcher_factory,
-                       const GURL& video_url);
+                       const GURL& video_url, const math::Size& viewport_size);
   ~WebMediaPlayerHelper();
 
   SbDecodeTarget GetCurrentDecodeTarget() const;

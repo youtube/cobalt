@@ -31,15 +31,19 @@ base::AtomicSequenceNumber s_z_index;
 void SbPlayerSetBoundsHelper::SetPlayer(StarboardPlayer* player) {
   base::AutoLock auto_lock(lock_);
   player_ = player;
+  if (player_ && rect_.has_value()) {
+    player_->SetBounds(s_z_index.GetNext(), rect_.value());
+  }
 }
 
 bool SbPlayerSetBoundsHelper::SetBounds(const gfx::Rect& rect) {
   base::AutoLock auto_lock(lock_);
-  if (!player_) {
-    return false;
+  rect_ = rect;
+  if (player_) {
+    player_->SetBounds(s_z_index.GetNext(), rect_.value());
   }
-  player_->SetBounds(s_z_index.GetNext(), rect);
-  return true;
+
+  return player_ != nullptr;
 }
 
 }  // namespace media
