@@ -100,11 +100,10 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
           'SbDrmTest.AnySupportedKeySystems',
       ],
       'player_filter_tests': [
-          # TODO: debug these failures.
+          # The implementations for the raspberry pi (0 and 2) are incomplete
+          # and not meant to be a reference implementation. As such we will
+          # not repair these failing tests for now.
           'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput/0',
           'VideoDecoderTests/VideoDecoderTest.MultipleResets/0',
-          'VideoDecoderTests/VideoDecoderTest'
-          '.MultipleValidInputsAfterInvalidKeyFrame/*',
-          'VideoDecoderTests/VideoDecoderTest.MultipleInvalidInput/*',
       ],
   }
