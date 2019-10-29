@@ -42,7 +42,9 @@ class Raspi0PlatformConfig(shared_configuration.RaspiPlatformConfig):
           'SbPlayerTest.MultiPlayer',  # crashes
       ],
       'player_filter_tests': [
-          #TODO: debug these failures
+          # The implementation for the raspberry pi 0 is incomplete and not
+          # meant to be a reference implementation. As such we will not repair
+          # these failing tests for now.
           'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/0',
           'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull/0',
           'VideoDecoderTests/VideoDecoderTest.MultipleInputs/0',
