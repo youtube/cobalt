@@ -31,6 +31,10 @@
     'cobalt_splash_screen_file': '<(DEPTH)/cobalt/browser/splash_screen/youtube_splash_screen.html',
     'fallback_splash_screen_url': 'file:///cobalt/browser/splash_screen/youtube_splash_screen.html',
 
+    # MSVS has a hard limit of 65535 bytes per string and the embedded builtins which is a very long
+    # string of assembly can not be compiled. Change this if we can switch to clang someday.
+    'cobalt_v8_enable_embedded_builtins': 0,
+
     # Platform-specific implementations to compile into cobalt.
     'cobalt_platform_dependencies': [
       '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
