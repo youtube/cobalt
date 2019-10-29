@@ -47,6 +47,7 @@
         ],
         'common_clang_flags': [
 	  '-target', 'i386-unknown-linux-gnu',
+          '-msse2',
           '-Werror',
           '-fcolor-diagnostics',
           # Default visibility to hidden, to enable dead stripping.
