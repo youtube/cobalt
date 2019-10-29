@@ -98,14 +98,6 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
   __FILTERED_TESTS = {  # pylint: disable=invalid-name
       'nplb': [
           'SbDrmTest.AnySupportedKeySystems',
-          # The RasPi test devices don't have access to an IPV6 network, so
-          # disable the related tests.
-          'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
-          '.SunnyDayDestination/1',
-          'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
-          '.SunnyDaySourceForDestination/1',
-          'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
-          '.SunnyDaySourceNotLoopback/1',
       ],
       'player_filter_tests': [
           # TODO: debug these failures.
