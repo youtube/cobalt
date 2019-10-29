@@ -11,12 +11,20 @@
           '-Wno-unused-function',
           # protobuf-3 mixes generated enum types.
           '-Wno-enum-compare-switch',
+          # Used by older version of clang.
+          '-Wno-enum-compare',
+          # Older version of clang don't have -Wno-enum-compare-switch
+          '-Wno-unknown-warning-option',
         ],
         'cflags_host': [
           # protobuf-3 contains a few functions that are unused.
           '-Wno-unused-function',
           # protobuf-3 mixes generated enum types.
           '-Wno-enum-compare-switch',
+          # Used by older version of clang.
+          '-Wno-enum-compare',
+          # Older version of clang don't have -Wno-enum-compare-switch
+          '-Wno-unknown-warning-option',
         ]
       },
     }],
