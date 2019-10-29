@@ -36,9 +36,9 @@
   },
 
   'includes': [
-    'enable_glx_via_angle.gypi',
-    'libraries.gypi',
     '../shared/compiler_flags.gypi',
+    '../shared/enable_glx_via_angle.gypi',
     '../shared/gyp_configuration.gypi',
+    '../shared/libraries.gypi',
   ],
 }

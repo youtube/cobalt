@@ -41,9 +41,9 @@
   },
 
   'includes': [
-    '<(DEPTH)/starboard/linux/x64x11/enable_glx_via_angle.gypi',
-    '<(DEPTH)/starboard/linux/x64x11/libraries.gypi',
     'compiler_flags.gypi',
+    '<(DEPTH)/starboard/linux/shared/enable_glx_via_angle.gypi',
     '<(DEPTH)/starboard/linux/shared/gyp_configuration.gypi',
+    '<(DEPTH)/starboard/linux/shared/libraries.gypi',
   ],
 }
