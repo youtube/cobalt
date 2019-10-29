@@ -82,9 +82,11 @@
         '<(DEPTH)/starboard/shared/blittergles/shader_program.h',
         '<(DEPTH)/starboard/shared/starboard/blitter_blit_rect_to_rect_tiled.cc',
         '<(DEPTH)/starboard/shared/starboard/blitter_blit_rects_to_rects.cc',
+        '<(DEPTH)/starboard/shared/stub/system_gles.cc',
       ],
       'sources!': [
         '<@(blitter_stub_sources)',
+        '<(DEPTH)/starboard/shared/gles/system_gles2.cc',
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when
