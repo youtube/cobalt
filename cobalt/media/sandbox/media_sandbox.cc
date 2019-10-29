@@ -53,6 +53,9 @@ class MediaSandbox::Impl {
   render_tree::ResourceProvider* GetResourceProvider() {
     return renderer_module_->pipeline()->GetResourceProvider();
   }
+  math::Size GetViewportSize() const {
+    return math::Size(kViewportWidth, kViewportHeight);
+  }
 
  private:
   void SetupAndSubmitScene();
@@ -154,6 +157,11 @@ loader::FetcherFactory* MediaSandbox::GetFetcherFactory() {
 render_tree::ResourceProvider* MediaSandbox::resource_provider() {
   DCHECK(impl_);
   return impl_->GetResourceProvider();
+}
+
+math::Size MediaSandbox::GetViewportSize() const {
+  DCHECK(impl_);
+  return impl_->GetViewportSize();
 }
 
 }  // namespace sandbox
