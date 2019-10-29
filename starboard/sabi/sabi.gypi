@@ -125,7 +125,7 @@
       }],
       # TODO: Remove when all platforms have adopted the ABI manifest.
       ['target_arch=="x64" or target_arch=="ia32"', {
-        'defines': ['SB_IS_ARCH_X86'],
+        'defines': ['SB_IS_ARCH_X86=1'],
       }],
     ],
   },
