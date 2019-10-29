@@ -20,10 +20,13 @@
   'includes': [
     '../../../../../third_party/skia/gyp/core.gypi',
     '../../../../../third_party/skia/gyp/effects.gypi',
+    '../../../../../third_party/skia/gyp/gpu.gypi',
     '../../../../../third_party/skia/gyp/utils.gypi',
   ],
 
   'sources': [
+    '<@(skia_gpu_sources)',
+    '<@(skia_native_gpu_sources)',
     '<(DEPTH)/third_party/skia/src/codec/SkBmpBaseCodec.cpp',
     '<(DEPTH)/third_party/skia/src/codec/SkBmpCodec.cpp',
     '<(DEPTH)/third_party/skia/src/codec/SkBmpMaskCodec.cpp',
@@ -179,15 +182,6 @@
     ['OS=="starboard"', {
       'sources!': [
         '<(DEPTH)/third_party/skia/src/ports/SkMemory_malloc.cpp',
-      ],
-    }],
-    ['gl_type != "none"', {
-      'includes': [
-        '../../../../../third_party/skia/gyp/gpu.gypi',
-      ],
-      'sources': [
-        '<@(skia_gpu_sources)',
-        '<@(skia_native_gpu_sources)',
       ],
     }],
   ],
