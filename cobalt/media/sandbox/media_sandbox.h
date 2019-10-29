@@ -21,6 +21,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/time/time.h"
 #include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/math/size.h"
 #include "cobalt/media/media_module.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
@@ -44,6 +45,7 @@ class MediaSandbox {
   MediaModule* GetMediaModule();
   loader::FetcherFactory* GetFetcherFactory();
   render_tree::ResourceProvider* resource_provider();
+  math::Size GetViewportSize() const;
 
  private:
   class Impl;

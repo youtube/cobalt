@@ -167,10 +167,10 @@ class Application {
       return;
     }
 
-    player_helper_.reset(
-        new WebMediaPlayerHelper(media_sandbox_.GetMediaModule(),
-                                 base::Bind(&Application::OnChunkDemuxerOpened,
-                                            base::Unretained(this))));
+    player_helper_.reset(new WebMediaPlayerHelper(
+        media_sandbox_.GetMediaModule(),
+        base::Bind(&Application::OnChunkDemuxerOpened, base::Unretained(this)),
+        media_sandbox_.GetViewportSize()));
 
     // |chunk_demuxer_| will be set inside OnChunkDemuxerOpened()
     // asynchronously during initialization of |player_helper_|.  Wait until
@@ -219,10 +219,10 @@ class Application {
       return;
     }
 
-    player_helper_.reset(
-        new WebMediaPlayerHelper(media_sandbox_.GetMediaModule(),
-                                 base::Bind(&Application::OnChunkDemuxerOpened,
-                                            base::Unretained(this))));
+    player_helper_.reset(new WebMediaPlayerHelper(
+        media_sandbox_.GetMediaModule(),
+        base::Bind(&Application::OnChunkDemuxerOpened, base::Unretained(this)),
+        media_sandbox_.GetViewportSize()));
 
     // |chunk_demuxer_| will be set inside OnChunkDemuxerOpened()
     // asynchronously during initialization of |player_helper_|.  Wait until
@@ -263,7 +263,7 @@ class Application {
 
     player_helper_.reset(new WebMediaPlayerHelper(
         media_sandbox_.GetMediaModule(), media_sandbox_.GetFetcherFactory(),
-        guesstimator.progressive_url()));
+        guesstimator.progressive_url(), media_sandbox_.GetViewportSize()));
     player_ = player_helper_->player();
 
     media_sandbox_.RegisterFrameCB(

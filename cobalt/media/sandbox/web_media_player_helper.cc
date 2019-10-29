@@ -16,6 +16,7 @@
 
 #include "cobalt/media/sandbox/web_media_player_helper.h"
 
+#include "cobalt/math/rect.h"
 #include "cobalt/media/fetcher_buffered_data_source.h"
 
 namespace cobalt {
@@ -51,7 +52,6 @@ class WebMediaPlayerHelper::WebMediaPlayerClientStub
   }
   std::string SourceURL() const override { return ""; }
   std::string MaxVideoCapabilities() const override { return std::string(); };
-  bool PreferDecodeToTexture() { return true; }
 
   void EncryptedMediaInitDataEncountered(EmeInitDataType, const unsigned char*,
                                          unsigned) override {}
@@ -60,17 +60,23 @@ class WebMediaPlayerHelper::WebMediaPlayerClientStub
 };
 
 WebMediaPlayerHelper::WebMediaPlayerHelper(MediaModule* media_module,
-                                           const ChunkDemuxerOpenCB& open_cb)
+                                           const ChunkDemuxerOpenCB& open_cb,
+                                           const math::Size& viewport_size)
     : client_(new WebMediaPlayerClientStub(open_cb)),
       player_(media_module->CreateWebMediaPlayer(client_)) {
   player_->SetRate(1.0);
   player_->LoadMediaSource();
   player_->Play();
+
+  auto set_bounds_cb = player_->GetSetBoundsCB();
+  if (!set_bounds_cb.is_null()) {
+    set_bounds_cb.Run(math::Rect(viewport_size));
+  }
 }
 
 WebMediaPlayerHelper::WebMediaPlayerHelper(
     MediaModule* media_module, loader::FetcherFactory* fetcher_factory,
-    const GURL& video_url)
+    const GURL& video_url, const math::Size& viewport_size)
     : client_(new WebMediaPlayerClientStub),
       player_(media_module->CreateWebMediaPlayer(client_)) {
   player_->SetRate(1.0);
@@ -80,6 +86,11 @@ WebMediaPlayerHelper::WebMediaPlayerHelper(
       loader::kNoCORSMode, loader::Origin()));
   player_->LoadProgressive(video_url, std::move(data_source));
   player_->Play();
+
+  auto set_bounds_cb = player_->GetSetBoundsCB();
+  if (!set_bounds_cb.is_null()) {
+    set_bounds_cb.Run(math::Rect(viewport_size));
+  }
 }
 
 WebMediaPlayerHelper::~WebMediaPlayerHelper() {

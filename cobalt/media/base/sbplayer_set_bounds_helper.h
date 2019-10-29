@@ -16,6 +16,7 @@
 #define COBALT_MEDIA_BASE_SBPLAYER_SET_BOUNDS_HELPER_H_
 
 #include "base/memory/ref_counted.h"
+#include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "ui/gfx/rect.h"
 
@@ -27,14 +28,15 @@ class StarboardPlayer;
 class SbPlayerSetBoundsHelper
     : public base::RefCountedThreadSafe<SbPlayerSetBoundsHelper> {
  public:
-  SbPlayerSetBoundsHelper() : player_(NULL) {}
+  SbPlayerSetBoundsHelper() {}
 
   void SetPlayer(StarboardPlayer* player);
   bool SetBounds(const gfx::Rect& rect);
 
  private:
   base::Lock lock_;
-  StarboardPlayer* player_;
+  StarboardPlayer* player_ = nullptr;
+  base::Optional<gfx::Rect> rect_;
 
   DISALLOW_COPY_AND_ASSIGN(SbPlayerSetBoundsHelper);
 };
