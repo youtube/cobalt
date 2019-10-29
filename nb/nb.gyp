@@ -74,7 +74,7 @@
             '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
           ],
         }],
-        ['target_arch == "ps4"', {
+        ['sb_target_platform == "ps4"', {
           'sources': [
             'kernel_contiguous_allocator_ps4.cc',
             'kernel_contiguous_allocator_ps4.h',

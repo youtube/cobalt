@@ -110,15 +110,6 @@
         ],
       }],
 
-      # TODO: Remove once ps4 configuration todos are addressed.
-      ['target_arch == "ps4" or sb_target_platform == "ps4"', {
-        'common_defines': [
-          'JS_CPU_X64=1',
-          'JS_CODEGEN_X64=1',
-          'JS_PUNBOX64=1',
-        ],
-      }],
-
       ['cobalt_config != "gold"', {
         'common_defines': [
           'JS_TRACE_LOGGING=1',
@@ -227,8 +218,7 @@
             'js/src/jit/x86/Trampoline-x86.cpp',
           ],
         }],
-        # TODO: Remove "* == ps4" once ps4 configuration todos are addressed.
-        ['target_arch == "x64" or target_arch == "ps4" or sb_target_platform == "ps4"', {
+        ['target_arch == "x64"', {
           'sources': [
             'js/src/jit/x64/Assembler-x64.cpp',
             'js/src/jit/x64/Bailouts-x64.cpp',
