@@ -228,13 +228,15 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # Does not use the ADBCommandBuilder class because this command should be
     # run without targeting a specific device.
     p = subprocess.Popen([_ADB, 'connect', '{}:5555'.format(self.device_id)],
-                         stderr=_DEV_NULL, stdout=subprocess.PIPE,
+                         stderr=subprocess.STDOUT, stdout=subprocess.PIPE,
                          close_fds=True)
     result = p.stdout.readlines()[0]
     p.wait()
 
     if 'connected to' not in result:
       sys.stderr.write('Failed to connect to {}\n'.format(self.device_id))
+      sys.stderr.write('connect command exited with code {} '
+                       'and returned: {}'.format(p.returncode, result))
 
   def _LaunchCrowIfNecessary(self):
     if self.device_id:
