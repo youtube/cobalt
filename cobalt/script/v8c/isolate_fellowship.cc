@@ -24,6 +24,7 @@
 #include "cobalt/script/v8c/v8c_tracing_controller.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/file.h"
+#include "starboard/memory.h"
 
 namespace cobalt {
 namespace script {
@@ -44,7 +45,10 @@ const char* kV8CommandLineFlags[] = {"--optimize_for_size",
                                      "--noexpose_wasm",
                                      "--novalidate_asm",
 #if defined(COBALT_GC_ZEAL)
-                                     "--gc_interval=1200"
+                                     "--gc_interval=1200",
+#endif
+#if !defined(ENGINE_SUPPORTS_JIT)
+                                     "--jitless"
 #endif
 };
 
@@ -109,7 +113,8 @@ void IsolateFellowship::InitializeStartupData() {
     // If there is no cache directory, then just save the startup data in
     // memory.
     LOG(WARNING) << "Unable to read/write V8 startup snapshot data to file.";
-    startup_data = v8::V8::CreateSnapshotDataBlob();
+    startup_data = v8::SnapshotCreator().CreateBlob(
+        v8::SnapshotCreator::FunctionCodeHandling::kKeep);
     return;
   }
 
@@ -194,7 +199,8 @@ void IsolateFellowship::InitializeStartupData() {
   // to write it.
   if (!read_file) {
     ([&]() {
-      startup_data = v8::V8::CreateSnapshotDataBlob();
+      startup_data = v8::SnapshotCreator().CreateBlob(
+          v8::SnapshotCreator::FunctionCodeHandling::kKeep);
       if (startup_data.data == nullptr) {
         // Trust the V8 API, but verify.  |raw_size| should also be 0.
         DCHECK_EQ(startup_data.raw_size, 0);

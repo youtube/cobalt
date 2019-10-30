@@ -123,6 +123,8 @@ EmbeddedTargetOs ToEmbeddedTargetOs(const char* s) {
     return EmbeddedTargetOs::kMac;
   } else if (string == "win") {
     return EmbeddedTargetOs::kWin;
+  } else if (string == "starboard") {
+    return EmbeddedTargetOs::kStarboard;
   } else {
     return EmbeddedTargetOs::kGeneric;
   }
@@ -134,6 +136,12 @@ std::unique_ptr<PlatformEmbeddedFileWriterBase> NewPlatformEmbeddedFileWriter(
     const char* target_arch, const char* target_os) {
   auto embedded_target_arch = ToEmbeddedTargetArch(target_arch);
   auto embedded_target_os = ToEmbeddedTargetOs(target_os);
+
+  if (embedded_target_os == EmbeddedTargetOs::kStarboard) {
+    // target OS is "Starboard" for all starboard build so we need to
+    // use host OS macros to decide which writer to use.
+    embedded_target_os = ToEmbeddedTargetOs(nullptr);
+  }
 
   if (embedded_target_os == EmbeddedTargetOs::kAIX) {
     return base::make_unique<PlatformEmbeddedFileWriterAIX>(

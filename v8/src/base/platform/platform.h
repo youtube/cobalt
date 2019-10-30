@@ -70,6 +70,9 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
 
 #elif defined(__APPLE__) && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
 
+// tvOS simulator does not use intptr_t as TLS key.
+#if !defined(V8_OS_STARBOARD) || !defined(TARGET_OS_SIMULATOR)
+
 #define V8_FAST_TLS_SUPPORTED 1
 
 extern V8_BASE_EXPORT intptr_t kMacTlsBaseOffset;
@@ -89,6 +92,8 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
 #endif
   return result;
 }
+
+#endif  // !defined(V8_OS_STARBOARD) || !defined(TARGET_OS_SIMULATOR)
 
 #endif
 
