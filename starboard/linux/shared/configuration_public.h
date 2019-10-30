@@ -319,8 +319,10 @@
 // The maximum number of thread local storage keys supported by this platform.
 #define SB_MAX_THREAD_LOCAL_KEYS 512
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The maximum length of the name for a thread, including the NULL-terminator.
 #define SB_MAX_THREAD_NAME_LENGTH 16
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 // --- Tuneable Parameters ---------------------------------------------------
 

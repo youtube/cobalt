@@ -21,6 +21,7 @@
 #include "starboard/character.h"
 #include "starboard/condition_variable.h"
 #include "starboard/configuration.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/cpu_features.h"
 #include "starboard/cryptography.h"
 #include "starboard/decode_target.h"
@@ -454,6 +455,10 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbThreadSamplerThaw);
   REGISTER_SYMBOL(SbWindowGetDiagonalSizeInInches);
 #endif  // SB_API_VERSION >= 11
+
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+  REGISTER_SYMBOL(kSbMaxThreadNameLength);
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 }
 
 const void* ExportedSymbols::Lookup(const char* name) {

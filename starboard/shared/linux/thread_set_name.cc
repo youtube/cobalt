@@ -22,13 +22,15 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
+#include "starboard/configuration_constants.h"
+
 void SbThreadSetName(const char* name) {
   // We don't want to rename the main thread.
   if (SbThreadGetId() == getpid()) {
     return;
   }
 
-  char buffer[SB_MAX_THREAD_NAME_LENGTH] = {};
+  char buffer[kSbMaxThreadNameLength];
 
   if (SbStringGetLength(name) >= SB_ARRAY_SIZE_INT(buffer)) {
     SbStringCopy(buffer, name, SB_ARRAY_SIZE_INT(buffer));
