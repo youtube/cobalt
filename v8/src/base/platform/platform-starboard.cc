@@ -248,8 +248,12 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
       new_protection = SbMemoryMapFlags(kSbMemoryMapProtectReadWrite);
       break;
     case OS::MemoryPermission::kReadExecute:
+#if SB_CAN(MAP_EXECUTABLE_MEMORY)
       new_protection = SbMemoryMapFlags(kSbMemoryMapProtectRead |
                                         kSbMemoryMapProtectExec);
+#else
+      CHECK(false);
+#endif
       break;
     default:
       // All other types are not supported by Starboard.

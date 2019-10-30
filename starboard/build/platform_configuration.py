@@ -256,13 +256,6 @@ class PlatformConfiguration(object):
         # support JIT.
         'javascript_engine': 'v8',
 
-        # Disable JIT and run in interpreter-only mode by default. It can be
-        # set to 1 to run in JIT mode.  For SpiderMonkey in particular, we
-        # have found that disabling JIT often results in faster JavaScript
-        # execution and lower memory usage.  Setting this to 0 for engine that
-        # requires JIT, or 1 on a platform that does not support JIT, is a
-        # usage error.
-        'cobalt_enable_jit': 1,
         'sabi_json_path': self.GetPathToSabiJsonFile(),
 
         # TODO: Remove these compatibility variables.

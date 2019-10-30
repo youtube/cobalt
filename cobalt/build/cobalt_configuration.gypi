@@ -238,6 +238,10 @@
     # Set to "true" to enable v8 snapshot generation at Cobalt build time.
     'cobalt_v8_buildtime_snapshot%': '<(cobalt_v8_buildtime_snapshot)',
 
+    # Some compiler can not compile with raw assembly(.S files) and v8
+    # converts asm to inline assembly for these platforms.
+    'cobalt_v8_emit_builtins_as_inline_asm%': 1,
+
     'cobalt_enable_quic%': 1,
 
     # Cache parameters
