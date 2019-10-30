@@ -15,6 +15,9 @@
 #include "starboard/shared/starboard/media/media_support_internal.h"
 
 #include "starboard/configuration.h"
+#if SB_API_VERSION >= 11
+#include "starboard/gles.h"
+#endif  // SB_API_VERSION >= 11
 #include "starboard/media.h"
 #include "starboard/shared/libaom/aom_library_loader.h"
 #include "starboard/shared/libde265/de265_library_loader.h"
@@ -61,18 +64,24 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
       return false;
     }
   }
-
 #endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
+
 #if SB_API_VERSION >= 10
-#if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
   if (decode_to_texture_required) {
-    return false;
+    bool has_gles_support = false;
+
+#if SB_API_VERSION >= 11
+    has_gles_support = SbGetGlesInterface();
+#elif SB_HAS(GLES2)
+    has_gles_support = true;
+#endif
+
+    if (!has_gles_support) {
+      return false;
+    }
+    // Assume that all GLES2 Linux platforms can play decode-to-texture video
+    // just as well as normal video.
   }
-#else
-  // Assume that all non-Blitter Linux platforms can play decode-to-texture
-  // video just as well as normal video.
-  SB_UNREFERENCED_PARAMETER(decode_to_texture_required);
-#endif  // SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
 #endif  // SB_API_VERSION >= 10
 
   return ((video_codec == kSbMediaVideoCodecAv1 && is_aom_supported()) ||
