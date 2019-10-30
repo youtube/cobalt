@@ -330,9 +330,6 @@
 // to not include here to decrease symbol pollution.
 #define SB_MAX_THREAD_LOCAL_KEYS 128
 
-// The maximum length of the name for a thread, including the NULL-terminator.
-#define SB_MAX_THREAD_NAME_LENGTH 16
-
 // --- Tuneable Parameters ---------------------------------------------------
 
 // Specifies the network receive buffer size in bytes, set via

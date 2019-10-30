@@ -80,6 +80,7 @@
         'bionic/private/bionic_macros.h',
         'bionic/private/ErrnoRestorer.h',
         'configuration_public.h',
+        'configuration_constants.cc',
         'decode_target_create.cc',
         'decode_target_create.h',
         'decode_target_get_info.cc',

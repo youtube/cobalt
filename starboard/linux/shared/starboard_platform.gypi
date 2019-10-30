@@ -31,6 +31,7 @@
       '<(DEPTH)/starboard/linux/shared/command_line_defaults.cc',
       '<(DEPTH)/starboard/linux/shared/command_line_defaults.h',
       '<(DEPTH)/starboard/linux/shared/configuration_public.h',
+      '<(DEPTH)/starboard/linux/shared/configuration_constants.cc',
       '<(DEPTH)/starboard/linux/shared/decode_target_get_info.cc',
       '<(DEPTH)/starboard/linux/shared/decode_target_internal.cc',
       '<(DEPTH)/starboard/linux/shared/decode_target_internal.h',

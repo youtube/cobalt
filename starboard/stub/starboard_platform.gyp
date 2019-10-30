@@ -24,6 +24,7 @@
         'application_stub.cc',
         'application_stub.h',
         'atomic_public.h',
+        'configuration_constants.cc',
         'main.cc',
         'thread_types_public.h',
         # Include private stubs, if present.
