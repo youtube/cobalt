@@ -16,6 +16,9 @@
 
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
+#if SB_API_VERSION >= 11
+#include "starboard/gles.h"
+#endif  // SB_API_VERSION >= 11
 #include "starboard/media.h"
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
 #include "starboard/shared/ffmpeg/ffmpeg_video_decoder.h"
@@ -159,9 +162,18 @@ bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
                                        SbDrmSystem drm_system) {
   SB_UNREFERENCED_PARAMETER(codec);
   SB_UNREFERENCED_PARAMETER(drm_system);
-#if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
-  return output_mode == kSbPlayerOutputModePunchOut;
+
+  bool has_gles_support = false;
+
+#if SB_API_VERSION >= 11
+  has_gles_support = SbGetGlesInterface();
+#elif SB_HAS(GLES2)
+  has_gles_support = true;
 #endif
+
+  if (!has_gles_support) {
+    return output_mode == kSbPlayerOutputModePunchOut;
+  }
 
 #if defined(SB_FORCE_DECODE_TO_TEXTURE_ONLY)
   // Starboard lib targets may not draw directly to the window, so punch through
