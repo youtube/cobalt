@@ -14,10 +14,10 @@
 
 #include "starboard/blitter.h"
 
-#if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION
+#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
 
 bool SbBlitterIsBlitterSupported() {
   return true;
 }
 
-#endif  // SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION
+#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
