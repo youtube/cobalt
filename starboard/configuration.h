@@ -187,6 +187,22 @@
 // undefined behavior when invoked on a locked mutex.
 #define SB_MUTEX_ACQUIRE_TRY_API_CHANGE_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Migrate the Starboard configuration variables from macros to extern consts.
+//
+// The migration allows Cobalt to make platform level decisions at runtime
+// instead of compile time which lets us create a more comprehensive cobalt
+// binary.
+//
+// A platform will define the extern constants declared in
+// "starboard/configuration_constants.h". The definitions are done in
+// "starboard/<PLATFORM_PATH>/configuration_constants.cc".
+//
+// The exact mapping between macros and extern variables can be found in
+// "starboard/shared/starboard/configuration_constants_compatibility_defines.h"
+// though the naming scheme is very nearly the same: the old SB_FOO macro will
+// always become the constant kSbFoo.
+#define SB_FEATURE_RUNTIME_CONFIGS_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
@@ -271,6 +287,14 @@ struct CompileAssert {};
 // starboard_base_target.gypi and passed in on the command line for all targets
 // and all configurations.
 #include STARBOARD_CONFIGURATION_INCLUDE
+
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
+// After SB_FEATURE_RUNTIME_CONFIGS_VERSION, we start to use runtime constants
+// instead of macros for certain platform dependent configurations. This file
+// substitutes configuration macros for the corresponding runtime constants so
+// we don't reference these constants when they aren't defined.
+#include "starboard/shared/starboard/configuration_constants_compatibility_defines.h"
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 // --- Overridable Helper Macros ---------------------------------------------
 
@@ -593,9 +617,22 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_MAX_THREAD_LOCAL_KEYS."
 #endif
 
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+
+#if defined(SB_MAX_THREAD_NAME_LENGTH)
+#error \
+    "SB_MAX_THREAD_NAME_LENGTH should not be defined in Starboard " \
+"versions 12 and later. Instead, define kSbMaxThreadNameLength in " \
+"starboard/<PLATFORM_PATH>/configuration_constants.cc."
+#endif
+
+#else  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+
 #if !defined(SB_MAX_THREAD_NAME_LENGTH)
 #error "Your platform must define SB_MAX_THREAD_NAME_LENGTH."
 #endif
+
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 #if (SB_API_VERSION < 12 && !defined(SB_HAS_MICROPHONE))
 #error \
