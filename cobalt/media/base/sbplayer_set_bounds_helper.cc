@@ -22,6 +22,9 @@ namespace media {
 
 namespace {
 // StaticAtomicSequenceNumber is safe to be initialized statically.
+//
+// Cobalt renderer renders from back to front, using a monotonically increasing
+// sequence guarantees that all video layers are correctly ordered on z axis.
 base::AtomicSequenceNumber s_z_index;
 }  // namespace
 
