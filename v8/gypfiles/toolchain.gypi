@@ -159,7 +159,7 @@
   ],
   'target_defaults': {
     'conditions': [
-      ['clang==1', {
+      ['clang==1 and host_os!="mac"', {
         'ldflags_host': [
           # mksnapshot can not be compiled on host machine with default clang
           # linker.
