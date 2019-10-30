@@ -42,7 +42,7 @@ std::unique_ptr<rasterizer::Rasterizer> CreateStubRasterizer(
 }
 #endif  // COBALT_FORCE_STUB_RASTERIZER
 
-#if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(GLES2)
+#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)
 std::unique_ptr<rasterizer::Rasterizer> CreateGLESSoftwareRasterizer(
     backend::GraphicsContext* graphics_context,
     const RendererModule::Options& options) {
@@ -77,9 +77,10 @@ std::unique_ptr<rasterizer::Rasterizer> CreateSkiaHardwareRasterizer(
           options.purge_skia_font_caches_on_destruction,
           options.force_deterministic_rendering));
 }
-#endif  // #if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(GLES2)
+#endif  // #if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION ||
+        // SB_HAS(GLES2)
 
-#if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
+#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(BLITTER)
 std::unique_ptr<rasterizer::Rasterizer> CreateBlitterSoftwareRasterizer(
     backend::GraphicsContext* graphics_context,
     const RendererModule::Options& options) {
@@ -99,14 +100,15 @@ std::unique_ptr<rasterizer::Rasterizer> CreateBlitterHardwareRasterizer(
           options.software_surface_cache_size_in_bytes,
           options.purge_skia_font_caches_on_destruction));
 }
-#endif  // SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
+#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION ||
+        // SB_HAS(BLITTER)
 
 }  // namespace
 
 RasterizerInfo GetDefaultRasterizerForPlatform() {
 #if COBALT_FORCE_STUB_RASTERIZER
   return {"stub", base::Bind(&CreateStubRasterizer)};
-#elif SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION
+#elif SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
   if (SbGetGlesInterface()) {
 #if COBALT_FORCE_SOFTWARE_RASTERIZER
     return {"gles-software", base::Bind(&CreateGLESSoftwareRasterizer)};
@@ -127,7 +129,7 @@ RasterizerInfo GetDefaultRasterizerForPlatform() {
     SB_DCHECK(false);
     return {};
   }
-#else   // SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION
+#else   // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
 #if SB_HAS(GLES2)
 #if COBALT_FORCE_SOFTWARE_RASTERIZER
   return {"gles-software", base::Bind(&CreateGLESSoftwareRasterizer)};
