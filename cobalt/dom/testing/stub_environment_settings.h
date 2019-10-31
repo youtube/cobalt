@@ -27,6 +27,7 @@ class StubEnvironmentSettings : public DOMSettings {
   explicit StubEnvironmentSettings(const Options& options = Options())
       : DOMSettings(0, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
                     nullptr, &null_debugger_hooks_, nullptr, options) {}
+  ~StubEnvironmentSettings() override {}
 
  private:
   base::NullDebuggerHooks null_debugger_hooks_;

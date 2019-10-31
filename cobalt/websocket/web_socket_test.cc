@@ -21,7 +21,7 @@
 #include "base/test/scoped_task_environment.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_exception.h"
-#include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/script_exception.h"
@@ -36,12 +36,9 @@ using cobalt::script::testing::MockExceptionState;
 namespace cobalt {
 namespace websocket {
 
-class FakeSettings : public dom::DOMSettings {
+class FakeSettings : public dom::testing::StubEnvironmentSettings {
  public:
-  FakeSettings()
-      : dom::DOMSettings(0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                         NULL),
-        base_("https://example.com") {
+  FakeSettings() : base_("https://example.com") {
     network_module_.reset(new network::NetworkModule());
     this->set_network_module(network_module_.get());
   }

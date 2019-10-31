@@ -29,6 +29,7 @@
 #include "base/synchronization/waitable_event.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/c_val.h"
+#include "cobalt/base/debugger_hooks.h"
 #include "cobalt/base/language.h"
 #include "cobalt/base/startup_timer.h"
 #include "cobalt/base/tokens.h"
@@ -615,7 +616,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
   media_session_client_ = media_session::MediaSessionClient::Create();
   media_session_client_->SetMediaPlayerFactory(data.web_media_player_factory);
 
-  system_caption_settings_ = new cobalt::dom::captions::SystemCaptionSettings();
+  system_caption_settings_ = new cobalt::dom::captions::SystemCaptionSettings(
+      environment_settings_.get());
 
   dom::Window::CacheCallback splash_screen_cache_callback =
       CacheUrlContentCallback(data.options.splash_screen_cache);

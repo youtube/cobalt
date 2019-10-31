@@ -83,7 +83,8 @@ class AudioContext : public dom::EventTarget {
   //
   // The AudioBuffer is representing the decoded PCM audio data.
   typedef script::CallbackFunction<void(
-      const scoped_refptr<AudioBuffer>& decoded_data)> DecodeSuccessCallback;
+      const scoped_refptr<AudioBuffer>& decoded_data)>
+      DecodeSuccessCallback;
   typedef script::ScriptValue<DecodeSuccessCallback> DecodeSuccessCallbackArg;
   typedef DecodeSuccessCallbackArg::Reference DecodeSuccessCallbackReference;
 
@@ -132,7 +133,8 @@ class AudioContext : public dom::EventTarget {
                        const DecodeErrorCallbackArg& error_handler);
 
   // Creates an AudioBufferSourceNode.
-  scoped_refptr<AudioBufferSourceNode> CreateBufferSource();
+  scoped_refptr<AudioBufferSourceNode> CreateBufferSource(
+      script::EnvironmentSettings* settings);
 
   // Creates a new, empty AudioBuffer object.
   scoped_refptr<AudioBuffer> CreateBuffer(uint32 num_of_channels, uint32 length,

@@ -31,8 +31,9 @@ typedef media::ShellAudioBus ShellAudioBus;
 
 // numberOfInputs  : 0
 // numberOfOutputs : 1
-AudioBufferSourceNode::AudioBufferSourceNode(AudioContext* context)
-    : AudioNode(context),
+AudioBufferSourceNode::AudioBufferSourceNode(
+    script::EnvironmentSettings* settings, AudioContext* context)
+    : AudioNode(settings, context),
       task_runner_(base::MessageLoop::current()->task_runner()),
       state_(kNone),
       read_index_(0),

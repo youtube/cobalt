@@ -19,7 +19,9 @@
 namespace cobalt {
 namespace xhr {
 
-XMLHttpRequestEventTarget::XMLHttpRequestEventTarget() {}
+XMLHttpRequestEventTarget::XMLHttpRequestEventTarget(
+    script::EnvironmentSettings* settings)
+    : EventTarget(settings) {}
 XMLHttpRequestEventTarget::~XMLHttpRequestEventTarget() {}
 
 const dom::EventTarget::EventListenerScriptValue*

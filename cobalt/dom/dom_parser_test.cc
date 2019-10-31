@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/dom/dom_parser.h"
+
 #include <memory>
 #include <string>
 
 #include "base/threading/platform_thread.h"
 #include "cobalt/dom/document.h"
-#include "cobalt/dom/dom_parser.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/testing/stub_css_parser.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/testing/stub_script_runner.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
@@ -34,6 +36,7 @@ class DOMParserTest : public ::testing::Test {
   DOMParserTest();
   ~DOMParserTest() override {}
 
+  testing::StubEnvironmentSettings environment_settings_;
   loader::FetcherFactory fetcher_factory_;
   loader::LoaderFactory loader_factory_;
   testing::StubCSSParser stub_css_parser_;
@@ -50,12 +53,12 @@ DOMParserTest::DOMParserTest()
           0 /* encoded_image_cache_capacity */, base::ThreadPriority::DEFAULT),
       dom_parser_parser_(new dom_parser::Parser()),
       html_element_context_(
-          &fetcher_factory_, &loader_factory_, &stub_css_parser_,
-          dom_parser_parser_.get(), NULL /* can_play_type_handler */,
-          NULL /* web_media_player_factory */, &stub_script_runner_,
-          NULL /* script_value_factory */, NULL /* media_source_registry */,
-          NULL /* resource_provider */, NULL /* animated_image_tracker */,
-          NULL /* image_cache */,
+          &environment_settings_, &fetcher_factory_, &loader_factory_,
+          &stub_css_parser_, dom_parser_parser_.get(),
+          NULL /* can_play_type_handler */, NULL /* web_media_player_factory */,
+          &stub_script_runner_, NULL /* script_value_factory */,
+          NULL /* media_source_registry */, NULL /* resource_provider */,
+          NULL /* animated_image_tracker */, NULL /* image_cache */,
           NULL /* reduced_image_cache_capacity_manager */,
           NULL /* remote_typeface_cache */, NULL /* mesh_cache */,
           NULL /* dom_stat_tracker */, "" /* language */,

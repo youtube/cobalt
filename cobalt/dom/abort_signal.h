@@ -19,6 +19,7 @@
 
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/event_target.h"
+#include "cobalt/script/environment_settings.h"
 
 namespace cobalt {
 namespace dom {
@@ -27,7 +28,8 @@ namespace dom {
 //    https://dom.spec.whatwg.org/#interface-AbortSignal
 class AbortSignal : public EventTarget {
  public:
-  AbortSignal() {}
+  explicit AbortSignal(script::EnvironmentSettings* settings)
+      : EventTarget(settings) {}
 
   // Web API: AbortSignal
   bool aborted() const { return aborted_; }

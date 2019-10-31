@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/dom/on_screen_keyboard.h"
+
+#include <memory>
 
 #include "base/callback.h"
 #include "base/compiler_specific.h"
@@ -25,9 +25,10 @@ namespace cobalt {
 namespace dom {
 
 OnScreenKeyboard::OnScreenKeyboard(
-    OnScreenKeyboardBridge* bridge,
+    script::EnvironmentSettings* settings, OnScreenKeyboardBridge* bridge,
     script::ScriptValueFactory* script_value_factory)
-    : bridge_(bridge),
+    : EventTarget(settings),
+      bridge_(bridge),
       script_value_factory_(script_value_factory),
       next_ticket_(0) {
   DCHECK(bridge_) << "OnScreenKeyboardBridge must not be NULL";

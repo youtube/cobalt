@@ -41,7 +41,6 @@
 // not supported, it will return false. If you try to write to it and doing so
 // is not supported, the value will silently not change.
 
-[Constructor]
 interface SystemCaptionSettings : EventTarget {
 
   // TODO: Make the functions for style properties return nullable enum types

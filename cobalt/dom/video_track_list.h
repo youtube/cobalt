@@ -21,6 +21,7 @@
 #include "cobalt/dom/html_media_element.h"
 #include "cobalt/dom/track_list_base.h"
 #include "cobalt/dom/video_track.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -32,8 +33,9 @@ class VideoTrackList : public TrackListBase<VideoTrack> {
  public:
   // Custom, not in any spec.
   //
-  explicit VideoTrackList(HTMLMediaElement* media_element)
-      : TrackListBase<VideoTrack>(media_element) {}
+  VideoTrackList(script::EnvironmentSettings* settings,
+                 HTMLMediaElement* media_element)
+      : TrackListBase<VideoTrack>(settings, media_element) {}
 
   // Web API: VideoTrackList
   //

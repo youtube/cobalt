@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/dom/event_target.h"
+
+#include <memory>
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/testing/mock_event_listener.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/script/testing/fake_script_value.h"
 #include "cobalt/script/testing/mock_exception_state.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -27,20 +28,25 @@ namespace cobalt {
 namespace dom {
 namespace {
 
+using script::testing::FakeScriptValue;
+using script::testing::MockExceptionState;
+using ::testing::_;
 using ::testing::AllOf;
 using ::testing::DoAll;
 using ::testing::Eq;
 using ::testing::InSequence;
 using ::testing::Invoke;
 using ::testing::InvokeWithoutArgs;
+using testing::MockEventListener;
 using ::testing::Pointee;
 using ::testing::Property;
 using ::testing::SaveArg;
 using ::testing::StrictMock;
-using ::testing::_;
-using script::testing::FakeScriptValue;
-using script::testing::MockExceptionState;
-using testing::MockEventListener;
+
+class EventTargetTest : public ::testing::Test {
+ protected:
+  testing::StubEnvironmentSettings environment_settings_;
+};
 
 base::Optional<bool> DispatchEventOnCurrentTarget(
     const scoped_refptr<script::Wrappable>, const scoped_refptr<Event>& event,
@@ -63,9 +69,10 @@ base::Optional<bool> DispatchEventOnCurrentTarget(
   return base::nullopt;
 }
 
-TEST(EventTargetTest, SingleEventListenerFired) {
+TEST_F(EventTargetTest, SingleEventListenerFired) {
   StrictMock<MockExceptionState> exception_state;
-  scoped_refptr<EventTarget> event_target = new EventTarget;
+  scoped_refptr<EventTarget> event_target =
+      new EventTarget(&environment_settings_);
   scoped_refptr<Event> event = new Event(base::Token("fired"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
@@ -76,9 +83,10 @@ TEST(EventTargetTest, SingleEventListenerFired) {
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
-TEST(EventTargetTest, SingleEventListenerNotFired) {
+TEST_F(EventTargetTest, SingleEventListenerNotFired) {
   StrictMock<MockExceptionState> exception_state;
-  scoped_refptr<EventTarget> event_target = new EventTarget;
+  scoped_refptr<EventTarget> event_target =
+      new EventTarget(&environment_settings_);
   scoped_refptr<Event> event = new Event(base::Token("fired"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
@@ -91,9 +99,10 @@ TEST(EventTargetTest, SingleEventListenerNotFired) {
 
 // Test if multiple event listeners of different event types can be added and
 // fired properly.
-TEST(EventTargetTest, MultipleEventListeners) {
+TEST_F(EventTargetTest, MultipleEventListeners) {
   StrictMock<MockExceptionState> exception_state;
-  scoped_refptr<EventTarget> event_target = new EventTarget;
+  scoped_refptr<EventTarget> event_target =
+      new EventTarget(&environment_settings_);
   scoped_refptr<Event> event = new Event(base::Token("fired"));
   std::unique_ptr<MockEventListener> event_listenerfired_1 =
       MockEventListener::Create();
@@ -120,9 +129,10 @@ TEST(EventTargetTest, MultipleEventListeners) {
 }
 
 // Test if event listener can be added and later removed.
-TEST(EventTargetTest, AddRemoveEventListener) {
+TEST_F(EventTargetTest, AddRemoveEventListener) {
   StrictMock<MockExceptionState> exception_state;
-  scoped_refptr<EventTarget> event_target = new EventTarget;
+  scoped_refptr<EventTarget> event_target =
+      new EventTarget(&environment_settings_);
   scoped_refptr<Event> event = new Event(base::Token("fired"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
@@ -144,9 +154,10 @@ TEST(EventTargetTest, AddRemoveEventListener) {
 }
 
 // Test if attribute event listener works.
-TEST(EventTargetTest, AttributeListener) {
+TEST_F(EventTargetTest, AttributeListener) {
   StrictMock<MockExceptionState> exception_state;
-  scoped_refptr<EventTarget> event_target = new EventTarget;
+  scoped_refptr<EventTarget> event_target =
+      new EventTarget(&environment_settings_);
   scoped_refptr<Event> event = new Event(base::Token("fired"));
   std::unique_ptr<MockEventListener> non_attribute_event_listener =
       MockEventListener::Create();
@@ -184,9 +195,10 @@ TEST(EventTargetTest, AttributeListener) {
 }
 
 // Test if one event listener can be used by multiple events.
-TEST(EventTargetTest, EventListenerReuse) {
+TEST_F(EventTargetTest, EventListenerReuse) {
   StrictMock<MockExceptionState> exception_state;
-  scoped_refptr<EventTarget> event_target = new EventTarget;
+  scoped_refptr<EventTarget> event_target =
+      new EventTarget(&environment_settings_);
   scoped_refptr<Event> event_1 = new Event(base::Token("fired_1"));
   scoped_refptr<Event> event_2 = new Event(base::Token("fired_2"));
   std::unique_ptr<MockEventListener> event_listener =
@@ -221,9 +233,10 @@ TEST(EventTargetTest, EventListenerReuse) {
   EXPECT_TRUE(event_target->DispatchEvent(event_2, &exception_state));
 }
 
-TEST(EventTargetTest, StopPropagation) {
+TEST_F(EventTargetTest, StopPropagation) {
   StrictMock<MockExceptionState> exception_state;
-  scoped_refptr<EventTarget> event_target = new EventTarget;
+  scoped_refptr<EventTarget> event_target =
+      new EventTarget(&environment_settings_);
   scoped_refptr<Event> event = new Event(base::Token("fired"));
   std::unique_ptr<MockEventListener> event_listenerfired_1 =
       MockEventListener::Create();
@@ -244,9 +257,10 @@ TEST(EventTargetTest, StopPropagation) {
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
-TEST(EventTargetTest, StopImmediatePropagation) {
+TEST_F(EventTargetTest, StopImmediatePropagation) {
   StrictMock<MockExceptionState> exception_state;
-  scoped_refptr<EventTarget> event_target = new EventTarget;
+  scoped_refptr<EventTarget> event_target =
+      new EventTarget(&environment_settings_);
   scoped_refptr<Event> event = new Event(base::Token("fired"));
   std::unique_ptr<MockEventListener> event_listenerfired_1 =
       MockEventListener::Create();
@@ -266,10 +280,11 @@ TEST(EventTargetTest, StopImmediatePropagation) {
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
-TEST(EventTargetTest, PreventDefault) {
+TEST_F(EventTargetTest, PreventDefault) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<Event> event;
-  scoped_refptr<EventTarget> event_target = new EventTarget;
+  scoped_refptr<EventTarget> event_target =
+      new EventTarget(&environment_settings_);
   std::unique_ptr<MockEventListener> event_listenerfired =
       MockEventListener::Create();
 
@@ -289,10 +304,11 @@ TEST(EventTargetTest, PreventDefault) {
   EXPECT_FALSE(event_target->DispatchEvent(event, &exception_state));
 }
 
-TEST(EventTargetTest, RaiseException) {
+TEST_F(EventTargetTest, RaiseException) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<script::ScriptException> exception;
-  scoped_refptr<EventTarget> event_target = new EventTarget;
+  scoped_refptr<EventTarget> event_target =
+      new EventTarget(&environment_settings_);
   scoped_refptr<Event> event;
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
@@ -326,9 +342,10 @@ TEST(EventTargetTest, RaiseException) {
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
-TEST(EventTargetTest, AddSameListenerMultipleTimes) {
+TEST_F(EventTargetTest, AddSameListenerMultipleTimes) {
   StrictMock<MockExceptionState> exception_state;
-  scoped_refptr<EventTarget> event_target = new EventTarget;
+  scoped_refptr<EventTarget> event_target =
+      new EventTarget(&environment_settings_);
   scoped_refptr<Event> event = new Event(base::Token("fired"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
@@ -344,9 +361,10 @@ TEST(EventTargetTest, AddSameListenerMultipleTimes) {
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
-TEST(EventTargetTest, AddSameAttributeListenerMultipleTimes) {
+TEST_F(EventTargetTest, AddSameAttributeListenerMultipleTimes) {
   StrictMock<MockExceptionState> exception_state;
-  scoped_refptr<EventTarget> event_target = new EventTarget;
+  scoped_refptr<EventTarget> event_target =
+      new EventTarget(&environment_settings_);
   scoped_refptr<Event> event = new Event(base::Token("fired"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
@@ -362,9 +380,10 @@ TEST(EventTargetTest, AddSameAttributeListenerMultipleTimes) {
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
-TEST(EventTargetTest, SameEventListenerAsAttribute) {
+TEST_F(EventTargetTest, SameEventListenerAsAttribute) {
   StrictMock<MockExceptionState> exception_state;
-  scoped_refptr<EventTarget> event_target = new EventTarget;
+  scoped_refptr<EventTarget> event_target =
+      new EventTarget(&environment_settings_);
   scoped_refptr<Event> event = new Event(base::Token("fired"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
