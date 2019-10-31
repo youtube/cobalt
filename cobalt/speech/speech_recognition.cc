@@ -25,7 +25,8 @@ namespace speech {
 // interim results: false.
 // max alternatives: 1.
 SpeechRecognition::SpeechRecognition(script::EnvironmentSettings* settings)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(
+    : dom::EventTarget(settings),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
           manager_(base::polymorphic_downcast<dom::DOMSettings*>(settings)
                        ->network_module(),
                    base::Bind(&SpeechRecognition::OnEventAvailable,

@@ -28,7 +28,7 @@ interface AudioContext : EventTarget {
       optional DecodeErrorCallback errorCallback);
 
   // AudioNode creation
-  AudioBufferSourceNode createBufferSource();
+  [CallWith=EnvironmentSettings] AudioBufferSourceNode createBufferSource();
 
   // AudioBuffer creation
   AudioBuffer createBuffer(unsigned long numOfChannels, unsigned long length,

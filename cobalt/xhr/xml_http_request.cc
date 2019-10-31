@@ -166,7 +166,8 @@ const int kRedirectLimit = 20;
 bool XMLHttpRequest::verbose_ = false;
 
 XMLHttpRequest::XMLHttpRequest(script::EnvironmentSettings* settings)
-    : settings_(base::polymorphic_downcast<dom::DOMSettings*>(settings)),
+    : XMLHttpRequestEventTarget(settings),
+      settings_(base::polymorphic_downcast<dom::DOMSettings*>(settings)),
       state_(kUnsent),
       response_type_(kDefault),
       timeout_ms_(0),
@@ -611,7 +612,7 @@ void XMLHttpRequest::set_with_credentials(
 
 scoped_refptr<XMLHttpRequestUpload> XMLHttpRequest::upload() {
   if (!upload_) {
-    upload_ = new XMLHttpRequestUpload();
+    upload_ = new XMLHttpRequestUpload(settings_);
   }
   return upload_;
 }

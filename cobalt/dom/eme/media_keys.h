@@ -24,6 +24,7 @@
 #include "cobalt/dom/eme/media_key_session.h"
 #include "cobalt/dom/eme/media_key_session_type.h"
 #include "cobalt/media/base/drm_system.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/wrappable.h"
 #include "starboard/drm.h"
@@ -42,7 +43,8 @@ class MediaKeys : public script::Wrappable,
   typedef script::Handle<script::Promise<bool>> BoolPromiseHandle;
   typedef script::ScriptValue<script::Promise<bool>> BoolPromiseValue;
 
-  MediaKeys(const scoped_refptr<media::DrmSystem>& drm_system,
+  MediaKeys(script::EnvironmentSettings* settings,
+            const scoped_refptr<media::DrmSystem>& drm_system,
             script::ScriptValueFactory* script_value_factory);
 
   scoped_refptr<media::DrmSystem> drm_system() const { return drm_system_; }
@@ -66,6 +68,7 @@ class MediaKeys : public script::Wrappable,
       BoolPromiseValue::Reference* promise_reference, SbDrmStatus status,
       const std::string& error_message);
 
+  script::EnvironmentSettings* settings_;
   script::ScriptValueFactory* script_value_factory_;
   scoped_refptr<media::DrmSystem> drm_system_;
 

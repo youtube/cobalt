@@ -86,10 +86,12 @@ static base::TimeDelta DoubleToTimeDelta(double time) {
 
 }  // namespace
 
-SourceBuffer::SourceBuffer(const std::string& id, MediaSource* media_source,
+SourceBuffer::SourceBuffer(script::EnvironmentSettings* settings,
+                           const std::string& id, MediaSource* media_source,
                            media::ChunkDemuxer* chunk_demuxer,
                            EventQueue* event_queue)
-    : id_(id),
+    : EventTarget(settings),
+      id_(id),
       chunk_demuxer_(chunk_demuxer),
       media_source_(media_source),
       track_defaults_(new TrackDefaultList(NULL)),
@@ -97,8 +99,10 @@ SourceBuffer::SourceBuffer(const std::string& id, MediaSource* media_source,
       mode_(kSourceBufferAppendModeSegments),
       updating_(false),
       timestamp_offset_(0),
-      audio_tracks_(new AudioTrackList(media_source->GetMediaElement())),
-      video_tracks_(new VideoTrackList(media_source->GetMediaElement())),
+      audio_tracks_(
+          new AudioTrackList(settings, media_source->GetMediaElement())),
+      video_tracks_(
+          new VideoTrackList(settings, media_source->GetMediaElement())),
       append_window_start_(0),
       append_window_end_(std::numeric_limits<double>::infinity()),
       first_initialization_segment_received_(false),

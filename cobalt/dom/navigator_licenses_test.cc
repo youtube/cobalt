@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/dom/navigator.h"
-
+#include "cobalt/dom/testing/stub_environment_settings.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -21,8 +21,10 @@ namespace dom {
 
 // Tests the Navigator::licenses function for non-empty return.
 TEST(NavigatorLicensesTest, NonEmpty) {
-  scoped_refptr<cobalt::dom::Navigator> navigator = new cobalt::dom::Navigator(
-      nullptr, std::string(), std::string(), nullptr, nullptr, nullptr);
+  testing::StubEnvironmentSettings environment_settings;
+  scoped_refptr<cobalt::dom::Navigator> navigator =
+      new cobalt::dom::Navigator(&environment_settings, std::string(),
+                                 std::string(), nullptr, nullptr, nullptr);
 
   ASSERT_TRUE(navigator != nullptr);
   EXPECT_FALSE(navigator->licenses().empty());

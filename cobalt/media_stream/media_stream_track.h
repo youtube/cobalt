@@ -19,6 +19,7 @@
 #include "base/strings/string_piece.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/media_stream/media_track_settings.h"
+#include "cobalt/script/environment_settings.h"
 #include "starboard/common/mutex.h"
 
 namespace cobalt {
@@ -33,7 +34,8 @@ class MediaStreamTrack : public dom::EventTarget {
     kReadyStateEnded,
   };
 
-  MediaStreamTrack() = default;
+  explicit MediaStreamTrack(script::EnvironmentSettings* settings)
+      : EventTarget(settings) {}
 
   // Function exposed to JavaScript via IDL.
   const MediaTrackSettings& GetSettings() const {

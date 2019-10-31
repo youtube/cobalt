@@ -225,7 +225,8 @@ MediaRecorder::MediaRecorder(
     const scoped_refptr<media_stream::MediaStream>& stream,
     const MediaRecorderOptions& options,
     script::ExceptionState* exception_state)
-    : settings_(settings),
+    : dom::EventTarget(settings),
+      settings_(settings),
       stream_(stream),
       javascript_message_loop_(base::MessageLoop::current()->task_runner()),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),

@@ -17,8 +17,8 @@
 namespace cobalt {
 namespace dom {
 
-AbortController::AbortController() {
-  abort_signal_ = new AbortSignal();
+AbortController::AbortController(script::EnvironmentSettings* settings) {
+  abort_signal_ = new AbortSignal(settings);
 }
 
 void AbortController::Abort() {

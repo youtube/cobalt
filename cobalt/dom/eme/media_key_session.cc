@@ -35,10 +35,12 @@ namespace eme {
 // See step 3.1 of
 // https://www.w3.org/TR/encrypted-media/#dom-mediakeys-createsession.
 MediaKeySession::MediaKeySession(
+    script::EnvironmentSettings* settings,
     const scoped_refptr<media::DrmSystem>& drm_system,
     script::ScriptValueFactory* script_value_factory,
     const ClosedCallback& closed_callback)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
+    : EventTarget(settings),
+      ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
       drm_system_(drm_system),
       drm_system_session_(drm_system->CreateSession(
           base::Bind(&MediaKeySession::OnSessionUpdateKeyStatuses,

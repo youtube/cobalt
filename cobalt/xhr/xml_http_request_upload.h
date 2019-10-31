@@ -20,9 +20,10 @@
 namespace cobalt {
 namespace xhr {
 
-class XMLHttpRequestUpload : public xhr::XMLHttpRequestEventTarget {
+class XMLHttpRequestUpload : public XMLHttpRequestEventTarget {
  public:
-  XMLHttpRequestUpload() {}
+  explicit XMLHttpRequestUpload(script::EnvironmentSettings* settings)
+      : XMLHttpRequestEventTarget(settings) {}
 
   DEFINE_WRAPPABLE_TYPE(XMLHttpRequestUpload);
 

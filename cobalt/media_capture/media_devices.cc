@@ -67,7 +67,8 @@ std::unique_ptr<Microphone> CreateMicrophone(
 
 MediaDevices::MediaDevices(script::EnvironmentSettings* settings,
                            script::ScriptValueFactory* script_value_factory)
-    : settings_(base::polymorphic_downcast<dom::DOMSettings*>(settings)),
+    : dom::EventTarget(settings),
+      settings_(base::polymorphic_downcast<dom::DOMSettings*>(settings)),
       script_value_factory_(script_value_factory),
       javascript_message_loop_(base::MessageLoop::current()),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
@@ -143,7 +144,8 @@ script::Handle<MediaDevices::MediaStreamPromise> MediaDevices::GetUserMedia(
   pending_microphone_promises_.push_back(std::move(promise_reference));
 
   if (!pending_microphone_track_) {
-    pending_microphone_track_ = new media_stream::MediaStreamAudioTrack();
+    pending_microphone_track_ =
+        new media_stream::MediaStreamAudioTrack(settings_);
     // Starts the source, if needed.  Also calls start on the audio track.
     audio_source_->ConnectToTrack(
         base::polymorphic_downcast<media_stream::MediaStreamAudioTrack*>(
@@ -215,7 +217,7 @@ void MediaDevices::OnMicrophoneSuccess() {
 
   for (auto& promise : pending_microphone_promises_) {
     promise->value().Resolve(
-        base::WrapRefCounted(new MediaStream(audio_tracks)));
+        base::WrapRefCounted(new MediaStream(settings_, audio_tracks)));
   }
   pending_microphone_promises_.clear();
 }

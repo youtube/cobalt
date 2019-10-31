@@ -15,6 +15,7 @@
 #include <memory>
 
 #include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/testing/stub_window.h"
 #include "cobalt/media_capture/media_devices.h"
 #include "cobalt/media_stream/microphone_audio_source.h"
@@ -24,8 +25,6 @@
 
 namespace {
 
-const int kMaxDomElementDepth = 8;
-
 std::unique_ptr<cobalt::script::EnvironmentSettings> CreateDOMSettings() {
   cobalt::dom::DOMSettings::Options options;
 #if defined(ENABLE_FAKE_MICROPHONE)
@@ -33,9 +32,7 @@ std::unique_ptr<cobalt::script::EnvironmentSettings> CreateDOMSettings() {
 #endif  // defined(ENABLE_FAKE_MICROPHONE)
 
   return std::unique_ptr<cobalt::script::EnvironmentSettings>(
-      new cobalt::dom::DOMSettings(kMaxDomElementDepth, nullptr, nullptr,
-                                   nullptr, nullptr, nullptr, nullptr, nullptr,
-                                   nullptr, nullptr, options));
+      new cobalt::dom::testing::StubEnvironmentSettings(options));
 }
 
 }  // namespace.

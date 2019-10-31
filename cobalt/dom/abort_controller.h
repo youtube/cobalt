@@ -16,6 +16,8 @@
 #define COBALT_DOM_ABORT_CONTROLLER_H_
 
 #include "cobalt/dom/abort_signal.h"
+#include "cobalt/script/environment_settings.h"
+#include "cobalt/script/global_environment.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -26,7 +28,7 @@ namespace dom {
 class AbortController : public script::Wrappable {
  public:
   // Web API: AbortController
-  AbortController();
+  explicit AbortController(script::EnvironmentSettings* settings);
 
   const scoped_refptr<AbortSignal>& signal() const { return abort_signal_; }
   void Abort();

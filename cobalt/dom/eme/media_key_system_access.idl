@@ -17,5 +17,5 @@
 interface MediaKeySystemAccess {
   readonly attribute DOMString keySystem;
   MediaKeySystemConfiguration getConfiguration();
-  Promise<MediaKeys> createMediaKeys();
+  [CallWith=EnvironmentSettings] Promise<MediaKeys> createMediaKeys();
 };

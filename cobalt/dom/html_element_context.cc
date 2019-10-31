@@ -16,11 +16,18 @@
 
 #include "cobalt/dom/html_element_factory.h"
 
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+#include "cobalt/dom/testing/stub_environment_settings.h"
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+
 namespace cobalt {
 namespace dom {
 
+#if !defined(COBALT_BUILD_TYPE_GOLD)
 HTMLElementContext::HTMLElementContext()
-    : fetcher_factory_(NULL),
+    : stub_environment_settings_(new testing::StubEnvironmentSettings),
+      environment_settings_(stub_environment_settings_.get()),
+      fetcher_factory_(NULL),
       loader_factory_(NULL),
       css_parser_(NULL),
       dom_parser_(NULL),
@@ -42,8 +49,10 @@ HTMLElementContext::HTMLElementContext()
       html_element_factory_(new HTMLElementFactory()) {
   sync_load_thread_.Start();
 }
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
 HTMLElementContext::HTMLElementContext(
+    script::EnvironmentSettings* environment_settings,
     loader::FetcherFactory* fetcher_factory,
     loader::LoaderFactory* loader_factory, cssom::CSSParser* css_parser,
     Parser* dom_parser, media::CanPlayTypeHandler* can_play_type_handler,
@@ -62,7 +71,8 @@ HTMLElementContext::HTMLElementContext(
     base::ApplicationState initial_application_state,
     base::WaitableEvent* synchronous_loader_interrupt,
     float video_playback_rate_multiplier)
-    : fetcher_factory_(fetcher_factory),
+    : environment_settings_(environment_settings),
+      fetcher_factory_(fetcher_factory),
       loader_factory_(loader_factory),
       css_parser_(css_parser),
       dom_parser_(dom_parser),

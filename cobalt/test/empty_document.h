@@ -22,6 +22,7 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
 
 namespace cobalt {
 namespace test {
@@ -33,15 +34,16 @@ class EmptyDocument {
   EmptyDocument()
       : css_parser_(css_parser::Parser::Create()),
         dom_stat_tracker_(new dom::DomStatTracker("EmptyDocument")),
-        html_element_context_(NULL, NULL, css_parser_.get(), NULL, NULL, NULL,
-                              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                              NULL, dom_stat_tracker_.get(), "",
-                              base::kApplicationStateStarted, NULL),
+        html_element_context_(
+            &environment_settings_, NULL, NULL, css_parser_.get(), NULL, NULL,
+            NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+            dom_stat_tracker_.get(), "", base::kApplicationStateStarted, NULL),
         document_(new dom::Document(&html_element_context_)) {}
 
   dom::Document* document() { return document_.get(); }
 
  private:
+  dom::testing::StubEnvironmentSettings environment_settings_;
   std::unique_ptr<css_parser::Parser> css_parser_;
   std::unique_ptr<dom::DomStatTracker> dom_stat_tracker_;
   dom::HTMLElementContext html_element_context_;

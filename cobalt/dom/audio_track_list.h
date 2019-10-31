@@ -18,6 +18,7 @@
 #include "cobalt/dom/audio_track.h"
 #include "cobalt/dom/html_media_element.h"
 #include "cobalt/dom/track_list_base.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -29,8 +30,9 @@ class AudioTrackList : public TrackListBase<AudioTrack> {
  public:
   // Custom, not in any spec.
   //
-  explicit AudioTrackList(HTMLMediaElement* media_element)
-      : TrackListBase<AudioTrack>(media_element) {}
+  AudioTrackList(script::EnvironmentSettings* settings,
+                 HTMLMediaElement* media_element)
+      : TrackListBase<AudioTrack>(settings, media_element) {}
 
   // Web API: AudioTrackList
   //

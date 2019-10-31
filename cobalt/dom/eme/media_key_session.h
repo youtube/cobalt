@@ -47,7 +47,8 @@ class MediaKeySession : public EventTarget {
   typedef base::Callback<void(MediaKeySession* session)> ClosedCallback;
 
   // Custom, not in any spec.
-  MediaKeySession(const scoped_refptr<media::DrmSystem>& drm_system,
+  MediaKeySession(script::EnvironmentSettings* settings,
+                  const scoped_refptr<media::DrmSystem>& drm_system,
                   script::ScriptValueFactory* script_value_factory,
                   const ClosedCallback& closed_callback);
 

@@ -30,9 +30,13 @@ bool SpeechSynthesis::SpeechSynthesisIsSupported() {
 #endif
 }
 
-SpeechSynthesis::SpeechSynthesis(const scoped_refptr<dom::Navigator>& navigator,
+SpeechSynthesis::SpeechSynthesis(script::EnvironmentSettings* settings,
+                                 const scoped_refptr<dom::Navigator>& navigator,
                                  bool log_output)
-    : log_output_(log_output), paused_(false), navigator_(navigator) {
+    : dom::EventTarget(settings),
+      log_output_(log_output),
+      paused_(false),
+      navigator_(navigator) {
 #if SB_API_VERSION >= SB_SPEECH_SYNTHESIS_REQUIRED_VERSION || \
     SB_HAS(SPEECH_SYNTHESIS)
   if (SpeechSynthesis::SpeechSynthesisIsSupported()) {
