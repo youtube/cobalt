@@ -15,6 +15,8 @@
 #include "cobalt/speech/speech_recognition_manager.h"
 
 #include "base/bind.h"
+#include "base/command_line.h"
+#include "cobalt/browser/switches.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/speech/speech_configuration.h"
 #include "cobalt/speech/speech_recognition_error.h"
@@ -42,7 +44,9 @@ SpeechRecognitionManager::SpeechRecognitionManager(
   recognizer_.reset(new StarboardSpeechRecognizer(base::Bind(
       &SpeechRecognitionManager::OnEventAvailable, base::Unretained(this))));
 #else
-  if (GoogleSpeechService::GetSpeechAPIKey()) {
+  if (GoogleSpeechService::GetSpeechAPIKey() &&
+      !base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kInputFuzzer)) {
     recognizer_.reset(new CobaltSpeechRecognizer(
         network_module, microphone_options,
         base::Bind(&SpeechRecognitionManager::OnEventAvailable,
