@@ -47,6 +47,7 @@
         '<(DEPTH)/cobalt/network/network.gyp:network',
         '<(DEPTH)/components/prefs/prefs.gyp:prefs',
         '<(DEPTH)/components/update_client/update_client.gyp:update_client',
+        '<(DEPTH)/third_party/zlib2/zlib2.gyp:zip',
         '<(DEPTH)/url/url.gyp:url',
       ],
     },
