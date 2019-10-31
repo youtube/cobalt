@@ -33,9 +33,7 @@
             '<(DEPTH)/cobalt/browser/splash_screen/splash_screen.gyp:copy_splash_screen',
           ],
         }],
-        # TODO: orbis SDK complains about overload resolution selected
-        # deleted operator '=' in update_client/protocol_serializer.cc
-        ['target_os != "orbis"', {
+        ['sb_evergreen == 1', {
           'dependencies': [
             '<(DEPTH)/cobalt/updater/updater.gyp:updater',
           ],
