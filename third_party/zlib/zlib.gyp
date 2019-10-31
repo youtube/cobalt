@@ -93,6 +93,8 @@
           'sources': [
             'contrib/minizip/ioapi.c',
             'contrib/minizip/ioapi.h',
+            'contrib/minizip/iostarboard.c',
+            'contrib/minizip/iostarboard.h',
             'contrib/minizip/iowin32.c',
             'contrib/minizip/iowin32.h',
             'contrib/minizip/unzip.c',
