@@ -291,7 +291,7 @@ static inline int SbFileReadAll(SbFile file, char* data, int size) {
   int rv;
   do {
     rv = SbFileRead(file, data + bytes_read, size - bytes_read);
-    if (bytes_read <= 0) {
+    if (rv <= 0) {
       break;
     }
     bytes_read += rv;
@@ -317,7 +317,7 @@ static inline int SbFileWriteAll(SbFile file, const char* data, int size) {
   int rv;
   do {
     rv = SbFileWrite(file, data + bytes_written, size - bytes_written);
-    if (bytes_written <= 0) {
+    if (rv <= 0) {
       break;
     }
     bytes_written += rv;

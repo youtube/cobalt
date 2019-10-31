@@ -85,7 +85,8 @@ TYPED_TEST(SbFileWriteTest, BasicWriting) {
 
     int remaining = kFileSize - total;
     int to_write = remaining < kBufferLength ? remaining : kBufferLength;
-    int bytes_written = TypeParam::Write(file, buffer, to_write);
+    int bytes_written = TypeParam::Write(
+        file, buffer + (total % kBufferLength), to_write);
 
     // Check that we didn't write more than the buffer size.
     EXPECT_GE(to_write, bytes_written);

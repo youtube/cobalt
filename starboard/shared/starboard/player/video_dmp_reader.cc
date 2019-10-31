@@ -258,7 +258,7 @@ VideoDmpReader::VideoAccessUnit VideoDmpReader::ReadVideoAccessUnit() {
 int VideoDmpReader::ReadFromFile(ScopedFile* file,
                                  void* buffer,
                                  int bytes_to_read) {
-  return file->Read(static_cast<char*>(buffer), bytes_to_read);
+  return file->ReadAll(static_cast<char*>(buffer), bytes_to_read);
 }
 
 }  // namespace video_dmp

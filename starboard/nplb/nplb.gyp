@@ -133,6 +133,7 @@
         'file_mode_string_to_flags_test.cc',
         'file_open_test.cc',
         'file_read_test.cc',
+        'file_read_write_all_test.cc',
         'file_seek_test.cc',
         'file_truncate_test.cc',
         'file_write_test.cc',
