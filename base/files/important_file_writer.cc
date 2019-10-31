@@ -27,6 +27,7 @@
 #include "base/threading/thread.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "starboard/file.h"
 #include "starboard/types.h"
 
 namespace base {
@@ -130,6 +131,22 @@ void DeleteTmpFile(const FilePath& tmp_file_path,
 
 }  // namespace
 
+#if defined(OS_STARBOARD)
+// static
+bool ImportantFileWriter::WriteFileAtomically(const FilePath& path,
+                                              StringPiece data,
+                                              StringPiece histogram_suffix) {
+  SB_UNREFERENCED_PARAMETER(histogram_suffix);
+#if SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION
+  return SbFileAtomicReplace(path.value().c_str(), data.data(), data.size());
+#else
+  SB_NOTREACHED()
+      << "SbFileAtomicReplace is not available before starboard version "
+      << SB_FILE_ATOMIC_REPLACE_VERSION;
+  return false;
+#endif
+}
+#else
 // static
 bool ImportantFileWriter::WriteFileAtomically(const FilePath& path,
                                               StringPiece data,
@@ -198,9 +215,7 @@ bool ImportantFileWriter::WriteFileAtomically(const FilePath& path,
   }
 
   base::File::Error replace_file_error = base::File::FILE_OK;
-#if !defined(OS_STARBOARD)
   if (!ReplaceFile(tmp_file_path, path, &replace_file_error)) {
-#endif
     UmaHistogramExactLinearWithSuffix("ImportantFile.FileRenameError",
                                       histogram_suffix, -replace_file_error,
                                       -base::File::FILE_ERROR_MAX);
@@ -208,12 +223,11 @@ bool ImportantFileWriter::WriteFileAtomically(const FilePath& path,
                "could not rename temporary file");
     DeleteTmpFile(tmp_file_path, histogram_suffix);
     return false;
-#if !defined(OS_STARBOARD)
   }
 
   return true;
-#endif
 }
+#endif
 
 ImportantFileWriter::ImportantFileWriter(
     const FilePath& path,

@@ -23,6 +23,7 @@
 #include "base/timer/mock_timer.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION
 namespace base {
 
 namespace {
@@ -179,6 +180,9 @@ TEST_F(ImportantFileWriterTest, WriteWithObserver) {
   EXPECT_EQ("baz", GetFileContent(writer.path()));
 }
 
+// Disable the test as win32 SbFileOpen doesn't fail on relative path
+// like bad/../path.tmp
+#if !defined(OS_STARBOARD)
 TEST_F(ImportantFileWriterTest, FailedWriteWithObserver) {
   // Use an invalid file path (relative paths are invalid) to get a
   // FILE_ERROR_ACCESS_DENIED error when trying to write the file.
@@ -196,6 +200,7 @@ TEST_F(ImportantFileWriterTest, FailedWriteWithObserver) {
             write_callback_observer_.GetAndResetObservationState());
   EXPECT_FALSE(PathExists(writer.path()));
 }
+#endif
 
 TEST_F(ImportantFileWriterTest, CallbackRunsOnWriterThread) {
   base::Thread file_writer_thread("ImportantFileWriter test thread");
@@ -327,6 +332,7 @@ TEST_F(ImportantFileWriterTest, DoScheduledWrite_FailToSerialize) {
   EXPECT_FALSE(PathExists(writer.path()));
 }
 
+#if !defined(OS_STARBOARD)
 TEST_F(ImportantFileWriterTest, WriteFileAtomicallyHistogramSuffixTest) {
   base::HistogramTester histogram_tester;
   EXPECT_FALSE(PathExists(file_));
@@ -347,5 +353,8 @@ TEST_F(ImportantFileWriterTest, WriteFileAtomicallyHistogramSuffixTest) {
   histogram_tester.ExpectTotalCount("ImportantFile.FileCreateError", 1);
   histogram_tester.ExpectTotalCount("ImportantFile.FileCreateError.test", 1);
 }
+#endif
 
 }  // namespace base
+
+#endif  // SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION
