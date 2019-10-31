@@ -58,7 +58,7 @@ std::string ReadFileContent(const std::string& pathname) {
   SB_DCHECK(result);
 
   std::vector<char> buffer(file_info.size);
-  int bytes_read = SbFileRead(file, &buffer[0], buffer.size());
+  int bytes_read = SbFileReadAll(file, &buffer[0], buffer.size());
   SB_DCHECK(bytes_read == file_info.size);
   SbFileClose(file);
 
