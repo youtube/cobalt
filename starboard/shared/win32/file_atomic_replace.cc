@@ -32,7 +32,7 @@ const char kTempFileSuffix[] = ".temp";
 bool SbFileAtomicReplace(const char* path,
                          const char* data,
                          int64_t data_size) {
-  if (!SbFileExists(path) || !data || data_size < 0) {
+  if ((data_size < 0) || ((data_size > 0) && !data)) {
     return false;
   }
 

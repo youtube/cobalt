@@ -26,6 +26,26 @@ static const char kTestContents[] =
     "The quick brown fox jumps over the lazy dog.";
 static const int kTestContentsLength = sizeof(kTestContents);
 
+bool CompareFileContentsToString(const char* filename,
+                                 const char* str,
+                                 int size) {
+  char result[kTestContentsLength] = {'\0'};
+
+  SbFileError error;
+  SbFile file =
+      SbFileOpen(filename, kSbFileOpenOnly | kSbFileRead, nullptr, &error);
+
+  EXPECT_EQ(kSbFileOk, error);
+
+  // We always try to read kTestContentsLength since the data will at most be
+  // this long. There are test cases where the number of bytes read will be
+  // less.
+  EXPECT_EQ(size, SbFileRead(file, result, kTestContentsLength));
+  EXPECT_TRUE(SbFileClose(file));
+
+  return SbStringCompare(str, result, kTestContentsLength) == 0;
+}
+
 TEST(SbFileAtomicReplaceTest, ReplacesValidFile) {
   ScopedRandomFile random_file(ScopedRandomFile::kDefaultLength,
                                ScopedRandomFile::kCreate);
@@ -34,35 +54,36 @@ TEST(SbFileAtomicReplaceTest, ReplacesValidFile) {
   EXPECT_TRUE(SbFileExists(filename.c_str()));
   EXPECT_TRUE(SbFileAtomicReplace(filename.c_str(), kTestContents,
                                   kTestContentsLength));
-
-  char result[kTestContentsLength];
-
-  SbFileError error;
-  SbFile file = SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead,
-                           nullptr, &error);
-
-  EXPECT_EQ(kSbFileOk, error);
-  EXPECT_EQ(kTestContentsLength, SbFileRead(file, result, kTestContentsLength));
-  EXPECT_EQ(0, SbStringCompare(kTestContents, result, kTestContentsLength));
-  EXPECT_TRUE(SbFileClose(file));
+  EXPECT_TRUE(CompareFileContentsToString(filename.c_str(), kTestContents,
+                                          kTestContentsLength));
 }
 
-TEST(SbFileAtomicReplaceTest, FailsWithNonExistentFile) {
+TEST(SbFileAtomicReplaceTest, ReplacesNonExistentFile) {
   ScopedRandomFile random_file(ScopedRandomFile::kDontCreate);
   const std::string& filename = random_file.filename();
 
   EXPECT_FALSE(SbFileExists(filename.c_str()));
-  EXPECT_FALSE(SbFileAtomicReplace(filename.c_str(), kTestContents,
-                                   kTestContentsLength));
+  EXPECT_TRUE(SbFileAtomicReplace(filename.c_str(), kTestContents,
+                                  kTestContentsLength));
+  EXPECT_TRUE(CompareFileContentsToString(filename.c_str(), kTestContents,
+                                          kTestContentsLength));
 }
 
-TEST(SbFileAtomicReplaceTest, FailsWithNoData) {
+TEST(SbFileAtomicReplaceTest, ReplacesWithNoData) {
   ScopedRandomFile random_file(ScopedRandomFile::kCreate);
   const std::string& filename = random_file.filename();
 
   EXPECT_TRUE(SbFileExists(filename.c_str()));
-  EXPECT_FALSE(SbFileAtomicReplace(filename.c_str(), nullptr,
-                                   kTestContentsLength));
+  EXPECT_TRUE(SbFileAtomicReplace(filename.c_str(), nullptr, 0));
+  EXPECT_TRUE(CompareFileContentsToString(filename.c_str(), "\0", 0));
+}
+
+TEST(SbFileAtomicReplaceTest, FailsWithNoDataButLength) {
+  ScopedRandomFile random_file(ScopedRandomFile::kCreate);
+  const std::string& filename = random_file.filename();
+
+  EXPECT_TRUE(SbFileExists(filename.c_str()));
+  EXPECT_FALSE(SbFileAtomicReplace(filename.c_str(), nullptr, 1));
 }
 
 TEST(SbFileAtomicReplaceTest, FailsWithInvalidLength) {
