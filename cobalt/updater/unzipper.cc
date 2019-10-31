@@ -7,7 +7,7 @@
 #include <utility>
 #include "base/callback.h"
 #include "base/files/file_path.h"
-// #include "third_party/zlib/google/zip.h"
+#include "third_party/zlib2/google/zip.h"
 
 namespace cobalt {
 namespace updater {
@@ -20,9 +20,9 @@ class UnzipperImpl : public update_client::Unzipper {
 
   void Unzip(const base::FilePath& zip_path, const base::FilePath& output_path,
              UnzipCompleteCallback callback) override {
-    // TODO: zip::Unzip() is not ported to third_party/zlib yet.
-    // std::move(callback).Run(zip::Unzip(zip_path, output_path));
-    SB_NOTREACHED();
+    std::move(callback).Run(zip::Unzip(zip_path, output_path));
+    SB_LOG(INFO) << "Unzip file path = " << zip_path;
+    SB_LOG(INFO) << "output_path = " << output_path;
   }
 };
 
