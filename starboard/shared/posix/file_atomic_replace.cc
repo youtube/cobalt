@@ -31,10 +31,11 @@ const char kTempFileSuffix[] = ".temp";
 bool SbFileAtomicReplace(const char* path,
                          const char* data,
                          int64_t data_size) {
-  if (!SbFileExists(path) || !data || data_size < 0) {
+  if ((data_size < 0) || ((data_size > 0) && !data)) {
     return false;
   }
 
+  const bool file_exists = SbFileExists(path);
   char temp_path[SB_FILE_MAX_PATH];
 
   SbStringCopy(temp_path, path, SB_FILE_MAX_PATH);
@@ -44,7 +45,7 @@ bool SbFileAtomicReplace(const char* path,
           temp_path, data, data_size)) {
     return false;
   }
-  if (!SbFileDelete(path)) {
+  if (file_exists && !SbFileDelete(path)) {
     return false;
   }
   if (rename(temp_path, path) != 0) {

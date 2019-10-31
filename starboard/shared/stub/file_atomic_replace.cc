@@ -19,7 +19,7 @@
 bool SbFileAtomicReplace(const char* /* path */,
                          const char* /* data */,
                          int64_t /* data_size */) {
-  return -1;
+  return false;
 }
 
 #endif  // SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION
