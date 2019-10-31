@@ -775,6 +775,7 @@
         'files/file_proxy_unittest.cc',
         'files/file_unittest.cc',
         'files/file_util_unittest.cc',
+        'files/important_file_writer_unittest.cc',
         'files/scoped_temp_dir_unittest.cc',
         'gmock_unittest.cc',
         'guid_unittest.cc',
