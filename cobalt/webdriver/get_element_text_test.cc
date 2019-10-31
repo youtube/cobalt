@@ -28,6 +28,7 @@
 #include "cobalt/dom/html_head_element.h"
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/dom/html_paragraph_element.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/webdriver/algorithms.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -46,10 +47,11 @@ class GetElementTextTest : public ::testing::Test {
   GetElementTextTest()
       : css_parser_(css_parser::Parser::Create()),
         dom_stat_tracker_(new dom::DomStatTracker("GetElementTextTest")),
-        html_element_context_(NULL, NULL, css_parser_.get(), NULL, NULL, NULL,
-                              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                              NULL, dom_stat_tracker_.get(), "",
-                              base::kApplicationStateStarted, NULL) {}
+        html_element_context_(
+            &environment_settings_, NULL, NULL, css_parser_.get(), NULL, NULL,
+            NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+            dom_stat_tracker_.get(), "", base::kApplicationStateStarted, NULL) {
+  }
 
   void SetUp() override {
     dom::Document::Options options;
@@ -81,6 +83,7 @@ class GetElementTextTest : public ::testing::Test {
     div_->AppendChild(p);
   }
 
+  dom::testing::StubEnvironmentSettings environment_settings_;
   std::unique_ptr<css_parser::Parser> css_parser_;
   std::unique_ptr<dom::DomStatTracker> dom_stat_tracker_;
   dom::HTMLElementContext html_element_context_;

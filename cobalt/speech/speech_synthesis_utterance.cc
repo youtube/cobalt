@@ -17,10 +17,19 @@
 namespace cobalt {
 namespace speech {
 
-SpeechSynthesisUtterance::SpeechSynthesisUtterance()
-    : volume_(1.0f), rate_(1.0f), pitch_(1.0f), pending_speak_(false) {}
-SpeechSynthesisUtterance::SpeechSynthesisUtterance(const std::string& text)
-    : text_(text),
+SpeechSynthesisUtterance::SpeechSynthesisUtterance(
+    script::EnvironmentSettings* settings)
+    : dom::EventTarget(settings),
+      settings_(settings),
+      volume_(1.0f),
+      rate_(1.0f),
+      pitch_(1.0f),
+      pending_speak_(false) {}
+SpeechSynthesisUtterance::SpeechSynthesisUtterance(
+    script::EnvironmentSettings* settings, const std::string& text)
+    : dom::EventTarget(settings),
+      settings_(settings),
+      text_(text),
       volume_(1.0f),
       rate_(1.0f),
       pitch_(1.0f),
@@ -28,7 +37,8 @@ SpeechSynthesisUtterance::SpeechSynthesisUtterance(const std::string& text)
 
 SpeechSynthesisUtterance::SpeechSynthesisUtterance(
     const scoped_refptr<SpeechSynthesisUtterance>& utterance)
-    : text_(utterance->text_),
+    : dom::EventTarget(utterance->settings_),
+      text_(utterance->text_),
       lang_(utterance->lang_),
       voice_(utterance->voice_),
       volume_(utterance->volume_),

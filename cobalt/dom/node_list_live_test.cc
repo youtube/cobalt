@@ -18,6 +18,7 @@
 #include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -27,14 +28,15 @@ class NodeListLiveTest : public ::testing::Test {
  protected:
   NodeListLiveTest()
       : dom_stat_tracker_("NodeListLiveTest"),
-        html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                              NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                              &dom_stat_tracker_, "",
+        html_element_context_(&environment_settings_, NULL, NULL, NULL, NULL,
+                              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                              NULL, NULL, NULL, &dom_stat_tracker_, "",
                               base::kApplicationStateStarted, NULL),
         document_(new Document(&html_element_context_)) {}
 
   ~NodeListLiveTest() override {}
 
+  testing::StubEnvironmentSettings environment_settings_;
   DomStatTracker dom_stat_tracker_;
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;

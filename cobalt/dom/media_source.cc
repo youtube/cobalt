@@ -64,10 +64,10 @@
 namespace cobalt {
 namespace dom {
 
-using media::PipelineStatus;
-using media::CHUNK_DEMUXER_ERROR_EOS_STATUS_NETWORK_ERROR;
 using media::CHUNK_DEMUXER_ERROR_EOS_STATUS_DECODE_ERROR;
+using media::CHUNK_DEMUXER_ERROR_EOS_STATUS_NETWORK_ERROR;
 using media::PIPELINE_OK;
+using media::PipelineStatus;
 
 namespace {
 
@@ -102,12 +102,13 @@ bool ParseContentType(const std::string& content_type, std::string* mime,
 
 }  // namespace
 
-MediaSource::MediaSource()
-    : chunk_demuxer_(NULL),
+MediaSource::MediaSource(script::EnvironmentSettings* settings)
+    : EventTarget(settings),
+      chunk_demuxer_(NULL),
       ready_state_(kMediaSourceReadyStateClosed),
       ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
-      source_buffers_(new SourceBufferList(&event_queue_)),
-      active_source_buffers_(new SourceBufferList(&event_queue_)),
+      source_buffers_(new SourceBufferList(settings, &event_queue_)),
+      active_source_buffers_(new SourceBufferList(settings, &event_queue_)),
       live_seekable_range_(new TimeRanges) {}
 
 MediaSource::~MediaSource() { SetReadyState(kMediaSourceReadyStateClosed); }
@@ -218,7 +219,7 @@ scoped_refptr<SourceBuffer> MediaSource::AddSourceBuffer(
   switch (status) {
     case ChunkDemuxer::kOk:
       source_buffer =
-          new SourceBuffer(guid, this, chunk_demuxer_, &event_queue_);
+          new SourceBuffer(settings, guid, this, chunk_demuxer_, &event_queue_);
       break;
     case ChunkDemuxer::kNotSupported:
       DOMException::Raise(DOMException::kNotSupportedErr, exception_state);

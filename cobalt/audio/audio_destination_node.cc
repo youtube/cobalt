@@ -32,8 +32,9 @@ const uint32 kMaxChannelCount = 2;
 
 // numberOfInputs  : 1
 // numberOfOutputs : 0
-AudioDestinationNode::AudioDestinationNode(AudioContext* context)
-    : AudioNode(context),
+AudioDestinationNode::AudioDestinationNode(
+    script::EnvironmentSettings* settings, AudioContext* context)
+    : AudioNode(settings, context),
       message_loop_(base::MessageLoop::current()),
       max_channel_count_(kMaxChannelCount) {
   AudioLock::AutoLock lock(audio_lock());

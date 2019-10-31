@@ -20,8 +20,10 @@
 namespace cobalt {
 namespace audio {
 
-AudioNode::AudioNode(AudioContext* context)
-    : audio_context_(context),
+AudioNode::AudioNode(script::EnvironmentSettings* settings,
+                     AudioContext* context)
+    : EventTarget(settings),
+      audio_context_(context),
       audio_lock_(context->audio_lock()),
       channel_count_(2),
       channel_count_mode_(kAudioNodeChannelCountModeMax),

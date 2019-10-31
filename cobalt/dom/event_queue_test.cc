@@ -12,21 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/dom/event_queue.h"
+
+#include <memory>
 
 #include "base/message_loop/message_loop.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/testing/mock_event_listener.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/script/testing/fake_script_value.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using ::testing::_;
 using ::testing::AllOf;
 using ::testing::Eq;
 using ::testing::Property;
-using ::testing::_;
 
 namespace cobalt {
 namespace dom {
@@ -48,11 +49,13 @@ class EventQueueTest : public ::testing::Test {
                     _))
         .RetiresOnSaturation();
   }
+  testing::StubEnvironmentSettings environment_settings_;
   base::MessageLoop message_loop_;
 };
 
 TEST_F(EventQueueTest, EventWithoutTargetTest) {
-  scoped_refptr<EventTarget> event_target = new EventTarget;
+  scoped_refptr<EventTarget> event_target =
+      new EventTarget(&environment_settings_);
   scoped_refptr<Event> event = new Event(base::Token("event"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
@@ -68,7 +71,8 @@ TEST_F(EventQueueTest, EventWithoutTargetTest) {
 }
 
 TEST_F(EventQueueTest, EventWithTargetTest) {
-  scoped_refptr<EventTarget> event_target = new EventTarget;
+  scoped_refptr<EventTarget> event_target =
+      new EventTarget(&environment_settings_);
   scoped_refptr<Event> event = new Event(base::Token("event"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
@@ -85,7 +89,8 @@ TEST_F(EventQueueTest, EventWithTargetTest) {
 }
 
 TEST_F(EventQueueTest, CancelAllEventsTest) {
-  scoped_refptr<EventTarget> event_target = new EventTarget;
+  scoped_refptr<EventTarget> event_target =
+      new EventTarget(&environment_settings_);
   scoped_refptr<Event> event = new Event(base::Token("event"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
@@ -105,8 +110,10 @@ TEST_F(EventQueueTest, CancelAllEventsTest) {
 // correctness of event propagation like capturing or bubbling are tested in
 // the unit tests of EventTarget.
 TEST_F(EventQueueTest, EventWithDifferentTargetTest) {
-  scoped_refptr<EventTarget> event_target_1 = new EventTarget;
-  scoped_refptr<EventTarget> event_target_2 = new EventTarget;
+  scoped_refptr<EventTarget> event_target_1 =
+      new EventTarget(&environment_settings_);
+  scoped_refptr<EventTarget> event_target_2 =
+      new EventTarget(&environment_settings_);
   scoped_refptr<Event> event = new Event(base::Token("event"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();

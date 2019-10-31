@@ -18,6 +18,7 @@
 #include <string>
 
 #include "cobalt/dom/eme/media_key_system_configuration.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/wrappable.h"
@@ -42,7 +43,8 @@ class MediaKeySystemAccess : public script::Wrappable {
   const MediaKeySystemConfiguration& GetConfiguration() const {
     return configuration_;
   }
-  script::Handle<InterfacePromise> CreateMediaKeys() const;
+  script::Handle<InterfacePromise> CreateMediaKeys(
+      script::EnvironmentSettings* settings) const;
 
   DEFINE_WRAPPABLE_TYPE(MediaKeySystemAccess);
 

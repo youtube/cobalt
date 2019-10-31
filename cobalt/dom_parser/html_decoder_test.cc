@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/dom_parser/html_decoder.h"
+
+#include <memory>
 
 #include "base/callback.h"
 #include "base/message_loop/message_loop.h"
@@ -28,6 +28,7 @@
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/testing/stub_css_parser.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/testing/stub_script_runner.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/dom_parser/parser.h"
@@ -52,6 +53,7 @@ class HTMLDecoderTest : public ::testing::Test {
   HTMLDecoderTest();
   ~HTMLDecoderTest() override {}
 
+  dom::testing::StubEnvironmentSettings environment_settings_;
   loader::FetcherFactory fetcher_factory_;
   loader::LoaderFactory loader_factory_;
   std::unique_ptr<Parser> dom_parser_;
@@ -75,12 +77,12 @@ HTMLDecoderTest::HTMLDecoderTest()
       dom_parser_(new Parser()),
       dom_stat_tracker_(new dom::DomStatTracker("HTMLDecoderTest")),
       html_element_context_(
-          &fetcher_factory_, &loader_factory_, &stub_css_parser_,
-          dom_parser_.get(), NULL /* can_play_type_handler */,
-          NULL /* web_media_player_factory */, &stub_script_runner_,
-          NULL /* script_value_factory */, NULL, NULL, NULL, NULL, NULL, NULL,
-          NULL, dom_stat_tracker_.get(), "", base::kApplicationStateStarted,
-          NULL),
+          &environment_settings_, &fetcher_factory_, &loader_factory_,
+          &stub_css_parser_, dom_parser_.get(),
+          NULL /* can_play_type_handler */, NULL /* web_media_player_factory */,
+          &stub_script_runner_, NULL /* script_value_factory */, NULL, NULL,
+          NULL, NULL, NULL, NULL, NULL, dom_stat_tracker_.get(), "",
+          base::kApplicationStateStarted, NULL),
       document_(new dom::Document(&html_element_context_)),
       root_(new dom::Element(document_, base::Token("element"))),
       source_location_(base::SourceLocation("[object HTMLDecoderTest]", 1, 1)) {

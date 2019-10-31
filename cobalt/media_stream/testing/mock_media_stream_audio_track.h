@@ -16,7 +16,7 @@
 #define COBALT_MEDIA_STREAM_TESTING_MOCK_MEDIA_STREAM_AUDIO_TRACK_H_
 
 #include "cobalt/media_stream/media_stream_audio_track.h"
-
+#include "cobalt/script/environment_settings.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace cobalt {
@@ -24,6 +24,8 @@ namespace media_stream {
 
 class MockMediaStreamAudioTrack : public MediaStreamAudioTrack {
  public:
+  explicit MockMediaStreamAudioTrack(script::EnvironmentSettings* settings)
+      : MediaStreamAudioTrack(settings) {}
   MOCK_METHOD0(Stop, void());
 };
 

@@ -23,10 +23,14 @@ namespace cobalt {
 namespace dom {
 namespace eme {
 
-MediaKeys::MediaKeys(const scoped_refptr<media::DrmSystem>& drm_system,
+MediaKeys::MediaKeys(script::EnvironmentSettings* settings,
+                     const scoped_refptr<media::DrmSystem>& drm_system,
                      script::ScriptValueFactory* script_value_factory)
-    : script_value_factory_(script_value_factory), drm_system_(drm_system) {
-  SB_DCHECK(drm_system_->is_valid()) << "DrmSystem provided on initialization is invalid.";
+    : settings_(settings),
+      script_value_factory_(script_value_factory),
+      drm_system_(drm_system) {
+  SB_DCHECK(drm_system_->is_valid())
+      << "DrmSystem provided on initialization is invalid.";
 }
 
 // See https://www.w3.org/TR/encrypted-media/#dom-mediakeys-createsession.
@@ -44,7 +48,7 @@ scoped_refptr<MediaKeySession> MediaKeys::CreateSession(
   // |MediaKeys| are passed to |MediaKeySession| as weak pointer because the
   // order of destruction is not guaranteed due to JavaScript memory management.
   scoped_refptr<MediaKeySession> session(new MediaKeySession(
-      drm_system_, script_value_factory_,
+      settings_, drm_system_, script_value_factory_,
       base::Bind(&MediaKeys::OnSessionClosed, AsWeakPtr())));
   open_sessions_.push_back(session);
   return session;

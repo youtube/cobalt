@@ -20,6 +20,7 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/event_target.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/speech/speech_synthesis_utterance.h"
@@ -44,8 +45,9 @@ class SpeechSynthesis : public dom::EventTarget {
   typedef script::Sequence<scoped_refptr<SpeechSynthesisVoice> >
       SpeechSynthesisVoiceSequence;
 
-  explicit SpeechSynthesis(const scoped_refptr<dom::Navigator>& navigator,
-                           bool log_output);
+  SpeechSynthesis(script::EnvironmentSettings* settings,
+                  const scoped_refptr<dom::Navigator>& navigator,
+                  bool log_output);
 
   // Readonly Attributes.
   bool pending() const { return !utterances_.empty(); }

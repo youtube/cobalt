@@ -15,11 +15,11 @@
 #include "cobalt/media_stream/media_stream_audio_track.h"
 
 #include "base/bind_helpers.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
+#include "cobalt/media/base/shell_audio_bus.h"
 #include "cobalt/media_stream/media_stream_audio_deliverer.h"
 #include "cobalt/media_stream/testing/mock_media_stream_audio_sink.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-#include "cobalt/media/base/shell_audio_bus.h"
 
 using ::testing::_;
 using ::testing::StrictMock;
@@ -41,7 +41,13 @@ typedef media::ShellAudioBus ShellAudioBus;
 // This fixture is created, so it can be added as a friend to
 // |MediaStreamAudioTrack|.  This enables calling a private method
 // called|Start()| on the track, without instantiating an audio source.
-class MediaStreamAudioTrackTest : public testing::Test {};
+class MediaStreamAudioTrackTest : public testing::Test {
+ public:
+  MediaStreamAudioTrackTest() = default;
+
+ protected:
+  dom::testing::StubEnvironmentSettings environment_settings_;
+};
 
 TEST_F(MediaStreamAudioTrackTest, OnSetFormatAndData) {
   media_stream::AudioParameters expected_params(kChannelCount, kSampleRate,
@@ -55,7 +61,8 @@ TEST_F(MediaStreamAudioTrackTest, OnSetFormatAndData) {
   EXPECT_CALL(mock_sink, OnReadyStateChanged(
                              MediaStreamTrack::ReadyState::kReadyStateEnded));
 
-  scoped_refptr<MediaStreamAudioTrack> track = new MediaStreamAudioTrack();
+  scoped_refptr<MediaStreamAudioTrack> track =
+      new MediaStreamAudioTrack(&environment_settings_);
   track->Start(base::Closure(base::Bind([]() {} /*Do nothing*/)));
   track->AddSink(&mock_sink);
 
@@ -86,7 +93,8 @@ TEST_F(MediaStreamAudioTrackTest, OneTrackMultipleSinks) {
   EXPECT_CALL(mock_sink2, OnReadyStateChanged(
                               MediaStreamTrack::ReadyState::kReadyStateEnded));
 
-  scoped_refptr<MediaStreamAudioTrack> track = new MediaStreamAudioTrack();
+  scoped_refptr<MediaStreamAudioTrack> track =
+      new MediaStreamAudioTrack(&environment_settings_);
   track->Start(base::Closure(base::Bind([]() {} /*Do nothing*/)));
   track->AddSink(&mock_sink1);
   track->AddSink(&mock_sink2);
@@ -118,8 +126,10 @@ TEST_F(MediaStreamAudioTrackTest, TwoTracksWithOneSinkEach) {
   EXPECT_CALL(mock_sink2, OnReadyStateChanged(
                               MediaStreamTrack::ReadyState::kReadyStateEnded));
 
-  scoped_refptr<MediaStreamAudioTrack> track1 = new MediaStreamAudioTrack();
-  scoped_refptr<MediaStreamAudioTrack> track2 = new MediaStreamAudioTrack();
+  scoped_refptr<MediaStreamAudioTrack> track1 =
+      new MediaStreamAudioTrack(&environment_settings_);
+  scoped_refptr<MediaStreamAudioTrack> track2 =
+      new MediaStreamAudioTrack(&environment_settings_);
   track1->Start(base::Closure(base::Bind([]() {} /*Do nothing*/)));
   track2->Start(base::Closure(base::Bind([]() {} /*Do nothing*/)));
   track1->AddSink(&mock_sink1);
@@ -146,7 +156,8 @@ TEST_F(MediaStreamAudioTrackTest, AddRemoveSink) {
   // is delivered.
   StrictMock<MockMediaStreamAudioSink> mock_sink;
 
-  scoped_refptr<MediaStreamAudioTrack> track = new MediaStreamAudioTrack();
+  scoped_refptr<MediaStreamAudioTrack> track =
+      new MediaStreamAudioTrack(&environment_settings_);
   track->Start(base::Closure(base::Bind([]() {} /*Do nothing*/)));
   track->AddSink(&mock_sink);
 
@@ -165,7 +176,8 @@ TEST_F(MediaStreamAudioTrackTest, AddRemoveSink) {
 TEST_F(MediaStreamAudioTrackTest, Stop) {
   StrictMock<MockMediaStreamAudioSink> mock_sink;
 
-  scoped_refptr<MediaStreamAudioTrack> track = new MediaStreamAudioTrack();
+  scoped_refptr<MediaStreamAudioTrack> track =
+      new MediaStreamAudioTrack(&environment_settings_);
   track->Start(base::Closure(base::Bind([]() {} /*Do nothing*/)));
   track->AddSink(&mock_sink);
 
@@ -184,7 +196,8 @@ TEST_F(MediaStreamAudioTrackTest, Stop) {
 }
 
 TEST_F(MediaStreamAudioTrackTest, ReadyStateEndedNotifyIfAlreadyStopped) {
-  scoped_refptr<MediaStreamAudioTrack> track = new MediaStreamAudioTrack();
+  scoped_refptr<MediaStreamAudioTrack> track =
+      new MediaStreamAudioTrack(&environment_settings_);
   track->Start(base::Closure(base::Bind([]() {} /*Do nothing*/)));
   track->Stop();
 
@@ -195,7 +208,8 @@ TEST_F(MediaStreamAudioTrackTest, ReadyStateEndedNotifyIfAlreadyStopped) {
 }
 
 TEST_F(MediaStreamAudioTrackTest, ReadyStateEndedNotifyIfNeverStarted) {
-  scoped_refptr<MediaStreamAudioTrack> track = new MediaStreamAudioTrack();
+  scoped_refptr<MediaStreamAudioTrack> track =
+      new MediaStreamAudioTrack(&environment_settings_);
 
   StrictMock<MockMediaStreamAudioSink> mock_sink;
   EXPECT_CALL(mock_sink, OnReadyStateChanged(

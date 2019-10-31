@@ -170,7 +170,7 @@ const uint16 WebSocket::kClosed;
 WebSocket::WebSocket(script::EnvironmentSettings* settings,
                      const std::string& url,
                      script::ExceptionState* exception_state)
-    : require_network_module_(true) {
+    : dom::EventTarget(settings), require_network_module_(true) {
   const std::vector<std::string> empty;
   Initialize(settings, url, empty, exception_state);
 }
@@ -179,7 +179,7 @@ WebSocket::WebSocket(script::EnvironmentSettings* settings,
                      const std::string& url,
                      const std::vector<std::string>& sub_protocols,
                      script::ExceptionState* exception_state)
-    : require_network_module_(true) {
+    : dom::EventTarget(settings), require_network_module_(true) {
   Initialize(settings, url, sub_protocols, exception_state);
 }
 
@@ -203,7 +203,7 @@ WebSocket::WebSocket(script::EnvironmentSettings* settings,
                      const std::string& url,
                      const std::string& sub_protocol_list,
                      script::ExceptionState* exception_state)
-    : require_network_module_(true) {
+    : dom::EventTarget(settings), require_network_module_(true) {
   std::vector<std::string> sub_protocols =
       base::SplitString(sub_protocol_list, kComma, base::KEEP_WHITESPACE,
                         base::SPLIT_WANT_NONEMPTY);
@@ -588,7 +588,8 @@ WebSocket::WebSocket(script::EnvironmentSettings* settings,
                      const std::string& url,
                      script::ExceptionState* exception_state,
                      const bool require_network_module)
-    : require_network_module_(require_network_module) {
+    : dom::EventTarget(settings),
+      require_network_module_(require_network_module) {
   const std::vector<std::string> empty;
   Initialize(settings, url, empty, exception_state);
 }
@@ -597,7 +598,8 @@ WebSocket::WebSocket(script::EnvironmentSettings* settings,
                      const std::string& url, const std::string& sub_protocol,
                      script::ExceptionState* exception_state,
                      const bool require_network_module)
-    : require_network_module_(require_network_module) {
+    : dom::EventTarget(settings),
+      require_network_module_(require_network_module) {
   std::vector<std::string> sub_protocols;
   sub_protocols.push_back(sub_protocol);
   Initialize(settings, url, sub_protocols, exception_state);
@@ -608,7 +610,8 @@ WebSocket::WebSocket(script::EnvironmentSettings* settings,
                      const std::vector<std::string>& sub_protocols,
                      script::ExceptionState* exception_state,
                      const bool require_network_module)
-    : require_network_module_(require_network_module) {
+    : dom::EventTarget(settings),
+      require_network_module_(require_network_module) {
   Initialize(settings, url, sub_protocols, exception_state);
 }
 

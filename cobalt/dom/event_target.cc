@@ -21,13 +21,25 @@
 #include "base/memory/ptr_util.h"
 #include "base/message_loop/message_loop.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_exception.h"
+#include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/global_stats.h"
 #include "cobalt/xhr/xml_http_request_event_target.h"
 #include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace dom {
+
+EventTarget::EventTarget(
+    script::EnvironmentSettings* settings,
+    UnpackOnErrorEventsBool onerror_event_parameter_handling)
+    : debugger_hooks_(
+          base::polymorphic_downcast<DOMSettings*>(settings)->debugger_hooks()),
+      unpack_onerror_events_(onerror_event_parameter_handling ==
+                             kUnpackOnErrorEvents) {
+  DCHECK(debugger_hooks_);
+}
 
 void EventTarget::AddEventListener(const std::string& type,
                                    const EventListenerScriptValue& listener,

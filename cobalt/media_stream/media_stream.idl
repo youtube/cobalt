@@ -14,8 +14,10 @@
 
 // Implements a subset of the specification at:
 // https://www.w3.org/TR/mediacapture-streams/#dom-mediastream
-[Exposed=Window,
- Constructor
+[
+  Exposed=Window,
+  Constructor,
+  ConstructorCallWith=EnvironmentSettings,
 ]
 interface MediaStream : EventTarget {
   sequence<MediaStreamTrack> getAudioTracks();

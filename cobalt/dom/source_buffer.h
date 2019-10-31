@@ -65,6 +65,7 @@
 #include "cobalt/media/filters/chunk_demuxer.h"
 #include "cobalt/script/array_buffer.h"
 #include "cobalt/script/array_buffer_view.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
 
 namespace cobalt {
@@ -79,8 +80,9 @@ class SourceBuffer : public dom::EventTarget {
  public:
   // Custom, not in any spec.
   //
-  SourceBuffer(const std::string& id, MediaSource* media_source,
-               media::ChunkDemuxer* chunk_demuxer, EventQueue* event_queue);
+  SourceBuffer(script::EnvironmentSettings* settings, const std::string& id,
+               MediaSource* media_source, media::ChunkDemuxer* chunk_demuxer,
+               EventQueue* event_queue);
 
   // Web API: SourceBuffer
   //

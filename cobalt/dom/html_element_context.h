@@ -33,6 +33,7 @@
 #include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/page_visibility/page_visibility_state.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/script_runner.h"
 #include "cobalt/script/script_value_factory.h"
 
@@ -49,8 +50,13 @@ class HTMLElementContext {
  public:
   typedef UrlRegistry<MediaSource> MediaSourceRegistry;
 
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  // No-args constructor for tests.
   HTMLElementContext();
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+
   HTMLElementContext(
+      script::EnvironmentSettings* environment_settings,
       loader::FetcherFactory* fetcher_factory,
       loader::LoaderFactory* loader_factory, cssom::CSSParser* css_parser,
       Parser* dom_parser, media::CanPlayTypeHandler* can_play_type_handler,
@@ -70,6 +76,10 @@ class HTMLElementContext {
       base::WaitableEvent* synchronous_loader_interrupt,
       float video_playback_rate_multiplier = 1.0);
   ~HTMLElementContext();
+
+  script::EnvironmentSettings* environment_settings() const {
+    return environment_settings_;
+  }
 
   loader::FetcherFactory* fetcher_factory() { return fetcher_factory_; }
 
@@ -146,6 +156,12 @@ class HTMLElementContext {
   }
 
  private:
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  // StubEnvironmentSettings for no-args test constructor.
+  std::unique_ptr<script::EnvironmentSettings> stub_environment_settings_;
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+
+  script::EnvironmentSettings* environment_settings_;
   loader::FetcherFactory* const fetcher_factory_;
   loader::LoaderFactory* const loader_factory_;
   cssom::CSSParser* const css_parser_;

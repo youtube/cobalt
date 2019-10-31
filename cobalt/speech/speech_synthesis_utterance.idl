@@ -16,7 +16,8 @@
 
 [
   Constructor,
-  Constructor(DOMString text)
+  Constructor(DOMString text),
+  ConstructorCallWith=EnvironmentSettings,
 ]
 interface SpeechSynthesisUtterance : EventTarget {
   attribute DOMString text;

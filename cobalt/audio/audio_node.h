@@ -28,6 +28,7 @@
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/media/base/shell_audio_bus.h"
+#include "cobalt/script/environment_settings.h"
 
 namespace cobalt {
 namespace audio {
@@ -51,7 +52,7 @@ class AudioNode : public dom::EventTarget {
   typedef media::ShellAudioBus ShellAudioBus;
 
  public:
-  explicit AudioNode(AudioContext* context);
+  AudioNode(script::EnvironmentSettings* settings, AudioContext* context);
 
   // Web API: AudioNode
   //

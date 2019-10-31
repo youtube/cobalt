@@ -450,7 +450,11 @@ void Node::TraceMembers(script::Tracer* tracer) {
 }
 
 Node::Node(Document* document)
-    : node_document_(base::AsWeakPtr(document)),
+    : Node(document->html_element_context(), document) {}
+
+Node::Node(HTMLElementContext* html_element_context, Document* document)
+    : EventTarget(html_element_context->environment_settings()),
+      node_document_(base::AsWeakPtr(document)),
       parent_(NULL),
       previous_sibling_(NULL),
       last_child_(NULL),

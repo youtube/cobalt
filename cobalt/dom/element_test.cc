@@ -33,6 +33,7 @@
 #include "cobalt/dom/node_list.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/testing/html_collection_testing.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/dom/xml_document.h"
 #include "cobalt/dom_parser/parser.h"
@@ -50,6 +51,7 @@ class ElementTest : public ::testing::Test {
   ElementTest();
   ~ElementTest() override;
 
+  testing::StubEnvironmentSettings environment_settings_;
   std::unique_ptr<css_parser::Parser> css_parser_;
   std::unique_ptr<dom_parser::Parser> dom_parser_;
   std::unique_ptr<DomStatTracker> dom_stat_tracker_;
@@ -62,9 +64,10 @@ ElementTest::ElementTest()
     : css_parser_(css_parser::Parser::Create()),
       dom_parser_(new dom_parser::Parser()),
       dom_stat_tracker_(new DomStatTracker("ElementTest")),
-      html_element_context_(NULL, NULL, css_parser_.get(), dom_parser_.get(),
+      html_element_context_(&environment_settings_, NULL, NULL,
+                            css_parser_.get(), dom_parser_.get(), NULL, NULL,
                             NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                            NULL, NULL, NULL, dom_stat_tracker_.get(), "",
+                            NULL, dom_stat_tracker_.get(), "",
                             base::kApplicationStateStarted, NULL) {
   EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
   document_ = new Document(&html_element_context_);

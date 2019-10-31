@@ -72,7 +72,7 @@ namespace dom {
 
 Document::Document(HTMLElementContext* html_element_context,
                    const Options& options)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(Node(this)),
+    : ALLOW_THIS_IN_INITIALIZER_LIST(Node(html_element_context, this)),
       html_element_context_(html_element_context),
       page_visibility_state_(html_element_context_->page_visibility_state()),
       window_(options.window),

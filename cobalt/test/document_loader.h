@@ -29,6 +29,7 @@
 #include "cobalt/dom/dom_parser.h"
 #include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/image/image_cache.h"
@@ -60,8 +61,9 @@ class DocumentLoader : public dom::DocumentObserver {
         dom_stat_tracker_(new dom::DomStatTracker("IsDisplayedTest")),
         resource_provider_(resource_provider_stub_.get()),
         html_element_context_(
-            &fetcher_factory_, loader_factory_.get(), css_parser_.get(),
-            dom_parser_.get(), NULL /* can_play_type_handler  */,
+            &environment_settings_, &fetcher_factory_, loader_factory_.get(),
+            css_parser_.get(), dom_parser_.get(),
+            NULL /* can_play_type_handler  */,
             NULL /* web_media_player_factory */, &script_runner_,
             NULL /* script_value_factory */, NULL /* media_source_registry */,
             &resource_provider_, NULL /* animated_image_tracker */,
@@ -105,6 +107,7 @@ class DocumentLoader : public dom::DocumentObserver {
   // Nested message loop on which the document loading will occur.
   base::RunLoop nested_loop_;
 
+  dom::testing::StubEnvironmentSettings environment_settings_;
   script::FakeScriptRunner script_runner_;
   loader::FetcherFactory fetcher_factory_;
   std::unique_ptr<css_parser::Parser> css_parser_;

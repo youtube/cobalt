@@ -52,6 +52,7 @@
 #include "cobalt/dom/event_queue.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/source_buffer.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -65,7 +66,8 @@ class SourceBufferList : public EventTarget {
  public:
   // Custom, not in any spec.
   //
-  explicit SourceBufferList(EventQueue* event_queue);
+  SourceBufferList(script::EnvironmentSettings* settings,
+                   EventQueue* event_queue);
   ~SourceBufferList() override;
 
   // Web API: SourceBuffer

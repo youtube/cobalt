@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/dom/serializer.h"
+
 #include <memory>
 #include <sstream>
 #include <string>
@@ -21,7 +23,7 @@
 #include "cobalt/dom/document_type.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_element_context.h"
-#include "cobalt/dom/serializer.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom_parser/parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -33,6 +35,7 @@ class SerializerTest : public ::testing::Test {
   SerializerTest();
   ~SerializerTest() override {}
 
+  testing::StubEnvironmentSettings environment_settings_;
   std::unique_ptr<dom_parser::Parser> dom_parser_;
   std::unique_ptr<DomStatTracker> dom_stat_tracker_;
   HTMLElementContext html_element_context_;
@@ -45,9 +48,9 @@ class SerializerTest : public ::testing::Test {
 SerializerTest::SerializerTest()
     : dom_parser_(new dom_parser::Parser()),
       dom_stat_tracker_(new DomStatTracker("SerializerTest")),
-      html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                            NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                            dom_stat_tracker_.get(), "",
+      html_element_context_(&environment_settings_, NULL, NULL, NULL, NULL,
+                            NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                            NULL, NULL, NULL, dom_stat_tracker_.get(), "",
                             base::kApplicationStateStarted, NULL),
       document_(new Document(&html_element_context_)),
       root_(new Element(document_, base::Token("root"))),

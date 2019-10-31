@@ -12,14 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/dom/node_list.h"
+
+#include <memory>
 
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -29,14 +30,15 @@ class NodeListTest : public ::testing::Test {
  protected:
   NodeListTest()
       : dom_stat_tracker_(new DomStatTracker("NodeListTest")),
-        html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                              NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                              dom_stat_tracker_.get(), "",
+        html_element_context_(&environment_settings_, NULL, NULL, NULL, NULL,
+                              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                              NULL, NULL, NULL, dom_stat_tracker_.get(), "",
                               base::kApplicationStateStarted, NULL),
         document_(new Document(&html_element_context_)) {}
 
   ~NodeListTest() override {}
 
+  testing::StubEnvironmentSettings environment_settings_;
   std::unique_ptr<DomStatTracker> dom_stat_tracker_;
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;

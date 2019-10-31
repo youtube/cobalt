@@ -138,7 +138,7 @@ Window::Window(
     bool log_tts)
     // 'window' object EventTargets require special handling for onerror events,
     // see EventTarget constructor for more details.
-    : EventTarget(kUnpackOnErrorEvents),
+    : EventTarget(settings, kUnpackOnErrorEvents),
       viewport_size_(view_size),
       device_pixel_ratio_(device_pixel_ratio),
       is_resize_event_pending_(false),
@@ -147,7 +147,7 @@ Window::Window(
       test_runner_(new TestRunner()),
 #endif  // ENABLE_TEST_RUNNER
       html_element_context_(new HTMLElementContext(
-          fetcher_factory, loader_factory, css_parser, dom_parser,
+          settings, fetcher_factory, loader_factory, css_parser, dom_parser,
           can_play_type_handler, web_media_player_factory, script_runner,
           script_value_factory, media_source_registry, resource_provider,
           animated_image_tracker, image_cache,
@@ -179,7 +179,8 @@ Window::Window(
       ALLOW_THIS_IN_INITIALIZER_LIST(animation_frame_request_callback_list_(
           new AnimationFrameRequestCallbackList(this))),
       crypto_(new Crypto()),
-      speech_synthesis_(new speech::SpeechSynthesis(navigator_, log_tts)),
+      speech_synthesis_(
+          new speech::SpeechSynthesis(settings, navigator_, log_tts)),
       ALLOW_THIS_IN_INITIALIZER_LIST(local_storage_(
           new Storage(this, Storage::kLocalStorage, local_storage_database))),
       ALLOW_THIS_IN_INITIALIZER_LIST(
@@ -193,7 +194,8 @@ Window::Window(
       // We only have an on_screen_keyboard_bridge when the platform supports
       // it. Otherwise don't even expose it in the DOM.
       on_screen_keyboard_(on_screen_keyboard_bridge
-                              ? new OnScreenKeyboard(on_screen_keyboard_bridge,
+                              ? new OnScreenKeyboard(settings,
+                                                     on_screen_keyboard_bridge,
                                                      script_value_factory)
                               : NULL),
       splash_screen_cache_callback_(splash_screen_cache_callback),

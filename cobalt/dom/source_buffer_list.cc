@@ -60,8 +60,9 @@ namespace {
 const int kSizeOfSourceBufferToReserveInitially = 2;
 }  // namespace
 
-SourceBufferList::SourceBufferList(EventQueue* event_queue)
-    : event_queue_(event_queue) {
+SourceBufferList::SourceBufferList(script::EnvironmentSettings* settings,
+                                   EventQueue* event_queue)
+    : EventTarget(settings), event_queue_(event_queue) {
   DCHECK(event_queue_);
   source_buffers_.reserve(kSizeOfSourceBufferToReserveInitially);
 }
