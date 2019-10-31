@@ -89,7 +89,7 @@ std::string ScopedRandomFile::MakeRandomFile(int length) {
     data[i] = static_cast<char>(i & 0xFF);
   }
 
-  int bytes = SbFileWrite(file, data, length);
+  int bytes = SbFileWriteAll(file, data, length);
   EXPECT_EQ(bytes, length) << "Failed to write " << length << " bytes to "
                            << filename;
 

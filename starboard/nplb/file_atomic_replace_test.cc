@@ -40,7 +40,7 @@ bool CompareFileContentsToString(const char* filename,
   // We always try to read kTestContentsLength since the data will at most be
   // this long. There are test cases where the number of bytes read will be
   // less.
-  EXPECT_EQ(size, SbFileRead(file, result, kTestContentsLength));
+  EXPECT_EQ(size, SbFileReadAll(file, result, kTestContentsLength));
   EXPECT_TRUE(SbFileClose(file));
 
   return SbStringCompare(str, result, kTestContentsLength) == 0;
