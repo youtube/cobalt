@@ -103,7 +103,7 @@ VideoDmpReader::VideoDmpReader(const char* filename)
   SB_CHECK(file_size >= 0);
 
   file_cache_.resize(file_size);
-  int bytes_read = file.Read(file_cache_.data(), file_size);
+  int bytes_read = file.ReadAll(file_cache_.data(), file_size);
   SB_CHECK(bytes_read == file_size);
 
   Parse();
