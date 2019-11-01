@@ -20,6 +20,7 @@
 #include "base/bind.h"
 #include "base/path_service.h"
 #include "base/time/time.h"
+#include "cobalt/math/size.h"
 #include "cobalt/media/base/audio_codecs.h"
 #include "cobalt/media/base/audio_decoder_config.h"
 #include "cobalt/media/base/demuxer_stream.h"
@@ -146,7 +147,8 @@ void FormatGuesstimator::InitializeAsAdaptive(const base::FilePath& path,
     // We create a new |web_media_player_helper| every iteration in order to
     // obtain a handle to a new |ChunkDemuxer| without any accumulated state as
     // a result of previous calls to |AddId| and |AppendData| methods.
-    WebMediaPlayerHelper web_media_player_helper(media_module, open_cb);
+    WebMediaPlayerHelper web_media_player_helper(media_module, open_cb,
+                                                 math::Size(1920, 1080));
 
     // |chunk_demuxer| will be set when |open_cb| is called asynchronously
     // during initialization of |web_media_player_helper|. Wait until it is set
