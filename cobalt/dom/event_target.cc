@@ -69,6 +69,7 @@ void EventTarget::RemoveEventListener(const std::string& type,
     if ((*iter)->listener_type == kNotAttribute &&
         (*iter)->type == type.c_str() && (*iter)->listener->EqualTo(listener) &&
         (*iter)->use_capture == use_capture) {
+      debugger_hooks_->AsyncTaskCanceled((*iter)->listener->task());
       event_listener_infos_.erase(iter);
       return;
     }
@@ -218,6 +219,7 @@ void EventTarget::SetAttributeEventListenerInternal(
   for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
     if ((*iter)->listener_type == kAttribute && (*iter)->type == type) {
+      debugger_hooks_->AsyncTaskCanceled((*iter)->listener->task());
       event_listener_infos_.erase(iter);
       break;
     }
@@ -271,6 +273,8 @@ void EventTarget::FireEventOnListeners(const scoped_refptr<Event>& event) {
       continue;
     }
 
+    base::ScopedAsyncTask async_task(debugger_hooks_,
+                                     (*iter)->listener->task());
     (*iter)->listener->HandleEvent(event, (*iter)->listener_type == kAttribute,
                                    unpack_onerror_events_);
   }
@@ -304,6 +308,8 @@ void EventTarget::AddEventListenerInternal(
     }
   }
 
+  debugger_hooks_->AsyncTaskScheduled(listener->task(), type.c_str(),
+                                      true /*recurring*/);
   event_listener_infos_.emplace_back(new EventListenerInfo(
       type, std::move(listener), use_capture, listener_type));
 }

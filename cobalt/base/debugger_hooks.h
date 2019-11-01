@@ -35,24 +35,24 @@ class DebuggerHooks {
   // asynchronous stack trace is.
   //
   // |recurring| is true if the task may be run more than once.
-  virtual void AsyncTaskScheduled(void* task, const std::string& name,
+  virtual void AsyncTaskScheduled(const void* task, const std::string& name,
                                   bool recurring = false) const = 0;
 
   // Inform the debugger that a scheduled task is starting to run.
-  virtual void AsyncTaskStarted(void* task) const = 0;
+  virtual void AsyncTaskStarted(const void* task) const = 0;
 
   // Inform the debugger that a scheduled task has finished running.
-  virtual void AsyncTaskFinished(void* task) const = 0;
+  virtual void AsyncTaskFinished(const void* task) const = 0;
 
   // Inform the debugger that a scheduled task will no longer be run, and that
   // it may free any resources associated with it.
-  virtual void AsyncTaskCanceled(void* task) const = 0;
+  virtual void AsyncTaskCanceled(const void* task) const = 0;
 };
 
 // Helper to start & finish async tasks using RAII.
 class ScopedAsyncTask {
  public:
-  ScopedAsyncTask(DebuggerHooks* debugger_hooks, void* task)
+  ScopedAsyncTask(DebuggerHooks* debugger_hooks, const void* task)
       : debugger_hooks_(debugger_hooks), task_(task) {
     debugger_hooks_->AsyncTaskStarted(task_);
   }
@@ -60,17 +60,17 @@ class ScopedAsyncTask {
 
  private:
   DebuggerHooks* debugger_hooks_;
-  void* const task_;
+  const void* const task_;
 };
 
 // Null implementation for gold builds and tests where there is no debugger.
 class NullDebuggerHooks : public DebuggerHooks {
  public:
-  void AsyncTaskScheduled(void* task, const std::string& name,
+  void AsyncTaskScheduled(const void* task, const std::string& name,
                           bool recurring) const override {}
-  void AsyncTaskStarted(void* task) const override {}
-  void AsyncTaskFinished(void* task) const override {}
-  void AsyncTaskCanceled(void* task) const override {}
+  void AsyncTaskStarted(const void* task) const override {}
+  void AsyncTaskFinished(const void* task) const override {}
+  void AsyncTaskCanceled(const void* task) const override {}
 };
 
 }  // namespace base
