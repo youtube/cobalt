@@ -51,11 +51,19 @@ bool SbFileAtomicReplace(const char* path,
   std::wstring temp_path_wstring = starboard::shared::win32::NormalizeWin32Path(
       starboard::shared::win32::CStringToWString(temp_path));
 
-  if (ReplaceFileW(path_wstring.c_str(), temp_path_wstring.c_str(), NULL, 0,
-                   NULL, NULL) == 0) {
-    return false;
+  // Try a simple move first. It will only succeed when |to_path| doesn't
+  // already exist.
+  if (MoveFile(temp_path_wstring.c_str(), path_wstring.c_str())) {
+    return true;
   }
-  return true;
+
+  // Try the full-blown replace if the move fails, as ReplaceFile will only
+  // succeed when |to_path| does exist.
+  if (ReplaceFile(path_wstring.c_str(), temp_path_wstring.c_str(), NULL,
+                  0, NULL, NULL)) {
+    return true;
+  }
+  return false;
 }
 
 #endif  // SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION
