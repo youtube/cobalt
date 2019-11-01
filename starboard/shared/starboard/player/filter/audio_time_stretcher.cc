@@ -104,6 +104,8 @@ AudioTimeStretcher::~AudioTimeStretcher() {}
 void AudioTimeStretcher::Initialize(SbMediaAudioSampleType sample_type,
                                     int channels,
                                     int samples_per_second) {
+  SB_DCHECK(samples_per_second > 0);
+
   sample_type_ = sample_type;
   channels_ = channels;
   bytes_per_frame_ = media::GetBytesPerSample(sample_type_) * channels_;

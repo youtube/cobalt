@@ -65,8 +65,8 @@ void StubAudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
     SbTime diff = input_buffer->timestamp() - last_input_buffer_->timestamp();
     SB_DCHECK(diff >= 0);
     size_t sample_size =
-        GetSampleType() == kSbMediaAudioSampleTypeInt16Deprecated ? 2 : 4;
-    size_t size = diff * GetSamplesPerSecond() * sample_size *
+        sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated ? 2 : 4;
+    size_t size = diff * audio_sample_info_.samples_per_second * sample_size *
                   audio_sample_info_.number_of_channels / kSbTimeSecond;
     size -= size % (sample_size * audio_sample_info_.number_of_channels);
     if (audio_codec_ == kSbMediaAudioCodecAac) {
@@ -75,9 +75,10 @@ void StubAudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
       size = sample_size * audio_sample_info_.number_of_channels * 1024;
     }
 
-    decoded_audios_.push(new DecodedAudio(
-        audio_sample_info_.number_of_channels, GetSampleType(),
-        GetStorageType(), last_input_buffer_->timestamp(), size));
+    decoded_audios_.push(
+        new DecodedAudio(audio_sample_info_.number_of_channels, sample_type_,
+                         kSbMediaAudioFrameStorageTypeInterleaved,
+                         last_input_buffer_->timestamp(), size));
 
     if (fill_type == kSilence) {
       SbMemorySet(decoded_audios_.back()->buffer(), 0, size);
@@ -106,7 +107,7 @@ void StubAudioDecoder::WriteEndOfStream() {
     // 4 times the encoded size.
     size_t fake_size = 4 * last_input_buffer_->size();
     size_t sample_size =
-        GetSampleType() == kSbMediaAudioSampleTypeInt16Deprecated ? 2 : 4;
+        sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated ? 2 : 4;
     fake_size -=
         fake_size % (sample_size * audio_sample_info_.number_of_channels);
     if (audio_codec_ == kSbMediaAudioCodecAac) {
@@ -114,9 +115,10 @@ void StubAudioDecoder::WriteEndOfStream() {
       // number of frames matches up.
       fake_size = sample_size * audio_sample_info_.number_of_channels * 1024;
     }
-    decoded_audios_.push(new DecodedAudio(
-        audio_sample_info_.number_of_channels, GetSampleType(),
-        GetStorageType(), last_input_buffer_->timestamp(), fake_size));
+    decoded_audios_.push(
+        new DecodedAudio(audio_sample_info_.number_of_channels, sample_type_,
+                         kSbMediaAudioFrameStorageTypeInterleaved,
+                         last_input_buffer_->timestamp(), fake_size));
     Schedule(output_cb_);
   }
   decoded_audios_.push(new DecodedAudio());
@@ -124,12 +126,13 @@ void StubAudioDecoder::WriteEndOfStream() {
   Schedule(output_cb_);
 }
 
-scoped_refptr<DecodedAudio> StubAudioDecoder::Read() {
+scoped_refptr<DecodedAudio> StubAudioDecoder::Read(int* samples_per_second) {
   scoped_refptr<DecodedAudio> result;
   if (!decoded_audios_.empty()) {
     result = decoded_audios_.front();
     decoded_audios_.pop();
   }
+  *samples_per_second = audio_sample_info_.samples_per_second;
   return result;
 }
 
@@ -141,15 +144,6 @@ void StubAudioDecoder::Reset() {
   last_input_buffer_ = NULL;
 
   CancelPendingJobs();
-}
-SbMediaAudioSampleType StubAudioDecoder::GetSampleType() const {
-  return sample_type_;
-}
-SbMediaAudioFrameStorageType StubAudioDecoder::GetStorageType() const {
-  return kSbMediaAudioFrameStorageTypeInterleaved;
-}
-int StubAudioDecoder::GetSamplesPerSecond() const {
-  return audio_sample_info_.samples_per_second;
 }
 
 }  // namespace filter

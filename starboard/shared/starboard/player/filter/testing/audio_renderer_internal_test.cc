@@ -44,12 +44,13 @@ using ::testing::InSequence;
 using ::testing::InvokeWithoutArgs;
 using ::testing::Return;
 using ::testing::SaveArg;
+using ::testing::SetArgPointee;
 
 // TODO: Write tests to cover callbacks.
 class AudioRendererTest : public ::testing::Test {
  protected:
   static const int kDefaultNumberOfChannels = 2;
-  static const int kDefaultSamplesPerSecond = 100000;
+  static const int kDefaultSamplesPerSecond;
   static const SbMediaAudioSampleType kDefaultAudioSampleType =
       kSbMediaAudioSampleTypeFloat32;
   static const SbMediaAudioFrameStorageType kDefaultAudioFrameStorageType =
@@ -71,6 +72,10 @@ class AudioRendererTest : public ::testing::Test {
     audio_decoder_ = new MockAudioDecoder(sample_type_, storage_type_,
                                           kDefaultSamplesPerSecond);
 
+    ON_CALL(*audio_decoder_, Read(_))
+        .WillByDefault(
+            DoAll(SetArgPointee<0>(kDefaultSamplesPerSecond),
+                  Return(scoped_refptr<DecodedAudio>(new DecodedAudio()))));
     ON_CALL(*audio_renderer_sink_, Start(_, _, _, _, _, _, _))
         .WillByDefault(DoAll(InvokeWithoutArgs([this]() {
                                audio_renderer_sink_->SetHasStarted(true);
@@ -177,7 +182,9 @@ class AudioRendererTest : public ::testing::Test {
   void SendDecoderOutput(const scoped_refptr<DecodedAudio>& decoded_audio) {
     ASSERT_TRUE(output_cb_);
 
-    EXPECT_CALL(*audio_decoder_, Read()).WillOnce(Return(decoded_audio));
+    EXPECT_CALL(*audio_decoder_, Read(_))
+        .WillOnce(DoAll(SetArgPointee<0>(kDefaultSamplesPerSecond),
+                        Return(decoded_audio)));
     output_cb_();
     job_queue_.RunUntilIdle();
   }
@@ -262,6 +269,9 @@ class AudioRendererTest : public ::testing::Test {
     test->OnDeallocateSample(sample_buffer);
   }
 };
+
+// static
+const int AudioRendererTest::kDefaultSamplesPerSecond = 100000;
 
 TEST_F(AudioRendererTest, StateAfterConstructed) {
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamWritten());

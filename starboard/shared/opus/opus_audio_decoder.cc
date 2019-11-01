@@ -142,8 +142,8 @@ void OpusAudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
   }
 
   scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
-      audio_sample_info_.number_of_channels, GetSampleType(), GetStorageType(),
-      input_buffer->timestamp(),
+      audio_sample_info_.number_of_channels, GetSampleType(),
+      kSbMediaAudioFrameStorageTypeInterleaved, input_buffer->timestamp(),
       audio_sample_info_.number_of_channels * decoded_frames *
           starboard::media::GetBytesPerSample(GetSampleType()));
   SbMemoryCopy(decoded_audio->buffer(), working_buffer_.data(),
@@ -165,7 +165,8 @@ void OpusAudioDecoder::WriteEndOfStream() {
   Schedule(output_cb_);
 }
 
-scoped_refptr<OpusAudioDecoder::DecodedAudio> OpusAudioDecoder::Read() {
+scoped_refptr<OpusAudioDecoder::DecodedAudio> OpusAudioDecoder::Read(
+    int* samples_per_second) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
   SB_DCHECK(!decoded_audios_.empty());
@@ -175,6 +176,7 @@ scoped_refptr<OpusAudioDecoder::DecodedAudio> OpusAudioDecoder::Read() {
     result = decoded_audios_.front();
     decoded_audios_.pop();
   }
+  *samples_per_second = audio_sample_info_.samples_per_second;
   return result;
 }
 
@@ -200,15 +202,6 @@ SbMediaAudioSampleType OpusAudioDecoder::GetSampleType() const {
 #else   // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   return kSbMediaAudioSampleTypeFloat32;
 #endif  // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
-}
-
-SbMediaAudioFrameStorageType OpusAudioDecoder::GetStorageType() const {
-  SB_DCHECK(BelongsToCurrentThread());
-  return kSbMediaAudioFrameStorageTypeInterleaved;
-}
-
-int OpusAudioDecoder::GetSamplesPerSecond() const {
-  return audio_sample_info_.samples_per_second;
 }
 
 }  // namespace opus
