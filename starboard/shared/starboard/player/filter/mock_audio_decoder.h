@@ -37,30 +37,14 @@ class MockAudioDecoder : public AudioDecoder {
  public:
   MockAudioDecoder(SbMediaAudioSampleType sample_type,
                    SbMediaAudioFrameStorageType storage_type,
-                   int samples_per_second)
-      : sample_type_(sample_type),
-        storage_type_(storage_type),
-        samples_per_second_(samples_per_second) {}
+                   int samples_per_second) {}
 
   MOCK_METHOD2(Initialize, void(const OutputCB&, const ErrorCB&));
   MOCK_METHOD2(Decode,
                void(const scoped_refptr<InputBuffer>&, const ConsumedCB&));
   MOCK_METHOD0(WriteEndOfStream, void());
-  MOCK_METHOD0(Read, scoped_refptr<DecodedAudio>());
+  MOCK_METHOD1(Read, scoped_refptr<DecodedAudio>(int*));
   MOCK_METHOD0(Reset, void());
-
-  SbMediaAudioSampleType GetSampleType() const override {
-    return sample_type_;
-  }
-  SbMediaAudioFrameStorageType GetStorageType() const override {
-    return storage_type_;
-  }
-  int GetSamplesPerSecond() const override { return samples_per_second_; }
-
- private:
-  SbMediaAudioSampleType sample_type_;
-  SbMediaAudioFrameStorageType storage_type_;
-  int samples_per_second_;
 };
 
 }  // namespace testing

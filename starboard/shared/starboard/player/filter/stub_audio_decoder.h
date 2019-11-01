@@ -40,15 +40,9 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
 
   void WriteEndOfStream() override;
 
-  scoped_refptr<DecodedAudio> Read() override;
+  scoped_refptr<DecodedAudio> Read(int* samples_per_second) override;
 
   void Reset() override;
-
-  SbMediaAudioSampleType GetSampleType() const override;
-
-  SbMediaAudioFrameStorageType GetStorageType() const override;
-
-  int GetSamplesPerSecond() const override;
 
  private:
   OutputCB output_cb_;

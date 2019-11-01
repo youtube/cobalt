@@ -25,6 +25,7 @@
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/stub_player_components_impl.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
@@ -189,13 +190,25 @@ class AudioDecoderTest
   void ReadFromDecoder(scoped_refptr<DecodedAudio>* decoded_audio) {
     ASSERT_TRUE(decoded_audio);
 
-    scoped_refptr<DecodedAudio> local_decoded_audio = audio_decoder_->Read();
+    int decoded_sample_rate;
+    scoped_refptr<DecodedAudio> local_decoded_audio =
+        audio_decoder_->Read(&decoded_sample_rate);
     ASSERT_TRUE(local_decoded_audio);
+    if (!first_output_received_) {
+      first_output_received_ = true;
+      decoded_audio_sample_type_ = local_decoded_audio->sample_type();
+      decoded_audio_storage_type_ = local_decoded_audio->storage_type();
+      decoded_audio_samples_per_second_ = decoded_sample_rate;
+    }
 
     if (local_decoded_audio->is_end_of_stream()) {
       *decoded_audio = local_decoded_audio;
       return;
     }
+    ASSERT_EQ(decoded_audio_sample_type_, local_decoded_audio->sample_type());
+    ASSERT_EQ(decoded_audio_storage_type_, local_decoded_audio->storage_type());
+    ASSERT_EQ(decoded_audio_samples_per_second_, decoded_sample_rate);
+
     // TODO: Adaptive audio decoder outputs may don't have timestamp info.
     // Currently, we skip timestamp check if the outputs don't have timestamp
     // info. Enable it after we fix timestamp issues.
@@ -311,6 +324,8 @@ class AudioDecoderTest
     last_input_buffer_ = nullptr;
     last_decoded_audio_ = nullptr;
     eos_written_ = false;
+    decoded_audio_samples_per_second_ = 0;
+    first_output_received_ = false;
   }
 
   void WaitForDecodedAudio() {
@@ -362,19 +377,17 @@ class AudioDecoderTest
   }
 
   void AssertInvalidOutputFormat() {
-    SbMediaAudioSampleType output_sample_type = audio_decoder_->GetSampleType();
-    ASSERT_TRUE(output_sample_type == kSbMediaAudioSampleTypeFloat32 ||
-                output_sample_type == kSbMediaAudioSampleTypeInt16Deprecated);
+    ASSERT_TRUE(decoded_audio_sample_type_ == kSbMediaAudioSampleTypeFloat32 ||
+                decoded_audio_sample_type_ ==
+                    kSbMediaAudioSampleTypeInt16Deprecated);
 
-    SbMediaAudioFrameStorageType output_storage_type =
-        audio_decoder_->GetStorageType();
-    ASSERT_TRUE(output_storage_type ==
+    ASSERT_TRUE(decoded_audio_storage_type_ ==
                     kSbMediaAudioFrameStorageTypeInterleaved ||
-                output_storage_type == kSbMediaAudioFrameStorageTypePlanar);
+                decoded_audio_storage_type_ ==
+                    kSbMediaAudioFrameStorageTypePlanar);
 
-    int output_samples_per_second = audio_decoder_->GetSamplesPerSecond();
-    ASSERT_TRUE(output_samples_per_second > 0 &&
-                output_samples_per_second <= 480000);
+    ASSERT_TRUE(decoded_audio_samples_per_second_ > 0 &&
+                decoded_audio_samples_per_second_ <= 480000);
   }
 
   void AssertExpectedAndOutputFramesMatch(int expected_output_frames) {
@@ -410,6 +423,14 @@ class AudioDecoderTest
   std::map<size_t, uint8_t> invalid_inputs_;
 
   int num_of_output_frames_ = 0;
+
+  SbMediaAudioSampleType decoded_audio_sample_type_ =
+      kSbMediaAudioSampleTypeInt16Deprecated;
+  SbMediaAudioFrameStorageType decoded_audio_storage_type_ =
+      kSbMediaAudioFrameStorageTypeInterleaved;
+  int decoded_audio_samples_per_second_ = 0;
+
+  bool first_output_received_ = false;
 };
 
 TEST_P(AudioDecoderTest, MultiDecoders) {
@@ -453,10 +474,9 @@ TEST_P(AudioDecoderTest, SingleInputHEAAC) {
 
   int input_sample_rate =
       last_input_buffer_->audio_sample_info().samples_per_second;
-  int output_sample_rate = audio_decoder_->GetSamplesPerSecond();
-  ASSERT_NE(0, output_sample_rate);
+  ASSERT_NE(0, decoded_audio_samples_per_second_);
   int expected_output_frames =
-      kAacFrameSize * output_sample_rate / input_sample_rate;
+      kAacFrameSize * decoded_audio_samples_per_second_ / input_sample_rate;
   AssertExpectedAndOutputFramesMatch(expected_output_frames);
 }
 
