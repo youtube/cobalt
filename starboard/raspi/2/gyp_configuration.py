@@ -15,13 +15,12 @@
 
 from starboard.raspi.shared import gyp_configuration as shared_configuration
 
-_SABI_JSON_PATH = 'starboard/evergreen/sabi/arm/hardfp/sabi.json'
-
 
 class Raspi2PlatformConfig(shared_configuration.RaspiPlatformConfig):
 
-  def __init__(self, platform):
-    super(Raspi2PlatformConfig, self).__init__(platform)
+  def __init__(self, platform, sabi_json_path=None):
+    super(Raspi2PlatformConfig, self).__init__(
+        platform, sabi_json_path=sabi_json_path)
 
   def GetVariables(self, config_name):
     variables = super(Raspi2PlatformConfig, self).GetVariables(config_name)
@@ -31,9 +30,7 @@ class Raspi2PlatformConfig(shared_configuration.RaspiPlatformConfig):
     })
     return variables
 
-  def GetPathToSabiJsonFile(self):
-    return _SABI_JSON_PATH
-
 
 def CreatePlatformConfig():
-  return Raspi2PlatformConfig('raspi-2')
+  return Raspi2PlatformConfig(
+      'raspi-2', sabi_json_path='starboard/evergreen/sabi/arm/hardfp/sabi.json')
