@@ -29,10 +29,11 @@ _UNDEFINED_RASPI_HOME = '/UNDEFINED/RASPI_HOME'
 class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
   """Starboard Raspberry Pi platform configuration."""
 
-  def __init__(self, platform):
+  def __init__(self, platform, sabi_json_path=None):
     super(RaspiPlatformConfig, self).__init__(platform)
     self.AppendApplicationConfigurationPath(os.path.dirname(__file__))
     self.raspi_home = os.environ.get('RASPI_HOME', _UNDEFINED_RASPI_HOME)
+    self.sabi_json_path = sabi_json_path
     self.sysroot = os.path.realpath(os.path.join(self.raspi_home, 'sysroot'))
 
   def GetBuildFormat(self):
@@ -107,3 +108,6 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
           'VideoDecoderTests/VideoDecoderTest.MultipleResets/0',
       ],
   }
+
+  def GetPathToSabiJsonFile(self):
+    return self.sabi_json_path

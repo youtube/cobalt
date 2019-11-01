@@ -19,8 +19,9 @@ from starboard.tools.testing import test_filter
 
 class Raspi0PlatformConfig(shared_configuration.RaspiPlatformConfig):
 
-  def __init__(self, platform):
-    super(Raspi0PlatformConfig, self).__init__(platform)
+  def __init__(self, platform, sabi_json_path=None):
+    super(Raspi0PlatformConfig, self).__init__(
+        platform, sabi_json_path=sabi_json_path)
 
   def GetVariables(self, config_name):
     variables = super(Raspi0PlatformConfig, self).GetVariables(config_name)
@@ -54,4 +55,6 @@ class Raspi0PlatformConfig(shared_configuration.RaspiPlatformConfig):
 
 
 def CreatePlatformConfig():
-  return Raspi0PlatformConfig('raspi-0')
+  return Raspi0PlatformConfig(
+      'raspi-0',
+      sabi_json_path='starboard/evergreen/sabi/arm/hardfp/v6zk/sabi.json')
