@@ -252,10 +252,6 @@ class AdaptiveAudioDecoderTest
         break;
       }
       case kOutput: {
-        if (!first_output_received_) {
-          output_sample_rate_ = audio_decoder_->GetSamplesPerSecond();
-          first_output_received_ = true;
-        }
         ReadFromDecoder();
         break;
       }
@@ -268,8 +264,16 @@ class AdaptiveAudioDecoderTest
   }
 
   void ReadFromDecoder() {
-    scoped_refptr<DecodedAudio> decoded_audio = audio_decoder_->Read();
+    int samples_per_second;
+    scoped_refptr<DecodedAudio> decoded_audio =
+        audio_decoder_->Read(&samples_per_second);
     ASSERT_TRUE(decoded_audio);
+    if (first_output_received_) {
+      ASSERT_EQ(output_sample_rate_, samples_per_second);
+    } else {
+      output_sample_rate_ = samples_per_second;
+      first_output_received_ = true;
+    }
 
     if (decoded_audio->is_end_of_stream()) {
       last_decoded_audio_ = decoded_audio;

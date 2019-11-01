@@ -73,25 +73,12 @@ class AudioDecoder {
   // combine multiple decoded audio access units into one.  The implementation
   // has to ensure that the particular resampler can handle such combined access
   // units as input.
-  virtual scoped_refptr<DecodedAudio> Read() = 0;
+  virtual scoped_refptr<DecodedAudio> Read(int* samples_per_second) = 0;
 
   // Clear any cached buffer of the codec and reset the state of the codec. This
   // function will be called during seek to ensure that the left over data from
   // from previous buffers are cleared.
   virtual void Reset() = 0;
-
-  // Return the sample type of the decoded pcm data.
-  virtual SbMediaAudioSampleType GetSampleType() const = 0;
-
-  // Return the storage type of the decoded pcm data.
-  virtual SbMediaAudioFrameStorageType GetStorageType() const = 0;
-
-  // Return the sample rate of the incoming audio.  This should be used by the
-  // audio renderer as the sample rate of the underlying audio stream can be
-  // different than the sample rate stored in the meta data.
-  // This function can only be called after |output_cb| passed to Initialize()
-  // is called for the first time.
-  virtual int GetSamplesPerSecond() const = 0;
 };
 
 }  // namespace filter

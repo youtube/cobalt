@@ -55,13 +55,13 @@ class AudioDecoderImpl<FFMPEG> : public AudioDecoder,
   void Decode(const scoped_refptr<InputBuffer>& input_buffer,
               const ConsumedCB& consumed_cb) override;
   void WriteEndOfStream() override;
-  scoped_refptr<DecodedAudio> Read() override;
+  scoped_refptr<DecodedAudio> Read(int* samples_per_second) override;
   void Reset() override;
-  SbMediaAudioSampleType GetSampleType() const override;
-  SbMediaAudioFrameStorageType GetStorageType() const override;
-  int GetSamplesPerSecond() const override;
 
  private:
+  SbMediaAudioSampleType GetSampleType() const;
+  SbMediaAudioFrameStorageType GetStorageType() const;
+
   void InitializeCodec();
   void TeardownCodec();
 

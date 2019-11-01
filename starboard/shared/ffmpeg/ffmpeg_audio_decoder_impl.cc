@@ -200,7 +200,7 @@ void AudioDecoderImpl<FFMPEG>::WriteEndOfStream() {
 }
 
 scoped_refptr<AudioDecoderImpl<FFMPEG>::DecodedAudio>
-AudioDecoderImpl<FFMPEG>::Read() {
+AudioDecoderImpl<FFMPEG>::Read(int* samples_per_second) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
   SB_DCHECK(!decoded_audios_.empty());
@@ -210,6 +210,7 @@ AudioDecoderImpl<FFMPEG>::Read() {
     result = decoded_audios_.front();
     decoded_audios_.pop();
   }
+  *samples_per_second = audio_sample_info_.samples_per_second;
   return result;
 }
 
@@ -258,10 +259,6 @@ SbMediaAudioFrameStorageType AudioDecoderImpl<FFMPEG>::GetStorageType() const {
 
   SB_NOTREACHED();
   return kSbMediaAudioFrameStorageTypeInterleaved;
-}
-
-int AudioDecoderImpl<FFMPEG>::GetSamplesPerSecond() const {
-  return audio_sample_info_.samples_per_second;
 }
 
 void AudioDecoderImpl<FFMPEG>::InitializeCodec() {

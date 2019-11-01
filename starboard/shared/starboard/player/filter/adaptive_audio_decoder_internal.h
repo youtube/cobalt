@@ -58,21 +58,8 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   void Decode(const scoped_refptr<InputBuffer>& input_buffer,
               const ConsumedCB& consumed_cb) override;
   void WriteEndOfStream() override;
-  scoped_refptr<DecodedAudio> Read() override;
+  scoped_refptr<DecodedAudio> Read(int* samples_per_second) override;
   void Reset() override;
-
-  SbMediaAudioSampleType GetSampleType() const override {
-    SB_DCHECK(first_output_received_);
-    return output_sample_type_;
-  }
-  SbMediaAudioFrameStorageType GetStorageType() const override {
-    SB_DCHECK(first_output_received_);
-    return output_storage_type_;
-  }
-  int GetSamplesPerSecond() const override {
-    SB_DCHECK(first_output_received_);
-    return output_samples_per_second_;
-  }
 
  private:
   void ProcessOneInputBuffer(const scoped_refptr<InputBuffer>& input_buffer,

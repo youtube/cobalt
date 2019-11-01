@@ -17,6 +17,7 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/reset_and_return.h"
+#include "starboard/shared/starboard/player/decoded_audio_internal.h"
 
 namespace starboard {
 namespace shared {
@@ -27,27 +28,6 @@ namespace filter {
 using common::ResetAndReturn;
 
 #if SB_API_VERSION >= 11
-SbMediaAudioSampleType GetDefaultSupportedAudioSampleType() {
-  if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)) {
-    return kSbMediaAudioSampleTypeFloat32;
-  }
-  if (SbAudioSinkIsAudioSampleTypeSupported(
-          kSbMediaAudioSampleTypeInt16Deprecated)) {
-    return kSbMediaAudioSampleTypeInt16Deprecated;
-  }
-  SB_NOTREACHED();
-  return kSbMediaAudioSampleTypeFloat32;
-}
-
-SbMediaAudioFrameStorageType GetDefaultSupportedAudioFrameStorageType() {
-  if (SbAudioSinkIsAudioFrameStorageTypeSupported(
-          kSbMediaAudioFrameStorageTypeInterleaved)) {
-    return kSbMediaAudioFrameStorageTypeInterleaved;
-  }
-  SB_NOTREACHED();
-  return kSbMediaAudioFrameStorageTypeInterleaved;
-}
-
 int GetDefaultSupportedAudioSamplesPerSecond() {
   const int kDefaultOutputSamplesPerSecond = 48000;
   return SbAudioSinkGetNearestSupportedSampleFrequency(
@@ -150,22 +130,13 @@ void AdaptiveAudioDecoder::WriteEndOfStream() {
   if (audio_decoder_) {
     audio_decoder_->WriteEndOfStream();
   } else {
-    // It's possible that WriteEndOfStream() is called without any
-    // other input. In that case, we need to give |output_sample_type_|,
-    // |output_storage_type_| and |output_samples_per_second_| default
-    // value.
-    if (!first_output_received_) {
-      first_output_received_ = true;
-      output_sample_type_ = GetDefaultSupportedAudioSampleType();
-      output_storage_type_ = GetDefaultSupportedAudioFrameStorageType();
-      output_samples_per_second_ = GetDefaultSupportedAudioSamplesPerSecond();
-    }
     decoded_audios_.push(new DecodedAudio);
     Schedule(output_cb_);
   }
 }
 
-scoped_refptr<DecodedAudio> AdaptiveAudioDecoder::Read() {
+scoped_refptr<DecodedAudio> AdaptiveAudioDecoder::Read(
+    int* samples_per_second) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(!decoded_audios_.empty());
 
@@ -179,6 +150,10 @@ scoped_refptr<DecodedAudio> AdaptiveAudioDecoder::Read() {
   SB_DCHECK(ret->is_end_of_stream() ||
             ret->channels() == output_number_of_channels_);
 
+  SB_DCHECK(first_output_received_ || ret->is_end_of_stream());
+  *samples_per_second = first_output_received_
+                            ? output_samples_per_second_
+                            : GetDefaultSupportedAudioSamplesPerSecond();
   return ret;
 }
 
@@ -234,11 +209,14 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
+  int decoded_sample_rate;
+  scoped_refptr<DecodedAudio> decoded_audio =
+      audio_decoder_->Read(&decoded_sample_rate);
   if (!first_output_received_) {
     first_output_received_ = true;
-    output_sample_type_ = audio_decoder_->GetSampleType();
-    output_storage_type_ = audio_decoder_->GetStorageType();
-    output_samples_per_second_ = audio_decoder_->GetSamplesPerSecond();
+    output_sample_type_ = decoded_audio->sample_type();
+    output_storage_type_ = decoded_audio->storage_type();
+    output_samples_per_second_ = decoded_sample_rate;
     if (output_adjustment_callback_) {
       output_adjustment_callback_(&output_sample_type_, &output_storage_type_,
                                   &output_samples_per_second_,
@@ -246,7 +224,6 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
     }
   }
 
-  scoped_refptr<DecodedAudio> decoded_audio = audio_decoder_->Read();
   if (decoded_audio->is_end_of_stream()) {
     // Flush resampler.
     if (resampler_) {
@@ -280,13 +257,13 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
     SB_DCHECK(!resampler_);
     SB_DCHECK(!channel_mixer_);
     output_format_checked_ = true;
-    if (audio_decoder_->GetSampleType() != output_sample_type_ ||
-        audio_decoder_->GetStorageType() != output_storage_type_ ||
-        audio_decoder_->GetSamplesPerSecond() != output_samples_per_second_) {
+    if (output_sample_type_ != decoded_audio->sample_type() ||
+        output_storage_type_ != decoded_audio->storage_type() ||
+        output_samples_per_second_ != decoded_sample_rate) {
       resampler_ = AudioResampler::Create(
-          audio_decoder_->GetSampleType(), audio_decoder_->GetStorageType(),
-          audio_decoder_->GetSamplesPerSecond(), output_sample_type_,
-          output_storage_type_, output_samples_per_second_,
+          decoded_audio->sample_type(), decoded_audio->storage_type(),
+          decoded_sample_rate, output_sample_type_, output_storage_type_,
+          output_samples_per_second_,
           input_audio_sample_info_.number_of_channels);
     }
     if (input_audio_sample_info_.number_of_channels !=

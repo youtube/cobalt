@@ -144,7 +144,9 @@ class AudioRenderer : public MediaTimeProvider,
 
   void UpdateVariablesOnSinkThread_Locked(SbTime system_time_on_consume_frames);
 
-  void OnFirstOutput();
+  void OnFirstOutput(const SbMediaAudioSampleType decoded_sample_type,
+                     const SbMediaAudioFrameStorageType decoded_storage_type,
+                     const int decoded_sample_rate);
   bool IsEndOfStreamPlayed_Locked() const;
 
   void OnDecoderConsumed();

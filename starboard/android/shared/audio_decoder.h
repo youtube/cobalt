@@ -47,18 +47,8 @@ class AudioDecoder
   void Decode(const scoped_refptr<InputBuffer>& input_buffer,
               const ConsumedCB& consumed_cb) override;
   void WriteEndOfStream() override;
-  scoped_refptr<DecodedAudio> Read() override;
+  scoped_refptr<DecodedAudio> Read(int* samples_per_second) override;
   void Reset() override;
-
-  SbMediaAudioSampleType GetSampleType() const override {
-    return sample_type_;
-  }
-  SbMediaAudioFrameStorageType GetStorageType() const override {
-    return kSbMediaAudioFrameStorageTypeInterleaved;
-  }
-  int GetSamplesPerSecond() const override {
-    return audio_sample_info_.samples_per_second;
-  }
 
   bool is_valid() const { return media_decoder_ != NULL; }
 
