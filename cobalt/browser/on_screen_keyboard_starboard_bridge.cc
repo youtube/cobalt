@@ -25,7 +25,7 @@ namespace cobalt {
 namespace browser {
 // static
 bool OnScreenKeyboardStarboardBridge::IsSupported() {
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION
   return SbWindowOnScreenKeyboardIsSupported();
 #else
   return true;

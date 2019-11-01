@@ -294,7 +294,8 @@ bool OnScreenKeyboardTest::EvaluateScript(const std::string& js_code,
 
 }  // namespace
 
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
+    SB_HAS(ON_SCREEN_KEYBOARD)
 TEST_F(OnScreenKeyboardTest, ObjectExists) {
   std::string result;
   EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard;", &result));
@@ -663,7 +664,8 @@ TEST_F(OnScreenKeyboardTest, KeepFocus) {
   )";
   EXPECT_TRUE(EvaluateScript(script, NULL));
 }
-#else   // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
+#else   // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+        // SB_HAS(ON_SCREEN_KEYBOARD)
 TEST_F(OnScreenKeyboardTest, ObjectDoesntExist) {
   std::string result;
 
@@ -692,7 +694,8 @@ TEST_F(OnScreenKeyboardTest, ObjectDoesntExist) {
   EXPECT_TRUE(EvaluateScript(object_script, &result));
   EXPECT_EQ("true", result);
 }
-#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+        // SB_HAS(ON_SCREEN_KEYBOARD)
 
 }  // namespace dom
 }  // namespace cobalt
