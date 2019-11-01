@@ -98,6 +98,14 @@
 // Ipv6 can be disabled by defining SB_HAS_IPV6 to 0.
 #define SB_IPV6_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Require the microphone API.
+// The system must implement the microphone functions in
+// `starboard/microphone.h` or use the provided stub functions.
+// The microphone can be disabled by having `SbMicrophoneCreate()` return
+// |kSbMicrophoneInvalid|.
+// This change also deprecates the SB_HAS_MICROPHONE flag.
+#define SB_MICROPHONE_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // Require the memory mapping API.
 // The system must implement the memory mapping functions in
 // `starboard/memory.h` and `starboard/shared/dlmalloc.h` or use the provided

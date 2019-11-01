@@ -317,7 +317,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbAccessibilityGetCaptionSettings);
 #endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
 
-#if SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(MICROPHONE)
+#if SB_API_VERSION >= SB_MICROPHONE_REQUIRED_VERSION || SB_HAS(MICROPHONE)
   REGISTER_SYMBOL(SbMicrophoneClose);
   REGISTER_SYMBOL(SbMicrophoneCreate);
   REGISTER_SYMBOL(SbMicrophoneDestroy);
@@ -325,7 +325,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMicrophoneIsSampleRateSupported);
   REGISTER_SYMBOL(SbMicrophoneOpen);
   REGISTER_SYMBOL(SbMicrophoneRead);
-#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(MICROPHONE)
+#endif  // SB_API_VERSION >= SB_MICROPHONE_REQUIRED_VERSION ||
+        // SB_HAS(MICROPHONE)
 
 #if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
   REGISTER_SYMBOL(SbMemoryMap);
