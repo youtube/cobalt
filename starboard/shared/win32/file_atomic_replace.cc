@@ -53,7 +53,7 @@ bool SbFileAtomicReplace(const char* path,
 
   // Try a simple move first. It will only succeed when |to_path| doesn't
   // already exist.
-  if (MoveFile(temp_path_wstring.c_str(), path_wstring.c_str())) {
+  if (MoveFileEx(temp_path_wstring.c_str(), path_wstring.c_str(), 0)) {
     return true;
   }
 
