@@ -60,6 +60,8 @@ class GenericEventHandlerReference {
   GenericEventHandlerReference(script::Wrappable* wrappable,
                                const GenericEventHandlerReference& other);
 
+  const void* task() { return task_; }
+
   // Forwards on to the internal event handler's HandleEvent() call, passing
   // in the value of |unpack_error_event| if the internal type is a
   // OnErrorEventListenerScriptValue type.
@@ -87,6 +89,16 @@ class GenericEventHandlerReference {
   }
 
  private:
+  // A nonce to identify the "scheduled" asynchronous task that could call the
+  // listener when the event is fired. The constructors that create a new
+  // "attachment" of a listener initialize it to |this| as a unique nonce value.
+  // However, the copy(ish) constructor copies the task since the copy still
+  // represents the same attachment of the same listener. It is specifically NOT
+  // tied to the ScriptValue since the same JS listener may be attached multiple
+  // times to one or several |EventTarget|s, and each of those attachments is a
+  // unique task.
+  const void* const task_;
+
   // At most only one of the below two fields may be non-null...  They are
   // serving as a poor man's std::variant.
   std::unique_ptr<EventListenerScriptValue::Reference>

@@ -31,11 +31,11 @@ class DebugModule;
 
 class DebuggerHooksImpl : public base::DebuggerHooks {
  public:
-  void AsyncTaskScheduled(void* task, const std::string& name,
+  void AsyncTaskScheduled(const void* task, const std::string& name,
                           bool recurring) const override;
-  void AsyncTaskStarted(void* task) const override;
-  void AsyncTaskFinished(void* task) const override;
-  void AsyncTaskCanceled(void* task) const override;
+  void AsyncTaskStarted(const void* task) const override;
+  void AsyncTaskFinished(const void* task) const override;
+  void AsyncTaskCanceled(const void* task) const override;
 
  private:
   // Only DebugModule can attach/detach the debugger.

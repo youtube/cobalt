@@ -266,21 +266,23 @@ void V8cScriptDebugger::StopTracing() {
   tracing_controller->StopTracing();
 }
 
-void V8cScriptDebugger::AsyncTaskScheduled(void* task, const std::string& name,
+void V8cScriptDebugger::AsyncTaskScheduled(const void* task,
+                                           const std::string& name,
                                            bool recurring) {
-  inspector_->asyncTaskScheduled(ToStringView(name), task, recurring);
+  inspector_->asyncTaskScheduled(ToStringView(name), const_cast<void*>(task),
+                                 recurring);
 }
 
-void V8cScriptDebugger::AsyncTaskStarted(void* task) {
-  inspector_->asyncTaskStarted(task);
+void V8cScriptDebugger::AsyncTaskStarted(const void* task) {
+  inspector_->asyncTaskStarted(const_cast<void*>(task));
 }
 
-void V8cScriptDebugger::AsyncTaskFinished(void* task) {
-  inspector_->asyncTaskFinished(task);
+void V8cScriptDebugger::AsyncTaskFinished(const void* task) {
+  inspector_->asyncTaskFinished(const_cast<void*>(task));
 }
 
-void V8cScriptDebugger::AsyncTaskCanceled(void* task) {
-  inspector_->asyncTaskCanceled(task);
+void V8cScriptDebugger::AsyncTaskCanceled(const void* task) {
+  inspector_->asyncTaskCanceled(const_cast<void*>(task));
 }
 
 void V8cScriptDebugger::AllAsyncTasksCanceled() {
