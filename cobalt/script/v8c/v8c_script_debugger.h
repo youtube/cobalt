@@ -60,11 +60,11 @@ class V8cScriptDebugger : public ScriptDebugger,
   PauseOnExceptionsState SetPauseOnExceptions(
       PauseOnExceptionsState state) override;
 
-  void AsyncTaskScheduled(void* task, const std::string& name,
+  void AsyncTaskScheduled(const void* task, const std::string& name,
                           bool recurring) override;
-  void AsyncTaskStarted(void* task) override;
-  void AsyncTaskFinished(void* task) override;
-  void AsyncTaskCanceled(void* task) override;
+  void AsyncTaskStarted(const void* task) override;
+  void AsyncTaskFinished(const void* task) override;
+  void AsyncTaskCanceled(const void* task) override;
   void AllAsyncTasksCanceled() override;
 
   // v8_inspector::V8InspectorClient implementation.

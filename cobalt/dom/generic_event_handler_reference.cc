@@ -22,8 +22,8 @@ namespace cobalt {
 namespace dom {
 
 GenericEventHandlerReference::GenericEventHandlerReference(
-    script::Wrappable* wrappable,
-    const EventListenerScriptValue& script_value) {
+    script::Wrappable* wrappable, const EventListenerScriptValue& script_value)
+    : ALLOW_THIS_IN_INITIALIZER_LIST(task_(this)) {
   if (!script_value.IsNull()) {
     event_listener_reference_.reset(
         new EventListenerScriptValue::Reference(wrappable, script_value));
@@ -32,7 +32,8 @@ GenericEventHandlerReference::GenericEventHandlerReference(
 
 GenericEventHandlerReference::GenericEventHandlerReference(
     script::Wrappable* wrappable,
-    const OnErrorEventListenerScriptValue& script_value) {
+    const OnErrorEventListenerScriptValue& script_value)
+    : ALLOW_THIS_IN_INITIALIZER_LIST(task_(this)) {
   if (!script_value.IsNull()) {
     on_error_event_listener_reference_.reset(
         new OnErrorEventListenerScriptValue::Reference(wrappable,
@@ -41,7 +42,8 @@ GenericEventHandlerReference::GenericEventHandlerReference(
 }
 
 GenericEventHandlerReference::GenericEventHandlerReference(
-    script::Wrappable* wrappable, const GenericEventHandlerReference& other) {
+    script::Wrappable* wrappable, const GenericEventHandlerReference& other)
+    : task_(other.task_) {
   if (other.event_listener_reference_) {
     DCHECK(!other.event_listener_reference_->referenced_value().IsNull());
     event_listener_reference_.reset(new EventListenerScriptValue::Reference(
