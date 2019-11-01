@@ -1043,7 +1043,7 @@ TEST(ThreadTicks, MAYBE_NowOverride) {
   EXPECT_LE(initial_thread_ticks, subtle::ThreadTicksNowIgnoringOverride());
   EXPECT_GT(ThreadTicks::Max(), subtle::ThreadTicksNowIgnoringOverride());
 }
-#endif  // SB_API_VERSION >= SB_EVERGREEN_VERSION || SB_HAS(TIME_THREAD_NOW)
+#endif  // SB_HAS(TIME_THREAD_NOW)
 
 TEST(ThreadTicks, ThreadNow) {
   if (ThreadTicks::IsSupported()) {
