@@ -584,7 +584,7 @@ SbTime PerfTestFind(const MapIntType& map,
   return delta_time;
 }
 
-TEST(FlatMap, PerformanceTestFind) {
+TEST(FlatMap, DISABLED_PerformanceTestFind) {
   std::vector<size_t> test_sizes;
   test_sizes.push_back(5);
   test_sizes.push_back(10);
