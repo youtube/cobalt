@@ -16,7 +16,7 @@
 #include <stdio.h>
 #endif
 
-#if defined(STARBOARD) && (SB_API_VERSION >= SB_EGL_AND_GL_INTERFACE_VERSION)
+#if defined(STARBOARD) && (SB_API_VERSION >= 11)
 #include "starboard/egl.h"
 #define EGLint SbEglInt32
 #define EGLBoolean SbEglBoolean
@@ -24,10 +24,10 @@
 #define EGL_OPENGL_ES_API SB_EGL_OPENGL_ES_API
 #define EGL_CONTEXT_CLIENT_VERSION SB_EGL_CONTEXT_CLIENT_VERSION
 #define EGL_CALL_PREFIX ::SkiaGetEglInterface().
-#else  // !defined(STARBOARD) || (SB_API_VERSION < SB_EGL_AND_GL_INTERFACE_VERSION)
+#else  // !defined(STARBOARD) || (SB_API_VERSION < 11)
 #include <EGL/egl.h>
 #define EGL_CALL_PREFIX
-#endif  // defined(STARBOARD) && (SB_API_VERSION >= SB_EGL_AND_GL_INTERFACE_VERSION)
+#endif  // defined(STARBOARD) && (SB_API_VERSION >= 11)
 
 #define EGL_CALL_SIMPLE(x) (EGL_CALL_PREFIX x)
 
@@ -54,13 +54,13 @@ const char *get_error_string(uint32_t err) {
     return "Unknown";
 }
 
-#if defined(STARBOARD) && (SB_API_VERSION >= SB_EGL_AND_GL_INTERFACE_VERSION)
+#if defined(STARBOARD) && (SB_API_VERSION >= 11)
 const SbEglInterface& SkiaGetEglInterface() {
     static const SbEglInterface* egl_interface = SbGetEglInterface();
 
     return *egl_interface;
 }
-#endif  // defined(STARBOARD) && (SB_API_VERSION >= SB_EGL_AND_GL_INTERFACE_VERSION)
+#endif  // defined(STARBOARD) && (SB_API_VERSION >= 11)
 }
 
 void GrGLCheckErr(const GrGLInterface* gl,
