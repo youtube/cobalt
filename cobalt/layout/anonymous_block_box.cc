@@ -40,6 +40,19 @@ AnonymousBlockBox::AnonymousBlockBox(
           css_computed_style_declaration->data()->font_weight())) {}
 
 Box::Level AnonymousBlockBox::GetLevel() const { return kBlockLevel; }
+Box::MarginCollapsingStatus AnonymousBlockBox::GetMarginCollapsingStatus()
+    const {
+  // If all enclosed boxes are absolutely-positioned, ignore it for
+  // margin-collapse.
+  if (std::all_of(child_boxes().begin(), child_boxes().end(),
+                  [](Box* b) { return b->IsAbsolutelyPositioned(); })) {
+    return kIgnore;
+  }
+
+  // If any enclosed block is inline-level, break collapsing model for
+  // parent/siblings.
+  return kSeparateAdjoiningMargins;
+}
 
 AnonymousBlockBox* AnonymousBlockBox::AsAnonymousBlockBox() { return this; }
 const AnonymousBlockBox* AnonymousBlockBox::AsAnonymousBlockBox() const {

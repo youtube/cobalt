@@ -138,6 +138,12 @@ class Box : public base::RefCounted<Box> {
     kInlineLevel,
   };
 
+  enum MarginCollapsingStatus {
+    kCollapseMargins,
+    kIgnore,
+    kSeparateAdjoiningMargins,
+  };
+
   enum RelationshipToBox {
     kIsBoxAncestor,
     kIsBox,
@@ -218,6 +224,10 @@ class Box : public base::RefCounted<Box> {
   // Specifies the formatting context in which the box should participate.
   // Do not confuse with the formatting context that the element may establish.
   virtual Level GetLevel() const = 0;
+
+  virtual MarginCollapsingStatus GetMarginCollapsingStatus() const {
+    return Box::kCollapseMargins;
+  }
 
   // Returns true if the box is positioned (e.g. position is non-static or
   // transform is not None).  Intuitively, this is true if the element does
