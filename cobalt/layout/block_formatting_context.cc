@@ -118,6 +118,7 @@ void BlockFormattingContext::CollapseContainingMargins(Box* containing_box) {
 
   // Collapse top margin with top margin of first in-flow child.
   if (containing_box->padding_top() == LayoutUnit() &&
+      containing_box->border_top_width() == LayoutUnit() &&
       margin_collapsing_params_.should_collapse_margin_top) {
     LayoutUnit collapsed_margin_top = CollapseMargins(
         margin_top,
@@ -129,6 +130,7 @@ void BlockFormattingContext::CollapseContainingMargins(Box* containing_box) {
   // in-flow child.
   if (!layout_params_.maybe_height &&
       containing_box->padding_bottom() == LayoutUnit() &&
+      containing_box->border_bottom_width() == LayoutUnit() &&
       margin_collapsing_params_.should_collapse_margin_bottom) {
     LayoutUnit collapsed_margin_bottom = CollapseMargins(
         margin_bottom, margin_collapsing_params_.collapsing_margin);
