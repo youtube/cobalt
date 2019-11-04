@@ -17,24 +17,37 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/event_target.h"
+#include "cobalt/dom/global_stats.h"
 
 namespace cobalt {
 namespace dom {
 
 GenericEventHandlerReference::GenericEventHandlerReference(
-    script::Wrappable* wrappable, const EventListenerScriptValue& script_value)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(task_(this)) {
+    script::Wrappable* wrappable, base::Token type, AttachMethod attach,
+    bool use_capture, const EventListenerScriptValue& script_value)
+    : ALLOW_THIS_IN_INITIALIZER_LIST(task_(this)),
+      type_(type),
+      is_attribute_(attach == kSetAttribute),
+      use_capture_(use_capture),
+      unpack_error_event_(false) {
   if (!script_value.IsNull()) {
+    GlobalStats::GetInstance()->AddEventListener();
     event_listener_reference_.reset(
         new EventListenerScriptValue::Reference(wrappable, script_value));
   }
 }
 
 GenericEventHandlerReference::GenericEventHandlerReference(
-    script::Wrappable* wrappable,
+    script::Wrappable* wrappable, base::Token type, AttachMethod attach,
+    bool use_capture, bool unpack_error_event,
     const OnErrorEventListenerScriptValue& script_value)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(task_(this)) {
+    : ALLOW_THIS_IN_INITIALIZER_LIST(task_(this)),
+      type_(type),
+      is_attribute_(attach == kSetAttribute),
+      use_capture_(use_capture),
+      unpack_error_event_(unpack_error_event) {
   if (!script_value.IsNull()) {
+    GlobalStats::GetInstance()->AddEventListener();
     on_error_event_listener_reference_.reset(
         new OnErrorEventListenerScriptValue::Reference(wrappable,
                                                        script_value));
@@ -43,12 +56,18 @@ GenericEventHandlerReference::GenericEventHandlerReference(
 
 GenericEventHandlerReference::GenericEventHandlerReference(
     script::Wrappable* wrappable, const GenericEventHandlerReference& other)
-    : task_(other.task_) {
+    : task_(other.task_),
+      type_(other.type_),
+      is_attribute_(other.is_attribute_),
+      use_capture_(other.use_capture_),
+      unpack_error_event_(other.unpack_error_event_) {
   if (other.event_listener_reference_) {
     DCHECK(!other.event_listener_reference_->referenced_value().IsNull());
+    GlobalStats::GetInstance()->AddEventListener();
     event_listener_reference_.reset(new EventListenerScriptValue::Reference(
         wrappable, other.event_listener_reference_->referenced_value()));
   } else if (other.on_error_event_listener_reference_) {
+    GlobalStats::GetInstance()->AddEventListener();
     on_error_event_listener_reference_.reset(
         new OnErrorEventListenerScriptValue::Reference(
             wrappable,
@@ -56,9 +75,14 @@ GenericEventHandlerReference::GenericEventHandlerReference(
   }
 }
 
+GenericEventHandlerReference::~GenericEventHandlerReference() {
+  if (!IsNull()) {
+    GlobalStats::GetInstance()->RemoveEventListener();
+  }
+}
+
 void GenericEventHandlerReference::HandleEvent(
-    const scoped_refptr<Event>& event, bool is_attribute,
-    bool unpack_error_event) {
+    const scoped_refptr<Event>& event) {
   TRACE_EVENT1("cobalt::dom", "GenericEventHandlerReference::HandleEvent",
                "Event Name", TRACE_STR_COPY(event->type().c_str()));
   bool had_exception;
@@ -71,7 +95,7 @@ void GenericEventHandlerReference::HandleEvent(
         event->current_target(), event, &had_exception);
   } else if (on_error_event_listener_reference_) {
     result = on_error_event_listener_reference_->value().HandleEvent(
-        event->current_target(), event, &had_exception, unpack_error_event);
+        event->current_target(), event, &had_exception, unpack_error_event_);
   } else {
     NOTREACHED();
     had_exception = true;
@@ -82,20 +106,18 @@ void GenericEventHandlerReference::HandleEvent(
   }
   // EventHandlers (EventListeners set as attributes) may return false rather
   // than call event.preventDefault() in the handler function.
-  if (is_attribute && result && !result.value()) {
+  if (is_attribute() && result && !result.value()) {
     event->PreventDefault();
   }
 }
 
 bool GenericEventHandlerReference::EqualTo(
-    const EventListenerScriptValue& other) {
-  return (IsNull() && other.IsNull()) ||
-         (event_listener_reference_ &&
-          event_listener_reference_->referenced_value().EqualTo(other));
-}
-
-bool GenericEventHandlerReference::EqualTo(
     const GenericEventHandlerReference& other) {
+  if (type() != other.type() || is_attribute() != other.is_attribute() ||
+      use_capture() != other.use_capture()) {
+    return false;
+  }
+
   if (IsNull() && other.IsNull()) {
     return true;
   }
