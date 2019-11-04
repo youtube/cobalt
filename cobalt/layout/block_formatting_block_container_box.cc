@@ -74,11 +74,7 @@ BlockFormattingBlockContainerBox::UpdateRectOfInFlowChildBoxes(
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
-    if (child_box->IsAbsolutelyPositioned()) {
-      block_formatting_context->EstimateStaticPosition(child_box);
-    } else {
-      block_formatting_context->UpdateRect(child_box);
-    }
+    block_formatting_context->UpdateRect(child_box);
   }
 
   if (!child_boxes().empty() && is_collapsable) {
