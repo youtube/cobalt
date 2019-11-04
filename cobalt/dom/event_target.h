@@ -47,13 +47,6 @@ namespace dom {
 class EventTarget : public script::Wrappable,
                     public base::SupportsWeakPtr<EventTarget> {
  public:
-  // EventHandlers are implemented as EventListener?, so use this to
-  // differentiate between the two.
-  enum Type {
-    kAttribute,
-    kNotAttribute,
-  };
-
   // Helper enum to decide whether or not onerror event parameters should be
   // unpacked or not (e.g. in the special case of the |window| object).
   // This special handling is described in:
@@ -477,28 +470,16 @@ class EventTarget : public script::Wrappable,
   void TraceMembers(script::Tracer* tracer) override;
 
  private:
-  struct EventListenerInfo {
-    EventListenerInfo(base::Token type,
-                      std::unique_ptr<GenericEventHandlerReference> listener,
-                      bool use_capture, Type listener_type);
-    ~EventListenerInfo();
-
-    base::Token type;
-    std::unique_ptr<GenericEventHandlerReference> listener;
-    bool use_capture;
-    Type listener_type;
-  };
-  typedef std::vector<std::unique_ptr<EventListenerInfo>> EventListenerInfos;
+  typedef std::vector<std::unique_ptr<GenericEventHandlerReference>>
+      EventListenerInfos;
 
   void SetAttributeEventListenerInternal(
-      base::Token type,
       std::unique_ptr<GenericEventHandlerReference> event_handler);
   GenericEventHandlerReference* GetAttributeEventListenerInternal(
       base::Token type) const;
 
   void AddEventListenerInternal(
-      base::Token type, std::unique_ptr<GenericEventHandlerReference> listener,
-      bool use_capture, Type listener_type);
+      std::unique_ptr<GenericEventHandlerReference> listener);
 
   EventListenerInfos event_listener_infos_;
 

@@ -26,14 +26,16 @@
 namespace cobalt {
 namespace dom {
 
-// Essentially acts as an abstract interface of the union for types
-// [script::ScriptValue<EventListener>,
-//  script::ScriptValue<OnErrorEventListener>].  In particular it primarily
+// Holds the event listener for an EventTarget, along with metadata describing
+// in what manner the listener was attached to the EventTarget.
+//
+// The listener itself is a script::ScriptValue<T> where T may be either of:
+// [EventListener, OnErrorEventListener].  In particular it primarily
 // allows code in event_target.cc to not need to concern itself with which
 // exact EventListener script value type it is dealing with.  The need for
 // this abstraction arises from the fact that the |window.onerror| event
 // handler requires special case handling:
-//   https://html.spec.whatwg.org/#onerroreventhandler )
+//   https://html.spec.whatwg.org/#onerroreventhandler
 //
 // NOTE that this is *not* an ideal solution to the problem of generalizing
 // over multiple ScriptValue types.  The problem is that the ScriptValue
@@ -52,23 +54,39 @@ class GenericEventHandlerReference {
   typedef script::ScriptValue<OnErrorEventListener>
       OnErrorEventListenerScriptValue;
 
-  GenericEventHandlerReference(script::Wrappable* wrappable,
+  // Whether an event listener is attached as an attribute or with
+  // AddEventListener().
+  enum AttachMethod {
+    kSetAttribute,
+    kAddEventListener,
+  };
+
+  GenericEventHandlerReference(script::Wrappable* wrappable, base::Token type,
+                               AttachMethod attach, bool use_capture,
                                const EventListenerScriptValue& script_value);
   GenericEventHandlerReference(
-      script::Wrappable* wrappable,
+      script::Wrappable* wrappable, base::Token type, AttachMethod attach,
+      bool use_capture, bool unpack_error_event,
       const OnErrorEventListenerScriptValue& script_value);
   GenericEventHandlerReference(script::Wrappable* wrappable,
                                const GenericEventHandlerReference& other);
 
-  const void* task() { return task_; }
+  GenericEventHandlerReference(const GenericEventHandlerReference&) = delete;
+  GenericEventHandlerReference& operator=(const GenericEventHandlerReference&) =
+      delete;
 
-  // Forwards on to the internal event handler's HandleEvent() call, passing
+  ~GenericEventHandlerReference();
+
+  const void* task() const { return task_; }
+  base::Token type() const { return type_; }
+  bool is_attribute() const { return is_attribute_; }
+  bool use_capture() const { return use_capture_; }
+
+  // Forwards on to the internal event listener's HandleEvent() call, passing
   // in the value of |unpack_error_event| if the internal type is a
   // OnErrorEventListenerScriptValue type.
-  void HandleEvent(const scoped_refptr<Event>& event, bool is_attribute,
-                   bool unpack_error_event);
+  void HandleEvent(const scoped_refptr<Event>& event);
 
-  bool EqualTo(const EventListenerScriptValue& other);
   bool EqualTo(const GenericEventHandlerReference& other);
   bool IsNull() const;
 
@@ -99,14 +117,17 @@ class GenericEventHandlerReference {
   // unique task.
   const void* const task_;
 
+  base::Token const type_;
+  bool const is_attribute_;
+  bool const use_capture_;
+  bool const unpack_error_event_;
+
   // At most only one of the below two fields may be non-null...  They are
   // serving as a poor man's std::variant.
   std::unique_ptr<EventListenerScriptValue::Reference>
       event_listener_reference_;
   std::unique_ptr<OnErrorEventListenerScriptValue::Reference>
       on_error_event_listener_reference_;
-
-  DISALLOW_COPY_AND_ASSIGN(GenericEventHandlerReference);
 };
 
 }  // namespace dom
