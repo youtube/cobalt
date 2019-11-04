@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/dom/event_target.h"
+
+#include <memory>
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
@@ -49,11 +49,9 @@ void EventTarget::AddEventListener(const std::string& type,
     return;
   }
 
-  std::unique_ptr<GenericEventHandlerReference> listener_reference(
-      new GenericEventHandlerReference(this, listener));
-
-  AddEventListenerInternal(base::Token(type), std::move(listener_reference),
-                           use_capture, kNotAttribute);
+  AddEventListenerInternal(base::WrapUnique(new GenericEventHandlerReference(
+      this, base::Token(type), GenericEventHandlerReference::kAddEventListener,
+      use_capture, listener)));
 }
 
 void EventTarget::RemoveEventListener(const std::string& type,
@@ -64,12 +62,13 @@ void EventTarget::RemoveEventListener(const std::string& type,
     return;
   }
 
+  GenericEventHandlerReference event_handler(
+      this, base::Token(type), GenericEventHandlerReference::kAddEventListener,
+      use_capture, listener);
   for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
-    if ((*iter)->listener_type == kNotAttribute &&
-        (*iter)->type == type.c_str() && (*iter)->listener->EqualTo(listener) &&
-        (*iter)->use_capture == use_capture) {
-      debugger_hooks_->AsyncTaskCanceled((*iter)->listener->task());
+    if ((*iter)->EqualTo(event_handler)) {
+      debugger_hooks_->AsyncTaskCanceled((*iter)->task());
       event_listener_infos_.erase(iter);
       return;
     }
@@ -170,9 +169,9 @@ void EventTarget::SetAttributeEventListener(
     base::Token type, const EventListenerScriptValue& listener) {
   DCHECK(!unpack_onerror_events_ || type != base::Tokens::error());
 
-  std::unique_ptr<GenericEventHandlerReference> listener_reference(
-      new GenericEventHandlerReference(this, listener));
-  SetAttributeEventListenerInternal(type, std::move(listener_reference));
+  AddEventListenerInternal(base::WrapUnique(new GenericEventHandlerReference(
+      this, type, GenericEventHandlerReference::kSetAttribute,
+      false /* use_capture */, listener)));
 }
 
 const EventTarget::EventListenerScriptValue*
@@ -188,9 +187,9 @@ void EventTarget::SetAttributeOnErrorEventListener(
     base::Token type, const OnErrorEventListenerScriptValue& listener) {
   DCHECK_EQ(base::Tokens::error(), type);
 
-  std::unique_ptr<GenericEventHandlerReference> listener_reference(
-      new GenericEventHandlerReference(this, listener));
-  SetAttributeEventListenerInternal(type, std::move(listener_reference));
+  AddEventListenerInternal(base::WrapUnique(new GenericEventHandlerReference(
+      this, type, GenericEventHandlerReference::kSetAttribute,
+      false /* use_capture */, unpack_onerror_events_, listener)));
 }
 
 const EventTarget::OnErrorEventListenerScriptValue*
@@ -205,35 +204,19 @@ EventTarget::GetAttributeOnErrorEventListener(base::Token type) const {
 bool EventTarget::HasOneOrMoreAttributeEventListener() const {
   for (EventListenerInfos::const_iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
-    if ((*iter)->listener_type == kAttribute) {
+    if ((*iter)->is_attribute()) {
       return true;
     }
   }
   return false;
 }
 
-void EventTarget::SetAttributeEventListenerInternal(
-    base::Token type,
-    std::unique_ptr<GenericEventHandlerReference> event_handler) {
-  // Remove existing attribute listener of the same type.
-  for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
-       iter != event_listener_infos_.end(); ++iter) {
-    if ((*iter)->listener_type == kAttribute && (*iter)->type == type) {
-      debugger_hooks_->AsyncTaskCanceled((*iter)->listener->task());
-      event_listener_infos_.erase(iter);
-      break;
-    }
-  }
-
-  AddEventListenerInternal(type, std::move(event_handler), false, kAttribute);
-}
-
 GenericEventHandlerReference* EventTarget::GetAttributeEventListenerInternal(
     base::Token type) const {
   for (EventListenerInfos::const_iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
-    if ((*iter)->listener_type == kAttribute && (*iter)->type == type) {
-      return (*iter)->listener.get();
+    if ((*iter)->is_attribute() && (*iter)->type() == type) {
+      return iter->get();
     }
   }
   return NULL;
@@ -249,12 +232,9 @@ void EventTarget::FireEventOnListeners(const scoped_refptr<Event>& event) {
   EventListenerInfos event_listener_infos;
   for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
-    if ((*iter)->type == event->type()) {
-      event_listener_infos.emplace_back(new EventListenerInfo(
-          (*iter)->type,
-          base::WrapUnique(
-              new GenericEventHandlerReference(this, *(*iter)->listener)),
-          (*iter)->use_capture, (*iter)->listener_type));
+    if ((*iter)->type() == event->type()) {
+      event_listener_infos.emplace_back(
+          base::WrapUnique(new GenericEventHandlerReference(this, **iter)));
     }
   }
 
@@ -265,18 +245,17 @@ void EventTarget::FireEventOnListeners(const scoped_refptr<Event>& event) {
     }
     // Only call listeners marked as capture during capturing phase.
     if (event->event_phase() == Event::kCapturingPhase &&
-        !(*iter)->use_capture) {
+        !(*iter)->use_capture()) {
       continue;
     }
     // Don't call any listeners marked as capture during bubbling phase.
-    if (event->event_phase() == Event::kBubblingPhase && (*iter)->use_capture) {
+    if (event->event_phase() == Event::kBubblingPhase &&
+        (*iter)->use_capture()) {
       continue;
     }
 
-    base::ScopedAsyncTask async_task(debugger_hooks_,
-                                     (*iter)->listener->task());
-    (*iter)->listener->HandleEvent(event, (*iter)->listener_type == kAttribute,
-                                   unpack_onerror_events_);
+    base::ScopedAsyncTask async_task(debugger_hooks_, (*iter)->task());
+    (*iter)->HandleEvent(event);
   }
 
   event->set_current_target(NULL);
@@ -289,9 +268,20 @@ void EventTarget::TraceMembers(script::Tracer* tracer) {
 }
 
 void EventTarget::AddEventListenerInternal(
-    base::Token type, std::unique_ptr<GenericEventHandlerReference> listener,
-    bool use_capture, Type listener_type) {
+    std::unique_ptr<GenericEventHandlerReference> listener) {
   TRACK_MEMORY_SCOPE("DOM");
+
+  // Remove existing attribute listener of the same type.
+  if (listener->is_attribute()) {
+    for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
+         iter != event_listener_infos_.end(); ++iter) {
+      if ((*iter)->is_attribute() && (*iter)->type() == listener->type()) {
+        debugger_hooks_->AsyncTaskCanceled((*iter)->task());
+        event_listener_infos_.erase(iter);
+        break;
+      }
+    }
+  }
 
   if (listener->IsNull()) {
     return;
@@ -299,19 +289,16 @@ void EventTarget::AddEventListenerInternal(
 
   for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
-    if ((*iter)->type == type && (*iter)->listener->EqualTo(*listener) &&
-        (*iter)->use_capture == use_capture &&
-        (*iter)->listener_type == listener_type) {
+    if ((*iter)->EqualTo(*listener)) {
       // Attribute listeners should have already been removed.
-      DCHECK_EQ(listener_type, kNotAttribute);
+      DCHECK(!listener->is_attribute());
       return;
     }
   }
 
-  debugger_hooks_->AsyncTaskScheduled(listener->task(), type.c_str(),
-                                      true /*recurring*/);
-  event_listener_infos_.emplace_back(new EventListenerInfo(
-      type, std::move(listener), use_capture, listener_type));
+  debugger_hooks_->AsyncTaskScheduled(
+      listener->task(), listener->type().c_str(), true /*recurring*/);
+  event_listener_infos_.push_back(std::move(listener));
 }
 
 bool EventTarget::HasEventListener(base::Token type) {
@@ -319,25 +306,11 @@ bool EventTarget::HasEventListener(base::Token type) {
 
   for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
-    if ((*iter)->type == type) {
+    if ((*iter)->type() == type) {
       return true;
     }
   }
   return false;
-}
-
-EventTarget::EventListenerInfo::EventListenerInfo(
-    base::Token type, std::unique_ptr<GenericEventHandlerReference> listener,
-    bool use_capture, Type listener_type)
-    : type(type),
-      listener(std::move(listener)),
-      use_capture(use_capture),
-      listener_type(listener_type) {
-  GlobalStats::GetInstance()->AddEventListener();
-}
-
-EventTarget::EventListenerInfo::~EventListenerInfo() {
-  GlobalStats::GetInstance()->RemoveEventListener();
 }
 
 }  // namespace dom
