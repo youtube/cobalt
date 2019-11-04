@@ -470,16 +470,16 @@ class EventTarget : public script::Wrappable,
   void TraceMembers(script::Tracer* tracer) override;
 
  private:
-  typedef std::vector<std::unique_ptr<GenericEventHandlerReference>>
+  typedef std::vector<std::unique_ptr<EventTargetListenerInfo>>
       EventListenerInfos;
 
   void SetAttributeEventListenerInternal(
-      std::unique_ptr<GenericEventHandlerReference> event_handler);
-  GenericEventHandlerReference* GetAttributeEventListenerInternal(
+      std::unique_ptr<EventTargetListenerInfo> event_handler);
+  EventTargetListenerInfo* GetAttributeEventListenerInternal(
       base::Token type) const;
 
   void AddEventListenerInternal(
-      std::unique_ptr<GenericEventHandlerReference> listener);
+      std::unique_ptr<EventTargetListenerInfo> listener);
 
   EventListenerInfos event_listener_infos_;
 

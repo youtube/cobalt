@@ -22,7 +22,7 @@
 namespace cobalt {
 namespace dom {
 
-GenericEventHandlerReference::GenericEventHandlerReference(
+EventTargetListenerInfo::EventTargetListenerInfo(
     script::Wrappable* wrappable, base::Token type, AttachMethod attach,
     bool use_capture, const EventListenerScriptValue& script_value)
     : ALLOW_THIS_IN_INITIALIZER_LIST(task_(this)),
@@ -37,7 +37,7 @@ GenericEventHandlerReference::GenericEventHandlerReference(
   }
 }
 
-GenericEventHandlerReference::GenericEventHandlerReference(
+EventTargetListenerInfo::EventTargetListenerInfo(
     script::Wrappable* wrappable, base::Token type, AttachMethod attach,
     bool use_capture, bool unpack_error_event,
     const OnErrorEventListenerScriptValue& script_value)
@@ -54,8 +54,8 @@ GenericEventHandlerReference::GenericEventHandlerReference(
   }
 }
 
-GenericEventHandlerReference::GenericEventHandlerReference(
-    script::Wrappable* wrappable, const GenericEventHandlerReference& other)
+EventTargetListenerInfo::EventTargetListenerInfo(
+    script::Wrappable* wrappable, const EventTargetListenerInfo& other)
     : task_(other.task_),
       type_(other.type_),
       is_attribute_(other.is_attribute_),
@@ -75,15 +75,14 @@ GenericEventHandlerReference::GenericEventHandlerReference(
   }
 }
 
-GenericEventHandlerReference::~GenericEventHandlerReference() {
+EventTargetListenerInfo::~EventTargetListenerInfo() {
   if (!IsNull()) {
     GlobalStats::GetInstance()->RemoveEventListener();
   }
 }
 
-void GenericEventHandlerReference::HandleEvent(
-    const scoped_refptr<Event>& event) {
-  TRACE_EVENT1("cobalt::dom", "GenericEventHandlerReference::HandleEvent",
+void EventTargetListenerInfo::HandleEvent(const scoped_refptr<Event>& event) {
+  TRACE_EVENT1("cobalt::dom", "EventTargetListenerInfo::HandleEvent",
                "Event Name", TRACE_STR_COPY(event->type().c_str()));
   bool had_exception;
   base::Optional<bool> result;
@@ -111,8 +110,7 @@ void GenericEventHandlerReference::HandleEvent(
   }
 }
 
-bool GenericEventHandlerReference::EqualTo(
-    const GenericEventHandlerReference& other) {
+bool EventTargetListenerInfo::EqualTo(const EventTargetListenerInfo& other) {
   if (type() != other.type() || is_attribute() != other.is_attribute() ||
       use_capture() != other.use_capture()) {
     return false;
@@ -134,7 +132,7 @@ bool GenericEventHandlerReference::EqualTo(
   return false;
 }
 
-bool GenericEventHandlerReference::IsNull() const {
+bool EventTargetListenerInfo::IsNull() const {
   return (!event_listener_reference_ ||
           event_listener_reference_->referenced_value().IsNull()) &&
          (!on_error_event_listener_reference_ ||
