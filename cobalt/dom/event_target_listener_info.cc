@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/dom/generic_event_handler_reference.h"
+#include "cobalt/dom/event_target_listener_info.h"
 
 #include "base/trace_event/trace_event.h"
 #include "cobalt/dom/event.h"
