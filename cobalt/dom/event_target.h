@@ -29,7 +29,7 @@
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/event_listener.h"
-#include "cobalt/dom/generic_event_handler_reference.h"
+#include "cobalt/dom/event_target_listener_info.h"
 #include "cobalt/dom/on_error_event_listener.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
