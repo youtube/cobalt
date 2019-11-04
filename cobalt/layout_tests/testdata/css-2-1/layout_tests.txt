@@ -115,10 +115,14 @@
 8-3-1-in-flow-siblings-should-form-collapsed-margin
 8-3-1-inline-level-boxes-should-not-form-collapsed-margin
 8-3-1-parent-and-first-in-flow-child-separated-by-absolute-box-should-form-collapsed-margin
+8-3-1-parent-and-first-in-flow-child-separated-by-border-should-not-form-collapsed-margin
 8-3-1-parent-and-first-in-flow-child-separated-by-inline-box-should-not-form-collapsed-margin
+8-3-1-parent-and-first-in-flow-child-separated-by-padding-should-not-form-collapsed-margin
 8-3-1-parent-and-first-in-flow-child-should-form-collapsed-margin
 8-3-1-parent-and-last-in-flow-child-separated-by-absolute-box-should-form-collapsed-margin
+8-3-1-parent-and-last-in-flow-child-separated-by-border-should-not-form-collapsed-margin
 8-3-1-parent-and-last-in-flow-child-separated-by-inline-box-should-not-form-collapsed-margin
+8-3-1-parent-and-last-in-flow-child-separated-by-padding-should-not-form-collapsed-margin
 8-3-1-parent-and-last-in-flow-child-should-form-collapsed-margin
 8-3-1-parent-with-non-auto-height-should-not-form-collapsed-margin
 8-3-1-statically-positioned-absolute-box-should-not-form-collapsed-margin
