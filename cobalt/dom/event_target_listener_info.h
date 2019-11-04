@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_DOM_GENERIC_EVENT_HANDLER_REFERENCE_H_
-#define COBALT_DOM_GENERIC_EVENT_HANDLER_REFERENCE_H_
+#ifndef COBALT_DOM_EVENT_TARGET_LISTENER_INFO_H_
+#define COBALT_DOM_EVENT_TARGET_LISTENER_INFO_H_
 
 #include <memory>
 
@@ -132,4 +132,4 @@ class EventTargetListenerInfo {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // COBALT_DOM_GENERIC_EVENT_HANDLER_REFERENCE_H_
+#endif  // COBALT_DOM_EVENT_TARGET_LISTENER_INFO_H_
