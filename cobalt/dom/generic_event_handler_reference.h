@@ -48,7 +48,7 @@ namespace dom {
 // and manages the casting and type checking.  This would allow us to convert
 // between OnErrorEventListener and EventListener, if OnErrorEventListener was
 // derived from EventListener.
-class GenericEventHandlerReference {
+class EventTargetListenerInfo {
  public:
   typedef script::ScriptValue<EventListener> EventListenerScriptValue;
   typedef script::ScriptValue<OnErrorEventListener>
@@ -61,21 +61,20 @@ class GenericEventHandlerReference {
     kAddEventListener,
   };
 
-  GenericEventHandlerReference(script::Wrappable* wrappable, base::Token type,
-                               AttachMethod attach, bool use_capture,
-                               const EventListenerScriptValue& script_value);
-  GenericEventHandlerReference(
-      script::Wrappable* wrappable, base::Token type, AttachMethod attach,
-      bool use_capture, bool unpack_error_event,
-      const OnErrorEventListenerScriptValue& script_value);
-  GenericEventHandlerReference(script::Wrappable* wrappable,
-                               const GenericEventHandlerReference& other);
+  EventTargetListenerInfo(script::Wrappable* wrappable, base::Token type,
+                          AttachMethod attach, bool use_capture,
+                          const EventListenerScriptValue& script_value);
+  EventTargetListenerInfo(script::Wrappable* wrappable, base::Token type,
+                          AttachMethod attach, bool use_capture,
+                          bool unpack_error_event,
+                          const OnErrorEventListenerScriptValue& script_value);
+  EventTargetListenerInfo(script::Wrappable* wrappable,
+                          const EventTargetListenerInfo& other);
 
-  GenericEventHandlerReference(const GenericEventHandlerReference&) = delete;
-  GenericEventHandlerReference& operator=(const GenericEventHandlerReference&) =
-      delete;
+  EventTargetListenerInfo(const EventTargetListenerInfo&) = delete;
+  EventTargetListenerInfo& operator=(const EventTargetListenerInfo&) = delete;
 
-  ~GenericEventHandlerReference();
+  ~EventTargetListenerInfo();
 
   const void* task() const { return task_; }
   base::Token type() const { return type_; }
@@ -87,7 +86,7 @@ class GenericEventHandlerReference {
   // OnErrorEventListenerScriptValue type.
   void HandleEvent(const scoped_refptr<Event>& event);
 
-  bool EqualTo(const GenericEventHandlerReference& other);
+  bool EqualTo(const EventTargetListenerInfo& other);
   bool IsNull() const;
 
   // If the internal type is a EventListenerScriptValue, then its value will
