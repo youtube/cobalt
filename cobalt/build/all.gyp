@@ -30,7 +30,7 @@
       'target_name': 'All',
       'type': 'none',
       'dependencies': [
-        '<(DEPTH)/base/base.gyp:base_unittests',
+        '<(DEPTH)/base/base.gyp:base_unittests_deploy',
         '<(DEPTH)/cobalt/accessibility/accessibility_test.gyp:*',
         '<(DEPTH)/cobalt/audio/audio.gyp:*',
         '<(DEPTH)/cobalt/audio/audio_test.gyp:*',
@@ -84,14 +84,14 @@
         '<(DEPTH)/cobalt/webdriver/webdriver_test.gyp:*',
         '<(DEPTH)/cobalt/websocket/websocket.gyp:*',
         '<(DEPTH)/cobalt/xhr/xhr.gyp:*',
-        '<(DEPTH)/crypto/crypto.gyp:crypto_unittests',
-        '<(DEPTH)/net/net.gyp:net_unittests',
-        '<(DEPTH)/sql/sql.gyp:sql_unittests',
+        '<(DEPTH)/crypto/crypto.gyp:crypto_unittests_deploy',
+        '<(DEPTH)/net/net.gyp:net_unittests_deploy',
+        '<(DEPTH)/sql/sql.gyp:sql_unittests_deploy',
       ],
       'conditions': [
         ['OS=="starboard"', {
           'dependencies': [
-            '<(DEPTH)/nb/nb.gyp:nb_test',
+            '<(DEPTH)/nb/nb.gyp:nb_test_deploy',
             '<(DEPTH)/nb/nb.gyp:reuse_allocator_benchmark',
             '<(DEPTH)/starboard/starboard_all.gyp:starboard_all',
           ],
