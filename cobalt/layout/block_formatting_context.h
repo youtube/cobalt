@@ -24,6 +24,19 @@
 namespace cobalt {
 namespace layout {
 
+struct MarginCollapsingParams {
+  MarginCollapsingParams(const bool is_margin_collapsable)
+      : collapsing_margin(0),
+
+        should_collapse_margin_bottom(true),
+        should_collapse_margin_top(is_margin_collapsable) {}
+
+  LayoutUnit collapsing_margin;
+  base::Optional<LayoutUnit> context_margin_top;
+  bool should_collapse_margin_bottom;
+  bool should_collapse_margin_top;
+};
+
 // In a block formatting context, boxes are laid out one after the other,
 // vertically, beginning at the top of a containing block.
 //   https://www.w3.org/TR/CSS21/visuren.html#block-formatting
@@ -47,19 +60,12 @@ class BlockFormattingContext : public FormattingContext {
   // the internal state in the preparation for the next child.
   void UpdateRect(Box* child_box);
 
-  // Estimates the static position of the given child box. In CSS 2.1 the static
-  // position is only defined for absolutely positioned boxes.
-  void EstimateStaticPosition(Box* child_box);
-
  private:
   void UpdatePosition(Box* child_box);
   LayoutUnit CollapseMargins(const LayoutUnit box_margin,
                              const LayoutUnit adjoining_margin);
-
-  const bool is_margin_collapsable_;
   const LayoutParams layout_params_;
-  LayoutUnit collapsing_margin_;
-  base::Optional<LayoutUnit> context_margin_top_;
+  MarginCollapsingParams margin_collapsing_params_;
 
   DISALLOW_COPY_AND_ASSIGN(BlockFormattingContext);
 };
