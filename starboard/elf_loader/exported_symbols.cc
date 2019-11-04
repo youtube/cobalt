@@ -126,8 +126,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbFileSeek);
   REGISTER_SYMBOL(SbFileTruncate);
   REGISTER_SYMBOL(SbFileWrite);
-  REGISTER_SYMBOL(SbGetEglInterface);
-  REGISTER_SYMBOL(SbGetGlesInterface);
   REGISTER_SYMBOL(SbImageDecode);
   REGISTER_SYMBOL(SbImageIsDecodeSupported);
   REGISTER_SYMBOL(SbLog);
@@ -278,13 +276,18 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbWindowSetDefaultOptions);
   REGISTER_SYMBOL_AS(SbSystemGetPath, SbSystemGetPathShim);
 
-#if SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION
-  REGISTER_SYMBOL(SbFileAtomicReplace);
-#endif  // SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION
+#if SB_API_VERSION >= 11
+  REGISTER_SYMBOL(SbGetEglInterface);
+  REGISTER_SYMBOL(SbGetGlesInterface);
+#endif  // SB_API_VERSION >= 11
 
 #if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
   REGISTER_SYMBOL(SbBlitterIsBlitterSupported);
 #endif
+
+#if SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION
+  REGISTER_SYMBOL(SbFileAtomicReplace);
+#endif  // SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION
 
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
   REGISTER_SYMBOL(SbMemoryFlush);
