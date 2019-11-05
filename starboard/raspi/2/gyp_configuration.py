@@ -33,4 +33,4 @@ class Raspi2PlatformConfig(shared_configuration.RaspiPlatformConfig):
 
 def CreatePlatformConfig():
   return Raspi2PlatformConfig(
-      'raspi-2', sabi_json_path='starboard/evergreen/sabi/arm/hardfp/sabi.json')
+      'raspi-2', sabi_json_path='starboard/sabi/arm/hardfp/sabi.json')

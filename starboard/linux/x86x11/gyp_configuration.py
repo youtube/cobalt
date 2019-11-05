@@ -33,13 +33,10 @@ class LinuxX86Configuration(parent_configuration.LinuxConfiguration):
         'ARFLAGS_host': 'rcs',
         'ARTHINFLAGS_host': 'rcsT',
     }
-    super(LinuxX86Configuration, self).__init__(
-        platform_name,
-        asan_enabled_by_default,
-        goma_supports_compiler,
-        sabi_json_path)
+    super(LinuxX86Configuration,
+          self).__init__(platform_name, asan_enabled_by_default,
+                         goma_supports_compiler, sabi_json_path)
 
 
 def CreatePlatformConfig():
-  return LinuxX86Configuration(
-      sabi_json_path='starboard/evergreen/sabi/ia32/sabi.json')
+  return LinuxX86Configuration(sabi_json_path='starboard/sabi/ia32/sabi.json')

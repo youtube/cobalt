@@ -20,4 +20,4 @@ def CreatePlatformConfig():
   return shared_configuration.AndroidConfiguration(
       'android-arm',
       'armeabi-v7a',
-      sabi_json_path='starboard/evergreen/sabi/arm/softfp/sabi.json')
+      sabi_json_path='starboard/sabi/arm/softfp/sabi.json')

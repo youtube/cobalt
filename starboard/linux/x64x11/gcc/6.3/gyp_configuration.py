@@ -67,5 +67,4 @@ class LinuxX64X11Gcc63Configuration(shared_configuration.LinuxConfiguration):
 
 def CreatePlatformConfig():
   return LinuxX64X11Gcc63Configuration(
-      'linux-x64x11-gcc-6-3',
-      sabi_json_path='starboard/evergreen/sabi/x64/sabi.json')
+      'linux-x64x11-gcc-6-3', sabi_json_path='starboard/sabi/x64/sabi.json')

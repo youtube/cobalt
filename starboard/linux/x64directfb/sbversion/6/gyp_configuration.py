@@ -36,4 +36,4 @@ class LinuxX64DirectFbSbversion6Configuration(
 def CreatePlatformConfig():
   return LinuxX64DirectFbSbversion6Configuration(
       'linux-x64directfb-sbversion-6',
-      sabi_json_path='starboard/evergreen/sabi/x64/sabi.json')
+      sabi_json_path='starboard/sabi/x64/sabi.json')
