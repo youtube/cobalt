@@ -299,6 +299,9 @@ void ShellDemuxer::ParseConfigDone(const PipelineStatusCB& status_cb,
     status_cb.Run(status);
     return;
   }
+
+  buffer_allocator_->UpdateVideoConfig(VideoConfig());
+
   DCHECK(parser_);
   // start downloading data
   Request(DemuxerStream::AUDIO);

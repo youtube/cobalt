@@ -29,14 +29,6 @@
 namespace cobalt {
 namespace media {
 
-#if SB_API_VERSION < 10
-#if COBALT_MEDIA_BUFFER_INITIAL_CAPACITY > 0 || \
-    COBALT_MEDIA_BUFFER_ALLOCATION_UNIT > 0
-#define COBALT_MEDIA_BUFFER_USING_MEMORY_POOL 1
-#endif  // COBALT_MEDIA_BUFFER_INITIAL_CAPACITY == 0 &&
-        // COBALT_MEDIA_BUFFER_ALLOCATION_UNIT == 0
-#endif  // SB_API_VERSION < 10
-
 class DecoderBufferAllocator : public DecoderBuffer::Allocator {
  public:
   DecoderBufferAllocator();
@@ -48,7 +40,6 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator {
   void UpdateVideoConfig(const VideoDecoderConfig& video_config) override;
 
  private:
-#if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL || SB_API_VERSION >= 10
   class ReuseAllocator : public nb::BidirectionalFitReuseAllocator {
    public:
     ReuseAllocator(Allocator* fallback_allocator, std::size_t initial_capacity,
@@ -62,19 +53,21 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator {
 
   // Update the Allocation record, and return false if allocation exceeds the
   // max buffer capacity, or true otherwise.
-  bool UpdateAllocationRecord(std::size_t blocks = 1) const;
+  bool UpdateAllocationRecord() const;
+
+  const bool using_memory_pool_;
+  const bool is_memory_pool_allocated_on_demand_;
+  const int initial_capacity_;
+  const int allocation_unit_;
 
   starboard::Mutex mutex_;
   nb::StarboardMemoryAllocator fallback_allocator_;
   std::unique_ptr<ReuseAllocator> reuse_allocator_;
-  bool using_memory_pool_ = false;
-#if SB_API_VERSION >= 10
+
   SbMediaVideoCodec video_codec_ = kSbMediaVideoCodecNone;
-  int resolution_width_ = kSbMediaVideoResolutionDimensionInvalid;
-  int resolution_height_ = kSbMediaVideoResolutionDimensionInvalid;
-  int bits_per_pixel_ = kSbMediaBitsPerPixelInvalid;
-#endif  // SB_API_VERSION >= 10
-#endif  // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL || SB_API_VERSION >= 10
+  int resolution_width_ = -1;
+  int resolution_height_ = -1;
+  int bits_per_pixel_ = -1;
 };
 
 }  // namespace media
