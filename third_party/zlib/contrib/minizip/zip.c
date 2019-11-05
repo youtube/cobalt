@@ -25,7 +25,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/eztime_poem.h"
+#else
 #include <time.h>
+#endif
 #if defined(USE_SYSTEM_ZLIB)
 #include <zlib.h>
 #else
@@ -859,7 +863,11 @@ extern zipFile ZEXPORT zipOpen3 (const void *pathname, int append, zipcharpc* gl
     ziinit.z_filefunc.zseek32_file = NULL;
     ziinit.z_filefunc.ztell32_file = NULL;
     if (pzlib_filefunc64_32_def==NULL)
+#if defined(STARBOARD)
+        fill_starboard_filefunc64(&ziinit.z_filefunc.zfile_func64);
+#else
         fill_fopen64_filefunc(&ziinit.z_filefunc.zfile_func64);
+#endif
     else
         ziinit.z_filefunc = *pzlib_filefunc64_32_def;
 
