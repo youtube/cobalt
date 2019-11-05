@@ -16,6 +16,9 @@
 # default.
 
 {
+  'variables': {
+    'has_elf_loader%' : '<!(python ../../build/file_exists.py <(DEPTH)/starboard/elf_loader/elf_loader.gyp)',
+  },
   'targets': [
     {
       'target_name': 'Default',
@@ -88,9 +91,13 @@
         '<(DEPTH)/third_party/boringssl/boringssl_tool.gyp:*',
         '<(DEPTH)/net/net.gyp:net_unittests_deploy',
         '<(DEPTH)/sql/sql.gyp:sql_unittests_deploy',
-        '<(DEPTH)/starboard/elf_loader/elf_loader.gyp:elf_loader_test_deploy',
       ],
       'conditions': [
+        ['has_elf_loader == "True"', {
+          'dependencies': [
+            '<(DEPTH)/starboard/elf_loader/elf_loader.gyp:elf_loader_test_deploy',
+          ],
+        }],
         ['OS=="starboard"', {
           'dependencies': [
             '<(DEPTH)/nb/nb_test.gyp:nb_test_deploy',
