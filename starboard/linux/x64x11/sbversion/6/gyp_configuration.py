@@ -35,4 +35,5 @@ class LinuxX64X11Sbversion6Configuration(
 
 def CreatePlatformConfig():
   return LinuxX64X11Sbversion6Configuration(
-      'linux-x64x11-sbversion-6', sabi_json_path='starboard/sabi/x64/sabi.json')
+      'linux-x64x11-sbversion-6',
+      sabi_json_path='starboard/sabi/x64/sysv/sabi.json')

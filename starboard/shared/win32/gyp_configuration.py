@@ -43,11 +43,12 @@ def _QuotePath(path):
 class Win32SharedConfiguration(config.base.PlatformConfigBase):
   """Starboard Microsoft Windows platform configuration."""
 
-  def __init__(self, platform, sdk_checker_fcn=None):
+  def __init__(self, platform, sdk_checker_fcn=None, sabi_json_path=None):
     super(Win32SharedConfiguration, self).__init__(platform)
     self.sdk_name = self.GetName()
     self.vmware = 'vmware' in self.GetVideoProcessorDescription().lower()
     self.sdk_checker_fcn = sdk_checker_fcn
+    self.sabi_json_path = sabi_json_path
 
   def GetSdk(self):
     # Lazy load sdk to avoid any sdk checks running until it is used.
@@ -165,5 +166,7 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
-  __FILTERED_TESTS = {
-  }
+  __FILTERED_TESTS = {}
+
+  def GetPathToSabiJsonFile(self):
+    return self.sabi_json_path
