@@ -35,6 +35,7 @@
       'cobalt_webapi_extension_source_idl_files%': [],
       'cobalt_webapi_extension_generated_header_idl_files%': [],
       'cobalt_v8_buildtime_snapshot%': 1,
+      'cobalt_v8_enable_embedded_builtins%': 1,
     },
 
     # Whether Cobalt is being built.
