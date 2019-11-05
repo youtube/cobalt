@@ -81,4 +81,5 @@ class LinuxX64X11Configuration(shared_configuration.LinuxConfiguration):
 
 
 def CreatePlatformConfig():
-  return LinuxX64X11Configuration(sabi_json_path='starboard/sabi/x64/sabi.json')
+  return LinuxX64X11Configuration(
+      sabi_json_path='starboard/sabi/x64/sysv/sabi.json')

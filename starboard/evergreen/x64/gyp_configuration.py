@@ -98,4 +98,4 @@ class EvergreenX64Configuration(shared_configuration.EvergreenConfiguration):
 
 def CreatePlatformConfig():
   return EvergreenX64Configuration(
-      sabi_json_path='starboard/sabi/x64/sabi.json')
+      sabi_json_path='starboard/sabi/x64/sysv/sabi.json')

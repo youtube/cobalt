@@ -70,7 +70,8 @@ class LinuxX64X11Clang36Configuration(shared_configuration.LinuxConfiguration):
 def CreatePlatformConfig():
   try:
     return LinuxX64X11Clang36Configuration(
-        'linux-x64x11-clang-3-6', sabi_json_path='starboard/sabi/x64/sabi.json')
+        'linux-x64x11-clang-3-6',
+        sabi_json_path='starboard/sabi/x64/sysv/sabi.json')
   except RuntimeError as e:
     logging.critical(e)
     return None
