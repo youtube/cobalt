@@ -39,6 +39,6 @@
   'includes': [
     '../architecture.gypi',
     '../../shared/gyp_configuration.gypi',
-    '<(DEPTH)/starboard/evergreen/sabi/sabi.gypi',
+    '<(DEPTH)/starboard/sabi/sabi.gypi',
   ],
 }

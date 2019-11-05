@@ -37,4 +37,4 @@ class LinuxX64X11BlitterglesSbversion6Configuration(
 def CreatePlatformConfig():
   return LinuxX64X11BlitterglesSbversion6Configuration(
       'linux-x64x11-blittergles-sbversion-6',
-      sabi_json_path='starboard/evergreen/sabi/x64/sabi.json')
+      sabi_json_path='starboard/sabi/x64/sabi.json')

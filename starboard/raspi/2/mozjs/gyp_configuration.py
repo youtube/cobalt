@@ -37,5 +37,4 @@ class Raspi2MozjsPlatformConfig(Raspi2PlatformConfig):
 
 def CreatePlatformConfig():
   return Raspi2MozjsPlatformConfig(
-      'raspi-2-mozjs',
-      sabi_json_path='starboard/evergreen/sabi/arm/hardfp/sabi.json')
+      'raspi-2-mozjs', sabi_json_path='starboard/sabi/arm/hardfp/sabi.json')

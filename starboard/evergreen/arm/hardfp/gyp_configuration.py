@@ -22,4 +22,4 @@ from starboard.evergreen.arm.shared import gyp_configuration as parent_configura
 def CreatePlatformConfig():
   return parent_configuration.EvergreenArmConfiguration(
       'evergreen-arm-hardfp',
-      sabi_json_path='starboard/evergreen/sabi/arm/hardfp/sabi.json')
+      sabi_json_path='starboard/sabi/arm/hardfp/sabi.json')

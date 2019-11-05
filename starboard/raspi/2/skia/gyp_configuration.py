@@ -22,5 +22,4 @@ Raspi2PlatformConfig = importlib.import_module(
 
 def CreatePlatformConfig():
   return Raspi2PlatformConfig(
-      'raspi-2-skia',
-      sabi_json_path='starboard/evergreen/sabi/arm/hardfp/sabi.json')
+      'raspi-2-skia', sabi_json_path='starboard/sabi/arm/hardfp/sabi.json')

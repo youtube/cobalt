@@ -18,6 +18,4 @@ from starboard.android.shared import gyp_configuration as shared_configuration
 
 def CreatePlatformConfig():
   return shared_configuration.AndroidConfiguration(
-      'android-x86',
-      'x86',
-      sabi_json_path='starboard/evergreen/sabi/ia32/sabi.json')
+      'android-x86', 'x86', sabi_json_path='starboard/sabi/ia32/sabi.json')
