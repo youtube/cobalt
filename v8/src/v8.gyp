@@ -39,11 +39,6 @@
       ['host_os=="win"', {
         'compiler_flags_host': ['/wd4267', '/wd4312', '/wd4351', '/wd4355', '/wd4800', '/wd4838', '/wd4715', '/EHsc'],
       }],
-      ['v8_enable_embedded_builtins==1', {
-        'defines': [
-          'V8_EMBEDDED_BUILTINS',
-        ],
-      }],
     ],
   },
   'variables': {
@@ -63,7 +58,8 @@
     # TODO: Enable i18n support.
     'v8_enable_i18n_support': 0,
     # Embedded builtins allow V8 to share built-in codes across isolates.
-    'v8_enable_embedded_builtins': '<(cobalt_v8_enable_embedded_builtins)',
+    # TODO[johnx]: enable embedded built-ins or decide that Cobalt does not need it for now after talking to Jakob.
+    'v8_enable_embedded_builtins': 0,
     'v8_enable_snapshot_code_comments': 0,
     # Enable native counters from the snapshot (impacts performance, sets
     # -dV8_SNAPSHOT_NATIVE_CODE_COUNTERS).
@@ -187,6 +183,11 @@
         'torque_files': [
           "<(DEPTH)/v8/src/objects/intl-objects.tq",
         ]
+      }],
+      ['v8_enable_embedded_builtins==1', {
+        'defines': [
+          'V8_EMBEDDED_BUILTINS',
+        ],
       }],
     ],
   },
@@ -500,21 +501,6 @@
             'v8_libplatform',
           ]
         }],
-        ['v8_enable_embedded_builtins==1', {
-          'actions': [
-            {# This is not needed for linux, but necessary for MSVC which does not take .S files.
-             'action_name': 'convert_asm_to_inline',
-             'inputs': ['<(INTERMEDIATE_DIR)/embedded.S'],
-             'outputs': ['<(INTERMEDIATE_DIR)/embedded.cc'],
-             'action': [
-               'python',
-               '../tools/snapshot/asm_to_inline_asm.py',
-               '>@(_inputs)',
-               '>@(_outputs)',
-             ],
-            },
-          ],
-        }]
       ],
       'sources': [
         '<(DEPTH)/v8/src/init/setup-isolate-deserialize.cc',
@@ -545,7 +531,7 @@
           ],
           'process_outputs_as_sources': 1,
           'conditions': [
-            ['v8_enable_embedded_builtins==1', {
+            ['v8_enable_embedded_builtins', {
               # In this case we use `embedded_variant "Default"`
               # and `suffix = ''` for the template `embedded${suffix}.S`.
               'outputs': ['<(INTERMEDIATE_DIR)/embedded.S'],
@@ -607,6 +593,18 @@
             '>@(mksnapshot_flags)',
           ],
         },
+        #{
+        #  # This is not needed for linux, but necessary for MSVC which does not take .S files.
+        #  'action_name': 'convert_asm_to_inline',
+        #  'inputs': ['<(INTERMEDIATE_DIR)/embedded.S'],
+        #  'outputs': ['<(INTERMEDIATE_DIR)/embedded.cc'],
+        #  'action': [
+        #    'python',
+        #    '../tools/snapshot/asm_to_inline_asm.py',
+        #    '>@(_inputs)',
+        #    '>@(_outputs)',
+        #  ],
+        #},
       ],
     },  # v8_snapshot
     {
