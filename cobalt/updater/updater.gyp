@@ -58,7 +58,7 @@
         'updater',
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/cobalt/debug/debug.gyp:console_command_manager',
-        '<(DEPTH)/starboard/starboard.gyp:starboard_full',
+        '<(DEPTH)/starboard/starboard.gyp:starboard',
       ],
       'sources': [
         'updater_sandbox.cc',
