@@ -21,4 +21,4 @@ from starboard.linux.x64directfb import gyp_configuration as parent_configuratio
 def CreatePlatformConfig():
   return parent_configuration.CobaltLinuxX64DirectFbConfiguration(
       'linux-x64directfb-sbversion-11',
-      sabi_json_path='starboard/evergreen/sabi/x64/sabi.json')
+      sabi_json_path='starboard/sabi/x64/sabi.json')

@@ -240,7 +240,7 @@ class PlatformConfiguration(object):
       logging.info('Using Thread Sanitizer')
 
     if not sabi_json_path:
-      sabi_json_path = 'starboard/evergreen/sabi/default/sabi.json'
+      sabi_json_path = 'starboard/sabi/default/sabi.json'
 
     variables = {
         'clang': use_clang,

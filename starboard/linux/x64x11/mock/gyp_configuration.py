@@ -18,7 +18,7 @@ from starboard.build import platform_configuration
 from starboard.tools import build
 from starboard.tools.testing import test_filter
 
-_SABI_JSON_PATH = 'starboard/evergreen/sabi/x64/sabi.json'
+_SABI_JSON_PATH = 'starboard/sabi/x64/sabi.json'
 
 
 class LinuxX64X11MockConfiguration(platform_configuration.PlatformConfiguration):

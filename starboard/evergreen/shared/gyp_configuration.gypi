@@ -48,7 +48,7 @@
     ],
   },
   'includes': [
-    '<(DEPTH)/starboard/evergreen/sabi/sabi.gypi',
     '<(DEPTH)/starboard/evergreen/sabi/sabi_flags.gypi',
+    '<(DEPTH)/starboard/sabi/sabi.gypi',
   ],
 }
