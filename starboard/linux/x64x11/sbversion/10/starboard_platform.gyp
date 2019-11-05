@@ -22,3 +22,4 @@
     '<(DEPTH)/starboard/linux/x64x11/starboard_platform.gyp',
   ],
 }
+

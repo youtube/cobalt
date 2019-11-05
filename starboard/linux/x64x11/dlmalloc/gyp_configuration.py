@@ -31,4 +31,5 @@ class LinuxX64X11DlmallocConfiguration(
 
 def CreatePlatformConfig():
   return LinuxX64X11DlmallocConfiguration(
-      'linux-x64x11-dlmalloc', sabi_json_path='starboard/sabi/x64/sabi.json')
+      'linux-x64x11-dlmalloc',
+      sabi_json_path='starboard/sabi/x64/sysv/sabi.json')
