@@ -18,6 +18,7 @@
 {
   'variables': {
     'has_elf_loader%' : '<!(python ../../build/file_exists.py <(DEPTH)/starboard/elf_loader/elf_loader.gyp)',
+    'has_loader_app%' : '<!(python ../../build/file_exists.py <(DEPTH)/starboard/loader_app/loader_app.gyp)',
   },
   'targets': [
     {
@@ -96,6 +97,11 @@
         ['has_elf_loader == "True"', {
           'dependencies': [
             '<(DEPTH)/starboard/elf_loader/elf_loader.gyp:elf_loader_test_deploy',
+          ],
+        }],
+        ['has_loader_app == "True"', {
+          'dependencies': [
+            '<(DEPTH)/starboard/loader_app/loader_app.gyp:*',
           ],
         }],
         ['OS=="starboard"', {

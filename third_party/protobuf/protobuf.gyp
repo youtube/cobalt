@@ -77,11 +77,24 @@
             ],
           },
           'all_dependent_settings': {
+            'include_dirs': [
+              # Get protobuf headers from the chromium tree.
+              '<(DEPTH)/third_party/protobuf/src',
+            ],
             'defines': [
-              # This macro must be defined to suppress the use
-              # of dynamic_cast<>, which requires RTTI.
+              # This macro must be defined to suppress the use of
+              # dynamic_cast<>, which requires RTTI.
               'GOOGLE_PROTOBUF_NO_RTTI',
-            ]
+
+              # The generated code needs to be compiled with the same flags as the
+              # protobuf library. Otherwise we get static initializers which are not
+              # thread safe.
+              'GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER',
+
+              # pthread is used on the host platform, but the target platform
+              # actually uses SbThread.
+              'HAVE_PTHREAD',
+            ],
           },
         },
         # This is the full, heavy protobuf lib that's needed for c++ .protos
