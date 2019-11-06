@@ -297,6 +297,7 @@
         'window_get_diagonal_size_in_inches_test.cc',
         'window_get_platform_handle_test.cc',
         'window_get_size_test.cc',
+        '<@(sabi_sources)',
         # Include private c headers, if present.
         '<!@(python "<(DEPTH)/starboard/tools/find_private_files.py" "<(DEPTH)" "nplb/include_all_private.c")',
         # Include private tests, if present.
@@ -327,6 +328,7 @@
           ],
         }],
       ],
+      'includes': [ '<(DEPTH)/starboard/nplb/sabi/sabi.gypi' ],
     },
     {
       'target_name': 'nplb_deploy',
