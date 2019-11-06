@@ -145,7 +145,9 @@ int UpdaterMain(int argc, const char* const* argv) {
               -> std::vector<base::Optional<update_client::CrxComponent>> {
             update_client::CrxComponent component;
             component.name = "cobalt_test";
+            component.app_id = ids[0];
             component.version = base::Version("0.0");
+            component.requires_network_encryption = false;
             return {component};
           }),
       true,

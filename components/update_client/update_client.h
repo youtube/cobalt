@@ -220,9 +220,15 @@ struct CrxComponent {
   CrxComponent(const CrxComponent& other);
   ~CrxComponent();
 
-  // SHA256 hash of the CRX's public key.
+  // Optional SHA256 hash of the CRX's public key. If not supplied, the
+  // unpacker can accept any CRX for this app, provided that the CRX meets the
+  // VerifierFormat requirements specified by the service's configurator.
+  // Callers that know or need a specific developer signature on acceptable CRX
+  // files must provide this.
   std::vector<uint8_t> pk_hash;
+
   scoped_refptr<CrxInstaller> installer;
+  std::string app_id;
 
   // The current version if the CRX is updated. Otherwise, "0" or "0.0" if
   // the CRX is installed.

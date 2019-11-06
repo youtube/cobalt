@@ -52,7 +52,8 @@ bool DeleteFileAndEmptyParentDirectory(const base::FilePath& filepath) {
 }
 
 std::string GetCrxComponentID(const CrxComponent& component) {
-  return GetCrxIdFromPublicKeyHash(component.pk_hash);
+  return component.app_id.empty() ? GetCrxIdFromPublicKeyHash(component.pk_hash)
+                                  : component.app_id;
 }
 
 std::string GetCrxIdFromPublicKeyHash(const std::vector<uint8_t>& pk_hash) {
