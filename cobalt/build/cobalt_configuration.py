@@ -152,6 +152,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'storage_upgrade_test',
         'web_animations_test',
         'webdriver_test',
+        'websocket_test',
         'xhr_test',
     ]
 

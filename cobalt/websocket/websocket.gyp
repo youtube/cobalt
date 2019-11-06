@@ -36,6 +36,7 @@
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
+        '<(DEPTH)/cobalt/network/network.gyp:network',
         '<(DEPTH)/net/net.gyp:net',
         '<(DEPTH)/url/url.gyp:url',
       ],
@@ -58,6 +59,14 @@
         # TODO: Remove the dependency below, it works around the fact that
         #       ScriptValueFactory has non-virtual method CreatePromise().
         '<(DEPTH)/cobalt/script/engine.gyp:engine',
+      ],
+      'conditions': [
+        # The network gyp targets depends on 'debug' in unit test builds.
+        ['enable_debugger == 1', {
+          'dependencies': [
+            '<(DEPTH)/cobalt/debug/debug.gyp:debug',
+          ],
+        }],
       ],
     },
 
