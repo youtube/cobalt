@@ -19,6 +19,8 @@ import config.base
 from starboard.build import clang
 from starboard.tools import build
 
+_SABI_JSON_PATH = 'starboard/sabi/x64/sysv/sabi.json'
+
 
 def CreatePlatformConfig():
   try:
@@ -63,3 +65,6 @@ class StubConfiguration(config.base.PlatformConfigBase):
       A list of initialized TestFilter objects.
     """
     return []
+
+  def GetPathToSabiJsonFile(self):
+    return _SABI_JSON_PATH
