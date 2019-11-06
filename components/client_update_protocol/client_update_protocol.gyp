@@ -25,15 +25,6 @@
         '<(DEPTH)/crypto/crypto.gyp:crypto',
         '<(DEPTH)/base/base.gyp:base',
       ],
-      'defines': [
-        'GOOGLE_PROTOBUF_NO_RTTI',
-        'GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER',
-        'HAVE_PTHREAD',
-      ],
-      'include_dirs': [
-        # Get protobuf headers from the chromium tree.
-        '<(DEPTH)/third_party/protobuf/src',
-      ],
     },
     {
       'target_name': 'client_update_protocol_unittests',
@@ -46,15 +37,6 @@
         '<(DEPTH)/crypto/crypto.gyp:crypto',
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/testing/gtest.gyp:gtest',
-      ],
-      'defines': [
-        'GOOGLE_PROTOBUF_NO_RTTI',
-        'GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER',
-        'HAVE_PTHREAD',
-      ],
-      'include_dirs': [
-        # Get protobuf headers from the chromium tree.
-        '<(DEPTH)/third_party/protobuf/src',
       ],
     },
   ]
