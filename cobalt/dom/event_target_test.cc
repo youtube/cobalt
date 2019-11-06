@@ -18,10 +18,11 @@
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_exception.h"
+#include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/testing/mock_event_listener.h"
-#include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/script/testing/fake_script_value.h"
 #include "cobalt/script/testing/mock_exception_state.h"
+#include "cobalt/test/mock_debugger_hooks.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -45,7 +46,13 @@ using ::testing::StrictMock;
 
 class EventTargetTest : public ::testing::Test {
  protected:
-  testing::StubEnvironmentSettings environment_settings_;
+  EventTargetTest()
+      : environment_settings_(0, nullptr, nullptr, nullptr, nullptr, nullptr,
+                              nullptr, nullptr, &debugger_hooks_, nullptr,
+                              DOMSettings::Options()) {}
+
+  StrictMock<test::MockDebuggerHooks> debugger_hooks_;
+  DOMSettings environment_settings_;
 };
 
 base::Optional<bool> DispatchEventOnCurrentTarget(
@@ -77,9 +84,15 @@ TEST_F(EventTargetTest, SingleEventListenerFired) {
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
 
-  event_listener->ExpectHandleEventCall(event, event_target);
+  const void* async_task;
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+      .WillOnce(SaveArg<0>(&async_task));
   event_target->AddEventListener(
       "fired", FakeScriptValue<EventListener>(event_listener.get()), false);
+
+  event_listener->ExpectHandleEventCall(event, event_target);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task));
+  EXPECT_CALL(debugger_hooks_, AsyncTaskFinished(async_task));
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
@@ -91,9 +104,11 @@ TEST_F(EventTargetTest, SingleEventListenerNotFired) {
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
 
-  event_listener->ExpectNoHandleEventCall();
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "notfired", true));
   event_target->AddEventListener(
       "notfired", FakeScriptValue<EventListener>(event_listener.get()), false);
+
+  event_listener->ExpectNoHandleEventCall();
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
@@ -112,9 +127,16 @@ TEST_F(EventTargetTest, MultipleEventListeners) {
       MockEventListener::Create();
 
   InSequence in_sequence;
-  event_listenerfired_1->ExpectHandleEventCall(event, event_target);
-  event_listenerfired_2->ExpectHandleEventCall(event, event_target);
-  event_listenernot_fired->ExpectNoHandleEventCall();
+
+  const void* async_task_1;
+  const void* async_task_2;
+  const void* async_task_not_fired;
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+      .WillOnce(SaveArg<0>(&async_task_1));
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "notfired", true))
+      .WillOnce(SaveArg<0>(&async_task_not_fired));
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+      .WillOnce(SaveArg<0>(&async_task_2));
 
   event_target->AddEventListener(
       "fired", FakeScriptValue<EventListener>(event_listenerfired_1.get()),
@@ -125,6 +147,17 @@ TEST_F(EventTargetTest, MultipleEventListeners) {
   event_target->AddEventListener(
       "fired", FakeScriptValue<EventListener>(event_listenerfired_2.get()),
       true);
+
+  EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task_1));
+  event_listenerfired_1->ExpectHandleEventCall(event, event_target);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskFinished(async_task_1));
+
+  EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task_2));
+  event_listenerfired_2->ExpectHandleEventCall(event, event_target);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskFinished(async_task_2));
+
+  event_listenernot_fired->ExpectNoHandleEventCall();
+
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
@@ -137,19 +170,30 @@ TEST_F(EventTargetTest, AddRemoveEventListener) {
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
 
-  event_listener->ExpectHandleEventCall(event, event_target);
+  const void* async_task_1;
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+      .WillOnce(SaveArg<0>(&async_task_1));
   event_target->AddEventListener(
       "fired", FakeScriptValue<EventListener>(event_listener.get()), false);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task_1));
+  event_listener->ExpectHandleEventCall(event, event_target);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskFinished(async_task_1));
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 
-  event_listener->ExpectNoHandleEventCall();
+  EXPECT_CALL(debugger_hooks_, AsyncTaskCanceled(async_task_1));
   event_target->RemoveEventListener(
       "fired", FakeScriptValue<EventListener>(event_listener.get()), false);
+  event_listener->ExpectNoHandleEventCall();
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 
-  event_listener->ExpectHandleEventCall(event, event_target);
+  const void* async_task_2;
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+      .WillOnce(SaveArg<0>(&async_task_2));
   event_target->AddEventListener(
       "fired", FakeScriptValue<EventListener>(event_listener.get()), false);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task_2));
+  event_listener->ExpectHandleEventCall(event, event_target);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskFinished(async_task_2));
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
@@ -166,31 +210,51 @@ TEST_F(EventTargetTest, AttributeListener) {
   std::unique_ptr<MockEventListener> attribute_event_listener2 =
       MockEventListener::Create();
 
+  const void* non_attribute_async_task;
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+      .WillOnce(SaveArg<0>(&non_attribute_async_task));
   event_target->AddEventListener(
       "fired",
       FakeScriptValue<EventListener>(non_attribute_event_listener.get()),
       false);
-
-  non_attribute_event_listener->ExpectHandleEventCall(event, event_target);
-  attribute_event_listener1->ExpectHandleEventCall(event, event_target);
+  const void* async_task_1;
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+      .WillOnce(SaveArg<0>(&async_task_1));
   event_target->SetAttributeEventListener(
       base::Token("fired"),
       FakeScriptValue<EventListener>(attribute_event_listener1.get()));
+  EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(non_attribute_async_task));
+  non_attribute_event_listener->ExpectHandleEventCall(event, event_target);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskFinished(non_attribute_async_task));
+  EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task_1));
+  attribute_event_listener1->ExpectHandleEventCall(event, event_target);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskFinished(async_task_1));
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 
-  non_attribute_event_listener->ExpectHandleEventCall(event, event_target);
-  attribute_event_listener1->ExpectNoHandleEventCall();
-  attribute_event_listener2->ExpectHandleEventCall(event, event_target);
+  const void* async_task_2;
+  EXPECT_CALL(debugger_hooks_, AsyncTaskCanceled(async_task_1));
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+      .WillOnce(SaveArg<0>(&async_task_2));
   event_target->SetAttributeEventListener(
       base::Token("fired"),
       FakeScriptValue<EventListener>(attribute_event_listener2.get()));
+  EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(non_attribute_async_task));
+  non_attribute_event_listener->ExpectHandleEventCall(event, event_target);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskFinished(non_attribute_async_task));
+  attribute_event_listener1->ExpectNoHandleEventCall();
+  EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task_2));
+  attribute_event_listener2->ExpectHandleEventCall(event, event_target);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskFinished(async_task_2));
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 
-  non_attribute_event_listener->ExpectHandleEventCall(event, event_target);
-  attribute_event_listener1->ExpectNoHandleEventCall();
-  attribute_event_listener2->ExpectNoHandleEventCall();
+  EXPECT_CALL(debugger_hooks_, AsyncTaskCanceled(async_task_2));
   event_target->SetAttributeEventListener(base::Token("fired"),
                                           FakeScriptValue<EventListener>(NULL));
+  EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(non_attribute_async_task));
+  non_attribute_event_listener->ExpectHandleEventCall(event, event_target);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskFinished(non_attribute_async_task));
+  attribute_event_listener1->ExpectNoHandleEventCall();
+  attribute_event_listener2->ExpectNoHandleEventCall();
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
@@ -204,31 +268,47 @@ TEST_F(EventTargetTest, EventListenerReuse) {
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
 
-  event_listener->ExpectHandleEventCall(event_1, event_target);
-  event_listener->ExpectHandleEventCall(event_2, event_target);
+  const void* async_task_1;
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired_1", true))
+      .WillOnce(SaveArg<0>(&async_task_1));
   event_target->AddEventListener(
       "fired_1", FakeScriptValue<EventListener>(event_listener.get()), false);
+  const void* async_task_2;
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired_2", true))
+      .WillOnce(SaveArg<0>(&async_task_2));
   event_target->AddEventListener(
       "fired_2", FakeScriptValue<EventListener>(event_listener.get()), false);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task_1));
+  event_listener->ExpectHandleEventCall(event_1, event_target);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskFinished(async_task_1));
   EXPECT_TRUE(event_target->DispatchEvent(event_1, &exception_state));
+  EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task_2));
+  event_listener->ExpectHandleEventCall(event_2, event_target);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskFinished(async_task_2));
   EXPECT_TRUE(event_target->DispatchEvent(event_2, &exception_state));
 
-  event_listener->ExpectHandleEventCall(event_1, event_target);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskCanceled(async_task_2));
   event_target->RemoveEventListener(
       "fired_2", FakeScriptValue<EventListener>(event_listener.get()), false);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task_1));
+  event_listener->ExpectHandleEventCall(event_1, event_target);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskFinished(async_task_1));
   EXPECT_TRUE(event_target->DispatchEvent(event_1, &exception_state));
   EXPECT_TRUE(event_target->DispatchEvent(event_2, &exception_state));
 
-  event_listener->ExpectHandleEventCall(event_1, event_target);
   // The capture flag is not the same so the event will not be removed.
   event_target->RemoveEventListener(
       "fired_1", FakeScriptValue<EventListener>(event_listener.get()), true);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task_1));
+  event_listener->ExpectHandleEventCall(event_1, event_target);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskFinished(async_task_1));
   EXPECT_TRUE(event_target->DispatchEvent(event_1, &exception_state));
   EXPECT_TRUE(event_target->DispatchEvent(event_2, &exception_state));
 
-  event_listener->ExpectNoHandleEventCall();
+  EXPECT_CALL(debugger_hooks_, AsyncTaskCanceled(async_task_1));
   event_target->RemoveEventListener(
       "fired_1", FakeScriptValue<EventListener>(event_listener.get()), false);
+  event_listener->ExpectNoHandleEventCall();
   EXPECT_TRUE(event_target->DispatchEvent(event_1, &exception_state));
   EXPECT_TRUE(event_target->DispatchEvent(event_2, &exception_state));
 }
@@ -244,16 +324,27 @@ TEST_F(EventTargetTest, StopPropagation) {
       MockEventListener::Create();
 
   InSequence in_sequence;
-  event_listenerfired_1->ExpectHandleEventCall(
-      event, event_target, &MockEventListener::StopPropagation);
-  event_listenerfired_2->ExpectHandleEventCall(event, event_target);
 
+  const void* async_task_1;
+  const void* async_task_2;
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+      .WillOnce(SaveArg<0>(&async_task_1));
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+      .WillOnce(SaveArg<0>(&async_task_2));
   event_target->AddEventListener(
       "fired", FakeScriptValue<EventListener>(event_listenerfired_1.get()),
       false);
   event_target->AddEventListener(
       "fired", FakeScriptValue<EventListener>(event_listenerfired_2.get()),
       true);
+
+  EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task_1));
+  event_listenerfired_1->ExpectHandleEventCall(
+      event, event_target, &MockEventListener::StopPropagation);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskFinished(async_task_1));
+  EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task_2));
+  event_listenerfired_2->ExpectHandleEventCall(event, event_target);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskFinished(async_task_2));
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
@@ -267,16 +358,24 @@ TEST_F(EventTargetTest, StopImmediatePropagation) {
   std::unique_ptr<MockEventListener> event_listenerfired_2 =
       MockEventListener::Create();
 
-  event_listenerfired_1->ExpectHandleEventCall(
-      event, event_target, &MockEventListener::StopImmediatePropagation);
-  event_listenerfired_2->ExpectNoHandleEventCall();
-
+  const void* async_task_1;
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+      .WillOnce(SaveArg<0>(&async_task_1));
   event_target->AddEventListener(
       "fired", FakeScriptValue<EventListener>(event_listenerfired_1.get()),
       false);
+  const void* async_task_2;
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+      .WillOnce(SaveArg<0>(&async_task_2));
   event_target->AddEventListener(
       "fired", FakeScriptValue<EventListener>(event_listenerfired_2.get()),
       true);
+
+  EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task_1));
+  event_listenerfired_1->ExpectHandleEventCall(
+      event, event_target, &MockEventListener::StopImmediatePropagation);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskFinished(async_task_1));
+  event_listenerfired_2->ExpectNoHandleEventCall();
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
@@ -288,19 +387,26 @@ TEST_F(EventTargetTest, PreventDefault) {
   std::unique_ptr<MockEventListener> event_listenerfired =
       MockEventListener::Create();
 
+  const void* async_task;
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+      .WillOnce(SaveArg<0>(&async_task));
   event_target->AddEventListener(
       "fired", FakeScriptValue<EventListener>(event_listenerfired.get()),
       false);
   event = new Event(base::Token("fired"), Event::kNotBubbles,
                     Event::kNotCancelable);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task));
   event_listenerfired->ExpectHandleEventCall(
       event, event_target, &MockEventListener::PreventDefault);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskFinished(async_task));
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 
   event =
       new Event(base::Token("fired"), Event::kNotBubbles, Event::kCancelable);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task));
   event_listenerfired->ExpectHandleEventCall(
       event, event_target, &MockEventListener::PreventDefault);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskFinished(async_task));
   EXPECT_FALSE(event_target->DispatchEvent(event, &exception_state));
 }
 
@@ -332,13 +438,18 @@ TEST_F(EventTargetTest, RaiseException) {
             base::polymorphic_downcast<DOMException*>(exception.get())->code());
   exception = NULL;
 
+  const void* async_task;
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+      .WillOnce(SaveArg<0>(&async_task));
   event_target->AddEventListener(
       "fired", FakeScriptValue<EventListener>(event_listener.get()), false);
   event = new Event(base::Token("fired"), Event::kNotBubbles,
                     Event::kNotCancelable);
   // Dispatch event again when it is being dispatched.
+  EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task));
   EXPECT_CALL(*event_listener, HandleEvent(_, _, _))
       .WillOnce(Invoke(DispatchEventOnCurrentTarget));
+  EXPECT_CALL(debugger_hooks_, AsyncTaskFinished(async_task));
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
@@ -352,12 +463,18 @@ TEST_F(EventTargetTest, AddSameListenerMultipleTimes) {
   FakeScriptValue<EventListener> script_object(event_listener.get());
 
   InSequence in_sequence;
-  event_listener->ExpectHandleEventCall(event, event_target);
 
   // The same listener should only get added once.
+  const void* async_task;
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+      .WillOnce(SaveArg<0>(&async_task));
   event_target->AddEventListener("fired", script_object, false);
   event_target->AddEventListener("fired", script_object, false);
   event_target->AddEventListener("fired", script_object, false);
+
+  EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task));
+  event_listener->ExpectHandleEventCall(event, event_target);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskFinished(async_task));
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
@@ -371,12 +488,28 @@ TEST_F(EventTargetTest, AddSameAttributeListenerMultipleTimes) {
   FakeScriptValue<EventListener> script_object(event_listener.get());
 
   InSequence in_sequence;
-  event_listener->ExpectHandleEventCall(event, event_target);
 
   // The same listener should only get added once.
+  const void* async_task_1;
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+      .WillOnce(SaveArg<0>(&async_task_1));
   event_target->SetAttributeEventListener(base::Token("fired"), script_object);
+
+  const void* async_task_2;
+  EXPECT_CALL(debugger_hooks_, AsyncTaskCanceled(async_task_1));
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+      .WillOnce(SaveArg<0>(&async_task_2));
   event_target->SetAttributeEventListener(base::Token("fired"), script_object);
+
+  const void* async_task_3;
+  EXPECT_CALL(debugger_hooks_, AsyncTaskCanceled(async_task_2));
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+      .WillOnce(SaveArg<0>(&async_task_3));
   event_target->SetAttributeEventListener(base::Token("fired"), script_object);
+
+  EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task_3));
+  event_listener->ExpectHandleEventCall(event, event_target);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskFinished(async_task_3));
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
@@ -390,13 +523,25 @@ TEST_F(EventTargetTest, SameEventListenerAsAttribute) {
   FakeScriptValue<EventListener> script_object(event_listener.get());
 
   InSequence in_sequence;
-  event_listener->ExpectHandleEventCall(event, event_target);
-  event_listener->ExpectHandleEventCall(event, event_target);
 
   // The same script object can be registered as both an attribute and
   // non-attribute listener. Both should be fired.
+  const void* async_task_1;
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+      .WillOnce(SaveArg<0>(&async_task_1));
   event_target->AddEventListener("fired", script_object, false);
+
+  const void* async_task_2;
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+      .WillOnce(SaveArg<0>(&async_task_2));
   event_target->SetAttributeEventListener(base::Token("fired"), script_object);
+
+  EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task_1));
+  event_listener->ExpectHandleEventCall(event, event_target);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskFinished(async_task_1));
+  EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task_2));
+  event_listener->ExpectHandleEventCall(event, event_target);
+  EXPECT_CALL(debugger_hooks_, AsyncTaskFinished(async_task_2));
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
