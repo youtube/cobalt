@@ -358,3 +358,103 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
           # End the test.
           debugger.evaluate_js('onEndTest()')
           self.assertTrue(runner.JSTestsSucceeded())
+
+  def test_debugger_breakpoint(self):
+    with ThreadedWebServer(binding_address=self.GetBindingAddress()) as server:
+      url = server.GetURL(file_name='testdata/web_debugger.html')
+      with self.CreateCobaltRunner(url=url) as runner:
+        with self.create_debugger_connection(runner) as debugger:
+          runner.WaitForJSTestsSetup()
+          debugger.enable_runtime()
+          debugger.run_command('Debugger.enable')
+
+          # Get the ID and source of our JavaScript test utils.
+          script_id = ''
+          while not script_id:
+            script_event = debugger.wait_event('Debugger.scriptParsed')
+            script_url = script_event['params']['url']
+            if script_url.endswith('web_debugger_test_utils.js'):
+              script_id = script_event['params']['scriptId']
+          source_response = debugger.run_command('Debugger.getScriptSource', {
+              'scriptId': script_id,
+          })
+          script_source = source_response['result']['scriptSource'].splitlines()
+
+          # Set a breakpoint on the asyncBreak() function.
+          line_number = next(n for n, l in enumerate(script_source)
+                             if l.startswith('function asyncBreak'))
+          debugger.run_command('Debugger.setBreakpoint', {
+              'location': {
+                  'scriptId': script_id,
+                  'lineNumber': line_number,
+              },
+          })
+          debugger.run_command('Debugger.setAsyncCallStackDepth', {
+              'maxDepth': 99,
+          })
+
+          # Call testSetTimeout(), which will asynchronously hit our breakpoint.
+          debugger.evaluate_js('testSetTimeout()')
+          paused_event = debugger.wait_event('Debugger.paused')
+          try:
+            call_frames = paused_event['params']['callFrames']
+            call_stack = [frame['functionName'] for frame in call_frames]
+            self.assertEqual(call_stack, [
+                'asyncBreak',
+                'asyncC',
+                'timeoutB',
+            ])
+
+            async_trace = paused_event['params']['asyncStackTrace']
+            call_frames = async_trace['callFrames']
+            call_stack = [frame['functionName'] for frame in call_frames]
+            self.assertEqual('SetTimeout', async_trace['description'])
+            self.assertEqual(call_stack, [
+                'asyncB',
+                'timeoutA',
+            ])
+
+            async_trace = async_trace['parent']
+            call_frames = async_trace['callFrames']
+            call_stack = [frame['functionName'] for frame in call_frames]
+            self.assertEqual('SetTimeout', async_trace['description'])
+            self.assertEqual(call_stack, [
+                'asyncA',
+                'testSetTimeout',
+                '',  # Anonymous function for the 'Runtime.evaluate' command.
+            ])
+
+            self.assertFalse('parent' in async_trace)
+          finally:
+            # We must resume in order to avoid hanging even if we hit an assert.
+            debugger.run_command('Debugger.resume')
+
+          # Call testXHR(), which will asynchronously hit our breakpoint.
+          debugger.evaluate_js('testXHR(window.location.href)')
+          paused_event = debugger.wait_event('Debugger.paused')
+          try:
+            call_frames = paused_event['params']['callFrames']
+            call_stack = [frame['functionName'] for frame in call_frames]
+            self.assertEqual(call_stack, [
+                'asyncBreak',
+                'fileLoaded',
+            ])
+
+            async_trace = paused_event['params']['asyncStackTrace']
+            call_frames = async_trace['callFrames']
+            call_stack = [frame['functionName'] for frame in call_frames]
+            self.assertEqual('load', async_trace['description'])
+            self.assertEqual(call_stack, [
+                'doXHR',
+                'testXHR',
+                '',  # Anonymous function for the 'Runtime.evaluate' command.
+            ])
+
+            self.assertFalse('parent' in async_trace)
+          finally:
+            # We must resume in order to avoid hanging even if we hit an assert.
+            debugger.run_command('Debugger.resume')
+
+          # End the test.
+          debugger.evaluate_js('onEndTest()')
+          self.assertTrue(runner.JSTestsSucceeded())
