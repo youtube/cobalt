@@ -122,6 +122,9 @@
 #define SIZECENTRALDIRITEM (0x2e)
 #define SIZEZIPLOCALHEADER (0x1e)
 
+#if defined(STARBOARD)
+#include "third_party/zlib/contrib/minizip/iostarboard.h"
+#endif
 
 const char unz_copyright[] =
    " unzip 1.01 Copyright 1998-2004 Gilles Vollant - http://www.winimage.com/zLibDll";
