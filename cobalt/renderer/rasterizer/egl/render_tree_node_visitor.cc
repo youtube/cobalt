@@ -109,6 +109,12 @@ math::Matrix3F GetTexcoordTransform(
 }
 
 bool ImageNodeSupportedNatively(render_tree::ImageNode* image_node) {
+  // The image node may contain nothing. For example, when it represents a video
+  // element before any frame is decoded.
+  if (!image_node->data().source) {
+    return true;
+  }
+
   // Ensure any required backend processing is done to create the necessary
   // GPU resource. This must be done to verify whether the GPU resource can
   // be rendered by the shader.
