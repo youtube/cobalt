@@ -17,6 +17,7 @@
 #ifndef _ZLIBIOSTARBOARD_H_
 #define _ZLIBIOSTARBOARD_H_
 
+#include "ioapi.h"
 #include "third_party/zlib/zlib.h"
 
 #ifdef __cplusplus

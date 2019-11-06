@@ -27,6 +27,7 @@
 #include <string.h>
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/eztime_poem.h"
+#include "third_party/zlib/contrib/minizip/iostarboard.h"
 #else
 #include <time.h>
 #endif

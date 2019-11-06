@@ -15,7 +15,6 @@
 // Starboard IO base function header for compress/uncompress .zip
 
 #include "zlib.h"
-#include "ioapi.h"
 #include "iostarboard.h"
 #include "starboard/file.h"
 
