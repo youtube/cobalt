@@ -28,7 +28,7 @@ import starboard.shared.win32.gyp_configuration as gyp_configuration
 
 def CreatePlatformConfig():
   try:
-    win_lib_config = WinWin32PlatformConfig('win-win32')
+    win_lib_config = WinWin32PlatformConfig('win-win32', sabi_json_path='starboard/sabi/x64/windows/sabi.json')
     return win_lib_config
   except RuntimeError as e:
     logging.critical(e)
@@ -38,8 +38,8 @@ def CreatePlatformConfig():
 class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
   """Starboard win-32 platform configuration."""
 
-  def __init__(self, platform):
-    super(WinWin32PlatformConfig, self).__init__(platform)
+  def __init__(self, platform, sabi_json_path=None):
+    super(WinWin32PlatformConfig, self).__init__(platform, sabi_json_path=sabi_json_path)
 
   def GetLauncher(self):
     """Gets the module used to launch applications on this platform."""
