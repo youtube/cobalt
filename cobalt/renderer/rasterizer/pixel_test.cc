@@ -4003,6 +4003,12 @@ TEST_F(PixelTest, DrawNullImage) {
   TestTree(new ImageNode(nullptr, math::RectF(output_surface_size())));
 }
 
+TEST_F(PixelTest, DrawNullImageInRoundedFilter) {
+  TestTree(new FilterNode(
+      ViewportFilter(RectF(25, 25, 150, 150), RoundedCorners(75, 75)),
+      new ImageNode(nullptr)));
+}
+
 TEST_F(PixelTest, ClearRectNodeTest) {
   CompositionNode::Builder composition_node_builder;
   composition_node_builder.AddChild(new RectNode(
