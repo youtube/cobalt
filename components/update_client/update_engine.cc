@@ -119,8 +119,7 @@ void UpdateEngine::Update(bool is_foreground,
     const auto crx_component = crx_components[i];
     if (crx_component) {
       // This component can be checked for updates.
-      // TODO: pass in the hash of id and enable the check
-      // DCHECK_EQ(id, GetCrxComponentID(*crx_component));
+      DCHECK_EQ(id, GetCrxComponentID(*crx_component));
       auto& component = update_context->components[id];
       component->set_crx_component(*crx_component);
       component->set_previous_version(component->crx_component()->version);
