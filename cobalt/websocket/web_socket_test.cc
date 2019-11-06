@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
+#include "base/test/scoped_task_environment.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
@@ -41,12 +42,14 @@ class FakeSettings : public dom::DOMSettings {
       : dom::DOMSettings(0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                          NULL),
         base_("https://example.com") {
-    this->set_network_module(NULL);
+    network_module_.reset(new network::NetworkModule());
+    this->set_network_module(network_module_.get());
   }
   const GURL& base_url() const override { return base_; }
 
   // public members, so that they're easier for testing.
   GURL base_;
+  std::unique_ptr<network::NetworkModule> network_module_;
 };
 
 class WebSocketTest : public ::testing::Test {
@@ -56,8 +59,7 @@ class WebSocketTest : public ::testing::Test {
  protected:
   WebSocketTest() : settings_(new FakeSettings()) {}
 
-  // A nested message loop needs a non-nested message loop to exist.
-  base::MessageLoop message_loop_;
+  base::test::ScopedTaskEnvironment env_;
 
   std::unique_ptr<FakeSettings> settings_;
   StrictMock<MockExceptionState> exception_state_;
