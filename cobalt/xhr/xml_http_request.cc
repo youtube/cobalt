@@ -761,16 +761,21 @@ void XMLHttpRequest::OnURLFetchComplete(const net::URLFetcher* source) {
       return;
     }
   }
-  // Ensure all fetched data is read and transfered to this XHR.
-  OnURLFetchDownloadProgress(source, 0, 0, 0);
-  fetch_callback_.reset();
-  fetch_mode_callback_.reset();
+
   const net::URLRequestStatus& status = source->GetStatus();
   if (status.is_success()) {
     stop_timeout_ = true;
     if (error_) {
+      // Ensure the fetch callbacks are reset when URL fetch is complete,
+      // regardless of error status.
+      fetch_callback_.reset();
+      fetch_mode_callback_.reset();
       return;
     }
+
+    // Ensure all fetched data is read and transfered to this XHR. This should
+    // only be done for successful and error-free fetches.
+    OnURLFetchDownloadProgress(source, 0, 0, 0);
 
     // The request may have completed too quickly, before URLFetcher's upload
     // progress timer had a chance to inform us upload is finished.
@@ -787,6 +792,9 @@ void XMLHttpRequest::OnURLFetchComplete(const net::URLFetcher* source) {
   } else {
     HandleRequestError(kNetworkError);
   }
+
+  fetch_callback_.reset();
+  fetch_mode_callback_.reset();
 }
 
 // Reset some variables in case the XHR object is reused.
@@ -980,6 +988,7 @@ void XMLHttpRequest::HandleRequestError(
   FireProgressEvent(this, base::Tokens::loadend());
 
   fetch_callback_.reset();
+  fetch_mode_callback_.reset();
   DecrementActiveRequests();
 }
 
