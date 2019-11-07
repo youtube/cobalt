@@ -49,14 +49,14 @@ class ScreenshotManager {
                           const OnUnencodedImageCallback&)>;
 
   explicit ScreenshotManager(
-      const ProvideScreenshotFunctionCallback& screenshot_function_callback_);
+      script::EnvironmentSettings* settings,
+      const ProvideScreenshotFunctionCallback& screenshot_function_callback);
 
   void Screenshot(
       loader::image::EncodedStaticImage::ImageFormat desired_format,
       const scoped_refptr<render_tree::Node>& render_tree_root,
       std::unique_ptr<ScreenshotManager::InterfacePromiseValue::Reference>
           promise_reference);
-  void SetEnvironmentSettings(script::EnvironmentSettings* settings);
 
  private:
   void FillScreenshot(

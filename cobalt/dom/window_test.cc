@@ -26,6 +26,7 @@
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/screen.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/media_session/media_session.h"
@@ -50,7 +51,8 @@ class MockErrorCallback
 class WindowTest : public ::testing::Test {
  protected:
   WindowTest()
-      : message_loop_(base::MessageLoop::TYPE_DEFAULT),
+      : environment_settings_(new testing::StubEnvironmentSettings),
+        message_loop_(base::MessageLoop::TYPE_DEFAULT),
         css_parser_(css_parser::Parser::Create()),
         dom_parser_(new dom_parser::Parser(mock_error_callback_)),
         fetcher_factory_(new loader::FetcherFactory(NULL)),
@@ -61,9 +63,10 @@ class WindowTest : public ::testing::Test {
 
     ViewportSize view_size(1920, 1080);
     window_ = new Window(
-        view_size, 1.f, base::kApplicationStateStarted, css_parser_.get(),
-        dom_parser_.get(), fetcher_factory_.get(), NULL, NULL, NULL, NULL, NULL,
-        NULL, NULL, &local_storage_database_, NULL, NULL, NULL, NULL,
+        environment_settings_.get(), view_size, 1.f,
+        base::kApplicationStateStarted, css_parser_.get(), dom_parser_.get(),
+        fetcher_factory_.get(), NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+        &local_storage_database_, NULL, NULL, NULL, NULL,
         global_environment_->script_value_factory(), NULL, NULL, url_, "",
         "en-US", "en", base::Callback<void(const GURL &)>(),
         base::Bind(&MockErrorCallback::Run,
@@ -75,12 +78,12 @@ class WindowTest : public ::testing::Test {
         base::Closure() /* window_minimize */, NULL, NULL, NULL,
         dom::Window::OnStartDispatchEventCallback(),
         dom::Window::OnStopDispatchEventCallback(),
-        dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL,
-        null_debugger_hooks_);
+        dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL);
   }
 
   ~WindowTest() override {}
 
+  const std::unique_ptr<testing::StubEnvironmentSettings> environment_settings_;
   base::MessageLoop message_loop_;
   MockErrorCallback mock_error_callback_;
   std::unique_ptr<css_parser::Parser> css_parser_;
@@ -90,7 +93,6 @@ class WindowTest : public ::testing::Test {
   std::unique_ptr<script::JavaScriptEngine> engine_;
   scoped_refptr<script::GlobalEnvironment> global_environment_;
   GURL url_;
-  base::NullDebuggerHooks null_debugger_hooks_;
   scoped_refptr<Window> window_;
 };
 

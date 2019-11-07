@@ -38,7 +38,8 @@ namespace dom {
 class Navigator : public script::Wrappable {
  public:
   Navigator(
-      const std::string& user_agent, const std::string& language,
+      script::EnvironmentSettings* settings, const std::string& user_agent,
+      const std::string& language,
       scoped_refptr<cobalt::media_session::MediaSession> media_session,
       scoped_refptr<cobalt::dom::captions::SystemCaptionSettings> captions,
       script::ScriptValueFactory* script_value_factory);
@@ -79,10 +80,6 @@ class Navigator : public script::Wrappable {
 
   DEFINE_WRAPPABLE_TYPE(Navigator);
   void TraceMembers(script::Tracer* tracer) override;
-
-  void SetEnvironmentSettings(script::EnvironmentSettings* settings) {
-    media_devices_->SetEnvironmentSettings(settings);
-  }
 
  private:
   ~Navigator() override {}

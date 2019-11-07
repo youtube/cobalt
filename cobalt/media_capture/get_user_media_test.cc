@@ -14,10 +14,9 @@
 
 #include <memory>
 
-#include "cobalt/media_capture/media_devices.h"
-
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/testing/stub_window.h"
+#include "cobalt/media_capture/media_devices.h"
 #include "cobalt/media_stream/microphone_audio_source.h"
 #include "cobalt/media_stream/testing/mock_media_stream_audio_source.h"
 #include "cobalt/script/global_environment.h"
@@ -49,9 +48,8 @@ class GetUserMediaTest : public ::testing::Test {
   GetUserMediaTest()
       : window_(CreateDOMSettings()),
         media_devices_(new MediaDevices(
-            window_.global_environment()->script_value_factory())) {
-    media_devices_->SetEnvironmentSettings(window_.environment_settings());
-  }
+            window_.environment_settings(),
+            window_.global_environment()->script_value_factory())) {}
 
   media_stream::MicrophoneAudioSource* GetMicrophoneAudioSource() {
     return base::polymorphic_downcast<media_stream::MicrophoneAudioSource*>(

@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/dom/navigator.h"
+
+#include <memory>
 
 #include "base/optional.h"
 #include "cobalt/dom/captions/system_caption_settings.h"
@@ -37,8 +37,8 @@ namespace cobalt {
 namespace dom {
 
 Navigator::Navigator(
-    const std::string& user_agent, const std::string& language,
-    scoped_refptr<MediaSession> media_session,
+    script::EnvironmentSettings* settings, const std::string& user_agent,
+    const std::string& language, scoped_refptr<MediaSession> media_session,
     scoped_refptr<cobalt::dom::captions::SystemCaptionSettings> captions,
     script::ScriptValueFactory* script_value_factory)
     : user_agent_(user_agent),
@@ -46,7 +46,8 @@ Navigator::Navigator(
       mime_types_(new MimeTypeArray()),
       plugins_(new PluginArray()),
       media_session_(media_session),
-      media_devices_(new media_capture::MediaDevices(script_value_factory)),
+      media_devices_(
+          new media_capture::MediaDevices(settings, script_value_factory)),
       system_caption_settings_(captions),
       script_value_factory_(script_value_factory) {}
 
