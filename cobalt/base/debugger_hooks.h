@@ -52,14 +52,14 @@ class DebuggerHooks {
 // Helper to start & finish async tasks using RAII.
 class ScopedAsyncTask {
  public:
-  ScopedAsyncTask(const DebuggerHooks& debugger_hooks, void* task)
+  ScopedAsyncTask(DebuggerHooks* debugger_hooks, void* task)
       : debugger_hooks_(debugger_hooks), task_(task) {
-    debugger_hooks_.AsyncTaskStarted(task_);
+    debugger_hooks_->AsyncTaskStarted(task_);
   }
-  ~ScopedAsyncTask() { debugger_hooks_.AsyncTaskFinished(task_); }
+  ~ScopedAsyncTask() { debugger_hooks_->AsyncTaskFinished(task_); }
 
  private:
-  const DebuggerHooks& debugger_hooks_;
+  DebuggerHooks* debugger_hooks_;
   void* const task_;
 };
 

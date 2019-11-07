@@ -43,7 +43,7 @@ int WindowTimers::SetTimeout(const TimerCallbackArg& handler, int timeout) {
                             base::Unretained(this), handle));
     timers_[handle] = new TimerInfo(
         owner_, std::unique_ptr<base::internal::TimerBase>(timer), handler);
-    debugger_hooks_.AsyncTaskScheduled(timers_[handle], "SetTimeout");
+    debugger_hooks_->AsyncTaskScheduled(timers_[handle], "SetTimeout");
   } else {
     timers_[handle] = nullptr;
   }
@@ -69,7 +69,7 @@ int WindowTimers::SetInterval(const TimerCallbackArg& handler, int timeout) {
                             base::Unretained(this), handle));
     timers_[handle] = new TimerInfo(
         owner_, std::unique_ptr<base::internal::TimerBase>(timer), handler);
-    debugger_hooks_.AsyncTaskScheduled(timers_[handle], "SetInterval");
+    debugger_hooks_->AsyncTaskScheduled(timers_[handle], "SetInterval");
   } else {
     timers_[handle] = nullptr;
   }
@@ -80,14 +80,14 @@ int WindowTimers::SetInterval(const TimerCallbackArg& handler, int timeout) {
 void WindowTimers::ClearInterval(int handle) {
   Timers::iterator timer = timers_.find(handle);
   if (timer != timers_.end()) {
-    debugger_hooks_.AsyncTaskCanceled(timer->second);
+    debugger_hooks_->AsyncTaskCanceled(timer->second);
     timers_.erase(timer);
   }
 }
 
 void WindowTimers::ClearAllIntervalsAndTimeouts() {
   for (auto& timer_entry : timers_) {
-    debugger_hooks_.AsyncTaskCanceled(timer_entry.second);
+    debugger_hooks_->AsyncTaskCanceled(timer_entry.second);
   }
   timers_.clear();
 }
@@ -96,7 +96,7 @@ void WindowTimers::DisableCallbacks() {
   callbacks_active_ = false;
   // Immediately cancel any pending timers.
   for (auto& timer_entry : timers_) {
-    debugger_hooks_.AsyncTaskCanceled(timer_entry.second);
+    debugger_hooks_->AsyncTaskCanceled(timer_entry.second);
     timer_entry.second = nullptr;
   }
 }
@@ -145,7 +145,7 @@ void WindowTimers::RunTimerCallback(int handle) {
   // If the timer is not deleted and is not running, it means it is an oneshot
   // timer and has just fired the shot, and it should be deleted now.
   if (timer != timers_.end() && !timer->second->timer()->IsRunning()) {
-    debugger_hooks_.AsyncTaskCanceled(timer->second);
+    debugger_hooks_->AsyncTaskCanceled(timer->second);
     timers_.erase(timer);
   }
 

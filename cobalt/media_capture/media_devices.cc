@@ -65,8 +65,10 @@ std::unique_ptr<Microphone> CreateMicrophone(
 
 }  // namespace.
 
-MediaDevices::MediaDevices(script::ScriptValueFactory* script_value_factory)
-    : script_value_factory_(script_value_factory),
+MediaDevices::MediaDevices(script::EnvironmentSettings* settings,
+                           script::ScriptValueFactory* script_value_factory)
+    : settings_(base::polymorphic_downcast<dom::DOMSettings*>(settings)),
+      script_value_factory_(script_value_factory),
       javascript_message_loop_(base::MessageLoop::current()),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       weak_this_(weak_ptr_factory_.GetWeakPtr()) {}

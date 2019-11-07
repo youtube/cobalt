@@ -91,8 +91,8 @@ const int64_t kPerformanceTimerMinResolutionInMicroseconds = 20;
 }  // namespace
 
 Window::Window(
-    const ViewportSize& view_size, float device_pixel_ratio,
-    base::ApplicationState initial_application_state,
+    script::EnvironmentSettings* settings, const ViewportSize& view_size,
+    float device_pixel_ratio, base::ApplicationState initial_application_state,
     cssom::CSSParser* css_parser, Parser* dom_parser,
     loader::FetcherFactory* fetcher_factory,
     loader::LoaderFactory* loader_factory,
@@ -130,7 +130,6 @@ Window::Window(
     const ScreenshotManager::ProvideScreenshotFunctionCallback&
         screenshot_function_callback,
     base::WaitableEvent* synchronous_loader_interrupt,
-    const base::DebuggerHooks& debugger_hooks,
     const scoped_refptr<ui_navigation::NavItem>& ui_nav_root,
     int csp_insecure_allowed_token, int dom_max_element_depth,
     float video_playback_rate_multiplier, ClockType clock_type,
@@ -169,13 +168,14 @@ Window::Window(
               csp_insecure_allowed_token, dom_max_element_depth)))),
       document_loader_(nullptr),
       history_(new History()),
-      navigator_(new Navigator(user_agent, language, media_session, captions,
-                               script_value_factory)),
+      navigator_(new Navigator(settings, user_agent, language, media_session,
+                               captions, script_value_factory)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           relay_on_load_event_(new RelayLoadEvent(this))),
       console_(new Console(execution_state)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          window_timers_(new WindowTimers(this, debugger_hooks))),
+      ALLOW_THIS_IN_INITIALIZER_LIST(window_timers_(new WindowTimers(
+          this, base::polymorphic_downcast<dom::DOMSettings*>(settings)
+                    ->debugger_hooks()))),
       ALLOW_THIS_IN_INITIALIZER_LIST(animation_frame_request_callback_list_(
           new AnimationFrameRequestCallbackList(this))),
       crypto_(new Crypto()),
@@ -199,7 +199,7 @@ Window::Window(
       splash_screen_cache_callback_(splash_screen_cache_callback),
       on_start_dispatch_event_callback_(on_start_dispatch_event_callback),
       on_stop_dispatch_event_callback_(on_stop_dispatch_event_callback),
-      screenshot_manager_(screenshot_function_callback),
+      screenshot_manager_(settings, screenshot_function_callback),
       ui_nav_root_(ui_nav_root) {
 #if !defined(ENABLE_TEST_RUNNER)
   SB_UNREFERENCED_PARAMETER(clock_type);
@@ -699,11 +699,6 @@ void Window::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(session_storage_);
   tracer->Trace(screen_);
   tracer->Trace(on_screen_keyboard_);
-}
-
-void Window::SetEnvironmentSettings(script::EnvironmentSettings* settings) {
-  screenshot_manager_.SetEnvironmentSettings(settings);
-  navigator_->SetEnvironmentSettings(settings);
 }
 
 void Window::CacheSplashScreen(const std::string& content) {

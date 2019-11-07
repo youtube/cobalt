@@ -22,7 +22,7 @@ namespace dom {
 // Tests the Navigator::licenses function for non-empty return.
 TEST(NavigatorLicensesTest, NonEmpty) {
   scoped_refptr<cobalt::dom::Navigator> navigator = new cobalt::dom::Navigator(
-      std::string(), std::string(), nullptr, nullptr, nullptr);
+      nullptr, std::string(), std::string(), nullptr, nullptr, nullptr);
 
   ASSERT_TRUE(navigator != nullptr);
   EXPECT_FALSE(navigator->licenses().empty());

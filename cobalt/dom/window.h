@@ -27,7 +27,6 @@
 #include "base/timer/timer.h"
 #include "cobalt/base/application_state.h"
 #include "cobalt/base/clock.h"
-#include "cobalt/base/debugger_hooks.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/viewport_size.h"
@@ -132,6 +131,7 @@ class Window : public EventTarget,
   };
 
   Window(
+      script::EnvironmentSettings* settings,
       const cssom::ViewportSize& view_size, float device_pixel_ratio,
       base::ApplicationState initial_application_state,
       cssom::CSSParser* css_parser, Parser* dom_parser,
@@ -173,7 +173,6 @@ class Window : public EventTarget,
       const ScreenshotManager::ProvideScreenshotFunctionCallback&
           screenshot_function_callback,
       base::WaitableEvent* synchronous_loader_interrupt,
-      const base::DebuggerHooks& debugger_hooks,
       const scoped_refptr<ui_navigation::NavItem>& ui_nav_root = nullptr,
       int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0,
       float video_playback_rate_multiplier = 1.f,
@@ -397,8 +396,6 @@ class Window : public EventTarget,
   void ClearPointerStateForShutdown();
 
   void TraceMembers(script::Tracer* tracer) override;
-
-  void SetEnvironmentSettings(script::EnvironmentSettings* settings);
 
   const scoped_refptr<ui_navigation::NavItem>& GetUiNavRoot() const {
     return ui_nav_root_;
