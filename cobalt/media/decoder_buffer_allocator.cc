@@ -104,7 +104,8 @@ DecoderBufferAllocator::DecoderBufferAllocator()
   reuse_allocator_.reset(new ReuseAllocator(
       &fallback_allocator_, initial_capacity_, allocation_unit_, max_capacity));
   DLOG(INFO) << "Allocated " << initial_capacity_
-             << " bytes for media buffer pool as its initial buffer.";
+             << " bytes for media buffer pool as its initial buffer, with max"
+             << " capacity set to " << max_capacity;
 }
 
 DecoderBufferAllocator::~DecoderBufferAllocator() {
@@ -134,13 +135,16 @@ DecoderBuffer::Allocator::Allocations DecoderBufferAllocator::Allocate(
 
   if (!reuse_allocator_) {
     DCHECK(is_memory_pool_allocated_on_demand_);
-    DCHECK_NE(video_codec_, kSbMediaVideoCodecNone);
-    DCHECK_GT(resolution_width_, 0);
-    DCHECK_GT(resolution_height_, 0);
 
 #if SB_API_VERSION >= 10
-    int max_capacity = SbMediaGetMaxBufferCapacity(
-        video_codec_, resolution_width_, resolution_height_, bits_per_pixel_);
+    int max_capacity = 0;
+    if (video_codec_ != kSbMediaVideoCodecNone) {
+      DCHECK_GT(resolution_width_, 0);
+      DCHECK_GT(resolution_height_, 0);
+
+      max_capacity = SbMediaGetMaxBufferCapacity(
+          video_codec_, resolution_width_, resolution_height_, bits_per_pixel_);
+    }
 #else   // SB_API_VERSION >= 10
     VideoResolution resolution =
         GetVideoResolution(math::Size(resolution_width_, resolution_height_));
@@ -152,7 +156,8 @@ DecoderBuffer::Allocator::Allocations DecoderBufferAllocator::Allocate(
                                               initial_capacity_,
                                               allocation_unit_, max_capacity));
     DLOG(INFO) << "Allocated " << initial_capacity_
-               << " bytes for media buffer pool.";
+               << " bytes for media buffer pool, with max capacity set to "
+               << max_capacity;
   }
 
   void* p = reuse_allocator_->Allocate(size, alignment);
@@ -230,6 +235,8 @@ void DecoderBufferAllocator::UpdateVideoConfig(
         COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K);
   }
 #endif  // SB_API_VERSION >= 10
+  DLOG(INFO) << "Max capacity of decoder buffer allocator after increasing is "
+             << reuse_allocator_->GetCapacity();
 }
 
 DecoderBufferAllocator::ReuseAllocator::ReuseAllocator(
