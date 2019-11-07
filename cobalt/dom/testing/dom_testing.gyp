@@ -26,6 +26,7 @@
         'mock_event_listener.h',
         'stub_css_parser.cc',
         'stub_css_parser.h',
+        'stub_environment_settings.h',
         'stub_script_runner.cc',
         'stub_script_runner.h',
         'stub_window.h',

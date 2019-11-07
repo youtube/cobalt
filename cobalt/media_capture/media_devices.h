@@ -52,16 +52,13 @@ class MediaDevices : public dom::EventTarget {
       script::Promise<script::ScriptValueFactory::WrappablePromise>;
   using MediaStreamPromiseValue = script::ScriptValue<MediaStreamPromise>;
 
-  explicit MediaDevices(script::ScriptValueFactory* script_value_factory);
+  explicit MediaDevices(script::EnvironmentSettings* settings,
+                        script::ScriptValueFactory* script_value_factory);
 
   script::Handle<MediaInfoSequencePromise> EnumerateDevices();
   script::Handle<MediaStreamPromise> GetUserMedia();
   script::Handle<MediaStreamPromise> GetUserMedia(
       const media_stream::MediaStreamConstraints& constraints);
-
-  void SetEnvironmentSettings(script::EnvironmentSettings* settings) {
-    settings_ = base::polymorphic_downcast<dom::DOMSettings*>(settings);
-  }
 
   DEFINE_WRAPPABLE_TYPE(MediaDevices);
 
@@ -82,8 +79,8 @@ class MediaDevices : public dom::EventTarget {
                          std::string message);
   void OnMicrophoneSuccess();
 
+  dom::DOMSettings* settings_;
   script::ScriptValueFactory* script_value_factory_;
-  dom::DOMSettings* settings_ = nullptr;
 
   scoped_refptr<media_stream::MediaStreamAudioSource> audio_source_;
 

@@ -61,11 +61,17 @@ class StubWindow {
         dom_stat_tracker_(new dom::DomStatTracker("StubWindow")) {
     engine_ = script::JavaScriptEngine::CreateEngine();
     global_environment_ = engine_->CreateGlobalEnvironment();
+    environment_settings_ =
+        environment_settings.get()
+            ? std::move(environment_settings)
+            : std::unique_ptr<script::EnvironmentSettings>(new DOMSettings(
+                  0, NULL, NULL, NULL, NULL, NULL, engine_.get(),
+                  global_environment(), &null_debugger_hooks_, NULL));
     window_ = new dom::Window(
-        cssom::ViewportSize(1920, 1080), 1.f, base::kApplicationStateStarted,
-        css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
-        loader_factory_.get(), NULL, NULL, NULL, NULL, NULL, NULL,
-        &local_storage_database_, NULL, NULL, NULL, NULL,
+        environment_settings_.get(), cssom::ViewportSize(1920, 1080), 1.f,
+        base::kApplicationStateStarted, css_parser_.get(), dom_parser_.get(),
+        fetcher_factory_.get(), loader_factory_.get(), NULL, NULL, NULL, NULL,
+        NULL, NULL, &local_storage_database_, NULL, NULL, NULL, NULL,
         global_environment_->script_value_factory(), NULL,
         dom_stat_tracker_.get(), url_, "", "en-US", "en",
         base::Callback<void(const GURL&)>(),
@@ -77,15 +83,9 @@ class StubWindow {
         base::Closure() /* window_minimize */, NULL, NULL, NULL,
         dom::Window::OnStartDispatchEventCallback(),
         dom::Window::OnStopDispatchEventCallback(),
-        dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL,
-        null_debugger_hooks_);
-    environment_settings_ =
-        environment_settings.get()
-            ? std::move(environment_settings)
-            : std::unique_ptr<script::EnvironmentSettings>(
-                  new DOMSettings(0, NULL, NULL, window_, NULL, NULL, NULL,
-                                  engine_.get(), global_environment(), NULL));
-    window_->SetEnvironmentSettings(environment_settings_.get());
+        dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL);
+    base::polymorphic_downcast<dom::DOMSettings*>(environment_settings_.get())
+        ->set_window(window_);
     global_environment_->CreateGlobalObject(window_,
                                             environment_settings_.get());
   }

@@ -604,6 +604,14 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   media_source_registry_.reset(new dom::MediaSource::Registry);
 
+  environment_settings_.reset(new dom::DOMSettings(
+      kDOMMaxElementDepth, fetcher_factory_.get(), data.network_module,
+      media_source_registry_.get(), blob_registry_.get(),
+      data.can_play_type_handler, javascript_engine_.get(),
+      global_environment_.get(), &debugger_hooks_,
+      &mutation_observer_task_manager_, data.options.dom_settings_options));
+  DCHECK(environment_settings_);
+
   media_session_client_ = media_session::MediaSessionClient::Create();
   media_session_client_->SetMediaPlayerFactory(data.web_media_player_factory);
 
@@ -638,10 +646,10 @@ WebModule::Impl::Impl(const ConstructionData& data)
 #endif
 
   window_ = new dom::Window(
-      data.window_dimensions, data.video_pixel_ratio,
-      data.initial_application_state, css_parser_.get(), dom_parser_.get(),
-      fetcher_factory_.get(), loader_factory_.get(), &resource_provider_,
-      animated_image_tracker_.get(), image_cache_.get(),
+      environment_settings_.get(), data.window_dimensions,
+      data.video_pixel_ratio, data.initial_application_state, css_parser_.get(),
+      dom_parser_.get(), fetcher_factory_.get(), loader_factory_.get(),
+      &resource_provider_, animated_image_tracker_.get(), image_cache_.get(),
       reduced_image_cache_capacity_manager_.get(), remote_typeface_cache_.get(),
       mesh_cache_.get(), local_storage_database_.get(),
       data.can_play_type_handler, data.web_media_player_factory,
@@ -667,9 +675,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
                  base::Unretained(this)),
       base::Bind(&WebModule::Impl::OnStopDispatchEvent, base::Unretained(this)),
       data.options.provide_screenshot_function, &synchronous_loader_interrupt_,
-      debugger_hooks_, data.ui_nav_root,
-      data.options.csp_insecure_allowed_token, data.dom_max_element_depth,
-      data.options.video_playback_rate_multiplier,
+      data.ui_nav_root, data.options.csp_insecure_allowed_token,
+      data.dom_max_element_depth, data.options.video_playback_rate_multiplier,
 #if defined(ENABLE_TEST_RUNNER)
       data.options.layout_trigger == layout::LayoutManager::kTestRunnerMode
           ? dom::Window::kClockTypeTestRunner
@@ -685,15 +692,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
   window_weak_ = base::AsWeakPtr(window_.get());
   DCHECK(window_weak_);
 
-  environment_settings_.reset(new dom::DOMSettings(
-      kDOMMaxElementDepth, fetcher_factory_.get(), data.network_module, window_,
-      media_source_registry_.get(), blob_registry_.get(),
-      data.can_play_type_handler, javascript_engine_.get(),
-      global_environment_.get(), &mutation_observer_task_manager_,
-      data.options.dom_settings_options));
-  DCHECK(environment_settings_);
-
-  window_->SetEnvironmentSettings(environment_settings_.get());
+  environment_settings_->set_window(window_);
 
   global_environment_->CreateGlobalObject(window_, environment_settings_.get());
 

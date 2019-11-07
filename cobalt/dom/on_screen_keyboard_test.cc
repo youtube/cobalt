@@ -19,12 +19,12 @@
 #include "base/callback.h"
 #include "base/optional.h"
 #include "base/threading/platform_thread.h"
-#include "cobalt/base/debugger_hooks.h"
 #include "cobalt/bindings/testing/utils.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
@@ -193,7 +193,7 @@ namespace {
 class OnScreenKeyboardTest : public ::testing::Test {
  public:
   OnScreenKeyboardTest()
-      : environment_settings_(new script::EnvironmentSettings),
+      : environment_settings_(new testing::StubEnvironmentSettings),
         message_loop_(base::MessageLoop::TYPE_DEFAULT),
         css_parser_(css_parser::Parser::Create()),
         dom_parser_(new dom_parser::Parser(mock_error_callback_)),
@@ -207,10 +207,11 @@ class OnScreenKeyboardTest : public ::testing::Test {
         global_environment_(engine_->CreateGlobalEnvironment()),
         on_screen_keyboard_bridge_(new OnScreenKeyboardMockBridge()),
         window_(new Window(
-            ViewportSize(1920, 1080), 1.f, base::kApplicationStateStarted,
-            css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
-            loader_factory_.get(), NULL, NULL, NULL, NULL, NULL, NULL,
-            &local_storage_database_, NULL, NULL, NULL, NULL,
+            environment_settings_.get(), ViewportSize(1920, 1080), 1.f,
+            base::kApplicationStateStarted, css_parser_.get(),
+            dom_parser_.get(), fetcher_factory_.get(), loader_factory_.get(),
+            NULL, NULL, NULL, NULL, NULL, NULL, &local_storage_database_, NULL,
+            NULL, NULL, NULL,
             global_environment_
                 ->script_value_factory() /* script_value_factory */,
             NULL, NULL, url_, "", "en-US", "en",
@@ -226,7 +227,7 @@ class OnScreenKeyboardTest : public ::testing::Test {
             dom::Window::OnStartDispatchEventCallback(),
             dom::Window::OnStopDispatchEventCallback(),
             dom::ScreenshotManager::ProvideScreenshotFunctionCallback(),
-            NULL, null_debugger_hooks_)) {
+            NULL)) {
     global_environment_->CreateGlobalObject(window_,
                                             environment_settings_.get());
     on_screen_keyboard_bridge_->window_ = window_;
@@ -261,7 +262,7 @@ class OnScreenKeyboardTest : public ::testing::Test {
   Window* window() const { return window_.get(); }
 
  private:
-  const std::unique_ptr<script::EnvironmentSettings> environment_settings_;
+  const std::unique_ptr<testing::StubEnvironmentSettings> environment_settings_;
   base::MessageLoop message_loop_;
   MockErrorCallback mock_error_callback_;
   std::unique_ptr<css_parser::Parser> css_parser_;
@@ -274,7 +275,6 @@ class OnScreenKeyboardTest : public ::testing::Test {
   std::unique_ptr<script::JavaScriptEngine> engine_;
   scoped_refptr<script::GlobalEnvironment> global_environment_;
   std::unique_ptr<OnScreenKeyboardMockBridge> on_screen_keyboard_bridge_;
-  base::NullDebuggerHooks null_debugger_hooks_;
   scoped_refptr<Window> window_;
 };
 
@@ -639,7 +639,7 @@ TEST_F(OnScreenKeyboardTest, BlurEventListeners) {
 TEST_F(OnScreenKeyboardTest, BoundingRect) {
   std::string result;
   EXPECT_CALL(*(on_screen_keyboard_bridge()), BoundingRectMock())
-      .WillOnce(testing::Return(nullptr));
+      .WillOnce(::testing::Return(nullptr));
   EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard.boundingRect;", &result));
   EXPECT_EQ("null", result);
 }

@@ -16,6 +16,7 @@
 #define COBALT_DOM_DOM_SETTINGS_H_
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/base/debugger_hooks.h"
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/url_registry.h"
@@ -35,7 +36,7 @@ class NetworkModule;
 namespace script {
 class GlobalEnvironment;
 class JavaScriptEngine;
-}
+}  // namespace script
 namespace dom {
 class MediaSource;
 class Window;
@@ -54,12 +55,12 @@ class DOMSettings : public script::EnvironmentSettings {
   DOMSettings(const int max_dom_element_depth,
               loader::FetcherFactory* fetcher_factory,
               network::NetworkModule* network_module,
-              const scoped_refptr<Window>& window,
               MediaSourceRegistry* media_source_registry,
               Blob::Registry* blob_registry,
               media::CanPlayTypeHandler* can_play_type_handler,
               script::JavaScriptEngine* engine,
               script::GlobalEnvironment* global_environment_proxy,
+              base::DebuggerHooks* debugger_hooks,
               MutationObserverTaskManager* mutation_observer_task_manager,
               const Options& options = Options());
   ~DOMSettings() override;
@@ -92,6 +93,7 @@ class DOMSettings : public script::EnvironmentSettings {
   media::CanPlayTypeHandler* can_play_type_handler() const {
     return can_play_type_handler_;
   }
+  base::DebuggerHooks* debugger_hooks() const { return debugger_hooks_; }
   MutationObserverTaskManager* mutation_observer_task_manager() const {
     return mutation_observer_task_manager_;
   }
@@ -114,6 +116,7 @@ class DOMSettings : public script::EnvironmentSettings {
   media::CanPlayTypeHandler* can_play_type_handler_;
   script::JavaScriptEngine* javascript_engine_;
   script::GlobalEnvironment* global_environment_;
+  base::DebuggerHooks* debugger_hooks_;
   MutationObserverTaskManager* mutation_observer_task_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(DOMSettings);

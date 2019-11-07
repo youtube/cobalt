@@ -12,24 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/dom/screenshot_manager.h"
+
+#include <memory>
 
 #include "base/time/time.h"
 #include "cobalt/dom/screenshot.h"
 #include "cobalt/render_tree/node.h"
-#include "cobalt/script/array_buffer.h"
-
 #include "cobalt/render_tree/resource_provider_stub.h"
+#include "cobalt/script/array_buffer.h"
 
 namespace cobalt {
 namespace dom {
 
 ScreenshotManager::ScreenshotManager(
+    script::EnvironmentSettings* settings,
     const ScreenshotManager::ProvideScreenshotFunctionCallback&
         screenshot_function_callback)
-    : screenshot_function_callback_(screenshot_function_callback) {}
+    : environment_settings_(settings),
+      screenshot_function_callback_(screenshot_function_callback) {}
 
 void ScreenshotManager::Screenshot(
     loader::image::EncodedStaticImage::ImageFormat desired_format,
@@ -54,11 +55,6 @@ void ScreenshotManager::Screenshot(
 
   screenshot_function_callback_.Run(
       render_tree_root, /*clip_rect=*/base::nullopt, fill_screenshot);
-}
-
-void ScreenshotManager::SetEnvironmentSettings(
-    script::EnvironmentSettings* settings) {
-  environment_settings_ = settings;
 }
 
 void ScreenshotManager::FillScreenshot(

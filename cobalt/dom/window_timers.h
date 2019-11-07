@@ -33,10 +33,12 @@ class WindowTimers {
   typedef script::CallbackFunction<void()> TimerCallback;
   typedef script::ScriptValue<TimerCallback> TimerCallbackArg;
   explicit WindowTimers(script::Wrappable* const owner,
-                        const base::DebuggerHooks& debugger_hooks)
+                        base::DebuggerHooks* debugger_hooks)
       : current_timer_index_(0),
         owner_(owner),
-        debugger_hooks_(debugger_hooks) {}
+        debugger_hooks_(debugger_hooks) {
+    DCHECK(debugger_hooks_);
+  }
   ~WindowTimers() {}
 
   int SetTimeout(const TimerCallbackArg& handler, int timeout);
@@ -86,7 +88,7 @@ class WindowTimers {
   Timers timers_;
   int current_timer_index_;
   script::Wrappable* const owner_;
-  const base::DebuggerHooks& debugger_hooks_;
+  base::DebuggerHooks* debugger_hooks_;
 
   // Set to false when we're about to shutdown, to ensure that no new JavaScript
   // is fired as we are waiting for it to drain.
