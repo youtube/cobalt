@@ -213,8 +213,10 @@ void MediaRecorder::OnReadyStateChanged(
   // Step 5.5 from start(), defined at:
   // https://www.w3.org/TR/mediastream-recording/#mediarecorder-methods
   if (new_state == media_stream::MediaStreamTrack::kReadyStateEnded) {
-    audio_encoder_->Finish(base::TimeTicks::Now());
-    audio_encoder_.reset();
+    if (audio_encoder_) {
+      audio_encoder_->Finish(base::TimeTicks::Now());
+      audio_encoder_.reset();
+    }
     StopRecording();
     stream_ = nullptr;
   }

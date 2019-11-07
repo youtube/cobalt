@@ -570,9 +570,7 @@ void BrowserModule::Navigate(const GURL& url_reference) {
       base::Bind(&BrowserModule::OnLoad, base::Unretained(this)));
 #if defined(ENABLE_FAKE_MICROPHONE)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kFakeMicrophone) ||
-      base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kInputFuzzer)) {
+          switches::kFakeMicrophone)) {
     options.dom_settings_options.microphone_options.enable_fake_microphone =
         true;
   }

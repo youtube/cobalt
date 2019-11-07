@@ -71,10 +71,13 @@ class MediaDevices : public dom::EventTarget {
   FRIEND_TEST_ALL_PREFIXES(GetUserMediaTest, MicrophoneStoppedRejectedPromise);
   FRIEND_TEST_ALL_PREFIXES(GetUserMediaTest, MicrophoneErrorRejectedPromise);
   FRIEND_TEST_ALL_PREFIXES(GetUserMediaTest, MicrophoneSuccessFulfilledPromise);
+  FRIEND_TEST_ALL_PREFIXES(GetUserMediaTest,
+                           MultipleMicrophoneSuccessFulfilledPromise);
 
   ~MediaDevices() override = default;
 
-  // Stop callback used with MediaStreamAudioSource.
+  // Stop callback used with MediaStreamAudioSource, and the OnMicrophoneError
+  // logic will also call in to this.
   void OnMicrophoneStopped();
 
   // Callbacks used with MicrophoneManager.
