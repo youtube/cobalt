@@ -90,17 +90,11 @@
       'dependencies': [
         'elf_loader',
         '<(DEPTH)/starboard/starboard.gyp:starboard_full',
+        # TODO: Remove this dependency once MediaSession is migrated to use CobaltExtensions.
+        '<@(cobalt_platform_dependencies)',
       ],
       'sources': [
         'sandbox.cc',
-      ],
-      'conditions': [
-        # TODO: Remove this dependency once MediaSession is migrated to use CobaltExtensions.
-        ['target_os == "android"', {
-          'dependencies': [
-            '<(DEPTH)/starboard/android/shared/cobalt/cobalt_platform.gyp:cobalt_platform',
-          ],
-        }],
       ],
     },
     {
@@ -138,11 +132,13 @@
       ],
       'dependencies': [
         '<(DEPTH)/starboard/starboard.gyp:starboard_full',
+        # TODO: Remove this dependency once MediaSession is migrated to use CobaltExtensions.
+        '<@(cobalt_platform_dependencies)',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
       ],
       'conditions': [
-        ['target_arch in ["x86", "x64", "arm", "arm64"] and target_os in ["linux", "android" ] ', {
+        ['target_arch in ["x86", "x64", "arm", "arm64"] ', {
           'sources': [
             'elf_loader_test.cc',
             'elf_header_test.cc',

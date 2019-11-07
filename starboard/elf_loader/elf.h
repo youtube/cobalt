@@ -636,7 +636,15 @@ typedef enum RelocationTypes {
 // Helper macros for memory page computations.
 #ifndef PAGE_SIZE
 #define PAGE_SHIFT 12
+
+#if SB_HAS(32_BIT_POINTERS)
 #define PAGE_SIZE (1UL << PAGE_SHIFT)
+#elif SB_HAS(64_BIT_POINTERS)
+#define PAGE_SIZE (1ULL << PAGE_SHIFT)
+#else
+#error "Unsupported pointer size"
+#endif
+
 #define PAGE_MASK (~(PAGE_SIZE - 1))
 #endif
 
