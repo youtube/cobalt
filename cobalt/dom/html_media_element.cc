@@ -94,7 +94,7 @@ bool ResourceNeedsUrlPlayer(const GURL& resource_url) {
   if (resource_url.SchemeIs("data")) {
     return true;
   }
-  // Check if resource_url is an hls url. Hls url must contain "hls_variant"
+  // Check if resource_url is an hls url. Hls url must contain "hls_variant".
   return resource_url.spec().find("hls_variant") != std::string::npos;
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
