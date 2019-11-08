@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/configuration.h"
+#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)
+
 #include "cobalt/renderer/rasterizer/egl/hardware_rasterizer.h"
 
 #include <memory>
@@ -346,3 +349,5 @@ void HardwareRasterizer::ReleaseContext() { return impl_->ReleaseContext(); }
 }  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
+
+#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)

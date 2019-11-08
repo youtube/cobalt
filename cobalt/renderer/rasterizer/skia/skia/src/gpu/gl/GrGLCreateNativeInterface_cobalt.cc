@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/configuration.h"
+#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)
+
 #include "cobalt/renderer/egl_and_gles.h"
 #include "third_party/skia/include/gpu/gl/GrGLAssembleInterface.h"
 #include "third_party/skia/include/gpu/gl/GrGLInterface.h"
@@ -138,3 +141,9 @@ GrGLFuncPtr GetGLProc(void* ctx, const char name[]) {
 const GrGLInterface* GrGLCreateNativeInterface() {
   return GrGLAssembleInterface(NULL, &GetGLProc);
 }
+#else  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)
+
+#include "third_party/skia/include/gpu/gl/GrGLInterface.h"
+const GrGLInterface* GrGLCreateNativeInterface() { return nullptr; }
+
+#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)
