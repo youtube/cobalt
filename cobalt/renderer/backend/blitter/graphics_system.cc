@@ -19,7 +19,7 @@
 #include "cobalt/renderer/backend/blitter/display.h"
 #include "cobalt/renderer/backend/blitter/graphics_context.h"
 
-#if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
+#if SB_HAS(BLITTER)
 
 namespace cobalt {
 namespace renderer {
@@ -47,4 +47,4 @@ GraphicsSystemBlitter::CreateGraphicsContext() {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // #if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
+#endif  // #if SB_HAS(BLITTER)
