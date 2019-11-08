@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/configuration.h"
+#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)
+
 #include <memory>
 
 #include "cobalt/renderer/backend/egl/graphics_system.h"
@@ -276,3 +279,5 @@ GraphicsSystemEGL::AllocateRawTextureMemory(size_t size_in_bytes,
 }  // namespace backend
 }  // namespace renderer
 }  // namespace cobalt
+
+#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)

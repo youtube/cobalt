@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/configuration.h"
+#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)
+
 #include "cobalt/renderer/backend/egl/texture_data_cpu.h"
 
 #include "base/memory/aligned_memory.h"
@@ -118,3 +121,5 @@ GLuint RawTextureMemoryCPU::CreateTexture(GraphicsContextEGL* graphics_context,
 }  // namespace backend
 }  // namespace renderer
 }  // namespace cobalt
+
+#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)
