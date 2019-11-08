@@ -20,10 +20,6 @@
 int SbAudioSinkGetMinBufferSizeInFrames(int channels,
                                         SbMediaAudioSampleType sample_type,
                                         int sampling_frequency_hz) {
-  // Currently, we only use |min_required_frames_| for web audio, which
-  // only supports 48k mono or stereo sound.
-  SB_DCHECK(sampling_frequency_hz == 48000);
-
   if (channels <= 0 || channels > SbAudioSinkGetMaxChannels()) {
     SB_LOG(ERROR) << "Not support channels count " << channels;
     return -1;
@@ -33,7 +29,7 @@ int SbAudioSinkGetMinBufferSizeInFrames(int channels,
     SB_LOG(ERROR) << "Not support sample type " << sample_type;
     return -1;
   }
-  if (sampling_frequency_hz <= 0) {
+  if (sampling_frequency_hz <= 0 || sampling_frequency_hz >= 50000) {
     SB_LOG(ERROR) << "Not support sample frequency " << sampling_frequency_hz;
     return -1;
   }
