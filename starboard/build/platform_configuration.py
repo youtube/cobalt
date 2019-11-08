@@ -361,13 +361,15 @@ class PlatformConfiguration(object):
     Returns:
       A list of strings of test target names.
     """
-    return [
-        'elf_loader_test',
+    tests = [
         'nplb',
         'nplb_blitter_pixel_tests',
         'player_filter_tests',
         'starboard_platform_tests',
     ]
+    if os.path.exists(os.path.join(paths.STARBOARD_ROOT, 'elf_loader')):
+      tests.append('elf_loader_test')
+    return tests
 
   def GetDefaultTargetBuildFile(self):
     """Gets the build file to build by default."""
