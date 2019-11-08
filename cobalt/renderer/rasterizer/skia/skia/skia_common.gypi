@@ -45,9 +45,7 @@
 
     # This list will contain all defines that also need to be exported to
     # dependent components.
-    'skia_export_defines': [
-      'SK_SUPPORT_GPU=1'
-    ],
+    'skia_export_defines': [],
 
     # The |default_font_cache_limit| specifies the max size of the glyph cache,
     # which contains path and metrics information for glyphs, before it will
@@ -57,9 +55,20 @@
   },
   'conditions': [
     ['gl_type != "none"', {
+      'variables': {
+        'skia_export_defines': [
+          'SK_SUPPORT_GPU=1',
+        ],
+      },
       'dependencies': [
         '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
       ],
+    }, {
+      'variables': {
+        'skia_export_defines': [
+          'SK_SUPPORT_GPU=0',
+        ],
+      },
     }],
     ['target_arch == "win"', {
       'variables': {

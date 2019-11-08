@@ -13,27 +13,20 @@
 # limitations under the License.
 
 {
-  'targets': [
-    {
-      'target_name': 'blitter_backend',
-      'type': 'static_library',
-      
-      # Sets up renderer::backend to use a Starboard Blitter API implementation.
-      'sources': [
-        'display.cc',
-        'display.h',
-        'graphics_context.cc',
-        'graphics_context.h',
-        'graphics_system.cc',
-        'graphics_system.h',
-        'surface_render_target.cc',
-        'surface_render_target.h',
-        'render_target.h',
-      ],
+  # Sets up renderer::backend to use a Starboard Blitter API implementation.
+  'sources': [
+    'display.cc',
+    'display.h',
+    'graphics_context.cc',
+    'graphics_context.h',
+    'graphics_system.cc',
+    'graphics_system.h',
+    'surface_render_target.cc',
+    'surface_render_target.h',
+    'render_target.h',
+  ],
 
-      'dependencies': [
-        '<(DEPTH)/starboard/starboard.gyp:starboard',
-      ],
-    },
+  'dependencies': [
+    '<(DEPTH)/starboard/starboard.gyp:starboard',
   ],
 }
