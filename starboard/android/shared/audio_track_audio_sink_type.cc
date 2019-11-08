@@ -35,11 +35,12 @@ const int kMaxFramesPerRequest = 65536;
 const jint kNoOffset = 0;
 const size_t kSilenceFramesPerAppend = 1024;
 
-const int kAudioSinkBufferSize = 4 * 1024;
 const int kMaxRequiredFrames = 16 * 1024;
-const int kDefaultRequiredFrames = 8 * 1024;
 const int kRequiredFramesIncrement = 2 * 1024;
 const int kMinStablePlayedFrames = 12 * 1024;
+
+const int kSampleFrequency22k = 22050;
+const int kSampleFrequency48k = 48000;
 
 // Helper function to compute the size of the two valid starboard audio sample
 // types.
@@ -80,7 +81,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     SbMediaAudioSampleType sample_type,
     SbAudioSinkFrameBuffers frame_buffers,
     int frames_per_channel,
-    int preferred_buffer_size,
+    int preferred_buffer_size_in_bytes,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     SbAudioSinkConsumeFramesFunc consume_frame_func,
     void* context)
@@ -113,7 +114,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
       j_audio_output_manager.Get(), "createAudioTrackBridge",
       "(IIII)Ldev/cobalt/media/AudioTrackBridge;",
       GetAudioFormatSampleType(sample_type_), sampling_frequency_hz_, channels_,
-      preferred_buffer_size);
+      preferred_buffer_size_in_bytes);
   if (!j_audio_track_bridge) {
     return;
   }
@@ -358,16 +359,25 @@ int AudioTrackAudioSinkType::GetMinBufferSizeInFrames(
     int sampling_frequency_hz) {
   SB_DCHECK(audio_track_audio_sink_type_);
 
-  return audio_track_audio_sink_type_->min_required_frames_.load();
+  JniEnvExt* env = JniEnvExt::Get();
+  ScopedLocalJavaRef<jobject> j_audio_output_manager(
+      env->CallStarboardObjectMethodOrAbort(
+          "getAudioOutputManager", "()Ldev/cobalt/media/AudioOutputManager;"));
+  int audio_track_min_buffer_size = static_cast<int>(env->CallIntMethodOrAbort(
+      j_audio_output_manager.Get(), "getMinBufferSize", "(III)I",
+      GetAudioFormatSampleType(sample_type), sampling_frequency_hz, channels));
+  int audio_track_min_buffer_size_in_frames =
+      audio_track_min_buffer_size / channels / GetSampleSize(sample_type);
+  return std::max(
+      audio_track_min_buffer_size_in_frames,
+      audio_track_audio_sink_type_->GetMinBufferSizeInFramesInternal(
+          channels, sample_type, sampling_frequency_hz));
 }
 
 AudioTrackAudioSinkType::AudioTrackAudioSinkType()
-    : min_required_frames_tester_(kAudioSinkBufferSize,
-                                  kMaxRequiredFrames,
-                                  kDefaultRequiredFrames,
+    : min_required_frames_tester_(kMaxRequiredFrames,
                                   kRequiredFramesIncrement,
-                                  kMinStablePlayedFrames),
-      min_required_frames_(kMaxRequiredFrames) {}
+                                  kMinStablePlayedFrames) {}
 
 SbAudioSink AudioTrackAudioSinkType::Create(
     int channels,
@@ -384,13 +394,13 @@ SbAudioSink AudioTrackAudioSinkType::Create(
   // large buffer may cause AudioTrack not able to start. And Cobalt now write
   // no more than 1s of audio data and no more than 0.5 ahead to starboard
   // player, limit the buffer size to store at most 0.5s of audio data.
-  int preferred_buffer_size =
+  int preferred_buffer_size_in_bytes =
       std::min(frames_per_channel, sampling_frequency_hz / 2) * channels *
       GetSampleSize(audio_sample_type);
   AudioTrackAudioSink* audio_sink = new AudioTrackAudioSink(
       this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
-      frames_per_channel, preferred_buffer_size, update_source_status_func,
-      consume_frames_func, context);
+      frames_per_channel, preferred_buffer_size_in_bytes,
+      update_source_status_func, consume_frames_func, context);
   if (!audio_sink->IsAudioTrackValid()) {
     SB_DLOG(ERROR)
         << "AudioTrackAudioSinkType::Create failed to create audio track";
@@ -407,7 +417,8 @@ void AudioTrackAudioSinkType::TestMinRequiredFrames() {
         SB_LOG(INFO) << "Received min required frames " << min_required_frames
                      << " for " << number_of_channels << " channels, "
                      << sample_rate << "hz.";
-        min_required_frames_.store(min_required_frames);
+        ScopedLock lock(min_required_frames_map_mutex_);
+        min_required_frames_map_[sample_rate] = min_required_frames;
       };
 
   SbMediaAudioSampleType sample_type = kSbMediaAudioSampleTypeFloat32;
@@ -415,12 +426,33 @@ void AudioTrackAudioSinkType::TestMinRequiredFrames() {
     sample_type = kSbMediaAudioSampleTypeInt16Deprecated;
     SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(sample_type));
   }
+  min_required_frames_tester_.AddTest(2, sample_type, kSampleFrequency48k,
+                                      onMinRequiredFramesForWebAudioReceived,
+                                      8 * 1024);
+  min_required_frames_tester_.AddTest(2, sample_type, kSampleFrequency22k,
+                                      onMinRequiredFramesForWebAudioReceived,
+                                      4 * 1024);
+  min_required_frames_tester_.Start();
+}
 
-  // Currently, cobalt only use |min_required_frames_| for web audio, which
-  // only supports 48k mono or stereo sound. It should be fine now to only
-  // test 48k stereo sound.
-  min_required_frames_tester_.StartTest(2, sample_type, 48000,
-                                        onMinRequiredFramesForWebAudioReceived);
+int AudioTrackAudioSinkType::GetMinBufferSizeInFramesInternal(
+    int channels,
+    SbMediaAudioSampleType sample_type,
+    int sampling_frequency_hz) {
+  if (sampling_frequency_hz <= kSampleFrequency22k) {
+    ScopedLock lock(min_required_frames_map_mutex_);
+    if (min_required_frames_map_.find(kSampleFrequency22k) !=
+        min_required_frames_map_.end()) {
+      return min_required_frames_map_[kSampleFrequency22k];
+    }
+  } else if (sampling_frequency_hz <= kSampleFrequency48k) {
+    ScopedLock lock(min_required_frames_map_mutex_);
+    if (min_required_frames_map_.find(kSampleFrequency48k) !=
+        min_required_frames_map_.end()) {
+      return min_required_frames_map_[kSampleFrequency48k];
+    }
+  }
+  return kMaxRequiredFrames;
 }
 
 }  // namespace shared
