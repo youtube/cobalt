@@ -17,6 +17,7 @@
 
 #include <atomic>
 #include <functional>
+#include <vector>
 
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
@@ -40,19 +41,39 @@ class MinRequiredFramesTester {
                              int min_required_frames)>
       OnMinRequiredFramesReceivedCallback;
 
-  MinRequiredFramesTester(int audio_sink_buffer_size,
-                          int max_required_frames,
-                          int default_required_frames,
+  MinRequiredFramesTester(int max_required_frames,
                           int required_frames_increment,
                           int min_stable_played_frames);
   ~MinRequiredFramesTester();
 
-  void StartTest(int number_of_channels,
-                 SbMediaAudioSampleType sample_type,
-                 int sample_rate,
-                 OnMinRequiredFramesReceivedCallback received_cb);
+  void AddTest(int number_of_channels,
+               SbMediaAudioSampleType sample_type,
+               int sample_rate,
+               const OnMinRequiredFramesReceivedCallback& received_cb,
+               int default_required_frames);
+
+  void Start();
 
  private:
+  struct TestTask {
+    TestTask(int number_of_channels,
+             SbMediaAudioSampleType sample_type,
+             int sample_rate,
+             OnMinRequiredFramesReceivedCallback received_cb,
+             int default_required_frames)
+        : number_of_channels(number_of_channels),
+          sample_type(sample_type),
+          sample_rate(sample_rate),
+          received_cb(received_cb),
+          default_required_frames(default_required_frames) {}
+
+    const int number_of_channels;
+    const SbMediaAudioSampleType sample_type;
+    const int sample_rate;
+    const OnMinRequiredFramesReceivedCallback received_cb;
+    const int default_required_frames;
+  };
+
   static void* TesterThreadEntryPoint(void* context);
   void TesterThreadFunc();
 
@@ -73,23 +94,15 @@ class MinRequiredFramesTester {
   MinRequiredFramesTester(const MinRequiredFramesTester&) = delete;
   MinRequiredFramesTester& operator=(const MinRequiredFramesTester&) = delete;
 
-  const int audio_sink_buffer_size_;
   const int max_required_frames_;
-  const int default_required_frames_;
   const int required_frames_increment_;
   const int min_stable_played_frames_;
 
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
 
-  // Shared variables between tester thread and audio sink thread.
+  std::vector<const TestTask> test_tasks_;
   AudioTrackAudioSink* audio_sink_ = nullptr;
-  int number_of_channels_;
-  SbMediaAudioSampleType sample_type_;
-  int sample_rate_;
   int min_required_frames_;
-
-  // Used only by tester thread.
-  OnMinRequiredFramesReceivedCallback received_cb_;
 
   // Used only by audio sink thread.
   int total_consumed_frames_;
@@ -99,7 +112,7 @@ class MinRequiredFramesTester {
   Mutex mutex_;
   ConditionVariable condition_variable_;
   SbThread tester_thread_ = kSbThreadInvalid;
-  std::atomic_bool destroyed_;
+  std::atomic_bool destroying_;
 };
 
 }  // namespace shared
