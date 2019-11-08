@@ -489,7 +489,10 @@ void MediaDecoder::OnMediaCodecError(bool is_recoverable,
                   << " error with message: " << diagnostic_info;
 
   if (!is_transient) {
-    error_cb_(kSbPlayerErrorDecode, "OnMediaCodecError");
+    error_cb_(kSbPlayerErrorDecode,
+              "OnMediaCodecError: " + diagnostic_info +
+                  (is_recoverable ? ", recoverable " : ", unrecoverable ") +
+                  (is_transient ? ", transient" : ", intransient"));
   }
 }
 
