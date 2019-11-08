@@ -33,7 +33,7 @@ namespace browser {
 namespace memory_settings {
 namespace {
 bool HasBlitter() {
-#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
+#if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION
   const bool has_blitter = SbBlitterIsBlitterSupported();
 #elif SB_HAS(BLITTER)
   const bool has_blitter = true;

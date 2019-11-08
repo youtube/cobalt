@@ -17,7 +17,7 @@
 
 #include "starboard/configuration.h"
 
-#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(BLITTER)
+#if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/render_tree/resource_provider.h"
@@ -59,7 +59,6 @@ class SoftwareRasterizer : public Rasterizer {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION ||
-        // SB_HAS(BLITTER)
+#endif  // SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
 
 #endif  // COBALT_RENDERER_RASTERIZER_BLITTER_SOFTWARE_RASTERIZER_H_
