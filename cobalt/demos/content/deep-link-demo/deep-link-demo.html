@@ -5,9 +5,9 @@
     console.log("h5vcc.runtime.initialDeepLink: " +
                 h5vcc.runtime.initialDeepLink);
 
-    h5vcc.runtime.onDeepLink = function(link) {
+    h5vcc.runtime.onDeepLink.addListener(function(link) {
       console.log("h5vcc.runtime.onDeepLink: " + link);
-    };
+    });
   </script>
 </head>
 <body style="background-color:#48C"></body>
