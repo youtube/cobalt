@@ -281,7 +281,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbGetGlesInterface);
 #endif  // SB_API_VERSION >= 11
 
-#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
+#if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION
   REGISTER_SYMBOL(SbBlitterIsBlitterSupported);
 #endif
 

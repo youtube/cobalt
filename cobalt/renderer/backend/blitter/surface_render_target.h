@@ -19,7 +19,7 @@
 #include "cobalt/renderer/backend/blitter/render_target.h"
 #include "starboard/blitter.h"
 
-#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(BLITTER)
+#if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
 
 namespace cobalt {
 namespace renderer {
@@ -62,7 +62,6 @@ class SurfaceRenderTargetBlitter : public RenderTargetBlitter {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // #if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION ||
-        // SB_HAS(BLITTER)
+#endif  // #if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
 
 #endif  // COBALT_RENDERER_BACKEND_BLITTER_SURFACE_RENDER_TARGET_H_

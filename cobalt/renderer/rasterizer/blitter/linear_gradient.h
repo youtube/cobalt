@@ -21,7 +21,7 @@
 #include "cobalt/renderer/rasterizer/blitter/render_state.h"
 #include "starboard/blitter.h"
 
-#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(BLITTER)
+#if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
 
 namespace cobalt {
 namespace renderer {
@@ -38,7 +38,6 @@ bool RenderLinearGradient(SbBlitterDevice device, SbBlitterContext context,
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // #if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION ||
-        // SB_HAS(BLITTER)
+#endif  // #if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
 
 #endif  // COBALT_RENDERER_RASTERIZER_BLITTER_LINEAR_GRADIENT_H_
