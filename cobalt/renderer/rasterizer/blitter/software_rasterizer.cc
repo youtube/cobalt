@@ -14,7 +14,7 @@
 
 #include "cobalt/renderer/rasterizer/blitter/software_rasterizer.h"
 
-#if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
+#if SB_HAS(BLITTER)
 
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/rasterizer/blitter/skia_blitter_conversions.h"
@@ -106,4 +106,4 @@ render_tree::ResourceProvider* SoftwareRasterizer::GetResourceProvider() {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
+#endif  // SB_HAS(BLITTER)
