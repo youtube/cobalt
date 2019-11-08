@@ -466,8 +466,15 @@ void MediaDecoder::HandleError(const char* action_name, jint status) {
     is_output_restricted_ = true;
     drm_system_->OnInsufficientOutputProtection();
   } else {
-    error_cb_(kSbPlayerErrorDecode,
-              FormatString("%s failed with status %d.", action_name, status));
+    if (media_type_ == kSbMediaTypeAudio) {
+      error_cb_(kSbPlayerErrorDecode,
+                FormatString("%s failed with status %d (audio).", action_name,
+                             status));
+    } else {
+      error_cb_(kSbPlayerErrorDecode,
+                FormatString("%s failed with status %d (video).", action_name,
+                             status));
+    }
   }
 
   if (retry) {
@@ -489,9 +496,15 @@ void MediaDecoder::OnMediaCodecError(bool is_recoverable,
                   << " error with message: " << diagnostic_info;
 
   if (!is_transient) {
-    error_cb_(kSbPlayerErrorDecode,
-              "OnMediaCodecError: " + diagnostic_info +
-                  (is_recoverable ? ", recoverable " : ", unrecoverable "));
+    if (media_type_ == kSbMediaTypeAudio) {
+      error_cb_(kSbPlayerErrorDecode,
+                "OnMediaCodecError (audio): " + diagnostic_info +
+                    (is_recoverable ? ", recoverable " : ", unrecoverable "));
+    } else {
+      error_cb_(kSbPlayerErrorDecode,
+                "OnMediaCodecError (video): " + diagnostic_info +
+                    (is_recoverable ? ", recoverable " : ", unrecoverable "));
+    }
   }
 }
 
