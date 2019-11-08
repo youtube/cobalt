@@ -42,29 +42,31 @@ void MicrophoneAudioSource::EnsureSourceIsStopped() {
 std::unique_ptr<cobalt::speech::Microphone>
 MicrophoneAudioSource::CreateMicrophone(
     const cobalt::speech::Microphone::Options& options, int buffer_size_bytes) {
+  std::unique_ptr<speech::Microphone> mic;
 #if defined(ENABLE_FAKE_MICROPHONE)
   SB_UNREFERENCED_PARAMETER(buffer_size_bytes);
   if (options.enable_fake_microphone) {
-    return std::unique_ptr<speech::Microphone>(
-        new speech::MicrophoneFake(options));
+    mic.reset(new speech::MicrophoneFake(options));
   }
 #else
   SB_UNREFERENCED_PARAMETER(options);
 #endif  // defined(ENABLE_FAKE_MICROPHONE)
 
-  std::unique_ptr<speech::Microphone> mic;
-
+  if (!mic) {
 #if defined(ENABLE_MICROPHONE_IDL)
-  mic.reset(new speech::MicrophoneStarboard(
-      speech::MicrophoneStarboard::kDefaultSampleRate, buffer_size_bytes));
-
-  AudioParameters params(
-      1, speech::MicrophoneStarboard::kDefaultSampleRate,
-      speech::MicrophoneStarboard::kSbMicrophoneSampleSizeInBytes * 8);
-  SetFormat(params);
+    mic.reset(new speech::MicrophoneStarboard(
+        speech::MicrophoneStarboard::kDefaultSampleRate, buffer_size_bytes));
 #else
-  SB_UNREFERENCED_PARAMETER(buffer_size_bytes);
+    SB_UNREFERENCED_PARAMETER(buffer_size_bytes);
 #endif  // defined(ENABLE_MICROPHONE_IDL)
+  }
+
+  if (mic) {
+    AudioParameters params(
+        1, speech::MicrophoneStarboard::kDefaultSampleRate,
+        speech::MicrophoneStarboard::kSbMicrophoneSampleSizeInBytes * 8);
+    SetFormat(params);
+  }
 
   return mic;
 }
