@@ -33,17 +33,9 @@
             '../egl/egl_backend.gyp:egl_backend',
           ],
 
-          'conditions': [
-            ['gl_type == "none"', {
-              'sources': [
-                'default_graphics_system_blitter.cc',
-              ],
-            }, {
-              'sources': [
-                'default_graphics_system_egl.cc',
-              ],
-            }],
-          ],
+          'sources': [
+            'default_graphics_system.cc',
+          ]
         }],
       ],
     },

@@ -765,7 +765,7 @@ SB_EXPORT bool SbBlitterBlitRectsToRects(SbBlitterContext context,
 }  // extern "C"
 #endif
 
-#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || 
+#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION ||
         // SB_HAS(BLITTER)
 
 #endif  // STARBOARD_BLITTER_H_
