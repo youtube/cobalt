@@ -24,7 +24,7 @@
 #include "cobalt/renderer/rasterizer/blitter/scratch_surface_cache.h"
 #include "cobalt/renderer/rasterizer/rasterizer.h"
 
-#if SB_HAS(BLITTER)
+#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(BLITTER)
 
 namespace cobalt {
 namespace renderer {
@@ -65,6 +65,7 @@ class HardwareRasterizer : public Rasterizer {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // #if SB_HAS(BLITTER)
+#endif  // #if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION ||
+        // SB_HAS(BLITTER)
 
 #endif  // COBALT_RENDERER_RASTERIZER_BLITTER_HARDWARE_RASTERIZER_H_

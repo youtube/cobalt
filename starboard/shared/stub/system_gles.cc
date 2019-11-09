@@ -14,6 +14,10 @@
 
 #include "starboard/gles.h"
 
+#if SB_API_VERSION >= 11
+
 const SbGlesInterface* SbGetGlesInterface() {
   return nullptr;
 }
+
+#endif

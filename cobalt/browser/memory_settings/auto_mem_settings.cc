@@ -26,13 +26,16 @@
 #include "base/strings/string_util.h"
 #include "cobalt/browser/memory_settings/constants.h"
 #include "cobalt/browser/switches.h"
+#include "starboard/blitter.h"
 
 namespace cobalt {
 namespace browser {
 namespace memory_settings {
 namespace {
 bool HasBlitter() {
-#if SB_HAS(BLITTER)
+#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
+  const bool has_blitter = SbBlitterIsBlitterSupported();
+#elif SB_HAS(BLITTER)
   const bool has_blitter = true;
 #else
   const bool has_blitter = false;

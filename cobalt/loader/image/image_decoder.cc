@@ -29,6 +29,7 @@
 #include "net/base/mime_util.h"
 #include "net/http/http_status_code.h"
 #include "starboard/configuration.h"
+#include "starboard/gles.h"
 #include "starboard/image.h"
 
 namespace cobalt {
@@ -380,19 +381,23 @@ void ImageDecoder::UseStubImageDecoder() { s_use_stub_image_decoder = true; }
 
 // static
 bool ImageDecoder::AllowDecodingToMultiPlane() {
-#if SB_HAS(GLES2) && defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
+#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION && \
+    defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
   // Many image formats can produce native output in multi plane images in YUV
-  // 420.  Allow these images to be decoded into multi plane image not only
+  // 420. Allowing these images to be decoded into multi plane image not only
   // reduces the space to store the decoded image to 37.5%, but also improves
   // decoding performance by not converting the output from YUV to RGBA.
-  bool allow_image_decoding_to_multi_plane = true;
-#else   // SB_HAS(GLES2) && defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
-  // Decoding to single plane by default because blitter platforms usually
-  // don't have the ability to perform hardware accelerated YUV-formatted
-  // image blitting.
+  //
+  // Blitter platforms usually don't have the ability to perform hardware
+  // accelerated YUV-formatted image blitting, so we decode to a single plane
+  // when we do not support gles.
   // This also applies to skia based "hardware" rasterizers as the rendering
   // of multi plane images in such cases are not optimized, but this may be
   // improved in future.
+  bool allow_image_decoding_to_multi_plane = SbGetGlesInterface() != nullptr;
+#elif SB_HAS(GLES2) && defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
+  bool allow_image_decoding_to_multi_plane = true;
+#else  // SB_HAS(GLES2) && defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
   bool allow_image_decoding_to_multi_plane = false;
 #endif  // SB_HAS(GLES2) && defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
 

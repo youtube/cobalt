@@ -68,6 +68,7 @@
 #include "cobalt/storage/storage_manager.h"
 #include "starboard/accessibility.h"
 #include "starboard/common/log.h"
+#include "starboard/gles.h"
 
 #if defined(ENABLE_DEBUGGER)
 #include "cobalt/debug/backend/debug_module.h"
@@ -499,13 +500,22 @@ WebModule::Impl::Impl(const ConstructionData& data)
   // Note that it is important that we do not parse map-to-mesh filters if we
   // cannot render them, since web apps may check for map-to-mesh support by
   // testing whether it parses or not via the CSS.supports() Web API.
-  css_parser::Parser::SupportsMapToMeshFlag supports_map_to_mesh =
-#if defined(ENABLE_MAP_TO_MESH)
-      data.options.enable_map_to_mesh_rectangular
-          ? css_parser::Parser::kSupportsMapToMeshRectangular
-          : css_parser::Parser::kSupportsMapToMesh;
+  css_parser::Parser::SupportsMapToMeshFlag supports_map_to_mesh;
+#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
+  if (SbGetGlesInterface()) {
+    supports_map_to_mesh =
+        data.options.enable_map_to_mesh_rectangular
+            ? css_parser::Parser::kSupportsMapToMeshRectangular
+            : css_parser::Parser::kSupportsMapToMesh;
+  } else {
+    supports_map_to_mesh = css_parser::Parser::kDoesNotSupportMapToMesh;
+  }
+#elif defined(ENABLE_MAP_TO_MESH)
+  supports_map_to_mesh = data.options.enable_map_to_mesh_rectangular
+                             ? css_parser::Parser::kSupportsMapToMeshRectangular
+                             : css_parser::Parser::kSupportsMapToMesh;
 #else
-      css_parser::Parser::kDoesNotSupportMapToMesh;
+  supports_map_to_mesh = css_parser::Parser::kDoesNotSupportMapToMesh;
 #endif
 
   css_parser_ = css_parser::Parser::Create(supports_map_to_mesh);
