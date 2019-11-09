@@ -96,9 +96,9 @@
 #include "starboard/export.h"
 #include "starboard/types.h"
 
-#if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
+#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(BLITTER)
 #include "starboard/blitter.h"
-#endif  // SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
+#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(BLITTER)
 
 #ifdef __cplusplus
 extern "C" {
@@ -203,7 +203,7 @@ typedef void (*SbDecodeTargetGlesContextRunner)(
 // should be provided to all Starboard functions that might create
 // SbDecodeTargets (e.g. SbImageDecode()).
 typedef struct SbDecodeTargetGraphicsContextProvider {
-#if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
+#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(BLITTER)
   // The SbBlitterDevice object that will be used to render any produced
   // SbDecodeTargets.
   SbBlitterDevice device;
@@ -227,12 +227,11 @@ typedef struct SbDecodeTargetGraphicsContextProvider {
   // Context data that is to be passed in to |gles_context_runner| when it is
   // invoked.
   void* gles_context_runner_context;
-#elif !(SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || \
-        SB_HAS(BLITTER))  // SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION ||
-  // SB_HAS(BLITTER)
+#elif !(SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || \
+        SB_HAS(BLITTER))
   // Some compilers complain about empty structures, this is to appease them.
   char dummy;
-#endif  // SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
+#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(BLITTER)
 } SbDecodeTargetGraphicsContextProvider;
 
 // Defines a rectangular content region within a SbDecodeTargetInfoPlane
@@ -260,11 +259,11 @@ typedef struct SbDecodeTargetInfoContentRegion {
 
 // Defines an image plane within a SbDecodeTargetInfo object.
 typedef struct SbDecodeTargetInfoPlane {
-#if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
+#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(BLITTER)
   // A handle to the Blitter surface that can be used for rendering.
   SbBlitterSurface surface;
 #endif
-#if SB_HAS(GLES2)  // SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION ||
+#if SB_HAS(GLES2)  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION ||
                    // SB_HAS(BLITTER)
   // A handle to the GL texture that can be used for rendering.
   uint32_t texture;
@@ -283,7 +282,7 @@ typedef struct SbDecodeTargetInfoPlane {
   uint32_t gl_texture_format;
 #endif  // SB_API_VERSION >= 7
 
-#endif  // SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
+#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(BLITTER)
 
   // The width of the texture/surface for this particular plane.
   int width;

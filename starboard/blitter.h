@@ -55,7 +55,7 @@
 #include "starboard/types.h"
 #include "starboard/window.h"
 
-#if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
+#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(BLITTER)
 
 #ifdef __cplusplus
 extern "C" {
@@ -304,7 +304,7 @@ static SB_C_FORCE_INLINE bool SbBlitterIsContextValid(
   return context != kSbBlitterInvalidContext;
 }
 
-#if SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION
+#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
 // Returns whether the platform supports blitter.
 SB_EXPORT bool SbBlitterIsBlitterSupported();
 #endif
@@ -765,6 +765,7 @@ SB_EXPORT bool SbBlitterBlitRectsToRects(SbBlitterContext context,
 }  // extern "C"
 #endif
 
-#endif  // SB_API_VERSION >= SB_BLITTER_REQUIRED_VERSION || SB_HAS(BLITTER)
+#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || 
+        // SB_HAS(BLITTER)
 
 #endif  // STARBOARD_BLITTER_H_
