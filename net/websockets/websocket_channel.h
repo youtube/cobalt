@@ -90,10 +90,15 @@ class NET_EXPORT WebSocketChannel {
   // character boundaries. Calling SendFrame may result in synchronous calls to
   // |event_interface_| which may result in this object being deleted. In that
   // case, the return value will be CHANNEL_DELETED.
+#if defined(STARBOARD)
+  // Make it virtual to enable mocking for unit tests.
+  virtual ChannelState SendFrame(bool fin,
+#else
   ChannelState SendFrame(bool fin,
-                         WebSocketFrameHeader::OpCode op_code,
-                         scoped_refptr<IOBuffer> buffer,
-                         size_t buffer_size);
+#endif
+                                 WebSocketFrameHeader::OpCode op_code,
+                                 scoped_refptr<IOBuffer> buffer,
+                                 size_t buffer_size);
 
   // Sends |quota| units of flow control to the remote side. If the underlying
   // transport has a concept of |quota|, then it permits the remote server to
