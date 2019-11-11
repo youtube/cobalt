@@ -27,12 +27,13 @@ namespace layout {
 struct MarginCollapsingParams {
   MarginCollapsingParams(const bool is_margin_collapsable)
       : collapsing_margin(0),
-
+        should_collapse_own_margins_together(true),
         should_collapse_margin_bottom(true),
         should_collapse_margin_top(is_margin_collapsable) {}
 
   LayoutUnit collapsing_margin;
   base::Optional<LayoutUnit> context_margin_top;
+  bool should_collapse_own_margins_together;
   bool should_collapse_margin_bottom;
   bool should_collapse_margin_top;
 };

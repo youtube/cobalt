@@ -76,6 +76,7 @@ void BlockFormattingContext::UpdatePosition(Box* child_box) {
       if (!margin_collapsing_params_.context_margin_top) {
         margin_collapsing_params_.should_collapse_margin_top = false;
       }
+      margin_collapsing_params_.should_collapse_own_margins_together = false;
       break;
     case Box::kCollapseMargins:
       // For first child, if top margin will collapse with parent's top margin,
@@ -97,7 +98,9 @@ void BlockFormattingContext::UpdatePosition(Box* child_box) {
       margin_collapsing_params_.should_collapse_margin_bottom = true;
 
       // Collapse margins for in-flow siblings.
-      margin_collapsing_params_.collapsing_margin = child_box->margin_bottom();
+      margin_collapsing_params_.collapsing_margin =
+          child_box->collapsed_empty_margin_.value_or(
+              child_box->margin_bottom());
       if (!margin_collapsing_params_.context_margin_top) {
         margin_collapsing_params_.context_margin_top = child_box->margin_top();
       }
@@ -106,19 +109,35 @@ void BlockFormattingContext::UpdatePosition(Box* child_box) {
 }
 
 void BlockFormattingContext::CollapseContainingMargins(Box* containing_box) {
-  // If no in-flow children, do not collapse margins.
-  if (!margin_collapsing_params_.context_margin_top) {
-    return;
-  }
-
+  bool has_padding_top = containing_box->padding_top() != LayoutUnit();
+  bool has_border_top = containing_box->border_top_width() != LayoutUnit();
+  bool has_padding_bottom = containing_box->padding_bottom() != LayoutUnit();
+  bool has_border_bottom =
+      containing_box->border_bottom_width() != LayoutUnit();
   LayoutUnit margin_top =
       layout_params_.maybe_margin_top.value_or(LayoutUnit());
   LayoutUnit margin_bottom =
       layout_params_.maybe_margin_bottom.value_or(LayoutUnit());
 
+  // If no in-flow children, do not collapse margins with children.
+  if (!margin_collapsing_params_.context_margin_top) {
+    // Empty boxes with auto or 0 height collapse top/bottom margins together.
+    //   https://www.w3.org/TR/CSS22/box.html#collapsing-margins
+    if (!has_padding_top && !has_border_top && !has_padding_bottom &&
+        !has_border_bottom &&
+        layout_params_.containing_block_size.height() == LayoutUnit() &&
+        margin_collapsing_params_.should_collapse_own_margins_together) {
+      containing_box->collapsed_empty_margin_ =
+          CollapseMargins(margin_top, margin_bottom);
+      return;
+    }
+    // Reset in case min-height iteration reverses 0/auto height criteria.
+    containing_box->collapsed_empty_margin_.reset();
+    return;
+  }
+
   // Collapse top margin with top margin of first in-flow child.
-  if (containing_box->padding_top() == LayoutUnit() &&
-      containing_box->border_top_width() == LayoutUnit() &&
+  if (!has_padding_top && !has_border_top &&
       margin_collapsing_params_.should_collapse_margin_top) {
     LayoutUnit collapsed_margin_top = CollapseMargins(
         margin_top,
@@ -128,9 +147,8 @@ void BlockFormattingContext::CollapseContainingMargins(Box* containing_box) {
 
   // If height is auto, collapse bottom margin with bottom margin of last
   // in-flow child.
-  if (!layout_params_.maybe_height &&
-      containing_box->padding_bottom() == LayoutUnit() &&
-      containing_box->border_bottom_width() == LayoutUnit() &&
+  if (!layout_params_.maybe_height && !has_padding_bottom &&
+      !has_border_bottom &&
       margin_collapsing_params_.should_collapse_margin_bottom) {
     LayoutUnit collapsed_margin_bottom = CollapseMargins(
         margin_bottom, margin_collapsing_params_.collapsing_margin);

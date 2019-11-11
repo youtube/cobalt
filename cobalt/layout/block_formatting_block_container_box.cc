@@ -84,7 +84,7 @@ BlockFormattingBlockContainerBox::UpdateRectOfInFlowChildBoxes(
     block_formatting_context->UpdateRect(child_box);
   }
 
-  if (!child_boxes().empty() && is_collapsable) {
+  if (is_collapsable) {
     block_formatting_context->CollapseContainingMargins(this);
   }
 
