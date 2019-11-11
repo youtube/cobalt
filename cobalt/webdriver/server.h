@@ -26,7 +26,6 @@
 #include "cobalt/webdriver/protocol/server_status.h"
 #include "net/server/http_server.h"
 #include "net/socket/tcp_server_socket.h"
-#include "url/gurl.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -102,8 +101,6 @@ class WebDriverServer : public net::HttpServer::Delegate {
   void OnClose(int) override {}  // NOLINT(readability/casting)
 
  private:
-  int GetLocalAddress(GURL* out) const;
-
   THREAD_CHECKER(thread_checker_);
   HandleRequestCallback handle_request_callback_;
   std::unique_ptr<net::HttpServer> server_;

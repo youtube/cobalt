@@ -15,6 +15,7 @@
 #include <time.h>
 
 #include "starboard/configuration.h"
+#include "starboard/linux/shared/command_line_defaults.h"
 #include "starboard/shared/signal/crash_signals.h"
 #include "starboard/shared/signal/suspend_signals.h"
 #include "starboard/shared/starboard/link_receiver.h"
@@ -28,7 +29,8 @@ extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
   int result = 0;
   {
     starboard::shared::starboard::LinkReceiver receiver(&application);
-    result = application.Run(argc, argv);
+    result = application.Run(
+        starboard::linux_platform::shared::GetCommandLine(argc, argv));
   }
   starboard::shared::signal::UninstallSuspendSignalHandlers();
   starboard::shared::signal::UninstallCrashSignalHandlers();

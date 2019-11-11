@@ -4,6 +4,13 @@ This document records all notable changes made to Cobalt since the last release.
 
 ## Version 21
 
+ - **DevTools and WebDriver listen to ANY interface, except on Linux.**
+
+  DevTools and WebDriver servers listen to connections on any network interface
+  by default, except on Linux where they listen only to loopback (localhost) by
+  default. A new "--dev_servers_listen_ip" command line parameter can be used to
+  specify a different interface for both of them to listen to.
+
  - **DevTools shows asynchronous stack traces.**
 
   When stopped at a breakpoint within the handler function for an asynchronous

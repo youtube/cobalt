@@ -26,6 +26,8 @@ namespace switches {
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 extern const char kDebugConsoleMode[];
 extern const char kDebugConsoleModeHelp[];
+extern const char kDevServersListenIp[];
+extern const char kDevServersListenIpHelp[];
 
 #if defined(ENABLE_DEBUGGER)
 extern const char kRemoteDebuggingPort[];
