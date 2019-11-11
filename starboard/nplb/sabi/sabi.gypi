@@ -17,6 +17,7 @@
     'sabi_sources': [
       '<(DEPTH)/starboard/nplb/sabi/alignment_test.cc',
       '<(DEPTH)/starboard/nplb/sabi/endianness_test.cc',
+      '<(DEPTH)/starboard/nplb/sabi/signedness_and_size_of_enum_test.cc',
       '<(DEPTH)/starboard/nplb/sabi/signedness_of_char_test.cc',
       '<(DEPTH)/starboard/nplb/sabi/size_test.cc',
       '<(DEPTH)/starboard/nplb/sabi/struct_alignment_test.cc',
