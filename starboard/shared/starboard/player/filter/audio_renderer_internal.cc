@@ -68,9 +68,9 @@ AudioRenderer::AudioRenderer(scoped_ptr<AudioDecoder> decoder,
                              scoped_ptr<AudioRendererSink> audio_renderer_sink,
                              const SbMediaAudioSampleInfo& audio_sample_info,
                              int max_cached_frames,
-                             int max_frames_per_append)
+                             int min_frames_per_append)
     : max_cached_frames_(max_cached_frames),
-      max_frames_per_append_(max_frames_per_append),
+      min_frames_per_append_(min_frames_per_append),
       channels_(audio_sample_info.number_of_channels),
       sink_sample_type_(GetSinkAudioSampleType(audio_renderer_sink.get())),
       bytes_per_frame_(media::GetBytesPerSample(sink_sample_type_) * channels_),
@@ -83,10 +83,10 @@ AudioRenderer::AudioRenderer(scoped_ptr<AudioDecoder> decoder,
   SB_DLOG(INFO) << "Creating AudioRenderer with " << channels_ << " channels, "
                 << bytes_per_frame_ << " bytes per frame, "
                 << max_cached_frames_ << " max cached frames, and "
-                << max_frames_per_append_ << " max frames per append.";
+                << min_frames_per_append_ << " min frames per append.";
   SB_DCHECK(decoder_ != NULL);
-  SB_DCHECK(max_frames_per_append_ > 0);
-  SB_DCHECK(max_cached_frames_ >= max_frames_per_append_ * 2);
+  SB_DCHECK(min_frames_per_append_ > 0);
+  SB_DCHECK(max_cached_frames_ >= min_frames_per_append_ * 2);
 
   frame_buffers_[0] = &frame_buffer_[0];
 
@@ -100,7 +100,7 @@ AudioRenderer::~AudioRenderer() {
   SB_DLOG(INFO) << "Destroying AudioRenderer with " << channels_
                 << " channels, " << bytes_per_frame_ << " bytes per frame, "
                 << max_cached_frames_ << " max cached frames, and "
-                << max_frames_per_append_ << " max frames per append.";
+                << min_frames_per_append_ << " min frames per append.";
   SB_DCHECK(BelongsToCurrentThread());
 }
 
@@ -396,12 +396,9 @@ void AudioRenderer::GetSourceStatus(int* frames_in_buffer,
 
   if (*is_eos_reached && *frames_in_buffer < max_cached_frames_) {
     // Fill silence frames on EOS to ensure keep the audio sink playing.
-    auto silence_frames_to_write = std::min(
-        max_cached_frames_ - *frames_in_buffer, max_frames_per_append_);
     auto start_offset =
         (*offset_in_frames + *frames_in_buffer) % max_cached_frames_;
-    silence_frames_to_write =
-        std::min(silence_frames_to_write, max_cached_frames_ - start_offset);
+    auto silence_frames_to_write = max_cached_frames_ - start_offset;
     SB_DCHECK(start_offset >= 0);
     SB_DCHECK(silence_frames_to_write >= 0);
     SB_DCHECK(start_offset + silence_frames_to_write <= max_cached_frames_);
@@ -506,8 +503,8 @@ void AudioRenderer::OnFirstOutput(
   time_stretcher_.Initialize(kSbMediaAudioSampleTypeFloat32, channels_,
                              destination_sample_rate);
 
-  // Start play after have enough buffered frames to play 0.2s.
-  buffered_frames_to_start_ = destination_sample_rate * 0.2;
+  buffered_frames_to_start_ = std::min(
+      destination_sample_rate / 5, max_cached_frames_ - min_frames_per_append_);
 
   if (decoded_sample_rate != destination_sample_rate ||
       decoded_sample_type != sink_sample_type_ ||
@@ -683,15 +680,15 @@ bool AudioRenderer::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
   int frames_in_buffer = static_cast<int>(total_frames_sent_to_sink_ -
                                           total_frames_consumed_by_sink_);
 
-  if (max_cached_frames_ - frames_in_buffer < max_frames_per_append_) {
+  if (max_cached_frames_ - frames_in_buffer < min_frames_per_append_) {
     *is_frame_buffer_full = true;
     return false;
   }
 
   int offset_to_append = total_frames_sent_to_sink_ % max_cached_frames_;
 
-  scoped_refptr<DecodedAudio> decoded_audio =
-      time_stretcher_.Read(max_frames_per_append_, playback_rate_);
+  scoped_refptr<DecodedAudio> decoded_audio = time_stretcher_.Read(
+      max_cached_frames_ - frames_in_buffer, playback_rate_);
   SB_DCHECK(decoded_audio);
 
   {
