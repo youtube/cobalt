@@ -174,7 +174,7 @@ void AudioDevice::Impl::UpdateSourceStatus(int* frames_in_buffer,
   DCHECK_GE(frames_rendered_, frames_consumed_);
   *frames_in_buffer = static_cast<int>(frames_rendered_ - frames_consumed_);
 
-  if ((frames_per_channel_ - *frames_in_buffer) >= kRenderBufferSizeFrames) {
+  while ((frames_per_channel_ - *frames_in_buffer) >= kRenderBufferSizeFrames) {
     // If there was silence last time we were called, then the buffer has
     // already been zeroed out and we don't need to do it again.
     if (!was_silence_last_update_) {

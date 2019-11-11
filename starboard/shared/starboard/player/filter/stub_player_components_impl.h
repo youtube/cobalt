@@ -52,15 +52,6 @@ class StubPlayerComponentsImpl : public PlayerComponents {
                               video_render_algorithm, video_renderer_sink);
     return true;
   }
-
-  void GetAudioRendererParams(int* max_cached_frames,
-                              int* max_frames_per_append) const override {
-    SB_DCHECK(max_cached_frames);
-    SB_DCHECK(max_frames_per_append);
-
-    *max_cached_frames = 128 * 1024;
-    *max_frames_per_append = 16384;
-  }
 };
 
 }  // namespace filter

@@ -92,10 +92,6 @@ class PlayerComponents {
       scoped_refptr<VideoRendererSink>* video_renderer_sink,
       std::string* error_message) = 0;
 
-  // Check AudioRenderer ctor for more details on the parameters.
-  virtual void GetAudioRendererParams(int* max_cached_frames,
-                                      int* max_frames_per_append) const = 0;
-
  protected:
   PlayerComponents() {}
 
@@ -109,6 +105,11 @@ class PlayerComponents {
       scoped_ptr<VideoDecoder>* video_decoder,
       scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
       scoped_refptr<VideoRendererSink>* video_renderer_sink);
+
+  // Check AudioRenderer ctor for more details on the parameters.
+  void GetAudioRendererParams(const AudioParameters& audio_parameters,
+                              int* max_cached_frames,
+                              int* min_frames_per_append) const;
 
  private:
   SB_DISALLOW_COPY_AND_ASSIGN(PlayerComponents);

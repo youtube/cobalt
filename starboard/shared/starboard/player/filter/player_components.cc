@@ -52,12 +52,14 @@ scoped_ptr<AudioRenderer> PlayerComponents::CreateAudioRenderer(
   SB_DCHECK(audio_decoder);
   SB_DCHECK(audio_renderer_sink);
 
-  int max_cached_frames, max_frames_per_append;
-  GetAudioRendererParams(&max_cached_frames, &max_frames_per_append);
+  int max_cached_frames, min_frames_per_append;
+  GetAudioRendererParams(audio_parameters, &max_cached_frames,
+                         &min_frames_per_append);
+
   return make_scoped_ptr(
       new AudioRenderer(audio_decoder.Pass(), audio_renderer_sink.Pass(),
                         audio_parameters.audio_sample_info, max_cached_frames,
-                        max_frames_per_append));
+                        min_frames_per_append));
 }
 
 scoped_ptr<VideoRenderer> PlayerComponents::CreateVideoRenderer(
@@ -128,6 +130,30 @@ void PlayerComponents::CreateStubVideoComponents(
   video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
   *video_renderer_sink = new PunchoutVideoRendererSink(
       video_parameters.player, kVideoSinkRenderInterval);
+}
+
+void PlayerComponents::GetAudioRendererParams(
+    const AudioParameters& audio_parameters,
+    int* max_cached_frames,
+    int* min_frames_per_append) const {
+  SB_DCHECK(max_cached_frames);
+  SB_DCHECK(min_frames_per_append);
+
+#if SB_API_VERSION >= 11
+  *min_frames_per_append = 1024;
+  // AudioRenderer prefers to use kSbMediaAudioSampleTypeFloat32 and only uses
+  // kSbMediaAudioSampleTypeInt16Deprecated when float32 is not supported.
+  int min_frames_required = SbAudioSinkGetMinBufferSizeInFrames(
+      audio_parameters.audio_sample_info.number_of_channels,
+      SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)
+          ? kSbMediaAudioSampleTypeFloat32
+          : kSbMediaAudioSampleTypeInt16Deprecated,
+      audio_parameters.audio_sample_info.samples_per_second);
+  *max_cached_frames = min_frames_required + *min_frames_per_append * 2;
+#else   // SB_API_VERSION >= 11
+  *max_cached_frames = 8 * 1024;
+  *min_frames_per_append = 1024;
+#endif  // SB_API_VERSION >= 11
 }
 
 }  // namespace filter
