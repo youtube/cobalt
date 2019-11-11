@@ -148,24 +148,14 @@ ElementDriver* LookUpElementDriverOrReturnInvalidResponse(
 
 }  // namespace
 
-// static
-const char* WebDriverModule::GetDefaultListenIp() {
-#if SB_API_VERSION >= SB_IPV6_REQUIRED_VERSION
-  return SbSocketIsIpv6Supported() ? "::" : "0.0.0.0";
-#elif SB_HAS(IPV6)
-  return "::";
-#else
-  return "0.0.0.0";
-#endif
-}
-
 WebDriverModule::WebDriverModule(
     int server_port, const std::string& listen_ip,
     const CreateSessionDriverCB& create_session_driver_cb,
     const GetScreenshotFunction& get_screenshot_function,
     const SetProxyFunction& set_proxy_function,
     const base::Closure& shutdown_cb)
-    : webdriver_thread_("WebDriver thread"),
+    : listen_ip_(listen_ip),
+      webdriver_thread_("WebDriver thread"),
       create_session_driver_cb_(create_session_driver_cb),
       get_screenshot_function_(get_screenshot_function),
       set_proxy_function_(set_proxy_function),
@@ -608,8 +598,7 @@ void WebDriverModule::StartScreencast(
 
     int port = 3003;
     screencast_driver_module_.reset(new screencast::ScreencastModule(
-        port, webdriver::WebDriverModule::GetDefaultListenIp(),
-        get_screenshot_function_));
+        port, listen_ip_, get_screenshot_function_));
 
     CommandResult result =
         util::CommandResult<std::string>(std::to_string(port));

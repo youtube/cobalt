@@ -38,7 +38,7 @@ namespace remote {
 class DebugWebServer : public net::HttpServer::Delegate,
                        public DebugClient::Delegate {
  public:
-  DebugWebServer(int port,
+  DebugWebServer(int port, const std::string& listen_ip,
                  const CreateDebugClientCallback& create_debug_client_callback);
   ~DebugWebServer();
 
@@ -66,9 +66,7 @@ class DebugWebServer : public net::HttpServer::Delegate,
   void OnDebugClientDetach(const std::string& reason) override;
 
  private:
-  int GetLocalAddress(std::string* out) const;
-
-  void StartServer(int port);
+  void StartServer(int port, const std::string& listen_ip);
 
   void StopServer();
 

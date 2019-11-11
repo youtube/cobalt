@@ -86,6 +86,30 @@ bool IsStringNone(const std::string& str) {
   return !base::strcasecmp(str.c_str(), "none");
 }
 
+#if defined(ENABLE_WEBDRIVER) || defined(ENABLE_DEBUGGER)
+std::string GetDevServersListenIp() {
+  bool ip_v6;
+#if SB_API_VERSION >= SB_IPV6_REQUIRED_VERSION
+  ip_v6 = SbSocketIsIpv6Supported();
+#elif SB_HAS(IPV6)
+  ip_v6 = true;
+#else
+  ip_v6 = false;
+#endif
+  std::string listen_ip(ip_v6 ? "::" : "0.0.0.0");
+
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kDevServersListenIp)) {
+    listen_ip =
+        command_line->GetSwitchValueASCII(switches::kDevServersListenIp);
+  }
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
+
+  return listen_ip;
+}
+#endif  // defined(ENABLE_WEBDRIVER) || defined(ENABLE_DEBUGGER)
+
 #if defined(ENABLE_DEBUGGER)
 int GetRemoteDebuggingPort() {
 #if defined(SB_OVERRIDE_DEFAULT_REMOTE_DEBUGGING_PORT)
@@ -145,11 +169,13 @@ int GetWebDriverPort() {
 std::string GetWebDriverListenIp() {
   // The default IP on which the webdriver server should listen for incoming
   // connections.
-  std::string webdriver_listen_ip =
-      webdriver::WebDriverModule::GetDefaultListenIp();
+  std::string webdriver_listen_ip = GetDevServersListenIp();
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kWebDriverListenIp)) {
+    DLOG(WARNING) << "The \"--" << switches::kWebDriverListenIp
+                  << "\" switch is deprecated; please use \"--"
+                  << switches::kDevServersListenIp << "\" instead.";
     webdriver_listen_ip =
         command_line->GetSwitchValueASCII(switches::kWebDriverListenIp);
   }
@@ -739,7 +765,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
                << switches::kRemoteDebuggingPort << " is 0.";
   } else {
     debug_web_server_.reset(new debug::remote::DebugWebServer(
-        remote_debugging_port,
+        remote_debugging_port, GetDevServersListenIp(),
         base::Bind(&BrowserModule::CreateDebugClient,
                    base::Unretained(browser_module_.get()))));
   }

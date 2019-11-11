@@ -28,6 +28,8 @@
       '<@(filter_based_player_sources)',
       '<(DEPTH)/starboard/linux/shared/atomic_public.h',
       '<(DEPTH)/starboard/linux/shared/audio_sink_type_dispatcher.cc',
+      '<(DEPTH)/starboard/linux/shared/command_line_defaults.cc',
+      '<(DEPTH)/starboard/linux/shared/command_line_defaults.h',
       '<(DEPTH)/starboard/linux/shared/configuration_public.h',
       '<(DEPTH)/starboard/linux/shared/decode_target_get_info.cc',
       '<(DEPTH)/starboard/linux/shared/decode_target_internal.cc',
