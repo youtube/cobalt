@@ -160,6 +160,26 @@
 #define SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER_DEPRECATED_VERSION \
   SB_EXPERIMENTAL_API_VERSION
 
+// Introduce Starboard Application Binary Interface (SABI) files.
+//   SABI files are used to describe the configuration for targets such that two
+//   targets, built with the same SABI file and varying toolchains, have
+//   compatible Starboard APIs and ABIs.
+//
+//   With this define, we have:
+//     1) Moved architecture specific defines and configurations from
+//        configuration_public.h and *.gyp[i] files into SABI files.
+//     2) Included the appropriate SABI file in each platform configuration.
+//     3) Included the //starboard/sabi/sabi.gypi file in each platform
+//        configuration which consumes SABI file fields and defines a set of
+//        constants that are accessible when building.
+//     4) Provided a set of tests that ensure the toolchain being used produces
+//        an executable or shared library that conforms to the included SABI
+//        file.
+//
+//  For further information on what is provided by SABI files, or how these
+//  values are consumed, take a look at //starboard/sabi.
+#define SB_SABI_FILE_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
