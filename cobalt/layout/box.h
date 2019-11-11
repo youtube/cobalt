@@ -697,6 +697,7 @@ class Box : public base::RefCounted<Box> {
 
   base::Optional<LayoutUnit> collapsed_margin_top_;
   base::Optional<LayoutUnit> collapsed_margin_bottom_;
+  base::Optional<LayoutUnit> collapsed_empty_margin_;
 
  protected:
   UsedStyleProvider* used_style_provider() const {
