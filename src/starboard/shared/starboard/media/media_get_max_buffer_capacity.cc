@@ -18,8 +18,8 @@
 
 #if SB_API_VERSION >= 10
 // These are the legacy default values of the GYP variables.
-#define LEGACY_MAX_CAPACITY_1080P 36 * 1024 * 1024
-#define LEGACY_MAX_CAPACITY_4K 65 * 1024 * 1024
+#define LEGACY_MAX_CAPACITY_1080P 50 * 1024 * 1024
+#define LEGACY_MAX_CAPACITY_4K 140 * 1024 * 1024
 
 int SbMediaGetMaxBufferCapacity(SbMediaVideoCodec codec,
                                 int resolution_width,
