@@ -22,6 +22,11 @@
 #ifndef STARBOARD_LINUX_X64X11_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_LINUX_X64X11_CONFIGURATION_PUBLIC_H_
 
+#if SB_API_VERSION != SB_EXPERIMENTAL_API_VERSION
+#error \
+    "This platform's sabi.json file is expected to track the experimental Starboard API version."
+#endif  // SB_API_VERSION != SB_EXPERIMENTAL_API_VERSION
+
 // Configuration parameters that allow the application to make some general
 // compile-time decisions with respect to the the number of cores likely to be
 // available on this platform. For a definitive measure, the application should
