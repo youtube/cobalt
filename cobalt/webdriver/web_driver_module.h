@@ -50,10 +50,6 @@ class WebDriverModule {
   typedef Screenshot::GetScreenshotFunction GetScreenshotFunction;
   typedef base::Callback<void(const std::string&)> SetProxyFunction;
 
-  // Returns the default listen_ip. The default listen_ip means "any interface
-  // on the local machine" eg INADDR_ANY.
-  static const char* GetDefaultListenIp();
-
   WebDriverModule(int server_port, const std::string& listen_ip,
                   const CreateSessionDriverCB& create_session_driver_cb,
                   const GetScreenshotFunction& get_screenshot_function,
@@ -150,6 +146,9 @@ class WebDriverModule {
       const protocol::RequestedCapabilities& capabilities);
 
   THREAD_CHECKER(thread_checker_);
+
+  // The IP address of the interface WebDriver is listening to.
+  std::string listen_ip_;
 
   // All WebDriver operations including HTTP server will occur on this thread.
   base::Thread webdriver_thread_;

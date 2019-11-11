@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/browser/switches.h"
+
 #include <map>
 
 namespace cobalt {
@@ -27,13 +28,20 @@ const char kDebugConsoleMode[] = "debug_console";
 const char kDebugConsoleModeHelp[] =
     "Switches different debug console modes: on | hud | off";
 
+const char kDevServersListenIp[] = "dev_servers_listen_ip";
+const char kDevServersListenIpHelp[] =
+    "IP address of the interface that internal development servers (remote web "
+    "debugger and WebDriver) listen on. If unspecified, INADDR_ANY (on most "
+    "platforms). Tip: To listen to ANY interface use \"::\" (\"0.0.0.0\" for "
+    "IPv4), and to listen to LOOPBACK use \"::1\" (\"127.0.0.1\" for IPv4)";
+
 #if defined(ENABLE_DEBUGGER)
 const char kRemoteDebuggingPort[] = "remote_debugging_port";
 const char kRemoteDebuggingPortHelp[] =
     "Remote web debugger is served from the specified port. If 0, then the "
     "remote web debugger is disabled.";
 
-    const char kWaitForWebDebugger[] = "wait_for_web_debugger";
+const char kWaitForWebDebugger[] = "wait_for_web_debugger";
 const char kWaitForWebDebuggerHelp[] =
     "Waits for remote web debugger to connect before loading the page.  A "
     "number may optionally be specified to indicate which in a sequence of "
@@ -184,7 +192,8 @@ const char kUseTTSHelp[] =
 const char kWebDriverListenIp[] = "webdriver_listen_ip";
 const char kWebDriverListenIpHelp[] =
     "IP that the WebDriver server should be listening on. (INADDR_ANY if "
-    "unspecified).";
+    "unspecified). This is deprecated in favor of --dev_servers_listen_ip (if "
+    "both are specified, --webdriver_listen_ip is used).";
 
 const char kWebDriverPort[] = "webdriver_port";
 const char kWebDriverPortHelp[] =
@@ -391,8 +400,10 @@ std::string HelpMessage() {
   std::map<const char*, const char*> help_map {
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
     {kDebugConsoleMode, kDebugConsoleModeHelp},
+        {kDevServersListenIp, kDevServersListenIpHelp},
 #if defined(ENABLE_DEBUGGER)
         {kWaitForWebDebugger, kWaitForWebDebuggerHelp},
+        {kRemoteDebuggingPort, kRemoteDebuggingPortHelp},
 #endif  // ENABLE_DEBUGGER
         {kDisableImageAnimations, kDisableImageAnimationsHelp},
         {kForceDeterministicRendering, kForceDeterministicRenderingHelp},
@@ -408,7 +419,6 @@ std::string HelpMessage() {
         {kMinCompatibilityVersion, kMinCompatibilityVersionHelp},
         {kMinLogLevel, kMinLogLevelHelp}, {kNullSavegame, kNullSavegameHelp},
         {kDisablePartialLayout, kDisablePartialLayoutHelp}, {kProd, kProdHelp},
-        {kRemoteDebuggingPort, kRemoteDebuggingPortHelp},
         {kRequireCSP, kRequireCSPHelp},
         {kRequireHTTPSLocation, kRequireHTTPSLocationHelp},
         {kShutdownAfter, kShutdownAfterHelp},
