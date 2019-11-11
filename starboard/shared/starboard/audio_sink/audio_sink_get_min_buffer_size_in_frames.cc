@@ -32,6 +32,10 @@ int SbAudioSinkGetMinBufferSizeInFrames(int channels,
     SB_LOG(ERROR) << "Not support sample frequency " << sampling_frequency_hz;
     return -1;
   }
+  // Larger buffer size would have more latency when changing playback rate.
+  if (sampling_frequency_hz < 24000) {
+    return 4 * 1024;
+  }
 
   return 8 * 1024;
 }
