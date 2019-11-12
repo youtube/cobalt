@@ -18,6 +18,7 @@
 #include <memory>
 
 #include "cobalt/cssom/computed_style.h"
+#include "cobalt/cssom/computed_style_utils.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/layout/anonymous_block_box.h"
 #include "cobalt/layout/block_formatting_context.h"
@@ -63,10 +64,11 @@ std::unique_ptr<FormattingContext>
 BlockFormattingBlockContainerBox::UpdateRectOfInFlowChildBoxes(
     const LayoutParams& child_layout_params) {
   // Only collapse in-flow, block-level boxes. Do not collapse root element and
-  // the initial containing block.
-  bool is_collapsable = !IsAbsolutelyPositioned() &&
-                        GetLevel() == Box::kBlockLevel && parent() &&
-                        parent()->parent();
+  // the initial containing block. Do not collapse boxes with overflow not equal
+  // to 'visible', because these create new formatting contexts.
+  bool is_collapsable =
+      !IsAbsolutelyPositioned() && GetLevel() == Box::kBlockLevel && parent() &&
+      parent()->parent() && !IsOverflowCropped(computed_style());
 
   // Margins should only collapse if no padding or border separate them.
   //   https://www.w3.org/TR/CSS22/box.html#collapsing-margins
