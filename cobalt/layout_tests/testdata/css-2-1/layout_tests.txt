@@ -110,6 +110,7 @@
 18-4-outline-animation
 18-4-outline-overflow-hidden
 8-1-margin-should-be-transparent
+8-3-1-box-with-cropped-overflow-should-form-collapsed-margin-with-parent-but-not-child
 8-3-1-box-with-in-flow-child-should-not-form-collapsed-margin
 8-3-1-box-with-inline-child-should-not-form-collapsed-margin
 8-3-1-box-with-min-height-should-not-form-collapsed-margin
