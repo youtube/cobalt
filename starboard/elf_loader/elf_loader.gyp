@@ -98,6 +98,17 @@
       ],
     },
     {
+      'target_name': 'elf_loader_sandbox_deploy',
+      'type': 'none',
+      'dependencies': [
+        'elf_loader_sandbox',
+      ],
+      'variables': {
+        'executable_name': 'elf_loader_sandbox',
+      },
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
+    },
+    {
       # To properly function the system loader requires the starboard
       # symbols to be exported from the binary.
       # To allow symbols to be exported remove the '-fvisibility=hidden' flag

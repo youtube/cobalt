@@ -50,6 +50,8 @@ class EvergreenConfiguration(platform_configuration.PlatformConfiguration):
         'javascript_engine': 'v8',
         'cobalt_enable_jit': 1,
         'cobalt_repo_root': paths.REPOSITORY_ROOT,
+        'include_path_platform_deploy_gypi':
+            'starboard/evergreen/shared/platform_deploy.gypi',
     })
     return variables
 
