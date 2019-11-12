@@ -80,11 +80,8 @@ MediaStreamAudioSource::MediaStreamAudioSource()
 
 void MediaStreamAudioSource::DoStopSource() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  is_stopped_ = true;
-
-  // This function might result in the destruction of this object, so be
-  // careful not to reference members after this call.
   EnsureSourceIsStopped();
+  is_stopped_ = true;
 }
 
 void MediaStreamAudioSource::StopAudioDeliveryTo(MediaStreamAudioTrack* track) {

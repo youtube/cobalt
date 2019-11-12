@@ -76,7 +76,6 @@ MediaDevices::MediaDevices(script::EnvironmentSettings* settings,
 
 script::Handle<MediaDevices::MediaInfoSequencePromise>
 MediaDevices::EnumerateDevices() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(settings_);
   DCHECK(script_value_factory_);
   script::Handle<MediaInfoSequencePromise> promise =
@@ -95,7 +94,6 @@ MediaDevices::EnumerateDevices() {
 }
 
 script::Handle<MediaDevices::MediaStreamPromise> MediaDevices::GetUserMedia() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(script_value_factory_);
   script::Handle<MediaDevices::MediaStreamPromise> promise =
       script_value_factory_->CreateInterfacePromise<
@@ -113,7 +111,6 @@ script::Handle<MediaDevices::MediaStreamPromise> MediaDevices::GetUserMedia() {
 
 script::Handle<MediaDevices::MediaStreamPromise> MediaDevices::GetUserMedia(
     const media_stream::MediaStreamConstraints& constraints) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   script::Handle<MediaDevices::MediaStreamPromise> promise =
       script_value_factory_->CreateInterfacePromise<
           script::ScriptValueFactory::WrappablePromise>();
@@ -140,8 +137,6 @@ script::Handle<MediaDevices::MediaStreamPromise> MediaDevices::GetUserMedia(
         base::Bind(&MediaDevices::OnMicrophoneSuccess, weak_this_),
         base::Closure(),  // TODO: remove this redundant callback.
         base::Bind(&MediaDevices::OnMicrophoneError, weak_this_));
-    audio_source_->SetStopCallback(
-        base::Bind(&MediaDevices::OnMicrophoneStopped, weak_this_));
   }
 
   std::unique_ptr<MediaStreamPromiseValue::Reference> promise_reference(
@@ -155,6 +150,8 @@ script::Handle<MediaDevices::MediaStreamPromise> MediaDevices::GetUserMedia(
     audio_source_->ConnectToTrack(
         base::polymorphic_downcast<media_stream::MediaStreamAudioTrack*>(
             pending_microphone_track_.get()));
+    audio_source_->SetStopCallback(
+        base::Bind(&MediaDevices::OnMicrophoneStopped, weak_this_));
   }
 
   // Step 10, return promise.
@@ -163,11 +160,24 @@ script::Handle<MediaDevices::MediaStreamPromise> MediaDevices::GetUserMedia(
 
 void MediaDevices::OnMicrophoneError(
     speech::MicrophoneManager::MicrophoneError error, std::string message) {
-  DLOG(INFO) << "MediaDevices::OnMicrophoneError " << message;
+  if (javascript_message_loop_->task_runner() !=
+      base::MessageLoop::current()->task_runner()) {
+    javascript_message_loop_->task_runner()->PostTask(
+        FROM_HERE, base::Bind(&MediaDevices::OnMicrophoneError, weak_this_,
+                              error, message));
+    return;
+  }
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  // No special error handling logic besides logging the message above, so just
-  // delegate to the OnMicrophoneStopped() functionality.
-  OnMicrophoneStopped();
+  DLOG(INFO) << "MediaDevices::OnMicrophoneError " << message;
+  pending_microphone_track_ = nullptr;
+  audio_source_ = nullptr;
+
+  for (auto& promise : pending_microphone_promises_) {
+    promise->value().Reject(
+        new dom::DOMException(dom::DOMException::kNotAllowedErr));
+  }
+  pending_microphone_promises_.clear();
 }
 
 void MediaDevices::OnMicrophoneStopped() {
@@ -179,9 +189,8 @@ void MediaDevices::OnMicrophoneStopped() {
   }
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  DLOG(INFO) << "MediaDevices::OnMicrophoneStopped()";
-  pending_microphone_track_ = nullptr;
   audio_source_ = nullptr;
+  pending_microphone_track_ = nullptr;
 
   for (auto& promise : pending_microphone_promises_) {
     promise->value().Reject(
