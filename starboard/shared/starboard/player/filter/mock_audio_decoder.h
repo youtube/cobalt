@@ -37,10 +37,10 @@ class MockAudioDecoder : public AudioDecoder {
  public:
   MockAudioDecoder(SbMediaAudioSampleType sample_type,
                    SbMediaAudioFrameStorageType storage_type,
-                   int sample_per_second)
+                   int samples_per_second)
       : sample_type_(sample_type),
         storage_type_(storage_type),
-        samples_per_second_(sample_per_second) {}
+        samples_per_second_(samples_per_second) {}
 
   MOCK_METHOD2(Initialize, void(const OutputCB&, const ErrorCB&));
   MOCK_METHOD2(Decode,
