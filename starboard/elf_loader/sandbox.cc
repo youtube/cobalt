@@ -42,21 +42,23 @@ void SbEventHandle(const SbEvent* event) {
         if (library_path.empty()) {
           SB_LOG(ERROR) << "Library must be specified with --"
                         << starboard::elf_loader::kEvergreenLibrary
-                        << "=/path/to/library.";
+                        << "=path/to/library/relative/to/loader/content.";
           return;
         }
         if (content_path.empty()) {
           SB_LOG(ERROR) << "Content must be specified with --"
                         << starboard::elf_loader::kEvergreenContent
-                        << "=/path/to/content/directory.";
+                        << "=path/to/content/relative/to/loader/content.";
           return;
         }
         if (!g_elf_loader.Load(library_path, content_path)) {
-          SB_LOG(INFO) << "Failed to load library at '" << library_path << "'.";
-          return;
+          SB_LOG(INFO) << "Failed to load library at '"
+                       << g_elf_loader.GetLibraryPath() << "'.";
+          SB_NOTREACHED();
         }
 
-        SB_LOG(INFO) << "Successfully loaded '" << library_path << "'.";
+        SB_LOG(INFO) << "Successfully loaded '" << g_elf_loader.GetLibraryPath()
+                     << "'.";
 
         g_sb_event_func = reinterpret_cast<void (*)(const SbEvent*)>(
             g_elf_loader.LookupSymbol("SbEventHandle"));

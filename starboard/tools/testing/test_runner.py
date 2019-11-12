@@ -42,6 +42,13 @@ _TESTS_PASSED_REGEX = re.compile(r"^\[  PASSED  \] (.*) tests?")
 _TESTS_FAILED_REGEX = re.compile(r"^\[  FAILED  \] (.*) tests?, listed below:")
 _SINGLE_TEST_FAILED_REGEX = re.compile(r"^\[  FAILED  \] (.*)")
 
+_LOADER_TARGET = "elf_loader_sandbox"
+
+
+def _EnsureBuildDirectoryExists(path):
+  if not os.path.exists(path):
+    raise ValueError("'{}' does not exist.".format(path))
+
 
 def _FilterTests(target_list, filters, config_name):
   """Returns a Mapping of test targets -> filtered tests."""
@@ -198,6 +205,8 @@ class TestRunner(object):
   def __init__(self,
                platform,
                config,
+               loader_platform,
+               loader_config,
                device_id,
                specified_targets,
                target_params,
@@ -209,6 +218,8 @@ class TestRunner(object):
                log_xml_results=False):
     self.platform = platform
     self.config = config
+    self.loader_platform = loader_platform
+    self.loader_config = loader_config
     self.device_id = device_id
     self.target_params = target_params
     self.out_directory = out_directory
@@ -216,8 +227,15 @@ class TestRunner(object):
       self.out_directory = paths.BuildOutputDirectory(self.platform,
                                                       self.config)
     self.coverage_directory = os.path.join(self.out_directory, "coverage")
+    if self.loader_platform:
+      self.loader_out_directory = paths.BuildOutputDirectory(
+          self.loader_platform, self.loader_config)
+    else:
+      self.loader_out_directory = None
 
     self._platform_config = build.GetPlatformConfig(platform)
+    if self.loader_platform:
+      self._loader_platform_config = build.GetPlatformConfig(loader_platform)
     self._app_config = self._platform_config.GetApplicationConfiguration(
         application_name)
     self.dry_run = dry_run
@@ -225,7 +243,13 @@ class TestRunner(object):
     self.log_xml_results = log_xml_results
     self.threads = []
 
+    _EnsureBuildDirectoryExists(self.out_directory)
     _VerifyConfig(self._platform_config)
+
+    if self.loader_platform:
+      _EnsureBuildDirectoryExists(self.loader_out_directory)
+      _VerifyConfig(self._loader_platform_config)
+
     _VerifyConfig(self._app_config)
 
     # If a particular test binary has been provided, configure only that one.
@@ -390,7 +414,10 @@ class TestRunner(object):
         output_file=write_pipe,
         out_directory=self.out_directory,
         coverage_directory=self.coverage_directory,
-        env_variables=env)
+        env_variables=env,
+        loader_platform=self.loader_platform,
+        loader_config=self.loader_config,
+        loader_out_directory=self.loader_out_directory)
 
     test_reader = TestLineReader(read_pipe)
     test_launcher = TestLauncher(launcher)
@@ -646,7 +673,7 @@ class TestRunner(object):
 
     return result
 
-  def BuildAllTests(self, ninja_flags):
+  def BuildAllTargets(self, ninja_flags):
     """Runs build step for all specified unit test binaries.
 
     Args:
@@ -663,6 +690,11 @@ class TestRunner(object):
       else:
         extra_flags = []
 
+      # The loader is not built with the same platform configuration as our
+      # tests so we need to build it separately.
+      if self.loader_platform:
+        build_tests.BuildTargets([_LOADER_TARGET], self.loader_out_directory,
+                                 self.dry_run, extra_flags)
       build_tests.BuildTargets(self.test_targets, self.out_directory,
                                self.dry_run, extra_flags)
 
@@ -781,13 +813,20 @@ def main():
       " complete. --xml_output_dir will be ignored.")
   args = arg_parser.parse_args()
 
+  if (args.loader_platform and not args.loader_config or
+      args.loader_config and not args.loader_platform):
+    arg_parser.error(
+        "You must specify both --loader_platform and --loader_config.")
+    return 1
+
   # Extra arguments for the test target
   target_params = []
   if args.target_params:
     target_params = args.target_params.split(" ")
 
-  runner = TestRunner(args.platform, args.config, args.device_id,
-                      args.target_name, target_params, args.out_directory,
+  runner = TestRunner(args.platform, args.config, args.loader_platform,
+                      args.loader_config, args.device_id, args.target_name,
+                      target_params, args.out_directory,
                       args.platform_tests_only, args.application_name,
                       args.dry_run, args.xml_output_dir, args.log_xml_results)
 
@@ -811,7 +850,7 @@ def main():
     sys.stderr.write("=== Dry run ===\n")
 
   if args.build:
-    build_success = runner.BuildAllTests(args.ninja_flags)
+    build_success = runner.BuildAllTargets(args.ninja_flags)
     # If the build fails, don't try to run the tests.
     if not build_success:
       return 1

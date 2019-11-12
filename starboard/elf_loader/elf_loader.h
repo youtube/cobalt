@@ -47,6 +47,10 @@ class ElfLoader {
   const std::string& GetContentPath() const { return content_path_; }
 
  private:
+  // Adjusts |path| to be relative to the content directory of the ELF Loader.
+  // Returns an empty string on error.
+  std::string MakeRelativeToContentPath(const std::string& path);
+
   // The paths to the loaded shared library and it's content.
   std::string library_path_;
   std::string content_path_;
