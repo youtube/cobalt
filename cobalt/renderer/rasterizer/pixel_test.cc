@@ -574,6 +574,19 @@ TEST_F(PixelTest,
   TestTree(new CompositionNode(std::move(builder)));
 }
 
+TEST_F(PixelTest, ScaledSingleRGBAImageWithAlphaFormatOpaqueAndRoundedCorners) {
+  scoped_refptr<Image> image = CreateColoredCheckersImageForAlphaFormat(
+      GetResourceProvider(), SizeF(150, 150),
+      render_tree::kAlphaFormatOpaque);
+
+  TestTree(new FilterNode(
+      ViewportFilter(RectF(20, 20, 160, 160), RoundedCorners(10, 10)),
+      new ImageNode(image, RectF(160, 160),
+                    Matrix3F::FromValues(1.1f, 0.0f, 0.0f,
+                                         0.0f, 1.0f, 0.0f,
+                                         0.0f, 0.0f, 1.0f))));
+}
+
 TEST_F(PixelTest, RectWithRoundedCornersOnSolidColor) {
   CompositionNode::Builder builder;
   builder.AddChild(new RectNode(RectF(output_surface_size()),
