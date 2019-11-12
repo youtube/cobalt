@@ -222,15 +222,9 @@ class InstallationStore : public ::google::protobuf::MessageLite {
   const ::google::protobuf::RepeatedPtrField< ::cobalt::loader::Installation >&
       installations() const;
 
-  // optional int32 num_installations = 2;
-  void clear_num_installations();
-  static const int kNumInstallationsFieldNumber = 2;
-  ::google::protobuf::int32 num_installations() const;
-  void set_num_installations(::google::protobuf::int32 value);
-
-  // optional int32 roll_forward_to_installation = 3;
+  // optional int32 roll_forward_to_installation = 2;
   void clear_roll_forward_to_installation();
-  static const int kRollForwardToInstallationFieldNumber = 3;
+  static const int kRollForwardToInstallationFieldNumber = 2;
   ::google::protobuf::int32 roll_forward_to_installation() const;
   void set_roll_forward_to_installation(::google::protobuf::int32 value);
 
@@ -242,7 +236,6 @@ class InstallationStore : public ::google::protobuf::MessageLite {
 
   bool _is_default_instance_;
   ::google::protobuf::RepeatedPtrField< ::cobalt::loader::Installation > installations_;
-  ::google::protobuf::int32 num_installations_;
   ::google::protobuf::int32 roll_forward_to_installation_;
   mutable int _cached_size_;
   #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
@@ -340,21 +333,7 @@ InstallationStore::installations() const {
   return installations_;
 }
 
-// optional int32 num_installations = 2;
-inline void InstallationStore::clear_num_installations() {
-  num_installations_ = 0;
-}
-inline ::google::protobuf::int32 InstallationStore::num_installations() const {
-  // @@protoc_insertion_point(field_get:cobalt.loader.InstallationStore.num_installations)
-  return num_installations_;
-}
-inline void InstallationStore::set_num_installations(::google::protobuf::int32 value) {
-  
-  num_installations_ = value;
-  // @@protoc_insertion_point(field_set:cobalt.loader.InstallationStore.num_installations)
-}
-
-// optional int32 roll_forward_to_installation = 3;
+// optional int32 roll_forward_to_installation = 2;
 inline void InstallationStore::clear_roll_forward_to_installation() {
   roll_forward_to_installation_ = 0;
 }
