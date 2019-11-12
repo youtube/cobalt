@@ -378,6 +378,8 @@ class TestRunner(object):
       test_params.append("--gtest_output=xml:%s" % (xml_output_path))
 
     test_params.extend(self.target_params)
+    if self.dry_run:
+      test_params.extend(["--gtest_list_tests"])
 
     launcher = abstract_launcher.LauncherFactory(
         self.platform,
@@ -405,30 +407,22 @@ class TestRunner(object):
     sys.stdout.write("Starting {}{}{}".format(
         test_name if test_name else target_name, dump_params, dump_env))
 
-    if self.dry_run:
-      # Output a newline before running the test target / case.
-      sys.stdout.write("\n")
+    # Output a newline before running the test target / case.
+    sys.stdout.write("\n")
 
-      if test_params:
-        sys.stdout.write(" {}\n".format(test_params))
-      write_pipe.close()
-      read_pipe.close()
+    if test_params:
+      sys.stdout.write(" {}\n".format(test_params))
+    test_reader.Start()
+    test_launcher.Start()
 
-    else:
-      # Output a newline before running the test target / case.
-      sys.stdout.write("\n")
+    # Wait for the launcher to exit then close the write pipe, which will
+    # cause the reader to exit.
+    test_launcher.Join()
+    write_pipe.close()
 
-      test_reader.Start()
-      test_launcher.Start()
-
-      # Wait for the launcher to exit then close the write pipe, which will
-      # cause the reader to exit.
-      test_launcher.Join()
-      write_pipe.close()
-
-      # Only after closing the write pipe, wait for the reader to exit.
-      test_reader.Join()
-      read_pipe.close()
+    # Only after closing the write pipe, wait for the reader to exit.
+    test_reader.Join()
+    read_pipe.close()
 
     output = test_reader.GetLines()
 
