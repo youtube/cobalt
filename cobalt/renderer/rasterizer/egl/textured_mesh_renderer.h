@@ -134,7 +134,8 @@ class TexturedMeshRenderer {
                                      uint32 blit_fragment_shader);
 
   static uint32 CreateFragmentShader(uint32 texture_target,
-                                     const std::vector<TextureInfo>& textures);
+                                     const std::vector<TextureInfo>& textures,
+                                     const float* color_matrix);
   static uint32 CreateVertexShader(const std::vector<TextureInfo>& textures);
 
   // UYVY textures need a special fragment shader to handle the unique aspect
