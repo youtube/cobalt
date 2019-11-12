@@ -20,7 +20,7 @@
 #include "starboard/common/recursive_mutex.h"
 #include "starboard/shared/blittergles/blitter_internal.h"
 
-SB_EXPORT bool SbBlitterDestroySwapChain(SbBlitterSwapChain swap_chain) {
+bool SbBlitterDestroySwapChain(SbBlitterSwapChain swap_chain) {
   if (!SbBlitterIsSwapChainValid(swap_chain)) {
     SB_DLOG(ERROR) << ": Invalid swap chain.";
     return false;

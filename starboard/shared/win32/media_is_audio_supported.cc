@@ -17,8 +17,7 @@
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 
-SB_EXPORT bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
-                                       int64_t bitrate) {
+bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec, int64_t bitrate) {
   // TODO: Add Opus.
   if (audio_codec != kSbMediaAudioCodecAac) {
     return false;

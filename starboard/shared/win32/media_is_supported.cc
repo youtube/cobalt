@@ -17,9 +17,9 @@
 #include "starboard/media.h"
 #include "starboard/shared/win32/drm_system_playready.h"
 
-SB_EXPORT bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
-                                  SbMediaAudioCodec audio_codec,
-                                  const char* key_system) {
+bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
+                        SbMediaAudioCodec audio_codec,
+                        const char* key_system) {
   using ::starboard::shared::win32::DrmSystemPlayready;
 
   SB_UNREFERENCED_PARAMETER(video_codec);
