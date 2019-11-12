@@ -99,7 +99,9 @@ class WebDriverServer : public net::HttpServer::Delegate {
 
   void OnWebSocketMessage(int, const std::string&) override {}
 
-  void OnClose(int) override {}  // NOLINT(readability/casting)
+  void OnClose(int) override {
+    LOG(INFO) << "Closing WebDriver server";
+  }  // NOLINT(readability/casting)
 
  private:
   int GetLocalAddress(GURL* out) const;
