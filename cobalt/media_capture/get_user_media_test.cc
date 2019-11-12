@@ -126,5 +126,27 @@ TEST_F(GetUserMediaTest, MicrophoneSuccessFulfilledPromise) {
             media_stream_promise->State());
 }
 
+TEST_F(GetUserMediaTest, MultipleMicrophoneSuccessFulfilledPromise) {
+  media_stream::MediaStreamConstraints constraints;
+  constraints.set_audio(true);
+  std::vector<script::Handle<MediaDevices::MediaStreamPromise>>
+      media_stream_promises;
+
+  for (size_t i = 0; i < 2; ++i) {
+    media_stream_promises.push_back(media_devices_->GetUserMedia(constraints));
+    ASSERT_FALSE(media_stream_promises.back().IsEmpty());
+    EXPECT_EQ(cobalt::script::PromiseState::kPending,
+              media_stream_promises.back()->State());
+    media_devices_->OnMicrophoneSuccess();
+  }
+
+  media_devices_->audio_source_->StopSource();
+
+  for (size_t i = 0; i < media_stream_promises.size(); ++i) {
+    EXPECT_EQ(cobalt::script::PromiseState::kFulfilled,
+              media_stream_promises[i]->State());
+  }
+}
+
 }  // namespace media_capture
 }  // namespace cobalt
