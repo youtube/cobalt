@@ -18,7 +18,7 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/directfb/blitter_internal.h"
 
-SB_EXPORT bool SbBlitterDestroySwapChain(SbBlitterSwapChain swap_chain) {
+bool SbBlitterDestroySwapChain(SbBlitterSwapChain swap_chain) {
   if (!SbBlitterIsSwapChainValid(swap_chain)) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Invalid swap chain.";
     return false;
