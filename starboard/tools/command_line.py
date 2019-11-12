@@ -32,20 +32,18 @@ def CreateParser():
   arg_parser = CreatePlatformConfigParser(
       description='Runs application/tool executables.')
   arg_parser.add_argument(
-      '-d',
-      '--device_id',
-      help='Devkit or IP address for the target device.')
+      '-d', '--device_id', help='Devkit or IP address for the target device.')
   arg_parser.add_argument(
       '--target_params',
       help='Command line arguments to pass to the executable.'
-           ' Because different executables could have differing command'
-           ' line syntax, list all arguments exactly as you would to the'
-           ' executable between a set of double quotation marks.')
+      ' Because different executables could have differing command'
+      ' line syntax, list all arguments exactly as you would to the'
+      ' executable between a set of double quotation marks.')
   arg_parser.add_argument(
       '-o',
       '--out_directory',
       help='Directory containing tool binaries or their components.'
-           ' Automatically derived if absent.')
+      ' Automatically derived if absent.')
   return arg_parser
 
 
@@ -53,8 +51,8 @@ def CreatePlatformConfigParser(description=None, **kwargs):
   """An arg parser suitable for building.
 
   Args:
-    description: Description passed onto argument parser, if none then a
-        default is assigned.
+    description: Description passed onto argument parser, if none then a default
+      is assigned.
     **kwargs: are constructor arguments for the argparser.
 
   Returns:
@@ -70,7 +68,8 @@ def CreatePlatformConfigParser(description=None, **kwargs):
       choices=starboard.tools.platform.GetAll(),
       default=default_platform,
       required=not default_platform,
-      help="Device platform, eg 'linux-x64x11'.")
+      help="Device platform, eg 'linux-x64x11'. Requires that you have "
+      'already run gyp_cobalt for the desired platform.')
   arg_parser.add_argument(
       '-c',
       '--config',
@@ -78,4 +77,18 @@ def CreatePlatformConfigParser(description=None, **kwargs):
       default=default_config,
       required=not default_config,
       help="Build config (eg, 'qa' or 'devel')")
+  arg_parser.add_argument(
+      '-P',
+      '--loader_platform',
+      help='Specifies the platform to build the loader with. This flag is only '
+      'relevant for Evergreen builds, and should be the platform you intend to '
+      "run your tests on (eg 'linux-x64x11', or 'raspi-2'). Requires that "
+      '--loader_config be given, and that you have already run gyp_cobalt for '
+      'the desired loader platform.')
+  arg_parser.add_argument(
+      '-C',
+      '--loader_config',
+      help="Specifies the config to build the loader with (eg 'qa' or 'devel'). This flag is only "
+      'relevant for Evergreen builds, and requires that --loader_platform be '
+      'given.')
   return arg_parser

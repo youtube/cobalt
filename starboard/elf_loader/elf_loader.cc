@@ -55,10 +55,11 @@ ElfLoader* ElfLoader::Get() {
 
 bool ElfLoader::Load(const std::string& library_path,
                      const std::string& content_path) {
-  library_path_ = library_path;
-  content_path_ = content_path;
+  library_path_ = MakeRelativeToContentPath(library_path);
+  content_path_ = MakeRelativeToContentPath(content_path);
 
-  if (library_path.empty() || content_path.empty()) {
+  if (library_path_.empty() || content_path_.empty()) {
+    SB_LOG(ERROR) << "|library_path_| and |content_path_| cannot be empty.";
     return false;
   }
   return impl_->Load(library_path_.c_str());
@@ -66,6 +67,24 @@ bool ElfLoader::Load(const std::string& library_path,
 
 void* ElfLoader::LookupSymbol(const char* symbol) {
   return impl_->LookupSymbol(symbol);
+}
+
+std::string ElfLoader::MakeRelativeToContentPath(const std::string& path) {
+  char content_path[SB_FILE_MAX_PATH];
+
+  if (!SbSystemGetPath(kSbSystemPathContentDirectory, content_path,
+                       SB_FILE_MAX_PATH)) {
+    SB_LOG(ERROR) << "Failed to make '" << path << "' relative to the ELF "
+                  << "Loader content directory.";
+    return "";
+  }
+
+  std::string relative_path(content_path);
+
+  relative_path.push_back(SB_FILE_SEP_CHAR);
+  relative_path.append(path);
+
+  return relative_path;
 }
 
 }  // namespace elf_loader
