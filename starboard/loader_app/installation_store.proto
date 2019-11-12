@@ -37,11 +37,8 @@ message InstallationStore {
   // All the installation slots.
   repeated Installation installations = 1;
 
-  // The number of installation slots supported by the deployment.
-  int32 num_installations = 2;
-
   // To which installation to roll forward to.
   // The value of -1 means no change is needed.
   // The updater sets the value and the loader performs the action.
-  int32 roll_forward_to_installation = 3;
+  int32 roll_forward_to_installation = 2;
 }

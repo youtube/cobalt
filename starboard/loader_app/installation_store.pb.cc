@@ -387,7 +387,6 @@ void Installation::clear_priority() {
 
 #if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int InstallationStore::kInstallationsFieldNumber;
-const int InstallationStore::kNumInstallationsFieldNumber;
 const int InstallationStore::kRollForwardToInstallationFieldNumber;
 #endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
@@ -412,7 +411,6 @@ InstallationStore::InstallationStore(const InstallationStore& from)
 void InstallationStore::SharedCtor() {
     _is_default_instance_ = false;
   _cached_size_ = 0;
-  num_installations_ = 0;
   roll_forward_to_installation_ = 0;
 }
 
@@ -456,27 +454,7 @@ InstallationStore* InstallationStore::New(::google::protobuf::Arena* arena) cons
 
 void InstallationStore::Clear() {
 // @@protoc_insertion_point(message_clear_start:cobalt.loader.InstallationStore)
-#if defined(__clang__)
-#define ZR_HELPER_(f) \
-  _Pragma("clang diagnostic push") \
-  _Pragma("clang diagnostic ignored \"-Winvalid-offsetof\"") \
-  __builtin_offsetof(InstallationStore, f) \
-  _Pragma("clang diagnostic pop")
-#else
-#define ZR_HELPER_(f) reinterpret_cast<char*>(\
-  &reinterpret_cast<InstallationStore*>(16)->f)
-#endif
-
-#define ZR_(first, last) do {\
-  ::memset(&first, 0,\
-           ZR_HELPER_(last) - ZR_HELPER_(first) + sizeof(last));\
-} while (0)
-
-  ZR_(num_installations_, roll_forward_to_installation_);
-
-#undef ZR_HELPER_
-#undef ZR_
-
+  roll_forward_to_installation_ = 0;
   installations_.Clear();
 }
 
@@ -502,28 +480,13 @@ bool InstallationStore::MergePartialFromCodedStream(
         }
         if (input->ExpectTag(10)) goto parse_loop_installations;
         input->UnsafeDecrementRecursionDepth();
-        if (input->ExpectTag(16)) goto parse_num_installations;
+        if (input->ExpectTag(16)) goto parse_roll_forward_to_installation;
         break;
       }
 
-      // optional int32 num_installations = 2;
+      // optional int32 roll_forward_to_installation = 2;
       case 2: {
         if (tag == 16) {
-         parse_num_installations:
-          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_INT32>(
-                 input, &num_installations_)));
-
-        } else {
-          goto handle_unusual;
-        }
-        if (input->ExpectTag(24)) goto parse_roll_forward_to_installation;
-        break;
-      }
-
-      // optional int32 roll_forward_to_installation = 3;
-      case 3: {
-        if (tag == 24) {
          parse_roll_forward_to_installation:
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_INT32>(
@@ -566,14 +529,9 @@ void InstallationStore::SerializeWithCachedSizes(
       1, this->installations(i), output);
   }
 
-  // optional int32 num_installations = 2;
-  if (this->num_installations() != 0) {
-    ::google::protobuf::internal::WireFormatLite::WriteInt32(2, this->num_installations(), output);
-  }
-
-  // optional int32 roll_forward_to_installation = 3;
+  // optional int32 roll_forward_to_installation = 2;
   if (this->roll_forward_to_installation() != 0) {
-    ::google::protobuf::internal::WireFormatLite::WriteInt32(3, this->roll_forward_to_installation(), output);
+    ::google::protobuf::internal::WireFormatLite::WriteInt32(2, this->roll_forward_to_installation(), output);
   }
 
   // @@protoc_insertion_point(serialize_end:cobalt.loader.InstallationStore)
@@ -583,14 +541,7 @@ int InstallationStore::ByteSize() const {
 // @@protoc_insertion_point(message_byte_size_start:cobalt.loader.InstallationStore)
   int total_size = 0;
 
-  // optional int32 num_installations = 2;
-  if (this->num_installations() != 0) {
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::Int32Size(
-        this->num_installations());
-  }
-
-  // optional int32 roll_forward_to_installation = 3;
+  // optional int32 roll_forward_to_installation = 2;
   if (this->roll_forward_to_installation() != 0) {
     total_size += 1 +
       ::google::protobuf::internal::WireFormatLite::Int32Size(
@@ -620,9 +571,6 @@ void InstallationStore::MergeFrom(const InstallationStore& from) {
 // @@protoc_insertion_point(class_specific_merge_from_start:cobalt.loader.InstallationStore)
   if (GOOGLE_PREDICT_FALSE(&from == this)) MergeFromFail(__LINE__);
   installations_.MergeFrom(from.installations_);
-  if (from.num_installations() != 0) {
-    set_num_installations(from.num_installations());
-  }
   if (from.roll_forward_to_installation() != 0) {
     set_roll_forward_to_installation(from.roll_forward_to_installation());
   }
@@ -646,7 +594,6 @@ void InstallationStore::Swap(InstallationStore* other) {
 }
 void InstallationStore::InternalSwap(InstallationStore* other) {
   installations_.UnsafeArenaSwap(&other->installations_);
-  std::swap(num_installations_, other->num_installations_);
   std::swap(roll_forward_to_installation_, other->roll_forward_to_installation_);
   _unknown_fields_.Swap(&other->_unknown_fields_);
   std::swap(_cached_size_, other->_cached_size_);
@@ -689,21 +636,7 @@ InstallationStore::installations() const {
   return installations_;
 }
 
-// optional int32 num_installations = 2;
-void InstallationStore::clear_num_installations() {
-  num_installations_ = 0;
-}
- ::google::protobuf::int32 InstallationStore::num_installations() const {
-  // @@protoc_insertion_point(field_get:cobalt.loader.InstallationStore.num_installations)
-  return num_installations_;
-}
- void InstallationStore::set_num_installations(::google::protobuf::int32 value) {
-  
-  num_installations_ = value;
-  // @@protoc_insertion_point(field_set:cobalt.loader.InstallationStore.num_installations)
-}
-
-// optional int32 roll_forward_to_installation = 3;
+// optional int32 roll_forward_to_installation = 2;
 void InstallationStore::clear_roll_forward_to_installation() {
   roll_forward_to_installation_ = 0;
 }
