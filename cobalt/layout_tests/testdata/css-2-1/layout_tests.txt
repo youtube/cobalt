@@ -115,7 +115,7 @@
 8-3-1-box-with-inline-child-should-not-form-collapsed-margin
 8-3-1-box-with-min-height-should-not-form-collapsed-margin
 8-3-1-box-with-no-in-flow-or-inline-children-should-form-collapsed-margin
-8-3-1-empty-box-margin-collapses-itself-then-collapses-with-parent-top-margin
+8-3-1-empty-box-margin-collapses-itself-then-collapses-with-parent-top-but-not-bottom-margin
 8-3-1-empty-box-margin-collapses-itself-then-collapses-with-parent-bottom-margin
 8-3-1-in-flow-siblings-separated-by-absolute-box-should-form-collapsed-margin
 8-3-1-in-flow-siblings-separated-by-inline-box-should-not-form-collapsed-margin
