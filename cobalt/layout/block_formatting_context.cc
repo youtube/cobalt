@@ -79,11 +79,16 @@ void BlockFormattingContext::UpdatePosition(Box* child_box) {
       margin_collapsing_params_.should_collapse_own_margins_together = false;
       break;
     case Box::kCollapseMargins:
+      margin_collapsing_params_.should_collapse_margin_bottom = true;
+
       // For first child, if top margin will collapse with parent's top margin,
       // parent will handle margin positioning for both itself and the child.
       if (!margin_collapsing_params_.context_margin_top &&
           margin_collapsing_params_.should_collapse_margin_top) {
         child_box->set_top(auto_height() - child_box->margin_top());
+        if (child_box->collapsed_empty_margin_) {
+          margin_collapsing_params_.should_collapse_margin_bottom = false;
+        }
       } else {
         // Collapse top margin with previous sibling's bottom margin.
         LayoutUnit collapsed_margin =
@@ -95,7 +100,6 @@ void BlockFormattingContext::UpdatePosition(Box* child_box) {
         LayoutUnit position_difference = combined_margin - collapsed_margin;
         child_box->set_top(auto_height() - position_difference);
       }
-      margin_collapsing_params_.should_collapse_margin_bottom = true;
 
       // Collapse margins for in-flow siblings.
       margin_collapsing_params_.collapsing_margin =
