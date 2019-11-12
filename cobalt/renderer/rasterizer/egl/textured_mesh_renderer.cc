@@ -71,11 +71,6 @@ void ConvertContentRegionToScaleTranslateVector(
   out_vec4[3] = translate_y;
 }
 
-// Used for RGB images.
-const float kIdentityColorMatrix[16] = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-                                        0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-                                        0.0f, 0.0f, 0.0f, 1.0f};
-
 // Used for YUV images.
 const float kBT601FullRangeColorMatrix[16] = {
     1.0f, 0.0f,   1.402f, -0.701,  1.0f, -0.34414f, -0.71414f, 0.529f,
@@ -108,7 +103,8 @@ const float* GetColorMatrixForImageType(
     TexturedMeshRenderer::Image::Type type) {
   switch (type) {
     case TexturedMeshRenderer::Image::RGBA: {
-      return kIdentityColorMatrix;
+      // No color matrix needed for RGBA to RGBA.
+      return nullptr;
     } break;
     case TexturedMeshRenderer::Image::YUV_3PLANE_BT601_FULL_RANGE: {
       return kBT601FullRangeColorMatrix;
@@ -312,7 +308,8 @@ SamplerInfo GetSamplerInfo(uint32 texture_target) {
 
 // static
 uint32 TexturedMeshRenderer::CreateFragmentShader(
-    uint32 texture_target, const std::vector<TextureInfo>& textures) {
+    uint32 texture_target, const std::vector<TextureInfo>& textures,
+    const float* color_matrix) {
   SamplerInfo sampler_info = GetSamplerInfo(texture_target);
 
   std::string blit_fragment_shader_source = sampler_info.preamble;
@@ -327,8 +324,10 @@ uint32 TexturedMeshRenderer::CreateFragmentShader(
         base::StringPrintf("uniform %s texture_%s;", sampler_info.type.c_str(),
                            textures[i].name.c_str());
   }
+  if (color_matrix) {
+    blit_fragment_shader_source += "uniform mat4 to_rgb_color_matrix;";
+  }
   blit_fragment_shader_source +=
-      "uniform mat4 to_rgb_color_matrix;"
       "void main() {"
       "  vec4 untransformed_color = vec4(";
   int components_used = 0;
@@ -345,10 +344,17 @@ uint32 TexturedMeshRenderer::CreateFragmentShader(
     // Add an alpha component of 1.
     blit_fragment_shader_source += ", 1.0";
   }
-  blit_fragment_shader_source +=
-      ");"
-      "  gl_FragColor = untransformed_color * to_rgb_color_matrix;"
-      "}";
+  if (color_matrix) {
+    blit_fragment_shader_source +=
+        ");"
+        "  gl_FragColor = untransformed_color * to_rgb_color_matrix;"
+        "}";
+  } else {
+    blit_fragment_shader_source +=
+        ");"
+        "  gl_FragColor = untransformed_color;"
+        "}";
+  }
 
   return CompileShader(blit_fragment_shader_source);
 }
@@ -475,11 +481,13 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::MakeBlitProgram(
   }
 
   // Upload the color matrix right away since it won't change from draw to draw.
-  GL_CALL(glUseProgram(result.gl_program_id));
-  uint32 to_rgb_color_matrix_uniform = GL_CALL_SIMPLE(
-      glGetUniformLocation(result.gl_program_id, "to_rgb_color_matrix"));
-  GL_CALL(glUniformMatrix4fv(to_rgb_color_matrix_uniform, 1, GL_FALSE,
-                             color_matrix));
+  if (color_matrix) {
+    GL_CALL(glUseProgram(result.gl_program_id));
+    uint32 to_rgb_color_matrix_uniform = GL_CALL_SIMPLE(
+        glGetUniformLocation(result.gl_program_id, "to_rgb_color_matrix"));
+    GL_CALL(glUniformMatrix4fv(to_rgb_color_matrix_uniform, 1, GL_FALSE,
+                               color_matrix));
+  }
   GL_CALL(glUseProgram(0));
 
   GL_CALL(glDeleteShader(blit_fragment_shader));
@@ -514,7 +522,7 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::GetBlitProgram(
         texture_infos.push_back(TextureInfo("rgba", "rgba"));
         result = MakeBlitProgram(
             color_matrix, texture_infos,
-            CreateFragmentShader(texture_target, texture_infos));
+            CreateFragmentShader(texture_target, texture_infos, color_matrix));
       } break;
       case Image::YUV_2PLANE_BT709: {
         std::vector<TextureInfo> texture_infos;
@@ -549,7 +557,7 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::GetBlitProgram(
 #endif  // SB_API_VERSION >= 7
         result = MakeBlitProgram(
             color_matrix, texture_infos,
-            CreateFragmentShader(texture_target, texture_infos));
+            CreateFragmentShader(texture_target, texture_infos, color_matrix));
       } break;
       case Image::YUV_3PLANE_BT601_FULL_RANGE:
       case Image::YUV_3PLANE_BT709:
@@ -578,7 +586,7 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::GetBlitProgram(
 #endif  // SB_API_VERSION >= 7 && defined(GL_RED_EXT)
         result = MakeBlitProgram(
             color_matrix, texture_infos,
-            CreateFragmentShader(texture_target, texture_infos));
+            CreateFragmentShader(texture_target, texture_infos, color_matrix));
       } break;
       case Image::YUV_UYVY_422_BT709: {
         std::vector<TextureInfo> texture_infos;
