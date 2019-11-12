@@ -14,8 +14,8 @@
 
 #include "starboard/media.h"
 
-SB_EXPORT bool SbMediaIsSupported(SbMediaVideoCodec /*video_codec*/,
-                                  SbMediaAudioCodec /*audio_codec*/,
-                                  const char* /*key_system*/) {
+bool SbMediaIsSupported(SbMediaVideoCodec /*video_codec*/,
+                        SbMediaAudioCodec /*audio_codec*/,
+                        const char* /*key_system*/) {
   return false;
 }

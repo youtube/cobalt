@@ -17,9 +17,9 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/media_common.h"
 
-SB_EXPORT bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
-                                  SbMediaAudioCodec audio_codec,
-                                  const char* key_system) {
+bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
+                        SbMediaAudioCodec audio_codec,
+                        const char* key_system) {
   using starboard::android::shared::IsWidevineL1;
   using starboard::android::shared::JniEnvExt;
   // Filter anything other then aac as we only support paid content on aac.
