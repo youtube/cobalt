@@ -213,8 +213,6 @@ void WebDriverServer::OnConnect(int /*connection_id*/) {}
 
 void WebDriverServer::OnHttpRequest(int connection_id,
                                     const net::HttpServerRequestInfo& info) {
-  LOG(INFO) << " Method called is " << info.method;
-  LOG(INFO) << " from path" << info.path << " with data" << info.data;
   TRACE_EVENT0("cobalt::webdriver", "WebDriverServer::OnHttpRequest()");
 
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
