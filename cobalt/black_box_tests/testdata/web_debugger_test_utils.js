@@ -48,3 +48,20 @@ function doXHR(url) {
   xhr.open('GET', url);
   xhr.send();
 }
+
+function testMutate() {
+  let target = document.getElementById('test');
+  let config = {attributes: true, childList: true, subtree: true};
+  let observer = new MutationObserver(mutationCallback);
+  observer.observe(target, config);
+  doSetAttribute(target, 'foo', 'bar');
+}
+
+function mutationCallback(mutationsList, observer) {
+  asyncBreak();
+}
+
+function doSetAttribute(node, attr, value) {
+  node.setAttribute(attr, value);
+}
+
