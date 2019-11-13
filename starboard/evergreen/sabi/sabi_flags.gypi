@@ -55,6 +55,9 @@
 
           # There is no software floating point support for arm64 / aarch64
           # architectures. Thus, -mfloat-abi and -mfpu would simply be ignored.
+
+          # char is unsigned by default for arm64.
+          '-fsigned-char',
         ],
       }],
       # x64
