@@ -30,12 +30,21 @@
 #include "cobalt/updater/configurator.h"
 #include "cobalt/updater/crash_client.h"
 #include "cobalt/updater/crash_reporter.h"
+#include "components/crx_file/crx_verifier.h"
 #include "components/prefs/pref_service.h"
 #include "components/update_client/crx_update_item.h"
 #include "components/update_client/update_client.h"
 #include "starboard/event.h"
 
 namespace {
+
+// The SHA256 hash of the "cobalt_evergreen_public" key.
+constexpr uint8_t kDeveloperPublicKeyHash[] = {
+  0xfd, 0x81, 0xea, 0x59, 0xa2, 0xa3, 0x88, 0xf6,
+  0xf2, 0x20, 0x21, 0xaa, 0x90, 0xda, 0x5a, 0x8e,
+  0x51, 0xdf, 0x80, 0x6e, 0x0a, 0x0a, 0x24, 0x45,
+  0x38, 0x79, 0xd4, 0x95, 0xfc, 0x57, 0x2d, 0xab
+};
 
 // TODO: use randomized scheduling.
 void TaskSchedulerStart() {
@@ -134,12 +143,12 @@ int UpdaterMain(int argc, const char* const* argv) {
   observer.reset(new Observer(uclient));
   uclient->AddObserver(observer.get());
 
-  const std::vector<std::string> ids = {config->GetAppGuid()};
+  const std::vector<std::string> app_ids = {config->GetAppGuid()};
 
   base::Closure func_cb = base::Bind(&Return5);
 
   uclient->Update(
-      ids,
+      app_ids,
       base::BindOnce(
           [](const std::vector<std::string>& ids)
               -> std::vector<base::Optional<update_client::CrxComponent>> {
@@ -147,10 +156,14 @@ int UpdaterMain(int argc, const char* const* argv) {
             component.name = "cobalt_test";
             component.app_id = ids[0];
             component.version = base::Version("1.0.0.0");
+            component.pk_hash.assign(std::begin(kDeveloperPublicKeyHash),
+                                     std::end(kDeveloperPublicKeyHash));
             component.requires_network_encryption = false;
+            component.crx_format_requirement =
+                crx_file::VerifierFormat::CRX3_WITH_PUBLISHER_PROOF;
             return {component};
           }),
-      true,
+      false,
       base::BindOnce(
           [](base::OnceClosure closure, update_client::Error error) {
             base::ThreadTaskRunnerHandle::Get()->PostTask(

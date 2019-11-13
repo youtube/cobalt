@@ -55,7 +55,7 @@ std::vector<GURL> Configurator::PingUrl() const { return UpdateUrl(); }
 std::string Configurator::GetProdId() const { return "updater"; }
 
 base::Version Configurator::GetBrowserVersion() const {
-  return base::Version("0.0.0.1");  // version_info::GetVersion();
+  return base::Version("1.0.0.0");  // version_info::GetVersion();
 }
 
 std::string Configurator::GetChannel() const { return {}; }
