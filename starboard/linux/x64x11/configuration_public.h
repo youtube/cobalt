@@ -27,6 +27,8 @@
     "This platform's sabi.json file is expected to track the experimental Starboard API version."
 #endif  // SB_API_VERSION != SB_EXPERIMENTAL_API_VERSION
 
+// --- Architecture Configuration --------------------------------------------
+
 // Configuration parameters that allow the application to make some general
 // compile-time decisions with respect to the the number of cores likely to be
 // available on this platform. For a definitive measure, the application should
