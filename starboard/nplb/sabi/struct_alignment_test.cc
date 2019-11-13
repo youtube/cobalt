@@ -17,14 +17,23 @@
 #include "starboard/configuration.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if SB_API_VERSION >= SB_SABI_FILE_VERSION
+
+// 8-byte integers make structs 4-byte aligned on ia32.
+#if SB_IS(ARCH_IA32) || (SB_IS(ARCH_X86) && SB_IS(32_BIT))
+#define ALIGNMENT_8_BYTE_INT 4
+#else  // !SB_IS(ARCH_IA32) && (!SB_IS(ARCH_X86) || !SB_IS(32_BIT))
+#define ALIGNMENT_8_BYTE_INT 8
+#endif  // SB_IS(ARCH_IA32) || (SB_IS(ARCH_X86) && SB_IS(32_BIT))
+
 namespace starboard {
 namespace sabi {
 namespace {
 
-static const int8_t kInt8   = 0xD4;
+static const int8_t kInt8   = 0x74;
 static const int16_t kInt16 = 0x2DEF;
-static const int32_t kInt32 = 0x85C7ADD2;
-static const int64_t kInt64 = 0xA6FE0870D4784352;
+static const int32_t kInt32 = 0x35C7ADD2;
+static const int64_t kInt64 = 0x16FE0870D4784352;
 
 // Checks the trailing padding of members of ascending data type sizes.
 typedef struct Struct1 {
@@ -34,7 +43,7 @@ typedef struct Struct1 {
   int64_t d;
 } Struct1;
 
-SB_COMPILE_ASSERT(SB_ALIGNOF(Struct1) == 8,
+SB_COMPILE_ASSERT(SB_ALIGNOF(Struct1) == ALIGNMENT_8_BYTE_INT,
                   SB_ALIGNOF_Struct1_is_inconsistent_with_expectations);
 
 SB_COMPILE_ASSERT(offsetof(Struct1, a) == 0,
@@ -54,7 +63,7 @@ typedef struct Struct2 {
   int8_t d;
 } Struct2;
 
-SB_COMPILE_ASSERT(SB_ALIGNOF(Struct2) == 8,
+SB_COMPILE_ASSERT(SB_ALIGNOF(Struct2) == ALIGNMENT_8_BYTE_INT,
                   ALIGNOF_Struct2_is_inconsistent_with_expectations);
 
 SB_COMPILE_ASSERT(offsetof(Struct2, a) == 0,
@@ -154,3 +163,7 @@ TEST(SbSabiStructAlignmentTest, NestedUnion) {
 
 }  // namespace sabi
 }  // namespace starboard
+
+#undef ALIGNMENT_8_BYTE_INT
+
+#endif  // SB_API_VERSION >= SB_SABI_FILE_VERSION

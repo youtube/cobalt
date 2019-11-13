@@ -20,12 +20,8 @@ namespace starboard {
 namespace sabi {
 namespace {
 
-#if defined(SB_HAS_SIGNED_CHAR)
 SB_COMPILE_ASSERT((static_cast<char>(-1) < 0) == SB_HAS_SIGNED_CHAR,  // NOLINT(readability/casting)
                   SB_HAS_SIGNED_CHAR_is_inconsistent_with_sign_of_char);
-#else   // !defined(SB_HAS_SIGNED_CHAR)
-#error "SB_HAS_SIGNED_CHAR is not defined."
-#endif  // defined(SB_HAS_SIGNED_CHAR)
 
 }  // namespace
 }  // namespace sabi
