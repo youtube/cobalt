@@ -29,6 +29,10 @@
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
 
+namespace base {
+class DebuggerHooks;
+}  // namespace base
+
 namespace cobalt {
 namespace dom {
 
@@ -55,7 +59,8 @@ class MutationObserver : public script::Wrappable {
   // Not part of the spec. Support creating MutationObservers from native Cobalt
   // code.
   MutationObserver(const NativeMutationCallback& native_callback,
-                   MutationObserverTaskManager* task_manager);
+                   MutationObserverTaskManager* task_manager,
+                   base::DebuggerHooks* debugger_hooks);
 
   // Web Api: MutationObserver
   MutationObserver(script::EnvironmentSettings* settings,
@@ -95,6 +100,7 @@ class MutationObserver : public script::Wrappable {
   void TraceMembers(script::Tracer* tracer) override;
 
  private:
+  void CancelDebuggerAsyncTasks();
   void TrackObservedNode(const scoped_refptr<dom::Node>& node);
 
   void ObserveInternal(const scoped_refptr<Node>& target,
@@ -106,6 +112,7 @@ class MutationObserver : public script::Wrappable {
   WeakNodeVector observed_nodes_;
   MutationRecordSequence record_queue_;
   MutationObserverTaskManager* task_manager_;
+  base::DebuggerHooks* debugger_hooks_;
 };
 }  // namespace dom
 }  // namespace cobalt
