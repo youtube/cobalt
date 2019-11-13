@@ -26,6 +26,7 @@
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/testing/mock_exception_state.h"
 #include "cobalt/test/empty_document.h"
+#include "cobalt/test/mock_debugger_hooks.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -42,6 +43,8 @@ struct ChildListMutationArguments {
   scoped_refptr<dom::NodeList> removed_nodes;
 };
 
+typedef ::testing::StrictMock<test::MockDebuggerHooks> DebuggerHooksMock;
+
 class MutationCallbackMock {
  public:
   MOCK_METHOD2(NativeMutationCallback,
@@ -53,6 +56,7 @@ class MutationObserverTest : public ::testing::Test {
  protected:
   dom::Document* document() { return empty_document_.document(); }
   MutationObserverTaskManager* task_manager() { return &task_manager_; }
+  DebuggerHooksMock* debugger_hooks() { return &debugger_hooks_; }
   MutationCallbackMock* callback_mock() { return &callback_mock_; }
 
   scoped_refptr<Element> CreateDiv() {
@@ -66,7 +70,7 @@ class MutationObserverTest : public ::testing::Test {
     return new MutationObserver(
         base::Bind(&MutationCallbackMock::NativeMutationCallback,
                    base::Unretained(&callback_mock_)),
-        &task_manager_);
+        &task_manager_, &debugger_hooks_);
   }
 
   ChildListMutationArguments CreateChildListMutationArguments() {
@@ -85,6 +89,7 @@ class MutationObserverTest : public ::testing::Test {
 
  private:
   MutationObserverTaskManager task_manager_;
+  DebuggerHooksMock debugger_hooks_;
   test::EmptyDocument empty_document_;
   MutationCallbackMock callback_mock_;
   base::MessageLoop message_loop_;
@@ -220,9 +225,13 @@ TEST_F(MutationObserverTest, TakeRecords) {
   scoped_refptr<MutationRecord> record =
       MutationRecord::CreateCharacterDataMutationRecord(
           target, std::string("old_character_data"));
+  const void* async_task;
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "characterData", false))
+      .WillOnce(SaveArg<0>(&async_task));
   observer->QueueMutationRecord(record);
 
   // The queued record can be taken once.
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task));
   records = observer->TakeRecords();
   ASSERT_EQ(1, records.size());
   ASSERT_EQ(records.at(0), record);
@@ -238,19 +247,44 @@ TEST_F(MutationObserverTest, Notify) {
   scoped_refptr<MutationRecord> record =
       MutationRecord::CreateCharacterDataMutationRecord(
           target, std::string("old_character_data"));
+  const void* async_task;
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "characterData", false))
+      .WillOnce(SaveArg<0>(&async_task));
   observer->QueueMutationRecord(record);
 
   // Callback should be fired with the first argument being a sequence of the
   // queued record, and the second argument being the observer.
   MutationObserver::MutationRecordSequence records;
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskStarted(async_task));
   EXPECT_CALL(*callback_mock(), NativeMutationCallback(_, observer))
       .WillOnce(SaveArg<0>(&records));
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskFinished(async_task));
   observer->Notify();
   ASSERT_EQ(1, records.size());
   EXPECT_EQ(record, records.at(0));
 
   // There should be no more records queued up after the callback has been
   // fired.
+  records = observer->TakeRecords();
+  EXPECT_TRUE(records.empty());
+
+  // Queue another mutation record on the same ovserver.
+  record = MutationRecord::CreateAttributeMutationRecord(
+      target, "attribute_name", std::string("old_attribute_data"));
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "attributes", false))
+      .WillOnce(SaveArg<0>(&async_task));
+  observer->QueueMutationRecord(record);
+
+  // Check that the new record goes to the callback.
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskStarted(async_task));
+  EXPECT_CALL(*callback_mock(), NativeMutationCallback(_, observer))
+      .WillOnce(SaveArg<0>(&records));
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskFinished(async_task));
+  observer->Notify();
+  ASSERT_EQ(1, records.size());
+  EXPECT_EQ(record, records.at(0));
+
+  // No more records after notifying.
   records = observer->TakeRecords();
   EXPECT_TRUE(records.empty());
 }
@@ -273,6 +307,12 @@ TEST_F(MutationObserverTest, ReportMutation) {
   MutationReporter reporter(target.get(), std::move(registered_observers));
 
   // Report a few mutations.
+  const void* async_task_1;
+  const void* async_task_2;
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "attributes", false))
+      .WillOnce(SaveArg<0>(&async_task_1));
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "characterData", false))
+      .WillOnce(SaveArg<0>(&async_task_2));
   reporter.ReportAttributesMutation("attribute_name", std::string("old_value"));
   reporter.ReportCharacterDataMutation("old_character_data");
   ChildListMutationArguments args = CreateChildListMutationArguments();
@@ -281,6 +321,8 @@ TEST_F(MutationObserverTest, ReportMutation) {
 
   // Check that mutation records for the mutation types we care about have
   // been queued.
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task_1));
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task_2));
   MutationObserver::MutationRecordSequence records = observer->TakeRecords();
   ASSERT_EQ(2, records.size());
   EXPECT_EQ(records.at(0)->type(), "attributes");
@@ -306,12 +348,19 @@ TEST_F(MutationObserverTest, AttributeFilter) {
       RegisteredObserver(target.get(), observer, init));
   MutationReporter reporter(target.get(), std::move(registered_observers));
 
-  // Report a few attribute mutations.
+  // Report a few attribute mutations, two of which will get through the filter.
+  const void* async_task_1;
+  const void* async_task_2;
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "attributes", false))
+      .WillOnce(SaveArg<0>(&async_task_1))
+      .WillOnce(SaveArg<0>(&async_task_2));
   reporter.ReportAttributesMutation("banana", std::string("rotten"));
   reporter.ReportAttributesMutation("apple", std::string("wormy"));
   reporter.ReportAttributesMutation("potato", std::string("mashed"));
 
   // Check that mutation records for the filtered attrbiutes have been queued.
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task_1));
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task_2));
   MutationObserver::MutationRecordSequence records = observer->TakeRecords();
   ASSERT_EQ(2, records.size());
   EXPECT_STREQ(records.at(0)->attribute_name()->c_str(), "banana");
@@ -415,6 +464,12 @@ TEST_F(MutationObserverTest, AddChildNodes) {
   MutationObserverInit options;
   options.set_subtree(true);
   options.set_child_list(true);
+
+  const void* async_task_1;
+  const void* async_task_2;
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "childList", false))
+      .WillOnce(SaveArg<0>(&async_task_1))
+      .WillOnce(SaveArg<0>(&async_task_2));
   observer->Observe(root, options);
 
   scoped_refptr<Element> child1 = document()->CreateElement("div");
@@ -425,6 +480,8 @@ TEST_F(MutationObserverTest, AddChildNodes) {
   root->AppendChild(child1);
   child1->AppendChild(child2);
 
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task_1));
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task_2));
   MutationObserver::MutationRecordSequence records = observer->TakeRecords();
   ASSERT_EQ(2, records.size());
   EXPECT_EQ("childList", records.at(0)->type());
@@ -458,10 +515,15 @@ TEST_F(MutationObserverTest, RemoveChildNode) {
   MutationObserverInit options;
   options.set_subtree(true);
   options.set_child_list(true);
+
+  const void* async_task;
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "childList", false))
+      .WillOnce(SaveArg<0>(&async_task));
   observer->Observe(root, options);
 
   child1->RemoveChild(child2);
 
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task));
   MutationObserver::MutationRecordSequence records = observer->TakeRecords();
   ASSERT_EQ(1, records.size());
   EXPECT_EQ("childList", records.at(0)->type());
@@ -481,10 +543,15 @@ TEST_F(MutationObserverTest, MutateCharacterData) {
   MutationObserverInit options;
   options.set_subtree(true);
   options.set_character_data(true);
+
+  const void* async_task;
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "characterData", false))
+      .WillOnce(SaveArg<0>(&async_task));
   observer->Observe(root, options);
 
   text->set_data("new-data");
 
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task));
   MutationObserver::MutationRecordSequence records = observer->TakeRecords();
   ASSERT_EQ(1, records.size());
   EXPECT_EQ("characterData", records.at(0)->type());
@@ -502,10 +569,15 @@ TEST_F(MutationObserverTest, MutateCharacterDataWithOldValue) {
   MutationObserverInit options;
   options.set_subtree(true);
   options.set_character_data_old_value(true);
+
+  const void* async_task;
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "characterData", false))
+      .WillOnce(SaveArg<0>(&async_task));
   observer->Observe(root, options);
 
   text->set_data("new-data");
 
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task));
   MutationObserver::MutationRecordSequence records = observer->TakeRecords();
   ASSERT_EQ(1, records.size());
   EXPECT_EQ("characterData", records.at(0)->type());
@@ -525,11 +597,16 @@ TEST_F(MutationObserverTest, MutateAttribute) {
   MutationObserverInit options;
   options.set_attributes(true);
   options.set_attribute_filter(filter);
+
+  const void* async_task;
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "attributes", false))
+      .WillOnce(SaveArg<0>(&async_task));
   observer->Observe(root, options);
 
   root->SetAttribute("banana", "yellow");
   root->SetAttribute("apple", "brown");
 
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task));
   MutationObserver::MutationRecordSequence records = observer->TakeRecords();
   ASSERT_EQ(1, records.size());
   EXPECT_EQ("attributes", records.at(0)->type());
@@ -546,10 +623,15 @@ TEST_F(MutationObserverTest, MutateAttributeWithOldValue) {
   scoped_refptr<MutationObserver> observer = CreateObserver();
   MutationObserverInit options;
   options.set_attribute_old_value(true);
+
+  const void* async_task;
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "attributes", false))
+      .WillOnce(SaveArg<0>(&async_task));
   observer->Observe(root, options);
 
   root->SetAttribute("banana", "yellow");
 
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task));
   MutationObserver::MutationRecordSequence records = observer->TakeRecords();
   ASSERT_EQ(1, records.size());
   EXPECT_EQ("attributes", records.at(0)->type());
@@ -570,11 +652,16 @@ TEST_F(MutationObserverTest, Disconnect) {
   MutationObserverInit options;
   options.set_subtree(true);
   options.set_character_data(true);
+
+  const void* async_task;
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "characterData", false))
+      .WillOnce(SaveArg<0>(&async_task));
   observer->Observe(root, options);
 
   // This should queue up a mutation record.
   text->set_data("new-data");
 
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task));
   observer->Disconnect();
   MutationObserver::MutationRecordSequence records = observer->TakeRecords();
   // MutationObserver.disconnect() should clear any queued records.

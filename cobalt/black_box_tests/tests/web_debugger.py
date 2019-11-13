@@ -455,6 +455,32 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
             # We must resume in order to avoid hanging even if we hit an assert.
             debugger.run_command('Debugger.resume')
 
+          # Call testMutate(), which will asynchronously hit our breakpoint.
+          debugger.evaluate_js('testMutate()')
+          paused_event = debugger.wait_event('Debugger.paused')
+          try:
+            call_frames = paused_event['params']['callFrames']
+            call_stack = [frame['functionName'] for frame in call_frames]
+            self.assertEqual(call_stack, [
+                'asyncBreak',
+                'mutationCallback',
+            ])
+
+            async_trace = paused_event['params']['asyncStackTrace']
+            call_frames = async_trace['callFrames']
+            call_stack = [frame['functionName'] for frame in call_frames]
+            self.assertEqual('attributes', async_trace['description'])
+            self.assertEqual(call_stack, [
+                'doSetAttribute',
+                'testMutate',
+                '',  # Anonymous function for the 'Runtime.evaluate' command.
+            ])
+
+            self.assertFalse('parent' in async_trace)
+          finally:
+            # We must resume in order to avoid hanging even if we hit an assert.
+            debugger.run_command('Debugger.resume')
+
           # End the test.
           debugger.evaluate_js('onEndTest()')
           self.assertTrue(runner.JSTestsSucceeded())
