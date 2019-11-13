@@ -464,7 +464,6 @@ class CobaltRunner(object):
   def WaitForUrlLoadedEvents(self):
     """Wait for the events indicating that Cobalt finished loading a URL."""
     if not self.windowdriver_created.wait(WINDOWDRIVER_CREATED_TIMEOUT_SECONDS):
-      print('Raise WindowDriverCreatedTimeoutException', file=self.log_file)
       raise CobaltRunner.WindowDriverCreatedTimeoutException()
 
     if not self.webmodule_loaded.wait(WEBMODULE_LOADED_TIMEOUT_SECONDS):
