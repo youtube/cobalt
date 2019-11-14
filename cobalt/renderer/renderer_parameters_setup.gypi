@@ -17,11 +17,6 @@
     'COBALT_SCRATCH_SURFACE_CACHE_SIZE_IN_BYTES=<(scratch_surface_cache_size_in_bytes)',
   ],
   'conditions': [
-    ['rasterizer_type == "software"', {
-      'defines': [
-        'COBALT_FORCE_SOFTWARE_RASTERIZER',
-      ],
-    }],
     ['rasterizer_type == "stub"', {
       'defines': [
         'COBALT_FORCE_STUB_RASTERIZER',

@@ -110,19 +110,13 @@ RasterizerInfo GetDefaultRasterizerForPlatform() {
   return {"stub", base::Bind(&CreateStubRasterizer)};
 #elif SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
   if (SbGetGlesInterface()) {
-#if COBALT_FORCE_SOFTWARE_RASTERIZER
-    return {"gles-software", base::Bind(&CreateGLESSoftwareRasterizer)};
-#elif defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
+#if defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
     return {"gles", base::Bind(&CreateGLESHardwareRasterizer)};
 #else
     return {"skia", base::Bind(&CreateSkiaHardwareRasterizer)};
-#endif  // COBALT_FORCE_SOFTWARE_RASTERIZER
+#endif
   } else if (SbBlitterIsBlitterSupported()) {
-#if COBALT_FORCE_SOFTWARE_RASTERIZER
-    return {"blitter-software", base::Bind(&CreateBlitterSoftwareRasterizer)};
-#else   // COBALT_FORCE_SOFTWARE_RASTERIZER
     return {"blitter", base::Bind(&CreateBlitterHardwareRasterizer)};
-#endif  // COBALT_FORCE_SOFTWARE_RASTERIZER
   } else {
     SB_LOG(ERROR)
         << "Either GLES2 or the Starboard Blitter API must be available.";
@@ -131,19 +125,13 @@ RasterizerInfo GetDefaultRasterizerForPlatform() {
   }
 #else   // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
 #if SB_HAS(GLES2)
-#if COBALT_FORCE_SOFTWARE_RASTERIZER
-  return {"gles-software", base::Bind(&CreateGLESSoftwareRasterizer)};
-#elif defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
+#if defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
   return {"gles", base::Bind(&CreateGLESHardwareRasterizer)};
 #else
   return {"skia", base::Bind(&CreateSkiaHardwareRasterizer)};
-#endif  // COBALT_FORCE_SOFTWARE_RASTERIZER
+#endif
 #elif SB_HAS(BLITTER)
-#if COBALT_FORCE_SOFTWARE_RASTERIZER
-  return {"blitter-software", base::Bind(&CreateBlitterSoftwareRasterizer)};
-#else
   return {"blitter", base::Bind(&CreateBlitterHardwareRasterizer)};
-#endif  // COBALT_FORCE_SOFTWARE_RASTERIZER
 #else
 #error "Either GLES2 or the Starboard Blitter API must be available."
   return {"", NULL};
