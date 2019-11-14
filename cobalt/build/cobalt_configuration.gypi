@@ -122,7 +122,7 @@
     'cobalt_version%': '<(BUILD_NUMBER)',
 
     # Defines what kind of rasterizer will be used.  This can be adjusted to
-    # force a stub graphics implementation or software graphics implementation.
+    # force a stub graphics implementation.
     # It can be one of the following options:
     #   'direct-gles' -- Uses a light wrapper over OpenGL ES to handle most
     #                    draw elements. This will fall back to the skia hardware
@@ -132,9 +132,6 @@
     #   'hardware'    -- As much hardware acceleration of graphics commands as
     #                    possible. This uses skia to wrap OpenGL ES commands.
     #                    Required for 360 rendering.
-    #   'software'    -- Perform most rasterization using the CPU and only
-    #                    interact with the GPU to send the final image to the
-    #                    output window.
     #   'stub'        -- Stub graphics rasterization.  A rasterizer object will
     #                    still be available and valid, but it will do nothing.
     'rasterizer_type%': 'direct-gles',
