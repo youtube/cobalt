@@ -27,5 +27,45 @@
         '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
       ],
     },
+    {
+      'target_name': 'installation_manager',
+      'type': 'static_library',
+      'sources': [
+        'installation_manager.cc',
+        'installation_manager.h',
+      ],
+      'dependencies': [
+        ':installation_store_proto',
+        '<(DEPTH)/starboard/starboard.gyp:starboard',
+      ],
+      'include_dirs': [
+        # Get protobuf headers from the chromium tree.
+        '<(DEPTH)/third_party/protobuf/src',
+      ],
+    },
+    {
+      'target_name': 'installation_manager_test',
+      'type': '<(gtest_target_type)',
+      'sources': [
+        'installation_manager_test.cc',
+        '<(DEPTH)/starboard/common/test_main.cc',
+      ],
+      'dependencies': [
+         ':installation_manager',
+         '<(DEPTH)/testing/gmock.gyp:gmock',
+         '<(DEPTH)/testing/gtest.gyp:gtest',
+      ],
+    },
+    {
+      'target_name': 'installation_manager_test_deploy',
+      'type': 'none',
+      'dependencies': [
+        'installation_manager_test',
+      ],
+      'variables': {
+        'executable_name': 'installation_manager_test',
+      },
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
+    },
   ],
 }
