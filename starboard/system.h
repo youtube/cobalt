@@ -69,6 +69,13 @@ typedef enum SbSystemPathId {
 
   // Full path to the executable file.
   kSbSystemPathExecutableFile,
+
+#if SB_API_VERSION >= SB_STORAGE_PATH_VERSION
+  // Path to a directory for permanent file storage. Both read and write
+  // access is required. This is where an app may store its persistent settings.
+  // The location should be user agnostic if possible.
+  kSbSystemPathStorageDirectory,
+#endif
 } SbSystemPathId;
 
 // System properties that can be queried for. Many of these are used in

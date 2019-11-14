@@ -369,6 +369,8 @@ class PlatformConfiguration(object):
     ]
     if os.path.exists(os.path.join(paths.STARBOARD_ROOT, 'elf_loader')):
       tests.append('elf_loader_test')
+    if os.path.exists(os.path.join(paths.STARBOARD_ROOT, 'loader_app')):
+      tests.append('installation_manager_test')
     return tests
 
   def GetDefaultTargetBuildFile(self):

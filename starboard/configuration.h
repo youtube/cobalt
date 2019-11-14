@@ -151,6 +151,11 @@
 // to atomically replace the content of a file.
 #define SB_FILE_ATOMIC_REPLACE_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Introduces new system property kSbSystemPathStorageDirectory.
+// Path to directory for permanent storage. Both read and write
+// access are required.
+#define SB_STORAGE_PATH_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
