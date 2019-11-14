@@ -325,7 +325,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMemoryFlush);
 #endif  // SB_CAN(MAP_EXECUTABLE_MEMORY)
 
-#if SB_HAS(MMAP)
+#if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
   REGISTER_SYMBOL(SbMemoryMap);
   REGISTER_SYMBOL(SbMemoryUnmap);
 #if SB_API_VERSION >= 10
@@ -372,11 +372,6 @@ ExportedSymbols::ExportedSymbols() {
 #endif  // SB_API_VERSION >= SB_MICROPHONE_REQUIRED_VERSION ||
         // SB_HAS(MICROPHONE)
 
-#if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
-  REGISTER_SYMBOL(SbMemoryMap);
-  REGISTER_SYMBOL(SbMemoryUnmap);
-#endif
-
 #if SB_API_VERSION >= SB_IPV6_REQUIRED_VERSION
   REGISTER_SYMBOL(SbSocketIsIpv6Supported);
 #endif
@@ -412,18 +407,11 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSpeechSynthesisIsSupported);
 #endif
 
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION
-  REGISTER_SYMBOL(SbWindowOnScreenKeyboardIsSupported);
-#endif
-
 #if SB_API_VERSION >= SB_TIME_THREAD_NOW_REQUIRED_VERSION
   REGISTER_SYMBOL(SbTimeIsTimeThreadNowSupported);
 #endif
 
 #if SB_API_VERSION >= 10
-#if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
-  REGISTER_SYMBOL(SbMemoryProtect);
-#endif
   REGISTER_SYMBOL(SbDrmIsServerCertificateUpdatable);
   REGISTER_SYMBOL(SbDrmUpdateServerCertificate);
   REGISTER_SYMBOL(SbMediaGetAudioBufferBudget);
