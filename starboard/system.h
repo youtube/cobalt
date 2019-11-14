@@ -630,10 +630,11 @@ SB_EXPORT const void* SbSystemGetExtension(const char* name);
 // (or greater), since 32-bytes will be written into it.
 // Returns false in the case of an error, or if it is not implemented.  In this
 // case the contents of |digest| will be undefined.
-bool SbSystemSignWithCertificationSecretKey(const uint8_t* message,
-                                            size_t message_size_in_bytes,
-                                            uint8_t* digest,
-                                            size_t digest_size_in_bytes);
+SB_EXPORT bool SbSystemSignWithCertificationSecretKey(
+    const uint8_t* message,
+    size_t message_size_in_bytes,
+    uint8_t* digest,
+    size_t digest_size_in_bytes);
 #endif
 
 #ifdef __cplusplus
