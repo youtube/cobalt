@@ -13,10 +13,6 @@
 # limitations under the License.
 
 {
-  'variables': {
-    'enable_map_to_mesh': 1,
-  },
-
   'target_defaults': {
     'default_configuration': 'linux-x64x11_debug',
     'configurations': {
@@ -36,9 +32,7 @@
   },
 
   'includes': [
-    '../shared/compiler_flags.gypi',
-    '../shared/enable_glx_via_angle.gypi',
-    '../shared/gyp_configuration.gypi',
-    '../shared/libraries.gypi',
+    '<(DEPTH)/starboard/linux/x64x11/shared/gyp_configuration.gypi',
+    '<(DEPTH)/starboard/sabi/sabi.gypi',
   ],
 }

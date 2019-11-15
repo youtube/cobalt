@@ -20,5 +20,4 @@ from starboard.linux.x64x11 import gyp_configuration as parent_configuration
 
 def CreatePlatformConfig():
   return parent_configuration.LinuxX64X11Configuration(
-      'linux-x64x11-sbversion-10',
-      sabi_json_path='starboard/sabi/x64/sysv/sabi.json')
+      'linux-x64x11-sbversion-10')
