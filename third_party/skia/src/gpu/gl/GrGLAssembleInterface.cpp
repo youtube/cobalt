@@ -6,16 +6,13 @@
  */
 
 
-#include "gl/GrGLAssembleInterface.h"
-#include "GrGLUtil.h"
+#include "include/gpu/gl/GrGLAssembleHelpers.h"
+#include "include/gpu/gl/GrGLAssembleInterface.h"
+#include "src/gpu/gl/GrGLUtil.h"
 
-#define GET_PROC(F) functions->f ## F = (GrGL ## F ## Proc) get(ctx, "gl" #F)
-#define GET_PROC_SUFFIX(F, S) functions->f ## F = (GrGL ## F ## Proc) get(ctx, "gl" #F #S)
-#define GET_PROC_LOCAL(F) GrGL ## F ## Proc F = (GrGL ## F ## Proc) get(ctx, "gl" #F)
+#define GET_PROC_LOCAL(F) GrGL##F##Fn* F = (GrGL##F##Fn*)get(ctx, "gl" #F)
 
-#define GET_EGL_PROC_SUFFIX(F, S) functions->fEGL ## F = (GrEGL ## F ## Proc) get(ctx, "egl" #F #S)
-
-const GrGLInterface* GrGLAssembleInterface(void* ctx, GrGLGetProc get) {
+sk_sp<const GrGLInterface> GrGLMakeAssembledInterface(void *ctx, GrGLGetProc get) {
     GET_PROC_LOCAL(GetString);
     if (nullptr == GetString) {
         return nullptr;
@@ -27,15 +24,20 @@ const GrGLInterface* GrGLAssembleInterface(void* ctx, GrGLGetProc get) {
     }
 
     GrGLStandard standard = GrGLGetStandardInUseFromString(verStr);
+    // standard can be unused (optimzed away) if SK_ASSUME_GL_ES is set
+    sk_ignore_unused_variable(standard);
 
-    if (kGLES_GrGLStandard == standard) {
-        return GrGLAssembleGLESInterface(ctx, get);
-    } else if (kGL_GrGLStandard == standard) {
-        return GrGLAssembleGLInterface(ctx, get);
+    if (GR_IS_GR_GL_ES(standard)) {
+        return GrGLMakeAssembledGLESInterface(ctx, get);
+    } else if (GR_IS_GR_GL(standard)) {
+        return GrGLMakeAssembledGLInterface(ctx, get);
+    } else if (GR_IS_GR_WEBGL(standard)) {
+        return GrGLMakeAssembledWebGLInterface(ctx, get);
     }
     return nullptr;
 }
 
+<<<<<<< HEAD
 static void get_egl_query_and_display(GrEGLQueryStringProc* queryString, GrEGLDisplay* display,
                                       void* ctx, GrGLGetProc get) {
     *queryString = (GrEGLQueryStringProc) get(ctx, "eglQueryString");
@@ -978,4 +980,8 @@ const GrGLInterface* GrGLAssembleGLESInterface(void* ctx, GrGLGetProc get) {
     interface->fExtensions.swap(&extensions);
 
     return interface;
+=======
+const GrGLInterface* GrGLAssembleInterface(void *ctx, GrGLGetProc get) {
+    return GrGLMakeAssembledInterface(ctx, get).release();
+>>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
 }

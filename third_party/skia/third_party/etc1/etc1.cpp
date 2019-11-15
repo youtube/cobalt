@@ -20,7 +20,7 @@
 
 //////////////////////////////////////////////////////////////////////////////////////////
 
-#include "etc1.h"
+#include "third_party/etc1/etc1.h"
 
 #include <cstring>
 
@@ -410,6 +410,8 @@ static void etc_encodeBaseColors(etc1_byte* pBaseColors,
             b2 = convert5To8(b51 + db);
             pCompressed->high |= (r51 << 27) | ((7 & dr) << 24) | (g51 << 19)
                     | ((7 & dg) << 16) | (b51 << 11) | ((7 & db) << 8) | 2;
+        } else {
+            r2 = g2 = b2 = 0; // to shut the compiler up
         }
     }
 
@@ -478,10 +480,10 @@ void etc_encode_block_helper(const etc1_byte* pIn, etc1_uint32 inMask,
 }
 
 static void writeBigEndian(etc1_byte* pOut, etc1_uint32 d) {
-    pOut[0] = (etc1_byte)(d >> 24);
-    pOut[1] = (etc1_byte)(d >> 16);
-    pOut[2] = (etc1_byte)(d >> 8);
-    pOut[3] = (etc1_byte) d;
+    pOut[0] = (etc1_byte) (d >> 24);
+    pOut[1] = (etc1_byte)((d >> 16) & 0xFF);
+    pOut[2] = (etc1_byte)((d >>  8) & 0xFF);
+    pOut[3] = (etc1_byte)((d >>  0) & 0xFF);
 }
 
 // Input is a 4 x 4 square of 3-byte pixels in form R, G, B

@@ -8,8 +8,8 @@
 #ifndef SKSL_RETURNSTATEMENT
 #define SKSL_RETURNSTATEMENT
 
-#include "SkSLExpression.h"
-#include "SkSLStatement.h"
+#include "src/sksl/ir/SkSLExpression.h"
+#include "src/sksl/ir/SkSLStatement.h"
 
 namespace SkSL {
 
@@ -17,12 +17,19 @@ namespace SkSL {
  * A 'return' statement.
  */
 struct ReturnStatement : public Statement {
-    ReturnStatement(Position position)
-    : INHERITED(position, kReturn_Kind) {}
+    ReturnStatement(int offset)
+    : INHERITED(offset, kReturn_Kind) {}
 
     ReturnStatement(std::unique_ptr<Expression> expression)
-    : INHERITED(expression->fPosition, kReturn_Kind)
+    : INHERITED(expression->fOffset, kReturn_Kind)
     , fExpression(std::move(expression)) {}
+
+    std::unique_ptr<Statement> clone() const override {
+        if (fExpression) {
+            return std::unique_ptr<Statement>(new ReturnStatement(fExpression->clone()));
+        }
+        return std::unique_ptr<Statement>(new ReturnStatement(fOffset));
+    }
 
     String description() const override {
         if (fExpression) {

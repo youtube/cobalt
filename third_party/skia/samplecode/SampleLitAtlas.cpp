@@ -5,26 +5,25 @@
  * found in the LICENSE file.
  */
 
-#include "SampleCode.h"
-#include "SkAnimTimer.h"
-#include "SkBitmapProcShader.h"
-#include "SkCanvas.h"
-#include "SkDrawable.h"
-#include "SkLightingShader.h"
-#include "SkLights.h"
-#include "SkNormalSource.h"
-#include "SkRandom.h"
-#include "SkRSXform.h"
-#include "SkView.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkDrawable.h"
+#include "include/core/SkRSXform.h"
+#include "include/utils/SkRandom.h"
+#include "samplecode/Sample.h"
+#include "src/core/SkNormalSource.h"
+#include "src/shaders/SkBitmapProcShader.h"
+#include "src/shaders/SkLightingShader.h"
+#include "src/shaders/SkLights.h"
 
-#include "sk_tool_utils.h"
+#include "tools/ToolUtils.h"
 
+// A crude normal mapped asteroids-like sample
 class DrawLitAtlasDrawable : public SkDrawable {
 public:
     DrawLitAtlasDrawable(const SkRect& r)
-        : fBounds(r)
-        , fUseColors(false)
-        , fLightDir(SkVector3::Make(1.0f, 0.0f, 0.0f)) {
+            : fBounds(r)
+            , fUseColors(false)
+            , fLightDir(SkVector3::Make(1.0f, 0.0f, 0.0f)) {
         fAtlas = MakeAtlas();
 
         SkRandom rand;
@@ -42,8 +41,9 @@ public:
     }
 
     void rotateLight() {
-        SkScalar c;
-        SkScalar s = SkScalarSinCos(SK_ScalarPI/6.0f, &c);
+        SkScalar r = SK_ScalarPI / 6.0f,
+                 s = SkScalarSin(r),
+                 c = SkScalarCos(r);
 
         SkScalar newX = c * fLightDir.fX - s * fLightDir.fY;
         SkScalar newY = s * fLightDir.fX + c * fLightDir.fY;
@@ -65,14 +65,15 @@ public:
     }
 
     void thrust() {
-        SkScalar c;
-        SkScalar s = SkScalarSinCos(fShip.rot(), &c);
+        SkScalar s = SkScalarSin(fShip.rot()),
+                 c = SkScalarCos(fShip.rot());
 
         SkVector newVel = fShip.velocity();
         newVel.fX += s;
         newVel.fY += -c;
 
-        if (newVel.lengthSqd() > kMaxShipSpeed*kMaxShipSpeed) {
+        SkScalar len = newVel.length();
+        if (len > kMaxShipSpeed) {
             newVel.setLength(SkIntToScalar(kMaxShipSpeed));
         }
 
@@ -130,12 +131,10 @@ protected:
             SkMatrix m;
             m.setRSXform(xforms[i]);
 
-            sk_sp<SkShader> normalMap = SkShader::MakeBitmapShader(fAtlas, SkShader::kClamp_TileMode,
-                    SkShader::kClamp_TileMode, &normalMat);
+            sk_sp<SkShader> normalMap = fAtlas.makeShader(&normalMat);
             sk_sp<SkNormalSource> normalSource = SkNormalSource::MakeFromNormalMap(
                     std::move(normalMap), m);
-            sk_sp<SkShader> diffuseShader = SkShader::MakeBitmapShader(fAtlas,
-                    SkShader::kClamp_TileMode, SkShader::kClamp_TileMode, &diffMat);
+            sk_sp<SkShader> diffuseShader = fAtlas.makeShader(&diffMat);
             paint.setShader(SkLightingShader::Make(std::move(diffuseShader),
                     std::move(normalSource), fLights));
 
@@ -161,7 +160,7 @@ protected:
         }
 #endif
     }
-    
+
     SkRect onGetBounds() override {
         return fBounds;
     }
@@ -179,7 +178,7 @@ private:
 
     static const int kObjTypeCount = kLast_ObjType + 1;
 
-    void updateLights() {        
+    void updateLights() {
         SkLights::Builder builder;
 
         builder.add(SkLights::Light::MakeDirectional(
@@ -211,12 +210,12 @@ private:
 #endif
 
     // Create the mixed diffuse & normal atlas
-    // 
+    //
     //    big color circle  |  big normal hemi
     //    ------------------------------------
     //    med color circle  |  med normal pyra
     //    ------------------------------------
-    //    sm color circle   |   sm normal hemi 
+    //    sm color circle   |   sm normal hemi
     //    ------------------------------------
     //    big ship          | big tetra normal
     static SkBitmap MakeAtlas() {
@@ -227,10 +226,10 @@ private:
         for (int y = 0; y < kAtlasHeight; ++y) {
             int x = 0;
             for ( ; x < kBigSize+kPad; ++x) {
-                *atlas.getAddr32(x, y) = SK_ColorTRANSPARENT;                
+                *atlas.getAddr32(x, y) = SK_ColorTRANSPARENT;
             }
             for ( ; x < kAtlasWidth; ++x) {
-                *atlas.getAddr32(x, y) = SkPackARGB32(0xFF, 0x88, 0x88, 0xFF);                
+                *atlas.getAddr32(x, y) = SkPackARGB32(0xFF, 0x88, 0x88, 0xFF);
             }
         }
 
@@ -243,29 +242,27 @@ private:
                     SkScalar distSq = (x - bigCenter.fX) * (x - bigCenter.fX) +
                                       (y - bigCenter.fY) * (y - bigCenter.fY);
                     if (distSq > kBigSize*kBigSize/4.0f) {
-                        *atlas.getAddr32(x, y) = SkPreMultiplyARGB(0, 0, 0, 0);                
+                        *atlas.getAddr32(x, y) = SkPreMultiplyARGB(0, 0, 0, 0);
                     } else {
-                        *atlas.getAddr32(x, y) = SkPackARGB32(0xFF, 0xFF, 0, 0);                
+                        *atlas.getAddr32(x, y) = SkPackARGB32(0xFF, 0xFF, 0, 0);
                     }
                 }
             }
 
-            sk_tool_utils::create_hemi_normal_map(&atlas,
-                                                  SkIRect::MakeXYWH(kNormXOff, kBigYOff,
-                                                                    kBigSize, kBigSize));
+            ToolUtils::create_hemi_normal_map(
+                    &atlas, SkIRect::MakeXYWH(kNormXOff, kBigYOff, kBigSize, kBigSize));
         }
 
         // medium asteroid
         {
             for (int y = kMedYOff; y < kMedYOff+kMedSize; ++y) {
                 for (int x = kDiffXOff; x < kDiffXOff+kMedSize; ++x) {
-                    *atlas.getAddr32(x, y) = SkPackARGB32(0xFF, 0, 0xFF, 0);                
+                    *atlas.getAddr32(x, y) = SkPackARGB32(0xFF, 0, 0xFF, 0);
                 }
             }
 
-            sk_tool_utils::create_frustum_normal_map(&atlas,
-                                                     SkIRect::MakeXYWH(kNormXOff, kMedYOff,
-                                                                       kMedSize, kMedSize));
+            ToolUtils::create_frustum_normal_map(
+                    &atlas, SkIRect::MakeXYWH(kNormXOff, kMedYOff, kMedSize, kMedSize));
         }
 
         // small asteroid
@@ -277,16 +274,15 @@ private:
                     SkScalar distSq = (x - smCenter.fX) * (x - smCenter.fX) +
                                       (y - smCenter.fY) * (y - smCenter.fY);
                     if (distSq > kSmSize*kSmSize/4.0f) {
-                        *atlas.getAddr32(x, y) = SkPreMultiplyARGB(0, 0, 0, 0);                
+                        *atlas.getAddr32(x, y) = SkPreMultiplyARGB(0, 0, 0, 0);
                     } else {
-                        *atlas.getAddr32(x, y) = SkPackARGB32(0xFF, 0, 0, 0xFF);                
+                        *atlas.getAddr32(x, y) = SkPackARGB32(0xFF, 0, 0, 0xFF);
                     }
                 }
             }
 
-            sk_tool_utils::create_hemi_normal_map(&atlas,
-                                                  SkIRect::MakeXYWH(kNormXOff, kSmYOff,
-                                                                    kSmSize, kSmSize));
+            ToolUtils::create_hemi_normal_map(
+                    &atlas, SkIRect::MakeXYWH(kNormXOff, kSmYOff, kSmSize, kSmSize));
         }
 
         // ship
@@ -306,16 +302,15 @@ private:
                     }
 
                     if (scaledX < scaledY) {
-                        *atlas.getAddr32(x, y) = SkPackARGB32(0xFF, 0, 0xFF, 0xFF);                
+                        *atlas.getAddr32(x, y) = SkPackARGB32(0xFF, 0, 0xFF, 0xFF);
                     } else {
-                        *atlas.getAddr32(x, y) = SkPackARGB32(0, 0, 0, 0);                
+                        *atlas.getAddr32(x, y) = SkPackARGB32(0, 0, 0, 0);
                     }
                 }
             }
 
-            sk_tool_utils::create_tetra_normal_map(&atlas,
-                                                   SkIRect::MakeXYWH(kNormXOff, kShipYOff,
-                                                                     kMedSize, kMedSize));
+            ToolUtils::create_tetra_normal_map(
+                    &atlas, SkIRect::MakeXYWH(kNormXOff, kShipYOff, kMedSize, kMedSize));
         }
 
         return atlas;
@@ -339,7 +334,7 @@ private:
             SkASSERT(SkScalarNearlyEqual(fVelocity.length(), 1.0f));
             fVelocity *= gMaxSpeeds[fObjType];
             fRot = 0;
-            fDeltaRot = rand->nextSScalar1() / 32;    
+            fDeltaRot = rand->nextSScalar1() / 32;
 
             diffTex->setXYWH(SkIntToScalar(kDiffXOff), gYOffs[fObjType],
                              gSizes[fObjType], gSizes[fObjType]);
@@ -356,7 +351,7 @@ private:
 
             diffTex->setXYWH(SkIntToScalar(kDiffXOff), SkIntToScalar(kShipYOff),
                              SkIntToScalar(kMedSize), SkIntToScalar(kMedSize));
-            normTex->setXYWH(SkIntToScalar(kNormXOff), SkIntToScalar(kShipYOff), 
+            normTex->setXYWH(SkIntToScalar(kNormXOff), SkIntToScalar(kShipYOff),
                              SkIntToScalar(kMedSize), SkIntToScalar(kMedSize));
         }
 
@@ -382,7 +377,7 @@ private:
             fRot += fDeltaRot;
             fRot = SkScalarMod(fRot, 2 * SK_ScalarPI);
         }
-        
+
         const SkPoint& pos() const { return fPosition; }
 
         SkScalar rot() const { return fRot; }
@@ -393,10 +388,10 @@ private:
 
         SkRSXform asRSXform() const {
             static const SkScalar gHalfSizes[kObjTypeCount] = {
-                SkScalarHalf(kBigSize), 
-                SkScalarHalf(kMedSize), 
+                SkScalarHalf(kBigSize),
+                SkScalarHalf(kMedSize),
                 SkScalarHalf(kSmSize),
-                SkScalarHalf(kMedSize), 
+                SkScalarHalf(kMedSize),
             };
 
             return SkRSXform::MakeFromRadians(1.0f, fRot, fPosition.x(), fPosition.y(),
@@ -411,9 +406,6 @@ private:
         SkScalar    fRot;        // In radians.
         SkScalar    fDeltaRot;   // In radiands. Not used by ship.
     };
-
-
-
 
 private:
     static const int kNumLights = 2;
@@ -449,69 +441,48 @@ private:
     typedef SkDrawable INHERITED;
 };
 
-class DrawLitAtlasView : public SampleView {
+class DrawLitAtlasView : public Sample {
 public:
-    DrawLitAtlasView()
-        : fDrawable(new DrawLitAtlasDrawable(SkRect::MakeWH(640, 480))) {
-    }
+    DrawLitAtlasView() : fDrawable(new DrawLitAtlasDrawable(SkRect::MakeWH(640, 480))) {}
 
 protected:
-    bool onQuery(SkEvent* evt) override {
-        if (SampleCode::TitleQ(*evt)) {
-            SampleCode::TitleR(evt, "DrawLitAtlas");
-            return true;
-        }
-        SkUnichar uni;
-        if (SampleCode::CharQ(*evt, &uni)) {
+    SkString name() override { return SkString("DrawLitAtlas"); }
+
+    bool onChar(SkUnichar uni) override {
             switch (uni) {
-                case 'C': 
+                case 'C':
                     fDrawable->toggleUseColors();
-                    this->inval(NULL);
                     return true;
                 case 'j':
                     fDrawable->left();
-                    this->inval(NULL);
                     return true;
-                case 'k': 
+                case 'k':
                     fDrawable->thrust();
-                    this->inval(NULL); 
                     return true;
                 case 'l':
                     fDrawable->right();
-                    this->inval(NULL); 
                     return true;
                 case 'o':
                     fDrawable->rotateLight();
-                    this->inval(NULL); 
                     return true;
                 default:
                     break;
             }
-        }
-        return this->INHERITED::onQuery(evt);
+            return false;
     }
 
     void onDrawContent(SkCanvas* canvas) override {
         canvas->drawDrawable(fDrawable.get());
-        this->inval(NULL);
     }
 
-#if 0
-    // TODO: switch over to use this for our animation
-    bool onAnimate(const SkAnimTimer& timer) override {
-        SkScalar angle = SkDoubleToScalar(fmod(timer.secs() * 360 / 24, 360));
-        fAnimatingDrawable->setSweep(angle);
-        return true;
-    }
-#endif
+    bool onAnimate(double nanos) override { return true; }
 
 private:
     sk_sp<DrawLitAtlasDrawable> fDrawable;
 
-    typedef SampleView INHERITED;
+    typedef Sample INHERITED;
 };
 
 //////////////////////////////////////////////////////////////////////////////
 
-static SkView* MyFactory() { return new DrawLitAtlasView; }
-static SkViewRegister reg(MyFactory);
+DEF_SAMPLE( return new DrawLitAtlasView(); )

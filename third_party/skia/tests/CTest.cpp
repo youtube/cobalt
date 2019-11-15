@@ -5,17 +5,21 @@
  * found in the LICENSE file.
  */
 
-#include "Test.h"
+#include "include/c/sk_canvas.h"
+#include "include/c/sk_imageinfo.h"
+#include "include/c/sk_paint.h"
+#include "include/c/sk_shader.h"
+#include "include/c/sk_surface.h"
+#include "include/c/sk_types.h"
+#include "tests/Test.h"
 
-#include "sk_canvas.h"
-#include "sk_paint.h"
-#include "sk_surface.h"
-#include "sk_shader.h"
+#include <stddef.h>
+#include <stdint.h>
 
 static void shader_test(skiatest::Reporter* reporter) {
-    sk_imageinfo_t info =
-        {64, 64, sk_colortype_get_default_8888(), PREMUL_SK_ALPHATYPE};
-    sk_surface_t* surface  = sk_surface_new_raster(&info, nullptr);
+    sk_imageinfo_t* info = sk_imageinfo_new(64, 64, RGBA_8888_SK_COLORTYPE, PREMUL_SK_ALPHATYPE,
+                                            NULL);
+    sk_surface_t* surface  = sk_surface_new_raster(info, nullptr);
     sk_canvas_t* canvas = sk_surface_get_canvas(surface);
     sk_paint_t* paint = sk_paint_new();
 
@@ -50,18 +54,16 @@ static void shader_test(skiatest::Reporter* reporter) {
 
     sk_paint_delete(paint);
     sk_surface_unref(surface);
+    sk_imageinfo_delete(info);
 }
 
 static void test_c(skiatest::Reporter* reporter) {
-    sk_colortype_t ct = sk_colortype_get_default_8888();
-
-    sk_imageinfo_t info = {
-        1, 1, ct, PREMUL_SK_ALPHATYPE
-    };
+    sk_imageinfo_t* info = sk_imageinfo_new(1, 1, RGBA_8888_SK_COLORTYPE, PREMUL_SK_ALPHATYPE,
+                                            NULL);
     uint32_t pixel[1] = { 0 };
     sk_surfaceprops_t surfaceProps = { UNKNOWN_SK_PIXELGEOMETRY };
 
-    sk_surface_t* surface = sk_surface_new_raster_direct(&info, pixel, sizeof(uint32_t),
+    sk_surface_t* surface = sk_surface_new_raster_direct(info, pixel, sizeof(uint32_t),
                                                          &surfaceProps);
     sk_paint_t* paint = sk_paint_new();
 
@@ -80,6 +82,7 @@ static void test_c(skiatest::Reporter* reporter) {
 
     sk_paint_delete(paint);
     sk_surface_unref(surface);
+    sk_imageinfo_delete(info);
 }
 
 DEF_TEST(C_API, reporter) {

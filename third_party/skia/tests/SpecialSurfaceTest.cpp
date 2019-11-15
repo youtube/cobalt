@@ -5,16 +5,16 @@
 * found in the LICENSE file
 */
 
-#include "SkBitmap.h"
-#include "SkCanvas.h"
-#include "SkSpecialImage.h"
-#include "SkSpecialSurface.h"
-#include "Test.h"
+#include "include/core/SkBitmap.h"
+#include "include/core/SkCanvas.h"
+#include "src/core/SkSpecialImage.h"
+#include "src/core/SkSpecialSurface.h"
+#include "tests/Test.h"
 
-#if SK_SUPPORT_GPU
-#include "GrContext.h"
-#include "SkGr.h"
-#endif
+#include "include/gpu/GrContext.h"
+#include "src/gpu/GrCaps.h"
+#include "src/gpu/GrContextPriv.h"
+#include "src/gpu/SkGr.h"
 
 class TestingSpecialSurfaceAccess {
 public:
@@ -77,15 +77,14 @@ DEF_TEST(SpecialSurface_Raster2, reporter) {
     // TODO: check that the clear didn't escape the active region
 }
 
-#if SK_SUPPORT_GPU
-
 DEF_GPUTEST_FOR_RENDERING_CONTEXTS(SpecialSurface_Gpu1, reporter, ctxInfo) {
-    sk_sp<SkSpecialSurface> surf(SkSpecialSurface::MakeRenderTarget(ctxInfo.grContext(),
-                                                                    kSmallerSize, kSmallerSize,
-                                                                    kRGBA_8888_GrPixelConfig,
-                                                                    nullptr));
-
-    test_surface(surf, reporter, 0);
+    for (auto colorType : {GrColorType::kRGBA_8888, GrColorType::kRGBA_1010102}) {
+        if (!ctxInfo.grContext()->colorTypeSupportedAsSurface(
+                    GrColorTypeToSkColorType(colorType))) {
+            continue;
+        }
+        sk_sp<SkSpecialSurface> surf(SkSpecialSurface::MakeRenderTarget(
+                ctxInfo.grContext(), kSmallerSize, kSmallerSize, colorType, nullptr));
+        test_surface(surf, reporter, 0);
+    }
 }
-
-#endif

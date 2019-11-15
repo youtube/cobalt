@@ -5,9 +5,10 @@
  * found in the LICENSE file.
  */
 
-#include "SkSLString.h"
+#include "src/sksl/SkSLString.h"
 
-#include "SkSLUtil.h"
+#include "src/sksl/SkSLUtil.h"
+#include <algorithm>
 #include <errno.h>
 #include <limits.h>
 #include <locale>
@@ -30,14 +31,25 @@ String String::printf(const char* fmt, ...) {
     return result;
 }
 
-#ifdef SKSL_STANDALONE
 void String::appendf(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
     this->vappendf(fmt, args);
     va_end(args);
+<<<<<<< HEAD
+=======
 }
-#endif
+
+void String::reset() {
+    this->clear();
+}
+
+int String::findLastOf(const char c) const {
+    // Rely on find_last_of and remap the output
+    size_t index = this->find_last_of(c);
+    return (index == std::string::npos ? -1 : index);
+>>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
+}
 
 void String::vappendf(const char* fmt, va_list args) {
 #ifdef SKSL_BUILD_FOR_WIN
@@ -73,6 +85,16 @@ bool String::endsWith(const char* s) const {
     return !strncmp(c_str() + size() - len, s, len);
 }
 
+int String::find(const String& substring, int fromPos) const {
+    return find(substring.c_str(), fromPos);
+}
+
+int String::find(const char* substring, int fromPos) const {
+    SkASSERT(fromPos >= 0);
+    size_t found = INHERITED::find(substring, (size_t) fromPos);
+    return found == std::string::npos ? -1 : found;
+}
+
 String String::operator+(const char* s) const {
     String result(*this);
     result.append(s);
@@ -83,6 +105,32 @@ String String::operator+(const String& s) const {
     String result(*this);
     result.append(s);
     return result;
+}
+
+String String::operator+(StringFragment s) const {
+    String result(*this);
+    result.append(s.fChars, s.fLength);
+    return result;
+}
+
+String& String::operator+=(char c) {
+    INHERITED::operator+=(c);
+    return *this;
+}
+
+String& String::operator+=(const char* s) {
+    INHERITED::operator+=(s);
+    return *this;
+}
+
+String& String::operator+=(const String& s) {
+    INHERITED::operator+=(s);
+    return *this;
+}
+
+String& String::operator+=(StringFragment s) {
+    this->append(s.fChars, s.fLength);
+    return *this;
 }
 
 bool String::operator==(const String& s) const {
@@ -112,6 +160,54 @@ bool operator==(const char* s1, const String& s2) {
 }
 
 bool operator!=(const char* s1, const String& s2) {
+    return s2 != s1;
+}
+
+bool StringFragment::operator==(StringFragment s) const {
+    if (fLength != s.fLength) {
+        return false;
+    }
+    return !memcmp(fChars, s.fChars, fLength);
+}
+
+bool StringFragment::operator!=(StringFragment s) const {
+    if (fLength != s.fLength) {
+        return true;
+    }
+    return memcmp(fChars, s.fChars, fLength);
+}
+
+bool StringFragment::operator==(const char* s) const {
+    for (size_t i = 0; i < fLength; ++i) {
+        if (fChars[i] != s[i]) {
+            return false;
+        }
+    }
+    return 0 == s[fLength];
+}
+
+bool StringFragment::operator!=(const char* s) const {
+    for (size_t i = 0; i < fLength; ++i) {
+        if (fChars[i] != s[i]) {
+            return true;
+        }
+    }
+    return 0 != s[fLength];
+}
+
+bool StringFragment::operator<(StringFragment other) const {
+    int comparison = strncmp(fChars, other.fChars, std::min(fLength, other.fLength));
+    if (comparison) {
+        return comparison < 0;
+    }
+    return fLength < other.fLength;
+}
+
+bool operator==(const char* s1, StringFragment s2) {
+    return s2 == s1;
+}
+
+bool operator!=(const char* s1, StringFragment s2) {
     return s2 != s1;
 }
 
@@ -155,31 +251,31 @@ String to_string(double value) {
     return String(buffer.str().c_str());
 }
 
-int stoi(String s) {
+SKSL_INT stoi(const String& s) {
     char* p;
-    SKSL_DEBUGCODE(errno = 0;)
+    SkDEBUGCODE(errno = 0;)
     long result = strtoul(s.c_str(), &p, 0);
-    ASSERT(*p == 0);
-    ASSERT(!errno);
-    return (int) result;
+    SkASSERT(*p == 0);
+    SkASSERT(!errno);
+    return result;
 }
 
-double stod(String s) {
+SKSL_FLOAT stod(const String& s) {
     double result;
     std::string str(s.c_str(), s.size());
     std::stringstream buffer(str);
     buffer.imbue(std::locale::classic());
     buffer >> result;
-    ASSERT(!buffer.fail());
+    SkASSERT(!buffer.fail());
     return result;
 }
 
-long stol(String s) {
+long stol(const String& s) {
     char* p;
-    SKSL_DEBUGCODE(errno = 0;)
+    SkDEBUGCODE(errno = 0;)
     long result = strtoul(s.c_str(), &p, 0);
-    ASSERT(*p == 0);
-    ASSERT(!errno);
+    SkASSERT(*p == 0);
+    SkASSERT(!errno);
     return result;
 }
 

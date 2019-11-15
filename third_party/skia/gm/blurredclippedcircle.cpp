@@ -5,13 +5,20 @@
  * found in the LICENSE file.
  */
 
-#include "gm.h"
-#include "sk_tool_utils.h"
-#include "SkBlurMaskFilter.h"
-#include "SkClipOpPriv.h"
-#include "SkColorFilter.h"
-#include "SkPaint.h"
-#include "SkRRect.h"
+#include "gm/gm.h"
+#include "include/core/SkBlendMode.h"
+#include "include/core/SkBlurTypes.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkColor.h"
+#include "include/core/SkColorFilter.h"
+#include "include/core/SkMaskFilter.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkRRect.h"
+#include "include/core/SkRect.h"
+#include "include/core/SkScalar.h"
+#include "include/core/SkSize.h"
+#include "include/core/SkString.h"
+#include "src/core/SkClipOpPriv.h"
 
 namespace skiagm {
 
@@ -20,7 +27,7 @@ namespace skiagm {
 class BlurredClippedCircleGM : public GM {
 public:
     BlurredClippedCircleGM() {
-        this->setBGColor(sk_tool_utils::color_to_565(0xFFCCCCCC));
+        this->setBGColor(0xFFCCCCCC);
     }
 
 protected:
@@ -65,13 +72,11 @@ protected:
 
                     SkPaint paint;
 
-                    paint.setMaskFilter(SkBlurMaskFilter::Make(
+                    paint.setMaskFilter(SkMaskFilter::MakeBlur(
                                             kNormal_SkBlurStyle,
-                                            1.366025f,
-                                            SkBlurMaskFilter::kHighQuality_BlurFlag));
-                    paint.setColorFilter(SkColorFilter::MakeModeFilter(
-                                             SK_ColorRED,
-                                             SkBlendMode::kSrcIn));
+                                            1.366025f));
+                    paint.setColorFilter(SkColorFilters::Blend(SK_ColorRED,
+                                                                   SkBlendMode::kSrcIn));
                     paint.setAntiAlias(true);
 
                     canvas->drawRRect(rr, paint);

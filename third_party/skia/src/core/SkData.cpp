@@ -5,12 +5,13 @@
  * found in the LICENSE file.
  */
 
-#include "SkData.h"
-#include "SkOSFile.h"
-#include "SkOnce.h"
-#include "SkReadBuffer.h"
-#include "SkStream.h"
-#include "SkWriteBuffer.h"
+#include "include/core/SkData.h"
+#include "include/core/SkStream.h"
+#include "include/private/SkOnce.h"
+#include "src/core/SkOSFile.h"
+#include "src/core/SkReadBuffer.h"
+#include "src/core/SkWriteBuffer.h"
+#include <new>
 
 SkData::SkData(const void* ptr, size_t size, ReleaseProc proc, void* context) {
     fPtr = const_cast<void*>(ptr);
@@ -58,16 +59,17 @@ size_t SkData::copyRange(size_t offset, size_t length, void* buffer) const {
     return length;
 }
 
+void SkData::operator delete(void* p) {
+    ::operator delete(p);
+}
+
 sk_sp<SkData> SkData::PrivateNewWithCopy(const void* srcOrNull, size_t length) {
     if (0 == length) {
         return SkData::MakeEmpty();
     }
 
     const size_t actualLength = length + sizeof(SkData);
-    if (actualLength < length) {
-        // we overflowed
-        sk_throw();
-    }
+    SkASSERT_RELEASE(length < actualLength);  // Check for overflow.
 
     void* storage = ::operator new (actualLength);
     sk_sp<SkData> data(new (storage) SkData(length));

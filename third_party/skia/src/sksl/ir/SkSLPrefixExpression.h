@@ -8,10 +8,11 @@
 #ifndef SKSL_PREFIXEXPRESSION
 #define SKSL_PREFIXEXPRESSION
 
-#include "SkSLExpression.h"
-#include "SkSLFloatLiteral.h"
-#include "SkSLIRGenerator.h"
-#include "SkSLToken.h"
+#include "src/sksl/SkSLCompiler.h"
+#include "src/sksl/SkSLIRGenerator.h"
+#include "src/sksl/SkSLLexer.h"
+#include "src/sksl/ir/SkSLExpression.h"
+#include "src/sksl/ir/SkSLFloatLiteral.h"
 
 namespace SkSL {
 
@@ -20,7 +21,7 @@ namespace SkSL {
  */
 struct PrefixExpression : public Expression {
     PrefixExpression(Token::Kind op, std::unique_ptr<Expression> operand)
-    : INHERITED(operand->fPosition, kPrefix_Kind, operand->fType)
+    : INHERITED(operand->fOffset, kPrefix_Kind, operand->fType)
     , fOperand(std::move(operand))
     , fOperator(op) {}
 
@@ -38,15 +39,34 @@ struct PrefixExpression : public Expression {
         if (fOperand->fKind == Expression::kFloatLiteral_Kind) {
             return std::unique_ptr<Expression>(new FloatLiteral(
                                                               irGenerator.fContext,
-                                                              Position(),
+                                                              fOffset,
                                                               -((FloatLiteral&) *fOperand).fValue));
 
         }
         return nullptr;
     }
 
+    SKSL_FLOAT getFVecComponent(int index) const override {
+        SkASSERT(fOperator == Token::Kind::MINUS);
+        return -fOperand->getFVecComponent(index);
+    }
+
+    SKSL_INT getIVecComponent(int index) const override {
+        SkASSERT(fOperator == Token::Kind::MINUS);
+        return -fOperand->getIVecComponent(index);
+    }
+
+    SKSL_FLOAT getMatComponent(int col, int row) const override {
+        SkASSERT(fOperator == Token::Kind::MINUS);
+        return -fOperand->getMatComponent(col, row);
+    }
+
+    std::unique_ptr<Expression> clone() const override {
+        return std::unique_ptr<Expression>(new PrefixExpression(fOperator, fOperand->clone()));
+    }
+
     String description() const override {
-        return Token::OperatorName(fOperator) + fOperand->description();
+        return Compiler::OperatorName(fOperator) + fOperand->description();
     }
 
     std::unique_ptr<Expression> fOperand;

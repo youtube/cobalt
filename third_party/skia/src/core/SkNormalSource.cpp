@@ -5,18 +5,15 @@
  * found in the LICENSE file.
  */
 
-#include "SkNormalFlatSource.h"
-#include "SkNormalMapSource.h"
-#include "SkNormalSource.h"
+#include "src/core/SkNormalFlatSource.h"
+#include "src/core/SkNormalMapSource.h"
+#include "src/core/SkNormalSource.h"
 
 // Generating vtable
 SkNormalSource::~SkNormalSource() {}
 
-////////////////////////////////////////////////////////////////////////////
+void SkNormalSource::RegisterFlattenables() {
+    SK_REGISTER_FLATTENABLE(SkNormalMapSourceImpl);
+    SK_REGISTER_FLATTENABLE(SkNormalFlatSourceImpl);
+}
 
-SK_DEFINE_FLATTENABLE_REGISTRAR_GROUP_START(SkNormalSource)
-SK_DEFINE_FLATTENABLE_REGISTRAR_ENTRY(SkNormalMapSourceImpl)
-SK_DEFINE_FLATTENABLE_REGISTRAR_ENTRY(SkNormalFlatSourceImpl)
-SK_DEFINE_FLATTENABLE_REGISTRAR_GROUP_END
-
-////////////////////////////////////////////////////////////////////////////

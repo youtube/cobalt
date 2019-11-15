@@ -5,9 +5,9 @@
  * found in the LICENSE file.
  */
 
-#include "SkCanvas.h"
-#include "SkImagePriv.h"
-#include "Test.h"
+#include "include/core/SkCanvas.h"
+#include "src/core/SkImagePriv.h"
+#include "tests/Test.h"
 
 static const int gWidth = 20;
 static const int gHeight = 20;
@@ -37,11 +37,11 @@ DEF_TEST(SkImageFromBitmap_extractSubset, reporter) {
 
     uint32_t pixel = 0;
     SkImageInfo info = SkImageInfo::Make(1, 1, kBGRA_8888_SkColorType, kUnpremul_SkAlphaType);
-    canvas.readPixels(info, &pixel, 4, 0, 0);
+    tgt.readPixels(info, &pixel, 4, 0, 0);
     REPORTER_ASSERT(reporter, pixel == SK_ColorGREEN);
-    canvas.readPixels(info, &pixel, 4, gWidth - 6, gWidth - 6);
+    tgt.readPixels(info, &pixel, 4, gWidth - 6, gWidth - 6);
     REPORTER_ASSERT(reporter, pixel == SK_ColorGREEN);
 
-    canvas.readPixels(info, &pixel, 4, gWidth - 5, gWidth - 5);
+    tgt.readPixels(info, &pixel, 4, gWidth - 5, gWidth - 5);
     REPORTER_ASSERT(reporter, pixel == SK_ColorTRANSPARENT);
 }

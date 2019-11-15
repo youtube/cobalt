@@ -5,8 +5,13 @@
 * found in the LICENSE file.
 */
 
-#include "GrVkUniformHandler.h"
-#include "glsl/GrGLSLProgramBuilder.h"
+#include "src/gpu/vk/GrVkUniformHandler.h"
+
+#include "src/gpu/GrTexturePriv.h"
+#include "src/gpu/glsl/GrGLSLProgramBuilder.h"
+#include "src/gpu/vk/GrVkGpu.h"
+#include "src/gpu/vk/GrVkPipelineStateBuilder.h"
+#include "src/gpu/vk/GrVkTexture.h"
 
 // To determine whether a current offset is aligned, we can just 'and' the lowest bits with the
 // alignment mask. A value of 0 means aligned, any other value is how many bytes past alignment we
@@ -14,111 +19,172 @@
 // This alignment mask will give correct alignments for using the std430 block layout. If you want
 // the std140 alignment, you can use this, but then make sure if you have an array type it is
 // aligned to 16 bytes (i.e. has mask of 0xF).
-uint32_t grsltype_to_alignment_mask(GrSLType type) {
+// These are designated in the Vulkan spec, section 14.5.4 "Offset and Stride Assignment".
+// https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/html/vkspec.html#interfaces-resources-layout
+static uint32_t grsltype_to_alignment_mask(GrSLType type) {
     switch(type) {
-        case kInt_GrSLType:
+        case kByte_GrSLType: // fall through
+        case kUByte_GrSLType:
+            return 0x0;
+        case kByte2_GrSLType: // fall through
+        case kUByte2_GrSLType:
+            return 0x1;
+        case kByte3_GrSLType: // fall through
+        case kByte4_GrSLType:
+        case kUByte3_GrSLType:
+        case kUByte4_GrSLType:
             return 0x3;
+        case kShort_GrSLType: // fall through
+        case kUShort_GrSLType:
+            return 0x1;
+        case kShort2_GrSLType: // fall through
+        case kUShort2_GrSLType:
+            return 0x3;
+        case kShort3_GrSLType: // fall through
+        case kShort4_GrSLType:
+        case kUShort3_GrSLType:
+        case kUShort4_GrSLType:
+            return 0x7;
+        case kInt_GrSLType:
         case kUint_GrSLType:
             return 0x3;
+        case kHalf_GrSLType: // fall through
         case kFloat_GrSLType:
             return 0x3;
-        case kVec2f_GrSLType:
+        case kHalf2_GrSLType: // fall through
+        case kFloat2_GrSLType:
             return 0x7;
-        case kVec3f_GrSLType:
+        case kHalf3_GrSLType: // fall through
+        case kFloat3_GrSLType:
             return 0xF;
-        case kVec4f_GrSLType:
+        case kHalf4_GrSLType: // fall through
+        case kFloat4_GrSLType:
             return 0xF;
-        case kVec2i_GrSLType:
+        case kUint2_GrSLType:
             return 0x7;
-        case kVec3i_GrSLType:
-            return 0xF;
-        case kVec4i_GrSLType:
-            return 0xF;
-        case kMat22f_GrSLType:
+        case kInt2_GrSLType:
             return 0x7;
-        case kMat33f_GrSLType:
+        case kInt3_GrSLType:
             return 0xF;
-        case kMat44f_GrSLType:
+        case kInt4_GrSLType:
+            return 0xF;
+        case kHalf2x2_GrSLType: // fall through
+        case kFloat2x2_GrSLType:
+            return 0x7;
+        case kHalf3x3_GrSLType: // fall through
+        case kFloat3x3_GrSLType:
+            return 0xF;
+        case kHalf4x4_GrSLType: // fall through
+        case kFloat4x4_GrSLType:
             return 0xF;
 
         // This query is only valid for certain types.
         case kVoid_GrSLType:
         case kBool_GrSLType:
         case kTexture2DSampler_GrSLType:
-        case kITexture2DSampler_GrSLType:
         case kTextureExternalSampler_GrSLType:
         case kTexture2DRectSampler_GrSLType:
-        case kBufferSampler_GrSLType:
-        case kTexture2D_GrSLType:
         case kSampler_GrSLType:
-        case kImageStorage2D_GrSLType:
-        case kIImageStorage2D_GrSLType:
+        case kTexture2D_GrSLType:
             break;
     }
-    SkFAIL("Unexpected type");
-    return 0;
+    SK_ABORT("Unexpected type");
 }
 
-/** Returns the size in bytes taken up in vulkanbuffers for floating point GrSLTypes.
-    For non floating point type returns 0. Currently this reflects the std140 alignment
-    so a mat22 takes up 8 floats. */
+/** Returns the size in bytes taken up in vulkanbuffers for GrSLTypes. */
 static inline uint32_t grsltype_to_vk_size(GrSLType type) {
     switch(type) {
+        case kByte_GrSLType:
+            return sizeof(int8_t);
+        case kByte2_GrSLType:
+            return 2 * sizeof(int8_t);
+        case kByte3_GrSLType:
+            return 3 * sizeof(int8_t);
+        case kByte4_GrSLType:
+            return 4 * sizeof(int8_t);
+        case kUByte_GrSLType:
+            return sizeof(uint8_t);
+        case kUByte2_GrSLType:
+            return 2 * sizeof(uint8_t);
+        case kUByte3_GrSLType:
+            return 3 * sizeof(uint8_t);
+        case kUByte4_GrSLType:
+            return 4 * sizeof(uint8_t);
+        case kShort_GrSLType:
+            return sizeof(int16_t);
+        case kShort2_GrSLType:
+            return 2 * sizeof(int16_t);
+        case kShort3_GrSLType:
+            return 3 * sizeof(int16_t);
+        case kShort4_GrSLType:
+            return 4 * sizeof(int16_t);
+        case kUShort_GrSLType:
+            return sizeof(uint16_t);
+        case kUShort2_GrSLType:
+            return 2 * sizeof(uint16_t);
+        case kUShort3_GrSLType:
+            return 3 * sizeof(uint16_t);
+        case kUShort4_GrSLType:
+            return 4 * sizeof(uint16_t);
         case kInt_GrSLType:
             return sizeof(int32_t);
         case kUint_GrSLType:
             return sizeof(int32_t);
+        case kHalf_GrSLType: // fall through
         case kFloat_GrSLType:
             return sizeof(float);
-        case kVec2f_GrSLType:
+        case kHalf2_GrSLType: // fall through
+        case kFloat2_GrSLType:
             return 2 * sizeof(float);
-        case kVec3f_GrSLType:
+        case kHalf3_GrSLType: // fall through
+        case kFloat3_GrSLType:
             return 3 * sizeof(float);
-        case kVec4f_GrSLType:
+        case kHalf4_GrSLType: // fall through
+        case kFloat4_GrSLType:
             return 4 * sizeof(float);
-        case kVec2i_GrSLType:
+        case kUint2_GrSLType:
+            return 2 * sizeof(uint32_t);
+        case kInt2_GrSLType:
             return 2 * sizeof(int32_t);
-        case kVec3i_GrSLType:
+        case kInt3_GrSLType:
             return 3 * sizeof(int32_t);
-        case kVec4i_GrSLType:
+        case kInt4_GrSLType:
             return 4 * sizeof(int32_t);
-        case kMat22f_GrSLType:
+        case kHalf2x2_GrSLType: // fall through
+        case kFloat2x2_GrSLType:
             //TODO: this will be 4 * szof(float) on std430.
             return 8 * sizeof(float);
-        case kMat33f_GrSLType:
+        case kHalf3x3_GrSLType: // fall through
+        case kFloat3x3_GrSLType:
             return 12 * sizeof(float);
-        case kMat44f_GrSLType:
+        case kHalf4x4_GrSLType: // fall through
+        case kFloat4x4_GrSLType:
             return 16 * sizeof(float);
 
         // This query is only valid for certain types.
         case kVoid_GrSLType:
         case kBool_GrSLType:
         case kTexture2DSampler_GrSLType:
-        case kITexture2DSampler_GrSLType:
         case kTextureExternalSampler_GrSLType:
         case kTexture2DRectSampler_GrSLType:
-        case kBufferSampler_GrSLType:
-        case kTexture2D_GrSLType:
         case kSampler_GrSLType:
-        case kImageStorage2D_GrSLType:
-        case kIImageStorage2D_GrSLType:
+        case kTexture2D_GrSLType:
             break;
     }
-    SkFAIL("Unexpected type");
-    return 0;
+    SK_ABORT("Unexpected type");
 }
 
 
 // Given the current offset into the ubo, calculate the offset for the uniform we're trying to add
 // taking into consideration all alignment requirements. The uniformOffset is set to the offset for
 // the new uniform, and currentOffset is updated to be the offset to the end of the new uniform.
-void get_ubo_aligned_offset(uint32_t* uniformOffset,
-                            uint32_t* currentOffset,
-                            GrSLType type,
-                            int arrayCount) {
+static void get_ubo_aligned_offset(uint32_t* uniformOffset,
+                                   uint32_t* currentOffset,
+                                   GrSLType type,
+                                   int arrayCount) {
     uint32_t alignmentMask = grsltype_to_alignment_mask(type);
     // We want to use the std140 layout here, so we must make arrays align to 16 bytes.
-    if (arrayCount || type == kMat22f_GrSLType) {
+    if (arrayCount || type == kFloat2x2_GrSLType) {
         alignmentMask = 0xF;
     }
     uint32_t offsetDiff = *currentOffset & alignmentMask;
@@ -136,23 +202,25 @@ void get_ubo_aligned_offset(uint32_t* uniformOffset,
     }
 }
 
+GrVkUniformHandler::~GrVkUniformHandler() {
+    GrVkGpu* gpu = static_cast<GrVkPipelineStateBuilder*>(fProgramBuilder)->gpu();
+    for (decltype(fSamplers)::Iter iter(&fSamplers); iter.next();) {
+        if (iter->fImmutableSampler) {
+            iter->fImmutableSampler->unref(gpu);
+            iter->fImmutableSampler = nullptr;
+        }
+    }
+}
+
 GrGLSLUniformHandler::UniformHandle GrVkUniformHandler::internalAddUniformArray(
                                                                             uint32_t visibility,
                                                                             GrSLType type,
-                                                                            GrSLPrecision precision,
                                                                             const char* name,
                                                                             bool mangleName,
                                                                             int arrayCount,
                                                                             const char** outName) {
     SkASSERT(name && strlen(name));
-    // For now asserting the the visibility is either geometry types (vertex, tesselation, geometry,
-    // etc.) or only fragment.
-    SkASSERT(kVertex_GrShaderFlag == visibility ||
-             kGeometry_GrShaderFlag == visibility ||
-             (kVertex_GrShaderFlag | kGeometry_GrShaderFlag) == visibility ||
-             kFragment_GrShaderFlag == visibility);
-    SkASSERT(kDefault_GrSLPrecision == precision || GrSLTypeIsFloatType(type));
-    GrSLTypeIsFloatType(type);
+    SkASSERT(GrSLTypeIsFloatType(type));
 
     UniformInfo& uni = fUniforms.push_back();
     uni.fVariable.setType(type);
@@ -163,26 +231,17 @@ GrGLSLUniformHandler::UniformHandle GrVkUniformHandler::internalAddUniformArray(
     // uniform view matrix, they should upload the view matrix in their setData along with regular
     // uniforms.
     char prefix = 'u';
-    if ('u' == name[0]) {
+    if ('u' == name[0] || !strncmp(name, GR_NO_MANGLE_PREFIX, strlen(GR_NO_MANGLE_PREFIX))) {
         prefix = '\0';
     }
     fProgramBuilder->nameVariable(uni.fVariable.accessName(), prefix, name, mangleName);
     uni.fVariable.setArrayCount(arrayCount);
     uni.fVisibility = visibility;
-    uni.fVariable.setPrecision(precision);
     // When outputing the GLSL, only the outer uniform block will get the Uniform modifier. Thus
     // we set the modifier to none for all uniforms declared inside the block.
     uni.fVariable.setTypeModifier(GrShaderVar::kNone_TypeModifier);
 
-    uint32_t* currentOffset;
-    uint32_t geomStages = kVertex_GrShaderFlag | kGeometry_GrShaderFlag;
-    if (geomStages & visibility) {
-        currentOffset = &fCurrentGeometryUBOOffset;
-    } else {
-        SkASSERT(kFragment_GrShaderFlag == visibility);
-        currentOffset = &fCurrentFragmentUBOOffset;
-    }
-    get_ubo_aligned_offset(&uni.fUBOffset, currentOffset, type, arrayCount);
+    get_ubo_aligned_offset(&uni.fUBOffset, &fCurrentUBOOffset, type, arrayCount);
 
     SkString layoutQualifier;
     layoutQualifier.appendf("offset=%d", uni.fUBOffset);
@@ -195,106 +254,63 @@ GrGLSLUniformHandler::UniformHandle GrVkUniformHandler::internalAddUniformArray(
     return GrGLSLUniformHandler::UniformHandle(fUniforms.count() - 1);
 }
 
-GrGLSLUniformHandler::SamplerHandle GrVkUniformHandler::addSampler(uint32_t visibility,
-                                                                   GrSwizzle swizzle,
-                                                                   GrSLType type,
-                                                                   GrSLPrecision precision,
-                                                                   const char* name) {
+GrGLSLUniformHandler::SamplerHandle GrVkUniformHandler::addSampler(const GrTextureProxy* texture,
+                                                                   const GrSamplerState& state,
+                                                                   const GrSwizzle& swizzle,
+                                                                   const char* name,
+                                                                   const GrShaderCaps* shaderCaps) {
     SkASSERT(name && strlen(name));
-    // For now asserting the the visibility is either only vertex, geometry, or fragment
-    SkASSERT(kVertex_GrShaderFlag == visibility ||
-             kFragment_GrShaderFlag == visibility ||
-             kGeometry_GrShaderFlag == visibility);
     SkString mangleName;
     char prefix = 'u';
     fProgramBuilder->nameVariable(&mangleName, prefix, name, true);
 
+    GrTextureType type = texture->textureType();
+
     UniformInfo& info = fSamplers.push_back();
-    SkASSERT(GrSLTypeIsCombinedSamplerType(type));
-    info.fVariable.setType(type);
+    info.fVariable.setType(GrSLCombinedSamplerTypeForTextureType(type));
     info.fVariable.setTypeModifier(GrShaderVar::kUniform_TypeModifier);
-    info.fVariable.setPrecision(precision);
     info.fVariable.setName(mangleName);
     SkString layoutQualifier;
     layoutQualifier.appendf("set=%d, binding=%d", kSamplerDescSet, fSamplers.count() - 1);
     info.fVariable.addLayoutQualifier(layoutQualifier.c_str());
-    info.fVisibility = visibility;
+    info.fVisibility = kFragment_GrShaderFlag;
     info.fUBOffset = 0;
+
+    // Check if we are dealing with an external texture and store the needed information if so.
+    auto ycbcrInfo = texture->backendFormat().getVkYcbcrConversionInfo();
+    if (ycbcrInfo && ycbcrInfo->isValid()) {
+        GrVkGpu* gpu = static_cast<GrVkPipelineStateBuilder*>(fProgramBuilder)->gpu();
+        info.fImmutableSampler = gpu->resourceProvider().findOrCreateCompatibleSampler(
+                state, *ycbcrInfo);
+        SkASSERT(info.fImmutableSampler);
+    }
+
+    SkASSERT(shaderCaps->textureSwizzleAppliedInShader());
     fSamplerSwizzles.push_back(swizzle);
     SkASSERT(fSamplerSwizzles.count() == fSamplers.count());
     return GrGLSLUniformHandler::SamplerHandle(fSamplers.count() - 1);
 }
 
-GrGLSLUniformHandler::TexelBufferHandle GrVkUniformHandler::addTexelBuffer(uint32_t visibility,
-                                                                           GrSLPrecision precision,
-                                                                           const char* name) {
-    SkASSERT(name && strlen(name));
-    SkDEBUGCODE(static const uint32_t kVisMask = kVertex_GrShaderFlag |
-                                                 kGeometry_GrShaderFlag |
-                                                 kFragment_GrShaderFlag);
-    SkASSERT(0 == (~kVisMask & visibility));
-    SkASSERT(0 != visibility);
-    SkString mangleName;
-    char prefix = 'u';
-    fProgramBuilder->nameVariable(&mangleName, prefix, name, true);
-
-    UniformInfo& info = fTexelBuffers.push_back();
-    info.fVariable.setType(kBufferSampler_GrSLType);
-    info.fVariable.setTypeModifier(GrShaderVar::kUniform_TypeModifier);
-    info.fVariable.setPrecision(precision);
-    info.fVariable.setName(mangleName);
-    SkString layoutQualifier;
-    layoutQualifier.appendf("set=%d, binding=%d", kTexelBufferDescSet, fTexelBuffers.count()- 1);
-    info.fVariable.addLayoutQualifier(layoutQualifier.c_str());
-    info.fVisibility = visibility;
-    info.fUBOffset = 0;
-    return GrGLSLUniformHandler::TexelBufferHandle(fTexelBuffers.count() - 1);
-}
-
 void GrVkUniformHandler::appendUniformDecls(GrShaderFlags visibility, SkString* out) const {
-    SkASSERT(kVertex_GrShaderFlag == visibility ||
-             kGeometry_GrShaderFlag == visibility ||
-             kFragment_GrShaderFlag == visibility);
-
     for (int i = 0; i < fSamplers.count(); ++i) {
         const UniformInfo& sampler = fSamplers[i];
-        SkASSERT(sampler.fVariable.getType() == kTexture2DSampler_GrSLType);
+        SkASSERT(sampler.fVariable.getType() == kTexture2DSampler_GrSLType ||
+                 sampler.fVariable.getType() == kTextureExternalSampler_GrSLType);
         if (visibility == sampler.fVisibility) {
             sampler.fVariable.appendDecl(fProgramBuilder->shaderCaps(), out);
             out->append(";\n");
         }
     }
 
-    for (int i = 0; i < fTexelBuffers.count(); ++i) {
-        const UniformInfo& texelBuffer = fTexelBuffers[i];
-        if (visibility == texelBuffer.fVisibility) {
-            texelBuffer.fVariable.appendDecl(fProgramBuilder->shaderCaps(), out);
-            out->append(";\n");
-        }
-    }
-
 #ifdef SK_DEBUG
-    bool firstGeomOffsetCheck = false;
-    bool firstFragOffsetCheck = false;
+    bool firstOffsetCheck = false;
     for (int i = 0; i < fUniforms.count(); ++i) {
         const UniformInfo& localUniform = fUniforms[i];
-        if (kVertex_GrShaderFlag == localUniform.fVisibility ||
-            kGeometry_GrShaderFlag == localUniform.fVisibility ||
-            (kVertex_GrShaderFlag | kGeometry_GrShaderFlag) == localUniform.fVisibility) {
-            if (!firstGeomOffsetCheck) {
-                // Check to make sure we are starting our offset at 0 so the offset qualifier we
-                // set on each variable in the uniform block is valid.
-                SkASSERT(0 == localUniform.fUBOffset);
-                firstGeomOffsetCheck = true;
-            }
-        } else {
-            SkASSERT(kFragment_GrShaderFlag == localUniform.fVisibility);
-            if (!firstFragOffsetCheck) {
-                // Check to make sure we are starting our offset at 0 so the offset qualifier we
-                // set on each variable in the uniform block is valid.
-                SkASSERT(0 == localUniform.fUBOffset);
-                firstFragOffsetCheck = true;
-            }
+        if (!firstOffsetCheck) {
+            // Check to make sure we are starting our offset at 0 so the offset qualifier we
+            // set on each variable in the uniform block is valid.
+            SkASSERT(0 == localUniform.fUBOffset);
+            firstOffsetCheck = true;
         }
     }
 #endif
@@ -311,21 +327,15 @@ void GrVkUniformHandler::appendUniformDecls(GrShaderFlags visibility, SkString* 
     }
 
     if (!uniformsString.isEmpty()) {
-        uint32_t uniformBinding;
-        const char* stage;
-        if (kVertex_GrShaderFlag == visibility) {
-            uniformBinding = kGeometryBinding;
-            stage = "vertex";
-        } else if (kGeometry_GrShaderFlag == visibility) {
-            uniformBinding = kGeometryBinding;
-            stage = "geometry";
-        } else {
-            SkASSERT(kFragment_GrShaderFlag == visibility);
-            uniformBinding = kFragBinding;
-            stage = "fragment";
-        }
-        out->appendf("layout (set=%d, binding=%d) uniform %sUniformBuffer\n{\n",
-                     kUniformBufferDescSet, uniformBinding, stage);
+        out->appendf("layout (set=%d, binding=%d) uniform uniformBuffer\n{\n",
+                     kUniformBufferDescSet, kUniformBinding);
         out->appendf("%s\n};\n", uniformsString.c_str());
     }
+}
+
+uint32_t GrVkUniformHandler::getRTHeightOffset() const {
+    uint32_t result;
+    uint32_t currentOffset = fCurrentUBOOffset;
+    get_ubo_aligned_offset(&result, &currentOffset, kFloat_GrSLType, 0);
+    return result;
 }

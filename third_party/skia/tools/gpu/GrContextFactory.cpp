@@ -6,29 +6,28 @@
  * found in the LICENSE file.
  */
 
-#include "GrContextFactory.h"
-#include "gl/GLTestContext.h"
+#include "src/gpu/GrContextPriv.h"
+#include "tools/gpu/GrContextFactory.h"
+#include "tools/gpu/gl/GLTestContext.h"
 
 #if SK_ANGLE
-    #include "gl/angle/GLTestContext_angle.h"
+    #include "tools/gpu/gl/angle/GLTestContext_angle.h"
 #endif
-#include "gl/command_buffer/GLTestContext_command_buffer.h"
-#include "gl/debug/DebugGLTestContext.h"
-#if SK_MESA
-    #include "gl/mesa/GLTestContext_mesa.h"
-#endif
+#include "tools/gpu/gl/command_buffer/GLTestContext_command_buffer.h"
 #ifdef SK_VULKAN
-#include "vk/VkTestContext.h"
+#include "tools/gpu/vk/VkTestContext.h"
 #endif
 #ifdef SK_METAL
-#include "mtl/MtlTestContext.h"
+#include "tools/gpu/mtl/MtlTestContext.h"
 #endif
-#include "gl/null/NullGLTestContext.h"
-#include "gl/GrGLGpu.h"
-#include "mock/MockTestContext.h"
-#include "GrCaps.h"
+#ifdef SK_DAWN
+#include "tools/gpu/dawn/DawnTestContext.h"
+#endif
+#include "src/gpu/GrCaps.h"
+#include "src/gpu/gl/GrGLGpu.h"
+#include "tools/gpu/mock/MockTestContext.h"
 
-#if defined(SK_BUILD_FOR_WIN32) && defined(SK_ENABLE_DISCRETE_GPU)
+#if defined(SK_BUILD_FOR_WIN) && defined(SK_ENABLE_DISCRETE_GPU)
 extern "C" {
     // NVIDIA documents that the presence and value of this symbol programmatically enable the high
     // performance GPU in laptops with switchable graphics.
@@ -54,9 +53,15 @@ GrContextFactory::~GrContextFactory() {
 }
 
 void GrContextFactory::destroyContexts() {
-    for (Context& context : fContexts) {
+    // We must delete the test contexts in reverse order so that any child context is finished and
+    // deleted before a parent context. This relies on the fact that when we make a new context we
+    // append it to the end of fContexts array.
+    // TODO: Look into keeping a dependency dag for contexts and deletion order
+    for (int i = fContexts.count() - 1; i >= 0; --i) {
+        Context& context = fContexts[i];
+        SkScopeExit restore(nullptr);
         if (context.fTestContext) {
-            context.fTestContext->makeCurrent();
+            restore = context.fTestContext->makeCurrentAndAutoRestore();
         }
         if (!context.fGrContext->unique()) {
             context.fGrContext->releaseResourcesAndAbandonContext();
@@ -69,10 +74,15 @@ void GrContextFactory::destroyContexts() {
 }
 
 void GrContextFactory::abandonContexts() {
-    for (Context& context : fContexts) {
+    // We must abandon the test contexts in reverse order so that any child context is finished and
+    // abandoned before a parent context. This relies on the fact that when we make a new context we
+    // append it to the end of fContexts array.
+    // TODO: Look into keeping a dependency dag for contexts and deletion order
+    for (int i = fContexts.count() - 1; i >= 0; --i) {
+        Context& context = fContexts[i];
         if (!context.fAbandoned) {
             if (context.fTestContext) {
-                context.fTestContext->makeCurrent();
+                auto restore = context.fTestContext->makeCurrentAndAutoRestore();
                 context.fTestContext->testAbandon();
                 delete(context.fTestContext);
                 context.fTestContext = nullptr;
@@ -84,10 +94,16 @@ void GrContextFactory::abandonContexts() {
 }
 
 void GrContextFactory::releaseResourcesAndAbandonContexts() {
-    for (Context& context : fContexts) {
+    // We must abandon the test contexts in reverse order so that any child context is finished and
+    // abandoned before a parent context. This relies on the fact that when we make a new context we
+    // append it to the end of fContexts array.
+    // TODO: Look into keeping a dependency dag for contexts and deletion order
+    for (int i = fContexts.count() - 1; i >= 0; --i) {
+        Context& context = fContexts[i];
+        SkScopeExit restore(nullptr);
         if (!context.fAbandoned) {
             if (context.fTestContext) {
-                context.fTestContext->makeCurrent();
+                restore = context.fTestContext->makeCurrentAndAutoRestore();
             }
             context.fGrContext->releaseResourcesAndAbandonContext();
             context.fAbandoned = true;
@@ -116,7 +132,8 @@ ContextInfo GrContextFactory::getContextInfoInternal(ContextType type, ContextOv
             context.fShareIndex == shareIndex &&
             !context.fAbandoned) {
             context.fTestContext->makeCurrent();
-            return ContextInfo(context.fType, context.fTestContext, context.fGrContext);
+            return ContextInfo(context.fType, context.fTestContext, context.fGrContext,
+                               context.fOptions);
         }
     }
 
@@ -133,11 +150,9 @@ ContextInfo GrContextFactory::getContextInfoInternal(ContextType type, ContextOv
     }
 
     std::unique_ptr<TestContext> testCtx;
-    GrBackendContext backendContext = 0;
-    sk_sp<const GrGLInterface> glInterface;
-    GrBackend backend = ContextTypeBackend(type);
+    GrBackendApi backend = ContextTypeBackend(type);
     switch (backend) {
-        case kOpenGL_GrBackend: {
+        case GrBackendApi::kOpenGL: {
             GLTestContext* glShareContext = masterContext
                     ? static_cast<GLTestContext*>(masterContext->fTestContext) : nullptr;
             GLTestContext* glCtx;
@@ -175,18 +190,6 @@ ContextInfo GrContextFactory::getContextInfoInternal(ContextType type, ContextOv
                     glCtx = CommandBufferGLTestContext::Create(glShareContext);
                     break;
 #endif
-#if SK_MESA
-                case kMESA_ContextType:
-                    glCtx = CreateMesaGLTestContext(glShareContext);
-                    break;
-#endif
-                case kNullGL_ContextType:
-                    glCtx = CreateNullGLTestContext(
-                            ContextOverrides::kRequireNVPRSupport & overrides, glShareContext);
-                    break;
-                case kDebugGL_ContextType:
-                    glCtx = CreateDebugGLTestContext(glShareContext);
-                    break;
                 default:
                     return ContextInfo();
             }
@@ -194,18 +197,13 @@ ContextInfo GrContextFactory::getContextInfoInternal(ContextType type, ContextOv
                 return ContextInfo();
             }
             testCtx.reset(glCtx);
-            glInterface.reset(SkRef(glCtx->gl()));
-            backendContext = reinterpret_cast<GrBackendContext>(glInterface.get());
             break;
         }
 #ifdef SK_VULKAN
-        case kVulkan_GrBackend: {
+        case GrBackendApi::kVulkan: {
             VkTestContext* vkSharedContext = masterContext
                     ? static_cast<VkTestContext*>(masterContext->fTestContext) : nullptr;
             SkASSERT(kVulkan_ContextType == type);
-            if (ContextOverrides::kRequireNVPRSupport & overrides) {
-                return ContextInfo();
-            }
             testCtx.reset(CreatePlatformVkTestContext(vkSharedContext));
             if (!testCtx) {
                 return ContextInfo();
@@ -220,74 +218,61 @@ ContextInfo GrContextFactory::getContextInfoInternal(ContextType type, ContextOv
                     fSentinelGLContext.reset(CreatePlatformGLTestContext(kGLES_GrGLStandard));
                 }
             }
-            backendContext = testCtx->backendContext();
             break;
         }
 #endif
 #ifdef SK_METAL
-        case kMetal_GrBackend: {
-            SkASSERT(!masterContext);
-            testCtx.reset(CreatePlatformMtlTestContext(nullptr));
+        case GrBackendApi::kMetal: {
+            MtlTestContext* mtlSharedContext = masterContext
+                    ? static_cast<MtlTestContext*>(masterContext->fTestContext) : nullptr;
+            SkASSERT(kMetal_ContextType == type);
+            testCtx.reset(CreatePlatformMtlTestContext(mtlSharedContext));
             if (!testCtx) {
                 return ContextInfo();
             }
             break;
         }
 #endif
-        case kMock_GrBackend: {
-            TestContext* sharedContext = masterContext ? masterContext->fTestContext : nullptr;
-            SkASSERT(kMock_ContextType == type);
-            if (ContextOverrides::kRequireNVPRSupport & overrides) {
+#ifdef SK_DAWN
+        case GrBackendApi::kDawn: {
+            DawnTestContext* dawnSharedContext = masterContext
+                    ? static_cast<DawnTestContext*>(masterContext->fTestContext) : nullptr;
+            testCtx.reset(CreatePlatformDawnTestContext(dawnSharedContext));
+            if (!testCtx) {
                 return ContextInfo();
             }
+            break;
+        }
+#endif
+        case GrBackendApi::kMock: {
+            TestContext* sharedContext = masterContext ? masterContext->fTestContext : nullptr;
+            SkASSERT(kMock_ContextType == type);
             testCtx.reset(CreateMockTestContext(sharedContext));
             if (!testCtx) {
                 return ContextInfo();
             }
-            backendContext = testCtx->backendContext();
             break;
         }
         default:
             return ContextInfo();
     }
-    testCtx->makeCurrent();
+
     SkASSERT(testCtx && testCtx->backend() == backend);
     GrContextOptions grOptions = fGlobalOptions;
-    if (ContextOverrides::kDisableNVPR & overrides) {
-        grOptions.fSuppressPathRendering = true;
-    }
-    if (ContextOverrides::kUseInstanced & overrides) {
-        grOptions.fEnableInstancedRendering = true;
-    }
-    if (ContextOverrides::kAllowSRGBWithoutDecodeControl & overrides) {
-        grOptions.fRequireDecodeDisableForSRGB = false;
-    }
     if (ContextOverrides::kAvoidStencilBuffers & overrides) {
         grOptions.fAvoidStencilBuffers = true;
     }
-    sk_sp<GrContext> grCtx = testCtx->makeGrContext(grOptions);
-    if (!grCtx.get() && kMetal_GrBackend != backend) {
-        grCtx.reset(GrContext::Create(backend, backendContext, grOptions));
+    sk_sp<GrContext> grCtx;
+    {
+        auto restore = testCtx->makeCurrentAndAutoRestore();
+        grCtx = testCtx->makeGrContext(grOptions);
     }
     if (!grCtx.get()) {
         return ContextInfo();
     }
-    if (ContextOverrides::kRequireNVPRSupport & overrides) {
-        if (!grCtx->caps()->shaderCaps()->pathRenderingSupport()) {
-            return ContextInfo();
-        }
-    }
-    if (ContextOverrides::kUseInstanced & overrides) {
-        if (GrCaps::InstancedSupport::kNone == grCtx->caps()->instancedSupport()) {
-            return ContextInfo();
-        }
-    }
-    if (ContextOverrides::kRequireSRGBSupport & overrides) {
-        if (!grCtx->caps()->srgbSupport()) {
-            return ContextInfo();
-        }
-    }
 
+    // We must always add new contexts by pushing to the back so that when we delete them we delete
+    // them in reverse order in which they were made.
     Context& context = fContexts.push_back();
     context.fBackend = backend;
     context.fTestContext = testCtx.release();
@@ -297,7 +282,9 @@ ContextInfo GrContextFactory::getContextInfoInternal(ContextType type, ContextOv
     context.fAbandoned = false;
     context.fShareContext = shareContext;
     context.fShareIndex = shareIndex;
-    return ContextInfo(context.fType, context.fTestContext, context.fGrContext);
+    context.fOptions = grOptions;
+    context.fTestContext->makeCurrent();
+    return ContextInfo(context.fType, context.fTestContext, context.fGrContext, context.fOptions);
 }
 
 ContextInfo GrContextFactory::getContextInfo(ContextType type, ContextOverrides overrides) {

@@ -5,11 +5,11 @@
  * found in the LICENSE file.
  */
 
-#include "SampleCode.h"
-#include "SkBlurMask.h"
-#include "SkBlurMaskFilter.h"
-#include "SkCanvas.h"
-#include "SkSurface.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkSurface.h"
+#include "include/effects/SkBlurMaskFilter.h"
+#include "samplecode/Sample.h"
+#include "src/core/SkBlurMask.h"
 
 static SkBitmap make_bitmap() {
     SkBitmap bm;
@@ -24,7 +24,7 @@ static SkBitmap make_bitmap() {
     return bm;
 }
 
-class TextureDomainView : public SampleView {
+class TextureDomainView : public Sample {
     SkBitmap    fBM;
 
 public:
@@ -33,14 +33,7 @@ public:
     }
 
 protected:
-    // overrides from SkEventSink
-    virtual bool onQuery(SkEvent* evt) {
-        if (SampleCode::TitleQ(*evt)) {
-            SampleCode::TitleR(evt, "Texture Domain");
-            return true;
-        }
-        return this->INHERITED::onQuery(evt);
-    }
+    virtual SkString name() { return SkString("Texture Domain"); }
 
     virtual void onDrawContent(SkCanvas* canvas) {
         SkRect srcRect;
@@ -76,11 +69,8 @@ protected:
         // renders correctly
         srcRect.setXYWH(1, 1, 3, 3);
         dstRect.setXYWH(5, 405, 305, 305);
-        paint.setMaskFilter(SkBlurMaskFilter::Make(
-            kNormal_SkBlurStyle,
-            SkBlurMask::ConvertRadiusToSigma(SkIntToScalar(5)),
-            SkBlurMaskFilter::kHighQuality_BlurFlag |
-            SkBlurMaskFilter::kIgnoreTransform_BlurFlag));
+        paint.setMaskFilter(SkMaskFilter::MakeBlur(
+            kNormal_SkBlurStyle, SkBlurMask::ConvertRadiusToSigma(SkIntToScalar(5)), false));
         canvas->drawImageRect(image, srcRect, dstRect, &paint);
 
         // Blur and a rotation + nullptr src rect
@@ -88,9 +78,8 @@ protected:
         // but it will test a code path in SkGpuDevice::drawBitmap
         // that handles blurs with rects transformed to non-
         // orthogonal rects. It also tests the nullptr src rect handling
-        paint.setMaskFilter(SkBlurMaskFilter::Make(kNormal_SkBlurStyle,
-                                                   SkBlurMask::ConvertRadiusToSigma(5),
-                                                   SkBlurMaskFilter::kHighQuality_BlurFlag));
+        paint.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle,
+                                                   SkBlurMask::ConvertRadiusToSigma(5)));
 
         dstRect.setXYWH(-150, -150, 300, 300);
         canvas->translate(550, 550);
@@ -98,10 +87,9 @@ protected:
         canvas->drawBitmapRect(fBM, dstRect, &paint);
     }
 private:
-    typedef SkView INHERITED;
+    typedef Sample INHERITED;
 };
 
 //////////////////////////////////////////////////////////////////////////////
 
-static SkView* MyFactory() { return new TextureDomainView; }
-static SkViewRegister reg(MyFactory);
+DEF_SAMPLE( return new TextureDomainView(); )

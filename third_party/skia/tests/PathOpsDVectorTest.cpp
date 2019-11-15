@@ -4,9 +4,9 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
-#include "PathOpsTestCommon.h"
-#include "SkPathOpsPoint.h"
-#include "Test.h"
+#include "src/pathops/SkPathOpsPoint.h"
+#include "tests/PathOpsTestCommon.h"
+#include "tests/Test.h"
 
 static const SkDPoint tests[] = {
     {0, 0},
@@ -28,7 +28,7 @@ DEF_TEST(PathOpsDVector, reporter) {
         SkASSERT(ValidVector(v2));
         v1 += v2;
         REPORTER_ASSERT(reporter, v1.fX == 0 && v1.fY == 0);
-        v2 -= v2;
+        v2 -= static_cast<decltype(v2)&>(v2);
         REPORTER_ASSERT(reporter, v2.fX == 0 && v2.fY == 0);
         v1 = tests[index + 1] - tests[index];
         v1 /= 2;

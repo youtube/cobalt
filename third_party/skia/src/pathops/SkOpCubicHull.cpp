@@ -4,7 +4,7 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
-#include "SkPathOpsCubic.h"
+#include "src/pathops/SkPathOpsCubic.h"
 
 static bool rotate(const SkDCubic& cubic, int zero, int index, SkDCubic& rotPath) {
     double dy = cubic[index].fY - cubic[zero].fY;
@@ -97,7 +97,7 @@ int SkDCubic::convexHull(char order[4]) const {
                         order[2] = 1;
                         return 3;
                     }
-                    // one of the control points may be very nearly but not exactly equal -- 
+                    // one of the control points may be very nearly but not exactly equal --
                     double dist1_0 = fPts[1].distanceSquared(fPts[0]);
                     double dist1_3 = fPts[1].distanceSquared(fPts[3]);
                     double dist2_0 = fPts[2].distanceSquared(fPts[0]);

@@ -5,11 +5,11 @@
  * found in the LICENSE file.
  */
 
-#include "SkCanvas.h"
-#include "SkTLazy.h"
-#include "SkSVGRenderContext.h"
-#include "SkSVGPoly.h"
-#include "SkSVGValue.h"
+#include "experimental/svg/model/SkSVGPoly.h"
+#include "experimental/svg/model/SkSVGRenderContext.h"
+#include "experimental/svg/model/SkSVGValue.h"
+#include "include/core/SkCanvas.h"
+#include "src/core/SkTLazy.h"
 
 SkSVGPoly::SkSVGPoly(SkSVGTag t) : INHERITED(t) {}
 
@@ -40,10 +40,11 @@ void SkSVGPoly::onDraw(SkCanvas* canvas, const SkSVGLengthContext&, const SkPain
 }
 
 SkPath SkSVGPoly::onAsPath(const SkSVGRenderContext& ctx) const {
-    // the computed fillType follows inheritance rules and needs to be applied at draw time.
-    fPath.setFillType(FillRuleToFillType(*ctx.presentationContext().fInherited.fFillRule.get()));
-
     SkPath path = fPath;
+
+    // clip-rule can be inherited and needs to be applied at clip time.
+    path.setFillType(ctx.presentationContext().fInherited.fClipRule.get()->asFillType());
+
     this->mapToParent(&path);
     return path;
 }

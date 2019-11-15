@@ -8,18 +8,19 @@
 #ifndef SkColorFilter_DEFINED
 #define SkColorFilter_DEFINED
 
-#include "SkBlendMode.h"
-#include "SkColor.h"
-#include "SkFlattenable.h"
-#include "SkRefCnt.h"
+#include "include/core/SkBlendMode.h"
+#include "include/core/SkColor.h"
+#include "include/core/SkFlattenable.h"
+#include "include/core/SkRefCnt.h"
 
-class GrContext;
+class GrColorInfo;
 class GrFragmentProcessor;
-class SkArenaAlloc;
+class GrRecordingContext;
 class SkBitmap;
+class SkColorMatrix;
 class SkColorSpace;
-class SkColorSpaceXformer;
-class SkRasterPipeline;
+struct SkStageRec;
+class SkString;
 
 /**
  *  ColorFilters are optional objects in the drawing pipeline. When present in
@@ -31,39 +32,29 @@ class SkRasterPipeline;
  */
 class SK_API SkColorFilter : public SkFlattenable {
 public:
-    /**
-     *  If the filter can be represented by a source color plus Mode, this
+    // DEPRECATED. skbug.com/8941
+
+    bool asColorMode(SkColor* color, SkBlendMode* mode) const {
+        return this->onAsAColorMode(color, mode);
+    }
+
+    /** If the filter can be represented by a source color plus Mode, this
      *  returns true, and sets (if not NULL) the color and mode appropriately.
      *  If not, this returns false and ignores the parameters.
      */
-    virtual bool asColorMode(SkColor* color, SkBlendMode* bmode) const;
+    bool asAColorMode(SkColor* color, SkBlendMode* mode) const {
+        return this->onAsAColorMode(color, mode);
+    }
 
-    /**
-     *  If the filter can be represented by a 5x4 matrix, this
+    /** If the filter can be represented by a 5x4 matrix, this
      *  returns true, and sets the matrix appropriately.
      *  If not, this returns false and ignores the parameter.
      */
-    virtual bool asColorMatrix(SkScalar matrix[20]) const;
+    bool asAColorMatrix(float matrix[20]) const {
+        return this->onAsAColorMatrix(matrix);
+    }
 
-    /**
-     *  If the filter can be represented by per-component table, return true,
-     *  and if table is not null, copy the bitmap containing the table into it.
-     *
-     *  The table bitmap will be in SkBitmap::kA8_Config. Each row corresponding
-     *  to each component in ARGB order. e.g. row[0] == alpha, row[1] == red,
-     *  etc. To transform a color, you (logically) perform the following:
-     *
-     *      a' = *table.getAddr8(a, 0);
-     *      r' = *table.getAddr8(r, 1);
-     *      g' = *table.getAddr8(g, 2);
-     *      b' = *table.getAddr8(b, 3);
-     *
-     *  The original component value is the horizontal index for a given row,
-     *  and the stored value at that index is the new value for that component.
-     */
-    virtual bool asComponentTable(SkBitmap* table) const;
-
-    void appendStages(SkRasterPipeline*, SkColorSpace*, SkArenaAlloc*, bool shaderIsOpaque) const;
+    bool appendStages(const SkStageRec& rec, bool shaderIsOpaque) const;
 
     enum Flags {
         /** If set the filter methods will not change the alpha channel of the colors.
@@ -75,51 +66,24 @@ public:
     */
     virtual uint32_t getFlags() const { return 0; }
 
-    /**
-     *  If this subclass can optimally createa composition with the inner filter, return it as
-     *  a new filter (which the caller must unref() when it is done). If no such optimization
-     *  is known, return NULL.
-     *
-     *  e.g. result(color) == this_filter(inner(color))
-     */
-    virtual sk_sp<SkColorFilter> makeComposed(sk_sp<SkColorFilter>) const { return nullptr; }
-
     SkColor filterColor(SkColor) const;
-    SkColor4f filterColor4f(const SkColor4f&) const;
 
-    /** Create a colorfilter that uses the specified color and mode.
-        If the Mode is DST, this function will return NULL (since that
-        mode will have no effect on the result).
-        @param c    The source color used with the specified mode
-        @param mode The blend that is applied to each color in
-                        the colorfilter's filterSpan[16,32] methods
-        @return colorfilter object that applies the src color and mode,
-                    or NULL if the mode will have no effect.
-    */
-    static sk_sp<SkColorFilter> MakeModeFilter(SkColor c, SkBlendMode mode);
+    /**
+     * Converts the src color (in src colorspace), into the dst colorspace,
+     * then applies this filter to it, returning the filtered color in the dst colorspace.
+     */
+    SkColor4f filterColor4f(const SkColor4f& srcColor, SkColorSpace* srcCS,
+                            SkColorSpace* dstCS) const;
 
     /** Construct a colorfilter whose effect is to first apply the inner filter and then apply
-     *  the outer filter to the result of the inner's.
-     *  The reference counts for outer and inner are incremented.
+     *  this filter, applied to the output of the inner filter.
+     *
+     *  result = this(inner(...))
      *
      *  Due to internal limits, it is possible that this will return NULL, so the caller must
      *  always check.
      */
-    static sk_sp<SkColorFilter> MakeComposeFilter(sk_sp<SkColorFilter> outer,
-                                                  sk_sp<SkColorFilter> inner);
-
-    /** Construct a color filter that transforms a color by a 4x5 matrix. The matrix is in row-
-     *  major order and the translation column is specified in unnormalized, 0...255, space.
-     */
-    static sk_sp<SkColorFilter> MakeMatrixFilterRowMajor255(const SkScalar array[20]);
-
-    /** Construct a colorfilter that applies the srgb gamma curve to the RGB channels */
-    static sk_sp<SkColorFilter> MakeLinearToSRGBGamma();
-
-    /** Construct a colorfilter that applies the inverse of the srgb gamma curve to the
-     *  RGB channels
-     */
-    static sk_sp<SkColorFilter> MakeSRGBToLinearGamma();
+    sk_sp<SkColorFilter> makeComposed(sk_sp<SkColorFilter> inner) const;
 
 #if SK_SUPPORT_GPU
     /**
@@ -131,28 +95,36 @@ public:
      *
      *  A null return indicates that the color filter isn't implemented for the GPU backend.
      */
-    virtual sk_sp<GrFragmentProcessor> asFragmentProcessor(GrContext*,
-                                                           SkColorSpace* dstColorSpace) const;
+    virtual std::unique_ptr<GrFragmentProcessor> asFragmentProcessor(
+            GrRecordingContext*, const GrColorInfo& dstColorInfo) const;
 #endif
 
     bool affectsTransparentBlack() const {
-        return this->filterColor(0) != 0;
+        return this->filterColor(SK_ColorTRANSPARENT) != SK_ColorTRANSPARENT;
     }
 
-    SK_TO_STRING_PUREVIRT()
+    static void RegisterFlattenables();
 
-    SK_DECLARE_FLATTENABLE_REGISTRAR_GROUP()
-    SK_DEFINE_FLATTENABLE_TYPE(SkColorFilter)
+    static SkFlattenable::Type GetFlattenableType() {
+        return kSkColorFilter_Type;
+    }
+
+    SkFlattenable::Type getFlattenableType() const override {
+        return kSkColorFilter_Type;
+    }
+
+    static sk_sp<SkColorFilter> Deserialize(const void* data, size_t size,
+                                          const SkDeserialProcs* procs = nullptr) {
+        return sk_sp<SkColorFilter>(static_cast<SkColorFilter*>(
+                                  SkFlattenable::Deserialize(
+                                  kSkColorFilter_Type, data, size, procs).release()));
+    }
 
 protected:
     SkColorFilter() {}
 
-    sk_sp<SkColorFilter> makeColorSpace(SkColorSpaceXformer* xformer) const {
-        return this->onMakeColorSpace(xformer);
-    }
-    virtual sk_sp<SkColorFilter> onMakeColorSpace(SkColorSpaceXformer*) const {
-        return sk_ref_sp(const_cast<SkColorFilter*>(this));
-    }
+    virtual bool onAsAColorMatrix(float[20]) const;
+    virtual bool onAsAColorMode(SkColor* color, SkBlendMode* bmode) const;
 
 private:
     /*
@@ -164,13 +136,32 @@ private:
      */
     virtual int privateComposedFilterCount() const { return 1; }
 
-    virtual void onAppendStages(SkRasterPipeline*, SkColorSpace*, SkArenaAlloc*,
-                                bool shaderIsOpaque) const = 0;
+    virtual bool onAppendStages(const SkStageRec& rec, bool shaderIsOpaque) const = 0;
 
-    friend class SkColorSpaceXformer;
     friend class SkComposeColorFilter;
 
     typedef SkFlattenable INHERITED;
+};
+
+class SK_API SkColorFilters {
+public:
+    static sk_sp<SkColorFilter> Compose(sk_sp<SkColorFilter> outer, sk_sp<SkColorFilter> inner) {
+        return outer ? outer->makeComposed(inner) : inner;
+    }
+    static sk_sp<SkColorFilter> Blend(SkColor c, SkBlendMode mode);
+    static sk_sp<SkColorFilter> Matrix(const SkColorMatrix&);
+    static sk_sp<SkColorFilter> Matrix(const float rowMajor[20]);
+
+    // A version of Matrix which operates in HSLA space instead of RGBA.
+    // I.e. HSLA-to-RGBA(Matrix(RGBA-to-HSLA(input))).
+    static sk_sp<SkColorFilter> HSLAMatrix(const float rowMajor[20]);
+
+    static sk_sp<SkColorFilter> LinearToSRGBGamma();
+    static sk_sp<SkColorFilter> SRGBToLinearGamma();
+    static sk_sp<SkColorFilter> Lerp(float t, sk_sp<SkColorFilter> dst, sk_sp<SkColorFilter> src);
+
+private:
+    SkColorFilters() = delete;
 };
 
 #endif

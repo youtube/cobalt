@@ -8,9 +8,9 @@
 #ifndef SkPictureRecorder_DEFINED
 #define SkPictureRecorder_DEFINED
 
-#include "SkBBHFactory.h"
-#include "SkPicture.h"
-#include "SkRefCnt.h"
+#include "include/core/SkBBHFactory.h"
+#include "include/core/SkPicture.h"
+#include "include/core/SkRefCnt.h"
 
 #ifdef SK_BUILD_FOR_ANDROID_FRAMEWORK
 namespace android {
@@ -26,7 +26,7 @@ class SkPictureRecord;
 class SkRecord;
 class SkRecorder;
 
-class SK_API SkPictureRecorder : SkNoncopyable {
+class SK_API SkPictureRecorder {
 public:
     SkPictureRecorder();
     ~SkPictureRecorder();
@@ -48,11 +48,11 @@ public:
         @return the canvas.
     */
     SkCanvas* beginRecording(const SkRect& bounds,
-                             SkBBHFactory* bbhFactory = NULL,
+                             SkBBHFactory* bbhFactory = nullptr,
                              uint32_t recordFlags = 0);
 
     SkCanvas* beginRecording(SkScalar width, SkScalar height,
-                             SkBBHFactory* bbhFactory = NULL,
+                             SkBBHFactory* bbhFactory = nullptr,
                              uint32_t recordFlags = 0) {
         return this->beginRecording(SkRect::MakeWH(width, height), bbhFactory, recordFlags);
     }
@@ -118,7 +118,8 @@ private:
     sk_sp<SkRecord>             fRecord;
     std::unique_ptr<SkMiniRecorder> fMiniRecorder;
 
-    typedef SkNoncopyable INHERITED;
+    SkPictureRecorder(SkPictureRecorder&&) = delete;
+    SkPictureRecorder& operator=(SkPictureRecorder&&) = delete;
 };
 
 #endif

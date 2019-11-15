@@ -5,25 +5,29 @@
  * found in the LICENSE file.
  */
 
-#include "SkBitmap.h"
-#include "SkCanvas.h"
-#include "SkColor.h"
-#include "SkPaint.h"
-#include "SkPoint.h"
-#include "SkRect.h"
-#include "SkSurface.h"
-#include "SkTypes.h"
-#include "Test.h"
-#include <math.h>
+#include "include/core/SkBitmap.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkColor.h"
+#include "include/core/SkFont.h"
+#include "include/core/SkMatrix.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkPathEffect.h"
+#include "include/core/SkPoint.h"
+#include "include/core/SkRect.h"
+#include "include/core/SkRefCnt.h"
+#include "include/core/SkScalar.h"
+#include "include/core/SkSurface.h"
+#include "include/core/SkTypeface.h"
+#include "include/core/SkTypes.h"
+#include "include/effects/SkDashPathEffect.h"
+#include "tests/Test.h"
+
+#include <cmath>
 
 static const SkColor bgColor = SK_ColorWHITE;
 
 static void create(SkBitmap* bm, SkIRect bound) {
     bm->allocN32Pixels(bound.width(), bound.height());
-}
-
-static void drawBG(SkCanvas* canvas) {
-    canvas->drawColor(bgColor);
 }
 
 /** Assumes that the ref draw was completely inside ref canvas --
@@ -58,57 +62,49 @@ static bool compare(const SkBitmap& ref, const SkIRect& iref,
     return true;
 }
 
-DEF_TEST(DrawText, reporter) {
-    SkPaint paint;
-    paint.setColor(SK_ColorGRAY);
-    paint.setTextSize(SkIntToScalar(20));
+/** Test that drawing glyphs with empty paths is different from drawing glyphs without paths. */
+DEF_TEST(DrawText_dashout, reporter) {
+    SkIRect size = SkIRect::MakeWH(64, 64);
 
-    SkIRect drawTextRect = SkIRect::MakeWH(64, 64);
     SkBitmap drawTextBitmap;
-    create(&drawTextBitmap, drawTextRect);
+    create(&drawTextBitmap, size);
     SkCanvas drawTextCanvas(drawTextBitmap);
 
-    SkIRect drawPosTextRect = SkIRect::MakeWH(64, 64);
-    SkBitmap drawPosTextBitmap;
-    create(&drawPosTextBitmap, drawPosTextRect);
-    SkCanvas drawPosTextCanvas(drawPosTextBitmap);
+    SkBitmap drawDashedTextBitmap;
+    create(&drawDashedTextBitmap, size);
+    SkCanvas drawDashedTextCanvas(drawDashedTextBitmap);
 
-    // Two test cases "A" for the normal path through the code, and " " to check the
-    // early return path.
-    const char* cases[] = {"A", " "};
-    for (auto c : cases) {
-        for (float offsetY = 0.0f; offsetY < 1.0f; offsetY += (1.0f / 16.0f)) {
-            for (float offsetX = 0.0f; offsetX < 1.0f; offsetX += (1.0f / 16.0f)) {
-                SkPoint point = SkPoint::Make(25.0f + offsetX,
-                                              25.0f + offsetY);
+    SkBitmap emptyBitmap;
+    create(&emptyBitmap, size);
+    SkCanvas emptyCanvas(emptyBitmap);
 
-                for (int align = 0; align < SkPaint::kAlignCount; ++align) {
-                    paint.setTextAlign(static_cast<SkPaint::Align>(align));
+    SkPoint point = SkPoint::Make(25.0f, 25.0f);
+    SkFont font(nullptr, 20);
+    font.setEdging(SkFont::Edging::kSubpixelAntiAlias);
+    font.setSubpixel(true);
 
-                    for (unsigned int flags = 0; flags < (1 << 3); ++flags) {
-                        static const unsigned int antiAliasFlag = 1;
-                        static const unsigned int subpixelFlag = 1 << 1;
-                        static const unsigned int lcdFlag = 1 << 2;
+    SkPaint paint;
+    paint.setColor(SK_ColorGRAY);
+    paint.setStyle(SkPaint::kStroke_Style);
 
-                        paint.setAntiAlias(SkToBool(flags & antiAliasFlag));
-                        paint.setSubpixelText(SkToBool(flags & subpixelFlag));
-                        paint.setLCDRenderText(SkToBool(flags & lcdFlag));
+    // Draw a stroked "A" without a dash which will draw something.
+    drawTextCanvas.drawColor(SK_ColorWHITE);
+    drawTextCanvas.drawString("A", point.fX, point.fY, font, paint);
 
-                        // Test: drawText and drawPosText draw the same.
-                        drawBG(&drawTextCanvas);
-                        drawTextCanvas.drawText(c, 1, point.fX, point.fY, paint);
+    // Draw an "A" but with a dash which will never draw anything.
+    paint.setStrokeWidth(2);
+    constexpr SkScalar bigInterval = 10000;
+    static constexpr SkScalar intervals[] = { 1, bigInterval };
+    paint.setPathEffect(SkDashPathEffect::Make(intervals, SK_ARRAY_COUNT(intervals), 2));
 
-                        drawBG(&drawPosTextCanvas);
-                        drawPosTextCanvas.drawPosText(c, 1, &point, paint);
+    drawDashedTextCanvas.drawColor(SK_ColorWHITE);
+    drawDashedTextCanvas.drawString("A", point.fX, point.fY, font, paint);
 
-                        REPORTER_ASSERT(reporter,
-                                        compare(drawTextBitmap, drawTextRect,
-                                                drawPosTextBitmap, drawPosTextRect));
-                    }
-                }
-            }
-        }
-    }
+    // Draw nothing.
+    emptyCanvas.drawColor(SK_ColorWHITE);
+
+    REPORTER_ASSERT(reporter, !compare(drawTextBitmap, size, emptyBitmap, size));
+    REPORTER_ASSERT(reporter, compare(drawDashedTextBitmap, size, emptyBitmap, size));
 }
 
 // Test drawing text at some unusual coordinates.
@@ -120,12 +116,12 @@ DEF_TEST(DrawText_weirdCoordinates, r) {
     SkScalar oddballs[] = { 0.0f, (float)INFINITY, (float)NAN, 34359738368.0f };
 
     for (auto x : oddballs) {
-        canvas->drawString("a", +x, 0.0f, SkPaint());
-        canvas->drawString("a", -x, 0.0f, SkPaint());
+        canvas->drawString("a", +x, 0.0f, SkFont(), SkPaint());
+        canvas->drawString("a", -x, 0.0f, SkFont(), SkPaint());
     }
     for (auto y : oddballs) {
-        canvas->drawString("a", 0.0f, +y, SkPaint());
-        canvas->drawString("a", 0.0f, -y, SkPaint());
+        canvas->drawString("a", 0.0f, +y, SkFont(), SkPaint());
+        canvas->drawString("a", 0.0f, -y, SkFont(), SkPaint());
     }
 }
 
@@ -135,9 +131,8 @@ DEF_TEST(DrawText_weirdMatricies, r) {
     auto surface = SkSurface::MakeRasterN32Premul(100,100);
     auto canvas = surface->getCanvas();
 
-    SkPaint paint;
-    paint.setAntiAlias(true);
-    paint.setLCDRenderText(true);
+    SkFont font;
+    font.setEdging(SkFont::Edging::kSubpixelAntiAlias);
 
     struct {
         SkScalar textSize;
@@ -158,11 +153,11 @@ DEF_TEST(DrawText_weirdMatricies, r) {
     };
 
     for (const auto& testCase : testCases) {
-        paint.setTextSize(testCase.textSize);
+        font.setSize(testCase.textSize);
         const SkScalar(&m)[9] = testCase.matrix;
         SkMatrix mat;
         mat.setAll(m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8]);
         canvas->setMatrix(mat);
-        canvas->drawString("Hamburgefons", 10, 10, paint);
+        canvas->drawString("Hamburgefons", 10, 10, font, SkPaint());
     }
 }

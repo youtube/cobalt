@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2006 The Android Open Source Project
  *
@@ -6,15 +5,21 @@
  * found in the LICENSE file.
  */
 
-
 #ifndef SkString_DEFINED
 #define SkString_DEFINED
 
-#include "../private/SkTArray.h"
-#include "SkScalar.h"
+#include "include/core/SkRefCnt.h"
+#include "include/core/SkScalar.h"
+#include "include/core/SkTypes.h"
+#include "include/private/SkMalloc.h"
+#include "include/private/SkTArray.h"
+#include "include/private/SkTo.h"
 
 #include <stdarg.h>
+#include <string.h>
+#include <atomic>
 
+<<<<<<< HEAD
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif
@@ -23,11 +28,15 @@
 */
 
 static bool SkStrStartsWith(const char string[], const char prefixStr[]) {
+=======
+/*  Some helper functions for C strings */
+static inline bool SkStrStartsWith(const char string[], const char prefixStr[]) {
+>>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
     SkASSERT(string);
     SkASSERT(prefixStr);
     return !strncmp(string, prefixStr, strlen(prefixStr));
 }
-static bool SkStrStartsWith(const char string[], const char prefixChar) {
+static inline bool SkStrStartsWith(const char string[], const char prefixChar) {
     SkASSERT(string);
     return (prefixChar == *string);
 }
@@ -37,24 +46,24 @@ bool SkStrEndsWith(const char string[], const char suffixChar);
 
 int SkStrStartsWithOneOf(const char string[], const char prefixes[]);
 
-static int SkStrFind(const char string[], const char substring[]) {
+static inline int SkStrFind(const char string[], const char substring[]) {
     const char *first = strstr(string, substring);
-    if (NULL == first) return -1;
+    if (nullptr == first) return -1;
     return SkToInt(first - &string[0]);
 }
 
-static int SkStrFindLastOf(const char string[], const char subchar) {
+static inline int SkStrFindLastOf(const char string[], const char subchar) {
     const char* last = strrchr(string, subchar);
-    if (NULL == last) return -1;
+    if (nullptr == last) return -1;
     return SkToInt(last - &string[0]);
 }
 
-static bool SkStrContains(const char string[], const char substring[]) {
+static inline bool SkStrContains(const char string[], const char substring[]) {
     SkASSERT(string);
     SkASSERT(substring);
     return (-1 != SkStrFind(string, substring));
 }
-static bool SkStrContains(const char string[], const char subchar) {
+static inline bool SkStrContains(const char string[], const char subchar) {
     SkASSERT(string);
     char tmp[2];
     tmp[0] = subchar;
@@ -184,12 +193,10 @@ public:
 
     void reset();
     /** Destructive resize, does not preserve contents. */
-    void resize(size_t len) { this->set(NULL, len); }
+    void resize(size_t len) { this->set(nullptr, len); }
     void set(const SkString& src) { *this = src; }
     void set(const char text[]);
     void set(const char text[], size_t len);
-    void setUTF16(const uint16_t[]);
-    void setUTF16(const uint16_t[], size_t len);
 
     void insert(size_t offset, const SkString& src) { this->insert(offset, src.c_str(), src.size()); }
     void insert(size_t offset, const char text[]);
@@ -243,32 +250,42 @@ public:
 private:
     struct Rec {
     public:
+        constexpr Rec(uint32_t len, int32_t refCnt)
+            : fLength(len), fRefCnt(refCnt), fBeginningOfData(0)
+        { }
+        static sk_sp<Rec> Make(const char text[], size_t len);
         uint32_t    fLength; // logically size_t, but we want it to stay 32bits
-        int32_t     fRefCnt;
+        mutable std::atomic<int32_t> fRefCnt;
         char        fBeginningOfData;
 
         char* data() { return &fBeginningOfData; }
         const char* data() const { return &fBeginningOfData; }
+
+        void ref() const;
+        void unref() const;
+        bool unique() const;
+    private:
+        // Ensure the unsized delete is called.
+        void operator delete(void* p) { ::operator delete(p); }
     };
-    Rec* fRec;
+    sk_sp<Rec> fRec;
 
 #ifdef SK_DEBUG
-    void validate() const;
+    const SkString& validate() const;
 #else
-    void validate() const {}
+    const SkString& validate() const { return *this; }
 #endif
 
     static const Rec gEmptyRec;
-    static Rec* AllocRec(const char text[], size_t len);
-    static Rec* RefRec(Rec*);
 };
 
 /// Creates a new string and writes into it using a printf()-style format.
 SkString SkStringPrintf(const char* format, ...);
+/// This makes it easier to write a caller as a VAR_ARGS function where the format string is
+/// optional.
+static inline SkString SkStringPrintf() { return SkString(); }
 
-// Specialized to take advantage of SkString's fast swap path. The unspecialized function is
-// declared in SkTypes.h and called by SkTSort.
-template <> inline void SkTSwap(SkString& a, SkString& b) {
+static inline void swap(SkString& a, SkString& b) {
     a.swap(b);
 }
 

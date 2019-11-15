@@ -5,22 +5,28 @@
  * found in the LICENSE file.
  */
 
-#include "gm.h"
-#include "sk_tool_utils.h"
-#include "SkSurface.h"
-#include "SkBlurImageFilter.h"
+#include "gm/gm.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkColor.h"
+#include "include/core/SkImage.h"
+#include "include/core/SkImageFilter.h"
+#include "include/core/SkImageInfo.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkRect.h"
+#include "include/core/SkRefCnt.h"
+#include "include/core/SkScalar.h"
+#include "include/core/SkSize.h"
+#include "include/core/SkString.h"
+#include "include/core/SkSurface.h"
+#include "include/effects/SkImageFilters.h"
+#include "tools/ToolUtils.h"
 
-static sk_sp<SkSurface> make_surface(SkCanvas* canvas, const SkImageInfo& info) {
-    auto surface = canvas->makeSurface(info);
-    if (!surface) {
-        surface = SkSurface::MakeRaster(info);
-    }
-    return surface;
-}
+#include <initializer_list>
+#include <utility>
 
 static sk_sp<SkImage> make_image(SkCanvas* canvas) {
     SkImageInfo info = SkImageInfo::MakeN32Premul(250, 200);
-    auto surface = make_surface(canvas, info);
+    auto        surface = ToolUtils::makeSurface(canvas, info);
     SkCanvas* c = surface->getCanvas();
     SkPaint paint;
     paint.setAntiAlias(true);
@@ -52,7 +58,7 @@ namespace skiagm {
 class ImageBlurClampModeGM : public GM {
 public:
     ImageBlurClampModeGM() {
-        this->setBGColor(sk_tool_utils::color_to_565(0xFFCCCCCC));
+        this->setBGColor(0xFFCCCCCC);
     }
 
 protected:
@@ -69,29 +75,31 @@ protected:
 
     void onDraw(SkCanvas* canvas) override {
         sk_sp<SkImage> image(make_image(canvas));
+        sk_sp<SkImageFilter> filter;
 
         canvas->translate(0, 30);
         // Test different kernel size, including the one to launch 2d Gaussian
         // blur.
         for (auto sigma: { 0.6f, 3.0f, 8.0f, 20.0f }) {
             canvas->save();
-            sk_sp<SkImageFilter> filter(
-                  SkBlurImageFilter::Make(sigma, 0.0f, nullptr, nullptr,
-                                          SkBlurImageFilter::kClamp_TileMode));
+
+            // x-only blur
+            filter =  SkImageFilters::Blur(sigma, 0.0f, SkTileMode::kClamp, nullptr);
             draw_image(canvas, image, std::move(filter));
             canvas->translate(image->width() + 20, 0);
 
-            filter = SkBlurImageFilter::Make(0.0f, sigma, nullptr, nullptr,
-                                             SkBlurImageFilter::kClamp_TileMode);
+            // y-only blur
+            filter = SkImageFilters::Blur(0.0f, sigma, SkTileMode::kClamp, nullptr);
             draw_image(canvas, image, std::move(filter));
             canvas->translate(image->width() + 20, 0);
 
-            filter = SkBlurImageFilter::Make(sigma, sigma, nullptr, nullptr,
-                                             SkBlurImageFilter::kClamp_TileMode);
+            // both directions
+            filter = SkImageFilters::Blur(sigma, sigma, SkTileMode::kClamp, nullptr);
             draw_image(canvas, image, std::move(filter));
             canvas->translate(image->width() + 20, 0);
 
             canvas->restore();
+
             canvas->translate(0, image->height() + 20);
         }
     }
