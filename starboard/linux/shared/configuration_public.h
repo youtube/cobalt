@@ -23,6 +23,10 @@
 #ifndef STARBOARD_LINUX_SHARED_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_LINUX_SHARED_CONFIGURATION_PUBLIC_H_
 
+#ifndef SB_API_VERSION
+#define SB_API_VERSION SB_EXPERIMENTAL_API_VERSION
+#endif
+
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
