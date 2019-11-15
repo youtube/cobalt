@@ -218,26 +218,19 @@ GrGaussianConvolutionFragmentProcessor::GrGaussianConvolutionFragmentProcessor(
                                                             float gaussianSigma,
                                                             GrTextureDomain::Mode mode,
                                                             int bounds[2])
-<<<<<<< HEAD
-        : INHERITED{ModulationFlags(proxy->config()),
-                    GR_PROXY_MOVE(proxy),
-                    direction,
-#if defined(COBALT)
-                    // Limit the number of possible shaders used on Cobalt by
-                    // always assuming the maximum width. Performance sadface.
-                    kMaxKernelRadius}
-#else
-                    radius}
-#endif
-=======
         : INHERITED(kGrGaussianConvolutionFragmentProcessor_ClassID,
                     ModulateForSamplerOptFlags(srcColorType,
                                                mode == GrTextureDomain::kDecal_Mode))
         , fCoordTransform(proxy.get())
         , fTextureSampler(std::move(proxy))
+#if defined(COBALT)
+        // Limit the number of possible shaders used on Cobalt by
+        // always assuming the maximum width. Performance sadface.
+        , fRadius(kMaxKernelRadius)
+#else
         , fRadius(radius)
+#endif
         , fDirection(direction)
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
         , fMode(mode) {
     // Make sure the sampler's ctor uses the clamp wrap mode
     SkASSERT(fTextureSampler.samplerState().wrapModeX() == GrSamplerState::WrapMode::kClamp &&

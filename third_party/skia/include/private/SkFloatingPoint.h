@@ -8,16 +8,6 @@
 #ifndef SkFloatingPoint_DEFINED
 #define SkFloatingPoint_DEFINED
 
-<<<<<<< HEAD
-#include "SkTypes.h"
-#include "SkSafe_math.h"
-
-#if defined(STARBOARD)
-#include "starboard/double.h"
-#else
-#include <float.h>
-#endif
-=======
 #include "include/core/SkTypes.h"
 #include "include/private/SkFloatBits.h"
 #include "include/private/SkSafe_math.h"
@@ -27,7 +17,6 @@
 #include <cstring>
 #include <limits>
 
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
 
 #if SK_CPU_SSE_LEVEL >= SK_CPU_SSE_LEVEL_SSE1
     #include <xmmintrin.h>
@@ -96,26 +85,6 @@ constexpr float sk_float_radians_to_degrees(float radians) {
     #define sk_float_log2(x)        log2f(x)
 #endif
 
-<<<<<<< HEAD
-#if defined(STARBOARD)
-#define sk_float_isfinite(x)    SbDoubleIsFinite(x)
-#define sk_float_isnan(x)       SbDoubleIsNaN(x)
-#define sk_float_isinf(x)       !(SbDoubleIsFinite(x) || SbDoubleIsNaN(x))
-#else
-#ifdef SK_BUILD_FOR_WIN
-    #define sk_float_isfinite(x)    _finite(x)
-    #define sk_float_isnan(x)       _isnan(x)
-    static inline int sk_float_isinf(float x) {
-        int32_t bits = SkFloat2Bits(x);
-        return (bits << 1) == (0xFF << 24);
-    }
-#else
-    #define sk_float_isfinite(x)    isfinite(x)
-    #define sk_float_isnan(x)       isnan(x)
-    #define sk_float_isinf(x)       isinf(x)
-#endif
-#endif
-=======
 static inline bool sk_float_isfinite(float x) {
     return SkFloatBits_IsFinite(SkFloat2Bits(x));
 }
@@ -140,7 +109,6 @@ static inline bool sk_float_isinf(float x) {
 static inline bool sk_float_isnan(float x) {
     return !(x == x);
 }
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
 
 #define sk_double_isnan(a)          sk_float_isnan(a)
 

@@ -242,17 +242,8 @@ void CPPCodeGenerator::writeRuntimeValue(const Type& type, const Layout& layout,
         fFormatArgs.push_back(cppCode + ".right()");
         fFormatArgs.push_back(cppCode + ".bottom()");
     } else {
-<<<<<<< HEAD
-#if defined(STARBOARD)
-        SbLogFormatF("%s\n", type.name().c_str());
-#else
-        printf("%s\n", type.name().c_str());
-#endif
-        ABORT("unsupported runtime value type\n");
-=======
         printf("unsupported runtime value type '%s'\n", String(type.fName).c_str());
         SkASSERT(false);
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
     }
 }
 

@@ -16,30 +16,11 @@
 #include "src/sksl/SkSLLexer.h"
 
 #ifndef SKSL_STANDALONE
-<<<<<<< HEAD
-#include "GrContextOptions.h"
-#include "GrShaderCaps.h"
-#endif
-
-#if defined(STARBOARD)
-#include "starboard/common/log.h"
-#endif
-
-#ifdef SKSL_STANDALONE
-#if defined(_WIN32) || defined(__SYMBIAN32__)
-#define SKSL_BUILD_FOR_WIN
-#endif
-#else
-#ifdef SK_BUILD_FOR_WIN
-#define SKSL_BUILD_FOR_WIN
-#endif // SK_BUILD_FOR_WIN
-=======
 #include "include/core/SkTypes.h"
 #if SK_SUPPORT_GPU
 #include "include/gpu/GrContextOptions.h"
 #include "src/gpu/GrShaderCaps.h"
 #endif // SK_SUPPORT_GPU
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
 #endif // SKSL_STANDALONE
 
 class GrShaderCaps;
@@ -399,13 +380,6 @@ public:
 };
 #endif
 
-<<<<<<< HEAD
-#if defined(STARBOARD)
-#define ABORT(...) (SbLogFormatF(__VA_ARGS__), sksl_abort())
-#else
-#define ABORT(...) (printf(__VA_ARGS__), sksl_abort())
-#endif
-=======
 void write_stringstream(const StringStream& d, OutputStream& out);
 
 // Returns true if op is '=' or any compound assignment operator ('+=', '-=', etc.)
@@ -418,6 +392,5 @@ Token::Kind remove_assignment(Token::Kind op);
 NORETURN void sksl_abort();
 
 } // namespace
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
 
 #endif

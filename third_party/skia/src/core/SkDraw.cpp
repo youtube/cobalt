@@ -4,40 +4,6 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
-<<<<<<< HEAD
-#if !defined(__STDC_LIMIT_MACROS)
-#define __STDC_LIMIT_MACROS
-#endif
-
-#include "SkArenaAlloc.h"
-#include "SkAutoBlitterChoose.h"
-#include "SkBlendModePriv.h"
-#include "SkBlitter.h"
-#include "SkCanvas.h"
-#include "SkColorPriv.h"
-#include "SkDevice.h"
-#include "SkDeviceLooper.h"
-#include "SkDraw.h"
-#include "SkDrawProcs.h"
-#include "SkFindAndPlaceGlyph.h"
-#include "SkMaskFilter.h"
-#include "SkMatrix.h"
-#include "SkMatrixUtils.h"
-#include "SkPaint.h"
-#include "SkPathEffect.h"
-#include "SkRasterClip.h"
-#include "SkRasterizer.h"
-#include "SkRRect.h"
-#include "SkScan.h"
-#include "SkShader.h"
-#include "SkString.h"
-#include "SkStroke.h"
-#include "SkStrokeRec.h"
-#include "SkTemplates.h"
-#include "SkTextMapStateProc.h"
-#include "SkTLazy.h"
-#include "SkUtils.h"
-=======
 
 #include "src/core/SkDraw.h"
 
@@ -70,7 +36,6 @@
 #include "src/core/SkUtils.h"
 
 #include <utility>
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
 
 static SkPaint make_paint_with_image(
     const SkPaint& origPaint, const SkBitmap& bitmap, SkMatrix* matrix = nullptr) {

@@ -278,128 +278,12 @@ void GrGLSLProgramBuilder::emitAndInstallXferProc(const SkString& colorIn,
     fFS.codeAppend("}");
 }
 
-<<<<<<< HEAD
-void GrGLSLProgramBuilder::emitSamplersAndImageStorages(
-        const GrResourceIOProcessor& processor,
-        SkTArray<SamplerHandle>* outTexSamplerHandles,
-        SkTArray<TexelBufferHandle>* outTexelBufferHandles,
-        SkTArray<ImageStorageHandle>* outImageStorageHandles) {
-    SkString name;
-    int numTextureSamplers = processor.numTextureSamplers();
-    for (int t = 0; t < numTextureSamplers; ++t) {
-        const GrResourceIOProcessor::TextureSampler& sampler = processor.textureSampler(t);
-        name.printf("TextureSampler_%d", outTexSamplerHandles->count());
-        GrSLType samplerType = sampler.peekTexture()->texturePriv().samplerType();
-        if (kTextureExternalSampler_GrSLType == samplerType) {
-            const char* externalFeatureString =
-                    this->shaderCaps()->externalTextureExtensionString();
-            // We shouldn't ever create a GrGLTexture that requires external sampler type
-            SkASSERT(externalFeatureString);
-            this->addFeature(sampler.visibility(),
-                             1 << GrGLSLShaderBuilder::kExternalTexture_GLSLPrivateFeature,
-                             externalFeatureString);
-        }
-        outTexSamplerHandles->emplace_back(this->emitSampler(
-                samplerType, sampler.peekTexture()->config(), name.c_str(), sampler.visibility()));
-    }
-    if (int numBuffers = processor.numBuffers()) {
-        SkASSERT(this->shaderCaps()->texelBufferSupport());
-        GrShaderFlags texelBufferVisibility = kNone_GrShaderFlags;
-
-        for (int b = 0; b < numBuffers; ++b) {
-            const GrResourceIOProcessor::BufferAccess& access = processor.bufferAccess(b);
-            name.printf("TexelBuffer_%d", outTexelBufferHandles->count());
-            outTexelBufferHandles->emplace_back(
-                    this->emitTexelBuffer(access.texelConfig(), name.c_str(), access.visibility()));
-            texelBufferVisibility |= access.visibility();
-        }
-
-        if (const char* extension = this->shaderCaps()->texelBufferExtensionString()) {
-            this->addFeature(texelBufferVisibility,
-                             1 << GrGLSLShaderBuilder::kTexelBuffer_GLSLPrivateFeature,
-                             extension);
-        }
-    }
-    int numImageStorages = processor.numImageStorages();
-    for (int i = 0; i < numImageStorages; ++i) {
-        const GrResourceIOProcessor::ImageStorageAccess& imageStorageAccess =
-                processor.imageStorageAccess(i);
-        name.printf("Image_%d", outImageStorageHandles->count());
-        outImageStorageHandles->emplace_back(
-                this->emitImageStorage(imageStorageAccess, name.c_str()));
-    }
-}
-
-void GrGLSLProgramBuilder::updateSamplerCounts(GrShaderFlags visibility) {
-    if (visibility & kVertex_GrShaderFlag) {
-        ++fNumVertexSamplers;
-    }
-    if (visibility & kGeometry_GrShaderFlag) {
-        SkASSERT(this->primitiveProcessor().willUseGeoShader());
-        ++fNumGeometrySamplers;
-    }
-    if (visibility & kFragment_GrShaderFlag) {
-        ++fNumFragmentSamplers;
-    }
-}
-
-GrGLSLProgramBuilder::SamplerHandle GrGLSLProgramBuilder::emitSampler(GrSLType samplerType,
-                                                                      GrPixelConfig config,
-                                                                      const char* name,
-                                                                      GrShaderFlags visibility) {
-    this->updateSamplerCounts(visibility);
-    GrSLPrecision precision = this->shaderCaps()->samplerPrecision(config, visibility);
-    GrSwizzle swizzle = this->shaderCaps()->configTextureSwizzle(config);
-    return this->uniformHandler()->addSampler(visibility, swizzle, samplerType, precision, name);
-}
-
-GrGLSLProgramBuilder::TexelBufferHandle GrGLSLProgramBuilder::emitTexelBuffer(
-        GrPixelConfig config, const char* name, GrShaderFlags visibility) {
-    this->updateSamplerCounts(visibility);
-    GrSLPrecision precision = this->shaderCaps()->samplerPrecision(config, visibility);
-    return this->uniformHandler()->addTexelBuffer(visibility, precision, name);
-}
-
-GrGLSLProgramBuilder::ImageStorageHandle GrGLSLProgramBuilder::emitImageStorage(
-        const GrResourceIOProcessor::ImageStorageAccess& access, const char* name) {
-    if (access.visibility() & kVertex_GrShaderFlag) {
-        ++fNumVertexImageStorages;
-    }
-    if (access.visibility() & kGeometry_GrShaderFlag) {
-        SkASSERT(this->primitiveProcessor().willUseGeoShader());
-        ++fNumGeometryImageStorages;
-    }
-    if (access.visibility() & kFragment_GrShaderFlag) {
-        ++fNumFragmentImageStorages;
-    }
-    GrSLType uniformType = access.proxy()->imageStorageType();
-    return this->uniformHandler()->addImageStorage(access.visibility(), uniformType,
-                                                   access.format(), access.memoryModel(),
-                                                   access.restricted(), access.ioType(), name);
-}
-
-void GrGLSLProgramBuilder::emitFSOutputSwizzle(bool hasSecondaryOutput) {
-    // Swizzle the fragment shader outputs if necessary.
-    GrSwizzle swizzle;
-    swizzle.setFromKey(this->desc()->header().fOutputSwizzle);
-    if (swizzle != GrSwizzle::RGBA()) {
-        fFS.codeAppendf("%s = %s.%s;", fFS.getPrimaryColorOutputName(),
-                        fFS.getPrimaryColorOutputName(),
-                        swizzle.c_str());
-        if (hasSecondaryOutput) {
-            fFS.codeAppendf("%s = %s.%s;", fFS.getSecondaryColorOutputName(),
-                            fFS.getSecondaryColorOutputName(),
-                            swizzle.c_str());
-        }
-    }
-=======
 GrGLSLProgramBuilder::SamplerHandle GrGLSLProgramBuilder::emitSampler(const GrTextureProxy* texture,
                                                                       const GrSamplerState& state,
                                                                       const GrSwizzle& swizzle,
                                                                       const char* name) {
     ++fNumFragmentSamplers;
     return this->uniformHandler()->addSampler(texture, state, swizzle, name, this->shaderCaps());
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
 }
 
 bool GrGLSLProgramBuilder::checkSamplerCounts() {

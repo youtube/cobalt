@@ -19,19 +19,8 @@
 #include <string.h>
 #include <atomic>
 
-<<<<<<< HEAD
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif
-
-/*  Some helper functions for C strings
-*/
-
-static bool SkStrStartsWith(const char string[], const char prefixStr[]) {
-=======
 /*  Some helper functions for C strings */
 static inline bool SkStrStartsWith(const char string[], const char prefixStr[]) {
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
     SkASSERT(string);
     SkASSERT(prefixStr);
     return !strncmp(string, prefixStr, strlen(prefixStr));

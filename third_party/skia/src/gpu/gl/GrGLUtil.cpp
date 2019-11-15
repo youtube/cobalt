@@ -5,9 +5,10 @@
  * found in the LICENSE file.
  */
 
-<<<<<<< HEAD
-#include "GrGLUtil.h"
-#include "SkMatrix.h"
+#include "include/core/SkMatrix.h"
+#include "include/private/GrTypesPriv.h"
+#include "src/gpu/GrDataUtils.h"
+#include "src/gpu/gl/GrGLUtil.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -29,13 +30,6 @@ bool gCheckErrorGL = !!(GR_GL_CHECK_ERROR_START);
 #include "starboard/configuration.h"
 #define sscanf SbStringScanF
 #else
-=======
-
-#include "include/core/SkMatrix.h"
-#include "include/private/GrTypesPriv.h"
-#include "src/gpu/GrDataUtils.h"
-#include "src/gpu/gl/GrGLUtil.h"
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
 #include <stdio.h>
 #endif
 
@@ -282,7 +276,6 @@ GrGLVersion GrGLGetVersionFromString(const char* versionString) {
         return GR_GL_VER(major, minor);
     }
 
-<<<<<<< HEAD
     // Use API calls to find out the version for OpenGL ES
     // over using string parsing to determine the correct version.
     //
@@ -323,13 +316,11 @@ GrGLVersion GrGLGetVersionFromString(const char* versionString) {
 #endif
             return GR_GL_VER(client_version, 0);
         } while (0);
-=======
     // WebGL might look like "OpenGL ES 2.0 (WebGL 1.0 (OpenGL ES 2.0 Chromium))"
     int esMajor, esMinor;
     n = sscanf(versionString, "OpenGL ES %d.%d (WebGL %d.%d", &esMajor, &esMinor, &major, &minor);
     if (4 == n) {
         return GR_GL_VER(major, minor);
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
     }
 
     char profile[2];
@@ -679,34 +670,6 @@ GrGLenum GrToGLStencilFunc(GrStencilTest test) {
     return gTable[(int)test];
 }
 
-<<<<<<< HEAD
-#else  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)
-
-void GrGLCheckErr(const GrGLInterface* gl, const char* location, const char* call) {}
-
-void GrGLClearErr(const GrGLInterface* gl) {}
-
-GrGLenum GrToGLStencilFunc(GrStencilTest test) { return NULL; }
-
-GrGLVersion GrGLGetVersionFromString(const char* versionString) { return NULL; }
-
-GrGLVendor GrGLGetVendor(const GrGLInterface* gl) { return kOther_GrGLVendor; }
-
-GrGLRenderer GrGLGetRendererFromString(const char* rendererString) { return kOther_GrGLRenderer; }
-
-void GrGLGetDriverInfo(GrGLStandard standard,
-                       GrGLVendor vendor,
-                       const char* rendererString,
-                       const char* versionString,
-                       GrGLDriver* outDriver,
-                       GrGLDriverVersion* outVersion) {}
-
-GrGLSLVersion GrGLGetGLSLVersion(const GrGLInterface* gl) { return NULL; }
-
-GrGLVersion GrGLGetVersion(const GrGLInterface* gl) { return NULL; }
-
-#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)
-=======
 bool GrGLFormatIsCompressed(GrGLFormat format) {
     switch (format) {
         case GrGLFormat::kCOMPRESSED_RGB8_ETC2:
@@ -768,4 +731,29 @@ bool GrGLFormatToCompressionType(GrGLFormat format, SkImage::CompressionType* co
     SkUNREACHABLE;
 }
 
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
+#else  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)
+
+void GrGLCheckErr(const GrGLInterface* gl, const char* location, const char* call) {}
+
+void GrGLClearErr(const GrGLInterface* gl) {}
+
+GrGLenum GrToGLStencilFunc(GrStencilTest test) { return NULL; }
+
+GrGLVersion GrGLGetVersionFromString(const char* versionString) { return NULL; }
+
+GrGLVendor GrGLGetVendor(const GrGLInterface* gl) { return kOther_GrGLVendor; }
+
+GrGLRenderer GrGLGetRendererFromString(const char* rendererString) { return kOther_GrGLRenderer; }
+
+void GrGLGetDriverInfo(GrGLStandard standard,
+                       GrGLVendor vendor,
+                       const char* rendererString,
+                       const char* versionString,
+                       GrGLDriver* outDriver,
+                       GrGLDriverVersion* outVersion) {}
+
+GrGLSLVersion GrGLGetGLSLVersion(const GrGLInterface* gl) { return NULL; }
+
+GrGLVersion GrGLGetVersion(const GrGLInterface* gl) { return NULL; }
+
+#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)

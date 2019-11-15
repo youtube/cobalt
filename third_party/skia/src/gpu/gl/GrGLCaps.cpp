@@ -56,11 +56,7 @@ GrGLCaps::GrGLCaps(const GrContextOptions& contextOptions,
     fDrawArraysBaseVertexIsBroken = true;
 #else
     fDrawArraysBaseVertexIsBroken = false;
-<<<<<<< HEAD
 #endif
-    fUseDrawToClearStencilClip = false;
-=======
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
     fDisallowTexSubImageForUnormConfigTexturesEverBoundToFBO = false;
     fUseDrawInsteadOfAllRenderTargetWrites = false;
     fRequiresCullFaceEnableDisableWhenDrawingLinesAfterNonLines = false;
@@ -152,7 +148,7 @@ void GrGLCaps::init(const GrContextOptions& contextOptions,
         fSampleLocationsSupport = version >= GR_GL_VER(3,1);
     }  // no WebGL support
 
-<<<<<<< HEAD
+#if defined(STARBOARD)
     // ARB_texture_rg is part of OpenGL 3.0, but osmesa doesn't support GL_RED
     // and GL_RG on FBO textures.
     if (kOSMesa_GrGLRenderer != ctxInfo.renderer()) {
@@ -186,11 +182,9 @@ void GrGLCaps::init(const GrContextOptions& contextOptions,
         GR_GL_CALL(gli, BindTexture(GR_GL_TEXTURE_2D, 0));
         GR_GL_CALL(gli, DeleteTextures(1, &texture_id));
     }
+#endif
 
-    fImagingSupport = kGL_GrGLStandard == standard &&
-=======
     fImagingSupport = GR_IS_GR_GL(standard) &&
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
                       ctxInfo.hasExtension("GL_ARB_imaging");
 
     if (((GR_IS_GR_GL(standard) && version >= GR_GL_VER(4,3)) ||
@@ -1030,27 +1024,7 @@ void GrGLCaps::initFSAASupport(const GrContextOptions& contextOptions, const GrG
                                ctxInfo.hasExtension("GL_CHROMIUM_framebuffer_mixed_samples");
     }
 
-<<<<<<< HEAD
-    if (kGL_GrGLStandard != ctxInfo.standard()) {
-        if (ctxInfo.version() >= GR_GL_VER(3,0) &&
-            ctxInfo.renderer() != kGalliumLLVM_GrGLRenderer) {
-            // The gallium llvmpipe renderer for es3.0 does not have textureRed support even though
-            // it is part of the spec. Thus alpha8 will not be renderable for those devices.
-            fAlpha8IsRenderable = true;
-        }
-        // We prefer the EXT/IMG extension over ES3 MSAA because we've observed
-=======
-    if (GR_IS_GR_GL(ctxInfo.standard())) {
-        if (ctxInfo.version() >= GR_GL_VER(3,0) ||
-            ctxInfo.hasExtension("GL_ARB_framebuffer_object")) {
-            fMSFBOType = kStandard_MSFBOType;
-        } else if (ctxInfo.hasExtension("GL_EXT_framebuffer_multisample") &&
-                   ctxInfo.hasExtension("GL_EXT_framebuffer_blit")) {
-            fMSFBOType = kStandard_MSFBOType;
-        }
-    } else if (GR_IS_GR_GL_ES(ctxInfo.standard())) {
-        // We prefer multisampled-render-to-texture extensions over ES3 MSAA because we've observed
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
+
         // ES3 driver bugs on at least one device with a tiled GPU (N10).
         if (ctxInfo.hasExtension("GL_EXT_multisampled_render_to_texture")) {
             fMSFBOType = kES_EXT_MsToTexture_MSFBOType;
@@ -1389,54 +1363,7 @@ void GrGLCaps::initFormatTable(const GrGLContextInfo& ctxInfo, const GrGLInterfa
     if (fDriverBugWorkarounds.disable_texture_storage) {
         texStorageSupported = false;
     }
-<<<<<<< HEAD
 
-    bool texelBufferSupport = this->shaderCaps()->texelBufferSupport();
-
-    fConfigTable[kUnknown_GrPixelConfig].fFormats.fBaseInternalFormat = 0;
-    fConfigTable[kUnknown_GrPixelConfig].fFormats.fSizedInternalFormat = 0;
-    fConfigTable[kUnknown_GrPixelConfig].fFormats.fExternalFormat[kOther_ExternalFormatUsage] = 0;
-    fConfigTable[kUnknown_GrPixelConfig].fFormats.fExternalType = 0;
-    fConfigTable[kUnknown_GrPixelConfig].fFormatType = kNormalizedFixedPoint_FormatType;
-    fConfigTable[kUnknown_GrPixelConfig].fSwizzle = GrSwizzle::RGBA();
-
-    fConfigTable[kRGBA_8888_GrPixelConfig].fFormats.fBaseInternalFormat = GR_GL_RGBA;
-    fConfigTable[kRGBA_8888_GrPixelConfig].fFormats.fSizedInternalFormat = GR_GL_RGBA8;
-    fConfigTable[kRGBA_8888_GrPixelConfig].fFormats.fExternalFormat[kOther_ExternalFormatUsage] =
-        GR_GL_RGBA;
-    fConfigTable[kRGBA_8888_GrPixelConfig].fFormats.fExternalType = GR_GL_UNSIGNED_BYTE;
-    fConfigTable[kRGBA_8888_GrPixelConfig].fFormatType = kNormalizedFixedPoint_FormatType;
-    fConfigTable[kRGBA_8888_GrPixelConfig].fFlags = ConfigInfo::kTextureable_Flag;
-    if (kGL_GrGLStandard == standard) {
-        // We require some form of FBO support and all GLs with FBO support can render to RGBA8
-        fConfigTable[kRGBA_8888_GrPixelConfig].fFlags |= allRenderFlags;
-    } else {
-#if defined(STARBOARD)
-        // Starboard code in GrGLUtil.cpp may override the driver version from
-        // GLES 3.0 to 2.0 if the config specifies that only GLES 2.0 features
-        // should be used. This will confuse the regular capabilities check.
-        // Since all Starboard GLES platforms must support rendering to RGBA8
-        // buffers, no check is needed here.
-        fConfigTable[kRGBA_8888_GrPixelConfig].fFlags |= allRenderFlags;
-#else
-        if (version >= GR_GL_VER(3,0) || ctxInfo.hasExtension("GL_OES_rgb8_rgba8") ||
-            ctxInfo.hasExtension("GL_ARM_rgba8")) {
-            fConfigTable[kRGBA_8888_GrPixelConfig].fFlags |= allRenderFlags;
-        }
-#endif
-    }
-    if (texStorageSupported) {
-        fConfigTable[kRGBA_8888_GrPixelConfig].fFlags |= ConfigInfo::kCanUseTexStorage_Flag;
-    }
-    if (texelBufferSupport) {
-        fConfigTable[kRGBA_8888_GrPixelConfig].fFlags |= ConfigInfo::kCanUseWithTexelBuffer_Flag;
-=======
-#ifdef SK_BUILD_FOR_ANDROID
-    // crbug.com/945506. Telemetry reported a memory usage regression for Android Go Chrome/WebView
-    // when using glTexStorage2D. This appears to affect OOP-R (so not just over command buffer).
-    if (!formatWorkarounds.fDontDisableTexStorageOnAndroid) {
-        texStorageSupported = false;
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
     }
 #endif
 

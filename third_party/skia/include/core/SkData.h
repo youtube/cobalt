@@ -12,12 +12,8 @@
 #include <stdio.h>
 #endif
 
-<<<<<<< HEAD
-#include "SkOSFile.h"  // Included for SkFile.
-#include "SkRefCnt.h"
-=======
 #include "include/core/SkRefCnt.h"
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
+#include "src/core/SkOSFile.h"  // Included for SkFile.
 
 class SkStream;
 

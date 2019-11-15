@@ -36,8 +36,6 @@ void String::appendf(const char* fmt, ...) {
     va_start(args, fmt);
     this->vappendf(fmt, args);
     va_end(args);
-<<<<<<< HEAD
-=======
 }
 
 void String::reset() {
@@ -48,7 +46,6 @@ int String::findLastOf(const char c) const {
     // Rely on find_last_of and remap the output
     size_t index = this->find_last_of(c);
     return (index == std::string::npos ? -1 : index);
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
 }
 
 void String::vappendf(const char* fmt, va_list args) {
