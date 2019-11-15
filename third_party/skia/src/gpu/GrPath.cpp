@@ -5,8 +5,8 @@
  * found in the LICENSE file.
  */
 
-#include "GrPath.h"
-#include "GrShape.h"
+#include "src/gpu/GrPath.h"
+#include "src/gpu/geometry/GrShape.h"
 
 static inline void write_style_key(uint32_t* key, const GrStyle& style)  {
     // Pass 1 for the scale since the GPU will apply the style not GrStyle::applyToPath().
@@ -25,7 +25,7 @@ void GrPath::ComputeKey(const GrShape& shape, GrUniqueKey* key, bool* outIsVolat
         return;
     }
     static const GrUniqueKey::Domain kGeneralPathDomain = GrUniqueKey::GenerateDomain();
-    GrUniqueKey::Builder builder(key, kGeneralPathDomain, geoCnt + styleCnt);
+    GrUniqueKey::Builder builder(key, kGeneralPathDomain, geoCnt + styleCnt, "Path");
     shape.writeUnstyledKey(&builder[0]);
     if (styleCnt) {
         write_style_key(&builder[geoCnt], shape.style());

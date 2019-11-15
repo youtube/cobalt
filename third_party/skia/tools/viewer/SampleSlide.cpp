@@ -5,50 +5,45 @@
 * found in the LICENSE file.
 */
 
-#include "SampleSlide.h"
+#include "tools/viewer/SampleSlide.h"
 
-#include "SkCanvas.h"
-#include "SkCommonFlags.h"
-#include "SkOSFile.h"
-#include "SkStream.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkStream.h"
+#include "src/core/SkOSFile.h"
 
-SampleSlide::SampleSlide(const SkViewFactory* factory) : fViewFactory(factory) {
-    SkView* view = (*factory)();
-    SampleCode::RequestTitle(view, &fName);
-    view->unref();
+using namespace sk_app;
+
+SampleSlide::SampleSlide(const SampleFactory factory) : fSampleFactory(factory) {
+    std::unique_ptr<Sample> sample(factory());
+    fName = sample->name();
 }
 
 SampleSlide::~SampleSlide() {}
 
+SkISize SampleSlide::getDimensions() const  {
+    return SkISize::Make(SkScalarCeilToInt(fSample->width()), SkScalarCeilToInt(fSample->height()));
+}
+
+bool SampleSlide::animate(double nanos) { return fSample->animate(nanos); }
+
 void SampleSlide::draw(SkCanvas* canvas) {
-    SkASSERT(fView);
-    fView->draw(canvas);
+    SkASSERT(fSample);
+    fSample->draw(canvas);
 }
 
 void SampleSlide::load(SkScalar winWidth, SkScalar winHeight) {
-    fView.reset((*fViewFactory)());
-    fView->setVisibleP(true);
-    fView->setClipToBounds(false);
-    fView->setSize(winWidth, winHeight);
+    fSample.reset(fSampleFactory());
+    fSample->setSize(winWidth, winHeight);
 }
 
 void SampleSlide::unload() {
-    fView.reset();
+    fSample.reset();
 }
 
 bool SampleSlide::onChar(SkUnichar c) {
-    if (!fView) {
-        return false;
-    }
-    SkEvent evt(gCharEvtName);
-    evt.setFast32(c);
-    return fView->doQuery(&evt);
+    return fSample && fSample->onChar(c);
 }
 
-#if defined(SK_BUILD_FOR_ANDROID)
-// these are normally defined in SkOSWindow_unix, but we don't
-// want to include that
-void SkEvent::SignalNonEmptyQueue() {}
-
-void SkEvent::SignalQueueTimer(SkMSec delay) {}
-#endif
+bool SampleSlide::onMouse(SkScalar x, SkScalar y, skui::InputState state, skui::ModifierKey modifierKeys) {
+    return fSample && fSample->mouse({x, y}, state, modifierKeys);
+}

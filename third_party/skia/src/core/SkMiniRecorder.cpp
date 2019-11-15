@@ -5,14 +5,16 @@
  * found in the LICENSE file.
  */
 
-#include "SkCanvas.h"
-#include "SkTLazy.h"
-#include "SkMiniRecorder.h"
-#include "SkOnce.h"
-#include "SkPicture.h"
-#include "SkPictureCommon.h"
-#include "SkRecordDraw.h"
-#include "SkTextBlob.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkPicture.h"
+#include "include/core/SkTextBlob.h"
+#include "include/private/SkOnce.h"
+#include "src/core/SkMiniRecorder.h"
+#include "src/core/SkPictureCommon.h"
+#include "src/core/SkRecordDraw.h"
+#include "src/core/SkRectPriv.h"
+#include "src/core/SkTLazy.h"
+#include <new>
 
 using namespace SkRecords;
 
@@ -23,21 +25,19 @@ public:
     size_t approximateBytesUsed() const override { return sizeof(*this); }
     int    approximateOpCount()   const override { return 0; }
     SkRect cullRect()             const override { return SkRect::MakeEmpty(); }
-    int    numSlowPaths()         const override { return 0; }
-    bool   willPlayBackBitmaps()  const override { return false; }
 };
 
 // Calculate conservative bounds for each type of draw op that can be its own mini picture.
 // These are fairly easy because we know they can't be affected by any matrix or saveLayers.
 static SkRect adjust_for_paint(SkRect bounds, const SkPaint& paint) {
     return paint.canComputeFastBounds() ? paint.computeFastBounds(bounds, &bounds)
-                                        : SkRect::MakeLargest();
+                                        : SkRectPriv::MakeLargest();
 }
 static SkRect bounds(const DrawRect& op) {
     return adjust_for_paint(op.rect, op.paint);
 }
 static SkRect bounds(const DrawPath& op) {
-    return op.path.isInverseFillType() ? SkRect::MakeLargest()
+    return op.path.isInverseFillType() ? SkRectPriv::MakeLargest()
                                        : adjust_for_paint(op.path.getBounds(), op.paint);
 }
 static SkRect bounds(const DrawTextBlob& op) {
@@ -58,12 +58,6 @@ public:
     size_t approximateBytesUsed() const override { return sizeof(*this); }
     int    approximateOpCount()   const override { return 1; }
     SkRect cullRect()             const override { return fCull; }
-    bool   willPlayBackBitmaps()  const override { return SkBitmapHunter()(fOp); }
-    int    numSlowPaths()         const override {
-        SkPathCounter counter;
-        counter(fOp);
-        return counter.fNumSlowPathsAndDashEffects;
-    }
 
 private:
     SkRect fCull;

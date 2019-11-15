@@ -4,20 +4,22 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
-#include "Benchmark.h"
-#include "SkBlurMask.h"
-#include "SkBlurMaskFilter.h"
-#include "SkCanvas.h"
-#include "SkPaint.h"
-#include "SkRandom.h"
-#include "SkShader.h"
-#include "SkString.h"
+#include "bench/Benchmark.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkMaskFilter.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkShader.h"
+#include "include/core/SkString.h"
+#include "include/utils/SkRandom.h"
+#include "src/core/SkBlurMask.h"
 
-#define MINI   0.01f
+#define MINI    0.01f
 #define SMALL   SkIntToScalar(2)
-#define REAL    1.5f
+#define REAL    0.5f
 #define BIG     SkIntToScalar(10)
 #define REALBIG 100.5f
+// The value that produces a sigma of just over 2.
+#define CUTOVER 2.6f
 
 static const char* gStyleName[] = {
     "normal",
@@ -29,17 +31,14 @@ static const char* gStyleName[] = {
 class BlurBench : public Benchmark {
     SkScalar    fRadius;
     SkBlurStyle fStyle;
-    uint32_t    fFlags;
     SkString    fName;
 
 public:
-    BlurBench(SkScalar rad, SkBlurStyle bs, uint32_t flags = 0) {
+    BlurBench(SkScalar rad, SkBlurStyle bs) {
         fRadius = rad;
         fStyle = bs;
-        fFlags = flags;
         const char* name = rad > 0 ? gStyleName[bs] : "none";
-        const char* quality = flags & SkBlurMaskFilter::kHighQuality_BlurFlag ? "high_quality"
-                                                                              : "low_quality";
+        const char* quality = "high_quality";
         if (SkScalarFraction(rad) != 0) {
             fName.printf("blur_%.2f_%s_%s", SkScalarToFloat(rad), name, quality);
         } else {
@@ -48,11 +47,11 @@ public:
     }
 
 protected:
-    virtual const char* onGetName() {
+    const char* onGetName() override {
         return fName.c_str();
     }
 
-    virtual void onDraw(int loops, SkCanvas* canvas) {
+    void onDraw(int loops, SkCanvas* canvas) override {
         SkPaint paint;
         this->setupPaint(&paint);
 
@@ -65,9 +64,8 @@ protected:
             r.offset(fRadius, fRadius);
 
             if (fRadius > 0) {
-                paint.setMaskFilter(SkBlurMaskFilter::Make(fStyle,
-                                                          SkBlurMask::ConvertRadiusToSigma(fRadius),
-                                                          fFlags));
+                paint.setMaskFilter(SkMaskFilter::MakeBlur(fStyle,
+                                                      SkBlurMask::ConvertRadiusToSigma(fRadius)));
             }
             canvas->drawOval(r, paint);
         }
@@ -101,15 +99,5 @@ DEF_BENCH(return new BlurBench(REAL, kNormal_SkBlurStyle);)
 DEF_BENCH(return new BlurBench(REAL, kSolid_SkBlurStyle);)
 DEF_BENCH(return new BlurBench(REAL, kOuter_SkBlurStyle);)
 DEF_BENCH(return new BlurBench(REAL, kInner_SkBlurStyle);)
-
-DEF_BENCH(return new BlurBench(MINI, kNormal_SkBlurStyle, SkBlurMaskFilter::kHighQuality_BlurFlag);)
-
-DEF_BENCH(return new BlurBench(SMALL, kNormal_SkBlurStyle, SkBlurMaskFilter::kHighQuality_BlurFlag);)
-
-DEF_BENCH(return new BlurBench(BIG, kNormal_SkBlurStyle, SkBlurMaskFilter::kHighQuality_BlurFlag);)
-
-DEF_BENCH(return new BlurBench(REALBIG, kNormal_SkBlurStyle, SkBlurMaskFilter::kHighQuality_BlurFlag);)
-
-DEF_BENCH(return new BlurBench(REAL, kNormal_SkBlurStyle, SkBlurMaskFilter::kHighQuality_BlurFlag);)
 
 DEF_BENCH(return new BlurBench(0, kNormal_SkBlurStyle);)

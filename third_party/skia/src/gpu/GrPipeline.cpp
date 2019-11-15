@@ -5,146 +5,111 @@
  * found in the LICENSE file.
  */
 
-#include "GrPipeline.h"
+#include "src/gpu/GrPipeline.h"
 
-#include "GrAppliedClip.h"
-#include "GrCaps.h"
-#include "GrGpu.h"
-#include "GrRenderTargetContext.h"
-#include "GrRenderTargetOpList.h"
-#include "GrRenderTargetPriv.h"
-#include "GrXferProcessor.h"
+#include "src/gpu/GrAppliedClip.h"
+#include "src/gpu/GrCaps.h"
+#include "src/gpu/GrGpu.h"
+#include "src/gpu/GrRenderTargetContext.h"
+#include "src/gpu/GrXferProcessor.h"
 
-#include "ops/GrOp.h"
+#include "src/gpu/ops/GrOp.h"
 
-void GrPipeline::init(const InitArgs& args) {
-    SkASSERT(args.fRenderTarget);
-    SkASSERT(args.fProcessors);
-    SkASSERT(args.fProcessors->isFinalized());
+GrPipeline::GrPipeline(const InitArgs& args,
+                       GrProcessorSet&& processors,
+                       GrAppliedClip&& appliedClip)
+        : fOutputSwizzle(args.fOutputSwizzle) {
+    SkASSERT(processors.isFinalized());
 
-    fRenderTarget.reset(args.fRenderTarget);
-
-    fFlags = args.fFlags;
-    if (args.fAppliedClip) {
-        fScissorState = args.fAppliedClip->scissorState();
-        if (args.fAppliedClip->hasStencilClip()) {
-            fFlags |= kHasStencilClip_Flag;
-        }
-        fWindowRectsState = args.fAppliedClip->windowRectsState();
+    fFlags = (Flags)args.fInputFlags;
+    if (appliedClip.hasStencilClip()) {
+        fFlags |= Flags::kHasStencilClip;
     }
-    if (!args.fUserStencil->isDisabled(fFlags & kHasStencilClip_Flag)) {
-        fFlags |= kStencilEnabled_Flag;
+    if (appliedClip.scissorState().enabled()) {
+        fFlags |= Flags::kScissorEnabled;
+    }
+
+    fWindowRectsState = appliedClip.windowRectsState();
+    if (!args.fUserStencil->isDisabled(fFlags & Flags::kHasStencilClip)) {
+        fFlags |= Flags::kStencilEnabled;
     }
 
     fUserStencilSettings = args.fUserStencil;
 
-    fXferProcessor = args.fProcessors->refXferProcessor();
+    fXferProcessor = processors.refXferProcessor();
 
     if (args.fDstProxy.proxy()) {
-        if (!args.fDstProxy.proxy()->instantiate(args.fResourceProvider)) {
-            this->markAsBad();
-        }
+        SkASSERT(args.fDstProxy.proxy()->isInstantiated());
 
-        fDstTextureProxy.reset(args.fDstProxy.proxy());
+        fDstTextureProxy = args.fDstProxy.refProxy();
         fDstTextureOffset = args.fDstProxy.offset();
     }
 
     // Copy GrFragmentProcessors from GrProcessorSet to Pipeline
-    fNumColorProcessors = args.fProcessors->numColorFragmentProcessors();
-    int numTotalProcessors =
-            fNumColorProcessors + args.fProcessors->numCoverageFragmentProcessors();
-    if (args.fAppliedClip && args.fAppliedClip->clipCoverageFragmentProcessor()) {
-        ++numTotalProcessors;
-    }
+    fNumColorProcessors = processors.numColorFragmentProcessors();
+    int numTotalProcessors = fNumColorProcessors +
+                             processors.numCoverageFragmentProcessors() +
+                             appliedClip.numClipCoverageFragmentProcessors();
     fFragmentProcessors.reset(numTotalProcessors);
+
     int currFPIdx = 0;
-    for (int i = 0; i < args.fProcessors->numColorFragmentProcessors(); ++i, ++currFPIdx) {
-        const GrFragmentProcessor* fp = args.fProcessors->colorFragmentProcessor(i);
-        fFragmentProcessors[currFPIdx].reset(fp);
-        if (!fp->instantiate(args.fResourceProvider)) {
-            this->markAsBad();
-        }
+    for (int i = 0; i < processors.numColorFragmentProcessors(); ++i, ++currFPIdx) {
+        fFragmentProcessors[currFPIdx] = processors.detachColorFragmentProcessor(i);
+    }
+    for (int i = 0; i < processors.numCoverageFragmentProcessors(); ++i, ++currFPIdx) {
+        fFragmentProcessors[currFPIdx] = processors.detachCoverageFragmentProcessor(i);
+    }
+    for (int i = 0; i < appliedClip.numClipCoverageFragmentProcessors(); ++i, ++currFPIdx) {
+        fFragmentProcessors[currFPIdx] = appliedClip.detachClipCoverageFragmentProcessor(i);
     }
 
-    for (int i = 0; i < args.fProcessors->numCoverageFragmentProcessors(); ++i, ++currFPIdx) {
-        const GrFragmentProcessor* fp = args.fProcessors->coverageFragmentProcessor(i);
-        fFragmentProcessors[currFPIdx].reset(fp);
-        if (!fp->instantiate(args.fResourceProvider)) {
+#ifdef SK_DEBUG
+    for (int i = 0; i < numTotalProcessors; ++i) {
+        if (!fFragmentProcessors[i]->isInstantiated()) {
             this->markAsBad();
+            break;
         }
     }
-    if (args.fAppliedClip) {
-        if (const GrFragmentProcessor* fp = args.fAppliedClip->clipCoverageFragmentProcessor()) {
-            fFragmentProcessors[currFPIdx].reset(fp);
-            if (!fp->instantiate(args.fResourceProvider)) {
-                this->markAsBad();
-            }
-        }
-    }
+#endif
 }
 
-void GrPipeline::addDependenciesTo(GrOpList* opList, const GrCaps& caps) const {
-    for (int i = 0; i < fFragmentProcessors.count(); ++i) {
-        GrFragmentProcessor::TextureAccessIter iter(fFragmentProcessors[i].get());
-        while (const GrResourceIOProcessor::TextureSampler* sampler = iter.next()) {
-            opList->addDependency(sampler->proxy(), caps);
-        }
-    }
-
-    if (fDstTextureProxy) {
-        opList->addDependency(fDstTextureProxy.get(), caps);
-    }
-
-}
-
-GrXferBarrierType GrPipeline::xferBarrierType(const GrCaps& caps) const {
-    if (fDstTextureProxy.get() &&
-        fDstTextureProxy.get()->priv().peekTexture() == fRenderTarget.get()->asTexture()) {
+GrXferBarrierType GrPipeline::xferBarrierType(GrTexture* texture, const GrCaps& caps) const {
+    if (fDstTextureProxy && fDstTextureProxy->peekTexture() == texture) {
         return kTexture_GrXferBarrierType;
     }
     return this->getXferProcessor().xferBarrierType(caps);
 }
 
-GrPipeline::GrPipeline(GrRenderTarget* rt, ScissorState scissorState, SkBlendMode blendmode)
-    : fRenderTarget(rt)
-    , fScissorState()
-    , fWindowRectsState()
-    , fUserStencilSettings(&GrUserStencilSettings::kUnused)
-    , fFlags()
-    , fXferProcessor(GrPorterDuffXPFactory::MakeNoCoverageXP(blendmode))
-    , fFragmentProcessors()
-    , fNumColorProcessors(0) {
-    if (ScissorState::kEnabled == scissorState) {
-        fScissorState.set({0, 0, 0, 0}); // caller will use the DynamicState struct.
+GrPipeline::GrPipeline(GrScissorTest scissorTest, sk_sp<const GrXferProcessor> xp,
+                       const GrSwizzle& outputSwizzle, InputFlags inputFlags,
+                       const GrUserStencilSettings* userStencil)
+        : fWindowRectsState()
+        , fUserStencilSettings(userStencil)
+        , fFlags((Flags)inputFlags)
+        , fXferProcessor(std::move(xp))
+        , fFragmentProcessors()
+        , fNumColorProcessors(0)
+        , fOutputSwizzle(outputSwizzle) {
+    if (GrScissorTest::kEnabled == scissorTest) {
+        fFlags |= Flags::kScissorEnabled;
+    }
+    if (!userStencil->isDisabled(false)) {
+        fFlags |= Flags::kStencilEnabled;
     }
 }
 
-////////////////////////////////////////////////////////////////////////////////
+uint32_t GrPipeline::getBlendInfoKey() const {
+    const GrXferProcessor::BlendInfo& blendInfo = this->getXferProcessor().getBlendInfo();
 
-bool GrPipeline::AreEqual(const GrPipeline& a, const GrPipeline& b) {
-    SkASSERT(&a != &b);
+    static const uint32_t kBlendWriteShift = 1;
+    static const uint32_t kBlendCoeffShift = 5;
+    GR_STATIC_ASSERT(kLast_GrBlendCoeff < (1 << kBlendCoeffShift));
+    GR_STATIC_ASSERT(kFirstAdvancedGrBlendEquation - 1 < 4);
 
-    if (a.getRenderTarget() != b.getRenderTarget() ||
-        a.fFragmentProcessors.count() != b.fFragmentProcessors.count() ||
-        a.fNumColorProcessors != b.fNumColorProcessors ||
-        a.fScissorState != b.fScissorState ||
-        a.fWindowRectsState != b.fWindowRectsState ||
-        a.fFlags != b.fFlags ||
-        a.fUserStencilSettings != b.fUserStencilSettings) {
-        return false;
-    }
+    uint32_t key = blendInfo.fWriteColor;
+    key |= (blendInfo.fSrcBlend << kBlendWriteShift);
+    key |= (blendInfo.fDstBlend << (kBlendWriteShift + kBlendCoeffShift));
+    key |= (blendInfo.fEquation << (kBlendWriteShift + 2 * kBlendCoeffShift));
 
-    // Most of the time both are nullptr
-    if (a.fXferProcessor.get() || b.fXferProcessor.get()) {
-        if (!a.getXferProcessor().isEqual(b.getXferProcessor())) {
-            return false;
-        }
-    }
-
-    for (int i = 0; i < a.numFragmentProcessors(); i++) {
-        if (!a.getFragmentProcessor(i).isEqual(b.getFragmentProcessor(i))) {
-            return false;
-        }
-    }
-    return true;
+    return key;
 }

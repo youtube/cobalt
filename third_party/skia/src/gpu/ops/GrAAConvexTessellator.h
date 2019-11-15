@@ -8,12 +8,12 @@
 #ifndef GrAAConvexTessellator_DEFINED
 #define GrAAConvexTessellator_DEFINED
 
-#include "SkColor.h"
-#include "SkPaint.h"
-#include "SkPoint.h"
-#include "SkScalar.h"
-#include "SkStrokeRec.h"
-#include "SkTDArray.h"
+#include "include/core/SkColor.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkScalar.h"
+#include "include/core/SkStrokeRec.h"
+#include "include/private/SkTDArray.h"
+#include "src/core/SkPointPriv.h"
 
 class SkCanvas;
 class SkMatrix;
@@ -36,14 +36,14 @@ public:
                           SkScalar strokeWidth = -1.0f,
                           SkPaint::Join join = SkPaint::Join::kBevel_Join,
                           SkScalar miterLimit = 0.0f)
-        : fSide(SkPoint::kOn_Side)
+        : fSide(SkPointPriv::kOn_Side)
         , fStrokeWidth(strokeWidth)
         , fStyle(style)
         , fJoin(join)
         , fMiterLimit(miterLimit) {
     }
 
-    SkPoint::Side side() const { return fSide; }
+    SkPointPriv::Side side() const { return fSide; }
 
     bool tessellate(const SkMatrix& m, const SkPath& path);
 
@@ -143,7 +143,7 @@ private:
         void makeOriginalRing() {
             for (int i = 0; i < fPts.count(); ++i) {
                 fPts[i].fOrigEdgeId = fPts[i].fIndex;
-            }            
+            }
         }
 
         // init should be called after all the indices have been added (via addIdx)
@@ -215,21 +215,22 @@ private:
 
     void lineTo(const SkPoint& p, CurveState curve);
 
-    void lineTo(const SkMatrix& m, SkPoint p, CurveState curve);
+    void lineTo(const SkMatrix& m, const SkPoint& p, CurveState curve);
 
     void quadTo(const SkPoint pts[3]);
 
-    void quadTo(const SkMatrix& m, SkPoint pts[3]);
+    void quadTo(const SkMatrix& m, const SkPoint pts[3]);
 
-    void cubicTo(const SkMatrix& m, SkPoint pts[4]);
+    void cubicTo(const SkMatrix& m, const SkPoint pts[4]);
 
-    void conicTo(const SkMatrix& m, SkPoint pts[3], SkScalar w);
+    void conicTo(const SkMatrix& m, const SkPoint pts[3], SkScalar w);
 
     void terminate(const Ring& lastRing);
 
     // return false on failure/degenerate path
     bool extractFromPath(const SkMatrix& m, const SkPath& path);
     void computeBisectors();
+    void computeNormals();
 
     void fanRing(const Ring& ring);
 
@@ -262,7 +263,7 @@ private:
     // needed for exterior ring creation and then handed off to the initial ring.
     SkTDArray<SkVector>   fBisectors;
 
-    SkPoint::Side         fSide;    // winding of the original polygon
+    SkPointPriv::Side     fSide;    // winding of the original polygon
 
     // The triangulation of the points
     SkTDArray<int>        fIndices;

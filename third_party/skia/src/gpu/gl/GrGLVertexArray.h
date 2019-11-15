@@ -8,11 +8,11 @@
 #ifndef GrGLVertexArray_DEFINED
 #define GrGLVertexArray_DEFINED
 
-#include "GrGpuResource.h"
-#include "GrTypesPriv.h"
-#include "gl/GrGLDefines.h"
-#include "gl/GrGLTypes.h"
-#include "SkTArray.h"
+#include "include/gpu/GrGpuResource.h"
+#include "include/gpu/gl/GrGLTypes.h"
+#include "include/private/GrTypesPriv.h"
+#include "include/private/SkTArray.h"
+#include "src/gpu/gl/GrGLDefines.h"
 
 class GrBuffer;
 class GrGLGpu;
@@ -40,7 +40,8 @@ public:
     void set(GrGLGpu*,
              int attribIndex,
              const GrBuffer* vertexBuffer,
-             GrVertexAttribType type,
+             GrVertexAttribType cpuType,
+             GrSLType gpuType,
              GrGLsizei stride,
              size_t offsetInBytes,
              int divisor = 0);
@@ -48,14 +49,15 @@ public:
     /**
      * This function enables the first 'enabledCount' vertex arrays and disables the rest.
      */
-    void enableVertexArrays(const GrGLGpu*, int enabledCount);
+    void enableVertexArrays(const GrGLGpu*, int enabledCount,
+                            GrPrimitiveRestart = GrPrimitiveRestart::kNo);
 
     void invalidate() {
         int count = fAttribArrayStates.count();
         for (int i = 0; i < count; ++i) {
             fAttribArrayStates[i].invalidate();
         }
-        fEnabledCountIsValid = false;
+        fEnableStateIsValid = false;
     }
 
     /**
@@ -73,18 +75,22 @@ private:
         void invalidate() {
             fVertexBufferUniqueID.makeInvalid();
             fDivisor = kInvalidDivisor;
+            fUsingCpuBuffer = false;
         }
 
         GrGpuResource::UniqueID   fVertexBufferUniqueID;
-        GrVertexAttribType        fType;
+        bool                      fUsingCpuBuffer;
+        GrVertexAttribType        fCPUType;
+        GrSLType                  fGPUType;
         GrGLsizei                 fStride;
-        size_t                    fOffset;
+        const GrGLvoid*           fOffset;
         int                       fDivisor;
     };
 
-    SkSTArray<16, AttribArrayState, true>   fAttribArrayStates;
-    int                                     fNumEnabledArrays;
-    bool                                    fEnabledCountIsValid;
+    SkSTArray<16, AttribArrayState, true> fAttribArrayStates;
+    int fNumEnabledArrays;
+    GrPrimitiveRestart fPrimitiveRestartEnabled;
+    bool fEnableStateIsValid = false;
 };
 
 /**

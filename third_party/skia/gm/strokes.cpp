@@ -5,12 +5,25 @@
  * found in the LICENSE file.
  */
 
-#include "gm.h"
-#include "sk_tool_utils.h"
-#include "SkPath.h"
-#include "SkRandom.h"
-#include "SkDashPathEffect.h"
-#include "SkParsePath.h"
+#include "gm/gm.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkColor.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkPath.h"
+#include "include/core/SkPathEffect.h"
+#include "include/core/SkPoint.h"
+#include "include/core/SkRect.h"
+#include "include/core/SkScalar.h"
+#include "include/core/SkSize.h"
+#include "include/core/SkString.h"
+#include "include/core/SkTypes.h"
+#include "include/effects/SkDashPathEffect.h"
+#include "include/private/SkFloatBits.h"
+#include "include/utils/SkParsePath.h"
+#include "include/utils/SkRandom.h"
+#include "tools/ToolUtils.h"
+
+#include <string.h>
 
 #define W   400
 #define H   400
@@ -27,11 +40,11 @@ static void rnd_rect(SkRect* r, SkPaint* paint, SkRandom& rand) {
     SkScalar hoffset = rand.nextSScalar1();
     SkScalar woffset = rand.nextSScalar1();
 
-    r->set(x, y, x + w, y + h);
+    r->setXYWH(x, y, w, h);
     r->offset(-w/2 + woffset, -h/2 + hoffset);
 
     paint->setColor(rand.nextU());
-    paint->setAlpha(0xFF);
+    paint->setAlphaf(1.0f);
 }
 
 
@@ -118,8 +131,8 @@ protected:
         strokePaint = fillPaint;
         strokePaint.setStyle(SkPaint::kStroke_Style);
         for (int i = 0; i < 2; ++i) {
-            fillPaint.setAlpha(255);
-            strokePaint.setAlpha(255);
+            fillPaint.setAlphaf(1.0f);
+            strokePaint.setAlphaf(1.0f);
             strokePaint.setStrokeWidth(i ? 8.f : 10.f);
             strokePaint.setStrokeCap(i ? SkPaint::kSquare_Cap : SkPaint::kRound_Cap);
             canvas->save();
@@ -137,13 +150,13 @@ protected:
             canvas->translate(0, 20);
             canvas->drawPath(fRefPath[i * 2], fillPaint);
             strokePaint.setStrokeWidth(20);
-            strokePaint.setAlpha(127);
+            strokePaint.setAlphaf(0.5f);
             canvas->translate(0, 50);
             canvas->drawPath(fMoveHfPath, strokePaint);
             canvas->translate(0, 30);
             canvas->drawPath(fMoveZfPath, strokePaint);
             canvas->translate(0, 30);
-            fillPaint.setAlpha(127);
+            fillPaint.setAlphaf(0.5f);
             canvas->drawPath(fRefPath[1 + i * 2], fillPaint);
             canvas->translate(0, 30);
             canvas->drawPath(fCubicPath, strokePaint);
@@ -390,7 +403,7 @@ protected:
         SkPaint fillPaint(origPaint);
         fillPaint.setColor(SK_ColorRED);
         SkPaint strokePaint(origPaint);
-        strokePaint.setColor(sk_tool_utils::color_to_565(0xFF4444FF));
+        strokePaint.setColor(ToolUtils::color_to_565(0xFF4444FF));
 
         void (*procs[])(SkPath*, const SkRect&, SkString*) = {
             make0, make1, make2, make3, make4, make5
@@ -518,3 +531,48 @@ DEF_GM( return new Strokes5GM; )
 
 DEF_GM( return new ZeroLenStrokesGM; )
 DEF_GM( return new TeenyStrokesGM; )
+
+DEF_SIMPLE_GM(zerolinedash, canvas, 256, 256) {
+    canvas->clear(SK_ColorWHITE);
+
+    SkPaint paint;
+    paint.setColor(SkColorSetARGB(255, 0, 0, 0));
+    paint.setStrokeWidth(11);
+    paint.setStrokeCap(SkPaint::kRound_Cap);
+    paint.setStrokeJoin(SkPaint::kBevel_Join);
+
+    SkScalar dash_pattern[] = {1, 5};
+    paint.setPathEffect(SkDashPathEffect::Make(dash_pattern, 2, 0));
+
+    canvas->drawLine(100, 100, 100, 100, paint);
+}
+
+#ifdef PDF_IS_FIXED_SO_THIS_DOESNT_BREAK_IT
+DEF_SIMPLE_GM(longrect_dash, canvas, 250, 250) {
+    canvas->clear(SK_ColorWHITE);
+
+    SkPaint paint;
+    paint.setColor(SkColorSetARGB(255, 0, 0, 0));
+    paint.setStrokeWidth(5);
+    paint.setStrokeCap(SkPaint::kRound_Cap);
+    paint.setStrokeJoin(SkPaint::kBevel_Join);
+    paint.setStyle(SkPaint::kStroke_Style);
+    SkScalar dash_pattern[] = {1, 5};
+    paint.setPathEffect(SkDashPathEffect::Make(dash_pattern, 2, 0));
+    // try all combinations of stretching bounds
+    for (auto left : { 20.f, -100001.f } ) {
+        for (auto top : { 20.f, -100001.f } ) {
+            for (auto right : { 40.f, 100001.f } ) {
+                for (auto bottom : { 40.f, 100001.f } ) {
+                    canvas->save();
+                    canvas->clipRect({10, 10, 50, 50});
+                    canvas->drawRect({left, top, right, bottom}, paint);
+                    canvas->restore();
+                    canvas->translate(60, 0);
+               }
+            }
+            canvas->translate(-60 * 4, 60);
+        }
+    }
+}
+#endif

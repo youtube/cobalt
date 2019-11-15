@@ -5,10 +5,10 @@
  * found in the LICENSE file.
  */
 
-#include "Sk4px.h"
-#include "SkNx.h"
-#include "SkRandom.h"
-#include "Test.h"
+#include "include/private/SkNx.h"
+#include "include/utils/SkRandom.h"
+#include "src/core/Sk4px.h"
+#include "tests/Test.h"
 
 template <int N>
 static void test_Nf(skiatest::Reporter* r) {
@@ -165,14 +165,28 @@ DEF_TEST(SkNi_saturatedAdd, r) {
     }
 }
 
+DEF_TEST(SkNi_mulHi, r) {
+    // First 8 primes.
+    Sk4u a{ 0x00020000, 0x00030000, 0x00050000, 0x00070000 };
+    Sk4u b{ 0x000b0000, 0x000d0000, 0x00110000, 0x00130000 };
+
+    Sk4u q{22, 39, 85, 133};
+
+    Sk4u c = a.mulHi(b);
+    REPORTER_ASSERT(r, c[0] == q[0]);
+    REPORTER_ASSERT(r, c[1] == q[1]);
+    REPORTER_ASSERT(r, c[2] == q[2]);
+    REPORTER_ASSERT(r, c[3] == q[3]);
+}
+
 DEF_TEST(Sk4px_muldiv255round, r) {
     for (int a = 0; a < (1<<8); a++) {
     for (int b = 0; b < (1<<8); b++) {
         int exact = (a*b+127)/255;
 
         // Duplicate a and b 16x each.
-        auto av = Sk4px::DupAlpha(a),
-             bv = Sk4px::DupAlpha(b);
+        Sk4px av = Sk16b(a),
+              bv = Sk16b(b);
 
         // This way should always be exactly correct.
         int correct = (av * bv).div255()[0];
@@ -188,28 +202,18 @@ DEF_TEST(Sk4px_muldiv255round, r) {
     }
 }
 
-DEF_TEST(Sk4px_widening, r) {
-    SkPMColor colors[] = {
-        SkPreMultiplyColor(0xff00ff00),
-        SkPreMultiplyColor(0x40008000),
-        SkPreMultiplyColor(0x7f020406),
-        SkPreMultiplyColor(0x00000000),
-    };
-    auto packed = Sk4px::Load4(colors);
-
-    auto wideLo = packed.widenLo(),
-         wideHi = packed.widenHi(),
-         wideLoHi    = packed.widenLoHi(),
-         wideLoHiAlt = wideLo + wideHi;
-    REPORTER_ASSERT(r, 0 == memcmp(&wideLoHi, &wideLoHiAlt, sizeof(wideLoHi)));
-}
-
 DEF_TEST(SkNx_abs, r) {
     auto fs = Sk4f(0.0f, -0.0f, 2.0f, -4.0f).abs();
     REPORTER_ASSERT(r, fs[0] == 0.0f);
     REPORTER_ASSERT(r, fs[1] == 0.0f);
     REPORTER_ASSERT(r, fs[2] == 2.0f);
     REPORTER_ASSERT(r, fs[3] == 4.0f);
+    auto fshi = Sk2f(0.0f, -0.0f).abs();
+    auto fslo = Sk2f(2.0f, -4.0f).abs();
+    REPORTER_ASSERT(r, fshi[0] == 0.0f);
+    REPORTER_ASSERT(r, fshi[1] == 0.0f);
+    REPORTER_ASSERT(r, fslo[0] == 2.0f);
+    REPORTER_ASSERT(r, fslo[1] == 4.0f);
 }
 
 DEF_TEST(Sk4i_abs, r) {
@@ -237,6 +241,14 @@ DEF_TEST(SkNx_floor, r) {
     REPORTER_ASSERT(r, fs[1] == -1.0f);
     REPORTER_ASSERT(r, fs[2] ==  0.0f);
     REPORTER_ASSERT(r, fs[3] == -1.0f);
+
+    auto fs2 = Sk2f(0.4f, -0.4f).floor();
+    REPORTER_ASSERT(r, fs2[0] ==  0.0f);
+    REPORTER_ASSERT(r, fs2[1] == -1.0f);
+
+    auto fs3 = Sk2f(0.6f, -0.6f).floor();
+    REPORTER_ASSERT(r, fs3[0] ==  0.0f);
+    REPORTER_ASSERT(r, fs3[1] == -1.0f);
 }
 
 DEF_TEST(SkNx_shuffle, r) {
@@ -269,7 +281,7 @@ DEF_TEST(SkNx_int_float, r) {
     REPORTER_ASSERT(r, f[3] ==  0.0f);
 }
 
-#include "SkRandom.h"
+#include "include/utils/SkRandom.h"
 
 DEF_TEST(SkNx_u16_float, r) {
     {
@@ -296,8 +308,8 @@ DEF_TEST(SkNx_u16_float, r) {
     SkRandom rand;
     for (int i = 0; i < 10000; ++i) {
         const uint16_t s16[4] {
-            (uint16_t)rand.nextU16(), (uint16_t)rand.nextU16(),
-            (uint16_t)rand.nextU16(), (uint16_t)rand.nextU16(),
+            (uint16_t)(rand.nextU() >> 16), (uint16_t)(rand.nextU() >> 16),
+            (uint16_t)(rand.nextU() >> 16), (uint16_t)(rand.nextU() >> 16),
         };
         auto u4_0 = Sk4h::Load(s16);
         auto f4 = SkNx_cast<float>(u4_0);
@@ -357,4 +369,144 @@ DEF_TEST(SkNx_4fLoad4Store4, r) {
     float dst[16];
     Sk4f::Store4(dst, a, b, c, d);
     REPORTER_ASSERT(r, 0 == memcmp(dst, src, 16 * sizeof(float)));
+}
+
+DEF_TEST(SkNx_neg, r) {
+    auto fs = -Sk4f(0.0f, -0.0f, 2.0f, -4.0f);
+    REPORTER_ASSERT(r, fs[0] == 0.0f);
+    REPORTER_ASSERT(r, fs[1] == 0.0f);
+    REPORTER_ASSERT(r, fs[2] == -2.0f);
+    REPORTER_ASSERT(r, fs[3] == 4.0f);
+    auto fshi = -Sk2f(0.0f, -0.0f);
+    auto fslo = -Sk2f(2.0f, -4.0f);
+    REPORTER_ASSERT(r, fshi[0] == 0.0f);
+    REPORTER_ASSERT(r, fshi[1] == 0.0f);
+    REPORTER_ASSERT(r, fslo[0] == -2.0f);
+    REPORTER_ASSERT(r, fslo[1] == 4.0f);
+}
+
+DEF_TEST(SkNx_thenElse, r) {
+    auto fs = (Sk4f(0.0f, -0.0f, 2.0f, -4.0f) < 0).thenElse(-1, 1);
+    REPORTER_ASSERT(r, fs[0] == 1);
+    REPORTER_ASSERT(r, fs[1] == 1);
+    REPORTER_ASSERT(r, fs[2] == 1);
+    REPORTER_ASSERT(r, fs[3] == -1);
+    auto fshi = (Sk2f(0.0f, -0.0f) < 0).thenElse(-1, 1);
+    auto fslo = (Sk2f(2.0f, -4.0f) < 0).thenElse(-1, 1);
+    REPORTER_ASSERT(r, fshi[0] == 1);
+    REPORTER_ASSERT(r, fshi[1] == 1);
+    REPORTER_ASSERT(r, fslo[0] == 1);
+    REPORTER_ASSERT(r, fslo[1] == -1);
+}
+
+DEF_TEST(Sk4f_Load2, r) {
+    float xy[8] = { 0,1,2,3,4,5,6,7 };
+
+    Sk4f x,y;
+    Sk4f::Load2(xy, &x,&y);
+
+    REPORTER_ASSERT(r, x[0] == 0);
+    REPORTER_ASSERT(r, x[1] == 2);
+    REPORTER_ASSERT(r, x[2] == 4);
+    REPORTER_ASSERT(r, x[3] == 6);
+
+    REPORTER_ASSERT(r, y[0] == 1);
+    REPORTER_ASSERT(r, y[1] == 3);
+    REPORTER_ASSERT(r, y[2] == 5);
+    REPORTER_ASSERT(r, y[3] == 7);
+}
+
+DEF_TEST(Sk2f_Load2, r) {
+    float xy[4] = { 0,1,2,3 };
+
+    Sk2f x,y;
+    Sk2f::Load2(xy, &x,&y);
+
+    REPORTER_ASSERT(r, x[0] == 0);
+    REPORTER_ASSERT(r, x[1] == 2);
+
+    REPORTER_ASSERT(r, y[0] == 1);
+    REPORTER_ASSERT(r, y[1] == 3);
+}
+
+DEF_TEST(Sk2f_Store2, r) {
+    Sk2f p0{0, 2};
+    Sk2f p1{1, 3};
+    float dst[4];
+    Sk2f::Store2(dst, p0, p1);
+    REPORTER_ASSERT(r, dst[0] == 0);
+    REPORTER_ASSERT(r, dst[1] == 1);
+    REPORTER_ASSERT(r, dst[2] == 2);
+    REPORTER_ASSERT(r, dst[3] == 3);
+}
+
+DEF_TEST(Sk2f_Store3, r) {
+    Sk2f p0{0, 3};
+    Sk2f p1{1, 4};
+    Sk2f p2{2, 5};
+    float dst[6];
+    Sk2f::Store3(dst, p0, p1, p2);
+    REPORTER_ASSERT(r, dst[0] == 0);
+    REPORTER_ASSERT(r, dst[1] == 1);
+    REPORTER_ASSERT(r, dst[2] == 2);
+    REPORTER_ASSERT(r, dst[3] == 3);
+    REPORTER_ASSERT(r, dst[4] == 4);
+    REPORTER_ASSERT(r, dst[5] == 5);
+}
+
+DEF_TEST(Sk2f_Store4, r) {
+    Sk2f p0{0, 4};
+    Sk2f p1{1, 5};
+    Sk2f p2{2, 6};
+    Sk2f p3{3, 7};
+
+    float dst[8] = {-1, -1, -1, -1, -1, -1, -1, -1};
+    Sk2f::Store4(dst, p0, p1, p2, p3);
+    REPORTER_ASSERT(r, dst[0] == 0);
+    REPORTER_ASSERT(r, dst[1] == 1);
+    REPORTER_ASSERT(r, dst[2] == 2);
+    REPORTER_ASSERT(r, dst[3] == 3);
+    REPORTER_ASSERT(r, dst[4] == 4);
+    REPORTER_ASSERT(r, dst[5] == 5);
+    REPORTER_ASSERT(r, dst[6] == 6);
+    REPORTER_ASSERT(r, dst[7] == 7);
+
+    // Ensure transposing to Sk4f works.
+    Sk4f dst4f[2] = {{-1, -1, -1, -1}, {-1, -1, -1, -1}};
+    Sk2f::Store4(dst4f, p0, p1, p2, p3);
+    REPORTER_ASSERT(r, dst4f[0][0] == 0);
+    REPORTER_ASSERT(r, dst4f[0][1] == 1);
+    REPORTER_ASSERT(r, dst4f[0][2] == 2);
+    REPORTER_ASSERT(r, dst4f[0][3] == 3);
+    REPORTER_ASSERT(r, dst4f[1][0] == 4);
+    REPORTER_ASSERT(r, dst4f[1][1] == 5);
+    REPORTER_ASSERT(r, dst4f[1][2] == 6);
+    REPORTER_ASSERT(r, dst4f[1][3] == 7);
+
+}
+
+DEF_TEST(Sk4f_minmax, r) {
+    REPORTER_ASSERT(r,  3 == Sk4f(0,1,2,3).max());
+    REPORTER_ASSERT(r,  2 == Sk4f(1,-5,2,-1).max());
+    REPORTER_ASSERT(r, -1 == Sk4f(-2,-1,-6,-3).max());
+    REPORTER_ASSERT(r,  3 == Sk4f(3,2,1,0).max());
+
+    REPORTER_ASSERT(r,  0 == Sk4f(0,1,2,3).min());
+    REPORTER_ASSERT(r, -5 == Sk4f(1,-5,2,-1).min());
+    REPORTER_ASSERT(r, -6 == Sk4f(-2,-1,-6,-3).min());
+    REPORTER_ASSERT(r,  0 == Sk4f(3,2,1,0).min());
+}
+
+DEF_TEST(SkNf_anyTrue_allTrue, r) {
+    REPORTER_ASSERT(r,  (Sk2f{1,2} < Sk2f{3,4}).anyTrue());
+    REPORTER_ASSERT(r,  (Sk2f{1,2} < Sk2f{3,4}).allTrue());
+    REPORTER_ASSERT(r,  (Sk2f{3,2} < Sk2f{1,4}).anyTrue());
+    REPORTER_ASSERT(r, !(Sk2f{3,2} < Sk2f{1,4}).allTrue());
+    REPORTER_ASSERT(r, !(Sk2f{3,4} < Sk2f{1,2}).anyTrue());
+
+    REPORTER_ASSERT(r,  (Sk4f{1,2,3,4} < Sk4f{3,4,5,6}).anyTrue());
+    REPORTER_ASSERT(r,  (Sk4f{1,2,3,4} < Sk4f{3,4,5,6}).allTrue());
+    REPORTER_ASSERT(r,  (Sk4f{1,2,3,4} < Sk4f{1,4,1,1}).anyTrue());
+    REPORTER_ASSERT(r, !(Sk4f{1,2,3,4} < Sk4f{1,4,1,1}).allTrue());
+    REPORTER_ASSERT(r, !(Sk4f{3,4,5,6} < Sk4f{1,2,3,4}).anyTrue());
 }

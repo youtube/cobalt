@@ -6,8 +6,8 @@
  */
 
 
-#include "GrShaderVar.h"
-#include "GrShaderCaps.h"
+#include "src/gpu/GrShaderCaps.h"
+#include "src/gpu/GrShaderVar.h"
 
 static const char* type_modifier_string(GrShaderVar::TypeModifier t) {
     switch (t) {
@@ -17,6 +17,7 @@ static const char* type_modifier_string(GrShaderVar::TypeModifier t) {
         case GrShaderVar::kOut_TypeModifier: return "out";
         case GrShaderVar::kUniform_TypeModifier: return "uniform";
     }
+<<<<<<< HEAD
     SkFAIL("Unknown shader variable type modifier.");
     return "";
 }
@@ -64,6 +65,9 @@ void GrShaderVar::setRestrict(GrSLRestrict restricted) {
             return;
     }
     SkFAIL("Unknown restrict.");
+=======
+    SK_ABORT("Unknown shader variable type modifier.");
+>>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
 }
 
 void GrShaderVar::setIOType(GrIOType ioType) {
@@ -77,11 +81,10 @@ void GrShaderVar::setIOType(GrIOType ioType) {
             this->addModifier("writeonly");
             return;
     }
-    SkFAIL("Unknown io type.");
+    SK_ABORT("Unknown io type.");
 }
 
 void GrShaderVar::appendDecl(const GrShaderCaps* shaderCaps, SkString* out) const {
-    SkASSERT(kDefault_GrSLPrecision == fPrecision || GrSLTypeAcceptsPrecision(fType));
     SkString layout = fLayoutQualifier;
     if (!fLayoutQualifier.isEmpty()) {
         out->appendf("layout(%s) ", fLayoutQualifier.c_str());
@@ -92,15 +95,9 @@ void GrShaderVar::appendDecl(const GrShaderCaps* shaderCaps, SkString* out) cons
         out->append(" ");
     }
     GrSLType effectiveType = this->getType();
-    if (shaderCaps->usesPrecisionModifiers() && GrSLTypeAcceptsPrecision(effectiveType)) {
-        // Desktop GLSL has added precision qualifiers but they don't do anything.
-        out->appendf("%s ", GrGLSLPrecisionString(fPrecision));
-    }
     if (this->isArray()) {
         if (this->isUnsizedArray()) {
-            out->appendf("%s %s[]",
-                         GrGLSLTypeString(effectiveType),
-                         this->getName().c_str());
+            out->appendf("%s %s[]", GrGLSLTypeString(effectiveType), this->getName().c_str());
         } else {
             SkASSERT(this->getArrayCount() > 0);
             out->appendf("%s %s[%d]",
@@ -109,8 +106,6 @@ void GrShaderVar::appendDecl(const GrShaderCaps* shaderCaps, SkString* out) cons
                          this->getArrayCount());
         }
     } else {
-        out->appendf("%s %s",
-                     GrGLSLTypeString(effectiveType),
-                     this->getName().c_str());
+        out->appendf("%s %s", GrGLSLTypeString(effectiveType), this->getName().c_str());
     }
 }

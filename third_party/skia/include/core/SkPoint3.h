@@ -8,7 +8,7 @@
 #ifndef SkPoint3_DEFINED
 #define SkPoint3_DEFINED
 
-#include "SkScalar.h"
+#include "include/core/SkPoint.h"
 
 struct SK_API SkPoint3 {
     SkScalar fX, fY, fZ;
@@ -57,7 +57,7 @@ struct SK_API SkPoint3 {
 
     /** Scale the point's coordinates by scale.
     */
-    void scale(SkScalar value) { 
+    void scale(SkScalar value) {
         fX *= value;
         fY *= value;
         fZ *= value;
@@ -107,6 +107,24 @@ struct SK_API SkPoint3 {
         fZ -= v.fZ;
     }
 
+    /** Returns true if fX, fY, and fZ are measurable values.
+
+     @return  true for values other than infinities and NaN
+     */
+    bool isFinite() const {
+        SkScalar accum = 0;
+        accum *= fX;
+        accum *= fY;
+        accum *= fZ;
+
+        // accum is either NaN or it is finite (zero).
+        SkASSERT(0 == accum || SkScalarIsNaN(accum));
+
+        // value==value will be true iff value is not NaN
+        // TODO: is it faster to say !accum or accum==accum?
+        return !SkScalarIsNaN(accum);
+    }
+
     /** Returns the dot product of a and b, treating them as 3D vectors
     */
     static SkScalar DotProduct(const SkPoint3& a, const SkPoint3& b) {
@@ -115,6 +133,21 @@ struct SK_API SkPoint3 {
 
     SkScalar dot(const SkPoint3& vec) const {
         return DotProduct(*this, vec);
+    }
+
+    /** Returns the cross product of a and b, treating them as 3D vectors
+    */
+    static SkPoint3 CrossProduct(const SkPoint3& a, const SkPoint3& b) {
+        SkPoint3 result;
+        result.fX = a.fY*b.fZ - a.fZ*b.fY;
+        result.fY = a.fZ*b.fX - a.fX*b.fZ;
+        result.fZ = a.fX*b.fY - a.fY*b.fX;
+
+        return result;
+    }
+
+    SkPoint3 cross(const SkPoint3& vec) const {
+        return CrossProduct(*this, vec);
     }
 };
 

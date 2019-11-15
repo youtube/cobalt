@@ -1,7 +1,7 @@
 Using Gerrit without git-cl
 ===========================
 
-setup
+Setup
 -----
 
 The following must be executed within the Skia source repository.
@@ -10,19 +10,24 @@ This command sets up a Git commit-message hook to add a unique Change-Id to
 each commit.  Gerrit only accepts changes with a Change-Id and uses it to
 identify which review a change applies to.
 
-    curl -Lo "$(git rev-parse --git-dir)/hooks/commit-msg"
-      'https://gerrit-review.googlesource.com/tools/hooks/commit-msg'
-    chmod +x "$(git rev-parse --git-dir)/hooks/commit-msg"
+    experimental/tools/set-change-id-hook
 
-If you aquired Skia from a mirror (such as github), you need to change the
-`origin` remote to point to point to googlesource.  Advanvced uses will note
+If you acquired Skia from a mirror (such as github), you need to change the
+`origin` remote to point to point to googlesource.  Advanced uses will note
 that there is nothing special about the string `origin` and that you could call
 this remote anything you want, as long as you use that name for `get push`.
 
     git remote set-url origin 'https://skia.googlesource.com/skia.git'
 
 
-creating a change
+Authentication
+--------------
+
+Go to [skia.googlesource.com/new-password](https://skia.googlesource.com/new-password)
+and follow the instructions.
+
+
+Creating a Change
 -----------------
 
 1.  Create a topic branch
@@ -60,8 +65,11 @@ creating a change
 
     [Gerrit Upload Documentation](https://gerrit-review.googlesource.com/Documentation/user-upload.html)
 
+5.  Open in web browser:
 
-updating a change
+        bin/sysopen https://skia-review.googlesource.com/c/skia/+/$(bin/gerrit-number @)
+
+Updating a Change
 -----------------
 
 
@@ -82,12 +90,30 @@ updating a change
 
     If you want to set a comment message for this patch set, do this instead:
 
-        git push origin @:refs/for/master%m=this_is_the_patch_set_comment_message
+        M=$(experimental/tools/gerrit_percent_encode 'This is the patch set comment message!')
+        git push origin @:refs/for/master%m=$M
 
-    The title of this patch set will be "this is the patch set comment message".
+    The title of this patch set will be "This is the patch set comment message!".
 
 
-scripting
+Triggering Commit-Queue Dry Run when you upload a patch
+-------------------------------------------------------
+
+    M=$(experimental/tools/gerrit_percent_encode 'This is the patch set comment message!')
+    git push origin @:refs/for/master%l=Commit-Queue+1,m=$M
+
+
+Using `git cl try`
+------------------
+
+On your current branch, after uploading to gerrit:
+
+    git cl issue $(bin/gerrit-number @)
+
+Now `git cl try` and `bin/try` will work correctly.
+
+
+Scripting
 ---------
 
 You may want to make git aliases for common tasks:
@@ -97,6 +123,10 @@ You may want to make git aliases for common tasks:
 The following alias amends the head without editing the commit message:
 
     git config alias.amend-head 'commit --all --amend --reuse-message=@'
+
+Set the CL issue numnber:
+
+    git config alias.setcl '!git-cl issue $(bin/gerrit-number @)'
 
 The following shell script will squash all commits on the current branch,
 assuming that the branch has an upstream topic branch.

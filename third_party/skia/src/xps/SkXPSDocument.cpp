@@ -5,18 +5,39 @@
  * found in the LICENSE file.
  */
 
+#include "include/core/SkTypes.h"
+#if defined(SK_BUILD_FOR_WIN)
 
-#include "SkTypes.h"
-#if defined(SK_BUILD_FOR_WIN32)
+#include "include/docs/SkXPSDocument.h"
 
-#include "SkXPSDocument.h"
-#include "SkStream.h"
-#include "SkHRESULT.h"
+#include "include/core/SkStream.h"
+#include "src/utils/win/SkHRESULT.h"
+#include "src/utils/win/SkTScopedComPtr.h"
+#include "src/xps/SkXPSDevice.h"
+
+#include <XpsObjectModel.h>
+
+namespace {
+struct SkXPSDocument final : public SkDocument {
+    SkTScopedComPtr<IXpsOMObjectFactory> fXpsFactory;
+    SkXPSDevice fDevice;
+    std::unique_ptr<SkCanvas> fCanvas;
+    SkVector fUnitsPerMeter;
+    SkVector fPixelsPerMeter;
+
+    SkXPSDocument(SkWStream*, SkScalar dpi, SkTScopedComPtr<IXpsOMObjectFactory>);
+    ~SkXPSDocument() override;
+    SkCanvas* onBeginPage(SkScalar w, SkScalar h) override;
+    void onEndPage() override;
+    void onClose(SkWStream*) override;
+    void onAbort() override;
+};
+}
 
 SkXPSDocument::SkXPSDocument(SkWStream* stream,
                    SkScalar dpi,
                    SkTScopedComPtr<IXpsOMObjectFactory> xpsFactory)
-        : SkDocument(stream, nullptr)
+        : SkDocument(stream)
         , fXpsFactory(std::move(xpsFactory))
         , fDevice(SkISize{10000, 10000})
 {
@@ -35,13 +56,12 @@ SkXPSDocument::~SkXPSDocument() {
 
 SkCanvas* SkXPSDocument::onBeginPage(SkScalar width, SkScalar height) {
     fDevice.beginSheet(fUnitsPerMeter, fPixelsPerMeter, {width, height});
-    fCanvas.reset(new SkCanvas(&fDevice));
+    fCanvas.reset(new SkCanvas(sk_ref_sp(&fDevice)));
     return fCanvas.get();
 }
 
 void SkXPSDocument::onEndPage() {
     SkASSERT(fCanvas.get());
-    fCanvas->flush();
     fCanvas.reset(nullptr);
     fDevice.endSheet();
 }
@@ -55,7 +75,7 @@ void SkXPSDocument::onAbort() {}
 
 ///////////////////////////////////////////////////////////////////////////////
 
-sk_sp<SkDocument> SkDocument::MakeXPS(SkWStream* stream,
+sk_sp<SkDocument> SkXPS::MakeDocument(SkWStream* stream,
                                       IXpsOMObjectFactory* factoryPtr,
                                       SkScalar dpi) {
     SkTScopedComPtr<IXpsOMObjectFactory> factory(SkSafeRefComPtr(factoryPtr));
@@ -63,5 +83,4 @@ sk_sp<SkDocument> SkDocument::MakeXPS(SkWStream* stream,
            ? sk_make_sp<SkXPSDocument>(stream, dpi, std::move(factory))
            : nullptr;
 }
-
-#endif//defined(SK_BUILD_FOR_WIN32)
+#endif  // defined(SK_BUILD_FOR_WIN)

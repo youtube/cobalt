@@ -36,9 +36,19 @@
  * 0, 0, 1 and 0, 1, 1). The final row has a single off-center hard stop.
  */
 
-#include "gm.h"
-
-#include "SkGradientShader.h"
+#include "gm/gm.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkColor.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkPoint.h"
+#include "include/core/SkRect.h"
+#include "include/core/SkRefCnt.h"
+#include "include/core/SkScalar.h"
+#include "include/core/SkShader.h"
+#include "include/core/SkSize.h"
+#include "include/core/SkString.h"
+#include "include/core/SkTileMode.h"
+#include "include/effects/SkGradientShader.h"
 
 const int WIDTH  = 500;
 const int HEIGHT = 500;
@@ -58,7 +68,7 @@ const int RECT_HEIGHT = CELL_HEIGHT - (2 * PAD_HEIGHT);
 static void shade_rect(SkCanvas* canvas, sk_sp<SkShader> shader, int cellRow, int cellCol) {
     SkPaint paint;
     paint.setShader(shader);
-    
+
     SkRect rect = SkRect::MakeXYWH(SkIntToScalar(cellCol * CELL_WIDTH  + PAD_WIDTH),
                                    SkIntToScalar(cellRow * CELL_HEIGHT + PAD_HEIGHT),
                                    SkIntToScalar(RECT_WIDTH),
@@ -133,10 +143,10 @@ protected:
             4,
         };
 
-        SkShader::TileMode tilemodes[NUM_COLS] = {
-            SkShader::kClamp_TileMode,
-            SkShader::kRepeat_TileMode,
-            SkShader::kMirror_TileMode,
+        SkTileMode tilemodes[NUM_COLS] = {
+            SkTileMode::kClamp,
+            SkTileMode::kRepeat,
+            SkTileMode::kMirror,
         };
 
         for (int cellRow = 0; cellRow < NUM_ROWS; cellRow++) {
@@ -154,7 +164,7 @@ protected:
 
                 shade_rect(canvas, shader, cellRow, cellCol);
             }
-        } 
+        }
     }
 
 private:

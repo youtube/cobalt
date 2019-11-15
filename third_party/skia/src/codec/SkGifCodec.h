@@ -7,14 +7,14 @@
 #ifndef SkGifCodec_DEFINED
 #define SkGifCodec_DEFINED
 
-#include "SkCodec.h"
-#include "SkCodecAnimation.h"
-#include "SkColorSpace.h"
-#include "SkColorTable.h"
-#include "SkImageInfo.h"
-#include "SkSwizzler.h"
+#include "include/codec/SkCodec.h"
+#include "include/codec/SkCodecAnimation.h"
+#include "include/core/SkColorSpace.h"
+#include "include/core/SkImageInfo.h"
+#include "src/codec/SkColorTable.h"
+#include "src/codec/SkSwizzler.h"
 
-#include "SkGifImageReader.h"
+#include "third_party/gif/SkGifImageReader.h"
 
 /*
  *
@@ -29,10 +29,10 @@ public:
      * Assumes IsGif was called and returned true
      * Reads enough of the stream to determine the image format
      */
-    static SkCodec* NewFromStream(SkStream*, Result*);
+    static std::unique_ptr<SkCodec> MakeFromStream(std::unique_ptr<SkStream>, Result*);
 
     // Callback for SkGifImageReader when a row is available.
-    bool haveDecodedRow(int frameIndex, const unsigned char* rowBegin,
+    void haveDecodedRow(int frameIndex, const unsigned char* rowBegin,
                         int rowNumber, int repeatCount, bool writeTransparentPixels);
 protected:
     /*
@@ -46,8 +46,6 @@ protected:
     }
 
     bool onRewind() override;
-
-    uint64_t onGetFillValue(const SkImageInfo&) const override;
 
     int onGetFrameCount() override;
     bool onGetFrameInfo(int, FrameInfo*) const override;
@@ -128,7 +126,7 @@ private:
      * Called only by NewFromStream
      * Takes ownership of the SkGifImageReader
      */
-    SkGifCodec(const SkEncodedInfo&, const SkImageInfo&, SkGifImageReader*);
+    SkGifCodec(SkEncodedInfo&&, SkGifImageReader*);
 
     std::unique_ptr<SkGifImageReader>   fReader;
     std::unique_ptr<uint8_t[]>          fTmpBuffer;

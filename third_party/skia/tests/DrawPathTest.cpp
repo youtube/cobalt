@@ -5,12 +5,24 @@
  * found in the LICENSE file.
  */
 
-#include "SkBitmap.h"
-#include "SkCanvas.h"
-#include "SkDashPathEffect.h"
-#include "SkStrokeRec.h"
-#include "SkSurface.h"
-#include "Test.h"
+#include "include/core/SkBitmap.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkColor.h"
+#include "include/core/SkImageInfo.h"
+#include "include/core/SkMatrix.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkPath.h"
+#include "include/core/SkPathEffect.h"
+#include "include/core/SkPoint.h"
+#include "include/core/SkRRect.h"
+#include "include/core/SkRect.h"
+#include "include/core/SkRefCnt.h"
+#include "include/core/SkScalar.h"
+#include "include/core/SkStrokeRec.h"
+#include "include/core/SkSurface.h"
+#include "include/core/SkTypes.h"
+#include "include/effects/SkDashPathEffect.h"
+#include "tests/Test.h"
 
 // test that we can draw an aa-rect at coordinates > 32K (bigger than fixedpoint)
 static void test_big_aa_rect(skiatest::Reporter* reporter) {
@@ -26,10 +38,10 @@ static void test_big_aa_rect(skiatest::Reporter* reporter) {
     int y = SkScalarRoundToInt(r.top());
 
     // check that the pixel in question starts as transparent (by the surface)
-    if (canvas->readPixels(output, x, y)) {
+    if (surf->readPixels(output, x, y)) {
         REPORTER_ASSERT(reporter, 0 == pixel[0]);
     } else {
-        REPORTER_ASSERT_MESSAGE(reporter, false, "readPixels failed");
+        REPORTER_ASSERT(reporter, false, "readPixels failed");
     }
 
     SkPaint paint;
@@ -39,12 +51,12 @@ static void test_big_aa_rect(skiatest::Reporter* reporter) {
     canvas->drawRect(r, paint);
 
     // Now check that it is BLACK
-    if (canvas->readPixels(output, x, y)) {
+    if (surf->readPixels(output, x, y)) {
         // don't know what swizzling PMColor did, but white should always
         // appear the same.
         REPORTER_ASSERT(reporter, 0xFFFFFFFF == pixel[0]);
     } else {
-        REPORTER_ASSERT_MESSAGE(reporter, false, "readPixels failed");
+        REPORTER_ASSERT(reporter, false, "readPixels failed");
     }
 }
 
@@ -109,12 +121,9 @@ static void test_crbug_140803() {
     bm.allocN32Pixels(2700, 30*1024);
     SkCanvas canvas(bm);
 
-    SkPath path;
-    path.moveTo(2762, 20);
-    path.quadTo(11, 21702, 10, 21706);
     SkPaint paint;
     paint.setAntiAlias(true);
-    canvas.drawPath(path, paint);
+    canvas.drawPath(SkPath().moveTo(2762, 20).quadTo(11, 21702, 10, 21706), paint);
 }
 
 // Need to exercise drawing an inverse-path whose bounds intersect the clip,

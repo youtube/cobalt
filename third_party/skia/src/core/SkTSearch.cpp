@@ -6,8 +6,9 @@
  */
 
 
-#include "SkTSearch.h"
+#include "src/core/SkTSearch.h"
 
+<<<<<<< HEAD
 #include "SkMalloc.h"
 
 #if defined(STARBOARD)
@@ -19,6 +20,11 @@
 #else
 #include <ctype.h>
 #endif
+=======
+#include "include/private/SkMalloc.h"
+
+#include <ctype.h>
+>>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
 
 static inline const char* index_into_base(const char*const* base, int index,
                                           size_t elemSize)

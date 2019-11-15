@@ -5,17 +5,36 @@
  * found in the LICENSE file.
  */
 
-#include <iostream>
+#include "include/core/SkPicture.h"
+#include "include/core/SkStream.h"
+#include "include/utils/SkNullCanvas.h"
+#include "tools/debugger/DebugCanvas.h"
 
-#include "SkDebugCanvas.h"
-#include "SkNullCanvas.h"
-#include "SkStream.h"
+#include <iostream>
 
 #ifdef SK_BUILD_FOR_WIN
 #include <fcntl.h>
 #include <io.h>
 #endif
 
+/*
+If you execute skp_parser with one argument, it spits out a json representation
+of the skp, but that's incomplete since it's missing many binary blobs (these
+could represent images or typefaces or just anything that doesn't currently
+have a json representation).  Each unique blob is labeled with a string in the
+form "data/%d".  So for example:
+
+    tools/git-sync-deps
+    bin/gn gen out/debug
+    ninja -C out/debug dm skp_parser
+    out/debug/dm -m grayscale -w /tmp/dm --config skp
+    out/debug/skp_parser /tmp/dm/skp/gm/grayscalejpg.skp | less
+    out/debug/skp_parser /tmp/dm/skp/gm/grayscalejpg.skp | grep data
+    out/debug/skp_parser /tmp/dm/skp/gm/grayscalejpg.skp data/0 | file -
+    out/debug/skp_parser /tmp/dm/skp/gm/grayscalejpg.skp data/0 > /tmp/data0.png
+
+"data/0" is an image that the SKP serializer has encoded as PNG.
+*/
 int main(int argc, char** argv) {
     if (argc < 2) {
         SkDebugf("Usage:\n  %s SKP_FILE [DATA_URL]\n", argv[0]);
@@ -32,12 +51,16 @@ int main(int argc, char** argv) {
         return 3;
     }
     SkISize size = pic->cullRect().roundOut().size();
-    SkDebugCanvas debugCanvas(size.width(), size.height());
+    DebugCanvas debugCanvas(size.width(), size.height());
     pic->playback(&debugCanvas);
     std::unique_ptr<SkCanvas> nullCanvas = SkMakeNullCanvas();
     UrlDataManager dataManager(SkString("data"));
-    Json::Value json = debugCanvas.toJSON(
-            dataManager, debugCanvas.getSize(), nullCanvas.get());
+    SkDynamicMemoryWStream stream;
+    SkJSONWriter writer(&stream, SkJSONWriter::Mode::kPretty);
+    writer.beginObject(); // root
+    debugCanvas.toJSON(writer, dataManager, debugCanvas.getSize(), nullCanvas.get());
+    writer.endObject(); // root
+    writer.flush();
     if (argc > 2) {
         if (UrlDataManager::UrlData* data =
             dataManager.getDataFromUrl(SkString(argv[2]))) {
@@ -53,7 +76,8 @@ int main(int argc, char** argv) {
             return 4;
         }
     } else {
-        Json::StyledStreamWriter("  ").write(std::cout, json);
+        sk_sp<SkData> data = stream.detachAsData();
+        fwrite(data->data(), data->size(), 1, stdout);
     }
     return 0;
 }

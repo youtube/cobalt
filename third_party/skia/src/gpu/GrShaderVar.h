@@ -8,8 +8,8 @@
 #ifndef GrShaderVar_DEFINED
 #define GrShaderVar_DEFINED
 
-#include "SkString.h"
-#include "GrTypesPriv.h"
+#include "include/core/SkString.h"
+#include "include/private/GrTypesPriv.h"
 
 class GrShaderCaps;
 
@@ -29,7 +29,7 @@ public:
     };
 
     /**
-     * Values for array count that have special meaning. We allow 1-sized arrays.git 
+     * Values for array count that have special meaning. We allow 1-sized arrays.git
      */
     enum {
         kNonArray     =  0, // not an array
@@ -37,57 +37,48 @@ public:
     };
 
     /**
-     * Defaults to a non-arry float with no precision specifier, type modifier, or layout qualifier.
+     * Defaults to a non-arry half with no type modifier or layout qualifier.
      */
     GrShaderVar()
-        : fType(kFloat_GrSLType)
+        : fType(kHalf_GrSLType)
         , fTypeModifier(kNone_TypeModifier)
         , fCount(kNonArray)
-        , fPrecision(kDefault_GrSLPrecision)
         , fUseUniformFloatArrays(USE_UNIFORM_FLOAT_ARRAYS) {
     }
 
-    GrShaderVar(const SkString& name, GrSLType type, int arrayCount = kNonArray,
-                GrSLPrecision precision = kDefault_GrSLPrecision)
+    GrShaderVar(const SkString& name, GrSLType type, int arrayCount = kNonArray)
         : fType(type)
         , fTypeModifier(kNone_TypeModifier)
         , fCount(arrayCount)
-        , fPrecision(precision)
         , fUseUniformFloatArrays(USE_UNIFORM_FLOAT_ARRAYS)
         , fName(name) {
         SkASSERT(kVoid_GrSLType != type);
         fUseUniformFloatArrays = USE_UNIFORM_FLOAT_ARRAYS;
     }
 
-    GrShaderVar(const char* name, GrSLType type, int arrayCount = kNonArray,
-                GrSLPrecision precision = kDefault_GrSLPrecision)
+    GrShaderVar(const char* name, GrSLType type, int arrayCount = kNonArray)
         : fType(type)
         , fTypeModifier(kNone_TypeModifier)
         , fCount(arrayCount)
-        , fPrecision(precision)
         , fUseUniformFloatArrays(USE_UNIFORM_FLOAT_ARRAYS)
         , fName(name) {
         SkASSERT(kVoid_GrSLType != type);
         fUseUniformFloatArrays = USE_UNIFORM_FLOAT_ARRAYS;
     }
 
-    GrShaderVar(const char* name, GrSLType type, TypeModifier typeModifier,
-                GrSLPrecision precision = kDefault_GrSLPrecision)
+    GrShaderVar(const char* name, GrSLType type, TypeModifier typeModifier)
         : fType(type)
         , fTypeModifier(typeModifier)
         , fCount(kNonArray)
-        , fPrecision(precision)
         , fUseUniformFloatArrays(USE_UNIFORM_FLOAT_ARRAYS)
         , fName(name) {
         SkASSERT(kVoid_GrSLType != type);
     }
 
-    GrShaderVar(const char* name, GrSLType type, TypeModifier typeModifier,
-                int arrayCount, GrSLPrecision precision = kDefault_GrSLPrecision)
+    GrShaderVar(const char* name, GrSLType type, TypeModifier typeModifier, int arrayCount)
         : fType(type)
         , fTypeModifier(typeModifier)
         , fCount(arrayCount)
-        , fPrecision(precision)
         , fUseUniformFloatArrays(USE_UNIFORM_FLOAT_ARRAYS)
         , fName(name) {
         SkASSERT(kVoid_GrSLType != type);
@@ -97,7 +88,6 @@ public:
         : fType(that.fType)
         , fTypeModifier(that.fTypeModifier)
         , fCount(that.fCount)
-        , fPrecision(that.fPrecision)
         , fUseUniformFloatArrays(USE_UNIFORM_FLOAT_ARRAYS)
         , fName(that.fName)
         , fLayoutQualifier(that.fLayoutQualifier)
@@ -111,17 +101,14 @@ public:
     void set(GrSLType type,
              const SkString& name,
              TypeModifier typeModifier = kNone_TypeModifier,
-             GrSLPrecision precision = kDefault_GrSLPrecision,
              const char* layoutQualifier = nullptr,
              const char* extraModifiers = nullptr,
              bool useUniformFloatArrays = USE_UNIFORM_FLOAT_ARRAYS) {
         SkASSERT(kVoid_GrSLType != type);
-        SkASSERT(kDefault_GrSLPrecision == precision || GrSLTypeAcceptsPrecision(type));
         fType = type;
         fTypeModifier = typeModifier;
         fName = name;
         fCount = kNonArray;
-        fPrecision = precision;
         fLayoutQualifier = layoutQualifier;
         if (extraModifiers) {
             fExtraModifiers.printf("%s ", extraModifiers);
@@ -135,17 +122,14 @@ public:
     void set(GrSLType type,
              const char* name,
              TypeModifier typeModifier = kNone_TypeModifier,
-             GrSLPrecision precision = kDefault_GrSLPrecision,
              const char* layoutQualifier = nullptr,
              const char* extraModifiers = nullptr,
              bool useUniformFloatArrays = USE_UNIFORM_FLOAT_ARRAYS) {
         SkASSERT(kVoid_GrSLType != type);
-        SkASSERT(kDefault_GrSLPrecision == precision || GrSLTypeAcceptsPrecision(type));
         fType = type;
         fTypeModifier = typeModifier;
         fName = name;
         fCount = kNonArray;
-        fPrecision = precision;
         fLayoutQualifier = layoutQualifier;
         if (extraModifiers) {
             fExtraModifiers.printf("%s ", extraModifiers);
@@ -160,17 +144,14 @@ public:
              const SkString& name,
              int count,
              TypeModifier typeModifier,
-             GrSLPrecision precision = kDefault_GrSLPrecision,
              const char* layoutQualifier = nullptr,
              const char* extraModifiers = nullptr,
              bool useUniformFloatArrays = USE_UNIFORM_FLOAT_ARRAYS) {
         SkASSERT(kVoid_GrSLType != type);
-        SkASSERT(kDefault_GrSLPrecision == precision || GrSLTypeAcceptsPrecision(type));
         fType = type;
         fTypeModifier = typeModifier;
         fName = name;
         fCount = count;
-        fPrecision = precision;
         fLayoutQualifier = layoutQualifier;
         if (extraModifiers) {
             fExtraModifiers.printf("%s ", extraModifiers);
@@ -185,17 +166,14 @@ public:
              const char* name,
              int count,
              TypeModifier typeModifier,
-             GrSLPrecision precision = kDefault_GrSLPrecision,
              const char* layoutQualifier = nullptr,
              const char* extraModifiers = nullptr,
              bool useUniformFloatArrays = USE_UNIFORM_FLOAT_ARRAYS) {
         SkASSERT(kVoid_GrSLType != type);
-        SkASSERT(kDefault_GrSLPrecision == precision || GrSLTypeAcceptsPrecision(type));
         fType = type;
         fTypeModifier = typeModifier;
         fName = name;
         fCount = count;
-        fPrecision = precision;
         fLayoutQualifier = layoutQualifier;
         if (extraModifiers) {
             fExtraModifiers.printf("%s ", extraModifiers);
@@ -261,16 +239,6 @@ public:
     void setTypeModifier(TypeModifier type) { fTypeModifier = type; }
 
     /**
-     * Get the precision of the var
-     */
-    GrSLPrecision getPrecision() const { return fPrecision; }
-
-    /**
-     * Set the precision of the var
-     */
-    void setPrecision(GrSLPrecision p) { fPrecision = p; }
-
-    /**
      * Appends to the layout qualifier
      */
     void addLayoutQualifier(const char* layoutQualifier) {
@@ -283,12 +251,6 @@ public:
             fLayoutQualifier.appendf(", %s", layoutQualifier);
         }
     }
-
-    void setImageStorageFormat(GrImageStorageFormat format);
-
-    void setMemoryModel(GrSLMemoryModel);
-
-    void setRestrict(GrSLRestrict);
 
     void setIOType(GrIOType);
 
@@ -321,7 +283,6 @@ private:
     GrSLType        fType;
     TypeModifier    fTypeModifier;
     int             fCount;
-    GrSLPrecision   fPrecision;
     /// Work around driver bugs on some hardware that don't correctly
     /// support uniform float []
     bool            fUseUniformFloatArrays;

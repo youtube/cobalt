@@ -7,11 +7,11 @@
 #ifndef SkIcoCodec_DEFINED
 #define SkIcoCodec_DEFINED
 
-#include "SkCodec.h"
-#include "SkImageInfo.h"
-#include "SkStream.h"
-#include "SkTArray.h"
-#include "SkTypes.h"
+#include "include/codec/SkCodec.h"
+#include "include/core/SkImageInfo.h"
+#include "include/core/SkStream.h"
+#include "include/core/SkTypes.h"
+#include "include/private/SkTArray.h"
 
 /*
  * This class implements the decoding for bmp images
@@ -25,7 +25,7 @@ public:
      * Creates an Ico decoder
      * Reads enough of the stream to determine the image format
      */
-    static SkCodec* NewFromStream(SkStream*, Result*);
+    static std::unique_ptr<SkCodec> MakeFromStream(std::unique_ptr<SkStream>, Result*);
 
 protected:
 
@@ -48,6 +48,13 @@ protected:
 
     SkScanlineOrder onGetScanlineOrder() const override;
 
+    bool conversionSupported(const SkImageInfo&, bool, bool) override {
+        // This will be checked by the embedded codec.
+        return true;
+    }
+
+    // Handled by the embedded codec.
+    bool usesColorXform() const override { return false; }
 private:
 
     Result onStartScanlineDecode(const SkImageInfo& dstInfo,
@@ -79,26 +86,13 @@ private:
      * Constructor called by NewFromStream
      * @param embeddedCodecs codecs for the embedded images, takes ownership
      */
-    SkIcoCodec(int width, int height, const SkEncodedInfo& info,
-            SkTArray<std::unique_ptr<SkCodec>, true>* embeddedCodecs, sk_sp<SkColorSpace> colorSpace);
+    SkIcoCodec(SkEncodedInfo&& info, SkTArray<std::unique_ptr<SkCodec>, true>* embeddedCodecs);
 
     std::unique_ptr<SkTArray<std::unique_ptr<SkCodec>, true>> fEmbeddedCodecs;
 
-    // Only used by the scanline decoder.  onStartScanlineDecode() will set
-    // fCurrScanlineCodec to one of the fEmbeddedCodecs, if it can find a
-    // codec of the appropriate size.  We will use fCurrScanlineCodec for
-    // subsequent calls to onGetScanlines() or onSkipScanlines().
-    // fCurrScanlineCodec is owned by this class, but should not be an
+    // fCurrCodec is owned by this class, but should not be an
     // std::unique_ptr.  It will be deleted by the destructor of fEmbeddedCodecs.
-    SkCodec* fCurrScanlineCodec;
-
-    // Only used by incremental decoder.  onStartIncrementalDecode() will set
-    // fCurrIncrementalCodec to one of the fEmbeddedCodecs, if it can find a
-    // codec of the appropriate size.  We will use fCurrIncrementalCodec for
-    // subsequent calls to incrementalDecode().
-    // fCurrIncrementalCodec is owned by this class, but should not be an
-    // std::unique_ptr.  It will be deleted by the destructor of fEmbeddedCodecs.
-    SkCodec* fCurrIncrementalCodec;
+    SkCodec* fCurrCodec;
 
     typedef SkCodec INHERITED;
 };
