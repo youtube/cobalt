@@ -21,7 +21,6 @@
 {
   'variables': {
     # Default ABI variables
-    'sb_api_version%': 0,
     'target_arch%': '',
     'target_arch_sub%': '',
     'word_size%': 0,
@@ -30,7 +29,6 @@
     'floating_point_abi%': '',
     'floating_point_fpu%': '',
     'signedness_of_char%': '',
-    'signedness_of_enum%': '',
     'alignment_char%':    0,
     'alignment_double%':  0,
     'alignment_float%':   0,
@@ -39,8 +37,8 @@
     'alignment_long%':    0,
     'alignment_pointer%': 0,
     'alignment_short%':   0,
+    'alignment_stack%': 0,
     'size_of_char%':    0,
-    'size_of_enum%':    0,
     'size_of_double%':  0,
     'size_of_float%':   0,
     'size_of_int%':     0,
@@ -74,8 +72,6 @@
   },
   'target_defaults': {
     'defines': [
-      'SB_API_VERSION=<(sb_api_version)',
-
       # Inlined Python used to capitalize the variable values.
       'SB_IS_ARCH_<!(python -c "print(\'<(target_arch)\'.upper())")=1',
       'SB_HAS_<!(python -c "print(\'<(calling_convention)\'.upper())")_CALLING=1',
@@ -90,8 +86,8 @@
       'SB_ALIGNMENT_OF_LONG=<(alignment_long)',
       'SB_ALIGNMENT_OF_POINTER=<(alignment_pointer)',
       'SB_ALIGNMENT_OF_SHORT=<(alignment_short)',
+      'SB_ALIGNMENT_OF_STACK=<(alignment_stack)',
       'SB_SIZE_OF_CHAR=<(size_of_char)',
-      'SB_SIZE_OF_ENUM=<(size_of_enum)',
       'SB_SIZE_OF_DOUBLE=<(size_of_double)',
       'SB_SIZE_OF_FLOAT=<(size_of_float)',
       'SB_SIZE_OF_INT=<(size_of_int)',
@@ -110,11 +106,6 @@
         'defines': ['SB_HAS_SIGNED_CHAR=1'],
       }, {
         'defines': ['SB_HAS_SIGNED_CHAR=0'],
-      }],
-      ['signedness_of_enum=="signed"', {
-        'defines': ['SB_HAS_SIGNED_ENUM=1'],
-      }, {
-        'defines': ['SB_HAS_SIGNED_ENUM=0'],
       }],
       # TODO: Remove when all platforms have adopted the ABI manifest.
       ['size_of_pointer==4', {
