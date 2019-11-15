@@ -99,12 +99,8 @@ static inline SkFixed SkFixedMul(SkFixed a, SkFixed b) {
 ///////////////////////////////////////////////////////////////////////////////
 // Platform-specific alternatives to our portable versions.
 
-<<<<<<< HEAD
-#if defined(SK_CPU_ARM32) && !defined(SK_BUILD_NO_OPTS)
-=======
 // The VCVT float-to-fixed instruction is part of the VFPv3 instruction set.
 #if defined(__ARM_VFPV3__)
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
     /* This guy does not handle NaN or other obscurities, but is faster than
        than (int)(x*65536).  When built on Android with -Os, needs forcing
        to inline or we lose the speed benefit.

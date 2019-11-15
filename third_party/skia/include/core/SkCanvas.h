@@ -266,7 +266,6 @@ public:
     */
     virtual GrContext* getGrContext();
 
-<<<<<<< HEAD
 #if defined(COBALT)
     /**
      * Return the framebuffer object identifier for the render target, if
@@ -276,13 +275,10 @@ public:
     intptr_t getRenderTargetHandle() const;
 #endif
 
-    ///////////////////////////////////////////////////////////////////////////
-=======
     /** Returns the pixel base address, SkImageInfo, rowBytes, and origin if the pixels
         can be read directly. The returned address is only valid
         while SkCanvas is in scope and unchanged. Any SkCanvas call or SkSurface call
         may invalidate the returned address and other returned values.
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
 
         If pixels are inaccessible, info, rowBytes, and origin are unchanged.
 

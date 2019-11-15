@@ -11,54 +11,14 @@
 #include "src/core/SkUtils.h"
 #include "src/utils/SkUTF.h"
 
-<<<<<<< HEAD
-#include "SkAtomics.h"
-#include "SkString.h"
-#include "SkUtils.h"
-#include <stdarg.h>
-
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/stdio_leaks_poem.h"
-#endif
-
-#if defined(STARBOARD)
-#include "starboard/common/string.h"
-#else
-#include <stdio.h>
-#endif  // defined(STARBOARD)
-=======
 #include <cstdio>
 #include <new>
 #include <utility>
 #include <vector>
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
 
 // number of bytes (on the stack) to receive the printf result
 static const size_t kBufferSize = 1024;
 
-<<<<<<< HEAD
-#if defined(STARBOARD)
-#define VSNPRINTF   SbStringFormat
-#define SNPRINTF    SbStringFormatF
-#else  // defined(STARBOARD)
-#ifdef SK_BUILD_FOR_WIN
-    #define VSNPRINTF(buffer, size, format, args) \
-        _vsnprintf_s(buffer, size, _TRUNCATE, format, args)
-    #define SNPRINTF    _snprintf
-#else
-    #define VSNPRINTF   vsnprintf
-    #define SNPRINTF    snprintf
-#endif
-#endif  // defined(STARBOARD)
-
-#define ARGS_TO_BUFFER(format, buffer, size, written)      \
-    do {                                                   \
-        va_list args;                                      \
-        va_start(args, format);                            \
-        written = VSNPRINTF(buffer, size, format, args);   \
-        SkASSERT(written >= 0 && written < SkToInt(size)); \
-        va_end(args);                                      \
-=======
 static const char* apply_format_string(const char* format, va_list args, char* stackBuffer,
                                        size_t stackBufferSize, int* length, SkString* heapBuffer) {
     va_list argsCopy;
@@ -89,7 +49,6 @@ static const char* apply_format_string(const char* format, va_list args, char* s
         va_start(args, format);                                                        \
         result = apply_format_string(format, args, buffer, size, &written, &overflow); \
         va_end(args);                                                                  \
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
     } while (0)
 
 #define V_SKSTRING_PRINTF(output, format)                                                       \

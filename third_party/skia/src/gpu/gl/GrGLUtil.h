@@ -61,12 +61,6 @@ enum GrGLRenderer {
     kAdreno430_GrGLRenderer,
     kAdreno4xx_other_GrGLRenderer,
     kAdreno5xx_GrGLRenderer,
-<<<<<<< HEAD
-    kOSMesa_GrGLRenderer,
-    /** Either HD 6xxx or Iris 6xxx */
-    kIntel6xxx_GrGLRenderer,
-    kGalliumLLVM_GrGLRenderer,
-=======
     kGoogleSwiftShader_GrGLRenderer,
 
     /** Intel GPU families, ordered by generation **/
@@ -94,7 +88,6 @@ enum GrGLRenderer {
 
     kGalliumLLVM_GrGLRenderer,
     kMali4xx_GrGLRenderer,
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
     /** T-6xx, T-7xx, or T-8xx */
     kMaliT_GrGLRenderer,
     kANGLE_GrGLRenderer,

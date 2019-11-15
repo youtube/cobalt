@@ -297,7 +297,6 @@ static sk_sp<GrTextureProxy> decimate(GrRecordingContext* context,
     srcRect.offset(proxyOffset.x(), proxyOffset.y());
     std::unique_ptr<GrRenderTargetContext> dstRenderTargetContext;
 
-<<<<<<< HEAD
     // In order to reduce the total number of shaders used to implement
     // convolutions, we always use two passes of 1D convolutions instead
     // of a combination of 1D convolutions and 2D convolutions depending
@@ -325,13 +324,6 @@ static sk_sp<GrTextureProxy> decimate(GrRecordingContext* context,
     }
 #endif
 
-    SkASSERT(SkIsPow2(scaleFactorX) && SkIsPow2(scaleFactorY));
-
-    // GrTextureDomainEffect does not support kRepeat_Mode with GrSamplerParams::FilterMode.
-    GrTextureDomain::Mode modeForScaling =
-            GrTextureDomain::kRepeat_Mode == mode ? GrTextureDomain::kDecal_Mode : mode;
-=======
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
     for (int i = 1; i < scaleFactorX || i < scaleFactorY; i *= 2) {
         shrink_irect_by_2(&dstRect, i < scaleFactorX, i < scaleFactorY);
 

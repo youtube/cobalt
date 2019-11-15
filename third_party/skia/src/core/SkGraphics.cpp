@@ -30,25 +30,6 @@
 
 #include <stdlib.h>
 
-<<<<<<< HEAD
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/stdlib_poem.h"
-#endif
-
-void SkGraphics::GetVersion(int32_t* major, int32_t* minor, int32_t* patch) {
-    if (major) {
-        *major = SKIA_VERSION_MAJOR;
-    }
-    if (minor) {
-        *minor = SKIA_VERSION_MINOR;
-    }
-    if (patch) {
-        *patch = SKIA_VERSION_PATCH;
-    }
-}
-
-=======
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
 void SkGraphics::Init() {
     // SkGraphics::Init() must be thread-safe and idempotent.
     SkCpu::CacheRuntimeFeatures();

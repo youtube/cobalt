@@ -85,54 +85,6 @@ GrGLSLUniformHandler::SamplerHandle GrGLUniformHandler::addSampler(const GrTextu
     return GrGLSLUniformHandler::SamplerHandle(fSamplers.count() - 1);
 }
 
-<<<<<<< HEAD
-GrGLSLUniformHandler::TexelBufferHandle GrGLUniformHandler::addTexelBuffer(uint32_t visibility,
-                                                                           GrSLPrecision precision,
-                                                                           const char* name) {
-    SkASSERT(name && strlen(name));
-    SkASSERT(0 != visibility);
-
-    SkString mangleName;
-    char prefix = 'u';
-    fProgramBuilder->nameVariable(&mangleName, prefix, name, true);
-
-    UniformInfo& texelBuffer = fTexelBuffers.push_back();
-    texelBuffer.fVariable.setType(kBufferSampler_GrSLType);
-    texelBuffer.fVariable.setTypeModifier(GrShaderVar::kUniform_TypeModifier);
-    texelBuffer.fVariable.setPrecision(precision);
-    texelBuffer.fVariable.setName(mangleName);
-    texelBuffer.fLocation = -1;
-    texelBuffer.fVisibility = visibility;
-    return GrGLSLUniformHandler::TexelBufferHandle(fTexelBuffers.count() - 1);
-}
-
-GrGLSLUniformHandler::ImageStorageHandle GrGLUniformHandler::addImageStorage(
-        uint32_t visibility, GrSLType type, GrImageStorageFormat format, GrSLMemoryModel model,
-        GrSLRestrict restricted, GrIOType ioType, const char* name) {
-    SkASSERT(name && strlen(name));
-    SkASSERT(0 != visibility);
-    SkString mangleName;
-    char prefix = 'u';
-    fProgramBuilder->nameVariable(&mangleName, prefix, name, true);
-
-    UniformInfo& imageStorage = fImageStorages.push_back();
-    imageStorage.fVariable.setName(mangleName);
-
-    SkASSERT(GrSLTypeIsImageStorage(type));
-    imageStorage.fVariable.setType(type);
-    imageStorage.fVariable.setTypeModifier(GrShaderVar::kUniform_TypeModifier);
-    imageStorage.fVariable.setImageStorageFormat(format);
-    imageStorage.fVariable.setMemoryModel(model);
-    imageStorage.fVariable.setRestrict(restricted);
-    imageStorage.fVariable.setIOType(ioType);
-    imageStorage.fVariable.setPrecision(kHigh_GrSLPrecision);
-    imageStorage.fLocation = -1;
-    imageStorage.fVisibility = visibility;
-    return GrGLSLUniformHandler::ImageStorageHandle(fImageStorages.count() - 1);
-}
-
-=======
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
 void GrGLUniformHandler::appendUniformDecls(GrShaderFlags visibility, SkString* out) const {
     for (int i = 0; i < fUniforms.count(); ++i) {
         if (fUniforms[i].fVisibility & visibility) {

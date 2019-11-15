@@ -5,24 +5,6 @@
  * found in the LICENSE file.
  */
 
-<<<<<<< HEAD
-#include "SkExecutor.h"
-#include "SkMakeUnique.h"
-#include "SkMutex.h"
-#include "SkSemaphore.h"
-#include "SkSpinlock.h"
-#include "SkTArray.h"
-#include "SkThreadUtils.h"
-
-#if defined(STARBOARD)
-#include "starboard/system.h"
-static int num_cores() {
-  return SbSystemGetNumberOfProcessors();
-}
-#else  // defined(STARBOARD)
-#if defined(SK_BUILD_FOR_WIN32)
-    #include <windows.h>
-=======
 #include "include/core/SkExecutor.h"
 #include "include/private/SkMutex.h"
 #include "include/private/SkSemaphore.h"
@@ -32,9 +14,14 @@ static int num_cores() {
 #include <deque>
 #include <thread>
 
+#if defined(STARBOARD)
+#include "starboard/system.h"
+static int num_cores() {
+  return SbSystemGetNumberOfProcessors();
+}
+#else  // defined(STARBOARD)
 #if defined(SK_BUILD_FOR_WIN)
     #include "src/core/SkLeanWindows.h"
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
     static int num_cores() {
         SYSTEM_INFO sysinfo;
         GetNativeSystemInfo(&sysinfo);

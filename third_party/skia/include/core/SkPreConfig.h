@@ -48,21 +48,7 @@
 
 //////////////////////////////////////////////////////////////////////
 
-<<<<<<< HEAD
-#if defined(STARBOARD)
-    #define SK_RESTRICT SB_RESTRICT
-    #define SK_WARN_UNUSED_RESULT SB_WARN_UNUSED_RESULT
-    #if SB_IS(BIG_ENDIAN)
-        #define SK_CPU_BENDIAN
-    #else
-        #define SK_CPU_LENDIAN
-    #endif
-#endif  // defined(STARBOARD)
-
-#ifdef SK_BUILD_FOR_WIN32
-=======
 #if defined(SK_BUILD_FOR_WIN) && !defined(__clang__)
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
     #if !defined(SK_RESTRICT)
         #define SK_RESTRICT __restrict
     #endif

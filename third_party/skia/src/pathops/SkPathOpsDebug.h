@@ -7,20 +7,10 @@
 #ifndef SkPathOpsDebug_DEFINED
 #define SkPathOpsDebug_DEFINED
 
-<<<<<<< HEAD
-#include "SkPathOps.h"
-#include "SkTypes.h"
-
-#if defined(STARBOARD)
-#include "starboard/common/string.h"
-#include "starboard/system.h"
-#else
-=======
 #include "include/core/SkString.h"
 #include "include/core/SkTypes.h"
 #include "include/pathops/SkPathOps.h"
 
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
 #include <stdlib.h>
 #include <stdio.h>
 #endif
