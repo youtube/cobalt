@@ -33,6 +33,8 @@
 using ::testing::_;
 using ::testing::SaveArg;
 
+constexpr auto kOneshot = base::DebuggerHooks::AsyncTaskFrequency::kOneshot;
+
 namespace cobalt {
 namespace dom {
 // Helper struct for childList mutations.
@@ -226,7 +228,8 @@ TEST_F(MutationObserverTest, TakeRecords) {
       MutationRecord::CreateCharacterDataMutationRecord(
           target, std::string("old_character_data"));
   const void* async_task;
-  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "characterData", false))
+  EXPECT_CALL(*debugger_hooks(),
+              AsyncTaskScheduled(_, "characterData", kOneshot))
       .WillOnce(SaveArg<0>(&async_task));
   observer->QueueMutationRecord(record);
 
@@ -248,7 +251,8 @@ TEST_F(MutationObserverTest, Notify) {
       MutationRecord::CreateCharacterDataMutationRecord(
           target, std::string("old_character_data"));
   const void* async_task;
-  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "characterData", false))
+  EXPECT_CALL(*debugger_hooks(),
+              AsyncTaskScheduled(_, "characterData", kOneshot))
       .WillOnce(SaveArg<0>(&async_task));
   observer->QueueMutationRecord(record);
 
@@ -271,7 +275,7 @@ TEST_F(MutationObserverTest, Notify) {
   // Queue another mutation record on the same ovserver.
   record = MutationRecord::CreateAttributeMutationRecord(
       target, "attribute_name", std::string("old_attribute_data"));
-  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "attributes", false))
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "attributes", kOneshot))
       .WillOnce(SaveArg<0>(&async_task));
   observer->QueueMutationRecord(record);
 
@@ -309,9 +313,10 @@ TEST_F(MutationObserverTest, ReportMutation) {
   // Report a few mutations.
   const void* async_task_1;
   const void* async_task_2;
-  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "attributes", false))
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "attributes", kOneshot))
       .WillOnce(SaveArg<0>(&async_task_1));
-  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "characterData", false))
+  EXPECT_CALL(*debugger_hooks(),
+              AsyncTaskScheduled(_, "characterData", kOneshot))
       .WillOnce(SaveArg<0>(&async_task_2));
   reporter.ReportAttributesMutation("attribute_name", std::string("old_value"));
   reporter.ReportCharacterDataMutation("old_character_data");
@@ -351,7 +356,7 @@ TEST_F(MutationObserverTest, AttributeFilter) {
   // Report a few attribute mutations, two of which will get through the filter.
   const void* async_task_1;
   const void* async_task_2;
-  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "attributes", false))
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "attributes", kOneshot))
       .WillOnce(SaveArg<0>(&async_task_1))
       .WillOnce(SaveArg<0>(&async_task_2));
   reporter.ReportAttributesMutation("banana", std::string("rotten"));
@@ -467,7 +472,7 @@ TEST_F(MutationObserverTest, AddChildNodes) {
 
   const void* async_task_1;
   const void* async_task_2;
-  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "childList", false))
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "childList", kOneshot))
       .WillOnce(SaveArg<0>(&async_task_1))
       .WillOnce(SaveArg<0>(&async_task_2));
   observer->Observe(root, options);
@@ -517,7 +522,7 @@ TEST_F(MutationObserverTest, RemoveChildNode) {
   options.set_child_list(true);
 
   const void* async_task;
-  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "childList", false))
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "childList", kOneshot))
       .WillOnce(SaveArg<0>(&async_task));
   observer->Observe(root, options);
 
@@ -545,7 +550,8 @@ TEST_F(MutationObserverTest, MutateCharacterData) {
   options.set_character_data(true);
 
   const void* async_task;
-  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "characterData", false))
+  EXPECT_CALL(*debugger_hooks(),
+              AsyncTaskScheduled(_, "characterData", kOneshot))
       .WillOnce(SaveArg<0>(&async_task));
   observer->Observe(root, options);
 
@@ -571,7 +577,8 @@ TEST_F(MutationObserverTest, MutateCharacterDataWithOldValue) {
   options.set_character_data_old_value(true);
 
   const void* async_task;
-  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "characterData", false))
+  EXPECT_CALL(*debugger_hooks(),
+              AsyncTaskScheduled(_, "characterData", kOneshot))
       .WillOnce(SaveArg<0>(&async_task));
   observer->Observe(root, options);
 
@@ -599,7 +606,7 @@ TEST_F(MutationObserverTest, MutateAttribute) {
   options.set_attribute_filter(filter);
 
   const void* async_task;
-  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "attributes", false))
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "attributes", kOneshot))
       .WillOnce(SaveArg<0>(&async_task));
   observer->Observe(root, options);
 
@@ -625,7 +632,7 @@ TEST_F(MutationObserverTest, MutateAttributeWithOldValue) {
   options.set_attribute_old_value(true);
 
   const void* async_task;
-  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "attributes", false))
+  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "attributes", kOneshot))
       .WillOnce(SaveArg<0>(&async_task));
   observer->Observe(root, options);
 
@@ -654,7 +661,8 @@ TEST_F(MutationObserverTest, Disconnect) {
   options.set_character_data(true);
 
   const void* async_task;
-  EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "characterData", false))
+  EXPECT_CALL(*debugger_hooks(),
+              AsyncTaskScheduled(_, "characterData", kOneshot))
       .WillOnce(SaveArg<0>(&async_task));
   observer->Observe(root, options);
 

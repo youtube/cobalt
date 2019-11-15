@@ -34,9 +34,10 @@ void DebuggerHooksImpl::DetachDebugger() {
 
 void DebuggerHooksImpl::AsyncTaskScheduled(const void* task,
                                            const std::string& name,
-                                           bool recurring) const {
+                                           AsyncTaskFrequency frequency) const {
   if (script_debugger_) {
-    script_debugger_->AsyncTaskScheduled(task, name, recurring);
+    script_debugger_->AsyncTaskScheduled(
+        task, name, (frequency == AsyncTaskFrequency::kRecurring));
   }
 }
 
