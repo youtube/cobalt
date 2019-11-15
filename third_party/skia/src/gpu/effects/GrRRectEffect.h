@@ -8,20 +8,22 @@
 #ifndef GrRRectEffect_DEFINED
 #define GrRRectEffect_DEFINED
 
-#include "GrTypes.h"
-#include "GrTypesPriv.h"
-#include "SkRefCnt.h"
+#include "include/core/SkRefCnt.h"
+#include "include/gpu/GrTypes.h"
+#include "include/private/GrTypesPriv.h"
 
 class GrFragmentProcessor;
+class GrShaderCaps;
 class GrProcessor;
 class SkRRect;
 
 namespace GrRRectEffect {
-    /**
-     * Creates an effect that performs anti-aliased clipping against a SkRRect. It doesn't support
-     * all varieties of SkRRect so the caller must check for a nullptr return.
-     */
-    sk_sp<GrFragmentProcessor> Make(GrPrimitiveEdgeType, const SkRRect&);
+
+/**
+ * Creates an effect that performs anti-aliased clipping against a SkRRect. It doesn't support
+ * all varieties of SkRRect so the caller must check for a nullptr return.
+ */
+std::unique_ptr<GrFragmentProcessor> Make(GrClipEdgeType, const SkRRect&, const GrShaderCaps&);
 };
 
 #endif

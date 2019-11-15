@@ -5,23 +5,44 @@
  * found in the LICENSE file.
  */
 
-#include "SkBlendModePriv.h"
-#include "SkRasterPipeline.h"
+#include "src/core/SkBlendModePriv.h"
+#include "src/core/SkCoverageModePriv.h"
+#include "src/core/SkRasterPipeline.h"
 
-bool SkBlendMode_SupportsCoverageAsAlpha(SkBlendMode mode) {
+bool SkBlendMode_ShouldPreScaleCoverage(SkBlendMode mode, bool rgb_coverage) {
+    // The most important things we do here are:
+    //   1) never pre-scale with rgb coverage if the blend mode involves a source-alpha term;
+    //   2) always pre-scale Plus.
+    //
+    // When we pre-scale with rgb coverage, we scale each of source r,g,b, with a distinct value,
+    // and source alpha with one of those three values.  This process destructively updates the
+    // source-alpha term, so we can't evaluate blend modes that need its original value.
+    //
+    // Plus always requires pre-scaling as a specific quirk of its implementation in
+    // SkRasterPipeline.  This lets us put the clamp inside the blend mode itself rather
+    // than as a separate stage that'd come after the lerp.
+    //
+    // This function is a finer-grained breakdown of SkBlendMode_SupportsCoverageAsAlpha().
     switch (mode) {
-        case SkBlendMode::kDst:
-        case SkBlendMode::kSrcOver:
-        case SkBlendMode::kDstOver:
-        case SkBlendMode::kDstOut:
-        case SkBlendMode::kSrcATop:
-        case SkBlendMode::kXor:
-        case SkBlendMode::kPlus:
+        case SkBlendMode::kDst:        // d              --> no sa term, ok!
+        case SkBlendMode::kDstOver:    // d + s*inv(da)  --> no sa term, ok!
+        case SkBlendMode::kPlus:       // clamp(s+d)     --> no sa term, ok!
             return true;
-        default:
-            break;
+
+        case SkBlendMode::kDstOut:     // d * inv(sa)
+        case SkBlendMode::kSrcATop:    // s*da + d*inv(sa)
+        case SkBlendMode::kSrcOver:    // s + d*inv(sa)
+        case SkBlendMode::kXor:        // s*inv(da) + d*inv(sa)
+            return !rgb_coverage;
+
+        default: break;
     }
     return false;
+}
+
+// Users of this function may want to switch to the rgb-coverage aware version above.
+bool SkBlendMode_SupportsCoverageAsAlpha(SkBlendMode mode) {
+    return SkBlendMode_ShouldPreScaleCoverage(mode, false);
 }
 
 struct CoeffRec {
@@ -61,7 +82,7 @@ bool SkBlendMode_AsCoeff(SkBlendMode mode, SkBlendModeCoeff* src, SkBlendModeCoe
     return true;
 }
 
-void SkBlendMode_AppendStagesNoClamp(SkBlendMode mode, SkRasterPipeline* p) {
+void SkBlendMode_AppendStages(SkBlendMode mode, SkRasterPipeline* p) {
     auto stage = SkRasterPipeline::srcover;
     switch (mode) {
         case SkBlendMode::kClear:    stage = SkRasterPipeline::clear; break;
@@ -99,39 +120,49 @@ void SkBlendMode_AppendStagesNoClamp(SkBlendMode mode, SkRasterPipeline* p) {
     p->append(stage);
 }
 
-void SkBlendMode_AppendClampIfNeeded(SkBlendMode mode, SkRasterPipeline* p) {
-    if (mode == SkBlendMode::kPlus) {
-        // Both clamp_a and clamp_1 would preserve premultiplication invariants here,
-        // so we pick clamp_1 for being a smidge faster.
-        p->append(SkRasterPipeline::clamp_1);
-    }
-}
-
-SkPM4f SkBlendMode_Apply(SkBlendMode mode, const SkPM4f& src, const SkPM4f& dst) {
+SkPMColor4f SkBlendMode_Apply(SkBlendMode mode, const SkPMColor4f& src, const SkPMColor4f& dst) {
     // special-case simple/common modes...
     switch (mode) {
-        case SkBlendMode::kClear:   return {{ 0, 0, 0, 0 }};
+        case SkBlendMode::kClear:   return SK_PMColor4fTRANSPARENT;
         case SkBlendMode::kSrc:     return src;
         case SkBlendMode::kDst:     return dst;
-        case SkBlendMode::kSrcOver:
-            return SkPM4f::From4f(src.to4f() + dst.to4f() * Sk4f(1 - src.a()));
+        case SkBlendMode::kSrcOver: {
+            Sk4f r = Sk4f::Load(src.vec()) + Sk4f::Load(dst.vec()) * Sk4f(1 - src.fA);
+            return { r[0], r[1], r[2], r[3] };
+        }
         default:
             break;
     }
 
     SkRasterPipeline_<256> p;
-    SkPM4f                 src_storage = src,
+    SkPMColor4f            src_storage = src,
                            dst_storage = dst,
-                           result_storage,
-                           *src_ctx = &src_storage,
-                           *dst_ctx = &dst_storage,
-                           *res_ctx = &result_storage;
+                           res_storage;
+    SkRasterPipeline_MemoryCtx src_ctx = { &src_storage, 0 },
+                               dst_ctx = { &dst_storage, 0 },
+                               res_ctx = { &res_storage, 0 };
 
     p.append(SkRasterPipeline::load_f32, &dst_ctx);
     p.append(SkRasterPipeline::move_src_dst);
     p.append(SkRasterPipeline::load_f32, &src_ctx);
     SkBlendMode_AppendStages(mode, &p);
     p.append(SkRasterPipeline::store_f32, &res_ctx);
-    p.run(0, 0, 1);
-    return result_storage;
+    p.run(0,0, 1,1);
+    return res_storage;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+const SkBlendMode gUncorrelatedCoverageToBlend[] = {
+    SkBlendMode::kSrcOver,  // or DstOver
+    SkBlendMode::kSrcIn,    // or kDstIn
+    SkBlendMode::kSrcOut,
+    SkBlendMode::kDstOut,
+    SkBlendMode::kXor,
+};
+
+SkBlendMode SkUncorrelatedCoverageModeToBlendMode(SkCoverageMode cm) {
+    unsigned index = static_cast<unsigned>(cm);
+    SkASSERT(index < SK_ARRAY_COUNT(gUncorrelatedCoverageToBlend));
+    return gUncorrelatedCoverageToBlend[index];
 }

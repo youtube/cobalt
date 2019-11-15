@@ -5,26 +5,47 @@
  * found in the LICENSE file.
  */
 
+#include "include/core/SkString.h"
+#include "include/effects/SkTableMaskFilter.h"
+#include "include/private/SkFixed.h"
+#include "src/core/SkReadBuffer.h"
+#include "src/core/SkWriteBuffer.h"
 
-#include "SkFixed.h"
-#include "SkReadBuffer.h"
-#include "SkString.h"
-#include "SkTableMaskFilter.h"
-#include "SkWriteBuffer.h"
+class SkTableMaskFilterImpl : public SkMaskFilterBase {
+public:
+    explicit SkTableMaskFilterImpl(const uint8_t table[256]);
 
-SkTableMaskFilter::SkTableMaskFilter() {
+    SkMask::Format getFormat() const override;
+    bool filterMask(SkMask*, const SkMask&, const SkMatrix&, SkIPoint*) const override;
+
+protected:
+    ~SkTableMaskFilterImpl() override;
+
+    void flatten(SkWriteBuffer&) const override;
+
+private:
+    SK_FLATTENABLE_HOOKS(SkTableMaskFilterImpl)
+
+    SkTableMaskFilterImpl();
+
+    uint8_t fTable[256];
+
+    typedef SkMaskFilter INHERITED;
+};
+
+SkTableMaskFilterImpl::SkTableMaskFilterImpl() {
     for (int i = 0; i < 256; i++) {
         fTable[i] = i;
     }
 }
 
-SkTableMaskFilter::SkTableMaskFilter(const uint8_t table[256]) {
+SkTableMaskFilterImpl::SkTableMaskFilterImpl(const uint8_t table[256]) {
     memcpy(fTable, table, sizeof(fTable));
 }
 
-SkTableMaskFilter::~SkTableMaskFilter() {}
+SkTableMaskFilterImpl::~SkTableMaskFilterImpl() {}
 
-bool SkTableMaskFilter::filterMask(SkMask* dst, const SkMask& src,
+bool SkTableMaskFilterImpl::filterMask(SkMask* dst, const SkMask& src,
                                  const SkMatrix&, SkIPoint* margin) const {
     if (src.fFormat != SkMask::kA8_Format) {
         return false;
@@ -66,23 +87,39 @@ bool SkTableMaskFilter::filterMask(SkMask* dst, const SkMask& src,
     return true;
 }
 
-SkMask::Format SkTableMaskFilter::getFormat() const {
+SkMask::Format SkTableMaskFilterImpl::getFormat() const {
     return SkMask::kA8_Format;
 }
 
-void SkTableMaskFilter::flatten(SkWriteBuffer& wb) const {
+void SkTableMaskFilterImpl::flatten(SkWriteBuffer& wb) const {
     wb.writeByteArray(fTable, 256);
 }
 
-sk_sp<SkFlattenable> SkTableMaskFilter::CreateProc(SkReadBuffer& buffer) {
+sk_sp<SkFlattenable> SkTableMaskFilterImpl::CreateProc(SkReadBuffer& buffer) {
     uint8_t table[256];
     if (!buffer.readByteArray(table, 256)) {
         return nullptr;
     }
-    return sk_sp<SkFlattenable>(Create(table));
+    return sk_sp<SkFlattenable>(SkTableMaskFilter::Create(table));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+
+SkMaskFilter* SkTableMaskFilter::Create(const uint8_t table[256]) {
+    return new SkTableMaskFilterImpl(table);
+}
+
+SkMaskFilter* SkTableMaskFilter::CreateGamma(SkScalar gamma) {
+    uint8_t table[256];
+    MakeGammaTable(table, gamma);
+    return new SkTableMaskFilterImpl(table);
+}
+
+SkMaskFilter* SkTableMaskFilter::CreateClip(uint8_t min, uint8_t max) {
+    uint8_t table[256];
+    MakeClipTable(table, min, max);
+    return new SkTableMaskFilterImpl(table);
+}
 
 void SkTableMaskFilter::MakeGammaTable(uint8_t table[256], SkScalar gamma) {
     const float dx = 1 / 255.0f;
@@ -129,17 +166,3 @@ void SkTableMaskFilter::MakeClipTable(uint8_t table[256], uint8_t min,
     SkDebugf("\n\n");
 #endif
 }
-
-#ifndef SK_IGNORE_TO_STRING
-void SkTableMaskFilter::toString(SkString* str) const {
-    str->append("SkTableMaskFilter: (");
-
-    str->append("table: ");
-    for (int i = 0; i < 255; ++i) {
-        str->appendf("%d, ", fTable[i]);
-    }
-    str->appendf("%d", fTable[255]);
-
-    str->append(")");
-}
-#endif

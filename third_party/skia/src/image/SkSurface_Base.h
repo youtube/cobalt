@@ -8,10 +8,10 @@
 #ifndef SkSurface_Base_DEFINED
 #define SkSurface_Base_DEFINED
 
-#include "SkCanvas.h"
-#include "SkImagePriv.h"
-#include "SkSurface.h"
-#include "SkSurfacePriv.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkSurface.h"
+#include "src/core/SkImagePriv.h"
+#include "src/core/SkSurfacePriv.h"
 
 class SkSurface_Base : public SkSurface {
 public:
@@ -19,14 +19,12 @@ public:
     SkSurface_Base(const SkImageInfo&, const SkSurfaceProps*);
     virtual ~SkSurface_Base();
 
-    virtual GrBackendObject onGetTextureHandle(BackendHandleAccess) {
-        return 0;
-    }
-
-    virtual bool onGetRenderTargetHandle(GrBackendObject*, BackendHandleAccess) {
-        return false;
-    }
-
+    virtual GrBackendTexture onGetBackendTexture(BackendHandleAccess);
+    virtual GrBackendRenderTarget onGetBackendRenderTarget(BackendHandleAccess);
+    virtual bool onReplaceBackendTexture(const GrBackendTexture&,
+                                         GrSurfaceOrigin,
+                                         TextureReleaseProc,
+                                         ReleaseContext);
     /**
      *  Allocate a canvas that will draw into this surface. We will cache this
      *  canvas, to return the same object to the caller multiple times. We
@@ -42,8 +40,34 @@ public:
      *  This needs to be able to outlive the surface itself (if need be), and
      *  must faithfully represent the current contents, even if the surface
      *  is changed after this called (e.g. it is drawn to via its canvas).
+     *
+     *  If a subset is specified, the the impl must make a copy, rather than try to wait
+     *  on copy-on-write.
      */
-    virtual sk_sp<SkImage> onNewImageSnapshot() = 0;
+    virtual sk_sp<SkImage> onNewImageSnapshot(const SkIRect* subset = nullptr) { return nullptr; }
+
+    virtual void onWritePixels(const SkPixmap&, int x, int y) = 0;
+
+    /**
+     * Default implementation does a rescale/read and then calls the callback.
+     */
+    virtual void onAsyncRescaleAndReadPixels(const SkImageInfo&,
+                                             const SkIRect& srcRect,
+                                             RescaleGamma,
+                                             SkFilterQuality,
+                                             ReadPixelsCallback,
+                                             ReadPixelsContext);
+    /**
+     * Default implementation does a rescale/read/yuv conversion and then calls the callback.
+     */
+    virtual void onAsyncRescaleAndReadPixelsYUV420(SkYUVColorSpace,
+                                                   sk_sp<SkColorSpace> dstColorSpace,
+                                                   const SkIRect& srcRect,
+                                                   const SkISize& dstSize,
+                                                   RescaleGamma,
+                                                   SkFilterQuality,
+                                                   ReadPixelsCallback,
+                                                   ReadPixelsContext);
 
     /**
      *  Default implementation:
@@ -80,8 +104,8 @@ public:
      * Inserts the requested number of semaphores for the gpu to signal when work is complete on the
      * gpu and inits the array of GrBackendSemaphores with the signaled semaphores.
      */
-    virtual bool onFlush(int numSemaphores, GrBackendSemaphore* signalSemaphores) {
-        return false;
+    virtual GrSemaphoresSubmitted onFlush(BackendSurfaceAccess access, const GrFlushInfo&) {
+        return GrSemaphoresSubmitted::kNo;
     }
 
     /**
@@ -92,6 +116,10 @@ public:
     virtual bool onWait(int numSemaphores, const GrBackendSemaphore* waitSemaphores) {
         return false;
     }
+
+    virtual bool onCharacterize(SkSurfaceCharacterization*) const { return false; }
+    virtual bool onIsCompatible(const SkSurfaceCharacterization&) const { return false; }
+    virtual bool onDraw(const SkDeferredDisplayList*) { return false; }
 
     inline SkCanvas* getCachedCanvas();
     inline sk_sp<SkImage> refCachedImage();

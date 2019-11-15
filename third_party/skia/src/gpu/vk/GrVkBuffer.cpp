@@ -5,10 +5,11 @@
  * found in the LICENSE file.
  */
 
-#include "GrVkBuffer.h"
-#include "GrVkGpu.h"
-#include "GrVkMemory.h"
-#include "GrVkUtil.h"
+#include "src/gpu/vk/GrVkBuffer.h"
+#include "src/gpu/vk/GrVkGpu.h"
+#include "src/gpu/vk/GrVkMemory.h"
+#include "src/gpu/vk/GrVkTransferBuffer.h"
+#include "src/gpu/vk/GrVkUtil.h"
 
 #define VK_CALL(GPU, X) GR_VK_CALL(GPU->vkInterface(), X)
 
@@ -19,6 +20,7 @@
 #endif
 
 const GrVkBuffer::Resource* GrVkBuffer::Create(const GrVkGpu* gpu, const Desc& desc) {
+    SkASSERT(!gpu->protectedContext() || (gpu->protectedContext() == desc.fDynamic));
     VkBuffer       buffer;
     GrVkAlloc      alloc;
 
@@ -87,7 +89,7 @@ void GrVkBuffer::addMemoryBarrier(const GrVkGpu* gpu,
                                   bool byRegion) const {
     VkBufferMemoryBarrier bufferMemoryBarrier = {
         VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER, // sType
-        NULL,                                    // pNext
+        nullptr,                                 // pNext
         srcAccessMask,                           // srcAccessMask
         dstAccesMask,                            // dstAccessMask
         VK_QUEUE_FAMILY_IGNORED,                 // srcQueueFamilyIndex
@@ -98,10 +100,11 @@ void GrVkBuffer::addMemoryBarrier(const GrVkGpu* gpu,
     };
 
     // TODO: restrict to area of buffer we're interested in
-    gpu->addBufferMemoryBarrier(srcStageMask, dstStageMask, byRegion, &bufferMemoryBarrier);
+    gpu->addBufferMemoryBarrier(this->resource(), srcStageMask, dstStageMask, byRegion,
+                                &bufferMemoryBarrier);
 }
 
-void GrVkBuffer::Resource::freeGPUData(const GrVkGpu* gpu) const {
+void GrVkBuffer::Resource::freeGPUData(GrVkGpu* gpu) const {
     SkASSERT(fBuffer);
     SkASSERT(fAlloc.fMemory);
     VK_CALL(gpu, DestroyBuffer(gpu->device(), fBuffer, nullptr));
@@ -168,12 +171,11 @@ void GrVkBuffer::internalMap(GrVkGpu* gpu, size_t size, bool* createdNewBuffer) 
 
     if (fDesc.fDynamic) {
         const GrVkAlloc& alloc = this->alloc();
-        VkResult err = VK_CALL(gpu, MapMemory(gpu->device(), alloc.fMemory,
-                                              alloc.fOffset + fOffset,
-                                              size, 0, &fMapPtr));
-        if (err) {
-            fMapPtr = nullptr;
-        }
+        SkASSERT(alloc.fSize > 0);
+        SkASSERT(alloc.fSize >= size);
+        SkASSERT(0 == fOffset);
+
+        fMapPtr = GrVkMemory::MapAlloc(gpu, alloc);
     } else {
         if (!fMapPtr) {
             fMapPtr = new unsigned char[this->size()];
@@ -183,22 +185,52 @@ void GrVkBuffer::internalMap(GrVkGpu* gpu, size_t size, bool* createdNewBuffer) 
     VALIDATE();
 }
 
+void GrVkBuffer::copyCpuDataToGpuBuffer(GrVkGpu* gpu, const void* src, size_t size) {
+    SkASSERT(src);
+    // We should never call this method in protected contexts.
+    SkASSERT(!gpu->protectedContext());
+    // The vulkan api restricts the use of vkCmdUpdateBuffer to updates that are less than or equal
+    // to 65536 bytes and a size the is 4 byte aligned.
+    if ((size <= 65536) && (0 == (size & 0x3)) && !gpu->vkCaps().avoidUpdateBuffers()) {
+        gpu->updateBuffer(this, src, this->offset(), size);
+    } else {
+        sk_sp<GrVkTransferBuffer> transferBuffer =
+                GrVkTransferBuffer::Make(gpu, size, GrVkBuffer::kCopyRead_Type);
+        if (!transferBuffer) {
+            return;
+        }
+
+        char* buffer = (char*) transferBuffer->map();
+        memcpy (buffer, src, size);
+        transferBuffer->unmap();
+
+        gpu->copyBuffer(transferBuffer.get(), this, 0, this->offset(), size);
+    }
+    this->addMemoryBarrier(gpu,
+                           VK_ACCESS_TRANSFER_WRITE_BIT,
+                           buffer_type_to_access_flags(fDesc.fType),
+                           VK_PIPELINE_STAGE_TRANSFER_BIT,
+                           VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+                           false);
+}
+
 void GrVkBuffer::internalUnmap(GrVkGpu* gpu, size_t size) {
     VALIDATE();
     SkASSERT(this->vkIsMapped());
 
     if (fDesc.fDynamic) {
-        GrVkMemory::FlushMappedAlloc(gpu, this->alloc());
-        VK_CALL(gpu, UnmapMemory(gpu->device(), this->alloc().fMemory));
+        const GrVkAlloc& alloc = this->alloc();
+        SkASSERT(alloc.fSize > 0);
+        SkASSERT(alloc.fSize >= size);
+        // We currently don't use fOffset
+        SkASSERT(0 == fOffset);
+
+        GrVkMemory::FlushMappedAlloc(gpu, alloc, 0, size);
+        GrVkMemory::UnmapAlloc(gpu, alloc);
         fMapPtr = nullptr;
     } else {
-        gpu->updateBuffer(this, fMapPtr, this->offset(), size);
-        this->addMemoryBarrier(gpu,
-                               VK_ACCESS_TRANSFER_WRITE_BIT,
-                               buffer_type_to_access_flags(fDesc.fType),
-                               VK_PIPELINE_STAGE_TRANSFER_BIT,
-                               VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
-                               false);
+        SkASSERT(fMapPtr);
+        this->copyCpuDataToGpuBuffer(gpu, fMapPtr, size);
     }
 }
 
@@ -213,14 +245,18 @@ bool GrVkBuffer::vkUpdateData(GrVkGpu* gpu, const void* src, size_t srcSizeInByt
         return false;
     }
 
-    this->internalMap(gpu, srcSizeInBytes, createdNewBuffer);
-    if (!fMapPtr) {
-        return false;
+    if (fDesc.fDynamic) {
+        this->internalMap(gpu, srcSizeInBytes, createdNewBuffer);
+        if (!fMapPtr) {
+            return false;
+        }
+
+        memcpy(fMapPtr, src, srcSizeInBytes);
+        this->internalUnmap(gpu, srcSizeInBytes);
+    } else {
+        this->copyCpuDataToGpuBuffer(gpu, src, srcSizeInBytes);
     }
 
-    memcpy(fMapPtr, src, srcSizeInBytes);
-
-    this->internalUnmap(gpu, srcSizeInBytes);
 
     return true;
 }

@@ -5,11 +5,11 @@
  * found in the LICENSE file.
  */
 
-#include "SkAutoMalloc.h"
-#include "SkPath.h"
-#include "SkRandom.h"
-#include "SkRegion.h"
-#include "Test.h"
+#include "include/core/SkPath.h"
+#include "include/core/SkRegion.h"
+#include "include/utils/SkRandom.h"
+#include "src/core/SkAutoMalloc.h"
+#include "tests/Test.h"
 
 static void Union(SkRegion* rgn, const SkIRect& rect) {
     rgn->op(rect, SkRegion::kUnion_Op);
@@ -98,7 +98,7 @@ static void test_empties(skiatest::Reporter* reporter) {
     emptyPath.moveTo(1, 5);
     emptyPath.close();
     SkRegion openClip;
-    openClip.setRect(-16000, -16000, 16000, 16000);
+    openClip.setRect({-16000, -16000, 16000, 16000});
     empty.setPath(emptyPath, openClip);  // should not assert
 }
 
@@ -205,8 +205,8 @@ static void test_proc(skiatest::Reporter* reporter,
 static void rand_rect(SkIRect* rect, SkRandom& rand) {
     int bits = 6;
     int shift = 32 - bits;
-    rect->set(rand.nextU() >> shift, rand.nextU() >> shift,
-              rand.nextU() >> shift, rand.nextU() >> shift);
+    rect->setLTRB(rand.nextU() >> shift, rand.nextU() >> shift,
+                  rand.nextU() >> shift, rand.nextU() >> shift);
     rect->sort();
 }
 
@@ -285,13 +285,13 @@ DEF_TEST(Region_writeToMemory, r) {
     test_write(region, r);
 
     // Test a rectangular region
-    bool nonEmpty = region.setRect(0, 0, 50, 50);
+    bool nonEmpty = region.setRect({0, 0, 50, 50});
     REPORTER_ASSERT(r, nonEmpty);
     REPORTER_ASSERT(r, region.isRect());
     test_write(region, r);
 
     // Test a complex region
-    nonEmpty = region.op(50, 50, 100, 100, SkRegion::kUnion_Op);
+    nonEmpty = region.op({50, 50, 100, 100}, SkRegion::kUnion_Op);
     REPORTER_ASSERT(r, nonEmpty);
     REPORTER_ASSERT(r, region.isComplex());
     test_write(region, r);
@@ -395,4 +395,123 @@ DEF_TEST(Region_readFromMemory_bad, r) {
                           2147483647, 2147483647};
         REPORTER_ASSERT(r, 0 == region.readFromMemory(data, sizeof(data)));
     }
+}
+
+DEF_TEST(region_toobig, reporter) {
+    const int big = 1 << 30;
+    const SkIRect neg = SkIRect::MakeXYWH(-big, -big, 10, 10);
+    const SkIRect pos = SkIRect::MakeXYWH( big,  big, 10, 10);
+
+    REPORTER_ASSERT(reporter, !neg.isEmpty());
+    REPORTER_ASSERT(reporter, !pos.isEmpty());
+
+    SkRegion negR(neg);
+    SkRegion posR(pos);
+
+    REPORTER_ASSERT(reporter, !negR.isEmpty());
+    REPORTER_ASSERT(reporter, !posR.isEmpty());
+
+    SkRegion rgn;
+    rgn.op(negR, posR, SkRegion::kUnion_Op);
+
+    // If we union those to rectangles, the resulting coordinates span more than int32_t, so
+    // we must mark the region as empty.
+    REPORTER_ASSERT(reporter, rgn.isEmpty());
+}
+
+DEF_TEST(region_inverse_union_skbug_7491, reporter) {
+    SkPath path;
+    path.setFillType(SkPath::kInverseWinding_FillType);
+    path.moveTo(10, 20); path.lineTo(10, 30); path.lineTo(10.1f, 10); path.close();
+
+    SkRegion clip;
+    clip.op(SkIRect::MakeLTRB(10, 10, 15, 20), SkRegion::kUnion_Op);
+    clip.op(SkIRect::MakeLTRB(20, 10, 25, 20), SkRegion::kUnion_Op);
+
+    SkRegion rgn;
+    rgn.setPath(path, clip);
+
+    REPORTER_ASSERT(reporter, clip == rgn);
+}
+
+DEF_TEST(giant_path_region, reporter) {
+    const SkScalar big = 32767;
+    SkPath path;
+    path.moveTo(-big, 0);
+    path.quadTo(big, 0, big, big);
+    SkIRect ir = path.getBounds().round();
+    SkRegion rgn;
+    rgn.setPath(path, SkRegion(ir));
+}
+
+DEF_TEST(rrect_region_crbug_850350, reporter) {
+    SkMatrix m;
+    m.reset();
+    m[1] = 0.753662348f;
+    m[3] = 1.40079998E+20f;
+
+    const SkPoint corners[] = {
+        { 2.65876e-19f, 0.0194088f },
+        { 4896, 0.00114702f },
+        { 0, 0 },
+        { 0.00114702f, 0.00495333f },
+    };
+    SkRRect rrect;
+    rrect.setRectRadii({-8.72387e-31f, 1.29996e-38f, 4896, 1.125f}, corners);
+
+    SkPath path;
+    path.addRRect(rrect);
+    path.transform(m);
+
+    SkRegion rgn;
+    rgn.setPath(path, SkRegion{SkIRect{0, 0, 24, 24}});
+}
+
+DEF_TEST(region_bug_chromium_873051, reporter) {
+    SkRegion region;
+    REPORTER_ASSERT(reporter,  region.setRect({0, 0, 0x7FFFFFFE, 0x7FFFFFFE}));
+    REPORTER_ASSERT(reporter, !region.setRect({0, 0, 0x7FFFFFFE, 0x7FFFFFFF}));
+    REPORTER_ASSERT(reporter, !region.setRect({0, 0, 0x7FFFFFFF, 0x7FFFFFFE}));
+    REPORTER_ASSERT(reporter, !region.setRect({0, 0, 0x7FFFFFFF, 0x7FFFFFFF}));
+}
+
+DEF_TEST(region_empty_iter, reporter) {
+    SkRegion::Iterator emptyIter;
+    REPORTER_ASSERT(reporter, !emptyIter.rewind());
+    REPORTER_ASSERT(reporter, emptyIter.done());
+    auto eRect = emptyIter.rect();
+    REPORTER_ASSERT(reporter, eRect.isEmpty());
+    REPORTER_ASSERT(reporter, SkIRect::MakeEmpty() == eRect);
+    REPORTER_ASSERT(reporter, !emptyIter.rgn());
+
+    SkRegion region;
+    SkRegion::Iterator resetIter;
+    resetIter.reset(region);
+    REPORTER_ASSERT(reporter, resetIter.rewind());
+    REPORTER_ASSERT(reporter, resetIter.done());
+    auto rRect = resetIter.rect();
+    REPORTER_ASSERT(reporter, rRect.isEmpty());
+    REPORTER_ASSERT(reporter, SkIRect::MakeEmpty() == rRect);
+    REPORTER_ASSERT(reporter, resetIter.rgn());
+    REPORTER_ASSERT(reporter, resetIter.rgn()->isEmpty());
+
+    SkRegion::Iterator iter(region);
+    REPORTER_ASSERT(reporter, iter.done());
+    auto iRect = iter.rect();
+    REPORTER_ASSERT(reporter, iRect.isEmpty());
+    REPORTER_ASSERT(reporter, SkIRect::MakeEmpty() == iRect);
+    REPORTER_ASSERT(reporter, iter.rgn());
+    REPORTER_ASSERT(reporter, iter.rgn()->isEmpty());
+
+    SkRegion::Cliperator clipIter(region, {0, 0, 100, 100});
+    REPORTER_ASSERT(reporter, clipIter.done());
+    auto cRect = clipIter.rect();
+    REPORTER_ASSERT(reporter, cRect.isEmpty());
+    REPORTER_ASSERT(reporter, SkIRect::MakeEmpty() == cRect);
+
+    SkRegion::Spanerator spanIter(region, 0, 0, 100);
+    int left = 0, right = 0;
+    REPORTER_ASSERT(reporter, !spanIter.next(&left, &right));
+    REPORTER_ASSERT(reporter, !left);
+    REPORTER_ASSERT(reporter, !right);
 }

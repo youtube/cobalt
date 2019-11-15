@@ -5,24 +5,38 @@
  * found in the LICENSE file.
  */
 
-#include "SkRect.h"
+#include "include/core/SkRect.h"
 
-#include "SkMalloc.h"
+#include "include/private/SkMalloc.h"
 
-void SkIRect::join(int32_t left, int32_t top, int32_t right, int32_t bottom) {
+bool SkIRect::intersect(const SkIRect& a, const SkIRect& b) {
+    SkIRect tmp = {
+        SkMax32(a.fLeft,   b.fLeft),
+        SkMax32(a.fTop,    b.fTop),
+        SkMin32(a.fRight,  b.fRight),
+        SkMin32(a.fBottom, b.fBottom)
+    };
+    if (tmp.isEmpty()) {
+        return false;
+    }
+    *this = tmp;
+    return true;
+}
+
+void SkIRect::join(const SkIRect& r) {
     // do nothing if the params are empty
-    if (left >= right || top >= bottom) {
+    if (r.fLeft >= r.fRight || r.fTop >= r.fBottom) {
         return;
     }
 
     // if we are empty, just assign
     if (fLeft >= fRight || fTop >= fBottom) {
-        this->set(left, top, right, bottom);
+        *this = r;
     } else {
-        if (left < fLeft) fLeft = left;
-        if (top < fTop) fTop = top;
-        if (right > fRight) fRight = right;
-        if (bottom > fBottom) fBottom = bottom;
+        if (r.fLeft < fLeft)     fLeft = r.fLeft;
+        if (r.fTop < fTop)       fTop = r.fTop;
+        if (r.fRight > fRight)   fRight = r.fRight;
+        if (r.fBottom > fBottom) fBottom = r.fBottom;
     }
 }
 
@@ -37,62 +51,52 @@ void SkRect::toQuad(SkPoint quad[4]) const {
     quad[3].set(fLeft, fBottom);
 }
 
-#include "SkNx.h"
-
-static inline bool is_finite(const Sk4s& value) {
-    auto finite = value * Sk4s(0) == Sk4s(0);
-    return finite.allTrue();
-}
+#include "include/private/SkNx.h"
 
 bool SkRect::setBoundsCheck(const SkPoint pts[], int count) {
     SkASSERT((pts && count > 0) || count == 0);
 
-    bool isFinite = true;
-
     if (count <= 0) {
-        sk_bzero(this, sizeof(SkRect));
-    } else {
-        Sk4s min, max, accum;
-
-        if (count & 1) {
-            min = Sk4s(pts[0].fX, pts[0].fY, pts[0].fX, pts[0].fY);
-            pts += 1;
-            count -= 1;
-        } else {
-            min = Sk4s::Load(pts);
-            pts += 2;
-            count -= 2;
-        }
-        accum = max = min;
-        accum = accum * Sk4s(0);
-
-        count >>= 1;
-        for (int i = 0; i < count; ++i) {
-            Sk4s xy = Sk4s::Load(pts);
-            accum = accum * xy;
-            min = Sk4s::Min(min, xy);
-            max = Sk4s::Max(max, xy);
-            pts += 2;
-        }
-
-        /**
-         *  With some trickery, we may be able to use Min/Max to also propogate non-finites,
-         *  in which case we could eliminate accum entirely, and just check min and max for
-         *  "is_finite".
-         */
-        if (is_finite(accum)) {
-            float minArray[4], maxArray[4];
-            min.store(minArray);
-            max.store(maxArray);
-            this->set(SkTMin(minArray[0], minArray[2]), SkTMin(minArray[1], minArray[3]),
-                      SkTMax(maxArray[0], maxArray[2]), SkTMax(maxArray[1], maxArray[3]));
-        } else {
-            // we hit a non-finite value, so zero everything and return false
-            this->setEmpty();
-            isFinite = false;
-        }
+        this->setEmpty();
+        return true;
     }
-    return isFinite;
+
+    Sk4s min, max;
+    if (count & 1) {
+        min = max = Sk4s(pts->fX, pts->fY,
+                         pts->fX, pts->fY);
+        pts   += 1;
+        count -= 1;
+    } else {
+        min = max = Sk4s::Load(pts);
+        pts   += 2;
+        count -= 2;
+    }
+
+    Sk4s accum = min * 0;
+    while (count) {
+        Sk4s xy = Sk4s::Load(pts);
+        accum = accum * xy;
+        min = Sk4s::Min(min, xy);
+        max = Sk4s::Max(max, xy);
+        pts   += 2;
+        count -= 2;
+    }
+
+    bool all_finite = (accum * 0 == 0).allTrue();
+    if (all_finite) {
+        this->setLTRB(SkTMin(min[0], min[2]), SkTMin(min[1], min[3]),
+                      SkTMax(max[0], max[2]), SkTMax(max[1], max[3]));
+    } else {
+        this->setEmpty();
+    }
+    return all_finite;
+}
+
+void SkRect::setBoundsNoCheck(const SkPoint pts[], int count) {
+    if (!this->setBoundsCheck(pts, count)) {
+        this->setLTRB(SK_ScalarNaN, SK_ScalarNaN, SK_ScalarNaN, SK_ScalarNaN);
+    }
 }
 
 #define CHECK_INTERSECT(al, at, ar, ab, bl, bt, br, bb) \
@@ -100,16 +104,13 @@ bool SkRect::setBoundsCheck(const SkPoint pts[], int count) {
     SkScalar R = SkMinScalar(ar, br);                   \
     SkScalar T = SkMaxScalar(at, bt);                   \
     SkScalar B = SkMinScalar(ab, bb);                   \
-    do { if (L >= R || T >= B) return false; } while (0)
-
-bool SkRect::intersect(SkScalar left, SkScalar top, SkScalar right, SkScalar bottom) {
-    CHECK_INTERSECT(left, top, right, bottom, fLeft, fTop, fRight, fBottom);
-    this->setLTRB(L, T, R, B);
-    return true;
-}
+    do { if (!(L < R && T < B)) return false; } while (0)
+    // do the !(opposite) check so we return false if either arg is NaN
 
 bool SkRect::intersect(const SkRect& r) {
-    return this->intersect(r.fLeft, r.fTop, r.fRight, r.fBottom);
+    CHECK_INTERSECT(r.fLeft, r.fTop, r.fRight, r.fBottom, fLeft, fTop, fRight, fBottom);
+    this->setLTRB(L, T, R, B);
+    return true;
 }
 
 bool SkRect::intersect(const SkRect& a, const SkRect& b) {
@@ -118,27 +119,25 @@ bool SkRect::intersect(const SkRect& a, const SkRect& b) {
     return true;
 }
 
-void SkRect::join(SkScalar left, SkScalar top, SkScalar right, SkScalar bottom) {
-    // do nothing if the params are empty
-    if (left >= right || top >= bottom) {
+void SkRect::join(const SkRect& r) {
+    if (r.isEmpty()) {
         return;
     }
 
-    // if we are empty, just assign
-    if (fLeft >= fRight || fTop >= fBottom) {
-        this->set(left, top, right, bottom);
+    if (this->isEmpty()) {
+        *this = r;
     } else {
-        fLeft   = SkMinScalar(fLeft, left);
-        fTop    = SkMinScalar(fTop, top);
-        fRight  = SkMaxScalar(fRight, right);
-        fBottom = SkMaxScalar(fBottom, bottom);
+        fLeft   = SkMinScalar(fLeft, r.fLeft);
+        fTop    = SkMinScalar(fTop, r.fTop);
+        fRight  = SkMaxScalar(fRight, r.fRight);
+        fBottom = SkMaxScalar(fBottom, r.fBottom);
     }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "SkString.h"
-#include "SkStringUtils.h"
+#include "include/core/SkString.h"
+#include "src/core/SkStringUtils.h"
 
 static const char* set_scalar(SkString* storage, SkScalar value, SkScalarAsStringType asType) {
     storage->reset();

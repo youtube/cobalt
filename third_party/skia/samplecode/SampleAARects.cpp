@@ -4,11 +4,11 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
-#include "SampleCode.h"
-#include "SkView.h"
-#include "SkCanvas.h"
-#include "SkPaint.h"
-#include "SkShader.h"
+#include "include/core/SkBitmap.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkShader.h"
+#include "samplecode/Sample.h"
 
 static SkBitmap createBitmap(int n) {
     SkBitmap bitmap;
@@ -17,7 +17,7 @@ static SkBitmap createBitmap(int n) {
 
     SkCanvas canvas(bitmap);
     SkRect r;
-    r.set(0, 0, SkIntToScalar(n), SkIntToScalar(n));
+    r.setWH(SkIntToScalar(n), SkIntToScalar(n));
     SkPaint paint;
     paint.setAntiAlias(true);
 
@@ -32,36 +32,24 @@ static SkBitmap createBitmap(int n) {
     return bitmap;
 }
 
-class AARectView : public SampleView {
+static constexpr int N = 64;
+
+class AARectView : public Sample {
     SkBitmap fBitmap;
-    enum {
-        N = 64
-    };
-public:
-    AARectView() {
+
+    void onOnceBeforeDraw() override {
         fBitmap = createBitmap(N);
-
-        fWidth = N;
     }
 
-protected:
-    // overrides from SkEventSink
-    virtual bool onQuery(SkEvent* evt) {
-        if (SampleCode::TitleQ(*evt)) {
-            SampleCode::TitleR(evt, "AA Rects");
-            return true;
-        }
-        return this->INHERITED::onQuery(evt);
-    }
+    SkString name() override { return SkString("AA Rects"); }
 
-    virtual void onDrawContent(SkCanvas* canvas) {
+    void onDrawContent(SkCanvas* canvas) override {
         canvas->translate(SkIntToScalar(10), SkIntToScalar(10));
 
         SkPaint bluePaint;
         bluePaint.setARGB(0xff, 0x0, 0x0, 0xff);
         SkPaint bmpPaint;
-        bmpPaint.setShader(SkShader::MakeBitmapShader(fBitmap, SkShader::kRepeat_TileMode,
-                                                      SkShader::kRepeat_TileMode));
+        bmpPaint.setShader(fBitmap.makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat));
         bluePaint.setStrokeWidth(3);
         bmpPaint.setStrokeWidth(3);
 
@@ -181,12 +169,10 @@ protected:
     }
 
 private:
-    int fWidth;
 
-    typedef SampleView INHERITED;
+    typedef Sample INHERITED;
 };
 
 //////////////////////////////////////////////////////////////////////////////
 
-static SkView* MyFactory() { return new AARectView; }
-static SkViewRegister reg(MyFactory);
+DEF_SAMPLE( return new AARectView(); )

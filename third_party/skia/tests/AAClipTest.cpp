@@ -5,14 +5,25 @@
  * found in the LICENSE file.
  */
 
-#include "SkAAClip.h"
-#include "SkCanvas.h"
-#include "SkMask.h"
-#include "SkPath.h"
-#include "SkRandom.h"
-#include "SkRasterClip.h"
-#include "SkRRect.h"
-#include "Test.h"
+#include "include/core/SkBitmap.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkColor.h"
+#include "include/core/SkImageInfo.h"
+#include "include/core/SkMatrix.h"
+#include "include/core/SkPath.h"
+#include "include/core/SkRRect.h"
+#include "include/core/SkRect.h"
+#include "include/core/SkRegion.h"
+#include "include/core/SkScalar.h"
+#include "include/core/SkTypes.h"
+#include "include/private/SkMalloc.h"
+#include "include/utils/SkRandom.h"
+#include "src/core/SkAAClip.h"
+#include "src/core/SkMask.h"
+#include "src/core/SkRasterClip.h"
+#include "tests/Test.h"
+
+#include <string.h>
 
 static bool operator==(const SkMask& a, const SkMask& b) {
     if (a.fFormat != b.fFormat || a.fBounds != b.fBounds) {
@@ -296,7 +307,7 @@ static void test_path_with_hole(skiatest::Reporter* reporter) {
         0xFF, 0xFF, 0xFF, 0xFF,
     };
     SkMask expected;
-    expected.fBounds.set(0, 0, 4, 6);
+    expected.fBounds.setWH(4, 6);
     expected.fRowBytes = 4;
     expected.fFormat = SkMask::kA8_Format;
     expected.fImage = (uint8_t*)gExpectedImage;
@@ -409,6 +420,15 @@ static void test_crbug_422693(skiatest::Reporter* reporter) {
     rc.op(path, SkMatrix::I(), rc.getBounds(), SkRegion::kIntersect_Op, true);
 }
 
+static void test_huge(skiatest::Reporter* reporter) {
+    SkAAClip clip;
+    int big = 0x70000000;
+    SkIRect r = { -big, -big, big, big };
+    SkASSERT(r.width() < 0 && r.height() < 0);
+
+    clip.setRect(r);
+}
+
 DEF_TEST(AAClip, reporter) {
     test_empty(reporter);
     test_path_bounds(reporter);
@@ -419,4 +439,5 @@ DEF_TEST(AAClip, reporter) {
     test_nearly_integral(reporter);
     test_really_a_rect(reporter);
     test_crbug_422693(reporter);
+    test_huge(reporter);
 }

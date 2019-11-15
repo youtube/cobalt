@@ -10,14 +10,34 @@
 #include <sstream>
 #include <string>
 
-#include "SkCommandLineFlags.h"
+#include "src/core/SkAutoPixmapStorage.h"
+#include "src/core/SkMipMap.h"
+#include "src/core/SkUtils.h"
+#include "tools/flags/CommandLineFlags.h"
 
-#include "fiddle_main.h"
+#include "tools/fiddle/fiddle_main.h"
 
-DEFINE_double(duration, 1.0, "The total duration, in seconds, of the animation we are drawing.");
-DEFINE_double(frame, 1.0, "A double value in [0, 1] that specifies the point in animation to draw.");
+static DEFINE_double(duration, 1.0,
+                     "The total duration, in seconds, of the animation we are drawing.");
+static DEFINE_double(frame, 1.0,
+                     "A double value in [0, 1] that specifies the point in animation to draw.");
+
+#include "include/gpu/GrBackendSurface.h"
+#include "src/gpu/GrContextPriv.h"
+#include "src/gpu/GrGpu.h"
+#include "src/gpu/GrRenderTarget.h"
+#include "tools/gpu/gl/GLTestContext.h"
 
 // Globals externed in fiddle_main.h
+sk_sp<GrTexture>      backingTexture;  // not externed
+GrBackendTexture      backEndTexture;
+
+sk_sp<GrRenderTarget> backingRenderTarget; // not externed
+GrBackendRenderTarget backEndRenderTarget;
+
+sk_sp<GrTexture>      backingTextureRenderTarget;  // not externed
+GrBackendTexture      backEndTextureRenderTarget;
+
 SkBitmap source;
 sk_sp<SkImage> image;
 double duration; // The total duration of the animation in seconds.
@@ -98,8 +118,130 @@ static SkCanvas* prepare_canvas(SkCanvas * canvas) {
     return canvas;
 }
 
+static bool setup_backend_objects(GrContext* context,
+                                  const SkBitmap& bm,
+                                  const DrawOptions& options) {
+    if (!context) {
+        return false;
+    }
+
+    auto resourceProvider = context->priv().resourceProvider();
+
+    GrSurfaceDesc backingDesc;
+    backingDesc.fWidth = bm.width();
+    backingDesc.fHeight = bm.height();
+    // This config must match the SkColorType used in draw.cpp in the SkImage and Surface factories
+    backingDesc.fConfig = kRGBA_8888_GrPixelConfig;
+    auto format = resourceProvider->caps()->getDefaultBackendFormat(
+            SkColorTypeToGrColorType(kRGBA_8888_SkColorType), GrRenderable::kNo);
+    auto renderableFormat = resourceProvider->caps()->getDefaultBackendFormat(
+            SkColorTypeToGrColorType(kRGBA_8888_SkColorType), GrRenderable::kYes);
+
+    if (!bm.empty()) {
+        SkPixmap originalPixmap;
+        SkPixmap* pixmap = &originalPixmap;
+        if (!bm.peekPixels(&originalPixmap)) {
+            return false;
+        }
+
+        SkAutoPixmapStorage rgbaPixmap;
+        if (kN32_SkColorType != kRGBA_8888_SkColorType) {
+            if (!rgbaPixmap.tryAlloc(bm.info().makeColorType(kRGBA_8888_SkColorType))) {
+                return false;
+            }
+            if (!bm.readPixels(rgbaPixmap)) {
+                return false;
+            }
+            pixmap = &rgbaPixmap;
+        }
+        int mipLevelCount = GrMipMapped::kYes == options.fMipMapping
+                                    ? SkMipMap::ComputeLevelCount(bm.width(), bm.height())
+                                    : 1;
+        std::unique_ptr<GrMipLevel[]> texels(new GrMipLevel[mipLevelCount]);
+
+        texels[0].fPixels = pixmap->addr();
+        texels[0].fRowBytes = pixmap->rowBytes();
+
+        for (int i = 1; i < mipLevelCount; i++) {
+            texels[i].fPixels = nullptr;
+            texels[i].fRowBytes = 0;
+        }
+
+        backingTexture = resourceProvider->createTexture(
+                backingDesc, format, GrColorType::kRGBA_8888, GrRenderable::kNo, 1, SkBudgeted::kNo,
+                GrProtected::kNo, texels.get(), mipLevelCount);
+        if (!backingTexture) {
+            return false;
+        }
+
+        backEndTexture = backingTexture->getBackendTexture();
+        if (!backEndTexture.isValid()) {
+            return false;
+        }
+    }
+
+    backingDesc.fWidth = options.fOffScreenWidth;
+    backingDesc.fHeight = options.fOffScreenHeight;
+
+    SkAutoTMalloc<uint32_t> data(backingDesc.fWidth * backingDesc.fHeight);
+    sk_memset32(data.get(), 0, backingDesc.fWidth * backingDesc.fHeight);
+
+
+    {
+        // This backend object should be renderable but not textureable. Given the limitations
+        // of how we're creating it though it will wind up being secretly textureable.
+        // We use this fact to initialize it with data but don't allow mipmaps
+        GrMipLevel level0 = { data.get(), backingDesc.fWidth*sizeof(uint32_t) };
+
+        sk_sp<GrTexture> tmp = resourceProvider->createTexture(
+                backingDesc, renderableFormat, GrColorType::kRGBA_8888, GrRenderable::kYes,
+                options.fOffScreenSampleCount, SkBudgeted::kNo, GrProtected::kNo, &level0, 1);
+        if (!tmp || !tmp->asRenderTarget()) {
+            return false;
+        }
+
+        backingRenderTarget = sk_ref_sp(tmp->asRenderTarget());
+
+        backEndRenderTarget = backingRenderTarget->getBackendRenderTarget();
+        if (!backEndRenderTarget.isValid()) {
+            return false;
+        }
+    }
+
+    {
+        int mipLevelCount = GrMipMapped::kYes == options.fOffScreenMipMapping
+                            ? SkMipMap::ComputeLevelCount(backingDesc.fWidth, backingDesc.fHeight)
+                            : 1;
+        std::unique_ptr<GrMipLevel[]> texels(new GrMipLevel[mipLevelCount]);
+
+        texels[0].fPixels = data.get();
+        texels[0].fRowBytes = backingDesc.fWidth*sizeof(uint32_t);
+
+        for (int i = 1; i < mipLevelCount; i++) {
+            texels[i].fPixels = nullptr;
+            texels[i].fRowBytes = 0;
+        }
+
+        backingTextureRenderTarget = resourceProvider->createTexture(
+                backingDesc, renderableFormat, GrColorType::kRGBA_8888, GrRenderable::kYes,
+                options.fOffScreenSampleCount, SkBudgeted::kNo, GrProtected::kNo, texels.get(),
+                mipLevelCount);
+        if (!backingTextureRenderTarget || !backingTextureRenderTarget->asRenderTarget()) {
+            return false;
+        }
+
+        backEndTextureRenderTarget = backingTextureRenderTarget->getBackendTexture();
+        if (!backEndTextureRenderTarget.isValid()) {
+            return false;
+        }
+    }
+
+
+    return true;
+}
+
 int main(int argc, char** argv) {
-    SkCommandLineFlags::Parse(argc, argv);
+    CommandLineFlags::Parse(argc, argv);
     duration = FLAGS_duration;
     frame = FLAGS_frame;
     DrawOptions options = GetDrawOptions();
@@ -122,8 +264,7 @@ int main(int argc, char** argv) {
                 perror("Unable to decode the source image.");
                 return 1;
             }
-            SkAssertResult(image->asLegacyBitmap(
-                                   &source, SkImage::kRO_LegacyBitmapMode));
+            SkAssertResult(image->asLegacyBitmap(&source));
         }
     }
     sk_sp<SkData> rasterData, gpuData, pdfData, skpData;
@@ -145,10 +286,16 @@ int main(int argc, char** argv) {
         rasterData = encode_snapshot(rasterSurface);
     }
     if (options.gpu) {
-        auto grContext = create_grcontext(gGLDriverInfo);
+        std::unique_ptr<sk_gpu_test::GLTestContext> glContext;
+        sk_sp<GrContext> grContext = create_grcontext(gGLDriverInfo, &glContext);
         if (!grContext) {
             fputs("Unable to get GrContext.\n", stderr);
         } else {
+            if (!setup_backend_objects(grContext.get(), source, options)) {
+                fputs("Unable to create backend objects.\n", stderr);
+                exit(1);
+            }
+
             auto surface = SkSurface::MakeRenderTarget(grContext.get(), SkBudgeted::kNo, info);
             if (!surface) {
                 fputs("Unable to get render surface.\n", stderr);
@@ -161,7 +308,7 @@ int main(int argc, char** argv) {
     }
     if (options.pdf) {
         SkDynamicMemoryWStream pdfStream;
-        sk_sp<SkDocument> document(SkDocument::MakePDF(&pdfStream));
+        auto document = SkPDF::MakeDocument(&pdfStream);
         if (document) {
             srand(0);
             draw(prepare_canvas(document->beginPage(options.size.width(), options.size.height())));

@@ -4,11 +4,12 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
-#include "SkIntersections.h"
-#include "SkLineParameters.h"
-#include "SkPathOpsCubic.h"
-#include "SkPathOpsCurve.h"
-#include "SkPathOpsQuad.h"
+#include "src/pathops/SkIntersections.h"
+#include "src/pathops/SkLineParameters.h"
+#include "src/pathops/SkPathOpsCubic.h"
+#include "src/pathops/SkPathOpsCurve.h"
+#include "src/pathops/SkPathOpsQuad.h"
+#include "src/pathops/SkPathOpsRect.h"
 
 // from blackpawn.com/texts/pointinpoly
 static bool pointInTriangle(const SkDPoint fPts[3], const SkDPoint& test) {
@@ -21,11 +22,14 @@ static bool pointInTriangle(const SkDPoint fPts[3], const SkDPoint& test) {
     double dot11 = v1.dot(v1);
     double dot12 = v1.dot(v2);
     // Compute barycentric coordinates
-    double invDenom = 1 / (dot00 * dot11 - dot01 * dot01);
-    double u = (dot11 * dot02 - dot01 * dot12) * invDenom;
-    double v = (dot00 * dot12 - dot01 * dot02) * invDenom;
+    double denom = dot00 * dot11 - dot01 * dot01;
+    double u = dot11 * dot02 - dot01 * dot12;
+    double v = dot00 * dot12 - dot01 * dot02;
     // Check if point is in triangle
-    return u >= 0 && v >= 0 && u + v < 1;
+    if (denom >= 0) {
+        return u >= 0 && v >= 0 && u + v < denom;
+    }
+    return u <= 0 && v <= 0 && u + v > denom;
 }
 
 static bool matchesEnd(const SkDPoint fPts[3], const SkDPoint& test) {
@@ -138,6 +142,15 @@ int SkDQuad::RootsValidT(double A, double B, double C, double t[2]) {
     return foundRoots;
 }
 
+static int handle_zero(const double B, const double C, double s[2]) {
+    if (approximately_zero(B)) {
+        s[0] = 0;
+        return C == 0;
+    }
+    s[0] = -C / B;
+    return 1;
+}
+
 /*
 Numeric Solutions (5.6) suggests to solve the quadratic by computing
        Q = -1/2(B + sgn(B)Sqrt(B^2 - 4 A C))
@@ -147,16 +160,13 @@ and using the roots
 */
 // this does not discard real roots <= 0 or >= 1
 int SkDQuad::RootsReal(const double A, const double B, const double C, double s[2]) {
+    if (!A) {
+        return handle_zero(B, C, s);
+    }
     const double p = B / (2 * A);
     const double q = C / A;
-    if (!A || (approximately_zero(A) && (approximately_zero_inverse(p)
-            || approximately_zero_inverse(q)))) {
-        if (approximately_zero(B)) {
-            s[0] = 0;
-            return C == 0;
-        }
-        s[0] = -C / B;
-        return 1;
+    if (approximately_zero(A) && (approximately_zero_inverse(p) || approximately_zero_inverse(q))) {
+        return handle_zero(B, C, s);
     }
     /* normal form: x^2 + px + q = 0 */
     const double p2 = p * p;
@@ -387,4 +397,20 @@ void SkDQuad::SetABC(const double* quad, double* a, double* b, double* c) {
     *b -= *c;          // b =     2*B -   C
     *a -= *b;          // a = A - 2*B +   C
     *b -= *c;          // b =     2*B - 2*C
+}
+
+int SkTQuad::intersectRay(SkIntersections* i, const SkDLine& line) const {
+    return i->intersectRay(fQuad, line);
+}
+
+bool SkTQuad::hullIntersects(const SkDConic& conic, bool* isLinear) const  {
+    return conic.hullIntersects(fQuad, isLinear);
+}
+
+bool SkTQuad::hullIntersects(const SkDCubic& cubic, bool* isLinear) const {
+    return cubic.hullIntersects(fQuad, isLinear);
+}
+
+void SkTQuad::setBounds(SkDRect* rect) const {
+    rect->setBounds(fQuad);
 }

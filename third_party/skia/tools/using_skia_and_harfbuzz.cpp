@@ -16,12 +16,12 @@
 #include <string>
 #include <vector>
 
-#include "SkCanvas.h"
-#include "SkDocument.h"
-#include "SkShaper.h"
-#include "SkStream.h"
-#include "SkTextBlob.h"
-#include "SkTypeface.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkStream.h"
+#include "include/core/SkTextBlob.h"
+#include "include/core/SkTypeface.h"
+#include "include/docs/SkPDFDocument.h"
+#include "modules/skshaper/include/SkShaper.h"
 
 // Options /////////////////////////////////////////////////////////////////////
 
@@ -42,8 +42,8 @@ struct BaseOption {
 template <class T>
 struct Option : BaseOption {
     T value;
-    Option(std::string selector, std::string description, T defaultValue)
-        : BaseOption(selector, description), value(defaultValue) {}
+    Option(std::string _selector, std::string _description, T defaultValue)
+        : BaseOption(_selector, _description), value(defaultValue) {}
 };
 
 void BaseOption::Init(const std::vector<BaseOption*> &option_list,
@@ -83,19 +83,19 @@ struct DoubleOption : Option<double> {
         stm << value;
         return stm.str();
     }
-    DoubleOption(std::string selector,
-                 std::string description,
+    DoubleOption(std::string _selector,
+                 std::string _description,
                  double defaultValue)
-        : Option<double>(selector, description, defaultValue) {}
+        : Option<double>(_selector, _description, defaultValue) {}
 };
 
 struct StringOption : Option<std::string> {
     virtual void set(std::string _value) { value = _value; }
     virtual std::string valueToString() { return value; }
-    StringOption(std::string selector,
-                 std::string description,
+    StringOption(std::string _selector,
+                 std::string _description,
                  std::string defaultValue)
-        : Option<std::string>(selector, description, defaultValue) {}
+        : Option<std::string>(_selector, _description, defaultValue) {}
 };
 
 // Config //////////////////////////////////////////////////////////////////////
@@ -112,7 +112,7 @@ struct Config {
     DoubleOption font_size = DoubleOption("-z", "Font size", 8.0f);
     DoubleOption left_margin = DoubleOption("-m", "Left margin", 20.0f);
     DoubleOption line_spacing_ratio =
-            DoubleOption("-h", "Line spacing ratio", 1.5f);
+            DoubleOption("-h", "Line spacing ratio", 0.25f);
     StringOption output_file_name =
             StringOption("-o", ".pdf output file name", "out-skiahf.pdf");
 
@@ -132,13 +132,23 @@ public:
         : config(conf), document(doc), pageCanvas(nullptr) {
         white_paint.setColor(SK_ColorWHITE);
         glyph_paint.setColor(SK_ColorBLACK);
-        glyph_paint.setFlags(SkPaint::kAntiAlias_Flag |
-                             SkPaint::kSubpixelText_Flag);
-        glyph_paint.setTextSize(SkDoubleToScalar(config->font_size.value));
+        glyph_paint.setAntiAlias(true);
+        font.setEdging(SkFont::Edging::kSubpixelAntiAlias);
+        font.setSubpixel(true);
+        font.setSize(SkDoubleToScalar(config->font_size.value));
     }
 
     void WriteLine(const SkShaper& shaper, const char *text, size_t textBytes) {
-        if (!pageCanvas || current_y > config->page_height.value) {
+        SkTextBlobBuilderRunHandler textBlobBuilder(text, {0, 0});
+        shaper.shape(text, textBytes, font, true,
+                     config->page_width.value - 2*config->left_margin.value, &textBlobBuilder);
+        SkPoint endPoint = textBlobBuilder.endPoint();
+        sk_sp<const SkTextBlob> blob = textBlobBuilder.makeBlob();
+        // If we don't have a page, or if we're not at the start of the page and the blob won't fit
+        if (!pageCanvas ||
+              (current_y > config->line_spacing_ratio.value * config->font_size.value &&
+               current_y + endPoint.y() > config->page_height.value)
+        ) {
             if (pageCanvas) {
                 document->endPage();
             }
@@ -149,14 +159,11 @@ public:
             current_x = config->left_margin.value;
             current_y = config->line_spacing_ratio.value * config->font_size.value;
         }
-        SkTextBlobBuilder textBlobBuilder;
-        shaper.shape(&textBlobBuilder, glyph_paint, text, textBytes, SkPoint{0, 0});
-        sk_sp<const SkTextBlob> blob = textBlobBuilder.make();
         pageCanvas->drawTextBlob(
                 blob.get(), SkDoubleToScalar(current_x),
                 SkDoubleToScalar(current_y), glyph_paint);
         // Advance to the next line.
-        current_y += config->line_spacing_ratio.value * config->font_size.value;
+        current_y += endPoint.y() + config->line_spacing_ratio.value * config->font_size.value;
     }
 
 private:
@@ -165,32 +172,28 @@ private:
     SkCanvas *pageCanvas;
     SkPaint white_paint;
     SkPaint glyph_paint;
+    SkFont font;
     double current_x;
     double current_y;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static sk_sp<SkDocument> MakePDFDocument(const Config &config,
-                                         SkWStream *wStream) {
-    SkDocument::PDFMetadata pdf_info;
+static sk_sp<SkDocument> MakePDFDocument(const Config &config, SkWStream *wStream) {
+    SkPDF::Metadata pdf_info;
     pdf_info.fTitle = config.title.value.c_str();
     pdf_info.fAuthor = config.author.value.c_str();
     pdf_info.fSubject = config.subject.value.c_str();
     pdf_info.fKeywords = config.keywords.value.c_str();
     pdf_info.fCreator = config.creator.value.c_str();
-    bool pdfa = false;
     #if 0
         SkTime::DateTime now;
         SkTime::GetDateTime(&now);
-        pdf_info.fCreation.fEnabled = true;
-        pdf_info.fCreation.fDateTime = now;
-        pdf_info.fModified.fEnabled = true;
-        pdf_info.fModified.fDateTime = now;
-        pdfa = true;
+        pdf_info.fCreation = now;
+        pdf_info.fModified = now;
+        pdf_info.fPDFA = true;
     #endif
-    return SkDocument::MakePDF(wStream, SK_ScalarDefaultRasterDPI, pdf_info,
-                               nullptr, pdfa);
+    return SkPDF::MakeDocument(wStream, pdf_info);
 }
 
 int main(int argc, char **argv) {
@@ -205,12 +208,15 @@ int main(int argc, char **argv) {
     if (font_file.size() > 0) {
         typeface = SkTypeface::MakeFromFile(font_file.c_str(), 0 /* index */);
     }
-    SkShaper shaper(typeface);
-    assert(shaper.good());
+    std::unique_ptr<SkShaper> shaper = SkShaper::Make();
+    assert(shaper);
+    //SkString line("This is هذا هو الخط a line.");
+    //SkString line("⁧This is a line هذا هو الخط.⁩");
     for (std::string line; std::getline(std::cin, line);) {
-        placement.WriteLine(shaper, line.c_str(), line.size());
+        placement.WriteLine(*shaper, line.c_str(), line.size());
     }
 
     doc->close();
+    wStream.flush();
     return 0;
 }

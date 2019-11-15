@@ -5,20 +5,20 @@
  * found in the LICENSE file.
  */
 
-#include "GrVkSemaphore.h"
+#include "src/gpu/vk/GrVkSemaphore.h"
 
-#include "GrBackendSemaphore.h"
-#include "GrVkGpu.h"
-#include "GrVkUtil.h"
+#include "include/gpu/GrBackendSemaphore.h"
+#include "src/gpu/vk/GrVkGpu.h"
+#include "src/gpu/vk/GrVkUtil.h"
 
 #ifdef VK_USE_PLATFORM_WIN32_KHR
 // windows wants to define this as CreateSemaphoreA or CreateSemaphoreW
 #undef CreateSemaphore
 #endif
 
-sk_sp<GrVkSemaphore> GrVkSemaphore::Make(const GrVkGpu* gpu, bool isOwned) {
+sk_sp<GrVkSemaphore> GrVkSemaphore::Make(GrVkGpu* gpu, bool isOwned) {
     VkSemaphoreCreateInfo createInfo;
-    memset(&createInfo, 0, sizeof(VkFenceCreateInfo));
+    memset(&createInfo, 0, sizeof(VkSemaphoreCreateInfo));
     createInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     createInfo.pNext = nullptr;
     createInfo.flags = 0;
@@ -26,40 +26,55 @@ sk_sp<GrVkSemaphore> GrVkSemaphore::Make(const GrVkGpu* gpu, bool isOwned) {
     GR_VK_CALL_ERRCHECK(gpu->vkInterface(),
                         CreateSemaphore(gpu->device(), &createInfo, nullptr, &semaphore));
 
-    return sk_sp<GrVkSemaphore>(new GrVkSemaphore(gpu, semaphore, isOwned));
+    return sk_sp<GrVkSemaphore>(new GrVkSemaphore(gpu, semaphore, false, false, isOwned));
 }
 
-sk_sp<GrVkSemaphore> GrVkSemaphore::MakeWrapped(const GrVkGpu* gpu,
+sk_sp<GrVkSemaphore> GrVkSemaphore::MakeWrapped(GrVkGpu* gpu,
                                                 VkSemaphore semaphore,
+                                                WrapType wrapType,
                                                 GrWrapOwnership ownership) {
     if (VK_NULL_HANDLE == semaphore) {
         return nullptr;
     }
-    return sk_sp<GrVkSemaphore>(new GrVkSemaphore(gpu, semaphore,
+    bool prohibitSignal = WrapType::kWillWait == wrapType;
+    bool prohibitWait = WrapType::kWillSignal == wrapType;
+    return sk_sp<GrVkSemaphore>(new GrVkSemaphore(gpu, semaphore, prohibitSignal, prohibitWait,
                                                   kBorrow_GrWrapOwnership != ownership));
 }
 
-GrVkSemaphore::GrVkSemaphore(const GrVkGpu* gpu, VkSemaphore semaphore, bool isOwned)
+GrVkSemaphore::GrVkSemaphore(GrVkGpu* gpu, VkSemaphore semaphore, bool prohibitSignal,
+                             bool prohibitWait, bool isOwned)
         : INHERITED(gpu) {
-    fResource = new Resource(semaphore, isOwned);
+    fResource = new Resource(semaphore, prohibitSignal, prohibitWait, isOwned);
+    isOwned ? this->registerWithCache(SkBudgeted::kNo)
+            : this->registerWithCacheWrapped(GrWrapCacheable::kNo);
 }
 
-GrVkSemaphore::~GrVkSemaphore() {
-    if (fGpu) {
-        fResource->unref(static_cast<const GrVkGpu*>(fGpu));
-    } else {
-        fResource->unrefAndAbandon();
+void GrVkSemaphore::onRelease() {
+    if (fResource) {
+        fResource->unref(static_cast<GrVkGpu*>(this->getGpu()));
+        fResource = nullptr;
     }
+    INHERITED::onRelease();
 }
 
-void GrVkSemaphore::Resource::freeGPUData(const GrVkGpu* gpu) const {
+void GrVkSemaphore::onAbandon() {
+    if (fResource) {
+        fResource->unrefAndAbandon();
+        fResource = nullptr;
+    }
+    INHERITED::onAbandon();
+}
+
+void GrVkSemaphore::Resource::freeGPUData(GrVkGpu* gpu) const {
     if (fIsOwned) {
         GR_VK_CALL(gpu->vkInterface(),
                    DestroySemaphore(gpu->device(), fSemaphore, nullptr));
     }
 }
 
-void GrVkSemaphore::setBackendSemaphore(GrBackendSemaphore* backendSemaphore) const {
-    backendSemaphore->initVulkan(fResource->semaphore());
+GrBackendSemaphore GrVkSemaphore::backendSemaphore() const {
+    GrBackendSemaphore backendSemaphore;
+    backendSemaphore.initVulkan(fResource->semaphore());
+    return backendSemaphore;
 }
-

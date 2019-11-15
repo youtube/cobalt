@@ -8,7 +8,7 @@
 #ifndef GrAAHairLinePathRenderer_DEFINED
 #define GrAAHairLinePathRenderer_DEFINED
 
-#include "GrPathRenderer.h"
+#include "src/gpu/GrPathRenderer.h"
 
 class GrAAHairLinePathRenderer : public GrPathRenderer {
 public:
@@ -19,7 +19,7 @@ public:
     typedef SkTArray<float, true> FloatArray;
 
 private:
-    bool onCanDrawPath(const CanDrawPathArgs&) const override;
+    CanDrawPath onCanDrawPath(const CanDrawPathArgs&) const override;
 
     bool onDrawPath(const DrawPathArgs&) override;
 

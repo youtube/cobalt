@@ -5,19 +5,36 @@
  * found in the LICENSE file.
  */
 
-#include "gm.h"
-#include "sk_tool_utils.h"
-#include "SkLightingShader.h"
-#include "SkNormalSource.h"
-#include "SkPoint3.h"
-#include "SkShader.h"
+#include "gm/gm.h"
+#include "include/core/SkBitmap.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkColor.h"
+#include "include/core/SkFont.h"
+#include "include/core/SkFontStyle.h"
+#include "include/core/SkMatrix.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkPoint3.h"
+#include "include/core/SkRect.h"
+#include "include/core/SkRefCnt.h"
+#include "include/core/SkScalar.h"
+#include "include/core/SkShader.h"
+#include "include/core/SkSize.h"
+#include "include/core/SkString.h"
+#include "include/core/SkTypeface.h"
+#include "src/core/SkNormalSource.h"
+#include "src/shaders/SkLightingShader.h"
+#include "src/shaders/SkLights.h"
+#include "tools/ToolUtils.h"
+
+#include <initializer_list>
+#include <utility>
 
 // Create a truncated pyramid normal map
 static SkBitmap make_frustum_normalmap(int texSize) {
     SkBitmap frustum;
     frustum.allocN32Pixels(texSize, texSize);
 
-    sk_tool_utils::create_frustum_normal_map(&frustum, SkIRect::MakeWH(texSize, texSize));
+    ToolUtils::create_frustum_normal_map(&frustum, SkIRect::MakeWH(texSize, texSize));
     return frustum;
 }
 
@@ -27,8 +44,8 @@ namespace skiagm {
 // normal maps, paint transparency, zero directional lights, multiple directional lights.
 class LightingShader2GM : public GM {
 public:
-    LightingShader2GM() {
-        this->setBGColor(sk_tool_utils::color_to_565(0xFFCCCCCC));
+    LightingShader2GM() : fRect(SkRect::MakeIWH(kTexSize, kTexSize)) {
+        this->setBGColor(ToolUtils::color_to_565(0xFF0000CC));
     }
 
 protected:
@@ -41,55 +58,55 @@ protected:
     }
 
     void onOnceBeforeDraw() override {
+        // The light direction is towards the light with +Z coming out of the screen
         const SkVector3 kLightFromUpperRight = SkVector3::Make(0.788f, 0.394f, 0.473f);
         const SkVector3 kLightFromUpperLeft = SkVector3::Make(-0.788f, 0.394f, 0.473f);
 
         // Standard set of lights
-        SkLights::Builder builder;
-        builder.add(SkLights::Light::MakeDirectional(SkColor3f::Make(1.0f, 1.0f, 1.0f),
-                                                     kLightFromUpperRight));
-        builder.setAmbientLightColor(SkColor3f::Make(0.2f, 0.2f, 0.2f));
-        fLights = builder.finish();
+        {
+            SkLights::Builder builder;
+            builder.add(SkLights::Light::MakeDirectional(SkColor3f::Make(1.0f, 1.0f, 1.0f),
+                                                         kLightFromUpperRight));
+            builder.setAmbientLightColor(SkColor3f::Make(0.2f, 0.2f, 0.2f));
+            fLights = builder.finish();
+        }
 
         // No directional lights
-        SkLights::Builder builderNoDir;
-        builderNoDir.setAmbientLightColor(SkColor3f::Make(0.2f, 0.2f, 0.2f));
-        fLightsNoDir = builderNoDir.finish();
+        {
+            SkLights::Builder builder;
+            builder.setAmbientLightColor(SkColor3f::Make(0.2f, 0.2f, 0.2f));
+            fLightsNoDir = builder.finish();
+        }
 
         // Two directional lights
-        SkLights::Builder builderTwoDir;
-        builderTwoDir.add(SkLights::Light::MakeDirectional(SkColor3f::Make(1.0f, 0.0f, 1.0f),
-                                                           kLightFromUpperRight));
-        builderTwoDir.add(SkLights::Light::MakeDirectional(SkColor3f::Make(0.0f, 1.0f, 1.0f),
-                                                           kLightFromUpperLeft));
-        builderTwoDir.setAmbientLightColor(SkColor3f::Make(0.2f, 0.2f, 0.2f));
-        fLightsTwoDir = builderTwoDir.finish();
+        {
+            SkLights::Builder builder;
+            builder.add(SkLights::Light::MakeDirectional(SkColor3f::Make(1.0f, 0.0f, 0.0f),
+                                                         kLightFromUpperRight));
+            builder.add(SkLights::Light::MakeDirectional(SkColor3f::Make(0.0f, 1.0f, 0.0f),
+                                                         kLightFromUpperLeft));
+            builder.setAmbientLightColor(SkColor3f::Make(0.2f, 0.2f, 0.2f));
+            fLightsTwoDir = builder.finish();
+        }
 
-        fRect = SkRect::MakeIWH(kTexSize, kTexSize);
         SkMatrix matrix;
         SkRect bitmapBounds = SkRect::MakeIWH(kTexSize, kTexSize);
         matrix.setRectToRect(bitmapBounds, fRect, SkMatrix::kFill_ScaleToFit);
 
-        SkBitmap opaqueDiffuseMap = sk_tool_utils::create_checkerboard_bitmap(
-                kTexSize, kTexSize,
-                sk_tool_utils::color_to_565(0x0),
-                sk_tool_utils::color_to_565(0xFF804020),
-                8);
-        fOpaqueDiffuse = SkShader::MakeBitmapShader(opaqueDiffuseMap, SkShader::kClamp_TileMode,
-                                                    SkShader::kClamp_TileMode, &matrix);
+        SkBitmap opaqueDiffuseMap = ToolUtils::create_checkerboard_bitmap(
+                kTexSize, kTexSize, SK_ColorBLACK, 0xFF808080, 8);
+        fOpaqueDiffuse = opaqueDiffuseMap.makeShader(&matrix);
 
-        SkBitmap translucentDiffuseMap = sk_tool_utils::create_checkerboard_bitmap(
-                kTexSize, kTexSize,
-                SkColorSetARGB(0x55, 0x00, 0x00, 0x00),
-                SkColorSetARGB(0x55, 0x80, 0x40, 0x20),
-                8);
-        fTranslucentDiffuse = SkShader::MakeBitmapShader(translucentDiffuseMap,
-                                                         SkShader::kClamp_TileMode,
-                                                         SkShader::kClamp_TileMode, &matrix);
+        SkBitmap translucentDiffuseMap =
+                ToolUtils::create_checkerboard_bitmap(kTexSize,
+                                                      kTexSize,
+                                                      SkColorSetARGB(0x55, 0x00, 0x00, 0x00),
+                                                      SkColorSetARGB(0x55, 0x80, 0x80, 0x80),
+                                                      8);
+        fTranslucentDiffuse = translucentDiffuseMap.makeShader(&matrix);
 
         SkBitmap normalMap = make_frustum_normalmap(kTexSize);
-        fNormalMapShader = SkShader::MakeBitmapShader(normalMap, SkShader::kClamp_TileMode,
-                                                      SkShader::kClamp_TileMode, &matrix);
+        fNormalMapShader = normalMap.makeShader(&matrix);
 
     }
 
@@ -101,7 +118,6 @@ protected:
         canvas->translate(-kTexSize/2.0f, -kTexSize/2.0f);
     }
 
-    static constexpr int NUM_BOOLEAN_PARAMS = 4;
     void drawRect(SkCanvas* canvas, SkScalar scaleX, SkScalar scaleY,
                   SkScalar rotate, bool useNormalSource, bool useDiffuseShader,
                   bool useTranslucentPaint, bool useTranslucentShader, sk_sp<SkLights> lights) {
@@ -122,7 +138,7 @@ protected:
         if (useDiffuseShader) {
             diffuseShader = (useTranslucentShader) ? fTranslucentDiffuse : fOpaqueDiffuse;
         } else {
-            paint.setColor(0xFF00FF00);
+            paint.setColor(SK_ColorGREEN);
         }
 
         if (useTranslucentPaint) {
@@ -137,16 +153,8 @@ protected:
     }
 
     void onDraw(SkCanvas* canvas) override {
-
-        constexpr SkScalar LABEL_SIZE = 10.0f;
         SkPaint labelPaint;
-        labelPaint.setTypeface(sk_tool_utils::create_portable_typeface("sans-serif",
-                                                                       SkFontStyle()));
-        labelPaint.setAntiAlias(true);
-        labelPaint.setTextSize(LABEL_SIZE);
-
-        constexpr int GRID_COLUMN_NUM = 4;
-        constexpr SkScalar GRID_CELL_WIDTH = kTexSize + 20.0f + NUM_BOOLEAN_PARAMS * LABEL_SIZE;
+        SkFont  font(ToolUtils::create_portable_typeface("sans-serif", SkFontStyle()), kLabelSize);
 
         int gridNum = 0;
 
@@ -157,8 +165,8 @@ protected:
                     for (bool useTranslucentShader : {true, false}) {
 
                         // Determining position
-                        SkScalar xPos = (gridNum % GRID_COLUMN_NUM) * GRID_CELL_WIDTH;
-                        SkScalar yPos = (gridNum / GRID_COLUMN_NUM) * GRID_CELL_WIDTH;
+                        SkScalar xPos = (gridNum % kGridColumnNum) * kGridCellWidth;
+                        SkScalar yPos = (gridNum / kGridColumnNum) * kGridCellWidth;
 
                         canvas->save();
 
@@ -168,28 +176,28 @@ protected:
                         // Drawing labels
                         canvas->translate(0.0f, SkIntToScalar(kTexSize));
                         {
-                            canvas->translate(0.0f, LABEL_SIZE);
+                            canvas->translate(0.0f, kLabelSize);
                             SkString label;
                             label.appendf("useNormalSource: %d", useNormalSource);
-                            canvas->drawString(label, 0.0f, 0.0f, labelPaint);
+                            canvas->drawString(label, 0.0f, 0.0f, font, labelPaint);
                         }
                         {
-                            canvas->translate(0.0f, LABEL_SIZE);
+                            canvas->translate(0.0f, kLabelSize);
                             SkString label;
                             label.appendf("useDiffuseShader: %d", useDiffuseShader);
-                            canvas->drawString(label, 0.0f, 0.0f, labelPaint);
+                            canvas->drawString(label, 0.0f, 0.0f, font, labelPaint);
                         }
                         {
-                            canvas->translate(0.0f, LABEL_SIZE);
+                            canvas->translate(0.0f, kLabelSize);
                             SkString label;
                             label.appendf("useTranslucentPaint: %d", useTranslucentPaint);
-                            canvas->drawString(label, 0.0f, 0.0f, labelPaint);
+                            canvas->drawString(label, 0.0f, 0.0f, font, labelPaint);
                         }
                         {
-                            canvas->translate(0.0f, LABEL_SIZE);
+                            canvas->translate(0.0f, kLabelSize);
                             SkString label;
                             label.appendf("useTranslucentShader: %d", useTranslucentShader);
-                            canvas->drawString(label, 0.0f, 0.0f, labelPaint);
+                            canvas->drawString(label, 0.0f, 0.0f, font, labelPaint);
                         }
 
                         canvas->restore();
@@ -203,8 +211,8 @@ protected:
 
         // Rotation/scale test
         {
-            SkScalar xPos = (gridNum % GRID_COLUMN_NUM) * GRID_CELL_WIDTH;
-            SkScalar yPos = (gridNum / GRID_COLUMN_NUM) * GRID_CELL_WIDTH;
+            SkScalar xPos = (gridNum % kGridColumnNum) * kGridCellWidth;
+            SkScalar yPos = (gridNum / kGridColumnNum) * kGridCellWidth;
 
             canvas->save();
             canvas->translate(xPos, yPos);
@@ -216,8 +224,8 @@ protected:
 
         // Anisotropic scale test
         {
-            SkScalar xPos = (gridNum % GRID_COLUMN_NUM) * GRID_CELL_WIDTH;
-            SkScalar yPos = (gridNum / GRID_COLUMN_NUM) * GRID_CELL_WIDTH;
+            SkScalar xPos = (gridNum % kGridColumnNum) * kGridCellWidth;
+            SkScalar yPos = (gridNum / kGridColumnNum) * kGridCellWidth;
 
             canvas->save();
             canvas->translate(xPos, yPos);
@@ -229,8 +237,8 @@ protected:
 
         // No directional lights test
         {
-            SkScalar xPos = (gridNum % GRID_COLUMN_NUM) * GRID_CELL_WIDTH;
-            SkScalar yPos = (gridNum / GRID_COLUMN_NUM) * GRID_CELL_WIDTH;
+            SkScalar xPos = (gridNum % kGridColumnNum) * kGridCellWidth;
+            SkScalar yPos = (gridNum / kGridColumnNum) * kGridCellWidth;
 
             canvas->save();
             canvas->translate(xPos, yPos);
@@ -242,8 +250,8 @@ protected:
 
         // Two directional lights test
         {
-            SkScalar xPos = (gridNum % GRID_COLUMN_NUM) * GRID_CELL_WIDTH;
-            SkScalar yPos = (gridNum / GRID_COLUMN_NUM) * GRID_CELL_WIDTH;
+            SkScalar xPos = (gridNum % kGridColumnNum) * kGridCellWidth;
+            SkScalar yPos = (gridNum / kGridColumnNum) * kGridCellWidth;
 
             canvas->save();
             canvas->translate(xPos, yPos);
@@ -256,12 +264,16 @@ protected:
 
 private:
     static constexpr int kTexSize = 96;
+    static constexpr int kNumBooleanParams = 4;
+    static constexpr SkScalar kLabelSize = 10.0f;
+    static constexpr int kGridColumnNum = 4;
+    static constexpr SkScalar kGridCellWidth = kTexSize + 20.0f + kNumBooleanParams * kLabelSize;
 
     sk_sp<SkShader> fOpaqueDiffuse;
     sk_sp<SkShader> fTranslucentDiffuse;
     sk_sp<SkShader> fNormalMapShader;
 
-    SkRect fRect;
+    const SkRect    fRect;
     sk_sp<SkLights> fLights;
     sk_sp<SkLights> fLightsNoDir;
     sk_sp<SkLights> fLightsTwoDir;

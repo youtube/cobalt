@@ -8,8 +8,8 @@
 #ifndef SKSL_LAYOUT
 #define SKSL_LAYOUT
 
-#include "SkSLString.h"
-#include "SkSLUtil.h"
+#include "src/sksl/SkSLString.h"
+#include "src/sksl/SkSLUtil.h"
 
 namespace SkSL {
 
@@ -19,6 +19,29 @@ namespace SkSL {
  * layout (location = 0) int x;
  */
 struct Layout {
+    enum Flag {
+        kOriginUpperLeft_Flag            = 1 <<  0,
+        kOverrideCoverage_Flag           = 1 <<  1,
+        kPushConstant_Flag               = 1 <<  2,
+        kBlendSupportAllEquations_Flag   = 1 <<  3,
+        kBlendSupportMultiply_Flag       = 1 <<  4,
+        kBlendSupportScreen_Flag         = 1 <<  5,
+        kBlendSupportOverlay_Flag        = 1 <<  6,
+        kBlendSupportDarken_Flag         = 1 <<  7,
+        kBlendSupportLighten_Flag        = 1 <<  8,
+        kBlendSupportColorDodge_Flag     = 1 <<  9,
+        kBlendSupportColorBurn_Flag      = 1 << 10,
+        kBlendSupportHardLight_Flag      = 1 << 11,
+        kBlendSupportSoftLight_Flag      = 1 << 12,
+        kBlendSupportDifference_Flag     = 1 << 13,
+        kBlendSupportExclusion_Flag      = 1 << 14,
+        kBlendSupportHSLHue_Flag         = 1 << 15,
+        kBlendSupportHSLSaturation_Flag  = 1 << 16,
+        kBlendSupportHSLColor_Flag       = 1 << 17,
+        kBlendSupportHSLLuminosity_Flag  = 1 << 18,
+        kTracked_Flag                    = 1 << 19
+    };
+
     enum Primitive {
         kUnspecified_Primitive = -1,
         kPoints_Primitive,
@@ -37,10 +60,12 @@ struct Layout {
         kR32F,
         kRGBA16F,
         kR16F,
+        kLUMINANCE16F,
         kRGBA8,
         kR8,
         kRGBA8I,
         kR8I,
+        kRG16F,
     };
 
     // used by SkSL processors
@@ -53,6 +78,24 @@ struct Layout {
         kIdentity_Key,
     };
 
+    enum class CType {
+        kDefault,
+        kBool,
+        kFloat,
+        kInt32,
+        kSkRect,
+        kSkIRect,
+        kSkPMColor4f,
+        kSkPMColor,
+        kSkVector4,
+        kSkPoint,
+        kSkIPoint,
+        kSkMatrix,
+        kSkMatrix44,
+        kGrTextureProxy,
+        kGrFragmentProcessor,
+    };
+
     static const char* FormatToStr(Format format) {
         switch (format) {
             case Format::kUnspecified:  return "";
@@ -60,10 +103,12 @@ struct Layout {
             case Format::kR32F:         return "r32f";
             case Format::kRGBA16F:      return "rgba16f";
             case Format::kR16F:         return "r16f";
+            case Format::kLUMINANCE16F: return "lum16f";
             case Format::kRGBA8:        return "rgba8";
             case Format::kR8:           return "r8";
             case Format::kRGBA8I:       return "rgba8i";
             case Format::kR8I:          return "r8i";
+            case Format::kRG16F:        return "rg16f";
         }
         ABORT("Unexpected format");
     }
@@ -81,6 +126,9 @@ struct Layout {
         } else if (str == "r16f") {
             *format = Format::kR16F;
             return true;
+        } else if (str == "lum16f") {
+            *format = Format::kLUMINANCE16F;
+            return true;
         } else if (str == "rgba8") {
             *format = Format::kRGBA8;
             return true;
@@ -93,49 +141,83 @@ struct Layout {
         } else if (str == "r8i") {
             *format = Format::kR8I;
             return true;
+        } else if (str == "rg16f") {
+            *format = Format::kRG16F;
+            return true;
         }
         return false;
     }
 
-    Layout(int location, int offset, int binding, int index, int set, int builtin,
-           int inputAttachmentIndex, bool originUpperLeft, bool overrideCoverage,
-           bool blendSupportAllEquations, Format format, bool pushconstant, Primitive primitive,
-           int maxVertices, int invocations, String when, Key key)
-    : fLocation(location)
+    static const char* CTypeToStr(CType ctype) {
+        switch (ctype) {
+            case CType::kDefault:
+                return nullptr;
+            case CType::kFloat:
+                return "float";
+            case CType::kInt32:
+                return "int32_t";
+            case CType::kSkRect:
+                return "SkRect";
+            case CType::kSkIRect:
+                return "SkIRect";
+            case CType::kSkPMColor4f:
+                return "SkPMColor4f";
+            case CType::kSkPMColor:
+                return "SkPMColor";
+            case CType::kSkVector4:
+                return "SkVector4";
+            case CType::kSkPoint:
+                return "SkPoint";
+            case CType::kSkIPoint:
+                return "SkIPoint";
+            case CType::kSkMatrix:
+                return "SkMatrix";
+            case CType::kSkMatrix44:
+                return "SkMatrix44";
+            case CType::kGrTextureProxy:
+                return "sk_sp<GrTextureProxy>";
+            case CType::kGrFragmentProcessor:
+                return "std::unique_ptr<GrFragmentProcessor>";
+            default:
+                SkASSERT(false);
+                return nullptr;
+        }
+    }
+
+    Layout(int flags, int location, int offset, int binding, int index, int set, int builtin,
+           int inputAttachmentIndex, Format format, Primitive primitive, int maxVertices,
+           int invocations, StringFragment when, Key key, CType ctype)
+    : fFlags(flags)
+    , fLocation(location)
     , fOffset(offset)
     , fBinding(binding)
     , fIndex(index)
     , fSet(set)
     , fBuiltin(builtin)
     , fInputAttachmentIndex(inputAttachmentIndex)
-    , fOriginUpperLeft(originUpperLeft)
-    , fOverrideCoverage(overrideCoverage)
-    , fBlendSupportAllEquations(blendSupportAllEquations)
     , fFormat(format)
-    , fPushConstant(pushconstant)
     , fPrimitive(primitive)
     , fMaxVertices(maxVertices)
     , fInvocations(invocations)
     , fWhen(when)
-    , fKey(key) {}
+    , fKey(key)
+    , fCType(ctype) {}
 
     Layout()
-    : fLocation(-1)
+    : fFlags(0)
+    , fLocation(-1)
     , fOffset(-1)
     , fBinding(-1)
     , fIndex(-1)
     , fSet(-1)
     , fBuiltin(-1)
     , fInputAttachmentIndex(-1)
-    , fOriginUpperLeft(false)
-    , fOverrideCoverage(false)
-    , fBlendSupportAllEquations(false)
     , fFormat(Format::kUnspecified)
-    , fPushConstant(false)
     , fPrimitive(kUnspecified_Primitive)
     , fMaxVertices(-1)
     , fInvocations(-1)
-    , fKey(kNo_Key) {}
+    , fKey(kNo_Key)
+    , fCType(CType::kDefault) {}
 
     String description() const {
         String result;
@@ -166,26 +248,93 @@ struct Layout {
         }
         if (fInputAttachmentIndex >= 0) {
             result += separator + "input_attachment_index = " + to_string(fInputAttachmentIndex);
-            separator = ", ";
-        }
-        if (fOriginUpperLeft) {
-            result += separator + "origin_upper_left";
-            separator = ", ";
-        }
-        if (fOverrideCoverage) {
-            result += separator + "override_coverage";
-            separator = ", ";
-        }
-        if (fBlendSupportAllEquations) {
-            result += separator + "blend_support_all_equations";
+<<<<<<< HEAD
+=======
             separator = ", ";
         }
         if (Format::kUnspecified != fFormat) {
             result += separator + FormatToStr(fFormat);
+>>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
             separator = ", ";
         }
-        if (fPushConstant) {
+        if (fFlags & kOriginUpperLeft_Flag) {
+            result += separator + "origin_upper_left";
+            separator = ", ";
+        }
+        if (fFlags & kOverrideCoverage_Flag) {
+            result += separator + "override_coverage";
+            separator = ", ";
+        }
+        if (fFlags & kBlendSupportAllEquations_Flag) {
+            result += separator + "blend_support_all_equations";
+            separator = ", ";
+        }
+        if (fFlags & kBlendSupportMultiply_Flag) {
+            result += separator + "blend_support_multiply";
+            separator = ", ";
+        }
+        if (fFlags & kBlendSupportScreen_Flag) {
+            result += separator + "blend_support_screen";
+            separator = ", ";
+        }
+        if (fFlags & kBlendSupportOverlay_Flag) {
+            result += separator + "blend_support_overlay";
+            separator = ", ";
+        }
+        if (fFlags & kBlendSupportDarken_Flag) {
+            result += separator + "blend_support_darken";
+            separator = ", ";
+        }
+        if (fFlags & kBlendSupportLighten_Flag) {
+            result += separator + "blend_support_lighten";
+            separator = ", ";
+        }
+        if (fFlags & kBlendSupportColorDodge_Flag) {
+            result += separator + "blend_support_colordodge";
+            separator = ", ";
+        }
+        if (fFlags & kBlendSupportColorBurn_Flag) {
+            result += separator + "blend_support_colorburn";
+            separator = ", ";
+        }
+        if (fFlags & kBlendSupportHardLight_Flag) {
+            result += separator + "blend_support_hardlight";
+            separator = ", ";
+        }
+        if (fFlags & kBlendSupportSoftLight_Flag) {
+            result += separator + "blend_support_softlight";
+            separator = ", ";
+        }
+        if (fFlags & kBlendSupportDifference_Flag) {
+            result += separator + "blend_support_difference";
+            separator = ", ";
+        }
+        if (fFlags & kBlendSupportExclusion_Flag) {
+            result += separator + "blend_support_exclusion";
+            separator = ", ";
+        }
+        if (fFlags & kBlendSupportHSLHue_Flag) {
+            result += separator + "blend_support_hsl_hue";
+            separator = ", ";
+        }
+        if (fFlags & kBlendSupportHSLSaturation_Flag) {
+            result += separator + "blend_support_hsl_saturation";
+            separator = ", ";
+        }
+        if (fFlags & kBlendSupportHSLColor_Flag) {
+            result += separator + "blend_support_hsl_color";
+            separator = ", ";
+        }
+        if (fFlags & kBlendSupportHSLLuminosity_Flag) {
+            result += separator + "blend_support_hsl_luminosity";
+            separator = ", ";
+        }
+        if (fFlags & kPushConstant_Flag) {
             result += separator + "push_constant";
+            separator = ", ";
+        }
+        if (fFlags & kTracked_Flag) {
+            result += separator + "tracked";
             separator = ", ";
         }
         switch (fPrimitive) {
@@ -228,49 +377,39 @@ struct Layout {
             result += separator + "invocations = " + to_string(fInvocations);
             separator = ", ";
         }
-        if (fWhen.size()) {
+        if (fWhen.fLength) {
             result += separator + "when = " + fWhen;
             separator = ", ";
         }
-        switch (fKey) {
-            case kNo_Key:
-                break;
-            case kKey_Key:
-                result += separator + "key";
-                separator = ", ";
-                break;
-            case kIdentity_Key:
-                result += separator + "key=identity";
-                separator = ", ";
-                break;
-        }
         if (result.size() > 0) {
             result = "layout (" + result + ")";
+        }
+        if (fKey) {
+            result += "/* key */";
         }
         return result;
     }
 
     bool operator==(const Layout& other) const {
-        return fLocation                 == other.fLocation &&
-               fOffset                   == other.fOffset &&
-               fBinding                  == other.fBinding &&
-               fIndex                    == other.fIndex &&
-               fSet                      == other.fSet &&
-               fBuiltin                  == other.fBuiltin &&
-               fInputAttachmentIndex     == other.fInputAttachmentIndex &&
-               fOriginUpperLeft          == other.fOriginUpperLeft &&
-               fOverrideCoverage         == other.fOverrideCoverage &&
-               fBlendSupportAllEquations == other.fBlendSupportAllEquations &&
-               fFormat                   == other.fFormat &&
-               fPrimitive                == other.fPrimitive &&
-               fMaxVertices              == other.fMaxVertices &&
-               fInvocations              == other.fInvocations;
+        return fFlags                == other.fFlags &&
+               fLocation             == other.fLocation &&
+               fOffset               == other.fOffset &&
+               fBinding              == other.fBinding &&
+               fIndex                == other.fIndex &&
+               fSet                  == other.fSet &&
+               fBuiltin              == other.fBuiltin &&
+               fInputAttachmentIndex == other.fInputAttachmentIndex &&
+               fFormat               == other.fFormat &&
+               fPrimitive            == other.fPrimitive &&
+               fMaxVertices          == other.fMaxVertices &&
+               fInvocations          == other.fInvocations;
     }
 
     bool operator!=(const Layout& other) const {
         return !(*this == other);
     }
 
+    int fFlags;
     int fLocation;
     int fOffset;
     int fBinding;
@@ -282,16 +421,13 @@ struct Layout {
     // input_attachment_index comes from Vulkan/SPIR-V to connect a shader variable to the a
     // corresponding attachment on the subpass in which the shader is being used.
     int fInputAttachmentIndex;
-    bool fOriginUpperLeft;
-    bool fOverrideCoverage;
-    bool fBlendSupportAllEquations;
     Format fFormat;
-    bool fPushConstant;
     Primitive fPrimitive;
     int fMaxVertices;
     int fInvocations;
-    String fWhen;
+    StringFragment fWhen;
     Key fKey;
+    CType fCType;
 };
 
 } // namespace

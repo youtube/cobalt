@@ -5,14 +5,17 @@
  * found in the LICENSE file.
  */
 
-#include "Resources.h"
-#include "Test.h"
+#include "include/codec/SkCodec.h"
+#include "include/core/SkBitmap.h"
+#include "include/core/SkStream.h"
+#include "include/core/SkString.h"
+#include "include/core/SkTypes.h"
+#include "src/utils/SkOSPath.h"
+#include "tests/Test.h"
+#include "tools/Resources.h"
 
-#include "SkBitmap.h"
-#include "SkCodec.h"
-#include "SkOSFile.h"
-#include "SkOSPath.h"
-#include "SkStream.h"
+#include <memory>
+#include <utility>
 
 DEF_TEST(BadImage, reporter) {
     const char* const badImages [] = {
@@ -32,7 +35,7 @@ DEF_TEST(BadImage, reporter) {
     for (size_t i = 0; i < SK_ARRAY_COUNT(badImages); ++i) {
         SkString resourcePath = SkOSPath::Join(badImagesFolder, badImages[i]);
         std::unique_ptr<SkStream> stream(GetResourceAsStream(resourcePath.c_str()));
-        std::unique_ptr<SkCodec> codec(SkCodec::NewFromStream(stream.release()));
+        std::unique_ptr<SkCodec> codec(SkCodec::MakeFromStream(std::move(stream)));
 
         // These images are corrupt.  It's not important whether we succeed/fail in codec
         // creation or decoding.  We just want to make sure that we don't crash.
