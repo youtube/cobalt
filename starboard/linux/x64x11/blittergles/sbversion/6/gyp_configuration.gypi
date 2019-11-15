@@ -35,6 +35,6 @@
   },
 
   'includes': [
-    '<(DEPTH)/starboard/linux/x64x11/blittergles/gyp_configuration.gypi',
+    '<(DEPTH)/starboard/linux/x64x11/blittergles/shared/gyp_configuration.gypi',
   ],
 }
