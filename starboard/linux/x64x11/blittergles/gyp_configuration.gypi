@@ -16,6 +16,24 @@
 # though it may have been modified since its creation.
 
 {
+  'variables': {
+    # Set 'gl_type' to 'none' because we want Cobalt to think GLES is not
+    # supported on this build, even though we do in fact use GL within this
+    # Starboard implementation of the Blitter API.
+    'gl_type': 'none',
+
+    'cobalt_platform_dependencies!': [
+      # Since we pretend gl_type is none, exclude this dependency and below,
+      # explicitly include the one we need.
+      '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
+      '<(DEPTH)/starboard/stub/blitter_stub_sources.gypi:blitter_stub_sources',
+    ],
+
+    'cobalt_platform_dependencies': [
+      '<(DEPTH)/starboard/egl_and_gles/egl_and_gles_angle.gyp:egl_and_gles_implementation',
+    ],
+  },
+
   'target_defaults': {
     'default_configuration': 'linux-x64x11-blittergles_debug',
     'configurations': {
@@ -35,7 +53,8 @@
   },
 
   'includes': [
-    '<(DEPTH)/starboard/linux/x64x11/blittergles/shared/gyp_configuration.gypi',
-    '<(DEPTH)/starboard/sabi/sabi.gypi',
+    '../../shared/compiler_flags.gypi',
+    '../../shared/gyp_configuration.gypi',
+    '../../shared/libraries.gypi',
   ],
 }

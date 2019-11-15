@@ -22,8 +22,12 @@
 // API afterwards.
 #include "starboard/linux/x64x11/configuration_public.h"
 
-// Include the Blitter - GLES configuration that's common between all Blitter -
-// GLES configurations.
-#include "starboard/linux/x64x11/blittergles/shared/configuration_public.h"
+// This configuration supports the blitter API (implemented via GLES).
+#undef SB_HAS_BLITTER
+#define SB_HAS_BLITTER 1
+
+// Linux implementation of Blitter API does not support NV12 textures.
+#undef SB_HAS_NV12_TEXTURE_SUPPORT
+#define SB_HAS_NV12_TEXTURE_SUPPORT 0
 
 #endif  // STARBOARD_LINUX_X64X11_BLITTERGLES_CONFIGURATION_PUBLIC_H_
