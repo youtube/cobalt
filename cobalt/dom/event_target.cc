@@ -297,7 +297,8 @@ void EventTarget::AddEventListenerInternal(
   }
 
   debugger_hooks_->AsyncTaskScheduled(
-      listener_info->task(), listener_info->type().c_str(), true /*recurring*/);
+      listener_info->task(), listener_info->type().c_str(),
+      base::DebuggerHooks::AsyncTaskFrequency::kRecurring);
   event_listener_infos_.push_back(std::move(listener_info));
 }
 

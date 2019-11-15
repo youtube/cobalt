@@ -43,7 +43,9 @@ int WindowTimers::SetTimeout(const TimerCallbackArg& handler, int timeout) {
                             base::Unretained(this), handle));
     timers_[handle] = new TimerInfo(
         owner_, std::unique_ptr<base::internal::TimerBase>(timer), handler);
-    debugger_hooks_->AsyncTaskScheduled(timers_[handle], "SetTimeout");
+    debugger_hooks_->AsyncTaskScheduled(
+        timers_[handle], "SetTimeout",
+        base::DebuggerHooks::AsyncTaskFrequency::kOneshot);
   } else {
     timers_[handle] = nullptr;
   }
@@ -69,7 +71,9 @@ int WindowTimers::SetInterval(const TimerCallbackArg& handler, int timeout) {
                             base::Unretained(this), handle));
     timers_[handle] = new TimerInfo(
         owner_, std::unique_ptr<base::internal::TimerBase>(timer), handler);
-    debugger_hooks_->AsyncTaskScheduled(timers_[handle], "SetInterval");
+    debugger_hooks_->AsyncTaskScheduled(
+        timers_[handle], "SetInterval",
+        base::DebuggerHooks::AsyncTaskFrequency::kRecurring);
   } else {
     timers_[handle] = nullptr;
   }

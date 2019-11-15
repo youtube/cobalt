@@ -142,7 +142,9 @@ void MutationObserver::QueueMutationRecord(
   record_queue_.push_back(record);
   task_manager_->QueueMutationObserverMicrotask();
   MutationRecord* task = record.get();
-  debugger_hooks_->AsyncTaskScheduled(task, record->type().c_str());
+  debugger_hooks_->AsyncTaskScheduled(
+      task, record->type().c_str(),
+      base::DebuggerHooks::AsyncTaskFrequency::kOneshot);
 }
 
 bool MutationObserver::Notify() {

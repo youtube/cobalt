@@ -23,6 +23,13 @@ namespace base {
 // directly access the DebugModule.
 class DebuggerHooks {
  public:
+  // Indicates whether an asynchronous task will run at most once or if it might
+  // run multiple times.
+  enum class AsyncTaskFrequency {
+    kOneshot,
+    kRecurring,
+  };
+
   // Record the JavaScript stack on the WebModule thread at the point a task is
   // initiated that will run at a later time (on the same thread), allowing it
   // to be seen as the originator when breaking in the asynchronous task.
@@ -34,9 +41,11 @@ class DebuggerHooks {
   // |name| is a user-visible label shown in the debugger to identify what the
   // asynchronous stack trace is.
   //
-  // |recurring| is true if the task may be run more than once.
+  // |frequency| whether the task runs at most once or might run multiple times.
+  // If kOneshot then the task will be implicitly canceled after it is finished,
+  // and if kRecurring then it must be explicitly canceled.
   virtual void AsyncTaskScheduled(const void* task, const std::string& name,
-                                  bool recurring = false) const = 0;
+                                  AsyncTaskFrequency frequency) const = 0;
 
   // Inform the debugger that a scheduled task is starting to run.
   virtual void AsyncTaskStarted(const void* task) const = 0;
@@ -67,7 +76,7 @@ class ScopedAsyncTask {
 class NullDebuggerHooks : public DebuggerHooks {
  public:
   void AsyncTaskScheduled(const void* task, const std::string& name,
-                          bool recurring) const override {}
+                          AsyncTaskFrequency frequency) const override {}
   void AsyncTaskStarted(const void* task) const override {}
   void AsyncTaskFinished(const void* task) const override {}
   void AsyncTaskCanceled(const void* task) const override {}
