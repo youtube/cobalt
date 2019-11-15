@@ -8,17 +8,11 @@
 #ifndef SkStream_DEFINED
 #define SkStream_DEFINED
 
-<<<<<<< HEAD
-#include "SkData.h"
-#include "SkOSFile.h"  // Included for SkFile.
-#include "SkRefCnt.h"
-#include "SkScalar.h"
-=======
 #include "include/core/SkData.h"
 #include "include/core/SkRefCnt.h"
 #include "include/core/SkScalar.h"
 #include "include/private/SkTo.h"
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
+#include "src/core/SkOSFile.h"  // Included for SkFile.
 
 #include <memory.h>
 
@@ -353,14 +347,10 @@ private:
     explicit SkFILEStream(std::shared_ptr<SkFile>, size_t size, size_t offset);
     explicit SkFILEStream(std::shared_ptr<SkFile>, size_t size, size_t offset, size_t originalOffset);
 
-<<<<<<< HEAD
-    std::shared_ptr<SkFile> fFILE;
-=======
     SkStreamAsset* onDuplicate() const override;
     SkStreamAsset* onFork() const override;
 
-    std::shared_ptr<FILE> fFILE;
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
+    std::shared_ptr<SkFile> fFILE;
     // My own council will I keep on sizes and offsets.
     size_t fSize;
     size_t fOffset;

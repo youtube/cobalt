@@ -248,13 +248,10 @@ struct Layout {
         }
         if (fInputAttachmentIndex >= 0) {
             result += separator + "input_attachment_index = " + to_string(fInputAttachmentIndex);
-<<<<<<< HEAD
-=======
             separator = ", ";
         }
         if (Format::kUnspecified != fFormat) {
             result += separator + FormatToStr(fFormat);
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
             separator = ", ";
         }
         if (fFlags & kOriginUpperLeft_Flag) {

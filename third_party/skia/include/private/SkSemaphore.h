@@ -14,15 +14,10 @@
 
 class SkSemaphore {
 public:
-<<<<<<< HEAD
-    SkBaseSemaphore(int count = 0)
-        : fCount(count), fOSSemaphore(nullptr) {}
-=======
     constexpr SkSemaphore(int count = 0) : fCount(count), fOSSemaphore(nullptr) {}
 
     // Cleanup the underlying OS semaphore.
     ~SkSemaphore();
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
 
     // Increment the counter n times.
     // Generally it's better to call signal(n) instead of signal() n times.

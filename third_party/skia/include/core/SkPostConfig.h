@@ -188,54 +188,14 @@
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 
-<<<<<<< HEAD
-#if defined SK_DEBUG && defined SK_BUILD_FOR_WIN32 && !defined(COBALT_WIN)
-#  ifdef free
-#    undef free
-#  endif
-#  include <crtdbg.h>
-#  undef free
-#
-#  ifdef SK_DEBUGx
-#    if defined(SK_SIMULATE_FAILED_MALLOC) && defined(__cplusplus)
-       void * operator new(
-           size_t cb,
-           int nBlockUse,
-           const char * szFileName,
-           int nLine,
-           int foo
-           );
-       void * operator new[](
-           size_t cb,
-           int nBlockUse,
-           const char * szFileName,
-           int nLine,
-           int foo
-           );
-       void operator delete(
-           void *pUserData,
-           int, const char*, int, int
-           );
-       void operator delete(
-           void *pUserData
-           );
-       void operator delete[]( void * p );
-#      define DEBUG_CLIENTBLOCK   new( _CLIENT_BLOCK, __FILE__, __LINE__, 0)
-#    else
-#      define DEBUG_CLIENTBLOCK   new( _CLIENT_BLOCK, __FILE__, __LINE__)
-#    endif
-#    define new DEBUG_CLIENTBLOCK
-#  else
-#    define DEBUG_CLIENTBLOCK
-#  endif
-=======
+#if !defined(STARBOARD)
 #if defined SK_DEBUG && defined SK_BUILD_FOR_WIN
     #ifdef free
         #undef free
     #endif
     #include <crtdbg.h>
     #undef free
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
+#endif
 #endif
 
 //////////////////////////////////////////////////////////////////////

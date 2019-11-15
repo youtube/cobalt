@@ -41,30 +41,17 @@ struct GrGlyph {
         }
     }
 
-<<<<<<< HEAD
-    int width() const { return fBounds.width(); }
-    int height() const { return fBounds.height(); }
-    bool isEmpty() const { return fBounds.isEmpty(); }
-    uint16_t glyphID() const { return UnpackID(fPackedID); }
-
-    ///////////////////////////////////////////////////////////////////////////
+    static MaskStyle MaskStyleFromSkGlyph(const SkGlyph& skGlyph) {
+        return skGlyph.maskFormat() == SkMask::kSDF_Format
+           ? GrGlyph::MaskStyle::kDistance_MaskStyle
+           : GrGlyph::MaskStyle::kCoverage_MaskStyle;
+	}
 
     static inline bool Fits(const SkIRect& bounds) {
         return SkTFitsIn<int16_t>(bounds.fLeft) &&
                SkTFitsIn<int16_t>(bounds.fTop) &&
                SkTFitsIn<int16_t>(bounds.fRight) &&
                SkTFitsIn<int16_t>(bounds.fBottom);
-    }
-
-    static inline unsigned ExtractSubPixelBitsFromFixed(SkFixed pos) {
-        // two most significant fraction bits from fixed-point
-        return (pos >> 14) & 3;
-=======
-    static MaskStyle MaskStyleFromSkGlyph(const SkGlyph& skGlyph) {
-        return skGlyph.maskFormat() == SkMask::kSDF_Format
-           ? GrGlyph::MaskStyle::kDistance_MaskStyle
-           : GrGlyph::MaskStyle::kCoverage_MaskStyle;
->>>>>>> acc9e0a2d6f04288dc1f1596570ce7306a790ced
     }
 
     GrGlyph(const SkGlyph& skGlyph)
