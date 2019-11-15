@@ -14,8 +14,7 @@
 
 {
   'includes': [
-    '<(DEPTH)/starboard/linux/shared/gyp_configuration.gypi',
-    '<(DEPTH)/starboard/linux/shared/libraries.gypi',
-    '<(DEPTH)/starboard/sabi/sabi.gypi',
+    '../../shared/gyp_configuration.gypi',
+    '../../shared/libraries.gypi',
   ],
 }
