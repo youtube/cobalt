@@ -39,7 +39,7 @@
 namespace {
 
 // The SHA256 hash of the "cobalt_evergreen_public" key.
-constexpr uint8_t kDeveloperPublicKeyHash[] = {
+constexpr uint8_t kCobaltPublicKeyHash[] = {
   0xfd, 0x81, 0xea, 0x59, 0xa2, 0xa3, 0x88, 0xf6,
   0xf2, 0x20, 0x21, 0xaa, 0x90, 0xda, 0x5a, 0x8e,
   0x51, 0xdf, 0x80, 0x6e, 0x0a, 0x0a, 0x24, 0x45,
@@ -156,11 +156,11 @@ int UpdaterMain(int argc, const char* const* argv) {
             component.name = "cobalt_test";
             component.app_id = ids[0];
             component.version = base::Version("1.0.0.0");
-            component.pk_hash.assign(std::begin(kDeveloperPublicKeyHash),
-                                     std::end(kDeveloperPublicKeyHash));
+            component.pk_hash.assign(std::begin(kCobaltPublicKeyHash),
+                                     std::end(kCobaltPublicKeyHash));
             component.requires_network_encryption = false;
             component.crx_format_requirement =
-                crx_file::VerifierFormat::CRX3_WITH_PUBLISHER_PROOF;
+                crx_file::VerifierFormat::CRX3;
             return {component};
           }),
       false,
