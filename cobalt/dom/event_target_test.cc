@@ -44,6 +44,8 @@ using ::testing::Property;
 using ::testing::SaveArg;
 using ::testing::StrictMock;
 
+constexpr auto kRecurring = base::DebuggerHooks::AsyncTaskFrequency::kRecurring;
+
 class EventTargetTest : public ::testing::Test {
  protected:
   EventTargetTest()
@@ -85,7 +87,7 @@ TEST_F(EventTargetTest, SingleEventListenerFired) {
       MockEventListener::Create();
 
   const void* async_task;
-  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", kRecurring))
       .WillOnce(SaveArg<0>(&async_task));
   event_target->AddEventListener(
       "fired", FakeScriptValue<EventListener>(event_listener.get()), false);
@@ -104,7 +106,7 @@ TEST_F(EventTargetTest, SingleEventListenerNotFired) {
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
 
-  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "notfired", true));
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "notfired", kRecurring));
   event_target->AddEventListener(
       "notfired", FakeScriptValue<EventListener>(event_listener.get()), false);
 
@@ -131,11 +133,11 @@ TEST_F(EventTargetTest, MultipleEventListeners) {
   const void* async_task_1;
   const void* async_task_2;
   const void* async_task_not_fired;
-  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", kRecurring))
       .WillOnce(SaveArg<0>(&async_task_1));
-  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "notfired", true))
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "notfired", kRecurring))
       .WillOnce(SaveArg<0>(&async_task_not_fired));
-  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", kRecurring))
       .WillOnce(SaveArg<0>(&async_task_2));
 
   event_target->AddEventListener(
@@ -171,7 +173,7 @@ TEST_F(EventTargetTest, AddRemoveEventListener) {
       MockEventListener::Create();
 
   const void* async_task_1;
-  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", kRecurring))
       .WillOnce(SaveArg<0>(&async_task_1));
   event_target->AddEventListener(
       "fired", FakeScriptValue<EventListener>(event_listener.get()), false);
@@ -187,7 +189,7 @@ TEST_F(EventTargetTest, AddRemoveEventListener) {
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 
   const void* async_task_2;
-  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", kRecurring))
       .WillOnce(SaveArg<0>(&async_task_2));
   event_target->AddEventListener(
       "fired", FakeScriptValue<EventListener>(event_listener.get()), false);
@@ -211,14 +213,14 @@ TEST_F(EventTargetTest, AttributeListener) {
       MockEventListener::Create();
 
   const void* non_attribute_async_task;
-  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", kRecurring))
       .WillOnce(SaveArg<0>(&non_attribute_async_task));
   event_target->AddEventListener(
       "fired",
       FakeScriptValue<EventListener>(non_attribute_event_listener.get()),
       false);
   const void* async_task_1;
-  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", kRecurring))
       .WillOnce(SaveArg<0>(&async_task_1));
   event_target->SetAttributeEventListener(
       base::Token("fired"),
@@ -233,7 +235,7 @@ TEST_F(EventTargetTest, AttributeListener) {
 
   const void* async_task_2;
   EXPECT_CALL(debugger_hooks_, AsyncTaskCanceled(async_task_1));
-  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", kRecurring))
       .WillOnce(SaveArg<0>(&async_task_2));
   event_target->SetAttributeEventListener(
       base::Token("fired"),
@@ -269,12 +271,12 @@ TEST_F(EventTargetTest, EventListenerReuse) {
       MockEventListener::Create();
 
   const void* async_task_1;
-  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired_1", true))
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired_1", kRecurring))
       .WillOnce(SaveArg<0>(&async_task_1));
   event_target->AddEventListener(
       "fired_1", FakeScriptValue<EventListener>(event_listener.get()), false);
   const void* async_task_2;
-  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired_2", true))
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired_2", kRecurring))
       .WillOnce(SaveArg<0>(&async_task_2));
   event_target->AddEventListener(
       "fired_2", FakeScriptValue<EventListener>(event_listener.get()), false);
@@ -327,9 +329,9 @@ TEST_F(EventTargetTest, StopPropagation) {
 
   const void* async_task_1;
   const void* async_task_2;
-  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", kRecurring))
       .WillOnce(SaveArg<0>(&async_task_1));
-  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", kRecurring))
       .WillOnce(SaveArg<0>(&async_task_2));
   event_target->AddEventListener(
       "fired", FakeScriptValue<EventListener>(event_listenerfired_1.get()),
@@ -359,13 +361,13 @@ TEST_F(EventTargetTest, StopImmediatePropagation) {
       MockEventListener::Create();
 
   const void* async_task_1;
-  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", kRecurring))
       .WillOnce(SaveArg<0>(&async_task_1));
   event_target->AddEventListener(
       "fired", FakeScriptValue<EventListener>(event_listenerfired_1.get()),
       false);
   const void* async_task_2;
-  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", kRecurring))
       .WillOnce(SaveArg<0>(&async_task_2));
   event_target->AddEventListener(
       "fired", FakeScriptValue<EventListener>(event_listenerfired_2.get()),
@@ -388,7 +390,7 @@ TEST_F(EventTargetTest, PreventDefault) {
       MockEventListener::Create();
 
   const void* async_task;
-  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", kRecurring))
       .WillOnce(SaveArg<0>(&async_task));
   event_target->AddEventListener(
       "fired", FakeScriptValue<EventListener>(event_listenerfired.get()),
@@ -439,7 +441,7 @@ TEST_F(EventTargetTest, RaiseException) {
   exception = NULL;
 
   const void* async_task;
-  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", kRecurring))
       .WillOnce(SaveArg<0>(&async_task));
   event_target->AddEventListener(
       "fired", FakeScriptValue<EventListener>(event_listener.get()), false);
@@ -466,7 +468,7 @@ TEST_F(EventTargetTest, AddSameListenerMultipleTimes) {
 
   // The same listener should only get added once.
   const void* async_task;
-  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", kRecurring))
       .WillOnce(SaveArg<0>(&async_task));
   event_target->AddEventListener("fired", script_object, false);
   event_target->AddEventListener("fired", script_object, false);
@@ -491,19 +493,19 @@ TEST_F(EventTargetTest, AddSameAttributeListenerMultipleTimes) {
 
   // The same listener should only get added once.
   const void* async_task_1;
-  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", kRecurring))
       .WillOnce(SaveArg<0>(&async_task_1));
   event_target->SetAttributeEventListener(base::Token("fired"), script_object);
 
   const void* async_task_2;
   EXPECT_CALL(debugger_hooks_, AsyncTaskCanceled(async_task_1));
-  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", kRecurring))
       .WillOnce(SaveArg<0>(&async_task_2));
   event_target->SetAttributeEventListener(base::Token("fired"), script_object);
 
   const void* async_task_3;
   EXPECT_CALL(debugger_hooks_, AsyncTaskCanceled(async_task_2));
-  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", kRecurring))
       .WillOnce(SaveArg<0>(&async_task_3));
   event_target->SetAttributeEventListener(base::Token("fired"), script_object);
 
@@ -527,12 +529,12 @@ TEST_F(EventTargetTest, SameEventListenerAsAttribute) {
   // The same script object can be registered as both an attribute and
   // non-attribute listener. Both should be fired.
   const void* async_task_1;
-  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", kRecurring))
       .WillOnce(SaveArg<0>(&async_task_1));
   event_target->AddEventListener("fired", script_object, false);
 
   const void* async_task_2;
-  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", true))
+  EXPECT_CALL(debugger_hooks_, AsyncTaskScheduled(_, "fired", kRecurring))
       .WillOnce(SaveArg<0>(&async_task_2));
   event_target->SetAttributeEventListener(base::Token("fired"), script_object);
 

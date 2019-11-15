@@ -27,7 +27,7 @@ class MockDebuggerHooks : public base::DebuggerHooks {
  public:
   MOCK_CONST_METHOD3(AsyncTaskScheduled,
                      void(const void* task, const std::string& name,
-                          bool recurring));
+                          AsyncTaskFrequency frequency));
   MOCK_CONST_METHOD1(AsyncTaskStarted, void(const void* task));
   MOCK_CONST_METHOD1(AsyncTaskFinished, void(const void* task));
   MOCK_CONST_METHOD1(AsyncTaskCanceled, void(const void* task));

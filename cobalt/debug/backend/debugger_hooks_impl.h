@@ -32,7 +32,7 @@ class DebugModule;
 class DebuggerHooksImpl : public base::DebuggerHooks {
  public:
   void AsyncTaskScheduled(const void* task, const std::string& name,
-                          bool recurring) const override;
+                          AsyncTaskFrequency frequency) const override;
   void AsyncTaskStarted(const void* task) const override;
   void AsyncTaskFinished(const void* task) const override;
   void AsyncTaskCanceled(const void* task) const override;
