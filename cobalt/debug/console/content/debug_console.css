@@ -122,3 +122,30 @@ body {
   border-style: solid;
   padding: 0.625em;
 }
+
+#mediaConsoleFrame {
+  position: absolute;
+  top: 85%;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  width: 100%;
+  background-color: rgba(128, 128, 128, 0.6);
+  color: #FFFFFF;
+  display: none;
+}
+
+#mediaConsole {
+  position: absolute;
+  top: 0.625em;
+  left: 0.625em;
+  bottom: 0.625em;
+  right: 0.625em;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: #FFFFFF;
+  border: 0.0625em;
+  border-color: #606060;
+  border-style: solid;
+  padding: 0.625em;
+  white-space: pre;
+}
