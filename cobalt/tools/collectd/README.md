@@ -28,10 +28,6 @@ remote target like Pi, however this is useful if the rest of the `collectd`
 data streams are sent to a host in a [networked configuration](https://collectd.org/wiki/index.php/Networking_introduction)
 and not detailed here.
 
-Cobalt DevTools service currently does not listen on localhost or 127.0.0.1
-address, so you'll need to manually edit cobalt.conf with your local machine
-network adapter IP address, or to target IP address.
-
 **Note**: The script also enables RRD and CSV data outputs, RRD is required
 for CGP to display the data and CSV is useful for post-processing.
 

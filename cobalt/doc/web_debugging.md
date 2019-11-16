@@ -39,10 +39,9 @@ Click through to the only inspectable page shown on the start page.
 > If you have trouble connecting:
 > * Ensure you have an IP route from your desktop to the target device that
 >   allows traffic on the debugging port (default 9222).
-> * If both IPv4 andIPv6 networks are available, the debug server will prefer to
->   bind to the IPv4 network interface.
-> * If you are running Cobalt locally on your desktop, then use your actual IP
->   address (not localhost nor 127.0.0.1).
+> * If you are running Cobalt locally on your desktop, then use
+>   http://localhost:9222 since the Linux build only listens to the loopback
+>   network interface by default.
 
 If you're not sure what IP address to use, look in the terminal log output for a
 message telling you the URL of Cobalt's DevTools (which you may be able to open
@@ -174,3 +173,6 @@ Chrome docs:
 
 *   You can use the `--remote_debugging_port` command line switch to specify a
     remote debugging port other than the default 9222.
+
+*   You can use the `--dev_servers_listen_ip` command line switch to change
+    which network interface the remote debugging server is listening to.
