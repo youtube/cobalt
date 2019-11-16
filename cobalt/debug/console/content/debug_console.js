@@ -29,6 +29,11 @@ var d = null;
 var debuggerClient = null;
 // Number of animation frame samples since the last update.
 var animationFrameSamples = 0;
+// A list of all the possible interactive consoles.
+// Each item contains the name and the reference to the actual console.
+var consoleRegistry = null;
+// Index of the currently displayed console.
+var activeConsoleIdx = 0;
 
 // Map of 'Unidentified' additional Cobalt keyCodes to equivalent keys.
 var unidentifiedCobaltKeyMap = {
@@ -91,7 +96,10 @@ function createDebuggerClient() {
   debuggerClient = new DebuggerClient();
 }
 
-function showBlockElem(elem, doShow) {
+function showBlockElem(frame, doShow) {
+  // TODO: Refactor this into a class or attirbute on the body to indicate the
+  // mode and control the visibility of the frames in the CSS rules.
+  var elem = document.getElementById(frame);
   if (elem) {
     var display = doShow ? 'block' : 'none';
     if (elem.style.display != display) {
@@ -100,22 +108,8 @@ function showBlockElem(elem, doShow) {
   }
 }
 
-function showConsole(doShow) {
-  showBlockElem(document.getElementById('consoleFrame'), doShow);
-  messageLog.setVisible(doShow);
-}
-
-function isConsoleVisible() {
-  var mode = window.debugHub.getDebugConsoleMode();
-  return mode >= window.debugHub.DEBUG_CONSOLE_ON;
-}
-
 function printToMessageLog(severity, message) {
   messageLog.addMessage(severity, message);
-}
-
-function showHud(doShow) {
-  showBlockElem(document.getElementById('hudFrame'), doShow);
 }
 
 function printToHud(message) {
@@ -132,10 +126,31 @@ function updateHud(time) {
   }
 }
 
-function updateMode() {
+function setVisible(isVisible) {
+  const debugConsoleFrames = ['hudFrame' , 'consoleFrame'];
+  debugConsoleFrames.forEach( frame => showBlockElem(frame, isVisible) );
+  messageLog.setVisible(isVisible);
+}
+
+function updateMode(doShow) {
   var mode = window.debugHub.getDebugConsoleMode();
-  showConsole(mode >= window.debugHub.DEBUG_CONSOLE_ON);
-  showHud(mode >= window.debugHub.DEBUG_CONSOLE_HUD);
+  var activeConsole = getActiveConsole();
+  consoleRegistry.forEach(entry => {
+    var shouldBeVisible = doShow && entry.console == activeConsole &&
+        mode == window.debugHub.DEBUG_CONSOLE_ON;
+    entry.console.setVisible(shouldBeVisible);
+  });
+  // HUD is turned off when the debug-console is hidden. We must manually turn
+  // it back on when the mode is DEBUG_CONSOLE_HUD.
+  if(mode == window.debugHub.DEBUG_CONSOLE_HUD) {
+    showBlockElem('hudFrame', doShow);
+  }
+}
+
+function update() {
+  commandInput.animateBlink();
+  // This will do nothing if debugger is already attached.
+  debuggerClient.attach();
 }
 
 // Animation callback: updates state and animated nodes.
@@ -143,13 +158,9 @@ function animate(time) {
   var subsample = 8;
   animationFrameSamples = (animationFrameSamples + 1) % subsample;
   if (animationFrameSamples == 0) {
-    updateMode();
+    updateMode(true);
     updateHud(time);
-    if (isConsoleVisible()) {
-      commandInput.animateBlink();
-      // This will do nothing if debugger is already attached.
-      debuggerClient.attach();
-    }
+    getActiveConsole().update();
   }
   window.requestAnimationFrame(animate);
 }
@@ -198,7 +209,8 @@ function executeDebug(command) {
 // Use the debugger evaluate command, which gives us Command Line API access
 // and rich results with object preview.
 function executeMain(command) {
-  debuggerClient.evaluate(command);
+  var callback = this.printToLogCallback.bind(this);
+  debuggerClient.evaluate(command, callback);
 }
 
 // Executes a command entered by the user.
@@ -239,9 +251,6 @@ function onWheel(event) {
 
 function onKeydown(event) {
   var key = event.key;
-  if (key == 'Unidentified') {
-    key = unidentifiedCobaltKeyMap[event.keyCode] || 'Unidentified';
-  }
 
   if (key == 'ArrowLeft') {
     commandInput.moveCursor(-1);
@@ -279,15 +288,12 @@ function onKeydown(event) {
 function onKeyup(event) {}
 
 function onKeypress(event) {
-  var mode = window.debugHub.getDebugConsoleMode();
-  if (mode >= window.debugHub.DEBUG_CONSOLE_ON) {
-    event.preventDefault();
-    event.stopPropagation();
-    var c = event.charCode;
-    // If we have a printable character, insert it; otherwise ignore.
-    if (c >= 0x20 && c <= 0x7e) {
-      commandInput.insertStringBehindCursor(String.fromCharCode(c));
-    }
+  event.preventDefault();
+  event.stopPropagation();
+  var c = event.charCode;
+  // If we have a printable character, insert it; otherwise ignore.
+  if (c >= 0x20 && c <= 0x7e) {
+    commandInput.insertStringBehindCursor(String.fromCharCode(c));
   }
 }
 
@@ -301,18 +307,134 @@ function onInput(event) {
   }
 }
 
-function start() {
+function createInteractiveConsole() {
+  // TODO: Refactor so that this method is not necessary and an actual class is
+  // constructed rather than a shim object.
+  var interactiveConsole = {
+    update: this.update.bind(this),
+    setVisible: this.setVisible.bind(this),
+    onKeydown: this.onKeydown.bind(this),
+    onKeyup: this.onKeyup.bind(this),
+    onKeypress: this.onKeypress.bind(this),
+    onWheel: this.onWheel.bind(this),
+  };
+  return interactiveConsole;
+}
+
+function createMediaConsole() {
+  return new MediaConsole(debuggerClient);
+}
+
+function getActiveConsole() {
+  return consoleRegistry[activeConsoleIdx].console;
+}
+
+function cycleActiveConsole() {
+  // TODO: Remove the need to track the active console independently and make it
+  // part of the normal console cycling routine.
+  activeConsoleIdx = (activeConsoleIdx + 1) % consoleRegistry.length;
+}
+
+function handleKeydown(event) {
+  var key = event.key;
+  if (key == 'Unidentified') {
+    key = unidentifiedCobaltKeyMap[event.keyCode] || 'Unidentified';
+  }
+
+  if (event.ctrlKey && key=='m') {
+    cycleActiveConsole();
+    console.log('Switched active console to ' +
+        consoleRegistry[activeConsoleIdx].name);
+    return;
+  }
+
+  getActiveConsole().onKeydown(event);
+}
+
+function handleKeyup(event) {
+  getActiveConsole().onKeyup(event);
+}
+
+function handleKeypress(event) {
+  getActiveConsole().onKeypress(event);
+}
+
+function handleWheel(event) {
+  getActiveConsole().onWheel(event);
+}
+
+function printToLogCallback(result) {
+  if (result.wasThrown) {
+    printToMessageLog(messageLog.ERROR,
+                      'Uncaught ' + result.result.description);
+  } else if (result.result.preview) {
+    printToMessageLog(messageLog.INFO, result.result.preview.description);
+    if (result.result.preview.properties) {
+      for (var i = 0; i < result.result.preview.properties.length; ++i) {
+        var property = result.result.preview.properties[i];
+        printToMessageLog(messageLog.INFO,
+                          '  ' + property.name + ': ' + property.value);
+      }
+    }
+    if (result.result.preview.overflow) {
+      printToMessageLog(messageLog.INFO, '  ...');
+    }
+  } else if (result.result.description) {
+    printToMessageLog(messageLog.INFO, result.result.description);
+  } else if (result.result.value) {
+    printToMessageLog(messageLog.INFO, result.result.value.toString());
+  }
+  printToMessageLog(messageLog.INFO, '');
+}
+
+function initialize() {
   createCommandInput();
   createMessageLog();
   createDebuggerClient();
-  showHud(false);
-  showConsole(false);
+  consoleRegistry = [
+    {
+      name: 'interactive',
+      console: createInteractiveConsole(),
+    },
+    {
+      name: 'media',
+      console: createMediaConsole(),
+    },
+  ];
+
+  consoleRegistry.forEach( entry => {
+    var ensureConsolesAreValid = function(method) {
+      if(typeof entry.console[method] != "function") {
+        console.warn(`Console "${consoleName}" ${method}() is not implemented. \
+            Providing default empty implementation.`);
+        // Provide a default not-implemented warning message.
+        var consoleName = entry.name;
+        var notImplementedMessage = function() {
+          console.log(
+              `Console "${consoleName}" ${method}() is not implemented.`);
+        };
+        entry.console[method] = notImplementedMessage;
+      }
+    };
+    ensureConsolesAreValid(entry, "update");
+    ensureConsolesAreValid(entry, "setVisible");
+    ensureConsolesAreValid(entry, "onKeydown");
+    ensureConsolesAreValid(entry, "onKeyup");
+    ensureConsolesAreValid(entry, "onKeypress");
+    ensureConsolesAreValid(entry, "onWheel");
+  });
+  // Called with false to turn off the display for all.
+  updateMode(false);
+}
+
+function start() {
+  initialize();
   createConsoleValues();
   initDebugCommands();
-  document.addEventListener('wheel', onWheel);
-  document.addEventListener('keypress', onKeypress);
-  document.addEventListener('keydown', onKeydown);
-  document.addEventListener('keyup', onKeyup);
+  document.addEventListener('keydown', handleKeydown);
+  document.addEventListener('keyup', handleKeyup);
+  document.addEventListener('keypress', handleKeypress);
+  document.addEventListener('wheel', handleWheel);
   if (typeof window.onScreenKeyboard != 'undefined'
       && window.onScreenKeyboard) {
     window.onScreenKeyboard.oninput = onInput;

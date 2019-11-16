@@ -78,8 +78,7 @@ DebuggerClient.prototype.getScriptSourceCallback = function(result) {
   }
 }
 
-DebuggerClient.prototype.evaluate = function(expression) {
-  var callback = this.evaluateCallback.bind(this);
+DebuggerClient.prototype.evaluate = function(expression, callback) {
   var method = 'Runtime.evaluate';
   var params = {};
   params.contextId = this.executionContext;
@@ -89,30 +88,6 @@ DebuggerClient.prototype.evaluate = function(expression) {
   params.objectGroup = 'console';
   params.returnByValue = false;
   this.sendCommand(method, params, callback);
-}
-
-DebuggerClient.prototype.evaluateCallback = function(result) {
-  if (result.wasThrown) {
-    printToMessageLog(messageLog.ERROR,
-                      'Uncaught ' + result.result.description);
-  } else if (result.result.preview) {
-    printToMessageLog(messageLog.INFO, result.result.preview.description);
-    if (result.result.preview.properties) {
-      for (var i = 0; i < result.result.preview.properties.length; ++i) {
-        var property = result.result.preview.properties[i];
-        printToMessageLog(messageLog.INFO,
-                          '  ' + property.name + ': ' + property.value);
-      }
-    }
-    if (result.result.preview.overflow) {
-      printToMessageLog(messageLog.INFO, '  ...');
-    }
-  } else if (result.result.description) {
-    printToMessageLog(messageLog.INFO, result.result.description);
-  } else if (result.result.value) {
-    printToMessageLog(messageLog.INFO, result.result.value.toString());
-  }
-  printToMessageLog(messageLog.INFO, '');
 }
 
 // All debugger commands are routed through this method. Converts the command
