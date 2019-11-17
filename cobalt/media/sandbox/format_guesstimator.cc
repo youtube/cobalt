@@ -51,6 +51,7 @@ struct SupportedTypeCodecInfo {
 
 // The possible mime and codec configurations that are supported by cobalt.
 const std::vector<SupportedTypeCodecInfo> kSupportedTypesAndCodecs = {
+    {"audio/mp4", "ac-3"},          {"audio/mp4", "ec-3"},
     {"audio/mp4", "mp4a.40.2"},     {"audio/webm", "opus"},
 
     {"video/mp4", "av01.0.05M.08"}, {"video/mp4", "avc1.640028, mp4a.40.2"},
