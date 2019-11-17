@@ -287,6 +287,8 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
         sample_format = kSampleFormatU8;
       } else if (entry.samplesize == 16) {
         sample_format = kSampleFormatS16;
+      } else if (entry.samplesize == 24) {
+        sample_format = kSampleFormatS24;
       } else if (entry.samplesize == 32) {
         sample_format = kSampleFormatS32;
       } else {
