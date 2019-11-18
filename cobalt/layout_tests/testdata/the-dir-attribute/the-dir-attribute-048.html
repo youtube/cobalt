@@ -8,19 +8,7 @@
 <link rel="match" href="reference/the-dir-attribute-048-ref.html">
 <meta name="assert" content="When dir='auto', the direction is set according to the first strong character       of the text.       In this test, it is the Latin letter A, thus the direction must be       resolved as LTR.">
 <style type='text/css'>
-@font-face {
-    font-family: 'hewebfont';
-    src: url('../../../../../fonts/noto/NotoSerifHebrew-regular.woff2') format('woff');
-    font-weight: normal;
-    font-style: normal;
-  }
-@font-face {
-    font-family: 'arwebfont';
-    src: url('../../../../../fonts/sil/Scheherazade-regular.woff2') format('woff');
-    font-weight: normal;
-    font-style: normal;
-  }
-.test, .ref { width: 90%; margin: 0 4%; font-family: hewebfont, arwebfont, serif; font-size: 2.5em; position: absolute; top: 0; }
+.test, .ref { width: 90%; margin: 0 4%; font-size: 2em; position: absolute; top: 0; }
 .ref { color: red; z-index: -100; }
 
       input, textarea {
