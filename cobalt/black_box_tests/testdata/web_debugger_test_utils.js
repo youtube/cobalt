@@ -65,3 +65,12 @@ function doSetAttribute(node, attr, value) {
   node.setAttribute(attr, value);
 }
 
+function testAnimationFrame() {
+  doRequestAnimationFrame();
+}
+
+function doRequestAnimationFrame() {
+  window.requestAnimationFrame(function animationFrameCallback() {
+    asyncBreak();
+  });
+}

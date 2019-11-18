@@ -15,6 +15,7 @@
 #include "cobalt/dom/animation_frame_request_callback_list.h"
 
 #include "base/trace_event/trace_event.h"
+#include "cobalt/base/debugger_hooks.h"
 #include "cobalt/dom/global_stats.h"
 
 namespace cobalt {
@@ -30,6 +31,9 @@ int32 AnimationFrameRequestCallbackList::RequestAnimationFrame(
   frame_request_callbacks_.emplace_back(
       new FrameRequestCallbackWithCancelledFlag(owner_,
                                                 frame_request_callback));
+  debugger_hooks_->AsyncTaskScheduled(
+      frame_request_callbacks_.back().get(), "requestAnimationFrame",
+      base::DebuggerHooks::AsyncTaskFrequency::kOneshot);
   return static_cast<int32>(frame_request_callbacks_.size());
 }
 
@@ -38,7 +42,9 @@ void AnimationFrameRequestCallbackList::CancelAnimationFrame(int32 in_handle) {
   // frame request callback.
   const size_t handle = static_cast<size_t>(in_handle);
   if (handle > 0 && handle <= frame_request_callbacks_.size()) {
-    frame_request_callbacks_[handle - 1]->cancelled = true;
+    auto& callback = frame_request_callbacks_.at(handle - 1);
+    debugger_hooks_->AsyncTaskCanceled(callback.get());
+    callback->cancelled = true;
   }
 }
 
@@ -52,6 +58,7 @@ void AnimationFrameRequestCallbackList::RunCallbacks(double animation_time) {
   for (InternalList::const_iterator iter = frame_request_callbacks_.begin();
        iter != frame_request_callbacks_.end(); ++iter) {
     if (!(*iter)->cancelled) {
+      base::ScopedAsyncTask async_task(debugger_hooks_, iter->get());
       (*iter)->callback.value().Run(animation_time);
     }
   }
