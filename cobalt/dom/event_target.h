@@ -469,6 +469,8 @@ class EventTarget : public script::Wrappable,
   DEFINE_WRAPPABLE_TYPE(EventTarget);
   void TraceMembers(script::Tracer* tracer) override;
 
+  base::DebuggerHooks* debugger_hooks() { return debugger_hooks_; }
+
  private:
   typedef std::vector<std::unique_ptr<EventTargetListenerInfo>>
       EventListenerInfos;
