@@ -73,7 +73,6 @@ base::FilePath ResolvePath(const std::string& path) {
   if (!result.IsAbsolute()) {
     base::FilePath content_path;
     base::PathService::Get(base::DIR_TEST_DATA, &content_path);
-    CHECK(content_path.IsAbsolute());
     result = content_path.Append(result);
   }
   if (SbFileCanOpen(result.value().c_str(), kSbFileOpenOnly | kSbFileRead)) {
