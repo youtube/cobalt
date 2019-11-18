@@ -173,11 +173,10 @@ Window::Window(
       ALLOW_THIS_IN_INITIALIZER_LIST(
           relay_on_load_event_(new RelayLoadEvent(this))),
       console_(new Console(execution_state)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(window_timers_(new WindowTimers(
-          this, base::polymorphic_downcast<dom::DOMSettings*>(settings)
-                    ->debugger_hooks()))),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          window_timers_(new WindowTimers(this, debugger_hooks()))),
       ALLOW_THIS_IN_INITIALIZER_LIST(animation_frame_request_callback_list_(
-          new AnimationFrameRequestCallbackList(this))),
+          new AnimationFrameRequestCallbackList(this, debugger_hooks()))),
       crypto_(new Crypto()),
       speech_synthesis_(
           new speech::SpeechSynthesis(settings, navigator_, log_tts)),
@@ -503,7 +502,7 @@ void Window::RunAnimationFrameCallbacks() {
     // Then setup the Window's frame request callback list with a freshly
     // created and empty one.
     animation_frame_request_callback_list_.reset(
-        new AnimationFrameRequestCallbackList(this));
+        new AnimationFrameRequestCallbackList(this, debugger_hooks()));
 
     // Now, iterate through each of the callbacks and call them.
     frame_request_list->RunCallbacks(*document_->timeline()->current_time());

@@ -465,6 +465,20 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
         ],
     ])
 
+    # Check the breakpoint within an animation callback.
+    self.debugger.evaluate_js('testAnimationFrame()')
+    self.assert_paused([
+        [
+            'asyncBreak',
+            'animationFrameCallback',
+        ],
+        [
+            'doRequestAnimationFrame',
+            'testAnimationFrame',
+            '',  # Anonymous function for the 'Runtime.evaluate' command.
+        ],
+    ])
+
     # End the test.
     self.debugger.evaluate_js('onEndTest()')
     self.assertTrue(self.runner.JSTestsSucceeded())
