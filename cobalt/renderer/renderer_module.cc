@@ -92,7 +92,9 @@ RendererModule::RendererModule(system_window::SystemWindow* system_window,
         base::Bind(options_.create_rasterizer_function, graphics_context_.get(),
                    options_),
         display_->GetRenderTarget(), graphics_context_.get(),
+#if SB_API_VERSION < SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER_DEPRECATED_VERSION
         options_.submit_even_if_render_tree_is_unchanged,
+#endif
         renderer::Pipeline::kClearToBlack, pipeline_options));
   }
 }
