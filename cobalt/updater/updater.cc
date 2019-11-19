@@ -158,7 +158,7 @@ int UpdaterMain(int argc, const char* const* argv) {
             component.version = base::Version("1.0.0.0");
             component.pk_hash.assign(std::begin(kCobaltPublicKeyHash),
                                      std::end(kCobaltPublicKeyHash));
-            component.requires_network_encryption = false;
+            component.requires_network_encryption = true;
             component.crx_format_requirement =
                 crx_file::VerifierFormat::CRX3;
             return {component};
