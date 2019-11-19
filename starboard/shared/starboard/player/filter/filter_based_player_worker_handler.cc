@@ -493,9 +493,14 @@ void FilterBasedPlayerWorkerHandler::Stop() {
 }
 
 SbDecodeTarget FilterBasedPlayerWorkerHandler::GetCurrentDecodeTarget() {
-  ::starboard::ScopedLock lock(video_renderer_existence_mutex_);
-  return video_renderer_ ? video_renderer_->GetCurrentDecodeTarget()
-                         : kSbDecodeTargetInvalid;
+  SbDecodeTarget decode_target = kSbDecodeTargetInvalid;
+  if (video_renderer_existence_mutex_.AcquireTry()) {
+    if (video_renderer_) {
+      decode_target = video_renderer_->GetCurrentDecodeTarget();
+    }
+    video_renderer_existence_mutex_.Release();
+  }
+  return decode_target;
 }
 
 MediaTimeProvider* FilterBasedPlayerWorkerHandler::GetMediaTimeProvider()
