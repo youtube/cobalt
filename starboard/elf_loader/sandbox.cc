@@ -20,7 +20,7 @@
 #include "starboard/event.h"
 #include "starboard/shared/starboard/command_line.h"
 
-starboard::elf_loader::ElfLoader g_elfLoader;
+starboard::elf_loader::ElfLoader g_elf_loader;
 
 void (*g_sb_event_func)(const SbEvent*) = NULL;
 
@@ -51,7 +51,7 @@ void SbEventHandle(const SbEvent* event) {
                         << "=/path/to/content/directory.";
           return;
         }
-        if (!g_elfLoader.Load(library_path, content_path)) {
+        if (!g_elf_loader.Load(library_path, content_path)) {
           SB_LOG(INFO) << "Failed to load library at '" << library_path << "'.";
           return;
         }
@@ -59,7 +59,7 @@ void SbEventHandle(const SbEvent* event) {
         SB_LOG(INFO) << "Successfully loaded '" << library_path << "'.";
 
         g_sb_event_func = reinterpret_cast<void (*)(const SbEvent*)>(
-            g_elfLoader.LookupSymbol("SbEventHandle"));
+            g_elf_loader.LookupSymbol("SbEventHandle"));
 
         if (!g_sb_event_func) {
           SB_LOG(INFO) << "Failed to find SbEventHandle.";
