@@ -37,7 +37,9 @@ class ElfLoader {
 
   // Loads the shared library. Returns false if |library_path| or |content_path|
   // is empty, or if the library could not be loaded.
-  bool Load(const std::string& library_path, const std::string& content_path);
+  bool Load(const std::string& library_path,
+            const std::string& content_path,
+            bool is_relative_path);
 
   // Looks up the symbol address in the
   // shared library.
