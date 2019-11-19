@@ -222,6 +222,12 @@ TEST_P(InstallationManagerTest, DecrementInstallationNumTries) {
   int max_num_tries = ImGetInstallationNumTriesLeft(0);
   ASSERT_EQ(IM_SUCCESS, ImDecrementInstallationNumTries(0));
   ASSERT_EQ(max_num_tries - 1, ImGetInstallationNumTriesLeft(0));
+  int num_tries = max_num_tries - 1;
+  while (num_tries--) {
+    ASSERT_EQ(IM_SUCCESS, ImDecrementInstallationNumTries(0));
+    ASSERT_EQ(num_tries, ImGetInstallationNumTriesLeft(0));
+  }
+  ASSERT_EQ(IM_ERROR, ImDecrementInstallationNumTries(0));
 }
 
 TEST_P(InstallationManagerTest, GetCurrentInstallationIndex) {

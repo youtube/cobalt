@@ -51,7 +51,7 @@ void SbEventHandle(const SbEvent* event) {
                         << "=path/to/content/relative/to/loader/content.";
           return;
         }
-        if (!g_elf_loader.Load(library_path, content_path)) {
+        if (!g_elf_loader.Load(library_path, content_path, true)) {
           SB_LOG(INFO) << "Failed to load library at '"
                        << g_elf_loader.GetLibraryPath() << "'.";
           SB_NOTREACHED();

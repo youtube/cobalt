@@ -215,8 +215,12 @@ int InstallationManager::DecrementInstallationNumTries(int installation_index) {
 
   int num_tries_left =
       installation_store_.installations(installation_index).num_tries_left();
+  if (num_tries_left <= 0) {
+    return IM_ERROR;
+  }
   installation_store_.mutable_installations(installation_index)
       ->set_num_tries_left(--num_tries_left);
+
   if (!SaveInstallationStore()) {
     SB_LOG(ERROR) << "DecrementInstallationNumTries: failed to save store";
     return IM_ERROR;
