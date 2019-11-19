@@ -67,5 +67,23 @@
       },
       'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
+    {
+      'target_name': 'loader_app',
+      'type': 'executable',
+      'conditions': [
+        ['target_arch in ["x86", "x64", "arm", "arm64"] ', {
+          'sources': [
+            'loader_app.cc',
+          ],
+          'dependencies': [
+            ':installation_manager',
+            '<(DEPTH)/starboard/elf_loader/elf_loader.gyp:elf_loader',
+            '<(DEPTH)/starboard/starboard.gyp:starboard',
+            # TODO: Remove this dependency once MediaSession is migrated to use CobaltExtensions.
+            '<@(cobalt_platform_dependencies)',
+          ],
+        }],
+      ],
+    },
   ],
 }
