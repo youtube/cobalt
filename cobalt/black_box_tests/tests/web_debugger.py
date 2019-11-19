@@ -49,6 +49,17 @@ class DebuggerCommandError(Exception):
     super(DebuggerCommandError, self).__init__(code + error['message'])
 
 
+class JavaScriptError(Exception):
+  """Exception when a JavaScript exception occurs in an evaluation."""
+
+  def __init__(self, exception_details):
+    # All the fields we care about are optional, so gracefully fallback.
+    ex = exception_details.get('exception', {})
+    fallback = ex.get('className', 'Unknown error') + ' (No description)'
+    msg = ex.get('description', fallback)
+    super(JavaScriptError, self).__init__(msg)
+
+
 class DebuggerConnection(object):
   """Connection to debugger over a WebSocket.
 
@@ -164,10 +175,13 @@ class DebuggerConnection(object):
 
   def evaluate_js(self, expression):
     """Helper for the 'Runtime.evaluate' command to run some JavaScript."""
-    return self.run_command('Runtime.evaluate', {
+    response = self.run_command('Runtime.evaluate', {
         'contextId': self.context_id,
         'expression': expression,
     })
+    if 'exceptionDetails' in response['result']:
+      raise JavaScriptError(response['result']['exceptionDetails'])
+    return response['result']
 
 
 class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
@@ -205,8 +219,8 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
 
   def test_runtime(self):
     # Evaluate a simple expression.
-    eval_response = self.debugger.evaluate_js('6 * 7')
-    self.assertEqual(42, eval_response['result']['result']['value'])
+    eval_result = self.debugger.evaluate_js('6 * 7')
+    self.assertEqual(42, eval_result['result']['value'])
 
     # Set an attribute and read it back w/ WebDriver.
     self.debugger.evaluate_js(
@@ -310,7 +324,7 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
     # This sends a 'DOM.setChildNodes' event for each node up to the root.
     eval_result = self.debugger.evaluate_js('document.getElementById("test")')
     node_response = self.debugger.run_command('DOM.requestNode', {
-        'objectId': eval_result['result']['result']['objectId'],
+        'objectId': eval_result['result']['objectId'],
     })
     self.assertEqual(test_div['nodeId'],
                      node_response['result']['nodeId'])
@@ -475,6 +489,20 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
         [
             'doRequestAnimationFrame',
             'testAnimationFrame',
+            '',  # Anonymous function for the 'Runtime.evaluate' command.
+        ],
+    ])
+
+    # Check the breakpoint on a media callback going through EventQueue.
+    self.debugger.evaluate_js('testMediaSource()')
+    self.assert_paused([
+        [
+            'asyncBreak',
+            'sourceOpenCallback',
+        ],
+        [
+            'setSourceListener',
+            'testMediaSource',
             '',  # Anonymous function for the 'Runtime.evaluate' command.
         ],
     ])

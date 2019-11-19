@@ -74,3 +74,21 @@ function doRequestAnimationFrame() {
     asyncBreak();
   });
 }
+
+function testMediaSource(){
+  let elem = document.createElement('video');
+  let ms = new MediaSource;
+  setSourceListener(ms);
+  attachMediaSource(elem, ms);
+}
+
+function setSourceListener(source) {
+  source.addEventListener('sourceopen', function sourceOpenCallback() {
+    asyncBreak();
+  });
+}
+
+function attachMediaSource(elem, ms) {
+  let url = window.URL.createObjectURL(ms);
+  elem.src = url;
+}
