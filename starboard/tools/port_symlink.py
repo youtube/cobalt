@@ -135,6 +135,12 @@ def _CreateArgumentParser():
   # Enables new lines in the description and epilog.
   formatter_class = argparse.RawDescriptionHelpFormatter
   parser = MyParser(epilog=help_msg, formatter_class=formatter_class)
+  parser.add_argument(
+      '-f',
+      '--force',
+      action='store_true',
+      help='Force the symbolic link to be created, removing existing files and '
+      'directories if needed.')
   group = parser.add_mutually_exclusive_group(required=True)
   group.add_argument('--link',
                      help='Issues an scp command to upload src to remote_dst',
@@ -155,6 +161,8 @@ def main():
     d1 = os.path.abspath(os.path.join(link_path, folder_path))
   if not os.path.isdir(d1):
     logging.warning('%s is not a directory.', d1)
+  if args.force:
+    Rmtree(link_path)
   MakeSymLink(from_folder=folder_path, link_folder=link_path)
 
 
