@@ -22,9 +22,7 @@ bool gCheckErrorGL = !!(GR_GL_CHECK_ERROR_START);
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "starboard/configuration.h"
-#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)
-
+#if !defined(STARBOARD) || (SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS_GLES2)
 #if defined(STARBOARD)
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
@@ -78,7 +76,8 @@ const SbEglInterface& SkiaGetEglInterface() {
     return *egl_interface;
 }
 #endif  // defined(STARBOARD) && (SB_API_VERSION >= 11)
-}
+
+}  // namespace
 
 void GrGLCheckErr(const GrGLInterface* gl,
                   const char* location,
@@ -276,6 +275,7 @@ GrGLVersion GrGLGetVersionFromString(const char* versionString) {
         return GR_GL_VER(major, minor);
     }
 
+#if defined(STARBOARD)
     // Use API calls to find out the version for OpenGL ES
     // over using string parsing to determine the correct version.
     //
@@ -316,6 +316,9 @@ GrGLVersion GrGLGetVersionFromString(const char* versionString) {
 #endif
             return GR_GL_VER(client_version, 0);
         } while (0);
+    }
+#endif  // defined(STARBOARD)
+
     // WebGL might look like "OpenGL ES 2.0 (WebGL 1.0 (OpenGL ES 2.0 Chromium))"
     int esMajor, esMinor;
     n = sscanf(versionString, "OpenGL ES %d.%d (WebGL %d.%d", &esMajor, &esMinor, &major, &minor);
@@ -731,15 +734,16 @@ bool GrGLFormatToCompressionType(GrGLFormat format, SkImage::CompressionType* co
     SkUNREACHABLE;
 }
 
-#else  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)
+#else  // !defined(STARBOARD) || (SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION ||
+       // SB_HAS_GLES2)
 
 void GrGLCheckErr(const GrGLInterface* gl, const char* location, const char* call) {}
 
 void GrGLClearErr(const GrGLInterface* gl) {}
 
-GrGLenum GrToGLStencilFunc(GrStencilTest test) { return NULL; }
+GrGLenum GrToGLStencilFunc(GrStencilTest test) { return -1; }
 
-GrGLVersion GrGLGetVersionFromString(const char* versionString) { return NULL; }
+GrGLVersion GrGLGetVersionFromString(const char* versionString) { return GR_GL_INVALID_VER; }
 
 GrGLVendor GrGLGetVendor(const GrGLInterface* gl) { return kOther_GrGLVendor; }
 
@@ -752,8 +756,9 @@ void GrGLGetDriverInfo(GrGLStandard standard,
                        GrGLDriver* outDriver,
                        GrGLDriverVersion* outVersion) {}
 
-GrGLSLVersion GrGLGetGLSLVersion(const GrGLInterface* gl) { return NULL; }
+GrGLSLVersion GrGLGetGLSLVersion(const GrGLInterface* gl) { return GR_GLSL_INVALID_VER; }
 
-GrGLVersion GrGLGetVersion(const GrGLInterface* gl) { return NULL; }
+GrGLVersion GrGLGetVersion(const GrGLInterface* gl) { return GR_GL_INVALID_VER; }
 
-#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)
+#endif  // !defined(STARBOARD) || (SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION ||
+        // SB_HAS_GLES2)

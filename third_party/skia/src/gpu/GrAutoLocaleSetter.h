@@ -95,6 +95,4 @@ private:
 #undef HAVE_LOCALE_T
 #undef HAVE_XLOCALE
 
-#endif  // defined(STARBOARD)
-
 #endif

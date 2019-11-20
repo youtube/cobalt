@@ -1024,7 +1024,16 @@ void GrGLCaps::initFSAASupport(const GrContextOptions& contextOptions, const GrG
                                ctxInfo.hasExtension("GL_CHROMIUM_framebuffer_mixed_samples");
     }
 
-
+    if (GR_IS_GR_GL(ctxInfo.standard())) {
+        if (ctxInfo.version() >= GR_GL_VER(3,0) ||
+            ctxInfo.hasExtension("GL_ARB_framebuffer_object")) {
+            fMSFBOType = kStandard_MSFBOType;
+        } else if (ctxInfo.hasExtension("GL_EXT_framebuffer_multisample") &&
+                   ctxInfo.hasExtension("GL_EXT_framebuffer_blit")) {
+            fMSFBOType = kStandard_MSFBOType;
+        }
+    } else if (GR_IS_GR_GL_ES(ctxInfo.standard())) {
+        // We prefer multisampled-render-to-texture extensions over ES3 MSAA because we've observed
         // ES3 driver bugs on at least one device with a tiled GPU (N10).
         if (ctxInfo.hasExtension("GL_EXT_multisampled_render_to_texture")) {
             fMSFBOType = kES_EXT_MsToTexture_MSFBOType;
@@ -1363,9 +1372,6 @@ void GrGLCaps::initFormatTable(const GrGLContextInfo& ctxInfo, const GrGLInterfa
     if (fDriverBugWorkarounds.disable_texture_storage) {
         texStorageSupported = false;
     }
-
-    }
-#endif
 
     // ES 2.0 requires that the internal/external formats match so we can't use sized internal
     // formats for glTexImage until ES 3.0. TODO: Support sized internal formats in WebGL2.
