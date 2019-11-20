@@ -451,6 +451,34 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
         ]
     ])
 
+    # Check the breakpoint within a promise "then" after being resolved.
+    self.debugger.evaluate_js('testPromise()')
+    self.assert_paused([
+        [
+            'asyncBreak',
+            'promiseThen',
+        ],
+        [
+            'waitPromise',
+            'testPromise',
+            '',  # Anonymous function for the 'Runtime.evaluate' command.
+        ]
+    ])
+
+    # Check the breakpoint after async await for a promise to resolve.
+    self.debugger.evaluate_js('testAsyncFunction()')
+    self.assert_paused([
+        [
+            'asyncBreak',
+            'asyncAwait',
+        ],
+        [
+            'asyncAwait',
+            'testAsyncFunction',
+            '',  # Anonymous function for the 'Runtime.evaluate' command.
+        ]
+    ])
+
     # Check the breakpoint within an XHR event handler.
     self.debugger.evaluate_js('testXHR(window.location.href)')
     self.assert_paused([

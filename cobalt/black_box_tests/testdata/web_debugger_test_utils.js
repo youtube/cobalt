@@ -35,6 +35,39 @@ function asyncC(f) {
   f();
 }
 
+// Tests AsyncTask reporting in a Promise using its 'then' method.
+function testPromise() {
+  let p = makePromise();
+  waitPromise(p);
+}
+
+function makePromise() {
+  return new Promise(function promiseExecutor(resolve, reject) {
+        setTimeout(function promiseTimeout() {
+          resolve();
+        }, 1)
+      });
+}
+
+function waitPromise(p) {
+  p.then(promiseThen);
+}
+
+function promiseThen() {
+  asyncBreak();
+}
+
+// Tests AsyncTask reporting in a JS async function that awaits a promise.
+function testAsyncFunction() {
+  let p = makePromise();
+  asyncAwait(p);
+}
+
+async function asyncAwait(p) {
+  await p;
+  asyncBreak();
+}
+
 // Tests AsyncTask reporting in EventTarget.
 function testXHR(url) {
   doXHR(url);
@@ -49,6 +82,7 @@ function doXHR(url) {
   xhr.send();
 }
 
+// Tests AsyncTask reporting in a MutationObserver.
 function testMutate() {
   let target = document.getElementById('test');
   let config = {attributes: true, childList: true, subtree: true};
@@ -75,6 +109,7 @@ function doRequestAnimationFrame() {
   });
 }
 
+// Tests AsyncTask reporting in a MediaSource (that uses an EventQueue).
 function testMediaSource(){
   let elem = document.createElement('video');
   let ms = new MediaSource;
