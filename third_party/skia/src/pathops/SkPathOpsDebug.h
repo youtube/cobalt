@@ -13,7 +13,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#endif
 
 enum class SkOpPhase : char;
 struct SkDQuad;
