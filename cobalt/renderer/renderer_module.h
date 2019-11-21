@@ -84,13 +84,11 @@ class RendererModule {
     // (e.g. screenshot diff tools).
     bool force_deterministic_rendering;
 
-#if SB_API_VERSION < SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER_DEPRECATED_VERSION
     // If this flag is set to true, the pipeline will not re-submit a render
     // tree if it has not changed from the previous submission.  This can save
     // CPU time so long as there's no problem with the fact that the display
     // buffer will not be frequently swapped.
     bool submit_even_if_render_tree_is_unchanged;
-#endif
 
     // If this flag is set to true, which is the default value, then all of
     // Skia's font caches are purged during destruction. These caches have

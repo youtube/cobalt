@@ -78,9 +78,7 @@ class Pipeline {
   Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
            const scoped_refptr<backend::RenderTarget>& render_target,
            backend::GraphicsContext* graphics_context,
-  #if SB_API_VERSION < SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER_DEPRECATED_VERSION
            bool submit_even_if_render_tree_is_unchanged,
-  #endif
            ShutdownClearMode clear_on_shutdown_mode,
            const Options& options = Options());
   ~Pipeline();
@@ -231,11 +229,9 @@ class Pipeline {
   // the future.
   base::Optional<SubmissionQueue> submission_queue_;
 
-#if SB_API_VERSION < SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER_DEPRECATED_VERSION
   // If true, we will submit the current render tree to the rasterizer every
   // frame, even if it hasn't changed.
   const bool submit_even_if_render_tree_is_unchanged_;
-#endif
 
   // Keeps track of the last rendered animated render tree.
   scoped_refptr<render_tree::Node> last_render_tree_;

@@ -203,6 +203,12 @@
 // textures. These textures typically originate from video decoders.
 #define SB_HAS_NV12_TEXTURE_SUPPORT 0
 
+// Whether the current platform should frequently flip its display buffer.  If
+// this is not required (i.e. SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER is set to
+// 0), then optimizations are enabled so the display buffer is not flipped if
+// the scene hasn't changed.
+#define SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER 0
+
 // --- I/O Configuration -----------------------------------------------------
 
 // Whether the current platform implements the on screen keyboard interface.
