@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2012-2013 The ANGLE Project Authors. All rights reserved.
+// Copyright 2012 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,6 +10,7 @@
 
 #include "angle_gl.h"
 #include "common/debug.h"
+#include "compiler/translator/Common.h"
 #include "compiler/translator/Diagnostics.h"
 
 namespace sh
@@ -43,19 +44,16 @@ TDirectiveHandler::TDirectiveHandler(TExtensionBehavior &extBehavior,
       mShaderVersion(shaderVersion),
       mShaderType(shaderType),
       mDebugShaderPrecisionSupported(debugShaderPrecisionSupported)
-{
-}
+{}
 
-TDirectiveHandler::~TDirectiveHandler()
-{
-}
+TDirectiveHandler::~TDirectiveHandler() {}
 
-void TDirectiveHandler::handleError(const pp::SourceLocation &loc, const std::string &msg)
+void TDirectiveHandler::handleError(const angle::pp::SourceLocation &loc, const std::string &msg)
 {
     mDiagnostics.error(loc, msg.c_str(), "");
 }
 
-void TDirectiveHandler::handlePragma(const pp::SourceLocation &loc,
+void TDirectiveHandler::handlePragma(const angle::pp::SourceLocation &loc,
                                      const std::string &name,
                                      const std::string &value,
                                      bool stdgl)
@@ -119,7 +117,7 @@ void TDirectiveHandler::handlePragma(const pp::SourceLocation &loc,
         }
         else
         {
-            mDiagnostics.report(pp::Diagnostics::PP_UNRECOGNIZED_PRAGMA, loc, name);
+            mDiagnostics.report(angle::pp::Diagnostics::PP_UNRECOGNIZED_PRAGMA, loc, name);
             return;
         }
 
@@ -130,7 +128,7 @@ void TDirectiveHandler::handlePragma(const pp::SourceLocation &loc,
     }
 }
 
-void TDirectiveHandler::handleExtension(const pp::SourceLocation &loc,
+void TDirectiveHandler::handleExtension(const angle::pp::SourceLocation &loc,
                                         const std::string &name,
                                         const std::string &behavior)
 {
@@ -162,10 +160,21 @@ void TDirectiveHandler::handleExtension(const pp::SourceLocation &loc,
         return;
     }
 
-    TExtensionBehavior::iterator iter = mExtensionBehavior.find(name);
+    TExtensionBehavior::iterator iter = mExtensionBehavior.find(GetExtensionByName(name.c_str()));
     if (iter != mExtensionBehavior.end())
     {
         iter->second = behaviorVal;
+        // OVR_multiview is implicitly enabled when OVR_multiview2 is enabled
+        if (name == "GL_OVR_multiview2")
+        {
+            const std::string multiview = "GL_OVR_multiview";
+            TExtensionBehavior::iterator iterMultiview =
+                mExtensionBehavior.find(GetExtensionByName(multiview.c_str()));
+            if (iterMultiview != mExtensionBehavior.end())
+            {
+                iterMultiview->second = behaviorVal;
+            }
+        }
         return;
     }
 
@@ -185,18 +194,21 @@ void TDirectiveHandler::handleExtension(const pp::SourceLocation &loc,
     }
 }
 
-void TDirectiveHandler::handleVersion(const pp::SourceLocation &loc, int version)
+void TDirectiveHandler::handleVersion(const angle::pp::SourceLocation &loc,
+                                      int version,
+                                      ShShaderSpec spec)
 {
-    if (version == 100 || version == 300 || version == 310)
+    if (((version == 100 || version == 300 || version == 310) && !IsDesktopGLSpec(spec)) ||
+        IsDesktopGLSpec(spec))
     {
         mShaderVersion = version;
     }
     else
     {
-        std::stringstream stream;
+        std::stringstream stream = sh::InitializeStream<std::stringstream>();
         stream << version;
         std::string str = stream.str();
-        mDiagnostics.error(loc, "version number not supported", str.c_str());
+        mDiagnostics.error(loc, "client/version number not supported", str.c_str());
     }
 }
 

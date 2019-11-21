@@ -1,5 +1,5 @@
 //
-// Copyright(c) 2016 The ANGLE Project Authors. All rights reserved.
+// Copyright 2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -11,6 +11,8 @@
 
 #include <EGL/egl.h>
 
+#include "libANGLE/Debug.h"
+
 namespace gl
 {
 class Context;
@@ -19,36 +21,39 @@ class Context;
 namespace egl
 {
 class Error;
+class Debug;
 class Display;
 class Surface;
 
-class Thread
+class Thread : public LabeledObject
 {
   public:
     Thread();
 
-    void setError(const Error &error);
+    void setLabel(EGLLabelKHR label) override;
+    EGLLabelKHR getLabel() const override;
+
+    void setSuccess();
+    void setError(const Error &error,
+                  const Debug *debug,
+                  const char *command,
+                  const LabeledObject *object);
     EGLint getError() const;
 
     void setAPI(EGLenum api);
     EGLenum getAPI() const;
 
-    void setCurrent(Display *display,
-                    Surface *drawSurface,
-                    Surface *readSurface,
-                    gl::Context *context);
-    Display *getDisplay() const;
-    Surface *getDrawSurface() const;
-    Surface *getReadSurface() const;
+    void setCurrent(gl::Context *context);
+    Surface *getCurrentDrawSurface() const;
+    Surface *getCurrentReadSurface() const;
     gl::Context *getContext() const;
     gl::Context *getValidContext() const;
+    Display *getDisplay() const;
 
   private:
+    EGLLabelKHR mLabel;
     EGLint mError;
     EGLenum mAPI;
-    egl::Display *mDisplay;
-    egl::Surface *mDrawSurface;
-    egl::Surface *mReadSurface;
     gl::Context *mContext;
 };
 

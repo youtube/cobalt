@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2012 The ANGLE Project Authors. All rights reserved.
+// Copyright 2012 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -7,6 +7,9 @@
 #include "gtest/gtest.h"
 
 #include "compiler/preprocessor/Token.h"
+
+namespace angle
+{
 
 TEST(TokenTest, DefaultConstructor)
 {
@@ -21,8 +24,8 @@ TEST(TokenTest, DefaultConstructor)
 TEST(TokenTest, Assignment)
 {
     pp::Token token;
-    token.type = 1;
-    token.flags = 1;
+    token.type          = 1;
+    token.flags         = 1;
     token.location.line = 1;
     token.location.file = 1;
     token.text.assign("foo");
@@ -88,3 +91,5 @@ TEST(TokenTest, Write)
     EXPECT_TRUE(out2.good());
     EXPECT_EQ(" foo", out2.str());
 }
+
+}  // namespace angle

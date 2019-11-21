@@ -11,7 +11,6 @@
 
 #include <gmock/gmock.h>
 
-#include "angle_unittests_utils.h"
 #include "common/bitset_utils.h"
 
 using namespace testing;
@@ -31,9 +30,9 @@ class BitSetIteratorPerfTest : public ANGLEPerfTest
 };
 
 template <typename T>
-BitSetIteratorPerfTest<T>::BitSetIteratorPerfTest() : ANGLEPerfTest("BitSetIteratorPerf", "_run")
-{
-}
+BitSetIteratorPerfTest<T>::BitSetIteratorPerfTest()
+    : ANGLEPerfTest("BitSetIteratorPerf", "", "_run", 1)
+{}
 
 template <typename T>
 void BitSetIteratorPerfTest<T>::step()
@@ -42,19 +41,19 @@ void BitSetIteratorPerfTest<T>::step()
 
     for (size_t bit : mBits)
     {
-        UNUSED_VARIABLE(bit);
+        ANGLE_UNUSED_VARIABLE(bit);
     }
 
     mBits.reset();
 }
 
 // These type names unfortunately don't get printed correctly in Gtest.
-#if defined(ANGLE_X64_CPU)
+#if defined(ANGLE_IS_64_BIT_CPU)
 using TestTypes = Types<angle::IterableBitSet<32>, angle::BitSet32<32>, angle::BitSet64<32>>;
 #else
 using TestTypes = Types<angle::IterableBitSet<32>, angle::BitSet32<32>>;
-#endif  // defined(ANGLE_X64_CPU)
-TYPED_TEST_CASE(BitSetIteratorPerfTest, TestTypes);
+#endif  // defined(ANGLE_IS_64_BIT_CPU)
+TYPED_TEST_SUITE(BitSetIteratorPerfTest, TestTypes);
 
 TYPED_TEST(BitSetIteratorPerfTest, Run)
 {

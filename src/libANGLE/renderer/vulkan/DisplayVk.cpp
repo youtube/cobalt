@@ -13,95 +13,55 @@
 #include "libANGLE/Context.h"
 #include "libANGLE/Display.h"
 #include "libANGLE/renderer/vulkan/ContextVk.h"
+#include "libANGLE/renderer/vulkan/ImageVk.h"
 #include "libANGLE/renderer/vulkan/RendererVk.h"
 #include "libANGLE/renderer/vulkan/SurfaceVk.h"
+#include "libANGLE/renderer/vulkan/SyncVk.h"
+#include "libANGLE/trace.h"
 
 namespace rx
 {
 
-DisplayVk::DisplayVk(const egl::DisplayState &state) : DisplayImpl(state), mRenderer(nullptr)
-{
-}
+DisplayVk::DisplayVk(const egl::DisplayState &state)
+    : DisplayImpl(state), vk::Context(new RendererVk()), mScratchBuffer(1000u)
+{}
 
 DisplayVk::~DisplayVk()
 {
+    delete mRenderer;
 }
 
 egl::Error DisplayVk::initialize(egl::Display *display)
 {
-    ASSERT(!mRenderer && display != nullptr);
-    mRenderer.reset(new RendererVk());
-    return mRenderer->initialize(display->getAttributeMap(), getWSIName())
-        .toEGL(EGL_NOT_INITIALIZED);
+    ASSERT(mRenderer != nullptr && display != nullptr);
+    angle::Result result = mRenderer->initialize(this, display, getWSIExtension(), getWSILayer());
+    ANGLE_TRY(angle::ToEGL(result, this, EGL_NOT_INITIALIZED));
+    return egl::NoError();
 }
 
 void DisplayVk::terminate()
 {
-    mRenderer.reset(nullptr);
+    ASSERT(mRenderer);
+    mRenderer->onDestroy(this);
 }
 
 egl::Error DisplayVk::makeCurrent(egl::Surface * /*drawSurface*/,
                                   egl::Surface * /*readSurface*/,
                                   gl::Context * /*context*/)
 {
-    return egl::Error(EGL_SUCCESS);
-}
-
-egl::ConfigSet DisplayVk::generateConfigs()
-{
-    // TODO(jmadill): Multiple configs, pbuffers, and proper checking of config attribs.
-    egl::Config singleton;
-    singleton.renderTargetFormat    = GL_RGBA8;
-    singleton.depthStencilFormat    = GL_NONE;
-    singleton.bufferSize            = 32;
-    singleton.redSize               = 8;
-    singleton.greenSize             = 8;
-    singleton.blueSize              = 8;
-    singleton.alphaSize             = 8;
-    singleton.alphaMaskSize         = 0;
-    singleton.bindToTextureRGB      = EGL_FALSE;
-    singleton.bindToTextureRGBA     = EGL_FALSE;
-    singleton.colorBufferType       = EGL_RGB_BUFFER;
-    singleton.configCaveat          = EGL_NONE;
-    singleton.conformant            = 0;
-    singleton.depthSize             = 0;
-    singleton.stencilSize           = 0;
-    singleton.level                 = 0;
-    singleton.matchNativePixmap     = EGL_NONE;
-    singleton.maxPBufferWidth       = 0;
-    singleton.maxPBufferHeight      = 0;
-    singleton.maxPBufferPixels      = 0;
-    singleton.maxSwapInterval       = 1;
-    singleton.minSwapInterval       = 1;
-    singleton.nativeRenderable      = EGL_TRUE;
-    singleton.nativeVisualID        = 0;
-    singleton.nativeVisualType      = EGL_NONE;
-    singleton.renderableType        = EGL_OPENGL_ES2_BIT;
-    singleton.sampleBuffers         = 0;
-    singleton.samples               = 0;
-    singleton.surfaceType           = EGL_WINDOW_BIT;
-    singleton.optimalOrientation    = 0;
-    singleton.transparentType       = EGL_NONE;
-    singleton.transparentRedValue   = 0;
-    singleton.transparentGreenValue = 0;
-    singleton.transparentBlueValue  = 0;
-    singleton.colorComponentType    = EGL_COLOR_COMPONENT_TYPE_FIXED_EXT;
-
-    egl::ConfigSet configSet;
-    configSet.add(singleton);
-    return configSet;
+    return egl::NoError();
 }
 
 bool DisplayVk::testDeviceLost()
 {
-    // TODO(jmadill): Figure out how to do device lost in Vulkan.
-    return false;
+    return mRenderer->isDeviceLost();
 }
 
-egl::Error DisplayVk::restoreLostDevice()
+egl::Error DisplayVk::restoreLostDevice(const egl::Display *display)
 {
-    UNIMPLEMENTED();
-    return egl::Error(EGL_BAD_ACCESS);
+    // A vulkan device cannot be restored, the entire renderer would have to be re-created along
+    // with any other EGL objects that reference it.
+    return egl::EglBadDisplay();
 }
 
 std::string DisplayVk::getVendorString() const
@@ -115,44 +75,37 @@ std::string DisplayVk::getVendorString() const
     return vendorString;
 }
 
-egl::Error DisplayVk::getDevice(DeviceImpl **device)
-{
-    return egl::Error(EGL_SUCCESS);
-}
-
-egl::Error DisplayVk::waitClient() const
+DeviceImpl *DisplayVk::createDevice()
 {
     UNIMPLEMENTED();
-    return egl::Error(EGL_BAD_ACCESS);
+    return nullptr;
 }
 
-egl::Error DisplayVk::waitNative(EGLint engine,
-                                 egl::Surface *drawSurface,
-                                 egl::Surface *readSurface) const
+egl::Error DisplayVk::waitClient(const gl::Context *context)
+{
+    ANGLE_TRACE_EVENT0("gpu.angle", "DisplayVk::waitClient");
+    ContextVk *contextVk = vk::GetImpl(context);
+    return angle::ToEGL(contextVk->finishImpl(), this, EGL_BAD_ACCESS);
+}
+
+egl::Error DisplayVk::waitNative(const gl::Context *context, EGLint engine)
 {
     UNIMPLEMENTED();
-    return egl::Error(EGL_BAD_ACCESS);
+    return egl::EglBadAccess();
 }
 
 SurfaceImpl *DisplayVk::createWindowSurface(const egl::SurfaceState &state,
                                             EGLNativeWindowType window,
                                             const egl::AttributeMap &attribs)
 {
-    EGLint width  = attribs.getAsInt(EGL_WIDTH, 0);
-    EGLint height = attribs.getAsInt(EGL_HEIGHT, 0);
-
-    return createWindowSurfaceVk(state, window, width, height);
+    return createWindowSurfaceVk(state, window);
 }
 
 SurfaceImpl *DisplayVk::createPbufferSurface(const egl::SurfaceState &state,
                                              const egl::AttributeMap &attribs)
 {
     ASSERT(mRenderer);
-
-    EGLint width  = attribs.getAsInt(EGL_WIDTH, 0);
-    EGLint height = attribs.getAsInt(EGL_HEIGHT, 0);
-
-    return new OffscreenSurfaceVk(state, width, height);
+    return new OffscreenSurfaceVk(state);
 }
 
 SurfaceImpl *DisplayVk::createPbufferFromClientBuffer(const egl::SurfaceState &state,
@@ -173,19 +126,23 @@ SurfaceImpl *DisplayVk::createPixmapSurface(const egl::SurfaceState &state,
 }
 
 ImageImpl *DisplayVk::createImage(const egl::ImageState &state,
+                                  const gl::Context *context,
                                   EGLenum target,
                                   const egl::AttributeMap &attribs)
 {
-    UNIMPLEMENTED();
-    return static_cast<ImageImpl *>(0);
+    return new ImageVk(state, context);
 }
 
-ContextImpl *DisplayVk::createContext(const gl::ContextState &state)
+rx::ContextImpl *DisplayVk::createContext(const gl::State &state,
+                                          gl::ErrorSet *errorSet,
+                                          const egl::Config *configuration,
+                                          const gl::Context *shareContext,
+                                          const egl::AttributeMap &attribs)
 {
-    return new ContextVk(state, mRenderer.get());
+    return new ContextVk(state, errorSet, mRenderer);
 }
 
-StreamProducerImpl *DisplayVk::createStreamProducerD3DTextureNV12(
+StreamProducerImpl *DisplayVk::createStreamProducerD3DTexture(
     egl::Stream::ConsumerType consumerType,
     const egl::AttributeMap &attribs)
 {
@@ -193,19 +150,99 @@ StreamProducerImpl *DisplayVk::createStreamProducerD3DTextureNV12(
     return static_cast<StreamProducerImpl *>(0);
 }
 
+EGLSyncImpl *DisplayVk::createSync(const egl::AttributeMap &attribs)
+{
+    return new EGLSyncVk(attribs);
+}
+
 gl::Version DisplayVk::getMaxSupportedESVersion() const
 {
-    UNIMPLEMENTED();
-    return gl::Version(0, 0);
+    return mRenderer->getMaxSupportedESVersion();
+}
+
+gl::Version DisplayVk::getMaxConformantESVersion() const
+{
+    return mRenderer->getMaxConformantESVersion();
 }
 
 void DisplayVk::generateExtensions(egl::DisplayExtensions *outExtensions) const
 {
+    outExtensions->createContextRobustness      = true;
+    outExtensions->surfaceOrientation           = true;
+    outExtensions->displayTextureShareGroup     = true;
+    outExtensions->robustResourceInitialization = true;
+
+    // The Vulkan implementation will always say that EGL_KHR_swap_buffers_with_damage is supported.
+    // When the Vulkan driver supports VK_KHR_incremental_present, it will use it.  Otherwise, it
+    // will ignore the hint and do a regular swap.
+    outExtensions->swapBuffersWithDamage = true;
+
+    outExtensions->fenceSync = true;
+    outExtensions->waitSync  = true;
+
+    outExtensions->image                 = true;
+    outExtensions->imageBase             = true;
+    outExtensions->imagePixmap           = false;  // ANGLE does not support pixmaps
+    outExtensions->glTexture2DImage      = true;
+    outExtensions->glTextureCubemapImage = true;
+    outExtensions->glTexture3DImage      = false;
+    outExtensions->glRenderbufferImage   = true;
+    outExtensions->imageNativeBuffer =
+        getRenderer()->getFeatures().supportsAndroidHardwareBuffer.enabled;
+    outExtensions->surfacelessContext = true;
+
+    outExtensions->noConfigContext = true;
+
+#if defined(ANGLE_PLATFORM_GGP)
+    outExtensions->ggpStreamDescriptor = true;
+    outExtensions->swapWithFrameToken  = true;
+#endif  // defined(ANGLE_PLATFORM_GGP)
 }
 
 void DisplayVk::generateCaps(egl::Caps *outCaps) const
 {
     outCaps->textureNPOT = true;
+}
+
+const char *DisplayVk::getWSILayer() const
+{
+    return nullptr;
+}
+
+bool DisplayVk::getScratchBuffer(size_t requstedSizeBytes,
+                                 angle::MemoryBuffer **scratchBufferOut) const
+{
+    return mScratchBuffer.get(requstedSizeBytes, scratchBufferOut);
+}
+
+void DisplayVk::handleError(VkResult result,
+                            const char *file,
+                            const char *function,
+                            unsigned int line)
+{
+    ASSERT(result != VK_SUCCESS);
+
+    std::stringstream errorStream;
+    errorStream << "Internal Vulkan error: " << VulkanResultString(result) << ", in " << file
+                << ", " << function << ":" << line << ".";
+    mStoredErrorString = errorStream.str();
+
+    if (result == VK_ERROR_DEVICE_LOST)
+    {
+        WARN() << mStoredErrorString;
+        mRenderer->notifyDeviceLost();
+    }
+}
+
+// TODO(jmadill): Remove this. http://anglebug.com/3041
+egl::Error DisplayVk::getEGLError(EGLint errorCode)
+{
+    return egl::Error(errorCode, 0, std::move(mStoredErrorString));
+}
+
+void DisplayVk::populateFeatureList(angle::FeatureList *features)
+{
+    mRenderer->getFeatures().populateFeatureList(features);
 }
 
 }  // namespace rx
