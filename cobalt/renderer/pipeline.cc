@@ -75,9 +75,7 @@ void DestructSubmissionOnMessageLoop(base::MessageLoop* message_loop,
 Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
                    const scoped_refptr<backend::RenderTarget>& render_target,
                    backend::GraphicsContext* graphics_context,
-#if SB_API_VERSION < SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER_DEPRECATED_VERSION
                    bool submit_even_if_render_tree_is_unchanged,
-#endif
                    ShutdownClearMode clear_on_shutdown_mode,
                    const Options& options)
     : rasterizer_created_event_(
@@ -87,10 +85,8 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
       graphics_context_(graphics_context),
       rasterizer_thread_("Rasterizer"),
       submission_disposal_thread_("Rasterizer Submission Disposal"),
-#if SB_API_VERSION < SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER_DEPRECATED_VERSION
       submit_even_if_render_tree_is_unchanged_(
           submit_even_if_render_tree_is_unchanged),
-#endif
       last_did_rasterize_(false),
       last_animations_expired_(true),
       last_stat_tracked_animations_expired_(true),
@@ -334,10 +330,7 @@ void Pipeline::RasterizeCurrentTree() {
   bool is_new_render_tree = submission.render_tree != last_render_tree_;
   bool has_render_tree_changed =
       !last_animations_expired_ || is_new_render_tree;
-  bool force_rasterize =
-  #if SB_API_VERSION < SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER_DEPRECATED_VERSION
-      submit_even_if_render_tree_is_unchanged_ ||
-  #endif
+  bool force_rasterize = submit_even_if_render_tree_is_unchanged_ ||
       fps_overlay_update_pending_;
 
   float maximum_frame_interval_milliseconds = graphics_context_ ?
