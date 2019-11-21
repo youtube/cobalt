@@ -433,6 +433,11 @@ INSTANTIATE_TEST_CASE_P(websockets, WebPlatformTest,
     ::testing::ValuesIn(EnumerateWebPlatformTests("websockets")),
     GetTestName());
 
+INSTANTIATE_TEST_CASE_P(
+    web_crypto_api, WebPlatformTest,
+    ::testing::ValuesIn(EnumerateWebPlatformTests("WebCryptoAPI")),
+    GetTestName());
+
 #endif  // !defined(COBALT_WIN)
 
 }  // namespace layout_tests

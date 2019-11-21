@@ -150,6 +150,7 @@
         '<(DEPTH)/cobalt/script/engine.gyp:engine',
         '<(DEPTH)/cobalt/speech/speech.gyp:speech',
         '<(DEPTH)/cobalt/sso/sso.gyp:sso',
+        '<(DEPTH)/cobalt/subtlecrypto/subtlecrypto.gyp:subtlecrypto',
         '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:trace_event',
         '<(DEPTH)/cobalt/ui_navigation/ui_navigation.gyp:ui_navigation',
