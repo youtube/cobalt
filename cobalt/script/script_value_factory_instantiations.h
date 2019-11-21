@@ -24,6 +24,10 @@
 namespace cobalt {
 namespace script {
 
+// TODO: Move dom::BufferSource to script::BufferSource and include here
+using BufferSource = script::UnionType2<script::Handle<script::ArrayBufferView>,
+                                        script::Handle<script::ArrayBuffer>>;
+
 // Explicit template instantiations for all Promise types that will be used
 // in Cobalt.
 #define PROMISE_TEMPLATE_INSTANTIATION(TYPE) \
@@ -44,6 +48,7 @@ PROMISE_TEMPLATE_INSTANTIATION(double);
 PROMISE_TEMPLATE_INSTANTIATION(std::string);
 PROMISE_TEMPLATE_INSTANTIATION(scoped_refptr<Wrappable>);
 PROMISE_TEMPLATE_INSTANTIATION(Sequence<scoped_refptr<Wrappable>>);
+PROMISE_TEMPLATE_INSTANTIATION(BufferSource);
 
 #undef PROMISE_TEMPLATE_INSTANTIATION
 

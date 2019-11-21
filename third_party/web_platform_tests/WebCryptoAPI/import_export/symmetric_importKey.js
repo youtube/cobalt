@@ -16,15 +16,19 @@ function run_test() {
     // combinations of algorithms, usages, parameters, and formats to test
     var testVectors = [
         {name: "AES-CTR",               legalUsages: ["encrypt", "decrypt"],      extractable: [true, false], formats: ["raw", "jwk"]},
+/* Cobalt only implements AES-CTR
         {name: "AES-CBC",               legalUsages: ["encrypt", "decrypt"],      extractable: [true, false], formats: ["raw", "jwk"]},
         {name: "AES-GCM",               legalUsages: ["encrypt", "decrypt"],      extractable: [true, false], formats: ["raw", "jwk"]},
         {name: "AES-KW",                legalUsages: ["wrapKey", "unwrapKey"],    extractable: [true, false], formats: ["raw", "jwk"]},
+*/
         {name: "HMAC", hash: "SHA-1",   legalUsages: ["sign", "verify"],          extractable: [false],       formats: ["raw", "jwk"]},
         {name: "HMAC", hash: "SHA-256", legalUsages: ["sign", "verify"],          extractable: [false],       formats: ["raw", "jwk"]},
         {name: "HMAC", hash: "SHA-384", legalUsages: ["sign", "verify"],          extractable: [false],       formats: ["raw", "jwk"]},
         {name: "HMAC", hash: "SHA-512", legalUsages: ["sign", "verify"],          extractable: [false],       formats: ["raw", "jwk"]},
+/* Cobalt does not implement the following
         {name: "HKDF",                  legalUsages: ["deriveBits", "deriveKey"], extractable: [false],       formats: ["raw"]},
         {name: "PBKDF2",                legalUsages: ["deriveBits", "deriveKey"], extractable: [false],       formats: ["raw"]}
+*/
     ];
 
 
@@ -43,10 +47,14 @@ function run_test() {
                 // Try each legal value of the extractable parameter
                 vector.extractable.forEach(function(extractable) {
                     vector.formats.forEach(function(format) {
+                        if(extractable)
+                            return;  // Cobalt does not permit extractable keys
                         var data = keyData;
                         if (format === "jwk") {
                             data = jwkData(keyData, algorithm);
                         }
+                        if (format === "jwk")
+                            return; // Cobalt does not support JWK
                         testFormat(format, algorithm, data, keyData.length * 8, usages, extractable);
                     });
                 });
