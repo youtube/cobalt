@@ -21,13 +21,11 @@ namespace cobalt {
 namespace renderer {
 
 void RendererModule::Options::SetPerPlatformDefaultOptions() {
-#if SB_API_VERSION < SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER_DEPRECATED_VERSION
   // If there is no need to frequently flip the display buffer, then enable
   // support for an optimization where the scene is not re-rasterized each frame
   // if it has not changed from the last frame.
   submit_even_if_render_tree_is_unchanged =
       SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER;
-#endif
 
   create_rasterizer_function =
       GetDefaultRasterizerForPlatform().create_rasterizer_callback;
