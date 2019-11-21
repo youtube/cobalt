@@ -337,6 +337,13 @@ void StarboardPlayer::GetUrlPlayerBufferedTimeRanges(
     base::TimeDelta* buffer_start_time, base::TimeDelta* buffer_length_time) {
   DCHECK(buffer_start_time || buffer_length_time);
   DCHECK(is_url_based_);
+
+  if (state_ == kSuspended) {
+    *buffer_start_time = base::TimeDelta();
+    *buffer_length_time = base::TimeDelta();
+    return;
+  }
+
   DCHECK(SbPlayerIsValid(player_));
 
   SbUrlPlayerExtraInfo url_player_info;
@@ -355,8 +362,15 @@ void StarboardPlayer::GetUrlPlayerBufferedTimeRanges(
 void StarboardPlayer::GetVideoResolution(int* frame_width, int* frame_height) {
   DCHECK(frame_width);
   DCHECK(frame_height);
-  DCHECK(SbPlayerIsValid(player_));
   DCHECK(is_url_based_);
+
+  if (state_ == kSuspended) {
+    *frame_width = video_sample_info_.frame_width;
+    *frame_height = video_sample_info_.frame_height;
+    return;
+  }
+
+  DCHECK(SbPlayerIsValid(player_));
 
   SbPlayerInfo2 out_player_info;
   SbPlayerGetInfo2(player_, &out_player_info);
