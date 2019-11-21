@@ -16,8 +16,10 @@
 #define COBALT_DOM_CRYPTO_H_
 
 #include "cobalt/script/array_buffer_view.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/subtlecrypto/subtle_crypto.h"
 
 namespace cobalt {
 namespace dom {
@@ -32,10 +34,12 @@ class Crypto : public script::Wrappable {
  public:
   // Web API:Crypto
   //
+  scoped_refptr<subtlecrypto::SubtleCrypto> subtle(
+      script::EnvironmentSettings* settings) const;
+
   static script::Handle<script::ArrayBufferView> GetRandomValues(
       const script::Handle<script::ArrayBufferView>& array,
       script::ExceptionState* exception_state);
-
   DEFINE_WRAPPABLE_TYPE(Crypto);
 };
 

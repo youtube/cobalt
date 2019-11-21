@@ -1,4 +1,4 @@
-// Copyright 2015 The Cobalt Authors. All Rights Reserved.
+// Copyright 2020 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/WebCryptoAPI/#crypto-interface
+// https://www.w3.org/TR/WebCryptoAPI/#dfn-KeyFormat
 
-[Exposed=Window]
-interface Crypto {
-  [CallWith=EnvironmentSettings] readonly attribute SubtleCrypto subtle;
-  [RaisesException] ArrayBufferView getRandomValues(ArrayBufferView array);
+enum KeyFormat {
+    // An unformatted sequence of bytes. Intended for secret keys.
+    "raw",
+    // The DER encoding of the SubjectPublicKeyInfo structure from RFC 5280.
+    "spki",
+    // The DER encoding of the PrivateKeyInfo structure from RFC 5208.
+    "pkcs8",
+    // The key is a JsonWebKey dictionary encoded as a JavaScript object
+    "jwk"
 };

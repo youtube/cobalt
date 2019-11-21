@@ -205,6 +205,9 @@
         '../speech/speech_synthesis_utterance.idl',
         '../speech/speech_synthesis_voice.idl',
 
+        '../subtlecrypto/crypto_key.idl',
+        '../subtlecrypto/subtle_crypto.idl',
+
         '../web_animations/animatable.idl',
         '../web_animations/animation.idl',
         '../web_animations/animation_effect_read_only.idl',
@@ -285,6 +288,12 @@
         '../page_visibility/visibility_state.idl',
         '../speech/speech_recognition_error_code.idl',
         '../speech/speech_synthesis_error_code.idl',
+        '../subtlecrypto/aes_ctr_params.idl',
+        '../subtlecrypto/algorithm.idl',
+        '../subtlecrypto/import_key_algorithm_params.idl',
+        '../subtlecrypto/key_format.idl',
+        '../subtlecrypto/key_type.idl',
+        '../subtlecrypto/key_usage.idl',
         '../web_animations/animation_fill_mode.idl',
         '../web_animations/animation_playback_direction.idl',
         '../websocket/close_event_init.idl',
