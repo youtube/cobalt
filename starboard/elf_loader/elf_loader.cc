@@ -55,7 +55,8 @@ ElfLoader* ElfLoader::Get() {
 
 bool ElfLoader::Load(const std::string& library_path,
                      const std::string& content_path,
-                     bool is_relative_path) {
+                     bool is_relative_path,
+                     const void* (*custom_get_extension)(const char* name)) {
   if (is_relative_path) {
     library_path_ = MakeRelativeToContentPath(library_path);
     content_path_ = MakeRelativeToContentPath(content_path);
@@ -68,7 +69,7 @@ bool ElfLoader::Load(const std::string& library_path,
     SB_LOG(ERROR) << "|library_path_| and |content_path_| cannot be empty.";
     return false;
   }
-  return impl_->Load(library_path_.c_str());
+  return impl_->Load(library_path_.c_str(), custom_get_extension);
 }
 
 void* ElfLoader::LookupSymbol(const char* symbol) {

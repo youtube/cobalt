@@ -59,7 +59,8 @@
 namespace starboard {
 namespace elf_loader {
 
-ExportedSymbols::ExportedSymbols() {
+ExportedSymbols::ExportedSymbols(
+    const void* (*custom_get_extension)(const char* name)) {
   REGISTER_SYMBOL(SbAccessibilityGetDisplaySettings);
   REGISTER_SYMBOL(SbAccessibilityGetTextToSpeechSettings);
   REGISTER_SYMBOL(SbAudioSinkCreate);
@@ -437,7 +438,13 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbAudioSinkGetMinBufferSizeInFrames);
   REGISTER_SYMBOL(SbCPUFeaturesGet);
   REGISTER_SYMBOL(SbMediaSetAudioWriteDuration);
-  REGISTER_SYMBOL(SbSystemGetExtension);
+
+  if (custom_get_extension != NULL) {
+    REGISTER_SYMBOL_AS(SbSystemGetExtension, *custom_get_extension);
+  } else {
+    REGISTER_SYMBOL(SbSystemGetExtension);
+  }
+
   REGISTER_SYMBOL(SbSystemSignWithCertificationSecretKey);
   REGISTER_SYMBOL(SbThreadContextGetPointer);
   REGISTER_SYMBOL(SbThreadSamplerCreate);

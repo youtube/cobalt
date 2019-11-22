@@ -17,6 +17,7 @@
 #include "starboard/elf_loader/elf_loader.h"
 #include "starboard/event.h"
 #include "starboard/loader_app/installation_manager.h"
+#include "starboard/loader_app/system_get_extension_shim.h"
 #include "starboard/string.h"
 
 // TODO: Try to merge with the implementation in starboard/elf_loader/sandbox.cc
@@ -106,7 +107,8 @@ void LoadLibraryAndInitialize() {
                     SB_FILE_SEP_STRING, kCobaltContentPath);
     SB_LOG(INFO) << "content_path=" << content_path;
 
-    if (!g_elf_loader.Load(lib_path, content_path, false)) {
+    if (!g_elf_loader.Load(lib_path, content_path, false,
+                           &starboard::loader_app::SbSystemGetExtensionShim)) {
       SB_LOG(WARNING) << "Failed to load Cobalt!";
 
       // Hard failure. Discard the image and auto rollback, but only if
