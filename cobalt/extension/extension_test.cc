@@ -15,6 +15,7 @@
 #include <cmath>
 
 #include "cobalt/extension/graphics.h"
+#include "cobalt/extension/installation_manager.h"
 #include "cobalt/extension/platform_service.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -70,6 +71,29 @@ TEST(ExtensionTest, Graphics) {
       << "Extension struct should be a singleton";
 }
 
+TEST(ExtensionTest, InstallationManager) {
+  typedef CobaltExtensionInstallationManagerApi ExtensionApi;
+  const char* kExtensionName = kCobaltExtensionInstallationManagerName;
+
+  const ExtensionApi* extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  if (!extension_api) {
+    return;
+  }
+
+  EXPECT_STREQ(extension_api->name, kExtensionName);
+  EXPECT_EQ(extension_api->version, 1) << "Invalid version";
+  EXPECT_TRUE(extension_api->GetCurrentInstallationIndex != NULL);
+  EXPECT_TRUE(extension_api->MarkInstallationSuccessful != NULL);
+  EXPECT_TRUE(extension_api->RequestRollForwardToInstallation != NULL);
+  EXPECT_TRUE(extension_api->GetInstallationPath != NULL);
+  EXPECT_TRUE(extension_api->SelectNewInstallationIndex != NULL);
+
+  const ExtensionApi* second_extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  EXPECT_EQ(second_extension_api, extension_api)
+      << "Extension struct should be a singleton";
+}
 }  // namespace extension
 }  // namespace cobalt
 #endif  // SB_API_VERSION >= 11

@@ -24,7 +24,8 @@ namespace elf_loader {
 class ElfLoaderImpl {
  public:
   ElfLoaderImpl();
-  bool Load(const char* file_name);
+  bool Load(const char* file_name,
+            const void* (*custom_get_extension)(const char* name) = NULL);
   void* LookupSymbol(const char* symbol);
   ~ElfLoaderImpl();
 

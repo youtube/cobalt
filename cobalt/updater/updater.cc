@@ -26,6 +26,7 @@
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/time/time.h"
+#include "cobalt/extension/installation_manager.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/updater/configurator.h"
 #include "cobalt/updater/crash_client.h"
@@ -105,6 +106,23 @@ std::unique_ptr<base::AtExitManager> exit_manager;
 namespace cobalt {
 namespace updater {
 
+void MarkSuccessful() {
+  const CobaltExtensionInstallationManagerApi* installation_api =
+      static_cast<const CobaltExtensionInstallationManagerApi*>(
+          SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
+  if (!installation_api) {
+    SB_LOG(ERROR) << "Failed to get installation manager extension";
+    return;
+  }
+  int index = installation_api->GetCurrentInstallationIndex();
+  if (index != IM_EXT_ERROR) {
+    if (installation_api->MarkInstallationSuccessful(index) != IM_EXT_SUCCESS) {
+      SB_LOG(ERROR)
+          << "Updater failed to mark the current installation successful";
+    }
+  }
+}
+
 int UpdaterMain(int argc, const char* const* argv) {
   exit_manager.reset(new base::AtExitManager());
 
@@ -170,6 +188,8 @@ int UpdaterMain(int argc, const char* const* argv) {
                 FROM_HERE, base::BindOnce(&QuitLoop, std::move(closure)));
           },
           func_cb));
+
+  MarkSuccessful();
 
   return 0;
 }
