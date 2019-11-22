@@ -156,6 +156,10 @@
 // access are required.
 #define SB_STORAGE_PATH_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Deprecate the usage of SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER.
+#define SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER_DEPRECATED_VERSION \
+  SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
@@ -608,8 +612,16 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_HAS_NV12_TEXTURE_SUPPORT."
 #endif
 
+#if SB_API_VERSION >= SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER_DEPRECATED_VERSION
+#if defined(SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER)
+#error "SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER is deprecated."
+#error "Use `CobaltExtensionGraphicsApi` instead."
+#error "See [`CobaltExtensionGraphicsApi`](../extension/graphics.h)."
+#endif
+#else
 #if !defined(SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER)
 #error "Your platform must define SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER."
+#endif
 #endif
 
 #if !defined(SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND)
