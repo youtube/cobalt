@@ -17,6 +17,7 @@
 
 #include <memory>
 
+#include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/script/exception_message.h"
 #include "cobalt/script/script_exception.h"
@@ -87,14 +88,20 @@ class PreallocatedArrayBufferData {
   PreallocatedArrayBufferData& operator=(PreallocatedArrayBufferData&& other) =
       default;
 
-  void* data() const { return data_; }
+  void* data() { return data_; }
   size_t byte_length() const { return byte_length_; }
 
  private:
   PreallocatedArrayBufferData(const PreallocatedArrayBufferData&) = delete;
   void operator=(const PreallocatedArrayBufferData&) = delete;
 
-  void Release() {
+  void Detach(void** data, size_t* byte_length) {
+    DCHECK(data);
+    DCHECK(byte_length);
+
+    *data = data_;
+    *byte_length = byte_length_;
+
     data_ = nullptr;
     byte_length_ = 0u;
   }

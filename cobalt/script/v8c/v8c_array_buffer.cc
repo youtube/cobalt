@@ -57,10 +57,15 @@ Handle<ArrayBuffer> ArrayBuffer::New(
           global_environment);
   v8::Isolate* isolate = v8c_global_environment->isolate();
   v8c::EntryScope entry_scope(isolate);
-  v8::Local<v8::ArrayBuffer> array_buffer =
-      v8::ArrayBuffer::New(isolate, data->data(), data->byte_length(),
-                           v8::ArrayBufferCreationMode::kInternalized);
-  data->Release();
+
+  void* buffer;
+  size_t byte_length;
+
+  data->Detach(&buffer, &byte_length);
+
+  v8::Local<v8::ArrayBuffer> array_buffer = v8::ArrayBuffer::New(
+      isolate, buffer, byte_length, v8::ArrayBufferCreationMode::kInternalized);
+
   return Handle<ArrayBuffer>(
       new v8c::V8cUserObjectHolder<v8c::V8cArrayBuffer>(isolate, array_buffer));
 }
