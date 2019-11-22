@@ -31,7 +31,9 @@ ElfLoaderImpl::ElfLoaderImpl() {
 #endif
 }
 
-bool ElfLoaderImpl::Load(const char* name) {
+bool ElfLoaderImpl::Load(
+    const char* name,
+    const void* (*custom_get_extension)(const char* name)) {
   SB_LOG(INFO) << "Loading: " << name;
   elf_file_.reset(new FileImpl());
   elf_file_->Open(name);
@@ -85,7 +87,7 @@ bool ElfLoaderImpl::Load(const char* name) {
   }
   SB_LOG(INFO) << "Initialized dynamic symbols";
 
-  exported_symbols_.reset(new ExportedSymbols());
+  exported_symbols_.reset(new ExportedSymbols(custom_get_extension));
   relocations_.reset(new Relocations(program_table_->GetBaseMemoryAddress(),
                                      dynamic_section_.get(),
                                      exported_symbols_.get()));

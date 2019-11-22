@@ -17,67 +17,18 @@
 {
   'targets': [
     {
-      'target_name': 'installation_store_proto',
-      'type': 'static_library',
-      'sources': [
-        'installation_store.pb.cc',
-        'installation_store_store.pb.h',
-      ],
-      'dependencies': [
-        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
-      ],
-    },
-    {
-      'target_name': 'installation_manager',
-      'type': 'static_library',
-      'sources': [
-        'installation_manager.cc',
-        'installation_manager.h',
-      ],
-      'dependencies': [
-        ':installation_store_proto',
-        '<(DEPTH)/starboard/starboard.gyp:starboard',
-      ],
-      'include_dirs': [
-        # Get protobuf headers from the chromium tree.
-        '<(DEPTH)/third_party/protobuf/src',
-      ],
-    },
-    {
-      'target_name': 'installation_manager_test',
-      'type': '<(gtest_target_type)',
-      'sources': [
-        'installation_manager_test.cc',
-        '<(DEPTH)/starboard/common/test_main.cc',
-      ],
-      'dependencies': [
-         ':installation_manager',
-         '<(DEPTH)/testing/gmock.gyp:gmock',
-         '<(DEPTH)/testing/gtest.gyp:gtest',
-      ],
-    },
-    {
-      'target_name': 'installation_manager_test_deploy',
-      'type': 'none',
-      'dependencies': [
-        'installation_manager_test',
-      ],
-      'variables': {
-        'executable_name': 'installation_manager_test',
-      },
-      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
-    },
-    {
       'target_name': 'loader_app',
       'type': 'executable',
       'conditions': [
         ['target_arch in ["x86", "x64", "arm", "arm64"] ', {
           'sources': [
             'loader_app.cc',
+            'system_get_extension_shim.h',
+            'system_get_extension_shim.cc',
           ],
           'dependencies': [
-            ':installation_manager',
             '<(DEPTH)/starboard/elf_loader/elf_loader.gyp:elf_loader',
+            '<(DEPTH)/starboard/loader_app/installation_manager.gyp:installation_manager',
             '<(DEPTH)/starboard/starboard.gyp:starboard',
             # TODO: Remove this dependency once MediaSession is migrated to use CobaltExtensions.
             '<@(cobalt_platform_dependencies)',

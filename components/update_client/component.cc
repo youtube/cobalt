@@ -82,7 +82,13 @@ void InstallComplete(
              InstallOnBlockingTaskRunnerCompleteCallback callback,
              const base::FilePath& unpack_path,
              const CrxInstaller::Result& result) {
+
+// For Cobalt, don't delete the unpack_path, which is not a temp directory.
+// Cobalt uses a dedicated installation slot obtained from the Installation
+// Manager.
+#if !defined(OS_STARBOARD)
             base::DeleteFile(unpack_path, true);
+#endif
             const ErrorCategory error_category =
                 result.error ? ErrorCategory::kInstall : ErrorCategory::kNone;
             main_task_runner->PostTask(
@@ -102,9 +108,11 @@ void InstallOnBlockingTaskRunner(
     InstallOnBlockingTaskRunnerCompleteCallback callback) {
   DCHECK(base::DirectoryExists(unpack_path));
 
+#if !defined(OS_STARBOARD)
   // Acquire the ownership of the |unpack_path|.
   base::ScopedTempDir unpack_path_owner;
   ignore_result(unpack_path_owner.Set(unpack_path));
+#endif
 
   if (static_cast<int>(fingerprint.size()) !=
       base::WriteFile(
@@ -118,10 +126,18 @@ void InstallOnBlockingTaskRunner(
     return;
   }
 
+#if defined(OS_STARBOARD)
+  CrxInstaller::Result result(update_client::InstallError::NONE);
+  main_task_runner->PostTask(
+      FROM_HERE,
+      base::BindOnce(std::move(callback), ErrorCategory::kNone,
+                     static_cast<int>(result.error), result.extended_error));
+#else
   installer->Install(
       unpack_path, public_key,
       base::BindOnce(&InstallComplete, main_task_runner, std::move(callback),
                      unpack_path_owner.Take()));
+#endif
 }
 
 void UnpackCompleteOnBlockingTaskRunner(

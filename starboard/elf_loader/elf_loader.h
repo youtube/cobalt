@@ -37,9 +37,12 @@ class ElfLoader {
 
   // Loads the shared library. Returns false if |library_path| or |content_path|
   // is empty, or if the library could not be loaded.
+  // An optional |custom_get_extension| function pointer can be passed in order
+  // to override the |SbSystemGetExtension| function.
   bool Load(const std::string& library_path,
             const std::string& content_path,
-            bool is_relative_path);
+            bool is_relative_path,
+            const void* (*custom_get_extension)(const char* name) = NULL);
 
   // Looks up the symbol address in the
   // shared library.

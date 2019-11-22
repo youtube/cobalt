@@ -24,7 +24,10 @@ namespace elf_loader {
 
 ElfLoaderImpl::ElfLoaderImpl() {}
 
-bool ElfLoaderImpl::Load(const char* name) {
+bool ElfLoaderImpl::Load(
+    const char* name,
+    const void* (*custom_get_extension)(const char* name)) {
+  SB_UNREFERENCED_PARAMETER(custom_get_extension);
   SB_LOG(INFO) << "Loading: " << name;
 
   // Creating the instance forces the binary to keep all the symbols.
