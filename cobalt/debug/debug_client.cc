@@ -67,7 +67,8 @@ void DebugClient::SendCommand(const std::string& method,
     DLOG(WARNING) << "Debug client is not attached to dispatcher.";
     return;
   }
-  dispatcher_->SendCommand(Command(method, json_params, callback));
+  dispatcher_->SendCommand(
+      std::make_unique<Command>(method, json_params, callback));
 }
 
 }  // namespace debug
