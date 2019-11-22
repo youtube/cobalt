@@ -106,8 +106,13 @@ class DebugDispatcher {
     std::set<DebugClient*> clients_;
   };
 
-  // A command execution function stored in the domain registry.
-  typedef base::Callback<bool(const Command& command)> CommandHandler;
+  // A command execution function stored in the domain registry. If the command
+  // is supported, ownership of the command parameter should be kept and used to
+  // send the response. If the command is not supported, the command should be
+  // returned so the dispatcher can try calling a JS fallback implementation.
+  typedef base::Callback<std::unique_ptr<Command>(
+      std::unique_ptr<Command> command)>
+      CommandHandler;
 
   DebugDispatcher(script::ScriptDebugger* script_debugger,
                   DebugScriptRunner* script_runner);
@@ -150,7 +155,7 @@ class DebugDispatcher {
   // called from any thread - the command will be run on the dispatcher's
   // message loop, and the response will be sent to the callback and message
   // loop held in the command object.
-  void SendCommand(const Command& command);
+  void SendCommand(std::unique_ptr<Command> command);
 
   // Sets or unsets the paused state and calls |HandlePause| if set.
   // Must be called on the debug target (WebModule) thread.
@@ -175,7 +180,7 @@ class DebugDispatcher {
   // name in the command registry and running the corresponding function.
   // The response callback will be run on the message loop specified in the
   // info structure with the result as an argument.
-  void DispatchCommand(Command command);
+  void DispatchCommand(std::unique_ptr<Command> command);
 
   // Called by |SendCommand| if a debugger command is received while script
   // execution is paused.

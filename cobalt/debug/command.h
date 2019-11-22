@@ -42,13 +42,16 @@ class Command {
     kServerError = -32000,
   };
 
-  explicit Command(const std::string& method, const std::string& json_params,
-                   const DebugClient::ResponseCallback& response_callback)
+  Command(const std::string& method, const std::string& json_params,
+          const DebugClient::ResponseCallback& response_callback)
       : method_(method),
         domain_(method_, 0, method_.find('.')),
         json_params_(json_params),
         callback_(response_callback),
         task_runner_(base::MessageLoop::current()->task_runner()) {}
+
+  Command(Command&) = delete;
+  Command(Command&&) = delete;
 
   const std::string& GetMethod() const { return method_; }
   const std::string& GetDomain() const { return domain_; }
