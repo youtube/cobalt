@@ -24,7 +24,6 @@
 #include "base/message_loop/message_loop.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/csp/content_security_policy.h"
-#include "cobalt/loader/cobalt_url_fetcher_string_writer.h"
 #include "cobalt/loader/fetcher.h"
 #include "cobalt/network/network_module.h"
 #include "net/url_request/url_fetcher.h"

@@ -20,6 +20,7 @@
 #include "base/strings/stringprintf.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/loader/cors_preflight.h"
+#include "cobalt/loader/url_fetcher_string_writer.h"
 #include "cobalt/network/network_module.h"
 #include "net/url_request/url_fetcher.h"
 #if defined(OS_STARBOARD)
@@ -87,9 +88,9 @@ NetFetcher::NetFetcher(const GURL& url,
   url_fetcher_ = net::URLFetcher::Create(url, options.request_method, this);
   url_fetcher_->SetRequestContext(
       network_module->url_request_context_getter().get());
-  auto* download_data_writer = new CobaltURLFetcherStringWriter();
-  url_fetcher_->SaveResponseWithWriter(
-      std::unique_ptr<CobaltURLFetcherStringWriter>(download_data_writer));
+  std::unique_ptr<URLFetcherStringWriter> download_data_writer(
+      new URLFetcherStringWriter());
+  url_fetcher_->SaveResponseWithWriter(std::move(download_data_writer));
   if (request_mode != kNoCORSMode && !url.SchemeIs("data") &&
       origin != Origin(url)) {
     request_cross_origin_ = true;
@@ -169,7 +170,7 @@ void NetFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
   const int response_code = source->GetResponseCode();
   if (status.is_success() && IsResponseCodeSuccess(response_code)) {
     auto* download_data_writer =
-        base::polymorphic_downcast<CobaltURLFetcherStringWriter*>(
+        base::polymorphic_downcast<URLFetcherStringWriter*>(
             source->GetResponseWriter());
     std::unique_ptr<std::string> data = download_data_writer->data();
     if (!data->empty()) {
@@ -206,7 +207,7 @@ void NetFetcher::OnURLFetchDownloadProgress(const net::URLFetcher* source,
                                             int64_t /*current_network_bytes*/) {
   if (IsResponseCodeSuccess(source->GetResponseCode())) {
     auto* download_data_writer =
-        base::polymorphic_downcast<CobaltURLFetcherStringWriter*>(
+        base::polymorphic_downcast<URLFetcherStringWriter*>(
             source->GetResponseWriter());
     std::unique_ptr<std::string> data = download_data_writer->data();
     if (data->empty()) {
