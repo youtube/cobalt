@@ -317,9 +317,9 @@ void GoogleSpeechService::StartInternal(const SpeechRecognitionConfig& config,
 
   downstream_fetcher_ =
       fetcher_creator_.Run(down_url, net::URLFetcher::GET, this);
-  download_data_writer_ = new CobaltURLFetcherStringWriter();
+  download_data_writer_ = new loader::URLFetcherStringWriter();
   downstream_fetcher_->SaveResponseWithWriter(
-      std::unique_ptr<CobaltURLFetcherStringWriter>(download_data_writer_));
+      std::unique_ptr<loader::URLFetcherStringWriter>(download_data_writer_));
   downstream_fetcher_->SetRequestContext(
       network_module_->url_request_context_getter());
   downstream_fetcher_->Start();

@@ -23,6 +23,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/loader/cors_preflight.h"
+#include "cobalt/loader/url_fetcher_string_writer.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_status_code.h"
 
@@ -208,7 +209,7 @@ void FetcherBufferedDataSource::OnURLFetchDownloadProgress(
     int64_t /*current_network_bytes*/) {
   DCHECK(task_runner_->BelongsToCurrentThread());
   auto* download_data_writer =
-      base::polymorphic_downcast<CobaltURLFetcherStringWriter*>(
+      base::polymorphic_downcast<loader::URLFetcherStringWriter*>(
           source->GetResponseWriter());
   std::unique_ptr<std::string> download_data = download_data_writer->data();
   size_t size = download_data->size();
@@ -330,9 +331,9 @@ void FetcherBufferedDataSource::CreateNewFetcher() {
       std::move(net::URLFetcher::Create(url_, net::URLFetcher::GET, this));
   fetcher_->SetRequestContext(
       network_module_->url_request_context_getter().get());
-  auto* download_data_writer = new CobaltURLFetcherStringWriter();
-  fetcher_->SaveResponseWithWriter(
-      std::unique_ptr<CobaltURLFetcherStringWriter>(download_data_writer));
+  std::unique_ptr<loader::URLFetcherStringWriter> download_data_writer(
+      new loader::URLFetcherStringWriter());
+  fetcher_->SaveResponseWithWriter(std::move(download_data_writer));
 
   std::string range_request =
       "Range: bytes=" + base::NumberToString(last_request_offset_) + "-" +

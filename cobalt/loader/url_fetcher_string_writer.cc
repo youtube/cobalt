@@ -12,26 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/loader/cobalt_url_fetcher_string_writer.h"
+#include "cobalt/loader/url_fetcher_string_writer.h"
 #include "net/base/net_errors.h"
 
 namespace cobalt {
-// CobaltURLFetcherStringWriter::CobaltURLFetcherStringWriter(OnWriteCallback
+namespace loader {
+
+// URLFetcherStringWriter::URLFetcherStringWriter(OnWriteCallback
 // callback, base::TaskRunner* consumer_task_runner) :
 // on_write_callback_(callback), consumer_task_runner_(consumer_task_runner) {
-// 	DCHECK(consumer_task_runner);
+//   DCHECK(consumer_task_runner);
 // }
 
-CobaltURLFetcherStringWriter::CobaltURLFetcherStringWriter() = default;
+URLFetcherStringWriter::URLFetcherStringWriter() = default;
 
-CobaltURLFetcherStringWriter::~CobaltURLFetcherStringWriter() = default;
+URLFetcherStringWriter::~URLFetcherStringWriter() = default;
 
-int CobaltURLFetcherStringWriter::Initialize(
+int URLFetcherStringWriter::Initialize(
     net::CompletionOnceCallback /*callback*/) {
   return net::OK;
 }
 
-std::unique_ptr<std::string> CobaltURLFetcherStringWriter::data() {
+std::unique_ptr<std::string> URLFetcherStringWriter::data() {
   base::AutoLock auto_lock(lock_);
   if (!data_) {
     return std::make_unique<std::string>();
@@ -39,9 +41,8 @@ std::unique_ptr<std::string> CobaltURLFetcherStringWriter::data() {
   return std::move(data_);
 }
 
-int CobaltURLFetcherStringWriter::Write(
-    net::IOBuffer* buffer, int num_bytes,
-    net::CompletionOnceCallback /*callback*/) {
+int URLFetcherStringWriter::Write(net::IOBuffer* buffer, int num_bytes,
+                                  net::CompletionOnceCallback /*callback*/) {
   base::AutoLock auto_lock(lock_);
   if (!data_) {
     data_ = std::make_unique<std::string>();
@@ -53,9 +54,10 @@ int CobaltURLFetcherStringWriter::Write(
   return num_bytes;
 }
 
-int CobaltURLFetcherStringWriter::Finish(
-    int /*net_error*/, net::CompletionOnceCallback /*callback*/) {
+int URLFetcherStringWriter::Finish(int /*net_error*/,
+                                   net::CompletionOnceCallback /*callback*/) {
   return net::OK;
 }
 
+}  // namespace loader
 }  // namespace cobalt

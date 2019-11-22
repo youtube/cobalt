@@ -26,7 +26,6 @@
 #include "base/synchronization/lock.h"
 #include "cobalt/base/circular_buffer_shell.h"
 #include "cobalt/csp/content_security_policy.h"
-#include "cobalt/loader/cobalt_url_fetcher_string_writer.h"
 #include "cobalt/loader/fetcher.h"
 #include "cobalt/loader/origin.h"
 #include "cobalt/media/player/buffered_data_source.h"

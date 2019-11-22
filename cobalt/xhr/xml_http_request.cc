@@ -34,6 +34,7 @@
 #include "cobalt/dom_parser/xml_decoder.h"
 #include "cobalt/loader/cors_preflight.h"
 #include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/loader/url_fetcher_string_writer.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/xhr/xhr_modify_headers.h"
@@ -717,7 +718,7 @@ void XMLHttpRequest::OnURLFetchDownloadProgress(
   DCHECK_NE(state_, kDone);
 
   auto* download_data_writer =
-      base::polymorphic_downcast<CobaltURLFetcherStringWriter*>(
+      base::polymorphic_downcast<loader::URLFetcherStringWriter*>(
           source->GetResponseWriter());
   std::unique_ptr<std::string> download_data = download_data_writer->data();
   if (!download_data.get() || download_data->empty()) {
@@ -1117,9 +1118,9 @@ void XMLHttpRequest::StartRequest(const std::string& request_body) {
       settings_->fetcher_factory()->network_module();
   url_fetcher_ = net::URLFetcher::Create(request_url_, method_, this);
   url_fetcher_->SetRequestContext(network_module->url_request_context_getter());
-  auto* download_data_writer = new CobaltURLFetcherStringWriter();
-  url_fetcher_->SaveResponseWithWriter(
-      std::unique_ptr<net::URLFetcherResponseWriter>(download_data_writer));
+  std::unique_ptr<net::URLFetcherResponseWriter> download_data_writer(
+      new loader::URLFetcherStringWriter());
+  url_fetcher_->SaveResponseWithWriter(std::move(download_data_writer));
   // Don't retry, let the caller deal with it.
   url_fetcher_->SetAutomaticallyRetryOn5xx(false);
   url_fetcher_->SetExtraRequestHeaders(request_headers_.ToString());

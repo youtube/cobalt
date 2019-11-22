@@ -20,7 +20,7 @@
 #include <vector>
 
 #include "base/threading/thread.h"
-#include "cobalt/loader/cobalt_url_fetcher_string_writer.h"
+#include "cobalt/loader/url_fetcher_string_writer.h"
 #include "cobalt/media/base/shell_audio_bus.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/speech/audio_encoder_flac.h"
@@ -108,7 +108,7 @@ class GoogleSpeechService : public net::URLFetcherDelegate {
   // Speech recognizer is operating in its own thread.
   base::Thread thread_;
   // Stores fetched response.
-  CobaltURLFetcherStringWriter* download_data_writer_ = nullptr;
+  loader::URLFetcherStringWriter* download_data_writer_ = nullptr;
 
   // Use a task runner to deal with all wrappables.
   base::WeakPtrFactory<GoogleSpeechService> weak_ptr_factory_;
