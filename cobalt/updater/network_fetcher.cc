@@ -22,7 +22,7 @@
 #include "base/callback_helpers.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/loader/cobalt_url_fetcher_string_writer.h"
+#include "cobalt/loader/url_fetcher_string_writer.h"
 
 namespace {
 
@@ -89,9 +89,9 @@ void NetworkFetcher::PostRequest(
 
   CreateUrlFetcher(url, net::URLFetcher::POST);
 
-  auto* download_data_writer = new CobaltURLFetcherStringWriter();
-  url_fetcher_->SaveResponseWithWriter(
-      std::unique_ptr<CobaltURLFetcherStringWriter>(download_data_writer));
+  std::unique_ptr<loader::URLFetcherStringWriter> download_data_writer(
+      new loader::URLFetcherStringWriter());
+  url_fetcher_->SaveResponseWithWriter(std::move(download_data_writer));
 
   for (const auto& header : post_additional_headers) {
     url_fetcher_->AddExtraRequestHeader(header.first + ": " + header.second);
@@ -190,7 +190,7 @@ void NetworkFetcher::OnPostRequestComplete(const net::URLFetcher* source,
                                            const int status_error) {
   std::unique_ptr<std::string> response_body;
   auto* download_data_writer =
-      base::polymorphic_downcast<CobaltURLFetcherStringWriter*>(
+      base::polymorphic_downcast<loader::URLFetcherStringWriter*>(
           source->GetResponseWriter());
   if (download_data_writer) {
     response_body = download_data_writer->data();

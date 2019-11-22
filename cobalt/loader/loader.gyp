@@ -24,8 +24,6 @@
       'sources': [
         'blob_fetcher.cc',
         'blob_fetcher.h',
-        'cobalt_url_fetcher_string_writer.cc',
-        'cobalt_url_fetcher_string_writer.h',
         'cache_fetcher.cc',
         'cache_fetcher.h',
         'cors_preflight.cc',
@@ -96,6 +94,8 @@
         'sync_loader.cc',
         'sync_loader.h',
         'text_decoder.h',
+        'url_fetcher_string_writer.cc',
+        'url_fetcher_string_writer.h',
       ],
       'includes': [
         '<(DEPTH)/cobalt/renderer/renderer_parameters_setup.gypi',

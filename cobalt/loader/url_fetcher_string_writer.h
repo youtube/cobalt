@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_URL_FETCHER_RESPONSE_WRITER_H_
-#define COBALT_URL_FETCHER_RESPONSE_WRITER_H_
+#ifndef COBALT_LOADER_URL_FETCHER_STRING_WRITER_H_
+#define COBALT_LOADER_URL_FETCHER_STRING_WRITER_H_
 
 #include <memory>
+#include <string>
 
 #include "base/callback.h"
 #include "base/synchronization/lock.h"
@@ -24,14 +25,15 @@
 #include "net/url_request/url_fetcher_response_writer.h"
 
 namespace cobalt {
+namespace loader {
 
-class CobaltURLFetcherStringWriter : public net::URLFetcherResponseWriter {
+class URLFetcherStringWriter : public net::URLFetcherResponseWriter {
  public:
   // typedef base::RepeatingCallback<void(std::unique_ptr<std::string>)>
-  // OnWriteCallback; CobaltURLFetcherStringWriter(OnWriteCallback callback,
+  // OnWriteCallback; URLFetcherStringWriter(OnWriteCallback callback,
   // base::TaskRunner* consumer_task_runner);
-  CobaltURLFetcherStringWriter();
-  ~CobaltURLFetcherStringWriter() override;
+  URLFetcherStringWriter();
+  ~URLFetcherStringWriter() override;
 
   std::unique_ptr<std::string> data();
 
@@ -49,9 +51,10 @@ class CobaltURLFetcherStringWriter : public net::URLFetcherResponseWriter {
   // OnWriteCallback on_write_callback_;
   // base::TaskRunner* consumer_task_runner_;
 
-  DISALLOW_COPY_AND_ASSIGN(CobaltURLFetcherStringWriter);
+  DISALLOW_COPY_AND_ASSIGN(URLFetcherStringWriter);
 };
 
+}  // namespace loader
 }  // namespace cobalt
 
-#endif  // COBALT_URL_FETCHER_RESPONSE_WRITER_H_
+#endif  // COBALT_LOADER_URL_FETCHER_STRING_WRITER_H_
