@@ -53,7 +53,7 @@ class DebugWebServer : public net::HttpServer::Delegate,
 
   void OnWebSocketMessage(int connection_id, const std::string& json) override;
 
-  void OnClose(int /*connection_id*/) override {}
+  void OnClose(int connection_id) override;
 
   // Debugger command response handler.
   void OnDebuggerResponse(int id, const base::Optional<std::string>& response);
