@@ -30,6 +30,10 @@ class NET_EXPORT DialUdpServer {
 
   virtual void DidClose(UDPSocket* sock);
 
+  void WriteComplete(scoped_refptr<WrappedIOBuffer>,
+                     std::unique_ptr<std::string>,
+                     int rv);
+
  private:
   FRIEND_TEST_ALL_PREFIXES(DialUdpServerTest, ParseSearchRequest);
 
@@ -42,7 +46,7 @@ class NET_EXPORT DialUdpServer {
   void AcceptAndProcessConnection();
 
   // Construct the appropriate search response.
-  const std::string ConstructSearchResponse() const;
+  std::string ConstructSearchResponse() const;
 
   // Parse a request to make sure it is a M-Search.
   static bool ParseSearchRequest(const std::string& request);
