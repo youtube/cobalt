@@ -180,6 +180,13 @@
 //  values are consumed, take a look at //starboard/sabi.
 #define SB_SABI_FILE_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Updates the API guarantees of SbMutexAcquireTry.
+// SbMutexAcquireTry now has undefined behavior when it is invoked on a mutex
+// that has already been locked by the calling thread. In addition, since
+// SbMutexAcquireTry was used in SbMutexDestroy, SbMutexDestroy now has
+// undefined behavior when invoked on a locked mutex.
+#define SB_MUTEX_ACQUIRE_TRY_API_CHANGE_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
