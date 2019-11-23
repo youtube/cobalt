@@ -54,10 +54,17 @@ static SB_C_FORCE_INLINE bool SbMutexIsSuccess(SbMutexResult result) {
 // |out_mutex|: The handle to the newly created mutex.
 SB_EXPORT bool SbMutexCreate(SbMutex* out_mutex);
 
+#if SB_API_VERSION >= SB_MUTEX_ACQUIRE_TRY_API_CHANGE_VERSION
+// Destroys a mutex. The return value indicates whether the destruction was
+// successful. Destroying a locked mutex results in undefined behavior.
+//
+// |mutex|: The mutex to be invalidated.
+#else   // SB_API_VERSION >= SB_MUTEX_ACQUIRE_TRY_API_CHANGE_VERSION
 // Destroys a mutex. The return value indicates whether the destruction was
 // successful.
 //
 // |mutex|: The mutex to be invalidated.
+#endif  // SB_API_VERSION >= SB_MUTEX_ACQUIRE_TRY_API_CHANGE_VERSION
 SB_EXPORT bool SbMutexDestroy(SbMutex* mutex);
 
 // Acquires |mutex|, blocking indefinitely. The return value identifies
@@ -67,11 +74,19 @@ SB_EXPORT bool SbMutexDestroy(SbMutex* mutex);
 // |mutex|: The mutex to be acquired.
 SB_EXPORT SbMutexResult SbMutexAcquire(SbMutex* mutex);
 
+#if SB_API_VERSION >= SB_MUTEX_ACQUIRE_TRY_API_CHANGE_VERSION
+// Acquires |mutex|, without blocking. The return value identifies
+// the acquisition result. SbMutexes are not reentrant, so a recursive
+// acquisition has undefined behavior.
+//
+// |mutex|: The mutex to be acquired.
+#else   // SB_API_VERSION >= SB_MUTEX_ACQUIRE_TRY_API_CHANGE_VERSION
 // Acquires |mutex|, without blocking. The return value identifies
 // the acquisition result. SbMutexes are not reentrant, so a recursive
 // acquisition always fails.
 //
 // |mutex|: The mutex to be acquired.
+#endif  // SB_API_VERSION >= SB_MUTEX_ACQUIRE_TRY_API_CHANGE_VERSION
 SB_EXPORT SbMutexResult SbMutexAcquireTry(SbMutex* mutex);
 
 // Releases |mutex| held by the current thread. The return value indicates
