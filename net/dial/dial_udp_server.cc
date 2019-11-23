@@ -147,12 +147,14 @@ void DialUdpServer::DidRead(int bytes_read) {
     // After optimization, some compiler will dereference and get response size
     // later than passing response.
     auto response_size = response->size();
-    auto sent_num = socket_->SendTo(
+    auto result = socket_->SendTo(
         fake_buffer.get(), response_size, client_address_,
         base::Bind([](scoped_refptr<WrappedIOBuffer>,
                       std::unique_ptr<std::string>, int /*rv*/) {},
                    fake_buffer, base::Passed(&response)));
-    DCHECK_EQ(sent_num, response_size);
+    if (result < 0) {
+      DLOG(WARNING) << "Socket SentTo error code: " << result;
+    }
   }
 
   // Register a watcher on the message loop and wait for the next dial message.
