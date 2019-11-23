@@ -89,6 +89,8 @@ const char kParamsField[] = "params";
 constexpr net::NetworkTrafficAnnotationTag kNetworkTrafficAnnotation =
     net::DefineNetworkTrafficAnnotation("cobalt_debug_web_server",
                                         "cobalt_debug_web_server");
+
+constexpr int kUnattachedWebSocketId = -1;
 }  // namespace
 
 DebugWebServer::DebugWebServer(
@@ -96,7 +98,7 @@ DebugWebServer::DebugWebServer(
     const CreateDebugClientCallback& create_debug_client_callback)
     : http_server_thread_("DebugWebServer"),
       create_debug_client_callback_(create_debug_client_callback),
-      websocket_id_(-1),
+      websocket_id_(kUnattachedWebSocketId),
       // Local address will be set when the web server is successfully started.
       local_address_("Cobalt.Server.DevTools", "<NOT RUNNING>",
                      "Address to connect to for remote debugging.") {
@@ -182,6 +184,11 @@ void DebugWebServer::OnWebSocketRequest(
   std::string path = info.path;
   DLOG(INFO) << "Got web socket request [" << connection_id << "]: " << path;
 
+  // Disconnect any other DevTools client that's already attached.
+  if (websocket_id_ != kUnattachedWebSocketId) {
+    server_->Close(websocket_id_);
+  }
+
   // Ignore the path and bind any web socket request to the debugger.
   websocket_id_ = connection_id;
   server_->AcceptWebSocket(connection_id, info, kNetworkTrafficAnnotation);
@@ -189,10 +196,16 @@ void DebugWebServer::OnWebSocketRequest(
   debug_client_ = create_debug_client_callback_.Run(this);
 }
 
+void DebugWebServer::OnClose(int connection_id) {
+  if (connection_id == websocket_id_) {
+    websocket_id_ = kUnattachedWebSocketId;
+  }
+}
+
 void DebugWebServer::OnWebSocketMessage(int connection_id,
                                         const std::string& json) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DCHECK_EQ(connection_id, websocket_id_);
+  DCHECK_EQ(connection_id, websocket_id_) << "Mismatched WebSocket ID";
 
   // Parse the json string to get id, method and params.
   JSONObject json_object = JSONParse(json);
