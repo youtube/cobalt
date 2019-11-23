@@ -22,6 +22,10 @@
 #include "base/values.h"
 #include "cobalt/debug/debug_client.h"
 
+namespace {
+void NoOpResponseCallback(const base::Optional<std::string>& response) {}
+}  // namespace
+
 namespace cobalt {
 namespace debug {
 namespace backend {
@@ -96,6 +100,16 @@ void DebugDispatcher::SendCommand(std::unique_ptr<Command> command) {
 
 void DebugDispatcher::DispatchCommand(std::unique_ptr<Command> command) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  // This workaround allows both the overlay console and remote DevTools to
+  // connect at the same time. Each time a client sends the "Runtime.enable"
+  // command, we first inject a "Runtime.disable" command so that the V8
+  // Inspector will send the "Runtime.executionContextCreated" event for every
+  // "Runtime.enable" command rather than just for the first one.
+  if (command->GetMethod() == "Runtime.enable") {
+    DispatchCommand(std::make_unique<Command>(
+        "Runtime.disable", "", base::Bind(&NoOpResponseCallback)));
+  }
 
   DomainRegistry::iterator iter = domain_registry_.find(command->GetDomain());
   if (iter != domain_registry_.end()) {
