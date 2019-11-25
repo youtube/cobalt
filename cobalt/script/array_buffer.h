@@ -15,6 +15,7 @@
 #ifndef COBALT_SCRIPT_ARRAY_BUFFER_H_
 #define COBALT_SCRIPT_ARRAY_BUFFER_H_
 
+#include <algorithm>
 #include <memory>
 
 #include "base/logging.h"
@@ -81,6 +82,7 @@ class ArrayBuffer {
 //   DCHECK_EQ(data.data(), nullptr);
 class PreallocatedArrayBufferData {
  public:
+  PreallocatedArrayBufferData() = default;
   explicit PreallocatedArrayBufferData(size_t byte_length);
   ~PreallocatedArrayBufferData();
 
@@ -89,7 +91,16 @@ class PreallocatedArrayBufferData {
       default;
 
   void* data() { return data_; }
+  const void* data() const { return data_; }
   size_t byte_length() const { return byte_length_; }
+
+  void Swap(PreallocatedArrayBufferData* that) {
+    DCHECK(that);
+
+    std::swap(data_, that->data_);
+    std::swap(byte_length_, that->byte_length_);
+  }
+  void Resize(size_t new_byte_length);
 
  private:
   PreallocatedArrayBufferData(const PreallocatedArrayBufferData&) = delete;
@@ -106,8 +117,8 @@ class PreallocatedArrayBufferData {
     byte_length_ = 0u;
   }
 
-  void* data_;
-  size_t byte_length_;
+  void* data_ = nullptr;
+  size_t byte_length_ = 0u;
 
   friend ArrayBuffer;
 };

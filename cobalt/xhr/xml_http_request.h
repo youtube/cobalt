@@ -34,7 +34,7 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/typed_arrays.h"
 #include "cobalt/script/union_type.h"
-#include "cobalt/xhr/xhr_response_data.h"
+#include "cobalt/xhr/url_fetcher_buffer_writer.h"
 #include "cobalt/xhr/xml_http_request_event_target.h"
 #include "cobalt/xhr/xml_http_request_upload.h"
 #include "net/http/http_request_headers.h"
@@ -216,7 +216,7 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   // Return array buffer response body as an ArrayBuffer.
   script::Handle<script::ArrayBuffer> response_array_buffer();
 
-  void UpdateProgress();
+  void UpdateProgress(int64_t received_length);
 
   void StartRequest(const std::string& request_body);
 
@@ -253,7 +253,7 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
 
   std::unique_ptr<net::URLFetcher> url_fetcher_;
   scoped_refptr<net::HttpResponseHeaders> http_response_headers_;
-  XhrResponseData response_body_;
+  scoped_refptr<URLFetcherResponseWriter::Buffer> response_body_;
   std::unique_ptr<script::ScriptValue<script::ArrayBuffer>::Reference>
       response_array_buffer_reference_;
   scoped_refptr<XMLHttpRequestUpload> upload_;

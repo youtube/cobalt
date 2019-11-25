@@ -17,6 +17,7 @@
 #include "cobalt/script/v8c/v8c_array_buffer.h"
 
 #include "cobalt/base/polymorphic_downcast.h"
+#include "starboard/memory.h"
 
 namespace cobalt {
 namespace script {
@@ -32,6 +33,11 @@ PreallocatedArrayBufferData::~PreallocatedArrayBufferData() {
     data_ = nullptr;
     byte_length_ = 0;
   }
+}
+
+void PreallocatedArrayBufferData::Resize(size_t new_byte_length) {
+  data_ = SbMemoryReallocate(data_, new_byte_length);
+  byte_length_ = new_byte_length;
 }
 
 // static

@@ -211,12 +211,13 @@ void FetcherBufferedDataSource::OnURLFetchDownloadProgress(
   auto* download_data_writer =
       base::polymorphic_downcast<loader::URLFetcherStringWriter*>(
           source->GetResponseWriter());
-  std::unique_ptr<std::string> download_data = download_data_writer->data();
-  size_t size = download_data->size();
+  std::string downloaded_data;
+  download_data_writer->GetAndResetData(&downloaded_data);
+  size_t size = downloaded_data.size();
   if (size == 0) {
     return;
   }
-  const uint8* data = reinterpret_cast<const uint8*>(download_data->data());
+  const uint8* data = reinterpret_cast<const uint8*>(downloaded_data.data());
   base::AutoLock auto_lock(lock_);
 
   if (fetcher_.get() != source || error_occured_) {
