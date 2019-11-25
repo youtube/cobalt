@@ -12,6 +12,7 @@
 #include <iterator>
 #include <tuple>
 
+#include "include/private/SkMacros.h"
 #include "include/private/SkTLogic.h"
 
 // SkEnumerate returns a tuple with an index and the value returned by the iterator. The index always
@@ -29,11 +30,19 @@ class SkEnumerate {
         using iterator_category = std::input_iterator_tag;
         constexpr Iterator(ptrdiff_t index, Iter it) : fIndex{index}, fIt{it} { }
         constexpr Iterator(const Iterator&) = default;
-        constexpr Iterator operator++() { ++fIndex; ++fIt; return *this; }
-        constexpr Iterator operator++(int) { Iterator tmp(*this); operator++(); return tmp; }
+        CONSTEXPR Iterator operator++() {
+            ++fIndex;
+            ++fIt;
+            return *this;
+        }
+        CONSTEXPR Iterator operator++(int) {
+            Iterator tmp(*this);
+            operator++();
+            return tmp;
+        }
         constexpr bool operator==(const Iterator& rhs) const { return fIt == rhs.fIt; }
         constexpr bool operator!=(const Iterator& rhs) const { return fIt != rhs.fIt; }
-        constexpr reference operator*() { return std::forward_as_tuple(fIndex, *fIt); }
+        CONSTEXPR reference operator*() { return std::forward_as_tuple(fIndex, *fIt); }
 
     private:
         ptrdiff_t fIndex;
@@ -47,7 +56,7 @@ public:
             , fBegin{std::begin(fCollection)}
             , fEnd{std::end(fCollection)} { }
     constexpr SkEnumerate(const SkEnumerate& that) = default;
-    constexpr SkEnumerate& operator=(const SkEnumerate& that) {
+    CONSTEXPR SkEnumerate& operator=(const SkEnumerate& that) {
         fBegin = that.fBegin;
         fEnd = that.fEnd; return *this;
     }

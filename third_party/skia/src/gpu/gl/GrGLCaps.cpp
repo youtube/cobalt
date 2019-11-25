@@ -148,20 +148,14 @@ void GrGLCaps::init(const GrContextOptions& contextOptions,
         fSampleLocationsSupport = version >= GR_GL_VER(3,1);
     }  // no WebGL support
 
-#if defined(STARBOARD)
-    // ARB_texture_rg is part of OpenGL 3.0, but osmesa doesn't support GL_RED
-    // and GL_RG on FBO textures.
-    if (kOSMesa_GrGLRenderer != ctxInfo.renderer()) {
-        if (kGL_GrGLStandard == standard) {
-            fTextureRedSupport = version >= GR_GL_VER(3,0) ||
-                                 ctxInfo.hasExtension("GL_ARB_texture_rg");
-        } else {
-            fTextureRedSupport =  version >= GR_GL_VER(3,0) ||
-                                  ctxInfo.hasExtension("GL_EXT_texture_rg");
-        }
+    bool textureRedSupport = false;
+    if (kGL_GrGLStandard == standard) {
+        textureRedSupport = version >= GR_GL_VER(3, 0) || ctxInfo.hasExtension("GL_ARB_texture_rg");
+    } else {
+        textureRedSupport = version >= GR_GL_VER(3, 0) || ctxInfo.hasExtension("GL_EXT_texture_rg");
     }
 
-    if (fTextureRedSupport) {
+    if (textureRedSupport) {
         // Some devices claim to support GL_RED, but actually do not, so we
         // verify support by actually attempting to create a GL_RED texture.
         // As an example, one device was found to claim GLES 3.0 support, but
@@ -170,19 +164,17 @@ void GrGLCaps::init(const GrContextOptions& contextOptions,
         GrGLuint texture_id;
         GR_GL_CALL(gli, GenTextures(1, &texture_id));
         GR_GL_CALL(gli, BindTexture(GR_GL_TEXTURE_2D, texture_id));
-        GR_GL_CALL_NOERRCHECK(gli, TexImage2D(GR_GL_TEXTURE_2D, 0, GR_GL_RED,
-                                              64, 64, 0, GR_GL_RED,
+        GR_GL_CALL_NOERRCHECK(gli, TexImage2D(GR_GL_TEXTURE_2D, 0, GR_GL_RED, 64, 64, 0, GR_GL_RED,
                                               GR_GL_UNSIGNED_BYTE, 0));
         GR_GL_CALL_RET(gli, error, GetError());
         if (error != GR_GL_NO_ERROR) {
             // There was an error creating the texture, do not advertise GL_RED
             // support.
-            fTextureRedSupport = false;
+            textureRedSupport = false;
         }
         GR_GL_CALL(gli, BindTexture(GR_GL_TEXTURE_2D, 0));
         GR_GL_CALL(gli, DeleteTextures(1, &texture_id));
     }
-#endif
 
     fImagingSupport = GR_IS_GR_GL(standard) &&
                       ctxInfo.hasExtension("GL_ARB_imaging");

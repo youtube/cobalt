@@ -651,13 +651,13 @@ namespace skvm {
 
     // Common instruction building for 64-bit opcodes with an immediate argument.
     void Assembler::op(int opcode, int opcode_ext, GP64 dst, int imm) {
-        opcode |= 0b0000'0001;   // low bit set for 64-bit operands
-        opcode |= 0b1000'0000;   // top bit set for instructions with any immediate
+        opcode |= 1;    // low bit set for 64-bit operands
+        opcode |= 128;  // top bit set for instructions with any immediate
 
         int imm_bytes = 4;
         if (SkTFitsIn<int8_t>(imm)) {
             imm_bytes = 1;
-            opcode |= 0b0000'0010;  // second bit set for 8-bit immediate, else 32-bit.
+            opcode |= 2;  // second bit set for 8-bit immediate, else 32-bit.
         }
 
         this->byte(rex(1,0,0,dst>>3));
@@ -744,9 +744,7 @@ namespace skvm {
     void Assembler::vcvtdq2ps (Ymm dst, Ymm x) { this->op(0,   0x0f,0x5b, dst,x); }
     void Assembler::vcvttps2dq(Ymm dst, Ymm x) { this->op(0xf3,0x0f,0x5b, dst,x); }
 
-    Assembler::Label Assembler::here() {
-        return { (int)this->size(), Label::None, {} };
-    }
+    Assembler::Label Assembler::here() { return {{}, (int)this->size(), Label::None}; }
 
     int Assembler::disp19(Label* l) {
         SkASSERT(l->kind == Label::None ||
@@ -974,30 +972,30 @@ namespace skvm {
                   | (d  &  5_mask) <<  0);
     }
 
-    void Assembler::and16b(V d, V n, V m) { this->op(0b0'1'0'01110'00'1, m, 0b00011'1, n, d); }
-    void Assembler::orr16b(V d, V n, V m) { this->op(0b0'1'0'01110'10'1, m, 0b00011'1, n, d); }
-    void Assembler::eor16b(V d, V n, V m) { this->op(0b0'1'1'01110'00'1, m, 0b00011'1, n, d); }
-    void Assembler::bic16b(V d, V n, V m) { this->op(0b0'1'0'01110'01'1, m, 0b00011'1, n, d); }
-    void Assembler::bsl16b(V d, V n, V m) { this->op(0b0'1'1'01110'01'1, m, 0b00011'1, n, d); }
+    void Assembler::and16b(V d, V n, V m) { this->op(625, m, 7, n, d); }
+    void Assembler::orr16b(V d, V n, V m) { this->op(629, m, 7, n, d); }
+    void Assembler::eor16b(V d, V n, V m) { this->op(881, m, 7, n, d); }
+    void Assembler::bic16b(V d, V n, V m) { this->op(627, m, 7, n, d); }
+    void Assembler::bsl16b(V d, V n, V m) { this->op(883, m, 7, n, d); }
 
-    void Assembler::add4s(V d, V n, V m) { this->op(0b0'1'0'01110'10'1, m, 0b10000'1, n, d); }
-    void Assembler::sub4s(V d, V n, V m) { this->op(0b0'1'1'01110'10'1, m, 0b10000'1, n, d); }
-    void Assembler::mul4s(V d, V n, V m) { this->op(0b0'1'0'01110'10'1, m, 0b10011'1, n, d); }
+    void Assembler::add4s(V d, V n, V m) { this->op(629, m, 33, n, d); }
+    void Assembler::sub4s(V d, V n, V m) { this->op(885, m, 33, n, d); }
+    void Assembler::mul4s(V d, V n, V m) { this->op(629, m, 39, n, d); }
 
-    void Assembler::cmeq4s(V d, V n, V m) { this->op(0b0'1'1'01110'10'1, m, 0b10001'1, n, d); }
-    void Assembler::cmgt4s(V d, V n, V m) { this->op(0b0'1'0'01110'10'1, m, 0b0011'0'1, n, d); }
+    void Assembler::cmeq4s(V d, V n, V m) { this->op(885, m, 35, n, d); }
+    void Assembler::cmgt4s(V d, V n, V m) { this->op(629, m, 13, n, d); }
 
-    void Assembler::sub8h(V d, V n, V m) { this->op(0b0'1'1'01110'01'1, m, 0b10000'1, n, d); }
-    void Assembler::mul8h(V d, V n, V m) { this->op(0b0'1'0'01110'01'1, m, 0b10011'1, n, d); }
+    void Assembler::sub8h(V d, V n, V m) { this->op(883, m, 33, n, d); }
+    void Assembler::mul8h(V d, V n, V m) { this->op(627, m, 39, n, d); }
 
-    void Assembler::fadd4s(V d, V n, V m) { this->op(0b0'1'0'01110'0'0'1, m, 0b11010'1, n, d); }
-    void Assembler::fsub4s(V d, V n, V m) { this->op(0b0'1'0'01110'1'0'1, m, 0b11010'1, n, d); }
-    void Assembler::fmul4s(V d, V n, V m) { this->op(0b0'1'1'01110'0'0'1, m, 0b11011'1, n, d); }
-    void Assembler::fdiv4s(V d, V n, V m) { this->op(0b0'1'1'01110'0'0'1, m, 0b11111'1, n, d); }
+    void Assembler::fadd4s(V d, V n, V m) { this->op(625, m, 53, n, d); }
+    void Assembler::fsub4s(V d, V n, V m) { this->op(629, m, 53, n, d); }
+    void Assembler::fmul4s(V d, V n, V m) { this->op(881, m, 55, n, d); }
+    void Assembler::fdiv4s(V d, V n, V m) { this->op(881, m, 63, n, d); }
 
-    void Assembler::fmla4s(V d, V n, V m) { this->op(0b0'1'0'01110'0'0'1, m, 0b11001'1, n, d); }
+    void Assembler::fmla4s(V d, V n, V m) { this->op(625, m, 51, n, d); }
 
-    void Assembler::tbl(V d, V n, V m) { this->op(0b0'1'001110'00'0, m, 0b0'00'0'00, n, d); }
+    void Assembler::tbl(V d, V n, V m) { this->op(624, m, 0, n, d); }
 
     void Assembler::op(uint32_t op22, int imm, V n, V d) {
         this->word( (op22 & 22_mask) << 10
@@ -1006,87 +1004,57 @@ namespace skvm {
                   | (d    &  5_mask) <<  0);
     }
 
-    void Assembler::sli4s(V d, V n, int imm) {
-        this->op(0b0'1'1'011110'0100'000'01010'1,    ( imm&31), n, d);
-    }
-    void Assembler::shl4s(V d, V n, int imm) {
-        this->op(0b0'1'0'011110'0100'000'01010'1,    ( imm&31), n, d);
-    }
-    void Assembler::sshr4s(V d, V n, int imm) {
-        this->op(0b0'1'0'011110'0100'000'00'0'0'0'1, (-imm&31), n, d);
-    }
-    void Assembler::ushr4s(V d, V n, int imm) {
-        this->op(0b0'1'1'011110'0100'000'00'0'0'0'1, (-imm&31), n, d);
-    }
-    void Assembler::ushr8h(V d, V n, int imm) {
-        this->op(0b0'1'1'011110'0010'000'00'0'0'0'1, (-imm&15), n, d);
-    }
+    void Assembler::sli4s(V d, V n, int imm) { this->op(1820693, (imm & 31), n, d); }
+    void Assembler::shl4s(V d, V n, int imm) { this->op(1296405, (imm & 31), n, d); }
+    void Assembler::sshr4s(V d, V n, int imm) { this->op(1296385, (-imm & 31), n, d); }
+    void Assembler::ushr4s(V d, V n, int imm) { this->op(1820673, (-imm & 31), n, d); }
+    void Assembler::ushr8h(V d, V n, int imm) { this->op(1819649, (-imm & 15), n, d); }
 
-    void Assembler::scvtf4s (V d, V n) { this->op(0b0'1'0'01110'0'0'10000'11101'10, n,d); }
-    void Assembler::fcvtzs4s(V d, V n) { this->op(0b0'1'0'01110'1'0'10000'1101'1'10, n,d); }
+    void Assembler::scvtf4s(V d, V n) { this->op(1280118, n, d); }
+    void Assembler::fcvtzs4s(V d, V n) { this->op(1288302, n, d); }
 
-    void Assembler::xtns2h(V d, V n) { this->op(0b0'0'0'01110'01'10000'10010'10, n,d); }
-    void Assembler::xtnh2b(V d, V n) { this->op(0b0'0'0'01110'00'10000'10010'10, n,d); }
+    void Assembler::xtns2h(V d, V n) { this->op(235594, n, d); }
+    void Assembler::xtnh2b(V d, V n) { this->op(231498, n, d); }
 
-    void Assembler::uxtlb2h(V d, V n) { this->op(0b0'0'1'011110'0001'000'10100'1, n,d); }
-    void Assembler::uxtlh2s(V d, V n) { this->op(0b0'0'1'011110'0010'000'10100'1, n,d); }
+    void Assembler::uxtlb2h(V d, V n) { this->op(770601, n, d); }
+    void Assembler::uxtlh2s(V d, V n) { this->op(771113, n, d); }
 
-    void Assembler::ret(X n) {
-        this->word(0b1101011'0'0'10'11111'0000'0'0 << 10
-                  | (n & 5_mask) << 5);
-    }
+    void Assembler::ret(X n) { this->word(3512256 << 10 | (n & 5_mask) << 5); }
 
     void Assembler::add(X d, X n, int imm12) {
-        this->word(0b1'0'0'10001'00   << 22
-                  | (imm12 & 12_mask) << 10
-                  | (n     &  5_mask) <<  5
-                  | (d     &  5_mask) <<  0);
+        this->word(580 << 22 | (imm12 & 12_mask) << 10 | (n & 5_mask) << 5 | (d & 5_mask) << 0);
     }
     void Assembler::sub(X d, X n, int imm12) {
-        this->word( 0b1'1'0'10001'00  << 22
-                  | (imm12 & 12_mask) << 10
-                  | (n     &  5_mask) <<  5
-                  | (d     &  5_mask) <<  0);
+        this->word(836 << 22 | (imm12 & 12_mask) << 10 | (n & 5_mask) << 5 | (d & 5_mask) << 0);
     }
     void Assembler::subs(X d, X n, int imm12) {
-        this->word( 0b1'1'1'10001'00  << 22
-                  | (imm12 & 12_mask) << 10
-                  | (n     &  5_mask) <<  5
-                  | (d     &  5_mask) <<  0);
+        this->word(964 << 22 | (imm12 & 12_mask) << 10 | (n & 5_mask) << 5 | (d & 5_mask) << 0);
     }
 
     void Assembler::b(Condition cond, Label* l) {
         const int imm19 = this->disp19(l);
-        this->word( 0b0101010'0           << 24
-                  | (imm19     & 19_mask) <<  5
-                  | ((int)cond &  4_mask) <<  0);
+        this->word(84 << 24 | (imm19 & 19_mask) << 5 | ((int)cond & 4_mask) << 0);
     }
     void Assembler::cbz(X t, Label* l) {
         const int imm19 = this->disp19(l);
-        this->word( 0b1'011010'0      << 24
-                  | (imm19 & 19_mask) <<  5
-                  | (t     &  5_mask) <<  0);
+        this->word(180 << 24 | (imm19 & 19_mask) << 5 | (t & 5_mask) << 0);
     }
     void Assembler::cbnz(X t, Label* l) {
         const int imm19 = this->disp19(l);
-        this->word( 0b1'011010'1      << 24
-                  | (imm19 & 19_mask) <<  5
-                  | (t     &  5_mask) <<  0);
+        this->word(181 << 24 | (imm19 & 19_mask) << 5 | (t & 5_mask) << 0);
     }
 
-    void Assembler::ldrq(V dst, X src) { this->op(0b00'111'1'01'11'000000000000, src, dst); }
-    void Assembler::ldrs(V dst, X src) { this->op(0b10'111'1'01'01'000000000000, src, dst); }
-    void Assembler::ldrb(V dst, X src) { this->op(0b00'111'1'01'01'000000000000, src, dst); }
+    void Assembler::ldrq(V dst, X src) { this->op(1011712, src, dst); }
+    void Assembler::ldrs(V dst, X src) { this->op(3100672, src, dst); }
+    void Assembler::ldrb(V dst, X src) { this->op(1003520, src, dst); }
 
-    void Assembler::strq(V src, X dst) { this->op(0b00'111'1'01'10'000000000000, dst, src); }
-    void Assembler::strs(V src, X dst) { this->op(0b10'111'1'01'00'000000000000, dst, src); }
-    void Assembler::strb(V src, X dst) { this->op(0b00'111'1'01'00'000000000000, dst, src); }
+    void Assembler::strq(V src, X dst) { this->op(1007616, dst, src); }
+    void Assembler::strs(V src, X dst) { this->op(3096576, dst, src); }
+    void Assembler::strb(V src, X dst) { this->op(999424, dst, src); }
 
     void Assembler::ldrq(V dst, Label* l) {
         const int imm19 = this->disp19(l);
-        this->word( 0b10'011'1'00     << 24
-                  | (imm19 & 19_mask) << 5
-                  | (dst   &  5_mask) << 0);
+        this->word(156 << 24 | (imm19 & 19_mask) << 5 | (dst & 5_mask) << 0);
     }
 
     void Assembler::label(Label* l) {

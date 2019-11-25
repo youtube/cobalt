@@ -60,10 +60,6 @@ DummyClasses(Cubic, Cubic);
 #define ONE_OFF_DEBUG 0
 #define ONE_OFF_DEBUG_MATHEMATICA 0
 
-#if defined(STARBOARD)
-#define SK_RAND(seed) static_cast<int>(SbSystemGetRandomUint64())
-#define SK_SNPRINTF SbStringFormatF
-#else
 #if defined(SK_BUILD_FOR_WIN) || defined(SK_BUILD_FOR_ANDROID)
     #define SK_RAND(seed) rand()
 #else
@@ -73,7 +69,6 @@ DummyClasses(Cubic, Cubic);
     #define SK_SNPRINTF _snprintf
 #else
     #define SK_SNPRINTF snprintf
-#endif
 #endif
 
 #define WIND_AS_STRING(x) char x##Str[12]; \

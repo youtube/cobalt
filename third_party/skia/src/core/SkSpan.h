@@ -9,6 +9,7 @@
 #define SkSpan_DEFINED
 
 #include <cstddef>
+#include "include/private/SkMacros.h"
 #include "include/private/SkTo.h"
 
 template <typename T>
@@ -19,7 +20,7 @@ public:
     template <typename U, typename = typename std::enable_if<std::is_same<const U, T>::value>::type>
     constexpr SkSpan(const SkSpan<U>& that) : fPtr(that.data()), fSize{that.size()} {}
     constexpr SkSpan(const SkSpan& o) = default;
-    constexpr SkSpan& operator=(const SkSpan& that) {
+    CONSTEXPR SkSpan& operator=(const SkSpan& that) {
         fPtr = that.fPtr;
         fSize = that.fSize;
         return *this;
@@ -35,7 +36,7 @@ public:
     constexpr size_t size() const { return fSize; }
     constexpr bool empty() const { return fSize == 0; }
     constexpr size_t size_bytes() const { return fSize * sizeof(T); }
-    constexpr SkSpan<T> first(size_t prefixLen) { return SkSpan<T>{fPtr, prefixLen}; }
+    CONSTEXPR SkSpan<T> first(size_t prefixLen) { return SkSpan<T>{fPtr, prefixLen}; }
 
 private:
     T* fPtr;

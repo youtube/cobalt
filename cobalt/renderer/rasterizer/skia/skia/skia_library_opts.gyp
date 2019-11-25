@@ -35,11 +35,6 @@
         '<(DEPTH)/third_party/skia/src/core',
         '<(DEPTH)/third_party/skia/src/utils',
       ],
-      'sources': [
-        '<(DEPTH)/third_party/skia/src/opts/SkBitmapProcState_opts_none.cpp',
-        '<(DEPTH)/third_party/skia/src/opts/SkBlitMask_opts_none.cpp',
-        '<(DEPTH)/third_party/skia/src/opts/SkBlitRow_opts_none.cpp',
-      ],
     },
   ],
 }

@@ -165,9 +165,21 @@ typedef unsigned int GrEGLBoolean;
  * we will internally fall back to using the base internal formats.
  */
 struct GrGLTextureInfo {
+#if defined(COBALT)
+    // In C++11, we run into issues when initializing a struct when it has
+    // initializers for non-static members. We must use a constructor instead.
+    GrGLTextureInfo() : fFormat(0) {}
+    GrGLTextureInfo(GrGLenum fTarget, GrGLuint fID, GrGLenum fFormat = 0)
+            : fTarget(fTarget), fID(fID), fFormat(fFormat) {}
+
+    GrGLenum fTarget;
+    GrGLuint fID;
+    GrGLenum fFormat;
+#else
     GrGLenum fTarget;
     GrGLuint fID;
     GrGLenum fFormat = 0;
+#endif
 
     bool operator==(const GrGLTextureInfo& that) const {
         return fTarget == that.fTarget && fID == that.fID && fFormat == that.fFormat;
