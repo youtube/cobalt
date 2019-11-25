@@ -70,10 +70,10 @@ class DebugConsole : public LifecycleObserver {
 
 #if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
     SB_HAS(ON_SCREEN_KEYBOARD)
-  // Inject an on screen keyboard input event.
+  // Filters an on screen keyboard input event.
   // Returns true if the event should be passed on to other handlers,
   // false if it was consumed within this function.
-  bool InjectOnScreenKeyboardInputEvent(base::Token type,
+  bool FilterOnScreenKeyboardInputEvent(base::Token type,
                                         const dom::InputEventInit& event);
 #endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
@@ -81,12 +81,13 @@ class DebugConsole : public LifecycleObserver {
   const WebModule& web_module() const { return *web_module_; }
   WebModule& web_module() { return *web_module_; }
 
-  // Sets the debug console's visibility mode.
-  void SetMode(int mode);
   // Cycles through each different possible debug console visibility mode.
   void CycleMode();
-  // Returns the currently set debug console visibility mode.
-  int GetMode();
+
+  // Returns true iff the console is in a mode that is visible.
+  bool IsVisible() {
+    return (GetMode() != debug::console::DebugHub::kDebugConsoleOff);
+  }
 
   void SetSize(const cssom::ViewportSize& window_dimensions,
                float video_pixel_ratio) {
@@ -111,6 +112,13 @@ class DebugConsole : public LifecycleObserver {
   void OnError(const GURL& /* url */, const std::string& error) {
     LOG(ERROR) << error;
   }
+
+  // Returns the currently set debug console visibility mode.
+  int GetMode();
+
+  // Returns true iff the debug console is in a state where it should route
+  // input events to its web module.
+  bool ShouldInjectInputEvents();
 
   // The current console visibility mode.  The mutex is required since the debug
   // console's visibility mode may be accessed from both the WebModule thread
