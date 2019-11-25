@@ -24,18 +24,9 @@
 #define ANGLE_STRINGIFY(x) #x
 #define ANGLE_MACRO_STRINGIFY(x) ANGLE_STRINGIFY(x)
 
-<<<<<<< HEAD
-#define ANGLE_VERSION_STRING                       \
-    ANGLE_MACRO_STRINGIFY(ANGLE_MAJOR_VERSION) "." \
-    ANGLE_MACRO_STRINGIFY(ANGLE_MINOR_VERSION) "." \
-    ANGLE_MACRO_STRINGIFY(ANGLE_REVISION) "." \
-    ANGLE_COMMIT_HASH
-#endif // COMMON_VERSION_H_
-=======
 #define ANGLE_VERSION_STRING                                                  \
     ANGLE_MACRO_STRINGIFY(ANGLE_MAJOR_VERSION)                                \
     "." ANGLE_MACRO_STRINGIFY(ANGLE_MINOR_VERSION) "." ANGLE_MACRO_STRINGIFY( \
         ANGLE_REVISION) "." ANGLE_COMMIT_HASH
 
 #endif  // COMMON_VERSION_H_
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a

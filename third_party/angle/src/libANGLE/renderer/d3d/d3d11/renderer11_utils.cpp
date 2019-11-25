@@ -1586,28 +1586,6 @@ void GenerateCaps(ID3D11Device *device,
 
     // GL extension support
     extensions->setTextureExtensionSupport(*textureCapsMap);
-<<<<<<< HEAD
-    extensions->elementIndexUint = true;
-    extensions->getProgramBinary = true;
-    extensions->rgb8rgba8 = true;
-    extensions->readFormatBGRA = true;
-    extensions->pixelBufferObject = true;
-    extensions->mapBuffer = true;
-    extensions->mapBufferRange = true;
-    extensions->textureNPOT = GetNPOTTextureSupport(featureLevel);
-    extensions->drawBuffers = GetMaximumSimultaneousRenderTargets(featureLevel) > 1;
-    extensions->textureStorage = true;
-    // Anisotropic filtering isn't supported completely; in particular, it
-    // does not work correctly when interacting with glSamplerParameterf as
-    // GL_TEXTURE_MAX_ANISOTROPY_EXT is not considered a valid parameter name.
-    // So, although there is partial support at least, we explicitly disable it
-    // as normal use of the parameter causes GL errors.
-    extensions->textureFilterAnisotropic = false;
-    extensions->maxTextureAnisotropy = GetMaximumAnisotropy(featureLevel);
-    extensions->occlusionQueryBoolean = GetOcclusionQuerySupport(featureLevel);
-    extensions->fence = GetEventQuerySupport(featureLevel);
-    extensions->timerQuery = false; // Unimplemented
-=======
 
     // Explicitly disable GL_OES_compressed_ETC1_RGB8_texture because it's emulated and never
     // becomes core. WebGL doesn't want to expose it unless there is native support.
@@ -1623,11 +1601,15 @@ void GenerateCaps(ID3D11Device *device,
     extensions->textureNPOT                 = GetNPOTTextureSupport(featureLevel);
     extensions->drawBuffers                 = GetMaximumSimultaneousRenderTargets(featureLevel) > 1;
     extensions->textureStorage              = true;
-    extensions->textureFilterAnisotropic    = true;
+    // Anisotropic filtering isn't supported completely; in particular, it
+    // does not work correctly when interacting with glSamplerParameterf as
+    // GL_TEXTURE_MAX_ANISOTROPY_EXT is not considered a valid parameter name.
+    // So, although there is partial support at least, we explicitly disable it
+    // as normal use of the parameter causes GL errors.
+    extensions->textureFilterAnisotropic    = false;
     extensions->maxTextureAnisotropy        = GetMaximumAnisotropy(featureLevel);
     extensions->occlusionQueryBoolean       = GetOcclusionQuerySupport(featureLevel);
     extensions->fence                       = GetEventQuerySupport(featureLevel);
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
     extensions->disjointTimerQuery          = true;
     extensions->queryCounterBitsTimeElapsed = 64;
     extensions->queryCounterBitsTimestamp =

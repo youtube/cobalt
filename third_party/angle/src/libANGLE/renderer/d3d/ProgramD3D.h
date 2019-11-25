@@ -195,31 +195,6 @@ class ProgramD3D : public ProgramImpl
     void setBinaryRetrievableHint(bool retrievable) override;
     void setSeparable(bool separable) override;
 
-<<<<<<< HEAD
-    gl::Error getPixelExecutableForFramebuffer(const gl::Framebuffer *fbo,
-                                               ShaderExecutableD3D **outExectuable);
-    gl::Error getPixelExecutableForOutputLayout(const std::vector<GLenum> &outputLayout,
-                                                ShaderExecutableD3D **outExectuable,
-                                                gl::InfoLog *infoLog);
-#if defined(STARBOARD)
-    gl::Error getPixelExecutableForHdrFramebuffer(const gl::Framebuffer *fbo,
-                                                  ShaderExecutableD3D **outExectuable);
-    gl::Error getPixelExecutableForHdrOutputLayout(const std::vector<GLenum> &outputLayout,
-                                                   ShaderExecutableD3D **outExectuable,
-                                                   gl::InfoLog *infoLog);
-#endif  // STARBOARD
-    gl::Error getVertexExecutableForInputLayout(const gl::InputLayout &inputLayout,
-                                                ShaderExecutableD3D **outExectuable,
-                                                gl::InfoLog *infoLog);
-    gl::Error getGeometryExecutableForPrimitiveType(const gl::ContextState &data,
-                                                    GLenum drawMode,
-                                                    ShaderExecutableD3D **outExecutable,
-                                                    gl::InfoLog *infoLog);
-    gl::Error getComputeExecutable(ShaderExecutableD3D **outExecutable);
-    LinkResult link(ContextImpl *contextImpl,
-                    const gl::VaryingPacking &packing,
-                    gl::InfoLog &infoLog) override;
-=======
     angle::Result getVertexExecutableForCachedInputLayout(d3d::Context *context,
                                                           ShaderExecutableD3D **outExectuable,
                                                           gl::InfoLog *infoLog);
@@ -231,13 +206,17 @@ class ProgramD3D : public ProgramImpl
     angle::Result getPixelExecutableForCachedOutputLayout(d3d::Context *context,
                                                           ShaderExecutableD3D **outExectuable,
                                                           gl::InfoLog *infoLog);
+#if defined(STARBOARD)
+    angle::Result getPixelExecutableForCachedHdrOutputLayout(d3d::Context *context,
+                                                             ShaderExecutableD3D **outExectuable,
+                                                             gl::InfoLog *infoLog);
+#endif  // STARBOARD
     angle::Result getComputeExecutableForImage2DBindLayout(d3d::Context *context,
                                                            ShaderExecutableD3D **outExecutable,
                                                            gl::InfoLog *infoLog);
     std::unique_ptr<LinkEvent> link(const gl::Context *context,
                                     const gl::ProgramLinkedResources &resources,
                                     gl::InfoLog &infoLog) override;
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
     GLboolean validate(const gl::Caps &caps, gl::InfoLog *infoLog) override;
 
     void setPathFragmentInputGen(const std::string &inputName,
@@ -537,22 +516,15 @@ class ProgramD3D : public ProgramImpl
 
     std::vector<std::unique_ptr<VertexExecutable>> mVertexExecutables;
     std::vector<std::unique_ptr<PixelExecutable>> mPixelExecutables;
-<<<<<<< HEAD
-    std::vector<std::unique_ptr<ShaderExecutableD3D>> mGeometryExecutables;
-    std::unique_ptr<ShaderExecutableD3D> mComputeExecutable;
-#if defined(STARBOARD)
-    std::unique_ptr<PixelExecutable> mPixelHdrExecutable;
-#endif  // STARBOARD
-    std::string mVertexHLSL;
-    angle::CompilerWorkaroundsD3D mVertexWorkarounds;
-=======
     angle::PackedEnumMap<gl::PrimitiveMode, std::unique_ptr<ShaderExecutableD3D>>
         mGeometryExecutables;
     std::vector<std::unique_ptr<ComputeExecutable>> mComputeExecutables;
+#if defined(STARBOARD)
+    std::unique_ptr<PixelExecutable> mPixelHdrExecutable;
+#endif  // STARBOARD
 
     gl::ShaderMap<std::string> mShaderHLSL;
     gl::ShaderMap<angle::CompilerWorkaroundsD3D> mShaderWorkarounds;
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
 
     bool mUsesFragDepth;
     bool mHasANGLEMultiviewEnabled;

@@ -56,16 +56,9 @@ std::string ResultsToString(const std::string& measurement,
   // <*>RESULT <graph_name>: <trace_name>= <value> <units>
   // <*>RESULT <graph_name>: <trace_name>= {<mean>, <std deviation>} <units>
   // <*>RESULT <graph_name>: <trace_name>= [<value>,value,value,...,] <units>
-<<<<<<< HEAD
-  return base_copy::StringPrintf("%sRESULT %s%s: %s= %s%s%s %s\n",
-         important ? "*" : "", measurement.c_str(), modifier.c_str(),
-         trace.c_str(), prefix.c_str(), values.c_str(), suffix.c_str(),
-         units.c_str());
-=======
   return StringPrintf("%sRESULT %s%s: %s= %s%s%s %s\n", important ? "*" : "", measurement.c_str(),
                       modifier.c_str(), trace.c_str(), prefix.c_str(), values.c_str(),
                       suffix.c_str(), units.c_str());
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
 }
 
 void PrintResultsImpl(const std::string& measurement,
@@ -92,19 +85,8 @@ void PrintResult(const std::string& measurement,
                  size_t value,
                  const std::string& units,
                  bool important) {
-<<<<<<< HEAD
-  PrintResultsImpl(measurement,
-                   modifier,
-                   trace,
-                   base_copy::UintToString(static_cast<unsigned int>(value)),
-                   std::string(),
-                   std::string(),
-                   units,
-                   important);
-=======
     PrintResultsImpl(measurement, modifier, trace, NumberToString(value), std::string(),
                      std::string(), units, important);
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
 }
 
 void PrintResult(const std::string& measurement,
@@ -113,19 +95,8 @@ void PrintResult(const std::string& measurement,
                  double value,
                  const std::string& units,
                  bool important) {
-<<<<<<< HEAD
-  PrintResultsImpl(measurement,
-                   modifier,
-                   trace,
-                   base_copy::DoubleToString(value),
-                   std::string(),
-                   std::string(),
-                   units,
-                   important);
-=======
     PrintResultsImpl(measurement, modifier, trace, NumberToString(value), std::string(),
                      std::string(), units, important);
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
 }
 
 void AppendResult(std::string& output,
@@ -135,20 +106,8 @@ void AppendResult(std::string& output,
                   size_t value,
                   const std::string& units,
                   bool important) {
-<<<<<<< HEAD
-  output += ResultsToString(
-      measurement,
-      modifier,
-      trace,
-      base_copy::UintToString(static_cast<unsigned int>(value)),
-      std::string(),
-      std::string(),
-      units,
-      important);
-=======
     output += ResultsToString(measurement, modifier, trace, NumberToString(value), std::string(),
                               std::string(), units, important);
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
 }
 
 void PrintResult(const std::string& measurement,

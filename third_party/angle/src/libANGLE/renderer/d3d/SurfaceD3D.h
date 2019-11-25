@@ -82,11 +82,6 @@ class SurfaceD3D : public SurfaceImpl
       return mBindChroma;
     }
 
-    IUnknown* getDxgiBuffer() const
-    {
-      return mDXGIBuffer;
-    }
-
   protected:
     SurfaceD3D(const egl::SurfaceState &state,
                RendererD3D *renderer,
@@ -123,14 +118,8 @@ class SurfaceD3D : public SurfaceImpl
 
     HANDLE mShareHandle;
     IUnknown *mD3DTexture;
-<<<<<<< HEAD
     EGLenum mBuftype;
-    IUnknown *mDXGIBuffer;
     bool mBindChroma;
-=======
-
-    EGLenum mBuftype;
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
 };
 
 class WindowSurfaceD3D : public SurfaceD3D

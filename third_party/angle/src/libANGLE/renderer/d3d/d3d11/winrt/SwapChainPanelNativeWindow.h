@@ -43,16 +43,13 @@ class SwapChainPanelNativeWindow : public InspectableNativeWindow,
     ComPtr<IDXGISwapChain1> mSwapChain;
 };
 
-<<<<<<< HEAD
-#if !defined(STARBOARD)
-[uuid(8ACBD974-8187-4508-AD80-AEC77F93CF36)]
-#endif
-class SwapChainPanelSizeChangedHandler
-=======
 // clang format would break the uuid below
 // clang-format off
+#if defined(STARBOARD)
+class SwapChainPanelSizeChangedHandler
+#else
 [uuid(8ACBD974-8187-4508-AD80-AEC77F93CF36)] class SwapChainPanelSizeChangedHandler
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
+#endif
     : public Microsoft::WRL::RuntimeClass<
           Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
           ABI::Windows::UI::Xaml::ISizeChangedEventHandler>

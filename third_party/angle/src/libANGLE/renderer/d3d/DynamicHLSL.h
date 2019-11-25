@@ -148,8 +148,12 @@ class DynamicHLSL : angle::NonCopyable
     std::string generateVertexShaderForInputLayout(
         const std::string &sourceShader,
         const gl::InputLayout &inputLayout,
-<<<<<<< HEAD
-        const std::vector<sh::Attribute> &shaderAttributes) const;
+        const std::vector<sh::ShaderVariable> &shaderAttributes) const;
+    std::string generatePixelShaderForOutputSignature(
+        const std::string &sourceShader,
+        const std::vector<PixelShaderOutputVariable> &outputVariables,
+        bool usesFragDepth,
+        const std::vector<GLenum> &outputLayout) const;
 #if defined(STARBOARD)
     std::string generatePixelShaderForHdrOutputSignature(
         const std::string &sourceShader,
@@ -157,14 +161,6 @@ class DynamicHLSL : angle::NonCopyable
         bool usesFragDepth,
         const std::vector<GLenum> &outputLayout) const;
 #endif  // STARBOARD
-=======
-        const std::vector<sh::ShaderVariable> &shaderAttributes) const;
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
-    std::string generatePixelShaderForOutputSignature(
-        const std::string &sourceShader,
-        const std::vector<PixelShaderOutputVariable> &outputVariables,
-        bool usesFragDepth,
-        const std::vector<GLenum> &outputLayout) const;
     std::string generateComputeShaderForImage2DBindSignature(
         const d3d::Context *context,
         ProgramD3D &programD3D,

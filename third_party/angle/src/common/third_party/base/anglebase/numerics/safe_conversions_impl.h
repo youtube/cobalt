@@ -2,13 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-<<<<<<< HEAD:third_party/angle/src/common/third_party/numerics/base_copy/numerics/safe_conversions_impl.h
-#ifndef BASE_COPY_NUMERICS_SAFE_CONVERSIONS_IMPL_H_
-#define BASE_COPY_NUMERICS_SAFE_CONVERSIONS_IMPL_H_
-=======
 #ifndef ANGLEBASE_NUMERICS_SAFE_CONVERSIONS_IMPL_H_
 #define ANGLEBASE_NUMERICS_SAFE_CONVERSIONS_IMPL_H_
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a:third_party/angle/src/common/third_party/base/anglebase/numerics/safe_conversions_impl.h
 
 #include <limits.h>
 #include <stdint.h>
@@ -16,14 +11,10 @@
 #include <climits>
 #include <limits>
 
-<<<<<<< HEAD:third_party/angle/src/common/third_party/numerics/base_copy/numerics/safe_conversions_impl.h
-namespace base_copy
-=======
 namespace angle
 {
 
 namespace base
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a:third_party/angle/src/common/third_party/base/anglebase/numerics/safe_conversions_impl.h
 {
 namespace internal
 {
@@ -275,12 +266,8 @@ constexpr RangeConstraint DstRangeRelationToSrcRange(Src value)
 }
 
 }  // namespace internal
-}  // namespace base_copy
+}  // namespace base
 
-<<<<<<< HEAD:third_party/angle/src/common/third_party/numerics/base_copy/numerics/safe_conversions_impl.h
-#endif  // BASE_COPY_NUMERICS_SAFE_CONVERSIONS_IMPL_H_
-=======
 }  // namespace angle
 
 #endif  // ANGLEBASE_NUMERICS_SAFE_CONVERSIONS_IMPL_H_
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a:third_party/angle/src/common/third_party/base/anglebase/numerics/safe_conversions_impl.h

@@ -8,22 +8,14 @@
 
 #include "gpu_info_util/SystemInfo_internal.h"
 
-#include "common/debug.h"
-#include "common/string_utils.h"
-
 // Windows.h needs to be included first
 #include <windows.h>
 
 #include <dxgi.h>
-<<<<<<< HEAD
-#include <d3d10.h>
-#define __uuidof(NAME) IID_##NAME
 
-#else
-#error "SystemInfo_win needs at least GPU_INFO_USE_SETUPAPI or GPU_INFO_USE_DXGI defined"
-#endif
-=======
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
+#include "common/debug.h"
+#include "common/string_utils.h"
+
 
 #include <array>
 #include <sstream>
@@ -45,9 +37,7 @@ bool GetDevicesFromDXGI(std::vector<GPUDeviceInfo> *devices)
     }
 #else
     IDXGIFactory *factory;
-    // The CreateDXGIFactory function does not exist for Windows Store apps.
-    // Instead, Windows Store apps use the CreateDXGIFactory1 function.
-    if (!SUCCEEDED(CreateDXGIFactory1(__uuidof(IDXGIFactory), reinterpret_cast<void **>(&factory))))
+    if (!SUCCEEDED(CreateDXGIFactory(__uuidof(IDXGIFactory), reinterpret_cast<void **>(&factory))))
     {
         return false;
     }
@@ -114,23 +104,11 @@ bool GetSystemInfo(SystemInfo *info)
     // can override the heuristic to find the active GPU
     info->activeGPUIndex = 0;
 
-<<<<<<< HEAD
-    // nvd3d9wrap.dll is loaded into all processes when Optimus is enabled.
-    // GetModuleHandleW is desktop apps only.
-#if defined(WINAPI_FAMILY) && WINAPI_FAMILY==WINAPI_FAMILY_APP
-    info->isOptimus = false;
-#else
-    HMODULE nvd3d9wrap = GetModuleHandleW(L"nvd3d9wrap.dll");
-    info->isOptimus    = nvd3d9wrap != nullptr;
-#endif
-
-=======
 #if !defined(ANGLE_ENABLE_WINDOWS_UWP)
     // Override isOptimus. nvd3d9wrap.dll is loaded into all processes when Optimus is enabled.
     HMODULE nvd3d9wrap = GetModuleHandleW(L"nvd3d9wrap.dll");
     info->isOptimus    = nvd3d9wrap != nullptr;
 #endif
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
 
     return true;
 }

@@ -8,16 +8,9 @@
 #include <limits>
 #include <type_traits>
 
-#if defined(STARBOARD)
-// Cobalt might also include the real base that can have conflicts here.
-#include "common/third_party/numerics/base_copy/numerics/safe_conversions.h"
-#include "common/third_party/numerics/base_copy/numerics/safe_math.h"
-#else
 #include "base/compiler_specific.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/numerics/safe_math.h"
-#endif
-
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -26,20 +19,20 @@
 #endif
 
 using std::numeric_limits;
-using base_copy::CheckedNumeric;
-using base_copy::checked_cast;
-using base_copy::IsValueInRangeForNumericType;
-using base_copy::IsValueNegative;
-using base_copy::SizeT;
-using base_copy::StrictNumeric;
-using base_copy::saturated_cast;
-using base_copy::strict_cast;
-using base_copy::internal::MaxExponent;
-using base_copy::internal::RANGE_VALID;
-using base_copy::internal::RANGE_INVALID;
-using base_copy::internal::RANGE_OVERFLOW;
-using base_copy::internal::RANGE_UNDERFLOW;
-using base_copy::internal::SignedIntegerForSize;
+using base::CheckedNumeric;
+using base::checked_cast;
+using base::IsValueInRangeForNumericType;
+using base::IsValueNegative;
+using base::SizeT;
+using base::StrictNumeric;
+using base::saturated_cast;
+using base::strict_cast;
+using base::internal::MaxExponent;
+using base::internal::RANGE_VALID;
+using base::internal::RANGE_INVALID;
+using base::internal::RANGE_OVERFLOW;
+using base::internal::RANGE_UNDERFLOW;
+using base::internal::SignedIntegerForSize;
 
 // These tests deliberately cause arithmetic overflows. If the compiler is
 // aggressive enough, it can const fold these overflows. Disable warnings about
@@ -310,7 +303,7 @@ struct TestNumericConversion
 
 // EXPECT_EQ wrappers providing specific detail on test failures.
 #define TEST_EXPECTED_RANGE(expected, actual)                                                \
-    EXPECT_EQ(expected, base_copy::internal::DstRangeRelationToSrcRange<Dst>(actual))             \
+    EXPECT_EQ(expected, base::internal::DstRangeRelationToSrcRange<Dst>(actual))             \
         << "Conversion test: " << src << " value " << actual << " to " << dst << " on line " \
         << line;
 
@@ -683,7 +676,7 @@ TEST(SafeNumerics, SaturatedCastChecks)
     float not_a_number =
         std::numeric_limits<float>::infinity() - std::numeric_limits<float>::infinity();
     EXPECT_TRUE(std::isnan(not_a_number));
-    EXPECT_DEATH((saturated_cast<int, base_copy::SaturatedCastNaNBehaviorCheck>(not_a_number)), "");
+    EXPECT_DEATH((saturated_cast<int, base::SaturatedCastNaNBehaviorCheck>(not_a_number)), "");
 }
 
 #endif  // GTEST_HAS_DEATH_TEST

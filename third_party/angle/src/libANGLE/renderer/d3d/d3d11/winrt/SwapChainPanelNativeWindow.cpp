@@ -91,15 +91,9 @@ HRESULT RunOnUIThread(CODE &&code, const ComPtr<ICoreDispatcher> &dispatcher)
 bool SwapChainPanelNativeWindow::initialize(EGLNativeWindowType window, IPropertySet *propertySet)
 {
     ComPtr<IPropertySet> props = propertySet;
-<<<<<<< HEAD
     ComPtr<IInspectable> win   = static_cast<IInspectable *>(window);
-    SIZE swapChainSize = {};
-    HRESULT result = S_OK;
-=======
-    ComPtr<IInspectable> win   = window;
     SIZE swapChainSize         = {};
     HRESULT result             = S_OK;
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
 
     // IPropertySet is an optional parameter and can be null.
     // If one is specified, cache as an IMap and read the properties

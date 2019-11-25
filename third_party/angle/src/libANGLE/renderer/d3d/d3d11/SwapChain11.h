@@ -108,12 +108,8 @@ class SwapChain11 final : public SwapChainD3D
     bool mNeedsOffscreenTexture;
 #else
     const bool mNeedsOffscreenTexture;
-<<<<<<< HEAD
 #endif
-    ID3D11Texture2D *mOffscreenTexture;
-=======
     TextureHelper11 mOffscreenTexture;
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
     d3d11::RenderTargetView mOffscreenRTView;
     d3d11::SharedSRV mOffscreenSRView;
     bool mNeedsOffscreenTextureCopy;
