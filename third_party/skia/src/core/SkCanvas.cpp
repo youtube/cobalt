@@ -1771,10 +1771,11 @@ GrContext* SkCanvas::getGrContext() {
 #if defined(COBALT)
 intptr_t SkCanvas::getRenderTargetHandle() const {
     if (fSurfaceBase) {
-        GrBackendObject handle;
-        if (fSurfaceBase->getRenderTargetHandle(&handle,
-                SkSurface::kFlushRead_BackendHandleAccess)) {
-            return handle;
+        GrBackendRenderTarget target =
+                fSurfaceBase->getBackendRenderTarget(SkSurface::kFlushRead_BackendHandleAccess);
+        GrGLFramebufferInfo info;
+        if (target.getGLFramebufferInfo(&info)) {
+            return info.fFBOID;
         }
     }
     return 0;

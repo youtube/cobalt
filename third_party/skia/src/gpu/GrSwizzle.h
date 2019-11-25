@@ -16,13 +16,13 @@ class SkRasterPipeline;
 /** Represents a rgba swizzle. It can be converted either into a string or a eight bit int. */
 class GrSwizzle {
 public:
-    constexpr GrSwizzle() : GrSwizzle("rgba") {}
-    explicit constexpr GrSwizzle(const char c[4]);
+    CONSTEXPR GrSwizzle() : GrSwizzle("rgba") {}
+    explicit CONSTEXPR GrSwizzle(const char c[4]);
 
-    constexpr GrSwizzle(const GrSwizzle&);
-    constexpr GrSwizzle& operator=(const GrSwizzle& that);
+    CONSTEXPR GrSwizzle(const GrSwizzle&);
+    CONSTEXPR GrSwizzle& operator=(const GrSwizzle& that);
 
-    static constexpr GrSwizzle Concat(const GrSwizzle& a, const GrSwizzle& b);
+    static CONSTEXPR GrSwizzle Concat(const GrSwizzle& a, const GrSwizzle& b);
 
     constexpr bool operator==(const GrSwizzle& that) const { return fKey == that.fKey; }
     constexpr bool operator!=(const GrSwizzle& that) const { return !(*this == that); }
@@ -33,43 +33,43 @@ public:
     /** 4 char null terminated string consisting only of chars 'r', 'g', 'b', 'a', '0', and '1'. */
     constexpr const char* c_str() const { return fSwiz; }
 
-    constexpr char operator[](int i) const {
+    CONSTEXPR char operator[](int i) const {
         SkASSERT(i >= 0 && i < 4);
         return fSwiz[i];
     }
 
     /** Applies this swizzle to the input color and returns the swizzled color. */
     template <SkAlphaType AlphaType>
-    constexpr SkRGBA4f<AlphaType> applyTo(const SkRGBA4f<AlphaType>& color) const;
+    CONSTEXPR SkRGBA4f<AlphaType> applyTo(const SkRGBA4f<AlphaType>& color) const;
 
     void apply(SkRasterPipeline*) const;
 
-    static constexpr GrSwizzle RGBA() { return GrSwizzle("rgba"); }
-    static constexpr GrSwizzle AAAA() { return GrSwizzle("aaaa"); }
-    static constexpr GrSwizzle RRRR() { return GrSwizzle("rrrr"); }
-    static constexpr GrSwizzle RRRA() { return GrSwizzle("rrra"); }
-    static constexpr GrSwizzle BGRA() { return GrSwizzle("bgra"); }
-    static constexpr GrSwizzle RGB1() { return GrSwizzle("rgb1"); }
+    static CONSTEXPR GrSwizzle RGBA() { return GrSwizzle("rgba"); }
+    static CONSTEXPR GrSwizzle AAAA() { return GrSwizzle("aaaa"); }
+    static CONSTEXPR GrSwizzle RRRR() { return GrSwizzle("rrrr"); }
+    static CONSTEXPR GrSwizzle RRRA() { return GrSwizzle("rrra"); }
+    static CONSTEXPR GrSwizzle BGRA() { return GrSwizzle("bgra"); }
+    static CONSTEXPR GrSwizzle RGB1() { return GrSwizzle("rgb1"); }
 
 private:
     template <SkAlphaType AlphaType>
-    static constexpr float ComponentIndexToFloat(const SkRGBA4f<AlphaType>& color, int idx);
-    static constexpr int CToI(char c);
-    static constexpr char IToC(int idx);
+    static CONSTEXPR float ComponentIndexToFloat(const SkRGBA4f<AlphaType>& color, int idx);
+    static CONSTEXPR int CToI(char c);
+    static CONSTEXPR char IToC(int idx);
 
     char fSwiz[5];
     uint16_t fKey;
 };
 
-constexpr GrSwizzle::GrSwizzle(const char c[4])
+CONSTEXPR GrSwizzle::GrSwizzle(const char c[4])
         : fSwiz{c[0], c[1], c[2], c[3], '\0'}
         , fKey((CToI(c[0]) << 0) | (CToI(c[1]) << 4) | (CToI(c[2]) << 8) | (CToI(c[3]) << 12)) {}
 
-constexpr GrSwizzle::GrSwizzle(const GrSwizzle& that)
+CONSTEXPR GrSwizzle::GrSwizzle(const GrSwizzle& that)
         : fSwiz{that.fSwiz[0], that.fSwiz[1], that.fSwiz[2], that.fSwiz[3], '\0'}
         , fKey(that.fKey) {}
 
-constexpr GrSwizzle& GrSwizzle::operator=(const GrSwizzle& that) {
+CONSTEXPR GrSwizzle& GrSwizzle::operator=(const GrSwizzle& that) {
     fSwiz[0] = that.fSwiz[0];
     fSwiz[1] = that.fSwiz[1];
     fSwiz[2] = that.fSwiz[2];
@@ -80,7 +80,7 @@ constexpr GrSwizzle& GrSwizzle::operator=(const GrSwizzle& that) {
 }
 
 template <SkAlphaType AlphaType>
-constexpr SkRGBA4f<AlphaType> GrSwizzle::applyTo(const SkRGBA4f<AlphaType>& color) const {
+CONSTEXPR SkRGBA4f<AlphaType> GrSwizzle::applyTo(const SkRGBA4f<AlphaType>& color) const {
     uint32_t key = fKey;
     // Index of the input color that should be mapped to output r.
     int idx = (key & 15);
@@ -98,7 +98,7 @@ constexpr SkRGBA4f<AlphaType> GrSwizzle::applyTo(const SkRGBA4f<AlphaType>& colo
 }
 
 template <SkAlphaType AlphaType>
-constexpr float GrSwizzle::ComponentIndexToFloat(const SkRGBA4f<AlphaType>& color, int idx) {
+CONSTEXPR float GrSwizzle::ComponentIndexToFloat(const SkRGBA4f<AlphaType>& color, int idx) {
     if (idx <= 3) {
         return color[idx];
     }
@@ -111,7 +111,7 @@ constexpr float GrSwizzle::ComponentIndexToFloat(const SkRGBA4f<AlphaType>& colo
     SkUNREACHABLE;
 }
 
-constexpr int GrSwizzle::CToI(char c) {
+CONSTEXPR int GrSwizzle::CToI(char c) {
     switch (c) {
         // r...a must map to 0...3 because other methods use them as indices into fSwiz.
         case 'r': return 0;
@@ -124,7 +124,29 @@ constexpr int GrSwizzle::CToI(char c) {
     }
 }
 
-constexpr char GrSwizzle::IToC(int idx) {
+CONSTEXPR char GrSwizzle::IToC(int idx) {
+#if defined(COBALT)
+    // CToI() cannot be a constexpr function in C++11 because it includes switch
+    // case statements and multiple return statements. Because it is not a
+    // constant value, it cannot be used in other switch case statements. So for
+    // situations where we are still using C++11, we need to use if-else
+    // statements instead.
+    if (idx == CToI('r')) {
+        return 'r';
+    } else if (idx == CToI('g')) {
+        return 'g';
+    } else if (idx == CToI('b')) {
+        return 'b';
+    } else if (idx == CToI('a')) {
+        return 'a';
+    } else if (idx == CToI('0')) {
+        return '0';
+    } else if (idx == CToI('1')) {
+        return '1';
+    } else {
+        SkUNREACHABLE;
+    }
+#else
     switch (idx) {
         case CToI('r'): return 'r';
         case CToI('g'): return 'g';
@@ -134,17 +156,30 @@ constexpr char GrSwizzle::IToC(int idx) {
         case CToI('1'): return '1';
         default:        SkUNREACHABLE;
     }
+#endif
 }
 
-constexpr GrSwizzle GrSwizzle::Concat(const GrSwizzle& a, const GrSwizzle& b) {
+CONSTEXPR GrSwizzle GrSwizzle::Concat(const GrSwizzle& a, const GrSwizzle& b) {
     char swiz[4]{};
     for (int i = 0; i < 4; ++i) {
         int idx = (b.fKey >> (4U * i)) & 0xfU;
+#if defined(COBALT)
+        // Same reason as above in IToC() for using if-else statements instead
+        // of switch case statements when building with C++11 as in IToC().
+        if (idx == CToI('0')) {
+            swiz[i] = '0';
+        } else if (idx == CToI('1')) {
+            swiz[i] = '1';
+        } else {
+            swiz[i] = a.fSwiz[idx];
+        }
+#else
         switch (idx) {
             case CToI('0'): swiz[i] = '0';          break;
             case CToI('1'): swiz[i] = '1';          break;
             default:        swiz[i] = a.fSwiz[idx]; break;
         }
+#endif
     }
     return GrSwizzle(swiz);
 }

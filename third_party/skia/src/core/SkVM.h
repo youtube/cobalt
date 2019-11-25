@@ -86,9 +86,24 @@ namespace skvm {
         void vpblendvb(Ymm dst, Ymm x, Ymm y, Ymm z);
 
         struct Label {
-            int                                 offset = 0;
-            enum { None, ARMDisp19, X86Disp32 } kind = None;
+            enum Kind { None, ARMDisp19, X86Disp32 };
+#if defined(COBALT)
+            // In C++11, we run into issues when initializing a struct when it
+            // has initializers for non-static members. We must use a
+            // constructor instead. We must also specify the value of
+            // |references| before |offset| and |kind| because it does not
+            // have a default value.
+            Label(std::vector<int> references, int offset = 0, Kind kind = None)
+                    : references(references), offset(offset), kind(kind) {}
+
             std::vector<int>                    references;
+            int offset;
+            Kind kind;
+#else
+            std::vector<int> references;
+            int offset = 0;
+            Kind kind = None;
+#endif
         };
 
         Label here();

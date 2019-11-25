@@ -648,13 +648,16 @@ GrSurfaceContext::PixelTransferResult GrSurfaceContext::transferPixels(GrColorTy
     result.fTransferBuffer = std::move(buffer);
     auto at = this->colorInfo().alphaType();
     if (supportedRead.fColorType != dstCT || flip) {
-        result.fPixelConverter = [w = rect.width(), h = rect.height(), dstCT, supportedRead, at](
-                void* dst, const void* src) {
+        // Since initialized lambda captures are a C++14 extension, we need to
+        // initialize |w| and |h| first.
+        int32_t w = rect.width();
+        int32_t h = rect.height();
+        result.fPixelConverter = [w, h, dstCT, supportedRead, at](void* dst, const void* src) {
             GrImageInfo srcInfo(supportedRead.fColorType, at, nullptr, w, h);
             GrImageInfo dstInfo(dstCT,                    at, nullptr, w, h);
-              GrConvertPixels(dstInfo, dst, dstInfo.minRowBytes(),
-                              srcInfo, src, srcInfo.minRowBytes(),
-                              /* flipY = */ false);
+            GrConvertPixels(dstInfo, dst, dstInfo.minRowBytes(), srcInfo, src,
+                            srcInfo.minRowBytes(),
+                            /* flipY = */ false);
         };
     }
     return result;

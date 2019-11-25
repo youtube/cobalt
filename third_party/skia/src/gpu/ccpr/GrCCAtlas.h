@@ -54,7 +54,7 @@ public:
         kA8_LiteralCoverage
     };
 
-    static constexpr GrColorType CoverageTypeToColorType(CoverageType coverageType) {
+    static CONSTEXPR GrColorType CoverageTypeToColorType(CoverageType coverageType) {
         switch (coverageType) {
             case CoverageType::kFP16_CoverageCount:
                 return GrColorType::kAlpha_F16;

@@ -117,7 +117,7 @@ void GrGLProgramBuilder::computeCountsAndStrides(GrGLuint programID,
     fInstanceAttributeCnt = primProc.numInstanceAttributes();
     fAttributes.reset(
             new GrGLProgram::Attribute[fVertexAttributeCnt + fInstanceAttributeCnt]);
-    auto addAttr = [&](int i, const auto& a, size_t* stride) {
+    auto addAttr = [&](int i, const GrPrimitiveProcessor::Attribute& a, size_t* stride) {
         fAttributes[i].fCPUType = a.cpuType();
         fAttributes[i].fGPUType = a.gpuType();
         fAttributes[i].fOffset = *stride;
@@ -129,12 +129,12 @@ void GrGLProgramBuilder::computeCountsAndStrides(GrGLuint programID,
     };
     fVertexStride = 0;
     int i = 0;
-    for (const auto& attr : primProc.vertexAttributes()) {
+    for (const GrPrimitiveProcessor::Attribute& attr : primProc.vertexAttributes()) {
         addAttr(i++, attr, &fVertexStride);
     }
     SkASSERT(fVertexStride == primProc.vertexStride());
     fInstanceStride = 0;
-    for (const auto& attr : primProc.instanceAttributes()) {
+    for (const GrPrimitiveProcessor::Attribute& attr : primProc.instanceAttributes()) {
         addAttr(i++, attr, &fInstanceStride);
     }
     SkASSERT(fInstanceStride == primProc.instanceStride());

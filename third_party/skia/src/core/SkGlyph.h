@@ -50,13 +50,12 @@ struct SkPackedGlyphID {
     constexpr explicit SkPackedGlyphID(SkGlyphID glyphID)
             : fID{glyphID} { }
 
-    constexpr SkPackedGlyphID(SkGlyphID glyphID, SkFixed x, SkFixed y)
-            : fID {PackIDXY(glyphID, x, y)} {
+    CONSTEXPR SkPackedGlyphID(SkGlyphID glyphID, SkFixed x, SkFixed y)
+            : fID{PackIDXY(glyphID, x, y)} {
         SkASSERT(fID != kImpossibleID);
     }
 
-    constexpr SkPackedGlyphID(SkGlyphID code, SkIPoint pt)
-        : SkPackedGlyphID(code, pt.fX, pt.fY) { }
+    CONSTEXPR SkPackedGlyphID(SkGlyphID code, SkIPoint pt) : SkPackedGlyphID(code, pt.fX, pt.fY) {}
 
     constexpr SkPackedGlyphID() : fID{kImpossibleID} {}
 
@@ -107,7 +106,7 @@ private:
         return ((uint32_t)n >> kFixedPointSubPixelPosBits) & kSubPixelPosMask;
     }
 
-    constexpr SkFixed subToFixed(uint32_t subPixelPosBit) const {
+    CONSTEXPR SkFixed subToFixed(uint32_t subPixelPosBit) const {
         uint32_t subPixelPosition = (fID >> subPixelPosBit) & kSubPixelPosMask;
         return subPixelPosition << kFixedPointSubPixelPosBits;
     }

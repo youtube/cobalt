@@ -393,4 +393,10 @@ NORETURN void sksl_abort();
 
 } // namespace
 
+#if defined(STARBOARD)
+#define ABORT(...) (SbLogFormatF(__VA_ARGS__), sksl_abort())
+#else
+#define ABORT(...) (printf(__VA_ARGS__), sksl_abort())
+#endif
+
 #endif

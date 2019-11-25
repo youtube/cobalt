@@ -11,6 +11,7 @@
 #include "include/core/SkMath.h"
 #include "include/core/SkTypes.h"
 #include "include/gpu/GrConfig.h"
+#include "include/private/SkMacros.h"
 
 class GrBackendSemaphore;
 class SkImage;
@@ -136,7 +137,7 @@ template<typename TFlags> inline TFlags& operator&=(TFlags& a, GrTFlagsMask<TFla
 /**
  *  divide, rounding up
  */
-static inline constexpr int32_t GrIDivRoundUp(int x, int y) {
+static inline CONSTEXPR int32_t GrIDivRoundUp(int x, int y) {
     SkASSERT(y > 0);
     return (x + (y-1)) / y;
 }

@@ -6,6 +6,7 @@
  */
 
 #include "include/core/SkContourMeasure.h"
+
 #include "include/core/SkPath.h"
 #include "src/core/SkGeometry.h"
 #include "src/core/SkPathMeasurePriv.h"
@@ -13,15 +14,21 @@
 
 #define kMaxTValue  0x3FFFFFFF
 
-constexpr static inline SkScalar tValue2Scalar(int t) {
+CONSTEXPR static inline SkScalar tValue2Scalar(int t) {
     SkASSERT((unsigned)t <= kMaxTValue);
     // 1/kMaxTValue can't be represented as a float, but it's close and the limits work fine.
     const SkScalar kMaxTReciprocal = 1.0f / (SkScalar)kMaxTValue;
     return t * kMaxTReciprocal;
 }
 
+// tValue2Scalar() cannot be a constexpr function in C++11 because variable
+// definitions and usage of SkASSERT() are both C++14 extensions (for constexpr
+// functions). Thus we do not use tValue2Scalar() in static asserts for this
+// situation.
+#if !defined(COBALT)
 static_assert(0.0f == tValue2Scalar(         0), "Lower limit should be exact.");
 static_assert(1.0f == tValue2Scalar(kMaxTValue), "Upper limit should be exact.");
+#endif
 
 SkScalar SkContourMeasure::Segment::getScalarT() const {
     return tValue2Scalar(fTValue);
