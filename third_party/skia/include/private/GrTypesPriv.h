@@ -205,8 +205,18 @@ enum class GrScissorTest : bool {
 };
 
 struct GrMipLevel {
+#if defined(COBALT)
+    // In C++11, we run into issues when initializing a struct when it has
+    // initializers for non-static members. We must use a constructor instead.
+    GrMipLevel(const void* fPixels = nullptr, size_t fRowBytes = 0)
+            : fPixels(fPixels), fRowBytes(fRowBytes) {}
+
+    const void* fPixels;
+    size_t fRowBytes;
+#else
     const void* fPixels = nullptr;
     size_t fRowBytes = 0;
+#endif
 };
 
 /**
@@ -263,7 +273,7 @@ enum class GrAAType : unsigned {
     kMSAA
 };
 
-static constexpr bool GrAATypeIsHW(GrAAType type) {
+static CONSTEXPR bool GrAATypeIsHW(GrAAType type) {
     switch (type) {
         case GrAAType::kNone:
             return false;
@@ -400,7 +410,7 @@ enum GrShaderFlags {
 GR_MAKE_BITFIELD_OPS(GrShaderFlags)
 
 /** Is the shading language type float (including vectors/matrices)? */
-static constexpr bool GrSLTypeIsFloatType(GrSLType type) {
+static CONSTEXPR bool GrSLTypeIsFloatType(GrSLType type) {
     switch (type) {
         case kFloat_GrSLType:
         case kFloat2_GrSLType:
@@ -453,7 +463,7 @@ static constexpr bool GrSLTypeIsFloatType(GrSLType type) {
 }
 
 /** If the type represents a single value or vector return the vector length, else -1. */
-static constexpr int GrSLTypeVecLength(GrSLType type) {
+static CONSTEXPR int GrSLTypeVecLength(GrSLType type) {
     switch (type) {
         case kFloat_GrSLType:
         case kHalf_GrSLType:
@@ -540,7 +550,7 @@ static inline bool GrTextureTypeHasRestrictedSampling(GrTextureType type) {
     }
 }
 
-static constexpr bool GrSLTypeIsCombinedSamplerType(GrSLType type) {
+static CONSTEXPR bool GrSLTypeIsCombinedSamplerType(GrSLType type) {
     switch (type) {
         case kTexture2DSampler_GrSLType:
         case kTextureExternalSampler_GrSLType:
@@ -806,7 +816,7 @@ GR_MAKE_BITFIELD_CLASS_OPS(GpuPathRenderers)
  * Utility functions for GrPixelConfig
  */
 
-static constexpr GrPixelConfig GrCompressionTypePixelConfig(SkImage::CompressionType compression) {
+static CONSTEXPR GrPixelConfig GrCompressionTypePixelConfig(SkImage::CompressionType compression) {
     switch (compression) {
         case SkImage::kETC1_CompressionType: return kRGB_ETC1_GrPixelConfig;
     }
@@ -817,7 +827,7 @@ static constexpr GrPixelConfig GrCompressionTypePixelConfig(SkImage::Compression
  * Returns true if the pixel config is a GPU-specific compressed format
  * representation.
  */
-static constexpr bool GrPixelConfigIsCompressed(GrPixelConfig config) {
+static CONSTEXPR bool GrPixelConfigIsCompressed(GrPixelConfig config) {
     switch (config) {
         case kRGB_ETC1_GrPixelConfig:
             return true;
@@ -886,7 +896,7 @@ enum class GrColorType {
 
 static const int kGrColorTypeCnt = static_cast<int>(GrColorType::kLast) + 1;
 
-static constexpr SkColorType GrColorTypeToSkColorType(GrColorType ct) {
+static CONSTEXPR SkColorType GrColorTypeToSkColorType(GrColorType ct) {
     switch (ct) {
         case GrColorType::kUnknown:          return kUnknown_SkColorType;
         case GrColorType::kAlpha_8:          return kAlpha_8_SkColorType;
@@ -915,7 +925,7 @@ static constexpr SkColorType GrColorTypeToSkColorType(GrColorType ct) {
     SkUNREACHABLE;
 }
 
-static constexpr GrColorType SkColorTypeToGrColorType(SkColorType ct) {
+static CONSTEXPR GrColorType SkColorTypeToGrColorType(SkColorType ct) {
     switch (ct) {
         case kUnknown_SkColorType:            return GrColorType::kUnknown;
         case kAlpha_8_SkColorType:            return GrColorType::kAlpha_8;
@@ -946,7 +956,7 @@ GrColorType SkColorTypeAndFormatToGrColorType(const GrCaps* caps,
                                               SkColorType skCT,
                                               const GrBackendFormat& format);
 
-static constexpr uint32_t GrColorTypeComponentFlags(GrColorType ct) {
+static CONSTEXPR uint32_t GrColorTypeComponentFlags(GrColorType ct) {
     switch (ct) {
         case GrColorType::kUnknown:          return 0;
         case GrColorType::kAlpha_8:          return kAlpha_SkColorTypeComponentFlag;
@@ -996,45 +1006,45 @@ enum class GrColorTypeEncoding {
  */
 struct GrColorTypeDesc {
 public:
-    static constexpr GrColorTypeDesc MakeRGBA(int rgba, GrColorTypeEncoding e) {
+    static CONSTEXPR GrColorTypeDesc MakeRGBA(int rgba, GrColorTypeEncoding e) {
         return {rgba, rgba, rgba, rgba, 0, e};
     }
 
-    static constexpr GrColorTypeDesc MakeRGBA(int rgb, int a, GrColorTypeEncoding e) {
+    static CONSTEXPR GrColorTypeDesc MakeRGBA(int rgb, int a, GrColorTypeEncoding e) {
         return {rgb, rgb, rgb, a, 0, e};
     }
 
-    static constexpr GrColorTypeDesc MakeRGB(int rgb, GrColorTypeEncoding e) {
+    static CONSTEXPR GrColorTypeDesc MakeRGB(int rgb, GrColorTypeEncoding e) {
         return {rgb, rgb, rgb, 0, 0, e};
     }
 
-    static constexpr GrColorTypeDesc MakeRGB(int r, int g, int b, GrColorTypeEncoding e) {
+    static CONSTEXPR GrColorTypeDesc MakeRGB(int r, int g, int b, GrColorTypeEncoding e) {
         return {r, g, b, 0, 0, e};
     }
 
-    static constexpr GrColorTypeDesc MakeAlpha(int a, GrColorTypeEncoding e) {
+    static CONSTEXPR GrColorTypeDesc MakeAlpha(int a, GrColorTypeEncoding e) {
         return {0, 0, 0, a, 0, e};
     }
 
-    static constexpr GrColorTypeDesc MakeR(int r, GrColorTypeEncoding e) {
+    static CONSTEXPR GrColorTypeDesc MakeR(int r, GrColorTypeEncoding e) {
         return {r, 0, 0, 0, 0, e};
     }
 
-    static constexpr GrColorTypeDesc MakeRG(int rg, GrColorTypeEncoding e) {
+    static CONSTEXPR GrColorTypeDesc MakeRG(int rg, GrColorTypeEncoding e) {
         return {rg, rg, 0, 0, 0, e};
     }
 
-    static constexpr GrColorTypeDesc MakeGray(int grayBits, GrColorTypeEncoding e) {
+    static CONSTEXPR GrColorTypeDesc MakeGray(int grayBits, GrColorTypeEncoding e) {
         return {0, 0, 0, 0, grayBits, e};
     }
 
-    static constexpr GrColorTypeDesc MakeInvalid() { return {}; }
+    static CONSTEXPR GrColorTypeDesc MakeInvalid() { return {}; }
 
     constexpr int r() const { return fRBits; }
     constexpr int g() const { return fGBits; }
     constexpr int b() const { return fBBits; }
     constexpr int a() const { return fABits; }
-    constexpr int operator[](int c) const {
+    CONSTEXPR int operator[](int c) const {
         switch (c) {
             case 0: return this->r();
             case 1: return this->g();
@@ -1058,7 +1068,7 @@ private:
 
     constexpr GrColorTypeDesc() = default;
 
-    constexpr GrColorTypeDesc(int r, int g, int b, int a, int gray, GrColorTypeEncoding encoding)
+    CONSTEXPR GrColorTypeDesc(int r, int g, int b, int a, int gray, GrColorTypeEncoding encoding)
             : fRBits(r), fGBits(g), fBBits(b), fABits(a), fGrayBits(gray), fEncoding(encoding) {
         SkASSERT(r >= 0 && g >= 0 && b >= 0 && a >= 0 && gray >= 0);
         SkASSERT(!gray || (!r && !g && !b));
@@ -1066,7 +1076,7 @@ private:
     }
 };
 
-static constexpr GrColorTypeDesc GrGetColorTypeDesc(GrColorType ct) {
+static CONSTEXPR GrColorTypeDesc GrGetColorTypeDesc(GrColorType ct) {
     switch (ct) {
         case GrColorType::kUnknown:
             return GrColorTypeDesc::MakeInvalid();
@@ -1116,7 +1126,7 @@ static constexpr GrColorTypeDesc GrGetColorTypeDesc(GrColorType ct) {
     SkUNREACHABLE;
 }
 
-static constexpr GrClampType GrColorTypeClampType(GrColorType colorType) {
+static CONSTEXPR GrClampType GrColorTypeClampType(GrColorType colorType) {
     if (GrGetColorTypeDesc(colorType).encoding() == GrColorTypeEncoding::kUnorm ||
         GrGetColorTypeDesc(colorType).encoding() == GrColorTypeEncoding::kSRGBUnorm) {
         return GrClampType::kAuto;
@@ -1126,7 +1136,7 @@ static constexpr GrClampType GrColorTypeClampType(GrColorType colorType) {
 
 // Consider a color type "wider" than n if it has more than n bits for any its representable
 // channels.
-static constexpr bool GrColorTypeIsWiderThan(GrColorType colorType, int n) {
+static CONSTEXPR bool GrColorTypeIsWiderThan(GrColorType colorType, int n) {
     SkASSERT(n > 0);
     auto desc = GrGetColorTypeDesc(colorType);
     return (desc.r() && desc.r() > n )||
@@ -1136,15 +1146,15 @@ static constexpr bool GrColorTypeIsWiderThan(GrColorType colorType, int n) {
            (desc.gray() && desc.gray() > n);
 }
 
-static constexpr bool GrColorTypeIsAlphaOnly(GrColorType ct) {
+static CONSTEXPR bool GrColorTypeIsAlphaOnly(GrColorType ct) {
     return kAlpha_SkColorTypeComponentFlag == GrColorTypeComponentFlags(ct);
 }
 
-static constexpr bool GrColorTypeHasAlpha(GrColorType ct) {
+static CONSTEXPR bool GrColorTypeHasAlpha(GrColorType ct) {
     return kAlpha_SkColorTypeComponentFlag & GrColorTypeComponentFlags(ct);
 }
 
-static constexpr size_t GrColorTypeBytesPerPixel(GrColorType ct) {
+static CONSTEXPR size_t GrColorTypeBytesPerPixel(GrColorType ct) {
     switch (ct) {
         case GrColorType::kUnknown:          return 0;
         case GrColorType::kAlpha_8:          return 1;
@@ -1172,7 +1182,7 @@ static constexpr size_t GrColorTypeBytesPerPixel(GrColorType ct) {
     SkUNREACHABLE;
 }
 
-static constexpr GrColorType GrPixelConfigToColorType(GrPixelConfig config) {
+static CONSTEXPR GrColorType GrPixelConfigToColorType(GrPixelConfig config) {
     switch (config) {
         case kUnknown_GrPixelConfig:
             return GrColorType::kUnknown;
@@ -1231,7 +1241,7 @@ static constexpr GrColorType GrPixelConfigToColorType(GrPixelConfig config) {
     SkUNREACHABLE;
 }
 
-static constexpr GrPixelConfig GrColorTypeToPixelConfig(GrColorType colorType) {
+static CONSTEXPR GrPixelConfig GrColorTypeToPixelConfig(GrColorType colorType) {
     switch (colorType) {
         case GrColorType::kUnknown:          return kUnknown_GrPixelConfig;
         case GrColorType::kAlpha_8:          return kAlpha_8_GrPixelConfig;
@@ -1280,7 +1290,7 @@ private:
 };
 
 #if GR_TEST_UTILS || defined(SK_ENABLE_DUMP_GPU)
-static constexpr const char* GrBackendApiToStr(GrBackendApi api) {
+static CONSTEXPR const char* GrBackendApiToStr(GrBackendApi api) {
     switch (api) {
         case GrBackendApi::kMetal:  return "Metal";
         case GrBackendApi::kDawn:   return "Dawn";
@@ -1291,7 +1301,7 @@ static constexpr const char* GrBackendApiToStr(GrBackendApi api) {
     SkUNREACHABLE;
 }
 
-static constexpr const char* GrColorTypeToStr(GrColorType ct) {
+static CONSTEXPR const char* GrColorTypeToStr(GrColorType ct) {
     switch (ct) {
         case GrColorType::kUnknown:          return "kUnknown";
         case GrColorType::kAlpha_8:          return "kAlpha_8";

@@ -123,9 +123,8 @@ namespace {
         Color unpack_565(skvm::I32 bgr) {
             // N.B. kRGB_565_SkColorType is named confusingly;
             //      blue is in the low bits and red the high.
-            skvm::I32 r = extract(bgr, 11, splat(0b011'111)),
-                      g = extract(bgr,  5, splat(0b111'111)),
-                      b = extract(bgr,  0, splat(0b011'111));
+            skvm::I32 r = extract(bgr, 11, splat(31)), g = extract(bgr, 5, splat(63)),
+                      b = extract(bgr, 0, splat(31));
             return {
                 // Scale 565 up to 888.
                 bit_or(shl(r, 3), shr(r, 2)),

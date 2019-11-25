@@ -7,6 +7,13 @@
 #ifndef SkMacros_DEFINED
 #define SkMacros_DEFINED
 
+#if defined(COBALT) && __cplusplus < 201402L
+// Cobalt is currently targetting C++11, not C++14.
+#define CONSTEXPR
+#else
+#define CONSTEXPR constexpr
+#endif
+
 /*
  *  Usage:  SK_MACRO_CONCAT(a, b)   to construct the symbol ab
  *

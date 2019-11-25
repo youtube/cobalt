@@ -44,7 +44,12 @@
 #define SKSL_WARN_UNUSED_RESULT
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/common/log.h"
+#define ABORT(...) (SbLogFormatF(__VA_ARGS__), sksl_abort())
+#else
 #define ABORT(...) (printf(__VA_ARGS__), sksl_abort())
+#endif
 
 #if _MSC_VER
 #define NORETURN __declspec(noreturn)

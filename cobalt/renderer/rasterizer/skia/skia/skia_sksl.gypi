@@ -8,7 +8,6 @@
 # the Skia files but in all other cases it is a separate library.
 {
   'sources': [
-    '<(DEPTH)/third_party/skia/src/sksl/lex.layout.cpp',
     '<(DEPTH)/third_party/skia/src/sksl/SkSLCFGGenerator.cpp',
     '<(DEPTH)/third_party/skia/src/sksl/SkSLCompiler.cpp',
     '<(DEPTH)/third_party/skia/src/sksl/SkSLCPPCodeGenerator.cpp',

@@ -55,11 +55,7 @@ static inline float sk_float_pow(float base, float exp) {
 #    define sk_float_asin(x)    asinf(x)
 #endif
 #define sk_float_atan2(y,x)     atan2f(y,x)
-#if defined(STARBOARD)
-#define sk_float_abs(x)         static_cast<float>(SbDoubleAbsolute(x))
-#else
 #define sk_float_abs(x)         fabsf(x)
-#endif
 #define sk_float_copysign(x, y) copysignf(x, y)
 #define sk_float_mod(x,y)       fmodf(x,y)
 #define sk_float_exp(x)         expf(x)

@@ -66,7 +66,7 @@ public:
         constexpr GrVertexAttribType cpuType() const { return fCPUType; }
         constexpr GrSLType           gpuType() const { return fGPUType; }
 
-        inline constexpr size_t size() const;
+        inline CONSTEXPR size_t size() const;
         constexpr size_t sizeAlign4() const { return SkAlign4(this->size()); }
 
         GrShaderVar asShaderVar() const {
@@ -294,7 +294,7 @@ const GrPrimitiveProcessor::TextureSampler& GrPrimitiveProcessor::IthTextureSamp
  * This was moved from include/private/GrTypesPriv.h in service of Skia dependents that build
  * with C++11.
  */
-static constexpr inline size_t GrVertexAttribTypeSize(GrVertexAttribType type) {
+static CONSTEXPR inline size_t GrVertexAttribTypeSize(GrVertexAttribType type) {
     switch (type) {
         case kFloat_GrVertexAttribType:
             return sizeof(float);
@@ -362,7 +362,7 @@ static constexpr inline size_t GrVertexAttribTypeSize(GrVertexAttribType type) {
     return 0;
 }
 
-constexpr size_t GrPrimitiveProcessor::Attribute::size() const {
+CONSTEXPR size_t GrPrimitiveProcessor::Attribute::size() const {
     return GrVertexAttribTypeSize(fCPUType);
 }
 

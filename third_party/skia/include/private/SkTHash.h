@@ -297,7 +297,7 @@ private:
         K key;
         V val;
         static const K& GetKey(const Pair& p) { return p.key; }
-        static auto Hash(const K& key) { return HashK()(key); }
+        static auto Hash(const K& key) -> decltype(HashK()(key)) { return HashK()(key); }
     };
 
     SkTHashTable<Pair, K> fTable;
@@ -351,7 +351,7 @@ public:
 private:
     struct Traits {
         static const T& GetKey(const T& item) { return item; }
-        static auto Hash(const T& item) { return HashT()(item); }
+        static auto Hash(const T& item) -> decltype(HashT()(item)) { return HashT()(item); }
     };
     SkTHashTable<T, T, Traits> fTable;
 
