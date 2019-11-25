@@ -503,7 +503,7 @@ void AudioRenderer::OnFirstOutput(
   int destination_sample_rate =
       audio_renderer_sink_->GetNearestSupportedSampleFrequency(
           *decoder_sample_rate_);
-  time_stretcher_.Initialize(sink_sample_type_, channels_,
+  time_stretcher_.Initialize(kSbMediaAudioSampleTypeFloat32, channels_,
                              destination_sample_rate);
 
   // Start play after have enough buffered frames to play 0.2s.
@@ -629,6 +629,10 @@ void AudioRenderer::ProcessAudioData() {
     }
 
     if (resampled_audio && resampled_audio->size() > 0) {
+      // |time_stretcher_| only support kSbMediaAudioSampleTypeFloat32 and
+      // kSbMediaAudioFrameStorageTypeInterleaved.
+      resampled_audio->SwitchFormatTo(kSbMediaAudioSampleTypeFloat32,
+                                      kSbMediaAudioFrameStorageTypeInterleaved);
       time_stretcher_.EnqueueBuffer(resampled_audio);
     }
 
@@ -698,7 +702,8 @@ bool AudioRenderer::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
     audio_frame_tracker_.AddFrames(decoded_audio->frames(), playback_rate_);
   }
 
-  // TODO: Support kSbMediaAudioFrameStorageTypePlanar.
+  // |time_stretcher_| only support kSbMediaAudioSampleTypeFloat32 and
+  // kSbMediaAudioFrameStorageTypeInterleaved.
   decoded_audio->SwitchFormatTo(sink_sample_type_,
                                 kSbMediaAudioFrameStorageTypeInterleaved);
   const uint8_t* source_buffer = decoded_audio->buffer();
