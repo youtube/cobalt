@@ -1066,7 +1066,7 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
     return;
   }
 
-  if (debug_console_->GetMode() == debug::console::DebugHub::kDebugConsoleOff) {
+  if (!debug_console_->IsVisible()) {
     // If the layer already has no render tree then simply return. In that case
     // nothing is changing.
     if (!debug_console_layer_->HasRenderTree()) {
@@ -1098,12 +1098,8 @@ void BrowserModule::OnOnScreenKeyboardInputEventProduced(
   }
 
 #if defined(ENABLE_DEBUGGER)
-  // If the debug console is fully visible, it gets the next chance to handle
-  // input events.
-  if (debug_console_->GetMode() >= debug::console::DebugHub::kDebugConsoleOn) {
-    if (!debug_console_->InjectOnScreenKeyboardInputEvent(type, event)) {
-      return;
-    }
+  if (!debug_console_->FilterOnScreenKeyboardInputEvent(type, event)) {
+    return;
   }
 #endif  // defined(ENABLE_DEBUGGER)
 
@@ -1141,14 +1137,9 @@ void BrowserModule::OnPointerEventProduced(base::Token type,
   }
 
 #if defined(ENABLE_DEBUGGER)
-  // If the debug console is fully visible, it gets the next chance to handle
-  // pointer events.
-  if (debug_console_->GetMode() >= debug::console::DebugHub::kDebugConsoleOn) {
-    if (!debug_console_->FilterPointerEvent(type, event)) {
-      return;
-    }
+  if (!debug_console_->FilterPointerEvent(type, event)) {
+    return;
   }
-
 #endif  // defined(ENABLE_DEBUGGER)
 
   DCHECK(web_module_);
@@ -1166,14 +1157,9 @@ void BrowserModule::OnWheelEventProduced(base::Token type,
   }
 
 #if defined(ENABLE_DEBUGGER)
-  // If the debug console is fully visible, it gets the next chance to handle
-  // wheel events.
-  if (debug_console_->GetMode() >= debug::console::DebugHub::kDebugConsoleOn) {
-    if (!debug_console_->FilterWheelEvent(type, event)) {
-      return;
-    }
+  if (!debug_console_->FilterWheelEvent(type, event)) {
+    return;
   }
-
 #endif  // defined(ENABLE_DEBUGGER)
 
   DCHECK(web_module_);
@@ -1298,12 +1284,8 @@ bool BrowserModule::FilterKeyEvent(base::Token type,
   }
 
 #if defined(ENABLE_DEBUGGER)
-  // If the debug console is fully visible, it gets the next chance to handle
-  // key events.
-  if (debug_console_->GetMode() >= debug::console::DebugHub::kDebugConsoleOn) {
-    if (!debug_console_->FilterKeyEvent(type, event)) {
-      return false;
-    }
+  if (!debug_console_->FilterKeyEvent(type, event)) {
+    return false;
   }
 #endif  // defined(ENABLE_DEBUGGER)
 
@@ -1317,7 +1299,7 @@ bool BrowserModule::FilterKeyEventForHotkeys(
   if (event.key_code() == dom::keycode::kF1 ||
       (event.ctrl_key() && event.key_code() == dom::keycode::kO)) {
     if (type == base::Tokens::keydown()) {
-      // Ctrl+O toggles the debug console display.
+      // F1 or Ctrl+O cycles the debug console display.
       debug_console_->CycleMode();
     }
     return false;
