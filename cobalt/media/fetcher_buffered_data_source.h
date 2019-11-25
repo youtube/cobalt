@@ -28,6 +28,7 @@
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/loader/fetcher.h"
 #include "cobalt/loader/origin.h"
+#include "cobalt/loader/url_fetcher_string_writer.h"
 #include "cobalt/media/player/buffered_data_source.h"
 #include "cobalt/network/network_module.h"
 #include "net/url_request/url_fetcher.h"

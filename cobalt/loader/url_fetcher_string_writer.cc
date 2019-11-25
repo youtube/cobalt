@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include "cobalt/loader/url_fetcher_string_writer.h"
+
+#include "base/logging.h"
 #include "net/base/net_errors.h"
 
 namespace cobalt {
@@ -24,6 +26,10 @@ namespace loader {
 //   DCHECK(consumer_task_runner);
 // }
 
+namespace {
+const int64_t kPreAllocateThreshold = 64 * 1024;
+}  // namespace
+
 URLFetcherStringWriter::URLFetcherStringWriter() = default;
 
 URLFetcherStringWriter::~URLFetcherStringWriter() = default;
@@ -33,22 +39,56 @@ int URLFetcherStringWriter::Initialize(
   return net::OK;
 }
 
-std::unique_ptr<std::string> URLFetcherStringWriter::data() {
+void URLFetcherStringWriter::OnResponseStarted(int64_t content_length) {
   base::AutoLock auto_lock(lock_);
-  if (!data_) {
-    return std::make_unique<std::string>();
+
+  if (content_length >= 0) {
+    content_length_ = content_length;
   }
-  return std::move(data_);
+}
+
+bool URLFetcherStringWriter::HasData() const {
+  base::AutoLock auto_lock(lock_);
+  return !data_.empty();
+}
+
+void URLFetcherStringWriter::GetAndResetData(std::string* data) {
+  DCHECK(data);
+
+  std::string empty;
+  data->swap(empty);
+
+  base::AutoLock auto_lock(lock_);
+  data_.swap(*data);
 }
 
 int URLFetcherStringWriter::Write(net::IOBuffer* buffer, int num_bytes,
                                   net::CompletionOnceCallback /*callback*/) {
   base::AutoLock auto_lock(lock_);
-  if (!data_) {
-    data_ = std::make_unique<std::string>();
+
+  if (content_offset_ == 0 && num_bytes <= content_length_) {
+    // Pre-allocate the whole buffer for small downloads, hope that all data can
+    // be downloaded before GetAndResetData() is called.
+    if (content_length_ <= kPreAllocateThreshold) {
+      data_.reserve(content_length_);
+    } else {
+      data_.reserve(kPreAllocateThreshold);
+    }
   }
 
-  data_->append(buffer->data(), num_bytes);
+  if (content_length_ > 0 && content_length_ > content_offset_ &&
+      data_.size() + num_bytes > data_.capacity()) {
+    // There is not enough memory allocated, and std::string is going to double
+    // the allocation.  So a content in "1M + 1" bytes may end up allocating 2M
+    // bytes.  Try to reserve the proper size to avoid this.
+    auto content_remaining = content_length_ - content_offset_;
+    if (data_.size() + content_remaining < data_.capacity() * 2) {
+      data_.reserve(data_.size() + content_remaining);
+    }
+  }
+
+  data_.append(buffer->data(), num_bytes);
+  content_offset_ += num_bytes;
   // consumer_task_runner_->PostTask(FROM_HERE,
   // base::Bind((on_write_callback_.Run), std::move(data)));
   return num_bytes;

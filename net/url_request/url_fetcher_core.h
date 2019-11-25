@@ -258,6 +258,10 @@ class URLFetcherCore : public base::RefCountedThreadSafe<URLFetcherCore>,
   // Whether credentials are sent along with the request.
   base::Optional<bool> allow_credentials_;
   int response_code_;                // HTTP status code for the request
+
+#if defined(STARBOARD)
+  int io_buffer_size_;
+#endif  // defined(STARBOARD)
   scoped_refptr<IOBuffer> buffer_;
                                      // Read buffer
   scoped_refptr<URLRequestContextGetter> request_context_getter_;

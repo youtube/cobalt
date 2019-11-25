@@ -172,11 +172,13 @@ void NetFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
     auto* download_data_writer =
         base::polymorphic_downcast<URLFetcherStringWriter*>(
             source->GetResponseWriter());
-    std::unique_ptr<std::string> data = download_data_writer->data();
-    if (!data->empty()) {
+    std::string data;
+    download_data_writer->GetAndResetData(&data);
+    if (!data.empty()) {
       DLOG(INFO) << "in OnURLFetchComplete data still has bytes: "
-                 << data->size();
-      handler()->OnReceivedPassed(this, std::move(data));
+                 << data.size();
+      handler()->OnReceivedPassed(
+          this, std::unique_ptr<std::string>(new std::string(std::move(data))));
     }
     handler()->OnDone(this);
   } else {
@@ -209,15 +211,17 @@ void NetFetcher::OnURLFetchDownloadProgress(const net::URLFetcher* source,
     auto* download_data_writer =
         base::polymorphic_downcast<URLFetcherStringWriter*>(
             source->GetResponseWriter());
-    std::unique_ptr<std::string> data = download_data_writer->data();
-    if (data->empty()) {
+    std::string data;
+    download_data_writer->GetAndResetData(&data);
+    if (data.empty()) {
       return;
     }
 #if defined(HANDLE_CORE_DUMP)
     net_fetcher_log.Get().IncrementFetchedBytes(
         static_cast<int>(data->length()));
 #endif
-    handler()->OnReceivedPassed(this, std::move(data));
+    handler()->OnReceivedPassed(
+        this, std::unique_ptr<std::string>(new std::string(std::move(data))));
   }
 }
 

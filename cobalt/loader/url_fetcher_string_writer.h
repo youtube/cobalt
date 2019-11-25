@@ -35,19 +35,22 @@ class URLFetcherStringWriter : public net::URLFetcherResponseWriter {
   URLFetcherStringWriter();
   ~URLFetcherStringWriter() override;
 
-  std::unique_ptr<std::string> data();
+  bool HasData() const;
+  void GetAndResetData(std::string* data);
 
   // URLFetcherResponseWriter overrides:
   int Initialize(net::CompletionOnceCallback callback) override;
+  void OnResponseStarted(int64_t content_length) override;
   int Write(net::IOBuffer* buffer, int num_bytes,
             net::CompletionOnceCallback callback) override;
   int Finish(int net_error, net::CompletionOnceCallback callback) override;
 
  private:
-  // This class can be accessed by both network thread and MainWebModule
-  // thread.
-  base::Lock lock_;
-  std::unique_ptr<std::string> data_;
+  // This class can be accessed by both network thread and MainWebModule thread.
+  mutable base::Lock lock_;
+  int64_t content_length_ = -1;
+  int64_t content_offset_ = 0;
+  std::string data_;
   // OnWriteCallback on_write_callback_;
   // base::TaskRunner* consumer_task_runner_;
 

@@ -21,6 +21,8 @@
       'target_name': 'xhr',
       'type': 'static_library',
       'sources': [
+        'url_fetcher_buffer_writer.cc',
+        'url_fetcher_buffer_writer.h',
         'xhr_response_data.cc',
         'xhr_response_data.h',
         'xml_http_request.cc',
