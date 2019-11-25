@@ -69,16 +69,17 @@ bool SbStorageWriteRecord(SbStorageRecord record,
   SbFileFlush(temp_file);
 
   if (SbFileIsValid(record->file) && !SbFileClose(record->file)) {
+    SbFileClose(temp_file);
+    SbFileDelete(temp_file_path);
     return false;
   }
 
   record->file = kSbFileInvalid;
 
-  if (!SbFileDelete(original_file_path)) {
-    return false;
-  }
-
-  if (rename(temp_file_path, original_file_path) != 0) {
+  if ((!SbFileDelete(original_file_path)) ||
+   (rename(temp_file_path, original_file_path) != 0)) {
+    SbFileClose(temp_file);
+    SbFileDelete(temp_file_path);
     return false;
   }
 
