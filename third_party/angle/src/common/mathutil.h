@@ -16,30 +16,16 @@
 #include <algorithm>
 #include <limits>
 
-<<<<<<< HEAD
-#if defined(STARBOARD)
-#include <common/third_party/numerics/base_copy/numerics/safe_math.h>
-#else
-#include <base/numerics/safe_math.h>
-#endif
-=======
 #include <anglebase/numerics/safe_math.h>
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
 
 #include "common/debug.h"
 #include "common/platform.h"
 
 namespace angle
 {
-<<<<<<< HEAD
-using base_copy::CheckedNumeric;
-using base_copy::IsValueInRangeForNumericType;
-}
-=======
 using base::CheckedNumeric;
 using base::IsValueInRangeForNumericType;
 }  // namespace angle
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
 
 namespace gl
 {

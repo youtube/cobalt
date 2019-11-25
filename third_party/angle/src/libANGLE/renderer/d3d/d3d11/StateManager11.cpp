@@ -8,6 +8,9 @@
 
 #include "libANGLE/renderer/d3d/d3d11/StateManager11.h"
 
+#if defined(STARBOARD)
+#include "angle_hdr.h"
+#endif  // STARBOARD
 #include "common/angleutils.h"
 #include "common/bitset_utils.h"
 #include "common/mathutil.h"
@@ -240,11 +243,13 @@ bool CullsEverything(const gl::State &glState)
 // StateManager11::ViewCache Implementation.
 template <typename ViewType, typename DescType>
 StateManager11::ViewCache<ViewType, DescType>::ViewCache() : mHighestUsedView(0)
-{}
+{
+}
 
 template <typename ViewType, typename DescType>
 StateManager11::ViewCache<ViewType, DescType>::~ViewCache()
-{}
+{
+}
 
 template <typename ViewType, typename DescType>
 void StateManager11::ViewCache<ViewType, DescType>::update(size_t resourceIndex, ViewType *view)
@@ -2854,6 +2859,38 @@ angle::Result StateManager11::setTextureForImage(const gl::Context *context,
     return angle::Result::Continue;
 }
 
+#if defined(STARBOARD)
+namespace
+{
+angle::FormatID GetTextureFormatId(const gl::Context *context, ProgramD3D *programD3D)
+{
+    gl::ShaderType type      = gl::ShaderType::Fragment;
+    const gl::State &glState      = context->getState();
+    gl::RangeUI samplerRange  = programD3D->getUsedSamplerRange(type);
+
+    for (unsigned int i = samplerRange.low(); i < samplerRange.high(); i++)
+    {
+        gl::TextureType textureType = programD3D->getSamplerTextureType(type, i);
+        GLint textureUnit           = programD3D->getSamplerMapping(type, i, context->getCaps());
+        if (textureUnit != -1)
+        {
+            gl::Texture *texture = glState.getSamplerTexture(textureUnit, textureType);
+            ASSERT(texture);
+            rx::TextureD3D *textureD3D = GetImplAs<TextureD3D>(texture);
+            ASSERT(textureD3D);
+            TextureStorage *texStorage = nullptr;
+            textureD3D->getNativeTexture(context, & texStorage);
+            if (texStorage)
+            {
+                return GetAs<TextureStorage11_2D>(texStorage)->getFormat().id;
+            }
+        }
+    }
+    return angle::FormatID::NONE;
+}
+}  // namespace
+#endif  // STARBOARD
+
 // Things that affect a program's dirtyness:
 // 1. Directly changing the program executable -> triggered in StateManager11::syncState.
 // 2. The vertex attribute layout              -> triggered in VertexArray11::syncState/signal.
@@ -2881,7 +2918,34 @@ angle::Result StateManager11::syncProgram(const gl::Context *context, gl::Primit
     ANGLE_TRY(mProgramD3D->getVertexExecutableForCachedInputLayout(context11, &vertexExe, nullptr));
 
     ShaderExecutableD3D *pixelExe = nullptr;
+#if defined(STARBOARD)
+    // While 10-bit HDR video is playing we run the pixel shader to apply color space for all UI
+    // elements conversion from 8-bit to 10-bit for all draw calls that do not involve the HDR video
+    // texture (look at spec ITU - R BT .2100 - 2(07 / 2018) for BT709 to BT2020 transform). This
+    // conversion  is applicable only once when we draw to the display - drawFramebuffer->id() is 0.
+    const gl::Framebuffer *drawFramebuffer = context->getState().getDrawFramebuffer();
+    if (IsHdrAngleModeEnabled() && drawFramebuffer->id().value == 0)
+    {
+        if (GetTextureFormatId(context, mProgramD3D) == angle::FormatID::R10G10B10A2_UNORM ||
+            GetTextureFormatId(context, mProgramD3D) == angle::FormatID::R16_UNORM)
+        {
+            ANGLE_TRY(mProgramD3D->getPixelExecutableForCachedOutputLayout(context11, &pixelExe,
+                                                                           nullptr));
+        }
+        else
+        {
+            ANGLE_TRY(mProgramD3D->getPixelExecutableForCachedHdrOutputLayout(context11, &pixelExe,
+                                                                              nullptr));
+        }
+    }
+    else
+    {
+        ANGLE_TRY(
+            mProgramD3D->getPixelExecutableForCachedOutputLayout(context11, &pixelExe, nullptr));
+    }
+#else
     ANGLE_TRY(mProgramD3D->getPixelExecutableForCachedOutputLayout(context11, &pixelExe, nullptr));
+#endif  // STARBOARD
 
     ShaderExecutableD3D *geometryExe = nullptr;
     ANGLE_TRY(mProgramD3D->getGeometryExecutableForPrimitiveType(context11, glState, drawMode,

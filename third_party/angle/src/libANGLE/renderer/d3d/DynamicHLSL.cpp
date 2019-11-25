@@ -28,7 +28,6 @@ namespace rx
 namespace
 {
 
-<<<<<<< HEAD
 #if defined(STARBOARD)
 // The following numbers are received from Recommendation ITU - R BT .2100 - 2(07 / 2018),
 // table 4 - PQ system reference non linear transfer functions
@@ -86,10 +85,7 @@ const std::string BT709_TO_BT2020_SHADER =
     "}\n";
 #endif  // STARBOARD
 
-std::string HLSLComponentTypeString(GLenum componentType)
-=======
 const char *HLSLComponentTypeString(GLenum componentType)
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
 {
     switch (componentType)
     {
@@ -414,7 +410,6 @@ std::string DynamicHLSL::generatePixelShaderForOutputSignature(
     return pixelHLSL;
 }
 
-<<<<<<< HEAD
 #if defined(STARBOARD)
 std::string DynamicHLSL::generatePixelShaderForHdrOutputSignature(
     const std::string &sourceShader,
@@ -429,7 +424,7 @@ std::string DynamicHLSL::generatePixelShaderForHdrOutputSignature(
     return pixelHLSL;
 }
 #endif  // STARBOARD
-=======
+
 std::string DynamicHLSL::generateComputeShaderForImage2DBindSignature(
     const d3d::Context *context,
     ProgramD3D &programD3D,
@@ -448,7 +443,6 @@ std::string DynamicHLSL::generateComputeShaderForImage2DBindSignature(
     return GenerateComputeShaderForImage2DBindSignature(context, programD3D, programData,
                                                         image2DUniforms, image2DBindLayout);
 }
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
 
 void DynamicHLSL::generateVaryingLinkHLSL(const VaryingPacking &varyingPacking,
                                           const BuiltinInfo &builtins,

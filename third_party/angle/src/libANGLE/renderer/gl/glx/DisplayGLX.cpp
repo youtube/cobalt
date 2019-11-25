@@ -91,13 +91,8 @@ DisplayGLX::~DisplayGLX() {}
 
 egl::Error DisplayGLX::initialize(egl::Display *display)
 {
-<<<<<<< HEAD
-    mEGLDisplay = display;
-    mXDisplay             = static_cast<Display*>(display->getNativeDisplayId());
-=======
     mEGLDisplay           = display;
-    mXDisplay             = display->getNativeDisplayId();
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
+    mXDisplay             = static_cast<Display*>(display->getNativeDisplayId());
     const auto &attribMap = display->getAttributeMap();
 
     // ANGLE_platform_angle allows the creation of a default display
@@ -373,19 +368,12 @@ void DisplayGLX::terminate()
 
     mGLX.terminate();
 
-<<<<<<< HEAD
-    SafeDelete(mFunctionsGL);
-
-    if (mUsesNewXDisplay) {
-        XCloseDisplay(mXDisplay);
-        mXDisplay = nullptr;
-    }
-=======
     mRenderer.reset();
 
     if (mUsesNewXDisplay)
     {
         XCloseDisplay(mXDisplay);
+        mXDisplay = nullptr;
     }
 }
 
@@ -397,7 +385,11 @@ egl::Error DisplayGLX::makeCurrent(egl::Surface *drawSurface,
         (drawSurface ? GetImplAs<SurfaceGLX>(drawSurface)->getDrawable() : mDummyPbuffer);
     if (drawable != mCurrentDrawable)
     {
-        if (mGLX.makeCurrent(drawable, mContext) != True)
+        // We must explicitly make no context current on GLX so that when thread
+        // A is done using a context, thread B can make it current without an
+        // error.
+        if (mGLX.makeCurrent(context ? drawable : None,
+                             context ? mContext : nullptr) != True)
         {
             return egl::EglContextLost() << "Failed to make the GLX context current";
         }
@@ -405,7 +397,6 @@ egl::Error DisplayGLX::makeCurrent(egl::Surface *drawSurface,
     }
 
     return DisplayGL::makeCurrent(drawSurface, readSurface, context);
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
 }
 
 SurfaceImpl *DisplayGLX::createWindowSurface(const egl::SurfaceState &state,
@@ -415,12 +406,7 @@ SurfaceImpl *DisplayGLX::createWindowSurface(const egl::SurfaceState &state,
     ASSERT(configIdToGLXConfig.count(state.config->configID) > 0);
     glx::FBConfig fbConfig = configIdToGLXConfig[state.config->configID];
 
-<<<<<<< HEAD
-    return new WindowSurfaceGLX(state, mGLX, this, getRenderer(), reinterpret_cast<Window>(window),
-                                mGLX.getDisplay(), mContext, fbConfig);
-=======
-    return new WindowSurfaceGLX(state, mGLX, this, window, mGLX.getDisplay(), fbConfig);
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
+    return new WindowSurfaceGLX(state, mGLX, this, reinterpret_cast<Window>(window), mGLX.getDisplay(), fbConfig);
 }
 
 SurfaceImpl *DisplayGLX::createPbufferSurface(const egl::SurfaceState &state,

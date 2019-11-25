@@ -2,36 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-<<<<<<< HEAD:third_party/angle/src/common/third_party/numerics/base_copy/numerics/safe_math.h
-#ifndef BASE_COPY_NUMERICS_SAFE_MATH_H_
-#define BASE_COPY_NUMERICS_SAFE_MATH_H_
-=======
 #ifndef ANGLEBASE_NUMERICS_SAFE_MATH_H_
 #define ANGLEBASE_NUMERICS_SAFE_MATH_H_
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a:third_party/angle/src/common/third_party/base/anglebase/numerics/safe_math.h
 
 #include <stddef.h>
 
 #include <limits>
 #include <type_traits>
 
-<<<<<<< HEAD:third_party/angle/src/common/third_party/numerics/base_copy/numerics/safe_math.h
-#if defined(STARBOARD)
-#include "common/third_party/numerics/base_copy/numerics_logging.h"
-#include "common/third_party/numerics/base_copy/numerics/safe_math_impl.h"
-#else
-#include "base/numerics_logging.h"
-#include "base/numerics/safe_math_impl.h"
-#endif
-=======
 #include "anglebase/logging.h"
 #include "anglebase/numerics/safe_math_impl.h"
 
 namespace angle
 {
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a:third_party/angle/src/common/third_party/base/anglebase/numerics/safe_math.h
 
-namespace base_copy
+namespace base
 {
 
 namespace internal
@@ -260,11 +245,6 @@ class CheckedNumeric
     CheckedNumericState<T> state_;
 };
 
-#if defined(STARBOARD) && defined(BASE_NUMERIC_ARITHMETIC_OPERATORS)
-// Some file can include Chromium base's definition already.
-#undef BASE_NUMERIC_ARITHMETIC_OPERATORS
-#endif
-
 // This is the boilerplate for the standard arithmetic operator overloads. A
 // macro isn't the prettiest solution, but it beats rewriting these five times.
 // Some details worth noting are:
@@ -347,12 +327,8 @@ ANGLEBASE_NUMERIC_ARITHMETIC_OPERATORS(Mod, %, %=)
 
 using internal::CheckedNumeric;
 
-}  // namespace base_copy
+}  // namespace base
 
-<<<<<<< HEAD:third_party/angle/src/common/third_party/numerics/base_copy/numerics/safe_math.h
-#endif  // BASE_COPY_NUMERICS_SAFE_MATH_H_
-=======
 }  // namespace angle
 
 #endif  // ANGLEBASE_NUMERICS_SAFE_MATH_H_
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a:third_party/angle/src/common/third_party/base/anglebase/numerics/safe_math.h

@@ -619,21 +619,17 @@ EGLint SwapChain11::reset(DisplayD3D *displayD3D,
             device, mRenderer->getDxgiFactory(), getSwapChainNativeFormat(), backbufferWidth,
             backbufferHeight, mNeedsOffscreenTexture ? 1 : getD3DSamples(), &mSwapChain);
 
-<<<<<<< HEAD
 #if defined(STARBOARD)
         // When an application is run in as a service, which is Session 0, a very specific error is
         // returned. To allow unit tests to continue, silently continue using an offscreen texture.
-        bool failed_in_session_0 = FAILED(result) && result == DXGI_ERROR_NOT_CURRENTLY_AVAILABLE;
+        bool failed_in_session_0 = FAILED(hr) && hr == DXGI_ERROR_NOT_CURRENTLY_AVAILABLE;
         if (failed_in_session_0)
         {
             mNeedsOffscreenTexture = true;
         }
         else
 #endif
-        if (FAILED(result))
-=======
         if (FAILED(hr))
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
         {
             ERR() << "Could not create additional swap chains or offscreen surfaces, "
                   << gl::FmtHR(hr);
@@ -652,24 +648,7 @@ EGLint SwapChain11::reset(DisplayD3D *displayD3D,
 #if defined(STARBOARD)
         if (mSwapChain)
         {
-            if (mRenderer->getRenderer11DeviceCaps().supportsDXGI1_2)
-            {
-                mSwapChain1 = d3d11::DynamicCastComObject<IDXGISwapChain1>(mSwapChain);
-            }
-
-            result = mSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&mBackBufferTexture);
-            ASSERT(SUCCEEDED(result));
-            d3d11::SetDebugName(mBackBufferTexture, "Back buffer texture");
-
-            gl::Error err = mRenderer->allocateResourceNoDesc(mBackBufferTexture, &mBackBufferRTView);
-            ASSERT(!err.isError());
-            mBackBufferRTView.setDebugName("Back buffer render target");
-
-            result = device->CreateShaderResourceView(mBackBufferTexture, nullptr, &mBackBufferSRView);
-            ASSERT(SUCCEEDED(result));
-            d3d11::SetDebugName(mBackBufferSRView, "Back buffer shader resource view");
-        }
-#else
+#endif
         if (mRenderer->getRenderer11DeviceCaps().supportsDXGI1_2)
         {
             mSwapChain1 = d3d11::DynamicCastComObject<IDXGISwapChain1>(mSwapChain);
@@ -689,17 +668,13 @@ EGLint SwapChain11::reset(DisplayD3D *displayD3D,
         ASSERT(result != angle::Result::Stop);
         mBackBufferRTView.setDebugName("Back buffer render target");
 
-<<<<<<< HEAD
-        result = device->CreateShaderResourceView(mBackBufferTexture, nullptr, &mBackBufferSRView);
-        ASSERT(SUCCEEDED(result));
-        d3d11::SetDebugName(mBackBufferSRView, "Back buffer shader resource view");
-#endif
-=======
         result = mRenderer->allocateResourceNoDesc(displayD3D, mBackBufferTexture.get(),
                                                    &mBackBufferSRView);
         ASSERT(result != angle::Result::Stop);
         mBackBufferSRView.setDebugName("Back buffer shader resource view");
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
+#if defined(STARBOARD)
+        }
+#endif
     }
 
     mFirstSwap = true;

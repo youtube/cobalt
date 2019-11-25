@@ -20,12 +20,9 @@
 *.vcxproj.user
 *.vsp
 *~
-<<<<<<< HEAD
 .DS_Store
-=======
 .*.sw*
 .cipd
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
 .gclient
 .gclient_entries
 /src/tests/third_party/gles_conformance_tests

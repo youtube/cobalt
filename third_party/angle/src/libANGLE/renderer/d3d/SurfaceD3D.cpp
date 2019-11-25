@@ -33,26 +33,10 @@
 // eglCreatePbufferFromClientBuffer returns.
 //
 // {3C3A43AB-C69B-46C9-AA8D-B0CFFCD4596D}
-static const GUID kCobaltNv12BindChroma = {
-  0x3c3a43ab, 0xc69b, 0x46c9,
-  { 0xaa, 0x8d, 0xb0, 0xcf, 0xfc, 0xd4, 0x59, 0x6d }
-};
-
-// A key for ID3D11DeviceChild. The value should be an IMFDXGIBuffer*.
-// When used with an NV12 texture passed in eglCreatePbufferFromClientBuffer
-// EGL_D3D_TEXTURE_ANGLE, this interface is asked for the appropriate
-// texture in a texture array to use via GetSubresourceIndex.
-// This is appropriate for use with IMFTransform video decoders that
-// return IMFDXGIBuffer's that have texture array resources.
-//
-// The value is fetched from ID3D11DeviceChild and stored before
-// eglCreatePbufferFromClientBuffer returns.
-//
-// C62BF18D-B5EE-46B1-9C31-F61BD8AE3B0D
-static const GUID kCobaltDxgiBuffer = {
-  0Xc62bf18d, 0Xb5ee, 0X46b1,
-  {0X9c, 0X31, 0Xf6, 0X1b, 0Xd8, 0Xae, 0X3b, 0X0d }
-};
+static const GUID kCobaltNv12BindChroma = {0x3c3a43ab,
+                                           0xc69b,
+                                           0x46c9,
+                                           {0xaa, 0x8d, 0xb0, 0xcf, 0xfc, 0xd4, 0x59, 0x6d}};
 
 namespace rx
 {
@@ -82,13 +66,8 @@ SurfaceD3D::SurfaceD3D(const egl::SurfaceState &state,
       mSwapInterval(1),
       mShareHandle(0),
       mD3DTexture(nullptr),
-<<<<<<< HEAD
       mBuftype(buftype),
-      mDXGIBuffer(nullptr),
       mBindChroma(false)
-=======
-      mBuftype(buftype)
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
 {
     if (window != nullptr && !mFixedSize)
     {
@@ -113,23 +92,6 @@ SurfaceD3D::SurfaceD3D(const egl::SurfaceState &state,
             mD3DTexture = static_cast<IUnknown *>(clientBuffer);
             ASSERT(mD3DTexture != nullptr);
             mD3DTexture->AddRef();
-<<<<<<< HEAD
-            mRenderer->getD3DTextureInfo(state.config, mD3DTexture, &mWidth, &mHeight,
-                                         &mRenderTargetFormat);
-
-            UINT out;
-            HRESULT hr = static_cast<ID3D11DeviceChild*>(mD3DTexture)->
-                GetPrivateData(kCobaltNv12BindChroma, &out, nullptr);
-            mBindChroma = (SUCCEEDED(hr)) && (out != 0);
-
-            out = sizeof(mDXGIBuffer);
-            hr = static_cast<ID3D11DeviceChild*>(mD3DTexture)->
-                GetPrivateData(kCobaltDxgiBuffer, &out, &mDXGIBuffer);
-            if (SUCCEEDED(hr) && mDXGIBuffer != nullptr) {
-              mDXGIBuffer->AddRef();
-            }
-=======
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
             break;
         }
 
@@ -143,7 +105,6 @@ SurfaceD3D::~SurfaceD3D()
     releaseSwapChain();
     SafeDelete(mNativeWindow);
     SafeRelease(mD3DTexture);
-    SafeRelease(mDXGIBuffer);
 }
 
 void SurfaceD3D::releaseSwapChain()
@@ -162,26 +123,12 @@ egl::Error SurfaceD3D::initialize(const egl::Display *display)
     }
 
     if (mBuftype == EGL_D3D_TEXTURE_ANGLE)
-<<<<<<< HEAD
     {
-        ID3D11Texture2D* d3Texture = static_cast<ID3D11Texture2D*>(mD3DTexture);
+        UINT out;
+        HRESULT hr = static_cast<ID3D11DeviceChild *>(mD3DTexture)
+                         ->GetPrivateData(kCobaltNv12BindChroma, &out, nullptr);
+        mBindChroma = (SUCCEEDED(hr)) && (out != 0);
 
-        D3D11_TEXTURE2D_DESC texture_desc;
-        d3Texture->GetDesc(&texture_desc);
-
-        if (texture_desc.Format == DXGI_FORMAT_NV12)
-        {
-            // NV12 textures cannot be rendered to,
-            // so don't proceed to making a swap chain.
-            return egl::Error(EGL_SUCCESS);
-        }
-    }
-
-    egl::Error error = resetSwapChain();
-    if (error.isError())
-=======
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
-    {
         ANGLE_TRY(mRenderer->getD3DTextureInfo(mState.config, mD3DTexture, mState.attributes,
                                                &mFixedWidth, &mFixedHeight, nullptr, nullptr,
                                                &mColorFormat));
@@ -213,6 +160,18 @@ egl::Error SurfaceD3D::initialize(const egl::Display *display)
             }
         }
         mRenderTargetFormat = mColorFormat->fboImplementationInternalFormat;
+
+        ID3D11Texture2D *d3Texture = static_cast<ID3D11Texture2D *>(mD3DTexture);
+        D3D11_TEXTURE2D_DESC texture_desc;
+        d3Texture->GetDesc(&texture_desc);
+        if (texture_desc.Format == DXGI_FORMAT_NV12)
+        {
+            // NV12 textures cannot be rendered to,
+            // so don't proceed to making a swap chain.
+            mWidth  = mFixedWidth;
+            mHeight = mFixedHeight;
+            return egl::NoError();
+        }
     }
 
     ANGLE_TRY(resetSwapChain(display));

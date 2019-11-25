@@ -21,11 +21,7 @@ PbufferSurfaceGLX::PbufferSurfaceGLX(const egl::SurfaceState &state,
                                      bool largest,
                                      const FunctionsGLX &glx,
                                      glx::FBConfig fbConfig)
-<<<<<<< HEAD
-    : SurfaceGLX(state, renderer, glx),
-=======
     : SurfaceGLX(state),
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
       mWidth(width),
       mHeight(height),
       mLargest(largest),
