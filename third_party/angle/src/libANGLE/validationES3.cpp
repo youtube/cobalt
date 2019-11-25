@@ -8,15 +8,7 @@
 
 #include "libANGLE/validationES3_autogen.h"
 
-<<<<<<< HEAD
-#if defined(STARBOARD)
-#include "common/third_party/numerics/base_copy/numerics/safe_conversions.h"
-#else
-#include "base/numerics/safe_conversions.h"
-#endif
-=======
 #include "anglebase/numerics/safe_conversions.h"
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
 #include "common/mathutil.h"
 #include "common/utilities.h"
 #include "libANGLE/Context.h"

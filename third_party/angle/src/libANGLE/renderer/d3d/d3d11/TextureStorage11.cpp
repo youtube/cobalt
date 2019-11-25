@@ -34,22 +34,6 @@
 
 #include "starboard/common/log.h"
 
-namespace
-{
-// This GUID is used for a D3D private data property that allows
-// us to keep the associated IMFDXGIBuffer (if any) alive as long
-// as the shader resource view is alive. Video decoders re-use the same
-// textures, but they track their lifetime by watching the lifetime of
-// the IMFDXGIBuffer. So the IMFDXGIBuffer must be kept alive as long
-// as the texture may still be used to draw a given video frame.
-static const GUID kCobaltKeepAlive = { /* 99a98f3c-37d9-46db-b6a6-bc83c96090e9 */
-    0x99a98f3c,
-    0x37d9,
-    0x46db,
-    {0xb6, 0xa6, 0xbc, 0x83, 0xc9, 0x60, 0x90, 0xe9}
-  };
-}
-
 namespace rx
 {
 TextureStorage11::SamplerKey::SamplerKey()
@@ -301,23 +285,18 @@ angle::Result TextureStorage11::getSRVForSampler(const gl::Context *context,
     return angle::Result::Continue;
 }
 
-<<<<<<< HEAD
 #if defined(STARBOARD)
 const angle::Format &TextureStorage11_2D::getFormat()
 {
     D3D11_TEXTURE2D_DESC desc = {0};
-    mTexture->GetDesc(&desc);
+    mTexture.getDesc(&desc);
     return d3d11_angle::GetFormat(desc.Format);
 }
 #endif  // STARBOARD
 
-gl::Error TextureStorage11::getCachedOrCreateSRV(const SRVKey &key,
-                                                 ID3D11ShaderResourceView **outSRV)
-=======
 angle::Result TextureStorage11::getCachedOrCreateSRVForSampler(const gl::Context *context,
                                                                const SamplerKey &key,
                                                                const d3d11::SharedSRV **outSRV)
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
 {
     auto iter = mSrvCacheForSampler.find(key);
     if (iter != mSrvCacheForSampler.end())
@@ -994,21 +973,17 @@ TextureStorage11_2D::TextureStorage11_2D(Renderer11 *renderer, SwapChain11 *swap
       mLevelZeroTexture(),
       mLevelZeroRenderTarget(nullptr),
       mUseLevelZeroTexture(false),
-<<<<<<< HEAD
-      mSwizzleTexture(nullptr),
-      mBindChroma(false),
-      mDxgiBuffer(nullptr)
+      mSwizzleTexture(),
+      mBindChroma(false)
 {
-    mTexture->AddRef();
-
     for (unsigned int i = 0; i < gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS; i++)
     {
-        mAssociatedImages[i]     = nullptr;
-        mRenderTarget[i]         = nullptr;
+        mAssociatedImages[i] = nullptr;
+        mRenderTarget[i]     = nullptr;
     }
 
     D3D11_TEXTURE2D_DESC texDesc;
-    mTexture->GetDesc(&texDesc);
+    mTexture.getDesc(&texDesc);
     mMipLevels     = texDesc.MipLevels;
     mTextureWidth  = texDesc.Width;
     mTextureHeight = texDesc.Height;
@@ -1018,30 +993,21 @@ TextureStorage11_2D::TextureStorage11_2D(Renderer11 *renderer, SwapChain11 *swap
 
 TextureStorage11_2D::TextureStorage11_2D(Renderer11 *renderer,
                                          IUnknown *texture,
-                                         bool bindChroma,
-                                         IUnknown *dxgiBuffer)
+                                         bool bindChroma)
     : TextureStorage11(renderer,
                        0,
                        0,
                        0),
-      mTexture(static_cast<ID3D11Texture2D*>(texture)),
-      mLevelZeroTexture(nullptr),
+      mTexture(),
+      mLevelZeroTexture(),
       mLevelZeroRenderTarget(nullptr),
       mUseLevelZeroTexture(false),
-      mSwizzleTexture(nullptr),
-      mBindChroma(bindChroma),
-      mDxgiBuffer(dxgiBuffer)
+      mSwizzleTexture(),
+      mBindChroma(bindChroma)
 {
-    mTexture->AddRef();
-    if (mDxgiBuffer != nullptr)
-    {
-        mDxgiBuffer->AddRef();
-    }
+    texture->AddRef();
+    mTexture.set(static_cast<ID3D11Texture2D *>(texture), mFormatInfo);
 
-=======
-      mSwizzleTexture()
-{
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
     for (unsigned int i = 0; i < gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS; i++)
     {
         mAssociatedImages[i] = nullptr;
@@ -1077,13 +1043,8 @@ TextureStorage11_2D::TextureStorage11_2D(Renderer11 *renderer,
       mLevelZeroTexture(),
       mLevelZeroRenderTarget(nullptr),
       mUseLevelZeroTexture(hintLevelZeroOnly && levels > 1),
-<<<<<<< HEAD
-      mSwizzleTexture(nullptr),
-      mBindChroma(nullptr),
-      mDxgiBuffer(nullptr)
-=======
-      mSwizzleTexture()
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
+      mSwizzleTexture(),
+      mBindChroma(nullptr)
 {
     for (unsigned int i = 0; i < gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS; i++)
     {
@@ -1115,21 +1076,6 @@ angle::Result TextureStorage11_2D::onDestroy(const gl::Context *context)
         }
     }
 
-<<<<<<< HEAD
-    SafeRelease(mTexture);
-    SafeRelease(mDxgiBuffer);
-    SafeRelease(mSwizzleTexture);
-
-    SafeRelease(mLevelZeroTexture);
-    SafeDelete(mLevelZeroRenderTarget);
-
-    for (unsigned int i = 0; i < gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS; i++)
-    {
-        SafeDelete(mRenderTarget[i]);
-    }
-
-=======
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
     if (mHasKeyedMutex)
     {
         // If the keyed mutex is released that will unbind it and cause the state cache to become
@@ -1488,41 +1434,25 @@ angle::Result TextureStorage11_2D::createSRVForSampler(const gl::Context *contex
     srvDesc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
     srvDesc.Texture2D.MostDetailedMip = mTopLevel + baseLevel;
     srvDesc.Texture2D.MipLevels       = mipLevels;
-
-<<<<<<< HEAD
-    ID3D11Texture2D* d3Texture;
-    HRESULT hr = texture->QueryInterface(IID_PPV_ARGS(&d3Texture));
-
-    if (S_OK == hr)
+#if defined(STARBOARD)
+    D3D11_TEXTURE2D_DESC texture_desc;
+    texture.getDesc(&texture_desc);
+    if (texture_desc.Format == DXGI_FORMAT_NV12)
     {
-        D3D11_TEXTURE2D_DESC texture_desc;
-        d3Texture->GetDesc(&texture_desc);
-        if (texture_desc.Format == DXGI_FORMAT_NV12)
-        {
-            UINT arrayIndex = 0;
-            if (mDxgiBuffer != nullptr)
-            {
-                static_cast<IMFDXGIBuffer*>(mDxgiBuffer)->
-                    GetSubresourceIndex(&arrayIndex);
-            }
-            srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
-            srvDesc.Texture2DArray.MostDetailedMip = mTopLevel + baseLevel;
-            srvDesc.Texture2DArray.MipLevels       = mipLevels;
-            srvDesc.Texture2DArray.FirstArraySlice = arrayIndex;
-            srvDesc.Texture2DArray.ArraySize       = 1;
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+        srvDesc.Texture2DArray.MostDetailedMip = mTopLevel + baseLevel;
+        srvDesc.Texture2DArray.MipLevels       = mipLevels;
+        srvDesc.Texture2DArray.FirstArraySlice = 0;
+        srvDesc.Texture2DArray.ArraySize       = 1;
 
-            if (mBindChroma)
-                srvDesc.Format = DXGI_FORMAT_R8G8_UNORM;
-            else
-                srvDesc.Format = DXGI_FORMAT_R8_UNORM;
-        }
-        d3Texture->Release();
+        if (mBindChroma)
+            srvDesc.Format = DXGI_FORMAT_R8G8_UNORM;
+        else
+            srvDesc.Format = DXGI_FORMAT_R8_UNORM;
     }
+#endif
 
-    ID3D11Resource *srvTexture = texture;
-=======
     const TextureHelper11 *srvTexture = &texture;
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
 
     if (mRenderer->getFeatures().zeroMaxLodWorkaround.enabled)
     {
@@ -1549,14 +1479,7 @@ angle::Result TextureStorage11_2D::createSRVForSampler(const gl::Context *contex
                                           outSRV));
     outSRV->setDebugName("TexStorage2D.SRV");
 
-<<<<<<< HEAD
-    result = (*outSRV)->SetPrivateDataInterface(kCobaltKeepAlive, mDxgiBuffer);
-    ASSERT(SUCCEEDED(result));
-
-    return gl::NoError();
-=======
     return angle::Result::Continue;
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
 }
 
 angle::Result TextureStorage11_2D::createSRVForImage(const gl::Context *context,

@@ -278,13 +278,6 @@ class RendererD3D : public BufferFactoryD3D
 
     // Image operations
     virtual ImageD3D *createImage() = 0;
-<<<<<<< HEAD
-    virtual gl::Error generateMipmap(ImageD3D *dest, ImageD3D *source) = 0;
-    virtual gl::Error generateMipmapUsingD3D(TextureStorage *storage,
-                                             const gl::TextureState &textureState) = 0;
-    virtual TextureStorage *createTextureStorage2D(SwapChainD3D *swapChain) = 0;
-    virtual TextureStorage *createTextureStorage2D(IUnknown *texture, bool bindChroma, IUnknown *dxgiBuffer) = 0;
-=======
     virtual ExternalImageSiblingImpl *createExternalImageSibling(
         const gl::Context *context,
         EGLenum target,
@@ -305,7 +298,7 @@ class RendererD3D : public BufferFactoryD3D
                                     bool unpackPremultiplyAlpha,
                                     bool unpackUnmultiplyAlpha)                            = 0;
     virtual TextureStorage *createTextureStorage2D(SwapChainD3D *swapChain)                = 0;
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
+    virtual TextureStorage *createTextureStorage2D(IUnknown *texture, bool bindChroma)     = 0;
     virtual TextureStorage *createTextureStorageEGLImage(EGLImageD3D *eglImage,
                                                          RenderTargetD3D *renderTargetD3D) = 0;
     virtual TextureStorage *createTextureStorageExternal(

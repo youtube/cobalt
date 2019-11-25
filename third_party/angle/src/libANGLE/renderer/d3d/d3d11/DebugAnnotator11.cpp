@@ -63,41 +63,8 @@ bool DebugAnnotator11::getStatus()
 
 bool DebugAnnotator11::loggingEnabledForThisThread() const
 {
-<<<<<<< HEAD
-    if (!mInitialized)
-    {
-#if !defined(ANGLE_ENABLE_WINDOWS_STORE)
-        mD3d11Module = LoadLibrary(TEXT("d3d11.dll"));
-        ASSERT(mD3d11Module);
-
-        PFN_D3D11_CREATE_DEVICE D3D11CreateDevice = (PFN_D3D11_CREATE_DEVICE)GetProcAddress(mD3d11Module, "D3D11CreateDevice");
-        ASSERT(D3D11CreateDevice != nullptr);
-#endif // !ANGLE_ENABLE_WINDOWS_STORE
-
-        ID3D11Device *device = nullptr;
-        ID3D11DeviceContext *context = nullptr;
-
-        HRESULT hr = E_FAIL;
-
-        // Create a D3D_DRIVER_TYPE_NULL device, which is much cheaper than other types of device.
-        hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_NULL, nullptr, 0, nullptr, 0,
-                               D3D11_SDK_VERSION, &device, nullptr, &context);
-        ASSERT(SUCCEEDED(hr));
-        if (SUCCEEDED(hr))
-        {
-            mUserDefinedAnnotation = d3d11::DynamicCastComObject<ID3DUserDefinedAnnotation>(context);
-            ASSERT(mUserDefinedAnnotation != nullptr);
-            mInitialized = true;
-            ID3D11Multithread* multithread =
-                d3d11::DynamicCastComObject<ID3D11Multithread>(context);
-            ASSERT(multithread != nullptr);
-            multithread->SetMultithreadProtected(true);
-            SafeRelease(multithread);
-        }
-=======
     return mUserDefinedAnnotation != nullptr && std::this_thread::get_id() == mAnnotationThread;
 }
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
 
 void DebugAnnotator11::initialize(ID3D11DeviceContext *context)
 {
@@ -114,6 +81,11 @@ void DebugAnnotator11::initialize(ID3D11DeviceContext *context)
         mUserDefinedAnnotation.Attach(
             d3d11::DynamicCastComObject<ID3DUserDefinedAnnotation>(context));
     }
+    ID3D11Multithread* multithread =
+        d3d11::DynamicCastComObject<ID3D11Multithread>(context);
+    ASSERT(multithread != nullptr);
+    multithread->SetMultithreadProtected(true);
+    SafeRelease(multithread);
 }
 
 void DebugAnnotator11::release()

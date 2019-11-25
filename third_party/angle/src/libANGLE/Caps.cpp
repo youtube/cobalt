@@ -706,26 +706,17 @@ void Extensions::setTextureExtensionSupport(const TextureCapsMap &textureCaps)
     packedDepthStencil    = DeterminePackedDepthStencilSupport(textureCaps);
     rgb8rgba8             = DetermineRGB8AndRGBA8TextureSupport(textureCaps);
     textureFormatBGRA8888 = DetermineBGRA8TextureSupport(textureCaps);
-<<<<<<< HEAD
-    colorBufferHalfFloat      = DetermineColorBufferHalfFloatSupport(textureCaps);
-    textureHalfFloat = DetermineHalfFloatTextureSupport(textureCaps);
-    textureHalfFloatLinear = DetermineHalfFloatTextureFilteringSupport(textureCaps);
-    textureFloat = DetermineFloatTextureSupport(textureCaps);
-    textureFloatLinear = DetermineFloatTextureFilteringSupport(textureCaps);
-#if defined(STARBOARD)
-    textureRG = false;
-#else
-    textureRG = DetermineRGTextureSupport(textureCaps, textureHalfFloat, textureFloat);
-#endif  // STARBOARD
-=======
     textureHalfFloat      = DetermineHalfFloatTextureSupport(textureCaps);
     textureHalfFloatLinear =
         DetermineHalfFloatTextureFilteringSupport(textureCaps, textureHalfFloat);
     textureFloat           = DetermineFloatTextureSupport(textureCaps);
     textureFloatLinear     = DetermineFloatTextureFilteringSupport(textureCaps, textureFloat);
+#if defined(STARBOARD)
+    textureRG = false;
+#else
     textureRG              = DetermineRGTextureSupport(textureCaps, textureHalfFloat, textureFloat);
+#endif  // STARBOARD
     colorBufferHalfFloat   = textureHalfFloat && DetermineColorBufferHalfFloatSupport(textureCaps);
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
     textureCompressionDXT1 = DetermineDXT1TextureSupport(textureCaps);
     textureCompressionDXT3 = DetermineDXT3TextureSupport(textureCaps);
     textureCompressionDXT5 = DetermineDXT5TextureSupport(textureCaps);

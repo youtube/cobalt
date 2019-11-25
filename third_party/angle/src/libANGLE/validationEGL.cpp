@@ -593,9 +593,6 @@ Error ValidateGetPlatformDisplayCommon(EGLenum platform,
                                             "type of EGL_PLATFORM_ANGLE_DEVICE_TYPE_HARDWARE_ANGLE "
                                             "or EGL_PLATFORM_ANGLE_DEVICE_TYPE_D3D_WARP_ANGLE";
             }
-<<<<<<< HEAD
-            if (!(configuration->renderableType & EGL_OPENGL_ES3_BIT_KHR))
-=======
         }
 
         if (presentPathSpecified && platformType != EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE)
@@ -607,7 +604,6 @@ Error ValidateGetPlatformDisplayCommon(EGLenum platform,
         if (deviceType.valid())
         {
             switch (deviceType.value())
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
             {
                 case EGL_PLATFORM_ANGLE_DEVICE_TYPE_D3D_REFERENCE_ANGLE:
                 case EGL_PLATFORM_ANGLE_DEVICE_TYPE_D3D_WARP_ANGLE:

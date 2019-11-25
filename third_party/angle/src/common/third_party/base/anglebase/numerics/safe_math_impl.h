@@ -2,13 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-<<<<<<< HEAD:third_party/angle/src/common/third_party/numerics/base_copy/numerics/safe_math_impl.h
-#ifndef BASE_COPY_NUMERICS_SAFE_MATH_IMPL_H_
-#define BASE_COPY_NUMERICS_SAFE_MATH_IMPL_H_
-=======
 #ifndef ANGLEBASE_NUMERICS_SAFE_MATH_IMPL_H_
 #define ANGLEBASE_NUMERICS_SAFE_MATH_IMPL_H_
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a:third_party/angle/src/common/third_party/base/anglebase/numerics/safe_math_impl.h
 
 #include <stddef.h>
 #include <stdint.h>
@@ -19,20 +14,12 @@
 #include <limits>
 #include <type_traits>
 
-<<<<<<< HEAD:third_party/angle/src/common/third_party/numerics/base_copy/numerics/safe_math_impl.h
-#if defined(STARBOARD)
-#include "common/third_party/numerics/base_copy/numerics/safe_conversions.h"
-#else
-#include "base/numerics/safe_conversions.h"
-#endif
-=======
 #include "anglebase/numerics/safe_conversions.h"
 
 namespace angle
 {
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a:third_party/angle/src/common/third_party/base/anglebase/numerics/safe_math_impl.h
 
-namespace base_copy
+namespace base
 {
 namespace internal
 {
@@ -576,12 +563,8 @@ struct IsIntegerArithmeticSafe
 };
 
 }  // namespace internal
-}  // namespace base_copy
+}  // namespace base
 
-<<<<<<< HEAD:third_party/angle/src/common/third_party/numerics/base_copy/numerics/safe_math_impl.h
-#endif  // BASE_COPY_NUMERICS_SAFE_MATH_IMPL_H_
-=======
 }  // namespace angle
 
 #endif  // ANGLEBASE_NUMERICS_SAFE_MATH_IMPL_H_
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a:third_party/angle/src/common/third_party/base/anglebase/numerics/safe_math_impl.h

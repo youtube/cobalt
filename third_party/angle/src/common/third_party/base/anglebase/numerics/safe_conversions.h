@@ -2,36 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-<<<<<<< HEAD:third_party/angle/src/common/third_party/numerics/base_copy/numerics/safe_conversions.h
-#ifndef BASE_COPY_NUMERICS_SAFE_CONVERSIONS_H_
-#define BASE_COPY_NUMERICS_SAFE_CONVERSIONS_H_
-=======
 #ifndef ANGLEBASE_NUMERICS_SAFE_CONVERSIONS_H_
 #define ANGLEBASE_NUMERICS_SAFE_CONVERSIONS_H_
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a:third_party/angle/src/common/third_party/base/anglebase/numerics/safe_conversions.h
 
 #include <stddef.h>
 
 #include <limits>
 #include <type_traits>
 
-<<<<<<< HEAD:third_party/angle/src/common/third_party/numerics/base_copy/numerics/safe_conversions.h
-#if defined(STARBOARD)
-#include "common/third_party/numerics/base_copy/numerics_logging.h"
-#include "common/third_party/numerics/base_copy/numerics/safe_conversions_impl.h"
-#else
-#include "base/numerics_logging.h"
-#include "base/numerics/safe_conversions_impl.h"
-#endif
-=======
 #include "anglebase/logging.h"
 #include "anglebase/numerics/safe_conversions_impl.h"
 
 namespace angle
 {
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a:third_party/angle/src/common/third_party/base/anglebase/numerics/safe_conversions.h
 
-namespace base_copy
+namespace base
 {
 
 // Convenience function that returns true if the supplied value is in range
@@ -135,9 +120,9 @@ constexpr Dst strict_cast(Src value)
                   "The numeric conversion is out of range for this type. You "
                   "should probably use one of the following conversion "
                   "mechanisms on the value you want to pass:\n"
-                  "- base_copy::checked_cast\n"
-                  "- base_copy::saturated_cast\n"
-                  "- base_copy::CheckedNumeric");
+                  "- base::checked_cast\n"
+                  "- base::saturated_cast\n"
+                  "- base::CheckedNumeric");
 
     return static_cast<Dst>(value);
 }
@@ -185,12 +170,8 @@ class StrictNumeric
 // Explicitly make a shorter size_t typedef for convenience.
 typedef StrictNumeric<size_t> SizeT;
 
-}  // namespace base_copy
+}  // namespace base
 
-<<<<<<< HEAD:third_party/angle/src/common/third_party/numerics/base_copy/numerics/safe_conversions.h
-#endif  // BASE_COPY_NUMERICS_SAFE_CONVERSIONS_H_
-=======
 }  // namespace angle
 
 #endif  // ANGLEBASE_NUMERICS_SAFE_CONVERSIONS_H_
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a:third_party/angle/src/common/third_party/base/anglebase/numerics/safe_conversions.h

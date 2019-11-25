@@ -275,19 +275,15 @@ class TextureStorage11_2D : public TextureStorage11
   public:
     TextureStorage11_2D(Renderer11 *renderer, SwapChain11 *swapchain);
     TextureStorage11_2D(Renderer11 *renderer,
-<<<<<<< HEAD
                         IUnknown *texture,
-                        bool bindChroma,
-                        IUnknown *dxgiBuffer);
-    TextureStorage11_2D(Renderer11 *renderer, GLenum internalformat, bool renderTarget, GLsizei width, GLsizei height, int levels, bool hintLevelZeroOnly = false);
-=======
+                        bool bindChroma);
+    TextureStorage11_2D(Renderer11 *renderer,
                         GLenum internalformat,
                         bool renderTarget,
                         GLsizei width,
                         GLsizei height,
                         int levels,
                         bool hintLevelZeroOnly = false);
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
     ~TextureStorage11_2D() override;
 
     angle::Result onDestroy(const gl::Context *context) override;
@@ -310,15 +306,11 @@ class TextureStorage11_2D : public TextureStorage11
                                          const gl::ImageIndex &index,
                                          Image11 *incomingImage) override;
 
-<<<<<<< HEAD
-    gl::Error useLevelZeroWorkaroundTexture(bool useLevelZeroTexture) override;
+    angle::Result useLevelZeroWorkaroundTexture(const gl::Context *context,
+                                                bool useLevelZeroTexture) override;
 #if defined(STARBOARD)
     const angle::Format &getFormat();
 #endif // STARBOARD
-=======
-    angle::Result useLevelZeroWorkaroundTexture(const gl::Context *context,
-                                                bool useLevelZeroTexture) override;
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
 
   protected:
     angle::Result getSwizzleTexture(const gl::Context *context,
@@ -375,13 +367,8 @@ class TextureStorage11_2D : public TextureStorage11
     TextureHelper11 mSwizzleTexture;
     gl::TexLevelArray<d3d11::RenderTargetView> mSwizzleRenderTargets;
 
-<<<<<<< HEAD
-    Image11 *mAssociatedImages[gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS];
-    bool mBindChroma;
-    IUnknown *mDxgiBuffer;
-=======
     gl::TexLevelArray<Image11 *> mAssociatedImages;
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
+    bool mBindChroma;
 };
 
 class TextureStorage11_External : public TextureStorage11

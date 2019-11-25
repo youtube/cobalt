@@ -27,11 +27,7 @@ WindowSurfaceGLX::WindowSurfaceGLX(const egl::SurfaceState &state,
                                    Window window,
                                    Display *display,
                                    glx::FBConfig fbConfig)
-<<<<<<< HEAD
-    : SurfaceGLX(state, renderer, glx),
-=======
     : SurfaceGLX(state),
->>>>>>> 1ba4cc530e9156a73f50daff4affa367dedd5a8a
       mParent(window),
       mWindow(0),
       mDisplay(display),
