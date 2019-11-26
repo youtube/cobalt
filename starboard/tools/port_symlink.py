@@ -136,6 +136,11 @@ def _CreateArgumentParser():
   formatter_class = argparse.RawDescriptionHelpFormatter
   parser = MyParser(epilog=help_msg, formatter_class=formatter_class)
   parser.add_argument(
+      '-a',
+      '--use_absolute_symlinks',
+      action='store_true',
+      help='Generated symlinks are stored as absolute paths.')
+  parser.add_argument(
       '-f',
       '--force',
       action='store_true',
@@ -155,6 +160,9 @@ def main():
   args = parser.parse_args()
 
   folder_path, link_path = args.link
+  if args.use_absolute_symlinks:
+    folder_path = os.path.abspath(folder_path)
+    link_path = os.path.abspath(link_path)
   if '.' in folder_path:
     d1 = os.path.abspath(folder_path)
   else:
