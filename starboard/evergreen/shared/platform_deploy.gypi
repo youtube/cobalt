@@ -16,12 +16,6 @@
   'variables': {
     'executable_file': '<(PRODUCT_DIR)/lib/lib<(executable_name).so',
     'deploy_executable_file': '<(target_deploy_dir)/lib/lib<(executable_name).so',
-
-    # An absolute path is used when creating a symlink to the |executable_file|
-    # since relative paths will break if they are moved or copied (before
-    # Evergreen targets are deployed to a platform they are staged in a
-    # different directory).
-    'absolute_path_base': '<!(python -c "import os; print os.getcwd()")',
   },
   'includes': [
     '<(DEPTH)/starboard/build/collect_deploy_content.gypi',
@@ -29,7 +23,7 @@
   'actions': [
     {
       'action_name': 'deploy_executable',
-      'message': 'Deploy <(absolute_path_base)/<(deploy_executable_file)',
+      'message': 'Deploy <(deploy_executable_file)',
       'inputs': [
         '<(content_deploy_stamp_file)',
         '<(executable_file)',
@@ -38,10 +32,11 @@
       'action': [
         'python',
         '<(DEPTH)/starboard/tools/port_symlink.py',
+        '-a',
         '-f',
         '--link',
-        '<(absolute_path_base)/<(executable_file)',
-        '<(absolute_path_base)/<(deploy_executable_file)',
+        '<(executable_file)',
+        '<(deploy_executable_file)',
       ],
     },
   ],
