@@ -32,6 +32,7 @@ namespace mozjs {
 class ReferencedObjectMap {
  public:
   explicit ReferencedObjectMap(JSContext* context);
+  ~ReferencedObjectMap();
 
   void AddReferencedObject(Wrappable* wrappable, JS::HandleValue referee);
   void RemoveReferencedObject(Wrappable* wrappable, JS::HandleValue referee);

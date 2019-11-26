@@ -366,8 +366,8 @@ void ReplacedBox::UpdateContentSizeAndMargins(
   if (IsAbsolutelyPositioned()) {
     // TODO: Implement CSS section 10.3.8, see
     // https://www.w3.org/TR/CSS21/visudet.html#abs-replaced-width.
-    set_left(maybe_left.value_or(LayoutUnit()));
-    set_top(maybe_top.value_or(LayoutUnit()));
+    set_left(maybe_left.value_or(LayoutUnit(GetStaticPositionLeft())));
+    set_top(maybe_top.value_or(LayoutUnit(GetStaticPositionTop())));
   }
   // Note that computed height may be "auto", even if it is specified as a
   // percentage (depending on conditions of the containing block). See details

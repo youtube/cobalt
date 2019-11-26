@@ -646,7 +646,8 @@ void WebMediaPlayerImpl::OnPipelineError(PipelineStatus error,
     // Any error that occurs before reaching ReadyStateHaveMetadata should
     // be considered a format error.
     SetNetworkError(WebMediaPlayer::kNetworkStateFormatError,
-                    "Ready state have nothing.");
+                    message.empty() ? "Ready state have nothing."
+                                    : "Ready state have nothing: " + message);
     return;
   }
 
