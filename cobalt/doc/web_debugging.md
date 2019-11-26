@@ -158,9 +158,6 @@ Chrome docs:
 
 ## Tips
 
-*   Don't open Cobalt's console overlay before attaching the remote DevTools as
-    that can cause the latter not to work.
-
 *   You can make Cobalt reload the current page by pressing F5 in the Cobalt
     window, or ctrl-R in the remote DevTools. This may be useful for debugging
     startup code in the web app. It may also help in case some source file is
