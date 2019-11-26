@@ -40,6 +40,8 @@
         'backend/dom_agent.h',
         'backend/log_agent.cc',
         'backend/log_agent.h',
+        'backend/overlay_agent.cc',
+        'backend/overlay_agent.h',
         'backend/page_agent.cc',
         'backend/page_agent.h',
         'backend/render_layer.cc',

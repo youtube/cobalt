@@ -29,6 +29,7 @@ constexpr char kConsoleAgent[] = "ConsoleAgent";
 constexpr char kLogAgent[] = "LogAgent";
 constexpr char kDomAgent[] = "DomAgent";
 constexpr char kCssAgent[] = "CssAgent";
+constexpr char kOverlayAgent[] = "OverlayAgent";
 constexpr char kPageAgent[] = "PageAgent";
 constexpr char kTracingAgent[] = "TracingAgent";
 
@@ -152,7 +153,7 @@ void DebugModule::BuildInternal(const ConstructionData& data,
   std::unique_ptr<RenderLayer> page_render_layer(new RenderLayer(base::Bind(
       &RenderOverlay::SetOverlay, base::Unretained(data.render_overlay))));
 
-  std::unique_ptr<RenderLayer> dom_render_layer(new RenderLayer(
+  std::unique_ptr<RenderLayer> overlay_render_layer(new RenderLayer(
       base::Bind(&RenderLayer::SetBackLayer, page_render_layer->AsWeakPtr())));
 
   // Create the agents that implement the various devtools protocol domains by
@@ -167,9 +168,10 @@ void DebugModule::BuildInternal(const ConstructionData& data,
   }
   console_agent_.reset(new ConsoleAgent(debug_dispatcher_.get(), data.console));
   log_agent_.reset(new LogAgent(debug_dispatcher_.get()));
-  dom_agent_.reset(
-      new DOMAgent(debug_dispatcher_.get(), std::move(dom_render_layer)));
+  dom_agent_.reset(new DOMAgent(debug_dispatcher_.get()));
   css_agent_ = WrapRefCounted(new CSSAgent(debug_dispatcher_.get()));
+  overlay_agent_.reset(new OverlayAgent(debug_dispatcher_.get(),
+                                        std::move(overlay_render_layer)));
   page_agent_.reset(new PageAgent(debug_dispatcher_.get(), data.window,
                                   std::move(page_render_layer),
                                   data.resource_provider));
@@ -201,6 +203,7 @@ void DebugModule::BuildInternal(const ConstructionData& data,
   log_agent_->Thaw(RemoveAgentState(kLogAgent, agents_state));
   dom_agent_->Thaw(RemoveAgentState(kDomAgent, agents_state));
   css_agent_->Thaw(RemoveAgentState(kCssAgent, agents_state));
+  overlay_agent_->Thaw(RemoveAgentState(kOverlayAgent, agents_state));
   page_agent_->Thaw(RemoveAgentState(kPageAgent, agents_state));
   tracing_agent_->Thaw(RemoveAgentState(kTracingAgent, agents_state));
 
@@ -228,6 +231,7 @@ std::unique_ptr<DebuggerState> DebugModule::Freeze() {
   StoreAgentState(agents_state, kLogAgent, log_agent_->Freeze());
   StoreAgentState(agents_state, kDomAgent, dom_agent_->Freeze());
   StoreAgentState(agents_state, kCssAgent, css_agent_->Freeze());
+  StoreAgentState(agents_state, kOverlayAgent, overlay_agent_->Freeze());
   StoreAgentState(agents_state, kPageAgent, page_agent_->Freeze());
   StoreAgentState(agents_state, kTracingAgent, tracing_agent_->Freeze());
 
