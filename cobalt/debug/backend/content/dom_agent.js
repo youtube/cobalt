@@ -82,13 +82,6 @@ commands.resolveNode = function(params) {
   return JSON.stringify(result);
 }
 
-// Returns the bounding box of a node. This pseudo-command in the DOM domain is
-// a helper for the C++ |DOMAgent::HighlightNode|.
-commands._getBoundingClientRect = function(params) {
-  var node = commands._findNode(params);
-  return JSON.stringify(node.getBoundingClientRect());
-}
-
 // Creates and returns a Node object that represents the specified node.
 // Adds the node's children up to the specified depth. A negative depth will
 // cause all descendants to be added.
