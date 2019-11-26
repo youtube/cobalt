@@ -23,58 +23,13 @@
 #ifndef STARBOARD_ANDROID_SHARED_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_ANDROID_SHARED_CONFIGURATION_PUBLIC_H_
 
-// The API version implemented by this platform.
-#define SB_API_VERSION SB_EXPERIMENTAL_API_VERSION
+#if SB_API_VERSION != SB_EXPERIMENTAL_API_VERSION
+#error \
+    "This platform's sabi.json file is expected to track the experimental " \
+"Starboard API version."
+#endif  // SB_API_VERSION != SB_EXPERIMENTAL_API_VERSION
 
 // --- Architecture Configuration --------------------------------------------
-
-// Whether the current platform is big endian. SB_IS_LITTLE_ENDIAN will be
-// automatically set based on this.
-#define SB_IS_BIG_ENDIAN 0
-
-// Whether the current platform is a MIPS architecture.
-#define SB_IS_ARCH_MIPS 0
-
-// Whether the current platform is a PPC architecture.
-#define SB_IS_ARCH_PPC 0
-
-// The current platform CPU architecture architecture.
-#if defined(__arm__) || defined(__aarch64__)
-#define SB_IS_ARCH_ARM 1
-#define SB_IS_ARCH_X86 0
-#elif defined(__i386__) || defined(__x86_64__)
-#define SB_IS_ARCH_ARM 0
-#define SB_IS_ARCH_X86 1
-#endif
-
-// Whether the current platform is 32-bit or 64-bit architecture.
-#if defined(__aarch64__) || defined(__x86_64__)
-#define SB_IS_32_BIT 0
-#define SB_IS_64_BIT 1
-#else
-#define SB_IS_32_BIT 1
-#define SB_IS_64_BIT 0
-#endif
-
-// Whether the current platform's pointers are 32-bit.
-// Whether the current platform's longs are 32-bit.
-#if SB_IS(32_BIT)
-#define SB_HAS_32_BIT_POINTERS 1
-#define SB_HAS_32_BIT_LONG 1
-#else
-#define SB_HAS_32_BIT_POINTERS 0
-#define SB_HAS_32_BIT_LONG 0
-#endif
-
-// Whether the current platform's pointers are 64-bit.
-// Whether the current platform's longs are 64-bit.
-#if SB_IS(64_BIT)
-#define SB_HAS_64_BIT_POINTERS 1
-#define SB_HAS_64_BIT_LONG 1
-#else
-#define SB_HAS_64_BIT_POINTERS 0
-#define SB_HAS_64_BIT_LONG 0
-#endif
 
 // Configuration parameters that allow the application to make some general
 // compile-time decisions with respect to the the number of cores likely to be
@@ -259,28 +214,11 @@
 // textures. These textures typically originate from video decoders.
 #define SB_HAS_NV12_TEXTURE_SUPPORT 1
 
-// Whether the current platform should frequently flip their display buffer.
-// If this is not required (e.g. SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER is set
-// to 0), then optimizations where the display buffer is not flipped if the
-// scene hasn't changed are enabled.
-#define SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER 0
-
 // --- I/O Configuration -----------------------------------------------------
-
-// Whether the current platform implements the on screen keyboard interface.
-#define SB_HAS_ON_SCREEN_KEYBOARD 0
-
-// Whether the current platform has speech recognizer.
-#define SB_HAS_SPEECH_RECOGNIZER 1
-
 // Whether the current platform has speech synthesis.
 #define SB_HAS_SPEECH_SYNTHESIS 1
 
 // --- Media Configuration ---------------------------------------------------
-
-// Specifies whether this platform supports retrieving system-level closed
-// caption settings
-#define SB_HAS_CAPTIONS 1
 
 // The maximum audio bitrate the platform can decode.  The following value
 // equals to 5M bytes per seconds which is more than enough for compressed
@@ -340,12 +278,8 @@
 // it.
 #define SB_MEMORY_PAGE_SIZE 4096
 
-// Whether this platform has and should use an MMAP function to map physical
-// memory to the virtual address space.
-#define SB_HAS_MMAP 1
-
-// Whether this platform can map executable memory. Implies SB_HAS_MMAP. This is
-// required for platforms that want to JIT.
+// Whether this platform can map executable memory. Implies the platform can map
+// memory. This is required for platforms that want to JIT.
 #define SB_CAN_MAP_EXECUTABLE_MEMORY 1
 
 // Whether this platform has and should use an growable heap (e.g. with sbrk())

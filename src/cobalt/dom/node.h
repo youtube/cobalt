@@ -37,6 +37,7 @@ class Document;
 class DocumentType;
 class Element;
 class HTMLCollection;
+class HTMLElementContext;
 class NodeList;
 class Text;
 
@@ -238,6 +239,12 @@ class Node : public EventTarget {
   void TraceMembers(script::Tracer* tracer) override;
 
  protected:
+  // Constructor only for Document, since its html_element_context is not yet
+  // initialized.
+  Node(HTMLElementContext* html_element_context, Document* document);
+
+  // Constructor for everything else since we can get html_element_context()
+  // from the document.
   explicit Node(Document* document);
   virtual ~Node();
 

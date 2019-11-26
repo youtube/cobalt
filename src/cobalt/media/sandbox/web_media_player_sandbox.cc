@@ -114,8 +114,10 @@ class Application {
                        base::FilePath(FILE_PATH_LITERAL(
                            "media_source_sandbox_trace.json"))) {
     if (argc > 1) {
-      FormatGuesstimator guesstimator1(argv[argc - 1]);
-      FormatGuesstimator guesstimator2(argv[argc - 2]);
+      FormatGuesstimator guesstimator1(argv[argc - 1],
+                                       media_sandbox_.GetMediaModule());
+      FormatGuesstimator guesstimator2(argv[argc - 2],
+                                       media_sandbox_.GetMediaModule());
 
       if (!guesstimator1.is_valid()) {
         SB_LOG(ERROR) << "Invalid path or url: " << argv[argc - 1];
@@ -165,10 +167,10 @@ class Application {
       return;
     }
 
-    player_helper_.reset(
-        new WebMediaPlayerHelper(media_sandbox_.GetMediaModule(),
-                                 base::Bind(&Application::OnChunkDemuxerOpened,
-                                            base::Unretained(this))));
+    player_helper_.reset(new WebMediaPlayerHelper(
+        media_sandbox_.GetMediaModule(),
+        base::Bind(&Application::OnChunkDemuxerOpened, base::Unretained(this)),
+        media_sandbox_.GetViewportSize()));
 
     // |chunk_demuxer_| will be set inside OnChunkDemuxerOpened()
     // asynchronously during initialization of |player_helper_|.  Wait until
@@ -217,10 +219,10 @@ class Application {
       return;
     }
 
-    player_helper_.reset(
-        new WebMediaPlayerHelper(media_sandbox_.GetMediaModule(),
-                                 base::Bind(&Application::OnChunkDemuxerOpened,
-                                            base::Unretained(this))));
+    player_helper_.reset(new WebMediaPlayerHelper(
+        media_sandbox_.GetMediaModule(),
+        base::Bind(&Application::OnChunkDemuxerOpened, base::Unretained(this)),
+        media_sandbox_.GetViewportSize()));
 
     // |chunk_demuxer_| will be set inside OnChunkDemuxerOpened()
     // asynchronously during initialization of |player_helper_|.  Wait until
@@ -261,7 +263,7 @@ class Application {
 
     player_helper_.reset(new WebMediaPlayerHelper(
         media_sandbox_.GetMediaModule(), media_sandbox_.GetFetcherFactory(),
-        guesstimator.progressive_url()));
+        guesstimator.progressive_url(), media_sandbox_.GetViewportSize()));
     player_ = player_helper_->player();
 
     media_sandbox_.RegisterFrameCB(

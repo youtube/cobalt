@@ -4,6 +4,30 @@
 
 {
   'conditions': [
+    ['clang==1', {
+      'target_defaults': {
+        'cflags': [
+          # protobuf-3 contains a few functions that are unused.
+          '-Wno-unused-function',
+          # protobuf-3 mixes generated enum types.
+          '-Wno-enum-compare-switch',
+          # Used by older version of clang.
+          '-Wno-enum-compare',
+          # Older version of clang don't have -Wno-enum-compare-switch
+          '-Wno-unknown-warning-option',
+        ],
+        'cflags_host': [
+          # protobuf-3 contains a few functions that are unused.
+          '-Wno-unused-function',
+          # protobuf-3 mixes generated enum types.
+          '-Wno-enum-compare-switch',
+          # Used by older version of clang.
+          '-Wno-enum-compare',
+          # Older version of clang don't have -Wno-enum-compare-switch
+          '-Wno-unknown-warning-option',
+        ]
+      },
+    }],
     ['use_system_protobuf==0', {
       'conditions': [
         ['OS=="win"', {
@@ -42,12 +66,6 @@
           'includes': [
             'protobuf_lite.gypi',
           ],
-          'variables': {
-            'clang_warning_flags': [
-              # protobuf-3 contains a few functions that are unused.
-              '-Wno-unused-function',
-            ],
-          },
           # Required for component builds. See http://crbug.com/172800.
           'defines': [
             'LIBPROTOBUF_EXPORTS',
@@ -59,11 +77,24 @@
             ],
           },
           'all_dependent_settings': {
+            'include_dirs': [
+              # Get protobuf headers from the chromium tree.
+              '<(DEPTH)/third_party/protobuf/src',
+            ],
             'defines': [
-              # This macro must be defined to suppress the use
-              # of dynamic_cast<>, which requires RTTI.
+              # This macro must be defined to suppress the use of
+              # dynamic_cast<>, which requires RTTI.
               'GOOGLE_PROTOBUF_NO_RTTI',
-            ]
+
+              # The generated code needs to be compiled with the same flags as the
+              # protobuf library. Otherwise we get static initializers which are not
+              # thread safe.
+              'GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER',
+
+              # pthread is used on the host platform, but the target platform
+              # actually uses SbThread.
+              'HAVE_PTHREAD',
+            ],
           },
         },
         # This is the full, heavy protobuf lib that's needed for c++ .protos
@@ -78,12 +109,6 @@
           'includes': [
             'protobuf_lite.gypi',
           ],
-          'variables': {
-            'clang_warning_flags': [
-              # protobuf-3 contains a few functions that are unused.
-              '-Wno-unused-function',
-            ],
-          },
           'sources': [
             'src/google/protobuf/any.cc',
             'src/google/protobuf/any.h',
@@ -402,12 +427,6 @@
             "src/google/protobuf/compiler/zip_writer.cc",
             "src/google/protobuf/compiler/zip_writer.h",
           ],
-          'variables': {
-            'clang_warning_flags': [
-              # protobuf-3 contains a few functions that are unused.
-              '-Wno-unused-function',
-            ],
-          },
           'dependencies': [
             'protobuf_full_do_not_use',
           ],

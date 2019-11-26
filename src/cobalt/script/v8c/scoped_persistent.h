@@ -27,12 +27,13 @@ class ScopedPersistent {
   ScopedPersistent() {}
 
   ScopedPersistent(v8::Isolate* isolate, v8::Local<T> handle)
-      : handle_(isolate, handle) {}
+      : handle_(isolate, handle), traced_global_(isolate, handle) {}
 
   ScopedPersistent(v8::Isolate* isolate, v8::MaybeLocal<T> maybe) {
     v8::Local<T> local;
     if (maybe.ToLocal(&local)) {
       handle_.Reset(isolate, local);
+      traced_global_.Reset(isolate, local);
     }
   }
 
@@ -72,9 +73,14 @@ class ScopedPersistent {
 
   v8::Persistent<T>& Get() { return handle_; }
   const v8::Persistent<T>& Get() const { return handle_; }
+  const v8::TracedGlobal<T>& traced_global() const {
+    DCHECK(!handle_.IsEmpty());
+    return traced_global_;
+  }
 
  private:
   v8::Persistent<T> handle_;
+  v8::TracedGlobal<T> traced_global_;
 };
 
 }  // namespace v8c

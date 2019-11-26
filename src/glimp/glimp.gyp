@@ -20,7 +20,7 @@
 
       'dependencies': [
         # Forward-depend on the platform-specific glimp implementation.
-        '<(DEPTH)/glimp/<(target_arch)/glimp_platform.gyp:glimp_platform',
+        '<(DEPTH)/glimp/<(sb_target_platform)/glimp_platform.gyp:glimp_platform',
       ],
 
       'direct_dependent_settings': {

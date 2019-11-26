@@ -103,6 +103,20 @@
         ],
       }],
     ],
+    'defines_debug': [
+      # Enable debug mode for the C++ standard library.
+      # https://gcc.gnu.org/onlinedocs/libstdc%2B%2B/manual/debug_mode_using.html
+      # https://libcxx.llvm.org/docs/DesignDocs/DebugMode.html
+      '_GLIBCXX_DEBUG',
+      '_LIBCPP_DEBUG=1',
+    ],
+    'defines_devel': [
+      # Enable debug mode for the C++ standard library.
+      # https://gcc.gnu.org/onlinedocs/libstdc%2B%2B/manual/debug_mode_using.html
+      # https://libcxx.llvm.org/docs/DesignDocs/DebugMode.html
+      '_GLIBCXX_DEBUG',
+      '_LIBCPP_DEBUG=0',
+    ],
   },
 
   'target_defaults': {
@@ -145,6 +159,23 @@
           # Width of bit-field exceeds width of its type- value will be truncated
           '-Wno-bitfield-width',
           '-Wno-undefined-var-template',
+        ],
+      }],
+      ['use_source_code_coverage==1', {
+        'cflags': [
+          # Enable Source Based Code Coverage instrumentation.
+          # See https://clang.llvm.org/docs/SourceBasedCodeCoverage.html
+          '-fprofile-instr-generate',
+          '-fcoverage-mapping',
+        ],
+        'ldflags': [
+          # Enable Source Based Code Coverage instrumentation.
+          # See https://clang.llvm.org/docs/SourceBasedCodeCoverage.html
+          '-fprofile-instr-generate',
+          '-fcoverage-mapping',
+        ],
+        'defines': [
+          'USE_SOURCE_CODE_COVERAGE',
         ],
       }],
       ['use_asan==1', {

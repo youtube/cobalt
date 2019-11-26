@@ -44,6 +44,22 @@ bool GetCacheDirectory(char* out_path, int path_size) {
   return SbDirectoryCreate(out_path);
 }
 
+// Gets the path to the storage directory, using the user's home directory.
+bool GetStorageDirectory(char* out_path, int path_size) {
+  char home_path[kMaxPathSize + 1];
+  if (!SbUserGetProperty(SbUserGetCurrent(), kSbUserPropertyHomeDirectory,
+                         home_path, kMaxPathSize)) {
+    return false;
+  }
+  int result =
+      SbStringFormatF(out_path, path_size, "%s/.cobalt_storage", home_path);
+  if (result < 0 || result >= path_size) {
+    out_path[0] = '\0';
+    return false;
+  }
+  return SbDirectoryCreate(out_path);
+}
+
 // Places up to |path_size| - 1 characters of the path to the current
 // executable in |out_path|, ensuring it is NULL-terminated. Returns success
 // status. The result being greater than |path_size| - 1 characters is a
@@ -134,7 +150,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       if (!GetExecutableDirectory(path, kPathSize)) {
         return false;
       }
-      if (SbStringConcat(path, "/content/data", kPathSize) >= kPathSize) {
+      if (SbStringConcat(path, "/content", kPathSize) >= kPathSize) {
         return false;
       }
       break;
@@ -178,6 +194,14 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
     case kSbSystemPathFontConfigurationDirectory:
     case kSbSystemPathFontDirectory:
         return false;
+
+#if SB_API_VERSION >= SB_STORAGE_PATH_VERSION
+    case kSbSystemPathStorageDirectory:
+      if (!GetStorageDirectory(path, kPathSize)) {
+        return false;
+      }
+      break;
+#endif
 
     default:
       SB_NOTIMPLEMENTED() << "SbSystemGetPath not implemented for "

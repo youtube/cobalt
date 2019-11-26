@@ -574,6 +574,19 @@ TEST_F(PixelTest,
   TestTree(new CompositionNode(std::move(builder)));
 }
 
+TEST_F(PixelTest, ScaledSingleRGBAImageWithAlphaFormatOpaqueAndRoundedCorners) {
+  scoped_refptr<Image> image = CreateColoredCheckersImageForAlphaFormat(
+      GetResourceProvider(), SizeF(150, 150),
+      render_tree::kAlphaFormatOpaque);
+
+  TestTree(new FilterNode(
+      ViewportFilter(RectF(20, 20, 160, 160), RoundedCorners(10, 10)),
+      new ImageNode(image, RectF(160, 160),
+                    Matrix3F::FromValues(1.1f, 0.0f, 0.0f,
+                                         0.0f, 1.0f, 0.0f,
+                                         0.0f, 0.0f, 1.0f))));
+}
+
 TEST_F(PixelTest, RectWithRoundedCornersOnSolidColor) {
   CompositionNode::Builder builder;
   builder.AddChild(new RectNode(RectF(output_surface_size()),
@@ -4001,6 +4014,12 @@ TEST_F(PixelTest, DrawNullImage) {
   // An ImageNode with no source is legal, though it should result in nothing
   // being drawn.
   TestTree(new ImageNode(nullptr, math::RectF(output_surface_size())));
+}
+
+TEST_F(PixelTest, DrawNullImageInRoundedFilter) {
+  TestTree(new FilterNode(
+      ViewportFilter(RectF(25, 25, 150, 150), RoundedCorners(75, 75)),
+      new ImageNode(nullptr)));
 }
 
 TEST_F(PixelTest, ClearRectNodeTest) {

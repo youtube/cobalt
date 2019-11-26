@@ -29,6 +29,7 @@
 #include "base/synchronization/waitable_event.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/c_val.h"
+#include "cobalt/base/debugger_hooks.h"
 #include "cobalt/base/language.h"
 #include "cobalt/base/startup_timer.h"
 #include "cobalt/base/tokens.h"
@@ -67,6 +68,7 @@
 #include "cobalt/storage/storage_manager.h"
 #include "starboard/accessibility.h"
 #include "starboard/common/log.h"
+#include "starboard/gles.h"
 
 #if defined(ENABLE_DEBUGGER)
 #include "cobalt/debug/backend/debug_module.h"
@@ -121,7 +123,8 @@ class WebModule::Impl {
   }
 #endif  // ENABLE_DEBUGGER
 
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
+    SB_HAS(ON_SCREEN_KEYBOARD)
   // Injects an on screen keyboard input event into the web module. Event is
   // directed at a specific element if the element is non-null. Otherwise, the
   // currently focused element receives the event. If element is specified, we
@@ -146,7 +149,8 @@ class WebModule::Impl {
   // module. Event is directed at the on screen keyboard element.
   void InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket);
 #endif  // SB_API_VERSION >= 11
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+        // SB_HAS(ON_SCREEN_KEYBOARD)
 
   // Injects a keyboard event into the web module. Event is directed at a
   // specific element if the element is non-null. Otherwise, the currently
@@ -496,13 +500,22 @@ WebModule::Impl::Impl(const ConstructionData& data)
   // Note that it is important that we do not parse map-to-mesh filters if we
   // cannot render them, since web apps may check for map-to-mesh support by
   // testing whether it parses or not via the CSS.supports() Web API.
-  css_parser::Parser::SupportsMapToMeshFlag supports_map_to_mesh =
-#if defined(ENABLE_MAP_TO_MESH)
-      data.options.enable_map_to_mesh_rectangular
-          ? css_parser::Parser::kSupportsMapToMeshRectangular
-          : css_parser::Parser::kSupportsMapToMesh;
+  css_parser::Parser::SupportsMapToMeshFlag supports_map_to_mesh;
+#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
+  if (SbGetGlesInterface()) {
+    supports_map_to_mesh =
+        data.options.enable_map_to_mesh_rectangular
+            ? css_parser::Parser::kSupportsMapToMeshRectangular
+            : css_parser::Parser::kSupportsMapToMesh;
+  } else {
+    supports_map_to_mesh = css_parser::Parser::kDoesNotSupportMapToMesh;
+  }
+#elif defined(ENABLE_MAP_TO_MESH)
+  supports_map_to_mesh = data.options.enable_map_to_mesh_rectangular
+                             ? css_parser::Parser::kSupportsMapToMeshRectangular
+                             : css_parser::Parser::kSupportsMapToMesh;
 #else
-      css_parser::Parser::kDoesNotSupportMapToMesh;
+  supports_map_to_mesh = css_parser::Parser::kDoesNotSupportMapToMesh;
 #endif
 
   css_parser_ = css_parser::Parser::Create(supports_map_to_mesh);
@@ -602,10 +615,19 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   media_source_registry_.reset(new dom::MediaSource::Registry);
 
+  environment_settings_.reset(new dom::DOMSettings(
+      kDOMMaxElementDepth, fetcher_factory_.get(), data.network_module,
+      media_source_registry_.get(), blob_registry_.get(),
+      data.can_play_type_handler, javascript_engine_.get(),
+      global_environment_.get(), &debugger_hooks_,
+      &mutation_observer_task_manager_, data.options.dom_settings_options));
+  DCHECK(environment_settings_);
+
   media_session_client_ = media_session::MediaSessionClient::Create();
   media_session_client_->SetMediaPlayerFactory(data.web_media_player_factory);
 
-  system_caption_settings_ = new cobalt::dom::captions::SystemCaptionSettings();
+  system_caption_settings_ = new cobalt::dom::captions::SystemCaptionSettings(
+      environment_settings_.get());
 
   dom::Window::CacheCallback splash_screen_cache_callback =
       CacheUrlContentCallback(data.options.splash_screen_cache);
@@ -636,10 +658,10 @@ WebModule::Impl::Impl(const ConstructionData& data)
 #endif
 
   window_ = new dom::Window(
-      data.window_dimensions, data.video_pixel_ratio,
-      data.initial_application_state, css_parser_.get(), dom_parser_.get(),
-      fetcher_factory_.get(), loader_factory_.get(), &resource_provider_,
-      animated_image_tracker_.get(), image_cache_.get(),
+      environment_settings_.get(), data.window_dimensions,
+      data.video_pixel_ratio, data.initial_application_state, css_parser_.get(),
+      dom_parser_.get(), fetcher_factory_.get(), loader_factory_.get(),
+      &resource_provider_, animated_image_tracker_.get(), image_cache_.get(),
       reduced_image_cache_capacity_manager_.get(), remote_typeface_cache_.get(),
       mesh_cache_.get(), local_storage_database_.get(),
       data.can_play_type_handler, data.web_media_player_factory,
@@ -665,9 +687,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
                  base::Unretained(this)),
       base::Bind(&WebModule::Impl::OnStopDispatchEvent, base::Unretained(this)),
       data.options.provide_screenshot_function, &synchronous_loader_interrupt_,
-      debugger_hooks_, data.ui_nav_root,
-      data.options.csp_insecure_allowed_token, data.dom_max_element_depth,
-      data.options.video_playback_rate_multiplier,
+      data.ui_nav_root, data.options.csp_insecure_allowed_token,
+      data.dom_max_element_depth, data.options.video_playback_rate_multiplier,
 #if defined(ENABLE_TEST_RUNNER)
       data.options.layout_trigger == layout::LayoutManager::kTestRunnerMode
           ? dom::Window::kClockTypeTestRunner
@@ -683,15 +704,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
   window_weak_ = base::AsWeakPtr(window_.get());
   DCHECK(window_weak_);
 
-  environment_settings_.reset(new dom::DOMSettings(
-      kDOMMaxElementDepth, fetcher_factory_.get(), data.network_module, window_,
-      media_source_registry_.get(), blob_registry_.get(),
-      data.can_play_type_handler, javascript_engine_.get(),
-      global_environment_.get(), &mutation_observer_task_manager_,
-      data.options.dom_settings_options));
-  DCHECK(environment_settings_);
-
-  window_->SetEnvironmentSettings(environment_settings_.get());
+  environment_settings_->set_window(window_);
 
   global_environment_->CreateGlobalObject(window_, environment_settings_.get());
 
@@ -823,7 +836,8 @@ void WebModule::Impl::InjectInputEvent(scoped_refptr<dom::Element> element,
   }
 }
 
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
+    SB_HAS(ON_SCREEN_KEYBOARD)
 void WebModule::Impl::InjectOnScreenKeyboardInputEvent(
     scoped_refptr<dom::Element> element, base::Token type,
     const dom::InputEventInit& event) {
@@ -879,7 +893,8 @@ void WebModule::Impl::InjectOnScreenKeyboardSuggestionsUpdatedEvent(
   window_->on_screen_keyboard()->DispatchSuggestionsUpdatedEvent(ticket);
 }
 #endif  // SB_API_VERSION >= 11
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+        // SB_HAS(ON_SCREEN_KEYBOARD)
 
 void WebModule::Impl::InjectKeyboardEvent(scoped_refptr<dom::Element> element,
                                           base::Token type,
@@ -1385,7 +1400,8 @@ void WebModule::Initialize(const ConstructionData& data) {
   impl_.reset(new Impl(data));
 }
 
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
+    SB_HAS(ON_SCREEN_KEYBOARD)
 
 void WebModule::InjectOnScreenKeyboardInputEvent(
     base::Token type, const dom::InputEventInit& event) {
@@ -1460,7 +1476,8 @@ void WebModule::InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket) {
           base::Unretained(impl_.get()), ticket));
 }
 #endif  // SB_API_VERSION >= 11
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+        // SB_HAS(ON_SCREEN_KEYBOARD)
 
 void WebModule::InjectKeyboardEvent(base::Token type,
                                     const dom::KeyboardEventInit& event) {

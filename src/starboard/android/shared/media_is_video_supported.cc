@@ -62,18 +62,18 @@ bool IsHDRTransferCharacteristicsSupported(SbMediaTransferId transfer_id) {
 
 }  // namespace
 
-SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
-                                       int profile,
-                                       int level,
-                                       int bit_depth,
-                                       SbMediaPrimaryId primary_id,
-                                       SbMediaTransferId transfer_id,
-                                       SbMediaMatrixId matrix_id,
-                                       int frame_width,
-                                       int frame_height,
-                                       int64_t bitrate,
-                                       int fps,
-                                       bool decode_to_texture_required) {
+bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
+                             int profile,
+                             int level,
+                             int bit_depth,
+                             SbMediaPrimaryId primary_id,
+                             SbMediaTransferId transfer_id,
+                             SbMediaMatrixId matrix_id,
+                             int frame_width,
+                             int frame_height,
+                             int64_t bitrate,
+                             int fps,
+                             bool decode_to_texture_required) {
   if (!IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id)) {
     if (!IsHDRTransferCharacteristicsSupported(transfer_id)) {
       return false;

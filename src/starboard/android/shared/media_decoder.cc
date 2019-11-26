@@ -18,11 +18,9 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
-#if SB_API_VERSION >= 11
-#include "starboard/format_string.h"
-#endif  // SB_API_VERSION >= 11
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/format_string.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 
 namespace starboard {
@@ -466,8 +464,15 @@ void MediaDecoder::HandleError(const char* action_name, jint status) {
     is_output_restricted_ = true;
     drm_system_->OnInsufficientOutputProtection();
   } else {
-    error_cb_(kSbPlayerErrorDecode,
-              FormatString("%s failed with status %d.", action_name, status));
+    if (media_type_ == kSbMediaTypeAudio) {
+      error_cb_(kSbPlayerErrorDecode,
+                FormatString("%s failed with status %d (audio).", action_name,
+                             status));
+    } else {
+      error_cb_(kSbPlayerErrorDecode,
+                FormatString("%s failed with status %d (video).", action_name,
+                             status));
+    }
   }
 
   if (retry) {
@@ -489,7 +494,15 @@ void MediaDecoder::OnMediaCodecError(bool is_recoverable,
                   << " error with message: " << diagnostic_info;
 
   if (!is_transient) {
-    error_cb_(kSbPlayerErrorDecode, "OnMediaCodecError");
+    if (media_type_ == kSbMediaTypeAudio) {
+      error_cb_(kSbPlayerErrorDecode,
+                "OnMediaCodecError (audio): " + diagnostic_info +
+                    (is_recoverable ? ", recoverable " : ", unrecoverable "));
+    } else {
+      error_cb_(kSbPlayerErrorDecode,
+                "OnMediaCodecError (video): " + diagnostic_info +
+                    (is_recoverable ? ", recoverable " : ", unrecoverable "));
+    }
   }
 }
 

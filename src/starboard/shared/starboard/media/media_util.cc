@@ -115,15 +115,19 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
 
   std::string eotf = mime_type.GetParamStringValue("eotf", "");
   if (!eotf.empty()) {
-    SB_LOG_IF(WARNING, transfer_id != kSbMediaTransferIdUnspecified)
-        << "transfer_id " << transfer_id << " set by the codec string \""
-        << codec << "\" will be overwritten by the eotf attribute " << eotf;
-    transfer_id = GetTransferIdFromString(eotf);
+    SbMediaTransferId transfer_id_from_eotf = GetTransferIdFromString(eotf);
     // If the eotf is not known, reject immediately - without checking with
     // the platform.
-    if (transfer_id == kSbMediaTransferIdUnknown) {
+    if (transfer_id_from_eotf == kSbMediaTransferIdUnknown) {
       return false;
     }
+    if (transfer_id != kSbMediaTransferIdUnspecified &&
+        transfer_id != transfer_id_from_eotf) {
+      SB_LOG_IF(WARNING, transfer_id != kSbMediaTransferIdUnspecified)
+          << "transfer_id " << transfer_id << " set by the codec string \""
+          << codec << "\" will be overwritten by the eotf attribute " << eotf;
+    }
+    transfer_id = transfer_id_from_eotf;
 #if !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
     if (!SbMediaIsTransferCharacteristicsSupported(transfer_id)) {
       return false;
@@ -222,17 +226,20 @@ bool IsSDRVideo(int bit_depth,
   }
 
   if (primary_id != kSbMediaPrimaryIdBt709 &&
-      primary_id != kSbMediaPrimaryIdUnspecified) {
+      primary_id != kSbMediaPrimaryIdUnspecified &&
+      primary_id != kSbMediaPrimaryIdSmpte170M) {
     return false;
   }
 
   if (transfer_id != kSbMediaTransferIdBt709 &&
-      transfer_id != kSbMediaTransferIdUnspecified) {
+      transfer_id != kSbMediaTransferIdUnspecified &&
+      transfer_id != kSbMediaTransferIdSmpte170M) {
     return false;
   }
 
   if (matrix_id != kSbMediaMatrixIdBt709 &&
-      matrix_id != kSbMediaMatrixIdUnspecified) {
+      matrix_id != kSbMediaMatrixIdUnspecified &&
+      matrix_id != kSbMediaMatrixIdSmpte170M) {
     return false;
   }
 
@@ -575,13 +582,28 @@ bool operator!=(const SbMediaVideoSampleInfo& sample_info_1,
 }
 
 std::ostream& operator<<(std::ostream& os,
+                         const SbMediaMasteringMetadata& metadata) {
+  os << "r(" << metadata.primary_r_chromaticity_x << ", "
+     << metadata.primary_r_chromaticity_y << "), g("
+     << metadata.primary_g_chromaticity_x << ", "
+     << metadata.primary_g_chromaticity_y << "), b("
+     << metadata.primary_b_chromaticity_x << ", "
+     << metadata.primary_b_chromaticity_y << "), white("
+     << metadata.white_point_chromaticity_x << ", "
+     << metadata.white_point_chromaticity_y << "), luminance("
+     << metadata.luminance_min << " to " << metadata.luminance_max << ")";
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os,
                          const SbMediaColorMetadata& metadata) {
   using starboard::shared::starboard::media::GetPrimaryIdName;
   using starboard::shared::starboard::media::GetTransferIdName;
   using starboard::shared::starboard::media::GetMatrixIdName;
   using starboard::shared::starboard::media::GetRangeIdName;
   os << metadata.bits_per_channel
-     << " bits, primary: " << GetPrimaryIdName(metadata.primaries)
+     << " bits, mastering metadata: " << metadata.mastering_metadata
+     << ", primary: " << GetPrimaryIdName(metadata.primaries)
      << ", transfer: " << GetTransferIdName(metadata.transfer)
      << ", matrix: " << GetMatrixIdName(metadata.matrix)
      << ", range: " << GetRangeIdName(metadata.range);

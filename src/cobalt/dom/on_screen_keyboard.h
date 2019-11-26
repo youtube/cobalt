@@ -25,6 +25,7 @@
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/on_screen_keyboard_bridge.h"
 #include "cobalt/dom/window.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
@@ -43,7 +44,8 @@ class OnScreenKeyboard : public EventTarget {
   typedef std::unordered_map<int, std::unique_ptr<VoidPromiseValue::Reference>>
       TicketToPromiseMap;
 
-  OnScreenKeyboard(OnScreenKeyboardBridge* bridge,
+  OnScreenKeyboard(script::EnvironmentSettings* settings,
+                   OnScreenKeyboardBridge* bridge,
                    script::ScriptValueFactory* script_value_factory);
 
   // Shows the on screen keyboard by calling a Starboard function.

@@ -23,8 +23,10 @@ namespace cobalt {
 namespace layout {
 
 BlockFormattingContext::BlockFormattingContext(
-    const LayoutParams& layout_params)
-    : layout_params_(layout_params), collapsing_margin_(0) {}
+    const LayoutParams& layout_params, const bool is_margin_collapsable)
+    : layout_params_(layout_params),
+      margin_collapsing_params_(MarginCollapsingParams(is_margin_collapsable)) {
+}
 
 BlockFormattingContext::~BlockFormattingContext() {}
 
@@ -32,6 +34,11 @@ void BlockFormattingContext::UpdateRect(Box* child_box) {
   DCHECK(!child_box->IsAbsolutelyPositioned());
 
   child_box->UpdateSize(layout_params_);
+
+  // In a block formatting context, each box's left outer edge touches
+  // the left edge of the containing block.
+  //   https://www.w3.org/TR/CSS21/visuren.html#block-formatting
+  child_box->set_left(LayoutUnit());
   UpdatePosition(child_box);
 
   // Shrink-to-fit width cannot be less than the width of the widest child.
@@ -45,7 +52,6 @@ void BlockFormattingContext::UpdateRect(Box* child_box) {
   // child.
   //   https://www.w3.org/TR/CSS21/visudet.html#normal-block
   set_auto_height(child_box->GetMarginBoxBottomEdgeOffsetFromContainingBlock());
-  collapsing_margin_ = child_box->margin_bottom();
 
   // The baseline of an "inline-block" is the baseline of its last line box
   // in the normal flow, unless it has no in-flow line boxes.
@@ -56,23 +62,108 @@ void BlockFormattingContext::UpdateRect(Box* child_box) {
   }
 }
 
-void BlockFormattingContext::EstimateStaticPosition(Box* child_box) {
-  DCHECK(child_box->IsAbsolutelyPositioned());
-
-  // The term "static position" (of an element) refers, roughly, to the position
-  // an element would have had in the normal flow.
-  //   https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width
-  UpdatePosition(child_box);
-}
-
 void BlockFormattingContext::UpdatePosition(Box* child_box) {
   DCHECK_EQ(Box::kBlockLevel, child_box->GetLevel());
 
-  // In a block formatting context, each box's left outer edge touches
-  // the left edge of the containing block.
-  //   https://www.w3.org/TR/CSS21/visuren.html#block-formatting
-  child_box->set_left(LayoutUnit());
+  switch (child_box->GetMarginCollapsingStatus()) {
+    case Box::kIgnore:
+      child_box->set_top(auto_height());
+      break;
+    case Box::kSeparateAdjoiningMargins:
+      child_box->set_top(auto_height());
+      margin_collapsing_params_.collapsing_margin = LayoutUnit();
+      margin_collapsing_params_.should_collapse_margin_bottom = false;
+      if (!margin_collapsing_params_.context_margin_top) {
+        margin_collapsing_params_.should_collapse_margin_top = false;
+      }
+      margin_collapsing_params_.should_collapse_own_margins_together = false;
+      break;
+    case Box::kCollapseMargins:
+      margin_collapsing_params_.should_collapse_margin_bottom = true;
 
+      // For first child, if top margin will collapse with parent's top margin,
+      // parent will handle margin positioning for both itself and the child.
+      if (!margin_collapsing_params_.context_margin_top &&
+          margin_collapsing_params_.should_collapse_margin_top) {
+        child_box->set_top(auto_height() - child_box->margin_top());
+        if (child_box->collapsed_empty_margin_) {
+          margin_collapsing_params_.should_collapse_margin_bottom = false;
+        }
+      } else {
+        // Collapse top margin with previous sibling's bottom margin.
+        LayoutUnit collapsed_margin =
+            CollapseMargins(child_box->margin_top(),
+                            margin_collapsing_params_.collapsing_margin);
+        LayoutUnit combined_margin =
+            margin_collapsing_params_.collapsing_margin +
+            child_box->margin_top();
+        LayoutUnit position_difference = combined_margin - collapsed_margin;
+        child_box->set_top(auto_height() - position_difference);
+      }
+
+      // Collapse margins for in-flow siblings.
+      margin_collapsing_params_.collapsing_margin =
+          child_box->collapsed_empty_margin_.value_or(
+              child_box->margin_bottom());
+      if (!margin_collapsing_params_.context_margin_top) {
+        margin_collapsing_params_.context_margin_top = child_box->margin_top();
+      }
+      break;
+  }
+}
+
+void BlockFormattingContext::CollapseContainingMargins(Box* containing_box) {
+  bool has_padding_top = containing_box->padding_top() != LayoutUnit();
+  bool has_border_top = containing_box->border_top_width() != LayoutUnit();
+  bool has_padding_bottom = containing_box->padding_bottom() != LayoutUnit();
+  bool has_border_bottom =
+      containing_box->border_bottom_width() != LayoutUnit();
+  LayoutUnit margin_top =
+      layout_params_.maybe_margin_top.value_or(LayoutUnit());
+  LayoutUnit margin_bottom =
+      layout_params_.maybe_margin_bottom.value_or(LayoutUnit());
+
+  // If no in-flow children, do not collapse margins with children.
+  if (!margin_collapsing_params_.context_margin_top) {
+    // Empty boxes with auto or 0 height collapse top/bottom margins together.
+    //   https://www.w3.org/TR/CSS22/box.html#collapsing-margins
+    if (!has_padding_top && !has_border_top && !has_padding_bottom &&
+        !has_border_bottom &&
+        layout_params_.containing_block_size.height() == LayoutUnit() &&
+        margin_collapsing_params_.should_collapse_own_margins_together) {
+      containing_box->collapsed_empty_margin_ =
+          CollapseMargins(margin_top, margin_bottom);
+      return;
+    }
+    // Reset in case min-height iteration reverses 0/auto height criteria.
+    containing_box->collapsed_empty_margin_.reset();
+    return;
+  }
+
+  // Collapse top margin with top margin of first in-flow child.
+  if (!has_padding_top && !has_border_top &&
+      margin_collapsing_params_.should_collapse_margin_top) {
+    LayoutUnit collapsed_margin_top = CollapseMargins(
+        margin_top,
+        margin_collapsing_params_.context_margin_top.value_or(LayoutUnit()));
+    containing_box->collapsed_margin_top_ = collapsed_margin_top;
+  }
+
+  // If height is auto, collapse bottom margin with bottom margin of last
+  // in-flow child.
+  if (!layout_params_.maybe_height && !has_padding_bottom &&
+      !has_border_bottom &&
+      margin_collapsing_params_.should_collapse_margin_bottom) {
+    LayoutUnit collapsed_margin_bottom = CollapseMargins(
+        margin_bottom, margin_collapsing_params_.collapsing_margin);
+    containing_box->collapsed_margin_bottom_ = collapsed_margin_bottom;
+    set_auto_height(auto_height() -
+                    margin_collapsing_params_.collapsing_margin);
+  }
+}
+
+LayoutUnit BlockFormattingContext::CollapseMargins(
+    const LayoutUnit box_margin, const LayoutUnit adjoining_margin) {
   // In a block formatting context, boxes are laid out one after the other,
   // vertically, beginning at the top of a containing block. The vertical
   // distance between two sibling boxes is determined by the "margin"
@@ -83,28 +174,25 @@ void BlockFormattingContext::UpdatePosition(Box* child_box) {
   // When two or more margins collapse, the resulting margin width is the
   // maximum of the collapsing margins' widths.
   //   https://www.w3.org/TR/CSS21/box.html#collapsing-margins
-  const LayoutUnit margin_top = child_box->margin_top();
   LayoutUnit collapsed_margin;
-  if ((margin_top >= LayoutUnit()) && (collapsing_margin_ >= LayoutUnit())) {
-    collapsed_margin = std::max(margin_top, collapsing_margin_);
-  } else if ((margin_top < LayoutUnit()) &&
-             (collapsing_margin_ < LayoutUnit())) {
+  if ((box_margin >= LayoutUnit()) && (adjoining_margin >= LayoutUnit())) {
+    collapsed_margin = std::max(box_margin, adjoining_margin);
+  } else if ((box_margin < LayoutUnit()) && (adjoining_margin < LayoutUnit())) {
     // If there are no positive margins, the maximum of the absolute values of
     // the adjoining margins is deducted from zero.
-    collapsed_margin = LayoutUnit() + std::min(margin_top, collapsing_margin_);
+    collapsed_margin = LayoutUnit() + std::min(box_margin, adjoining_margin);
   } else {
     // In the case of negative margins, the maximum of the absolute values of
     // the negative adjoining margins is deducted from the maximum of the
     // positive adjoining margins.
     // When there is only one negative and one positive margin, that translates
     // to: The margins are summed.
-    DCHECK(collapsing_margin_.GreaterEqualOrNaN(LayoutUnit()) ||
-           margin_top.GreaterEqualOrNaN(LayoutUnit()));
-    collapsed_margin = collapsing_margin_ + margin_top;
+    DCHECK(adjoining_margin.GreaterEqualOrNaN(LayoutUnit()) ||
+           box_margin.GreaterEqualOrNaN(LayoutUnit()));
+    collapsed_margin = adjoining_margin + box_margin;
   }
 
-  LayoutUnit combined_margin = collapsing_margin_ + margin_top;
-  child_box->set_top(auto_height() - combined_margin + collapsed_margin);
+  return collapsed_margin;
 }
 
 }  // namespace layout

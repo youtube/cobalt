@@ -15,6 +15,7 @@
 #include "cobalt/dom/mutation_observer.h"
 
 #include "base/trace_event/trace_event.h"
+#include "cobalt/base/debugger_hooks.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
@@ -83,8 +84,9 @@ class NativeCallback : public MutationObserver::CallbackInternal {
 
 MutationObserver::MutationObserver(
     const NativeMutationCallback& native_callback,
-    MutationObserverTaskManager* task_manager)
-    : task_manager_(task_manager) {
+    MutationObserverTaskManager* task_manager,
+    base::DebuggerHooks* debugger_hooks)
+    : task_manager_(task_manager), debugger_hooks_(debugger_hooks) {
   callback_.reset(new NativeCallback(native_callback));
   task_manager_->OnMutationObserverCreated(this);
 }
@@ -92,7 +94,9 @@ MutationObserver::MutationObserver(
 MutationObserver::MutationObserver(script::EnvironmentSettings* settings,
                                    const MutationCallbackArg& callback)
     : task_manager_(base::polymorphic_downcast<DOMSettings*>(settings)
-                        ->mutation_observer_task_manager()) {
+                        ->mutation_observer_task_manager()),
+      debugger_hooks_(base::polymorphic_downcast<DOMSettings*>(settings)
+                          ->debugger_hooks()) {
   callback_.reset(new ScriptCallback(callback, this));
   task_manager_->OnMutationObserverCreated(this);
 }
@@ -108,6 +112,7 @@ void MutationObserver::Observe(const scoped_refptr<Node>& target,
 }
 
 void MutationObserver::Disconnect() {
+  CancelDebuggerAsyncTasks();
   // The disconnect() method must, for each node in the context object's
   // list of nodes, remove any registered observer on node for which the context
   // object is the observer, and also empty context object's record queue.
@@ -123,6 +128,7 @@ void MutationObserver::Disconnect() {
 }
 
 MutationObserver::MutationRecordSequence MutationObserver::TakeRecords() {
+  CancelDebuggerAsyncTasks();
   // The takeRecords() method must return a copy of the record queue and then
   // empty the record queue.
   MutationRecordSequence record_queue;
@@ -135,6 +141,10 @@ void MutationObserver::QueueMutationRecord(
   TRACE_EVENT0("cobalt::dom", "MutationObserver::QueueMutationRecord()");
   record_queue_.push_back(record);
   task_manager_->QueueMutationObserverMicrotask();
+  MutationRecord* task = record.get();
+  debugger_hooks_->AsyncTaskScheduled(
+      task, record->type().c_str(),
+      base::DebuggerHooks::AsyncTaskFrequency::kOneshot);
 }
 
 bool MutationObserver::Notify() {
@@ -143,7 +153,8 @@ bool MutationObserver::Notify() {
   // Step 3 of "notify mutation observers" steps:
   //     1. Let queue be a copy of mo's record queue.
   //     2. Empty mo's record queue.
-  MutationRecordSequence records = TakeRecords();
+  MutationRecordSequence records;
+  records.swap(record_queue_);
 
   //     3. Remove all transient registered observers whose observer is mo.
   // TODO: handle transient registered observers.
@@ -152,6 +163,9 @@ bool MutationObserver::Notify() {
   //        argument, and mo (itself) as second argument and callback this
   //        value. If this throws an exception, report the exception.
   if (!records.empty()) {
+    // Report the first (earliest) stack as the async cause.
+    MutationRecord* task = records.begin()->get();
+    base::ScopedAsyncTask async_task(debugger_hooks_, task);
     return callback_->RunCallback(records, base::WrapRefCounted(this));
   }
   // If no records, return true to indicate no error occurred.
@@ -161,6 +175,13 @@ bool MutationObserver::Notify() {
 void MutationObserver::TraceMembers(script::Tracer* tracer) {
   tracer->TraceItems(observed_nodes_);
   tracer->TraceItems(record_queue_);
+}
+
+void MutationObserver::CancelDebuggerAsyncTasks() {
+  for (auto record : record_queue_) {
+    MutationRecord* task = record.get();
+    debugger_hooks_->AsyncTaskCanceled(task);
+  }
 }
 
 void MutationObserver::TrackObservedNode(const scoped_refptr<dom::Node>& node) {

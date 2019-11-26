@@ -238,7 +238,7 @@ TEST_P(SbMediaSetAudioWriteDurationTest, WriteLimitedInput) {
   SbPlayerDestroy(player);
 }
 
-TEST_P(SbMediaSetAudioWriteDurationTest, FLAKY_WriteContinuedLimitedInput) {
+TEST_P(SbMediaSetAudioWriteDurationTest, WriteContinuedLimitedInput) {
   ASSERT_NE(dmp_reader_.audio_codec(), kSbMediaAudioCodecNone);
   ASSERT_GT(dmp_reader_.number_of_audio_buffers(), 0);
 
@@ -273,8 +273,8 @@ TEST_P(SbMediaSetAudioWriteDurationTest, FLAKY_WriteContinuedLimitedInput) {
 }
 
 std::vector<const char*> GetSupportedTests() {
-  const char* kFilenames[] = {"beneath_the_canopy_140_aac.dmp",
-                              "beneath_the_canopy_249_opus.dmp"};
+  const char* kFilenames[] = {"beneath_the_canopy_aac_stereo.dmp",
+                              "beneath_the_canopy_opus_stereo.dmp"};
 
   static std::vector<const char*> test_params;
 

@@ -25,6 +25,7 @@
 #include "base/logging.h"
 #include "base/message_loop/message_loop.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/base/instance_counter.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/cssom/map_to_mesh_function.h"
 #include "cobalt/dom/csp_delegate.h"
@@ -69,6 +70,8 @@ namespace {
 
 #endif  // LOG_MEDIA_ELEMENT_ACTIVITIES
 
+DECLARE_INSTANCE_COUNTER(HTMLMediaElement);
+
 loader::RequestMode GetRequestMode(
     const base::Optional<std::string>& cross_origin_attribute) {
   // https://html.spec.whatwg.org/#cors-settings-attribute
@@ -91,7 +94,7 @@ bool ResourceNeedsUrlPlayer(const GURL& resource_url) {
   if (resource_url.SchemeIs("data")) {
     return true;
   }
-  // Check if resource_url is an hls url. Hls url must contain "hls_variant"
+  // Check if resource_url is an hls url. Hls url must contain "hls_variant".
   return resource_url.spec().find("hls_variant") != std::string::npos;
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -151,12 +154,14 @@ HTMLMediaElement::HTMLMediaElement(Document* document, base::Token tag_name)
       request_mode_(loader::kNoCORSMode) {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::HTMLMediaElement()");
   MLOG();
+  ON_INSTANCE_CREATED(HTMLMediaElement);
 }
 
 HTMLMediaElement::~HTMLMediaElement() {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::~HTMLMediaElement()");
   MLOG();
   ClearMediaSource();
+  ON_INSTANCE_RELEASED(HTMLMediaElement);
 }
 
 scoped_refptr<MediaError> HTMLMediaElement::error() const {
@@ -592,6 +597,10 @@ void HTMLMediaElement::OnInsertedIntoDocument() {
   std::string src = GetAttribute("src").value_or("");
   if (!src.empty()) {
     set_src(src);
+  }
+
+  if (HasAttribute("muted")) {
+    set_muted(true);
   }
 }
 
@@ -1599,7 +1608,7 @@ void HTMLMediaElement::PlaybackStateChanged() {
 
 void HTMLMediaElement::SawUnsupportedTracks() { NOTIMPLEMENTED(); }
 
-float HTMLMediaElement::Volume() const { return volume(NULL); }
+float HTMLMediaElement::Volume() const { return muted_ ? 0 : volume(NULL); }
 
 void HTMLMediaElement::SourceOpened(ChunkDemuxer* chunk_demuxer) {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::SourceOpened()");

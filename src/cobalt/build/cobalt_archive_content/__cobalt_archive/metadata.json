@@ -1,9 +1,0 @@
-{
-    "comment": "TEST",
-    "archive_time_RFC_2822": "Tue, 30 Apr 2019 00:14:18 +0000",
-    "archive_time_local": "Tue Apr 30 00:14:18 2019",
-    "config": "CONFIG_STRING",
-    "platform": "PLATFORM_STRING",
-    "random_uint64": 0,
-    "sdk_version": "any"
-}

@@ -14,6 +14,7 @@
 {
   'includes': [
     '<(DEPTH)/starboard/shared/starboard/player/filter/player_filter.gypi',
+    '<(DEPTH)/starboard/stub/blitter_stub_sources.gypi',
   ],
   'variables': {
     'variables': {
@@ -24,6 +25,7 @@
     'has_cdm%': '<(has_cdm)',
     'starboard_platform_sources': [
       '<@(filter_based_player_sources)',
+      '<@(blitter_stub_sources)',
       '<(DEPTH)/starboard/contrib/tizen/shared/atomic_public.h',
       '<(DEPTH)/starboard/contrib/tizen/shared/configuration_public.h',
       '<(DEPTH)/starboard/contrib/tizen/shared/get_home_directory.cc',
@@ -137,6 +139,7 @@
       '<(DEPTH)/starboard/shared/nouser/user_get_signed_in.cc',
       '<(DEPTH)/starboard/shared/nouser/user_internal.cc',
       '<(DEPTH)/starboard/shared/posix/directory_create.cc',
+      '<(DEPTH)/starboard/shared/posix/file_atomic_replace.cc',
       '<(DEPTH)/starboard/shared/posix/file_can_open.cc',
       '<(DEPTH)/starboard/shared/posix/file_close.cc',
       '<(DEPTH)/starboard/shared/posix/file_delete.cc',
@@ -168,6 +171,7 @@
       '<(DEPTH)/starboard/shared/posix/socket_internal.cc',
       '<(DEPTH)/starboard/shared/posix/socket_is_connected.cc',
       '<(DEPTH)/starboard/shared/posix/socket_is_connected_and_idle.cc',
+      '<(DEPTH)/starboard/shared/posix/socket_is_ipv6_supported.cc',
       '<(DEPTH)/starboard/shared/posix/socket_join_multicast_group.cc',
       '<(DEPTH)/starboard/shared/posix/socket_listen.cc',
       '<(DEPTH)/starboard/shared/posix/socket_receive_from.cc',
@@ -196,6 +200,7 @@
       '<(DEPTH)/starboard/shared/posix/time_get_monotonic_now.cc',
       '<(DEPTH)/starboard/shared/posix/time_get_monotonic_thread_now.cc',
       '<(DEPTH)/starboard/shared/posix/time_get_now.cc',
+      '<(DEPTH)/starboard/shared/posix/time_is_time_thread_now_supported.cc',
       '<(DEPTH)/starboard/shared/posix/time_zone_get_current.cc',
       '<(DEPTH)/starboard/shared/posix/time_zone_get_name.cc',
       '<(DEPTH)/starboard/shared/pthread/condition_variable_broadcast.cc',
@@ -255,6 +260,8 @@
       '<(DEPTH)/starboard/shared/starboard/directory_can_open.cc',
       '<(DEPTH)/starboard/shared/starboard/event_cancel.cc',
       '<(DEPTH)/starboard/shared/starboard/event_schedule.cc',
+      '<(DEPTH)/starboard/shared/starboard/file_atomic_replace_write_file.cc',
+      '<(DEPTH)/starboard/shared/starboard/file_atomic_replace_write_file.h',
       '<(DEPTH)/starboard/shared/starboard/file_mode_string_to_flags.cc',
       '<(DEPTH)/starboard/shared/starboard/file_storage/storage_close_record.cc',
       '<(DEPTH)/starboard/shared/starboard/file_storage/storage_delete_record.cc',
@@ -330,6 +337,7 @@
       '<(DEPTH)/starboard/shared/starboard/system_request_unpause.cc',
       '<(DEPTH)/starboard/shared/starboard/system_supports_resume.cc',
       '<(DEPTH)/starboard/shared/starboard/window_set_default_options.cc',
+      '<(DEPTH)/starboard/shared/stub/accessibility_get_caption_settings.cc',
       '<(DEPTH)/starboard/shared/stub/accessibility_get_display_settings.cc',
       '<(DEPTH)/starboard/shared/stub/accessibility_get_text_to_speech_settings.cc',
       '<(DEPTH)/starboard/shared/stub/cpu_features_get.cc',

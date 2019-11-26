@@ -252,10 +252,6 @@ class AdaptiveAudioDecoderTest
         break;
       }
       case kOutput: {
-        if (!first_output_received_) {
-          output_sample_rate_ = audio_decoder_->GetSamplesPerSecond();
-          first_output_received_ = true;
-        }
         ReadFromDecoder();
         break;
       }
@@ -268,8 +264,16 @@ class AdaptiveAudioDecoderTest
   }
 
   void ReadFromDecoder() {
-    scoped_refptr<DecodedAudio> decoded_audio = audio_decoder_->Read();
+    int samples_per_second;
+    scoped_refptr<DecodedAudio> decoded_audio =
+        audio_decoder_->Read(&samples_per_second);
     ASSERT_TRUE(decoded_audio);
+    if (first_output_received_) {
+      ASSERT_EQ(output_sample_rate_, samples_per_second);
+    } else {
+      output_sample_rate_ = samples_per_second;
+      first_output_received_ = true;
+    }
 
     if (decoded_audio->is_end_of_stream()) {
       last_decoded_audio_ = decoded_audio;
@@ -366,16 +370,19 @@ TEST_P(AdaptiveAudioDecoderTest, MultipleInput) {
 }
 
 vector<vector<const char*>> GetSupportedTests() {
-  // beneath_the_canopy_140_aac.dmp
+  // beneath_the_canopy_aac_stereo.dmp
   //   codec: kSbMediaAudioCodecAac
   //   sampling rate: 44.1k
   //   frames per AU: 1024
-  // beneath_the_canopy_249_opus.dmp
+  // beneath_the_canopy_opus_stereo.dmp
   //   codec: kSbMediaAudioCodecOpus
   //   sampling rate: 48.0k
   //   frames per AU: 960
-  const char* kFilenames[] = {"beneath_the_canopy_140_aac.dmp",
-                              "beneath_the_canopy_249_opus.dmp"};
+  const char* kFilenames[] = {
+      "beneath_the_canopy_aac_stereo.dmp",  "beneath_the_canopy_aac_5_1.dmp",
+      "beneath_the_canopy_aac_mono.dmp",    "beneath_the_canopy_opus_5_1.dmp",
+      "beneath_the_canopy_opus_stereo.dmp", "beneath_the_canopy_opus_mono.dmp",
+  };
 
   static vector<vector<const char*>> test_params;
 

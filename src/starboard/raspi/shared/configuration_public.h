@@ -17,8 +17,21 @@
 #ifndef STARBOARD_RASPI_SHARED_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_RASPI_SHARED_CONFIGURATION_PUBLIC_H_
 
-// The API version implemented by this platform.
-#define SB_API_VERSION SB_EXPERIMENTAL_API_VERSION
+#if SB_API_VERSION != SB_EXPERIMENTAL_API_VERSION
+#error \
+    "This platform's sabi.json file is expected to track the experimental " \
+"Starboard API version."
+#endif  // SB_API_VERSION != SB_EXPERIMENTAL_API_VERSION
+
+// Configuration parameters that allow the application to make some general
+// compile-time decisions with respect to the the number of cores likely to be
+// available on this platform. For a definitive measure, the application should
+// still call SbSystemGetNumberOfProcessors at runtime.
+
+// Whether the current platform's thread scheduler will automatically balance
+// threads between cores, as opposed to systems where threads will only ever run
+// on the specifically pinned core.
+#define SB_HAS_CROSS_CORE_SCHEDULER 1
 
 // --- System Header Configuration -------------------------------------------
 
@@ -185,12 +198,6 @@
 // textures. These textures typically originate from video decoders.
 #define SB_HAS_NV12_TEXTURE_SUPPORT 1
 
-// Whether the current platform should frequently flip their display buffer.
-// If this is not required (e.g. SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER is set
-// to 0), then optimizations where the display buffer is not flipped if the
-// scene hasn't changed are enabled.
-#define SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER 0
-
 // --- I/O Configuration -----------------------------------------------------
 
 // Whether the current platform implements the on screen keyboard interface.
@@ -264,7 +271,9 @@
 
 // Whether this platform has and should use an MMAP function to map physical
 // memory to the virtual address space.
+#if SB_API_VERSION < SB_MMAP_REQUIRED_VERSION
 #define SB_HAS_MMAP 1
+#endif
 
 // Whether this platform can map executable memory. Implies SB_HAS_MMAP. This is
 // required for platforms that want to JIT.

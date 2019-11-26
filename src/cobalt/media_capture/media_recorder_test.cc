@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/media_capture/media_recorder.h"
+
+#include <memory>
 
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/testing/mock_event_listener.h"
@@ -28,20 +28,19 @@
 #include "cobalt/script/testing/mock_exception_state.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using cobalt::dom::EventListener;
+using cobalt::dom::testing::MockEventListener;
+using cobalt::script::testing::FakeScriptValue;
+using cobalt::script::testing::MockExceptionState;
 using ::testing::_;
 using ::testing::Eq;
 using ::testing::Pointee;
 using ::testing::Property;
 using ::testing::SaveArg;
 using ::testing::StrictMock;
-using cobalt::dom::EventListener;
-using cobalt::dom::testing::MockEventListener;
-using cobalt::script::testing::MockExceptionState;
-using cobalt::script::testing::FakeScriptValue;
 
 namespace {
-void PushData(
-    const scoped_refptr<cobalt::media_capture::MediaRecorder>& media_recorder) {
+void PushData(cobalt::media_capture::MediaRecorder* media_recorder) {
   const int kSampleRate = 16000;
   cobalt::media_stream::AudioParameters params(1, kSampleRate, 16);
   media_recorder->OnSetFormat(params);
@@ -87,13 +86,14 @@ namespace media_capture {
 class MediaRecorderTest : public ::testing::Test {
  protected:
   MediaRecorderTest() {
-    audio_track_ = new StrictMock<media_stream::MockMediaStreamAudioTrack>();
+    audio_track_ = new StrictMock<media_stream::MockMediaStreamAudioTrack>(
+        stub_window_.environment_settings());
     auto audio_track = base::WrapRefCounted(audio_track_);
     media_stream::MediaStream::TrackSequences sequences;
     sequences.push_back(audio_track);
     audio_track->Start(base::Closure(base::Bind([]() {} /*Do nothing*/)));
-    auto stream =
-        base::WrapRefCounted(new media_stream::MediaStream(sequences));
+    auto stream = base::WrapRefCounted(new media_stream::MediaStream(
+        stub_window_.environment_settings(), sequences));
     media_source_ = new StrictMock<media_stream::FakeMediaStreamAudioSource>();
     EXPECT_CALL(*media_source_, EnsureSourceIsStarted());
     EXPECT_CALL(*media_source_, EnsureSourceIsStopped());
@@ -228,9 +228,9 @@ TEST_F(MediaRecorderTest, DifferentThreadForAudioSource) {
   // member functions with base::Unretained() or weak pointer.
   // Creates media_recorder_ref just to make it clear that no copy happened
   // during base::Bind().
-  const scoped_refptr<MediaRecorder>& media_recorder_ref = media_recorder_;
   t.message_loop()->task_runner()->PostBlockingTask(
-      FROM_HERE, base::Bind(&PushData, media_recorder_ref));
+      FROM_HERE,
+      base::Bind(&PushData, base::Unretained(media_recorder_.get())));
   t.Stop();
 
   base::RunLoop().RunUntilIdle();

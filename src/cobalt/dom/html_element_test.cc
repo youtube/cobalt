@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/dom/html_element.h"
+
+#include <memory>
 
 #include "base/basictypes.h"
 #include "base/message_loop/message_loop.h"
@@ -32,6 +32,7 @@
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/layout_boxes.h"
 #include "cobalt/dom/named_node_map.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/testing/stub_window.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/media_session/media_session.h"
@@ -40,8 +41,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using cobalt::cssom::ViewportSize;
-using testing::Return;
 using testing::_;
+using testing::Return;
 
 namespace cobalt {
 namespace dom {
@@ -69,10 +70,9 @@ ACTION_P(InvokeCallback0, callback) {
 const char kFooBarDeclarationString[] = "foo: bar;";
 const char kDisplayInlineDeclarationString[] = "display: inline;";
 const char* kHtmlElementTagNames[] = {
-  // "audio", "script", and "video" are excluded since they need more setup.
-  "a", "body", "br", "div", "head", "h1", "html", "img", "link",
-  "meta", "p", "span", "style", "title"
-};
+    // "audio", "script", and "video" are excluded since they need more setup.
+    "a",   "body", "br",   "div", "head", "h1",    "html",
+    "img", "link", "meta", "p",   "span", "style", "title"};
 
 class MockLayoutBoxes : public LayoutBoxes {
  public:
@@ -132,10 +132,10 @@ class HTMLElementTest : public ::testing::Test {
  protected:
   HTMLElementTest()
       : dom_stat_tracker_(new DomStatTracker("HTMLElementTest")),
-        html_element_context_(NULL, NULL, &css_parser_, NULL, NULL, NULL, NULL,
+        html_element_context_(&environment_settings_, NULL, NULL, &css_parser_,
                               NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                              dom_stat_tracker_.get(), "",
-                              base::kApplicationStateStarted, NULL),
+                              NULL, NULL, NULL, NULL, dom_stat_tracker_.get(),
+                              "", base::kApplicationStateStarted, NULL),
         document_(new Document(&html_element_context_)) {}
   ~HTMLElementTest() override {}
 
@@ -147,6 +147,7 @@ class HTMLElementTest : public ::testing::Test {
   void SetElementStyle(const scoped_refptr<cssom::CSSDeclaredStyleData>& data,
                        HTMLElement* html_element);
 
+  testing::StubEnvironmentSettings environment_settings_;
   cssom::testing::MockCSSParser css_parser_;
   std::unique_ptr<DomStatTracker> dom_stat_tracker_;
   HTMLElementContext html_element_context_;

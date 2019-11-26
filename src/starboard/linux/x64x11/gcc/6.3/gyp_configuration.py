@@ -23,9 +23,15 @@ from starboard.tools import build
 class LinuxX64X11Gcc63Configuration(shared_configuration.LinuxConfiguration):
   """Starboard Linux platform configuration."""
 
-  def __init__(self, platform, asan_enabled_by_default=False):
+  def __init__(self,
+               platform,
+               asan_enabled_by_default=False,
+               sabi_json_path=None):
     super(LinuxX64X11Gcc63Configuration, self).__init__(
-        platform, asan_enabled_by_default, goma_supports_compiler=False)
+        platform,
+        asan_enabled_by_default,
+        goma_supports_compiler=False,
+        sabi_json_path=sabi_json_path)
 
     self.toolchain_dir = os.path.join(build.GetToolchainsDir(),
                                       'x86_64-linux-gnu-gcc-6.3.0', 'gcc')
@@ -60,4 +66,6 @@ class LinuxX64X11Gcc63Configuration(shared_configuration.LinuxConfiguration):
 
 
 def CreatePlatformConfig():
-  return LinuxX64X11Gcc63Configuration('linux-x64x11-gcc-6-3')
+  return LinuxX64X11Gcc63Configuration(
+      'linux-x64x11-gcc-6-3',
+      sabi_json_path='starboard/sabi/x64/sysv/sabi.json')

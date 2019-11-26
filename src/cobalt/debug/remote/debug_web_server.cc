@@ -79,38 +79,6 @@ base::Optional<base::FilePath> AppendIndexFile(
   return base::nullopt;
 }
 
-base::Optional<std::string> GetLocalIpAddress() {
-  net::IPEndPoint ip_addr;
-  SbSocketAddress local_ip;
-  SbMemorySet(&local_ip, 0, sizeof(local_ip));
-  bool result = false;
-
-  // Prefer IPv4 addresses, as they're easier to type for debugging.
-  SbSocketAddressType address_types[] = {kSbSocketAddressTypeIpv4,
-                                         kSbSocketAddressTypeIpv6};
-
-  for (std::size_t i = 0; i != SB_ARRAY_SIZE(address_types); ++i) {
-    SbSocketAddress destination;
-    SbMemorySet(&(destination.address), 0, sizeof(destination.address));
-    destination.type = address_types[i];
-    if (!SbSocketGetInterfaceAddress(&destination, &local_ip, NULL)) {
-      continue;
-    }
-
-    if (ip_addr.FromSbSocketAddress(&local_ip)) {
-      result = true;
-      break;
-    }
-  }
-
-  if (!result) {
-    DLOG(WARNING) << "Unable to get a local interface address.";
-    return base::nullopt;
-  }
-
-  return ip_addr.ToStringWithoutPort();
-}
-
 const char kContentDir[] = "cobalt/debug/remote";
 const char kDetached[] = "Inspector.detached";
 const char kDetachReasonField[] = "params.reason";
@@ -121,13 +89,16 @@ const char kParamsField[] = "params";
 constexpr net::NetworkTrafficAnnotationTag kNetworkTrafficAnnotation =
     net::DefineNetworkTrafficAnnotation("cobalt_debug_web_server",
                                         "cobalt_debug_web_server");
+
+constexpr int kUnattachedWebSocketId = -1;
 }  // namespace
 
 DebugWebServer::DebugWebServer(
-    int port, const CreateDebugClientCallback& create_debug_client_callback)
+    int port, const std::string& listen_ip,
+    const CreateDebugClientCallback& create_debug_client_callback)
     : http_server_thread_("DebugWebServer"),
       create_debug_client_callback_(create_debug_client_callback),
-      websocket_id_(-1),
+      websocket_id_(kUnattachedWebSocketId),
       // Local address will be set when the web server is successfully started.
       local_address_("Cobalt.Server.DevTools", "<NOT RUNNING>",
                      "Address to connect to for remote debugging.") {
@@ -142,8 +113,8 @@ DebugWebServer::DebugWebServer(
   http_server_thread_.StartWithOptions(
       base::Thread::Options(base::MessageLoop::TYPE_IO, stack_size));
   http_server_thread_.message_loop()->task_runner()->PostTask(
-      FROM_HERE,
-      base::Bind(&DebugWebServer::StartServer, base::Unretained(this), port));
+      FROM_HERE, base::Bind(&DebugWebServer::StartServer,
+                            base::Unretained(this), port, listen_ip));
 }
 
 DebugWebServer::~DebugWebServer() {
@@ -213,6 +184,11 @@ void DebugWebServer::OnWebSocketRequest(
   std::string path = info.path;
   DLOG(INFO) << "Got web socket request [" << connection_id << "]: " << path;
 
+  // Disconnect any other DevTools client that's already attached.
+  if (websocket_id_ != kUnattachedWebSocketId) {
+    server_->Close(websocket_id_);
+  }
+
   // Ignore the path and bind any web socket request to the debugger.
   websocket_id_ = connection_id;
   server_->AcceptWebSocket(connection_id, info, kNetworkTrafficAnnotation);
@@ -220,10 +196,16 @@ void DebugWebServer::OnWebSocketRequest(
   debug_client_ = create_debug_client_callback_.Run(this);
 }
 
+void DebugWebServer::OnClose(int connection_id) {
+  if (connection_id == websocket_id_) {
+    websocket_id_ = kUnattachedWebSocketId;
+  }
+}
+
 void DebugWebServer::OnWebSocketMessage(int connection_id,
                                         const std::string& json) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DCHECK_EQ(connection_id, websocket_id_);
+  DCHECK_EQ(connection_id, websocket_id_) << "Mismatched WebSocket ID";
 
   // Parse the json string to get id, method and params.
   JSONObject json_object = JSONParse(json);
@@ -324,35 +306,21 @@ void DebugWebServer::OnDebugClientDetach(const std::string& reason) {
                              kNetworkTrafficAnnotation);
 }
 
-int DebugWebServer::GetLocalAddress(std::string* out) const {
-  net::IPEndPoint ip_addr;
-  int result = server_->GetLocalAddress(&ip_addr);
-  if (result == net::OK) {
-    *out = std::string("http://") + ip_addr.ToString();
-  }
-  return result;
-}
-
-void DebugWebServer::StartServer(int port) {
+void DebugWebServer::StartServer(int port, const std::string& listen_ip) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Create http server
-  const base::Optional<std::string> ip_addr = GetLocalIpAddress();
-  if (!ip_addr) {
-    DLOG(WARNING)
-        << "Could not get a local IP address for the debug web server.";
-    return;
-  }
   auto* server_socket =
       new net::TCPServerSocket(NULL /*net_log*/, net::NetLogSource());
   server_socket->ListenWithAddressAndPort(
-      ip_addr.value(), static_cast<uint16_t>(port), 1 /*backlog*/);
+      listen_ip, static_cast<uint16_t>(port), 1 /*backlog*/);
   server_.reset(new net::HttpServer(
       std::unique_ptr<net::ServerSocket>(server_socket), this));
 
-  std::string address;
-  int result = GetLocalAddress(&address);
+  net::IPEndPoint ip_addr;
+  int result = server_->GetLocalInterfaceAddress(&ip_addr);
   if (result == net::OK) {
+    std::string address = "http://" + ip_addr.ToString();
     // clang-format off
     LOG(INFO) << "\n---------------------------------"
               << "\n Connect to the web debugger at:"

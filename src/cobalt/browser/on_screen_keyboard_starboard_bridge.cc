@@ -19,9 +19,19 @@
 
 #include "starboard/event.h"
 
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
+    SB_HAS(ON_SCREEN_KEYBOARD)
 namespace cobalt {
 namespace browser {
+// static
+bool OnScreenKeyboardStarboardBridge::IsSupported() {
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION
+  return SbWindowOnScreenKeyboardIsSupported();
+#else
+  return true;
+#endif
+}
+
 void OnScreenKeyboardStarboardBridge::Show(const char* input_text, int ticket) {
   // Delay providing the SbWindow until as late as possible.
   SbWindowShowOnScreenKeyboard(sb_window_provider_.Run(), input_text, ticket);
@@ -105,4 +115,5 @@ void OnScreenKeyboardStarboardBridge::SetKeepFocus(bool keep_focus) {
 }
 }  // namespace browser
 }  // namespace cobalt
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+        // SB_HAS(ON_SCREEN_KEYBOARD)

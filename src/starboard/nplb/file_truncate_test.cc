@@ -99,7 +99,7 @@ TEST(SbFileTruncateTest, TruncateUpInSize) {
   }
 
   char buffer[kEndSize] = {0};
-  int bytes = SbFileRead(file, buffer, kEndSize);
+  int bytes = SbFileReadAll(file, buffer, kEndSize);
   EXPECT_EQ(kEndSize, bytes);
 
   ScopedRandomFile::ExpectPattern(0, buffer, kStartSize, __LINE__);

@@ -20,10 +20,8 @@ namespace dom {
 
 // The enum Directionality is used to track the explicit direction of the html
 // element:
-// https://dev.w3.org/html5/spec-preview/global-attributes.html#the-directionality
-// NOTE: Value "auto" is not supported.
+//   https://html.spec.whatwg.org/commit-snapshots/ebcac971c2add28a911283899da84ec509876c44/#the-directionality
 enum Directionality {
-  kNoExplicitDirectionality,
   kLeftToRightDirectionality,
   kRightToLeftDirectionality,
 };

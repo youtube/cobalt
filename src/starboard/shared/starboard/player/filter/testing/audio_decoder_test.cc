@@ -25,6 +25,7 @@
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/stub_player_components_impl.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
@@ -92,9 +93,27 @@ class AudioDecoderTest
     ASSERT_NE(dmp_reader_.audio_codec(), kSbMediaAudioCodecNone);
     ASSERT_GT(dmp_reader_.number_of_audio_buffers(), 0);
 
+    CreateComponents(dmp_reader_.audio_codec(), dmp_reader_.audio_sample_info(),
+                     &audio_decoder_, &audio_renderer_sink_);
+    ASSERT_TRUE(audio_decoder_);
+    ASSERT_TRUE(audio_renderer_sink_);
+  }
+
+ protected:
+  enum Event { kConsumed, kOutput, kError };
+
+  void CreateComponents(SbMediaAudioCodec codec,
+                        const SbMediaAudioSampleInfo& audio_sample_info,
+                        scoped_ptr<AudioDecoder>* audio_decoder,
+                        scoped_ptr<AudioRendererSink>* audio_renderer_sink) {
+    ASSERT_TRUE(audio_decoder);
+    ASSERT_TRUE(audio_renderer_sink);
+
+    audio_renderer_sink->reset();
+    audio_decoder->reset();
+
     PlayerComponents::AudioParameters audio_parameters = {
-        dmp_reader_.audio_codec(), dmp_reader_.audio_sample_info(),
-        kSbDrmSystemInvalid};
+        codec, audio_sample_info, kSbDrmSystemInvalid};
 
     scoped_ptr<PlayerComponents> components;
     if (using_stub_decoder_) {
@@ -103,25 +122,24 @@ class AudioDecoderTest
     } else {
       components = PlayerComponents::Create();
     }
-    components->CreateAudioComponents(audio_parameters, &audio_decoder_,
-                                      &audio_renderer_sink_);
-    ASSERT_TRUE(audio_decoder_);
-
-    audio_decoder_->Initialize(std::bind(&AudioDecoderTest::OnOutput, this),
-                               std::bind(&AudioDecoderTest::OnError, this));
+    components->CreateAudioComponents(audio_parameters, audio_decoder,
+                                      audio_renderer_sink);
+    if (*audio_decoder) {
+      (*audio_decoder)
+          ->Initialize(std::bind(&AudioDecoderTest::OnOutput, this),
+                       std::bind(&AudioDecoderTest::OnError, this));
+    }
   }
 
   void OnOutput() {
     ScopedLock scoped_lock(event_queue_mutex_);
     event_queue_.push_back(kOutput);
   }
+
   void OnError() {
     ScopedLock scoped_lock(event_queue_mutex_);
     event_queue_.push_back(kError);
   }
-
- protected:
-  enum Event { kConsumed, kOutput, kError };
 
   void OnConsumed() {
     ScopedLock scoped_lock(event_queue_mutex_);
@@ -172,13 +190,25 @@ class AudioDecoderTest
   void ReadFromDecoder(scoped_refptr<DecodedAudio>* decoded_audio) {
     ASSERT_TRUE(decoded_audio);
 
-    scoped_refptr<DecodedAudio> local_decoded_audio = audio_decoder_->Read();
+    int decoded_sample_rate;
+    scoped_refptr<DecodedAudio> local_decoded_audio =
+        audio_decoder_->Read(&decoded_sample_rate);
     ASSERT_TRUE(local_decoded_audio);
+    if (!first_output_received_) {
+      first_output_received_ = true;
+      decoded_audio_sample_type_ = local_decoded_audio->sample_type();
+      decoded_audio_storage_type_ = local_decoded_audio->storage_type();
+      decoded_audio_samples_per_second_ = decoded_sample_rate;
+    }
 
     if (local_decoded_audio->is_end_of_stream()) {
       *decoded_audio = local_decoded_audio;
       return;
     }
+    ASSERT_EQ(decoded_audio_sample_type_, local_decoded_audio->sample_type());
+    ASSERT_EQ(decoded_audio_storage_type_, local_decoded_audio->storage_type());
+    ASSERT_EQ(decoded_audio_samples_per_second_, decoded_sample_rate);
+
     // TODO: Adaptive audio decoder outputs may don't have timestamp info.
     // Currently, we skip timestamp check if the outputs don't have timestamp
     // info. Enable it after we fix timestamp issues.
@@ -193,7 +223,7 @@ class AudioDecoderTest
 
   void WriteMultipleInputs(size_t start_index,
                            size_t number_of_inputs_to_write,
-                           bool* error_occurred = NULL) {
+                           bool* error_occurred = nullptr) {
     ASSERT_LE(start_index + number_of_inputs_to_write,
               dmp_reader_.number_of_audio_buffers());
 
@@ -259,7 +289,7 @@ class AudioDecoderTest
     }
   }
 
-  void DrainOutputs(bool* error_occurred = NULL) {
+  void DrainOutputs(bool* error_occurred = nullptr) {
     if (error_occurred) {
       *error_occurred = false;
     }
@@ -291,9 +321,11 @@ class AudioDecoderTest
   void ResetDecoder() {
     audio_decoder_->Reset();
     can_accept_more_input_ = true;
-    last_input_buffer_ = NULL;
-    last_decoded_audio_ = NULL;
+    last_input_buffer_ = nullptr;
+    last_decoded_audio_ = nullptr;
     eos_written_ = false;
+    decoded_audio_samples_per_second_ = 0;
+    first_output_received_ = false;
   }
 
   void WaitForDecodedAudio() {
@@ -315,14 +347,14 @@ class AudioDecoderTest
     auto player_sample_info =
         dmp_reader_.GetPlayerSampleInfo(kSbMediaTypeAudio, index);
 #if SB_API_VERSION >= 11
-    auto input_buffer =
-        new InputBuffer(DeallocateSampleFunc, NULL, NULL, player_sample_info);
+    auto input_buffer = new InputBuffer(DeallocateSampleFunc, nullptr, nullptr,
+                                        player_sample_info);
 #else   // SB_API_VERSION >= 11
     SbMediaAudioSampleInfo audio_sample_info =
         dmp_reader_.GetAudioSampleInfo(index);
     auto input_buffer =
-        new InputBuffer(kSbMediaTypeAudio, DeallocateSampleFunc, NULL, NULL,
-                        player_sample_info, &audio_sample_info);
+        new InputBuffer(kSbMediaTypeAudio, DeallocateSampleFunc, nullptr,
+                        nullptr, player_sample_info, &audio_sample_info);
 #endif  // SB_API_VERSION >= 11
     auto iter = invalid_inputs_.find(index);
     if (iter != invalid_inputs_.end()) {
@@ -345,19 +377,17 @@ class AudioDecoderTest
   }
 
   void AssertInvalidOutputFormat() {
-    SbMediaAudioSampleType output_sample_type = audio_decoder_->GetSampleType();
-    ASSERT_TRUE(output_sample_type == kSbMediaAudioSampleTypeFloat32 ||
-                output_sample_type == kSbMediaAudioSampleTypeInt16Deprecated);
+    ASSERT_TRUE(decoded_audio_sample_type_ == kSbMediaAudioSampleTypeFloat32 ||
+                decoded_audio_sample_type_ ==
+                    kSbMediaAudioSampleTypeInt16Deprecated);
 
-    SbMediaAudioFrameStorageType output_storage_type =
-        audio_decoder_->GetStorageType();
-    ASSERT_TRUE(output_storage_type ==
+    ASSERT_TRUE(decoded_audio_storage_type_ ==
                     kSbMediaAudioFrameStorageTypeInterleaved ||
-                output_storage_type == kSbMediaAudioFrameStorageTypePlanar);
+                decoded_audio_storage_type_ ==
+                    kSbMediaAudioFrameStorageTypePlanar);
 
-    int output_samples_per_second = audio_decoder_->GetSamplesPerSecond();
-    ASSERT_TRUE(output_samples_per_second > 0 &&
-                output_samples_per_second <= 480000);
+    ASSERT_TRUE(decoded_audio_samples_per_second_ > 0 &&
+                decoded_audio_samples_per_second_ <= 480000);
   }
 
   void AssertExpectedAndOutputFramesMatch(int expected_output_frames) {
@@ -393,26 +423,29 @@ class AudioDecoderTest
   std::map<size_t, uint8_t> invalid_inputs_;
 
   int num_of_output_frames_ = 0;
+
+  SbMediaAudioSampleType decoded_audio_sample_type_ =
+      kSbMediaAudioSampleTypeInt16Deprecated;
+  SbMediaAudioFrameStorageType decoded_audio_storage_type_ =
+      kSbMediaAudioFrameStorageTypeInterleaved;
+  int decoded_audio_samples_per_second_ = 0;
+
+  bool first_output_received_ = false;
 };
 
-TEST_P(AudioDecoderTest, ThreeMoreDecoders) {
-  const int kDecodersToCreate = 3;
+TEST_P(AudioDecoderTest, MultiDecoders) {
+  const int kDecodersToCreate = 100;
+  const int kMinimumNumberOfExtraDecodersRequired = 3;
 
-  PlayerComponents::AudioParameters audio_parameters = {
-      dmp_reader_.audio_codec(), dmp_reader_.audio_sample_info(),
-      kSbDrmSystemInvalid};
-
-  scoped_ptr<PlayerComponents> components = PlayerComponents::Create();
   scoped_ptr<AudioDecoder> audio_decoders[kDecodersToCreate];
   scoped_ptr<AudioRendererSink> audio_renderer_sinks[kDecodersToCreate];
 
   for (int i = 0; i < kDecodersToCreate; ++i) {
-    components->CreateAudioComponents(audio_parameters, &audio_decoders[i],
-                                      &audio_renderer_sinks[i]);
-    ASSERT_TRUE(audio_decoders[i]);
-
-    audio_decoders[i]->Initialize(std::bind(&AudioDecoderTest::OnOutput, this),
-                                  std::bind(&AudioDecoderTest::OnError, this));
+    CreateComponents(dmp_reader_.audio_codec(), dmp_reader_.audio_sample_info(),
+                     &audio_decoders[i], &audio_renderer_sinks[i]);
+    if (!audio_decoders[i]) {
+      ASSERT_GE(i, kMinimumNumberOfExtraDecodersRequired);
+    }
   }
 }
 
@@ -441,11 +474,85 @@ TEST_P(AudioDecoderTest, SingleInputHEAAC) {
 
   int input_sample_rate =
       last_input_buffer_->audio_sample_info().samples_per_second;
-  int output_sample_rate = audio_decoder_->GetSamplesPerSecond();
-  ASSERT_NE(0, output_sample_rate);
+  ASSERT_NE(0, decoded_audio_samples_per_second_);
   int expected_output_frames =
-      kAacFrameSize * output_sample_rate / input_sample_rate;
+      kAacFrameSize * decoded_audio_samples_per_second_ / input_sample_rate;
   AssertExpectedAndOutputFramesMatch(expected_output_frames);
+}
+
+TEST_P(AudioDecoderTest, InvalidCodec) {
+  auto invalid_codec = dmp_reader_.audio_codec() == kSbMediaAudioCodecAac
+                           ? kSbMediaAudioCodecOpus
+                           : kSbMediaAudioCodecAac;
+  auto audio_sample_info = dmp_reader_.audio_sample_info();
+
+#if SB_API_VERSION >= 11
+  audio_sample_info.codec = invalid_codec;
+#endif  // SB_API_VERSION >= 11
+
+  CreateComponents(invalid_codec, audio_sample_info, &audio_decoder_,
+                   &audio_renderer_sink_);
+  if (!audio_decoder_) {
+    return;
+  }
+
+  WriteSingleInput(0);
+  WriteEndOfStream();
+
+  bool error_occurred = true;
+  ASSERT_NO_FATAL_FAILURE(DrainOutputs(&error_occurred));
+}
+
+TEST_P(AudioDecoderTest, InvalidConfig) {
+  auto original_audio_sample_info = dmp_reader_.audio_sample_info();
+
+  for (uint16_t i = 0;
+       i < original_audio_sample_info.audio_specific_config_size; ++i) {
+    std::vector<uint8_t> config(
+        original_audio_sample_info.audio_specific_config_size);
+    SbMemoryCopy(config.data(),
+                 original_audio_sample_info.audio_specific_config,
+                 original_audio_sample_info.audio_specific_config_size);
+    auto audio_sample_info = original_audio_sample_info;
+    config[i] = ~config[i];
+    audio_sample_info.audio_specific_config = config.data();
+
+    CreateComponents(dmp_reader_.audio_codec(), audio_sample_info,
+                     &audio_decoder_, &audio_renderer_sink_);
+    if (!audio_decoder_) {
+      return;
+    }
+    WriteSingleInput(0);
+    WriteEndOfStream();
+
+    bool error_occurred = true;
+    ASSERT_NO_FATAL_FAILURE(DrainOutputs(&error_occurred));
+
+    ResetDecoder();
+  }
+
+  for (uint16_t i = 0;
+       i < original_audio_sample_info.audio_specific_config_size; ++i) {
+    std::vector<uint8_t> config(i);
+    SbMemoryCopy(config.data(),
+                 original_audio_sample_info.audio_specific_config, i);
+    auto audio_sample_info = original_audio_sample_info;
+    audio_sample_info.audio_specific_config = config.data();
+    audio_sample_info.audio_specific_config_size = i;
+
+    CreateComponents(dmp_reader_.audio_codec(), audio_sample_info,
+                     &audio_decoder_, &audio_renderer_sink_);
+    if (!audio_decoder_) {
+      return;
+    }
+    WriteSingleInput(0);
+    WriteEndOfStream();
+
+    bool error_occurred = true;
+    ASSERT_NO_FATAL_FAILURE(DrainOutputs(&error_occurred));
+
+    ResetDecoder();
+  }
 }
 
 TEST_P(AudioDecoderTest, SingleInvalidInput) {
@@ -582,8 +689,10 @@ TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
 #endif  // SB_API_VERSION >= 11
 
 std::vector<const char*> GetSupportedTests() {
-  const char* kFilenames[] = {"beneath_the_canopy_140_aac.dmp",
-                              "beneath_the_canopy_249_opus.dmp", "heaac.dmp"};
+  const char* kFilenames[] = {
+      "beneath_the_canopy_aac_5_1.dmp", "beneath_the_canopy_aac_stereo.dmp",
+      "beneath_the_canopy_opus_5_1.dmp", "beneath_the_canopy_opus_stereo.dmp",
+      "heaac.dmp"};
 
   static std::vector<const char*> test_params;
 

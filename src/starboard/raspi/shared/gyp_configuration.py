@@ -29,10 +29,11 @@ _UNDEFINED_RASPI_HOME = '/UNDEFINED/RASPI_HOME'
 class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
   """Starboard Raspberry Pi platform configuration."""
 
-  def __init__(self, platform):
+  def __init__(self, platform, sabi_json_path=None):
     super(RaspiPlatformConfig, self).__init__(platform)
     self.AppendApplicationConfigurationPath(os.path.dirname(__file__))
     self.raspi_home = os.environ.get('RASPI_HOME', _UNDEFINED_RASPI_HOME)
+    self.sabi_json_path = sabi_json_path
     self.sysroot = os.path.realpath(os.path.join(self.raspi_home, 'sysroot'))
 
   def GetBuildFormat(self):
@@ -47,6 +48,9 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
     variables.update({
         'clang': 0,
         'sysroot': self.sysroot,
+        'include_path_platform_deploy_gypi':
+            'starboard/raspi/shared/platform_deploy.gypi',
+        'STRIP': os.environ.get('STRIP')
     })
 
     return variables
@@ -62,6 +66,7 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
     env_variables.update({
         'CC': os.path.join(toolchain_bin_dir, 'arm-linux-gnueabihf-gcc'),
         'CXX': os.path.join(toolchain_bin_dir, 'arm-linux-gnueabihf-g++'),
+        'STRIP': os.path.join(toolchain_bin_dir, 'arm-linux-gnueabihf-strip'),
     })
     return env_variables
 
@@ -91,24 +96,18 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
-  __FILTERED_TESTS = {
+  __FILTERED_TESTS = {  # pylint: disable=invalid-name
       'nplb': [
           'SbDrmTest.AnySupportedKeySystems',
-          # The RasPi test devices don't have access to an IPV6 network, so
-          # disable the related tests.
-          'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
-          '.SunnyDayDestination/1',
-          'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
-          '.SunnyDaySourceForDestination/1',
-          'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
-          '.SunnyDaySourceNotLoopback/1',
       ],
       'player_filter_tests': [
-          # TODO: debug these failures.
+          # The implementations for the raspberry pi (0 and 2) are incomplete
+          # and not meant to be a reference implementation. As such we will
+          # not repair these failing tests for now.
           'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput/0',
           'VideoDecoderTests/VideoDecoderTest.MultipleResets/0',
-          'VideoDecoderTests/VideoDecoderTest'
-          '.MultipleValidInputsAfterInvalidKeyFrame/*',
-          'VideoDecoderTests/VideoDecoderTest.MultipleInvalidInput/*',
       ],
   }
+
+  def GetPathToSabiJsonFile(self):
+    return self.sabi_json_path

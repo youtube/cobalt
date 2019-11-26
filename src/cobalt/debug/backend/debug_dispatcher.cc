@@ -22,6 +22,10 @@
 #include "base/values.h"
 #include "cobalt/debug/debug_client.h"
 
+namespace {
+void NoOpResponseCallback(const base::Optional<std::string>& response) {}
+}  // namespace
+
 namespace cobalt {
 namespace debug {
 namespace backend {
@@ -78,13 +82,14 @@ void DebugDispatcher::RemoveClient(DebugClient* client) {
   clients_.erase(client);
 }
 
-void DebugDispatcher::SendCommand(const Command& command) {
+void DebugDispatcher::SendCommand(std::unique_ptr<Command> command) {
   // Create a closure that will run the command and the response callback.
   // The task is either posted to the debug target (WebModule) thread if
   // that thread is running normally, or added to a queue of debugger tasks
   // being processed while paused.
-  base::Closure command_closure = base::Bind(&DebugDispatcher::DispatchCommand,
-                                             base::Unretained(this), command);
+  base::Closure command_closure =
+      base::Bind(&DebugDispatcher::DispatchCommand, base::Unretained(this),
+                 base::Passed(std::move(command)));
 
   if (is_paused_) {
     DispatchCommandWhilePaused(command_closure);
@@ -93,26 +98,37 @@ void DebugDispatcher::SendCommand(const Command& command) {
   }
 }
 
-void DebugDispatcher::DispatchCommand(Command command) {
+void DebugDispatcher::DispatchCommand(std::unique_ptr<Command> command) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  DomainRegistry::iterator iter = domain_registry_.find(command.GetDomain());
-  if (iter != domain_registry_.end() && iter->second.Run(command)) {
-    // The agent command implementation ran and sends its own response.
-    return;
+  // This workaround allows both the overlay console and remote DevTools to
+  // connect at the same time. Each time a client sends the "Runtime.enable"
+  // command, we first inject a "Runtime.disable" command so that the V8
+  // Inspector will send the "Runtime.executionContextCreated" event for every
+  // "Runtime.enable" command rather than just for the first one.
+  if (command->GetMethod() == "Runtime.enable") {
+    DispatchCommand(std::make_unique<Command>(
+        "Runtime.disable", "", base::Bind(&NoOpResponseCallback)));
+  }
+
+  DomainRegistry::iterator iter = domain_registry_.find(command->GetDomain());
+  if (iter != domain_registry_.end()) {
+    command = iter->second.Run(std::move(command));
+    // The agent command implementation kept the command to send the response.
+    if (!command) return;
   }
 
   // The agent didn't have a native implementation. Try to run a
   // JavaScript implementation (which the agent would have loaded at the
   // same time as it registered its domain command handler).
   JSONObject response =
-      RunScriptCommand(command.GetMethod(), command.GetParams());
+      RunScriptCommand(command->GetMethod(), command->GetParams());
   if (response) {
-    command.SendResponse(response);
+    command->SendResponse(response);
   } else {
-    DLOG(WARNING) << "Command not implemented: " << command.GetMethod();
-    command.SendErrorResponse(Command::kMethodNotFound,
-                              "Command not implemented");
+    DLOG(WARNING) << "Command not implemented: " << command->GetMethod();
+    command->SendErrorResponse(Command::kMethodNotFound,
+                               "Command not implemented");
   }
 }
 

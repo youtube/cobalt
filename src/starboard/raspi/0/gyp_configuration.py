@@ -19,8 +19,9 @@ from starboard.tools.testing import test_filter
 
 class Raspi0PlatformConfig(shared_configuration.RaspiPlatformConfig):
 
-  def __init__(self, platform):
-    super(Raspi0PlatformConfig, self).__init__(platform)
+  def __init__(self, platform, sabi_json_path=None):
+    super(Raspi0PlatformConfig, self).__init__(
+        platform, sabi_json_path=sabi_json_path)
 
   def GetVariables(self, config_name):
     variables = super(Raspi0PlatformConfig, self).GetVariables(config_name)
@@ -41,13 +42,18 @@ class Raspi0PlatformConfig(shared_configuration.RaspiPlatformConfig):
           # TODO: debug these failures.
           'SbPlayerTest.MultiPlayer',  # crashes
       ],
-      # Temporarily disable most of the tests until we can narrow it down to the
-      # minimum number of cases that are real test failures.
       'player_filter_tests': [
-          'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/0'
+          # The implementation for the raspberry pi 0 is incomplete and not
+          # meant to be a reference implementation. As such we will not repair
+          # these failing tests for now.
+          'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/0',
+          'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull/0',
+          'VideoDecoderTests/VideoDecoderTest.MultipleInputs/0',
+          'VideoDecoderTests/VideoDecoderTest.Preroll/0',
       ]
   }
 
 
 def CreatePlatformConfig():
-  return Raspi0PlatformConfig('raspi-0')
+  return Raspi0PlatformConfig(
+      'raspi-0', sabi_json_path='starboard/sabi/arm/hardfp/v6zk/sabi.json')

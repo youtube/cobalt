@@ -48,7 +48,8 @@ def LauncherFactory(platform_name,
                     target_params=None,
                     output_file=None,
                     out_directory=None,
-                    env_variables=None):
+                    env_variables=None,
+                    **kwargs):
   """Creates the proper launcher based upon command line args.
 
   Args:
@@ -61,7 +62,8 @@ def LauncherFactory(platform_name,
       None, sys.stdout is used.
     out_directory: Directory containing the executable target. If None is
       provided, the path to the directory is dynamically generated.
-    env_variables:  Environment variables for the executable
+    env_variables:  Environment variables for the executable.
+    **kwargs:  Additional parameters to be passed to the launcher.
 
   Returns:
     An instance of the concrete launcher class for the desired platform.
@@ -84,7 +86,8 @@ def LauncherFactory(platform_name,
       target_params=target_params,
       output_file=output_file,
       out_directory=out_directory,
-      env_variables=env_variables)
+      env_variables=env_variables,
+      **kwargs)
 
 
 class AbstractLauncher(object):
@@ -105,6 +108,7 @@ class AbstractLauncher(object):
     if not out_directory:
       out_directory = paths.BuildOutputDirectory(platform_name, config)
     self.out_directory = out_directory
+    self.coverage_directory = kwargs.get("coverage_directory", out_directory)
 
     output_file = kwargs.get("output_file", None)
     if not output_file:
@@ -127,7 +131,9 @@ class AbstractLauncher(object):
 
   @abc.abstractmethod
   def Run(self):
-    """Runs the launcher's executable.  Must be implemented in subclasses.
+    """Runs the launcher's executable.
+
+    Must be implemented in subclasses.
 
     Returns:
       The return code from the launcher's executable.

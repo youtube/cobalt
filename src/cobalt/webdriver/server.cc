@@ -198,11 +198,11 @@ WebDriverServer::WebDriverServer(int port, const std::string& listen_ip,
       std::make_unique<net::TCPServerSocket>(nullptr, net::NetLogSource());
   server_socket->ListenWithAddressAndPort(listen_ip, port, 1 /*backlog*/);
   server_ = std::make_unique<net::HttpServer>(std::move(server_socket), this);
-  GURL address;
-  int result = GetLocalAddress(&address);
+  net::IPEndPoint ip_addr;
+  int result = server_->GetLocalInterfaceAddress(&ip_addr);
   if (result == net::OK) {
     LOG(INFO) << "Starting WebDriver server on port " << port;
-    server_address_ = address.spec();
+    server_address_ = "http://" + ip_addr.ToString();
   } else {
     LOG(WARNING) << "Could not start WebDriver server";
     server_address_ = "<NOT RUNNING>";
@@ -244,15 +244,6 @@ void WebDriverServer::OnHttpRequest(int connection_id,
   handle_request_callback_.Run(StringToHttpMethod(info.method), path,
                                std::move(parameters),
                                std::move(response_handler));
-}
-
-int WebDriverServer::GetLocalAddress(GURL* out) const {
-  net::IPEndPoint ip_addr;
-  int result = server_->GetLocalAddress(&ip_addr);
-  if (result == net::OK) {
-    *out = GURL("http://" + ip_addr.ToString());
-  }
-  return result;
 }
 
 }  // namespace webdriver

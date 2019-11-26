@@ -34,6 +34,7 @@
 #include "cobalt/dom_parser/xml_decoder.h"
 #include "cobalt/loader/cors_preflight.h"
 #include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/loader/url_fetcher_string_writer.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/xhr/xhr_modify_headers.h"
@@ -166,7 +167,8 @@ const int kRedirectLimit = 20;
 bool XMLHttpRequest::verbose_ = false;
 
 XMLHttpRequest::XMLHttpRequest(script::EnvironmentSettings* settings)
-    : settings_(base::polymorphic_downcast<dom::DOMSettings*>(settings)),
+    : XMLHttpRequestEventTarget(settings),
+      settings_(base::polymorphic_downcast<dom::DOMSettings*>(settings)),
       state_(kUnsent),
       response_type_(kDefault),
       timeout_ms_(0),
@@ -611,7 +613,7 @@ void XMLHttpRequest::set_with_credentials(
 
 scoped_refptr<XMLHttpRequestUpload> XMLHttpRequest::upload() {
   if (!upload_) {
-    upload_ = new XMLHttpRequestUpload();
+    upload_ = new XMLHttpRequestUpload(settings_);
   }
   return upload_;
 }
@@ -716,7 +718,7 @@ void XMLHttpRequest::OnURLFetchDownloadProgress(
   DCHECK_NE(state_, kDone);
 
   auto* download_data_writer =
-      base::polymorphic_downcast<CobaltURLFetcherStringWriter*>(
+      base::polymorphic_downcast<loader::URLFetcherStringWriter*>(
           source->GetResponseWriter());
   std::unique_ptr<std::string> download_data = download_data_writer->data();
   if (!download_data.get() || download_data->empty()) {
@@ -760,16 +762,21 @@ void XMLHttpRequest::OnURLFetchComplete(const net::URLFetcher* source) {
       return;
     }
   }
-  // Ensure all fetched data is read and transfered to this XHR.
-  OnURLFetchDownloadProgress(source, 0, 0, 0);
-  fetch_callback_.reset();
-  fetch_mode_callback_.reset();
+
   const net::URLRequestStatus& status = source->GetStatus();
   if (status.is_success()) {
     stop_timeout_ = true;
     if (error_) {
+      // Ensure the fetch callbacks are reset when URL fetch is complete,
+      // regardless of error status.
+      fetch_callback_.reset();
+      fetch_mode_callback_.reset();
       return;
     }
+
+    // Ensure all fetched data is read and transfered to this XHR. This should
+    // only be done for successful and error-free fetches.
+    OnURLFetchDownloadProgress(source, 0, 0, 0);
 
     // The request may have completed too quickly, before URLFetcher's upload
     // progress timer had a chance to inform us upload is finished.
@@ -786,6 +793,9 @@ void XMLHttpRequest::OnURLFetchComplete(const net::URLFetcher* source) {
   } else {
     HandleRequestError(kNetworkError);
   }
+
+  fetch_callback_.reset();
+  fetch_mode_callback_.reset();
 }
 
 // Reset some variables in case the XHR object is reused.
@@ -979,6 +989,7 @@ void XMLHttpRequest::HandleRequestError(
   FireProgressEvent(this, base::Tokens::loadend());
 
   fetch_callback_.reset();
+  fetch_mode_callback_.reset();
   DecrementActiveRequests();
 }
 
@@ -1107,9 +1118,9 @@ void XMLHttpRequest::StartRequest(const std::string& request_body) {
       settings_->fetcher_factory()->network_module();
   url_fetcher_ = net::URLFetcher::Create(request_url_, method_, this);
   url_fetcher_->SetRequestContext(network_module->url_request_context_getter());
-  auto* download_data_writer = new CobaltURLFetcherStringWriter();
-  url_fetcher_->SaveResponseWithWriter(
-      std::unique_ptr<net::URLFetcherResponseWriter>(download_data_writer));
+  std::unique_ptr<net::URLFetcherResponseWriter> download_data_writer(
+      new loader::URLFetcherStringWriter());
+  url_fetcher_->SaveResponseWithWriter(std::move(download_data_writer));
   // Don't retry, let the caller deal with it.
   url_fetcher_->SetAutomaticallyRetryOn5xx(false);
   url_fetcher_->SetExtraRequestHeaders(request_headers_.ToString());

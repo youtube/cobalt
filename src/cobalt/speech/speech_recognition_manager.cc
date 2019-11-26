@@ -20,9 +20,8 @@
 #include "cobalt/speech/speech_recognition_error.h"
 #if defined(SB_USE_SB_SPEECH_RECOGNIZER)
 #include "cobalt/speech/starboard_speech_recognizer.h"
-#else
+#endif
 #include "cobalt/speech/cobalt_speech_recognizer.h"
-#endif  // defined(SB_USE_SB_SPEECH_RECOGNIZER)
 
 namespace cobalt {
 namespace speech {
@@ -37,18 +36,20 @@ SpeechRecognitionManager::SpeechRecognitionManager(
       event_callback_(event_callback),
       state_(kStopped) {
 #if defined(SB_USE_SB_SPEECH_RECOGNIZER)
-  SB_UNREFERENCED_PARAMETER(network_module);
-  SB_UNREFERENCED_PARAMETER(microphone_options);
-  recognizer_.reset(new StarboardSpeechRecognizer(base::Bind(
-      &SpeechRecognitionManager::OnEventAvailable, base::Unretained(this))));
-#else
+  if (StarboardSpeechRecognizer::IsSupported()) {
+    SB_UNREFERENCED_PARAMETER(network_module);
+    SB_UNREFERENCED_PARAMETER(microphone_options);
+    recognizer_.reset(new StarboardSpeechRecognizer(base::Bind(
+        &SpeechRecognitionManager::OnEventAvailable, base::Unretained(this))));
+    return;
+  }
+#endif  // defined(SB_USE_SB_SPEECH_RECOGNIZER)
   if (GoogleSpeechService::GetSpeechAPIKey()) {
     recognizer_.reset(new CobaltSpeechRecognizer(
         network_module, microphone_options,
         base::Bind(&SpeechRecognitionManager::OnEventAvailable,
                    base::Unretained(this))));
   }
-#endif  // defined(SB_USE_SB_SPEECH_RECOGNIZER)
 }
 
 SpeechRecognitionManager::~SpeechRecognitionManager() { Abort(); }

@@ -5,6 +5,10 @@
 #include "src/compiler/x64/unwinding-info-writer-x64.h"
 #include "src/compiler/instruction.h"
 
+#if defined(V8_OS_STARBOARD)
+#include "src/objects/tagged-impl-inl.h"
+#endif
+
 namespace v8 {
 namespace internal {
 namespace compiler {

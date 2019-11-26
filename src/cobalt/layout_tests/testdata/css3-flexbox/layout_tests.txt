@@ -1,3 +1,4 @@
+absolutely-positioned-children
 combined-baseline
 combined-container-sizing-edge-cases
 combined-order-and-multiline
@@ -133,5 +134,6 @@ csswg_flex-shrink-005
 csswg_flex-shrink-006
 csswg_flex-shrink-007
 csswg_flex-shrink-008
+empty_container_baseline
 flex-items-flexibility
 positioned-containers

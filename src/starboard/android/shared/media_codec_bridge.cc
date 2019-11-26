@@ -245,14 +245,6 @@ MediaCodecBridge::~MediaCodecBridge() {
   env->DeleteGlobalRef(j_media_codec_bridge_);
   j_media_codec_bridge_ = NULL;
 
-  SB_DCHECK(j_reused_dequeue_input_result_);
-  env->DeleteGlobalRef(j_reused_dequeue_input_result_);
-  j_reused_dequeue_input_result_ = NULL;
-
-  SB_DCHECK(j_reused_dequeue_output_result_);
-  env->DeleteGlobalRef(j_reused_dequeue_output_result_);
-  j_reused_dequeue_output_result_ = NULL;
-
   SB_DCHECK(j_reused_get_output_format_result_);
   env->DeleteGlobalRef(j_reused_get_output_format_result_);
   j_reused_get_output_format_result_ = NULL;
@@ -402,17 +394,6 @@ void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
   JniEnvExt* env = JniEnvExt::Get();
   SB_DCHECK(env->GetObjectRefType(j_media_codec_bridge_) == JNIGlobalRefType);
 
-  j_reused_dequeue_input_result_ = env->NewObjectOrAbort(
-      "dev/cobalt/media/MediaCodecBridge$DequeueInputResult", "()V");
-  SB_DCHECK(j_reused_dequeue_input_result_);
-  j_reused_dequeue_input_result_ =
-      env->ConvertLocalRefToGlobalRef(j_reused_dequeue_input_result_);
-
-  j_reused_dequeue_output_result_ = env->NewObjectOrAbort(
-      "dev/cobalt/media/MediaCodecBridge$DequeueOutputResult", "()V");
-  SB_DCHECK(j_reused_dequeue_output_result_);
-  j_reused_dequeue_output_result_ =
-      env->ConvertLocalRefToGlobalRef(j_reused_dequeue_output_result_);
 
   j_reused_get_output_format_result_ = env->NewObjectOrAbort(
       "dev/cobalt/media/MediaCodecBridge$GetOutputFormatResult", "()V");

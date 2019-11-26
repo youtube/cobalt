@@ -24,6 +24,7 @@
 #include "cobalt/base/tokens.h"
 #include "cobalt/media/base/interleaved_sinc_resampler.h"
 #include "cobalt/media/base/shell_audio_bus.h"
+#include "cobalt/script/environment_settings.h"
 
 namespace cobalt {
 namespace audio {
@@ -37,7 +38,8 @@ class AudioBufferSourceNode : public AudioNode {
   typedef media::ShellAudioBus ShellAudioBus;
 
  public:
-  explicit AudioBufferSourceNode(AudioContext* context);
+  AudioBufferSourceNode(script::EnvironmentSettings* settings,
+                        AudioContext* context);
 
   // Web API: AudioBufferSourceNode
   //

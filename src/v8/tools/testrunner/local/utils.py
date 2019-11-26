@@ -25,6 +25,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# for py2/py3 compatibility
+from __future__ import print_function
 
 from os.path import exists
 from os.path import isdir
@@ -34,6 +36,21 @@ import platform
 import re
 import subprocess
 import urllib2
+
+
+### Exit codes and their meaning.
+# Normal execution.
+EXIT_CODE_PASS = 0
+# Execution with test failures.
+EXIT_CODE_FAILURES = 1
+# Execution with no tests executed.
+EXIT_CODE_NO_TESTS = 2
+# Execution aborted with SIGINT (Ctrl-C).
+EXIT_CODE_INTERRUPTED = 3
+# Execution aborted with SIGTERM.
+EXIT_CODE_TERMINATED = 4
+# Internal error.
+EXIT_CODE_INTERNAL_ERROR = 5
 
 
 def GetSuitePaths(test_root):
@@ -132,7 +149,7 @@ def URLRetrieve(source, destination):
       return
     except:
       # If there's no curl, fall back to urlopen.
-      print "Curl is currently not installed. Falling back to python."
+      print("Curl is currently not installed. Falling back to python.")
       pass
   with open(destination, 'w') as f:
     f.write(urllib2.urlopen(source).read())

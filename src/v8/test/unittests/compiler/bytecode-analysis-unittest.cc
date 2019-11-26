@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/compiler/bytecode-analysis.h"
 #include "src/interpreter/bytecode-array-builder.h"
@@ -10,7 +10,8 @@
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/control-flow-builders.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
+#include "test/unittests/interpreter/bytecode-utils.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -21,8 +22,8 @@ using ToBooleanMode = interpreter::BytecodeArrayBuilder::ToBooleanMode;
 
 class BytecodeAnalysisTest : public TestWithIsolateAndZone {
  public:
-  BytecodeAnalysisTest() {}
-  ~BytecodeAnalysisTest() override {}
+  BytecodeAnalysisTest() = default;
+  ~BytecodeAnalysisTest() override = default;
 
   static void SetUpTestCase() {
     CHECK_NULL(save_flags_);
@@ -58,8 +59,7 @@ class BytecodeAnalysisTest : public TestWithIsolateAndZone {
       Handle<BytecodeArray> bytecode,
       const std::vector<std::pair<std::string, std::string>>&
           expected_liveness) {
-    BytecodeAnalysis analysis(bytecode, zone(), true);
-    analysis.Analyze(BailoutId::None());
+    BytecodeAnalysis analysis(bytecode, zone(), BailoutId::None(), true);
 
     interpreter::BytecodeArrayIterator iterator(bytecode);
     for (auto liveness : expected_liveness) {
@@ -444,6 +444,53 @@ TEST_F(BytecodeAnalysisTest, KillingLoopInsideLoop) {
 
   builder.LoadUndefined();
   expected_liveness.emplace_back("....", "...L");
+  builder.Return();
+  expected_liveness.emplace_back("...L", "....");
+
+  Handle<BytecodeArray> bytecode = builder.ToBytecodeArray(isolate());
+
+  EnsureLivenessMatches(bytecode, expected_liveness);
+}
+
+TEST_F(BytecodeAnalysisTest, SuspendPoint) {
+  interpreter::BytecodeArrayBuilder builder(zone(), 3, 3);
+  std::vector<std::pair<std::string, std::string>> expected_liveness;
+
+  interpreter::Register reg_0(0);
+  interpreter::Register reg_1(1);
+  interpreter::Register reg_gen(2);
+  interpreter::BytecodeJumpTable* gen_jump_table =
+      builder.AllocateJumpTable(1, 0);
+
+  builder.StoreAccumulatorInRegister(reg_gen);
+  expected_liveness.emplace_back("L..L", "L.LL");
+
+  // Note: technically, r0 should be dead here since the resume will write it,
+  // but in practice the bytecode analysis doesn't bother to special case it,
+  // since the generator switch is close to the top of the function anyway.
+  builder.SwitchOnGeneratorState(reg_gen, gen_jump_table);
+  expected_liveness.emplace_back("L.LL", "L.LL");
+
+  builder.StoreAccumulatorInRegister(reg_0);
+  expected_liveness.emplace_back("..LL", "L.LL");
+
+  // Reg 1 is never read, so should be dead.
+  builder.StoreAccumulatorInRegister(reg_1);
+  expected_liveness.emplace_back("L.LL", "L.LL");
+
+  builder.SuspendGenerator(
+      reg_gen, interpreter::BytecodeUtils::NewRegisterList(0, 3), 0);
+  expected_liveness.emplace_back("L.LL", "L.L.");
+
+  builder.Bind(gen_jump_table, 0);
+
+  builder.ResumeGenerator(reg_gen,
+                          interpreter::BytecodeUtils::NewRegisterList(0, 1));
+  expected_liveness.emplace_back("L.L.", "L...");
+
+  builder.LoadAccumulatorWithRegister(reg_0);
+  expected_liveness.emplace_back("L...", "...L");
+
   builder.Return();
   expected_liveness.emplace_back("...L", "....");
 

@@ -23,13 +23,15 @@
 #include "base/location.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "cobalt/base/debugger_hooks.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/token.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/event_listener.h"
-#include "cobalt/dom/generic_event_handler_reference.h"
+#include "cobalt/dom/event_target_listener_info.h"
 #include "cobalt/dom/on_error_event_listener.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
@@ -45,13 +47,6 @@ namespace dom {
 class EventTarget : public script::Wrappable,
                     public base::SupportsWeakPtr<EventTarget> {
  public:
-  // EventHandlers are implemented as EventListener?, so use this to
-  // differentiate between the two.
-  enum Type {
-    kAttribute,
-    kNotAttribute,
-  };
-
   // Helper enum to decide whether or not onerror event parameters should be
   // unpacked or not (e.g. in the special case of the |window| object).
   // This special handling is described in:
@@ -65,13 +60,11 @@ class EventTarget : public script::Wrappable,
   // The parameter |unpack_onerror_events| can be set to true (e.g. for the
   // |window| object) in order to indicate that the ErrorEvent should have
   // its members unpacked before calling its event handler.  This is to
-  // accommodate for a special case in the window.onerror handling.  This
-  // special handling
+  // accommodate for a special case in the window.onerror handling.
   explicit EventTarget(
+      script::EnvironmentSettings* settings,
       UnpackOnErrorEventsBool onerror_event_parameter_handling =
-          kDoNotUnpackOnErrorEvents)
-      : unpack_onerror_events_(onerror_event_parameter_handling ==
-                               kUnpackOnErrorEvents) {}
+          kDoNotUnpackOnErrorEvents);
 
   typedef script::ScriptValue<EventListener> EventListenerScriptValue;
   typedef script::ScriptValue<OnErrorEventListener>
@@ -476,31 +469,23 @@ class EventTarget : public script::Wrappable,
   DEFINE_WRAPPABLE_TYPE(EventTarget);
   void TraceMembers(script::Tracer* tracer) override;
 
- private:
-  struct EventListenerInfo {
-    EventListenerInfo(base::Token type,
-                      std::unique_ptr<GenericEventHandlerReference> listener,
-                      bool use_capture, Type listener_type);
-    ~EventListenerInfo();
+  base::DebuggerHooks* debugger_hooks() { return debugger_hooks_; }
 
-    base::Token type;
-    std::unique_ptr<GenericEventHandlerReference> listener;
-    bool use_capture;
-    Type listener_type;
-  };
-  typedef std::vector<std::unique_ptr<EventListenerInfo>> EventListenerInfos;
+ private:
+  typedef std::vector<std::unique_ptr<EventTargetListenerInfo>>
+      EventListenerInfos;
 
   void SetAttributeEventListenerInternal(
-      base::Token type,
-      std::unique_ptr<GenericEventHandlerReference> event_handler);
-  GenericEventHandlerReference* GetAttributeEventListenerInternal(
+      std::unique_ptr<EventTargetListenerInfo> event_handler);
+  EventTargetListenerInfo* GetAttributeEventListenerInternal(
       base::Token type) const;
 
   void AddEventListenerInternal(
-      base::Token type, std::unique_ptr<GenericEventHandlerReference> listener,
-      bool use_capture, Type listener_type);
+      std::unique_ptr<EventTargetListenerInfo> listener);
 
   EventListenerInfos event_listener_infos_;
+
+  base::DebuggerHooks* debugger_hooks_;
 
   // Tracks whether this current event listener should unpack the onerror
   // event object when calling its callback.  This is needed to implement

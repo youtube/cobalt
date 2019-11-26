@@ -73,12 +73,11 @@ NodeId Graph::NextNodeId() {
   return id;
 }
 
-void Graph::Print() const {
-#ifndef V8_OS_STARBOARD
-  OFStream os(stdout);
-  os << AsRPO(*this);
+#if defined(DISABLE_GRAPHS_STARBOARD)
+void Graph::Print() const {}
+#else
+void Graph::Print() const { StdoutStream{} << AsRPO(*this); }
 #endif
-}
 
 }  // namespace compiler
 }  // namespace internal

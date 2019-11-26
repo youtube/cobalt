@@ -65,6 +65,7 @@
         '<(DEPTH)/starboard/shared/blittergles/blitter_get_surface_info.cc',
         '<(DEPTH)/starboard/shared/blittergles/blitter_internal.cc',
         '<(DEPTH)/starboard/shared/blittergles/blitter_internal.h',
+        '<(DEPTH)/starboard/shared/blittergles/blitter_is_blitter_supported.cc',
         '<(DEPTH)/starboard/shared/blittergles/blitter_is_pixel_format_supported_by_download_surface_pixels.cc',
         '<(DEPTH)/starboard/shared/blittergles/blitter_is_pixel_format_supported_by_pixel_data.cc',
         '<(DEPTH)/starboard/shared/blittergles/blitter_is_surface_format_supported_by_render_target_surface.cc',
@@ -81,6 +82,11 @@
         '<(DEPTH)/starboard/shared/blittergles/shader_program.h',
         '<(DEPTH)/starboard/shared/starboard/blitter_blit_rect_to_rect_tiled.cc',
         '<(DEPTH)/starboard/shared/starboard/blitter_blit_rects_to_rects.cc',
+	      '<(DEPTH)/starboard/shared/stub/system_gles.cc',
+      ],
+      'sources!': [
+        '<@(blitter_stub_sources)',
+	      '<(DEPTH)/starboard/shared/gles/system_gles2.cc',
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when

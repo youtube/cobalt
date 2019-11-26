@@ -27,6 +27,7 @@
 #include "cobalt/dom/captions/caption_opacity_percentage.h"
 #include "cobalt/dom/captions/caption_state.h"
 #include "cobalt/dom/event_target.h"
+#include "cobalt/script/environment_settings.h"
 
 namespace cobalt {
 namespace dom {
@@ -34,7 +35,8 @@ namespace captions {
 
 class SystemCaptionSettings : public EventTarget {
  public:
-  SystemCaptionSettings() {}
+  explicit SystemCaptionSettings(script::EnvironmentSettings* settings)
+      : EventTarget(settings) {}
 
   base::Optional<std::string> background_color();
   CaptionState background_color_state();

@@ -124,6 +124,7 @@
         'drm_update_server_certificate_test.cc',
         'egl_test.cc',
         'extern_c_test.cc',
+        'file_atomic_replace_test.cc',
         'file_can_open_test.cc',
         'file_close_test.cc',
         'file_get_info_test.cc',
@@ -132,6 +133,7 @@
         'file_mode_string_to_flags_test.cc',
         'file_open_test.cc',
         'file_read_test.cc',
+        'file_read_write_all_test.cc',
         'file_seek_test.cc',
         'file_truncate_test.cc',
         'file_write_test.cc',
@@ -295,6 +297,7 @@
         'window_get_diagonal_size_in_inches_test.cc',
         'window_get_platform_handle_test.cc',
         'window_get_size_test.cc',
+        '<@(sabi_sources)',
         # Include private c headers, if present.
         '<!@(python "<(DEPTH)/starboard/tools/find_private_files.py" "<(DEPTH)" "nplb/include_all_private.c")',
         # Include private tests, if present.
@@ -325,6 +328,7 @@
           ],
         }],
       ],
+      'includes': [ '<(DEPTH)/starboard/nplb/sabi/sabi.gypi' ],
     },
     {
       'target_name': 'nplb_deploy',

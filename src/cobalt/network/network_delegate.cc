@@ -59,11 +59,14 @@ int NetworkDelegate::OnBeforeURLRequest(
   const char* valid_spec_cstr = valid_spec.c_str();
 
   std::string host;
-#if SB_HAS(IPV6)
-  host = url.HostNoBrackets();
-#else
+  // This will be our host string if we are not using IPV6.
   host.append(valid_spec_cstr + parsed.host.begin,
               valid_spec_cstr + parsed.host.begin + parsed.host.len);
+#if SB_API_VERSION >= SB_IPV6_REQUIRED_VERSION || SB_HAS(IPV6)
+#if SB_API_VERSION >= SB_IPV6_REQUIRED_VERSION
+  if (SbSocketIsIpv6Supported())
+#endif
+    host = url.HostNoBrackets();
 #endif
   if (net::HostStringIsLocalhost(host)) {
     return net::OK;

@@ -1,5 +1,3 @@
-#!/usr/bin/python
-#
 # Copyright 2017 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,56 +19,22 @@ the Cobalt source tree, and then packages them into a user-specified location so
 that the app launcher can be run independent of the Cobalt source tree.
 """
 
-
-################################################################################
-#                                   API                                        #
-################################################################################
-
-
-def CopyAppLauncherTools(repo_root, dest_root,
-                         additional_glob_patterns=None,
-                         include_black_box_tests=True):
-  """Copies app launcher related files to the destination root.
-  repo_root: The 'src' path that will be used for packaging.
-  dest_root: The directory where the src files will be stored.
-  additional_glob_patterns: Some platforms may need to include certain
-    dependencies beyond the default include file patterns. The results here will
-    be merged in with _INCLUDE_FILE_PATTERNS.
-  include_black_box_tests: If True then the resources for the black box tests
-    are included."""
-  _CopyAppLauncherTools(repo_root, dest_root,
-                        additional_glob_patterns,
-                        include_black_box_tests=include_black_box_tests)
-
-
-def MakeZipArchive(src, output_zip):
-  """Convenience function to zip up all files in the src directory (produced
-  as dest_root argument in CopyAppLauncherTools()) which will create a zip
-  file with the relative root being the src directory."""
-  _MakeZipArchive(src, output_zip)
-
-
-################################################################################
-#                                  IMPL                                        #
-################################################################################
-
-
 import argparse
 import fnmatch
 import logging
 import os
 import shutil
 import sys
+import tempfile
 
 import _env  # pylint: disable=unused-import
 from paths import REPOSITORY_ROOT
 from paths import THIRD_PARTY_ROOT
 sys.path.append(THIRD_PARTY_ROOT)
-from cobalt.build import cobalt_archive_extract
-import starboard.build.port_symlink as port_symlink
-import starboard.tools.platform
+# pylint: disable=g-import-not-at-top,g-bad-import-order
 import jinja2
-
+from starboard.tools import port_symlink
+import starboard.tools.platform
 
 # Default python directories to app launcher resources.
 _INCLUDE_FILE_PATTERNS = [
@@ -81,10 +45,9 @@ _INCLUDE_FILE_PATTERNS = [
     ('lbshell', '*.py'),
     ('starboard', '*.py'),
     # jinja2 required by this app_launcher_packager.py script.
-    ('third_party/jinja2',  '*.py'),
-    ('third_party/markupsafe', '*.py'), # Required by third_party/jinja2
+    ('third_party/jinja2', '*.py'),
+    ('third_party/markupsafe', '*.py'),  # Required by third_party/jinja2
 ]
-
 
 _INCLUDE_BLACK_BOX_TESTS_PATTERNS = [
     # Black box and web platform tests have non-py assets, so everything
@@ -116,18 +79,24 @@ def _IsOutDir(source_root, d):
   Args:
     source_root: Absolute path to the root of the files to be copied.
     d: Directory to be checked.
+
+  Returns:
+    true if d in in source_root/out.
   """
   out_dir = os.path.join(source_root, 'out')
   return out_dir in d
 
 
-def _FindFilesRecursive(src_root, glob_pattern):
+def _FindFilesRecursive(  # pylint: disable=missing-docstring
+    src_root, glob_pattern):
   src_root = os.path.normpath(src_root)
   logging.info('Searching in %s for %s type files.', src_root, glob_pattern)
   file_list = []
   for root, dirs, files in os.walk(src_root, topdown=True):
     # Prunes when using os.walk with topdown=True
-    [dirs.remove(d) for d in list(dirs) if d in _EXCLUDE_DIRECTORY_PATTERNS]
+    for d in list(dirs):
+      if d in _EXCLUDE_DIRECTORY_PATTERNS:
+        dirs.remove(d)
     # Eliminate any locally built files under the out directory.
     if _IsOutDir(src_root, root):
       continue
@@ -160,7 +129,9 @@ def _WritePlatformsInfo(repo_root, dest_root):
   for p in starboard.tools.platform.GetAll():
     platform_path = os.path.relpath(
         starboard.tools.platform.Get(p).path, repo_root)
-    platforms_map[p] = platform_path
+    # Store posix paths even on Windows so MH Linux hosts can use them.
+    # The template has code to re-normalize them when used on Windows hosts.
+    platforms_map[p] = platform_path.replace('\\', '/')
   template = jinja2.Template(
       open(os.path.join(current_dir, 'platform.py.template')).read())
   with open(os.path.join(dest_dir, 'platform.py'), 'w+') as f:
@@ -168,20 +139,46 @@ def _WritePlatformsInfo(repo_root, dest_root):
   logging.info('Finished baking in platform info files.')
 
 
-def _CopyAppLauncherTools(repo_root, dest_root, additional_glob_patterns,
-                          include_black_box_tests):
-  # Step 1: Make sure dest_root is an absolute path.
+def CopyAppLauncherTools(repo_root,
+                         dest_root,
+                         additional_glob_patterns=None,
+                         include_black_box_tests=True):
+  """Copies app launcher related files to the destination root.
+
+  Args:
+    repo_root: The 'src' path that will be used for packaging.
+    dest_root: The directory where the src files will be stored.
+    additional_glob_patterns: Some platforms may need to include certain
+      dependencies beyond the default include file patterns. The results here
+      will be merged in with _INCLUDE_FILE_PATTERNS.
+    include_black_box_tests: If True then the resources for the black box tests
+      are included.
+  """
+  dest_root = _PrepareDestination(dest_root)
+  copy_list = _GetSourceFilesList(repo_root, additional_glob_patterns,
+                                  include_black_box_tests)
+  _CopyFiles(repo_root, dest_root, copy_list)
+
+
+def _PrepareDestination(dest_root):  # pylint: disable=missing-docstring
+  # Make sure dest_root is an absolute path.
   logging.info('Copying App Launcher tools to = %s', dest_root)
   dest_root = os.path.normpath(dest_root)
   if not os.path.isabs(dest_root):
     dest_root = os.path.join(os.getcwd(), dest_root)
-  if port_symlink.IsWindows():
-    dest_root = cobalt_archive_extract.ToWinUncPath(dest_root)
+  dest_root = port_symlink.ToLongPath(dest_root)
   logging.info('Absolute destination path = %s', dest_root)
-  # Step 2: Remove previous output directory if it exists
+  # Remove previous output directory if it exists
   if os.path.isdir(dest_root):
     shutil.rmtree(dest_root)
-  # Step 3: Find all glob files from specified search directories.
+  return dest_root
+
+
+def _GetSourceFilesList(  # pylint: disable=missing-docstring
+    repo_root,
+    additional_glob_patterns=None,
+    include_black_box_tests=True):
+  # Find all glob files from specified search directories.
   include_glob_patterns = _INCLUDE_FILE_PATTERNS
   if additional_glob_patterns:
     include_glob_patterns += additional_glob_patterns
@@ -199,8 +196,13 @@ def _CopyAppLauncherTools(repo_root, dest_root, additional_glob_patterns,
   # Order by file path string and remove any duplicate paths.
   copy_list = list(set(copy_list))
   copy_list.sort()
+  return copy_list
+
+
+def _CopyFiles(  # pylint: disable=missing-docstring
+    repo_root, dest_root, copy_list):
+  # Copy the src files to the destination directory.
   folders_logged = set()
-  # Step 4: Copy the src files to the destination directory.
   for src in copy_list:
     tail_path = os.path.relpath(src, repo_root)
     dst = os.path.join(dest_root, tail_path)
@@ -208,15 +210,24 @@ def _CopyAppLauncherTools(repo_root, dest_root, additional_glob_patterns,
     if not os.path.isdir(d):
       os.makedirs(d)
     src_folder = os.path.dirname(src)
-    if not src_folder in folders_logged:
+    if src_folder not in folders_logged:
       folders_logged.add(src_folder)
       logging.info(src_folder + ' -> ' + os.path.dirname(dst))
     shutil.copy2(src, dst)
-  # Step 5: Re-write the platform infos file in the new repo copy.
+  # Re-write the platform infos file in the new repo copy.
   _WritePlatformsInfo(repo_root, dest_root)
 
 
-def _MakeZipArchive(src, output_zip):
+def MakeZipArchive(src, output_zip):
+  """Convenience function to zip up all files in the src directory.
+
+  Intended for use with the dest_root output from CopyAppLauncherTools() to
+  create a zip file with the relative root being the src directory.
+
+  Args:
+    src: Path to the directory of files to zip up.
+    output_zip: Path to the zip file to create.
+  """
   if os.path.isfile(output_zip):
     os.unlink(output_zip)
   logging.info('Creating a zip file of the app launcher package')
@@ -228,14 +239,49 @@ def _MakeZipArchive(src, output_zip):
 def main(command_args):
   logging.basicConfig(level=logging.INFO)
   parser = argparse.ArgumentParser()
-  parser.add_argument(
+  dest_group = parser.add_mutually_exclusive_group(required=True)
+  dest_group.add_argument(
       '-d',
       '--destination_root',
-      required=True,
       help='The path to the root of the destination folder into which the '
-           'application resources are packaged.')
+      'application resources are packaged.')
+  dest_group.add_argument(
+      '-z',
+      '--zip_file',
+      help='The path to a zip file into which the application resources are '
+      'packaged.')
+  dest_group.add_argument(
+      '-l',
+      '--list',
+      action='store_true',
+      help='List to stdout the application resources relative to the current '
+      'directory.')
+  parser.add_argument(
+      '-v', '--verbose', action='store_true', help='Verbose logging output.')
   args = parser.parse_args(command_args)
-  CopyAppLauncherTools(REPOSITORY_ROOT, args.destination_root)
+
+  if not args.verbose:
+    logging.disable(logging.INFO)
+
+  if args.destination_root:
+    CopyAppLauncherTools(REPOSITORY_ROOT, args.destination_root)
+  elif args.zip_file:
+    try:
+      temp_dir = tempfile.mkdtemp(prefix='cobalt_app_launcher_')
+      CopyAppLauncherTools(REPOSITORY_ROOT, temp_dir)
+      MakeZipArchive(temp_dir, args.zip_file)
+    finally:
+      shutil.rmtree(temp_dir)
+  elif args.list:
+    for src_file in _GetSourceFilesList(REPOSITORY_ROOT):
+      # Skip paths with '$' since they won't get through the Ninja generator.
+      if '$' in src_file:
+        continue
+      # Relative to CWD where gyp ran this; same as '<(DEPTH)' in gyp file.
+      src_file = os.path.relpath(src_file)
+      # Forward slashes for gyp, even on Windows.
+      src_file = src_file.replace('\\', '/')
+      print src_file
   return 0
 
 

@@ -76,6 +76,110 @@
 // parameters are.
 #define SB_UI_NAVIGATION_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Require the OpenGL, Blitter, and Skia renderers on all platforms.
+// The system must implement `SbGetGlesInterface()` in `starboard/gles.h`
+// or use the provided stub implementation, and must do the same for
+// the blitter functions in `starboad/blitter.h`. The provided blitter stubs
+// will return responses that denote failures. The system should implement
+// `SbGetGlesInterface()` to return `nullptr` when OpenGL is not supported and
+// implement `SbBlitterIsBlitterSupported()` to return false when blitter is
+// not supported, as the stubs do.
+#define SB_ALL_RENDERERS_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Require the captions API.
+// The system must implement the captions functions in
+// `starboard/accessibility.h` or use the provided stub implementations.
+// System caption can be disabled by implementing the function
+// `SbAccessibilityGetCaptionSettings(SbAccessibilityCaptionSettings*
+// caption_settings)` to return false as the stub implementation does.
+// This change also deprecates the SB_HAS_CAPTIONS flag.
+#define SB_CAPTIONS_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Require compilation with Ipv6.
+// Cobalt must be able to determine at runtime if the system supportes Ipv6.
+// Ipv6 can be disabled by defining SB_HAS_IPV6 to 0.
+#define SB_IPV6_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Require the microphone API.
+// The system must implement the microphone functions in
+// `starboard/microphone.h` or use the provided stub functions.
+// The microphone can be disabled by having `SbMicrophoneCreate()` return
+// |kSbMicrophoneInvalid|.
+// This change also deprecates the SB_HAS_MICROPHONE flag.
+#define SB_MICROPHONE_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Require the memory mapping API.
+// The system must implement the memory mapping functions in
+// `starboard/memory.h` and `starboard/shared/dlmalloc.h` or use the provided
+// stub implementations.
+// This change also deprecates the SB_HAS_MMAP flag.
+#define SB_MMAP_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Require the on screen keyboard API.
+// The system must implement the on screen keyboard functions in
+// `starboard/window.h` or use the provided stub implementations.
+// The on screen keyboard can be disabled by implementing the function
+// `SbWindowOnScreenKeyboardIsSupported()` to return false
+// as the stub implementation does.
+#define SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Require speech recognizer API.
+// The system must implement the functions in `starboard/speech_recognizer.h`
+// or use the provided stub implementations.
+// The speech recognizer can be disabled by implementing the function
+// `SbSpeechRecognizerIsSupported()` to return `false` as the stub
+// implementation does.
+#define SB_SPEECH_RECOGNIZER_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Require the speech synthesis API.
+// The system must implement the speech synthesis function in
+// `starboard/speech_synthesis.h` or use the provided stub implementations.
+// Speech synthesis can be disabled by implementing the function
+// `SbSpeechSynthesisIsSupported()` to return false as the stub
+// implementation does.
+#define SB_SPEECH_SYNTHESIS_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Require the time thread now API.
+// The system must implement the time thread now functions in
+// `starboard/time.h` or use the provided stub implementations.
+// Time thread now can be disabled by implementing the function
+// `SbTimeIsTimeThreadNowSupported()` to return false as the stub
+// implementation does.
+#define SB_TIME_THREAD_NOW_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Introduce the Starboard function SbFileAtomicReplace() to provide the ability
+// to atomically replace the content of a file.
+#define SB_FILE_ATOMIC_REPLACE_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Introduces new system property kSbSystemPathStorageDirectory.
+// Path to directory for permanent storage. Both read and write
+// access are required.
+#define SB_STORAGE_PATH_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Deprecate the usage of SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER.
+#define SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER_DEPRECATED_VERSION \
+  SB_EXPERIMENTAL_API_VERSION
+
+// Introduce Starboard Application Binary Interface (SABI) files.
+//   SABI files are used to describe the configuration for targets such that two
+//   targets, built with the same SABI file and varying toolchains, have
+//   compatible Starboard APIs and ABIs.
+//
+//   With this define, we have:
+//     1) Moved architecture specific defines and configurations from
+//        configuration_public.h and *.gyp[i] files into SABI files.
+//     2) Included the appropriate SABI file in each platform configuration.
+//     3) Included the //starboard/sabi/sabi.gypi file in each platform
+//        configuration which consumes SABI file fields and defines a set of
+//        constants that are accessible when building.
+//     4) Provided a set of tests that ensure the toolchain being used produces
+//        an executable or shared library that conforms to the included SABI
+//        file.
+//
+//  For further information on what is provided by SABI files, or how these
+//  values are consumed, take a look at //starboard/sabi.
+#define SB_SABI_FILE_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
@@ -491,8 +595,10 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
     "Your platform must define SB_HAS_MICROPHONE in API versions 11 or earlier."
 #endif
 
-#if !defined(SB_HAS_TIME_THREAD_NOW)
-#error "Your platform must define SB_HAS_TIME_THREAD_NOW in API 3 or later."
+#if SB_API_VERSION < SB_TIME_THREAD_NOW_REQUIRED_VERSION && \
+    !defined(SB_HAS_TIME_THREAD_NOW)
+#error \
+    "Your platform must define SB_HAS_TIME_THREAD_NOW in API versions 3 to 11."
 #endif
 
 #if defined(SB_IS_PLAYER_COMPOSITED) || defined(SB_IS_PLAYER_PUNCHED_OUT) || \
@@ -526,8 +632,16 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_HAS_NV12_TEXTURE_SUPPORT."
 #endif
 
+#if SB_API_VERSION >= SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER_DEPRECATED_VERSION
+#if defined(SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER)
+#error "SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER is deprecated."
+#error "Use `CobaltExtensionGraphicsApi` instead."
+#error "See [`CobaltExtensionGraphicsApi`](../extension/graphics.h)."
+#endif
+#else
 #if !defined(SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER)
 #error "Your platform must define SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER."
+#endif
 #endif
 
 #if !defined(SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND)
@@ -581,17 +695,20 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif  // defined(SB_HAS_DRM_SESSION_CLOSED)
 #endif  // SB_API_VERSION >= 10
 
-#if SB_API_VERSION >= 5
+#if SB_API_VERSION < SB_SPEECH_RECOGNIZER_IS_REQUIRED && SB_API_VERSION >= 5
 #if !defined(SB_HAS_SPEECH_RECOGNIZER)
 #error "Your platform must define SB_HAS_SPEECH_RECOGNIZER."
 #endif  // !defined(SB_HAS_SPEECH_RECOGNIZER)
-#endif  // SB_API_VERSION >= 5
+#endif  // SB_API_VERSION < SB_SPEECH_RECOGNIZER_IS_REQUIRED && SB_API_VERSION
+        // >= 5
 
-#if SB_API_VERSION >= 8
+#if SB_API_VERSION < SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION && \
+    SB_API_VERSION >= 8
 #if !defined(SB_HAS_ON_SCREEN_KEYBOARD)
 #error "Your platform must define SB_HAS_ON_SCREEN_KEYBOARD."
 #endif  // !defined(SB_HAS_ON_SCREEN_KEYBOARD)
-#endif  // SB_API_VERSION >= 8
+#endif  // SB_API_VERSION < SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION &&
+        // SB_API_VERSION >= 8
 
 #if SB_HAS(ON_SCREEN_KEYBOARD) && (SB_API_VERSION < 8)
 #error "SB_HAS_ON_SCREEN_KEYBOARD not supported in this API version."
@@ -671,7 +788,8 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 
 // Specifies whether this platform has any kind of supported graphics system.
 #if !defined(SB_HAS_GRAPHICS)
-#if SB_HAS(GLES2) || SB_HAS(BLITTER)
+#if SB_HAS(GLES2) || SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || \
+    SB_HAS(BLITTER)
 #define SB_HAS_GRAPHICS 1
 #else
 #define SB_HAS_GRAPHICS 0

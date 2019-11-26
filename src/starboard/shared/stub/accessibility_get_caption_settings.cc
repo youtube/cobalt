@@ -17,61 +17,9 @@
 #include "starboard/accessibility.h"
 #include "starboard/memory.h"
 
-#if SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
 bool SbAccessibilityGetCaptionSettings(
-  SbAccessibilityCaptionSettings* caption_settings) {
-  if (!caption_settings ||
-      !SbMemoryIsZero(caption_settings,
-                      sizeof(SbAccessibilityCaptionSettings))) {
-    return false;
-  }
-
-  caption_settings->background_color = kSbAccessibilityCaptionColorWhite;
-
-  caption_settings->background_color_state =
-    kSbAccessibilityCaptionStateUnsupported;
-
-  caption_settings->background_opacity =
-    kSbAccessibilityCaptionOpacityPercentage100;
-
-  caption_settings->background_opacity_state =
-    kSbAccessibilityCaptionStateUnsupported;
-
-  caption_settings->character_edge_style =
-    kSbAccessibilityCaptionCharacterEdgeStyleNone;
-
-  caption_settings->character_edge_style_state =
-    kSbAccessibilityCaptionStateUnsupported;
-
-  caption_settings->font_color = kSbAccessibilityCaptionColorWhite;
-
-  caption_settings->font_color_state = kSbAccessibilityCaptionStateUnsupported;
-
-  caption_settings->font_size = kSbAccessibilityCaptionFontSizePercentage100;
-
-  caption_settings->font_size_state = kSbAccessibilityCaptionStateUnsupported;
-
-  caption_settings->font_opacity = kSbAccessibilityCaptionOpacityPercentage100;
-
-  caption_settings->font_opacity_state =
-    kSbAccessibilityCaptionStateUnsupported;
-
-  caption_settings->window_color = kSbAccessibilityCaptionColorWhite;
-
-  caption_settings->window_color_state =
-    kSbAccessibilityCaptionStateUnsupported;
-
-  caption_settings->window_opacity =
-    kSbAccessibilityCaptionOpacityPercentage100;
-
-  caption_settings->window_opacity_state =
-    kSbAccessibilityCaptionStateUnsupported;
-
-  caption_settings->is_enabled = false;
-
-  caption_settings->supports_is_enabled = false;
-  caption_settings->supports_set_enabled = false;
-
-  return true;
+    SbAccessibilityCaptionSettings* caption_settings) {
+  return false;
 }
-#endif  // SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)

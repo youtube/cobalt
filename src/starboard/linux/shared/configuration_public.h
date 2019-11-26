@@ -23,10 +23,6 @@
 #ifndef STARBOARD_LINUX_SHARED_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_LINUX_SHARED_CONFIGURATION_PUBLIC_H_
 
-#ifndef SB_API_VERSION
-#define SB_API_VERSION SB_EXPERIMENTAL_API_VERSION
-#endif
-
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
@@ -191,12 +187,13 @@
 // working properly.
 #define SB_HAS_BILINEAR_FILTERING_SUPPORT 1
 
+#if SB_API_VERSION < SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER_DEPRECATED_VERSION
 // Whether the current platform should frequently flip their display buffer.
 // If this is not required (e.g. SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER is set
 // to 0), then optimizations where the display buffer is not flipped if the
 // scene hasn't changed are enabled.
 #define SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER 0
-
+#endif
 // --- I/O Configuration -----------------------------------------------------
 
 // Whether the current platform has speech recognizer.
@@ -273,7 +270,9 @@
 
 // Whether this platform has and should use an MMAP function to map physical
 // memory to the virtual address space.
+#if SB_API_VERSION < SB_MMAP_REQUIRED_VERSION
 #define SB_HAS_MMAP 1
+#endif
 
 // Whether this platform can map executable memory. Implies SB_HAS_MMAP. This is
 // required for platforms that want to JIT.

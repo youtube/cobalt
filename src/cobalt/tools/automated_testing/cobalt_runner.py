@@ -21,6 +21,8 @@ from starboard.tools import command_line
 # Pattern to match Cobalt log line for when the WebDriver port has been
 # opened.
 RE_WEBDRIVER_LISTEN = re.compile(r'Starting WebDriver server on port (\d+)')
+# Pattern to match Cobalt log line if WebDriver server fails to start.
+RE_WEBDRIVER_FAILED = re.compile(r'Could not start WebDriver server')
 # Pattern to match Cobalt log line for when a WindowDriver has been created.
 RE_WINDOWDRIVER_CREATED = re.compile(
     r'^\[[\d:]+/[\d.]+:INFO:browser_module\.cc\(\d+\)\] Created WindowDriver: ID=\S+'
@@ -176,6 +178,12 @@ class CobaltRunner(object):
       if self.test_script_started.is_set():
         continue
 
+      # Bail out immediately if the Cobalt WebDriver server doesn't start.
+      if RE_WEBDRIVER_FAILED.search(line):
+        print('\nCobalt WebDriver server not started.'
+              '\nIs another instance of Cobalt running?')
+        self.launcher.Kill()
+
       match = RE_WEBDRIVER_LISTEN.search(line)
       if not match:
         continue
@@ -185,7 +193,6 @@ class CobaltRunner(object):
       self._StartWebdriver(port)
 
   def __enter__(self):
-
     self.Run()
     return self
 

@@ -23,11 +23,6 @@ if (!defined(sb_enable_lib)) {
   sb_enable_lib = false
 }
 
-# Directory path to static contents.
-if (!defined(sb_static_contents_output_base_dir)) {
-  sb_static_contents_output_base_dir = "$root_out_dir/content"
-}
-
 # Directory path to static contents' data.
 if (!defined(sb_static_contents_output_data_dir)) {
   sb_static_contents_output_data_dir = "$root_out_dir/content/data"

@@ -17,8 +17,7 @@
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 
-SB_EXPORT bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
-                                       int64_t bitrate) {
+bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec, int64_t bitrate) {
   if (audio_codec == kSbMediaAudioCodecAac) {
     return bitrate <= SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND;
   }

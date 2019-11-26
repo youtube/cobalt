@@ -26,6 +26,7 @@
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/html_media_element.h"
 #include "cobalt/dom/track_event.h"
+#include "cobalt/script/environment_settings.h"
 
 namespace cobalt {
 namespace dom {
@@ -34,7 +35,9 @@ namespace dom {
 template <typename TrackType>
 class TrackListBase : public EventTarget {
  public:
-  explicit TrackListBase(HTMLMediaElement* media_element) {
+  TrackListBase(script::EnvironmentSettings* settings,
+                HTMLMediaElement* media_element)
+      : EventTarget(settings) {
     DCHECK(media_element);
     media_element_ = base::AsWeakPtr(media_element);
   }

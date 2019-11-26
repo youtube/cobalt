@@ -26,6 +26,9 @@ public abstract class CobaltService {
     /** Get the name of the service. */
     public String getServiceName();
   }
+  /** Take in a reference to StarboardBridge & use it as needed. Default behavior is no-op. */
+  public void receiveStarboardBridge(StarboardBridge bridge) {}
+
   // Lifecycle
   /** Prepare service for start or resume. */
   public abstract void beforeStartOrResume();

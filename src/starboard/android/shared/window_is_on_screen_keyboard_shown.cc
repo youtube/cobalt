@@ -15,14 +15,22 @@
 #include "starboard/window.h"
 
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_utils.h"
 
 using starboard::android::shared::JniEnvExt;
+using starboard::android::shared::ScopedLocalJavaRef;
 
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
+    SB_HAS(ON_SCREEN_KEYBOARD)
 bool SbWindowIsOnScreenKeyboardShown(SbWindow window) {
   JniEnvExt* env = JniEnvExt::Get();
-  jboolean is_keyboard_shown =
-      env->CallStarboardBooleanMethodOrAbort("isKeyboardShowing", "()Z");
+
+  ScopedLocalJavaRef<jobject> j_keyboard_editor(
+      env->CallStarboardObjectMethodOrAbort(
+          "getKeyboardEditor", "()Ldev/cobalt/coat/KeyboardEditor;"));
+  jboolean is_keyboard_shown = env->CallBooleanMethodOrAbort(
+      j_keyboard_editor.Get(), "isKeyboardShowing", "()Z");
   return is_keyboard_shown;
 }
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+        // SB_HAS(ON_SCREEN_KEYBOARD)

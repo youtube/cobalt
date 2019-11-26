@@ -16,11 +16,11 @@
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
+#include "cobalt/media/base/shell_audio_bus.h"
 #include "cobalt/media_stream/media_stream_audio_track.h"
 #include "cobalt/media_stream/testing/mock_media_stream_audio_source.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-#include "cobalt/media/base/shell_audio_bus.h"
 
 using ::testing::_;
 using ::testing::Return;
@@ -41,9 +41,10 @@ class MediaStreamAudioSourceTest : public testing::Test {
  public:
   MediaStreamAudioSourceTest()
       : audio_source_(new StrictMock<MockMediaStreamAudioSource>()),
-        track_(new MediaStreamAudioTrack()) {}
+        track_(new MediaStreamAudioTrack(&environment_settings_)) {}
 
  protected:
+  dom::testing::StubEnvironmentSettings environment_settings_;
   scoped_refptr<StrictMock<MockMediaStreamAudioSource>> audio_source_;
   scoped_refptr<MediaStreamAudioTrack> track_;
 };
@@ -102,7 +103,8 @@ TEST_F(MediaStreamAudioSourceTest, AddMultipleTracks) {
 
   // Adding a track ensures that the source is started.
   audio_source_->ConnectToTrack(track_);
-  auto track2 = base::WrapRefCounted(new MediaStreamAudioTrack());
+  auto track2 =
+      base::WrapRefCounted(new MediaStreamAudioTrack(&environment_settings_));
   audio_source_->ConnectToTrack(track2);
   audio_source_->StopSource();
 }

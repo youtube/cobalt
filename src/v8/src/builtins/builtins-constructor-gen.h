@@ -5,7 +5,7 @@
 #ifndef V8_BUILTINS_BUILTINS_CONSTRUCTOR_GEN_H_
 #define V8_BUILTINS_BUILTINS_CONSTRUCTOR_GEN_H_
 
-#include "src/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -15,8 +15,6 @@ class ConstructorBuiltinsAssembler : public CodeStubAssembler {
   explicit ConstructorBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  Node* EmitFastNewClosure(Node* shared_info, Node* feedback_vector, Node* slot,
-                           Node* context);
   Node* EmitFastNewFunctionContext(Node* closure, Node* slots, Node* context,
                                    ScopeType scope_type);
 
@@ -33,17 +31,14 @@ class ConstructorBuiltinsAssembler : public CodeStubAssembler {
                                        Label* call_runtime);
   Node* EmitCreateEmptyObjectLiteral(Node* context);
 
-  Node* EmitFastNewObject(Node* context, Node* target, Node* new_target);
+  TNode<JSObject> EmitFastNewObject(SloppyTNode<Context> context,
+                                    SloppyTNode<JSFunction> target,
+                                    SloppyTNode<JSReceiver> new_target);
 
-  Node* EmitFastNewObject(Node* context, Node* target, Node* new_target,
-                          Label* call_runtime);
-
-  Node* EmitConstructString(Node* argc, CodeStubArguments& args, Node* context,
-                            bool convert_symbol);
-
- private:
-  Node* NotHasBoilerplate(Node* literal_site);
-  Node* LoadAllocationSiteBoilerplate(Node* allocation_site);
+  TNode<JSObject> EmitFastNewObject(SloppyTNode<Context> context,
+                                    SloppyTNode<JSFunction> target,
+                                    SloppyTNode<JSReceiver> new_target,
+                                    Label* call_runtime);
 };
 
 }  // namespace internal

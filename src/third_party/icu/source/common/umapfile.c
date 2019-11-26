@@ -318,7 +318,7 @@
         }
 
         /* read the file */
-        if (fileLength != SbFileRead(file, p, fileLength)) {
+        if (fileLength != SbFileReadAll(file, p, fileLength)) {
             uprv_free(p);
             SbFileClose(file);
             return FALSE;

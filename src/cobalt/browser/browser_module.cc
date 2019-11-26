@@ -252,13 +252,16 @@ BrowserModule::BrowserModule(const GURL& url,
           &storage_manager_, event_dispatcher_,
           options_.network_module_options),
       splash_screen_cache_(new SplashScreenCache()),
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
+    SB_HAS(ON_SCREEN_KEYBOARD)
       on_screen_keyboard_bridge_(
-          options.enable_on_screen_keyboard
+          OnScreenKeyboardStarboardBridge::IsSupported() &&
+                  options.enable_on_screen_keyboard
               ? new OnScreenKeyboardStarboardBridge(base::Bind(
                     &BrowserModule::GetSbWindow, base::Unretained(this)))
               : NULL),
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+        // SB_HAS(ON_SCREEN_KEYBOARD)
       web_module_loaded_(base::WaitableEvent::ResetPolicy::MANUAL,
                          base::WaitableEvent::InitialState::NOT_SIGNALED),
       web_module_recreated_callback_(options_.web_module_recreated_callback),
@@ -570,9 +573,7 @@ void BrowserModule::Navigate(const GURL& url_reference) {
       base::Bind(&BrowserModule::OnLoad, base::Unretained(this)));
 #if defined(ENABLE_FAKE_MICROPHONE)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kFakeMicrophone) ||
-      base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kInputFuzzer)) {
+          switches::kFakeMicrophone)) {
     options.dom_settings_options.microphone_options.enable_fake_microphone =
         true;
   }
@@ -931,7 +932,8 @@ void BrowserModule::OnWindowSizeChanged(const ViewportSize& viewport_size,
 }
 #endif  // SB_API_VERSION >= 8
 
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
+    SB_HAS(ON_SCREEN_KEYBOARD)
 void BrowserModule::OnOnScreenKeyboardShown(
     const base::OnScreenKeyboardShownEvent* event) {
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
@@ -982,16 +984,17 @@ void BrowserModule::OnOnScreenKeyboardSuggestionsUpdated(
   }
 }
 #endif  // SB_API_VERSION >= 11
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+        // SB_HAS(ON_SCREEN_KEYBOARD)
 
-#if SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
 void BrowserModule::OnCaptionSettingsChanged(
     const base::AccessibilityCaptionSettingsChangedEvent* /*event*/) {
   if (web_module_) {
     web_module_->InjectCaptionSettingsChangedEvent();
   }
 }
-#endif  // SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
 
 #if defined(ENABLE_DEBUGGER)
 void BrowserModule::OnFuzzerToggle(const std::string& message) {
@@ -1063,7 +1066,7 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
     return;
   }
 
-  if (debug_console_->GetMode() == debug::console::DebugHub::kDebugConsoleOff) {
+  if (!debug_console_->IsVisible()) {
     // If the layer already has no render tree then simply return. In that case
     // nothing is changing.
     if (!debug_console_layer_->HasRenderTree()) {
@@ -1080,7 +1083,8 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
 
 #endif  // defined(ENABLE_DEBUGGER)
 
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
+    SB_HAS(ON_SCREEN_KEYBOARD)
 void BrowserModule::OnOnScreenKeyboardInputEventProduced(
     base::Token type, const dom::InputEventInit& event) {
   TRACE_EVENT0("cobalt::browser",
@@ -1094,18 +1098,15 @@ void BrowserModule::OnOnScreenKeyboardInputEventProduced(
   }
 
 #if defined(ENABLE_DEBUGGER)
-  // If the debug console is fully visible, it gets the next chance to handle
-  // input events.
-  if (debug_console_->GetMode() >= debug::console::DebugHub::kDebugConsoleOn) {
-    if (!debug_console_->InjectOnScreenKeyboardInputEvent(type, event)) {
-      return;
-    }
+  if (!debug_console_->FilterOnScreenKeyboardInputEvent(type, event)) {
+    return;
   }
 #endif  // defined(ENABLE_DEBUGGER)
 
   InjectOnScreenKeyboardInputEventToMainWebModule(type, event);
 }
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+        // SB_HAS(ON_SCREEN_KEYBOARD)
 
 void BrowserModule::OnKeyEventProduced(base::Token type,
                                        const dom::KeyboardEventInit& event) {
@@ -1136,14 +1137,9 @@ void BrowserModule::OnPointerEventProduced(base::Token type,
   }
 
 #if defined(ENABLE_DEBUGGER)
-  // If the debug console is fully visible, it gets the next chance to handle
-  // pointer events.
-  if (debug_console_->GetMode() >= debug::console::DebugHub::kDebugConsoleOn) {
-    if (!debug_console_->FilterPointerEvent(type, event)) {
-      return;
-    }
+  if (!debug_console_->FilterPointerEvent(type, event)) {
+    return;
   }
-
 #endif  // defined(ENABLE_DEBUGGER)
 
   DCHECK(web_module_);
@@ -1161,14 +1157,9 @@ void BrowserModule::OnWheelEventProduced(base::Token type,
   }
 
 #if defined(ENABLE_DEBUGGER)
-  // If the debug console is fully visible, it gets the next chance to handle
-  // wheel events.
-  if (debug_console_->GetMode() >= debug::console::DebugHub::kDebugConsoleOn) {
-    if (!debug_console_->FilterWheelEvent(type, event)) {
-      return;
-    }
+  if (!debug_console_->FilterWheelEvent(type, event)) {
+    return;
   }
-
 #endif  // defined(ENABLE_DEBUGGER)
 
   DCHECK(web_module_);
@@ -1190,7 +1181,8 @@ void BrowserModule::InjectKeyEventToMainWebModule(
   web_module_->InjectKeyboardEvent(type, event);
 }
 
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
+    SB_HAS(ON_SCREEN_KEYBOARD)
 void BrowserModule::InjectOnScreenKeyboardInputEventToMainWebModule(
     base::Token type, const dom::InputEventInit& event) {
   TRACE_EVENT0(
@@ -1208,7 +1200,8 @@ void BrowserModule::InjectOnScreenKeyboardInputEventToMainWebModule(
   DCHECK(web_module_);
   web_module_->InjectOnScreenKeyboardInputEvent(type, event);
 }
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+        // SB_HAS(ON_SCREEN_KEYBOARD)
 
 void BrowserModule::OnError(const GURL& url, const std::string& error) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnError()");
@@ -1291,12 +1284,8 @@ bool BrowserModule::FilterKeyEvent(base::Token type,
   }
 
 #if defined(ENABLE_DEBUGGER)
-  // If the debug console is fully visible, it gets the next chance to handle
-  // key events.
-  if (debug_console_->GetMode() >= debug::console::DebugHub::kDebugConsoleOn) {
-    if (!debug_console_->FilterKeyEvent(type, event)) {
-      return false;
-    }
+  if (!debug_console_->FilterKeyEvent(type, event)) {
+    return false;
   }
 #endif  // defined(ENABLE_DEBUGGER)
 
@@ -1310,7 +1299,7 @@ bool BrowserModule::FilterKeyEventForHotkeys(
   if (event.key_code() == dom::keycode::kF1 ||
       (event.ctrl_key() && event.key_code() == dom::keycode::kO)) {
     if (type == base::Tokens::keydown()) {
-      // Ctrl+O toggles the debug console display.
+      // F1 or Ctrl+O cycles the debug console display.
       debug_console_->CycleMode();
     }
     return false;
@@ -1319,6 +1308,12 @@ bool BrowserModule::FilterKeyEventForHotkeys(
       // F5 reloads the page.
       Reload();
     }
+  } else if (event.ctrl_key() && event.key_code() == dom::keycode::kS) {
+    if (type == base::Tokens::keydown()) {
+      // Ctrl+S suspends Cobalt.
+      SbSystemRequestSuspend();
+    }
+    return false;
   }
 #endif  // defined(ENABLE_DEBUGGER)
 
@@ -1609,10 +1604,12 @@ void BrowserModule::InitializeSystemWindow() {
       base::Bind(&BrowserModule::OnPointerEventProduced,
                  base::Unretained(this)),
       base::Bind(&BrowserModule::OnWheelEventProduced, base::Unretained(this)),
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
+    SB_HAS(ON_SCREEN_KEYBOARD)
       base::Bind(&BrowserModule::OnOnScreenKeyboardInputEventProduced,
                  base::Unretained(this)),
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+        // SB_HAS(ON_SCREEN_KEYBOARD)
       system_window_.get());
   InstantiateRendererModule();
 

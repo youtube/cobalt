@@ -32,26 +32,28 @@ void DebuggerHooksImpl::DetachDebugger() {
   script_debugger_ = nullptr;
 }
 
-void DebuggerHooksImpl::AsyncTaskScheduled(void* task, const std::string& name,
-                                           bool recurring) const {
+void DebuggerHooksImpl::AsyncTaskScheduled(const void* task,
+                                           const std::string& name,
+                                           AsyncTaskFrequency frequency) const {
   if (script_debugger_) {
-    script_debugger_->AsyncTaskScheduled(task, name, recurring);
+    script_debugger_->AsyncTaskScheduled(
+        task, name, (frequency == AsyncTaskFrequency::kRecurring));
   }
 }
 
-void DebuggerHooksImpl::AsyncTaskStarted(void* task) const {
+void DebuggerHooksImpl::AsyncTaskStarted(const void* task) const {
   if (script_debugger_) {
     script_debugger_->AsyncTaskStarted(task);
   }
 }
 
-void DebuggerHooksImpl::AsyncTaskFinished(void* task) const {
+void DebuggerHooksImpl::AsyncTaskFinished(const void* task) const {
   if (script_debugger_) {
     script_debugger_->AsyncTaskFinished(task);
   }
 }
 
-void DebuggerHooksImpl::AsyncTaskCanceled(void* task) const {
+void DebuggerHooksImpl::AsyncTaskCanceled(const void* task) const {
   if (script_debugger_) {
     script_debugger_->AsyncTaskCanceled(task);
   }

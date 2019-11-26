@@ -207,16 +207,31 @@ class PlatformConfiguration(object):
     """
     use_asan = 0
     use_tsan = 0
-    if use_clang:
-      use_tsan = int(os.environ.get('USE_TSAN', 0))
-      # Enable ASAN by default for debug and devel builds only if USE_TSAN was
-      # not set to 1 in the environment.
-      use_asan_default = self._asan_default if not use_tsan and config_name in (
-          Config.DEBUG, Config.DEVEL) else 0
-      use_asan = int(os.environ.get('USE_ASAN', use_asan_default))
+    use_source_code_coverage = 0
+    sabi_json_path = self.GetPathToSabiJsonFile()
 
+    if use_clang:
+      # Enable source coverage instrumentation if USE_SOURCE_CODE_COVERAGE
+      # was set to 1 in the environment.
+      use_source_code_coverage = int(
+          os.environ.get('USE_SOURCE_CODE_COVERAGE', 0))
+
+      # Enable TSAN if USE_TSAN was set to 1 in the environment, unless
+      # use_source_code_coverage is set.
+      use_tsan = int(os.environ.get('USE_TSAN',
+                                    0)) if not use_source_code_coverage else 0
+
+      # Enable ASAN by default for debug and devel builds only if neither
+      # use_tsan nor use_source_code_coverage is set.
+      use_asan_default = self._asan_default if (
+          not use_tsan and not use_source_code_coverage and
+          config_name in (Config.DEBUG, Config.DEVEL)) else 0
+      use_asan = int(os.environ.get('USE_ASAN', use_asan_default))
     if use_asan == 1 and use_tsan == 1:
       raise RuntimeError('ASAN and TSAN are mutually exclusive')
+
+    if use_source_code_coverage:
+      logging.info('Using Source-Based Code Coverage')
 
     if use_asan:
       logging.info('Using Address Sanitizer')
@@ -224,8 +239,17 @@ class PlatformConfiguration(object):
     if use_tsan:
       logging.info('Using Thread Sanitizer')
 
+    if not sabi_json_path:
+      sabi_json_path = 'starboard/sabi/default/sabi.json'
+
     variables = {
         'clang': use_clang,
+
+        # Whether to build with clang's Source Based Code Coverage
+        # instrumentation.
+        # See https://clang.llvm.org/docs/SourceBasedCodeCoverage.html
+        'use_source_code_coverage': use_source_code_coverage,
+
         # Whether to build with clang's Address Sanitizer instrumentation.
         'use_asan': use_asan,
         # Whether to build with clang's Thread Sanitizer instrumentation.
@@ -243,6 +267,7 @@ class PlatformConfiguration(object):
         # requires JIT, or 1 on a platform that does not support JIT, is a
         # usage error.
         'cobalt_enable_jit': 1,
+        'sabi_json_path': sabi_json_path,
 
         # TODO: Remove these compatibility variables.
         'cobalt_config': config_name,
@@ -321,19 +346,32 @@ class PlatformConfiguration(object):
     """
     raise NotImplementedError()
 
+  def GetPathToSabiJsonFile(self):
+    """Gets the path to the JSON file with Starboard ABI information for the build.
+
+    Returns:
+      A string path to the appropriate Starboard ABI JSON file. This file is
+      required for a variety of definitions and variables pertaining to the ABI.
+    """
+    return None
+
   def GetTestTargets(self):
     """Gets all tests to be run in a unit test run.
 
     Returns:
       A list of strings of test target names.
     """
-    return [
-        'elf_loader_test',
+    tests = [
         'nplb',
         'nplb_blitter_pixel_tests',
         'player_filter_tests',
         'starboard_platform_tests',
     ]
+    if os.path.exists(os.path.join(paths.STARBOARD_ROOT, 'elf_loader')):
+      tests.append('elf_loader_test')
+    if os.path.exists(os.path.join(paths.STARBOARD_ROOT, 'loader_app')):
+      tests.append('installation_manager_test')
+    return tests
 
   def GetDefaultTargetBuildFile(self):
     """Gets the build file to build by default."""

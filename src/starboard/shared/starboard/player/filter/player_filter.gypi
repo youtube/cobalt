@@ -16,6 +16,8 @@
     'filter_based_player_sources': [
       '<(DEPTH)/starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.cc',
       '<(DEPTH)/starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_channel_layout_mixer.h',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_channel_layout_mixer_impl.cc',
       '<(DEPTH)/starboard/shared/starboard/player/filter/audio_decoder_internal.h',
       '<(DEPTH)/starboard/shared/starboard/player/filter/audio_frame_tracker.cc',
       '<(DEPTH)/starboard/shared/starboard/player/filter/audio_frame_tracker.h',

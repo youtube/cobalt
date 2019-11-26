@@ -84,9 +84,17 @@ public class CobaltMediaSession
   private static final String[] PLAYBACK_STATE_NAME = {"playing", "paused", "none"};
 
   // Accessed on the main looper thread only.
-  private int playbackState = PLAYBACK_STATE_NONE;
+  private int currentPlaybackState = PLAYBACK_STATE_NONE;
   private boolean transientPause = false;
   private boolean suspended = true;
+  private boolean explicitUserActionRequired = false;
+
+  /** LifecycleCallback to notify listeners when |mediaSession| becomes active or inactive. */
+  public interface LifecycleCallback {
+    void onMediaSessionLifecycle(boolean isActive, MediaSessionCompat.Token token);
+  }
+
+  private LifecycleCallback lifecycleCallback = null;
 
   public CobaltMediaSession(
       Context context, Holder<Activity> activityHolder, UpdateVolumeListener volumeListener) {
@@ -98,7 +106,16 @@ public class CobaltMediaSession
     setMediaSession();
   }
 
+  public void setLifecycleCallback(LifecycleCallback lifecycleCallback) {
+    this.lifecycleCallback = lifecycleCallback;
+    if (lifecycleCallback != null) {
+      lifecycleCallback.onMediaSessionLifecycle(
+          this.mediaSession.isActive(), this.mediaSession.getSessionToken());
+    }
+  }
+
   private void setMediaSession() {
+    Log.i(TAG, "MediaSession new");
     mediaSession = new MediaSessionCompat(context, TAG);
     mediaSession.setFlags(MEDIA_SESSION_FLAG_HANDLES_TRANSPORT_CONTROLS);
     mediaSession.setCallback(
@@ -106,6 +123,7 @@ public class CobaltMediaSession
           @Override
           public void onFastForward() {
             Log.i(TAG, "MediaSession action: FAST FORWARD");
+            explicitUserActionRequired = false;
             nativeInvokeAction(PlaybackStateCompat.ACTION_FAST_FORWARD);
           }
 
@@ -118,30 +136,35 @@ public class CobaltMediaSession
           @Override
           public void onPlay() {
             Log.i(TAG, "MediaSession action: PLAY");
+            explicitUserActionRequired = false;
             nativeInvokeAction(PlaybackStateCompat.ACTION_PLAY);
           }
 
           @Override
           public void onRewind() {
             Log.i(TAG, "MediaSession action: REWIND");
+            explicitUserActionRequired = false;
             nativeInvokeAction(PlaybackStateCompat.ACTION_REWIND);
           }
 
           @Override
           public void onSkipToNext() {
             Log.i(TAG, "MediaSession action: SKIP NEXT");
+            explicitUserActionRequired = false;
             nativeInvokeAction(PlaybackStateCompat.ACTION_SKIP_TO_NEXT);
           }
 
           @Override
           public void onSkipToPrevious() {
             Log.i(TAG, "MediaSession action: SKIP PREVIOUS");
+            explicitUserActionRequired = false;
             nativeInvokeAction(PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS);
           }
 
           @Override
           public void onSeekTo(long pos) {
             Log.i(TAG, "MediaSession action: SEEK " + pos);
+            explicitUserActionRequired = false;
             nativeInvokeAction(PlaybackStateCompat.ACTION_SEEK_TO, pos);
           }
 
@@ -164,8 +187,10 @@ public class CobaltMediaSession
   }
 
   /**
-   * Sets system media resources active or not according to whether media is playing. This is
-   * idempotent as it may be called multiple times during the course of a media session.
+   * Sets system media resources active or not according to whether media is playing. The concept of
+   * "media focus" encapsulates wake lock, audio focus and active media session so that all three
+   * are set together to stay coherent as playback state changes. This is idempotent as it may be
+   * called multiple times during the course of a media session.
    */
   private void configureMediaFocus(int playbackState) {
     checkMainLooperThread();
@@ -186,8 +211,13 @@ public class CobaltMediaSession
       setMediaSession();
     }
     mediaSession.setActive(playbackState != PLAYBACK_STATE_NONE);
+    if (lifecycleCallback != null) {
+      lifecycleCallback.onMediaSessionLifecycle(
+          this.mediaSession.isActive(), this.mediaSession.getSessionToken());
+    }
     if (deactivating) {
       // Suspending lands here.
+      Log.i(TAG, "MediaSession release");
       mediaSession.release();
     }
   }
@@ -268,7 +298,7 @@ public class CobaltMediaSession
         // fall through
       case AudioManager.AUDIOFOCUS_LOSS:
         Log.i(TAG, "Audiofocus loss" + logExtra);
-        if (playbackState == PLAYBACK_STATE_PLAYING) {
+        if (currentPlaybackState == PLAYBACK_STATE_PLAYING) {
           Log.i(TAG, "Audiofocus action: PAUSE");
           nativeInvokeAction(PlaybackStateCompat.ACTION_PAUSE);
         }
@@ -285,7 +315,7 @@ public class CobaltMediaSession
         // The app has been granted audio focus (again). Raise volume to normal,
         // restart playback if necessary.
         volumeListener.onUpdateVolume(1.0f);
-        if (transientPause && playbackState == PLAYBACK_STATE_PAUSED) {
+        if (transientPause && currentPlaybackState == PLAYBACK_STATE_PAUSED) {
           Log.i(TAG, "Audiofocus action: PLAY");
           nativeInvokeAction(PlaybackStateCompat.ACTION_PLAY);
         }
@@ -295,6 +325,9 @@ public class CobaltMediaSession
 
     // Keep track of whether we're currently paused because of a transient loss of audiofocus.
     transientPause = (focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT);
+    // To restart playback after permanent loss, the user must take an explicit action.
+    // See: https://developer.android.com/guide/topics/media-apps/audio-focus
+    explicitUserActionRequired = (focusChange == AudioManager.AUDIOFOCUS_LOSS);
   }
 
   private AudioManager getAudioManager() {
@@ -315,17 +348,21 @@ public class CobaltMediaSession
     checkMainLooperThread();
     suspended = false;
     // Undoing what may have been done in suspendInternal().
-    configureMediaFocus(playbackState);
+    configureMediaFocus(currentPlaybackState);
   }
 
   public void suspend() {
-    mainHandler.post(
-        new Runnable() {
-          @Override
-          public void run() {
-            suspendInternal();
-          }
-        });
+    if (Looper.getMainLooper() == Looper.myLooper()) {
+      suspendInternal();
+    } else {
+      mainHandler.post(
+          new Runnable() {
+            @Override
+            public void run() {
+              suspendInternal();
+            }
+          });
+    }
   }
 
   private void suspendInternal() {
@@ -339,9 +376,9 @@ public class CobaltMediaSession
     // it's in a playing state. We'll configure it again in resumeInternal() and the HTML5 app will
     // be none the wiser.
     playbackStateBuilder.setState(
-        playbackState,
+        currentPlaybackState,
         PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN,
-        playbackState == PLAYBACK_STATE_PLAYING ? 1.0f : 0.0f);
+        currentPlaybackState == PLAYBACK_STATE_PLAYING ? 1.0f : 0.0f);
     configureMediaFocus(PLAYBACK_STATE_NONE);
   }
 
@@ -384,9 +421,10 @@ public class CobaltMediaSession
       final long duration) {
     checkMainLooperThread();
 
+    boolean hasStateChange = this.currentPlaybackState != playbackState;
     // Always keep track of what the HTML5 app thinks the playback state is so we can configure the
     // media focus correctly, either immediately or when resuming from being suspended.
-    this.playbackState = playbackState;
+    this.currentPlaybackState = playbackState;
 
     // Don't update anything while suspended.
     if (suspended) {
@@ -394,7 +432,25 @@ public class CobaltMediaSession
       return;
     }
 
-    configureMediaFocus(playbackState);
+    if (hasStateChange) {
+      if (playbackState == PLAYBACK_STATE_PLAYING) {
+        // We don't want to request media focus if |explicitUserActionRequired| is true when we
+        // don't have window focus. Ideally, we should recognize user action to re-request audio
+        // focus if |explicitUserActionRequired| is true. Currently we're not able to recognize
+        // it. But if we don't have window focus, we know the user is not interacting with our app
+        // and we should not request media focus.
+        if (!explicitUserActionRequired || activityHolder.get().hasWindowFocus()) {
+          explicitUserActionRequired = false;
+          configureMediaFocus(playbackState);
+        } else {
+          Log.w(TAG, "Audiofocus action: PAUSE (explicit user action required)");
+          nativeInvokeAction(PlaybackStateCompat.ACTION_PAUSE);
+        }
+      } else {
+        // It's fine to abandon media focus anytime.
+        configureMediaFocus(playbackState);
+      }
+    }
 
     // Ignore updates to the MediaSession metadata if playback is stopped.
     if (playbackState == PLAYBACK_STATE_NONE) {

@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/dom/html_element_factory.h"
+
+#include <memory>
 
 #include "base/message_loop/message_loop.h"
 #include "base/threading/platform_thread.h"
@@ -41,6 +41,7 @@
 #include "cobalt/dom/html_unknown_element.h"
 #include "cobalt/dom/html_video_element.h"
 #include "cobalt/dom/testing/stub_css_parser.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/testing/stub_script_runner.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
@@ -61,8 +62,9 @@ class HTMLElementFactoryTest : public ::testing::Test {
         dom_parser_(new dom_parser::Parser()),
         dom_stat_tracker_(new DomStatTracker("HTMLElementFactoryTest")),
         html_element_context_(
-            &fetcher_factory_, &loader_factory_, &stub_css_parser_,
-            dom_parser_.get(), NULL /* can_play_type_handler */,
+            &environment_settings_, &fetcher_factory_, &loader_factory_,
+            &stub_css_parser_, dom_parser_.get(),
+            NULL /* can_play_type_handler */,
             NULL /* web_media_player_factory */, &stub_script_runner_,
             NULL /* script_value_factory */, NULL /* media_source_registry */,
             NULL /* resource_provider */, NULL /* animated_image_tracker */,
@@ -75,6 +77,7 @@ class HTMLElementFactoryTest : public ::testing::Test {
         document_(new Document(&html_element_context_)) {}
   ~HTMLElementFactoryTest() override {}
 
+  testing::StubEnvironmentSettings environment_settings_;
   loader::FetcherFactory fetcher_factory_;
   loader::LoaderFactory loader_factory_;
   std::unique_ptr<Parser> dom_parser_;

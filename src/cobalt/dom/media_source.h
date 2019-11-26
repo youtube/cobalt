@@ -77,7 +77,7 @@ class MediaSource : public EventTarget {
 
   // Custom, not in any spec.
   //
-  MediaSource();
+  explicit MediaSource(script::EnvironmentSettings* settings);
   ~MediaSource();
 
   // Web API: MediaSource

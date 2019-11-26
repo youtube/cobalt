@@ -169,9 +169,9 @@ std::string HTMLElement::dir() const {
   // https://dev.w3.org/html5/spec-preview/global-attributes.html#the-directionality
   // https://dev.w3.org/html5/spec-preview/common-dom-interfaces.html#limited-to-only-known-values
   // NOTE: Value "auto" is not supported.
-  if (directionality_ == kLeftToRightDirectionality) {
+  if (dir_ == kDirLeftToRight) {
     return "ltr";
-  } else if (directionality_ == kRightToLeftDirectionality) {
+  } else if (dir_ == kDirRightToLeft) {
     return "rtl";
   } else {
     return "";
@@ -179,10 +179,7 @@ std::string HTMLElement::dir() const {
 }
 
 void HTMLElement::set_dir(const std::string& value) {
-  // The dir attribute is limited to only known values. On setting, the dir
-  // attribute must be set to the specified new value.
-  // https://dev.w3.org/html5/spec-preview/global-attributes.html#the-directionality
-  // https://dev.w3.org/html5/spec-preview/common-dom-interfaces.html#limited-to-only-known-values
+  // Funnel through OnSetAttribute.
   SetAttribute("dir", value);
 }
 
@@ -360,7 +357,7 @@ int32 HTMLElement::scroll_width() {
   int32 element_scroll_width = 0;
   if (layout_boxes_) {
     element_scroll_width = static_cast<int32>(
-        layout_boxes_->GetScrollArea(directionality_).width());
+        layout_boxes_->GetScrollArea(directionality()).width());
   }
 
   // 3. Let viewport width be the width of the viewport excluding the width of
@@ -396,7 +393,7 @@ int32 HTMLElement::scroll_height() {
   int32 element_scroll_height = 0;
   if (layout_boxes_) {
     element_scroll_height = static_cast<int32>(
-        layout_boxes_->GetScrollArea(directionality_).height());
+        layout_boxes_->GetScrollArea(directionality()).height());
   }
 
   // 3. Let viewport height be the height of the viewport excluding the height
@@ -776,7 +773,7 @@ scoped_refptr<Node> HTMLElement::Duplicate() const {
 
   // Copy cached attributes.
   new_html_element->tabindex_ = tabindex_;
-  new_html_element->directionality_ = directionality_;
+  new_html_element->dir_ = dir_;
 
   return new_html_element;
 }
@@ -1144,6 +1141,7 @@ void HTMLElement::InvalidateLayoutBoxes() {
       pseudo_element->reset_layout_boxes();
     }
   }
+  directionality_ = base::nullopt;
 }
 
 void HTMLElement::OnUiNavBlur() {
@@ -1170,7 +1168,7 @@ HTMLElement::HTMLElement(Document* document, base::Token local_name)
     : Element(document, local_name),
       dom_stat_tracker_(document->html_element_context()->dom_stat_tracker()),
       locked_for_focus_(false),
-      directionality_(kNoExplicitDirectionality),
+      dir_(kDirNotDefined),
       style_(new cssom::CSSDeclaredStyleDeclaration(
           document->html_element_context()->css_parser())),
       computed_style_valid_(false),
@@ -1242,7 +1240,7 @@ void HTMLElement::OnSetAttribute(const std::string& name,
                                  const std::string& value) {
   // Be sure to update HTMLElement::Duplicate() to copy over values as needed.
   if (name == "dir") {
-    SetDirectionality(value);
+    SetDir(value);
   } else if (name == "tabindex") {
     SetTabIndex(value);
   }
@@ -1254,7 +1252,7 @@ void HTMLElement::OnSetAttribute(const std::string& name,
 
 void HTMLElement::OnRemoveAttribute(const std::string& name) {
   if (name == "dir") {
-    SetDirectionality("");
+    SetDir("");
   } else if (name == "tabindex") {
     SetTabIndex("");
   }
@@ -1391,18 +1389,26 @@ void HTMLElement::RunUnFocusingSteps() {
   ClearRuleMatchingState();
 }
 
-void HTMLElement::SetDirectionality(const std::string& value) {
+void HTMLElement::SetDir(const std::string& value) {
+  // https://html.spec.whatwg.org/commit-snapshots/ebcac971c2add28a911283899da84ec509876c44/#the-dir-attribute
   // NOTE: Value "auto" is not supported.
-  Directionality previous_directionality = directionality_;
+  auto previous_dir = dir_;
   if (value == "ltr") {
-    directionality_ = kLeftToRightDirectionality;
+    dir_ = kDirLeftToRight;
   } else if (value == "rtl") {
-    directionality_ = kRightToLeftDirectionality;
+    dir_ = kDirRightToLeft;
   } else {
-    directionality_ = kNoExplicitDirectionality;
+    dir_ = kDirNotDefined;
+
+    // Reset the attribute so that element.getAttribute('dir') returns the
+    // same thing as element.dir.
+    if (value.size() > 0) {
+      LOG(WARNING) << "Unsupported value '" << value << "' for attribute 'dir'";
+      SetAttribute("dir", "");
+    }
   }
 
-  if (directionality_ != previous_directionality) {
+  if (dir_ != previous_dir) {
     InvalidateLayoutBoxesOfNodeAndAncestors();
     InvalidateLayoutBoxesOfDescendants();
   }
@@ -1415,6 +1421,92 @@ void HTMLElement::SetTabIndex(const std::string& value) {
   } else {
     tabindex_ = base::nullopt;
   }
+}
+
+// Algorithm:
+//   https://html.spec.whatwg.org/commit-snapshots/ebcac971c2add28a911283899da84ec509876c44/#the-directionality
+Directionality HTMLElement::directionality() {
+  // Use the cached value if available.
+  if (directionality_) {
+    return *directionality_;
+  }
+
+  // The directionality of an element (any element, not just an HTML element)
+  // is either 'ltr' or 'rtl', and is determined as per the first appropriate
+  // set of steps from the following list:
+
+  // If the element's dir attribute is in the ltr state
+  // If the element is a document element and the dir attribute is not in a
+  //   defined state (i.e. it is not present or has an invalid value)
+  // If the element is an input element whose type attribute is in the
+  //   Telephone state, and the dir attribute is not in a defined state (i.e.
+  //   it is not present or has an invalid value)
+  // --> The directionality of the element is 'ltr'.
+  if (dir_ == kDirLeftToRight) {
+    directionality_ = kLeftToRightDirectionality;
+    return *directionality_;
+  }
+  // [Case of undefined 'dir' is handled later in this function.]
+
+  // If the element's dir attribute is in the rtl state
+  // --> The directionality of the element is 'rtl'.
+  if (dir_ == kDirRightToLeft) {
+    directionality_ = kRightToLeftDirectionality;
+    return *directionality_;
+  }
+
+  // If the element is an input element whose type attribute is in the Text,
+  //   Search, Telephone, URL, or E-mail state, and the dir attribute is in the
+  //   auto state
+  // If the element is a textarea element and the dir attribute is in the auto
+  //   state
+  // --> Cobalt does not support these element types.
+
+  // If the element's dir attribute is in the auto state
+  // If the element is a bdi element and the dir attribute is not in a defined
+  //   state (i.e. it is not present or has an invalid value)
+  // --> Find the first character in tree order that matches the following
+  //       criteria:
+  //       The character is from a Text node that is a descendant of the
+  //         element whose directionality is being determined.
+  //       The character is of bidirectional character type L, AL, or R. [BIDI]
+  //       The character is not in a Text node that has an ancestor element
+  //         that is a descendant of the element whose directionality is being
+  //         determined and that is either:
+  //           A bdi element.
+  //           A script element.
+  //           A style element.
+  //           A textarea element.
+  //           An element with a dir attribute in a defined state.
+  //     If such a character is found and it is of bidirectional character type
+  //       AL or R, the directionality of the element is 'rtl'.
+  //     If such a character is found and it is of bidirectional character type
+  //       L, the directionality of the element is 'ltr'.
+  //     Otherwise, if the element is a document element, the directionality of
+  //       the element is 'ltr'.
+  //     Otherwise, the directionality of the element is the same as the
+  //       element's parent element's directionality.
+
+  // If the element has a parent element and the dir attribute is not in a
+  //   defined state (i.e. it is not present or has an invalid value)
+  // --> The directionality of the element is the same as the element's parent
+  //       element's directionality.
+  for (Node* ancestor_node = parent_node(); ancestor_node;
+       ancestor_node = ancestor_node->parent_node()) {
+    Element* ancestor_element = ancestor_node->AsElement();
+    if (!ancestor_element) {
+      continue;
+    }
+    HTMLElement* ancestor_html_element = ancestor_element->AsHTMLElement();
+    if (!ancestor_html_element) {
+      continue;
+    }
+    directionality_ = ancestor_html_element->directionality();
+    return *directionality_;
+  }
+
+  directionality_ = kLeftToRightDirectionality;
+  return *directionality_;
 }
 
 namespace {

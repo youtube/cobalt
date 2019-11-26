@@ -14,18 +14,16 @@
 
 #include <memory>
 
-#include "cobalt/media_capture/media_devices.h"
-
 #include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/testing/stub_window.h"
+#include "cobalt/media_capture/media_devices.h"
 #include "cobalt/media_stream/microphone_audio_source.h"
 #include "cobalt/media_stream/testing/mock_media_stream_audio_source.h"
 #include "cobalt/script/global_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
-
-const int kMaxDomElementDepth = 8;
 
 std::unique_ptr<cobalt::script::EnvironmentSettings> CreateDOMSettings() {
   cobalt::dom::DOMSettings::Options options;
@@ -34,9 +32,7 @@ std::unique_ptr<cobalt::script::EnvironmentSettings> CreateDOMSettings() {
 #endif  // defined(ENABLE_FAKE_MICROPHONE)
 
   return std::unique_ptr<cobalt::script::EnvironmentSettings>(
-      new cobalt::dom::DOMSettings(kMaxDomElementDepth, nullptr, nullptr,
-                                   nullptr, nullptr, nullptr, nullptr, nullptr,
-                                   nullptr, nullptr, options));
+      new cobalt::dom::testing::StubEnvironmentSettings(options));
 }
 
 }  // namespace.
@@ -49,9 +45,8 @@ class GetUserMediaTest : public ::testing::Test {
   GetUserMediaTest()
       : window_(CreateDOMSettings()),
         media_devices_(new MediaDevices(
-            window_.global_environment()->script_value_factory())) {
-    media_devices_->SetEnvironmentSettings(window_.environment_settings());
-  }
+            window_.environment_settings(),
+            window_.global_environment()->script_value_factory())) {}
 
   media_stream::MicrophoneAudioSource* GetMicrophoneAudioSource() {
     return base::polymorphic_downcast<media_stream::MicrophoneAudioSource*>(
@@ -129,6 +124,28 @@ TEST_F(GetUserMediaTest, MicrophoneSuccessFulfilledPromise) {
   media_devices_->audio_source_->StopSource();
   EXPECT_EQ(cobalt::script::PromiseState::kFulfilled,
             media_stream_promise->State());
+}
+
+TEST_F(GetUserMediaTest, MultipleMicrophoneSuccessFulfilledPromise) {
+  media_stream::MediaStreamConstraints constraints;
+  constraints.set_audio(true);
+  std::vector<script::Handle<MediaDevices::MediaStreamPromise>>
+      media_stream_promises;
+
+  for (size_t i = 0; i < 2; ++i) {
+    media_stream_promises.push_back(media_devices_->GetUserMedia(constraints));
+    ASSERT_FALSE(media_stream_promises.back().IsEmpty());
+    EXPECT_EQ(cobalt::script::PromiseState::kPending,
+              media_stream_promises.back()->State());
+    media_devices_->OnMicrophoneSuccess();
+  }
+
+  media_devices_->audio_source_->StopSource();
+
+  for (size_t i = 0; i < media_stream_promises.size(); ++i) {
+    EXPECT_EQ(cobalt::script::PromiseState::kFulfilled,
+              media_stream_promises[i]->State());
+  }
 }
 
 }  // namespace media_capture

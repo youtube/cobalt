@@ -15,9 +15,9 @@
 #include "starboard/media.h"
 #include "starboard/shared/widevine/drm_system_widevine.h"
 
-SB_EXPORT bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
-                                  SbMediaAudioCodec audio_codec,
-                                  const char* key_system) {
+bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
+                        SbMediaAudioCodec audio_codec,
+                        const char* key_system) {
   using starboard::shared::widevine::DrmSystemWidevine;
 
   SB_UNREFERENCED_PARAMETER(video_codec);

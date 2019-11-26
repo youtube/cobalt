@@ -40,6 +40,7 @@ class AnonymousBlockBox : public BlockContainerBox {
 
   // From |Box|.
   Level GetLevel() const override;
+  MarginCollapsingStatus GetMarginCollapsingStatus() const override;
   AnonymousBlockBox* AsAnonymousBlockBox() override;
   const AnonymousBlockBox* AsAnonymousBlockBox() const override;
 

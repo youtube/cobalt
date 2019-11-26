@@ -124,7 +124,8 @@ void AudioDecoder::WriteEndOfStream() {
   media_decoder_->WriteEndOfStream();
 }
 
-scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read() {
+scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read(
+    int* samples_per_second) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
@@ -143,6 +144,7 @@ scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read() {
     Schedule(consumed_cb_);
     consumed_cb_ = nullptr;
   }
+  *samples_per_second = audio_sample_info_.samples_per_second;
   return result;
 }
 
@@ -207,9 +209,9 @@ void AudioDecoder::ProcessOutputBuffer(
     }
 
     scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
-        audio_sample_info_.number_of_channels, GetSampleType(),
-        GetStorageType(), dequeue_output_result.presentation_time_microseconds,
-        size);
+        audio_sample_info_.number_of_channels, sample_type_,
+        kSbMediaAudioFrameStorageTypeInterleaved,
+        dequeue_output_result.presentation_time_microseconds, size);
 
     SbMemoryCopy(decoded_audio->buffer(), data, size);
 

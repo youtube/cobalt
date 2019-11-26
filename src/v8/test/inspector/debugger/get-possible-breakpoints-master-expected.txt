@@ -152,7 +152,7 @@ function testSwitch() {
   }
 |R|}
 
-function* idMaker() {
+function* idMaker|_|() {
   |_|yield 1;
   |_|yield 2;
   |_|yield 3;
@@ -230,12 +230,12 @@ async function testPromiseAsyncWithCode() {
       |_|await p;
     |R|}
     |C|setTimeout(returnCall, 0);
-    await |C|foo();
-    await |C|foo();
+    |_|await |C|foo();
+    |_|await |C|foo();
     |C|nextTest();
   |R|}
   |C|main();
-  |_|return testPromise;
+  |_|return testPromise;|R|
 |R|}
 
 function returnFunction() {
@@ -248,15 +248,15 @@ async function testPromiseComplex() {
   async function main() {
     async function foo() {
       |_|await Promise.|C|resolve();
-      |_|return 42;
+      |_|return 42;|R|
     |R|}
     var x = |_|1;
     var y = |_|2;
-    |C|returnFunction(|C|emptyFunction(), x++, --y, x => 2 |_|* x|R|, |C|returnCall())|C|().a = await |C|foo((a => 2 |_|*a|R|)|C|(5));
+    |C|returnFunction(|C|emptyFunction(), x++, --y, x => 2 |_|* x|R|, |C|returnCall())|C|().a = |_|await |C|foo((a => 2 |_|*a|R|)|C|(5));
     |C|nextTest();
   |R|}
   |C|main();
-  |_|return testPromise;
+  |_|return testPromise;|R|
 |R|}
 
 function twiceDefined() {
@@ -267,5 +267,5 @@ function twiceDefined() {
   |_|return a + b;|R|
 }
 
-
+|R|
 

@@ -22,8 +22,9 @@ Raspi2PlatformConfig = importlib.import_module(
 
 class Raspi2MozjsPlatformConfig(Raspi2PlatformConfig):
 
-  def __init__(self, platform):
-    super(Raspi2MozjsPlatformConfig, self).__init__(platform)
+  def __init__(self, platform, sabi_json_path=None):
+    super(Raspi2MozjsPlatformConfig, self).__init__(
+        platform, sabi_json_path=sabi_json_path)
 
   def GetVariables(self, config_name):
     variables = super(Raspi2MozjsPlatformConfig, self).GetVariables(config_name)
@@ -35,4 +36,5 @@ class Raspi2MozjsPlatformConfig(Raspi2PlatformConfig):
 
 
 def CreatePlatformConfig():
-  return Raspi2MozjsPlatformConfig('raspi-2-mozjs')
+  return Raspi2MozjsPlatformConfig(
+      'raspi-2-mozjs', sabi_json_path='starboard/sabi/arm/hardfp/sabi.json')

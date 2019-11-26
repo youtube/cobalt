@@ -13,12 +13,14 @@
 // limitations under the License.
 
 #include <math.h>
+
 #include <memory>
 
 #include "cobalt/audio/audio_buffer_source_node.h"
 #include "cobalt/audio/audio_context.h"
 #include "cobalt/audio/audio_helpers.h"
 #include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
@@ -39,8 +41,9 @@ class AudioDestinationNodeMock : public AudioNode,
   typedef media::ShellAudioBus ShellAudioBus;
 
  public:
-  explicit AudioDestinationNodeMock(AudioContext* context)
-      : AudioNode(context) {
+  AudioDestinationNodeMock(script::EnvironmentSettings* settings,
+                           AudioContext* context)
+      : AudioNode(settings, context) {
     AudioLock::AutoLock lock(audio_lock());
 
     AddInput(new AudioNodeInput(this));
@@ -71,20 +74,18 @@ void FillAudioBusFromOneSource(
     std::unique_ptr<ShellAudioBus> src_data,
     const AudioNodeChannelInterpretation& interpretation,
     ShellAudioBus* audio_bus, bool* silence) {
-  std::unique_ptr<script::EnvironmentSettings> environment_settings_ =
-      std::unique_ptr<script::EnvironmentSettings>(new dom::DOMSettings(
-          0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
+  dom::testing::StubEnvironmentSettings environment_settings;
 
   scoped_refptr<AudioContext> audio_context(
-      new AudioContext(environment_settings_.get()));
+      new AudioContext(&environment_settings));
   scoped_refptr<AudioBufferSourceNode> source(
-      audio_context->CreateBufferSource());
+      audio_context->CreateBufferSource(&environment_settings));
   scoped_refptr<AudioBuffer> buffer(
       new AudioBuffer(audio_context->sample_rate(), std::move(src_data)));
   source->set_buffer(buffer);
 
   scoped_refptr<AudioDestinationNodeMock> destination(
-      new AudioDestinationNodeMock(audio_context.get()));
+      new AudioDestinationNodeMock(&environment_settings, audio_context.get()));
   destination->set_channel_interpretation(interpretation);
   source->Connect(destination, 0, 0, NULL);
   source->Start(0, 0, NULL);
@@ -97,9 +98,8 @@ class AudioNodeInputOutputTest : public ::testing::Test {
   AudioNodeInputOutputTest()
       : engine_(script::JavaScriptEngine::CreateEngine()),
         global_environment_(engine_->CreateGlobalEnvironment()) {
-    environment_settings_ =
-        std::unique_ptr<script::EnvironmentSettings>(new dom::DOMSettings(
-            0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
+    environment_settings_ = std::unique_ptr<script::EnvironmentSettings>(
+        new dom::testing::StubEnvironmentSettings);
     global_environment_->CreateGlobalObject();
   }
 
@@ -118,13 +118,13 @@ class AudioNodeInputOutputTest : public ::testing::Test {
     return environment_settings_.get();
   }
 
+ protected:
+  base::MessageLoop message_loop_;
+
  private:
   std::unique_ptr<script::JavaScriptEngine> engine_;
   scoped_refptr<script::GlobalEnvironment> global_environment_;
   std::unique_ptr<script::EnvironmentSettings> environment_settings_;
-
- protected:
-  base::MessageLoop message_loop_;
 };
 
 TEST_F(AudioNodeInputOutputTest, StereoToStereoSpeakersLayoutTest) {
@@ -697,7 +697,7 @@ TEST_F(AudioNodeInputOutputTest, MultipleInputNodesLayoutTest) {
   std::unique_ptr<ShellAudioBus> src_data_1(new ShellAudioBus(
       kNumOfSrcChannels, kNumOfFrames_1, src_data_in_float_1));
   scoped_refptr<AudioBufferSourceNode> source_1(
-      audio_context->CreateBufferSource());
+      audio_context->CreateBufferSource(environment_settings()));
   scoped_refptr<AudioBuffer> buffer_1(
       new AudioBuffer(audio_context->sample_rate(), std::move(src_data_1)));
 
@@ -715,13 +715,14 @@ TEST_F(AudioNodeInputOutputTest, MultipleInputNodesLayoutTest) {
   std::unique_ptr<ShellAudioBus> src_data_2(new ShellAudioBus(
       kNumOfSrcChannels, kNumOfFrames_2, src_data_in_float_2));
   scoped_refptr<AudioBufferSourceNode> source_2(
-      audio_context->CreateBufferSource());
+      audio_context->CreateBufferSource(environment_settings()));
   scoped_refptr<AudioBuffer> buffer_2(
       new AudioBuffer(audio_context->sample_rate(), std::move(src_data_2)));
   source_2->set_buffer(buffer_2);
 
   scoped_refptr<AudioDestinationNodeMock> destination(
-      new AudioDestinationNodeMock(audio_context.get()));
+      new AudioDestinationNodeMock(environment_settings(),
+                                   audio_context.get()));
   destination->set_channel_interpretation(kInterpretation);
   source_1->Connect(destination, 0, 0, NULL);
   source_2->Connect(destination, 0, 0, NULL);
@@ -980,11 +981,12 @@ TEST_F(AudioNodeInputOutputTest, ResampleBufferSampleRateLayoutTest) {
       scoped_refptr<AudioContext> audio_context(
           new AudioContext(environment_settings()));
       scoped_refptr<AudioBufferSourceNode> source(
-          audio_context->CreateBufferSource());
+          audio_context->CreateBufferSource(environment_settings()));
       source->set_buffer(buffer);
 
       scoped_refptr<AudioDestinationNodeMock> destination(
-          new AudioDestinationNodeMock(audio_context.get()));
+          new AudioDestinationNodeMock(environment_settings(),
+                                       audio_context.get()));
       destination->set_channel_interpretation(kInterpretation);
       source->Connect(destination, 0, 0, NULL);
       source->Start(0, 0, NULL);

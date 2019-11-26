@@ -16,6 +16,7 @@
 
 #include "cobalt/dom/crypto.h"
 
+#include "base/test/scoped_task_environment.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
@@ -40,6 +41,7 @@ using testing::StrictMock;
 
 TEST(CryptoTest, GetRandomValues) {
   StrictMock<MockExceptionState> exception_state;
+  base::test::ScopedTaskEnvironment task_env_;
   std::unique_ptr<script::JavaScriptEngine> javascript_engine =
       script::JavaScriptEngine::CreateEngine();
   scoped_refptr<script::GlobalEnvironment> global_environment =
@@ -92,6 +94,7 @@ TEST(CryptoTest, NullArray) {
   scoped_refptr<Crypto> crypto = new Crypto;
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<script::ScriptException> exception;
+  base::test::ScopedTaskEnvironment task_env_;
   std::unique_ptr<script::JavaScriptEngine> javascript_engine =
       script::JavaScriptEngine::CreateEngine();
   scoped_refptr<script::GlobalEnvironment> global_environment =
@@ -115,6 +118,7 @@ TEST(CryptoTest, LargeArray) {
   // QuotaExceededErr.
   scoped_refptr<Crypto> crypto = new Crypto;
   StrictMock<MockExceptionState> exception_state;
+  base::test::ScopedTaskEnvironment task_env_;
   std::unique_ptr<script::JavaScriptEngine> javascript_engine =
       script::JavaScriptEngine::CreateEngine();
   scoped_refptr<script::GlobalEnvironment> global_environment =

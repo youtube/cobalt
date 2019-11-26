@@ -16,9 +16,7 @@
 # 2. Build everything and capture the output:
 #      ninja -C <build_directory> &> generated-fixits
 # 3. Apply the fixits with this script:
-#      python apply_fixits.py[ <build_directory>] < generated-fixits
-#    <build_directory> is optional and only required if your build directory is
-#    a non-standard location.
+#      python apply_fixits.py -p <build_directory> < generated-fixits
 
 import argparse
 import collections
@@ -41,9 +39,8 @@ FixIt = collections.namedtuple(
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument(
-      'build_directory',
-      nargs='?',
-      default='out/Debug',
+      '-p',
+      required=True,
       help='path to the build directory to complete relative paths in fixits')
   args = parser.parse_args()
 
@@ -58,12 +55,14 @@ def main():
     # order but reverse column order. Applying the fixits in reverse order makes
     # things simpler, since offsets won't have to be adjusted as the text is
     # changed.
-    fixits[m.group('file')].append(FixIt(
-        int(m.group('start_line')), -int(m.group('start_col')), int(m.group(
-            'end_line')), -int(m.group('end_col')), m.group('text')))
+    fixits[m.group('file')].append(
+        FixIt(
+            int(m.group('start_line')), -int(m.group('start_col')),
+            int(m.group('end_line')), -int(m.group('end_col')),
+            m.group('text')))
   for k, v in fixits.iteritems():
     v.sort()
-    with open(os.path.join(args.build_directory, k), 'rb+') as f:
+    with open(os.path.join(args.p, k), 'rb+') as f:
       lines = f.readlines()
       last_fixit = None
       for fixit in v:
@@ -77,8 +76,9 @@ def main():
         # The line/column numbers emitted in fixit hints start at 1, so offset
         # is appropriately.
         line = lines[fixit.start_line - 1]
-        lines[fixit.start_line - 1] = (line[:-fixit.start_col - 1] + fixit.text
-                                       + line[-fixit.end_col - 1:])
+        lines[fixit.start_line - 1] = (
+            line[:-fixit.start_col - 1] + fixit.text +
+            line[-fixit.end_col - 1:])
       f.seek(0)
       f.truncate()
       f.writelines(lines)

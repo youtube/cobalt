@@ -170,9 +170,14 @@ class DispmanxVideoRenderer {
 
   void Update(const scoped_refptr<VideoFrame>& video_frame);
 
+  void HideElement();
+  void ShowElement();
+
  private:
   scoped_ptr<DispmanxElement> element_;
   scoped_refptr<VideoFrame> frame_;
+  // Value of |frame_| when HideElement() gets called.
+  scoped_refptr<VideoFrame> hidden_frame_;
 
   // Used to fill the background with black if no video is playing so that the
   // console does not show through.

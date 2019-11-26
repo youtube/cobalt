@@ -21,9 +21,9 @@
 {
   'variables': {
     # Root of the content tree that should be deployed with a given target.
-    'content_deploy_dir': '<(sb_static_contents_output_base_dir)/deploy/<(executable_name)',
+    'content_deploy_dir': '<(target_deploy_dir)/content',
 
-    # Stamp file that will be updated after the symlink farm is built.
+    # Stamp file that will be updated after the content symlink farm is built.
     'content_deploy_stamp_file': '<(content_deploy_dir).stamp',
 
     # This is a list of relative paths within both input_dir and output_dir,
@@ -53,8 +53,12 @@
       'input_dir': '<(sb_static_contents_output_data_dir)',
       'output_dir': '<(content_deploy_dir)',
     },
-    # Re-collect the content whenever the executable is rebuilt.
-    'inputs': [ '<(executable_file)'],
+    # Re-collect the content whenever the executable is rebuilt, but wait until
+    # cleaning the deploy dir is done.
+    'inputs': [
+        '<(executable_file)',
+        '<(target_deploy_stamp_file)',
+    ],
     'outputs': [ '<(content_deploy_stamp_file)' ],
     'action': [
       'python',
@@ -65,6 +69,6 @@
       '<@(collect_deploy_content_extra_args)',
       '>@(content_deploy_subdirs)',
     ],
-    'message': 'Collect content: <(executable_name)',
+    'message': 'Collect content: <(content_deploy_dir)',
   }],
 }

@@ -18,7 +18,8 @@
 
 using starboard::android::shared::JniEnvExt;
 
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
+    SB_HAS(ON_SCREEN_KEYBOARD)
 void SbWindowSetOnScreenKeyboardKeepFocus(SbWindow window, bool keep_focus) {
   JniEnvExt* env = JniEnvExt::Get();
   jobject j_keyboard_editor = env->CallStarboardObjectMethodOrAbort(
@@ -27,4 +28,5 @@ void SbWindowSetOnScreenKeyboardKeepFocus(SbWindow window, bool keep_focus) {
                              keep_focus);
   return;
 }
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+        // SB_HAS(ON_SCREEN_KEYBOARD)

@@ -17,6 +17,7 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/reset_and_return.h"
+#include "starboard/shared/starboard/player/decoded_audio_internal.h"
 
 namespace starboard {
 namespace shared {
@@ -27,27 +28,6 @@ namespace filter {
 using common::ResetAndReturn;
 
 #if SB_API_VERSION >= 11
-SbMediaAudioSampleType GetDefaultSupportedAudioSampleType() {
-  if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)) {
-    return kSbMediaAudioSampleTypeFloat32;
-  }
-  if (SbAudioSinkIsAudioSampleTypeSupported(
-          kSbMediaAudioSampleTypeInt16Deprecated)) {
-    return kSbMediaAudioSampleTypeInt16Deprecated;
-  }
-  SB_NOTREACHED();
-  return kSbMediaAudioSampleTypeFloat32;
-}
-
-SbMediaAudioFrameStorageType GetDefaultSupportedAudioFrameStorageType() {
-  if (SbAudioSinkIsAudioFrameStorageTypeSupported(
-          kSbMediaAudioFrameStorageTypeInterleaved)) {
-    return kSbMediaAudioFrameStorageTypeInterleaved;
-  }
-  SB_NOTREACHED();
-  return kSbMediaAudioFrameStorageTypeInterleaved;
-}
-
 int GetDefaultSupportedAudioSamplesPerSecond() {
   const int kDefaultOutputSamplesPerSecond = 48000;
   return SbAudioSinkGetNearestSupportedSampleFrequency(
@@ -60,6 +40,9 @@ bool IsResetDecoderNecessary(const SbMediaAudioSampleInfo& current_info,
     return true;
   }
   if (current_info.samples_per_second != new_info.samples_per_second) {
+    return true;
+  }
+  if (current_info.number_of_channels != new_info.number_of_channels) {
     return true;
   }
   if (current_info.audio_specific_config_size !=
@@ -79,10 +62,10 @@ AdaptiveAudioDecoder::AdaptiveAudioDecoder(
     SbDrmSystem drm_system,
     const AudioDecoderCreator& audio_decoder_creator,
     const OutputFormatAdjustmentCallback& output_adjustment_callback)
-    : initilize_audio_sample_info_(audio_sample_info),
-      drm_system_(drm_system),
+    : drm_system_(drm_system),
       audio_decoder_creator_(audio_decoder_creator),
-      output_adjustment_callback_(output_adjustment_callback) {
+      output_adjustment_callback_(output_adjustment_callback),
+      output_number_of_channels_(audio_sample_info.number_of_channels) {
   SB_DCHECK(audio_sample_info.codec != kSbMediaAudioCodecNone);
 }
 
@@ -147,27 +130,30 @@ void AdaptiveAudioDecoder::WriteEndOfStream() {
   if (audio_decoder_) {
     audio_decoder_->WriteEndOfStream();
   } else {
-    // It's possible that WriteEndOfStream() is called without any
-    // other input. In that case, we need to give |output_sample_type_|,
-    // |output_storage_type_| and |output_samples_per_second_| default
-    // value.
-    if (!first_output_received_) {
-      first_output_received_ = true;
-      output_sample_type_ = GetDefaultSupportedAudioSampleType();
-      output_storage_type_ = GetDefaultSupportedAudioFrameStorageType();
-      output_samples_per_second_ = GetDefaultSupportedAudioSamplesPerSecond();
-    }
     decoded_audios_.push(new DecodedAudio);
     Schedule(output_cb_);
   }
 }
 
-scoped_refptr<DecodedAudio> AdaptiveAudioDecoder::Read() {
+scoped_refptr<DecodedAudio> AdaptiveAudioDecoder::Read(
+    int* samples_per_second) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(!decoded_audios_.empty());
 
   scoped_refptr<DecodedAudio> ret = decoded_audios_.front();
   decoded_audios_.pop();
+
+  SB_DCHECK(ret->is_end_of_stream() ||
+            ret->sample_type() == output_sample_type_);
+  SB_DCHECK(ret->is_end_of_stream() ||
+            ret->storage_type() == output_storage_type_);
+  SB_DCHECK(ret->is_end_of_stream() ||
+            ret->channels() == output_number_of_channels_);
+
+  SB_DCHECK(first_output_received_ || ret->is_end_of_stream());
+  *samples_per_second = first_output_received_
+                            ? output_samples_per_second_
+                            : GetDefaultSupportedAudioSamplesPerSecond();
   return ret;
 }
 
@@ -193,6 +179,8 @@ void AdaptiveAudioDecoder::InitializeAudioDecoder(
   SB_DCHECK(!audio_decoder_);
   SB_DCHECK(output_cb_);
   SB_DCHECK(error_cb_);
+  SB_DCHECK(!resampler_);
+  SB_DCHECK(!channel_mixer_);
 
   input_audio_sample_info_ = audio_sample_info;
   output_format_checked_ = false;
@@ -214,30 +202,37 @@ void AdaptiveAudioDecoder::InitializeAudioDecoder(
 void AdaptiveAudioDecoder::TeardownAudioDecoder() {
   audio_decoder_.reset();
   resampler_.reset();
+  channel_mixer_.reset();
 }
 
 void AdaptiveAudioDecoder::OnDecoderOutput() {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
+  int decoded_sample_rate;
+  scoped_refptr<DecodedAudio> decoded_audio =
+      audio_decoder_->Read(&decoded_sample_rate);
   if (!first_output_received_) {
     first_output_received_ = true;
-    output_sample_type_ = audio_decoder_->GetSampleType();
-    output_storage_type_ = audio_decoder_->GetStorageType();
-    output_samples_per_second_ = audio_decoder_->GetSamplesPerSecond();
+    output_sample_type_ = decoded_audio->sample_type();
+    output_storage_type_ = decoded_audio->storage_type();
+    output_samples_per_second_ = decoded_sample_rate;
     if (output_adjustment_callback_) {
       output_adjustment_callback_(&output_sample_type_, &output_storage_type_,
-                                  &output_samples_per_second_);
+                                  &output_samples_per_second_,
+                                  &output_number_of_channels_);
     }
   }
 
-  scoped_refptr<DecodedAudio> decoded_audio = audio_decoder_->Read();
   if (decoded_audio->is_end_of_stream()) {
     // Flush resampler.
     if (resampler_) {
       scoped_refptr<DecodedAudio> resampler_output =
           resampler_->WriteEndOfStream();
       if (resampler_output && resampler_output->size() > 0) {
+        if (channel_mixer_) {
+          resampler_output = channel_mixer_->Mix(resampler_output);
+        }
         decoded_audios_.push(resampler_output);
         Schedule(output_cb_);
       }
@@ -256,23 +251,35 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
     return;
   }
 
+  SB_DCHECK(input_audio_sample_info_.number_of_channels ==
+            decoded_audio->channels());
   if (!output_format_checked_) {
     SB_DCHECK(!resampler_);
+    SB_DCHECK(!channel_mixer_);
     output_format_checked_ = true;
-    if (audio_decoder_->GetSampleType() != output_sample_type_ ||
-        audio_decoder_->GetStorageType() != output_storage_type_ ||
-        audio_decoder_->GetSamplesPerSecond() != output_samples_per_second_) {
+    if (output_sample_type_ != decoded_audio->sample_type() ||
+        output_storage_type_ != decoded_audio->storage_type() ||
+        output_samples_per_second_ != decoded_sample_rate) {
       resampler_ = AudioResampler::Create(
-          audio_decoder_->GetSampleType(), audio_decoder_->GetStorageType(),
-          audio_decoder_->GetSamplesPerSecond(), output_sample_type_,
-          output_storage_type_, output_samples_per_second_,
-          initilize_audio_sample_info_.number_of_channels);
+          decoded_audio->sample_type(), decoded_audio->storage_type(),
+          decoded_sample_rate, output_sample_type_, output_storage_type_,
+          output_samples_per_second_,
+          input_audio_sample_info_.number_of_channels);
+    }
+    if (input_audio_sample_info_.number_of_channels !=
+        output_number_of_channels_) {
+      channel_mixer_ = AudioChannelLayoutMixer::Create(
+          output_sample_type_, output_storage_type_,
+          output_number_of_channels_);
     }
   }
   if (resampler_) {
     decoded_audio = resampler_->Resample(decoded_audio);
   }
   if (decoded_audio && decoded_audio->size() > 0) {
+    if (channel_mixer_) {
+      decoded_audio = channel_mixer_->Mix(decoded_audio);
+    }
     decoded_audios_.push(decoded_audio);
     Schedule(output_cb_);
   }

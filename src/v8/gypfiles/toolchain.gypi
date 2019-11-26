@@ -249,24 +249,29 @@
               ['v8_target_arch==target_arch', {
                 # Target built with an Arm CXX compiler.
                 'conditions': [
-                  [ 'arm_version==7', {
-                    'cflags': ['-march=armv7-a',],
-                  }],
-                  [ 'arm_version==7 or arm_version=="default"', {
+                  # v8 should not specify compiler flags for Evergreen.
+                  ['sb_evergreen!=1', {
                     'conditions': [
-                      [ 'arm_fpu!="default"', {
-                        'cflags': ['-mfpu=<(arm_fpu)',],
+                      [ 'arm_version==7', {
+                        'cflags': ['-march=armv7-a',],
+                      }],
+                      [ 'arm_version==7 or arm_version=="default"', {
+                        'conditions': [
+                          [ 'arm_fpu!="default"', {
+                            'cflags': ['-mfpu=<(arm_fpu)',],
+                          }],
+                        ],
+                      }],
+                      [ 'arm_float_abi!="default"', {
+                        'cflags': ['-mfloat-abi=<(arm_float_abi)',],
+                      }],
+                      [ 'arm_thumb==1', {
+                        'cflags': ['-mthumb',],
+                      }],
+                      [ 'arm_thumb==0', {
+                        'cflags': ['-marm',],
                       }],
                     ],
-                  }],
-                  [ 'arm_float_abi!="default"', {
-                    'cflags': ['-mfloat-abi=<(arm_float_abi)',],
-                  }],
-                  [ 'arm_thumb==1', {
-                    'cflags': ['-mthumb',],
-                  }],
-                  [ 'arm_thumb==0', {
-                    'cflags': ['-marm',],
                   }],
                 ],
               }, {

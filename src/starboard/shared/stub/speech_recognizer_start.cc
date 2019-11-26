@@ -14,11 +14,14 @@
 
 #include "starboard/speech_recognizer.h"
 
-#if SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
+#if SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION || \
+    SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
 
 bool SbSpeechRecognizerStart(SbSpeechRecognizer /*recognizer*/,
                              const SbSpeechConfiguration* /*configuration*/) {
   return false;
 }
 
-#endif  // SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
+#endif  // SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION ||
+        // SB_HAS(SPEECH_RECOGNIZER)
+        // && SB_API_VERSION >= 5

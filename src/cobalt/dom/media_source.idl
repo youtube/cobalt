@@ -15,7 +15,11 @@
 // https://www.w3.org/TR/media-source/#idl-def-mediasource
 // https://www.w3.org/TR/2016/CR-media-source-20160705/#idl-def-MediaSource
 
-[Constructor] interface MediaSource : EventTarget {
+[
+  Constructor,
+  ConstructorCallWith=EnvironmentSettings,
+]
+interface MediaSource : EventTarget {
   // All the source buffers created by this object.
   readonly attribute SourceBufferList sourceBuffers;
   // Subset of sourceBuffers that provide data for the selected/enabled tracks.

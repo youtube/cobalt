@@ -166,7 +166,7 @@ TEST_F(
 
   // Wait a little bit to give the pipeline some time to rasterize the submitted
   // render tree.
-  const base::TimeDelta kDelay = base::TimeDelta::FromMilliseconds(200);
+  const base::TimeDelta kDelay = base::TimeDelta::FromMilliseconds(400);
   base::PlatformThread::Sleep(kDelay);
 
   // Shut down the pipeline so that Submit will no longer be called.
@@ -187,7 +187,7 @@ TEST_F(
   // Here we repeatedly submit a new render tree to the pipeline as fast as
   // we can.  Regardless of the rate that we submit to the pipeline, we expect
   // it to rate-limit its submissions to the rasterizer.
-  const base::TimeDelta kDelay = base::TimeDelta::FromMilliseconds(200);
+  const base::TimeDelta kDelay = base::TimeDelta::FromMilliseconds(400);
   while (true) {
     base::TimeDelta time_elapsed = base::TimeTicks::Now() - start_time_;
     // Stop after kDelay seconds have passed.

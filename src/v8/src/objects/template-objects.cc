@@ -4,124 +4,92 @@
 
 #include "src/objects/template-objects.h"
 
-#include "src/factory.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
-#include "src/property-descriptor.h"
+#include "src/base/functional.h"
+#include "src/execution/isolate.h"
+#include "src/heap/factory.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/property-descriptor.h"
+#include "src/objects/template-objects-inl.h"
 
 namespace v8 {
 namespace internal {
 
-bool TemplateObjectDescription::Equals(
-    TemplateObjectDescription const* that) const {
-  if (this->raw_strings()->length() == that->raw_strings()->length()) {
-    for (int i = this->raw_strings()->length(); --i >= 0;) {
-      if (this->raw_strings()->get(i) != that->raw_strings()->get(i)) {
-        return false;
-      }
-    }
-    return true;
-  }
-  return false;
-}
-
 // static
 Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
+    Isolate* isolate, Handle<NativeContext> native_context,
     Handle<TemplateObjectDescription> description,
-    Handle<Context> native_context) {
-  DCHECK(native_context->IsNativeContext());
-  Isolate* const isolate = native_context->GetIsolate();
+    Handle<SharedFunctionInfo> shared_info, int slot_id) {
+  // Check the template weakmap to see if the template object already exists.
+  Handle<EphemeronHashTable> template_weakmap =
+      native_context->template_weakmap().IsUndefined(isolate)
+          ? EphemeronHashTable::New(isolate, 0)
+          : handle(EphemeronHashTable::cast(native_context->template_weakmap()),
+                   isolate);
 
-  // Check if we already have a [[TemplateMap]] for the {native_context},
-  // and if not, just allocate one on the fly (which will be set below).
-  Handle<TemplateMap> template_map =
-      native_context->template_map()->IsUndefined(isolate)
-          ? TemplateMap::New(isolate)
-          : handle(TemplateMap::cast(native_context->template_map()), isolate);
+  uint32_t hash = shared_info->Hash();
+  Object maybe_cached_template = template_weakmap->Lookup(shared_info, hash);
+  while (!maybe_cached_template.IsTheHole()) {
+    CachedTemplateObject cached_template =
+        CachedTemplateObject::cast(maybe_cached_template);
+    if (cached_template.slot_id() == slot_id)
+      return handle(cached_template.template_object(), isolate);
 
-  // Check if we already have an appropriate entry.
-  Handle<JSArray> template_object;
-  if (!TemplateMap::Lookup(template_map, description)
-           .ToHandle(&template_object)) {
-    // Create the raw object from the {raw_strings}.
-    Handle<FixedArray> raw_strings(description->raw_strings(), isolate);
-    Handle<JSArray> raw_object = isolate->factory()->NewJSArrayWithElements(
-        raw_strings, PACKED_ELEMENTS, raw_strings->length(), TENURED);
-
-    // Create the template object from the {cooked_strings}.
-    Handle<FixedArray> cooked_strings(description->cooked_strings(), isolate);
-    template_object = isolate->factory()->NewJSArrayWithElements(
-        cooked_strings, PACKED_ELEMENTS, cooked_strings->length(), TENURED);
-
-    // Freeze the {raw_object}.
-    JSObject::SetIntegrityLevel(raw_object, FROZEN, kThrowOnError).ToChecked();
-
-    // Install a "raw" data property for {raw_object} on {template_object}.
-    PropertyDescriptor raw_desc;
-    raw_desc.set_value(raw_object);
-    raw_desc.set_configurable(false);
-    raw_desc.set_enumerable(false);
-    raw_desc.set_writable(false);
-    JSArray::DefineOwnProperty(isolate, template_object,
-                               isolate->factory()->raw_string(), &raw_desc,
-                               kThrowOnError)
-        .ToChecked();
-
-    // Freeze the {template_object} as well.
-    JSObject::SetIntegrityLevel(template_object, FROZEN, kThrowOnError)
-        .ToChecked();
-
-    // Remember the {template_object} in the {template_map}.
-    template_map = TemplateMap::Add(template_map, description, template_object);
-    native_context->set_template_map(*template_map);
+    maybe_cached_template = cached_template.next();
   }
+
+  // Create the raw object from the {raw_strings}.
+  Handle<FixedArray> raw_strings(description->raw_strings(), isolate);
+  Handle<JSArray> raw_object = isolate->factory()->NewJSArrayWithElements(
+      raw_strings, PACKED_ELEMENTS, raw_strings->length(),
+      AllocationType::kOld);
+
+  // Create the template object from the {cooked_strings}.
+  Handle<FixedArray> cooked_strings(description->cooked_strings(), isolate);
+  Handle<JSArray> template_object = isolate->factory()->NewJSArrayWithElements(
+      cooked_strings, PACKED_ELEMENTS, cooked_strings->length(),
+      AllocationType::kOld);
+
+  // Freeze the {raw_object}.
+  JSObject::SetIntegrityLevel(raw_object, FROZEN, kThrowOnError).ToChecked();
+
+  // Install a "raw" data property for {raw_object} on {template_object}.
+  PropertyDescriptor raw_desc;
+  raw_desc.set_value(raw_object);
+  raw_desc.set_configurable(false);
+  raw_desc.set_enumerable(false);
+  raw_desc.set_writable(false);
+  JSArray::DefineOwnProperty(isolate, template_object,
+                             isolate->factory()->raw_string(), &raw_desc,
+                             Just(kThrowOnError))
+      .ToChecked();
+
+  // Freeze the {template_object} as well.
+  JSObject::SetIntegrityLevel(template_object, FROZEN, kThrowOnError)
+      .ToChecked();
+
+  // Insert the template object into the template weakmap.
+  Handle<HeapObject> previous_cached_templates = handle(
+      HeapObject::cast(template_weakmap->Lookup(shared_info, hash)), isolate);
+  Handle<CachedTemplateObject> cached_template = CachedTemplateObject::New(
+      isolate, slot_id, template_object, previous_cached_templates);
+  template_weakmap = EphemeronHashTable::Put(
+      isolate, template_weakmap, shared_info, cached_template, hash);
+  native_context->set_template_weakmap(*template_weakmap);
 
   return template_object;
 }
 
-// static
-bool TemplateMapShape::IsMatch(TemplateObjectDescription* key, Object* value) {
-  return key->Equals(TemplateObjectDescription::cast(value));
-}
-
-// static
-uint32_t TemplateMapShape::Hash(Isolate* isolate,
-                                TemplateObjectDescription* key) {
-  return key->hash();
-}
-
-// static
-uint32_t TemplateMapShape::HashForObject(Isolate* isolate, Object* object) {
-  return Hash(isolate, TemplateObjectDescription::cast(object));
-}
-
-// static
-Handle<TemplateMap> TemplateMap::New(Isolate* isolate) {
-  return HashTable::New(isolate, 0);
-}
-
-// static
-MaybeHandle<JSArray> TemplateMap::Lookup(
-    Handle<TemplateMap> template_map, Handle<TemplateObjectDescription> key) {
-  int const entry = template_map->FindEntry(*key);
-  if (entry == kNotFound) return MaybeHandle<JSArray>();
-  int const index = EntryToIndex(entry);
-  return handle(JSArray::cast(template_map->get(index + 1)));
-}
-
-// static
-Handle<TemplateMap> TemplateMap::Add(Handle<TemplateMap> template_map,
-                                     Handle<TemplateObjectDescription> key,
-                                     Handle<JSArray> value) {
-  DCHECK_EQ(kNotFound, template_map->FindEntry(*key));
-  template_map = EnsureCapacity(template_map, 1);
-  uint32_t const hash = ShapeT::Hash(key->GetIsolate(), *key);
-  int const entry = template_map->FindInsertionEntry(hash);
-  int const index = EntryToIndex(entry);
-  template_map->set(index + 0, *key);
-  template_map->set(index + 1, *value);
-  template_map->ElementAdded();
-  return template_map;
+Handle<CachedTemplateObject> CachedTemplateObject::New(
+    Isolate* isolate, int slot_id, Handle<JSArray> template_object,
+    Handle<HeapObject> next) {
+  DCHECK(next->IsCachedTemplateObject() || next->IsTheHole());
+  Factory* factory = isolate->factory();
+  Handle<CachedTemplateObject> result = Handle<CachedTemplateObject>::cast(
+      factory->NewStruct(TUPLE3_TYPE, AllocationType::kOld));
+  result->set_slot_id(slot_id);
+  result->set_template_object(*template_object);
+  result->set_next(*next);
+  return result;
 }
 
 }  // namespace internal

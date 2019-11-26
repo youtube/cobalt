@@ -41,7 +41,7 @@ class ScriptDebuggerAgent {
   bool IsSupportedDomain(const std::string& domain) {
     return supported_domains_.count(domain) != 0;
   }
-  bool RunCommand(const Command& command);
+  std::unique_ptr<Command> RunCommand(std::unique_ptr<Command> command);
   void SendCommandResponse(const std::string& json_response);
   void SendEvent(const std::string& json_event);
 
@@ -53,7 +53,7 @@ class ScriptDebuggerAgent {
   const std::set<std::string> supported_domains_;
 
   int last_command_id_ = 0;
-  std::map<int, Command> pending_commands_;
+  std::map<int, std::unique_ptr<Command>> pending_commands_;
 };
 
 }  // namespace backend

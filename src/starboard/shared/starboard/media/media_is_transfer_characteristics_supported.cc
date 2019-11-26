@@ -17,8 +17,7 @@
 #include "starboard/media.h"
 
 #if !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-SB_EXPORT bool SbMediaIsTransferCharacteristicsSupported(
-    SbMediaTransferId transfer_id) {
+bool SbMediaIsTransferCharacteristicsSupported(SbMediaTransferId transfer_id) {
   return transfer_id == kSbMediaTransferIdBt709 ||
          transfer_id == kSbMediaTransferIdUnspecified;
 }

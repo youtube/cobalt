@@ -14,6 +14,10 @@
 
 #include "starboard/egl.h"
 
+#if SB_API_VERSION >= 11
+
 const SbEglInterface* SbGetEglInterface() {
   return nullptr;
 }
+
+#endif  // SB_API_VERSION >= 11

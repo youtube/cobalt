@@ -91,8 +91,8 @@ const int64_t kPerformanceTimerMinResolutionInMicroseconds = 20;
 }  // namespace
 
 Window::Window(
-    const ViewportSize& view_size, float device_pixel_ratio,
-    base::ApplicationState initial_application_state,
+    script::EnvironmentSettings* settings, const ViewportSize& view_size,
+    float device_pixel_ratio, base::ApplicationState initial_application_state,
     cssom::CSSParser* css_parser, Parser* dom_parser,
     loader::FetcherFactory* fetcher_factory,
     loader::LoaderFactory* loader_factory,
@@ -130,7 +130,6 @@ Window::Window(
     const ScreenshotManager::ProvideScreenshotFunctionCallback&
         screenshot_function_callback,
     base::WaitableEvent* synchronous_loader_interrupt,
-    const base::DebuggerHooks& debugger_hooks,
     const scoped_refptr<ui_navigation::NavItem>& ui_nav_root,
     int csp_insecure_allowed_token, int dom_max_element_depth,
     float video_playback_rate_multiplier, ClockType clock_type,
@@ -139,7 +138,7 @@ Window::Window(
     bool log_tts)
     // 'window' object EventTargets require special handling for onerror events,
     // see EventTarget constructor for more details.
-    : EventTarget(kUnpackOnErrorEvents),
+    : EventTarget(settings, kUnpackOnErrorEvents),
       viewport_size_(view_size),
       device_pixel_ratio_(device_pixel_ratio),
       is_resize_event_pending_(false),
@@ -148,7 +147,7 @@ Window::Window(
       test_runner_(new TestRunner()),
 #endif  // ENABLE_TEST_RUNNER
       html_element_context_(new HTMLElementContext(
-          fetcher_factory, loader_factory, css_parser, dom_parser,
+          settings, fetcher_factory, loader_factory, css_parser, dom_parser,
           can_play_type_handler, web_media_player_factory, script_runner,
           script_value_factory, media_source_registry, resource_provider,
           animated_image_tracker, image_cache,
@@ -169,17 +168,18 @@ Window::Window(
               csp_insecure_allowed_token, dom_max_element_depth)))),
       document_loader_(nullptr),
       history_(new History()),
-      navigator_(new Navigator(user_agent, language, media_session, captions,
-                               script_value_factory)),
+      navigator_(new Navigator(settings, user_agent, language, media_session,
+                               captions, script_value_factory)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           relay_on_load_event_(new RelayLoadEvent(this))),
       console_(new Console(execution_state)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          window_timers_(new WindowTimers(this, debugger_hooks))),
+          window_timers_(new WindowTimers(this, debugger_hooks()))),
       ALLOW_THIS_IN_INITIALIZER_LIST(animation_frame_request_callback_list_(
-          new AnimationFrameRequestCallbackList(this))),
+          new AnimationFrameRequestCallbackList(this, debugger_hooks()))),
       crypto_(new Crypto()),
-      speech_synthesis_(new speech::SpeechSynthesis(navigator_, log_tts)),
+      speech_synthesis_(
+          new speech::SpeechSynthesis(settings, navigator_, log_tts)),
       ALLOW_THIS_IN_INITIALIZER_LIST(local_storage_(
           new Storage(this, Storage::kLocalStorage, local_storage_database))),
       ALLOW_THIS_IN_INITIALIZER_LIST(
@@ -193,13 +193,14 @@ Window::Window(
       // We only have an on_screen_keyboard_bridge when the platform supports
       // it. Otherwise don't even expose it in the DOM.
       on_screen_keyboard_(on_screen_keyboard_bridge
-                              ? new OnScreenKeyboard(on_screen_keyboard_bridge,
+                              ? new OnScreenKeyboard(settings,
+                                                     on_screen_keyboard_bridge,
                                                      script_value_factory)
                               : NULL),
       splash_screen_cache_callback_(splash_screen_cache_callback),
       on_start_dispatch_event_callback_(on_start_dispatch_event_callback),
       on_stop_dispatch_event_callback_(on_stop_dispatch_event_callback),
-      screenshot_manager_(screenshot_function_callback),
+      screenshot_manager_(settings, screenshot_function_callback),
       ui_nav_root_(ui_nav_root) {
 #if !defined(ENABLE_TEST_RUNNER)
   SB_UNREFERENCED_PARAMETER(clock_type);
@@ -501,7 +502,7 @@ void Window::RunAnimationFrameCallbacks() {
     // Then setup the Window's frame request callback list with a freshly
     // created and empty one.
     animation_frame_request_callback_list_.reset(
-        new AnimationFrameRequestCallbackList(this));
+        new AnimationFrameRequestCallbackList(this, debugger_hooks()));
 
     // Now, iterate through each of the callbacks and call them.
     frame_request_list->RunCallbacks(*document_->timeline()->current_time());
@@ -699,11 +700,6 @@ void Window::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(session_storage_);
   tracer->Trace(screen_);
   tracer->Trace(on_screen_keyboard_);
-}
-
-void Window::SetEnvironmentSettings(script::EnvironmentSettings* settings) {
-  screenshot_manager_.SetEnvironmentSettings(settings);
-  navigator_->SetEnvironmentSettings(settings);
 }
 
 void Window::CacheSplashScreen(const std::string& content) {

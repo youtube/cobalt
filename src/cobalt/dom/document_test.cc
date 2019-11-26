@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/dom/document.h"
+
+#include <memory>
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/css_parser/parser.h"
@@ -39,6 +39,7 @@
 #include "cobalt/dom/node_list.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/testing/html_collection_testing.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/dom/ui_event.h"
 #include "cobalt/script/testing/mock_exception_state.h"
@@ -48,10 +49,10 @@ namespace cobalt {
 namespace dom {
 namespace {
 
+using script::testing::MockExceptionState;
+using ::testing::_;
 using ::testing::SaveArg;
 using ::testing::StrictMock;
-using ::testing::_;
-using script::testing::MockExceptionState;
 
 //////////////////////////////////////////////////////////////////////////
 // DocumentTest
@@ -63,6 +64,7 @@ class DocumentTest : public ::testing::Test {
   ~DocumentTest() override;
 
   base::MessageLoop message_loop_;
+  testing::StubEnvironmentSettings environment_settings_;
   std::unique_ptr<css_parser::Parser> css_parser_;
   std::unique_ptr<DomStatTracker> dom_stat_tracker_;
   HTMLElementContext html_element_context_;
@@ -71,10 +73,10 @@ class DocumentTest : public ::testing::Test {
 DocumentTest::DocumentTest()
     : css_parser_(css_parser::Parser::Create()),
       dom_stat_tracker_(new DomStatTracker("DocumentTest")),
-      html_element_context_(NULL, NULL, css_parser_.get(), NULL, NULL, NULL,
-                            NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                            NULL, dom_stat_tracker_.get(), "",
-                            base::kApplicationStateStarted, NULL) {
+      html_element_context_(
+          &environment_settings_, NULL, NULL, css_parser_.get(), NULL, NULL,
+          NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+          dom_stat_tracker_.get(), "", base::kApplicationStateStarted, NULL) {
   EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
 }
 

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/browser/debug_console.h"
+
 #include "base/bind.h"
 #include "base/command_line.h"
 #include "base/files/file_util.h"
@@ -144,44 +145,55 @@ DebugConsole::DebugConsole(
 
 DebugConsole::~DebugConsole() {}
 
+bool DebugConsole::ShouldInjectInputEvents() {
+  switch (GetMode()) {
+    case debug::console::DebugHub::kDebugConsoleOff:
+    case debug::console::DebugHub::kDebugConsoleHud:
+      return false;
+    default:
+      return true;
+  }
+}
+
 bool DebugConsole::FilterKeyEvent(base::Token type,
                                   const dom::KeyboardEventInit& event) {
-  // Assume here the full debug console is visible - pass all events to its
-  // web module, and return false to indicate the event has been consumed.
+  // Return true to indicate the event should still be handled.
+  if (!ShouldInjectInputEvents()) return true;
+
   web_module_->InjectKeyboardEvent(type, event);
   return false;
 }
 
 bool DebugConsole::FilterWheelEvent(base::Token type,
                                     const dom::WheelEventInit& event) {
-  // Assume here the full debug console is visible - pass all events to its
-  // web module, and return false to indicate the event has been consumed.
+  // Return true to indicate the event should still be handled.
+  if (!ShouldInjectInputEvents()) return true;
+
   web_module_->InjectWheelEvent(type, event);
   return false;
 }
 
 bool DebugConsole::FilterPointerEvent(base::Token type,
                                       const dom::PointerEventInit& event) {
-  // Assume here the full debug console is visible - pass all events to its
-  // web module, and return false to indicate the event has been consumed.
+  // Return true to indicate the event should still be handled.
+  if (!ShouldInjectInputEvents()) return true;
+
   web_module_->InjectPointerEvent(type, event);
   return false;
 }
 
-#if SB_HAS(ON_SCREEN_KEYBOARD)
-bool DebugConsole::InjectOnScreenKeyboardInputEvent(
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
+    SB_HAS(ON_SCREEN_KEYBOARD)
+bool DebugConsole::FilterOnScreenKeyboardInputEvent(
     base::Token type, const dom::InputEventInit& event) {
-  // Assume here the full debug console is visible - pass all events to its
-  // web module, and return false to indicate the event has been consumed.
+  // Return true to indicate the event should still be handled.
+  if (!ShouldInjectInputEvents()) return true;
+
   web_module_->InjectOnScreenKeyboardInputEvent(type, event);
   return false;
 }
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
-
-void DebugConsole::SetMode(int mode) {
-  base::AutoLock lock(mode_mutex_);
-  mode_ = mode;
-}
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+        // SB_HAS(ON_SCREEN_KEYBOARD)
 
 void DebugConsole::CycleMode() {
   base::AutoLock lock(mode_mutex_);

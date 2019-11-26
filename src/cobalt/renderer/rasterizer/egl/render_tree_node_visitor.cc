@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/configuration.h"
+#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)
+
 #include "cobalt/renderer/rasterizer/egl/render_tree_node_visitor.h"
 
 #include <algorithm>
@@ -109,8 +112,19 @@ math::Matrix3F GetTexcoordTransform(
 }
 
 bool ImageNodeSupportedNatively(render_tree::ImageNode* image_node) {
+  // The image node may contain nothing. For example, when it represents a video
+  // element before any frame is decoded.
+  if (!image_node->data().source) {
+    return true;
+  }
+
+  // Ensure any required backend processing is done to create the necessary
+  // GPU resource. This must be done to verify whether the GPU resource can
+  // be rendered by the shader.
   skia::Image* skia_image =
       base::polymorphic_downcast<skia::Image*>(image_node->data().source.get());
+  skia_image->EnsureInitialized();
+
   if (skia_image->GetTypeId() == base::GetTypeId<skia::MultiPlaneImage>()) {
     skia::HardwareMultiPlaneImage* hardware_image =
         base::polymorphic_downcast<skia::HardwareMultiPlaneImage*>(skia_image);
@@ -500,10 +514,6 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
   skia::Image* skia_image =
       base::polymorphic_downcast<skia::Image*>(data.source.get());
   bool is_opaque = skia_image->IsOpaque() && IsOpaque(draw_state_.opacity);
-
-  // Ensure any required backend processing is done to create the necessary
-  // GPU resource.
-  skia_image->EnsureInitialized();
 
   // Calculate matrix to transform texture coordinates according to the local
   // transform.
@@ -1130,3 +1140,5 @@ void RenderTreeNodeVisitor::AddClear(const math::RectF& rect,
 }  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
+
+#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)

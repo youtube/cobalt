@@ -26,7 +26,9 @@ VideoRenderAlgorithmImpl::VideoRenderAlgorithmImpl(
     const GetRefreshRateFn& get_refresh_rate_fn)
     : get_refresh_rate_fn_(get_refresh_rate_fn) {
   if (get_refresh_rate_fn_) {
-    SB_LOG(INFO) << "VideoRenderAlgorithmImpl will render with cadence control";
+    SB_LOG(INFO) << "VideoRenderAlgorithmImpl will render with cadence control "
+                 << "with display refresh rate set at "
+                 << get_refresh_rate_fn_();
   }
 }
 
@@ -154,6 +156,12 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
     return;
   }
 
+  auto refresh_rate = get_refresh_rate_fn_();
+  SB_DCHECK(refresh_rate >= 1);
+  if (refresh_rate < 1) {
+    refresh_rate = 60;
+  }
+
   bool is_audio_playing;
   bool is_audio_eos_played;
   bool is_underflow;
@@ -165,28 +173,38 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
     frame_rate_estimate_.Update(*frames);
     auto frame_rate = frame_rate_estimate_.frame_rate();
     SB_DCHECK(frame_rate != VideoFrameRateEstimator::kInvalidFrameRate);
-    cadence_pattern_generator_.UpdateRefreshRateAndMaybeReset(
-        get_refresh_rate_fn_());
+    cadence_pattern_generator_.UpdateRefreshRateAndMaybeReset(refresh_rate);
     cadence_pattern_generator_.UpdateFrameRate(frame_rate);
     SB_DCHECK(cadence_pattern_generator_.has_cadence());
-
-    if (current_frame_rendered_times_ >=
-        cadence_pattern_generator_.GetNumberOfTimesCurrentFrameDisplays()) {
-      frames->pop_front();
-      cadence_pattern_generator_.AdvanceToNextFrame();
-      break;
-    }
 
     auto second_iter = frames->begin();
     ++second_iter;
 
-    if ((*second_iter)->is_end_of_stream() ||
-        (*second_iter)->timestamp() > media_time) {
+    if ((*second_iter)->is_end_of_stream()) {
       break;
     }
 
     auto frame_duration =
-        static_cast<SbTime>(kSbTimeSecond / get_refresh_rate_fn_());
+        static_cast<SbTime>(kSbTimeSecond / refresh_rate);
+
+    if (current_frame_rendered_times_ >=
+        cadence_pattern_generator_.GetNumberOfTimesCurrentFrameDisplays()) {
+      if (current_frame_rendered_times_ == 0) {
+        ++dropped_frames_;
+      }
+      frames->pop_front();
+      cadence_pattern_generator_.AdvanceToNextFrame();
+      current_frame_rendered_times_ = 0;
+      if (cadence_pattern_generator_.GetNumberOfTimesCurrentFrameDisplays()
+          == 0) {
+        continue;
+      }
+      if (frames->front()->timestamp() <= media_time - frame_duration) {
+        continue;
+      }
+      break;
+    }
+
     if ((*second_iter)->timestamp() > media_time - frame_duration) {
       break;
     }
@@ -215,7 +233,8 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
           << " call are " << media_time - media_time_of_last_render_call_ << "/"
           << now - system_time_of_last_render_call_ << " microseconds, the"
           << " video is at " << frame_rate_estimate_.frame_rate() << " fps,"
-          << " media time is " << media_time;
+          << " media time is " << media_time << ", backlog " << frames->size()
+          << " frames.";
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
     }
     frames->pop_front();

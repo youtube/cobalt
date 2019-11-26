@@ -16,7 +16,6 @@
 # though it may have been modified since its creation.
 """Starboard Linux X64X11 Blittergles Sbversion 10 platform configuration."""
 
-
 from starboard.linux.x64x11 import gyp_configuration as parent_configuration
 
 

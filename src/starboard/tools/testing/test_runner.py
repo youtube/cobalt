@@ -42,6 +42,13 @@ _TESTS_PASSED_REGEX = re.compile(r"^\[  PASSED  \] (.*) tests?")
 _TESTS_FAILED_REGEX = re.compile(r"^\[  FAILED  \] (.*) tests?, listed below:")
 _SINGLE_TEST_FAILED_REGEX = re.compile(r"^\[  FAILED  \] (.*)")
 
+_LOADER_TARGET = "elf_loader_sandbox"
+
+
+def _EnsureBuildDirectoryExists(path):
+  if not os.path.exists(path):
+    raise ValueError("'{}' does not exist.".format(path))
+
 
 def _FilterTests(target_list, filters, config_name):
   """Returns a Mapping of test targets -> filtered tests."""
@@ -74,7 +81,9 @@ def _VerifyConfig(config):
   """Ensures a platform or app config is self-consistent."""
   targets = config.GetTestTargets()
   filters = config.GetTestFilters()
-  filter_targets = [f.target_name for f in filters]
+  filter_targets = [
+      f.target_name for f in filters if f != test_filter.DISABLE_TESTING
+  ]
 
   # Filters must be defined in the same config as the targets they're filtering,
   # platform filters in platform config, and app filters in app config.
@@ -196,6 +205,8 @@ class TestRunner(object):
   def __init__(self,
                platform,
                config,
+               loader_platform,
+               loader_config,
                device_id,
                specified_targets,
                target_params,
@@ -207,10 +218,24 @@ class TestRunner(object):
                log_xml_results=False):
     self.platform = platform
     self.config = config
+    self.loader_platform = loader_platform
+    self.loader_config = loader_config
     self.device_id = device_id
     self.target_params = target_params
     self.out_directory = out_directory
+    if not self.out_directory:
+      self.out_directory = paths.BuildOutputDirectory(self.platform,
+                                                      self.config)
+    self.coverage_directory = os.path.join(self.out_directory, "coverage")
+    if self.loader_platform:
+      self.loader_out_directory = paths.BuildOutputDirectory(
+          self.loader_platform, self.loader_config)
+    else:
+      self.loader_out_directory = None
+
     self._platform_config = build.GetPlatformConfig(platform)
+    if self.loader_platform:
+      self._loader_platform_config = build.GetPlatformConfig(loader_platform)
     self._app_config = self._platform_config.GetApplicationConfiguration(
         application_name)
     self.dry_run = dry_run
@@ -218,7 +243,13 @@ class TestRunner(object):
     self.log_xml_results = log_xml_results
     self.threads = []
 
+    _EnsureBuildDirectoryExists(self.out_directory)
     _VerifyConfig(self._platform_config)
+
+    if self.loader_platform:
+      _EnsureBuildDirectoryExists(self.loader_out_directory)
+      _VerifyConfig(self._loader_platform_config)
+
     _VerifyConfig(self._app_config)
 
     # If a particular test binary has been provided, configure only that one.
@@ -228,6 +259,30 @@ class TestRunner(object):
       self.test_targets = self._GetTestTargets(platform_tests_only)
 
     self.test_env_vars = self._GetAllTestEnvVariables()
+
+  def _Exec(self, cmd_list, output_file=None):
+    """Execute a command in a subprocess."""
+    try:
+      msg = "Executing:\n    " + " ".join(cmd_list)
+      logging.info(msg)
+      if output_file:
+        with open(output_file, "wb") as out:
+          p = subprocess.Popen(
+              cmd_list,
+              stdout=out,
+              universal_newlines=True,
+              cwd=self.out_directory)
+      else:
+        p = subprocess.Popen(
+            cmd_list,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+            cwd=self.out_directory)
+      p.wait()
+      return p.returncode
+    except KeyboardInterrupt:
+      p.kill()
+      return 1
 
   def _GetSpecifiedTestTargets(self, specified_targets):
     """Sets up specified test targets for a given platform and configuration.
@@ -259,7 +314,7 @@ class TestRunner(object):
     """Collects all test targets for a given platform and configuration.
 
     Args:
-      platform_only: If True then only the platform tests are fetched.
+      platform_tests_only: If True then only the platform tests are fetched.
 
     Returns:
       A mapping from names of test binaries to lists of filters for
@@ -347,6 +402,8 @@ class TestRunner(object):
       test_params.append("--gtest_output=xml:%s" % (xml_output_path))
 
     test_params.extend(self.target_params)
+    if self.dry_run:
+      test_params.extend(["--gtest_list_tests"])
 
     launcher = abstract_launcher.LauncherFactory(
         self.platform,
@@ -356,7 +413,11 @@ class TestRunner(object):
         target_params=test_params,
         output_file=write_pipe,
         out_directory=self.out_directory,
-        env_variables=env)
+        coverage_directory=self.coverage_directory,
+        env_variables=env,
+        loader_platform=self.loader_platform,
+        loader_config=self.loader_config,
+        loader_out_directory=self.loader_out_directory)
 
     test_reader = TestLineReader(read_pipe)
     test_launcher = TestLauncher(launcher)
@@ -373,30 +434,22 @@ class TestRunner(object):
     sys.stdout.write("Starting {}{}{}".format(
         test_name if test_name else target_name, dump_params, dump_env))
 
-    if self.dry_run:
-      # Output a newline before running the test target / case.
-      sys.stdout.write("\n")
+    # Output a newline before running the test target / case.
+    sys.stdout.write("\n")
 
-      if test_params:
-        sys.stdout.write(" {}\n".format(test_params))
-      write_pipe.close()
-      read_pipe.close()
+    if test_params:
+      sys.stdout.write(" {}\n".format(test_params))
+    test_reader.Start()
+    test_launcher.Start()
 
-    else:
-      # Output a newline before running the test target / case.
-      sys.stdout.write("\n")
+    # Wait for the launcher to exit then close the write pipe, which will
+    # cause the reader to exit.
+    test_launcher.Join()
+    write_pipe.close()
 
-      test_reader.Start()
-      test_launcher.Start()
-
-      # Wait for the launcher to exit then close the write pipe, which will
-      # cause the reader to exit.
-      test_launcher.Join()
-      write_pipe.close()
-
-      # Only after closing the write pipe, wait for the reader to exit.
-      test_reader.Join()
-      read_pipe.close()
+    # Only after closing the write pipe, wait for the reader to exit.
+    test_reader.Join()
+    read_pipe.close()
 
     output = test_reader.GetLines()
 
@@ -551,6 +604,12 @@ class TestRunner(object):
         error = True
         test_status = "FAILED"
         failed_test_groups.append(target_name)
+        # Be specific about the cause of failure if it was caused due to crash
+        # upon exit. Normal Gtest failures have return_code = 1; test crashes
+        # yield different return codes (e.g. segfault has return_code = 11).
+        if (return_code != 1 and actual_failed_count == 0 and
+            flaky_failed_count == 0):
+          test_status = "FAILED (CRASHED)"
 
       logging.info("%s: %s.", target_name, test_status)
       if return_code != 0 and run_count == 0 and filtered_count == 0:
@@ -614,7 +673,7 @@ class TestRunner(object):
 
     return result
 
-  def BuildAllTests(self, ninja_flags):
+  def BuildAllTargets(self, ninja_flags):
     """Runs build step for all specified unit test binaries.
 
     Args:
@@ -626,18 +685,18 @@ class TestRunner(object):
     result = True
 
     try:
-      if self.out_directory:
-        out_directory = self.out_directory
-      else:
-        out_directory = paths.BuildOutputDirectory(self.platform, self.config)
-
       if ninja_flags:
         extra_flags = [ninja_flags]
       else:
         extra_flags = []
 
-      build_tests.BuildTargets(self.test_targets, out_directory, self.dry_run,
-                               extra_flags)
+      # The loader is not built with the same platform configuration as our
+      # tests so we need to build it separately.
+      if self.loader_platform:
+        build_tests.BuildTargets([_LOADER_TARGET], self.loader_out_directory,
+                                 self.dry_run, extra_flags)
+      build_tests.BuildTargets(self.test_targets, self.out_directory,
+                               self.dry_run, extra_flags)
 
     except subprocess.CalledProcessError as e:
       result = False
@@ -658,6 +717,47 @@ class TestRunner(object):
       results.append(self._RunTest(test_target))
 
     return self._ProcessAllTestResults(results)
+
+  def GenerateCoverageReport(self):
+    """Generate the source code coverage report."""
+    available_profraw_files = []
+    available_targets = []
+    for target in sorted(self.test_targets.keys()):
+      profraw_file = os.path.join(self.coverage_directory, target + ".profraw")
+      if os.path.isfile(profraw_file):
+        available_profraw_files.append(profraw_file)
+        available_targets.append(target)
+
+    # If there are no profraw files, then there is no work to do.
+    if not available_profraw_files:
+      return
+
+    report_name = "report"
+    profdata_name = os.path.join(self.coverage_directory,
+                                 report_name + ".profdata")
+    merge_cmd_list = [
+        "llvm-profdata", "merge", "-sparse=true", "-o", profdata_name
+    ]
+    merge_cmd_list += available_profraw_files
+
+    self._Exec(merge_cmd_list)
+    show_cmd_list = [
+        "llvm-cov", "show", "-instr-profile=" + profdata_name, "-format=html",
+        "-output-dir=" + os.path.join(self.coverage_directory, "html"),
+        available_targets[0]
+    ]
+    show_cmd_list += ["-object=" + target for target in available_targets[1:]]
+    self._Exec(show_cmd_list)
+
+    report_cmd_list = [
+        "llvm-cov", "report", "-instr-profile=" + profdata_name,
+        available_targets[0]
+    ]
+    report_cmd_list += ["-object=" + target for target in available_targets[1:]]
+    self._Exec(
+        report_cmd_list,
+        output_file=os.path.join(self.coverage_directory, report_name + ".txt"))
+    return
 
 
 def main():
@@ -713,13 +813,20 @@ def main():
       " complete. --xml_output_dir will be ignored.")
   args = arg_parser.parse_args()
 
+  if (args.loader_platform and not args.loader_config or
+      args.loader_config and not args.loader_platform):
+    arg_parser.error(
+        "You must specify both --loader_platform and --loader_config.")
+    return 1
+
   # Extra arguments for the test target
   target_params = []
   if args.target_params:
     target_params = args.target_params.split(" ")
 
-  runner = TestRunner(args.platform, args.config, args.device_id,
-                      args.target_name, target_params, args.out_directory,
+  runner = TestRunner(args.platform, args.config, args.loader_platform,
+                      args.loader_config, args.device_id, args.target_name,
+                      target_params, args.out_directory,
                       args.platform_tests_only, args.application_name,
                       args.dry_run, args.xml_output_dir, args.log_xml_results)
 
@@ -743,13 +850,15 @@ def main():
     sys.stderr.write("=== Dry run ===\n")
 
   if args.build:
-    build_success = runner.BuildAllTests(args.ninja_flags)
+    build_success = runner.BuildAllTargets(args.ninja_flags)
     # If the build fails, don't try to run the tests.
     if not build_success:
       return 1
 
   if args.run:
     run_success = runner.RunAllTests()
+
+  runner.GenerateCoverageReport()
 
   # If either step has failed, count the whole test run as failed.
   if not build_success or not run_success:

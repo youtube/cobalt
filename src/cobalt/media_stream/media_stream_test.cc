@@ -15,6 +15,7 @@
 #include "cobalt/media_stream/media_stream.h"
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -22,9 +23,10 @@ namespace media_stream {
 
 class MediaStreamTest : public ::testing::Test {
  public:
-  MediaStreamTest() : media_stream_(new MediaStream()) {}
+  MediaStreamTest() : media_stream_(new MediaStream(&environment_settings_)) {}
 
  protected:
+  dom::testing::StubEnvironmentSettings environment_settings_;
   scoped_refptr<MediaStream> media_stream_;
 };
 

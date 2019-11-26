@@ -18,6 +18,7 @@
 #include <memory>
 
 #include "cobalt/cssom/computed_style.h"
+#include "cobalt/cssom/computed_style_utils.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/layout/anonymous_block_box.h"
 #include "cobalt/layout/block_formatting_context.h"
@@ -62,19 +63,33 @@ void BlockFormattingBlockContainerBox::AddChild(
 std::unique_ptr<FormattingContext>
 BlockFormattingBlockContainerBox::UpdateRectOfInFlowChildBoxes(
     const LayoutParams& child_layout_params) {
+  // Only collapse in-flow, block-level boxes. Do not collapse root element and
+  // the initial containing block. Do not collapse boxes with overflow not equal
+  // to 'visible', because these create new formatting contexts.
+  bool is_collapsable =
+      !IsAbsolutelyPositioned() && GetLevel() == Box::kBlockLevel && parent() &&
+      parent()->parent() && !IsOverflowCropped(computed_style());
+
+  // Margins should only collapse if no padding or border separate them.
+  //   https://www.w3.org/TR/CSS22/box.html#collapsing-margins
+  bool top_margin_is_collapsable = is_collapsable &&
+                                   padding_top() == LayoutUnit() &&
+                                   border_top_width() == LayoutUnit();
   // Lay out child boxes in the normal flow.
   //   https://www.w3.org/TR/CSS21/visuren.html#normal-flow
   std::unique_ptr<BlockFormattingContext> block_formatting_context(
-      new BlockFormattingContext(child_layout_params));
+      new BlockFormattingContext(child_layout_params,
+                                 top_margin_is_collapsable));
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
-    if (child_box->IsAbsolutelyPositioned()) {
-      block_formatting_context->EstimateStaticPosition(child_box);
-    } else {
-      block_formatting_context->UpdateRect(child_box);
-    }
+    block_formatting_context->UpdateRect(child_box);
   }
+
+  if (is_collapsable) {
+    block_formatting_context->CollapseContainingMargins(this);
+  }
+
   return std::unique_ptr<FormattingContext>(block_formatting_context.release());
 }
 

@@ -62,7 +62,10 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
   WrapperPrivate(v8::Isolate* isolate,
                  const scoped_refptr<Wrappable>& wrappable,
                  v8::Local<v8::Object> wrapper)
-      : isolate_(isolate), wrappable_(wrappable), wrapper_(isolate, wrapper) {
+      : isolate_(isolate),
+        wrappable_(wrappable),
+        wrapper_(isolate, wrapper),
+        traced_global_(isolate, wrapper) {
     wrapper->SetAlignedPointerInInternalField(kInternalFieldDataIndex, this);
     wrapper->SetAlignedPointerInInternalField(kInternalFieldDummyIndex,
                                               nullptr);
@@ -71,15 +74,10 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
     wrapper_.SetWrapperClassId(kClassId);
   }
   ~WrapperPrivate() {
-    DCHECK(wrapper_.IsNearDeath());
     DCHECK_EQ(ref_count_, 0);
     wrapper_.ClearWeak();
     wrapper_.Reset();
   }
-
-  // Mark |wrapper_| as reachable from other |Traceable|s.  This will be
-  // called by |V8cHeapTracer| during tracing.
-  void Mark() { wrapper_.RegisterExternalReference(isolate_); }
 
   template <typename T>
   scoped_refptr<T> wrappable() const {
@@ -110,7 +108,14 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
     ref_count_ = 0;
     wrapper_.SetWeak(this, &WrapperPrivate::Callback,
                      v8::WeakCallbackType::kParameter);
+    // There is no guarantee that the finalization callback provided to SetWeak
+    // will be called, so release the wrappable's reference now. This will help
+    // ensure the wrappable is destroyed before the GlobalEnvironment is
+    // destroyed.
+    wrappable_ = nullptr;
   }
+
+  const v8::TracedGlobal<v8::Value>& traced_global() { return traced_global_; }
 
  private:
   // For the time being, we only use a single internal field, which stores a
@@ -132,6 +137,7 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
   v8::Isolate* isolate_;
   scoped_refptr<Wrappable> wrappable_;
   v8::Global<v8::Object> wrapper_;
+  v8::TracedGlobal<v8::Value> traced_global_;
   int ref_count_ = 0;
 
   DISALLOW_COPY_AND_ASSIGN(WrapperPrivate);

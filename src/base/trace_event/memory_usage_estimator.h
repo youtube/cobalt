@@ -211,10 +211,12 @@ template <class T, class X = void>
 struct EMUCaller {
   // std::is_same<> below makes static_assert depend on T, in order to
   // prevent it from asserting regardless instantiation.
+#if !defined(_GLIBCXX_DEBUG) && !defined(_LIBCPP_DEBUG)
   static_assert(std::is_same<T, std::false_type>::value,
                 "Neither global function 'size_t EstimateMemoryUsage(T)' "
                 "nor member function 'size_t T::EstimateMemoryUsage() const' "
                 "is defined for the type.");
+#endif
 
   static size_t Call(const T&) { return 0; }
 };

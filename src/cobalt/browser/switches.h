@@ -26,6 +26,8 @@ namespace switches {
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 extern const char kDebugConsoleMode[];
 extern const char kDebugConsoleModeHelp[];
+extern const char kDevServersListenIp[];
+extern const char kDevServersListenIpHelp[];
 
 #if defined(ENABLE_DEBUGGER)
 extern const char kRemoteDebuggingPort[];
@@ -87,10 +89,12 @@ extern const char kWebDriverListenIpHelp[];
 extern const char kWebDriverPort[];
 extern const char kWebDriverPortHelp[];
 
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
+    SB_HAS(ON_SCREEN_KEYBOARD)
 extern const char kDisableOnScreenKeyboard[];
 extern const char kDisableOnScreenKeyboardHelp[];
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+        // SB_HAS(ON_SCREEN_KEYBOARD)
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
 extern const char kDisableJavaScriptJit[];
@@ -121,6 +125,8 @@ extern const char kMaxCobaltGpuUsage[];
 extern const char kMaxCobaltGpuUsageHelp[];
 extern const char kOffscreenTargetCacheSizeInBytes[];
 extern const char kOffscreenTargetCacheSizeInBytesHelp[];
+extern const char kOmitDeviceAuthenticationQueryParameters[];
+extern const char kOmitDeviceAuthenticationQueryParametersHelp[];
 extern const char kProxy[];
 extern const char kProxyHelp[];
 extern const char kQrCodeOverlay[];

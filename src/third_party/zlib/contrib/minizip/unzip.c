@@ -122,6 +122,9 @@
 #define SIZECENTRALDIRITEM (0x2e)
 #define SIZEZIPLOCALHEADER (0x1e)
 
+#if defined(STARBOARD)
+#include "third_party/zlib/contrib/minizip/iostarboard.h"
+#endif
 
 const char unz_copyright[] =
    " unzip 1.01 Copyright 1998-2004 Gilles Vollant - http://www.winimage.com/zLibDll";
@@ -610,7 +613,11 @@ local unzFile unzOpenInternal (const void *path,
     us.z_filefunc.zseek32_file = NULL;
     us.z_filefunc.ztell32_file = NULL;
     if (pzlib_filefunc64_32_def==NULL)
+#if defined(STARBOARD)
+        fill_starboard_filefunc64(&us.z_filefunc.zfile_func64);
+#else
         fill_fopen64_filefunc(&us.z_filefunc.zfile_func64);
+#endif
     else
         us.z_filefunc = *pzlib_filefunc64_32_def;
     us.is64bitOpenFunction = is64bitOpenFunction;

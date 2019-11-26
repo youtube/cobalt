@@ -198,7 +198,7 @@ int TCPSocketStarboard::AcceptInternal(
       // waiting for Accept() to succeed and 2. Peer address is unused in
       // most use cases. Chromium implementations get the address from accept()
       // directly, but Starboard API is incapable of that.
-      LOG(WARNING) << "Could not get peer address for the server socket.";
+      DVLOG(1) << "Could not get peer address for the server socket.";
     }
   }
 

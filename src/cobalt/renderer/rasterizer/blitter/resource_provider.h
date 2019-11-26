@@ -27,7 +27,7 @@
 #include "starboard/blitter.h"
 #include "starboard/decode_target.h"
 
-#if SB_HAS(BLITTER)
+#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(BLITTER)
 
 namespace cobalt {
 namespace renderer {
@@ -130,6 +130,7 @@ class ResourceProvider : public render_tree::ResourceProvider {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // #if SB_HAS(BLITTER)
+#endif  // #if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION ||
+        // SB_HAS(BLITTER)
 
 #endif  // COBALT_RENDERER_RASTERIZER_BLITTER_RESOURCE_PROVIDER_H_

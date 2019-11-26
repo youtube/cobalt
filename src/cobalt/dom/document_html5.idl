@@ -17,6 +17,7 @@
 [OverrideBuiltins]
 partial /*sealed*/ interface Document {
   [PutForwards=href, Unforgeable] readonly attribute Location? location;
+  attribute DOMString dir;
   // body attribute is changed, from the spec's:
   //   attribute HTMLElement? body;
   // This is because we don't support frameset element, body has to be an

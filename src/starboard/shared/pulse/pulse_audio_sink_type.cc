@@ -67,7 +67,7 @@ class PulseAudioSink : public SbAudioSinkPrivate {
   void SetVolume(double volume) override;
 
   bool Initialize(pa_context* context);
-  bool WriteFrameIfNecessary();
+  bool WriteFrameIfNecessary(pa_context* context);
 
  private:
   PulseAudioSink(const PulseAudioSink&) = delete;
@@ -100,7 +100,9 @@ class PulseAudioSink : public SbAudioSinkPrivate {
   size_t last_request_size_ = 0;
   int64_t total_frames_played_ = 0;
   int64_t total_frames_written_ = 0;
-  atomic_bool is_paused_;
+  atomic_double volume_{1.0};
+  atomic_bool volume_updated_{true};
+  atomic_bool is_paused_{false};
 };
 
 class PulseAudioSinkType : public SbAudioSinkPrivate::Type {
@@ -169,8 +171,7 @@ PulseAudioSink::PulseAudioSink(
       consume_frame_func_(consume_frame_func),
       context_(context),
       bytes_per_frame_(static_cast<size_t>(channels) *
-                       GetBytesPerSample(sample_type)),
-      is_paused_(false) {
+                       GetBytesPerSample(sample_type)) {
   SB_DCHECK(update_source_status_func_);
   SB_DCHECK(consume_frame_func_);
   SB_DCHECK(frame_buffer_);
@@ -194,7 +195,11 @@ void PulseAudioSink::SetPlaybackRate(double playback_rate) {
 }
 
 void PulseAudioSink::SetVolume(double volume) {
-  SB_NOTIMPLEMENTED();
+  SB_DCHECK(volume >= 0.0);
+  SB_DCHECK(volume <= 1.0);
+  if (volume_.exchange(volume) != volume) {
+    volume_updated_.store(true);
+  }
 }
 
 bool PulseAudioSink::Initialize(pa_context* context) {
@@ -222,12 +227,25 @@ bool PulseAudioSink::Initialize(pa_context* context) {
   return stream_ != NULL;
 }
 
-bool PulseAudioSink::WriteFrameIfNecessary() {
+bool PulseAudioSink::WriteFrameIfNecessary(pa_context* context) {
   SB_DCHECK(type_->BelongToAudioThread());
-
   // Wait until |stream_| is ready;
   if (pa_stream_get_state(stream_) != PA_STREAM_READY) {
     return false;
+  }
+  // Update volume if necessary.
+  if (volume_updated_.exchange(false)) {
+    pa_cvolume cvol;
+    cvol.channels = channels_;
+    pa_cvolume_set(
+        &cvol, channels_,
+        (PA_VOLUME_NORM - PA_VOLUME_MUTED) * volume_.load() + PA_VOLUME_MUTED);
+    uint32_t sink_input_index = pa_stream_get_index(stream_);
+    SB_DCHECK(sink_input_index != PA_INVALID_INDEX);
+    pa_operation* op = pa_context_set_sink_input_volume(
+        context, sink_input_index, &cvol, NULL, NULL);
+    SB_DCHECK(op);
+    pa_operation_unref(op);
   }
   bool pulse_paused = pa_stream_is_corked(stream_) == 1;
   // Calculate consumed frames.
@@ -406,7 +424,7 @@ bool PulseAudioSinkType::Initialize() {
     return false;
   }
   // Create pulse context.
-  context_ = pa_context_new(pa_mainloop_get_api(mainloop_), "pulse_audio");
+  context_ = pa_context_new(pa_mainloop_get_api(mainloop_), "cobalt_audio");
   if (!context_) {
     SB_LOG(WARNING) << "Pulse audio error: cannot create context.";
     return false;
@@ -453,7 +471,8 @@ pa_stream* PulseAudioSinkType::CreateNewStream(
     pa_stream_request_cb_t stream_request_cb,
     void* userdata) {
   ScopedLock lock(mutex_);
-  pa_stream* stream = pa_stream_new(context_, "pulseaudio", sample_spec, NULL);
+  pa_stream* stream =
+      pa_stream_new(context_, "cobalt_stream", sample_spec, NULL);
   if (!stream) {
     SB_LOG(ERROR) << "Pulse audio error: cannot create stream.";
     return NULL;
@@ -508,7 +527,7 @@ void PulseAudioSinkType::AudioThreadFunc() {
           break;
         }
         for (PulseAudioSink* sink : sinks_) {
-          has_running_sink |= sink->WriteFrameIfNecessary();
+          has_running_sink |= sink->WriteFrameIfNecessary(context_);
         }
         pa_mainloop_iterate(mainloop_, 0, NULL);
       }

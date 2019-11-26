@@ -16,7 +16,7 @@
 #define COBALT_LAYOUT_BOX_H_
 
 #include <iosfwd>
-#include <iostream>
+#include <ostream>
 #include <string>
 #include <vector>
 
@@ -97,6 +97,10 @@ struct LayoutParams {
            freeze_height == rhs.freeze_height &&
            containing_block_size == rhs.containing_block_size;
   }
+
+  base::Optional<LayoutUnit> maybe_margin_top;
+  base::Optional<LayoutUnit> maybe_margin_bottom;
+  base::Optional<LayoutUnit> maybe_height;
 };
 
 inline std::ostream& operator<<(std::ostream& stream,
@@ -132,6 +136,12 @@ class Box : public base::RefCounted<Box> {
     // formatting context.
     //   https://www.w3.org/TR/CSS21/visuren.html#inline-boxes
     kInlineLevel,
+  };
+
+  enum MarginCollapsingStatus {
+    kCollapseMargins,
+    kIgnore,
+    kSeparateAdjoiningMargins,
   };
 
   enum RelationshipToBox {
@@ -214,6 +224,10 @@ class Box : public base::RefCounted<Box> {
   // Specifies the formatting context in which the box should participate.
   // Do not confuse with the formatting context that the element may establish.
   virtual Level GetLevel() const = 0;
+
+  virtual MarginCollapsingStatus GetMarginCollapsingStatus() const {
+    return Box::kCollapseMargins;
+  }
 
   // Returns true if the box is positioned (e.g. position is non-static or
   // transform is not None).  Intuitively, this is true if the element does
@@ -319,6 +333,21 @@ class Box : public base::RefCounted<Box> {
   LayoutUnit GetMarginBoxWidth() const;
   LayoutUnit GetMarginBoxHeight() const;
 
+  // Used values of "margin" properties are set by overriders
+  // of |UpdateContentSizeAndMargins| method.
+  void set_margin_left(LayoutUnit margin_left) {
+    margin_insets_.set_left(margin_left);
+  }
+  void set_margin_top(LayoutUnit margin_top) {
+    margin_insets_.set_top(margin_top);
+  }
+  void set_margin_right(LayoutUnit margin_right) {
+    margin_insets_.set_right(margin_right);
+  }
+  void set_margin_bottom(LayoutUnit margin_bottom) {
+    margin_insets_.set_bottom(margin_bottom);
+  }
+
   math::Matrix3F GetMarginBoxTransformFromContainingBlock(
       const ContainerBox* containing_block) const;
 
@@ -335,6 +364,11 @@ class Box : public base::RefCounted<Box> {
       BaseDirection base_direction) const;
 
   // Border box.
+  LayoutUnit border_left_width() const { return border_insets_.left(); }
+  LayoutUnit border_top_width() const { return border_insets_.top(); }
+  LayoutUnit border_right_width() const { return border_insets_.right(); }
+  LayoutUnit border_bottom_width() const { return border_insets_.bottom(); }
+
   RectLayoutUnit GetBorderBoxFromRoot(bool transform_forms_root) const;
 
   LayoutUnit GetBorderBoxWidth() const;
@@ -347,6 +381,10 @@ class Box : public base::RefCounted<Box> {
   Vector2dLayoutUnit GetBorderBoxOffsetFromMarginBox() const;
 
   // Padding box.
+  LayoutUnit padding_left() const { return padding_insets_.left(); }
+  LayoutUnit padding_top() const { return padding_insets_.top(); }
+  LayoutUnit padding_right() const { return padding_insets_.right(); }
+  LayoutUnit padding_bottom() const { return padding_insets_.bottom(); }
   LayoutUnit GetPaddingBoxWidth() const;
   LayoutUnit GetPaddingBoxHeight() const;
   SizeLayoutUnit GetClampedPaddingBoxSize() const;
@@ -657,6 +695,10 @@ class Box : public base::RefCounted<Box> {
       const scoped_refptr<IntersectionObserverRoot>& intersection_observer_root)
       const;
 
+  base::Optional<LayoutUnit> collapsed_margin_top_;
+  base::Optional<LayoutUnit> collapsed_margin_bottom_;
+  base::Optional<LayoutUnit> collapsed_empty_margin_;
+
  protected:
   UsedStyleProvider* used_style_provider() const {
     return used_style_provider_;
@@ -673,35 +715,6 @@ class Box : public base::RefCounted<Box> {
   // boxes, based on https://www.w3.org/TR/CSS21/visudet.html#min-max-widths.
   virtual void UpdateContentSizeAndMargins(
       const LayoutParams& layout_params) = 0;
-
-  // Margin box accessors.
-  //
-  // Used values of "margin" properties are set by overriders
-  // of |UpdateContentSizeAndMargins| method.
-  void set_margin_left(LayoutUnit margin_left) {
-    margin_insets_.set_left(margin_left);
-  }
-  void set_margin_top(LayoutUnit margin_top) {
-    margin_insets_.set_top(margin_top);
-  }
-  void set_margin_right(LayoutUnit margin_right) {
-    margin_insets_.set_right(margin_right);
-  }
-  void set_margin_bottom(LayoutUnit margin_bottom) {
-    margin_insets_.set_bottom(margin_bottom);
-  }
-
-  // Border box read-only accessors.
-  LayoutUnit border_left_width() const { return border_insets_.left(); }
-  LayoutUnit border_top_width() const { return border_insets_.top(); }
-  LayoutUnit border_right_width() const { return border_insets_.right(); }
-  LayoutUnit border_bottom_width() const { return border_insets_.bottom(); }
-
-  // Padding box read-only accessors.
-  LayoutUnit padding_left() const { return padding_insets_.left(); }
-  LayoutUnit padding_top() const { return padding_insets_.top(); }
-  LayoutUnit padding_right() const { return padding_insets_.right(); }
-  LayoutUnit padding_bottom() const { return padding_insets_.bottom(); }
 
   // Content box setters.
   //

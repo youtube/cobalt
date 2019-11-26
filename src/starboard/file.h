@@ -160,6 +160,21 @@ SB_EXPORT SbFile SbFileOpen(const char* path,
 // |file|: The absolute path of the file to be closed.
 SB_EXPORT bool SbFileClose(SbFile file);
 
+#if SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION
+
+// Replaces the content of the file at |path| with |data|. Returns whether the
+// contents of the file were replaced. The replacement of the content is an
+// atomic operation. The file will either have all of the data, or none.
+//
+// |path|: The path to the file whose contents should be replaced.
+// |data|: The data to replace the file contents with.
+// |data_size|: The amount of |data|, in bytes, to be written to the file.
+SB_EXPORT bool SbFileAtomicReplace(const char* path,
+                                   const char* data,
+                                   int64_t data_size);
+
+#endif  // SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION
+
 // Changes the current read/write position in |file|. The return value
 // identifies the resultant current read/write position in the file (relative
 // to the start) or |-1| in case of an error. This function might not support
@@ -276,7 +291,7 @@ static inline int SbFileReadAll(SbFile file, char* data, int size) {
   int rv;
   do {
     rv = SbFileRead(file, data + bytes_read, size - bytes_read);
-    if (bytes_read <= 0) {
+    if (rv <= 0) {
       break;
     }
     bytes_read += rv;
@@ -302,7 +317,7 @@ static inline int SbFileWriteAll(SbFile file, const char* data, int size) {
   int rv;
   do {
     rv = SbFileWrite(file, data + bytes_written, size - bytes_written);
-    if (bytes_written <= 0) {
+    if (rv <= 0) {
       break;
     }
     bytes_written += rv;

@@ -22,6 +22,7 @@
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/player/filter/audio_channel_layout_mixer.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_resampler.h"
 #include "starboard/shared/starboard/player/job_queue.h"
@@ -42,7 +43,8 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
 
   typedef std::function<void(SbMediaAudioSampleType* output_sample_type,
                              SbMediaAudioFrameStorageType* output_storage_type,
-                             int* output_samples_per_second)>
+                             int* output_samples_per_second,
+                             int* output_number_of_channels)>
       OutputFormatAdjustmentCallback;
 
   AdaptiveAudioDecoder(const SbMediaAudioSampleInfo& audio_sample_info,
@@ -56,21 +58,8 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   void Decode(const scoped_refptr<InputBuffer>& input_buffer,
               const ConsumedCB& consumed_cb) override;
   void WriteEndOfStream() override;
-  scoped_refptr<DecodedAudio> Read() override;
+  scoped_refptr<DecodedAudio> Read(int* samples_per_second) override;
   void Reset() override;
-
-  SbMediaAudioSampleType GetSampleType() const override {
-    SB_DCHECK(first_output_received_);
-    return output_sample_type_;
-  }
-  SbMediaAudioFrameStorageType GetStorageType() const override {
-    SB_DCHECK(first_output_received_);
-    return output_storage_type_;
-  }
-  int GetSamplesPerSecond() const override {
-    SB_DCHECK(first_output_received_);
-    return output_samples_per_second_;
-  }
 
  private:
   void ProcessOneInputBuffer(const scoped_refptr<InputBuffer>& input_buffer,
@@ -80,13 +69,13 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   void TeardownAudioDecoder();
   void OnDecoderOutput();
 
-  const SbMediaAudioSampleInfo initilize_audio_sample_info_;
   const SbDrmSystem drm_system_;
   const AudioDecoderCreator audio_decoder_creator_;
   const OutputFormatAdjustmentCallback output_adjustment_callback_;
   SbMediaAudioSampleType output_sample_type_;
   SbMediaAudioFrameStorageType output_storage_type_;
   int output_samples_per_second_;
+  int output_number_of_channels_;
   SbMediaAudioSampleInfo input_audio_sample_info_ = {};
 
   OutputCB output_cb_ = nullptr;
@@ -94,6 +83,7 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
 
   scoped_ptr<filter::AudioDecoder> audio_decoder_;
   scoped_ptr<filter::AudioResampler> resampler_;
+  scoped_ptr<filter::AudioChannelLayoutMixer> channel_mixer_;
   scoped_refptr<InputBuffer> pending_input_buffer_;
   ConsumedCB pending_consumed_cb_;
   std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;

@@ -66,7 +66,11 @@ class AndroidConfiguration(PlatformConfiguration):
   """Starboard Android platform configuration."""
 
   # TODO: make ASAN work with NDK tools and enable it by default
-  def __init__(self, platform, android_abi, asan_enabled_by_default=False):
+  def __init__(self,
+               platform,
+               android_abi,
+               asan_enabled_by_default=False,
+               sabi_json_path=None):
     super(AndroidConfiguration, self).__init__(platform,
                                                asan_enabled_by_default)
     self._target_toolchain = None
@@ -75,6 +79,7 @@ class AndroidConfiguration(PlatformConfiguration):
     self.AppendApplicationConfigurationPath(os.path.dirname(__file__))
 
     self.android_abi = android_abi
+    self.sabi_json_path = sabi_json_path
 
     self.android_home = sdk_utils.GetSdkPath()
     self.android_ndk_home = sdk_utils.GetNdkPath()
@@ -298,3 +303,6 @@ class AndroidConfiguration(PlatformConfiguration):
           'SbSocketAddressTypes/SbSocketResolveTest.Localhost/1',
       ],
   }
+
+  def GetPathToSabiJsonFile(self):
+    return self.sabi_json_path

@@ -23,6 +23,10 @@
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
 
+namespace base {
+class DebuggerHooks;
+}
+
 namespace cobalt {
 namespace dom {
 
@@ -34,8 +38,9 @@ class AnimationFrameRequestCallbackList {
   typedef script::CallbackFunction<void(double)> FrameRequestCallback;
   typedef script::ScriptValue<FrameRequestCallback> FrameRequestCallbackArg;
 
-  explicit AnimationFrameRequestCallbackList(script::Wrappable* const owner)
-      : owner_(owner) {}
+  explicit AnimationFrameRequestCallbackList(
+      script::Wrappable* const owner, base::DebuggerHooks* const debugger_hooks)
+      : owner_(owner), debugger_hooks_(debugger_hooks) {}
 
   int32 RequestAnimationFrame(
       const FrameRequestCallbackArg& frame_request_callback);
@@ -63,6 +68,7 @@ class AnimationFrameRequestCallbackList {
       InternalList;
 
   script::Wrappable* const owner_;
+  base::DebuggerHooks* const debugger_hooks_;
   // Our list of frame request callbacks.
   InternalList frame_request_callbacks_;
 };

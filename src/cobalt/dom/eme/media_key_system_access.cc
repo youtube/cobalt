@@ -36,7 +36,8 @@ MediaKeySystemAccess::MediaKeySystemAccess(
 // See
 // https://www.w3.org/TR/encrypted-media/#dom-mediakeysystemaccess-createmediakeys.
 script::Handle<MediaKeySystemAccess::InterfacePromise>
-MediaKeySystemAccess::CreateMediaKeys() const {
+MediaKeySystemAccess::CreateMediaKeys(
+    script::EnvironmentSettings* settings) const {
   // 1. Let promise be a new promise.
   script::Handle<MediaKeySystemAccess::InterfacePromise> promise =
       script_value_factory_->CreateInterfacePromise<scoped_refptr<MediaKeys>>();
@@ -59,7 +60,7 @@ MediaKeySystemAccess::CreateMediaKeys() const {
   // 2.10. Let media keys be a new MediaKeys object.
   // 2.10.5. Let the cdm instance value be instance.
   scoped_refptr<MediaKeys> media_keys(
-      new MediaKeys(drm_system, script_value_factory_));
+      new MediaKeys(settings, drm_system, script_value_factory_));
 
   // 2.11. Resolve promise with media keys.
   promise->Resolve(media_keys);

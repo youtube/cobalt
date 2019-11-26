@@ -69,6 +69,13 @@ typedef enum SbSystemPathId {
 
   // Full path to the executable file.
   kSbSystemPathExecutableFile,
+
+#if SB_API_VERSION >= SB_STORAGE_PATH_VERSION
+  // Path to a directory for permanent file storage. Both read and write
+  // access is required. This is where an app may store its persistent settings.
+  // The location should be user agnostic if possible.
+  kSbSystemPathStorageDirectory,
+#endif
 } SbSystemPathId;
 
 // System properties that can be queried for. Many of these are used in
@@ -630,10 +637,11 @@ SB_EXPORT const void* SbSystemGetExtension(const char* name);
 // (or greater), since 32-bytes will be written into it.
 // Returns false in the case of an error, or if it is not implemented.  In this
 // case the contents of |digest| will be undefined.
-bool SbSystemSignWithCertificationSecretKey(const uint8_t* message,
-                                            size_t message_size_in_bytes,
-                                            uint8_t* digest,
-                                            size_t digest_size_in_bytes);
+SB_EXPORT bool SbSystemSignWithCertificationSecretKey(
+    const uint8_t* message,
+    size_t message_size_in_bytes,
+    uint8_t* digest,
+    size_t digest_size_in_bytes);
 #endif
 
 #ifdef __cplusplus

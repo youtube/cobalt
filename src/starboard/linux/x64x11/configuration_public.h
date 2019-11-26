@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The Starboard configuration for Desktop X86 Linux. Other devices will have
+// The Starboard configuration for Desktop x64 Linux. Other devices will have
 // specific Starboard implementations, even if they ultimately are running some
 // version of Linux.
 
@@ -22,57 +22,13 @@
 #ifndef STARBOARD_LINUX_X64X11_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_LINUX_X64X11_CONFIGURATION_PUBLIC_H_
 
+#if SB_API_VERSION != SB_EXPERIMENTAL_API_VERSION
+#error \
+    "This platform's sabi.json file is expected to track the experimental " \
+"Starboard API version."
+#endif  // SB_API_VERSION != SB_EXPERIMENTAL_API_VERSION
+
 // --- Architecture Configuration --------------------------------------------
-
-// Whether the current platform is big endian. SB_IS_LITTLE_ENDIAN will be
-// automatically set based on this.
-#define SB_IS_BIG_ENDIAN 0
-
-// Whether the current platform is an ARM architecture.
-#define SB_IS_ARCH_ARM 0
-
-// Whether the current platform is a MIPS architecture.
-#define SB_IS_ARCH_MIPS 0
-
-// Whether the current platform is a PPC architecture.
-#define SB_IS_ARCH_PPC 0
-
-// Whether the current platform is an x86 architecture.
-#define SB_IS_ARCH_X86 1
-
-// Whether the current platform is a 32-bit architecture.
-#if defined(__i386__)
-#define SB_IS_32_BIT 1
-#else
-#define SB_IS_32_BIT 0
-#endif
-
-// Whether the current platform is a 64-bit architecture.
-#if defined(__x86_64__)
-#define SB_IS_64_BIT 1
-#else
-#define SB_IS_64_BIT 0
-#endif
-
-// Whether the current platform's pointers are 32-bit.
-// Whether the current platform's longs are 32-bit.
-#if SB_IS(32_BIT)
-#define SB_HAS_32_BIT_POINTERS 1
-#define SB_HAS_32_BIT_LONG 1
-#else
-#define SB_HAS_32_BIT_POINTERS 0
-#define SB_HAS_32_BIT_LONG 0
-#endif
-
-// Whether the current platform's pointers are 64-bit.
-// Whether the current platform's longs are 64-bit.
-#if SB_IS(64_BIT)
-#define SB_HAS_64_BIT_POINTERS 1
-#define SB_HAS_64_BIT_LONG 1
-#else
-#define SB_HAS_64_BIT_POINTERS 0
-#define SB_HAS_64_BIT_LONG 0
-#endif
 
 // Configuration parameters that allow the application to make some general
 // compile-time decisions with respect to the the number of cores likely to be

@@ -28,9 +28,11 @@ class InputDeviceManagerDesktop : public InputDeviceManager {
       const KeyboardEventCallback& keyboard_event_callback,
       const PointerEventCallback& pointer_event_callback,
       const WheelEventCallback& wheel_event_callback,
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
+    SB_HAS(ON_SCREEN_KEYBOARD)
       const InputEventCallback& input_event_callback,
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+        // SB_HAS(ON_SCREEN_KEYBOARD)
       system_window::SystemWindow* system_window);
 
   ~InputDeviceManagerDesktop() override;
@@ -44,9 +46,11 @@ class InputDeviceManagerDesktop : public InputDeviceManager {
   void HandleKeyboardEvent(bool is_key_down,
                            const system_window::InputEvent* input_event,
                            int key_code);
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
+    SB_HAS(ON_SCREEN_KEYBOARD)
   void HandleInputEvent(const system_window::InputEvent* event);
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+        // SB_HAS(ON_SCREEN_KEYBOARD)
 
   void HandlePointerEvent(base::Token type,
                           const system_window::InputEvent* input_event);
@@ -61,10 +65,12 @@ class InputDeviceManagerDesktop : public InputDeviceManager {
   // object is destroyed.
   base::EventCallback system_window_input_event_callback_;
 
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
+    SB_HAS(ON_SCREEN_KEYBOARD)
   // Called to handle an input_event.
   InputEventCallback input_event_callback_;
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+        // SB_HAS(ON_SCREEN_KEYBOARD)
 
   // Keyboard event filters to process the events generated.
   KeypressGeneratorFilter keypress_generator_filter_;

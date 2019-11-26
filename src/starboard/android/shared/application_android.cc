@@ -249,7 +249,8 @@ void ApplicationAndroid::ProcessAndroidCommand() {
       }
       break;
     case AndroidCommand::kNativeWindowDestroyed:
-      env->CallStarboardVoidMethodOrAbort("beforeSuspend", "()V");
+      // No need to JNI call StarboardBridge.beforeSuspend() since we did it
+      // early in SendAndroidCommand().
       {
         ScopedLock lock(android_command_mutex_);
         // Cobalt can't keep running without a window, even if the Activity
@@ -331,6 +332,14 @@ void ApplicationAndroid::ProcessAndroidCommand() {
 void ApplicationAndroid::SendAndroidCommand(AndroidCommand::CommandType type,
                                             void* data) {
   SB_LOG(INFO) << "Send Android command: " << AndroidCommandName(type);
+  if (type == AndroidCommand::kNativeWindowDestroyed) {
+    // When this command is processed it will suspend Cobalt, so make the JNI
+    // call to StarboardBridge.beforeSuspend() early while still here on the
+    // Android main thread. This lets the MediaSession get released now without
+    // having to wait to bounce between threads.
+    JniEnvExt* env = JniEnvExt::Get();
+    env->CallStarboardVoidMethodOrAbort("beforeSuspend", "()V");
+  }
   AndroidCommand cmd {type, data};
   ScopedLock lock(android_command_mutex_);
   write(android_command_writefd_, &cmd, sizeof(cmd));
@@ -353,13 +362,17 @@ void ApplicationAndroid::SendAndroidCommand(AndroidCommand::CommandType type,
 }
 
 void ApplicationAndroid::ProcessAndroidInput() {
-  SB_DCHECK(input_events_generator_);
   AInputEvent* android_event = NULL;
   while (AInputQueue_getEvent(input_queue_, &android_event) >= 0) {
     SB_LOG(INFO) << "Android input: type="
                  << AInputEvent_getType(android_event);
     if (AInputQueue_preDispatchEvent(input_queue_, android_event)) {
         continue;
+    }
+    if (!input_events_generator_) {
+      SB_DLOG(WARNING) << "Android input event ignored without an SbWindow.";
+      AInputQueue_finishEvent(input_queue_, android_event, false);
+      continue;
     }
     InputEventsGenerator::Events app_events;
     bool handled = input_events_generator_->CreateInputEventsFromAndroidEvent(
@@ -376,7 +389,10 @@ void ApplicationAndroid::ProcessKeyboardInject() {
   int err = read(keyboard_inject_readfd_, &key, sizeof(key));
   SB_DCHECK(err >= 0) << "Keyboard inject read failed: errno=" << errno;
   SB_LOG(INFO) << "Keyboard inject: " << key;
-
+  if (!input_events_generator_) {
+    SB_DLOG(WARNING) << "Injected input event ignored without an SbWindow.";
+    return;
+  }
   InputEventsGenerator::Events app_events;
   input_events_generator_->CreateInputEventsFromSbKey(key, &app_events);
   for (int i = 0; i < app_events.size(); ++i) {
@@ -399,14 +415,17 @@ extern "C" SB_EXPORT_PLATFORM jboolean
 Java_dev_cobalt_coat_KeyboardInputConnection_nativeHasOnScreenKeyboard(
     JniEnvExt* env,
     jobject unused_this) {
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION
+  return SbWindowOnScreenKeyboardIsSupported() ? JNI_TRUE : JNI_FALSE;
+#elif SB_HAS(ON_SCREEN_KEYBOARD)
   return JNI_TRUE;
-#else   // SB_HAS(ON_SCREEN_KEYBOARD)
+#else
   return JNI_FALSE;
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif
 }
 
-#if SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
+    SB_HAS(ON_SCREEN_KEYBOARD)
 
 void ApplicationAndroid::SbWindowShowOnScreenKeyboard(SbWindow window,
                                                       const char* input_text,
@@ -499,7 +518,8 @@ void ApplicationAndroid::SbWindowSendInputEvent(const char* input_text,
   return;
 }
 
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+        // SB_HAS(ON_SCREEN_KEYBOARD)
 
 bool ApplicationAndroid::OnSearchRequested() {
   for (int i = 0; i < 2; i++) {

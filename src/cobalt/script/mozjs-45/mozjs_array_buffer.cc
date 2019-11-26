@@ -69,10 +69,16 @@ Handle<ArrayBuffer> ArrayBuffer::New(
   JSAutoCompartment auto_compartment(context, global_object);
 
   JS::RootedValue array_buffer(context);
-  array_buffer.setObjectOrNull(JS_NewArrayBufferWithContents(
-      context, data->byte_length(), data->data()));
+
+  void* buffer;
+  size_t byte_length;
+
+  data->Detach(&buffer, &byte_length);
+
+  array_buffer.setObjectOrNull(
+      JS_NewArrayBufferWithContents(context, byte_length, buffer));
   DCHECK(array_buffer.isObject());
-  data->Release();
+
   return Handle<ArrayBuffer>(
       new mozjs::MozjsUserObjectHolder<mozjs::MozjsArrayBuffer>(context,
                                                                 array_buffer));

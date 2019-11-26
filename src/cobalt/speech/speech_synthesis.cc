@@ -22,17 +22,32 @@
 namespace cobalt {
 namespace speech {
 
-SpeechSynthesis::SpeechSynthesis(const scoped_refptr<dom::Navigator>& navigator,
+bool SpeechSynthesis::SpeechSynthesisIsSupported() {
+#if SB_API_VERSION >= SB_SPEECH_SYNTHESIS_REQUIRED_VERSION
+  return SbSpeechSynthesisIsSupported();
+#else
+  return true;
+#endif
+}
+
+SpeechSynthesis::SpeechSynthesis(script::EnvironmentSettings* settings,
+                                 const scoped_refptr<dom::Navigator>& navigator,
                                  bool log_output)
-    : log_output_(log_output), paused_(false), navigator_(navigator) {
-#if SB_HAS(SPEECH_SYNTHESIS)
-  const char* kVoiceName = "Cobalt";
-  std::string voice_urn(kVoiceName);
-  std::string voice_lang(navigator_->language());
-  voice_urn.append(" ");
-  voice_urn.append(voice_lang);
-  voices_.push_back(
-      new SpeechSynthesisVoice(voice_urn, kVoiceName, voice_lang, false, true));
+    : dom::EventTarget(settings),
+      log_output_(log_output),
+      paused_(false),
+      navigator_(navigator) {
+#if SB_API_VERSION >= SB_SPEECH_SYNTHESIS_REQUIRED_VERSION || \
+    SB_HAS(SPEECH_SYNTHESIS)
+  if (SpeechSynthesis::SpeechSynthesisIsSupported()) {
+    const char* kVoiceName = "Cobalt";
+    std::string voice_urn(kVoiceName);
+    std::string voice_lang(navigator_->language());
+    voice_urn.append(" ");
+    voice_urn.append(voice_lang);
+    voices_.push_back(new SpeechSynthesisVoice(voice_urn, kVoiceName,
+                                               voice_lang, false, true));
+  }
 #endif
 }
 
@@ -51,8 +66,11 @@ void SpeechSynthesis::Cancel() {
     (*utterance_iterator)->DispatchErrorCancelledEvent();
   }
   utterances_.clear();
-#if SB_HAS(SPEECH_SYNTHESIS)
-  SbSpeechSynthesisCancel();
+#if SB_API_VERSION >= SB_SPEECH_SYNTHESIS_REQUIRED_VERSION || \
+    SB_HAS(SPEECH_SYNTHESIS)
+  if (SpeechSynthesis::SpeechSynthesisIsSupported()) {
+    SbSpeechSynthesisCancel();
+  }
 #endif
 }
 
@@ -99,26 +117,30 @@ void SpeechSynthesis::Speak(
     return;
   }
   utterance->SignalPendingSpeak();
-#if SB_HAS(SPEECH_SYNTHESIS)
-  if (!utterance->lang().empty() &&
-      utterance->lang() != navigator_->language()) {
-    DispatchErrorEvent(utterance, kSpeechSynthesisErrorCodeLanguageUnavailable);
-    return;
-  }
-  if ((utterance->volume() != 1.0f) || (utterance->rate() != 1.0f) ||
-      (utterance->pitch() != 1.0f)) {
-    DispatchErrorEvent(utterance, kSpeechSynthesisErrorCodeInvalidArgument);
-    return;
-  }
+#if SB_API_VERSION >= SB_SPEECH_SYNTHESIS_REQUIRED_VERSION || \
+    SB_HAS(SPEECH_SYNTHESIS)
+  if (SpeechSynthesis::SpeechSynthesisIsSupported()) {
+    if (!utterance->lang().empty() &&
+        utterance->lang() != navigator_->language()) {
+      DispatchErrorEvent(utterance,
+                         kSpeechSynthesisErrorCodeLanguageUnavailable);
+      return;
+    }
+    if ((utterance->volume() != 1.0f) || (utterance->rate() != 1.0f) ||
+        (utterance->pitch() != 1.0f)) {
+      DispatchErrorEvent(utterance, kSpeechSynthesisErrorCodeInvalidArgument);
+      return;
+    }
 
-  SB_DLOG(INFO) << "Speaking: \"" << utterance->text() << "\" "
-                << utterance->lang();
-  SbSpeechSynthesisSpeak(utterance->text().c_str());
-  utterance->DispatchStartEvent();
-  utterance->DispatchEndEvent();
-#else
-  DispatchErrorEvent(utterance, kSpeechSynthesisErrorCodeSynthesisUnavailable);
+    SB_DLOG(INFO) << "Speaking: \"" << utterance->text() << "\" "
+                  << utterance->lang();
+    SbSpeechSynthesisSpeak(utterance->text().c_str());
+    utterance->DispatchStartEvent();
+    utterance->DispatchEndEvent();
+    return;
+  }
 #endif
+  DispatchErrorEvent(utterance, kSpeechSynthesisErrorCodeSynthesisUnavailable);
 }
 
 }  // namespace speech

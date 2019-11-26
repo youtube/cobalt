@@ -19,13 +19,14 @@
 
 #include "base/optional.h"
 #include "cobalt/dom/event_target.h"
+#include "cobalt/script/environment_settings.h"
 
 namespace cobalt {
 namespace xhr {
 
 class XMLHttpRequestEventTarget : public dom::EventTarget {
  public:
-  XMLHttpRequestEventTarget();
+  explicit XMLHttpRequestEventTarget(script::EnvironmentSettings* settings);
 
   const EventListenerScriptValue* onabort() const;
   const EventListenerScriptValue* onerror() const;

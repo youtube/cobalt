@@ -8,6 +8,21 @@
 #include "GrGLUtil.h"
 #include "SkMatrix.h"
 
+///////////////////////////////////////////////////////////////////////////////
+
+#if GR_GL_LOG_CALLS
+bool gLogCallsGL = !!(GR_GL_LOG_CALLS_START);
+#endif
+
+#if GR_GL_CHECK_ERROR
+bool gCheckErrorGL = !!(GR_GL_CHECK_ERROR_START);
+#endif
+
+///////////////////////////////////////////////////////////////////////////////
+
+#include "starboard/configuration.h"
+#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)
+
 #if defined(STARBOARD)
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
@@ -16,7 +31,7 @@
 #include <stdio.h>
 #endif
 
-#if defined(STARBOARD) && (SB_API_VERSION >= SB_EGL_AND_GL_INTERFACE_VERSION)
+#if defined(STARBOARD) && (SB_API_VERSION >= 11)
 #include "starboard/egl.h"
 #define EGLint SbEglInt32
 #define EGLBoolean SbEglBoolean
@@ -24,10 +39,10 @@
 #define EGL_OPENGL_ES_API SB_EGL_OPENGL_ES_API
 #define EGL_CONTEXT_CLIENT_VERSION SB_EGL_CONTEXT_CLIENT_VERSION
 #define EGL_CALL_PREFIX ::SkiaGetEglInterface().
-#else  // !defined(STARBOARD) || (SB_API_VERSION < SB_EGL_AND_GL_INTERFACE_VERSION)
+#else  // !defined(STARBOARD) || (SB_API_VERSION < 11)
 #include <EGL/egl.h>
 #define EGL_CALL_PREFIX
-#endif  // defined(STARBOARD) && (SB_API_VERSION >= SB_EGL_AND_GL_INTERFACE_VERSION)
+#endif  // defined(STARBOARD) && (SB_API_VERSION >= 11)
 
 #define EGL_CALL_SIMPLE(x) (EGL_CALL_PREFIX x)
 
@@ -54,13 +69,13 @@ const char *get_error_string(uint32_t err) {
     return "Unknown";
 }
 
-#if defined(STARBOARD) && (SB_API_VERSION >= SB_EGL_AND_GL_INTERFACE_VERSION)
+#if defined(STARBOARD) && (SB_API_VERSION >= 11)
 const SbEglInterface& SkiaGetEglInterface() {
     static const SbEglInterface* egl_interface = SbGetEglInterface();
 
     return *egl_interface;
 }
-#endif  // defined(STARBOARD) && (SB_API_VERSION >= SB_EGL_AND_GL_INTERFACE_VERSION)
+#endif  // defined(STARBOARD) && (SB_API_VERSION >= 11)
 }
 
 void GrGLCheckErr(const GrGLInterface* gl,
@@ -78,18 +93,6 @@ void GrGLCheckErr(const GrGLInterface* gl,
         SkDebugf("\n");
     }
 }
-
-///////////////////////////////////////////////////////////////////////////////
-
-#if GR_GL_LOG_CALLS
-    bool gLogCallsGL = !!(GR_GL_LOG_CALLS_START);
-#endif
-
-#if GR_GL_CHECK_ERROR
-    bool gCheckErrorGL = !!(GR_GL_CHECK_ERROR_START);
-#endif
-
-///////////////////////////////////////////////////////////////////////////////
 
 GrGLStandard GrGLGetStandardInUseFromString(const char* versionString) {
     if (nullptr == versionString) {
@@ -469,3 +472,30 @@ GrGLenum GrToGLStencilFunc(GrStencilTest test) {
 
     return gTable[(int)test];
 }
+
+#else  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)
+
+void GrGLCheckErr(const GrGLInterface* gl, const char* location, const char* call) {}
+
+void GrGLClearErr(const GrGLInterface* gl) {}
+
+GrGLenum GrToGLStencilFunc(GrStencilTest test) { return NULL; }
+
+GrGLVersion GrGLGetVersionFromString(const char* versionString) { return NULL; }
+
+GrGLVendor GrGLGetVendor(const GrGLInterface* gl) { return kOther_GrGLVendor; }
+
+GrGLRenderer GrGLGetRendererFromString(const char* rendererString) { return kOther_GrGLRenderer; }
+
+void GrGLGetDriverInfo(GrGLStandard standard,
+                       GrGLVendor vendor,
+                       const char* rendererString,
+                       const char* versionString,
+                       GrGLDriver* outDriver,
+                       GrGLDriverVersion* outVersion) {}
+
+GrGLSLVersion GrGLGetGLSLVersion(const GrGLInterface* gl) { return NULL; }
+
+GrGLVersion GrGLGetVersion(const GrGLInterface* gl) { return NULL; }
+
+#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)

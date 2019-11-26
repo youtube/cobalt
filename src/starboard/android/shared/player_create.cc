@@ -32,9 +32,6 @@ using starboard::android::shared::cobalt::
 SbPlayer SbPlayerCreate(SbWindow window,
                         SbMediaVideoCodec video_codec,
                         SbMediaAudioCodec audio_codec,
-#if SB_API_VERSION < 10
-                        SbMediaTime duration_pts,
-#endif  // SB_API_VERSION < 10
                         SbDrmSystem drm_system,
                         const SbMediaAudioSampleInfo* audio_sample_info,
                         const char* max_video_capabilities,
@@ -48,9 +45,6 @@ SbPlayer SbPlayerCreate(SbWindow window,
   SB_UNREFERENCED_PARAMETER(window);
   SB_UNREFERENCED_PARAMETER(max_video_capabilities);
   SB_UNREFERENCED_PARAMETER(provider);
-#if SB_API_VERSION < 10
-  SB_UNREFERENCED_PARAMETER(duration_pts);
-#endif  // SB_API_VERSION < 10
 
   if (!sample_deallocate_func || !decoder_status_func || !player_status_func
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
@@ -76,6 +70,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
 
   if (video_codec != kSbMediaVideoCodecNone &&
       video_codec != kSbMediaVideoCodecH264 &&
+      video_codec != kSbMediaVideoCodecH265 &&
       video_codec != kSbMediaVideoCodecVp9) {
     SB_LOG(ERROR) << "Unsupported video codec " << video_codec;
     return kSbPlayerInvalid;

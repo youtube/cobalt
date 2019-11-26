@@ -27,8 +27,10 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
   def __init__(self,
                platform,
                asan_enabled_by_default=True,
-               goma_supports_compiler=True):
+               goma_supports_compiler=True,
+               sabi_json_path=None):
     self.goma_supports_compiler = goma_supports_compiler
+    self.sabi_json_path = sabi_json_path
     super(LinuxConfiguration, self).__init__(platform, asan_enabled_by_default)
     self.AppendApplicationConfigurationPath(os.path.dirname(__file__))
 
@@ -45,6 +47,8 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
     variables.update({
         'javascript_engine': 'v8',
         'cobalt_enable_jit': 1,
+        'include_path_platform_deploy_gypi':
+            'starboard/linux/shared/platform_deploy.gypi',
     })
     return variables
 
@@ -89,6 +93,9 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
-  __FILTERED_TESTS = {
+  def GetPathToSabiJsonFile(self):
+    return self.sabi_json_path
+
+  __FILTERED_TESTS = {  # pylint: disable=invalid-name
       'nplb': ['SbDrmTest.AnySupportedKeySystems',],
   }

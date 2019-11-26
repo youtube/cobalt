@@ -46,12 +46,15 @@ bool IsLocalIP(const SbSocketAddress& ip, const SbSocketAddress& source_address,
       return CompareNBytesOfAddress(ip, source_address, netmask,
                                     net::IPAddress::kIPv4AddressSize);
     case kSbSocketAddressTypeIpv6:
-#if SB_HAS(IPV6)
-      return CompareNBytesOfAddress(ip, source_address, netmask,
-                                    net::IPAddress::kIPv6AddressSize);
-#else   //  SB_HAS(IPV6)
+#if SB_API_VERSION >= SB_IPV6_REQUIRED_VERSION || SB_HAS(IPV6)
+#if SB_API_VERSION >= SB_IPV6_REQUIRED_VERSION
+      if (SbSocketIsIpv6Supported())
+#endif
+        return CompareNBytesOfAddress(ip, source_address, netmask,
+                                      net::IPAddress::kIPv6AddressSize);
+#endif
+    default:
       NOTREACHED() << "Invalid IP type " << ip.type;
-#endif  //  SB_HAS(IPV6)
   }
   return false;
 }
@@ -85,7 +88,12 @@ bool IsIPInPrivateRange(const SbSocketAddress& ip) {
       return true;
     }
   }
-#if SB_HAS(IPV6)
+#if SB_API_VERSION >= SB_IPV6_REQUIRED_VERSION
+  if (!SbSocketIsIpv6Supported()) {
+    return false;
+  }
+#endif
+#if SB_API_VERSION >= SB_IPV6_REQUIRED_VERSION || SB_HAS(IPV6)
   if (ip.type == kSbSocketAddressTypeIpv6) {
     // Unique Local Addresses for IPv6 are _effectively_ fd00::/8.
     // See https://tools.ietf.org/html/rfc4193#section-3 for details.

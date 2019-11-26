@@ -18,6 +18,7 @@
 #include <string>
 
 #include "cobalt/dom/event_target.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/speech/speech_synthesis_error_event.h"
 #include "cobalt/speech/speech_synthesis_voice.h"
@@ -30,10 +31,11 @@ namespace speech {
 //   https://dvcs.w3.org/hg/speech-api/raw-file/4f41ea1126bb/webspeechapi.html#speechsynthesisvoice
 class SpeechSynthesisUtterance : public dom::EventTarget {
  public:
-  SpeechSynthesisUtterance();
+  explicit SpeechSynthesisUtterance(script::EnvironmentSettings* settings);
   SpeechSynthesisUtterance(
       const scoped_refptr<SpeechSynthesisUtterance>& utterance);
-  explicit SpeechSynthesisUtterance(const std::string& text);
+  SpeechSynthesisUtterance(script::EnvironmentSettings* settings,
+                           const std::string& text);
 
   // Web API: SpeechSynthesisUtterance
   //
@@ -130,6 +132,8 @@ class SpeechSynthesisUtterance : public dom::EventTarget {
 
  private:
   ~SpeechSynthesisUtterance() override;
+
+  script::EnvironmentSettings* settings_;
 
   std::string text_;
   std::string lang_;

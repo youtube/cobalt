@@ -118,6 +118,10 @@ void BlockContainerBox::UpdateContentHeightAndMargins(
       child_layout_params.containing_block_size.set_height(LayoutUnit());
     }
   }
+  child_layout_params.maybe_margin_top = maybe_margin_top;
+  child_layout_params.maybe_margin_bottom = maybe_margin_bottom;
+  child_layout_params.maybe_height = maybe_height;
+
   std::unique_ptr<FormattingContext> formatting_context =
       UpdateRectOfInFlowChildBoxes(child_layout_params);
 
@@ -676,9 +680,20 @@ void BlockContainerBox::UpdateHeightAssumingInFlowBox(
     const base::Optional<LayoutUnit>& maybe_margin_top,
     const base::Optional<LayoutUnit>& maybe_margin_bottom,
     const FormattingContext& formatting_context) {
-  // If "margin-top", or "margin-bottom" are "auto", their used value is 0.
-  set_margin_top(maybe_margin_top.value_or(LayoutUnit()));
-  set_margin_bottom(maybe_margin_bottom.value_or(LayoutUnit()));
+  if (collapsed_empty_margin_) {
+    // If empty box has a collapsed margin, only set top margin.
+    //   https://www.w3.org/TR/CSS22/box.html#collapsing-margins
+    set_margin_top(collapsed_empty_margin_.value());
+    set_margin_bottom(LayoutUnit());
+  } else {
+    // If "margin-top", or "margin-bottom" are "auto", their used value is 0.
+    LayoutUnit margin_top =
+        collapsed_margin_top_.value_or(maybe_margin_top.value_or(LayoutUnit()));
+    LayoutUnit margin_bottom = collapsed_margin_bottom_.value_or(
+        maybe_margin_bottom.value_or(LayoutUnit()));
+    set_margin_top(margin_top);
+    set_margin_bottom(margin_bottom);
+  }
 
   // If "height" is "auto", the used value is the distance from box's top
   // content edge to the first applicable of the following:

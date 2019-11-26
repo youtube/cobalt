@@ -157,6 +157,47 @@ bool RecursiveMutex::TryLock() {
   return true;
 }
 
+#if !defined(STARBOARD)
+SharedMutex::SharedMutex() { pthread_rwlock_init(&native_handle_, nullptr); }
+
+SharedMutex::~SharedMutex() {
+  int result = pthread_rwlock_destroy(&native_handle_);
+  DCHECK_EQ(0, result);
+  USE(result);
+}
+
+void SharedMutex::LockShared() {
+  int result = pthread_rwlock_rdlock(&native_handle_);
+  DCHECK_EQ(0, result);
+  USE(result);
+}
+
+void SharedMutex::LockExclusive() {
+  int result = pthread_rwlock_wrlock(&native_handle_);
+  DCHECK_EQ(0, result);
+  USE(result);
+}
+
+void SharedMutex::UnlockShared() {
+  int result = pthread_rwlock_unlock(&native_handle_);
+  DCHECK_EQ(0, result);
+  USE(result);
+}
+
+void SharedMutex::UnlockExclusive() {
+  // Same code as {UnlockShared} on POSIX.
+  UnlockShared();
+}
+
+bool SharedMutex::TryLockShared() {
+  return pthread_rwlock_tryrdlock(&native_handle_) == 0;
+}
+
+bool SharedMutex::TryLockExclusive() {
+  return pthread_rwlock_trywrlock(&native_handle_) == 0;
+}
+#endif  // STARBOARD
+
 #elif V8_OS_WIN
 
 Mutex::Mutex() : native_handle_(SRWLOCK_INIT) {
@@ -233,6 +274,28 @@ bool RecursiveMutex::TryLock() {
   level_++;
 #endif
   return true;
+}
+
+SharedMutex::SharedMutex() : native_handle_(SRWLOCK_INIT) {}
+
+SharedMutex::~SharedMutex() {}
+
+void SharedMutex::LockShared() { AcquireSRWLockShared(&native_handle_); }
+
+void SharedMutex::LockExclusive() { AcquireSRWLockExclusive(&native_handle_); }
+
+void SharedMutex::UnlockShared() { ReleaseSRWLockShared(&native_handle_); }
+
+void SharedMutex::UnlockExclusive() {
+  ReleaseSRWLockExclusive(&native_handle_);
+}
+
+bool SharedMutex::TryLockShared() {
+  return TryAcquireSRWLockShared(&native_handle_);
+}
+
+bool SharedMutex::TryLockExclusive() {
+  return TryAcquireSRWLockExclusive(&native_handle_);
 }
 
 #elif V8_OS_STARBOARD
