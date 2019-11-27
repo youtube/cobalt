@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -53,6 +52,11 @@ _TESTS_NO_SIGNAL = [
     'persistent_cookie',
     'web_debugger',
     'web_platform_tests',
+]
+# These tests can only be run on platforms whose app launcher can send deep
+# links.
+_TESTS_NEEDING_DEEP_LINK = [
+    'fire_deep_link_before_load',
 ]
 # Location of test files.
 _TEST_DIR_PATH = 'cobalt.black_box_tests.tests.'
@@ -108,10 +112,13 @@ def LoadTests(platform, config, device_id, out_directory):
       output_file=None,
       out_directory=out_directory)
 
+  test_targets = _TESTS_NO_SIGNAL
+
   if launcher.SupportsSuspendResume():
-    test_targets = _TESTS_NEEDING_SYSTEM_SIGNAL + _TESTS_NO_SIGNAL
-  else:
-    test_targets = _TESTS_NO_SIGNAL
+    test_targets += _TESTS_NEEDING_SYSTEM_SIGNAL
+
+  if launcher.SupportsDeepLink():
+    test_targets += _TESTS_NEEDING_DEEP_LINK
 
   test_suite = unittest.TestSuite()
   for test in test_targets:
@@ -123,8 +130,12 @@ def LoadTests(platform, config, device_id, out_directory):
 class BlackBoxTests(object):
   """Helper class to run all black box tests and return results."""
 
-  def __init__(self, server_binding_address, proxy_address=None,
-               proxy_port=None, test_name=None, wpt_http_port=None):
+  def __init__(self,
+               server_binding_address,
+               proxy_address=None,
+               proxy_port=None,
+               test_name=None,
+               wpt_http_port=None):
     logging.basicConfig(level=logging.DEBUG)
 
     # Setup global variables used by test cases
@@ -159,22 +170,21 @@ class BlackBoxTests(object):
     # Test domains used in web platform tests to be resolved to the server
     # binding address.
     hosts = [
-        'web-platform.test',
-        'www.web-platform.test',
-        'www1.web-platform.test',
-        'www2.web-platform.test',
-        'xn--n8j6ds53lwwkrqhv28a.web-platform.test',
+        'web-platform.test', 'www.web-platform.test', 'www1.web-platform.test',
+        'www2.web-platform.test', 'xn--n8j6ds53lwwkrqhv28a.web-platform.test',
         'xn--lve-6lad.web-platform.test'
     ]
-    self.host_resolve_map = dict([(host, server_binding_address) for host in hosts])
+    self.host_resolve_map = dict([
+        (host, server_binding_address) for host in hosts
+    ])
 
   def Run(self):
     if self.proxy_port == '-1':
       return 1
     logging.info('Using proxy port: %s', self.proxy_port)
 
-    with ProxyServer(port=self.proxy_port,
-                     host_resolve_map=self.host_resolve_map):
+    with ProxyServer(
+        port=self.proxy_port, host_resolve_map=self.host_resolve_map):
       if self.test_name:
         suite = unittest.TestLoader().loadTestsFromModule(
             importlib.import_module(_TEST_DIR_PATH + self.test_name))
@@ -199,7 +209,8 @@ class BlackBoxTests(object):
       socks.append((address, socket.socket(socket.AF_INET, socket.SOCK_STREAM)))
     try:
       for _ in range(_PORT_SELECTION_RETRY_LIMIT):
-        port = random.randint(_PORT_SELECTION_RANGE[0], _PORT_SELECTION_RANGE[1])
+        port = random.randint(_PORT_SELECTION_RANGE[0],
+                              _PORT_SELECTION_RANGE[1])
         unused = True
         for sock in socks:
           result = sock[1].connect_ex((sock[0], port))
@@ -208,9 +219,8 @@ class BlackBoxTests(object):
             break
         if unused:
           return port
-      logging.error(
-          'Can not find unused port on addresses within %s attempts.' %
-          _PORT_SELECTION_RETRY_LIMIT)
+      logging.error('Can not find unused port on addresses within %s attempts.',
+                    _PORT_SELECTION_RETRY_LIMIT)
       return -1
     finally:
       for sock in socks:
@@ -219,28 +229,33 @@ class BlackBoxTests(object):
 
 def main():
   parser = argparse.ArgumentParser()
-  parser.add_argument('--server_binding_address',
-                      default='127.0.0.1',
-                      help='Binding address used to create the test server.')
-  parser.add_argument('--proxy_address',
-                      default=None,
-                      help=('Address to the proxy server that all black box'
-                            'tests are run through. If not specified, the'
-                            'server binding address is used.'))
-  parser.add_argument('--proxy_port',
-                      default=None,
-                      help=('Port used to create the proxy server that all'
-                            'black box tests are run through. If not'
-                            'specified, a random free port is used.'))
-  parser.add_argument('--test_name',
-                      default=None,
-                      help=('Name of test to be run. If not specified, all '
-                            'tests are run.'))
-  parser.add_argument('--wpt_http_port',
-                      default=None,
-                       help=('Port used to create the web platform test http'
-                             'server. If not specified, a random free port is'
-                             'used.'))
+  parser.add_argument(
+      '--server_binding_address',
+      default='127.0.0.1',
+      help='Binding address used to create the test server.')
+  parser.add_argument(
+      '--proxy_address',
+      default=None,
+      help=('Address to the proxy server that all black box'
+            'tests are run through. If not specified, the'
+            'server binding address is used.'))
+  parser.add_argument(
+      '--proxy_port',
+      default=None,
+      help=('Port used to create the proxy server that all'
+            'black box tests are run through. If not'
+            'specified, a random free port is used.'))
+  parser.add_argument(
+      '--test_name',
+      default=None,
+      help=('Name of test to be run. If not specified, all '
+            'tests are run.'))
+  parser.add_argument(
+      '--wpt_http_port',
+      default=None,
+      help=('Port used to create the web platform test http'
+            'server. If not specified, a random free port is'
+            'used.'))
   args, _ = parser.parse_known_args()
 
   test_object = BlackBoxTests(args.server_binding_address, args.proxy_address,

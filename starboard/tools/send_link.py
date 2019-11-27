@@ -76,7 +76,7 @@ def _FindTemporaryFile(prefix, suffix):
   return None
 
 
-def _SendLink(executable, link):
+def SendLink(executable, link):
   """Sends a link to the process starting with the given executable name."""
 
   pids = _GetPids(executable)
@@ -138,7 +138,7 @@ def main():
   parser.add_argument(
       'link', type=str, help='The link content to send to the executable.')
   arguments = parser.parse_args()
-  return _SendLink(arguments.executable, arguments.link)
+  return SendLink(arguments.executable, arguments.link)
 
 
 if __name__ == '__main__':
