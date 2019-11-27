@@ -77,6 +77,6 @@ HTTP server generated error code properly).
   1. Add a python test script in tests/.
   2. Add target web page(s) and associated resources(if any) to testdata/.
   3. Add the test name(name of the python test script) to black_box_tests.py
-     to automate new test. Add the name to either the list of tests requiring
+     to automate new test. Add the name to the list of tests requiring
      app launcher support for system signals(e.g. suspend/resume), or the list
-     of tests that don't.
+     of tests requiring deep link support, or the list of tests that don't.

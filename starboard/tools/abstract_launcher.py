@@ -166,6 +166,23 @@ class AbstractLauncher(object):
 
     raise RuntimeError("Suspend not supported for this platform.")
 
+  def SupportsDeepLink(self):
+    return False
+
+  def SendDeepLink(self, link):
+    """Sends deep link to the launcher's executable.
+
+    Args:
+      link:  Link to send to the executable.
+
+    Raises:
+      RuntimeError: Deep link not supported on platform.
+    """
+
+    raise RuntimeError(
+        "Deep link not supported for this platform (link {} sent).".format(
+            link))
+
   def GetStartupTimeout(self):
     """Gets the number of seconds to wait before assuming a launcher timeout."""
 

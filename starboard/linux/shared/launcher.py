@@ -24,6 +24,7 @@ import traceback
 
 import _env  # pylint: disable=unused-import
 from starboard.tools import abstract_launcher
+from starboard.tools import send_link
 
 STATUS_CHANGE_TIMEOUT = 15
 
@@ -106,6 +107,12 @@ class Launcher(abstract_launcher.AbstractLauncher):
       self.WaitForProcessStatus("T", STATUS_CHANGE_TIMEOUT)
     else:
       sys.stderr.write("Cannot send suspend to executable; it is closed.\n")
+
+  def SupportsDeepLink(self):
+    return True
+
+  def SendDeepLink(self, link):
+    send_link.SendLink(os.path.basename(self.executable), link)
 
   def WaitForProcessStatus(self, target_status, timeout):
     """Wait for Cobalt to turn to target status within specified timeout limit.
