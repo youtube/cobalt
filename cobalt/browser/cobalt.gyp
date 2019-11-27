@@ -15,7 +15,6 @@
 {
   'variables': {
     'sb_pedantic_warnings': 1,
-    'has_updater%' : '<!(python ../../build/file_exists.py <(DEPTH)/cobalt/updater/updater.gyp)',
   },
   'targets': [
     {
@@ -32,11 +31,6 @@
         ['cobalt_splash_screen_file != ""', {
           'dependencies': [
             '<(DEPTH)/cobalt/browser/splash_screen/splash_screen.gyp:copy_splash_screen',
-          ],
-        }],
-        ['sb_evergreen == 1 and has_updater == "True"', {
-          'dependencies': [
-            '<(DEPTH)/cobalt/updater/updater.gyp:updater',
           ],
         }],
       ],

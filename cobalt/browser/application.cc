@@ -686,6 +686,10 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
                         (should_preload ? base::kApplicationStatePreloading
                                         : base::kApplicationStateStarted),
                         &event_dispatcher_, account_manager_.get(), options));
+#if SB_IS(EVERGREEN)
+  updater_module_.reset(new updater::UpdaterModule(
+      message_loop_, browser_module_->GetNetworkModule()));
+#endif
   UpdateUserAgent();
 
   app_status_ = (should_preload ? kPreloadingAppStatus : kRunningAppStatus);
