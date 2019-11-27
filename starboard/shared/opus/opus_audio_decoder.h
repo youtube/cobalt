@@ -48,6 +48,8 @@ class OpusAudioDecoder
   void Reset() override;
 
  private:
+  static const int kMaxOpusFramesPerAU = 9600;
+
   SbMediaAudioSampleType GetSampleType() const;
 
   OutputCB output_cb_;
@@ -57,7 +59,7 @@ class OpusAudioDecoder
   bool stream_ended_ = false;
   std::queue<scoped_refptr<DecodedAudio> > decoded_audios_;
   SbMediaAudioSampleInfo audio_sample_info_;
-  std::vector<uint8_t> working_buffer_;
+  int frames_per_au_ = kMaxOpusFramesPerAU;
 };
 
 }  // namespace opus
