@@ -17,7 +17,7 @@ const kNewline = '\r\n';
 const kMediaConsoleFrame = 'mediaConsoleFrame';
 
 function MediaConsole(debuggerClient) {
-  var mediaConsoleNode = document.getElementById('mediaConsole');
+  let mediaConsoleNode = document.getElementById('mediaConsole');
 
   this.debuggerClient = debuggerClient;
   this.lastUpdateTime = window.performance.now();
@@ -30,8 +30,8 @@ function MediaConsole(debuggerClient) {
 
   // Generate the help text that will be displayed at the top of the console
   // output.
-  var hotkeysHelp = 'Hotkeys:' + kNewline;
-  var generateHelpText = function(hotkeyInfo, hotkey, map) {
+  let hotkeysHelp = 'Hotkeys:' + kNewline;
+  const generateHelpText = function(hotkeyInfo, hotkey, map) {
     hotkeysHelp += hotkeyInfo.help + ', ';
   };
   this.hotkeyRegistry.forEach(generateHelpText);
@@ -42,10 +42,71 @@ function MediaConsole(debuggerClient) {
   mediaConsoleNode.appendChild(document.createTextNode(hotkeysHelp));
 
   // Dynamically added div will be changed as we get state information.
-  var playerStateElem = document.createElement('div');
+  let playerStateElem = document.createElement('div');
   this.playerStateText = document.createTextNode('');
   playerStateElem.appendChild(this.playerStateText);
   mediaConsoleNode.appendChild(playerStateElem);
+}
+
+MediaConsole.prototype.initialize = function() {
+  this.debuggerClient.attach();
+  // TODO: Move this code into a js file and have the script dynamically load it
+  // from the content folder, rather than sending it as a raw string.
+  // TODO: Fix |getPrimaryVideo| implementation to actually select the primary
+  // player.
+  this.debuggerClient.evaluate(`
+    window._mediaConsoleContext ||
+    (function() {
+      let ctx = window._mediaConsoleContext = {};
+
+      ctx.getPrimaryVideo = function() {
+        const elem = document.querySelectorAll('video');
+        if (elem && elem.length > 0) {
+          let primary = null;
+          for (let i = 0; i < elem.length; i++) {
+            const rect = elem[i].getBoundingClientRect();
+            if (rect.width == window.innerWidth &&
+                rect.height == window.innerHeight) {
+              if (primary != null) {
+                console.warn('Two video elements found with the same\
+                    dimensions as the main window.');
+              }
+              primary = elem[i];
+            }
+          }
+          if (primary == null) {
+            console.warn('Video elements found in page, but none were \
+                fullscreen, and hence there is no primary video.');
+          }
+          return primary;
+        }
+        return null;
+      };
+
+      ctx.getPlayerState = function() {
+        const video = this.getPrimaryVideo();
+        if (video) {
+          let state = {};
+          state.paused = video.paused;
+          state.currentTime = video.currentTime;
+          state.duration = video.duration;
+          return JSON.stringify(state);
+        }
+        return null;
+      };
+
+      ctx.togglePlayPause = function() {
+        let video = this.getPrimaryVideo();
+        if (video) {
+          if (video.paused) {
+            video.play();
+          } else {
+            video.pause();
+          }
+        }
+      };
+    }());
+  `);
 }
 
 MediaConsole.prototype.parseStateFromResponse = function(response) {
@@ -55,47 +116,29 @@ MediaConsole.prototype.parseStateFromResponse = function(response) {
 }
 
 MediaConsole.prototype.printToMediaConsole = function(response) {
-  var state = this.parseStateFromResponse(response);
+  const state = this.parseStateFromResponse(response);
   this.playerStateText.textContent =
       'Paused: ' + state.paused + kNewline +
       'Current Time: ' + state.currentTime + kNewline +
       'Duration: ' + state.duration;
 }
 
-MediaConsole.prototype.getPlayerState = function(callback) {
-  // TODO: Select the primary video by checking the bounding box dimensions.
-  this.debuggerClient.evaluate(`
-      (function() {
-        var elem = document.querySelectorAll('video');
-        var ret = {};
-        if (elem && elem.length > 0) {
-          primaryVideo = elem[0];
-          ret = {
-            paused: primaryVideo.paused,
-            currentTime: primaryVideo.currentTime,
-            duration: primaryVideo.duration
-          };
-        }
-        return JSON.stringify(ret);
-      })();
-  `, callback);
-}
-
 MediaConsole.prototype.update = function() {
-  var t = window.performance.now();
+  const t = window.performance.now();
   if (t > this.lastUpdateTime + this.updatePeriod) {
     this.lastUpdateTime = t;
-    var callback = this.printToMediaConsole.bind(this);
+    const callback = this.printToMediaConsole.bind(this);
     this.getPlayerState(callback);
   }
 }
 
 MediaConsole.prototype.setVisible = function(doShow) {
-  var elem = document.getElementById(kMediaConsoleFrame);
+  let elem = document.getElementById(kMediaConsoleFrame);
   if (elem) {
-    var display = doShow ? 'block' : 'none';
+    const display = doShow ? 'block' : 'none';
     if (elem.style.display != display) {
       elem.style.display = display;
+      this.initialize(); // Will do nothing if already initialized.
     }
   }
 }
@@ -108,7 +151,7 @@ MediaConsole.prototype.onKeypress = function(event) {}
 
 MediaConsole.prototype.onKeydown = function(event) {
   if (this.hotkeyRegistry.has(event.key)) {
-    var item = this.hotkeyRegistry.get(event.key);
+    const item = this.hotkeyRegistry.get(event.key);
     if (item && item.handler) {
       item.handler();
       return;
@@ -117,23 +160,16 @@ MediaConsole.prototype.onKeydown = function(event) {
   }
 }
 
-MediaConsole.prototype.onPlayPause = function() {
-  var printToConsoleCallback = this.printToMediaConsole.bind(this);
-  var updateState = this.getPlayerState.bind(this, printToConsoleCallback);
+MediaConsole.prototype.getPlayerState = function(callback) {
+  this.debuggerClient.evaluate('_mediaConsoleContext.getPlayerState()',
+      callback);
+}
 
-  // TODO: Select the primary video by checking the bounding box dimensions.
-  this.debuggerClient.evaluate(`
-    (function() {
-      var elem = document.querySelectorAll('video');
-      if (elem && elem.length > 0) {
-        var primaryVideo = elem[0];
-        if (primaryVideo.paused) {
-          primaryVideo.play();
-        } else {
-          primaryVideo.pause();
-        }
-      }
-    })();
-  `, updateState);
+MediaConsole.prototype.onPlayPause = function() {
+  const printToConsoleCallback = this.printToMediaConsole.bind(this);
+  const updateState = this.getPlayerState.bind(this, printToConsoleCallback);
+
+  this.debuggerClient.evaluate('_mediaConsoleContext.togglePlayPause()',
+      updateState);
   return true;
 }
