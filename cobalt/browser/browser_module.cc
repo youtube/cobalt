@@ -310,7 +310,8 @@ BrowserModule::BrowserModule(const GURL& url,
       main_web_module_generation_(0),
       next_timeline_id_(1),
       current_splash_screen_timeline_id_(-1),
-      current_main_web_module_timeline_id_(-1) {
+      current_main_web_module_timeline_id_(-1),
+      web_module_loaded_callback_(options_.web_module_loaded_callback) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::BrowserModule()");
 
   // Apply platform memory setting adjustments and defaults.
@@ -680,7 +681,12 @@ void BrowserModule::OnLoad() {
   on_error_retry_count_ = 0;
 
   on_load_event_time_ = base::TimeTicks::Now().ToInternalValue();
+
   web_module_loaded_.Signal();
+
+  if (!web_module_loaded_callback_.is_null()) {
+    web_module_loaded_callback_.Run();
+  }
 }
 
 bool BrowserModule::WaitForLoad(const base::TimeDelta& timeout) {

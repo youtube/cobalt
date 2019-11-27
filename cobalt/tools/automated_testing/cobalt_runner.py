@@ -142,6 +142,10 @@ class CobaltRunner(object):
     """Sends a system signal to put Cobalt into suspend state."""
     self.launcher.SendSuspend()
 
+  def SendDeepLink(self, link):
+    """Sends a deep link to Cobalt."""
+    self.launcher.SendDeepLink(link)
+
   def GetURL(self):
     return self.url
 
