@@ -50,17 +50,26 @@ TEST(SbDirectoryGetNextTest, SunnyDay) {
   StringSet names_to_find(names);
   int count = 0;
   while (true) {
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+    std::vector<char> entry(SB_FILE_MAX_NAME, 0);
+    if (!SbDirectoryGetNext(directory, entry.data(), entry.size())) {
+      break;
+    }
+    const char* entry_name = entry.data();
+#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
     SbDirectoryEntry entry = {0};
     if (!SbDirectoryGetNext(directory, &entry)) {
       break;
     }
+    const char* entry_name = entry.name;
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
     // SbDirectoryEntry just contains the last component of the absolute path to
     // the file, but ScopedRandomFile::filename() returns the full path.
     std::string filename;
     filename += directory_name;
     filename += SB_FILE_SEP_CHAR;
-    filename += entry.name;
+    filename += entry_name;
 
     StringSet::iterator iterator = names_to_find.find(filename);
     if (iterator != names_to_find.end()) {
@@ -68,7 +77,7 @@ TEST(SbDirectoryGetNextTest, SunnyDay) {
     } else {
       // If it isn't in |names_to_find|, make sure it's some external entry and
       // not one of ours. Otherwise, an entry must have shown up twice.
-      EXPECT_TRUE(names.find(entry.name) == names.end());
+      EXPECT_TRUE(names.find(entry_name) == names.end());
     }
   }
 
@@ -79,8 +88,14 @@ TEST(SbDirectoryGetNextTest, SunnyDay) {
 }
 
 TEST(SbDirectoryGetNextTest, FailureInvalidSbDirectory) {
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+  std::vector<char> entry(SB_FILE_MAX_NAME, 0);
+  EXPECT_FALSE(SbDirectoryGetNext(kSbDirectoryInvalid, entry.data(),
+                                  entry.size()));
+#else  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   SbDirectoryEntry entry = {0};
   EXPECT_FALSE(SbDirectoryGetNext(kSbDirectoryInvalid, &entry));
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 }
 
 TEST(SbDirectoryGetNextTest, FailureNullEntry) {
@@ -95,12 +110,20 @@ TEST(SbDirectoryGetNextTest, FailureNullEntry) {
   SbDirectory directory = SbDirectoryOpen(path.c_str(), &error);
   EXPECT_TRUE(SbDirectoryIsValid(directory));
   EXPECT_EQ(kSbFileOk, error);
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+  EXPECT_FALSE(SbDirectoryGetNext(directory, NULL, SB_FILE_MAX_NAME));
+#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   EXPECT_FALSE(SbDirectoryGetNext(directory, NULL));
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   EXPECT_TRUE(SbDirectoryClose(directory));
 }
 
 TEST(SbDirectoryGetNextTest, FailureInvalidAndNull) {
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+  EXPECT_FALSE(SbDirectoryGetNext(kSbDirectoryInvalid, NULL, SB_FILE_MAX_NAME));
+#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   EXPECT_FALSE(SbDirectoryGetNext(kSbDirectoryInvalid, NULL));
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 }
 
 TEST(SbDirectoryGetNextTest, FailureOnEmptyDirectory) {
@@ -112,10 +135,41 @@ TEST(SbDirectoryGetNextTest, FailureOnEmptyDirectory) {
   ASSERT_TRUE(SbDirectoryIsValid(directory));
   ASSERT_EQ(kSbFileOk, error);
 
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+  std::vector<char> entry(SB_FILE_MAX_NAME, 0);
+  EXPECT_FALSE(SbDirectoryGetNext(directory, entry.data(), entry.size()));
+#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   SbDirectoryEntry entry = {0};
   EXPECT_FALSE(SbDirectoryGetNext(directory, &entry));
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   ASSERT_TRUE(SbDirectoryClose(directory));
 }
+
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+TEST(SbDirectoryGetNextTest, FailureOnInsufficientSize) {
+  ScopedRandomFile file;
+  std::string directory_name = file.filename();
+  directory_name.resize(directory_name.find_last_of(SB_FILE_SEP_CHAR));
+  EXPECT_TRUE(SbFileExists(directory_name.c_str()))
+      << "Directory_name is " << directory_name;
+
+  SbFileError error = kSbFileErrorMax;
+  SbDirectory directory = SbDirectoryOpen(directory_name.c_str(), &error);
+  EXPECT_TRUE(SbDirectoryIsValid(directory));
+  EXPECT_EQ(kSbFileOk, error);
+
+  std::vector<char> entry(SB_FILE_MAX_NAME);
+  for (int i = 0; i < SB_FILE_MAX_NAME; i++)
+    entry[i] = i;
+  std::vector<char> entry_copy = entry;
+  EXPECT_EQ(SbDirectoryGetNext(directory, entry.data(), 0), false);
+  EXPECT_EQ(entry.size(), SB_FILE_MAX_NAME);
+  for (int i = 0; i < SB_FILE_MAX_NAME; i++)
+    EXPECT_EQ(entry[i], entry_copy[i]);
+
+  EXPECT_TRUE(SbDirectoryClose(directory));
+}
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 }  // namespace
 }  // namespace nplb
