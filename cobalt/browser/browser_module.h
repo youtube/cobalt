@@ -120,6 +120,7 @@ class BrowserModule {
                 const Options& options);
   ~BrowserModule();
 
+  network::NetworkModule* GetNetworkModule() { return &network_module_; }
   std::string GetUserAgent() { return network_module_.GetUserAgent(); }
 
   // Recreates web module with the given URL. In the case where Cobalt is

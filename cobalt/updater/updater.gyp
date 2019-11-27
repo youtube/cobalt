@@ -33,8 +33,8 @@
         'prefs.h',
         'unzipper.cc',
         'unzipper.h',
-        'updater.cc',
-        'updater.h',
+        'updater_module.cc',
+        'updater_module.h',
         'updater_constants.cc',
         'updater_constants.h',
         'util.cc',
@@ -62,6 +62,8 @@
       ],
       'sources': [
         'updater_sandbox.cc',
+        'updater.cc',
+        'updater.h',
       ],
     },
   ]
