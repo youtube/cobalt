@@ -405,7 +405,7 @@ function initialize() {
   consoleRegistry.forEach( entry => {
     var ensureConsolesAreValid = function(method) {
       if(typeof entry.console[method] != "function") {
-        console.warn(`Console "${consoleName}" ${method}() is not implemented. \
+        console.warn(`Console "${entry.name}" ${method}() is not implemented. \
             Providing default empty implementation.`);
         // Provide a default not-implemented warning message.
         var consoleName = entry.name;
@@ -416,12 +416,12 @@ function initialize() {
         entry.console[method] = notImplementedMessage;
       }
     };
-    ensureConsolesAreValid(entry, "update");
-    ensureConsolesAreValid(entry, "setVisible");
-    ensureConsolesAreValid(entry, "onKeydown");
-    ensureConsolesAreValid(entry, "onKeyup");
-    ensureConsolesAreValid(entry, "onKeypress");
-    ensureConsolesAreValid(entry, "onWheel");
+    ensureConsolesAreValid("update");
+    ensureConsolesAreValid("setVisible");
+    ensureConsolesAreValid("onKeydown");
+    ensureConsolesAreValid("onKeyup");
+    ensureConsolesAreValid("onKeypress");
+    ensureConsolesAreValid("onWheel");
   });
   // Called with false to turn off the display for all.
   updateMode(false);
