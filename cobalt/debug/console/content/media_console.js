@@ -25,7 +25,11 @@ function MediaConsole(debuggerClient) {
 
   // Registry of all the hotkeys and their function handlers.
   this.hotkeyRegistry = new Map([
-      ['p', {handler: this.onPlayPause.bind(this), help: '(P)ause/(P)lay'}],
+      ['p', {handler: this.onPlayPause.bind(this), help: '(p)ause/(p)lay'}],
+      [']', {handler: this.onIncreasePlaybackRate.bind(this),
+        help: '(])Increase Playback Rate'}],
+      ['[', {handler: this.onDecreasePlaybackRate.bind(this),
+        help: '([)Decrease Playback Rate'}],
   ]);
 
   // Generate the help text that will be displayed at the top of the console
@@ -46,6 +50,8 @@ function MediaConsole(debuggerClient) {
   this.playerStateText = document.createTextNode('');
   playerStateElem.appendChild(this.playerStateText);
   mediaConsoleNode.appendChild(playerStateElem);
+
+  this.printToMediaConsoleCallback = this.printToMediaConsole.bind(this);
 }
 
 MediaConsole.prototype.initialize = function() {
@@ -59,7 +65,14 @@ MediaConsole.prototype.initialize = function() {
     (function() {
       let ctx = window._mediaConsoleContext = {};
 
-      ctx.getPrimaryVideo = function() {
+      // NOTE: Place all "private" members and methods of |_mediaConsoleContext|
+      // below. Private functions are not attached to the |_mediaConsoleContext|
+      // directly. Rather they are referenced within the public functions, which
+      // prevent it from being garbage collected.
+
+      const kPlaybackRates = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+
+      function getPrimaryVideo() {
         const elem = document.querySelectorAll('video');
         if (elem && elem.length > 0) {
           let primary = null;
@@ -83,20 +96,30 @@ MediaConsole.prototype.initialize = function() {
         return null;
       };
 
-      ctx.getPlayerState = function() {
-        const video = this.getPrimaryVideo();
+      function extractStateFromVideo(video) {
         if (video) {
           let state = {};
           state.paused = video.paused;
           state.currentTime = video.currentTime;
           state.duration = video.duration;
+          state.defaultPlaybackRate = video.defaultPlaybackRate;
+          state.playbackRate = video.playbackRate;
           return JSON.stringify(state);
         }
         return null;
       };
 
+      // NOTE: Place all public members and methods of |_mediaConsoleContext|
+      // below. They form closures with the above "private" members and methods
+      // and hence can use them directly, without referencing |this|.
+
+      ctx.getPlayerState = function() {
+        const video = getPrimaryVideo();
+        return extractStateFromVideo(video);
+      };
+
       ctx.togglePlayPause = function() {
-        let video = this.getPrimaryVideo();
+        let video = getPrimaryVideo();
         if (video) {
           if (video.paused) {
             video.play();
@@ -104,7 +127,29 @@ MediaConsole.prototype.initialize = function() {
             video.pause();
           }
         }
+        return extractStateFromVideo(video);
       };
+
+      ctx.increasePlaybackRate = function() {
+        let video = getPrimaryVideo();
+        if (video) {
+          let i = kPlaybackRates.indexOf(video.playbackRate);
+          i = Math.min(i + 1, kPlaybackRates.length - 1);
+          video.playbackRate = kPlaybackRates[i];
+        }
+        return extractStateFromVideo(video);
+      };
+
+      ctx.decreasePlaybackRate = function() {
+        let video = getPrimaryVideo();
+        if (video) {
+          let i = kPlaybackRates.indexOf(video.playbackRate);
+          i = Math.max(i - 1, 0);
+          video.playbackRate = kPlaybackRates[i];
+        }
+        return extractStateFromVideo(video);
+      };
+
     }());
   `);
 }
@@ -118,17 +163,20 @@ MediaConsole.prototype.parseStateFromResponse = function(response) {
 MediaConsole.prototype.printToMediaConsole = function(response) {
   const state = this.parseStateFromResponse(response);
   this.playerStateText.textContent =
-      'Paused: ' + state.paused + kNewline +
-      'Current Time: ' + state.currentTime + kNewline +
-      'Duration: ' + state.duration;
+      `Primary Video:
+      Paused: ${state.paused} ${kNewline} \
+      Current Time: ${state.currentTime} ${kNewline} \
+      Duration: ${state.duration} ${kNewline} \
+      Playback Rate: ${state.playbackRate} \
+      (default: ${state.defaultPlaybackRate})`;
 }
 
 MediaConsole.prototype.update = function() {
   const t = window.performance.now();
   if (t > this.lastUpdateTime + this.updatePeriod) {
     this.lastUpdateTime = t;
-    const callback = this.printToMediaConsole.bind(this);
-    this.getPlayerState(callback);
+    this.debuggerClient.evaluate('_mediaConsoleContext.getPlayerState()',
+        this.printToMediaConsoleCallback);
   }
 }
 
@@ -160,16 +208,17 @@ MediaConsole.prototype.onKeydown = function(event) {
   }
 }
 
-MediaConsole.prototype.getPlayerState = function(callback) {
-  this.debuggerClient.evaluate('_mediaConsoleContext.getPlayerState()',
-      callback);
+MediaConsole.prototype.onPlayPause = function() {
+  this.debuggerClient.evaluate('_mediaConsoleContext.togglePlayPause()',
+      this.printToMediaConsoleCallback);
 }
 
-MediaConsole.prototype.onPlayPause = function() {
-  const printToConsoleCallback = this.printToMediaConsole.bind(this);
-  const updateState = this.getPlayerState.bind(this, printToConsoleCallback);
+MediaConsole.prototype.onIncreasePlaybackRate = function() {
+  this.debuggerClient.evaluate('_mediaConsoleContext.increasePlaybackRate()',
+      this.printToMediaConsoleCallback);
+}
 
-  this.debuggerClient.evaluate('_mediaConsoleContext.togglePlayPause()',
-      updateState);
-  return true;
+MediaConsole.prototype.onDecreasePlaybackRate = function() {
+  this.debuggerClient.evaluate('_mediaConsoleContext.decreasePlaybackRate()',
+      this.printToMediaConsoleCallback);
 }
