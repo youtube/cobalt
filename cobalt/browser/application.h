@@ -28,6 +28,9 @@
 #include "cobalt/browser/browser_module.h"
 #include "cobalt/browser/memory_tracker/tool.h"
 #include "cobalt/system_window/system_window.h"
+#if SB_IS(EVERGREEN)
+#include "cobalt/updater/updater_module.h"
+#endif
 #include "starboard/event.h"
 
 #if defined(ENABLE_WEBDRIVER)
@@ -100,6 +103,11 @@ class Application {
 
   // Main components of the Cobalt browser application.
   std::unique_ptr<BrowserModule> browser_module_;
+
+#if SB_IS(EVERGREEN)
+  // Cobalt Updater.
+  std::unique_ptr<updater::UpdaterModule> updater_module_;
+#endif
 
   // Event callbacks.
   base::EventCallback network_event_callback_;
