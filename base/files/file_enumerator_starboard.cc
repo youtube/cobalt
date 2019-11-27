@@ -107,10 +107,23 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
   };
 
   std::vector<FileEnumerator::FileInfo> ret;
-  SbDirectoryEntry entry;
   // We test if SbDirectoryGetNext returns parent directory file descriptor(..)
   // because the definition of SbDirectoryGetNext does not guarantee that.
   bool found_dot_dot = false;
+
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+  std::vector<char> entry(SB_FILE_MAX_NAME);
+
+  while (SbDirectoryGetNext(dir, entry.data(), entry.size())) {
+    const char dot_dot_str[] = "..";
+    if (!SbStringCompare(entry.data(), dot_dot_str, sizeof(dot_dot_str))) {
+      found_dot_dot = true;
+    }
+    ret.push_back(GenerateEntry(entry.data()));
+  }
+#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+  SbDirectoryEntry entry;
+
   while (SbDirectoryGetNext(dir, &entry)) {
     const char dot_dot_str[] = "..";
     if (!SbStringCompare(entry.name, dot_dot_str, sizeof(dot_dot_str))) {
@@ -118,6 +131,8 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
     }
     ret.push_back(GenerateEntry(entry.name));
   }
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+
   if (!found_dot_dot) {
     ret.push_back(GenerateEntry(".."));
   }

@@ -166,8 +166,18 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
     }
     ImUninitialize();
     SbDirectory dir = SbDirectoryOpen(storage_path_.c_str(), NULL);
-    SbDirectoryEntry dir_entry;
     std::vector<std::string> dir_;
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+    std::vector<char> dir_entry(SB_FILE_MAX_NAME);
+
+    while (SbDirectoryGetNext(dir, dir_entry.data(), dir_entry.size())) {
+      std::string full_path = storage_path_;
+      full_path += SB_FILE_SEP_STRING;
+      full_path += dir_entry.data();
+      SbFileDelete(full_path.c_str());
+    }
+#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+    SbDirectoryEntry dir_entry;
 
     while (SbDirectoryGetNext(dir, &dir_entry)) {
       std::string full_path = storage_path_;
@@ -175,6 +185,7 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
       full_path += dir_entry.name;
       SbFileDelete(full_path.c_str());
     }
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
     SbDirectoryClose(dir);
     SbFileDelete(storage_path_.c_str());
   }

@@ -190,8 +190,15 @@
 // Migrate the Starboard configuration variables from macros to extern consts.
 //
 // The migration allows Cobalt to make platform level decisions at runtime
-// instead of compile time which lets us create a more comprehensive cobalt
+// instead of compile time which lets us create a more comprehensive Cobalt
 // binary.
+//
+// This means Cobalt must remove all references to these macros that would not
+// translate well to constants, i.e. in compile time references or initializing
+// arrays. Therefore, we needed to change the functionality of the function
+// `SbDirectoryGetNext` in "starboard/directory.h". Because we do not want to
+// use variable length arrays, we pass in a c-string and length to the function
+// to achieve the same result as before when passing in a `SbDirectoryEntry`.
 //
 // A platform will define the extern constants declared in
 // "starboard/configuration_constants.h". The definitions are done in

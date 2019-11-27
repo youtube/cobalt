@@ -15,6 +15,7 @@
 #include "starboard/directory.h"
 
 bool SbDirectoryGetNext(SbDirectory /*directory*/,
-                        SbDirectoryEntry* /*out_entry*/) {
+                        char* /*out_entry*/,
+                        size_t /* out_entry_size */) {
   return false;
 }

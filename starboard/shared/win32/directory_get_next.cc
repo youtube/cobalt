@@ -69,8 +69,11 @@ std::deque<std::string> GetDirectoryEntries(HANDLE directory_handle) {
 
 }  // namespace
 
-bool SbDirectoryGetNext(SbDirectory directory, SbDirectoryEntry* out_entry) {
-  if (!SbDirectoryIsValid(directory) || (out_entry == nullptr)) {
+bool SbDirectoryGetNext(SbDirectory directory,
+                        char* out_entry,
+                        size_t out_entry_size) {
+  if (!SbDirectoryIsValid(directory) || out_entry == nullptr ||
+      out_entry_size < SB_FILE_MAX_NAME) {
     return false;
   }
 
@@ -84,9 +87,8 @@ bool SbDirectoryGetNext(SbDirectory directory, SbDirectoryEntry* out_entry) {
   }
 
   bool success = true;
-  const int entry_name_size = SB_ARRAY_SIZE_INT(out_entry->name);
-  if (SbStringCopy(out_entry->name, next_directory_entries.rbegin()->c_str(),
-                   entry_name_size) >= entry_name_size) {
+  if (SbStringCopy(out_entry, next_directory_entries.rbegin()->c_str(),
+                   static_cast<int>(out_entry_size)) >= out_entry_size) {
     success = false;
   }
   directory->next_directory_entries.pop_back();

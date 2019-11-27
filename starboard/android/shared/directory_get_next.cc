@@ -15,21 +15,24 @@
 #include "starboard/directory.h"
 
 #include <android/asset_manager.h>
+#include <string.h>
 
 #include "starboard/android/shared/directory_internal.h"
 #include "starboard/shared/iso/impl/directory_get_next.h"
 
-bool SbDirectoryGetNext(SbDirectory directory, SbDirectoryEntry* out_entry) {
-  if (directory && directory->asset_dir && out_entry) {
+bool SbDirectoryGetNext(SbDirectory directory,
+                        char* out_entry,
+                        size_t out_entry_size) {
+  if (directory && directory->asset_dir && out_entry &&
+      out_entry_size >= SB_FILE_MAX_NAME) {
     const char* file_name = AAssetDir_getNextFileName(directory->asset_dir);
     if (file_name == NULL) {
       return false;
     }
-    size_t size = SB_ARRAY_SIZE_INT(out_entry->name);
-    SbStringCopy(out_entry->name, file_name, size);
+    SbStringCopy(out_entry, file_name, out_entry_size);
     return true;
   }
 
-  return ::starboard::shared::iso::impl::SbDirectoryGetNext(directory,
-                                                            out_entry);
+  return ::starboard::shared::iso::impl::SbDirectoryGetNext(
+      directory, out_entry, out_entry_size);
 }
