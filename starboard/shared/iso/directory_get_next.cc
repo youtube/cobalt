@@ -16,7 +16,16 @@
 
 #include "starboard/shared/iso/impl/directory_get_next.h"
 
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+bool SbDirectoryGetNext(SbDirectory directory,
+                        char* out_entry,
+                        size_t out_entry_size) {
+  return ::starboard::shared::iso::impl::SbDirectoryGetNext(
+      directory, out_entry, out_entry_size);
+}
+#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 bool SbDirectoryGetNext(SbDirectory directory, SbDirectoryEntry* out_entry) {
   return ::starboard::shared::iso::impl::SbDirectoryGetNext(directory,
                                                             out_entry);
 }
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
