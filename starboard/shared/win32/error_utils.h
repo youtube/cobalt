@@ -47,10 +47,16 @@ void DebugLogWinError();
 
 std::string HResultToString(HRESULT hr);
 
-#define CheckResult(hr) do { \
-  SB_DCHECK(SUCCEEDED(hr)) << "HRESULT was " << std::hex << hr \
-      << " which translates to\n---> \"" \
-      << ::starboard::shared::win32::HResultToString(hr) << "\""; \
+// The following macro evaluates statement in every build config, and checks the
+// result in debug & devel builds only.
+#define CheckResult(statement)                                          \
+  do {                                                                  \
+    auto check_result_hr = (statement);                                 \
+    SB_DCHECK(SUCCEEDED(check_result_hr))                               \
+        << "HRESULT was " << std::hex << check_result_hr                \
+        << " which translates to\n---> \""                              \
+        << ::starboard::shared::win32::HResultToString(check_result_hr) \
+        << "\"";                                                        \
   } while (0)
 
 }  // namespace win32
