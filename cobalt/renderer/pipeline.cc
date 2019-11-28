@@ -298,12 +298,20 @@ void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
     // swaps. It is possible that a submission is not rendered (this can
     // happen if the render tree has not changed between submissions), so no
     // frame swap occurs, and the minimum frame time is the only throttle.
+    float minimum_frame_interval_milliseconds =
+        graphics_context_
+            ? graphics_context_->GetMinimumFrameIntervalInMilliseconds()
+            : -1.0f;
     COMPILE_ASSERT(COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS > 0,
                    frame_time_must_be_positive);
+    if (minimum_frame_interval_milliseconds < 0.0f) {
+      minimum_frame_interval_milliseconds =
+          COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS;
+    }
+    DCHECK(minimum_frame_interval_milliseconds > 0.0f);
     rasterize_timer_.emplace(
         FROM_HERE,
-        base::TimeDelta::FromMillisecondsD(
-            COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS),
+        base::TimeDelta::FromMillisecondsD(minimum_frame_interval_milliseconds),
         base::BindRepeating(&Pipeline::RasterizeCurrentTree,
                             base::Unretained(this)));
     rasterize_timer_->Reset();
