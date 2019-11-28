@@ -23,7 +23,9 @@
         'render_target.cc',
         'render_target.h',
       ],
-
+      'defines': [
+        'COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS=<(cobalt_minimum_frame_time_in_milliseconds)',
+      ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/math/math.gyp:math',
