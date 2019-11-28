@@ -85,6 +85,15 @@ class GraphicsContext {
   // only be presented when something changes.
   virtual float GetMaximumFrameIntervalInMilliseconds();
 
+  // Allow throttling of the frame rate. This is expressed in terms of
+  // milliseconds and can be a floating point number. Keep in mind that
+  // swapping frames may take some additional processing time, so it may be
+  // better to specify a lower delay. For example, '33' instead of '33.33'
+  // for 30 Hz refresh. If implemented, this takes precedence over the gyp
+  // variable 'cobalt_minimum_frame_time_in_milliseconds'.
+  // Note: Return a negative number if no value is specified by the platform.
+  virtual float GetMinimumFrameIntervalInMilliseconds();
+
  private:
   GraphicsSystem* system_;
 

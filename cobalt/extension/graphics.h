@@ -48,6 +48,15 @@ typedef struct CobaltExtensionGraphicsApi {
   // precedence over this. For example, if the minimum frame time is 8ms and
   // the maximum frame interval is 0ms, then the renderer will target 125 fps.
   float (*GetMaximumFrameIntervalInMilliseconds)();
+
+  // The fields below this point were added in version 2 or later.
+
+  // Allow throttling of the frame rate. This is expressed in terms of
+  // milliseconds and can be a floating point number. Keep in mind that
+  // swapping frames may take some additional processing time, so it may be
+  // better to specify a lower delay. For example, '33' instead of '33.33'
+  // for 30 Hz refresh.
+  float (*GetMinimumFrameIntervalInMilliseconds)();
 } CobaltExtensionGraphicsApi;
 
 #ifdef __cplusplus
