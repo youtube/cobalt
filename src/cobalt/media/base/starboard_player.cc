@@ -831,6 +831,7 @@ void StarboardPlayer::OnPlayerStatus(SbPlayer player, SbPlayerState state,
 #else   // SB_API_VERSION < 10
     SbPlayerSeek2(player_, preroll_timestamp_.InMicroseconds(), ticket_);
 #endif  // SB_API_VERSION < 10
+    seek_pending_ = false;
     SetVolume(volume_);
     SbPlayerSetPlaybackRate(player_, playback_rate_);
     return;
