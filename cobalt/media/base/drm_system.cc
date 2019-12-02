@@ -28,8 +28,7 @@ namespace media {
 DECLARE_INSTANCE_COUNTER(DrmSystem);
 
 DrmSystem::Session::Session(
-    DrmSystem* drm_system
-    ,
+    DrmSystem* drm_system,
     SessionUpdateKeyStatusesCallback update_key_statuses_callback
 #if SB_HAS(DRM_SESSION_CLOSED)
     ,
@@ -41,7 +40,8 @@ DrmSystem::Session::Session(
 #if SB_HAS(DRM_SESSION_CLOSED)
       session_closed_callback_(session_closed_callback),
 #endif  // SB_HAS(DRM_SESSION_CLOSED)
-      closed_(false) {
+      closed_(false),
+      weak_factory_(this) {
   DCHECK(!update_key_statuses_callback_.is_null());
 #if SB_HAS(DRM_SESSION_CLOSED)
   DCHECK(!session_closed_callback_.is_null());
@@ -69,7 +69,7 @@ void DrmSystem::Session::GenerateUpdateRequest(
   update_request_generated_callback_ =
       session_update_request_generated_callback;
   drm_system_->GenerateSessionUpdateRequest(
-      this, type, init_data, init_data_length,
+      weak_factory_.GetWeakPtr(), type, init_data, init_data_length,
       session_update_request_generated_callback,
       session_update_request_did_not_generate_callback);
 }
@@ -169,8 +169,8 @@ void DrmSystem::UpdateServerCertificate(
 #endif  // SB_API_VERSION >= 10
 
 void DrmSystem::GenerateSessionUpdateRequest(
-    Session* session, const std::string& type, const uint8_t* init_data,
-    int init_data_length,
+    const base::WeakPtr<Session>& session, const std::string& type,
+    const uint8_t* init_data, int init_data_length,
     const SessionUpdateRequestGeneratedCallback&
         session_update_request_generated_callback,
     const SessionUpdateRequestDidNotGenerateCallback&
@@ -221,6 +221,8 @@ void DrmSystem::OnSessionUpdateRequestGenerated(
     SessionTicketAndOptionalId ticket_and_optional_id, SbDrmStatus status,
     SbDrmSessionRequestType type, const std::string& error_message,
     std::unique_ptr<uint8[]> message, int message_size) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+
   int ticket = ticket_and_optional_id.ticket;
   const base::Optional<std::string>& session_id = ticket_and_optional_id.id;
   if (SbDrmTicketIsValid(ticket)) {
@@ -237,21 +239,25 @@ void DrmSystem::OnSessionUpdateRequestGenerated(
     const SessionUpdateRequest& session_update_request =
         session_update_request_iterator->second;
 
-    // Interpret the result.
-    if (session_id) {
-      // Successful request generation.
+    // As DrmSystem::Session may be released, need to check it before using it.
+    if (session_update_request.session &&
+        !session_update_request.session->is_closed()) {
+      // Interpret the result.
+      if (session_id) {
+        // Successful request generation.
 
-      // Enable session lookup by id which is used by spontaneous callbacks.
-      session_update_request.session->set_id(*session_id);
-      id_to_session_map_.insert(
-          std::make_pair(*session_id, session_update_request.session));
+        // Enable session lookup by id which is used by spontaneous callbacks.
+        session_update_request.session->set_id(*session_id);
+        id_to_session_map_.insert(
+            std::make_pair(*session_id, session_update_request.session));
 
-      session_update_request.generated_callback.Run(type, std::move(message),
-                                                    message_size);
-    } else {
-      // Failure during request generation.
-      session_update_request.did_not_generate_callback.Run(status,
-                                                           error_message);
+        session_update_request.generated_callback.Run(type, std::move(message),
+                                                      message_size);
+      } else {
+        // Failure during request generation.
+        session_update_request.did_not_generate_callback.Run(status,
+                                                             error_message);
+      }
     }
 
     // Sweep the context of |GenerateSessionUpdateRequest| once license updated.
@@ -274,15 +280,19 @@ void DrmSystem::OnSessionUpdateRequestGenerated(
       LOG(ERROR) << "Unknown session id: " << *session_id << ".";
       return;
     }
-    Session* session = session_iterator->second;
 
-    session->update_request_generated_callback().Run(type, std::move(message),
-                                                     message_size);
+    // As DrmSystem::Session may be released, need to check it before using it.
+    if (session_iterator->second) {
+      session_iterator->second->update_request_generated_callback().Run(
+          type, std::move(message), message_size);
+    }
   }
 }
 
 void DrmSystem::OnSessionUpdated(int ticket, SbDrmStatus status,
                                  const std::string& error_message) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+
   // Restore the context of |UpdateSession|.
   TicketToSessionUpdateMap::iterator session_update_iterator =
       ticket_to_session_update_map_.find(ticket);
@@ -306,6 +316,8 @@ void DrmSystem::OnSessionUpdated(int ticket, SbDrmStatus status,
 void DrmSystem::OnSessionKeyStatusChanged(
     const std::string& session_id, const std::vector<std::string>& key_ids,
     const std::vector<SbDrmKeyStatus>& key_statuses) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+
   // Find the session by ID.
   IdToSessionMap::iterator session_iterator =
       id_to_session_map_.find(session_id);
@@ -313,13 +325,18 @@ void DrmSystem::OnSessionKeyStatusChanged(
     LOG(ERROR) << "Unknown session id: " << session_id << ".";
     return;
   }
-  Session* session = session_iterator->second;
 
-  session->update_key_statuses_callback().Run(key_ids, key_statuses);
+  // As DrmSystem::Session may be released, need to check it before using it.
+  if (session_iterator->second) {
+    session_iterator->second->update_key_statuses_callback().Run(key_ids,
+                                                                 key_statuses);
+  }
 }
 
 #if SB_HAS(DRM_SESSION_CLOSED)
 void DrmSystem::OnSessionClosed(const std::string& session_id) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+
   // Find the session by ID.
   IdToSessionMap::iterator session_iterator =
       id_to_session_map_.find(session_id);
@@ -327,9 +344,11 @@ void DrmSystem::OnSessionClosed(const std::string& session_id) {
     LOG(ERROR) << "Unknown session id: " << session_id << ".";
     return;
   }
-  Session* session = session_iterator->second;
 
-  session->session_closed_callback().Run();
+  // As DrmSystem::Session may be released, need to check it before using it.
+  if (session_iterator->second) {
+    session_iterator->second->session_closed_callback().Run();
+  }
   id_to_session_map_.erase(session_iterator);
 }
 #endif  // SB_HAS(DRM_SESSION_CLOSED)
@@ -337,6 +356,8 @@ void DrmSystem::OnSessionClosed(const std::string& session_id) {
 #if SB_API_VERSION >= 10
 void DrmSystem::OnServerCertificateUpdated(int ticket, SbDrmStatus status,
                                            const std::string& error_message) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+
   auto iter = ticket_to_server_certificate_updated_map_.find(ticket);
   if (iter == ticket_to_server_certificate_updated_map_.end()) {
     LOG(ERROR) << "Unknown ticket: " << ticket << ".";

@@ -132,6 +132,8 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
     // Supports spontaneous invocations of |SbDrmSessionUpdateRequestFunc|.
     SessionUpdateRequestGeneratedCallback update_request_generated_callback_;
 
+    base::WeakPtrFactory<Session> weak_factory_;
+
     friend class DrmSystem;
 
     DISALLOW_COPY_AND_ASSIGN(Session);
@@ -160,14 +162,14 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
  private:
   // Stores context of |GenerateSessionUpdateRequest|.
   struct SessionUpdateRequest {
-    Session* session;
+    base::WeakPtr<Session> session;
     SessionUpdateRequestGeneratedCallback generated_callback;
     SessionUpdateRequestDidNotGenerateCallback did_not_generate_callback;
   };
   typedef base::hash_map<int, SessionUpdateRequest>
       TicketToSessionUpdateRequestMap;
 
-  typedef base::hash_map<std::string, Session*> IdToSessionMap;
+  typedef base::hash_map<std::string, base::WeakPtr<Session>> IdToSessionMap;
 
   typedef base::hash_map<int, ServerCertificateUpdatedCallback>
       TicketToServerCertificateUpdatedMap;
@@ -188,8 +190,8 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
 
   // Private API for |Session|.
   void GenerateSessionUpdateRequest(
-      Session* session, const std::string& type, const uint8_t* init_data,
-      int init_data_length,
+      const base::WeakPtr<Session>& session, const std::string& type,
+      const uint8_t* init_data, int init_data_length,
       const SessionUpdateRequestGeneratedCallback&
           session_update_request_generated_callback,
       const SessionUpdateRequestDidNotGenerateCallback&
