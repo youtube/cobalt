@@ -25,7 +25,8 @@
 namespace starboard {
 namespace nplb {
 
-#if SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
+#if SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION || \
+    SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
 
 class SpeechRecognizerTest : public ::testing::Test {
  public:
@@ -48,6 +49,26 @@ class SpeechRecognizerTest : public ::testing::Test {
   }
 
  protected:
+  bool isTestFixtureSupported;
+  virtual void SetUp() {
+    // We include all API tests at compile time after Starboard version 12, so
+    // we must do a runtime check to determine whether or not that API (and
+    // thus the test fixture) is supported.
+#if SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION
+    isTestFixtureSupported = SbSpeechRecognizerIsSupported();
+#else
+    isTestFixtureSupported = true;
+#endif
+  }
+
+  // TODO: Use GTEST_SKIP in |SetUp| when we have a newer version of gtest.
+  bool SkipLocale() {
+    if (!isTestFixtureSupported) {
+      std::cout << "[  SKIPPED ] Speech recognizer not supported." << std::endl;
+    }
+    return !isTestFixtureSupported;
+  }
+
   // Per test teardown.
   virtual void TearDown() {
     // Wait for the speech recognizer server to tear down in order to start
@@ -62,7 +83,8 @@ class SpeechRecognizerTest : public ::testing::Test {
   SbSpeechRecognizerHandler handler_;
 };
 
-#endif  // SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
+#endif  // SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION ||
+        // SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
 
 }  // namespace nplb
 }  // namespace starboard
