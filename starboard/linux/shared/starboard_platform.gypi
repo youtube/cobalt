@@ -126,6 +126,8 @@
       '<(DEPTH)/starboard/shared/nouser/user_get_property.cc',
       '<(DEPTH)/starboard/shared/nouser/user_get_signed_in.cc',
       '<(DEPTH)/starboard/shared/nouser/user_internal.cc',
+      '<(DEPTH)/starboard/shared/opus/opus_audio_decoder.cc',
+      '<(DEPTH)/starboard/shared/opus/opus_audio_decoder.h',
       '<(DEPTH)/starboard/shared/posix/directory_create.cc',
       '<(DEPTH)/starboard/shared/posix/file_atomic_replace.cc',
       '<(DEPTH)/starboard/shared/posix/file_can_open.cc',
@@ -383,6 +385,7 @@
       '<(DEPTH)/third_party/de265_includes/de265_includes.gyp:de265',
       '<(DEPTH)/third_party/dlmalloc/dlmalloc.gyp:dlmalloc',
       '<(DEPTH)/third_party/libevent/libevent.gyp:libevent',
+      '<(DEPTH)/third_party/opus/opus.gyp:opus',
       '<(DEPTH)/third_party/pulseaudio_includes/pulseaudio_includes.gyp:pulseaudio',
     ],
     'conditions': [
