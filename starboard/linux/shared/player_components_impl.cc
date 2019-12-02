@@ -62,7 +62,7 @@ class PlayerComponentsImpl : public PlayerComponents {
       if (audio_sample_info.codec == kSbMediaAudioCodecOpus) {
         scoped_ptr<OpusAudioDecoder> audio_decoder_impl(
             new OpusAudioDecoder(audio_sample_info));
-        if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
+        if (audio_decoder_impl->is_valid()) {
           return audio_decoder_impl.PassAs<AudioDecoder>();
         }
       } else {
