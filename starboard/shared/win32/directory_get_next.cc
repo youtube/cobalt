@@ -18,6 +18,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/shared/win32/directory_internal.h"
 #include "starboard/shared/win32/wchar_utils.h"
 
@@ -73,7 +74,7 @@ bool SbDirectoryGetNext(SbDirectory directory,
                         char* out_entry,
                         size_t out_entry_size) {
   if (!SbDirectoryIsValid(directory) || out_entry == nullptr ||
-      out_entry_size < SB_FILE_MAX_NAME) {
+      out_entry_size < kSbFileMaxName) {
     return false;
   }
 

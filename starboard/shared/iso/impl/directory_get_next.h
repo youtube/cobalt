@@ -21,6 +21,7 @@
 #include <errno.h>
 
 #include "starboard/common/string.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 
 #include "starboard/shared/internal_only.h"
@@ -35,7 +36,7 @@ bool SbDirectoryGetNext(SbDirectory directory,
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
                         char* out_entry,
                         size_t out_entry_size) {
-  if (out_entry_size < SB_FILE_MAX_NAME) {
+  if (out_entry_size < kSbFileMaxName) {
     return false;
   }
 #else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION

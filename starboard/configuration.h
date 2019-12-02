@@ -584,10 +584,6 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif
 
 #endif  // SB_API_VERSION >= 11
-#if !defined(SB_FILE_MAX_NAME) || SB_FILE_MAX_NAME < 2
-#error "Your platform must define SB_FILE_MAX_NAME > 1."
-#endif
-
 #if !defined(SB_FILE_MAX_PATH) || SB_FILE_MAX_PATH < 2
 #error "Your platform must define SB_FILE_MAX_PATH > 1."
 #endif
@@ -630,6 +626,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error \
     "SB_DEFAULT_MMAP_THRESHOLD should not be defined in Starboard " \
 "versions 12 and later. Instead, define kSbDefaultMmapThreshold in " \
+"starboard/<PLATFORM_PATH>/configuration_constants.cc."
+#endif
+
+#if defined(SB_FILE_MAX_NAME)
+#error \
+    "SB_FILE_MAX_NAME should not be defined in Starboard " \
+"versions 12 and later. Instead, define kSbFileMaxName in " \
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
@@ -707,6 +710,10 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif
 
 #else  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+
+#if !defined(SB_FILE_MAX_NAME) || SB_FILE_MAX_NAME < 2
+#error "Your platform must define SB_FILE_MAX_NAME > 1."
+#endif
 
 #if !defined(SB_MAX_THREAD_NAME_LENGTH)
 #error "Your platform must define SB_MAX_THREAD_NAME_LENGTH."

@@ -18,6 +18,7 @@
 
 #include "base/files/file_util.h"
 #include "base/logging.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/types.h"
 
@@ -34,7 +35,7 @@ bool SimpleIndexFile::TraverseCacheDirectory(
     return false;
   }
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  std::vector<char> entry(SB_FILE_MAX_NAME);
+  std::vector<char> entry(kSbFileMaxName);
 
   while (true) {
     if (!SbDirectoryGetNext(dir, entry.data(), entry.size())) {

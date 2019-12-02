@@ -34,6 +34,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/input.h"
 #include "starboard/key.h"
@@ -770,9 +771,9 @@ std::vector<InputDeviceInfo> GetInputDevices() {
 
   while (true) {
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-    std::vector<char> entry(SB_FILE_MAX_NAME);
+    std::vector<char> entry(kSbFileMaxName);
 
-    if (!SbDirectoryGetNext(directory, entry.data(), SB_FILE_MAX_NAME)) {
+    if (!SbDirectoryGetNext(directory, entry.data(), kSbFileMaxName)) {
       break;
     }
 

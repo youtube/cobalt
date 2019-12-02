@@ -22,6 +22,10 @@
 // (if available), rather than allocated within the core heap.
 const size_t kSbDefaultMmapThreshold = 256 * 1024U;
 
+// The current platform's maximum length of the name of a single directory
+// entry, not including the absolute path.
+const int32_t kSbFileMaxName = 64;
+
 // Determines the alignment that allocations should have on this platform.
 const size_t kSbMallocAlignment = 16;
 

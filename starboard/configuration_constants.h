@@ -29,6 +29,10 @@
 // (if available), rather than allocated within the core heap.
 extern const size_t kSbDefaultMmapThreshold;
 
+// The current platform's maximum length of the name of a single directory
+// entry, not including the absolute path.
+extern const int32_t kSbFileMaxName;
+
 // Determines the alignment that allocations should have on this platform.
 extern const size_t kSbMallocAlignment;
 
