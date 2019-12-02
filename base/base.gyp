@@ -692,24 +692,6 @@
       'sources': [
       ],
     },
-
-
-    # Include this target for a main() function that simply instantiates
-    # and runs a base::TestSuite.
-    {
-      'target_name': 'run_all_unittests',
-      'type': 'static_library',
-      'dependencies': [
-        'test_support_base',
-      ],
-      'sources': [
-        'test/run_all_unittests.cc',
-      ],
-      'dependencies': [
-        '<(DEPTH)/testing/gmock.gyp:gmock',
-        '<(DEPTH)/testing/gtest.gyp:gtest',
-      ],
-    },
     {
       'target_name': 'base_unittests',
       'type': '<(gtest_target_type)',
@@ -948,7 +930,6 @@
         'base',
         'base_i18n',
         'base_static',
-        'run_all_unittests',
         'test_support_base',
         'third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
       ],
@@ -969,6 +950,7 @@
         # Destructor is explicitly deleted.
         4624,
       ],
+      'includes': ['<(DEPTH)/base/test/test.gypi'],
     },
     {
       'target_name': 'test_support_base',

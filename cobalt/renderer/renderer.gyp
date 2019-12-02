@@ -101,7 +101,6 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'render_tree_pixel_tester',
@@ -112,6 +111,7 @@
           'defines' : ['ENABLE_MAP_TO_MESH'],
         }],
       ],
+      'includes': [ '<(DEPTH)/cobalt/test/test.gypi' ],
     },
     {
       'target_name': 'renderer_copy_test_data',
