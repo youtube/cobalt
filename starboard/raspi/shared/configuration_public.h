@@ -139,10 +139,6 @@
 
 // --- Filesystem Configuration ----------------------------------------------
 
-// The current platform's maximum length of the name of a single directory
-// entry, not including the absolute path.
-#define SB_FILE_MAX_NAME 64
-
 // The current platform's maximum length of an absolute path.
 #define SB_FILE_MAX_PATH 4096
 

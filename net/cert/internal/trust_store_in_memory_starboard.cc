@@ -21,6 +21,7 @@
 #include "net/cert/pem_tokenizer.h"
 #include "net/cert/x509_certificate.h"
 #include "net/cert/x509_util.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
 #include "starboard/string.h"
@@ -75,10 +76,9 @@ std::unordered_set<std::string> GetCertNamesOnDisk() {
 #endif
     return std::unordered_set<std::string>();
   }
-
   std::unordered_set<std::string> trusted_certs_on_disk;
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  std::vector<char> dir_entry(SB_FILE_MAX_NAME);
+  std::vector<char> dir_entry(kSbFileMaxName);
 
   while (SbDirectoryGetNext(sb_certs_directory, dir_entry.data(),
                             dir_entry.size())) {

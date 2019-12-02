@@ -17,6 +17,7 @@
 #include "base/files/file_util.h"
 #include "base/threading/thread_restrictions.h"
 #include "starboard/common/string.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
 #include "starboard/memory.h"
@@ -112,7 +113,7 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
   bool found_dot_dot = false;
 
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  std::vector<char> entry(SB_FILE_MAX_NAME);
+  std::vector<char> entry(kSbFileMaxName);
 
   while (SbDirectoryGetNext(dir, entry.data(), entry.size())) {
     const char dot_dot_str[] = "..";

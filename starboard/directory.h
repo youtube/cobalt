@@ -72,14 +72,14 @@ SB_EXPORT bool SbDirectoryClose(SbDirectory directory);
 //
 // This function returns |true| if there was a next directory, and |false|
 // at the end of the directory stream or if |out_entry_size| is smaller than
-// SB_FILE_MAX_NAME.
+// kSbFileMaxName.
 //
 // |directory|: The directory stream from which to retrieve the next directory.
 // |out_entry|: The null terminated string to be populated with the next
 //              directory entry. The space allocated for this string should be
 //              equal to |out_entry_size|.
 // |out_entry_size|: The size of the space allocated for |out_entry|. This
-//                   should be at least equal to SB_FILE_MAX_NAME.
+//                   should be at least equal to kSbFileMaxName.
 SB_EXPORT bool SbDirectoryGetNext(SbDirectory directory,
                                   char* out_entry,
                                   size_t out_entry_size);

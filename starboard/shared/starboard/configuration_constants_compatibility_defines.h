@@ -29,6 +29,8 @@
 
 #define kSbDefaultMmapThreshold SB_DEFAULT_MMAP_THRESHOLD
 
+#define kSbFileMaxName SB_FILE_MAX_NAME
+
 #define kSbMallocAlignment SB_MALLOC_ALIGNMENT
 
 #define kSbMaxThreadNameLength SB_MAX_THREAD_NAME_LENGTH

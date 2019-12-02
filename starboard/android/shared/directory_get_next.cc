@@ -18,13 +18,14 @@
 #include <string.h>
 
 #include "starboard/android/shared/directory_internal.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/shared/iso/impl/directory_get_next.h"
 
 bool SbDirectoryGetNext(SbDirectory directory,
                         char* out_entry,
                         size_t out_entry_size) {
   if (directory && directory->asset_dir && out_entry &&
-      out_entry_size >= SB_FILE_MAX_NAME) {
+      out_entry_size >= kSbFileMaxName) {
     const char* file_name = AAssetDir_getNextFileName(directory->asset_dir);
     if (file_name == NULL) {
       return false;

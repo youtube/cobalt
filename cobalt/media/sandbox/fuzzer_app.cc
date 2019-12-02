@@ -17,6 +17,7 @@
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "starboard/common/string.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 
 namespace cobalt {
@@ -114,7 +115,7 @@ void FuzzerApp::CollectFiles(const std::string& path_name, double min_ratio,
   }
 
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  std::vector<char> entry(SB_FILE_MAX_NAME);
+  std::vector<char> entry(kSbFileMaxName);
 
   while (SbDirectoryGetNext(directory, entry.data(), entry.size())) {
     std::string file_name = path_name + SB_FILE_SEP_STRING + entry.data();
