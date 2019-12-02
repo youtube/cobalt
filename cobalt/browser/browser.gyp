@@ -247,11 +247,11 @@
         '<(DEPTH)/cobalt/speech/speech.gyp:speech',
         '<(DEPTH)/cobalt/storage/storage.gyp:storage',
         '<(DEPTH)/cobalt/storage/storage.gyp:storage_upgrade_copy_test_data',
-        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'browser',
       ],
+      'includes': [ '<(DEPTH)/cobalt/test/test.gypi' ],
     },
 
     {

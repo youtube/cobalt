@@ -159,7 +159,6 @@
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/math/math.gyp:math',
-        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         '<(DEPTH)/third_party/ots/ots.gyp:ots',
@@ -167,6 +166,7 @@
         'loader_copy_test_data',
         '<@(cobalt_platform_dependencies)',
       ],
+      'includes': [ '<(DEPTH)/cobalt/test/test.gypi' ],
     },
 
     {

@@ -13,17 +13,11 @@
 # limitations under the License.
 
 {
-  'targets': [
-    {
-      'target_name': 'run_all_unittests',
-      'type': 'static_library',
-      'dependencies': [
-        '<(DEPTH)/base/base.gyp:test_support_base',
-        '<(DEPTH)/testing/gtest.gyp:gtest',
-      ],
-      'sources': [
-        'run_all_unittests.cc',
-      ],
-    },
-  ]
+  'dependencies': [
+    '<(DEPTH)/base/base.gyp:test_support_base',
+    '<(DEPTH)/testing/gtest.gyp:gtest',
+  ],
+  'sources': [
+    '<(DEPTH)/cobalt/test/run_all_unittests.cc',
+  ],
 }

@@ -24,10 +24,10 @@
         '<(DEPTH)/cobalt/media_session/media_session.gyp:media_session',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/browser/browser.gyp:browser',
-        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
       ],
+      'includes': [ '<(DEPTH)/cobalt/test/test.gypi' ],
     },
     {
       'target_name': 'media_session_test_deploy',

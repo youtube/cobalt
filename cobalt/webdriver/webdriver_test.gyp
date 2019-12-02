@@ -15,11 +15,11 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/browser/browser.gyp:browser',
-        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'webdriver_copy_test_data',
       ],
+      'includes': [ '<(DEPTH)/cobalt/test/test.gypi' ],
     },
 
     {

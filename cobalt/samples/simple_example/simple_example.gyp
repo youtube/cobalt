@@ -91,11 +91,11 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'simple_example_lib',
         'simple_example_copy_test_data',
       ],
+      'includes': [ '<(DEPTH)/cobalt/test/test.gypi' ],
     },
 
     # This target is optional and is only needed if tests are using

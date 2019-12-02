@@ -39,12 +39,12 @@
       ],
       'dependencies': [
         'speech',
-        '<(DEPTH)/base/base.gyp:run_all_unittests',
         '<(DEPTH)/base/base.gyp:test_support_base',
         '<(DEPTH)/cobalt/media/media.gyp:media',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
       ],
+      'includes': ['<(DEPTH)/base/test/test.gypi'],
     },
 
     {

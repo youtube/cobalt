@@ -88,10 +88,10 @@
         'crypto',
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/base/base.gyp:test_support_base',
-        '<(DEPTH)/base/base.gyp:run_all_unittests',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
       ],
+      'includes': ['<(DEPTH)/base/test/test.gypi'],
     },
   ],
   'conditions': [
