@@ -13,10 +13,6 @@
 # limitations under the License.
 
 {
-  'variables': {
-    'enable_map_to_mesh': 1,
-  },
-
   'includes': [
     '<(DEPTH)/starboard/linux/shared/compiler_flags.gypi',
     '<(DEPTH)/starboard/linux/shared/enable_glx_via_angle.gypi',

@@ -11,19 +11,14 @@ the player
 
 ## Enabling spherical video support
 
-Spherical video support requires `map-to-mesh` support, which must be
-explicitly enabled in your Starboard platform's `gyp_configuration.gypi` file.
+Spherical video support requires `map-to-mesh` support, which is enabled by
+default. You can explicitly disable in either through the command line switch
+`--disable_map_to_mesh` or by implementing the CobaltExtensionGraphicsApi
+function `IsMapToMeshEnabled()` to return `false`.
 
-In particular, your platform's `gyp_configuration.gypi` file should contain the
-line,
-
-```
-'enable_map_to_mesh': 1,
-```
-
-When `enable_map_to_mesh` is set to 1, Cobalt will make the `map-to-mesh`
-CSS filter parseable.  The web app can then detect whether the browser,
-Cobalt, supports spherical video by evaluating the following JavaScript:
+When `map-to-mesh` is supported, Cobalt will make the `map-to-mesh` CSS filter
+parseable.  The web app can then detect whether the browser, Cobalt, supports
+spherical video by evaluating the following JavaScript:
 
 ```
 function checkForMapToMeshSupport() {
