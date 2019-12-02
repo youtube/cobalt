@@ -91,7 +91,7 @@
         },
       ]
     }],
-    ['final_executable_type == "shared_library"', {
+    ['final_executable_type == "shared_library" and sb_evergreen != 1', {
       'targets': [
         {
           'target_name': 'cobalt_bin',
