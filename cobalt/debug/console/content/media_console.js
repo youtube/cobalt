@@ -16,14 +16,27 @@ const kNewline = '\r\n';
 
 const kMediaConsoleFrame = 'mediaConsoleFrame';
 
+const videoCodecFamilies = ['av01', 'avc1', 'avc3', 'hev1', 'hvc1', 'vp09',
+      'vp8', 'vp9'];
+const audioCodecFamilies = ['ac-3', 'ec-3', 'mp4a', 'opus', 'vorbis'];
+
+const kAltModifier = 'A-';
+const kCtrlModifier = 'C-';
+
 function MediaConsole(debuggerClient) {
   let mediaConsoleNode = document.getElementById('mediaConsole');
 
   this.debuggerClient = debuggerClient;
+  this.getDisabledMediaCodecs = window.debugHub.cVal.getValue.bind(
+      window.debugHub.cVal, 'Media.DisabledMediaCodecs');
+  this.setDisabledMediaCodecs = window.debugHub.sendConsoleCommand.bind(
+      window.debugHub, 'disable_media_codecs');
   this.lastUpdateTime = window.performance.now();
   this.updatePeriod = 1000;
 
   // Registry of all the hotkeys and their function handlers.
+  // NOTE: This is not the full list, since more will be added once the codec
+  // specific controls are registered.
   this.hotkeyRegistry = new Map([
       ['p', {handler: this.onPlayPause.bind(this), help: '(p)ause/(p)lay'}],
       [']', {handler: this.onIncreasePlaybackRate.bind(this),
@@ -32,18 +45,8 @@ function MediaConsole(debuggerClient) {
         help: '([)Decrease Playback Rate'}],
   ]);
 
-  // Generate the help text that will be displayed at the top of the console
-  // output.
-  let hotkeysHelp = 'Hotkeys:' + kNewline;
-  const generateHelpText = function(hotkeyInfo, hotkey, map) {
-    hotkeysHelp += hotkeyInfo.help + ', ';
-  };
-  this.hotkeyRegistry.forEach(generateHelpText);
-  hotkeysHelp = hotkeysHelp.substring(0, hotkeysHelp.length-2);
-  hotkeysHelp += kNewline;
-  hotkeysHelp += kNewline;
-  hotkeysHelp += kNewline;
-  mediaConsoleNode.appendChild(document.createTextNode(hotkeysHelp));
+  this.hotkeyHelpNode = document.createTextNode('');
+  mediaConsoleNode.appendChild(this.hotkeyHelpNode);
 
   // Dynamically added div will be changed as we get state information.
   let playerStateElem = document.createElement('div');
@@ -52,6 +55,8 @@ function MediaConsole(debuggerClient) {
   mediaConsoleNode.appendChild(playerStateElem);
 
   this.printToMediaConsoleCallback = this.printToMediaConsole.bind(this);
+  this.codecSupportMap = new Map();
+  this.isInitialized = false;
 }
 
 MediaConsole.prototype.setVisible = function(visible) {
@@ -61,13 +66,26 @@ MediaConsole.prototype.setVisible = function(visible) {
 }
 
 MediaConsole.prototype.initialize = function() {
-  if (this.initialized) return;
-  this.initialized = true;
+  if (this.initialized) { return; }
 
+  this.debuggerClient.attach();
+  this.initializeMediaConsoleContext();
+  this.initializeSupportedCodecs();
+
+  // Since |initializeSupportedCodecs| is resolved asynchronously, we need to
+  // wait until |codecSupportMap| is fully populated before finishing the rest
+  // of the initialization.
+  if (this.codecSupportMap.size > 0) {
+    this.registerCodecHotkeys();
+    this.generateHotkeyHelpText();
+    this.isInitialized = true;
+  }
+}
+
+MediaConsole.prototype.initializeMediaConsoleContext = function() {
   // TODO: Move this code into a js file and have the script dynamically load it
   // from the content folder, rather than sending it as a raw string.
-  // TODO: Fix |getPrimaryVideo| implementation to actually select the primary
-  // player.
+
   this.debuggerClient.evaluate(`
     (function() {
       let ctx = window._mediaConsoleContext = {};
@@ -94,26 +112,28 @@ MediaConsole.prototype.initialize = function() {
               primary = elem[i];
             }
           }
-          if (primary == null) {
-            console.warn('Video elements found in page, but none were \
-                fullscreen, and hence there is no primary video.');
-          }
           return primary;
         }
         return null;
       };
 
-      function extractStateFromVideo(video) {
+      function extractState(video, disabledMediaCodecs) {
+        let state = {};
+        state.disabledMediaCodecs = disabledMediaCodecs;
+        state.hasPrimaryVideo = false;
         if (video) {
-          let state = {};
+          state.hasPrimaryVideo = true;
           state.paused = video.paused;
           state.currentTime = video.currentTime;
           state.duration = video.duration;
           state.defaultPlaybackRate = video.defaultPlaybackRate;
           state.playbackRate = video.playbackRate;
-          return JSON.stringify(state);
         }
-        return null;
+        return JSON.stringify(state);
+      };
+
+      function getDisabledMediaCodecs() {
+        return window.h5vcc.cVal.getValue("Media.DisabledMediaCodecs");
       };
 
       // NOTE: Place all public members and methods of |_mediaConsoleContext|
@@ -122,7 +142,8 @@ MediaConsole.prototype.initialize = function() {
 
       ctx.getPlayerState = function() {
         const video = getPrimaryVideo();
-        return extractStateFromVideo(video);
+        const disabledMediaCodecs = getDisabledMediaCodecs();
+        return extractState(video, disabledMediaCodecs);
       };
 
       ctx.togglePlayPause = function() {
@@ -134,7 +155,7 @@ MediaConsole.prototype.initialize = function() {
             video.pause();
           }
         }
-        return extractStateFromVideo(video);
+        return extractState(video, getDisabledMediaCodecs());
       };
 
       ctx.increasePlaybackRate = function() {
@@ -144,7 +165,7 @@ MediaConsole.prototype.initialize = function() {
           i = Math.min(i + 1, kPlaybackRates.length - 1);
           video.playbackRate = kPlaybackRates[i];
         }
-        return extractStateFromVideo(video);
+        return extractState(video, getDisabledMediaCodecs());
       };
 
       ctx.decreasePlaybackRate = function() {
@@ -154,11 +175,124 @@ MediaConsole.prototype.initialize = function() {
           i = Math.max(i - 1, 0);
           video.playbackRate = kPlaybackRates[i];
         }
-        return extractStateFromVideo(video);
+        return extractState(video, getDisabledMediaCodecs());
       };
+
+      ctx.getSupportedCodecs = function() {
+        // By querying all the possible mime and codec pairs, we can determine
+        // which codecs are valid to control and toggle.  We use arbitrarily-
+        // chosen codec subformats to determine if the entire family is
+        // supported.
+        const kVideoCodecs = [
+            'av01.0.04M.10.0.110.09.16.09.0',
+            'avc1.640028',
+            'hvc1.1.2.L93.B0',
+            'vp09.02.10.10.01.09.16.09.01',
+            'vp8',
+            'vp9',
+        ];
+        const kVideoMIMEs = [
+            'video/mpeg',
+            'video/mp4',
+            'video/ogg',
+            'video/webm',
+        ];
+        const kAudioCodecs = [
+            'ac-3',
+            'ec-3',
+            'mp4a.40.2',
+            'opus',
+            'vorbis',
+        ];
+        const kAudioMIMEs = [
+            'audio/flac',
+            'audio/mpeg',
+            'audio/mp3',
+            'audio/mp4',
+            'audio/ogg',
+            'audio/wav',
+            'audio/webm',
+            'audio/x-m4a',
+        ];
+
+        let results = [];
+        kVideoMIMEs.forEach(mime => {
+          kVideoCodecs.forEach(codec => {
+            let family = codec.split('.')[0];
+            let mimeCodec = mime + '; codecs ="' + codec + '"';
+            results.push([family, MediaSource.isTypeSupported(mimeCodec)]);
+          })
+        });
+        kAudioMIMEs.forEach(mime => {
+          kAudioCodecs.forEach(codec => {
+            let family = codec.split('.')[0];
+            let mimeCodec = mime + '; codecs ="' + codec + '"';
+            results.push([family, MediaSource.isTypeSupported(mimeCodec)]);
+          })
+        });
+        return JSON.stringify(results);
+      }
 
     }());
   `);
+}
+
+MediaConsole.prototype.initializeSupportedCodecs = function() {
+  if (this.codecSupportMap.size > 0) {
+    return;
+  }
+
+  function handleSupportQueryResponse(response) {
+    let results = JSON.parse(response.result.value);
+    results.forEach(record => {
+      let codecFamily = record[0];
+      let isSupported = record[1] || !!this.codecSupportMap.get(codecFamily);
+      this.codecSupportMap.set(codecFamily, isSupported);
+    });
+  };
+
+  this.debuggerClient.evaluate(`_mediaConsoleContext.getSupportedCodecs()`,
+      handleSupportQueryResponse.bind(this));
+}
+
+MediaConsole.prototype.registerCodecHotkeys = function() {
+  // Codec control hotkeys are of the form: Modifier + Number.
+  // Due to the large number of codecs, we split all the video codecs into Ctrl
+  // and all the audio codecs into Alt.
+  // "C-" prefix indicates a key with the ctrlKey modifier.
+  // "A-" prefix indicates a key with the altKey modifier.
+  // Additionally, we only register those hotkeys that we filter as supported.
+  function registerCodecHotkey(modifier, codec, index) {
+    if (!this.codecSupportMap.get(codec)) {
+      return;
+    }
+    let modAndNum = `${modifier}${index + 1}`;
+    let helpStr = `( ${modAndNum} ) ${codec}`;
+    this.hotkeyRegistry.set(modAndNum, {
+      handler: this.onToggleCodec.bind(this, codec),
+      help: helpStr
+    });
+  };
+  videoCodecFamilies.forEach(registerCodecHotkey.bind(this, kCtrlModifier));
+  audioCodecFamilies.forEach(registerCodecHotkey.bind(this, kAltModifier));
+}
+
+MediaConsole.prototype.generateHotkeyHelpText = function() {
+  // Generate the help text that will be displayed at the top of the console
+  // output.
+  let hotkeysHelp = `Hotkeys: ${kNewline}`;
+  hotkeysHelp += `Ctrl+Num toggles video codecs ${kNewline}`;
+  hotkeysHelp += `Alt+Num toggles audio codecs ${kNewline}`;
+  const generateHelpText = function(hotkeyInfo, hotkey, map) {
+    hotkeysHelp += hotkeyInfo.help + ', ';
+  };
+  this.hotkeyRegistry.forEach(generateHelpText);
+  hotkeysHelp = hotkeysHelp.substring(0, hotkeysHelp.length-2);
+  hotkeysHelp += kNewline;
+  hotkeysHelp += kNewline;
+  hotkeysHelp += kNewline;
+
+  this.hotkeyHelpNode.nodeValue = hotkeysHelp;
 }
 
 MediaConsole.prototype.parseStateFromResponse = function(response) {
@@ -169,13 +303,16 @@ MediaConsole.prototype.parseStateFromResponse = function(response) {
 
 MediaConsole.prototype.printToMediaConsole = function(response) {
   const state = this.parseStateFromResponse(response);
+  let videoStatus = 'No primary video.';
+  if(state.hasPrimaryVideo) { videoStatus = ''; }
   this.playerStateText.textContent =
-      `Primary Video:
+      `Primary Video: ${videoStatus} ${kNewline} \
       Paused: ${state.paused} ${kNewline} \
       Current Time: ${state.currentTime} ${kNewline} \
       Duration: ${state.duration} ${kNewline} \
       Playback Rate: ${state.playbackRate} \
-      (default: ${state.defaultPlaybackRate})`;
+      (default: ${state.defaultPlaybackRate}) ${kNewline} \
+      Disabled Media Codecs: ${state.disabledMediaCodecs}`;
 }
 
 MediaConsole.prototype.update = function() {
@@ -196,13 +333,17 @@ MediaConsole.prototype.onKeypress = function(event) {}
 MediaConsole.prototype.onInput = function(event) {}
 
 MediaConsole.prototype.onKeydown = function(event) {
-  if (this.hotkeyRegistry.has(event.key)) {
-    const item = this.hotkeyRegistry.get(event.key);
-    if (item && item.handler) {
-      item.handler();
-      return;
+  let matchedHotkeyEntry = null;
+  this.hotkeyRegistry.forEach(function(hotkeyInfo, hotkey, map) {
+    let eventKey = event.key;
+    if(event.altKey) { eventKey = kAltModifier + eventKey; }
+    if(event.ctrlKey) { eventKey = kCtrlModifier + eventKey; }
+    if(eventKey == hotkey) {
+      matchedHotkeyEntry = hotkeyInfo;
     }
-    console.log(`Failed to handle hotkey ${event.key}.`);
+  });
+  if (matchedHotkeyEntry) {
+    matchedHotkeyEntry.handler();
   }
 }
 
@@ -219,4 +360,12 @@ MediaConsole.prototype.onIncreasePlaybackRate = function() {
 MediaConsole.prototype.onDecreasePlaybackRate = function() {
   this.debuggerClient.evaluate('_mediaConsoleContext.decreasePlaybackRate()',
       this.printToMediaConsoleCallback);
+}
+
+MediaConsole.prototype.onToggleCodec = function(codecToToggle) {
+  let codecs = this.getDisabledMediaCodecs().split(";");
+  codecs = codecs.filter(s => s.length > 0);
+  toggled = codecs.filter(c => c != codecToToggle);
+  if(codecs.length == toggled.length) { toggled.push(codecToToggle); }
+  this.setDisabledMediaCodecs(toggled.join(';'));
 }
