@@ -215,12 +215,10 @@ script::Handle<script::Promise<void>> MediaKeySession::Close() {
   // 5.2. Use CDM to close the key session associated with session.
   drm_system_session_->Close();
 
-  // Let |MediaKeys| know that the session should be removed from the list
-  // of open sessions.
-  closed_callback_.Run(this);
-
+#if !SB_HAS(DRM_SESSION_CLOSED)
   // 5.3.1. Run the Session Closed algorithm on the session.
   OnSessionClosed();
+#endif  // !SB_HAS(DRM_SESSION_CLOSED)
 
   // 5.3.2. Resolve promise.
   promise->Resolve();
@@ -416,6 +414,10 @@ void MediaKeySession::OnSessionClosed() {
   //    - TODO: Implement expiration.
   // 7. Resolve promise.
   closed_promise_reference_.value().Resolve();
+
+  // Let |MediaKeys| know that the session should be removed from the list
+  // of open sessions.
+  closed_callback_.Run(this);
 }
 
 }  // namespace eme
