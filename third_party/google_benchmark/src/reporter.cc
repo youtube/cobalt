@@ -22,12 +22,47 @@
 #include <vector>
 
 #include "check.h"
+#include "starboard/log.h"
 #include "string_util.h"
 
 namespace benchmark {
+namespace {
+
+class sblog_ostreambuf : public std::streambuf {
+ public:
+  explicit sblog_ostreambuf(SbLogPriority priority) : priority_(priority) {}
+
+  std::streamsize xsputn(const char_type *s, std::streamsize n) override {
+    buffer_.insert(buffer_.end(), s, s + n);
+    if (buffer_.back() == '\n') {
+      SbLog(priority_, buffer_.c_str());
+      buffer_.clear();
+    }
+    return n;
+  }
+
+ private:
+  SbLogPriority priority_;
+  std::string buffer_;
+};
+
+std::ostream *GetOutputStream() {
+  static sblog_ostreambuf streambuf(kSbLogPriorityInfo);
+  static std::ostream os(&streambuf);
+  return &os;
+}
+
+std::ostream *GetErrorStream() {
+  static sblog_ostreambuf streambuf(kSbLogPriorityError);
+  static std::ostream os(&streambuf);
+  return &os;
+}
+
+}  // namespace
 
 BenchmarkReporter::BenchmarkReporter()
-    : output_stream_(&std::cout), error_stream_(&std::cerr) {}
+    : output_stream_(benchmark::GetOutputStream()),
+      error_stream_(benchmark::GetErrorStream()) {}
 
 BenchmarkReporter::~BenchmarkReporter() {}
 
