@@ -19,9 +19,12 @@
 namespace starboard {
 namespace nplb {
 
-#if SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
+#if SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION || \
+    SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
 
 TEST_F(SpeechRecognizerTest, StartTestSunnyDay) {
+  if (SkipLocale())
+    return;
   SbSpeechRecognizer recognizer = SbSpeechRecognizerCreate(handler());
   EXPECT_TRUE(SbSpeechRecognizerIsValid(recognizer));
   SbSpeechConfiguration configuration = {false, false, 1};
@@ -36,6 +39,8 @@ TEST_F(SpeechRecognizerTest, StartTestSunnyDay) {
 }
 
 TEST_F(SpeechRecognizerTest, StartRecognizerWithContinuousRecognition) {
+  if (SkipLocale())
+    return;
   SbSpeechRecognizer recognizer = SbSpeechRecognizerCreate(handler());
   EXPECT_TRUE(SbSpeechRecognizerIsValid(recognizer));
   SbSpeechConfiguration configuration = {true, false, 1};
@@ -50,6 +55,8 @@ TEST_F(SpeechRecognizerTest, StartRecognizerWithContinuousRecognition) {
 }
 
 TEST_F(SpeechRecognizerTest, StartRecognizerWithInterimResults) {
+  if (SkipLocale())
+    return;
   SbSpeechRecognizer recognizer = SbSpeechRecognizerCreate(handler());
   EXPECT_TRUE(SbSpeechRecognizerIsValid(recognizer));
   SbSpeechConfiguration configuration = {false, true, 1};
@@ -64,6 +71,8 @@ TEST_F(SpeechRecognizerTest, StartRecognizerWithInterimResults) {
 }
 
 TEST_F(SpeechRecognizerTest, StartRecognizerWith10MaxAlternatives) {
+  if (SkipLocale())
+    return;
   SbSpeechRecognizer recognizer = SbSpeechRecognizerCreate(handler());
   EXPECT_TRUE(SbSpeechRecognizerIsValid(recognizer));
   SbSpeechConfiguration configuration = {true, true, 10};
@@ -78,6 +87,8 @@ TEST_F(SpeechRecognizerTest, StartRecognizerWith10MaxAlternatives) {
 }
 
 TEST_F(SpeechRecognizerTest, StartIsCalledMultipleTimes) {
+  if (SkipLocale())
+    return;
   SbSpeechRecognizer recognizer = SbSpeechRecognizerCreate(handler());
   EXPECT_TRUE(SbSpeechRecognizerIsValid(recognizer));
   SbSpeechConfiguration configuration = {true, true, 1};
@@ -95,13 +106,16 @@ TEST_F(SpeechRecognizerTest, StartIsCalledMultipleTimes) {
 }
 
 TEST_F(SpeechRecognizerTest, StartWithInvalidSpeechRecognizer) {
+  if (SkipLocale())
+    return;
   SbSpeechConfiguration configuration = {true, true, 1};
   bool success =
       SbSpeechRecognizerStart(kSbSpeechRecognizerInvalid, &configuration);
   EXPECT_FALSE(success);
 }
 
-#endif  // SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
+#endif  // SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION ||
+        // SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
 
 }  // namespace nplb
 }  // namespace starboard
