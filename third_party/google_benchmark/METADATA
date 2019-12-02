@@ -14,6 +14,7 @@ third_party {
     value: "https://github.com/google/benchmark"
   }
   version: "367119482ff4abc3d73e4a109b410090fc281337"
+  # from https://chromium.googlesource.com/chromium/src/+/87.0.4280.142/DEPS#821
   last_upgrade_date {
     year: 2019
     month: 12
