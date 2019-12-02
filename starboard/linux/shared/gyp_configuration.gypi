@@ -26,6 +26,7 @@
     'yasm_exists': 1,
     'sb_widevine_platform' : 'linux',
     'sb_disable_opus_sse': 1,
+    'sb_enable_benchmark': 1,
 
     'platform_libraries': [
       '-lasound',
@@ -46,14 +47,14 @@
       'use_dlmalloc_allocator%': 0,
     },
     'conditions': [
-        ['sb_evergreen != 1', {
-          # TODO: allow starboard_platform to use system libc/libc++ in the
-          # future. For now, if this flags is enabled, a warning emerge saying
-          # it's unused anyway.
-          'linker_flags': [
-            '-static-libstdc++',
-          ],
-        }],
+      ['sb_evergreen != 1', {
+        # TODO: allow starboard_platform to use system libc/libc++ in the
+        # future. For now, if this flags is enabled, a warning emerge saying
+        # it's unused anyway.
+        'linker_flags': [
+          '-static-libstdc++',
+        ],
+      }],
     ],
   },
 
