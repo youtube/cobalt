@@ -62,7 +62,6 @@
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
-        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'xhr',
@@ -71,6 +70,7 @@
         #       ScriptValueFactory has non-virtual method CreatePromise().
         '<(DEPTH)/cobalt/script/engine.gyp:engine',
       ],
+      'includes': [ '<(DEPTH)/cobalt/test/test.gypi' ],
     },
     {
       'target_name': 'xhr_test_deploy',

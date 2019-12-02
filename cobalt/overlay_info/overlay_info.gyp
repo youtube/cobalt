@@ -42,9 +42,9 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/overlay_info/overlay_info.gyp:overlay_info',
-        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gtest.gyp:gtest',
       ],
+      'includes': [ '<(DEPTH)/cobalt/test/test.gypi' ],
     },
 
     {
