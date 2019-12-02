@@ -80,7 +80,7 @@ bool IsIPInPrivateRange(const SbSocketAddress& ip) {
       return true;
     }
     if ((ip.address[0] == 172) &&
-        ((ip.address[1] >= 16) || (ip.address[1] <= 31))) {
+        ((ip.address[1] >= 16) && (ip.address[1] <= 31))) {
       // IP is in range 172.16.0.0 - 172.31.255.255 (172.16/12 prefix).
       return true;
     }
