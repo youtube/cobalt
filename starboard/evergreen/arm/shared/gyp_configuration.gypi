@@ -17,7 +17,6 @@
 
 {
   'variables': {
-    'enable_map_to_mesh': 1,
     'yasm_exists': 1,
 
     'compiler_flags': [

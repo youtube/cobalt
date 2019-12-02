@@ -62,6 +62,39 @@ float GraphicsContext::GetMinimumFrameIntervalInMilliseconds() {
   return -1.0f;
 }
 
+bool GraphicsContext::IsMapToMeshEnabled() {
+#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
+#if defined(ENABLE_MAP_TO_MESH)
+#error \
+    "ENABLE_MAP_TO_MESH is deprecated after Starboard version 12, use \
+the Cobalt graphics extension function IsMapToMeshEnabled() instead."
+#endif  // defined(ENABLE_MAP_TO_MESH)
+  if (graphics_extension_ && graphics_extension_->version >= 3) {
+    return graphics_extension_->IsMapToMeshEnabled();
+  }
+
+  // Assume map to mesh is enabled, as it is for most platforms.
+  return true;
+#else  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
+#if defined(ENABLE_MAP_TO_MESH)
+  if (graphics_extension_ && graphics_extension_->version >= 3) {
+    DLOG(ERROR)
+        << "ENABLE_MAP_TO_MESH and "
+           "CobaltExtensionGraphicsApi::IsMapToMeshEnabled() are both defined. "
+           "Remove 'enable_map_to_mesh' from your \"gyp_configuration.gypi\" "
+           "file in favor of using IsMapToMeshEnabled().";
+  }
+  return static_cast<bool>(ENABLE_MAP_TO_MESH);
+#endif
+
+  if (graphics_extension_ && graphics_extension_->version >= 3) {
+    return graphics_extension_->IsMapToMeshEnabled();
+  }
+
+  return false;
+#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
+}
+
 }  // namespace backend
 }  // namespace renderer
 }  // namespace cobalt

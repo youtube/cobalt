@@ -61,6 +61,7 @@
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/layout/topmost_event_target.h"
 #include "cobalt/loader/image/animated_image_tracker.h"
+#include "cobalt/loader/switches.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/page_visibility/visibility_state.h"
 #include "cobalt/script/error_report.h"
@@ -502,18 +503,13 @@ WebModule::Impl::Impl(const ConstructionData& data)
   // testing whether it parses or not via the CSS.supports() Web API.
   css_parser::Parser::SupportsMapToMeshFlag supports_map_to_mesh;
 #if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
-  if (SbGetGlesInterface()) {
-    supports_map_to_mesh =
-        data.options.enable_map_to_mesh_rectangular
-            ? css_parser::Parser::kSupportsMapToMeshRectangular
-            : css_parser::Parser::kSupportsMapToMesh;
+  if (SbGetGlesInterface() && data.options.enable_map_to_mesh) {
+    supports_map_to_mesh = css_parser::Parser::kSupportsMapToMesh;
   } else {
     supports_map_to_mesh = css_parser::Parser::kDoesNotSupportMapToMesh;
   }
-#elif defined(ENABLE_MAP_TO_MESH)
-  supports_map_to_mesh = data.options.enable_map_to_mesh_rectangular
-                             ? css_parser::Parser::kSupportsMapToMeshRectangular
-                             : css_parser::Parser::kSupportsMapToMesh;
+#elif ENABLE_MAP_TO_MESH
+  supports_map_to_mesh = css_parser::Parser::kSupportsMapToMesh;
 #else
   supports_map_to_mesh = css_parser::Parser::kDoesNotSupportMapToMesh;
 #endif
@@ -689,8 +685,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
       base::Bind(&WebModule::Impl::OnStopDispatchEvent, base::Unretained(this)),
       data.options.provide_screenshot_function, &synchronous_loader_interrupt_,
       data.options.enable_inline_script_warnings, data.ui_nav_root,
-      data.options.csp_insecure_allowed_token, data.dom_max_element_depth,
-      data.options.video_playback_rate_multiplier,
+      data.options.enable_map_to_mesh, data.options.csp_insecure_allowed_token,
+      data.dom_max_element_depth, data.options.video_playback_rate_multiplier,
 #if defined(ENABLE_TEST_RUNNER)
       data.options.layout_trigger == layout::LayoutManager::kTestRunnerMode
           ? dom::Window::kClockTypeTestRunner

@@ -183,8 +183,10 @@
         ['enable_about_scheme == 1', {
           'defines': [ 'ENABLE_ABOUT_SCHEME' ],
         }],
-        ['enable_map_to_mesh == 1', {
-          'defines' : ['ENABLE_MAP_TO_MESH'],
+        ['enable_map_to_mesh != -1', {
+          'defines' : [
+            'ENABLE_MAP_TO_MESH=<(enable_map_to_mesh)',
+          ],
         }],
         ['enable_debugger == 1', {
           'sources': [
@@ -199,7 +201,7 @@
         }],
         ['mesh_cache_size_in_bytes == "auto"', {
           'conditions': [
-            ['enable_map_to_mesh==1', {
+            ['enable_map_to_mesh == 1', {
               'defines': [
                 'COBALT_MESH_CACHE_SIZE_IN_BYTES=1*1024*1024',
               ],

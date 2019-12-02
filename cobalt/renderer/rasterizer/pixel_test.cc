@@ -3890,7 +3890,7 @@ TEST_F(PixelTest, DrawOffscreenYUVImage) {
 }
 #endif  // !SB_HAS(BLITTER)
 
-#if defined(ENABLE_MAP_TO_MESH)
+#if ENABLE_MAP_TO_MESH
 
 namespace {
 scoped_refptr<Mesh> CreateCubeMesh(ResourceProvider* resource_provider) {
@@ -4008,7 +4008,7 @@ TEST_F(PixelTest, MapToMeshUYVYTest) {
   TestTree(CreateMapToMeshTestRenderTree(GetResourceProvider(), image));
 }
 
-#endif  // defined(ENABLE_MAP_TO_MESH)
+#endif  // ENABLE_MAP_TO_MESH
 
 TEST_F(PixelTest, DrawNullImage) {
   // An ImageNode with no source is legal, though it should result in nothing

@@ -175,8 +175,8 @@ class Window : public EventTarget,
       base::WaitableEvent* synchronous_loader_interrupt,
       bool enable_inline_script_warnings = false,
       const scoped_refptr<ui_navigation::NavItem>& ui_nav_root = nullptr,
-      int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0,
-      float video_playback_rate_multiplier = 1.f,
+      bool enable_map_to_mesh = true, int csp_insecure_allowed_token = 0,
+      int dom_max_element_depth = 0, float video_playback_rate_multiplier = 1.f,
       ClockType clock_type = kClockTypeSystemTime,
       const CacheCallback& splash_screen_cache_callback = CacheCallback(),
       const scoped_refptr<captions::SystemCaptionSettings>& captions = nullptr,
@@ -402,6 +402,8 @@ class Window : public EventTarget,
     return ui_nav_root_;
   }
 
+  bool enable_map_to_mesh() { return enable_map_to_mesh_; }
+
   DEFINE_WRAPPABLE_TYPE(Window);
 
  private:
@@ -479,6 +481,8 @@ class Window : public EventTarget,
   // This UI navigation root container should contain all active UI navigation
   // items for this window.
   scoped_refptr<ui_navigation::NavItem> ui_nav_root_;
+
+  bool enable_map_to_mesh_;
 
   DISALLOW_COPY_AND_ASSIGN(Window);
 };
