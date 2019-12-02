@@ -132,9 +132,11 @@
 
 // --- Filesystem Configuration ----------------------------------------------
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The current platform's maximum length of the name of a single directory
 // entry, not including the absolute path.
 #define SB_FILE_MAX_NAME 64
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 // The current platform's maximum length of an absolute path.
 #define SB_FILE_MAX_PATH 4096

@@ -459,6 +459,7 @@ ExportedSymbols::ExportedSymbols(
 
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   REGISTER_SYMBOL(kSbDefaultMmapThreshold);
+  REGISTER_SYMBOL(kSbFileMaxName);
   REGISTER_SYMBOL(kSbMallocAlignment);
   REGISTER_SYMBOL(kSbMaxThreadNameLength);
   REGISTER_SYMBOL(kSbMediaMaxAudioBitrateInBitsPerSecond);

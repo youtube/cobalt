@@ -16,6 +16,7 @@
 #include <string>
 
 #include "starboard/configuration.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
 #include "starboard/nplb/file_helpers.h"
@@ -51,7 +52,7 @@ TEST(SbDirectoryGetNextTest, SunnyDay) {
   int count = 0;
   while (true) {
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-    std::vector<char> entry(SB_FILE_MAX_NAME, 0);
+    std::vector<char> entry(kSbFileMaxName, 0);
     if (!SbDirectoryGetNext(directory, entry.data(), entry.size())) {
       break;
     }
@@ -89,10 +90,10 @@ TEST(SbDirectoryGetNextTest, SunnyDay) {
 
 TEST(SbDirectoryGetNextTest, FailureInvalidSbDirectory) {
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  std::vector<char> entry(SB_FILE_MAX_NAME, 0);
-  EXPECT_FALSE(SbDirectoryGetNext(kSbDirectoryInvalid, entry.data(),
-                                  entry.size()));
-#else  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+  std::vector<char> entry(kSbFileMaxName, 0);
+  EXPECT_FALSE(
+      SbDirectoryGetNext(kSbDirectoryInvalid, entry.data(), entry.size()));
+#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   SbDirectoryEntry entry = {0};
   EXPECT_FALSE(SbDirectoryGetNext(kSbDirectoryInvalid, &entry));
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
@@ -111,7 +112,7 @@ TEST(SbDirectoryGetNextTest, FailureNullEntry) {
   EXPECT_TRUE(SbDirectoryIsValid(directory));
   EXPECT_EQ(kSbFileOk, error);
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  EXPECT_FALSE(SbDirectoryGetNext(directory, NULL, SB_FILE_MAX_NAME));
+  EXPECT_FALSE(SbDirectoryGetNext(directory, NULL, kSbFileMaxName));
 #else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   EXPECT_FALSE(SbDirectoryGetNext(directory, NULL));
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
@@ -120,7 +121,7 @@ TEST(SbDirectoryGetNextTest, FailureNullEntry) {
 
 TEST(SbDirectoryGetNextTest, FailureInvalidAndNull) {
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  EXPECT_FALSE(SbDirectoryGetNext(kSbDirectoryInvalid, NULL, SB_FILE_MAX_NAME));
+  EXPECT_FALSE(SbDirectoryGetNext(kSbDirectoryInvalid, NULL, kSbFileMaxName));
 #else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   EXPECT_FALSE(SbDirectoryGetNext(kSbDirectoryInvalid, NULL));
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
@@ -136,7 +137,7 @@ TEST(SbDirectoryGetNextTest, FailureOnEmptyDirectory) {
   ASSERT_EQ(kSbFileOk, error);
 
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  std::vector<char> entry(SB_FILE_MAX_NAME, 0);
+  std::vector<char> entry(kSbFileMaxName, 0);
   EXPECT_FALSE(SbDirectoryGetNext(directory, entry.data(), entry.size()));
 #else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   SbDirectoryEntry entry = {0};
@@ -158,13 +159,13 @@ TEST(SbDirectoryGetNextTest, FailureOnInsufficientSize) {
   EXPECT_TRUE(SbDirectoryIsValid(directory));
   EXPECT_EQ(kSbFileOk, error);
 
-  std::vector<char> entry(SB_FILE_MAX_NAME);
-  for (int i = 0; i < SB_FILE_MAX_NAME; i++)
+  std::vector<char> entry(kSbFileMaxName);
+  for (int i = 0; i < kSbFileMaxName; i++)
     entry[i] = i;
   std::vector<char> entry_copy = entry;
   EXPECT_EQ(SbDirectoryGetNext(directory, entry.data(), 0), false);
-  EXPECT_EQ(entry.size(), SB_FILE_MAX_NAME);
-  for (int i = 0; i < SB_FILE_MAX_NAME; i++)
+  EXPECT_EQ(entry.size(), kSbFileMaxName);
+  for (int i = 0; i < kSbFileMaxName; i++)
     EXPECT_EQ(entry[i], entry_copy[i]);
 
   EXPECT_TRUE(SbDirectoryClose(directory));

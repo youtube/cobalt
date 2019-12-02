@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/configuration_constants.h"
 #include "starboard/loader_app/installation_store.pb.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -168,7 +169,7 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
     SbDirectory dir = SbDirectoryOpen(storage_path_.c_str(), NULL);
     std::vector<std::string> dir_;
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-    std::vector<char> dir_entry(SB_FILE_MAX_NAME);
+    std::vector<char> dir_entry(kSbFileMaxName);
 
     while (SbDirectoryGetNext(dir, dir_entry.data(), dir_entry.size())) {
       std::string full_path = storage_path_;
