@@ -25,6 +25,7 @@
     'target_os': 'linux',
     'yasm_exists': 1,
     'sb_widevine_platform' : 'linux',
+    'sb_disable_opus_sse': 1,
 
     'platform_libraries': [
       '-lasound',
