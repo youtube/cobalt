@@ -23,6 +23,7 @@
 #include "base/containers/small_map.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/unused.h"
+#include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/property_definitions.h"
 #include "cobalt/cssom/property_value.h"
 
@@ -512,6 +513,18 @@ class CSSComputedStyleData
   // optional blockificiation has occurred.
   bool is_inline_before_blockification() const {
     return is_inline_before_blockification_;
+  }
+
+  bool IsContainingBlockForPositionAbsoluteElements() const {
+    return IsPositioned() || IsTransformed();
+  }
+
+  bool IsPositioned() const {
+    return position() != cssom::KeywordValue::GetStatic();
+  }
+
+  bool IsTransformed() const {
+    return transform() != cssom::KeywordValue::GetNone();
   }
 
  protected:

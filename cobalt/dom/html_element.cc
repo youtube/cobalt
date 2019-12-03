@@ -535,7 +535,7 @@ void HTMLElement::set_scroll_left(float x) {
   //     has no associated scrolling box, or the element has no overflow,
   //     terminate these steps.
   if (!layout_boxes_ ||
-      scroll_width() <= layout_boxes_->GetPaddingEdgeWidth() ) {
+      scroll_width() <= layout_boxes_->GetPaddingEdgeWidth()) {
     // Make sure the UI navigation container is set to the expected 0.
     x = 0.0f;
   }
@@ -597,7 +597,7 @@ void HTMLElement::set_scroll_top(float y) {
 }
 
 // Algorithm for offsetParent:
-//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetparent
+//   https://drafts.csswg.org/date/2019-10-11/cssom-view/#extensions-to-the-htmlelement-interface
 Element* HTMLElement::offset_parent() {
   DCHECK(node_document());
   node_document()->DoSynchronousLayout();
@@ -617,7 +617,9 @@ Element* HTMLElement::offset_parent() {
   // 2. Return the nearest ancestor element of the element for which at least
   //    one of the following is true and terminate this algorithm if such an
   //    ancestor is found:
-  //    . The computed value of the 'position' property is not 'static'.
+  //    . The element is a containing block of absolutely-positioned descendants
+  //      (regardless of whether there are any absolutely-positioned
+  //       descendants).
   //    . It is the HTML body element.
   for (Node* ancestor_node = parent_node(); ancestor_node;
        ancestor_node = ancestor_node->parent_node()) {
@@ -631,8 +633,8 @@ Element* HTMLElement::offset_parent() {
     }
     DCHECK(ancestor_html_element->computed_style());
     if (ancestor_html_element->AsHTMLBodyElement() ||
-        ancestor_html_element->computed_style()->position() !=
-            cssom::KeywordValue::GetStatic()) {
+        ancestor_html_element->computed_style()
+            ->IsContainingBlockForPositionAbsoluteElements()) {
       return ancestor_element;
     }
   }
@@ -1144,9 +1146,7 @@ void HTMLElement::InvalidateLayoutBoxes() {
   directionality_ = base::nullopt;
 }
 
-void HTMLElement::OnUiNavBlur() {
-  Blur();
-}
+void HTMLElement::OnUiNavBlur() { Blur(); }
 
 void HTMLElement::OnUiNavFocus() {
   // Ensure the focusing steps do not trigger the UI navigation item to
@@ -1160,8 +1160,8 @@ void HTMLElement::OnUiNavFocus() {
 void HTMLElement::OnUiNavScroll() {
   Document* document = node_document();
   scoped_refptr<Window> window(document ? document->window() : nullptr);
-  DispatchEvent(new UIEvent(base::Tokens::scroll(),
-                Event::kBubbles, Event::kNotCancelable, window));
+  DispatchEvent(new UIEvent(base::Tokens::scroll(), Event::kBubbles,
+                            Event::kNotCancelable, window));
 }
 
 HTMLElement::HTMLElement(Document* document, base::Token local_name)

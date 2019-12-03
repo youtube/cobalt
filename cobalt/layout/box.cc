@@ -132,11 +132,11 @@ Box::Box(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
 Box::~Box() { layout_stat_tracker_->OnBoxDestroyed(); }
 
 bool Box::IsPositioned() const {
-  return computed_style()->position() != cssom::KeywordValue::GetStatic();
+  return computed_style()->IsPositioned();
 }
 
 bool Box::IsTransformed() const {
-  return computed_style()->transform() != cssom::KeywordValue::GetNone();
+  return computed_style()->IsTransformed();
 }
 
 bool Box::IsAbsolutelyPositioned() const {

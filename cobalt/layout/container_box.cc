@@ -170,7 +170,8 @@ void ContainerBox::MoveDirectChildrenToSplitSibling(
 }
 
 bool ContainerBox::IsContainingBlockForPositionAbsoluteElements() const {
-  return parent() == NULL || IsPositioned() || IsTransformed();
+  return parent() == NULL ||
+         computed_style()->IsContainingBlockForPositionAbsoluteElements();
 }
 
 bool ContainerBox::IsContainingBlockForPositionFixedElements() const {
