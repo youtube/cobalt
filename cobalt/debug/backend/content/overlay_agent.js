@@ -31,36 +31,44 @@ commands._highlightNodeRects = function(params) {
     let color;
     let box;
 
-    // Margin
-    color = config.marginColor;
-    box = styleBox(styles, 'margin');
-    if (color) {
-      boxRects(content, box).forEach(
-          rect => highlights.push(highlightParams(rect, color)));
-    }
+    let transformed = isNodeTransformed(node);
 
-    // Border
-    color = config.borderColor;
-    box = styleBox(styles, 'border');
-    if (color) {
-      boxRects(content, box).forEach(
-          rect => highlights.push(highlightParams(rect, color)));
-    }
-    content = insetRect(content, box);
+    if (!transformed) {
+      // Margin
+      color = config.marginColor;
+      box = styleBox(styles, 'margin');
+      if (color) {
+        boxRects(content, box).forEach(
+            rect => highlights.push(highlightParams(rect, color)));
+      }
 
-    // Padding
-    color = config.paddingColor;
-    box = styleBox(styles, 'padding');
-    if (color) {
-      boxRects(content, box).forEach(
-          rect => highlights.push(highlightParams(rect, color)));
+      // Border
+      color = config.borderColor;
+      box = styleBox(styles, 'border');
+      if (color) {
+        boxRects(content, box).forEach(
+            rect => highlights.push(highlightParams(rect, color)));
+      }
+      content = insetRect(content, box);
+
+      // Padding
+      color = config.paddingColor;
+      box = styleBox(styles, 'padding');
+      if (color) {
+        boxRects(content, box).forEach(
+            rect => highlights.push(highlightParams(rect, color)));
+      }
+      content = insetRect(content, box);
     }
-    content = insetRect(content, box);
 
     // Content
     color = config.contentColor;
     if (color) {
-      highlights.push(highlightParams(content, color));
+      let highlight = highlightParams(content, color);
+      if (transformed) {
+        highlight.outlineColor = {r: 255, g: 0, b: 255, a: 1.0};
+      }
+      highlights.push(highlight);
     }
   }
   return JSON.stringify({highlightRects: highlights});
@@ -77,6 +85,14 @@ function styleBox(styles, boxName) {
     box[side] = sign * parseFloat(width) || 0;
   });
   return box;
+}
+
+function isNodeTransformed(node) {
+  while (node) {
+    if (window.getComputedStyle(node).transform !== 'none') return true;
+    node = node.offsetParent;
+  }
+  return false;
 }
 
 // Returns an array of non-overlapping rectangles for the box around the inside
