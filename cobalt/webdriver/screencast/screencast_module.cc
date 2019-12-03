@@ -31,6 +31,8 @@ namespace screencast {
 
 namespace {
 const char kJpegContentType[] = "image/jpeg";
+// Add screencast frame rate as 30 fps.
+const int kScreencastFramesPerSecond = 30;
 }
 
 ScreencastModule::ScreencastModule(
@@ -88,7 +90,7 @@ void ScreencastModule::StartServer(int server_port,
       base::Bind(&ScreencastModule::TakeScreenshot, base::Unretained(this));
   screenshot_timer_->Start(FROM_HERE,
                            base::TimeDelta::FromMilliseconds(
-                               COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS),
+                               1000.0f / kScreencastFramesPerSecond),
                            screenshot_event);
 }
 

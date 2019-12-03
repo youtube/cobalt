@@ -94,7 +94,6 @@
           'dependencies': [ 'copy_webdriver_data', ],
           'defines': [
             'ENABLE_WEBDRIVER',
-            'COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS=<(cobalt_minimum_frame_time_in_milliseconds)',
           ],
           'all_dependent_settings': {
             'defines': [ 'ENABLE_WEBDRIVER', ],
