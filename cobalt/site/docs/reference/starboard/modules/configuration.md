@@ -98,13 +98,6 @@ Legal values for SB_PREFERRED_RGBA_BYTE_ORDER are defined in this file above as
 SB_PREFERRED_RGBA_BYTE_ORDER_*. If your platform uses GLES, you should set this
 to SB_PREFERRED_RGBA_BYTE_ORDER_RGBA.
 
-### SB_HAS_GLES2 ###
-
-Specifies whether this platform has a performant OpenGL ES 2 implementation,
-which allows client applications to use GL rendering paths. Derived from the gyp
-variable `gl_type` gl_type which indicates what kind of GL implementation is
-available.
-
 ### SB_HAS_GRAPHICS ###
 
 Specifies whether this platform has any kind of supported graphics system.
