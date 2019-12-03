@@ -16,6 +16,12 @@
 #include "starboard/common/log.h"
 #include "starboard/string.h"
 
+// Disables additional logs that would otherwise completely flood the typical
+// logs. These logs, combined with the extended logging in relocations.cc,
+// generate upwards of 15MiB of logs for small shared libraries.
+#undef SB_DLOG
+#define SB_DLOG(severity) SB_EAT_STREAM_PARAMETERS
+
 namespace starboard {
 namespace elf_loader {
 
