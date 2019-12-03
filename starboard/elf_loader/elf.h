@@ -644,7 +644,9 @@ typedef enum RelocationTypes {
 #else
 #error "Unsupported pointer size"
 #endif
+#endif
 
+#ifndef PAGE_MASK
 #define PAGE_MASK (~(PAGE_SIZE - 1))
 #endif
 
