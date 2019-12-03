@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Starboard Win32 Cobalt configuration."""
 
 from cobalt.build import cobalt_configuration
@@ -39,9 +38,18 @@ class CobaltWinWin32Configuration(cobalt_configuration.CobaltConfiguration):
   def GetWebPlatformTestFilters(self):
     filters = super(CobaltWinWin32Configuration, self).GetWebPlatformTestFilters()
     filters += [
-      '*WebPlatformTest.Run*',
+        '*WebPlatformTest.Run*',
     ]
     return filters
 
   __FILTERED_TESTS = {
+      'renderer_test': [
+          # Flaky test is still being counted as a fail.
+          'RendererPipelineTest'
+          '.FLAKY'
+          '_RasterizerSubmitCalledAtExpectedFrequencyAfterManyPipelineSubmits',
+          'RendererPipelineTest'
+          '.FLAKY'
+          '_RasterizerSubmitCalledAtExpectedFrequencyAfterSinglePipelineSubmit',
+      ],
   }
