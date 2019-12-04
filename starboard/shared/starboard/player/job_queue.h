@@ -163,6 +163,8 @@ class JobQueue {
   SbTimeMonotonic last_reset_time_ = SbTimeGetMonotonicNow();
   JobRecord job_record_with_max_interval_;
   SbTimeMonotonic max_job_interval_ = 0;
+  int jobs_processed_ = 0;
+  int wait_times_ = 0;
 #endif  // ENABLE_JOB_QUEUE_PROFILING
 };
 
