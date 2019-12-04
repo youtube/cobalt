@@ -24,6 +24,7 @@ div {
     var div_ids = ["insecure", "secure"];
 
     var urls = ["http://" + image_base, "https://" + image_base];
+    var num_errors = 0;
     for (var i = 0; i < 2; i++) {
       var divname = div_ids[i];
       var url = urls[i];
@@ -36,8 +37,12 @@ div {
         }
       }
       images[i].onerror = function() {
-        // NOTE: This won't be called due to an outstanding bug.
+        ++num_errors;
         console.log('Error loading: ' + this.src);
+        if (num_errors >= 2) {
+          console.log('More errors than expected!');
+          window.testRunner.notifyDone();
+        }
       }
       images[i].src = urls[i];
     }
