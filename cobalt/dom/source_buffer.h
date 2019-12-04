@@ -45,6 +45,7 @@
 #ifndef COBALT_DOM_SOURCE_BUFFER_H_
 #define COBALT_DOM_SOURCE_BUFFER_H_
 
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -170,25 +171,27 @@ class SourceBuffer : public dom::EventTarget {
   const std::string id_;
   media::ChunkDemuxer* chunk_demuxer_;
   MediaSource* media_source_;
-  scoped_refptr<TrackDefaultList> track_defaults_;
+  scoped_refptr<TrackDefaultList> track_defaults_ = new TrackDefaultList(NULL);
   EventQueue* event_queue_;
 
-  SourceBufferAppendMode mode_;
-  bool updating_;
-  double timestamp_offset_;
+  SourceBufferAppendMode mode_ = kSourceBufferAppendModeSegments;
+  bool updating_ = false;
+  double timestamp_offset_ = 0;
   scoped_refptr<AudioTrackList> audio_tracks_;
   scoped_refptr<VideoTrackList> video_tracks_;
-  double append_window_start_;
-  double append_window_end_;
+  double append_window_start_ = 0;
+  double append_window_end_ = std::numeric_limits<double>::infinity();
 
   base::OneShotTimer append_timer_;
-  bool first_initialization_segment_received_;
-  std::vector<uint8_t> pending_append_data_;
-  size_t pending_append_data_offset_;
+  bool first_initialization_segment_received_ = false;
+  std::unique_ptr<uint8_t[]> pending_append_data_;
+  size_t pending_append_data_capacity_ = 0;
+  size_t pending_append_data_size_ = 0;
+  size_t pending_append_data_offset_ = 0;
 
   base::OneShotTimer remove_timer_;
-  double pending_remove_start_;
-  double pending_remove_end_;
+  double pending_remove_start_ = -1;
+  double pending_remove_end_ = -1;
 };
 
 }  // namespace dom
