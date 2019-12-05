@@ -54,7 +54,7 @@ bool GetIPAddressFromSbSocketAddress(const SbSocketAddress* address,
 
     default:
       NOTREACHED();
-      break;
+      return false;
   }
 
   return true;
