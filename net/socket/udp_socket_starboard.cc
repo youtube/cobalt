@@ -441,7 +441,7 @@ int UDPSocketStarboard::InternalRecvFrom(IOBuffer* buf,
 
   if (result != ERR_IO_PENDING) {
     IPEndPoint log_address;
-    if (result < 0 || log_address.FromSbSocketAddress(&sb_address)) {
+    if (result < 0 || !log_address.FromSbSocketAddress(&sb_address)) {
       LogRead(result, buf->data(), NULL);
     } else {
       LogRead(result, buf->data(), &log_address);
