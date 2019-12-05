@@ -165,6 +165,7 @@
         'memory_map_test.cc',
         'memory_move_test.cc',
         'memory_reallocate_test.cc',
+        'memory_reporter_test.cc',
         'memory_set_test.cc',
         'microphone_close_test.cc',
         'microphone_create_test.cc',
@@ -314,8 +315,6 @@
       'conditions': [
         ['sb_evergreen != 1', {
           'sources': [
-            # Segfaults for Cobalt Evergreen.
-            'memory_reporter_test.cc',
             # Segfaults or causes unresolved symbols for Cobalt Evergreen.
             'media_set_audio_write_duration_test.cc',
           ],
