@@ -27,12 +27,12 @@ BraceWrapping:
   BeforeCatch: true
   BeforeElse: true
   IndentBraces: false
-  SplitEmptyFunction: false
-  SplitEmptyRecord: false
-  SplitEmptyNamespace: false
+#  SplitEmptyFunction: false
+#  SplitEmptyRecord: false
+#  SplitEmptyNamespace: false
 
   # Keeps extern "C" blocks unindented.
-  AfterExternBlock: false
+#  AfterExternBlock: false
 
 # Indent case labels.
 IndentCaseLabels: true
@@ -54,7 +54,7 @@ AllowShortCaseLabelsOnASingleLine: false
 KeepEmptyLinesAtTheStartOfBlocks: true
 
 # Indent nested PP directives.
-IndentPPDirectives: AfterHash
+#IndentPPDirectives: AfterHash
 
 # Include blocks style
-IncludeBlocks: Preserve
+#IncludeBlocks: Preserve
