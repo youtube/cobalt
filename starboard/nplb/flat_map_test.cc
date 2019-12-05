@@ -90,11 +90,14 @@ bool CheckMapEquality(const MapA_Type& map_a, const MapB_Type& map_b) {
 }
 
 SbTimeMonotonic GetThreadTimeMonotonicNow() {
-#if SB_HAS(TIME_THREAD_NOW)
-  return SbTimeGetMonotonicThreadNow();
-#else
-  return SbTimeGetMonotonicNow();
+#if SB_API_VERSION >= SB_TIME_THREAD_NOW_REQUIRED_VERSION || \
+    SB_HAS(TIME_THREAD_NOW)
+#if SB_API_VERSION >= SB_TIME_THREAD_NOW_REQUIRED_VERSION
+  if (SbTimeIsTimeThreadNowSupported())
 #endif
+    return SbTimeGetMonotonicThreadNow();
+#endif
+  return SbTimeGetMonotonicNow();
 }
 
 // Generic stringification of the input map type. This allows good error
