@@ -27,6 +27,7 @@ namespace elf_loader {
 class FileImpl : public File {
  public:
   FileImpl();
+  ~FileImpl() override;
   bool Open(const char* name);
   bool ReadFromOffset(int64_t offset, char* buffer, int size);
   void Close();
