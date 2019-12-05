@@ -32,6 +32,10 @@ namespace elf_loader {
 
 FileImpl::FileImpl() : file_(NULL) {}
 
+FileImpl::~FileImpl() {
+  Close();
+}
+
 bool FileImpl::Open(const char* name) {
   SB_LOG(INFO) << "Loading: " << name;
   file_ = SbFileOpen(name, kSbFileOpenOnly | kSbFileRead, NULL, NULL);
