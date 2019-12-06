@@ -434,13 +434,14 @@ void StarboardPlayer::Suspend() {
 
   SbPlayerSetPlaybackRate(player_, 0.0);
 
+  set_bounds_helper_->SetPlayer(NULL);
+
   base::AutoLock auto_lock(lock_);
   GetInfo_Locked(&cached_video_frames_decoded_, &cached_video_frames_dropped_,
                  &preroll_timestamp_);
 
   state_ = kSuspended;
 
-  set_bounds_helper_->SetPlayer(NULL);
   video_frame_provider_->SetOutputMode(VideoFrameProvider::kOutputModeInvalid);
   video_frame_provider_->ResetGetCurrentSbDecodeTargetFunction();
 
