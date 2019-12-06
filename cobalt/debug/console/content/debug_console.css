@@ -12,6 +12,9 @@ body {
   color: #FFFFFF;
   display: none;
 }
+body.hud #hudFrame {
+  display: block;
+}
 
 #hud {
   position: absolute;
@@ -27,7 +30,7 @@ body {
   padding: 0.625em;
 }
 
-#consoleFrame {
+#debugConsoleFrame {
   position: absolute;
   top: 0;
   left: 0;
@@ -37,6 +40,9 @@ body {
   color: #FFFFFF;
   overflow: hidden;
   display: none;
+}
+body.debugConsole #debugConsoleFrame {
+  display: block;
 }
 
 #messageContainerFrame {
@@ -133,6 +139,9 @@ body {
   background-color: rgba(128, 128, 128, 0.6);
   color: #FFFFFF;
   display: none;
+}
+body.mediaConsole #mediaConsoleFrame {
+  display: block;
 }
 
 #mediaConsole {
