@@ -28,7 +28,7 @@ function DebuggerClient() {
 DebuggerClient.prototype.attach = function() {
   if (this.attachState == this.DEBUGGER_DETACHED) {
     this.attachState = this.DEBUGGER_ATTACHING;
-    printToMessageLog(messageLog.INTERACTIVE,
+    printToMessageLog(MessageLog.INTERACTIVE,
                       'Attempting to attach to debugger...');
     this.scripts = [];
     debugHub.onEvent.addListener(this.onEventCallback);
@@ -37,7 +37,7 @@ DebuggerClient.prototype.attach = function() {
     this.sendCommand('Log.enable');
     this.sendCommand('Runtime.enable');
   } else if (this.attachState == this.DEBUGGER_ATTACHING) {
-    printToMessageLog(messageLog.INTERACTIVE,
+    printToMessageLog(MessageLog.INTERACTIVE,
                       'Still attempting to attach to debugger...');
   }
 }
@@ -49,7 +49,7 @@ DebuggerClient.prototype.getScripts = function(scriptId) {
   for (var i in this.scripts) {
     var index = this.pad(i, 3);
     var scriptUrl = this.scripts[i].url;
-    printToMessageLog(messageLog.INTERACTIVE, index + ': ' + scriptUrl);
+    printToMessageLog(MessageLog.INTERACTIVE, index + ': ' + scriptUrl);
   }
 }
 
@@ -74,7 +74,7 @@ DebuggerClient.prototype.getScriptSourceCallback = function(result) {
   var lines = scriptSource.split('\n');
   for (var i = 0; i < lines.length; i++) {
     var index = this.pad(i + 1, 4);
-    printToMessageLog(messageLog.INFO, index + ': ' + lines[i]);
+    printToMessageLog(MessageLog.INFO, index + ': ' + lines[i]);
   }
 }
 
@@ -108,7 +108,7 @@ DebuggerClient.prototype.responseCallback = function(method, callback,
 
   if (response && response.error) {
     printToMessageLog(
-        messageLog.ERROR,
+        MessageLog.ERROR,
         '[ERROR(' + response.error.code + '):' + method + '] ' +
             response.error.message);
   } else if (callback) {
@@ -124,10 +124,10 @@ DebuggerClient.prototype.responseCallback = function(method, callback,
 
 DebuggerClient.prototype.onAttach = function() {
   if (debugHub.lastError) {
-    printToMessageLog(messageLog.WARNING, 'Could not attach to debugger.');
+    printToMessageLog(MessageLog.WARNING, 'Could not attach to debugger.');
     this.attachState = this.DEBUGGER_DETACHED;
   } else {
-    printToMessageLog(messageLog.INTERACTIVE, 'Debugger attached.');
+    printToMessageLog(MessageLog.INTERACTIVE, 'Debugger attached.');
     this.attachState = this.DEBUGGER_ATTACHED;
   }
 }
@@ -153,13 +153,13 @@ DebuggerClient.prototype.onEvent = function(method, paramString) {
 }
 
 DebuggerClient.prototype.onDetached = function() {
-  printToMessageLog(messageLog.INTERACTIVE, 'Debugger detached.');
+  printToMessageLog(MessageLog.INTERACTIVE, 'Debugger detached.');
   this.attachState = this.DEBUGGER_DETACHED;
 }
 
 DebuggerClient.prototype.onExecutionContextCreated = function(params) {
   this.executionContext = params.context.id;
-  printToMessageLog(messageLog.INFO,
+  printToMessageLog(MessageLog.INFO,
                     'Execution context created: ' + this.executionContext);
 }
 
@@ -180,9 +180,9 @@ DebuggerClient.prototype.onConsoleMessageAdded = function(params) {
 DebuggerClient.prototype.onConsoleApiCalled = function(params) {
   var severity = params.type;
   if (severity === "assert") {
-    severity = messageLog.ERROR;
+    severity = MessageLog.ERROR;
   } else if (severity === "log") {
-    severity = messageLog.INFO;
+    severity = MessageLog.INFO;
   }
 
   var message = '';
@@ -197,7 +197,7 @@ DebuggerClient.prototype.onConsoleApiCalled = function(params) {
     }
   }
 
-  printToMessageLog(messageLog.CONSOLE + severity, message);
+  printToMessageLog(MessageLog.CONSOLE + severity, message);
 }
 
 DebuggerClient.prototype.onScriptParsed = function(params) {

@@ -54,14 +54,21 @@ function MediaConsole(debuggerClient) {
   this.printToMediaConsoleCallback = this.printToMediaConsole.bind(this);
 }
 
+MediaConsole.prototype.setVisible = function(visible) {
+  if (visible) {
+    this.initialize();
+  }
+}
+
 MediaConsole.prototype.initialize = function() {
-  this.debuggerClient.attach();
+  if (this.initialized) return;
+  this.initialized = true;
+
   // TODO: Move this code into a js file and have the script dynamically load it
   // from the content folder, rather than sending it as a raw string.
   // TODO: Fix |getPrimaryVideo| implementation to actually select the primary
   // player.
   this.debuggerClient.evaluate(`
-    window._mediaConsoleContext ||
     (function() {
       let ctx = window._mediaConsoleContext = {};
 
@@ -180,22 +187,13 @@ MediaConsole.prototype.update = function() {
   }
 }
 
-MediaConsole.prototype.setVisible = function(doShow) {
-  let elem = document.getElementById(kMediaConsoleFrame);
-  if (elem) {
-    const display = doShow ? 'block' : 'none';
-    if (elem.style.display != display) {
-      elem.style.display = display;
-      this.initialize(); // Will do nothing if already initialized.
-    }
-  }
-}
-
 MediaConsole.prototype.onWheel = function(event) {}
 
 MediaConsole.prototype.onKeyup = function(event) {}
 
 MediaConsole.prototype.onKeypress = function(event) {}
+
+MediaConsole.prototype.onInput = function(event) {}
 
 MediaConsole.prototype.onKeydown = function(event) {
   if (this.hotkeyRegistry.has(event.key)) {
