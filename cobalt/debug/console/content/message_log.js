@@ -77,16 +77,6 @@ MessageBuffer.prototype.get = function(index) {
 
 // Constructor for the message log object itself.
 function MessageLog(messageContainer) {
-  // Log levels defined by the 'level' property of LogEntry
-  // https://chromedevtools.github.io/devtools-protocol/1-3/Log#type-LogEntry
-  this.VERBOSE = "verbose";
-  this.INFO = "info";
-  this.WARNING = "warning";
-  this.ERROR = "error";
-  // Custom level used internally by the console.
-  this.INTERACTIVE = "interactive";
-  // Prefix on severity for messages from the JS console.
-  this.CONSOLE = '*';
   // Number of items to display on a single page.
   this.PAGE_SIZE = 50;
   // Number of items to scroll when the user pages up or down.
@@ -102,6 +92,17 @@ function MessageLog(messageContainer) {
   // Whether the message log is currently visible.
   this.visible = false;
 }
+
+// Log levels defined by the 'level' property of LogEntry
+// https://chromedevtools.github.io/devtools-protocol/1-3/Log#type-LogEntry
+MessageLog.VERBOSE = "verbose";
+MessageLog.INFO = "info";
+MessageLog.WARNING = "warning";
+MessageLog.ERROR = "error";
+// Custom level used internally by the console.
+MessageLog.INTERACTIVE = "interactive";
+// Prefix on severity for messages from the JS console.
+MessageLog.CONSOLE = '*';
 
 MessageLog.prototype.setVisible = function(visible) {
   var wasVisible = this.visible;
@@ -131,8 +132,8 @@ MessageLog.prototype.createMessageElement = function(severity, message) {
   elem.className = 'message';
   var text = document.createTextNode(message);
 
-  if (severity.startsWith(this.CONSOLE)) {
-    severity = severity.substr(this.CONSOLE.length);
+  if (severity.startsWith(MessageLog.CONSOLE)) {
+    severity = severity.substr(MessageLog.CONSOLE.length);
     elem.classList.add('console');
   }
 

@@ -17,7 +17,7 @@ function initDebugCommands() {
 
   debugCommands.cvalList = function() {
     var result = consoleValues.listAll();
-    printToMessageLog(messageLog.INTERACTIVE, result);
+    printToMessageLog(MessageLog.INTERACTIVE, result);
   }
   debugCommands.cvalList.shortHelp = 'List all registered console values.';
   debugCommands.cvalList.longHelp =
@@ -27,7 +27,7 @@ function initDebugCommands() {
 
   debugCommands.cvalAdd = function(substringToMatch) {
     var result = consoleValues.addActive(substringToMatch);
-    printToMessageLog(messageLog.INTERACTIVE, result);
+    printToMessageLog(MessageLog.INTERACTIVE, result);
     // After each change, save the active set with the default key.
     this.cvalSave();
   }
@@ -40,7 +40,7 @@ function initDebugCommands() {
 
   debugCommands.cvalRemove = function(substringToMatch) {
     var result = consoleValues.removeActive(substringToMatch);
-    printToMessageLog(messageLog.INTERACTIVE, result);
+    printToMessageLog(MessageLog.INTERACTIVE, result);
     // After each change, save the active set with the default key.
     this.cvalSave();
   }
@@ -52,7 +52,7 @@ function initDebugCommands() {
 
   debugCommands.cvalSave = function(key) {
     var result = consoleValues.saveActiveSet(key);
-    printToMessageLog(messageLog.INTERACTIVE, result);
+    printToMessageLog(MessageLog.INTERACTIVE, result);
   }
   debugCommands.cvalSave.shortHelp =
       'Saves the current set of console values displayed in the HUD.';
@@ -64,7 +64,7 @@ function initDebugCommands() {
 
   debugCommands.cvalLoad = function(key) {
     var result = consoleValues.loadActiveSet(key);
-    printToMessageLog(messageLog.INTERACTIVE, result);
+    printToMessageLog(MessageLog.INTERACTIVE, result);
   }
   debugCommands.cvalLoad.shortHelp =
       'Loads a previously stored set of console values displayed in the HUD.';
@@ -132,13 +132,13 @@ function help(debugCommands, command) {
         'All other text will be executed as JavaScript in the main web ' +
         'module.\n';
   }
-  printToMessageLog(messageLog.INTERACTIVE, helpString);
+  printToMessageLog(MessageLog.INTERACTIVE, helpString);
 }
 
 function history() {
   var history = commandInput.getHistory();
   for (var i = 0; i < history.length; i += 1) {
-    printToMessageLog(messageLog.INTERACTIVE, i + ' ' + history[i]);
+    printToMessageLog(MessageLog.INTERACTIVE, i + ' ' + history[i]);
   }
 }
 
