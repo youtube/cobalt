@@ -231,7 +231,10 @@ void MemoryTrackerImpl::OnMapMem(void* context,
                                  const void* memory,
                                  size_t size) {
   // We might do something more interesting with MapMemory calls later.
+  MemoryTrackerImpl* t = static_cast<MemoryTrackerImpl*>(context);
+  t->PushAllocationGroupByName("Mapped Memory");
   OnMalloc(context, memory, size);
+  t->PopAllocationGroup();
 }
 
 void MemoryTrackerImpl::OnUnMapMem(void* context,
