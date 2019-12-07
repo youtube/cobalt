@@ -36,6 +36,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
   launcher, given command-line switches to tell the Evergreen loader where the
   Evergreen target and its content are, can run the loader without needing to
   know about Evergreen per-se.
+
+  The Evergreen launcher does not require its own implementation for many
+  abstract launcher methods and trampolines them to the platform-specific
+  launcher.
   """
 
   def __init__(self, platform, target_name, config, device_id, **kwargs):
@@ -158,3 +162,28 @@ class Launcher(abstract_launcher.AbstractLauncher):
     port_symlink.MakeSymLink(
         os.path.join(staging_directory_loader, 'content'),
         os.path.join(self.staging_directory, 'content'))
+
+  def SupportsSuspendResume(self):
+    return self.launcher.SupportsSuspendResume()
+
+  def SendResume(self):
+    return self.launcher.SendResume()
+
+  def SendSuspend(self):
+    return self.launcher.SendSuspend()
+
+  def SupportsDeepLink(self):
+    return self.launcher.SupportsDeepLink()
+
+  def SendDeepLink(self, link):
+    return self.launcher.SendDeepLink(link)
+
+  def GetStartupTimeout(self):
+    return self.launcher.GetStartupTimeout()
+
+  def GetHostAndPortGivenPort(self, port):
+    return self.launcher.GetHostAndPortGivenPort(port)
+
+  def GetTargetPath(self):
+    return self.launcher.GetTargetPath()
+
