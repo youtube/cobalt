@@ -268,6 +268,7 @@ void StarboardPlayer::Seek(base::TimeDelta time) {
   DCHECK(task_runner_->BelongsToCurrentThread());
 
   decoder_buffer_cache_.ClearAll();
+  seek_pending_ = false;
 
   if (state_ == kSuspended) {
     preroll_timestamp_ = time;
@@ -290,7 +291,6 @@ void StarboardPlayer::Seek(base::TimeDelta time) {
   SbPlayerSeek2(player_, time.InMicroseconds(), ticket_);
 #endif  // SB_API_VERSION < 10
 
-  seek_pending_ = false;
   SbPlayerSetPlaybackRate(player_, playback_rate_);
 }
 
