@@ -22,9 +22,7 @@ var consoleValues = null;
 // Handles command input, editing, history traversal, etc.
 var commandInput = null;
 // Object to store methods to be executed in the debug console.
-var debug = null;
-// Shorthand reference for the debug object.
-var d = null;
+var debugCommands = null;
 // Handles communication with the debugger.
 var debuggerClient = null;
 // Number of animation frame samples since the last update.
@@ -199,6 +197,8 @@ function executeImmediate(command) {
 function executeDebug(command) {
   if (command.trim().indexOf('debug.') == 0 ||
       command.trim().indexOf('d.') == 0) {
+    let debug = debugCommands;
+    let d = debugCommands;
     eval(command);
     return true;
   }
@@ -391,6 +391,9 @@ function initialize() {
   createCommandInput();
   createMessageLog();
   createDebuggerClient();
+  createConsoleValues();
+  debugCommands = initDebugCommands();
+
   consoleRegistry = [
     {
       name: 'interactive',
@@ -429,8 +432,6 @@ function initialize() {
 
 function start() {
   initialize();
-  createConsoleValues();
-  initDebugCommands();
   document.addEventListener('keydown', handleKeydown);
   document.addEventListener('keyup', handleKeyup);
   document.addEventListener('keypress', handleKeypress);
