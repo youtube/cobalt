@@ -27,6 +27,9 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/websocket/web_socket.h"
 #include "net/http/http_util.h"
+#include "net/websockets/websocket_errors.h"
+#include "net/websockets/websocket_frame.h"
+#include "net/websockets/websocket_handshake_stream_create_helper.h"
 #include "starboard/memory.h"
 
 namespace cobalt {
@@ -69,7 +72,6 @@ void WebSocketImpl::Connect(const std::string &origin, const GURL &url,
   // priority thread might be required.  Investigation is needed.
   delegate_task_runner_ =
       network_module_->url_request_context_getter()->GetNetworkTaskRunner();
-  DCHECK(delegate_task_runner_);
   base::WaitableEvent channel_created_event(
       base::WaitableEvent::ResetPolicy::MANUAL,
       base::WaitableEvent::InitialState::NOT_SIGNALED);
@@ -159,12 +161,6 @@ void WebSocketImpl::OnHandshakeComplete(
   owner_task_runner_->PostTask(
       FROM_HERE, base::Bind(&WebSocketImpl::OnWebSocketConnected, this,
                             selected_subprotocol));
-}
-
-void WebSocketImpl::OnFlowControl(int64_t quota) {
-  DCHECK(current_quota_ >= 0);
-  current_quota_ += quota;
-  ProcessSendQueue();
 }
 
 void WebSocketImpl::OnWebSocketConnected(
@@ -264,40 +260,13 @@ void WebSocketImpl::SendOnDelegateThread(
     DLOG(WARNING) << "Attempt to send over a closed channel.";
     return;
   }
-  SendQueueMessage new_message = {io_buffer, length, op_code};
-  send_queue_.push(std::move(new_message));
-  ProcessSendQueue();
-}
 
-void WebSocketImpl::ProcessSendQueue() {
-  DCHECK(delegate_task_runner_->BelongsToCurrentThread());
-  while (current_quota_ > 0 && !send_queue_.empty()) {
-    SendQueueMessage message = send_queue_.front();
-    size_t current_message_length = message.length - sent_size_of_top_message_;
-    bool final = false;
-    if (current_quota_ < static_cast<int64_t>(current_message_length)) {
-      // quota is not enough to send the top message.
-      scoped_refptr<net::IOBuffer> new_io_buffer(
-          new net::IOBuffer(static_cast<size_t>(current_quota_)));
-      SbMemoryCopy(new_io_buffer->data(),
-                   message.io_buffer->data() + sent_size_of_top_message_,
-                   current_quota_);
-      sent_size_of_top_message_ += current_quota_;
-      message.io_buffer = new_io_buffer;
-      current_message_length = current_quota_;
-      current_quota_ = 0;
-    } else {
-      // Sent all of the remaining top message.
-      final = true;
-      send_queue_.pop();
-      sent_size_of_top_message_ = 0;
-      current_quota_ -= current_message_length;
-    }
-    auto channel_state = websocket_channel_->SendFrame(
-        final, message.op_code, message.io_buffer, current_message_length);
-    if (channel_state == net::WebSocketChannel::CHANNEL_DELETED) {
-      websocket_channel_.reset();
-    }
+  // this behavior is not just an optimization, but required in case
+  // we are closing the connection
+  auto channel_state =
+      websocket_channel_->SendFrame(true /*fin*/, op_code, io_buffer, length);
+  if (channel_state == net::WebSocketChannel::CHANNEL_DELETED) {
+    websocket_channel_.reset();
   }
 }
 
