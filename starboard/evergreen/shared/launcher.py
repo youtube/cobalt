@@ -20,6 +20,7 @@ import tempfile
 
 import _env  # pylint: disable=unused-import
 from starboard.tools import abstract_launcher
+from starboard.tools import paths
 from starboard.tools import port_symlink
 
 _BASE_STAGING_DIRECTORY = 'evergreen_staging'
@@ -52,10 +53,6 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self.loader_config = kwargs.get('loader_config')
     if not self.loader_config:
       raise ValueError('|loader_config| cannot be |None|.')
-
-    self.loader_out_directory = kwargs.get('loader_out_directory')
-    if not self.loader_out_directory:
-      raise ValueError('|loader_out_directory| cannot be |None|.')
 
     # The relationship of loader platforms and configurations to evergreen
     # platforms and configurations is many-to-many. We need a separate directory
@@ -147,8 +144,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # specified by |staging_directory_loader|. A symbolic link here would cause
     # future symbolic links to fall through to the original out-directories.
     shutil.copytree(
-        os.path.join(self.loader_out_directory, 'deploy', _LOADER_TARGET),
-        staging_directory_loader)
+        os.path.join(
+            paths.BuildOutputDirectory(self.loader_platform,
+                                       self.loader_config), 'deploy',
+            _LOADER_TARGET), staging_directory_loader)
 
     port_symlink.MakeSymLink(
         os.path.join(self.out_directory, 'deploy', self.target_name),
