@@ -5,7 +5,7 @@
 /*    Mac FOND support.  Written by just@letterror.com.                    */
 /*  Heavily Fixed by mpsuzuki, George Williams and Sean McBride            */
 /*                                                                         */
-/*  Copyright 1996-2015 by                                                 */
+/*  Copyright (C) 1996-2019 by                                             */
 /*  Just van Rossum, David Turner, Robert Wilhelm, and Werner Lemberg.     */
 /*                                                                         */
 /*  This file is part of the FreeType project, and may only be used,       */
@@ -780,9 +780,10 @@ typedef short ResourceIndex;
       style = (StyleTable*)p;
       p += sizeof ( StyleTable );
       string_count = EndianS16_BtoN( *(short*)(p) );
+      string_count = FT_MIN( 64, string_count );
       p += sizeof ( short );
 
-      for ( i = 0; i < string_count && i < 64; i++ )
+      for ( i = 0; i < string_count; i++ )
       {
         names[i] = p;
         p       += names[i][0];
@@ -799,7 +800,7 @@ typedef short ResourceIndex;
           ps_name[ps_name_len] = 0;
         }
         if ( style->indexes[face_index] > 1 &&
-             style->indexes[face_index] <= FT_MIN( string_count, 64 ) )
+             style->indexes[face_index] <= string_count )
         {
           unsigned char*  suffixes = names[style->indexes[face_index] - 1];
 
@@ -940,7 +941,7 @@ typedef short ResourceIndex;
     {
       err = lookup_lwfn_by_fond( pathname, lwfn_file_name,
                                  buff, sizeof ( buff )  );
-      if ( FT_Err_Ok == err )
+      if ( !err )
         have_lwfn = 1;
     }
 
@@ -1217,7 +1218,7 @@ typedef short ResourceIndex;
     }
 
     CloseResFile( res_ref );
-    if ( FT_Err_Ok == error && NULL != aface )
+    if ( !error && aface )
       (*aface)->num_faces = num_faces_in_res;
     return error;
   }
@@ -1279,7 +1280,7 @@ typedef short ResourceIndex;
 
         error = lookup_lwfn_by_fond( path_fond, lwfn_file_name,
                                      path_lwfn, sizeof ( path_lwfn ) );
-        if ( FT_Err_Ok == error )
+        if ( !error )
           have_lwfn = 1;
       }
 
@@ -1315,7 +1316,7 @@ typedef short ResourceIndex;
 
         error = lookup_lwfn_by_fond( path_fond, lwfn_file_name,
                                      path_lwfn, sizeof ( path_lwfn ) );
-        if ( FT_Err_Ok == error )
+        if ( !error )
           have_lwfn = 1;
       }
 
@@ -1332,7 +1333,7 @@ typedef short ResourceIndex;
       error = FT_ERR( Unknown_File_Format );
 
   found_no_lwfn_file:
-    if ( have_sfnt && FT_Err_Ok != error )
+    if ( have_sfnt && error )
       error = FT_New_Face_From_SFNT( library,
                                      sfnt_id,
                                      face_index,
@@ -1363,7 +1364,7 @@ typedef short ResourceIndex;
     /* if it works, fine.                                           */
 
     error = FT_New_Face_From_Suitcase( library, pathname, face_index, aface );
-    if ( error == 0 )
+    if ( !error )
       return error;
 
     /* let it fall through to normal loader (.ttf, .otf, etc.); */
@@ -1403,7 +1404,7 @@ typedef short ResourceIndex;
     /* try resourcefork based font: LWFN, FFIL */
     error = FT_New_Face_From_Resource( library, (UInt8 *)pathname,
                                        face_index, aface );
-    if ( error != 0 || *aface != NULL )
+    if ( error || *aface )
       return error;
 
     /* let it fall through to normal loader (.ttf, .otf, etc.) */
@@ -1423,7 +1424,7 @@ typedef short ResourceIndex;
   /*    accepts an FSRef instead of a path.                                */
   /*                                                                       */
   /* This function is deprecated because Carbon data types (FSRef)         */
-  /* are not cross-platform, and thus not suitable for the freetype API.   */
+  /* are not cross-platform, and thus not suitable for the FreeType API.   */
   FT_EXPORT_DEF( FT_Error )
   FT_New_Face_From_FSRef( FT_Library    library,
                           const FSRef*  ref,
@@ -1458,7 +1459,7 @@ typedef short ResourceIndex;
       error = FT_ERR( Cannot_Open_Resource );
 
     error = FT_New_Face_From_Resource( library, pathname, face_index, aface );
-    if ( error != 0 || *aface != NULL )
+    if ( error || *aface )
       return error;
 
     /* fallback to datafork font */
@@ -1481,7 +1482,7 @@ typedef short ResourceIndex;
   /*    accepts an FSSpec instead of a path.                               */
   /*                                                                       */
   /* This function is deprecated because Carbon data types (FSSpec)        */
-  /* are not cross-platform, and thus not suitable for the freetype API.   */
+  /* are not cross-platform, and thus not suitable for the FreeType API.   */
   FT_EXPORT_DEF( FT_Error )
   FT_New_Face_From_FSSpec( FT_Library     library,
                            const FSSpec*  spec,
@@ -1515,7 +1516,7 @@ typedef short ResourceIndex;
       error = FT_ERR( Cannot_Open_Resource );
 
     error = FT_New_Face_From_Resource( library, pathname, face_index, aface );
-    if ( error != 0 || *aface != NULL )
+    if ( error || *aface )
       return error;
 
     /* fallback to datafork font */

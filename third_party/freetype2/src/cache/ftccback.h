@@ -1,22 +1,22 @@
-/***************************************************************************/
-/*                                                                         */
-/*  ftccback.h                                                             */
-/*                                                                         */
-/*    Callback functions of the caching sub-system (specification only).   */
-/*                                                                         */
-/*  Copyright 2004-2015 by                                                 */
-/*  David Turner, Robert Wilhelm, and Werner Lemberg.                      */
-/*                                                                         */
-/*  This file is part of the FreeType project, and may only be used,       */
-/*  modified, and distributed under the terms of the FreeType project      */
-/*  license, LICENSE.TXT.  By continuing to use, modify, or distribute     */
-/*  this file you indicate that you have read the license and              */
-/*  understand and accept it fully.                                        */
-/*                                                                         */
-/***************************************************************************/
+/****************************************************************************
+ *
+ * ftccback.h
+ *
+ *   Callback functions of the caching sub-system (specification only).
+ *
+ * Copyright (C) 2004-2019 by
+ * David Turner, Robert Wilhelm, and Werner Lemberg.
+ *
+ * This file is part of the FreeType project, and may only be used,
+ * modified, and distributed under the terms of the FreeType project
+ * license, LICENSE.TXT.  By continuing to use, modify, or distribute
+ * this file you indicate that you have read the license and
+ * understand and accept it fully.
+ *
+ */
 
-#ifndef __FTCCBACK_H__
-#define __FTCCBACK_H__
+#ifndef FTCCBACK_H_
+#define FTCCBACK_H_
 
 #include <ft2build.h>
 #include FT_CACHE_H
@@ -86,6 +86,7 @@
                     FTC_Manager  manager );
 
 
-#endif /* __FTCCBACK_H__ */
+#endif /* FTCCBACK_H_ */
+
 
 /* END */

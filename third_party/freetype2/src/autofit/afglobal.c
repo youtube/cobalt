@@ -1,35 +1,35 @@
-/***************************************************************************/
-/*                                                                         */
-/*  afglobal.c                                                             */
-/*                                                                         */
-/*    Auto-fitter routines to compute global hinting values (body).        */
-/*                                                                         */
-/*  Copyright 2003-2015 by                                                 */
-/*  David Turner, Robert Wilhelm, and Werner Lemberg.                      */
-/*                                                                         */
-/*  This file is part of the FreeType project, and may only be used,       */
-/*  modified, and distributed under the terms of the FreeType project      */
-/*  license, LICENSE.TXT.  By continuing to use, modify, or distribute     */
-/*  this file you indicate that you have read the license and              */
-/*  understand and accept it fully.                                        */
-/*                                                                         */
-/***************************************************************************/
+/****************************************************************************
+ *
+ * afglobal.c
+ *
+ *   Auto-fitter routines to compute global hinting values (body).
+ *
+ * Copyright (C) 2003-2019 by
+ * David Turner, Robert Wilhelm, and Werner Lemberg.
+ *
+ * This file is part of the FreeType project, and may only be used,
+ * modified, and distributed under the terms of the FreeType project
+ * license, LICENSE.TXT.  By continuing to use, modify, or distribute
+ * this file you indicate that you have read the license and
+ * understand and accept it fully.
+ *
+ */
 
 
 #include "afglobal.h"
 #include "afranges.h"
-#include "hbshim.h"
+#include "afshaper.h"
 #include FT_INTERNAL_DEBUG_H
 
 
-  /*************************************************************************/
-  /*                                                                       */
-  /* The macro FT_COMPONENT is used in trace mode.  It is an implicit      */
-  /* parameter of the FT_TRACE() and FT_ERROR() macros, used to print/log  */
-  /* messages during execution.                                            */
-  /*                                                                       */
+  /**************************************************************************
+   *
+   * The macro FT_COMPONENT is used in trace mode.  It is an implicit
+   * parameter of the FT_TRACE() and FT_ERROR() macros, used to print/log
+   * messages during execution.
+   */
 #undef  FT_COMPONENT
-#define FT_COMPONENT  trace_afglobal
+#define FT_COMPONENT  afglobal
 
 
   /* get writing system specific header files */
@@ -38,17 +38,17 @@
 #include "afwrtsys.h"
 
 #include "aferrors.h"
-#include "afpic.h"
 
 
 #undef  SCRIPT
-#define SCRIPT( s, S, d, h, sc1, sc2, sc3 ) \
+#define SCRIPT( s, S, d, h, H, ss )         \
           AF_DEFINE_SCRIPT_CLASS(           \
             af_ ## s ## _script_class,      \
             AF_SCRIPT_ ## S,                \
             af_ ## s ## _uniranges,         \
             af_ ## s ## _nonbase_uniranges, \
-            sc1, sc2, sc3 )
+            AF_ ## H,                       \
+            ss )
 
 #include "afscript.h"
 
@@ -66,8 +66,6 @@
 #include "afstyles.h"
 
 
-#ifndef FT_CONFIG_OPTION_PIC
-
 #undef  WRITING_SYSTEM
 #define WRITING_SYSTEM( ws, WS )               \
           &af_ ## ws ## _writing_system_class,
@@ -83,7 +81,7 @@
 
 
 #undef  SCRIPT
-#define SCRIPT( s, S, d, h, sc1, sc2, sc3 ) \
+#define SCRIPT( s, S, d, h, H, ss )   \
           &af_ ## s ## _script_class,
 
   FT_LOCAL_ARRAY_DEF( AF_ScriptClass )
@@ -108,8 +106,6 @@
 
     NULL  /* do not remove */
   };
-
-#endif /* !FT_CONFIG_OPTION_PIC */
 
 
 #ifdef FT_DEBUG_LEVEL_TRACE
@@ -158,21 +154,21 @@
     }
 
     /* scan each style in a Unicode charmap */
-    for ( ss = 0; AF_STYLE_CLASSES_GET[ss]; ss++ )
+    for ( ss = 0; af_style_classes[ss]; ss++ )
     {
       AF_StyleClass       style_class =
-                            AF_STYLE_CLASSES_GET[ss];
+                            af_style_classes[ss];
       AF_ScriptClass      script_class =
-                            AF_SCRIPT_CLASSES_GET[style_class->script];
+                            af_script_classes[style_class->script];
       AF_Script_UniRange  range;
 
 
-      if ( script_class->script_uni_ranges == NULL )
+      if ( !script_class->script_uni_ranges )
         continue;
 
       /*
-       *  Scan all Unicode points in the range and set the corresponding
-       *  glyph style index.
+       * Scan all Unicode points in the range and set the corresponding
+       * glyph style index.
        */
       if ( style_class->coverage == AF_COVERAGE_DEFAULT )
       {
@@ -240,22 +236,22 @@
       else
       {
         /* get glyphs not directly addressable by cmap */
-        af_get_coverage( globals, style_class, gstyles );
+        af_shaper_get_coverage( globals, style_class, gstyles, 0 );
       }
     }
 
-    /* handle the default OpenType features of the default script ... */
-    af_get_coverage( globals, AF_STYLE_CLASSES_GET[dflt], gstyles );
-
-    /* ... and the remaining default OpenType features */
-    for ( ss = 0; AF_STYLE_CLASSES_GET[ss]; ss++ )
+    /* handle the remaining default OpenType features ... */
+    for ( ss = 0; af_style_classes[ss]; ss++ )
     {
-      AF_StyleClass  style_class = AF_STYLE_CLASSES_GET[ss];
+      AF_StyleClass  style_class = af_style_classes[ss];
 
 
-      if ( ss != dflt && style_class->coverage == AF_COVERAGE_DEFAULT )
-        af_get_coverage( globals, style_class, gstyles );
+      if ( style_class->coverage == AF_COVERAGE_DEFAULT )
+        af_shaper_get_coverage( globals, style_class, gstyles, 0 );
     }
+
+    /* ... and finally the default OpenType features of the default script */
+    af_shaper_get_coverage( globals, af_style_classes[dflt], gstyles, 1 );
 
     /* mark ASCII digits */
     for ( i = 0x30; i <= 0x39; i++ )
@@ -269,8 +265,8 @@
 
   Exit:
     /*
-     *  By default, all uncovered glyphs are set to the fallback style.
-     *  XXX: Shouldn't we disable hinting or do something similar?
+     * By default, all uncovered glyphs are set to the fallback style.
+     * XXX: Shouldn't we disable hinting or do something similar?
      */
     if ( globals->module->fallback_style != AF_STYLE_UNASSIGNED )
     {
@@ -294,9 +290,9 @@
                 "==============\n"
                 "\n" ));
 
-    for ( ss = 0; AF_STYLE_CLASSES_GET[ss]; ss++ )
+    for ( ss = 0; af_style_classes[ss]; ss++ )
     {
-      AF_StyleClass  style_class = AF_STYLE_CLASSES_GET[ss];
+      AF_StyleClass  style_class = af_style_classes[ss];
       FT_UInt        count       = 0;
       FT_Long        idx;
 
@@ -364,6 +360,7 @@
 
 #ifdef FT_CONFIG_OPTION_USE_HARFBUZZ
     globals->hb_font = hb_ft_font_create( face, NULL );
+    globals->hb_buf  = hb_buffer_create();
 #endif
 
     error = af_face_globals_compute_style_coverage( globals );
@@ -395,9 +392,9 @@
         if ( globals->metrics[nn] )
         {
           AF_StyleClass          style_class =
-            AF_STYLE_CLASSES_GET[nn];
+            af_style_classes[nn];
           AF_WritingSystemClass  writing_system_class =
-            AF_WRITING_SYSTEM_CLASSES_GET[style_class->writing_system];
+            af_writing_system_classes[style_class->writing_system];
 
 
           if ( writing_system_class->style_metrics_done )
@@ -409,20 +406,11 @@
 
 #ifdef FT_CONFIG_OPTION_USE_HARFBUZZ
       hb_font_destroy( globals->hb_font );
-      globals->hb_font = NULL;
+      hb_buffer_destroy( globals->hb_buf );
 #endif
 
-      globals->glyph_count               = 0;
-      globals->stem_darkening_for_ppem   = 0;
-      globals->darken_x                  = 0;
-      globals->darken_y                  = 0;
-      globals->standard_vertical_width   = 0;
-      globals->standard_horizontal_width = 0;
-      globals->scale_down_factor         = 0;
-      /* no need to free this one! */
-      globals->glyph_styles              = NULL;
-      globals->face                      = NULL;
-
+      /* no need to free `globals->glyph_styles'; */
+      /* it is part of the `globals' array        */
       FT_FREE( globals );
     }
   }
@@ -455,12 +443,13 @@
       style = (AF_Style)( globals->glyph_styles[gindex] &
                           AF_STYLE_UNASSIGNED           );
 
-    style_class          = AF_STYLE_CLASSES_GET[style];
-    writing_system_class = AF_WRITING_SYSTEM_CLASSES_GET
+  Again:
+    style_class          = af_style_classes[style];
+    writing_system_class = af_writing_system_classes
                              [style_class->writing_system];
 
     metrics = globals->metrics[style];
-    if ( metrics == NULL )
+    if ( !metrics )
     {
       /* create the global metrics object if necessary */
       FT_Memory  memory = globals->face->memory;
@@ -482,6 +471,16 @@
             writing_system_class->style_metrics_done( metrics );
 
           FT_FREE( metrics );
+
+          /* internal error code -1 indicates   */
+          /* that no blue zones have been found */
+          if ( error == -1 )
+          {
+            style = (AF_Style)( globals->glyph_styles[gindex] &
+                                AF_STYLE_UNASSIGNED           );
+            goto Again;
+          }
+
           goto Exit;
         }
       }
@@ -501,9 +500,9 @@
                             FT_UInt         gindex )
   {
     if ( gindex < (FT_ULong)globals->glyph_count )
-      return (FT_Bool)( globals->glyph_styles[gindex] & AF_DIGIT );
+      return FT_BOOL( globals->glyph_styles[gindex] & AF_DIGIT );
 
-    return (FT_Bool)0;
+    return FT_BOOL( 0 );
   }
 
 
