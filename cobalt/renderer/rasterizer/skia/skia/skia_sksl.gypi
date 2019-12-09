@@ -8,18 +8,27 @@
 # the Skia files but in all other cases it is a separate library.
 {
   'sources': [
+    '<(DEPTH)/third_party/skia/src/sksl/SkSLASTNode.cpp',
+    '<(DEPTH)/third_party/skia/src/sksl/SkSLByteCode.cpp',
     '<(DEPTH)/third_party/skia/src/sksl/SkSLCFGGenerator.cpp',
     '<(DEPTH)/third_party/skia/src/sksl/SkSLCompiler.cpp',
     '<(DEPTH)/third_party/skia/src/sksl/SkSLCPPCodeGenerator.cpp',
+    '<(DEPTH)/third_party/skia/src/sksl/SkSLCPPUniformCTypes.cpp',
     '<(DEPTH)/third_party/skia/src/sksl/SkSLGLSLCodeGenerator.cpp',
     '<(DEPTH)/third_party/skia/src/sksl/SkSLHCodeGenerator.cpp',
     '<(DEPTH)/third_party/skia/src/sksl/SkSLIRGenerator.cpp',
+    '<(DEPTH)/third_party/skia/src/sksl/SkSLLexer.cpp',
+    '<(DEPTH)/third_party/skia/src/sksl/SkSLMetalCodeGenerator.cpp',
+    '<(DEPTH)/third_party/skia/src/sksl/SkSLOutputStream.cpp',
     '<(DEPTH)/third_party/skia/src/sksl/SkSLParser.cpp',
+    '<(DEPTH)/third_party/skia/src/sksl/SkSLPipelineStageCodeGenerator.cpp',
     '<(DEPTH)/third_party/skia/src/sksl/SkSLSPIRVCodeGenerator.cpp',
+    '<(DEPTH)/third_party/skia/src/sksl/SkSLSectionAndParameterHelper.cpp',
     '<(DEPTH)/third_party/skia/src/sksl/SkSLString.cpp',
     '<(DEPTH)/third_party/skia/src/sksl/SkSLUtil.cpp',
     '<(DEPTH)/third_party/skia/src/sksl/ir/SkSLSetting.cpp',
     '<(DEPTH)/third_party/skia/src/sksl/ir/SkSLSymbolTable.cpp',
     '<(DEPTH)/third_party/skia/src/sksl/ir/SkSLType.cpp',
+    '<(DEPTH)/third_party/skia/src/sksl/ir/SkSLVariableReference.cpp',
   ],
 }

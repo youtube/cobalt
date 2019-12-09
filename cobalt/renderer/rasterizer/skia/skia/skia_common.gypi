@@ -21,7 +21,9 @@
     # This list will contain all defines that also need to be exported to
     # dependent components.
     'skia_export_defines': [
-      'SK_SUPPORT_GPU=1'
+      'SK_DISABLE_EFFECT_DESERIALIZATION=1',
+      'SK_SUPPORT_GPU=1',
+      'SK_USER_CONFIG_HEADER="<(DEPTH)/renderer/rasterizer/skia/skia/config/SkUserConfig.h"',
     ],
 
     # The |default_font_cache_limit| specifies the max size of the glyph cache,
