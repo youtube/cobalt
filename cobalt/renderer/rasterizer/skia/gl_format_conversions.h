@@ -18,6 +18,7 @@
 #include "cobalt/render_tree/image.h"
 #include "cobalt/renderer/egl_and_gles.h"
 #include "third_party/skia/include/gpu/GrTypes.h"
+#include "third_party/skia/include/private/GrTypesPriv.h"
 
 namespace cobalt {
 namespace renderer {
@@ -25,7 +26,7 @@ namespace rasterizer {
 namespace skia {
 
 GLenum ConvertRenderTreeFormatToGL(render_tree::PixelFormat pixel_format);
-GrPixelConfig ConvertGLFormatToGr(GLenum gl_format);
+GrColorType ConvertGLFormatToGr(GLenum gl_format);
 
 }  // namespace skia
 }  // namespace rasterizer

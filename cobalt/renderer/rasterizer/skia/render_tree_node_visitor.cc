@@ -610,9 +610,8 @@ void RenderSinglePlaneImage(SinglePlaneImage* single_plane_image,
                                                   &skia_local_transform);
 
     if (image) {
-      sk_sp<SkShader> image_shader =
-          image->makeShader(SkShader::kRepeat_TileMode,
-                            SkShader::kRepeat_TileMode, &skia_local_transform);
+      sk_sp<SkShader> image_shader = image->makeShader(
+          SkTileMode::kRepeat, SkTileMode::kRepeat, &skia_local_transform);
 
       paint.setShader(image_shader);
 
@@ -861,7 +860,7 @@ void SkiaBrushVisitor::Visit(
 
   sk_sp<SkShader> shader(SkGradientShader::MakeLinear(
       points, &skia_color_stops.colors[0], &skia_color_stops.positions[0],
-      linear_gradient_brush->color_stops().size(), SkShader::kClamp_TileMode,
+      linear_gradient_brush->color_stops().size(), SkTileMode::kClamp,
       SkGradientShader::kInterpolateColorsInPremul_Flag, NULL));
   paint_->setShader(shader);
 
@@ -899,7 +898,7 @@ void SkiaBrushVisitor::Visit(
   sk_sp<SkShader> shader(SkGradientShader::MakeRadial(
       center, radial_gradient_brush->radius_x(), &skia_color_stops.colors[0],
       &skia_color_stops.positions[0],
-      radial_gradient_brush->color_stops().size(), SkShader::kClamp_TileMode,
+      radial_gradient_brush->color_stops().size(), SkTileMode::kClamp,
       SkGradientShader::kInterpolateColorsInPremul_Flag, &local_matrix));
   paint_->setShader(shader);
 
@@ -997,9 +996,10 @@ void DrawUniformSolidNonRoundRectBorder(
   paint.setStrokeWidth(border_width);
   SkRect skrect;
   const float half_border_width = border_width * 0.5f;
-  skrect.set(rect.x() + half_border_width, rect.y() + half_border_width,
-             rect.right() - half_border_width,
-             rect.bottom() - half_border_width);
+  skrect.set(
+      SkPoint::Make(rect.x() + half_border_width, rect.y() + half_border_width),
+      SkPoint::Make(rect.right() - half_border_width,
+                    rect.bottom() - half_border_width));
   draw_state->render_target->drawRect(skrect, paint);
 }
 
@@ -1513,7 +1513,7 @@ SkPaint GetPaintForBoxShadow(const render_tree::Shadow& shadow) {
                 shadow.color.g() * 255, shadow.color.b() * 255);
 
   sk_sp<SkMaskFilter> mf(
-      SkBlurMaskFilter::Make(kNormal_SkBlurStyle, shadow.blur_sigma));
+      SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, shadow.blur_sigma));
   paint.setMaskFilter(mf);
 
   return paint;
@@ -1697,14 +1697,13 @@ void RenderText(SkCanvas* render_target,
     GlyphBuffer* skia_glyph_buffer =
         base::polymorphic_downcast<GlyphBuffer*>(glyph_buffer.get());
 
-    SkPaint paint(Font::GetDefaultSkPaint());
+    SkPaint paint;
     paint.setARGB(color.a() * 255, color.r() * 255, color.g() * 255,
                   color.b() * 255);
 
     if (blur_sigma > 0.0f) {
       sk_sp<SkMaskFilter> mf(
-          SkBlurMaskFilter::Make(kNormal_SkBlurStyle, blur_sigma,
-                                 SkBlurMaskFilter::kHighQuality_BlurFlag));
+          SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur_sigma));
       paint.setMaskFilter(mf);
     }
 
