@@ -28,6 +28,12 @@ const int32_t kSbFileMaxName = 64;
 // same time by one process.
 const uint32_t kSbFileMaxOpen = 256;
 
+// The current platform's file path component separator character. This is the
+// character that appears after a directory in a file path. For example, the
+// absolute canonical path of the file "/path/to/a/file.txt" uses '/' as a path
+// component separator character.
+const char kSbFileSepChar = '/';
+
 // Determines the alignment that allocations should have on this platform.
 const size_t kSbMallocAlignment = 16;
 

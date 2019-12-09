@@ -35,6 +35,7 @@
 #include "nb/analytics/memory_tracker_helpers.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/double.h"
 #include "starboard/file.h"
 
@@ -121,12 +122,12 @@ FileLogger::FileLogger(const std::string& filename)
     const int back_idx_signed = static_cast<int>(path.length()) - 1;
     if (back_idx_signed >= 0) {
       const size_t idx = back_idx_signed;
-      if (path[idx] == SB_FILE_SEP_CHAR) {
+      if (path[idx] == kSbFileSepChar) {
         path.erase(idx);
       }
     }
   }
-  path.push_back(SB_FILE_SEP_CHAR);
+  path.push_back(kSbFileSepChar);
   path.append(filename);
   int flags = kSbFileCreateAlways | kSbFileWrite;
   bool created_ok = false;

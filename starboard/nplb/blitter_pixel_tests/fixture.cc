@@ -17,6 +17,7 @@
 #include <string>
 
 #include "starboard/blitter.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/nplb/blitter_pixel_tests/command_line.h"
 #include "starboard/nplb/blitter_pixel_tests/image.h"
@@ -61,19 +62,19 @@ std::string GetTestOutputDirectory() {
                               test_output_path, kPathSize));
   std::string output_dir = std::string(test_output_path);
 
-  output_dir += SB_FILE_SEP_CHAR;
+  output_dir += kSbFileSepChar;
   output_dir += "starboard";
   SB_CHECK(SbDirectoryCreate(output_dir.c_str()));
 
-  output_dir += SB_FILE_SEP_CHAR;
+  output_dir += kSbFileSepChar;
   output_dir += "nplb";
   SB_CHECK(SbDirectoryCreate(output_dir.c_str()));
 
-  output_dir += SB_FILE_SEP_CHAR;
+  output_dir += kSbFileSepChar;
   output_dir += "blitter_pixel_tests";
   SB_CHECK(SbDirectoryCreate(output_dir.c_str()));
 
-  output_dir += SB_FILE_SEP_CHAR;
+  output_dir += kSbFileSepChar;
   output_dir += "data";
   SB_CHECK(SbDirectoryCreate(output_dir.c_str()));
 
@@ -86,10 +87,10 @@ std::string GetTestInputDirectory() {
   char content_path[kPathSize];
   EXPECT_TRUE(SbSystemGetPath(kSbSystemPathContentDirectory, content_path,
                               kPathSize));
-  std::string directory_path =
-      std::string(content_path) + SB_FILE_SEP_CHAR + "test" +
-      SB_FILE_SEP_CHAR + "starboard" + SB_FILE_SEP_CHAR + "nplb" +
-      SB_FILE_SEP_CHAR + "blitter_pixel_tests" + SB_FILE_SEP_CHAR + "data";
+  std::string directory_path = std::string(content_path) + kSbFileSepChar +
+                               "test" + kSbFileSepChar + "starboard" +
+                               kSbFileSepChar + "nplb" + kSbFileSepChar +
+                               "blitter_pixel_tests" + kSbFileSepChar + "data";
 
   SB_CHECK(SbDirectoryCanOpen(directory_path.c_str()));
   return directory_path;
@@ -101,27 +102,27 @@ std::string GetCurrentTestName() {
 }
 
 std::string GetRebaselinePath() {
-  return GetTestOutputDirectory() + SB_FILE_SEP_CHAR + GetCurrentTestName() +
+  return GetTestOutputDirectory() + kSbFileSepChar + GetCurrentTestName() +
          "-expected.png";
 }
 
 std::string GetExpectedResultsPath() {
-  return GetTestInputDirectory() + SB_FILE_SEP_CHAR + GetCurrentTestName() +
+  return GetTestInputDirectory() + kSbFileSepChar + GetCurrentTestName() +
          "-expected.png";
 }
 
 std::string GetOutputDetailsActualResultsPath() {
-  return GetTestOutputDirectory() + SB_FILE_SEP_CHAR + GetCurrentTestName() +
+  return GetTestOutputDirectory() + kSbFileSepChar + GetCurrentTestName() +
          "-actual.png";
 }
 
 std::string GetOutputDetailsExpectedResultsPath() {
-  return GetTestOutputDirectory() + SB_FILE_SEP_CHAR + GetCurrentTestName() +
+  return GetTestOutputDirectory() + kSbFileSepChar + GetCurrentTestName() +
          "-expected.png";
 }
 
 std::string GetOutputDetailsDiffPath() {
-  return GetTestOutputDirectory() + SB_FILE_SEP_CHAR + GetCurrentTestName() +
+  return GetTestOutputDirectory() + kSbFileSepChar + GetCurrentTestName() +
          "-diff.png";
 }
 }  // namespace

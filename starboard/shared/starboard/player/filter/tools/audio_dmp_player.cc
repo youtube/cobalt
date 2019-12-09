@@ -16,6 +16,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/event.h"
 #include "starboard/player.h"
@@ -46,9 +47,9 @@ std::string GetTestInputDirectory() {
   SB_CHECK(
       SbSystemGetPath(kSbSystemPathContentDirectory, content_path, kPathSize));
   std::string directory_path =
-      std::string(content_path) + SB_FILE_SEP_CHAR + "test" + SB_FILE_SEP_CHAR +
-      "starboard" + SB_FILE_SEP_CHAR + "shared" + SB_FILE_SEP_CHAR +
-      "starboard" + SB_FILE_SEP_CHAR + "player" + SB_FILE_SEP_CHAR + "testdata";
+      std::string(content_path) + kSbFileSepChar + "test" + kSbFileSepChar +
+      "starboard" + kSbFileSepChar + "shared" + kSbFileSepChar + "starboard" +
+      kSbFileSepChar + "player" + kSbFileSepChar + "testdata";
 
   SB_CHECK(SbDirectoryCanOpen(directory_path.c_str()))
       << "Cannot open directory " << directory_path;
@@ -56,7 +57,7 @@ std::string GetTestInputDirectory() {
 }
 
 std::string ResolveTestFileName(const char* filename) {
-  return GetTestInputDirectory() + SB_FILE_SEP_CHAR + filename;
+  return GetTestInputDirectory() + kSbFileSepChar + filename;
 }
 
 scoped_ptr<VideoDmpReader> s_video_dmp_reader;
