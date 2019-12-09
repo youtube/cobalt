@@ -325,7 +325,7 @@ bool OS::Remove(const char* path) {
   return false;
 }
 
-char OS::DirectorySeparator() { return SB_FILE_SEP_CHAR; }
+char OS::DirectorySeparator() { return kSbFileSepChar; }
 
 bool OS::isDirectorySeparator(const char ch) {
   return ch == DirectorySeparator();

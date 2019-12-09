@@ -147,11 +147,13 @@
 #define SB_FILE_MAX_OPEN 256
 #endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The current platform's file path component separator character. This is the
 // character that appears after a directory in a file path. For example, the
 // absolute canonical path of the file "/path/to/a/file.txt" uses '/' as a path
 // component separator character.
 #define SB_FILE_SEP_CHAR '/'
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 // The current platform's alternate file path component separator character.
 // This is like SB_FILE_SEP_CHAR, except if your platform supports an alternate

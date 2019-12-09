@@ -33,7 +33,7 @@ TEST(SbDirectoryGetNextTest, SunnyDay) {
   ScopedRandomFile files[kNumFiles];
 
   std::string directory_name = files[0].filename();
-  directory_name.resize(directory_name.find_last_of(SB_FILE_SEP_CHAR));
+  directory_name.resize(directory_name.find_last_of(kSbFileSepChar));
   EXPECT_TRUE(SbFileExists(directory_name.c_str()))
       << "Directory_name is " << directory_name;
 
@@ -69,7 +69,7 @@ TEST(SbDirectoryGetNextTest, SunnyDay) {
     // the file, but ScopedRandomFile::filename() returns the full path.
     std::string filename;
     filename += directory_name;
-    filename += SB_FILE_SEP_CHAR;
+    filename += kSbFileSepChar;
     filename += entry_name;
 
     StringSet::iterator iterator = names_to_find.find(filename);
@@ -150,7 +150,7 @@ TEST(SbDirectoryGetNextTest, FailureOnEmptyDirectory) {
 TEST(SbDirectoryGetNextTest, FailureOnInsufficientSize) {
   ScopedRandomFile file;
   std::string directory_name = file.filename();
-  directory_name.resize(directory_name.find_last_of(SB_FILE_SEP_CHAR));
+  directory_name.resize(directory_name.find_last_of(kSbFileSepChar));
   EXPECT_TRUE(SbFileExists(directory_name.c_str()))
       << "Directory_name is " << directory_name;
 

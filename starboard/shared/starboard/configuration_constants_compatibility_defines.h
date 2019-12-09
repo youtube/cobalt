@@ -33,6 +33,8 @@
 
 #define kSbFileMaxOpen SB_FILE_MAX_OPEN
 
+#define kSbFileSepChar SB_FILE_SEP_CHAR
+
 #define kSbMallocAlignment SB_MALLOC_ALIGNMENT
 
 #define kSbMaxThreadLocalKeys SB_MAX_THREAD_LOCAL_KEYS

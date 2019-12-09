@@ -21,6 +21,7 @@
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
@@ -57,10 +58,9 @@ std::string GetTestInputDirectory() {
   SB_CHECK(SbSystemGetPath(kSbSystemPathContentDirectory, content_path,
                            kPathSize));
   std::string directory_path =
-      std::string(content_path) + SB_FILE_SEP_CHAR + "test" +
-      SB_FILE_SEP_CHAR + "starboard" + SB_FILE_SEP_CHAR + "shared" +
-      SB_FILE_SEP_CHAR + "starboard" + SB_FILE_SEP_CHAR + "player" +
-      SB_FILE_SEP_CHAR + "testdata";
+      std::string(content_path) + kSbFileSepChar + "test" + kSbFileSepChar +
+      "starboard" + kSbFileSepChar + "shared" + kSbFileSepChar + "starboard" +
+      kSbFileSepChar + "player" + kSbFileSepChar + "testdata";
 
   SB_CHECK(SbDirectoryCanOpen(directory_path.c_str()))
       << "Cannot open directory " << directory_path;
@@ -76,7 +76,7 @@ void DeallocateSampleFunc(SbPlayer player,
 }
 
 std::string ResolveTestFileName(const char* filename) {
-  return GetTestInputDirectory() + SB_FILE_SEP_CHAR + filename;
+  return GetTestInputDirectory() + kSbFileSepChar + filename;
 }
 
 class AudioDecoderTest

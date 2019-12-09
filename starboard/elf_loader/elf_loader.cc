@@ -16,6 +16,7 @@
 
 #include "starboard/atomic.h"
 #include "starboard/common/log.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/elf_loader/elf_loader_impl.h"
 #include "starboard/elf_loader/file_impl.h"
 
@@ -88,7 +89,7 @@ std::string ElfLoader::MakeRelativeToContentPath(const std::string& path) {
 
   std::string relative_path(content_path);
 
-  relative_path.push_back(SB_FILE_SEP_CHAR);
+  relative_path.push_back(kSbFileSepChar);
   relative_path.append(path);
 
   return relative_path;
