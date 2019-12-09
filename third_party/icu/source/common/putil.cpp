@@ -1207,14 +1207,12 @@ u_setDataDirectory(const char *directory) {
         }
         uprv_strcpy(newDataDir, directory);
 
-#if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR)
-        {
-            char *p;
-            while(p = uprv_strchr(newDataDir, U_FILE_ALT_SEP_CHAR)) {
-                *p = U_FILE_SEP_CHAR;
-            }
+        if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR) {
+          char* p;
+          while ((p = uprv_strchr(newDataDir, U_FILE_ALT_SEP_CHAR))) {
+            *p = U_FILE_SEP_CHAR;
+          }
         }
-#endif
     }
 
     if (gDataDirectory && *gDataDirectory) {
@@ -1235,11 +1233,11 @@ uprv_pathIsAbsolute(const char *path)
     return TRUE;
   }
 
-#if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR)
-  if(*path == U_FILE_ALT_SEP_CHAR) {
-    return TRUE;
+  if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR) {
+    if (*path == U_FILE_ALT_SEP_CHAR) {
+      return TRUE;
+    }
   }
-#endif
 
 #if U_PLATFORM_USES_ONLY_WIN32_API
   if( (((path[0] >= 'A') && (path[0] <= 'Z')) ||
@@ -1338,12 +1336,12 @@ static void setTimeZoneFilesDir(const char *path, UErrorCode &status) {
     }
     gTimeZoneFilesDirectory->clear();
     gTimeZoneFilesDirectory->append(path, status);
-#if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR)
-    char *p = gTimeZoneFilesDirectory->data();
-    while (p = uprv_strchr(p, U_FILE_ALT_SEP_CHAR)) {
+    if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR) {
+      char* p = gTimeZoneFilesDirectory->data();
+      while ((p = uprv_strchr(p, U_FILE_ALT_SEP_CHAR))) {
         *p = U_FILE_SEP_CHAR;
+      }
     }
-#endif
 }
 
 #define TO_STRING(x) TO_STRING_2(x) 

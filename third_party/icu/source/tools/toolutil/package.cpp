@@ -209,9 +209,6 @@ getFileLength(FILE *f) {
 /*
  * Turn tree separators and alternate file separators into normal file separators.
  */
-#if U_TREE_ENTRY_SEP_CHAR==U_FILE_SEP_CHAR && U_FILE_ALT_SEP_CHAR==U_FILE_SEP_CHAR
-#define treeToPath(s)
-#else
 static void
 treeToPath(char *s) {
     char *t;
@@ -222,14 +219,10 @@ treeToPath(char *s) {
         }
     }
 }
-#endif
 
 /*
  * Turn file separators into tree separators.
  */
-#if U_TREE_ENTRY_SEP_CHAR==U_FILE_SEP_CHAR && U_FILE_ALT_SEP_CHAR==U_FILE_SEP_CHAR
-#define pathToTree(s)
-#else
 static void
 pathToTree(char *s) {
     char *t;
@@ -240,7 +233,6 @@ pathToTree(char *s) {
         }
     }
 }
-#endif
 
 /*
  * Prepend the path (if any) to the name and run the name through treeToName().
@@ -273,7 +265,10 @@ makeFullFilename(const char *path, const char *name,
         exit(U_BUFFER_OVERFLOW_ERROR);
     }
     strcpy(s, name);
-    treeToPath(s);
+    if (U_TREE_ENTRY_SEP_CHAR != U_FILE_SEP_CHAR ||
+        U_FILE_ALT_SEP_CHAR != U_FILE_SEP_CHAR) {
+      treeToPath(s);
+    }
 }
 
 static void
@@ -1043,7 +1038,10 @@ Package::addItem(const char *name, uint8_t *data, int32_t length, UBool isDataOw
         // copy the item's name
         items[idx].name=allocString(TRUE, strlen(name));
         strcpy(items[idx].name, name);
-        pathToTree(items[idx].name);
+        if (U_TREE_ENTRY_SEP_CHAR != U_FILE_SEP_CHAR ||
+            U_FILE_ALT_SEP_CHAR != U_FILE_SEP_CHAR) {
+          pathToTree(items[idx].name);
+        }
     } else {
         // same-name item found, replace it
         if(items[idx].isDataOwned) {

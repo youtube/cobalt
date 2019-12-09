@@ -210,8 +210,7 @@ CharList *pkg_appendUniqueDirToList(CharList *l, CharList** end, const char *str
     char aBuf[1024];
     char *rPtr;
     rPtr = uprv_strrchr(strAlias, U_FILE_SEP_CHAR);
-#if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR)
-    {
+    if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR) {
         char *aPtr = uprv_strrchr(strAlias, U_FILE_ALT_SEP_CHAR);
         if(!rPtr || /* regular char wasn't found or.. */
             (aPtr && (aPtr > rPtr)))
@@ -219,7 +218,6 @@ CharList *pkg_appendUniqueDirToList(CharList *l, CharList** end, const char *str
             rPtr = aPtr; /* may copy NULL which is OK */
         }
     }
-#endif
     if(!rPtr) {
         return l; /* no dir path */
     }
