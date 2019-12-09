@@ -73,7 +73,7 @@ void SkFontMgr_Cobalt::PurgeCaches() {
 
   // Lock the family mutex prior to purging each family's unreferenced
   // typefaces.
-  SkAutoMutexAcquire scoped_mutex(family_mutex_);
+  SkAutoMutexExclusive scoped_mutex(family_mutex_);
   for (int i = 0; i < families_.count(); ++i) {
     families_[i]->PurgeUnreferencedTypefaces();
   }
@@ -88,7 +88,7 @@ SkTypeface* SkFontMgr_Cobalt::MatchFaceName(const char face_name[]) {
   std::string face_name_string(face_name_to_lc.lc(), face_name_to_lc.length());
 
   // Lock the family mutex prior to accessing them.
-  SkAutoMutexAcquire scoped_mutex(family_mutex_);
+  SkAutoMutexExclusive scoped_mutex(family_mutex_);
 
   // Prioritize looking up the postscript name first since some of our client
   // applications prefer this method to specify face names.
@@ -179,7 +179,7 @@ SkTypeface* SkFontMgr_Cobalt::onMatchFaceStyle(const SkTypeface* family_member,
                                                const SkFontStyle& style) const {
   // Lock the family mutex prior to calling private SkFontStyleSet_Cobalt
   // functions that expect the mutex to already be locked.
-  SkAutoMutexAcquire scoped_mutex(family_mutex_);
+  SkAutoMutexExclusive scoped_mutex(family_mutex_);
 
   for (int i = 0; i < families_.count(); ++i) {
     if (families_[i]->ContainsTypeface(family_member)) {
@@ -198,7 +198,7 @@ SkTypeface* SkFontMgr_Cobalt::onMatchFamilyStyleCharacter(
 
   // Lock the family mutex prior to calling FindFamilyStyleCharacter(). It
   // expects the mutex to already be locked.
-  SkAutoMutexAcquire scoped_mutex(family_mutex_);
+  SkAutoMutexExclusive scoped_mutex(family_mutex_);
 
   // Search the fallback families for ones matching the requested language.
   // They are given priority over other fallback families in checking for
@@ -228,37 +228,41 @@ SkTypeface* SkFontMgr_Cobalt::onMatchFamilyStyleCharacter(
                            : default_family_->MatchStyleWithoutLocking(style);
 }
 
-SkTypeface* SkFontMgr_Cobalt::onCreateFromData(SkData* data,
-                                               int face_index) const {
+sk_sp<SkTypeface> SkFontMgr_Cobalt::onMakeFromData(sk_sp<SkData> data,
+                                                   int face_index) const {
   std::unique_ptr<SkStreamAsset> stream(
       new SkMemoryStream(data->data(), data->size()));
-  return createFromStream(stream.get(), face_index);
+  return makeFromStream(std::unique_ptr<SkStreamAsset>(stream.get()),
+                        face_index);
 }
 
-SkTypeface* SkFontMgr_Cobalt::onCreateFromStream(SkStreamAsset* stream,
-                                                 int face_index) const {
+sk_sp<SkTypeface> SkFontMgr_Cobalt::onMakeFromStreamIndex(
+    std::unique_ptr<SkStreamAsset> stream, int face_index) const {
   TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::onCreateFromStream()");
   bool is_fixed_pitch;
-  SkTypeface::Style style;
+  SkFontStyle style;
   SkString name;
-  if (!sk_freetype_cobalt::ScanFont(stream, face_index, &name, &style,
+  if (!sk_freetype_cobalt::ScanFont(stream.get(), face_index, &name, &style,
                                     &is_fixed_pitch)) {
     return NULL;
   }
-  return new SkTypeface_CobaltStream(stream, face_index, style, is_fixed_pitch,
-                                     name);
+  return sk_sp<SkTypeface>(new SkTypeface_CobaltStream(
+      stream.get(), face_index, style, is_fixed_pitch, name));
 }
 
-SkTypeface* SkFontMgr_Cobalt::onCreateFromFile(const char path[],
-                                               int face_index) const {
+sk_sp<SkTypeface> SkFontMgr_Cobalt::onMakeFromFile(const char path[],
+                                                   int face_index) const {
   TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::onCreateFromFile()");
   std::unique_ptr<SkStreamAsset> stream = SkStream::MakeFromFile(path);
-  return stream.get() ? createFromStream(stream.release(), face_index) : NULL;
+  return stream.get()
+             ? makeFromStream(std::unique_ptr<SkStreamAsset>(stream.release()),
+                              face_index)
+             : NULL;
 }
 
-SkTypeface* SkFontMgr_Cobalt::onLegacyCreateTypeface(const char family_name[],
-                                                     SkFontStyle style) const {
-  return matchFamilyStyle(family_name, style);
+sk_sp<SkTypeface> SkFontMgr_Cobalt::onLegacyMakeTypeface(
+    const char family_name[], SkFontStyle style) const {
+  return sk_sp<SkTypeface>(matchFamilyStyle(family_name, style));
 }
 
 void SkFontMgr_Cobalt::ParseConfigAndBuildFamilies(
