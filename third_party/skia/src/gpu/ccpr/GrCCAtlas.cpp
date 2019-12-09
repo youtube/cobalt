@@ -75,8 +75,8 @@ sk_sp<GrTextureProxy> GrCCAtlas::MakeLazyAtlasProxy(const LazyInstantiateAtlasCa
             break;
     }
 
-    auto instantiate = [cb = std::move(callback), pixelConfig, format,
-                        sampleCount](GrResourceProvider* rp) {
+    LazyInstantiateAtlasCallback cb = std::move(callback);
+    auto instantiate = [cb, pixelConfig, format, sampleCount](GrResourceProvider* rp) {
         return cb(rp, pixelConfig, format, sampleCount);
     };
     sk_sp<GrTextureProxy> proxy = GrProxyProvider::MakeFullyLazyProxy(

@@ -13,6 +13,7 @@
   'dependencies': [
     '<(DEPTH)/third_party/freetype2/freetype2_cobalt.gyp:freetype2',
     '<(DEPTH)/third_party/libpng/libpng.gyp:libpng',
+    '<(DEPTH)/third_party/skcms/skcms.gyp:skcms',
     '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
     'skia_library_opts.gyp:skia_opts',
   ],
@@ -25,14 +26,22 @@
   ],
 
   'sources': [
-    '<@(skia_core_public)',
+    # from "core.gypi"
     '<@(skia_core_sources)',
-    '<@(skia_pathops_public)',
     '<@(skia_pathops_sources)',
-    '<@(skia_skpicture_public)',
     '<@(skia_skpicture_sources)',
+
+    # from "effects.gypi"
+    '<@(skia_effects_sources)',
+
+    # from "gpu.gypi"
     '<@(skia_gpu_sources)',
-    '<@(skia_native_gpu_sources)',
+    '<@(skia_ccpr_sources)',
+    '<@(skia_nvpr_sources)',
+
+    # from "utils.gypi"
+    '<@(skia_utils_sources)',
+
     '<(DEPTH)/third_party/skia/src/codec/SkBmpBaseCodec.cpp',
     '<(DEPTH)/third_party/skia/src/codec/SkBmpCodec.cpp',
     '<(DEPTH)/third_party/skia/src/codec/SkBmpMaskCodec.cpp',
@@ -40,6 +49,7 @@
     '<(DEPTH)/third_party/skia/src/codec/SkBmpStandardCodec.cpp',
     '<(DEPTH)/third_party/skia/src/codec/SkCodec.cpp',
     '<(DEPTH)/third_party/skia/src/codec/SkCodecImageGenerator.cpp',
+    '<(DEPTH)/third_party/skia/src/codec/SkColorTable.cpp',
     '<(DEPTH)/third_party/skia/src/codec/SkGifCodec.cpp',
     '<(DEPTH)/third_party/skia/src/codec/SkMaskSwizzler.cpp',
     '<(DEPTH)/third_party/skia/src/codec/SkMasks.cpp',
@@ -48,6 +58,7 @@
     '<(DEPTH)/third_party/skia/src/codec/SkStreamBuffer.cpp',
     '<(DEPTH)/third_party/skia/src/codec/SkSwizzler.cpp',
     '<(DEPTH)/third_party/skia/src/codec/SkWbmpCodec.cpp',
+    '<(DEPTH)/third_party/skia/src/effects/imagefilters/SkBlurImageFilter.cpp',
     '<(DEPTH)/third_party/skia/src/images/SkImageEncoder.cpp',
     '<(DEPTH)/third_party/skia/src/ports/SkDiscardableMemory_none.cpp',
     '<(DEPTH)/third_party/skia/src/ports/SkImageGenerator_skia.cpp',
@@ -58,6 +69,7 @@
     '<(DEPTH)/third_party/skia/src/ports/SkFontHost_FreeType.cpp',
     '<(DEPTH)/third_party/skia/src/ports/SkFontHost_FreeType_common.cpp',
     '<(DEPTH)/third_party/skia/src/ports/SkFontHost_FreeType_common.h',
+    '<(DEPTH)/third_party/skia/src/ports/SkGlobalInitialization_default.cpp',
   ],
   # Exclude all unused skia files
   'sources!': [
@@ -66,8 +78,6 @@
     '<(DEPTH)/third_party/skia/src/codec/SkSampledCodec.cpp',
 
     # core
-    '<(DEPTH)/third_party/skia/src/core/SkExecutor.cpp',
-    '<(DEPTH)/third_party/skia/src/core/SkTaskGroup.cpp',
     '<(DEPTH)/third_party/skia/src/core/SkMultiPictureDraw.cpp',
 
     # utils concurrency

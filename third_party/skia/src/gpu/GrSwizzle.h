@@ -61,15 +61,15 @@ private:
     uint16_t fKey;
 };
 
-CONSTEXPR GrSwizzle::GrSwizzle(const char c[4])
+inline CONSTEXPR GrSwizzle::GrSwizzle(const char c[4])
         : fSwiz{c[0], c[1], c[2], c[3], '\0'}
         , fKey((CToI(c[0]) << 0) | (CToI(c[1]) << 4) | (CToI(c[2]) << 8) | (CToI(c[3]) << 12)) {}
 
-CONSTEXPR GrSwizzle::GrSwizzle(const GrSwizzle& that)
+inline CONSTEXPR GrSwizzle::GrSwizzle(const GrSwizzle& that)
         : fSwiz{that.fSwiz[0], that.fSwiz[1], that.fSwiz[2], that.fSwiz[3], '\0'}
         , fKey(that.fKey) {}
 
-CONSTEXPR GrSwizzle& GrSwizzle::operator=(const GrSwizzle& that) {
+inline CONSTEXPR GrSwizzle& GrSwizzle::operator=(const GrSwizzle& that) {
     fSwiz[0] = that.fSwiz[0];
     fSwiz[1] = that.fSwiz[1];
     fSwiz[2] = that.fSwiz[2];
@@ -111,7 +111,7 @@ CONSTEXPR float GrSwizzle::ComponentIndexToFloat(const SkRGBA4f<AlphaType>& colo
     SkUNREACHABLE;
 }
 
-CONSTEXPR int GrSwizzle::CToI(char c) {
+inline CONSTEXPR int GrSwizzle::CToI(char c) {
     switch (c) {
         // r...a must map to 0...3 because other methods use them as indices into fSwiz.
         case 'r': return 0;
@@ -124,7 +124,7 @@ CONSTEXPR int GrSwizzle::CToI(char c) {
     }
 }
 
-CONSTEXPR char GrSwizzle::IToC(int idx) {
+inline CONSTEXPR char GrSwizzle::IToC(int idx) {
 #if defined(COBALT)
     // CToI() cannot be a constexpr function in C++11 because it includes switch
     // case statements and multiple return statements. Because it is not a
@@ -159,7 +159,7 @@ CONSTEXPR char GrSwizzle::IToC(int idx) {
 #endif
 }
 
-CONSTEXPR GrSwizzle GrSwizzle::Concat(const GrSwizzle& a, const GrSwizzle& b) {
+inline CONSTEXPR GrSwizzle GrSwizzle::Concat(const GrSwizzle& a, const GrSwizzle& b) {
     char swiz[4]{};
     for (int i = 0; i < 4; ++i) {
         int idx = (b.fKey >> (4U * i)) & 0xfU;

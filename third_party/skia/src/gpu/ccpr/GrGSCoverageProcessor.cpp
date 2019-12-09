@@ -414,15 +414,25 @@ void GrGSCoverageProcessor::reset(PrimitiveType primitiveType, GrResourceProvide
     if (4 == this->numInputPoints() || this->hasInputWeight()) {
         fInputXOrYValues =
                 {"x_or_y_values", kFloat4_GrVertexAttribType, kFloat4_GrSLType};
+// GrVertexAttribTypeSize() cannot be a constexpr function in C++11 because
+// switch-case statements + multiple return types are both C++14 extensions
+// for constexpr functions. Thus we do not use GrVertexAttribTypeSize() in
+// static asserts for this situation.
+#if !defined(COBALT)
         GR_STATIC_ASSERT(sizeof(QuadPointInstance) ==
                          2 * GrVertexAttribTypeSize(kFloat4_GrVertexAttribType));
         GR_STATIC_ASSERT(offsetof(QuadPointInstance, fY) ==
                          GrVertexAttribTypeSize(kFloat4_GrVertexAttribType));
+#endif
     } else {
         fInputXOrYValues =
                 {"x_or_y_values", kFloat3_GrVertexAttribType, kFloat3_GrSLType};
+// Same reason as above for not using GrVertexAttribTypeSize() in static
+// asserts.
+#if !defined(COBALT)
         GR_STATIC_ASSERT(sizeof(TriPointInstance) ==
                          2 * GrVertexAttribTypeSize(kFloat3_GrVertexAttribType));
+#endif
     }
 
     this->setVertexAttributes(&fInputXOrYValues, 1);
