@@ -23,11 +23,6 @@
     'gl_type': 'angle',
     'angle_platform_windows': 1,
 
-    # Frame presentation is blocked on vsync, so the render thread will also
-    # block on vsync. However, use a non-zero minimum frame time to avoid
-    # possible busy-loops on unrendered submissions.
-    'cobalt_minimum_frame_time_in_milliseconds': '1',
-
     'cobalt_splash_screen_file': '<(DEPTH)/cobalt/browser/splash_screen/youtube_splash_screen.html',
     'fallback_splash_screen_url': 'file:///cobalt/browser/splash_screen/youtube_splash_screen.html',
 
