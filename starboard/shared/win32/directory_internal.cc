@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "starboard/common/log.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/memory.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/win32/file_internal.h"
@@ -44,7 +45,7 @@ void TrimExtraFileSeparators(std::wstring* dirname_pointer) {
   std::wstring& dirname = *dirname_pointer;
   auto new_end =
       std::find_if_not(dirname.rbegin(), dirname.rend(), [](wchar_t c) {
-        return c == SB_FILE_SEP_CHAR || c == SB_FILE_ALT_SEP_CHAR;
+        return c == kSbFileSepChar || c == SB_FILE_ALT_SEP_CHAR;
       });
   dirname.erase(new_end.base(), dirname.end());
 }
@@ -80,7 +81,8 @@ bool CreateDirectoryHiearchy(const std::wstring& wfull_path) {
   if (DirectoryExistsOrCreated(wfull_path)) {
     return true;
   }
-  const wchar_t kPathSeparators[] = { SB_FILE_SEP_CHAR, SB_FILE_ALT_SEP_CHAR };
+  const wchar_t kPathSeparators[] = {static_cast<wchar_t>(kSbFileSepChar),
+                                     SB_FILE_ALT_SEP_CHAR};
   size_t path_end = 0;
   do {
     path_end = wfull_path.find_first_of(kPathSeparators, path_end,

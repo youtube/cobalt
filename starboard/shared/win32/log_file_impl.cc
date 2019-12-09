@@ -19,6 +19,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/string.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/memory.h"
 #include "starboard/once.h"
@@ -55,7 +56,7 @@ void OpenLogInCacheDirectory(const char* log_file_name, int creation_flags) {
   SB_DCHECK((creation_flags & kSbFileOpenAlways) ||
             (creation_flags & kSbFileCreateAlways));
   SB_DCHECK(SbStringGetLength(log_file_name) != 0);
-  SB_DCHECK(SbStringFindCharacter(log_file_name, SB_FILE_SEP_CHAR) == nullptr);
+  SB_DCHECK(SbStringFindCharacter(log_file_name, kSbFileSepChar) == nullptr);
   char out_path[SB_FILE_MAX_PATH + 1];
   out_path[0] = '\0';
 

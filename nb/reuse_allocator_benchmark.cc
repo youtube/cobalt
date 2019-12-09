@@ -74,13 +74,13 @@ void LoadAllocationPlayback(std::vector<AllocationCommand>* commands,
                                 buffer.size());
   SB_DCHECK(result);
   std::string path_name(buffer.begin(), buffer.end());
-  path_name += SB_FILE_SEP_CHAR;
+  path_name += kSbFileSepChar;
   path_name += "test";
-  path_name += SB_FILE_SEP_CHAR;
+  path_name += kSbFileSepChar;
   path_name += "nb";
-  path_name += SB_FILE_SEP_CHAR;
+  path_name += kSbFileSepChar;
   path_name += "testdata";
-  path_name += SB_FILE_SEP_CHAR;
+  path_name += kSbFileSepChar;
   path_name += filename;
 
   std::map<uint64_t, uint32_t> address_map;

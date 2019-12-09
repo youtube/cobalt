@@ -17,6 +17,7 @@
 #include <sstream>
 #include <string>
 
+#include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -67,7 +68,7 @@ std::string ScopedRandomFile::MakeRandomFilePath() {
     return "";
   }
 
-  filename_stream << SB_FILE_SEP_CHAR << MakeRandomFilename();
+  filename_stream << kSbFileSepChar << MakeRandomFilename();
   return filename_stream.str();
 }
 

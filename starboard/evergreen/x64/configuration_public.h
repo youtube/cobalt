@@ -147,12 +147,6 @@
 // The current platform's maximum length of an absolute path.
 #define SB_FILE_MAX_PATH 4096
 
-// The current platform's file path component separator character. This is the
-// character that appears after a directory in a file path. For example, the
-// absolute canonical path of the file "/path/to/a/file.txt" uses '/' as a path
-// component separator character.
-#define SB_FILE_SEP_CHAR '/'
-
 // The current platform's alternate file path component separator character.
 // This is like SB_FILE_SEP_CHAR, except if your platform supports an alternate
 // character, then you can place that here. For example, on windows machines,
