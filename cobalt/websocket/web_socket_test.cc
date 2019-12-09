@@ -36,7 +36,6 @@ using cobalt::script::testing::MockExceptionState;
 namespace cobalt {
 namespace websocket {
 
-namespace {
 class FakeSettings : public dom::DOMSettings {
  public:
   FakeSettings()
@@ -52,7 +51,6 @@ class FakeSettings : public dom::DOMSettings {
   GURL base_;
   std::unique_ptr<network::NetworkModule> network_module_;
 };
-}  // namespace
 
 class WebSocketTest : public ::testing::Test {
  public:

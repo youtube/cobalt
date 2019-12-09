@@ -57,7 +57,7 @@ class CobaltWebSocketEventHandler : public net::WebSocketEventInterface {
   // Called to provide more send quota for this channel to the renderer
   // process. Currently the quota units are always bytes of message body
   // data. In future it might depend on the type of multiplexing in use.
-  virtual void OnFlowControl(int64_t quota) override;
+  virtual void OnFlowControl(int64_t /*quota*/) override {}
 
   // Called when the remote server has Started the WebSocket Closing
   // Handshake. The client should not attempt to send any more messages after
