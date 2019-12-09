@@ -126,7 +126,7 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
 }
 
 int SkFontStyleSet_Cobalt::count() {
-  SkAutoMutexAcquire scoped_mutex(*manager_owned_mutex_);
+  SkAutoMutexExclusive scoped_mutex(*manager_owned_mutex_);
   return styles_.count();
 }
 
@@ -147,7 +147,7 @@ SkTypeface* SkFontStyleSet_Cobalt::createTypeface(int index) {
 }
 
 SkTypeface* SkFontStyleSet_Cobalt::matchStyle(const SkFontStyle& pattern) {
-  SkAutoMutexAcquire scoped_mutex(*manager_owned_mutex_);
+  SkAutoMutexExclusive scoped_mutex(*manager_owned_mutex_);
   return MatchStyleWithoutLocking(pattern);
 }
 
@@ -309,7 +309,7 @@ bool SkFontStyleSet_Cobalt::GenerateStyleFaceInfo(
       !is_character_map_generated_ ? &character_map_ : NULL;
 
   if (!sk_freetype_cobalt::ScanFont(
-          stream, style->face_index, &style->face_name, &style->face_style,
+          stream, style->face_index, &style->face_name, &style->font_style,
           &style->face_is_fixed_pitch, character_map)) {
     return false;
   }
@@ -347,9 +347,11 @@ void SkFontStyleSet_Cobalt::CreateStreamProviderTypeface(
       stream_provider->OpenStream());
   if (GenerateStyleFaceInfo(style_entry, stream.get())) {
     LOG(INFO) << "Scanned font from file: " << style_entry->face_name.c_str()
-              << "(" << style_entry->face_style << ")";
+              << "(" << style_entry->font_style.weight() << ", "
+              << style_entry->font_style.width()
+              << style_entry->font_style.slant() << ")";
     style_entry->typeface.reset(new SkTypeface_CobaltStreamProvider(
-        stream_provider, style_entry->face_index, style_entry->face_style,
+        stream_provider, style_entry->face_index, style_entry->font_style,
         style_entry->face_is_fixed_pitch, family_name_,
         style_entry->disable_synthetic_bolding));
   } else {

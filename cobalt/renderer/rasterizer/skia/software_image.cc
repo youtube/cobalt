@@ -66,8 +66,8 @@ void ConvertUV8ToARGBSkBitmap(
   SkColor* current_dest = static_cast<SkColor*>(bitmap->getPixels());
   for (int row = 0; row < descriptor.size.height(); ++row) {
     for (int column = 0; column < descriptor.size.width(); ++column) {
-      current_dest[column] = SkColorSetARGBMacro(
-          current_src[column * 2 + 1], 0, 0, current_src[column * 2 + 0]);
+      current_dest[column] = SkColorSetARGB(current_src[column * 2 + 1], 0, 0,
+                                            current_src[column * 2 + 0]);
     }
     current_dest += row_pixels_dest;
     current_src += descriptor.pitch_in_bytes;

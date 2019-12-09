@@ -151,7 +151,9 @@
   'direct_dependent_settings': {
     'include_dirs': [
       #temporary until we can hide SkFontHost
+      '<(DEPTH)/third_party/skia',
       '<(DEPTH)/third_party/skia/src/core',
+      '<(DEPTH)/third_party/skia/src/utils',
 
       '<(DEPTH)/third_party/skia/include/core',
       '<(DEPTH)/third_party/skia/include/effects',

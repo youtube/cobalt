@@ -23,7 +23,8 @@
 #include "cobalt/render_tree/font.h"
 #include "cobalt/renderer/rasterizer/skia/typeface.h"
 
-#include "third_party/skia/include/core/SkPaint.h"
+#include "third_party/skia/include/core/SkFont.h"
+#include "third_party/skia/include/core/SkFontMetrics.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
 
 namespace cobalt {
@@ -67,13 +68,13 @@ class Font : public render_tree::Font {
   // subsequent requests for the same glyph.
   float GetGlyphWidth(render_tree::GlyphIndex glyph) override;
 
-  // Returns a SkPaint setup for rendering text with this font.  Clients
-  // are free to customize the SkPaint further after obtaining it, if they
+  // Returns a SkFont setup for rendering text with this font.  Clients
+  // are free to customize the SkFont further after obtaining it, if they
   // wish.
-  SkPaint GetSkPaint() const;
+  SkFont GetSkFont() const;
 
-  // Returns a static SkPaint with the default flags enabled.
-  static const SkPaint& GetDefaultSkPaint();
+  // Returns a static SkFont with the default flags enabled.
+  static const SkFont& GetDefaultSkFont();
 
  private:
   // Usually covers Latin-1 in a single page.

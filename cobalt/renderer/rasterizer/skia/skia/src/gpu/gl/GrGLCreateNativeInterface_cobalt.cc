@@ -18,7 +18,6 @@
 #include "cobalt/renderer/egl_and_gles.h"
 #include "third_party/skia/include/gpu/gl/GrGLAssembleInterface.h"
 #include "third_party/skia/include/gpu/gl/GrGLInterface.h"
-#include "third_party/skia/src/gpu/gl/GrGLUtil.h"
 
 #define REGISTER_GL_FUNCTION(F)                                 \
                                                                 \

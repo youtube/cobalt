@@ -28,16 +28,27 @@ namespace {
 
 // This logic is taken from SkTypeface_FreeType::ScanFont() and should be kept
 // in sync with it.
-SkTypeface::Style GenerateSkTypefaceStyleFromFace(FT_Face face) {
+SkFontStyle GenerateSkFontStyleFromFace(FT_Face face) {
   int weight = SkFontStyle::kNormal_Weight;
+  int width = SkFontStyle::kNormal_Width;
+  SkFontStyle::Slant slant = SkFontStyle::kUpright_Slant;
   if (face->style_flags & FT_STYLE_FLAG_BOLD) {
     weight = SkFontStyle::kBold_Weight;
+  }
+  if (face->style_flags & FT_STYLE_FLAG_ITALIC) {
+    slant = SkFontStyle::kItalic_Slant;
   }
 
   PS_FontInfoRec psFontInfo;
   TT_OS2* os2 = static_cast<TT_OS2*>(FT_Get_Sfnt_Table(face, ft_sfnt_os2));
   if (os2 && os2->version != 0xffff) {
     weight = os2->usWeightClass;
+    width = os2->usWidthClass;
+
+    // OS/2::fsSelection bit 9 indicates oblique.
+    if (SkToBool(os2->fsSelection & (1u << 9))) {
+      slant = SkFontStyle::kOblique_Slant;
+    }
   } else if (0 == FT_Get_PS_Font_Info(face, &psFontInfo) && psFontInfo.weight) {
     static const struct {
       char const* const name;
@@ -67,7 +78,9 @@ SkTypeface::Style GenerateSkTypefaceStyleFromFace(FT_Face face) {
         {"standard", SkFontStyle::kNormal_Weight},
         {"thin", SkFontStyle::kThin_Weight},
         {"ultra", SkFontStyle::kExtraBold_Weight},
+        {"ultrablack", SkFontStyle::kExtraBlack_Weight},
         {"ultrabold", SkFontStyle::kExtraBold_Weight},
+        {"ultraheavy", SkFontStyle::kExtraBlack_Weight},
         {"ultralight", SkFontStyle::kExtraLight_Weight},
     };
     int const index =
@@ -76,20 +89,12 @@ SkTypeface::Style GenerateSkTypefaceStyleFromFace(FT_Face face) {
     if (index >= 0) {
       weight = commonWeights[index].weight;
     } else {
-      DLOG(ERROR) << "Do not recognize weight for:" << face->family_name << "("
-                  << psFontInfo.weight << ")";
+      DLOG(ERROR) << "Do not know weight for: %s (%s) \n"
+                  << face->family_name << psFontInfo.weight;
     }
   }
 
-  int face_style = SkTypeface::kNormal;
-  if (weight > 500) {
-    face_style |= SkTypeface::kBold;
-  }
-  if (face->style_flags & FT_STYLE_FLAG_ITALIC) {
-    face_style |= SkTypeface::kItalic;
-  }
-
-  return static_cast<SkTypeface::Style>(face_style);
+  return SkFontStyle(weight, width, slant);
 }
 
 void GenerateCharacterMapFromFace(
@@ -135,7 +140,7 @@ static void sk_freetype_cobalt_stream_close(FT_Stream) {}
 namespace sk_freetype_cobalt {
 
 bool ScanFont(SkStreamAsset* stream, int face_index, SkString* name,
-              SkTypeface::Style* style, bool* is_fixed_pitch,
+              SkFontStyle* style, bool* is_fixed_pitch,
               font_character_map::CharacterMap* maybe_character_map /*=NULL*/) {
   TRACE_EVENT0("cobalt::renderer", "SkFreeTypeUtil::ScanFont()");
 
@@ -164,7 +169,7 @@ bool ScanFont(SkStreamAsset* stream, int face_index, SkString* name,
   }
 
   name->set(face->family_name);
-  *style = GenerateSkTypefaceStyleFromFace(face);
+  *style = GenerateSkFontStyleFromFace(face);
   *is_fixed_pitch = FT_IS_FIXED_WIDTH(face);
 
   if (maybe_character_map) {

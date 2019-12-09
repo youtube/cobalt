@@ -290,14 +290,11 @@ sk_sp<SkSurface> HardwareRasterizer::Impl::CreateFallbackSurface(
     bool force_deterministic_rendering,
     const backend::RenderTarget* render_target) {
   // Wrap the given render target in a new skia surface.
-  GrBackendRenderTargetDesc skia_desc;
-  skia_desc.fWidth = render_target->GetSize().width();
-  skia_desc.fHeight = render_target->GetSize().height();
-  skia_desc.fConfig = kRGBA_8888_GrPixelConfig;
-  skia_desc.fOrigin = kBottomLeft_GrSurfaceOrigin;
-  skia_desc.fSampleCnt = 0;
-  skia_desc.fStencilBits = 0;
-  skia_desc.fRenderTargetHandle = render_target->GetPlatformHandle();
+  GrGLFramebufferInfo info;
+  info.fFBOID = render_target->GetPlatformHandle();
+  GrBackendRenderTarget skia_render_target(render_target->GetSize().width(),
+                                           render_target->GetSize().height(), 0,
+                                           0, info);
 
   uint32_t flags = 0;
   if (!force_deterministic_rendering) {
@@ -309,8 +306,9 @@ sk_sp<SkSurface> HardwareRasterizer::Impl::CreateFallbackSurface(
   }
   SkSurfaceProps skia_surface_props(flags,
                                     SkSurfaceProps::kLegacyFontHost_InitType);
-  return SkSurface::MakeFromBackendRenderTarget(GetFallbackContext(), skia_desc,
-                                                &skia_surface_props);
+  return SkSurface::MakeFromBackendRenderTarget(
+      GetFallbackContext(), skia_render_target, kBottomLeft_GrSurfaceOrigin,
+      kRGBA_8888_SkColorType, nullptr, &skia_surface_props);
 }
 
 HardwareRasterizer::HardwareRasterizer(
