@@ -1152,23 +1152,25 @@ doOpenChoice(const char *path, const char *type, const char *name,
       isICUData = TRUE;
     }
 
-#if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR)  /* Windows:  try "foo\bar" and "foo/bar" */
+    /* Windows:  try "foo\bar" and "foo/bar" */
     /* remap from alternate path char to the main one */
-    CharString altSepPath;
-    if(path) {
-        if(uprv_strchr(path,U_FILE_ALT_SEP_CHAR) != NULL) {
-            altSepPath.append(path, *pErrorCode);
-            char *p;
-            while((p=uprv_strchr(altSepPath.data(), U_FILE_ALT_SEP_CHAR))) {
-                *p = U_FILE_SEP_CHAR;
-            }
-#if defined (UDATA_DEBUG)
-            fprintf(stderr, "Changed path from [%s] to [%s]\n", path, altSepPath.s);
+    if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR) {
+      CharString altSepPath;
+      if (path) {
+        if (uprv_strchr(path, U_FILE_ALT_SEP_CHAR) != NULL) {
+          altSepPath.append(path, *pErrorCode);
+          char* p;
+          while ((p = uprv_strchr(altSepPath.data(), U_FILE_ALT_SEP_CHAR))) {
+            *p = U_FILE_SEP_CHAR;
+          }
+#if defined(UDATA_DEBUG)
+          fprintf(stderr, "Changed path from [%s] to [%s]\n", path,
+                  altSepPath.s);
 #endif
-            path = altSepPath.data();
+          path = altSepPath.data();
         }
+      }
     }
-#endif
 
     CharString tocEntryName; /* entry name in tree format. ex:  'icudt28b/coll/ar.res' */
     CharString tocEntryPath; /* entry name in path format. ex:  'icudt28b\\coll\\ar.res' */
