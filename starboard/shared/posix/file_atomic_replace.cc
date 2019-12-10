@@ -15,6 +15,7 @@
 #include "starboard/file.h"
 
 #include <cstdio>
+#include <vector>
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -36,19 +37,19 @@ bool SbFileAtomicReplace(const char* path,
   }
 
   const bool file_exists = SbFileExists(path);
-  char temp_path[SB_FILE_MAX_PATH];
+  std::vector<char> temp_path(SB_FILE_MAX_PATH);
 
-  SbStringCopy(temp_path, path, SB_FILE_MAX_PATH);
-  SbStringConcat(temp_path, kTempFileSuffix, SB_FILE_MAX_PATH);
+  SbStringCopy(temp_path.data(), path, SB_FILE_MAX_PATH);
+  SbStringConcat(temp_path.data(), kTempFileSuffix, SB_FILE_MAX_PATH);
 
   if (!::starboard::shared::starboard::SbFileAtomicReplaceWriteFile(
-          temp_path, data, data_size)) {
+          temp_path.data(), data, data_size)) {
     return false;
   }
   if (file_exists && !SbFileDelete(path)) {
     return false;
   }
-  if (rename(temp_path, path) != 0) {
+  if (rename(temp_path.data(), path) != 0) {
     return false;
   }
   return true;

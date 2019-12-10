@@ -20,6 +20,7 @@
 #include <unicode/udata.h>
 
 #include <string>
+#include <vector>
 
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
@@ -35,11 +36,11 @@ SbOnceControl g_initialization_once = SB_ONCE_INITIALIZER;
 // only be called once.
 void Initialize() {
   // Minimal Initialization of ICU.
-  char base_path[SB_FILE_MAX_PATH];
-  bool result = SbSystemGetPath(kSbSystemPathContentDirectory, base_path,
-                                SB_ARRAY_SIZE_INT(base_path));
+  std::vector<char> base_path(SB_FILE_MAX_PATH);
+  bool result = SbSystemGetPath(kSbSystemPathContentDirectory, base_path.data(),
+                                base_path.size());
   SB_DCHECK(result);
-  std::string data_path = base_path;
+  std::string data_path(base_path.data());
   data_path += SB_FILE_SEP_STRING;
   data_path += "icu";
   data_path += SB_FILE_SEP_STRING;

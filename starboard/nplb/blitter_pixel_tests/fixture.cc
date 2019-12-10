@@ -15,6 +15,7 @@
 #include "starboard/nplb/blitter_pixel_tests/fixture.h"
 
 #include <string>
+#include <vector>
 
 #include "starboard/blitter.h"
 #include "starboard/configuration_constants.h"
@@ -57,10 +58,10 @@ const size_t kPathSize = SB_FILE_MAX_PATH + 1;
 // Returns the directory that all output will be placed in.  There will never
 // be any output unless command line switches are used.
 std::string GetTestOutputDirectory() {
-  char test_output_path[kPathSize];
+  std::vector<char> test_output_path(kPathSize);
   EXPECT_TRUE(SbSystemGetPath(kSbSystemPathTestOutputDirectory,
-                              test_output_path, kPathSize));
-  std::string output_dir = std::string(test_output_path);
+                              test_output_path.data(), kPathSize));
+  std::string output_dir = std::string(test_output_path.data());
 
   output_dir += kSbFileSepChar;
   output_dir += "starboard";
@@ -84,13 +85,13 @@ std::string GetTestOutputDirectory() {
 // The input directory in which all the expected results PNG test files can
 // be found.
 std::string GetTestInputDirectory() {
-  char content_path[kPathSize];
-  EXPECT_TRUE(SbSystemGetPath(kSbSystemPathContentDirectory, content_path,
-                              kPathSize));
-  std::string directory_path = std::string(content_path) + kSbFileSepChar +
-                               "test" + kSbFileSepChar + "starboard" +
-                               kSbFileSepChar + "nplb" + kSbFileSepChar +
-                               "blitter_pixel_tests" + kSbFileSepChar + "data";
+  std::vector<char> content_path(kPathSize);
+  EXPECT_TRUE(SbSystemGetPath(kSbSystemPathContentDirectory,
+                              content_path.data(), kPathSize));
+  std::string directory_path =
+      std::string(content_path.data()) + kSbFileSepChar + "test" +
+      kSbFileSepChar + "starboard" + kSbFileSepChar + "nplb" +
+      kSbFileSepChar + "blitter_pixel_tests" + kSbFileSepChar + "data";
 
   SB_CHECK(SbDirectoryCanOpen(directory_path.c_str()));
   return directory_path;

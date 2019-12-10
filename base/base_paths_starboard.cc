@@ -22,15 +22,15 @@ namespace base {
 // This is where we can control the path for placement of a lot of file
 // resources for cobalt.
 bool PathProviderStarboard(int key, FilePath *result) {
-  char path[SB_FILE_MAX_PATH] = {0};
+  std::vector<char> path(SB_FILE_MAX_PATH, 0);
   switch (key) {
     case base::FILE_EXE:
     case base::FILE_MODULE: {
-      bool success = SbSystemGetPath(kSbSystemPathExecutableFile, path,
-                      SB_ARRAY_SIZE_INT(path));
+      bool success = SbSystemGetPath(kSbSystemPathExecutableFile, path.data(),
+                                     path.size());
       DCHECK(success);
       if (success) {
-        *result = FilePath(path);
+        *result = FilePath(path.data());
         return true;
       }
       DLOG(ERROR) << "FILE_EXE not defined.";
@@ -40,11 +40,11 @@ bool PathProviderStarboard(int key, FilePath *result) {
     case base::DIR_EXE:
     case base::DIR_MODULE:
     case base::DIR_ASSETS: {
-      bool success = SbSystemGetPath(kSbSystemPathContentDirectory, path,
-                                     SB_ARRAY_SIZE_INT(path));
+      bool success = SbSystemGetPath(kSbSystemPathContentDirectory, path.data(),
+                                     path.size());
       DCHECK(success);
       if (success) {
-        *result = FilePath(path);
+        *result = FilePath(path.data());
         return true;
       }
       DLOG(ERROR) << "DIR_EXE/DIR_MODULE not defined.";
@@ -53,12 +53,12 @@ bool PathProviderStarboard(int key, FilePath *result) {
 
 #if defined(ENABLE_TEST_DATA)
     case base::DIR_TEST_DATA: {
-      bool success = SbSystemGetPath(kSbSystemPathContentDirectory, path,
-                                     SB_ARRAY_SIZE_INT(path));
+      bool success = SbSystemGetPath(kSbSystemPathContentDirectory, path.data(),
+                                     path.size());
       DCHECK(success);
       if (success) {
         // Append "test" to match the output of copy_test_data.gypi
-        *result = FilePath(path).Append(FILE_PATH_LITERAL("test"));
+        *result = FilePath(path.data()).Append(FILE_PATH_LITERAL("test"));
         return true;
       }
       DLOG(ERROR) << "DIR_TEST_DATA not defined.";
@@ -67,10 +67,10 @@ bool PathProviderStarboard(int key, FilePath *result) {
 #endif  // ENABLE_TEST_DATA
 
     case base::DIR_CACHE: {
-      bool success = SbSystemGetPath(kSbSystemPathCacheDirectory, path,
-                                     SB_ARRAY_SIZE_INT(path));
+      bool success = SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(),
+                                     path.size());
       if (success) {
-        *result = FilePath(path);
+        *result = FilePath(path.data());
         return true;
       }
       DLOG(INFO) << "DIR_CACHE not defined.";
@@ -78,11 +78,11 @@ bool PathProviderStarboard(int key, FilePath *result) {
     }
 
     case base::DIR_TEMP: {
-      bool success = SbSystemGetPath(kSbSystemPathTempDirectory, path,
-                                     SB_ARRAY_SIZE_INT(path));
+      bool success =
+          SbSystemGetPath(kSbSystemPathTempDirectory, path.data(), path.size());
       DCHECK(success);
       if (success) {
-        *result = FilePath(path);
+        *result = FilePath(path.data());
         return true;
       }
       DLOG(ERROR) << "DIR_TEMP not defined.";
@@ -94,18 +94,18 @@ bool PathProviderStarboard(int key, FilePath *result) {
       return PathProviderStarboard(base::DIR_CACHE, result);
 
     case base::DIR_SYSTEM_FONTS:
-      if (SbSystemGetPath(kSbSystemPathFontDirectory, path,
-                          SB_ARRAY_SIZE_INT(path))) {
-        *result = FilePath(path);
+      if (SbSystemGetPath(kSbSystemPathFontDirectory, path.data(),
+                          path.size())) {
+        *result = FilePath(path.data());
         return true;
       }
       DLOG(INFO) << "DIR_SYSTEM_FONTS not defined.";
       return false;
 
     case base::DIR_SYSTEM_FONTS_CONFIGURATION:
-      if (SbSystemGetPath(kSbSystemPathFontConfigurationDirectory, path,
-                          SB_ARRAY_SIZE_INT(path))) {
-        *result = FilePath(path);
+      if (SbSystemGetPath(kSbSystemPathFontConfigurationDirectory, path.data(),
+                          path.size())) {
+        *result = FilePath(path.data());
         return true;
       }
       DLOG(INFO) << "DIR_SYSTEM_FONTS_CONFIGURATION not defined.";

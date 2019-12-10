@@ -16,6 +16,7 @@
 
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "starboard/configuration_constants.h"
 #include "starboard/file.h"
@@ -32,13 +33,12 @@ const size_t kPathSize = SB_FILE_MAX_PATH + 1;
 
 std::string GetTempDir() {
   // It seems there's absolutely no way to get to std::string without a copy.
-  char path[kPathSize] = {0};
-  if (!SbSystemGetPath(kSbSystemPathTempDirectory, path,
-                       SB_ARRAY_SIZE_INT(path))) {
+  std::vector<char> path(kPathSize, 0);
+  if (!SbSystemGetPath(kSbSystemPathTempDirectory, path.data(), path.size())) {
     return "";
   }
 
-  return path;
+  return path.data();
 }
 
 // static

@@ -15,6 +15,7 @@
 #include "starboard/common/storage.h"
 
 #include <algorithm>
+#include <vector>
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -31,19 +32,20 @@ bool SbStorageWriteRecord(SbStorageRecord record,
   }
 
   const char* name = record->name.c_str();
-  char original_file_path[SB_FILE_MAX_PATH];
+  std::vector<char> original_file_path(SB_FILE_MAX_PATH);
   if (!starboard::shared::starboard::GetUserStorageFilePath(
-          record->user, name, original_file_path, SB_FILE_MAX_PATH)) {
+          record->user, name, original_file_path.data(), SB_FILE_MAX_PATH)) {
     return false;
   }
-  char temp_file_path[SB_FILE_MAX_PATH];
-  SbStringCopy(temp_file_path, original_file_path, SB_FILE_MAX_PATH);
-  SbStringConcat(temp_file_path, kTempFileSuffix, SB_FILE_MAX_PATH);
+  std::vector<char> temp_file_path(SB_FILE_MAX_PATH);
+  SbStringCopy(temp_file_path.data(), original_file_path.data(),
+               SB_FILE_MAX_PATH);
+  SbStringConcat(temp_file_path.data(), kTempFileSuffix, SB_FILE_MAX_PATH);
 
   SbFileError error;
   SbFile temp_file = SbFileOpen(
-      temp_file_path, kSbFileCreateAlways | kSbFileWrite | kSbFileRead, NULL,
-      &error);
+      temp_file_path.data(), kSbFileCreateAlways | kSbFileWrite | kSbFileRead,
+      NULL, &error);
   if (error != kSbFileOk) {
     return false;
   }
@@ -58,7 +60,7 @@ bool SbStorageWriteRecord(SbStorageRecord record,
     int bytes_written = SbFileWrite(temp_file, source, to_write_max);
     if (bytes_written < 0) {
       SbFileClose(temp_file);
-      SbFileDelete(temp_file_path);
+      SbFileDelete(temp_file_path.data());
       return false;
     }
 
@@ -70,16 +72,16 @@ bool SbStorageWriteRecord(SbStorageRecord record,
 
   if (SbFileIsValid(record->file) && !SbFileClose(record->file)) {
     SbFileClose(temp_file);
-    SbFileDelete(temp_file_path);
+    SbFileDelete(temp_file_path.data());
     return false;
   }
 
   record->file = kSbFileInvalid;
 
-  if ((!SbFileDelete(original_file_path)) ||
-   (rename(temp_file_path, original_file_path) != 0)) {
+  if ((!SbFileDelete(original_file_path.data())) ||
+      (rename(temp_file_path.data(), original_file_path.data()) != 0)) {
     SbFileClose(temp_file);
-    SbFileDelete(temp_file_path);
+    SbFileDelete(temp_file_path.data());
     return false;
   }
 

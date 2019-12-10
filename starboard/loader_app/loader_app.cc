@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <vector>
+
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/elf_loader/elf_loader.h"
@@ -78,8 +80,8 @@ void LoadLibraryAndInitialize() {
     SB_LOG(INFO) << "Try to load the Cobalt binary";
 
     //  Try to load the image. Failures here discard the image.
-    char installation_path[SB_FILE_MAX_PATH];
-    if (ImGetInstallationPath(current_installation, installation_path,
+    std::vector<char> installation_path(SB_FILE_MAX_PATH);
+    if (ImGetInstallationPath(current_installation, installation_path.data(),
                               SB_FILE_MAX_PATH) == IM_ERROR) {
       SB_LOG(ERROR) << "Failed to find library file";
 
@@ -94,22 +96,23 @@ void LoadLibraryAndInitialize() {
       }
     }
 
-    SB_DLOG(INFO) << "installation_path=" << installation_path;
+    SB_DLOG(INFO) << "installation_path=" << installation_path.data();
 
     // installation_n/lib/libcobalt.so
-    char lib_path[SB_FILE_MAX_PATH];
-    SbStringFormatF(lib_path, SB_FILE_MAX_PATH, "%s%s%s%s%s", installation_path,
-                    SB_FILE_SEP_STRING, kCobaltLibraryPath, SB_FILE_SEP_STRING,
-                    kCobaltLibraryName);
-    SB_LOG(INFO) << "lib_path=" << lib_path;
+    std::vector<char> lib_path(SB_FILE_MAX_PATH);
+    SbStringFormatF(lib_path.data(), SB_FILE_MAX_PATH, "%s%s%s%s%s",
+                    installation_path.data(), SB_FILE_SEP_STRING,
+                    kCobaltLibraryPath, SB_FILE_SEP_STRING, kCobaltLibraryName);
+    SB_LOG(INFO) << "lib_path=" << lib_path.data();
 
     // installation_n/content
-    char content_path[SB_FILE_MAX_PATH];
-    SbStringFormatF(content_path, SB_FILE_MAX_PATH, "%s%s%s", installation_path,
-                    SB_FILE_SEP_STRING, kCobaltContentPath);
-    SB_LOG(INFO) << "content_path=" << content_path;
+    std::vector<char> content_path(SB_FILE_MAX_PATH);
+    SbStringFormatF(content_path.data(), SB_FILE_MAX_PATH, "%s%s%s",
+                    installation_path.data(), SB_FILE_SEP_STRING,
+                    kCobaltContentPath);
+    SB_LOG(INFO) << "content_path=" << content_path.data();
 
-    if (!g_elf_loader.Load(lib_path, content_path, false,
+    if (!g_elf_loader.Load(lib_path.data(), content_path.data(), false,
                            &starboard::loader_app::SbSystemGetExtensionShim)) {
       SB_LOG(WARNING) << "Failed to load Cobalt!";
 

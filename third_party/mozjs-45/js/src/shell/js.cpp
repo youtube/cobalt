@@ -103,11 +103,6 @@
 
 #if defined(STARBOARD)
 
-#if !defined(PATH_MAX)
-#include "starboard/configuration.h"
-#define PATH_MAX (SB_FILE_MAX_PATH + 1)
-#endif
-
 #include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #include "starboard/client_porting/wrap_main/wrap_main.h"
