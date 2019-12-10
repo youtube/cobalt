@@ -177,7 +177,7 @@ TEST(SbThreadLocalValueTest, SunnyDayFreshlyCreatedValuesAreNull) {
 
 TEST(SbThreadLocalValueTest, SunnyDayMany) {
   const int kMany = (2 * SB_MAX_THREAD_LOCAL_KEYS) / 3;
-  SbThreadLocalKey keys[kMany];
+  std::vector<SbThreadLocalKey> keys(kMany);
 
   for (int i = 0; i < kMany; ++i) {
     keys[i] = SbThreadCreateLocalKey(NULL);
