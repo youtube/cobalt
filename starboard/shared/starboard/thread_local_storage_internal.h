@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_THREAD_LOCAL_STORAGE_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_THREAD_LOCAL_STORAGE_INTERNAL_H_
 
+#include <vector>
+
 #include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/shared/internal_only.h"
@@ -55,7 +57,11 @@ class TLSKeyManager {
   struct KeyRecord {
     bool valid;
     SbThreadLocalDestructor destructor;
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+    std::vector<void*> values(kMaxThreads);
+#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
     void* values[kMaxThreads];
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   };
 
   // Sets up the specified key.
