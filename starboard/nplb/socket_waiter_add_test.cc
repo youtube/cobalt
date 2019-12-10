@@ -67,7 +67,7 @@ TEST_P(SbSocketWaiterAddTest, SunnyDayMany) {
   EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
 
   const int kMany = SB_FILE_MAX_OPEN;
-  SbSocket sockets[kMany] = {0};
+  std::vector<SbSocket> sockets(kMany, 0);
   for (int i = 0; i < kMany; ++i) {
     sockets[i] = SbSocketCreate(GetAddressType(), kSbSocketProtocolTcp);
     ASSERT_TRUE(SbSocketIsValid(sockets[i]));
