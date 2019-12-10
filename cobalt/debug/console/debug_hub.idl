@@ -30,6 +30,7 @@
   void attach(AttachCallback cb);
   void detach(AttachCallback cb);
 
+  DOMString readDebugContentText(DOMString filename);
   void sendCommand(DOMString method, DOMString jsonParams, ResponseCallback cb);
 
   readonly attribute DOMString? lastError;

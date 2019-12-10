@@ -85,6 +85,9 @@ class DebugHub : public script::Wrappable, public DebugClient::Delegate {
   void Attach(const AttachCallbackArg& callback);
   void Detach(const AttachCallbackArg& callback);
 
+  // Read a file from the content/web/debug directory and return its contents.
+  std::string ReadDebugContentText(const std::string& filename);
+
   // Sends a devtools protocol command to be executed in the context of the main
   // WebModule that is being debugged.
   void SendCommand(const std::string& method, const std::string& json_params,

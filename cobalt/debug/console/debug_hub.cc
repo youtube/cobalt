@@ -17,15 +17,23 @@
 #include <memory>
 #include <set>
 
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/json/json_writer.h"
+#include "base/path_service.h"
 #include "base/values.h"
 #include "cobalt/base/c_val.h"
+#include "cobalt/base/cobalt_paths.h"
 #include "cobalt/debug/console/command_manager.h"
 #include "cobalt/debug/json_object.h"
 
 namespace cobalt {
 namespace debug {
 namespace console {
+
+namespace {
+constexpr char kContentDir[] = "cobalt/debug";
+}  // namespace
 
 DebugHub::DebugHub(
     const GetHudModeCallback& get_hud_mode_callback,
@@ -60,6 +68,21 @@ void DebugHub::Detach(const AttachCallbackArg& callback) {
   debug_client_.reset();
   AttachCallbackArg::Reference callback_reference(this, callback);
   callback_reference.value().Run();
+}
+
+std::string DebugHub::ReadDebugContentText(const std::string& filename) {
+  std::string result;
+
+  base::FilePath file_path;
+  base::PathService::Get(paths::DIR_COBALT_WEB_ROOT, &file_path);
+  file_path = file_path.AppendASCII(kContentDir);
+  file_path = file_path.AppendASCII(filename);
+
+  std::string text;
+  if (!base::ReadFileToString(file_path, &text)) {
+    DLOG(WARNING) << "Cannot read file: " << file_path.value();
+  }
+  return text;
 }
 
 void DebugHub::SendCommand(const std::string& method,
