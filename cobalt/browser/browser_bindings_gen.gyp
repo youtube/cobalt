@@ -232,6 +232,7 @@
         '../audio/audio_node_channel_count_mode.idl',
         '../audio/audio_node_channel_interpretation.idl',
         '../debug/console/console_command.idl',
+        '../debug/console/debug_console_mode.idl',
         '../dom/blob_property_bag.idl',
         '../dom/captions/caption_character_edge_style.idl',
         '../dom/captions/caption_color.idl',
