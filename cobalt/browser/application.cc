@@ -791,6 +791,11 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
         base::TimeDelta::FromSeconds(duration_in_seconds));
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
+
+#if SB_IS(EVERGREEN)
+  // Run the first update check after the application is started.
+  updater_module_->Update();
+#endif
 }
 
 Application::~Application() {

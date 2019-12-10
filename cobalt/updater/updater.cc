@@ -101,7 +101,6 @@ int UpdaterMain(int argc, const char* const* argv) {
       new updater::UpdaterModule(g_loop.get(), network_module.get()));
 
   updater_module->Update();
-
   updater_module->MarkSuccessful();
 
   return 0;
