@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <stack>
 #include <utility>
+#include <vector>
 
 #include "base/bind.h"
 #include "base/files/file_enumerator.h"
@@ -94,16 +95,16 @@ void UrlFetcherDownloader::CreateDownloadDir() {
   }
 
   // Get the path to new installation.
-  char installation_path[SB_FILE_MAX_PATH];
-  if (installation_api->GetInstallationPath(installation_index_,
-                                            installation_path,
-                                            SB_FILE_MAX_PATH) == IM_EXT_ERROR) {
+  std::vector<char> installation_path(SB_FILE_MAX_PATH);
+  if (installation_api->GetInstallationPath(
+          installation_index_, installation_path.data(),
+          installation_path.size()) == IM_EXT_ERROR) {
     SB_LOG(ERROR) << "Failed to get installation path";
     return;
   }
 
-  SB_DLOG(INFO) << "installation_path = " << installation_path;
-  download_dir_ = base::FilePath(installation_path);
+  SB_DLOG(INFO) << "installation_path = " << installation_path.data();
+  download_dir_ = base::FilePath(installation_path.data());
 
   // Cleanup the download dir.
   CleanupDirectory(download_dir_);

@@ -89,12 +89,13 @@ class Registry {
 SB_ONCE_INITIALIZE_FUNCTION(Registry, GetRegistry);
 
 std::string GetWidevineStoragePath() {
-  char path[SB_FILE_MAX_PATH + 1] = {0};
-  auto path_size = SB_ARRAY_SIZE_INT(path);
-  SB_CHECK(SbSystemGetPath(kSbSystemPathCacheDirectory, path, path_size) &&
-           SbStringConcat(path, SB_FILE_SEP_STRING, path_size) &&
-           SbStringConcat(path, kWidevineStorageFileName, path_size));
-  return path;
+  std::vector<char> path(SB_FILE_MAX_PATH + 1, 0);
+  auto path_size = path.size();
+  SB_CHECK(
+      SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(), path_size) &&
+      SbStringConcat(path.data(), SB_FILE_SEP_STRING, path_size) &&
+      SbStringConcat(path.data(), kWidevineStorageFileName, path_size));
+  return std::string(path.data());
 }
 
 // Converts |::widevine::Cdm::KeyStatus| to starboard's |SbDrmKeyStatus|

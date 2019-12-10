@@ -73,13 +73,14 @@ scoped_refptr<InputBuffer> GetAudioInputBuffer(const VideoDmpReader& dmp_reader,
 string GetTestInputDirectory() {
   const size_t kPathSize = SB_FILE_MAX_PATH + 1;
 
-  char content_path[kPathSize];
-  SB_CHECK(
-      SbSystemGetPath(kSbSystemPathContentDirectory, content_path, kPathSize));
-  string directory_path =
-      string(content_path) + kSbFileSepChar + "test" + kSbFileSepChar +
-      "starboard" + kSbFileSepChar + "shared" + kSbFileSepChar + "starboard" +
-      kSbFileSepChar + "player" + kSbFileSepChar + "testdata";
+  std::vector<char> content_path(kPathSize);
+  SB_CHECK(SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),
+                           kPathSize));
+  string directory_path = string(content_path.data()) + kSbFileSepChar +
+                          "test" + kSbFileSepChar + "starboard" +
+                          kSbFileSepChar + "shared" + kSbFileSepChar +
+                          "starboard" + kSbFileSepChar + "player" +
+                          kSbFileSepChar + "testdata";
 
   SB_CHECK(SbDirectoryCanOpen(directory_path.c_str()))
       << "Cannot open directory " << directory_path;

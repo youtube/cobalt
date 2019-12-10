@@ -14,6 +14,8 @@
 
 #include "starboard/common/storage.h"
 
+#include <vector>
+
 #include "starboard/file.h"
 #include "starboard/shared/starboard/file_storage/storage_internal.h"
 #include "starboard/user.h"
@@ -23,12 +25,12 @@ bool SbStorageDeleteRecord(SbUser user, const char* name) {
     return false;
   }
 
-  char path[SB_FILE_MAX_PATH];
+  std::vector<char> path(SB_FILE_MAX_PATH);
   bool success = starboard::shared::starboard::GetUserStorageFilePath(
-      user, name, path, SB_ARRAY_SIZE_INT(path));
+      user, name, path.data(), static_cast<int>(path.size()));
   if (!success) {
     return false;
   }
 
-  return SbFileDelete(path);
+  return SbFileDelete(path.data());
 }

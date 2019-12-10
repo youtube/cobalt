@@ -66,13 +66,13 @@ std::string GenerateRandomUuid() {
 
 // static
 std::string DialSystemConfig::GeneratePlatformUuid() {
-  char path_buffer[SB_FILE_MAX_PATH];
-  bool success = SbSystemGetPath(kSbSystemPathCacheDirectory, path_buffer,
-                                 sizeof(path_buffer));
+  std::vector<char> path_buffer(SB_FILE_MAX_PATH);
+  bool success = SbSystemGetPath(kSbSystemPathCacheDirectory,
+                                 path_buffer.data(), path_buffer.size());
 
   DCHECK(success) << "kSbSystemPathCacheDirectory not implemented";
 
-  std::string path(path_buffer);
+  std::string path(path_buffer.data());
   path.append(SB_FILE_SEP_STRING);
   path.append(kInAppDialUuidFilename);
 

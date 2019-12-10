@@ -14,6 +14,8 @@
 
 #include "starboard/user.h"
 
+#include <vector>
+
 #include "starboard/common/string.h"
 #include "starboard/shared/nouser/user_internal.h"
 
@@ -30,12 +32,13 @@ int SbUserGetPropertySize(SbUser user, SbUserPropertyId property_id) {
       return static_cast<int>(SbStringGetLength(user->id) + 1);
 
     case kSbUserPropertyHomeDirectory: {
-      char path[SB_FILE_MAX_PATH];
-      if (!starboard::shared::nouser::GetHomeDirectory(
-              user, path, SB_ARRAY_SIZE_INT(path))) {
+      std::vector<char> path(SB_FILE_MAX_PATH);
+      const int path_size = static_cast<int>(path.size());
+      if (!starboard::shared::nouser::GetHomeDirectory(user, path.data(),
+                                                       path_size)) {
         return 0;
       }
-      return static_cast<int>(SbStringGetLength(path));
+      return static_cast<int>(SbStringGetLength(path.data()));
     }
 
     case kSbUserPropertyAvatarUrl:

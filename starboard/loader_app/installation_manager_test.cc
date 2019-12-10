@@ -35,15 +35,15 @@ namespace {
 class InstallationManagerTest : public ::testing::TestWithParam<int> {
  protected:
   virtual void SetUp() {
-    char buf[SB_FILE_MAX_PATH];
-    storage_path_implemented_ =
-        SbSystemGetPath(kSbSystemPathStorageDirectory, buf, SB_FILE_MAX_PATH);
+    std::vector<char> buf(SB_FILE_MAX_PATH);
+    storage_path_implemented_ = SbSystemGetPath(kSbSystemPathStorageDirectory,
+                                                buf.data(), SB_FILE_MAX_PATH);
     // Short-circuit the tests if the kSbSystemPathStorageDirectory is not
     // implemented.
     if (!storage_path_implemented_) {
       return;
     }
-    storage_path_ = buf;
+    storage_path_ = buf.data();
     ASSERT_TRUE(!storage_path_.empty());
     SbDirectoryCreate(storage_path_.c_str());
 
@@ -268,12 +268,14 @@ TEST_P(InstallationManagerTest, GetInstallationPath) {
     return;
   }
   ASSERT_EQ(IM_SUCCESS, ImInitialize(GetParam()));
-  char buf0[SB_FILE_MAX_PATH];
-  ASSERT_EQ(IM_SUCCESS, ImGetInstallationPath(0, buf0, SB_FILE_MAX_PATH));
-  ASSERT_TRUE(SbFileExists(buf0));
-  char buf1[SB_FILE_MAX_PATH];
-  ASSERT_EQ(IM_SUCCESS, ImGetInstallationPath(1, buf1, SB_FILE_MAX_PATH));
-  ASSERT_TRUE(SbFileExists(buf1));
+  std::vector<char> buf0(SB_FILE_MAX_PATH);
+  ASSERT_EQ(IM_SUCCESS,
+            ImGetInstallationPath(0, buf0.data(), SB_FILE_MAX_PATH));
+  ASSERT_TRUE(SbFileExists(buf0.data()));
+  std::vector<char> buf1(SB_FILE_MAX_PATH);
+  ASSERT_EQ(IM_SUCCESS,
+            ImGetInstallationPath(1, buf1.data(), SB_FILE_MAX_PATH));
+  ASSERT_TRUE(SbFileExists(buf1.data()));
 }
 
 TEST_P(InstallationManagerTest, RollForwardIfNeeded) {
@@ -334,9 +336,9 @@ TEST_F(InstallationManagerTest, InvalidInput) {
   ASSERT_EQ(IM_ERROR, ImDecrementInstallationNumTries(10));
   ASSERT_EQ(IM_ERROR, ImDecrementInstallationNumTries(-2));
 
-  char buf[SB_FILE_MAX_PATH];
-  ASSERT_EQ(IM_ERROR, ImGetInstallationPath(10, buf, SB_FILE_MAX_PATH));
-  ASSERT_EQ(IM_ERROR, ImGetInstallationPath(-2, buf, SB_FILE_MAX_PATH));
+  std::vector<char> buf(SB_FILE_MAX_PATH);
+  ASSERT_EQ(IM_ERROR, ImGetInstallationPath(10, buf.data(), SB_FILE_MAX_PATH));
+  ASSERT_EQ(IM_ERROR, ImGetInstallationPath(-2, buf.data(), SB_FILE_MAX_PATH));
   ASSERT_EQ(IM_ERROR, ImGetInstallationPath(-2, NULL, SB_FILE_MAX_PATH));
 }
 
