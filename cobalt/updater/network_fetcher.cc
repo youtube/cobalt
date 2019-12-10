@@ -188,12 +188,12 @@ void NetworkFetcher::CreateUrlFetcher(
 
 void NetworkFetcher::OnPostRequestComplete(const net::URLFetcher* source,
                                            const int status_error) {
-  std::unique_ptr<std::string> response_body;
+  std::unique_ptr<std::string> response_body(new std::string);
   auto* download_data_writer =
       base::polymorphic_downcast<loader::URLFetcherStringWriter*>(
           source->GetResponseWriter());
   if (download_data_writer) {
-    response_body = download_data_writer->data();
+    download_data_writer->GetAndResetData(response_body.get());
   }
 
   if (response_body->empty()) {
