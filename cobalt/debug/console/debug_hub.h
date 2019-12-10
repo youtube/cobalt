@@ -22,6 +22,7 @@
 #include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "cobalt/debug/console/console_command.h"
+#include "cobalt/debug/console/debug_console_mode.h"
 #include "cobalt/debug/console/debugger_event_target.h"
 #include "cobalt/debug/debug_client.h"
 #include "cobalt/dom/c_val_view.h"
@@ -43,7 +44,7 @@ class DebugHub : public script::Wrappable, public DebugClient::Delegate {
  public:
   // Function signature to call when we need to query for the Hud visibility
   // mode.
-  typedef base::Callback<int()> GetHudModeCallback;
+  typedef base::Callback<debug::console::DebugConsoleMode()> GetHudModeCallback;
 
   // JavaScript callback to be run when debugger attaches/detaches.
   typedef script::CallbackFunction<void()> AttachCallback;
@@ -53,12 +54,6 @@ class DebugHub : public script::Wrappable, public DebugClient::Delegate {
   typedef script::CallbackFunction<void(base::Optional<std::string>)>
       ResponseCallback;
   typedef script::ScriptValue<ResponseCallback> ResponseCallbackArg;
-
-  // Debug console visibility modes.
-  static const int kDebugConsoleOff = 0;
-  static const int kDebugConsoleHud = 1;
-  static const int kDebugConsoleOn = 2;
-  static const int kDebugConsoleNumModes = kDebugConsoleOn + 1;
 
   // Thread-safe ref-counted struct used to pass asynchronously executed
   // response callbacks around. Stores the message loop the callback must be
@@ -80,7 +75,7 @@ class DebugHub : public script::Wrappable, public DebugClient::Delegate {
 
   const scoped_refptr<dom::CValView>& c_val() const { return c_val_; }
 
-  int GetDebugConsoleMode() const;
+  debug::console::DebugConsoleMode GetDebugConsoleMode() const;
 
   void Attach(const AttachCallbackArg& callback);
   void Detach(const AttachCallbackArg& callback);

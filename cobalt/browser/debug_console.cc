@@ -33,9 +33,11 @@ namespace {
 const char kInitialDebugConsoleUrl[] =
     "file:///cobalt/debug/console/debug_console.html";
 
-const char kDebugConsoleOffString[] = "off";
-const char kDebugConsoleOnString[] = "on";
-const char kDebugConsoleHudString[] = "hud";
+const char kDebugConsoleModeOffString[] = "off";
+const char kDebugConsoleModeHudString[] = "hud";
+const char kDebugConsoleModeDebugString[] = "debug";
+const char kDebugConsoleModeDebugStringAlias[] = "on";  // Legacy name of mode.
+const char kDebugConsoleModeMediaString[] = "media";
 
 // Convert from a debug console visibility setting string to an integer
 // value specified by a constant defined in debug::console::DebugHub.
@@ -44,12 +46,16 @@ base::Optional<int> DebugConsoleModeStringToInt(
   // Static casting is necessary in order to get around what appears to be a
   // compiler error on Linux when implicitly constructing a base::Optional<int>
   // from a static const int.
-  if (mode_string == kDebugConsoleOffString) {
-    return static_cast<int>(debug::console::DebugHub::kDebugConsoleOff);
-  } else if (mode_string == kDebugConsoleHudString) {
-    return static_cast<int>(debug::console::DebugHub::kDebugConsoleHud);
-  } else if (mode_string == kDebugConsoleOnString) {
-    return static_cast<int>(debug::console::DebugHub::kDebugConsoleOn);
+  if (mode_string == kDebugConsoleModeOffString) {
+    return static_cast<int>(debug::console::kDebugConsoleModeOff);
+  } else if (mode_string == kDebugConsoleModeHudString) {
+    return static_cast<int>(debug::console::kDebugConsoleModeHud);
+  } else if (mode_string == kDebugConsoleModeDebugString) {
+    return static_cast<int>(debug::console::kDebugConsoleModeDebug);
+  } else if (mode_string == kDebugConsoleModeDebugStringAlias) {
+    return static_cast<int>(debug::console::kDebugConsoleModeDebug);
+  } else if (mode_string == kDebugConsoleModeMediaString) {
+    return static_cast<int>(debug::console::kDebugConsoleModeMedia);
   } else {
     DLOG(WARNING) << "Debug console mode \"" << mode_string
                   << "\" not recognized.";
@@ -82,7 +88,7 @@ int GetInitialMode() {
   }
 
   // By default the debug console is off.
-  return debug::console::DebugHub::kDebugConsoleOff;
+  return debug::console::kDebugConsoleModeOff;
 }
 
 // A function to create a DebugHub object, to be injected into WebModule.
@@ -147,8 +153,8 @@ DebugConsole::~DebugConsole() {}
 
 bool DebugConsole::ShouldInjectInputEvents() {
   switch (GetMode()) {
-    case debug::console::DebugHub::kDebugConsoleOff:
-    case debug::console::DebugHub::kDebugConsoleHud:
+    case debug::console::kDebugConsoleModeOff:
+    case debug::console::kDebugConsoleModeHud:
       return false;
     default:
       return true;
@@ -197,12 +203,12 @@ bool DebugConsole::FilterOnScreenKeyboardInputEvent(
 
 void DebugConsole::CycleMode() {
   base::AutoLock lock(mode_mutex_);
-  mode_ = (mode_ + 1) % debug::console::DebugHub::kDebugConsoleNumModes;
+  mode_ = (mode_ + 1) % debug::console::kDebugConsoleModeCount;
 }
 
-int DebugConsole::GetMode() {
+debug::console::DebugConsoleMode DebugConsole::GetMode() {
   base::AutoLock lock(mode_mutex_);
-  return mode_;
+  return static_cast<debug::console::DebugConsoleMode>(mode_);
 }
 
 }  // namespace browser

@@ -26,10 +26,8 @@ function ConsoleManager() {
   // Number of animation frame samples since the last update.
   this.animationFrameSamples = 0;
   // A list of all the possible interactive consoles.
-  // Each item contains the name and the reference to the actual console.
+  // Each item contains the mode and the reference to the actual console.
   this.consoleRegistry = null;
-  // Index of the currently displayed console.
-  this.activeConsoleIdx = 0;
 
   this.initializeConsoles();
 
@@ -37,9 +35,10 @@ function ConsoleManager() {
   document.addEventListener('keyup', this.handleKeyup.bind(this));
   document.addEventListener('keypress', this.handleKeypress.bind(this));
   document.addEventListener('wheel', this.handleWheel.bind(this));
+  document.addEventListener('input', this.handleInput.bind(this));
   if (typeof window.onScreenKeyboard != 'undefined'
       && window.onScreenKeyboard) {
-    window.onScreenKeyboard.oninput = this.handleInput.bind(this);
+    window.onScreenKeyboard.onInput = this.handleInput.bind(this);
   }
   window.requestAnimationFrame(this.animate.bind(this));
 }
@@ -47,24 +46,26 @@ function ConsoleManager() {
 ConsoleManager.prototype.initializeConsoles = function() {
   this.consoleRegistry = [
     {
-      name: 'debug',
       console: new DebugConsole(this.debuggerClient),
+      mode: 'debug',
       bodyClass: 'debugConsole hud',
     },
     {
-      name: 'media',
       console: new MediaConsole(this.debuggerClient),
+      mode: 'media',
       bodyClass: 'mediaConsole',
     },
   ];
 
+  this.hudConsole = this.consoleRegistry[0].console;
+
   this.consoleRegistry.forEach( entry => {
     let ensureConsolesAreValid = function(method) {
       if(typeof entry.console[method] != "function") {
-        console.warn(`Console "${entry.name}" ${method}() is not implemented. \
+        console.warn(`Console "${entry.mode}" ${method}() is not implemented. \
             Providing default empty implementation.`);
         // Provide a default not-implemented warning message.
-        let consoleName = entry.name;
+        let consoleName = entry.mode;
         let notImplementedMessage = function() {
           console.log(
               `Console "${consoleName}" ${method}() is not implemented.`);
@@ -84,29 +85,30 @@ ConsoleManager.prototype.initializeConsoles = function() {
 
 ConsoleManager.prototype.update = function() {
   let mode = window.debugHub.getDebugConsoleMode();
-  let activeConsole = this.consoleRegistry[this.activeConsoleIdx];
-  let visibleEntry;
 
-  if (mode != window.debugHub.DEBUG_CONSOLE_OFF) {
+  if (mode !== 'off') {
     this.debuggerClient.attach();
   }
 
-  let bodyClass = "";
-  if (mode == window.debugHub.DEBUG_CONSOLE_HUD) {
-    bodyClass = "hud";
-  } else if (mode == window.debugHub.DEBUG_CONSOLE_ON) {
+  let activeConsole = this.getActiveConsole();
+  let bodyClass = '';
+  if (mode == 'hud') {
+    bodyClass = 'hud';
+    // The HUD is owned by the debug console, but since it has its own mode
+    // dedicated to it, it needs to be specifically updated when it is visible.
+    // TODO: Factor out hudConsole into its own console.
+    this.hudConsole.updateHud();
+  } else if (mode != 'off' && mode != 'hud') {
     bodyClass = activeConsole.bodyClass;
   }
   document.body.className = bodyClass;
 
   this.consoleRegistry.forEach((entry) => {
-    let visible = (entry === activeConsole &&
-        mode == window.debugHub.DEBUG_CONSOLE_ON);
-    entry.console.setVisible(visible);
+    entry.console.setVisible(entry == activeConsole);
   });
 
-  if (mode != window.debugHub.DEBUG_CONSOLE_OFF) {
-    activeConsole.console.update();
+  if (mode !== 'off') {
+    if (activeConsole) { activeConsole.console.update(); }
   }
 }
 
@@ -121,14 +123,8 @@ ConsoleManager.prototype.animate = function(time) {
 }
 
 ConsoleManager.prototype.getActiveConsole = function() {
-  return this.consoleRegistry[this.activeConsoleIdx].console;
-}
-
-ConsoleManager.prototype.cycleActiveConsole = function() {
-  // TODO: Remove the need to track the active console independently and make it
-  // part of the normal console cycling routine.
-  this.activeConsoleIdx =
-      (this.activeConsoleIdx + 1) % this.consoleRegistry.length;
+  let mode = window.debugHub.getDebugConsoleMode();
+  return this.consoleRegistry.find( entry => entry.mode === mode );
 }
 
 ConsoleManager.prototype.handleKeydown =  function(event) {
@@ -175,28 +171,26 @@ ConsoleManager.prototype.handleKeydown =  function(event) {
     key = unidentifiedCobaltKeyMap[event.keyCode] || 'Unidentified';
   }
 
-  if (event.ctrlKey && key=='m') {
-    this.cycleActiveConsole();
-    console.log('Switched active console to ' +
-        this.consoleRegistry[this.activeConsoleIdx].name);
-    return;
-  }
-
-  this.getActiveConsole().onKeydown(event);
+  let active = this.getActiveConsole();
+  if (active) { active.console.onKeydown(event); }
 }
 
 ConsoleManager.prototype.handleKeyup = function(event) {
-  this.getActiveConsole().onKeyup(event);
+  let active = this.getActiveConsole();
+  if (active) { active.console.onKeyup(event); }
 }
 
 ConsoleManager.prototype.handleKeypress = function(event) {
-  this.getActiveConsole().onKeypress(event);
+  let active = this.getActiveConsole();
+  if (active) { active.console.onKeypress(event); }
 }
 
 ConsoleManager.prototype.handleInput = function(event) {
-  this.getActiveConsole().onInput(event);
+  let active = this.getActiveConsole();
+  if (active) { active.console.onInput(event); }
 }
 
 ConsoleManager.prototype.handleWheel = function(event) {
-  this.getActiveConsole().onWheel(event);
+  let active = this.getActiveConsole();
+  if (active) { active.console.onWheel(event); }
 }
