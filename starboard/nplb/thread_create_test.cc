@@ -142,7 +142,7 @@ TEST(SbThreadCreateTest, SunnyDayDetached) {
 
 TEST(SbThreadCreateTest, Summertime) {
   const int kMany = SB_MAX_THREADS;
-  SbThread threads[kMany];
+  std::vector<SbThread> threads(kMany);
   for (int i = 0; i < kMany; ++i) {
     threads[i] = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity,
                                 true, nplb::kThreadName, nplb::AddOneEntryPoint,

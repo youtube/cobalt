@@ -50,7 +50,7 @@ constexpr char kNumTasksBetweenWaitsHistogramPrefix[] =
     "TaskScheduler.NumTasksBetweenWaits.";
 constexpr char kNumThreadsHistogramPrefix[] = "TaskScheduler.NumWorkers.";
 #ifdef STARBOARD
-constexpr size_t kMaxNumberOfWorkers = SB_MAX_THREADS;
+const size_t kMaxNumberOfWorkers = SB_MAX_THREADS;
 #else
 constexpr size_t kMaxNumberOfWorkers = 256;
 #endif
