@@ -52,7 +52,7 @@ TEST(SbConditionVariableWaitTest, SunnyDay) {
   const int kMany = SB_MAX_THREADS > 64 ? 64 : SB_MAX_THREADS;
   WaiterContext context;
 
-  SbThread threads[kMany];
+  std::vector<SbThread> threads(kMany);
   for (int i = 0; i < kMany; ++i) {
     threads[i] = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity,
                                 true, NULL, WaiterEntryPoint, &context);
