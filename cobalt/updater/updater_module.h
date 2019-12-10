@@ -71,6 +71,12 @@ class UpdaterModule {
   std::unique_ptr<Observer> updater_observer_;
   network::NetworkModule* network_module_;
   scoped_refptr<Configurator> updater_configurator_;
+  int update_check_count_ = 0;
+
+  THREAD_CHECKER(thread_checker_);
+
+  int GetUpdateCheckCount() { return update_check_count_; }
+  void IncrementUpdateCheckCount() { update_check_count_++; }
 };
 
 }  // namespace updater

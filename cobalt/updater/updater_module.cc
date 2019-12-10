@@ -20,6 +20,7 @@
 #include "base/callback_forward.h"
 #include "base/logging.h"
 #include "base/optional.h"
+#include "base/rand_util.h"
 #include "base/run_loop.h"
 #include "base/stl_util.h"
 #include "base/task/post_task.h"
@@ -50,8 +51,6 @@ namespace updater {
 UpdaterModule::UpdaterModule(base::MessageLoop* message_loop,
                              network::NetworkModule* network_module)
     : message_loop_(message_loop), network_module_(network_module) {
-  DCHECK(base::ThreadTaskRunnerHandle::IsSet());
-
   // TODO: enable crash report with dependency on CrashPad
   // updater::crash_reporter::InitializeCrashKeys();
 
@@ -73,7 +72,11 @@ UpdaterModule::UpdaterModule(base::MessageLoop* message_loop,
   update_client_->AddObserver(updater_observer_.get());
 }
 
-UpdaterModule::~UpdaterModule() {}
+UpdaterModule::~UpdaterModule() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  update_client_->RemoveObserver(updater_observer_.get());
+  update_client_ = nullptr;
+}
 
 void UpdaterModule::MarkSuccessful() {
   const CobaltExtensionInstallationManagerApi* installation_api =
@@ -93,6 +96,7 @@ void UpdaterModule::MarkSuccessful() {
 }
 
 void UpdaterModule::Update() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // TODO: get SABI string, get correct appid for the channel
   const std::vector<std::string> app_ids = {
       updater_configurator_->GetAppGuid()};
@@ -122,6 +126,22 @@ void UpdaterModule::Update() {
                 FROM_HERE, base::BindOnce(&QuitLoop, std::move(closure)));
           },
           closure_callback));
+
+  IncrementUpdateCheckCount();
+
+  int kNextUpdateCheckHours = 0;
+  if (GetUpdateCheckCount() == 1) {
+    // Update check ran once. The next check will be scheduled at a randomized
+    // time between 1 and 24 hours.
+    kNextUpdateCheckHours = base::RandInt(1, 24);
+  } else {
+    // Update check ran at least twice. The next check will be scheduled in 24
+    // hours.
+    kNextUpdateCheckHours = 24;
+  }
+  message_loop_->task_runner()->PostDelayedTask(
+      FROM_HERE, base::Bind(&UpdaterModule::Update, base::Unretained(this)),
+      base::TimeDelta::FromHours(kNextUpdateCheckHours));
 }
 
 }  // namespace updater
