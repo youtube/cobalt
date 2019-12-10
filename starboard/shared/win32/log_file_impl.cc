@@ -15,6 +15,7 @@
 #include "starboard/shared/win32/log_file_impl.h"
 
 #include <string>
+#include <vector>
 
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
@@ -57,23 +58,24 @@ void OpenLogInCacheDirectory(const char* log_file_name, int creation_flags) {
             (creation_flags & kSbFileCreateAlways));
   SB_DCHECK(SbStringGetLength(log_file_name) != 0);
   SB_DCHECK(SbStringFindCharacter(log_file_name, kSbFileSepChar) == nullptr);
-  char out_path[SB_FILE_MAX_PATH + 1];
+  std::vector<char> out_path(SB_FILE_MAX_PATH + 1);
   out_path[0] = '\0';
 
-  if (!SbSystemGetPath(kSbSystemPathCacheDirectory, out_path,
-                       SB_ARRAY_SIZE_INT(out_path))) {
+  const int path_size = static_cast<int>(out_path.size());
+  if (!SbSystemGetPath(kSbSystemPathCacheDirectory, out_path.data(),
+                       path_size)) {
     return;
   }
 
-  const int path_size = SB_ARRAY_SIZE_INT(out_path);
-  if (SbStringConcat(out_path, SB_FILE_SEP_STRING, path_size) >= path_size) {
+  if (SbStringConcat(out_path.data(), SB_FILE_SEP_STRING, path_size) >=
+      path_size) {
     return;
   }
-  if (SbStringConcat(out_path, log_file_name, path_size) >= path_size) {
+  if (SbStringConcat(out_path.data(), log_file_name, path_size) >= path_size) {
     return;
   }
 
-  OpenLogFile(out_path, creation_flags);
+  OpenLogFile(out_path.data(), creation_flags);
 }
 
 void OpenLogFile(const char* path, const int creation_flags) {

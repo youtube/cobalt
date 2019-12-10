@@ -43,14 +43,14 @@ bool GetExecutablePath(char* out_path, int path_size) {
     return false;
   }
 
-  wchar_t w_file_path[SB_FILE_MAX_PATH];
+  std::vector<wchar_t> w_file_path(SB_FILE_MAX_PATH);
   DWORD characters_written =
-      GetModuleFileName(NULL, w_file_path, SB_FILE_MAX_PATH);
+      GetModuleFileName(NULL, w_file_path.data(), SB_FILE_MAX_PATH);
   if (characters_written < 1) {
     return false;
   }
   std::string utf8_string =
-      starboard::shared::win32::wchar_tToUTF8(w_file_path);
+      starboard::shared::win32::wchar_tToUTF8(w_file_path.data());
   if (utf8_string.length() >= path_size) {
     return false;
   }
@@ -67,15 +67,15 @@ bool GetExecutableDirectory(char* out_path, int path_size) {
     return false;
   }
 
-  wchar_t w_file_path[SB_FILE_MAX_PATH];
+  std::vector<wchar_t> w_file_path(SB_FILE_MAX_PATH);
   DWORD characters_written =
-      GetModuleFileName(NULL, w_file_path, SB_FILE_MAX_PATH);
+      GetModuleFileName(NULL, w_file_path.data(), SB_FILE_MAX_PATH);
   if (characters_written < 1) {
     return false;
   }
-  PathCchRemoveFileSpec(w_file_path, SB_FILE_MAX_PATH);
+  PathCchRemoveFileSpec(w_file_path.data(), SB_FILE_MAX_PATH);
   std::string utf8_string =
-      starboard::shared::win32::wchar_tToUTF8(w_file_path);
+      starboard::shared::win32::wchar_tToUTF8(w_file_path.data());
   if (utf8_string.length() >= path_size) {
     return false;
   }
@@ -87,20 +87,20 @@ bool GetRelativeDirectory(const char* relative_path,
   if (!out_path || (path_size <= 0)) {
     return false;
   }
-  char file_path[SB_FILE_MAX_PATH];
+  std::vector<char> file_path(SB_FILE_MAX_PATH);
   file_path[0] = '\0';
-  if (!GetExecutableDirectory(file_path, path_size)) {
+  if (!GetExecutableDirectory(file_path.data(), path_size)) {
     return false;
   }
-  if (SbStringConcat(file_path, relative_path, SB_FILE_MAX_PATH) >=
+  if (SbStringConcat(file_path.data(), relative_path, SB_FILE_MAX_PATH) >=
       path_size) {
     return false;
   }
 
-  if (!CreateDirectoryHiearchy(NormalizeWin32Path(file_path))) {
+  if (!CreateDirectoryHiearchy(NormalizeWin32Path(file_path.data()))) {
     return false;
   }
-  return SbStringCopy(out_path, file_path, path_size);
+  return SbStringCopy(out_path, file_path.data(), path_size);
 }
 
 // Places up to |path_size| - 1 characters of the path to the content directory
@@ -120,11 +120,11 @@ bool CreateAndGetTempPath(char* out_path, int path_size) {
   if (!out_path || (path_size <= 0)) {
     return false;
   }
-  wchar_t w_file_path[SB_FILE_MAX_PATH];
+  std::vector<wchar_t> w_file_path(SB_FILE_MAX_PATH);
   w_file_path[0] = L'\0';
 
   int64_t characters_written =
-      static_cast<int>(GetTempPathW(SB_FILE_MAX_PATH, w_file_path));
+      static_cast<int>(GetTempPathW(SB_FILE_MAX_PATH, w_file_path.data()));
   if (characters_written >= (path_size + 1) || characters_written < 1) {
     return false;
   }
@@ -132,7 +132,7 @@ bool CreateAndGetTempPath(char* out_path, int path_size) {
   w_file_path[characters_written - 1] = L'\0';
 
   std::string utf8_string =
-      starboard::shared::win32::wchar_tToUTF8(w_file_path);
+      starboard::shared::win32::wchar_tToUTF8(w_file_path.data());
 
   if (SbStringCopy(out_path, utf8_string.c_str(), path_size) >= path_size) {
     return false;

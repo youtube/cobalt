@@ -32,19 +32,19 @@ std::deque<std::string> GetDirectoryEntries(HANDLE directory_handle) {
   // According to
   // https://msdn.microsoft.com/en-us/library/windows/desktop/aa364226(v=vs.85).aspx,
   // FILE_ID_BOTH_DIR_INFO must be aligned on a DWORDLONG boundary.
-  alignas(
-      sizeof(DWORDLONG)) char directory_info_buffer[kDirectoryInfoBufferSize];
+  alignas(sizeof(DWORDLONG)) std::vector<char> directory_info_buffer(
+      kDirectoryInfoBufferSize);
 
   std::deque<std::string> entries;
   BOOL directory_info_success = GetFileInformationByHandleEx(
-      directory_handle, FileIdBothDirectoryInfo, directory_info_buffer,
-      SB_ARRAY_SIZE(directory_info_buffer));
+      directory_handle, FileIdBothDirectoryInfo, directory_info_buffer.data(),
+      static_cast<int>(directory_info_buffer.size()));
 
   if (!directory_info_success) {
     return entries;
   }
 
-  const char* directory_info_pointer = directory_info_buffer;
+  const char* directory_info_pointer = directory_info_buffer.data();
   DWORD next_entry_offset = 0;
 
   do {

@@ -72,13 +72,14 @@ const SbTimeMonotonic kDefaultWaitForNextEventTimeOut = 5 * kSbTimeSecond;
 std::string GetTestInputDirectory() {
   const size_t kPathSize = SB_FILE_MAX_PATH + 1;
 
-  char content_path[kPathSize];
-  EXPECT_TRUE(
-      SbSystemGetPath(kSbSystemPathContentDirectory, content_path, kPathSize));
+  std::vector<char> content_path(kPathSize);
+  EXPECT_TRUE(SbSystemGetPath(kSbSystemPathContentDirectory,
+                              content_path.data(), kPathSize));
   std::string directory_path =
-      std::string(content_path) + kSbFileSepChar + "test" + kSbFileSepChar +
-      "starboard" + kSbFileSepChar + "shared" + kSbFileSepChar + "starboard" +
-      kSbFileSepChar + "player" + kSbFileSepChar + "testdata";
+      std::string(content_path.data()) + kSbFileSepChar + "test" +
+      kSbFileSepChar + "starboard" + kSbFileSepChar + "shared" +
+      kSbFileSepChar + "starboard" + kSbFileSepChar + "player" +
+      kSbFileSepChar + "testdata";
 
   SB_CHECK(SbDirectoryCanOpen(directory_path.c_str())) << directory_path;
   return directory_path;

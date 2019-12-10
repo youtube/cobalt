@@ -17,6 +17,7 @@
 #include <windows.h>
 
 #include <algorithm>
+#include <vector>
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -35,19 +36,20 @@ bool SbStorageWriteRecord(SbStorageRecord record,
   }
 
   const char* name = record->name.c_str();
-  char original_file_path[SB_FILE_MAX_PATH];
+  std::vector<char> original_file_path(SB_FILE_MAX_PATH);
   if (!starboard::shared::starboard::GetUserStorageFilePath(
-          record->user, name, original_file_path, SB_FILE_MAX_PATH)) {
+          record->user, name, original_file_path.data(), SB_FILE_MAX_PATH)) {
     return false;
   }
-  char temp_file_path[SB_FILE_MAX_PATH];
-  SbStringCopy(temp_file_path, original_file_path, SB_FILE_MAX_PATH);
-  SbStringConcat(temp_file_path, kTempFileSuffix, SB_FILE_MAX_PATH);
+  std::vector<char> temp_file_path(SB_FILE_MAX_PATH);
+  SbStringCopy(temp_file_path.data(), original_file_path.data(),
+               SB_FILE_MAX_PATH);
+  SbStringConcat(temp_file_path.data(), kTempFileSuffix, SB_FILE_MAX_PATH);
 
   SbFileError error;
   SbFile temp_file = SbFileOpen(
-      temp_file_path, kSbFileCreateAlways | kSbFileWrite | kSbFileRead, NULL,
-      &error);
+      temp_file_path.data(), kSbFileCreateAlways | kSbFileWrite | kSbFileRead,
+      NULL, &error);
   if (error != kSbFileOk) {
     return false;
   }
@@ -62,7 +64,7 @@ bool SbStorageWriteRecord(SbStorageRecord record,
     int bytes_written = SbFileWrite(temp_file, source, to_write_max);
     if (bytes_written < 0) {
       SbFileClose(temp_file);
-      SbFileDelete(temp_file_path);
+      SbFileDelete(temp_file_path.data());
       return false;
     }
 
@@ -84,15 +86,16 @@ bool SbStorageWriteRecord(SbStorageRecord record,
 
   std::wstring original_path_wstring =
       starboard::shared::win32::NormalizeWin32Path(
-          starboard::shared::win32::CStringToWString(original_file_path));
+          starboard::shared::win32::CStringToWString(
+              original_file_path.data()));
   std::wstring temp_path_wstring = starboard::shared::win32::NormalizeWin32Path(
-      starboard::shared::win32::CStringToWString(temp_file_path));
+      starboard::shared::win32::CStringToWString(temp_file_path.data()));
   if (ReplaceFileW(original_path_wstring.c_str(), temp_path_wstring.c_str(),
                    NULL, 0, NULL, NULL) == 0) {
     return false;
   }
   SbFile new_record_file =
-      SbFileOpen(original_file_path,
+      SbFileOpen(original_file_path.data(),
                  kSbFileOpenOnly | kSbFileWrite | kSbFileRead, NULL, NULL);
   record->file = new_record_file;
 

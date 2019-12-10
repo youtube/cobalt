@@ -14,6 +14,8 @@
 
 #include "starboard/elf_loader/elf_loader.h"
 
+#include <vector>
+
 #include "starboard/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
@@ -78,16 +80,16 @@ void* ElfLoader::LookupSymbol(const char* symbol) {
 }
 
 std::string ElfLoader::MakeRelativeToContentPath(const std::string& path) {
-  char content_path[SB_FILE_MAX_PATH];
+  std::vector<char> content_path(SB_FILE_MAX_PATH);
 
-  if (!SbSystemGetPath(kSbSystemPathContentDirectory, content_path,
+  if (!SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),
                        SB_FILE_MAX_PATH)) {
-    SB_LOG(ERROR) << "Failed to make '" << path << "' relative to the ELF "
-                  << "Loader content directory.";
+    SB_LOG(ERROR) << "Failed to make '" << path.data()
+                  << "' relative to the ELF Loader content directory.";
     return "";
   }
 
-  std::string relative_path(content_path);
+  std::string relative_path(content_path.data());
 
   relative_path.push_back(kSbFileSepChar);
   relative_path.append(path);

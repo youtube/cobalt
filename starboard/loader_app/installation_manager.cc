@@ -16,6 +16,7 @@
 
 #include <set>
 #include <string>
+#include <vector>
 
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
@@ -501,9 +502,9 @@ bool InstallationManager::SaveInstallationStore() {
 }
 
 bool InstallationManager::InitInstallationStorePath() {
-  char storage_dir[SB_FILE_MAX_PATH];
+  std::vector<char> storage_dir(SB_FILE_MAX_PATH);
 #if SB_API_VERSION >= SB_STORAGE_PATH_VERSION
-  if (!SbSystemGetPath(kSbSystemPathStorageDirectory, storage_dir,
+  if (!SbSystemGetPath(kSbSystemPathStorageDirectory, storage_dir.data(),
                        SB_FILE_MAX_PATH)) {
     SB_LOG(ERROR) << "InitInstallationStorePath: Failed to get "
                      "kSbSystemPathStorageDirectory";
@@ -517,8 +518,8 @@ bool InstallationManager::InitInstallationStorePath() {
   return false;
 
 #endif
-  storage_dir_ = storage_dir;
-  store_path_ = storage_dir;
+  storage_dir_ = storage_dir.data();
+  store_path_ = storage_dir.data();
   store_path_ += SB_FILE_SEP_STRING;
   store_path_ += IM_STORE_FILE_NAME;
   return true;
@@ -584,12 +585,12 @@ bool InstallationManager::GetInstallationPathInternal(int installation_index,
 }
 
 bool InstallationManager::CreateInstallationDirs() {
-  char path[SB_FILE_MAX_PATH];
+  std::vector<char> path(SB_FILE_MAX_PATH);
   for (int i = 0; i < max_num_installations_; i++) {
-    if (!GetInstallationPathInternal(i, path, SB_FILE_MAX_PATH)) {
+    if (!GetInstallationPathInternal(i, path.data(), SB_FILE_MAX_PATH)) {
       return false;
     }
-    if (!SbDirectoryCreate(path)) {
+    if (!SbDirectoryCreate(path.data())) {
       return false;
     }
   }

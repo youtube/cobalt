@@ -88,14 +88,14 @@ TEST(SbFileGetPathInfoTest, WorksOnARegularFile) {
 }
 
 TEST(SbFileGetPathInfoTest, WorksOnADirectory) {
-  char path[SB_FILE_MAX_PATH] = {0};
-  bool result =
-      SbSystemGetPath(kSbSystemPathTempDirectory, path, SB_FILE_MAX_PATH);
+  std::vector<char> path(SB_FILE_MAX_PATH);
+  bool result = SbSystemGetPath(kSbSystemPathTempDirectory, path.data(),
+                                SB_FILE_MAX_PATH);
   EXPECT_TRUE(result);
 
   {
     SbFileInfo info = {0};
-    bool result = SbFileGetPathInfo(path, &info);
+    bool result = SbFileGetPathInfo(path.data(), &info);
     EXPECT_LE(0, info.size);
     EXPECT_TRUE(info.is_directory);
     EXPECT_FALSE(info.is_symbolic_link);

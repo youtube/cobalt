@@ -16,6 +16,8 @@
 
 #include <windows.h>
 
+#include <vector>
+
 #include "starboard/common/string.h"
 #include "starboard/shared/starboard/file_atomic_replace_write_file.h"
 #include "starboard/shared/win32/file_internal.h"
@@ -36,20 +38,20 @@ bool SbFileAtomicReplace(const char* path,
     return false;
   }
 
-  char temp_path[SB_FILE_MAX_PATH];
+  std::vector<char> temp_path(SB_FILE_MAX_PATH);
 
-  SbStringCopy(temp_path, path, SB_FILE_MAX_PATH);
-  SbStringConcat(temp_path, kTempFileSuffix, SB_FILE_MAX_PATH);
+  SbStringCopy(temp_path.data(), path, SB_FILE_MAX_PATH);
+  SbStringConcat(temp_path.data(), kTempFileSuffix, SB_FILE_MAX_PATH);
 
   if (!::starboard::shared::starboard::SbFileAtomicReplaceWriteFile(
-          temp_path, data, data_size)) {
+          temp_path.data(), data, data_size)) {
     return false;
   }
 
   std::wstring path_wstring = starboard::shared::win32::NormalizeWin32Path(
       starboard::shared::win32::CStringToWString(path));
   std::wstring temp_path_wstring = starboard::shared::win32::NormalizeWin32Path(
-      starboard::shared::win32::CStringToWString(temp_path));
+      starboard::shared::win32::CStringToWString(temp_path.data()));
 
   // Try a simple move first. It will only succeed when |to_path| doesn't
   // already exist.
