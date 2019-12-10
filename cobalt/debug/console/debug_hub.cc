@@ -45,7 +45,7 @@ DebugHub::DebugHub(
 
 DebugHub::~DebugHub() {}
 
-int DebugHub::GetDebugConsoleMode() const {
+debug::console::DebugConsoleMode DebugHub::GetDebugConsoleMode() const {
   return get_hud_mode_callback_.Run();
 }
 

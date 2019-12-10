@@ -47,11 +47,9 @@ DebugConsole.prototype.printToHud = function(message) {
 
 DebugConsole.prototype.updateHud = function() {
   let mode = window.debugHub.getDebugConsoleMode();
-  if (mode >= window.debugHub.DEBUG_CONSOLE_HUD) {
-    this.consoleValues.update();
-    let cvalString = this.consoleValues.toString();
-    this.printToHud(cvalString);
-  }
+  this.consoleValues.update();
+  let cvalString = this.consoleValues.toString();
+  this.printToHud(cvalString);
 }
 
 DebugConsole.prototype.setVisible = function(visible) {
@@ -199,8 +197,7 @@ DebugConsole.prototype.onKeypress = function(event) {
 
 DebugConsole.prototype.onInput = function(event) {
   console.log('In DebugConsole onInput, event.data ' + event.data);
-  let mode = window.debugHub.getDebugConsoleMode();
-  if (mode >= window.debugHub.DEBUG_CONSOLE_ON && event.data) {
+  if (event.data) {
     event.preventDefault();
     event.stopPropagation();
     this.commandInput.insertStringBehindCursor(event.data);

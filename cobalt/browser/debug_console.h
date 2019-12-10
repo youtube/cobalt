@@ -27,6 +27,7 @@
 #include "cobalt/base/token.h"
 #include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/browser/web_module.h"
+#include "cobalt/debug/console/debug_console_mode.h"
 #include "cobalt/debug/console/debug_hub.h"
 #include "cobalt/dom/input_event_init.h"
 #include "cobalt/dom/keyboard_event_init.h"
@@ -86,7 +87,7 @@ class DebugConsole : public LifecycleObserver {
 
   // Returns true iff the console is in a mode that is visible.
   bool IsVisible() {
-    return (GetMode() != debug::console::DebugHub::kDebugConsoleOff);
+    return (GetMode() != debug::console::kDebugConsoleModeOff);
   }
 
   void SetSize(const cssom::ViewportSize& window_dimensions,
@@ -114,7 +115,7 @@ class DebugConsole : public LifecycleObserver {
   }
 
   // Returns the currently set debug console visibility mode.
-  int GetMode();
+  debug::console::DebugConsoleMode GetMode();
 
   // Returns true iff the debug console is in a state where it should route
   // input events to its web module.
