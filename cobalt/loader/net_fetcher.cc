@@ -218,7 +218,7 @@ void NetFetcher::OnURLFetchDownloadProgress(const net::URLFetcher* source,
     }
 #if defined(HANDLE_CORE_DUMP)
     net_fetcher_log.Get().IncrementFetchedBytes(
-        static_cast<int>(data->length()));
+        static_cast<int>(data.length()));
 #endif
     handler()->OnReceivedPassed(
         this, std::unique_ptr<std::string>(new std::string(std::move(data))));
