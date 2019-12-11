@@ -9,6 +9,7 @@
 
 #include "compiler/translator/tree_ops/DeclareAndInitBuiltinsForInstancedMultiview.h"
 
+#include "base/cpp14oncpp11.h"
 #include "compiler/translator/Compiler.h"
 #include "compiler/translator/StaticType.h"
 #include "compiler/translator/SymbolTable.h"
@@ -26,9 +27,9 @@ namespace sh
 namespace
 {
 
-constexpr const ImmutableString kViewIDVariableName("ViewID_OVR");
-constexpr const ImmutableString kInstanceIDVariableName("InstanceID");
-constexpr const ImmutableString kMultiviewBaseViewLayerIndexVariableName(
+CONSTEXPR const ImmutableString kViewIDVariableName("ViewID_OVR");
+CONSTEXPR const ImmutableString kInstanceIDVariableName("InstanceID");
+CONSTEXPR const ImmutableString kMultiviewBaseViewLayerIndexVariableName(
     "multiviewBaseViewLayerIndex");
 
 // Adds the InstanceID and ViewID_OVR initializers to the end of the initializers' sequence.

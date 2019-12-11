@@ -8,6 +8,7 @@
 
 #include "compiler/translator/tree_ops/RewriteAtomicCounters.h"
 
+#include "base/cpp14oncpp11.h"
 #include "compiler/translator/Compiler.h"
 #include "compiler/translator/ImmutableStringBuilder.h"
 #include "compiler/translator/StaticType.h"
@@ -20,10 +21,10 @@ namespace sh
 {
 namespace
 {
-constexpr ImmutableString kAtomicCounterTypeName  = ImmutableString("ANGLE_atomic_uint");
-constexpr ImmutableString kAtomicCounterBlockName = ImmutableString("ANGLEAtomicCounters");
-constexpr ImmutableString kAtomicCounterVarName   = ImmutableString("atomicCounters");
-constexpr ImmutableString kAtomicCounterFieldName = ImmutableString("counters");
+CONSTEXPR ImmutableString kAtomicCounterTypeName  = ImmutableString("ANGLE_atomic_uint");
+CONSTEXPR ImmutableString kAtomicCounterBlockName = ImmutableString("ANGLEAtomicCounters");
+CONSTEXPR ImmutableString kAtomicCounterVarName   = ImmutableString("atomicCounters");
+CONSTEXPR ImmutableString kAtomicCounterFieldName = ImmutableString("counters");
 
 // DeclareAtomicCountersBuffer adds a storage buffer array that's used with atomic counters.
 const TVariable *DeclareAtomicCountersBuffers(TIntermBlock *root, TSymbolTable *symbolTable)

@@ -27,7 +27,7 @@ enum class WidgetInternalType
 };
 
 // A map that says how the API-facing widget types map to internal types.
-constexpr angle::PackedEnumMap<WidgetType, WidgetInternalType> kWidgetTypeToInternalMap = {
+CONSTEXPR angle::PackedEnumMap<WidgetType, WidgetInternalType> kWidgetTypeToInternalMap = {
     {WidgetType::Count, WidgetInternalType::Text},
     {WidgetType::Text, WidgetInternalType::Text},
     {WidgetType::PerSecond, WidgetInternalType::Text},
@@ -43,12 +43,12 @@ constexpr size_t kMaxRenderableGraphWidgets = 32;
 constexpr size_t kMaxTextLength             = 256;
 constexpr size_t kMaxGraphDataSize          = 64;
 
-constexpr angle::PackedEnumMap<WidgetInternalType, size_t> kWidgetInternalTypeMaxWidgets = {
+CONSTEXPR angle::PackedEnumMap<WidgetInternalType, size_t> kWidgetInternalTypeMaxWidgets = {
     {WidgetInternalType::Text, kMaxRenderableTextWidgets},
     {WidgetInternalType::Graph, kMaxRenderableGraphWidgets},
 };
 
-constexpr angle::PackedEnumMap<WidgetInternalType, size_t> kWidgetInternalTypeWidgetOffsets = {
+CONSTEXPR angle::PackedEnumMap<WidgetInternalType, size_t> kWidgetInternalTypeWidgetOffsets = {
     {WidgetInternalType::Text, 0},
     {WidgetInternalType::Graph, kMaxRenderableTextWidgets},
 };
@@ -385,7 +385,7 @@ std::ostream &AppendWidgetDataHelper::OutputCount(std::ostream &out, const overl
 
 namespace
 {
-constexpr angle::PackedEnumMap<WidgetId, AppendWidgetDataFunc> kWidgetIdToAppendDataFuncMap = {
+CONSTEXPR angle::PackedEnumMap<WidgetId, AppendWidgetDataFunc> kWidgetIdToAppendDataFuncMap = {
     {WidgetId::FPS, overlay_impl::AppendWidgetDataHelper::AppendFPS},
     {WidgetId::VulkanLastValidationMessage,
      overlay_impl::AppendWidgetDataHelper::AppendVulkanLastValidationMessage},

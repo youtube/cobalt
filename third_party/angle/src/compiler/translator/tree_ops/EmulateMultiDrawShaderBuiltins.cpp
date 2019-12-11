@@ -16,6 +16,7 @@
 #include "compiler/translator/tree_ops/EmulateMultiDrawShaderBuiltins.h"
 
 #include "angle_gl.h"
+#include "base/cpp14oncpp11.h"
 #include "compiler/translator/StaticType.h"
 #include "compiler/translator/Symbol.h"
 #include "compiler/translator/SymbolTable.h"
@@ -30,7 +31,7 @@ namespace sh
 namespace
 {
 
-constexpr const ImmutableString kEmulatedGLDrawIDName("angle_DrawID");
+CONSTEXPR const ImmutableString kEmulatedGLDrawIDName("angle_DrawID");
 
 class FindGLDrawIDTraverser : public TIntermTraverser
 {
@@ -71,7 +72,7 @@ class AddBaseVertexToGLVertexIDTraverser : public TIntermTraverser
     }
 };
 
-constexpr const ImmutableString kEmulatedGLBaseVertexName("angle_BaseVertex");
+CONSTEXPR const ImmutableString kEmulatedGLBaseVertexName("angle_BaseVertex");
 
 class FindGLBaseVertexTraverser : public TIntermTraverser
 {
@@ -93,7 +94,7 @@ class FindGLBaseVertexTraverser : public TIntermTraverser
     const TVariable *mVariable;
 };
 
-constexpr const ImmutableString kEmulatedGLBaseInstanceName("angle_BaseInstance");
+CONSTEXPR const ImmutableString kEmulatedGLBaseInstanceName("angle_BaseInstance");
 
 class FindGLBaseInstanceTraverser : public TIntermTraverser
 {

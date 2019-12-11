@@ -17,6 +17,7 @@
 
 #include <vector>
 
+#include "base/cpp14oncpp11.h"
 #include "compiler/translator/Compiler.h"
 #include "compiler/translator/IntermNode.h"
 #include "compiler/translator/StaticType.h"
@@ -32,7 +33,7 @@ namespace sh
 namespace
 {
 
-constexpr const ImmutableString kInitGlobalsString("initGlobals");
+CONSTEXPR const ImmutableString kInitGlobalsString("initGlobals");
 
 void GetDeferredInitializers(TIntermDeclaration *declaration,
                              bool initializeUninitializedGlobals,

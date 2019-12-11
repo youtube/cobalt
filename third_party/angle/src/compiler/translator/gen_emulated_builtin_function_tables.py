@@ -40,7 +40,7 @@ struct FunctionPair
    const char *body;
 }};
 
-constexpr FunctionPair g_hlslFunctions[] = {{
+const FunctionPair g_hlslFunctions[] = {{
 {emulated_functions}}};
 }}  // anonymous namespace
 

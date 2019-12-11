@@ -7,6 +7,7 @@
 #ifndef COMPILER_TRANSLATOR_TYPES_H_
 #define COMPILER_TRANSLATOR_TYPES_H_
 
+#include "base/cpp14oncpp11.h"
 #include "common/angleutils.h"
 #include "common/debug.h"
 
@@ -233,7 +234,7 @@ class TType
 
     const TStructure *getStruct() const { return mStructure; }
 
-    static constexpr char GetSizeMangledName(unsigned char primarySize, unsigned char secondarySize)
+    static CONSTEXPR char GetSizeMangledName(unsigned char primarySize, unsigned char secondarySize)
     {
         unsigned int sizeKey = (secondarySize - 1u) * 4u + primarySize - 1u;
         if (sizeKey < 10u)
@@ -242,6 +243,7 @@ class TType
         }
         return static_cast<char>('A' + sizeKey - 10);
     }
+
     const char *getMangledName() const;
 
     bool sameNonArrayType(const TType &right) const;

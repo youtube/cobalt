@@ -9,6 +9,7 @@
 #ifndef COMPILER_TRANSLATOR_SYMBOL_H_
 #define COMPILER_TRANSLATOR_SYMBOL_H_
 
+#include "base/cpp14oncpp11.h"
 #include "common/angleutils.h"
 #include "compiler/translator/ExtensionBehavior.h"
 #include "compiler/translator/ImmutableString.h"
@@ -238,7 +239,7 @@ class TFunction : public TSymbol
     bool hasSamplerInStructOrArrayOfArrayParams() const;
 
     // Note: Only to be used for static built-in functions!
-    constexpr TFunction(const TSymbolUniqueId &id,
+    CONSTEXPR TFunction(const TSymbolUniqueId &id,
                         const ImmutableString &name,
                         TExtension extension,
                         const TVariable *const *parameters,

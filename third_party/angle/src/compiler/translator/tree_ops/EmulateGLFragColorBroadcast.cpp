@@ -13,6 +13,7 @@
 
 #include "compiler/translator/tree_ops/EmulateGLFragColorBroadcast.h"
 
+#include "base/cpp14oncpp11.h"
 #include "compiler/translator/Compiler.h"
 #include "compiler/translator/Symbol.h"
 #include "compiler/translator/tree_util/IntermNode_util.h"
@@ -25,7 +26,7 @@ namespace sh
 namespace
 {
 
-constexpr const ImmutableString kGlFragDataString("gl_FragData");
+CONSTEXPR const ImmutableString kGlFragDataString("gl_FragData");
 
 class GLFragColorBroadcastTraverser : public TIntermTraverser
 {
