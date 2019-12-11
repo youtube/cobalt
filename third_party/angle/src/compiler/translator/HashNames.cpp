@@ -6,6 +6,7 @@
 
 #include "compiler/translator/HashNames.h"
 
+#include "base/cpp14oncpp11.h"
 #include "compiler/translator/ImmutableString.h"
 #include "compiler/translator/ImmutableStringBuilder.h"
 #include "compiler/translator/IntermNode.h"
@@ -16,12 +17,12 @@ namespace sh
 
 namespace
 {
-constexpr const ImmutableString kHashedNamePrefix("webgl_");
+CONSTEXPR const ImmutableString kHashedNamePrefix("webgl_");
 
 // Can't prefix with just _ because then we might introduce a double underscore, which is not safe
 // in GLSL (ESSL 3.00.6 section 3.8: All identifiers containing a double underscore are reserved for
 // use by the underlying implementation). u is short for user-defined.
-constexpr const ImmutableString kUnhashedNamePrefix("_u");
+CONSTEXPR const ImmutableString kUnhashedNamePrefix("_u");
 
 ImmutableString HashName(const ImmutableString &name, ShHashFunction64 hashFunction)
 {

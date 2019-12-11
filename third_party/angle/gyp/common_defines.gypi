@@ -31,6 +31,7 @@
     [
         4100, # Unreferenced formal parameter. Not interesting.
         4127, # conditional expression is constant. Too noisy to be useful.
+        4200, # Nonstandard extension used: zero-sized array in struct/union.
         4718, # Recursive call has no side effects. Fires on xtree system header.
         4251, # STL objects do not have DLL interface, needed by ShaderVars.h and angle_util
     ],

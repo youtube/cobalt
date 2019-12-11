@@ -11,6 +11,7 @@
 #include <string.h>
 #include <limits>
 
+#include "base/cpp14oncpp11.h"
 #include "common/bitset_utils.h"
 #include "common/mathutil.h"
 #include "common/matrix_utils.h"
@@ -49,7 +50,7 @@ bool GetAlternativeQueryType(QueryType type, QueryType *alternativeType)
 }
 
 // Mapping from a buffer binding type to a dirty bit type.
-constexpr angle::PackedEnumMap<BufferBinding, size_t> kBufferBindingDirtyBits = {{
+CONSTEXPR angle::PackedEnumMap<BufferBinding, size_t> kBufferBindingDirtyBits = {{
     {BufferBinding::AtomicCounter, State::DIRTY_BIT_ATOMIC_COUNTER_BUFFER_BINDING},
     {BufferBinding::DispatchIndirect, State::DIRTY_BIT_DISPATCH_INDIRECT_BUFFER_BINDING},
     {BufferBinding::DrawIndirect, State::DIRTY_BIT_DRAW_INDIRECT_BUFFER_BINDING},

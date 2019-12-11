@@ -9,6 +9,7 @@
 
 #include "compiler/translator/ResourcesHLSL.h"
 
+#include "base/cpp14oncpp11.h"
 #include "common/utilities.h"
 #include "compiler/translator/AtomicCounterFunctionHLSL.h"
 #include "compiler/translator/ImmutableStringBuilder.h"
@@ -23,7 +24,7 @@ namespace sh
 namespace
 {
 
-constexpr const ImmutableString kAngleDecorString("angle_");
+CONSTEXPR const ImmutableString kAngleDecorString("angle_");
 
 static const char *UniformRegisterPrefix(const TType &type)
 {

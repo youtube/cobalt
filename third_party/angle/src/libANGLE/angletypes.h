@@ -9,6 +9,7 @@
 #ifndef LIBANGLE_ANGLETYPES_H_
 #define LIBANGLE_ANGLETYPES_H_
 
+#include "base/cpp14oncpp11.h"
 #include "common/Color.h"
 #include "common/FixedVector.h"
 #include "common/PackedEnums.h"
@@ -403,7 +404,7 @@ enum class ComponentType
     InvalidEnum = 4,
 };
 
-constexpr ComponentType GLenumToComponentType(GLenum componentType)
+CONSTEXPR_OR_INLINE ComponentType GLenumToComponentType(GLenum componentType)
 {
     switch (componentType)
     {
@@ -420,11 +421,7 @@ constexpr ComponentType GLenumToComponentType(GLenum componentType)
     }
 }
 
-constexpr angle::PackedEnumMap<ComponentType, uint32_t> kComponentMasks = {{
-    {ComponentType::Float, 0x10001},
-    {ComponentType::Int, 0x00001},
-    {ComponentType::UnsignedInt, 0x10000},
-}};
+extern CONSTEXPR angle::PackedEnumMap<ComponentType, uint32_t> kComponentMasks;
 
 constexpr size_t kMaxComponentTypeMaskIndex = 16;
 using ComponentTypeMask                     = angle::BitSet<kMaxComponentTypeMaskIndex * 2>;

@@ -6,6 +6,7 @@
 
 #include "compiler/translator/tree_ops/RegenerateStructNames.h"
 
+#include "base/cpp14oncpp11.h"
 #include "common/debug.h"
 #include "compiler/translator/ImmutableStringBuilder.h"
 
@@ -14,7 +15,7 @@ namespace sh
 
 namespace
 {
-constexpr const ImmutableString kPrefix("_webgl_struct_");
+CONSTEXPR const ImmutableString kPrefix("_webgl_struct_");
 }  // anonymous namespace
 
 void RegenerateStructNames::visitSymbol(TIntermSymbol *symbol)

@@ -9,6 +9,7 @@
 
 #include "compiler/translator/AtomicCounterFunctionHLSL.h"
 
+#include "base/cpp14oncpp11.h"
 #include "compiler/translator/Common.h"
 #include "compiler/translator/ImmutableStringBuilder.h"
 #include "compiler/translator/InfoSink.h"
@@ -19,10 +20,10 @@ namespace sh
 
 namespace
 {
-constexpr ImmutableString kAtomicCounter("atomicCounter");
-constexpr ImmutableString kAtomicCounterIncrement("atomicCounterIncrement");
-constexpr ImmutableString kAtomicCounterDecrement("atomicCounterDecrement");
-constexpr ImmutableString kAtomicCounterBaseName("_acbase_");
+CONSTEXPR ImmutableString kAtomicCounter("atomicCounter");
+CONSTEXPR ImmutableString kAtomicCounterIncrement("atomicCounterIncrement");
+CONSTEXPR ImmutableString kAtomicCounterDecrement("atomicCounterDecrement");
+CONSTEXPR ImmutableString kAtomicCounterBaseName("_acbase_");
 }  // namespace
 
 AtomicCounterFunctionHLSL::AtomicCounterFunctionHLSL(bool forceResolution)

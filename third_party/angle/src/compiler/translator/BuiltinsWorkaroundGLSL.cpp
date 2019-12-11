@@ -7,6 +7,7 @@
 #include "compiler/translator/BuiltinsWorkaroundGLSL.h"
 
 #include "angle_gl.h"
+#include "base/cpp14oncpp11.h"
 #include "compiler/translator/StaticType.h"
 #include "compiler/translator/Symbol.h"
 #include "compiler/translator/SymbolTable.h"
@@ -17,8 +18,8 @@ namespace sh
 
 namespace
 {
-constexpr const ImmutableString kGlInstanceIDString("gl_InstanceID");
-constexpr const ImmutableString kGlVertexIDString("gl_VertexID");
+CONSTEXPR const ImmutableString kGlInstanceIDString("gl_InstanceID");
+CONSTEXPR const ImmutableString kGlVertexIDString("gl_VertexID");
 
 class TBuiltinsWorkaroundGLSL : public TIntermTraverser
 {

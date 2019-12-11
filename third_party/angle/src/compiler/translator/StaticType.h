@@ -10,6 +10,7 @@
 #ifndef COMPILER_TRANSLATOR_STATIC_TYPE_H_
 #define COMPILER_TRANSLATOR_STATIC_TYPE_H_
 
+#include "base/cpp14oncpp11.h"
 #include "compiler/translator/Types.h"
 
 namespace sh
@@ -38,23 +39,13 @@ struct StaticMangledName
 };
 
 // Generates a mangled name for a TType given its parameters.
-constexpr StaticMangledName BuildStaticMangledName(TBasicType basicType,
+StaticMangledName BuildStaticMangledName(TBasicType basicType,
                                                    TPrecision precision,
                                                    TQualifier qualifier,
                                                    unsigned char primarySize,
-                                                   unsigned char secondarySize)
-{
-    StaticMangledName name = {};
-    name.name[0]           = TType::GetSizeMangledName(primarySize, secondarySize);
-    TBasicMangledName typeName(basicType);
-    char *mangledName = typeName.getName();
-    static_assert(TBasicMangledName::mangledNameSize == 2, "Mangled name size is not 2");
-    name.name[1] = mangledName[0];
-    name.name[2] = mangledName[1];
-    name.name[3] = '\0';
-    return name;
-}
+                                                   unsigned char secondarySize);
 
+#if !defined(STARBOARD)
 // This "variable" contains the mangled names for every constexpr-generated TType.
 // If kMangledNameInstance<B, P, Q, PS, SS> is used anywhere (specifally
 // in instance, below), this is where the appropriate type will be stored.
@@ -65,11 +56,31 @@ template <TBasicType basicType,
           unsigned char secondarySize>
 static constexpr StaticMangledName kMangledNameInstance =
     BuildStaticMangledName(basicType, precision, qualifier, primarySize, secondarySize);
+#else
+// Apply a C++11 workaround for variable templates.
+// See https://isocpp.org/files/papers/N3651.pdf for details.
+template <TBasicType basicType,
+          TPrecision precision,
+          TQualifier qualifier,
+          unsigned char primarySize,
+          unsigned char secondarySize>
+struct staticmangledname {
+    static CONSTEXPR StaticMangledName kMangledNameInstance;
+};
 
+template <TBasicType basicType,
+          TPrecision precision,
+          TQualifier qualifier,
+          unsigned char primarySize,
+          unsigned char secondarySize>
+   CONSTEXPR StaticMangledName staticmangledname<basicType, precision, qualifier, primarySize, secondarySize>::kMangledNameInstance =
+     BuildStaticMangledName(basicType, precision, qualifier, primarySize, secondarySize);
+#endif
 //
 // Generation and static allocation of TType values.
 //
 
+#if !defined(STARBOARD)
 // This "variable" contains every constexpr-generated TType.
 // If instance<B, P, Q, PS, SS> is used anywhere (specifally
 // in Get, below), this is where the appropriate type will be stored.
@@ -89,6 +100,31 @@ static constexpr TType instance =
           primarySize,
           secondarySize,
           kMangledNameInstance<basicType, precision, qualifier, primarySize, secondarySize>.name);
+#else
+// Apply a C++11 workaround for variable templates.
+// See https://isocpp.org/files/papers/N3651.pdf for details.
+template <TBasicType basicType,
+          TPrecision precision,
+          TQualifier qualifier,
+          unsigned char primarySize,
+          unsigned char secondarySize>
+struct ttype {
+  static CONSTEXPR TType instance;
+};
+
+template <TBasicType basicType,
+          TPrecision precision,
+          TQualifier qualifier,
+          unsigned char primarySize,
+          unsigned char secondarySize>
+  CONSTEXPR TType ttype<basicType, precision, qualifier, primarySize, secondarySize>::instance =
+    TType(basicType,
+          precision,
+          qualifier,
+          primarySize,
+          secondarySize,
+          staticmangledname<basicType, precision, qualifier, primarySize, secondarySize>::kMangledNameInstance.name);
+#endif
 
 }  // namespace Helpers
 
@@ -101,11 +137,15 @@ template <TBasicType basicType,
           TQualifier qualifier,
           unsigned char primarySize,
           unsigned char secondarySize>
-constexpr const TType *Get()
+CONSTEXPR const TType *Get()
 {
     static_assert(1 <= primarySize && primarySize <= 4, "primarySize out of bounds");
     static_assert(1 <= secondarySize && secondarySize <= 4, "secondarySize out of bounds");
+#if !defined(STARBOARD)
     return &Helpers::instance<basicType, precision, qualifier, primarySize, secondarySize>;
+#else
+    return &Helpers::ttype<basicType, precision, qualifier, primarySize, secondarySize>::instance;
+#endif
 }
 
 //
@@ -137,7 +177,7 @@ template <TBasicType basicType,
           TPrecision precision,
           TQualifier qualifier,
           unsigned char secondarySize>
-constexpr const TType *GetForVecMatHelper(unsigned char primarySize)
+CONSTEXPR const TType *GetForVecMatHelper(unsigned char primarySize)
 {
     static_assert(basicType == EbtFloat || basicType == EbtInt || basicType == EbtUInt ||
                       basicType == EbtBool,
@@ -163,7 +203,7 @@ constexpr const TType *GetForVecMatHelper(unsigned char primarySize)
 template <TBasicType basicType,
           TPrecision precision = EbpUndefined,
           TQualifier qualifier = EvqGlobal>
-constexpr const TType *GetForVecMat(unsigned char primarySize, unsigned char secondarySize = 1)
+CONSTEXPR const TType *GetForVecMat(unsigned char primarySize, unsigned char secondarySize = 1)
 {
     static_assert(basicType == EbtFloat || basicType == EbtInt || basicType == EbtUInt ||
                       basicType == EbtBool,
@@ -185,7 +225,7 @@ constexpr const TType *GetForVecMat(unsigned char primarySize, unsigned char sec
 }
 
 template <TBasicType basicType, TPrecision precision = EbpUndefined>
-constexpr const TType *GetForVec(TQualifier qualifier, unsigned char size)
+CONSTEXPR const TType *GetForVec(TQualifier qualifier, unsigned char size)
 {
     switch (qualifier)
     {

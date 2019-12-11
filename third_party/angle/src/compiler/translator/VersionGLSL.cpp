@@ -7,6 +7,7 @@
 #include "compiler/translator/VersionGLSL.h"
 
 #include "angle_gl.h"
+#include "base/cpp14oncpp11.h"
 #include "compiler/translator/Symbol.h"
 
 namespace sh
@@ -14,7 +15,7 @@ namespace sh
 
 namespace
 {
-constexpr const ImmutableString kGlPointCoordString("gl_PointCoord");
+CONSTEXPR const ImmutableString kGlPointCoordString("gl_PointCoord");
 }  // anonymous namespace
 
 int ShaderOutputTypeToGLSLVersion(ShShaderOutput output)

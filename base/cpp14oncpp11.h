@@ -19,6 +19,7 @@
 // Starboard is currently targetting C++11, not C++14, so unfortunately we
 // do away with constexpr usage.
 #define CONSTEXPR
+#define CONSTEXPR_OR_INLINE inline
 // This type of STATIC_ASSERT is only used in unit tests so far for convenience
 // purpose.
 #define STATIC_ASSERT(value, message) EXPECT_TRUE(value)
@@ -27,6 +28,7 @@
 #define CHECK14(expr)
 #else
 #define CONSTEXPR constexpr
+#define CONSTEXPR_OR_INLINE constexpr
 #define STATIC_ASSERT(value, message) static_assert(value, message)
 #define CHECK14(expr) CHECK(expr)
 #endif

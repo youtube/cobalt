@@ -15,6 +15,7 @@
 #include <sstream>
 #include <vector>
 
+#include "base/cpp14oncpp11.h"
 #include "common/PackedEnums.h"
 #include "common/matrix_utils.h"
 #include "common/platform.h"
@@ -49,6 +50,20 @@
 
 namespace gl
 {
+CONSTEXPR angle::PackedEnumMap<PrimitiveMode, GLsizei> kMinimumPrimitiveCounts = {{
+    {PrimitiveMode::Points, 1},
+    {PrimitiveMode::Lines, 2},
+    {PrimitiveMode::LineLoop, 2},
+    {PrimitiveMode::LineStrip, 2},
+    {PrimitiveMode::Triangles, 3},
+    {PrimitiveMode::TriangleStrip, 3},
+    {PrimitiveMode::TriangleFan, 3},
+    {PrimitiveMode::LinesAdjacency, 2},
+    {PrimitiveMode::LineStripAdjacency, 2},
+    {PrimitiveMode::TrianglesAdjacency, 3},
+    {PrimitiveMode::TriangleStripAdjacency, 3},
+}};
+
 namespace
 {
 template <typename T>
@@ -265,7 +280,7 @@ void GetObjectLabelBase(const std::string &objectLabel,
 }
 
 // The rest default to false.
-constexpr angle::PackedEnumMap<PrimitiveMode, bool, angle::EnumSize<PrimitiveMode>() + 1>
+CONSTEXPR angle::PackedEnumMap<PrimitiveMode, bool, angle::EnumSize<PrimitiveMode>() + 1>
     kValidBasicDrawModes = {{
         {PrimitiveMode::Points, true},
         {PrimitiveMode::Lines, true},
