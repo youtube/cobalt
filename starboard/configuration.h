@@ -160,6 +160,14 @@
 #define SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER_DEPRECATED_VERSION \
   SB_EXPERIMENTAL_API_VERSION
 
+// The variable 'cobalt_minimum_frame_time_in_milliseconds' is deprecated
+// in favor of the usage of
+// 'CobaltExtensionGraphicsApi::GetMinimumFrameIntervalInMilliseconds' API.
+// The declaration of 'GetMinimumFrameIntervalInMilliseconds' can be found
+// in cobalt/renderer/backend/graphics_context.h
+#define SB_COBALT_MINIMUM_FRAME_TIME_DEPRECATED_VERSION \
+  SB_EXPERIMENTAL_API_VERSION
+
 // Introduce Starboard Application Binary Interface (SABI) files.
 //   SABI files are used to describe the configuration for targets such that two
 //   targets, built with the same SABI file and varying toolchains, have
@@ -802,8 +810,6 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER."
 #endif
 #endif
-
-
 
 #if defined(SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT)
 #error "SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT is deprecated."
