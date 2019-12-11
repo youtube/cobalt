@@ -17,7 +17,7 @@ namespace StaticType
 
 namespace Helpers
 {
-CONSTEXPR StaticMangledName BuildStaticMangledName(TBasicType basicType,
+StaticMangledName BuildStaticMangledName(TBasicType basicType,
                                                    TPrecision precision,
                                                    TQualifier qualifier,
                                                    unsigned char primarySize,

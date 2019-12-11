@@ -21,6 +21,7 @@
 
 #include "compiler/translator/tree_util/RunAtTheEndOfShader.h"
 
+#include "base/cpp14oncpp11.h"
 #include "compiler/translator/Compiler.h"
 #include "compiler/translator/IntermNode.h"
 #include "compiler/translator/StaticType.h"
@@ -35,7 +36,7 @@ namespace sh
 namespace
 {
 
-constexpr const ImmutableString kMainString("main");
+CONSTEXPR const ImmutableString kMainString("main");
 
 class ContainsReturnTraverser : public TIntermTraverser
 {

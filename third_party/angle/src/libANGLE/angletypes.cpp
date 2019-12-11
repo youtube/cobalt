@@ -14,6 +14,12 @@
 
 namespace gl
 {
+CONSTEXPR angle::PackedEnumMap<ComponentType, uint32_t> kComponentMasks = {{
+    {ComponentType::Float, 0x10001},
+    {ComponentType::Int, 0x00001},
+    {ComponentType::UnsignedInt, 0x10000},
+}};
+
 RasterizerState::RasterizerState()
 {
     memset(this, 0, sizeof(RasterizerState));

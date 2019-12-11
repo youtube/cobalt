@@ -18,6 +18,7 @@
 
 #include <anglebase/numerics/safe_math.h>
 
+#include "base/cpp14oncpp11.h"
 #include "common/debug.h"
 #include "common/platform.h"
 
@@ -1251,7 +1252,6 @@ T roundUp(const T value, const T alignment)
 template <typename T>
 constexpr T roundUpPow2(const T value, const T alignment)
 {
-    ASSERT(gl::isPow2(alignment));
     return (value + alignment - 1) & ~(alignment - 1);
 }
 
@@ -1263,7 +1263,7 @@ angle::CheckedNumeric<T> CheckedRoundUp(const T value, const T alignment)
     return roundUp(checkedValue, checkedAlignment);
 }
 
-inline constexpr unsigned int UnsignedCeilDivide(unsigned int value, unsigned int divisor)
+inline CONSTEXPR unsigned int UnsignedCeilDivide(unsigned int value, unsigned int divisor)
 {
     unsigned int divided = value / divisor;
     return (divided + ((value % divisor == 0) ? 0 : 1));

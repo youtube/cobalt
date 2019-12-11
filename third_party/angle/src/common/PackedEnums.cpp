@@ -13,6 +13,72 @@
 namespace gl
 {
 
+template <>
+PrimitiveMode FromGLenum<PrimitiveMode>(GLenum from)
+{
+    if (from >= static_cast<GLenum>(PrimitiveMode::EnumCount))
+    {
+        return PrimitiveMode::InvalidEnum;
+    }
+
+    return static_cast<PrimitiveMode>(from);
+}
+
+template <>
+DrawElementsType FromGLenum<DrawElementsType>(GLenum from)
+{
+
+    GLenum scaled = (from - GL_UNSIGNED_BYTE);
+    // This code sequence generates a ROR instruction on x86/arm. We want to check if the lowest bit
+    // of scaled is set and if (scaled >> 1) is greater than a non-pot value. If we rotate the
+    // lowest bit to the hightest bit both conditions can be checked with a single test.
+    static_assert(sizeof(GLenum) == 4, "Update (scaled << 31) to sizeof(GLenum) * 8 - 1");
+    GLenum packed = (scaled >> 1) | (scaled << 31);
+
+    // operator ? with a simple assignment usually translates to a cmov instruction and thus avoids
+    // a branch.
+    packed = (packed >= static_cast<GLenum>(DrawElementsType::EnumCount))
+                 ? static_cast<GLenum>(DrawElementsType::InvalidEnum)
+                 : packed;
+
+    return static_cast<DrawElementsType>(packed);
+}
+
+template <>
+VertexAttribType FromGLenum<VertexAttribType>(GLenum from)
+{
+    GLenum packed = from - GL_BYTE;
+    if (packed <= static_cast<GLenum>(VertexAttribType::MaxBasicType))
+        return static_cast<VertexAttribType>(packed);
+    if (from == GL_UNSIGNED_INT_2_10_10_10_REV)
+        return VertexAttribType::UnsignedInt2101010;
+    if (from == GL_HALF_FLOAT_OES)
+        return VertexAttribType::HalfFloatOES;
+    if (from == GL_INT_2_10_10_10_REV)
+        return VertexAttribType::Int2101010;
+    if (from == GL_UNSIGNED_INT_10_10_10_2_OES)
+        return VertexAttribType::UnsignedInt1010102;
+    if (from == GL_INT_10_10_10_2_OES)
+        return VertexAttribType::Int1010102;
+    return VertexAttribType::InvalidEnum;
+}
+
+GLenum ToGLenum(VertexAttribType from)
+{
+    // This could be optimized using a constexpr table.
+    if (from == VertexAttribType::Int2101010)
+        return GL_INT_2_10_10_10_REV;
+    if (from == VertexAttribType::HalfFloatOES)
+        return GL_HALF_FLOAT_OES;
+    if (from == VertexAttribType::UnsignedInt2101010)
+        return GL_UNSIGNED_INT_2_10_10_10_REV;
+    if (from == VertexAttribType::UnsignedInt1010102)
+        return GL_UNSIGNED_INT_10_10_10_2_OES;
+    if (from == VertexAttribType::Int1010102)
+        return GL_INT_10_10_10_2_OES;
+    return static_cast<GLenum>(from) + GL_BYTE;
+}
+
 TextureType TextureTargetToType(TextureTarget target)
 {
     switch (target)

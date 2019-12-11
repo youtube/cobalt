@@ -12,6 +12,7 @@
 #include "compiler/translator/TranslatorVulkan.h"
 
 #include "angle_gl.h"
+#include "base/cpp14oncpp11.h"
 #include "common/utilities.h"
 #include "compiler/translator/BuiltinsWorkaroundGLSL.h"
 #include "compiler/translator/ImmutableStringBuilder.h"
@@ -156,11 +157,11 @@ class DeclareDefaultUniformsTraverser : public TIntermTraverser
     bool mInDefaultUniform;
 };
 
-constexpr ImmutableString kFlippedPointCoordName    = ImmutableString("flippedPointCoord");
-constexpr ImmutableString kFlippedFragCoordName     = ImmutableString("flippedFragCoord");
-constexpr ImmutableString kEmulatedDepthRangeParams = ImmutableString("ANGLEDepthRangeParams");
-constexpr ImmutableString kUniformsBlockName        = ImmutableString("ANGLEUniformBlock");
-constexpr ImmutableString kUniformsVarName          = ImmutableString("ANGLEUniforms");
+CONSTEXPR ImmutableString kFlippedPointCoordName    = ImmutableString("flippedPointCoord");
+CONSTEXPR ImmutableString kFlippedFragCoordName     = ImmutableString("flippedFragCoord");
+CONSTEXPR ImmutableString kEmulatedDepthRangeParams = ImmutableString("ANGLEDepthRangeParams");
+CONSTEXPR ImmutableString kUniformsBlockName        = ImmutableString("ANGLEUniformBlock");
+CONSTEXPR ImmutableString kUniformsVarName          = ImmutableString("ANGLEUniforms");
 
 constexpr const char kViewport[]             = "viewport";
 constexpr const char kHalfRenderAreaHeight[] = "halfRenderAreaHeight";

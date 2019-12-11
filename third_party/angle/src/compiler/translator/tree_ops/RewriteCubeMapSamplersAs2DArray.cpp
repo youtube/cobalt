@@ -9,6 +9,7 @@
 
 #include "compiler/translator/tree_ops/RewriteCubeMapSamplersAs2DArray.h"
 
+#include "base/cpp14oncpp11.h"
 #include "compiler/translator/Compiler.h"
 #include "compiler/translator/ImmutableStringBuilder.h"
 #include "compiler/translator/StaticType.h"
@@ -21,8 +22,8 @@ namespace sh
 {
 namespace
 {
-constexpr ImmutableString kCoordTransformFuncName("ANGLECubeMapCoordTransform");
-constexpr ImmutableString kCoordTransformFuncNameImplicit("ANGLECubeMapCoordTransformImplicit");
+CONSTEXPR ImmutableString kCoordTransformFuncName("ANGLECubeMapCoordTransform");
+CONSTEXPR ImmutableString kCoordTransformFuncNameImplicit("ANGLECubeMapCoordTransformImplicit");
 
 TIntermTyped *DerivativeQuotient(TIntermTyped *u,
                                  TIntermTyped *du,

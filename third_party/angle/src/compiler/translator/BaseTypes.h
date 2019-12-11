@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <array>
 
+#include "base/cpp14oncpp11.h"
 #include "GLSLANG/ShaderLang.h"
 #include "common/debug.h"
 #include "compiler/translator/ImmutableString.h"
@@ -166,7 +167,7 @@ enum TBasicType
 class TBasicMangledName
 {
   public:
-    constexpr TBasicMangledName(TBasicType t) : mName{'\0', '\0'}
+    CONSTEXPR TBasicMangledName(TBasicType t) : mName{'\0', '\0'}
     {
         if (t > EbtLastSimpleType)
         {
@@ -195,7 +196,7 @@ class TBasicMangledName
         }
     }
 
-    constexpr char *getName() { return mName; }
+    CONSTEXPR char *getName() { return mName; }
 
     static constexpr int mangledNameSize = 2;
 

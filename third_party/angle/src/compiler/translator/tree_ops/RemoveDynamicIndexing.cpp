@@ -11,6 +11,7 @@
 
 #include "compiler/translator/tree_ops/RemoveDynamicIndexing.h"
 
+#include "base/cpp14oncpp11.h"
 #include "compiler/translator/Compiler.h"
 #include "compiler/translator/Diagnostics.h"
 #include "compiler/translator/InfoSink.h"
@@ -30,9 +31,9 @@ using DynamicIndexingNodeMatcher = std::function<bool(TIntermBinary *)>;
 
 const TType *kIndexType = StaticType::Get<EbtInt, EbpHigh, EvqIn, 1, 1>();
 
-constexpr const ImmutableString kBaseName("base");
-constexpr const ImmutableString kIndexName("index");
-constexpr const ImmutableString kValueName("value");
+CONSTEXPR const ImmutableString kBaseName("base");
+CONSTEXPR const ImmutableString kIndexName("index");
+CONSTEXPR const ImmutableString kValueName("value");
 
 std::string GetIndexFunctionName(const TType &type, bool write)
 {

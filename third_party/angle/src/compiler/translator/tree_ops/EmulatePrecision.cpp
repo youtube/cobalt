@@ -6,6 +6,7 @@
 
 #include "compiler/translator/tree_ops/EmulatePrecision.h"
 
+#include "base/cpp14oncpp11.h"
 #include "compiler/translator/FunctionLookup.h"
 
 #include <memory>
@@ -16,10 +17,10 @@ namespace sh
 namespace
 {
 
-constexpr const ImmutableString kParamXName("x");
-constexpr const ImmutableString kParamYName("y");
-constexpr const ImmutableString kAngleFrmString("angle_frm");
-constexpr const ImmutableString kAngleFrlString("angle_frl");
+CONSTEXPR const ImmutableString kParamXName("x");
+CONSTEXPR const ImmutableString kParamYName("y");
+CONSTEXPR const ImmutableString kAngleFrmString("angle_frm");
+CONSTEXPR const ImmutableString kAngleFrlString("angle_frl");
 
 class RoundingHelperWriter : angle::NonCopyable
 {

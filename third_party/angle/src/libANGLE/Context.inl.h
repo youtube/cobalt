@@ -11,6 +11,7 @@
 #ifndef LIBANGLE_CONTEXT_INL_H_
 #define LIBANGLE_CONTEXT_INL_H_
 
+#include "base/cpp14oncpp11.h"
 #include "libANGLE/GLES1Renderer.h"
 #include "libANGLE/renderer/ContextImpl.h"
 
@@ -21,19 +22,7 @@
 
 namespace gl
 {
-constexpr angle::PackedEnumMap<PrimitiveMode, GLsizei> kMinimumPrimitiveCounts = {{
-    {PrimitiveMode::Points, 1},
-    {PrimitiveMode::Lines, 2},
-    {PrimitiveMode::LineLoop, 2},
-    {PrimitiveMode::LineStrip, 2},
-    {PrimitiveMode::Triangles, 3},
-    {PrimitiveMode::TriangleStrip, 3},
-    {PrimitiveMode::TriangleFan, 3},
-    {PrimitiveMode::LinesAdjacency, 2},
-    {PrimitiveMode::LineStripAdjacency, 2},
-    {PrimitiveMode::TrianglesAdjacency, 3},
-    {PrimitiveMode::TriangleStripAdjacency, 3},
-}};
+extern CONSTEXPR angle::PackedEnumMap<PrimitiveMode, GLsizei> kMinimumPrimitiveCounts;
 
 ANGLE_INLINE void MarkTransformFeedbackBufferUsage(const Context *context,
                                                    GLsizei count,
