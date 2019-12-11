@@ -38,6 +38,12 @@ namespace cobalt {
 namespace renderer {
 
 namespace {
+#if !defined(COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS)
+// This default value has been moved from cobalt/build/cobalt_configuration.gypi
+// in favor of the usage of
+// CobaltExtensionGraphicsApi::GetMinimumFrameIntervalInMilliseconds API.
+const float kCobaltMinimumFrameTimeInMilliseconds = 16.0f;
+#endif
 // How quickly the renderer time adjusts to changing submission times.
 // 500ms is chosen as a default because it is fast enough that the user will not
 // usually notice input lag from a slow timeline renderer, but slow enough that
@@ -302,12 +308,33 @@ void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
         graphics_context_
             ? graphics_context_->GetMinimumFrameIntervalInMilliseconds()
             : -1.0f;
+#if SB_API_VERSION >= SB_COBALT_MINIMUM_FRAME_TIME_DEPRECATED_VERSION && \
+    defined(COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS)
+#error \
+    "'cobalt_minimum_frame_time_in_milliseconds' was replaced by" \
+    "CobaltExtensionGraphicsApi::GetMinimumFrameIntervalInMilliseconds."
+#elif SB_API_VERSION < SB_COBALT_MINIMUM_FRAME_TIME_DEPRECATED_VERSION && \
+    defined(COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS)
     COMPILE_ASSERT(COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS > 0,
                    frame_time_must_be_positive);
     if (minimum_frame_interval_milliseconds < 0.0f) {
       minimum_frame_interval_milliseconds =
           COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS;
+    } else {
+      DLOG(ERROR) <<
+          "COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS and "
+          "CobaltExtensionGraphicsApi::GetMinimumFrameIntervalInMilliseconds"
+          "are both defined."
+          "Remove the 'cobalt_minimum_frame_time_in_milliseconds' ";
+          "from ../gyp_configuration.gypi in favor of the usage of "
+          "CobaltExtensionGraphicsApi::GetMinimumFrameIntervalInMilliseconds."
     }
+#else
+    if (minimum_frame_interval_milliseconds < 0.0f) {
+      minimum_frame_interval_milliseconds =
+          kCobaltMinimumFrameTimeInMilliseconds;
+    }
+#endif
     DCHECK(minimum_frame_interval_milliseconds > 0.0f);
     rasterize_timer_.emplace(
         FROM_HERE,
