@@ -64,7 +64,7 @@ class SpeechRecognizerTest : public ::testing::Test {
   // TODO: Use GTEST_SKIP in |SetUp| when we have a newer version of gtest.
   bool SkipLocale() {
     if (!isTestFixtureSupported) {
-      std::cout << "[  SKIPPED ] Speech recognizer not supported." << std::endl;
+      SB_LOG(INFO) << "Speech recognizer not supported. Test skipped.";
     }
     return !isTestFixtureSupported;
   }
