@@ -1151,10 +1151,11 @@ void HTMLElement::OnUiNavBlur() { Blur(); }
 void HTMLElement::OnUiNavFocus() {
   // Ensure the focusing steps do not trigger the UI navigation item to
   // force focus again.
-  scoped_refptr<ui_navigation::NavItem> temp_item = ui_nav_item_;
-  ui_nav_item_ = nullptr;
-  Focus();
-  ui_nav_item_ = temp_item;
+  if (!ui_nav_focusing_) {
+    ui_nav_focusing_ = true;
+    Focus();
+    ui_nav_focusing_ = false;
+  }
 }
 
 void HTMLElement::OnUiNavScroll() {
@@ -1342,7 +1343,7 @@ void HTMLElement::RunFocusingSteps() {
   ClearRuleMatchingState();
 
   // Set the focus item for the UI navigation system.
-  if (ui_nav_item_ && !ui_nav_item_->IsContainer()) {
+  if (ui_nav_item_ && !ui_nav_item_->IsContainer() && !ui_nav_focusing_) {
     // Only navigation items attached to the root container are interactable.
     // If the item is not registered with a container, then force a layout to
     // connect items to their containers and eventually to the root container.
