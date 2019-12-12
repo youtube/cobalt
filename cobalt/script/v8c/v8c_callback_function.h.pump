@@ -27,6 +27,8 @@ $var MAX_ARITY = 7
 #ifndef COBALT_SCRIPT_V8C_V8C_CALLBACK_FUNCTION_H_
 #define COBALT_SCRIPT_V8C_V8C_CALLBACK_FUNCTION_H_
 
+#include <string>
+
 #include "base/logging.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/v8c/conversion_helpers.h"
@@ -95,8 +97,8 @@ class V8cCallbackFunction<R($for ARG , [[A$(ARG)]])>
   V8cCallbackFunction(v8::Isolate* isolate, v8::Local<v8::Value> handle)
       : ScopedPersistent(isolate, handle), isolate_(isolate) {}
 
-  CallbackResult<R> Run($for ARG , [[
-      typename CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]])
+  CallbackResult<R> Run($for ARG ,
+      [[typename CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]])
       const override {
     CallbackResult<R> callback_result;
     DCHECK(!this->IsEmpty());
@@ -108,6 +110,7 @@ class V8cCallbackFunction<R($for ARG , [[A$(ARG)]])>
 
     EntryScope entry_scope(isolate_);
     v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+    v8::TryCatch try_catch(isolate_);
 
     // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
     // Callback 'this' is set to null, unless overridden by other specifications
@@ -134,7 +137,16 @@ $if ARITY > 0 [[
     v8::MaybeLocal<v8::Value> maybe_return_value = function_as_object->CallAsFunction(context, this_value, argc, argv);
     v8::Local<v8::Value> return_value;
     if (!maybe_return_value.ToLocal(&return_value)) {
-      NOTIMPLEMENTED();
+      std::string description;
+      v8::Local<v8::Value> stack;
+      if (try_catch.StackTrace(context).ToLocal(&stack)) {
+        description = *v8::String::Utf8Value(isolate_, stack);
+      } else {
+        description = *v8::String::Utf8Value(isolate_, try_catch.Exception());
+      }
+      if (description.empty()) description = "Unknown exception";
+      // TODO: Send the description to the console instead of logging it.
+      LOG(ERROR) << description;
       callback_result.exception = true;
     } else {
       callback_result = ConvertCallbackReturnValue<R>(isolate_, return_value);
