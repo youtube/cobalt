@@ -22,6 +22,8 @@
 #ifndef COBALT_SCRIPT_V8C_V8C_CALLBACK_FUNCTION_H_
 #define COBALT_SCRIPT_V8C_V8C_CALLBACK_FUNCTION_H_
 
+#include <string>
+
 #include "base/logging.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/v8c/conversion_helpers.h"
@@ -90,6 +92,7 @@ class V8cCallbackFunction<R(void)>
 
     EntryScope entry_scope(isolate_);
     v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+    v8::TryCatch try_catch(isolate_);
 
     // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
     // Callback 'this' is set to null, unless overridden by other specifications
@@ -110,7 +113,16 @@ class V8cCallbackFunction<R(void)>
         function_as_object->CallAsFunction(context, this_value, argc, argv);
     v8::Local<v8::Value> return_value;
     if (!maybe_return_value.ToLocal(&return_value)) {
-      NOTIMPLEMENTED();
+      std::string description;
+      v8::Local<v8::Value> stack;
+      if (try_catch.StackTrace(context).ToLocal(&stack)) {
+        description = *v8::String::Utf8Value(isolate_, stack);
+      } else {
+        description = *v8::String::Utf8Value(isolate_, try_catch.Exception());
+      }
+      if (description.empty()) description = "Unknown exception";
+      // TODO: Send the description to the console instead of logging it.
+      LOG(ERROR) << description;
       callback_result.exception = true;
     } else {
       callback_result = ConvertCallbackReturnValue<R>(isolate_, return_value);
@@ -133,8 +145,7 @@ class V8cCallbackFunction<R(A1)>
   V8cCallbackFunction(v8::Isolate* isolate, v8::Local<v8::Value> handle)
       : ScopedPersistent(isolate, handle), isolate_(isolate) {}
 
-  CallbackResult<R> Run(      typename
-      CallbackParamTraits<A1>::ForwardType a1)
+  CallbackResult<R> Run(typename CallbackParamTraits<A1>::ForwardType a1)
       const override {
     CallbackResult<R> callback_result;
     DCHECK(!this->IsEmpty());
@@ -146,6 +157,7 @@ class V8cCallbackFunction<R(A1)>
 
     EntryScope entry_scope(isolate_);
     v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+    v8::TryCatch try_catch(isolate_);
 
     // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
     // Callback 'this' is set to null, unless overridden by other specifications
@@ -168,7 +180,16 @@ class V8cCallbackFunction<R(A1)>
         function_as_object->CallAsFunction(context, this_value, argc, argv);
     v8::Local<v8::Value> return_value;
     if (!maybe_return_value.ToLocal(&return_value)) {
-      NOTIMPLEMENTED();
+      std::string description;
+      v8::Local<v8::Value> stack;
+      if (try_catch.StackTrace(context).ToLocal(&stack)) {
+        description = *v8::String::Utf8Value(isolate_, stack);
+      } else {
+        description = *v8::String::Utf8Value(isolate_, try_catch.Exception());
+      }
+      if (description.empty()) description = "Unknown exception";
+      // TODO: Send the description to the console instead of logging it.
+      LOG(ERROR) << description;
       callback_result.exception = true;
     } else {
       callback_result = ConvertCallbackReturnValue<R>(isolate_, return_value);
@@ -191,8 +212,7 @@ class V8cCallbackFunction<R(A1, A2)>
   V8cCallbackFunction(v8::Isolate* isolate, v8::Local<v8::Value> handle)
       : ScopedPersistent(isolate, handle), isolate_(isolate) {}
 
-  CallbackResult<R> Run(      typename
-      CallbackParamTraits<A1>::ForwardType a1,
+  CallbackResult<R> Run(typename CallbackParamTraits<A1>::ForwardType a1,
       typename CallbackParamTraits<A2>::ForwardType a2)
       const override {
     CallbackResult<R> callback_result;
@@ -205,6 +225,7 @@ class V8cCallbackFunction<R(A1, A2)>
 
     EntryScope entry_scope(isolate_);
     v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+    v8::TryCatch try_catch(isolate_);
 
     // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
     // Callback 'this' is set to null, unless overridden by other specifications
@@ -228,7 +249,16 @@ class V8cCallbackFunction<R(A1, A2)>
         function_as_object->CallAsFunction(context, this_value, argc, argv);
     v8::Local<v8::Value> return_value;
     if (!maybe_return_value.ToLocal(&return_value)) {
-      NOTIMPLEMENTED();
+      std::string description;
+      v8::Local<v8::Value> stack;
+      if (try_catch.StackTrace(context).ToLocal(&stack)) {
+        description = *v8::String::Utf8Value(isolate_, stack);
+      } else {
+        description = *v8::String::Utf8Value(isolate_, try_catch.Exception());
+      }
+      if (description.empty()) description = "Unknown exception";
+      // TODO: Send the description to the console instead of logging it.
+      LOG(ERROR) << description;
       callback_result.exception = true;
     } else {
       callback_result = ConvertCallbackReturnValue<R>(isolate_, return_value);
@@ -251,8 +281,7 @@ class V8cCallbackFunction<R(A1, A2, A3)>
   V8cCallbackFunction(v8::Isolate* isolate, v8::Local<v8::Value> handle)
       : ScopedPersistent(isolate, handle), isolate_(isolate) {}
 
-  CallbackResult<R> Run(      typename
-      CallbackParamTraits<A1>::ForwardType a1,
+  CallbackResult<R> Run(typename CallbackParamTraits<A1>::ForwardType a1,
       typename CallbackParamTraits<A2>::ForwardType a2,
       typename CallbackParamTraits<A3>::ForwardType a3)
       const override {
@@ -266,6 +295,7 @@ class V8cCallbackFunction<R(A1, A2, A3)>
 
     EntryScope entry_scope(isolate_);
     v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+    v8::TryCatch try_catch(isolate_);
 
     // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
     // Callback 'this' is set to null, unless overridden by other specifications
@@ -290,7 +320,16 @@ class V8cCallbackFunction<R(A1, A2, A3)>
         function_as_object->CallAsFunction(context, this_value, argc, argv);
     v8::Local<v8::Value> return_value;
     if (!maybe_return_value.ToLocal(&return_value)) {
-      NOTIMPLEMENTED();
+      std::string description;
+      v8::Local<v8::Value> stack;
+      if (try_catch.StackTrace(context).ToLocal(&stack)) {
+        description = *v8::String::Utf8Value(isolate_, stack);
+      } else {
+        description = *v8::String::Utf8Value(isolate_, try_catch.Exception());
+      }
+      if (description.empty()) description = "Unknown exception";
+      // TODO: Send the description to the console instead of logging it.
+      LOG(ERROR) << description;
       callback_result.exception = true;
     } else {
       callback_result = ConvertCallbackReturnValue<R>(isolate_, return_value);
@@ -313,8 +352,7 @@ class V8cCallbackFunction<R(A1, A2, A3, A4)>
   V8cCallbackFunction(v8::Isolate* isolate, v8::Local<v8::Value> handle)
       : ScopedPersistent(isolate, handle), isolate_(isolate) {}
 
-  CallbackResult<R> Run(      typename
-      CallbackParamTraits<A1>::ForwardType a1,
+  CallbackResult<R> Run(typename CallbackParamTraits<A1>::ForwardType a1,
       typename CallbackParamTraits<A2>::ForwardType a2,
       typename CallbackParamTraits<A3>::ForwardType a3,
       typename CallbackParamTraits<A4>::ForwardType a4)
@@ -329,6 +367,7 @@ class V8cCallbackFunction<R(A1, A2, A3, A4)>
 
     EntryScope entry_scope(isolate_);
     v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+    v8::TryCatch try_catch(isolate_);
 
     // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
     // Callback 'this' is set to null, unless overridden by other specifications
@@ -354,7 +393,16 @@ class V8cCallbackFunction<R(A1, A2, A3, A4)>
         function_as_object->CallAsFunction(context, this_value, argc, argv);
     v8::Local<v8::Value> return_value;
     if (!maybe_return_value.ToLocal(&return_value)) {
-      NOTIMPLEMENTED();
+      std::string description;
+      v8::Local<v8::Value> stack;
+      if (try_catch.StackTrace(context).ToLocal(&stack)) {
+        description = *v8::String::Utf8Value(isolate_, stack);
+      } else {
+        description = *v8::String::Utf8Value(isolate_, try_catch.Exception());
+      }
+      if (description.empty()) description = "Unknown exception";
+      // TODO: Send the description to the console instead of logging it.
+      LOG(ERROR) << description;
       callback_result.exception = true;
     } else {
       callback_result = ConvertCallbackReturnValue<R>(isolate_, return_value);
@@ -378,8 +426,7 @@ class V8cCallbackFunction<R(A1, A2, A3, A4, A5)>
   V8cCallbackFunction(v8::Isolate* isolate, v8::Local<v8::Value> handle)
       : ScopedPersistent(isolate, handle), isolate_(isolate) {}
 
-  CallbackResult<R> Run(      typename
-      CallbackParamTraits<A1>::ForwardType a1,
+  CallbackResult<R> Run(typename CallbackParamTraits<A1>::ForwardType a1,
       typename CallbackParamTraits<A2>::ForwardType a2,
       typename CallbackParamTraits<A3>::ForwardType a3,
       typename CallbackParamTraits<A4>::ForwardType a4,
@@ -395,6 +442,7 @@ class V8cCallbackFunction<R(A1, A2, A3, A4, A5)>
 
     EntryScope entry_scope(isolate_);
     v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+    v8::TryCatch try_catch(isolate_);
 
     // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
     // Callback 'this' is set to null, unless overridden by other specifications
@@ -421,7 +469,16 @@ class V8cCallbackFunction<R(A1, A2, A3, A4, A5)>
         function_as_object->CallAsFunction(context, this_value, argc, argv);
     v8::Local<v8::Value> return_value;
     if (!maybe_return_value.ToLocal(&return_value)) {
-      NOTIMPLEMENTED();
+      std::string description;
+      v8::Local<v8::Value> stack;
+      if (try_catch.StackTrace(context).ToLocal(&stack)) {
+        description = *v8::String::Utf8Value(isolate_, stack);
+      } else {
+        description = *v8::String::Utf8Value(isolate_, try_catch.Exception());
+      }
+      if (description.empty()) description = "Unknown exception";
+      // TODO: Send the description to the console instead of logging it.
+      LOG(ERROR) << description;
       callback_result.exception = true;
     } else {
       callback_result = ConvertCallbackReturnValue<R>(isolate_, return_value);
@@ -445,8 +502,7 @@ class V8cCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
   V8cCallbackFunction(v8::Isolate* isolate, v8::Local<v8::Value> handle)
       : ScopedPersistent(isolate, handle), isolate_(isolate) {}
 
-  CallbackResult<R> Run(      typename
-      CallbackParamTraits<A1>::ForwardType a1,
+  CallbackResult<R> Run(typename CallbackParamTraits<A1>::ForwardType a1,
       typename CallbackParamTraits<A2>::ForwardType a2,
       typename CallbackParamTraits<A3>::ForwardType a3,
       typename CallbackParamTraits<A4>::ForwardType a4,
@@ -463,6 +519,7 @@ class V8cCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
 
     EntryScope entry_scope(isolate_);
     v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+    v8::TryCatch try_catch(isolate_);
 
     // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
     // Callback 'this' is set to null, unless overridden by other specifications
@@ -490,7 +547,16 @@ class V8cCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
         function_as_object->CallAsFunction(context, this_value, argc, argv);
     v8::Local<v8::Value> return_value;
     if (!maybe_return_value.ToLocal(&return_value)) {
-      NOTIMPLEMENTED();
+      std::string description;
+      v8::Local<v8::Value> stack;
+      if (try_catch.StackTrace(context).ToLocal(&stack)) {
+        description = *v8::String::Utf8Value(isolate_, stack);
+      } else {
+        description = *v8::String::Utf8Value(isolate_, try_catch.Exception());
+      }
+      if (description.empty()) description = "Unknown exception";
+      // TODO: Send the description to the console instead of logging it.
+      LOG(ERROR) << description;
       callback_result.exception = true;
     } else {
       callback_result = ConvertCallbackReturnValue<R>(isolate_, return_value);
@@ -514,8 +580,7 @@ class V8cCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
   V8cCallbackFunction(v8::Isolate* isolate, v8::Local<v8::Value> handle)
       : ScopedPersistent(isolate, handle), isolate_(isolate) {}
 
-  CallbackResult<R> Run(      typename
-      CallbackParamTraits<A1>::ForwardType a1,
+  CallbackResult<R> Run(typename CallbackParamTraits<A1>::ForwardType a1,
       typename CallbackParamTraits<A2>::ForwardType a2,
       typename CallbackParamTraits<A3>::ForwardType a3,
       typename CallbackParamTraits<A4>::ForwardType a4,
@@ -533,6 +598,7 @@ class V8cCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
 
     EntryScope entry_scope(isolate_);
     v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+    v8::TryCatch try_catch(isolate_);
 
     // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
     // Callback 'this' is set to null, unless overridden by other specifications
@@ -561,7 +627,16 @@ class V8cCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
         function_as_object->CallAsFunction(context, this_value, argc, argv);
     v8::Local<v8::Value> return_value;
     if (!maybe_return_value.ToLocal(&return_value)) {
-      NOTIMPLEMENTED();
+      std::string description;
+      v8::Local<v8::Value> stack;
+      if (try_catch.StackTrace(context).ToLocal(&stack)) {
+        description = *v8::String::Utf8Value(isolate_, stack);
+      } else {
+        description = *v8::String::Utf8Value(isolate_, try_catch.Exception());
+      }
+      if (description.empty()) description = "Unknown exception";
+      // TODO: Send the description to the console instead of logging it.
+      LOG(ERROR) << description;
       callback_result.exception = true;
     } else {
       callback_result = ConvertCallbackReturnValue<R>(isolate_, return_value);
