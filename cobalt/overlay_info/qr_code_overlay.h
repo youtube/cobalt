@@ -31,7 +31,7 @@ class QrCodeOverlay {
   typedef base::Callback<void(const scoped_refptr<render_tree::Node>&)>
       RenderTreeProducedCB;
 
-  QrCodeOverlay(const math::Size& screen_size,
+  QrCodeOverlay(const math::Size& screen_size, int slots,
                 render_tree::ResourceProvider* resource_provider,
                 const RenderTreeProducedCB& render_tree_produced_cb);
 
@@ -41,7 +41,11 @@ class QrCodeOverlay {
  private:
   void UpdateRenderTree();
 
-  RenderTreeProducedCB render_tree_produced_cb_;
+  const RenderTreeProducedCB render_tree_produced_cb_;
+  // Qr codes are displayed in rotating positions so it won't be blurred during
+  // capture.  The number of rotating positions are specified by |slots_|.
+  const int slots_;
+
   math::Size screen_size_;
   render_tree::ResourceProvider* resource_provider_;
 };

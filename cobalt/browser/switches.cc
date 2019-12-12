@@ -315,7 +315,10 @@ const char kProxyHelp[] =
 const char kQrCodeOverlay[] = "qr_code_overlay";
 const char kQrCodeOverlayHelp[] =
     "Display QrCode based overlay information. These information can be used"
-    " for performance tuning or playback quality check.";
+    " for performance tuning or playback quality check.  By default qr code"
+    " will be displayed in 4 different locations on the screen alternatively,"
+    " and the number of locations can be overwritten by specifying it as the "
+    " value of the command line parameter, like '--qr_code_overlay=6'.";
 
 const char kReduceCpuMemoryBy[] = "reduce_cpu_memory_by";
 const char kReduceCpuMemoryByHelp[] =
