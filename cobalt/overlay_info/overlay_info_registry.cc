@@ -32,8 +32,7 @@ class OverlayInfoRegistryImpl {
   void Disable();
 
   void Register(const char* category, const char* str);
-  void Register(const char* category, const void* data, size_t data_size);
-  void RetrieveAndClear(std::vector<uint8_t>* infos);
+  void RetrieveAndClear(std::string* infos);
 
  private:
   // Reserve enough data for |infos_| to avoid extra allcations.
@@ -48,7 +47,7 @@ class OverlayInfoRegistryImpl {
 
   bool enabled_ = true;
   starboard::Mutex mutex_;
-  std::vector<uint8_t> infos_;
+  std::string infos_;
 };
 
 // static
@@ -64,40 +63,25 @@ void OverlayInfoRegistryImpl::Disable() {
   infos_.clear();
 }
 
-void OverlayInfoRegistryImpl::Register(const char* category, const char* str) {
-  auto length = SbStringGetLength(str);
-  Register(category, reinterpret_cast<const uint8_t*>(str), length);
-}
-
-void OverlayInfoRegistryImpl::Register(const char* category, const void* data,
-                                       size_t data_size) {
+void OverlayInfoRegistryImpl::Register(const char* category, const char* data) {
   DCHECK(SbStringFindCharacter(
              category, static_cast<char>(OverlayInfoRegistry::kDelimiter)) ==
          NULL)
       << "Category " << category
       << " cannot contain the delimiter:" << OverlayInfoRegistry::kDelimiter;
-  auto category_size = SbStringGetLength(category);
-  auto total_size = category_size + 1 + data_size;
-
-  DCHECK_GT(category_size, 0u);
-  // Use |kMaxSizeOfData + 0| to avoid link error caused by DCHECK_LE.
-  DCHECK_LE(total_size, OverlayInfoRegistry::kMaxSizeOfData + 0);
-
-  starboard::ScopedLock scoped_lock(mutex_);
-  // Use |kMaxNumberOfPendingOverlayInfo + 0| to avoid link error caused by
-  // DCHECK_LE.
-  DCHECK_LE(infos_.size() + total_size,
-            OverlayInfoRegistry::kMaxNumberOfPendingOverlayInfo + 0);
-  if (enabled_) {
-    infos_.push_back(static_cast<uint8_t>(total_size));
-    infos_.insert(infos_.end(), category, category + category_size);
-    infos_.push_back(kDelimiter);
-    infos_.insert(infos_.end(), static_cast<const uint8_t*>(data),
-                  static_cast<const uint8_t*>(data) + data_size);
+  DCHECK(SbStringFindCharacter(
+             data, static_cast<char>(OverlayInfoRegistry::kDelimiter)) == NULL)
+      << "Data " << data
+      << " cannot contain the delimiter:" << OverlayInfoRegistry::kDelimiter;
+  if (!infos_.empty()) {
+    infos_ += kDelimiter;
   }
+  infos_ += category;
+  infos_ += kDelimiter;
+  infos_ += data;
 }
 
-void OverlayInfoRegistryImpl::RetrieveAndClear(std::vector<uint8_t>* infos) {
+void OverlayInfoRegistryImpl::RetrieveAndClear(std::string* infos) {
   DCHECK(infos);
 
   starboard::ScopedLock scoped_lock(mutex_);
@@ -114,16 +98,30 @@ void OverlayInfoRegistry::Disable() {
   OverlayInfoRegistryImpl::GetInstance()->Disable();
 }
 
-void OverlayInfoRegistry::Register(const char* category, const char* str) {
-  OverlayInfoRegistryImpl::GetInstance()->Register(category, str);
+void OverlayInfoRegistry::Register(const char* category, const char* data) {
+  OverlayInfoRegistryImpl::GetInstance()->Register(category, data);
 }
 
 void OverlayInfoRegistry::Register(const char* category, const void* data,
                                    size_t data_size) {
-  OverlayInfoRegistryImpl::GetInstance()->Register(category, data, data_size);
+  const char kHex[] = "0123456789abcdef";
+
+  const uint8_t* data_as_bytes = static_cast<const uint8_t*>(data);
+  std::string data_in_hex;
+
+  data_in_hex.reserve(data_size * 2);
+
+  while (data_size > 0) {
+    data_in_hex += kHex[*data_as_bytes / 16];
+    data_in_hex += kHex[*data_as_bytes % 16];
+    ++data_as_bytes;
+    --data_size;
+  }
+  OverlayInfoRegistryImpl::GetInstance()->Register(category,
+                                                   data_in_hex.c_str());
 }
 
-void OverlayInfoRegistry::RetrieveAndClear(std::vector<uint8_t>* infos) {
+void OverlayInfoRegistry::RetrieveAndClear(std::string* infos) {
   OverlayInfoRegistryImpl::GetInstance()->RetrieveAndClear(infos);
 }
 

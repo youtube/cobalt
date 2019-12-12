@@ -241,8 +241,7 @@ void InputDeviceManagerDesktop::HandleKeyboardEvent(
   keypress_generator_filter_.HandleKeyboardEvent(type, keyboard_event);
 
   int32_t key_code_in_int32 = static_cast<int32_t>(key_code);
-  overlay_info::OverlayInfoRegistry::Register(
-      "input_manager:keydown", &key_code_in_int32, sizeof(key_code_in_int32));
+  overlay_info::OverlayInfoRegistry::Register("keydown", key_code_in_int32);
 }
 
 void InputDeviceManagerDesktop::HandlePointerEvent(

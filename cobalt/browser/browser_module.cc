@@ -346,7 +346,18 @@ BrowserModule::BrowserModule(const GURL& url,
 #if defined(ENABLE_DEBUGGER)
   debug_console_layer_ = render_tree_combiner_.CreateLayer(kDebugConsoleZIndex);
 #endif
-  if (command_line->HasSwitch(browser::switches::kQrCodeOverlay)) {
+
+  int qr_code_overlay_slots = 4;
+  if (command_line->HasSwitch(switches::kQrCodeOverlay)) {
+    auto slots_in_string =
+        command_line->GetSwitchValueASCII(switches::kQrCodeOverlay);
+    if (!slots_in_string.empty()) {
+      auto result = base::StringToInt(slots_in_string, &qr_code_overlay_slots);
+      DCHECK(result) << "Failed to convert value of --"
+                     << switches::kQrCodeOverlay << ": "
+                     << qr_code_overlay_slots << " to int.";
+      DCHECK_GT(qr_code_overlay_slots, 0);
+    }
     qr_overlay_info_layer_ =
         render_tree_combiner_.CreateLayer(kOverlayInfoZIndex);
   } else {
@@ -431,7 +442,7 @@ BrowserModule::BrowserModule(const GURL& url,
   if (qr_overlay_info_layer_) {
     math::Size width_height = GetViewportSize().width_height();
     qr_code_overlay_.reset(new overlay_info::QrCodeOverlay(
-        width_height, GetResourceProvider(),
+        width_height, qr_code_overlay_slots, GetResourceProvider(),
         base::Bind(&BrowserModule::QueueOnQrCodeOverlayRenderTreeProduced,
                    base::Unretained(this))));
   }
