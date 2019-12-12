@@ -112,7 +112,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
     return True
 
   def SendDeepLink(self, link):
-    send_link.SendLink(os.path.basename(self.executable), link)
+    # The connect call in SendLink occassionally fails. Retry a few times if this happens.
+    connection_attempts = 3
+    return send_link.SendLink(
+        os.path.basename(self.executable), link, connection_attempts)
 
   def WaitForProcessStatus(self, target_status, timeout):
     """Wait for Cobalt to turn to target status within specified timeout limit.
