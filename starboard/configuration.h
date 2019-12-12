@@ -626,6 +626,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if defined(SB_MALLOC_ALIGNMENT)
+#error \
+    "SB_MALLOC_ALIGNMENT should not be defined in Starboard " \
+"versions 12 and later. Instead, define kSbMallocAlignment in " \
+"starboard/<PLATFORM_PATH>/configuration_constants.cc."
+#endif
+
 #if defined(SB_MAX_THREAD_NAME_LENGTH)
 #error \
     "SB_MAX_THREAD_NAME_LENGTH should not be defined in Starboard " \

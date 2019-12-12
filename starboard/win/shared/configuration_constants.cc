@@ -16,5 +16,8 @@
 
 #include "starboard/configuration_constants.h"
 
+// Determines the alignment that allocations should have on this platform.
+const size_t kSbMallocAlignment = 16;
+
 // The maximum length of a name for a thread, including the NULL-terminator.
 const int32_t kSbMaxThreadNameLength = 16;
