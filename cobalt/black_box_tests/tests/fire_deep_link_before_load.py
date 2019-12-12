@@ -99,7 +99,9 @@ class FireDeepLinkBeforeLoad(black_box_tests.BlackBoxTestCase):
 
           # Step 3. Send 3 deep links
           for i in range(1, 4):
-            runner.SendDeepLink('link ' + str(i))
+            link = 'link ' + str(i)
+            print('Sending link : ' + link)
+            self.assertTrue(runner.SendDeepLink(link) == 0)
           print('Links fired.')
           # Step 4. Load & run the javascript resource.
           _links_fired.set()
