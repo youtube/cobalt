@@ -15,6 +15,7 @@
 # limitations under the License.
 """Client to launch executables via the new launcher logic."""
 
+import argparse
 import logging
 import signal
 import sys
@@ -27,21 +28,22 @@ from starboard.tools.util import SetupDefaultLoggingConfig
 
 def main():
   SetupDefaultLoggingConfig()
-  parser = command_line.CreateParser()
-  parser.add_argument(
-      "-t",
-      "--target_name",
-      required=True,
-      help="Name of executable target.")
-  args = parser.parse_args()
+  arg_parser = argparse.ArgumentParser()
+  command_line.AddLauncherArguments(arg_parser)
+  arg_parser.add_argument(
+      "-t", "--target_name", required=True, help="Name of executable target.")
+  args = arg_parser.parse_args()
 
   target_params = []
   if args.target_params:
     target_params = args.target_params.split(" ")
 
   launcher = abstract_launcher.LauncherFactory(
-      args.platform, args.target_name, args.config,
-      device_id=args.device_id, target_params=target_params,
+      args.platform,
+      args.target_name,
+      args.config,
+      device_id=args.device_id,
+      target_params=target_params,
       out_directory=args.out_directory)
 
   def Abort(signum, frame):
@@ -53,6 +55,7 @@ def main():
   signal.signal(signal.SIGINT, Abort)
 
   return launcher.Run()
+
 
 if __name__ == "__main__":
   sys.exit(main())

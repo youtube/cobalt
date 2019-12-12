@@ -28,7 +28,7 @@ class SignalHandlerDoesntCrashTest(black_box_tests.BlackBoxTestCase):
   """Flood the process with CONT signals, ensuring signal handler is robust."""
 
   def setUp(self):
-    if 'linux' not in self.device_params.platform:
+    if 'linux' not in self.launcher_params.platform:
       self.skipTest('This test needs POSIX system signal handlers')
 
   def test_simple(self):

@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -29,12 +28,13 @@ class WebPlatformTests(black_box_tests.BlackBoxTestCase):
   """Launch web platform tests."""
 
   def setUp(self):
-    if self.device_params.config not in ['debug', 'devel']:
+    if self.launcher_params.config not in ['debug', 'devel']:
       self.skipTest('Can only run web platform tests on debug or devel config.')
 
   def test_simple(self):
-    with WebPlatformTestServer(binding_address=self.GetBindingAddress(),
-                               wpt_http_port=self.GetWptHttpPort()):
+    with WebPlatformTestServer(
+        binding_address=self.GetBindingAddress(),
+        wpt_http_port=self.GetWptHttpPort()):
       target_params = []
 
       filters = self.cobalt_config.GetWebPlatformTestFilters()
@@ -46,7 +46,7 @@ class WebPlatformTests(black_box_tests.BlackBoxTestCase):
         if filter == test_filter.FILTER_ALL:
           return
         if isinstance(filter, test_filter.TestFilter):
-          if filter.config and filter.config != self.device_params.config:
+          if filter.config and filter.config != self.launcher_params.config:
             continue
           used_filters.append(filter.test_name)
         else:
@@ -56,17 +56,19 @@ class WebPlatformTests(black_box_tests.BlackBoxTestCase):
         target_params.append('--gtest_filter=-{}'.format(
             ':'.join(used_filters)))
 
-      if self.device_params.target_params:
-        target_params += self.device_params.target_params
+      if self.launcher_params.target_params:
+        target_params += self.launcher_params.target_params
 
       launcher = abstract_launcher.LauncherFactory(
-          self.device_params.platform,
+          self.launcher_params.platform,
           'web_platform_tests',
-          self.device_params.config,
-          device_id=self.device_params.device_id,
+          self.launcher_params.config,
+          device_id=self.launcher_params.device_id,
           target_params=target_params,
           output_file=None,
-          out_directory=self.device_params.out_directory,
-          env_variables={'ASAN_OPTIONS': 'intercept_tls_get_addr=0'})
+          out_directory=self.launcher_params.out_directory,
+          env_variables={'ASAN_OPTIONS': 'intercept_tls_get_addr=0'},
+          loader_platform=self.launcher_params.loader_platform,
+          loader_config=self.launcher_params.loader_config)
       status = launcher.Run()
       self.assertEqual(status, 0)
