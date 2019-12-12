@@ -19,6 +19,7 @@
 
 #if defined(STARBOARD)
 #include "starboard/configuration.h"
+#include "starboard/types.h"
 #endif
 
 /*  SkTypes.h, the root of the public header files, does the following trick:
@@ -107,9 +108,26 @@
 // would like these formats to match.
 // Always use OpenGL byte-order (RGBA).
 
-#if defined(STARBOARD) && \
-    SB_PREFERRED_RGBA_BYTE_ORDER == SB_PREFERRED_RGBA_BYTE_ORDER_BGRA
+#if defined(STARBOARD) && SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+const uint8_t b32_or_bendian_g32_shift =
+    SB_PREFERRED_RGBA_BYTE_ORDER == SB_PREFERRED_RGBA_BYTE_ORDER_BGRA ? 0 : 16;
+const uint8_t r32_or_bendian_a32_shift =
+    SB_PREFERRED_RGBA_BYTE_ORDER == SB_PREFERRED_RGBA_BYTE_ORDER_BGRA ? 16 : 0;
 
+#ifdef SK_CPU_BENDIAN
+#define SK_R32_SHIFT 24
+#define SK_G32_SHIFT b32_or_bendian_g32_shift
+#define SK_B32_SHIFT 8
+#define SK_A32_SHIFT r32_or_bendian_a32_shift
+#else
+#define SK_R32_SHIFT r32_or_bendian_a32_shift
+#define SK_G32_SHIFT 8
+#define SK_B32_SHIFT b32_or_bendian_g32_shift
+#define SK_A32_SHIFT 24
+#endif
+
+#elif defined(STARBOARD) && \
+    SB_PREFERRED_RGBA_BYTE_ORDER == SB_PREFERRED_RGBA_BYTE_ORDER_BGRA
 #ifdef SK_CPU_BENDIAN
 #define SK_R32_SHIFT 24
 #define SK_G32_SHIFT 0
