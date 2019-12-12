@@ -25,6 +25,9 @@
 
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+// Determines the alignment that allocations should have on this platform.
+extern const size_t kSbMallocAlignment;
+
 // The maximum length of the name for a thread, including the NULL-terminator.
 extern const int32_t kSbMaxThreadNameLength;
 
