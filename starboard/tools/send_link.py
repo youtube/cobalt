@@ -34,6 +34,7 @@ import socket
 import sys
 import tempfile
 import textwrap
+import time
 
 
 def _Uncase(text):
@@ -76,7 +77,20 @@ def _FindTemporaryFile(prefix, suffix):
   return None
 
 
-def SendLink(executable, link):
+def _ConnectWithRetry(s, port, num_attempts):
+  for attempt in range(num_attempts):
+    if attempt > 0:
+      time.sleep(1)
+    try:
+      s.connect(('localhost', port))
+      return True
+    except (RuntimeError, IOError):
+      logging.error('Could not connect to port %d, attempt %d / %d', port,
+                    attempt, num_attempts)
+  return False
+
+
+def SendLink(executable, link, connection_attempts=1):
   """Sends a link to the process starting with the given executable name."""
 
   pids = _GetPids(executable)
@@ -109,7 +123,9 @@ def SendLink(executable, link):
 
   try:
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-      s.connect(('localhost', port))
+      if not _ConnectWithRetry(s, port, connection_attempts):
+        logging.exception('Could not connect to port: %d', port)
+        return 1
       terminated_link = link + '\x00'
       bytes_sent = 0
       while bytes_sent < len(terminated_link):

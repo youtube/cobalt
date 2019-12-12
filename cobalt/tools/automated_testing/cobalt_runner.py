@@ -144,7 +144,7 @@ class CobaltRunner(object):
 
   def SendDeepLink(self, link):
     """Sends a deep link to Cobalt."""
-    self.launcher.SendDeepLink(link)
+    return self.launcher.SendDeepLink(link)
 
   def GetURL(self):
     return self.url
