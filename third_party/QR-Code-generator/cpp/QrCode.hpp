@@ -64,7 +64,7 @@ class QrCode final {
 	 * QR Code version is automatically chosen for the output. The ECC level of the result may be higher than
 	 * the ecl argument if it can be done without increasing the version.
 	 */
-	public: static QrCode encodeText(const char *text, Ecc ecl);
+	public: static QrCode encodeText(const char *text, Ecc ecl, int minVersion);
 	
 	
 	/* 

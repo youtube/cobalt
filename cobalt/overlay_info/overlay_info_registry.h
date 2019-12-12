@@ -15,34 +15,27 @@
 #ifndef COBALT_OVERLAY_INFO_OVERLAY_INFO_REGISTRY_H_
 #define COBALT_OVERLAY_INFO_OVERLAY_INFO_REGISTRY_H_
 
-#include <vector>
+#include <sstream>
+#include <string>
 
 #include "starboard/types.h"
 
 namespace cobalt {
 namespace overlay_info {
 
-// This class allows register of arbitrary overlay information in the form of
-// string or binary data from anywhere inside Cobalt.  It also allows a consumer
-// to retrieve and clear all registered info, such info will be displayed as
-// overlay.
+// This class allows register of arbitrary overlay information from anywhere
+// inside Cobalt.  It also allows a consumer to retrieve and clear all
+// registered info, such info will be displayed as overlay.  The data is stored
+// as std::string internally.
 // The class is thread safe and all its methods can be accessed from any thread.
 // On average it expects to have less than 10 such info registered per frame.
 //
-// The binary data or string are stored in the following format:
-// [<one byte size> <size bytes data>]*
-// Each data entry contains a string category and some binary data, separated by
-// the delimiter '<'.
-// For example, the overlay infos ("media", "pts"), ("renderer", "fps\x60"), and
-// ("dom", "keydown") will be stored as
-//   '\x09', 'm', 'e', 'd', 'i', 'a', '<', 'p', 't', 's',
-//   '\x0d', 'r', 'e', 'n', 'd', 'e', 'r', 'e', 'r', '<', 'f', 'p', 's', '\x60',
-//   '\x0b', 'd', 'o', 'm', '<', 'k', 'e', 'y', 'd', 'o', 'w', 'n',
-// and the size of the vector will be 36.  Note that C strings won't be NULL
-// terminated and their sizes are calculated by the size of the data.
+// The info is stored in the following format:
+//   name0,value0,name1,value1,...
+// Binary data will be converted into hex string before storing.
 class OverlayInfoRegistry {
  public:
-  static const uint8_t kDelimiter = '<';  // ':' doesn't work with some scanners
+  static const uint8_t kDelimiter = ',';  // ':' doesn't work with some scanners
   // The size of category and data combined should be less than or equal to
   // kMaxSizeOfData - 1.  The extra room of one byte is used by the delimiter.
   static const size_t kMaxSizeOfData = 255;
@@ -52,14 +45,20 @@ class OverlayInfoRegistry {
 
   static void Disable();
 
-  // |category| cannot contain ':'.  The sum of size of |category| and |string|
-  // cannot exceed 254.  It leaves room for the delimiter.
-  static void Register(const char* category, const char* str);
-  // |category| cannot contain ':'.  The sum of size of |category| and |data|
-  // cannot exceed 254.  It leaves room for the delimiter.
+  // Both |category| and |data| cannot contain the delimiter.
+  static void Register(const char* category, const char* data);
+  // Both |category| and |data| cannot contain the delimiter.
   static void Register(const char* category, const void* data,
                        size_t data_size);
-  static void RetrieveAndClear(std::vector<uint8_t>* infos);
+  // Both |category| and |data| cannot contain the delimiter.
+  template <typename T>
+  static void Register(const char* category, T data) {
+    std::stringstream ss;
+    ss << data;
+    Register(category, ss.str().c_str());
+  }
+
+  static void RetrieveAndClear(std::string* infos);
 };
 
 }  // namespace overlay_info

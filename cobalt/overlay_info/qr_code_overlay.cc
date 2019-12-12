@@ -15,13 +15,14 @@
 #include "cobalt/overlay_info/qr_code_overlay.h"
 
 #include <algorithm>
-#include <vector>
+#include <string>
 
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/overlay_info/overlay_info_registry.h"
 #include "cobalt/render_tree/animations/animate_node.h"
+#include "starboard/memory.h"
 #include "third_party/QR-Code-generator/cpp/QrCode.hpp"
 
 namespace cobalt {
@@ -32,16 +33,20 @@ namespace {
 using qrcodegen::QrCode;
 using render_tree::Image;
 using render_tree::ImageNode;
+using render_tree::ResourceProvider;
 
-const int kModuleDimensionInPixels = 4;
+const int kMinimumQrCodeVersion = 3;
 const int kPixelSizeInBytes = 4;
-const uint32_t kBlack = 0x00000000;
+#if SB_IS_BIG_ENDIAN
+const uint32_t kBlack = 0x000000FF;
+#else   // SB_IS_BIG_ENDIAN
+const uint32_t kBlack = 0xFF000000;
+#endif  // SB_IS_BIG_ENDIAN
 const uint32_t kWhite = 0xFFFFFFFF;
 const uint32_t kBorderColor = kWhite;
-const int kCodeBorderInPixels = 16;
-const int kScreenMarginInPixels = 128;
+const int kScreenMarginInPixels = 64;
 
-int64_t s_frame_count_ = 0;
+uint32_t s_frame_index_ = 0;
 
 void DrawRect(int width, int height, int pitch_in_bytes, uint32_t color,
               uint8_t* target_buffer) {
@@ -55,43 +60,45 @@ void DrawRect(int width, int height, int pitch_in_bytes, uint32_t color,
   }
 }
 
-void DrawQrCode(const QrCode& qr_code, int pitch_in_bytes,
-                uint8_t* target_buffer) {
+void DrawQrCode(const QrCode& qr_code, int module_dimension_in_pixels,
+                int pitch_in_bytes, uint8_t* target_buffer) {
   uint8_t* row_data = target_buffer;
   for (int row = 0; row < qr_code.getSize(); ++row) {
     uint8_t* column_data = row_data;
     for (int column = 0; column < qr_code.getSize(); ++column) {
-      DrawRect(kModuleDimensionInPixels, kModuleDimensionInPixels,
+      DrawRect(module_dimension_in_pixels, module_dimension_in_pixels,
                pitch_in_bytes, qr_code.getModule(row, column) ? kBlack : kWhite,
                column_data);
-      column_data += kPixelSizeInBytes * kModuleDimensionInPixels;
+      column_data += kPixelSizeInBytes * module_dimension_in_pixels;
     }
 
-    row_data += pitch_in_bytes * kModuleDimensionInPixels;
+    row_data += pitch_in_bytes * module_dimension_in_pixels;
   }
 }
 
-scoped_refptr<Image> CreateImageForQrCodes(
-    const std::vector<QrCode>& qr_codes, const math::Size& screen_size,
-    render_tree::ResourceProvider* resource_provider) {
-  TRACE_EVENT0("cobalt::overlay_info", "CreateImageForQrCodes()");
+scoped_refptr<Image> CreateImageForQrCode(const QrCode& qr_code,
+                                          const math::Size& screen_size,
+                                          int slots,
+                                          ResourceProvider* resource_provider) {
+  TRACE_EVENT0("cobalt::overlay_info", "CreateImageForQrCode()");
 
-  int max_code_size = 0;
+  const int module_dimension_in_pixels = screen_size.height() > 1080 ? 16 : 8;
+  const int code_border_in_pixels = module_dimension_in_pixels * 2;
 
-  for (auto& qr_code : qr_codes) {
-    max_code_size = std::max(max_code_size, qr_code.getSize());
-  }
+  int qr_code_size_in_blocks = qr_code.getSize();
 
-  int column =
-      (screen_size.width() - kScreenMarginInPixels * 2 - kCodeBorderInPixels) /
-      (max_code_size * kModuleDimensionInPixels + kCodeBorderInPixels);
-  column = std::min(column, static_cast<int>(qr_codes.size()));
-  int row = (static_cast<int>(qr_codes.size()) + column - 1) / column;
+  int column = (screen_size.width() - kScreenMarginInPixels * 2 -
+                code_border_in_pixels) /
+               (qr_code_size_in_blocks * module_dimension_in_pixels +
+                code_border_in_pixels);
+  column = std::min(column, slots);
+  int row = (slots + column - 1) / column;
 
-  int image_width = column * max_code_size * kModuleDimensionInPixels +
-                    kCodeBorderInPixels * (column + 1);
-  int image_height = row * max_code_size * kModuleDimensionInPixels +
-                     kCodeBorderInPixels * (row + 1);
+  int image_width =
+      column * qr_code_size_in_blocks * module_dimension_in_pixels +
+      code_border_in_pixels * (column + 1);
+  int image_height = row * qr_code_size_in_blocks * module_dimension_in_pixels +
+                     code_border_in_pixels * (row + 1);
 
   auto image_data = resource_provider->AllocateImageData(
       math::Size(image_width, image_height), render_tree::kPixelFormatRGBA8,
@@ -99,59 +106,63 @@ scoped_refptr<Image> CreateImageForQrCodes(
   DCHECK(image_data);
   auto image_desc = image_data->GetDescriptor();
 
-  size_t qr_code_index = 0;
+  uint32_t slot_index = 0;
   auto row_data = image_data->GetMemory();
   for (int i = 0; i < row; ++i) {
-    // Draw the top border of all qr codes in the row.
-    DrawRect(image_width, kCodeBorderInPixels, image_desc.pitch_in_bytes,
+    // Draw the top border of all qr code blocks in the row.
+    DrawRect(image_width, code_border_in_pixels, image_desc.pitch_in_bytes,
              kBorderColor, row_data);
-    row_data += kCodeBorderInPixels * image_desc.pitch_in_bytes;
+    row_data += code_border_in_pixels * image_desc.pitch_in_bytes;
     auto column_data = row_data;
 
     for (int j = 0; j < column; ++j) {
       // Draw the left border.
-      DrawRect(kCodeBorderInPixels, max_code_size * kModuleDimensionInPixels,
+      DrawRect(code_border_in_pixels,
+               qr_code_size_in_blocks * module_dimension_in_pixels,
                image_desc.pitch_in_bytes, kBorderColor, column_data);
-      column_data += kCodeBorderInPixels * kPixelSizeInBytes;
-      if (qr_code_index < qr_codes.size()) {
+      column_data += code_border_in_pixels * kPixelSizeInBytes;
+      if (slot_index == s_frame_index_ % slots) {
         // Draw qr code.
-        DrawQrCode(qr_codes[qr_code_index], image_desc.pitch_in_bytes,
-                   column_data);
-        ++qr_code_index;
+        DrawQrCode(qr_code, module_dimension_in_pixels,
+                   image_desc.pitch_in_bytes, column_data);
+      } else {
+        DrawRect(qr_code_size_in_blocks * module_dimension_in_pixels,
+                 qr_code_size_in_blocks * module_dimension_in_pixels,
+                 image_desc.pitch_in_bytes, kBlack, column_data);
       }
-      column_data +=
-          max_code_size * kModuleDimensionInPixels * kPixelSizeInBytes;
+      ++slot_index;
+      column_data += qr_code_size_in_blocks * module_dimension_in_pixels *
+                     kPixelSizeInBytes;
     }
 
     // Draw the right border of the row.
-    DrawRect(kCodeBorderInPixels, max_code_size * kModuleDimensionInPixels,
+    DrawRect(code_border_in_pixels,
+             qr_code_size_in_blocks * module_dimension_in_pixels,
              image_desc.pitch_in_bytes, kBorderColor, column_data);
 
-    row_data +=
-        max_code_size * kModuleDimensionInPixels * image_desc.pitch_in_bytes;
+    row_data += qr_code_size_in_blocks * module_dimension_in_pixels *
+                image_desc.pitch_in_bytes;
   }
 
   // Draw the bottom border of all qr code.
-  DrawRect(image_width, kCodeBorderInPixels, image_desc.pitch_in_bytes,
+  DrawRect(image_width, code_border_in_pixels, image_desc.pitch_in_bytes,
            kBorderColor, row_data);
 
   return resource_provider->CreateImage(std::move(image_data));
 }
 
-void AnimateCB(math::Size screen_size,
-               render_tree::ResourceProvider* resource_provider,
-               render_tree::ImageNode::Builder* image_node,
-               base::TimeDelta time) {
+void AnimateCB(math::Size screen_size, int slots,
+               ResourceProvider* resource_provider,
+               ImageNode::Builder* image_node, base::TimeDelta time) {
   SB_UNREFERENCED_PARAMETER(time);
   DCHECK(image_node);
 
   TRACE_EVENT0("cobalt::overlay_info", "AnimateCB()");
 
-  OverlayInfoRegistry::Register("overlay_info:frame_count", &s_frame_count_,
-                                sizeof(s_frame_count_));
-  ++s_frame_count_;
+  OverlayInfoRegistry::Register("frame", s_frame_index_);
+  ++s_frame_index_;
 
-  std::vector<uint8_t> infos;
+  std::string infos;
   OverlayInfoRegistry::RetrieveAndClear(&infos);
 
   if (infos.empty()) {
@@ -159,26 +170,25 @@ void AnimateCB(math::Size screen_size,
     return;
   }
 
-  // Use a vector in case we decide to switch back to multiple qr codes.
-  std::vector<QrCode> qr_codes;
-  qr_codes.emplace_back(QrCode::encodeBinary(infos, QrCode::Ecc::LOW));
-
+  auto qrcode = QrCode::encodeText(infos.c_str(), QrCode::Ecc::LOW,
+                                   kMinimumQrCodeVersion);
   image_node->source =
-      CreateImageForQrCodes(qr_codes, screen_size, resource_provider);
+      CreateImageForQrCode(qrcode, screen_size, slots, resource_provider);
   auto image_size = image_node->source->GetSize();
-  // TODO: Move the QR code between draws to avoid tearing.
-  image_node->destination_rect =
-      math::RectF(kScreenMarginInPixels, kScreenMarginInPixels,
-                  image_size.width(), image_size.height());
+  image_node->destination_rect = math::RectF(
+      screen_size.width() - image_size.width() - kScreenMarginInPixels,
+      screen_size.height() - image_size.height() - kScreenMarginInPixels,
+      image_size.width(), image_size.height());
 }
 
 }  // namespace
 
 QrCodeOverlay::QrCodeOverlay(
-    const math::Size& screen_size,
-    render_tree::ResourceProvider* resource_provider,
+    const math::Size& screen_size, int slots,
+    ResourceProvider* resource_provider,
     const RenderTreeProducedCB& render_tree_produced_cb)
     : render_tree_produced_cb_(render_tree_produced_cb),
+      slots_(slots),
       screen_size_(screen_size),
       resource_provider_(resource_provider) {
   DCHECK_GT(screen_size.width(), 0);
@@ -196,8 +206,7 @@ void QrCodeOverlay::SetSize(const math::Size& size) {
   UpdateRenderTree();
 }
 
-void QrCodeOverlay::SetResourceProvider(
-    render_tree::ResourceProvider* resource_provider) {
+void QrCodeOverlay::SetResourceProvider(ResourceProvider* resource_provider) {
   resource_provider_ = resource_provider;
   UpdateRenderTree();
 }
@@ -212,8 +221,8 @@ void QrCodeOverlay::UpdateRenderTree() {
   scoped_refptr<ImageNode> image_node = new ImageNode(nullptr);
   render_tree::animations::AnimateNode::Builder animate_node_builder;
 
-  animate_node_builder.Add(
-      image_node, base::Bind(AnimateCB, screen_size_, resource_provider_));
+  animate_node_builder.Add(image_node, base::Bind(AnimateCB, screen_size_,
+                                                  slots_, resource_provider_));
 
   render_tree_produced_cb_.Run(new render_tree::animations::AnimateNode(
       animate_node_builder, image_node));
