@@ -287,8 +287,10 @@
 // specify that.
 #define SB_NETWORK_IO_BUFFER_ALIGNMENT 16
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Determines the alignment that allocations should have on this platform.
 #define SB_MALLOC_ALIGNMENT ((size_t)16U)
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 // Determines the threshhold of allocation size that should be done with mmap
 // (if available), rather than allocated within the core heap.
