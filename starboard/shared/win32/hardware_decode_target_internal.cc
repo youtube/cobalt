@@ -368,7 +368,8 @@ bool HardwareDecodeTargetPrivate::Update(
     const ComPtr<ID3D11VideoProcessorEnumerator>& video_enumerator,
     const ComPtr<ID3D11VideoProcessor>& video_processor,
     const ComPtr<IMFSample>& video_sample,
-    const RECT& video_area) {
+    const RECT& video_area,
+    bool texture_RGBA) {
   // Only allow updating if this is the only reference. Otherwise the update
   // may change something that's currently being used.
   if (SbAtomicNoBarrier_Load(&refcount) > 1) {
@@ -378,8 +379,8 @@ bool HardwareDecodeTargetPrivate::Update(
   // The decode target info must be compatible. The resolution should match
   // exactly, otherwise the shader may sample invalid texels along the
   // texture border.
-  if (info.format != kSbDecodeTargetFormat2PlaneYUVNV12 ||
-      info.format != kSbDecodeTargetFormat1PlaneRGBA ||
+  if ((texture_RGBA ^ (info.format != kSbDecodeTargetFormat2PlaneYUVNV12)) ||
+      (texture_RGBA ^ (info.format == kSbDecodeTargetFormat1PlaneRGBA)) ||
       info.is_opaque != true || info.width != video_area.right ||
       info.height != video_area.bottom) {
     return false;

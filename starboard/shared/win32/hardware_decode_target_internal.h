@@ -55,7 +55,8 @@ struct HardwareDecodeTargetPrivate : public SbDecodeTargetPrivate {
               const ComPtr<ID3D11VideoProcessorEnumerator>& video_enumerator,
               const ComPtr<ID3D11VideoProcessor>& video_processor,
               const ComPtr<IMFSample>& video_sample,
-              const RECT& video_area);
+              const RECT& video_area,
+              bool texture_RGBA);
   void InitTextureRGBA();
   void InitTextureYUV();
 };

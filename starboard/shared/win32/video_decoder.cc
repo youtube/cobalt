@@ -376,7 +376,7 @@ SbDecodeTarget VideoDecoder::CreateDecodeTarget() {
           reinterpret_cast<HardwareDecodeTargetPrivate*>(decode_target);
       if (!hardware_decode_target->Update(
               d3d_device_, video_device_, video_context_, video_enumerator_,
-              video_processor_, video_sample, video_area)) {
+              video_processor_, video_sample, video_area, texture_RGBA_)) {
         // The cached decode target was not compatible; just release it.
         SbDecodeTargetRelease(decode_target);
         decode_target = kSbDecodeTargetInvalid;
