@@ -148,6 +148,8 @@ bool AudioSinkTestEnvironment::WaitUntilSomeFramesAreConsumed() {
 }
 
 bool AudioSinkTestEnvironment::WaitUntilAllFramesAreConsumed() {
+  const int kMaximumFramesPerAppend = 1024;
+
   ScopedLock lock(mutex_);
   is_eos_reached_ = true;
   int frames_appended_before_eos = frames_appended_;
@@ -164,8 +166,9 @@ bool AudioSinkTestEnvironment::WaitUntilAllFramesAreConsumed() {
     // Append silence as some audio sink implementations won't be able to finish
     // playback to the last frames filled.
     int silence_frames_to_append =
-        std::max(GetFrameBufferFreeSpaceInFrames_Locked() / 2,
-                 frame_buffers_.frames_per_channel() - silence_frames_appended);
+        std::min({GetFrameBufferFreeSpaceInFrames_Locked(),
+                  frame_buffers_.frames_per_channel() - silence_frames_appended,
+                  kMaximumFramesPerAppend});
     AppendFrame_Locked(silence_frames_to_append);
     silence_frames_appended += silence_frames_to_append;
 
