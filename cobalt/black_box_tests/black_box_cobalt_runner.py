@@ -32,7 +32,7 @@ class BlackBoxCobaltRunner(cobalt_runner.CobaltRunner):
   """Custom CobaltRunner made for BlackBoxTests' need."""
 
   def __init__(self,
-               device_params,
+               launcher_params,
                url,
                log_file=None,
                target_params=None,
@@ -44,7 +44,7 @@ class BlackBoxCobaltRunner(cobalt_runner.CobaltRunner):
       target_params = []
     target_params.append('--silence_inline_script_warnings')
 
-    super(BlackBoxCobaltRunner, self).__init__(device_params, url, log_file,
+    super(BlackBoxCobaltRunner, self).__init__(launcher_params, url, log_file,
                                                target_params, success_message)
 
   def JSTestsSucceeded(self):
