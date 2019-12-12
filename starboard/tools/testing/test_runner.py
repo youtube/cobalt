@@ -16,6 +16,7 @@
 #
 """Cross-platform unit test runner."""
 
+import argparse
 import cStringIO
 import logging
 import os
@@ -761,7 +762,8 @@ class TestRunner(object):
 
 def main():
   SetupDefaultLoggingConfig()
-  arg_parser = command_line.CreateParser()
+  arg_parser = argparse.ArgumentParser()
+  command_line.AddLauncherArguments(arg_parser)
   arg_parser.add_argument(
       "-b",
       "--build",

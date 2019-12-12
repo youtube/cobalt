@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Connect to the web debugger and run some commands."""
 
 # pylint: disable=g-doc-args,g-doc-return-or-yield,g-doc-exception
@@ -33,8 +32,8 @@ from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
 
 sys.path.append(
     os.path.join(
-        os.path.dirname(__file__), '..', '..', '..',
-        'third_party', 'websocket-client'))
+        os.path.dirname(__file__), '..', '..', '..', 'third_party',
+        'websocket-client'))
 import websocket  # pylint: disable=g-bad-import-order,g-import-not-at-top
 
 # Set to True to add additional logging to debug the test.
@@ -193,11 +192,12 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
     return val
 
   def setUp(self):
-    platform_vars = self.platform_config.GetVariables(self.device_params.config)
+    platform_vars = self.platform_config.GetVariables(
+        self.launcher_params.config)
     if platform_vars['javascript_engine'] != 'v8':
       self.skipTest('DevTools requires V8')
 
-    cobalt_vars = self.cobalt_config.GetVariables(self.device_params.config)
+    cobalt_vars = self.cobalt_config.GetVariables(self.launcher_params.config)
     if not cobalt_vars['enable_debugger']:
       self.skipTest('DevTools is disabled on this platform')
 
@@ -261,10 +261,12 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
     #     <div#A><div#A1/><div#A2/></div#A>
     #     <div#B/>
     #   </div#test>
-    self.debugger.run_command('DOM.requestChildNodes', {
-        'nodeId': body_node['nodeId'],
-        'depth': -1,  # entire subtree
-    })
+    self.debugger.run_command(
+        'DOM.requestChildNodes',
+        {
+            'nodeId': body_node['nodeId'],
+            'depth': -1,  # entire subtree
+        })
     child_nodes_event = self.debugger.wait_event('DOM.setChildNodes')
 
     h1 = child_nodes_event['params']['nodes'][0]
@@ -326,22 +328,19 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
     node_response = self.debugger.run_command('DOM.requestNode', {
         'objectId': eval_result['result']['objectId'],
     })
-    self.assertEqual(test_div['nodeId'],
-                     node_response['result']['nodeId'])
+    self.assertEqual(test_div['nodeId'], node_response['result']['nodeId'])
 
     # Event reporting the requested <div#test>
     node_event = self.debugger.wait_event('DOM.setChildNodes')
     self.assertEqual(test_div['nodeId'],
                      node_event['params']['nodes'][0]['nodeId'])
-    self.assertEqual(body_node['nodeId'],
-                     node_event['params']['parentId'])
+    self.assertEqual(body_node['nodeId'], node_event['params']['parentId'])
 
     # Event reporting the parent <body>
     node_event = self.debugger.wait_event('DOM.setChildNodes')
     self.assertEqual(body_node['nodeId'],
                      node_event['params']['nodes'][0]['nodeId'])
-    self.assertEqual(html_node['nodeId'],
-                     node_event['params']['parentId'])
+    self.assertEqual(html_node['nodeId'], node_event['params']['parentId'])
 
     # Event reporting the parent <html>
     node_event = self.debugger.wait_event('DOM.setChildNodes')
@@ -356,15 +355,13 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
     node_response = self.debugger.run_command('DOM.requestNode', {
         'objectId': resolve_response['result']['object']['objectId'],
     })
-    self.assertEqual(test_div['nodeId'],
-                     node_response['result']['nodeId'])
+    self.assertEqual(test_div['nodeId'], node_response['result']['nodeId'])
 
     # Event reporting the requested <div#test>
     node_event = self.debugger.wait_event('DOM.setChildNodes')
     self.assertEqual(test_div['nodeId'],
                      node_event['params']['nodes'][0]['nodeId'])
-    self.assertEqual(body_node['nodeId'],
-                     node_event['params']['parentId'])
+    self.assertEqual(body_node['nodeId'], node_event['params']['parentId'])
     # Ignore the other two events reporting the parents.
     node_event = self.debugger.wait_event('DOM.setChildNodes')
     node_event = self.debugger.wait_event('DOM.setChildNodes')

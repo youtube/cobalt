@@ -17,7 +17,6 @@ import _env  # pylint: disable=unused-import
 from cobalt.tools.automated_testing import c_val_names
 from cobalt.tools.automated_testing import webdriver_utils
 from starboard.tools import abstract_launcher
-from starboard.tools import command_line
 
 # Pattern to match Cobalt log line for when the WebDriver port has been
 # opened.
@@ -70,14 +69,6 @@ class CobaltRunner(object):
   Cobalt process the value of a CVal.
   """
 
-  class DeviceParams(object):
-    """A struct to store runner's device info."""
-    platform = None
-    device_id = None
-    config = None
-    out_directory = None
-    target_params = None
-
   class WindowDriverCreatedTimeoutException(Exception):
     """Exception thrown when WindowDriver was not created in time."""
 
@@ -88,7 +79,7 @@ class CobaltRunner(object):
     """Raised when assert condition fails."""
 
   def __init__(self,
-               device_params,
+               launcher_params,
                url,
                log_file=None,
                target_params=None,
@@ -96,7 +87,8 @@ class CobaltRunner(object):
     """CobaltRunner constructor.
 
     Args:
-      device_params:    A DeviceParams object storing all device specific info.
+      launcher_params:  An object storing all platform configuration and device
+        information parameters.
       url:              The intial URL to launch Cobalt on.
       log_file:         The log file's name string.
       target_params:    An array of command line arguments to launch Cobalt
@@ -117,10 +109,7 @@ class CobaltRunner(object):
     self.selenium_webdriver_module = webdriver_utils.import_selenium_module(
         'webdriver')
 
-    self.platform = device_params.platform
-    self.config = device_params.config
-    self.device_id = device_params.device_id
-    self.out_directory = device_params.out_directory
+    self.launcher_params = launcher_params
     if log_file:
       self.log_file = open(log_file)
     else:
@@ -214,13 +203,15 @@ class CobaltRunner(object):
     self.launcher_write_pipe = os.fdopen(write_fd, 'w')
 
     self.launcher = abstract_launcher.LauncherFactory(
-        self.platform,
+        self.launcher_params.platform,
         'cobalt',
-        self.config,
-        device_id=self.device_id,
+        self.launcher_params.config,
+        device_id=self.launcher_params.device_id,
         target_params=self.target_params,
         output_file=self.launcher_write_pipe,
-        out_directory=self.out_directory)
+        out_directory=self.launcher_params.out_directory,
+        loader_platform=self.launcher_params.loader_platform,
+        loader_config=self.launcher_params.loader_config)
 
     self.runner_thread = threading.Thread(target=self._RunLauncher)
     self.runner_thread.start()
@@ -502,23 +493,3 @@ class CobaltRunner(object):
     if render_tree_count is not None:
       return False
     return True
-
-
-def GetDeviceParamsFromCommandLine():
-  """Provide a commanline parser for all CobaltRunner inputs."""
-
-  arg_parser = command_line.CreateParser()
-
-  args, _ = arg_parser.parse_known_args()
-
-  device_params = CobaltRunner.DeviceParams()
-  device_params.platform = args.platform
-  device_params.config = args.config
-  device_params.device_id = args.device_id
-  device_params.out_directory = args.out_directory
-  if args.target_params is None:
-    device_params.target_params = []
-  else:
-    device_params.target_params = [args.target_params]
-
-  return device_params
