@@ -45,6 +45,8 @@
         '<(DEPTH)/net/net.gyp:net',
         '<(DEPTH)/cobalt/loader/loader.gyp:loader',
         '<(DEPTH)/cobalt/network/network.gyp:network',
+        '<(DEPTH)/cobalt/script/engine.gyp:engine',
+        '<(DEPTH)/cobalt/script/script.gyp:script',
         '<(DEPTH)/components/prefs/prefs.gyp:prefs',
         '<(DEPTH)/components/update_client/update_client.gyp:update_client',
         '<(DEPTH)/third_party/zlib2/zlib2.gyp:zip',
