@@ -16,6 +16,7 @@
 #
 """Tests the command_line module."""
 
+import argparse
 import os
 import unittest
 
@@ -23,7 +24,6 @@ import _env  # pylint: disable=unused-import
 from starboard.tools import command_line
 import starboard.tools.config
 import starboard.tools.platform
-
 
 _A_CONFIG = starboard.tools.config.GetAll()[0]
 _A_PLATFORM = starboard.tools.platform.GetAll()[0]
@@ -42,6 +42,12 @@ def _ClearEnviron():
     del os.environ['BUILD_TYPE']
   if 'BUILD_PLATFORM' in os.environ:
     del os.environ['BUILD_PLATFORM']
+
+
+def _CreateParser():
+  arg_parser = argparse.ArgumentParser()
+  command_line.AddPlatformConfigArguments(arg_parser)
+  return arg_parser
 
 
 def _SetEnvironConfig(config):
@@ -72,56 +78,56 @@ class CommandLineTest(unittest.TestCase):
     _RestoreMapping(os.environ, self.environ)
 
   def testNoEnvironmentRainyDayNoArgs(self):
-    parser = command_line.CreateParser()
+    arg_parser = _CreateParser()
     with self.assertRaises(SystemExit):
-      parser.parse_args([])
+      arg_parser.parse_args([])
 
   def testNoEnvironmentRainyDayNoConfig(self):
-    parser = command_line.CreateParser()
+    arg_parser = _CreateParser()
     with self.assertRaises(SystemExit):
-      parser.parse_args(['-p', _A_PLATFORM])
+      arg_parser.parse_args(['-p', _A_PLATFORM])
 
   def testNoEnvironmentRainyDayNoPlatform(self):
-    parser = command_line.CreateParser()
+    arg_parser = _CreateParser()
     with self.assertRaises(SystemExit):
-      parser.parse_args(['-c', _A_CONFIG])
+      arg_parser.parse_args(['-c', _A_CONFIG])
 
   def testNoEnvironmentSunnyDay(self):
-    parser = command_line.CreateParser()
-    args = parser.parse_args(['-c', _A_CONFIG, '-p', _A_PLATFORM])
+    arg_parser = _CreateParser()
+    args = arg_parser.parse_args(['-c', _A_CONFIG, '-p', _A_PLATFORM])
     self.assertEqual(_A_CONFIG, args.config)
     self.assertEqual(_A_PLATFORM, args.platform)
 
   def testDefaultsSunnyDay(self):
     _SetEnviron(_A_CONFIG, _A_PLATFORM)
-    parser = command_line.CreateParser()
-    args = parser.parse_args([])
+    arg_parser = _CreateParser()
+    args = arg_parser.parse_args([])
     self.assertEqual(_A_CONFIG, args.config)
     self.assertEqual(_A_PLATFORM, args.platform)
 
   def testDefaultsRainyDayBadConfig(self):
     _SetEnviron('badconfig', _A_PLATFORM)
-    parser = command_line.CreateParser()
+    arg_parser = _CreateParser()
     with self.assertRaises(SystemExit):
-      parser.parse_args([])
+      arg_parser.parse_args([])
 
   def testDefaultsRainyDayBadPlatform(self):
     _SetEnviron(_A_CONFIG, 'badplatform')
-    parser = command_line.CreateParser()
+    arg_parser = _CreateParser()
     with self.assertRaises(SystemExit):
-      parser.parse_args([])
+      arg_parser.parse_args([])
 
   def testBadEnvironmentSunnyDay(self):
     _SetEnviron('badconfig', 'badplatform')
-    parser = command_line.CreateParser()
-    args = parser.parse_args(['-c', _A_CONFIG, '-p', _A_PLATFORM])
+    arg_parser = _CreateParser()
+    args = arg_parser.parse_args(['-c', _A_CONFIG, '-p', _A_PLATFORM])
     self.assertEqual(_A_CONFIG, args.config)
     self.assertEqual(_A_PLATFORM, args.platform)
 
   def testInconsistentEnvironmentSunnyDay(self):
     _SetEnvironBuildConfiguration(_A_CONFIG, _A_PLATFORM)
-    parser = command_line.CreateParser()
-    args = parser.parse_args([])
+    arg_parser = _CreateParser()
+    args = arg_parser.parse_args([])
     self.assertEqual(_A_CONFIG, args.config)
     self.assertEqual(_A_PLATFORM, args.platform)
 
