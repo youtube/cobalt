@@ -28,6 +28,7 @@
 #include "base/threading/scoped_blocking_call.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
 #include "starboard/system.h"
@@ -249,7 +250,7 @@ bool DirectoryExists(const FilePath& path) {
 }
 
 bool GetTempDir(FilePath *path) {
-  std::vector<char> buffer(SB_FILE_MAX_PATH + 1, 0);
+  std::vector<char> buffer(kSbFileMaxPath + 1, 0);
   bool result =
       SbSystemGetPath(kSbSystemPathTempDirectory, buffer.data(), buffer.size());
   if (!result) {

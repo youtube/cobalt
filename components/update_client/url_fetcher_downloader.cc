@@ -19,6 +19,7 @@
 #include "base/task/task_traits.h"
 #include "components/update_client/network.h"
 #include "components/update_client/utils.h"
+#include "starboard/configuration_constants.h"
 #include "url/gurl.h"
 
 namespace {
@@ -95,7 +96,7 @@ void UrlFetcherDownloader::CreateDownloadDir() {
   }
 
   // Get the path to new installation.
-  std::vector<char> installation_path(SB_FILE_MAX_PATH);
+  std::vector<char> installation_path(kSbFileMaxPath);
   if (installation_api->GetInstallationPath(
           installation_index_, installation_path.data(),
           installation_path.size()) == IM_EXT_ERROR) {

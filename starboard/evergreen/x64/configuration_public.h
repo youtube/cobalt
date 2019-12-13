@@ -144,9 +144,6 @@
 
 // --- Filesystem Configuration ----------------------------------------------
 
-// The current platform's maximum length of an absolute path.
-#define SB_FILE_MAX_PATH 4096
-
 // --- Graphics Configuration ------------------------------------------------
 
 // Specifies whether this platform supports a performant accelerated blitter

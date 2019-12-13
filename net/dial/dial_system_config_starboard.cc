@@ -67,7 +67,7 @@ std::string GenerateRandomUuid() {
 
 // static
 std::string DialSystemConfig::GeneratePlatformUuid() {
-  std::vector<char> path_buffer(SB_FILE_MAX_PATH);
+  std::vector<char> path_buffer(kSbFileMaxPath);
   bool success = SbSystemGetPath(kSbSystemPathCacheDirectory,
                                  path_buffer.data(), path_buffer.size());
 

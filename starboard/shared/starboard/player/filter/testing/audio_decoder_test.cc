@@ -52,7 +52,7 @@ using video_dmp::VideoDmpReader;
 const SbTimeMonotonic kWaitForNextEventTimeOut = 5 * kSbTimeSecond;
 
 std::string GetTestInputDirectory() {
-  const size_t kPathSize = SB_FILE_MAX_PATH + 1;
+  const size_t kPathSize = kSbFileMaxPath + 1;
 
   std::vector<char> content_path(kPathSize);
   SB_CHECK(SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),
