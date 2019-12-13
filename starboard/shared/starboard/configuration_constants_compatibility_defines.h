@@ -39,6 +39,8 @@
 #define kSbMediaMaxVideoBitrateInBitsPerSecond \
   SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND
 
+#define kSbMediaMaximumVideoPrerollFrames SB_MEDIA_MAXIMUM_VIDEO_PREROLL_FRAMES
+
 #define kSbMediaVideoFrameAlignment SB_MEDIA_VIDEO_FRAME_ALIGNMENT
 
 #define kSbMemoryLogPath SB_MEMORY_LOG_PATH

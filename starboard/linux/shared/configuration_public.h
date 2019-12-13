@@ -252,6 +252,7 @@
 #define SB_MEDIA_VIDEO_FRAME_ALIGNMENT 256U
 #endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The encoded video frames are compressed in different ways, their decoding
 // time can vary a lot.  Occasionally a single frame can take longer time to
 // decode than the average time per frame.  The player has to cache some frames
@@ -261,6 +262,7 @@
 // Specify the number of video frames to be cached before the playback starts.
 // Note that set this value too large may increase the playback start delay.
 #define SB_MEDIA_MAXIMUM_VIDEO_PREROLL_FRAMES 4
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 // Specify the number of video frames to be cached during playback.  A large
 // value leads to more stable fps but also causes the app to use more memory.
