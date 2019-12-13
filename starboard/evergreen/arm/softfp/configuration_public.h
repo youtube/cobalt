@@ -208,11 +208,6 @@
 
 // --- Media Configuration ---------------------------------------------------
 
-// The maximum video bitrate the platform can decode.  The following value
-// equals to 25M bytes per seconds which is more than enough for compressed
-// video.
-#define SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND (200 * 1024 * 1024)
-
 // Specifies whether this platform has webm/vp9 support.  This should be set to
 // non-zero on platforms with webm/vp9 support.
 #define SB_HAS_MEDIA_WEBM_VP9_SUPPORT 0

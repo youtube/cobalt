@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/media/media_support_internal.h"
 
 #include "starboard/configuration.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
@@ -44,5 +45,5 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
   }
   return video_codec == kSbMediaVideoCodecH264 && frame_width <= 1920 &&
          frame_height <= 1080 &&
-         bitrate <= SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND && fps <= 30;
+         bitrate <= kSbMediaMaxVideoBitrateInBitsPerSecond && fps <= 30;
 }
