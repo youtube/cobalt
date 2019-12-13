@@ -273,11 +273,6 @@
 // Whether the current platform supports thread priorities.
 #define SB_HAS_THREAD_PRIORITY_SUPPORT 1
 
-// Defines the maximum number of simultaneous threads for this platform. Some
-// platforms require sharing thread handles with other kinds of system handles,
-// like mutexes, so we want to keep this managable.
-#define SB_MAX_THREADS 90
-
 // --- Timing API ------------------------------------------------------------
 
 // Whether this platform has an API to retrieve how long the current thread

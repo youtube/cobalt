@@ -57,6 +57,8 @@
 
 #define kSbNetworkReceiveBufferSize SB_NETWORK_RECEIVE_BUFFER_SIZE
 
+#define kSbMaxThreads SB_MAX_THREADS
+
 #define kSbUserMaxSignedIn SB_USER_MAX_SIGNED_IN
 
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION

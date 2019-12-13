@@ -333,10 +333,12 @@
 // scheduling on threads.
 #define SB_HAS_THREAD_PRIORITY_SUPPORT 0
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Defines the maximum number of simultaneous threads for this platform. Some
 // platforms require sharing thread handles with other kinds of system handles,
 // like mutexes, so we want to keep this managable.
 #define SB_MAX_THREADS 90
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 #if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The maximum number of thread local storage keys supported by this platform.

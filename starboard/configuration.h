@@ -612,10 +612,6 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_PATH_SEP_STRING."
 #endif
 
-#if !defined(SB_MAX_THREADS)
-#error "Your platform must define SB_MAX_THREADS."
-#endif
-
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 #if defined(SB_DEFAULT_MMAP_THRESHOLD)
@@ -643,6 +639,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error \
     "SB_MALLOC_ALIGNMENT should not be defined in Starboard " \
 "versions 12 and later. Instead, define kSbMallocAlignment in " \
+"starboard/<PLATFORM_PATH>/configuration_constants.cc."
+#endif
+
+#if defined(SB_MAX_THREADS)
+#error \
+    "SB_MAX_THREADS should not be defined in Starboard " \
+"versions 12 and later. Instead, define kSbMaxThreads in " \
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
@@ -730,6 +733,10 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 
 #if !defined(SB_FILE_MAX_NAME) || SB_FILE_MAX_NAME < 2
 #error "Your platform must define SB_FILE_MAX_NAME > 1."
+#endif
+
+#if !defined(SB_MAX_THREADS)
+#error "Your platform must define SB_MAX_THREADS."
 #endif
 
 #if !defined(SB_MAX_THREAD_LOCAL_KEYS)
