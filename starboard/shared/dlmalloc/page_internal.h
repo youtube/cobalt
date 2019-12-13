@@ -138,7 +138,7 @@ bool SbPageProtect(void* virtual_address, int64_t size_bytes, int flags);
 #endif  // SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
 
 // Returns the total amount, in bytes, of physical memory available. Should
-// always be a multiple of SB_MEMORY_PAGE_SIZE.
+// always be a multiple of kSbMemoryPageSize.
 size_t SbPageGetTotalPhysicalMemoryBytes();
 
 // Returns the amount, in bytes, of physical memory that hasn't yet been mapped.
@@ -146,7 +146,7 @@ size_t SbPageGetTotalPhysicalMemoryBytes();
 int64_t SbPageGetUnallocatedPhysicalMemoryBytes();
 
 // Returns the total amount, in bytes, currently allocated via Map().  Should
-// always be a multiple of SB_MEMORY_PAGE_SIZE.
+// always be a multiple of kSbMemoryPageSize.
 size_t SbPageGetMappedBytes();
 
 // Declaration of the allocator API.

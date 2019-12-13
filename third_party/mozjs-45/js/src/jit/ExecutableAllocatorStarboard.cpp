@@ -31,12 +31,14 @@
 #include "jit/ExecutableAllocator.h"
 #include "js/Utility.h"
 
+#include "starboard/configuration_constants.h"
+
 using namespace js::jit;
 
 size_t
 ExecutableAllocator::determinePageSize()
 {
-    return SB_MEMORY_PAGE_SIZE;
+  return kSbMemoryPageSize;
 }
 
 void*

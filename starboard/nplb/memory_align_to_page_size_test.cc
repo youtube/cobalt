@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/configuration_constants.h"
 #include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -21,12 +22,11 @@ namespace {
 
 TEST(SbMemoryAlignToPageSizeTest, AlignsVariousSizes) {
   EXPECT_EQ(0, SbMemoryAlignToPageSize(0));
-  EXPECT_EQ(SB_MEMORY_PAGE_SIZE, SbMemoryAlignToPageSize(1));
-  EXPECT_EQ(SB_MEMORY_PAGE_SIZE,
-            SbMemoryAlignToPageSize(SB_MEMORY_PAGE_SIZE - 1));
-  EXPECT_EQ(SB_MEMORY_PAGE_SIZE, SbMemoryAlignToPageSize(SB_MEMORY_PAGE_SIZE));
-  EXPECT_EQ(100 * SB_MEMORY_PAGE_SIZE,
-            SbMemoryAlignToPageSize(100 * SB_MEMORY_PAGE_SIZE));
+  EXPECT_EQ(kSbMemoryPageSize, SbMemoryAlignToPageSize(1));
+  EXPECT_EQ(kSbMemoryPageSize, SbMemoryAlignToPageSize(kSbMemoryPageSize - 1));
+  EXPECT_EQ(kSbMemoryPageSize, SbMemoryAlignToPageSize(kSbMemoryPageSize));
+  EXPECT_EQ(100 * kSbMemoryPageSize,
+            SbMemoryAlignToPageSize(100 * kSbMemoryPageSize));
 }
 
 }  // namespace

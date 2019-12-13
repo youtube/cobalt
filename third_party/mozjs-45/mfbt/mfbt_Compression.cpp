@@ -24,6 +24,12 @@ using namespace mozilla::Compression;
 #include <intrin.h>
 #endif
 
+// We similarly include "configuration_constants.h" to prevent it from being
+// include it in the anonymous namespace.
+#if defined(STARBOARD)
+#include "starboard/configuration_constants.h"
+#endif
+
 namespace {
 
 #include "lz4.c"

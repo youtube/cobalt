@@ -23,6 +23,8 @@
 #include "cobalt/browser/memory_tracker/tool/params.h"
 #include "cobalt/browser/memory_tracker/tool/util.h"
 #include "nb/bit_cast.h"
+// Starboard headers.
+#include "starboard/configuration_constants.h"
 
 namespace cobalt {
 namespace browser {
@@ -148,7 +150,7 @@ void InternalFragmentationTool::Run(Params* params) {
   MemoryBytesHistogramCSV histogram_table;
   histogram_table.set_title("Internal Fragmentation - Probably undercounts");
 
-  FragmentationProcessor visitor(SB_MEMORY_PAGE_SIZE);
+  FragmentationProcessor visitor(kSbMemoryPageSize);
 
   // If we get a finish signal then this will break out of the loop.
   while (!params->wait_for_finish_signal(250 * kSbTimeMillisecond)) {

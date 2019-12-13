@@ -272,12 +272,6 @@
 
 // --- Memory Configuration --------------------------------------------------
 
-// The memory page size, which controls the size of chunks on memory that
-// allocators deal with, and the alignment of those chunks. This doesn't have to
-// be the hardware-defined physical page size, but it should be a multiple of
-// it.
-#define SB_MEMORY_PAGE_SIZE 4096
-
 // Whether this platform can map executable memory. Implies the platform can map
 // memory. This is required for platforms that want to JIT.
 #define SB_CAN_MAP_EXECUTABLE_MEMORY 1

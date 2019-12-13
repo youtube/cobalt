@@ -460,6 +460,7 @@ ExportedSymbols::ExportedSymbols(
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   REGISTER_SYMBOL(kSbMallocAlignment);
   REGISTER_SYMBOL(kSbMaxThreadNameLength);
+  REGISTER_SYMBOL(kSbMemoryPageSize);
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 }
 
