@@ -596,10 +596,6 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_FILE_MAX_PATH > 1."
 #endif
 
-#if !defined(SB_FILE_SEP_STRING)
-#error "Your platform must define SB_FILE_SEP_STRING."
-#endif
-
 #if !defined(SB_FILE_ALT_SEP_STRING)
 #error "Your platform must define SB_FILE_ALT_SEP_STRING."
 #endif
@@ -642,6 +638,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error \
     "SB_FILE_SEP_CHAR should not be defined in Starboard " \
 "versions 12 and later. Instead, define kSbFileSepChar in " \
+"starboard/<PLATFORM_PATH>/configuration_constants.cc."
+#endif
+
+#if defined(SB_FILE_SEP_STRING)
+#error \
+    "SB_FILE_SEP_STRING should not be defined in Starboard " \
+"versions 12 and later. Instead, define kSbFileSepString in " \
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
@@ -766,6 +769,10 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 
 #if !defined(SB_FILE_SEP_CHAR)
 #error "Your platform must define SB_FILE_SEP_CHAR."
+#endif
+
+#if !defined(SB_FILE_SEP_STRING)
+#error "Your platform must define SB_FILE_SEP_STRING."
 #endif
 
 #if !defined(SB_MAX_THREAD_NAME_LENGTH)
