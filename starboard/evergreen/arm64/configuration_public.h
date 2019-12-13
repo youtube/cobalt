@@ -247,10 +247,6 @@
 // decoded.
 #define SB_MEDIA_BUFFER_ALIGNMENT 128U
 
-// Specify the number of video frames to be cached during playback.  A large
-// value leads to more stable fps but also causes the app to use more memory.
-#define SB_MEDIA_MAXIMUM_VIDEO_FRAMES 12
-
 // --- Memory Configuration --------------------------------------------------
 
 // Whether this platform has and should use an MMAP function to map physical
