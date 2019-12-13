@@ -117,6 +117,19 @@ extern const uint32_t kSbNetworkReceiveBufferSize;
 // like mutexes, so we want to keep this manageable.
 extern const uint32_t kSbMaxThreads;
 
+// The current platform's search path component separator character. When
+// specifying an ordered list of absolute paths of directories to search for a
+// given reason, this is the character that appears between entries. For
+// example, the search path of "/etc/search/first:/etc/search/second" uses ':'
+// as a search path component separator character.
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern const char kSbPathSepChar;
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+
 // The maximum number of users that can be signed in at the same time.
 extern const uint32_t kSbUserMaxSignedIn;
 

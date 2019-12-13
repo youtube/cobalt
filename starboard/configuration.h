@@ -596,10 +596,6 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_FILE_MAX_PATH > 1."
 #endif
 
-#if !defined(SB_PATH_SEP_CHAR)
-#error "Your platform must define SB_PATH_SEP_CHAR."
-#endif
-
 #if !defined(SB_FILE_SEP_STRING)
 #error "Your platform must define SB_FILE_SEP_STRING."
 #endif
@@ -736,6 +732,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
+#if defined(SB_PATH_SEP_CHAR)
+#error \
+    "SB_PATH_SEP_CHAR should not be defined in Starboard " \
+"versions 12 and later. Instead, define kSbPathSepChar in " \
+"starboard/<PLATFORM_PATH>/configuration_constants.cc."
+#endif
+
 #if defined(SB_USER_MAX_SIGNED_IN)
 #error \
     "SB_USER_MAX_SIGNED_IN should not be defined in Starboard " \
@@ -767,6 +770,10 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 
 #if !defined(SB_MAX_THREAD_NAME_LENGTH)
 #error "Your platform must define SB_MAX_THREAD_NAME_LENGTH."
+#endif
+
+#if !defined(SB_PATH_SEP_CHAR)
+#error "Your platform must define SB_PATH_SEP_CHAR."
 #endif
 
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION

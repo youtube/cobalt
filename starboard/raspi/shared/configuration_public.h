@@ -142,13 +142,6 @@
 // The current platform's maximum length of an absolute path.
 #define SB_FILE_MAX_PATH 4096
 
-// The current platform's search path component separator character. When
-// specifying an ordered list of absolute paths of directories to search for a
-// given reason, this is the character that appears between entries. For
-// example, the search path of "/etc/search/first:/etc/search/second" uses ':'
-// as a search path component separator character.
-#define SB_PATH_SEP_CHAR ':'
-
 // The string form of SB_FILE_SEP_CHAR.
 #define SB_FILE_SEP_STRING "/"
 

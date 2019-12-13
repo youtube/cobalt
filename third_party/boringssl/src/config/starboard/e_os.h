@@ -67,6 +67,8 @@
  * outside; this file e_os.h is not part of the exported interface.
  */
 
+#include "starboard/configuration_constants.h"
+
 #ifdef  __cplusplus
 extern "C" {
 #endif
@@ -241,7 +243,7 @@ extern "C" {
 #   define NO_SYS_PARAM_H
 #  endif
 #  define OPENSSL_CONF        "openssl.cnf"
-#  define LIST_SEPARATOR_CHAR SB_PATH_SEP_CHAR
+#  define LIST_SEPARATOR_CHAR kSbPathSepChar
 # elif (defined(WINDOWS) || defined(MSDOS))
 
 #  ifdef __DJGPP__
