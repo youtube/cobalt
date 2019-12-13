@@ -340,9 +340,6 @@ SB_HAS_MMAP 1
 
 // --- User Configuration ----------------------------------------------------
 
-// The maximum number of users that can be signed in at the same time.
-#define SB_USER_MAX_SIGNED_IN 1
-
 // --- Platform Specific Audits ----------------------------------------------
 
 #endif  // STARBOARD_WIN_SHARED_CONFIGURATION_PUBLIC_H_

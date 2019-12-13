@@ -90,6 +90,9 @@ extern const size_t kSbMemoryPageSize;
 // a setting of (128 * 1024) here is recommended.
 extern const uint32_t kSbNetworkReceiveBufferSize;
 
+// The maximum number of users that can be signed in at the same time.
+extern const uint32_t kSbUserMaxSignedIn;
+
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 #endif  // STARBOARD_CONFIGURATION_CONSTANTS_H_

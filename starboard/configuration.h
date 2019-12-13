@@ -709,6 +709,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
+#if defined(SB_USER_MAX_SIGNED_IN)
+#error \
+    "SB_USER_MAX_SIGNED_IN should not be defined in Starboard " \
+"versions 12 and later. Instead, define kSbUserMaxSignedIn in " \
+"starboard/<PLATFORM_PATH>/configuration_constants.cc."
+#endif
+
 #else  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 #if !defined(SB_FILE_MAX_NAME) || SB_FILE_MAX_NAME < 2
