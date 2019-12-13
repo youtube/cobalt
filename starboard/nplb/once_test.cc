@@ -14,8 +14,9 @@
 
 // Broadcast is Sunny Day tested in most of the other SbConditionVariable tests.
 
-#include "starboard/nplb/thread_helpers.h"
 #include "starboard/once.h"
+#include "starboard/configuration_constants.h"
+#include "starboard/nplb/thread_helpers.h"
 #include "starboard/thread.h"
 #include "starboard/thread_types.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -97,7 +98,7 @@ void* RunSbOnceEntryPoint(void* context) {
 // using a shared SbOnceControl object.  We then test that the initialization
 // routine got called exactly one time.
 TEST(SbOnceTest, SunnyDayMultipleThreadsInit) {
-  const int kMany = SB_MAX_THREADS;
+  const int kMany = kSbMaxThreads;
   std::vector<SbThread> threads(kMany);
 
   const int kIterationCount = 10;
