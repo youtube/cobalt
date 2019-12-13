@@ -152,9 +152,6 @@
 // The current platform's maximum length of an absolute path.
 #define SB_FILE_MAX_PATH 4096
 
-// The string form of SB_PATH_SEP_CHAR.
-#define SB_PATH_SEP_STRING ":"
-
 // --- Graphics Configuration ------------------------------------------------
 
 // Specifies whether this platform supports a performant accelerated blitter

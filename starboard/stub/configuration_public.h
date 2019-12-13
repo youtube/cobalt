@@ -186,9 +186,6 @@
 // The current platform's maximum length of an absolute path.
 #define SB_FILE_MAX_PATH 4096
 
-// The string form of SB_PATH_SEP_CHAR.
-#define SB_PATH_SEP_STRING ":"
-
 // Some operating systems constantly return zero values for creation, access
 // and modification time for files and directories. When this quirk is defined,
 // we need to ignore corresponded time values in applications as well as take
