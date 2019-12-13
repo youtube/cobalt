@@ -155,11 +155,13 @@
 #define SB_FILE_SEP_CHAR '/'
 #endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The current platform's alternate file path component separator character.
 // This is like SB_FILE_SEP_CHAR, except if your platform supports an alternate
 // character, then you can place that here. For example, on windows machines,
 // the primary separator character is probably '\', but the alternate is '/'.
 #define SB_FILE_ALT_SEP_CHAR '/'
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 // The current platform's search path component separator character. When
 // specifying an ordered list of absolute paths of directories to search for a

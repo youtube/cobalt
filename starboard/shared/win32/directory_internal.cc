@@ -43,10 +43,9 @@ bool HasValidHandle(SbDirectory directory) {
 void TrimExtraFileSeparators(std::wstring* dirname_pointer) {
   SB_DCHECK(dirname_pointer);
   std::wstring& dirname = *dirname_pointer;
-  auto new_end =
-      std::find_if_not(dirname.rbegin(), dirname.rend(), [](wchar_t c) {
-        return c == kSbFileSepChar || c == SB_FILE_ALT_SEP_CHAR;
-      });
+  auto new_end = std::find_if_not(
+      dirname.rbegin(), dirname.rend(),
+      [](wchar_t c) { return c == kSbFileSepChar || c == kSbFileAltSepChar; });
   dirname.erase(new_end.base(), dirname.end());
 }
 
@@ -83,7 +82,7 @@ bool CreateDirectoryHiearchy(const std::wstring& wfull_path) {
     return true;
   }
   const wchar_t kPathSeparators[] = {static_cast<wchar_t>(kSbFileSepChar),
-                                     SB_FILE_ALT_SEP_CHAR};
+                                     static_cast<wchar_t>(kSbFileAltSepChar)};
   size_t path_end = 0;
   do {
     path_end = wfull_path.find_first_of(kPathSeparators, path_end,

@@ -31,6 +31,12 @@ const int32_t kSbFileMaxName = 260;
 // use a dummy event to wake up the socket.
 const uint32_t kSbFileMaxOpen = 63;
 
+// The current platform's alternate file path component separator character.
+// This is like SB_FILE_SEP_CHAR, except if your platform supports an alternate
+// character, then you can place that here. For example, on windows machines,
+// the primary separator character is probably '\', but the alternate is '/'.
+const char kSbFileAltSepChar = '/';
+
 // The current platform's file path component separator character. This is the
 // character that appears after a directory in a file path. For example, the
 // absolute canonical path of the file "/path/to/a/file.txt" uses '/' as a path
