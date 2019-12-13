@@ -33,6 +33,10 @@ extern const size_t kSbDefaultMmapThreshold;
 // entry, not including the absolute path.
 extern const int32_t kSbFileMaxName;
 
+// The current platform's maximum number of files that can be opened at the
+// same time by one process.
+extern const uint32_t kSbFileMaxOpen;
+
 // Determines the alignment that allocations should have on this platform.
 extern const size_t kSbMallocAlignment;
 

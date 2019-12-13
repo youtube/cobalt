@@ -636,6 +636,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
+#if defined(SB_FILE_MAX_OPEN)
+#error \
+    "SB_FILE_MAX_OPEN should not be defined in Starboard " \
+"versions 12 and later. Instead, define kSbFileMaxOpen in " \
+"starboard/<PLATFORM_PATH>/configuration_constants.cc."
+#endif
+
 #if defined(SB_MALLOC_ALIGNMENT)
 #error \
     "SB_MALLOC_ALIGNMENT should not be defined in Starboard " \

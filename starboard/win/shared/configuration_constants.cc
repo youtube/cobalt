@@ -24,6 +24,13 @@ const size_t kSbDefaultMmapThreshold = 256 * 1024U;
 // entry, not including the absolute path.
 const int32_t kSbFileMaxName = 260;
 
+// The current platform's maximum number of files that can be opened at the
+// same time by one process.
+// This is set to MAXIMUM_WAIT_OBJECTS - 1, since we use WaitForMultipleEvents
+// and that only supports MAXIMUM_WAIT_OBJECTS events.  The -1 is since we
+// use a dummy event to wake up the socket.
+const uint32_t kSbFileMaxOpen = 63;
+
 // Determines the alignment that allocations should have on this platform.
 const size_t kSbMallocAlignment = 16;
 

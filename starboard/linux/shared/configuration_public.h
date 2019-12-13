@@ -141,9 +141,11 @@
 // The current platform's maximum length of an absolute path.
 #define SB_FILE_MAX_PATH 4096
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The current platform's maximum number of files that can be opened at the
 // same time by one process.
 #define SB_FILE_MAX_OPEN 256
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 // The current platform's file path component separator character. This is the
 // character that appears after a directory in a file path. For example, the
