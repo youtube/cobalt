@@ -647,6 +647,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
+#if defined(SB_MEDIA_MAXIMUM_VIDEO_FRAMES)
+#error \
+    "SB_MEDIA_MAXIMUM_VIDEO_FRAMES should not be defined in Starboard " \
+"versions 12 and later. Instead, define kSbMediaMaximumVideoFrames in " \
+"starboard/<PLATFORM_PATH>/configuration_constants.cc."
+#endif
+
 #if defined(SB_MEDIA_MAXIMUM_VIDEO_PREROLL_FRAMES)
 #error \
     "SB_MEDIA_MAXIMUM_VIDEO_PREROLL_FRAMES should not be defined in " \

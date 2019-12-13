@@ -285,10 +285,6 @@
 // decoded.
 #define SB_MEDIA_BUFFER_ALIGNMENT 128U
 
-// Specify the number of video frames to be cached during playback.  A large
-// value leads to more stable fps but also causes the app to use more memory.
-#define SB_MEDIA_MAXIMUM_VIDEO_FRAMES 12
-
 // Specifies whether this platform updates audio frames asynchronously.  In such
 // case an extra parameter will be added to |SbAudioSinkConsumeFramesFunc| to
 // indicate the absolute time that the consumed audio frames are reported.
