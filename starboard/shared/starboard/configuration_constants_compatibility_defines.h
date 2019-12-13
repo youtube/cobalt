@@ -35,6 +35,8 @@
 
 #define kSbMallocAlignment SB_MALLOC_ALIGNMENT
 
+#define kSbMaxThreadLocalKeys SB_MAX_THREAD_LOCAL_KEYS
+
 #define kSbMaxThreadNameLength SB_MAX_THREAD_NAME_LENGTH
 
 #define kSbMediaMaxAudioBitrateInBitsPerSecond \

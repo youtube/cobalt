@@ -338,8 +338,10 @@
 // like mutexes, so we want to keep this managable.
 #define SB_MAX_THREADS 90
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The maximum number of thread local storage keys supported by this platform.
 #define SB_MAX_THREAD_LOCAL_KEYS 512
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 #if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The maximum length of the name for a thread, including the NULL-terminator.
