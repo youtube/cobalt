@@ -15,7 +15,7 @@
 #if defined(STARBOARD)
 #include "angle_hdr.h"
 
-#include "starboard\atomic.h"
+#include "starboard/atomic.h"
 
 namespace angle
 {
