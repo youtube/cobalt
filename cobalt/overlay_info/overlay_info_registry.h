@@ -35,7 +35,7 @@ namespace overlay_info {
 // Binary data will be converted into hex string before storing.
 class OverlayInfoRegistry {
  public:
-  static const uint8_t kDelimiter = ',';  // ':' doesn't work with some scanners
+  static const char kDelimiter = ',';  // ':' doesn't work with some scanners
   // The size of category and data combined should be less than or equal to
   // kMaxSizeOfData - 1.  The extra room of one byte is used by the delimiter.
   static const size_t kMaxSizeOfData = 255;
