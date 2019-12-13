@@ -462,6 +462,7 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(kSbFileMaxName);
   REGISTER_SYMBOL(kSbMallocAlignment);
   REGISTER_SYMBOL(kSbMaxThreadNameLength);
+<<<<<<< HEAD
   REGISTER_SYMBOL(kSbMediaMaxAudioBitrateInBitsPerSecond);
   REGISTER_SYMBOL(kSbMediaMaxVideoBitrateInBitsPerSecond);
   REGISTER_SYMBOL(kSbMediaMaximumVideoFrames);
@@ -470,6 +471,9 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(kSbMemoryLogPath);
   REGISTER_SYMBOL(kSbMemoryPageSize);
   REGISTER_SYMBOL(kSbNetworkReceiveBufferSize);
+=======
+  REGISTER_SYMBOL(kSbUserMaxSignedIn);
+>>>>>>> Replace SB_USER_MAX_SIGNED_IN
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 }
 

@@ -79,3 +79,6 @@ const size_t kSbMemoryPageSize = 4096;
 // If your platform does not have a good TCP auto-tuning mechanism,
 // a setting of (128 * 1024) here is recommended.
 const uint32_t kSbNetworkReceiveBufferSize = 0;
+
+// The maximum number of users that can be signed in at the same time.
+const uint32_t kSbUserMaxSignedIn = 1;
