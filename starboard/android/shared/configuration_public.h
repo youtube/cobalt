@@ -274,11 +274,6 @@
 // like mutexes, so we want to keep this managable.
 #define SB_MAX_THREADS 90
 
-// The maximum number of thread local storage keys supported by this platform.
-// This comes from bionic PTHREAD_KEYS_MAX in limits.h, which we've decided
-// to not include here to decrease symbol pollution.
-#define SB_MAX_THREAD_LOCAL_KEYS 128
-
 // --- Tuneable Parameters ---------------------------------------------------
 
 // --- User Configuration ----------------------------------------------------
