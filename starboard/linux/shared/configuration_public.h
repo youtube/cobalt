@@ -247,8 +247,10 @@
 // decoded.
 #define SB_MEDIA_BUFFER_ALIGNMENT 128U
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Specifies how video frame buffers must be aligned on this platform.
 #define SB_MEDIA_VIDEO_FRAME_ALIGNMENT 256U
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 // The encoded video frames are compressed in different ways, their decoding
 // time can vary a lot.  Occasionally a single frame can take longer time to

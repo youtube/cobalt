@@ -39,6 +39,9 @@ const uint32_t kSbMediaMaxAudioBitrateInBitsPerSecond = 40 * 1024 * 1024;
 // video.
 const uint32_t kSbMediaMaxVideoBitrateInBitsPerSecond = 200 * 1024 * 1024;
 
+// Specifies how video frame buffers must be aligned on this platform.
+const uint32_t kSbMediaVideoFrameAlignment = 256;
+
 // The memory page size, which controls the size of chunks on memory that
 // allocators deal with, and the alignment of those chunks. This doesn't have to
 // be the hardware-defined physical page size, but it should be a multiple of
