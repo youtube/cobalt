@@ -16,6 +16,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/elf_loader/elf_loader.h"
 #include "starboard/event.h"
 #include "starboard/loader_app/installation_manager.h"
@@ -101,14 +102,14 @@ void LoadLibraryAndInitialize() {
     // installation_n/lib/libcobalt.so
     std::vector<char> lib_path(SB_FILE_MAX_PATH);
     SbStringFormatF(lib_path.data(), SB_FILE_MAX_PATH, "%s%s%s%s%s",
-                    installation_path.data(), SB_FILE_SEP_STRING,
-                    kCobaltLibraryPath, SB_FILE_SEP_STRING, kCobaltLibraryName);
+                    installation_path.data(), kSbFileSepString,
+                    kCobaltLibraryPath, kSbFileSepString, kCobaltLibraryName);
     SB_LOG(INFO) << "lib_path=" << lib_path.data();
 
     // installation_n/content
     std::vector<char> content_path(SB_FILE_MAX_PATH);
     SbStringFormatF(content_path.data(), SB_FILE_MAX_PATH, "%s%s%s",
-                    installation_path.data(), SB_FILE_SEP_STRING,
+                    installation_path.data(), kSbFileSepString,
                     kCobaltContentPath);
     SB_LOG(INFO) << "content_path=" << content_path.data();
 

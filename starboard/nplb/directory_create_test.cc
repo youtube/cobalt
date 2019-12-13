@@ -14,6 +14,7 @@
 
 #include <string>
 
+#include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
 #include "starboard/nplb/file_helpers.h"
@@ -25,7 +26,8 @@ namespace nplb {
 namespace {
 
 const char* kManyFileSeparators =
-    SB_FILE_SEP_STRING SB_FILE_SEP_STRING SB_FILE_SEP_STRING SB_FILE_SEP_STRING;
+    (std::string(kSbFileSepString) + kSbFileSepString + kSbFileSepString +
+     kSbFileSepString).data();
 
 // NOTE: There is a test missing here, for creating a directory right off of the
 // root. But, this is likely to fail due to permissions, so we can't make a
@@ -89,7 +91,7 @@ TEST(SbDirectoryCreateTest, FailureEmptyPath) {
 
 TEST(SbDirectoryCreateTest, FailureNonexistentParent) {
   ScopedRandomFile dir(ScopedRandomFile::kDontCreate);
-  std::string path = dir.filename() + SB_FILE_SEP_STRING "test";
+  std::string path = dir.filename() + kSbFileSepString + "test";
 
   EXPECT_FALSE(SbDirectoryCanOpen(path.c_str()));
   EXPECT_FALSE(SbDirectoryCreate(path.c_str()));

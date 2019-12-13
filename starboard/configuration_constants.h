@@ -49,6 +49,9 @@ extern const char kSbFileAltSepChar;
 // component separator character.
 extern const char kSbFileSepChar;
 
+// The string form of SB_FILE_SEP_CHAR.
+extern const char* kSbFileSepString;
+
 // Determines the alignment that allocations should have on this platform.
 extern const size_t kSbMallocAlignment;
 

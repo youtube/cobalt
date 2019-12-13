@@ -22,6 +22,7 @@
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/script/v8c/v8c_tracing_controller.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 
 namespace cobalt {
@@ -119,7 +120,7 @@ void IsolateFellowship::InitializeStartupData() {
 
   // Attempt to read the cache file.
   std::string snapshot_file_full_path =
-      std::string(cache_path.data()) + SB_FILE_SEP_STRING +
+      std::string(cache_path.data()) + kSbFileSepString +
       V8C_INTERNAL_STARTUP_DATA_CACHE_FILE_NAME;
   bool read_file = ([&]() {
     starboard::ScopedFile scoped_file(snapshot_file_full_path.c_str(),
