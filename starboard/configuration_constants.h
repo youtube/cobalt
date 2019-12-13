@@ -31,6 +31,12 @@ extern const size_t kSbMallocAlignment;
 // The maximum length of the name for a thread, including the NULL-terminator.
 extern const int32_t kSbMaxThreadNameLength;
 
+// The memory page size, which controls the size of chunks on memory that
+// allocators deal with, and the alignment of those chunks. This doesn't have to
+// be the hardware-defined physical page size, but it should be a multiple of
+// it.
+extern const size_t kSbMemoryPageSize;
+
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 #endif  // STARBOARD_CONFIGURATION_CONSTANTS_H_

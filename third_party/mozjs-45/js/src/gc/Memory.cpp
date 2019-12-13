@@ -14,6 +14,7 @@
 
 #if defined(STARBOARD)
 #include "starboard/common/log.h"
+#include "starboard/configuration_constants.h"
 #elif defined(XP_WIN)
 
 #include "jswin.h"
@@ -758,8 +759,8 @@ DeallocateMappedContent(void* p, size_t length)
 #define MAP_FAILED SB_MEMORY_MAP_FAILED
 
 void InitMemorySubsystem() {
-    pageSize = SB_MEMORY_PAGE_SIZE;
-    allocGranularity = SB_MEMORY_PAGE_SIZE;
+  pageSize = kSbMemoryPageSize;
+  allocGranularity = kSbMemoryPageSize;
 }
 
 void* MapAlignedPages(size_t size, size_t alignment) {

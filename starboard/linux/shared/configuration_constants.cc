@@ -24,4 +24,10 @@ const size_t kSbMallocAlignment = 16;
 // The maximum length of a name for a thread, including the NULL-terminator.
 const int32_t kSbMaxThreadNameLength = 16;
 
+// The memory page size, which controls the size of chunks on memory that
+// allocators deal with, and the alignment of those chunks. This doesn't have to
+// be the hardware-defined physical page size, but it should be a multiple of
+// it.
+const size_t kSbMemoryPageSize = 4096;
+
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
