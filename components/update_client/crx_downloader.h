@@ -19,6 +19,10 @@
 #include "base/threading/thread_checker.h"
 #include "url/gurl.h"
 
+#if defined(OS_STARBOARD)
+#include "cobalt/extension/installation_manager.h"
+#endif
+
 namespace update_client {
 
 class NetworkFetcherFactory;
@@ -56,6 +60,10 @@ class CrxDownloader {
   struct Result {
     // Download error: 0 indicates success.
     int error = 0;
+
+#if defined(OS_STARBOARD)
+    int installation_index = IM_EXT_INVALID_INDEX;
+#endif
 
     // Path of the downloaded file if the download was successful.
     base::FilePath response;

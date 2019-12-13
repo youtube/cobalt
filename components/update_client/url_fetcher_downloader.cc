@@ -5,9 +5,11 @@
 #include "components/update_client/url_fetcher_downloader.h"
 
 #include <stdint.h>
+#include <stack>
 #include <utility>
 
 #include "base/bind.h"
+#include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
 #include "base/location.h"
 #include "base/logging.h"
@@ -19,6 +21,29 @@
 #include "url/gurl.h"
 
 namespace {
+
+#if defined(OS_STARBOARD)
+void CleanupDirectory(base::FilePath& dir) {
+  std::stack<std::string> directories;
+  base::FileEnumerator file_enumerator(
+      dir, true,
+      base::FileEnumerator::FILES | base::FileEnumerator::DIRECTORIES);
+  for (auto path = file_enumerator.Next(); !path.value().empty();
+       path = file_enumerator.Next()) {
+    base::FileEnumerator::FileInfo info(file_enumerator.GetInfo());
+
+    if (info.IsDirectory()) {
+      directories.push(path.value());
+    } else {
+      SbFileDelete(path.value().c_str());
+    }
+  }
+  while (!directories.empty()) {
+    SbFileDelete(directories.top().c_str());
+    directories.pop();
+  }
+}
+#endif
 
 const base::TaskTraits kTaskTraits = {
     base::MayBlock(), base::TaskPriority::BEST_EFFORT,
@@ -49,8 +74,40 @@ void UrlFetcherDownloader::DoStartDownload(const GURL& url) {
 }
 
 void UrlFetcherDownloader::CreateDownloadDir() {
+#if !defined(OS_STARBOARD)
   base::CreateNewTempDirectory(FILE_PATH_LITERAL("chrome_url_fetcher_"),
                                &download_dir_);
+#else
+  const CobaltExtensionInstallationManagerApi* installation_api =
+      static_cast<const CobaltExtensionInstallationManagerApi*>(
+          SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
+  if (!installation_api) {
+    SB_LOG(ERROR) << "Failed to get installation manager";
+    return;
+  }
+  // Get new installation index.
+  installation_index_ = installation_api->SelectNewInstallationIndex();
+  SB_DLOG(INFO) << "installation_index = " << installation_index_;
+  if (installation_index_ == IM_EXT_ERROR) {
+    SB_LOG(ERROR) << "Failed to get installation index";
+    return;
+  }
+
+  // Get the path to new installation.
+  char installation_path[SB_FILE_MAX_PATH];
+  if (installation_api->GetInstallationPath(installation_index_,
+                                            installation_path,
+                                            SB_FILE_MAX_PATH) == IM_EXT_ERROR) {
+    SB_LOG(ERROR) << "Failed to get installation path";
+    return;
+  }
+
+  SB_DLOG(INFO) << "installation_path = " << installation_path;
+  download_dir_ = base::FilePath(installation_path);
+
+  // Cleanup the download dir.
+  CleanupDirectory(download_dir_);
+#endif
 }
 
 void UrlFetcherDownloader::StartURLFetch(const GURL& url) {
@@ -119,6 +176,9 @@ void UrlFetcherDownloader::OnNetworkFetcherComplete(base::FilePath file_path,
   result.error = error;
   if (!error) {
     result.response = file_path;
+#if defined(OS_STARBOARD)
+    result.installation_index = installation_index_;
+#endif
   }
 
   DownloadMetrics download_metrics;
@@ -134,11 +194,18 @@ void UrlFetcherDownloader::OnNetworkFetcherComplete(base::FilePath file_path,
           << download_time.InMilliseconds() << "ms from " << final_url_.spec()
           << " to " << result.response.value();
 
+#if !defined(OS_STARBOARD)
   // Delete the download directory in the error cases.
   if (error && !download_dir_.empty())
     base::PostTaskWithTraits(
         FROM_HERE, kTaskTraits,
         base::BindOnce(IgnoreResult(&base::DeleteFile), download_dir_, true));
+#else
+  if (error && !download_dir_.empty()) {
+    // Cleanup the download dir.
+    CleanupDirectory(download_dir_);
+  }
+#endif
 
   main_task_runner()->PostTask(
       FROM_HERE, base::BindOnce(&UrlFetcherDownloader::OnDownloadComplete,
