@@ -168,9 +168,6 @@
 // The current platform's maximum length of an absolute path.
 #define SB_FILE_MAX_PATH 4096
 
-// The string form of SB_FILE_ALT_SEP_CHAR.
-#define SB_FILE_ALT_SEP_STRING "/"
-
 // The string form of SB_PATH_SEP_CHAR.
 #define SB_PATH_SEP_STRING ";"
 

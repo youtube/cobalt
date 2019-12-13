@@ -123,7 +123,7 @@ U_INTERNAL void U_EXPORT2 u_setTimeZoneFilesDirectory(const char *path, UErrorCo
 #   define U_FILE_ALT_SEP_CHAR kSbFileAltSepChar
 #   define U_PATH_SEP_CHAR kSbPathSepChar
 #   define U_FILE_SEP_STRING kSbFileSepString
-#   define U_FILE_ALT_SEP_STRING SB_FILE_ALT_SEP_STRING
+#   define U_FILE_ALT_SEP_STRING kSbFileAltSepString
 #   define U_PATH_SEP_STRING SB_PATH_SEP_STRING
 #elif U_PLATFORM_USES_ONLY_WIN32_API || defined(__LB_XB1__)
 #   define U_FILE_SEP_CHAR '\\'

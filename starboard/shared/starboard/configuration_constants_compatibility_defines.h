@@ -35,6 +35,8 @@
 
 #define kSbFileAltSepChar SB_FILE_ALT_SEP_CHAR
 
+#define kSbFileAltSepString SB_FILE_ALT_SEP_STRING
+
 #define kSbFileSepChar SB_FILE_SEP_CHAR
 
 #define kSbFileSepString SB_FILE_SEP_STRING
