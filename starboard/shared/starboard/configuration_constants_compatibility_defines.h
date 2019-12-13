@@ -31,6 +31,8 @@
 
 #define kSbFileMaxName SB_FILE_MAX_NAME
 
+#define kSbFileMaxOpen SB_FILE_MAX_OPEN
+
 #define kSbMallocAlignment SB_MALLOC_ALIGNMENT
 
 #define kSbMaxThreadNameLength SB_MAX_THREAD_NAME_LENGTH

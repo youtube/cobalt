@@ -24,6 +24,10 @@ const size_t kSbDefaultMmapThreshold = 256 * 1024U;
 // entry, not including the absolute path.
 const int32_t kSbFileMaxName = 64;
 
+// The current platform's maximum number of files that can be opened at the
+// same time by one process.
+const uint32_t kSbFileMaxOpen = 64;
+
 // Determines the alignment that allocations should have on this platform.
 const size_t kSbMallocAlignment = 16;
 
