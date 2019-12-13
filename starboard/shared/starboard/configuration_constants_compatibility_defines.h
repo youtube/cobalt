@@ -27,6 +27,8 @@
 
 #else  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#define kSbDefaultMmapThreshold SB_DEFAULT_MMAP_THRESHOLD
+
 #define kSbMallocAlignment SB_MALLOC_ALIGNMENT
 
 #define kSbMaxThreadNameLength SB_MAX_THREAD_NAME_LENGTH

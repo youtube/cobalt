@@ -285,10 +285,6 @@
 // specify that.
 #define SB_NETWORK_IO_BUFFER_ALIGNMENT 16
 
-// Determines the threshhold of allocation size that should be done with mmap
-// (if available), rather than allocated within the core heap.
-#define SB_DEFAULT_MMAP_THRESHOLD ((size_t)(256 * 1024U))
-
 // Defines the path where memory debugging logs should be written to.
 #define SB_MEMORY_LOG_PATH "/tmp/starboard"
 

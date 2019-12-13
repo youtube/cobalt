@@ -626,6 +626,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if defined(SB_DEFAULT_MMAP_THRESHOLD)
+#error \
+    "SB_DEFAULT_MMAP_THRESHOLD should not be defined in Starboard " \
+"versions 12 and later. Instead, define kSbDefaultMmapThreshold in " \
+"starboard/<PLATFORM_PATH>/configuration_constants.cc."
+#endif
+
 #if defined(SB_MALLOC_ALIGNMENT)
 #error \
     "SB_MALLOC_ALIGNMENT should not be defined in Starboard " \
