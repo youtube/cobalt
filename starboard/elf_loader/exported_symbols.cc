@@ -463,6 +463,7 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(kSbMaxThreadNameLength);
   REGISTER_SYMBOL(kSbMediaMaxAudioBitrateInBitsPerSecond);
   REGISTER_SYMBOL(kSbMediaMaxVideoBitrateInBitsPerSecond);
+  REGISTER_SYMBOL(kSbMediaMaximumVideoFrames);
   REGISTER_SYMBOL(kSbMediaMaximumVideoPrerollFrames);
   REGISTER_SYMBOL(kSbMediaVideoFrameAlignment);
   REGISTER_SYMBOL(kSbMemoryLogPath);

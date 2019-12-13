@@ -264,9 +264,11 @@
 #define SB_MEDIA_MAXIMUM_VIDEO_PREROLL_FRAMES 4
 #endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Specify the number of video frames to be cached during playback.  A large
 // value leads to more stable fps but also causes the app to use more memory.
 #define SB_MEDIA_MAXIMUM_VIDEO_FRAMES 12
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 // --- Memory Configuration --------------------------------------------------
 

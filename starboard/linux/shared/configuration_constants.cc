@@ -41,6 +41,10 @@ const uint32_t kSbMediaMaxAudioBitrateInBitsPerSecond = 40 * 1024 * 1024;
 // video.
 const uint32_t kSbMediaMaxVideoBitrateInBitsPerSecond = 200 * 1024 * 1024;
 
+// Specify the number of video frames to be cached during playback.  A large
+// value leads to more stable fps but also causes the app to use more memory.
+const uint32_t kSbMediaMaximumVideoFrames = 12;
+
 // The encoded video frames are compressed in different ways, their decoding
 // time can vary a lot.  Occasionally a single frame can take longer time to
 // decode than the average time per frame.  The player has to cache some frames
