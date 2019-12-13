@@ -186,12 +186,6 @@
 // The current platform's maximum length of an absolute path.
 #define SB_FILE_MAX_PATH 4096
 
-// The current platform's alternate file path component separator character.
-// This is like SB_FILE_SEP_CHAR, except if your platform supports an alternate
-// character, then you can place that here. For example, on windows machines,
-// the primary separator character is probably '\', but the alternate is '/'.
-#define SB_FILE_ALT_SEP_CHAR '/'
-
 // The current platform's search path component separator character. When
 // specifying an ordered list of absolute paths of directories to search for a
 // given reason, this is the character that appears between entries. For

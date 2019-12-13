@@ -33,6 +33,8 @@
 
 #define kSbFileMaxOpen SB_FILE_MAX_OPEN
 
+#define kSbFileAltSepChar SB_FILE_ALT_SEP_CHAR
+
 #define kSbFileSepChar SB_FILE_SEP_CHAR
 
 #define kSbMallocAlignment SB_MALLOC_ALIGNMENT
