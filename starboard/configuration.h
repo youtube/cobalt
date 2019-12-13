@@ -647,6 +647,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
+#if defined(SB_MEMORY_LOG_PATH)
+#error \
+    "SB_MEMORY_LOG_PATH should not be defined in Starboard " \
+"versions 12 and later. Instead, define kSbMemoryLogPath in " \
+"starboard/<PLATFORM_PATH>/configuration_constants.cc."
+#endif
+
 #if defined(SB_MEMORY_PAGE_SIZE)
 #error \
     "SB_MEMORY_PAGE_SIZE should not be defined in Starboard " \

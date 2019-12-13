@@ -300,8 +300,10 @@
 #define SB_DEFAULT_MMAP_THRESHOLD ((size_t)(256 * 1024U))
 #endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Defines the path where memory debugging logs should be written to.
 #define SB_MEMORY_LOG_PATH "/tmp/starboard"
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 // --- Network Configuration -------------------------------------------------
 
