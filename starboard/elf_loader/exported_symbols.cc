@@ -462,6 +462,7 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(kSbFileMaxName);
   REGISTER_SYMBOL(kSbFileMaxOpen);
   REGISTER_SYMBOL(kSbFileAltSepChar);
+  REGISTER_SYMBOL(kSbFileAltSepString);
   REGISTER_SYMBOL(kSbFileSepChar);
   REGISTER_SYMBOL(kSbFileSepString);
   REGISTER_SYMBOL(kSbMallocAlignment);
