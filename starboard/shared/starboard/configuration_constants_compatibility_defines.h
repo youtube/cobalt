@@ -33,6 +33,9 @@
 
 #define kSbMaxThreadNameLength SB_MAX_THREAD_NAME_LENGTH
 
+#define kSbMediaMaxAudioBitrateInBitsPerSecond \
+  SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND
+
 #define kSbMemoryLogPath SB_MEMORY_LOG_PATH
 
 #define kSbMemoryPageSize SB_MEMORY_PAGE_SIZE

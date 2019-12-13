@@ -647,6 +647,14 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
+#if defined(SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND)
+#error \
+    "SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND should not be defined in " \
+"Starboard versions 12 and later. Instead, define " \
+"kSbMediaMaxAudioBitrateInBitsPerSecond in " \
+"starboard/<PLATFORM_PATH>/configuration_constants.cc."
+#endif
+
 #if defined(SB_MEMORY_LOG_PATH)
 #error \
     "SB_MEMORY_LOG_PATH should not be defined in Starboard " \
@@ -723,10 +731,6 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif
 #endif
 
-#if !defined(SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND)
-#error \
-    "Your platform must define SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND."
-#endif  // !defined(SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND)
 
 #if !defined(SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND)
 #error \

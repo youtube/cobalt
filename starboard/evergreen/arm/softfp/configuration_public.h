@@ -208,11 +208,6 @@
 
 // --- Media Configuration ---------------------------------------------------
 
-// The maximum audio bitrate the platform can decode.  The following value
-// equals to 5M bytes per seconds which is more than enough for compressed
-// audio.
-#define SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND (40 * 1024 * 1024)
-
 // The maximum video bitrate the platform can decode.  The following value
 // equals to 25M bytes per seconds which is more than enough for compressed
 // video.
