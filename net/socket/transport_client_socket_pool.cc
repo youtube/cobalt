@@ -258,6 +258,15 @@ int TransportConnectJob::DoResolveHost() {
 int TransportConnectJob::DoResolveHostComplete(int result) {
   TRACE_EVENT0(kNetTracingCategory,
                "TransportConnectJob::DoResolveHostComplete");
+#ifdef STARBOARD
+    // Preferentially connect to an IPv4 address first, if available. Some
+    // hosts may have IPv6 addresses to which we can connect, but the read
+    // may still fail if the network is not properly configured. The existing
+    // code has a fallback mechanism to try different IPs in |addresses_|
+    // when connection fails. However, in this case, a connection can be made
+    // with the IPv6 address, but the read fails.
+    MakeAddressListStartWithIPv4(&addresses_);
+#endif
   connect_timing_.dns_end = base::TimeTicks::Now();
   // Overwrite connection start time, since for connections that do not go
   // through proxies, |connect_start| should not include dns lookup time.
