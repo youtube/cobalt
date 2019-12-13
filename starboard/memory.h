@@ -40,6 +40,7 @@
 #define STARBOARD_MEMORY_H_
 
 #include "starboard/configuration.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/export.h"
 #include "starboard/system.h"
 #include "starboard/types.h"
@@ -73,9 +74,9 @@ static SB_C_FORCE_INLINE bool SbMemoryIsAligned(const void* memory,
   return ((uintptr_t)memory) % alignment == 0;
 }
 
-// Rounds |size| up to SB_MEMORY_PAGE_SIZE.
+// Rounds |size| up to kSbMemoryPageSize.
 static SB_C_FORCE_INLINE size_t SbMemoryAlignToPageSize(size_t size) {
-  return (size + SB_MEMORY_PAGE_SIZE - 1) & ~(SB_MEMORY_PAGE_SIZE - 1);
+  return (size + kSbMemoryPageSize - 1) & ~(kSbMemoryPageSize - 1);
 }
 
 static SB_C_FORCE_INLINE void SbAbortIfAllocationFailed(size_t requested_bytes,

@@ -92,7 +92,7 @@
 #endif  // defined(STARBOARD)
 
 #if defined(STARBOARD)
-#define malloc_getpagesize SB_MEMORY_PAGE_SIZE
+#define malloc_getpagesize kSbMemoryPageSize
 #else
 #define malloc_getpagesize LB_PAGE_SIZE
 #endif

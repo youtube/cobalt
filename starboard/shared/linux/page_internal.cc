@@ -22,6 +22,7 @@
 
 #include "starboard/atomic.h"
 #include "starboard/common/log.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/memory.h"
 
 namespace {
@@ -30,7 +31,7 @@ int32_t s_tracked_page_count = 0;
 
 int32_t GetPageCount(size_t byte_count) {
   return static_cast<int32_t>(SbMemoryAlignToPageSize(byte_count) /
-                              SB_MEMORY_PAGE_SIZE);
+                              kSbMemoryPageSize);
 }
 
 int SbMemoryMapFlagsToMmapProtect(int sb_flags) {
@@ -125,10 +126,10 @@ int64_t SbPageGetUnallocatedPhysicalMemoryBytes() {
 
   fscanf(f, "%zu %zu", &program_size, &resident);
   fclose(f);
-  return SbPageGetTotalPhysicalMemoryBytes() - resident * SB_MEMORY_PAGE_SIZE;
+  return SbPageGetTotalPhysicalMemoryBytes() - resident * kSbMemoryPageSize;
 }
 
 size_t SbPageGetMappedBytes() {
   return static_cast<size_t>(SbAtomicNoBarrier_Load(&s_tracked_page_count) *
-                             SB_MEMORY_PAGE_SIZE);
+                             kSbMemoryPageSize);
 }
