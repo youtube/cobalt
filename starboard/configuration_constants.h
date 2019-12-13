@@ -40,6 +40,12 @@ extern const uint32_t kSbFileMaxOpen;
 // Determines the alignment that allocations should have on this platform.
 extern const size_t kSbMallocAlignment;
 
+// The maximum number of thread local storage keys supported by this platform.
+// This comes from _POSIX_THREAD_KEYS_MAX. The value of PTHREAD_KEYS_MAX is
+// higher, but unit tests show that the implementation doesn't support nearly
+// as many keys.
+extern const uint32_t kSbMaxThreadLocalKeys;
+
 // The maximum length of the name for a thread, including the NULL-terminator.
 extern const int32_t kSbMaxThreadNameLength;
 

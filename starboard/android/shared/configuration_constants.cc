@@ -31,6 +31,11 @@ const uint32_t kSbFileMaxOpen = 256;
 // Determines the alignment that allocations should have on this platform.
 const size_t kSbMallocAlignment = 16;
 
+// The maximum number of thread local storage keys supported by this platform.
+// This comes from bionic PTHREAD_KEYS_MAX in limits.h, which we've decided
+// to not include here to decrease symbol pollution.
+const uint32_t kSbMaxThreadLocalKeys = 128;
+
 // The maximum length of a name for a thread, including the NULL-terminator.
 const int32_t kSbMaxThreadNameLength = 16;
 

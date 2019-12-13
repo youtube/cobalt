@@ -320,9 +320,6 @@ SB_HAS_MMAP 1
 // like mutexes, so we want to keep this managable.
 #define SB_MAX_THREADS 90
 
-// The maximum number of thread local storage keys supported by this platform.
-#define SB_MAX_THREAD_LOCAL_KEYS 512
-
 // --- Timing API ------------------------------------------------------------
 
 // Whether this platform has an API to retrieve how long the current thread
