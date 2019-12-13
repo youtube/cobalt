@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "base/strings/string_split.h"
 #include "starboard/memory.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -29,56 +30,36 @@ namespace overlay_info {
 
 namespace {
 
-typedef std::pair<std::string, std::vector<uint8_t>> ValuePair;
+typedef std::pair<std::string, std::string> ValuePair;
 
 // See comment of OverlayInfoRegistry for format of |info|.
-std::vector<ValuePair> ParseOverlayInfo(std::vector<uint8_t> info) {
-  std::vector<ValuePair> parsed_infos;
+bool ParseOverlayInfo(std::string infos, std::vector<ValuePair>* values) {
+  CHECK(values);
 
-  while (!info.empty()) {
-    // Parse the size
-    size_t size = info[0];
-    info.erase(info.begin());
+  const char delimiter[] = {OverlayInfoRegistry::kDelimiter, 0};
 
-    CHECK_LE(size, info.size());
-
-    // Parse the category name
-    const auto kDelimiter = OverlayInfoRegistry::kDelimiter;
-    auto iter = std::find(info.begin(), info.end(), kDelimiter);
-    CHECK(iter != info.end());
-
-    const auto category_length = iter - info.begin();
-    CHECK_LE(static_cast<size_t>(category_length), size);
-
-    std::string category(
-        reinterpret_cast<char*>(info.data()),
-        reinterpret_cast<char*>(info.data()) + category_length);
-
-    // Parse the data
-    std::vector<uint8_t> data(info.begin() + category_length + 1,
-                              info.begin() + size);
-    info.erase(info.begin(), info.begin() + size);
-
-    parsed_infos.push_back(std::make_pair(category, data));
+  auto tokens = base::SplitString(infos, delimiter, base::KEEP_WHITESPACE,
+                                  base::SPLIT_WANT_ALL);
+  if (tokens.size() % 2 != 0) {
+    return false;
   }
 
-  CHECK(info.empty());
-  return parsed_infos;
-}
+  while (!tokens.empty()) {
+    values->push_back(std::make_pair(tokens[0], tokens[1]));
+    tokens.erase(tokens.begin(), tokens.begin() + 2);
+  }
 
-bool IsSame(const std::vector<uint8_t>& data, const std::string& str) {
-  return data.size() == str.size() &&
-         SbMemoryCompare(data.data(), str.c_str(), data.size()) == 0;
+  return true;
 }
 
 }  // namespace
 
 TEST(OverlayInfoRegistryTest, RetrieveOnEmptyData) {
-  std::vector<uint8_t> infos('a');
+  std::string infos("a");
   OverlayInfoRegistry::RetrieveAndClear(&infos);
   EXPECT_TRUE(infos.empty());
 
-  std::vector<uint8_t> infos1('a');
+  std::string infos1("b");
   OverlayInfoRegistry::RetrieveAndClear(&infos1);
   EXPECT_TRUE(infos1.empty());
 }
@@ -92,33 +73,13 @@ TEST(OverlayInfoRegistryTest, RegisterSingleStringAndRetrieve) {
 
     OverlayInfoRegistry::Register(kCategory, value.c_str());
 
-    std::vector<uint8_t> infos('a');
+    std::string infos("a");
     OverlayInfoRegistry::RetrieveAndClear(&infos);
-    auto parsed_infos = ParseOverlayInfo(infos);
+    std::vector<ValuePair> parsed_infos;
+    ASSERT_TRUE(ParseOverlayInfo(infos, &parsed_infos));
     EXPECT_EQ(parsed_infos.size(), 1);
     EXPECT_EQ(parsed_infos[0].first, kCategory);
-    EXPECT_TRUE(IsSame(parsed_infos[0].second, value));
-
-    OverlayInfoRegistry::RetrieveAndClear(&infos);
-    EXPECT_TRUE(infos.empty());
-  }
-}
-
-TEST(OverlayInfoRegistryTest, RegisterSingleBinaryStringAndRetrieve) {
-  const char kCategory[] = "category";
-  const size_t kMaxDataSize = 20;
-
-  for (size_t i = 0; i < kMaxDataSize; ++i) {
-    std::vector<uint8_t> value(i, static_cast<uint8_t>(i % 2));
-
-    OverlayInfoRegistry::Register(kCategory, value.data(), value.size());
-
-    std::vector<uint8_t> infos('a');
-    OverlayInfoRegistry::RetrieveAndClear(&infos);
-    auto parsed_infos = ParseOverlayInfo(infos);
-    EXPECT_EQ(parsed_infos.size(), 1);
-    EXPECT_EQ(parsed_infos[0].first, kCategory);
-    EXPECT_TRUE(parsed_infos[0].second == value);
+    EXPECT_EQ(parsed_infos[0].second, value);
 
     OverlayInfoRegistry::RetrieveAndClear(&infos);
     EXPECT_TRUE(infos.empty());
@@ -137,9 +98,10 @@ TEST(OverlayInfoRegistryTest, RegisterMultipleStringsAndRetrieve) {
     OverlayInfoRegistry::Register(kCategory, values.back().c_str());
   }
 
-  std::vector<uint8_t> infos('a');
+  std::string infos("a");
   OverlayInfoRegistry::RetrieveAndClear(&infos);
-  auto parsed_infos = ParseOverlayInfo(infos);
+  std::vector<ValuePair> parsed_infos;
+  ASSERT_TRUE(ParseOverlayInfo(infos, &parsed_infos));
   OverlayInfoRegistry::RetrieveAndClear(&infos);
   EXPECT_TRUE(infos.empty());
 
@@ -147,35 +109,19 @@ TEST(OverlayInfoRegistryTest, RegisterMultipleStringsAndRetrieve) {
 
   for (size_t i = 0; i < kMaxStringLength; ++i) {
     EXPECT_EQ(parsed_infos[i].first, kCategory);
-    EXPECT_TRUE(IsSame(parsed_infos[i].second, values[i]));
+    EXPECT_EQ(parsed_infos[i].second, values[i]);
   }
 }
 
-TEST(OverlayInfoRegistryTest, RegisterMultipleBinaryDataAndRetrieve) {
-  const char kCategory[] = "c";
-  const size_t kMaxDataSize = 20;
+TEST(OverlayInfoRegistryTest, RegisterMultipleTypes) {
+  OverlayInfoRegistry::Register("string", "string_value");
+  OverlayInfoRegistry::Register("int", -12345);
+  OverlayInfoRegistry::Register("uint64", 123456789012u);
 
-  std::vector<std::vector<uint8_t>> values;
-
-  for (size_t i = 0; i < kMaxDataSize; ++i) {
-    values.push_back(std::vector<uint8_t>(i, static_cast<uint8_t>(i % 2)));
-
-    OverlayInfoRegistry::Register(kCategory, values.back().data(),
-                                  values.back().size());
-  }
-
-  std::vector<uint8_t> infos('a');
+  std::string infos("a");
   OverlayInfoRegistry::RetrieveAndClear(&infos);
-  auto parsed_infos = ParseOverlayInfo(infos);
-  OverlayInfoRegistry::RetrieveAndClear(&infos);
-  EXPECT_TRUE(infos.empty());
 
-  ASSERT_EQ(parsed_infos.size(), kMaxDataSize);
-
-  for (size_t i = 0; i < kMaxDataSize; ++i) {
-    EXPECT_EQ(parsed_infos[i].first, kCategory);
-    EXPECT_TRUE(parsed_infos[i].second == values[i]);
-  }
+  EXPECT_EQ(infos, "string,string_value,int,-12345,uint64,123456789012");
 }
 
 }  // namespace overlay_info
