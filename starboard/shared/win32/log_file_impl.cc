@@ -67,7 +67,7 @@ void OpenLogInCacheDirectory(const char* log_file_name, int creation_flags) {
     return;
   }
 
-  if (SbStringConcat(out_path.data(), SB_FILE_SEP_STRING, path_size) >=
+  if (SbStringConcat(out_path.data(), kSbFileSepString, path_size) >=
       path_size) {
     return;
   }

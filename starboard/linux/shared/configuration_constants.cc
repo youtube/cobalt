@@ -42,6 +42,9 @@ const char kSbFileAltSepChar = '/';
 // component separator character.
 const char kSbFileSepChar = '/';
 
+// The string form of SB_FILE_SEP_CHAR.
+const char* kSbFileSepString = "/";
+
 // Determines the alignment that allocations should have on this platform.
 const size_t kSbMallocAlignment = 16;
 

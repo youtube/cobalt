@@ -17,6 +17,7 @@
 #include <algorithm>
 
 #include "starboard/common/string.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/memory.h"
 #include "starboard/nplb/file_helpers.h"
@@ -118,7 +119,7 @@ TEST(SbSystemGetPathTest, CanCreateAndRemoveDirectoryInCache) {
     EXPECT_NE('\xCD', path[0]);
     // Delete a directory and confirm that it does not exist.
     std::string sub_path =
-        SB_FILE_SEP_STRING + ScopedRandomFile::MakeRandomFilename();
+        kSbFileSepString + ScopedRandomFile::MakeRandomFilename();
     EXPECT_GT(SbStringConcat(path.data(), sub_path.c_str(), kPathSize), 0);
     EXPECT_TRUE(SbFileDelete(path.data()));
     EXPECT_FALSE(SbFileExists(path.data()));
@@ -149,7 +150,7 @@ TEST(SbSystemGetPathTest, CanWriteAndReadCache) {
     EXPECT_GT(len, 0);
     // Delete a file and confirm that it does not exist.
     std::string sub_path =
-        SB_FILE_SEP_STRING + ScopedRandomFile::MakeRandomFilename();
+        kSbFileSepString + ScopedRandomFile::MakeRandomFilename();
     EXPECT_GT(SbStringConcat(path.data(), sub_path.c_str(), kPathSize), 0);
     EXPECT_TRUE(SbFileDelete(path.data()));
     EXPECT_FALSE(SbFileExists(path.data()));

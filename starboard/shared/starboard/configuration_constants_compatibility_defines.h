@@ -37,6 +37,8 @@
 
 #define kSbFileSepChar SB_FILE_SEP_CHAR
 
+#define kSbFileSepString SB_FILE_SEP_STRING
+
 #define kSbMallocAlignment SB_MALLOC_ALIGNMENT
 
 #define kSbMaxThreadLocalKeys SB_MAX_THREAD_LOCAL_KEYS

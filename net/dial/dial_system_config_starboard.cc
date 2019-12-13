@@ -14,6 +14,7 @@
 
 #include "net/dial/dial_system_config.h"
 
+#include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/system.h"
 
@@ -73,7 +74,7 @@ std::string DialSystemConfig::GeneratePlatformUuid() {
   DCHECK(success) << "kSbSystemPathCacheDirectory not implemented";
 
   std::string path(path_buffer.data());
-  path.append(SB_FILE_SEP_STRING);
+  path.append(kSbFileSepString);
   path.append(kInAppDialUuidFilename);
 
   bool created;
