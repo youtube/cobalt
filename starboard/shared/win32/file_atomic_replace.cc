@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "starboard/common/string.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/shared/starboard/file_atomic_replace_write_file.h"
 #include "starboard/shared/win32/file_internal.h"
 #include "starboard/shared/win32/wchar_utils.h"
@@ -38,10 +39,10 @@ bool SbFileAtomicReplace(const char* path,
     return false;
   }
 
-  std::vector<char> temp_path(SB_FILE_MAX_PATH);
+  std::vector<char> temp_path(kSbFileMaxPath);
 
-  SbStringCopy(temp_path.data(), path, SB_FILE_MAX_PATH);
-  SbStringConcat(temp_path.data(), kTempFileSuffix, SB_FILE_MAX_PATH);
+  SbStringCopy(temp_path.data(), path, kSbFileMaxPath);
+  SbStringConcat(temp_path.data(), kTempFileSuffix, kSbFileMaxPath);
 
   if (!::starboard::shared::starboard::SbFileAtomicReplaceWriteFile(
           temp_path.data(), data, data_size)) {

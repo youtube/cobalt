@@ -58,7 +58,7 @@ void OpenLogInCacheDirectory(const char* log_file_name, int creation_flags) {
             (creation_flags & kSbFileCreateAlways));
   SB_DCHECK(SbStringGetLength(log_file_name) != 0);
   SB_DCHECK(SbStringFindCharacter(log_file_name, kSbFileSepChar) == nullptr);
-  std::vector<char> out_path(SB_FILE_MAX_PATH + 1);
+  std::vector<char> out_path(kSbFileMaxPath + 1);
   out_path[0] = '\0';
 
   const int path_size = static_cast<int>(out_path.size());

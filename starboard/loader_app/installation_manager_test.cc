@@ -35,9 +35,9 @@ namespace {
 class InstallationManagerTest : public ::testing::TestWithParam<int> {
  protected:
   virtual void SetUp() {
-    std::vector<char> buf(SB_FILE_MAX_PATH);
+    std::vector<char> buf(kSbFileMaxPath);
     storage_path_implemented_ = SbSystemGetPath(kSbSystemPathStorageDirectory,
-                                                buf.data(), SB_FILE_MAX_PATH);
+                                                buf.data(), kSbFileMaxPath);
     // Short-circuit the tests if the kSbSystemPathStorageDirectory is not
     // implemented.
     if (!storage_path_implemented_) {
@@ -268,13 +268,11 @@ TEST_P(InstallationManagerTest, GetInstallationPath) {
     return;
   }
   ASSERT_EQ(IM_SUCCESS, ImInitialize(GetParam()));
-  std::vector<char> buf0(SB_FILE_MAX_PATH);
-  ASSERT_EQ(IM_SUCCESS,
-            ImGetInstallationPath(0, buf0.data(), SB_FILE_MAX_PATH));
+  std::vector<char> buf0(kSbFileMaxPath);
+  ASSERT_EQ(IM_SUCCESS, ImGetInstallationPath(0, buf0.data(), kSbFileMaxPath));
   ASSERT_TRUE(SbFileExists(buf0.data()));
-  std::vector<char> buf1(SB_FILE_MAX_PATH);
-  ASSERT_EQ(IM_SUCCESS,
-            ImGetInstallationPath(1, buf1.data(), SB_FILE_MAX_PATH));
+  std::vector<char> buf1(kSbFileMaxPath);
+  ASSERT_EQ(IM_SUCCESS, ImGetInstallationPath(1, buf1.data(), kSbFileMaxPath));
   ASSERT_TRUE(SbFileExists(buf1.data()));
 }
 
@@ -336,10 +334,10 @@ TEST_F(InstallationManagerTest, InvalidInput) {
   ASSERT_EQ(IM_ERROR, ImDecrementInstallationNumTries(10));
   ASSERT_EQ(IM_ERROR, ImDecrementInstallationNumTries(-2));
 
-  std::vector<char> buf(SB_FILE_MAX_PATH);
-  ASSERT_EQ(IM_ERROR, ImGetInstallationPath(10, buf.data(), SB_FILE_MAX_PATH));
-  ASSERT_EQ(IM_ERROR, ImGetInstallationPath(-2, buf.data(), SB_FILE_MAX_PATH));
-  ASSERT_EQ(IM_ERROR, ImGetInstallationPath(-2, NULL, SB_FILE_MAX_PATH));
+  std::vector<char> buf(kSbFileMaxPath);
+  ASSERT_EQ(IM_ERROR, ImGetInstallationPath(10, buf.data(), kSbFileMaxPath));
+  ASSERT_EQ(IM_ERROR, ImGetInstallationPath(-2, buf.data(), kSbFileMaxPath));
+  ASSERT_EQ(IM_ERROR, ImGetInstallationPath(-2, NULL, kSbFileMaxPath));
 }
 
 TEST_F(InstallationManagerTest, RollForwardMatrix20) {

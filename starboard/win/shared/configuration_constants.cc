@@ -40,6 +40,9 @@ const char kSbFileAltSepChar = '/';
 // The string form of SB_FILE_ALT_SEP_CHAR.
 const char* kSbFileAltSepString = "/";
 
+// The current platform's maximum length of an absolute path.
+const uint32_t kSbFileMaxPath = 4096;
+
 // The current platform's file path component separator character. This is the
 // character that appears after a directory in a file path. For example, the
 // absolute canonical path of the file "/path/to/a/file.txt" uses '/' as a path

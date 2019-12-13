@@ -70,7 +70,7 @@ struct TestParam {
 const SbTimeMonotonic kDefaultWaitForNextEventTimeOut = 5 * kSbTimeSecond;
 
 std::string GetTestInputDirectory() {
-  const size_t kPathSize = SB_FILE_MAX_PATH + 1;
+  const size_t kPathSize = kSbFileMaxPath + 1;
 
   std::vector<char> content_path(kPathSize);
   EXPECT_TRUE(SbSystemGetPath(kSbSystemPathContentDirectory,

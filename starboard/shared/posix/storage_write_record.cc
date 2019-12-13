@@ -19,6 +19,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/shared/starboard/file_storage/storage_internal.h"
 
@@ -32,15 +33,15 @@ bool SbStorageWriteRecord(SbStorageRecord record,
   }
 
   const char* name = record->name.c_str();
-  std::vector<char> original_file_path(SB_FILE_MAX_PATH);
+  std::vector<char> original_file_path(kSbFileMaxPath);
   if (!starboard::shared::starboard::GetUserStorageFilePath(
-          record->user, name, original_file_path.data(), SB_FILE_MAX_PATH)) {
+          record->user, name, original_file_path.data(), kSbFileMaxPath)) {
     return false;
   }
-  std::vector<char> temp_file_path(SB_FILE_MAX_PATH);
+  std::vector<char> temp_file_path(kSbFileMaxPath);
   SbStringCopy(temp_file_path.data(), original_file_path.data(),
-               SB_FILE_MAX_PATH);
-  SbStringConcat(temp_file_path.data(), kTempFileSuffix, SB_FILE_MAX_PATH);
+               kSbFileMaxPath);
+  SbStringConcat(temp_file_path.data(), kTempFileSuffix, kSbFileMaxPath);
 
   SbFileError error;
   SbFile temp_file = SbFileOpen(

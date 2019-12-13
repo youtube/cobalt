@@ -503,10 +503,10 @@ bool InstallationManager::SaveInstallationStore() {
 }
 
 bool InstallationManager::InitInstallationStorePath() {
-  std::vector<char> storage_dir(SB_FILE_MAX_PATH);
+  std::vector<char> storage_dir(kSbFileMaxPath);
 #if SB_API_VERSION >= SB_STORAGE_PATH_VERSION
   if (!SbSystemGetPath(kSbSystemPathStorageDirectory, storage_dir.data(),
-                       SB_FILE_MAX_PATH)) {
+                       kSbFileMaxPath)) {
     SB_LOG(ERROR) << "InitInstallationStorePath: Failed to get "
                      "kSbSystemPathStorageDirectory";
     return false;
@@ -586,9 +586,9 @@ bool InstallationManager::GetInstallationPathInternal(int installation_index,
 }
 
 bool InstallationManager::CreateInstallationDirs() {
-  std::vector<char> path(SB_FILE_MAX_PATH);
+  std::vector<char> path(kSbFileMaxPath);
   for (int i = 0; i < max_num_installations_; i++) {
-    if (!GetInstallationPathInternal(i, path.data(), SB_FILE_MAX_PATH)) {
+    if (!GetInstallationPathInternal(i, path.data(), kSbFileMaxPath)) {
       return false;
     }
     if (!SbDirectoryCreate(path.data())) {

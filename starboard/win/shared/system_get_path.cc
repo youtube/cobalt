@@ -24,6 +24,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/shared/win32/directory_internal.h"
 #include "starboard/shared/win32/file_internal.h"
@@ -43,9 +44,9 @@ bool GetExecutablePath(char* out_path, int path_size) {
     return false;
   }
 
-  std::vector<wchar_t> w_file_path(SB_FILE_MAX_PATH);
+  std::vector<wchar_t> w_file_path(kSbFileMaxPath);
   DWORD characters_written =
-      GetModuleFileName(NULL, w_file_path.data(), SB_FILE_MAX_PATH);
+      GetModuleFileName(NULL, w_file_path.data(), kSbFileMaxPath);
   if (characters_written < 1) {
     return false;
   }
@@ -67,13 +68,13 @@ bool GetExecutableDirectory(char* out_path, int path_size) {
     return false;
   }
 
-  std::vector<wchar_t> w_file_path(SB_FILE_MAX_PATH);
+  std::vector<wchar_t> w_file_path(kSbFileMaxPath);
   DWORD characters_written =
-      GetModuleFileName(NULL, w_file_path.data(), SB_FILE_MAX_PATH);
+      GetModuleFileName(NULL, w_file_path.data(), kSbFileMaxPath);
   if (characters_written < 1) {
     return false;
   }
-  PathCchRemoveFileSpec(w_file_path.data(), SB_FILE_MAX_PATH);
+  PathCchRemoveFileSpec(w_file_path.data(), kSbFileMaxPath);
   std::string utf8_string =
       starboard::shared::win32::wchar_tToUTF8(w_file_path.data());
   if (utf8_string.length() >= path_size) {
@@ -87,12 +88,12 @@ bool GetRelativeDirectory(const char* relative_path,
   if (!out_path || (path_size <= 0)) {
     return false;
   }
-  std::vector<char> file_path(SB_FILE_MAX_PATH);
+  std::vector<char> file_path(kSbFileMaxPath);
   file_path[0] = '\0';
   if (!GetExecutableDirectory(file_path.data(), path_size)) {
     return false;
   }
-  if (SbStringConcat(file_path.data(), relative_path, SB_FILE_MAX_PATH) >=
+  if (SbStringConcat(file_path.data(), relative_path, kSbFileMaxPath) >=
       path_size) {
     return false;
   }
@@ -120,11 +121,11 @@ bool CreateAndGetTempPath(char* out_path, int path_size) {
   if (!out_path || (path_size <= 0)) {
     return false;
   }
-  std::vector<wchar_t> w_file_path(SB_FILE_MAX_PATH);
+  std::vector<wchar_t> w_file_path(kSbFileMaxPath);
   w_file_path[0] = L'\0';
 
   int64_t characters_written =
-      static_cast<int>(GetTempPathW(SB_FILE_MAX_PATH, w_file_path.data()));
+      static_cast<int>(GetTempPathW(kSbFileMaxPath, w_file_path.data()));
   if (characters_written >= (path_size + 1) || characters_written < 1) {
     return false;
   }

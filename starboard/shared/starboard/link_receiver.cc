@@ -137,7 +137,7 @@ bool GetBoundPort(Socket* socket, int* out_port) {
 }
 
 std::string GetTemporaryDirectory() {
-  const int kMaxPathLength = SB_FILE_MAX_PATH;
+  const int kMaxPathLength = kSbFileMaxPath;
   scoped_array<char> temp_path(new char[kMaxPathLength]);
   bool has_temp = SbSystemGetPath(kSbSystemPathTempDirectory, temp_path.get(),
                                   kMaxPathLength);

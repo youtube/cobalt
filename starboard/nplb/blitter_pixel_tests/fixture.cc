@@ -53,7 +53,7 @@ const char kRebaselineFailedTestsSwitch[] = "--rebaseline-failed-tests";
 //   3. A diff image indicating where the tests differ, indicated by red pixels.
 const char kOutputFailedTestDetailsSwitch[] = "--output-failed-test-details";
 
-const size_t kPathSize = SB_FILE_MAX_PATH + 1;
+const size_t kPathSize = kSbFileMaxPath + 1;
 
 // Returns the directory that all output will be placed in.  There will never
 // be any output unless command line switches are used.

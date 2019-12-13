@@ -37,7 +37,7 @@ SbOnceControl g_initialization_once = SB_ONCE_INITIALIZER;
 // only be called once.
 void Initialize() {
   // Minimal Initialization of ICU.
-  std::vector<char> base_path(SB_FILE_MAX_PATH);
+  std::vector<char> base_path(kSbFileMaxPath);
   bool result = SbSystemGetPath(kSbSystemPathContentDirectory, base_path.data(),
                                 base_path.size());
   SB_DCHECK(result);

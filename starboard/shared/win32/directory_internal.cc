@@ -50,7 +50,7 @@ void TrimExtraFileSeparators(std::wstring* dirname_pointer) {
 }
 
 bool IsAbsolutePath(const std::wstring& path) {
-  std::vector<wchar_t> full_path(SB_FILE_MAX_PATH);
+  std::vector<wchar_t> full_path(kSbFileMaxPath);
   DWORD full_path_size =
       GetFullPathNameW(path.c_str(), static_cast<DWORD>(full_path.size()),
                        full_path.data(), NULL);

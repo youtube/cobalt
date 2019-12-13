@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/nplb/file_helpers.h"
 #include "starboard/system.h"
@@ -88,9 +89,9 @@ TEST(SbFileGetPathInfoTest, WorksOnARegularFile) {
 }
 
 TEST(SbFileGetPathInfoTest, WorksOnADirectory) {
-  std::vector<char> path(SB_FILE_MAX_PATH);
-  bool result = SbSystemGetPath(kSbSystemPathTempDirectory, path.data(),
-                                SB_FILE_MAX_PATH);
+  std::vector<char> path(kSbFileMaxPath);
+  bool result =
+      SbSystemGetPath(kSbSystemPathTempDirectory, path.data(), kSbFileMaxPath);
   EXPECT_TRUE(result);
 
   {

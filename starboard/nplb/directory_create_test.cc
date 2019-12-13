@@ -58,9 +58,9 @@ TEST(SbDirectoryCreateTest, SunnyDayTrailingSeparators) {
 }
 
 TEST(SbDirectoryCreateTest, SunnyDayTempDirectory) {
-  std::vector<char> temp_path(SB_FILE_MAX_PATH);
-  bool system_path_success = SbSystemGetPath(
-      kSbSystemPathTempDirectory, temp_path.data(), SB_FILE_MAX_PATH);
+  std::vector<char> temp_path(kSbFileMaxPath);
+  bool system_path_success = SbSystemGetPath(kSbSystemPathTempDirectory,
+                                             temp_path.data(), kSbFileMaxPath);
   ASSERT_TRUE(system_path_success);
   EXPECT_TRUE(SbDirectoryCanOpen(temp_path.data()));
   EXPECT_TRUE(SbDirectoryCreate(temp_path.data()));
@@ -68,13 +68,13 @@ TEST(SbDirectoryCreateTest, SunnyDayTempDirectory) {
 }
 
 TEST(SbDirectoryCreateTest, SunnyDayTempDirectoryManySeparators) {
-  std::vector<char> temp_path(SB_FILE_MAX_PATH);
+  std::vector<char> temp_path(kSbFileMaxPath);
   bool system_path_success = SbSystemGetPath(
       kSbSystemPathTempDirectory, temp_path.data(), temp_path.size());
   ASSERT_TRUE(system_path_success);
   const int new_size =
-      SbStringConcat(temp_path.data(), kManyFileSeparators, SB_FILE_MAX_PATH);
-  ASSERT_LT(new_size, SB_FILE_MAX_PATH);
+      SbStringConcat(temp_path.data(), kManyFileSeparators, kSbFileMaxPath);
+  ASSERT_LT(new_size, kSbFileMaxPath);
 
   EXPECT_TRUE(SbDirectoryCanOpen(temp_path.data()));
   EXPECT_TRUE(SbDirectoryCreate(temp_path.data()));

@@ -165,9 +165,6 @@
 
 // --- Filesystem Configuration ----------------------------------------------
 
-// The current platform's maximum length of an absolute path.
-#define SB_FILE_MAX_PATH 4096
-
 // On some platforms the file system stores access times at a coarser
 // granularity than other times. When this quirk is defined, we assume the
 // access time is of 1 day precision.

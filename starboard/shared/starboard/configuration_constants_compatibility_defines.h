@@ -37,6 +37,8 @@
 
 #define kSbFileAltSepString SB_FILE_ALT_SEP_STRING
 
+#define kSbFileMaxPath SB_FILE_MAX_PATH
+
 #define kSbFileSepChar SB_FILE_SEP_CHAR
 
 #define kSbFileSepString SB_FILE_SEP_STRING

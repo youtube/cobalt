@@ -26,7 +26,7 @@ namespace {
 // One of the entries of FILE_ID_BOTH_DIR_INFO is a file path, so make the
 // buffer at-least one path big.
 const std::size_t kDirectoryInfoBufferSize =
-    SB_FILE_MAX_PATH + sizeof(FILE_ID_BOTH_DIR_INFO);
+    kSbFileMaxPath + sizeof(FILE_ID_BOTH_DIR_INFO);
 
 std::deque<std::string> GetDirectoryEntries(HANDLE directory_handle) {
   // According to

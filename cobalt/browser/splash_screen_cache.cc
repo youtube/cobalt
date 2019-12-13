@@ -32,18 +32,18 @@ namespace cobalt {
 namespace browser {
 namespace {
 bool CreateDirsForKey(const std::string& key) {
-  std::vector<char> path(SB_FILE_MAX_PATH, 0);
+  std::vector<char> path(kSbFileMaxPath, 0);
   if (!SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(),
-                       SB_FILE_MAX_PATH)) {
+                       kSbFileMaxPath)) {
     return false;
   }
   std::size_t prev_found = 0;
   std::size_t found = key.find(kSbFileSepString);
-  SbStringConcat(path.data(), kSbFileSepString, SB_FILE_MAX_PATH);
+  SbStringConcat(path.data(), kSbFileSepString, kSbFileMaxPath);
   while (found != std::string::npos) {
     SbStringConcat(path.data(),
                    key.substr(prev_found, found - prev_found).c_str(),
-                   SB_FILE_MAX_PATH);
+                   kSbFileMaxPath);
     if (!SbDirectoryCreate(path.data())) {
       return false;
     }
@@ -71,9 +71,9 @@ bool SplashScreenCache::CacheSplashScreen(const std::string& key,
     return false;
   }
 
-  std::vector<char> path(SB_FILE_MAX_PATH, 0);
+  std::vector<char> path(kSbFileMaxPath, 0);
   if (!SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(),
-                       SB_FILE_MAX_PATH)) {
+                       kSbFileMaxPath)) {
     return false;
   }
   if (!CreateDirsForKey(key)) {
@@ -89,9 +89,9 @@ bool SplashScreenCache::CacheSplashScreen(const std::string& key,
 
 bool SplashScreenCache::IsSplashScreenCached(const std::string& key) const {
   base::AutoLock lock(lock_);
-  std::vector<char> path(SB_FILE_MAX_PATH, 0);
+  std::vector<char> path(kSbFileMaxPath, 0);
   if (!SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(),
-                       SB_FILE_MAX_PATH)) {
+                       kSbFileMaxPath)) {
     return false;
   }
   std::string full_path = std::string(path.data()) + kSbFileSepString + key;
@@ -104,9 +104,9 @@ int SplashScreenCache::ReadCachedSplashScreen(
   if (!result) {
     return 0;
   }
-  std::vector<char> path(SB_FILE_MAX_PATH, 0);
+  std::vector<char> path(kSbFileMaxPath, 0);
   if (!SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(),
-                       SB_FILE_MAX_PATH)) {
+                       kSbFileMaxPath)) {
     result->reset();
     return 0;
   }
@@ -134,29 +134,29 @@ base::Optional<std::string> SplashScreenCache::GetKeyForStartUrl(
     return base::nullopt;
   }
 
-  std::vector<char> path(SB_FILE_MAX_PATH, 0);
-  bool has_cache_dir = SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(),
-                                       SB_FILE_MAX_PATH);
+  std::vector<char> path(kSbFileMaxPath, 0);
+  bool has_cache_dir =
+      SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(), kSbFileMaxPath);
   if (!has_cache_dir) {
     return base::nullopt;
   }
 
   std::string subpath = "";
   std::string subcomponent = kSbFileSepString + std::string("splash_screen");
-  if (SbStringConcat(path.data(), subcomponent.c_str(), SB_FILE_MAX_PATH) >=
-      SB_FILE_MAX_PATH) {
+  if (SbStringConcat(path.data(), subcomponent.c_str(), kSbFileMaxPath) >=
+      static_cast<int>(kSbFileMaxPath)) {
     return base::nullopt;
   }
   subpath += "splash_screen";
   subcomponent = kSbFileSepString + *encoded_url;
-  if (SbStringConcat(path.data(), subcomponent.c_str(), SB_FILE_MAX_PATH) >=
-      SB_FILE_MAX_PATH) {
+  if (SbStringConcat(path.data(), subcomponent.c_str(), kSbFileMaxPath) >=
+      static_cast<int>(kSbFileMaxPath)) {
     return base::nullopt;
   }
   subpath += subcomponent;
   subcomponent = kSbFileSepString + std::string("splash.html");
-  if (SbStringConcat(path.data(), subcomponent.c_str(), SB_FILE_MAX_PATH) >
-      SB_FILE_MAX_PATH) {
+  if (SbStringConcat(path.data(), subcomponent.c_str(), kSbFileMaxPath) >
+      static_cast<int>(kSbFileMaxPath)) {
     return base::nullopt;
   }
   subpath += subcomponent;

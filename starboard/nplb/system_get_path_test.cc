@@ -30,7 +30,7 @@ namespace nplb {
 namespace {
 
 // Size of appropriate path buffer.
-const size_t kPathSize = SB_FILE_MAX_PATH + 1;
+const size_t kPathSize = kSbFileMaxPath + 1;
 
 void BasicTest(SbSystemPathId id,
                bool expect_result,

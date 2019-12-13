@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration_constants.h"
 #include "starboard/media.h"
 
 #include "starboard/common/optional.h"
 #include "starboard/common/spin_lock.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
@@ -36,9 +36,9 @@ const SbTime kDuration = kSbTimeSecond / 2;
 const SbTime kSmallWaitInterval = 10 * kSbTimeMillisecond;
 
 std::string GetTestInputDirectory() {
-  std::vector<char> content_path(SB_FILE_MAX_PATH);
+  std::vector<char> content_path(kSbFileMaxPath);
   SB_CHECK(SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),
-                           SB_FILE_MAX_PATH));
+                           kSbFileMaxPath));
   std::string directory_path =
       std::string(content_path.data()) + kSbFileSepChar + "test" +
       kSbFileSepChar + "starboard" + kSbFileSepChar + "shared" +
