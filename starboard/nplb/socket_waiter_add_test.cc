@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/common/socket.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/nplb/socket_helpers.h"
 #include "starboard/socket_waiter.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -66,7 +67,7 @@ TEST_P(SbSocketWaiterAddTest, SunnyDayMany) {
   SbSocketWaiter waiter = SbSocketWaiterCreate();
   EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
 
-  const int kMany = SB_FILE_MAX_OPEN;
+  const int kMany = kSbFileMaxOpen;
   std::vector<SbSocket> sockets(kMany, 0);
   for (int i = 0; i < kMany; ++i) {
     sockets[i] = SbSocketCreate(GetAddressType(), kSbSocketProtocolTcp);

@@ -14,6 +14,7 @@
 
 #include <string>
 
+#include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
 #include "starboard/nplb/file_helpers.h"
@@ -54,7 +55,7 @@ TEST(SbDirectoryOpenTest, ManySunnyDay) {
   EXPECT_FALSE(path.empty());
   EXPECT_FILE_EXISTS(path);
 
-  const int kMany = SB_FILE_MAX_OPEN;
+  const int kMany = kSbFileMaxOpen;
   std::vector<SbDirectory> directories(kMany, 0);
 
   for (int i = 0; i < directories.size(); ++i) {
