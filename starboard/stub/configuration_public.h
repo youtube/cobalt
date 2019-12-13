@@ -361,9 +361,6 @@
 // specify that.
 #define SB_NETWORK_IO_BUFFER_ALIGNMENT 16
 
-// Defines the path where memory debugging logs should be written to.
-#define SB_MEMORY_LOG_PATH "/tmp/starboard"
-
 // --- Network Configuration -------------------------------------------------
 
 // Specifies whether this platform supports IPV6.

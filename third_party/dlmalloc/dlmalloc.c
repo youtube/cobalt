@@ -598,6 +598,7 @@ MAX_RELEASE_CHECK_RATE   default: 4095 unless not HAVE_MMAP
 #if defined(STARBOARD)
 #include "dlmalloc_config.h"
 #include "starboard/common/log.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
 #include "starboard/system.h"
@@ -6164,7 +6165,7 @@ typedef struct HeapWalker {
 #if defined(STARBOARD)
 #undef snprintf
 #define snprintf SbStringFormatF
-#define MEMORY_LOG_PATH SB_MEMORY_LOG_PATH
+#define MEMORY_LOG_PATH kSbMemoryLogPath
 
 static bool heap_walker_is_valid_file(SbFile fd) {
   return SbFileIsValid(fd);

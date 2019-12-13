@@ -461,6 +461,7 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(kSbDefaultMmapThreshold);
   REGISTER_SYMBOL(kSbMallocAlignment);
   REGISTER_SYMBOL(kSbMaxThreadNameLength);
+  REGISTER_SYMBOL(kSbMemoryLogPath);
   REGISTER_SYMBOL(kSbMemoryPageSize);
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 }
