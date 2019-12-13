@@ -26,6 +26,9 @@ const size_t kSbMallocAlignment = 16;
 // The maximum length of a name for a thread, including the NULL-terminator.
 const int32_t kSbMaxThreadNameLength = 16;
 
+// Defines the path where memory debugging logs should be written to.
+const char* kSbMemoryLogPath = "/tmp/starboard";
+
 // The memory page size, which controls the size of chunks on memory that
 // allocators deal with, and the alignment of those chunks. This doesn't have to
 // be the hardware-defined physical page size, but it should be a multiple of

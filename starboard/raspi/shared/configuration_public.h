@@ -282,9 +282,6 @@
 // specify that.
 #define SB_NETWORK_IO_BUFFER_ALIGNMENT 16
 
-// Defines the path where memory debugging logs should be written to.
-#define SB_MEMORY_LOG_PATH "/tmp/starboard"
-
 // The Raspberry Pi does not apparently align fields in a heap-allocated struct
 // by over 16 bytes.
 #define SB_HAS_QUIRK_DOES_NOT_ALIGN_FIELDS_IN_HEAP_OVER_16_BYTES 1

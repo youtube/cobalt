@@ -33,6 +33,8 @@
 
 #define kSbMaxThreadNameLength SB_MAX_THREAD_NAME_LENGTH
 
+#define kSbMemoryLogPath SB_MEMORY_LOG_PATH
+
 #define kSbMemoryPageSize SB_MEMORY_PAGE_SIZE
 
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
