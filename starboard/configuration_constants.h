@@ -43,6 +43,11 @@ extern const char* kSbMemoryLogPath;
 // audio.
 extern const uint32_t kSbMediaMaxAudioBitrateInBitsPerSecond;
 
+// The maximum video bitrate the platform can decode.  The following value
+// equals to 8M bytes per seconds which is more than enough for compressed
+// video.
+extern const uint32_t kSbMediaMaxVideoBitrateInBitsPerSecond;
+
 // The memory page size, which controls the size of chunks on memory that
 // allocators deal with, and the alignment of those chunks. This doesn't have to
 // be the hardware-defined physical page size, but it should be a multiple of

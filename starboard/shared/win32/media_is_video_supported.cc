@@ -19,6 +19,7 @@
 #include <mfidl.h>
 #include <wrl/client.h>
 
+#include "starboard/configuration_constants.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
 namespace {
@@ -123,7 +124,7 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
   }
 
   // Is bitrate in range?
-  if (bitrate > SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND) {
+  if (bitrate > kSbMediaMaxVideoBitrateInBitsPerSecond) {
     return false;
   }
   if (fps > 60) {
