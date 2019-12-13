@@ -80,10 +80,10 @@ void* ElfLoader::LookupSymbol(const char* symbol) {
 }
 
 std::string ElfLoader::MakeRelativeToContentPath(const std::string& path) {
-  std::vector<char> content_path(SB_FILE_MAX_PATH);
+  std::vector<char> content_path(kSbFileMaxPath);
 
   if (!SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),
-                       SB_FILE_MAX_PATH)) {
+                       kSbFileMaxPath)) {
     SB_LOG(ERROR) << "Failed to make '" << path.data()
                   << "' relative to the ELF Loader content directory.";
     return "";

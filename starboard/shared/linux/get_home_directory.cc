@@ -20,6 +20,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/shared/nouser/user_internal.h"
 
 namespace starboard {
@@ -39,7 +40,7 @@ bool GetHomeDirectory(SbUser user, char* out_path, int path_size) {
 
   SB_DLOG(WARNING) << "No HOME environment variable.";
   struct passwd passwd;
-  const size_t kBufferSize = SB_FILE_MAX_PATH * 4;
+  const size_t kBufferSize = kSbFileMaxPath * 4;
   std::vector<char> buffer(kBufferSize);
   struct passwd* pw_result = NULL;
   int result =

@@ -592,9 +592,6 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif
 
 #endif  // SB_API_VERSION >= 11
-#if !defined(SB_FILE_MAX_PATH) || SB_FILE_MAX_PATH < 2
-#error "Your platform must define SB_FILE_MAX_PATH > 1."
-#endif
 
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
@@ -630,6 +627,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error \
     "SB_FILE_ALT_SEP_STRING should not be defined in Starboard " \
 "versions 12 and later. Instead, define kSbFileAltSepString in " \
+"starboard/<PLATFORM_PATH>/configuration_constants.cc."
+#endif
+
+#if defined(SB_FILE_MAX_PATH)
+#error \
+    "SB_FILE_MAX_PATH should not be defined in Starboard " \
+"versions 12 and later. Instead, define kSbFileMaxPath in " \
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
@@ -759,6 +763,10 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 
 #if !defined(SB_FILE_MAX_NAME) || SB_FILE_MAX_NAME < 2
 #error "Your platform must define SB_FILE_MAX_NAME > 1."
+#endif
+
+#if !defined(SB_FILE_MAX_PATH) || SB_FILE_MAX_PATH < 2
+#error "Your platform must define SB_FILE_MAX_PATH > 1."
 #endif
 
 #if !defined(SB_MAX_THREADS)

@@ -138,8 +138,10 @@
 #define SB_FILE_MAX_NAME 64
 #endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The current platform's maximum length of an absolute path.
 #define SB_FILE_MAX_PATH 4096
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 #if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The current platform's maximum number of files that can be opened at the

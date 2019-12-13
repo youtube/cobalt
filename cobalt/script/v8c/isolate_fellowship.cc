@@ -103,7 +103,7 @@ void IsolateFellowship::InitializeStartupData() {
   TRACE_EVENT0("cobalt::script", "IsolateFellowship::InitializeStartupData");
   DCHECK(startup_data.data == nullptr);
 
-  std::vector<char> cache_path(SB_FILE_MAX_PATH);
+  std::vector<char> cache_path(kSbFileMaxPath);
   if (!SbSystemGetPath(kSbSystemPathCacheDirectory, cache_path.data(),
                        cache_path.size())) {
     // If there is no cache directory, then just save the startup data in

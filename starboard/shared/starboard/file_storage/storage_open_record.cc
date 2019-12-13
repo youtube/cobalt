@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "starboard/common/log.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/shared/starboard/file_storage/storage_internal.h"
 #include "starboard/user.h"
@@ -26,7 +27,7 @@ SbStorageRecord SbStorageOpenRecord(SbUser user, const char* name) {
     return kSbStorageInvalidRecord;
   }
 
-  std::vector<char> path(SB_FILE_MAX_PATH);
+  std::vector<char> path(kSbFileMaxPath);
   bool success = starboard::shared::starboard::GetUserStorageFilePath(
       user, name, path.data(), static_cast<int>(path.size()));
   if (!success) {

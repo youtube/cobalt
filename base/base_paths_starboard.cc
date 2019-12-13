@@ -15,6 +15,7 @@
 #include "base/base_paths.h"
 #include "base/files/file_path.h"
 #include "base/logging.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/system.h"
 
 namespace base {
@@ -22,7 +23,7 @@ namespace base {
 // This is where we can control the path for placement of a lot of file
 // resources for cobalt.
 bool PathProviderStarboard(int key, FilePath *result) {
-  std::vector<char> path(SB_FILE_MAX_PATH, 0);
+  std::vector<char> path(kSbFileMaxPath, 0);
   switch (key) {
     case base::FILE_EXE:
     case base::FILE_MODULE: {

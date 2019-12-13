@@ -81,9 +81,9 @@ void LoadLibraryAndInitialize() {
     SB_LOG(INFO) << "Try to load the Cobalt binary";
 
     //  Try to load the image. Failures here discard the image.
-    std::vector<char> installation_path(SB_FILE_MAX_PATH);
+    std::vector<char> installation_path(kSbFileMaxPath);
     if (ImGetInstallationPath(current_installation, installation_path.data(),
-                              SB_FILE_MAX_PATH) == IM_ERROR) {
+                              kSbFileMaxPath) == IM_ERROR) {
       SB_LOG(ERROR) << "Failed to find library file";
 
       // Hard failure. Discard the image and auto rollback, but only if
@@ -100,15 +100,15 @@ void LoadLibraryAndInitialize() {
     SB_DLOG(INFO) << "installation_path=" << installation_path.data();
 
     // installation_n/lib/libcobalt.so
-    std::vector<char> lib_path(SB_FILE_MAX_PATH);
-    SbStringFormatF(lib_path.data(), SB_FILE_MAX_PATH, "%s%s%s%s%s",
+    std::vector<char> lib_path(kSbFileMaxPath);
+    SbStringFormatF(lib_path.data(), kSbFileMaxPath, "%s%s%s%s%s",
                     installation_path.data(), kSbFileSepString,
                     kCobaltLibraryPath, kSbFileSepString, kCobaltLibraryName);
     SB_LOG(INFO) << "lib_path=" << lib_path.data();
 
     // installation_n/content
-    std::vector<char> content_path(SB_FILE_MAX_PATH);
-    SbStringFormatF(content_path.data(), SB_FILE_MAX_PATH, "%s%s%s",
+    std::vector<char> content_path(kSbFileMaxPath);
+    SbStringFormatF(content_path.data(), kSbFileMaxPath, "%s%s%s",
                     installation_path.data(), kSbFileSepString,
                     kCobaltContentPath);
     SB_LOG(INFO) << "content_path=" << content_path.data();

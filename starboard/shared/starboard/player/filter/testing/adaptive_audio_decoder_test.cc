@@ -71,7 +71,7 @@ scoped_refptr<InputBuffer> GetAudioInputBuffer(const VideoDmpReader& dmp_reader,
 }
 
 string GetTestInputDirectory() {
-  const size_t kPathSize = SB_FILE_MAX_PATH + 1;
+  const size_t kPathSize = kSbFileMaxPath + 1;
 
   std::vector<char> content_path(kPathSize);
   SB_CHECK(SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),

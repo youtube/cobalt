@@ -90,7 +90,7 @@ class Registry {
 SB_ONCE_INITIALIZE_FUNCTION(Registry, GetRegistry);
 
 std::string GetWidevineStoragePath() {
-  std::vector<char> path(SB_FILE_MAX_PATH + 1, 0);
+  std::vector<char> path(kSbFileMaxPath + 1, 0);
   auto path_size = path.size();
   SB_CHECK(
       SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(), path_size) &&
