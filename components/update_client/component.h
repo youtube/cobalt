@@ -25,6 +25,10 @@
 #include "components/update_client/update_client.h"
 #include "url/gurl.h"
 
+#if defined(OS_STARBOARD)
+#include "cobalt/extension/installation_manager.h"
+#endif
+
 namespace base {
 class Value;
 }  // namespace base
@@ -423,6 +427,10 @@ class Component {
   int update_check_error_ = 0;
 
   base::FilePath crx_path_;
+
+#if defined(OS_STARBOARD)
+  int installation_index_ = IM_EXT_INVALID_INDEX;
+#endif
 
   // The error information for full and differential updates.
   // The |error_category| contains a hint about which module in the component

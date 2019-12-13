@@ -16,6 +16,10 @@
 #include "base/time/time.h"
 #include "components/update_client/crx_downloader.h"
 
+#if defined(OS_STARBOARD)
+#include "cobalt/extension/installation_manager.h"
+#endif
+
 namespace update_client {
 
 class NetworkFetcher;
@@ -56,6 +60,10 @@ class UrlFetcherDownloader : public CrxDownloader {
   GURL final_url_;
   int response_code_ = -1;
   int64_t total_bytes_ = -1;
+
+#if defined(OS_STARBOARD)
+  int installation_index_ = IM_EXT_INVALID_INDEX;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(UrlFetcherDownloader);
 };

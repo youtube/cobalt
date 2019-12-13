@@ -103,6 +103,9 @@ void InstallOnBlockingTaskRunner(
     scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
     const base::FilePath& unpack_path,
     const std::string& public_key,
+#if defined(OS_STARBOARD)
+    const int installation_index,
+#endif
     const std::string& fingerprint,
     scoped_refptr<CrxInstaller> installer,
     InstallOnBlockingTaskRunnerCompleteCallback callback) {
@@ -127,11 +130,35 @@ void InstallOnBlockingTaskRunner(
   }
 
 #if defined(OS_STARBOARD)
-  CrxInstaller::Result result(update_client::InstallError::NONE);
-  main_task_runner->PostTask(
-      FROM_HERE,
-      base::BindOnce(std::move(callback), ErrorCategory::kNone,
-                     static_cast<int>(result.error), result.extended_error));
+  InstallError install_error = InstallError::NONE;
+  const CobaltExtensionInstallationManagerApi* installation_api =
+      static_cast<const CobaltExtensionInstallationManagerApi*>(
+          SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
+  if (!installation_api) {
+    SB_LOG(ERROR) << "Failed to get installation manager api.";
+    // TODO: add correct error code.
+    install_error = InstallError::GENERIC_ERROR;
+  } else if (installation_index == IM_EXT_INVALID_INDEX) {
+    SB_LOG(ERROR) << "Installation index is invalid.";
+    // TODO: add correct error code.
+    install_error = InstallError::GENERIC_ERROR;
+  } else {
+    int ret =
+        installation_api->RequestRollForwardToInstallation(installation_index);
+    if (ret == IM_EXT_ERROR) {
+      SB_LOG(ERROR) << "Failed to request roll forward.";
+      // TODO: add correct error code.
+      install_error = InstallError::GENERIC_ERROR;
+    }
+  }
+
+  CrxInstaller::Result result(install_error);
+  if (install_error != InstallError::NONE) {
+    main_task_runner->PostTask(
+        FROM_HERE,
+        base::BindOnce(std::move(callback), ErrorCategory::kInstall,
+                       static_cast<int>(result.error), result.extended_error));
+  }
 #else
   installer->Install(
       unpack_path, public_key,
@@ -143,6 +170,9 @@ void InstallOnBlockingTaskRunner(
 void UnpackCompleteOnBlockingTaskRunner(
     scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
     const base::FilePath& crx_path,
+#if defined(OS_STARBOARD)
+    const int installation_index,
+#endif
     const std::string& fingerprint,
     scoped_refptr<CrxInstaller> installer,
     InstallOnBlockingTaskRunnerCompleteCallback callback,
@@ -160,14 +190,20 @@ void UnpackCompleteOnBlockingTaskRunner(
   base::PostTaskWithTraits(
       FROM_HERE, kTaskTraits,
       base::BindOnce(&InstallOnBlockingTaskRunner, main_task_runner,
-                     result.unpack_path, result.public_key, fingerprint,
-                     installer, std::move(callback)));
+                     result.unpack_path, result.public_key,
+#if defined(OS_STARBOARD)
+                     installation_index,
+#endif
+                     fingerprint, installer, std::move(callback)));
 }
 
 void StartInstallOnBlockingTaskRunner(
     scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
     const std::vector<uint8_t>& pk_hash,
     const base::FilePath& crx_path,
+#if defined(OS_STARBOARD)
+    const int installation_index,
+#endif
     const std::string& fingerprint,
     scoped_refptr<CrxInstaller> installer,
     std::unique_ptr<Unzipper> unzipper_,
@@ -179,8 +215,11 @@ void StartInstallOnBlockingTaskRunner(
       crx_format);
 
   unpacker->Unpack(base::BindOnce(&UnpackCompleteOnBlockingTaskRunner,
-                                  main_task_runner, crx_path, fingerprint,
-                                  installer, std::move(callback)));
+                                  main_task_runner, crx_path,
+#if defined(OS_STARBOARD)
+                                  installation_index,
+#endif
+                                  fingerprint, installer, std::move(callback)));
 }
 
 // Returns a string literal corresponding to the value of the downloader |d|.
@@ -686,6 +725,10 @@ void Component::StateDownloadingDiff::DownloadComplete(
 
   component.crx_path_ = download_result.response;
 
+#if defined(OS_STARBOARD)
+  component.installation_index_ = download_result.installation_index;
+#endif
+
   TransitionState(std::make_unique<StateUpdatingDiff>(&component));
 }
 
@@ -752,6 +795,10 @@ void Component::StateDownloading::DownloadComplete(
 
   component.crx_path_ = download_result.response;
 
+#if defined(OS_STARBOARD)
+  component.installation_index_ = download_result.installation_index;
+#endif
+
   TransitionState(std::make_unique<StateUpdating>(&component));
 }
 
@@ -779,6 +826,9 @@ void Component::StateUpdatingDiff::DoHandle() {
               &update_client::StartInstallOnBlockingTaskRunner,
               base::ThreadTaskRunnerHandle::Get(),
               component.crx_component()->pk_hash, component.crx_path_,
+#if defined(OS_STARBOARD)
+              component.installation_index_,
+#endif
               component.next_fp_, component.crx_component()->installer,
               update_context.config->GetUnzipperFactory()->Create(),
               update_context.config->GetPatcherFactory()->Create(),
@@ -840,6 +890,9 @@ void Component::StateUpdating::DoHandle() {
                      &update_client::StartInstallOnBlockingTaskRunner,
                      base::ThreadTaskRunnerHandle::Get(),
                      component.crx_component()->pk_hash, component.crx_path_,
+#if defined(OS_STARBOARD)
+                     component.installation_index_,
+#endif
                      component.next_fp_, component.crx_component()->installer,
                      update_context.config->GetUnzipperFactory()->Create(),
                      update_context.config->GetPatcherFactory()->Create(),
