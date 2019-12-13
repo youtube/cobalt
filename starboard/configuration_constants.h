@@ -38,6 +38,11 @@ extern const int32_t kSbMaxThreadNameLength;
 // Defines the path where memory debugging logs should be written to.
 extern const char* kSbMemoryLogPath;
 
+// The maximum audio bitrate the platform can decode.  The following value
+// equals to 5M bytes per seconds which is more than enough for compressed
+// audio.
+extern const uint32_t kSbMediaMaxAudioBitrateInBitsPerSecond;
+
 // The memory page size, which controls the size of chunks on memory that
 // allocators deal with, and the alignment of those chunks. This doesn't have to
 // be the hardware-defined physical page size, but it should be a multiple of

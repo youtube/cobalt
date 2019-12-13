@@ -31,6 +31,11 @@ const int32_t kSbMaxThreadNameLength = 16;
 // Defines the path where memory debugging logs should be written to.
 const char* kSbMemoryLogPath = "/tmp/starboard";
 
+// The maximum audio bitrate the platform can decode.  The following value
+// equals to 5M bytes per seconds which is more than enough for compressed
+// audio.
+const uint32_t kSbMediaMaxAudioBitrateInBitsPerSecond = 40 * 1024 * 1024;
+
 // The memory page size, which controls the size of chunks on memory that
 // allocators deal with, and the alignment of those chunks. This doesn't have to
 // be the hardware-defined physical page size, but it should be a multiple of
