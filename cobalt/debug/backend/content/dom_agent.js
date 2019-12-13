@@ -82,16 +82,34 @@ function _getNodeWithChildren(node, depth) {
 // should be reported to the client to maintain integrity of the node store
 // holding only nodes the client knows about.
 function _getChildNodes(node, depth) {
-  let children = [];
+  let children;
   // Special-case the only text child - pretend the children were requested.
   if (node.firstChild && !node.firstChild.nextSibling &&
       node.firstChild.nodeType === Node.TEXT_NODE) {
     children = [node.firstChild];
   } else if (depth != 0) {  // Negative depth recurses the whole tree.
-    children =
-      Array.from(node.childNodes).filter((child) => !_isWhitespace(child));
+    let child_nodes = Array.from(node.childNodes);
+    children = child_nodes.filter((child) => !_isWhitespace(child));
+
+    // Since we don't report whitespace text nodes they won't be in the node
+    // store and won't otherwise be observed. However, we still need to observe
+    // them to report if they get set to non-whitespace.
+    child_nodes.filter(_isWhitespace)
+        .forEach((child) => _nodeObserver.observe(child, _observerConfig));
+  } else {
+    // Children not requested, so don't set |childrenReported|.
+    return [];
   }
+
+  let nodeId = _getNodeId(node);
+  _nodeStore.get(nodeId).childrenReported = true;
   return children.map((child) => _getNodeWithChildren(child, depth - 1));
+}
+
+// Whether the children of a node have been reported to the frontend.
+function _areChildrenReported(nodeId) {
+    let nodeInfo = _nodeStore.get(nodeId);
+    return nodeInfo && nodeInfo.childrenReported;
 }
 
 // Sends DOM.setChildNode events to report all nodes not yet known to the client
@@ -155,13 +173,119 @@ function _addNode(node) {
     // The map goes both ways: DOM node <=> node ID.
     _nodeStore.set(nodeId, {node: node});
     _nodeStore.set(node, nodeId);
+    _nodeObserver.observe(node, _observerConfig);
   }
   return nodeId;
+}
+
+// Removes a DOM node and its children from the internal node store.
+function _removeNode(node) {
+  let nodeId = _getNodeId(node);
+  if (!nodeId) return;
+  Array.from(node.childNodes).forEach(_removeNode);
+  _nodeStore.delete(node);
+  _nodeStore.delete(nodeId);
 }
 
 // Returns the node id of a DOM node if it's already known, else undefined.
 function _getNodeId(node) {
   return _nodeStore.get(node);
+}
+
+// MutationObserver callback to send events when nodes are changed.
+function _onNodeMutated(mutationsList) {
+  for (let mutation of mutationsList) {
+    if (mutation.type === 'childList') {
+      _onChildListMutated(mutation);
+    } else if (mutation.type === 'attributes') {
+      _onAttributesMutated(mutation);
+    } else if (mutation.type === 'characterData') {
+      _onCharacterDataMutated(mutation);
+    }
+  }
+}
+
+function _onChildListMutated(mutation) {
+  let parentNodeId = _getNodeId(mutation.target);
+  if (!_areChildrenReported(parentNodeId)) {
+    // The mutated node hasn't been expanded in the Element tree so we haven't
+    // yet reported any of its children to the frontend. Just report that the
+    // number of children changed, without reporting the actual child nodes.
+    let params = {
+      nodeId: parentNodeId,
+      childNodeCount: _countChildNodes(mutation.target),
+    };
+    debugBackend.sendEvent('DOM.childNodeCountUpdated', JSON.stringify(params));
+  } else {
+    // The mutated node has already been expanded in the Element tree so the
+    // frontend already knows about its children. Report the removed/inserted
+    // nodes. Report removed nodes first so that replacements (e.g. setting
+    // textContent) are coherent.
+    Array.from(mutation.removedNodes)
+        .forEach((n) => _onNodeRemoved(parentNodeId, n));
+    Array.from(mutation.addedNodes)
+        .forEach((n) => _onNodeInserted(parentNodeId, n));
+  }
+}
+
+// Report to the frontend when a DOM node is inserted.
+function _onNodeInserted(parentNodeId, node) {
+  if (_isWhitespace(node)) return;
+
+  // Forget anything we knew about an existing subtree that gets re-attached.
+  _removeNode(node);
+
+  let params = {
+    parentNodeId: parentNodeId,
+    previousNodeId: _getNodeId(_getPreviousSibling(node)) || 0,
+    node: new devtools.Node(node),
+  };
+  debugBackend.sendEvent('DOM.childNodeInserted', JSON.stringify(params));
+}
+
+// Report to the frontend when a DOM node is removed.
+function _onNodeRemoved(parentNodeId, node) {
+  let nodeId = _getNodeId(node);
+  if (!parentNodeId || !nodeId) return;
+
+  let params = {
+    parentNodeId: parentNodeId,
+    nodeId: _getNodeId(node),
+  };
+  debugBackend.sendEvent('DOM.childNodeRemoved', JSON.stringify(params));
+  _removeNode(node);
+}
+
+function _onAttributesMutated(mutation) {
+  let params = {
+    nodeId: _getNodeId(mutation.target),
+    name: mutation.attributeName,
+  };
+  if (mutation.target.hasAttribute(mutation.attributeName)) {
+    params.value = mutation.target.getAttribute(mutation.attributeName);
+    debugBackend.sendEvent('DOM.attributeModified', JSON.stringify(params));
+  } else {
+    debugBackend.sendEvent('DOM.attributeRemoved', JSON.stringify(params));
+  }
+}
+
+function _onCharacterDataMutated(mutation) {
+  let nodeId = _getNodeId(mutation.target);
+  let parentNodeId = _getNodeId(mutation.target.parentNode);
+  // If a node changes to/from whitespace, treat it as inserted/removed.
+  if (!nodeId) {
+    _onNodeInserted(parentNodeId, mutation.target);
+    return;
+  } else if (_isWhitespace(mutation.target)) {
+    _onNodeRemoved(parentNodeId, mutation.target);
+    return;
+  }
+
+  let params = {
+    nodeId: nodeId,
+    characterData: mutation.target.textContent,
+  };
+  debugBackend.sendEvent('DOM.characterDataModified', JSON.stringify(params));
 }
 
 // Whether a DOM node is a whitespace-only text node.
@@ -176,6 +300,25 @@ function _countChildNodes(node) {
   let countCallback = (count, child) => count + (_isWhitespace(child) ? 0 : 1);
   return Array.from(node.childNodes || []).reduce(countCallback, 0);
 }
+
+// Returns the non-whitespace previous sibling to the DOM node, if any.
+function _getPreviousSibling(node) {
+  do {
+    node = node.previousSibling;
+  } while(node && _isWhitespace(node));
+  return node;
+}
+
+// TODO: Don't use an actual MutationObserver since the page under test can
+// disconnect it from the nodes being observed. Instead set _onNodeMutated() as
+// a callback on DebugBackend and hook it up to MutationObserverTaskManager to
+// always run when notifying actual MutationObservers.
+const _nodeObserver = new MutationObserver(_onNodeMutated);
+const _observerConfig = {
+  attributes: true,
+  childList: true,
+  characterData: true,
+};
 
 let _nodeStore = new Map();
 let _nextNodeId = 1;
