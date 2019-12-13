@@ -18,6 +18,10 @@
 
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+// Determines the threshhold of allocation size that should be done with mmap
+// (if available), rather than allocated within the core heap.
+const size_t kSbDefaultMmapThreshold = 256 * 1024U;
+
 // Determines the alignment that allocations should have on this platform.
 const size_t kSbMallocAlignment = 16;
 
