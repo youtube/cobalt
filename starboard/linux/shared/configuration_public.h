@@ -204,10 +204,12 @@
 
 // --- Media Configuration ---------------------------------------------------
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The maximum audio bitrate the platform can decode.  The following value
 // equals to 5M bytes per seconds which is more than enough for compressed
 // audio.
 #define SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND (40 * 1024 * 1024)
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 // The maximum video bitrate the platform can decode.  The following value
 // equals to 25M bytes per seconds which is more than enough for compressed
