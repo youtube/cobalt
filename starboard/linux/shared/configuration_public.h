@@ -163,12 +163,14 @@
 #define SB_FILE_ALT_SEP_CHAR '/'
 #endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The current platform's search path component separator character. When
 // specifying an ordered list of absolute paths of directories to search for a
 // given reason, this is the character that appears between entries. For
 // example, the search path of "/etc/search/first:/etc/search/second" uses ':'
 // as a search path component separator character.
 #define SB_PATH_SEP_CHAR ':'
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 // The string form of SB_FILE_SEP_CHAR.
 #define SB_FILE_SEP_STRING "/"
