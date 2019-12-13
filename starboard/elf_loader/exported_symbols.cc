@@ -463,6 +463,7 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(kSbMaxThreadNameLength);
   REGISTER_SYMBOL(kSbMediaMaxAudioBitrateInBitsPerSecond);
   REGISTER_SYMBOL(kSbMediaMaxVideoBitrateInBitsPerSecond);
+  REGISTER_SYMBOL(kSbMediaVideoFrameAlignment);
   REGISTER_SYMBOL(kSbMemoryLogPath);
   REGISTER_SYMBOL(kSbMemoryPageSize);
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
