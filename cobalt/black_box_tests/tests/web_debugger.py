@@ -437,6 +437,366 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
     self.debugger.evaluate_js('onEndTest()')
     self.assertTrue(self.runner.JSTestsSucceeded())
 
+  def test_dom_childlist_mutation(self):
+    self.debugger.run_command('DOM.enable')
+
+    doc_response = self.debugger.run_command('DOM.getDocument')
+    doc_root = doc_response['result']['root']
+    # document: <html><head></head><body></body></html>
+    html_node = doc_root['children'][0]
+    head_node = html_node['children'][0]
+    body_node = html_node['children'][1]
+    self.assertEqual('BODY', body_node['nodeName'])
+
+    # getDocument should return HEAD and BODY, but none of their children.
+    self.assertEqual(3, head_node['childNodeCount'])  # title, script, script
+    self.assertEqual(3, body_node['childNodeCount'])  # h1, div, script
+    self.assertNotIn('children', head_node)
+    self.assertNotIn('children', body_node)
+
+    # Request 1 level of children in the BODY
+    self.debugger.run_command('DOM.requestChildNodes', {
+        'nodeId': body_node['nodeId'],
+        'depth': 1,
+    })
+    child_nodes_event = self.debugger.wait_event('DOM.setChildNodes')
+    self.assertEqual(body_node['childNodeCount'],
+                     len(child_nodes_event['params']['nodes']))
+    h1 = child_nodes_event['params']['nodes'][0]
+    div_test = child_nodes_event['params']['nodes'][1]
+    self.assertEqual(['id', 'test'], div_test['attributes'])
+    self.assertEqual(1, h1['childNodeCount'])  # span
+    self.assertEqual(3, div_test['childNodeCount'])  # div A, div B, span C
+    self.assertNotIn('children', h1)
+    self.assertNotIn('children', div_test)
+
+    # Insert a node as a child of a node whose children aren't yet reported.
+    self.debugger.evaluate_js(
+        'elem = document.createElement("span");'
+        'elem.id = "child";'
+        'elem.textContent = "foo";'
+        'document.getElementById("test").appendChild(elem);')
+    count_event = self.debugger.wait_event('DOM.childNodeCountUpdated')
+    self.assertEqual(div_test['nodeId'], count_event['params']['nodeId'])
+    self.assertEqual(div_test['childNodeCount'] + 1,
+                     count_event['params']['childNodeCount'])
+
+    # Remove a child from a node whose children aren't yet reported.
+    self.debugger.evaluate_js('elem = document.getElementById("test");'
+                              'elem.removeChild(elem.lastChild);')
+    count_event = self.debugger.wait_event('DOM.childNodeCountUpdated')
+    self.assertEqual(div_test['nodeId'], count_event['params']['nodeId'])
+    self.assertEqual(div_test['childNodeCount'],
+                     count_event['params']['childNodeCount'])
+
+    # Request the children of the test div to repeat the insert/remove tests
+    # after its children have been reported.
+    self.debugger.run_command('DOM.requestChildNodes', {
+        'nodeId': div_test['nodeId'],
+        'depth': 1,
+    })
+    child_nodes_event = self.debugger.wait_event('DOM.setChildNodes')
+    self.assertEqual(div_test['nodeId'],
+                     child_nodes_event['params']['parentId'])
+    self.assertEqual(div_test['childNodeCount'],
+                     len(child_nodes_event['params']['nodes']))
+
+    # Insert a node as a child of a node whose children have been reported.
+    self.debugger.evaluate_js(
+        'elem = document.createElement("span");'
+        'elem.id = "child";'
+        'elem.textContent = "foo";'
+        'document.getElementById("test").appendChild(elem);')
+    inserted_event = self.debugger.wait_event('DOM.childNodeInserted')
+    self.assertEqual(div_test['nodeId'],
+                     inserted_event['params']['parentNodeId'])
+    self.assertEqual(child_nodes_event['params']['nodes'][-1]['nodeId'],
+                     inserted_event['params']['previousNodeId'])
+
+    # Remove a child from a node whose children have been reported.
+    self.debugger.evaluate_js('elem = document.getElementById("test");'
+                              'elem.removeChild(elem.lastChild);')
+    removed_event = self.debugger.wait_event('DOM.childNodeRemoved')
+    self.assertEqual(div_test['nodeId'],
+                     removed_event['params']['parentNodeId'])
+    self.assertEqual(inserted_event['params']['node']['nodeId'],
+                     removed_event['params']['nodeId'])
+
+    # Move a subtree to another part of the DOM that has not yet been reported.
+    # (Get the original children of <div#test> to depth 1)
+    self.debugger.run_command('DOM.requestChildNodes', {
+        'nodeId': div_test['nodeId'],
+        'depth': 1,
+    })
+    child_nodes_event = self.debugger.wait_event('DOM.setChildNodes')
+    orig_num_children = len(child_nodes_event['params']['nodes'])
+    orig_div_a = child_nodes_event['params']['nodes'][0]
+    orig_span_c = child_nodes_event['params']['nodes'][2]
+    self.assertEqual(['id', 'A'], orig_div_a['attributes'])
+    self.assertEqual(['id', 'C'], orig_span_c['attributes'])
+    # (Move <span#C> into <div#A>)
+    self.debugger.evaluate_js('a = document.getElementById("A");'
+                              'c = document.getElementById("C");'
+                              'a.appendChild(c);')
+    removed_event = self.debugger.wait_event('DOM.childNodeRemoved')
+    self.assertEqual(orig_span_c['nodeId'], removed_event['params']['nodeId'])
+    count_event = self.debugger.wait_event('DOM.childNodeCountUpdated')
+    self.assertEqual(orig_div_a['nodeId'], count_event['params']['nodeId'])
+    self.assertEqual(orig_div_a['childNodeCount'] + 1,
+                     count_event['params']['childNodeCount'])
+    # (Check the moved children of <div#test>)
+    self.debugger.run_command('DOM.requestChildNodes', {
+        'nodeId': div_test['nodeId'],
+        'depth': 2,
+    })
+    child_nodes_event = self.debugger.wait_event('DOM.setChildNodes')
+    div_a = child_nodes_event['params']['nodes'][0]
+    moved_span_c = div_a['children'][2]
+    self.assertEqual(orig_num_children - 1,
+                     len(child_nodes_event['params']['nodes']))
+    self.assertEqual(['id', 'C'], moved_span_c['attributes'])
+    self.assertNotEqual(orig_span_c['nodeId'], moved_span_c['nodeId'])
+
+    # Move a subtree to another part of the DOM that has already been reported.
+    # (Move <div#B> into <div#A>)
+    orig_div_b = child_nodes_event['params']['nodes'][1]
+    orig_span_b1 = orig_div_b['children'][0]
+    self.debugger.evaluate_js('a = document.getElementById("A");'
+                              'b = document.getElementById("B");'
+                              'a.appendChild(b);')
+    removed_event = self.debugger.wait_event('DOM.childNodeRemoved')
+    self.assertEqual(orig_div_b['nodeId'], removed_event['params']['nodeId'])
+    inserted_event = self.debugger.wait_event('DOM.childNodeInserted')
+    moved_div_b = inserted_event['params']['node']
+    self.assertEqual(['id', 'B'], moved_div_b['attributes'])
+    self.assertNotEqual(orig_div_b['nodeId'], moved_div_b['nodeId'])
+    # (Check the children of moved <div#B>)
+    self.debugger.run_command('DOM.requestChildNodes', {
+        'nodeId': moved_div_b['nodeId'],
+    })
+    child_nodes_event = self.debugger.wait_event('DOM.setChildNodes')
+    moved_span_b1 = child_nodes_event['params']['nodes'][0]
+    self.assertEqual(['id', 'B1'], moved_span_b1['attributes'])
+    self.assertNotEqual(orig_span_b1['nodeId'], moved_span_b1['nodeId'])
+
+    # Replace a subtree with innerHTML
+    # (replace all children of <div#B>)
+    inner_html = "<div id='D'>\\n</div>"
+    self.debugger.evaluate_js('b = document.getElementById("B");'
+                              'b.innerHTML = "%s"' % inner_html)
+    removed_event = self.debugger.wait_event('DOM.childNodeRemoved')
+    self.assertEqual(moved_span_b1['nodeId'], removed_event['params']['nodeId'])
+    inserted_event = self.debugger.wait_event('DOM.childNodeInserted')
+    self.assertEqual(moved_div_b['nodeId'],
+                     inserted_event['params']['parentNodeId'])
+    div_d = inserted_event['params']['node']
+    self.assertEqual(['id', 'D'], div_d['attributes'])
+    self.assertEqual(0, div_d['childNodeCount'])  # Whitespace not reported.
+
+  def test_dom_text_mutation(self):
+    self.debugger.run_command('DOM.enable')
+
+    doc_response = self.debugger.run_command('DOM.getDocument')
+    doc_root = doc_response['result']['root']
+    # document: <html><head></head><body></body></html>
+    html_node = doc_root['children'][0]
+    body_node = html_node['children'][1]
+
+    # Request 2 levels of children in the BODY
+    self.debugger.run_command('DOM.requestChildNodes', {
+        'nodeId': body_node['nodeId'],
+        'depth': 2,
+    })
+    child_nodes_event = self.debugger.wait_event('DOM.setChildNodes')
+    div_test = child_nodes_event['params']['nodes'][1]
+
+    # Unrequested lone text node at depth+1 in <h1><span>.
+    h1 = child_nodes_event['params']['nodes'][0]
+    h1_span = h1['children'][0]
+    h1_text = h1_span['children'][0]
+    self.assertEqual(h1['childNodeCount'], len(h1['children']))
+    self.assertEqual(3, h1_text['nodeType'])  # Text
+    self.assertEqual('Web debugger', h1_text['nodeValue'])
+
+    # Unrequested lone whitespace text node at depth+1 in <span#B1>
+    div_b = div_test['children'][1]
+    self.debugger.run_command('DOM.requestChildNodes', {
+        'nodeId': div_b['nodeId'],
+        'depth': 1,
+    })
+    child_nodes_event = self.debugger.wait_event('DOM.setChildNodes')
+    span_b1 = child_nodes_event['params']['nodes'][0]
+    text_b1 = span_b1['children'][0]
+    self.assertEqual(3, text_b1['nodeType'])  # Text
+    self.assertEqual('', text_b1['nodeValue'].strip())
+
+    # Changing a text node's value mutates character data.
+    self.debugger.evaluate_js('text = document.getElementById("B1").firstChild;'
+                              'text.nodeValue = "Hello";')
+    data_event = self.debugger.wait_event('DOM.characterDataModified')
+    self.assertEqual(text_b1['nodeId'], data_event['params']['nodeId'])
+    self.assertEqual('Hello', data_event['params']['characterData'])
+
+    # Setting whitespace in a lone text node reports it removed.
+    self.debugger.evaluate_js('text = document.getElementById("B1").firstChild;'
+                              'text.nodeValue = "";')
+    removed_event = self.debugger.wait_event('DOM.childNodeRemoved')
+    self.assertEqual(span_b1['nodeId'], removed_event['params']['parentNodeId'])
+    self.assertEqual(text_b1['nodeId'], removed_event['params']['nodeId'])
+
+    # Setting text in a lone whitespace text node reports it inserted.
+    self.debugger.evaluate_js('text = document.getElementById("B1").firstChild;'
+                              'text.nodeValue = "Revived";')
+    inserted_event = self.debugger.wait_event('DOM.childNodeInserted')
+    self.assertEqual(span_b1['nodeId'],
+                     inserted_event['params']['parentNodeId'])
+    self.assertEqual(0, inserted_event['params']['previousNodeId'])
+    self.assertEqual(3, inserted_event['params']['node']['nodeType'])  # Text
+    self.assertEqual('Revived', inserted_event['params']['node']['nodeValue'])
+    self.assertNotEqual(text_b1['nodeId'],
+                        inserted_event['params']['node']['nodeId'])
+
+    # Setting text in a whitespace sibling text node reports it inserted.
+    self.debugger.evaluate_js(
+        'text = document.getElementById("B1").nextSibling;'
+        'text.nodeValue = "Filled";')
+    inserted_event = self.debugger.wait_event('DOM.childNodeInserted')
+    self.assertEqual(div_b['nodeId'], inserted_event['params']['parentNodeId'])
+    self.assertEqual(span_b1['nodeId'],
+                     inserted_event['params']['previousNodeId'])
+    self.assertEqual(3, inserted_event['params']['node']['nodeType'])  # Text
+    self.assertEqual('Filled', inserted_event['params']['node']['nodeValue'])
+    self.assertNotEqual(text_b1['nodeId'],
+                        inserted_event['params']['node']['nodeId'])
+
+    # Setting whitespace in a sibling text node reports it removed.
+    self.debugger.evaluate_js(
+        'text = document.getElementById("B1").nextSibling;'
+        'text.nodeValue = "";')
+    removed_event = self.debugger.wait_event('DOM.childNodeRemoved')
+    self.assertEqual(div_b['nodeId'], removed_event['params']['parentNodeId'])
+    self.assertEqual(inserted_event['params']['node']['nodeId'],
+                     removed_event['params']['nodeId'])
+
+    # Setting textContent removes all children and inserts a new text node.
+    self.debugger.evaluate_js(
+        'document.getElementById("B").textContent = "One";')
+    removed_event = self.debugger.wait_event('DOM.childNodeRemoved')
+    self.assertEqual(div_b['nodeId'], removed_event['params']['parentNodeId'])
+    self.assertEqual(span_b1['nodeId'], removed_event['params']['nodeId'])
+    inserted_event = self.debugger.wait_event('DOM.childNodeInserted')
+    self.assertEqual(div_b['nodeId'], inserted_event['params']['parentNodeId'])
+    self.assertEqual(0, inserted_event['params']['previousNodeId'])
+    self.assertEqual(3, inserted_event['params']['node']['nodeType'])  # Text
+    self.assertEqual('One', inserted_event['params']['node']['nodeValue'])
+
+    # Setting empty textContent removes all children without inserting anything.
+    self.debugger.evaluate_js('document.getElementById("B").textContent = "";')
+    removed_event = self.debugger.wait_event('DOM.childNodeRemoved')
+    self.assertEqual(div_b['nodeId'], removed_event['params']['parentNodeId'])
+    self.assertEqual(inserted_event['params']['node']['nodeId'],
+                     removed_event['params']['nodeId'])
+
+    # Setting textContent over empty text only inserts a new text node.
+    self.debugger.evaluate_js(
+        'document.getElementById("B").textContent = "Two";')
+    inserted_event = self.debugger.wait_event('DOM.childNodeInserted')
+    self.assertEqual(div_b['nodeId'], inserted_event['params']['parentNodeId'])
+    self.assertEqual(0, inserted_event['params']['previousNodeId'])
+    self.assertEqual(3, inserted_event['params']['node']['nodeType'])  # Text
+    self.assertEqual('Two', inserted_event['params']['node']['nodeValue'])
+
+    # Setting textContent over other text replaces the text nodes.
+    self.debugger.evaluate_js(
+        'document.getElementById("B").textContent = "Three";')
+    removed_event = self.debugger.wait_event('DOM.childNodeRemoved')
+    self.assertEqual(div_b['nodeId'], removed_event['params']['parentNodeId'])
+    self.assertEqual(inserted_event['params']['node']['nodeId'],
+                     removed_event['params']['nodeId'])
+    inserted_event = self.debugger.wait_event('DOM.childNodeInserted')
+    self.assertEqual(div_b['nodeId'], inserted_event['params']['parentNodeId'])
+    self.assertEqual(0, inserted_event['params']['previousNodeId'])
+    self.assertEqual(3, inserted_event['params']['node']['nodeType'])  # Text
+    self.assertEqual('Three', inserted_event['params']['node']['nodeValue'])
+
+    # Setting whitespace textContent removes all children without any insertion.
+    self.debugger.evaluate_js(
+        'document.getElementById("B").textContent = "\\n";')
+    removed_event = self.debugger.wait_event('DOM.childNodeRemoved')
+    self.assertEqual(div_b['nodeId'], removed_event['params']['parentNodeId'])
+    self.assertEqual(inserted_event['params']['node']['nodeId'],
+                     removed_event['params']['nodeId'])
+
+    # Setting textContent over whitespace text only inserts a new text node.
+    self.debugger.evaluate_js(
+        'document.getElementById("B").textContent = "Four";')
+    inserted_event = self.debugger.wait_event('DOM.childNodeInserted')
+    self.assertEqual(div_b['nodeId'], inserted_event['params']['parentNodeId'])
+    self.assertEqual(0, inserted_event['params']['previousNodeId'])
+    self.assertEqual(3, inserted_event['params']['node']['nodeType'])  # Text
+    self.assertEqual('Four', inserted_event['params']['node']['nodeValue'])
+
+  def test_dom_attribute_mutation(self):
+    self.debugger.run_command('DOM.enable')
+
+    doc_response = self.debugger.run_command('DOM.getDocument')
+    doc_root = doc_response['result']['root']
+    # document: <html><head></head><body></body></html>
+    html_node = doc_root['children'][0]
+    body_node = html_node['children'][1]
+
+    # Request 1 level of children in the BODY
+    self.debugger.run_command('DOM.requestChildNodes', {
+        'nodeId': body_node['nodeId'],
+        'depth': 1,
+    })
+    child_nodes_event = self.debugger.wait_event('DOM.setChildNodes')
+    h1 = child_nodes_event['params']['nodes'][0]
+
+    def assert_attr_modified(statement, name, value):
+      self.debugger.evaluate_js(
+          'elem = document.getElementsByTagName("H1")[0];' + statement)
+      attr_event = self.debugger.wait_event('DOM.attributeModified')
+      self.assertEqual(attr_event['params']['nodeId'], h1['nodeId'])
+      self.assertEqual(attr_event['params']['name'], name)
+      self.assertEqual(attr_event['params']['value'], value)
+
+    def assert_attr_removed(statement, name):
+      self.debugger.evaluate_js(
+          'elem = document.getElementsByTagName("H1")[0];' + statement)
+      attr_event = self.debugger.wait_event('DOM.attributeRemoved')
+      self.assertEqual(attr_event['params']['nodeId'], h1['nodeId'])
+      self.assertEqual(attr_event['params']['name'], name)
+
+    # Add a normal attribute.
+    assert_attr_modified('elem.id = "foo"', 'id', 'foo')
+    # Change a normal attribute.
+    assert_attr_modified('elem.id = "bar"', 'id', 'bar')
+    # Change a normal attribute with setAttribute.
+    assert_attr_modified('elem.setAttribute("id", "baz")', 'id', 'baz')
+    # Remove a normal attribute.
+    assert_attr_removed('elem.removeAttribute("id")', 'id')
+
+    # Change the className (from 'name', as set in web_debugger.html).
+    assert_attr_modified('elem.className = "zzyzx"', 'class', 'zzyzx')
+
+    # Change a dataset value (from 'robot', as set in web_debugger.html).
+    assert_attr_modified('elem.dataset.who = "person"', 'data-who', 'person')
+    # Add a dataset value.
+    assert_attr_modified('elem.dataset.what = "thing"', 'data-what', 'thing')
+    # Remove a data attribute with delete operator.
+    # TODO: Fix this - MutationObserver is not reporting this mutation,
+    # assert_attr_removed('delete elem.dataset.who', 'data-who')
+
+    # Change a data attribute with setAttribute.
+    assert_attr_modified('elem.setAttribute("data-what", "object")',
+                         'data-what', 'object')
+    # Add a data attribute with setAttribute.
+    assert_attr_modified('elem.setAttribute("data-where", "place")',
+                         'data-where', 'place')
+    # Remove a data attribute with removeAttribute.
+    assert_attr_removed('elem.removeAttribute("data-what")', 'data-what')
+
   def assert_paused(self, expected_stacks):
     """Checks that the debugger is paused at a breakpoint.
 
