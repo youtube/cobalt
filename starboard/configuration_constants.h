@@ -43,6 +43,9 @@ extern const uint32_t kSbFileMaxOpen;
 // the primary separator character is probably '\', but the alternate is '/'.
 extern const char kSbFileAltSepChar;
 
+// The string form of SB_FILE_ALT_SEP_CHAR.
+extern const char* kSbFileAltSepString;
+
 // The current platform's file path component separator character. This is the
 // character that appears after a directory in a file path. For example, the
 // absolute canonical path of the file "/path/to/a/file.txt" uses '/' as a path
