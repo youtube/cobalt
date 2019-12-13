@@ -596,10 +596,6 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_FILE_MAX_PATH > 1."
 #endif
 
-#if !defined(SB_FILE_ALT_SEP_CHAR)
-#error "Your platform must define SB_FILE_ALT_SEP_CHAR."
-#endif
-
 #if !defined(SB_PATH_SEP_CHAR)
 #error "Your platform must define SB_PATH_SEP_CHAR."
 #endif
@@ -636,6 +632,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error \
     "SB_FILE_MAX_OPEN should not be defined in Starboard " \
 "versions 12 and later. Instead, define kSbFileMaxOpen in " \
+"starboard/<PLATFORM_PATH>/configuration_constants.cc."
+#endif
+
+#if defined(SB_FILE_ALT_SEP_CHAR)
+#error \
+    "SB_FILE_ALT_SEP_CHAR should not be defined in Starboard " \
+"versions 12 and later. Instead, define kSbFileAltSepChar in " \
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
@@ -752,6 +755,10 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 
 #if !defined(SB_MAX_THREAD_LOCAL_KEYS)
 #error "Your platform must define SB_MAX_THREAD_LOCAL_KEYS."
+#endif
+
+#if !defined(SB_FILE_ALT_SEP_CHAR)
+#error "Your platform must define SB_FILE_ALT_SEP_CHAR."
 #endif
 
 #if !defined(SB_FILE_SEP_CHAR)
