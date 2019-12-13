@@ -46,6 +46,7 @@
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "build/build_config.h"
+#include "starboard/configuration_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(OS_WIN)
@@ -1415,7 +1416,7 @@ TEST(TaskSchedulerWorkerPoolOverCapacityTest, VerifyCleanup) {
 // leaves the pool in a valid state with regards to max tasks.
 TEST_F(TaskSchedulerWorkerPoolBlockingTest, MaximumWorkersTest) {
 #ifdef STARBOARD
-  const size_t kMaxNumberOfWorkers = SB_MAX_THREADS;
+  const size_t kMaxNumberOfWorkers = kSbMaxThreads;
 #else
   constexpr size_t kMaxNumberOfWorkers = 256;
 #endif
@@ -1665,7 +1666,7 @@ INSTANTIATE_TEST_CASE_P(
 // test for https://crbug.com/810464.
 TEST_F(TaskSchedulerWorkerPoolImplStartInBodyTest, RacyCleanup) {
 #ifdef STARBOARD
-  const size_t kLocalMaxTasks = SB_MAX_THREADS;
+  const size_t kLocalMaxTasks = kSbMaxThreads;
 #else
 #if defined(OS_FUCHSIA)
   // Fuchsia + QEMU doesn't deal well with *many* threads being

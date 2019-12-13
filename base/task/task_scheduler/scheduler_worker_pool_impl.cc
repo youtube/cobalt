@@ -25,6 +25,7 @@
 #include "base/threading/scoped_blocking_call.h"
 #include "base/threading/thread_checker.h"
 #include "base/threading/thread_restrictions.h"
+#include "starboard/configuration_constants.h"
 
 #if defined(OS_WIN)
 #include "base/win/scoped_com_initializer.h"
@@ -50,7 +51,7 @@ constexpr char kNumTasksBetweenWaitsHistogramPrefix[] =
     "TaskScheduler.NumTasksBetweenWaits.";
 constexpr char kNumThreadsHistogramPrefix[] = "TaskScheduler.NumWorkers.";
 #ifdef STARBOARD
-const size_t kMaxNumberOfWorkers = SB_MAX_THREADS;
+const size_t kMaxNumberOfWorkers = kSbMaxThreads;
 #else
 constexpr size_t kMaxNumberOfWorkers = 256;
 #endif

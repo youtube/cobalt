@@ -91,5 +91,10 @@ const size_t kSbMemoryPageSize = 4096;
 // a setting of (128 * 1024) here is recommended.
 const uint32_t kSbNetworkReceiveBufferSize = 0;
 
+// Defines the maximum number of simultaneous threads for this platform. Some
+// platforms require sharing thread handles with other kinds of system handles,
+// like mutexes, so we want to keep this managable.
+const uint32_t kSbMaxThreads = 90;
+
 // The maximum number of users that can be signed in at the same time.
 const uint32_t kSbUserMaxSignedIn = 1;

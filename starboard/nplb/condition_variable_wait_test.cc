@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/configuration_constants.h"
 #include "starboard/nplb/thread_helpers.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -49,7 +50,7 @@ TEST(SbConditionVariableWaitTest, SunnyDayAutoInit) {
 }
 
 TEST(SbConditionVariableWaitTest, SunnyDay) {
-  const int kMany = SB_MAX_THREADS > 64 ? 64 : SB_MAX_THREADS;
+  const int kMany = kSbMaxThreads > 64 ? 64 : kSbMaxThreads;
   WaiterContext context;
 
   std::vector<SbThread> threads(kMany);
