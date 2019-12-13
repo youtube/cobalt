@@ -699,6 +699,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
+#if defined(SB_NETWORK_RECEIVE_BUFFER_SIZE)
+#error \
+    "SB_NETWORK_RECEIVE_BUFFER_SIZE should not be defined in Starboard " \
+"versions 12 and later. Instead, define kSbNetworkReceiveBufferSize in " \
+"starboard/<PLATFORM_PATH>/configuration_constants.cc."
+#endif
+
 #else  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 #if !defined(SB_MAX_THREAD_NAME_LENGTH)

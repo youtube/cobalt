@@ -344,6 +344,7 @@
 
 // --- Tuneable Parameters ---------------------------------------------------
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Specifies the network receive buffer size in bytes, set via
 // SbSocketSetReceiveBufferSize().
 //
@@ -357,6 +358,7 @@
 // If your platform does not have a good TCP auto-tuning mechanism,
 // a setting of (128 * 1024) here is recommended.
 #define SB_NETWORK_RECEIVE_BUFFER_SIZE (0)
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 // --- User Configuration ----------------------------------------------------
 

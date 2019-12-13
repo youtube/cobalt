@@ -62,3 +62,17 @@ const uint32_t kSbMediaVideoFrameAlignment = 256;
 // be the hardware-defined physical page size, but it should be a multiple of
 // it.
 const size_t kSbMemoryPageSize = 4096;
+
+// Specifies the network receive buffer size in bytes, set via
+// SbSocketSetReceiveBufferSize().
+//
+// Setting this to 0 indicates that SbSocketSetReceiveBufferSize() should
+// not be called. Use this for OSs (such as Linux) where receive buffer
+// auto-tuning is better.
+//
+// On some platforms, this may affect max TCP window size which may
+// dramatically affect throughput in the presence of latency.
+//
+// If your platform does not have a good TCP auto-tuning mechanism,
+// a setting of (128 * 1024) here is recommended.
+const uint32_t kSbNetworkReceiveBufferSize = 0;

@@ -468,6 +468,7 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(kSbMediaVideoFrameAlignment);
   REGISTER_SYMBOL(kSbMemoryLogPath);
   REGISTER_SYMBOL(kSbMemoryPageSize);
+  REGISTER_SYMBOL(kSbNetworkReceiveBufferSize);
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 }
 
