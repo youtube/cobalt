@@ -351,6 +351,14 @@ const char kScratchSurfaceCacheSizeInBytesHelp[] =
     "hardware-accelerated Skia rasterizer.  While it depends on the platform, "
     "this setting may affect GPU memory usage.";
 
+const char kSilenceInlineScriptWarnings[] = "silence_inline_script_warnings";
+const char kSilenceInlineScriptWarningsHelp[] =
+    "Prevents Cobalt from logging warnings when it encounters a non-async "
+    "<script> tag inlined within HTML.  Cobalt fails to deal with these "
+    "resources properly when suspending or resuming, so the warning usually "
+    "indicates a bug if the web app intends to support suspending and resuming "
+    "properly.";
+
 const char kSkiaCacheSizeInBytes[] = "skia_cache_size_in_bytes";
 const char kSkiaCacheSizeInBytesHelp[] =
     "Determines the capacity of the skia cache.  The Skia cache is maintained "
@@ -463,6 +471,7 @@ std::string HelpMessage() {
         {kRetainRemoteTypefaceCacheDuringSuspend,
          kRetainRemoteTypefaceCacheDuringSuspendHelp},
         {kScratchSurfaceCacheSizeInBytes, kScratchSurfaceCacheSizeInBytesHelp},
+        {kSilenceInlineScriptWarnings, kSilenceInlineScriptWarningsHelp},
         {kSkiaCacheSizeInBytes, kSkiaCacheSizeInBytesHelp},
         {kSkiaTextureAtlasDimensions, kSkiaTextureAtlasDimensionsHelp},
         {kSoftwareSurfaceCacheSizeInBytes,

@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """The base class for black box tests."""
 
 from __future__ import absolute_import
@@ -31,6 +30,22 @@ _JS_TEST_SETUP_DONE_MESSAGE = 'JavaScript_setup_done'
 
 class BlackBoxCobaltRunner(cobalt_runner.CobaltRunner):
   """Custom CobaltRunner made for BlackBoxTests' need."""
+
+  def __init__(self,
+               device_params,
+               url,
+               log_file=None,
+               target_params=None,
+               success_message=None):
+    # For black box tests, don't log inline script warnings, we intend to
+    # explicitly control timings for suspends and resumes, so we are not
+    # concerned about a "suspend at the wrong time".
+    if target_params is None:
+      target_params = []
+    target_params.append('--silence_inline_script_warnings')
+
+    super(BlackBoxCobaltRunner, self).__init__(device_params, url, log_file,
+                                               target_params, success_message)
 
   def JSTestsSucceeded(self):
     """Check test assertions in HTML page."""
