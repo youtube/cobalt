@@ -16,30 +16,34 @@ namespace rx
 
 WindowSurfaceVkXcb::WindowSurfaceVkXcb(const egl::SurfaceState &surfaceState,
                                        EGLNativeWindowType window,
-                                       EGLint width,
-                                       EGLint height,
                                        xcb_connection_t *conn)
-    : WindowSurfaceVk(surfaceState, window, width, height), mXcbConnection(conn)
-{
-}
+    : WindowSurfaceVk(surfaceState, window), mXcbConnection(conn)
+{}
 
-vk::ErrorOrResult<gl::Extents> WindowSurfaceVkXcb::createSurfaceVk(RendererVk *renderer)
+angle::Result WindowSurfaceVkXcb::createSurfaceVk(vk::Context *context, gl::Extents *extentsOut)
 {
-    VkXcbSurfaceCreateInfoKHR createInfo;
+    VkXcbSurfaceCreateInfoKHR createInfo = {};
 
     createInfo.sType      = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
-    createInfo.pNext      = nullptr;
     createInfo.flags      = 0;
     createInfo.connection = mXcbConnection;
-    createInfo.window     = mNativeWindowType;
-    ANGLE_VK_TRY(vkCreateXcbSurfaceKHR(renderer->getInstance(), &createInfo, nullptr, &mSurface));
+    createInfo.window     = static_cast<xcb_window_t>(mNativeWindowType);
+    ANGLE_VK_TRY(context, vkCreateXcbSurfaceKHR(context->getRenderer()->getInstance(), &createInfo,
+                                                nullptr, &mSurface));
 
-    xcb_get_geometry_cookie_t cookie = xcb_get_geometry(mXcbConnection, mNativeWindowType);
-    xcb_get_geometry_reply_t *reply  = xcb_get_geometry_reply(mXcbConnection, cookie, nullptr);
+    return getCurrentWindowSize(context, extentsOut);
+}
+
+angle::Result WindowSurfaceVkXcb::getCurrentWindowSize(vk::Context *context,
+                                                       gl::Extents *extentsOut)
+{
+    xcb_get_geometry_cookie_t cookie =
+        xcb_get_geometry(mXcbConnection, static_cast<xcb_drawable_t>(mNativeWindowType));
+    xcb_get_geometry_reply_t *reply = xcb_get_geometry_reply(mXcbConnection, cookie, nullptr);
     ASSERT(reply);
-    gl::Extents result(reply->width, reply->height, 0);
+    *extentsOut = gl::Extents(reply->width, reply->height, 1);
     free(reply);
-    return result;
+    return angle::Result::Continue;
 }
 
 }  // namespace rx

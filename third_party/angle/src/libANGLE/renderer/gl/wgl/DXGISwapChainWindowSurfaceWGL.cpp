@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -11,9 +11,9 @@
 
 #include "libANGLE/formatutils.h"
 #include "libANGLE/renderer/gl/FramebufferGL.h"
-#include "libANGLE/renderer/gl/TextureGL.h"
 #include "libANGLE/renderer/gl/RendererGL.h"
 #include "libANGLE/renderer/gl/StateManagerGL.h"
+#include "libANGLE/renderer/gl/TextureGL.h"
 #include "libANGLE/renderer/gl/wgl/DisplayWGL.h"
 #include "libANGLE/renderer/gl/wgl/FunctionsWGL.h"
 
@@ -23,26 +23,22 @@ namespace rx
 {
 
 DXGISwapChainWindowSurfaceWGL::DXGISwapChainWindowSurfaceWGL(const egl::SurfaceState &state,
-                                                             RendererGL *renderer,
+                                                             StateManagerGL *stateManager,
                                                              EGLNativeWindowType window,
                                                              ID3D11Device *device,
                                                              HANDLE deviceHandle,
-                                                             HGLRC wglContext,
                                                              HDC deviceContext,
                                                              const FunctionsGL *functionsGL,
                                                              const FunctionsWGL *functionsWGL,
                                                              EGLint orientation)
-    : SurfaceGL(state, renderer),
+    : SurfaceWGL(state),
       mWindow(window),
-      mStateManager(renderer->getStateManager()),
-      mWorkarounds(renderer->getWorkarounds()),
-      mRenderer(renderer),
+      mStateManager(stateManager),
       mFunctionsGL(functionsGL),
       mFunctionsWGL(functionsWGL),
       mDevice(device),
       mDeviceHandle(deviceHandle),
       mWGLDevice(deviceContext),
-      mWGLContext(wglContext),
       mSwapChainFormat(DXGI_FORMAT_UNKNOWN),
       mSwapChainFlags(0),
       mDepthBufferFormat(GL_NONE),
@@ -52,15 +48,13 @@ DXGISwapChainWindowSurfaceWGL::DXGISwapChainWindowSurfaceWGL(const egl::SurfaceS
       mColorRenderbufferID(0),
       mRenderbufferBufferHandle(nullptr),
       mDepthRenderbufferID(0),
-      mFramebufferID(0),
       mTextureID(0),
       mTextureHandle(nullptr),
       mWidth(0),
       mHeight(0),
       mSwapInterval(1),
       mOrientation(orientation)
-{
-}
+{}
 
 DXGISwapChainWindowSurfaceWGL::~DXGISwapChainWindowSurfaceWGL()
 {
@@ -86,22 +80,21 @@ DXGISwapChainWindowSurfaceWGL::~DXGISwapChainWindowSurfaceWGL()
     SafeRelease(mSwapChain1);
 }
 
-egl::Error DXGISwapChainWindowSurfaceWGL::initialize(const DisplayImpl *displayImpl)
+egl::Error DXGISwapChainWindowSurfaceWGL::initialize(const egl::Display *display)
 {
     if (mOrientation != EGL_SURFACE_ORIENTATION_INVERT_Y_ANGLE)
     {
         // TODO(geofflang): Support the orientation extensions fully.  Currently only inverting Y is
         // supported.  To support all orientations, an intermediate framebuffer will be needed with
         // a blit before swap.
-        return egl::Error(EGL_BAD_ATTRIBUTE,
-                          "DXGISwapChainWindowSurfaceWGL requires an orientation of "
-                          "EGL_SURFACE_ORIENTATION_INVERT_Y_ANGLE.");
+        return egl::EglBadAttribute() << "DXGISwapChainWindowSurfaceWGL requires an orientation of "
+                                         "EGL_SURFACE_ORIENTATION_INVERT_Y_ANGLE.";
     }
 
     RECT rect;
     if (!GetClientRect(mWindow, &rect))
     {
-        return egl::Error(EGL_BAD_NATIVE_WINDOW, "Failed to query the window size.");
+        return egl::EglBadNativeWindow() << "Failed to query the window size.";
     }
     mWidth  = rect.right - rect.left;
     mHeight = rect.bottom - rect.top;
@@ -110,65 +103,51 @@ egl::Error DXGISwapChainWindowSurfaceWGL::initialize(const DisplayImpl *displayI
     mSwapChainFlags    = 0;
     mDepthBufferFormat = GL_DEPTH24_STENCIL8;
 
-    mFunctionsGL->genFramebuffers(1, &mFramebufferID);
     mFunctionsGL->genRenderbuffers(1, &mColorRenderbufferID);
+    mStateManager->bindRenderbuffer(GL_RENDERBUFFER, mColorRenderbufferID);
+
     mFunctionsGL->genRenderbuffers(1, &mDepthRenderbufferID);
+    mStateManager->bindRenderbuffer(GL_RENDERBUFFER, mDepthRenderbufferID);
 
     return createSwapChain();
 }
 
-egl::Error DXGISwapChainWindowSurfaceWGL::makeCurrent()
+egl::Error DXGISwapChainWindowSurfaceWGL::makeCurrent(const gl::Context *context)
 {
-    if (!mFunctionsWGL->makeCurrent(mWGLDevice, mWGLContext))
-    {
-        // TODO: What error type here?
-        return egl::Error(EGL_CONTEXT_LOST, "Failed to make the WGL context current.");
-    }
-
-    return egl::Error(EGL_SUCCESS);
+    return egl::NoError();
 }
 
-egl::Error DXGISwapChainWindowSurfaceWGL::swap(const DisplayImpl *displayImpl)
+egl::Error DXGISwapChainWindowSurfaceWGL::swap(const gl::Context *context)
 {
     mFunctionsGL->flush();
 
-    egl::Error error = setObjectsLocked(false);
-    if (error.isError())
-    {
-        return error;
-    }
+    ANGLE_TRY(setObjectsLocked(false));
 
     HRESULT result = mSwapChain->Present(mSwapInterval, 0);
     mFirstSwap     = false;
 
-    error = setObjectsLocked(true);
-    if (error.isError())
-    {
-        return error;
-    }
+    ANGLE_TRY(setObjectsLocked(true));
 
     if (FAILED(result))
     {
-        return egl::Error(EGL_BAD_ALLOC, "Failed to present swap chain, result: 0x%X", result);
+        return egl::EglBadAlloc() << "Failed to present swap chain, " << gl::FmtHR(result);
     }
 
     return checkForResize();
 }
 
-egl::Error DXGISwapChainWindowSurfaceWGL::postSubBuffer(EGLint x,
+egl::Error DXGISwapChainWindowSurfaceWGL::postSubBuffer(const gl::Context *context,
+                                                        EGLint x,
                                                         EGLint y,
                                                         EGLint width,
                                                         EGLint height)
 {
+    ASSERT(width > 0 && height > 0);
     ASSERT(mSwapChain1 != nullptr);
 
     mFunctionsGL->flush();
 
-    egl::Error error = setObjectsLocked(false);
-    if (error.isError())
-    {
-        return error;
-    }
+    ANGLE_TRY(setObjectsLocked(false));
 
     HRESULT result = S_OK;
     if (mFirstSwap)
@@ -184,15 +163,11 @@ egl::Error DXGISwapChainWindowSurfaceWGL::postSubBuffer(EGLint x,
         result                         = mSwapChain1->Present1(mSwapInterval, 0, &params);
     }
 
-    error = setObjectsLocked(true);
-    if (error.isError())
-    {
-        return error;
-    }
+    ANGLE_TRY(setObjectsLocked(true));
 
     if (FAILED(result))
     {
-        return egl::Error(EGL_BAD_ALLOC, "Failed to present swap chain, result: 0x%X", result);
+        return egl::EglBadAlloc() << "Failed to present swap chain, " << gl::FmtHR(result);
     }
 
     return checkForResize();
@@ -201,10 +176,12 @@ egl::Error DXGISwapChainWindowSurfaceWGL::postSubBuffer(EGLint x,
 egl::Error DXGISwapChainWindowSurfaceWGL::querySurfacePointerANGLE(EGLint attribute, void **value)
 {
     UNREACHABLE();
-    return egl::Error(EGL_SUCCESS);
+    return egl::NoError();
 }
 
-egl::Error DXGISwapChainWindowSurfaceWGL::bindTexImage(gl::Texture *texture, EGLint buffer)
+egl::Error DXGISwapChainWindowSurfaceWGL::bindTexImage(const gl::Context *context,
+                                                       gl::Texture *texture,
+                                                       EGLint buffer)
 {
     ASSERT(mTextureHandle == nullptr);
 
@@ -212,12 +189,12 @@ egl::Error DXGISwapChainWindowSurfaceWGL::bindTexImage(gl::Texture *texture, EGL
     GLuint textureID           = textureGL->getTextureID();
 
     ID3D11Texture2D *colorBuffer = nullptr;
-    HRESULT result = mSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D),
+    HRESULT result               = mSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D),
                                            reinterpret_cast<void **>(&colorBuffer));
     if (FAILED(result))
     {
-        return egl::Error(EGL_BAD_ALLOC, "Failed to query texture from swap chain, result: 0x%X",
-                          result);
+        return egl::EglBadAlloc() << "Failed to query texture from swap chain, "
+                                  << gl::FmtHR(result);
     }
 
     mTextureHandle = mFunctionsWGL->dxRegisterObjectNV(mDeviceHandle, colorBuffer, textureID,
@@ -225,8 +202,8 @@ egl::Error DXGISwapChainWindowSurfaceWGL::bindTexImage(gl::Texture *texture, EGL
     SafeRelease(colorBuffer);
     if (mTextureHandle == nullptr)
     {
-        return egl::Error(EGL_BAD_ALLOC, "Failed to register D3D object, error: 0x%08x.",
-                          HRESULT_CODE(GetLastError()));
+        return egl::EglBadAlloc() << "Failed to register D3D object, "
+                                  << gl::FmtErr(HRESULT_CODE(GetLastError()));
     }
 
     if (!mFunctionsWGL->dxLockObjectsNV(mDeviceHandle, 1, &mTextureHandle))
@@ -234,35 +211,35 @@ egl::Error DXGISwapChainWindowSurfaceWGL::bindTexImage(gl::Texture *texture, EGL
         mFunctionsWGL->dxUnregisterObjectNV(mDeviceHandle, mTextureHandle);
         mTextureHandle = nullptr;
 
-        return egl::Error(EGL_BAD_ALLOC, "Failed to lock D3D object, error: 0x%08x.",
-                          HRESULT_CODE(GetLastError()));
+        return egl::EglBadAlloc() << "Failed to lock D3D object, "
+                                  << gl::FmtErr(HRESULT_CODE(GetLastError()));
     }
 
     mTextureID = textureID;
 
-    return egl::Error(EGL_SUCCESS);
+    return egl::NoError();
 }
 
-egl::Error DXGISwapChainWindowSurfaceWGL::releaseTexImage(EGLint buffer)
+egl::Error DXGISwapChainWindowSurfaceWGL::releaseTexImage(const gl::Context *context, EGLint buffer)
 {
     ASSERT(mTextureHandle != nullptr);
 
     if (!mFunctionsWGL->dxUnlockObjectsNV(mDeviceHandle, 1, &mTextureHandle))
     {
-        return egl::Error(EGL_BAD_ALLOC, "Failed to unlock D3D object, error: 0x%08x.",
-                          HRESULT_CODE(GetLastError()));
+        return egl::EglBadAlloc() << "Failed to unlock D3D object, "
+                                  << gl::FmtErr(HRESULT_CODE(GetLastError()));
     }
 
     if (!mFunctionsWGL->dxUnregisterObjectNV(mDeviceHandle, mTextureHandle))
     {
-        return egl::Error(EGL_BAD_ALLOC, "Failed to unregister D3D object, error: 0x%08x.",
-                          HRESULT_CODE(GetLastError()));
+        return egl::EglBadAlloc() << "Failed to unregister D3D object, "
+                                  << gl::FmtErr(HRESULT_CODE(GetLastError()));
     }
 
     mTextureID     = 0;
     mTextureHandle = nullptr;
 
-    return egl::Error(EGL_SUCCESS);
+    return egl::NoError();
 }
 
 void DXGISwapChainWindowSurfaceWGL::setSwapInterval(EGLint interval)
@@ -291,10 +268,40 @@ EGLint DXGISwapChainWindowSurfaceWGL::getSwapBehavior() const
 }
 
 FramebufferImpl *DXGISwapChainWindowSurfaceWGL::createDefaultFramebuffer(
+    const gl::Context *context,
     const gl::FramebufferState &data)
 {
-    return new FramebufferGL(mFramebufferID, data, mFunctionsGL, mWorkarounds,
-                             mRenderer->getBlitter(), mStateManager);
+    const FunctionsGL *functions = GetFunctionsGL(context);
+    StateManagerGL *stateManager = GetStateManagerGL(context);
+
+    GLuint framebufferID = 0;
+    functions->genFramebuffers(1, &framebufferID);
+    stateManager->bindFramebuffer(GL_FRAMEBUFFER, framebufferID);
+    functions->framebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER,
+                                       mColorRenderbufferID);
+
+    if (mDepthBufferFormat != GL_NONE)
+    {
+        const gl::InternalFormat &depthStencilFormatInfo =
+            gl::GetSizedInternalFormatInfo(mDepthBufferFormat);
+        if (depthStencilFormatInfo.depthBits > 0)
+        {
+            functions->framebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER,
+                                               mDepthRenderbufferID);
+        }
+        if (depthStencilFormatInfo.stencilBits > 0)
+        {
+            functions->framebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT,
+                                               GL_RENDERBUFFER, mDepthRenderbufferID);
+        }
+    }
+
+    return new FramebufferGL(data, framebufferID, true, false);
+}
+
+HDC DXGISwapChainWindowSurfaceWGL::getDC() const
+{
+    return mWGLDevice;
 }
 
 egl::Error DXGISwapChainWindowSurfaceWGL::setObjectsLocked(bool locked)
@@ -302,11 +309,12 @@ egl::Error DXGISwapChainWindowSurfaceWGL::setObjectsLocked(bool locked)
     if (mRenderbufferBufferHandle == nullptr)
     {
         ASSERT(mTextureHandle == nullptr);
-        return egl::Error(EGL_SUCCESS);
+        return egl::NoError();
     }
 
     HANDLE resources[] = {
-        mRenderbufferBufferHandle, mTextureHandle,
+        mRenderbufferBufferHandle,
+        mTextureHandle,
     };
     GLint count = (mTextureHandle != nullptr) ? 2 : 1;
 
@@ -314,20 +322,20 @@ egl::Error DXGISwapChainWindowSurfaceWGL::setObjectsLocked(bool locked)
     {
         if (!mFunctionsWGL->dxLockObjectsNV(mDeviceHandle, count, resources))
         {
-            return egl::Error(EGL_BAD_ALLOC, "Failed to lock object, error: 0x%08x.",
-                              HRESULT_CODE(GetLastError()));
+            return egl::EglBadAlloc()
+                   << "Failed to lock object, " << gl::FmtErr(HRESULT_CODE(GetLastError()));
         }
     }
     else
     {
         if (!mFunctionsWGL->dxUnlockObjectsNV(mDeviceHandle, count, resources))
         {
-            return egl::Error(EGL_BAD_ALLOC, "Failed to lock object, error: 0x%08x.",
-                              HRESULT_CODE(GetLastError()));
+            return egl::EglBadAlloc()
+                   << "Failed to lock object, " << gl::FmtErr(HRESULT_CODE(GetLastError()));
         }
     }
 
-    return egl::Error(EGL_SUCCESS);
+    return egl::NoError();
 }
 
 egl::Error DXGISwapChainWindowSurfaceWGL::checkForResize()
@@ -335,7 +343,7 @@ egl::Error DXGISwapChainWindowSurfaceWGL::checkForResize()
     RECT rect;
     if (!GetClientRect(mWindow, &rect))
     {
-        return egl::Error(EGL_BAD_NATIVE_WINDOW, "Failed to query the window size.");
+        return egl::EglBadNativeWindow() << "Failed to query the window size.";
     }
 
     size_t newWidth  = rect.right - rect.left;
@@ -353,7 +361,7 @@ egl::Error DXGISwapChainWindowSurfaceWGL::checkForResize()
         }
     }
 
-    return egl::Error(EGL_SUCCESS);
+    return egl::NoError();
 }
 
 static IDXGIFactory *GetDXGIFactoryFromDevice(ID3D11Device *device)
@@ -411,17 +419,17 @@ egl::Error DXGISwapChainWindowSurfaceWGL::createSwapChain()
     IDXGIFactory *dxgiFactory = GetDXGIFactoryFromDevice(mDevice);
     if (dxgiFactory == nullptr)
     {
-        return egl::Error(EGL_BAD_NATIVE_WINDOW, "Failed to query the DXGIFactory.");
+        return egl::EglBadNativeWindow() << "Failed to query the DXGIFactory.";
     }
 
     IDXGIFactory2 *dxgiFactory2 = nullptr;
-    HRESULT result = dxgiFactory->QueryInterface(__uuidof(IDXGIFactory2),
+    HRESULT result              = dxgiFactory->QueryInterface(__uuidof(IDXGIFactory2),
                                                  reinterpret_cast<void **>(&dxgiFactory2));
     if (SUCCEEDED(result))
     {
         ASSERT(dxgiFactory2 != nullptr);
 
-        DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {0};
+        DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
         swapChainDesc.BufferCount           = 1;
         swapChainDesc.Format                = mSwapChainFormat;
         swapChainDesc.Width                 = static_cast<UINT>(mWidth);
@@ -429,7 +437,7 @@ egl::Error DXGISwapChainWindowSurfaceWGL::createSwapChain()
         swapChainDesc.Format                = mSwapChainFormat;
         swapChainDesc.Stereo                = FALSE;
         swapChainDesc.SampleDesc.Count      = 1;
-        swapChainDesc.SampleDesc.Quality = 0;
+        swapChainDesc.SampleDesc.Quality    = 0;
         swapChainDesc.BufferUsage =
             DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_SHADER_INPUT | DXGI_USAGE_BACK_BUFFER;
         swapChainDesc.BufferCount = 1;
@@ -444,8 +452,8 @@ egl::Error DXGISwapChainWindowSurfaceWGL::createSwapChain()
         SafeRelease(dxgiFactory);
         if (FAILED(result))
         {
-            return egl::Error(EGL_BAD_ALLOC, "Failed to create swap chain for window, result: 0x%X",
-                              result);
+            return egl::EglBadAlloc()
+                   << "Failed to create swap chain for window, " << gl::FmtHR(result);
         }
 
         mSwapChain = mSwapChain1;
@@ -475,21 +483,20 @@ egl::Error DXGISwapChainWindowSurfaceWGL::createSwapChain()
         SafeRelease(dxgiFactory);
         if (FAILED(result))
         {
-            return egl::Error(EGL_BAD_ALLOC, "Failed to create swap chain for window, result: 0x%X",
-                              result);
+            return egl::EglBadAlloc()
+                   << "Failed to create swap chain for window, " << gl::FmtHR(result);
         }
     }
 
     ID3D11Texture2D *colorBuffer = nullptr;
-    result = mSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D),
+    result                       = mSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D),
                                    reinterpret_cast<void **>(&colorBuffer));
     if (FAILED(result))
     {
-        return egl::Error(EGL_BAD_ALLOC, "Failed to query texture from swap chain, result: 0x%X",
-                          result);
+        return egl::EglBadAlloc() << "Failed to query texture from swap chain, "
+                                  << gl::FmtHR(result);
     }
 
-    mFunctionsGL->genRenderbuffers(1, &mColorRenderbufferID);
     mStateManager->bindRenderbuffer(GL_RENDERBUFFER, mColorRenderbufferID);
     mRenderbufferBufferHandle =
         mFunctionsWGL->dxRegisterObjectNV(mDeviceHandle, colorBuffer, mColorRenderbufferID,
@@ -497,8 +504,8 @@ egl::Error DXGISwapChainWindowSurfaceWGL::createSwapChain()
     SafeRelease(colorBuffer);
     if (mRenderbufferBufferHandle == nullptr)
     {
-        return egl::Error(EGL_BAD_ALLOC, "Failed to register D3D object, error: 0x%X.",
-                          HRESULT_CODE(GetLastError()));
+        return egl::EglBadAlloc() << "Failed to register D3D object, "
+                                  << gl::FmtErr(HRESULT_CODE(GetLastError()));
     }
 
     // Rebind the surface to the texture if needed.
@@ -508,8 +515,8 @@ egl::Error DXGISwapChainWindowSurfaceWGL::createSwapChain()
                                                            GL_TEXTURE_2D, WGL_ACCESS_READ_WRITE_NV);
         if (mTextureHandle == nullptr)
         {
-            return egl::Error(EGL_BAD_ALLOC, "Failed to register D3D object, error: 0x%X.",
-                              HRESULT_CODE(GetLastError()));
+            return egl::EglBadAlloc()
+                   << "Failed to register D3D object, " << gl::FmtErr(HRESULT_CODE(GetLastError()));
         }
     }
 
@@ -519,11 +526,6 @@ egl::Error DXGISwapChainWindowSurfaceWGL::createSwapChain()
         return error;
     }
 
-    ASSERT(mFramebufferID != 0);
-    mStateManager->bindFramebuffer(GL_FRAMEBUFFER, mFramebufferID);
-    mFunctionsGL->framebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER,
-                                          mColorRenderbufferID);
-
     if (mDepthBufferFormat != GL_NONE)
     {
         ASSERT(mDepthRenderbufferID != 0);
@@ -531,23 +533,10 @@ egl::Error DXGISwapChainWindowSurfaceWGL::createSwapChain()
         mFunctionsGL->renderbufferStorage(GL_RENDERBUFFER, mDepthBufferFormat,
                                           static_cast<GLsizei>(mWidth),
                                           static_cast<GLsizei>(mHeight));
-
-        const gl::InternalFormat &depthStencilFormatInfo =
-            gl::GetSizedInternalFormatInfo(mDepthBufferFormat);
-        if (depthStencilFormatInfo.depthBits > 0)
-        {
-            mFunctionsGL->framebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
-                                                  GL_RENDERBUFFER, mDepthRenderbufferID);
-        }
-        if (depthStencilFormatInfo.stencilBits > 0)
-        {
-            mFunctionsGL->framebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT,
-                                                  GL_RENDERBUFFER, mDepthRenderbufferID);
-        }
     }
 
     mFirstSwap = true;
 
-    return egl::Error(EGL_SUCCESS);
+    return egl::NoError();
 }
 }  // namespace rx

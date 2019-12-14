@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,8 +10,8 @@
 #define LIBANGLE_RENDERER_GL_GLX_WINDOWSURFACEGLX_H_
 
 #include "libANGLE/renderer/gl/glx/DisplayGLX.h"
-#include "libANGLE/renderer/gl/glx/platform_glx.h"
 #include "libANGLE/renderer/gl/glx/SurfaceGLX.h"
+#include "libANGLE/renderer/gl/glx/platform_glx.h"
 
 namespace rx
 {
@@ -25,21 +25,25 @@ class WindowSurfaceGLX : public SurfaceGLX
     WindowSurfaceGLX(const egl::SurfaceState &state,
                      const FunctionsGLX &glx,
                      DisplayGLX *glxDisplay,
-                     RendererGL *renderer,
                      Window window,
                      Display *display,
-                     glx::Context context,
                      glx::FBConfig fbConfig);
     ~WindowSurfaceGLX() override;
 
-    egl::Error initialize(const DisplayImpl *displayImpl) override;
-    egl::Error makeCurrent() override;
+    egl::Error initialize(const egl::Display *display) override;
+    egl::Error makeCurrent(const gl::Context *context) override;
 
-    egl::Error swap(const DisplayImpl *displayImpl) override;
-    egl::Error postSubBuffer(EGLint x, EGLint y, EGLint width, EGLint height) override;
+    egl::Error swap(const gl::Context *context) override;
+    egl::Error postSubBuffer(const gl::Context *context,
+                             EGLint x,
+                             EGLint y,
+                             EGLint width,
+                             EGLint height) override;
     egl::Error querySurfacePointerANGLE(EGLint attribute, void **value) override;
-    egl::Error bindTexImage(gl::Texture *texture, EGLint buffer) override;
-    egl::Error releaseTexImage(EGLint buffer) override;
+    egl::Error bindTexImage(const gl::Context *context,
+                            gl::Texture *texture,
+                            EGLint buffer) override;
+    egl::Error releaseTexImage(const gl::Context *context, EGLint buffer) override;
     void setSwapInterval(EGLint interval) override;
 
     EGLint getWidth() const override;
@@ -49,6 +53,9 @@ class WindowSurfaceGLX : public SurfaceGLX
     EGLint getSwapBehavior() const override;
 
     egl::Error checkForResize() override;
+    glx::Drawable getDrawable() const override;
+
+    egl::Error getSyncValues(EGLuint64KHR *ust, EGLuint64KHR *msc, EGLuint64KHR *sbc) override;
 
   private:
     bool getWindowDimensions(Window window, unsigned int *width, unsigned int *height) const;
@@ -61,7 +68,6 @@ class WindowSurfaceGLX : public SurfaceGLX
     const FunctionsGLX &mGLX;
     DisplayGLX *mGLXDisplay;
 
-    glx::Context mContext;
     glx::FBConfig mFBConfig;
     glx::Window mGLXWindow;
 
@@ -70,4 +76,4 @@ class WindowSurfaceGLX : public SurfaceGLX
 
 }  // namespace rx
 
-#endif // LIBANGLE_RENDERER_GL_GLX_WINDOWSURFACEGLX_H_
+#endif  // LIBANGLE_RENDERER_GL_GLX_WINDOWSURFACEGLX_H_

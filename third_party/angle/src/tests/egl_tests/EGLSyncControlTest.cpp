@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 The ANGLE Project Authors. All rights reserved.
+// Copyright 2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -8,20 +8,12 @@
 //   Tests pertaining to eglGetSyncValuesCHROMIUM.
 
 #include <d3d11.h>
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
 
-#include "com_utils.h"
-#include "OSWindow.h"
 #include "test_utils/ANGLETest.h"
+#include "util/OSWindow.h"
+#include "util/com_utils.h"
 
 using namespace angle;
-
-typedef EGLBoolean(EGLAPIENTRYP PFNEGLGETSYNCVALUESCHROMIUMPROC)(EGLDisplay dpy,
-                                                                 EGLSurface surface,
-                                                                 EGLuint64KHR *ust,
-                                                                 EGLuint64KHR *msc,
-                                                                 EGLuint64KHR *sbc);
 
 class EGLSyncControlTest : public testing::Test
 {
@@ -56,9 +48,6 @@ class EGLSyncControlTest : public testing::Test
                 mDeviceCreationD3D11ExtAvailable = true;
             }
         }
-
-        eglGetSyncValuesCHROMIUM = reinterpret_cast<PFNEGLGETSYNCVALUESCHROMIUMPROC>(
-            eglGetProcAddress("eglGetSyncValuesCHROMIUM"));
     }
 
     void TearDown() override
@@ -66,7 +55,7 @@ class EGLSyncControlTest : public testing::Test
         SafeRelease(mDevice);
         SafeRelease(mDeviceContext);
 
-        SafeDelete(mOSWindow);
+        OSWindow::Delete(&mOSWindow);
 
         if (mSurface != EGL_NO_SURFACE)
         {
@@ -112,7 +101,7 @@ class EGLSyncControlTest : public testing::Test
                                    EGL_NONE};
 
         // Create an OS Window
-        mOSWindow = CreateOSWindow();
+        mOSWindow = OSWindow::New();
         mOSWindow->initialize("EGLSyncControlTest", 64, 64);
         mOSWindow->setVisible(true);
 
@@ -175,11 +164,10 @@ class EGLSyncControlTest : public testing::Test
 
     OSWindow *mOSWindow = nullptr;
 
-    EGLDisplay mDisplay                                      = EGL_NO_DISPLAY;
-    EGLSurface mSurface                                      = EGL_NO_SURFACE;
-    EGLContext mContext                                      = EGL_NO_CONTEXT;
-    EGLConfig mConfig                                        = 0;
-    PFNEGLGETSYNCVALUESCHROMIUMPROC eglGetSyncValuesCHROMIUM = nullptr;
+    EGLDisplay mDisplay = EGL_NO_DISPLAY;
+    EGLSurface mSurface = EGL_NO_SURFACE;
+    EGLContext mContext = EGL_NO_CONTEXT;
+    EGLConfig mConfig   = 0;
 };
 
 // Basic test for eglGetSyncValuesCHROMIUM extension. Verifies that eglGetSyncValuesCHROMIUM

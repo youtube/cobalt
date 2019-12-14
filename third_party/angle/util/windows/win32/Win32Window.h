@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -12,8 +12,8 @@
 #include <windows.h>
 #include <string>
 
-#include "OSWindow.h"
-#include "Timer.h"
+#include "util/OSWindow.h"
+#include "util/Timer.h"
 
 class Win32Window : public OSWindow
 {
@@ -21,11 +21,12 @@ class Win32Window : public OSWindow
     Win32Window();
     ~Win32Window() override;
 
-    bool initialize(const std::string &name, size_t width, size_t height) override;
+    bool initialize(const std::string &name, int width, int height) override;
     void destroy() override;
 
     bool takeScreenshot(uint8_t *pixelData) override;
 
+    void resetNativeWindow() override;
     EGLNativeWindowType getNativeWindow() const override;
     EGLNativeDisplayType getNativeDisplay() const override;
 
@@ -47,7 +48,7 @@ class Win32Window : public OSWindow
     std::string mChildClassName;
 
     bool mIsVisible;
-    Timer *mSetVisibleTimer;
+    Timer mSetVisibleTimer;
 
     bool mIsMouseInWindow;
 
