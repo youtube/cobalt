@@ -48,6 +48,14 @@ class DebuggerCommandError(Exception):
     super(DebuggerCommandError, self).__init__(code + error['message'])
 
 
+class DebuggerEventError(Exception):
+  """Exception when an unexpected event is received."""
+
+  def __init__(self, expected, actual):
+    super(DebuggerEventError,
+          self).__init__('Waiting for {} but got {}'.format(expected, actual))
+
+
 class JavaScriptError(Exception):
   """Exception when a JavaScript exception occurs in an evaluation."""
 
@@ -66,7 +74,7 @@ class DebuggerConnection(object):
   waiting for a command response or event.
   """
 
-  def __init__(self, ws_url, timeout=3):
+  def __init__(self, ws_url, timeout=1):
     self.ws_url = ws_url
     self.timeout = timeout
     self.last_id = 0
@@ -123,10 +131,10 @@ class DebuggerConnection(object):
     while command_id not in self.responses:
       try:
         self._receive_message()
-      except websocket.WebSocketTimeoutException as err:
-        # Show which command response we were waiting for that timed out.
-        err.args = ('Command', self.commands[command_id])
-        raise
+      except websocket.WebSocketTimeoutException:
+        method = self.commands[command_id]['method']
+        raise DebuggerCommandError(
+            {'message': 'Timeout waiting for response to ' + method})
     self.commands.pop(command_id)
     return self.responses.pop(command_id)
 
@@ -134,22 +142,35 @@ class DebuggerConnection(object):
     """Wait for an event to arrive.
 
     Fails the test with an exception if the WebSocket times out without
-    receiving the event.
+    receiving the event, or another event arrives first.
     """
-    # Check if we already received the event.
-    for event in self.events:
-      if event['method'] == method:
-        self.events.remove(event)
-        return event
-    # Receive messages until the event we want arrives.
-    while not self.events or self.events[-1]['method'] != method:
+
+    # "Debugger.scriptParsed" events get sent as artifacts of the debugger
+    # backend implementation running its own injected code, so they are ignored
+    # unless that's what we're waiting for.
+    allow_script_parsed = (method == 'Debugger.scriptParsed')
+
+    # Pop already-received events from the event queue.
+    def _next_event():
+      while self.events:
+        event = self.events.pop(0)
+        if allow_script_parsed or event['method'] != 'Debugger.scriptParsed':
+          return event
+      return None
+
+    # Take the next event in the queue. If the queue is empty, receive messages
+    # until an event arrives and is put in the queue for us to take.
+    while True:
+      event = _next_event()
+      if event:
+        break
       try:
         self._receive_message()
-      except websocket.WebSocketTimeoutException as err:
-        # Show which event we were waiting for that timed out.
-        err.args = ('Event', method)
-        raise
-    return self.events.pop()
+      except websocket.WebSocketTimeoutException:
+        raise DebuggerEventError(method, 'None (timeout)')
+    if method != event['method']:
+      raise DebuggerEventError(method, event['method'])
+    return event
 
   def _receive_message(self):
     """Receives one message and stores it in either responses or events."""
@@ -174,6 +195,8 @@ class DebuggerConnection(object):
 
   def evaluate_js(self, expression):
     """Helper for the 'Runtime.evaluate' command to run some JavaScript."""
+    if _DEBUG:
+      logging.debug('JavaScript eval -------- %s', expression)
     response = self.run_command('Runtime.evaluate', {
         'contextId': self.context_id,
         'expression': expression,
@@ -209,6 +232,16 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
     self.runner.WaitForJSTestsSetup()
     self.debugger.enable_runtime()
 
+  def tearDown(self):
+    self.debugger.evaluate_js('onEndTest()')
+    self.assertTrue(self.runner.JSTestsSucceeded())
+    unprocessed_events = [
+        e['method']
+        for e in self.debugger.events
+        if e['method'] != 'Debugger.scriptParsed'
+    ]
+    self.assertEqual([], unprocessed_events)
+
   def create_debugger_connection(self):
     devtools_url = self.runner.GetCval('Cobalt.Server.DevTools')
     parts = list(urlparse.urlsplit(devtools_url))
@@ -233,10 +266,6 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
     self.debugger.evaluate_js('console.log("hello")')
     console_event = self.debugger.wait_event('Runtime.consoleAPICalled')
     self.assertEqual('hello', console_event['params']['args'][0]['value'])
-
-    # End the test.
-    self.debugger.evaluate_js('onEndTest()')
-    self.assertTrue(self.runner.JSTestsSucceeded())
 
   def test_dom_tree(self):
     self.debugger.run_command('DOM.enable')
@@ -432,10 +461,6 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
         'objectId': resolve_response['result']['object']['objectId'],
     })
     self.assertEqual(div_test['nodeId'], node_response['result']['nodeId'])
-
-    # End the test.
-    self.debugger.evaluate_js('onEndTest()')
-    self.assertTrue(self.runner.JSTestsSucceeded())
 
   def test_dom_childlist_mutation(self):
     self.debugger.run_command('DOM.enable')
@@ -809,6 +834,10 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
       expected_stacks: A list of lists of strings with the expected function
         names in the call stacks in a series of asynchronous executions.
     """
+    # Expect an anonymous frame from the backend eval that's running the code
+    # we sent in the "Runtime.evaluate" command.
+    expected_stacks[-1] += ['']
+
     paused_event = self.debugger.wait_event('Debugger.paused')
     try:
       call_stacks = []
@@ -816,7 +845,7 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
       call_frames = paused_event['params']['callFrames']
       call_stack = [frame['functionName'] for frame in call_frames]
       call_stacks.append(call_stack)
-      # Then asynchronous stacks that preceeded the main stack.
+      # Then asynchronous stacks that preceded the main stack.
       async_trace = paused_event['params'].get('asyncStackTrace')
       while async_trace:
         call_frames = async_trace['callFrames']
@@ -827,6 +856,7 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
     finally:
       # We must resume in order to avoid hanging if something goes wrong.
       self.debugger.run_command('Debugger.resume')
+    self.debugger.wait_event('Debugger.resumed')
 
   def test_debugger_breakpoint(self):
     self.debugger.run_command('Debugger.enable')
@@ -871,8 +901,7 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
         [
             'asyncA',
             'testSetTimeout',
-            '',  # Anonymous function for the 'Runtime.evaluate' command.
-        ]
+        ],
     ])
 
     # Check the breakpoint within a promise "then" after being resolved.
@@ -885,8 +914,7 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
         [
             'waitPromise',
             'testPromise',
-            '',  # Anonymous function for the 'Runtime.evaluate' command.
-        ]
+        ],
     ])
 
     # Check the breakpoint after async await for a promise to resolve.
@@ -899,8 +927,7 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
         [
             'asyncAwait',
             'testAsyncFunction',
-            '',  # Anonymous function for the 'Runtime.evaluate' command.
-        ]
+        ],
     ])
 
     # Check the breakpoint within an XHR event handler.
@@ -913,8 +940,7 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
         [
             'doXHR',
             'testXHR',
-            '',  # Anonymous function for the 'Runtime.evaluate' command.
-        ]
+        ],
     ])
 
     # Check the breakpoint within a MutationObserver.
@@ -927,7 +953,6 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
         [
             'doSetAttribute',
             'testMutate',
-            '',  # Anonymous function for the 'Runtime.evaluate' command.
         ],
     ])
 
@@ -941,7 +966,6 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
         [
             'doRequestAnimationFrame',
             'testAnimationFrame',
-            '',  # Anonymous function for the 'Runtime.evaluate' command.
         ],
     ])
 
@@ -955,10 +979,5 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
         [
             'setSourceListener',
             'testMediaSource',
-            '',  # Anonymous function for the 'Runtime.evaluate' command.
         ],
     ])
-
-    # End the test.
-    self.debugger.evaluate_js('onEndTest()')
-    self.assertTrue(self.runner.JSTestsSucceeded())
