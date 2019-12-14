@@ -1,5 +1,5 @@
 //
-// Copyright(c) 2016 The ANGLE Project Authors. All rights reserved.
+// Copyright 2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -9,23 +9,48 @@
 #include "libANGLE/Thread.h"
 
 #include "libANGLE/Context.h"
+#include "libANGLE/Debug.h"
 #include "libANGLE/Error.h"
+#include "libANGLE/ErrorStrings.h"
 
 namespace egl
 {
+
 Thread::Thread()
-    : mError(EGL_SUCCESS),
+    : mLabel(nullptr),
+      mError(EGL_SUCCESS),
       mAPI(EGL_OPENGL_ES_API),
-      mDisplay(static_cast<egl::Display *>(EGL_NO_DISPLAY)),
-      mDrawSurface(static_cast<egl::Surface *>(EGL_NO_SURFACE)),
-      mReadSurface(static_cast<egl::Surface *>(EGL_NO_SURFACE)),
       mContext(static_cast<gl::Context *>(EGL_NO_CONTEXT))
+{}
+
+void Thread::setLabel(EGLLabelKHR label)
 {
+    mLabel = label;
 }
 
-void Thread::setError(const Error &error)
+EGLLabelKHR Thread::getLabel() const
 {
+    return mLabel;
+}
+
+void Thread::setSuccess()
+{
+    mError = EGL_SUCCESS;
+}
+
+void Thread::setError(const Error &error,
+                      const Debug *debug,
+                      const char *command,
+                      const LabeledObject *object)
+{
+    ASSERT(debug != nullptr);
+
     mError = error.getCode();
+    if (error.isError() && !error.getMessage().empty())
+    {
+        debug->insertMessage(error.getCode(), command, ErrorCodeToMessageType(error.getCode()),
+                             getLabel(), object ? object->getLabel() : nullptr, error.getMessage());
+    }
 }
 
 EGLint Thread::getError() const
@@ -43,30 +68,27 @@ EGLenum Thread::getAPI() const
     return mAPI;
 }
 
-void Thread::setCurrent(Display *display,
-                        Surface *drawSurface,
-                        Surface *readSurface,
-                        gl::Context *context)
+void Thread::setCurrent(gl::Context *context)
 {
-    mDisplay     = display;
-    mDrawSurface = drawSurface;
-    mReadSurface = readSurface;
-    mContext     = context;
+    mContext = context;
 }
 
-Display *Thread::getDisplay() const
+Surface *Thread::getCurrentDrawSurface() const
 {
-    return mDisplay;
+    if (mContext)
+    {
+        return mContext->getCurrentDrawSurface();
+    }
+    return nullptr;
 }
 
-Surface *Thread::getDrawSurface() const
+Surface *Thread::getCurrentReadSurface() const
 {
-    return mDrawSurface;
-}
-
-Surface *Thread::getReadSurface() const
-{
-    return mReadSurface;
+    if (mContext)
+    {
+        return mContext->getCurrentReadSurface();
+    }
+    return nullptr;
 }
 
 gl::Context *Thread::getContext() const
@@ -78,11 +100,21 @@ gl::Context *Thread::getValidContext() const
 {
     if (mContext && mContext->isContextLost())
     {
-        mContext->handleError(gl::Error(GL_OUT_OF_MEMORY, "Context has been lost."));
+        mContext->handleError(GL_OUT_OF_MEMORY, gl::err::kContextLost, __FILE__, ANGLE_FUNCTION,
+                              __LINE__);
         return nullptr;
     }
 
     return mContext;
+}
+
+Display *Thread::getDisplay() const
+{
+    if (mContext)
+    {
+        return mContext->getDisplay();
+    }
+    return nullptr;
 }
 
 }  // namespace egl

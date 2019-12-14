@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2011 The ANGLE Project Authors. All rights reserved.
+// Copyright 2011 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -13,6 +13,9 @@
 #include "compiler/preprocessor/MacroExpander.h"
 #include "compiler/preprocessor/Token.h"
 #include "compiler/preprocessor/Tokenizer.h"
+
+namespace angle
+{
 
 namespace pp
 {
@@ -30,14 +33,9 @@ struct PreprocessorImpl
                      const PreprocessorSettings &settings)
         : diagnostics(diag),
           tokenizer(diag),
-          directiveParser(&tokenizer,
-                          &macroSet,
-                          diag,
-                          directiveHandler,
-                          settings.maxMacroExpansionDepth),
-          macroExpander(&directiveParser, &macroSet, diag, settings.maxMacroExpansionDepth)
-    {
-    }
+          directiveParser(&tokenizer, &macroSet, diag, directiveHandler, settings),
+          macroExpander(&directiveParser, &macroSet, diag, settings, false)
+    {}
 };
 
 Preprocessor::Preprocessor(Diagnostics *diagnostics,
@@ -105,3 +103,5 @@ void Preprocessor::setMaxTokenSize(size_t maxTokenSize)
 }
 
 }  // namespace pp
+
+}  // namespace angle

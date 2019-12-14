@@ -1,6 +1,6 @@
 /*
 //
-// Copyright (c) 2002-2014 The ANGLE Project Authors. All rights reserved.
+// Copyright 2002 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -14,7 +14,7 @@ IF YOU MODIFY THIS FILE YOU ALSO NEED TO RUN generate_parser.sh.
 
 %top{
 //
-// Copyright (c) 2011-2014 The ANGLE Project Authors. All rights reserved.
+// Copyright 2011 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -38,6 +38,18 @@ IF YOU MODIFY THIS FILE YOU ALSO NEED TO RUN generate_parser.sh.
 #elif defined(_MSC_VER)
 #pragma warning(disable: 4244)
 #endif
+#if defined(__clang__)
+// Flex uses `/*FALLTHROUGH*/` instead of dedicated statements.
+#pragma clang diagnostic ignored "-Wimplicit-fallthrough"
+#if defined(__APPLE__)
+// Older clang versions don't have -Wextra-semi-stmt, and detecting Apple clang versions is
+// difficult because they use different yet overlapping version numbers vs. regular clang.
+#pragma clang diagnostic ignored "-Wunknown-warning-option"
+#endif
+// Flex isn't semi-colon clean.
+#pragma clang diagnostic ignored "-Wextra-semi-stmt"
+#pragma clang diagnostic ignored "-Wunreachable-code"
+#endif
 
 // Workaround for flex using the register keyword, deprecated in C++11.
 #ifdef __cplusplus
@@ -47,7 +59,7 @@ IF YOU MODIFY THIS FILE YOU ALSO NEED TO RUN generate_parser.sh.
 #endif
 
 typedef std::string YYSTYPE;
-typedef pp::SourceLocation YYLTYPE;
+typedef angle::pp::SourceLocation YYLTYPE;
 
 // Use the unused yycolumn variable to track file (string) number.
 #define yyfileno yycolumn
@@ -60,11 +72,12 @@ typedef pp::SourceLocation YYLTYPE;
         yyextra->lineStart = true;     \
     } while(0);
 
+#define YY_NO_INPUT
 #define YY_USER_ACTION                                              \
     do                                                              \
     {                                                               \
-        pp::Input* input = &yyextra->input;                         \
-        pp::Input::Location* scanLoc = &yyextra->scanLoc;           \
+        angle::pp::Input* input = &yyextra->input;                  \
+        angle::pp::Input::Location* scanLoc = &yyextra->scanLoc;    \
         while ((scanLoc->sIndex < input->count()) &&                \
                (scanLoc->cIndex >= input->length(scanLoc->sIndex))) \
         {                                                           \
@@ -84,7 +97,7 @@ typedef pp::SourceLocation YYLTYPE;
 %option noyywrap nounput never-interactive
 %option reentrant bison-bridge bison-locations
 %option prefix="pp"
-%option extra-type="pp::Tokenizer::Context*"
+%option extra-type="angle::pp::Tokenizer::Context*"
 %x COMMENT
 
 NEWLINE     \n|\r|\r\n
@@ -110,7 +123,14 @@ FRACTIONAL_CONSTANT  ({DIGIT}*"."{DIGIT}+)|({DIGIT}+".")
 "/*" { BEGIN(COMMENT); }
 <COMMENT>[^*\r\n]+
 <COMMENT>"*"
-<COMMENT>{NEWLINE} { ++yylineno; }
+<COMMENT>{NEWLINE} {
+    if (yylineno == INT_MAX)
+    {
+        *yylval = "Integer overflow on line number";
+        return angle::pp::Token::GOT_ERROR;
+    }
+    ++yylineno;
+}
 <COMMENT>"*/" {
     yyextra->leadingSpace = true;
     BEGIN(INITIAL);
@@ -119,114 +139,114 @@ FRACTIONAL_CONSTANT  ({DIGIT}*"."{DIGIT}+)|({DIGIT}+".")
 # {
     // # is only valid at start of line for preprocessor directives.
     yylval->assign(1, yytext[0]);
-    return yyextra->lineStart ? pp::Token::PP_HASH : pp::Token::PP_OTHER;
+    return yyextra->lineStart ? angle::pp::Token::PP_HASH : angle::pp::Token::PP_OTHER;
 }
 
 {IDENTIFIER} {
     yylval->assign(yytext, yyleng);
-    return pp::Token::IDENTIFIER;
+    return angle::pp::Token::IDENTIFIER;
 }
 
 ({DECIMAL_CONSTANT}[uU]?)|({OCTAL_CONSTANT}[uU]?)|({HEXADECIMAL_CONSTANT}[uU]?) {
     yylval->assign(yytext, yyleng);
-    return pp::Token::CONST_INT;
+    return angle::pp::Token::CONST_INT;
 }
 
 ({DIGIT}+{EXPONENT_PART}[fF]?)|({FRACTIONAL_CONSTANT}{EXPONENT_PART}?[fF]?) {
     yylval->assign(yytext, yyleng);
-    return pp::Token::CONST_FLOAT;
+    return angle::pp::Token::CONST_FLOAT;
 }
 
     /* Anything that starts with a {DIGIT} or .{DIGIT} must be a number. */
     /* Rule to catch all invalid integers and floats. */
 ({DIGIT}+[_a-zA-Z0-9.]*)|("."{DIGIT}+[_a-zA-Z0-9.]*) {
     yylval->assign(yytext, yyleng);
-    return pp::Token::PP_NUMBER;
+    return angle::pp::Token::PP_NUMBER;
 }
 
 "++" {
     yylval->assign(yytext, yyleng);
-    return pp::Token::OP_INC;
+    return angle::pp::Token::OP_INC;
 }
 "--" {
     yylval->assign(yytext, yyleng);
-    return pp::Token::OP_DEC;
+    return angle::pp::Token::OP_DEC;
 }
 "<<" {
     yylval->assign(yytext, yyleng);
-    return pp::Token::OP_LEFT;
+    return angle::pp::Token::OP_LEFT;
 }
 ">>" {
     yylval->assign(yytext, yyleng);
-    return pp::Token::OP_RIGHT;
+    return angle::pp::Token::OP_RIGHT;
 }
 "<=" {
     yylval->assign(yytext, yyleng);
-    return pp::Token::OP_LE;
+    return angle::pp::Token::OP_LE;
 }
 ">=" {
     yylval->assign(yytext, yyleng);
-    return pp::Token::OP_GE;
+    return angle::pp::Token::OP_GE;
 }
 "==" {
     yylval->assign(yytext, yyleng);
-    return pp::Token::OP_EQ;
+    return angle::pp::Token::OP_EQ;
 }
 "!=" {
     yylval->assign(yytext, yyleng);
-    return pp::Token::OP_NE;
+    return angle::pp::Token::OP_NE;
 }
 "&&" {
     yylval->assign(yytext, yyleng);
-    return pp::Token::OP_AND;
+    return angle::pp::Token::OP_AND;
 }
 "^^" {
     yylval->assign(yytext, yyleng);
-    return pp::Token::OP_XOR;
+    return angle::pp::Token::OP_XOR;
 }
 "||" {
     yylval->assign(yytext, yyleng);
-    return pp::Token::OP_OR;
+    return angle::pp::Token::OP_OR;
 }
 "+=" {
     yylval->assign(yytext, yyleng);
-    return pp::Token::OP_ADD_ASSIGN;
+    return angle::pp::Token::OP_ADD_ASSIGN;
 }
 "-=" {
     yylval->assign(yytext, yyleng);
-    return pp::Token::OP_SUB_ASSIGN;
+    return angle::pp::Token::OP_SUB_ASSIGN;
 }
 "*=" {
     yylval->assign(yytext, yyleng);
-    return pp::Token::OP_MUL_ASSIGN;
+    return angle::pp::Token::OP_MUL_ASSIGN;
 }
 "/=" {
     yylval->assign(yytext, yyleng);
-    return pp::Token::OP_DIV_ASSIGN;
+    return angle::pp::Token::OP_DIV_ASSIGN;
 }
 "%=" {
     yylval->assign(yytext, yyleng);
-    return pp::Token::OP_MOD_ASSIGN;
+    return angle::pp::Token::OP_MOD_ASSIGN;
 }
 "<<=" {
     yylval->assign(yytext, yyleng);
-    return pp::Token::OP_LEFT_ASSIGN;
+    return angle::pp::Token::OP_LEFT_ASSIGN;
 }
 ">>=" {
     yylval->assign(yytext, yyleng);
-    return pp::Token::OP_RIGHT_ASSIGN;
+    return angle::pp::Token::OP_RIGHT_ASSIGN;
 }
 "&=" {
     yylval->assign(yytext, yyleng);
-    return pp::Token::OP_AND_ASSIGN;
+    return angle::pp::Token::OP_AND_ASSIGN;
 }
 "^=" {
     yylval->assign(yytext, yyleng);
-    return pp::Token::OP_XOR_ASSIGN;
+    return angle::pp::Token::OP_XOR_ASSIGN;
 }
 "|=" {
     yylval->assign(yytext, yyleng);
-    return pp::Token::OP_OR_ASSIGN;
+    return angle::pp::Token::OP_OR_ASSIGN;
 }
 
 {PUNCTUATOR} {
@@ -237,23 +257,26 @@ FRACTIONAL_CONSTANT  ({DIGIT}*"."{DIGIT}+)|({DIGIT}+".")
 [ \t\v\f]+   { yyextra->leadingSpace = true; }
 
 {NEWLINE} {
+    if (yylineno == INT_MAX)
+    {
+        *yylval = "Integer overflow on line number";
+        return angle::pp::Token::GOT_ERROR;
+    }
     ++yylineno;
     yylval->assign(1, '\n');
     return '\n';
 }
 
-\\{NEWLINE} { ++yylineno; }
-
 . {
     yylval->assign(1, yytext[0]);
-    return pp::Token::PP_OTHER;
+    return angle::pp::Token::PP_OTHER;
 }
 
 <*><<EOF>> {
     // YY_USER_ACTION is not invoked for handling EOF.
     // Set the location for EOF token manually.
-    pp::Input* input = &yyextra->input;
-    pp::Input::Location* scanLoc = &yyextra->scanLoc;
+    angle::pp::Input* input = &yyextra->input;
+    angle::pp::Input::Location* scanLoc = &yyextra->scanLoc;
     yy_size_t sIndexMax = input->count() ? input->count() - 1 : 0;
     if (scanLoc->sIndex != sIndexMax)
     {
@@ -267,16 +290,24 @@ FRACTIONAL_CONSTANT  ({DIGIT}*"."{DIGIT}+)|({DIGIT}+".")
     yylloc->line = yylineno;
     yylval->clear();
 
-    if (YY_START == COMMENT)
+    // Line number overflows fake EOFs to exit early, check for this case.
+    if (yylineno == INT_MAX) {
+        yyextra->diagnostics->report(angle::pp::Diagnostics::PP_TOKENIZER_ERROR,
+                angle::pp::SourceLocation(yyfileno, yylineno),
+                "Integer overflow on line number");
+    }
+    else if (YY_START == COMMENT)
     {
-        yyextra->diagnostics->report(pp::Diagnostics::PP_EOF_IN_COMMENT,
-                                     pp::SourceLocation(yyfileno, yylineno),
-                                     "");
+        yyextra->diagnostics->report(angle::pp::Diagnostics::PP_EOF_IN_COMMENT,
+                                     angle::pp::SourceLocation(yyfileno, yylineno),
+                                     "EOF while in a comment");
     }
     yyterminate();
 }
 
 %%
+
+namespace angle {
 
 namespace pp {
 
@@ -318,7 +349,18 @@ void Tokenizer::setMaxTokenSize(size_t maxTokenSize)
 
 void Tokenizer::lex(Token *token)
 {
-    token->type = yylex(&token->text, &token->location, mHandle);
+    int tokenType = yylex(&token->text, &token->location, mHandle);
+
+    if (tokenType == Token::GOT_ERROR)
+    {
+        mContext.diagnostics->report(Diagnostics::PP_TOKENIZER_ERROR, token->location, token->text);
+        token->type = Token::LAST;
+    }
+    else
+    {
+        token->type = tokenType;
+    }
+
     if (token->text.size() > mMaxTokenSize)
     {
         mContext.diagnostics->report(Diagnostics::PP_TOKEN_TOO_LONG,
@@ -354,4 +396,6 @@ void Tokenizer::destroyScanner()
 }
 
 }  // namespace pp
+
+} // namespace angle
 

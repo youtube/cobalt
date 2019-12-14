@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,6 +10,11 @@
 #define LIBANGLE_RENDERER_D3D_EGLIMAGED3D_H_
 
 #include "libANGLE/renderer/ImageImpl.h"
+
+namespace gl
+{
+class Context;
+}
 
 namespace egl
 {
@@ -33,14 +38,14 @@ class EGLImageD3D final : public ImageImpl
                 RendererD3D *renderer);
     ~EGLImageD3D() override;
 
-    egl::Error initialize() override;
+    egl::Error initialize(const egl::Display *display) override;
 
-    gl::Error orphan(egl::ImageSibling *sibling) override;
+    angle::Result orphan(const gl::Context *context, egl::ImageSibling *sibling) override;
 
-    gl::Error getRenderTarget(RenderTargetD3D **outRT) const;
+    angle::Result getRenderTarget(const gl::Context *context, RenderTargetD3D **outRT) const;
 
   private:
-    gl::Error copyToLocalRendertarget();
+    angle::Result copyToLocalRendertarget(const gl::Context *context);
 
     RendererD3D *mRenderer;
     RenderTargetD3D *mRenderTarget;

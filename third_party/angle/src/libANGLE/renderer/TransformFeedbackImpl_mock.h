@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -21,21 +21,21 @@ class MockTransformFeedbackImpl : public TransformFeedbackImpl
   public:
     MockTransformFeedbackImpl(const gl::TransformFeedbackState &state)
         : TransformFeedbackImpl(state)
-    {
-    }
+    {}
     ~MockTransformFeedbackImpl() { destructor(); }
 
-    MOCK_METHOD1(begin, void(GLenum primitiveMode));
-    MOCK_METHOD0(end, void());
-    MOCK_METHOD0(pause, void());
-    MOCK_METHOD0(resume, void());
+    MOCK_METHOD2(begin, angle::Result(const gl::Context *, gl::PrimitiveMode));
+    MOCK_METHOD1(end, angle::Result(const gl::Context *));
+    MOCK_METHOD1(pause, angle::Result(const gl::Context *));
+    MOCK_METHOD1(resume, angle::Result(const gl::Context *));
 
-    MOCK_METHOD1(bindGenericBuffer, void(const BindingPointer<gl::Buffer> &));
-    MOCK_METHOD2(bindIndexedBuffer, void(size_t, const OffsetBindingPointer<gl::Buffer> &));
+    MOCK_METHOD3(bindIndexedBuffer,
+                 angle::Result(const gl::Context *,
+                               size_t,
+                               const gl::OffsetBindingPointer<gl::Buffer> &));
 
     MOCK_METHOD0(destructor, void());
 };
+}  // namespace rx
 
-}
-
-#endif // LIBANGLE_RENDERER_TRANSFORMFEEDBACKIMPLMOCK_H_
+#endif  // LIBANGLE_RENDERER_TRANSFORMFEEDBACKIMPLMOCK_H_

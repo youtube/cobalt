@@ -21,37 +21,37 @@ class Buffer9 : public BufferD3D
 {
   public:
     Buffer9(const gl::BufferState &state, Renderer9 *renderer);
-    virtual ~Buffer9();
+    ~Buffer9() override;
 
     // BufferD3D implementation
-    virtual size_t getSize() const { return mSize; }
-    virtual bool supportsDirectBinding() const { return false; }
-    gl::Error getData(const uint8_t **outData) override;
+    size_t getSize() const override;
+    bool supportsDirectBinding() const override;
+    angle::Result getData(const gl::Context *context, const uint8_t **outData) override;
 
     // BufferImpl implementation
-    gl::Error setData(ContextImpl *context,
-                      GLenum target,
-                      const void *data,
-                      size_t size,
-                      GLenum usage) override;
-    gl::Error setSubData(ContextImpl *context,
-                         GLenum target,
-                         const void *data,
-                         size_t size,
-                         size_t offset) override;
-    gl::Error copySubData(ContextImpl *context,
-                          BufferImpl *source,
-                          GLintptr sourceOffset,
-                          GLintptr destOffset,
-                          GLsizeiptr size) override;
-    gl::Error map(ContextImpl *context, GLenum access, void **mapPtr) override;
-    gl::Error mapRange(ContextImpl *context,
-                       size_t offset,
-                       size_t length,
-                       GLbitfield access,
-                       void **mapPtr) override;
-    gl::Error unmap(ContextImpl *context, GLboolean *result) override;
-    gl::Error markTransformFeedbackUsage() override;
+    angle::Result setData(const gl::Context *context,
+                          gl::BufferBinding target,
+                          const void *data,
+                          size_t size,
+                          gl::BufferUsage usage) override;
+    angle::Result setSubData(const gl::Context *context,
+                             gl::BufferBinding target,
+                             const void *data,
+                             size_t size,
+                             size_t offset) override;
+    angle::Result copySubData(const gl::Context *context,
+                              BufferImpl *source,
+                              GLintptr sourceOffset,
+                              GLintptr destOffset,
+                              GLsizeiptr size) override;
+    angle::Result map(const gl::Context *context, GLenum access, void **mapPtr) override;
+    angle::Result mapRange(const gl::Context *context,
+                           size_t offset,
+                           size_t length,
+                           GLbitfield access,
+                           void **mapPtr) override;
+    angle::Result unmap(const gl::Context *context, GLboolean *result) override;
+    angle::Result markTransformFeedbackUsage(const gl::Context *context) override;
 
   private:
     angle::MemoryBuffer mMemory;

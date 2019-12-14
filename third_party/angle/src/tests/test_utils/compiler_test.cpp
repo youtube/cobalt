@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,6 +10,8 @@
 
 #include "angle_gl.h"
 #include "compiler/translator/Compiler.h"
+#include "compiler/translator/FunctionLookup.h"
+#include "compiler/translator/tree_util/IntermTraverse.h"
 
 namespace sh
 {
@@ -17,19 +19,34 @@ namespace sh
 namespace
 {
 
+ImmutableString GetSymbolTableMangledName(TIntermAggregate *node)
+{
+    ASSERT(!node->isConstructor());
+    switch (node->getOp())
+    {
+        case EOpCallInternalRawFunction:
+        case EOpCallBuiltInFunction:
+        case EOpCallFunctionInAST:
+            return TFunctionLookup::GetMangledName(node->getFunction()->name().data(),
+                                                   *node->getSequence());
+        default:
+            const char *opString = GetOperatorString(node->getOp());
+            return TFunctionLookup::GetMangledName(opString, *node->getSequence());
+    }
+}
+
 class FunctionCallFinder : public TIntermTraverser
 {
   public:
-    FunctionCallFinder(const TString &functionMangledName)
+    FunctionCallFinder(const char *functionMangledName)
         : TIntermTraverser(true, false, false),
           mFunctionMangledName(functionMangledName),
           mNodeFound(nullptr)
-    {
-    }
+    {}
 
     bool visitAggregate(Visit visit, TIntermAggregate *node) override
     {
-        if (node->isFunctionCall() && node->getSymbolTableMangledName() == mFunctionMangledName)
+        if (node->isFunctionCall() && GetSymbolTableMangledName(node) == mFunctionMangledName)
         {
             mNodeFound = node;
             return false;
@@ -41,7 +58,7 @@ class FunctionCallFinder : public TIntermTraverser
     const TIntermAggregate *getNode() const { return mNodeFound; }
 
   private:
-    TString mFunctionMangledName;
+    const char *mFunctionMangledName;
     TIntermAggregate *mNodeFound;
 };
 
@@ -63,9 +80,10 @@ bool compileTestShader(GLenum type,
         return false;
     }
 
-    const char *shaderStrings[] = { shaderString.c_str() };
+    const char *shaderStrings[] = {shaderString.c_str()};
 
-    bool compilationSuccess = translator->compile(shaderStrings, 1, SH_OBJECT_CODE | compileOptions);
+    bool compilationSuccess =
+        translator->compile(shaderStrings, 1, SH_OBJECT_CODE | compileOptions);
     TInfoSink &infoSink = translator->getInfoSink();
     if (translatedCode)
         *translatedCode = infoSink.obj.c_str();
@@ -85,7 +103,8 @@ bool compileTestShader(GLenum type,
 {
     ShBuiltInResources resources;
     sh::InitBuiltInResources(&resources);
-    return compileTestShader(type, spec, output, shaderString, &resources, compileOptions, translatedCode, infoLog);
+    return compileTestShader(type, spec, output, shaderString, &resources, compileOptions,
+                             translatedCode, infoLog);
 }
 
 MatchOutputCodeTest::MatchOutputCodeTest(GLenum shaderType,
@@ -133,8 +152,29 @@ bool MatchOutputCodeTest::compileWithSettings(ShShaderOutput output,
                                               std::string *translatedCode,
                                               std::string *infoLog)
 {
-    return compileTestShader(mShaderType, SH_GLES3_SPEC, output, shaderString, &mResources,
+    return compileTestShader(mShaderType, SH_GLES3_1_SPEC, output, shaderString, &mResources,
                              compileOptions, translatedCode, infoLog);
+}
+
+bool MatchOutputCodeTest::foundInCodeRegex(ShShaderOutput output,
+                                           const std::regex &regexToFind,
+                                           std::smatch *match) const
+{
+    const auto code = mOutputCode.find(output);
+    EXPECT_NE(mOutputCode.end(), code);
+    if (code == mOutputCode.end())
+    {
+        return std::string::npos;
+    }
+
+    if (match)
+    {
+        return std::regex_search(code->second, *match, regexToFind);
+    }
+    else
+    {
+        return std::regex_search(code->second, regexToFind);
+    }
 }
 
 bool MatchOutputCodeTest::foundInCode(ShShaderOutput output, const char *stringToFind) const
@@ -143,10 +183,32 @@ bool MatchOutputCodeTest::foundInCode(ShShaderOutput output, const char *stringT
     EXPECT_NE(mOutputCode.end(), code);
     if (code == mOutputCode.end())
     {
+        return std::string::npos;
+    }
+    return code->second.find(stringToFind) != std::string::npos;
+}
+
+bool MatchOutputCodeTest::foundInCodeInOrder(ShShaderOutput output,
+                                             std::vector<const char *> stringsToFind)
+{
+    const auto code = mOutputCode.find(output);
+    EXPECT_NE(mOutputCode.end(), code);
+    if (code == mOutputCode.end())
+    {
         return false;
     }
 
-    return code->second.find(stringToFind) != std::string::npos;
+    size_t currentPos = 0;
+    for (const char *stringToFind : stringsToFind)
+    {
+        auto position = code->second.find(stringToFind, currentPos);
+        if (position == std::string::npos)
+        {
+            return false;
+        }
+        currentPos = position + strlen(stringToFind);
+    }
+    return true;
 }
 
 bool MatchOutputCodeTest::foundInCode(ShShaderOutput output,
@@ -162,6 +224,9 @@ bool MatchOutputCodeTest::foundInCode(ShShaderOutput output,
 
     size_t currentPos  = 0;
     int occurencesLeft = expectedOccurrences;
+
+    const size_t searchStringLength = strlen(stringToFind);
+
     while (occurencesLeft-- > 0)
     {
         auto position = code->second.find(stringToFind, currentPos);
@@ -169,8 +234,10 @@ bool MatchOutputCodeTest::foundInCode(ShShaderOutput output,
         {
             return false;
         }
-        currentPos = position + 1;
+        // Search strings should not overlap.
+        currentPos = position + searchStringLength;
     }
+    // Make sure that there aren't extra occurrences.
     return code->second.find(stringToFind, currentPos) == std::string::npos;
 }
 
@@ -186,11 +253,35 @@ bool MatchOutputCodeTest::foundInCode(const char *stringToFind) const
     return true;
 }
 
+bool MatchOutputCodeTest::foundInCodeRegex(const std::regex &regexToFind, std::smatch *match) const
+{
+    for (auto &code : mOutputCode)
+    {
+        if (!foundInCodeRegex(code.first, regexToFind, match))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool MatchOutputCodeTest::foundInCode(const char *stringToFind, const int expectedOccurrences) const
 {
     for (auto &code : mOutputCode)
     {
         if (!foundInCode(code.first, stringToFind, expectedOccurrences))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool MatchOutputCodeTest::foundInCodeInOrder(std::vector<const char *> stringsToFind)
+{
+    for (auto &code : mOutputCode)
+    {
+        if (!foundInCodeInOrder(code.first, stringsToFind))
         {
             return false;
         }
@@ -212,7 +303,7 @@ bool MatchOutputCodeTest::notFoundInCode(const char *stringToFind) const
 
 const TIntermAggregate *FindFunctionCallNode(TIntermNode *root, const TString &functionMangledName)
 {
-    FunctionCallFinder finder(functionMangledName);
+    FunctionCallFinder finder(functionMangledName.c_str());
     root->traverse(&finder);
     return finder.getNode();
 }

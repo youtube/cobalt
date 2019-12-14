@@ -46,45 +46,32 @@ class SixteenBppTextureTest : public ANGLETest
         setConfigAlphaBits(8);
     }
 
-    void SetUp() override
+    void testSetUp() override
     {
-        ANGLETest::SetUp();
+        constexpr char kVS[] = R"(precision highp float;
+attribute vec4 position;
+varying vec2 texcoord;
 
-        const std::string vertexShaderSource = SHADER_SOURCE
-        (
-            precision highp float;
-            attribute vec4 position;
-            varying vec2 texcoord;
+void main()
+{
+    gl_Position = vec4(position.xy, 0.0, 1.0);
+    texcoord = (position.xy * 0.5) + 0.5;
+})";
 
-            void main()
-            {
-                gl_Position = vec4(position.xy, 0.0, 1.0);
-                texcoord = (position.xy * 0.5) + 0.5;
-            }
-        );
+        constexpr char kFS[] = R"(precision highp float;
+uniform sampler2D tex;
+varying vec2 texcoord;
 
-        const std::string fragmentShaderSource2D = SHADER_SOURCE
-        (
-            precision highp float;
-            uniform sampler2D tex;
-            varying vec2 texcoord;
+void main()
+{
+    gl_FragColor = texture2D(tex, texcoord);
+})";
 
-            void main()
-            {
-                gl_FragColor = texture2D(tex, texcoord);
-            }
-        );
-
-        m2DProgram = CompileProgram(vertexShaderSource, fragmentShaderSource2D);
+        m2DProgram                = CompileProgram(kVS, kFS);
         mTexture2DUniformLocation = glGetUniformLocation(m2DProgram, "tex");
     }
 
-    void TearDown() override
-    {
-        glDeleteProgram(m2DProgram);
-
-        ANGLETest::TearDown();
-    }
+    void testTearDown() override { glDeleteProgram(m2DProgram); }
 
     void simpleValidationBase(GLuint tex)
     {
@@ -146,22 +133,12 @@ class SixteenBppTextureTest : public ANGLETest
 };
 
 class SixteenBppTextureTestES3 : public SixteenBppTextureTest
-{
-};
+{};
 
 // Simple validation test for GL_RGB565 textures.
 // Samples from the texture, renders to it, generates mipmaps etc.
 TEST_P(SixteenBppTextureTest, RGB565Validation)
 {
-    // These tests fail on certain Intel machines running an un-updated version of Win7
-    // The tests pass after installing the latest updates from Windows Update.
-    // TODO: reenable these tests once the bots have been updated
-    if (IsIntel() && getPlatformRenderer() == EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE)
-    {
-        std::cout << "Test skipped on Intel D3D11." << std::endl;
-        return;
-    }
-
     GLuint test;
     memcpy(&test, &GLColor::black, 4);
 
@@ -189,21 +166,11 @@ TEST_P(SixteenBppTextureTest, RGB565Validation)
 // Samples from the texture, renders to it, generates mipmaps etc.
 TEST_P(SixteenBppTextureTest, RGBA5551Validation)
 {
-    // These tests fail on certain Intel machines running an un-updated version of Win7
-    // The tests pass after installing the latest updates from Windows Update.
-    // TODO: reenable these tests once the bots have been updated
-    if (IsIntel() && getPlatformRenderer() == EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE)
-    {
-        std::cout << "Test skipped on Intel D3D11." << std::endl;
-        return;
-    }
-
-    GLushort pixels[4] =
-    {
-        0xF801, // Red
-        0x07C1, // Green
-        0x003F, // Blue
-        0xFFC1  // Red + Green
+    GLushort pixels[4] = {
+        0xF801,  // Red
+        0x07C1,  // Green
+        0x003F,  // Blue
+        0xFFC1   // Red + Green
     };
 
     // Create a simple 5551 texture
@@ -224,15 +191,6 @@ TEST_P(SixteenBppTextureTest, RGBA5551Validation)
 // Based on WebGL test conformance/textures/texture-attachment-formats.html
 TEST_P(SixteenBppTextureTest, RGBA5551ClearAlpha)
 {
-    // These tests fail on certain Intel machines running an un-updated version of Win7
-    // The tests pass after installing the latest updates from Windows Update.
-    // TODO: reenable these tests once the bots have been updated
-    if (IsIntel() && getPlatformRenderer() == EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE)
-    {
-        std::cout << "Test skipped on Intel D3D11." << std::endl;
-        return;
-    }
-
     GLTexture tex;
     GLFramebuffer fbo;
 
@@ -268,21 +226,11 @@ TEST_P(SixteenBppTextureTest, RGBA5551ClearAlpha)
 // Samples from the texture, renders to it, generates mipmaps etc.
 TEST_P(SixteenBppTextureTest, RGBA4444Validation)
 {
-    // These tests fail on certain Intel machines running an un-updated version of Win7
-    // The tests pass after installing the latest updates from Windows Update.
-    // TODO: reenable these tests once the bots have been updated
-    if (IsIntel() && getPlatformRenderer() == EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE)
-    {
-        std::cout << "Test skipped on Intel D3D11." << std::endl;
-        return;
-    }
-
-    GLushort pixels[4] =
-    {
-        0xF00F, // Red
-        0x0F0F, // Green
-        0x00FF, // Blue
-        0xFF0F  // Red + Green
+    GLushort pixels[4] = {
+        0xF00F,  // Red
+        0x0F0F,  // Green
+        0x00FF,  // Blue
+        0xFF0F   // Red + Green
     };
 
     glClearColor(0, 0, 0, 0);
@@ -305,15 +253,13 @@ TEST_P(SixteenBppTextureTest, RGBA4444Validation)
 // Test uploading RGBA8 data to RGBA4 textures.
 TEST_P(SixteenBppTextureTestES3, RGBA4UploadRGBA8)
 {
-    std::vector<GLColor> fourColors;
-    fourColors.push_back(GLColor::red);
-    fourColors.push_back(GLColor::green);
-    fourColors.push_back(GLColor::blue);
-    fourColors.push_back(GLColor::yellow);
+    const std::array<GLColor, 4> kFourColors = {
+        {GLColor::red, GLColor::green, GLColor::blue, GLColor::yellow}};
 
     GLTexture tex;
     glBindTexture(GL_TEXTURE_2D, tex.get());
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA4, 2, 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, fourColors.data());
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA4, 2, 2, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                 kFourColors.data());
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     ASSERT_GL_NO_ERROR();
@@ -400,11 +346,7 @@ TEST_P(SixteenBppTextureTestES3, RGB5A1UploadRGB10A2)
 TEST_P(SixteenBppTextureTestES3, RGBA4FramebufferReadback)
 {
     // TODO(jmadill): Fix bug with GLES
-    if (IsOpenGLES())
-    {
-        std::cout << "Test skipped on GLES." << std::endl;
-        return;
-    }
+    ANGLE_SKIP_TEST_IF(IsOpenGLES());
 
     Vector4 rawColor(0.5f, 0.7f, 1.0f, 0.0f);
     GLColor expectedColor(rawColor);
@@ -458,11 +400,7 @@ TEST_P(SixteenBppTextureTestES3, RGBA4FramebufferReadback)
 TEST_P(SixteenBppTextureTestES3, RGB565FramebufferReadback)
 {
     // TODO(jmadill): Fix bug with GLES
-    if (IsOpenGLES())
-    {
-        std::cout << "Test skipped on GLES." << std::endl;
-        return;
-    }
+    ANGLE_SKIP_TEST_IF(IsOpenGLES());
 
     GLFramebuffer fbo;
     glBindFramebuffer(GL_FRAMEBUFFER, fbo.get());
@@ -473,7 +411,7 @@ TEST_P(SixteenBppTextureTestES3, RGB565FramebufferReadback)
     fourColors.push_back(GLColor::blue);
     fourColors.push_back(GLColor::white);
 
-    const std::string &vertexShader =
+    constexpr char kVS[] =
         "#version 300 es\n"
         "in vec4 color;\n"
         "in vec2 position;\n"
@@ -482,7 +420,7 @@ TEST_P(SixteenBppTextureTestES3, RGB565FramebufferReadback)
         "    fcolor = color;\n"
         "    gl_Position = vec4(position, 0.5, 1.0);\n"
         "}";
-    const std::string &fragmentShader =
+    constexpr char kFS[] =
         "#version 300 es\n"
         "in mediump vec4 fcolor;\n"
         "out mediump vec4 color;\n"
@@ -490,7 +428,7 @@ TEST_P(SixteenBppTextureTestES3, RGB565FramebufferReadback)
         "    color = fcolor;\n"
         "}";
 
-    GLuint program = CompileProgram(vertexShader, fragmentShader);
+    GLuint program = CompileProgram(kVS, kFS);
     glUseProgram(program);
 
     GLint colorLocation = glGetAttribLocation(program, "color");
@@ -538,14 +476,10 @@ TEST_P(SixteenBppTextureTestES3, RGB565FramebufferReadback)
     glDeleteProgram(program);
 }
 
-// Use this to select which configurations (e.g. which renderer, which GLES major version) these tests should be run against.
-ANGLE_INSTANTIATE_TEST(SixteenBppTextureTest,
-                       ES2_D3D9(),
-                       ES2_D3D11(),
-                       ES2_D3D11_FL9_3(),
-                       ES2_OPENGL(),
-                       ES2_OPENGLES());
+// Use this to select which configurations (e.g. which renderer, which GLES major version) these
+// tests should be run against.
+ANGLE_INSTANTIATE_TEST_ES2(SixteenBppTextureTest);
 
-ANGLE_INSTANTIATE_TEST(SixteenBppTextureTestES3, ES3_D3D11(), ES3_OPENGL(), ES3_OPENGLES());
+ANGLE_INSTANTIATE_TEST_ES3(SixteenBppTextureTestES3);
 
-} // namespace
+}  // namespace

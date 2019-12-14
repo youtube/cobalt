@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -12,42 +12,41 @@
 #include <iostream>
 #include <sstream>
 
-#include "shader_utils.h"
-#include "random_utils.h"
+#include "util/random_utils.h"
+#include "util/shader_utils.h"
 
 using namespace angle;
 
 namespace
 {
+constexpr unsigned int kIterationsPerStep = 100;
 
 struct PointSpritesParams final : public RenderTestParams
 {
     PointSpritesParams()
     {
+        iterationsPerStep = kIterationsPerStep;
+
         // Common default params
         majorVersion = 2;
         minorVersion = 0;
-        windowWidth = 1280;
+        windowWidth  = 1280;
         windowHeight = 720;
-        iterations   = 100;
-        count = 10;
-        size = 3.0f;
-        numVaryings = 3;
+        count        = 10;
+        size         = 3.0f;
+        numVaryings  = 3;
     }
 
-    std::string suffix() const override;
+    std::string story() const override;
 
     unsigned int count;
     float size;
     unsigned int numVaryings;
-
-    // static parameters
-    unsigned int iterations;
 };
 
 std::ostream &operator<<(std::ostream &os, const PointSpritesParams &params)
 {
-    os << params.suffix().substr(1);
+    os << params.backendAndStory().substr(1);
     return os;
 }
 
@@ -67,12 +66,11 @@ class PointSpritesBenchmark : public ANGLERenderTest,
     RNG mRNG;
 };
 
-std::string PointSpritesParams::suffix() const
+std::string PointSpritesParams::story() const
 {
     std::stringstream strstr;
 
-    strstr << RenderTestParams::suffix()
-           << "_" << count << "_" << size << "px"
+    strstr << RenderTestParams::story() << "_" << count << "_" << size << "px"
            << "_" << numVaryings << "vars";
 
     return strstr.str();
@@ -80,14 +78,11 @@ std::string PointSpritesParams::suffix() const
 
 PointSpritesBenchmark::PointSpritesBenchmark()
     : ANGLERenderTest("PointSprites", GetParam()), mRNG(1)
-{
-}
+{}
 
 void PointSpritesBenchmark::initializeBenchmark()
 {
     const auto &params = GetParam();
-
-    ASSERT_LT(0u, params.iterations);
 
     std::stringstream vstrstr;
 
@@ -142,7 +137,7 @@ void PointSpritesBenchmark::initializeBenchmark()
     fstrstr << "    gl_FragColor = colorOut;\n"
                "}\n";
 
-    mProgram = CompileProgram(vstrstr.str(), fstrstr.str());
+    mProgram = CompileProgram(vstrstr.str().c_str(), fstrstr.str().c_str());
     ASSERT_NE(0u, mProgram);
 
     // Use the program object
@@ -158,7 +153,8 @@ void PointSpritesBenchmark::initializeBenchmark()
 
     glGenBuffers(1, &mBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, mBuffer);
-    glBufferData(GL_ARRAY_BUFFER, vertexPositions.size() * sizeof(float), &vertexPositions[0], GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, vertexPositions.size() * sizeof(float), &vertexPositions[0],
+                 GL_STATIC_DRAW);
 
     GLint positionLocation = glGetAttribLocation(mProgram, "vPosition");
     ASSERT_NE(-1, positionLocation);
@@ -189,9 +185,9 @@ void PointSpritesBenchmark::drawBenchmark()
 
     const auto &params = GetParam();
 
-    for (unsigned int it = 0; it < params.iterations; it++)
+    for (unsigned int it = 0; it < params.iterationsPerStep; it++)
     {
-        //TODO(jmadill): Indexed point rendering. ANGLE is bad at this.
+        // TODO(jmadill): Indexed point rendering. ANGLE is bad at this.
         glDrawArrays(GL_POINTS, 0, params.count);
     }
 
@@ -212,14 +208,21 @@ PointSpritesParams D3D9Params()
     return params;
 }
 
-PointSpritesParams OpenGLParams()
+PointSpritesParams OpenGLOrGLESParams()
 {
     PointSpritesParams params;
-    params.eglParameters = egl_platform::OPENGL();
+    params.eglParameters = egl_platform::OPENGL_OR_GLES();
     return params;
 }
 
-} // namespace
+PointSpritesParams VulkanParams()
+{
+    PointSpritesParams params;
+    params.eglParameters = egl_platform::VULKAN();
+    return params;
+}
+
+}  // namespace
 
 TEST_P(PointSpritesBenchmark, Run)
 {
@@ -227,4 +230,7 @@ TEST_P(PointSpritesBenchmark, Run)
 }
 
 ANGLE_INSTANTIATE_TEST(PointSpritesBenchmark,
-                       D3D11Params(), D3D9Params(), OpenGLParams());
+                       D3D11Params(),
+                       D3D9Params(),
+                       OpenGLOrGLESParams(),
+                       VulkanParams());
