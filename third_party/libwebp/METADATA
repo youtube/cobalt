@@ -1,0 +1,20 @@
+name: "libwebp"
+description:
+  "Subtree at third_party/libwebp."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/third_party/libwebp_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://chromium.googlesource.com/webm/libwebp"
+  }
+  version: "698b8844e38a0c5ca50bb20f866e71291bfc3b36"
+  last_upgrade_date {
+    year: 2018
+    month: 4
+    day: 21
+  }
+}
