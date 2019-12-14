@@ -687,8 +687,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
                  base::Unretained(this)),
       base::Bind(&WebModule::Impl::OnStopDispatchEvent, base::Unretained(this)),
       data.options.provide_screenshot_function, &synchronous_loader_interrupt_,
-      data.ui_nav_root, data.options.csp_insecure_allowed_token,
-      data.dom_max_element_depth, data.options.video_playback_rate_multiplier,
+      data.options.enable_inline_script_warnings, data.ui_nav_root,
+      data.options.csp_insecure_allowed_token, data.dom_max_element_depth,
+      data.options.video_playback_rate_multiplier,
 #if defined(ENABLE_TEST_RUNNER)
       data.options.layout_trigger == layout::LayoutManager::kTestRunnerMode
           ? dom::Window::kClockTypeTestRunner

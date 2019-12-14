@@ -35,10 +35,13 @@ class FetcherToDecoderAdapter;
 // decoder creators.
 class LoaderOnThread {
  public:
-  LoaderOnThread()
-      : start_waitable_event_(base::WaitableEvent::ResetPolicy::AUTOMATIC,
-                              base::WaitableEvent::InitialState::NOT_SIGNALED),
-        end_waitable_event_(base::WaitableEvent::ResetPolicy::AUTOMATIC,
+  LoaderOnThread(base::Callback<void(const base::Optional<std::string>&)>
+                     load_complete_callback)
+      : load_complete_callback_(load_complete_callback),
+        load_complete_waitable_event_(
+            base::WaitableEvent::ResetPolicy::MANUAL,
+            base::WaitableEvent::InitialState::NOT_SIGNALED),
+        end_waitable_event_(base::WaitableEvent::ResetPolicy::MANUAL,
                             base::WaitableEvent::InitialState::NOT_SIGNALED) {}
 
   // Start() and End() should be called on the same thread, the sychronous load
@@ -46,16 +49,19 @@ class LoaderOnThread {
   // on that same thread.
   void Start(base::Callback<std::unique_ptr<Fetcher>(Fetcher::Handler*)>
                  fetcher_creator,
-             base::Callback<std::unique_ptr<Decoder>()> decoder_creator,
-             base::Callback<void(const base::Optional<std::string>&)>
-                 load_complete_callback);
+             base::Callback<std::unique_ptr<Decoder>()> decoder_creator);
   void End();
 
-  void SignalStartDone() { start_waitable_event_.Signal(); }
+  void SignalLoadComplete(const base::Optional<std::string>& error) {
+    load_complete_callback_.Run(error);
+    load_complete_waitable_event_.Signal();
+  }
   void SignalEndDone() { end_waitable_event_.Signal(); }
 
-  void WaitForStart(base::WaitableEvent* interrupt_event) {
-    base::WaitableEvent* event_array[] = {&start_waitable_event_,
+  // Returns true if start completed normally, returns false if the wait was
+  // interrupted by |interrupt_event|.
+  void WaitForLoad(base::WaitableEvent* interrupt_event) {
+    base::WaitableEvent* event_array[] = {&load_complete_waitable_event_,
                                           interrupt_event};
     size_t effective_size = arraysize(event_array);
     if (!interrupt_event) {
@@ -67,11 +73,14 @@ class LoaderOnThread {
   void WaitForEnd() { end_waitable_event_.Wait(); }
 
  private:
+  base::Callback<void(const base::Optional<std::string>&)>
+      load_complete_callback_;
+
   std::unique_ptr<Decoder> decoder_;
   std::unique_ptr<FetcherToDecoderAdapter> fetcher_to_decoder_adaptor_;
   std::unique_ptr<Fetcher> fetcher_;
 
-  base::WaitableEvent start_waitable_event_;
+  base::WaitableEvent load_complete_waitable_event_;
   base::WaitableEvent end_waitable_event_;
 };
 
@@ -83,9 +92,7 @@ class FetcherToDecoderAdapter : public Fetcher::Handler {
       LoaderOnThread* loader_on_thread, Decoder* decoder,
       base::Callback<void(const base::Optional<std::string>&)>
           load_complete_callback)
-      : loader_on_thread_(loader_on_thread),
-        decoder_(decoder),
-        load_complete_callback_(load_complete_callback) {}
+      : loader_on_thread_(loader_on_thread), decoder_(decoder) {}
 
   // From Fetcher::Handler.
   void OnReceived(Fetcher* fetcher, const char* data, size_t size) override {
@@ -96,28 +103,23 @@ class FetcherToDecoderAdapter : public Fetcher::Handler {
     DCHECK(fetcher);
     decoder_->SetLastURLOrigin(fetcher->last_url_origin());
     decoder_->Finish();
-    loader_on_thread_->SignalStartDone();
+    loader_on_thread_->SignalLoadComplete(base::nullopt);
   }
   void OnError(Fetcher* /*fetcher*/, const std::string& error) override {
-    load_complete_callback_.Run(error);
-    loader_on_thread_->SignalStartDone();
+    loader_on_thread_->SignalLoadComplete(error);
   }
 
  private:
   LoaderOnThread* loader_on_thread_;
   Decoder* decoder_;
-  base::Callback<void(const base::Optional<std::string>&)>
-      load_complete_callback_;
 };
 
 void LoaderOnThread::Start(
     base::Callback<std::unique_ptr<Fetcher>(Fetcher::Handler*)> fetcher_creator,
-    base::Callback<std::unique_ptr<Decoder>()> decoder_creator,
-    base::Callback<void(const base::Optional<std::string>&)>
-        load_complete_callback) {
+    base::Callback<std::unique_ptr<Decoder>()> decoder_creator) {
   decoder_ = decoder_creator.Run();
   fetcher_to_decoder_adaptor_.reset(new FetcherToDecoderAdapter(
-      this, decoder_.get(), load_complete_callback));
+      this, decoder_.get(), load_complete_callback_));
   fetcher_ = fetcher_creator.Run(fetcher_to_decoder_adaptor_.get());
 }
 
@@ -125,6 +127,18 @@ void LoaderOnThread::End() {
   fetcher_.reset();
   fetcher_to_decoder_adaptor_.reset();
   decoder_.reset();
+
+  if (!load_complete_waitable_event_.IsSignaled()) {
+    // We were interrupted, and we did not complete.  Call the
+    // |load_complete_callback| "manually" to indicate this.
+    load_complete_callback_.Run(
+        "Synchronous load was interrupted (probably due to the process "
+        "suspending).  This probably implies that there is a suspend/resume "
+        "bug (are you using inlined <script> tags?  If so, switch to loading "
+        "scripts via JavaScript e.g. by using "
+        "document.createElement('script')).");
+  }
+
   SignalEndDone();
 }
 
@@ -144,13 +158,13 @@ void LoadSynchronously(
   DCHECK(message_loop);
   DCHECK(!load_complete_callback.is_null());
 
-  LoaderOnThread loader_on_thread;
+  LoaderOnThread loader_on_thread(load_complete_callback);
 
   message_loop->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&LoaderOnThread::Start, base::Unretained(&loader_on_thread),
-                 fetcher_creator, decoder_creator, load_complete_callback));
-  loader_on_thread.WaitForStart(interrupt_trigger);
+                 fetcher_creator, decoder_creator));
+  loader_on_thread.WaitForLoad(interrupt_trigger);
 
   message_loop->task_runner()->PostTask(
       FROM_HERE,

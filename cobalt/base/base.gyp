@@ -65,6 +65,7 @@
         'polymorphic_downcast.h',
         'polymorphic_equatable.h',
         'ref_counted_lock.h',
+        'source_location.cc',
         'source_location.h',
         'startup_timer.cc',
         'startup_timer.h',

@@ -248,6 +248,23 @@ void HTMLScriptElement::Prepare() {
     // Option 2
     // If the element has a src attribute, and the element has been flagged as
     // "parser-inserted", and the element does not have an async attribute.
+
+    if (owner_document()
+            ->html_element_context()
+            ->enable_inline_script_warnings()) {
+      LOG(WARNING)
+          << "A request to synchronously load a script is being made as "
+             "a result of a non-async <script> tag inlined within HTML. "
+             "You should avoid this in Cobalt because if the app is "
+             "suspended while loading the script, Cobalt's current "
+             "logic is to abort the load and without any retries or "
+             "signals. To avoid difficult to diagnose suspend/resume "
+             "bugs, it is recommended to use JavaScript to create a "
+             "script element and load it async.  The <script> reference "
+             "appears at: \""
+          << inline_script_location_ << "\" and its src is \"" << src() << "\"";
+    }
+
     load_option_ = 2;
   } else if (HasAttribute("src") && !async()) {
     // Option 4
@@ -428,7 +445,8 @@ void HTMLScriptElement::OnSyncLoadingComplete(
   if (!error) return;
 
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnSyncLoadingComplete()");
-  LOG(ERROR) << *error;
+  LOG(ERROR) << "Error during synchronous script load referenced from \""
+             << inline_script_location_ << "\" : " << *error;
 }
 
 // Algorithm for OnContentProduced:

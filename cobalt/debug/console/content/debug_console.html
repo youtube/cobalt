@@ -5,14 +5,30 @@
   <link rel="stylesheet" type="text/css" href="debug_console.css">
 </head>
 
-<script type="text/javascript" src="console_manager.js"></script>
-<script type="text/javascript" src="debug_console.js"></script>
-<script type="text/javascript" src="console_values.js"></script>
-<script type="text/javascript" src="message_log.js"></script>
-<script type="text/javascript" src="command_input.js"></script>
-<script type="text/javascript" src="debug_commands.js"></script>
-<script type="text/javascript" src="debugger_client.js"></script>
-<script type="text/javascript" src="media_console.js"></script>
+<script type="text/javascript">
+  const scripts = [
+    'console_manager.js',
+    'debug_console.js',
+    'console_values.js',
+    'message_log.js',
+    'command_input.js',
+    'debug_commands.js',
+    'debugger_client.js',
+    'media_console.js',
+  ];
+
+  // Load each script one after the other.
+  function LoadScript(index) {
+    var script = document.createElement('script');
+    if (index < scripts.length - 1) {
+      // Load the next script after this one finishes loading.
+      script.onload = LoadScript.bind(this, index + 1);
+    }
+    script.src = scripts[index];
+    document.head.appendChild(script);
+  }
+  LoadScript(0);
+</script>
 
 <body>
   <div id="hudFrame">
