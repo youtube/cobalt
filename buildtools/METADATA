@@ -1,0 +1,20 @@
+name: "buildtools"
+description:
+  "Subtree at buildtools."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/buildtools_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://chromium.googlesource.com/chromium/buildtools"
+  }
+  version: "5af0a3a8b89827a8634132080a39ab4b63dee489"
+  last_upgrade_date {
+    year: 2017
+    month: 8
+    day: 18
+  }
+}

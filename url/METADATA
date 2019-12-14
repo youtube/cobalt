@@ -1,0 +1,20 @@
+name: "url"
+description:
+  "Subtree at url."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/third_party/chromium/url_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://chromium.googlesource.com/chromium/src/url"
+  }
+  version: "dd8c8657d7804caaad779e87c76f293802b2dbf5"
+  last_upgrade_date {
+    year: 2018
+    month: 8
+    day: 30
+  }
+}

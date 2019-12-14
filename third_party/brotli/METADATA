@@ -1,0 +1,20 @@
+name: "brotli"
+description:
+  "Subtree at third_party/brotli."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/third_party/brotli_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://github.com/google/brotli.git"
+  }
+  version: "3af18990f50d8f040038aaa08c41f5d27d62efb5"
+  last_upgrade_date {
+    year: 2018
+    month: 2
+    day: 8
+  }
+}

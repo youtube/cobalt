@@ -1,0 +1,20 @@
+name: "woff2"
+description:
+  "Subtree at third_party/woff2."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/third_party/woff2_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://github.com/google/woff2.git"
+  }
+  version: "1bccf208bca986e53a647dfe4811322adb06ecf8"
+  last_upgrade_date {
+    year: 2017
+    month: 11
+    day: 13
+  }
+}

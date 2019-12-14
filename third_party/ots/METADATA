@@ -1,0 +1,20 @@
+name: "ots"
+description:
+  "Subtree at third_party/ots."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/third_party/ots_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://chromium.googlesource.com/external/ots"
+  }
+  version: "f7238234966c466c5e3d11ee822e9760be0c527a"
+  last_upgrade_date {
+    year: 2018
+    month: 2
+    day: 19
+  }
+}

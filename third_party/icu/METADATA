@@ -1,0 +1,20 @@
+name: "icu"
+description:
+  "Subtree at third_party/icu."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/third_party/icu_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://chromium.googlesource.com/chromium/deps/icu"
+  }
+  version: "6018b6f0668cdf38fda2db1462dfe830b63cbdcb"
+  last_upgrade_date {
+    year: 2016
+    month: 8
+    day: 9
+  }
+}
