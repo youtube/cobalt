@@ -15,6 +15,7 @@
 #ifndef COBALT_BASE_SOURCE_LOCATION_H_
 #define COBALT_BASE_SOURCE_LOCATION_H_
 
+#include <ostream>
 #include <string>
 
 #include "base/logging.h"
@@ -46,6 +47,9 @@ struct SourceLocation {
   int line_number;
   int column_number;
 };
+
+std::ostream& operator<<(std::ostream& out_stream,
+                         const SourceLocation& location);
 
 // Offsets the location within embedded source relatively to the start
 // of embedded source.

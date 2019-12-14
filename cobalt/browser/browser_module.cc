@@ -380,6 +380,9 @@ BrowserModule::BrowserModule(const GURL& url,
     options_.web_module_options.limit_performance_timer_resolution = false;
   }
 
+  options_.web_module_options.enable_inline_script_warnings =
+      !command_line->HasSwitch(switches::kSilenceInlineScriptWarnings);
+
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   options_.web_module_options.enable_partial_layout =
       !command_line->HasSwitch(switches::kDisablePartialLayout);

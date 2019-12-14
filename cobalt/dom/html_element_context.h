@@ -74,6 +74,7 @@ class HTMLElementContext {
       const std::string& font_language_script,
       base::ApplicationState initial_application_state,
       base::WaitableEvent* synchronous_loader_interrupt,
+      bool enable_inline_script_warnings = false,
       float video_playback_rate_multiplier = 1.0);
   ~HTMLElementContext();
 
@@ -116,6 +117,10 @@ class HTMLElementContext {
 
   base::WaitableEvent* synchronous_loader_interrupt() {
     return synchronous_loader_interrupt_;
+  }
+
+  bool enable_inline_script_warnings() const {
+    return enable_inline_script_warnings_;
   }
 
   loader::image::AnimatedImageTracker* animated_image_tracker() const {
@@ -185,6 +190,7 @@ class HTMLElementContext {
       page_visibility_state_weak_ptr_factory_;
   const float video_playback_rate_multiplier_;
   base::WaitableEvent* synchronous_loader_interrupt_ = nullptr;
+  bool enable_inline_script_warnings_;
 
   base::Thread sync_load_thread_;
   std::unique_ptr<HTMLElementFactory> html_element_factory_;

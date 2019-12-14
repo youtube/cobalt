@@ -130,6 +130,7 @@ Window::Window(
     const ScreenshotManager::ProvideScreenshotFunctionCallback&
         screenshot_function_callback,
     base::WaitableEvent* synchronous_loader_interrupt,
+    bool enable_inline_script_warnings,
     const scoped_refptr<ui_navigation::NavItem>& ui_nav_root,
     int csp_insecure_allowed_token, int dom_max_element_depth,
     float video_playback_rate_multiplier, ClockType clock_type,
@@ -154,7 +155,7 @@ Window::Window(
           reduced_image_cache_capacity_manager, remote_typeface_cache,
           mesh_cache, dom_stat_tracker, font_language_script,
           initial_application_state, synchronous_loader_interrupt,
-          video_playback_rate_multiplier)),
+          enable_inline_script_warnings, video_playback_rate_multiplier)),
       performance_(new Performance(MakePerformanceClock(clock_type))),
       ALLOW_THIS_IN_INITIALIZER_LIST(document_(new Document(
           html_element_context_.get(),
