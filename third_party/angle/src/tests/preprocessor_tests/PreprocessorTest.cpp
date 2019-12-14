@@ -1,11 +1,14 @@
 //
-// Copyright (c) 2012 The ANGLE Project Authors. All rights reserved.
+// Copyright 2012 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 
 #include "PreprocessorTest.h"
 #include "compiler/preprocessor/Token.h"
+
+namespace angle
+{
 
 void SimplePreprocessorTest::preprocess(const char *input,
                                         std::stringstream *output,
@@ -37,12 +40,18 @@ void SimplePreprocessorTest::preprocess(const char *input, const pp::Preprocesso
 
 void SimplePreprocessorTest::preprocess(const char *input)
 {
-    preprocess(input, pp::PreprocessorSettings());
+    preprocess(input, pp::PreprocessorSettings(SH_GLES2_SPEC));
 }
 
 void SimplePreprocessorTest::preprocess(const char *input, const char *expected)
 {
-    pp::Preprocessor preprocessor(&mDiagnostics, &mDirectiveHandler, pp::PreprocessorSettings());
+    preprocess(input, expected, SH_GLES2_SPEC);
+}
+
+void SimplePreprocessorTest::preprocess(const char *input, const char *expected, ShShaderSpec spec)
+{
+    pp::Preprocessor preprocessor(&mDiagnostics, &mDirectiveHandler,
+                                  pp::PreprocessorSettings(spec));
     std::stringstream output;
     preprocess(input, &output, &preprocessor);
 
@@ -52,7 +61,8 @@ void SimplePreprocessorTest::preprocess(const char *input, const char *expected)
 
 void SimplePreprocessorTest::lexSingleToken(const char *input, pp::Token *token)
 {
-    pp::Preprocessor preprocessor(&mDiagnostics, &mDirectiveHandler, pp::PreprocessorSettings());
+    pp::Preprocessor preprocessor(&mDiagnostics, &mDirectiveHandler,
+                                  pp::PreprocessorSettings(SH_GLES2_SPEC));
     ASSERT_TRUE(preprocessor.init(1, &input, nullptr));
     preprocessor.lex(token);
 }
@@ -61,7 +71,10 @@ void SimplePreprocessorTest::lexSingleToken(size_t count,
                                             const char *const input[],
                                             pp::Token *token)
 {
-    pp::Preprocessor preprocessor(&mDiagnostics, &mDirectiveHandler, pp::PreprocessorSettings());
+    pp::Preprocessor preprocessor(&mDiagnostics, &mDirectiveHandler,
+                                  pp::PreprocessorSettings(SH_GLES2_SPEC));
     ASSERT_TRUE(preprocessor.init(count, input, nullptr));
     preprocessor.lex(token);
 }
+
+}  // namespace angle

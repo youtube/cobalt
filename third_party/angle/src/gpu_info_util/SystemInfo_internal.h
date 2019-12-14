@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2017 The ANGLE Project Authors. All rights reserved.
+// Copyright 2013 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -28,10 +28,6 @@ bool ParseMacMachineModel(const std::string &identifier,
                           int32_t *major,
                           int32_t *minor);
 bool CMDeviceIDToDeviceAndVendorID(const std::string &id, uint32_t *vendorId, uint32_t *deviceId);
-
-// In the case there are multiple GPUs, this finds the primary one and sets Optimus or AMD
-// Switchable
-void FindPrimaryGPU(SystemInfo *info);
 
 }  // namespace angle
 

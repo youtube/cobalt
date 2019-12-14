@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 The ANGLE Project Authors. All rights reserved.
+// Copyright 2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -14,28 +14,17 @@
 
 namespace rx
 {
-
-class DynamicLib final
-{
-  public:
-    void *handle;
-
-    DynamicLib();
-    ~DynamicLib();
-};
-
 class FunctionsEGLDL : public FunctionsEGL
 {
   public:
     FunctionsEGLDL();
     ~FunctionsEGLDL() override;
 
-    egl::Error initialize(EGLNativeDisplayType nativeDisplay, const char *libName);
+    egl::Error initialize(EGLNativeDisplayType nativeDisplay, const char *libName, void *eglHandle);
     void *getProcAddress(const char *name) const override;
 
   private:
     PFNEGLGETPROCADDRESSPROC mGetProcAddressPtr;
-    static DynamicLib sNativeLib;
 };
 }  // namespace rx
 

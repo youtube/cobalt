@@ -8,19 +8,20 @@
 
 #include "libANGLE/renderer/d3d/d3d11/Framebuffer11.h"
 
-#include "common/debug.h"
 #include "common/bitset_utils.h"
-#include "libANGLE/renderer/d3d/d3d11/Buffer11.h"
-#include "libANGLE/renderer/d3d/d3d11/Clear11.h"
-#include "libANGLE/renderer/d3d/d3d11/TextureStorage11.h"
-#include "libANGLE/renderer/d3d/d3d11/Renderer11.h"
-#include "libANGLE/renderer/d3d/d3d11/renderer11_utils.h"
-#include "libANGLE/renderer/d3d/d3d11/RenderTarget11.h"
-#include "libANGLE/renderer/d3d/d3d11/formatutils11.h"
-#include "libANGLE/renderer/d3d/TextureD3D.h"
+#include "common/debug.h"
+#include "libANGLE/Context.h"
 #include "libANGLE/Framebuffer.h"
 #include "libANGLE/FramebufferAttachment.h"
 #include "libANGLE/Texture.h"
+#include "libANGLE/renderer/d3d/TextureD3D.h"
+#include "libANGLE/renderer/d3d/d3d11/Buffer11.h"
+#include "libANGLE/renderer/d3d/d3d11/Clear11.h"
+#include "libANGLE/renderer/d3d/d3d11/RenderTarget11.h"
+#include "libANGLE/renderer/d3d/d3d11/Renderer11.h"
+#include "libANGLE/renderer/d3d/d3d11/TextureStorage11.h"
+#include "libANGLE/renderer/d3d/d3d11/formatutils11.h"
+#include "libANGLE/renderer/d3d/d3d11/renderer11_utils.h"
 
 using namespace angle;
 
@@ -29,16 +30,17 @@ namespace rx
 
 namespace
 {
-gl::Error MarkAttachmentsDirty(const gl::FramebufferAttachment *attachment)
+angle::Result MarkAttachmentsDirty(const gl::Context *context,
+                                   const gl::FramebufferAttachment *attachment)
 {
-    if (attachment && attachment->type() == GL_TEXTURE)
+    if (attachment->type() == GL_TEXTURE)
     {
         gl::Texture *texture = attachment->getTexture();
 
         TextureD3D *textureD3D = GetImplAs<TextureD3D>(texture);
 
         TextureStorage *texStorage = nullptr;
-        ANGLE_TRY(textureD3D->getNativeTexture(&texStorage));
+        ANGLE_TRY(textureD3D->getNativeTexture(context, &texStorage));
 
         if (texStorage)
         {
@@ -49,62 +51,39 @@ gl::Error MarkAttachmentsDirty(const gl::FramebufferAttachment *attachment)
         }
     }
 
-    return gl::NoError();
-}
-
-void UpdateCachedRenderTarget(const gl::FramebufferAttachment *attachment,
-                              RenderTarget11 *&cachedRenderTarget,
-                              OnRenderTargetDirtyBinding *channelBinding)
-{
-    RenderTarget11 *newRenderTarget = nullptr;
-    if (attachment)
-    {
-        attachment->getRenderTarget(&newRenderTarget);
-    }
-    if (newRenderTarget != cachedRenderTarget)
-    {
-        auto channel = (newRenderTarget ? newRenderTarget->getBroadcastChannel() : nullptr);
-        channelBinding->bind(channel);
-        cachedRenderTarget = newRenderTarget;
-    }
+    return angle::Result::Continue;
 }
 }  // anonymous namespace
 
 Framebuffer11::Framebuffer11(const gl::FramebufferState &data, Renderer11 *renderer)
-    : FramebufferD3D(data, renderer),
-      mRenderer(renderer),
-      mCachedDepthStencilRenderTarget(nullptr),
-      mDepthStencilRenderTargetDirty(this, gl::IMPLEMENTATION_MAX_FRAMEBUFFER_ATTACHMENTS)
+    : FramebufferD3D(data, renderer), mRenderer(renderer)
 {
     ASSERT(mRenderer != nullptr);
-    mCachedColorRenderTargets.fill(nullptr);
-    for (size_t colorIndex = 0; colorIndex < data.getColorAttachments().size(); ++colorIndex)
-    {
-        mColorRenderTargetsDirty.emplace_back(this, colorIndex);
-    }
 }
 
-Framebuffer11::~Framebuffer11()
-{
-}
+Framebuffer11::~Framebuffer11() {}
 
-gl::Error Framebuffer11::markAttachmentsDirty() const
+angle::Result Framebuffer11::markAttachmentsDirty(const gl::Context *context) const
 {
-    for (const auto &colorAttachment : mState.getColorAttachments())
+    const auto &colorAttachments = mState.getColorAttachments();
+    for (size_t drawBuffer : mState.getEnabledDrawBuffers())
     {
-        if (colorAttachment.isAttached())
-        {
-            ANGLE_TRY(MarkAttachmentsDirty(&colorAttachment));
-        }
+        const gl::FramebufferAttachment &colorAttachment = colorAttachments[drawBuffer];
+        ASSERT(colorAttachment.isAttached());
+        ANGLE_TRY(MarkAttachmentsDirty(context, &colorAttachment));
     }
 
-    ANGLE_TRY(MarkAttachmentsDirty(mState.getDepthAttachment()));
-    ANGLE_TRY(MarkAttachmentsDirty(mState.getStencilAttachment()));
+    const gl::FramebufferAttachment *dsAttachment = mState.getDepthOrStencilAttachment();
+    if (dsAttachment)
+    {
+        ANGLE_TRY(MarkAttachmentsDirty(context, dsAttachment));
+    }
 
-    return gl::NoError();
+    return angle::Result::Continue;
 }
 
-gl::Error Framebuffer11::clearImpl(ContextImpl *context, const ClearParameters &clearParams)
+angle::Result Framebuffer11::clearImpl(const gl::Context *context,
+                                       const ClearParameters &clearParams)
 {
     Clear11 *clearer = mRenderer->getClearer();
 
@@ -120,84 +99,94 @@ gl::Error Framebuffer11::clearImpl(ContextImpl *context, const ClearParameters &
         presentPathFastClearParams.scissor.y       = framebufferSize.height -
                                                presentPathFastClearParams.scissor.y -
                                                presentPathFastClearParams.scissor.height;
-        ANGLE_TRY(clearer->clearFramebuffer(presentPathFastClearParams, mState));
+        ANGLE_TRY(clearer->clearFramebuffer(context, presentPathFastClearParams, mState));
     }
     else
     {
-        ANGLE_TRY(clearer->clearFramebuffer(clearParams, mState));
+        ANGLE_TRY(clearer->clearFramebuffer(context, clearParams, mState));
     }
 
-    ANGLE_TRY(markAttachmentsDirty());
+    ANGLE_TRY(markAttachmentsDirty(context));
 
-    return gl::NoError();
+    return angle::Result::Continue;
 }
 
-gl::Error Framebuffer11::invalidate(size_t count, const GLenum *attachments)
+angle::Result Framebuffer11::invalidate(const gl::Context *context,
+                                        size_t count,
+                                        const GLenum *attachments)
 {
-    return invalidateBase(count, attachments, false);
+    return invalidateBase(context, count, attachments, false);
 }
 
-gl::Error Framebuffer11::discard(size_t count, const GLenum *attachments)
+angle::Result Framebuffer11::discard(const gl::Context *context,
+                                     size_t count,
+                                     const GLenum *attachments)
 {
-    return invalidateBase(count, attachments, true);
+    return invalidateBase(context, count, attachments, true);
 }
 
-gl::Error Framebuffer11::invalidateBase(size_t count, const GLenum *attachments, bool useEXTBehavior) const
+angle::Result Framebuffer11::invalidateBase(const gl::Context *context,
+                                            size_t count,
+                                            const GLenum *attachments,
+                                            bool useEXTBehavior) const
 {
     ID3D11DeviceContext1 *deviceContext1 = mRenderer->getDeviceContext1IfSupported();
 
     if (!deviceContext1)
     {
         // DiscardView() is only supported on ID3D11DeviceContext1
-        return gl::NoError();
+        return angle::Result::Continue;
     }
 
-    bool foundDepth = false;
+    bool foundDepth   = false;
     bool foundStencil = false;
 
     for (size_t i = 0; i < count; ++i)
     {
         switch (attachments[i])
         {
-          // Handle depth and stencil attachments. Defer discarding until later.
-          case GL_DEPTH_STENCIL_ATTACHMENT:
-            foundDepth = true;
-            foundStencil = true;
-            break;
-          case GL_DEPTH_EXT:
-          case GL_DEPTH_ATTACHMENT:
-            foundDepth = true;
-            break;
-          case GL_STENCIL_EXT:
-          case GL_STENCIL_ATTACHMENT:
-            foundStencil = true;
-            break;
-          default:
+            // Handle depth and stencil attachments. Defer discarding until later.
+            case GL_DEPTH_STENCIL_ATTACHMENT:
+                foundDepth   = true;
+                foundStencil = true;
+                break;
+            case GL_DEPTH_EXT:
+            case GL_DEPTH_ATTACHMENT:
+                foundDepth = true;
+                break;
+            case GL_STENCIL_EXT:
+            case GL_STENCIL_ATTACHMENT:
+                foundStencil = true;
+                break;
+            default:
             {
                 // Handle color attachments
-                ASSERT((attachments[i] >= GL_COLOR_ATTACHMENT0 && attachments[i] <= GL_COLOR_ATTACHMENT15) ||
+                ASSERT((attachments[i] >= GL_COLOR_ATTACHMENT0 &&
+                        attachments[i] <= GL_COLOR_ATTACHMENT15) ||
                        (attachments[i] == GL_COLOR));
 
                 size_t colorIndex =
                     (attachments[i] == GL_COLOR ? 0u : (attachments[i] - GL_COLOR_ATTACHMENT0));
-                auto colorAttachment = mState.getColorAttachment(colorIndex);
+                const gl::FramebufferAttachment *colorAttachment =
+                    mState.getColorAttachment(colorIndex);
                 if (colorAttachment)
                 {
-                    ANGLE_TRY(invalidateAttachment(colorAttachment));
+                    ANGLE_TRY(invalidateAttachment(context, colorAttachment));
                 }
                 break;
             }
         }
     }
 
-    bool discardDepth = false;
+    bool discardDepth   = false;
     bool discardStencil = false;
 
     // The D3D11 renderer uses the same view for depth and stencil buffers, so we must be careful.
     if (useEXTBehavior)
     {
         // In the extension, if the app discards only one of the depth and stencil attachments, but
-        // those are backed by the same packed_depth_stencil buffer, then both images become undefined.
+        // those are backed by the same packed_depth_stencil buffer, then both images become
+        // undefined.
         discardDepth = foundDepth;
 
         // Don't bother discarding the stencil buffer if the depth buffer will already do it
@@ -207,8 +196,9 @@ gl::Error Framebuffer11::invalidateBase(size_t count, const GLenum *attachments,
     {
         // In ES 3.0.4, if a specified attachment has base internal format DEPTH_STENCIL but the
         // attachments list does not include DEPTH_STENCIL_ATTACHMENT or both DEPTH_ATTACHMENT and
-        // STENCIL_ATTACHMENT, then only the specified portion of every pixel in the subregion of pixels
-        // of the DEPTH_STENCIL buffer may be invalidated, and the other portion must be preserved.
+        // STENCIL_ATTACHMENT, then only the specified portion of every pixel in the subregion of
+        // pixels of the DEPTH_STENCIL buffer may be invalidated, and the other portion must be
+        // preserved.
         discardDepth = (foundDepth && foundStencil) ||
                        (foundDepth && (mState.getStencilAttachment() == nullptr));
         discardStencil = (foundStencil && (mState.getDepthAttachment() == nullptr));
@@ -216,31 +206,35 @@ gl::Error Framebuffer11::invalidateBase(size_t count, const GLenum *attachments,
 
     if (discardDepth && mState.getDepthAttachment())
     {
-        ANGLE_TRY(invalidateAttachment(mState.getDepthAttachment()));
+        ANGLE_TRY(invalidateAttachment(context, mState.getDepthAttachment()));
     }
 
     if (discardStencil && mState.getStencilAttachment())
     {
-        ANGLE_TRY(invalidateAttachment(mState.getStencilAttachment()));
+        ANGLE_TRY(invalidateAttachment(context, mState.getStencilAttachment()));
     }
 
-    return gl::NoError();
+    return angle::Result::Continue;
 }
 
-gl::Error Framebuffer11::invalidateSub(size_t, const GLenum *, const gl::Rectangle &)
+angle::Result Framebuffer11::invalidateSub(const gl::Context *context,
+                                           size_t count,
+                                           const GLenum *attachments,
+                                           const gl::Rectangle &area)
 {
     // A no-op implementation conforms to the spec, so don't call UNIMPLEMENTED()
-    return gl::NoError();
+    return angle::Result::Continue;
 }
 
-gl::Error Framebuffer11::invalidateAttachment(const gl::FramebufferAttachment *attachment) const
+angle::Result Framebuffer11::invalidateAttachment(const gl::Context *context,
+                                                  const gl::FramebufferAttachment *attachment) const
 {
     ID3D11DeviceContext1 *deviceContext1 = mRenderer->getDeviceContext1IfSupported();
     ASSERT(deviceContext1);
     ASSERT(attachment && attachment->isAttached());
 
     RenderTarget11 *renderTarget = nullptr;
-    ANGLE_TRY(attachment->getRenderTarget(&renderTarget));
+    ANGLE_TRY(attachment->getRenderTarget(context, 0, &renderTarget));
     const auto &rtv = renderTarget->getRenderTargetView();
 
     if (rtv.valid())
@@ -248,63 +242,68 @@ gl::Error Framebuffer11::invalidateAttachment(const gl::FramebufferAttachment *a
         deviceContext1->DiscardView(rtv.get());
     }
 
-    return gl::NoError();
+    return angle::Result::Continue;
 }
 
-gl::Error Framebuffer11::readPixelsImpl(const gl::Rectangle &area,
-                                        GLenum format,
-                                        GLenum type,
-                                        size_t outputPitch,
-                                        const gl::PixelPackState &pack,
-                                        uint8_t *pixels) const
+angle::Result Framebuffer11::readPixelsImpl(const gl::Context *context,
+                                            const gl::Rectangle &area,
+                                            GLenum format,
+                                            GLenum type,
+                                            size_t outputPitch,
+                                            const gl::PixelPackState &pack,
+                                            uint8_t *pixels)
 {
     const gl::FramebufferAttachment *readAttachment = mState.getReadAttachment();
     ASSERT(readAttachment);
 
-    gl::Buffer *packBuffer = pack.pixelBuffer.get();
+    gl::Buffer *packBuffer = context->getState().getTargetBuffer(gl::BufferBinding::PixelPack);
     if (packBuffer != nullptr)
     {
-        Buffer11 *packBufferStorage = GetImplAs<Buffer11>(packBuffer);
-        PackPixelsParams packParams(area, format, type, static_cast<GLuint>(outputPitch), pack,
+        Buffer11 *packBufferStorage      = GetImplAs<Buffer11>(packBuffer);
+        const angle::Format &angleFormat = GetFormatFromFormatType(format, type);
+        PackPixelsParams packParams(area, angleFormat, static_cast<GLuint>(outputPitch),
+                                    pack.reverseRowOrder, packBuffer,
                                     reinterpret_cast<ptrdiff_t>(pixels));
 
-        return packBufferStorage->packPixels(*readAttachment, packParams);
+        return packBufferStorage->packPixels(context, *readAttachment, packParams);
     }
 
-    return mRenderer->readFromAttachment(*readAttachment, area, format, type,
+    return mRenderer->readFromAttachment(context, *readAttachment, area, format, type,
                                          static_cast<GLuint>(outputPitch), pack, pixels);
 }
 
-gl::Error Framebuffer11::blitImpl(const gl::Rectangle &sourceArea,
-                                  const gl::Rectangle &destArea,
-                                  const gl::Rectangle *scissor,
-                                  bool blitRenderTarget,
-                                  bool blitDepth,
-                                  bool blitStencil,
-                                  GLenum filter,
-                                  const gl::Framebuffer *sourceFramebuffer)
+angle::Result Framebuffer11::blitImpl(const gl::Context *context,
+                                      const gl::Rectangle &sourceArea,
+                                      const gl::Rectangle &destArea,
+                                      const gl::Rectangle *scissor,
+                                      bool blitRenderTarget,
+                                      bool blitDepth,
+                                      bool blitStencil,
+                                      GLenum filter,
+                                      const gl::Framebuffer *sourceFramebuffer)
 {
     if (blitRenderTarget)
     {
-        const gl::FramebufferAttachment *readBuffer = sourceFramebuffer->getReadColorbuffer();
+        const gl::FramebufferAttachment *readBuffer = sourceFramebuffer->getReadColorAttachment();
         ASSERT(readBuffer);
 
         RenderTargetD3D *readRenderTarget = nullptr;
-        ANGLE_TRY(readBuffer->getRenderTarget(&readRenderTarget));
+        ANGLE_TRY(readBuffer->getRenderTarget(context, 0, &readRenderTarget));
         ASSERT(readRenderTarget);
 
         const auto &colorAttachments = mState.getColorAttachments();
         const auto &drawBufferStates = mState.getDrawBufferStates();
 
-        for (size_t colorAttachment = 0; colorAttachment < colorAttachments.size(); colorAttachment++)
+        for (size_t colorAttachment = 0; colorAttachment < colorAttachments.size();
+             colorAttachment++)
         {
             const gl::FramebufferAttachment &drawBuffer = colorAttachments[colorAttachment];
 
-            if (drawBuffer.isAttached() &&
-                drawBufferStates[colorAttachment] != GL_NONE)
+            if (drawBuffer.isAttached() && drawBufferStates[colorAttachment] != GL_NONE)
             {
                 RenderTargetD3D *drawRenderTarget = nullptr;
-                ANGLE_TRY(drawBuffer.getRenderTarget(&drawRenderTarget));
+                ANGLE_TRY(drawBuffer.getRenderTarget(
+                    context, drawBuffer.getRenderToTextureSamples(), &drawRenderTarget));
                 ASSERT(drawRenderTarget);
 
                 const bool invertColorSource   = UsePresentPathFast(mRenderer, readBuffer);
@@ -312,8 +311,8 @@ gl::Error Framebuffer11::blitImpl(const gl::Rectangle &sourceArea,
                 if (invertColorSource)
                 {
                     RenderTarget11 *readRenderTarget11 = GetAs<RenderTarget11>(readRenderTarget);
-                    actualSourceArea.y                 = readRenderTarget11->getHeight() - sourceArea.y;
-                    actualSourceArea.height            = -sourceArea.height;
+                    actualSourceArea.y      = readRenderTarget11->getHeight() - sourceArea.y;
+                    actualSourceArea.height = -sourceArea.height;
                 }
 
                 const bool invertColorDest   = UsePresentPathFast(mRenderer, &drawBuffer);
@@ -321,40 +320,58 @@ gl::Error Framebuffer11::blitImpl(const gl::Rectangle &sourceArea,
                 if (invertColorDest)
                 {
                     RenderTarget11 *drawRenderTarget11 = GetAs<RenderTarget11>(drawRenderTarget);
-                    actualDestArea.y                   = drawRenderTarget11->getHeight() - destArea.y;
-                    actualDestArea.height              = -destArea.height;
+                    actualDestArea.y      = drawRenderTarget11->getHeight() - destArea.y;
+                    actualDestArea.height = -destArea.height;
                 }
 
                 ANGLE_TRY(mRenderer->blitRenderbufferRect(
-                    actualSourceArea, actualDestArea, readRenderTarget, drawRenderTarget, filter,
-                    scissor, blitRenderTarget, false, false));
+                    context, actualSourceArea, actualDestArea, readRenderTarget, drawRenderTarget,
+                    filter, scissor, blitRenderTarget, false, false));
             }
         }
     }
 
     if (blitDepth || blitStencil)
     {
-        const gl::FramebufferAttachment *readBuffer = sourceFramebuffer->getDepthOrStencilbuffer();
+        const gl::FramebufferAttachment *readBuffer =
+            sourceFramebuffer->getDepthOrStencilAttachment();
         ASSERT(readBuffer);
-
         RenderTargetD3D *readRenderTarget = nullptr;
-        ANGLE_TRY(readBuffer->getRenderTarget(&readRenderTarget));
+        ANGLE_TRY(readBuffer->getRenderTarget(context, 0, &readRenderTarget));
         ASSERT(readRenderTarget);
+
+        const bool invertSource        = UsePresentPathFast(mRenderer, readBuffer);
+        gl::Rectangle actualSourceArea = sourceArea;
+        if (invertSource)
+        {
+            RenderTarget11 *readRenderTarget11 = GetAs<RenderTarget11>(readRenderTarget);
+            actualSourceArea.y                 = readRenderTarget11->getHeight() - sourceArea.y;
+            actualSourceArea.height            = -sourceArea.height;
+        }
 
         const gl::FramebufferAttachment *drawBuffer = mState.getDepthOrStencilAttachment();
         ASSERT(drawBuffer);
-
         RenderTargetD3D *drawRenderTarget = nullptr;
-        ANGLE_TRY(drawBuffer->getRenderTarget(&drawRenderTarget));
+        ANGLE_TRY(drawBuffer->getRenderTarget(context, drawBuffer->getRenderToTextureSamples(),
+                                              &drawRenderTarget));
         ASSERT(drawRenderTarget);
 
-        ANGLE_TRY(mRenderer->blitRenderbufferRect(sourceArea, destArea, readRenderTarget,
-                                                  drawRenderTarget, filter, scissor, false,
-                                                  blitDepth, blitStencil));
+        bool invertDest              = UsePresentPathFast(mRenderer, drawBuffer);
+        gl::Rectangle actualDestArea = destArea;
+        if (invertDest)
+        {
+            RenderTarget11 *drawRenderTarget11 = GetAs<RenderTarget11>(drawRenderTarget);
+            actualDestArea.y                   = drawRenderTarget11->getHeight() - destArea.y;
+            actualDestArea.height              = -destArea.height;
+        }
+
+        ANGLE_TRY(mRenderer->blitRenderbufferRect(context, actualSourceArea, actualDestArea,
+                                                  readRenderTarget, drawRenderTarget, filter,
+                                                  scissor, false, blitDepth, blitStencil));
     }
 
-    ANGLE_TRY(markAttachmentsDirty());
-    return gl::NoError();
+    ANGLE_TRY(markAttachmentsDirty(context));
+    return angle::Result::Continue;
 }
 
 GLenum Framebuffer11::getRenderTargetImplementationFormat(RenderTargetD3D *renderTarget) const
@@ -363,84 +380,47 @@ GLenum Framebuffer11::getRenderTargetImplementationFormat(RenderTargetD3D *rende
     return renderTarget11->getFormatSet().format().fboImplementationInternalFormat;
 }
 
-void Framebuffer11::updateColorRenderTarget(size_t colorIndex)
+angle::Result Framebuffer11::syncState(const gl::Context *context,
+                                       const gl::Framebuffer::DirtyBits &dirtyBits)
 {
-    UpdateCachedRenderTarget(mState.getColorAttachment(colorIndex),
-                             mCachedColorRenderTargets[colorIndex],
-                             &mColorRenderTargetsDirty[colorIndex]);
-}
+    ANGLE_TRY(mRenderTargetCache.update(context, mState, dirtyBits));
+    ANGLE_TRY(FramebufferD3D::syncState(context, dirtyBits));
 
-void Framebuffer11::updateDepthStencilRenderTarget()
-{
-    UpdateCachedRenderTarget(mState.getDepthOrStencilAttachment(), mCachedDepthStencilRenderTarget,
-                             &mDepthStencilRenderTargetDirty);
-}
-
-void Framebuffer11::syncState(ContextImpl *contextImpl, const gl::Framebuffer::DirtyBits &dirtyBits)
-{
+    // Call this last to allow the state manager to take advantage of the cached render targets.
     mRenderer->getStateManager()->invalidateRenderTarget();
 
-    const auto &mergedDirtyBits = dirtyBits | mInternalDirtyBits;
-    mInternalDirtyBits.reset();
-
-    for (auto dirtyBit : mergedDirtyBits)
+    // Call this to syncViewport for framebuffer default parameters.
+    if (mState.getDefaultWidth() != 0 || mState.getDefaultHeight() != 0)
     {
-        switch (dirtyBit)
+        mRenderer->getStateManager()->invalidateViewport(context);
+    }
+
+    return angle::Result::Continue;
+}
+
+angle::Result Framebuffer11::getSamplePosition(const gl::Context *context,
+                                               size_t index,
+                                               GLfloat *xy) const
+{
+    const gl::FramebufferAttachment *attachment = mState.getFirstNonNullAttachment();
+    ASSERT(attachment);
+    GLsizei sampleCount = attachment->getSamples();
+
+    d3d11_gl::GetSamplePosition(sampleCount, index, xy);
+    return angle::Result::Continue;
+}
+
+RenderTarget11 *Framebuffer11::getFirstRenderTarget() const
+{
+    for (auto *renderTarget : mRenderTargetCache.getColors())
+    {
+        if (renderTarget)
         {
-            case gl::Framebuffer::DIRTY_BIT_DEPTH_ATTACHMENT:
-            case gl::Framebuffer::DIRTY_BIT_STENCIL_ATTACHMENT:
-                updateDepthStencilRenderTarget();
-                break;
-            case gl::Framebuffer::DIRTY_BIT_DRAW_BUFFERS:
-            case gl::Framebuffer::DIRTY_BIT_READ_BUFFER:
-                break;
-            default:
-            {
-                ASSERT(gl::Framebuffer::DIRTY_BIT_COLOR_ATTACHMENT_0 == 0 &&
-                       dirtyBit < gl::Framebuffer::DIRTY_BIT_COLOR_ATTACHMENT_MAX);
-                size_t colorIndex =
-                    static_cast<size_t>(dirtyBit - gl::Framebuffer::DIRTY_BIT_COLOR_ATTACHMENT_0);
-                updateColorRenderTarget(colorIndex);
-                break;
-            }
+            return renderTarget;
         }
     }
 
-    // We should not have dirtied any additional state during our sync.
-    ASSERT(!mInternalDirtyBits.any());
-
-    FramebufferD3D::syncState(contextImpl, dirtyBits);
-}
-
-void Framebuffer11::signal(size_t channelID)
-{
-    if (channelID == gl::IMPLEMENTATION_MAX_FRAMEBUFFER_ATTACHMENTS)
-    {
-        // Stencil is redundant in this case.
-        mInternalDirtyBits.set(gl::Framebuffer::DIRTY_BIT_DEPTH_ATTACHMENT);
-        mCachedDepthStencilRenderTarget = nullptr;
-    }
-    else
-    {
-        mInternalDirtyBits.set(gl::Framebuffer::DIRTY_BIT_COLOR_ATTACHMENT_0 + channelID);
-        mCachedColorRenderTargets[channelID] = nullptr;
-    }
-}
-
-gl::Error Framebuffer11::getSamplePosition(size_t index, GLfloat *xy) const
-{
-    UNIMPLEMENTED();
-    return gl::InternalError() << "getSamplePosition is unimplemented.";
-}
-
-bool Framebuffer11::hasAnyInternalDirtyBit() const
-{
-    return mInternalDirtyBits.any();
-}
-
-void Framebuffer11::syncInternalState(ContextImpl *contextImpl)
-{
-    syncState(contextImpl, gl::Framebuffer::DirtyBits());
+    return mRenderTargetCache.getDepthStencil();
 }
 
 }  // namespace rx
