@@ -1,0 +1,20 @@
+name: "base"
+description:
+  "Subtree at base."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/third_party/chromium/base_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://chromium.googlesource.com/chromium/src/base"
+  }
+  version: "2fb7110f70453ccb8951428611330d95c496f3cd"
+  last_upgrade_date {
+    year: 2018
+    month: 10
+    day: 8
+  }
+}

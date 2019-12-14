@@ -1,0 +1,20 @@
+name: "llvm-project"
+description:
+  "Subtree at third_party/llvm-project."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/third_party/llvm-project_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://github.com/llvm/llvm-project.git"
+  }
+  version: "4856a9330ee01d30e9e11b6c2f991662b4c04b07"
+  last_upgrade_date {
+    year: 2019
+    month: 2
+    day: 8
+  }
+}
