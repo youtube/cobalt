@@ -14,6 +14,7 @@
 
 #include "cobalt/debug/backend/css_agent.h"
 
+#include "cobalt/dom/document.h"
 #include "cobalt/dom/html_element.h"
 
 namespace cobalt {
@@ -65,7 +66,8 @@ CSSAgent::CSSStyleRuleSequence CSSAgent::GetMatchingCSSRules(
   CSSStyleRuleSequence css_rules;
   auto html_element = element->AsHTMLElement();
   if (html_element) {
-    html_element->UpdateMatchingRules();
+    html_element->node_document()->UpdateComputedStyleOnElementAndAncestor(
+        html_element.get());
     for (const auto& matching_rule : *html_element->matching_rules()) {
       css_rules.push_back(matching_rule.first);
     }
