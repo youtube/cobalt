@@ -22,6 +22,7 @@
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "cobalt/renderer/egl_and_gles.h"
+#include "cobalt/renderer/rasterizer/common/utils.h"
 #include "egl/generated_shader_impl.h"
 #include "starboard/memory.h"
 
@@ -184,13 +185,15 @@ bool DrawRectBorder::SetSquareBorder(
   math::RectF outer_rect(border_rect);
   math::RectF inner_rect(content_rect);
   outer_rect.Inset(insets.Scale(0.5f * pixel_size_x, 0.5f * pixel_size_y));
-  if (draw_content_rect_) {
+  const bool content_is_visible =
+      !common::utils::IsTransparent(content_color.a());
+  if (draw_content_rect_ && content_is_visible) {
     inner_rect.Inset(insets.Scale(-0.5f * pixel_size_x, -0.5f * pixel_size_y));
   }
   math::RectF outer_outer(outer_rect);
   math::RectF inner_inner(inner_rect);
   outer_outer.Inset(insets.Scale(-pixel_size_x, -pixel_size_y));
-  if (draw_content_rect_) {
+  if (draw_content_rect_ && content_is_visible) {
     inner_inner.Inset(insets.Scale(pixel_size_x, pixel_size_y));
   }
 
@@ -202,7 +205,7 @@ bool DrawRectBorder::SetSquareBorder(
   uint16_t inner_rect_verts = static_cast<uint16_t>(attributes_.size());
   AddRectVertices(inner_rect, GetGLRGBA(border_color));
   uint16_t inner_inner_verts = inner_rect_verts;
-  if (draw_content_rect_) {
+  if (draw_content_rect_ && content_is_visible) {
     inner_inner_verts = static_cast<uint16_t>(attributes_.size());
     AddRectVertices(inner_inner, GetGLRGBA(content_color));
   }
@@ -210,12 +213,12 @@ bool DrawRectBorder::SetSquareBorder(
   // Add indices to draw the borders using the vertex attributes added.
   AddBorders(border, outer_outer_verts, outer_rect_verts);
   AddBorders(border, outer_rect_verts, inner_rect_verts);
-  if (draw_content_rect_) {
+  if (draw_content_rect_ && content_is_visible) {
     AddBorders(border, inner_rect_verts, inner_inner_verts);
   }
 
   // Draw the content rect as appropriate.
-  if (draw_content_rect_ && content_color.a() > 0.0f) {
+  if (draw_content_rect_ && content_is_visible) {
     AddRectIndices(inner_inner_verts, inner_inner_verts + 1,
                    inner_inner_verts + 2, inner_inner_verts + 3);
   }
