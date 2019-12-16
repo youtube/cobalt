@@ -401,6 +401,7 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbSpeechRecognizerDestroy);
   REGISTER_SYMBOL(SbSpeechRecognizerStart);
   REGISTER_SYMBOL(SbSpeechRecognizerStop);
+  REGISTER_SYMBOL(SbSpeechRecognizerCancel);
 #endif  // SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION ||
         // SB_HAS(SPEECH_RECOGNIZER)
 #endif  // SB_API_VERSION >= 5
