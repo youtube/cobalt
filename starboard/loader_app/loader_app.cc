@@ -18,7 +18,9 @@
 #include "starboard/event.h"
 #include "starboard/loader_app/installation_manager.h"
 #include "starboard/loader_app/system_get_extension_shim.h"
+#include "starboard/mutex.h"
 #include "starboard/string.h"
+#include "starboard/thread_types.h"
 
 // TODO: Try to merge with the implementation in starboard/elf_loader/sandbox.cc
 
@@ -146,9 +148,16 @@ void LoadLibraryAndInitialize() {
 }  // namespace
 
 void SbEventHandle(const SbEvent* event) {
+  static SbMutex mutex = SB_MUTEX_INITIALIZER;
+
+  SB_CHECK(SbMutexAcquire(&mutex) == kSbMutexAcquired);
+
   if (!g_sb_event_func) {
     LoadLibraryAndInitialize();
+    SB_CHECK(g_sb_event_func);
   }
-  SB_CHECK(g_sb_event_func);
+
   g_sb_event_func(event);
+
+  SB_CHECK(SbMutexRelease(&mutex) == true);
 }

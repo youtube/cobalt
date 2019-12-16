@@ -18,62 +18,67 @@
 #include "starboard/elf_loader/elf_loader.h"
 #include "starboard/elf_loader/elf_loader_switches.h"
 #include "starboard/event.h"
+#include "starboard/mutex.h"
 #include "starboard/shared/starboard/command_line.h"
+#include "starboard/thread_types.h"
 
 starboard::elf_loader::ElfLoader g_elf_loader;
 
 void (*g_sb_event_func)(const SbEvent*) = NULL;
 
+void LoadLibraryAndInitialize(const std::string& library_path,
+                              const std::string& content_path) {
+  if (library_path.empty()) {
+    SB_LOG(ERROR) << "Library must be specified with --"
+                  << starboard::elf_loader::kEvergreenLibrary
+                  << "=path/to/library/relative/to/loader/content.";
+    return;
+  }
+  if (content_path.empty()) {
+    SB_LOG(ERROR) << "Content must be specified with --"
+                  << starboard::elf_loader::kEvergreenContent
+                  << "=path/to/content/relative/to/loader/content.";
+    return;
+  }
+  if (!g_elf_loader.Load(library_path, content_path, true)) {
+    SB_NOTREACHED() << "Failed to load library at '"
+                    << g_elf_loader.GetLibraryPath() << "'.";
+    return;
+  }
+
+  SB_LOG(INFO) << "Successfully loaded '" << g_elf_loader.GetLibraryPath()
+               << "'.";
+
+  g_sb_event_func = reinterpret_cast<void (*)(const SbEvent*)>(
+      g_elf_loader.LookupSymbol("SbEventHandle"));
+
+  if (!g_sb_event_func) {
+    SB_LOG(ERROR) << "Failed to find SbEventHandle.";
+    return;
+  }
+
+  SB_LOG(INFO) << "Found SbEventHandle at address=0x" << std::hex
+               << g_sb_event_func << ".";
+}
+
 void SbEventHandle(const SbEvent* event) {
-  if ((event->type == kSbEventTypePreload) ||
-      (event->type == kSbEventTypeStart)) {
-    if (!g_sb_event_func) {
-      const SbEventStartData* data =
-          static_cast<SbEventStartData*>(event->data);
-      const starboard::shared::starboard::CommandLine command_line(
-          data->argument_count,
-          const_cast<const char**>(data->argument_values));
-      std::string library_path =
-          command_line.GetSwitchValue(
-              starboard::elf_loader::kEvergreenLibrary);
-      std::string content_path =
-          command_line.GetSwitchValue(
-              starboard::elf_loader::kEvergreenContent);
+  static SbMutex mutex = SB_MUTEX_INITIALIZER;
 
-      if (library_path.empty()) {
-        SB_LOG(ERROR) << "Library must be specified with --"
-                      << starboard::elf_loader::kEvergreenLibrary
-                      << "=path/to/library/relative/to/loader/content.";
-        return;
-      }
-      if (content_path.empty()) {
-        SB_LOG(ERROR) << "Content must be specified with --"
-                      << starboard::elf_loader::kEvergreenContent
-                      << "=path/to/content/relative/to/loader/content.";
-        return;
-      }
-      if (!g_elf_loader.Load(library_path, content_path, true)) {
-        SB_NOTREACHED() << "Failed to load library at '"
-                        << g_elf_loader.GetLibraryPath() << "'.";
-        return;
-      }
+  SB_CHECK(SbMutexAcquire(&mutex) == kSbMutexAcquired);
 
-      SB_LOG(INFO) << "Successfully loaded '" << g_elf_loader.GetLibraryPath()
-                   << "'.";
-
-      g_sb_event_func = reinterpret_cast<void (*)(const SbEvent*)>(
-          g_elf_loader.LookupSymbol("SbEventHandle"));
-
-      if (!g_sb_event_func) {
-        SB_LOG(ERROR) << "Failed to find SbEventHandle.";
-        return;
-      }
-
-      SB_LOG(INFO) << "Found SbEventHandle at address=0x" << std::hex
-                   << g_sb_event_func << ".";
-    }
+  if (!g_sb_event_func) {
+    const SbEventStartData* data =
+        static_cast<SbEventStartData*>(event->data);
+    const starboard::shared::starboard::CommandLine command_line(
+        data->argument_count,
+        const_cast<const char**>(data->argument_values));
+    LoadLibraryAndInitialize(
+        command_line.GetSwitchValue(starboard::elf_loader::kEvergreenLibrary),
+        command_line.GetSwitchValue(starboard::elf_loader::kEvergreenContent));
+    SB_CHECK(g_sb_event_func);
   }
-  if (g_sb_event_func) {
-    g_sb_event_func(event);
-  }
+
+  g_sb_event_func(event);
+
+  SB_CHECK(SbMutexRelease(&mutex) == true);
 }
