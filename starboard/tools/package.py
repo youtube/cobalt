@@ -33,7 +33,8 @@ def _ImportModule(path, root_module, module_name=None):
     path: Path to the platform
     root_module: An already-loaded module
     module_name: Name of a python module to load. If None, load the platform
-        directory as a python module.
+      directory as a python module.
+
   Returns:
     A module loaded with importlib.import_module
   Throws:
@@ -95,8 +96,9 @@ def _GetPlatformInfosDict():
     except Exception as e:  # pylint: disable=broad-except
       # Catch all exceptions to avoid an error in one platform's Packager
       # halting the script for other platforms' packagers.
-      logging.warning('Exception iterating supported platform for platform '
-                      '%s: %s.', platform_info.name, e)
+      logging.warning(
+          'Exception iterating supported platform for platform '
+          '%s: %s.', platform_info.name, e)
 
   return packager_modules
 
@@ -121,10 +123,9 @@ class PackageBase(object):
 
     Args:
       targets: A list of targets to install the package to, or None on platforms
-          that support installing to a default target.
-
-    This method can be overridden to implement platform-specific steps to
-    install the package for that platform.
+        that support installing to a default target.  This method can be
+        overridden to implement platform-specific steps to install the package
+        for that platform.
     """
     del targets
 
@@ -148,6 +149,7 @@ class PackageBase(object):
     constructor.
     Args:
       options: A namespace object returned from ArgumentParser.parse_args
+
     Returns:
       A dict of kwargs to be passed to the Package constructor.
     """
@@ -168,12 +170,12 @@ class Packager(object):
   def GetPlatformInfo(self, platform_name):
     return self.platform_infos.get(platform_name, None)
 
-  def GetApplicationPackageInfo(self, platform_name, applciation_name):
+  def GetApplicationPackageInfo(self, platform_name, application_name):
     """Get application-specific packaging information."""
     platform_info = self.GetPlatformInfo(platform_name)
     try:
       return _ImportModule(platform_info.path, starboard,
-                           '%s.package' % applciation_name)
+                           '%s.package' % application_name)
     except ImportError as e:
       # No package parameters specified for this platform.
       logging.debug('Failed to import cobalt.package: %s', e)
@@ -187,6 +189,7 @@ class Packager(object):
       source_dir: The directory containing the application to be packaged.
       output_dir: The directory into which the package files should be placed.
       **kwargs: Platform-specific arguments.
+
     Returns:
       A PackageBase instance.
     """
