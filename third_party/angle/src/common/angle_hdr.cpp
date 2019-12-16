@@ -16,6 +16,7 @@
 #include "angle_hdr.h"
 
 #include "starboard/atomic.h"
+#include "starboard/common/log.h"
 
 namespace angle
 {
@@ -31,10 +32,11 @@ void SetHdrAngleModeEnabled(bool flag)
         return;
     }
     angle::hdr_angle_mode_enable.fetch_add(flag ? 1 : -1);
+    SB_DCHECK(angle::hdr_angle_mode_enable.load() >= 0);
 }
 
 bool IsHdrAngleModeEnabled()
 {
-    return angle::hdr_angle_mode_enable.load() != 0;
+    return angle::hdr_angle_mode_enable.load() > 0;
 }
 #endif  // STARBOARD
