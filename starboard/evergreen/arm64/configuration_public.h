@@ -191,10 +191,6 @@
 
 // --- Media Configuration ---------------------------------------------------
 
-// Specifies whether this platform has webm/vp9 support.  This should be set to
-// non-zero on platforms with webm/vp9 support.
-#define SB_HAS_MEDIA_WEBM_VP9_SUPPORT 1
-
 // Specifies whether this platform updates audio frames asynchronously.  In such
 // case an extra parameter will be added to |SbAudioSinkConsumeFramesFunc| to
 // indicate the absolute time that the consumed audio frames are reported.

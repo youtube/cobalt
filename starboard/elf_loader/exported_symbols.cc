@@ -467,6 +467,7 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(kSbFileSepChar);
   REGISTER_SYMBOL(kSbHasAc3Audio);
   REGISTER_SYMBOL(kSbHasAudiolessVideo);
+  REGISTER_SYMBOL(kSbHasMediaWebmVp9Support);
   REGISTER_SYMBOL(kSbHasThreadPrioritySupport);
   REGISTER_SYMBOL(kSbMallocAlignment);
   REGISTER_SYMBOL(kSbMaxThreadLocalKeys);

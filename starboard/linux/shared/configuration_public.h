@@ -232,9 +232,11 @@
 #define SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND (200 * 1024 * 1024)
 #endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Specifies whether this platform has webm/vp9 support.  This should be set to
 // non-zero on platforms with webm/vp9 support.
 #define SB_HAS_MEDIA_WEBM_VP9_SUPPORT 0
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 // Specifies whether this platform updates audio frames asynchronously.  In such
 // case an extra parameter will be added to |SbAudioSinkConsumeFramesFunc| to

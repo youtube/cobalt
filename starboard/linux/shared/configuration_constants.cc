@@ -54,6 +54,10 @@ const bool kSbHasAc3Audio = true;
 // Allow playing audioless video.
 const bool kSbHasAudiolessVideo = true;
 
+// Specifies whether this platform has webm/vp9 support.  This should be set to
+// non-zero on platforms with webm/vp9 support.
+const bool kSbHasMediaWebmVp9Support = false;
+
 // On default Linux desktop, you must be a superuser in order to set real time
 // scheduling on threads.
 const bool kSbHasThreadPrioritySupport = false;
