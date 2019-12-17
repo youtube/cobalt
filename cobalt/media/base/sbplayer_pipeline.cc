@@ -40,6 +40,7 @@
 #include "cobalt/media/base/sbplayer_set_bounds_helper.h"
 #include "cobalt/media/base/starboard_player.h"
 #include "cobalt/media/base/video_decoder_config.h"
+#include "starboard/configuration_constants.h"
 #include "ui/gfx/size.h"
 
 namespace cobalt {
@@ -968,14 +969,22 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
   DemuxerStream* audio_stream = demuxer_->GetStream(DemuxerStream::AUDIO);
   DemuxerStream* video_stream = demuxer_->GetStream(DemuxerStream::VIDEO);
 
-#if !SB_HAS(AUDIOLESS_VIDEO)
-  if (audio_stream == NULL) {
-    LOG(INFO) << "The video has to contain an audio track.";
-    ResetAndRunIfNotNull(&error_cb_, DEMUXER_ERROR_NO_SUPPORTED_STREAMS,
-                         "The video has to contain an audio track.");
-    return;
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
+    defined(SB_HAS_AUDIOLESS_VIDEO)
+  if (!kSbHasAudiolessVideo) {
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+        // defined(SB_HAS_AUDIOLESS_VIDEO)
+    if (audio_stream == NULL) {
+      LOG(INFO) << "The video has to contain an audio track.";
+      ResetAndRunIfNotNull(&error_cb_, DEMUXER_ERROR_NO_SUPPORTED_STREAMS,
+                           "The video has to contain an audio track.");
+      return;
+    }
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
+    defined(SB_HAS_AUDIOLESS_VIDEO)
   }
-#endif  // !SB_HAS(AUDIOLESS_VIDEO)
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+        // defined(SB_HAS_AUDIOLESS_VIDEO)
 
 #if SB_API_VERSION < 10
   if (video_stream == NULL) {

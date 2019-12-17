@@ -51,6 +51,9 @@ const char kSbFileSepChar = '/';
 // Allow ac3 and ec3 support
 const bool kSbHasAc3Audio = true;
 
+// Allow playing audioless video.
+const bool kSbHasAudiolessVideo = true;
+
 // On default Linux desktop, you must be a superuser in order to set real time
 // scheduling on threads.
 const bool kSbHasThreadPrioritySupport = false;

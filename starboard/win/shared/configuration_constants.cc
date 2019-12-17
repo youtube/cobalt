@@ -52,6 +52,9 @@ const char kSbFileSepChar = '\\';
 // Allow ac3 and ec3 support
 const bool kSbHasAc3Audio = false;
 
+// Allow playing audioless video.
+const bool kSbHasAudiolessVideo = false;
+
 // Whether the current platform supports thread priorities.
 const bool kSbHasThreadPrioritySupport = true;
 

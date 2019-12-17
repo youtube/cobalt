@@ -43,6 +43,8 @@
 
 #define kSbHasAc3Audio SB_HAS_AC3_AUDIO
 
+#define kSbHasAudiolessVideo SB_HAS_AUDIOLESS_VIDEO
+
 #define kSbHasThreadPrioritySupport SB_HAS_THREAD_PRIORITY_SUPPORT
 
 #define kSbMallocAlignment SB_MALLOC_ALIGNMENT
