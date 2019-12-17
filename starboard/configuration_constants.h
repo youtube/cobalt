@@ -58,6 +58,9 @@ extern const char kSbFileSepChar;
 // Allow ac3 and ec3 support
 extern const bool kSbHasAc3Audio;
 
+// Allow playing audioless video.
+extern const bool kSbHasAudiolessVideo;
+
 // Whether the current platform supports thread priorities.
 extern const bool kSbHasThreadPrioritySupport;
 

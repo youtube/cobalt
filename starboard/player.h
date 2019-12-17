@@ -383,10 +383,13 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 //   be |kSbMediaAudioCodecNone|. In addition, the caller must provide a
 //   populated |audio_sample_info| if the audio codec is
 //   |kSbMediaAudioCodecAac|.
-#if SB_HAS(AUDIOLESS_VIDEO)
-//   This can be set to |kSbMediaAudioCodecNone| to play a video without any
-//   audio track.  In such case |audio_sample_info| must be NULL.
-#endif  // SB_HAS(AUDIOLESS_VIDEO)
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
+    SB_HAS(AUDIOLESS_VIDEO)
+//   If |kSbHasAudiolessVideo| is |true| or SB_HAS(AUDIOLESS_VIDEO), this can
+//   be set to |kSbMediaAudioCodecNone| to play a video without any audio
+//   track.  In such case |audio_sample_info| must be NULL.
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+        // SB_HAS(AUDIOLESS_VIDEO)
 //
 #if SB_API_VERSION < 10
 // |duration_pts|: The expected media duration in 90KHz ticks (PTS). It may be
@@ -421,9 +424,12 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 //   adapt to resolution higher than 1920x1080 or frame per second higher than
 //   15 fps. When the maximums are unknown, this will be set to NULL.
 #endif  // SB_API_VERSION >= 11
-#if SB_HAS(AUDIOLESS_VIDEO)
-//   When |audio_codec| is |kSbMediaAudioCodecNone|, this must be set to NULL.
-#endif  // SB_HAS(AUDIOLESS_VIDEO)
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
+    SB_HAS(AUDIOLESS_VIDEO)
+//   If |kSbHasAudiolessVideo| is |true| or SB_HAS(AUDIOLESS_VIDEO), when
+//   |audio_codec| is |kSbMediaAudioCodecNone|, this must be set to NULL.
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+        // SB_HAS(AUDIOLESS_VIDEO)
 //
 // |sample_deallocator_func|: If not |NULL|, the player calls this function
 //   on an internal thread to free the sample buffers passed into
