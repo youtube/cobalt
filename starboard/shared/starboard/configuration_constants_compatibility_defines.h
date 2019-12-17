@@ -41,6 +41,8 @@
 
 #define kSbFileSepChar SB_FILE_SEP_CHAR
 
+#define kSbHasAc3Audio SB_HAS_AC3_AUDIO
+
 #define kSbHasThreadPrioritySupport SB_HAS_THREAD_PRIORITY_SUPPORT
 
 #define kSbMallocAlignment SB_MALLOC_ALIGNMENT

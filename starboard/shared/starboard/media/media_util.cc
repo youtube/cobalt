@@ -70,12 +70,23 @@ bool IsSupportedAudioCodec(const MimeType& mime_type,
       return false;
     case kSbMediaAudioCodecAac:
       return mime_type.subtype() == "mp4";
-#if SB_HAS(AC3_AUDIO)
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || SB_HAS(AC3_AUDIO)
     case kSbMediaAudioCodecAc3:
+      if (!kSbHasAc3Audio) {
+        SB_NOTREACHED() << "AC3 audio is not enabled on this platform. To "
+                        << "enable it, set kSbHasAc3Audio to |true|.";
+        return false;
+      }
       return mime_type.subtype() == "mp4";
     case kSbMediaAudioCodecEac3:
+      if (!kSbHasAc3Audio) {
+        SB_NOTREACHED() << "AC3 audio is not enabled on this platform. To "
+                        << "enable it, set kSbHasAc3Audio to |true|.";
+        return false;
+      }
       return mime_type.subtype() == "mp4";
-#endif  // SB_HAS(AC3_AUDIO)
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+        // SB_HAS(AC3_AUDIO)
     case kSbMediaAudioCodecOpus:
     case kSbMediaAudioCodecVorbis:
       return mime_type.subtype() == "webm";
@@ -352,12 +363,23 @@ const char* GetCodecName(SbMediaAudioCodec codec) {
       return "none";
     case kSbMediaAudioCodecAac:
       return "aac";
-#if SB_HAS(AC3_AUDIO)
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || SB_HAS(AC3_AUDIO)
     case kSbMediaAudioCodecAc3:
+      if (!kSbHasAc3Audio) {
+        SB_NOTREACHED() << "AC3 audio is not enabled on this platform. To "
+                        << "enable it, set kSbHasAc3Audio to |true|.";
+        return "invalid";
+      }
       return "ac3";
     case kSbMediaAudioCodecEac3:
+      if (!kSbHasAc3Audio) {
+        SB_NOTREACHED() << "AC3 audio is not enabled on this platform. To "
+                        << "enable it, set kSbHasAc3Audio to |true|.";
+        return "invalid";
+      }
       return "ec3";
-#endif  // SB_HAS(AC3_AUDIO)
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+        // SB_HAS(AC3_AUDIO)
     case kSbMediaAudioCodecOpus:
       return "opus";
     case kSbMediaAudioCodecVorbis:
