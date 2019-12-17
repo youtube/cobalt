@@ -358,45 +358,18 @@ ReuseAllocatorBase::FreeBlockSet::iterator ReuseAllocatorBase::ExpandToFit(
   // allocate the difference between |size| and the size of the right most block
   // in the hope that they are continuous and can be connect to a block that is
   // large enough to fulfill |size|.
-  size_t free_address = AsInteger(free_blocks_.rbegin()->address());
-  size_t free_size = free_blocks_.rbegin()->size();
-  size_t aligned_address = AlignUp(free_address, alignment);
-  // In order to calculate |size_to_allocate|, we need to account for two
-  // possible scenarios: when |aligned_address| is within the free block region,
-  // or when it is after the free block region.
-  //
-  // Scenario 1:
-  //
-  // |free_address|      |free_address + free_size|
-  //   |                 |
-  //   | <- free_size -> | <- size_to_allocate -> |
-  //   --------------------------------------------
-  //               |<-          size           -> |
-  //               |
-  // |aligned_address|
-  //
-  // Scenario 2:
-  //
-  // |free_address|
-  //   |
-  //   | <- free_size -> | <- size_to_allocate -> |
-  //   --------------------------------------------
-  //                     |           | <- size -> |
-  //                     |           |
-  // |free_address + free_size|  |aligned_address|
-  size_t size_to_allocate = aligned_address + size - free_address - free_size;
-  if (max_capacity_ && capacity_ + size_to_allocate > max_capacity_) {
+  size_t size_difference = size - free_blocks_.rbegin()->size();
+  if (max_capacity_ && capacity_ + size_difference > max_capacity_) {
     return free_blocks_.end();
   }
-  SB_DCHECK(size_to_allocate > 0);
-  ptr = fallback_allocator_->AllocateForAlignment(&size_to_allocate, 1);
+  ptr = fallback_allocator_->AllocateForAlignment(&size_difference, alignment);
   if (ptr == NULL) {
     return free_blocks_.end();
   }
 
   fallback_allocations_.push_back(ptr);
-  capacity_ += size_to_allocate;
-  AddFreeBlock(MemoryBlock(ptr, size_to_allocate));
+  capacity_ += size_difference;
+  AddFreeBlock(MemoryBlock(ptr, size_difference));
   FreeBlockSet::iterator iter = free_blocks_.end();
   --iter;
   return iter->CanFullfill(size, alignment) ? iter : free_blocks_.end();
