@@ -287,9 +287,6 @@ SB_HAS_MMAP 1
 
 // --- Thread Configuration --------------------------------------------------
 
-// Whether the current platform supports thread priorities.
-#define SB_HAS_THREAD_PRIORITY_SUPPORT 1
-
 // --- Timing API ------------------------------------------------------------
 
 // Whether this platform has an API to retrieve how long the current thread

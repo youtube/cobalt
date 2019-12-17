@@ -49,6 +49,9 @@ const uint32_t kSbFileMaxPath = 4096;
 // component separator character.
 const char kSbFileSepChar = '\\';
 
+// Whether the current platform supports thread priorities.
+const bool kSbHasThreadPrioritySupport = true;
+
 // Determines the alignment that allocations should have on this platform.
 const size_t kSbMallocAlignment = 16;
 
