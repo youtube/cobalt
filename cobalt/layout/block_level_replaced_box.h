@@ -53,6 +53,7 @@ class BlockLevelReplacedBox : public ReplacedBox {
 
   // From |ReplacedBox|.
   void UpdateHorizontalMargins(
+      BaseDirection containing_block_direction,
       LayoutUnit containing_block_width, LayoutUnit border_box_width,
       const base::Optional<LayoutUnit>& maybe_margin_left,
       const base::Optional<LayoutUnit>& maybe_margin_right) override;
