@@ -24,7 +24,8 @@
 
 namespace {
 
-#if SB_HAS(MEDIA_WEBM_VP9_SUPPORT)
+#if SB_API_VERSION >= SB_RUNTIME_CONFIGS_VERSION || \
+    defined(SB_HAS_MEDIA_WEBM_VP9_SUPPORT)
 // Cache the VP9 support status since the check may be expensive.
 enum Vp9Support {
   kVp9SupportUnknown,
@@ -36,6 +37,10 @@ Vp9Support s_vp9_support = kVp9SupportUnknown;
 // Check for VP9 support. Since this is used by a starboard function, it
 // cannot depend on other modules (e.g. ANGLE).
 bool IsVp9Supported() {
+  if (!kSbHasMediaWebmVp9Support) {
+    return false;
+  }
+
   if (s_vp9_support == kVp9SupportUnknown) {
     // Try initializing the VP9 decoder to determine if it is supported.
     HRESULT hr;
@@ -70,11 +75,13 @@ bool IsVp9Supported() {
   }
   return s_vp9_support == kVp9SupportYes;
 }
-#else  // SB_HAS(MEDIA_WEBM_VP9_SUPPORT)
+#else   // SB_API_VERSION >= SB_RUNTIME_CONFIGS_VERSION ||
+        // defined(SB_HAS_MEDIA_WEBM_VP9_SUPPORT)
 bool IsVp9Supported() {
   return false;
 }
-#endif
+#endif  // SB_API_VERSION >= SB_RUNTIME_CONFIGS_VERSION ||
+        // defined(SB_HAS_MEDIA_WEBM_VP9_SUPPORT)
 
 }  // namespace
 

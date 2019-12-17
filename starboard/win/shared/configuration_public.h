@@ -233,10 +233,6 @@
 // not available should define the following quirk.
 #undef SB_HAS_QUIRK_NO_FFS
 
-// Specifies whether this platform has webm/vp9 support.  This should be set to
-// non-zero on platforms with webm/vp9 support.
-#define SB_HAS_MEDIA_WEBM_VP9_SUPPORT 1
-
 // Specifies the stack size for threads created inside media stack.  Set to 0 to
 // use the default thread stack size.  Set to non-zero to explicitly set the
 // stack size for media stack threads.

@@ -61,6 +61,10 @@ extern const bool kSbHasAc3Audio;
 // Allow playing audioless video.
 extern const bool kSbHasAudiolessVideo;
 
+// Specifies whether this platform has webm/vp9 support.  This should be set to
+// non-zero on platforms with webm/vp9 support.
+extern const bool kSbHasMediaWebmVp9Support;
+
 // Whether the current platform supports thread priorities.
 extern const bool kSbHasThreadPrioritySupport;
 
