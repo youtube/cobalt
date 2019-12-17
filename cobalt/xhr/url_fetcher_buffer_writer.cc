@@ -131,11 +131,12 @@ void URLFetcherResponseWriter::Buffer::GetAndReset(
 
   UpdateType_Locked(kArrayBuffer);
 
-  if (capacity_known_ &&
-      data_as_array_buffer_.byte_length() != data_as_array_buffer_size_) {
-    DLOG(WARNING) << "ArrayBuffer size " << data_as_array_buffer_size_
-                  << " is different than its preset capacity "
-                  << data_as_array_buffer_.byte_length();
+  if (data_as_array_buffer_.byte_length() != data_as_array_buffer_size_) {
+    DCHECK_LT(data_as_array_buffer_size_, data_as_array_buffer_.byte_length());
+    DLOG_IF(WARNING, capacity_known_)
+        << "ArrayBuffer size " << data_as_array_buffer_size_
+        << " is different than its preset capacity "
+        << data_as_array_buffer_.byte_length();
     data_as_array_buffer_.Resize(data_as_array_buffer_size_);
   }
   data_as_array_buffer_.Swap(data);
