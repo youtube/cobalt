@@ -251,8 +251,10 @@
 // Allow playing audioless video.
 #define SB_HAS_AUDIOLESS_VIDEO 1
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Allow ac3 and ec3 support
 #define SB_HAS_AC3_AUDIO 1
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 // --- Decoder-only Params ---
 

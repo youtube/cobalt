@@ -30,12 +30,23 @@ SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec) {
   switch (codec) {
     case kCodecAAC:
       return kSbMediaAudioCodecAac;
-#if SB_HAS(AC3_AUDIO)
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || SB_HAS(AC3_AUDIO)
     case kCodecAC3:
+      if (!kSbHasAc3Audio) {
+        DLOG(ERROR) << "Audio codec AC3 not enabled on this platform. To "
+                    << "enable it, set kSbHasAc3Audio to |true|.";
+        return kSbMediaAudioCodecNone;
+      }
       return kSbMediaAudioCodecAc3;
     case kCodecEAC3:
+      if (!kSbHasAc3Audio) {
+        DLOG(ERROR) << "Audio codec AC3 not enabled on this platform. To "
+                    << "enable it, set kSbHasAc3Audio to |true|.";
+        return kSbMediaAudioCodecNone;
+      }
       return kSbMediaAudioCodecEac3;
-#endif  // SB_HAS(AC3_AUDIO)
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+        // SB_HAS(AC3_AUDIO)
     case kCodecVorbis:
       return kSbMediaAudioCodecVorbis;
     case kCodecOpus:

@@ -652,6 +652,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
+#if defined(SB_HAS_AC3_AUDIO)
+#error \
+    "SB_HAS_AC3_AUDIO should not be defined in Starboard " \
+"versions 12 and later. Instead, define kSbHasAc3Audio in " \
+"starboard/<PLATFORM_PATH>/configuration_constants.cc."
+#endif
+
 #if defined(SB_HAS_THREAD_PRIORITY_SUPPORT)
 #error \
     "SB_HAS_THREAD_PRIORITY_SUPPORT should not be defined in Starboard " \
@@ -769,6 +776,16 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #if !defined(SB_FILE_MAX_PATH) || SB_FILE_MAX_PATH < 2
 #error "Your platform must define SB_FILE_MAX_PATH > 1."
 #endif
+
+#if SB_API_VERSION >= 11
+#if defined(SB_HAS_AC3_AUDIO)
+#if !SB_HAS(AC3_AUDIO)
+#error "SB_HAS_AC3_AUDIO is required in this API version."
+#endif  // !SB_HAS(AC3_AUDIO)
+#else   // defined(SB_HAS_AC3_AUDIO)
+#define SB_HAS_AC3_AUDIO 1
+#endif  // defined(SB_HAS_AC3_AUDIO)
+#endif  // SB_API_VERSION >= 11
 
 #if !defined(SB_HAS_THREAD_PRIORITY_SUPPORT)
 #error "Your platform must define SB_HAS_THREAD_PRIORITY_SUPPORT."
@@ -944,15 +961,6 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif  // !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
 #endif  // SB_API_VERSION >= 10
 
-#if SB_API_VERSION >= 11
-#if defined(SB_HAS_AC3_AUDIO)
-#if !SB_HAS(AC3_AUDIO)
-#error "SB_HAS_AC3_AUDIO is required in this API version."
-#endif  // !SB_HAS(AC3_AUDIO)
-#else   // defined(SB_HAS_AC3_AUDIO)
-#define SB_HAS_AC3_AUDIO 1
-#endif  // defined(SB_HAS_AC3_AUDIO)
-#endif  // SB_API_VERSION >= 11
 // --- Derived Configuration -------------------------------------------------
 
 // Whether the current platform is little endian.
