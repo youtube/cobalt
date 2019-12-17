@@ -41,6 +41,8 @@
 
 #define kSbFileSepChar SB_FILE_SEP_CHAR
 
+#define kSbHasThreadPrioritySupport SB_HAS_THREAD_PRIORITY_SUPPORT
+
 #define kSbMallocAlignment SB_MALLOC_ALIGNMENT
 
 #define kSbMaxThreadLocalKeys SB_MAX_THREAD_LOCAL_KEYS

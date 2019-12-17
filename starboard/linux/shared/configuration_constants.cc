@@ -48,6 +48,10 @@ const uint32_t kSbFileMaxPath = 4096;
 // component separator character.
 const char kSbFileSepChar = '/';
 
+// On default Linux desktop, you must be a superuser in order to set real time
+// scheduling on threads.
+const bool kSbHasThreadPrioritySupport = false;
+
 // Determines the alignment that allocations should have on this platform.
 const size_t kSbMallocAlignment = 16;
 
