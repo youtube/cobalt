@@ -14,7 +14,6 @@
 
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 
-#include <algorithm>
 #include <functional>
 
 #if SB_HAS(PLAYER_FILTER_TESTS)
@@ -96,13 +95,22 @@ using std::placeholders::_1;
 using std::placeholders::_2;
 
 VideoDmpReader::VideoDmpReader(const char* filename)
-    : reverse_byte_order_(false) {
+    : reverse_byte_order_(false),
+      read_cb_(std::bind(&VideoDmpReader::ReadFromCache, this, _1, _2)) {
   ScopedFile file(filename, kSbFileOpenOnly | kSbFileRead);
   SB_CHECK(file.IsValid()) << "Failed to open " << filename;
   int64_t file_size = file.GetSize();
   SB_CHECK(file_size >= 0);
-  read_cb_ = std::bind(&VideoDmpReader::ReadFromFile, this, &file, _1, _2);
+
+  file_cache_.resize(file_size);
+  int bytes_read = file.ReadAll(file_cache_.data(), file_size);
+  SB_CHECK(bytes_read == file_size);
+
   Parse();
+
+  // To free memory used by |file_cache_|.
+  decltype(file_cache_) empty;
+  file_cache_.swap(empty);
 }
 
 VideoDmpReader::~VideoDmpReader() {}
@@ -156,10 +164,8 @@ void VideoDmpReader::Parse() {
   }
   for (;;) {
     uint32_t type;
-    int bytes_read = read_cb_(&type, sizeof(type));
-    if (bytes_read != sizeof(type)) {
-      // Read an invalid number of bytes (corrupt file), or we read zero bytes
-      // (end of file).
+    int bytes_read = ReadFromCache(&type, sizeof(type));
+    if (bytes_read <= 0) {
       break;
     }
     if (reverse_byte_order_) {
@@ -255,10 +261,12 @@ VideoDmpReader::VideoAccessUnit VideoDmpReader::ReadVideoAccessUnit() {
                          std::move(data), video_sample_info);
 }
 
-int VideoDmpReader::ReadFromFile(ScopedFile* file,
-                                 void* buffer,
-                                 int bytes_to_read) {
-  return file->Read(static_cast<char*>(buffer), bytes_to_read);
+int VideoDmpReader::ReadFromCache(void* buffer, int bytes_to_read) {
+  bytes_to_read = std::min(
+      bytes_to_read, static_cast<int>(file_cache_.size()) - file_cache_offset_);
+  SbMemoryCopy(buffer, file_cache_.data() + file_cache_offset_, bytes_to_read);
+  file_cache_offset_ += bytes_to_read;
+  return bytes_to_read;
 }
 
 }  // namespace video_dmp

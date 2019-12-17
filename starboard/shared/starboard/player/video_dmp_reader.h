@@ -119,7 +119,7 @@ class VideoDmpReader {
   void Parse();
   AudioAccessUnit ReadAudioAccessUnit();
   VideoAccessUnit ReadVideoAccessUnit();
-  int ReadFromFile(ScopedFile* file, void* buffer, int bytes_to_read);
+  int ReadFromCache(void* buffer, int bytes_to_read);
 
   ReadCB read_cb_;
 
@@ -135,6 +135,9 @@ class VideoDmpReader {
 
   std::vector<AudioAccessUnit> audio_access_units_;
   std::vector<VideoAccessUnit> video_access_units_;
+
+  int file_cache_offset_ = 0;
+  std::vector<char> file_cache_;
 };
 
 }  // namespace video_dmp
