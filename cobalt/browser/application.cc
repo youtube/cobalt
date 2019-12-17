@@ -687,8 +687,8 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
                                         : base::kApplicationStateStarted),
                         &event_dispatcher_, account_manager_.get(), options));
 #if SB_IS(EVERGREEN)
-  updater_module_.reset(new updater::UpdaterModule(
-      message_loop_, browser_module_->GetNetworkModule()));
+  updater_module_.reset(
+      new updater::UpdaterModule(browser_module_->GetNetworkModule()));
 #endif
   UpdateUserAgent();
 
@@ -791,11 +791,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
         base::TimeDelta::FromSeconds(duration_in_seconds));
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
-
-#if SB_IS(EVERGREEN)
-  // Run the first update check after the application is started.
-  updater_module_->Update();
-#endif
 }
 
 Application::~Application() {

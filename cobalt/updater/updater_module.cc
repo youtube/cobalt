@@ -47,10 +47,25 @@ void Return() {}
 
 namespace cobalt {
 namespace updater {
+UpdaterModule::UpdaterModule(network::NetworkModule* network_module)
+    : updater_thread_("updater"), network_module_(network_module) {
+  updater_thread_.StartWithOptions(
+      base::Thread::Options(base::MessageLoop::TYPE_IO, 0));
 
-UpdaterModule::UpdaterModule(base::MessageLoop* message_loop,
-                             network::NetworkModule* network_module)
-    : message_loop_(message_loop), network_module_(network_module) {
+  DETACH_FROM_THREAD(thread_checker_);
+  // Initialize the underlying update client.
+  updater_thread_.task_runner()->PostTask(
+      FROM_HERE,
+      base::Bind(&UpdaterModule::Initialize, base::Unretained(this)));
+}
+
+UpdaterModule::~UpdaterModule() {
+  updater_thread_.task_runner()->PostBlockingTask(
+      FROM_HERE, base::Bind(&UpdaterModule::Finalize, base::Unretained(this)));
+}
+
+void UpdaterModule::Initialize() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // TODO: enable crash report with dependency on CrashPad
   // updater::crash_reporter::InitializeCrashKeys();
 
@@ -70,15 +85,22 @@ UpdaterModule::UpdaterModule(base::MessageLoop* message_loop,
 
   updater_observer_.reset(new Observer(update_client_));
   update_client_->AddObserver(updater_observer_.get());
+
+  // Schedule the first update check.
+  updater_thread_.task_runner()->PostTask(
+      FROM_HERE, base::Bind(&UpdaterModule::Update, base::Unretained(this)));
 }
 
-UpdaterModule::~UpdaterModule() {
+void UpdaterModule::Finalize() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   update_client_->RemoveObserver(updater_observer_.get());
+  updater_observer_.reset();
   update_client_ = nullptr;
+  updater_configurator_ = nullptr;
 }
 
 void UpdaterModule::MarkSuccessful() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   const CobaltExtensionInstallationManagerApi* installation_api =
       static_cast<const CobaltExtensionInstallationManagerApi*>(
           SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
@@ -127,6 +149,11 @@ void UpdaterModule::Update() {
           },
           closure_callback));
 
+  // Mark the current installation as successful.
+  updater_thread_.task_runner()->PostTask(
+      FROM_HERE,
+      base::Bind(&UpdaterModule::MarkSuccessful, base::Unretained(this)));
+
   IncrementUpdateCheckCount();
 
   int kNextUpdateCheckHours = 0;
@@ -139,7 +166,7 @@ void UpdaterModule::Update() {
     // hours.
     kNextUpdateCheckHours = 24;
   }
-  message_loop_->task_runner()->PostDelayedTask(
+  updater_thread_.task_runner()->PostDelayedTask(
       FROM_HERE, base::Bind(&UpdaterModule::Update, base::Unretained(this)),
       base::TimeDelta::FromHours(kNextUpdateCheckHours));
 }

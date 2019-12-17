@@ -20,6 +20,7 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "base/message_loop/message_loop.h"
+#include "base/threading/thread.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/updater/configurator.h"
 #include "components/prefs/pref_service.h"
@@ -58,15 +59,11 @@ class Observer : public update_client::UpdateClient::Observer {
 // checks run according to a schedule defined by the Cobalt application.
 class UpdaterModule {
  public:
-  UpdaterModule(base::MessageLoop* message_loop,
-                network::NetworkModule* network_module);
+  explicit UpdaterModule(network::NetworkModule* network_module);
   ~UpdaterModule();
 
-  void MarkSuccessful();
-  void Update();
-
  private:
-  base::MessageLoop* message_loop_;
+  base::Thread updater_thread_;
   scoped_refptr<update_client::UpdateClient> update_client_;
   std::unique_ptr<Observer> updater_observer_;
   network::NetworkModule* network_module_;
@@ -77,6 +74,11 @@ class UpdaterModule {
 
   int GetUpdateCheckCount() { return update_check_count_; }
   void IncrementUpdateCheckCount() { update_check_count_++; }
+
+  void Initialize();
+  void Finalize();
+  void MarkSuccessful();
+  void Update();
 };
 
 }  // namespace updater
