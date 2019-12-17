@@ -18,6 +18,7 @@
 10-3-3-margin-auto-should-be-treated-as-zero-if-sum-is-greater-than-containing-block-width
 10-3-3-margin-right-should-be-ignored-if-overconstrained
 10-3-3-one-auto-should-follow-from-equality
+10-3-3-overconstrained-should-respect-direction
 10-3-4-block-level-replaced-box-margins-should-be-calculated-as-for-non-replaced-box
 10-3-4-block-level-replaced-box-width-should-be-calculated-as-for-inline-replaced-box
 10-3-7-absolute-element-children-should-shrink-to-fit

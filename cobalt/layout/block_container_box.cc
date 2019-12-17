@@ -36,6 +36,7 @@ BlockContainerBox::~BlockContainerBox() {}
 // Updates used values of "width" and "margin" properties based on
 // https://www.w3.org/TR/CSS21/visudet.html#Computing_widths_and_margins.
 void BlockContainerBox::UpdateContentWidthAndMargins(
+    BaseDirection containing_block_direction,
     LayoutUnit containing_block_width, bool shrink_to_fit_width_forced,
     bool width_depends_on_containing_block,
     const base::Optional<LayoutUnit>& maybe_left,
@@ -62,8 +63,8 @@ void BlockContainerBox::UpdateContentWidthAndMargins(
     switch (forced_level) {
       case kBlockLevel:
         UpdateWidthAssumingBlockLevelInFlowBox(
-            containing_block_width, maybe_nulled_width, maybe_margin_left,
-            maybe_margin_right);
+            containing_block_direction, containing_block_width,
+            maybe_nulled_width, maybe_margin_left, maybe_margin_right);
         break;
       case kInlineLevel:
         UpdateWidthAssumingInlineLevelInFlowBox(
@@ -85,6 +86,8 @@ void BlockContainerBox::UpdateContentHeightAndMargins(
     const base::Optional<LayoutUnit>& maybe_height) {
   LayoutParams child_layout_params;
   LayoutParams absolute_child_layout_params;
+  child_layout_params.containing_block_direction = base_direction_;
+  absolute_child_layout_params.containing_block_direction = base_direction_;
   if (AsAnonymousBlockBox()) {
     // Anonymous block boxes are ignored when resolving percentage values
     // that would refer to it: the closest non-anonymous ancestor box is used
@@ -184,7 +187,8 @@ void BlockContainerBox::UpdateContentSizeAndMargins(
     base::Optional<LayoutUnit> maybe_right = GetUsedRightIfNotAuto(
         computed_style(), layout_params.containing_block_size);
 
-    UpdateContentWidthAndMargins(layout_params.containing_block_size.width(),
+    UpdateContentWidthAndMargins(layout_params.containing_block_direction,
+                                 layout_params.containing_block_size.width(),
                                  layout_params.shrink_to_fit_width_forced,
                                  width_depends_on_containing_block, maybe_left,
                                  maybe_right, maybe_margin_left,
@@ -200,6 +204,7 @@ void BlockContainerBox::UpdateContentSizeAndMargins(
         &max_width_depends_on_containing_block);
     if (maybe_max_width && width() > maybe_max_width.value()) {
       UpdateContentWidthAndMargins(
+          layout_params.containing_block_direction,
           layout_params.containing_block_size.width(),
           layout_params.shrink_to_fit_width_forced,
           max_width_depends_on_containing_block, maybe_left, maybe_right,
@@ -216,6 +221,7 @@ void BlockContainerBox::UpdateContentSizeAndMargins(
         &min_width_depends_on_containing_block);
     if (maybe_min_width && (width() < maybe_min_width.value_or(LayoutUnit()))) {
       UpdateContentWidthAndMargins(
+          layout_params.containing_block_direction,
           layout_params.containing_block_size.width(),
           layout_params.shrink_to_fit_width_forced,
           min_width_depends_on_containing_block, maybe_left, maybe_right,
@@ -587,6 +593,7 @@ void BlockContainerBox::UpdateHeightAssumingAbsolutelyPositionedBox(
 //     + "padding-right" + "border-right-width" + "margin-right"
 //     = width of containing block
 void BlockContainerBox::UpdateWidthAssumingBlockLevelInFlowBox(
+    BaseDirection containing_block_direction,
     LayoutUnit containing_block_width,
     const base::Optional<LayoutUnit>& maybe_width,
     const base::Optional<LayoutUnit>& possibly_overconstrained_margin_left,
@@ -599,8 +606,8 @@ void BlockContainerBox::UpdateWidthAssumingBlockLevelInFlowBox(
   if (maybe_width) {
     set_width(*maybe_width);
     UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
-        containing_block_width, GetBorderBoxWidth(), maybe_margin_left,
-        maybe_margin_right);
+        containing_block_direction, containing_block_width, GetBorderBoxWidth(),
+        maybe_margin_left, maybe_margin_right);
   } else {
     // If "width" is set to "auto", any other "auto" values become "0" and
     // "width" follows from the resulting equality.
@@ -638,6 +645,7 @@ LayoutUnit BlockContainerBox::GetShrinkToFitWidth(
     LayoutUnit containing_block_width,
     const base::Optional<LayoutUnit>& maybe_height) {
   LayoutParams child_layout_params;
+  child_layout_params.containing_block_direction = base_direction_;
   // The available width is the width of the containing block minus
   // the used values of "margin-left", "border-left-width", "padding-left",
   // "padding-right", "border-right-width", "margin-right".

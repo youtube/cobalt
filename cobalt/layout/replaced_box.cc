@@ -594,7 +594,8 @@ void ReplacedBox::UpdateContentSizeAndMargins(
   base::Optional<LayoutUnit> maybe_margin_right = GetUsedMarginRightIfNotAuto(
       computed_style(), layout_params.containing_block_size);
   LayoutUnit border_box_width = GetBorderBoxWidth();
-  UpdateHorizontalMargins(layout_params.containing_block_size.width(),
+  UpdateHorizontalMargins(layout_params.containing_block_direction,
+                          layout_params.containing_block_size.width(),
                           border_box_width, maybe_margin_left,
                           maybe_margin_right);
 
