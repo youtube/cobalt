@@ -602,19 +602,10 @@ bool ResolveLocalHostname(base::StringPiece host,
   if (!IsLocalHostname(host, &is_local6))
     return false;
 
-#if defined(STARBOARD)
-  if (!is_local6) {
-    address_list->push_back(IPEndPoint(IPAddress::IPv4Localhost(), port));
-  }
-#if SB_HAS(IPV6)
-  address_list->push_back(IPEndPoint(IPAddress::IPv6Localhost(), port));
-#endif
-#else  // STARBOARD
   address_list->push_back(IPEndPoint(IPAddress::IPv6Localhost(), port));
   if (!is_local6) {
     address_list->push_back(IPEndPoint(IPAddress::IPv4Localhost(), port));
   }
-#endif
 
   return true;
 }
