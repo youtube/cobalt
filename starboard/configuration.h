@@ -666,6 +666,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
+#if defined(SB_HAS_MEDIA_WEBM_VP9_SUPPORT)
+#error \
+    "SB_HAS_MEDIA_WEBM_VP9_SUPPORT should not be defined in Starboard " \
+"versions 12 and later. Instead, define kSbHasMediaWebmVp9Support in " \
+"starboard/<PLATFORM_PATH>/configuration_constants.cc."
+#endif
+
 #if defined(SB_HAS_THREAD_PRIORITY_SUPPORT)
 #error \
     "SB_HAS_THREAD_PRIORITY_SUPPORT should not be defined in Starboard " \

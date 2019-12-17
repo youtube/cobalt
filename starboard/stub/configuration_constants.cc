@@ -52,6 +52,10 @@ const bool kSbHasAc3Audio = false;
 // Allow playing audioless video.
 const bool kSbHasAudiolessVideo = false;
 
+// Specifies whether this platform has webm/vp9 support.  This should be set to
+// non-zero on platforms with webm/vp9 support.
+const bool kSbHasMediaWebmVp9Support = false;
+
 // Whether the current platform supports thread priorities.
 const bool kSbHasThreadPrioritySupport = false;
 
