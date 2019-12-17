@@ -233,17 +233,7 @@
 // not available should define the following quirk.
 #undef SB_HAS_QUIRK_NO_FFS
 
-// Specifies the stack size for threads created inside media stack.  Set to 0 to
-// use the default thread stack size.  Set to non-zero to explicitly set the
-// stack size for media stack threads.
-#define SB_MEDIA_THREAD_STACK_SIZE 0U
-
 // --- Decoder-only Params ---
-
-// Specifies how media buffers must be aligned on this platform as some
-// decoders may have special requirement on the alignment of buffers being
-// decoded.
-#define SB_MEDIA_BUFFER_ALIGNMENT 128U
 
 // Specifies whether this platform updates audio frames asynchronously.  In such
 // case an extra parameter will be added to |SbAudioSinkConsumeFramesFunc| to
@@ -267,11 +257,6 @@ SB_HAS_MMAP 1
 // Whether this platform has and should use an growable heap (e.g. with sbrk())
 // to map physical memory to the virtual address space.
 #define SB_HAS_VIRTUAL_REGIONS 0
-
-// Specifies the alignment for IO Buffers, in bytes. Some low-level network APIs
-// may require buffers to have a specific alignment, and this is the place to
-// specify that.
-#define SB_NETWORK_IO_BUFFER_ALIGNMENT 16
 
 // --- Network Configuration -------------------------------------------------
 
