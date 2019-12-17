@@ -55,6 +55,9 @@ extern const uint32_t kSbFileMaxPath;
 // component separator character.
 extern const char kSbFileSepChar;
 
+// Allow ac3 and ec3 support
+extern const bool kSbHasAc3Audio;
+
 // Whether the current platform supports thread priorities.
 extern const bool kSbHasThreadPrioritySupport;
 

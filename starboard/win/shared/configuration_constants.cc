@@ -49,6 +49,9 @@ const uint32_t kSbFileMaxPath = 4096;
 // component separator character.
 const char kSbFileSepChar = '\\';
 
+// Allow ac3 and ec3 support
+const bool kSbHasAc3Audio = false;
+
 // Whether the current platform supports thread priorities.
 const bool kSbHasThreadPrioritySupport = true;
 
