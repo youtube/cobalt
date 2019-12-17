@@ -659,6 +659,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
+#if defined(SB_HAS_AUDIOLESS_VIDEO)
+#error \
+    "SB_HAS_AUDIOLESS_VIDEO should not be defined in Starboard " \
+"versions 12 and later. Instead, define kSbHasAudiolessVideo in " \
+"starboard/<PLATFORM_PATH>/configuration_constants.cc."
+#endif
+
 #if defined(SB_HAS_THREAD_PRIORITY_SUPPORT)
 #error \
     "SB_HAS_THREAD_PRIORITY_SUPPORT should not be defined in Starboard " \
@@ -786,6 +793,10 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #define SB_HAS_AC3_AUDIO 1
 #endif  // defined(SB_HAS_AC3_AUDIO)
 #endif  // SB_API_VERSION >= 11
+
+#if SB_API_VERSION >= 10
+#define SB_HAS_AUDIOLESS_VIDEO 1
+#endif
 
 #if !defined(SB_HAS_THREAD_PRIORITY_SUPPORT)
 #error "Your platform must define SB_HAS_THREAD_PRIORITY_SUPPORT."
@@ -933,10 +944,6 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 
 #if SB_HAS(CAPTIONS) && (SB_API_VERSION < 10)
 #error "SB_HAS_CAPTIONS not supported in this API version."
-#endif
-
-#if SB_API_VERSION >= 10
-#define SB_HAS_AUDIOLESS_VIDEO 1
 #endif
 
 #if SB_API_VERSION >= 10

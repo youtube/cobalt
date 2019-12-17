@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "starboard/blitter.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/decode_target.h"
 #include "starboard/player.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
@@ -209,8 +210,13 @@ TEST_F(SbPlayerTest, NullCallbacks) {
 }
 #endif  // SB_API_VERSION >= 10
 
-#if SB_HAS(AUDIOLESS_VIDEO)
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
+    defined(SB_HAS_AUDIOLESS_VIDEO)
 TEST_F(SbPlayerTest, Audioless) {
+  if (!kSbHasAudiolessVideo) {
+    return;
+  }
+
   SbMediaVideoCodec kVideoCodec = kSbMediaVideoCodecH264;
   SbDrmSystem kDrmSystem = kSbDrmSystemInvalid;
 
@@ -248,7 +254,8 @@ TEST_F(SbPlayerTest, Audioless) {
     SbPlayerDestroy(player);
   }
 }
-#endif  // SB_HAS(AUDIOLESS_VIDEO)
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+        // defined(SB_HAS_AUDIOLESS_VIDEO)
 
 #if SB_API_VERSION >= 10
 TEST_F(SbPlayerTest, AudioOnly) {
