@@ -85,12 +85,12 @@ JSONObject LogAgent::Freeze() {
   return agent_state;
 }
 
-void LogAgent::Enable(const Command& command) {
+void LogAgent::Enable(Command command) {
   enabled_ = true;
   command.SendResponse();
 }
 
-void LogAgent::Disable(const Command& command) {
+void LogAgent::Disable(Command command) {
   enabled_ = false;
   command.SendResponse();
 }

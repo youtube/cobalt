@@ -41,8 +41,8 @@ class TracingAgent : public script::ScriptDebugger::TraceDelegate  {
   void FlushTraceEvents() override;
 
  private:
-  void End(const Command& command);
-  void Start(const Command& command);
+  void End(Command command);
+  void Start(Command command);
 
   void SendDataCollectedEvent();
 

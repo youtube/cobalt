@@ -50,7 +50,7 @@ JSONObject CSSAgent::Freeze() {
   return JSONObject();
 }
 
-void CSSAgent::Enable(const Command& command) {
+void CSSAgent::Enable(Command command) {
   if (script_loaded_) {
     command.SendResponse();
   } else {
@@ -59,7 +59,7 @@ void CSSAgent::Enable(const Command& command) {
   }
 }
 
-void CSSAgent::Disable(const Command& command) { command.SendResponse(); }
+void CSSAgent::Disable(Command command) { command.SendResponse(); }
 
 CSSAgent::CSSStyleRuleSequence CSSAgent::GetMatchingCSSRules(
     const scoped_refptr<dom::Element>& element) {

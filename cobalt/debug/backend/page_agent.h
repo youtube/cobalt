@@ -42,11 +42,11 @@ class PageAgent {
   JSONObject Freeze();
 
  private:
-  void Enable(const Command& command);
-  void Disable(const Command& command);
-  void Reload(const Command& command);
-  void GetResourceTree(const Command& command);
-  void SetOverlayMessage(const Command& command);
+  void Enable(Command command);
+  void Disable(Command command);
+  void Reload(Command command);
+  void GetResourceTree(Command command);
+  void SetOverlayMessage(Command command);
 
   dom::Window* window_;
   std::unique_ptr<RenderLayer> render_layer_;

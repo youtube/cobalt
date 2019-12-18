@@ -61,8 +61,7 @@ JSONObject ScriptDebuggerAgent::Freeze() {
   return agent_state;
 }
 
-std::unique_ptr<Command> ScriptDebuggerAgent::RunCommand(
-    std::unique_ptr<Command> command) {
+base::Optional<Command> ScriptDebuggerAgent::RunCommand(Command command) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Use an internal ID to store the pending command until we get a response.
@@ -70,26 +69,27 @@ std::unique_ptr<Command> ScriptDebuggerAgent::RunCommand(
 
   JSONObject message(new base::DictionaryValue());
   message->SetInteger(kId, command_id);
-  message->SetString(kMethod, command->GetMethod());
-  JSONObject params = JSONParse(command->GetParams());
+  message->SetString(kMethod, command.GetMethod());
+  JSONObject params = JSONParse(command.GetParams());
   if (params) {
     message->Set(kParams, std::move(params));
   }
 
   // Store the pending command before dispatching it so that we can find it if
   // the script debugger sends a synchronous response before returning.
-  std::string method = command->GetMethod();
+  std::string method = command.GetMethod();
   pending_commands_.emplace(command_id, std::move(command));
   if (script_debugger_->DispatchProtocolMessage(method,
                                                 JSONStringify(message))) {
     // The command has been dispached; keep ownership of it in the map.
-    return nullptr;
+    return base::nullopt;
   }
 
   // Take the command back out of the map and return it for fallback.
-  command = std::move(pending_commands_.at(command_id));
+  auto opt_command =
+      base::make_optional(std::move(pending_commands_.at(command_id)));
   pending_commands_.erase(command_id);
-  return command;
+  return opt_command;
 }
 
 void ScriptDebuggerAgent::SendCommandResponse(
@@ -104,7 +104,7 @@ void ScriptDebuggerAgent::SendCommandResponse(
   // Use the stripped ID to lookup the command it's a response for.
   auto iter = pending_commands_.find(command_id);
   if (iter != pending_commands_.end()) {
-    iter->second->SendResponse(response);
+    iter->second.SendResponse(response);
     pending_commands_.erase(iter);
   } else {
     DLOG(ERROR) << "Spurious debugger response: " << json_response;
