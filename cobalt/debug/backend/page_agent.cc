@@ -68,18 +68,18 @@ JSONObject PageAgent::Freeze() {
   return JSONObject();
 }
 
-void PageAgent::Disable(const Command& command) { command.SendResponse(); }
+void PageAgent::Disable(Command command) { command.SendResponse(); }
 
-void PageAgent::Enable(const Command& command) { command.SendResponse(); }
+void PageAgent::Enable(Command command) { command.SendResponse(); }
 
-void PageAgent::Reload(const Command& command) {
+void PageAgent::Reload(Command command) {
   // We don't care about the 'ignoreCache' parameter since navigating creates a
   // new WebModule with a new cache (i.e. cache is always cleared on navigate).
   window_->location()->Reload();
   command.SendResponse();
 }
 
-void PageAgent::GetResourceTree(const Command& command) {
+void PageAgent::GetResourceTree(Command command) {
   JSONObject response(new base::DictionaryValue());
   JSONObject frame(new base::DictionaryValue());
   frame->SetString("id", "Cobalt");
@@ -93,7 +93,7 @@ void PageAgent::GetResourceTree(const Command& command) {
   command.SendResponse(response);
 }
 
-void PageAgent::SetOverlayMessage(const Command& command) {
+void PageAgent::SetOverlayMessage(Command command) {
   std::string message;
   JSONObject params = JSONParse(command.GetParams());
   bool got_message = false;

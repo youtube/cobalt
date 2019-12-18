@@ -48,8 +48,8 @@ class ConsoleAgent {
     ConsoleAgent* console_agent_;
   };
 
-  void Enable(const Command& command);
-  void Disable(const Command& command);
+  void Enable(Command command);
+  void Disable(Command command);
 
   // Called by |console_listener_| when a new message is output.
   void OnMessageAdded(const std::string& text, dom::Console::Level level);

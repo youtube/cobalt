@@ -47,7 +47,7 @@ JSONObject DOMAgent::Freeze() {
   return JSONObject();
 }
 
-void DOMAgent::Enable(const Command& command) {
+void DOMAgent::Enable(Command command) {
   if (script_loaded_) {
     command.SendResponse();
   } else {
@@ -56,7 +56,7 @@ void DOMAgent::Enable(const Command& command) {
   }
 }
 
-void DOMAgent::Disable(const Command& command) { command.SendResponse(); }
+void DOMAgent::Disable(Command command) { command.SendResponse(); }
 
 }  // namespace backend
 }  // namespace debug
