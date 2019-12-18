@@ -211,12 +211,12 @@ JSONObject DebugDispatcher::RunScriptCommand(const std::string& method,
     if (result) {
       response->Set("result", std::unique_ptr<base::Value>(result.release()));
     }
-  } else if (!json_result.empty()) {
+  } else if (json_result.empty()) {
+    // Unimplemented commands aren't successful, and |json_result| is empty.
+    response.reset();
+  } else {
     // On error, |json_result| is the error message.
     response->SetString("error.message", json_result);
-  } else {
-    // An empty error means the method isn't implemented so return no response.
-    response.reset();
   }
   return response;
 }
