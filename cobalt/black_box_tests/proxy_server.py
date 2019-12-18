@@ -32,7 +32,7 @@ import time
 
 class ProxyServer(object):
 
-  def __init__(self, hostname='127.0.0.1', port='8000', host_resolve_map=None):
+  def __init__(self, hostname='0.0.0.0', port='8000', host_resolve_map=None):
     self.command = [
         'python',
         os.path.join(SRC_DIR, 'third_party', 'proxy_py', 'proxy.py'),
