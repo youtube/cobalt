@@ -33,12 +33,12 @@ class OverlayAgent {
   JSONObject Freeze();
 
  private:
-  void Enable(const Command& command);
-  void Disable(const Command& command);
+  void Enable(Command command);
+  void Disable(Command command);
 
-  void HighlightNode(const Command& command);
-  void HighlightRect(const Command& command);
-  void HideHighlight(const Command& command);
+  void HighlightNode(Command command);
+  void HighlightRect(Command command);
+  void HideHighlight(Command command);
 
   DebugDispatcher* dispatcher_;
 
