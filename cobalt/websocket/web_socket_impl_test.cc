@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/websocket/web_socket_impl.h"
 #include "cobalt/websocket/web_socket.h"
+#include "cobalt/websocket/web_socket_impl.h"
 
 #include <memory>
 #include <vector>
@@ -78,17 +78,17 @@ class WebSocketImplTest : public ::testing::Test {
   WebSocketImplTest() : settings_(new FakeSettings()) {
     std::vector<std::string> sub_protocols;
     sub_protocols.push_back("chat");
-    // Use local URL so that WebSocket will not complain about URL format.
-    ws_ = new WebSocket(settings(), "wss://127.0.0.1:1234", sub_protocols,
-                        &exception_state_, false);
-
-    websocket_impl_ = ws_->impl_;
     network_task_runner_ = settings_->network_module()
                                ->url_request_context_getter()
                                ->GetNetworkTaskRunner();
   }
 
   void SetUp() override {
+    websocket_impl_ = new WebSocketImpl(settings_->network_module(), nullptr);
+    // Setting this was usually done by WebSocketImpl::Connect, but since we do
+    // not do Connect for every test, we have to make sure its task runner is
+    // set.
+    websocket_impl_->delegate_task_runner_ = network_task_runner_;
     // The holder is only created to be base::Passed() on the next line, it will
     // be empty so do not use it later.
     network_task_runner_->PostBlockingTask(
@@ -117,7 +117,6 @@ class WebSocketImplTest : public ::testing::Test {
 
   std::unique_ptr<FakeSettings> settings_;
   scoped_refptr<base::SingleThreadTaskRunner> network_task_runner_;
-  scoped_refptr<WebSocket> ws_;
   scoped_refptr<WebSocketImpl> websocket_impl_;
   MockWebSocketChannel* mock_channel_;
   StrictMock<MockExceptionState> exception_state_;
@@ -190,7 +189,6 @@ TEST_F(WebSocketImplTest, OverLimitRequest) {
   AddQuota(kDefaultSendQuotaHighWaterMark);
   AddQuota(kDefaultSendQuotaHighWaterMark);
 }
-
 
 TEST_F(WebSocketImplTest, ReuseSocketForLargeRequest) {
   AddQuota(kDefaultSendQuotaHighWaterMark);
