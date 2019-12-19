@@ -19,6 +19,7 @@
 #if defined(STARBOARD)
 #include <sys/types.h>  // for ssize_t, maybe should add to starboard/types.h
 #include "starboard/configuration.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/mutex.h"
 // Define STARBOARD_IMPLEMENTATION to allow inclusion of an internal Starboard
 // header. This is "okay" because dlmalloc is essentially an implementation
@@ -132,7 +133,7 @@
 #define DEFAULT_MMAP_THRESHOLD SB_DEFAULT_MMAP_THRESHOLD
 #endif
 
-#define MALLOC_ALIGNMENT SB_MALLOC_ALIGNMENT
+#define MALLOC_ALIGNMENT kSbMallocAlignment
 #define FORCEINLINE SB_C_FORCE_INLINE
 #define NOINLINE SB_C_NOINLINE
 #define LACKS_UNISTD_H 1

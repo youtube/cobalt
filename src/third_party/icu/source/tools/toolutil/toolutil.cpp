@@ -128,12 +128,12 @@ findDirname(const char *path, char *buffer, int32_t bufLen, UErrorCode* status) 
   int32_t resultLen = 0;
 
   const char *basename=uprv_strrchr(path, U_FILE_SEP_CHAR);
-#if U_FILE_ALT_SEP_CHAR!=U_FILE_SEP_CHAR
-  const char *basenameAlt=uprv_strrchr(path, U_FILE_ALT_SEP_CHAR);
-  if(basenameAlt && (!basename || basename<basenameAlt)) {
-    basename = basenameAlt;
+  if (U_FILE_ALT_SEP_CHAR != U_FILE_SEP_CHAR) {
+    const char* basenameAlt = uprv_strrchr(path, U_FILE_ALT_SEP_CHAR);
+    if (basenameAlt && (!basename || basename < basenameAlt)) {
+      basename = basenameAlt;
+    }
   }
-#endif
   if(!basename) {
     /* no basename - return ''. */
     resultPtr = "";
@@ -160,17 +160,17 @@ U_CAPI const char * U_EXPORT2
 findBasename(const char *filename) {
     const char *basename=uprv_strrchr(filename, U_FILE_SEP_CHAR);
 
-#if U_FILE_ALT_SEP_CHAR!=U_FILE_SEP_CHAR
+    if (U_FILE_ALT_SEP_CHAR != U_FILE_SEP_CHAR) {
 #if !(U_PLATFORM == U_PF_CYGWIN && U_PLATFORM_USES_ONLY_WIN32_API)
-    if(basename==NULL)
+      if (basename == NULL)
 #endif
-    {
+      {
         /* Use lenient matching on Windows, which can accept either \ or /
-           This is useful for environments like Win32+CygWin which have both.
+        This is useful for environments like Win32+CygWin which have both.
         */
-        basename=uprv_strrchr(filename, U_FILE_ALT_SEP_CHAR);
+        basename = uprv_strrchr(filename, U_FILE_ALT_SEP_CHAR);
+      }
     }
-#endif
 
     if(basename!=NULL) {
         return basename+1;

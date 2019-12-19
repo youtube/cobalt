@@ -88,8 +88,8 @@
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/base/base.gyp:base_i18n',
-        '<(DEPTH)/base/base.gyp:run_all_unittests',
         '<(DEPTH)/base/base.gyp:test_support_base',
+        '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
         'url',
@@ -97,6 +97,7 @@
       'sources': [
         'gurl_unittest.cc',
         'origin_unittest.cc',
+        'run_all_unittests.cc',
         'scheme_host_port_unittest.cc',
         'url_canon_icu_unittest.cc',
         'url_canon_unittest.cc',

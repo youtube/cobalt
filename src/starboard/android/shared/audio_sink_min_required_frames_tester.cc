@@ -39,22 +39,18 @@ size_t GetSampleSize(SbMediaAudioSampleType sample_type) {
 }
 }  // namespace
 
-MinRequiredFramesTester::MinRequiredFramesTester(int audio_sink_buffer_size,
-                                                 int max_required_frames,
-                                                 int default_required_frames,
+MinRequiredFramesTester::MinRequiredFramesTester(int max_required_frames,
                                                  int required_frames_increment,
                                                  int min_stable_played_frames)
-    : audio_sink_buffer_size_(audio_sink_buffer_size),
-      max_required_frames_(max_required_frames),
-      default_required_frames_(default_required_frames),
+    : max_required_frames_(max_required_frames),
       required_frames_increment_(required_frames_increment),
       min_stable_played_frames_(min_stable_played_frames),
       condition_variable_(mutex_),
-      destroyed_(false) {}
+      destroying_(false) {}
 
 MinRequiredFramesTester::~MinRequiredFramesTester() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-  destroyed_.store(true);
+  destroying_.store(true);
   if (SbThreadIsValid(tester_thread_)) {
     {
       ScopedLock scoped_lock(mutex_);
@@ -65,19 +61,24 @@ MinRequiredFramesTester::~MinRequiredFramesTester() {
   }
 }
 
-void MinRequiredFramesTester::StartTest(
+void MinRequiredFramesTester::AddTest(
     int number_of_channels,
     SbMediaAudioSampleType sample_type,
     int sample_rate,
-    OnMinRequiredFramesReceivedCallback received_cb) {
+    const OnMinRequiredFramesReceivedCallback& received_cb,
+    int default_required_frames) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-  // MinRequiredFramesTester only supports to do test once now.
+  // MinRequiredFramesTester doesn't support to add test after starts.
   SB_DCHECK(!SbThreadIsValid(tester_thread_));
 
-  number_of_channels_ = number_of_channels;
-  sample_type_ = sample_type;
-  sample_rate_ = sample_rate;
-  received_cb_ = received_cb;
+  test_tasks_.emplace_back(number_of_channels, sample_type, sample_rate,
+                           received_cb, default_required_frames);
+}
+
+void MinRequiredFramesTester::Start() {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  // MinRequiredFramesTester only supports to start once.
+  SB_DCHECK(!SbThreadIsValid(tester_thread_));
 
   tester_thread_ =
       SbThreadCreate(0, kSbThreadPriorityLowest, kSbThreadNoAffinity, true,
@@ -97,45 +98,51 @@ void* MinRequiredFramesTester::TesterThreadEntryPoint(void* context) {
 
 void MinRequiredFramesTester::TesterThreadFunc() {
   bool wait_timeout = false;
-  // Currently, we only support test once. But we can put following codes in
-  // a for loop easily to support test multiple times.
-  std::vector<uint8_t> silence_buffer(
-      max_required_frames_ * number_of_channels_ * GetSampleSize(sample_type_),
-      0);
-  void* frame_buffers[1];
-  frame_buffers[0] = silence_buffer.data();
-  // Set default values.
-  min_required_frames_ = default_required_frames_;
-  total_consumed_frames_ = 0;
-  last_underrun_count_ = -1;
-  last_total_consumed_frames_ = 0;
-  {
-    ScopedLock scoped_lock(mutex_);
-    // Need to check |destroyed_| before start, as MinRequiredFramesTester may
+  for (const TestTask& task : test_tasks_) {
+    // Need to check |destroying_| before start, as MinRequiredFramesTester may
     // be destroyed immediately after tester thread started.
-    if (!destroyed_.load()) {
-      audio_sink_ = new AudioTrackAudioSink(
-          NULL, number_of_channels_, sample_rate_, sample_type_, frame_buffers,
-          max_required_frames_,
-          audio_sink_buffer_size_ * number_of_channels_ *
-              GetSampleSize(sample_type_),
-          &MinRequiredFramesTester::UpdateSourceStatusFunc,
-          &MinRequiredFramesTester::ConsumeFramesFunc, this);
-      wait_timeout = !condition_variable_.WaitTimed(kSbTimeSecond * 5);
-      if (wait_timeout) {
-        SB_LOG(ERROR) << "Audio sink min required frames tester timeout.";
-        SB_NOTREACHED();
-      }
+    if (destroying_.load()) {
+      break;
     }
-  }
-  delete audio_sink_;
-  audio_sink_ = nullptr;
-  // Call |received_cb_| after audio sink thread is ended.
-  // |number_of_channels_|, |sample_type_|, |sample_rate_| and
-  // |min_required_frames_| are shared between two threads.
-  if (!destroyed_.load() && !wait_timeout) {
-    received_cb_(number_of_channels_, sample_type_, sample_rate_,
-                 min_required_frames_);
+    std::vector<uint8_t> silence_buffer(max_required_frames_ *
+                                            task.number_of_channels *
+                                            GetSampleSize(task.sample_type),
+                                        0);
+    void* frame_buffers[1];
+    frame_buffers[0] = silence_buffer.data();
+
+    // Set default values.
+    min_required_frames_ = task.default_required_frames;
+    total_consumed_frames_ = 0;
+    last_underrun_count_ = -1;
+    last_total_consumed_frames_ = 0;
+
+    audio_sink_ = new AudioTrackAudioSink(
+        NULL, task.number_of_channels, task.sample_rate, task.sample_type,
+        frame_buffers, max_required_frames_,
+        min_required_frames_ * task.number_of_channels *
+            GetSampleSize(task.sample_type),
+        &MinRequiredFramesTester::UpdateSourceStatusFunc,
+        &MinRequiredFramesTester::ConsumeFramesFunc, this);
+    {
+      ScopedLock scoped_lock(mutex_);
+      wait_timeout = !condition_variable_.WaitTimed(kSbTimeSecond * 5);
+    }
+
+    if (wait_timeout) {
+      SB_LOG(ERROR) << "Audio sink min required frames tester timeout.";
+      SB_NOTREACHED();
+    }
+
+    delete audio_sink_;
+    audio_sink_ = nullptr;
+
+    // Call |received_cb_| after audio sink thread is ended.
+    // |min_required_frames_| is shared between two threads.
+    if (!destroying_.load() && !wait_timeout) {
+      task.received_cb(task.number_of_channels, task.sample_type,
+                       task.sample_rate, min_required_frames_);
+    }
   }
 }
 

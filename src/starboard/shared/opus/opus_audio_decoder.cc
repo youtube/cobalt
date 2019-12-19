@@ -27,7 +27,6 @@ namespace shared {
 namespace opus {
 
 namespace {
-const int kMaxOpusFramesPerAU = 9600;
 
 typedef struct {
   int nb_streams;
@@ -52,15 +51,6 @@ static const VorbisLayout vorbis_mappings[8] = {
 OpusAudioDecoder::OpusAudioDecoder(
     const SbMediaAudioSampleInfo& audio_sample_info)
     : audio_sample_info_(audio_sample_info) {
-#if SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
-  working_buffer_.resize(kMaxOpusFramesPerAU *
-                         audio_sample_info_.number_of_channels *
-                         sizeof(opus_int16));
-#else   // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
-  working_buffer_.resize(kMaxOpusFramesPerAU *
-                         audio_sample_info_.number_of_channels * sizeof(float));
-#endif  // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
-
   int error;
   int channels = audio_sample_info_.number_of_channels;
   if (channels > 8 || channels < 1) {
@@ -106,28 +96,44 @@ void OpusAudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
   SB_DCHECK(input_buffer);
   SB_DCHECK(output_cb_);
 
-  Schedule(consumed_cb);
-
   if (stream_ended_) {
     SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";
     return;
   }
+
+  scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
+      audio_sample_info_.number_of_channels, GetSampleType(),
+      kSbMediaAudioFrameStorageTypeInterleaved, input_buffer->timestamp(),
+      audio_sample_info_.number_of_channels * frames_per_au_ *
+          starboard::media::GetBytesPerSample(GetSampleType()));
 
 #if SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   const char kDecodeFunctionName[] = "opus_multistream_decode";
   int decoded_frames = opus_multistream_decode(
       decoder_, static_cast<const unsigned char*>(input_buffer->data()),
       input_buffer->size(),
-      reinterpret_cast<opus_int16*>(working_buffer_.data()),
-      kMaxOpusFramesPerAU, 0);
+      reinterpret_cast<opus_int16*>(decoded_audio->buffer()), frames_per_au_,
+      0);
 #else   // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   const char kDecodeFunctionName[] = "opus_multistream_decode_float";
   int decoded_frames = opus_multistream_decode_float(
       decoder_, static_cast<const unsigned char*>(input_buffer->data()),
-      input_buffer->size(), reinterpret_cast<float*>(working_buffer_.data()),
-      kMaxOpusFramesPerAU, 0);
+      input_buffer->size(), reinterpret_cast<float*>(decoded_audio->buffer()),
+      frames_per_au_, 0);
 #endif  // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+  if (decoded_frames == OPUS_BUFFER_TOO_SMALL &&
+      frames_per_au_ < kMaxOpusFramesPerAU) {
+    frames_per_au_ = kMaxOpusFramesPerAU;
+    // Send to decode again with the new |frames_per_au_|.
+    Decode(input_buffer, consumed_cb);
+    return;
+  }
   if (decoded_frames <= 0) {
+    // When the following check fails, it indicates that |frames_per_au_| is
+    // greater than or equal to |kMaxOpusFramesPerAU|, which should never happen
+    // for Opus.
+    SB_DCHECK(decoded_frames != OPUS_BUFFER_TOO_SMALL);
+
     // TODO: Consider fill it with silence.
     SB_LOG(ERROR) << kDecodeFunctionName
                   << "() failed with error code: " << decoded_frames;
@@ -141,14 +147,13 @@ void OpusAudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
     return;
   }
 
-  scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
-      audio_sample_info_.number_of_channels, GetSampleType(),
-      kSbMediaAudioFrameStorageTypeInterleaved, input_buffer->timestamp(),
-      audio_sample_info_.number_of_channels * decoded_frames *
-          starboard::media::GetBytesPerSample(GetSampleType()));
-  SbMemoryCopy(decoded_audio->buffer(), working_buffer_.data(),
-               decoded_audio->size());
+  frames_per_au_ = decoded_frames;
+  decoded_audio->ShrinkTo(audio_sample_info_.number_of_channels *
+                          frames_per_au_ *
+                          starboard::media::GetBytesPerSample(GetSampleType()));
+
   decoded_audios_.push(decoded_audio);
+  Schedule(consumed_cb);
   Schedule(output_cb_);
 }
 

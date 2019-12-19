@@ -678,12 +678,18 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   options.web_module_options.csp_enforcement_mode = dom::kCspEnforcementEnable;
 
   options.requested_viewport_size = requested_viewport_size;
+  options.web_module_loaded_callback =
+      base::Bind(&Application::DispatchEarlyDeepLink, base::Unretained(this));
   account_manager_.reset(new account::AccountManager());
   browser_module_.reset(
       new BrowserModule(initial_url,
                         (should_preload ? base::kApplicationStatePreloading
                                         : base::kApplicationStateStarted),
                         &event_dispatcher_, account_manager_.get(), options));
+#if SB_IS(EVERGREEN)
+  updater_module_.reset(new updater::UpdaterModule(
+      message_loop_, browser_module_->GetNetworkModule()));
+#endif
   UpdateUserAgent();
 
   app_status_ = (should_preload ? kPreloadingAppStatus : kRunningAppStatus);
@@ -785,6 +791,11 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
         base::TimeDelta::FromSeconds(duration_in_seconds));
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
+
+#if SB_IS(EVERGREEN)
+  // Run the first update check after the application is started.
+  updater_module_->Update();
+#endif
 }
 
 Application::~Application() {
@@ -861,6 +872,7 @@ void Application::Quit() {
 
 void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
   DCHECK(starboard_event);
+  DCHECK_EQ(base::MessageLoop::current(), message_loop_);
 
   // Forward input events to |SystemWindow|.
   if (starboard_event->type == kSbEventTypeInput) {
@@ -916,7 +928,13 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
         // SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeLink: {
       const char* link = static_cast<const char*>(starboard_event->data);
-      DispatchEventInternal(new base::DeepLinkEvent(link));
+      if (browser_module_->IsWebModuleLoaded()) {
+        DLOG(INFO) << "Dispatching deep link " << link;
+        DispatchEventInternal(new base::DeepLinkEvent(link));
+      } else {
+        DLOG(INFO) << "Storing deep link " << link;
+        early_deep_link_ = link;
+      }
       break;
     }
     case kSbEventTypeAccessiblitySettingsChanged:
@@ -1200,6 +1218,15 @@ void Application::OnMemoryTrackerCommand(const std::string& message) {
   memory_tracker_tool_ = memory_tracker::CreateMemoryTrackerTool(message);
 }
 #endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
+
+void Application::DispatchEarlyDeepLink() {
+  if (early_deep_link_.empty()) {
+    return;
+  }
+  DLOG(INFO) << "Dispatching early deep link " << early_deep_link_;
+  DispatchEventInternal(new base::DeepLinkEvent(early_deep_link_.c_str()));
+  early_deep_link_ = "";
+}
 
 }  // namespace browser
 }  // namespace cobalt

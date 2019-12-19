@@ -14,6 +14,8 @@
 
 #include "starboard/nplb/audio_sink_helpers.h"
 
+#include <algorithm>
+
 #include "starboard/common/log.h"
 
 namespace starboard {
@@ -107,13 +109,12 @@ void AudioSinkTestEnvironment::SetIsPlaying(bool is_playing) {
 
 void AudioSinkTestEnvironment::AppendFrame(int frames_to_append) {
   ScopedLock lock(mutex_);
-  frames_appended_ += frames_to_append;
+  AppendFrame_Locked(frames_to_append);
 }
 
-int AudioSinkTestEnvironment::GetFrameBufferFreeSpaceAmount() const {
+int AudioSinkTestEnvironment::GetFrameBufferFreeSpaceInFrames() const {
   ScopedLock lock(mutex_);
-  int frames_in_buffer = frames_appended_ - frames_consumed_;
-  return frame_buffers_.frames_per_channel() - frames_in_buffer;
+  return GetFrameBufferFreeSpaceInFrames_Locked();
 }
 
 bool AudioSinkTestEnvironment::WaitUntilUpdateStatusCalled() {
@@ -147,18 +148,46 @@ bool AudioSinkTestEnvironment::WaitUntilSomeFramesAreConsumed() {
 }
 
 bool AudioSinkTestEnvironment::WaitUntilAllFramesAreConsumed() {
+  const int kMaximumFramesPerAppend = 1024;
+
   ScopedLock lock(mutex_);
   is_eos_reached_ = true;
+  int frames_appended_before_eos = frames_appended_;
   SbTimeMonotonic start = SbTimeGetMonotonicNow();
-  while (frames_appended_ != frames_consumed_) {
+  int silence_frames_appended = 0;
+
+  while (frames_consumed_ < frames_appended_before_eos) {
     SbTime time_elapsed = SbTimeGetMonotonicNow() - start;
     if (time_elapsed >= kTimeToTry) {
       return false;
     }
     SbTime time_to_wait = kTimeToTry - time_elapsed;
+
+    // Append silence as some audio sink implementations won't be able to finish
+    // playback to the last frames filled.
+    int silence_frames_to_append =
+        std::min({GetFrameBufferFreeSpaceInFrames_Locked(),
+                  frame_buffers_.frames_per_channel() - silence_frames_appended,
+                  kMaximumFramesPerAppend});
+    AppendFrame_Locked(silence_frames_to_append);
+    silence_frames_appended += silence_frames_to_append;
+
     condition_variable_.WaitTimed(time_to_wait);
   }
   return true;
+}
+
+void AudioSinkTestEnvironment::AppendFrame_Locked(int frames_to_append) {
+  mutex_.DCheckAcquired();
+
+  frames_appended_ += frames_to_append;
+}
+
+int AudioSinkTestEnvironment::GetFrameBufferFreeSpaceInFrames_Locked() const {
+  mutex_.DCheckAcquired();
+
+  int frames_in_buffer = frames_appended_ - frames_consumed_;
+  return frame_buffers_.frames_per_channel() - frames_in_buffer;
 }
 
 void AudioSinkTestEnvironment::OnUpdateSourceStatus(int* frames_in_buffer,

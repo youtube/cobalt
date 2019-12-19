@@ -1000,8 +1000,7 @@ static void TestAPI() {
     utestdatapath = (UChar*) malloc((len+10)*sizeof(UChar));
 
     u_charsToUChars(testdatapath, utestdatapath, (int32_t)strlen(testdatapath)+1);
-#if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR) && U_FILE_SEP_CHAR == '\\'
-    {
+    if ((U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR) && U_FILE_SEP_CHAR == '\\') {
         /* Convert all backslashes to forward slashes so that we can make sure that ures_openU
            can handle invariant characters. */
         UChar *backslash;
@@ -1009,7 +1008,6 @@ static void TestAPI() {
             *backslash = 0x002F;
         }
     }
-#endif
 
     u_memset(largeBuffer, 0x0030, sizeof(largeBuffer)/sizeof(largeBuffer[0]));
     largeBuffer[sizeof(largeBuffer)/sizeof(largeBuffer[0])-1] = 0;

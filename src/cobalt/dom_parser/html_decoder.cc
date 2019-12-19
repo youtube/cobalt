@@ -64,7 +64,10 @@ loader::LoadResponseType HTMLDecoder::OnResponseStarted(
       require_csp_ == csp::kCSPOptional) {
     return loader::kLoadResponseContinue;
   } else {
-    DLOG(ERROR) << "Failure receiving Content Security Policy headers";
+    LOG(ERROR) << "Failure receiving Content Security Policy headers "
+                  "for URL: " << url_fetcher->GetURL() << ".";
+    LOG(ERROR) << "The server *must* send CSP headers or Cobalt will not "
+                  "load the page.";
     return loader::kLoadResponseAbort;
   }
 }

@@ -98,7 +98,7 @@ void* RunSbOnceEntryPoint(void* context) {
 // routine got called exactly one time.
 TEST(SbOnceTest, SunnyDayMultipleThreadsInit) {
   const int kMany = SB_MAX_THREADS;
-  SbThread threads[kMany];
+  std::vector<SbThread> threads(kMany);
 
   const int kIterationCount = 10;
   for (int i = 0; i < kIterationCount; ++i) {

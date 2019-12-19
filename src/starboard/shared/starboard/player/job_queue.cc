@@ -153,8 +153,10 @@ JobQueue::JobToken JobQueue::Schedule(Job job,
   JobToken job_token(current_job_token_);
   JobRecord job_record = {job_token, job, owner};
 #if ENABLE_JOB_QUEUE_PROFILING
-  job_record.stack_size =
-      SbSystemGetStack(job_record.stack, kProfileStackDepth);
+  if (kProfileStackDepth > 0) {
+    job_record.stack_size =
+        SbSystemGetStack(job_record.stack, kProfileStackDepth);
+  }
 #endif  // ENABLE_JOB_QUEUE_PROFILING
 
   SbTimeMonotonic time_to_run_job = SbTimeGetMonotonicNow() + delay;
@@ -202,6 +204,9 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
     if (time_to_job_record_map_.empty() && wait_for_next_job) {
       // |kSbTimeMax| makes more sense here, but |kSbTimeDay| is much safer.
       condition_.WaitTimed(kSbTimeDay);
+#if ENABLE_JOB_QUEUE_PROFILING
+      ++wait_times_;
+#endif  // ENABLE_JOB_QUEUE_PROFILING
     }
     if (time_to_job_record_map_.empty()) {
       return false;
@@ -212,6 +217,9 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
     if (delay > 0) {
       if (wait_for_next_job) {
         condition_.WaitTimed(delay);
+#if ENABLE_JOB_QUEUE_PROFILING
+        ++wait_times_;
+#endif  // ENABLE_JOB_QUEUE_PROFILING
         if (time_to_job_record_map_.empty()) {
           return false;
         }
@@ -239,6 +247,8 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
   job_record.job();
 
 #if ENABLE_JOB_QUEUE_PROFILING
+  ++jobs_processed_;
+
   auto now = SbTimeGetMonotonicNow();
   auto elapsed = now - start;
   if (elapsed > max_job_interval_) {
@@ -246,7 +256,10 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
     max_job_interval_ = elapsed;
   }
   if (now - last_reset_time_ > kProfileResetInterval) {
-    SB_LOG(INFO) << "================ Max job takes " << max_job_interval_;
+    SB_LOG(INFO) << "================ " << jobs_processed_
+                 << " jobs processed, and waited for " << wait_times_
+                 << " times since last reset on 0x" << this
+                 << ", max job takes " << max_job_interval_;
     for (int i = 0; i < job_record.stack_size; ++i) {
       char function_name[1024];
       if (SbSystemSymbolize(job_record.stack[i], function_name,
@@ -258,6 +271,8 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
     }
     last_reset_time_ = now;
     max_job_interval_ = 0;
+    jobs_processed_ = 0;
+    wait_times_ = 0;
   }
 #endif  // ENABLE_JOB_QUEUE_PROFILING
   return true;

@@ -15,6 +15,7 @@
 {
   'variables': {
     'sb_pedantic_warnings': 1,
+    'has_updater%' : '<!(python ../../build/file_exists.py <(DEPTH)/cobalt/updater/updater.gyp)',
   },
   'targets': [
     {
@@ -213,6 +214,11 @@
             'COBALT_MESH_CACHE_SIZE_IN_BYTES=<(mesh_cache_size_in_bytes)',
           ],
         }],
+        ['sb_evergreen == 1 and has_updater == "True"', {
+          'dependencies': [
+            '<(DEPTH)/cobalt/updater/updater.gyp:updater',
+          ],
+        }],
       ],
     },
 
@@ -241,11 +247,11 @@
         '<(DEPTH)/cobalt/speech/speech.gyp:speech',
         '<(DEPTH)/cobalt/storage/storage.gyp:storage',
         '<(DEPTH)/cobalt/storage/storage.gyp:storage_upgrade_copy_test_data',
-        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'browser',
       ],
+      'includes': [ '<(DEPTH)/cobalt/test/test.gypi' ],
     },
 
     {

@@ -52,6 +52,16 @@ float GraphicsContext::GetMaximumFrameIntervalInMilliseconds() {
   return -1.0f;
 }
 
+float GraphicsContext::GetMinimumFrameIntervalInMilliseconds() {
+  if (graphics_extension_ && graphics_extension_->version >= 2) {
+    return graphics_extension_->GetMinimumFrameIntervalInMilliseconds();
+  }
+
+  // Return negative value, if the GraphicsExtension is not implemented
+  // or the GraphicsExtension version is below 2.
+  return -1.0f;
+}
+
 }  // namespace backend
 }  // namespace renderer
 }  // namespace cobalt

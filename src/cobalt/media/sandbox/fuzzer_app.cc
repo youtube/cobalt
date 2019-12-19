@@ -113,11 +113,21 @@ void FuzzerApp::CollectFiles(const std::string& path_name, double min_ratio,
     return;
   }
 
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+  std::vector<char> entry(SB_FILE_MAX_NAME);
+
+  while (SbDirectoryGetNext(directory, entry.data(), entry.size())) {
+    std::string file_name = path_name + SB_FILE_SEP_STRING + entry.data();
+    AddFile(file_name, min_ratio, max_ratio, initial_seed);
+  }
+#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   SbDirectoryEntry entry;
+
   while (SbDirectoryGetNext(directory, &entry)) {
     std::string file_name = path_name + SB_FILE_SEP_STRING + entry.name;
     AddFile(file_name, min_ratio, max_ratio, initial_seed);
   }
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
   SbDirectoryClose(directory);
 }

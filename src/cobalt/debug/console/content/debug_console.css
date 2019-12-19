@@ -12,6 +12,9 @@ body {
   color: #FFFFFF;
   display: none;
 }
+body.hud #hudFrame {
+  display: block;
+}
 
 #hud {
   position: absolute;
@@ -27,7 +30,7 @@ body {
   padding: 0.625em;
 }
 
-#consoleFrame {
+#debugConsoleFrame {
   position: absolute;
   top: 0;
   left: 0;
@@ -37,6 +40,9 @@ body {
   color: #FFFFFF;
   overflow: hidden;
   display: none;
+}
+body.debugConsole #debugConsoleFrame {
+  display: block;
 }
 
 #messageContainerFrame {
@@ -121,4 +127,34 @@ body {
   border-color: #606060;
   border-style: solid;
   padding: 0.625em;
+}
+
+#mediaConsoleFrame {
+  position: absolute;
+  top: 75%;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  width: 100%;
+  background-color: rgba(128, 128, 128, 0.6);
+  color: #FFFFFF;
+  display: none;
+}
+body.mediaConsole #mediaConsoleFrame {
+  display: block;
+}
+
+#mediaConsole {
+  position: absolute;
+  top: 0.625em;
+  left: 0.625em;
+  bottom: 0.625em;
+  right: 0.625em;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: #FFFFFF;
+  border: 0.0625em;
+  border-color: #606060;
+  border-style: solid;
+  padding: 0.625em;
+  white-space: pre;
 }

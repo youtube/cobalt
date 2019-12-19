@@ -28,6 +28,9 @@
 #include "cobalt/browser/browser_module.h"
 #include "cobalt/browser/memory_tracker/tool.h"
 #include "cobalt/system_window/system_window.h"
+#if SB_IS(EVERGREEN)
+#include "cobalt/updater/updater_module.h"
+#endif
 #include "starboard/event.h"
 
 #if defined(ENABLE_WEBDRIVER)
@@ -100,6 +103,11 @@ class Application {
 
   // Main components of the Cobalt browser application.
   std::unique_ptr<BrowserModule> browser_module_;
+
+#if SB_IS(EVERGREEN)
+  // Cobalt Updater.
+  std::unique_ptr<updater::UpdaterModule> updater_module_;
+#endif
 
   // Event callbacks.
   base::EventCallback network_event_callback_;
@@ -211,6 +219,13 @@ class Application {
   // Create a memory tracker with the given message
   void OnMemoryTrackerCommand(const std::string& message);
 #endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
+
+  // The latest link received before the Web Module is loaded is stored here.
+  std::string early_deep_link_;
+
+  // Dispach events for early deeplink. This should be called once the Web
+  // Module is loaded.
+  void DispatchEarlyDeepLink();
 
   DISALLOW_COPY_AND_ASSIGN(Application);
 };

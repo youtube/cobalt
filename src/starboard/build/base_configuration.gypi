@@ -121,6 +121,9 @@
     # Used to indicate that the player is filter based.
     'sb_filter_based_player%': 1,
 
+    # Used to enable benchmarks.
+    'sb_enable_benchmark%': 0,
+
     # This variable dictates whether a given gyp target should be compiled with
     # optimization flags for size vs. speed.
     'optimize_target_for_speed%': 0,

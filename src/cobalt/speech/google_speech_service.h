@@ -68,7 +68,7 @@ class GoogleSpeechService : public net::URLFetcherDelegate {
 
   // net::URLFetcherDelegate interface
   void OnURLFetchDownloadProgress(const net::URLFetcher* source,
-                                  int64_t current, int64_t total,
+                                  int64_t /*current*/, int64_t /*total*/,
                                   int64_t /*current_network_bytes*/) override;
   void OnURLFetchComplete(const net::URLFetcher* source) override;
   void OnURLFetchUploadProgress(const net::URLFetcher* /*source*/,

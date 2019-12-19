@@ -416,8 +416,7 @@ class TestRunner(object):
         coverage_directory=self.coverage_directory,
         env_variables=env,
         loader_platform=self.loader_platform,
-        loader_config=self.loader_config,
-        loader_out_directory=self.loader_out_directory)
+        loader_config=self.loader_config)
 
     test_reader = TestLineReader(read_pipe)
     test_launcher = TestLauncher(launcher)

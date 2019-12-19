@@ -132,5 +132,9 @@ void CobaltWebSocketEventHandler::OnWriteDone(uint64_t bytes_written) {
   creator_->OnWriteDone(bytes_written);
 }
 
+void CobaltWebSocketEventHandler::OnFlowControl(int64_t quota) {
+  creator_->OnFlowControl(quota);
+}
+
 }  // namespace websocket
 }  // namespace cobalt

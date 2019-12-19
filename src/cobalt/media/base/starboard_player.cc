@@ -268,6 +268,7 @@ void StarboardPlayer::Seek(base::TimeDelta time) {
   DCHECK(task_runner_->BelongsToCurrentThread());
 
   decoder_buffer_cache_.ClearAll();
+  seek_pending_ = false;
 
   if (state_ == kSuspended) {
     preroll_timestamp_ = time;
@@ -290,7 +291,6 @@ void StarboardPlayer::Seek(base::TimeDelta time) {
   SbPlayerSeek2(player_, time.InMicroseconds(), ticket_);
 #endif  // SB_API_VERSION < 10
 
-  seek_pending_ = false;
   SbPlayerSetPlaybackRate(player_, playback_rate_);
 }
 
@@ -434,13 +434,14 @@ void StarboardPlayer::Suspend() {
 
   SbPlayerSetPlaybackRate(player_, 0.0);
 
+  set_bounds_helper_->SetPlayer(NULL);
+
   base::AutoLock auto_lock(lock_);
   GetInfo_Locked(&cached_video_frames_decoded_, &cached_video_frames_dropped_,
                  &preroll_timestamp_);
 
   state_ = kSuspended;
 
-  set_bounds_helper_->SetPlayer(NULL);
   video_frame_provider_->SetOutputMode(VideoFrameProvider::kOutputModeInvalid);
   video_frame_provider_->ResetGetCurrentSbDecodeTargetFunction();
 

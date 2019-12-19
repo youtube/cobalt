@@ -30,6 +30,19 @@
 #include "starboard/thread.h"
 #include "starboard/time.h"
 
+#if defined(ADDRESS_SANITIZER)
+// By default, Leak Sanitizer and Address Sanitizer is expected to exist
+// together. However, this is not true for all platforms.
+// HAS_LEAK_SANTIZIER=0 explicitly removes the Leak Sanitizer from code.
+#ifndef HAS_LEAK_SANITIZER
+#define HAS_LEAK_SANITIZER 1
+#endif  // HAS_LEAK_SANITIZER
+#endif  // defined(ADDRESS_SANITIZER)
+
+#if HAS_LEAK_SANITIZER
+#include <sanitizer/lsan_interface.h>
+#endif  // HAS_LEAK_SANITIZER
+
 namespace starboard {
 namespace shared {
 namespace pulse {
@@ -424,7 +437,13 @@ bool PulseAudioSinkType::Initialize() {
     return false;
   }
   // Create pulse context.
+#if HAS_LEAK_SANITIZER
+  __lsan_disable();
+#endif
   context_ = pa_context_new(pa_mainloop_get_api(mainloop_), "cobalt_audio");
+#if HAS_LEAK_SANITIZER
+  __lsan_enable();
+#endif
   if (!context_) {
     SB_LOG(WARNING) << "Pulse audio error: cannot create context.";
     return false;

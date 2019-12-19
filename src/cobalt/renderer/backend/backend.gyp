@@ -23,7 +23,6 @@
         'render_target.cc',
         'render_target.h',
       ],
-
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/math/math.gyp:math',

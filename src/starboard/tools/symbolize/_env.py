@@ -1,3 +1,4 @@
+#
 # Copyright 2017 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,19 +12,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+"""Ask the parent directory to load the project environment."""
 
-{
-  'targets': [
-    {
-      'target_name': 'run_all_unittests',
-      'type': 'static_library',
-      'dependencies': [
-        '<(DEPTH)/base/base.gyp:test_support_base',
-        '<(DEPTH)/testing/gtest.gyp:gtest',
-      ],
-      'sources': [
-        'run_all_unittests.cc',
-      ],
-    },
-  ]
-}
+from imp import load_source
+from os import path
+import sys
+
+_ENV = path.abspath(path.join(path.dirname(__file__), path.pardir, '_env.py'))
+if not path.exists(_ENV):
+  print '%s: Can\'t find repo root.\nMissing parent: %s' % (__file__, _ENV)
+  sys.exit(1)
+load_source('', _ENV)

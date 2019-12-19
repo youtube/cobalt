@@ -47,11 +47,11 @@
         'page_visibility_state_test.cc',
       ],
       'dependencies': [
-        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'page_visibility',
       ],
+      'includes': [ '<(DEPTH)/cobalt/test/test.gypi' ],
     },
     {
       'target_name': 'page_visibility_test_deploy',

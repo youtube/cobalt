@@ -11,6 +11,7 @@ import sys
 import thread
 import threading
 import time
+import traceback
 
 import _env  # pylint: disable=unused-import
 from cobalt.tools.automated_testing import c_val_names
@@ -141,6 +142,10 @@ class CobaltRunner(object):
     """Sends a system signal to put Cobalt into suspend state."""
     self.launcher.SendSuspend()
 
+  def SendDeepLink(self, link):
+    """Sends a deep link to Cobalt."""
+    return self.launcher.SendDeepLink(link)
+
   def GetURL(self):
     return self.url
 
@@ -254,10 +259,18 @@ class CobaltRunner(object):
 
   def _KillLauncher(self):
     """Kills the launcher and its attached Cobalt instance."""
+    wait_for_runner_thread = True
     if self.CanExecuteJavaScript():
-      self.ExecuteJavaScript('window.close();')
+      try:
+        self.ExecuteJavaScript('window.close();')
+      except Exception:
+        wait_for_runner_thread = False
+        sys.stderr.write(
+            '***An exception was raised while trying to close the app:')
+        traceback.print_exc(file=sys.stderr)
 
-    self.runner_thread.join(COBALT_EXIT_TIMEOUT_SECONDS)
+    if wait_for_runner_thread:
+      self.runner_thread.join(COBALT_EXIT_TIMEOUT_SECONDS)
     if self.runner_thread.isAlive():
       sys.stderr.write(
           '***Runner thread still alive after sending graceful shutdown command, try again by killing app***\n'
@@ -503,7 +516,7 @@ def GetDeviceParamsFromCommandLine():
   device_params.config = args.config
   device_params.device_id = args.device_id
   device_params.out_directory = args.out_directory
-  if args.target_params == None:
+  if args.target_params is None:
     device_params.target_params = []
   else:
     device_params.target_params = [args.target_params]

@@ -343,7 +343,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
     std::vector<int>* input_buffer_indices) {
   SB_DCHECK(media_codec_bridge_);
 
-  // During secure playback, and only secure playback, is is possible that our
+  // During secure playback, and only secure playback, it is possible that our
   // attempt to enqueue an input buffer will be rejected by MediaCodec because
   // we do not have a key yet.  In this case, we hold on to the input buffer
   // that we have already set up, and repeatedly attempt to enqueue it until

@@ -47,11 +47,12 @@
       'type': '<(gtest_target_type)',
       'sources': [
         'web_socket_test.cc',
+        'mock_websocket_channel.cc',
+        'web_socket_impl_test.cc',
       ],
       'dependencies': [
         'websocket',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
-        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/url/url.gyp:url',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
@@ -68,6 +69,7 @@
           ],
         }],
       ],
+      'includes': [ '<(DEPTH)/cobalt/test/test.gypi' ],
     },
 
     {

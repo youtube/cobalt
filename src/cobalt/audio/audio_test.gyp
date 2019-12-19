@@ -26,7 +26,6 @@
       'dependencies': [
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/media/media.gyp:media',
-        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
 
@@ -34,6 +33,7 @@
         #       ScriptValueFactory has non-virtual method CreatePromise().
         '<(DEPTH)/cobalt/script/engine.gyp:engine',
       ],
+      'includes': [ '<(DEPTH)/cobalt/test/test.gypi' ],
     },
 
     {

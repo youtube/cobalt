@@ -310,7 +310,8 @@ BrowserModule::BrowserModule(const GURL& url,
       main_web_module_generation_(0),
       next_timeline_id_(1),
       current_splash_screen_timeline_id_(-1),
-      current_main_web_module_timeline_id_(-1) {
+      current_main_web_module_timeline_id_(-1),
+      web_module_loaded_callback_(options_.web_module_loaded_callback) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::BrowserModule()");
 
   // Apply platform memory setting adjustments and defaults.
@@ -345,7 +346,18 @@ BrowserModule::BrowserModule(const GURL& url,
 #if defined(ENABLE_DEBUGGER)
   debug_console_layer_ = render_tree_combiner_.CreateLayer(kDebugConsoleZIndex);
 #endif
-  if (command_line->HasSwitch(browser::switches::kQrCodeOverlay)) {
+
+  int qr_code_overlay_slots = 4;
+  if (command_line->HasSwitch(switches::kQrCodeOverlay)) {
+    auto slots_in_string =
+        command_line->GetSwitchValueASCII(switches::kQrCodeOverlay);
+    if (!slots_in_string.empty()) {
+      auto result = base::StringToInt(slots_in_string, &qr_code_overlay_slots);
+      DCHECK(result) << "Failed to convert value of --"
+                     << switches::kQrCodeOverlay << ": "
+                     << qr_code_overlay_slots << " to int.";
+      DCHECK_GT(qr_code_overlay_slots, 0);
+    }
     qr_overlay_info_layer_ =
         render_tree_combiner_.CreateLayer(kOverlayInfoZIndex);
   } else {
@@ -430,7 +442,7 @@ BrowserModule::BrowserModule(const GURL& url,
   if (qr_overlay_info_layer_) {
     math::Size width_height = GetViewportSize().width_height();
     qr_code_overlay_.reset(new overlay_info::QrCodeOverlay(
-        width_height, GetResourceProvider(),
+        width_height, qr_code_overlay_slots, GetResourceProvider(),
         base::Bind(&BrowserModule::QueueOnQrCodeOverlayRenderTreeProduced,
                    base::Unretained(this))));
   }
@@ -680,7 +692,12 @@ void BrowserModule::OnLoad() {
   on_error_retry_count_ = 0;
 
   on_load_event_time_ = base::TimeTicks::Now().ToInternalValue();
+
   web_module_loaded_.Signal();
+
+  if (!web_module_loaded_callback_.is_null()) {
+    web_module_loaded_callback_.Run();
+  }
 }
 
 bool BrowserModule::WaitForLoad(const base::TimeDelta& timeout) {

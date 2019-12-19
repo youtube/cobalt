@@ -19,17 +19,14 @@
 [
   Conditional=ENABLE_DEBUGGER
 ] interface DebugHub {
-  const long DEBUG_CONSOLE_OFF = 0;
-  const long DEBUG_CONSOLE_HUD = 1;
-  const long DEBUG_CONSOLE_ON = 2;
-
   readonly attribute CValView cVal;
 
-  long getDebugConsoleMode();
+  DebugConsoleMode getDebugConsoleMode();
 
   void attach(AttachCallback cb);
   void detach(AttachCallback cb);
 
+  DOMString readDebugContentText(DOMString filename);
   void sendCommand(DOMString method, DOMString jsonParams, ResponseCallback cb);
 
   readonly attribute DOMString? lastError;

@@ -229,7 +229,12 @@ SbThreadLocalKey TLSKeyManager::CreateKey(SbThreadLocalDestructor destructor) {
   KeyRecord* record = &data_->key_table_[key->index];
 
   record->destructor = destructor;
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+  SbMemorySet(record->values.data(), 0,
+              record->values.size() * sizeof(record->values[0]));
+#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   SbMemorySet(record->values, 0, sizeof(record->values));
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   record->valid = true;
 
   return key;

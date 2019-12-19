@@ -43,6 +43,7 @@
         '<@(filter_based_player_sources)',
         '<(DEPTH)/starboard/linux/shared/atomic_public.h',
         '<(DEPTH)/starboard/linux/shared/configuration_public.h',
+        '<(DEPTH)/starboard/linux/shared/configuration_constants.cc',
         '<(DEPTH)/starboard/linux/shared/system_get_connection_type.cc',
         '<(DEPTH)/starboard/linux/shared/system_get_device_type.cc',
         '<(DEPTH)/starboard/linux/shared/system_get_path.cc',

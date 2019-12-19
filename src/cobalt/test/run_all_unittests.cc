@@ -22,7 +22,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
-
 int InitAndRunAllTests(int argc, char** argv) {
   base::CommandLine::Init(argc, argv);
   base::AtExitManager exit_manager;

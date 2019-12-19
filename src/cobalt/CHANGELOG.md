@@ -6,16 +6,28 @@ This document records all notable changes made to Cobalt since the last release.
 
  - **DevTools and WebDriver listen to ANY interface, except on Linux.**
 
-  DevTools and WebDriver servers listen to connections on any network interface
-  by default, except on Linux where they listen only to loopback (localhost) by
-  default. A new "--dev_servers_listen_ip" command line parameter can be used to
-  specify a different interface for both of them to listen to.
+   DevTools and WebDriver servers listen to connections on any network interface
+   by default, except on Linux where they listen only to loopback (localhost) by
+   default. A new "--dev_servers_listen_ip" command line parameter can be used
+   to specify a different interface for both of them to listen to.
 
  - **DevTools shows asynchronous stack traces.**
 
-  When stopped at a breakpoint within the handler function for an asynchronous
-  operation, the call stack in DevTools now shows both the current function as
-  well as the function where the asynchronous operation was initiated.
+   When stopped at a breakpoint within the handler function for an asynchronous
+   operation, the call stack in DevTools now shows both the current function as
+   well as the function where the asynchronous operation was initiated.
+
+ - **Optimized network buffer management and notification handling.**
+
+   Reduced unnecessary buffer copying during network downloading which results
+   in the reduction of CPU usage on both the NetworkModule thread and the
+   MainWebModule thread.  Peak memory usage during downloading is also reduced.
+   Also reduced redundant notifications from the NetworkModule thread to the
+   MainWebModule thread on downloading progresses.
+   CPU utilization of both threads is reduced by more than 10% with the above
+   optimizations on some less powerful platforms during high bitrate content
+   playback.  The lower CPU utilization of the MainWebModule thread allows it to
+   process other tasks (like Javascript execution) more responsively.
 
 ## Version 20
 

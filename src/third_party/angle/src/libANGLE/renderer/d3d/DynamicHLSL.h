@@ -112,6 +112,13 @@ class DynamicHLSL : angle::NonCopyable
         const std::string &sourceShader,
         const gl::InputLayout &inputLayout,
         const std::vector<sh::Attribute> &shaderAttributes) const;
+#if defined(STARBOARD)
+    std::string generatePixelShaderForHdrOutputSignature(
+        const std::string &sourceShader,
+        const std::vector<PixelShaderOutputVariable> &outputVariables,
+        bool usesFragDepth,
+        const std::vector<GLenum> &outputLayout) const;
+#endif  // STARBOARD
     std::string generatePixelShaderForOutputSignature(
         const std::string &sourceShader,
         const std::vector<PixelShaderOutputVariable> &outputVariables,

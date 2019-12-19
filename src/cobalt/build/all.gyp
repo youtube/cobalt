@@ -99,7 +99,7 @@
             '<(DEPTH)/starboard/elf_loader/elf_loader.gyp:elf_loader_test_deploy',
           ],
         }],
-        ['has_loader_app == "True"', {
+        ['has_loader_app == "True" and sb_evergreen != 1', {
           'dependencies': [
             '<(DEPTH)/starboard/loader_app/loader_app.gyp:*',
           ],
@@ -114,6 +114,7 @@
         ['sb_evergreen==1', {
           'dependencies': [
             '<(DEPTH)/third_party/musl/musl.gyp:musl_unittests',
+            '<(DEPTH)/starboard/loader_app/installation_manager.gyp:*',
           ],
         }],
       ],

@@ -89,6 +89,11 @@
             '<(DEPTH)/starboard/shared/starboard/player/filter/tools/tools.gyp:*',
           ],
         }],
+        ['sb_enable_benchmark==1', {
+          'dependencies': [
+            '<(DEPTH)/starboard/benchmark/benchmark.gyp:*',
+          ],
+        }],
       ],
     },
   ],

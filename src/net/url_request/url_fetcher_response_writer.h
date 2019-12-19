@@ -37,6 +37,13 @@ class NET_EXPORT URLFetcherResponseWriter {
   // Initialize() success results in discarding already written data.
   virtual int Initialize(CompletionOnceCallback callback) = 0;
 
+#if defined(STARBOARD)
+  // The user of this class *may* call this function before any calls to Write()
+  // to prime the instance with response size, so it has a chance to do some
+  // preparation work, like pre-allocate the buffer.
+  virtual void OnResponseStarted(int64_t content_length) = 0;
+#endif  // defined(STARBOARD)
+
   // Writes |num_bytes| bytes in |buffer|, and returns the number of bytes
   // written or an error code. If ERR_IO_PENDING is returned, |callback| will be
   // run later with the result.
@@ -70,6 +77,9 @@ class NET_EXPORT URLFetcherStringWriter : public URLFetcherResponseWriter {
 
   // URLFetcherResponseWriter overrides:
   int Initialize(CompletionOnceCallback callback) override;
+#if defined(STARBOARD)
+  void OnResponseStarted(int64_t /*content_length*/) override {}
+#endif  // defined(STARBOARD)
   int Write(IOBuffer* buffer,
             int num_bytes,
             CompletionOnceCallback callback) override;
@@ -96,6 +106,9 @@ class NET_EXPORT URLFetcherFileWriter : public URLFetcherResponseWriter {
 
   // URLFetcherResponseWriter overrides:
   int Initialize(CompletionOnceCallback callback) override;
+#if defined(STARBOARD)
+  void OnResponseStarted(int64_t /*content_length*/) override {}
+#endif  // defined(STARBOARD)
   int Write(IOBuffer* buffer,
             int num_bytes,
             CompletionOnceCallback callback) override;

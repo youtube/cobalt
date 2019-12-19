@@ -192,14 +192,12 @@ createCommonDataFile(const char *destDir, const char *name, const char *entrypoi
         }
 
         /* add the file */
-#if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR)
-        {
+        if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR) {
           char *t;
           while((t = uprv_strchr(line,U_FILE_ALT_SEP_CHAR))) {
             *t = U_FILE_SEP_CHAR;
           }
         }
-#endif
         addFile(getLongPathname(line), name, source, sourceTOC, verbose);
     }
 
@@ -525,24 +523,23 @@ pathToFullPath(const char *path, const char *source) {
                            /*  when conditional code below is not compiled.      */
     uprv_strcat(fullPath, path);
 
-#if (U_FILE_ALT_SEP_CHAR != U_TREE_ENTRY_SEP_CHAR)
-#if (U_FILE_ALT_SEP_CHAR != U_FILE_SEP_CHAR)
-    /* replace tree separator (such as '/') with file sep char (such as ':' or '\\') */
-    for(;fullPath[n];n++) {
-        if(fullPath[n] == U_FILE_ALT_SEP_CHAR) {
-            fullPath[n] = U_FILE_SEP_CHAR;
+    if (U_FILE_ALT_SEP_CHAR != U_TREE_ENTRY_SEP_CHAR
+        && U_FILE_ALT_SEP_CHAR != U_FILE_SEP_CHAR) {
+        /* replace tree separator (such as '/') with file sep char (such as ':' or '\\') */
+        for(;fullPath[n];n++) {
+            if(fullPath[n] == U_FILE_ALT_SEP_CHAR) {
+                fullPath[n] = U_FILE_SEP_CHAR;
+            }
         }
     }
-#endif
-#endif
-#if (U_FILE_SEP_CHAR != U_TREE_ENTRY_SEP_CHAR)
-    /* replace tree separator (such as '/') with file sep char (such as ':' or '\\') */
-    for(;fullPath[n];n++) {
-        if(fullPath[n] == U_TREE_ENTRY_SEP_CHAR) {
-            fullPath[n] = U_FILE_SEP_CHAR;
+    if (U_FILE_SEP_CHAR != U_TREE_ENTRY_SEP_CHAR) {
+        /* replace tree separator (such as '/') with file sep char (such as ':' or '\\') */
+        for(;fullPath[n];n++) {
+            if(fullPath[n] == U_TREE_ENTRY_SEP_CHAR) {
+                fullPath[n] = U_FILE_SEP_CHAR;
+            }
         }
     }
-#endif
     return fullPath;
 }
 
@@ -555,17 +552,20 @@ compareFiles(const void *file1, const void *file2) {
 static void
 fixDirToTreePath(char *s)
 {
-#if (U_FILE_SEP_CHAR != U_TREE_ENTRY_SEP_CHAR) || ((U_FILE_ALT_SEP_CHAR != U_FILE_SEP_CHAR) && (U_FILE_ALT_SEP_CHAR != U_TREE_ENTRY_SEP_CHAR))
-    char *t;
-#endif
-#if (U_FILE_SEP_CHAR != U_TREE_ENTRY_SEP_CHAR)
-    for(t=s;t=uprv_strchr(t,U_FILE_SEP_CHAR);) {
-        *t = U_TREE_ENTRY_SEP_CHAR;
+    if ((U_FILE_SEP_CHAR != U_TREE_ENTRY_SEP_CHAR)
+        || ((U_FILE_ALT_SEP_CHAR != U_FILE_SEP_CHAR)
+        && (U_FILE_ALT_SEP_CHAR != U_TREE_ENTRY_SEP_CHAR))) {
+        char *t;
+        if (U_FILE_SEP_CHAR != U_TREE_ENTRY_SEP_CHAR) {
+            for(t=s;t=uprv_strchr(t,U_FILE_SEP_CHAR);) {
+                *t = U_TREE_ENTRY_SEP_CHAR;
+            }
+        }
+        if (U_FILE_ALT_SEP_CHAR != U_FILE_SEP_CHAR
+            && U_FILE_ALT_SEP_CHAR != U_TREE_ENTRY_SEP_CHAR) {
+            for(t=s;t=uprv_strchr(t,U_FILE_ALT_SEP_CHAR);) {
+                *t = U_TREE_ENTRY_SEP_CHAR;
+            }
+        }
     }
-#endif
-#if (U_FILE_ALT_SEP_CHAR != U_FILE_SEP_CHAR) && (U_FILE_ALT_SEP_CHAR != U_TREE_ENTRY_SEP_CHAR)
-    for(t=s;t=uprv_strchr(t,U_FILE_ALT_SEP_CHAR);) {
-        *t = U_TREE_ENTRY_SEP_CHAR;
-    }
-#endif
 }

@@ -291,9 +291,6 @@
 // specify that.
 #define SB_NETWORK_IO_BUFFER_ALIGNMENT 16
 
-// Determines the alignment that allocations should have on this platform.
-#define SB_MALLOC_ALIGNMENT ((size_t)16U)
-
 // Determines the threshhold of allocation size that should be done with mmap
 // (if available), rather than allocated within the core heap.
 #define SB_DEFAULT_MMAP_THRESHOLD ((size_t)(256 * 1024U))
@@ -329,9 +326,6 @@
 // This comes from bionic PTHREAD_KEYS_MAX in limits.h, which we've decided
 // to not include here to decrease symbol pollution.
 #define SB_MAX_THREAD_LOCAL_KEYS 128
-
-// The maximum length of the name for a thread, including the NULL-terminator.
-#define SB_MAX_THREAD_NAME_LENGTH 16
 
 // --- Tuneable Parameters ---------------------------------------------------
 

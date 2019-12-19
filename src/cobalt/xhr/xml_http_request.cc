@@ -51,10 +51,6 @@ namespace {
 // How many milliseconds must elapse between each progress event notification.
 const int kProgressPeriodMs = 50;
 
-// Allocate 64KB on receiving the first chunk to avoid allocating small buffer
-// too many times.
-const size_t kInitialReceivingBufferSize = 64 * 1024;
-
 const char* kResponseTypes[] = {
     "",             // kDefault
     "text",         // kText
@@ -168,6 +164,8 @@ bool XMLHttpRequest::verbose_ = false;
 
 XMLHttpRequest::XMLHttpRequest(script::EnvironmentSettings* settings)
     : XMLHttpRequestEventTarget(settings),
+      response_body_(new URLFetcherResponseWriter::Buffer(
+          URLFetcherResponseWriter::Buffer::kString)),
       settings_(base::polymorphic_downcast<dom::DOMSettings*>(settings)),
       state_(kUnsent),
       response_type_(kDefault),
@@ -203,7 +201,7 @@ void XMLHttpRequest::Abort() {
   }
   ChangeState(kUnsent);
 
-  response_body_.Clear();
+  response_body_->Clear();
   response_array_buffer_reference_.reset();
 }
 
@@ -485,7 +483,14 @@ const std::string& XMLHttpRequest::response_text(
     return base::EmptyString();
   }
 
-  return response_body_.string();
+  // Note that the conversion from |response_body_| to std::string when |state_|
+  // isn't kDone isn't efficient for large responses.  Fortunately this feature
+  // is rarely used.
+  if (state_ == kLoading) {
+    LOG(WARNING) << "Retrieving responseText while loading can be inefficient.";
+    return response_body_->GetTemporaryReferenceOfString();
+  }
+  return response_body_->GetReferenceOfStringAndSeal();
 }
 
 // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-responsexml-attribute
@@ -659,19 +664,6 @@ void XMLHttpRequest::OnURLFetchResponseStarted(const net::URLFetcher* source) {
     fetch_mode_callback_->value().Run(is_cross_origin_);
   }
 
-  // Reserve space for the content in the case of a regular XHR request.
-  DCHECK_EQ(response_body_.size(), 0u);
-  if (!fetch_callback_) {
-    const int64 content_length = http_response_headers_->GetContentLength();
-
-    // If we know the eventual content length, allocate the total response body.
-    // Otherwise just reserve a reasonably large initial chunk.
-    size_t bytes_to_reserve = content_length > 0
-                                  ? static_cast<size_t>(content_length)
-                                  : kInitialReceivingBufferSize;
-    response_body_.Reserve(bytes_to_reserve);
-  }
-
   // Further filter response headers as XHR's mode is cors
   if (is_cross_origin_) {
     size_t iter = 0;
@@ -707,7 +699,7 @@ void XMLHttpRequest::OnURLFetchResponseStarted(const net::URLFetcher* source) {
 
   ChangeState(kHeadersReceived);
 
-  UpdateProgress();
+  UpdateProgress(0);
 }
 
 void XMLHttpRequest::OnURLFetchDownloadProgress(
@@ -717,27 +709,19 @@ void XMLHttpRequest::OnURLFetchDownloadProgress(
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK_NE(state_, kDone);
 
-  auto* download_data_writer =
-      base::polymorphic_downcast<loader::URLFetcherStringWriter*>(
-          source->GetResponseWriter());
-  std::unique_ptr<std::string> download_data = download_data_writer->data();
-  if (!download_data.get() || download_data->empty()) {
+  if (response_body_->HasProgressSinceLastGetAndReset() == 0) {
     return;
-  }
-  // Preserve the response body only for regular XHR requests. Fetch requests
-  // process the response in pieces, so do not need to keep the whole response.
-  if (!fetch_callback_) {
-    response_body_.Append(reinterpret_cast<const uint8*>(download_data->data()),
-                          download_data->size());
   }
 
   // Signal to JavaScript that new data is now available.
   ChangeState(kLoading);
 
   if (fetch_callback_) {
+    std::string downloaded_data;
+    response_body_->GetAndReset(&downloaded_data);
     script::Handle<script::Uint8Array> data =
         script::Uint8Array::New(settings_->global_environment(),
-                                download_data->data(), download_data->size());
+                                downloaded_data.data(), downloaded_data.size());
     fetch_callback_->value().Run(data);
   }
 
@@ -746,7 +730,9 @@ void XMLHttpRequest::OnURLFetchDownloadProgress(
   const base::TimeDelta elapsed(now - last_progress_time_);
   if (elapsed > base::TimeDelta::FromMilliseconds(kProgressPeriodMs)) {
     last_progress_time_ = now;
-    UpdateProgress();
+    // TODO: Investigate if we have to fire progress event with 0 loaded bytes
+    // when used as Fetch API.
+    UpdateProgress(response_body_->GetAndResetDownloadProgress());
   }
 }
 
@@ -787,7 +773,7 @@ void XMLHttpRequest::OnURLFetchComplete(const net::URLFetcher* source) {
       FireProgressEvent(upload_, base::Tokens::loadend());
     }
     ChangeState(kDone);
-    UpdateProgress();
+    UpdateProgress(response_body_->GetAndResetDownloadProgress());
     // Undo the ref we added in Send()
     DecrementActiveRequests();
   } else {
@@ -1038,13 +1024,14 @@ script::Handle<script::ArrayBuffer> XMLHttpRequest::response_array_buffer() {
     // The request is done so it is safe to only keep the ArrayBuffer and clear
     // |response_body_|.  As |response_body_| will not be used unless the
     // request is re-opened.
-    auto array_buffer =
-        script::ArrayBuffer::New(settings_->global_environment(),
-                                 response_body_.data(), response_body_.size());
+    std::unique_ptr<script::PreallocatedArrayBufferData> downloaded_data(
+        new script::PreallocatedArrayBufferData());
+    response_body_->GetAndReset(downloaded_data.get());
+    auto array_buffer = script::ArrayBuffer::New(
+        settings_->global_environment(), std::move(downloaded_data));
     response_array_buffer_reference_.reset(
         new script::ScriptValue<script::ArrayBuffer>::Reference(this,
                                                                 array_buffer));
-    response_body_.Clear();
     return array_buffer;
   } else {
     return script::Handle<script::ArrayBuffer>(
@@ -1052,10 +1039,9 @@ script::Handle<script::ArrayBuffer> XMLHttpRequest::response_array_buffer() {
   }
 }
 
-void XMLHttpRequest::UpdateProgress() {
+void XMLHttpRequest::UpdateProgress(int64_t received_length) {
   DCHECK(http_response_headers_);
   const int64 content_length = http_response_headers_->GetContentLength();
-  const int64 received_length = static_cast<int64>(response_body_.size());
   const bool length_computable =
       content_length > 0 && received_length <= content_length;
   const uint64 total =
@@ -1111,15 +1097,24 @@ void XMLHttpRequest::DecrementActiveRequests() {
 void XMLHttpRequest::StartRequest(const std::string& request_body) {
   TRACK_MEMORY_SCOPE("XHR");
 
-  response_body_.Clear();
   response_array_buffer_reference_.reset();
 
   network::NetworkModule* network_module =
       settings_->fetcher_factory()->network_module();
   url_fetcher_ = net::URLFetcher::Create(request_url_, method_, this);
   url_fetcher_->SetRequestContext(network_module->url_request_context_getter());
+  if (fetch_callback_) {
+    response_body_ = new URLFetcherResponseWriter::Buffer(
+        URLFetcherResponseWriter::Buffer::kString);
+    response_body_->DisablePreallocate();
+  } else {
+    response_body_ = new URLFetcherResponseWriter::Buffer(
+        response_type_ == kArrayBuffer
+            ? URLFetcherResponseWriter::Buffer::kArrayBuffer
+            : URLFetcherResponseWriter::Buffer::kString);
+  }
   std::unique_ptr<net::URLFetcherResponseWriter> download_data_writer(
-      new loader::URLFetcherStringWriter());
+      new URLFetcherResponseWriter(response_body_));
   url_fetcher_->SaveResponseWithWriter(std::move(download_data_writer));
   // Don't retry, let the caller deal with it.
   url_fetcher_->SetAutomaticallyRetryOn5xx(false);
@@ -1197,9 +1192,11 @@ std::ostream& operator<<(std::ostream& out, const XMLHttpRequest& xhr) {
       (xhr.response_type_ == XMLHttpRequest::kDefault ||
        xhr.response_type_ == XMLHttpRequest::kText)) {
     size_t kMaxSize = 4096;
-    response_text = base::StringPiece(
-        reinterpret_cast<const char*>(xhr.response_body_.data()),
-        std::min(kMaxSize, xhr.response_body_.size()));
+    const auto& response_body =
+        xhr.response_body_->GetTemporaryReferenceOfString();
+    response_text =
+        base::StringPiece(reinterpret_cast<const char*>(response_body.data()),
+                          std::min(kMaxSize, response_body.size()));
   }
 
   std::string xhr_out = base::StringPrintf(
@@ -1231,6 +1228,8 @@ std::ostream& operator<<(std::ostream& out, const XMLHttpRequest& xhr) {
 
 // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#document-response-entity-body
 scoped_refptr<dom::Document> XMLHttpRequest::GetDocumentResponseEntityBody() {
+  DCHECK_EQ(state_, kDone);
+
   // Step 1..5
   const std::string final_mime_type =
       mime_type_override_.empty() ? response_mime_type_ : mime_type_override_;
@@ -1250,8 +1249,8 @@ scoped_refptr<dom::Document> XMLHttpRequest::GetDocumentResponseEntityBody() {
       base::Bind(&XMLHttpRequest::XMLDecoderLoadCompleteCallback,
                  base::Unretained(this)));
   has_xml_decoder_error_ = false;
-  xml_decoder.DecodeChunk(response_body_.string().c_str(),
-                          response_body_.string().size());
+  xml_decoder.DecodeChunk(response_body_->GetReferenceOfStringAndSeal().c_str(),
+                          response_body_->GetReferenceOfStringAndSeal().size());
   xml_decoder.Finish();
   if (has_xml_decoder_error_) {
     return NULL;
