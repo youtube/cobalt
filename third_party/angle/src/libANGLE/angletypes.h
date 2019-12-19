@@ -9,7 +9,6 @@
 #ifndef LIBANGLE_ANGLETYPES_H_
 #define LIBANGLE_ANGLETYPES_H_
 
-#include "base/cpp14oncpp11.h"
 #include "common/Color.h"
 #include "common/FixedVector.h"
 #include "common/PackedEnums.h"
@@ -18,6 +17,7 @@
 #include "libANGLE/Constants.h"
 #include "libANGLE/Error.h"
 #include "libANGLE/RefCountObject.h"
+#include "nb/cpp14oncpp11.h"
 
 #include <inttypes.h>
 #include <stdint.h>

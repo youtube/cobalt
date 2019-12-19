@@ -9,12 +9,12 @@
 #ifndef COMPILER_TRANSLATOR_SYMBOL_H_
 #define COMPILER_TRANSLATOR_SYMBOL_H_
 
-#include "base/cpp14oncpp11.h"
 #include "common/angleutils.h"
 #include "compiler/translator/ExtensionBehavior.h"
 #include "compiler/translator/ImmutableString.h"
 #include "compiler/translator/IntermNode.h"
 #include "compiler/translator/SymbolUniqueId.h"
+#include "nb/cpp14oncpp11.h"
 
 namespace sh
 {

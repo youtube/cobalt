@@ -12,7 +12,6 @@
 #include "compiler/translator/TranslatorVulkan.h"
 
 #include "angle_gl.h"
-#include "base/cpp14oncpp11.h"
 #include "common/utilities.h"
 #include "compiler/translator/BuiltinsWorkaroundGLSL.h"
 #include "compiler/translator/ImmutableStringBuilder.h"
@@ -32,6 +31,7 @@
 #include "compiler/translator/tree_util/ReplaceVariable.h"
 #include "compiler/translator/tree_util/RunAtTheEndOfShader.h"
 #include "compiler/translator/util.h"
+#include "nb/cpp14oncpp11.h"
 
 namespace sh
 {

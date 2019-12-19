@@ -10,8 +10,8 @@
 #ifndef COMPILER_TRANSLATOR_STATIC_TYPE_H_
 #define COMPILER_TRANSLATOR_STATIC_TYPE_H_
 
-#include "base/cpp14oncpp11.h"
 #include "compiler/translator/Types.h"
+#include "nb/cpp14oncpp11.h"
 
 namespace sh
 {

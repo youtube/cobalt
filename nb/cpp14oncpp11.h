@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef BASE_CPP14ONCPP11_H_
-#define BASE_CPP14ONCPP11_H_
+#ifndef NB_CPP14ONCPP11_H_
+#define NB_CPP14ONCPP11_H_
 
 #include <memory>
 
@@ -220,4 +220,4 @@ constexpr auto cend(const C& c) -> decltype(std::end(c)) {
 
 #endif  // defined(STARBOARD)
 
-#endif  // BASE_CPP14ONCPP11_H_
+#endif  // NB_CPP14ONCPP11_H_
