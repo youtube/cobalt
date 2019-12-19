@@ -9,7 +9,6 @@
 
 #include "compiler/translator/ResourcesHLSL.h"
 
-#include "base/cpp14oncpp11.h"
 #include "common/utilities.h"
 #include "compiler/translator/AtomicCounterFunctionHLSL.h"
 #include "compiler/translator/ImmutableStringBuilder.h"
@@ -17,6 +16,7 @@
 #include "compiler/translator/UtilsHLSL.h"
 #include "compiler/translator/blocklayoutHLSL.h"
 #include "compiler/translator/util.h"
+#include "nb/cpp14oncpp11.h"
 
 namespace sh
 {

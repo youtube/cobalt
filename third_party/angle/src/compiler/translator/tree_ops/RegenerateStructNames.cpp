@@ -6,9 +6,9 @@
 
 #include "compiler/translator/tree_ops/RegenerateStructNames.h"
 
-#include "base/cpp14oncpp11.h"
 #include "common/debug.h"
 #include "compiler/translator/ImmutableStringBuilder.h"
+#include "nb/cpp14oncpp11.h"
 
 namespace sh
 {

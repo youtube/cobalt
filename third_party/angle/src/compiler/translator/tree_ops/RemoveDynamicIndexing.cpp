@@ -11,7 +11,6 @@
 
 #include "compiler/translator/tree_ops/RemoveDynamicIndexing.h"
 
-#include "base/cpp14oncpp11.h"
 #include "compiler/translator/Compiler.h"
 #include "compiler/translator/Diagnostics.h"
 #include "compiler/translator/InfoSink.h"
@@ -20,6 +19,7 @@
 #include "compiler/translator/tree_util/IntermNodePatternMatcher.h"
 #include "compiler/translator/tree_util/IntermNode_util.h"
 #include "compiler/translator/tree_util/IntermTraverse.h"
+#include "nb/cpp14oncpp11.h"
 
 namespace sh
 {
