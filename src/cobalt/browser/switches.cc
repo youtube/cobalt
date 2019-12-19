@@ -286,6 +286,12 @@ const char kOffscreenTargetCacheSizeInBytesHelp[] =
     "limit allows. It is recommended that enough memory be reserved for two "
     "RGBA atlases about a quarter of the frame size.";
 
+const char kOmitDeviceAuthenticationQueryParameters[] =
+    "omit_device_authentication_query_parameters";
+const char kOmitDeviceAuthenticationQueryParametersHelp[] =
+    "When set, no device authentication parameters will be appended to the"
+    "initial URL.";
+
 const char kProxy[] = "proxy";
 const char kProxyHelp[] =
     "Specifies a proxy to use for network connections. "
@@ -431,6 +437,8 @@ std::string HelpMessage() {
         {kMaxCobaltGpuUsage, kMaxCobaltGpuUsageHelp},
         {kOffscreenTargetCacheSizeInBytes,
          kOffscreenTargetCacheSizeInBytesHelp},
+        {kOmitDeviceAuthenticationQueryParameters,
+         kOmitDeviceAuthenticationQueryParametersHelp},
         {kProxy, kProxyHelp}, {kQrCodeOverlay, kQrCodeOverlayHelp},
         {kReduceCpuMemoryBy, kReduceCpuMemoryByHelp},
         {kReduceGpuMemoryBy, kReduceGpuMemoryByHelp},

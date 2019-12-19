@@ -106,6 +106,7 @@ class BrowserModule {
     base::Optional<cssom::ViewportSize> requested_viewport_size;
     bool enable_splash_screen_on_reloads;
     bool enable_on_screen_keyboard = true;
+    base::Closure web_module_loaded_callback;
   };
 
   // Type for a collection of URL handler callbacks that can potentially handle
@@ -207,6 +208,8 @@ class BrowserModule {
   void OnCaptionSettingsChanged(
       const base::AccessibilityCaptionSettingsChangedEvent* event);
 #endif  // SB_HAS(CAPTIONS)
+
+  bool IsWebModuleLoaded() { return web_module_loaded_.IsSignaled(); }
 
  private:
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
@@ -660,6 +663,9 @@ class BrowserModule {
   // by automem.  We want this so that we can check that it never changes, since
   // we do not have the ability to modify it after startup.
   base::Optional<int64_t> javascript_gc_threshold_in_bytes_;
+
+  // Callback to run when the Web Module is loaded.
+  base::Closure web_module_loaded_callback_;
 };
 
 }  // namespace browser

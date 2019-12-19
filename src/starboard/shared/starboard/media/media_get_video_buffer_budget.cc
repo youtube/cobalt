@@ -18,8 +18,8 @@
 
 #if SB_API_VERSION >= 10
 // These are the legacy default values of the GYP variables.
-#define LEGACY_VIDEO_BUDGET_1080P 16 * 1024 * 1024
-#define LEGACY_VIDEO_BUDGET_4K 60 * 1024 * 1024
+#define LEGACY_VIDEO_BUDGET_1080P 30 * 1024 * 1024
+#define LEGACY_VIDEO_BUDGET_4K 100 * 1024 * 1024
 
 int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
                                 int resolution_width,

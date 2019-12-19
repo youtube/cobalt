@@ -169,20 +169,23 @@ GURL GetInitialURL() {
   }
 
 #if SB_API_VERSION >= 11
-  // Append the device authentication query parameters based on the platform's
-  // certification secret to the initial URL.
-  std::string query = initial_url.query();
-  std::string device_authentication_query_string =
-      GetDeviceAuthenticationSignedURLQueryString();
-  if (!query.empty() && !device_authentication_query_string.empty()) {
-    query += "&";
-  }
-  query += device_authentication_query_string;
+  if (!command_line->HasSwitch(
+          switches::kOmitDeviceAuthenticationQueryParameters)) {
+    // Append the device authentication query parameters based on the platform's
+    // certification secret to the initial URL.
+    std::string query = initial_url.query();
+    std::string device_authentication_query_string =
+        GetDeviceAuthenticationSignedURLQueryString();
+    if (!query.empty() && !device_authentication_query_string.empty()) {
+      query += "&";
+    }
+    query += device_authentication_query_string;
 
-  if (!query.empty()) {
-    GURL::Replacements replacements;
-    replacements.SetQueryStr(query);
-    initial_url = initial_url.ReplaceComponents(replacements);
+    if (!query.empty()) {
+      GURL::Replacements replacements;
+      replacements.SetQueryStr(query);
+      initial_url = initial_url.ReplaceComponents(replacements);
+    }
   }
 #endif  // SB_API_VERSION >= 11
 
@@ -633,6 +636,8 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   options.web_module_options.csp_enforcement_mode = dom::kCspEnforcementEnable;
 
   options.requested_viewport_size = requested_viewport_size;
+  options.web_module_loaded_callback =
+      base::Bind(&Application::DispatchEarlyDeepLink, base::Unretained(this));
   account_manager_.reset(new account::AccountManager());
   browser_module_.reset(
       new BrowserModule(initial_url,
@@ -812,6 +817,7 @@ void Application::Quit() {
 
 void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
   DCHECK(starboard_event);
+  DCHECK_EQ(base::MessageLoop::current(), message_loop_);
 
   // Forward input events to |SystemWindow|.
   if (starboard_event->type == kSbEventTypeInput) {
@@ -865,7 +871,13 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeLink: {
       const char* link = static_cast<const char*>(starboard_event->data);
-      DispatchEventInternal(new base::DeepLinkEvent(link));
+      if (browser_module_->IsWebModuleLoaded()) {
+        DLOG(INFO) << "Dispatching deep link " << link;
+        DispatchEventInternal(new base::DeepLinkEvent(link));
+      } else {
+        DLOG(INFO) << "Storing deep link " << link;
+        early_deep_link_ = link;
+      }
       break;
     }
     case kSbEventTypeAccessiblitySettingsChanged:
@@ -1145,6 +1157,15 @@ void Application::OnMemoryTrackerCommand(const std::string& message) {
   memory_tracker_tool_ = memory_tracker::CreateMemoryTrackerTool(message);
 }
 #endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
+
+void Application::DispatchEarlyDeepLink() {
+  if (early_deep_link_.empty()) {
+    return;
+  }
+  DLOG(INFO) << "Dispatching early deep link " << early_deep_link_;
+  DispatchEventInternal(new base::DeepLinkEvent(early_deep_link_.c_str()));
+  early_deep_link_ = "";
+}
 
 }  // namespace browser
 }  // namespace cobalt

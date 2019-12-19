@@ -208,6 +208,13 @@ class Application {
   void OnMemoryTrackerCommand(const std::string& message);
 #endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
 
+  // The latest link received before the Web Module is loaded is stored here.
+  std::string early_deep_link_;
+
+  // Dispach events for early deeplink. This should be called once the Web
+  // Module is loaded.
+  void DispatchEarlyDeepLink();
+
   DISALLOW_COPY_AND_ASSIGN(Application);
 };
 

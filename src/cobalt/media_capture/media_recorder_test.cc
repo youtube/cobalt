@@ -41,7 +41,7 @@ using cobalt::script::testing::FakeScriptValue;
 
 namespace {
 void PushData(
-    const scoped_refptr<cobalt::media_capture::MediaRecorder>& media_recorder) {
+    cobalt::media_capture::MediaRecorder* media_recorder) {
   const int kSampleRate = 16000;
   cobalt::media_stream::AudioParameters params(1, kSampleRate, 16);
   media_recorder->OnSetFormat(params);
@@ -228,9 +228,8 @@ TEST_F(MediaRecorderTest, DifferentThreadForAudioSource) {
   // member functions with base::Unretained() or weak pointer.
   // Creates media_recorder_ref just to make it clear that no copy happened
   // during base::Bind().
-  const scoped_refptr<MediaRecorder>& media_recorder_ref = media_recorder_;
   t.message_loop()->task_runner()->PostBlockingTask(
-      FROM_HERE, base::Bind(&PushData, media_recorder_ref));
+      FROM_HERE, base::Bind(&PushData, base::Unretained(media_recorder_.get())));
   t.Stop();
 
   base::RunLoop().RunUntilIdle();

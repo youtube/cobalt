@@ -483,6 +483,12 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // boxes without requiring a new layout.
   scoped_refptr<ui_navigation::NavItem> ui_nav_item_;
 
+  // This temporary flag is used to avoid a cycle on focus changes. When the
+  // HTML element receives focus, it must inform the UI navigation item. When
+  // the UI navigation item receives focus (either by calling SetFocus or by an
+  // update from the UI engine), it will tell the HTML element it was focused.
+  bool ui_nav_focusing_ = false;
+
   // HTMLElement is a friend of Animatable so that animatable can insert and
   // remove animations into HTMLElement's set of animations.
   friend class DOMAnimatable;

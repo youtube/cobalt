@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -53,6 +52,11 @@ _TESTS_NO_SIGNAL = [
     'persistent_cookie',
     'web_debugger',
     'web_platform_tests',
+]
+# These tests can only be run on platforms whose app launcher can send deep
+# links.
+_TESTS_NEEDING_DEEP_LINK = [
+    'fire_deep_link_before_load',
 ]
 # Location of test files.
 _TEST_DIR_PATH = 'cobalt.black_box_tests.tests.'
@@ -112,10 +116,13 @@ def LoadTests(platform, config, device_id, out_directory):
       output_file=None,
       out_directory=out_directory)
 
+  test_targets = _TESTS_NO_SIGNAL
+
   if launcher.SupportsSuspendResume():
-    test_targets = _TESTS_NEEDING_SYSTEM_SIGNAL + _TESTS_NO_SIGNAL
-  else:
-    test_targets = _TESTS_NO_SIGNAL
+    test_targets += _TESTS_NEEDING_SYSTEM_SIGNAL
+
+  if launcher.SupportsDeepLink():
+    test_targets += _TESTS_NEEDING_DEEP_LINK
 
   test_suite = unittest.TestSuite()
   for test in test_targets:
