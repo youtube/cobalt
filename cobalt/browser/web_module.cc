@@ -518,7 +518,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
   supports_map_to_mesh = css_parser::Parser::kDoesNotSupportMapToMesh;
 #endif
 
-  css_parser_ = css_parser::Parser::Create(supports_map_to_mesh);
+  css_parser_ =
+      css_parser::Parser::Create(debugger_hooks_, supports_map_to_mesh);
   DCHECK(css_parser_);
 
   dom_parser_.reset(new dom_parser::Parser(

@@ -32,6 +32,7 @@
 #include "base/synchronization/lock.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/base/console_log.h"
 #include "cobalt/css_parser/grammar.h"
 #include "cobalt/css_parser/margin_or_padding_shorthand.h"
 #include "cobalt/css_parser/property_declaration.h"
@@ -500,7 +501,8 @@ std::string ParserImpl::FormatMessage(const std::string& message_type,
     message_stream << std::endl
                    << std::string(
                           preamble.length() + column_number - substr_start - 1,
-                          ' ') << '^';
+                          ' ')
+                   << '^';
   }
 
   return message_stream.str();
@@ -549,17 +551,30 @@ inline void yyerror(YYLTYPE* source_location, ParserImpl* parser_impl,
 
 namespace {
 
-void LogWarningCallback(const std::string& message) { LOG(WARNING) << message; }
+void LogWarningCallback(const ::base::DebuggerHooks* debugger_hooks,
+                        const std::string& message) {
+  CLOG(WARNING, *debugger_hooks) << message;
+}
 
-void LogErrorCallback(const std::string& message) { LOG(ERROR) << message; }
+void LogErrorCallback(const ::base::DebuggerHooks* debugger_hooks,
+                      const std::string& message) {
+  CLOG(ERROR, *debugger_hooks) << message;
+}
 
 }  // namespace
 
 std::unique_ptr<Parser> Parser::Create(
+    const ::base::DebuggerHooks& debugger_hooks,
     SupportsMapToMeshFlag supports_map_to_mesh) {
-  return base::WrapUnique(new Parser(::base::Bind(&LogWarningCallback),
-                                     ::base::Bind(&LogErrorCallback),
-                                     Parser::kVerbose, supports_map_to_mesh));
+  return base::WrapUnique(new Parser(
+      ::base::Bind(&LogWarningCallback, ::base::Unretained(&debugger_hooks)),
+      ::base::Bind(&LogErrorCallback, ::base::Unretained(&debugger_hooks)),
+      Parser::kVerbose, supports_map_to_mesh));
+}
+
+std::unique_ptr<Parser> Parser::Create() {
+  static ::base::NullDebuggerHooks null_debugger_hooks;
+  return Parser::Create(null_debugger_hooks, Parser::kSupportsMapToMesh);
 }
 
 Parser::Parser(const OnMessageCallback& on_warning_callback,
