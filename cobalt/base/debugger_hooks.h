@@ -16,6 +16,8 @@
 
 #include <string>
 
+#include "base/logging.h"
+
 namespace base {
 
 // Interface to allow the WebModule and the various objects implementing the
@@ -29,6 +31,10 @@ class DebuggerHooks {
     kOneshot,
     kRecurring,
   };
+
+  // Logs a message to the JavaScript console.
+  virtual void ConsoleLog(::logging::LogSeverity severity,
+                          std::string message) const = 0;
 
   // Record the JavaScript stack on the WebModule thread at the point a task is
   // initiated that will run at a later time (on the same thread), allowing it
@@ -75,6 +81,8 @@ class ScopedAsyncTask {
 // Null implementation for gold builds and tests where there is no debugger.
 class NullDebuggerHooks : public DebuggerHooks {
  public:
+  void ConsoleLog(::logging::LogSeverity severity,
+                  std::string message) const override {}
   void AsyncTaskScheduled(const void* task, const std::string& name,
                           AsyncTaskFrequency frequency) const override {}
   void AsyncTaskStarted(const void* task) const override {}

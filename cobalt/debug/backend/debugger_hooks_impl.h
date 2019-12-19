@@ -31,6 +31,9 @@ class DebugModule;
 
 class DebuggerHooksImpl : public base::DebuggerHooks {
  public:
+  void ConsoleLog(::logging::LogSeverity severity,
+                  std::string message) const override;
+
   void AsyncTaskScheduled(const void* task, const std::string& name,
                           AsyncTaskFrequency frequency) const override;
   void AsyncTaskStarted(const void* task) const override;

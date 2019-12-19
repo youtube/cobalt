@@ -25,6 +25,8 @@ namespace test {
 
 class MockDebuggerHooks : public base::DebuggerHooks {
  public:
+  MOCK_CONST_METHOD2(ConsoleLog, void(::logging::LogSeverity severity,
+                                      std::string message));
   MOCK_CONST_METHOD3(AsyncTaskScheduled,
                      void(const void* task, const std::string& name,
                           AsyncTaskFrequency frequency));
