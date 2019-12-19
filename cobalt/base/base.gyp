@@ -33,6 +33,7 @@
         'clock.h',
         'cobalt_paths.h',
         'compiler.h',
+        'console_log.h',
         'c_val.cc',
         'c_val.h',
         'c_val_collection_entry_stats.h',

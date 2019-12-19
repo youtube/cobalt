@@ -19,6 +19,7 @@
 #include <string>
 
 #include "base/callback.h"
+#include "cobalt/base/debugger_hooks.h"
 #include "cobalt/cssom/css_parser.h"
 
 namespace cobalt {
@@ -37,7 +38,12 @@ class Parser : public cssom::CSSParser {
   // for the map-to-mesh CSS filter.  If disabled, "filter: map-to-mesh(...)"
   // will result in a parse error.
   static std::unique_ptr<Parser> Create(
-      SupportsMapToMeshFlag supports_map_to_mesh = kSupportsMapToMesh);
+      const ::base::DebuggerHooks& debugger_hooks,
+      SupportsMapToMeshFlag supports_map_to_mesh);
+  // No-args version for tests that don't particularly care about console
+  // logging or map-to-mesh.
+  static std::unique_ptr<Parser> Create();
+
   ~Parser();
 
   scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet(

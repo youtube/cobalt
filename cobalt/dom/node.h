@@ -22,6 +22,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/optional.h"
+#include "cobalt/base/debugger_hooks.h"
 #include "cobalt/base/token.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/mutation_observer.h"
@@ -214,6 +215,9 @@ class Node : public EventTarget {
   // that affects the topology of the subtree defined by this node.
   // The returned node generation will be never equal to kInvalidNodeGeneration.
   uint32_t node_generation() const { return node_generation_; }
+
+  // Returns the DebuggerHooks for the WebModule associated with this Node.
+  base::DebuggerHooks* debugger_hooks() const;
 
   // Children classes implement this method to support type-safe visiting via
   // double dispatch.
