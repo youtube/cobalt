@@ -74,6 +74,8 @@
   },
   'target_defaults': {
     'defines': [
+      'SB_SABI_JSON_ID=<!pymod_do_main(starboard.sabi.generate_sabi_id -f <(DEPTH)/<(sabi_json_path))',
+
       'SB_API_VERSION=<(sb_api_version)',
 
       # Inlined Python used to capitalize the variable values.
