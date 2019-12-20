@@ -61,6 +61,9 @@ extern const char* kSbFileSepString;
 // Allow ac3 and ec3 support
 extern const bool kSbHasAc3Audio;
 
+// Specifies whether this platform updates audio frames asynchronously.
+extern const bool kSbHasAsyncAudioFramesReporting;
+
 // Allow playing audioless video.
 extern const bool kSbHasAudiolessVideo;
 

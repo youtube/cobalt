@@ -410,10 +410,12 @@ void AudioRenderer::GetSourceStatus(int* frames_in_buffer,
 }
 
 void AudioRenderer::ConsumeFrames(int frames_consumed
-#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
+    SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
                                   ,
                                   SbTime frames_consumed_at
-#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+        // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
                                   ) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   sink_callbacks_since_last_check_.increment();
@@ -429,9 +431,15 @@ void AudioRenderer::ConsumeFrames(int frames_consumed
 // 3. It doesn't affect frame presenting even with a 60fps video.
 // However, if this ever becomes a problem, we can smooth it out over multiple
 // ConsumeFrames() calls.
-#if !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+  if (!kSbHasAsyncAudioFramesReporting) {
+    frames_consumed_at = SbTimeGetMonotonicNow();
+  }
+#elif SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION && \
+    !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
   SbTime frames_consumed_at = SbTimeGetMonotonicNow();
-#endif  // !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION &&
+        // !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 
   ScopedTryLock lock(mutex_);
   if (lock.is_locked()) {
