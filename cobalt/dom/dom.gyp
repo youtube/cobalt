@@ -344,6 +344,7 @@
         '<(DEPTH)/cobalt/web_animations/web_animations.gyp:web_animations',
         '<(DEPTH)/nb/nb.gyp:nb',
         '<(DEPTH)/net/net.gyp:net',
+        '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
         '<(DEPTH)/url/url.gyp:url',
       ],
       'conditions': [

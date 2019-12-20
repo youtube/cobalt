@@ -135,8 +135,8 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   };
 
   // https://html.spec.whatwg.org/commit-snapshots/ebcac971c2add28a911283899da84ec509876c44/#the-dir-attribute
-  // NOTE: 'auto' is not supported.
   enum DirState {
+    kDirAuto,
     kDirLeftToRight,
     kDirRightToLeft,
     kDirNotDefined,
@@ -236,6 +236,13 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Retrieve the dir attribute state. This is similar to dir() but returns the
   // enumerated state rather than string.
   DirState dir_state() const { return dir_; }
+
+  // This is similar to dir_state() except it will resolve kDirAuto to
+  // kDirLeftToRight or kDirRightToLeft according to the spec:
+  //   https://html.spec.whatwg.org/commit-snapshots/ebcac971c2add28a911283899da84ec509876c44/#the-directionality
+  // If "dir" was not defined for this element, then this function will return
+  // kDirNotDefined.
+  virtual DirState GetUsedDirState();
 
   // Rule matching related methods.
   //
@@ -350,6 +357,12 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Returns true if the element is the root element as defined in
   // https://www.w3.org/TR/html5/semantics.html#the-root-element.
   bool IsRootElement();
+
+  // Returns true if this is a document element.
+  // https://dom.spec.whatwg.org/#document-element
+  bool IsDocumentElement() const {
+    return parent_node() && parent_node()->IsDocument();
+  }
 
   DEFINE_WRAPPABLE_TYPE(HTMLElement);
 
