@@ -14,18 +14,20 @@
 namespace rx
 {
 
-DeviceVk::DeviceVk() : DeviceImpl()
-{
-}
+DeviceVk::DeviceVk() : DeviceImpl() {}
 
-DeviceVk::~DeviceVk()
-{
-}
+DeviceVk::~DeviceVk() {}
 
-egl::Error DeviceVk::getDevice(void **outValue)
+egl::Error DeviceVk::initialize()
 {
     UNIMPLEMENTED();
-    return egl::Error(EGL_BAD_ACCESS);
+    return egl::NoError();
+}
+
+egl::Error DeviceVk::getAttribute(const egl::Display *display, EGLint attribute, void **outValue)
+{
+    UNIMPLEMENTED();
+    return egl::EglBadAccess();
 }
 
 EGLint DeviceVk::getType()
@@ -37,12 +39,6 @@ EGLint DeviceVk::getType()
 void DeviceVk::generateExtensions(egl::DeviceExtensions *outExtensions) const
 {
     UNIMPLEMENTED();
-}
-
-bool DeviceVk::deviceExternallySourced()
-{
-    UNIMPLEMENTED();
-    return bool();
 }
 
 }  // namespace rx

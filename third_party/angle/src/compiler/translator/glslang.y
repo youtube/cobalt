@@ -1,6 +1,6 @@
 /*
 //
-// Copyright (c) 2002-2014 The ANGLE Project Authors. All rights reserved.
+// Copyright 2002 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -15,7 +15,7 @@ WHICH GENERATES THE GLSL ES PARSER (glslang_tab.cpp AND glslang_tab.h).
 
 %{
 //
-// Copyright (c) 2002-2014 The ANGLE Project Authors. All rights reserved.
+// Copyright 2002 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -37,9 +37,12 @@ WHICH GENERATES THE GLSL ES PARSER (glslang_tab.cpp AND glslang_tab.h).
 #pragma warning(disable: 4701)
 #pragma warning(disable: 4702)
 #endif
+#if defined(__clang__)
+#pragma clang diagnostic ignored "-Wunreachable-code"
+#endif
 
 #include "angle_gl.h"
-#include "compiler/translator/Cache.h"
+#include "compiler/translator/Declarator.h"
 #include "compiler/translator/SymbolTable.h"
 #include "compiler/translator/ParseContext.h"
 #include "GLSLANG/ShaderLang.h"
@@ -58,25 +61,25 @@ using namespace sh;
 %code requires {
 #define YYLTYPE TSourceLoc
 #define YYLTYPE_IS_DECLARED 1
+#define YYLTYPE_IS_TRIVIAL 1
 }
 
 %union {
     struct {
         union {
-            TString *string;
+            const char *string;  // pool allocated.
             float f;
             int i;
             unsigned int u;
             bool b;
         };
-        TSymbol* symbol;
+        const TSymbol* symbol;
     } lex;
     struct {
         TOperator op;
         union {
             TIntermNode *intermNode;
             TIntermNodePair nodePair;
-            TIntermFunctionCallOrMethod callOrMethodPair;
             TIntermTyped *intermTypedNode;
             TIntermAggregate *intermAggregate;
             TIntermBlock *intermBlock;
@@ -86,14 +89,17 @@ using namespace sh;
             TIntermCase *intermCase;
         };
         union {
+            TVector<unsigned int> *arraySizes;
             TTypeSpecifierNonArray typeSpecifierNonArray;
             TPublicType type;
             TPrecision precision;
             TLayoutQualifier layoutQualifier;
             TQualifier qualifier;
             TFunction *function;
+            TFunctionLookup *functionLookup;
             TParameter param;
-            TField *field;
+            TDeclarator *declarator;
+            TDeclaratorList *declaratorList;
             TFieldList *fieldList;
             TQualifierWrapperBase *qualifierWrapper;
             TTypeQualifierBuilder *typeQualifierBuilder;
@@ -121,54 +127,42 @@ extern void yyerror(YYLTYPE* yylloc, TParseContext* context, void *scanner, cons
       }                                                      \
   } while (0)
 
-#define VERTEX_ONLY(S, L) {  \
+#define VERTEX_ONLY(S, L) do {  \
     if (context->getShaderType() != GL_VERTEX_SHADER) {  \
-        context->error(L, " supported in vertex shaders only ", S);  \
+        context->error(L, " supported in vertex shaders only", S);  \
     }  \
-}
+} while (0)
 
-#define FRAG_ONLY(S, L) {  \
-    if (context->getShaderType() != GL_FRAGMENT_SHADER) {  \
-        context->error(L, " supported in fragment shaders only ", S);  \
-    }  \
-}
-
-#define COMPUTE_ONLY(S, L) {  \
+#define COMPUTE_ONLY(S, L) do {  \
     if (context->getShaderType() != GL_COMPUTE_SHADER) {  \
-        context->error(L, " supported in compute shaders only ", S);  \
+        context->error(L, " supported in compute shaders only", S);  \
     }  \
-}
+} while (0)
 
-#define NON_COMPUTE_ONLY(S, L) {  \
-    if (context->getShaderType() != GL_VERTEX_SHADER && context->getShaderType() != GL_FRAGMENT_SHADER) {  \
-        context->error(L, " supported in vertex and fragment shaders only ", S);  \
-    }  \
-}
-
-#define ES2_ONLY(S, L) {  \
+#define ES2_ONLY(S, L) do {  \
     if (context->getShaderVersion() != 100) {  \
-        context->error(L, " supported in GLSL ES 1.00 only ", S);  \
+        context->error(L, " supported in GLSL ES 1.00 only", S);  \
     }  \
-}
+} while (0)
 
-#define ES3_OR_NEWER(TOKEN, LINE, REASON) {  \
+#define ES3_OR_NEWER(TOKEN, LINE, REASON) do {  \
     if (context->getShaderVersion() < 300) {  \
-        context->error(LINE, REASON " supported in GLSL ES 3.00 and above only ", TOKEN);  \
+        context->error(LINE, REASON " supported in GLSL ES 3.00 and above only", TOKEN);  \
     }  \
-}
+} while (0)
 
-#define ES3_1_ONLY(TOKEN, LINE, REASON) {  \
+#define ES3_1_ONLY(TOKEN, LINE, REASON) do {  \
     if (context->getShaderVersion() != 310) {  \
-        context->error(LINE, REASON " supported in GLSL ES 3.10 only ", TOKEN);  \
+        context->error(LINE, REASON " supported in GLSL ES 3.10 only", TOKEN);  \
     }  \
-}
+} while (0)
 %}
 
 %token <lex> INVARIANT HIGH_PRECISION MEDIUM_PRECISION LOW_PRECISION PRECISION
 %token <lex> ATTRIBUTE CONST_QUAL BOOL_TYPE FLOAT_TYPE INT_TYPE UINT_TYPE
 %token <lex> BREAK CONTINUE DO ELSE FOR IF DISCARD RETURN SWITCH CASE DEFAULT
 %token <lex> BVEC2 BVEC3 BVEC4 IVEC2 IVEC3 IVEC4 VEC2 VEC3 VEC4 UVEC2 UVEC3 UVEC4
-%token <lex> MATRIX2 MATRIX3 MATRIX4 IN_QUAL OUT_QUAL INOUT_QUAL UNIFORM VARYING
+%token <lex> MATRIX2 MATRIX3 MATRIX4 IN_QUAL OUT_QUAL INOUT_QUAL UNIFORM BUFFER VARYING
 %token <lex> MATRIX2x3 MATRIX3x2 MATRIX2x4 MATRIX4x2 MATRIX3x4 MATRIX4x3
 %token <lex> CENTROID FLAT SMOOTH
 %token <lex> READONLY WRITEONLY COHERENT RESTRICT VOLATILE SHARED
@@ -177,10 +171,12 @@ extern void yyerror(YYLTYPE* yylloc, TParseContext* context, void *scanner, cons
 %token <lex> ISAMPLER2D ISAMPLER3D ISAMPLERCUBE ISAMPLER2DARRAY
 %token <lex> USAMPLER2D USAMPLER3D USAMPLERCUBE USAMPLER2DARRAY
 %token <lex> SAMPLER2DMS ISAMPLER2DMS USAMPLER2DMS
+%token <lex> SAMPLER2DMSARRAY ISAMPLER2DMSARRAY USAMPLER2DMSARRAY
 %token <lex> SAMPLER3D SAMPLER3DRECT SAMPLER2DSHADOW SAMPLERCUBESHADOW SAMPLER2DARRAYSHADOW
 %token <lex> SAMPLEREXTERNAL2DY2YEXT
 %token <lex> IMAGE2D IIMAGE2D UIMAGE2D IMAGE3D IIMAGE3D UIMAGE3D IMAGE2DARRAY IIMAGE2DARRAY UIMAGE2DARRAY
 %token <lex> IMAGECUBE IIMAGECUBE UIMAGECUBE
+%token <lex> ATOMICUINT
 %token <lex> LAYOUT
 %token <lex> YUVCSCSTANDARDEXT YUVCSCSTANDARDEXTCONSTANT
 
@@ -197,7 +193,7 @@ extern void yyerror(YYLTYPE* yylloc, TParseContext* context, void *scanner, cons
 %token <lex> LEFT_ANGLE RIGHT_ANGLE VERTICAL_BAR CARET AMPERSAND QUESTION
 
 %type <lex> identifier
-%type <interm> assignment_operator unary_operator
+%type <interm.op> assignment_operator unary_operator
 %type <interm.intermTypedNode> variable_identifier primary_expression postfix_expression
 %type <interm.intermTypedNode> expression integer_expression assignment_expression
 %type <interm.intermTypedNode> unary_expression multiplicative_expression additive_expression
@@ -205,11 +201,12 @@ extern void yyerror(YYLTYPE* yylloc, TParseContext* context, void *scanner, cons
 %type <interm.intermTypedNode> conditional_expression constant_expression
 %type <interm.intermTypedNode> logical_or_expression logical_xor_expression logical_and_expression
 %type <interm.intermTypedNode> shift_expression and_expression exclusive_or_expression inclusive_or_expression
-%type <interm.intermTypedNode> function_call initializer condition conditionopt
+%type <interm.intermTypedNode> function_call initializer
 
+%type <interm.intermNode> condition conditionopt
 %type <interm.intermBlock> translation_unit
 %type <interm.intermNode> function_definition statement simple_statement
-%type <interm.intermBlock> statement_list compound_statement compound_statement_no_new_scope
+%type <interm.intermBlock> statement_list compound_statement_with_scope compound_statement_no_new_scope
 %type <interm.intermNode> declaration_statement selection_statement expression_statement
 %type <interm.intermNode> declaration external_declaration
 %type <interm.intermNode> for_init_statement
@@ -219,8 +216,11 @@ extern void yyerror(YYLTYPE* yylloc, TParseContext* context, void *scanner, cons
 %type <interm.intermNode> iteration_statement jump_statement statement_no_new_scope statement_with_scope
 %type <interm> single_declaration init_declarator_list
 
-%type <interm> parameter_declaration parameter_declarator parameter_type_specifier
+%type <interm.param> parameter_declaration parameter_declarator parameter_type_specifier
 %type <interm.layoutQualifier> layout_qualifier_id_list layout_qualifier_id
+
+// Note: array_specifier guaranteed to be non-null.
+%type <interm.arraySizes> array_specifier
 
 %type <interm.type> fully_specified_type type_specifier
 
@@ -232,12 +232,15 @@ extern void yyerror(YYLTYPE* yylloc, TParseContext* context, void *scanner, cons
 
 %type <interm.typeSpecifierNonArray> type_specifier_nonarray struct_specifier
 %type <interm.type> type_specifier_no_prec
-%type <interm.field> struct_declarator
-%type <interm.fieldList> struct_declarator_list struct_declaration struct_declaration_list
-%type <interm.function> function_header function_declarator function_identifier
-%type <interm.function> function_header_with_parameters function_call_header
-%type <interm> function_call_header_with_parameters function_call_header_no_parameters function_call_generic function_prototype
-%type <interm> function_call_or_method
+%type <interm.declarator> struct_declarator
+%type <interm.declaratorList> struct_declarator_list
+%type <interm.fieldList> struct_declaration struct_declaration_list
+%type <interm.function> function_header function_declarator
+%type <interm.function> function_header_with_parameters
+%type <interm.functionLookup> function_identifier function_call_header
+%type <interm.functionLookup> function_call_header_with_parameters function_call_header_no_parameters
+%type <interm.functionLookup> function_call_generic function_call_or_method
+%type <interm> function_prototype
 
 %type <lex> enter_struct
 
@@ -251,10 +254,7 @@ identifier
 variable_identifier
     : IDENTIFIER {
         // The symbol table search was done in the lexical phase
-        $$ = context->parseVariableIdentifier(@1, $1.string, $1.symbol);
-
-        // don't delete $1.string, it's used by error recovery, and the pool
-        // pop will reclaim the memory
+        $$ = context->parseVariableIdentifier(@1, ImmutableString($1.string), $1.symbol);
     }
     ;
 
@@ -265,30 +265,31 @@ primary_expression
     | INTCONSTANT {
         TConstantUnion *unionArray = new TConstantUnion[1];
         unionArray->setIConst($1.i);
-        $$ = context->intermediate.addConstantUnion(unionArray, TType(EbtInt, EbpUndefined, EvqConst), @1);
+        $$ = context->addScalarLiteral(unionArray, @1);
     }
     | UINTCONSTANT {
         TConstantUnion *unionArray = new TConstantUnion[1];
         unionArray->setUConst($1.u);
-        $$ = context->intermediate.addConstantUnion(unionArray, TType(EbtUInt, EbpUndefined, EvqConst), @1);
+        $$ = context->addScalarLiteral(unionArray, @1);
     }
     | FLOATCONSTANT {
         TConstantUnion *unionArray = new TConstantUnion[1];
         unionArray->setFConst($1.f);
-        $$ = context->intermediate.addConstantUnion(unionArray, TType(EbtFloat, EbpUndefined, EvqConst), @1);
+        $$ = context->addScalarLiteral(unionArray, @1);
     }
     | BOOLCONSTANT {
         TConstantUnion *unionArray = new TConstantUnion[1];
         unionArray->setBConst($1.b);
-        $$ = context->intermediate.addConstantUnion(unionArray, TType(EbtBool, EbpUndefined, EvqConst), @1);
+        $$ = context->addScalarLiteral(unionArray, @1);
     }
     | YUVCSCSTANDARDEXTCONSTANT {
-        if (!context->isExtensionEnabled("GL_EXT_YUV_target")) {
-           context->error(@1, "unsupported value", $1.string->c_str());
+        if (!context->checkCanUseExtension(@1, TExtension::EXT_YUV_target))
+        {
+           context->error(@1, "unsupported value", ImmutableString($1.string));
         }
         TConstantUnion *unionArray = new TConstantUnion[1];
-        unionArray->setYuvCscStandardEXTConst(getYuvCscStandardEXT($1.string->c_str()));
-        $$ = context->intermediate.addConstantUnion(unionArray, TType(EbtYuvCscStandardEXT, EbpUndefined, EvqConst), @1);
+        unionArray->setYuvCscStandardEXTConst(getYuvCscStandardEXT(ImmutableString($1.string)));
+        $$ = context->addScalarLiteral(unionArray, @1);
     }
     | LEFT_PAREN expression RIGHT_PAREN {
         $$ = $2;
@@ -306,7 +307,7 @@ postfix_expression
         $$ = $1;
     }
     | postfix_expression DOT FIELD_SELECTION {
-        $$ = context->addFieldSelectionExpression($1, @2, *$3.string, @3);
+        $$ = context->addFieldSelectionExpression($1, @2, ImmutableString($3.string), @3);
     }
     | postfix_expression INC_OP {
         $$ = context->addUnaryMathLValue(EOpPostIncrement, $1, @2);
@@ -325,19 +326,18 @@ integer_expression
 
 function_call
     : function_call_or_method {
-        $$ = context->addFunctionCallOrMethod($1.function, $1.callOrMethodPair.arguments, $1.callOrMethodPair.thisNode, @1);
+        $$ = context->addFunctionCallOrMethod($1, @1);
     }
     ;
 
 function_call_or_method
     : function_call_generic {
         $$ = $1;
-        $$.callOrMethodPair.thisNode = nullptr;
     }
     | postfix_expression DOT function_call_generic {
         ES3_OR_NEWER("", @3, "methods");
         $$ = $3;
-        $$.callOrMethodPair.thisNode = $1;
+        $$->setThisNode($1);
     }
     ;
 
@@ -352,24 +352,21 @@ function_call_generic
 
 function_call_header_no_parameters
     : function_call_header VOID_TYPE {
-        $$.function = $1;
-        $$.callOrMethodPair.arguments = context->createEmptyArgumentsList();
+        $$ = $1;
     }
     | function_call_header {
-        $$.function = $1;
-        $$.callOrMethodPair.arguments = context->createEmptyArgumentsList();
+        $$ = $1;
     }
     ;
 
 function_call_header_with_parameters
     : function_call_header assignment_expression {
-        $$.callOrMethodPair.arguments = context->createEmptyArgumentsList();
-        $$.function = $1;
-        $$.callOrMethodPair.arguments->push_back($2);
+        $$ = $1;
+        $$->addArgument($2);
     }
     | function_call_header_with_parameters COMMA assignment_expression {
-        $$.function = $1.function;
-        $$.callOrMethodPair.arguments->push_back($3);
+        $$ = $1;
+        $$->addArgument($3);
     }
     ;
 
@@ -383,22 +380,13 @@ function_call_header
 
 function_identifier
     : type_specifier_no_prec {
-        if ($1.array) {
-            ES3_OR_NEWER("[]", @1, "array constructor");
-        }
         $$ = context->addConstructorFunc($1);
     }
     | IDENTIFIER {
-        context->checkIsNotReserved(@1, *$1.string);
-        const TType *type = TCache::getType(EbtVoid, EbpUndefined);
-        TFunction *function = new TFunction($1.string, type);
-        $$ = function;
+        $$ = context->addNonConstructorFunc(ImmutableString($1.string), $1.symbol);
     }
     | FIELD_SELECTION {
-        context->checkIsNotReserved(@1, *$1.string);
-        const TType *type = TCache::getType(EbtVoid, EbpUndefined);
-        TFunction *function = new TFunction($1.string, type);
-        $$ = function;
+        $$ = context->addNonConstructorFunc(ImmutableString($1.string), $1.symbol);
     }
     ;
 
@@ -413,21 +401,18 @@ unary_expression
         $$ = context->addUnaryMathLValue(EOpPreDecrement, $2, @1);
     }
     | unary_operator unary_expression {
-        if ($1.op != EOpNull) {
-            $$ = context->addUnaryMath($1.op, $2, @1);
-        } else
-            $$ = $2;
+        $$ = context->addUnaryMath($1, $2, @1);
     }
     ;
 // Grammar Note:  No traditional style type casts.
 
 unary_operator
-    : PLUS  { $$.op = EOpPositive; }
-    | DASH  { $$.op = EOpNegative; }
-    | BANG  { $$.op = EOpLogicalNot; }
+    : PLUS  { $$ = EOpPositive; }
+    | DASH  { $$ = EOpNegative; }
+    | BANG  { $$ = EOpLogicalNot; }
     | TILDE {
         ES3_OR_NEWER("~", @$, "bit-wise operator");
-        $$.op = EOpBitwiseNot;
+        $$ = EOpBitwiseNot;
     }
     ;
 // Grammar Note:  No '*' or '&' unary ops.  Pointers are not supported.
@@ -549,40 +534,39 @@ conditional_expression
 assignment_expression
     : conditional_expression { $$ = $1; }
     | unary_expression assignment_operator assignment_expression {
-        context->checkCanBeLValue(@2, "assign", $1);
-        $$ = context->addAssign($2.op, $1, $3, @2);
+        $$ = context->addAssign($2, $1, $3, @2);
     }
     ;
 
 assignment_operator
-    : EQUAL        { $$.op = EOpAssign; }
-    | MUL_ASSIGN   { $$.op = EOpMulAssign; }
-    | DIV_ASSIGN   { $$.op = EOpDivAssign; }
+    : EQUAL        { $$ = EOpAssign; }
+    | MUL_ASSIGN   { $$ = EOpMulAssign; }
+    | DIV_ASSIGN   { $$ = EOpDivAssign; }
     | MOD_ASSIGN   {
         ES3_OR_NEWER("%=", @$, "integer modulus operator");
-        $$.op = EOpIModAssign;
+        $$ = EOpIModAssign;
     }
-    | ADD_ASSIGN   { $$.op = EOpAddAssign; }
-    | SUB_ASSIGN   { $$.op = EOpSubAssign; }
+    | ADD_ASSIGN   { $$ = EOpAddAssign; }
+    | SUB_ASSIGN   { $$ = EOpSubAssign; }
     | LEFT_ASSIGN {
         ES3_OR_NEWER("<<=", @$, "bit-wise operator");
-        $$.op = EOpBitShiftLeftAssign;
+        $$ = EOpBitShiftLeftAssign;
     }
     | RIGHT_ASSIGN {
         ES3_OR_NEWER(">>=", @$, "bit-wise operator");
-        $$.op = EOpBitShiftRightAssign;
+        $$ = EOpBitShiftRightAssign;
     }
     | AND_ASSIGN {
         ES3_OR_NEWER("&=", @$, "bit-wise operator");
-        $$.op = EOpBitwiseAndAssign;
+        $$ = EOpBitwiseAndAssign;
     }
     | XOR_ASSIGN {
         ES3_OR_NEWER("^=", @$, "bit-wise operator");
-        $$.op = EOpBitwiseXorAssign;
+        $$ = EOpBitwiseXorAssign;
     }
     | OR_ASSIGN {
         ES3_OR_NEWER("|=", @$, "bit-wise operator");
-        $$.op = EOpBitwiseOrAssign;
+        $$ = EOpBitwiseOrAssign;
     }
     ;
 
@@ -604,7 +588,7 @@ constant_expression
 
 enter_struct
     : IDENTIFIER LEFT_BRACE {
-        context->enterStructDeclaration(@1, *$1.string);
+        context->enterStructDeclaration(@1, ImmutableString($1.string));
         $$ = $1;
     }
     ;
@@ -617,33 +601,28 @@ declaration
         $$ = $1.intermDeclaration;
     }
     | PRECISION precision_qualifier type_specifier_no_prec SEMICOLON {
-        if (($2 == EbpHigh) && (context->getShaderType() == GL_FRAGMENT_SHADER) && !context->getFragmentPrecisionHigh()) {
-            context->error(@1, "precision is not supported in fragment shader", "highp");
-        }
-        if (!context->symbolTable.setDefaultPrecision( $3, $2 )) {
-            context->error(@1, "illegal type argument for default precision qualifier", getBasicString($3.getBasicType()));
-        }
-        $$ = 0;
+        context->parseDefaultPrecisionQualifier($2, $3, @1);
+        $$ = nullptr;
     }
     | type_qualifier enter_struct struct_declaration_list RIGHT_BRACE SEMICOLON {
-        ES3_OR_NEWER($2.string->c_str(), @1, "interface blocks");
-        $$ = context->addInterfaceBlock(*$1, @2, *$2.string, $3, NULL, @$, NULL, @$);
+        ES3_OR_NEWER(ImmutableString($2.string), @1, "interface blocks");
+        $$ = context->addInterfaceBlock(*$1, @2, ImmutableString($2.string), $3, kEmptyImmutableString, @$, NULL, @$);
     }
     | type_qualifier enter_struct struct_declaration_list RIGHT_BRACE IDENTIFIER SEMICOLON {
-        ES3_OR_NEWER($2.string->c_str(), @1, "interface blocks");
-        $$ = context->addInterfaceBlock(*$1, @2, *$2.string, $3, $5.string, @5, NULL, @$);
+        ES3_OR_NEWER(ImmutableString($2.string), @1, "interface blocks");
+        $$ = context->addInterfaceBlock(*$1, @2, ImmutableString($2.string), $3, ImmutableString($5.string), @5, NULL, @$);
     }
     | type_qualifier enter_struct struct_declaration_list RIGHT_BRACE IDENTIFIER LEFT_BRACKET constant_expression RIGHT_BRACKET SEMICOLON {
-        ES3_OR_NEWER($2.string->c_str(), @1, "interface blocks");
-        $$ = context->addInterfaceBlock(*$1, @2, *$2.string, $3, $5.string, @5, $7, @6);
+        ES3_OR_NEWER(ImmutableString($2.string), @1, "interface blocks");
+        $$ = context->addInterfaceBlock(*$1, @2, ImmutableString($2.string), $3, ImmutableString($5.string), @5, $7, @6);
     }
     | type_qualifier SEMICOLON {
         context->parseGlobalLayoutQualifier(*$1);
-        $$ = 0;
+        $$ = nullptr;
     }
     | type_qualifier IDENTIFIER SEMICOLON // e.g. to qualify an existing variable as invariant
     {
-        $$ = context->parseInvariantDeclaration(*$1, @2, $2.string, $2.symbol);
+        $$ = context->parseInvariantDeclaration(*$1, @2, ImmutableString($2.string), $2.symbol);
     }
     ;
 
@@ -668,33 +647,30 @@ function_header_with_parameters
     : function_header parameter_declaration {
         // Add the parameter
         $$ = $1;
-        if ($2.param.type->getBasicType() != EbtVoid)
-            $1->addParameter($2.param.turnToConst());
-        else
-            delete $2.param.type;
+        if ($2.type->getBasicType() != EbtVoid)
+        {
+            $1->addParameter($2.createVariable(&context->symbolTable));
+        }
     }
     | function_header_with_parameters COMMA parameter_declaration {
-        //
+        $$ = $1;
         // Only first parameter of one-parameter functions can be void
         // The check for named parameters not being void is done in parameter_declarator
-        //
-        if ($3.param.type->getBasicType() == EbtVoid) {
-            //
+        if ($3.type->getBasicType() == EbtVoid)
+        {
             // This parameter > first is void
-            //
-            context->error(@2, "cannot be an argument type except for '(void)'", "void");
-            delete $3.param.type;
-        } else {
-            // Add the parameter
-            $$ = $1;
-            $1->addParameter($3.param.turnToConst());
+            context->error(@2, "cannot be a parameter type except for '(void)'", "void");
+        }
+        else
+        {
+            $1->addParameter($3.createVariable(&context->symbolTable));
         }
     }
     ;
 
 function_header
     : fully_specified_type IDENTIFIER LEFT_PAREN {
-        $$ = context->parseFunctionHeader($1, $2.string, @2);
+        $$ = context->parseFunctionHeader($1, ImmutableString($2.string), @2);
 
         context->symbolTable.push();
         context->enterFunctionDeclaration();
@@ -704,60 +680,36 @@ function_header
 parameter_declarator
     // Type + name
     : type_specifier identifier {
-        if ($1.getBasicType() == EbtVoid) {
-            context->error(@2, "illegal use of type 'void'", $2.string->c_str());
-        }
-        context->checkIsNotReserved(@2, *$2.string);
-        TParameter param = {$2.string, new TType($1)};
-        $$.param = param;
+        $$ = context->parseParameterDeclarator($1, ImmutableString($2.string), @2);
     }
-    | type_specifier identifier LEFT_BRACKET constant_expression RIGHT_BRACKET {
-        // Check that we can make an array out of this type
-        context->checkIsValidTypeForArray(@3, $1);
-
-        context->checkIsNotReserved(@2, *$2.string);
-
-        unsigned int size = context->checkIsValidArraySize(@3, $4);
-
-        $1.setArraySize(size);
-
-        TType* type = new TType($1);
-        TParameter param = { $2.string, type };
-        $$.param = param;
+    | type_specifier identifier array_specifier {
+        $$ = context->parseParameterArrayDeclarator(ImmutableString($2.string), @2, *($3), @3, &$1);
     }
     ;
 
 parameter_declaration
-    //
-    // The only parameter qualifier a parameter can have are
-    // IN_QUAL, OUT_QUAL, INOUT_QUAL, or CONST.
-    //
-
-    //
-    // Type + name
-    //
     : type_qualifier parameter_declarator {
         $$ = $2;
-        context->checkIsParameterQualifierValid(@2, *$1, $2.param.type);
+        context->checkIsParameterQualifierValid(@2, *$1, $2.type);
     }
     | parameter_declarator {
         $$ = $1;
-        $$.param.type->setQualifier(EvqIn);
+        $$.type->setQualifier(EvqIn);
     }
     | type_qualifier parameter_type_specifier {
         $$ = $2;
-        context->checkIsParameterQualifierValid(@2, *$1, $2.param.type);
+        context->checkIsParameterQualifierValid(@2, *$1, $2.type);
     }
     | parameter_type_specifier {
         $$ = $1;
-        $$.param.type->setQualifier(EvqIn);
+        $$.type->setQualifier(EvqIn);
     }
     ;
 
 parameter_type_specifier
     : type_specifier {
         TParameter param = { 0, new TType($1) };
-        $$.param = param;
+        $$ = param;
     }
     ;
 
@@ -767,54 +719,44 @@ init_declarator_list
     }
     | init_declarator_list COMMA identifier {
         $$ = $1;
-        context->parseDeclarator($$.type, @3, *$3.string, $$.intermDeclaration);
+        context->parseDeclarator($$.type, @3, ImmutableString($3.string), $$.intermDeclaration);
     }
-    | init_declarator_list COMMA identifier LEFT_BRACKET constant_expression RIGHT_BRACKET {
+    | init_declarator_list COMMA identifier array_specifier {
         $$ = $1;
-        context->parseArrayDeclarator($$.type, @3, *$3.string, @4, $5, $$.intermDeclaration);
+        context->parseArrayDeclarator($$.type, @3, ImmutableString($3.string), @4, *($4), $$.intermDeclaration);
     }
-    | init_declarator_list COMMA identifier LEFT_BRACKET RIGHT_BRACKET EQUAL initializer {
-        ES3_OR_NEWER("[]", @3, "implicitly sized array");
+    | init_declarator_list COMMA identifier array_specifier EQUAL initializer {
+        ES3_OR_NEWER("=", @5, "first-class arrays (array initializer)");
         $$ = $1;
-        context->parseArrayInitDeclarator($$.type, @3, *$3.string, @4, nullptr, @6, $7, $$.intermDeclaration);
-    }
-    | init_declarator_list COMMA identifier LEFT_BRACKET constant_expression RIGHT_BRACKET EQUAL initializer {
-        ES3_OR_NEWER("=", @7, "first-class arrays (array initializer)");
-        $$ = $1;
-        context->parseArrayInitDeclarator($$.type, @3, *$3.string, @4, $5, @7, $8, $$.intermDeclaration);
+        context->parseArrayInitDeclarator($$.type, @3, ImmutableString($3.string), @4, *($4), @5, $6, $$.intermDeclaration);
     }
     | init_declarator_list COMMA identifier EQUAL initializer {
         $$ = $1;
-        context->parseInitDeclarator($$.type, @3, *$3.string, @4, $5, $$.intermDeclaration);
+        context->parseInitDeclarator($$.type, @3, ImmutableString($3.string), @4, $5, $$.intermDeclaration);
     }
     ;
 
 single_declaration
     : fully_specified_type {
         $$.type = $1;
-        $$.intermDeclaration = context->parseSingleDeclaration($$.type, @1, "");
+        $$.intermDeclaration = context->parseSingleDeclaration($$.type, @1, kEmptyImmutableString);
     }
     | fully_specified_type identifier {
         $$.type = $1;
-        $$.intermDeclaration = context->parseSingleDeclaration($$.type, @2, *$2.string);
+        $$.intermDeclaration = context->parseSingleDeclaration($$.type, @2, ImmutableString($2.string));
     }
-    | fully_specified_type identifier LEFT_BRACKET constant_expression RIGHT_BRACKET {
+    | fully_specified_type identifier array_specifier {
         $$.type = $1;
-        $$.intermDeclaration = context->parseSingleArrayDeclaration($$.type, @2, *$2.string, @3, $4);
+        $$.intermDeclaration = context->parseSingleArrayDeclaration($$.type, @2, ImmutableString($2.string), @3, *($3));
     }
-    | fully_specified_type identifier LEFT_BRACKET RIGHT_BRACKET EQUAL initializer {
-        ES3_OR_NEWER("[]", @3, "implicitly sized array");
+    | fully_specified_type identifier array_specifier EQUAL initializer {
+        ES3_OR_NEWER("[]", @3, "first-class arrays (array initializer)");
         $$.type = $1;
-        $$.intermDeclaration = context->parseSingleArrayInitDeclaration($$.type, @2, *$2.string, @3, nullptr, @5, $6);
-    }
-    | fully_specified_type identifier LEFT_BRACKET constant_expression RIGHT_BRACKET EQUAL initializer {
-        ES3_OR_NEWER("=", @6, "first-class arrays (array initializer)");
-        $$.type = $1;
-        $$.intermDeclaration = context->parseSingleArrayInitDeclaration($$.type, @2, *$2.string, @3, $4, @6, $7);
+        $$.intermDeclaration = context->parseSingleArrayInitDeclaration($$.type, @2, ImmutableString($2.string), @3, *($3), @4, $5);
     }
     | fully_specified_type identifier EQUAL initializer {
         $$.type = $1;
-        $$.intermDeclaration = context->parseSingleInitDeclaration($$.type, @2, *$2.string, @3, $4);
+        $$.intermDeclaration = context->parseSingleInitDeclaration($$.type, @2, ImmutableString($2.string), @3, $4);
     }
     ;
 
@@ -881,73 +823,34 @@ storage_qualifier
     ATTRIBUTE {
         VERTEX_ONLY("attribute", @1);
         ES2_ONLY("attribute", @1);
-        context->checkIsAtGlobalLevel(@1, "attribute");
-        $$ = new TStorageQualifierWrapper(EvqAttribute, @1);
+        $$ = context->parseGlobalStorageQualifier(EvqAttribute, @1);
     }
     | VARYING {
         ES2_ONLY("varying", @1);
-        context->checkIsAtGlobalLevel(@1, "varying");
-        if (context->getShaderType() == GL_VERTEX_SHADER)
-            $$ = new TStorageQualifierWrapper(EvqVaryingOut, @1);
-        else
-            $$ = new TStorageQualifierWrapper(EvqVaryingIn, @1);
+        $$ = context->parseVaryingQualifier(@1);
     }
     | CONST_QUAL {
         $$ = new TStorageQualifierWrapper(EvqConst, @1);
     }
     | IN_QUAL {
-        if (context->declaringFunction())
-        {
-            $$ = new TStorageQualifierWrapper(EvqIn, @1);
-        }
-        else if (context->getShaderType() == GL_FRAGMENT_SHADER)
-        {
-            ES3_OR_NEWER("in", @1, "storage qualifier");
-            $$ = new TStorageQualifierWrapper(EvqFragmentIn, @1);
-        }
-        else if (context->getShaderType() == GL_VERTEX_SHADER)
-        {
-            ES3_OR_NEWER("in", @1, "storage qualifier");
-            $$ = new TStorageQualifierWrapper(EvqVertexIn, @1);
-        }
-        else
-        {
-            $$ = new TStorageQualifierWrapper(EvqComputeIn, @1);
-        }
+        $$ = context->parseInQualifier(@1);
     }
     | OUT_QUAL {
-        if (context->declaringFunction())
-        {
-            $$ = new TStorageQualifierWrapper(EvqOut, @1);
-        }
-        else
-        {
-            ES3_OR_NEWER("out", @1, "storage qualifier");
-            NON_COMPUTE_ONLY("out", @1);
-            if (context->getShaderType() == GL_FRAGMENT_SHADER)
-            {
-                $$ = new TStorageQualifierWrapper(EvqFragmentOut, @1);
-            }
-            else
-            {
-                $$ = new TStorageQualifierWrapper(EvqVertexOut, @1);
-            }
-        }
+        $$ = context->parseOutQualifier(@1);
     }
     | INOUT_QUAL {
-        if (!context->declaringFunction())
-        {
-            context->error(@1, "invalid qualifier: can be only used with function parameters", "inout");
-        }
-        $$ = new TStorageQualifierWrapper(EvqInOut, @1);
+        $$ = context->parseInOutQualifier(@1);
     }
     | CENTROID {
         ES3_OR_NEWER("centroid", @1, "storage qualifier");
         $$ = new TStorageQualifierWrapper(EvqCentroid, @1);
     }
     | UNIFORM {
-        context->checkIsAtGlobalLevel(@1, "uniform");
-        $$ = new TStorageQualifierWrapper(EvqUniform, @1);
+        $$ = context->parseGlobalStorageQualifier(EvqUniform, @1);
+    }
+    | BUFFER {
+        ES3_1_ONLY("buffer", @1, "storage qualifier");
+        $$ = context->parseGlobalStorageQualifier(EvqBuffer, @1);
     }
     | READONLY {
         $$ = new TMemoryQualifierWrapper(EvqReadOnly, @1);
@@ -965,9 +868,8 @@ storage_qualifier
         $$ = new TMemoryQualifierWrapper(EvqVolatile, @1);
     }
     | SHARED {
-        context->checkIsAtGlobalLevel(@1, "shared");
         COMPUTE_ONLY("shared", @1);
-        $$ = new TStorageQualifierWrapper(EvqShared, @1);
+        $$ = context->parseGlobalStorageQualifier(EvqShared, @1);
     }
     ;
 
@@ -1008,16 +910,16 @@ layout_qualifier_id_list
 
 layout_qualifier_id
     : IDENTIFIER {
-        $$ = context->parseLayoutQualifier(*$1.string, @1);
+        $$ = context->parseLayoutQualifier(ImmutableString($1.string), @1);
     }
     | IDENTIFIER EQUAL INTCONSTANT {
-        $$ = context->parseLayoutQualifier(*$1.string, @1, $3.i, @3);
+        $$ = context->parseLayoutQualifier(ImmutableString($1.string), @1, $3.i, @3);
     }
     | IDENTIFIER EQUAL UINTCONSTANT {
-        $$ = context->parseLayoutQualifier(*$1.string, @1, $3.i, @3);
+        $$ = context->parseLayoutQualifier(ImmutableString($1.string), @1, $3.i, @3);
     }
     | SHARED {
-        $$ = context->parseLayoutQualifier("shared", @1);
+        $$ = context->parseLayoutQualifier(ImmutableString("shared"), @1);
     }
     ;
 
@@ -1025,18 +927,37 @@ type_specifier_no_prec
     : type_specifier_nonarray {
         $$.initialize($1, (context->symbolTable.atGlobalLevel() ? EvqGlobal : EvqTemporary));
     }
-    | type_specifier_nonarray LEFT_BRACKET RIGHT_BRACKET {
-        ES3_OR_NEWER("[]", @2, "implicitly sized array");
+    | type_specifier_nonarray array_specifier {
         $$.initialize($1, (context->symbolTable.atGlobalLevel() ? EvqGlobal : EvqTemporary));
-        $$.setArraySize(0);
+        $$.setArraySizes($2);
     }
-    | type_specifier_nonarray LEFT_BRACKET constant_expression RIGHT_BRACKET {
-        $$.initialize($1, (context->symbolTable.atGlobalLevel() ? EvqGlobal : EvqTemporary));
-        if (context->checkIsValidTypeForArray(@2, $$))
-        {
-            unsigned int size = context->checkIsValidArraySize(@2, $3);
-            $$.setArraySize(size);
-        }
+    ;
+
+array_specifier
+    : LEFT_BRACKET RIGHT_BRACKET {
+        ES3_OR_NEWER("[]", @1, "implicitly sized array");
+        $$ = new TVector<unsigned int>();
+        $$->push_back(0u);
+    }
+    | LEFT_BRACKET constant_expression RIGHT_BRACKET {
+        $$ = new TVector<unsigned int>();
+        unsigned int size = context->checkIsValidArraySize(@1, $2);
+        // Make the type an array even if size check failed.
+        // This ensures useless error messages regarding a variable's non-arrayness won't follow.
+        $$->push_back(size);
+    }
+    | array_specifier LEFT_BRACKET RIGHT_BRACKET {
+        ES3_1_ONLY("[]", @2, "arrays of arrays");
+        $$ = $1;
+        $$->insert($$->begin(), 0u);
+    }
+    | array_specifier LEFT_BRACKET constant_expression RIGHT_BRACKET {
+        ES3_1_ONLY("[]", @2, "arrays of arrays");
+        $$ = $1;
+        unsigned int size = context->checkIsValidArraySize(@2, $3);
+        // Make the type an array even if size check failed.
+        // This ensures useless error messages regarding a variable's non-arrayness won't follow.
+        $$->insert($$->begin(), size);
     }
     ;
 
@@ -1141,7 +1062,8 @@ type_specifier_nonarray
         $$.setMatrix(4, 3);
     }
     | YUVCSCSTANDARDEXT {
-        if (!context->isExtensionEnabled("GL_EXT_YUV_target")) {
+        if (!context->checkCanUseExtension(@1, TExtension::EXT_YUV_target))
+        {
             context->error(@1, "unsupported type", "yuvCscStandardEXT");
         }
         $$.initialize(EbtYuvCscStandardEXT, @1);
@@ -1161,6 +1083,9 @@ type_specifier_nonarray
     | SAMPLER2DMS {
         $$.initialize(EbtSampler2DMS, @1);
     }
+    | SAMPLER2DMSARRAY {
+        $$.initialize(EbtSampler2DMSArray, @1);
+    }
     | ISAMPLER2D {
         $$.initialize(EbtISampler2D, @1);
     }
@@ -1175,6 +1100,9 @@ type_specifier_nonarray
     }
     | ISAMPLER2DMS {
         $$.initialize(EbtISampler2DMS, @1);
+    }
+    | ISAMPLER2DMSARRAY {
+        $$.initialize(EbtISampler2DMSArray, @1);
     }
     | USAMPLER2D {
         $$.initialize(EbtUSampler2D, @1);
@@ -1191,6 +1119,9 @@ type_specifier_nonarray
     | USAMPLER2DMS {
         $$.initialize(EbtUSampler2DMS, @1);
     }
+    | USAMPLER2DMSARRAY {
+        $$.initialize(EbtUSampler2DMSArray, @1);
+    }
     | SAMPLER2DSHADOW {
         $$.initialize(EbtSampler2DShadow, @1);
     }
@@ -1201,26 +1132,28 @@ type_specifier_nonarray
         $$.initialize(EbtSampler2DArrayShadow, @1);
     }
     | SAMPLER_EXTERNAL_OES {
-        if (!context->supportsExtension("GL_OES_EGL_image_external") &&
-            !context->supportsExtension("GL_NV_EGL_stream_consumer_external")) {
+        constexpr std::array<TExtension, 3u> extensions{ { TExtension::NV_EGL_stream_consumer_external,
+                                                           TExtension::OES_EGL_image_external_essl3,
+                                                           TExtension::OES_EGL_image_external } };
+        if (!context->checkCanUseOneOfExtensions(@1, extensions))
+        {
             context->error(@1, "unsupported type", "samplerExternalOES");
         }
         $$.initialize(EbtSamplerExternalOES, @1);
     }
     | SAMPLEREXTERNAL2DY2YEXT {
-        if (!context->isExtensionEnabled("GL_EXT_YUV_target")) {
+        if (!context->checkCanUseExtension(@1, TExtension::EXT_YUV_target))
+        {
             context->error(@1, "unsupported type", "__samplerExternal2DY2YEXT");
         }
         $$.initialize(EbtSamplerExternal2DY2YEXT, @1);
     }
     | SAMPLER2DRECT {
-        if (!context->supportsExtension("GL_ARB_texture_rectangle")) {
+        if (!context->checkCanUseExtension(@1, TExtension::ARB_texture_rectangle))
+        {
             context->error(@1, "unsupported type", "sampler2DRect");
         }
         $$.initialize(EbtSampler2DRect, @1);
-    }
-    | struct_specifier {
-        $$ = $1;
     }
     | IMAGE2D {
         $$.initialize(EbtImage2D, @1);
@@ -1258,29 +1191,31 @@ type_specifier_nonarray
     | UIMAGECUBE {
         $$.initialize(EbtUImageCube, @1);
     }
+    | ATOMICUINT {
+        $$.initialize(EbtAtomicCounter, @1);
+    }
+    | struct_specifier {
+        $$ = $1;
+    }
     | TYPE_NAME {
-        //
-        // This is for user defined type names.  The lexical phase looked up the
-        // type.
-        //
-        TType& structure = static_cast<TVariable*>($1.symbol)->getType();
-        $$.initialize(EbtStruct, @1);
-        $$.userDef = &structure;
+        // This is for user defined type names. The lexical phase looked up the type.
+        const TStructure *structure = static_cast<const TStructure*>($1.symbol);
+        $$.initializeStruct(structure, false, @1);
     }
     ;
 
 struct_specifier
-    : STRUCT identifier LEFT_BRACE { context->enterStructDeclaration(@2, *$2.string); } struct_declaration_list RIGHT_BRACE {
-        $$ = context->addStructure(@1, @2, $2.string, $5);
+    : STRUCT identifier LEFT_BRACE { context->enterStructDeclaration(@2, ImmutableString($2.string)); } struct_declaration_list RIGHT_BRACE {
+        $$ = context->addStructure(@1, @2, ImmutableString($2.string), $5);
     }
-    | STRUCT LEFT_BRACE { context->enterStructDeclaration(@2, *$2.string); } struct_declaration_list RIGHT_BRACE {
-        $$ = context->addStructure(@1, @$, NewPoolTString(""), $4);
+    | STRUCT LEFT_BRACE { context->enterStructDeclaration(@2, kEmptyImmutableString); } struct_declaration_list RIGHT_BRACE {
+        $$ = context->addStructure(@1, @$, kEmptyImmutableString, $4);
     }
     ;
 
 struct_declaration_list
     : struct_declaration {
-        $$ = $1;
+        $$ = context->addStructFieldList($1, @1);
     }
     | struct_declaration_list struct_declaration {
         $$ = context->combineStructFieldLists($1, $2, @2);
@@ -1299,7 +1234,7 @@ struct_declaration
 
 struct_declarator_list
     : struct_declarator {
-        $$ = NewPoolTFieldList();
+        $$ = new TDeclaratorList();
         $$->push_back($1);
     }
     | struct_declarator_list COMMA struct_declarator {
@@ -1309,19 +1244,10 @@ struct_declarator_list
 
 struct_declarator
     : identifier {
-        context->checkIsNotReserved(@1, *$1.string);
-
-        TType* type = new TType(EbtVoid, EbpUndefined);
-        $$ = new TField(type, $1.string, @1);
+        $$ = context->parseStructDeclarator(ImmutableString($1.string), @1);
     }
-    | identifier LEFT_BRACKET constant_expression RIGHT_BRACKET {
-        context->checkIsNotReserved(@1, *$1.string);
-
-        TType* type = new TType(EbtVoid, EbpUndefined);
-        unsigned int size = context->checkIsValidArraySize(@3, $3);
-        type->setArraySize(size);
-
-        $$ = new TField(type, $1.string, @1);
+    | identifier array_specifier {
+        $$ = context->parseStructArrayDeclarator(ImmutableString($1.string), @1, $2);
     }
     ;
 
@@ -1334,8 +1260,8 @@ declaration_statement
     ;
 
 statement
-    : compound_statement  { $$ = $1; }
-    | simple_statement    { $$ = $1; }
+    : compound_statement_with_scope { $$ = $1; }
+    | simple_statement              { $$ = $1; }
     ;
 
 // Grammar Note:  Labeled statements for SWITCH only; 'goto' is not supported.
@@ -1350,12 +1276,13 @@ simple_statement
     | jump_statement        { $$ = $1; }
     ;
 
-compound_statement
-    : LEFT_BRACE RIGHT_BRACE { $$ = 0; }
+compound_statement_with_scope
+    : LEFT_BRACE RIGHT_BRACE {
+        $$ = new TIntermBlock();
+        $$->setLine(@$);
+    }
     | LEFT_BRACE { context->symbolTable.push(); } statement_list { context->symbolTable.pop(); } RIGHT_BRACE {
-        if ($3 != 0) {
-            $3->setLine(@$);
-        }
+        $3->setLine(@$);
         $$ = $3;
     }
     ;
@@ -1371,14 +1298,13 @@ statement_with_scope
     ;
 
 compound_statement_no_new_scope
-    // Statement that doesn't create a new scope, for selection_statement, iteration_statement
+    // Statement that doesn't create a new scope for iteration_statement, function definition (scope is created for parameters)
     : LEFT_BRACE RIGHT_BRACE {
-        $$ = 0;
+        $$ = new TIntermBlock();
+        $$->setLine(@$);
     }
     | LEFT_BRACE statement_list RIGHT_BRACE {
-        if ($2) {
-            $2->setLine(@$);
-        }
+        $2->setLine(@$);
         $$ = $2;
     }
     ;
@@ -1386,24 +1312,22 @@ compound_statement_no_new_scope
 statement_list
     : statement {
         $$ = new TIntermBlock();
-        $$->setLine(@$);
-        $$->appendStatement($1);
+        context->appendStatement($$, $1);
     }
     | statement_list statement {
         $$ = $1;
-        $$->appendStatement($2);
+        context->appendStatement($$, $2);
     }
     ;
 
 expression_statement
-    : SEMICOLON  { $$ = 0; }
-    | expression SEMICOLON  { $$ = static_cast<TIntermNode*>($1); }
+    : SEMICOLON  { $$ = context->addEmptyStatement(@$); }
+    | expression SEMICOLON  { $$ = $1; }
     ;
 
 selection_statement
     : IF LEFT_PAREN expression RIGHT_PAREN selection_rest_statement {
-        context->checkIsScalarBool(@1, $3);
-        $$ = context->intermediate.addIfElse($3, $5, @1);
+        $$ = context->addIfElse($3, $5, @1);
     }
     ;
 
@@ -1414,12 +1338,14 @@ selection_rest_statement
     }
     | statement_with_scope {
         $$.node1 = $1;
-        $$.node2 = 0;
+        $$.node2 = nullptr;
     }
     ;
 
+// Note that we've diverged from the spec grammar here a bit for the sake of simplicity.
+// We're reusing compound_statement_with_scope instead of having separate rules for switch.
 switch_statement
-    : SWITCH LEFT_PAREN expression RIGHT_PAREN { context->incrSwitchNestingLevel(); } compound_statement {
+    : SWITCH LEFT_PAREN expression RIGHT_PAREN { context->incrSwitchNestingLevel(); } compound_statement_with_scope {
         $$ = context->addSwitch($3, $6, @1);
         context->decrSwitchNestingLevel();
     }
@@ -1435,38 +1361,28 @@ case_label
     ;
 
 condition
-    // In 1996 c++ draft, conditions can include single declarations
     : expression {
         $$ = $1;
         context->checkIsScalarBool($1->getLine(), $1);
     }
     | fully_specified_type identifier EQUAL initializer {
-        TIntermBinary *initNode = nullptr;
-        context->checkIsScalarBool(@2, $1);
-
-        if (!context->executeInitializer(@2, *$2.string, $1, $4, &initNode))
-            $$ = $4;
-        else {
-            $$ = 0;
-        }
+        $$ = context->addConditionInitializer($1, ImmutableString($2.string), $4, @2);
     }
     ;
 
 iteration_statement
     : WHILE LEFT_PAREN { context->symbolTable.push(); context->incrLoopNestingLevel(); } condition RIGHT_PAREN statement_no_new_scope {
         context->symbolTable.pop();
-        $$ = context->intermediate.addLoop(ELoopWhile, 0, $4, 0, $6, @1);
+        $$ = context->addLoop(ELoopWhile, 0, $4, 0, $6, @1);
         context->decrLoopNestingLevel();
     }
     | DO { context->incrLoopNestingLevel(); } statement_with_scope WHILE LEFT_PAREN expression RIGHT_PAREN SEMICOLON {
-        context->checkIsScalarBool(@8, $6);
-
-        $$ = context->intermediate.addLoop(ELoopDoWhile, 0, $6, 0, $3, @4);
+        $$ = context->addLoop(ELoopDoWhile, 0, $6, 0, $3, @4);
         context->decrLoopNestingLevel();
     }
     | FOR LEFT_PAREN { context->symbolTable.push(); context->incrLoopNestingLevel(); } for_init_statement for_rest_statement RIGHT_PAREN statement_no_new_scope {
         context->symbolTable.pop();
-        $$ = context->intermediate.addLoop(ELoopFor, $4, reinterpret_cast<TIntermTyped*>($5.node1), reinterpret_cast<TIntermTyped*>($5.node2), $7, @1);
+        $$ = context->addLoop(ELoopFor, $4, $5.node1, reinterpret_cast<TIntermTyped*>($5.node2), $7, @1);
         context->decrLoopNestingLevel();
     }
     ;
@@ -1485,7 +1401,7 @@ conditionopt
         $$ = $1;
     }
     | /* May be null */ {
-        $$ = 0;
+        $$ = nullptr;
     }
     ;
 
@@ -1514,7 +1430,6 @@ jump_statement
         $$ = context->addBranch(EOpReturn, $2, @1);
     }
     | DISCARD SEMICOLON {
-        FRAG_ONLY("discard", @1);
         $$ = context->addBranch(EOpKill, @1);
     }
     ;
@@ -1544,7 +1459,7 @@ external_declaration
 
 function_definition
     : function_prototype {
-        context->parseFunctionDefinitionHeader(@1, &($1.function), &($1.intermFunctionPrototype));
+        context->parseFunctionDefinitionHeader(@1, $1.function, &($1.intermFunctionPrototype));
     }
     compound_statement_no_new_scope {
         $$ = context->addFunctionDefinition($1.intermFunctionPrototype, $3, @1);

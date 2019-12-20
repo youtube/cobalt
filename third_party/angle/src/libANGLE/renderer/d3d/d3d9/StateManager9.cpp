@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,9 +10,9 @@
 #include "common/bitset_utils.h"
 #include "common/utilities.h"
 #include "libANGLE/formatutils.h"
-#include "libANGLE/renderer/d3d/d3d9/renderer9_utils.h"
 #include "libANGLE/renderer/d3d/d3d9/Framebuffer9.h"
 #include "libANGLE/renderer/d3d/d3d9/Renderer9.h"
+#include "libANGLE/renderer/d3d/d3d9/renderer9_utils.h"
 
 namespace rx
 {
@@ -64,9 +64,7 @@ StateManager9::StateManager9(Renderer9 *renderer9)
     mScissorStateDirtyBits.set(DIRTY_BIT_SCISSOR_RECT);
 }
 
-StateManager9::~StateManager9()
-{
-}
+StateManager9::~StateManager9() {}
 
 void StateManager9::initialize()
 {
@@ -250,7 +248,10 @@ void StateManager9::syncState(const gl::State &state, const gl::State::DirtyBits
                 {
                     mDirtyBits.set(DIRTY_BIT_DEPTH_BIAS);
                 }
+                break;
             }
+            // Depth and stencil redundant state changes are guarded in the
+            // frontend so for related cases here just set the dirty bit.
             case gl::State::DIRTY_BIT_DEPTH_MASK:
                 if (state.getDepthStencilState().depthMask != mCurDepthStencilState.depthMask)
                 {
@@ -258,92 +259,39 @@ void StateManager9::syncState(const gl::State &state, const gl::State::DirtyBits
                 }
                 break;
             case gl::State::DIRTY_BIT_DEPTH_TEST_ENABLED:
-                if (state.getDepthStencilState().depthTest != mCurDepthStencilState.depthTest)
-                {
-                    mDirtyBits.set(DIRTY_BIT_STENCIL_DEPTH_FUNC);
-                }
+                mDirtyBits.set(DIRTY_BIT_STENCIL_DEPTH_FUNC);
                 break;
             case gl::State::DIRTY_BIT_DEPTH_FUNC:
-                if (state.getDepthStencilState().depthFunc != mCurDepthStencilState.depthFunc)
-                {
-                    mDirtyBits.set(DIRTY_BIT_STENCIL_DEPTH_FUNC);
-                }
+                mDirtyBits.set(DIRTY_BIT_STENCIL_DEPTH_FUNC);
                 break;
             case gl::State::DIRTY_BIT_STENCIL_TEST_ENABLED:
-                if (state.getDepthStencilState().stencilTest != mCurDepthStencilState.stencilTest)
-                {
-                    mDirtyBits.set(DIRTY_BIT_STENCIL_TEST_ENABLED);
-                    // If we enable the stencil test, all of these must be set
-                    mDirtyBits.set(DIRTY_BIT_STENCIL_WRITEMASK_BACK);
-                    mDirtyBits.set(DIRTY_BIT_STENCIL_WRITEMASK_FRONT);
-                    mDirtyBits.set(DIRTY_BIT_STENCIL_FUNCS_FRONT);
-                    mDirtyBits.set(DIRTY_BIT_STENCIL_FUNCS_BACK);
-                    mDirtyBits.set(DIRTY_BIT_STENCIL_OPS_FRONT);
-                    mDirtyBits.set(DIRTY_BIT_STENCIL_OPS_BACK);
-                }
+                mDirtyBits.set(DIRTY_BIT_STENCIL_TEST_ENABLED);
+                // If we enable the stencil test, all of these must be set
+                mDirtyBits.set(DIRTY_BIT_STENCIL_WRITEMASK_BACK);
+                mDirtyBits.set(DIRTY_BIT_STENCIL_WRITEMASK_FRONT);
+                mDirtyBits.set(DIRTY_BIT_STENCIL_FUNCS_FRONT);
+                mDirtyBits.set(DIRTY_BIT_STENCIL_FUNCS_BACK);
+                mDirtyBits.set(DIRTY_BIT_STENCIL_OPS_FRONT);
+                mDirtyBits.set(DIRTY_BIT_STENCIL_OPS_BACK);
                 break;
             case gl::State::DIRTY_BIT_STENCIL_FUNCS_FRONT:
-            {
-                const gl::DepthStencilState &depthStencilState = state.getDepthStencilState();
-                if (depthStencilState.stencilFunc != mCurDepthStencilState.stencilFunc ||
-                    depthStencilState.stencilMask != mCurDepthStencilState.stencilMask ||
-                    state.getStencilRef() != mCurStencilRef)
-                {
-                    mDirtyBits.set(DIRTY_BIT_STENCIL_FUNCS_FRONT);
-                }
+                mDirtyBits.set(DIRTY_BIT_STENCIL_FUNCS_FRONT);
                 break;
-            }
             case gl::State::DIRTY_BIT_STENCIL_FUNCS_BACK:
-            {
-                const gl::DepthStencilState &depthStencilState = state.getDepthStencilState();
-                if (depthStencilState.stencilBackFunc != mCurDepthStencilState.stencilBackFunc ||
-                    depthStencilState.stencilBackMask != mCurDepthStencilState.stencilBackMask ||
-                    state.getStencilBackRef() != mCurStencilBackRef)
-                {
-                    mDirtyBits.set(DIRTY_BIT_STENCIL_FUNCS_BACK);
-                }
+                mDirtyBits.set(DIRTY_BIT_STENCIL_FUNCS_BACK);
                 break;
-            }
             case gl::State::DIRTY_BIT_STENCIL_WRITEMASK_FRONT:
-                if (state.getDepthStencilState().stencilWritemask !=
-                    mCurDepthStencilState.stencilWritemask)
-                {
-                    mDirtyBits.set(DIRTY_BIT_STENCIL_WRITEMASK_FRONT);
-                }
+                mDirtyBits.set(DIRTY_BIT_STENCIL_WRITEMASK_FRONT);
                 break;
             case gl::State::DIRTY_BIT_STENCIL_WRITEMASK_BACK:
-                if (state.getDepthStencilState().stencilBackWritemask !=
-                    mCurDepthStencilState.stencilBackWritemask)
-                {
-                    mDirtyBits.set(DIRTY_BIT_STENCIL_WRITEMASK_BACK);
-                }
+                mDirtyBits.set(DIRTY_BIT_STENCIL_WRITEMASK_BACK);
                 break;
             case gl::State::DIRTY_BIT_STENCIL_OPS_FRONT:
-            {
-                const gl::DepthStencilState &depthStencilState = state.getDepthStencilState();
-                if (depthStencilState.stencilFail != mCurDepthStencilState.stencilFail ||
-                    depthStencilState.stencilPassDepthFail !=
-                        mCurDepthStencilState.stencilPassDepthFail ||
-                    depthStencilState.stencilPassDepthPass !=
-                        mCurDepthStencilState.stencilPassDepthPass)
-                {
-                    mDirtyBits.set(DIRTY_BIT_STENCIL_OPS_FRONT);
-                }
+                mDirtyBits.set(DIRTY_BIT_STENCIL_OPS_FRONT);
                 break;
-            }
             case gl::State::DIRTY_BIT_STENCIL_OPS_BACK:
-            {
-                const gl::DepthStencilState &depthStencilState = state.getDepthStencilState();
-                if (depthStencilState.stencilBackFail != mCurDepthStencilState.stencilBackFail ||
-                    depthStencilState.stencilBackPassDepthFail !=
-                        mCurDepthStencilState.stencilBackPassDepthFail ||
-                    depthStencilState.stencilBackPassDepthPass !=
-                        mCurDepthStencilState.stencilBackPassDepthPass)
-                {
-                    mDirtyBits.set(DIRTY_BIT_STENCIL_OPS_BACK);
-                }
+                mDirtyBits.set(DIRTY_BIT_STENCIL_OPS_BACK);
                 break;
-            }
             case gl::State::DIRTY_BIT_SCISSOR_TEST_ENABLED:
                 if (state.isScissorTestEnabled() != mCurScissorEnabled)
                 {
@@ -359,10 +307,7 @@ void StateManager9::syncState(const gl::State &state, const gl::State::DirtyBits
                 }
                 break;
             case gl::State::DIRTY_BIT_DEPTH_RANGE:
-                if (state.getNearPlane() != mCurNear || state.getFarPlane() != mCurFar)
-                {
-                    mDirtyBits.set(DIRTY_BIT_VIEWPORT);
-                }
+                mDirtyBits.set(DIRTY_BIT_VIEWPORT);
                 break;
             case gl::State::DIRTY_BIT_VIEWPORT:
                 if (state.getViewport() != mCurViewport)
@@ -376,8 +321,7 @@ void StateManager9::syncState(const gl::State &state, const gl::State::DirtyBits
     }
 }
 
-gl::Error StateManager9::setBlendDepthRasterStates(const gl::State &glState,
-                                                   unsigned int sampleMask)
+void StateManager9::setBlendDepthRasterStates(const gl::State &glState, unsigned int sampleMask)
 {
     const gl::Framebuffer *framebuffer = glState.getDrawFramebuffer();
 
@@ -469,14 +413,12 @@ gl::Error StateManager9::setBlendDepthRasterStates(const gl::State &glState,
     {
         setSampleMask(sampleMask);
     }
-
-    return gl::NoError();
 }
 
 void StateManager9::setViewportState(const gl::Rectangle &viewport,
                                      float zNear,
                                      float zFar,
-                                     GLenum drawMode,
+                                     gl::PrimitiveMode drawMode,
                                      GLenum frontFace,
                                      bool ignoreViewport)
 {
@@ -610,7 +552,7 @@ void StateManager9::setScissorRect(const gl::Rectangle &scissor, bool enabled)
 
     RECT rect;
     rect.left = gl::clamp(scissor.x, 0, static_cast<int>(mRenderTargetBounds.width));
-    rect.top = gl::clamp(scissor.y, 0, static_cast<int>(mRenderTargetBounds.height));
+    rect.top  = gl::clamp(scissor.y, 0, static_cast<int>(mRenderTargetBounds.height));
     rect.right =
         gl::clamp(scissor.x + scissor.width, 0, static_cast<int>(mRenderTargetBounds.width));
     rect.bottom =
@@ -833,7 +775,7 @@ void StateManager9::setColorMask(const gl::Framebuffer *framebuffer,
 {
     // Set the color mask
 
-    const auto *attachment = framebuffer->getFirstColorbuffer();
+    const auto *attachment = framebuffer->getFirstColorAttachment();
     const auto &format     = attachment ? attachment->getFormat() : gl::Format::Invalid();
 
     DWORD colorMask = gl_d3d9::ConvertColorMask(
@@ -890,7 +832,7 @@ void StateManager9::setSampleMask(unsigned int sampleMask)
     mCurSampleMask = sampleMask;
 }
 
-void StateManager9::setCullMode(bool cullFace, GLenum cullMode, GLenum frontFace)
+void StateManager9::setCullMode(bool cullFace, gl::CullFaceMode cullMode, GLenum frontFace)
 {
     if (cullFace)
     {

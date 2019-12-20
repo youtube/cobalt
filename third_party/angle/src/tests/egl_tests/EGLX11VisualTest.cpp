@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -12,9 +12,9 @@
 #include <EGL/eglext.h>
 #include <X11/Xlib.h>
 
-#include "OSWindow.h"
 #include "test_utils/ANGLETest.h"
-#include "x11/X11Window.h"
+#include "util/OSWindow.h"
+#include "util/x11/X11Window.h"
 
 using namespace angle;
 
@@ -24,16 +24,10 @@ namespace
 const EGLint contextAttribs[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
 }
 
-class EGLX11VisualHintTest : public ::testing::TestWithParam<angle::PlatformParameters>
+class EGLX11VisualHintTest : public ANGLETest
 {
   public:
-    void SetUp() override
-    {
-        mEglGetPlatformDisplayEXT = reinterpret_cast<PFNEGLGETPLATFORMDISPLAYEXTPROC>(
-            eglGetProcAddress("eglGetPlatformDisplayEXT"));
-
-        mDisplay = XOpenDisplay(nullptr);
-    }
+    void testSetUp() override { mDisplay = XOpenDisplay(nullptr); }
 
     std::vector<EGLint> getDisplayAttributes(int visualId) const
     {
@@ -68,12 +62,11 @@ class EGLX11VisualHintTest : public ::testing::TestWithParam<angle::PlatformPara
             }
         }
 
-        UNREACHABLE();
+        EXPECT_TRUE(false);
         return -1;
     }
 
   protected:
-    PFNEGLGETPLATFORMDISPLAYEXTPROC mEglGetPlatformDisplayEXT;
     Display *mDisplay;
 };
 
@@ -84,7 +77,7 @@ TEST_P(EGLX11VisualHintTest, InvalidVisualID)
     auto attributes                   = getDisplayAttributes(gInvalidVisualId);
 
     EGLDisplay display =
-        mEglGetPlatformDisplayEXT(EGL_PLATFORM_ANGLE_ANGLE, EGL_DEFAULT_DISPLAY, attributes.data());
+        eglGetPlatformDisplayEXT(EGL_PLATFORM_ANGLE_ANGLE, EGL_DEFAULT_DISPLAY, attributes.data());
     ASSERT_TRUE(display != EGL_NO_DISPLAY);
 
     ASSERT_TRUE(EGL_FALSE == eglInitialize(display, nullptr, nullptr));
@@ -97,7 +90,7 @@ TEST_P(EGLX11VisualHintTest, ValidVisualIDAndClear)
 {
     // We'll test the extension with one visual ID but we don't care which one. This means we
     // can use OSWindow to create a window and just grab its visual.
-    OSWindow *osWindow = CreateOSWindow();
+    OSWindow *osWindow = OSWindow::New();
     osWindow->initialize("EGLX11VisualHintTest", 500, 500);
     osWindow->setVisible(true);
 
@@ -109,7 +102,7 @@ TEST_P(EGLX11VisualHintTest, ValidVisualIDAndClear)
 
     auto attributes = getDisplayAttributes(visualId);
     EGLDisplay display =
-        mEglGetPlatformDisplayEXT(EGL_PLATFORM_ANGLE_ANGLE, EGL_DEFAULT_DISPLAY, attributes.data());
+        eglGetPlatformDisplayEXT(EGL_PLATFORM_ANGLE_ANGLE, EGL_DEFAULT_DISPLAY, attributes.data());
     ASSERT_NE(EGL_NO_DISPLAY, display);
 
     ASSERT_TRUE(EGL_TRUE == eglInitialize(display, nullptr, nullptr));
@@ -126,7 +119,8 @@ TEST_P(EGLX11VisualHintTest, ValidVisualIDAndClear)
     ASSERT_EQ(nConfigs, nReturnedConfigs);
 
     EGLint eglNativeId;
-    ASSERT_TRUE(EGL_TRUE == eglGetConfigAttrib(display, config, EGL_NATIVE_VISUAL_ID, &eglNativeId));
+    ASSERT_TRUE(EGL_TRUE ==
+                eglGetConfigAttrib(display, config, EGL_NATIVE_VISUAL_ID, &eglNativeId));
     ASSERT_EQ(visualId, eglNativeId);
 
     // Finally, try to do a clear on the window.
@@ -152,7 +146,7 @@ TEST_P(EGLX11VisualHintTest, ValidVisualIDAndClear)
     eglDestroyContext(display, context);
     ASSERT_EGL_SUCCESS();
 
-    SafeDelete(osWindow);
+    OSWindow::Delete(&osWindow);
 
     eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
     eglTerminate(display);
@@ -166,7 +160,7 @@ TEST_P(EGLX11VisualHintTest, InvalidWindowVisualID)
     // creation will succeed.
     int visualId;
     {
-        OSWindow *osWindow = CreateOSWindow();
+        OSWindow *osWindow = OSWindow::New();
         osWindow->initialize("EGLX11VisualHintTest", 500, 500);
         osWindow->setVisible(true);
 
@@ -176,16 +170,15 @@ TEST_P(EGLX11VisualHintTest, InvalidWindowVisualID)
         ASSERT_NE(0, XGetWindowAttributes(mDisplay, xWindow, &windowAttributes));
         visualId = windowAttributes.visual->visualid;
 
-        SafeDelete(osWindow);
+        OSWindow::Delete(&osWindow);
     }
 
     auto attributes = getDisplayAttributes(visualId);
     EGLDisplay display =
-        mEglGetPlatformDisplayEXT(EGL_PLATFORM_ANGLE_ANGLE, EGL_DEFAULT_DISPLAY, attributes.data());
+        eglGetPlatformDisplayEXT(EGL_PLATFORM_ANGLE_ANGLE, EGL_DEFAULT_DISPLAY, attributes.data());
     ASSERT_NE(EGL_NO_DISPLAY, display);
 
     ASSERT_TRUE(EGL_TRUE == eglInitialize(display, nullptr, nullptr));
-
 
     // Initialize the window with a visual id different from the display's visual id
     int otherVisualId = chooseDifferentVisual(visualId);
@@ -207,7 +200,7 @@ TEST_P(EGLX11VisualHintTest, InvalidWindowVisualID)
     ASSERT_EQ(EGL_NO_SURFACE, window);
     ASSERT_EGL_ERROR(EGL_BAD_MATCH);
 
-    SafeDelete(osWindow);
+    OSWindow::Delete(&osWindow);
 }
 
-ANGLE_INSTANTIATE_TEST(EGLX11VisualHintTest, ES2_OPENGL());
+ANGLE_INSTANTIATE_TEST(EGLX11VisualHintTest, WithNoFixture(ES2_OPENGL()));

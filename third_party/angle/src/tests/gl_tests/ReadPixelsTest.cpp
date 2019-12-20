@@ -11,7 +11,7 @@
 
 #include <array>
 
-#include "random_utils.h"
+#include "util/random_utils.h"
 
 using namespace angle;
 
@@ -36,11 +36,7 @@ class ReadPixelsTest : public ANGLETest
 TEST_P(ReadPixelsTest, OutOfBounds)
 {
     // TODO: re-enable once root cause of http://anglebug.com/1413 is fixed
-    if (IsAndroid() && IsAdreno() && IsOpenGLES())
-    {
-        std::cout << "Test skipped on Adreno OpenGLES on Android." << std::endl;
-        return;
-    }
+    ANGLE_SKIP_TEST_IF(IsAndroid() && IsAdreno() && IsOpenGLES());
 
     glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -70,10 +66,8 @@ class ReadPixelsPBOTest : public ReadPixelsTest
   protected:
     ReadPixelsPBOTest() : mPBO(0), mTexture(0), mFBO(0) {}
 
-    void SetUp() override
+    void testSetUp() override
     {
-        ANGLETest::SetUp();
-
         glGenBuffers(1, &mPBO);
         glGenFramebuffers(1, &mFBO);
 
@@ -98,13 +92,11 @@ class ReadPixelsPBOTest : public ReadPixelsTest
         ASSERT_GL_NO_ERROR();
     }
 
-    void TearDown() override
+    void testTearDown() override
     {
         glDeleteBuffers(1, &mPBO);
         glDeleteTextures(1, &mTexture);
         glDeleteFramebuffers(1, &mFBO);
-
-        ANGLETest::TearDown();
     }
 
     GLuint mPBO     = 0;
@@ -188,11 +180,7 @@ TEST_P(ReadPixelsPBOTest, ArrayBufferTarget)
 TEST_P(ReadPixelsPBOTest, ExistingDataPreserved)
 {
     // TODO(geofflang): Figure out why this fails on AMD OpenGL (http://anglebug.com/1291)
-    if (IsAMD() && getPlatformRenderer() == EGL_PLATFORM_ANGLE_TYPE_OPENGL_ANGLE)
-    {
-        std::cout << "Test disabled on AMD OpenGL." << std::endl;
-        return;
-    }
+    ANGLE_SKIP_TEST_IF(IsAMD() && IsOpenGL());
 
     // Clear backbuffer to red
     glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
@@ -227,6 +215,9 @@ TEST_P(ReadPixelsPBOTest, ExistingDataPreserved)
 // Test that calling SubData preserves PBO data.
 TEST_P(ReadPixelsPBOTest, SubDataPreservesContents)
 {
+    // anglebug.com/2185
+    ANGLE_SKIP_TEST_IF(IsOSX() && IsNVIDIA() && IsDesktopOpenGL());
+
     glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     EXPECT_GL_NO_ERROR();
@@ -253,12 +244,10 @@ TEST_P(ReadPixelsPBOTest, SubDataPreservesContents)
 // Same as the prior test, but with an offset.
 TEST_P(ReadPixelsPBOTest, SubDataOffsetPreservesContents)
 {
-    // TODO: re-enable once root cause of http://anglebug.com/1415 is fixed
-    if (IsAndroid() && IsAdreno() && IsOpenGLES())
-    {
-        std::cout << "Test skipped on Adreno OpenGLES on Android." << std::endl;
-        return;
-    }
+    // anglebug.com/1415
+    ANGLE_SKIP_TEST_IF((IsNexus5X() || IsNexus6P()) && IsAdreno() && IsOpenGLES());
+    // anglebug.com/2185
+    ANGLE_SKIP_TEST_IF(IsOSX() && IsNVIDIA() && IsDesktopOpenGL());
 
     glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -289,11 +278,11 @@ class ReadPixelsPBODrawTest : public ReadPixelsPBOTest
   protected:
     ReadPixelsPBODrawTest() : mProgram(0), mPositionVBO(0) {}
 
-    void SetUp() override
+    void testSetUp() override
     {
-        ReadPixelsPBOTest::SetUp();
+        ReadPixelsPBOTest::testSetUp();
 
-        const char *vertexShaderSrc =
+        constexpr char kVS[] =
             "attribute vec4 aTest; attribute vec2 aPosition; varying vec4 vTest;\n"
             "void main()\n"
             "{\n"
@@ -302,14 +291,14 @@ class ReadPixelsPBODrawTest : public ReadPixelsPBOTest
             "    gl_PointSize = 1.0;\n"
             "}";
 
-        const char *fragmentShaderSrc =
+        constexpr char kFS[] =
             "precision mediump float; varying vec4 vTest;\n"
             "void main()\n"
             "{\n"
             "    gl_FragColor = vTest;\n"
             "}";
 
-        mProgram = CompileProgram(vertexShaderSrc, fragmentShaderSrc);
+        mProgram = CompileProgram(kVS, kFS);
         ASSERT_NE(0u, mProgram);
 
         glGenBuffers(1, &mPositionVBO);
@@ -318,11 +307,11 @@ class ReadPixelsPBODrawTest : public ReadPixelsPBOTest
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 
-    void TearDown() override
+    void testTearDown() override
     {
         glDeleteProgram(mProgram);
         glDeleteBuffers(1, &mPositionVBO);
-        ReadPixelsPBOTest::TearDown();
+        ReadPixelsPBOTest::testTearDown();
     }
 
     GLuint mProgram;
@@ -383,10 +372,8 @@ class ReadPixelsMultisampleTest : public ReadPixelsTest
   protected:
     ReadPixelsMultisampleTest() : mFBO(0), mRBO(0), mPBO(0) {}
 
-    void SetUp() override
+    void testSetUp() override
     {
-        ANGLETest::SetUp();
-
         glGenFramebuffers(1, &mFBO);
         glBindFramebuffer(GL_FRAMEBUFFER, mFBO);
 
@@ -402,10 +389,8 @@ class ReadPixelsMultisampleTest : public ReadPixelsTest
         ASSERT_GL_NO_ERROR();
     }
 
-    void TearDown() override
+    void testTearDown() override
     {
-        ANGLETest::TearDown();
-
         glDeleteFramebuffers(1, &mFBO);
         glDeleteRenderbuffers(1, &mRBO);
         glDeleteBuffers(1, &mPBO);
@@ -419,7 +404,7 @@ class ReadPixelsMultisampleTest : public ReadPixelsTest
 // Test ReadPixels from a multisampled framebuffer.
 TEST_P(ReadPixelsMultisampleTest, BasicClear)
 {
-    if (getClientMajorVersion() < 3 && !extensionEnabled("GL_ANGLE_framebuffer_multisample"))
+    if (getClientMajorVersion() < 3 && !IsGLExtensionEnabled("GL_ANGLE_framebuffer_multisample"))
     {
         std::cout
             << "Test skipped because ES3 or GL_ANGLE_framebuffer_multisample is not available."
@@ -427,7 +412,7 @@ TEST_P(ReadPixelsMultisampleTest, BasicClear)
         return;
     }
 
-    if (extensionEnabled("GL_ANGLE_framebuffer_multisample"))
+    if (IsGLExtensionEnabled("GL_ANGLE_framebuffer_multisample"))
     {
         glRenderbufferStorageMultisampleANGLE(GL_RENDERBUFFER, 2, GL_RGBA8, 4, 4);
     }
@@ -462,21 +447,17 @@ class ReadPixelsTextureTest : public ANGLETest
         setConfigAlphaBits(8);
     }
 
-    void SetUp() override
+    void testSetUp() override
     {
-        ANGLETest::SetUp();
-
         glGenTextures(1, &mTexture);
         glGenFramebuffers(1, &mFBO);
         glBindFramebuffer(GL_FRAMEBUFFER, mFBO);
     }
 
-    void TearDown() override
+    void testTearDown() override
     {
         glDeleteFramebuffers(1, &mFBO);
         glDeleteTextures(1, &mTexture);
-
-        ANGLETest::TearDown();
     }
 
     void initTexture(GLenum textureTarget,
@@ -674,10 +655,8 @@ class ReadPixelsErrorTest : public ReadPixelsTest
   protected:
     ReadPixelsErrorTest() : mTexture(0), mFBO(0) {}
 
-    void SetUp() override
+    void testSetUp() override
     {
-        ANGLETest::SetUp();
-
         glGenTextures(1, &mTexture);
         glBindTexture(GL_TEXTURE_2D, mTexture);
         glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, 4, 1);
@@ -690,10 +669,8 @@ class ReadPixelsErrorTest : public ReadPixelsTest
         ASSERT_GL_NO_ERROR();
     }
 
-    void TearDown() override
+    void testTearDown() override
     {
-        ANGLETest::TearDown();
-
         glDeleteTextures(1, &mTexture);
         glDeleteFramebuffers(1, &mFBO);
     }
@@ -718,9 +695,9 @@ TEST_P(ReadPixelsErrorTest, ReadBufferIsNone)
 
 // Use this to select which configurations (e.g. which renderer, which GLES major version) these
 // tests should be run against.
-ANGLE_INSTANTIATE_TEST(ReadPixelsTest, ES2_D3D11(), ES2_OPENGL(), ES2_OPENGLES());
-ANGLE_INSTANTIATE_TEST(ReadPixelsPBOTest, ES3_D3D11(), ES3_OPENGL(), ES3_OPENGLES());
-ANGLE_INSTANTIATE_TEST(ReadPixelsPBODrawTest, ES3_D3D11(), ES3_OPENGL(), ES3_OPENGLES());
-ANGLE_INSTANTIATE_TEST(ReadPixelsMultisampleTest, ES3_D3D11(), ES3_OPENGL(), ES3_OPENGLES());
-ANGLE_INSTANTIATE_TEST(ReadPixelsTextureTest, ES3_D3D11(), ES3_OPENGL(), ES3_OPENGLES());
-ANGLE_INSTANTIATE_TEST(ReadPixelsErrorTest, ES3_D3D11(), ES3_OPENGL(), ES3_OPENGLES());
+ANGLE_INSTANTIATE_TEST_ES2(ReadPixelsTest);
+ANGLE_INSTANTIATE_TEST_ES3(ReadPixelsPBOTest);
+ANGLE_INSTANTIATE_TEST_ES3(ReadPixelsPBODrawTest);
+ANGLE_INSTANTIATE_TEST_ES3(ReadPixelsMultisampleTest);
+ANGLE_INSTANTIATE_TEST_ES3(ReadPixelsTextureTest);
+ANGLE_INSTANTIATE_TEST_ES3(ReadPixelsErrorTest);

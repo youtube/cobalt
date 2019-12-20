@@ -46,11 +46,14 @@
             'sources':
             [
                 '<@(libangle_common_sources)',
+                '<@(angle_system_utils_sources)',
+                '<@(xxhash_sources)',
             ],
             'include_dirs':
             [
                 './include',
                 './src',
+                './src/common/third_party/base',
             ],
             'direct_dependent_settings':
             {
@@ -58,6 +61,7 @@
                 [
                     '<(DEPTH)/third_party/angle/include',
                     '<(DEPTH)/third_party/angle/src',
+                    '<(DEPTH)/third_party/angle/src/common/third_party/base',
                 ],
                 'conditions':
                 [
@@ -116,16 +120,26 @@
                             ],
                         },
                     },
-                    'sources':
-                    [
-                        '<@(libangle_common_win_sources)',
-                    ],
                 }],
-                ['OS=="mac"',
+                ['target_os=="win" and angle_build_winrt==0',
                 {
                     'sources':
                     [
-                        '<@(libangle_common_mac_sources)',
+                        '<@(angle_system_utils_win_sources)',
+                    ],
+                }],
+                ['target_os=="win" and angle_build_winrt==1',
+                {
+                    'sources':
+                    [
+                        '<@(angle_system_utils_winuwp_sources)',
+                    ],
+                }],
+                ['target_os=="mac"',
+                {
+                    'sources':
+                    [
+                        '<@(angle_system_utils_mac_sources)',
                     ],
                     'link_settings':
                     {
@@ -136,11 +150,11 @@
                         ],
                     },
                 }],
-                ['OS=="linux"',
+                ['target_os=="linux"',
                 {
                     'sources':
                     [
-                        '<@(libangle_common_linux_sources)',
+                        '<@(angle_system_utils_linux_sources)',
                     ],
                 }]
             ],

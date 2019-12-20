@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,7 +10,9 @@
 #define LIBANGLE_DEBUG_H_
 
 #include "angle_gl.h"
+#include "common/PackedEnums.h"
 #include "common/angleutils.h"
+#include "libANGLE/AttributeMap.h"
 
 #include <deque>
 #include <string>
@@ -18,19 +20,21 @@
 
 namespace gl
 {
+class Context;
 
 class LabeledObject
 {
   public:
     virtual ~LabeledObject() {}
-    virtual void setLabel(const std::string &label) = 0;
-    virtual const std::string &getLabel() const = 0;
+    virtual void setLabel(const Context *context, const std::string &label) = 0;
+    virtual const std::string &getLabel() const                             = 0;
 };
 
 class Debug : angle::NonCopyable
 {
   public:
-    Debug();
+    Debug(bool initialDebugState);
+    ~Debug();
 
     void setMaxLoggedMessages(GLuint maxLoggedMessages);
 
@@ -48,12 +52,14 @@ class Debug : angle::NonCopyable
                        GLenum type,
                        GLuint id,
                        GLenum severity,
-                       const std::string &message);
+                       const std::string &message,
+                       gl::LogSeverity logSeverity) const;
     void insertMessage(GLenum source,
                        GLenum type,
                        GLuint id,
                        GLenum severity,
-                       std::string &&message);
+                       std::string &&message,
+                       gl::LogSeverity logSeverity) const;
 
     void setMessageControl(GLenum source,
                            GLenum type,
@@ -91,6 +97,10 @@ class Debug : angle::NonCopyable
 
     struct Control
     {
+        Control();
+        ~Control();
+        Control(const Control &other);
+
         GLenum source;
         GLenum type;
         GLenum severity;
@@ -100,6 +110,10 @@ class Debug : angle::NonCopyable
 
     struct Group
     {
+        Group();
+        ~Group();
+        Group(const Group &other);
+
         GLenum source;
         GLuint id;
         std::string message;
@@ -110,11 +124,42 @@ class Debug : angle::NonCopyable
     bool mOutputEnabled;
     GLDEBUGPROCKHR mCallbackFunction;
     const void *mCallbackUserParam;
-    std::deque<Message> mMessages;
+    mutable std::deque<Message> mMessages;
     GLuint mMaxLoggedMessages;
     bool mOutputSynchronous;
     std::vector<Group> mGroups;
 };
 }  // namespace gl
 
+namespace egl
+{
+class LabeledObject
+{
+  public:
+    virtual ~LabeledObject() {}
+    virtual void setLabel(EGLLabelKHR label) = 0;
+    virtual EGLLabelKHR getLabel() const     = 0;
+};
+
+class Debug : angle::NonCopyable
+{
+  public:
+    Debug();
+
+    void setCallback(EGLDEBUGPROCKHR callback, const AttributeMap &attribs);
+    EGLDEBUGPROCKHR getCallback() const;
+    bool isMessageTypeEnabled(MessageType type) const;
+
+    void insertMessage(EGLenum error,
+                       const char *command,
+                       MessageType messageType,
+                       EGLLabelKHR threadLabel,
+                       EGLLabelKHR objectLabel,
+                       const std::string &message) const;
+
+  private:
+    EGLDEBUGPROCKHR mCallback;
+    angle::PackedEnumBitSet<MessageType> mEnabledMessageTypes;
+};
+}  // namespace egl
 #endif  // LIBANGLE_DEBUG_H_

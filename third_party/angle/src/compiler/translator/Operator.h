@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2002-2015 The ANGLE Project Authors. All rights reserved.
+// Copyright 2002 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -41,6 +41,8 @@ enum TOperator
     EOpPostDecrement,
     EOpPreIncrement,
     EOpPreDecrement,
+
+    EOpArrayLength,
 
     //
     // binary operations (ones with special GLSL syntax are used in TIntermBinary nodes, others in
@@ -117,7 +119,7 @@ enum TOperator
     EOpExp2,
     EOpLog2,
     EOpSqrt,
-    EOpInverseSqrt,
+    EOpInversesqrt,
 
     EOpAbs,
     EOpSign,
@@ -134,9 +136,9 @@ enum TOperator
     EOpClamp,
     EOpMix,
     EOpStep,
-    EOpSmoothStep,
-    EOpIsNan,
-    EOpIsInf,
+    EOpSmoothstep,
+    EOpIsnan,
+    EOpIsinf,
 
     EOpFloatBitsToInt,
     EOpFloatBitsToUint,
@@ -163,7 +165,7 @@ enum TOperator
     EOpDot,
     EOpCross,
     EOpNormalize,
-    EOpFaceForward,
+    EOpFaceforward,
     EOpReflect,
     EOpRefract,
 
@@ -230,14 +232,34 @@ enum TOperator
     EOpBitwiseXorAssign,
     EOpBitwiseOrAssign,
 
-    //  barriers
+    // barriers
     EOpBarrier,
     EOpMemoryBarrier,
     EOpMemoryBarrierAtomicCounter,
     EOpMemoryBarrierBuffer,
     EOpMemoryBarrierImage,
     EOpMemoryBarrierShared,
-    EOpGroupMemoryBarrier
+    EOpGroupMemoryBarrier,
+
+    // Atomic functions
+    EOpAtomicAdd,
+    EOpAtomicMin,
+    EOpAtomicMax,
+    EOpAtomicAnd,
+    EOpAtomicOr,
+    EOpAtomicXor,
+    EOpAtomicExchange,
+    EOpAtomicCompSwap,
+
+    // Geometry only
+    EOpEmitVertex,
+    EOpEndPrimitive,
+
+    // Desktop GLSL functions
+    EOpFTransform,
+    EOpFma,
+    EOpPackDouble2x32,
+    EOpUnpackDouble2x32,
 };
 
 // Returns the string corresponding to the operator in GLSL
@@ -245,5 +267,8 @@ const char *GetOperatorString(TOperator op);
 
 // Say whether or not a binary or unary operation changes the value of a variable.
 bool IsAssignment(TOperator op);
+
+// Say whether or not an operator represents an atomic function.
+bool IsAtomicFunction(TOperator op);
 
 #endif  // COMPILER_TRANSLATOR_OPERATOR_H_
