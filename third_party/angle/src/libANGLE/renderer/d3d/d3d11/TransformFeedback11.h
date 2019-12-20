@@ -11,9 +11,10 @@
 
 #include "common/platform.h"
 
-#include "libANGLE/angletypes.h"
 #include "libANGLE/Error.h"
+#include "libANGLE/angletypes.h"
 #include "libANGLE/renderer/TransformFeedbackImpl.h"
+#include "libANGLE/renderer/renderer_utils.h"
 
 namespace rx
 {
@@ -26,21 +27,25 @@ class TransformFeedback11 : public TransformFeedbackImpl
     TransformFeedback11(const gl::TransformFeedbackState &state, Renderer11 *renderer);
     ~TransformFeedback11() override;
 
-    void begin(GLenum primitiveMode) override;
-    void end() override;
-    void pause() override;
-    void resume() override;
+    angle::Result begin(const gl::Context *context, gl::PrimitiveMode primitiveMode) override;
+    angle::Result end(const gl::Context *context) override;
+    angle::Result pause(const gl::Context *context) override;
+    angle::Result resume(const gl::Context *context) override;
 
-    void bindGenericBuffer(const BindingPointer<gl::Buffer> &binding) override;
-    void bindIndexedBuffer(size_t index, const OffsetBindingPointer<gl::Buffer> &binding) override;
+    angle::Result bindIndexedBuffer(const gl::Context *context,
+                                    size_t index,
+                                    const gl::OffsetBindingPointer<gl::Buffer> &binding) override;
 
     void onApply();
 
     bool isDirty() const;
 
     UINT getNumSOBuffers() const;
-    gl::ErrorOrResult<const std::vector<ID3D11Buffer *> *> getSOBuffers();
+    angle::Result getSOBuffers(const gl::Context *context,
+                               const std::vector<ID3D11Buffer *> **buffersOut);
     const std::vector<UINT> &getSOBufferOffsets() const;
+
+    Serial getSerial() const;
 
   private:
     Renderer11 *mRenderer;
@@ -48,6 +53,8 @@ class TransformFeedback11 : public TransformFeedbackImpl
     bool mIsDirty;
     std::vector<ID3D11Buffer *> mBuffers;
     std::vector<UINT> mBufferOffsets;
+
+    Serial mSerial;
 };
 }  // namespace rx
 

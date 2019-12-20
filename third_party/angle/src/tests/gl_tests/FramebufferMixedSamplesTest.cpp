@@ -9,7 +9,6 @@
 //   sample counts for different render buffers (stencil, depth, color)
 
 #include "test_utils/ANGLETest.h"
-#include "shader_utils.h"
 
 using namespace angle;
 
@@ -30,32 +29,16 @@ class CHROMIUMFramebufferMixedSamplesTest : public ANGLETest
 
     bool isApplicable() const
     {
-        return extensionEnabled("GL_CHROMIUM_framebuffer_mixed_samples") &&
-               extensionEnabled("GL_OES_rgb8_rgba8");
+        return IsGLExtensionEnabled("GL_CHROMIUM_framebuffer_mixed_samples") &&
+               IsGLExtensionEnabled("GL_OES_rgb8_rgba8");
     }
 
-    void SetUp() override
+    void testSetUp() override
     {
-        ANGLETest::SetUp();
+        mProgram = CompileProgram(essl1_shaders::vs::Simple(), essl1_shaders::fs::UniformColor());
 
-        // clang-format off
-        static const char* kVertexShaderSource =
-            "attribute mediump vec4 position;\n"
-            "void main() {\n"
-            "  gl_Position = position;\n"
-            "}\n";
-
-        static const char* kFragmentShaderSource =
-            "uniform mediump vec4 color;\n"
-            "void main() {\n"
-            "  gl_FragColor = color;\n"
-            "}\n";
-
-        // clang-format on
-        mProgram = CompileProgram(kVertexShaderSource, kFragmentShaderSource);
-
-        GLuint position_loc = glGetAttribLocation(mProgram, "position");
-        mColorLoc           = glGetUniformLocation(mProgram, "color");
+        GLuint position_loc = glGetAttribLocation(mProgram, essl1_shaders::PositionAttrib());
+        mColorLoc           = glGetUniformLocation(mProgram, essl1_shaders::ColorUniform());
 
         glGenBuffers(1, &mVBO);
         glBindBuffer(GL_ARRAY_BUFFER, mVBO);
@@ -71,14 +54,12 @@ class CHROMIUMFramebufferMixedSamplesTest : public ANGLETest
         ASSERT_GL_NO_ERROR();
     }
 
-    void TearDown() override
+    void testTearDown() override
     {
         glDeleteBuffers(1, &mVBO);
         glDeleteProgram(mProgram);
 
         ASSERT_GL_NO_ERROR();
-
-        ANGLETest::TearDown();
     }
 
     void prepareForDraw(SetupFBOType fbo_type)
@@ -158,7 +139,7 @@ class CHROMIUMFramebufferMixedSamplesTest : public ANGLETest
     GLint mColorLoc;
 };
 
-}  //
+}  // namespace
 
 TEST_P(CHROMIUMFramebufferMixedSamplesTest, StateSettingTest)
 {
@@ -285,7 +266,4 @@ TEST_P(CHROMIUMFramebufferMixedSamplesTest, MultisampleStencilEffective)
     EXPECT_EQ(0, memcmp(results[0].get(), results[2].get(), kResultSize));
 }
 
-ANGLE_INSTANTIATE_TEST(CHROMIUMFramebufferMixedSamplesTest,
-                       ES2_OPENGL(),
-                       ES2_OPENGLES(),
-                       ES3_OPENGL());
+ANGLE_INSTANTIATE_TEST_ES2(CHROMIUMFramebufferMixedSamplesTest);

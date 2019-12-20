@@ -10,6 +10,7 @@
 #include "libANGLE/renderer/d3d/d3d9/Context9.h"
 
 #include "common/string_utils.h"
+#include "libANGLE/renderer/OverlayImpl.h"
 #include "libANGLE/renderer/d3d/CompilerD3D.h"
 #include "libANGLE/renderer/d3d/ProgramD3D.h"
 #include "libANGLE/renderer/d3d/RenderbufferD3D.h"
@@ -27,18 +28,20 @@
 namespace rx
 {
 
-Context9::Context9(const gl::ContextState &state, Renderer9 *renderer)
-    : ContextImpl(state), mRenderer(renderer)
+Context9::Context9(const gl::State &state, gl::ErrorSet *errorSet, Renderer9 *renderer)
+    : ContextD3D(state, errorSet), mRenderer(renderer)
+{}
+
+Context9::~Context9() {}
+
+angle::Result Context9::initialize()
 {
+    return angle::Result::Continue;
 }
 
-Context9::~Context9()
+void Context9::onDestroy(const gl::Context *context)
 {
-}
-
-gl::Error Context9::initialize()
-{
-    return gl::NoError();
+    mIncompleteTextures.onDestroy(context);
 }
 
 CompilerImpl *Context9::createCompiler()
@@ -48,7 +51,7 @@ CompilerImpl *Context9::createCompiler()
 
 ShaderImpl *Context9::createShader(const gl::ShaderState &data)
 {
-    return new ShaderD3D(data, mRenderer->getWorkarounds());
+    return new ShaderD3D(data, mRenderer->getFeatures(), mRenderer->getNativeExtensions());
 }
 
 ProgramImpl *Context9::createProgram(const gl::ProgramState &data)
@@ -63,13 +66,13 @@ FramebufferImpl *Context9::createFramebuffer(const gl::FramebufferState &data)
 
 TextureImpl *Context9::createTexture(const gl::TextureState &state)
 {
-    switch (state.getTarget())
+    switch (state.getType())
     {
-        case GL_TEXTURE_2D:
+        case gl::TextureType::_2D:
             return new TextureD3D_2D(state, mRenderer);
-        case GL_TEXTURE_CUBE_MAP:
+        case gl::TextureType::CubeMap:
             return new TextureD3D_Cube(state, mRenderer);
-        case GL_TEXTURE_EXTERNAL_OES:
+        case gl::TextureType::External:
             return new TextureD3D_External(state, mRenderer);
         default:
             UNREACHABLE();
@@ -77,9 +80,9 @@ TextureImpl *Context9::createTexture(const gl::TextureState &state)
     return nullptr;
 }
 
-RenderbufferImpl *Context9::createRenderbuffer()
+RenderbufferImpl *Context9::createRenderbuffer(const gl::RenderbufferState &state)
 {
-    return new RenderbufferD3D(mRenderer);
+    return new RenderbufferD3D(state, mRenderer);
 }
 
 BufferImpl *Context9::createBuffer(const gl::BufferState &state)
@@ -92,7 +95,7 @@ VertexArrayImpl *Context9::createVertexArray(const gl::VertexArrayState &data)
     return new VertexArray9(data);
 }
 
-QueryImpl *Context9::createQuery(GLenum type)
+QueryImpl *Context9::createQuery(gl::QueryType type)
 {
     return new Query9(mRenderer, type);
 }
@@ -102,7 +105,7 @@ FenceNVImpl *Context9::createFenceNV()
     return new FenceNV9(mRenderer);
 }
 
-FenceSyncImpl *Context9::createFenceSync()
+SyncImpl *Context9::createSync()
 {
     // D3D9 doesn't support ES 3.0 and its sync objects.
     UNREACHABLE();
@@ -115,9 +118,15 @@ TransformFeedbackImpl *Context9::createTransformFeedback(const gl::TransformFeed
     return nullptr;
 }
 
-SamplerImpl *Context9::createSampler()
+SamplerImpl *Context9::createSampler(const gl::SamplerState &state)
 {
-    return new SamplerD3D();
+    return new SamplerD3D(state);
+}
+
+ProgramPipelineImpl *Context9::createProgramPipeline(const gl::ProgramPipelineState &data)
+{
+    UNREACHABLE();
+    return nullptr;
 }
 
 std::vector<PathImpl *> Context9::createPaths(GLsizei)
@@ -125,72 +134,123 @@ std::vector<PathImpl *> Context9::createPaths(GLsizei)
     return std::vector<PathImpl *>();
 }
 
-gl::Error Context9::flush()
+MemoryObjectImpl *Context9::createMemoryObject()
 {
-    return mRenderer->flush();
+    UNREACHABLE();
+    return nullptr;
 }
 
-gl::Error Context9::finish()
+SemaphoreImpl *Context9::createSemaphore()
 {
-    return mRenderer->finish();
+    UNREACHABLE();
+    return nullptr;
 }
 
-gl::Error Context9::drawArrays(GLenum mode, GLint first, GLsizei count)
+OverlayImpl *Context9::createOverlay(const gl::OverlayState &state)
 {
-    return mRenderer->genericDrawArrays(this, mode, first, count, 0);
+    // Not implemented.
+    return new OverlayImpl(state);
 }
 
-gl::Error Context9::drawArraysInstanced(GLenum mode,
-                                        GLint first,
-                                        GLsizei count,
-                                        GLsizei instanceCount)
+angle::Result Context9::flush(const gl::Context *context)
 {
-    return mRenderer->genericDrawArrays(this, mode, first, count, instanceCount);
+    return mRenderer->flush(context);
 }
 
-gl::Error Context9::drawElements(GLenum mode,
-                                 GLsizei count,
-                                 GLenum type,
-                                 const void *indices,
-                                 const gl::IndexRange &indexRange)
+angle::Result Context9::finish(const gl::Context *context)
 {
-    return mRenderer->genericDrawElements(this, mode, count, type, indices, 0, indexRange);
+    return mRenderer->finish(context);
 }
 
-gl::Error Context9::drawElementsInstanced(GLenum mode,
+angle::Result Context9::drawArrays(const gl::Context *context,
+                                   gl::PrimitiveMode mode,
+                                   GLint first,
+                                   GLsizei count)
+{
+    return mRenderer->genericDrawArrays(context, mode, first, count, 0);
+}
+
+angle::Result Context9::drawArraysInstanced(const gl::Context *context,
+                                            gl::PrimitiveMode mode,
+                                            GLint first,
+                                            GLsizei count,
+                                            GLsizei instanceCount)
+{
+    return mRenderer->genericDrawArrays(context, mode, first, count, instanceCount);
+}
+
+angle::Result Context9::drawArraysInstancedBaseInstance(const gl::Context *context,
+                                                        gl::PrimitiveMode mode,
+                                                        GLint first,
+                                                        GLsizei count,
+                                                        GLsizei instanceCount,
+                                                        GLuint baseInstance)
+{
+    ANGLE_HR_UNREACHABLE(this);
+    return angle::Result::Continue;
+}
+
+angle::Result Context9::drawElements(const gl::Context *context,
+                                     gl::PrimitiveMode mode,
+                                     GLsizei count,
+                                     gl::DrawElementsType type,
+                                     const void *indices)
+{
+    return mRenderer->genericDrawElements(context, mode, count, type, indices, 0);
+}
+
+angle::Result Context9::drawElementsInstanced(const gl::Context *context,
+                                              gl::PrimitiveMode mode,
+                                              GLsizei count,
+                                              gl::DrawElementsType type,
+                                              const void *indices,
+                                              GLsizei instances)
+{
+    return mRenderer->genericDrawElements(context, mode, count, type, indices, instances);
+}
+
+angle::Result Context9::drawElementsInstancedBaseVertexBaseInstance(const gl::Context *context,
+                                                                    gl::PrimitiveMode mode,
+                                                                    GLsizei count,
+                                                                    gl::DrawElementsType type,
+                                                                    const void *indices,
+                                                                    GLsizei instances,
+                                                                    GLint baseVertex,
+                                                                    GLuint baseInstance)
+{
+    ANGLE_HR_UNREACHABLE(this);
+    return angle::Result::Continue;
+}
+
+angle::Result Context9::drawRangeElements(const gl::Context *context,
+                                          gl::PrimitiveMode mode,
+                                          GLuint start,
+                                          GLuint end,
                                           GLsizei count,
-                                          GLenum type,
-                                          const void *indices,
-                                          GLsizei instances,
-                                          const gl::IndexRange &indexRange)
+                                          gl::DrawElementsType type,
+                                          const void *indices)
 {
-    return mRenderer->genericDrawElements(this, mode, count, type, indices, instances, indexRange);
+    return mRenderer->genericDrawElements(context, mode, count, type, indices, 0);
 }
 
-gl::Error Context9::drawRangeElements(GLenum mode,
-                                      GLuint start,
-                                      GLuint end,
-                                      GLsizei count,
-                                      GLenum type,
-                                      const void *indices,
-                                      const gl::IndexRange &indexRange)
+angle::Result Context9::drawArraysIndirect(const gl::Context *context,
+                                           gl::PrimitiveMode mode,
+                                           const void *indirect)
 {
-    return mRenderer->genericDrawElements(this, mode, count, type, indices, 0, indexRange);
+    ANGLE_HR_UNREACHABLE(this);
+    return angle::Result::Stop;
 }
 
-gl::Error Context9::drawArraysIndirect(GLenum mode, const void *indirect)
+angle::Result Context9::drawElementsIndirect(const gl::Context *context,
+                                             gl::PrimitiveMode mode,
+                                             gl::DrawElementsType type,
+                                             const void *indirect)
 {
-    UNREACHABLE();
-    return gl::InternalError() << "D3D9 doesn't support ES 3.1 DrawArraysIndirect API";
+    ANGLE_HR_UNREACHABLE(this);
+    return angle::Result::Stop;
 }
 
-gl::Error Context9::drawElementsIndirect(GLenum mode, GLenum type, const void *indirect)
-{
-    UNREACHABLE();
-    return gl::InternalError() << "D3D9 doesn't support ES 3.1 DrawElementsIndirect API";
-}
-
-GLenum Context9::getResetStatus()
+gl::GraphicsResetStatus Context9::getResetStatus()
 {
     return mRenderer->getResetStatus();
 }
@@ -207,30 +267,44 @@ std::string Context9::getRendererDescription() const
 
 void Context9::insertEventMarker(GLsizei length, const char *marker)
 {
-    auto optionalString = angle::WidenString(static_cast<size_t>(length), marker);
-    if (optionalString.valid())
-    {
-        mRenderer->getAnnotator()->setMarker(optionalString.value().data());
-    }
+    mRenderer->getAnnotator()->setMarker(marker);
 }
 
 void Context9::pushGroupMarker(GLsizei length, const char *marker)
 {
-    auto optionalString = angle::WidenString(static_cast<size_t>(length), marker);
-    if (optionalString.valid())
-    {
-        mRenderer->getAnnotator()->beginEvent(optionalString.value().data());
-    }
+    mRenderer->getAnnotator()->beginEvent(marker, marker);
+    mMarkerStack.push(std::string(marker));
 }
 
 void Context9::popGroupMarker()
 {
-    mRenderer->getAnnotator()->endEvent();
+    const char *marker = nullptr;
+    if (!mMarkerStack.empty())
+    {
+        marker = mMarkerStack.top().c_str();
+        mMarkerStack.pop();
+        mRenderer->getAnnotator()->endEvent(marker);
+    }
 }
 
-void Context9::syncState(const gl::State::DirtyBits &dirtyBits)
+void Context9::pushDebugGroup(GLenum source, GLuint id, const std::string &message)
 {
-    mRenderer->getStateManager()->syncState(mState.getState(), dirtyBits);
+    // Fall through to the EXT_debug_marker functions
+    pushGroupMarker(static_cast<GLsizei>(message.size()), message.c_str());
+}
+
+void Context9::popDebugGroup()
+{
+    // Fall through to the EXT_debug_marker functions
+    popGroupMarker();
+}
+
+angle::Result Context9::syncState(const gl::Context *context,
+                                  const gl::State::DirtyBits &dirtyBits,
+                                  const gl::State::DirtyBits &bitMask)
+{
+    mRenderer->getStateManager()->syncState(mState, dirtyBits);
+    return angle::Result::Continue;
 }
 
 GLint Context9::getGPUDisjoint()
@@ -243,11 +317,13 @@ GLint64 Context9::getTimestamp()
     return mRenderer->getTimestamp();
 }
 
-void Context9::onMakeCurrent(const gl::ContextState &data)
+angle::Result Context9::onMakeCurrent(const gl::Context *context)
 {
+    mRenderer->getStateManager()->setAllDirtyBits();
+    return mRenderer->ensureVertexDataManagerInitialized(context);
 }
 
-const gl::Caps &Context9::getNativeCaps() const
+gl::Caps Context9::getNativeCaps() const
 {
     return mRenderer->getNativeCaps();
 }
@@ -267,10 +343,58 @@ const gl::Limitations &Context9::getNativeLimitations() const
     return mRenderer->getNativeLimitations();
 }
 
-gl::Error Context9::dispatchCompute(GLuint numGroupsX, GLuint numGroupsY, GLuint numGroupsZ)
+angle::Result Context9::dispatchCompute(const gl::Context *context,
+                                        GLuint numGroupsX,
+                                        GLuint numGroupsY,
+                                        GLuint numGroupsZ)
 {
-    UNREACHABLE();
-    return gl::InternalError() << "D3D9 doesn't support ES 3.1 DispatchCompute API";
+    ANGLE_HR_UNREACHABLE(this);
+    return angle::Result::Stop;
 }
 
+angle::Result Context9::dispatchComputeIndirect(const gl::Context *context, GLintptr indirect)
+{
+    ANGLE_HR_UNREACHABLE(this);
+    return angle::Result::Stop;
+}
+
+angle::Result Context9::memoryBarrier(const gl::Context *context, GLbitfield barriers)
+{
+    ANGLE_HR_UNREACHABLE(this);
+    return angle::Result::Stop;
+}
+
+angle::Result Context9::memoryBarrierByRegion(const gl::Context *context, GLbitfield barriers)
+{
+    ANGLE_HR_UNREACHABLE(this);
+    return angle::Result::Stop;
+}
+
+angle::Result Context9::getIncompleteTexture(const gl::Context *context,
+                                             gl::TextureType type,
+                                             gl::Texture **textureOut)
+{
+    return mIncompleteTextures.getIncompleteTexture(context, type, nullptr, textureOut);
+}
+
+void Context9::handleResult(HRESULT hr,
+                            const char *message,
+                            const char *file,
+                            const char *function,
+                            unsigned int line)
+{
+    ASSERT(FAILED(hr));
+
+    if (d3d9::isDeviceLostError(hr))
+    {
+        mRenderer->notifyDeviceLost();
+    }
+
+    GLenum glErrorCode = DefaultGLErrorCode(hr);
+
+    std::stringstream errorStream;
+    errorStream << "Internal D3D9 error: " << gl::FmtHR(hr) << ": " << message;
+
+    mErrors->handleError(glErrorCode, errorStream.str().c_str(), file, function, line);
+}
 }  // namespace rx

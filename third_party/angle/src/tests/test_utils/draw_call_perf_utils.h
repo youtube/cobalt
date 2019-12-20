@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 The ANGLE Project Authors. All rights reserved.
+// Copyright 2017 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -12,10 +12,13 @@
 
 #include <stddef.h>
 
-#include "angle_gl.h"
+#include "util/gles_loader_autogen.h"
 
 // Returns program ID. The program is left in use, no uniforms.
 GLuint SetupSimpleDrawProgram();
+
+// Returns program ID. Uses a 2D texture.
+GLuint SetupSimpleTextureProgram();
 
 // Returns program ID. The program is left in use and the uniforms are set to default values:
 // uScale = 0.5, uOffset = -0.5

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2002-2016 The ANGLE Project Authors. All rights reserved.
+// Copyright 2002 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -22,11 +22,11 @@ class PathImpl : angle::NonCopyable
   public:
     virtual ~PathImpl() {}
 
-    virtual gl::Error setCommands(GLsizei numCommands,
-                                  const GLubyte *commands,
-                                  GLsizei numCoords,
-                                  GLenum coordType,
-                                  const void *coords) = 0;
+    virtual angle::Result setCommands(GLsizei numCommands,
+                                      const GLubyte *commands,
+                                      GLsizei numCoords,
+                                      GLenum coordType,
+                                      const void *coords) = 0;
 
     virtual void setPathParameter(GLenum pname, GLfloat value) = 0;
 };

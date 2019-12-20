@@ -25,40 +25,15 @@ class ColorMaskTest : public ANGLETest
         setConfigDepthBits(24);
     }
 
-    void SetUp() override
+    void testSetUp() override
     {
-        ANGLETest::SetUp();
-
-        const std::string vsSource =
-            "precision highp float;\n"
-            "attribute vec4 position;\n"
-            "\n"
-            "void main()\n"
-            "{\n"
-            "    gl_Position = position;\n"
-            "}\n";
-
-        const std::string fsSource =
-            "precision highp float;\n"
-            "uniform vec4 color;\n"
-            "\n"
-            "void main()\n"
-            "{\n"
-            "    gl_FragColor = color;\n"
-            "}\n";
-
-        mProgram = CompileProgram(vsSource, fsSource);
+        mProgram = CompileProgram(essl1_shaders::vs::Simple(), essl1_shaders::fs::UniformColor());
         ASSERT_NE(0u, mProgram) << "shader compilation failed.";
 
-        mColorUniform = glGetUniformLocation(mProgram, "color");
+        mColorUniform = glGetUniformLocation(mProgram, essl1_shaders::ColorUniform());
     }
 
-    void TearDown() override
-    {
-        glDeleteProgram(mProgram);
-
-        ANGLETest::TearDown();
-    }
+    void testTearDown() override { glDeleteProgram(mProgram); }
 
     GLuint mProgram     = 0;
     GLint mColorUniform = -1;
@@ -82,7 +57,7 @@ TEST_P(ColorMaskTest, AMDZeroColorMaskBug)
     glUseProgram(mProgram);
     glUniform4f(mColorUniform, 1.0f, 0.0f, 0.0f, 0.0f);
     EXPECT_GL_NO_ERROR();
-    drawQuad(mProgram, "position", 0.5f);
+    drawQuad(mProgram, essl1_shaders::PositionAttrib(), 0.5f);
     EXPECT_PIXEL_EQ(x, y, 0, 0, 255, 255);
 
     // Re-enable the color mask, should be red (with blend disabled, the red should overwrite
@@ -91,20 +66,13 @@ TEST_P(ColorMaskTest, AMDZeroColorMaskBug)
     glUseProgram(mProgram);
     glUniform4f(mColorUniform, 1.0f, 0.0f, 0.0f, 0.0f);
     EXPECT_GL_NO_ERROR();
-    drawQuad(mProgram, "position", 0.5f);
+    drawQuad(mProgram, essl1_shaders::PositionAttrib(), 0.5f);
     EXPECT_PIXEL_EQ(x, y, 255, 0, 0, 0);
 }
 
 // Use this to select which configurations (e.g. which renderer, which GLES major version) these
 // tests should be run against. D3D11 Feature Level 9_3 uses different D3D formats for vertex
 // attribs compared to Feature Levels 10_0+, so we should test them separately.
-ANGLE_INSTANTIATE_TEST(ColorMaskTest,
-                       ES2_D3D9(),
-                       ES2_D3D11(),
-                       ES2_D3D11_FL9_3(),
-                       ES2_OPENGL(),
-                       ES3_OPENGL(),
-                       ES2_OPENGLES(),
-                       ES3_OPENGLES());
+ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(ColorMaskTest);
 
 }  // namespace angle

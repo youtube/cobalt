@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2012-2013 The ANGLE Project Authors. All rights reserved.
+// Copyright 2012 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -17,7 +17,7 @@ namespace sh
 class TInfoSinkBase;
 struct TSourceLoc;
 
-class TDiagnostics : public pp::Diagnostics, angle::NonCopyable
+class TDiagnostics : public angle::pp::Diagnostics, angle::NonCopyable
 {
   public:
     TDiagnostics(TInfoSinkBase &infoSink);
@@ -26,8 +26,8 @@ class TDiagnostics : public pp::Diagnostics, angle::NonCopyable
     int numErrors() const { return mNumErrors; }
     int numWarnings() const { return mNumWarnings; }
 
-    void error(const pp::SourceLocation &loc, const char *reason, const char *token);
-    void warning(const pp::SourceLocation &loc, const char *reason, const char *token);
+    void error(const angle::pp::SourceLocation &loc, const char *reason, const char *token);
+    void warning(const angle::pp::SourceLocation &loc, const char *reason, const char *token);
 
     void error(const TSourceLoc &loc, const char *reason, const char *token);
     void warning(const TSourceLoc &loc, const char *reason, const char *token);
@@ -38,16 +38,28 @@ class TDiagnostics : public pp::Diagnostics, angle::NonCopyable
 
   protected:
     void writeInfo(Severity severity,
-                   const pp::SourceLocation &loc,
+                   const angle::pp::SourceLocation &loc,
                    const char *reason,
                    const char *token);
 
-    void print(ID id, const pp::SourceLocation &loc, const std::string &text) override;
+    void print(ID id, const angle::pp::SourceLocation &loc, const std::string &text) override;
 
   private:
     TInfoSinkBase &mInfoSink;
     int mNumErrors;
     int mNumWarnings;
+};
+
+// Diagnostics wrapper to use when the code is only allowed to generate warnings.
+class PerformanceDiagnostics : public angle::NonCopyable
+{
+  public:
+    PerformanceDiagnostics(TDiagnostics *diagnostics);
+
+    void warning(const TSourceLoc &loc, const char *reason, const char *token);
+
+  private:
+    TDiagnostics *mDiagnostics;
 };
 
 }  // namespace sh

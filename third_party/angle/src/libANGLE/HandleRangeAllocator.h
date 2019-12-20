@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2002-2016 The ANGLE Project Authors. All rights reserved.
+// Copyright 2002 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -25,6 +25,7 @@ class HandleRangeAllocator final : angle::NonCopyable
     static const GLuint kInvalidHandle;
 
     HandleRangeAllocator();
+    ~HandleRangeAllocator();
 
     // Allocates a new path handle.
     GLuint allocate();

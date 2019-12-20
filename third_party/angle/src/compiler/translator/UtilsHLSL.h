@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -16,30 +16,41 @@
 
 #include "angle_gl.h"
 
-class TName;
-
 namespace sh
 {
 
-// Unique combinations of HLSL Texture type and HLSL Sampler type.
-enum HLSLTextureSamplerGroup
+class TFunction;
+
+// HLSL Texture type for GLSL sampler type and readonly image type.
+enum HLSLTextureGroup
 {
-    // Regular samplers
+    // read resources
     HLSL_TEXTURE_2D,
     HLSL_TEXTURE_MIN = HLSL_TEXTURE_2D,
 
     HLSL_TEXTURE_CUBE,
     HLSL_TEXTURE_2D_ARRAY,
     HLSL_TEXTURE_3D,
+    HLSL_TEXTURE_2D_UNORM,
+    HLSL_TEXTURE_CUBE_UNORM,
+    HLSL_TEXTURE_2D_ARRAY_UNORN,
+    HLSL_TEXTURE_3D_UNORM,
+    HLSL_TEXTURE_2D_SNORM,
+    HLSL_TEXTURE_CUBE_SNORM,
+    HLSL_TEXTURE_2D_ARRAY_SNORM,
+    HLSL_TEXTURE_3D_SNORM,
     HLSL_TEXTURE_2D_MS,
+    HLSL_TEXTURE_2D_MS_ARRAY,
     HLSL_TEXTURE_2D_INT4,
     HLSL_TEXTURE_3D_INT4,
     HLSL_TEXTURE_2D_ARRAY_INT4,
     HLSL_TEXTURE_2D_MS_INT4,
+    HLSL_TEXTURE_2D_MS_ARRAY_INT4,
     HLSL_TEXTURE_2D_UINT4,
     HLSL_TEXTURE_3D_UINT4,
     HLSL_TEXTURE_2D_ARRAY_UINT4,
     HLSL_TEXTURE_2D_MS_UINT4,
+    HLSL_TEXTURE_2D_MS_ARRAY_UINT4,
 
     // Comparison samplers
 
@@ -54,30 +65,71 @@ enum HLSLTextureSamplerGroup
     HLSL_TEXTURE_MAX = HLSL_TEXTURE_UNKNOWN
 };
 
-HLSLTextureSamplerGroup TextureGroup(const TBasicType type);
-TString TextureString(const HLSLTextureSamplerGroup type);
-TString TextureString(const TBasicType type);
-TString TextureGroupSuffix(const HLSLTextureSamplerGroup type);
-TString TextureGroupSuffix(const TBasicType type);
-TString TextureTypeSuffix(const TBasicType type);
-TString SamplerString(const TBasicType type);
-TString SamplerString(HLSLTextureSamplerGroup type);
-// Prepends an underscore to avoid naming clashes
-TString Decorate(const TString &string);
-TString DecorateIfNeeded(const TName &name);
-TString DecorateUniform(const TName &name, const TType &type);
-TString DecorateField(const TString &string, const TStructure &structure);
-TString DecoratePrivate(const TString &privateText);
+// HLSL RWTexture type for GLSL read and write image type.
+enum HLSLRWTextureGroup
+{
+    // read/write resource
+    HLSL_RWTEXTURE_2D_FLOAT4,
+    HLSL_RWTEXTURE_MIN = HLSL_RWTEXTURE_2D_FLOAT4,
+    HLSL_RWTEXTURE_2D_ARRAY_FLOAT4,
+    HLSL_RWTEXTURE_3D_FLOAT4,
+    HLSL_RWTEXTURE_2D_UNORM,
+    HLSL_RWTEXTURE_2D_ARRAY_UNORN,
+    HLSL_RWTEXTURE_3D_UNORM,
+    HLSL_RWTEXTURE_2D_SNORM,
+    HLSL_RWTEXTURE_2D_ARRAY_SNORM,
+    HLSL_RWTEXTURE_3D_SNORM,
+    HLSL_RWTEXTURE_2D_UINT4,
+    HLSL_RWTEXTURE_2D_ARRAY_UINT4,
+    HLSL_RWTEXTURE_3D_UINT4,
+    HLSL_RWTEXTURE_2D_INT4,
+    HLSL_RWTEXTURE_2D_ARRAY_INT4,
+    HLSL_RWTEXTURE_3D_INT4,
+
+    HLSL_RWTEXTURE_UNKNOWN,
+    HLSL_RWTEXTURE_MAX = HLSL_RWTEXTURE_UNKNOWN
+};
+
+HLSLTextureGroup TextureGroup(const TBasicType type,
+                              TLayoutImageInternalFormat imageInternalFormat = EiifUnspecified);
+const char *TextureString(const HLSLTextureGroup textureGroup);
+const char *TextureString(const TBasicType type,
+                          TLayoutImageInternalFormat imageInternalFormat = EiifUnspecified);
+const char *TextureGroupSuffix(const HLSLTextureGroup type);
+const char *TextureGroupSuffix(const TBasicType type,
+                               TLayoutImageInternalFormat imageInternalFormat = EiifUnspecified);
+const char *TextureTypeSuffix(const TBasicType type,
+                              TLayoutImageInternalFormat imageInternalFormat = EiifUnspecified);
+HLSLRWTextureGroup RWTextureGroup(const TBasicType type,
+                                  TLayoutImageInternalFormat imageInternalFormat);
+const char *RWTextureString(const HLSLRWTextureGroup textureGroup);
+const char *RWTextureString(const TBasicType type, TLayoutImageInternalFormat imageInternalFormat);
+const char *RWTextureGroupSuffix(const HLSLRWTextureGroup type);
+const char *RWTextureGroupSuffix(const TBasicType type,
+                                 TLayoutImageInternalFormat imageInternalFormat);
+const char *RWTextureTypeSuffix(const TBasicType type,
+                                TLayoutImageInternalFormat imageInternalFormat);
+
+const char *SamplerString(const TBasicType type);
+const char *SamplerString(HLSLTextureGroup type);
+
+// Adds a prefix to user-defined names to avoid naming clashes.
+TString Decorate(const ImmutableString &string);
+TString DecorateVariableIfNeeded(const TVariable &variable);
+TString DecorateFunctionIfNeeded(const TFunction *func);
+TString DecorateField(const ImmutableString &string, const TStructure &structure);
+TString DecoratePrivate(const ImmutableString &privateText);
 TString TypeString(const TType &type);
 TString StructNameString(const TStructure &structure);
 TString QualifiedStructNameString(const TStructure &structure,
                                   bool useHLSLRowMajorPacking,
                                   bool useStd140Packing);
-TString InterpolationString(TQualifier qualifier);
-TString QualifierString(TQualifier qualifier);
+const char *InterpolationString(TQualifier qualifier);
+const char *QualifierString(TQualifier qualifier);
 // Parameters may need to be included in function names to disambiguate between overloaded
 // functions.
-TString DisambiguateFunctionName(const TIntermSequence *parameters);
-}
+TString DisambiguateFunctionName(const TFunction *func);
+TString DisambiguateFunctionName(const TIntermSequence *args);
+}  // namespace sh
 
 #endif  // COMPILER_TRANSLATOR_UTILSHLSL_H_

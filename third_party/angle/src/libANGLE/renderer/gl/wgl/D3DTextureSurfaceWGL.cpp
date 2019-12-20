@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -9,10 +9,12 @@
 #include "libANGLE/renderer/gl/wgl/D3DTextureSurfaceWGL.h"
 
 #include "libANGLE/Surface.h"
+#include "libANGLE/renderer/d3d/d3d11/formatutils11.h"
+#include "libANGLE/renderer/d3d/d3d9/formatutils9.h"
 #include "libANGLE/renderer/gl/FramebufferGL.h"
-#include "libANGLE/renderer/gl/TextureGL.h"
 #include "libANGLE/renderer/gl/RendererGL.h"
 #include "libANGLE/renderer/gl/StateManagerGL.h"
+#include "libANGLE/renderer/gl/TextureGL.h"
 #include "libANGLE/renderer/gl/wgl/DisplayWGL.h"
 #include "libANGLE/renderer/gl/wgl/FunctionsWGL.h"
 
@@ -26,6 +28,7 @@ egl::Error GetD3D11TextureInfo(EGLenum buftype,
                                ID3D11Texture2D *texture11,
                                size_t *width,
                                size_t *height,
+                               const angle::Format **angleFormat,
                                IUnknown **object,
                                IUnknown **device)
 {
@@ -47,8 +50,8 @@ egl::Error GetD3D11TextureInfo(EGLenum buftype,
 
             default:
                 SafeRelease(texture11);
-                return egl::Error(EGL_BAD_PARAMETER, "Unknown client buffer texture format: %u.",
-                                  textureDesc.Format);
+                return egl::EglBadParameter()
+                       << "Unknown client buffer texture format: " << textureDesc.Format;
         }
     }
 
@@ -57,8 +60,12 @@ egl::Error GetD3D11TextureInfo(EGLenum buftype,
     if (d3d11Device == nullptr)
     {
         SafeRelease(texture11);
-        return egl::Error(EGL_BAD_PARAMETER,
-                          "Could not query the D3D11 device from the client buffer.");
+        return egl::EglBadParameter() << "Could not query the D3D11 device from the client buffer.";
+    }
+
+    if (angleFormat)
+    {
+        *angleFormat = &d3d11_angle::GetFormat(textureDesc.Format);
     }
 
     if (width)
@@ -88,13 +95,14 @@ egl::Error GetD3D11TextureInfo(EGLenum buftype,
         SafeRelease(texture11);
     }
 
-    return egl::Error(EGL_SUCCESS);
+    return egl::NoError();
 }
 
 egl::Error GetD3D9TextureInfo(EGLenum buftype,
                               IDirect3DTexture9 *texture9,
                               size_t *width,
                               size_t *height,
+                              const angle::Format **angleFormat,
                               IUnknown **object,
                               IUnknown **device)
 {
@@ -102,7 +110,7 @@ egl::Error GetD3D9TextureInfo(EGLenum buftype,
     if (FAILED(texture9->GetLevelDesc(0, &surfaceDesc)))
     {
         SafeRelease(texture9);
-        return egl::Error(EGL_BAD_PARAMETER, "Could not query description of the D3D9 surface.");
+        return egl::EglBadParameter() << "Could not query description of the D3D9 surface.";
     }
 
     if (buftype == EGL_D3D_TEXTURE_ANGLE)
@@ -118,9 +126,16 @@ egl::Error GetD3D9TextureInfo(EGLenum buftype,
 
             default:
                 SafeRelease(texture9);
-                return egl::Error(EGL_BAD_PARAMETER, "Unknown client buffer texture format: %u.",
-                                  surfaceDesc.Format);
+                return egl::EglBadParameter()
+                       << "Unknown client buffer texture format: " << surfaceDesc.Format;
         }
+    }
+
+    if (angleFormat)
+    {
+        const auto &d3dFormatInfo = d3d9::GetD3DFormatInfo(surfaceDesc.Format);
+        ASSERT(d3dFormatInfo.info().id != angle::FormatID::NONE);
+        *angleFormat = &d3dFormatInfo.info();
     }
 
     if (width)
@@ -137,8 +152,7 @@ egl::Error GetD3D9TextureInfo(EGLenum buftype,
     if (FAILED(result))
     {
         SafeRelease(texture9);
-        return egl::Error(EGL_BAD_PARAMETER,
-                          "Could not query the D3D9 device from the client buffer.");
+        return egl::EglBadParameter() << "Could not query the D3D9 device from the client buffer.";
     }
 
     if (device)
@@ -159,7 +173,7 @@ egl::Error GetD3D9TextureInfo(EGLenum buftype,
         SafeRelease(texture9);
     }
 
-    return egl::Error(EGL_SUCCESS);
+    return egl::NoError();
 }
 
 egl::Error GetD3DTextureInfo(EGLenum buftype,
@@ -167,6 +181,7 @@ egl::Error GetD3DTextureInfo(EGLenum buftype,
                              ID3D11Device *d3d11Device,
                              size_t *width,
                              size_t *height,
+                             const angle::Format **angleFormat,
                              IUnknown **object,
                              IUnknown **device)
 {
@@ -177,16 +192,18 @@ egl::Error GetD3DTextureInfo(EGLenum buftype,
         IDirect3DTexture9 *texture9 = nullptr;
         if (SUCCEEDED(buffer->QueryInterface<ID3D11Texture2D>(&texture11)))
         {
-            return GetD3D11TextureInfo(buftype, texture11, width, height, object, device);
+            return GetD3D11TextureInfo(buftype, texture11, width, height, angleFormat, object,
+                                       device);
         }
         else if (SUCCEEDED(buffer->QueryInterface<IDirect3DTexture9>(&texture9)))
         {
-            return GetD3D9TextureInfo(buftype, texture9, width, height, object, device);
+            return GetD3D9TextureInfo(buftype, texture9, width, height, angleFormat, object,
+                                      device);
         }
         else
         {
-            return egl::Error(EGL_BAD_PARAMETER,
-                              "Provided buffer is not a IDirect3DTexture9 or ID3D11Texture2D.");
+            return egl::EglBadParameter()
+                   << "Provided buffer is not a IDirect3DTexture9 or ID3D11Texture2D.";
         }
     }
     else if (buftype == EGL_D3D_TEXTURE_2D_SHARE_HANDLE_ANGLE)
@@ -198,55 +215,49 @@ egl::Error GetD3DTextureInfo(EGLenum buftype,
                                                          reinterpret_cast<void **>(&texture11));
         if (FAILED(result))
         {
-            return egl::Error(EGL_BAD_PARAMETER, "Failed to open share handle, result: 0x%X.",
-                              result);
+            return egl::EglBadParameter() << "Failed to open share handle, " << gl::FmtHR(result);
         }
 
-        return GetD3D11TextureInfo(buftype, texture11, width, height, object, device);
+        return GetD3D11TextureInfo(buftype, texture11, width, height, angleFormat, object, device);
     }
     else
     {
         UNREACHABLE();
-        return egl::Error(EGL_BAD_DISPLAY, "Unknown buftype for D3DTextureSurfaceWGL.");
+        return egl::EglBadDisplay() << "Unknown buftype for D3DTextureSurfaceWGL.";
     }
 }
 
 }  // anonymous namespace
 
 D3DTextureSurfaceWGL::D3DTextureSurfaceWGL(const egl::SurfaceState &state,
-                                           RendererGL *renderer,
+                                           StateManagerGL *stateManager,
                                            EGLenum buftype,
                                            EGLClientBuffer clientBuffer,
                                            DisplayWGL *display,
-                                           HGLRC wglContext,
                                            HDC deviceContext,
                                            ID3D11Device *displayD3D11Device,
                                            const FunctionsGL *functionsGL,
                                            const FunctionsWGL *functionsWGL)
-    : SurfaceGL(state, renderer),
+    : SurfaceWGL(state),
       mBuftype(buftype),
       mClientBuffer(clientBuffer),
-      mRenderer(renderer),
       mDisplayD3D11Device(displayD3D11Device),
       mDisplay(display),
-      mStateManager(renderer->getStateManager()),
-      mWorkarounds(renderer->getWorkarounds()),
+      mStateManager(stateManager),
       mFunctionsGL(functionsGL),
       mFunctionsWGL(functionsWGL),
-      mWGLContext(wglContext),
       mDeviceContext(deviceContext),
       mWidth(0),
       mHeight(0),
+      mColorFormat(nullptr),
       mDeviceHandle(nullptr),
       mObject(nullptr),
       mKeyedMutex(nullptr),
       mBoundObjectTextureHandle(nullptr),
       mBoundObjectRenderbufferHandle(nullptr),
       mColorRenderbufferID(0),
-      mDepthStencilRenderbufferID(0),
-      mFramebufferID(0)
-{
-}
+      mDepthStencilRenderbufferID(0)
+{}
 
 D3DTextureSurfaceWGL::~D3DTextureSurfaceWGL()
 {
@@ -271,9 +282,6 @@ D3DTextureSurfaceWGL::~D3DTextureSurfaceWGL()
             mBoundObjectTextureHandle = nullptr;
         }
 
-        // GL framebuffer is deleted by the default framebuffer object
-        mFramebufferID = 0;
-
         mDisplay->releaseD3DDevice(mDeviceHandle);
         mDeviceHandle = nullptr;
     }
@@ -283,15 +291,28 @@ egl::Error D3DTextureSurfaceWGL::ValidateD3DTextureClientBuffer(EGLenum buftype,
                                                                 EGLClientBuffer clientBuffer,
                                                                 ID3D11Device *d3d11Device)
 {
-    return GetD3DTextureInfo(buftype, clientBuffer, d3d11Device, nullptr, nullptr, nullptr,
+    return GetD3DTextureInfo(buftype, clientBuffer, d3d11Device, nullptr, nullptr, nullptr, nullptr,
                              nullptr);
 }
 
-egl::Error D3DTextureSurfaceWGL::initialize(const DisplayImpl *displayImpl)
+egl::Error D3DTextureSurfaceWGL::initialize(const egl::Display *display)
 {
     IUnknown *device = nullptr;
     ANGLE_TRY(GetD3DTextureInfo(mBuftype, mClientBuffer, mDisplayD3D11Device, &mWidth, &mHeight,
-                                &mObject, &device));
+                                &mColorFormat, &mObject, &device));
+
+    if (mColorFormat)
+    {
+        if (mState.attributes.contains(EGL_GL_COLORSPACE))
+        {
+            if (mColorFormat->id != angle::FormatID::R8G8B8A8_TYPELESS &&
+                mColorFormat->id != angle::FormatID::B8G8R8A8_TYPELESS)
+            {
+                return egl::EglBadMatch()
+                       << "EGL_GL_COLORSPACE may only be specified for TYPELESS textures";
+            }
+        }
+    }
 
     // Grab the keyed mutex, if one exists
     mObject->QueryInterface(&mKeyedMutex);
@@ -310,8 +331,8 @@ egl::Error D3DTextureSurfaceWGL::initialize(const DisplayImpl *displayImpl)
         mDeviceHandle, mObject, mColorRenderbufferID, GL_RENDERBUFFER, WGL_ACCESS_READ_WRITE_NV);
     if (mBoundObjectRenderbufferHandle == nullptr)
     {
-        return egl::Error(EGL_BAD_ALLOC, "Failed to register D3D object, error: 0x%08x.",
-                          HRESULT_CODE(GetLastError()));
+        return egl::EglBadAlloc() << "Failed to register D3D object, "
+                                  << gl::FmtErr(HRESULT_CODE(GetLastError()));
     }
 
     const egl::Config *config = mState.config;
@@ -324,63 +345,44 @@ egl::Error D3DTextureSurfaceWGL::initialize(const DisplayImpl *displayImpl)
                                           static_cast<GLsizei>(mHeight));
     }
 
-    mFunctionsGL->genFramebuffers(1, &mFramebufferID);
-    mStateManager->bindFramebuffer(GL_FRAMEBUFFER, mFramebufferID);
-    mFunctionsGL->framebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER,
-                                          mColorRenderbufferID);
-    if (config->depthSize > 0)
-    {
-        mFunctionsGL->framebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER,
-                                              mDepthStencilRenderbufferID);
-    }
-    if (config->stencilSize > 0)
-    {
-        mFunctionsGL->framebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT,
-                                              GL_RENDERBUFFER, mDepthStencilRenderbufferID);
-    }
-
-    return egl::Error(EGL_SUCCESS);
+    return egl::NoError();
 }
 
-egl::Error D3DTextureSurfaceWGL::makeCurrent()
+egl::Error D3DTextureSurfaceWGL::makeCurrent(const gl::Context *context)
 {
-    if (!mFunctionsWGL->makeCurrent(mDeviceContext, mWGLContext))
-    {
-        // TODO(geofflang): What error type here?
-        return egl::Error(EGL_CONTEXT_LOST, "Failed to make the WGL context current.");
-    }
-
     if (!mFunctionsWGL->dxLockObjectsNV(mDeviceHandle, 1, &mBoundObjectRenderbufferHandle))
     {
         DWORD error = GetLastError();
-        return egl::Error(EGL_BAD_ALLOC, "Failed to lock object, error: 0x%08x.",
-                          HRESULT_CODE(error));
+        return egl::EglBadAlloc() << "Failed to lock object, " << gl::FmtErr(HRESULT_CODE(error));
     }
 
-    return egl::Error(EGL_SUCCESS);
+    return egl::NoError();
 }
 
-egl::Error D3DTextureSurfaceWGL::unMakeCurrent()
+egl::Error D3DTextureSurfaceWGL::unMakeCurrent(const gl::Context *context)
 {
     if (!mFunctionsWGL->dxUnlockObjectsNV(mDeviceHandle, 1, &mBoundObjectRenderbufferHandle))
     {
         DWORD error = GetLastError();
-        return egl::Error(EGL_BAD_ALLOC, "Failed to unlock object, error: 0x%08x.",
-                          HRESULT_CODE(error));
+        return egl::EglBadAlloc() << "Failed to unlock object, " << gl::FmtErr(HRESULT_CODE(error));
     }
 
-    return egl::Error(EGL_SUCCESS);
+    return egl::NoError();
 }
 
-egl::Error D3DTextureSurfaceWGL::swap(const DisplayImpl *displayImpl)
+egl::Error D3DTextureSurfaceWGL::swap(const gl::Context *context)
 {
-    return egl::Error(EGL_SUCCESS);
+    return egl::NoError();
 }
 
-egl::Error D3DTextureSurfaceWGL::postSubBuffer(EGLint x, EGLint y, EGLint width, EGLint height)
+egl::Error D3DTextureSurfaceWGL::postSubBuffer(const gl::Context *context,
+                                               EGLint x,
+                                               EGLint y,
+                                               EGLint width,
+                                               EGLint height)
 {
     UNIMPLEMENTED();
-    return egl::Error(EGL_SUCCESS);
+    return egl::NoError();
 }
 
 egl::Error D3DTextureSurfaceWGL::querySurfacePointerANGLE(EGLint attribute, void **value)
@@ -399,10 +401,12 @@ egl::Error D3DTextureSurfaceWGL::querySurfacePointerANGLE(EGLint attribute, void
             UNREACHABLE();
     }
 
-    return egl::Error(EGL_SUCCESS);
+    return egl::NoError();
 }
 
-egl::Error D3DTextureSurfaceWGL::bindTexImage(gl::Texture *texture, EGLint buffer)
+egl::Error D3DTextureSurfaceWGL::bindTexImage(const gl::Context *context,
+                                              gl::Texture *texture,
+                                              EGLint buffer)
 {
     ASSERT(mBoundObjectTextureHandle == nullptr);
 
@@ -414,39 +418,37 @@ egl::Error D3DTextureSurfaceWGL::bindTexImage(gl::Texture *texture, EGLint buffe
     if (mBoundObjectTextureHandle == nullptr)
     {
         DWORD error = GetLastError();
-        return egl::Error(EGL_BAD_ALLOC, "Failed to register D3D object, error: 0x%08x.",
-                          HRESULT_CODE(error));
+        return egl::EglBadAlloc() << "Failed to register D3D object, "
+                                  << gl::FmtErr(HRESULT_CODE(error));
     }
 
     if (!mFunctionsWGL->dxLockObjectsNV(mDeviceHandle, 1, &mBoundObjectTextureHandle))
     {
         DWORD error = GetLastError();
-        return egl::Error(EGL_BAD_ALLOC, "Failed to lock object, error: 0x%08x.",
-                          HRESULT_CODE(error));
+        return egl::EglBadAlloc() << "Failed to lock object, " << gl::FmtErr(HRESULT_CODE(error));
     }
 
-    return egl::Error(EGL_SUCCESS);
+    return egl::NoError();
 }
 
-egl::Error D3DTextureSurfaceWGL::releaseTexImage(EGLint buffer)
+egl::Error D3DTextureSurfaceWGL::releaseTexImage(const gl::Context *context, EGLint buffer)
 {
     ASSERT(mBoundObjectTextureHandle != nullptr);
     if (!mFunctionsWGL->dxUnlockObjectsNV(mDeviceHandle, 1, &mBoundObjectTextureHandle))
     {
         DWORD error = GetLastError();
-        return egl::Error(EGL_BAD_ALLOC, "Failed to unlock object, error: 0x%08x.",
-                          HRESULT_CODE(error));
+        return egl::EglBadAlloc() << "Failed to unlock object, " << gl::FmtErr(HRESULT_CODE(error));
     }
 
     if (!mFunctionsWGL->dxUnregisterObjectNV(mDeviceHandle, mBoundObjectTextureHandle))
     {
         DWORD error = GetLastError();
-        return egl::Error(EGL_BAD_ALLOC, "Failed to unregister D3D object, error: 0x%08x.",
-                          HRESULT_CODE(error));
+        return egl::EglBadAlloc() << "Failed to unregister D3D object, "
+                                  << gl::FmtErr(HRESULT_CODE(error));
     }
     mBoundObjectTextureHandle = nullptr;
 
-    return egl::Error(EGL_SUCCESS);
+    return egl::NoError();
 }
 
 void D3DTextureSurfaceWGL::setSwapInterval(EGLint interval)
@@ -474,9 +476,39 @@ EGLint D3DTextureSurfaceWGL::getSwapBehavior() const
     return EGL_BUFFER_PRESERVED;
 }
 
-FramebufferImpl *D3DTextureSurfaceWGL::createDefaultFramebuffer(const gl::FramebufferState &data)
+FramebufferImpl *D3DTextureSurfaceWGL::createDefaultFramebuffer(const gl::Context *context,
+                                                                const gl::FramebufferState &data)
 {
-    return new FramebufferGL(mFramebufferID, data, mFunctionsGL, mWorkarounds,
-                             mRenderer->getBlitter(), mStateManager);
+    const FunctionsGL *functions = GetFunctionsGL(context);
+    StateManagerGL *stateManager = GetStateManagerGL(context);
+
+    GLuint framebufferID = 0;
+    functions->genFramebuffers(1, &framebufferID);
+    stateManager->bindFramebuffer(GL_FRAMEBUFFER, framebufferID);
+    functions->framebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER,
+                                       mColorRenderbufferID);
+    if (mState.config->depthSize > 0)
+    {
+        functions->framebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER,
+                                           mDepthStencilRenderbufferID);
+    }
+    if (mState.config->stencilSize > 0)
+    {
+        functions->framebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER,
+                                           mDepthStencilRenderbufferID);
+    }
+
+    return new FramebufferGL(data, framebufferID, true, false);
 }
+
+HDC D3DTextureSurfaceWGL::getDC() const
+{
+    return mDeviceContext;
+}
+
+const angle::Format *D3DTextureSurfaceWGL::getD3DTextureColorFormat() const
+{
+    return mColorFormat;
+}
+
 }  // namespace rx
