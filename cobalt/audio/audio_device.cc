@@ -44,9 +44,11 @@ class AudioDevice::Impl {
                                      int* offset_in_frames, bool* is_playing,
                                      bool* is_eos_reached, void* context);
   static void ConsumeFramesFunc(int frames_consumed,
-#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
+    SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
                                 SbTime frames_consumed_at,
-#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+                                // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
                                 void* context);
 
   void UpdateSourceStatus(int* frames_in_buffer, int* offset_in_frames,
@@ -144,14 +146,19 @@ void AudioDevice::Impl::UpdateSourceStatusFunc(int* frames_in_buffer,
 }
 
 // static
-void AudioDevice::Impl::ConsumeFramesFunc(int frames_consumed,
-#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-                                          SbTime frames_consumed_at,
-#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-                                          void* context) {
-#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+void AudioDevice::Impl::ConsumeFramesFunc(
+    int frames_consumed,
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
+    SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+    SbTime frames_consumed_at,
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+        // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+    void* context) {
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
+    SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
   SB_UNREFERENCED_PARAMETER(frames_consumed_at);
-#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+        // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 
   AudioDevice::Impl* impl = reinterpret_cast<AudioDevice::Impl*>(context);
   DCHECK(impl);

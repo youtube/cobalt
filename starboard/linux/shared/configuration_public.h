@@ -242,12 +242,14 @@
 #define SB_HAS_MEDIA_WEBM_VP9_SUPPORT 0
 #endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Specifies whether this platform updates audio frames asynchronously.  In such
 // case an extra parameter will be added to |SbAudioSinkConsumeFramesFunc| to
 // indicate the absolute time that the consumed audio frames are reported.
 // Check document for |SbAudioSinkConsumeFramesFunc| in audio_sink.h for more
 // details.
 #define SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING 0
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 #if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Specifies the stack size for threads created inside media stack.  Set to 0 to

@@ -275,7 +275,12 @@ bool PulseAudioSink::WriteFrameIfNecessary(pa_context* context) {
       SB_DCHECK(total_frames_played_ <= new_total_frames_played);
       int64_t consume = new_total_frames_played - total_frames_played_;
       if (consume > 0) {
-        consume_frame_func_(consume, context_);
+        consume_frame_func_(
+            consume,
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+            (SbTime)kSbTimeMax,  // Async audio frames reporting not supported
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+            context_);
         total_frames_played_ = new_total_frames_played;
       }
     }

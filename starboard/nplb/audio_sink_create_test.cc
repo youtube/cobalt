@@ -36,9 +36,11 @@ void UpdateSourceStatusFuncStub(int* frames_in_buffer,
 }
 
 void ConsumeFramesFuncStub(int frames_consumed,
-#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
+    SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
                            SbTime frames_consumed_at,
-#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+                           // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
                            void* context) {
 }
 

@@ -685,6 +685,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
+#if defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
+#error \
+    "SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING should not be defined in Starboard " \
+"versions 12 and later. Instead, define kSbHasAsyncAudioFramesReporting in " \
+"starboard/<PLATFORM_PATH>/configuration_constants.cc."
+#endif
+
 #if defined(SB_HAS_AUDIOLESS_VIDEO)
 #error \
     "SB_HAS_AUDIOLESS_VIDEO should not be defined in Starboard " \
@@ -833,6 +840,14 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #define SB_HAS_AC3_AUDIO 1
 #endif  // defined(SB_HAS_AC3_AUDIO)
 #endif  // SB_API_VERSION >= 11
+
+#if SB_API_VERSION >= 10
+#if !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
+#error \
+    "Your platform must define SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING in API "\
+    "version 10 or later."
+#endif  // !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
+#endif  // SB_API_VERSION >= 10
 
 #if SB_API_VERSION >= 10
 #define SB_HAS_AUDIOLESS_VIDEO 1
@@ -1007,14 +1022,6 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #define SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES 1
 #endif  // !SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
 #endif  // SB_API_VERSION < 10
-
-#if SB_API_VERSION >= 10
-#if !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
-#error \
-    "Your platform must define SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING in API "\
-    "version 10 or later."
-#endif  // !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
-#endif  // SB_API_VERSION >= 10
 
 #if SB_API_VERSION >= \
     SB_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT_VERSION

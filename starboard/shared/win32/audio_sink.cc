@@ -361,7 +361,12 @@ void XAudioAudioSink::Process() {
   SB_DCHECK(consumed_frames <= std::numeric_limits<int>::max());
   int consumed_frames_int = static_cast<int>(consumed_frames);
 
-  consume_frame_func_(consumed_frames_int, context_);
+  consume_frame_func_(
+      consumed_frames_int,
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+      (SbTime)kSbTimeMax,  // Async audio frames reporting not supported
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+      context_);
   submited_frames_ -= consumed_frames_int;
   samples_played_ = voice_state.SamplesPlayed;
   queued_buffers_ = voice_state.BuffersQueued;
