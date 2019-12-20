@@ -16,6 +16,7 @@
 
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
 namespace starboard {
@@ -167,22 +168,34 @@ void AudioRendererSinkImpl::UpdateSourceStatusFunc(int* frames_in_buffer,
 }
 
 // static
-void AudioRendererSinkImpl::ConsumeFramesFunc(int frames_consumed,
-#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-                                              SbTime frames_consumed_at,
-#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-                                              void* context) {
+void AudioRendererSinkImpl::ConsumeFramesFunc(
+    int frames_consumed,
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
+    SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+    SbTime frames_consumed_at,
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+        // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+    void* context) {
   AudioRendererSinkImpl* audio_renderer_sink =
       static_cast<AudioRendererSinkImpl*>(context);
   SB_DCHECK(audio_renderer_sink);
   SB_DCHECK(audio_renderer_sink->render_callback_);
 
-#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-  audio_renderer_sink->render_callback_->ConsumeFrames(frames_consumed,
-                                                       frames_consumed_at);
-#else   // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
+    SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+  audio_renderer_sink->render_callback_->ConsumeFrames(
+      frames_consumed,
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+      kSbHasAsyncAudioFramesReporting ? frames_consumed_at
+                                      : (SbTime)kSbTimeMax);
+#else
+      frames_consumed_at);
+#endif
+#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+        // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
   audio_renderer_sink->render_callback_->ConsumeFrames(frames_consumed);
-#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+        // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 }
 
 }  // namespace filter

@@ -165,15 +165,6 @@
 // Whether the current platform has speech synthesis.
 #define SB_HAS_SPEECH_SYNTHESIS 0
 
-// --- Media Configuration ---------------------------------------------------
-
-// Specifies whether this platform updates audio frames asynchronously.  In such
-// case an extra parameter will be added to |SbAudioSinkConsumeFramesFunc| to
-// indicate the absolute time that the consumed audio frames are reported.
-// Check document for |SbAudioSinkConsumeFramesFunc| in audio_sink.h for more
-// details.
-#define SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING 0
-
 // --- Decoder-only Params ---
 
 // --- Memory Configuration --------------------------------------------------
