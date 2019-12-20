@@ -82,6 +82,10 @@ class UpdateCheckerImpl : public UpdateChecker {
       bool enabled_component_updates,
       UpdateCheckCallback update_check_callback) override;
 
+#if defined(OS_STARBOARD)
+  PersistedData* GetPersistedData() override { return metadata_; }
+#endif
+
  private:
   void ReadUpdaterStateAttributes();
   void CheckForUpdatesHelper(
@@ -193,10 +197,21 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
         crx_component->supports_group_policy_enable_component_updates &&
         !enabled_component_updates;
 
+    base::Version version = crx_component->version;
+#if defined(OS_STARBOARD)
+    std::string unpacked_version =
+        GetPersistedData()->GetLastUnpackedVersion(app_id);
+    // If the version of the last unpacked update package is higher than the
+    // version of the running binary, use the former to indicate the current
+    // update version in the update check request.
+    if (!unpacked_version.empty() &&
+        base::Version(unpacked_version).CompareTo(version) > 0) {
+      version = base::Version(unpacked_version);
+    }
+#endif
     apps.push_back(MakeProtocolApp(
-        app_id, crx_component->version, SanitizeBrand(config_->GetBrand()),
-        install_source, crx_component->install_location,
-        crx_component->fingerprint,
+        app_id, version, SanitizeBrand(config_->GetBrand()), install_source,
+        crx_component->install_location, crx_component->fingerprint,
         SanitizeInstallerAttributes(crx_component->installer_attributes),
         metadata_->GetCohort(app_id), metadata_->GetCohortName(app_id),
         metadata_->GetCohortHint(app_id), crx_component->disabled_reasons,

@@ -55,6 +55,10 @@ class UpdateChecker {
       scoped_refptr<Configurator> config,
       PersistedData* persistent);
 
+#if defined(OS_STARBOARD)
+  virtual PersistedData* GetPersistedData() = 0;
+#endif
+
  protected:
   UpdateChecker() = default;
 
