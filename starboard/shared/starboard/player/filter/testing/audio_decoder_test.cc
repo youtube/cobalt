@@ -689,10 +689,13 @@ TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
 #endif  // SB_API_VERSION >= 11
 
 std::vector<const char*> GetSupportedTests() {
-  const char* kFilenames[] = {
-      "beneath_the_canopy_aac_5_1.dmp", "beneath_the_canopy_aac_stereo.dmp",
-      "beneath_the_canopy_opus_5_1.dmp", "beneath_the_canopy_opus_stereo.dmp",
-      "heaac.dmp"};
+  const char* kFilenames[] = {"beneath_the_canopy_aac_5_1.dmp",
+                              "beneath_the_canopy_aac_stereo.dmp",
+                              "beneath_the_canopy_opus_5_1.dmp",
+                              "beneath_the_canopy_opus_stereo.dmp",
+                              "heaac.dmp",
+                              "sintel_ac3.dmp",
+                              "sintel_ec3.dmp"};
 
   static std::vector<const char*> test_params;
 
