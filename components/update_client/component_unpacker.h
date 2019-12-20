@@ -15,6 +15,7 @@
 #include "base/files/file_path.h"
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
+#include "components/update_client/persisted_data.h"
 #include "components/update_client/update_client_errors.h"
 
 namespace crx_file {
@@ -94,6 +95,23 @@ class ComponentUnpacker : public base::RefCountedThreadSafe<ComponentUnpacker> {
                     scoped_refptr<Patcher> patcher,
                     crx_file::VerifierFormat crx_format);
 
+#if defined(OS_STARBOARD)
+  // Constructs an unpacker for a specific component unpacking operation.
+  // |pk_hash| is the expected public developer key's SHA256 hash. If empty,
+  // the unpacker accepts any developer key. |path| is the current location
+  // of the CRX. This unpacker write the update package version to persisted
+  // data.
+  ComponentUnpacker(const std::vector<uint8_t>& pk_hash,
+                    const base::FilePath& path,
+                    scoped_refptr<CrxInstaller> installer,
+                    std::unique_ptr<Unzipper> unzipper,
+                    scoped_refptr<Patcher> patcher,
+                    crx_file::VerifierFormat crx_format,
+                    PersistedData* metadata,
+                    const std::string& id,
+                    const std::string& update_version);
+#endif
+
   // Begins the actual unpacking of the files. May invoke a patcher and the
   // component installer if the package is a differential update.
   // Calls |callback| with the result.
@@ -140,6 +158,11 @@ class ComponentUnpacker : public base::RefCountedThreadSafe<ComponentUnpacker> {
   UnpackerError error_;
   int extended_error_;
   std::string public_key_;
+#if defined(OS_STARBOARD)
+  PersistedData* metadata_;
+  std::string id_;
+  std::string update_version_;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(ComponentUnpacker);
 };

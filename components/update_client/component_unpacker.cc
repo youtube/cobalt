@@ -45,7 +45,38 @@ ComponentUnpacker::ComponentUnpacker(const std::vector<uint8_t>& pk_hash,
       patcher_tool_(patcher),
       crx_format_(crx_format),
       error_(UnpackerError::kNone),
+#if defined(OS_STARBOARD)
+      extended_error_(0),
+      metadata_(nullptr),
+      id_(""),
+      update_version_("") {}
+#else
       extended_error_(0) {}
+#endif
+
+#if defined(OS_STARBOARD)
+ComponentUnpacker::ComponentUnpacker(const std::vector<uint8_t>& pk_hash,
+                                     const base::FilePath& path,
+                                     scoped_refptr<CrxInstaller> installer,
+                                     std::unique_ptr<Unzipper> unzipper,
+                                     scoped_refptr<Patcher> patcher,
+                                     crx_file::VerifierFormat crx_format,
+                                     PersistedData* metadata,
+                                     const std::string& id,
+                                     const std::string& update_version)
+    : pk_hash_(pk_hash),
+      path_(path),
+      is_delta_(false),
+      installer_(installer),
+      unzipper_(std::move(unzipper)),
+      patcher_tool_(patcher),
+      crx_format_(crx_format),
+      error_(UnpackerError::kNone),
+      extended_error_(0),
+      metadata_(metadata),
+      id_(id),
+      update_version_(update_version) {}
+#endif
 
 ComponentUnpacker::~ComponentUnpacker() {}
 
@@ -152,6 +183,11 @@ void ComponentUnpacker::EndUnpacking() {
     base::DeleteFile(unpack_diff_path_, true);
   if (error_ != UnpackerError::kNone && !unpack_path_.empty())
     base::DeleteFile(unpack_path_, true);
+#else
+  // Write the version of the unpacked update package to the persisted data.
+  if (metadata_ != nullptr) {
+    metadata_->SetLastUnpackedVersion(id_, update_version_);
+  }
 #endif
 
   Result result;

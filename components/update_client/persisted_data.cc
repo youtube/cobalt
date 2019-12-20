@@ -80,6 +80,12 @@ std::string PersistedData::GetPingFreshness(const std::string& id) const {
   return !result.empty() ? base::StringPrintf("{%s}", result.c_str()) : result;
 }
 
+#if defined(OS_STARBOARD)
+std::string PersistedData::GetLastUnpackedVersion(const std::string& id) const {
+  return GetString(id, "version");
+}
+#endif
+
 std::string PersistedData::GetCohort(const std::string& id) const {
   return GetString(id, "cohort");
 }
@@ -134,6 +140,13 @@ void PersistedData::SetString(const std::string& id,
   update->SetString(base::StringPrintf("apps.%s.%s", id.c_str(), key.c_str()),
                     value);
 }
+
+#if defined(OS_STARBOARD)
+void PersistedData::SetLastUnpackedVersion(const std::string& id,
+                                           const std::string& version) {
+  SetString(id, "version", version);
+}
+#endif
 
 void PersistedData::SetCohort(const std::string& id,
                               const std::string& cohort) {
