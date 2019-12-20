@@ -207,6 +207,12 @@ This document records all notable changes made to Cobalt since the last release.
      minimum framerate causing Cobalt to rerender the display even if nothing has
      changed after the specified interval.
 
+### Version 20.lts.3
+ - **Improvements and Bug Fixes**
+
+   - Fix a bug where deep links that are fired before the WebModule is loaded
+     were ignored. Now Cobalt stores the last deep link fired before WebModule
+     is loaded & handles the deep link once the WebModule is loaded.
 
 ## Version 19
  - **Add support for V8 JavaScript Engine**
