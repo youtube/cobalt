@@ -969,7 +969,7 @@ void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
       html_element->css_computed_style_declaration());
 
   ContainerBoxGenerator container_box_generator(
-      html_element->dir_state(),
+      html_element->GetUsedDirState(),
       html_element == context_->ignore_background_element
           ? StripBackground(element_style)
           : element_style,
