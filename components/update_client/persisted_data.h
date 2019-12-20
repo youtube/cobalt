@@ -50,6 +50,13 @@ class PersistedData {
   // -2 indicates that the |id| has an unknown value of last active date.
   int GetDateLastActive(const std::string& id) const;
 
+#if defined(OS_STARBOARD)
+  // Returns the version of the update that was last successfully unpacked for
+  // the specified |id|. "" indicates that there is no recorded version value
+  // for the |id|.
+  std::string GetLastUnpackedVersion(const std::string& id) const;
+#endif
+
   // Returns the PingFreshness (a random token that is written into the profile
   // data whenever the DateLastRollCall it is modified) for the specified |id|.
   // "" indicates that there is no recorded freshness value for the |id|.
@@ -69,6 +76,13 @@ class PersistedData {
   // This function also clears the active bits of the specified |ids| if they
   // are set.
   void SetDateLastActive(const std::vector<std::string>& ids, int datenum);
+
+#if defined(OS_STARBOARD)
+  // Records the version of the update that is successfully unpacked for
+  // the specified |id|.
+  void SetLastUnpackedVersion(const std::string& id,
+                              const std::string& version);
+#endif
 
   // This is called only via update_client's RegisterUpdateClientPreferences.
   static void RegisterPrefs(PrefRegistrySimple* registry);

@@ -26,6 +26,7 @@
 #include "components/update_client/protocol_serializer.h"
 #include "components/update_client/task_traits.h"
 #include "components/update_client/unzipper.h"
+#include "components/update_client/update_checker.h"
 #include "components/update_client/update_client.h"
 #include "components/update_client/update_client_errors.h"
 #include "components/update_client/update_engine.h"
@@ -203,6 +204,9 @@ void StartInstallOnBlockingTaskRunner(
     const base::FilePath& crx_path,
 #if defined(OS_STARBOARD)
     const int installation_index,
+    PersistedData* metadata,
+    const std::string& id,
+    const std::string& version,
 #endif
     const std::string& fingerprint,
     scoped_refptr<CrxInstaller> installer,
@@ -212,7 +216,7 @@ void StartInstallOnBlockingTaskRunner(
     InstallOnBlockingTaskRunnerCompleteCallback callback) {
   auto unpacker = base::MakeRefCounted<ComponentUnpacker>(
       pk_hash, crx_path, installer, std::move(unzipper_), std::move(patcher_),
-      crx_format);
+      crx_format, metadata, id, version);
 
   unpacker->Unpack(base::BindOnce(&UnpackCompleteOnBlockingTaskRunner,
                                   main_task_runner, crx_path,
@@ -828,6 +832,9 @@ void Component::StateUpdatingDiff::DoHandle() {
               component.crx_component()->pk_hash, component.crx_path_,
 #if defined(OS_STARBOARD)
               component.installation_index_,
+              update_context.update_checker->GetPersistedData(),
+              component.id_,
+              component.next_version_.GetString(),
 #endif
               component.next_fp_, component.crx_component()->installer,
               update_context.config->GetUnzipperFactory()->Create(),
@@ -892,6 +899,9 @@ void Component::StateUpdating::DoHandle() {
                      component.crx_component()->pk_hash, component.crx_path_,
 #if defined(OS_STARBOARD)
                      component.installation_index_,
+                     update_context.update_checker->GetPersistedData(),
+                     component.id_,
+                     component.next_version_.GetString(),
 #endif
                      component.next_fp_, component.crx_component()->installer,
                      update_context.config->GetUnzipperFactory()->Create(),

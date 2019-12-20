@@ -32,6 +32,9 @@
 #include "cobalt/updater/crash_reporter.h"
 #include "components/crx_file/crx_verifier.h"
 
+// TODO: write the evergreen version to a seperate manifest file.
+#define COBALT_EVERGREEN_VERSION "1.0.0.0"
+
 namespace {
 
 // The SHA256 hash of the "cobalt_evergreen_public" key.
@@ -134,7 +137,7 @@ void UpdaterModule::Update() {
             update_client::CrxComponent component;
             component.name = "cobalt_test";
             component.app_id = ids[0];
-            component.version = base::Version("1.0.0.0");
+            component.version = base::Version(COBALT_EVERGREEN_VERSION);
             component.pk_hash.assign(std::begin(kCobaltPublicKeyHash),
                                      std::end(kCobaltPublicKeyHash));
             component.requires_network_encryption = true;
