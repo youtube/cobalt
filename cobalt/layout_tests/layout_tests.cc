@@ -291,6 +291,12 @@ INSTANTIATE_TEST_CASE_P(
     CSSOMViewLayoutTests, Layout,
     ::testing::ValuesIn(EnumerateLayoutTests("cssom-view")),
     GetTestName());
+// "dir" attribute tests.
+// https://html.spec.whatwg.org/multipage/dom.html#the-dir-attribute
+INSTANTIATE_TEST_CASE_P(
+    DirAttributeLayoutTests, Layout,
+    ::testing::ValuesIn(EnumerateLayoutTests("the-dir-attribute")),
+    GetTestName());
 
 // JavaScript HTML5 WebAPIs (https://www.w3.org/TR/html5/webappapis.html) test
 // cases.
