@@ -10,55 +10,136 @@
 #ifndef LIBANGLE_RENDERER_VULKAN_BUFFERVK_H_
 #define LIBANGLE_RENDERER_VULKAN_BUFFERVK_H_
 
+#include "libANGLE/Buffer.h"
+#include "libANGLE/Observer.h"
 #include "libANGLE/renderer/BufferImpl.h"
-#include "libANGLE/renderer/vulkan/renderervk_utils.h"
+#include "libANGLE/renderer/vulkan/vk_helpers.h"
 
 namespace rx
 {
+class RendererVk;
 
-class BufferVk : public BufferImpl, public ResourceVk
+// Conversion buffers hold translated index and vertex data.
+struct ConversionBuffer
+{
+    ConversionBuffer(RendererVk *renderer,
+                     VkBufferUsageFlags usageFlags,
+                     size_t initialSize,
+                     size_t alignment);
+    ~ConversionBuffer();
+
+    ConversionBuffer(ConversionBuffer &&other);
+
+    // One state value determines if we need to re-stream vertex data.
+    bool dirty;
+
+    // One additional state value keeps the last allocation offset.
+    VkDeviceSize lastAllocationOffset;
+
+    // The conversion is stored in a dynamic buffer.
+    vk::DynamicBuffer data;
+};
+
+class BufferVk : public BufferImpl
 {
   public:
     BufferVk(const gl::BufferState &state);
     ~BufferVk() override;
-    void destroy(ContextImpl *contextImpl) override;
+    void destroy(const gl::Context *context) override;
 
-    gl::Error setData(ContextImpl *context,
-                      GLenum target,
-                      const void *data,
-                      size_t size,
-                      GLenum usage) override;
-    gl::Error setSubData(ContextImpl *context,
-                         GLenum target,
-                         const void *data,
-                         size_t size,
-                         size_t offset) override;
-    gl::Error copySubData(ContextImpl *contextImpl,
-                          BufferImpl *source,
-                          GLintptr sourceOffset,
-                          GLintptr destOffset,
-                          GLsizeiptr size) override;
-    gl::Error map(ContextImpl *contextImpl, GLenum access, void **mapPtr) override;
-    gl::Error mapRange(ContextImpl *contextImpl,
-                       size_t offset,
-                       size_t length,
-                       GLbitfield access,
-                       void **mapPtr) override;
-    gl::Error unmap(ContextImpl *contextImpl, GLboolean *result) override;
+    angle::Result setData(const gl::Context *context,
+                          gl::BufferBinding target,
+                          const void *data,
+                          size_t size,
+                          gl::BufferUsage usage) override;
+    angle::Result setSubData(const gl::Context *context,
+                             gl::BufferBinding target,
+                             const void *data,
+                             size_t size,
+                             size_t offset) override;
+    angle::Result copySubData(const gl::Context *context,
+                              BufferImpl *source,
+                              GLintptr sourceOffset,
+                              GLintptr destOffset,
+                              GLsizeiptr size) override;
+    angle::Result map(const gl::Context *context, GLenum access, void **mapPtr) override;
+    angle::Result mapRange(const gl::Context *context,
+                           size_t offset,
+                           size_t length,
+                           GLbitfield access,
+                           void **mapPtr) override;
+    angle::Result unmap(const gl::Context *context, GLboolean *result) override;
 
-    gl::Error getIndexRange(GLenum type,
-                            size_t offset,
-                            size_t count,
-                            bool primitiveRestartEnabled,
-                            gl::IndexRange *outRange) override;
+    angle::Result getIndexRange(const gl::Context *context,
+                                gl::DrawElementsType type,
+                                size_t offset,
+                                size_t count,
+                                bool primitiveRestartEnabled,
+                                gl::IndexRange *outRange) override;
 
-    const vk::Buffer &getVkBuffer() const;
+    GLint64 getSize() const { return mState.getSize(); }
+
+    void onDataChanged() override;
+
+    const vk::BufferHelper &getBuffer() const
+    {
+        ASSERT(mBuffer.valid());
+        return mBuffer;
+    }
+
+    vk::BufferHelper &getBuffer()
+    {
+        ASSERT(mBuffer.valid());
+        return mBuffer;
+    }
+
+    angle::Result mapImpl(ContextVk *contextVk, void **mapPtr);
+    angle::Result mapRangeImpl(ContextVk *contextVk,
+                               VkDeviceSize offset,
+                               VkDeviceSize length,
+                               GLbitfield access,
+                               void **mapPtr);
+    void unmapImpl(ContextVk *contextVk);
+
+    // Calls copyBuffer internally.
+    angle::Result copyToBuffer(ContextVk *contextVk,
+                               vk::BufferHelper *destBuffer,
+                               uint32_t copyCount,
+                               const VkBufferCopy *copies);
+
+    ConversionBuffer *getVertexConversionBuffer(RendererVk *renderer,
+                                                angle::FormatID formatID,
+                                                GLuint stride,
+                                                size_t offset);
 
   private:
-    vk::Error setDataImpl(VkDevice device, const uint8_t *data, size_t size, size_t offset);
+    angle::Result setDataImpl(ContextVk *contextVk,
+                              const uint8_t *data,
+                              size_t size,
+                              size_t offset);
+    void release(ContextVk *context);
+    void markConversionBuffersDirty();
 
-    vk::Buffer mBuffer;
-    size_t mRequiredSize;
+    struct VertexConversionBuffer : public ConversionBuffer
+    {
+        VertexConversionBuffer(RendererVk *renderer,
+                               angle::FormatID formatIDIn,
+                               GLuint strideIn,
+                               size_t offsetIn);
+        ~VertexConversionBuffer();
+
+        VertexConversionBuffer(VertexConversionBuffer &&other);
+
+        // The conversion is identified by the triple of {format, stride, offset}.
+        angle::FormatID formatID;
+        GLuint stride;
+        size_t offset;
+    };
+
+    vk::BufferHelper mBuffer;
+
+    // A cache of converted vertex data.
+    std::vector<VertexConversionBuffer> mVertexConversionBuffers;
 };
 
 }  // namespace rx

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2002-2012 The ANGLE Project Authors. All rights reserved.
+// Copyright 2002 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,8 +10,10 @@
 #ifndef LIBANGLE_RENDERER_D3D_VERTEXBUFFER_H_
 #define LIBANGLE_RENDERER_D3D_VERTEXBUFFER_H_
 
+#include "common/PackedEnums.h"
 #include "common/angleutils.h"
 #include "libANGLE/Error.h"
+#include "libANGLE/renderer/Format.h"
 
 #include <GLES2/gl2.h>
 
@@ -21,10 +23,11 @@
 
 namespace gl
 {
+class Context;
 struct VertexAttribute;
-struct VertexBinding;
+class VertexBinding;
 struct VertexAttribCurrentValueData;
-}
+}  // namespace gl
 
 namespace rx
 {
@@ -37,27 +40,30 @@ class VertexBuffer : angle::NonCopyable
   public:
     VertexBuffer();
 
-    virtual gl::Error initialize(unsigned int size, bool dynamicUsage) = 0;
+    virtual angle::Result initialize(const gl::Context *context,
+                                     unsigned int size,
+                                     bool dynamicUsage) = 0;
 
     // Warning: you should ensure binding really matches attrib.bindingIndex before using this
     // function.
-    virtual gl::Error storeVertexAttributes(const gl::VertexAttribute &attrib,
-                                            const gl::VertexBinding &binding,
-                                            GLenum currentValueType,
-                                            GLint start,
-                                            GLsizei count,
-                                            GLsizei instances,
-                                            unsigned int offset,
-                                            const uint8_t *sourceData) = 0;
+    virtual angle::Result storeVertexAttributes(const gl::Context *context,
+                                                const gl::VertexAttribute &attrib,
+                                                const gl::VertexBinding &binding,
+                                                gl::VertexAttribType currentValueType,
+                                                GLint start,
+                                                size_t count,
+                                                GLsizei instances,
+                                                unsigned int offset,
+                                                const uint8_t *sourceData) = 0;
 
-    virtual unsigned int getBufferSize() const = 0;
-    virtual gl::Error setBufferSize(unsigned int size) = 0;
-    virtual gl::Error discard() = 0;
+    virtual unsigned int getBufferSize() const                                         = 0;
+    virtual angle::Result setBufferSize(const gl::Context *context, unsigned int size) = 0;
+    virtual angle::Result discard(const gl::Context *context)                          = 0;
 
     unsigned int getSerial() const;
 
     // This may be overridden (e.g. by VertexBuffer11) if necessary.
-    virtual void hintUnmapResource() { };
+    virtual void hintUnmapResource() {}
 
     // Reference counting.
     void addRef();
@@ -87,14 +93,16 @@ class VertexBufferInterface : angle::NonCopyable
     VertexBuffer *getVertexBuffer() const;
 
   protected:
-    gl::Error discard();
+    angle::Result discard(const gl::Context *context);
 
-    gl::Error setBufferSize(unsigned int size);
+    angle::Result setBufferSize(const gl::Context *context, unsigned int size);
 
-    gl::ErrorOrResult<unsigned int> getSpaceRequired(const gl::VertexAttribute &attrib,
-                                                     const gl::VertexBinding &binding,
-                                                     GLsizei count,
-                                                     GLsizei instances) const;
+    angle::Result getSpaceRequired(const gl::Context *context,
+                                   const gl::VertexAttribute &attrib,
+                                   const gl::VertexBinding &binding,
+                                   size_t count,
+                                   GLsizei instances,
+                                   unsigned int *spaceInBytesOut) const;
     BufferFactoryD3D *const mFactory;
     VertexBuffer *mVertexBuffer;
     bool mDynamic;
@@ -103,25 +111,30 @@ class VertexBufferInterface : angle::NonCopyable
 class StreamingVertexBufferInterface : public VertexBufferInterface
 {
   public:
-    StreamingVertexBufferInterface(BufferFactoryD3D *factory, std::size_t initialSize);
-    ~StreamingVertexBufferInterface();
+    StreamingVertexBufferInterface(BufferFactoryD3D *factory);
+    ~StreamingVertexBufferInterface() override;
 
-    gl::Error storeDynamicAttribute(const gl::VertexAttribute &attrib,
-                                    const gl::VertexBinding &binding,
-                                    GLenum currentValueType,
-                                    GLint start,
-                                    GLsizei count,
-                                    GLsizei instances,
-                                    unsigned int *outStreamOffset,
-                                    const uint8_t *sourceData);
+    angle::Result initialize(const gl::Context *context, std::size_t initialSize);
+    void reset();
 
-    gl::Error reserveVertexSpace(const gl::VertexAttribute &attribute,
-                                 const gl::VertexBinding &binding,
-                                 GLsizei count,
-                                 GLsizei instances);
+    angle::Result storeDynamicAttribute(const gl::Context *context,
+                                        const gl::VertexAttribute &attrib,
+                                        const gl::VertexBinding &binding,
+                                        gl::VertexAttribType currentValueType,
+                                        GLint start,
+                                        size_t count,
+                                        GLsizei instances,
+                                        unsigned int *outStreamOffset,
+                                        const uint8_t *sourceData);
+
+    angle::Result reserveVertexSpace(const gl::Context *context,
+                                     const gl::VertexAttribute &attribute,
+                                     const gl::VertexBinding &binding,
+                                     size_t count,
+                                     GLsizei instances);
 
   private:
-    gl::Error reserveSpace(unsigned int size);
+    angle::Result reserveSpace(const gl::Context *context, unsigned int size);
 
     unsigned int mWritePosition;
     unsigned int mReservedSpace;
@@ -131,16 +144,17 @@ class StaticVertexBufferInterface : public VertexBufferInterface
 {
   public:
     explicit StaticVertexBufferInterface(BufferFactoryD3D *factory);
-    ~StaticVertexBufferInterface();
+    ~StaticVertexBufferInterface() override;
 
     // Warning: you should ensure binding really matches attrib.bindingIndex before using these
     // functions.
-    gl::Error storeStaticAttribute(const gl::VertexAttribute &attrib,
-                                   const gl::VertexBinding &binding,
-                                   GLint start,
-                                   GLsizei count,
-                                   GLsizei instances,
-                                   const uint8_t *sourceData);
+    angle::Result storeStaticAttribute(const gl::Context *context,
+                                       const gl::VertexAttribute &attrib,
+                                       const gl::VertexBinding &binding,
+                                       GLint start,
+                                       GLsizei count,
+                                       GLsizei instances,
+                                       const uint8_t *sourceData);
 
     bool matchesAttribute(const gl::VertexAttribute &attribute,
                           const gl::VertexBinding &binding) const;
@@ -159,11 +173,8 @@ class StaticVertexBufferInterface : public VertexBufferInterface
         void set(const gl::VertexAttribute &attrib, const gl::VertexBinding &binding);
 
       private:
-        GLenum type;
-        GLuint size;
+        angle::FormatID formatID;
         GLuint stride;
-        bool normalized;
-        bool pureInteger;
         size_t offset;
     };
 
@@ -172,4 +183,4 @@ class StaticVertexBufferInterface : public VertexBufferInterface
 
 }  // namespace rx
 
-#endif // LIBANGLE_RENDERER_D3D_VERTEXBUFFER_H_
+#endif  // LIBANGLE_RENDERER_D3D_VERTEXBUFFER_H_

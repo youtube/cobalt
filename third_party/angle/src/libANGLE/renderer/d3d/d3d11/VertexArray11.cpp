@@ -10,207 +10,317 @@
 #include "libANGLE/renderer/d3d/d3d11/VertexArray11.h"
 
 #include "common/bitset_utils.h"
+#include "libANGLE/Context.h"
+#include "libANGLE/renderer/d3d/IndexBuffer.h"
 #include "libANGLE/renderer/d3d/d3d11/Buffer11.h"
+#include "libANGLE/renderer/d3d/d3d11/Context11.h"
 
 using namespace angle;
 
 namespace rx
 {
-
 VertexArray11::VertexArray11(const gl::VertexArrayState &data)
     : VertexArrayImpl(data),
       mAttributeStorageTypes(data.getMaxAttribs(), VertexStorageType::CURRENT_VALUE),
       mTranslatedAttribs(data.getMaxAttribs()),
-      mCurrentBuffers(data.getMaxAttribs())
+      mAppliedNumViewsToDivisor(1),
+      mCurrentElementArrayStorage(IndexStorageType::Invalid),
+      mCachedDestinationIndexType(gl::DrawElementsType::InvalidEnum)
+{}
+
+VertexArray11::~VertexArray11() {}
+
+void VertexArray11::destroy(const gl::Context *context) {}
+
+// As VertexAttribPointer can modify both attribute and binding, we should also set other attributes
+// that are also using this binding dirty.
+#define ANGLE_VERTEX_DIRTY_ATTRIB_FUNC(INDEX)                                                \
+    case gl::VertexArray::DIRTY_BIT_ATTRIB_0 + INDEX:                                        \
+        if ((*attribBits)[INDEX][gl::VertexArray::DirtyAttribBitType::DIRTY_ATTRIB_POINTER]) \
+        {                                                                                    \
+            attributesToUpdate |= mState.getBindingToAttributesMask(INDEX);                  \
+        }                                                                                    \
+        else                                                                                 \
+        {                                                                                    \
+            attributesToUpdate.set(INDEX);                                                   \
+        }                                                                                    \
+        invalidateVertexBuffer = true;                                                       \
+        (*attribBits)[INDEX].reset();                                                        \
+        break;
+
+#define ANGLE_VERTEX_DIRTY_BINDING_FUNC(INDEX)                          \
+    case gl::VertexArray::DIRTY_BIT_BINDING_0 + INDEX:                  \
+        attributesToUpdate |= mState.getBindingToAttributesMask(INDEX); \
+        invalidateVertexBuffer = true;                                  \
+        (*bindingBits)[INDEX].reset();                                  \
+        break;
+
+#define ANGLE_VERTEX_DIRTY_BUFFER_DATA_FUNC(INDEX)                      \
+    case gl::VertexArray::DIRTY_BIT_BUFFER_DATA_0 + INDEX:              \
+        if (mAttributeStorageTypes[INDEX] == VertexStorageType::STATIC) \
+        {                                                               \
+            invalidateVertexBuffer = true;                              \
+            mAttribsToTranslate.set(INDEX);                             \
+        }                                                               \
+        break;
+
+angle::Result VertexArray11::syncState(const gl::Context *context,
+                                       const gl::VertexArray::DirtyBits &dirtyBits,
+                                       gl::VertexArray::DirtyAttribBitsArray *attribBits,
+                                       gl::VertexArray::DirtyBindingBitsArray *bindingBits)
 {
-    for (size_t attribIndex = 0; attribIndex < mCurrentBuffers.size(); ++attribIndex)
-    {
-        mOnBufferDataDirty.emplace_back(this, attribIndex);
-    }
-}
+    ASSERT(dirtyBits.any());
 
-VertexArray11::~VertexArray11()
-{
-    for (auto &buffer : mCurrentBuffers)
+    Renderer11 *renderer         = GetImplAs<Context11>(context)->getRenderer();
+    StateManager11 *stateManager = renderer->getStateManager();
+
+    // Generate a state serial. This serial is used in the program class to validate the cached
+    // input layout, and skip recomputation in the fast path.
+    mCurrentStateSerial = renderer->generateSerial();
+
+    bool invalidateVertexBuffer = false;
+
+    gl::AttributesMask attributesToUpdate;
+
+    // Make sure we trigger re-translation for static index or vertex data.
+    for (size_t dirtyBit : dirtyBits)
     {
-        if (buffer.get())
+        switch (dirtyBit)
         {
-            buffer.set(nullptr);
-        }
-    }
-}
-
-void VertexArray11::syncState(ContextImpl *contextImpl, const gl::VertexArray::DirtyBits &dirtyBits)
-{
-    for (auto dirtyBit : dirtyBits)
-    {
-        if (dirtyBit == gl::VertexArray::DIRTY_BIT_ELEMENT_ARRAY_BUFFER)
-            continue;
-
-        size_t index = gl::VertexArray::GetAttribIndex(dirtyBit);
-        // TODO(jiawei.shao@intel.com): Vertex Attrib Bindings
-        ASSERT(index == mData.getBindingIndexFromAttribIndex(index));
-        mAttribsToUpdate.set(index);
-    }
-}
-
-void VertexArray11::flushAttribUpdates(const gl::State &state)
-{
-    const gl::Program *program  = state.getProgram();
-    const auto &activeLocations = program->getActiveAttribLocationsMask();
-
-    if (mAttribsToUpdate.any())
-    {
-        // Skip attrib locations the program doesn't use.
-        gl::AttributesMask activeToUpdate = mAttribsToUpdate & activeLocations;
-
-        for (auto toUpdateIndex : activeToUpdate)
-        {
-            mAttribsToUpdate.reset(toUpdateIndex);
-            updateVertexAttribStorage(toUpdateIndex);
-        }
-    }
-}
-
-void VertexArray11::updateVertexAttribStorage(size_t attribIndex)
-{
-    const auto &attrib = mData.getVertexAttribute(attribIndex);
-    const auto &binding = mData.getBindingFromAttribIndex(attribIndex);
-
-    // Note: having an unchanged storage type doesn't mean the attribute is clean.
-    auto oldStorageType = mAttributeStorageTypes[attribIndex];
-    auto newStorageType = ClassifyAttributeStorage(attrib, binding);
-
-    mAttributeStorageTypes[attribIndex] = newStorageType;
-
-    if (newStorageType == VertexStorageType::DYNAMIC)
-    {
-        if (oldStorageType != VertexStorageType::DYNAMIC)
-        {
-            // Sync dynamic attribs in a different set.
-            mAttribsToTranslate.reset(attribIndex);
-            mDynamicAttribsMask.set(attribIndex);
-        }
-    }
-    else
-    {
-        mAttribsToTranslate.set(attribIndex);
-
-        if (oldStorageType == VertexStorageType::DYNAMIC)
-        {
-            ASSERT(mDynamicAttribsMask[attribIndex]);
-            mDynamicAttribsMask.reset(attribIndex);
-        }
-    }
-
-    gl::Buffer *oldBufferGL = mCurrentBuffers[attribIndex].get();
-    gl::Buffer *newBufferGL = binding.buffer.get();
-    Buffer11 *oldBuffer11   = oldBufferGL ? GetImplAs<Buffer11>(oldBufferGL) : nullptr;
-    Buffer11 *newBuffer11   = newBufferGL ? GetImplAs<Buffer11>(newBufferGL) : nullptr;
-
-    if (oldBuffer11 != newBuffer11 || oldStorageType != newStorageType)
-    {
-        // Note that for static callbacks, promotion to a static buffer from a dynamic buffer means
-        // we need to tag dynamic buffers with static callbacks.
-        OnBufferDataDirtyChannel *newChannel = nullptr;
-        if (newBuffer11 != nullptr)
-        {
-            switch (newStorageType)
+            case gl::VertexArray::DIRTY_BIT_ELEMENT_ARRAY_BUFFER:
+            case gl::VertexArray::DIRTY_BIT_ELEMENT_ARRAY_BUFFER_DATA:
             {
-                case VertexStorageType::DIRECT:
-                    newChannel = newBuffer11->getDirectBroadcastChannel();
-                    break;
-                case VertexStorageType::STATIC:
-                case VertexStorageType::DYNAMIC:
-                    newChannel = newBuffer11->getStaticBroadcastChannel();
-                    break;
-                default:
-                    break;
+                mLastDrawElementsType.reset();
+                mLastDrawElementsIndices.reset();
+                mLastPrimitiveRestartEnabled.reset();
+                mCachedIndexInfo.reset();
+                break;
             }
+
+                ANGLE_VERTEX_INDEX_CASES(ANGLE_VERTEX_DIRTY_ATTRIB_FUNC)
+                ANGLE_VERTEX_INDEX_CASES(ANGLE_VERTEX_DIRTY_BINDING_FUNC)
+                ANGLE_VERTEX_INDEX_CASES(ANGLE_VERTEX_DIRTY_BUFFER_DATA_FUNC)
+
+            default:
+                UNREACHABLE();
+                break;
         }
-        mOnBufferDataDirty[attribIndex].bind(newChannel);
-        mCurrentBuffers[attribIndex] = binding.buffer;
     }
+
+    for (size_t attribIndex : attributesToUpdate)
+    {
+        updateVertexAttribStorage(context, stateManager, attribIndex);
+    }
+
+    if (invalidateVertexBuffer)
+    {
+        // TODO(jmadill): Individual attribute invalidation.
+        stateManager->invalidateVertexBuffer();
+    }
+
+    return angle::Result::Continue;
 }
 
-bool VertexArray11::hasDynamicAttrib(const gl::State &state)
+angle::Result VertexArray11::syncStateForDraw(const gl::Context *context,
+                                              GLint firstVertex,
+                                              GLsizei vertexOrIndexCount,
+                                              gl::DrawElementsType indexTypeOrInvalid,
+                                              const void *indices,
+                                              GLsizei instances,
+                                              GLint baseVertex)
 {
-    flushAttribUpdates(state);
-    return mDynamicAttribsMask.any();
-}
+    Renderer11 *renderer         = GetImplAs<Context11>(context)->getRenderer();
+    StateManager11 *stateManager = renderer->getStateManager();
 
-gl::Error VertexArray11::updateDirtyAndDynamicAttribs(VertexDataManager *vertexDataManager,
-                                                      const gl::State &state,
-                                                      GLint start,
-                                                      GLsizei count,
-                                                      GLsizei instances)
-{
-    flushAttribUpdates(state);
-
-    const gl::Program *program  = state.getProgram();
-    const auto &activeLocations = program->getActiveAttribLocationsMask();
-    const auto &attribs         = mData.getVertexAttributes();
-    const auto &bindings        = mData.getVertexBindings();
+    const gl::State &glState   = context->getState();
+    const gl::Program *program = glState.getProgram();
+    ASSERT(program);
+    mAppliedNumViewsToDivisor = (program->usesMultiview() ? program->getNumViews() : 1);
 
     if (mAttribsToTranslate.any())
     {
-        // Skip attrib locations the program doesn't use, saving for the next frame.
-        gl::AttributesMask dirtyActiveAttribs = (mAttribsToTranslate & activeLocations);
-
-        for (auto dirtyAttribIndex : dirtyActiveAttribs)
+        const gl::AttributesMask &activeLocations =
+            glState.getProgram()->getActiveAttribLocationsMask();
+        gl::AttributesMask activeDirtyAttribs = (mAttribsToTranslate & activeLocations);
+        if (activeDirtyAttribs.any())
         {
-            mAttribsToTranslate.reset(dirtyAttribIndex);
-
-            auto *translatedAttrib = &mTranslatedAttribs[dirtyAttribIndex];
-            const auto &currentValue = state.getVertexAttribCurrentValue(dirtyAttribIndex);
-
-            // Record basic attrib info
-            translatedAttrib->attribute = &attribs[dirtyAttribIndex];
-            translatedAttrib->binding   = &bindings[translatedAttrib->attribute->bindingIndex];
-            translatedAttrib->currentValueType = currentValue.Type;
-            translatedAttrib->divisor          = translatedAttrib->binding->divisor;
-
-            switch (mAttributeStorageTypes[dirtyAttribIndex])
-            {
-                case VertexStorageType::DIRECT:
-                    VertexDataManager::StoreDirectAttrib(translatedAttrib);
-                    break;
-                case VertexStorageType::STATIC:
-                {
-                    ANGLE_TRY(VertexDataManager::StoreStaticAttrib(translatedAttrib));
-                    break;
-                }
-                case VertexStorageType::CURRENT_VALUE:
-                    // Current value attribs are managed by the StateManager11.
-                    break;
-                default:
-                    UNREACHABLE();
-                    break;
-            }
+            ANGLE_TRY(updateDirtyAttribs(context, activeDirtyAttribs));
+            stateManager->invalidateInputLayout();
         }
     }
 
     if (mDynamicAttribsMask.any())
     {
-        auto activeDynamicAttribs = (mDynamicAttribsMask & activeLocations);
+        const gl::AttributesMask &activeLocations =
+            glState.getProgram()->getActiveAttribLocationsMask();
+        gl::AttributesMask activeDynamicAttribs = (mDynamicAttribsMask & activeLocations);
 
-        for (auto dynamicAttribIndex : activeDynamicAttribs)
+        if (activeDynamicAttribs.any())
         {
-            auto *dynamicAttrib = &mTranslatedAttribs[dynamicAttribIndex];
-            const auto &currentValue = state.getVertexAttribCurrentValue(dynamicAttribIndex);
-
-            // Record basic attrib info
-            dynamicAttrib->attribute        = &attribs[dynamicAttribIndex];
-            dynamicAttrib->binding          = &bindings[dynamicAttrib->attribute->bindingIndex];
-            dynamicAttrib->currentValueType = currentValue.Type;
-            dynamicAttrib->divisor          = dynamicAttrib->binding->divisor;
+            ANGLE_TRY(updateDynamicAttribs(context, stateManager->getVertexDataManager(),
+                                           firstVertex, vertexOrIndexCount, indexTypeOrInvalid,
+                                           indices, instances, baseVertex, activeDynamicAttribs));
+            stateManager->invalidateInputLayout();
         }
-
-        return vertexDataManager->storeDynamicAttribs(&mTranslatedAttribs, activeDynamicAttribs,
-                                                      start, count, instances);
     }
 
-    return gl::NoError();
+    if (indexTypeOrInvalid != gl::DrawElementsType::InvalidEnum)
+    {
+        bool restartEnabled = context->getState().isPrimitiveRestartEnabled();
+        if (!mLastDrawElementsType.valid() || mLastDrawElementsType.value() != indexTypeOrInvalid ||
+            mLastDrawElementsIndices.value() != indices ||
+            mLastPrimitiveRestartEnabled.value() != restartEnabled)
+        {
+            mLastDrawElementsType        = indexTypeOrInvalid;
+            mLastDrawElementsIndices     = indices;
+            mLastPrimitiveRestartEnabled = restartEnabled;
+
+            ANGLE_TRY(updateElementArrayStorage(context, vertexOrIndexCount, indexTypeOrInvalid,
+                                                indices, restartEnabled));
+            stateManager->invalidateIndexBuffer();
+        }
+        else if (mCurrentElementArrayStorage == IndexStorageType::Dynamic)
+        {
+            stateManager->invalidateIndexBuffer();
+        }
+    }
+
+    return angle::Result::Continue;
+}
+
+angle::Result VertexArray11::updateElementArrayStorage(const gl::Context *context,
+                                                       GLsizei indexCount,
+                                                       gl::DrawElementsType indexType,
+                                                       const void *indices,
+                                                       bool restartEnabled)
+{
+    bool usePrimitiveRestartWorkaround = UsePrimitiveRestartWorkaround(restartEnabled, indexType);
+
+    ANGLE_TRY(GetIndexTranslationDestType(context, indexCount, indexType, indices,
+                                          usePrimitiveRestartWorkaround,
+                                          &mCachedDestinationIndexType));
+
+    unsigned int offset = static_cast<unsigned int>(reinterpret_cast<uintptr_t>(indices));
+
+    mCurrentElementArrayStorage =
+        ClassifyIndexStorage(context->getState(), mState.getElementArrayBuffer(), indexType,
+                             mCachedDestinationIndexType, offset);
+
+    return angle::Result::Continue;
+}
+
+void VertexArray11::updateVertexAttribStorage(const gl::Context *context,
+                                              StateManager11 *stateManager,
+                                              size_t attribIndex)
+{
+    const gl::VertexAttribute &attrib = mState.getVertexAttribute(attribIndex);
+    const gl::VertexBinding &binding  = mState.getBindingFromAttribIndex(attribIndex);
+
+    VertexStorageType newStorageType = ClassifyAttributeStorage(context, attrib, binding);
+
+    // Note: having an unchanged storage type doesn't mean the attribute is clean.
+    mAttribsToTranslate.set(attribIndex, newStorageType != VertexStorageType::DYNAMIC);
+
+    if (mAttributeStorageTypes[attribIndex] == newStorageType)
+        return;
+
+    mAttributeStorageTypes[attribIndex] = newStorageType;
+    mDynamicAttribsMask.set(attribIndex, newStorageType == VertexStorageType::DYNAMIC);
+
+    if (newStorageType == VertexStorageType::CURRENT_VALUE)
+    {
+        stateManager->invalidateCurrentValueAttrib(attribIndex);
+    }
+}
+
+bool VertexArray11::hasActiveDynamicAttrib(const gl::Context *context)
+{
+    const auto &activeLocations = context->getState().getProgram()->getActiveAttribLocationsMask();
+    gl::AttributesMask activeDynamicAttribs = (mDynamicAttribsMask & activeLocations);
+    return activeDynamicAttribs.any();
+}
+
+angle::Result VertexArray11::updateDirtyAttribs(const gl::Context *context,
+                                                const gl::AttributesMask &activeDirtyAttribs)
+{
+    const auto &glState  = context->getState();
+    const auto &attribs  = mState.getVertexAttributes();
+    const auto &bindings = mState.getVertexBindings();
+
+    for (size_t dirtyAttribIndex : activeDirtyAttribs)
+    {
+        mAttribsToTranslate.reset(dirtyAttribIndex);
+
+        auto *translatedAttrib   = &mTranslatedAttribs[dirtyAttribIndex];
+        const auto &currentValue = glState.getVertexAttribCurrentValue(dirtyAttribIndex);
+
+        // Record basic attrib info
+        translatedAttrib->attribute        = &attribs[dirtyAttribIndex];
+        translatedAttrib->binding          = &bindings[translatedAttrib->attribute->bindingIndex];
+        translatedAttrib->currentValueType = currentValue.Type;
+        translatedAttrib->divisor =
+            translatedAttrib->binding->getDivisor() * mAppliedNumViewsToDivisor;
+
+        switch (mAttributeStorageTypes[dirtyAttribIndex])
+        {
+            case VertexStorageType::DIRECT:
+                VertexDataManager::StoreDirectAttrib(context, translatedAttrib);
+                break;
+            case VertexStorageType::STATIC:
+            {
+                ANGLE_TRY(VertexDataManager::StoreStaticAttrib(context, translatedAttrib));
+                break;
+            }
+            case VertexStorageType::CURRENT_VALUE:
+                // Current value attribs are managed by the StateManager11.
+                break;
+            default:
+                UNREACHABLE();
+                break;
+        }
+    }
+
+    return angle::Result::Continue;
+}
+
+angle::Result VertexArray11::updateDynamicAttribs(const gl::Context *context,
+                                                  VertexDataManager *vertexDataManager,
+                                                  GLint firstVertex,
+                                                  GLsizei vertexOrIndexCount,
+                                                  gl::DrawElementsType indexTypeOrInvalid,
+                                                  const void *indices,
+                                                  GLsizei instances,
+                                                  GLint baseVertex,
+                                                  const gl::AttributesMask &activeDynamicAttribs)
+{
+    const auto &glState  = context->getState();
+    const auto &attribs  = mState.getVertexAttributes();
+    const auto &bindings = mState.getVertexBindings();
+
+    GLint startVertex;
+    size_t vertexCount;
+    ANGLE_TRY(GetVertexRangeInfo(context, firstVertex, vertexOrIndexCount, indexTypeOrInvalid,
+                                 indices, baseVertex, &startVertex, &vertexCount));
+
+    for (size_t dynamicAttribIndex : activeDynamicAttribs)
+    {
+        auto *dynamicAttrib      = &mTranslatedAttribs[dynamicAttribIndex];
+        const auto &currentValue = glState.getVertexAttribCurrentValue(dynamicAttribIndex);
+
+        // Record basic attrib info
+        dynamicAttrib->attribute        = &attribs[dynamicAttribIndex];
+        dynamicAttrib->binding          = &bindings[dynamicAttrib->attribute->bindingIndex];
+        dynamicAttrib->currentValueType = currentValue.Type;
+        dynamicAttrib->divisor = dynamicAttrib->binding->getDivisor() * mAppliedNumViewsToDivisor;
+    }
+
+    ANGLE_TRY(vertexDataManager->storeDynamicAttribs(
+        context, &mTranslatedAttribs, activeDynamicAttribs, startVertex, vertexCount, instances));
+
+    VertexDataManager::PromoteDynamicAttribs(context, mTranslatedAttribs, activeDynamicAttribs,
+                                             vertexCount);
+
+    return angle::Result::Continue;
 }
 
 const std::vector<TranslatedAttribute> &VertexArray11::getTranslatedAttribs() const
@@ -218,22 +328,37 @@ const std::vector<TranslatedAttribute> &VertexArray11::getTranslatedAttribs() co
     return mTranslatedAttribs;
 }
 
-void VertexArray11::signal(size_t channelID)
+void VertexArray11::markAllAttributeDivisorsForAdjustment(int numViews)
 {
-    ASSERT(mAttributeStorageTypes[channelID] != VertexStorageType::CURRENT_VALUE);
-
-    // This can change a buffer's storage, we'll need to re-check.
-    mAttribsToUpdate.set(channelID);
+    if (mAppliedNumViewsToDivisor != numViews)
+    {
+        mAppliedNumViewsToDivisor = numViews;
+        mAttribsToTranslate.set();
+        // mDynamicAttribsMask may have already been set (updateVertexAttribStorage
+        // We don't want to override DYNAMIC attribs as they will be handled separately.
+        mAttribsToTranslate = mAttribsToTranslate ^ mDynamicAttribsMask;
+    }
 }
 
-void VertexArray11::clearDirtyAndPromoteDynamicAttribs(const gl::State &state, GLsizei count)
+const TranslatedIndexData &VertexArray11::getCachedIndexInfo() const
 {
-    const gl::Program *program  = state.getProgram();
-    const auto &activeLocations = program->getActiveAttribLocationsMask();
-    mAttribsToUpdate &= ~activeLocations;
-
-    // Promote to static after we clear the dirty attributes, otherwise we can lose dirtyness.
-    auto activeDynamicAttribs = (mDynamicAttribsMask & activeLocations);
-    VertexDataManager::PromoteDynamicAttribs(mTranslatedAttribs, activeDynamicAttribs, count);
+    ASSERT(mCachedIndexInfo.valid());
+    return mCachedIndexInfo.value();
 }
+
+void VertexArray11::updateCachedIndexInfo(const TranslatedIndexData &indexInfo)
+{
+    mCachedIndexInfo = indexInfo;
+}
+
+bool VertexArray11::isCachedIndexInfoValid() const
+{
+    return mCachedIndexInfo.valid();
+}
+
+gl::DrawElementsType VertexArray11::getCachedDestinationIndexType() const
+{
+    return mCachedDestinationIndexType;
+}
+
 }  // namespace rx

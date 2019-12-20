@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 The ANGLE Project Authors. All rights reserved.
+// Copyright 2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -13,53 +13,61 @@
 #include <random>
 #include <sstream>
 
-#include "shader_utils.h"
+#include "util/shader_utils.h"
 
 namespace angle
 {
+constexpr unsigned int kIterationsPerStep = 256;
 
 struct TexturesParams final : public RenderTestParams
 {
     TexturesParams()
     {
+        iterationsPerStep = kIterationsPerStep;
+
         // Common default params
         majorVersion = 2;
         minorVersion = 0;
         windowWidth  = 720;
         windowHeight = 720;
-        iterations   = 256;
 
         numTextures                 = 8;
         textureRebindFrequency      = 5;
         textureStateUpdateFrequency = 3;
         textureMipCount             = 8;
+
+        webgl = false;
     }
 
-    std::string suffix() const override;
+    std::string story() const override;
     size_t numTextures;
     size_t textureRebindFrequency;
     size_t textureStateUpdateFrequency;
     size_t textureMipCount;
 
-    // static parameters
-    size_t iterations;
+    bool webgl;
 };
 
 std::ostream &operator<<(std::ostream &os, const TexturesParams &params)
 {
-    os << params.suffix().substr(1);
+    os << params.backendAndStory().substr(1);
     return os;
 }
 
-std::string TexturesParams::suffix() const
+std::string TexturesParams::story() const
 {
     std::stringstream strstr;
 
-    strstr << RenderTestParams::suffix();
+    strstr << RenderTestParams::story();
     strstr << "_" << numTextures << "_textures";
     strstr << "_" << textureRebindFrequency << "_rebind";
     strstr << "_" << textureStateUpdateFrequency << "_state";
     strstr << "_" << textureMipCount << "_mips";
+
+    if (webgl)
+    {
+        strstr << "_webgl";
+    }
 
     return strstr.str();
 }
@@ -86,13 +94,13 @@ class TexturesBenchmark : public ANGLERenderTest,
 
 TexturesBenchmark::TexturesBenchmark() : ANGLERenderTest("Textures", GetParam()), mProgram(0u)
 {
+    setWebGLCompatibilityEnabled(GetParam().webgl);
+    setRobustResourceInit(GetParam().webgl);
 }
 
 void TexturesBenchmark::initializeBenchmark()
 {
     const auto &params = GetParam();
-
-    ASSERT_GT(params.iterations, 0u);
 
     // Verify the uniform counts are within the limits
     GLint maxTextureUnits;
@@ -143,7 +151,7 @@ void TexturesBenchmark::initShaders()
     fstrstr << ";\n"
                "}\n";
 
-    mProgram = CompileProgram(vs, fstrstr.str());
+    mProgram = CompileProgram(vs.c_str(), fstrstr.str().c_str());
     ASSERT_NE(0u, mProgram);
 
     for (size_t i = 0; i < params.numTextures; ++i)
@@ -199,7 +207,7 @@ void TexturesBenchmark::drawBenchmark()
 {
     const auto &params = GetParam();
 
-    for (size_t it = 0; it < params.iterations; ++it)
+    for (size_t it = 0; it < params.iterationsPerStep; ++it)
     {
         if (it % params.textureRebindFrequency == 0)
         {
@@ -241,13 +249,16 @@ void TexturesBenchmark::drawBenchmark()
                                 minFilters[stateUpdateCount % ArraySize(minFilters)]);
 
                 const GLenum magFilters[] = {
-                    GL_NEAREST, GL_LINEAR,
+                    GL_NEAREST,
+                    GL_LINEAR,
                 };
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
                                 magFilters[stateUpdateCount % ArraySize(magFilters)]);
 
                 const GLenum wrapParameters[] = {
-                    GL_CLAMP_TO_EDGE, GL_REPEAT, GL_MIRRORED_REPEAT,
+                    GL_CLAMP_TO_EDGE,
+                    GL_REPEAT,
+                    GL_MIRRORED_REPEAT,
                 };
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,
                                 wrapParameters[stateUpdateCount % ArraySize(wrapParameters)]);
@@ -262,24 +273,27 @@ void TexturesBenchmark::drawBenchmark()
     ASSERT_GL_NO_ERROR();
 }
 
-TexturesParams D3D11Params()
+TexturesParams D3D11Params(bool webglCompat)
 {
     TexturesParams params;
     params.eglParameters = egl_platform::D3D11_NULL();
+    params.webgl         = webglCompat;
     return params;
 }
 
-TexturesParams D3D9Params()
+TexturesParams D3D9Params(bool webglCompat)
 {
     TexturesParams params;
     params.eglParameters = egl_platform::D3D9_NULL();
+    params.webgl         = webglCompat;
     return params;
 }
 
-TexturesParams OpenGLParams()
+TexturesParams OpenGLOrGLESParams(bool webglCompat)
 {
     TexturesParams params;
-    params.eglParameters = egl_platform::OPENGL_NULL();
+    params.eglParameters = egl_platform::OPENGL_OR_GLES_NULL();
+    params.webgl         = webglCompat;
     return params;
 }
 
@@ -288,6 +302,10 @@ TEST_P(TexturesBenchmark, Run)
     run();
 }
 
-ANGLE_INSTANTIATE_TEST(TexturesBenchmark, D3D11Params(), D3D9Params(), OpenGLParams());
-
+ANGLE_INSTANTIATE_TEST(TexturesBenchmark,
+                       D3D11Params(false),
+                       D3D11Params(true),
+                       D3D9Params(true),
+                       OpenGLOrGLESParams(false),
+                       OpenGLOrGLESParams(true));
 }  // namespace angle

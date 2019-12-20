@@ -9,11 +9,306 @@
 
 #include <array>
 #include <cmath>
+#include <sstream>
 
 using namespace angle;
 
 namespace
 {
+
+class SimpleUniformTest : public ANGLETest
+{
+  protected:
+    SimpleUniformTest()
+    {
+        setWindowWidth(128);
+        setWindowHeight(128);
+        setConfigRedBits(8);
+        setConfigGreenBits(8);
+        setConfigBlueBits(8);
+        setConfigAlphaBits(8);
+    }
+};
+
+// Test that we can get and set a float uniform successfully.
+TEST_P(SimpleUniformTest, FloatUniformStateQuery)
+{
+    constexpr char kFragShader[] = R"(precision mediump float;
+uniform float uniF;
+void main() {
+    gl_FragColor = vec4(uniF, 0.0, 0.0, 0.0);
+})";
+
+    ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Zero(), kFragShader);
+    glUseProgram(program);
+    GLint uniformLocation = glGetUniformLocation(program, "uniF");
+    ASSERT_NE(uniformLocation, -1);
+
+    GLfloat expected = 1.02f;
+    glUniform1f(uniformLocation, expected);
+
+    GLfloat f = 0.0f;
+    glGetUniformfv(program, uniformLocation, &f);
+    ASSERT_GL_NO_ERROR();
+    ASSERT_EQ(f, expected);
+}
+
+// Test that we can get and set an int uniform successfully.
+TEST_P(SimpleUniformTest, IntUniformStateQuery)
+{
+    constexpr char kFragShader[] = R"(uniform int uniI;
+void main() {
+    gl_FragColor = vec4(uniI, 0.0, 0.0, 0.0);
+})";
+
+    ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Zero(), kFragShader);
+    glUseProgram(program);
+
+    GLint uniformLocation = glGetUniformLocation(program, "uniI");
+    ASSERT_NE(uniformLocation, -1);
+
+    GLint expected = 4;
+    glUniform1i(uniformLocation, expected);
+
+    GLint i = 0;
+    glGetUniformiv(program, uniformLocation, &i);
+    ASSERT_GL_NO_ERROR();
+    ASSERT_EQ(i, expected);
+}
+
+// Test that we can get and set a vec2 uniform successfully.
+TEST_P(SimpleUniformTest, FloatVec2UniformStateQuery)
+{
+    constexpr char kFragShader[] = R"(precision mediump float;
+uniform vec2 uniVec2;
+void main() {
+    gl_FragColor = vec4(uniVec2, 0.0, 0.0);
+})";
+
+    ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Zero(), kFragShader);
+    glUseProgram(program);
+
+    GLint uniformLocation = glGetUniformLocation(program, "uniVec2");
+    ASSERT_NE(uniformLocation, -1);
+
+    std::vector<GLfloat> expected = {{1.0f, 0.5f}};
+    glUniform2fv(uniformLocation, 1, expected.data());
+
+    std::vector<GLfloat> floats(2, 0);
+    glGetUniformfv(program, uniformLocation, floats.data());
+    ASSERT_GL_NO_ERROR();
+    ASSERT_EQ(floats, expected);
+}
+
+// Test that we can get and set a vec3 uniform successfully.
+TEST_P(SimpleUniformTest, FloatVec3UniformStateQuery)
+{
+    constexpr char kFragShader[] = R"(precision mediump float;
+uniform vec3 uniVec3;
+void main() {
+    gl_FragColor = vec4(uniVec3, 0.0);
+})";
+
+    ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Zero(), kFragShader);
+    glUseProgram(program);
+
+    GLint uniformLocation = glGetUniformLocation(program, "uniVec3");
+    ASSERT_NE(uniformLocation, -1);
+
+    std::vector<GLfloat> expected = {{1.0f, 0.5f, 0.2f}};
+    glUniform3fv(uniformLocation, 1, expected.data());
+
+    std::vector<GLfloat> floats(3, 0);
+    glGetUniformfv(program, uniformLocation, floats.data());
+    ASSERT_GL_NO_ERROR();
+    ASSERT_EQ(floats, expected);
+}
+
+// Test that we can get and set a vec4 uniform successfully.
+TEST_P(SimpleUniformTest, FloatVec4UniformStateQuery)
+{
+    constexpr char kFragShader[] = R"(precision mediump float;
+uniform vec4 uniVec4;
+void main() {
+    gl_FragColor = uniVec4;
+})";
+
+    ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Zero(), kFragShader);
+    glUseProgram(program);
+
+    GLint uniformLocation = glGetUniformLocation(program, "uniVec4");
+    ASSERT_NE(uniformLocation, -1);
+
+    std::vector<GLfloat> expected = {{1.0f, 0.5f, 0.2f, -0.8f}};
+    glUniform4fv(uniformLocation, 1, expected.data());
+
+    std::vector<GLfloat> floats(4, 0);
+    glGetUniformfv(program, uniformLocation, floats.data());
+    ASSERT_GL_NO_ERROR();
+    ASSERT_EQ(floats, expected);
+}
+
+// Test that we can get and set a 2x2 float Matrix uniform successfully.
+TEST_P(SimpleUniformTest, FloatMatrix2UniformStateQuery)
+{
+    constexpr char kFragShader[] = R"(precision mediump float;
+uniform mat2 umat2;
+void main() {
+    gl_FragColor = vec4(umat2);
+})";
+
+    ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Zero(), kFragShader);
+    glUseProgram(program);
+
+    GLint uniformLocation = glGetUniformLocation(program, "umat2");
+    ASSERT_NE(uniformLocation, -1);
+
+    std::vector<GLfloat> expected = {{1.0f, 0.5f, 0.2f, -0.8f}};
+    glUniformMatrix2fv(uniformLocation, 1, false, expected.data());
+
+    std::vector<GLfloat> floats(4, 0);
+    glGetUniformfv(program, uniformLocation, floats.data());
+    ASSERT_GL_NO_ERROR();
+    ASSERT_EQ(floats, expected);
+}
+
+// Test that we can get and set a 3x3 float Matrix uniform successfully.
+TEST_P(SimpleUniformTest, FloatMatrix3UniformStateQuery)
+{
+    constexpr char kFragShader[] = R"(precision mediump float;
+uniform mat3 umat3;
+void main() {
+    gl_FragColor = vec4(umat3);
+})";
+
+    ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Zero(), kFragShader);
+    glUseProgram(program);
+
+    GLint uniformLocation = glGetUniformLocation(program, "umat3");
+    ASSERT_NE(uniformLocation, -1);
+
+    std::vector<GLfloat> expected = {{1.0f, 0.5f, 0.2f, -0.8f, -0.2f, 0.1f, 0.1f, 0.2f, 0.7f}};
+    glUniformMatrix3fv(uniformLocation, 1, false, expected.data());
+
+    std::vector<GLfloat> floats(9, 0);
+    glGetUniformfv(program, uniformLocation, floats.data());
+    ASSERT_GL_NO_ERROR();
+    ASSERT_EQ(floats, expected);
+}
+
+// Test that we can get and set a 4x4 float Matrix uniform successfully.
+TEST_P(SimpleUniformTest, FloatMatrix4UniformStateQuery)
+{
+    constexpr char kFragShader[] = R"(precision mediump float;
+uniform mat4 umat4;
+void main() {
+    gl_FragColor = umat4 * vec4(1.0, 1.0, 1.0, 1.0);
+})";
+
+    ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Zero(), kFragShader);
+    glUseProgram(program);
+
+    GLint uniformLocation = glGetUniformLocation(program, "umat4");
+    ASSERT_NE(uniformLocation, -1);
+
+    std::vector<GLfloat> expected = {{1.0f, 0.5f, 0.2f, -0.8f, -0.2f, 0.1f, 0.1f, 0.2f, 0.7f, 0.1f,
+                                      0.7f, 0.1f, 0.7f, 0.1f, 0.7f, 0.1f}};
+    glUniformMatrix4fv(uniformLocation, 1, false, expected.data());
+
+    std::vector<GLfloat> floats(16, 0);
+    glGetUniformfv(program, uniformLocation, floats.data());
+    ASSERT_GL_NO_ERROR();
+    ASSERT_EQ(floats, expected);
+}
+
+// Test that we can get and set a float array of uniforms.
+TEST_P(SimpleUniformTest, FloatArrayUniformStateQuery)
+{
+    constexpr char kFragShader[] = R"(
+precision mediump float;
+uniform float ufloats[4];
+void main() {
+    gl_FragColor = vec4(ufloats[0], ufloats[1], ufloats[2], ufloats[3]);
+})";
+
+    ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Zero(), kFragShader);
+    glUseProgram(program);
+    std::vector<GLfloat> expected = {{0.1f, 0.2f, 0.3f, 0.4f}};
+
+    for (size_t i = 0; i < expected.size(); i++)
+    {
+        std::string locationName = "ufloats[" + std::to_string(i) + "]";
+        GLint uniformLocation    = glGetUniformLocation(program, locationName.c_str());
+        glUniform1f(uniformLocation, expected[i]);
+        ASSERT_GL_NO_ERROR();
+        ASSERT_NE(uniformLocation, -1);
+
+        GLfloat result = 0;
+        glGetUniformfv(program, uniformLocation, &result);
+        ASSERT_GL_NO_ERROR();
+        ASSERT_EQ(result, expected[i]);
+    }
+}
+
+// Test that we can get and set an array of matrices uniform.
+TEST_P(SimpleUniformTest, ArrayOfMat3UniformStateQuery)
+{
+    constexpr char kFragShader[] = R"(
+precision mediump float;
+uniform mat3 umatarray[2];
+void main() {
+    gl_FragColor = vec4(umatarray[1]);
+})";
+
+    ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Zero(), kFragShader);
+    glUseProgram(program);
+    std::vector<std::vector<GLfloat>> expected = {
+        {1.0f, 0.5f, 0.2f, -0.8f, -0.2f, 0.1f, 0.1f, 0.2f, 0.7f},
+        {0.9f, 0.4f, 0.1f, -0.9f, -0.3f, 0.0f, 0.0f, 0.1f, 0.6f}};
+
+    for (size_t i = 0; i < expected.size(); i++)
+    {
+        std::string locationName = "umatarray[" + std::to_string(i) + "]";
+        GLint uniformLocation    = glGetUniformLocation(program, locationName.c_str());
+        glUniformMatrix3fv(uniformLocation, 1, false, expected[i].data());
+        ASSERT_GL_NO_ERROR();
+        ASSERT_NE(uniformLocation, -1);
+
+        std::vector<GLfloat> results(9, 0);
+        glGetUniformfv(program, uniformLocation, results.data());
+        ASSERT_GL_NO_ERROR();
+        ASSERT_EQ(results, expected[i]);
+    }
+}
+
+// Test that we can get and set an int array of uniforms.
+TEST_P(SimpleUniformTest, FloatIntUniformStateQuery)
+{
+    constexpr char kFragShader[] = R"(
+precision mediump float;
+uniform int uints[4];
+void main() {
+    gl_FragColor = vec4(uints[0], uints[1], uints[2], uints[3]);
+})";
+
+    ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Zero(), kFragShader);
+    glUseProgram(program);
+    std::vector<GLint> expected = {{1, 2, 3, 4}};
+
+    for (size_t i = 0; i < expected.size(); i++)
+    {
+        std::string locationName = "uints[" + std::to_string(i) + "]";
+        GLint uniformLocation    = glGetUniformLocation(program, locationName.c_str());
+        glUniform1i(uniformLocation, expected[i]);
+        ASSERT_GL_NO_ERROR();
+        ASSERT_NE(uniformLocation, -1);
+
+        GLint result = 0;
+        glGetUniformiv(program, uniformLocation, &result);
+        ASSERT_GL_NO_ERROR();
+        ASSERT_EQ(result, expected[i]);
+    }
+}
 
 class UniformTest : public ANGLETest
 {
@@ -28,12 +323,10 @@ class UniformTest : public ANGLETest
         setConfigAlphaBits(8);
     }
 
-    void SetUp() override
+    void testSetUp() override
     {
-        ANGLETest::SetUp();
-
-        const std::string &vertexShader = "void main() { gl_Position = vec4(1); }";
-        const std::string &fragShader =
+        constexpr char kVS[] = "void main() { gl_Position = vec4(1); }";
+        constexpr char kFS[] =
             "precision mediump float;\n"
             "uniform float uniF;\n"
             "uniform int uniI;\n"
@@ -43,9 +336,12 @@ class UniformTest : public ANGLETest
             "  gl_FragColor = vec4(uniF + float(uniI));\n"
             "  gl_FragColor += vec4(uniB ? 1.0 : 0.0);\n"
             "  gl_FragColor += vec4(uniBArr[0] ? 1.0 : 0.0);\n"
+            "  gl_FragColor += vec4(uniBArr[1] ? 1.0 : 0.0);\n"
+            "  gl_FragColor += vec4(uniBArr[2] ? 1.0 : 0.0);\n"
+            "  gl_FragColor += vec4(uniBArr[3] ? 1.0 : 0.0);\n"
             "}";
 
-        mProgram = CompileProgram(vertexShader, fragShader);
+        mProgram = CompileProgram(kVS, kFS);
         ASSERT_NE(mProgram, 0u);
 
         mUniformFLocation = glGetUniformLocation(mProgram, "uniF");
@@ -60,11 +356,7 @@ class UniformTest : public ANGLETest
         ASSERT_GL_NO_ERROR();
     }
 
-    void TearDown() override
-    {
-        glDeleteProgram(mProgram);
-        ANGLETest::TearDown();
-    }
+    void testTearDown() override { glDeleteProgram(mProgram); }
 
     GLuint mProgram;
     GLint mUniformFLocation;
@@ -100,54 +392,39 @@ TEST_P(UniformTest, GetUniformNoCurrentProgram)
 
 TEST_P(UniformTest, UniformArrayLocations)
 {
-    // TODO(geofflang): Figure out why this is broken on Intel OpenGL
-    if (IsIntel() && getPlatformRenderer() == EGL_PLATFORM_ANGLE_TYPE_OPENGL_ANGLE)
-    {
-        std::cout << "Test skipped on Intel OpenGL." << std::endl;
-        return;
-    }
+    constexpr char kVS[] = R"(precision mediump float;
+uniform float uPosition[4];
+void main(void)
+{
+    gl_Position = vec4(uPosition[0], uPosition[1], uPosition[2], uPosition[3]);
+})";
 
-    const std::string vertexShader = SHADER_SOURCE
-    (
-        precision mediump float;
-        uniform float uPosition[4];
-        void main(void)
-        {
-            gl_Position = vec4(uPosition[0], uPosition[1], uPosition[2], uPosition[3]);
-        }
-    );
+    constexpr char kFS[] = R"(precision mediump float;
+uniform float uColor[4];
+void main(void)
+{
+    gl_FragColor = vec4(uColor[0], uColor[1], uColor[2], uColor[3]);
+})";
 
-    const std::string fragShader = SHADER_SOURCE
-    (
-        precision mediump float;
-        uniform float uColor[4];
-        void main(void)
-        {
-            gl_FragColor = vec4(uColor[0], uColor[1], uColor[2], uColor[3]);
-        }
-    );
-
-    GLuint program = CompileProgram(vertexShader, fragShader);
-    ASSERT_NE(program, 0u);
+    ANGLE_GL_PROGRAM(program, kVS, kFS);
 
     // Array index zero should be equivalent to the un-indexed uniform
     EXPECT_NE(-1, glGetUniformLocation(program, "uPosition"));
-    EXPECT_EQ(glGetUniformLocation(program, "uPosition"), glGetUniformLocation(program, "uPosition[0]"));
+    EXPECT_EQ(glGetUniformLocation(program, "uPosition"),
+              glGetUniformLocation(program, "uPosition[0]"));
 
     EXPECT_NE(-1, glGetUniformLocation(program, "uColor"));
     EXPECT_EQ(glGetUniformLocation(program, "uColor"), glGetUniformLocation(program, "uColor[0]"));
 
     // All array uniform locations should be unique
-    GLint positionLocations[4] =
-    {
+    GLint positionLocations[4] = {
         glGetUniformLocation(program, "uPosition[0]"),
         glGetUniformLocation(program, "uPosition[1]"),
         glGetUniformLocation(program, "uPosition[2]"),
         glGetUniformLocation(program, "uPosition[3]"),
     };
 
-    GLint colorLocations[4] =
-    {
+    GLint colorLocations[4] = {
         glGetUniformLocation(program, "uColor[0]"),
         glGetUniformLocation(program, "uColor[1]"),
         glGetUniformLocation(program, "uColor[2]"),
@@ -200,7 +477,7 @@ TEST_P(UniformTest, FloatUniformStateQuery)
         expectedFValues.push_back(static_cast<GLfloat>(value));
 
         double clampedValue = std::max(intMinD, std::min(intMaxD, value));
-        double rounded = round(clampedValue);
+        double rounded      = round(clampedValue);
         expectedIValues.push_back(static_cast<GLint>(rounded));
     }
 
@@ -235,6 +512,11 @@ TEST_P(UniformTest, FloatUniformStateQuery)
 // Test that integer to float GetUniform rounds values correctly.
 TEST_P(UniformTest, IntUniformStateQuery)
 {
+    // Qualcomm seems to have a bug where integer uniforms are internally stored as float, and
+    // large values are rounded to the nearest float representation of an integer.
+    // TODO(jmadill): Lift this suppression when/if the bug is fixed.
+    ANGLE_SKIP_TEST_IF(IsAndroid() && IsOpenGLES());
+
     std::vector<GLint> inValues;
     std::vector<GLint> expectedIValues;
     std::vector<GLfloat> expectedFValues;
@@ -266,10 +548,10 @@ TEST_P(UniformTest, IntUniformStateQuery)
         GLint expectedValue = expectedIValues[index];
 
         glUniform1i(mUniformILocation, inValue);
-        GLint testValue;
+        GLint testValue = 1234567;
         glGetUniformiv(mProgram, mUniformILocation, &testValue);
         ASSERT_GL_NO_ERROR();
-        EXPECT_EQ(expectedValue, testValue);
+        EXPECT_EQ(expectedValue, testValue) << " with glGetUniformiv";
     }
 
     for (size_t index = 0; index < inValues.size(); ++index)
@@ -278,10 +560,10 @@ TEST_P(UniformTest, IntUniformStateQuery)
         GLfloat expectedValue = expectedFValues[index];
 
         glUniform1i(mUniformILocation, inValue);
-        GLfloat testValue;
+        GLfloat testValue = 124567.0;
         glGetUniformfv(mProgram, mUniformILocation, &testValue);
         ASSERT_GL_NO_ERROR();
-        EXPECT_EQ(expectedValue, testValue);
+        EXPECT_EQ(expectedValue, testValue) << " with glGetUniformfv";
     }
 }
 
@@ -343,6 +625,11 @@ TEST_P(UniformTest, BooleanArrayUniformStateQuery)
         glGetUniformLocation(mProgram, "uniBArr[3]"),
     };
 
+    for (int i = 0; i < 4; ++i)
+    {
+        ASSERT_NE(-1, locations[i]) << " with i=" << i;
+    }
+
     // Calling Uniform1iv
     glUniform1iv(locations[0], 4, boolValuesi);
 
@@ -350,14 +637,14 @@ TEST_P(UniformTest, BooleanArrayUniformStateQuery)
     {
         int value = -1;
         glGetUniformiv(mProgram, locations[idx], &value);
-        EXPECT_EQ(boolValuesi[idx], value);
+        EXPECT_EQ(boolValuesi[idx], value) << " with Uniform1iv/GetUniformiv at " << idx;
     }
 
     for (unsigned int idx = 0; idx < 4; ++idx)
     {
         float value = -1.0f;
         glGetUniformfv(mProgram, locations[idx], &value);
-        EXPECT_EQ(boolValuesf[idx], value);
+        EXPECT_EQ(boolValuesf[idx], value) << " with Uniform1iv/GetUniformfv at " << idx;
     }
 
     // Calling Uniform1fv
@@ -367,14 +654,14 @@ TEST_P(UniformTest, BooleanArrayUniformStateQuery)
     {
         int value = -1;
         glGetUniformiv(mProgram, locations[idx], &value);
-        EXPECT_EQ(boolValuesi[idx], value);
+        EXPECT_EQ(boolValuesi[idx], value) << " with Uniform1fv/GetUniformiv at " << idx;
     }
 
     for (unsigned int idx = 0; idx < 4; ++idx)
     {
         float value = -1.0f;
         glGetUniformfv(mProgram, locations[idx], &value);
-        EXPECT_EQ(boolValuesf[idx], value);
+        EXPECT_EQ(boolValuesf[idx], value) << " with Uniform1fv/GetUniformfv at " << idx;
     }
 
     ASSERT_GL_NO_ERROR();
@@ -385,12 +672,7 @@ class UniformTestES3 : public ANGLETest
   protected:
     UniformTestES3() : mProgram(0) {}
 
-    void SetUp() override
-    {
-        ANGLETest::SetUp();
-    }
-
-    void TearDown() override
+    void testTearDown() override
     {
         if (mProgram != 0)
         {
@@ -402,22 +684,77 @@ class UniformTestES3 : public ANGLETest
     GLuint mProgram;
 };
 
-// Test queries for transposed arrays of non-square matrix uniforms.
-TEST_P(UniformTestES3, TranposedMatrixArrayUniformStateQuery)
+// Test that we can get and set an array of matrices uniform.
+TEST_P(UniformTestES3, MatrixArrayUniformStateQuery)
 {
-    const std::string &vertexShader =
+    constexpr char kFragShader[] =
         "#version 300 es\n"
-        "void main() { gl_Position = vec4(1); }";
-    const std::string &fragShader =
+        "precision mediump float;\n"
+        "uniform mat3x4 uniMat3x4[5];\n"
+        "out vec4 fragColor;\n"
+        "void main() {\n"
+        "    fragColor = vec4(uniMat3x4[0]);\n"
+        "    fragColor += vec4(uniMat3x4[1]);\n"
+        "    fragColor += vec4(uniMat3x4[2]);\n"
+        "    fragColor += vec4(uniMat3x4[3]);\n"
+        "    fragColor += vec4(uniMat3x4[4]);\n"
+        "}\n";
+    constexpr unsigned int kArrayCount   = 5;
+    constexpr unsigned int kMatrixStride = 3 * 4;
+
+    mProgram = CompileProgram(essl3_shaders::vs::Zero(), kFragShader);
+    ASSERT_NE(mProgram, 0u);
+
+    glUseProgram(mProgram);
+    GLfloat expected[kArrayCount][kMatrixStride] = {
+        {0.6f, -0.4f, 0.6f, 0.9f, -0.6f, 0.3f, -0.3f, -0.1f, -0.4f, -0.3f, 0.7f, 0.1f},
+        {-0.4f, -0.4f, -0.5f, -0.7f, 0.1f, -0.5f, 0.0f, -0.9f, -0.4f, 0.8f, -0.6f, 0.9f},
+        {0.4f, 0.1f, -0.9f, 1.0f, -0.8f, 0.4f, -0.2f, 0.4f, -0.0f, 0.2f, 0.9f, -0.3f},
+        {0.5f, 0.7f, -0.0f, 1.0f, 0.7f, 0.7f, 0.7f, -0.7f, -0.8f, 0.6f, 0.5f, -0.2f},
+        {-1.0f, 0.8f, 1.0f, -0.4f, 0.7f, 0.5f, 0.5f, 0.8f, 0.6f, 0.1f, 0.4f, -0.9f}};
+
+    GLint baseLocation = glGetUniformLocation(mProgram, "uniMat3x4");
+    ASSERT_NE(-1, baseLocation);
+
+    glUniformMatrix3x4fv(baseLocation, kArrayCount, GL_FALSE, &expected[0][0]);
+
+    for (size_t i = 0; i < kArrayCount; i++)
+    {
+        std::stringstream nameStr;
+        nameStr << "uniMat3x4[" << i << "]";
+        std::string name = nameStr.str();
+        GLint location   = glGetUniformLocation(mProgram, name.c_str());
+        ASSERT_GL_NO_ERROR();
+        ASSERT_NE(-1, location);
+
+        std::vector<GLfloat> results(12, 0);
+        glGetUniformfv(mProgram, location, results.data());
+        ASSERT_GL_NO_ERROR();
+
+        for (size_t compIdx = 0; compIdx < kMatrixStride; compIdx++)
+        {
+            EXPECT_EQ(results[compIdx], expected[i][compIdx]);
+        }
+    }
+}
+
+// Test queries for transposed arrays of non-square matrix uniforms.
+TEST_P(UniformTestES3, TransposedMatrixArrayUniformStateQuery)
+{
+    constexpr char kFS[] =
         "#version 300 es\n"
         "precision mediump float;\n"
         "uniform mat3x2 uniMat3x2[5];\n"
         "out vec4 color;\n"
         "void main() {\n"
         "  color = vec4(uniMat3x2[0][0][0]);\n"
+        "  color += vec4(uniMat3x2[1][0][0]);\n"
+        "  color += vec4(uniMat3x2[2][0][0]);\n"
+        "  color += vec4(uniMat3x2[3][0][0]);\n"
+        "  color += vec4(uniMat3x2[4][0][0]);\n"
         "}";
 
-    mProgram = CompileProgram(vertexShader, fragShader);
+    mProgram = CompileProgram(essl3_shaders::vs::Zero(), kFS);
     ASSERT_NE(mProgram, 0u);
 
     glUseProgram(mProgram);
@@ -445,7 +782,7 @@ TEST_P(UniformTestES3, TranposedMatrixArrayUniformStateQuery)
         std::stringstream nameStr;
         nameStr << "uniMat3x2[" << arrayElement << "]";
         std::string name = nameStr.str();
-        GLint location = glGetUniformLocation(mProgram, name.c_str());
+        GLint location   = glGetUniformLocation(mProgram, name.c_str());
         ASSERT_NE(-1, location);
 
         std::vector<GLfloat> sequentialValues(6, 0);
@@ -463,10 +800,7 @@ TEST_P(UniformTestES3, TranposedMatrixArrayUniformStateQuery)
 // Check that trying setting too many elements of an array doesn't overflow
 TEST_P(UniformTestES3, OverflowArray)
 {
-    const std::string &vertexShader =
-        "#version 300 es\n"
-        "void main() { gl_Position = vec4(1); }";
-    const std::string &fragShader =
+    constexpr char kFS[] =
         "#version 300 es\n"
         "precision mediump float;\n"
         "uniform float uniF[5];\n"
@@ -474,9 +808,13 @@ TEST_P(UniformTestES3, OverflowArray)
         "out vec4 color;\n"
         "void main() {\n"
         "  color = vec4(uniMat3x2[0][0][0] + uniF[0]);\n"
+        "  color = vec4(uniMat3x2[1][0][0] + uniF[1]);\n"
+        "  color = vec4(uniMat3x2[2][0][0] + uniF[2]);\n"
+        "  color = vec4(uniMat3x2[3][0][0] + uniF[3]);\n"
+        "  color = vec4(uniMat3x2[4][0][0] + uniF[4]);\n"
         "}";
 
-    mProgram = CompileProgram(vertexShader, fragShader);
+    mProgram = CompileProgram(essl3_shaders::vs::Zero(), kFS);
     ASSERT_NE(mProgram, 0u);
 
     glUseProgram(mProgram);
@@ -511,20 +849,20 @@ TEST_P(UniformTestES3, OverflowArray)
 // Check setting a sampler uniform
 TEST_P(UniformTest, Sampler)
 {
-    const std::string &vertShader =
+    constexpr char kVS[] =
         "uniform sampler2D tex2D;\n"
         "void main() {\n"
         "  gl_Position = vec4(0, 0, 0, 1);\n"
         "}";
 
-    const std::string &fragShader =
+    constexpr char kFS[] =
         "precision mediump float;\n"
         "uniform sampler2D tex2D;\n"
         "void main() {\n"
         "  gl_FragColor = texture2D(tex2D, vec2(0, 0));\n"
         "}";
 
-    ANGLE_GL_PROGRAM(program, vertShader, fragShader);
+    ANGLE_GL_PROGRAM(program, kVS, kFS);
 
     GLint location = glGetUniformLocation(program.get(), "tex2D");
     ASSERT_NE(-1, location);
@@ -595,13 +933,10 @@ TEST_P(UniformTest, SamplerUniformsAppearOnce)
     int maxVertexTextureImageUnits = 0;
     glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS, &maxVertexTextureImageUnits);
 
-    if (maxVertexTextureImageUnits == 0)
-    {
-        std::cout << "Renderer doesn't support vertex texture fetch, skipping test" << std::endl;
-        return;
-    }
+    // Renderer doesn't support vertex texture fetch, skipping test.
+    ANGLE_SKIP_TEST_IF(!maxVertexTextureImageUnits);
 
-    const std::string &vertShader =
+    constexpr char kVS[] =
         "attribute vec2 position;\n"
         "uniform sampler2D tex2D;\n"
         "varying vec4 color;\n"
@@ -610,7 +945,7 @@ TEST_P(UniformTest, SamplerUniformsAppearOnce)
         "  color = texture2D(tex2D, vec2(0));\n"
         "}";
 
-    const std::string &fragShader =
+    constexpr char kFS[] =
         "precision mediump float;\n"
         "varying vec4 color;\n"
         "uniform sampler2D tex2D;\n"
@@ -618,8 +953,7 @@ TEST_P(UniformTest, SamplerUniformsAppearOnce)
         "  gl_FragColor = texture2D(tex2D, vec2(0)) + color;\n"
         "}";
 
-    GLuint program = CompileProgram(vertShader, fragShader);
-    ASSERT_NE(0u, program);
+    ANGLE_GL_PROGRAM(program, kVS, kFS);
 
     GLint activeUniformsCount = 0;
     glGetProgramiv(program, GL_ACTIVE_UNIFORMS, &activeUniformsCount);
@@ -675,8 +1009,7 @@ TEST_P(UniformTestES3, ReturnsOnlyOneArrayElement)
     {
         UniformArrayInfo(std::string type, std::string name, int components)
             : type(type), name(name), components(components)
-        {
-        }
+        {}
         std::string type;
         std::string name;
         int components;
@@ -714,15 +1047,15 @@ TEST_P(UniformTestES3, ReturnsOnlyOneArrayElement)
         }
     }
 
-    const std::string &vertexShader =
-        "#version 300 es\n" +
-        uniformStream.str() +
-        "void main()\n"
-        "{\n"
-        "    gl_Position = vec4(1.0" + additionStream.str() + ");\n"
-        "}";
+    const std::string vertexShader = "#version 300 es\n" + uniformStream.str() +
+                                     "void main()\n"
+                                     "{\n"
+                                     "    gl_Position = vec4(1.0" +
+                                     additionStream.str() +
+                                     ");\n"
+                                     "}";
 
-    const std::string &fragmentShader =
+    constexpr char kFS[] =
         "#version 300 es\n"
         "precision mediump float;\n"
         "out vec4 color;\n"
@@ -731,7 +1064,7 @@ TEST_P(UniformTestES3, ReturnsOnlyOneArrayElement)
         "    color = vec4(1, 0, 0, 1);\n"
         "}";
 
-    mProgram = CompileProgram(vertexShader, fragmentShader);
+    mProgram = CompileProgram(vertexShader.c_str(), kFS);
     ASSERT_NE(0u, mProgram);
 
     glUseProgram(mProgram);
@@ -752,14 +1085,66 @@ TEST_P(UniformTestES3, ReturnsOnlyOneArrayElement)
     }
 }
 
+// This test reproduces a regression when Intel windows driver upgrades to 4944. In some situation,
+// when a boolean uniform with false value is used as the if and for condtions, the bug will be
+// triggered. It seems that the shader doesn't get a right 'false' value from the uniform.
+TEST_P(UniformTestES3, BooleanUniformAsIfAndForCondition)
+{
+    const char kFragShader[] =
+        R"(#version 300 es
+        precision mediump float;
+        uniform bool u;
+        out vec4 result;
+        int sideEffectCounter;
+
+        bool foo() {
+          ++sideEffectCounter;
+          return true;
+        }
+
+        void main() {
+          sideEffectCounter = 0;
+          bool condition = u;
+          if (condition)
+          {
+            condition = foo();
+          }
+          for(int iterations = 0; condition;) {
+            ++iterations;
+            if (iterations >= 10) {
+              break;
+            }
+
+            if (condition)
+            {
+              condition = foo();
+            }
+          }
+
+          bool success = (!u && sideEffectCounter == 0);
+          result = (success) ? vec4(0, 1.0, 0, 1.0) : vec4(1.0, 0.0, 0.0, 1.0);
+        })";
+
+    ANGLE_GL_PROGRAM(program, essl3_shaders::vs::Simple(), kFragShader);
+
+    glUseProgram(program.get());
+
+    GLint uniformLocation = glGetUniformLocation(program, "u");
+    ASSERT_NE(uniformLocation, -1);
+
+    glUniform1i(uniformLocation, GL_FALSE);
+
+    drawQuad(program.get(), essl3_shaders::PositionAttrib(), 0.0f);
+    ASSERT_GL_NO_ERROR();
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
+}
+
 class UniformTestES31 : public ANGLETest
 {
   protected:
     UniformTestES31() : mProgram(0) {}
 
-    void SetUp() override { ANGLETest::SetUp(); }
-
-    void TearDown() override
+    void testTearDown() override
     {
         if (mProgram != 0)
         {
@@ -775,14 +1160,7 @@ class UniformTestES31 : public ANGLETest
 // ESSL 3.10.4 section 4.4.3.
 TEST_P(UniformTestES31, StructLocationLayoutQualifier)
 {
-    const std::string &vertShader =
-        "#version 310 es\n"
-        "void main()\n"
-        "{\n"
-        "    gl_Position = vec4(0);\n"
-        "}";
-
-    const std::string &fragShader =
+    constexpr char kFS[] =
         "#version 310 es\n"
         "out highp vec4 my_FragColor;\n"
         "struct S\n"
@@ -796,7 +1174,7 @@ TEST_P(UniformTestES31, StructLocationLayoutQualifier)
         "    my_FragColor = vec4(uS.f, uS.f2, 0, 1);\n"
         "}";
 
-    ANGLE_GL_PROGRAM(program, vertShader, fragShader);
+    ANGLE_GL_PROGRAM(program, essl31_shaders::vs::Zero(), kFS);
 
     EXPECT_EQ(12, glGetUniformLocation(program.get(), "uS.f"));
     EXPECT_EQ(13, glGetUniformLocation(program.get(), "uS.f2"));
@@ -806,7 +1184,7 @@ TEST_P(UniformTestES31, StructLocationLayoutQualifier)
 // the vertex shader, but doesn't have a location specified there.
 TEST_P(UniformTestES31, UniformLocationInFragmentShader)
 {
-    const std::string &vertShader =
+    constexpr char kVS[] =
         "#version 310 es\n"
         "uniform highp sampler2D tex2D;\n"
         "void main()\n"
@@ -814,7 +1192,7 @@ TEST_P(UniformTestES31, UniformLocationInFragmentShader)
         "    gl_Position = texture(tex2D, vec2(0));\n"
         "}";
 
-    const std::string &fragShader =
+    constexpr char kFS[] =
         "#version 310 es\n"
         "precision mediump float;\n"
         "out vec4 my_FragColor;\n"
@@ -824,7 +1202,7 @@ TEST_P(UniformTestES31, UniformLocationInFragmentShader)
         "    my_FragColor = texture(tex2D, vec2(0));\n"
         "}";
 
-    ANGLE_GL_PROGRAM(program, vertShader, fragShader);
+    ANGLE_GL_PROGRAM(program, kVS, kFS);
 
     EXPECT_EQ(12, glGetUniformLocation(program.get(), "tex2D"));
 }
@@ -834,7 +1212,7 @@ TEST_P(UniformTestES31, UniformLocationInFragmentShader)
 // same location, even if they are unused, otherwise a compiler or linker error will be generated."
 TEST_P(UniformTestES31, UnusedUniformsConflictingLocation)
 {
-    const std::string &vertShader =
+    constexpr char kVS[] =
         "#version 310 es\n"
         "uniform layout(location=12) highp sampler2D texA;\n"
         "void main()\n"
@@ -842,7 +1220,7 @@ TEST_P(UniformTestES31, UnusedUniformsConflictingLocation)
         "    gl_Position = vec4(0);\n"
         "}";
 
-    const std::string &fragShader =
+    constexpr char kFS[] =
         "#version 310 es\n"
         "out highp vec4 my_FragColor;\n"
         "uniform layout(location=12) highp sampler2D texB;\n"
@@ -851,7 +1229,7 @@ TEST_P(UniformTestES31, UnusedUniformsConflictingLocation)
         "    my_FragColor = vec4(0);\n"
         "}";
 
-    mProgram = CompileProgram(vertShader, fragShader);
+    mProgram = CompileProgram(kVS, kFS);
     EXPECT_EQ(0u, mProgram);
 }
 
@@ -861,7 +1239,7 @@ TEST_P(UniformTestES31, UnusedUniformsConflictingLocation)
 // same location, even if they are unused, otherwise a compiler or linker error will be generated."
 TEST_P(UniformTestES31, UnusedUniformArraysConflictingLocation)
 {
-    const std::string &vertShader =
+    constexpr char kVS[] =
         "#version 310 es\n"
         "uniform layout(location=11) highp vec4 uA[2];\n"
         "void main()\n"
@@ -869,7 +1247,7 @@ TEST_P(UniformTestES31, UnusedUniformArraysConflictingLocation)
         "    gl_Position = vec4(0);\n"
         "}";
 
-    const std::string &fragShader =
+    constexpr char kFS[] =
         "#version 310 es\n"
         "out highp vec4 my_FragColor;\n"
         "uniform layout(location=12) highp vec4 uB;\n"
@@ -878,7 +1256,7 @@ TEST_P(UniformTestES31, UnusedUniformArraysConflictingLocation)
         "    my_FragColor = vec4(0);\n"
         "}";
 
-    mProgram = CompileProgram(vertShader, fragShader);
+    mProgram = CompileProgram(kVS, kFS);
     EXPECT_EQ(0u, mProgram);
 }
 
@@ -886,16 +1264,7 @@ TEST_P(UniformTestES31, UnusedUniformArraysConflictingLocation)
 // Minimal test case for a bug revealed by dEQP tests.
 TEST_P(UniformTestES3, StructWithNonSquareMatrixAndBool)
 {
-    const std::string &vertShader =
-        "#version 300 es\n"
-        "precision highp float;\n"
-        "in highp vec4 a_position;\n"
-        "void main()\n"
-        "{\n"
-        "    gl_Position = a_position;\n"
-        "}\n";
-
-    const std::string &fragShader =
+    constexpr char kFS[] =
         "#version 300 es\n"
         "precision highp float;\n"
         "out highp vec4 my_color;\n"
@@ -911,7 +1280,7 @@ TEST_P(UniformTestES3, StructWithNonSquareMatrixAndBool)
         "    if (!uni.b) { my_color.g = 0.0; }"
         "}\n";
 
-    ANGLE_GL_PROGRAM(program, vertShader, fragShader);
+    ANGLE_GL_PROGRAM(program, essl3_shaders::vs::Simple(), kFS);
 
     glUseProgram(program.get());
 
@@ -919,20 +1288,131 @@ TEST_P(UniformTestES3, StructWithNonSquareMatrixAndBool)
     ASSERT_NE(-1, location);
     glUniform1i(location, 1);
 
-    drawQuad(program.get(), "a_position", 0.0f);
+    drawQuad(program.get(), essl3_shaders::PositionAttrib(), 0.0f);
 
     ASSERT_GL_NO_ERROR();
     EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::white);
 }
 
-// Use this to select which configurations (e.g. which renderer, which GLES major version) these tests should be run against.
-ANGLE_INSTANTIATE_TEST(UniformTest,
-                       ES2_D3D9(),
-                       ES2_D3D11(),
-                       ES2_D3D11_FL9_3(),
-                       ES2_OPENGL(),
-                       ES2_OPENGLES());
-ANGLE_INSTANTIATE_TEST(UniformTestES3, ES3_D3D11(), ES3_OPENGL(), ES3_OPENGLES());
-ANGLE_INSTANTIATE_TEST(UniformTestES31, ES31_D3D11(), ES31_OPENGL(), ES31_OPENGLES());
+// Test that matrix uniform upload is correct.
+TEST_P(UniformTestES3, MatrixUniformUpload)
+{
+    constexpr size_t kMinDims = 2;
+    constexpr size_t kMaxDims = 4;
 
-} // namespace
+    GLfloat matrixValues[kMaxDims * kMaxDims];
+
+    for (size_t i = 0; i < kMaxDims * kMaxDims; ++i)
+    {
+        matrixValues[i] = static_cast<GLfloat>(i);
+    }
+
+    using UniformMatrixCxRfv = decltype(glUniformMatrix2fv);
+    UniformMatrixCxRfv uniformMatrixCxRfv[kMaxDims + 1][kMaxDims + 1] = {
+        {nullptr, nullptr, nullptr, nullptr, nullptr},
+        {nullptr, nullptr, nullptr, nullptr, nullptr},
+        {nullptr, nullptr, glUniformMatrix2fv, glUniformMatrix2x3fv, glUniformMatrix2x4fv},
+        {nullptr, nullptr, glUniformMatrix3x2fv, glUniformMatrix3fv, glUniformMatrix3x4fv},
+        {nullptr, nullptr, glUniformMatrix4x2fv, glUniformMatrix4x3fv, glUniformMatrix4fv},
+    };
+
+    for (int transpose = 0; transpose < 2; ++transpose)
+    {
+        for (size_t cols = kMinDims; cols <= kMaxDims; ++cols)
+        {
+            for (size_t rows = kMinDims; rows <= kMaxDims; ++rows)
+            {
+                std::ostringstream shader;
+                shader << "#version 300 es\n"
+                          "precision highp float;\n"
+                          "out highp vec4 colorOut;\n"
+                          "uniform mat"
+                       << cols << 'x' << rows
+                       << " unused;\n"
+                          "uniform mat"
+                       << cols << 'x' << rows
+                       << " m;\n"
+                          "void main()\n"
+                          "{\n"
+                          "  bool isCorrect =";
+
+                for (size_t col = 0; col < cols; ++col)
+                {
+                    for (size_t row = 0; row < rows; ++row)
+                    {
+                        size_t value;
+                        if (!transpose)
+                        {
+                            // Matrix data is uploaded column-major.
+                            value = col * rows + row;
+                        }
+                        else
+                        {
+                            // Matrix data is uploaded row-major.
+                            value = row * cols + col;
+                        }
+
+                        if (value != 0)
+                        {
+                            shader << "&&\n    ";
+                        }
+
+                        shader << "(m[" << col << "][" << row << "] == " << value << ".0)";
+                    }
+                }
+
+                shader << ";\n  colorOut = vec4(isCorrect);\n"
+                          "}\n";
+
+                ANGLE_GL_PROGRAM(program, essl3_shaders::vs::Simple(), shader.str().c_str());
+
+                glUseProgram(program.get());
+
+                GLint location = glGetUniformLocation(program.get(), "m");
+                ASSERT_NE(-1, location);
+
+                uniformMatrixCxRfv[cols][rows](location, 1, transpose != 0, matrixValues);
+                ASSERT_GL_NO_ERROR();
+
+                drawQuad(program.get(), essl3_shaders::PositionAttrib(), 0.0f);
+
+                ASSERT_GL_NO_ERROR();
+                EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::white);
+            }
+        }
+    }
+}
+
+// Test that uniforms with reserved OpenGL names that aren't reserved in GL ES 2 work correctly.
+TEST_P(UniformTest, UniformWithReservedOpenGLName)
+{
+    constexpr char kFS[] =
+        "precision mediump float;\n"
+        "uniform float buffer;"
+        "void main() {\n"
+        "    gl_FragColor = vec4(buffer);\n"
+        "}";
+
+    mProgram = CompileProgram(essl1_shaders::vs::Simple(), kFS);
+    ASSERT_NE(mProgram, 0u);
+
+    GLint location = glGetUniformLocation(mProgram, "buffer");
+    ASSERT_NE(-1, location);
+
+    glUseProgram(mProgram);
+    glUniform1f(location, 1.0f);
+
+    drawQuad(mProgram, essl1_shaders::PositionAttrib(), 0.0f);
+
+    ASSERT_GL_NO_ERROR();
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::white);
+}
+
+// Use this to select which configurations (e.g. which renderer, which GLES major version) these
+// tests should be run against.
+ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(SimpleUniformTest);
+ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(UniformTest);
+ANGLE_INSTANTIATE_TEST_ES3(UniformTestES3);
+ANGLE_INSTANTIATE_TEST_ES31(UniformTestES31);
+
+}  // namespace

@@ -14,7 +14,11 @@ namespace rx
 
 CompilerD3D::CompilerD3D(ShShaderOutput translatorOutputType)
     : mTranslatorOutputType(translatorOutputType)
+{}
+
+ShShaderOutput CompilerD3D::getTranslatorOutputType() const
 {
+    return mTranslatorOutputType;
 }
 
 }  // namespace rx

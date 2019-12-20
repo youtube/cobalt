@@ -1,32 +1,29 @@
 //
-// Copyright (c) 2016 The ANGLE Project Authors. All rights reserved.
+// Copyright 2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 
 // EGLRobustnessTest.cpp: tests for EGL_EXT_create_context_robustness
+//
+// Tests causing GPU resets are disabled, use the following args to run them:
+// --gtest_also_run_disabled_tests --gtest_filter=EGLRobustnessTest\*
 
 #include <gtest/gtest.h>
 
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
-
-#include "OSWindow.h"
 #include "test_utils/ANGLETest.h"
+#include "util/OSWindow.h"
 
 using namespace angle;
 
-class EGLRobustnessTest : public ::testing::TestWithParam<angle::PlatformParameters>
+class EGLRobustnessTest : public ANGLETest
 {
   public:
-    void SetUp() override
+    void testSetUp() override
     {
-        mOSWindow = CreateOSWindow();
+        mOSWindow = OSWindow::New();
         mOSWindow->initialize("EGLRobustnessTest", 500, 500);
         mOSWindow->setVisible(true);
-
-        auto eglGetPlatformDisplayEXT = reinterpret_cast<PFNEGLGETPLATFORMDISPLAYEXTPROC>(
-            eglGetProcAddress("eglGetPlatformDisplayEXT"));
 
         const auto &platform = GetParam().eglParameters;
 
@@ -75,7 +72,7 @@ class EGLRobustnessTest : public ::testing::TestWithParam<angle::PlatformParamet
         mInitialized = true;
     }
 
-    void TearDown() override
+    void testTearDown() override
     {
         eglDestroySurface(mDisplay, mWindow);
         eglDestroyContext(mDisplay, mContext);
@@ -83,7 +80,7 @@ class EGLRobustnessTest : public ::testing::TestWithParam<angle::PlatformParamet
         eglTerminate(mDisplay);
         EXPECT_EGL_SUCCESS();
 
-        SafeDelete(mOSWindow);
+        OSWindow::Delete(&mOSWindow);
     }
 
     void createContext(EGLint resetStrategy)
@@ -99,10 +96,6 @@ class EGLRobustnessTest : public ::testing::TestWithParam<angle::PlatformParamet
 
         const char *extensionString = reinterpret_cast<const char *>(glGetString(GL_EXTENSIONS));
         ASSERT_NE(nullptr, strstr(extensionString, "GL_ANGLE_instanced_arrays"));
-
-        mDrawElementsInstancedANGLE =
-            (PFNGLDRAWELEMENTSINSTANCEDANGLEPROC)eglGetProcAddress("glDrawElementsInstancedANGLE");
-        ASSERT_NE(nullptr, mDrawElementsInstancedANGLE);
     }
 
     void forceContextReset()
@@ -141,17 +134,16 @@ class EGLRobustnessTest : public ::testing::TestWithParam<angle::PlatformParamet
         glViewport(0, 0, mOSWindow->getWidth(), mOSWindow->getHeight());
         glClearColor(1.0, 0.0, 0.0, 1.0);
         glClear(GL_COLOR_BUFFER_BIT);
-        mDrawElementsInstancedANGLE(GL_TRIANGLES, kNumQuads * 6, GL_UNSIGNED_SHORT, indices.data(),
-                                    10000);
+        glDrawElementsInstancedANGLE(GL_TRIANGLES, kNumQuads * 6, GL_UNSIGNED_SHORT, indices.data(),
+                                     10000);
 
         glFinish();
     }
 
   protected:
-    EGLDisplay mDisplay                                             = EGL_NO_DISPLAY;
-    EGLSurface mWindow                                              = EGL_NO_SURFACE;
-    bool mInitialized                                               = false;
-    PFNGLDRAWELEMENTSINSTANCEDANGLEPROC mDrawElementsInstancedANGLE = nullptr;
+    EGLDisplay mDisplay = EGL_NO_DISPLAY;
+    EGLSurface mWindow  = EGL_NO_SURFACE;
+    bool mInitialized   = false;
 
   private:
     EGLContext mContext = EGL_NO_CONTEXT;
@@ -162,21 +154,14 @@ class EGLRobustnessTest : public ::testing::TestWithParam<angle::PlatformParamet
 // Check glGetGraphicsResetStatusEXT returns GL_NO_ERROR if we did nothing
 TEST_P(EGLRobustnessTest, NoErrorByDefault)
 {
-    if (!mInitialized)
-    {
-        return;
-    }
+    ANGLE_SKIP_TEST_IF(!mInitialized);
     ASSERT_TRUE(glGetGraphicsResetStatusEXT() == GL_NO_ERROR);
 }
 
 // Checks that the application gets no loss with NO_RESET_NOTIFICATION
 TEST_P(EGLRobustnessTest, DISABLED_NoResetNotification)
 {
-    if (!mInitialized)
-    {
-        return;
-    }
-
+    ANGLE_SKIP_TEST_IF(!mInitialized);
     createContext(EGL_NO_RESET_NOTIFICATION_EXT);
 
     if (!IsWindows())
@@ -198,10 +183,10 @@ TEST_P(EGLRobustnessTest, DISABLED_NoResetNotification)
 // the computer is rebooted.
 TEST_P(EGLRobustnessTest, DISABLED_ResettingDisplayWorks)
 {
-    if (!mInitialized)
-    {
-        return;
-    }
+    // Note that on Windows the OpenGL driver fails hard (popup that closes the application)
+    // on a TDR caused by D3D. Don't run D3D tests at the same time as the OpenGL tests.
+    ANGLE_SKIP_TEST_IF(IsWindows() && isGLRenderer());
+    ANGLE_SKIP_TEST_IF(!mInitialized);
 
     createContext(EGL_LOSE_CONTEXT_ON_RESET_EXT);
 
@@ -216,19 +201,12 @@ TEST_P(EGLRobustnessTest, DISABLED_ResettingDisplayWorks)
     forceContextReset();
     ASSERT_TRUE(glGetGraphicsResetStatusEXT() != GL_NO_ERROR);
 
-    TearDown();
-    SetUp();
+    recreateTestFixture();
     ASSERT_TRUE(glGetGraphicsResetStatusEXT() == GL_NO_ERROR);
 }
 
-// Tests causing GPU resets are disabled, use the following args to run them:
-// --gtest_also_run_disabled_tests --gtest_filter=EGLRobustnessTest\*
-
-// Note that on Windows the OpenGL driver fails hard (popup that closes the application)
-// if there was a TDR caused by D3D so we don't run D3D tests at the same time as the OpenGL tests.
-#define D3D_HAS_PRIORITY 1
-#if D3D_HAS_PRIORITY && (defined(ANGLE_ENABLE_D3D9) || defined(ANGLE_ENABLE_D3D11))
-ANGLE_INSTANTIATE_TEST(EGLRobustnessTest, ES2_D3D9(), ES2_D3D11());
-#else
-ANGLE_INSTANTIATE_TEST(EGLRobustnessTest, ES2_OPENGL());
-#endif
+ANGLE_INSTANTIATE_TEST(EGLRobustnessTest,
+                       WithNoFixture(ES2_VULKAN()),
+                       WithNoFixture(ES2_D3D9()),
+                       WithNoFixture(ES2_D3D11()),
+                       WithNoFixture(ES2_OPENGL()));

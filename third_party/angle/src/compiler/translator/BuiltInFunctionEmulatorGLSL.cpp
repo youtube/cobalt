@@ -1,15 +1,15 @@
 //
-// Copyright (c) 2002-2011 The ANGLE Project Authors. All rights reserved.
+// Copyright 2002 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 
+#include "compiler/translator/BuiltInFunctionEmulatorGLSL.h"
+
 #include "angle_gl.h"
 #include "compiler/translator/BuiltInFunctionEmulator.h"
-#include "compiler/translator/BuiltInFunctionEmulatorGLSL.h"
-#include "compiler/translator/Cache.h"
-#include "compiler/translator/SymbolTable.h"
 #include "compiler/translator/VersionGLSL.h"
+#include "compiler/translator/tree_util/BuiltIn.h"
 
 namespace sh
 {
@@ -19,8 +19,7 @@ void InitBuiltInAbsFunctionEmulatorForGLSLWorkarounds(BuiltInFunctionEmulator *e
 {
     if (shaderType == GL_VERTEX_SHADER)
     {
-        const TType *int1 = TCache::getType(EbtInt);
-        emu->addEmulatedFunction(EOpAbs, int1, "int webgl_abs_emu(int x) { return x * sign(x); }");
+        emu->addEmulatedFunction(BuiltInId::abs_Int1, "int abs_emu(int x) { return x * sign(x); }");
     }
 }
 
@@ -31,18 +30,13 @@ void InitBuiltInIsnanFunctionEmulatorForGLSLWorkarounds(BuiltInFunctionEmulator 
     if (targetGLSLVersion < GLSL_VERSION_130)
         return;
 
-    const TType *float1 = TCache::getType(EbtFloat);
-    const TType *float2 = TCache::getType(EbtFloat, 2);
-    const TType *float3 = TCache::getType(EbtFloat, 3);
-    const TType *float4 = TCache::getType(EbtFloat, 4);
-
     // !(x > 0.0 || x < 0.0 || x == 0.0) will be optimized and always equal to false.
     emu->addEmulatedFunction(
-        EOpIsNan, float1,
-        "bool webgl_isnan_emu(float x) { return (x > 0.0 || x < 0.0) ? false : x != 0.0; }");
+        BuiltInId::isnan_Float1,
+        "bool isnan_emu(float x) { return (x > 0.0 || x < 0.0) ? false : x != 0.0; }");
     emu->addEmulatedFunction(
-        EOpIsNan, float2,
-        "bvec2 webgl_isnan_emu(vec2 x)\n"
+        BuiltInId::isnan_Float2,
+        "bvec2 isnan_emu(vec2 x)\n"
         "{\n"
         "    bvec2 isnan;\n"
         "    for (int i = 0; i < 2; i++)\n"
@@ -52,8 +46,8 @@ void InitBuiltInIsnanFunctionEmulatorForGLSLWorkarounds(BuiltInFunctionEmulator 
         "    return isnan;\n"
         "}\n");
     emu->addEmulatedFunction(
-        EOpIsNan, float3,
-        "bvec3 webgl_isnan_emu(vec3 x)\n"
+        BuiltInId::isnan_Float3,
+        "bvec3 isnan_emu(vec3 x)\n"
         "{\n"
         "    bvec3 isnan;\n"
         "    for (int i = 0; i < 3; i++)\n"
@@ -63,8 +57,8 @@ void InitBuiltInIsnanFunctionEmulatorForGLSLWorkarounds(BuiltInFunctionEmulator 
         "    return isnan;\n"
         "}\n");
     emu->addEmulatedFunction(
-        EOpIsNan, float4,
-        "bvec4 webgl_isnan_emu(vec4 x)\n"
+        BuiltInId::isnan_Float4,
+        "bvec4 isnan_emu(vec4 x)\n"
         "{\n"
         "    bvec4 isnan;\n"
         "    for (int i = 0; i < 4; i++)\n"
@@ -77,29 +71,32 @@ void InitBuiltInIsnanFunctionEmulatorForGLSLWorkarounds(BuiltInFunctionEmulator 
 
 void InitBuiltInAtanFunctionEmulatorForGLSLWorkarounds(BuiltInFunctionEmulator *emu)
 {
-    const TType *float1 = TCache::getType(EbtFloat);
-    auto floatFuncId    = emu->addEmulatedFunction(
-        EOpAtan, float1, float1,
-        "webgl_emu_precision float webgl_atan_emu(webgl_emu_precision float y, webgl_emu_precision "
-        "float x)\n"
-        "{\n"
-        "    if (x > 0.0) return atan(y / x);\n"
-        "    else if (x < 0.0 && y >= 0.0) return atan(y / x) + 3.14159265;\n"
-        "    else if (x < 0.0 && y < 0.0) return atan(y / x) - 3.14159265;\n"
-        "    else return 1.57079632 * sign(y);\n"
-        "}\n");
+    emu->addEmulatedFunction(BuiltInId::atan_Float1_Float1,
+                             "emu_precision float atan_emu(emu_precision float y, emu_precision "
+                             "float x)\n"
+                             "{\n"
+                             "    if (x > 0.0) return atan(y / x);\n"
+                             "    else if (x < 0.0 && y >= 0.0) return atan(y / x) + 3.14159265;\n"
+                             "    else if (x < 0.0 && y < 0.0) return atan(y / x) - 3.14159265;\n"
+                             "    else return 1.57079632 * sign(y);\n"
+                             "}\n");
+    static const std::array<TSymbolUniqueId, 4> ids = {
+        BuiltInId::atan_Float1_Float1,
+        BuiltInId::atan_Float2_Float2,
+        BuiltInId::atan_Float3_Float3,
+        BuiltInId::atan_Float4_Float4,
+    };
     for (int dim = 2; dim <= 4; ++dim)
     {
-        const TType *floatVec = TCache::getType(EbtFloat, static_cast<unsigned char>(dim));
-        std::stringstream ss;
-        ss << "webgl_emu_precision vec" << dim << " webgl_atan_emu(webgl_emu_precision vec" << dim
-           << " y, webgl_emu_precision vec" << dim << " x)\n"
-                                                      "{\n"
-                                                      "    return vec"
+        std::stringstream ss = sh::InitializeStream<std::stringstream>();
+        ss << "emu_precision vec" << dim << " atan_emu(emu_precision vec" << dim
+           << " y, emu_precision vec" << dim << " x)\n"
+           << "{\n"
+              "    return vec"
            << dim << "(";
         for (int i = 0; i < dim; ++i)
         {
-            ss << "webgl_atan_emu(y[" << i << "], x[" << i << "])";
+            ss << "atan_emu(y[" << i << "], x[" << i << "])";
             if (i < dim - 1)
             {
                 ss << ", ";
@@ -107,7 +104,7 @@ void InitBuiltInAtanFunctionEmulatorForGLSLWorkarounds(BuiltInFunctionEmulator *
         }
         ss << ");\n"
               "}\n";
-        emu->addEmulatedFunctionWithDependency(floatFuncId, EOpAtan, floatVec, floatVec,
+        emu->addEmulatedFunctionWithDependency(BuiltInId::atan_Float1_Float1, ids[dim - 1],
                                                ss.str().c_str());
     }
 }
@@ -120,20 +117,17 @@ void InitBuiltInFunctionEmulatorForGLSLMissingFunctions(BuiltInFunctionEmulator 
     // Emulate packUnorm2x16 and unpackUnorm2x16 (GLSL 4.10)
     if (targetGLSLVersion < GLSL_VERSION_410)
     {
-        const TType *float2 = TCache::getType(EbtFloat, 2);
-        const TType *uint1  = TCache::getType(EbtUInt);
-
         // clang-format off
-        emu->addEmulatedFunction(EOpPackUnorm2x16, float2,
-            "uint webgl_packUnorm2x16_emu(vec2 v)\n"
+        emu->addEmulatedFunction(BuiltInId::packUnorm2x16_Float2,
+            "uint packUnorm2x16_emu(vec2 v)\n"
             "{\n"
             "    int x = int(round(clamp(v.x, 0.0, 1.0) * 65535.0));\n"
             "    int y = int(round(clamp(v.y, 0.0, 1.0) * 65535.0));\n"
             "    return uint((y << 16) | (x & 0xFFFF));\n"
             "}\n");
 
-        emu->addEmulatedFunction(EOpUnpackUnorm2x16, uint1,
-            "vec2 webgl_unpackUnorm2x16_emu(uint u)\n"
+        emu->addEmulatedFunction(BuiltInId::unpackUnorm2x16_UInt1,
+            "vec2 unpackUnorm2x16_emu(uint u)\n"
             "{\n"
             "    float x = float(u & 0xFFFFu) / 65535.0;\n"
             "    float y = float(u >> 16) / 65535.0;\n"
@@ -146,12 +140,9 @@ void InitBuiltInFunctionEmulatorForGLSLMissingFunctions(BuiltInFunctionEmulator 
     // by using floatBitsToInt, floatBitsToUint, intBitsToFloat, and uintBitsToFloat (GLSL 3.30).
     if (targetGLSLVersion >= GLSL_VERSION_330 && targetGLSLVersion < GLSL_VERSION_420)
     {
-        const TType *float2 = TCache::getType(EbtFloat, 2);
-        const TType *uint1  = TCache::getType(EbtUInt);
-
         // clang-format off
-        emu->addEmulatedFunction(EOpPackSnorm2x16, float2,
-            "uint webgl_packSnorm2x16_emu(vec2 v)\n"
+        emu->addEmulatedFunction(BuiltInId::packSnorm2x16_Float2,
+            "uint packSnorm2x16_emu(vec2 v)\n"
             "{\n"
             "    #if defined(GL_ARB_shading_language_packing)\n"
             "        return packSnorm2x16(v);\n"
@@ -161,30 +152,30 @@ void InitBuiltInFunctionEmulatorForGLSLMissingFunctions(BuiltInFunctionEmulator 
             "        return uint((y << 16) | (x & 0xFFFF));\n"
             "    #endif\n"
             "}\n");
-        emu->addEmulatedFunction(EOpUnpackSnorm2x16, uint1,
+        emu->addEmulatedFunction(BuiltInId::unpackSnorm2x16_UInt1,
             "#if !defined(GL_ARB_shading_language_packing)\n"
-            "    float webgl_fromSnorm(uint x)\n"
+            "    float fromSnorm(uint x)\n"
             "    {\n"
             "        int xi = (int(x) & 0x7FFF) - (int(x) & 0x8000);\n"
             "        return clamp(float(xi) / 32767.0, -1.0, 1.0);\n"
             "    }\n"
             "#endif\n"
             "\n"
-            "vec2 webgl_unpackSnorm2x16_emu(uint u)\n"
+            "vec2 unpackSnorm2x16_emu(uint u)\n"
             "{\n"
             "    #if defined(GL_ARB_shading_language_packing)\n"
             "        return unpackSnorm2x16(u);\n"
             "    #else\n"
             "        uint y = (u >> 16);\n"
             "        uint x = u;\n"
-            "        return vec2(webgl_fromSnorm(x), webgl_fromSnorm(y));\n"
+            "        return vec2(fromSnorm(x), fromSnorm(y));\n"
             "    #endif\n"
             "}\n");
-        // Functions uint webgl_f32tof16(float val) and float webgl_f16tof32(uint val) are
+        // Functions uint f32tof16(float val) and float f16tof32(uint val) are
         // based on the OpenGL redbook Appendix Session "Floating-Point Formats Used in OpenGL".
-        emu->addEmulatedFunction(EOpPackHalf2x16, float2,
+        emu->addEmulatedFunction(BuiltInId::packHalf2x16_Float2,
             "#if !defined(GL_ARB_shading_language_packing)\n"
-            "    uint webgl_f32tof16(float val)\n"
+            "    uint f32tof16(float val)\n"
             "    {\n"
             "        uint f32 = floatBitsToUint(val);\n"
             "        uint f16 = 0u;\n"
@@ -219,19 +210,19 @@ void InitBuiltInFunctionEmulatorForGLSLMissingFunctions(BuiltInFunctionEmulator 
             "    }\n"
             "#endif\n"
             "\n"
-            "uint webgl_packHalf2x16_emu(vec2 v)\n"
+            "uint packHalf2x16_emu(vec2 v)\n"
             "{\n"
             "    #if defined(GL_ARB_shading_language_packing)\n"
             "        return packHalf2x16(v);\n"
             "    #else\n"
-            "        uint x = webgl_f32tof16(v.x);\n"
-            "        uint y = webgl_f32tof16(v.y);\n"
+            "        uint x = f32tof16(v.x);\n"
+            "        uint y = f32tof16(v.y);\n"
             "        return (y << 16) | x;\n"
             "    #endif\n"
             "}\n");
-        emu->addEmulatedFunction(EOpUnpackHalf2x16, uint1,
+        emu->addEmulatedFunction(BuiltInId::unpackHalf2x16_UInt1,
             "#if !defined(GL_ARB_shading_language_packing)\n"
-            "    float webgl_f16tof32(uint val)\n"
+            "    float f16tof32(uint val)\n"
             "    {\n"
             "        uint sign = (val & 0x8000u) << 16;\n"
             "        int exponent = int((val & 0x7C00u) >> 10);\n"
@@ -276,14 +267,14 @@ void InitBuiltInFunctionEmulatorForGLSLMissingFunctions(BuiltInFunctionEmulator 
             "    }\n"
             "#endif\n"
             "\n"
-            "vec2 webgl_unpackHalf2x16_emu(uint u)\n"
+            "vec2 unpackHalf2x16_emu(uint u)\n"
             "{\n"
             "    #if defined(GL_ARB_shading_language_packing)\n"
             "        return unpackHalf2x16(u);\n"
             "    #else\n"
             "        uint y = (u >> 16);\n"
             "        uint x = u & 0xFFFFu;\n"
-            "        return vec2(webgl_f16tof32(x), webgl_f16tof32(y));\n"
+            "        return vec2(f16tof32(x), f16tof32(y));\n"
             "    #endif\n"
             "}\n");
         // clang-format on

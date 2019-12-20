@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -9,25 +9,25 @@
 #ifndef UTIL_X11_WINDOW_H
 #define UTIL_X11_WINDOW_H
 
-#include <string>
 #include <X11/Xlib.h>
-#include <X11/Xutil.h>
 #include <X11/Xresource.h>
+#include <X11/Xutil.h>
+#include <string>
 
-#include <export.h>
+#include "util/OSWindow.h"
+#include "util/util_export.h"
 
-#include "OSWindow.h"
-
-class ANGLE_EXPORT X11Window : public OSWindow
+class ANGLE_UTIL_EXPORT X11Window : public OSWindow
 {
   public:
     X11Window();
     X11Window(int visualId);
-    ~X11Window();
+    ~X11Window() override;
 
-    bool initialize(const std::string &name, size_t width, size_t height) override;
+    bool initialize(const std::string &name, int width, int height) override;
     void destroy() override;
 
+    void resetNativeWindow() override;
     EGLNativeWindowType getNativeWindow() const override;
     EGLNativeDisplayType getNativeDisplay() const override;
 
@@ -53,4 +53,4 @@ class ANGLE_EXPORT X11Window : public OSWindow
     bool mVisible;
 };
 
-#endif // UTIL_X11_WINDOW_H
+#endif  // UTIL_X11_WINDOW_H
