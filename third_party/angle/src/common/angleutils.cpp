@@ -1,5 +1,5 @@
 //
-// Copyright 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -18,40 +18,10 @@
 
 namespace angle
 {
-// dirtyPointer is a special value that will make the comparison with any valid pointer fail and
-// force the renderer to re-apply the state.
 const uintptr_t DirtyPointer = std::numeric_limits<uintptr_t>::max();
-}  // namespace angle
-
-std::string ArrayString(unsigned int i)
-{
-    // We assume that UINT_MAX and GL_INVALID_INDEX are equal.
-    ASSERT(i != UINT_MAX);
-
-    std::stringstream strstr;
-    strstr << "[";
-    strstr << i;
-    strstr << "]";
-    return strstr.str();
 }
 
-std::string ArrayIndexString(const std::vector<unsigned int> &indices)
-{
-    std::stringstream strstr;
-
-    for (auto indicesIt = indices.rbegin(); indicesIt != indices.rend(); ++indicesIt)
-    {
-        // We assume that UINT_MAX and GL_INVALID_INDEX are equal.
-        ASSERT(*indicesIt != UINT_MAX);
-        strstr << "[";
-        strstr << (*indicesIt);
-        strstr << "]";
-    }
-
-    return strstr.str();
-}
-
-size_t FormatStringIntoVector(const char *fmt, va_list vararg, std::vector<char> &outBuffer)
+size_t FormatStringIntoVector(const char *fmt, va_list vararg, std::vector<char>& outBuffer)
 {
     // The state of the va_list passed to vsnprintf is undefined after the call, do a copy in case
     // we need to grow the buffer.
@@ -75,4 +45,21 @@ size_t FormatStringIntoVector(const char *fmt, va_list vararg, std::vector<char>
     }
     ASSERT(len >= 0);
     return static_cast<size_t>(len);
+}
+
+std::string FormatString(const char *fmt, va_list vararg)
+{
+    static std::vector<char> buffer(512);
+
+    size_t len = FormatStringIntoVector(fmt, vararg, buffer);
+    return std::string(&buffer[0], len);
+}
+
+std::string FormatString(const char *fmt, ...)
+{
+    va_list vararg;
+    va_start(vararg, fmt);
+    std::string result = FormatString(fmt, vararg);
+    va_end(vararg);
+    return result;
 }

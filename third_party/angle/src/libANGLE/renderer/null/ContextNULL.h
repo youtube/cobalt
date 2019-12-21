@@ -33,67 +33,42 @@ class AllocationTrackerNULL : angle::NonCopyable
 class ContextNULL : public ContextImpl
 {
   public:
-    ContextNULL(const gl::State &state,
-                gl::ErrorSet *errorSet,
-                AllocationTrackerNULL *allocationTracker);
+    ContextNULL(const gl::ContextState &state, AllocationTrackerNULL *allocationTracker);
     ~ContextNULL() override;
 
-    angle::Result initialize() override;
+    gl::Error initialize() override;
 
     // Flush and finish.
-    angle::Result flush(const gl::Context *context) override;
-    angle::Result finish(const gl::Context *context) override;
+    gl::Error flush() override;
+    gl::Error finish() override;
 
     // Drawing methods.
-    angle::Result drawArrays(const gl::Context *context,
-                             gl::PrimitiveMode mode,
-                             GLint first,
-                             GLsizei count) override;
-    angle::Result drawArraysInstanced(const gl::Context *context,
-                                      gl::PrimitiveMode mode,
-                                      GLint first,
-                                      GLsizei count,
-                                      GLsizei instanceCount) override;
-    angle::Result drawArraysInstancedBaseInstance(const gl::Context *context,
-                                                  gl::PrimitiveMode mode,
-                                                  GLint first,
-                                                  GLsizei count,
-                                                  GLsizei instanceCount,
-                                                  GLuint baseInstance) override;
+    gl::Error drawArrays(GLenum mode, GLint first, GLsizei count) override;
+    gl::Error drawArraysInstanced(GLenum mode,
+                                  GLint first,
+                                  GLsizei count,
+                                  GLsizei instanceCount) override;
 
-    angle::Result drawElements(const gl::Context *context,
-                               gl::PrimitiveMode mode,
-                               GLsizei count,
-                               gl::DrawElementsType type,
-                               const void *indices) override;
-    angle::Result drawElementsInstanced(const gl::Context *context,
-                                        gl::PrimitiveMode mode,
-                                        GLsizei count,
-                                        gl::DrawElementsType type,
-                                        const void *indices,
-                                        GLsizei instances) override;
-    angle::Result drawElementsInstancedBaseVertexBaseInstance(const gl::Context *context,
-                                                              gl::PrimitiveMode mode,
-                                                              GLsizei count,
-                                                              gl::DrawElementsType type,
-                                                              const void *indices,
-                                                              GLsizei instances,
-                                                              GLint baseVertex,
-                                                              GLuint baseInstance) override;
-    angle::Result drawRangeElements(const gl::Context *context,
-                                    gl::PrimitiveMode mode,
-                                    GLuint start,
-                                    GLuint end,
+    gl::Error drawElements(GLenum mode,
+                           GLsizei count,
+                           GLenum type,
+                           const void *indices,
+                           const gl::IndexRange &indexRange) override;
+    gl::Error drawElementsInstanced(GLenum mode,
                                     GLsizei count,
-                                    gl::DrawElementsType type,
-                                    const void *indices) override;
-    angle::Result drawArraysIndirect(const gl::Context *context,
-                                     gl::PrimitiveMode mode,
-                                     const void *indirect) override;
-    angle::Result drawElementsIndirect(const gl::Context *context,
-                                       gl::PrimitiveMode mode,
-                                       gl::DrawElementsType type,
-                                       const void *indirect) override;
+                                    GLenum type,
+                                    const void *indices,
+                                    GLsizei instances,
+                                    const gl::IndexRange &indexRange) override;
+    gl::Error drawRangeElements(GLenum mode,
+                                GLuint start,
+                                GLuint end,
+                                GLsizei count,
+                                GLenum type,
+                                const void *indices,
+                                const gl::IndexRange &indexRange) override;
+    gl::Error drawArraysIndirect(GLenum mode, const void *indirect) override;
+    gl::Error drawElementsIndirect(GLenum mode, GLenum type, const void *indirect) override;
 
     // CHROMIUM_path_rendering path drawing methods.
     void stencilFillPath(const gl::Path *path, GLenum fillMode, GLuint mask) override;
@@ -142,35 +117,29 @@ class ContextNULL : public ContextImpl
                                              const GLfloat *transformValues) override;
 
     // Device loss
-    gl::GraphicsResetStatus getResetStatus() override;
+    GLenum getResetStatus() override;
 
     // Vendor and description strings.
     std::string getVendorString() const override;
     std::string getRendererDescription() const override;
 
-    // EXT_debug_marker
+    // Debug markers.
     void insertEventMarker(GLsizei length, const char *marker) override;
     void pushGroupMarker(GLsizei length, const char *marker) override;
     void popGroupMarker() override;
 
-    // KHR_debug
-    void pushDebugGroup(GLenum source, GLuint id, const std::string &message) override;
-    void popDebugGroup() override;
-
     // State sync with dirty bits.
-    angle::Result syncState(const gl::Context *context,
-                            const gl::State::DirtyBits &dirtyBits,
-                            const gl::State::DirtyBits &bitMask) override;
+    void syncState(const gl::State::DirtyBits &dirtyBits) override;
 
     // Disjoint timer queries
     GLint getGPUDisjoint() override;
     GLint64 getTimestamp() override;
 
     // Context switching
-    angle::Result onMakeCurrent(const gl::Context *context) override;
+    void onMakeCurrent(const gl::ContextState &data) override;
 
     // Native capabilities, unmodified by gl::Context.
-    gl::Caps getNativeCaps() const override;
+    const gl::Caps &getNativeCaps() const override;
     const gl::TextureCapsMap &getNativeTextureCaps() const override;
     const gl::Extensions &getNativeExtensions() const override;
     const gl::Limitations &getNativeLimitations() const override;
@@ -187,7 +156,7 @@ class ContextNULL : public ContextImpl
     TextureImpl *createTexture(const gl::TextureState &state) override;
 
     // Renderbuffer creation
-    RenderbufferImpl *createRenderbuffer(const gl::RenderbufferState &state) override;
+    RenderbufferImpl *createRenderbuffer() override;
 
     // Buffer creation
     BufferImpl *createBuffer(const gl::BufferState &state) override;
@@ -196,45 +165,20 @@ class ContextNULL : public ContextImpl
     VertexArrayImpl *createVertexArray(const gl::VertexArrayState &data) override;
 
     // Query and Fence creation
-    QueryImpl *createQuery(gl::QueryType type) override;
+    QueryImpl *createQuery(GLenum type) override;
     FenceNVImpl *createFenceNV() override;
-    SyncImpl *createSync() override;
+    FenceSyncImpl *createFenceSync() override;
 
     // Transform Feedback creation
     TransformFeedbackImpl *createTransformFeedback(
         const gl::TransformFeedbackState &state) override;
 
     // Sampler object creation
-    SamplerImpl *createSampler(const gl::SamplerState &state) override;
-
-    // Program Pipeline object creation
-    ProgramPipelineImpl *createProgramPipeline(const gl::ProgramPipelineState &data) override;
+    SamplerImpl *createSampler() override;
 
     std::vector<PathImpl *> createPaths(GLsizei range) override;
 
-    // Memory object creation.
-    MemoryObjectImpl *createMemoryObject() override;
-
-    // Semaphore creation.
-    SemaphoreImpl *createSemaphore() override;
-
-    // Overlay creation.
-    OverlayImpl *createOverlay(const gl::OverlayState &state) override;
-
-    angle::Result dispatchCompute(const gl::Context *context,
-                                  GLuint numGroupsX,
-                                  GLuint numGroupsY,
-                                  GLuint numGroupsZ) override;
-    angle::Result dispatchComputeIndirect(const gl::Context *context, GLintptr indirect) override;
-
-    angle::Result memoryBarrier(const gl::Context *context, GLbitfield barriers) override;
-    angle::Result memoryBarrierByRegion(const gl::Context *context, GLbitfield barriers) override;
-
-    void handleError(GLenum errorCode,
-                     const char *message,
-                     const char *file,
-                     const char *function,
-                     unsigned int line);
+    gl::Error dispatchCompute(GLuint numGroupsX, GLuint numGroupsY, GLuint numGroupsZ) override;
 
   private:
     gl::Caps mCaps;

@@ -21,12 +21,10 @@ class StateManagerGL;
 class SamplerGL : public SamplerImpl
 {
   public:
-    SamplerGL(const gl::SamplerState &state,
-              const FunctionsGL *functions,
-              StateManagerGL *stateManager);
+    SamplerGL(const FunctionsGL *functions, StateManagerGL *stateManager);
     ~SamplerGL() override;
 
-    angle::Result syncState(const gl::Context *context, const bool dirty) override;
+    void syncState(const gl::SamplerState &samplerState) const;
 
     GLuint getSamplerID() const;
 
@@ -37,6 +35,6 @@ class SamplerGL : public SamplerImpl
     mutable gl::SamplerState mAppliedSamplerState;
     GLuint mSamplerID;
 };
-}  // namespace rx
+}
 
 #endif  // LIBANGLE_RENDERER_GL_SAMPLERGL_H_

@@ -1,5 +1,5 @@
 //
-// Copyright 2012 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2012 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -11,20 +11,16 @@
 
 namespace gl
 {
-Query::Query(rx::QueryImpl *impl, QueryID id) : RefCountObject(id), mQuery(impl), mLabel() {}
+Query::Query(rx::QueryImpl *impl, GLuint id) : RefCountObject(id), mQuery(impl), mLabel()
+{
+}
 
 Query::~Query()
 {
     SafeDelete(mQuery);
 }
 
-void Query::onDestroy(const Context *context)
-{
-    ASSERT(mQuery);
-    mQuery->onDestroy(context);
-}
-
-void Query::setLabel(const Context *context, const std::string &label)
+void Query::setLabel(const std::string &label)
 {
     mLabel = label;
 }
@@ -34,53 +30,58 @@ const std::string &Query::getLabel() const
     return mLabel;
 }
 
-angle::Result Query::begin(const Context *context)
+Error Query::begin()
 {
-    return mQuery->begin(context);
+    return mQuery->begin();
 }
 
-angle::Result Query::end(const Context *context)
+Error Query::end()
 {
-    return mQuery->end(context);
+    return mQuery->end();
 }
 
-angle::Result Query::queryCounter(const Context *context)
+Error Query::queryCounter()
 {
-    return mQuery->queryCounter(context);
+    return mQuery->queryCounter();
 }
 
-angle::Result Query::getResult(const Context *context, GLint *params)
+Error Query::getResult(GLint *params)
 {
-    return mQuery->getResult(context, params);
+    return mQuery->getResult(params);
 }
 
-angle::Result Query::getResult(const Context *context, GLuint *params)
+Error Query::getResult(GLuint *params)
 {
-    return mQuery->getResult(context, params);
+    return mQuery->getResult(params);
 }
 
-angle::Result Query::getResult(const Context *context, GLint64 *params)
+Error Query::getResult(GLint64 *params)
 {
-    return mQuery->getResult(context, params);
+    return mQuery->getResult(params);
 }
 
-angle::Result Query::getResult(const Context *context, GLuint64 *params)
+Error Query::getResult(GLuint64 *params)
 {
-    return mQuery->getResult(context, params);
+    return mQuery->getResult(params);
 }
 
-angle::Result Query::isResultAvailable(const Context *context, bool *available)
+Error Query::isResultAvailable(bool *available)
 {
-    return mQuery->isResultAvailable(context, available);
+    return mQuery->isResultAvailable(available);
 }
 
-QueryType Query::getType() const
+GLenum Query::getType() const
 {
     return mQuery->getType();
 }
 
-rx::QueryImpl *Query::getImplementation() const
+rx::QueryImpl *Query::getImplementation()
 {
     return mQuery;
 }
-}  // namespace gl
+
+const rx::QueryImpl *Query::getImplementation() const
+{
+    return mQuery;
+}
+}

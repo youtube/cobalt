@@ -24,41 +24,48 @@ class CopyCompressedTextureTest : public ANGLETest
         setConfigAlphaBits(8);
     }
 
-    void testSetUp() override
+    void SetUp() override
     {
+        ANGLETest::SetUp();
+
         glGenTextures(2, mTextures);
 
-        constexpr char kVS[] =
+        mProgram = CompileProgram(
             "attribute vec2 a_position;\n"
             "varying vec2 v_texcoord;\n"
             "void main()\n"
             "{\n"
             "   gl_Position = vec4(a_position, 0.0, 1.0);\n"
             "   v_texcoord = (a_position + 1.0) * 0.5;\n"
-            "}\n";
-
-        constexpr char kFS[] =
+            "}\n",
             "precision mediump float;\n"
             "uniform sampler2D u_texture;\n"
             "varying vec2 v_texcoord;\n"
             "void main()\n"
             "{\n"
             "    gl_FragColor = texture2D(u_texture, v_texcoord);\n"
-            "}\n";
-
-        mProgram = CompileProgram(kVS, kFS);
+            "}\n");
         ASSERT_NE(0u, mProgram);
+
+        if (extensionEnabled("GL_CHROMIUM_copy_compressed_texture"))
+        {
+            glCompressedCopyTextureCHROMIUM =
+                reinterpret_cast<PFNGLCOMPRESSEDCOPYTEXTURECHROMIUMPROC>(
+                    eglGetProcAddress("glCompressedCopyTextureCHROMIUM"));
+        }
     }
 
-    void testTearDown() override
+    void TearDown() override
     {
         glDeleteTextures(2, mTextures);
         glDeleteProgram(mProgram);
+
+        ANGLETest::TearDown();
     }
 
     bool checkExtensions() const
     {
-        if (!IsGLExtensionEnabled("GL_CHROMIUM_copy_compressed_texture"))
+        if (!extensionEnabled("GL_CHROMIUM_copy_compressed_texture"))
         {
             std::cout
                 << "Test skipped because GL_CHROMIUM_copy_compressed_texture is not available."
@@ -77,6 +84,8 @@ class CopyCompressedTextureTest : public ANGLETest
 
     GLuint mProgram     = 0;
     GLuint mTextures[2] = {0, 0};
+
+    PFNGLCOMPRESSEDCOPYTEXTURECHROMIUMPROC glCompressedCopyTextureCHROMIUM = nullptr;
 };
 
 namespace
@@ -111,9 +120,17 @@ const uint8_t CompressedImageETC1[8] = {0x0, 0x0, 0xf8, 0x2, 0xff, 0xff, 0x0, 0x
 // Test to ensure that the basic functionality of the extension works.
 TEST_P(CopyCompressedTextureTest, Basic)
 {
-    ANGLE_SKIP_TEST_IF(!checkExtensions());
+    if (!checkExtensions())
+    {
+        return;
+    }
 
-    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_texture_compression_dxt1"));
+    if (!extensionEnabled("GL_EXT_texture_compression_dxt1"))
+    {
+        std::cout << "Test skipped because GL_EXT_texture_compression_dxt1 is not available."
+                  << std::endl;
+        return;
+    }
 
     glBindTexture(GL_TEXTURE_2D, mTextures[0]);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -163,28 +180,29 @@ TEST_P(CopyCompressedTextureTest, InternalFormat)
         Data() : Data(GL_NONE, nullptr, 0) {}
         Data(GLint format, const uint8_t *data, GLsizei dataSize)
             : format(format), data(data), dataSize(dataSize)
-        {}
+        {
+        }
     };
     std::vector<Data> supportedFormats;
 
-    if (IsGLExtensionEnabled("GL_AMD_compressed_ATC_texture"))
+    if (extensionEnabled("GL_AMD_compressed_ATC_texture"))
     {
         supportedFormats.push_back(
             Data(GL_ATC_RGB_AMD, CompressedImageATC, sizeof(CompressedImageATC)));
         supportedFormats.push_back(Data(GL_ATC_RGBA_INTERPOLATED_ALPHA_AMD, CompressedImageATCIA,
                                         sizeof(CompressedImageATCIA)));
     }
-    if (IsGLExtensionEnabled("GL_EXT_texture_compression_dxt1"))
+    if (extensionEnabled("GL_EXT_texture_compression_dxt1"))
     {
         supportedFormats.push_back(Data(GL_COMPRESSED_RGB_S3TC_DXT1_EXT, CompressedImageDXT1,
                                         sizeof(CompressedImageDXT1)));
     }
-    if (IsGLExtensionEnabled("GL_ANGLE_texture_compression_dxt5"))
+    if (extensionEnabled("GL_ANGLE_texture_compression_dxt5"))
     {
         supportedFormats.push_back(Data(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, CompressedImageDXT5,
                                         sizeof(CompressedImageDXT5)));
     }
-    if (IsGLExtensionEnabled("GL_OES_compressed_ETC1_RGB8_texture"))
+    if (extensionEnabled("GL_OES_compressed_ETC1_RGB8_texture"))
     {
         supportedFormats.push_back(
             Data(GL_ETC1_RGB8_OES, CompressedImageETC1, sizeof(CompressedImageETC1)));
@@ -247,8 +265,6 @@ TEST_P(CopyCompressedTextureTest, InvalidTextureIds)
         return;
     }
 
-    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_texture_compression_dxt1"));
-
     glBindTexture(GL_TEXTURE_2D, mTextures[0]);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -286,8 +302,6 @@ TEST_P(CopyCompressedTextureTest, BindingPoints)
         return;
     }
 
-    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_texture_compression_dxt1"));
-
     glBindTexture(GL_TEXTURE_CUBE_MAP, mTextures[0]);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -319,8 +333,6 @@ TEST_P(CopyCompressedTextureTest, Immutable)
     {
         return;
     }
-    // http://anglebug.com/4092
-    ANGLE_SKIP_TEST_IF((IsAndroid() && IsVulkan()) || isSwiftshader());
 
     glBindTexture(GL_TEXTURE_2D, mTextures[0]);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -345,6 +357,13 @@ TEST_P(CopyCompressedTextureTest, Immutable)
 
 // Use this to select which configurations (e.g. which renderer, which GLES major version) these
 // tests should be run against.
-ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(CopyCompressedTextureTest);
+ANGLE_INSTANTIATE_TEST(CopyCompressedTextureTest,
+                       ES2_D3D9(),
+                       ES2_D3D11(),
+                       ES3_D3D11(),
+                       ES2_OPENGL(),
+                       ES3_OPENGL(),
+                       ES2_OPENGLES(),
+                       ES3_OPENGLES());
 
 }  // namespace angle

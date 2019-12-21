@@ -1,5 +1,5 @@
 //
-// Copyright 2002 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2002-2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -14,6 +14,7 @@
 #include <map>
 
 #include "compiler/translator/IntermNode.h"
+#include "compiler/translator/VariableInfo.h"
 
 namespace sh
 {
@@ -24,10 +25,10 @@ namespace sh
 // This class is used to precompute that function call DAG so that it
 // can be reused by multiple analyses.
 //
-// It stores a vector of function records, with one record per defined function.
+// It stores a vector of function records, with one record per function.
 // Records are accessed by index but a function symbol id can be converted
-// to the index of the corresponding record. The records contain the AST node
-// of the function definition and the indices of the function's callees.
+// to the index of the corresponding record. The records mostly contain the
+// AST node of the function and the indices of the function's callees.
 //
 // In addition, records are in reverse topological order: a function F being
 // called by a function G will have index index(F) < index(G), that way
@@ -41,7 +42,8 @@ class CallDAG : angle::NonCopyable
 
     struct Record
     {
-        TIntermFunctionDefinition *node;  // Guaranteed to be non-null.
+        std::string name;
+        TIntermFunctionDefinition *node;
         std::vector<int> callees;
     };
 
@@ -57,9 +59,10 @@ class CallDAG : angle::NonCopyable
     InitResult init(TIntermNode *root, TDiagnostics *diagnostics);
 
     // Returns InvalidIndex if the function wasn't found
-    size_t findIndex(const TSymbolUniqueId &id) const;
+    size_t findIndex(const TFunctionSymbolInfo *functionInfo) const;
 
     const Record &getRecordFromIndex(size_t index) const;
+    const Record &getRecord(const TIntermAggregate *function) const;
     size_t size() const;
     void clear();
 

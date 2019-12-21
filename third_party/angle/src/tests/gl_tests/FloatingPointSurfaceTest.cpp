@@ -24,22 +24,37 @@ class FloatingPointSurfaceTest : public ANGLETest
         setConfigComponentType(EGL_COLOR_COMPONENT_TYPE_FLOAT_EXT);
     }
 
-    void testSetUp() override
+    void SetUp() override
     {
-        constexpr char kFS[] =
+        ANGLETest::SetUp();
+
+        const std::string vsSource =
+            "precision highp float;\n"
+            "attribute vec4 position;\n"
+            "void main()\n"
+            "{\n"
+            "   gl_Position = position;\n"
+            "}\n";
+
+        const std::string fsSource =
             "precision highp float;\n"
             "void main()\n"
             "{\n"
             "   gl_FragColor = vec4(1.0, 2.0, 3.0, 4.0);\n"
             "}\n";
 
-        mProgram = CompileProgram(essl1_shaders::vs::Simple(), kFS);
+        mProgram = CompileProgram(vsSource, fsSource);
         ASSERT_NE(0u, mProgram) << "shader compilation failed.";
 
         ASSERT_GL_NO_ERROR();
     }
 
-    void testTearDown() override { glDeleteProgram(mProgram); }
+    void TearDown() override
+    {
+        glDeleteProgram(mProgram);
+
+        ANGLETest::TearDown();
+    }
 
     GLuint mProgram;
 };
@@ -59,7 +74,7 @@ TEST_P(FloatingPointSurfaceTest, Clearing)
 TEST_P(FloatingPointSurfaceTest, Drawing)
 {
     glUseProgram(mProgram);
-    drawQuad(mProgram, essl1_shaders::PositionAttrib(), 0.5f);
+    drawQuad(mProgram, "position", 0.5f);
 
     EXPECT_PIXEL_32F_EQ(0, 0, 1.0f, 2.0f, 3.0f, 4.0f);
 }
@@ -69,4 +84,4 @@ TEST_P(FloatingPointSurfaceTest, Drawing)
 ANGLE_INSTANTIATE_TEST(FloatingPointSurfaceTest,
                        ES2_D3D11(),
                        ES3_D3D11(),
-                       ES2_D3D11_PRESENT_PATH_FAST());
+                       ES2_D3D11(EGL_EXPERIMENTAL_PRESENT_PATH_FAST_ANGLE));

@@ -1,5 +1,5 @@
 //
-// Copyright 2012 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2012-2013 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -16,12 +16,15 @@ namespace sh
 
 TDiagnostics::TDiagnostics(TInfoSinkBase &infoSink)
     : mInfoSink(infoSink), mNumErrors(0), mNumWarnings(0)
-{}
+{
+}
 
-TDiagnostics::~TDiagnostics() {}
+TDiagnostics::~TDiagnostics()
+{
+}
 
 void TDiagnostics::writeInfo(Severity severity,
-                             const angle::pp::SourceLocation &loc,
+                             const pp::SourceLocation &loc,
                              const char *reason,
                              const char *token)
 {
@@ -51,23 +54,19 @@ void TDiagnostics::globalError(const char *message)
     mInfoSink << message << "\n";
 }
 
-void TDiagnostics::error(const angle::pp::SourceLocation &loc,
-                         const char *reason,
-                         const char *token)
+void TDiagnostics::error(const pp::SourceLocation &loc, const char *reason, const char *token)
 {
     writeInfo(SH_ERROR, loc, reason, token);
 }
 
-void TDiagnostics::warning(const angle::pp::SourceLocation &loc,
-                           const char *reason,
-                           const char *token)
+void TDiagnostics::warning(const pp::SourceLocation &loc, const char *reason, const char *token)
 {
     writeInfo(SH_WARNING, loc, reason, token);
 }
 
 void TDiagnostics::error(const TSourceLoc &loc, const char *reason, const char *token)
 {
-    angle::pp::SourceLocation srcLoc;
+    pp::SourceLocation srcLoc;
     srcLoc.file = loc.first_file;
     srcLoc.line = loc.first_line;
     error(srcLoc, reason, token);
@@ -75,13 +74,13 @@ void TDiagnostics::error(const TSourceLoc &loc, const char *reason, const char *
 
 void TDiagnostics::warning(const TSourceLoc &loc, const char *reason, const char *token)
 {
-    angle::pp::SourceLocation srcLoc;
+    pp::SourceLocation srcLoc;
     srcLoc.file = loc.first_file;
     srcLoc.line = loc.first_line;
     warning(srcLoc, reason, token);
 }
 
-void TDiagnostics::print(ID id, const angle::pp::SourceLocation &loc, const std::string &text)
+void TDiagnostics::print(ID id, const pp::SourceLocation &loc, const std::string &text)
 {
     writeInfo(isError(id) ? SH_ERROR : SH_WARNING, loc, message(id), text.c_str());
 }
@@ -90,17 +89,6 @@ void TDiagnostics::resetErrorCount()
 {
     mNumErrors   = 0;
     mNumWarnings = 0;
-}
-
-PerformanceDiagnostics::PerformanceDiagnostics(TDiagnostics *diagnostics)
-    : mDiagnostics(diagnostics)
-{
-    ASSERT(diagnostics);
-}
-
-void PerformanceDiagnostics::warning(const TSourceLoc &loc, const char *reason, const char *token)
-{
-    mDiagnostics->warning(loc, reason, token);
 }
 
 }  // namespace sh

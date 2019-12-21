@@ -1,5 +1,5 @@
 //
-// Copyright 2012 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2012-2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -12,9 +12,14 @@ namespace rx
 {
 unsigned int RenderTargetD3D::mCurrentSerial = 1;
 
-RenderTargetD3D::RenderTargetD3D() : mSerial(issueSerials(1)) {}
+RenderTargetD3D::RenderTargetD3D()
+    : mSerial(issueSerials(1))
+{
+}
 
-RenderTargetD3D::~RenderTargetD3D() {}
+RenderTargetD3D::~RenderTargetD3D()
+{
+}
 
 unsigned int RenderTargetD3D::getSerial() const
 {
@@ -28,4 +33,4 @@ unsigned int RenderTargetD3D::issueSerials(unsigned int count)
     return firstSerial;
 }
 
-}  // namespace rx
+}

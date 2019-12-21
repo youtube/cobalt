@@ -1,5 +1,5 @@
 //
-// Copyright 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -9,8 +9,9 @@
 #ifndef LIBANGLE_RENDERER_D3D9_STATEMANAGER9_H_
 #define LIBANGLE_RENDERER_D3D9_STATEMANAGER9_H_
 
-#include "libANGLE/State.h"
 #include "libANGLE/angletypes.h"
+#include "libANGLE/ContextState.h"
+#include "libANGLE/State.h"
 #include "libANGLE/renderer/d3d/RendererD3D.h"
 
 namespace rx
@@ -42,12 +43,12 @@ class StateManager9 final : angle::NonCopyable
 
     void syncState(const gl::State &state, const gl::State::DirtyBits &dirtyBits);
 
-    void setBlendDepthRasterStates(const gl::State &glState, unsigned int sampleMask);
+    gl::Error setBlendDepthRasterStates(const gl::State &glState, unsigned int sampleMask);
     void setScissorState(const gl::Rectangle &scissor, bool enabled);
     void setViewportState(const gl::Rectangle &viewport,
                           float zNear,
                           float zFar,
-                          gl::PrimitiveMode drawMode,
+                          GLenum drawMode,
                           GLenum frontFace,
                           bool ignoreViewport);
 
@@ -68,7 +69,6 @@ class StateManager9 final : angle::NonCopyable
     int getRenderTargetWidth() const { return mRenderTargetBounds.width; }
     int getRenderTargetHeight() const { return mRenderTargetBounds.height; }
 
-    void setAllDirtyBits() { mDirtyBits.set(); }
     void resetDirtyBits() { mDirtyBits.reset(); }
 
   private:
@@ -86,7 +86,7 @@ class StateManager9 final : angle::NonCopyable
     void setSampleMask(unsigned int sampleMask);
 
     // Current raster state functions
-    void setCullMode(bool cullFace, gl::CullFaceMode cullMode, GLenum frontFace);
+    void setCullMode(bool cullFace, GLenum cullMode, GLenum frontFace);
     void setDepthBias(bool polygonOffsetFill,
                       GLfloat polygonOffsetFactor,
                       GLfloat polygonOffsetUnits);

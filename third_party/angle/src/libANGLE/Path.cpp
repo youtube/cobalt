@@ -1,5 +1,5 @@
 //
-// Copyright 2002 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2002-2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,8 +10,8 @@
 #include "libANGLE/Path.h"
 #include "libANGLE/renderer/PathImpl.h"
 
-#include "common/debug.h"
 #include "common/mathutil.h"
+#include "common/debug.h"
 
 namespace gl
 {
@@ -24,24 +24,25 @@ Path::Path(rx::PathImpl *impl)
       mStrokeWidth(1.0f),
       mStrokeBound(0.2f),
       mMiterLimit(4.0f)
-{}
+{
+}
 
 Path::~Path()
 {
     delete mPath;
 }
 
-angle::Result Path::setCommands(GLsizei numCommands,
-                                const GLubyte *commands,
-                                GLsizei numCoords,
-                                GLenum coordType,
-                                const void *coords)
+Error Path::setCommands(GLsizei numCommands,
+                        const GLubyte *commands,
+                        GLsizei numCoords,
+                        GLenum coordType,
+                        const void *coords)
 {
     ANGLE_TRY(mPath->setCommands(numCommands, commands, numCoords, coordType, coords));
 
     mHasData = true;
 
-    return angle::Result::Continue;
+    return gl::NoError();
 }
 
 void Path::setStrokeWidth(GLfloat width)
@@ -74,4 +75,4 @@ void Path::setMiterLimit(GLfloat value)
     mPath->setPathParameter(GL_PATH_MITER_LIMIT_CHROMIUM, value);
 }
 
-}  // namespace gl
+}  // gl

@@ -1,10 +1,11 @@
 //
-// Copyright 2002 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2002-2013 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 
-// Fence.cpp: Implements the gl::FenceNV and gl::Sync classes.
+// Fence.cpp: Implements the gl::FenceNV and gl::FenceSync classes, which support the GL_NV_fence
+// extension and GLES3 sync objects.
 
 #include "libANGLE/Fence.h"
 
@@ -12,106 +13,114 @@
 
 #include "common/utilities.h"
 #include "libANGLE/renderer/FenceNVImpl.h"
-#include "libANGLE/renderer/SyncImpl.h"
+#include "libANGLE/renderer/FenceSyncImpl.h"
 
 namespace gl
 {
 
 FenceNV::FenceNV(rx::FenceNVImpl *impl)
-    : mFence(impl), mIsSet(false), mStatus(GL_FALSE), mCondition(GL_NONE)
-{}
+    : mFence(impl),
+      mIsSet(false),
+      mStatus(GL_FALSE),
+      mCondition(GL_NONE)
+{
+}
 
 FenceNV::~FenceNV()
 {
     SafeDelete(mFence);
 }
 
-angle::Result FenceNV::set(const Context *context, GLenum condition)
+Error FenceNV::set(GLenum condition)
 {
-    ANGLE_TRY(mFence->set(context, condition));
+    Error error = mFence->set(condition);
+    if (error.isError())
+    {
+        return error;
+    }
 
     mCondition = condition;
-    mStatus    = GL_FALSE;
-    mIsSet     = true;
+    mStatus = GL_FALSE;
+    mIsSet = true;
 
-    return angle::Result::Continue;
+    return NoError();
 }
 
-angle::Result FenceNV::test(const Context *context, GLboolean *outResult)
+Error FenceNV::test(GLboolean *outResult)
 {
     // Flush the command buffer by default
-    ANGLE_TRY(mFence->test(context, &mStatus));
+    Error error = mFence->test(&mStatus);
+    if (error.isError())
+    {
+        return error;
+    }
 
     *outResult = mStatus;
-    return angle::Result::Continue;
+    return NoError();
 }
 
-angle::Result FenceNV::finish(const Context *context)
+Error FenceNV::finish()
 {
     ASSERT(mIsSet);
 
-    ANGLE_TRY(mFence->finish(context));
+    gl::Error error = mFence->finish();
+    if (error.isError())
+    {
+        return error;
+    }
 
     mStatus = GL_TRUE;
 
-    return angle::Result::Continue;
+    return NoError();
 }
 
-Sync::Sync(rx::SyncImpl *impl, GLuint id)
-    : RefCountObject(id),
-      mFence(impl),
-      mLabel(),
-      mCondition(GL_SYNC_GPU_COMMANDS_COMPLETE),
-      mFlags(0)
-{}
-
-void Sync::onDestroy(const Context *context)
+FenceSync::FenceSync(rx::FenceSyncImpl *impl, GLuint id)
+    : RefCountObject(id), mFence(impl), mLabel(), mCondition(GL_SYNC_GPU_COMMANDS_COMPLETE), mFlags(0)
 {
-    ASSERT(mFence);
-    mFence->onDestroy(context);
 }
 
-Sync::~Sync()
+FenceSync::~FenceSync()
 {
     SafeDelete(mFence);
 }
 
-void Sync::setLabel(const Context *context, const std::string &label)
+void FenceSync::setLabel(const std::string &label)
 {
     mLabel = label;
 }
 
-const std::string &Sync::getLabel() const
+const std::string &FenceSync::getLabel() const
 {
     return mLabel;
 }
 
-angle::Result Sync::set(const Context *context, GLenum condition, GLbitfield flags)
+Error FenceSync::set(GLenum condition, GLbitfield flags)
 {
-    ANGLE_TRY(mFence->set(context, condition, flags));
+    Error error = mFence->set(condition, flags);
+    if (error.isError())
+    {
+        return error;
+    }
 
     mCondition = condition;
-    mFlags     = flags;
-    return angle::Result::Continue;
+    mFlags = flags;
+    return NoError();
 }
 
-angle::Result Sync::clientWait(const Context *context,
-                               GLbitfield flags,
-                               GLuint64 timeout,
-                               GLenum *outResult)
+Error FenceSync::clientWait(GLbitfield flags, GLuint64 timeout, GLenum *outResult)
 {
     ASSERT(mCondition != GL_NONE);
-    return mFence->clientWait(context, flags, timeout, outResult);
+    return mFence->clientWait(flags, timeout, outResult);
 }
 
-angle::Result Sync::serverWait(const Context *context, GLbitfield flags, GLuint64 timeout)
+Error FenceSync::serverWait(GLbitfield flags, GLuint64 timeout)
 {
-    return mFence->serverWait(context, flags, timeout);
+    return mFence->serverWait(flags, timeout);
 }
 
-angle::Result Sync::getStatus(const Context *context, GLint *outResult) const
+Error FenceSync::getStatus(GLint *outResult) const
 {
-    return mFence->getStatus(context, outResult);
+    return mFence->getStatus(outResult);
 }
 
-}  // namespace gl
+}

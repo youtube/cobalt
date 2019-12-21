@@ -28,12 +28,11 @@ class DisplayVkXcb : public DisplayVk
     bool isValidNativeWindow(EGLNativeWindowType window) const override;
 
     SurfaceImpl *createWindowSurfaceVk(const egl::SurfaceState &state,
-                                       EGLNativeWindowType window) override;
+                                       EGLNativeWindowType window,
+                                       EGLint width,
+                                       EGLint height) override;
 
-    egl::ConfigSet generateConfigs() override;
-    bool checkConfigSupport(egl::Config *config) override;
-
-    const char *getWSIExtension() const override;
+    const char *getWSIName() const override;
 
   private:
     xcb_connection_t *mXcbConnection;

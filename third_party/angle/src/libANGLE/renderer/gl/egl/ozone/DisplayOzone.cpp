@@ -1,5 +1,5 @@
 //
-// Copyright 2016 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,24 +10,21 @@
 
 #include <fcntl.h>
 #include <poll.h>
-#include <sys/time.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 #include <EGL/eglext.h>
 
-#include <drm_fourcc.h>
 #include <gbm.h>
+#include <drm_fourcc.h>
 
 #include "common/debug.h"
 #include "libANGLE/Config.h"
 #include "libANGLE/Display.h"
 #include "libANGLE/Surface.h"
-#include "libANGLE/renderer/gl/ContextGL.h"
 #include "libANGLE/renderer/gl/FramebufferGL.h"
 #include "libANGLE/renderer/gl/RendererGL.h"
 #include "libANGLE/renderer/gl/StateManagerGL.h"
-#include "libANGLE/renderer/gl/egl/ContextEGL.h"
-#include "libANGLE/renderer/gl/egl/DisplayEGL.h"
 #include "libANGLE/renderer/gl/egl/FunctionsEGLDL.h"
 #include "libANGLE/renderer/gl/egl/ozone/SurfaceOzone.h"
 #include "platform/Platform.h"
@@ -35,11 +32,11 @@
 // ARM-specific extension needed to make Mali GPU behave - not in any
 // published header file.
 #ifndef EGL_SYNC_PRIOR_COMMANDS_IMPLICIT_EXTERNAL_ARM
-#    define EGL_SYNC_PRIOR_COMMANDS_IMPLICIT_EXTERNAL_ARM 0x328A
+#define EGL_SYNC_PRIOR_COMMANDS_IMPLICIT_EXTERNAL_ARM 0x328A
 #endif
 
 #ifndef EGL_NO_CONFIG_MESA
-#    define EGL_NO_CONFIG_MESA ((EGLConfig)0)
+#define EGL_NO_CONFIG_MESA ((EGLConfig)0)
 #endif
 
 namespace
@@ -72,7 +69,7 @@ int ChooseCRTC(int fd, drmModeConnectorPtr conn)
     for (int i = 0; i < conn->count_encoders; ++i)
     {
         drmModeEncoderPtr enc = drmModeGetEncoder(fd, conn->encoders[i]);
-        unsigned long crtcs   = enc->possible_crtcs;
+        unsigned long crtcs = enc->possible_crtcs;
         drmModeFreeEncoder(enc);
         if (crtcs)
         {
@@ -89,7 +86,8 @@ namespace rx
 // TODO(fjhenigman) Implement swap control.  Until then this is unused.
 SwapControlData::SwapControlData()
     : targetSwapInterval(0), maxSwapInterval(-1), currentSwapInterval(-1)
-{}
+{
+}
 
 DisplayOzone::Buffer::Buffer(DisplayOzone *display,
                              uint32_t useFlags,
@@ -115,18 +113,15 @@ DisplayOzone::Buffer::Buffer(DisplayOzone *display,
       mImage(EGL_NO_IMAGE_KHR),
       mColorBuffer(0),
       mDSBuffer(0),
+      mGLFB(0),
       mTexture(0)
-{}
+{
+}
 
 DisplayOzone::Buffer::~Buffer()
 {
+    mDisplay->mFunctionsGL->deleteFramebuffers(1, &mGLFB);
     reset();
-
-    const FunctionsGL *gl = mDisplay->mRenderer->getFunctions();
-    gl->deleteRenderbuffers(1, &mColorBuffer);
-    mColorBuffer = 0;
-    gl->deleteRenderbuffers(1, &mDSBuffer);
-    mDSBuffer = 0;
 }
 
 void DisplayOzone::Buffer::reset()
@@ -138,8 +133,15 @@ void DisplayOzone::Buffer::reset()
         mHasDRMFB = false;
     }
 
-    // Make sure to keep the color and depth stencil buffers alive so they maintain the same GL IDs
-    // if they are bound to any emulated default framebuffer.
+    FunctionsGL *gl = mDisplay->mFunctionsGL;
+    gl->deleteRenderbuffers(1, &mColorBuffer);
+    mColorBuffer = 0;
+    gl->deleteRenderbuffers(1, &mDSBuffer);
+    mDSBuffer = 0;
+
+    // Here we might destroy the GL framebuffer (mGLFB) but unlike every other resource in Buffer,
+    // it does not get destroyed (and recreated) because when it is the default framebuffer for
+    // an ANGLE surface then ANGLE expects it to have the same lifetime as that surface.
 
     if (mImage != EGL_NO_IMAGE_KHR)
     {
@@ -149,7 +151,6 @@ void DisplayOzone::Buffer::reset()
 
     if (mTexture)
     {
-        const FunctionsGL *gl = mDisplay->mRenderer->getFunctions();
         gl->deleteTextures(1, &mTexture);
         mTexture = 0;
     }
@@ -212,18 +213,34 @@ bool DisplayOzone::Buffer::resize(int32_t width, int32_t height)
         return false;
     }
 
-    const FunctionsGL *gl = mDisplay->mRenderer->getFunctions();
-    StateManagerGL *sm    = mDisplay->mRenderer->getStateManager();
+    FunctionsGL *gl    = mDisplay->mFunctionsGL;
+    StateManagerGL *sm = mDisplay->getRenderer()->getStateManager();
 
-    // Update the storage of the renderbuffers but don't generate new IDs. This will update all
-    // framebuffers they are bound to.
+    gl->genRenderbuffers(1, &mColorBuffer);
     sm->bindRenderbuffer(GL_RENDERBUFFER, mColorBuffer);
-    gl->eGLImageTargetRenderbufferStorageOES(GL_RENDERBUFFER, mImage);
+    gl->eglImageTargetRenderbufferStorageOES(GL_RENDERBUFFER, mImage);
+
+    sm->bindFramebuffer(GL_FRAMEBUFFER, mGLFB);
+    gl->framebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0_EXT, GL_RENDERBUFFER,
+                                mColorBuffer);
 
     if (mDepthBits || mStencilBits)
     {
+        gl->genRenderbuffers(1, &mDSBuffer);
         sm->bindRenderbuffer(GL_RENDERBUFFER, mDSBuffer);
         gl->renderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8_OES, width, height);
+    }
+
+    if (mDepthBits)
+    {
+        gl->framebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER,
+                                    mDSBuffer);
+    }
+
+    if (mStencilBits)
+    {
+        gl->framebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER,
+                                    mDSBuffer);
     }
 
     mWidth  = width;
@@ -234,35 +251,36 @@ bool DisplayOzone::Buffer::resize(int32_t width, int32_t height)
 bool DisplayOzone::Buffer::initialize(const NativeWindow *native)
 {
     mNative = native;
-    return createRenderbuffers() && resize(native->width, native->height);
+    mDisplay->mFunctionsGL->genFramebuffers(1, &mGLFB);
+    return resize(native->width, native->height);
 }
 
 bool DisplayOzone::Buffer::initialize(int width, int height)
 {
-    return createRenderbuffers() && resize(width, height);
+    mDisplay->mFunctionsGL->genFramebuffers(1, &mGLFB);
+    return resize(width, height);
 }
 
 void DisplayOzone::Buffer::bindTexImage()
 {
-    const FunctionsGL *gl = mDisplay->mRenderer->getFunctions();
-    gl->eGLImageTargetTexture2DOES(GL_TEXTURE_2D, mImage);
+    mDisplay->mFunctionsGL->eglImageTargetTexture2DOES(GL_TEXTURE_2D, mImage);
 }
 
 GLuint DisplayOzone::Buffer::getTexture()
 {
     // TODO(fjhenigman) Try not to create a new texture every time.  That already works on Intel
     // and should work on Mali with proper fences.
-    const FunctionsGL *gl = mDisplay->mRenderer->getFunctions();
-    StateManagerGL *sm    = mDisplay->mRenderer->getStateManager();
+    FunctionsGL *gl    = mDisplay->mFunctionsGL;
+    StateManagerGL *sm = mDisplay->getRenderer()->getStateManager();
 
     gl->genTextures(1, &mTexture);
-    sm->bindTexture(gl::TextureType::_2D, mTexture);
+    sm->bindTexture(GL_TEXTURE_2D, mTexture);
     gl->texParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     gl->texParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     gl->texParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     gl->texParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     ASSERT(mImage != EGL_NO_IMAGE_KHR);
-    gl->eGLImageTargetTexture2DOES(GL_TEXTURE_2D, mImage);
+    gl->eglImageTargetTexture2DOES(GL_TEXTURE_2D, mImage);
     return mTexture;
 }
 
@@ -287,71 +305,31 @@ uint32_t DisplayOzone::Buffer::getDRMFB()
     return mDRMFB;
 }
 
-GLuint DisplayOzone::Buffer::createGLFB(const gl::Context *context)
+FramebufferGL *DisplayOzone::Buffer::framebufferGL(const gl::FramebufferState &state)
 {
-    const FunctionsGL *functions = GetFunctionsGL(context);
-    StateManagerGL *stateManager = GetStateManagerGL(context);
-
-    GLuint framebuffer = 0;
-    functions->genFramebuffers(1, &framebuffer);
-    stateManager->bindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-
-    functions->framebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0_EXT, GL_RENDERBUFFER,
-                                       mColorBuffer);
-
-    if (mDepthBits)
-    {
-        functions->framebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER,
-                                           mDSBuffer);
-    }
-
-    if (mStencilBits)
-    {
-        functions->framebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER,
-                                           mDSBuffer);
-    }
-
-    return framebuffer;
+    return new FramebufferGL(
+        mGLFB, state, mDisplay->mFunctionsGL, mDisplay->getRenderer()->getWorkarounds(),
+        mDisplay->getRenderer()->getBlitter(), mDisplay->getRenderer()->getStateManager());
 }
 
-FramebufferGL *DisplayOzone::Buffer::framebufferGL(const gl::Context *context,
-                                                   const gl::FramebufferState &state)
-{
-    return new FramebufferGL(state, createGLFB(context), true, false);
-}
-
-void DisplayOzone::Buffer::present(const gl::Context *context)
+void DisplayOzone::Buffer::present()
 {
     if (mNative)
     {
         if (mNative->visible)
         {
-            mDisplay->drawBuffer(context, this);
+            mDisplay->drawBuffer(this);
         }
         resize(mNative->width, mNative->height);
     }
 }
 
-bool DisplayOzone::Buffer::createRenderbuffers()
-{
-    const FunctionsGL *gl = mDisplay->mRenderer->getFunctions();
-    StateManagerGL *sm    = mDisplay->mRenderer->getStateManager();
-
-    gl->genRenderbuffers(1, &mColorBuffer);
-    sm->bindRenderbuffer(GL_RENDERBUFFER, mColorBuffer);
-
-    if (mDepthBits || mStencilBits)
-    {
-        gl->genRenderbuffers(1, &mDSBuffer);
-        sm->bindRenderbuffer(GL_RENDERBUFFER, mDSBuffer);
-    }
-
-    return true;
-}
-
 DisplayOzone::DisplayOzone(const egl::DisplayState &state)
     : DisplayEGL(state),
-      mRenderer(nullptr),
+      mSwapControl(SwapControl::ABSENT),
+      mMinSwapInterval(0),
+      mMaxSwapInterval(0),
+      mCurrentSwapInterval(-1),
       mGBM(nullptr),
       mConnector(nullptr),
       mMode(nullptr),
@@ -372,9 +350,12 @@ DisplayOzone::DisplayOzone(const egl::DisplayState &state)
       mWindowSizeUniform(0),
       mBorderSizeUniform(0),
       mDepthUniform(0)
-{}
+{
+}
 
-DisplayOzone::~DisplayOzone() {}
+DisplayOzone::~DisplayOzone()
+{
+}
 
 bool DisplayOzone::hasUsableScreen(int fd)
 {
@@ -470,7 +451,7 @@ egl::Error DisplayOzone::initialize(egl::Display *display)
 
     if (!mGBM)
     {
-        return egl::EglNotInitialized() << "Could not open drm device.";
+        return egl::Error(EGL_NOT_INITIALIZED, "Could not open drm device.");
     }
 
     // ANGLE builds its executables with an RPATH so they pull in ANGLE's libGL and libEGL.
@@ -479,19 +460,17 @@ egl::Error DisplayOzone::initialize(egl::Display *display)
     // advantage of the fact that the system lib is available under multiple names (for example
     // with a .1 suffix) while Angle only installs libEGL.so.
     FunctionsEGLDL *egl = new FunctionsEGLDL();
-    mEGL                = egl;
-    ANGLE_TRY(egl->initialize(display->getNativeDisplayId(), "libEGL.so.1", nullptr));
+    mEGL = egl;
+    ANGLE_TRY(egl->initialize(display->getNativeDisplayId(), "libEGL.so.1"));
 
     const char *necessaryExtensions[] = {
-        "EGL_KHR_image_base",
-        "EGL_EXT_image_dma_buf_import",
-        "EGL_KHR_surfaceless_context",
+        "EGL_KHR_image_base", "EGL_EXT_image_dma_buf_import", "EGL_KHR_surfaceless_context",
     };
-    for (const char *ext : necessaryExtensions)
+    for (auto &ext : necessaryExtensions)
     {
         if (!mEGL->hasExtension(ext))
         {
-            return egl::EglNotInitialized() << "need " << ext;
+            return egl::Error(EGL_NOT_INITIALIZED, "need %s", ext);
         }
     }
 
@@ -518,30 +497,20 @@ egl::Error DisplayOzone::initialize(egl::Display *display)
         EGLConfig config[1];
         if (!mEGL->chooseConfig(attrib, config, 1, &numConfig) || numConfig < 1)
         {
-            return egl::EglNotInitialized() << "Could not get EGL config.";
+            return egl::Error(EGL_NOT_INITIALIZED, "Could not get EGL config.");
         }
         mConfig = config[0];
     }
 
-    EGLContext context = EGL_NO_CONTEXT;
-    native_egl::AttributeVector attribs;
-    ANGLE_TRY(initializeContext(EGL_NO_CONTEXT, display->getAttributeMap(), &context, &attribs));
+    ANGLE_TRY(initializeContext(display->getAttributeMap()));
 
-    if (!mEGL->makeCurrent(EGL_NO_SURFACE, context))
+    if (!mEGL->makeCurrent(EGL_NO_SURFACE, mContext))
     {
-        return egl::EglNotInitialized() << "Could not make context current.";
+        return egl::Error(EGL_NOT_INITIALIZED, "Could not make context current.");
     }
 
-    std::unique_ptr<FunctionsGL> functionsGL(mEGL->makeFunctionsGL());
-    functionsGL->initialize(display->getAttributeMap());
-
-    mRenderer.reset(new RendererEGL(std::move(functionsGL), display->getAttributeMap(), this,
-                                    context, attribs));
-    const gl::Version &maxVersion = mRenderer->getMaxSupportedESVersion();
-    if (maxVersion < gl::Version(2, 0))
-    {
-        return egl::EglNotInitialized() << "OpenGL ES 2.0 is not supportable.";
-    }
+    mFunctionsGL = mEGL->makeFunctionsGL();
+    mFunctionsGL->initialize();
 
     return DisplayGL::initialize(display);
 }
@@ -553,7 +522,7 @@ void DisplayOzone::pageFlipHandler(int fd,
                                    void *data)
 {
     DisplayOzone *display = reinterpret_cast<DisplayOzone *>(data);
-    uint64_t tv           = tv_sec;
+    uint64_t tv = tv_sec;
     display->pageFlipHandler(sequence, tv * 1000000 + tv_usec);
 }
 
@@ -618,8 +587,8 @@ void DisplayOzone::presentScreen()
 
 GLuint DisplayOzone::makeShader(GLuint type, const char *src)
 {
-    const FunctionsGL *gl = mRenderer->getFunctions();
-    GLuint shader         = gl->createShader(type);
+    FunctionsGL *gl = mFunctionsGL;
+    GLuint shader = gl->createShader(type);
     gl->shaderSource(shader, 1, &src, nullptr);
     gl->compileShader(shader);
 
@@ -636,10 +605,10 @@ GLuint DisplayOzone::makeShader(GLuint type, const char *src)
     return shader;
 }
 
-void DisplayOzone::drawWithTexture(const gl::Context *context, Buffer *buffer)
+void DisplayOzone::drawWithTexture(Buffer *buffer)
 {
-    const FunctionsGL *gl = mRenderer->getFunctions();
-    StateManagerGL *sm    = mRenderer->getStateManager();
+    FunctionsGL *gl    = mFunctionsGL;
+    StateManagerGL *sm = getRenderer()->getStateManager();
 
     if (!mProgram)
     {
@@ -678,7 +647,7 @@ void DisplayOzone::drawWithTexture(const gl::Context *context, Buffer *buffer)
 
         mVertexShader   = makeShader(GL_VERTEX_SHADER, vertexSource);
         mFragmentShader = makeShader(GL_FRAGMENT_SHADER, fragmentSource);
-        mProgram        = gl->createProgram();
+        mProgram = gl->createProgram();
         gl->attachShader(mProgram, mVertexShader);
         gl->attachShader(mProgram, mFragmentShader);
         gl->bindAttribLocation(mProgram, 0, "vertex");
@@ -694,7 +663,7 @@ void DisplayOzone::drawWithTexture(const gl::Context *context, Buffer *buffer)
         mWindowSizeUniform = gl->getUniformLocation(mProgram, "windowSize");
         mBorderSizeUniform = gl->getUniformLocation(mProgram, "borderSize");
         mDepthUniform      = gl->getUniformLocation(mProgram, "depth");
-        GLint texUniform   = gl->getUniformLocation(mProgram, "tex");
+        GLint texUniform = gl->getUniformLocation(mProgram, "tex");
         sm->useProgram(mProgram);
         gl->uniform1i(texUniform, 0);
 
@@ -714,21 +683,21 @@ void DisplayOzone::drawWithTexture(const gl::Context *context, Buffer *buffer)
         };
         // clang-format on
         gl->genBuffers(1, &mVertexBuffer);
-        sm->bindBuffer(gl::BufferBinding::Array, mVertexBuffer);
+        sm->bindBuffer(GL_ARRAY_BUFFER, mVertexBuffer);
         gl->bufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
         // window border triangle strip
         const GLuint borderStrip[] = {5, 0, 4, 2, 6, 3, 7, 1, 5, 0};
 
         gl->genBuffers(1, &mIndexBuffer);
-        sm->bindBuffer(gl::BufferBinding::ElementArray, mIndexBuffer);
+        sm->bindBuffer(GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer);
         gl->bufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(borderStrip), borderStrip, GL_STATIC_DRAW);
     }
     else
     {
         sm->useProgram(mProgram);
-        sm->bindBuffer(gl::BufferBinding::Array, mVertexBuffer);
-        sm->bindBuffer(gl::BufferBinding::ElementArray, mIndexBuffer);
+        sm->bindBuffer(GL_ARRAY_BUFFER, mVertexBuffer);
+        sm->bindBuffer(GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer);
     }
 
     // convert from pixels to "-1 to 1" space
@@ -757,18 +726,16 @@ void DisplayOzone::drawWithTexture(const gl::Context *context, Buffer *buffer)
     sm->setViewport(gl::Rectangle(0, 0, mWidth, mHeight));
     sm->activeTexture(0);
     GLuint tex = buffer->getTexture();
-    sm->bindTexture(gl::TextureType::_2D, tex);
+    sm->bindTexture(GL_TEXTURE_2D, tex);
     gl->vertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
     gl->enableVertexAttribArray(0);
-    GLuint fbo = mDrawing->createGLFB(context);
-    sm->bindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+    sm->bindFramebuffer(GL_DRAW_FRAMEBUFFER, mDrawing->getGLFB());
     gl->drawArrays(GL_TRIANGLE_STRIP, 0, 4);
     gl->drawElements(GL_TRIANGLE_STRIP, 10, GL_UNSIGNED_INT, 0);
     sm->deleteTexture(tex);
-    sm->deleteFramebuffer(fbo);
 }
 
-void DisplayOzone::drawBuffer(const gl::Context *context, Buffer *buffer)
+void DisplayOzone::drawBuffer(Buffer *buffer)
 {
     if (!mDrawing)
     {
@@ -789,33 +756,28 @@ void DisplayOzone::drawBuffer(const gl::Context *context, Buffer *buffer)
             }
         }
 
-        const FunctionsGL *gl = mRenderer->getFunctions();
-        StateManagerGL *sm    = mRenderer->getStateManager();
-
-        GLuint fbo = mDrawing->createGLFB(context);
-        sm->bindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+        StateManagerGL *sm = getRenderer()->getStateManager();
+        sm->bindFramebuffer(GL_DRAW_FRAMEBUFFER, mDrawing->getGLFB());
         sm->setClearColor(gl::ColorF(0, 0, 0, 1));
         sm->setClearDepth(1);
         sm->setScissorTestEnabled(false);
         sm->setColorMask(true, true, true, true);
         sm->setDepthMask(true);
-        gl->clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        sm->deleteFramebuffer(fbo);
+        mFunctionsGL->clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
 
-    drawWithTexture(context, buffer);
+    drawWithTexture(buffer);
     presentScreen();
 }
 
 void DisplayOzone::flushGL()
 {
-    const FunctionsGL *gl = mRenderer->getFunctions();
-    gl->flush();
+    mFunctionsGL->flush();
     if (mEGL->hasExtension("EGL_KHR_fence_sync"))
     {
         const EGLint attrib[] = {EGL_SYNC_CONDITION_KHR,
                                  EGL_SYNC_PRIOR_COMMANDS_IMPLICIT_EXTERNAL_ARM, EGL_NONE};
-        EGLSyncKHR fence      = mEGL->createSyncKHR(EGL_SYNC_FENCE_KHR, attrib);
+        EGLSyncKHR fence = mEGL->createSyncKHR(EGL_SYNC_FENCE_KHR, attrib);
         if (fence)
         {
             // TODO(fjhenigman) Figure out the right way to use fences on Mali GPU
@@ -846,26 +808,30 @@ void DisplayOzone::terminate()
 
     if (mProgram)
     {
-        const FunctionsGL *gl = mRenderer->getFunctions();
-        gl->deleteProgram(mProgram);
-        gl->deleteShader(mVertexShader);
-        gl->deleteShader(mFragmentShader);
-        gl->deleteBuffers(1, &mVertexBuffer);
-        gl->deleteBuffers(1, &mIndexBuffer);
+        mFunctionsGL->deleteProgram(mProgram);
+        mFunctionsGL->deleteShader(mVertexShader);
+        mFunctionsGL->deleteShader(mFragmentShader);
+        mFunctionsGL->deleteBuffers(1, &mVertexBuffer);
+        mFunctionsGL->deleteBuffers(1, &mIndexBuffer);
         mProgram = 0;
     }
 
     DisplayGL::terminate();
 
-    mRenderer.reset();
+    if (mContext)
+    {
+        // Mesa might crash if you terminate EGL with a context current
+        // then re-initialize EGL, so make our context not current.
+        mEGL->makeCurrent(EGL_NO_SURFACE, EGL_NO_CONTEXT);
+        mEGL->destroyContext(mContext);
+        mContext = nullptr;
+    }
+
+    SafeDelete(mFunctionsGL);
 
     if (mEGL)
     {
-        // Mesa might crash if you terminate EGL with a context current then re-initialize EGL, so
-        // make our context not current.
-        mEGL->makeCurrent(EGL_NO_SURFACE, EGL_NO_CONTEXT);
-
-        ANGLE_SWALLOW_ERR(mEGL->terminate());
+        mEGL->terminate();
         SafeDelete(mEGL);
     }
 
@@ -894,7 +860,7 @@ SurfaceImpl *DisplayOzone::createWindowSurface(const egl::SurfaceState &state,
     {
         return nullptr;
     }
-    return new SurfaceOzone(state, buffer);
+    return new SurfaceOzone(state, getRenderer(), buffer);
 }
 
 SurfaceImpl *DisplayOzone::createPbufferSurface(const egl::SurfaceState &state,
@@ -902,13 +868,13 @@ SurfaceImpl *DisplayOzone::createPbufferSurface(const egl::SurfaceState &state,
 {
     EGLAttrib width  = attribs.get(EGL_WIDTH, 0);
     EGLAttrib height = attribs.get(EGL_HEIGHT, 0);
-    Buffer *buffer   = new Buffer(this, GBM_BO_USE_RENDERING, GBM_FORMAT_ARGB8888,
+    Buffer *buffer = new Buffer(this, GBM_BO_USE_RENDERING, GBM_FORMAT_ARGB8888,
                                 DRM_FORMAT_ARGB8888, DRM_FORMAT_XRGB8888, true, true);
-    if (!buffer || !buffer->initialize(static_cast<int>(width), static_cast<int>(height)))
+    if (!buffer || !buffer->initialize(width, height))
     {
         return nullptr;
     }
-    return new SurfaceOzone(state, buffer);
+    return new SurfaceOzone(state, getRenderer(), buffer);
 }
 
 SurfaceImpl *DisplayOzone::createPbufferFromClientBuffer(const egl::SurfaceState &state,
@@ -928,20 +894,10 @@ SurfaceImpl *DisplayOzone::createPixmapSurface(const egl::SurfaceState &state,
     return nullptr;
 }
 
-ContextImpl *DisplayOzone::createContext(const gl::State &state,
-                                         gl::ErrorSet *errorSet,
-                                         const egl::Config *configuration,
-                                         const gl::Context *shareContext,
-                                         const egl::AttributeMap &attribs)
-{
-    // All contexts on Ozone are virtualized and share the same renderer.
-    return new ContextEGL(state, errorSet, mRenderer);
-}
-
-DeviceImpl *DisplayOzone::createDevice()
+egl::Error DisplayOzone::getDevice(DeviceImpl **device)
 {
     UNIMPLEMENTED();
-    return nullptr;
+    return egl::Error(EGL_BAD_DISPLAY);
 }
 
 egl::ConfigSet DisplayOzone::generateConfigs()
@@ -949,15 +905,15 @@ egl::ConfigSet DisplayOzone::generateConfigs()
     egl::ConfigSet configs;
 
     egl::Config config;
-    config.redSize            = 8;
-    config.greenSize          = 8;
-    config.blueSize           = 8;
-    config.alphaSize          = 8;
-    config.depthSize          = 24;
-    config.stencilSize        = 8;
-    config.bindToTextureRGBA  = EGL_TRUE;
-    config.renderableType     = EGL_OPENGL_ES2_BIT;
-    config.surfaceType        = EGL_WINDOW_BIT | EGL_PBUFFER_BIT;
+    config.redSize           = 8;
+    config.greenSize         = 8;
+    config.blueSize          = 8;
+    config.alphaSize         = 8;
+    config.depthSize         = 24;
+    config.stencilSize       = 8;
+    config.bindToTextureRGBA = EGL_TRUE;
+    config.renderableType    = EGL_OPENGL_ES2_BIT;
+    config.surfaceType       = EGL_WINDOW_BIT | EGL_PBUFFER_BIT;
     config.renderTargetFormat = GL_RGBA8;
     config.depthStencilFormat = GL_DEPTH24_STENCIL8;
 
@@ -970,10 +926,10 @@ bool DisplayOzone::testDeviceLost()
     return false;
 }
 
-egl::Error DisplayOzone::restoreLostDevice(const egl::Display *display)
+egl::Error DisplayOzone::restoreLostDevice()
 {
     UNIMPLEMENTED();
-    return egl::EglBadDisplay();
+    return egl::Error(EGL_BAD_DISPLAY);
 }
 
 bool DisplayOzone::isValidNativeWindow(EGLNativeWindowType window) const
@@ -981,106 +937,23 @@ bool DisplayOzone::isValidNativeWindow(EGLNativeWindowType window) const
     return true;
 }
 
-egl::Error DisplayOzone::waitClient(const gl::Context *context)
+egl::Error DisplayOzone::waitClient() const
 {
     // TODO(fjhenigman) Implement this.
-    return egl::NoError();
+    return egl::Error(EGL_SUCCESS);
 }
 
-egl::Error DisplayOzone::waitNative(const gl::Context *context, EGLint engine)
+egl::Error DisplayOzone::waitNative(EGLint engine,
+                                    egl::Surface *drawSurface,
+                                    egl::Surface *readSurface) const
 {
     // TODO(fjhenigman) Implement this.
-    return egl::NoError();
-}
-
-gl::Version DisplayOzone::getMaxSupportedESVersion() const
-{
-    return mRenderer->getMaxSupportedESVersion();
-}
-
-void DisplayOzone::destroyNativeContext(EGLContext context)
-{
-    mEGL->destroyContext(context);
+    return egl::Error(EGL_SUCCESS);
 }
 
 void DisplayOzone::setSwapInterval(EGLSurface drawable, SwapControlData *data)
 {
     ASSERT(data != nullptr);
-}
-
-void DisplayOzone::generateExtensions(egl::DisplayExtensions *outExtensions) const
-{
-    // Surfaceless contexts are emulated even if there is no native support.
-    outExtensions->surfacelessContext = true;
-
-    DisplayEGL::generateExtensions(outExtensions);
-}
-
-egl::Error DisplayOzone::makeCurrentSurfaceless(gl::Context *context)
-{
-    // Nothing to do, handled in the GL layers
-    return egl::NoError();
-}
-
-class WorkerContextOzone final : public WorkerContext
-{
-  public:
-    WorkerContextOzone(EGLContext context, FunctionsEGL *functions);
-    ~WorkerContextOzone() override;
-
-    bool makeCurrent() override;
-    void unmakeCurrent() override;
-
-  private:
-    EGLContext mContext;
-    FunctionsEGL *mFunctions;
-};
-
-WorkerContextOzone::WorkerContextOzone(EGLContext context, FunctionsEGL *functions)
-    : mContext(context), mFunctions(functions)
-{}
-
-WorkerContextOzone::~WorkerContextOzone()
-{
-    mFunctions->destroyContext(mContext);
-}
-
-bool WorkerContextOzone::makeCurrent()
-{
-    if (mFunctions->makeCurrent(EGL_NO_SURFACE, mContext) == EGL_FALSE)
-    {
-        ERR() << "Unable to make the EGL context current.";
-        return false;
-    }
-    return true;
-}
-
-void WorkerContextOzone::unmakeCurrent()
-{
-    mFunctions->makeCurrent(EGL_NO_SURFACE, EGL_NO_CONTEXT);
-}
-
-WorkerContext *DisplayOzone::createWorkerContext(std::string *infoLog,
-                                                 EGLContext sharedContext,
-                                                 const native_egl::AttributeVector workerAttribs)
-{
-    EGLContext context = mEGL->createContext(mConfig, sharedContext, workerAttribs.data());
-    if (context == EGL_NO_CONTEXT)
-    {
-        *infoLog += "Unable to create the EGL context.";
-        return nullptr;
-    }
-    return new WorkerContextOzone(context, mEGL);
-}
-
-void DisplayOzone::initializeFrontendFeatures(angle::FrontendFeatures *features) const
-{
-    mRenderer->initializeFrontendFeatures(features);
-}
-
-void DisplayOzone::populateFeatureList(angle::FeatureList *features)
-{
-    mRenderer->getFeatures().populateFeatureList(features);
 }
 
 }  // namespace rx

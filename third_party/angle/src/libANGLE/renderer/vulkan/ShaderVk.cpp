@@ -10,52 +10,34 @@
 #include "libANGLE/renderer/vulkan/ShaderVk.h"
 
 #include "common/debug.h"
-#include "libANGLE/Context.h"
-#include "libANGLE/renderer/vulkan/ContextVk.h"
-#include "platform/FeaturesVk.h"
 
 namespace rx
 {
 
-ShaderVk::ShaderVk(const gl::ShaderState &data) : ShaderImpl(data) {}
-
-ShaderVk::~ShaderVk() {}
-
-std::shared_ptr<WaitableCompileEvent> ShaderVk::compile(const gl::Context *context,
-                                                        gl::ShCompilerInstance *compilerInstance,
-                                                        ShCompileOptions options)
+ShaderVk::ShaderVk(const gl::ShaderState &data) : ShaderImpl(data)
 {
-    ShCompileOptions compileOptions = SH_INITIALIZE_UNINITIALIZED_LOCALS;
+}
 
-    ContextVk *contextVk = vk::GetImpl(context);
+ShaderVk::~ShaderVk()
+{
+}
 
-    bool isWebGL = context->getExtensions().webglCompatibility;
-    if (isWebGL && mData.getShaderType() != gl::ShaderType::Compute)
-    {
-        compileOptions |= SH_INIT_OUTPUT_VARIABLES;
-    }
+ShCompileOptions ShaderVk::prepareSourceAndReturnOptions(std::stringstream *sourceStream,
+                                                         std::string *sourcePath)
+{
+    *sourceStream << mData.getSource();
+    return 0;
+}
 
-    if (contextVk->getFeatures().clampPointSize.enabled)
-    {
-        compileOptions |= SH_CLAMP_POINT_SIZE;
-    }
-
-    if (contextVk->emulateSeamfulCubeMapSampling())
-    {
-        compileOptions |= SH_EMULATE_SEAMFUL_CUBE_MAP_SAMPLING;
-    }
-
-    if (contextVk->useOldRewriteStructSamplers())
-    {
-        compileOptions |= SH_USE_OLD_REWRITE_STRUCT_SAMPLERS;
-    }
-
-    return compileImpl(context, compilerInstance, mData.getSource(), compileOptions | options);
+bool ShaderVk::postTranslateCompile(gl::Compiler *compiler, std::string *infoLog)
+{
+    // No work to do here.
+    return true;
 }
 
 std::string ShaderVk::getDebugInfo() const
 {
-    return mData.getTranslatedSource();
+    return std::string();
 }
 
 }  // namespace rx

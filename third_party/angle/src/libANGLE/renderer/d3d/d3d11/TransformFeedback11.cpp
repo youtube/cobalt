@@ -21,64 +21,43 @@ TransformFeedback11::TransformFeedback11(const gl::TransformFeedbackState &state
       mRenderer(renderer),
       mIsDirty(true),
       mBuffers(state.getIndexedBuffers().size(), nullptr),
-      mBufferOffsets(state.getIndexedBuffers().size(), 0),
-      mSerial(mRenderer->generateSerial())
-{}
-
-TransformFeedback11::~TransformFeedback11() {}
-
-angle::Result TransformFeedback11::begin(const gl::Context *context,
-                                         gl::PrimitiveMode primitiveMode)
+      mBufferOffsets(state.getIndexedBuffers().size(), 0)
 {
-    // Reset all the cached offsets to the binding offsets
-    mIsDirty = true;
-    for (size_t bindingIdx = 0; bindingIdx < mBuffers.size(); bindingIdx++)
-    {
-        const auto &binding = mState.getIndexedBuffer(bindingIdx);
-        if (binding.get() != nullptr)
-        {
-            mBufferOffsets[bindingIdx] = static_cast<UINT>(binding.getOffset());
-        }
-        else
-        {
-            mBufferOffsets[bindingIdx] = 0;
-        }
-    }
-    mRenderer->getStateManager()->invalidateTransformFeedback();
-    return angle::Result::Continue;
 }
 
-angle::Result TransformFeedback11::end(const gl::Context *context)
+TransformFeedback11::~TransformFeedback11()
 {
-    mRenderer->getStateManager()->invalidateTransformFeedback();
-    if (mRenderer->getFeatures().flushAfterEndingTransformFeedback.enabled)
+}
+
+void TransformFeedback11::begin(GLenum primitiveMode)
+{
+}
+
+void TransformFeedback11::end()
+{
+    if (mRenderer->getWorkarounds().flushAfterEndingTransformFeedback)
     {
         mRenderer->getDeviceContext()->Flush();
     }
-    return angle::Result::Continue;
 }
 
-angle::Result TransformFeedback11::pause(const gl::Context *context)
+void TransformFeedback11::pause()
 {
-    mRenderer->getStateManager()->invalidateTransformFeedback();
-    return angle::Result::Continue;
 }
 
-angle::Result TransformFeedback11::resume(const gl::Context *context)
+void TransformFeedback11::resume()
 {
-    mRenderer->getStateManager()->invalidateTransformFeedback();
-    return angle::Result::Continue;
 }
 
-angle::Result TransformFeedback11::bindIndexedBuffer(
-    const gl::Context *context,
-    size_t index,
-    const gl::OffsetBindingPointer<gl::Buffer> &binding)
+void TransformFeedback11::bindGenericBuffer(const BindingPointer<gl::Buffer> &binding)
+{
+}
+
+void TransformFeedback11::bindIndexedBuffer(size_t index,
+                                            const OffsetBindingPointer<gl::Buffer> &binding)
 {
     mIsDirty              = true;
     mBufferOffsets[index] = static_cast<UINT>(binding.getOffset());
-    mRenderer->getStateManager()->invalidateTransformFeedback();
-    return angle::Result::Continue;
 }
 
 void TransformFeedback11::onApply()
@@ -100,8 +79,7 @@ UINT TransformFeedback11::getNumSOBuffers() const
     return static_cast<UINT>(mBuffers.size());
 }
 
-angle::Result TransformFeedback11::getSOBuffers(const gl::Context *context,
-                                                const std::vector<ID3D11Buffer *> **buffersOut)
+gl::ErrorOrResult<const std::vector<ID3D11Buffer *> *> TransformFeedback11::getSOBuffers()
 {
     for (size_t bindingIdx = 0; bindingIdx < mBuffers.size(); bindingIdx++)
     {
@@ -109,23 +87,16 @@ angle::Result TransformFeedback11::getSOBuffers(const gl::Context *context,
         if (binding.get() != nullptr)
         {
             Buffer11 *storage = GetImplAs<Buffer11>(binding.get());
-            ANGLE_TRY(storage->getBuffer(context, BUFFER_USAGE_VERTEX_OR_TRANSFORM_FEEDBACK,
-                                         &mBuffers[bindingIdx]));
+            ANGLE_TRY_RESULT(storage->getBuffer(BUFFER_USAGE_VERTEX_OR_TRANSFORM_FEEDBACK),
+                             mBuffers[bindingIdx]);
         }
     }
 
-    *buffersOut = &mBuffers;
-    return angle::Result::Continue;
+    return &mBuffers;
 }
 
 const std::vector<UINT> &TransformFeedback11::getSOBufferOffsets() const
 {
     return mBufferOffsets;
 }
-
-Serial TransformFeedback11::getSerial() const
-{
-    return mSerial;
-}
-
 }  // namespace rx

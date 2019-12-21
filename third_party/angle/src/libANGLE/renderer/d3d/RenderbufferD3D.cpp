@@ -1,25 +1,25 @@
 //
-// Copyright 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 
 // RenderbufferD3d.cpp: Implements the RenderbufferD3D class, a specialization of RenderbufferImpl
 
+
 #include "libANGLE/renderer/d3d/RenderbufferD3D.h"
 
-#include "libANGLE/Context.h"
 #include "libANGLE/Image.h"
-#include "libANGLE/renderer/d3d/ContextD3D.h"
 #include "libANGLE/renderer/d3d/EGLImageD3D.h"
-#include "libANGLE/renderer/d3d/RenderTargetD3D.h"
 #include "libANGLE/renderer/d3d/RendererD3D.h"
+#include "libANGLE/renderer/d3d/RenderTargetD3D.h"
 
 namespace rx
 {
-RenderbufferD3D::RenderbufferD3D(const gl::RenderbufferState &state, RendererD3D *renderer)
-    : RenderbufferImpl(state), mRenderer(renderer), mRenderTarget(nullptr), mImage(nullptr)
-{}
+RenderbufferD3D::RenderbufferD3D(RendererD3D *renderer)
+    : mRenderer(renderer), mRenderTarget(nullptr), mImage(nullptr)
+{
+}
 
 RenderbufferD3D::~RenderbufferD3D()
 {
@@ -27,24 +27,12 @@ RenderbufferD3D::~RenderbufferD3D()
     mImage = nullptr;
 }
 
-void RenderbufferD3D::onDestroy(const gl::Context *context)
+gl::Error RenderbufferD3D::setStorage(GLenum internalformat, size_t width, size_t height)
 {
-    SafeDelete(mRenderTarget);
+    return setStorageMultisample(0, internalformat, width, height);
 }
 
-angle::Result RenderbufferD3D::setStorage(const gl::Context *context,
-                                          GLenum internalformat,
-                                          size_t width,
-                                          size_t height)
-{
-    return setStorageMultisample(context, 0, internalformat, width, height);
-}
-
-angle::Result RenderbufferD3D::setStorageMultisample(const gl::Context *context,
-                                                     size_t samples,
-                                                     GLenum internalformat,
-                                                     size_t width,
-                                                     size_t height)
+gl::Error RenderbufferD3D::setStorageMultisample(size_t samples, GLenum internalformat, size_t width, size_t height)
 {
     // If the renderbuffer parameters are queried, the calling function
     // will expect one of the valid renderbuffer formats for use in
@@ -58,61 +46,52 @@ angle::Result RenderbufferD3D::setStorageMultisample(const gl::Context *context,
 
     // ANGLE_framebuffer_multisample states GL_OUT_OF_MEMORY is generated on a failure to create
     // the specified storage.
-    // Because ES 3.0 already knows the exact number of supported samples, it would already have
-    // been validated and generated GL_INVALID_VALUE.
+    // Because ES 3.0 already knows the exact number of supported samples, it would already have been
+    // validated and generated GL_INVALID_VALUE.
     const gl::TextureCaps &formatCaps = mRenderer->getNativeTextureCaps().get(creationFormat);
-    ANGLE_CHECK_GL_ALLOC(GetImplAs<ContextD3D>(context), samples <= formatCaps.getMaxSamples());
+    if (samples > formatCaps.getMaxSamples())
+    {
+        return gl::Error(GL_OUT_OF_MEMORY, "Renderbuffer format does not support %u samples, %u is the maximum.",
+                         samples, formatCaps.getMaxSamples());
+    }
 
     RenderTargetD3D *newRT = nullptr;
-    ANGLE_TRY(mRenderer->createRenderTarget(context, static_cast<int>(width),
-                                            static_cast<int>(height), creationFormat,
-                                            static_cast<GLsizei>(samples), &newRT));
+    ANGLE_TRY(mRenderer->createRenderTarget(static_cast<int>(width), static_cast<int>(height),
+                                            creationFormat, static_cast<GLsizei>(samples), &newRT));
 
     SafeDelete(mRenderTarget);
     mImage        = nullptr;
     mRenderTarget = newRT;
 
-    return angle::Result::Continue;
+    return gl::NoError();
 }
 
-angle::Result RenderbufferD3D::setStorageEGLImageTarget(const gl::Context *context,
-                                                        egl::Image *image)
+gl::Error RenderbufferD3D::setStorageEGLImageTarget(egl::Image *image)
 {
     mImage = GetImplAs<EGLImageD3D>(image);
     SafeDelete(mRenderTarget);
 
-    return angle::Result::Continue;
+    return gl::NoError();
 }
 
-angle::Result RenderbufferD3D::getRenderTarget(const gl::Context *context,
-                                               RenderTargetD3D **outRenderTarget)
+gl::Error RenderbufferD3D::getRenderTarget(RenderTargetD3D **outRenderTarget)
 {
     if (mImage)
     {
-        return mImage->getRenderTarget(context, outRenderTarget);
+        return mImage->getRenderTarget(outRenderTarget);
     }
     else
     {
         *outRenderTarget = mRenderTarget;
-        return angle::Result::Continue;
+        return gl::NoError();
     }
 }
 
-angle::Result RenderbufferD3D::getAttachmentRenderTarget(const gl::Context *context,
-                                                         GLenum binding,
-                                                         const gl::ImageIndex &imageIndex,
-                                                         GLsizei samples,
-                                                         FramebufferAttachmentRenderTarget **rtOut)
+gl::Error RenderbufferD3D::getAttachmentRenderTarget(GLenum /*binding*/,
+                                                     const gl::ImageIndex & /*imageIndex*/,
+                                                     FramebufferAttachmentRenderTarget **rtOut)
 {
-    return getRenderTarget(context, reinterpret_cast<RenderTargetD3D **>(rtOut));
+    return getRenderTarget(reinterpret_cast<RenderTargetD3D **>(rtOut));
 }
 
-angle::Result RenderbufferD3D::initializeContents(const gl::Context *context,
-                                                  const gl::ImageIndex &imageIndex)
-{
-    RenderTargetD3D *renderTarget = nullptr;
-    ANGLE_TRY(getRenderTarget(context, &renderTarget));
-    return mRenderer->initRenderTarget(context, renderTarget);
 }
-
-}  // namespace rx

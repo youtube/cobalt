@@ -27,32 +27,53 @@ class UnpackRowLengthTest : public ANGLETest
         mProgram = 0;
     }
 
-    void testSetUp() override
+    void SetUp() override
     {
-        constexpr char kFS[] = R"(uniform sampler2D tex;
-void main()
-{
-    gl_FragColor = texture2D(tex, vec2(0.0, 1.0));
-})";
+        ANGLETest::SetUp();
 
-        mProgram = CompileProgram(essl1_shaders::vs::Simple(), kFS);
+        const std::string vertexShaderSource = SHADER_SOURCE
+        (
+            precision highp float;
+            attribute vec4 position;
+
+            void main()
+            {
+                gl_Position = position;
+            }
+        );
+
+        const std::string fragmentShaderSource = SHADER_SOURCE
+        (
+            uniform sampler2D tex;
+
+            void main()
+            {
+                gl_FragColor = texture2D(tex, vec2(0.0, 1.0));
+            }
+        );
+
+        mProgram = CompileProgram(vertexShaderSource, fragmentShaderSource);
         if (mProgram == 0)
         {
             FAIL() << "shader compilation failed.";
         }
     }
 
-    void testTearDown() override { glDeleteProgram(mProgram); }
+    void TearDown() override
+    {
+        glDeleteProgram(mProgram);
+
+        ANGLETest::TearDown();
+    }
 
     void testRowLength(int texSize, int rowLength)
     {
         glPixelStorei(GL_UNPACK_ROW_LENGTH, rowLength);
 
-        if ((getClientMajorVersion() == 3) || IsGLExtensionEnabled("GL_EXT_unpack_subimage"))
+        if ((getClientMajorVersion() == 3) || extensionEnabled("GL_EXT_unpack_subimage"))
         {
             // Only texSize * texSize region is filled as WHITE, other parts are BLACK.
-            // If the UNPACK_ROW_LENGTH is implemented correctly, all texels inside this texture are
-            // WHITE.
+            // If the UNPACK_ROW_LENGTH is implemented correctly, all texels inside this texture are WHITE.
             std::vector<GLubyte> buf(rowLength * texSize * 4);
             for (int y = 0; y < texSize; y++)
             {
@@ -65,13 +86,12 @@ void main()
             glGenTextures(1, &tex);
             glBindTexture(GL_TEXTURE_2D, tex);
 
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texSize, texSize, 0, GL_RGBA, GL_UNSIGNED_BYTE,
-                         &buf[0]);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texSize, texSize, 0, GL_RGBA, GL_UNSIGNED_BYTE, &buf[0]);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-            drawQuad(mProgram, essl1_shaders::PositionAttrib(), 0.5f);
+            drawQuad(mProgram, "position", 0.5f);
 
             EXPECT_PIXEL_EQ(0, 0, 255, 255, 255, 255);
             EXPECT_PIXEL_EQ(1, 0, 255, 255, 255, 255);
@@ -97,8 +117,14 @@ TEST_P(UnpackRowLengthTest, RowLength1024)
     testRowLength(128, 1024);
 }
 
-// Use this to select which configurations (e.g. which renderer, which GLES major version) these
-// tests should be run against.
-ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(UnpackRowLengthTest);
+// Use this to select which configurations (e.g. which renderer, which GLES major version) these tests should be run against.
+ANGLE_INSTANTIATE_TEST(UnpackRowLengthTest,
+                       ES3_D3D11(),
+                       ES2_D3D11(),
+                       ES2_D3D9(),
+                       ES2_OPENGL(),
+                       ES3_OPENGL(),
+                       ES2_OPENGLES(),
+                       ES3_OPENGLES());
 
-}  // namespace
+} // namespace

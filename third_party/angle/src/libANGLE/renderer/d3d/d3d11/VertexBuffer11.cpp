@@ -1,5 +1,5 @@
 //
-// Copyright 2013 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2013 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -9,40 +9,40 @@
 #include "libANGLE/renderer/d3d/d3d11/VertexBuffer11.h"
 
 #include "libANGLE/Buffer.h"
-#include "libANGLE/Context.h"
 #include "libANGLE/VertexAttribute.h"
 #include "libANGLE/formatutils.h"
 #include "libANGLE/renderer/d3d/d3d11/Buffer11.h"
-#include "libANGLE/renderer/d3d/d3d11/Context11.h"
-#include "libANGLE/renderer/d3d/d3d11/Renderer11.h"
 #include "libANGLE/renderer/d3d/d3d11/formatutils11.h"
+#include "libANGLE/renderer/d3d/d3d11/Renderer11.h"
 #include "libANGLE/renderer/d3d/d3d11/renderer11_utils.h"
 
 namespace rx
 {
 
-VertexBuffer11::VertexBuffer11(Renderer11 *const renderer)
-    : mRenderer(renderer),
-      mBuffer(),
-      mBufferSize(0),
-      mDynamicUsage(false),
-      mMappedResourceData(nullptr)
-{}
+VertexBuffer11::VertexBuffer11(Renderer11 *const renderer) : mRenderer(renderer)
+{
+    mBuffer             = nullptr;
+    mBufferSize         = 0;
+    mDynamicUsage       = false;
+    mMappedResourceData = nullptr;
+}
 
 VertexBuffer11::~VertexBuffer11()
 {
     ASSERT(mMappedResourceData == nullptr);
+    SafeRelease(mBuffer);
 }
 
-angle::Result VertexBuffer11::initialize(const gl::Context *context,
-                                         unsigned int size,
-                                         bool dynamicUsage)
+gl::Error VertexBuffer11::initialize(unsigned int size, bool dynamicUsage)
 {
-    mBuffer.reset();
+    SafeRelease(mBuffer);
+
     updateSerial();
 
     if (size > 0)
     {
+        ID3D11Device *dxDevice = mRenderer->getDevice();
+
         D3D11_BUFFER_DESC bufferDesc;
         bufferDesc.ByteWidth           = size;
         bufferDesc.Usage               = D3D11_USAGE_DYNAMIC;
@@ -51,37 +51,49 @@ angle::Result VertexBuffer11::initialize(const gl::Context *context,
         bufferDesc.MiscFlags           = 0;
         bufferDesc.StructureByteStride = 0;
 
-        ANGLE_TRY(mRenderer->allocateResource(GetImplAs<Context11>(context), bufferDesc, &mBuffer));
+        HRESULT result = dxDevice->CreateBuffer(&bufferDesc, nullptr, &mBuffer);
+        if (FAILED(result))
+        {
+            return gl::Error(GL_OUT_OF_MEMORY,
+                             "Failed to allocate internal vertex buffer of size, %lu.", size);
+        }
 
         if (dynamicUsage)
         {
-            mBuffer.setDebugName("VertexBuffer11 (dynamic)");
+            d3d11::SetDebugName(mBuffer, "VertexBuffer11 (dynamic)");
         }
         else
         {
-            mBuffer.setDebugName("VertexBuffer11 (static)");
+            d3d11::SetDebugName(mBuffer, "VertexBuffer11 (static)");
         }
     }
 
     mBufferSize   = size;
     mDynamicUsage = dynamicUsage;
 
-    return angle::Result::Continue;
+    return gl::NoError();
 }
 
-angle::Result VertexBuffer11::mapResource(const gl::Context *context)
+gl::Error VertexBuffer11::mapResource()
 {
     if (mMappedResourceData == nullptr)
     {
+        ID3D11DeviceContext *dxContext = mRenderer->getDeviceContext();
+
         D3D11_MAPPED_SUBRESOURCE mappedResource;
 
-        ANGLE_TRY(mRenderer->mapResource(context, mBuffer.get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0,
-                                         &mappedResource));
+        HRESULT result =
+            dxContext->Map(mBuffer, 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mappedResource);
+        if (FAILED(result))
+        {
+            return gl::Error(GL_OUT_OF_MEMORY,
+                             "Failed to map internal vertex buffer, HRESULT: 0x%08x.", result);
+        }
 
-        mMappedResourceData = static_cast<uint8_t *>(mappedResource.pData);
+        mMappedResourceData = reinterpret_cast<uint8_t *>(mappedResource.pData);
     }
 
-    return angle::Result::Continue;
+    return gl::NoError();
 }
 
 void VertexBuffer11::hintUnmapResource()
@@ -89,46 +101,48 @@ void VertexBuffer11::hintUnmapResource()
     if (mMappedResourceData != nullptr)
     {
         ID3D11DeviceContext *dxContext = mRenderer->getDeviceContext();
-        dxContext->Unmap(mBuffer.get(), 0);
+        dxContext->Unmap(mBuffer, 0);
 
         mMappedResourceData = nullptr;
     }
 }
 
-angle::Result VertexBuffer11::storeVertexAttributes(const gl::Context *context,
-                                                    const gl::VertexAttribute &attrib,
-                                                    const gl::VertexBinding &binding,
-                                                    gl::VertexAttribType currentValueType,
-                                                    GLint start,
-                                                    size_t count,
-                                                    GLsizei instances,
-                                                    unsigned int offset,
-                                                    const uint8_t *sourceData)
+gl::Error VertexBuffer11::storeVertexAttributes(const gl::VertexAttribute &attrib,
+                                                const gl::VertexBinding &binding,
+                                                GLenum currentValueType,
+                                                GLint start,
+                                                GLsizei count,
+                                                GLsizei instances,
+                                                unsigned int offset,
+                                                const uint8_t *sourceData)
 {
-    ASSERT(mBuffer.valid());
+    if (!mBuffer)
+    {
+        return gl::Error(GL_OUT_OF_MEMORY, "Internal vertex buffer is not initialized.");
+    }
 
     int inputStride = static_cast<int>(ComputeVertexAttributeStride(attrib, binding));
 
     // This will map the resource if it isn't already mapped.
-    ANGLE_TRY(mapResource(context));
+    ANGLE_TRY(mapResource());
 
     uint8_t *output = mMappedResourceData + offset;
 
     const uint8_t *input = sourceData;
 
-    if (instances == 0 || binding.getDivisor() == 0)
+    if (instances == 0 || binding.divisor == 0)
     {
         input += inputStride * start;
     }
 
-    angle::FormatID vertexFormatID       = gl::GetVertexFormatID(attrib, currentValueType);
-    const D3D_FEATURE_LEVEL featureLevel = mRenderer->getRenderer11DeviceCaps().featureLevel;
+    gl::VertexFormatType vertexFormatType = gl::GetVertexFormatType(attrib, currentValueType);
+    const D3D_FEATURE_LEVEL featureLevel  = mRenderer->getRenderer11DeviceCaps().featureLevel;
     const d3d11::VertexFormat &vertexFormatInfo =
-        d3d11::GetVertexFormatInfo(vertexFormatID, featureLevel);
+        d3d11::GetVertexFormatInfo(vertexFormatType, featureLevel);
     ASSERT(vertexFormatInfo.copyFunction != nullptr);
     vertexFormatInfo.copyFunction(input, inputStride, count, output);
 
-    return angle::Result::Continue;
+    return gl::NoError();
 }
 
 unsigned int VertexBuffer11::getBufferSize() const
@@ -136,30 +150,41 @@ unsigned int VertexBuffer11::getBufferSize() const
     return mBufferSize;
 }
 
-angle::Result VertexBuffer11::setBufferSize(const gl::Context *context, unsigned int size)
+gl::Error VertexBuffer11::setBufferSize(unsigned int size)
 {
     if (size > mBufferSize)
     {
-        return initialize(context, size, mDynamicUsage);
+        return initialize(size, mDynamicUsage);
+    }
+    else
+    {
+        return gl::NoError();
+    }
+}
+
+gl::Error VertexBuffer11::discard()
+{
+    if (!mBuffer)
+    {
+        return gl::Error(GL_OUT_OF_MEMORY, "Internal vertex buffer is not initialized.");
     }
 
-    return angle::Result::Continue;
-}
-
-angle::Result VertexBuffer11::discard(const gl::Context *context)
-{
-    ASSERT(mBuffer.valid());
+    ID3D11DeviceContext *dxContext = mRenderer->getDeviceContext();
 
     D3D11_MAPPED_SUBRESOURCE mappedResource;
-    ANGLE_TRY(mRenderer->mapResource(context, mBuffer.get(), 0, D3D11_MAP_WRITE_DISCARD, 0,
-                                     &mappedResource));
+    HRESULT result = dxContext->Map(mBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+    if (FAILED(result))
+    {
+        return gl::Error(GL_OUT_OF_MEMORY,
+                         "Failed to map internal buffer for discarding, HRESULT: 0x%08x", result);
+    }
 
-    mRenderer->getDeviceContext()->Unmap(mBuffer.get(), 0);
+    dxContext->Unmap(mBuffer, 0);
 
-    return angle::Result::Continue;
+    return gl::NoError();
 }
 
-const d3d11::Buffer &VertexBuffer11::getBuffer() const
+ID3D11Buffer *VertexBuffer11::getBuffer() const
 {
     return mBuffer;
 }

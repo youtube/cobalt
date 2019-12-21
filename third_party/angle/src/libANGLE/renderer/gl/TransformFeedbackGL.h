@@ -25,20 +25,17 @@ class TransformFeedbackGL : public TransformFeedbackImpl
                         StateManagerGL *stateManager);
     ~TransformFeedbackGL() override;
 
-    angle::Result begin(const gl::Context *context, gl::PrimitiveMode primitiveMode) override;
-    angle::Result end(const gl::Context *context) override;
-    angle::Result pause(const gl::Context *context) override;
-    angle::Result resume(const gl::Context *context) override;
+    void begin(GLenum primitiveMode) override;
+    void end() override;
+    void pause() override;
+    void resume() override;
 
-    angle::Result bindIndexedBuffer(const gl::Context *context,
-                                    size_t index,
-                                    const gl::OffsetBindingPointer<gl::Buffer> &binding) override;
+    void bindGenericBuffer(const BindingPointer<gl::Buffer> &binding) override;
+    void bindIndexedBuffer(size_t index, const OffsetBindingPointer<gl::Buffer> &binding) override;
 
     GLuint getTransformFeedbackID() const;
 
-    void syncActiveState(const gl::Context *context,
-                         bool active,
-                         gl::PrimitiveMode primitiveMode) const;
+    void syncActiveState(bool active, GLenum primitiveMode) const;
     void syncPausedState(bool paused) const;
 
   private:
@@ -49,8 +46,8 @@ class TransformFeedbackGL : public TransformFeedbackImpl
 
     mutable bool mIsActive;
     mutable bool mIsPaused;
-    mutable GLuint mActiveProgram;
 };
-}  // namespace rx
 
-#endif  // LIBANGLE_RENDERER_GL_TRANSFORMFEEDBACKGL_H_
+}
+
+#endif // LIBANGLE_RENDERER_GL_TRANSFORMFEEDBACKGL_H_

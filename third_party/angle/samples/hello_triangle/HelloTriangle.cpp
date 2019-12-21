@@ -1,5 +1,5 @@
 //
-// Copyright 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -14,31 +14,37 @@
 //            http://www.opengles-book.com
 
 #include "SampleApplication.h"
-
-#include "util/shader_utils.h"
+#include "shader_utils.h"
 
 class HelloTriangleSample : public SampleApplication
 {
   public:
-    HelloTriangleSample(int argc, char **argv)
-        : SampleApplication("HelloTriangle", argc, argv, 2, 0)
-    {}
-
-    bool initialize() override
+    HelloTriangleSample()
+        : SampleApplication("HelloTriangle", 1280, 720)
     {
-        constexpr char kVS[] = R"(attribute vec4 vPosition;
-void main()
-{
-    gl_Position = vPosition;
-})";
+    }
 
-        constexpr char kFS[] = R"(precision mediump float;
-void main()
-{
-    gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-})";
+    virtual bool initialize()
+    {
+        const std::string vs = SHADER_SOURCE
+        (
+            attribute vec4 vPosition;
+            void main()
+            {
+                gl_Position = vPosition;
+            }
+        );
 
-        mProgram = CompileProgram(kVS, kFS);
+        const std::string fs = SHADER_SOURCE
+        (
+            precision mediump float;
+            void main()
+            {
+                gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+            }
+        );
+
+        mProgram = CompileProgram(vs, fs);
         if (!mProgram)
         {
             return false;
@@ -49,12 +55,18 @@ void main()
         return true;
     }
 
-    void destroy() override { glDeleteProgram(mProgram); }
-
-    void draw() override
+    virtual void destroy()
     {
-        GLfloat vertices[] = {
-            0.0f, 0.5f, 0.0f, -0.5f, -0.5f, 0.0f, 0.5f, -0.5f, 0.0f,
+        glDeleteProgram(mProgram);
+    }
+
+    virtual void draw()
+    {
+        GLfloat vertices[] =
+        {
+             0.0f,  0.5f, 0.0f,
+            -0.5f, -0.5f, 0.0f,
+             0.5f, -0.5f, 0.0f,
         };
 
         // Set the viewport
@@ -79,6 +91,6 @@ void main()
 
 int main(int argc, char **argv)
 {
-    HelloTriangleSample app(argc, argv);
+    HelloTriangleSample app;
     return app.run();
 }

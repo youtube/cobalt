@@ -1,5 +1,5 @@
 //
-// Copyright 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -19,7 +19,6 @@ class Surface;
 
 namespace rx
 {
-class DisplayD3D;
 class SwapChainD3D;
 class RendererD3D;
 
@@ -29,25 +28,16 @@ class SurfaceD3D : public SurfaceImpl
     ~SurfaceD3D() override;
     void releaseSwapChain();
 
-    egl::Error initialize(const egl::Display *display) override;
-    FramebufferImpl *createDefaultFramebuffer(const gl::Context *context,
-                                              const gl::FramebufferState &state) override;
+    egl::Error initialize(const DisplayImpl *displayImpl) override;
+    FramebufferImpl *createDefaultFramebuffer(const gl::FramebufferState &state) override;
 
-    egl::Error swap(const gl::Context *context) override;
-    egl::Error postSubBuffer(const gl::Context *context,
-                             EGLint x,
-                             EGLint y,
-                             EGLint width,
-                             EGLint height) override;
+    egl::Error swap(const DisplayImpl *displayImpl) override;
+    egl::Error postSubBuffer(EGLint x, EGLint y, EGLint width, EGLint height) override;
     egl::Error querySurfacePointerANGLE(EGLint attribute, void **value) override;
-    egl::Error bindTexImage(const gl::Context *context,
-                            gl::Texture *texture,
-                            EGLint buffer) override;
-    egl::Error releaseTexImage(const gl::Context *context, EGLint buffer) override;
+    egl::Error bindTexImage(gl::Texture *texture, EGLint buffer) override;
+    egl::Error releaseTexImage(EGLint buffer) override;
     egl::Error getSyncValues(EGLuint64KHR *ust, EGLuint64KHR *msc, EGLuint64KHR *sbc) override;
     void setSwapInterval(EGLint interval) override;
-    void setFixedWidth(EGLint width) override;
-    void setFixedHeight(EGLint height) override;
 
     EGLint getWidth() const override;
     EGLint getHeight() const override;
@@ -58,19 +48,14 @@ class SurfaceD3D : public SurfaceImpl
     // D3D implementations
     SwapChainD3D *getSwapChain() const;
 
-    egl::Error resetSwapChain(const egl::Display *display);
+    egl::Error resetSwapChain();
 
-    egl::Error checkForOutOfDateSwapChain(DisplayD3D *displayD3D);
+    // Returns true if swapchain changed due to resize or interval update
+    bool checkForOutOfDateSwapChain();
 
-    angle::Result getAttachmentRenderTarget(const gl::Context *context,
-                                            GLenum binding,
-                                            const gl::ImageIndex &imageIndex,
-                                            GLsizei samples,
-                                            FramebufferAttachmentRenderTarget **rtOut) override;
-    angle::Result initializeContents(const gl::Context *context,
-                                     const gl::ImageIndex &imageIndex) override;
-
-    const angle::Format *getD3DTextureColorFormat() const override;
+    gl::Error getAttachmentRenderTarget(GLenum binding,
+                                        const gl::ImageIndex &imageIndex,
+                                        FramebufferAttachmentRenderTarget **rtOut) override;
 
     IUnknown *getD3DTexture() const
     {
@@ -82,6 +67,11 @@ class SurfaceD3D : public SurfaceImpl
       return mBindChroma;
     }
 
+    IUnknown* getDxgiBuffer() const
+    {
+      return mDXGIBuffer;
+    }
+
   protected:
     SurfaceD3D(const egl::SurfaceState &state,
                RendererD3D *renderer,
@@ -91,21 +81,18 @@ class SurfaceD3D : public SurfaceImpl
                EGLClientBuffer clientBuffer,
                const egl::AttributeMap &attribs);
 
-    egl::Error swapRect(DisplayD3D *displayD3D, EGLint x, EGLint y, EGLint width, EGLint height);
-    egl::Error resetSwapChain(DisplayD3D *displayD3D, int backbufferWidth, int backbufferHeight);
-    egl::Error resizeSwapChain(DisplayD3D *displayD3D, int backbufferWidth, int backbufferHeight);
+    egl::Error swapRect(EGLint x, EGLint y, EGLint width, EGLint height);
+    egl::Error resetSwapChain(int backbufferWidth, int backbufferHeight);
+    egl::Error resizeSwapChain(int backbufferWidth, int backbufferHeight);
 
     RendererD3D *mRenderer;
     egl::Display *mDisplay;
 
     bool mFixedSize;
-    GLint mFixedWidth;
-    GLint mFixedHeight;
     GLint mOrientation;
 
     GLenum mRenderTargetFormat;
     GLenum mDepthStencilFormat;
-    const angle::Format *mColorFormat;
 
     SwapChainD3D *mSwapChain;
     bool mSwapIntervalDirty;
@@ -119,6 +106,7 @@ class SurfaceD3D : public SurfaceImpl
     HANDLE mShareHandle;
     IUnknown *mD3DTexture;
     EGLenum mBuftype;
+    IUnknown *mDXGIBuffer;
     bool mBindChroma;
 };
 
@@ -147,4 +135,4 @@ class PbufferSurfaceD3D : public SurfaceD3D
 
 }  // namespace rx
 
-#endif  // LIBANGLE_RENDERER_D3D_SURFACED3D_H_
+#endif // LIBANGLE_RENDERER_D3D_SURFACED3D_H_

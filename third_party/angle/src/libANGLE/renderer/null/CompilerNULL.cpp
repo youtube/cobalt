@@ -14,9 +14,18 @@
 namespace rx
 {
 
-CompilerNULL::CompilerNULL() : CompilerImpl() {}
+CompilerNULL::CompilerNULL() : CompilerImpl()
+{
+}
 
-CompilerNULL::~CompilerNULL() {}
+CompilerNULL::~CompilerNULL()
+{
+}
+
+gl::Error CompilerNULL::release()
+{
+    return gl::NoError();
+}
 
 ShShaderOutput CompilerNULL::getTranslatorOutputType() const
 {

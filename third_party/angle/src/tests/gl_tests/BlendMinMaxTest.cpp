@@ -21,9 +21,9 @@ class BlendMinMaxTest : public ANGLETest
         setConfigAlphaBits(8);
         setConfigDepthBits(24);
 
-        mProgram           = 0;
-        mColorLocation     = -1;
-        mFramebuffer       = 0;
+        mProgram = 0;
+        mColorLocation = -1;
+        mFramebuffer = 0;
         mColorRenderbuffer = 0;
     }
 
@@ -39,8 +39,18 @@ class BlendMinMaxTest : public ANGLETest
 
     void runTest(GLenum colorFormat, GLenum type)
     {
-        ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 &&
-                           !IsGLExtensionEnabled("GL_EXT_blend_minmax"));
+        if (getClientMajorVersion() < 3 && !extensionEnabled("GL_EXT_blend_minmax"))
+        {
+            std::cout << "Test skipped because ES3 or GL_EXT_blend_minmax is not available." << std::endl;
+            return;
+        }
+
+        // TODO(geofflang): figure out why this fails
+        if (IsIntel() && GetParam() == ES2_OPENGL())
+        {
+            std::cout << "Test skipped on OpenGL Intel due to flakyness." << std::endl;
+            return;
+        }
 
         SetUpFramebuffer(colorFormat);
 
@@ -68,13 +78,12 @@ class BlendMinMaxTest : public ANGLETest
         {
             const Color &color = colors[i];
             glUseProgram(mProgram);
-            glUniform4f(mColorLocation, color.values[0], color.values[1], color.values[2],
-                        color.values[3]);
+            glUniform4f(mColorLocation, color.values[0], color.values[1], color.values[2], color.values[3]);
 
             bool blendMin = (rand() % 2 == 0);
             glBlendEquation(blendMin ? GL_MIN : GL_MAX);
 
-            drawQuad(mProgram, essl1_shaders::PositionAttrib(), 0.5f);
+            drawQuad(mProgram, "aPosition", 0.5f);
 
             float pixel[4];
             if (type == GL_UNSIGNED_BYTE)
@@ -110,15 +119,36 @@ class BlendMinMaxTest : public ANGLETest
         }
     }
 
-    void testSetUp() override
+    virtual void SetUp()
     {
-        mProgram = CompileProgram(essl1_shaders::vs::Simple(), essl1_shaders::fs::UniformColor());
+        ANGLETest::SetUp();
+
+        const std::string testVertexShaderSource = SHADER_SOURCE
+        (
+            attribute highp vec4 aPosition;
+
+            void main(void)
+            {
+                gl_Position = aPosition;
+            }
+        );
+
+        const std::string testFragmentShaderSource = SHADER_SOURCE
+        (
+            uniform highp vec4 color;
+            void main(void)
+            {
+                gl_FragColor = color;
+            }
+        );
+
+        mProgram = CompileProgram(testVertexShaderSource, testFragmentShaderSource);
         if (mProgram == 0)
         {
             FAIL() << "shader compilation failed.";
         }
 
-        mColorLocation = glGetUniformLocation(mProgram, essl1_shaders::ColorUniform());
+        mColorLocation = glGetUniformLocation(mProgram, "color");
 
         glUseProgram(mProgram);
 
@@ -133,13 +163,13 @@ class BlendMinMaxTest : public ANGLETest
     void SetUpFramebuffer(GLenum colorFormat)
     {
         glGenFramebuffers(1, &mFramebuffer);
-        glBindFramebuffer(GL_FRAMEBUFFER, mFramebuffer);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, mFramebuffer);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, mFramebuffer);
 
         glGenRenderbuffers(1, &mColorRenderbuffer);
         glBindRenderbuffer(GL_RENDERBUFFER, mColorRenderbuffer);
         glRenderbufferStorage(GL_RENDERBUFFER, colorFormat, getWindowWidth(), getWindowHeight());
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER,
-                                  mColorRenderbuffer);
+        glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, mColorRenderbuffer);
 
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -147,11 +177,13 @@ class BlendMinMaxTest : public ANGLETest
         ASSERT_GL_NO_ERROR();
     }
 
-    void testTearDown() override
+    virtual void TearDown()
     {
         glDeleteProgram(mProgram);
         glDeleteFramebuffers(1, &mFramebuffer);
         glDeleteRenderbuffers(1, &mColorRenderbuffer);
+
+        ANGLETest::TearDown();
     }
 
     GLuint mProgram;
@@ -168,25 +200,56 @@ TEST_P(BlendMinMaxTest, RGBA8)
 
 TEST_P(BlendMinMaxTest, RGBA32F)
 {
-    ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 || !IsGLExtensionEnabled("GL_EXT_float_blend") ||
-                       !IsGLExtensionEnabled("GL_EXT_color_buffer_float"));
+    if (getClientMajorVersion() < 3 || !extensionEnabled("GL_EXT_color_buffer_float"))
+    {
+        std::cout << "Test skipped because ES3 and GL_EXT_color_buffer_float are not available."
+                  << std::endl;
+        return;
+    }
 
-    // Ignore SDK layers messages on D3D11 FL 9.3 (http://anglebug.com/1284)
-    ANGLE_SKIP_TEST_IF(IsD3D11_FL93());
+    // TODO(jmadill): Figure out why this is broken on Intel
+    if (IsIntel() && (GetParam() == ES2_D3D11() || GetParam() == ES2_D3D9()))
+    {
+        std::cout << "Test skipped on Intel OpenGL." << std::endl;
+        return;
+    }
+
+    // TODO (bug 1284): Investigate RGBA32f D3D SDK Layers messages on D3D11_FL9_3
+    if (IsD3D11_FL93())
+    {
+        std::cout << "Test skipped on Feature Level 9_3." << std::endl;
+        return;
+    }
 
     runTest(GL_RGBA32F, GL_FLOAT);
 }
 
 TEST_P(BlendMinMaxTest, RGBA16F)
 {
-    ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 &&
-                       !IsGLExtensionEnabled("GL_EXT_color_buffer_half_float"));
-    // http://anglebug.com/4092
-    ANGLE_SKIP_TEST_IF((IsAndroid() && IsVulkan()) || isSwiftshader());
+    if (getClientMajorVersion() < 3 && !extensionEnabled("GL_EXT_color_buffer_half_float"))
+    {
+        std::cout << "Test skipped because ES3 or GL_EXT_color_buffer_half_float is not available."
+                  << std::endl;
+        return;
+    }
+
+    // TODO(jmadill): figure out why this fails
+    if (IsIntel() && (GetParam() == ES2_D3D11() || GetParam() == ES2_D3D9()))
+    {
+        std::cout << "Test skipped on Intel due to failures." << std::endl;
+        return;
+    }
 
     runTest(GL_RGBA16F, GL_FLOAT);
 }
 
-// Use this to select which configurations (e.g. which renderer, which GLES major version) these
-// tests should be run against.
-ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(BlendMinMaxTest);
+// Use this to select which configurations (e.g. which renderer, which GLES major version) these tests should be run against.
+ANGLE_INSTANTIATE_TEST(BlendMinMaxTest,
+                       ES2_D3D9(),
+                       ES2_D3D11(),
+                       ES3_D3D11(),
+                       ES2_D3D11_FL9_3(),
+                       ES2_OPENGL(),
+                       ES3_OPENGL(),
+                       ES2_OPENGLES(),
+                       ES3_OPENGLES());

@@ -1,6 +1,6 @@
 /*
 //
-// Copyright 2012 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2012 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -13,7 +13,7 @@ WHICH GENERATES THE GLSL ES preprocessor expression parser.
 
 %{
 //
-// Copyright 2012 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2012 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -29,9 +29,6 @@ WHICH GENERATES THE GLSL ES preprocessor expression parser.
 #endif
 #elif defined(_MSC_VER)
 #pragma warning(disable: 4065 4244 4701 4702)
-#endif
-#if defined(__clang__)
-#pragma clang diagnostic ignored "-Wunreachable-code"
 #endif
 
 #include "ExpressionParser.h"
@@ -62,13 +59,13 @@ typedef uint32_t UNSIGNED_TYPE;
 namespace {
 struct Context
 {
-    angle::pp::Diagnostics *diagnostics;
-    angle::pp::Lexer *lexer;
-    angle::pp::Token *token;
+    pp::Diagnostics* diagnostics;
+    pp::Lexer* lexer;
+    pp::Token* token;
     int* result;
     bool parsePresetToken;
 
-    angle::pp::ExpressionParser::ErrorSettings errorSettings;
+    pp::ExpressionParser::ErrorSettings errorSettings;
     bool *valid;
 
     void startIgnoreErrors() { ++ignoreErrors; }
@@ -204,7 +201,7 @@ expression
                 std::ostringstream stream;
                 stream << $1 << " >> " << $3;
                 std::string text = stream.str();
-                context->diagnostics->report(angle::pp::Diagnostics::PP_UNDEFINED_SHIFT,
+                context->diagnostics->report(pp::Diagnostics::PP_UNDEFINED_SHIFT,
                                              context->token->location,
                                              text.c_str());
                 *(context->valid) = false;
@@ -229,18 +226,21 @@ expression
                 std::ostringstream stream;
                 stream << $1 << " << " << $3;
                 std::string text = stream.str();
-                context->diagnostics->report(angle::pp::Diagnostics::PP_UNDEFINED_SHIFT,
+                context->diagnostics->report(pp::Diagnostics::PP_UNDEFINED_SHIFT,
                                              context->token->location,
                                              text.c_str());
                 *(context->valid) = false;
             }
             $$ = static_cast<YYSTYPE>(0);
         }
+        else if ($1 < 0)
+        {
+            // Logical shift left.
+            $$ = static_cast<YYSTYPE>(static_cast<UNSIGNED_TYPE>($1) << $3);
+        }
         else
         {
-            // Logical shift left. Casting to unsigned is needed to ensure there's no signed integer
-            // overflow, which some tools treat as an error.
-            $$ = static_cast<YYSTYPE>(static_cast<UNSIGNED_TYPE>($1) << $3);
+            $$ = $1 << $3;
         }
     }
     | expression '-' expression {
@@ -257,7 +257,7 @@ expression
                 std::ostringstream stream;
                 stream << $1 << " % " << $3;
                 std::string text = stream.str();
-                context->diagnostics->report(angle::pp::Diagnostics::PP_DIVISION_BY_ZERO,
+                context->diagnostics->report(pp::Diagnostics::PP_DIVISION_BY_ZERO,
                                              context->token->location,
                                              text.c_str());
                 *(context->valid) = false;
@@ -283,7 +283,7 @@ expression
                 std::ostringstream stream;
                 stream << $1 << " / " << $3;
                 std::string text = stream.str();
-                context->diagnostics->report(angle::pp::Diagnostics::PP_DIVISION_BY_ZERO,
+                context->diagnostics->report(pp::Diagnostics::PP_DIVISION_BY_ZERO,
                                             context->token->location,
                                             text.c_str());
                 *(context->valid) = false;
@@ -335,7 +335,7 @@ expression
 
 int yylex(YYSTYPE *lvalp, Context *context)
 {
-    angle::pp::Token *token = context->token;
+    pp::Token *token = context->token;
     if (!context->parsePresetToken)
     {
         context->lexer->lex(token);
@@ -346,13 +346,13 @@ int yylex(YYSTYPE *lvalp, Context *context)
 
     switch (token->type)
     {
-      case angle::pp::Token::CONST_INT: {
+      case pp::Token::CONST_INT: {
         unsigned int val = 0;
         int testVal = 0;
         if (!token->uValue(&val) || (!token->iValue(&testVal) &&
                                      context->errorSettings.integerLiteralsMustFit32BitSignedRange))
         {
-            context->diagnostics->report(angle::pp::Diagnostics::PP_INTEGER_OVERFLOW,
+            context->diagnostics->report(pp::Diagnostics::PP_INTEGER_OVERFLOW,
                                          token->location, token->text);
             *(context->valid) = false;
         }
@@ -360,32 +360,32 @@ int yylex(YYSTYPE *lvalp, Context *context)
         type = TOK_CONST_INT;
         break;
       }
-      case angle::pp::Token::IDENTIFIER:
+      case pp::Token::IDENTIFIER:
         *lvalp = static_cast<YYSTYPE>(-1);
         type = TOK_IDENTIFIER;
         break;
-      case angle::pp::Token::OP_OR:
+      case pp::Token::OP_OR:
         type = TOK_OP_OR;
         break;
-      case angle::pp::Token::OP_AND:
+      case pp::Token::OP_AND:
         type = TOK_OP_AND;
         break;
-      case angle::pp::Token::OP_NE:
+      case pp::Token::OP_NE:
         type = TOK_OP_NE;
         break;
-      case angle::pp::Token::OP_EQ:
+      case pp::Token::OP_EQ:
         type = TOK_OP_EQ;
         break;
-      case angle::pp::Token::OP_GE:
+      case pp::Token::OP_GE:
         type = TOK_OP_GE;
         break;
-      case angle::pp::Token::OP_LE:
+      case pp::Token::OP_LE:
         type = TOK_OP_LE;
         break;
-      case angle::pp::Token::OP_RIGHT:
+      case pp::Token::OP_RIGHT:
         type = TOK_OP_RIGHT;
         break;
-      case angle::pp::Token::OP_LEFT:
+      case pp::Token::OP_LEFT:
         type = TOK_OP_LEFT;
         break;
       case '|':
@@ -414,12 +414,10 @@ int yylex(YYSTYPE *lvalp, Context *context)
 
 void yyerror(Context *context, const char *reason)
 {
-    context->diagnostics->report(angle::pp::Diagnostics::PP_INVALID_EXPRESSION,
+    context->diagnostics->report(pp::Diagnostics::PP_INVALID_EXPRESSION,
                                  context->token->location,
                                  reason);
 }
-
-namespace angle {
 
 namespace pp {
 
@@ -465,5 +463,3 @@ bool ExpressionParser::parse(Token *token,
 }
 
 }  // namespace pp
-
-}  // namespace angle

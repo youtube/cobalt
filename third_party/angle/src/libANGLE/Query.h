@@ -1,5 +1,5 @@
 //
-// Copyright 2012 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2012 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -9,7 +9,6 @@
 #ifndef LIBANGLE_QUERY_H_
 #define LIBANGLE_QUERY_H_
 
-#include "common/PackedEnums.h"
 #include "libANGLE/Debug.h"
 #include "libANGLE/Error.h"
 #include "libANGLE/RefCountObject.h"
@@ -26,34 +25,35 @@ class QueryImpl;
 namespace gl
 {
 
-class Query final : public RefCountObject<QueryID>, public LabeledObject
+class Query final : public RefCountObject, public LabeledObject
 {
   public:
-    Query(rx::QueryImpl *impl, QueryID id);
-    ~Query() override;
-    void onDestroy(const Context *context) override;
+    Query(rx::QueryImpl *impl, GLuint id);
+    virtual ~Query();
 
-    void setLabel(const Context *context, const std::string &label) override;
+    void setLabel(const std::string &label) override;
     const std::string &getLabel() const override;
 
-    angle::Result begin(const Context *context);
-    angle::Result end(const Context *context);
-    angle::Result queryCounter(const Context *context);
-    angle::Result getResult(const Context *context, GLint *params);
-    angle::Result getResult(const Context *context, GLuint *params);
-    angle::Result getResult(const Context *context, GLint64 *params);
-    angle::Result getResult(const Context *context, GLuint64 *params);
-    angle::Result isResultAvailable(const Context *context, bool *available);
+    Error begin();
+    Error end();
+    Error queryCounter();
+    Error getResult(GLint *params);
+    Error getResult(GLuint *params);
+    Error getResult(GLint64 *params);
+    Error getResult(GLuint64 *params);
+    Error isResultAvailable(bool *available);
 
-    QueryType getType() const;
+    GLenum getType() const;
 
-    rx::QueryImpl *getImplementation() const;
+    rx::QueryImpl *getImplementation();
+    const rx::QueryImpl *getImplementation() const;
 
   private:
     rx::QueryImpl *mQuery;
 
     std::string mLabel;
 };
-}  // namespace gl
 
-#endif  // LIBANGLE_QUERY_H_
+}
+
+#endif   // LIBANGLE_QUERY_H_

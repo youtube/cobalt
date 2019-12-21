@@ -8,27 +8,6 @@
 
 using namespace angle;
 
-namespace
-{
-constexpr char kVS[] = R"(attribute vec4 aTest;
-attribute vec2 aPosition;
-varying vec4 vTest;
-
-void main()
-{
-    vTest        = aTest;
-    gl_Position  = vec4(aPosition, 0.0, 1.0);
-    gl_PointSize = 1.0;
-})";
-
-constexpr char kFS[] = R"(precision mediump float;
-varying vec4 vTest;
-void main()
-{
-    gl_FragColor = vTest;
-})";
-}  // namespace
-
 class PBOExtensionTest : public ANGLETest
 {
   protected:
@@ -42,9 +21,11 @@ class PBOExtensionTest : public ANGLETest
         setConfigAlphaBits(8);
     }
 
-    void testSetUp() override
+    virtual void SetUp()
     {
-        if (IsGLExtensionEnabled("NV_pixel_buffer_object"))
+        ANGLETest::SetUp();
+
+        if (extensionEnabled("NV_pixel_buffer_object"))
         {
             glGenBuffers(1, &mPBO);
             glBindBuffer(GL_PIXEL_PACK_BUFFER, mPBO);
@@ -52,7 +33,21 @@ class PBOExtensionTest : public ANGLETest
                          GL_STATIC_DRAW);
             glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 
-            mProgram = CompileProgram(kVS, kFS);
+            const char *vertexShaderSrc =
+                SHADER_SOURCE(attribute vec4 aTest; attribute vec2 aPosition; varying vec4 vTest;
+
+                              void main() {
+                                  vTest        = aTest;
+                                  gl_Position  = vec4(aPosition, 0.0, 1.0);
+                                  gl_PointSize = 1.0;
+                              });
+
+            const char *fragmentShaderSrc =
+                SHADER_SOURCE(precision mediump float; varying vec4 vTest;
+
+                              void main() { gl_FragColor = vTest; });
+
+            mProgram = CompileProgram(vertexShaderSrc, fragmentShaderSrc);
 
             glGenBuffers(1, &mPositionVBO);
             glBindBuffer(GL_ARRAY_BUFFER, mPositionVBO);
@@ -62,8 +57,10 @@ class PBOExtensionTest : public ANGLETest
         ASSERT_GL_NO_ERROR();
     }
 
-    void testTearDown() override
+    virtual void TearDown()
     {
+        ANGLETest::TearDown();
+
         glDeleteBuffers(1, &mPBO);
         glDeleteProgram(mProgram);
     }
@@ -75,7 +72,7 @@ class PBOExtensionTest : public ANGLETest
 
 TEST_P(PBOExtensionTest, PBOWithOtherTarget)
 {
-    if (IsGLExtensionEnabled("NV_pixel_buffer_object"))
+    if (extensionEnabled("NV_pixel_buffer_object"))
     {
         glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -103,7 +100,7 @@ TEST_P(PBOExtensionTest, PBOWithOtherTarget)
 
 TEST_P(PBOExtensionTest, PBOWithExistingData)
 {
-    if (IsGLExtensionEnabled("NV_pixel_buffer_object"))
+    if (extensionEnabled("NV_pixel_buffer_object"))
     {
         // Clear backbuffer to red
         glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
@@ -144,4 +141,4 @@ TEST_P(PBOExtensionTest, PBOWithExistingData)
 
 // Use this to select which configurations (e.g. which renderer, which GLES major version) these
 // tests should be run against.
-ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(PBOExtensionTest);
+ANGLE_INSTANTIATE_TEST(PBOExtensionTest, ES2_D3D11(), ES3_D3D11(), ES3_OPENGL(), ES3_OPENGLES());

@@ -1,10 +1,10 @@
 //
-// Copyright 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // StructureHLSL.h:
-//   HLSL translation of GLSL constructors and structures.
+//   Interfaces of methods for HLSL translation of GLSL structures.
 //
 
 #ifndef COMPILER_TRANSLATOR_STRUCTUREHLSL_H_
@@ -49,14 +49,17 @@ class StructureHLSL : angle::NonCopyable
   public:
     StructureHLSL();
 
-    // Returns the name of the constructor function.
-    TString addStructConstructor(const TStructure &structure);
-    TString addBuiltInConstructor(const TType &type, const TIntermSequence *parameters);
-
-    static TString defineNameless(const TStructure &structure);
-    void ensureStructDefined(const TStructure &structure);
-
+    // Returns the name of the constructor function. "name" parameter is the name of the type being
+    // constructed.
+    TString addConstructor(const TType &type,
+                           const TString &name,
+                           const TIntermSequence *parameters);
     std::string structsHeader() const;
+
+    TString defineQualified(const TStructure &structure,
+                            bool useHLSLRowMajorPacking,
+                            bool useStd140Packing);
+    static TString defineNameless(const TStructure &structure);
 
     Std140PaddingHelper getPaddingHelper();
 
@@ -65,34 +68,21 @@ class StructureHLSL : angle::NonCopyable
 
     std::map<TString, int> mStd140StructElementIndexes;
 
-    struct TStructProperties : public angle::NonCopyable
-    {
-        POOL_ALLOCATOR_NEW_DELETE
+    typedef std::set<TString> StructNames;
+    StructNames mStructNames;
 
-        TStructProperties() {}
+    typedef std::set<TString> Constructors;
+    Constructors mConstructors;
 
-        // Constructor is an empty string in case the struct doesn't have a constructor yet.
-        TString constructor;
-    };
-
-    // Map from struct name to struct properties.
-    typedef std::map<TString, TStructProperties *> DefinedStructs;
-    DefinedStructs mDefinedStructs;
-
-    // Struct declarations need to be kept in a vector instead of having them inside mDefinedStructs
-    // since maintaining the original order is necessary for nested structs.
     typedef std::vector<TString> StructDeclarations;
     StructDeclarations mStructDeclarations;
 
-    typedef std::set<TString> BuiltInConstructors;
-    BuiltInConstructors mBuiltInConstructors;
-
     void storeStd140ElementIndex(const TStructure &structure, bool useHLSLRowMajorPacking);
-    TString defineQualified(const TStructure &structure,
-                            bool useHLSLRowMajorPacking,
-                            bool useStd140Packing);
-    DefinedStructs::iterator defineVariants(const TStructure &structure, const TString &name);
+    static TString define(const TStructure &structure,
+                          bool useHLSLRowMajorPacking,
+                          bool useStd140Packing,
+                          Std140PaddingHelper *padHelper);
 };
-}  // namespace sh
+}
 
 #endif  // COMPILER_TRANSLATOR_STRUCTUREHLSL_H_

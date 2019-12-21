@@ -1,5 +1,5 @@
 //
-// Copyright 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -15,8 +15,9 @@ namespace rx
 {
 
 DisplayImpl::DisplayImpl(const egl::DisplayState &state)
-    : mState(state), mExtensionsInitialized(false), mCapsInitialized(false), mBlobCache(nullptr)
-{}
+    : mState(state), mExtensionsInitialized(false), mCapsInitialized(false)
+{
+}
 
 DisplayImpl::~DisplayImpl()
 {
@@ -40,16 +41,7 @@ egl::Error DisplayImpl::validateClientBuffer(const egl::Config *configuration,
                                              const egl::AttributeMap &attribs) const
 {
     UNREACHABLE();
-    return egl::EglBadDisplay() << "DisplayImpl::validateClientBuffer unimplemented.";
-}
-
-egl::Error DisplayImpl::validateImageClientBuffer(const gl::Context *context,
-                                                  EGLenum target,
-                                                  EGLClientBuffer clientBuffer,
-                                                  const egl::AttributeMap &attribs) const
-{
-    UNREACHABLE();
-    return egl::EglBadDisplay() << "DisplayImpl::validateImageClientBuffer unimplemented.";
+    return egl::Error(EGL_BAD_DISPLAY, "DisplayImpl::validateClientBuffer unimplemented.");
 }
 
 const egl::Caps &DisplayImpl::getCaps() const

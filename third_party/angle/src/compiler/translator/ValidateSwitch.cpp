@@ -1,21 +1,19 @@
 //
-// Copyright 2002 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2002-2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 
 #include "compiler/translator/ValidateSwitch.h"
 
+#include "compiler/translator/IntermNode.h"
 #include "compiler/translator/Diagnostics.h"
-#include "compiler/translator/tree_util/IntermTraverse.h"
 
 namespace sh
 {
 
 namespace
 {
-
-const int kMaxAllowedTraversalDepth = 256;
 
 class ValidateSwitch : public TIntermTraverser
 {
@@ -27,12 +25,9 @@ class ValidateSwitch : public TIntermTraverser
 
     void visitSymbol(TIntermSymbol *) override;
     void visitConstantUnion(TIntermConstantUnion *) override;
-    bool visitDeclaration(Visit, TIntermDeclaration *) override;
-    bool visitBlock(Visit visit, TIntermBlock *) override;
     bool visitBinary(Visit, TIntermBinary *) override;
     bool visitUnary(Visit, TIntermUnary *) override;
     bool visitTernary(Visit, TIntermTernary *) override;
-    bool visitSwizzle(Visit, TIntermSwizzle *) override;
     bool visitIfElse(Visit visit, TIntermIfElse *) override;
     bool visitSwitch(Visit, TIntermSwitch *) override;
     bool visitCase(Visit, TIntermCase *node) override;
@@ -71,7 +66,7 @@ bool ValidateSwitch::validate(TBasicType switchType,
 }
 
 ValidateSwitch::ValidateSwitch(TBasicType switchType, TDiagnostics *diagnostics)
-    : TIntermTraverser(true, false, true, nullptr),
+    : TIntermTraverser(true, false, true),
       mSwitchType(switchType),
       mDiagnostics(diagnostics),
       mCaseTypeMismatch(false),
@@ -83,14 +78,13 @@ ValidateSwitch::ValidateSwitch(TBasicType switchType, TDiagnostics *diagnostics)
       mDefaultCount(0),
       mDuplicateCases(false)
 {
-    setMaxAllowedDepth(kMaxAllowedTraversalDepth);
 }
 
 void ValidateSwitch::visitSymbol(TIntermSymbol *)
 {
     if (!mFirstCaseFound)
         mStatementBeforeCase = true;
-    mLastStatementWasCase = false;
+    mLastStatementWasCase    = false;
 }
 
 void ValidateSwitch::visitConstantUnion(TIntermConstantUnion *)
@@ -99,37 +93,14 @@ void ValidateSwitch::visitConstantUnion(TIntermConstantUnion *)
     // Could be just a statement like "0;"
     if (!mFirstCaseFound)
         mStatementBeforeCase = true;
-    mLastStatementWasCase = false;
-}
-
-bool ValidateSwitch::visitDeclaration(Visit, TIntermDeclaration *)
-{
-    if (!mFirstCaseFound)
-        mStatementBeforeCase = true;
-    mLastStatementWasCase = false;
-    return true;
-}
-
-bool ValidateSwitch::visitBlock(Visit visit, TIntermBlock *)
-{
-    if (getParentNode() != nullptr)
-    {
-        if (!mFirstCaseFound)
-            mStatementBeforeCase = true;
-        mLastStatementWasCase = false;
-        if (visit == PreVisit)
-            ++mControlFlowDepth;
-        if (visit == PostVisit)
-            --mControlFlowDepth;
-    }
-    return true;
+    mLastStatementWasCase    = false;
 }
 
 bool ValidateSwitch::visitBinary(Visit, TIntermBinary *)
 {
     if (!mFirstCaseFound)
         mStatementBeforeCase = true;
-    mLastStatementWasCase = false;
+    mLastStatementWasCase    = false;
     return true;
 }
 
@@ -137,7 +108,7 @@ bool ValidateSwitch::visitUnary(Visit, TIntermUnary *)
 {
     if (!mFirstCaseFound)
         mStatementBeforeCase = true;
-    mLastStatementWasCase = false;
+    mLastStatementWasCase    = false;
     return true;
 }
 
@@ -145,15 +116,7 @@ bool ValidateSwitch::visitTernary(Visit, TIntermTernary *)
 {
     if (!mFirstCaseFound)
         mStatementBeforeCase = true;
-    mLastStatementWasCase = false;
-    return true;
-}
-
-bool ValidateSwitch::visitSwizzle(Visit, TIntermSwizzle *)
-{
-    if (!mFirstCaseFound)
-        mStatementBeforeCase = true;
-    mLastStatementWasCase = false;
+    mLastStatementWasCase    = false;
     return true;
 }
 
@@ -165,7 +128,7 @@ bool ValidateSwitch::visitIfElse(Visit visit, TIntermIfElse *)
         --mControlFlowDepth;
     if (!mFirstCaseFound)
         mStatementBeforeCase = true;
-    mLastStatementWasCase = false;
+    mLastStatementWasCase    = false;
     return true;
 }
 
@@ -173,7 +136,7 @@ bool ValidateSwitch::visitSwitch(Visit, TIntermSwitch *)
 {
     if (!mFirstCaseFound)
         mStatementBeforeCase = true;
-    mLastStatementWasCase = false;
+    mLastStatementWasCase    = false;
     // Don't go into nested switch statements
     return false;
 }
@@ -253,7 +216,7 @@ bool ValidateSwitch::visitAggregate(Visit visit, TIntermAggregate *)
         // This is not the statementList node, but some other node.
         if (!mFirstCaseFound)
             mStatementBeforeCase = true;
-        mLastStatementWasCase = false;
+        mLastStatementWasCase    = false;
     }
     return true;
 }
@@ -266,7 +229,7 @@ bool ValidateSwitch::visitLoop(Visit visit, TIntermLoop *)
         --mControlFlowDepth;
     if (!mFirstCaseFound)
         mStatementBeforeCase = true;
-    mLastStatementWasCase = false;
+    mLastStatementWasCase    = false;
     return true;
 }
 
@@ -274,7 +237,7 @@ bool ValidateSwitch::visitBranch(Visit, TIntermBranch *)
 {
     if (!mFirstCaseFound)
         mStatementBeforeCase = true;
-    mLastStatementWasCase = false;
+    mLastStatementWasCase    = false;
     return true;
 }
 
@@ -286,20 +249,12 @@ bool ValidateSwitch::validateInternal(const TSourceLoc &loc)
     }
     if (mLastStatementWasCase)
     {
-        // There have been some differences between versions of GLSL ES specs on whether this should
-        // be an error or not, but as of early 2018 the latest discussion is that this is an error
-        // also on GLSL ES versions newer than 3.00.
         mDiagnostics->error(
             loc, "no statement between the last label and the end of the switch statement",
             "switch");
     }
-    if (getMaxDepth() >= kMaxAllowedTraversalDepth)
-    {
-        mDiagnostics->error(loc, "too complex expressions inside a switch statement", "switch");
-    }
     return !mStatementBeforeCase && !mLastStatementWasCase && !mCaseInsideControlFlow &&
-           !mCaseTypeMismatch && mDefaultCount <= 1 && !mDuplicateCases &&
-           getMaxDepth() < kMaxAllowedTraversalDepth;
+           !mCaseTypeMismatch && mDefaultCount <= 1 && !mDuplicateCases;
 }
 
 }  // anonymous namespace

@@ -1,5 +1,5 @@
 //
-// Copyright 2017 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2017 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -27,13 +27,12 @@ class PrunePureLiteralStatementsTest : public MatchOutputCodeTest
 TEST_F(PrunePureLiteralStatementsTest, FloatLiteralStatement)
 {
     const std::string shaderString =
-        R"(precision mediump float;
-        void main()
-        {
-           float f = 41.0;
-           42.0;
-           gl_FragColor = vec4(f);
-        })";
+        "precision mediump float;\n"
+        "void main()\n"
+        "{\n"
+        "   float f = 41.0;\n"
+        "   42.0;\n"
+        "}\n";
     compile(shaderString);
     ASSERT_TRUE(foundInCode("41"));
     ASSERT_TRUE(notFoundInCode("42"));
@@ -43,13 +42,12 @@ TEST_F(PrunePureLiteralStatementsTest, FloatLiteralStatement)
 TEST_F(PrunePureLiteralStatementsTest, ConstructorLiteralStatement)
 {
     const std::string shaderString =
-        R"(precision mediump float;
-        void main()
-        {
-            vec2 f = vec2(41.0, 41.0);
-            vec2(42.0, 42.0);
-            gl_FragColor = vec4(f, 0.0, 0.0);
-        })";
+        "precision mediump float;\n"
+        "void main()\n"
+        "{\n"
+        "   vec2 f = vec2(41.0, 41.0);\n"
+        "   vec2(42.0, 42.0);\n"
+        "}\n";
     compile(shaderString);
     ASSERT_TRUE(foundInCode("41"));
     ASSERT_TRUE(notFoundInCode("42"));
@@ -148,8 +146,7 @@ TEST_F(PrunePureLiteralStatementsTest, SwitchLiteralExpressionOnlyLastCase)
     ASSERT_TRUE(notFoundInCode("42"));
 }
 
-// Test that the pruning correctly handles the pruning inside switch statements - pruning isn't
-// stopped by literal statements
+// Test that the pruning correctly handles the pruning inside switch statements - pruning isn't stopped by literal statements
 TEST_F(PrunePureLiteralStatementsTest, SwitchLiteralExpressionLiteralDoesntStop)
 {
     const std::string shaderString =

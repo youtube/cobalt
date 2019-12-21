@@ -1,5 +1,5 @@
 //
-// Copyright 2002 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2002-2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -9,7 +9,6 @@
 
 #include "common/angleutils.h"
 #include "compiler/translator/BaseTypes.h"
-#include "compiler/translator/ImmutableString.h"
 #include "compiler/translator/Types.h"
 
 namespace sh
@@ -34,14 +33,13 @@ enum TQualifierType
 class TQualifierWrapperBase : angle::NonCopyable
 {
   public:
-    POOL_ALLOCATOR_NEW_DELETE
+    POOL_ALLOCATOR_NEW_DELETE();
     TQualifierWrapperBase(const TSourceLoc &line) : mLine(line) {}
-    virtual ~TQualifierWrapperBase() {}
-    virtual TQualifierType getType() const             = 0;
-    virtual ImmutableString getQualifierString() const = 0;
-    virtual unsigned int getRank() const               = 0;
+    virtual ~TQualifierWrapperBase(){};
+    virtual TQualifierType getType() const     = 0;
+    virtual TString getQualifierString() const = 0;
+    virtual unsigned int getRank() const       = 0;
     const TSourceLoc &getLine() const { return mLine; }
-
   private:
     TSourceLoc mLine;
 };
@@ -50,11 +48,11 @@ class TInvariantQualifierWrapper final : public TQualifierWrapperBase
 {
   public:
     TInvariantQualifierWrapper(const TSourceLoc &line) : TQualifierWrapperBase(line) {}
-    ~TInvariantQualifierWrapper() override {}
+    ~TInvariantQualifierWrapper() {}
 
-    TQualifierType getType() const override { return QtInvariant; }
-    ImmutableString getQualifierString() const override { return ImmutableString("invariant"); }
-    unsigned int getRank() const override;
+    TQualifierType getType() const { return QtInvariant; }
+    TString getQualifierString() const { return "invariant"; }
+    unsigned int getRank() const;
 };
 
 class TInterpolationQualifierWrapper final : public TQualifierWrapperBase
@@ -62,16 +60,14 @@ class TInterpolationQualifierWrapper final : public TQualifierWrapperBase
   public:
     TInterpolationQualifierWrapper(TQualifier interpolationQualifier, const TSourceLoc &line)
         : TQualifierWrapperBase(line), mInterpolationQualifier(interpolationQualifier)
-    {}
-    ~TInterpolationQualifierWrapper() override {}
-
-    TQualifierType getType() const override { return QtInterpolation; }
-    ImmutableString getQualifierString() const override
     {
-        return ImmutableString(sh::getQualifierString(mInterpolationQualifier));
     }
+    ~TInterpolationQualifierWrapper() {}
+
+    TQualifierType getType() const { return QtInterpolation; }
+    TString getQualifierString() const { return sh::getQualifierString(mInterpolationQualifier); }
     TQualifier getQualifier() const { return mInterpolationQualifier; }
-    unsigned int getRank() const override;
+    unsigned int getRank() const;
 
   private:
     TQualifier mInterpolationQualifier;
@@ -82,13 +78,14 @@ class TLayoutQualifierWrapper final : public TQualifierWrapperBase
   public:
     TLayoutQualifierWrapper(TLayoutQualifier layoutQualifier, const TSourceLoc &line)
         : TQualifierWrapperBase(line), mLayoutQualifier(layoutQualifier)
-    {}
-    ~TLayoutQualifierWrapper() override {}
+    {
+    }
+    ~TLayoutQualifierWrapper() {}
 
-    TQualifierType getType() const override { return QtLayout; }
-    ImmutableString getQualifierString() const override { return ImmutableString("layout"); }
+    TQualifierType getType() const { return QtLayout; }
+    TString getQualifierString() const { return "layout"; }
     const TLayoutQualifier &getQualifier() const { return mLayoutQualifier; }
-    unsigned int getRank() const override;
+    unsigned int getRank() const;
 
   private:
     TLayoutQualifier mLayoutQualifier;
@@ -99,16 +96,14 @@ class TStorageQualifierWrapper final : public TQualifierWrapperBase
   public:
     TStorageQualifierWrapper(TQualifier storageQualifier, const TSourceLoc &line)
         : TQualifierWrapperBase(line), mStorageQualifier(storageQualifier)
-    {}
-    ~TStorageQualifierWrapper() override {}
-
-    TQualifierType getType() const override { return QtStorage; }
-    ImmutableString getQualifierString() const override
     {
-        return ImmutableString(sh::getQualifierString(mStorageQualifier));
     }
+    ~TStorageQualifierWrapper() {}
+
+    TQualifierType getType() const { return QtStorage; }
+    TString getQualifierString() const { return sh::getQualifierString(mStorageQualifier); }
     TQualifier getQualifier() const { return mStorageQualifier; }
-    unsigned int getRank() const override;
+    unsigned int getRank() const;
 
   private:
     TQualifier mStorageQualifier;
@@ -119,16 +114,14 @@ class TPrecisionQualifierWrapper final : public TQualifierWrapperBase
   public:
     TPrecisionQualifierWrapper(TPrecision precisionQualifier, const TSourceLoc &line)
         : TQualifierWrapperBase(line), mPrecisionQualifier(precisionQualifier)
-    {}
-    ~TPrecisionQualifierWrapper() override {}
-
-    TQualifierType getType() const override { return QtPrecision; }
-    ImmutableString getQualifierString() const override
     {
-        return ImmutableString(sh::getPrecisionString(mPrecisionQualifier));
     }
+    ~TPrecisionQualifierWrapper() {}
+
+    TQualifierType getType() const { return QtPrecision; }
+    TString getQualifierString() const { return sh::getPrecisionString(mPrecisionQualifier); }
     TPrecision getQualifier() const { return mPrecisionQualifier; }
-    unsigned int getRank() const override;
+    unsigned int getRank() const;
 
   private:
     TPrecision mPrecisionQualifier;
@@ -139,16 +132,14 @@ class TMemoryQualifierWrapper final : public TQualifierWrapperBase
   public:
     TMemoryQualifierWrapper(TQualifier memoryQualifier, const TSourceLoc &line)
         : TQualifierWrapperBase(line), mMemoryQualifier(memoryQualifier)
-    {}
-    ~TMemoryQualifierWrapper() override {}
-
-    TQualifierType getType() const override { return QtMemory; }
-    ImmutableString getQualifierString() const override
     {
-        return ImmutableString(sh::getQualifierString(mMemoryQualifier));
     }
+    ~TMemoryQualifierWrapper() {}
+
+    TQualifierType getType() const { return QtMemory; }
+    TString getQualifierString() const { return sh::getQualifierString(mMemoryQualifier); }
     TQualifier getQualifier() const { return mMemoryQualifier; }
-    unsigned int getRank() const override;
+    unsigned int getRank() const;
 
   private:
     TQualifier mMemoryQualifier;
@@ -176,7 +167,7 @@ class TTypeQualifierBuilder : angle::NonCopyable
     using QualifierSequence = TVector<const TQualifierWrapperBase *>;
 
   public:
-    POOL_ALLOCATOR_NEW_DELETE
+    POOL_ALLOCATOR_NEW_DELETE();
     TTypeQualifierBuilder(const TStorageQualifierWrapper *scope, int shaderVersion);
     // Adds the passed qualifier to the end of the sequence.
     void appendQualifier(const TQualifierWrapperBase *qualifier);

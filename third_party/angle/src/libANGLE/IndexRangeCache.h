@@ -1,5 +1,5 @@
 //
-// Copyright 2013 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2013 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,10 +10,10 @@
 #ifndef LIBANGLE_INDEXRANGECACHE_H_
 #define LIBANGLE_INDEXRANGECACHE_H_
 
-#include "angle_gl.h"
-#include "common/PackedEnums.h"
 #include "common/angleutils.h"
 #include "common/mathutil.h"
+
+#include "angle_gl.h"
 
 #include <map>
 
@@ -23,15 +23,12 @@ namespace gl
 class IndexRangeCache
 {
   public:
-    IndexRangeCache();
-    ~IndexRangeCache();
-
-    void addRange(DrawElementsType type,
+    void addRange(GLenum type,
                   size_t offset,
                   size_t count,
                   bool primitiveRestartEnabled,
                   const IndexRange &range);
-    bool findRange(DrawElementsType type,
+    bool findRange(GLenum type,
                    size_t offset,
                    size_t count,
                    bool primitiveRestartEnabled,
@@ -44,11 +41,11 @@ class IndexRangeCache
     struct IndexRangeKey
     {
         IndexRangeKey();
-        IndexRangeKey(DrawElementsType type, size_t offset, size_t count, bool primitiveRestart);
+        IndexRangeKey(GLenum type, size_t offset, size_t count, bool primitiveRestart);
 
         bool operator<(const IndexRangeKey &rhs) const;
 
-        DrawElementsType type;
+        GLenum type;
         size_t offset;
         size_t count;
         bool primitiveRestartEnabled;
@@ -58,6 +55,6 @@ class IndexRangeCache
     IndexRangeMap mIndexRangeCache;
 };
 
-}  // namespace gl
+}
 
-#endif  // LIBANGLE_INDEXRANGECACHE_H_
+#endif // LIBANGLE_INDEXRANGECACHE_H_

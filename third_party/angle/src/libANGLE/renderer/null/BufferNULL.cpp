@@ -11,7 +11,6 @@
 
 #include "common/debug.h"
 #include "common/utilities.h"
-#include "libANGLE/Context.h"
 #include "libANGLE/angletypes.h"
 #include "libANGLE/renderer/null/ContextNULL.h"
 
@@ -30,91 +29,82 @@ BufferNULL::~BufferNULL()
     ASSERT(memoryReleaseResult);
 }
 
-angle::Result BufferNULL::setData(const gl::Context *context,
-                                  gl::BufferBinding target,
-                                  const void *data,
-                                  size_t size,
-                                  gl::BufferUsage usage)
+gl::Error BufferNULL::setData(ContextImpl *context,
+                              GLenum target,
+                              const void *data,
+                              size_t size,
+                              GLenum usage)
 {
-    ANGLE_CHECK_GL_ALLOC(GetImplAs<ContextNULL>(context),
-                         mAllocationTracker->updateMemoryAllocation(mData.size(), size));
+    if (!mAllocationTracker->updateMemoryAllocation(mData.size(), size))
+    {
+        return gl::OutOfMemory() << "Unable to allocate internal buffer storage.";
+    }
 
     mData.resize(size, 0);
     if (size > 0 && data != nullptr)
     {
         memcpy(mData.data(), data, size);
     }
-    return angle::Result::Continue;
+    return gl::NoError();
 }
 
-angle::Result BufferNULL::setSubData(const gl::Context *context,
-                                     gl::BufferBinding target,
-                                     const void *data,
-                                     size_t size,
-                                     size_t offset)
+gl::Error BufferNULL::setSubData(ContextImpl *context,
+                                 GLenum target,
+                                 const void *data,
+                                 size_t size,
+                                 size_t offset)
 {
     if (size > 0)
     {
         memcpy(mData.data() + offset, data, size);
     }
-    return angle::Result::Continue;
+    return gl::NoError();
 }
 
-angle::Result BufferNULL::copySubData(const gl::Context *context,
-                                      BufferImpl *source,
-                                      GLintptr sourceOffset,
-                                      GLintptr destOffset,
-                                      GLsizeiptr size)
+gl::Error BufferNULL::copySubData(ContextImpl *context,
+                                  BufferImpl *source,
+                                  GLintptr sourceOffset,
+                                  GLintptr destOffset,
+                                  GLsizeiptr size)
 {
     BufferNULL *sourceNULL = GetAs<BufferNULL>(source);
     if (size > 0)
     {
         memcpy(mData.data() + destOffset, sourceNULL->mData.data() + sourceOffset, size);
     }
-    return angle::Result::Continue;
+    return gl::NoError();
 }
 
-angle::Result BufferNULL::map(const gl::Context *context, GLenum access, void **mapPtr)
+gl::Error BufferNULL::map(ContextImpl *context, GLenum access, void **mapPtr)
 {
     *mapPtr = mData.data();
-    return angle::Result::Continue;
+    return gl::NoError();
 }
 
-angle::Result BufferNULL::mapRange(const gl::Context *context,
-                                   size_t offset,
-                                   size_t length,
-                                   GLbitfield access,
-                                   void **mapPtr)
+gl::Error BufferNULL::mapRange(ContextImpl *context,
+                               size_t offset,
+                               size_t length,
+                               GLbitfield access,
+                               void **mapPtr)
 {
     *mapPtr = mData.data() + offset;
-    return angle::Result::Continue;
+    return gl::NoError();
 }
 
-angle::Result BufferNULL::unmap(const gl::Context *context, GLboolean *result)
+gl::Error BufferNULL::unmap(ContextImpl *context, GLboolean *result)
 {
     *result = GL_TRUE;
-    return angle::Result::Continue;
+    return gl::NoError();
 }
 
-angle::Result BufferNULL::getIndexRange(const gl::Context *context,
-                                        gl::DrawElementsType type,
-                                        size_t offset,
-                                        size_t count,
-                                        bool primitiveRestartEnabled,
-                                        gl::IndexRange *outRange)
+gl::Error BufferNULL::getIndexRange(GLenum type,
+                                    size_t offset,
+                                    size_t count,
+                                    bool primitiveRestartEnabled,
+                                    gl::IndexRange *outRange)
 {
     *outRange = gl::ComputeIndexRange(type, mData.data() + offset, count, primitiveRestartEnabled);
-    return angle::Result::Continue;
-}
-
-uint8_t *BufferNULL::getDataPtr()
-{
-    return mData.data();
-}
-
-const uint8_t *BufferNULL::getDataPtr() const
-{
-    return mData.data();
+    return gl::NoError();
 }
 
 }  // namespace rx

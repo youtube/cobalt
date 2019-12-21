@@ -15,8 +15,8 @@
 #include "common/angleutils.h"
 #include "common/platform.h"
 #include "libANGLE/renderer/Format.h"
-#include "libANGLE/renderer/d3d/formatutilsD3D.h"
 #include "libANGLE/renderer/renderer_utils.h"
+#include "libANGLE/renderer/d3d/formatutilsD3D.h"
 
 namespace rx
 {
@@ -32,17 +32,16 @@ namespace d3d11
 // DSVs given a GL internal format.
 struct Format final : private angle::NonCopyable
 {
-    inline constexpr Format();
-    inline constexpr Format(GLenum internalFormat,
-                            angle::FormatID formatID,
-                            DXGI_FORMAT texFormat,
-                            DXGI_FORMAT srvFormat,
-                            DXGI_FORMAT uavFormat,
-                            DXGI_FORMAT rtvFormat,
-                            DXGI_FORMAT dsvFormat,
-                            DXGI_FORMAT blitSRVFormat,
-                            GLenum swizzleFormat,
-                            InitializeTextureDataFunction internalFormatInitializer);
+    constexpr Format();
+    constexpr Format(GLenum internalFormat,
+                     angle::Format::ID formatID,
+                     DXGI_FORMAT texFormat,
+                     DXGI_FORMAT srvFormat,
+                     DXGI_FORMAT rtvFormat,
+                     DXGI_FORMAT dsvFormat,
+                     DXGI_FORMAT blitSRVFormat,
+                     GLenum swizzleFormat,
+                     InitializeTextureDataFunction internalFormatInitializer);
 
     static const Format &Get(GLenum internalFormat, const Renderer11DeviceCaps &deviceCaps);
 
@@ -51,11 +50,10 @@ struct Format final : private angle::NonCopyable
     const angle::Format &format() const;
 
     GLenum internalFormat;
-    angle::FormatID formatID;
+    angle::Format::ID formatID;
 
     DXGI_FORMAT texFormat;
     DXGI_FORMAT srvFormat;
-    DXGI_FORMAT uavFormat;
     DXGI_FORMAT rtvFormat;
     DXGI_FORMAT dsvFormat;
 
@@ -68,22 +66,21 @@ struct Format final : private angle::NonCopyable
 
 constexpr Format::Format()
     : internalFormat(GL_NONE),
-      formatID(angle::FormatID::NONE),
+      formatID(angle::Format::ID::NONE),
       texFormat(DXGI_FORMAT_UNKNOWN),
       srvFormat(DXGI_FORMAT_UNKNOWN),
-      uavFormat(DXGI_FORMAT_UNKNOWN),
       rtvFormat(DXGI_FORMAT_UNKNOWN),
       dsvFormat(DXGI_FORMAT_UNKNOWN),
       blitSRVFormat(DXGI_FORMAT_UNKNOWN),
       swizzleFormat(GL_NONE),
       dataInitializerFunction(nullptr)
-{}
+{
+}
 
 constexpr Format::Format(GLenum internalFormat,
-                         angle::FormatID formatID,
+                         angle::Format::ID formatID,
                          DXGI_FORMAT texFormat,
                          DXGI_FORMAT srvFormat,
-                         DXGI_FORMAT uavFormat,
                          DXGI_FORMAT rtvFormat,
                          DXGI_FORMAT dsvFormat,
                          DXGI_FORMAT blitSRVFormat,
@@ -93,13 +90,13 @@ constexpr Format::Format(GLenum internalFormat,
       formatID(formatID),
       texFormat(texFormat),
       srvFormat(srvFormat),
-      uavFormat(uavFormat),
       rtvFormat(rtvFormat),
       dsvFormat(dsvFormat),
       blitSRVFormat(blitSRVFormat),
       swizzleFormat(swizzleFormat),
       dataInitializerFunction(internalFormatInitializer)
-{}
+{
+}
 
 }  // namespace d3d11
 

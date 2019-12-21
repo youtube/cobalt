@@ -1,5 +1,5 @@
 //
-// Copyright 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -8,47 +8,35 @@
 
 #include "libANGLE/renderer/gl/SurfaceGL.h"
 
-#include "libANGLE/Context.h"
-#include "libANGLE/Surface.h"
-#include "libANGLE/renderer/gl/BlitGL.h"
-#include "libANGLE/renderer/gl/ContextGL.h"
 #include "libANGLE/renderer/gl/FramebufferGL.h"
 #include "libANGLE/renderer/gl/RendererGL.h"
 
 namespace rx
 {
 
-SurfaceGL::SurfaceGL(const egl::SurfaceState &state) : SurfaceImpl(state) {}
-
-SurfaceGL::~SurfaceGL() {}
-
-FramebufferImpl *SurfaceGL::createDefaultFramebuffer(const gl::Context *context,
-                                                     const gl::FramebufferState &data)
+SurfaceGL::SurfaceGL(const egl::SurfaceState &state, RendererGL *renderer)
+    : SurfaceImpl(state), mRenderer(renderer)
 {
-    return new FramebufferGL(data, 0, true, false);
+}
+
+SurfaceGL::~SurfaceGL()
+{
+}
+
+FramebufferImpl *SurfaceGL::createDefaultFramebuffer(const gl::FramebufferState &data)
+{
+    return new FramebufferGL(data, mRenderer->getFunctions(), mRenderer->getStateManager(),
+                             mRenderer->getWorkarounds(), mRenderer->getBlitter(), true);
 }
 
 egl::Error SurfaceGL::getSyncValues(EGLuint64KHR *ust, EGLuint64KHR *msc, EGLuint64KHR *sbc)
 {
     UNREACHABLE();
-    return egl::EglBadSurface();
+    return egl::Error(EGL_BAD_SURFACE);
 }
 
-angle::Result SurfaceGL::initializeContents(const gl::Context *context,
-                                            const gl::ImageIndex &imageIndex)
+egl::Error SurfaceGL::unMakeCurrent()
 {
-    FramebufferGL *framebufferGL = GetImplAs<FramebufferGL>(context->getFramebuffer({0}));
-    ASSERT(framebufferGL->isDefault());
-
-    BlitGL *blitter = GetBlitGL(context);
-    ANGLE_TRY(blitter->clearFramebuffer(context, framebufferGL));
-
-    return angle::Result::Continue;
+    return egl::Error(EGL_SUCCESS);
 }
-
-bool SurfaceGL::hasEmulatedAlphaChannel() const
-{
-    return false;
 }
-
-}  // namespace rx

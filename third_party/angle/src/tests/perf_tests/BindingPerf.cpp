@@ -1,5 +1,5 @@
 //
-// Copyright 2016 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -13,12 +13,10 @@
 #include <random>
 #include <sstream>
 
-#include "test_utils/angle_test_instantiate.h"
-#include "util/shader_utils.h"
+#include "shader_utils.h"
 
 namespace angle
 {
-constexpr unsigned int kIterationsPerStep = 128;
 
 enum AllocationStyle
 {
@@ -35,28 +33,31 @@ struct BindingsParams final : public RenderTestParams
         minorVersion = 0;
         windowWidth  = 720;
         windowHeight = 720;
+        iterations   = 128;
 
-        numObjects        = 100;
-        allocationStyle   = EVERY_ITERATION;
-        iterationsPerStep = kIterationsPerStep;
+        numObjects      = 100;
+        allocationStyle = EVERY_ITERATION;
     }
 
-    std::string story() const override;
+    std::string suffix() const override;
     size_t numObjects;
     AllocationStyle allocationStyle;
+
+    // static parameters
+    size_t iterations;
 };
 
 std::ostream &operator<<(std::ostream &os, const BindingsParams &params)
 {
-    os << params.backendAndStory().substr(1);
+    os << params.suffix().substr(1);
     return os;
 }
 
-std::string BindingsParams::story() const
+std::string BindingsParams::suffix() const
 {
     std::stringstream strstr;
 
-    strstr << RenderTestParams::story();
+    strstr << RenderTestParams::suffix();
     strstr << "_" << numObjects << "_objects";
 
     switch (allocationStyle)
@@ -68,8 +69,7 @@ std::string BindingsParams::story() const
             strstr << "_allocated_at_initialization";
             break;
         default:
-            strstr << "_err";
-            break;
+            UNREACHABLE();
     }
 
     return strstr.str();
@@ -93,16 +93,12 @@ class BindingsBenchmark : public ANGLERenderTest,
 
 BindingsBenchmark::BindingsBenchmark() : ANGLERenderTest("Bindings", GetParam())
 {
-    // Flaky on Windows Intel OpenGL. http://crbug.com/974083
-    if (IsIntel() && GetParam().eglParameters.renderer == EGL_PLATFORM_ANGLE_TYPE_OPENGL_ANGLE)
-    {
-        mSkipTest = true;
-    }
 }
 
 void BindingsBenchmark::initializeBenchmark()
 {
     const auto &params = GetParam();
+    ASSERT_GT(params.iterations, 0u);
 
     mBuffers.resize(params.numObjects, 0);
     if (params.allocationStyle == AT_INITIALIZATION)
@@ -148,7 +144,7 @@ void BindingsBenchmark::drawBenchmark()
 {
     const auto &params = GetParam();
 
-    for (unsigned int it = 0; it < params.iterationsPerStep; ++it)
+    for (size_t it = 0; it < params.iterations; ++it)
     {
         // Generate a buffer (if needed) and bind it to a "random" binding point
         if (params.allocationStyle == EVERY_ITERATION)
@@ -156,23 +152,10 @@ void BindingsBenchmark::drawBenchmark()
             glGenBuffers(static_cast<GLsizei>(mBuffers.size()), mBuffers.data());
         }
 
-        // Fetch a few variables from the underlying data structure to keep them in registers.
-        // Otherwise each loop iteration they'll be fetched again because the compiler cannot
-        // guarantee that those are unchanged when calling glBindBuffer.
-        unsigned int *buffers       = mBuffers.data();
-        unsigned int *bindingPoints = mBindingPoints.data();
-        size_t bindingPointsSize    = mBindingPoints.size();
-        size_t buffersSize          = mBuffers.size();
-        size_t bindingIndex         = it % bindingPointsSize;
-        for (size_t bufferIdx = 0; bufferIdx < buffersSize; bufferIdx++)
+        for (size_t bufferIdx = 0; bufferIdx < mBuffers.size(); bufferIdx++)
         {
-            GLenum binding = bindingPoints[bindingIndex];
-            glBindBuffer(binding, buffers[bufferIdx]);
-
-            // Instead of doing a costly division to get an index in the range [0,bindingPointsSize)
-            // do a bounds-check and reset the index.
-            ++bindingIndex;
-            bindingIndex = (bindingIndex >= bindingPointsSize) ? 0 : bindingIndex;
+            GLenum binding = mBindingPoints[(bufferIdx + it) % mBindingPoints.size()];
+            glBindBuffer(binding, mBuffers[bufferIdx]);
         }
 
         // Delete all the buffers
@@ -201,18 +184,10 @@ BindingsParams D3D9Params(AllocationStyle allocationStyle)
     return params;
 }
 
-BindingsParams OpenGLOrGLESParams(AllocationStyle allocationStyle)
+BindingsParams OpenGLParams(AllocationStyle allocationStyle)
 {
     BindingsParams params;
-    params.eglParameters   = egl_platform::OPENGL_OR_GLES_NULL();
-    params.allocationStyle = allocationStyle;
-    return params;
-}
-
-BindingsParams VulkanParams(AllocationStyle allocationStyle)
-{
-    BindingsParams params;
-    params.eglParameters   = egl_platform::VULKAN_NULL();
+    params.eglParameters   = egl_platform::OPENGL_NULL();
     params.allocationStyle = allocationStyle;
     return params;
 }
@@ -227,9 +202,7 @@ ANGLE_INSTANTIATE_TEST(BindingsBenchmark,
                        D3D11Params(AT_INITIALIZATION),
                        D3D9Params(EVERY_ITERATION),
                        D3D9Params(AT_INITIALIZATION),
-                       OpenGLOrGLESParams(EVERY_ITERATION),
-                       OpenGLOrGLESParams(AT_INITIALIZATION),
-                       VulkanParams(EVERY_ITERATION),
-                       VulkanParams(AT_INITIALIZATION));
+                       OpenGLParams(EVERY_ITERATION),
+                       OpenGLParams(AT_INITIALIZATION));
 
 }  // namespace angle

@@ -10,33 +10,34 @@
 #include "libANGLE/renderer/vulkan/FenceNVVk.h"
 
 #include "common/debug.h"
-#include "libANGLE/Context.h"
-#include "libANGLE/renderer/vulkan/ContextVk.h"
-#include "libANGLE/renderer/vulkan/vk_utils.h"
 
 namespace rx
 {
 
-FenceNVVk::FenceNVVk() : FenceNVImpl() {}
-
-FenceNVVk::~FenceNVVk() {}
-
-angle::Result FenceNVVk::set(const gl::Context *context, GLenum condition)
+FenceNVVk::FenceNVVk() : FenceNVImpl()
 {
-    ANGLE_VK_UNREACHABLE(vk::GetImpl(context));
-    return angle::Result::Stop;
 }
 
-angle::Result FenceNVVk::test(const gl::Context *context, GLboolean *outFinished)
+FenceNVVk::~FenceNVVk()
 {
-    ANGLE_VK_UNREACHABLE(vk::GetImpl(context));
-    return angle::Result::Stop;
 }
 
-angle::Result FenceNVVk::finish(const gl::Context *context)
+gl::Error FenceNVVk::set(GLenum condition)
 {
-    ANGLE_VK_UNREACHABLE(vk::GetImpl(context));
-    return angle::Result::Stop;
+    UNIMPLEMENTED();
+    return gl::Error(GL_INVALID_OPERATION);
+}
+
+gl::Error FenceNVVk::test(GLboolean *outFinished)
+{
+    UNIMPLEMENTED();
+    return gl::Error(GL_INVALID_OPERATION);
+}
+
+gl::Error FenceNVVk::finish()
+{
+    UNIMPLEMENTED();
+    return gl::Error(GL_INVALID_OPERATION);
 }
 
 }  // namespace rx

@@ -34,6 +34,13 @@ const GUID kCobaltNv12BindChroma = {
     0x46c9,
     {0xaa, 0x8d, 0xb0, 0xcf, 0xfc, 0xd4, 0x59, 0x6d}};
 
+// {C62BF18D-B5EE-46B1-9C31-F61BD8AE3B0D}
+const GUID kCobaltDxgiBuffer = {
+    0Xc62bf18d,
+    0Xb5ee,
+    0X46b1,
+    {0X9c, 0X31, 0Xf6, 0X1b, 0Xd8, 0Xae, 0X3b, 0X0d}};
+
 ComPtr<ID3D11Texture2D> AllocateTexture(const ComPtr<ID3D11Device>& d3d_device,
                                         SbDecodeTargetFormat format,
                                         int width,
@@ -264,6 +271,9 @@ void HardwareDecodeTargetPrivate::InitTextureYUV() {
   planeUV->texture = gl_textures[1];
   planeUV->gl_texture_target = GL_TEXTURE_2D;
   planeUV->gl_texture_format = GL_RG_EXT;
+
+  hr = d3d_texture->SetPrivateData(kCobaltDxgiBuffer, 0, nullptr);
+  SB_DCHECK(SUCCEEDED(hr));
 }
 
 void HardwareDecodeTargetPrivate::InitTextureRGBA() {

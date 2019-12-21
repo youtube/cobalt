@@ -1,5 +1,5 @@
 //
-// Copyright 2016 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -14,26 +14,23 @@
 namespace sh
 {
 
-class TOutputVulkanGLSL : public TOutputGLSL
+class TOutputVulkanGLSL : public TOutputGLSLBase
 {
   public:
     TOutputVulkanGLSL(TInfoSinkBase &objSink,
                       ShArrayIndexClampingStrategy clampingStrategy,
                       ShHashFunction64 hashFunction,
                       NameMap &nameMap,
-                      TSymbolTable *symbolTable,
+                      TSymbolTable &symbolTable,
                       sh::GLenum shaderType,
                       int shaderVersion,
                       ShShaderOutput output,
                       ShCompileOptions compileOptions);
 
-    void writeStructType(const TStructure *structure);
-
   protected:
-    void writeLayoutQualifier(TIntermTyped *variable) override;
-    void writeFieldLayoutQualifier(const TField *field) override;
-    void writeQualifier(TQualifier qualifier, const TType &type, const TSymbol *symbol) override;
-    void writeVariableType(const TType &type, const TSymbol *symbol) override;
+    void writeLayoutQualifier(const TType &type) override;
+    bool writeVariablePrecision(TPrecision precision) override;
+    void visitSymbol(TIntermSymbol *node) override;
 };
 
 }  // namespace sh

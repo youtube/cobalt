@@ -16,37 +16,36 @@ namespace rx
 
 TransformFeedbackNULL::TransformFeedbackNULL(const gl::TransformFeedbackState &state)
     : TransformFeedbackImpl(state)
-{}
-
-TransformFeedbackNULL::~TransformFeedbackNULL() {}
-
-angle::Result TransformFeedbackNULL::begin(const gl::Context *context,
-                                           gl::PrimitiveMode primitiveMode)
 {
-    return angle::Result::Continue;
 }
 
-angle::Result TransformFeedbackNULL::end(const gl::Context *context)
+TransformFeedbackNULL::~TransformFeedbackNULL()
 {
-    return angle::Result::Continue;
 }
 
-angle::Result TransformFeedbackNULL::pause(const gl::Context *context)
+void TransformFeedbackNULL::begin(GLenum primitiveMode)
 {
-    return angle::Result::Continue;
 }
 
-angle::Result TransformFeedbackNULL::resume(const gl::Context *context)
+void TransformFeedbackNULL::end()
 {
-    return angle::Result::Continue;
 }
 
-angle::Result TransformFeedbackNULL::bindIndexedBuffer(
-    const gl::Context *context,
-    size_t index,
-    const gl::OffsetBindingPointer<gl::Buffer> &binding)
+void TransformFeedbackNULL::pause()
 {
-    return angle::Result::Continue;
+}
+
+void TransformFeedbackNULL::resume()
+{
+}
+
+void TransformFeedbackNULL::bindGenericBuffer(const BindingPointer<gl::Buffer> &binding)
+{
+}
+
+void TransformFeedbackNULL::bindIndexedBuffer(size_t index,
+                                              const OffsetBindingPointer<gl::Buffer> &binding)
+{
 }
 
 }  // namespace rx

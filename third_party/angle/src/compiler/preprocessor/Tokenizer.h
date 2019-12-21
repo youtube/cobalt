@@ -1,5 +1,5 @@
 //
-// Copyright 2012 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2012-2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,9 +10,6 @@
 #include "common/angleutils.h"
 #include "compiler/preprocessor/Input.h"
 #include "compiler/preprocessor/Lexer.h"
-
-namespace angle
-{
 
 namespace pp
 {
@@ -37,7 +34,7 @@ class Tokenizer : public Lexer
     };
 
     Tokenizer(Diagnostics *diagnostics);
-    ~Tokenizer() override;
+    ~Tokenizer();
 
     bool init(size_t count, const char *const string[], const int length[]);
 
@@ -57,7 +54,5 @@ class Tokenizer : public Lexer
 };
 
 }  // namespace pp
-
-}  // namespace angle
 
 #endif  // COMPILER_PREPROCESSOR_TOKENIZER_H_

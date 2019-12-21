@@ -5,7 +5,6 @@
 #
 # gen_texture_format_table.py:
 #  Code generation for texture format map
-#  NOTE: don't run this script directly. Run scripts/run_code_generation.py.
 #
 
 from datetime import date
@@ -69,7 +68,6 @@ const Format &Format::Get(GLenum internalFormat, const Renderer11DeviceCaps &dev
 }}  // namespace rx
 """
 
-
 def get_swizzle_format_id(internal_format, angle_format):
     angle_format_id = angle_format["formatName"]
     if (internal_format == 'GL_NONE') or (angle_format_id == 'NONE'):
@@ -81,20 +79,16 @@ def get_swizzle_format_id(internal_format, angle_format):
         return angle_format['swizzleFormat']
 
     if 'bits' not in angle_format:
-        raise ValueError('no bits information for determining swizzleformat for format: ' +
-                         internal_format)
+        raise ValueError('no bits information for determining swizzleformat for format: ' + internal_format)
 
     bits = angle_format['bits']
     max_component_bits = max(bits.itervalues())
-    channels_different = not all(
-        [component_bits == bits.itervalues().next() for component_bits in bits.itervalues()])
+    channels_different = not all([component_bits == bits.itervalues().next() for component_bits in bits.itervalues()])
 
     # The format itself can be used for swizzles if it can be accessed as a render target and
     # sampled and the bit count for all 4 channels is the same.
-    if "rtvFormat" in angle_format and "srvFormat" in angle_format and "uavFormat" in angle_format and not channels_different and len(
-            angle_format['channels']) == 4:
-        return angle_format[
-            "glInternalFormat"] if "glInternalFormat" in angle_format else internal_format
+    if "rtvFormat" in angle_format and "srvFormat" in angle_format and not channels_different and len(angle_format['channels']) == 4:
+        return angle_format["glInternalFormat"] if "glInternalFormat" in angle_format else internal_format
 
     b = int(math.ceil(float(max_component_bits) / 8) * 8)
 
@@ -107,12 +101,10 @@ def get_swizzle_format_id(internal_format, angle_format):
             return 'GL_RGBA16_EXT'
 
     if b == 24:
-        raise ValueError('unexpected 24-bit format when determining swizzleformat for format: ' +
-                         internal_format)
+        raise ValueError('unexpected 24-bit format when determining swizzleformat for format: ' + internal_format)
 
     if 'componentType' not in angle_format:
-        raise ValueError('no component type information for determining swizzleformat for format: '
-                         + internal_format)
+        raise ValueError('no component type information for determining swizzleformat for format: ' + internal_format)
 
     component_type = angle_format['componentType']
 
@@ -134,11 +126,9 @@ def get_swizzle_format_id(internal_format, angle_format):
         if (b == 16):
             swizzle += "_EXT"
     else:
-        raise ValueError('could not determine swizzleformat based on componentType for format: ' +
-                         internal_format)
+        raise ValueError('could not determine swizzleformat based on componentType for format: ' + internal_format)
 
     return swizzle
-
 
 def get_blit_srv_format(angle_format):
     if 'channels' not in angle_format:
@@ -151,10 +141,9 @@ def get_blit_srv_format(angle_format):
 
 format_entry_template = """{space}{{
 {space}    static constexpr Format info({internalFormat},
-{space}                                 angle::FormatID::{formatName},
+{space}                                 angle::Format::ID::{formatName},
 {space}                                 {texFormat},
 {space}                                 {srvFormat},
-{space}                                 {uavFormat},
 {space}                                 {rtvFormat},
 {space}                                 {dsvFormat},
 {space}                                 {blitSRVFormat},
@@ -167,10 +156,9 @@ format_entry_template = """{space}{{
 split_format_entry_template = """{space}    {condition}
 {space}    {{
 {space}        static constexpr Format info({internalFormat},
-{space}                                     angle::FormatID::{formatName},
+{space}                                     angle::Format::ID::{formatName},
 {space}                                     {texFormat},
 {space}                                     {srvFormat},
-{space}                                     {uavFormat},
 {space}                                     {rtvFormat},
 {space}                                     {dsvFormat},
 {space}                                     {blitSRVFormat},
@@ -179,7 +167,6 @@ split_format_entry_template = """{space}    {condition}
 {space}        return info;
 {space}    }}
 """
-
 
 def json_to_table_data(internal_format, format_name, prefix, json):
 
@@ -191,7 +178,6 @@ def json_to_table_data(internal_format, format_name, prefix, json):
         "formatName": format_name,
         "texFormat": "DXGI_FORMAT_UNKNOWN",
         "srvFormat": "DXGI_FORMAT_UNKNOWN",
-        "uavFormat": "DXGI_FORMAT_UNKNOWN",
         "rtvFormat": "DXGI_FORMAT_UNKNOWN",
         "dsvFormat": "DXGI_FORMAT_UNKNOWN",
         "condition": prefix,
@@ -203,14 +189,13 @@ def json_to_table_data(internal_format, format_name, prefix, json):
     # Derived values.
     parsed["blitSRVFormat"] = get_blit_srv_format(parsed)
     parsed["swizzleFormat"] = get_swizzle_format_id(internal_format, parsed)
-    parsed["initializer"] = angle_format.get_internal_format_initializer(
+    parsed["initializer"]   = angle_format.get_internal_format_initializer(
         internal_format, parsed["formatName"])
 
     if len(prefix) > 0:
         return split_format_entry_template.format(**parsed)
     else:
         return format_entry_template.format(**parsed)
-
 
 def parse_json_angle_format_case(format_name, angle_format, json_data):
     supported_case = {}
@@ -238,8 +223,8 @@ def parse_json_angle_format_case(format_name, angle_format, json_data):
             unsupported_case[k] = v
 
     if fallback != None:
-        unsupported_case, _, _ = parse_json_angle_format_case(fallback, json_data[fallback],
-                                                              json_data)
+        unsupported_case, _, _ = parse_json_angle_format_case(
+            fallback, json_data[fallback], json_data)
         unsupported_case["formatName"] = fallback
 
     if support_test != None:
@@ -247,19 +232,12 @@ def parse_json_angle_format_case(format_name, angle_format, json_data):
     else:
         return supported_case, None, None
 
-
 def parse_json_into_switch_angle_format_string(json_map, json_data):
     table_data = ''
 
     for internal_format, format_name in sorted(json_map.iteritems()):
 
         if format_name not in json_data:
-            continue
-
-        # Typeless internal formats are dummy formats just used to fit support
-        # for typeless D3D textures into the format system. Their properties
-        # should not be queried.
-        if 'TYPELESS' in internal_format:
             continue
 
         angle_format = json_data[format_name]
@@ -271,48 +249,24 @@ def parse_json_into_switch_angle_format_string(json_map, json_data):
 
         if support_test != None:
             table_data += "        {\n"
-            table_data += json_to_table_data(internal_format, format_name,
-                                             "if (" + support_test + ")", supported_case)
-            table_data += json_to_table_data(internal_format, format_name, "else",
-                                             unsupported_case)
+            table_data += json_to_table_data(internal_format, format_name, "if (" + support_test + ")", supported_case)
+            table_data += json_to_table_data(internal_format, format_name, "else", unsupported_case)
             table_data += "        }\n"
         else:
             table_data += json_to_table_data(internal_format, format_name, "", supported_case)
 
     return table_data
 
+json_map = angle_format.load_with_override(os.path.abspath('texture_format_map.json'))
+data_source_name = 'texture_format_data.json'
+json_data = angle_format.load_json(data_source_name)
 
-def main():
-
-    # auto_script parameters.
-    if len(sys.argv) > 1:
-        inputs = ['../../angle_format.py', 'texture_format_data.json', 'texture_format_map.json']
-        outputs = ['texture_format_table_autogen.cpp']
-
-        if sys.argv[1] == 'inputs':
-            print ','.join(inputs)
-        elif sys.argv[1] == 'outputs':
-            print ','.join(outputs)
-        else:
-            print('Invalid script parameters')
-            return 1
-        return 0
-
-    json_map = angle_format.load_with_override(os.path.abspath('texture_format_map.json'))
-    data_source_name = 'texture_format_data.json'
-    json_data = angle_format.load_json(data_source_name)
-
-    angle_format_cases = parse_json_into_switch_angle_format_string(json_map, json_data)
-    output_cpp = template_texture_format_table_autogen_cpp.format(
-        script_name=sys.argv[0],
-        copyright_year=date.today().year,
-        angle_format_info_cases=angle_format_cases,
-        data_source_name=data_source_name)
-    with open('texture_format_table_autogen.cpp', 'wt') as out_file:
-        out_file.write(output_cpp)
-        out_file.close()
-    return 0
-
-
-if __name__ == '__main__':
-    sys.exit(main())
+angle_format_cases = parse_json_into_switch_angle_format_string(json_map, json_data)
+output_cpp = template_texture_format_table_autogen_cpp.format(
+    script_name = sys.argv[0],
+    copyright_year = date.today().year,
+    angle_format_info_cases = angle_format_cases,
+    data_source_name = data_source_name)
+with open('texture_format_table_autogen.cpp', 'wt') as out_file:
+    out_file.write(output_cpp)
+    out_file.close()

@@ -1,14 +1,11 @@
 //
-// Copyright 2012 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2012 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 
 #ifndef COMPILER_PREPROCESSOR_SOURCELOCATION_H_
 #define COMPILER_PREPROCESSOR_SOURCELOCATION_H_
-
-namespace angle
-{
 
 namespace pp
 {
@@ -38,7 +35,5 @@ inline bool operator!=(const SourceLocation &lhs, const SourceLocation &rhs)
 }
 
 }  // namespace pp
-
-}  // namespace angle
 
 #endif  // COMPILER_PREPROCESSOR_SOURCELOCATION_H_

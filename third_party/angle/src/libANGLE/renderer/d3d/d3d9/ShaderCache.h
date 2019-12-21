@@ -1,5 +1,5 @@
 //
-// Copyright 2012 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2012 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -13,12 +13,10 @@
 #include "libANGLE/Error.h"
 
 #include "common/debug.h"
-#include "libANGLE/renderer/d3d/d3d9/Context9.h"
 
 #include <cstddef>
-#include <mutex>
-#include <string>
 #include <unordered_map>
+#include <string>
 
 namespace rx
 {
@@ -34,27 +32,28 @@ class ShaderCache : angle::NonCopyable
         ASSERT(mMap.empty());
     }
 
-    void initialize(IDirect3DDevice9 *device) { mDevice = device; }
-
-    angle::Result create(d3d::Context *context,
-                         const DWORD *function,
-                         size_t length,
-                         ShaderObject **outShaderObject)
+    void initialize(IDirect3DDevice9* device)
     {
-        std::lock_guard<std::mutex> lock(mMutex);
+        mDevice = device;
+    }
 
-        std::string key(reinterpret_cast<const char *>(function), length);
+    gl::Error create(const DWORD *function, size_t length, ShaderObject **outShaderObject)
+    {
+        std::string key(reinterpret_cast<const char*>(function), length);
         typename Map::iterator it = mMap.find(key);
         if (it != mMap.end())
         {
             it->second->AddRef();
             *outShaderObject = it->second;
-            return angle::Result::Continue;
+            return gl::NoError();
         }
 
         ShaderObject *shader;
         HRESULT result = createShader(function, &shader);
-        ANGLE_TRY_HR(context, result, "Failed to create shader");
+        if (FAILED(result))
+        {
+            return gl::Error(GL_OUT_OF_MEMORY, "Failed to create shader, result: 0x%X.", result);
+        }
 
         // Random eviction policy.
         if (mMap.size() >= kMaxMapSize)
@@ -67,13 +66,11 @@ class ShaderCache : angle::NonCopyable
         mMap[key] = shader;
 
         *outShaderObject = shader;
-        return angle::Result::Continue;
+        return gl::NoError();
     }
 
     void clear()
     {
-        std::lock_guard<std::mutex> lock(mMutex);
-
         for (typename Map::iterator it = mMap.begin(); it != mMap.end(); ++it)
         {
             SafeRelease(it->second);
@@ -95,9 +92,8 @@ class ShaderCache : angle::NonCopyable
         return mDevice->CreatePixelShader(function, shader);
     }
 
-    typedef std::unordered_map<std::string, ShaderObject *> Map;
+    typedef std::unordered_map<std::string, ShaderObject*> Map;
     Map mMap;
-    std::mutex mMutex;
 
     IDirect3DDevice9 *mDevice;
 };
@@ -105,6 +101,6 @@ class ShaderCache : angle::NonCopyable
 typedef ShaderCache<IDirect3DVertexShader9> VertexShaderCache;
 typedef ShaderCache<IDirect3DPixelShader9> PixelShaderCache;
 
-}  // namespace rx
+}
 
-#endif  // LIBANGLE_RENDERER_D3D_D3D9_SHADERCACHE_H_
+#endif   // LIBANGLE_RENDERER_D3D_D3D9_SHADERCACHE_H_

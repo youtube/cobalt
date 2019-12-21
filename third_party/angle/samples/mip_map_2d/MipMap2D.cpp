@@ -1,5 +1,5 @@
 //
-// Copyright 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -14,37 +14,45 @@
 //            http://www.opengles-book.com
 
 #include "SampleApplication.h"
-
+#include "shader_utils.h"
 #include "texture_utils.h"
-#include "util/shader_utils.h"
 
 class MipMap2DSample : public SampleApplication
 {
   public:
-    MipMap2DSample(int argc, char **argv) : SampleApplication("MipMap2D", argc, argv) {}
-
-    bool initialize() override
+    MipMap2DSample()
+        : SampleApplication("MipMap2D", 1280, 720)
     {
-        constexpr char kVS[] = R"(uniform float u_offset;
-attribute vec4 a_position;
-attribute vec2 a_texCoord;
-varying vec2 v_texCoord;
-void main()
-{
-    gl_Position = a_position;
-    gl_Position.x += u_offset;
-    v_texCoord = a_texCoord;
-})";
+    }
 
-        constexpr char kFS[] = R"(precision mediump float;
-varying vec2 v_texCoord;
-uniform sampler2D s_texture;
-void main()
-{
-    gl_FragColor = texture2D(s_texture, v_texCoord);
-})";
+    virtual bool initialize()
+    {
+        const std::string vs = SHADER_SOURCE
+        (
+            uniform float u_offset;
+            attribute vec4 a_position;
+            attribute vec2 a_texCoord;
+            varying vec2 v_texCoord;
+            void main()
+            {
+                gl_Position = a_position;
+                gl_Position.x += u_offset;
+                v_texCoord = a_texCoord;
+            }
+        );
 
-        mProgram = CompileProgram(kVS, kFS);
+        const std::string fs = SHADER_SOURCE
+        (
+            precision mediump float;
+            varying vec2 v_texCoord;
+            uniform sampler2D s_texture;
+            void main()
+            {
+                gl_FragColor = texture2D(s_texture, v_texCoord);
+            }
+        );
+
+        mProgram = CompileProgram(vs, fs);
         if (!mProgram)
         {
             return false;
@@ -71,25 +79,26 @@ void main()
         return true;
     }
 
-    void destroy() override
+    virtual void destroy()
     {
         glDeleteProgram(mProgram);
         glDeleteTextures(1, &mTextureID);
     }
 
-    void draw() override
+    virtual void draw()
     {
-        const GLfloat vertices[] = {
-            -0.25f, 0.5f,  0.0f, 5.0f,  // Position 0
-            0.0f,   0.0f,               // TexCoord 0
-            -0.25f, -0.5f, 0.0f, 1.0f,  // Position 1
-            0.0f,   1.0f,               // TexCoord 1
-            0.25f,  -0.5f, 0.0f, 1.0f,  // Position 2
-            1.0f,   1.0f,               // TexCoord 2
-            0.25f,  0.5f,  0.0f, 5.0f,  // Position 3
-            1.0f,   0.0f                // TexCoord 3
+        const GLfloat vertices[] =
+        {
+            -0.25f,  0.5f, 0.0f, 5.0f, // Position 0
+             0.0f,  0.0f,              // TexCoord 0
+            -0.25f, -0.5f, 0.0f, 1.0f, // Position 1
+             0.0f,  1.0f,              // TexCoord 1
+             0.25f, -0.5f, 0.0f, 1.0f, // Position 2
+             1.0f,  1.0f,              // TexCoord 2
+             0.25f,  0.5f, 0.0f, 5.0f, // Position 3
+             1.0f,  0.0f               // TexCoord 3
         };
-        const GLushort indices[] = {0, 1, 2, 0, 2, 3};
+        const GLushort indices[] = { 0, 1, 2, 0, 2, 3 };
 
         // Set the viewport
         glViewport(0, 0, getWindow()->getWidth(), getWindow()->getHeight());
@@ -101,10 +110,9 @@ void main()
         glUseProgram(mProgram);
 
         // Load the vertex position
-        glVertexAttribPointer(mPositionLoc, 4, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), vertices);
+        glVertexAttribPointer(mPositionLoc, 4, GL_FLOAT,  GL_FALSE, 6 * sizeof(GLfloat), vertices);
         // Load the texture coordinate
-        glVertexAttribPointer(mTexCoordLoc, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat),
-                              vertices + 4);
+        glVertexAttribPointer(mTexCoordLoc, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), vertices + 4);
 
         glEnableVertexAttribArray(mPositionLoc);
         glEnableVertexAttribArray(mTexCoordLoc);
@@ -119,7 +127,7 @@ void main()
         // Draw quad with nearest sampling
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glUniform1f(mOffsetLoc, -0.6f);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, indices);
+        glDrawElements ( GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, indices);
 
         // Draw quad with trilinear filtering
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
@@ -156,6 +164,6 @@ void main()
 
 int main(int argc, char **argv)
 {
-    MipMap2DSample app(argc, argv);
+    MipMap2DSample app;
     return app.run();
 }

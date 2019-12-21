@@ -1,5 +1,5 @@
 //
-// Copyright 2002 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2002-2013 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -13,7 +13,7 @@ TOutputESSL::TOutputESSL(TInfoSinkBase &objSink,
                          ShArrayIndexClampingStrategy clampingStrategy,
                          ShHashFunction64 hashFunction,
                          NameMap &nameMap,
-                         TSymbolTable *symbolTable,
+                         TSymbolTable &symbolTable,
                          sh::GLenum shaderType,
                          int shaderVersion,
                          bool forceHighp,
@@ -28,7 +28,8 @@ TOutputESSL::TOutputESSL(TInfoSinkBase &objSink,
                       SH_ESSL_OUTPUT,
                       compileOptions),
       mForceHighp(forceHighp)
-{}
+{
+}
 
 bool TOutputESSL::writeVariablePrecision(TPrecision precision)
 {

@@ -1,5 +1,5 @@
 //
-// Copyright 2016 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -13,9 +13,7 @@
 #include <unordered_map>
 
 #include "angle_gl.h"
-#include "anglebase/no_destructor.h"
 #include "compiler/translator/Compiler.h"
-#include "compiler/translator/util.h"
 
 using namespace sh;
 
@@ -50,6 +48,10 @@ struct TCompilerDeleter
     void operator()(TCompiler *compiler) const { DeleteCompiler(compiler); }
 };
 
+using UniqueTCompiler = std::unique_ptr<TCompiler, TCompilerDeleter>;
+
+static std::unordered_map<TranslatorCacheKey, UniqueTCompiler> translators;
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
     // Reserve some size for future compile options
@@ -79,14 +81,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     if (spec != SH_GLES2_SPEC && type != SH_WEBGL_SPEC && spec != SH_GLES3_SPEC &&
         spec != SH_WEBGL2_SPEC)
     {
-        return 0;
-    }
-
-    ShShaderOutput shaderOutput = static_cast<ShShaderOutput>(output);
-    if (!(IsOutputGLSL(shaderOutput) || IsOutputESSL(shaderOutput)) &&
-        (options & SH_SELECT_VIEW_IN_NV_GLSL_VERTEX_SHADER) != 0u)
-    {
-        // This compiler option is only available in ESSL and GLSL.
         return 0;
     }
 
@@ -129,14 +123,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     key.spec   = spec;
     key.output = output;
 
-    using UniqueTCompiler = std::unique_ptr<TCompiler, TCompilerDeleter>;
-    static angle::base::NoDestructor<std::unordered_map<TranslatorCacheKey, UniqueTCompiler>>
-        translators;
-
-    if (translators->find(key) == translators->end())
+    if (translators.find(key) == translators.end())
     {
-        UniqueTCompiler translator(
-            ConstructCompiler(type, static_cast<ShShaderSpec>(spec), shaderOutput));
+        UniqueTCompiler translator(ConstructCompiler(type, static_cast<ShShaderSpec>(spec),
+                                                     static_cast<ShShaderOutput>(output)));
 
         if (translator == nullptr)
         {
@@ -168,10 +158,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
             return 0;
         }
 
-        (*translators)[key] = std::move(translator);
+        translators[key] = std::move(translator);
     }
 
-    auto &translator = (*translators)[key];
+    auto &translator = translators[key];
 
     const char *shaderStrings[] = {reinterpret_cast<const char *>(data)};
     translator->compile(shaderStrings, 1, options);

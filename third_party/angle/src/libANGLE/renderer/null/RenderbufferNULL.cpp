@@ -14,37 +14,30 @@
 namespace rx
 {
 
-RenderbufferNULL::RenderbufferNULL(const gl::RenderbufferState &state) : RenderbufferImpl(state) {}
-
-RenderbufferNULL::~RenderbufferNULL() {}
-
-angle::Result RenderbufferNULL::setStorage(const gl::Context *context,
-                                           GLenum internalformat,
-                                           size_t width,
-                                           size_t height)
+RenderbufferNULL::RenderbufferNULL() : RenderbufferImpl()
 {
-    return angle::Result::Continue;
 }
 
-angle::Result RenderbufferNULL::setStorageMultisample(const gl::Context *context,
-                                                      size_t samples,
-                                                      GLenum internalformat,
-                                                      size_t width,
-                                                      size_t height)
+RenderbufferNULL::~RenderbufferNULL()
 {
-    return angle::Result::Continue;
 }
 
-angle::Result RenderbufferNULL::setStorageEGLImageTarget(const gl::Context *context,
-                                                         egl::Image *image)
+gl::Error RenderbufferNULL::setStorage(GLenum internalformat, size_t width, size_t height)
 {
-    return angle::Result::Continue;
+    return gl::NoError();
 }
 
-angle::Result RenderbufferNULL::initializeContents(const gl::Context *context,
-                                                   const gl::ImageIndex &imageIndex)
+gl::Error RenderbufferNULL::setStorageMultisample(size_t samples,
+                                                  GLenum internalformat,
+                                                  size_t width,
+                                                  size_t height)
 {
-    return angle::Result::Continue;
+    return gl::NoError();
+}
+
+gl::Error RenderbufferNULL::setStorageEGLImageTarget(egl::Image *image)
+{
+    return gl::NoError();
 }
 
 }  // namespace rx

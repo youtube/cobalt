@@ -1,5 +1,5 @@
 //
-// Copyright 2013 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2013 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -12,9 +12,9 @@
 #include <map>
 #include <vector>
 
+#include "libANGLE/angletypes.h"
 #include "libANGLE/Error.h"
 #include "libANGLE/Framebuffer.h"
-#include "libANGLE/angletypes.h"
 #include "libANGLE/renderer/d3d/d3d11/renderer11_utils.h"
 
 namespace rx
@@ -37,11 +37,9 @@ class Clear11 : angle::NonCopyable
     explicit Clear11(Renderer11 *renderer);
     ~Clear11();
 
-    // Clears the framebuffer with the supplied clear parameters, assumes that the framebuffer is
-    // currently applied.
-    angle::Result clearFramebuffer(const gl::Context *context,
-                                   const ClearParameters &clearParams,
-                                   const gl::FramebufferState &fboData);
+    // Clears the framebuffer with the supplied clear parameters, assumes that the framebuffer is currently applied.
+    gl::Error clearFramebuffer(const ClearParameters &clearParams,
+                               const gl::FramebufferState &fboData);
 
   private:
     class ShaderManager final : angle::NonCopyable
@@ -49,54 +47,40 @@ class Clear11 : angle::NonCopyable
       public:
         ShaderManager();
         ~ShaderManager();
-        angle::Result getShadersAndLayout(const gl::Context *context,
-                                          Renderer11 *renderer,
-                                          const INT clearType,
-                                          const uint32_t numRTs,
-                                          const bool hasLayeredLayout,
-                                          const d3d11::InputLayout **il,
-                                          const d3d11::VertexShader **vs,
-                                          const d3d11::GeometryShader **gs,
-                                          const d3d11::PixelShader **ps);
+        void getShadersAndLayout(ID3D11Device *device,
+                                 D3D_FEATURE_LEVEL featureLevel,
+                                 const INT clearType,
+                                 ID3D11InputLayout **il,
+                                 ID3D11VertexShader **vs,
+                                 ID3D11PixelShader **ps);
 
       private:
-        constexpr static size_t kNumShaders = D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT;
-
-        d3d11::InputLayout mIl9;
+        angle::ComPtr<ID3D11InputLayout> mIl9;
         d3d11::LazyShader<ID3D11VertexShader> mVs9;
         d3d11::LazyShader<ID3D11PixelShader> mPsFloat9;
         d3d11::LazyShader<ID3D11VertexShader> mVs;
-        d3d11::LazyShader<ID3D11VertexShader> mVsMultiview;
-        d3d11::LazyShader<ID3D11GeometryShader> mGsMultiview;
-        d3d11::LazyShader<ID3D11PixelShader> mPsDepth;
-        std::array<d3d11::LazyShader<ID3D11PixelShader>, kNumShaders> mPsFloat;
-        std::array<d3d11::LazyShader<ID3D11PixelShader>, kNumShaders> mPsUInt;
-        std::array<d3d11::LazyShader<ID3D11PixelShader>, kNumShaders> mPsSInt;
+        d3d11::LazyShader<ID3D11PixelShader> mPsFloat;
+        d3d11::LazyShader<ID3D11PixelShader> mPsUInt;
+        d3d11::LazyShader<ID3D11PixelShader> mPsSInt;
     };
 
-    bool useVertexBuffer() const;
-    angle::Result ensureConstantBufferCreated(const gl::Context *context);
-    angle::Result ensureVertexBufferCreated(const gl::Context *context);
-    angle::Result ensureResourcesInitialized(const gl::Context *context);
-
     Renderer11 *mRenderer;
-    bool mResourcesInitialized;
 
     // States
-    d3d11::RasterizerState mScissorEnabledRasterizerState;
-    d3d11::RasterizerState mScissorDisabledRasterizerState;
+    angle::ComPtr<ID3D11RasterizerState> mScissorEnabledRasterizerState;
+    angle::ComPtr<ID3D11RasterizerState> mScissorDisabledRasterizerState;
     gl::DepthStencilState mDepthStencilStateKey;
     d3d11::BlendStateKey mBlendStateKey;
 
     // Shaders and shader resources
     ShaderManager mShaderManager;
-    d3d11::Buffer mConstantBuffer;
-    d3d11::Buffer mVertexBuffer;
+    angle::ComPtr<ID3D11Buffer> mConstantBuffer;
+    angle::ComPtr<ID3D11Buffer> mVertexBuffer;
 
     // Buffer data and draw parameters
     RtvDsvClearInfo<float> mShaderData;
 };
 
-}  // namespace rx
+}
 
-#endif  // LIBANGLE_RENDERER_D3D_D3D11_CLEAR11_H_
+#endif // LIBANGLE_RENDERER_D3D_D3D11_CLEAR11_H_

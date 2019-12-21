@@ -1,5 +1,5 @@
 //
-// Copyright 2013 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2013-2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -15,9 +15,8 @@
 #include "common/platform.h"
 #include "libANGLE/angletypes.h"
 #include "libANGLE/formatutils.h"
-#include "libANGLE/renderer/copyvertex.h"
-#include "libANGLE/renderer/d3d/formatutilsD3D.h"
 #include "libANGLE/renderer/renderer_utils.h"
+#include "libANGLE/renderer/d3d/formatutilsD3D.h"
 
 namespace rx
 {
@@ -54,7 +53,7 @@ struct VertexFormat : private angle::NonCopyable
     VertexCopyFunction copyFunction;
 };
 
-const VertexFormat &GetVertexFormatInfo(angle::FormatID vertexFormatID,
+const VertexFormat &GetVertexFormatInfo(gl::VertexFormatType vertexFormatType,
                                         D3D_FEATURE_LEVEL featureLevel);
 
 // Auto-generated in dxgi_format_map_autogen.cpp.
@@ -69,4 +68,4 @@ const angle::Format &GetFormat(DXGI_FORMAT dxgiFormat);
 
 }  // namespace rx
 
-#endif  // LIBANGLE_RENDERER_D3D_D3D11_FORMATUTILS11_H_
+#endif // LIBANGLE_RENDERER_D3D_D3D11_FORMATUTILS11_H_

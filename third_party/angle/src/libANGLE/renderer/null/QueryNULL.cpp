@@ -14,53 +14,57 @@
 namespace rx
 {
 
-QueryNULL::QueryNULL(gl::QueryType type) : QueryImpl(type) {}
-
-QueryNULL::~QueryNULL() {}
-
-angle::Result QueryNULL::begin(const gl::Context *context)
+QueryNULL::QueryNULL(GLenum type) : QueryImpl(type)
 {
-    return angle::Result::Continue;
 }
 
-angle::Result QueryNULL::end(const gl::Context *context)
+QueryNULL::~QueryNULL()
 {
-    return angle::Result::Continue;
 }
 
-angle::Result QueryNULL::queryCounter(const gl::Context *context)
+gl::Error QueryNULL::begin()
 {
-    return angle::Result::Continue;
+    return gl::NoError();
 }
 
-angle::Result QueryNULL::getResult(const gl::Context *context, GLint *params)
+gl::Error QueryNULL::end()
 {
-    *params = 0;
-    return angle::Result::Continue;
+    return gl::NoError();
 }
 
-angle::Result QueryNULL::getResult(const gl::Context *context, GLuint *params)
+gl::Error QueryNULL::queryCounter()
+{
+    return gl::NoError();
+}
+
+gl::Error QueryNULL::getResult(GLint *params)
 {
     *params = 0;
-    return angle::Result::Continue;
+    return gl::NoError();
 }
 
-angle::Result QueryNULL::getResult(const gl::Context *context, GLint64 *params)
+gl::Error QueryNULL::getResult(GLuint *params)
 {
     *params = 0;
-    return angle::Result::Continue;
+    return gl::NoError();
 }
 
-angle::Result QueryNULL::getResult(const gl::Context *context, GLuint64 *params)
+gl::Error QueryNULL::getResult(GLint64 *params)
 {
     *params = 0;
-    return angle::Result::Continue;
+    return gl::NoError();
 }
 
-angle::Result QueryNULL::isResultAvailable(const gl::Context *context, bool *available)
+gl::Error QueryNULL::getResult(GLuint64 *params)
+{
+    *params = 0;
+    return gl::NoError();
+}
+
+gl::Error QueryNULL::isResultAvailable(bool *available)
 {
     *available = true;
-    return angle::Result::Continue;
+    return gl::NoError();
 }
 
 }  // namespace rx

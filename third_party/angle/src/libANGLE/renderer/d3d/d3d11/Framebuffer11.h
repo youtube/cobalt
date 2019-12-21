@@ -9,88 +9,82 @@
 #ifndef LIBANGLE_RENDERER_D3D_D3D11_FRAMBUFFER11_H_
 #define LIBANGLE_RENDERER_D3D_D3D11_FRAMBUFFER11_H_
 
-#include "libANGLE/Observer.h"
-#include "libANGLE/renderer/RenderTargetCache.h"
 #include "libANGLE/renderer/d3d/FramebufferD3D.h"
 #include "libANGLE/renderer/d3d/d3d11/renderer11_utils.h"
+#include "libANGLE/signal_utils.h"
 
 namespace rx
 {
 class Renderer11;
 
-class Framebuffer11 : public FramebufferD3D
+class Framebuffer11 : public FramebufferD3D, public OnRenderTargetDirtyReceiver
 {
   public:
     Framebuffer11(const gl::FramebufferState &data, Renderer11 *renderer);
-    ~Framebuffer11() override;
+    virtual ~Framebuffer11();
 
-    angle::Result discard(const gl::Context *context,
-                          size_t count,
-                          const GLenum *attachments) override;
-    angle::Result invalidate(const gl::Context *context,
-                             size_t count,
-                             const GLenum *attachments) override;
-    angle::Result invalidateSub(const gl::Context *context,
-                                size_t count,
-                                const GLenum *attachments,
-                                const gl::Rectangle &area) override;
+    gl::Error discard(size_t count, const GLenum *attachments) override;
+    gl::Error invalidate(size_t count, const GLenum *attachments) override;
+    gl::Error invalidateSub(size_t count, const GLenum *attachments, const gl::Rectangle &area) override;
 
     // Invalidate the cached swizzles of all bound texture attachments.
-    angle::Result markAttachmentsDirty(const gl::Context *context) const;
+    gl::Error markAttachmentsDirty() const;
 
-    angle::Result syncState(const gl::Context *context,
-                            const gl::Framebuffer::DirtyBits &dirtyBits) override;
+    void syncState(ContextImpl *contextImpl, const gl::Framebuffer::DirtyBits &dirtyBits) override;
 
-    const gl::AttachmentArray<RenderTarget11 *> &getCachedColorRenderTargets() const
+    const RenderTargetArray &getCachedColorRenderTargets() const
     {
-        return mRenderTargetCache.getColors();
+        return mCachedColorRenderTargets;
     }
     const RenderTarget11 *getCachedDepthStencilRenderTarget() const
     {
-        return mRenderTargetCache.getDepthStencil();
+        return mCachedDepthStencilRenderTarget;
     }
 
-    RenderTarget11 *getFirstRenderTarget() const;
+    bool hasAnyInternalDirtyBit() const;
+    void syncInternalState(ContextImpl *contextImpl);
 
-    angle::Result getSamplePosition(const gl::Context *context,
-                                    size_t index,
-                                    GLfloat *xy) const override;
+    void signal(size_t channelID) override;
+
+    gl::Error getSamplePosition(size_t index, GLfloat *xy) const override;
 
   private:
-    angle::Result clearImpl(const gl::Context *context,
-                            const ClearParameters &clearParams) override;
+    gl::Error clearImpl(ContextImpl *context, const ClearParameters &clearParams) override;
 
-    angle::Result readPixelsImpl(const gl::Context *context,
-                                 const gl::Rectangle &area,
-                                 GLenum format,
-                                 GLenum type,
-                                 size_t outputPitch,
-                                 const gl::PixelPackState &pack,
-                                 uint8_t *pixels) override;
+    gl::Error readPixelsImpl(const gl::Rectangle &area,
+                             GLenum format,
+                             GLenum type,
+                             size_t outputPitch,
+                             const gl::PixelPackState &pack,
+                             uint8_t *pixels) const override;
 
-    angle::Result blitImpl(const gl::Context *context,
-                           const gl::Rectangle &sourceArea,
-                           const gl::Rectangle &destArea,
-                           const gl::Rectangle *scissor,
-                           bool blitRenderTarget,
-                           bool blitDepth,
-                           bool blitStencil,
-                           GLenum filter,
-                           const gl::Framebuffer *sourceFramebuffer) override;
+    gl::Error blitImpl(const gl::Rectangle &sourceArea,
+                       const gl::Rectangle &destArea,
+                       const gl::Rectangle *scissor,
+                       bool blitRenderTarget,
+                       bool blitDepth,
+                       bool blitStencil,
+                       GLenum filter,
+                       const gl::Framebuffer *sourceFramebuffer) override;
 
-    angle::Result invalidateBase(const gl::Context *context,
-                                 size_t count,
-                                 const GLenum *attachments,
-                                 bool useEXTBehavior) const;
-    angle::Result invalidateAttachment(const gl::Context *context,
-                                       const gl::FramebufferAttachment *attachment) const;
+    gl::Error invalidateBase(size_t count, const GLenum *attachments, bool useEXTBehavior) const;
+    gl::Error invalidateAttachment(const gl::FramebufferAttachment *attachment) const;
 
     GLenum getRenderTargetImplementationFormat(RenderTargetD3D *renderTarget) const override;
 
+    void updateColorRenderTarget(size_t colorIndex);
+    void updateDepthStencilRenderTarget();
+
     Renderer11 *const mRenderer;
-    RenderTargetCache<RenderTarget11> mRenderTargetCache;
+    RenderTargetArray mCachedColorRenderTargets;
+    RenderTarget11 *mCachedDepthStencilRenderTarget;
+
+    std::vector<OnRenderTargetDirtyBinding> mColorRenderTargetsDirty;
+    OnRenderTargetDirtyBinding mDepthStencilRenderTargetDirty;
+
+    gl::Framebuffer::DirtyBits mInternalDirtyBits;
 };
 
-}  // namespace rx
+}
 
-#endif  // LIBANGLE_RENDERER_D3D_D3D11_FRAMBUFFER11_H_
+#endif // LIBANGLE_RENDERER_D3D_D3D11_FRAMBUFFER11_H_
