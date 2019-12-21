@@ -1,35 +1,39 @@
 //
-// Copyright 2016 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 
 // OzoneWindow.cpp: Implementation of OSWindow for Ozone
 
-#include "util/ozone/OzoneWindow.h"
+#include "ozone/OzoneWindow.h"
 
 int OzoneWindow::sLastDepth = 0;
 
-OzoneWindow::OzoneWindow() {}
+OzoneWindow::OzoneWindow()
+{
+}
 
-OzoneWindow::~OzoneWindow() {}
+OzoneWindow::~OzoneWindow()
+{
+}
 
-bool OzoneWindow::initialize(const std::string &name, int width, int height)
+bool OzoneWindow::initialize(const std::string &name, size_t width, size_t height)
 {
     mNative.x = mX = 0;
     mNative.y = mY = 0;
     mNative.width = mWidth = width;
     mNative.height = mHeight = height;
-    mNative.borderWidth      = 5;
-    mNative.borderHeight     = 5;
-    mNative.visible          = 0;
-    mNative.depth            = sLastDepth++;
+    mNative.borderWidth  = 5;
+    mNative.borderHeight = 5;
+    mNative.visible      = 0;
+    mNative.depth        = sLastDepth++;
     return true;
 }
 
-void OzoneWindow::destroy() {}
-
-void OzoneWindow::resetNativeWindow() {}
+void OzoneWindow::destroy()
+{
+}
 
 EGLNativeWindowType OzoneWindow::getNativeWindow() const
 {
@@ -41,9 +45,13 @@ EGLNativeDisplayType OzoneWindow::getNativeDisplay() const
     return EGL_DEFAULT_DISPLAY;
 }
 
-void OzoneWindow::messageLoop() {}
+void OzoneWindow::messageLoop()
+{
+}
 
-void OzoneWindow::setMousePosition(int x, int y) {}
+void OzoneWindow::setMousePosition(int x, int y)
+{
+}
 
 bool OzoneWindow::setPosition(int x, int y)
 {
@@ -64,10 +72,11 @@ void OzoneWindow::setVisible(bool isVisible)
     mNative.visible = isVisible;
 }
 
-void OzoneWindow::signalTestEvent() {}
+void OzoneWindow::signalTestEvent()
+{
+}
 
-// static
-OSWindow *OSWindow::New()
+OSWindow *CreateOSWindow()
 {
     return new OzoneWindow();
 }

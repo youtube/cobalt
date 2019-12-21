@@ -85,11 +85,7 @@ ShShaderOutput GetShaderOutputType(const FunctionsGL *functions)
 
 CompilerGL::CompilerGL(const FunctionsGL *functions)
     : mTranslatorOutputType(GetShaderOutputType(functions))
-{}
-
-ShShaderOutput CompilerGL::getTranslatorOutputType() const
 {
-    return mTranslatorOutputType;
 }
 
 }  // namespace rx

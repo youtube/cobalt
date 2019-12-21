@@ -1,5 +1,5 @@
 //
-// Copyright 2016 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -13,9 +13,7 @@
 #include <vector>
 
 #include "common/mathutil.h"
-#include "compiler/translator/tree_util/FindMain.h"
-#include "compiler/translator/tree_util/FindSymbolNode.h"
-#include "compiler/translator/tree_util/IntermTraverse.h"
+#include "compiler/translator/IntermNode.h"
 #include "tests/test_utils/ShaderCompileTreeTest.h"
 
 namespace sh
@@ -32,14 +30,16 @@ class ConstantFinder : public TIntermTraverser
           mConstantVector(constantVector),
           mFaultTolerance(T()),
           mFound(false)
-    {}
+    {
+    }
 
     ConstantFinder(const std::vector<T> &constantVector, const T &faultTolerance)
         : TIntermTraverser(true, false, false),
           mConstantVector(constantVector),
           mFaultTolerance(faultTolerance),
           mFound(false)
-    {}
+    {
+    }
 
     ConstantFinder(const T &value)
         : TIntermTraverser(true, false, false), mFaultTolerance(T()), mFound(false)
@@ -54,7 +54,7 @@ class ConstantFinder : public TIntermTraverser
             bool found = true;
             for (size_t i = 0; i < mConstantVector.size(); i++)
             {
-                if (!isEqual(node->getConstantValue()[i], mConstantVector[i]))
+                if (!isEqual(node->getUnionArrayPointer()[i], mConstantVector[i]))
                 {
                     found = false;
                     break;
@@ -168,16 +168,6 @@ class ConstantFoldingTest : public ShaderCompileTreeTest
         ConstantFinder<T> finder(constantVector, faultTolerance);
         mASTRoot->traverse(&finder);
         return finder.found();
-    }
-
-    bool symbolFoundInAST(const char *symbolName)
-    {
-        return FindSymbolNode(mASTRoot, ImmutableString(symbolName)) != nullptr;
-    }
-
-    bool symbolFoundInMain(const char *symbolName)
-    {
-        return FindSymbolNode(FindMain(mASTRoot), ImmutableString(symbolName)) != nullptr;
     }
 };
 

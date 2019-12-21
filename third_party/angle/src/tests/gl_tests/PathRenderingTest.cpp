@@ -8,13 +8,13 @@
 //   This extension allows to render geometric paths as first class GL objects.
 
 #include "test_utils/ANGLETest.h"
+#include "shader_utils.h"
 
 #include "common/angleutils.h"
-#include "util/shader_utils.h"
 
 #include <cmath>
-#include <cstddef>
 #include <cstring>
+#include <cstddef>
 #include <fstream>
 
 using namespace angle;
@@ -75,7 +75,7 @@ class CHROMIUMPathRenderingTest : public ANGLETest
         setConfigStencilBits(8);
     }
 
-    bool isApplicable() const { return IsGLExtensionEnabled("GL_CHROMIUM_path_rendering"); }
+    bool isApplicable() const { return extensionEnabled("GL_CHROMIUM_path_rendering"); }
 
     void tryAllDrawFunctions(GLuint path, GLenum err)
     {
@@ -205,7 +205,7 @@ TEST_P(CHROMIUMPathRenderingTest, TestGenDelete)
     ASSERT_GL_NO_ERROR();
 
     GLsizei big_range = 0xffff;
-    first_path        = glGenPathsCHROMIUM(big_range);
+    first_path = glGenPathsCHROMIUM(big_range);
     EXPECT_NE(0u, first_path);
     glDeletePathsCHROMIUM(first_path, big_range);
     ASSERT_GL_NO_ERROR();
@@ -218,7 +218,7 @@ TEST_P(CHROMIUMPathRenderingTest, TestGenDelete)
 
     // specify the data.
     GLubyte commands[] = {GL_MOVE_TO_CHROMIUM, GL_CLOSE_PATH_CHROMIUM};
-    GLfloat coords[]   = {50.0f, 50.0f};
+    GLfloat coords[] = {50.0f, 50.0f};
     glPathCommandsCHROMIUM(path, 2, commands, 2, GL_FLOAT, coords);
     ASSERT_TRUE(glIsPathCHROMIUM(path) == GL_TRUE);
     glDeletePathsCHROMIUM(path, 1);
@@ -259,10 +259,10 @@ TEST_P(CHROMIUMPathRenderingTest, TestPathParameter)
 
     // specify the data.
     GLubyte commands[] = {GL_MOVE_TO_CHROMIUM, GL_CLOSE_PATH_CHROMIUM};
-    GLfloat coords[]   = {50.0f, 50.0f};
+    GLfloat coords[] = {50.0f, 50.0f};
     glPathCommandsCHROMIUM(path, 2, commands, 2, GL_FLOAT, coords);
     ASSERT_GL_NO_ERROR();
-    EXPECT_GL_TRUE(glIsPathCHROMIUM(path));
+    EXPECT_TRUE(glIsPathCHROMIUM(path) == GL_TRUE);
 
     static const GLenum kEndCaps[] = {GL_FLAT_CHROMIUM, GL_SQUARE_CHROMIUM, GL_ROUND_CHROMIUM};
     for (std::size_t i = 0; i < 3; ++i)
@@ -360,7 +360,7 @@ TEST_P(CHROMIUMPathRenderingTest, TestPathObjectState)
     GLuint non_existing_paths[] = {0, 55, 74744};
     for (auto &p : non_existing_paths)
     {
-        EXPECT_GL_FALSE(glIsPathCHROMIUM(p));
+        EXPECT_TRUE(glIsPathCHROMIUM(p) == GL_FALSE);
         ASSERT_GL_NO_ERROR();
         tryAllDrawFunctions(p, GL_NO_ERROR);
     }
@@ -368,7 +368,7 @@ TEST_P(CHROMIUMPathRenderingTest, TestPathObjectState)
     // Path name marked as used but without path object state causes
     // a GL error upon any draw command.
     GLuint path = glGenPathsCHROMIUM(1);
-    EXPECT_GL_FALSE(glIsPathCHROMIUM(path));
+    EXPECT_TRUE(glIsPathCHROMIUM(path) == GL_FALSE);
     tryAllDrawFunctions(path, GL_INVALID_OPERATION);
     glDeletePathsCHROMIUM(path, 1);
 
@@ -377,15 +377,15 @@ TEST_P(CHROMIUMPathRenderingTest, TestPathObjectState)
     // Path name that had path object state, but then was "cleared", still has a
     // path object state, even though the state is empty.
     path = glGenPathsCHROMIUM(1);
-    EXPECT_GL_FALSE(glIsPathCHROMIUM(path));
+    EXPECT_TRUE(glIsPathCHROMIUM(path) == GL_FALSE);
 
     GLubyte commands[] = {GL_MOVE_TO_CHROMIUM, GL_CLOSE_PATH_CHROMIUM};
-    GLfloat coords[]   = {50.0f, 50.0f};
+    GLfloat coords[] = {50.0f, 50.0f};
     glPathCommandsCHROMIUM(path, 2, commands, 2, GL_FLOAT, coords);
-    EXPECT_GL_TRUE(glIsPathCHROMIUM(path));
+    EXPECT_TRUE(glIsPathCHROMIUM(path) == GL_TRUE);
 
     glPathCommandsCHROMIUM(path, 0, nullptr, 0, GL_FLOAT, nullptr);
-    EXPECT_GL_TRUE(glIsPathCHROMIUM(path));  // The surprise.
+    EXPECT_TRUE(glIsPathCHROMIUM(path) == GL_TRUE);  // The surprise.
 
     tryAllDrawFunctions(path, GL_NO_ERROR);
     glDeletePathsCHROMIUM(path, 1);
@@ -407,7 +407,7 @@ TEST_P(CHROMIUMPathRenderingTest, TestUnnamedPathsErrors)
     // produces error.  (Not a error in real NV_path_rendering).
     ASSERT_GL_NO_ERROR();
     GLubyte commands[] = {GL_MOVE_TO_CHROMIUM, GL_CLOSE_PATH_CHROMIUM};
-    GLfloat coords[]   = {50.0f, 50.0f};
+    GLfloat coords[] = {50.0f, 50.0f};
     glPathCommandsCHROMIUM(555, 2, commands, 2, GL_FLOAT, coords);
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 
@@ -700,7 +700,7 @@ class CHROMIUMPathRenderingDrawTest : public ANGLETest
         setConfigStencilBits(8);
     }
 
-    bool isApplicable() const { return IsGLExtensionEnabled("GL_CHROMIUM_path_rendering"); }
+    bool isApplicable() const { return extensionEnabled("GL_CHROMIUM_path_rendering"); }
 
     void setupStateForTestPattern()
     {
@@ -711,12 +711,12 @@ class CHROMIUMPathRenderingDrawTest : public ANGLETest
         glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         glEnable(GL_STENCIL_TEST);
 
-        constexpr char kVertexShaderSource[] =
+        static const char *kVertexShaderSource =
             "void main() {\n"
             "  gl_Position = vec4(1.0); \n"
             "}";
 
-        constexpr char kFragmentShaderSource[] =
+        static const char *kFragmentShaderSource =
             "precision mediump float;\n"
             "uniform vec4 color;\n"
             "void main() {\n"
@@ -1031,6 +1031,7 @@ TEST_P(CHROMIUMPathRenderingDrawTest, TestPathRenderingThenFunctionsInstanced)
     verifyTestPatternStroke(kShapeSize, kShapeSize);
 }
 
+
 // This class implements a test that draws a grid of v-shapes. The grid is
 // drawn so that even rows (from the bottom) are drawn with DrawArrays and odd
 // rows are drawn with path rendering.  It can be used to test various texturing
@@ -1053,15 +1054,24 @@ class CHROMIUMPathRenderingWithTexturingTest : public ANGLETest
         setConfigStencilBits(8);
     }
 
-    bool isApplicable() const { return IsGLExtensionEnabled("GL_CHROMIUM_path_rendering"); }
+    bool isApplicable() const { return extensionEnabled("GL_CHROMIUM_path_rendering"); }
 
-    void testTearDown() override
+    void TearDown() override
     {
         if (mProgram)
         {
             glDeleteProgram(mProgram);
             ASSERT_GL_NO_ERROR();
         }
+
+        ANGLETest::TearDown();
+    }
+
+    void SetUp() override
+    {
+        ANGLETest::SetUp();
+        mBindUniformLocation = reinterpret_cast<PFNGLBINDUNIFORMLOCATIONCHROMIUMPROC>(
+            eglGetProcAddress("glBindUniformLocationCHROMIUM"));
     }
 
     // Sets up the GL program state for the test.
@@ -1076,7 +1086,7 @@ class CHROMIUMPathRenderingWithTexturingTest : public ANGLETest
     //  varying vec4 color;
     //
     //  (? can be anything)
-    void CompileProgram(const char *vertexShaderSource, const char *fragmentShaderSource)
+    void compileProgram(const char *vertexShaderSource, const char *fragmentShaderSource)
     {
         glViewport(0, 0, kResolution, kResolution);
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -1088,8 +1098,8 @@ class CHROMIUMPathRenderingWithTexturingTest : public ANGLETest
 
         ASSERT_GL_NO_ERROR();
 
-        GLuint vShader = CompileShader(GL_VERTEX_SHADER, vertexShaderSource);
-        GLuint fShader = CompileShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
+        GLuint vShader = compileShader(GL_VERTEX_SHADER, vertexShaderSource);
+        GLuint fShader = compileShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
         ASSERT_NE(0u, vShader);
         ASSERT_NE(0u, fShader);
 
@@ -1106,9 +1116,9 @@ class CHROMIUMPathRenderingWithTexturingTest : public ANGLETest
     void bindProgram()
     {
         glBindAttribLocation(mProgram, kPositionLocation, "position");
-        glBindUniformLocationCHROMIUM(mProgram, kViewMatrixLocation, "view_matrix");
-        glBindUniformLocationCHROMIUM(mProgram, kColorMatrixLocation, "color_matrix");
-        glBindUniformLocationCHROMIUM(mProgram, kModelTranslateLocation, "model_translate");
+        mBindUniformLocation(mProgram, kViewMatrixLocation, "view_matrix");
+        mBindUniformLocation(mProgram, kColorMatrixLocation, "color_matrix");
+        mBindUniformLocation(mProgram, kModelTranslateLocation, "model_translate");
         glBindFragmentInputLocationCHROMIUM(mProgram, kColorFragmentInputLocation, "color");
 
         ASSERT_GL_NO_ERROR();
@@ -1158,7 +1168,7 @@ class CHROMIUMPathRenderingWithTexturingTest : public ANGLETest
 
         GLuint path = glGenPathsCHROMIUM(1);
         glPathCommandsCHROMIUM(path, static_cast<GLsizei>(ArraySize(kCommands)), kCommands,
-                               static_cast<GLsizei>(ArraySize(kCoords)), GL_FLOAT, kCoords);
+            static_cast<GLsizei>(ArraySize(kCoords)), GL_FLOAT, kCoords);
         ASSERT_GL_NO_ERROR();
 
         GLfloat path_model_translate[16] = {
@@ -1207,6 +1217,11 @@ class CHROMIUMPathRenderingWithTexturingTest : public ANGLETest
         kTestColumns = kResolution / kShapeWidth,
     };
 
+    typedef void(GL_APIENTRYP PFNGLBINDUNIFORMLOCATIONCHROMIUMPROC)(GLuint mProgram,
+                                                                    GLint location,
+                                                                    const GLchar *name);
+    PFNGLBINDUNIFORMLOCATIONCHROMIUMPROC mBindUniformLocation = nullptr;
+
     GLuint mProgram;
 
     // This uniform be can set by the test. It should be used to set the color for
@@ -1252,7 +1267,7 @@ TEST_P(CHROMIUMPathRenderingWithTexturingTest, TestBindFragmentInputLocation)
         "}\n";
 
     // clang-format on
-    CompileProgram(kVertexShaderSource, kFragmentShaderSource);
+    compileProgram(kVertexShaderSource, kFragmentShaderSource);
 
     enum kBindLocations
     {
@@ -1323,45 +1338,27 @@ TEST_P(CHROMIUMPathRenderingWithTexturingTest, TestProgramPathFragmentInputGenCH
         "}\n";
     // clang-format on
 
-    CompileProgram(kVertexShaderSource, kFragmentShaderSource);
+    compileProgram(kVertexShaderSource, kFragmentShaderSource);
     bindProgram();
     ASSERT_TRUE(linkProgram() == true);
 
     glUniformMatrix4fv(kViewMatrixLocation, 1, GL_FALSE, kProjectionMatrix);
 
-    static const GLfloat kColorMatrix[16] = {1.0f / kResolution,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             1.0f / kResolution,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f};
+    static const GLfloat kColorMatrix[16] = {
+        1.0f / kResolution, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f / kResolution, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 0.0f};
 
     glUniformMatrix4fv(kColorMatrixLocation, 1, GL_FALSE, kColorMatrix);
 
     // This is the functionality we are testing: ProgramPathFragmentInputGen
     // does the same work as the color transform in vertex shader.
-    static const GLfloat kColorCoefficients[12] = {1.0f / kResolution,
-                                                   0.0f,
-                                                   0.0f,
-                                                   0.0f,
-                                                   0.0f,
-                                                   1.0f / kResolution,
-                                                   0.0f,
-                                                   0.0f,
-                                                   0.0f,
-                                                   0.0f,
-                                                   0.0f,
-                                                   0.0f};
+    static const GLfloat kColorCoefficients[12] = {
+        1.0f / kResolution, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f / kResolution,
+        0.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f};
     glProgramPathFragmentInputGenCHROMIUM(mProgram, kColorFragmentInputLocation,
                                           GL_EYE_LINEAR_CHROMIUM, 3, kColorCoefficients);
     ASSERT_GL_NO_ERROR();
@@ -1420,28 +1417,17 @@ TEST_P(CHROMIUMPathRenderingWithTexturingTest, TestProgramPathFragmentInputGenCH
         "}";
     // clang-format on
 
-    CompileProgram(kVertexShaderSource, kFragmentShaderSource);
+    compileProgram(kVertexShaderSource, kFragmentShaderSource);
     bindProgram();
     ASSERT_TRUE(linkProgram() == true);
 
     glUniformMatrix4fv(kViewMatrixLocation, 1, GL_FALSE, kProjectionMatrix);
 
-    static const GLfloat kColorMatrix[16] = {1.0f / kShapeWidth,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             1.0f / kShapeHeight,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f};
+    static const GLfloat kColorMatrix[16] = {
+        1.0f / kShapeWidth, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f / kShapeHeight, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 0.0f };
     glUniformMatrix4fv(kColorMatrixLocation, 1, GL_FALSE, kColorMatrix);
 
     // This is the functionality we are testing: ProgramPathFragmentInputGen
@@ -1550,7 +1536,7 @@ TEST_P(CHROMIUMPathRenderingWithTexturingTest, TestProgramPathFragmentInputGenAr
         {kMat4Location, "mat4_var", -1},
     };
 
-    CompileProgram(kVertexShaderSource, kFragmentShaderSource);
+    compileProgram(kVertexShaderSource, kFragmentShaderSource);
 
     for (size_t i = 0; i < ArraySize(variables); ++i)
     {
@@ -1566,7 +1552,7 @@ TEST_P(CHROMIUMPathRenderingWithTexturingTest, TestProgramPathFragmentInputGenAr
 
     const GLfloat kCoefficients16[] = {1.0f, 2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,
                                        9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f};
-    const GLenum kGenModes[]        = {GL_NONE, GL_EYE_LINEAR_CHROMIUM, GL_OBJECT_LINEAR_CHROMIUM,
+    const GLenum kGenModes[] = {GL_NONE, GL_EYE_LINEAR_CHROMIUM, GL_OBJECT_LINEAR_CHROMIUM,
                                 GL_CONSTANT_CHROMIUM};
 
     for (size_t variable = 0; variable < ArraySize(variables); ++variable)
@@ -1648,7 +1634,7 @@ TEST_P(CHROMIUMPathRenderingWithTexturingTest, TestProgramPathFragmentInputGenAr
     glDeleteProgram(mProgram);
 
     // Test that using invalid (deleted) program is an invalid operation.
-    EXPECT_GL_TRUE(glIsProgram(mProgram));
+    EXPECT_FALSE(glIsProgram(mProgram) == GL_FALSE);
 
     glProgramPathFragmentInputGenCHROMIUM(mProgram, -1, kValidGenMode, kValidComponents,
                                           kCoefficients16);
@@ -1699,7 +1685,7 @@ TEST_P(CHROMIUMPathRenderingWithTexturingTest, TestConflictingBind)
     const GLint kColorALocation = 3;
     const GLint kColorBLocation = 4;
 
-    CompileProgram(kVertexShaderSource, kFragmentShaderSource);
+    compileProgram(kVertexShaderSource, kFragmentShaderSource);
 
     glBindFragmentInputLocationCHROMIUM(mProgram, kColorALocation, "colorA");
     // Bind colorB to location a, causing conflicts. Linking should fail.
@@ -1731,7 +1717,7 @@ TEST_P(CHROMIUMPathRenderingWithTexturingTest, BindFragmentInputArray)
         return;
 
     //clang-format off
-    const char *kVertexShaderSource =
+    const char* kVertexShaderSource =
         "uniform mat4 view_matrix;\n"
         "uniform mat4 color_matrix;\n"
         "uniform vec2 model_translate;\n"
@@ -1748,7 +1734,7 @@ TEST_P(CHROMIUMPathRenderingWithTexturingTest, BindFragmentInputArray)
         "  color = vec4(10.0);\n"
         "}";
 
-    const char *kFragmentShaderSource =
+    const char* kFragmentShaderSource =
         "precision mediump float;\n"
         "varying vec4 color;\n"
         "varying vec4 colorA[4];\n"
@@ -1765,7 +1751,7 @@ TEST_P(CHROMIUMPathRenderingWithTexturingTest, BindFragmentInputArray)
 
     for (int pass = 0; pass < 2; ++pass)
     {
-        CompileProgram(kVertexShaderSource, kFragmentShaderSource);
+        compileProgram(kVertexShaderSource, kFragmentShaderSource);
         if (pass == 0)
         {
             glBindFragmentInputLocationCHROMIUM(mProgram, kUnusedLocation, "colorA[0]");
@@ -1782,10 +1768,8 @@ TEST_P(CHROMIUMPathRenderingWithTexturingTest, BindFragmentInputArray)
         ASSERT_TRUE(linkProgram() == true);
 
         glUniformMatrix4fv(kViewMatrixLocation, 1, GL_FALSE, kProjectionMatrix);
-        glProgramPathFragmentInputGenCHROMIUM(mProgram, kColorA0Location, GL_CONSTANT_CHROMIUM, 4,
-                                              kColorA0);
-        glProgramPathFragmentInputGenCHROMIUM(mProgram, kColorFragmentInputLocation,
-                                              GL_CONSTANT_CHROMIUM, 4, kColor);
+        glProgramPathFragmentInputGenCHROMIUM(mProgram, kColorA0Location, GL_CONSTANT_CHROMIUM, 4, kColorA0);
+        glProgramPathFragmentInputGenCHROMIUM(mProgram, kColorFragmentInputLocation, GL_CONSTANT_CHROMIUM, 4, kColor);
         ASSERT_GL_NO_ERROR();
 
         drawTestPattern();
@@ -1817,7 +1801,8 @@ TEST_P(CHROMIUMPathRenderingWithTexturingTest, BindFragmentInputArray)
 // Test binding array variables. This is like BindFragmentInputArray.
 // Currently disabled since it seems there's a driver bug with the
 // older drivers. This should work with driver >= 364.12
-TEST_P(CHROMIUMPathRenderingWithTexturingTest, DISABLED_BindFragmentInputArrayNonZeroIndex)
+TEST_P(CHROMIUMPathRenderingWithTexturingTest,
+    DISABLED_BindFragmentInputArrayNonZeroIndex)
 {
     if (!isApplicable())
         return;
@@ -1854,15 +1839,15 @@ TEST_P(CHROMIUMPathRenderingWithTexturingTest, DISABLED_BindFragmentInputArrayNo
     const GLint kColorA1Location = 1;
     const GLint kColorA2Location = 2;
     const GLint kColorA3Location = 3;
-    const GLint kUnusedLocation  = 5;
-    const GLfloat kColorA0[]     = {0.0f, 0.1f, 0.0f, 0.1f};
-    const GLfloat kColorA1[]     = {0.0f, 1.0f, 0.0f, 1.0f};
-    const GLfloat kColorA2[]     = {0.0f, 0.8f, 0.0f, 0.8f};
-    const GLfloat kColorA3[]     = {0.0f, 0.5f, 0.0f, 0.5f};
-    const GLfloat kColor[]       = {0.2f, 0.2f, 0.2f, 0.2f};
+    const GLint kUnusedLocation = 5;
+    const GLfloat kColorA0[] = {0.0f, 0.1f, 0.0f, 0.1f};
+    const GLfloat kColorA1[] = {0.0f, 1.0f, 0.0f, 1.0f};
+    const GLfloat kColorA2[] = {0.0f, 0.8f, 0.0f, 0.8f};
+    const GLfloat kColorA3[] = {0.0f, 0.5f, 0.0f, 0.5f};
+    const GLfloat kColor[] = {0.2f, 0.2f, 0.2f, 0.2f};
     const GLfloat kFillCoords[6] = {59.0f, 50.0f, 50.0f, 28.0f, 66.0f, 63.0f};
 
-    CompileProgram(kVertexShaderSource, kFragmentShaderSource);
+    compileProgram(kVertexShaderSource, kFragmentShaderSource);
 
     glBindFragmentInputLocationCHROMIUM(mProgram, kUnusedLocation, "colorA[0]");
     glBindFragmentInputLocationCHROMIUM(mProgram, kColorA1Location, "colorA[1]");
@@ -1876,16 +1861,12 @@ TEST_P(CHROMIUMPathRenderingWithTexturingTest, DISABLED_BindFragmentInputArrayNo
 
     glUniformMatrix4fv(kViewMatrixLocation, 1, GL_FALSE, kProjectionMatrix);
 
-    glProgramPathFragmentInputGenCHROMIUM(mProgram, kColorA0Location, GL_CONSTANT_CHROMIUM, 4,
-                                          kColorA0);
-    glProgramPathFragmentInputGenCHROMIUM(mProgram, kColorA1Location, GL_CONSTANT_CHROMIUM, 4,
-                                          kColorA1);
-    glProgramPathFragmentInputGenCHROMIUM(mProgram, kColorA2Location, GL_CONSTANT_CHROMIUM, 4,
-                                          kColorA2);
-    glProgramPathFragmentInputGenCHROMIUM(mProgram, kColorA3Location, GL_CONSTANT_CHROMIUM, 4,
-                                          kColorA3);
+    glProgramPathFragmentInputGenCHROMIUM(mProgram, kColorA0Location, GL_CONSTANT_CHROMIUM, 4, kColorA0);
+    glProgramPathFragmentInputGenCHROMIUM(mProgram, kColorA1Location, GL_CONSTANT_CHROMIUM, 4, kColorA1);
+    glProgramPathFragmentInputGenCHROMIUM(mProgram, kColorA2Location, GL_CONSTANT_CHROMIUM, 4, kColorA2);
+    glProgramPathFragmentInputGenCHROMIUM(mProgram, kColorA3Location, GL_CONSTANT_CHROMIUM, 4, kColorA3);
     glProgramPathFragmentInputGenCHROMIUM(mProgram, kColorFragmentInputLocation,
-                                          GL_CONSTANT_CHROMIUM, 4, kColor);
+        GL_CONSTANT_CHROMIUM, 4, kColor);
     ASSERT_GL_NO_ERROR();
 
     drawTestPattern();
@@ -1918,7 +1899,7 @@ TEST_P(CHROMIUMPathRenderingWithTexturingTest, UnusedFragmentInputUpdate)
     if (!isApplicable())
         return;
 
-    // clang-format off
+  // clang-format off
     const char* kVertexShaderString =
         "attribute vec4 a_position;\n"
         "void main() {\n"
@@ -1935,11 +1916,11 @@ TEST_P(CHROMIUMPathRenderingWithTexturingTest, UnusedFragmentInputUpdate)
         "}";
     // clang-format on
 
-    const GLint kColorULocation      = 1;
+    const GLint kColorULocation = 1;
     const GLint kNonexistingLocation = 5;
-    const GLint kUnboundLocation     = 6;
+    const GLint kUnboundLocation = 6;
 
-    CompileProgram(kVertexShaderString, kFragmentShaderString);
+    compileProgram(kVertexShaderString, kFragmentShaderString);
 
     glBindFragmentInputLocationCHROMIUM(mProgram, kColorULocation, "u_colorU");
 
@@ -1953,15 +1934,13 @@ TEST_P(CHROMIUMPathRenderingWithTexturingTest, UnusedFragmentInputUpdate)
 
     // No errors on bound locations, since caller does not know
     // if the driver optimizes them away or not.
-    glProgramPathFragmentInputGenCHROMIUM(mProgram, kColorULocation, GL_CONSTANT_CHROMIUM, 1,
-                                          kColor);
+    glProgramPathFragmentInputGenCHROMIUM(mProgram, kColorULocation, GL_CONSTANT_CHROMIUM, 1, kColor);
     ASSERT_GL_NO_ERROR();
 
     // No errors on bound locations of names that do not exist
     // in the shader. Otherwise it would be inconsistent wrt the
     // optimization case.
-    glProgramPathFragmentInputGenCHROMIUM(mProgram, kNonexistingLocation, GL_CONSTANT_CHROMIUM, 1,
-                                          kColor);
+    glProgramPathFragmentInputGenCHROMIUM(mProgram, kNonexistingLocation, GL_CONSTANT_CHROMIUM, 1, kColor);
     ASSERT_GL_NO_ERROR();
 
     // The above are equal to updating -1.
@@ -1970,25 +1949,36 @@ TEST_P(CHROMIUMPathRenderingWithTexturingTest, UnusedFragmentInputUpdate)
 
     // No errors when updating with other type either.
     // The type can not be known with the non-existing case.
-    glProgramPathFragmentInputGenCHROMIUM(mProgram, kColorULocation, GL_CONSTANT_CHROMIUM, 4,
-                                          kColor);
+    glProgramPathFragmentInputGenCHROMIUM(mProgram, kColorULocation, GL_CONSTANT_CHROMIUM, 4, kColor);
     ASSERT_GL_NO_ERROR();
 
-    glProgramPathFragmentInputGenCHROMIUM(mProgram, kNonexistingLocation, GL_CONSTANT_CHROMIUM, 4,
-                                          kColor);
+    glProgramPathFragmentInputGenCHROMIUM(mProgram, kNonexistingLocation, GL_CONSTANT_CHROMIUM, 4, kColor);
     ASSERT_GL_NO_ERROR();
 
     glProgramPathFragmentInputGenCHROMIUM(mProgram, -1, GL_CONSTANT_CHROMIUM, 4, kColor);
     ASSERT_GL_NO_ERROR();
 
     // Updating an unbound, non-existing location still causes an error.
-    glProgramPathFragmentInputGenCHROMIUM(mProgram, kUnboundLocation, GL_CONSTANT_CHROMIUM, 4,
-                                          kColor);
+    glProgramPathFragmentInputGenCHROMIUM(mProgram, kUnboundLocation, GL_CONSTANT_CHROMIUM, 4, kColor);
     ASSERT_GL_ERROR(GL_INVALID_OPERATION);
 }
 
+
 }  // namespace
 
-ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(CHROMIUMPathRenderingTest);
-ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(CHROMIUMPathRenderingDrawTest);
-ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(CHROMIUMPathRenderingWithTexturingTest);
+ANGLE_INSTANTIATE_TEST(CHROMIUMPathRenderingTest,
+                       ES2_OPENGL(),
+                       ES2_OPENGLES(),
+                       ES3_OPENGL(),
+                       ES3_OPENGLES());
+ANGLE_INSTANTIATE_TEST(CHROMIUMPathRenderingDrawTest,
+                       ES2_OPENGL(),
+                       ES2_OPENGLES(),
+                       ES3_OPENGL(),
+                       ES3_OPENGLES());
+
+ANGLE_INSTANTIATE_TEST(CHROMIUMPathRenderingWithTexturingTest,
+                       ES2_OPENGL(),
+                       ES2_OPENGLES(),
+                       ES3_OPENGL(),
+                       ES3_OPENGLES());

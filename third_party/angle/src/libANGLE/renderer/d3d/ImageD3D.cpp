@@ -1,5 +1,5 @@
 //
-// Copyright 2002 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2002-2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,6 +10,11 @@
 
 #include "libANGLE/renderer/d3d/ImageD3D.h"
 
+#include "libANGLE/Framebuffer.h"
+#include "libANGLE/FramebufferAttachment.h"
+#include "libANGLE/renderer/d3d/FramebufferD3D.h"
+#include "libANGLE/renderer/d3d/RenderTargetD3D.h"
+
 namespace rx
 {
 
@@ -19,38 +24,9 @@ ImageD3D::ImageD3D()
       mDepth(0),
       mInternalFormat(GL_NONE),
       mRenderable(false),
-      mType(gl::TextureType::InvalidEnum),
+      mTarget(GL_NONE),
       mDirty(false)
-{}
-
-angle::Result ImageD3D::setManagedSurface2D(const gl::Context *context,
-                                            TextureStorage *storage,
-                                            int level)
 {
-    return angle::Result::Continue;
-}
-
-angle::Result ImageD3D::setManagedSurfaceCube(const gl::Context *context,
-                                              TextureStorage *storage,
-                                              int face,
-                                              int level)
-{
-    return angle::Result::Continue;
-}
-
-angle::Result ImageD3D::setManagedSurface3D(const gl::Context *context,
-                                            TextureStorage *storage,
-                                            int level)
-{
-    return angle::Result::Continue;
-}
-
-angle::Result ImageD3D::setManagedSurface2DArray(const gl::Context *context,
-                                                 TextureStorage *storage,
-                                                 int layer,
-                                                 int level)
-{
-    return angle::Result::Continue;
 }
 
 }  // namespace rx

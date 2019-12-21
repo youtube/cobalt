@@ -10,233 +10,148 @@
 
 #include "libANGLE/WorkerThread.h"
 
-#if (ANGLE_STD_ASYNC_WORKERS == ANGLE_ENABLED)
-#    include <condition_variable>
-#    include <future>
-#    include <mutex>
-#    include <queue>
-#    include <thread>
-#endif  // (ANGLE_STD_ASYNC_WORKERS == ANGLE_ENABLED)
-
 namespace angle
 {
 
-WaitableEvent::WaitableEvent()  = default;
-WaitableEvent::~WaitableEvent() = default;
-
-void WaitableEventDone::wait() {}
-
-bool WaitableEventDone::isReady()
+namespace priv
 {
-    return true;
-}
-
-WorkerThreadPool::WorkerThreadPool()  = default;
-WorkerThreadPool::~WorkerThreadPool() = default;
-
-class SingleThreadedWaitableEvent final : public WaitableEvent
-{
-  public:
-    SingleThreadedWaitableEvent()           = default;
-    ~SingleThreadedWaitableEvent() override = default;
-
-    void wait() override;
-    bool isReady() override;
-};
-
-void SingleThreadedWaitableEvent::wait() {}
-
-bool SingleThreadedWaitableEvent::isReady()
-{
-    return true;
-}
-
-class SingleThreadedWorkerPool final : public WorkerThreadPool
-{
-  public:
-    std::shared_ptr<WaitableEvent> postWorkerTask(std::shared_ptr<Closure> task) override;
-    void setMaxThreads(size_t maxThreads) override;
-    bool isAsync() override;
-};
-
 // SingleThreadedWorkerPool implementation.
-std::shared_ptr<WaitableEvent> SingleThreadedWorkerPool::postWorkerTask(
-    std::shared_ptr<Closure> task)
+SingleThreadedWorkerPool::SingleThreadedWorkerPool(size_t maxThreads)
+    : WorkerThreadPoolBase(maxThreads)
+{
+}
+
+SingleThreadedWorkerPool::~SingleThreadedWorkerPool()
+{
+}
+
+SingleThreadedWaitableEvent SingleThreadedWorkerPool::postWorkerTaskImpl(Closure *task)
 {
     (*task)();
-    return std::make_shared<SingleThreadedWaitableEvent>();
+    return SingleThreadedWaitableEvent(EventResetPolicy::Automatic, EventInitialState::Signaled);
 }
 
-void SingleThreadedWorkerPool::setMaxThreads(size_t maxThreads) {}
-
-bool SingleThreadedWorkerPool::isAsync()
+// SingleThreadedWaitableEvent implementation.
+SingleThreadedWaitableEvent::SingleThreadedWaitableEvent()
+    : SingleThreadedWaitableEvent(EventResetPolicy::Automatic, EventInitialState::NonSignaled)
 {
-    return false;
+}
+
+SingleThreadedWaitableEvent::SingleThreadedWaitableEvent(EventResetPolicy resetPolicy,
+                                                         EventInitialState initialState)
+    : WaitableEventBase(resetPolicy, initialState)
+{
+}
+
+SingleThreadedWaitableEvent::~SingleThreadedWaitableEvent()
+{
+}
+
+SingleThreadedWaitableEvent::SingleThreadedWaitableEvent(SingleThreadedWaitableEvent &&other)
+    : WaitableEventBase(std::move(other))
+{
+}
+
+SingleThreadedWaitableEvent &SingleThreadedWaitableEvent::operator=(
+    SingleThreadedWaitableEvent &&other)
+{
+    return copyBase(std::move(other));
+}
+
+void SingleThreadedWaitableEvent::resetImpl()
+{
+    mSignaled = false;
+}
+
+void SingleThreadedWaitableEvent::waitImpl()
+{
+}
+
+void SingleThreadedWaitableEvent::signalImpl()
+{
+    mSignaled = true;
 }
 
 #if (ANGLE_STD_ASYNC_WORKERS == ANGLE_ENABLED)
-class AsyncWaitableEvent final : public WaitableEvent
+// AsyncWorkerPool implementation.
+AsyncWorkerPool::AsyncWorkerPool(size_t maxThreads) : WorkerThreadPoolBase(maxThreads)
 {
-  public:
-    AsyncWaitableEvent() : mIsPending(true) {}
-    ~AsyncWaitableEvent() override = default;
+}
 
-    void wait() override;
-    bool isReady() override;
+AsyncWorkerPool::~AsyncWorkerPool()
+{
+}
 
-  private:
-    friend class AsyncWorkerPool;
-    void setFuture(std::future<void> &&future);
+AsyncWaitableEvent AsyncWorkerPool::postWorkerTaskImpl(Closure *task)
+{
+    auto future = std::async(std::launch::async, [task] { (*task)(); });
 
-    // To block wait() when the task is stil in queue to be run.
-    // Also to protect the concurrent accesses from both main thread and
-    // background threads to the member fields.
-    std::mutex mMutex;
+    AsyncWaitableEvent waitable(EventResetPolicy::Automatic, EventInitialState::NonSignaled);
 
-    bool mIsPending;
-    std::condition_variable mCondition;
-    std::future<void> mFuture;
-};
+    waitable.setFuture(std::move(future));
+
+    return waitable;
+}
+
+// AsyncWaitableEvent implementation.
+AsyncWaitableEvent::AsyncWaitableEvent()
+    : AsyncWaitableEvent(EventResetPolicy::Automatic, EventInitialState::NonSignaled)
+{
+}
+
+AsyncWaitableEvent::AsyncWaitableEvent(EventResetPolicy resetPolicy, EventInitialState initialState)
+    : WaitableEventBase(resetPolicy, initialState)
+{
+}
+
+AsyncWaitableEvent::~AsyncWaitableEvent()
+{
+}
+
+AsyncWaitableEvent::AsyncWaitableEvent(AsyncWaitableEvent &&other)
+    : WaitableEventBase(std::move(other)), mFuture(std::move(other.mFuture))
+{
+}
+
+AsyncWaitableEvent &AsyncWaitableEvent::operator=(AsyncWaitableEvent &&other)
+{
+    std::swap(mFuture, other.mFuture);
+    return copyBase(std::move(other));
+}
 
 void AsyncWaitableEvent::setFuture(std::future<void> &&future)
 {
     mFuture = std::move(future);
 }
 
-void AsyncWaitableEvent::wait()
+void AsyncWaitableEvent::resetImpl()
 {
+    mSignaled = false;
+    mFuture   = std::future<void>();
+}
+
+void AsyncWaitableEvent::waitImpl()
+{
+    if (mSignaled || !mFuture.valid())
     {
-        std::unique_lock<std::mutex> lock(mMutex);
-        mCondition.wait(lock, [this] { return !mIsPending; });
+        return;
     }
 
-    ASSERT(mFuture.valid());
     mFuture.wait();
+    signal();
 }
 
-bool AsyncWaitableEvent::isReady()
+void AsyncWaitableEvent::signalImpl()
 {
-    std::lock_guard<std::mutex> lock(mMutex);
-    if (mIsPending)
+    mSignaled = true;
+
+    if (mResetPolicy == EventResetPolicy::Automatic)
     {
-        return false;
-    }
-    ASSERT(mFuture.valid());
-    return mFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
-}
-
-class AsyncWorkerPool final : public WorkerThreadPool
-{
-  public:
-    AsyncWorkerPool(size_t maxThreads) : mMaxThreads(maxThreads), mRunningThreads(0) {}
-    ~AsyncWorkerPool() override = default;
-
-    std::shared_ptr<WaitableEvent> postWorkerTask(std::shared_ptr<Closure> task) override;
-    void setMaxThreads(size_t maxThreads) override;
-    bool isAsync() override;
-
-  private:
-    void checkToRunPendingTasks();
-
-    // To protect the concurrent accesses from both main thread and background
-    // threads to the member fields.
-    std::mutex mMutex;
-
-    size_t mMaxThreads;
-    size_t mRunningThreads;
-    std::queue<std::pair<std::shared_ptr<AsyncWaitableEvent>, std::shared_ptr<Closure>>> mTaskQueue;
-};
-
-// AsyncWorkerPool implementation.
-std::shared_ptr<WaitableEvent> AsyncWorkerPool::postWorkerTask(std::shared_ptr<Closure> task)
-{
-    ASSERT(mMaxThreads > 0);
-
-    auto waitable = std::make_shared<AsyncWaitableEvent>();
-    {
-        std::lock_guard<std::mutex> lock(mMutex);
-        mTaskQueue.push(std::make_pair(waitable, task));
-    }
-    checkToRunPendingTasks();
-    return waitable;
-}
-
-void AsyncWorkerPool::setMaxThreads(size_t maxThreads)
-{
-    {
-        std::lock_guard<std::mutex> lock(mMutex);
-        mMaxThreads = (maxThreads == 0xFFFFFFFF ? std::thread::hardware_concurrency() : maxThreads);
-    }
-    checkToRunPendingTasks();
-}
-
-bool AsyncWorkerPool::isAsync()
-{
-    return true;
-}
-
-void AsyncWorkerPool::checkToRunPendingTasks()
-{
-    std::lock_guard<std::mutex> lock(mMutex);
-    while (mRunningThreads < mMaxThreads && !mTaskQueue.empty())
-    {
-        auto task = mTaskQueue.front();
-        mTaskQueue.pop();
-        auto waitable = task.first;
-        auto closure  = task.second;
-
-        auto future = std::async(std::launch::async, [closure, this] {
-            (*closure)();
-            {
-                std::lock_guard<std::mutex> lock(mMutex);
-                ASSERT(mRunningThreads != 0);
-                --mRunningThreads;
-            }
-            checkToRunPendingTasks();
-        });
-
-        ++mRunningThreads;
-
-        {
-            std::lock_guard<std::mutex> waitableLock(waitable->mMutex);
-            waitable->mIsPending = false;
-            waitable->setFuture(std::move(future));
-        }
-        waitable->mCondition.notify_all();
+        reset();
     }
 }
 #endif  // (ANGLE_STD_ASYNC_WORKERS == ANGLE_ENABLED)
 
-// static
-std::shared_ptr<WorkerThreadPool> WorkerThreadPool::Create(bool multithreaded)
-{
-    std::shared_ptr<WorkerThreadPool> pool(nullptr);
-#if (ANGLE_STD_ASYNC_WORKERS == ANGLE_ENABLED)
-    if (multithreaded)
-    {
-        pool = std::shared_ptr<WorkerThreadPool>(static_cast<WorkerThreadPool *>(
-            new AsyncWorkerPool(std::thread::hardware_concurrency())));
-    }
-#endif
-    if (!pool)
-    {
-        return std::shared_ptr<WorkerThreadPool>(
-            static_cast<WorkerThreadPool *>(new SingleThreadedWorkerPool()));
-    }
-    return pool;
-}
-
-// static
-std::shared_ptr<WaitableEvent> WorkerThreadPool::PostWorkerTask(
-    std::shared_ptr<WorkerThreadPool> pool,
-    std::shared_ptr<Closure> task)
-{
-    std::shared_ptr<WaitableEvent> event = pool->postWorkerTask(task);
-    if (event.get())
-    {
-        event->setWorkerThreadPool(pool);
-    }
-    return event;
-}
+}  // namespace priv
 
 }  // namespace angle

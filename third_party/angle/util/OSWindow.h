@@ -1,32 +1,30 @@
 //
-// Copyright 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// OSWindow:
-//   Operating system window integration base class.
 
-#ifndef UTIL_OSWINDOW_H_
-#define UTIL_OSWINDOW_H_
+#ifndef SAMPLE_UTIL_WINDOW_H
+#define SAMPLE_UTIL_WINDOW_H
 
-#include <stdint.h>
 #include <list>
+#include <stdint.h>
 #include <string>
 
+#include <export.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
-#include "util/Event.h"
-#include "util/util_export.h"
+#include "Event.h"
 
-class ANGLE_UTIL_EXPORT OSWindow
+class ANGLE_EXPORT OSWindow
 {
   public:
-    static OSWindow *New();
-    static void Delete(OSWindow **osWindow);
+    OSWindow();
+    virtual ~OSWindow();
 
-    virtual bool initialize(const std::string &name, int width, int height) = 0;
-    virtual void destroy()                                                  = 0;
+    virtual bool initialize(const std::string &name, size_t width, size_t height) = 0;
+    virtual void destroy() = 0;
 
     int getX() const;
     int getY() const;
@@ -37,15 +35,9 @@ class ANGLE_UTIL_EXPORT OSWindow
     // normalized unsigned byte BGRA array. Note that it will be used to test the window
     // manager's behavior so it needs to take an actual screenshot of the screen and not
     // just grab the pixels of the window. Returns if it was successful.
-    virtual bool takeScreenshot(uint8_t *pixelData);
+    virtual bool takeScreenshot(uint8_t *pixelData) { return false; }
 
-    // Re-initializes the native window. This is used on platforms which do not
-    // have a reusable EGLNativeWindowType in order to recreate it, and is
-    // needed by the test suite because it re-uses the same OSWindow for
-    // multiple EGLSurfaces.
-    virtual void resetNativeWindow() = 0;
-
-    virtual EGLNativeWindowType getNativeWindow() const   = 0;
+    virtual EGLNativeWindowType getNativeWindow() const = 0;
     virtual EGLNativeDisplayType getNativeDisplay() const = 0;
 
     virtual void messageLoop() = 0;
@@ -54,9 +46,9 @@ class ANGLE_UTIL_EXPORT OSWindow
     virtual void pushEvent(Event event);
 
     virtual void setMousePosition(int x, int y) = 0;
-    virtual bool setPosition(int x, int y)      = 0;
-    virtual bool resize(int width, int height)  = 0;
-    virtual void setVisible(bool isVisible)     = 0;
+    virtual bool setPosition(int x, int y) = 0;
+    virtual bool resize(int width, int height) = 0;
+    virtual void setVisible(bool isVisible) = 0;
 
     virtual void signalTestEvent() = 0;
 
@@ -64,9 +56,6 @@ class ANGLE_UTIL_EXPORT OSWindow
     bool didTestEventFire();
 
   protected:
-    OSWindow();
-    virtual ~OSWindow();
-
     int mX;
     int mY;
     int mWidth;
@@ -75,4 +64,6 @@ class ANGLE_UTIL_EXPORT OSWindow
     std::list<Event> mEvents;
 };
 
-#endif  // UTIL_OSWINDOW_H_
+ANGLE_EXPORT OSWindow *CreateOSWindow();
+
+#endif // SAMPLE_UTIL_WINDOW_H

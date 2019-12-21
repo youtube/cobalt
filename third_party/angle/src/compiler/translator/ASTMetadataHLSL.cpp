@@ -1,5 +1,5 @@
 //
-// Copyright 2002 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2002-2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,7 +10,6 @@
 
 #include "compiler/translator/CallDAG.h"
 #include "compiler/translator/SymbolTable.h"
-#include "compiler/translator/tree_util/IntermTraverse.h"
 
 namespace sh
 {
@@ -35,15 +34,15 @@ class PullGradient : public TIntermTraverser
         ASSERT(index < metadataList->size());
 
         // ESSL 100 builtin gradient functions
-        mGradientBuiltinFunctions.insert(ImmutableString("texture2D"));
-        mGradientBuiltinFunctions.insert(ImmutableString("texture2DProj"));
-        mGradientBuiltinFunctions.insert(ImmutableString("textureCube"));
+        mGradientBuiltinFunctions.insert("texture2D");
+        mGradientBuiltinFunctions.insert("texture2DProj");
+        mGradientBuiltinFunctions.insert("textureCube");
 
         // ESSL 300 builtin gradient functions
-        mGradientBuiltinFunctions.insert(ImmutableString("texture"));
-        mGradientBuiltinFunctions.insert(ImmutableString("textureProj"));
-        mGradientBuiltinFunctions.insert(ImmutableString("textureOffset"));
-        mGradientBuiltinFunctions.insert(ImmutableString("textureProjOffset"));
+        mGradientBuiltinFunctions.insert("texture");
+        mGradientBuiltinFunctions.insert("textureProj");
+        mGradientBuiltinFunctions.insert("textureOffset");
+        mGradientBuiltinFunctions.insert("textureProjOffset");
 
         // ESSL 310 doesn't add builtin gradient functions
     }
@@ -105,7 +104,6 @@ class PullGradient : public TIntermTraverser
                 case EOpDFdy:
                 case EOpFwidth:
                     onGradient();
-                    break;
                 default:
                     break;
             }
@@ -120,7 +118,7 @@ class PullGradient : public TIntermTraverser
         {
             if (node->getOp() == EOpCallFunctionInAST)
             {
-                size_t calleeIndex = mDag.findIndex(node->getFunction()->uniqueId());
+                size_t calleeIndex = mDag.findIndex(node->getFunctionSymbolInfo());
                 ASSERT(calleeIndex != CallDAG::InvalidIndex && calleeIndex < mIndex);
 
                 if ((*mMetadataList)[calleeIndex].mUsesGradient)
@@ -130,7 +128,7 @@ class PullGradient : public TIntermTraverser
             }
             else if (node->getOp() == EOpCallBuiltInFunction)
             {
-                if (mGradientBuiltinFunctions.find(node->getFunction()->name()) !=
+                if (mGradientBuiltinFunctions.find(node->getFunctionSymbolInfo()->getName()) !=
                     mGradientBuiltinFunctions.end())
                 {
                     onGradient();
@@ -152,7 +150,7 @@ class PullGradient : public TIntermTraverser
     std::vector<TIntermNode *> mParents;
 
     // A list of builtin functions that use gradients
-    std::set<ImmutableString> mGradientBuiltinFunctions;
+    std::set<TString> mGradientBuiltinFunctions;
 };
 
 // Traverses the AST of a function definition to compute the the discontinuous loops
@@ -170,7 +168,8 @@ class PullComputeDiscontinuousAndGradientLoops : public TIntermTraverser
           mMetadata(&(*metadataList)[index]),
           mIndex(index),
           mDag(dag)
-    {}
+    {
+    }
 
     void traverse(TIntermFunctionDefinition *node)
     {
@@ -288,7 +287,7 @@ class PullComputeDiscontinuousAndGradientLoops : public TIntermTraverser
     {
         if (visit == PreVisit && node->getOp() == EOpCallFunctionInAST)
         {
-            size_t calleeIndex = mDag.findIndex(node->getFunction()->uniqueId());
+            size_t calleeIndex = mDag.findIndex(node->getFunctionSymbolInfo());
             ASSERT(calleeIndex != CallDAG::InvalidIndex && calleeIndex < mIndex);
 
             if ((*mMetadataList)[calleeIndex].mHasGradientLoopInCallGraph)
@@ -335,7 +334,8 @@ class PushDiscontinuousLoops : public TIntermTraverser
           mIndex(index),
           mDag(dag),
           mNestedDiscont(mMetadata->mCalledInDiscontinuousLoop ? 1 : 0)
-    {}
+    {
+    }
 
     void traverse(TIntermFunctionDefinition *node)
     {
@@ -366,7 +366,7 @@ class PushDiscontinuousLoops : public TIntermTraverser
             case EOpCallFunctionInAST:
                 if (visit == PreVisit && mNestedDiscont > 0)
                 {
-                    size_t calleeIndex = mDag.findIndex(node->getFunction()->uniqueId());
+                    size_t calleeIndex = mDag.findIndex(node->getFunctionSymbolInfo());
                     ASSERT(calleeIndex != CallDAG::InvalidIndex && calleeIndex < mIndex);
 
                     (*mMetadataList)[calleeIndex].mCalledInDiscontinuousLoop = true;
@@ -386,7 +386,7 @@ class PushDiscontinuousLoops : public TIntermTraverser
 
     int mNestedDiscont;
 };
-}  // namespace
+}
 
 bool ASTMetadataHLSL::hasGradientInCallGraph(TIntermLoop *node)
 {

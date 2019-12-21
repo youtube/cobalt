@@ -1,5 +1,5 @@
 //
-// Copyright 2002 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2002-2012 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -8,9 +8,7 @@
 // class with derivations, classes that perform graphics API agnostic index buffer operations.
 
 #include "libANGLE/renderer/d3d/IndexBuffer.h"
-
-#include "libANGLE/Context.h"
-#include "libANGLE/renderer/d3d/ContextD3D.h"
+#include "libANGLE/renderer/d3d/RendererD3D.h"
 
 namespace rx
 {
@@ -22,7 +20,9 @@ IndexBuffer::IndexBuffer()
     updateSerial();
 }
 
-IndexBuffer::~IndexBuffer() {}
+IndexBuffer::~IndexBuffer()
+{
+}
 
 unsigned int IndexBuffer::getSerial() const
 {
@@ -34,11 +34,12 @@ void IndexBuffer::updateSerial()
     mSerial = mNextSerial++;
 }
 
+
 IndexBufferInterface::IndexBufferInterface(BufferFactoryD3D *factory, bool dynamic)
 {
     mIndexBuffer = factory->createIndexBuffer();
 
-    mDynamic       = dynamic;
+    mDynamic = dynamic;
     mWritePosition = 0;
 }
 
@@ -50,7 +51,7 @@ IndexBufferInterface::~IndexBufferInterface()
     }
 }
 
-gl::DrawElementsType IndexBufferInterface::getIndexType() const
+GLenum IndexBufferInterface::getIndexType() const
 {
     return mIndexBuffer->getIndexType();
 }
@@ -65,19 +66,16 @@ unsigned int IndexBufferInterface::getSerial() const
     return mIndexBuffer->getSerial();
 }
 
-angle::Result IndexBufferInterface::mapBuffer(const gl::Context *context,
-                                              unsigned int size,
-                                              void **outMappedMemory,
-                                              unsigned int *streamOffset)
+gl::Error IndexBufferInterface::mapBuffer(unsigned int size, void **outMappedMemory, unsigned int *streamOffset)
 {
     // Protect against integer overflow
-    bool check = (mWritePosition + size < mWritePosition);
-    ANGLE_CHECK(GetImplAs<ContextD3D>(context), !check,
-                "Mapping of internal index buffer would cause an integer overflow.",
-                GL_OUT_OF_MEMORY);
+    if (mWritePosition + size < mWritePosition)
+    {
+        return gl::Error(GL_OUT_OF_MEMORY, "Mapping of internal index buffer would cause an integer overflow.");
+    }
 
-    angle::Result error = mIndexBuffer->mapBuffer(context, mWritePosition, size, outMappedMemory);
-    if (error == angle::Result::Stop)
+    gl::Error error = mIndexBuffer->mapBuffer(mWritePosition, size, outMappedMemory);
+    if (error.isError())
     {
         if (outMappedMemory)
         {
@@ -92,15 +90,15 @@ angle::Result IndexBufferInterface::mapBuffer(const gl::Context *context,
     }
 
     mWritePosition += size;
-    return angle::Result::Continue;
+    return gl::NoError();
 }
 
-angle::Result IndexBufferInterface::unmapBuffer(const gl::Context *context)
+gl::Error IndexBufferInterface::unmapBuffer()
 {
-    return mIndexBuffer->unmapBuffer(context);
+    return mIndexBuffer->unmapBuffer();
 }
 
-IndexBuffer *IndexBufferInterface::getIndexBuffer() const
+IndexBuffer * IndexBufferInterface::getIndexBuffer() const
 {
     return mIndexBuffer;
 }
@@ -115,69 +113,84 @@ void IndexBufferInterface::setWritePosition(unsigned int writePosition)
     mWritePosition = writePosition;
 }
 
-angle::Result IndexBufferInterface::discard(const gl::Context *context)
+gl::Error IndexBufferInterface::discard()
 {
-    return mIndexBuffer->discard(context);
+    return mIndexBuffer->discard();
 }
 
-angle::Result IndexBufferInterface::setBufferSize(const gl::Context *context,
-                                                  unsigned int bufferSize,
-                                                  gl::DrawElementsType indexType)
+gl::Error IndexBufferInterface::setBufferSize(unsigned int bufferSize, GLenum indexType)
 {
     if (mIndexBuffer->getBufferSize() == 0)
     {
-        return mIndexBuffer->initialize(context, bufferSize, indexType, mDynamic);
+        return mIndexBuffer->initialize(bufferSize, indexType, mDynamic);
     }
     else
     {
-        return mIndexBuffer->setSize(context, bufferSize, indexType);
+        return mIndexBuffer->setSize(bufferSize, indexType);
     }
 }
 
 StreamingIndexBufferInterface::StreamingIndexBufferInterface(BufferFactoryD3D *factory)
     : IndexBufferInterface(factory, true)
-{}
+{
+}
 
-StreamingIndexBufferInterface::~StreamingIndexBufferInterface() {}
+StreamingIndexBufferInterface::~StreamingIndexBufferInterface()
+{
+}
 
-angle::Result StreamingIndexBufferInterface::reserveBufferSpace(const gl::Context *context,
-                                                                unsigned int size,
-                                                                gl::DrawElementsType indexType)
+gl::Error StreamingIndexBufferInterface::reserveBufferSpace(unsigned int size, GLenum indexType)
 {
     unsigned int curBufferSize = getBufferSize();
-    unsigned int writePos      = getWritePosition();
+    unsigned int writePos = getWritePosition();
     if (size > curBufferSize)
     {
-        ANGLE_TRY(setBufferSize(context, std::max(size, 2 * curBufferSize), indexType));
+        gl::Error error = setBufferSize(std::max(size, 2 * curBufferSize), indexType);
+        if (error.isError())
+        {
+            return error;
+        }
         setWritePosition(0);
     }
     else if (writePos + size > curBufferSize || writePos + size < writePos)
     {
-        ANGLE_TRY(discard(context));
+        gl::Error error = discard();
+        if (error.isError())
+        {
+            return error;
+        }
         setWritePosition(0);
     }
 
-    return angle::Result::Continue;
+    return gl::NoError();
 }
+
 
 StaticIndexBufferInterface::StaticIndexBufferInterface(BufferFactoryD3D *factory)
     : IndexBufferInterface(factory, false)
-{}
+{
+}
 
-StaticIndexBufferInterface::~StaticIndexBufferInterface() {}
+StaticIndexBufferInterface::~StaticIndexBufferInterface()
+{
+}
 
-angle::Result StaticIndexBufferInterface::reserveBufferSpace(const gl::Context *context,
-                                                             unsigned int size,
-                                                             gl::DrawElementsType indexType)
+gl::Error StaticIndexBufferInterface::reserveBufferSpace(unsigned int size, GLenum indexType)
 {
     unsigned int curSize = getBufferSize();
     if (curSize == 0)
     {
-        return setBufferSize(context, size, indexType);
+        return setBufferSize(size, indexType);
     }
-
-    ASSERT(curSize >= size && indexType == getIndexType());
-    return angle::Result::Continue;
+    else if (curSize >= size && indexType == getIndexType())
+    {
+        return gl::NoError();
+    }
+    else
+    {
+        UNREACHABLE();
+        return gl::Error(GL_INVALID_OPERATION, "Internal static index buffers can't be resized");
+    }
 }
 
-}  // namespace rx
+}

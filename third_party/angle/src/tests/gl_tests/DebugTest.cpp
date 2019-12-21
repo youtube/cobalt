@@ -26,9 +26,11 @@ class DebugTest : public ANGLETest
         setDebugEnabled(true);
     }
 
-    void testSetUp() override
+    void SetUp() override
     {
-        mDebugExtensionAvailable = IsGLExtensionEnabled("GL_KHR_debug");
+        ANGLETest::SetUp();
+
+        mDebugExtensionAvailable = extensionEnabled("GL_KHR_debug");
         if (mDebugExtensionAvailable)
         {
             glEnable(GL_DEBUG_OUTPUT);
@@ -71,7 +73,11 @@ TEST_P(DebugTest, Enabled)
 // Test that when debug output is disabled, no message are outputted
 TEST_P(DebugTest, DisabledOutput)
 {
-    ANGLE_SKIP_TEST_IF(!mDebugExtensionAvailable);
+    if (!mDebugExtensionAvailable)
+    {
+        std::cout << "Test skipped because GL_KHR_debug is not available." << std::endl;
+        return;
+    }
 
     glDisable(GL_DEBUG_OUTPUT);
 
@@ -92,7 +98,11 @@ TEST_P(DebugTest, DisabledOutput)
 // Test a basic flow of inserting a message and reading it back
 TEST_P(DebugTest, InsertMessage)
 {
-    ANGLE_SKIP_TEST_IF(!mDebugExtensionAvailable);
+    if (!mDebugExtensionAvailable)
+    {
+        std::cout << "Test skipped because GL_KHR_debug is not available." << std::endl;
+        return;
+    }
 
     const GLenum source       = GL_DEBUG_SOURCE_APPLICATION;
     const GLenum type         = GL_DEBUG_TYPE_OTHER;
@@ -114,7 +124,7 @@ TEST_P(DebugTest, InsertMessage)
     GLenum typeBuf     = 0;
     GLenum idBuf       = 0;
     GLenum severityBuf = 0;
-    GLsizei lengthBuf  = 0;
+    GLsizei lengthBuf = 0;
     std::vector<char> messageBuf(messageLength + 1);
     GLuint ret =
         glGetDebugMessageLogKHR(1, static_cast<GLsizei>(messageBuf.size()), &sourceBuf, &typeBuf,
@@ -136,7 +146,11 @@ TEST_P(DebugTest, InsertMessage)
 // Test inserting multiple messages
 TEST_P(DebugTest, InsertMessageMultiple)
 {
-    ANGLE_SKIP_TEST_IF(!mDebugExtensionAvailable);
+    if (!mDebugExtensionAvailable)
+    {
+        std::cout << "Test skipped because GL_KHR_debug is not available." << std::endl;
+        return;
+    }
 
     const GLenum source          = GL_DEBUG_SOURCE_APPLICATION;
     const GLenum type            = GL_DEBUG_TYPE_OTHER;
@@ -171,7 +185,7 @@ TEST_P(DebugTest, InsertMessageMultiple)
         GLenum typeBuf     = 0;
         GLenum idBuf       = 0;
         GLenum severityBuf = 0;
-        GLsizei lengthBuf  = 0;
+        GLsizei lengthBuf = 0;
         std::vector<char> messageBuf(messageLength + 1);
         GLuint ret =
             glGetDebugMessageLogKHR(1, static_cast<GLsizei>(messageBuf.size()), &sourceBuf,
@@ -194,7 +208,11 @@ TEST_P(DebugTest, InsertMessageMultiple)
 // Test using a debug callback
 TEST_P(DebugTest, DebugCallback)
 {
-    ANGLE_SKIP_TEST_IF(!mDebugExtensionAvailable);
+    if (!mDebugExtensionAvailable)
+    {
+        std::cout << "Test skipped because GL_KHR_debug is not available." << std::endl;
+        return;
+    }
 
     std::vector<Message> messages;
 
@@ -228,7 +246,11 @@ TEST_P(DebugTest, DebugCallback)
 // Test the glGetPointervKHR entry point
 TEST_P(DebugTest, GetPointer)
 {
-    ANGLE_SKIP_TEST_IF(!mDebugExtensionAvailable);
+    if (!mDebugExtensionAvailable)
+    {
+        std::cout << "Test skipped because GL_KHR_debug is not available." << std::endl;
+        return;
+    }
 
     std::vector<Message> messages;
 
@@ -246,7 +268,11 @@ TEST_P(DebugTest, GetPointer)
 // Test usage of message control.  Example taken from GL_KHR_debug spec.
 TEST_P(DebugTest, MessageControl1)
 {
-    ANGLE_SKIP_TEST_IF(!mDebugExtensionAvailable);
+    if (!mDebugExtensionAvailable)
+    {
+        std::cout << "Test skipped because GL_KHR_debug is not available." << std::endl;
+        return;
+    }
 
     std::vector<Message> messages;
 
@@ -294,7 +320,11 @@ TEST_P(DebugTest, MessageControl1)
 // Test usage of message control.  Example taken from GL_KHR_debug spec.
 TEST_P(DebugTest, MessageControl2)
 {
-    ANGLE_SKIP_TEST_IF(!mDebugExtensionAvailable);
+    if (!mDebugExtensionAvailable)
+    {
+        std::cout << "Test skipped because GL_KHR_debug is not available." << std::endl;
+        return;
+    }
 
     std::vector<Message> messages;
 
@@ -342,7 +372,11 @@ TEST_P(DebugTest, MessageControl2)
 // Test basic usage of setting and getting labels
 TEST_P(DebugTest, ObjectLabels)
 {
-    ANGLE_SKIP_TEST_IF(!mDebugExtensionAvailable);
+    if (!mDebugExtensionAvailable)
+    {
+        std::cout << "Test skipped because GL_KHR_debug is not available." << std::endl;
+        return;
+    }
 
     GLuint renderbuffer = 0;
     glGenRenderbuffers(1, &renderbuffer);
@@ -374,7 +408,11 @@ TEST_P(DebugTest, ObjectLabels)
 // Test basic usage of setting and getting labels
 TEST_P(DebugTest, ObjectPtrLabels)
 {
-    ANGLE_SKIP_TEST_IF(!mDebugExtensionAvailable || getClientMajorVersion() < 3);
+    if (!mDebugExtensionAvailable || getClientMajorVersion() < 3)
+    {
+        std::cout << "Test skipped because GL_KHR_debug or ES3 is not available." << std::endl;
+        return;
+    }
 
     GLsync sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 
@@ -403,6 +441,11 @@ TEST_P(DebugTest, ObjectPtrLabels)
 
 // Use this to select which configurations (e.g. which renderer, which GLES major version) these
 // tests should be run against.
-ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(DebugTest);
+ANGLE_INSTANTIATE_TEST(DebugTest,
+                       ES2_D3D9(),
+                       ES2_D3D11(),
+                       ES3_D3D11(),
+                       ES2_OPENGL(),
+                       ES3_OPENGL());
 
 }  // namespace angle

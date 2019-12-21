@@ -1,5 +1,5 @@
 //
-// Copyright 2012 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2012 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -8,96 +8,104 @@
 
 #include "libANGLE/renderer/d3d/d3d11/IndexBuffer11.h"
 
-#include "libANGLE/Context.h"
-#include "libANGLE/renderer/d3d/d3d11/Context11.h"
 #include "libANGLE/renderer/d3d/d3d11/Renderer11.h"
 #include "libANGLE/renderer/d3d/d3d11/renderer11_utils.h"
 
 namespace rx
 {
 
-IndexBuffer11::IndexBuffer11(Renderer11 *const renderer)
-    : mRenderer(renderer),
-      mBuffer(),
-      mBufferSize(0),
-      mIndexType(gl::DrawElementsType::InvalidEnum),
-      mDynamicUsage(false)
-{}
-
-IndexBuffer11::~IndexBuffer11() {}
-
-angle::Result IndexBuffer11::initialize(const gl::Context *context,
-                                        unsigned int bufferSize,
-                                        gl::DrawElementsType indexType,
-                                        bool dynamic)
+IndexBuffer11::IndexBuffer11(Renderer11 *const renderer) : mRenderer(renderer)
 {
-    mBuffer.reset();
+    mBuffer       = nullptr;
+    mBufferSize = 0;
+    mDynamicUsage = false;
+}
+
+IndexBuffer11::~IndexBuffer11()
+{
+    SafeRelease(mBuffer);
+}
+
+gl::Error IndexBuffer11::initialize(unsigned int bufferSize, GLenum indexType, bool dynamic)
+{
+    SafeRelease(mBuffer);
 
     updateSerial();
 
     if (bufferSize > 0)
     {
+        ID3D11Device* dxDevice = mRenderer->getDevice();
+
         D3D11_BUFFER_DESC bufferDesc;
-        bufferDesc.ByteWidth           = bufferSize;
-        bufferDesc.Usage               = D3D11_USAGE_DYNAMIC;
-        bufferDesc.BindFlags           = D3D11_BIND_INDEX_BUFFER;
-        bufferDesc.CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE;
-        bufferDesc.MiscFlags           = 0;
+        bufferDesc.ByteWidth = bufferSize;
+        bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+        bufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+        bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        bufferDesc.MiscFlags = 0;
         bufferDesc.StructureByteStride = 0;
 
-        ANGLE_TRY(mRenderer->allocateResource(GetImplAs<Context11>(context), bufferDesc, &mBuffer));
+        HRESULT result = dxDevice->CreateBuffer(&bufferDesc, nullptr, &mBuffer);
+        if (FAILED(result))
+        {
+            return gl::Error(GL_OUT_OF_MEMORY, "Failed to allocate internal index buffer of size, %lu.", bufferSize);
+        }
 
         if (dynamic)
         {
-            mBuffer.setDebugName("IndexBuffer11 (dynamic)");
+            d3d11::SetDebugName(mBuffer, "IndexBuffer11 (dynamic)");
         }
         else
         {
-            mBuffer.setDebugName("IndexBuffer11 (static)");
+            d3d11::SetDebugName(mBuffer, "IndexBuffer11 (static)");
         }
     }
 
-    mBufferSize   = bufferSize;
-    mIndexType    = indexType;
+    mBufferSize = bufferSize;
+    mIndexType = indexType;
     mDynamicUsage = dynamic;
 
-    return angle::Result::Continue;
+    return gl::NoError();
 }
 
-angle::Result IndexBuffer11::mapBuffer(const gl::Context *context,
-                                       unsigned int offset,
-                                       unsigned int size,
-                                       void **outMappedMemory)
+gl::Error IndexBuffer11::mapBuffer(unsigned int offset, unsigned int size, void** outMappedMemory)
 {
-    Context11 *context11 = GetImplAs<Context11>(context);
-    ANGLE_CHECK_HR(context11, mBuffer.valid(), "Internal index buffer is not initialized.",
-                   E_OUTOFMEMORY);
+    if (!mBuffer)
+    {
+        return gl::Error(GL_OUT_OF_MEMORY, "Internal index buffer is not initialized.");
+    }
 
     // Check for integer overflows and out-out-bounds map requests
-    bool outOfBounds = (offset + size < offset || offset + size > mBufferSize);
-    ANGLE_CHECK_HR(context11, !outOfBounds, "Index buffer map range is not inside the buffer.",
-                   E_OUTOFMEMORY);
-
-    D3D11_MAPPED_SUBRESOURCE mappedResource;
-    ANGLE_TRY(mRenderer->mapResource(context, mBuffer.get(), 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0,
-                                     &mappedResource));
-
-    *outMappedMemory = static_cast<char *>(mappedResource.pData) + offset;
-    return angle::Result::Continue;
-}
-
-angle::Result IndexBuffer11::unmapBuffer(const gl::Context *context)
-{
-    Context11 *context11 = GetImplAs<Context11>(context);
-    ANGLE_CHECK_HR(context11, mBuffer.valid(), "Internal index buffer is not initialized.",
-                   E_OUTOFMEMORY);
+    if (offset + size < offset || offset + size > mBufferSize)
+    {
+        return gl::Error(GL_OUT_OF_MEMORY, "Index buffer map range is not inside the buffer.");
+    }
 
     ID3D11DeviceContext *dxContext = mRenderer->getDeviceContext();
-    dxContext->Unmap(mBuffer.get(), 0);
-    return angle::Result::Continue;
+
+    D3D11_MAPPED_SUBRESOURCE mappedResource;
+    HRESULT result = dxContext->Map(mBuffer, 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mappedResource);
+    if (FAILED(result))
+    {
+        return gl::Error(GL_OUT_OF_MEMORY, "Failed to map internal index buffer, HRESULT: 0x%08x.", result);
+    }
+
+    *outMappedMemory = reinterpret_cast<char*>(mappedResource.pData) + offset;
+    return gl::NoError();
 }
 
-gl::DrawElementsType IndexBuffer11::getIndexType() const
+gl::Error IndexBuffer11::unmapBuffer()
+{
+    if (!mBuffer)
+    {
+        return gl::Error(GL_OUT_OF_MEMORY, "Internal index buffer is not initialized.");
+    }
+
+    ID3D11DeviceContext *dxContext = mRenderer->getDeviceContext();
+    dxContext->Unmap(mBuffer, 0);
+    return gl::NoError();
+}
+
+GLenum IndexBuffer11::getIndexType() const
 {
     return mIndexType;
 }
@@ -107,54 +115,53 @@ unsigned int IndexBuffer11::getBufferSize() const
     return mBufferSize;
 }
 
-angle::Result IndexBuffer11::setSize(const gl::Context *context,
-                                     unsigned int bufferSize,
-                                     gl::DrawElementsType indexType)
+gl::Error IndexBuffer11::setSize(unsigned int bufferSize, GLenum indexType)
 {
     if (bufferSize > mBufferSize || indexType != mIndexType)
     {
-        return initialize(context, bufferSize, indexType, mDynamicUsage);
+        return initialize(bufferSize, indexType, mDynamicUsage);
     }
-
-    return angle::Result::Continue;
+    else
+    {
+        return gl::NoError();
+    }
 }
 
-angle::Result IndexBuffer11::discard(const gl::Context *context)
+gl::Error IndexBuffer11::discard()
 {
-    Context11 *context11 = GetImplAs<Context11>(context);
-    ANGLE_CHECK_HR(context11, mBuffer.valid(), "Internal index buffer is not initialized.",
-                   E_OUTOFMEMORY);
+    if (!mBuffer)
+    {
+        return gl::Error(GL_OUT_OF_MEMORY, "Internal index buffer is not initialized.");
+    }
 
     ID3D11DeviceContext *dxContext = mRenderer->getDeviceContext();
 
     D3D11_MAPPED_SUBRESOURCE mappedResource;
-    ANGLE_TRY(mRenderer->mapResource(context, mBuffer.get(), 0, D3D11_MAP_WRITE_DISCARD, 0,
-                                     &mappedResource));
+    HRESULT result = dxContext->Map(mBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+    if (FAILED(result))
+    {
+        return gl::Error(GL_OUT_OF_MEMORY, "Failed to map internal index buffer, HRESULT: 0x%08x.", result);
+    }
 
-    dxContext->Unmap(mBuffer.get(), 0);
+    dxContext->Unmap(mBuffer, 0);
 
-    return angle::Result::Continue;
+    return gl::NoError();
 }
 
 DXGI_FORMAT IndexBuffer11::getIndexFormat() const
 {
     switch (mIndexType)
     {
-        case gl::DrawElementsType::UnsignedByte:
-            return DXGI_FORMAT_R16_UINT;
-        case gl::DrawElementsType::UnsignedShort:
-            return DXGI_FORMAT_R16_UINT;
-        case gl::DrawElementsType::UnsignedInt:
-            return DXGI_FORMAT_R32_UINT;
-        default:
-            UNREACHABLE();
-            return DXGI_FORMAT_UNKNOWN;
+      case GL_UNSIGNED_BYTE:    return DXGI_FORMAT_R16_UINT;
+      case GL_UNSIGNED_SHORT:   return DXGI_FORMAT_R16_UINT;
+      case GL_UNSIGNED_INT:     return DXGI_FORMAT_R32_UINT;
+      default: UNREACHABLE();   return DXGI_FORMAT_UNKNOWN;
     }
 }
 
-const d3d11::Buffer &IndexBuffer11::getBuffer() const
+ID3D11Buffer *IndexBuffer11::getBuffer() const
 {
     return mBuffer;
 }
 
-}  // namespace rx
+}

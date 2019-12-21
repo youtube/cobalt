@@ -13,42 +13,32 @@
 
 namespace rx
 {
-class RendererGL;
-enum class MultiviewImplementationTypeGL;
+class FunctionsGL;
+struct WorkaroundsGL;
 
 class ShaderGL : public ShaderImpl
 {
   public:
     ShaderGL(const gl::ShaderState &data,
-             GLuint shaderID,
-             MultiviewImplementationTypeGL multiviewImplementationType,
-             const std::shared_ptr<RendererGL> &renderer);
+             const FunctionsGL *functions,
+             const WorkaroundsGL &workarounds);
     ~ShaderGL() override;
 
-    void destroy() override;
-
-    std::shared_ptr<WaitableCompileEvent> compile(const gl::Context *context,
-                                                  gl::ShCompilerInstance *compilerInstance,
-                                                  ShCompileOptions options) override;
-
+    // ShaderImpl implementation
+    ShCompileOptions prepareSourceAndReturnOptions(std::stringstream *sourceStream,
+                                                   std::string *sourcePath) override;
+    bool postTranslateCompile(gl::Compiler *compiler, std::string *infoLog) override;
     std::string getDebugInfo() const override;
 
     GLuint getShaderID() const;
 
   private:
-    void compileAndCheckShader(const char *source);
-    void compileShader(const char *source);
-    void checkShader();
-    bool peekCompletion();
-    bool compileAndCheckShaderInWorker(const char *source);
+    const FunctionsGL *mFunctions;
+    const WorkaroundsGL &mWorkarounds;
 
     GLuint mShaderID;
-    MultiviewImplementationTypeGL mMultiviewImplementationType;
-    std::shared_ptr<RendererGL> mRenderer;
-    GLint mCompileStatus;
-    std::string mInfoLog;
 };
 
-}  // namespace rx
+}
 
-#endif  // LIBANGLE_RENDERER_GL_SHADERGL_H_
+#endif // LIBANGLE_RENDERER_GL_SHADERGL_H_

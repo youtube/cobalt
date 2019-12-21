@@ -1,5 +1,5 @@
 //
-// Copyright 2002 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2002-2012 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -20,25 +20,22 @@ class VertexBuffer9 : public VertexBuffer
   public:
     explicit VertexBuffer9(Renderer9 *renderer);
 
-    angle::Result initialize(const gl::Context *context,
-                             unsigned int size,
-                             bool dynamicUsage) override;
+    gl::Error initialize(unsigned int size, bool dynamicUsage) override;
 
     // Warning: you should ensure binding really matches attrib.bindingIndex before using this
     // function.
-    angle::Result storeVertexAttributes(const gl::Context *context,
-                                        const gl::VertexAttribute &attrib,
-                                        const gl::VertexBinding &binding,
-                                        gl::VertexAttribType currentValueType,
-                                        GLint start,
-                                        size_t count,
-                                        GLsizei instances,
-                                        unsigned int offset,
-                                        const uint8_t *sourceData) override;
+    gl::Error storeVertexAttributes(const gl::VertexAttribute &attrib,
+                                    const gl::VertexBinding &binding,
+                                    GLenum currentValueType,
+                                    GLint start,
+                                    GLsizei count,
+                                    GLsizei instances,
+                                    unsigned int offset,
+                                    const uint8_t *sourceData) override;
 
     unsigned int getBufferSize() const override;
-    angle::Result setBufferSize(const gl::Context *context, unsigned int size) override;
-    angle::Result discard(const gl::Context *context) override;
+    gl::Error setBufferSize(unsigned int size) override;
+    gl::Error discard() override;
 
     IDirect3DVertexBuffer9 *getBuffer() const;
 
@@ -51,6 +48,6 @@ class VertexBuffer9 : public VertexBuffer
     bool mDynamicUsage;
 };
 
-}  // namespace rx
+}
 
-#endif  // LIBANGLE_RENDERER_D3D_D3D9_VERTEXBUFFER9_H_
+#endif // LIBANGLE_RENDERER_D3D_D3D9_VERTEXBUFFER9_H_

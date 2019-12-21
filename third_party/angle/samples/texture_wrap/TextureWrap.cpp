@@ -1,5 +1,5 @@
 //
-// Copyright 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -14,37 +14,45 @@
 //            http://www.opengles-book.com
 
 #include "SampleApplication.h"
-
+#include "shader_utils.h"
 #include "texture_utils.h"
-#include "util/shader_utils.h"
 
 class TextureWrapSample : public SampleApplication
 {
   public:
-    TextureWrapSample(int argc, char **argv) : SampleApplication("TextureWrap", argc, argv) {}
-
-    bool initialize() override
+    TextureWrapSample()
+        : SampleApplication("TextureWrap", 1280, 720)
     {
-        constexpr char kVS[] = R"(uniform float u_offset;
-attribute vec4 a_position;
-attribute vec2 a_texCoord;
-varying vec2 v_texCoord;
-void main()
-{
-    gl_Position = a_position;
-    gl_Position.x += u_offset;
-    v_texCoord = a_texCoord;
-})";
+    }
 
-        constexpr char kFS[] = R"(precision mediump float;
-varying vec2 v_texCoord;
-uniform sampler2D s_texture;
-void main()
-{
-    gl_FragColor = texture2D(s_texture, v_texCoord);
-})";
+    virtual bool initialize()
+    {
+        const std::string vs = SHADER_SOURCE
+        (
+            uniform float u_offset;
+            attribute vec4 a_position;
+            attribute vec2 a_texCoord;
+            varying vec2 v_texCoord;
+            void main()
+            {
+                gl_Position = a_position;
+                gl_Position.x += u_offset;
+                v_texCoord = a_texCoord;
+            }
+        );
 
-        mProgram = CompileProgram(kVS, kFS);
+        const std::string fs = SHADER_SOURCE
+        (
+            precision mediump float;
+            varying vec2 v_texCoord;
+            uniform sampler2D s_texture;
+            void main()
+            {
+                gl_FragColor = texture2D(s_texture, v_texCoord);
+            }
+        );
+
+        mProgram = CompileProgram(vs, fs);
         if (!mProgram)
         {
             return false;
@@ -68,21 +76,25 @@ void main()
         return true;
     }
 
-    void destroy() override { glDeleteProgram(mProgram); }
-
-    void draw() override
+    virtual void destroy()
     {
-        GLfloat vertices[] = {
-            -0.3f, 0.3f,  0.0f, 1.0f,  // Position 0
-            -1.0f, -1.0f,              // TexCoord 0
-            -0.3f, -0.3f, 0.0f, 1.0f,  // Position 1
-            -1.0f, 2.0f,               // TexCoord 1
-            0.3f,  -0.3f, 0.0f, 1.0f,  // Position 2
-            2.0f,  2.0f,               // TexCoord 2
-            0.3f,  0.3f,  0.0f, 1.0f,  // Position 3
-            2.0f,  -1.0f               // TexCoord 3
+        glDeleteProgram(mProgram);
+    }
+
+    virtual void draw()
+    {
+        GLfloat vertices[] =
+        {
+            -0.3f,  0.3f, 0.0f, 1.0f, // Position 0
+            -1.0f, -1.0f,             // TexCoord 0 
+            -0.3f, -0.3f, 0.0f, 1.0f, // Position 1
+            -1.0f,  2.0f,             // TexCoord 1
+             0.3f, -0.3f, 0.0f, 1.0f, // Position 2
+             2.0f,  2.0f,             // TexCoord 2
+             0.3f,  0.3f, 0.0f, 1.0f, // Position 3
+             2.0f, -1.0f              // TexCoord 3
         };
-        GLushort indices[] = {0, 1, 2, 0, 2, 3};
+        GLushort indices[] = { 0, 1, 2, 0, 2, 3 };
 
         // Set the viewport
         glViewport(0, 0, getWindow()->getWidth(), getWindow()->getHeight());
@@ -98,8 +110,7 @@ void main()
         glEnableVertexAttribArray(mPositionLoc);
 
         // Load the texture coordinate
-        glVertexAttribPointer(mTexCoordLoc, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat),
-                              vertices + 4);
+        glVertexAttribPointer(mTexCoordLoc, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), vertices + 4);
         glEnableVertexAttribArray(mTexCoordLoc);
 
         // Set the sampler texture unit to 0
@@ -124,26 +135,26 @@ void main()
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, indices);
     }
 
-  private:
+private:
     // Handle to a program object
-    GLuint mProgram;
+     GLuint mProgram;
 
-    // Attribute locations
-    GLint mPositionLoc;
-    GLint mTexCoordLoc;
+     // Attribute locations
+     GLint mPositionLoc;
+     GLint mTexCoordLoc;
 
-    // Sampler location
-    GLint mSamplerLoc;
+     // Sampler location
+     GLint mSamplerLoc;
 
-    // Offset location
-    GLint mOffsetLoc;
+     // Offset location
+     GLint mOffsetLoc;
 
-    // Texture handle
-    GLuint mTexture;
+     // Texture handle
+     GLuint mTexture;
 };
 
 int main(int argc, char **argv)
 {
-    TextureWrapSample app(argc, argv);
+    TextureWrapSample app;
     return app.run();
 }

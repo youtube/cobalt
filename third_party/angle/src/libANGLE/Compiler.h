@@ -1,5 +1,5 @@
 //
-// Copyright 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,64 +10,41 @@
 #ifndef LIBANGLE_COMPILER_H_
 #define LIBANGLE_COMPILER_H_
 
-#include <vector>
-
-#include "GLSLANG/ShaderLang.h"
-#include "common/PackedEnums.h"
 #include "libANGLE/Error.h"
-#include "libANGLE/RefCountObject.h"
+#include "GLSLANG/ShaderLang.h"
 
 namespace rx
 {
 class CompilerImpl;
 class GLImplFactory;
-}  // namespace rx
+}
 
 namespace gl
 {
-class ShCompilerInstance;
-class State;
+class ContextState;
 
-class Compiler final : public RefCountObjectNoID
+class Compiler final : angle::NonCopyable
 {
   public:
-    Compiler(rx::GLImplFactory *implFactory, const State &data);
+    Compiler(rx::GLImplFactory *implFactory, const ContextState &data);
+    ~Compiler();
 
-    ShCompilerInstance getInstance(ShaderType shaderType);
-    void putInstance(ShCompilerInstance &&instance);
+    Error release();
+
+    ShHandle getCompilerHandle(GLenum type);
     ShShaderOutput getShaderOutputType() const { return mOutputType; }
 
   private:
-    ~Compiler() override;
-    std::unique_ptr<rx::CompilerImpl> mImplementation;
+    rx::CompilerImpl *mImplementation;
     ShShaderSpec mSpec;
     ShShaderOutput mOutputType;
     ShBuiltInResources mResources;
-    ShaderMap<std::vector<ShCompilerInstance>> mPools;
-};
 
-class ShCompilerInstance final : public angle::NonCopyable
-{
-  public:
-    ShCompilerInstance();
-    ShCompilerInstance(ShHandle handle, ShShaderOutput outputType, ShaderType shaderType);
-    ~ShCompilerInstance();
-    void destroy();
-
-    ShCompilerInstance(ShCompilerInstance &&other);
-    ShCompilerInstance &operator=(ShCompilerInstance &&other);
-
-    ShHandle getHandle();
-    ShaderType getShaderType() const;
-    const std::string &getBuiltinResourcesString();
-    ShShaderOutput getShaderOutputType() const;
-
-  private:
-    ShHandle mHandle;
-    ShShaderOutput mOutputType;
-    ShaderType mShaderType;
+    ShHandle mFragmentCompiler;
+    ShHandle mVertexCompiler;
+    ShHandle mComputeCompiler;
 };
 
 }  // namespace gl
 
-#endif  // LIBANGLE_COMPILER_H_
+#endif // LIBANGLE_COMPILER_H_

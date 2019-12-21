@@ -1,5 +1,5 @@
 //
-// Copyright 2013 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2013-2017 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -11,11 +11,17 @@
 // Windows.h needs to be included first
 #include <windows.h>
 
+#if defined(GPU_INFO_USE_SETUPAPI)
+#include <cfgmgr32.h>
+#include <setupapi.h>
+#elif defined(GPU_INFO_USE_DXGI)
 #include <dxgi.h>
+#include <d3d10.h>
+#define __uuidof(NAME) IID_##NAME
 
-#include "common/debug.h"
-#include "common/string_utils.h"
-
+#else
+#error "SystemInfo_win needs at least GPU_INFO_USE_SETUPAPI or GPU_INFO_USE_DXGI defined"
+#endif
 
 #include <array>
 #include <sstream>
@@ -26,22 +32,102 @@ namespace angle
 namespace
 {
 
+#if defined(GPU_INFO_USE_SETUPAPI)
+
+std::string GetRegistryStringValue(HKEY key, const char *valueName)
+{
+    std::array<char, 255> value;
+    DWORD valueSize = sizeof(value);
+    if (RegQueryValueExA(key, valueName, nullptr, nullptr, reinterpret_cast<LPBYTE>(value.data()),
+                         &valueSize) == ERROR_SUCCESS)
+    {
+        return value.data();
+    }
+    return "";
+}
+
+// Gathers information about the devices from the registry. The reason why we aren't using
+// a dedicated API such as DXGI is that we need information like the driver vendor and date.
+// DXGI doesn't provide a way to know the device registry key from an IDXGIAdapter.
+bool GetDevicesFromRegistry(std::vector<GPUDeviceInfo> *devices)
+{
+    // Display adapter class GUID from
+    // https://msdn.microsoft.com/en-us/library/windows/hardware/ff553426%28v=vs.85%29.aspx
+    GUID displayClass = {
+        0x4d36e968, 0xe325, 0x11ce, {0xbf, 0xc1, 0x08, 0x00, 0x2b, 0xe1, 0x03, 0x18}};
+
+    HDEVINFO deviceInfo = SetupDiGetClassDevsW(&displayClass, nullptr, nullptr, DIGCF_PRESENT);
+
+    if (deviceInfo == INVALID_HANDLE_VALUE)
+    {
+        return false;
+    }
+
+    // This iterates over the devices of the "Display adapter" class
+    DWORD deviceIndex = 0;
+    SP_DEVINFO_DATA deviceData;
+    deviceData.cbSize = sizeof(deviceData);
+    while (SetupDiEnumDeviceInfo(deviceInfo, deviceIndex++, &deviceData))
+    {
+        // The device and vendor IDs can be gathered directly, but information about the driver
+        // requires some registry digging
+        char fullDeviceID[MAX_DEVICE_ID_LEN];
+        if (CM_Get_Device_IDA(deviceData.DevInst, fullDeviceID, MAX_DEVICE_ID_LEN, 0) != CR_SUCCESS)
+        {
+            continue;
+        }
+
+        GPUDeviceInfo device;
+
+        if (!CMDeviceIDToDeviceAndVendorID(fullDeviceID, &device.vendorId, &device.deviceId))
+        {
+            continue;
+        }
+
+        // The driver key will end with something like {<displayClass>}/<4 digit number>.
+        std::array<WCHAR, 255> value;
+        if (!SetupDiGetDeviceRegistryPropertyW(deviceInfo, &deviceData, SPDRP_DRIVER, nullptr,
+                                               reinterpret_cast<PBYTE>(value.data()), sizeof(value),
+                                               nullptr))
+        {
+            continue;
+        }
+
+        std::wstring driverKey = L"System\\CurrentControlSet\\Control\\Class\\";
+        driverKey += value.data();
+
+        HKEY key;
+        if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, driverKey.c_str(), 0, KEY_QUERY_VALUE, &key) !=
+            ERROR_SUCCESS)
+        {
+            continue;
+        }
+
+        device.driverVersion = GetRegistryStringValue(key, "DriverVersion");
+        device.driverDate    = GetRegistryStringValue(key, "DriverDate");
+        device.driverVendor  = GetRegistryStringValue(key, "ProviderName");
+
+        RegCloseKey(key);
+
+        devices->push_back(device);
+    }
+
+    SetupDiDestroyDeviceInfoList(deviceInfo);
+
+    return true;
+}
+
+#elif defined(GPU_INFO_USE_DXGI)
+
 bool GetDevicesFromDXGI(std::vector<GPUDeviceInfo> *devices)
 {
-#if defined(ANGLE_ENABLE_WINDOWS_UWP)
-    IDXGIFactory1 *factory;
-    if (!SUCCEEDED(
-            CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void **>(&factory))))
-    {
-        return false;
-    }
-#else
     IDXGIFactory *factory;
-    if (!SUCCEEDED(CreateDXGIFactory(__uuidof(IDXGIFactory), reinterpret_cast<void **>(&factory))))
+    // The CreateDXGIFactory function does not exist for Windows Store apps.
+    // Instead, Windows Store apps use the CreateDXGIFactory1 function.
+    if (!SUCCEEDED(CreateDXGIFactory1(__uuidof(IDXGIFactory), reinterpret_cast<void **>(&factory))))
     {
         return false;
     }
-#endif
 
     UINT i                = 0;
     IDXGIAdapter *adapter = nullptr;
@@ -51,7 +137,7 @@ bool GetDevicesFromDXGI(std::vector<GPUDeviceInfo> *devices)
         adapter->GetDesc(&desc);
 
         LARGE_INTEGER umdVersion;
-        if (adapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &umdVersion) ==
+        if (adapter->CheckInterfaceSupport(__uuidof(ID3D10Device), &umdVersion) ==
             DXGI_ERROR_UNSUPPORTED)
         {
             adapter->Release();
@@ -62,11 +148,11 @@ bool GetDevicesFromDXGI(std::vector<GPUDeviceInfo> *devices)
         uint64_t intVersion = umdVersion.QuadPart;
         std::ostringstream o;
 
-        constexpr uint64_t kMask16 = std::numeric_limits<uint16_t>::max();
-        o << ((intVersion >> 48) & kMask16) << ".";
-        o << ((intVersion >> 32) & kMask16) << ".";
-        o << ((intVersion >> 16) & kMask16) << ".";
-        o << (intVersion & kMask16);
+        const uint64_t kMask = 0xFF;
+        o << ((intVersion >> 48) & kMask) << ".";
+        o << ((intVersion >> 32) & kMask) << ".";
+        o << ((intVersion >> 16) & kMask) << ".";
+        o << (intVersion & kMask);
 
         GPUDeviceInfo device;
         device.vendorId      = desc.VendorId;
@@ -80,35 +166,47 @@ bool GetDevicesFromDXGI(std::vector<GPUDeviceInfo> *devices)
 
     factory->Release();
 
-    return (i > 0);
+    return true;
 }
+
+#else
+#error
+#endif
 
 }  // anonymous namespace
 
 bool GetSystemInfo(SystemInfo *info)
 {
+#if defined(GPU_INFO_USE_SETUPAPI)
+    if (!GetDevicesFromRegistry(&info->gpus))
+    {
+        return false;
+    }
+#elif defined(GPU_INFO_USE_DXGI)
     if (!GetDevicesFromDXGI(&info->gpus))
     {
         return false;
     }
+#else
+#error
+#endif
 
     if (info->gpus.size() == 0)
     {
         return false;
     }
 
-    // Call GetDualGPUInfo to populate activeGPUIndex, isOptimus, and isAMDSwitchable.
-    GetDualGPUInfo(info);
+    FindPrimaryGPU(info);
 
-    // Override activeGPUIndex. The first index returned by EnumAdapters is the active GPU. We
-    // can override the heuristic to find the active GPU
-    info->activeGPUIndex = 0;
-
-#if !defined(ANGLE_ENABLE_WINDOWS_UWP)
-    // Override isOptimus. nvd3d9wrap.dll is loaded into all processes when Optimus is enabled.
+    // nvd3d9wrap.dll is loaded into all processes when Optimus is enabled.
+    // GetModuleHandleW is desktop apps only.
+#if defined(WINAPI_FAMILY) && WINAPI_FAMILY==WINAPI_FAMILY_APP
+    info->isOptimus = false;
+#else
     HMODULE nvd3d9wrap = GetModuleHandleW(L"nvd3d9wrap.dll");
     info->isOptimus    = nvd3d9wrap != nullptr;
 #endif
+
 
     return true;
 }

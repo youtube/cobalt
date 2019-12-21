@@ -1,14 +1,18 @@
 //
-// Copyright 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 
 // X11Pixmap.cpp: Implementation of OSPixmap for X11
 
-#include "util/x11/X11Pixmap.h"
+#include "x11/X11Pixmap.h"
 
-X11Pixmap::X11Pixmap() : mPixmap(0), mDisplay(nullptr) {}
+X11Pixmap::X11Pixmap()
+  : mPixmap(0),
+    mDisplay(nullptr)
+{
+}
 
 X11Pixmap::~X11Pixmap()
 {
@@ -22,11 +26,10 @@ bool X11Pixmap::initialize(EGLNativeDisplayType display, size_t width, size_t he
 {
     mDisplay = display;
 
-    int screen  = DefaultScreen(mDisplay);
+    int screen = DefaultScreen(mDisplay);
     Window root = RootWindow(mDisplay, screen);
 
-    mPixmap = XCreatePixmap(mDisplay, root, static_cast<unsigned int>(width),
-                            static_cast<unsigned int>(height), depth);
+    mPixmap = XCreatePixmap(mDisplay, root, width, height, depth);
 
     return mPixmap != 0;
 }

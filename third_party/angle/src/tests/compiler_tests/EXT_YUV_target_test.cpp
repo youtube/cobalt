@@ -1,5 +1,5 @@
 //
-// Copyright 2017 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2017 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -7,13 +7,17 @@
 //   Test for EXT_YUV_target implementation.
 //
 
-#include "tests/test_utils/ShaderExtensionTest.h"
+#include "angle_gl.h"
+#include "gtest/gtest.h"
+#include "GLSLANG/ShaderLang.h"
 
-using EXTYUVTargetTest = sh::ShaderExtensionTest;
+using testing::Combine;
+using testing::Values;
 
 namespace
 {
-const char EXTYTPragma[] = "#extension GL_EXT_YUV_target : require\n";
+const char ESSLVersion300[] = "#version 300 es\n";
+const char EXTYTPragma[]    = "#extension GL_EXT_YUV_target : require\n";
 
 const char ESSL300_SimpleShader[] =
     "precision mediump float;\n"
@@ -95,49 +99,28 @@ const char ESSL300_MultipleYUVOutputsFailureShader[] =
 
 // Shader that specifies yuvCscStandartEXT type and associated values.
 const char ESSL300_YuvCscStandardEXTShader[] =
-    R"(precision mediump float;
-    yuvCscStandardEXT;
-    yuvCscStandardEXT conv;
-    yuvCscStandardEXT conv1 = itu_601;
-    yuvCscStandardEXT conv2 = itu_601_full_range;
-    yuvCscStandardEXT conv3 = itu_709;
-    const yuvCscStandardEXT conv4 = itu_709;
-
-    uniform int u;
-    out vec4 my_color;
-
-    yuvCscStandardEXT conv_standard()
-    {
-        switch(u)
-        {
-            case 1:
-                return conv1;
-            case 2:
-                return conv2;
-            case 3:
-                return conv3;
-            default:
-                return conv;
-        }
-    }
-    bool is_itu_601(inout yuvCscStandardEXT csc)
-    {
-        csc = itu_601;
-        return csc == itu_601;
-    }
-    bool is_itu_709(yuvCscStandardEXT csc)
-    {
-        return csc == itu_709;
-    }
-    void main()
-    {
-        yuvCscStandardEXT conv = conv_standard();
-        bool csc_check1 = is_itu_601(conv);
-        bool csc_check2 = is_itu_709(itu_709);
-        if (csc_check1 && csc_check2) {
-            my_color = vec4(0, 1, 0, 1);
-        }
-    })";
+    "precision mediump float;\n"
+    "yuvCscStandardEXT;\n"
+    "yuvCscStandardEXT conv;\n"
+    "yuvCscStandardEXT conv1 = itu_601;\n"
+    "yuvCscStandardEXT conv2 = itu_601_full_range;\n"
+    "yuvCscStandardEXT conv3 = itu_709;\n"
+    "const yuvCscStandardEXT conv4 = itu_709;\n"
+    "yuvCscStandardEXT conv_standard() {\n"
+    "    return itu_601;\n"
+    "}\n"
+    "bool is_itu_601(inout yuvCscStandardEXT csc) {\n"
+    "    csc = itu_601;\n"
+    "    return csc == itu_601;\n"
+    "}\n"
+    "bool is_itu_709(yuvCscStandardEXT csc) {\n"
+    "    return csc == itu_709;\n"
+    "}\n"
+    "void main() { \n"
+    "    yuvCscStandardEXT conv = conv_standard();\n"
+    "    bool csc_check1 = is_itu_601(conv);\n"
+    "    bool csc_check2 = is_itu_709(itu_709);\n"
+    "}\n";
 
 // Shader that specifies yuvCscStandartEXT type constructor fails to compile.
 const char ESSL300_YuvCscStandartdEXTConstructFailureShader1[] =
@@ -204,41 +187,67 @@ const char ESSL300_YuvCscStandartdEXTQualifiersFailureShader3[] =
 
 // Shader that specifies yuv_to_rgb() and rgb_to_yuv() built-in functions.
 const char ESSL300_BuiltInFunctionsShader[] =
-    R"(precision mediump float;
-    yuvCscStandardEXT conv = itu_601;
+    "precision mediump float;\n"
+    "yuvCscStandardEXT conv = itu_601;\n"
+    "void main() { \n"
+    "    vec3 yuv = rgb_2_yuv(vec3(0.0f), conv);\n"
+    "    vec3 rgb = yuv_2_rgb(yuv, itu_601);\n"
+    "}\n";
 
-    out vec4 my_color;
-
-    void main()
+class EXTYUVTargetTest : public testing::TestWithParam<testing::tuple<const char *, const char *>>
+{
+  protected:
+    virtual void SetUp()
     {
-        vec3 yuv = rgb_2_yuv(vec3(0.0f), conv);
-        vec3 rgb = yuv_2_rgb(yuv, itu_601);
-        my_color = vec4(rgb, 1.0);
-    })";
+        sh::InitBuiltInResources(&mResources);
+        mResources.EXT_YUV_target = 1;
 
-const char ESSL300_OverloadRgb2Yuv[] =
-    R"(precision mediump float;
-    float rgb_2_yuv(float x) { return x + 1.0; }
+        mCompiler = nullptr;
+    }
 
-    in float i;
-    out float o;
-
-    void main()
+    virtual void TearDown() { DestroyCompiler(); }
+    void DestroyCompiler()
     {
-        o = rgb_2_yuv(i);
-    })";
+        if (mCompiler)
+        {
+            sh::Destruct(mCompiler);
+            mCompiler = nullptr;
+        }
+    }
 
-const char ESSL300_OverloadYuv2Rgb[] =
-    R"(precision mediump float;
-    float yuv_2_rgb(float x) { return x + 1.0; }
-
-    in float i;
-    out float o;
-
-    void main()
+    void InitializeCompiler()
     {
-        o = yuv_2_rgb(i);
-    })";
+        DestroyCompiler();
+        mCompiler =
+            sh::ConstructCompiler(GL_FRAGMENT_SHADER, SH_GLES3_SPEC, SH_ESSL_OUTPUT, &mResources);
+        ASSERT_TRUE(mCompiler != nullptr) << "Compiler could not be constructed.";
+    }
+
+    testing::AssertionResult TestShaderCompile(const char *pragma)
+    {
+        return TestShaderCompile(testing::get<0>(GetParam()),  // Version.
+                                 pragma,
+                                 testing::get<1>(GetParam())  // Shader.
+                                 );
+    }
+
+    testing::AssertionResult TestShaderCompile(const char *version,
+                                               const char *pragma,
+                                               const char *shader)
+    {
+        const char *shaderStrings[] = {version, pragma, shader};
+        bool success                = sh::Compile(mCompiler, shaderStrings, 3, 0);
+        if (success)
+        {
+            return ::testing::AssertionSuccess() << "Compilation success";
+        }
+        return ::testing::AssertionFailure() << sh::GetInfoLog(mCompiler);
+    }
+
+  protected:
+    ShBuiltInResources mResources;
+    ShHandle mCompiler;
+};
 
 // Extension flag is required to compile properly. Expect failure when it is
 // not present.
@@ -270,14 +279,14 @@ TEST_P(EXTYUVTargetTest, CompileSucceedsWithExtensionAndPragma)
     EXPECT_TRUE(TestShaderCompile(EXTYTPragma));
 }
 
-INSTANTIATE_TEST_SUITE_P(CorrectVariantsWithExtensionAndPragma,
-                         EXTYUVTargetTest,
-                         Combine(Values(SH_GLES3_SPEC),
-                                 Values(sh::ESSLVersion300),
-                                 Values(ESSL300_SimpleShader, ESSL300_FragColorShader)));
+INSTANTIATE_TEST_CASE_P(CorrectVariantsWithExtensionAndPragma,
+                        EXTYUVTargetTest,
+                        Combine(Values(ESSLVersion300),
+                                Values(ESSL300_SimpleShader, ESSL300_FragColorShader)));
 
 class EXTYUVTargetCompileSuccessTest : public EXTYUVTargetTest
-{};
+{
+};
 
 TEST_P(EXTYUVTargetCompileSuccessTest, CompileSucceeds)
 {
@@ -287,17 +296,17 @@ TEST_P(EXTYUVTargetCompileSuccessTest, CompileSucceeds)
     EXPECT_TRUE(TestShaderCompile(EXTYTPragma));
 }
 
-INSTANTIATE_TEST_SUITE_P(CorrectESSL300Shaders,
-                         EXTYUVTargetCompileSuccessTest,
-                         Combine(Values(SH_GLES3_SPEC),
-                                 Values(sh::ESSLVersion300),
-                                 Values(ESSL300_FragColorShader,
-                                        ESSL300_YUVQualifierMultipleTimesShader,
-                                        ESSL300_YuvCscStandardEXTShader,
-                                        ESSL300_BuiltInFunctionsShader)));
+INSTANTIATE_TEST_CASE_P(CorrectESSL300Shaders,
+                        EXTYUVTargetCompileSuccessTest,
+                        Combine(Values(ESSLVersion300),
+                                Values(ESSL300_FragColorShader,
+                                       ESSL300_YUVQualifierMultipleTimesShader,
+                                       ESSL300_YuvCscStandardEXTShader,
+                                       ESSL300_BuiltInFunctionsShader)));
 
 class EXTYUVTargetCompileFailureTest : public EXTYUVTargetTest
-{};
+{
+};
 
 TEST_P(EXTYUVTargetCompileFailureTest, CompileFails)
 {
@@ -307,44 +316,25 @@ TEST_P(EXTYUVTargetCompileFailureTest, CompileFails)
     EXPECT_FALSE(TestShaderCompile(EXTYTPragma));
 }
 
-INSTANTIATE_TEST_SUITE_P(IncorrectESSL300Shaders,
-                         EXTYUVTargetCompileFailureTest,
-                         Combine(Values(SH_GLES3_SPEC),
-                                 Values(sh::ESSLVersion300),
-                                 Values(ESSL300_YUVQualifierFailureShader1,
-                                        ESSL300_YUVQualifierFailureShader2,
-                                        ESSL300_LocationAndYUVFailureShader,
-                                        ESSL300_MultipleColorAndYUVOutputsFailureShader1,
-                                        ESSL300_MultipleColorAndYUVOutputsFailureShader2,
-                                        ESSL300_DepthAndYUVOutputsFailureShader,
-                                        ESSL300_MultipleYUVOutputsFailureShader,
-                                        ESSL300_YuvCscStandartdEXTConstructFailureShader1,
-                                        ESSL300_YuvCscStandartdEXTConstructFailureShader2,
-                                        ESSL300_YuvCscStandartdEXTConversionFailureShader1,
-                                        ESSL300_YuvCscStandartdEXTConversionFailureShader2,
-                                        ESSL300_YuvCscStandartdEXTConversionFailureShader3,
-                                        ESSL300_YuvCscStandartdEXTConversionFailureShader4,
-                                        ESSL300_YuvCscStandartdEXTConversionFailureShader5,
-                                        ESSL300_YuvCscStandartdEXTQualifiersFailureShader1,
-                                        ESSL300_YuvCscStandartdEXTQualifiersFailureShader2,
-                                        ESSL300_YuvCscStandartdEXTQualifiersFailureShader3)));
-
-class EXTYUVNotEnabledTest : public EXTYUVTargetTest
-{};
-
-TEST_P(EXTYUVNotEnabledTest, CanOverloadConversions)
-{
-    // Expect compile success with a shader that overloads functions in the EXT_YUV_target
-    // extension.
-    mResources.EXT_YUV_target = 0;
-    InitializeCompiler();
-    EXPECT_TRUE(TestShaderCompile(""));
-}
-
-INSTANTIATE_TEST_SUITE_P(CoreESSL300Shaders,
-                         EXTYUVNotEnabledTest,
-                         Combine(Values(SH_GLES3_SPEC),
-                                 Values(sh::ESSLVersion300),
-                                 Values(ESSL300_OverloadRgb2Yuv, ESSL300_OverloadYuv2Rgb)));
+INSTANTIATE_TEST_CASE_P(IncorrectESSL300Shaders,
+                        EXTYUVTargetCompileFailureTest,
+                        Combine(Values(ESSLVersion300),
+                                Values(ESSL300_YUVQualifierFailureShader1,
+                                       ESSL300_YUVQualifierFailureShader2,
+                                       ESSL300_LocationAndYUVFailureShader,
+                                       ESSL300_MultipleColorAndYUVOutputsFailureShader1,
+                                       ESSL300_MultipleColorAndYUVOutputsFailureShader2,
+                                       ESSL300_DepthAndYUVOutputsFailureShader,
+                                       ESSL300_MultipleYUVOutputsFailureShader,
+                                       ESSL300_YuvCscStandartdEXTConstructFailureShader1,
+                                       ESSL300_YuvCscStandartdEXTConstructFailureShader2,
+                                       ESSL300_YuvCscStandartdEXTConversionFailureShader1,
+                                       ESSL300_YuvCscStandartdEXTConversionFailureShader2,
+                                       ESSL300_YuvCscStandartdEXTConversionFailureShader3,
+                                       ESSL300_YuvCscStandartdEXTConversionFailureShader4,
+                                       ESSL300_YuvCscStandartdEXTConversionFailureShader5,
+                                       ESSL300_YuvCscStandartdEXTQualifiersFailureShader1,
+                                       ESSL300_YuvCscStandartdEXTQualifiersFailureShader2,
+                                       ESSL300_YuvCscStandartdEXTQualifiersFailureShader3)));
 
 }  // namespace

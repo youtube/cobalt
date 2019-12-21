@@ -1,5 +1,5 @@
 //
-// Copyright 2013 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2013 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -27,68 +27,55 @@ class Blit11 : angle::NonCopyable
     explicit Blit11(Renderer11 *renderer);
     ~Blit11();
 
-    angle::Result swizzleTexture(const gl::Context *context,
-                                 const d3d11::SharedSRV &source,
-                                 const d3d11::RenderTargetView &dest,
-                                 const gl::Extents &size,
-                                 const gl::SwizzleState &swizzleTarget);
+    gl::Error swizzleTexture(ID3D11ShaderResourceView *source,
+                             const d3d11::RenderTargetView &dest,
+                             const gl::Extents &size,
+                             const gl::SwizzleState &swizzleTarget);
 
-    // Set destTypeForDownsampling to GL_NONE to skip downsampling
-    angle::Result copyTexture(const gl::Context *context,
-                              const d3d11::SharedSRV &source,
-                              const gl::Box &sourceArea,
-                              const gl::Extents &sourceSize,
-                              GLenum sourceFormat,
-                              const d3d11::RenderTargetView &dest,
-                              const gl::Box &destArea,
-                              const gl::Extents &destSize,
-                              const gl::Rectangle *scissor,
-                              GLenum destFormat,
-                              GLenum destTypeForDownsampling,
-                              GLenum filter,
-                              bool maskOffAlpha,
-                              bool unpackPremultiplyAlpha,
-                              bool unpackUnmultiplyAlpha);
+    gl::Error copyTexture(ID3D11ShaderResourceView *source,
+                          const gl::Box &sourceArea,
+                          const gl::Extents &sourceSize,
+                          const d3d11::RenderTargetView &dest,
+                          const gl::Box &destArea,
+                          const gl::Extents &destSize,
+                          const gl::Rectangle *scissor,
+                          GLenum destFormat,
+                          GLenum filter,
+                          bool maskOffAlpha,
+                          bool unpackPremultiplyAlpha,
+                          bool unpackUnmultiplyAlpha);
 
-    angle::Result copyStencil(const gl::Context *context,
-                              const TextureHelper11 &source,
-                              unsigned int sourceSubresource,
-                              const gl::Box &sourceArea,
-                              const gl::Extents &sourceSize,
-                              const TextureHelper11 &dest,
-                              unsigned int destSubresource,
-                              const gl::Box &destArea,
-                              const gl::Extents &destSize,
-                              const gl::Rectangle *scissor);
+    gl::Error copyStencil(const TextureHelper11 &source,
+                          unsigned int sourceSubresource,
+                          const gl::Box &sourceArea,
+                          const gl::Extents &sourceSize,
+                          const TextureHelper11 &dest,
+                          unsigned int destSubresource,
+                          const gl::Box &destArea,
+                          const gl::Extents &destSize,
+                          const gl::Rectangle *scissor);
 
-    angle::Result copyDepth(const gl::Context *context,
-                            const d3d11::SharedSRV &source,
-                            const gl::Box &sourceArea,
-                            const gl::Extents &sourceSize,
-                            const d3d11::DepthStencilView &dest,
-                            const gl::Box &destArea,
-                            const gl::Extents &destSize,
-                            const gl::Rectangle *scissor);
+    gl::Error copyDepth(ID3D11ShaderResourceView *source,
+                        const gl::Box &sourceArea,
+                        const gl::Extents &sourceSize,
+                        ID3D11DepthStencilView *dest,
+                        const gl::Box &destArea,
+                        const gl::Extents &destSize,
+                        const gl::Rectangle *scissor);
 
-    angle::Result copyDepthStencil(const gl::Context *context,
-                                   const TextureHelper11 &source,
-                                   unsigned int sourceSubresource,
-                                   const gl::Box &sourceArea,
-                                   const gl::Extents &sourceSize,
-                                   const TextureHelper11 &dest,
-                                   unsigned int destSubresource,
-                                   const gl::Box &destArea,
-                                   const gl::Extents &destSize,
-                                   const gl::Rectangle *scissor);
+    gl::Error copyDepthStencil(const TextureHelper11 &source,
+                               unsigned int sourceSubresource,
+                               const gl::Box &sourceArea,
+                               const gl::Extents &sourceSize,
+                               const TextureHelper11 &dest,
+                               unsigned int destSubresource,
+                               const gl::Box &destArea,
+                               const gl::Extents &destSize,
+                               const gl::Rectangle *scissor);
 
-    angle::Result resolveDepth(const gl::Context *context,
-                               RenderTarget11 *depth,
-                               TextureHelper11 *textureOut);
+    gl::ErrorOrResult<TextureHelper11> resolveDepth(RenderTarget11 *depth);
 
-    angle::Result resolveStencil(const gl::Context *context,
-                                 RenderTarget11 *depthStencil,
-                                 bool alsoDepth,
-                                 TextureHelper11 *textureOut);
+    gl::ErrorOrResult<TextureHelper11> resolveStencil(RenderTarget11 *depthStencil, bool alsoDepth);
 
     using BlitConvertFunction = void(const gl::Box &sourceArea,
                                      const gl::Box &destArea,
@@ -105,8 +92,49 @@ class Blit11 : angle::NonCopyable
                                      uint8_t *destData);
 
   private:
-    enum BlitShaderOperation : unsigned int;
-    enum BlitShaderType : unsigned int;
+    enum BlitShaderType
+    {
+        BLITSHADER_INVALID,
+        BLITSHADER_2D_RGBAF,
+        BLITSHADER_2D_RGBAF_PREMULTIPLY,
+        BLITSHADER_2D_RGBAF_UNMULTIPLY,
+        BLITSHADER_2D_BGRAF,
+        BLITSHADER_2D_BGRAF_PREMULTIPLY,
+        BLITSHADER_2D_BGRAF_UNMULTIPLY,
+        BLITSHADER_2D_RGBF,
+        BLITSHADER_2D_RGBF_PREMULTIPLY,
+        BLITSHADER_2D_RGBF_UNMULTIPLY,
+        BLITSHADER_2D_RGF,
+        BLITSHADER_2D_RF,
+        BLITSHADER_2D_ALPHA,
+        BLITSHADER_2D_LUMA,
+        BLITSHADER_2D_LUMAALPHA,
+        BLITSHADER_2D_RGBAUI,
+        BLITSHADER_2D_RGBAI,
+        BLITSHADER_2D_RGBUI,
+        BLITSHADER_2D_RGBI,
+        BLITSHADER_2D_RGUI,
+        BLITSHADER_2D_RGI,
+        BLITSHADER_2D_RUI,
+        BLITSHADER_2D_RI,
+        BLITSHADER_3D_RGBAF,
+        BLITSHADER_3D_RGBAUI,
+        BLITSHADER_3D_RGBAI,
+        BLITSHADER_3D_BGRAF,
+        BLITSHADER_3D_RGBF,
+        BLITSHADER_3D_RGBUI,
+        BLITSHADER_3D_RGBI,
+        BLITSHADER_3D_RGF,
+        BLITSHADER_3D_RGUI,
+        BLITSHADER_3D_RGI,
+        BLITSHADER_3D_RF,
+        BLITSHADER_3D_RUI,
+        BLITSHADER_3D_RI,
+        BLITSHADER_3D_ALPHA,
+        BLITSHADER_3D_LUMA,
+        BLITSHADER_3D_LUMAALPHA,
+    };
+
     enum SwizzleShaderType
     {
         SWIZZLESHADER_INVALID,
@@ -135,85 +163,51 @@ class Blit11 : angle::NonCopyable
 
     enum ShaderDimension
     {
-        SHADER_INVALID,
         SHADER_2D,
         SHADER_3D,
-        SHADER_2DARRAY
     };
 
     struct Shader
     {
-        Shader();
-        Shader(Shader &&other);
-        ~Shader();
-        Shader &operator=(Shader &&other);
-
         ShaderDimension dimension;
-        d3d11::PixelShader pixelShader;
+        ID3D11PixelShader *pixelShader;
     };
 
     struct ShaderSupport
     {
-        const d3d11::InputLayout *inputLayout;
-        const d3d11::VertexShader *vertexShader;
-        const d3d11::GeometryShader *geometryShader;
+        ID3D11InputLayout *inputLayout;
+        ID3D11VertexShader *vertexShader;
+        ID3D11GeometryShader *geometryShader;
         WriteVertexFunction vertexWriteFunction;
     };
 
-    angle::Result initResources(const gl::Context *context);
+    gl::Error initResources();
 
-    angle::Result getShaderSupport(const gl::Context *context,
-                                   const Shader &shader,
-                                   ShaderSupport *supportOut);
+    ShaderSupport getShaderSupport(const Shader &shader);
 
-    static BlitShaderOperation getBlitShaderOperation(GLenum destinationFormat,
-                                                      GLenum sourceFormat,
-                                                      bool isSrcSigned,
-                                                      bool isDestSigned,
-                                                      bool unpackPremultiplyAlpha,
-                                                      bool unpackUnmultiplyAlpha,
-                                                      GLenum destTypeForDownsampling);
-
-    static BlitShaderType getBlitShaderType(BlitShaderOperation operation,
+    static BlitShaderType GetBlitShaderType(GLenum destinationFormat,
+                                            bool isSigned,
+                                            bool unpackPremultiplyAlpha,
+                                            bool unpackUnmultiplyAlpha,
                                             ShaderDimension dimension);
-
     static SwizzleShaderType GetSwizzleShaderType(GLenum type, D3D11_SRV_DIMENSION dimensionality);
 
-    angle::Result copyDepthStencilImpl(const gl::Context *context,
-                                       const TextureHelper11 &source,
-                                       unsigned int sourceSubresource,
-                                       const gl::Box &sourceArea,
-                                       const gl::Extents &sourceSize,
-                                       const TextureHelper11 &dest,
-                                       unsigned int destSubresource,
-                                       const gl::Box &destArea,
-                                       const gl::Extents &destSize,
-                                       const gl::Rectangle *scissor,
-                                       bool stencilOnly);
+    gl::Error copyDepthStencilImpl(const TextureHelper11 &source,
+                                   unsigned int sourceSubresource,
+                                   const gl::Box &sourceArea,
+                                   const gl::Extents &sourceSize,
+                                   const TextureHelper11 &dest,
+                                   unsigned int destSubresource,
+                                   const gl::Box &destArea,
+                                   const gl::Extents &destSize,
+                                   const gl::Rectangle *scissor,
+                                   bool stencilOnly);
 
-    angle::Result copyAndConvertImpl(const gl::Context *context,
-                                     const TextureHelper11 &source,
-                                     unsigned int sourceSubresource,
-                                     const gl::Box &sourceArea,
-                                     const gl::Extents &sourceSize,
-                                     const TextureHelper11 &destStaging,
-                                     const gl::Box &destArea,
-                                     const gl::Extents &destSize,
-                                     const gl::Rectangle *scissor,
-                                     size_t readOffset,
-                                     size_t writeOffset,
-                                     size_t copySize,
-                                     size_t srcPixelStride,
-                                     size_t destPixelStride,
-                                     BlitConvertFunction *convertFunction);
-
-    angle::Result copyAndConvert(const gl::Context *context,
-                                 const TextureHelper11 &source,
+    gl::Error copyAndConvertImpl(const TextureHelper11 &source,
                                  unsigned int sourceSubresource,
                                  const gl::Box &sourceArea,
                                  const gl::Extents &sourceSize,
-                                 const TextureHelper11 &dest,
-                                 unsigned int destSubresource,
+                                 const TextureHelper11 &destStaging,
                                  const gl::Box &destArea,
                                  const gl::Extents &destSize,
                                  const gl::Rectangle *scissor,
@@ -224,40 +218,44 @@ class Blit11 : angle::NonCopyable
                                  size_t destPixelStride,
                                  BlitConvertFunction *convertFunction);
 
-    angle::Result mapBlitShader(const gl::Context *context, BlitShaderType blitShaderType);
-    angle::Result addBlitShaderToMap(const gl::Context *context,
-                                     BlitShaderType blitShaderType,
-                                     ShaderDimension dimension,
-                                     const ShaderData &shaderData,
-                                     const char *name);
+    gl::Error copyAndConvert(const TextureHelper11 &source,
+                             unsigned int sourceSubresource,
+                             const gl::Box &sourceArea,
+                             const gl::Extents &sourceSize,
+                             const TextureHelper11 &dest,
+                             unsigned int destSubresource,
+                             const gl::Box &destArea,
+                             const gl::Extents &destSize,
+                             const gl::Rectangle *scissor,
+                             size_t readOffset,
+                             size_t writeOffset,
+                             size_t copySize,
+                             size_t srcPixelStride,
+                             size_t destPixelStride,
+                             BlitConvertFunction *convertFunction);
 
-    angle::Result getBlitShader(const gl::Context *context,
-                                GLenum destFormat,
-                                GLenum sourceFormat,
-                                bool isSrcSigned,
-                                bool isDestSigned,
-                                bool unpackPremultiplyAlpha,
-                                bool unpackUnmultiplyAlpha,
-                                GLenum destTypeForDownsampling,
-                                ShaderDimension dimension,
-                                const Shader **shaderOut);
-    angle::Result getSwizzleShader(const gl::Context *context,
-                                   GLenum type,
-                                   D3D11_SRV_DIMENSION viewDimension,
-                                   const Shader **shaderOut);
+    void addBlitShaderToMap(BlitShaderType blitShaderType,
+                            ShaderDimension dimension,
+                            ID3D11PixelShader *ps);
 
-    angle::Result addSwizzleShaderToMap(const gl::Context *context,
-                                        SwizzleShaderType swizzleShaderType,
-                                        ShaderDimension dimension,
-                                        const ShaderData &shaderData,
-                                        const char *name);
+    gl::Error getBlitShader(GLenum destFormat,
+                            bool isSigned,
+                            bool unpackPremultiplyAlpha,
+                            bool unpackUnmultiplyAlpha,
+                            ShaderDimension dimension,
+                            const Shader **shaderOut);
+    gl::Error getSwizzleShader(GLenum type,
+                               D3D11_SRV_DIMENSION viewDimension,
+                               const Shader **shaderOut);
+
+    void addSwizzleShaderToMap(SwizzleShaderType swizzleShaderType,
+                               ShaderDimension dimension,
+                               ID3D11PixelShader *ps);
 
     void clearShaderMap();
     void releaseResolveDepthStencilResources();
-    angle::Result initResolveDepthOnly(const gl::Context *context,
-                                       const d3d11::Format &format,
-                                       const gl::Extents &extents);
-    angle::Result initResolveDepthStencil(const gl::Context *context, const gl::Extents &extents);
+    gl::Error initResolveDepthOnly(const d3d11::Format &format, const gl::Extents &extents);
+    gl::Error initResolveDepthStencil(const gl::Extents &extents);
 
     Renderer11 *mRenderer;
 
@@ -265,12 +263,12 @@ class Blit11 : angle::NonCopyable
     std::map<SwizzleShaderType, Shader> mSwizzleShaderMap;
 
     bool mResourcesInitialized;
-    d3d11::Buffer mVertexBuffer;
-    d3d11::SamplerState mPointSampler;
-    d3d11::SamplerState mLinearSampler;
-    d3d11::RasterizerState mScissorEnabledRasterizerState;
-    d3d11::RasterizerState mScissorDisabledRasterizerState;
-    d3d11::DepthStencilState mDepthStencilState;
+    angle::ComPtr<ID3D11Buffer> mVertexBuffer;
+    angle::ComPtr<ID3D11SamplerState> mPointSampler;
+    angle::ComPtr<ID3D11SamplerState> mLinearSampler;
+    angle::ComPtr<ID3D11RasterizerState> mScissorEnabledRasterizerState;
+    angle::ComPtr<ID3D11RasterizerState> mScissorDisabledRasterizerState;
+    angle::ComPtr<ID3D11DepthStencilState> mDepthStencilState;
 
     d3d11::LazyInputLayout mQuad2DIL;
     d3d11::LazyShader<ID3D11VertexShader> mQuad2DVS;
@@ -282,17 +280,17 @@ class Blit11 : angle::NonCopyable
 
     d3d11::LazyBlendState mAlphaMaskBlendState;
 
-    d3d11::Buffer mSwizzleCB;
+    angle::ComPtr<ID3D11Buffer> mSwizzleCB;
 
     d3d11::LazyShader<ID3D11VertexShader> mResolveDepthStencilVS;
     d3d11::LazyShader<ID3D11PixelShader> mResolveDepthPS;
     d3d11::LazyShader<ID3D11PixelShader> mResolveDepthStencilPS;
     d3d11::LazyShader<ID3D11PixelShader> mResolveStencilPS;
-    d3d11::ShaderResourceView mStencilSRV;
+    angle::ComPtr<ID3D11ShaderResourceView> mStencilSRV;
     TextureHelper11 mResolvedDepthStencil;
     d3d11::RenderTargetView mResolvedDepthStencilRTView;
     TextureHelper11 mResolvedDepth;
-    d3d11::DepthStencilView mResolvedDepthDSView;
+    angle::ComPtr<ID3D11DepthStencilView> mResolvedDepthDSView;
 };
 
 }  // namespace rx

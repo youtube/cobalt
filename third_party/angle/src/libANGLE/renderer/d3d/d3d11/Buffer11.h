@@ -35,12 +35,12 @@ enum BufferUsage
     BUFFER_USAGE_STAGING,
     BUFFER_USAGE_VERTEX_OR_TRANSFORM_FEEDBACK,
     BUFFER_USAGE_INDEX,
+    // TODO: possibly share this buffer type with shader storage buffers.
     BUFFER_USAGE_INDIRECT,
     BUFFER_USAGE_PIXEL_UNPACK,
     BUFFER_USAGE_PIXEL_PACK,
     BUFFER_USAGE_UNIFORM,
     BUFFER_USAGE_EMULATED_INDEXED_VERTEX,
-    BUFFER_USAGE_RAW_UAV,
 
     BUFFER_USAGE_COUNT,
 };
@@ -51,68 +51,60 @@ class Buffer11 : public BufferD3D
 {
   public:
     Buffer11(const gl::BufferState &state, Renderer11 *renderer);
-    ~Buffer11() override;
+    virtual ~Buffer11();
 
-    angle::Result getBuffer(const gl::Context *context,
-                            BufferUsage usage,
-                            ID3D11Buffer **bufferOut);
-    angle::Result getEmulatedIndexedBuffer(const gl::Context *context,
-                                           SourceIndexData *indexInfo,
-                                           const TranslatedAttribute &attribute,
-                                           GLint startVertex,
-                                           ID3D11Buffer **bufferOut);
-    angle::Result getConstantBufferRange(const gl::Context *context,
-                                         GLintptr offset,
-                                         GLsizeiptr size,
-                                         const d3d11::Buffer **bufferOut,
-                                         UINT *firstConstantOut,
-                                         UINT *numConstantsOut);
-    angle::Result getSRV(const gl::Context *context,
-                         DXGI_FORMAT srvFormat,
-                         const d3d11::ShaderResourceView **srvOut);
-    angle::Result getRawUAVRange(const gl::Context *context,
-                                 GLintptr offset,
-                                 GLsizeiptr size,
-                                 d3d11::UnorderedAccessView **uavOut);
-
-    angle::Result markRawBufferUsage(const gl::Context *context);
+    gl::ErrorOrResult<ID3D11Buffer *> getBuffer(BufferUsage usage);
+    gl::ErrorOrResult<ID3D11Buffer *> getEmulatedIndexedBuffer(SourceIndexData *indexInfo,
+                                                               const TranslatedAttribute &attribute,
+                                                               GLint startVertex);
+    gl::Error getConstantBufferRange(GLintptr offset,
+                                     GLsizeiptr size,
+                                     ID3D11Buffer **bufferOut,
+                                     UINT *firstConstantOut,
+                                     UINT *numConstantsOut);
+    gl::ErrorOrResult<ID3D11ShaderResourceView *> getSRV(DXGI_FORMAT srvFormat);
     bool isMapped() const { return mMappedStorage != nullptr; }
-    angle::Result packPixels(const gl::Context *context,
-                             const gl::FramebufferAttachment &readAttachment,
-                             const PackPixelsParams &params);
+    gl::Error packPixels(const gl::FramebufferAttachment &readAttachment,
+                         const PackPixelsParams &params);
     size_t getTotalCPUBufferMemoryBytes() const;
 
     // BufferD3D implementation
-    size_t getSize() const override;
+    size_t getSize() const override { return mSize; }
     bool supportsDirectBinding() const override;
-    angle::Result getData(const gl::Context *context, const uint8_t **outData) override;
-    void initializeStaticData(const gl::Context *context) override;
-    void invalidateStaticData(const gl::Context *context) override;
+    gl::Error getData(const uint8_t **outData) override;
+    void initializeStaticData() override;
+    void invalidateStaticData() override;
 
     // BufferImpl implementation
-    angle::Result setData(const gl::Context *context,
-                          gl::BufferBinding target,
-                          const void *data,
-                          size_t size,
-                          gl::BufferUsage usage) override;
-    angle::Result setSubData(const gl::Context *context,
-                             gl::BufferBinding target,
-                             const void *data,
-                             size_t size,
-                             size_t offset) override;
-    angle::Result copySubData(const gl::Context *context,
-                              BufferImpl *source,
-                              GLintptr sourceOffset,
-                              GLintptr destOffset,
-                              GLsizeiptr size) override;
-    angle::Result map(const gl::Context *context, GLenum access, void **mapPtr) override;
-    angle::Result mapRange(const gl::Context *context,
-                           size_t offset,
-                           size_t length,
-                           GLbitfield access,
-                           void **mapPtr) override;
-    angle::Result unmap(const gl::Context *context, GLboolean *result) override;
-    angle::Result markTransformFeedbackUsage(const gl::Context *context) override;
+    gl::Error setData(ContextImpl *context,
+                      GLenum target,
+                      const void *data,
+                      size_t size,
+                      GLenum usage) override;
+    gl::Error setSubData(ContextImpl *context,
+                         GLenum target,
+                         const void *data,
+                         size_t size,
+                         size_t offset) override;
+    gl::Error copySubData(ContextImpl *contextImpl,
+                          BufferImpl *source,
+                          GLintptr sourceOffset,
+                          GLintptr destOffset,
+                          GLsizeiptr size) override;
+    gl::Error map(ContextImpl *contextImpl, GLenum access, void **mapPtr) override;
+    gl::Error mapRange(ContextImpl *contextImpl,
+                       size_t offset,
+                       size_t length,
+                       GLbitfield access,
+                       void **mapPtr) override;
+    gl::Error unmap(ContextImpl *contextImpl, GLboolean *result) override;
+    gl::Error markTransformFeedbackUsage() override;
+
+    // We use two set of dirty events. Static buffers are marked dirty whenever
+    // data changes, because they must be re-translated. Direct buffers only need to be
+    // updated when the underlying ID3D11Buffer pointer changes - hopefully far less often.
+    OnBufferDataDirtyChannel *getStaticBroadcastChannel();
+    OnBufferDataDirtyChannel *getDirectBroadcastChannel();
 
   private:
     class BufferStorage;
@@ -130,57 +122,33 @@ class Buffer11 : public BufferD3D
     };
 
     void markBufferUsage(BufferUsage usage);
-    angle::Result markBufferUsage(const gl::Context *context, BufferUsage usage);
-    angle::Result garbageCollection(const gl::Context *context, BufferUsage currentUsage);
+    gl::Error garbageCollection(BufferUsage currentUsage);
+    gl::ErrorOrResult<NativeStorage *> getStagingStorage();
+    gl::ErrorOrResult<PackStorage *> getPackStorage();
+    gl::ErrorOrResult<SystemMemoryStorage *> getSystemMemoryStorage();
 
-    angle::Result updateBufferStorage(const gl::Context *context,
-                                      BufferStorage *storage,
-                                      size_t sourceOffset,
-                                      size_t storageSize);
+    gl::Error updateBufferStorage(BufferStorage *storage, size_t sourceOffset, size_t storageSize);
+    gl::ErrorOrResult<BufferStorage *> getBufferStorage(BufferUsage usage);
+    gl::ErrorOrResult<BufferStorage *> getLatestBufferStorage() const;
 
-    angle::Result getNativeStorageForUAV(const gl::Context *context,
-                                         Buffer11::NativeStorage **storageOut);
-
-    template <typename StorageOutT>
-    angle::Result getBufferStorage(const gl::Context *context,
-                                   BufferUsage usage,
-                                   StorageOutT **storageOut);
-
-    template <typename StorageOutT>
-    angle::Result getStagingStorage(const gl::Context *context, StorageOutT **storageOut);
-
-    angle::Result getLatestBufferStorage(const gl::Context *context,
-                                         BufferStorage **storageOut) const;
-
-    angle::Result getConstantBufferRangeStorage(const gl::Context *context,
-                                                GLintptr offset,
-                                                GLsizeiptr size,
-                                                NativeStorage **storageOut);
+    gl::ErrorOrResult<BufferStorage *> getConstantBufferRangeStorage(GLintptr offset,
+                                                                     GLsizeiptr size);
 
     BufferStorage *allocateStorage(BufferUsage usage);
     void updateDeallocThreshold(BufferUsage usage);
 
     // Free the storage if we decide it isn't being used very often.
-    angle::Result checkForDeallocation(const gl::Context *context, BufferUsage usage);
+    gl::Error checkForDeallocation(BufferUsage usage);
 
     // For some cases of uniform buffer storage, we can't deallocate system memory storage.
     bool canDeallocateSystemMemory() const;
-
-    // Updates data revisions and latest storage.
-    void onCopyStorage(BufferStorage *dest, BufferStorage *source);
-    void onStorageUpdate(BufferStorage *updatedStorage);
 
     Renderer11 *mRenderer;
     size_t mSize;
 
     BufferStorage *mMappedStorage;
 
-    // Buffer storages are sorted by usage. It's important that the latest buffer storage picks
-    // the lowest usage in the case where two storages are tied on data revision - this ensures
-    // we never do anything dangerous like map a uniform buffer over a staging or system memory
-    // copy.
     std::array<BufferStorage *, BUFFER_USAGE_COUNT> mBufferStorages;
-    BufferStorage *mLatestBufferStorage;
 
     // These two arrays are used to track when to free unused storage.
     std::array<unsigned int, BUFFER_USAGE_COUNT> mDeallocThresholds;
@@ -193,6 +161,9 @@ class Buffer11 : public BufferD3D
     ConstantBufferCache mConstantBufferRangeStoragesCache;
     size_t mConstantBufferStorageAdditionalSize;
     unsigned int mMaxConstantBufferLruCount;
+
+    OnBufferDataDirtyChannel mStaticBroadcastChannel;
+    OnBufferDataDirtyChannel mDirectBroadcastChannel;
 };
 
 }  // namespace rx

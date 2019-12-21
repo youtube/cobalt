@@ -1,14 +1,16 @@
 //
-// Copyright 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 
 // Win32Pixmap.cpp: Implementation of OSPixmap for Win32 (Windows)
 
-#include "util/windows/win32/Win32Pixmap.h"
+#include "windows/win32/Win32Pixmap.h"
 
-Win32Pixmap::Win32Pixmap() : mBitmap(nullptr) {}
+Win32Pixmap::Win32Pixmap() : mBitmap(nullptr)
+{
+}
 
 Win32Pixmap::~Win32Pixmap()
 {
@@ -41,7 +43,7 @@ bool Win32Pixmap::initialize(EGLNativeDisplayType display, size_t width, size_t 
     bitmapInfo.bmiHeader.biClrImportant  = 0;
 
     void *bitmapPtr = nullptr;
-    mBitmap = CreateDIBSection(display, &bitmapInfo, DIB_RGB_COLORS, &bitmapPtr, nullptr, 0);
+    mBitmap         = CreateDIBSection(display, &bitmapInfo, DIB_RGB_COLORS, &bitmapPtr, nullptr, 0);
 
     return mBitmap != nullptr;
 }

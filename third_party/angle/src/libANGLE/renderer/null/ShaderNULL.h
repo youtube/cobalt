@@ -21,9 +21,11 @@ class ShaderNULL : public ShaderImpl
     ShaderNULL(const gl::ShaderState &data);
     ~ShaderNULL() override;
 
-    std::shared_ptr<WaitableCompileEvent> compile(const gl::Context *context,
-                                                  gl::ShCompilerInstance *compilerInstance,
-                                                  ShCompileOptions options) override;
+    // Returns additional sh::Compile options.
+    ShCompileOptions prepareSourceAndReturnOptions(std::stringstream *sourceStream,
+                                                   std::string *sourcePath) override;
+    // Returns success for compiling on the driver. Returns success.
+    bool postTranslateCompile(gl::Compiler *compiler, std::string *infoLog) override;
 
     std::string getDebugInfo() const override;
 };

@@ -32,7 +32,7 @@ class ClientArraysTest : public ANGLETest
 // the GL extension should always be present
 TEST_P(ClientArraysTest, ExtensionStringExposed)
 {
-    EXPECT_TRUE(IsGLExtensionEnabled("GL_ANGLE_client_arrays"));
+    EXPECT_TRUE(extensionEnabled("GL_ANGLE_client_arrays"));
 }
 
 // Verify that GL_CLIENT_ARRAYS_ANGLE can be queried but not changed
@@ -51,7 +51,7 @@ TEST_P(ClientArraysTest, QueryValidation)
     GLboolean boolValue = GL_TRUE;
     glGetBooleanv(GL_CLIENT_ARRAYS_ANGLE, &boolValue);
     EXPECT_GL_NO_ERROR();
-    EXPECT_GL_FALSE(boolValue);
+    EXPECT_GL_FALSE(GL_FALSE);
 
     EXPECT_GL_FALSE(glIsEnabled(GL_CLIENT_ARRAYS_ANGLE));
     EXPECT_GL_NO_ERROR();
@@ -76,14 +76,21 @@ TEST_P(ClientArraysTest, ForbidsClientSideElementBuffer)
 {
     ASSERT_GL_FALSE(glIsEnabled(GL_CLIENT_ARRAYS_ANGLE));
 
-    constexpr char kVS[] =
+    const std::string &vert =
         "attribute vec3 a_pos;\n"
         "void main()\n"
         "{\n"
         "    gl_Position = vec4(a_pos, 1.0);\n"
         "}\n";
 
-    ANGLE_GL_PROGRAM(program, kVS, essl1_shaders::fs::Red());
+    const std::string &frag =
+        "precision highp float;\n"
+        "void main()\n"
+        "{\n"
+        "    gl_FragColor = vec4(1.0);\n"
+        "}\n";
+
+    ANGLE_GL_PROGRAM(program, vert, frag);
 
     GLint posLocation = glGetAttribLocation(program.get(), "a_pos");
     ASSERT_NE(-1, posLocation);
@@ -108,5 +115,13 @@ TEST_P(ClientArraysTest, ForbidsClientSideElementBuffer)
 
 // Use this to select which configurations (e.g. which renderer, which GLES major version) these
 // tests should be run against.
-ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(ClientArraysTest);
-}  // namespace angle
+ANGLE_INSTANTIATE_TEST(ClientArraysTest,
+                       ES2_D3D9(),
+                       ES2_D3D11(),
+                       ES3_D3D11(),
+                       ES2_D3D11_FL9_3(),
+                       ES2_OPENGL(),
+                       ES3_OPENGL(),
+                       ES2_OPENGLES(),
+                       ES3_OPENGLES());
+}  // namespace

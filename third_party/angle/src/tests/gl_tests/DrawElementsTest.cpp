@@ -64,23 +64,24 @@ class DrawElementsTest : public ANGLETest
     GLuint mProgram;
 };
 
-class WebGLDrawElementsTest : public DrawElementsTest
-{
-  public:
-    WebGLDrawElementsTest() { setWebGLCompatibilityEnabled(true); }
-};
-
 // Test no error is generated when using client-side arrays, indices = nullptr and count = 0
 TEST_P(DrawElementsTest, ClientSideNullptrArrayZeroCount)
 {
-    constexpr char kVS[] =
+    const std::string &vert =
         "attribute vec3 a_pos;\n"
         "void main()\n"
         "{\n"
         "    gl_Position = vec4(a_pos, 1.0);\n"
         "}\n";
 
-    ANGLE_GL_PROGRAM(program, kVS, essl1_shaders::fs::Blue());
+    const std::string &frag =
+        "precision highp float;\n"
+        "void main()\n"
+        "{\n"
+        "    gl_FragColor = vec4(1.0);\n"
+        "}\n";
+
+    ANGLE_GL_PROGRAM(program, vert, frag);
 
     GLint posLocation = glGetAttribLocation(program.get(), "a_pos");
     ASSERT_NE(-1, posLocation);
@@ -97,12 +98,9 @@ TEST_P(DrawElementsTest, ClientSideNullptrArrayZeroCount)
     glEnableVertexAttribArray(posLocation);
     ASSERT_GL_NO_ERROR();
 
-    // "If drawElements is called with a count greater than zero, and no WebGLBuffer is bound to the
-    // ELEMENT_ARRAY_BUFFER binding point, an INVALID_OPERATION error is generated."
     glDrawElements(GL_TRIANGLES, 1, GL_UNSIGNED_BYTE, nullptr);
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 
-    // count == 0 so it's fine to have no element array buffer bound.
     glDrawElements(GL_TRIANGLES, 0, GL_UNSIGNED_BYTE, nullptr);
     ASSERT_GL_NO_ERROR();
 }
@@ -111,10 +109,8 @@ TEST_P(DrawElementsTest, ClientSideNullptrArrayZeroCount)
 // deleting the applied index buffer.
 TEST_P(DrawElementsTest, DeletingAfterStreamingIndexes)
 {
-    // http://anglebug.com/4092
-    ANGLE_SKIP_TEST_IF(IsWindows() && IsD3D11());
     // Init program
-    constexpr char kVS[] =
+    const std::string &vertexShader =
         "attribute vec2 position;\n"
         "attribute vec2 testFlag;\n"
         "varying vec2 v_data;\n"
@@ -123,13 +119,13 @@ TEST_P(DrawElementsTest, DeletingAfterStreamingIndexes)
         "  v_data = testFlag;\n"
         "}";
 
-    constexpr char kFS[] =
+    const std::string &fragmentShader =
         "varying highp vec2 v_data;\n"
         "void main() {\n"
         "  gl_FragColor = vec4(v_data, 0, 1);\n"
         "}";
 
-    mProgram = CompileProgram(kVS, kFS);
+    mProgram = CompileProgram(vertexShader, fragmentShader);
     ASSERT_NE(0u, mProgram);
     glUseProgram(mProgram);
 
@@ -267,52 +263,6 @@ TEST_P(DrawElementsTest, DeletingAfterStreamingIndexes)
 
     ASSERT_GL_NO_ERROR();
 }
-// Test that the offset in the index buffer is forced to be a multiple of the element size
-TEST_P(WebGLDrawElementsTest, DrawElementsTypeAlignment)
-{
-    constexpr char kVS[] =
-        "attribute vec3 a_pos;\n"
-        "void main()\n"
-        "{\n"
-        "    gl_Position = vec4(a_pos, 1.0);\n"
-        "}\n";
 
-    ANGLE_GL_PROGRAM(program, kVS, essl1_shaders::fs::Blue());
-
-    GLint posLocation = glGetAttribLocation(program, "a_pos");
-    ASSERT_NE(-1, posLocation);
-    glUseProgram(program);
-
-    const auto &vertices = GetQuadVertices();
-
-    GLBuffer vertexBuffer;
-    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices[0]) * vertices.size(), vertices.data(),
-                 GL_STATIC_DRAW);
-
-    glVertexAttribPointer(posLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    glEnableVertexAttribArray(posLocation);
-
-    GLBuffer indexBuffer;
-    const GLubyte indices1[] = {0, 0, 0, 0, 0, 0};
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices1), indices1, GL_STATIC_DRAW);
-
-    ASSERT_GL_NO_ERROR();
-
-    const char *zeroIndices = nullptr;
-
-    glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_SHORT, zeroIndices);
-    ASSERT_GL_NO_ERROR();
-
-    const GLushort indices2[] = {0, 0, 0, 0, 0, 0};
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices2), indices2, GL_STATIC_DRAW);
-
-    glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_SHORT, zeroIndices + 1);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+ANGLE_INSTANTIATE_TEST(DrawElementsTest, ES3_OPENGL(), ES3_OPENGLES());
 }
-
-ANGLE_INSTANTIATE_TEST_ES3(DrawElementsTest);
-ANGLE_INSTANTIATE_TEST_ES2(WebGLDrawElementsTest);
-}  // namespace

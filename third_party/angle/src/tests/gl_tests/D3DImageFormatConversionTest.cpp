@@ -28,36 +28,48 @@ class D3DImageFormatConversionTest : public ANGLETest
         setConfigAlphaBits(8);
     }
 
-    void testSetUp() override
+    void SetUp() override
     {
-        constexpr char kVS[] = R"(precision highp float;
-attribute vec4 position;
-varying vec2 texcoord;
+        ANGLETest::SetUp();
 
-void main()
-{
-    gl_Position = vec4(position.xy, 0.0, 1.0);
-    texcoord = (position.xy * 0.5) + 0.5;
-})";
+        const std::string vertexShaderSource = SHADER_SOURCE
+        (
+            precision highp float;
+            attribute vec4 position;
+            varying vec2 texcoord;
 
-        constexpr char kFS[] = R"(precision highp float;
-uniform sampler2D tex;
-varying vec2 texcoord;
+            void main()
+            {
+                gl_Position = vec4(position.xy, 0.0, 1.0);
+                texcoord = (position.xy * 0.5) + 0.5;
+            }
+        );
 
-void main()
-{
-    gl_FragColor = texture2D(tex, texcoord);
-})";
+        const std::string fragmentShaderSource2D = SHADER_SOURCE
+        (
+            precision highp float;
+            uniform sampler2D tex;
+            varying vec2 texcoord;
 
-        m2DProgram                = CompileProgram(kVS, kFS);
+            void main()
+            {
+                gl_FragColor = texture2D(tex, texcoord);
+            }
+        );
+
+        m2DProgram = CompileProgram(vertexShaderSource, fragmentShaderSource2D);
         mTexture2DUniformLocation = glGetUniformLocation(m2DProgram, "tex");
     }
 
-    void testTearDown() override { glDeleteProgram(m2DProgram); }
+    void TearDown() override
+    {
+        glDeleteProgram(m2DProgram);
 
-    // Uses ColorStructType::writeColor to populate initial data for a texture, pass it to
-    // glTexImage2D, then render with it. The resulting colors should match the colors passed into
-    // ::writeColor.
+        ANGLETest::TearDown();
+    }
+
+    // Uses ColorStructType::writeColor to populate initial data for a texture, pass it to glTexImage2D, then render with it.
+    // The resulting colors should match the colors passed into ::writeColor.
     template <typename ColorStructType>
     void runTest(GLenum tex2DFormat, GLenum tex2DType)
     {
@@ -70,22 +82,10 @@ void main()
         glGenFramebuffers(1, &fbo);
         EXPECT_GL_NO_ERROR();
 
-        srcColorF[0].red   = 1.0f;
-        srcColorF[0].green = 0.0f;
-        srcColorF[0].blue  = 0.0f;
-        srcColorF[0].alpha = 1.0f;  // Red
-        srcColorF[1].red   = 0.0f;
-        srcColorF[1].green = 1.0f;
-        srcColorF[1].blue  = 0.0f;
-        srcColorF[1].alpha = 1.0f;  // Green
-        srcColorF[2].red   = 0.0f;
-        srcColorF[2].green = 0.0f;
-        srcColorF[2].blue  = 1.0f;
-        srcColorF[2].alpha = 1.0f;  // Blue
-        srcColorF[3].red   = 1.0f;
-        srcColorF[3].green = 1.0f;
-        srcColorF[3].blue  = 0.0f;
-        srcColorF[3].alpha = 1.0f;  // Red + Green (Yellow)
+        srcColorF[0].red = 1.0f; srcColorF[0].green = 0.0f; srcColorF[0].blue = 0.0f; srcColorF[0].alpha = 1.0f; // Red
+        srcColorF[1].red = 0.0f; srcColorF[1].green = 1.0f; srcColorF[1].blue = 0.0f; srcColorF[1].alpha = 1.0f; // Green
+        srcColorF[2].red = 0.0f; srcColorF[2].green = 0.0f; srcColorF[2].blue = 1.0f; srcColorF[2].alpha = 1.0f; // Blue
+        srcColorF[3].red = 1.0f; srcColorF[3].green = 1.0f; srcColorF[3].blue = 0.0f; srcColorF[3].alpha = 1.0f; // Red + Green (Yellow)
 
         // Convert the ColorF into the pixels that will be fed to glTexImage2D
         for (unsigned int i = 0; i < 4; i++)
@@ -109,10 +109,10 @@ void main()
         EXPECT_GL_NO_ERROR();
 
         // Check that the pixel colors match srcColorF
-        EXPECT_PIXEL_EQ(0, 0, 255, 0, 0, 255);
-        EXPECT_PIXEL_EQ(getWindowHeight() - 1, 0, 0, 255, 0, 255);
-        EXPECT_PIXEL_EQ(0, getWindowWidth() - 1, 0, 0, 255, 255);
-        EXPECT_PIXEL_EQ(getWindowHeight() - 1, getWindowWidth() - 1, 255, 255, 0, 255);
+        EXPECT_PIXEL_EQ(                    0,                    0, 255,   0,   0, 255);
+        EXPECT_PIXEL_EQ(getWindowHeight() - 1,                    0,   0, 255,   0, 255);
+        EXPECT_PIXEL_EQ(                    0, getWindowWidth() - 1,   0,   0, 255, 255);
+        EXPECT_PIXEL_EQ(getWindowHeight() - 1, getWindowWidth() - 1, 255, 255,   0, 255);
         swapBuffers();
 
         glDeleteFramebuffers(1, &fbo);
@@ -126,39 +126,82 @@ void main()
 // Validation test for rx::R4G4B4A4's writeColor functions
 TEST_P(D3DImageFormatConversionTest, WriteColorFunctionR4G4B4A4)
 {
+    // These tests fail on certain Intel machines running an un-updated version of Win7
+    // The tests pass after installing the latest updates from Windows Update.
+    // TODO: reenable these tests once the bots have been updated
+    if (IsIntel() && getPlatformRenderer() == EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE)
+    {
+        std::cout << "Test skipped on Intel D3D11." << std::endl;
+        return;
+    }
+
     runTest<R4G4B4A4>(GL_RGBA, GL_UNSIGNED_SHORT_4_4_4_4);
 }
 
 // Validation test for rx::R5G5B5A1's writeColor functions
 TEST_P(D3DImageFormatConversionTest, WriteColorFunctionR5G5B5A1)
 {
+    // These tests fail on certain Intel machines running an un-updated version of Win7
+    // The tests pass after installing the latest updates from Windows Update.
+    // TODO: reenable these tests once the bots have been updated
+    if (IsIntel() && getPlatformRenderer() == EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE)
+    {
+        std::cout << "Test skipped on Intel D3D11." << std::endl;
+        return;
+    }
+
     runTest<R5G5B5A1>(GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1);
 }
 
 // Validation test for rx::R5G6B5's writeColor functions
 TEST_P(D3DImageFormatConversionTest, WriteColorFunctionR5G6B5)
 {
+    // These tests fail on certain Intel machines running an un-updated version of Win7
+    // The tests pass after installing the latest updates from Windows Update.
+    // TODO: reenable these tests once the bots have been updated
+    if (IsIntel() && getPlatformRenderer() == EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE)
+    {
+        std::cout << "Test skipped on Intel D3D11." << std::endl;
+        return;
+    }
+
     runTest<R5G6B5>(GL_RGB, GL_UNSIGNED_SHORT_5_6_5);
 }
 
 // Validation test for rx::R8G8B8A8's writeColor functions
 TEST_P(D3DImageFormatConversionTest, WriteColorFunctionR8G8B8A8)
 {
+    // These tests fail on certain Intel machines running an un-updated version of Win7
+    // The tests pass after installing the latest updates from Windows Update.
+    // TODO: reenable these tests once the bots have been updated
+    if (IsIntel() && getPlatformRenderer() == EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE)
+    {
+        std::cout << "Test skipped on Intel D3D11." << std::endl;
+        return;
+    }
+
     runTest<R8G8B8A8>(GL_RGBA, GL_UNSIGNED_BYTE);
 }
 
 // Validation test for rx::R8G8B8's writeColor functions
 TEST_P(D3DImageFormatConversionTest, WriteColorFunctionR8G8B8)
 {
+    // These tests fail on certain Intel machines running an un-updated version of Win7
+    // The tests pass after installing the latest updates from Windows Update.
+    // TODO: reenable these tests once the bots have been updated
+    if (IsIntel() && getPlatformRenderer() == EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE)
+    {
+        std::cout << "Test skipped on Intel D3D11." << std::endl;
+        return;
+    }
+
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     runTest<R8G8B8>(GL_RGB, GL_UNSIGNED_BYTE);
 }
 
-// Use this to select which configurations (e.g. which renderer, which GLES major version) these
-// tests should be run against. Even though this test is only run on Windows (since it includes
-// imageformats.h from the D3D renderer), we can still run the test against OpenGL. This is
-// valuable, since it provides extra validation using a renderer that doesn't use imageformats.h
-// itself.
-ANGLE_INSTANTIATE_TEST_ES2(D3DImageFormatConversionTest);
+// Use this to select which configurations (e.g. which renderer, which GLES major version) these tests should be run against.
+// Even though this test is only run on Windows (since it includes imageformats.h from the D3D renderer), we can still run the test
+// against OpenGL. This is valuable, since it provides extra validation using a renderer that doesn't use imageformats.h itself.
+ANGLE_INSTANTIATE_TEST(D3DImageFormatConversionTest, ES2_D3D9(), ES2_D3D11(), ES2_D3D11_FL9_3(), ES2_OPENGL());
 
-}  // namespace
+} // namespace

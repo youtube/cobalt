@@ -22,40 +22,22 @@ class MockBufferImpl : public BufferImpl
     MockBufferImpl() : BufferImpl(mMockState) {}
     ~MockBufferImpl() { destructor(); }
 
-    MOCK_METHOD5(setData,
-                 angle::Result(const gl::Context *,
-                               gl::BufferBinding,
-                               const void *,
-                               size_t,
-                               gl::BufferUsage));
-    MOCK_METHOD5(
-        setSubData,
-        angle::Result(const gl::Context *, gl::BufferBinding, const void *, size_t, size_t));
+    MOCK_METHOD5(setData, gl::Error(ContextImpl *, GLenum, const void *, size_t, GLenum));
+    MOCK_METHOD5(setSubData, gl::Error(ContextImpl *, GLenum, const void *, size_t, size_t));
     MOCK_METHOD5(copySubData,
-                 angle::Result(const gl::Context *contextImpl,
-                               BufferImpl *,
-                               GLintptr,
-                               GLintptr,
-                               GLsizeiptr));
-    MOCK_METHOD3(map, angle::Result(const gl::Context *contextImpl, GLenum, void **));
-    MOCK_METHOD5(
-        mapRange,
-        angle::Result(const gl::Context *contextImpl, size_t, size_t, GLbitfield, void **));
-    MOCK_METHOD2(unmap, angle::Result(const gl::Context *contextImpl, GLboolean *result));
+                 gl::Error(ContextImpl *contextImpl, BufferImpl *, GLintptr, GLintptr, GLsizeiptr));
+    MOCK_METHOD3(map, gl::Error(ContextImpl *contextImpl, GLenum, void **));
+    MOCK_METHOD5(mapRange,
+                 gl::Error(ContextImpl *contextImpl, size_t, size_t, GLbitfield, void **));
+    MOCK_METHOD2(unmap, gl::Error(ContextImpl *contextImpl, GLboolean *result));
 
-    MOCK_METHOD6(getIndexRange,
-                 angle::Result(const gl::Context *,
-                               gl::DrawElementsType,
-                               size_t,
-                               size_t,
-                               bool,
-                               gl::IndexRange *));
+    MOCK_METHOD5(getIndexRange, gl::Error(GLenum, size_t, size_t, bool, gl::IndexRange *));
 
     MOCK_METHOD0(destructor, void());
 
   protected:
     gl::BufferState mMockState;
 };
-}  // namespace rx
+}
 
 #endif  // LIBANGLE_RENDERER_BUFFERIMPLMOCK_H_

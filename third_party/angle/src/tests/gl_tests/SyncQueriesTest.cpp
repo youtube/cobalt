@@ -25,13 +25,15 @@ class SyncQueriesTest : public ANGLETest
         setConfigDepthBits(24);
     }
 
-    void testTearDown() override
+    void TearDown() override
     {
         if (mQuery != 0)
         {
             glDeleteQueriesEXT(1, &mQuery);
             mQuery = 0;
         }
+
+        ANGLETest::TearDown();
     }
 
     GLuint mQuery = 0;
@@ -40,7 +42,11 @@ class SyncQueriesTest : public ANGLETest
 // Test basic usage of sync queries
 TEST_P(SyncQueriesTest, Basic)
 {
-    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_CHROMIUM_sync_query"));
+    if (!extensionEnabled("GL_CHROMIUM_sync_query"))
+    {
+        std::cout << "Test skipped because GL_CHROMIUM_sync_query is not available." << std::endl;
+        return;
+    }
 
     glGenQueriesEXT(1, &mQuery);
     glBeginQueryEXT(GL_COMMANDS_COMPLETED_CHROMIUM, mQuery);
@@ -54,7 +60,7 @@ TEST_P(SyncQueriesTest, Basic)
     glFlush();
     GLuint result = 0;
     glGetQueryObjectuivEXT(mQuery, GL_QUERY_RESULT_EXT, &result);
-    EXPECT_GL_TRUE(result);
+    EXPECT_EQ(static_cast<GLuint>(GL_TRUE), result);
     EXPECT_GL_NO_ERROR();
 }
 
@@ -62,9 +68,14 @@ TEST_P(SyncQueriesTest, Basic)
 TEST_P(SyncQueriesTest, Validation)
 {
     // Need the GL_EXT_occlusion_query_boolean extension for the entry points
-    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_occlusion_query_boolean"));
+    if (!extensionEnabled("GL_EXT_occlusion_query_boolean"))
+    {
+        std::cout << "Test skipped because GL_EXT_occlusion_query_boolean is not available."
+                  << std::endl;
+        return;
+    }
 
-    bool extensionAvailable = IsGLExtensionEnabled("GL_CHROMIUM_sync_query");
+    bool extensionAvailable = extensionEnabled("GL_CHROMIUM_sync_query");
 
     glGenQueriesEXT(1, &mQuery);
 
@@ -85,6 +96,13 @@ TEST_P(SyncQueriesTest, Validation)
 
 // Use this to select which configurations (e.g. which renderer, which GLES major version) these
 // tests should be run against.
-ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(SyncQueriesTest);
+ANGLE_INSTANTIATE_TEST(SyncQueriesTest,
+                       ES2_D3D9(),
+                       ES2_D3D11(),
+                       ES3_D3D11(),
+                       ES2_OPENGL(),
+                       ES3_OPENGL(),
+                       ES2_OPENGLES(),
+                       ES3_OPENGLES());
 
 }  // namespace angle

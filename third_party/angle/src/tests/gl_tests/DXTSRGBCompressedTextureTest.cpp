@@ -10,7 +10,7 @@
 #include "test_utils/ANGLETest.h"
 #include "test_utils/gl_raii.h"
 
-#include "media/pixel.inc"
+#include "media/pixel.inl"
 
 #include "DXTSRGBCompressedTextureTestData.inl"
 
@@ -31,9 +31,11 @@ class DXTSRGBCompressedTextureTest : public ANGLETest
         setConfigAlphaBits(8);
     }
 
-    void testSetUp() override
+    void SetUp() override
     {
-        constexpr char kVS[] =
+        ANGLETest::SetUp();
+
+        const std::string vsSource = std::string(
             "precision highp float;\n"
             "attribute vec4 position;\n"
             "varying vec2 texcoord;\n"
@@ -41,17 +43,17 @@ class DXTSRGBCompressedTextureTest : public ANGLETest
             "    gl_Position = position;\n"
             "    texcoord = (position.xy * 0.5) + 0.5;\n"
             "    texcoord.y = 1.0 - texcoord.y;\n"
-            "}";
+            "}");
 
-        constexpr char kFS[] =
+        const std::string textureFSSource = std::string(
             "precision highp float;\n"
             "uniform sampler2D tex;\n"
             "varying vec2 texcoord;\n"
             "void main() {\n"
             "    gl_FragColor = texture2D(tex, texcoord);\n"
-            "}\n";
+            "}\n");
 
-        mTextureProgram = CompileProgram(kVS, kFS);
+        mTextureProgram = CompileProgram(vsSource, textureFSSource);
         ASSERT_NE(0u, mTextureProgram);
 
         mTextureUniformLocation = glGetUniformLocation(mTextureProgram, "tex");
@@ -60,7 +62,12 @@ class DXTSRGBCompressedTextureTest : public ANGLETest
         ASSERT_GL_NO_ERROR();
     }
 
-    void testTearDown() override { glDeleteProgram(mTextureProgram); }
+    void TearDown() override
+    {
+        glDeleteProgram(mTextureProgram);
+
+        ANGLETest::TearDown();
+    }
 
     void runTestChecks(const TestCase &test)
     {
@@ -86,7 +93,13 @@ class DXTSRGBCompressedTextureTest : public ANGLETest
 
     void runTest(GLenum format)
     {
-        ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_texture_compression_s3tc_srgb"));
+        if (!extensionEnabled("GL_EXT_texture_compression_s3tc_srgb"))
+        {
+            std::cout
+                << "Test skipped because GL_EXT_texture_compression_s3tc_srgb is not available."
+                << std::endl;
+            return;
+        }
 
         const TestCase &test = kTests.at(format);
 
@@ -147,4 +160,11 @@ TEST_P(DXTSRGBCompressedTextureTest, Decompression8x8RGBADXT5)
 
 // Use this to select which configurations (e.g. which renderer, which GLES major version) these
 // tests should be run against.
-ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(DXTSRGBCompressedTextureTest);
+ANGLE_INSTANTIATE_TEST(DXTSRGBCompressedTextureTest,
+                       ES2_D3D11(),
+                       ES2_D3D11_FL9_3(),
+                       ES3_D3D11(),
+                       ES2_OPENGL(),
+                       ES3_OPENGL(),
+                       ES2_OPENGLES(),
+                       ES3_OPENGLES());

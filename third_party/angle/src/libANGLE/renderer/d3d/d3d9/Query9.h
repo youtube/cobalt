@@ -1,5 +1,5 @@
 //
-// Copyright 2013 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2013 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -13,31 +13,29 @@
 
 namespace rx
 {
-class Context9;
 class Renderer9;
 
 class Query9 : public QueryImpl
 {
   public:
-    Query9(Renderer9 *renderer, gl::QueryType type);
-    ~Query9() override;
+    Query9(Renderer9 *renderer, GLenum type);
+    virtual ~Query9();
 
-    angle::Result begin(const gl::Context *context) override;
-    angle::Result end(const gl::Context *context) override;
-    angle::Result queryCounter(const gl::Context *context) override;
-    angle::Result getResult(const gl::Context *context, GLint *params) override;
-    angle::Result getResult(const gl::Context *context, GLuint *params) override;
-    angle::Result getResult(const gl::Context *context, GLint64 *params) override;
-    angle::Result getResult(const gl::Context *context, GLuint64 *params) override;
-    angle::Result isResultAvailable(const gl::Context *context, bool *available) override;
+    virtual gl::Error begin();
+    virtual gl::Error end();
+    virtual gl::Error queryCounter();
+    virtual gl::Error getResult(GLint *params);
+    virtual gl::Error getResult(GLuint *params);
+    virtual gl::Error getResult(GLint64 *params);
+    virtual gl::Error getResult(GLuint64 *params);
+    virtual gl::Error isResultAvailable(bool *available);
 
   private:
-    angle::Result testQuery(Context9 *context9);
+    gl::Error testQuery();
 
     template <typename T>
-    angle::Result getResultBase(Context9 *context9, T *params);
+    gl::Error getResultBase(T *params);
 
-    unsigned int mGetDataAttemptCount;
     GLuint64 mResult;
     bool mQueryFinished;
 
@@ -45,6 +43,6 @@ class Query9 : public QueryImpl
     IDirect3DQuery9 *mQuery;
 };
 
-}  // namespace rx
+}
 
-#endif  // LIBANGLE_RENDERER_D3D_D3D9_QUERY9_H_
+#endif // LIBANGLE_RENDERER_D3D_D3D9_QUERY9_H_

@@ -27,13 +27,20 @@ class ETCTextureTest : public ANGLETest
         setConfigAlphaBits(8);
     }
 
-    void testSetUp() override
+    void SetUp() override
     {
+        ANGLETest::SetUp();
+
         glGenTextures(1, &mTexture);
         ASSERT_GL_NO_ERROR();
     }
 
-    void testTearDown() override { glDeleteTextures(1, &mTexture); }
+    void TearDown() override
+    {
+        glDeleteTextures(1, &mTexture);
+
+        ANGLETest::TearDown();
+    }
 
     GLuint mTexture;
 };
@@ -41,11 +48,11 @@ class ETCTextureTest : public ANGLETest
 // Tests a texture with ETC1 lossy decode format
 TEST_P(ETCTextureTest, ETC1Validation)
 {
-    bool supported = IsGLExtensionEnabled("GL_ANGLE_lossy_etc_decode");
+    bool supported = extensionEnabled("GL_ANGLE_lossy_etc_decode");
 
     glBindTexture(GL_TEXTURE_2D, mTexture);
 
-    GLubyte pixel[8] = {0x0, 0x0, 0xf8, 0x2, 0x43, 0xff, 0x4, 0x12};
+    GLubyte pixel[8] = { 0x0, 0x0, 0xf8, 0x2, 0x43, 0xff, 0x4, 0x12 };
     glCompressedTexImage2D(GL_TEXTURE_2D, 0, GL_ETC1_RGB8_LOSSY_DECODE_ANGLE, 4, 4, 0,
                            sizeof(pixel), pixel);
     if (supported)
@@ -73,7 +80,7 @@ TEST_P(ETCTextureTest, ETC1Validation)
 // Tests a texture with ETC2 RGB8 lossy decode format
 TEST_P(ETCTextureTest, ETC2RGB8Validation)
 {
-    bool supported = IsGLExtensionEnabled("GL_ANGLE_lossy_etc_decode");
+    bool supported = extensionEnabled("GL_ANGLE_lossy_etc_decode");
 
     glBindTexture(GL_TEXTURE_2D, mTexture);
 
@@ -116,7 +123,7 @@ TEST_P(ETCTextureTest, ETC2RGB8Validation)
 // Tests a texture with ETC2 SRGB8 lossy decode format
 TEST_P(ETCTextureTest, ETC2SRGB8Validation)
 {
-    bool supported = IsGLExtensionEnabled("GL_ANGLE_lossy_etc_decode");
+    bool supported = extensionEnabled("GL_ANGLE_lossy_etc_decode");
 
     glBindTexture(GL_TEXTURE_2D, mTexture);
 
@@ -160,7 +167,7 @@ TEST_P(ETCTextureTest, ETC2SRGB8Validation)
 // Tests a texture with ETC2 RGB8 punchthrough A1 lossy decode format
 TEST_P(ETCTextureTest, ETC2RGB8A1Validation)
 {
-    bool supported = IsGLExtensionEnabled("GL_ANGLE_lossy_etc_decode");
+    bool supported = extensionEnabled("GL_ANGLE_lossy_etc_decode");
 
     glBindTexture(GL_TEXTURE_2D, mTexture);
 
@@ -208,7 +215,7 @@ TEST_P(ETCTextureTest, ETC2RGB8A1Validation)
 // Tests a texture with ETC2 SRGB8 punchthrough A1 lossy decode format
 TEST_P(ETCTextureTest, ETC2SRGB8A1Validation)
 {
-    bool supported = IsGLExtensionEnabled("GL_ANGLE_lossy_etc_decode");
+    bool supported = extensionEnabled("GL_ANGLE_lossy_etc_decode");
 
     glBindTexture(GL_TEXTURE_2D, mTexture);
 
@@ -253,5 +260,11 @@ TEST_P(ETCTextureTest, ETC2SRGB8A1Validation)
     }
 }
 
-ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(ETCTextureTest);
+ANGLE_INSTANTIATE_TEST(ETCTextureTest,
+                       ES2_D3D9(),
+                       ES2_D3D11(),
+                       ES2_D3D11_FL9_3(),
+                       ES3_D3D11(),
+                       ES2_OPENGL(),
+                       ES3_OPENGL());
 }  // anonymous namespace

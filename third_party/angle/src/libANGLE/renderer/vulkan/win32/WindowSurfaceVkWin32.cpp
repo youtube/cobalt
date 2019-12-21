@@ -15,33 +15,28 @@ namespace rx
 {
 
 WindowSurfaceVkWin32::WindowSurfaceVkWin32(const egl::SurfaceState &surfaceState,
-                                           EGLNativeWindowType window)
-    : WindowSurfaceVk(surfaceState, window)
-{}
-
-angle::Result WindowSurfaceVkWin32::createSurfaceVk(vk::Context *context, gl::Extents *extentsOut)
+                                           EGLNativeWindowType window,
+                                           EGLint width,
+                                           EGLint height)
+    : WindowSurfaceVk(surfaceState, window, width, height)
 {
-    VkWin32SurfaceCreateInfoKHR createInfo = {};
+}
+
+vk::ErrorOrResult<gl::Extents> WindowSurfaceVkWin32::createSurfaceVk(RendererVk *renderer)
+{
+    VkWin32SurfaceCreateInfoKHR createInfo;
 
     createInfo.sType     = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+    createInfo.pNext     = nullptr;
     createInfo.flags     = 0;
     createInfo.hinstance = GetModuleHandle(nullptr);
     createInfo.hwnd      = mNativeWindowType;
-    ANGLE_VK_TRY(context, vkCreateWin32SurfaceKHR(context->getRenderer()->getInstance(),
-                                                  &createInfo, nullptr, &mSurface));
+    ANGLE_VK_TRY(vkCreateWin32SurfaceKHR(renderer->getInstance(), &createInfo, nullptr, &mSurface));
 
-    return getCurrentWindowSize(context, extentsOut);
-}
-
-angle::Result WindowSurfaceVkWin32::getCurrentWindowSize(vk::Context *context,
-                                                         gl::Extents *extentsOut)
-{
     RECT rect;
-    ANGLE_VK_CHECK(context, GetClientRect(mNativeWindowType, &rect) == TRUE,
-                   VK_ERROR_INITIALIZATION_FAILED);
+    ANGLE_VK_CHECK(GetClientRect(mNativeWindowType, &rect) == TRUE, VK_ERROR_INITIALIZATION_FAILED);
 
-    *extentsOut = gl::Extents(rect.right - rect.left, rect.bottom - rect.top, 1);
-    return angle::Result::Continue;
+    return gl::Extents(rect.right - rect.left, rect.bottom - rect.top, 0);
 }
 
 }  // namespace rx

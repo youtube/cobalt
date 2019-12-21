@@ -1,5 +1,5 @@
 //
-// Copyright 2016 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -20,7 +20,8 @@ namespace rx
 {
 NativeWindow11WinRT::NativeWindow11WinRT(EGLNativeWindowType window, bool hasAlpha)
     : NativeWindow11(window), mHasAlpha(hasAlpha)
-{}
+{
+}
 
 bool NativeWindow11WinRT::initialize()
 {
@@ -91,12 +92,6 @@ HRESULT NativeWindow11WinRT::createSwapChain(ID3D11Device *device,
                                              UINT samples,
                                              IDXGISwapChain **swapChain)
 {
-    if (samples > 1)
-    {
-        // Multisample not implemented for WinRT window types
-        return E_NOTIMPL;
-    }
-
     if (mImpl)
     {
         IDXGIFactory2 *factory2     = d3d11::DynamicCastComObject<IDXGIFactory2>(factory);
@@ -111,7 +106,9 @@ HRESULT NativeWindow11WinRT::createSwapChain(ID3D11Device *device,
     return E_UNEXPECTED;
 }
 
-void NativeWindow11WinRT::commitChange() {}
+void NativeWindow11WinRT::commitChange()
+{
+}
 
 // static
 bool NativeWindow11WinRT::IsValidNativeWindow(EGLNativeWindowType window)

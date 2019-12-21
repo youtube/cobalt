@@ -22,11 +22,12 @@ class WindowSurfaceVkXcb : public WindowSurfaceVk
   public:
     WindowSurfaceVkXcb(const egl::SurfaceState &surfaceState,
                        EGLNativeWindowType window,
+                       EGLint width,
+                       EGLint height,
                        xcb_connection_t *conn);
 
   private:
-    angle::Result createSurfaceVk(vk::Context *context, gl::Extents *extentsOut) override;
-    angle::Result getCurrentWindowSize(vk::Context *context, gl::Extents *extentsOut) override;
+    vk::ErrorOrResult<gl::Extents> createSurfaceVk(RendererVk *renderer) override;
 
     xcb_connection_t *mXcbConnection;
 };

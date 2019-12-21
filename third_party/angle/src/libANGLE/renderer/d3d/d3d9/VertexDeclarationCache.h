@@ -1,5 +1,5 @@
 //
-// Copyright 2012 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2012 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -16,33 +16,30 @@ namespace gl
 {
 class VertexDataManager;
 class Program;
-}  // namespace gl
+}
 
 namespace rx
 {
+
 class VertexDeclarationCache
 {
   public:
     VertexDeclarationCache();
     ~VertexDeclarationCache();
 
-    angle::Result applyDeclaration(const gl::Context *context,
-                                   IDirect3DDevice9 *device,
-                                   const std::vector<TranslatedAttribute> &attributes,
-                                   gl::Program *program,
-                                   GLint start,
-                                   GLsizei instances,
-                                   GLsizei *repeatDraw);
+    gl::Error applyDeclaration(IDirect3DDevice9 *device,
+                               const std::vector<TranslatedAttribute> &attributes,
+                               gl::Program *program,
+                               GLint start,
+                               GLsizei instances,
+                               GLsizei *repeatDraw);
 
     void markStateDirty();
 
   private:
     UINT mMaxLru;
 
-    enum
-    {
-        NUM_VERTEX_DECL_CACHE_ENTRIES = 32
-    };
+    enum { NUM_VERTEX_DECL_CACHE_ENTRIES = 32 };
 
     struct VBData
     {
@@ -63,6 +60,6 @@ class VertexDeclarationCache
     } mVertexDeclCache[NUM_VERTEX_DECL_CACHE_ENTRIES];
 };
 
-}  // namespace rx
+}
 
-#endif  // LIBANGLE_RENDERER_D3D_D3D9_VERTEXDECLARATIONCACHE_H_
+#endif // LIBANGLE_RENDERER_D3D_D3D9_VERTEXDECLARATIONCACHE_H_

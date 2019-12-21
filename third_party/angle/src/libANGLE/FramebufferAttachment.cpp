@@ -1,5 +1,5 @@
 //
-// Copyright 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -11,36 +11,39 @@
 
 #include "common/utilities.h"
 #include "libANGLE/Config.h"
-#include "libANGLE/Context.h"
 #include "libANGLE/Renderbuffer.h"
 #include "libANGLE/Surface.h"
 #include "libANGLE/Texture.h"
 #include "libANGLE/formatutils.h"
-#include "libANGLE/renderer/FramebufferAttachmentObjectImpl.h"
 #include "libANGLE/renderer/FramebufferImpl.h"
+#include "libANGLE/renderer/FramebufferAttachmentObjectImpl.h"
 
 namespace gl
 {
 
 ////// FramebufferAttachment::Target Implementation //////
 
-const GLsizei FramebufferAttachment::kDefaultNumViews             = 1;
-const GLint FramebufferAttachment::kDefaultBaseViewIndex          = 0;
-const GLint FramebufferAttachment::kDefaultRenderToTextureSamples = 0;
-
-FramebufferAttachment::Target::Target() : mBinding(GL_NONE), mTextureIndex() {}
+FramebufferAttachment::Target::Target()
+    : mBinding(GL_NONE),
+      mTextureIndex(ImageIndex::MakeInvalid())
+{
+}
 
 FramebufferAttachment::Target::Target(GLenum binding, const ImageIndex &imageIndex)
-    : mBinding(binding), mTextureIndex(imageIndex)
-{}
+    : mBinding(binding),
+      mTextureIndex(imageIndex)
+{
+}
 
 FramebufferAttachment::Target::Target(const Target &other)
-    : mBinding(other.mBinding), mTextureIndex(other.mTextureIndex)
-{}
+    : mBinding(other.mBinding),
+      mTextureIndex(other.mTextureIndex)
+{
+}
 
 FramebufferAttachment::Target &FramebufferAttachment::Target::operator=(const Target &other)
 {
-    this->mBinding      = other.mBinding;
+    this->mBinding = other.mBinding;
     this->mTextureIndex = other.mTextureIndex;
     return *this;
 }
@@ -48,91 +51,67 @@ FramebufferAttachment::Target &FramebufferAttachment::Target::operator=(const Ta
 ////// FramebufferAttachment Implementation //////
 
 FramebufferAttachment::FramebufferAttachment()
-    : mType(GL_NONE),
-      mResource(nullptr),
-      mNumViews(kDefaultNumViews),
-      mIsMultiview(false),
-      mBaseViewIndex(kDefaultBaseViewIndex),
-      mRenderToTextureSamples(kDefaultRenderToTextureSamples)
-{}
+    : mType(GL_NONE), mResource(nullptr)
+{
+}
 
-FramebufferAttachment::FramebufferAttachment(const Context *context,
-                                             GLenum type,
+FramebufferAttachment::FramebufferAttachment(GLenum type,
                                              GLenum binding,
                                              const ImageIndex &textureIndex,
                                              FramebufferAttachmentObject *resource)
     : mResource(nullptr)
 {
-    attach(context, type, binding, textureIndex, resource, kDefaultNumViews, kDefaultBaseViewIndex,
-           false, kDefaultRenderToTextureSamples);
+    attach(type, binding, textureIndex, resource);
 }
 
-FramebufferAttachment::FramebufferAttachment(FramebufferAttachment &&other)
-    : FramebufferAttachment()
+FramebufferAttachment::FramebufferAttachment(const FramebufferAttachment &other)
+    : mResource(nullptr)
 {
-    *this = std::move(other);
+    attach(other.mType, other.mTarget.binding(), other.mTarget.textureIndex(), other.mResource);
 }
 
-FramebufferAttachment &FramebufferAttachment::operator=(FramebufferAttachment &&other)
+FramebufferAttachment &FramebufferAttachment::operator=(const FramebufferAttachment &other)
 {
-    std::swap(mType, other.mType);
-    std::swap(mTarget, other.mTarget);
-    std::swap(mResource, other.mResource);
-    std::swap(mNumViews, other.mNumViews);
-    std::swap(mIsMultiview, other.mIsMultiview);
-    std::swap(mBaseViewIndex, other.mBaseViewIndex);
-    std::swap(mRenderToTextureSamples, other.mRenderToTextureSamples);
+    attach(other.mType, other.mTarget.binding(), other.mTarget.textureIndex(), other.mResource);
     return *this;
 }
 
 FramebufferAttachment::~FramebufferAttachment()
 {
-    ASSERT(!isAttached());
+    detach();
 }
 
-void FramebufferAttachment::detach(const Context *context)
+void FramebufferAttachment::detach()
 {
     mType = GL_NONE;
     if (mResource != nullptr)
     {
-        mResource->onDetach(context);
+        mResource->onDetach();
         mResource = nullptr;
     }
-    mNumViews      = kDefaultNumViews;
-    mIsMultiview   = false;
-    mBaseViewIndex = kDefaultBaseViewIndex;
 
     // not technically necessary, could omit for performance
     mTarget = Target();
 }
 
-void FramebufferAttachment::attach(const Context *context,
-                                   GLenum type,
+void FramebufferAttachment::attach(GLenum type,
                                    GLenum binding,
                                    const ImageIndex &textureIndex,
-                                   FramebufferAttachmentObject *resource,
-                                   GLsizei numViews,
-                                   GLuint baseViewIndex,
-                                   bool isMultiview,
-                                   GLsizei samples)
+                                   FramebufferAttachmentObject *resource)
 {
     if (resource == nullptr)
     {
-        detach(context);
+        detach();
         return;
     }
 
-    mType                   = type;
-    mTarget                 = Target(binding, textureIndex);
-    mNumViews               = numViews;
-    mBaseViewIndex          = baseViewIndex;
-    mIsMultiview            = isMultiview;
-    mRenderToTextureSamples = samples;
-    resource->onAttach(context);
+    mType = type;
+    mTarget = Target(binding, textureIndex);
+    resource->onAttach();
 
     if (mResource != nullptr)
     {
-        mResource->onDetach(context);
+        mResource->onDetach();
     }
 
     mResource = resource;
@@ -140,32 +119,32 @@ void FramebufferAttachment::attach(const Context *context,
 
 GLuint FramebufferAttachment::getRedSize() const
 {
-    return getSize().empty() ? 0 : getFormat().info->redBits;
+    return getFormat().info->redBits;
 }
 
 GLuint FramebufferAttachment::getGreenSize() const
 {
-    return getSize().empty() ? 0 : getFormat().info->greenBits;
+    return getFormat().info->greenBits;
 }
 
 GLuint FramebufferAttachment::getBlueSize() const
 {
-    return getSize().empty() ? 0 : getFormat().info->blueBits;
+    return getFormat().info->blueBits;
 }
 
 GLuint FramebufferAttachment::getAlphaSize() const
 {
-    return getSize().empty() ? 0 : getFormat().info->alphaBits;
+    return getFormat().info->alphaBits;
 }
 
 GLuint FramebufferAttachment::getDepthSize() const
 {
-    return getSize().empty() ? 0 : getFormat().info->depthBits;
+    return getFormat().info->depthBits;
 }
 
 GLuint FramebufferAttachment::getStencilSize() const
 {
-    return getSize().empty() ? 0 : getFormat().info->stencilBits;
+    return getFormat().info->stencilBits;
 }
 
 GLenum FramebufferAttachment::getComponentType() const
@@ -183,41 +162,37 @@ GLuint FramebufferAttachment::id() const
     return mResource->getId();
 }
 
-TextureTarget FramebufferAttachment::cubeMapFace() const
+const ImageIndex &FramebufferAttachment::getTextureImageIndex() const
+{
+    ASSERT(type() == GL_TEXTURE);
+    return mTarget.textureIndex();
+}
+
+GLenum FramebufferAttachment::cubeMapFace() const
 {
     ASSERT(mType == GL_TEXTURE);
 
     const auto &index = mTarget.textureIndex();
-    return index.getType() == TextureType::CubeMap ? index.getTarget() : TextureTarget::InvalidEnum;
+    return IsCubeMapTextureTarget(index.type) ? index.type : GL_NONE;
 }
 
 GLint FramebufferAttachment::mipLevel() const
 {
     ASSERT(type() == GL_TEXTURE);
-    return mTarget.textureIndex().getLevelIndex();
+    return mTarget.textureIndex().mipIndex;
 }
 
 GLint FramebufferAttachment::layer() const
 {
     ASSERT(mType == GL_TEXTURE);
 
-    const gl::ImageIndex &index = mTarget.textureIndex();
-    return (index.has3DLayer() ? index.getLayerIndex() : 0);
-}
+    const auto &index = mTarget.textureIndex();
 
-bool FramebufferAttachment::isLayered() const
-{
-    return mTarget.textureIndex().isLayered();
-}
-
-bool FramebufferAttachment::isMultiview() const
-{
-    return mIsMultiview;
-}
-
-GLint FramebufferAttachment::getBaseViewIndex() const
-{
-    return mBaseViewIndex;
+    if (index.type == GL_TEXTURE_2D_ARRAY || index.type == GL_TEXTURE_3D)
+    {
+        return index.layerIndex;
+    }
+    return 0;
 }
 
 Texture *FramebufferAttachment::getTexture() const
@@ -242,9 +217,7 @@ FramebufferAttachmentObject *FramebufferAttachment::getResource() const
 
 bool FramebufferAttachment::operator==(const FramebufferAttachment &other) const
 {
-    if (mResource != other.mResource || mType != other.mType || mNumViews != other.mNumViews ||
-        mIsMultiview != other.mIsMultiview || mBaseViewIndex != other.mBaseViewIndex ||
-        mRenderToTextureSamples != other.mRenderToTextureSamples)
+    if (mResource != other.mResource || mType != other.mType)
     {
         return false;
     }
@@ -262,64 +235,17 @@ bool FramebufferAttachment::operator!=(const FramebufferAttachment &other) const
     return !(*this == other);
 }
 
-InitState FramebufferAttachment::initState() const
-{
-    return mResource ? mResource->initState(mTarget.textureIndex()) : InitState::Initialized;
-}
-
-angle::Result FramebufferAttachment::initializeContents(const Context *context)
-{
-    ASSERT(mResource);
-    ANGLE_TRY(mResource->initializeContents(context, mTarget.textureIndex()));
-    setInitState(InitState::Initialized);
-    return angle::Result::Continue;
-}
-
-void FramebufferAttachment::setInitState(InitState initState) const
-{
-    ASSERT(mResource);
-    mResource->setInitState(mTarget.textureIndex(), initState);
-}
-
-////// FramebufferAttachmentObject Implementation //////
-
-FramebufferAttachmentObject::FramebufferAttachmentObject() {}
-
-FramebufferAttachmentObject::~FramebufferAttachmentObject() {}
-
-angle::Result FramebufferAttachmentObject::getAttachmentRenderTarget(
-    const Context *context,
+Error FramebufferAttachmentObject::getAttachmentRenderTarget(
     GLenum binding,
     const ImageIndex &imageIndex,
-    GLsizei samples,
     rx::FramebufferAttachmentRenderTarget **rtOut) const
 {
-    return getAttachmentImpl()->getAttachmentRenderTarget(context, binding, imageIndex, samples,
-                                                          rtOut);
+    return getAttachmentImpl()->getAttachmentRenderTarget(binding, imageIndex, rtOut);
 }
 
-angle::Result FramebufferAttachmentObject::initializeContents(const Context *context,
-                                                              const ImageIndex &imageIndex)
+angle::BroadcastChannel<> *FramebufferAttachmentObject::getDirtyChannel()
 {
-    ASSERT(context->isRobustResourceInitEnabled());
-
-    // Because gl::Texture cannot support tracking individual layer dirtiness, we only handle
-    // initializing entire mip levels for 2D array textures.
-    if (imageIndex.getType() == TextureType::_2DArray && imageIndex.hasLayer())
-    {
-        ImageIndex fullMipIndex =
-            ImageIndex::Make2DArray(imageIndex.getLevelIndex(), ImageIndex::kEntireLevel);
-        return getAttachmentImpl()->initializeContents(context, fullMipIndex);
-    }
-    else if (imageIndex.getType() == TextureType::_2DMultisampleArray && imageIndex.hasLayer())
-    {
-        ImageIndex fullMipIndex = ImageIndex::Make2DMultisampleArray(ImageIndex::kEntireLevel);
-        return getAttachmentImpl()->initializeContents(context, fullMipIndex);
-    }
-    else
-    {
-        return getAttachmentImpl()->initializeContents(context, imageIndex);
-    }
+    return &mDirtyChannel;
 }
 
 }  // namespace gl

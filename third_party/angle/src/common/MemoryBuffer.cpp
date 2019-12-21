@@ -1,5 +1,5 @@
 //
-// Copyright 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -15,6 +15,10 @@ namespace angle
 {
 
 // MemoryBuffer implementation.
+MemoryBuffer::MemoryBuffer() : mSize(0), mData(nullptr)
+{
+}
+
 MemoryBuffer::~MemoryBuffer()
 {
     free(mData);
@@ -37,7 +41,7 @@ bool MemoryBuffer::resize(size_t size)
     }
 
     // Only reallocate if the size has changed.
-    uint8_t *newMemory = static_cast<uint8_t *>(malloc(sizeof(uint8_t) * size));
+    uint8_t *newMemory = reinterpret_cast<uint8_t *>(malloc(sizeof(uint8_t) * size));
     if (newMemory == nullptr)
     {
         return false;
@@ -56,6 +60,22 @@ bool MemoryBuffer::resize(size_t size)
     return true;
 }
 
+size_t MemoryBuffer::size() const
+{
+    return mSize;
+}
+
+const uint8_t *MemoryBuffer::data() const
+{
+    return mData;
+}
+
+uint8_t *MemoryBuffer::data()
+{
+    ASSERT(mData);
+    return mData;
+}
+
 void MemoryBuffer::fill(uint8_t datum)
 {
     if (!empty())
@@ -64,39 +84,17 @@ void MemoryBuffer::fill(uint8_t datum)
     }
 }
 
-MemoryBuffer::MemoryBuffer(MemoryBuffer &&other) : MemoryBuffer()
-{
-    *this = std::move(other);
-}
-
-MemoryBuffer &MemoryBuffer::operator=(MemoryBuffer &&other)
-{
-    std::swap(mSize, other.mSize);
-    std::swap(mData, other.mData);
-    return *this;
-}
-
 // ScratchBuffer implementation.
 
-ScratchBuffer::ScratchBuffer(uint32_t lifetime) : mLifetime(lifetime), mResetCounter(lifetime) {}
+ScratchBuffer::ScratchBuffer(uint32_t lifetime) : mLifetime(lifetime), mResetCounter(lifetime)
+{
+}
 
-ScratchBuffer::~ScratchBuffer() {}
+ScratchBuffer::~ScratchBuffer()
+{
+}
 
 bool ScratchBuffer::get(size_t requestedSize, MemoryBuffer **memoryBufferOut)
-{
-    return getImpl(requestedSize, memoryBufferOut, Optional<uint8_t>::Invalid());
-}
-
-bool ScratchBuffer::getInitialized(size_t requestedSize,
-                                   MemoryBuffer **memoryBufferOut,
-                                   uint8_t initValue)
-{
-    return getImpl(requestedSize, memoryBufferOut, Optional<uint8_t>(initValue));
-}
-
-bool ScratchBuffer::getImpl(size_t requestedSize,
-                            MemoryBuffer **memoryBufferOut,
-                            Optional<uint8_t> initValue)
 {
     if (mScratchMemory.size() == requestedSize)
     {
@@ -118,10 +116,6 @@ bool ScratchBuffer::getImpl(size_t requestedSize,
             return false;
         }
         mResetCounter = mLifetime;
-        if (initValue.valid())
-        {
-            mScratchMemory.fill(initValue.value());
-        }
     }
 
     ASSERT(mScratchMemory.size() >= requestedSize);

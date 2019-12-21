@@ -1,12 +1,11 @@
 //
-// Copyright 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-
 #include "libANGLE/Buffer.h"
 #include "libANGLE/Caps.h"
 #include "libANGLE/TransformFeedback.h"
@@ -41,7 +40,7 @@ class TransformFeedbackTest : public testing::Test
         // Set a reasonable number of tf attributes
         mCaps.maxTransformFeedbackSeparateAttributes = 8;
 
-        mFeedback = new gl::TransformFeedback(&mMockFactory, gl::TransformFeedbackID{1}, mCaps);
+        mFeedback = new gl::TransformFeedback(&mMockFactory, 1, mCaps);
         mFeedback->addRef();
 
         mImpl = rx::GetImplAs<rx::MockTransformFeedbackImpl>(mFeedback);
@@ -52,7 +51,7 @@ class TransformFeedbackTest : public testing::Test
     {
         if (mFeedback)
         {
-            mFeedback->release(nullptr);
+            mFeedback->release();
         }
 
         // Only needed because the mock is leaked if bugs are present,
@@ -62,8 +61,8 @@ class TransformFeedbackTest : public testing::Test
     }
 
     rx::MockGLFactory mMockFactory;
-    rx::MockTransformFeedbackImpl *mImpl;
-    gl::TransformFeedback *mFeedback;
+    rx::MockTransformFeedbackImpl* mImpl;
+    gl::TransformFeedback* mFeedback;
     gl::Caps mCaps;
 };
 
@@ -72,13 +71,12 @@ TEST_F(TransformFeedbackTest, SideEffectsOfStartAndStop)
     testing::InSequence seq;
 
     EXPECT_FALSE(mFeedback->isActive());
-    EXPECT_CALL(*mImpl, begin(nullptr, gl::PrimitiveMode::Triangles));
-    EXPECT_EQ(angle::Result::Continue,
-              mFeedback->begin(nullptr, gl::PrimitiveMode::Triangles, nullptr));
+    EXPECT_CALL(*mImpl, begin(GL_TRIANGLES));
+    mFeedback->begin(nullptr, GL_TRIANGLES, nullptr);
     EXPECT_TRUE(mFeedback->isActive());
-    EXPECT_EQ(gl::PrimitiveMode::Triangles, mFeedback->getPrimitiveMode());
-    EXPECT_CALL(*mImpl, end(nullptr));
-    EXPECT_EQ(angle::Result::Continue, mFeedback->end(nullptr));
+    EXPECT_EQ(static_cast<GLenum>(GL_TRIANGLES), mFeedback->getPrimitiveMode());
+    EXPECT_CALL(*mImpl, end());
+    mFeedback->end(nullptr);
     EXPECT_FALSE(mFeedback->isActive());
 }
 
@@ -87,18 +85,17 @@ TEST_F(TransformFeedbackTest, SideEffectsOfPauseAndResume)
     testing::InSequence seq;
 
     EXPECT_FALSE(mFeedback->isActive());
-    EXPECT_CALL(*mImpl, begin(nullptr, gl::PrimitiveMode::Triangles));
-    EXPECT_EQ(angle::Result::Continue,
-              mFeedback->begin(nullptr, gl::PrimitiveMode::Triangles, nullptr));
+    EXPECT_CALL(*mImpl, begin(GL_TRIANGLES));
+    mFeedback->begin(nullptr, GL_TRIANGLES, nullptr);
     EXPECT_FALSE(mFeedback->isPaused());
-    EXPECT_CALL(*mImpl, pause(nullptr));
-    EXPECT_EQ(angle::Result::Continue, mFeedback->pause(nullptr));
+    EXPECT_CALL(*mImpl, pause());
+    mFeedback->pause();
     EXPECT_TRUE(mFeedback->isPaused());
-    EXPECT_CALL(*mImpl, resume(nullptr));
-    EXPECT_EQ(angle::Result::Continue, mFeedback->resume(nullptr));
+    EXPECT_CALL(*mImpl, resume());
+    mFeedback->resume();
     EXPECT_FALSE(mFeedback->isPaused());
-    EXPECT_CALL(*mImpl, end(nullptr));
-    EXPECT_EQ(angle::Result::Continue, mFeedback->end(nullptr));
+    EXPECT_CALL(*mImpl, end());
+    mFeedback->end(nullptr);
 }
 
 TEST_F(TransformFeedbackTest, BufferBinding)
@@ -112,15 +109,18 @@ TEST_F(TransformFeedbackTest, BufferBinding)
         .WillOnce(Return(bufferImpl))
         .RetiresOnSaturation();
 
-    gl::Buffer *buffer = new gl::Buffer(&mockGLFactory, {1});
+    gl::Buffer *buffer = new gl::Buffer(&mockGLFactory, 1);
 
     static const size_t bindIndex = 0;
 
     EXPECT_EQ(mFeedback->getIndexedBufferCount(), mCaps.maxTransformFeedbackSeparateAttributes);
 
-    EXPECT_CALL(*mImpl, bindIndexedBuffer(_, _, _));
-    EXPECT_EQ(angle::Result::Continue,
-              mFeedback->bindIndexedBuffer(nullptr, bindIndex, buffer, 0, 1));
+    EXPECT_CALL(*mImpl, bindGenericBuffer(_));
+    mFeedback->bindGenericBuffer(buffer);
+    EXPECT_EQ(mFeedback->getGenericBuffer().get(), buffer);
+
+    EXPECT_CALL(*mImpl, bindIndexedBuffer(_, _));
+    mFeedback->bindIndexedBuffer(bindIndex, buffer, 0, 1);
     for (size_t i = 0; i < mFeedback->getIndexedBufferCount(); i++)
     {
         if (i == bindIndex)
@@ -137,7 +137,7 @@ TEST_F(TransformFeedbackTest, BufferBinding)
     const size_t releaseCount = mFeedback->getRefCount();
     for (size_t count = 0; count < releaseCount; ++count)
     {
-        mFeedback->release(nullptr);
+        mFeedback->release();
     }
 
     mFeedback = nullptr;

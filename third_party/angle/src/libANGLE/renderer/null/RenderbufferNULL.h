@@ -18,23 +18,15 @@ namespace rx
 class RenderbufferNULL : public RenderbufferImpl
 {
   public:
-    RenderbufferNULL(const gl::RenderbufferState &state);
+    RenderbufferNULL();
     ~RenderbufferNULL() override;
 
-    angle::Result setStorage(const gl::Context *context,
-                             GLenum internalformat,
-                             size_t width,
-                             size_t height) override;
-    angle::Result setStorageMultisample(const gl::Context *context,
-                                        size_t samples,
-                                        GLenum internalformat,
-                                        size_t width,
-                                        size_t height) override;
-
-    angle::Result setStorageEGLImageTarget(const gl::Context *context, egl::Image *image) override;
-
-    angle::Result initializeContents(const gl::Context *context,
-                                     const gl::ImageIndex &imageIndex) override;
+    gl::Error setStorage(GLenum internalformat, size_t width, size_t height) override;
+    gl::Error setStorageMultisample(size_t samples,
+                                    GLenum internalformat,
+                                    size_t width,
+                                    size_t height) override;
+    gl::Error setStorageEGLImageTarget(egl::Image *image) override;
 };
 
 }  // namespace rx

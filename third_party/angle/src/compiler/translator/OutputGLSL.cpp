@@ -1,12 +1,10 @@
 //
-// Copyright 2002 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2002-2013 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 
 #include "compiler/translator/OutputGLSL.h"
-
-#include "compiler/translator/Compiler.h"
 
 namespace sh
 {
@@ -15,7 +13,7 @@ TOutputGLSL::TOutputGLSL(TInfoSinkBase &objSink,
                          ShArrayIndexClampingStrategy clampingStrategy,
                          ShHashFunction64 hashFunction,
                          NameMap &nameMap,
-                         TSymbolTable *symbolTable,
+                         TSymbolTable &symbolTable,
                          sh::GLenum shaderType,
                          int shaderVersion,
                          ShShaderOutput output,
@@ -29,7 +27,8 @@ TOutputGLSL::TOutputGLSL(TInfoSinkBase &objSink,
                       shaderVersion,
                       output,
                       compileOptions)
-{}
+{
+}
 
 bool TOutputGLSL::writeVariablePrecision(TPrecision)
 {
@@ -40,32 +39,24 @@ void TOutputGLSL::visitSymbol(TIntermSymbol *node)
 {
     TInfoSinkBase &out = objSink();
 
-    // All the special cases are built-ins, so if it's not a built-in we can return early.
-    if (node->variable().symbolType() != SymbolType::BuiltIn)
-    {
-        TOutputGLSLBase::visitSymbol(node);
-        return;
-    }
-
-    // Some built-ins get a special translation.
-    const ImmutableString &name = node->getName();
-    if (name == "gl_FragDepthEXT")
+    const TString &symbol = node->getSymbol();
+    if (symbol == "gl_FragDepthEXT")
     {
         out << "gl_FragDepth";
     }
-    else if (name == "gl_FragColor" && sh::IsGLSL130OrNewer(getShaderOutput()))
+    else if (symbol == "gl_FragColor" && sh::IsGLSL130OrNewer(getShaderOutput()))
     {
         out << "webgl_FragColor";
     }
-    else if (name == "gl_FragData" && sh::IsGLSL130OrNewer(getShaderOutput()))
+    else if (symbol == "gl_FragData" && sh::IsGLSL130OrNewer(getShaderOutput()))
     {
         out << "webgl_FragData";
     }
-    else if (name == "gl_SecondaryFragColorEXT")
+    else if (symbol == "gl_SecondaryFragColorEXT")
     {
         out << "angle_SecondaryFragColor";
     }
-    else if (name == "gl_SecondaryFragDataEXT")
+    else if (symbol == "gl_SecondaryFragDataEXT")
     {
         out << "angle_SecondaryFragData";
     }
@@ -75,9 +66,9 @@ void TOutputGLSL::visitSymbol(TIntermSymbol *node)
     }
 }
 
-ImmutableString TOutputGLSL::translateTextureFunction(const ImmutableString &name)
+TString TOutputGLSL::translateTextureFunction(const TString &name)
 {
-    static const char *simpleRename[]       = {"texture2DLodEXT",
+    static const char *simpleRename[] = {"texture2DLodEXT",
                                          "texture2DLod",
                                          "texture2DProjLodEXT",
                                          "texture2DProjLod",
@@ -93,14 +84,13 @@ ImmutableString TOutputGLSL::translateTextureFunction(const ImmutableString &nam
                                          nullptr};
     static const char *legacyToCoreRename[] = {
         "texture2D", "texture", "texture2DProj", "textureProj", "texture2DLod", "textureLod",
-        "texture2DProjLod", "textureProjLod", "texture2DRect", "texture", "texture2DRectProj",
-        "textureProj", "textureCube", "texture", "textureCubeLod", "textureLod",
+        "texture2DProjLod", "textureProjLod", "texture2DRect", "texture", "textureCube", "texture",
+        "textureCubeLod", "textureLod",
         // Extensions
         "texture2DLodEXT", "textureLod", "texture2DProjLodEXT", "textureProjLod",
         "textureCubeLodEXT", "textureLod", "texture2DGradEXT", "textureGrad",
-        "texture2DProjGradEXT", "textureProjGrad", "textureCubeGradEXT", "textureGrad", "texture3D",
-        "texture", "texture3DProj", "textureProj", "texture3DLod", "textureLod", "texture3DProjLod",
-        "textureProjLod", nullptr, nullptr};
+        "texture2DProjGradEXT", "textureProjGrad", "textureCubeGradEXT", "textureGrad", nullptr,
+        nullptr};
     const char **mapping =
         (sh::IsGLSL130OrNewer(getShaderOutput())) ? legacyToCoreRename : simpleRename;
 
@@ -108,7 +98,7 @@ ImmutableString TOutputGLSL::translateTextureFunction(const ImmutableString &nam
     {
         if (name == mapping[i])
         {
-            return ImmutableString(mapping[i + 1]);
+            return mapping[i + 1];
         }
     }
 

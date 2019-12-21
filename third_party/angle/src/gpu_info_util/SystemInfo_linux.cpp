@@ -1,5 +1,5 @@
 //
-// Copyright 2013 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2013-2017 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -81,7 +81,7 @@ bool GetSystemInfo(SystemInfo *info)
         return false;
     }
 
-    GetDualGPUInfo(info);
+    FindPrimaryGPU(info);
 
     for (size_t i = 0; i < info->gpus.size(); ++i)
     {
@@ -108,7 +108,7 @@ bool GetSystemInfo(SystemInfo *info)
             }
         }
 
-        if (IsNVIDIA(gpu->vendorId))
+        if (IsNvidia(gpu->vendorId))
         {
             std::string version;
             if (GetNvidiaDriverVersionWithXNVCtrl(&version))
@@ -118,16 +118,16 @@ bool GetSystemInfo(SystemInfo *info)
             }
         }
 
-        // In dual-GPU cases the PCI scan sometimes only gives us the Intel GPU. If we are able to
-        // query for the Nvidia driver version, it means there was hidden Nvidia GPU, so we add it
-        // to the list.
+        // In dual-GPU cases the PCI scan sometimes only gives us the Intel GPU.
+        // If we are able to query for the Nvidia driver version, it means there
+        // was hidden Nvidia GPU, so we add it to the list and make it primary.
         if (IsIntel(gpu->vendorId) && info->gpus.size() == 1)
         {
             std::string version;
             if (GetNvidiaDriverVersionWithXNVCtrl(&version))
             {
                 GPUDeviceInfo nvidiaInfo;
-                nvidiaInfo.vendorId = kVendorID_NVIDIA;
+                nvidiaInfo.vendorId = kVendorID_Nvidia;
                 nvidiaInfo.deviceId = 0;
                 gpu->driverVendor   = "Nvidia";
                 gpu->driverVersion  = std::move(version);

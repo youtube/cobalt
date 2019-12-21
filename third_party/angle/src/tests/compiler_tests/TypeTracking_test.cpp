@@ -1,5 +1,5 @@
 //
-// Copyright 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -8,10 +8,10 @@
 //   precision.
 //
 
-#include "GLSLANG/ShaderLang.h"
 #include "angle_gl.h"
-#include "compiler/translator/TranslatorESSL.h"
 #include "gtest/gtest.h"
+#include "GLSLANG/ShaderLang.h"
+#include "compiler/translator/TranslatorESSL.h"
 
 using namespace sh;
 
@@ -33,19 +33,22 @@ class TypeTrackingTest : public testing::Test
 
     void TearDown() override { delete mTranslator; }
 
-    void compile(const std::string &shaderString)
+    void compile(const std::string& shaderString)
     {
-        const char *shaderStrings[] = {shaderString.c_str()};
-        bool compilationSuccess     = mTranslator->compile(shaderStrings, 1, SH_INTERMEDIATE_TREE);
-        TInfoSink &infoSink         = mTranslator->getInfoSink();
+        const char *shaderStrings[] = { shaderString.c_str() };
+        bool compilationSuccess = mTranslator->compile(shaderStrings, 1, SH_INTERMEDIATE_TREE);
+        TInfoSink &infoSink = mTranslator->getInfoSink();
         mInfoLog                    = RemoveSymbolIdsFromInfoLog(infoSink.info.c_str());
         if (!compilationSuccess)
             FAIL() << "Shader compilation failed " << mInfoLog;
     }
 
-    bool foundErrorInIntermediateTree() const { return foundInIntermediateTree("ERROR:"); }
+    bool foundErrorInIntermediateTree() const
+    {
+        return foundInIntermediateTree("ERROR:");
+    }
 
-    bool foundInIntermediateTree(const char *stringToFind) const
+    bool foundInIntermediateTree(const char* stringToFind) const
     {
         return mInfoLog.find(stringToFind) != std::string::npos;
     }
@@ -150,8 +153,7 @@ TEST_F(TypeTrackingTest, BuiltInMatFunctionResultTypeAndPrecision)
         "   mat2x4 tmp24 = mat2x4(m);\n"
         "   mat4x3 tmp43 = mat4x3(m);\n"
         "   mat3x4 tmp34 = mat3x4(m);\n"
-        "   my_FragColor = vec4(tmp32[2][1] * tmp23[1][2], tmp42[3][1] * tmp24[1][3], tmp43[3][2] "
-        "* tmp34[2][3], 1.0);\n"
+        "   my_FragColor = vec4(tmp32[2][1] * tmp23[1][2], tmp42[3][1] * tmp24[1][3], tmp43[3][2] * tmp34[2][3], 1.0);\n"
         "}\n";
     compile(shaderString);
     ASSERT_FALSE(foundErrorInIntermediateTree());
@@ -220,8 +222,7 @@ TEST_F(TypeTrackingTest, BuiltInVecToBoolFunctionResultType)
 TEST_F(TypeTrackingTest, Texture2DResultTypeAndPrecision)
 {
     // ESSL spec section 4.5.3: sampler2D and samplerCube are lowp by default
-    // ESSL spec section 8: For the texture functions, the precision of the return type matches the
-    // precision of the sampler type.
+    // ESSL spec section 8: For the texture functions, the precision of the return type matches the precision of the sampler type.
     const std::string &shaderString =
         "precision mediump float;\n"
         "uniform sampler2D s;\n"
@@ -238,8 +239,7 @@ TEST_F(TypeTrackingTest, Texture2DResultTypeAndPrecision)
 TEST_F(TypeTrackingTest, TextureCubeResultTypeAndPrecision)
 {
     // ESSL spec section 4.5.3: sampler2D and samplerCube are lowp by default
-    // ESSL spec section 8: For the texture functions, the precision of the return type matches the
-    // precision of the sampler type.
+    // ESSL spec section 8: For the texture functions, the precision of the return type matches the precision of the sampler type.
     const std::string &shaderString =
         "precision mediump float;\n"
         "uniform samplerCube sc;\n"
@@ -387,7 +387,7 @@ TEST_F(TypeTrackingTest, BuiltInAbsSignFunctionFloatResultTypeAndPrecision)
         "void main() {\n"
         "   float fval2 = abs(fval1);\n"
         "   float fval3 = sign(fval1);\n"
-        "   gl_FragColor = vec4(fval1, fval2, fval3, 1.0); \n"
+        "   gl_FragColor = vec4(fval1, 0.0, 0.0, 1.0); \n"
         "}\n";
     compile(shaderString);
     ASSERT_FALSE(foundErrorInIntermediateTree());
@@ -406,7 +406,7 @@ TEST_F(TypeTrackingTest, BuiltInAbsSignFunctionIntResultTypeAndPrecision)
         "void main() {\n"
         "   int ival2 = abs(ival1);\n"
         "   int ival3 = sign(ival1);\n"
-        "   my_FragColor = vec4(ival2, ival3, 0, 1); \n"
+        "   my_FragColor = vec4(0.0, 0.0, 0.0, 1.0); \n"
         "}\n";
     compile(shaderString);
     ASSERT_FALSE(foundErrorInIntermediateTree());
@@ -426,7 +426,7 @@ TEST_F(TypeTrackingTest, BuiltInFloatBitsToIntResultTypeAndPrecision)
         "void main() {\n"
         "   int i = floatBitsToInt(f);\n"
         "   uint u = floatBitsToUint(f);\n"
-        "   my_FragColor = vec4(i, int(u), 0, 1); \n"
+        "   my_FragColor = vec4(0.0, 0.0, 0.0, 1.0); \n"
         "}\n";
     compile(shaderString);
     ASSERT_FALSE(foundErrorInIntermediateTree());

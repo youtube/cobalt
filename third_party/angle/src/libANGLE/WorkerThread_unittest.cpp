@@ -6,8 +6,8 @@
 // WorkerThread_unittest:
 //   Simple tests for the worker thread class.
 
-#include <gtest/gtest.h>
 #include <array>
+#include <gtest/gtest.h>
 
 #include "libANGLE/WorkerThread.h"
 
@@ -16,8 +16,23 @@ using namespace angle;
 namespace
 {
 
+template <typename T>
+class WorkerPoolTest : public ::testing::Test
+{
+  public:
+    T workerPool = {4};
+};
+
+#if (ANGLE_STD_ASYNC_WORKERS == ANGLE_ENABLED)
+using WorkerPoolTypes = ::testing::Types<priv::AsyncWorkerPool, priv::SingleThreadedWorkerPool>;
+#else
+using WorkerPoolTypes = ::testing::Types<priv::SingleThreadedWorkerPool>;
+#endif  // (ANGLE_STD_ASYNC_WORKERS == ANGLE_ENABLED)
+
+TYPED_TEST_CASE(WorkerPoolTest, WorkerPoolTypes);
+
 // Tests simple worker pool application.
-TEST(WorkerPoolTest, SimpleTask)
+TYPED_TEST(WorkerPoolTest, SimpleTask)
 {
     class TestTask : public Closure
     {
@@ -27,25 +42,17 @@ TEST(WorkerPoolTest, SimpleTask)
         bool fired = false;
     };
 
-    std::array<std::shared_ptr<WorkerThreadPool>, 2> pools = {
-        {WorkerThreadPool::Create(false), WorkerThreadPool::Create(true)}};
-    for (auto &pool : pools)
+    std::array<TestTask, 4> tasks;
+    std::array<typename TypeParam::WaitableEventType, 4> waitables = {{
+        this->workerPool.postWorkerTask(&tasks[0]), this->workerPool.postWorkerTask(&tasks[1]),
+        this->workerPool.postWorkerTask(&tasks[2]), this->workerPool.postWorkerTask(&tasks[3]),
+    }};
+
+    TypeParam::WaitableEventType::WaitMany(&waitables);
+
+    for (const auto &task : tasks)
     {
-        std::array<std::shared_ptr<TestTask>, 4> tasks = {
-            {std::make_shared<TestTask>(), std::make_shared<TestTask>(),
-             std::make_shared<TestTask>(), std::make_shared<TestTask>()}};
-        std::array<std::shared_ptr<WaitableEvent>, 4> waitables = {
-            {WorkerThreadPool::PostWorkerTask(pool, tasks[0]),
-             WorkerThreadPool::PostWorkerTask(pool, tasks[1]),
-             WorkerThreadPool::PostWorkerTask(pool, tasks[2]),
-             WorkerThreadPool::PostWorkerTask(pool, tasks[3])}};
-
-        WaitableEvent::WaitMany(&waitables);
-
-        for (const auto &task : tasks)
-        {
-            EXPECT_TRUE(task->fired);
-        }
+        EXPECT_TRUE(task.fired);
     }
 }
 

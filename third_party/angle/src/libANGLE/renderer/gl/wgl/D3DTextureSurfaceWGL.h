@@ -1,5 +1,5 @@
 
-// Copyright 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -9,7 +9,7 @@
 #ifndef LIBANGLE_RENDERER_GL_WGL_D3DTEXTIRESURFACEWGL_H_
 #define LIBANGLE_RENDERER_GL_WGL_D3DTEXTIRESURFACEWGL_H_
 
-#include "libANGLE/renderer/gl/wgl/SurfaceWGL.h"
+#include "libANGLE/renderer/gl/SurfaceGL.h"
 
 #include <GL/wglext.h>
 
@@ -20,15 +20,17 @@ class FunctionsGL;
 class FunctionsWGL;
 class DisplayWGL;
 class StateManagerGL;
+struct WorkaroundsGL;
 
-class D3DTextureSurfaceWGL : public SurfaceWGL
+class D3DTextureSurfaceWGL : public SurfaceGL
 {
   public:
     D3DTextureSurfaceWGL(const egl::SurfaceState &state,
-                         StateManagerGL *stateManager,
+                         RendererGL *renderer,
                          EGLenum buftype,
                          EGLClientBuffer clientBuffer,
                          DisplayWGL *display,
+                         HGLRC wglContext,
                          HDC deviceContext,
                          ID3D11Device *displayD3D11Device,
                          const FunctionsGL *functionsGL,
@@ -39,21 +41,15 @@ class D3DTextureSurfaceWGL : public SurfaceWGL
                                                      EGLClientBuffer clientBuffer,
                                                      ID3D11Device *d3d11Device);
 
-    egl::Error initialize(const egl::Display *display) override;
-    egl::Error makeCurrent(const gl::Context *context) override;
-    egl::Error unMakeCurrent(const gl::Context *context) override;
+    egl::Error initialize(const DisplayImpl *displayImpl) override;
+    egl::Error makeCurrent() override;
+    egl::Error unMakeCurrent() override;
 
-    egl::Error swap(const gl::Context *context) override;
-    egl::Error postSubBuffer(const gl::Context *context,
-                             EGLint x,
-                             EGLint y,
-                             EGLint width,
-                             EGLint height) override;
+    egl::Error swap(const DisplayImpl *displayImpl) override;
+    egl::Error postSubBuffer(EGLint x, EGLint y, EGLint width, EGLint height) override;
     egl::Error querySurfacePointerANGLE(EGLint attribute, void **value) override;
-    egl::Error bindTexImage(const gl::Context *context,
-                            gl::Texture *texture,
-                            EGLint buffer) override;
-    egl::Error releaseTexImage(const gl::Context *context, EGLint buffer) override;
+    egl::Error bindTexImage(gl::Texture *texture, EGLint buffer) override;
+    egl::Error releaseTexImage(EGLint buffer) override;
     void setSwapInterval(EGLint interval) override;
 
     EGLint getWidth() const override;
@@ -62,30 +58,27 @@ class D3DTextureSurfaceWGL : public SurfaceWGL
     EGLint isPostSubBufferSupported() const override;
     EGLint getSwapBehavior() const override;
 
-    FramebufferImpl *createDefaultFramebuffer(const gl::Context *context,
-                                              const gl::FramebufferState &data) override;
-
-    HDC getDC() const override;
-
-    const angle::Format *getD3DTextureColorFormat() const override;
+    FramebufferImpl *createDefaultFramebuffer(const gl::FramebufferState &data) override;
 
   private:
     EGLenum mBuftype;
     EGLClientBuffer mClientBuffer;
 
+    RendererGL *mRenderer;
+
     ID3D11Device *mDisplayD3D11Device;
 
     DisplayWGL *mDisplay;
     StateManagerGL *mStateManager;
+    const WorkaroundsGL &mWorkarounds;
     const FunctionsGL *mFunctionsGL;
     const FunctionsWGL *mFunctionsWGL;
 
+    HGLRC mWGLContext;
     HDC mDeviceContext;
 
     size_t mWidth;
     size_t mHeight;
-
-    const angle::Format *mColorFormat;
 
     HANDLE mDeviceHandle;
     IUnknown *mObject;
@@ -95,6 +88,7 @@ class D3DTextureSurfaceWGL : public SurfaceWGL
 
     GLuint mColorRenderbufferID;
     GLuint mDepthStencilRenderbufferID;
+    GLuint mFramebufferID;
 };
 }  // namespace rx
 

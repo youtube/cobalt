@@ -1,5 +1,5 @@
 //
-// Copyright 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright(c) 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -7,31 +7,33 @@
 // entry_points_egl.cpp : Implements the EGL entry points.
 
 #include "libGLESv2/entry_points_egl.h"
+#include "libGLESv2/entry_points_egl_ext.h"
+#include "libGLESv2/entry_points_gles_2_0_autogen.h"
+#include "libGLESv2/entry_points_gles_2_0_ext.h"
+#include "libGLESv2/entry_points_gles_3_0.h"
+#include "libGLESv2/entry_points_gles_3_1.h"
+#include "libGLESv2/global_state.h"
 
-#include "common/debug.h"
-#include "common/utilities.h"
-#include "common/version.h"
 #include "libANGLE/Context.h"
 #include "libANGLE/Display.h"
-#include "libANGLE/EGLSync.h"
 #include "libANGLE/Surface.h"
 #include "libANGLE/Texture.h"
 #include "libANGLE/Thread.h"
-#include "libANGLE/entry_points_utils.h"
 #include "libANGLE/queryutils.h"
 #include "libANGLE/validationEGL.h"
-#include "libGLESv2/global_state.h"
-#include "libGLESv2/proc_table_egl.h"
 
-using namespace egl;
+#include "common/debug.h"
+#include "common/version.h"
+
+#include "platform/Platform.h"
+
+#include <EGL/eglext.h>
+
+namespace egl
+{
 
 namespace
 {
-
-bool CompareProc(const ProcEntry &a, const char *b)
-{
-    return strcmp(a.first, b) < 0;
-}
 
 void ClipConfigs(const std::vector<const Config *> &filteredConfigs,
                  EGLConfig *output_configs,
@@ -49,84 +51,93 @@ void ClipConfigs(const std::vector<const Config *> &filteredConfigs,
     }
     *num_config = result_size;
 }
+
 }  // anonymous namespace
 
-extern "C" {
 // EGL 1.0
-EGLint EGLAPIENTRY EGL_GetError(void)
+EGLint EGLAPIENTRY GetError(void)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    EVENT(__FUNCTION__, "");
-    Thread *thread = egl::GetCurrentThread();
+    EVENT("()");
+    Thread *thread = GetCurrentThread();
 
     EGLint error = thread->getError();
-    thread->setSuccess();
+    thread->setError(Error(EGL_SUCCESS));
     return error;
 }
 
-EGLDisplay EGLAPIENTRY EGL_GetDisplay(EGLNativeDisplayType display_id)
+EGLDisplay EGLAPIENTRY GetDisplay(EGLNativeDisplayType display_id)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLNativeDisplayType display_id = 0x%016" PRIxPTR, (uintptr_t)display_id);
+    EVENT("(EGLNativeDisplayType display_id = 0x%0.8p)", display_id);
 
-    return egl::Display::GetDisplayFromNativeDisplay(display_id, AttributeMap());
+    return Display::GetDisplayFromNativeDisplay(display_id, AttributeMap());
 }
 
-EGLBoolean EGLAPIENTRY EGL_Initialize(EGLDisplay dpy, EGLint *major, EGLint *minor)
+EGLBoolean EGLAPIENTRY Initialize(EGLDisplay dpy, EGLint *major, EGLint *minor)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR ", EGLint *major = 0x%016" PRIxPTR
-               ", EGLint *minor = 0x%016" PRIxPTR,
-               (uintptr_t)dpy, (uintptr_t)major, (uintptr_t)minor);
-    Thread *thread = egl::GetCurrentThread();
+    EVENT("(EGLDisplay dpy = 0x%0.8p, EGLint *major = 0x%0.8p, EGLint *minor = 0x%0.8p)", dpy,
+          major, minor);
+    Thread *thread = GetCurrentThread();
 
-    egl::Display *display = static_cast<egl::Display *>(dpy);
-    ANGLE_EGL_TRY_RETURN(thread, ValidateInitialize(display), "eglInitialize",
-                         GetDisplayIfValid(display), EGL_FALSE);
+    Display *display = static_cast<Display *>(dpy);
+    if (dpy == EGL_NO_DISPLAY || !Display::isValidDisplay(display))
+    {
+        thread->setError(Error(EGL_BAD_DISPLAY));
+        return EGL_FALSE;
+    }
 
-    ANGLE_EGL_TRY_RETURN(thread, display->initialize(), "eglInitialize", GetDisplayIfValid(display),
-                         EGL_FALSE);
+    Error error = display->initialize();
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_FALSE;
+    }
 
     if (major)
         *major = 1;
     if (minor)
         *minor = 4;
 
-    thread->setSuccess();
+    thread->setError(Error(EGL_SUCCESS));
     return EGL_TRUE;
 }
 
-EGLBoolean EGLAPIENTRY EGL_Terminate(EGLDisplay dpy)
+EGLBoolean EGLAPIENTRY Terminate(EGLDisplay dpy)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR, (uintptr_t)dpy);
-    Thread *thread = egl::GetCurrentThread();
+    EVENT("(EGLDisplay dpy = 0x%0.8p)", dpy);
+    Thread *thread = GetCurrentThread();
 
-    egl::Display *display = static_cast<egl::Display *>(dpy);
-    ANGLE_EGL_TRY_RETURN(thread, ValidateTerminate(display), "eglTerminate",
-                         GetDisplayIfValid(display), EGL_FALSE);
+    Display *display = static_cast<Display *>(dpy);
+    if (dpy == EGL_NO_DISPLAY || !Display::isValidDisplay(display))
+    {
+        thread->setError(Error(EGL_BAD_DISPLAY));
+        return EGL_FALSE;
+    }
 
-    ANGLE_EGL_TRY_RETURN(thread, display->makeCurrent(thread, nullptr, nullptr, nullptr),
-                         "eglTerminate", GetDisplayIfValid(display), EGL_FALSE);
-    SetContextCurrent(thread, nullptr);
-    ANGLE_EGL_TRY_RETURN(thread, display->terminate(thread), "eglTerminate",
-                         GetDisplayIfValid(display), EGL_FALSE);
+    if (display->isValidContext(thread->getContext()))
+    {
+        thread->setCurrent(nullptr, nullptr, nullptr, nullptr);
+    }
 
-    thread->setSuccess();
+    display->terminate();
+
+    thread->setError(Error(EGL_SUCCESS));
     return EGL_TRUE;
 }
 
-const char *EGLAPIENTRY EGL_QueryString(EGLDisplay dpy, EGLint name)
+const char *EGLAPIENTRY QueryString(EGLDisplay dpy, EGLint name)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR ", EGLint name = %d", (uintptr_t)dpy, name);
-    Thread *thread = egl::GetCurrentThread();
+    EVENT("(EGLDisplay dpy = 0x%0.8p, EGLint name = %d)", dpy, name);
+    Thread *thread = GetCurrentThread();
 
-    egl::Display *display = static_cast<egl::Display *>(dpy);
+    Display *display = static_cast<Display *>(dpy);
     if (!(display == EGL_NO_DISPLAY && name == EGL_EXTENSIONS))
     {
-        ANGLE_EGL_TRY_RETURN(thread, ValidateDisplay(display), "eglQueryString",
-                             GetDisplayIfValid(display), nullptr);
+        Error error = ValidateDisplay(display);
+        if (error.isError())
+        {
+            thread->setError(error);
+            return nullptr;
+        }
     }
 
     const char *result;
@@ -138,7 +149,7 @@ const char *EGLAPIENTRY EGL_QueryString(EGLDisplay dpy, EGLint name)
         case EGL_EXTENSIONS:
             if (display == EGL_NO_DISPLAY)
             {
-                result = egl::Display::GetClientExtensionString().c_str();
+                result = Display::getClientExtensionString().c_str();
             }
             else
             {
@@ -152,545 +163,820 @@ const char *EGLAPIENTRY EGL_QueryString(EGLDisplay dpy, EGLint name)
             result = "1.4 (ANGLE " ANGLE_VERSION_STRING ")";
             break;
         default:
-            thread->setError(EglBadParameter(), GetDebug(), "eglQueryString",
-                             GetDisplayIfValid(display));
+            thread->setError(Error(EGL_BAD_PARAMETER));
             return nullptr;
     }
 
-    thread->setSuccess();
+    thread->setError(Error(EGL_SUCCESS));
     return result;
 }
 
-EGLBoolean EGLAPIENTRY EGL_GetConfigs(EGLDisplay dpy,
-                                      EGLConfig *configs,
-                                      EGLint config_size,
-                                      EGLint *num_config)
+EGLBoolean EGLAPIENTRY GetConfigs(EGLDisplay dpy,
+                                  EGLConfig *configs,
+                                  EGLint config_size,
+                                  EGLint *num_config)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR ", EGLConfig *configs = 0x%016" PRIxPTR
-               ", "
-               "EGLint config_size = %d, EGLint *num_config = 0x%016" PRIxPTR,
-               (uintptr_t)dpy, (uintptr_t)configs, config_size, (uintptr_t)num_config);
-    Thread *thread = egl::GetCurrentThread();
+    EVENT(
+        "(EGLDisplay dpy = 0x%0.8p, EGLConfig *configs = 0x%0.8p, "
+        "EGLint config_size = %d, EGLint *num_config = 0x%0.8p)",
+        dpy, configs, config_size, num_config);
+    Thread *thread = GetCurrentThread();
 
-    egl::Display *display = static_cast<egl::Display *>(dpy);
+    Display *display = static_cast<Display *>(dpy);
 
-    ANGLE_EGL_TRY_RETURN(thread, ValidateGetConfigs(display, config_size, num_config),
-                         "eglGetConfigs", GetDisplayIfValid(display), EGL_FALSE);
+    Error error = ValidateGetConfigs(display, config_size, num_config);
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_FALSE;
+    }
 
     ClipConfigs(display->getConfigs(AttributeMap()), configs, config_size, num_config);
 
-    thread->setSuccess();
+    thread->setError(Error(EGL_SUCCESS));
     return EGL_TRUE;
 }
 
-EGLBoolean EGLAPIENTRY EGL_ChooseConfig(EGLDisplay dpy,
-                                        const EGLint *attrib_list,
-                                        EGLConfig *configs,
-                                        EGLint config_size,
-                                        EGLint *num_config)
+EGLBoolean EGLAPIENTRY ChooseConfig(EGLDisplay dpy,
+                                    const EGLint *attrib_list,
+                                    EGLConfig *configs,
+                                    EGLint config_size,
+                                    EGLint *num_config)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR ", const EGLint *attrib_list = 0x%016" PRIxPTR
-               ", "
-               "EGLConfig *configs = 0x%016" PRIxPTR
-               ", EGLint config_size = %d, EGLint *num_config = 0x%016" PRIxPTR,
-               (uintptr_t)dpy, (uintptr_t)attrib_list, (uintptr_t)configs, config_size,
-               (uintptr_t)num_config);
-    Thread *thread = egl::GetCurrentThread();
+    EVENT(
+        "(EGLDisplay dpy = 0x%0.8p, const EGLint *attrib_list = 0x%0.8p, "
+        "EGLConfig *configs = 0x%0.8p, EGLint config_size = %d, EGLint *num_config = 0x%0.8p)",
+        dpy, attrib_list, configs, config_size, num_config);
+    Thread *thread = GetCurrentThread();
 
-    egl::Display *display  = static_cast<egl::Display *>(dpy);
+    Display *display       = static_cast<Display *>(dpy);
     AttributeMap attribMap = AttributeMap::CreateFromIntArray(attrib_list);
 
-    ANGLE_EGL_TRY_RETURN(thread, ValidateChooseConfig(display, attribMap, config_size, num_config),
-                         "eglChooseConfig", GetDisplayIfValid(display), EGL_FALSE);
+    Error error = ValidateChooseConfig(display, attribMap, config_size, num_config);
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_FALSE;
+    }
 
-    ClipConfigs(display->chooseConfig(attribMap), configs, config_size, num_config);
+    ClipConfigs(display->getConfigs(attribMap), configs, config_size, num_config);
 
-    thread->setSuccess();
+    thread->setError(Error(EGL_SUCCESS));
     return EGL_TRUE;
 }
 
-EGLBoolean EGLAPIENTRY EGL_GetConfigAttrib(EGLDisplay dpy,
-                                           EGLConfig config,
-                                           EGLint attribute,
-                                           EGLint *value)
+EGLBoolean EGLAPIENTRY GetConfigAttrib(EGLDisplay dpy,
+                                       EGLConfig config,
+                                       EGLint attribute,
+                                       EGLint *value)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR ", EGLConfig config = 0x%016" PRIxPTR
-               ", EGLint attribute = %d, EGLint "
-               "*value = 0x%016" PRIxPTR,
-               (uintptr_t)dpy, (uintptr_t)config, attribute, (uintptr_t)value);
-    Thread *thread = egl::GetCurrentThread();
+    EVENT(
+        "(EGLDisplay dpy = 0x%0.8p, EGLConfig config = 0x%0.8p, EGLint attribute = %d, EGLint "
+        "*value = 0x%0.8p)",
+        dpy, config, attribute, value);
+    Thread *thread = GetCurrentThread();
 
-    egl::Display *display = static_cast<egl::Display *>(dpy);
+    Display *display      = static_cast<Display *>(dpy);
     Config *configuration = static_cast<Config *>(config);
 
-    ANGLE_EGL_TRY_RETURN(thread, ValidateGetConfigAttrib(display, configuration, attribute),
-                         "eglGetConfigAttrib", GetDisplayIfValid(display), EGL_FALSE);
+    Error error = ValidateGetConfigAttrib(display, configuration, attribute);
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_FALSE;
+    }
 
     QueryConfigAttrib(configuration, attribute, value);
 
-    thread->setSuccess();
+    thread->setError(Error(EGL_SUCCESS));
     return EGL_TRUE;
 }
 
-EGLSurface EGLAPIENTRY EGL_CreateWindowSurface(EGLDisplay dpy,
-                                               EGLConfig config,
-                                               EGLNativeWindowType win,
-                                               const EGLint *attrib_list)
+EGLSurface EGLAPIENTRY CreateWindowSurface(EGLDisplay dpy,
+                                           EGLConfig config,
+                                           EGLNativeWindowType win,
+                                           const EGLint *attrib_list)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR ", EGLConfig config = 0x%016" PRIxPTR
-               ", EGLNativeWindowType win = 0x%016" PRIxPTR
-               ", "
-               "const EGLint *attrib_list = 0x%016" PRIxPTR,
-               (uintptr_t)dpy, (uintptr_t)config, (uintptr_t)win, (uintptr_t)attrib_list);
-    Thread *thread = egl::GetCurrentThread();
+    EVENT(
+        "(EGLDisplay dpy = 0x%0.8p, EGLConfig config = 0x%0.8p, EGLNativeWindowType win = 0x%0.8p, "
+        "const EGLint *attrib_list = 0x%0.8p)",
+        dpy, config, win, attrib_list);
+    Thread *thread = GetCurrentThread();
 
-    egl::Display *display   = static_cast<egl::Display *>(dpy);
+    Display *display        = static_cast<Display *>(dpy);
     Config *configuration   = static_cast<Config *>(config);
     AttributeMap attributes = AttributeMap::CreateFromIntArray(attrib_list);
 
-    ANGLE_EGL_TRY_RETURN(thread,
-                         ValidateCreateWindowSurface(display, configuration, win, attributes),
-                         "eglCreateWindowSurface", GetDisplayIfValid(display), EGL_NO_SURFACE);
+    Error error = ValidateCreateWindowSurface(display, configuration, win, attributes);
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_NO_SURFACE;
+    }
 
     egl::Surface *surface = nullptr;
-    ANGLE_EGL_TRY_RETURN(thread,
-                         display->createWindowSurface(configuration, win, attributes, &surface),
-                         "eglCreateWindowSurface", GetDisplayIfValid(display), EGL_NO_SURFACE);
+    error                 = display->createWindowSurface(configuration, win, attributes, &surface);
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_NO_SURFACE;
+    }
 
     return static_cast<EGLSurface>(surface);
 }
 
-EGLSurface EGLAPIENTRY EGL_CreatePbufferSurface(EGLDisplay dpy,
-                                                EGLConfig config,
-                                                const EGLint *attrib_list)
+EGLSurface EGLAPIENTRY CreatePbufferSurface(EGLDisplay dpy,
+                                            EGLConfig config,
+                                            const EGLint *attrib_list)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR ", EGLConfig config = 0x%016" PRIxPTR
-               ", const EGLint *attrib_list = "
-               "0x%016" PRIxPTR,
-               (uintptr_t)dpy, (uintptr_t)config, (uintptr_t)attrib_list);
-    Thread *thread = egl::GetCurrentThread();
+    EVENT(
+        "(EGLDisplay dpy = 0x%0.8p, EGLConfig config = 0x%0.8p, const EGLint *attrib_list = "
+        "0x%0.8p)",
+        dpy, config, attrib_list);
+    Thread *thread = GetCurrentThread();
 
-    egl::Display *display   = static_cast<egl::Display *>(dpy);
+    Display *display        = static_cast<Display *>(dpy);
     Config *configuration   = static_cast<Config *>(config);
     AttributeMap attributes = AttributeMap::CreateFromIntArray(attrib_list);
 
-    ANGLE_EGL_TRY_RETURN(thread, ValidateCreatePbufferSurface(display, configuration, attributes),
-                         "eglCreatePbufferSurface", GetDisplayIfValid(display), EGL_NO_SURFACE);
+    Error error = ValidateCreatePbufferSurface(display, configuration, attributes);
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_NO_SURFACE;
+    }
 
     egl::Surface *surface = nullptr;
-    ANGLE_EGL_TRY_RETURN(thread, display->createPbufferSurface(configuration, attributes, &surface),
-                         "eglCreatePbufferSurface", GetDisplayIfValid(display), EGL_NO_SURFACE);
+    error                 = display->createPbufferSurface(configuration, attributes, &surface);
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_NO_SURFACE;
+    }
 
     return static_cast<EGLSurface>(surface);
 }
 
-EGLSurface EGLAPIENTRY EGL_CreatePixmapSurface(EGLDisplay dpy,
-                                               EGLConfig config,
-                                               EGLNativePixmapType pixmap,
-                                               const EGLint *attrib_list)
+EGLSurface EGLAPIENTRY CreatePixmapSurface(EGLDisplay dpy,
+                                           EGLConfig config,
+                                           EGLNativePixmapType pixmap,
+                                           const EGLint *attrib_list)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR ", EGLConfig config = 0x%016" PRIxPTR
-               ", EGLNativePixmapType pixmap = "
-               "0x%016" PRIxPTR
-               ", "
-               "const EGLint *attrib_list = 0x%016" PRIxPTR,
-               (uintptr_t)dpy, (uintptr_t)config, (uintptr_t)pixmap, (uintptr_t)attrib_list);
-    Thread *thread = egl::GetCurrentThread();
+    EVENT(
+        "(EGLDisplay dpy = 0x%0.8p, EGLConfig config = 0x%0.8p, EGLNativePixmapType pixmap = "
+        "0x%0.8p, "
+        "const EGLint *attrib_list = 0x%0.8p)",
+        dpy, config, pixmap, attrib_list);
+    Thread *thread = GetCurrentThread();
 
-    egl::Display *display = static_cast<egl::Display *>(dpy);
+    Display *display      = static_cast<Display *>(dpy);
     Config *configuration = static_cast<Config *>(config);
 
-    ANGLE_EGL_TRY_RETURN(thread, ValidateConfig(display, configuration), "eglCreatePixmapSurface",
-                         GetDisplayIfValid(display), EGL_NO_SURFACE);
+    Error error = ValidateConfig(display, configuration);
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_NO_SURFACE;
+    }
 
     UNIMPLEMENTED();  // FIXME
 
-    thread->setSuccess();
+    thread->setError(Error(EGL_SUCCESS));
     return EGL_NO_SURFACE;
 }
 
-EGLBoolean EGLAPIENTRY EGL_DestroySurface(EGLDisplay dpy, EGLSurface surface)
+EGLBoolean EGLAPIENTRY DestroySurface(EGLDisplay dpy, EGLSurface surface)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR ", EGLSurface surface = 0x%016" PRIxPTR,
-               (uintptr_t)dpy, (uintptr_t)surface);
-    Thread *thread = egl::GetCurrentThread();
+    EVENT("(EGLDisplay dpy = 0x%0.8p, EGLSurface surface = 0x%0.8p)", dpy, surface);
+    Thread *thread = GetCurrentThread();
 
-    egl::Display *display = static_cast<egl::Display *>(dpy);
-    Surface *eglSurface   = static_cast<Surface *>(surface);
+    Display *display    = static_cast<Display *>(dpy);
+    Surface *eglSurface = static_cast<Surface *>(surface);
 
-    ANGLE_EGL_TRY_RETURN(thread, ValidateDestroySurface(display, eglSurface, surface),
-                         "eglDestroySurface", GetSurfaceIfValid(display, eglSurface), EGL_FALSE);
+    Error error = ValidateSurface(display, eglSurface);
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_FALSE;
+    }
 
-    ANGLE_EGL_TRY_RETURN(thread, display->destroySurface(eglSurface), "eglDestroySurface",
-                         GetSurfaceIfValid(display, eglSurface), EGL_FALSE);
+    if (surface == EGL_NO_SURFACE)
+    {
+        thread->setError(Error(EGL_BAD_SURFACE));
+        return EGL_FALSE;
+    }
 
-    thread->setSuccess();
+    display->destroySurface((Surface *)surface);
+
+    thread->setError(Error(EGL_SUCCESS));
     return EGL_TRUE;
 }
 
-EGLBoolean EGLAPIENTRY EGL_QuerySurface(EGLDisplay dpy,
-                                        EGLSurface surface,
-                                        EGLint attribute,
-                                        EGLint *value)
+EGLBoolean EGLAPIENTRY QuerySurface(EGLDisplay dpy,
+                                    EGLSurface surface,
+                                    EGLint attribute,
+                                    EGLint *value)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR ", EGLSurface surface = 0x%016" PRIxPTR
-               ", EGLint attribute = %d, EGLint "
-               "*value = 0x%016" PRIxPTR,
-               (uintptr_t)dpy, (uintptr_t)surface, attribute, (uintptr_t)value);
-    Thread *thread = egl::GetCurrentThread();
+    EVENT(
+        "(EGLDisplay dpy = 0x%0.8p, EGLSurface surface = 0x%0.8p, EGLint attribute = %d, EGLint "
+        "*value = 0x%0.8p)",
+        dpy, surface, attribute, value);
+    Thread *thread = GetCurrentThread();
 
-    const egl::Display *display = static_cast<const egl::Display *>(dpy);
-    const Surface *eglSurface   = static_cast<const Surface *>(surface);
+    Display *display    = static_cast<Display *>(dpy);
+    Surface *eglSurface = (Surface *)surface;
 
-    ANGLE_EGL_TRY_RETURN(thread, ValidateQuerySurface(display, eglSurface, attribute, value),
-                         "eglQuerySurface", GetSurfaceIfValid(display, eglSurface), EGL_FALSE);
+    Error error = ValidateSurface(display, eglSurface);
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_FALSE;
+    }
 
-    QuerySurfaceAttrib(eglSurface, attribute, value);
+    if (surface == EGL_NO_SURFACE)
+    {
+        thread->setError(Error(EGL_BAD_SURFACE));
+        return EGL_FALSE;
+    }
 
-    thread->setSuccess();
+    switch (attribute)
+    {
+        case EGL_VG_ALPHA_FORMAT:
+            UNIMPLEMENTED();  // FIXME
+            break;
+        case EGL_VG_COLORSPACE:
+            UNIMPLEMENTED();  // FIXME
+            break;
+        case EGL_CONFIG_ID:
+            *value = eglSurface->getConfig()->configID;
+            break;
+        case EGL_HEIGHT:
+            *value = eglSurface->getHeight();
+            break;
+        case EGL_HORIZONTAL_RESOLUTION:
+            UNIMPLEMENTED();  // FIXME
+            break;
+        case EGL_LARGEST_PBUFFER:
+            UNIMPLEMENTED();  // FIXME
+            break;
+        case EGL_MIPMAP_TEXTURE:
+            UNIMPLEMENTED();  // FIXME
+            break;
+        case EGL_MIPMAP_LEVEL:
+            UNIMPLEMENTED();  // FIXME
+            break;
+        case EGL_MULTISAMPLE_RESOLVE:
+            UNIMPLEMENTED();  // FIXME
+            break;
+        case EGL_PIXEL_ASPECT_RATIO:
+            *value = eglSurface->getPixelAspectRatio();
+            break;
+        case EGL_RENDER_BUFFER:
+            *value = eglSurface->getRenderBuffer();
+            break;
+        case EGL_SWAP_BEHAVIOR:
+            *value = eglSurface->getSwapBehavior();
+            break;
+        case EGL_TEXTURE_FORMAT:
+            *value = eglSurface->getTextureFormat();
+            break;
+        case EGL_TEXTURE_TARGET:
+            *value = eglSurface->getTextureTarget();
+            break;
+        case EGL_VERTICAL_RESOLUTION:
+            UNIMPLEMENTED();  // FIXME
+            break;
+        case EGL_WIDTH:
+            *value = eglSurface->getWidth();
+            break;
+        case EGL_POST_SUB_BUFFER_SUPPORTED_NV:
+            if (!display->getExtensions().postSubBuffer)
+            {
+                thread->setError(Error(EGL_BAD_ATTRIBUTE));
+                return EGL_FALSE;
+            }
+            *value = eglSurface->isPostSubBufferSupported();
+            break;
+        case EGL_FIXED_SIZE_ANGLE:
+            if (!display->getExtensions().windowFixedSize)
+            {
+                thread->setError(Error(EGL_BAD_ATTRIBUTE));
+                return EGL_FALSE;
+            }
+            *value = eglSurface->isFixedSize();
+            break;
+        case EGL_FLEXIBLE_SURFACE_COMPATIBILITY_SUPPORTED_ANGLE:
+            if (!display->getExtensions().flexibleSurfaceCompatibility)
+            {
+                thread->setError(Error(
+                    EGL_BAD_ATTRIBUTE,
+                    "EGL_FLEXIBLE_SURFACE_COMPATIBILITY_SUPPORTED_ANGLE cannot be used without "
+                    "EGL_ANGLE_flexible_surface_compatibility support."));
+                return EGL_FALSE;
+            }
+            *value = eglSurface->flexibleSurfaceCompatibilityRequested();
+            break;
+        case EGL_SURFACE_ORIENTATION_ANGLE:
+            if (!display->getExtensions().surfaceOrientation)
+            {
+                thread->setError(Error(EGL_BAD_ATTRIBUTE,
+                                       "EGL_SURFACE_ORIENTATION_ANGLE cannot be queried without "
+                                       "EGL_ANGLE_surface_orientation support."));
+                return EGL_FALSE;
+            }
+            *value = eglSurface->getOrientation();
+            break;
+        case EGL_DIRECT_COMPOSITION_ANGLE:
+            if (!display->getExtensions().directComposition)
+            {
+                thread->setError(Error(EGL_BAD_ATTRIBUTE,
+                                       "EGL_DIRECT_COMPOSITION_ANGLE cannot be used without "
+                                       "EGL_ANGLE_direct_composition support."));
+                return EGL_FALSE;
+            }
+            *value = eglSurface->directComposition();
+            break;
+        default:
+            thread->setError(Error(EGL_BAD_ATTRIBUTE));
+            return EGL_FALSE;
+    }
+
+    thread->setError(Error(EGL_SUCCESS));
     return EGL_TRUE;
 }
 
-EGLContext EGLAPIENTRY EGL_CreateContext(EGLDisplay dpy,
-                                         EGLConfig config,
-                                         EGLContext share_context,
-                                         const EGLint *attrib_list)
+EGLContext EGLAPIENTRY CreateContext(EGLDisplay dpy,
+                                     EGLConfig config,
+                                     EGLContext share_context,
+                                     const EGLint *attrib_list)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR ", EGLConfig config = 0x%016" PRIxPTR
-               ", EGLContext share_context = %d, "
-               "const EGLint *attrib_list = 0x%016" PRIxPTR,
-               (uintptr_t)dpy, (uintptr_t)config, CID(dpy, share_context), (uintptr_t)attrib_list);
-    Thread *thread = egl::GetCurrentThread();
+    EVENT(
+        "(EGLDisplay dpy = 0x%0.8p, EGLConfig config = 0x%0.8p, EGLContext share_context = "
+        "0x%0.8p, "
+        "const EGLint *attrib_list = 0x%0.8p)",
+        dpy, config, share_context, attrib_list);
+    Thread *thread = GetCurrentThread();
 
-    egl::Display *display        = static_cast<egl::Display *>(dpy);
+    Display *display             = static_cast<Display *>(dpy);
     Config *configuration        = static_cast<Config *>(config);
     gl::Context *sharedGLContext = static_cast<gl::Context *>(share_context);
     AttributeMap attributes      = AttributeMap::CreateFromIntArray(attrib_list);
 
-    ANGLE_EGL_TRY_RETURN(thread,
-                         ValidateCreateContext(display, configuration, sharedGLContext, attributes),
-                         "eglCreateContext", GetDisplayIfValid(display), EGL_NO_CONTEXT);
+    Error error = ValidateCreateContext(display, configuration, sharedGLContext, attributes);
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_NO_CONTEXT;
+    }
 
     gl::Context *context = nullptr;
-    ANGLE_EGL_TRY_RETURN(thread,
-                         display->createContext(configuration, sharedGLContext, thread->getAPI(),
-                                                attributes, &context),
-                         "eglCreateContext", GetDisplayIfValid(display), EGL_NO_CONTEXT);
+    error = display->createContext(configuration, sharedGLContext, attributes, &context);
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_NO_CONTEXT;
+    }
 
-    thread->setSuccess();
+    thread->setError(Error(EGL_SUCCESS));
     return static_cast<EGLContext>(context);
 }
 
-EGLBoolean EGLAPIENTRY EGL_DestroyContext(EGLDisplay dpy, EGLContext ctx)
+EGLBoolean EGLAPIENTRY DestroyContext(EGLDisplay dpy, EGLContext ctx)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR ", EGLContext ctx = %d", (uintptr_t)dpy,
-               CID(dpy, ctx));
-    Thread *thread = egl::GetCurrentThread();
+    EVENT("(EGLDisplay dpy = 0x%0.8p, EGLContext ctx = 0x%0.8p)", dpy, ctx);
+    Thread *thread = GetCurrentThread();
 
-    egl::Display *display = static_cast<egl::Display *>(dpy);
-    gl::Context *context  = static_cast<gl::Context *>(ctx);
+    Display *display     = static_cast<Display *>(dpy);
+    gl::Context *context = static_cast<gl::Context *>(ctx);
 
-    ANGLE_EGL_TRY_RETURN(thread, ValidateDestroyContext(display, context, ctx), "eglDestroyContext",
-                         GetContextIfValid(display, context), EGL_FALSE);
-
-    bool contextWasCurrent = context == thread->getContext();
-
-    ANGLE_EGL_TRY_RETURN(thread, display->destroyContext(thread, context), "eglDestroyContext",
-                         GetContextIfValid(display, context), EGL_FALSE);
-
-    if (contextWasCurrent)
+    Error error = ValidateContext(display, context);
+    if (error.isError())
     {
-        SetContextCurrent(thread, nullptr);
+        thread->setError(error);
+        return EGL_FALSE;
     }
 
-    thread->setSuccess();
+    if (ctx == EGL_NO_CONTEXT)
+    {
+        thread->setError(Error(EGL_BAD_CONTEXT));
+        return EGL_FALSE;
+    }
+
+    if (context == thread->getContext())
+    {
+        thread->setCurrent(nullptr, thread->getDrawSurface(), thread->getReadSurface(), nullptr);
+    }
+
+    display->destroyContext(context);
+
+    thread->setError(Error(EGL_SUCCESS));
     return EGL_TRUE;
 }
 
-EGLBoolean EGLAPIENTRY EGL_MakeCurrent(EGLDisplay dpy,
-                                       EGLSurface draw,
-                                       EGLSurface read,
-                                       EGLContext ctx)
+EGLBoolean EGLAPIENTRY MakeCurrent(EGLDisplay dpy, EGLSurface draw, EGLSurface read, EGLContext ctx)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR ", EGLSurface draw = 0x%016" PRIxPTR
-               ", EGLSurface read = 0x%016" PRIxPTR
-               ", "
-               "EGLContext ctx = %d",
-               (uintptr_t)dpy, (uintptr_t)draw, (uintptr_t)read, CID(dpy, ctx));
-    Thread *thread = egl::GetCurrentThread();
+    EVENT(
+        "(EGLDisplay dpy = 0x%0.8p, EGLSurface draw = 0x%0.8p, EGLSurface read = 0x%0.8p, "
+        "EGLContext ctx = 0x%0.8p)",
+        dpy, draw, read, ctx);
+    Thread *thread = GetCurrentThread();
 
-    egl::Display *display = static_cast<egl::Display *>(dpy);
-    Surface *drawSurface  = static_cast<Surface *>(draw);
-    Surface *readSurface  = static_cast<Surface *>(read);
-    gl::Context *context  = static_cast<gl::Context *>(ctx);
+    Display *display     = static_cast<Display *>(dpy);
+    gl::Context *context = static_cast<gl::Context *>(ctx);
 
-    ANGLE_EGL_TRY_RETURN(thread, ValidateMakeCurrent(display, drawSurface, readSurface, context),
-                         "eglMakeCurrent", GetContextIfValid(display, context), EGL_FALSE);
+    Error error = ValidateMakeCurrent(display, draw, read, context);
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_FALSE;
+    }
 
-    Surface *previousDraw        = thread->getCurrentDrawSurface();
-    Surface *previousRead        = thread->getCurrentReadSurface();
+    Surface *readSurface   = static_cast<Surface *>(read);
+    Surface *drawSurface   = static_cast<Surface *>(draw);
+    Error makeCurrentError = display->makeCurrent(drawSurface, readSurface, context);
+    if (makeCurrentError.isError())
+    {
+        thread->setError(makeCurrentError);
+        return EGL_FALSE;
+    }
+
     gl::Context *previousContext = thread->getContext();
+    thread->setCurrent(display, drawSurface, readSurface, context);
 
-    // Only call makeCurrent if the context or surfaces have changed.
-    if (previousDraw != drawSurface || previousRead != readSurface || previousContext != context)
+    // Release the surface from the previously-current context, to allow
+    // destroyed surfaces to delete themselves.
+    if (previousContext != nullptr && context != previousContext)
     {
-        ANGLE_EGL_TRY_RETURN(thread,
-                             display->makeCurrent(thread, drawSurface, readSurface, context),
-                             "eglMakeCurrent", GetContextIfValid(display, context), EGL_FALSE);
-
-        SetContextCurrent(thread, context);
+        previousContext->releaseSurface(display);
     }
 
-    thread->setSuccess();
+    thread->setError(Error(EGL_SUCCESS));
     return EGL_TRUE;
 }
 
-EGLSurface EGLAPIENTRY EGL_GetCurrentSurface(EGLint readdraw)
+EGLSurface EGLAPIENTRY GetCurrentSurface(EGLint readdraw)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLint readdraw = %d", readdraw);
-    Thread *thread = egl::GetCurrentThread();
+    EVENT("(EGLint readdraw = %d)", readdraw);
+    Thread *thread = GetCurrentThread();
 
     if (readdraw == EGL_READ)
     {
-        thread->setSuccess();
-        return thread->getCurrentReadSurface();
+        thread->setError(Error(EGL_SUCCESS));
+        return thread->getReadSurface();
     }
     else if (readdraw == EGL_DRAW)
     {
-        thread->setSuccess();
-        return thread->getCurrentDrawSurface();
+        thread->setError(Error(EGL_SUCCESS));
+        return thread->getDrawSurface();
     }
     else
     {
-        thread->setError(EglBadParameter(), GetDebug(), "eglGetCurrentSurface", nullptr);
+        thread->setError(Error(EGL_BAD_PARAMETER));
         return EGL_NO_SURFACE;
     }
 }
 
-EGLDisplay EGLAPIENTRY EGL_GetCurrentDisplay(void)
+EGLDisplay EGLAPIENTRY GetCurrentDisplay(void)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    EVENT(__FUNCTION__, "");
-    Thread *thread = egl::GetCurrentThread();
+    EVENT("()");
+    Thread *thread = GetCurrentThread();
 
-    thread->setSuccess();
-    if (thread->getContext() != nullptr)
-    {
-        return thread->getContext()->getDisplay();
-    }
-    return EGL_NO_DISPLAY;
+    EGLDisplay dpy = thread->getDisplay();
+
+    thread->setError(Error(EGL_SUCCESS));
+    return dpy;
 }
 
-EGLBoolean EGLAPIENTRY EGL_QueryContext(EGLDisplay dpy,
-                                        EGLContext ctx,
-                                        EGLint attribute,
-                                        EGLint *value)
+EGLBoolean EGLAPIENTRY QueryContext(EGLDisplay dpy, EGLContext ctx, EGLint attribute, EGLint *value)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR
-               ", EGLContext ctx = %d"
-               ", EGLint attribute = %d, EGLint *value "
-               "= 0x%016" PRIxPTR,
-               (uintptr_t)dpy, CID(dpy, ctx), attribute, (uintptr_t)value);
-    Thread *thread = egl::GetCurrentThread();
+    EVENT(
+        "(EGLDisplay dpy = 0x%0.8p, EGLContext ctx = 0x%0.8p, EGLint attribute = %d, EGLint *value "
+        "= 0x%0.8p)",
+        dpy, ctx, attribute, value);
+    Thread *thread = GetCurrentThread();
 
-    egl::Display *display = static_cast<egl::Display *>(dpy);
-    gl::Context *context  = static_cast<gl::Context *>(ctx);
+    Display *display     = static_cast<Display *>(dpy);
+    gl::Context *context = static_cast<gl::Context *>(ctx);
 
-    ANGLE_EGL_TRY_RETURN(thread, ValidateQueryContext(display, context, attribute, value),
-                         "eglQueryContext", GetContextIfValid(display, context), EGL_FALSE);
+    Error error = ValidateContext(display, context);
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_FALSE;
+    }
 
-    QueryContextAttrib(context, attribute, value);
+    switch (attribute)
+    {
+        case EGL_CONFIG_ID:
+            *value = context->getConfig()->configID;
+            break;
+        case EGL_CONTEXT_CLIENT_TYPE:
+            *value = context->getClientType();
+            break;
+        case EGL_CONTEXT_CLIENT_VERSION:
+            *value = context->getClientMajorVersion();
+            break;
+        case EGL_RENDER_BUFFER:
+            *value = context->getRenderBuffer();
+            break;
+        default:
+            thread->setError(Error(EGL_BAD_ATTRIBUTE));
+            return EGL_FALSE;
+    }
 
-    thread->setSuccess();
+    thread->setError(Error(EGL_SUCCESS));
     return EGL_TRUE;
 }
 
-EGLBoolean EGLAPIENTRY EGL_WaitGL(void)
+EGLBoolean EGLAPIENTRY WaitGL(void)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    EVENT(__FUNCTION__, "");
-    Thread *thread = egl::GetCurrentThread();
+    EVENT("()");
+    Thread *thread = GetCurrentThread();
 
-    egl::Display *display = thread->getDisplay();
+    Display *display = thread->getDisplay();
 
-    ANGLE_EGL_TRY_RETURN(thread, ValidateDisplay(display), "eglWaitGL", GetDisplayIfValid(display),
-                         EGL_FALSE);
+    Error error = ValidateDisplay(display);
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_FALSE;
+    }
 
     // eglWaitGL like calling eglWaitClient with the OpenGL ES API bound. Since we only implement
     // OpenGL ES we can do the call directly.
-    ANGLE_EGL_TRY_RETURN(thread, display->waitClient(thread->getContext()), "eglWaitGL",
-                         GetDisplayIfValid(display), EGL_FALSE);
+    error = display->waitClient();
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_FALSE;
+    }
 
-    thread->setSuccess();
+    thread->setError(Error(EGL_SUCCESS));
     return EGL_TRUE;
 }
 
-EGLBoolean EGLAPIENTRY EGL_WaitNative(EGLint engine)
+EGLBoolean EGLAPIENTRY WaitNative(EGLint engine)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLint engine = %d", engine);
-    Thread *thread = egl::GetCurrentThread();
+    EVENT("(EGLint engine = %d)", engine);
+    Thread *thread = GetCurrentThread();
 
-    egl::Display *display = thread->getDisplay();
+    Display *display = thread->getDisplay();
 
-    ANGLE_EGL_TRY_RETURN(thread, ValidateWaitNative(display, engine), "eglWaitNative",
-                         GetThreadIfValid(thread), EGL_FALSE);
+    Error error = ValidateDisplay(display);
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_FALSE;
+    }
 
-    ANGLE_EGL_TRY_RETURN(thread, display->waitNative(thread->getContext(), engine), "eglWaitNative",
-                         GetThreadIfValid(thread), EGL_FALSE);
+    if (engine != EGL_CORE_NATIVE_ENGINE)
+    {
+        thread->setError(
+            Error(EGL_BAD_PARAMETER, "the 'engine' parameter has an unrecognized value"));
+    }
 
-    thread->setSuccess();
+    error = display->waitNative(engine, thread->getDrawSurface(), thread->getReadSurface());
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_FALSE;
+    }
+
+    thread->setError(Error(EGL_SUCCESS));
     return EGL_TRUE;
 }
 
-EGLBoolean EGLAPIENTRY EGL_SwapBuffers(EGLDisplay dpy, EGLSurface surface)
+EGLBoolean EGLAPIENTRY SwapBuffers(EGLDisplay dpy, EGLSurface surface)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR ", EGLSurface surface = 0x%016" PRIxPTR,
-               (uintptr_t)dpy, (uintptr_t)surface);
-    Thread *thread = egl::GetCurrentThread();
+    EVENT("(EGLDisplay dpy = 0x%0.8p, EGLSurface surface = 0x%0.8p)", dpy, surface);
+    Thread *thread = GetCurrentThread();
 
-    egl::Display *display = static_cast<egl::Display *>(dpy);
-    Surface *eglSurface   = (Surface *)surface;
+    Display *display    = static_cast<Display *>(dpy);
+    Surface *eglSurface = (Surface *)surface;
 
-    ANGLE_EGL_TRY_RETURN(thread, ValidateSwapBuffers(thread, display, eglSurface), "eglSwapBuffers",
-                         GetSurfaceIfValid(display, eglSurface), EGL_FALSE);
+    Error error = ValidateSurface(display, eglSurface);
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_FALSE;
+    }
 
-    ANGLE_EGL_TRY_RETURN(thread, eglSurface->swap(thread->getContext()), "eglSwapBuffers",
-                         GetSurfaceIfValid(display, eglSurface), EGL_FALSE);
+    if (display->testDeviceLost())
+    {
+        thread->setError(Error(EGL_CONTEXT_LOST));
+        return EGL_FALSE;
+    }
 
-    thread->setSuccess();
+    if (surface == EGL_NO_SURFACE)
+    {
+        thread->setError(Error(EGL_BAD_SURFACE));
+        return EGL_FALSE;
+    }
+
+    error = eglSurface->swap(*display);
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_FALSE;
+    }
+
+    thread->setError(Error(EGL_SUCCESS));
     return EGL_TRUE;
 }
 
-EGLBoolean EGLAPIENTRY EGL_CopyBuffers(EGLDisplay dpy,
-                                       EGLSurface surface,
-                                       EGLNativePixmapType target)
+EGLBoolean EGLAPIENTRY CopyBuffers(EGLDisplay dpy, EGLSurface surface, EGLNativePixmapType target)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR ", EGLSurface surface = 0x%016" PRIxPTR
-               ", EGLNativePixmapType target = "
-               "0x%016" PRIxPTR,
-               (uintptr_t)dpy, (uintptr_t)surface, (uintptr_t)target);
-    Thread *thread = egl::GetCurrentThread();
+    EVENT(
+        "(EGLDisplay dpy = 0x%0.8p, EGLSurface surface = 0x%0.8p, EGLNativePixmapType target = "
+        "0x%0.8p)",
+        dpy, surface, target);
+    Thread *thread = GetCurrentThread();
 
-    egl::Display *display = static_cast<egl::Display *>(dpy);
-    Surface *eglSurface   = static_cast<Surface *>(surface);
+    Display *display    = static_cast<Display *>(dpy);
+    Surface *eglSurface = static_cast<Surface *>(surface);
 
-    ANGLE_EGL_TRY_RETURN(thread, ValidateCopyBuffers(display, eglSurface), "eglCopyBuffers",
-                         GetSurfaceIfValid(display, eglSurface), EGL_FALSE);
+    Error error = ValidateSurface(display, eglSurface);
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_FALSE;
+    }
+
+    if (display->testDeviceLost())
+    {
+        thread->setError(Error(EGL_CONTEXT_LOST));
+        return EGL_FALSE;
+    }
 
     UNIMPLEMENTED();  // FIXME
 
-    thread->setSuccess();
+    thread->setError(Error(EGL_SUCCESS));
     return 0;
 }
 
 // EGL 1.1
-EGLBoolean EGLAPIENTRY EGL_BindTexImage(EGLDisplay dpy, EGLSurface surface, EGLint buffer)
+EGLBoolean EGLAPIENTRY BindTexImage(EGLDisplay dpy, EGLSurface surface, EGLint buffer)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR ", EGLSurface surface = 0x%016" PRIxPTR
-               ", EGLint buffer = %d",
-               (uintptr_t)dpy, (uintptr_t)surface, buffer);
-    Thread *thread = egl::GetCurrentThread();
+    EVENT("(EGLDisplay dpy = 0x%0.8p, EGLSurface surface = 0x%0.8p, EGLint buffer = %d)", dpy,
+          surface, buffer);
+    Thread *thread = GetCurrentThread();
 
-    egl::Display *display      = static_cast<egl::Display *>(dpy);
-    Surface *eglSurface        = static_cast<Surface *>(surface);
-    gl::Context *context       = thread->getContext();
-    gl::Texture *textureObject = nullptr;
+    Display *display    = static_cast<Display *>(dpy);
+    Surface *eglSurface = static_cast<Surface *>(surface);
 
-    ANGLE_EGL_TRY_RETURN(
-        thread, ValidateBindTexImage(display, eglSurface, surface, buffer, context, &textureObject),
-        "eglBindTexImage", GetSurfaceIfValid(display, eglSurface), EGL_FALSE);
-
-    if (context)
+    Error error = ValidateSurface(display, eglSurface);
+    if (error.isError())
     {
-        ANGLE_EGL_TRY_RETURN(thread, eglSurface->bindTexImage(context, textureObject, buffer),
-                             "eglBindTexImage", GetSurfaceIfValid(display, eglSurface), EGL_FALSE);
+        thread->setError(error);
+        return EGL_FALSE;
     }
 
-    thread->setSuccess();
+    if (buffer != EGL_BACK_BUFFER)
+    {
+        thread->setError(Error(EGL_BAD_PARAMETER));
+        return EGL_FALSE;
+    }
+
+    if (surface == EGL_NO_SURFACE || eglSurface->getType() == EGL_WINDOW_BIT)
+    {
+        thread->setError(Error(EGL_BAD_SURFACE));
+        return EGL_FALSE;
+    }
+
+    if (eglSurface->getBoundTexture())
+    {
+        thread->setError(Error(EGL_BAD_ACCESS));
+        return EGL_FALSE;
+    }
+
+    if (eglSurface->getTextureFormat() == EGL_NO_TEXTURE)
+    {
+        thread->setError(Error(EGL_BAD_MATCH));
+        return EGL_FALSE;
+    }
+
+    gl::Context *context = thread->getContext();
+    if (context)
+    {
+        gl::Texture *textureObject = context->getTargetTexture(GL_TEXTURE_2D);
+        ASSERT(textureObject != nullptr);
+
+        if (textureObject->getImmutableFormat())
+        {
+            thread->setError(Error(EGL_BAD_MATCH));
+            return EGL_FALSE;
+        }
+
+        error = eglSurface->bindTexImage(textureObject, buffer);
+        if (error.isError())
+        {
+            thread->setError(error);
+            return EGL_FALSE;
+        }
+    }
+
+    thread->setError(Error(EGL_SUCCESS));
     return EGL_TRUE;
 }
 
-EGLBoolean EGLAPIENTRY EGL_SurfaceAttrib(EGLDisplay dpy,
-                                         EGLSurface surface,
-                                         EGLint attribute,
-                                         EGLint value)
+EGLBoolean EGLAPIENTRY SurfaceAttrib(EGLDisplay dpy,
+                                     EGLSurface surface,
+                                     EGLint attribute,
+                                     EGLint value)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR ", EGLSurface surface = 0x%016" PRIxPTR
-               ", EGLint attribute = %d, EGLint "
-               "value = %d",
-               (uintptr_t)dpy, (uintptr_t)surface, attribute, value);
-    Thread *thread = egl::GetCurrentThread();
+    EVENT(
+        "(EGLDisplay dpy = 0x%0.8p, EGLSurface surface = 0x%0.8p, EGLint attribute = %d, EGLint "
+        "value = %d)",
+        dpy, surface, attribute, value);
+    Thread *thread = GetCurrentThread();
 
-    egl::Display *display = static_cast<egl::Display *>(dpy);
-    Surface *eglSurface   = static_cast<Surface *>(surface);
+    Display *display    = static_cast<Display *>(dpy);
+    Surface *eglSurface = static_cast<Surface *>(surface);
 
-    ANGLE_EGL_TRY_RETURN(thread, ValidateSurfaceAttrib(display, eglSurface, attribute, value),
-                         "eglSurfaceAttrib", GetSurfaceIfValid(display, eglSurface), EGL_FALSE);
+    Error error = ValidateSurface(display, eglSurface);
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_FALSE;
+    }
 
-    SetSurfaceAttrib(eglSurface, attribute, value);
+    UNIMPLEMENTED();  // FIXME
 
-    thread->setSuccess();
+    thread->setError(Error(EGL_SUCCESS));
     return EGL_TRUE;
 }
 
-EGLBoolean EGLAPIENTRY EGL_ReleaseTexImage(EGLDisplay dpy, EGLSurface surface, EGLint buffer)
+EGLBoolean EGLAPIENTRY ReleaseTexImage(EGLDisplay dpy, EGLSurface surface, EGLint buffer)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR ", EGLSurface surface = 0x%016" PRIxPTR
-               ", EGLint buffer = %d",
-               (uintptr_t)dpy, (uintptr_t)surface, buffer);
-    Thread *thread = egl::GetCurrentThread();
+    EVENT("(EGLDisplay dpy = 0x%0.8p, EGLSurface surface = 0x%0.8p, EGLint buffer = %d)", dpy,
+          surface, buffer);
+    Thread *thread = GetCurrentThread();
 
-    egl::Display *display = static_cast<egl::Display *>(dpy);
-    Surface *eglSurface   = static_cast<Surface *>(surface);
+    Display *display    = static_cast<Display *>(dpy);
+    Surface *eglSurface = static_cast<Surface *>(surface);
 
-    ANGLE_EGL_TRY_RETURN(thread, ValidateReleaseTexImage(display, eglSurface, surface, buffer),
-                         "eglReleaseTexImage", GetSurfaceIfValid(display, eglSurface), EGL_FALSE);
+    Error error = ValidateSurface(display, eglSurface);
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_FALSE;
+    }
+
+    if (buffer != EGL_BACK_BUFFER)
+    {
+        thread->setError(Error(EGL_BAD_PARAMETER));
+        return EGL_FALSE;
+    }
+
+    if (surface == EGL_NO_SURFACE || eglSurface->getType() == EGL_WINDOW_BIT)
+    {
+        thread->setError(Error(EGL_BAD_SURFACE));
+        return EGL_FALSE;
+    }
+
+    if (eglSurface->getTextureFormat() == EGL_NO_TEXTURE)
+    {
+        thread->setError(Error(EGL_BAD_MATCH));
+        return EGL_FALSE;
+    }
 
     gl::Texture *texture = eglSurface->getBoundTexture();
 
     if (texture)
     {
-        ANGLE_EGL_TRY_RETURN(thread, eglSurface->releaseTexImage(thread->getContext(), buffer),
-                             "eglReleaseTexImage", GetSurfaceIfValid(display, eglSurface),
-                             EGL_FALSE);
+        error = eglSurface->releaseTexImage(buffer);
+        if (error.isError())
+        {
+            thread->setError(error);
+            return EGL_FALSE;
+        }
     }
 
-    thread->setSuccess();
+    thread->setError(Error(EGL_SUCCESS));
     return EGL_TRUE;
 }
 
-EGLBoolean EGLAPIENTRY EGL_SwapInterval(EGLDisplay dpy, EGLint interval)
+EGLBoolean EGLAPIENTRY SwapInterval(EGLDisplay dpy, EGLint interval)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR ", EGLint interval = %d", (uintptr_t)dpy,
-               interval);
-    Thread *thread       = egl::GetCurrentThread();
-    gl::Context *context = thread->getContext();
+    EVENT("(EGLDisplay dpy = 0x%0.8p, EGLint interval = %d)", dpy, interval);
+    Thread *thread = GetCurrentThread();
 
-    egl::Display *display = static_cast<egl::Display *>(dpy);
-    Surface *draw_surface = static_cast<Surface *>(thread->getCurrentDrawSurface());
+    Display *display = static_cast<Display *>(dpy);
 
-    ANGLE_EGL_TRY_RETURN(thread, ValidateSwapInterval(display, draw_surface, context),
-                         "eglSwapInterval", GetDisplayIfValid(display), EGL_FALSE);
+    Error error = ValidateDisplay(display);
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_FALSE;
+    }
+
+    Surface *draw_surface = static_cast<Surface *>(thread->getDrawSurface());
+
+    if (draw_surface == nullptr)
+    {
+        thread->setError(Error(EGL_BAD_SURFACE));
+        return EGL_FALSE;
+    }
 
     const egl::Config *surfaceConfig = draw_surface->getConfig();
     EGLint clampedInterval           = std::min(std::max(interval, surfaceConfig->minSwapInterval),
@@ -698,402 +984,898 @@ EGLBoolean EGLAPIENTRY EGL_SwapInterval(EGLDisplay dpy, EGLint interval)
 
     draw_surface->setSwapInterval(clampedInterval);
 
-    thread->setSuccess();
+    thread->setError(Error(EGL_SUCCESS));
     return EGL_TRUE;
 }
 
 // EGL 1.2
-EGLBoolean EGLAPIENTRY EGL_BindAPI(EGLenum api)
+EGLBoolean EGLAPIENTRY BindAPI(EGLenum api)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLenum api = 0x%X", api);
-    Thread *thread = egl::GetCurrentThread();
+    EVENT("(EGLenum api = 0x%X)", api);
+    Thread *thread = GetCurrentThread();
 
-    ANGLE_EGL_TRY_RETURN(thread, ValidateBindAPI(api), "eglBindAPI", GetThreadIfValid(thread),
-                         EGL_FALSE);
+    switch (api)
+    {
+        case EGL_OPENGL_API:
+        case EGL_OPENVG_API:
+            thread->setError(Error(EGL_BAD_PARAMETER));
+            return EGL_FALSE;  // Not supported by this implementation
+        case EGL_OPENGL_ES_API:
+            break;
+        default:
+            thread->setError(Error(EGL_BAD_PARAMETER));
+            return EGL_FALSE;
+    }
 
     thread->setAPI(api);
 
-    thread->setSuccess();
+    thread->setError(Error(EGL_SUCCESS));
     return EGL_TRUE;
 }
 
-EGLenum EGLAPIENTRY EGL_QueryAPI(void)
+EGLenum EGLAPIENTRY QueryAPI(void)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    EVENT(__FUNCTION__, "");
-    Thread *thread = egl::GetCurrentThread();
+    EVENT("()");
+    Thread *thread = GetCurrentThread();
 
     EGLenum API = thread->getAPI();
 
-    thread->setSuccess();
+    thread->setError(Error(EGL_SUCCESS));
     return API;
 }
 
-EGLSurface EGLAPIENTRY EGL_CreatePbufferFromClientBuffer(EGLDisplay dpy,
-                                                         EGLenum buftype,
-                                                         EGLClientBuffer buffer,
-                                                         EGLConfig config,
-                                                         const EGLint *attrib_list)
+EGLSurface EGLAPIENTRY CreatePbufferFromClientBuffer(EGLDisplay dpy,
+                                                     EGLenum buftype,
+                                                     EGLClientBuffer buffer,
+                                                     EGLConfig config,
+                                                     const EGLint *attrib_list)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR
-               ", EGLenum buftype = 0x%X, EGLClientBuffer buffer = 0x%016" PRIxPTR
-               ", "
-               "EGLConfig config = 0x%016" PRIxPTR ", const EGLint *attrib_list = 0x%016" PRIxPTR,
-               (uintptr_t)dpy, buftype, (uintptr_t)buffer, (uintptr_t)config,
-               (uintptr_t)attrib_list);
-    Thread *thread = egl::GetCurrentThread();
+    EVENT(
+        "(EGLDisplay dpy = 0x%0.8p, EGLenum buftype = 0x%X, EGLClientBuffer buffer = 0x%0.8p, "
+        "EGLConfig config = 0x%0.8p, const EGLint *attrib_list = 0x%0.8p)",
+        dpy, buftype, buffer, config, attrib_list);
+    Thread *thread = GetCurrentThread();
 
-    egl::Display *display   = static_cast<egl::Display *>(dpy);
+    Display *display        = static_cast<Display *>(dpy);
     Config *configuration   = static_cast<Config *>(config);
     AttributeMap attributes = AttributeMap::CreateFromIntArray(attrib_list);
 
-    ANGLE_EGL_TRY_RETURN(
-        thread,
-        ValidateCreatePbufferFromClientBuffer(display, buftype, buffer, configuration, attributes),
-        "eglCreatePbufferFromClientBuffer", GetDisplayIfValid(display), EGL_NO_SURFACE);
+    Error error =
+        ValidateCreatePbufferFromClientBuffer(display, buftype, buffer, configuration, attributes);
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_NO_SURFACE;
+    }
 
     egl::Surface *surface = nullptr;
-    ANGLE_EGL_TRY_RETURN(thread,
-                         display->createPbufferFromClientBuffer(configuration, buftype, buffer,
-                                                                attributes, &surface),
-                         "eglCreatePbufferFromClientBuffer", GetDisplayIfValid(display),
-                         EGL_NO_SURFACE);
+    error = display->createPbufferFromClientBuffer(configuration, buftype, buffer, attributes,
+                                                   &surface);
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_NO_SURFACE;
+    }
 
     return static_cast<EGLSurface>(surface);
 }
 
-EGLBoolean EGLAPIENTRY EGL_ReleaseThread(void)
+EGLBoolean EGLAPIENTRY ReleaseThread(void)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    EVENT(__FUNCTION__, "");
-    Thread *thread = egl::GetCurrentThread();
+    EVENT("()");
+    Thread *thread = GetCurrentThread();
 
-    Surface *previousDraw         = thread->getCurrentDrawSurface();
-    Surface *previousRead         = thread->getCurrentReadSurface();
-    gl::Context *previousContext  = thread->getContext();
-    egl::Display *previousDisplay = thread->getDisplay();
+    MakeCurrent(EGL_NO_DISPLAY, EGL_NO_CONTEXT, EGL_NO_SURFACE, EGL_NO_SURFACE);
 
-    // Only call makeCurrent if the context or surfaces have changed.
-    if (previousDraw != EGL_NO_SURFACE || previousRead != EGL_NO_SURFACE ||
-        previousContext != EGL_NO_CONTEXT)
-    {
-        if (previousDisplay != EGL_NO_DISPLAY)
-        {
-            ANGLE_EGL_TRY_RETURN(thread,
-                                 previousDisplay->makeCurrent(thread, nullptr, nullptr, nullptr),
-                                 "eglReleaseThread", nullptr, EGL_FALSE);
-        }
-
-        SetContextCurrent(thread, nullptr);
-    }
-
-    thread->setSuccess();
+    thread->setError(Error(EGL_SUCCESS));
     return EGL_TRUE;
 }
 
-EGLBoolean EGLAPIENTRY EGL_WaitClient(void)
+EGLBoolean EGLAPIENTRY WaitClient(void)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    EVENT(__FUNCTION__, "");
-    Thread *thread = egl::GetCurrentThread();
+    EVENT("()");
+    Thread *thread = GetCurrentThread();
 
-    egl::Display *display = thread->getDisplay();
-    gl::Context *context  = thread->getContext();
+    Display *display = thread->getDisplay();
 
-    ANGLE_EGL_TRY_RETURN(thread, ValidateDisplay(display), "eglWaitClient",
-                         GetContextIfValid(display, context), EGL_FALSE);
+    Error error = ValidateDisplay(display);
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_FALSE;
+    }
 
-    ANGLE_EGL_TRY_RETURN(thread, display->waitClient(context), "eglWaitClient",
-                         GetContextIfValid(display, context), EGL_FALSE);
+    error = display->waitClient();
+    if (error.isError())
+    {
+        thread->setError(error);
+        return EGL_FALSE;
+    }
 
-    thread->setSuccess();
+    thread->setError(Error(EGL_SUCCESS));
     return EGL_TRUE;
 }
 
 // EGL 1.4
-EGLContext EGLAPIENTRY EGL_GetCurrentContext(void)
+EGLContext EGLAPIENTRY GetCurrentContext(void)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    EVENT(__FUNCTION__, "");
-    Thread *thread = egl::GetCurrentThread();
+    EVENT("()");
+    Thread *thread = GetCurrentThread();
 
     gl::Context *context = thread->getContext();
 
-    thread->setSuccess();
+    thread->setError(Error(EGL_SUCCESS));
     return static_cast<EGLContext>(context);
 }
 
 // EGL 1.5
-EGLSync EGLAPIENTRY EGL_CreateSync(EGLDisplay dpy, EGLenum type, const EGLAttrib *attrib_list)
+EGLSync EGLAPIENTRY CreateSync(EGLDisplay dpy, EGLenum type, const EGLAttrib *attrib_list)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR
-               ", EGLenum type = 0x%X, const EGLint* attrib_list = 0x%016" PRIxPTR,
-               (uintptr_t)dpy, type, (uintptr_t)attrib_list);
-
-    Thread *thread          = egl::GetCurrentThread();
-    egl::Display *display   = static_cast<egl::Display *>(dpy);
-    AttributeMap attributes = AttributeMap::CreateFromAttribArray(attrib_list);
-
-    gl::Context *currentContext  = thread->getContext();
-    egl::Display *currentDisplay = currentContext ? currentContext->getDisplay() : nullptr;
-
-    ANGLE_EGL_TRY_RETURN(
-        thread, ValidateCreateSyncKHR(display, type, attributes, currentDisplay, currentContext),
-        "eglCreateSync", GetDisplayIfValid(display), EGL_NO_SYNC);
-
-    egl::Sync *syncObject = nullptr;
-    ANGLE_EGL_TRY_RETURN(thread, display->createSync(currentContext, type, attributes, &syncObject),
-                         "eglCreateSync", GetDisplayIfValid(display), EGL_NO_SYNC);
-
-    thread->setSuccess();
-    return static_cast<EGLSync>(syncObject);
-}
-
-EGLBoolean EGLAPIENTRY EGL_DestroySync(EGLDisplay dpy, EGLSync sync)
-{
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR ", EGLSync sync = 0x%016" PRIxPTR, (uintptr_t)dpy,
-               (uintptr_t)sync);
-
-    Thread *thread        = egl::GetCurrentThread();
-    egl::Display *display = static_cast<egl::Display *>(dpy);
-    egl::Sync *syncObject = static_cast<Sync *>(sync);
-
-    ANGLE_EGL_TRY_RETURN(thread, ValidateDestroySync(display, syncObject), "eglDestroySync",
-                         GetDisplayIfValid(display), EGL_FALSE);
-
-    display->destroySync(syncObject);
-
-    thread->setSuccess();
-    return EGL_TRUE;
-}
-
-EGLint EGLAPIENTRY EGL_ClientWaitSync(EGLDisplay dpy, EGLSync sync, EGLint flags, EGLTime timeout)
-{
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR ", EGLSync sync = 0x%016" PRIxPTR
-               ", EGLint flags = 0x%X, EGLTime timeout = "
-               "%llu",
-               (uintptr_t)dpy, (uintptr_t)sync, flags, static_cast<unsigned long long>(timeout));
-
-    Thread *thread        = egl::GetCurrentThread();
-    egl::Display *display = static_cast<egl::Display *>(dpy);
-    egl::Sync *syncObject = static_cast<Sync *>(sync);
-
-    ANGLE_EGL_TRY_RETURN(thread, ValidateClientWaitSync(display, syncObject, flags, timeout),
-                         "eglClientWaitSync", GetSyncIfValid(display, syncObject), EGL_FALSE);
-
-    gl::Context *currentContext = thread->getContext();
-    EGLint syncStatus           = EGL_FALSE;
-    ANGLE_EGL_TRY_RETURN(
-        thread, syncObject->clientWait(display, currentContext, flags, timeout, &syncStatus),
-        "eglClientWaitSync", GetSyncIfValid(display, syncObject), EGL_FALSE);
-
-    thread->setSuccess();
-    return syncStatus;
-}
-
-EGLBoolean EGLAPIENTRY EGL_GetSyncAttrib(EGLDisplay dpy,
-                                         EGLSync sync,
-                                         EGLint attribute,
-                                         EGLAttrib *value)
-{
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR ", EGLSync sync = 0x%016" PRIxPTR
-               ", EGLint attribute = 0x%X, EGLAttrib "
-               "*value = 0x%016" PRIxPTR,
-               (uintptr_t)dpy, (uintptr_t)sync, attribute, (uintptr_t)value);
-
-    Thread *thread        = egl::GetCurrentThread();
-    egl::Display *display = static_cast<egl::Display *>(dpy);
-    egl::Sync *syncObject = static_cast<Sync *>(sync);
-
-    ANGLE_EGL_TRY_RETURN(thread, ValidateGetSyncAttrib(display, syncObject, attribute, value),
-                         "eglGetSyncAttrib", GetSyncIfValid(display, syncObject), EGL_FALSE);
-
-    EGLint valueExt;
-    ANGLE_EGL_TRY_RETURN(thread, GetSyncAttrib(display, syncObject, attribute, &valueExt),
-                         "eglGetSyncAttrib", GetSyncIfValid(display, syncObject), EGL_FALSE);
-    *value = valueExt;
-
-    thread->setSuccess();
-    return EGL_TRUE;
-}
-
-EGLImage EGLAPIENTRY EGL_CreateImage(EGLDisplay dpy,
-                                     EGLContext ctx,
-                                     EGLenum target,
-                                     EGLClientBuffer buffer,
-                                     const EGLAttrib *attrib_list)
-{
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR
-               ", EGLContext ctx = %d"
-               ", EGLenum target = 0x%X, "
-               "EGLClientBuffer buffer = 0x%016" PRIxPTR
-               ", const EGLAttrib *attrib_list = 0x%016" PRIxPTR,
-               (uintptr_t)dpy, CID(dpy, ctx), target, (uintptr_t)buffer, (uintptr_t)attrib_list);
-    Thread *thread = egl::GetCurrentThread();
-
-    egl::Display *display   = static_cast<egl::Display *>(dpy);
-    gl::Context *context    = static_cast<gl::Context *>(ctx);
-    AttributeMap attributes = AttributeMap::CreateFromIntArray((const EGLint *)attrib_list);
-
-    Error error = ValidateCreateImage(display, context, target, buffer, attributes);
-    if (error.isError())
-    {
-        thread->setError(error, GetDebug(), "eglCreateImage", GetDisplayIfValid(display));
-        return EGL_NO_IMAGE;
-    }
-
-    Image *image = nullptr;
-    error        = display->createImage(context, target, buffer, attributes, &image);
-    if (error.isError())
-    {
-        thread->setError(error, GetDebug(), "eglCreateImage", GetDisplayIfValid(display));
-        return EGL_NO_IMAGE;
-    }
-
-    thread->setSuccess();
-    return static_cast<EGLImage>(image);
-}
-
-EGLBoolean EGLAPIENTRY EGL_DestroyImage(EGLDisplay dpy, EGLImage image)
-{
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR ", EGLImage image = 0x%016" PRIxPTR,
-               (uintptr_t)dpy, (uintptr_t)image);
-    Thread *thread        = egl::GetCurrentThread();
-    egl::Display *display = static_cast<egl::Display *>(dpy);
-    Image *img            = static_cast<Image *>(image);
-
-    Error error = ValidateDestroyImage(display, img);
-    if (error.isError())
-    {
-        thread->setError(error, GetDebug(), "eglDestroyImage", GetImageIfValid(display, img));
-        return EGL_FALSE;
-    }
-
-    display->destroyImage(img);
-
-    thread->setSuccess();
-    return EGL_TRUE;
-}
-
-EGLDisplay EGLAPIENTRY EGL_GetPlatformDisplay(EGLenum platform,
-                                              void *native_display,
-                                              const EGLAttrib *attrib_list)
-{
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLenum platform = %d, void* native_display = 0x%016" PRIxPTR
-               ", const EGLint* attrib_list = "
-               "0x%016" PRIxPTR,
-               platform, (uintptr_t)native_display, (uintptr_t)attrib_list);
-    Thread *thread = egl::GetCurrentThread();
-
-    ANGLE_EGL_TRY_RETURN(thread, ValidateGetPlatformDisplay(platform, native_display, attrib_list),
-                         "eglGetPlatformDisplay", GetThreadIfValid(thread), EGL_NO_DISPLAY);
-
-    const auto &attribMap = AttributeMap::CreateFromAttribArray(attrib_list);
-    if (platform == EGL_PLATFORM_ANGLE_ANGLE)
-    {
-        return egl::Display::GetDisplayFromNativeDisplay(
-            gl::bitCast<EGLNativeDisplayType>(native_display), attribMap);
-    }
-    else if (platform == EGL_PLATFORM_DEVICE_EXT)
-    {
-        Device *eglDevice = static_cast<Device *>(native_display);
-        return egl::Display::GetDisplayFromDevice(eglDevice, attribMap);
-    }
-    else
-    {
-        UNREACHABLE();
-        return EGL_NO_DISPLAY;
-    }
-}
-
-EGLSurface EGLAPIENTRY EGL_CreatePlatformWindowSurface(EGLDisplay dpy,
-                                                       EGLConfig config,
-                                                       void *native_window,
-                                                       const EGLAttrib *attrib_list)
-{
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR ", EGLConfig config = 0x%016" PRIxPTR
-               ", void* native_window = 0x%016" PRIxPTR
-               ", "
-               "const EGLint* attrib_list = 0x%016" PRIxPTR,
-               (uintptr_t)dpy, (uintptr_t)config, (uintptr_t)native_window, (uintptr_t)attrib_list);
-    Thread *thread        = egl::GetCurrentThread();
-    egl::Display *display = static_cast<egl::Display *>(dpy);
+    EVENT("(EGLDisplay dpy = 0x%0.8p, EGLenum type = 0x%X, const EGLint* attrib_list = 0x%0.8p)",
+          dpy, type, attrib_list);
+    Thread *thread = GetCurrentThread();
 
     UNIMPLEMENTED();
-    thread->setError(EglBadDisplay() << "eglCreatePlatformWindowSurface unimplemented.", GetDebug(),
-                     "eglCreatePlatformWindowSurface", GetDisplayIfValid(display));
+    thread->setError(Error(EGL_BAD_DISPLAY, "eglCreateSync unimplemented."));
+    return EGL_NO_SYNC;
+}
+
+EGLBoolean EGLAPIENTRY DestroySync(EGLDisplay dpy, EGLSync sync)
+{
+    EVENT("(EGLDisplay dpy = 0x%0.8p, EGLSync sync = 0x%0.8p)", dpy, sync);
+    Thread *thread = GetCurrentThread();
+
+    UNIMPLEMENTED();
+    thread->setError(Error(EGL_BAD_DISPLAY, "eglDestroySync unimplemented."));
+    return EGL_FALSE;
+}
+
+EGLint EGLAPIENTRY ClientWaitSync(EGLDisplay dpy, EGLSync sync, EGLint flags, EGLTime timeout)
+{
+    EVENT(
+        "(EGLDisplay dpy = 0x%0.8p, EGLSync sync = 0x%0.8p, EGLint flags = 0x%X, EGLTime timeout = "
+        "%d)",
+        dpy, sync, flags, timeout);
+    Thread *thread = GetCurrentThread();
+
+    UNIMPLEMENTED();
+    thread->setError(Error(EGL_BAD_DISPLAY, "eglClientWaitSync unimplemented."));
+    return 0;
+}
+
+EGLBoolean EGLAPIENTRY GetSyncAttrib(EGLDisplay dpy,
+                                     EGLSync sync,
+                                     EGLint attribute,
+                                     EGLAttrib *value)
+{
+    EVENT(
+        "(EGLDisplay dpy = 0x%0.8p, EGLSync sync = 0x%0.8p, EGLint attribute = 0x%X, EGLAttrib "
+        "*value = 0x%0.8p)",
+        dpy, sync, attribute, value);
+    Thread *thread = GetCurrentThread();
+
+    UNIMPLEMENTED();
+    thread->setError(Error(EGL_BAD_DISPLAY, "eglSyncAttrib unimplemented."));
+    return EGL_FALSE;
+}
+
+EGLImage EGLAPIENTRY CreateImage(EGLDisplay dpy,
+                                 EGLContext ctx,
+                                 EGLenum target,
+                                 EGLClientBuffer buffer,
+                                 const EGLAttrib *attrib_list)
+{
+    EVENT(
+        "(EGLDisplay dpy = 0x%0.8p, EGLContext ctx = 0x%0.8p, EGLenum target = 0x%X, "
+        "EGLClientBuffer buffer = 0x%0.8p, const EGLAttrib *attrib_list = 0x%0.8p)",
+        dpy, ctx, target, buffer, attrib_list);
+    Thread *thread = GetCurrentThread();
+
+    UNIMPLEMENTED();
+    thread->setError(Error(EGL_BAD_DISPLAY, "eglCreateImage unimplemented."));
+    return EGL_NO_IMAGE;
+}
+
+EGLBoolean EGLAPIENTRY DestroyImage(EGLDisplay dpy, EGLImage image)
+{
+    EVENT("(EGLDisplay dpy = 0x%0.8p, EGLImage image = 0x%0.8p)", dpy, image);
+    Thread *thread = GetCurrentThread();
+
+    UNIMPLEMENTED();
+    thread->setError(Error(EGL_BAD_DISPLAY, "eglDestroyImage unimplemented."));
+    return EGL_FALSE;
+}
+
+EGLDisplay EGLAPIENTRY GetPlatformDisplay(EGLenum platform,
+                                          void *native_display,
+                                          const EGLAttrib *attrib_list)
+{
+    EVENT(
+        "(EGLenum platform = %d, void* native_display = 0x%0.8p, const EGLint* attrib_list = "
+        "0x%0.8p)",
+        platform, native_display, attrib_list);
+    Thread *thread = GetCurrentThread();
+
+    UNIMPLEMENTED();
+    thread->setError(Error(EGL_BAD_DISPLAY, "eglGetPlatformDisplay unimplemented."));
+    return EGL_NO_DISPLAY;
+}
+
+EGLSurface EGLAPIENTRY CreatePlatformWindowSurface(EGLDisplay dpy,
+                                                   EGLConfig config,
+                                                   void *native_window,
+                                                   const EGLAttrib *attrib_list)
+{
+    EVENT(
+        "(EGLDisplay dpy = 0x%0.8p, EGLConfig config = 0x%0.8p, void* native_window = 0x%0.8p, "
+        "const EGLint* attrib_list = 0x%0.8p)",
+        dpy, config, native_window, attrib_list);
+    Thread *thread = GetCurrentThread();
+
+    UNIMPLEMENTED();
+    thread->setError(Error(EGL_BAD_DISPLAY, "eglCreatePlatformWindowSurface unimplemented."));
     return EGL_NO_SURFACE;
 }
 
-EGLSurface EGLAPIENTRY EGL_CreatePlatformPixmapSurface(EGLDisplay dpy,
-                                                       EGLConfig config,
-                                                       void *native_pixmap,
-                                                       const EGLAttrib *attrib_list)
+EGLSurface EGLAPIENTRY CreatePlatformPixmapSurface(EGLDisplay dpy,
+                                                   EGLConfig config,
+                                                   void *native_pixmap,
+                                                   const EGLAttrib *attrib_list)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy = 0x%016" PRIxPTR ", EGLConfig config = 0x%016" PRIxPTR
-               ", void* native_pixmap = 0x%016" PRIxPTR
-               ", "
-               "const EGLint* attrib_list = 0x%016" PRIxPTR,
-               (uintptr_t)dpy, (uintptr_t)config, (uintptr_t)native_pixmap, (uintptr_t)attrib_list);
-    Thread *thread        = egl::GetCurrentThread();
-    egl::Display *display = static_cast<egl::Display *>(dpy);
+    EVENT(
+        "(EGLDisplay dpy = 0x%0.8p, EGLConfig config = 0x%0.8p, void* native_pixmap = 0x%0.8p, "
+        "const EGLint* attrib_list = 0x%0.8p)",
+        dpy, config, native_pixmap, attrib_list);
+    Thread *thread = GetCurrentThread();
 
     UNIMPLEMENTED();
-    thread->setError(EglBadDisplay() << "eglCreatePlatformPixmapSurface unimplemented.", GetDebug(),
-                     "eglCreatePlatformPixmapSurface", GetDisplayIfValid(display));
+    thread->setError(Error(EGL_BAD_DISPLAY, "eglCraetePlatformPixmaSurface unimplemented."));
     return EGL_NO_SURFACE;
 }
 
-EGLBoolean EGLAPIENTRY EGL_WaitSync(EGLDisplay dpy, EGLSync sync, EGLint flags)
+EGLBoolean EGLAPIENTRY WaitSync(EGLDisplay dpy, EGLSync sync, EGLint flags)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("EGLDisplay dpy =0x%016" PRIxPTR "p, EGLSync sync = 0x%016" PRIxPTR
-               ", EGLint flags = 0x%X",
-               (uintptr_t)dpy, (uintptr_t)sync, flags);
+    EVENT("(EGLDisplay dpy = 0x%0.8p, EGLSync sync = 0x%0.8p, EGLint flags = 0x%X)", dpy, sync,
+          flags);
+    Thread *thread = GetCurrentThread();
 
-    Thread *thread        = egl::GetCurrentThread();
-    egl::Display *display = static_cast<egl::Display *>(dpy);
-    gl::Context *context  = thread->getContext();
-    egl::Sync *syncObject = static_cast<Sync *>(sync);
-
-    ANGLE_EGL_TRY_RETURN(thread, ValidateWaitSync(display, context, syncObject, flags),
-                         "eglWaitSync", GetSyncIfValid(display, syncObject), EGL_FALSE);
-
-    gl::Context *currentContext = thread->getContext();
-    ANGLE_EGL_TRY_RETURN(thread, syncObject->serverWait(display, currentContext, flags),
-                         "eglWaitSync", GetSyncIfValid(display, syncObject), EGL_FALSE);
-
-    thread->setSuccess();
-    return EGL_TRUE;
+    UNIMPLEMENTED();
+    thread->setError(Error(EGL_BAD_DISPLAY, "eglWaitSync unimplemented."));
+    return EGL_FALSE;
 }
 
-__eglMustCastToProperFunctionPointerType EGLAPIENTRY EGL_GetProcAddress(const char *procname)
+__eglMustCastToProperFunctionPointerType EGLAPIENTRY GetProcAddress(const char *procname)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    FUNC_EVENT("const char *procname = \"%s\"", procname);
-    Thread *thread = egl::GetCurrentThread();
+    EVENT("(const char *procname = \"%s\")", procname);
+    Thread *thread = GetCurrentThread();
 
-    ProcEntry *entry =
-        std::lower_bound(&g_procTable[0], &g_procTable[g_numProcs], procname, CompareProc);
+    typedef std::map<std::string, __eglMustCastToProperFunctionPointerType> ProcAddressMap;
+    auto generateProcAddressMap = []() {
+        ProcAddressMap map;
+#define INSERT_PROC_ADDRESS(ns, proc) \
+    map[#ns #proc] = reinterpret_cast<__eglMustCastToProperFunctionPointerType>(ns::proc)
 
-    thread->setSuccess();
+#define INSERT_PROC_ADDRESS_NO_NS(name, proc) \
+    map[name] = reinterpret_cast<__eglMustCastToProperFunctionPointerType>(proc)
 
-    if (entry == &g_procTable[g_numProcs] || strcmp(entry->first, procname) != 0)
-    {
-        return nullptr;
-    }
+        // GLES2 core
+        INSERT_PROC_ADDRESS(gl, ActiveTexture);
+        INSERT_PROC_ADDRESS(gl, AttachShader);
+        INSERT_PROC_ADDRESS(gl, BindAttribLocation);
+        INSERT_PROC_ADDRESS(gl, BindBuffer);
+        INSERT_PROC_ADDRESS(gl, BindFramebuffer);
+        INSERT_PROC_ADDRESS(gl, BindRenderbuffer);
+        INSERT_PROC_ADDRESS(gl, BindTexture);
+        INSERT_PROC_ADDRESS(gl, BlendColor);
+        INSERT_PROC_ADDRESS(gl, BlendEquation);
+        INSERT_PROC_ADDRESS(gl, BlendEquationSeparate);
+        INSERT_PROC_ADDRESS(gl, BlendFunc);
+        INSERT_PROC_ADDRESS(gl, BlendFuncSeparate);
+        INSERT_PROC_ADDRESS(gl, BufferData);
+        INSERT_PROC_ADDRESS(gl, BufferSubData);
+        INSERT_PROC_ADDRESS(gl, CheckFramebufferStatus);
+        INSERT_PROC_ADDRESS(gl, Clear);
+        INSERT_PROC_ADDRESS(gl, ClearColor);
+        INSERT_PROC_ADDRESS(gl, ClearDepthf);
+        INSERT_PROC_ADDRESS(gl, ClearStencil);
+        INSERT_PROC_ADDRESS(gl, ColorMask);
+        INSERT_PROC_ADDRESS(gl, CompileShader);
+        INSERT_PROC_ADDRESS(gl, CompressedTexImage2D);
+        INSERT_PROC_ADDRESS(gl, CompressedTexSubImage2D);
+        INSERT_PROC_ADDRESS(gl, CopyTexImage2D);
+        INSERT_PROC_ADDRESS(gl, CopyTexSubImage2D);
+        INSERT_PROC_ADDRESS(gl, CreateProgram);
+        INSERT_PROC_ADDRESS(gl, CreateShader);
+        INSERT_PROC_ADDRESS(gl, CullFace);
+        INSERT_PROC_ADDRESS(gl, DeleteBuffers);
+        INSERT_PROC_ADDRESS(gl, DeleteFramebuffers);
+        INSERT_PROC_ADDRESS(gl, DeleteProgram);
+        INSERT_PROC_ADDRESS(gl, DeleteRenderbuffers);
+        INSERT_PROC_ADDRESS(gl, DeleteShader);
+        INSERT_PROC_ADDRESS(gl, DeleteTextures);
+        INSERT_PROC_ADDRESS(gl, DepthFunc);
+        INSERT_PROC_ADDRESS(gl, DepthMask);
+        INSERT_PROC_ADDRESS(gl, DepthRangef);
+        INSERT_PROC_ADDRESS(gl, DetachShader);
+        INSERT_PROC_ADDRESS(gl, Disable);
+        INSERT_PROC_ADDRESS(gl, DisableVertexAttribArray);
+        INSERT_PROC_ADDRESS(gl, DrawArrays);
+        INSERT_PROC_ADDRESS(gl, DrawElements);
+        INSERT_PROC_ADDRESS(gl, Enable);
+        INSERT_PROC_ADDRESS(gl, EnableVertexAttribArray);
+        INSERT_PROC_ADDRESS(gl, Finish);
+        INSERT_PROC_ADDRESS(gl, Flush);
+        INSERT_PROC_ADDRESS(gl, FramebufferRenderbuffer);
+        INSERT_PROC_ADDRESS(gl, FramebufferTexture2D);
+        INSERT_PROC_ADDRESS(gl, FrontFace);
+        INSERT_PROC_ADDRESS(gl, GenBuffers);
+        INSERT_PROC_ADDRESS(gl, GenerateMipmap);
+        INSERT_PROC_ADDRESS(gl, GenFramebuffers);
+        INSERT_PROC_ADDRESS(gl, GenRenderbuffers);
+        INSERT_PROC_ADDRESS(gl, GenTextures);
+        INSERT_PROC_ADDRESS(gl, GetActiveAttrib);
+        INSERT_PROC_ADDRESS(gl, GetActiveUniform);
+        INSERT_PROC_ADDRESS(gl, GetAttachedShaders);
+        INSERT_PROC_ADDRESS(gl, GetAttribLocation);
+        INSERT_PROC_ADDRESS(gl, GetBooleanv);
+        INSERT_PROC_ADDRESS(gl, GetBufferParameteriv);
+        INSERT_PROC_ADDRESS(gl, GetError);
+        INSERT_PROC_ADDRESS(gl, GetFloatv);
+        INSERT_PROC_ADDRESS(gl, GetFramebufferAttachmentParameteriv);
+        INSERT_PROC_ADDRESS(gl, GetIntegerv);
+        INSERT_PROC_ADDRESS(gl, GetProgramiv);
+        INSERT_PROC_ADDRESS(gl, GetProgramInfoLog);
+        INSERT_PROC_ADDRESS(gl, GetRenderbufferParameteriv);
+        INSERT_PROC_ADDRESS(gl, GetShaderiv);
+        INSERT_PROC_ADDRESS(gl, GetShaderInfoLog);
+        INSERT_PROC_ADDRESS(gl, GetShaderPrecisionFormat);
+        INSERT_PROC_ADDRESS(gl, GetShaderSource);
+        INSERT_PROC_ADDRESS(gl, GetString);
+        INSERT_PROC_ADDRESS(gl, GetTexParameterfv);
+        INSERT_PROC_ADDRESS(gl, GetTexParameteriv);
+        INSERT_PROC_ADDRESS(gl, GetUniformfv);
+        INSERT_PROC_ADDRESS(gl, GetUniformiv);
+        INSERT_PROC_ADDRESS(gl, GetUniformLocation);
+        INSERT_PROC_ADDRESS(gl, GetVertexAttribfv);
+        INSERT_PROC_ADDRESS(gl, GetVertexAttribiv);
+        INSERT_PROC_ADDRESS(gl, GetVertexAttribPointerv);
+        INSERT_PROC_ADDRESS(gl, Hint);
+        INSERT_PROC_ADDRESS(gl, IsBuffer);
+        INSERT_PROC_ADDRESS(gl, IsEnabled);
+        INSERT_PROC_ADDRESS(gl, IsFramebuffer);
+        INSERT_PROC_ADDRESS(gl, IsProgram);
+        INSERT_PROC_ADDRESS(gl, IsRenderbuffer);
+        INSERT_PROC_ADDRESS(gl, IsShader);
+        INSERT_PROC_ADDRESS(gl, IsTexture);
+        INSERT_PROC_ADDRESS(gl, LineWidth);
+        INSERT_PROC_ADDRESS(gl, LinkProgram);
+        INSERT_PROC_ADDRESS(gl, PixelStorei);
+        INSERT_PROC_ADDRESS(gl, PolygonOffset);
+        INSERT_PROC_ADDRESS(gl, ReadPixels);
+        INSERT_PROC_ADDRESS(gl, ReleaseShaderCompiler);
+        INSERT_PROC_ADDRESS(gl, RenderbufferStorage);
+        INSERT_PROC_ADDRESS(gl, SampleCoverage);
+        INSERT_PROC_ADDRESS(gl, Scissor);
+        INSERT_PROC_ADDRESS(gl, ShaderBinary);
+        INSERT_PROC_ADDRESS(gl, ShaderSource);
+        INSERT_PROC_ADDRESS(gl, StencilFunc);
+        INSERT_PROC_ADDRESS(gl, StencilFuncSeparate);
+        INSERT_PROC_ADDRESS(gl, StencilMask);
+        INSERT_PROC_ADDRESS(gl, StencilMaskSeparate);
+        INSERT_PROC_ADDRESS(gl, StencilOp);
+        INSERT_PROC_ADDRESS(gl, StencilOpSeparate);
+        INSERT_PROC_ADDRESS(gl, TexImage2D);
+        INSERT_PROC_ADDRESS(gl, TexParameterf);
+        INSERT_PROC_ADDRESS(gl, TexParameterfv);
+        INSERT_PROC_ADDRESS(gl, TexParameteri);
+        INSERT_PROC_ADDRESS(gl, TexParameteriv);
+        INSERT_PROC_ADDRESS(gl, TexSubImage2D);
+        INSERT_PROC_ADDRESS(gl, Uniform1f);
+        INSERT_PROC_ADDRESS(gl, Uniform1fv);
+        INSERT_PROC_ADDRESS(gl, Uniform1i);
+        INSERT_PROC_ADDRESS(gl, Uniform1iv);
+        INSERT_PROC_ADDRESS(gl, Uniform2f);
+        INSERT_PROC_ADDRESS(gl, Uniform2fv);
+        INSERT_PROC_ADDRESS(gl, Uniform2i);
+        INSERT_PROC_ADDRESS(gl, Uniform2iv);
+        INSERT_PROC_ADDRESS(gl, Uniform3f);
+        INSERT_PROC_ADDRESS(gl, Uniform3fv);
+        INSERT_PROC_ADDRESS(gl, Uniform3i);
+        INSERT_PROC_ADDRESS(gl, Uniform3iv);
+        INSERT_PROC_ADDRESS(gl, Uniform4f);
+        INSERT_PROC_ADDRESS(gl, Uniform4fv);
+        INSERT_PROC_ADDRESS(gl, Uniform4i);
+        INSERT_PROC_ADDRESS(gl, Uniform4iv);
+        INSERT_PROC_ADDRESS(gl, UniformMatrix2fv);
+        INSERT_PROC_ADDRESS(gl, UniformMatrix3fv);
+        INSERT_PROC_ADDRESS(gl, UniformMatrix4fv);
+        INSERT_PROC_ADDRESS(gl, UseProgram);
+        INSERT_PROC_ADDRESS(gl, ValidateProgram);
+        INSERT_PROC_ADDRESS(gl, VertexAttrib1f);
+        INSERT_PROC_ADDRESS(gl, VertexAttrib1fv);
+        INSERT_PROC_ADDRESS(gl, VertexAttrib2f);
+        INSERT_PROC_ADDRESS(gl, VertexAttrib2fv);
+        INSERT_PROC_ADDRESS(gl, VertexAttrib3f);
+        INSERT_PROC_ADDRESS(gl, VertexAttrib3fv);
+        INSERT_PROC_ADDRESS(gl, VertexAttrib4f);
+        INSERT_PROC_ADDRESS(gl, VertexAttrib4fv);
+        INSERT_PROC_ADDRESS(gl, VertexAttribPointer);
+        INSERT_PROC_ADDRESS(gl, Viewport);
 
-    return entry->second;
+        // GL_ANGLE_framebuffer_blit
+        INSERT_PROC_ADDRESS(gl, BlitFramebufferANGLE);
+
+        // GL_ANGLE_framebuffer_multisample
+        INSERT_PROC_ADDRESS(gl, RenderbufferStorageMultisampleANGLE);
+
+        // GL_EXT_discard_framebuffer
+        INSERT_PROC_ADDRESS(gl, DiscardFramebufferEXT);
+
+        // GL_NV_fence
+        INSERT_PROC_ADDRESS(gl, DeleteFencesNV);
+        INSERT_PROC_ADDRESS(gl, GenFencesNV);
+        INSERT_PROC_ADDRESS(gl, IsFenceNV);
+        INSERT_PROC_ADDRESS(gl, TestFenceNV);
+        INSERT_PROC_ADDRESS(gl, GetFenceivNV);
+        INSERT_PROC_ADDRESS(gl, FinishFenceNV);
+        INSERT_PROC_ADDRESS(gl, SetFenceNV);
+
+        // GL_ANGLE_translated_shader_source
+        INSERT_PROC_ADDRESS(gl, GetTranslatedShaderSourceANGLE);
+
+        // GL_EXT_texture_storage
+        INSERT_PROC_ADDRESS(gl, TexStorage2DEXT);
+
+        // GL_EXT_robustness
+        INSERT_PROC_ADDRESS(gl, GetGraphicsResetStatusEXT);
+        INSERT_PROC_ADDRESS(gl, ReadnPixelsEXT);
+        INSERT_PROC_ADDRESS(gl, GetnUniformfvEXT);
+        INSERT_PROC_ADDRESS(gl, GetnUniformivEXT);
+
+        // GL_EXT_occlusion_query_boolean
+        INSERT_PROC_ADDRESS(gl, GenQueriesEXT);
+        INSERT_PROC_ADDRESS(gl, DeleteQueriesEXT);
+        INSERT_PROC_ADDRESS(gl, IsQueryEXT);
+        INSERT_PROC_ADDRESS(gl, BeginQueryEXT);
+        INSERT_PROC_ADDRESS(gl, EndQueryEXT);
+        INSERT_PROC_ADDRESS(gl, GetQueryivEXT);
+        INSERT_PROC_ADDRESS(gl, GetQueryObjectuivEXT);
+
+        // GL_EXT_disjoint_timer_query
+        // Commented out functions are needed for GL_EXT_disjoint_timer_query
+        // but are pulled in by GL_EXT_occlusion_query_boolean.
+        // INSERT_PROC_ADDRESS(gl, GenQueriesEXT);
+        // INSERT_PROC_ADDRESS(gl, DeleteQueriesEXT);
+        // INSERT_PROC_ADDRESS(gl, IsQueryEXT);
+        // INSERT_PROC_ADDRESS(gl, BeginQueryEXT);
+        // INSERT_PROC_ADDRESS(gl, EndQueryEXT);
+        INSERT_PROC_ADDRESS(gl, QueryCounterEXT);
+        // INSERT_PROC_ADDRESS(gl, GetQueryivEXT);
+        INSERT_PROC_ADDRESS(gl, GetQueryObjectivEXT);
+        // INSERT_PROC_ADDRESS(gl, GetQueryObjectuivEXT);
+        INSERT_PROC_ADDRESS(gl, GetQueryObjecti64vEXT);
+        INSERT_PROC_ADDRESS(gl, GetQueryObjectui64vEXT);
+
+        // GL_EXT_draw_buffers
+        INSERT_PROC_ADDRESS(gl, DrawBuffersEXT);
+
+        // GL_ANGLE_instanced_arrays
+        INSERT_PROC_ADDRESS(gl, DrawArraysInstancedANGLE);
+        INSERT_PROC_ADDRESS(gl, DrawElementsInstancedANGLE);
+        INSERT_PROC_ADDRESS(gl, VertexAttribDivisorANGLE);
+
+        // GL_OES_get_program_binary
+        INSERT_PROC_ADDRESS(gl, GetProgramBinaryOES);
+        INSERT_PROC_ADDRESS(gl, ProgramBinaryOES);
+
+        // GL_OES_mapbuffer
+        INSERT_PROC_ADDRESS(gl, MapBufferOES);
+        INSERT_PROC_ADDRESS(gl, UnmapBufferOES);
+        INSERT_PROC_ADDRESS(gl, GetBufferPointervOES);
+
+        // GL_EXT_map_buffer_range
+        INSERT_PROC_ADDRESS(gl, MapBufferRangeEXT);
+        INSERT_PROC_ADDRESS(gl, FlushMappedBufferRangeEXT);
+
+        // GL_EXT_debug_marker
+        INSERT_PROC_ADDRESS(gl, InsertEventMarkerEXT);
+        INSERT_PROC_ADDRESS(gl, PushGroupMarkerEXT);
+        INSERT_PROC_ADDRESS(gl, PopGroupMarkerEXT);
+
+        // GL_OES_EGL_image
+        INSERT_PROC_ADDRESS(gl, EGLImageTargetTexture2DOES);
+        INSERT_PROC_ADDRESS(gl, EGLImageTargetRenderbufferStorageOES);
+
+        // GL_OES_vertex_array_object
+        INSERT_PROC_ADDRESS(gl, BindVertexArrayOES);
+        INSERT_PROC_ADDRESS(gl, DeleteVertexArraysOES);
+        INSERT_PROC_ADDRESS(gl, GenVertexArraysOES);
+        INSERT_PROC_ADDRESS(gl, IsVertexArrayOES);
+
+        // GL_KHR_debug
+        INSERT_PROC_ADDRESS(gl, DebugMessageControlKHR);
+        INSERT_PROC_ADDRESS(gl, DebugMessageInsertKHR);
+        INSERT_PROC_ADDRESS(gl, DebugMessageCallbackKHR);
+        INSERT_PROC_ADDRESS(gl, GetDebugMessageLogKHR);
+        INSERT_PROC_ADDRESS(gl, PushDebugGroupKHR);
+        INSERT_PROC_ADDRESS(gl, PopDebugGroupKHR);
+        INSERT_PROC_ADDRESS(gl, ObjectLabelKHR);
+        INSERT_PROC_ADDRESS(gl, GetObjectLabelKHR);
+        INSERT_PROC_ADDRESS(gl, ObjectPtrLabelKHR);
+        INSERT_PROC_ADDRESS(gl, GetObjectPtrLabelKHR);
+        INSERT_PROC_ADDRESS(gl, GetPointervKHR);
+
+        // GL_CHROMIUM_bind_uniform_location
+        INSERT_PROC_ADDRESS(gl, BindUniformLocationCHROMIUM);
+
+        // GL_CHROMIUM_copy_texture
+        INSERT_PROC_ADDRESS(gl, CopyTextureCHROMIUM);
+        INSERT_PROC_ADDRESS(gl, CopySubTextureCHROMIUM);
+
+        // GL_CHROMIUM_copy_compressed_texture
+        INSERT_PROC_ADDRESS(gl, CompressedCopyTextureCHROMIUM);
+
+        // GL_ANGLE_request_extension
+        INSERT_PROC_ADDRESS(gl, RequestExtensionANGLE);
+
+        // GL_ANGLE_robust_client_memory
+        INSERT_PROC_ADDRESS(gl, GetBooleanvRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetBufferParameterivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetFloatvRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetFramebufferAttachmentParameterivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetIntegervRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetProgramivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetRenderbufferParameterivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetShaderivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetTexParameterfvRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetTexParameterivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetUniformfvRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetUniformivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetVertexAttribfvRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetVertexAttribivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetVertexAttribPointervRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, ReadPixelsRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, TexImage2DRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, TexParameterfvRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, TexParameterivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, TexSubImage2DRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, TexImage3DRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, TexSubImage3DRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, CompressedTexImage2DRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, CompressedTexSubImage2DRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, CompressedTexImage3DRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, CompressedTexSubImage3DRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetQueryivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetQueryObjectuivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetBufferPointervRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetIntegeri_vRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetInternalformativRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetVertexAttribIivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetVertexAttribIuivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetUniformuivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetActiveUniformBlockivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetInteger64vRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetInteger64i_vRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetBufferParameteri64vRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, SamplerParameterivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, SamplerParameterfvRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetSamplerParameterivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetSamplerParameterfvRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetFramebufferParameterivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetProgramInterfaceivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetBooleani_vRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetMultisamplefvRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetTexLevelParameterivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetTexLevelParameterfvRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetPointervRobustANGLERobustANGLE);
+        INSERT_PROC_ADDRESS(gl, ReadnPixelsRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetnUniformfvRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetnUniformivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetnUniformuivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, TexParameterIivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, TexParameterIuivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetTexParameterIivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetTexParameterIuivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, SamplerParameterIivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, SamplerParameterIuivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetSamplerParameterIivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetSamplerParameterIuivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetQueryObjectivRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetQueryObjecti64vRobustANGLE);
+        INSERT_PROC_ADDRESS(gl, GetQueryObjectui64vRobustANGLE);
+
+        // GLES3 core
+        INSERT_PROC_ADDRESS(gl, ReadBuffer);
+        INSERT_PROC_ADDRESS(gl, DrawRangeElements);
+        INSERT_PROC_ADDRESS(gl, TexImage3D);
+        INSERT_PROC_ADDRESS(gl, TexSubImage3D);
+        INSERT_PROC_ADDRESS(gl, CopyTexSubImage3D);
+        INSERT_PROC_ADDRESS(gl, CompressedTexImage3D);
+        INSERT_PROC_ADDRESS(gl, CompressedTexSubImage3D);
+        INSERT_PROC_ADDRESS(gl, GenQueries);
+        INSERT_PROC_ADDRESS(gl, DeleteQueries);
+        INSERT_PROC_ADDRESS(gl, IsQuery);
+        INSERT_PROC_ADDRESS(gl, BeginQuery);
+        INSERT_PROC_ADDRESS(gl, EndQuery);
+        INSERT_PROC_ADDRESS(gl, GetQueryiv);
+        INSERT_PROC_ADDRESS(gl, GetQueryObjectuiv);
+        INSERT_PROC_ADDRESS(gl, UnmapBuffer);
+        INSERT_PROC_ADDRESS(gl, GetBufferPointerv);
+        INSERT_PROC_ADDRESS(gl, DrawBuffers);
+        INSERT_PROC_ADDRESS(gl, UniformMatrix2x3fv);
+        INSERT_PROC_ADDRESS(gl, UniformMatrix3x2fv);
+        INSERT_PROC_ADDRESS(gl, UniformMatrix2x4fv);
+        INSERT_PROC_ADDRESS(gl, UniformMatrix4x2fv);
+        INSERT_PROC_ADDRESS(gl, UniformMatrix3x4fv);
+        INSERT_PROC_ADDRESS(gl, UniformMatrix4x3fv);
+        INSERT_PROC_ADDRESS(gl, BlitFramebuffer);
+        INSERT_PROC_ADDRESS(gl, RenderbufferStorageMultisample);
+        INSERT_PROC_ADDRESS(gl, FramebufferTextureLayer);
+        INSERT_PROC_ADDRESS(gl, MapBufferRange);
+        INSERT_PROC_ADDRESS(gl, FlushMappedBufferRange);
+        INSERT_PROC_ADDRESS(gl, BindVertexArray);
+        INSERT_PROC_ADDRESS(gl, DeleteVertexArrays);
+        INSERT_PROC_ADDRESS(gl, GenVertexArrays);
+        INSERT_PROC_ADDRESS(gl, IsVertexArray);
+        INSERT_PROC_ADDRESS(gl, GetIntegeri_v);
+        INSERT_PROC_ADDRESS(gl, BeginTransformFeedback);
+        INSERT_PROC_ADDRESS(gl, EndTransformFeedback);
+        INSERT_PROC_ADDRESS(gl, BindBufferRange);
+        INSERT_PROC_ADDRESS(gl, BindBufferBase);
+        INSERT_PROC_ADDRESS(gl, TransformFeedbackVaryings);
+        INSERT_PROC_ADDRESS(gl, GetTransformFeedbackVarying);
+        INSERT_PROC_ADDRESS(gl, VertexAttribIPointer);
+        INSERT_PROC_ADDRESS(gl, GetVertexAttribIiv);
+        INSERT_PROC_ADDRESS(gl, GetVertexAttribIuiv);
+        INSERT_PROC_ADDRESS(gl, VertexAttribI4i);
+        INSERT_PROC_ADDRESS(gl, VertexAttribI4ui);
+        INSERT_PROC_ADDRESS(gl, VertexAttribI4iv);
+        INSERT_PROC_ADDRESS(gl, VertexAttribI4uiv);
+        INSERT_PROC_ADDRESS(gl, GetUniformuiv);
+        INSERT_PROC_ADDRESS(gl, GetFragDataLocation);
+        INSERT_PROC_ADDRESS(gl, Uniform1ui);
+        INSERT_PROC_ADDRESS(gl, Uniform2ui);
+        INSERT_PROC_ADDRESS(gl, Uniform3ui);
+        INSERT_PROC_ADDRESS(gl, Uniform4ui);
+        INSERT_PROC_ADDRESS(gl, Uniform1uiv);
+        INSERT_PROC_ADDRESS(gl, Uniform2uiv);
+        INSERT_PROC_ADDRESS(gl, Uniform3uiv);
+        INSERT_PROC_ADDRESS(gl, Uniform4uiv);
+        INSERT_PROC_ADDRESS(gl, ClearBufferiv);
+        INSERT_PROC_ADDRESS(gl, ClearBufferuiv);
+        INSERT_PROC_ADDRESS(gl, ClearBufferfv);
+        INSERT_PROC_ADDRESS(gl, ClearBufferfi);
+        INSERT_PROC_ADDRESS(gl, GetStringi);
+        INSERT_PROC_ADDRESS(gl, CopyBufferSubData);
+        INSERT_PROC_ADDRESS(gl, GetUniformIndices);
+        INSERT_PROC_ADDRESS(gl, GetActiveUniformsiv);
+        INSERT_PROC_ADDRESS(gl, GetUniformBlockIndex);
+        INSERT_PROC_ADDRESS(gl, GetActiveUniformBlockiv);
+        INSERT_PROC_ADDRESS(gl, GetActiveUniformBlockName);
+        INSERT_PROC_ADDRESS(gl, UniformBlockBinding);
+        INSERT_PROC_ADDRESS(gl, DrawArraysInstanced);
+        INSERT_PROC_ADDRESS(gl, DrawElementsInstanced);
+        // FenceSync is the name of a class, the function has an added _ to prevent a name conflict.
+        INSERT_PROC_ADDRESS_NO_NS("glFenceSync", gl::FenceSync_);
+        INSERT_PROC_ADDRESS(gl, IsSync);
+        INSERT_PROC_ADDRESS(gl, DeleteSync);
+        INSERT_PROC_ADDRESS(gl, ClientWaitSync);
+        INSERT_PROC_ADDRESS(gl, WaitSync);
+        INSERT_PROC_ADDRESS(gl, GetInteger64v);
+        INSERT_PROC_ADDRESS(gl, GetSynciv);
+        INSERT_PROC_ADDRESS(gl, GetInteger64i_v);
+        INSERT_PROC_ADDRESS(gl, GetBufferParameteri64v);
+        INSERT_PROC_ADDRESS(gl, GenSamplers);
+        INSERT_PROC_ADDRESS(gl, DeleteSamplers);
+        INSERT_PROC_ADDRESS(gl, IsSampler);
+        INSERT_PROC_ADDRESS(gl, BindSampler);
+        INSERT_PROC_ADDRESS(gl, SamplerParameteri);
+        INSERT_PROC_ADDRESS(gl, SamplerParameteriv);
+        INSERT_PROC_ADDRESS(gl, SamplerParameterf);
+        INSERT_PROC_ADDRESS(gl, SamplerParameterfv);
+        INSERT_PROC_ADDRESS(gl, GetSamplerParameteriv);
+        INSERT_PROC_ADDRESS(gl, GetSamplerParameterfv);
+        INSERT_PROC_ADDRESS(gl, VertexAttribDivisor);
+        INSERT_PROC_ADDRESS(gl, BindTransformFeedback);
+        INSERT_PROC_ADDRESS(gl, DeleteTransformFeedbacks);
+        INSERT_PROC_ADDRESS(gl, GenTransformFeedbacks);
+        INSERT_PROC_ADDRESS(gl, IsTransformFeedback);
+        INSERT_PROC_ADDRESS(gl, PauseTransformFeedback);
+        INSERT_PROC_ADDRESS(gl, ResumeTransformFeedback);
+        INSERT_PROC_ADDRESS(gl, GetProgramBinary);
+        INSERT_PROC_ADDRESS(gl, ProgramBinary);
+        INSERT_PROC_ADDRESS(gl, ProgramParameteri);
+        INSERT_PROC_ADDRESS(gl, InvalidateFramebuffer);
+        INSERT_PROC_ADDRESS(gl, InvalidateSubFramebuffer);
+        INSERT_PROC_ADDRESS(gl, TexStorage2D);
+        INSERT_PROC_ADDRESS(gl, TexStorage3D);
+        INSERT_PROC_ADDRESS(gl, GetInternalformativ);
+
+        // GLES31 core
+        INSERT_PROC_ADDRESS(gl, DispatchCompute);
+        INSERT_PROC_ADDRESS(gl, DispatchComputeIndirect);
+        INSERT_PROC_ADDRESS(gl, DrawArraysIndirect);
+        INSERT_PROC_ADDRESS(gl, DrawElementsIndirect);
+        INSERT_PROC_ADDRESS(gl, FramebufferParameteri);
+        INSERT_PROC_ADDRESS(gl, GetFramebufferParameteriv);
+        INSERT_PROC_ADDRESS(gl, GetProgramInterfaceiv);
+        INSERT_PROC_ADDRESS(gl, GetProgramResourceIndex);
+        INSERT_PROC_ADDRESS(gl, GetProgramResourceName);
+        INSERT_PROC_ADDRESS(gl, GetProgramResourceiv);
+        INSERT_PROC_ADDRESS(gl, GetProgramResourceLocation);
+        INSERT_PROC_ADDRESS(gl, UseProgramStages);
+        INSERT_PROC_ADDRESS(gl, ActiveShaderProgram);
+        INSERT_PROC_ADDRESS(gl, CreateShaderProgramv);
+        INSERT_PROC_ADDRESS(gl, BindProgramPipeline);
+        INSERT_PROC_ADDRESS(gl, DeleteProgramPipelines);
+        INSERT_PROC_ADDRESS(gl, GenProgramPipelines);
+        INSERT_PROC_ADDRESS(gl, IsProgramPipeline);
+        INSERT_PROC_ADDRESS(gl, GetProgramPipelineiv);
+        INSERT_PROC_ADDRESS(gl, ProgramUniform1i);
+        INSERT_PROC_ADDRESS(gl, ProgramUniform2i);
+        INSERT_PROC_ADDRESS(gl, ProgramUniform3i);
+        INSERT_PROC_ADDRESS(gl, ProgramUniform4i);
+        INSERT_PROC_ADDRESS(gl, ProgramUniform1ui);
+        INSERT_PROC_ADDRESS(gl, ProgramUniform2ui);
+        INSERT_PROC_ADDRESS(gl, ProgramUniform3ui);
+        INSERT_PROC_ADDRESS(gl, ProgramUniform4ui);
+        INSERT_PROC_ADDRESS(gl, ProgramUniform1f);
+        INSERT_PROC_ADDRESS(gl, ProgramUniform2f);
+        INSERT_PROC_ADDRESS(gl, ProgramUniform3f);
+        INSERT_PROC_ADDRESS(gl, ProgramUniform4f);
+        INSERT_PROC_ADDRESS(gl, ProgramUniform1iv);
+        INSERT_PROC_ADDRESS(gl, ProgramUniform2iv);
+        INSERT_PROC_ADDRESS(gl, ProgramUniform3iv);
+        INSERT_PROC_ADDRESS(gl, ProgramUniform4iv);
+        INSERT_PROC_ADDRESS(gl, ProgramUniform1uiv);
+        INSERT_PROC_ADDRESS(gl, ProgramUniform2uiv);
+        INSERT_PROC_ADDRESS(gl, ProgramUniform3uiv);
+        INSERT_PROC_ADDRESS(gl, ProgramUniform4uiv);
+        INSERT_PROC_ADDRESS(gl, ProgramUniform1fv);
+        INSERT_PROC_ADDRESS(gl, ProgramUniform2fv);
+        INSERT_PROC_ADDRESS(gl, ProgramUniform3fv);
+        INSERT_PROC_ADDRESS(gl, ProgramUniform4fv);
+        INSERT_PROC_ADDRESS(gl, ProgramUniformMatrix2fv);
+        INSERT_PROC_ADDRESS(gl, ProgramUniformMatrix3fv);
+        INSERT_PROC_ADDRESS(gl, ProgramUniformMatrix4fv);
+        INSERT_PROC_ADDRESS(gl, ProgramUniformMatrix2x3fv);
+        INSERT_PROC_ADDRESS(gl, ProgramUniformMatrix3x2fv);
+        INSERT_PROC_ADDRESS(gl, ProgramUniformMatrix2x4fv);
+        INSERT_PROC_ADDRESS(gl, ProgramUniformMatrix4x2fv);
+        INSERT_PROC_ADDRESS(gl, ProgramUniformMatrix3x4fv);
+        INSERT_PROC_ADDRESS(gl, ProgramUniformMatrix4x3fv);
+        INSERT_PROC_ADDRESS(gl, ValidateProgramPipeline);
+        INSERT_PROC_ADDRESS(gl, GetProgramPipelineInfoLog);
+        INSERT_PROC_ADDRESS(gl, BindImageTexture);
+        INSERT_PROC_ADDRESS(gl, GetBooleani_v);
+        INSERT_PROC_ADDRESS(gl, MemoryBarrier);
+        INSERT_PROC_ADDRESS(gl, MemoryBarrierByRegion);
+        INSERT_PROC_ADDRESS(gl, TexStorage2DMultisample);
+        INSERT_PROC_ADDRESS(gl, GetMultisamplefv);
+        INSERT_PROC_ADDRESS(gl, SampleMaski);
+        INSERT_PROC_ADDRESS(gl, GetTexLevelParameteriv);
+        INSERT_PROC_ADDRESS(gl, GetTexLevelParameterfv);
+        INSERT_PROC_ADDRESS(gl, BindVertexBuffer);
+        INSERT_PROC_ADDRESS(gl, VertexAttribFormat);
+        INSERT_PROC_ADDRESS(gl, VertexAttribIFormat);
+        INSERT_PROC_ADDRESS(gl, VertexAttribBinding);
+        INSERT_PROC_ADDRESS(gl, VertexBindingDivisor);
+
+        // EGL 1.0
+        INSERT_PROC_ADDRESS(egl, ChooseConfig);
+        INSERT_PROC_ADDRESS(egl, CopyBuffers);
+        INSERT_PROC_ADDRESS(egl, CreateContext);
+        INSERT_PROC_ADDRESS(egl, CreatePbufferSurface);
+        INSERT_PROC_ADDRESS(egl, CreatePixmapSurface);
+        INSERT_PROC_ADDRESS(egl, CreateWindowSurface);
+        INSERT_PROC_ADDRESS(egl, DestroyContext);
+        INSERT_PROC_ADDRESS(egl, DestroySurface);
+        INSERT_PROC_ADDRESS(egl, GetConfigAttrib);
+        INSERT_PROC_ADDRESS(egl, GetConfigs);
+        INSERT_PROC_ADDRESS(egl, GetCurrentDisplay);
+        INSERT_PROC_ADDRESS(egl, GetCurrentSurface);
+        INSERT_PROC_ADDRESS(egl, GetDisplay);
+        INSERT_PROC_ADDRESS(egl, GetError);
+        INSERT_PROC_ADDRESS(egl, GetProcAddress);
+        INSERT_PROC_ADDRESS(egl, Initialize);
+        INSERT_PROC_ADDRESS(egl, MakeCurrent);
+        INSERT_PROC_ADDRESS(egl, QueryContext);
+        INSERT_PROC_ADDRESS(egl, QueryString);
+        INSERT_PROC_ADDRESS(egl, QuerySurface);
+        INSERT_PROC_ADDRESS(egl, SwapBuffers);
+        INSERT_PROC_ADDRESS(egl, Terminate);
+        INSERT_PROC_ADDRESS(egl, WaitGL);
+        INSERT_PROC_ADDRESS(egl, WaitNative);
+
+        // EGL 1.1
+        INSERT_PROC_ADDRESS(egl, BindTexImage);
+        INSERT_PROC_ADDRESS(egl, ReleaseTexImage);
+        INSERT_PROC_ADDRESS(egl, SurfaceAttrib);
+        INSERT_PROC_ADDRESS(egl, SwapInterval);
+
+        // EGL 1.2
+        INSERT_PROC_ADDRESS(egl, BindAPI);
+        INSERT_PROC_ADDRESS(egl, QueryAPI);
+        INSERT_PROC_ADDRESS(egl, CreatePbufferFromClientBuffer);
+        INSERT_PROC_ADDRESS(egl, ReleaseThread);
+        INSERT_PROC_ADDRESS(egl, WaitClient);
+
+        // EGL 1.4
+        INSERT_PROC_ADDRESS(egl, GetCurrentContext);
+
+        // EGL 1.5
+        INSERT_PROC_ADDRESS(egl, CreateSync);
+        INSERT_PROC_ADDRESS(egl, DestroySync);
+        INSERT_PROC_ADDRESS(egl, ClientWaitSync);
+        INSERT_PROC_ADDRESS(egl, GetSyncAttrib);
+        INSERT_PROC_ADDRESS(egl, CreateImage);
+        INSERT_PROC_ADDRESS(egl, DestroyImage);
+        INSERT_PROC_ADDRESS(egl, GetPlatformDisplay);
+        INSERT_PROC_ADDRESS(egl, CreatePlatformWindowSurface);
+        INSERT_PROC_ADDRESS(egl, CreatePlatformPixmapSurface);
+        INSERT_PROC_ADDRESS(egl, WaitSync);
+
+        // EGL_ANGLE_query_surface_pointer
+        INSERT_PROC_ADDRESS(egl, QuerySurfacePointerANGLE);
+
+        // EGL_NV_post_sub_buffer
+        INSERT_PROC_ADDRESS(egl, PostSubBufferNV);
+
+        // EGL_EXT_platform_base
+        INSERT_PROC_ADDRESS(egl, GetPlatformDisplayEXT);
+
+        // EGL_EXT_device_query
+        INSERT_PROC_ADDRESS(egl, QueryDisplayAttribEXT);
+        INSERT_PROC_ADDRESS(egl, QueryDeviceAttribEXT);
+        INSERT_PROC_ADDRESS(egl, QueryDeviceStringEXT);
+
+        // EGL_KHR_image_base/EGL_KHR_image
+        INSERT_PROC_ADDRESS(egl, CreateImageKHR);
+        INSERT_PROC_ADDRESS(egl, DestroyImageKHR);
+
+        // EGL_EXT_device_creation
+        INSERT_PROC_ADDRESS(egl, CreateDeviceANGLE);
+        INSERT_PROC_ADDRESS(egl, ReleaseDeviceANGLE);
+
+        // EGL_KHR_stream
+        INSERT_PROC_ADDRESS(egl, CreateStreamKHR);
+        INSERT_PROC_ADDRESS(egl, DestroyStreamKHR);
+        INSERT_PROC_ADDRESS(egl, StreamAttribKHR);
+        INSERT_PROC_ADDRESS(egl, QueryStreamKHR);
+        INSERT_PROC_ADDRESS(egl, QueryStreamu64KHR);
+
+        // EGL_KHR_stream_consumer_gltexture
+        INSERT_PROC_ADDRESS(egl, StreamConsumerGLTextureExternalKHR);
+        INSERT_PROC_ADDRESS(egl, StreamConsumerAcquireKHR);
+        INSERT_PROC_ADDRESS(egl, StreamConsumerReleaseKHR);
+
+        // EGL_NV_stream_consumer_gltexture_yuv
+        INSERT_PROC_ADDRESS(egl, StreamConsumerGLTextureExternalAttribsNV);
+
+        // EGL_ANGLE_stream_producer_d3d_texture_nv12
+        INSERT_PROC_ADDRESS(egl, CreateStreamProducerD3DTextureNV12ANGLE);
+        INSERT_PROC_ADDRESS(egl, StreamPostD3DTextureNV12ANGLE);
+
+        // EGL_CHROMIUM_get_sync_values
+        INSERT_PROC_ADDRESS(egl, GetSyncValuesCHROMIUM);
+
+        // EGL_EXT_swap_buffers_with_damage
+        INSERT_PROC_ADDRESS(egl, SwapBuffersWithDamageEXT);
+
+        // angle::Platform related entry points
+        INSERT_PROC_ADDRESS_NO_NS("ANGLEGetDisplayPlatform", ANGLEGetDisplayPlatform);
+        INSERT_PROC_ADDRESS_NO_NS("ANGLEResetDisplayPlatform", ANGLEResetDisplayPlatform);
+
+#undef INSERT_PROC_ADDRESS
+#undef INSERT_PROC_ADDRESS_NO_NS
+
+        return map;
+    };
+
+    static const ProcAddressMap procAddressMap = generateProcAddressMap();
+
+    thread->setError(Error(EGL_SUCCESS));
+    auto iter = procAddressMap.find(procname);
+    return iter != procAddressMap.end() ? iter->second : nullptr;
 }
-}  // extern "C"
+}

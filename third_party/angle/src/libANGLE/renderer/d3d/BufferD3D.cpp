@@ -11,8 +11,8 @@
 #include "common/mathutil.h"
 #include "common/utilities.h"
 #include "libANGLE/renderer/d3d/IndexBuffer.h"
-#include "libANGLE/renderer/d3d/RendererD3D.h"
 #include "libANGLE/renderer/d3d/VertexBuffer.h"
+#include "libANGLE/renderer/d3d/RendererD3D.h"
 
 namespace rx
 {
@@ -47,23 +47,23 @@ void BufferD3D::updateSerial()
     mSerial = mNextSerial++;
 }
 
-void BufferD3D::updateD3DBufferUsage(const gl::Context *context, gl::BufferUsage usage)
+void BufferD3D::updateD3DBufferUsage(GLenum usage)
 {
     switch (usage)
     {
-        case gl::BufferUsage::StaticCopy:
-        case gl::BufferUsage::StaticDraw:
-        case gl::BufferUsage::StaticRead:
-        case gl::BufferUsage::DynamicCopy:
-        case gl::BufferUsage::DynamicRead:
-        case gl::BufferUsage::StreamCopy:
-        case gl::BufferUsage::StreamRead:
+        case GL_STATIC_DRAW:
+        case GL_STATIC_READ:
+        case GL_STATIC_COPY:
             mUsage = D3DBufferUsage::STATIC;
-            initializeStaticData(context);
+            initializeStaticData();
             break;
 
-        case gl::BufferUsage::DynamicDraw:
-        case gl::BufferUsage::StreamDraw:
+        case GL_STREAM_DRAW:
+        case GL_STREAM_READ:
+        case GL_STREAM_COPY:
+        case GL_DYNAMIC_READ:
+        case GL_DYNAMIC_COPY:
+        case GL_DYNAMIC_DRAW:
             mUsage = D3DBufferUsage::DYNAMIC;
             break;
         default:
@@ -71,11 +71,11 @@ void BufferD3D::updateD3DBufferUsage(const gl::Context *context, gl::BufferUsage
     }
 }
 
-void BufferD3D::initializeStaticData(const gl::Context *context)
+void BufferD3D::initializeStaticData()
 {
     if (mStaticVertexBuffers.empty())
     {
-        StaticVertexBufferInterface *newStaticBuffer = new StaticVertexBufferInterface(mFactory);
+        auto newStaticBuffer = new StaticVertexBufferInterface(mFactory);
         mStaticVertexBuffers.push_back(
             std::unique_ptr<StaticVertexBufferInterface>(newStaticBuffer));
     }
@@ -134,13 +134,13 @@ StaticVertexBufferInterface *BufferD3D::getStaticVertexBuffer(const gl::VertexAt
     }
 
     // At this point, we must create a new static buffer for the attribute data.
-    StaticVertexBufferInterface *newStaticBuffer = new StaticVertexBufferInterface(mFactory);
+    auto newStaticBuffer = new StaticVertexBufferInterface(mFactory);
     newStaticBuffer->setAttribute(attribute, binding);
     mStaticVertexBuffers.push_back(std::unique_ptr<StaticVertexBufferInterface>(newStaticBuffer));
     return newStaticBuffer;
 }
 
-void BufferD3D::invalidateStaticData(const gl::Context *context)
+void BufferD3D::invalidateStaticData()
 {
     emptyStaticBufferCache();
 
@@ -153,39 +153,37 @@ void BufferD3D::invalidateStaticData(const gl::Context *context)
     // buffers so that they are populated the next time we use this buffer.
     if (mUsage == D3DBufferUsage::STATIC)
     {
-        initializeStaticData(context);
+        initializeStaticData();
     }
 
     mUnmodifiedDataUse = 0;
 }
 
 // Creates static buffers if sufficient used data has been left unmodified
-void BufferD3D::promoteStaticUsage(const gl::Context *context, size_t dataSize)
+void BufferD3D::promoteStaticUsage(int dataSize)
 {
     if (mUsage == D3DBufferUsage::DYNAMIC)
     {
-        // Note: This is not a safe math operation. 'dataSize' can come from the app.
         mUnmodifiedDataUse += dataSize;
 
         if (mUnmodifiedDataUse > 3 * getSize())
         {
-            updateD3DBufferUsage(context, gl::BufferUsage::StaticDraw);
+            updateD3DBufferUsage(GL_STATIC_DRAW);
         }
     }
 }
 
-angle::Result BufferD3D::getIndexRange(const gl::Context *context,
-                                       gl::DrawElementsType type,
-                                       size_t offset,
-                                       size_t count,
-                                       bool primitiveRestartEnabled,
-                                       gl::IndexRange *outRange)
+gl::Error BufferD3D::getIndexRange(GLenum type,
+                                   size_t offset,
+                                   size_t count,
+                                   bool primitiveRestartEnabled,
+                                   gl::IndexRange *outRange)
 {
     const uint8_t *data = nullptr;
-    ANGLE_TRY(getData(context, &data));
+    ANGLE_TRY(getData(&data));
 
     *outRange = gl::ComputeIndexRange(type, data + offset, count, primitiveRestartEnabled);
-    return angle::Result::Continue;
+    return gl::NoError();
 }
 
 }  // namespace rx

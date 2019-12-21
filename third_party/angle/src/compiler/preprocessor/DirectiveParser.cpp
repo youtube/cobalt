@@ -1,5 +1,5 @@
 //
-// Copyright 2011 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2011-2013 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,7 +10,6 @@
 #include <cstdlib>
 #include <sstream>
 
-#include "GLSLANG/ShaderLang.h"
 #include "common/debug.h"
 #include "compiler/preprocessor/DiagnosticsBase.h"
 #include "compiler/preprocessor/DirectiveHandlerBase.h"
@@ -18,9 +17,6 @@
 #include "compiler/preprocessor/MacroExpander.h"
 #include "compiler/preprocessor/Token.h"
 #include "compiler/preprocessor/Tokenizer.h"
-
-namespace angle
-{
 
 namespace
 {
@@ -138,15 +134,76 @@ bool isMacroPredefined(const std::string &name, const pp::MacroSet &macroSet)
     return iter != macroSet.end() ? iter->second->predefined : false;
 }
 
-}  // namespace
+}  // namespace anonymous
 
 namespace pp
 {
+
+class DefinedParser : public Lexer
+{
+  public:
+    DefinedParser(Lexer *lexer, const MacroSet *macroSet, Diagnostics *diagnostics)
+        : mLexer(lexer), mMacroSet(macroSet), mDiagnostics(diagnostics)
+    {
+    }
+
+  protected:
+    void lex(Token *token) override
+    {
+        const char kDefined[] = "defined";
+
+        mLexer->lex(token);
+        if (token->type != Token::IDENTIFIER)
+            return;
+        if (token->text != kDefined)
+            return;
+
+        bool paren = false;
+        mLexer->lex(token);
+        if (token->type == '(')
+        {
+            paren = true;
+            mLexer->lex(token);
+        }
+
+        if (token->type != Token::IDENTIFIER)
+        {
+            mDiagnostics->report(Diagnostics::PP_UNEXPECTED_TOKEN, token->location, token->text);
+            skipUntilEOD(mLexer, token);
+            return;
+        }
+        MacroSet::const_iterator iter = mMacroSet->find(token->text);
+        std::string expression        = iter != mMacroSet->end() ? "1" : "0";
+
+        if (paren)
+        {
+            mLexer->lex(token);
+            if (token->type != ')')
+            {
+                mDiagnostics->report(Diagnostics::PP_UNEXPECTED_TOKEN, token->location,
+                                     token->text);
+                skipUntilEOD(mLexer, token);
+                return;
+            }
+        }
+
+        // We have a valid defined operator.
+        // Convert the current token into a CONST_INT token.
+        token->type = Token::CONST_INT;
+        token->text = expression;
+    }
+
+  private:
+    Lexer *mLexer;
+    const MacroSet *mMacroSet;
+    Diagnostics *mDiagnostics;
+};
+
 DirectiveParser::DirectiveParser(Tokenizer *tokenizer,
                                  MacroSet *macroSet,
                                  Diagnostics *diagnostics,
                                  DirectiveHandler *directiveHandler,
-                                 const PreprocessorSettings &settings)
+                                 int maxMacroExpansionDepth)
     : mPastFirstStatement(false),
       mSeenNonPreprocessorToken(false),
       mTokenizer(tokenizer),
@@ -154,10 +211,9 @@ DirectiveParser::DirectiveParser(Tokenizer *tokenizer,
       mDiagnostics(diagnostics),
       mDirectiveHandler(directiveHandler),
       mShaderVersion(100),
-      mSettings(settings)
-{}
-
-DirectiveParser::~DirectiveParser() {}
+      mMaxMacroExpansionDepth(maxMacroExpansionDepth)
+{
+}
 
 void DirectiveParser::lex(Token *token)
 {
@@ -677,20 +733,8 @@ void DirectiveParser::parseExtension(Token *token)
         }
         else
         {
-            if (mSettings.shaderSpec == SH_WEBGL_SPEC)
-            {
-                mDiagnostics->report(Diagnostics::PP_NON_PP_TOKEN_BEFORE_EXTENSION_WEBGL,
-                                     token->location, token->text);
-            }
-            else
-            {
-                mDiagnostics->report(Diagnostics::PP_NON_PP_TOKEN_BEFORE_EXTENSION_ESSL1,
-                                     token->location, token->text);
-                // This is just a warning on CHROME OS http://anglebug.com/4023
-#if !defined(ANGLE_PLATFORM_CHROMEOS)
-                valid = false;
-#endif
-            }
+            mDiagnostics->report(Diagnostics::PP_NON_PP_TOKEN_BEFORE_EXTENSION_ESSL1,
+                                 token->location, token->text);
         }
     }
     if (valid)
@@ -712,8 +756,7 @@ void DirectiveParser::parseVersion(Token *token)
     enum State
     {
         VERSION_NUMBER,
-        VERSION_PROFILE_ES,
-        VERSION_PROFILE_GL,
+        VERSION_PROFILE,
         VERSION_ENDLINE
     };
 
@@ -741,33 +784,11 @@ void DirectiveParser::parseVersion(Token *token)
                 }
                 if (valid)
                 {
-                    if (sh::IsDesktopGLSpec(mSettings.shaderSpec))
-                    {
-                        state = VERSION_PROFILE_GL;
-                    }
-                    else if (version < 300)
-                    {
-                        state = VERSION_ENDLINE;
-                    }
-                    else
-                    {
-                        state = VERSION_PROFILE_ES;
-                    }
+                    state = (version < 300) ? VERSION_ENDLINE : VERSION_PROFILE;
                 }
                 break;
-            case VERSION_PROFILE_ES:
-                ASSERT(!sh::IsDesktopGLSpec(mSettings.shaderSpec));
+            case VERSION_PROFILE:
                 if (token->type != Token::IDENTIFIER || token->text != "es")
-                {
-                    mDiagnostics->report(Diagnostics::PP_INVALID_VERSION_DIRECTIVE, token->location,
-                                         token->text);
-                    valid = false;
-                }
-                state = VERSION_ENDLINE;
-                break;
-            case VERSION_PROFILE_GL:
-                ASSERT(sh::IsDesktopGLSpec(mSettings.shaderSpec));
-                if (token->type != Token::IDENTIFIER || token->text != "core")
                 {
                     mDiagnostics->report(Diagnostics::PP_INVALID_VERSION_DIRECTIVE, token->location,
                                          token->text);
@@ -783,11 +804,6 @@ void DirectiveParser::parseVersion(Token *token)
         }
 
         mTokenizer->lex(token);
-
-        if (token->type == '\n' && state == VERSION_PROFILE_GL)
-        {
-            state = VERSION_ENDLINE;
-        }
     }
 
     if (valid && (state != VERSION_ENDLINE))
@@ -806,7 +822,7 @@ void DirectiveParser::parseVersion(Token *token)
 
     if (valid)
     {
-        mDirectiveHandler->handleVersion(token->location, version, mSettings.shaderSpec);
+        mDirectiveHandler->handleVersion(token->location, version);
         mShaderVersion = version;
         PredefineMacro(mMacroSet, "__VERSION__", version);
     }
@@ -820,7 +836,7 @@ void DirectiveParser::parseLine(Token *token)
     bool parsedFileNumber = false;
     int line = 0, file = 0;
 
-    MacroExpander macroExpander(mTokenizer, mMacroSet, mDiagnostics, mSettings, false);
+    MacroExpander macroExpander(mTokenizer, mMacroSet, mDiagnostics, mMaxMacroExpansionDepth);
 
     // Lex the first token after "#line" so we can check it for EOD.
     macroExpander.lex(token);
@@ -928,7 +944,8 @@ int DirectiveParser::parseExpressionIf(Token *token)
 {
     ASSERT((getDirective(token) == DIRECTIVE_IF) || (getDirective(token) == DIRECTIVE_ELIF));
 
-    MacroExpander macroExpander(mTokenizer, mMacroSet, mDiagnostics, mSettings, true);
+    DefinedParser definedParser(mTokenizer, mMacroSet, mDiagnostics);
+    MacroExpander macroExpander(&definedParser, mMacroSet, mDiagnostics, mMaxMacroExpansionDepth);
     ExpressionParser expressionParser(&macroExpander, mDiagnostics);
 
     int expression = 0;
@@ -977,5 +994,3 @@ int DirectiveParser::parseExpressionIfdef(Token *token)
 }
 
 }  // namespace pp
-
-}  // namespace angle
