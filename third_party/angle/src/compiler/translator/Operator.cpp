@@ -1,5 +1,5 @@
 //
-// Copyright 2002 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2002-2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,7 +10,7 @@ const char *GetOperatorString(TOperator op)
 {
     switch (op)
     {
-            // Note: EOpNull and EOpCall* can't be handled here.
+        // Note: EOpNull and EOpCall* can't be handled here.
 
         case EOpNegative:
             return "-";
@@ -29,9 +29,6 @@ const char *GetOperatorString(TOperator op)
             return "++";
         case EOpPreDecrement:
             return "--";
-
-        case EOpArrayLength:
-            return ".length()";
 
         case EOpAdd:
             return "+";
@@ -151,7 +148,7 @@ const char *GetOperatorString(TOperator op)
             return "log2";
         case EOpSqrt:
             return "sqrt";
-        case EOpInversesqrt:
+        case EOpInverseSqrt:
             return "inversesqrt";
 
         case EOpAbs:
@@ -184,11 +181,11 @@ const char *GetOperatorString(TOperator op)
             return "mix";
         case EOpStep:
             return "step";
-        case EOpSmoothstep:
+        case EOpSmoothStep:
             return "smoothstep";
-        case EOpIsnan:
+        case EOpIsNan:
             return "isnan";
-        case EOpIsinf:
+        case EOpIsInf:
             return "isinf";
 
         case EOpFloatBitsToInt:
@@ -237,7 +234,7 @@ const char *GetOperatorString(TOperator op)
             return "cross";
         case EOpNormalize:
             return "normalize";
-        case EOpFaceforward:
+        case EOpFaceForward:
             return "faceforward";
         case EOpReflect:
             return "reflect";
@@ -344,28 +341,6 @@ const char *GetOperatorString(TOperator op)
             return "memoryBarrierShared";
         case EOpGroupMemoryBarrier:
             return "groupMemoryBarrier";
-
-        case EOpAtomicAdd:
-            return "atomicAdd";
-        case EOpAtomicMin:
-            return "atomicMin";
-        case EOpAtomicMax:
-            return "atomicMax";
-        case EOpAtomicAnd:
-            return "atomicAnd";
-        case EOpAtomicOr:
-            return "atomicOr";
-        case EOpAtomicXor:
-            return "atomicXor";
-        case EOpAtomicExchange:
-            return "atomicExchange";
-        case EOpAtomicCompSwap:
-            return "atomicCompSwap";
-
-        case EOpEmitVertex:
-            return "EmitVertex";
-        case EOpEndPrimitive:
-            return "EndPrimitive";
         default:
             break;
     }
@@ -395,24 +370,6 @@ bool IsAssignment(TOperator op)
         case EOpBitwiseAndAssign:
         case EOpBitwiseXorAssign:
         case EOpBitwiseOrAssign:
-            return true;
-        default:
-            return false;
-    }
-}
-
-bool IsAtomicFunction(TOperator op)
-{
-    switch (op)
-    {
-        case EOpAtomicAdd:
-        case EOpAtomicMin:
-        case EOpAtomicMax:
-        case EOpAtomicAnd:
-        case EOpAtomicOr:
-        case EOpAtomicXor:
-        case EOpAtomicExchange:
-        case EOpAtomicCompSwap:
             return true;
         default:
             return false;

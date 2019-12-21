@@ -1,5 +1,5 @@
 //
-// Copyright 2013 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2013 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -11,13 +11,13 @@
 #ifndef LIBANGLE_RENDERER_D3D_D3D11_PIXELTRANSFER11_H_
 #define LIBANGLE_RENDERER_D3D_D3D11_PIXELTRANSFER11_H_
 
+#include "libANGLE/Error.h"
+
+#include "common/platform.h"
+
 #include <GLES2/gl2.h>
 
 #include <map>
-
-#include "common/platform.h"
-#include "libANGLE/Error.h"
-#include "libANGLE/renderer/d3d/d3d11/ResourceManager11.h"
 
 namespace gl
 {
@@ -27,7 +27,7 @@ struct Box;
 struct Extents;
 struct PixelUnpackState;
 
-}  // namespace gl
+}
 
 namespace rx
 {
@@ -45,15 +45,11 @@ class PixelTransfer11
     // destRenderTarget: individual slice/layer of a target texture
     // destinationFormat/sourcePixelsType: determines shaders + shader parameters
     // destArea: the sub-section of destRenderTarget to copy to
-    angle::Result copyBufferToTexture(const gl::Context *context,
-                                      const gl::PixelUnpackState &unpack,
-                                      unsigned int offset,
-                                      RenderTargetD3D *destRenderTarget,
-                                      GLenum destinationFormat,
-                                      GLenum sourcePixelsType,
-                                      const gl::Box &destArea);
+    gl::Error copyBufferToTexture(const gl::PixelUnpackState &unpack, unsigned int offset, RenderTargetD3D *destRenderTarget,
+                                  GLenum destinationFormat, GLenum sourcePixelsType, const gl::Box &destArea);
 
   private:
+
     struct CopyShaderParams
     {
         unsigned int FirstPixelOffset;
@@ -67,30 +63,27 @@ class PixelTransfer11
         unsigned int FirstSlice;
     };
 
-    static void setBufferToTextureCopyParams(const gl::Box &destArea,
-                                             const gl::Extents &destSize,
-                                             GLenum internalFormat,
-                                             const gl::PixelUnpackState &unpack,
-                                             unsigned int offset,
-                                             CopyShaderParams *parametersOut);
+    static void setBufferToTextureCopyParams(const gl::Box &destArea, const gl::Extents &destSize, GLenum internalFormat,
+                                             const gl::PixelUnpackState &unpack, unsigned int offset, CopyShaderParams *parametersOut);
 
-    angle::Result loadResources(const gl::Context *context);
-    angle::Result buildShaderMap(const gl::Context *context);
-    const d3d11::PixelShader *findBufferToTexturePS(GLenum internalFormat) const;
+    gl::Error loadResources();
+    gl::Error buildShaderMap();
+    ID3D11PixelShader *findBufferToTexturePS(GLenum internalFormat) const;
 
     Renderer11 *mRenderer;
 
     bool mResourcesLoaded;
-    std::map<GLenum, d3d11::PixelShader> mBufferToTexturePSMap;
-    d3d11::VertexShader mBufferToTextureVS;
-    d3d11::GeometryShader mBufferToTextureGS;
-    d3d11::Buffer mParamsConstantBuffer;
+    std::map<GLenum, ID3D11PixelShader *> mBufferToTexturePSMap;
+    ID3D11VertexShader *mBufferToTextureVS;
+    ID3D11GeometryShader *mBufferToTextureGS;
+    ID3D11Buffer *mParamsConstantBuffer;
     CopyShaderParams mParamsData;
 
-    d3d11::RasterizerState mCopyRasterizerState;
-    d3d11::DepthStencilState mCopyDepthStencilState;
+    ID3D11RasterizerState *mCopyRasterizerState;
+    ID3D11DepthStencilState *mCopyDepthStencilState;
+
 };
 
-}  // namespace rx
+}
 
-#endif  // LIBANGLE_RENDERER_D3D_D3D11_PIXELTRANSFER11_H_
+#endif // LIBANGLE_RENDERER_D3D_D3D11_PIXELTRANSFER11_H_

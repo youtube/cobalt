@@ -1,5 +1,5 @@
 //
-// Copyright 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -17,7 +17,7 @@ namespace angle
 TEST(BinaryInputStream, Overflow)
 {
     const uint8_t goodValue = 2;
-    const uint8_t badValue  = 255;
+    const uint8_t badValue = 255;
 
     const size_t dataSize = 1024;
     const size_t slopSize = 1024;
@@ -28,7 +28,10 @@ TEST(BinaryInputStream, Overflow)
 
     std::vector<uint8_t> outputData(dataSize);
 
-    auto checkDataIsSafe = [=](uint8_t item) { return item == goodValue; };
+    auto checkDataIsSafe = [=](uint8_t item)
+    {
+        return item == goodValue;
+    };
 
     {
         // One large read
@@ -65,4 +68,4 @@ TEST(BinaryInputStream, Overflow)
         stream.readBytes(outputData.data(), std::numeric_limits<size_t>::max() - dataSize - 2);
     }
 }
-}  // namespace angle
+}

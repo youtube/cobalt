@@ -1,5 +1,5 @@
 //
-// Copyright 2002 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2002-2012 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -7,16 +7,9 @@
 #include "compiler/translator/VersionGLSL.h"
 
 #include "angle_gl.h"
-#include "compiler/translator/Symbol.h"
-#include "nb/cpp14oncpp11.h"
 
 namespace sh
 {
-
-namespace
-{
-CONSTEXPR const ImmutableString kGlPointCoordString("gl_PointCoord");
-}  // anonymous namespace
 
 int ShaderOutputTypeToGLSLVersion(ShShaderOutput output)
 {
@@ -83,8 +76,7 @@ TVersionGLSL::TVersionGLSL(sh::GLenum type, const TPragma &pragma, ShShaderOutpu
 
 void TVersionGLSL::visitSymbol(TIntermSymbol *node)
 {
-    if (node->variable().symbolType() == SymbolType::BuiltIn &&
-        node->getName() == kGlPointCoordString)
+    if (node->getSymbol() == "gl_PointCoord")
     {
         ensureVersionIsAtLeast(GLSL_VERSION_120);
     }
@@ -106,16 +98,15 @@ bool TVersionGLSL::visitInvariantDeclaration(Visit, TIntermInvariantDeclaration 
     return true;
 }
 
-void TVersionGLSL::visitFunctionPrototype(TIntermFunctionPrototype *node)
+bool TVersionGLSL::visitFunctionPrototype(Visit, TIntermFunctionPrototype *node)
 {
-    size_t paramCount = node->getFunction()->getParamCount();
-    for (size_t i = 0; i < paramCount; ++i)
+    const TIntermSequence &params = *(node->getSequence());
+    for (TIntermSequence::const_iterator iter = params.begin(); iter != params.end(); ++iter)
     {
-        const TVariable *param = node->getFunction()->getParam(i);
-        const TType &type      = param->getType();
-        if (type.isArray())
+        const TIntermTyped *param = (*iter)->getAsTyped();
+        if (param->isArray())
         {
-            TQualifier qualifier = type.getQualifier();
+            TQualifier qualifier = param->getQualifier();
             if ((qualifier == EvqOut) || (qualifier == EvqInOut))
             {
                 ensureVersionIsAtLeast(GLSL_VERSION_120);
@@ -123,6 +114,8 @@ void TVersionGLSL::visitFunctionPrototype(TIntermFunctionPrototype *node)
             }
         }
     }
+    // Fully processed. No need to visit children.
+    return false;
 }
 
 bool TVersionGLSL::visitAggregate(Visit, TIntermAggregate *node)

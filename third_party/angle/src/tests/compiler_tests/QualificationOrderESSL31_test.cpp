@@ -1,5 +1,5 @@
 //
-// Copyright 2016 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -9,11 +9,11 @@
 
 #include "gtest/gtest.h"
 
-#include "GLSLANG/ShaderLang.h"
 #include "angle_gl.h"
 #include "compiler/translator/TranslatorESSL.h"
-#include "tests/test_utils/ShaderCompileTreeTest.h"
+#include "GLSLANG/ShaderLang.h"
 #include "tests/test_utils/compiler_test.h"
+#include "tests/test_utils/ShaderCompileTreeTest.h"
 
 using namespace sh;
 
@@ -21,14 +21,13 @@ class QualificationVertexShaderTestESSL31 : public ShaderCompileTreeTest
 {
   public:
     QualificationVertexShaderTestESSL31() {}
-
   protected:
     ::GLenum getShaderType() const override { return GL_VERTEX_SHADER; }
     ShShaderSpec getShaderSpec() const override { return SH_GLES3_1_SPEC; }
 
-    const TIntermSymbol *findSymbolInAST(const ImmutableString &symbolName)
+    const TIntermSymbol *findSymbolInAST(const TString &symbolName, TBasicType basicType)
     {
-        return FindSymbolNode(mASTRoot, symbolName);
+        return FindSymbolNode(mASTRoot, symbolName, basicType);
     }
 };
 
@@ -48,7 +47,7 @@ TEST_F(QualificationVertexShaderTestESSL31, CentroidOut)
     }
     else
     {
-        const TIntermSymbol *node = findSymbolInAST(ImmutableString("something"));
+        const TIntermSymbol *node = findSymbolInAST("something", EbtFloat);
         ASSERT_NE(nullptr, node);
 
         const TType &type = node->getType();
@@ -71,7 +70,7 @@ TEST_F(QualificationVertexShaderTestESSL31, AllQualifiersMixed)
     }
     else
     {
-        const TIntermSymbol *node = findSymbolInAST(ImmutableString("something"));
+        const TIntermSymbol *node = findSymbolInAST("something", EbtFloat);
         ASSERT_NE(nullptr, node);
 
         const TType &type = node->getType();
@@ -96,7 +95,7 @@ TEST_F(QualificationVertexShaderTestESSL31, MultipleLayouts)
     }
     else
     {
-        const TIntermSymbol *node = findSymbolInAST(ImmutableString("something"));
+        const TIntermSymbol *node = findSymbolInAST("something", EbtFloat);
         ASSERT_NE(nullptr, node);
 
         const TType &type = node->getType();
@@ -123,7 +122,7 @@ TEST_F(QualificationVertexShaderTestESSL31, MultipleLayoutsInterfaceBlock)
     }
     else
     {
-        const TIntermSymbol *node = findSymbolInAST(ImmutableString("MyInterfaceName"));
+        const TIntermSymbol *node = findSymbolInAST("MyInterfaceName", EbtInterfaceBlock);
         ASSERT_NE(nullptr, node);
 
         const TType &type                = node->getType();
@@ -151,7 +150,7 @@ TEST_F(QualificationVertexShaderTestESSL31, MultipleLayoutsInterfaceBlock2)
     }
     else
     {
-        const TIntermSymbol *node = findSymbolInAST(ImmutableString("MyInterfaceName"));
+        const TIntermSymbol *node = findSymbolInAST("MyInterfaceName", EbtInterfaceBlock);
         ASSERT_NE(nullptr, node);
 
         const TType &type                = node->getType();

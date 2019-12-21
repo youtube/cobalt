@@ -6,7 +6,6 @@
 # gen_format_map.py:
 #  Code generation for GL format map. The format map matches between
 #  {format,type} and internal format.
-#  NOTE: don't run this script directly. Run scripts/run_code_generation.py.
 
 from datetime import date
 import sys
@@ -111,98 +110,78 @@ template_es3_combo_type_case = """                case {type}:
                 }}
 """
 
-
 def parse_type_case(type, result):
-    return template_simple_case.format(key=type, result=result)
-
+    return template_simple_case.format(
+        key = type, result = result)
 
 def parse_format_case(format, type_map):
     type_cases = ""
     for type, internal_format in sorted(type_map.iteritems()):
         type_cases += parse_type_case(type, internal_format)
-    return template_format_case.format(format=format, type_cases=type_cases)
+    return template_format_case.format(
+        format = format, type_cases = type_cases)
 
+input_script = 'format_map_data.json'
 
-def main():
+format_map = angle_format.load_json(input_script)
 
-    # auto_script parameters.
-    if len(sys.argv) > 1:
-        inputs = ['es3_format_type_combinations.json', 'format_map_data.json']
-        outputs = ['format_map_autogen.cpp']
+format_cases = ""
 
-        if sys.argv[1] == 'inputs':
-            print ','.join(inputs)
-        elif sys.argv[1] == 'outputs':
-            print ','.join(outputs)
-        else:
-            print('Invalid script parameters')
-            return 1
-        return 0
+for format, type_map in sorted(format_map.iteritems()):
+    format_cases += parse_format_case(format, type_map)
 
-    input_script = 'format_map_data.json'
+combo_data_file = 'es3_format_type_combinations.json'
+es3_combo_data = angle_format.load_json(combo_data_file)
+combo_data = [combo for sublist in es3_combo_data.values() for combo in sublist]
 
-    format_map = angle_format.load_json(input_script)
+types = set()
+formats = set()
+combos = {}
 
-    format_cases = ""
+for internal_format, format, type in combo_data:
+    types.update([type])
+    formats.update([format])
+    if format not in combos:
+        combos[format] = {}
+    if type not in combos[format]:
+        combos[format][type] = [internal_format]
+    else:
+        combos[format][type] += [internal_format]
 
-    for format, type_map in sorted(format_map.iteritems()):
-        format_cases += parse_format_case(format, type_map)
+es3_format_cases = ""
 
-    combo_data_file = 'es3_format_type_combinations.json'
-    es3_combo_data = angle_format.load_json(combo_data_file)
-    combo_data = [combo for sublist in es3_combo_data.values() for combo in sublist]
+for format in sorted(formats):
+    es3_format_cases += "        case " + format + ":\n"
 
-    types = set()
-    formats = set()
-    combos = {}
+es3_type_cases = ""
 
-    for internal_format, format, type in combo_data:
-        types.update([type])
-        formats.update([format])
-        if format not in combos:
-            combos[format] = {}
-        if type not in combos[format]:
-            combos[format][type] = [internal_format]
-        else:
-            combos[format][type] += [internal_format]
+for type in sorted(types):
+    es3_type_cases += "        case " + type + ":\n"
 
-    es3_format_cases = ""
+es3_combo_cases = ""
 
-    for format in sorted(formats):
-        es3_format_cases += "        case " + format + ":\n"
+for format, type_combos in combos.iteritems():
+    this_type_cases = ""
+    for type, combos in type_combos.iteritems():
+        internal_format_cases = ""
+        for internal_format in combos:
+            internal_format_cases += "                        case " + internal_format + ":\n"
 
-    es3_type_cases = ""
+        this_type_cases += template_es3_combo_type_case.format(
+            type = type, internal_format_cases = internal_format_cases)
 
-    for type in sorted(types):
-        es3_type_cases += "        case " + type + ":\n"
+    es3_combo_cases += template_format_case.format(
+        format = format, type_cases = this_type_cases)
 
-    es3_combo_cases = ""
-
-    for format, type_combos in combos.iteritems():
-        this_type_cases = ""
-        for type, combos in type_combos.iteritems():
-            internal_format_cases = ""
-            for internal_format in combos:
-                internal_format_cases += "                        case " + internal_format + ":\n"
-
-            this_type_cases += template_es3_combo_type_case.format(
-                type=type, internal_format_cases=internal_format_cases)
-
-        es3_combo_cases += template_format_case.format(format=format, type_cases=this_type_cases)
-
-    with open('format_map_autogen.cpp', 'wt') as out_file:
-        output_cpp = template_cpp.format(
-            script_name=sys.argv[0],
-            data_source_name=input_script,
-            es3_data_source_name=combo_data_file,
-            copyright_year=date.today().year,
-            format_cases=format_cases,
-            es3_format_cases=es3_format_cases,
-            es3_type_cases=es3_type_cases,
-            es3_combo_cases=es3_combo_cases)
-        out_file.write(output_cpp)
-    return 0
-
-
-if __name__ == '__main__':
-    sys.exit(main())
+with open('format_map_autogen.cpp', 'wt') as out_file:
+    output_cpp = template_cpp.format(
+        script_name = sys.argv[0],
+        data_source_name = input_script,
+        es3_data_source_name = combo_data_file,
+        copyright_year = date.today().year,
+        format_cases = format_cases,
+        es3_format_cases = es3_format_cases,
+        es3_type_cases = es3_type_cases,
+        es3_combo_cases = es3_combo_cases)
+    out_file.write(output_cpp)
+    out_file.close()

@@ -20,9 +20,17 @@ namespace
 // For floats f1 and f2, unpackSnorm2x16(packSnorm2x16(f1, f2)) should be same as f1 and f2.
 TEST(MathUtilTest, packAndUnpackSnorm2x16)
 {
-    const float input[8][2] = {
-        {0.0f, 0.0f},    {1.0f, 1.0f},          {-1.0f, 1.0f},           {-1.0f, -1.0f},
-        {0.875f, 0.75f}, {0.00392f, -0.99215f}, {-0.000675f, 0.004954f}, {-0.6937f, -0.02146f}};
+    const float input[8][2] =
+    {
+        { 0.0f, 0.0f },
+        { 1.0f, 1.0f },
+        { -1.0f, 1.0f },
+        { -1.0f, -1.0f },
+        { 0.875f, 0.75f },
+        { 0.00392f, -0.99215f },
+        { -0.000675f, 0.004954f },
+        { -0.6937f, -0.02146f }
+    };
     const float floatFaultTolerance = 0.0001f;
     float outputVal1, outputVal2;
 
@@ -42,20 +50,17 @@ TEST(MathUtilTest, packAndUnpackSnorm2x16Infinity)
     float outputVal1, outputVal2;
 
     unpackSnorm2x16(packSnorm2x16(std::numeric_limits<float>::infinity(),
-                                  std::numeric_limits<float>::infinity()),
-                    &outputVal1, &outputVal2);
+                                  std::numeric_limits<float>::infinity()), &outputVal1, &outputVal2);
     EXPECT_NEAR(1.0f, outputVal1, floatFaultTolerance);
     EXPECT_NEAR(1.0f, outputVal2, floatFaultTolerance);
 
     unpackSnorm2x16(packSnorm2x16(std::numeric_limits<float>::infinity(),
-                                  -std::numeric_limits<float>::infinity()),
-                    &outputVal1, &outputVal2);
+                                  -std::numeric_limits<float>::infinity()), &outputVal1, &outputVal2);
     EXPECT_NEAR(1.0f, outputVal1, floatFaultTolerance);
     EXPECT_NEAR(-1.0f, outputVal2, floatFaultTolerance);
 
     unpackSnorm2x16(packSnorm2x16(-std::numeric_limits<float>::infinity(),
-                                  -std::numeric_limits<float>::infinity()),
-                    &outputVal1, &outputVal2);
+                                  -std::numeric_limits<float>::infinity()), &outputVal1, &outputVal2);
     EXPECT_NEAR(-1.0f, outputVal1, floatFaultTolerance);
     EXPECT_NEAR(-1.0f, outputVal2, floatFaultTolerance);
 }
@@ -64,9 +69,17 @@ TEST(MathUtilTest, packAndUnpackSnorm2x16Infinity)
 // For floats f1 and f2, unpackUnorm2x16(packUnorm2x16(f1, f2)) should be same as f1 and f2.
 TEST(MathUtilTest, packAndUnpackUnorm2x16)
 {
-    const float input[8][2] = {
-        {0.0f, 0.0f},    {1.0f, 1.0f},          {-1.0f, 1.0f},           {-1.0f, -1.0f},
-        {0.875f, 0.75f}, {0.00392f, -0.99215f}, {-0.000675f, 0.004954f}, {-0.6937f, -0.02146f}};
+    const float input[8][2] =
+    {
+        { 0.0f, 0.0f },
+        { 1.0f, 1.0f },
+        { -1.0f, 1.0f },
+        { -1.0f, -1.0f },
+        { 0.875f, 0.75f },
+        { 0.00392f, -0.99215f },
+        { -0.000675f, 0.004954f },
+        { -0.6937f, -0.02146f }
+    };
     const float floatFaultTolerance = 0.0001f;
     float outputVal1, outputVal2;
 
@@ -88,20 +101,17 @@ TEST(MathUtilTest, packAndUnpackUnorm2x16Infinity)
     float outputVal1, outputVal2;
 
     unpackUnorm2x16(packUnorm2x16(std::numeric_limits<float>::infinity(),
-                                  std::numeric_limits<float>::infinity()),
-                    &outputVal1, &outputVal2);
+                                  std::numeric_limits<float>::infinity()), &outputVal1, &outputVal2);
     EXPECT_NEAR(1.0f, outputVal1, floatFaultTolerance);
     EXPECT_NEAR(1.0f, outputVal2, floatFaultTolerance);
 
     unpackUnorm2x16(packUnorm2x16(std::numeric_limits<float>::infinity(),
-                                  -std::numeric_limits<float>::infinity()),
-                    &outputVal1, &outputVal2);
+                                  -std::numeric_limits<float>::infinity()), &outputVal1, &outputVal2);
     EXPECT_NEAR(1.0f, outputVal1, floatFaultTolerance);
     EXPECT_NEAR(0.0f, outputVal2, floatFaultTolerance);
 
     unpackUnorm2x16(packUnorm2x16(-std::numeric_limits<float>::infinity(),
-                                  -std::numeric_limits<float>::infinity()),
-                    &outputVal1, &outputVal2);
+                                  -std::numeric_limits<float>::infinity()), &outputVal1, &outputVal2);
     EXPECT_NEAR(0.0f, outputVal1, floatFaultTolerance);
     EXPECT_NEAR(0.0f, outputVal2, floatFaultTolerance);
 }
@@ -110,9 +120,16 @@ TEST(MathUtilTest, packAndUnpackUnorm2x16Infinity)
 // For floats f1 and f2, unpackHalf2x16(packHalf2x16(f1, f2)) should be same as f1 and f2.
 TEST(MathUtilTest, packAndUnpackHalf2x16)
 {
-    const float input[8][2] = {
-        {0.0f, 0.0f},    {1.0f, 1.0f},          {-1.0f, 1.0f},           {-1.0f, -1.0f},
-        {0.875f, 0.75f}, {0.00392f, -0.99215f}, {-0.000675f, 0.004954f}, {-0.6937f, -0.02146f},
+    const float input[8][2] =
+    {
+        { 0.0f, 0.0f },
+        { 1.0f, 1.0f },
+        { -1.0f, 1.0f },
+        { -1.0f, -1.0f },
+        { 0.875f, 0.75f },
+        { 0.00392f, -0.99215f },
+        { -0.000675f, 0.004954f },
+        { -0.6937f, -0.02146f },
     };
     const float floatFaultTolerance = 0.0005f;
     float outputVal1, outputVal2;
@@ -258,11 +275,11 @@ TEST(MathUtilTest, BitCount)
     EXPECT_EQ(32, gl::BitCount(0xFFFFFFFFu));
     EXPECT_EQ(10, gl::BitCount(0x17103121u));
 
-#if defined(ANGLE_IS_64_BIT_CPU)
-    EXPECT_EQ(0, gl::BitCount(static_cast<uint64_t>(0ull)));
-    EXPECT_EQ(32, gl::BitCount(static_cast<uint64_t>(0xFFFFFFFFull)));
-    EXPECT_EQ(10, gl::BitCount(static_cast<uint64_t>(0x17103121ull)));
-#endif  // defined(ANGLE_IS_64_BIT_CPU)
+#if defined(ANGLE_X64_CPU)
+    EXPECT_EQ(0, gl::BitCount(0ull));
+    EXPECT_EQ(32, gl::BitCount(0xFFFFFFFFull));
+    EXPECT_EQ(10, gl::BitCount(0x17103121ull));
+#endif  // defined(ANGLE_X64_CPU)
 }
 
 // Test ScanForward, which scans for the least significant 1 bit from a non-zero integer.
@@ -272,11 +289,11 @@ TEST(MathUtilTest, ScanForward)
     EXPECT_EQ(16ul, gl::ScanForward(0x80010000u));
     EXPECT_EQ(31ul, gl::ScanForward(0x80000000u));
 
-#if defined(ANGLE_IS_64_BIT_CPU)
-    EXPECT_EQ(0ul, gl::ScanForward(static_cast<uint64_t>(1ull)));
-    EXPECT_EQ(16ul, gl::ScanForward(static_cast<uint64_t>(0x80010000ull)));
-    EXPECT_EQ(31ul, gl::ScanForward(static_cast<uint64_t>(0x80000000ull)));
-#endif  // defined(ANGLE_IS_64_BIT_CPU)
+#if defined(ANGLE_X64_CPU)
+    EXPECT_EQ(0ul, gl::ScanForward(1ull));
+    EXPECT_EQ(16ul, gl::ScanForward(0x80010000ull));
+    EXPECT_EQ(31ul, gl::ScanForward(0x80000000ull));
+#endif  // defined(ANGLE_X64_CPU)
 }
 
 // Test ScanReverse, which scans for the most significant 1 bit from a non-zero integer.
@@ -312,59 +329,6 @@ TEST(MathUtilTest, Ldexp)
     EXPECT_EQ(-5.0f, Ldexp(-0.625f, 3));
     EXPECT_EQ(std::numeric_limits<float>::infinity(), Ldexp(0.625f, 129));
     EXPECT_EQ(0.0f, Ldexp(1.0f, -129));
-}
-
-// Test that Range::extend works as expected.
-TEST(MathUtilTest, RangeExtend)
-{
-    RangeI range(0, 0);
-
-    range.extend(5);
-    EXPECT_EQ(0, range.low());
-    EXPECT_EQ(6, range.high());
-    EXPECT_EQ(6, range.length());
-
-    range.extend(-1);
-    EXPECT_EQ(-1, range.low());
-    EXPECT_EQ(6, range.high());
-    EXPECT_EQ(7, range.length());
-
-    range.extend(10);
-    EXPECT_EQ(-1, range.low());
-    EXPECT_EQ(11, range.high());
-    EXPECT_EQ(12, range.length());
-}
-
-// Test that Range iteration works as expected.
-TEST(MathUtilTest, RangeIteration)
-{
-    RangeI range(0, 10);
-    int expected = 0;
-    for (int value : range)
-    {
-        EXPECT_EQ(expected, value);
-        expected++;
-    }
-    EXPECT_EQ(range.length(), expected);
-}
-
-// Tests for float32 to float16 conversion
-TEST(MathUtilTest, Float32ToFloat16)
-{
-    ASSERT_EQ(float32ToFloat16(0.0f), 0x0000);
-    ASSERT_EQ(float32ToFloat16(-0.0f), 0x8000);
-
-    float inf = std::numeric_limits<float>::infinity();
-
-    ASSERT_EQ(float32ToFloat16(inf), 0x7C00);
-    ASSERT_EQ(float32ToFloat16(-inf), 0xFC00);
-
-    // Check that NaN is converted to a value in one of the float16 NaN ranges
-    float nan      = std::numeric_limits<float>::quiet_NaN();
-    uint16_t nan16 = float32ToFloat16(nan);
-    ASSERT_TRUE(nan16 > 0xFC00 || (nan16 < 0x8000 && nan16 > 0x7C00));
-
-    ASSERT_EQ(float32ToFloat16(1.0f), 0x3C00);
 }
 
 }  // anonymous namespace

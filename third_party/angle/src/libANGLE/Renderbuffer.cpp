@@ -1,5 +1,5 @@
 //
-// Copyright 2002 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2002-2012 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -11,78 +11,31 @@
 #include "libANGLE/Renderbuffer.h"
 
 #include "common/utilities.h"
-#include "libANGLE/Context.h"
 #include "libANGLE/FramebufferAttachment.h"
 #include "libANGLE/Image.h"
-#include "libANGLE/Renderbuffer.h"
 #include "libANGLE/Texture.h"
 #include "libANGLE/formatutils.h"
-#include "libANGLE/renderer/GLImplFactory.h"
 #include "libANGLE/renderer/d3d/RenderTargetD3D.h"
 
 namespace gl
 {
-// RenderbufferState implementation.
-RenderbufferState::RenderbufferState()
-    : mWidth(0), mHeight(0), mFormat(GL_RGBA4), mSamples(0), mInitState(InitState::MayNeedInit)
-{}
-
-RenderbufferState::~RenderbufferState() {}
-
-GLsizei RenderbufferState::getWidth() const
+Renderbuffer::Renderbuffer(rx::RenderbufferImpl *impl, GLuint id)
+    : egl::ImageSibling(id),
+      mRenderbuffer(impl),
+      mLabel(),
+      mWidth(0),
+      mHeight(0),
+      mFormat(GL_RGBA4),
+      mSamples(0)
 {
-    return mWidth;
 }
 
-GLsizei RenderbufferState::getHeight() const
+Renderbuffer::~Renderbuffer()
 {
-    return mHeight;
+    SafeDelete(mRenderbuffer);
 }
 
-const Format &RenderbufferState::getFormat() const
-{
-    return mFormat;
-}
-
-GLsizei RenderbufferState::getSamples() const
-{
-    return mSamples;
-}
-
-void RenderbufferState::update(GLsizei width,
-                               GLsizei height,
-                               const Format &format,
-                               GLsizei samples,
-                               InitState initState)
-{
-    mWidth     = static_cast<GLsizei>(width);
-    mHeight    = static_cast<GLsizei>(height);
-    mFormat    = format;
-    mSamples   = samples;
-    mInitState = InitState::MayNeedInit;
-}
-
-// Renderbuffer implementation.
-Renderbuffer::Renderbuffer(rx::GLImplFactory *implFactory, RenderbufferID id)
-    : RefCountObject(id),
-      mState(),
-      mImplementation(implFactory->createRenderbuffer(mState)),
-      mLabel()
-{}
-
-void Renderbuffer::onDestroy(const Context *context)
-{
-    (void)(orphanImages(context));
-
-    if (mImplementation)
-    {
-        mImplementation->onDestroy(context);
-    }
-}
-
-Renderbuffer::~Renderbuffer() {}
-
-void Renderbuffer::setLabel(const Context *context, const std::string &label)
+void Renderbuffer::setLabel(const std::string &label)
 {
     mLabel = label;
 }
@@ -92,212 +45,129 @@ const std::string &Renderbuffer::getLabel() const
     return mLabel;
 }
 
-angle::Result Renderbuffer::setStorage(const Context *context,
-                                       GLenum internalformat,
-                                       size_t width,
-                                       size_t height)
+Error Renderbuffer::setStorage(GLenum internalformat, size_t width, size_t height)
 {
-    ANGLE_TRY(orphanImages(context));
-    ANGLE_TRY(mImplementation->setStorage(context, internalformat, width, height));
+    orphanImages();
 
-    mState.update(static_cast<GLsizei>(width), static_cast<GLsizei>(height), Format(internalformat),
-                  0, InitState::MayNeedInit);
-    onStateChange(angle::SubjectMessage::SubjectChanged);
+    ANGLE_TRY(mRenderbuffer->setStorage(internalformat, width, height));
 
-    return angle::Result::Continue;
+    mWidth          = static_cast<GLsizei>(width);
+    mHeight         = static_cast<GLsizei>(height);
+    mFormat         = Format(internalformat);
+    mSamples = 0;
+
+    mDirtyChannel.signal();
+
+    return NoError();
 }
 
-angle::Result Renderbuffer::setStorageMultisample(const Context *context,
-                                                  size_t samples,
-                                                  GLenum internalformat,
-                                                  size_t width,
-                                                  size_t height)
+Error Renderbuffer::setStorageMultisample(size_t samples, GLenum internalformat, size_t width, size_t height)
 {
-    ANGLE_TRY(orphanImages(context));
-    ANGLE_TRY(
-        mImplementation->setStorageMultisample(context, samples, internalformat, width, height));
+    orphanImages();
 
-    mState.update(static_cast<GLsizei>(width), static_cast<GLsizei>(height), Format(internalformat),
-                  static_cast<GLsizei>(samples), InitState::MayNeedInit);
-    onStateChange(angle::SubjectMessage::SubjectChanged);
+    ANGLE_TRY(mRenderbuffer->setStorageMultisample(samples, internalformat, width, height));
 
-    return angle::Result::Continue;
+    mWidth          = static_cast<GLsizei>(width);
+    mHeight         = static_cast<GLsizei>(height);
+    mFormat         = Format(internalformat);
+    mSamples        = static_cast<GLsizei>(samples);
+
+    mDirtyChannel.signal();
+
+    return NoError();
 }
 
-angle::Result Renderbuffer::setStorageEGLImageTarget(const Context *context, egl::Image *image)
+Error Renderbuffer::setStorageEGLImageTarget(egl::Image *image)
 {
-    ANGLE_TRY(orphanImages(context));
-    ANGLE_TRY(mImplementation->setStorageEGLImageTarget(context, image));
+    orphanImages();
 
-    setTargetImage(context, image);
+    ANGLE_TRY(mRenderbuffer->setStorageEGLImageTarget(image));
 
-    mState.update(static_cast<GLsizei>(image->getWidth()), static_cast<GLsizei>(image->getHeight()),
-                  Format(image->getFormat()), 0, image->sourceInitState());
-    onStateChange(angle::SubjectMessage::SubjectChanged);
+    setTargetImage(image);
 
-    return angle::Result::Continue;
+    mWidth          = static_cast<GLsizei>(image->getWidth());
+    mHeight         = static_cast<GLsizei>(image->getHeight());
+    mFormat         = Format(image->getFormat());
+    mSamples        = 0;
+
+    mDirtyChannel.signal();
+
+    return NoError();
 }
 
 rx::RenderbufferImpl *Renderbuffer::getImplementation() const
 {
-    ASSERT(mImplementation);
-    return mImplementation.get();
+    ASSERT(mRenderbuffer);
+    return mRenderbuffer;
 }
 
 GLsizei Renderbuffer::getWidth() const
 {
-    return mState.mWidth;
+    return mWidth;
 }
 
 GLsizei Renderbuffer::getHeight() const
 {
-    return mState.mHeight;
+    return mHeight;
 }
 
 const Format &Renderbuffer::getFormat() const
 {
-    return mState.mFormat;
+    return mFormat;
 }
 
 GLsizei Renderbuffer::getSamples() const
 {
-    return mState.mSamples;
+    return mSamples;
 }
 
 GLuint Renderbuffer::getRedSize() const
 {
-    return mState.mFormat.info->redBits;
+    return mFormat.info->redBits;
 }
 
 GLuint Renderbuffer::getGreenSize() const
 {
-    return mState.mFormat.info->greenBits;
+    return mFormat.info->greenBits;
 }
 
 GLuint Renderbuffer::getBlueSize() const
 {
-    return mState.mFormat.info->blueBits;
+    return mFormat.info->blueBits;
 }
 
 GLuint Renderbuffer::getAlphaSize() const
 {
-    return mState.mFormat.info->alphaBits;
+    return mFormat.info->alphaBits;
 }
 
 GLuint Renderbuffer::getDepthSize() const
 {
-    return mState.mFormat.info->depthBits;
+    return mFormat.info->depthBits;
 }
 
 GLuint Renderbuffer::getStencilSize() const
 {
-    return mState.mFormat.info->stencilBits;
+    return mFormat.info->stencilBits;
 }
 
-GLint Renderbuffer::getMemorySize() const
-{
-    GLint implSize = mImplementation->getMemorySize();
-    if (implSize > 0)
-    {
-        return implSize;
-    }
-
-    // Assume allocated size is around width * height * samples * pixelBytes
-    angle::CheckedNumeric<GLint> size = 1;
-    size *= mState.mFormat.info->pixelBytes;
-    size *= mState.mWidth;
-    size *= mState.mHeight;
-    size *= std::max(mState.mSamples, 1);
-    return size.ValueOrDefault(std::numeric_limits<GLint>::max());
-}
-
-void Renderbuffer::onAttach(const Context *context)
+void Renderbuffer::onAttach()
 {
     addRef();
 }
 
-void Renderbuffer::onDetach(const Context *context)
+void Renderbuffer::onDetach()
 {
-    release(context);
+    release();
 }
 
 GLuint Renderbuffer::getId() const
 {
-    return id().value;
+    return id();
 }
 
 Extents Renderbuffer::getAttachmentSize(const gl::ImageIndex & /*imageIndex*/) const
 {
-    return Extents(mState.mWidth, mState.mHeight, 1);
-}
-
-Format Renderbuffer::getAttachmentFormat(GLenum /*binding*/,
-                                         const ImageIndex & /*imageIndex*/) const
-{
-    return getFormat();
-}
-GLsizei Renderbuffer::getAttachmentSamples(const ImageIndex & /*imageIndex*/) const
-{
-    return getSamples();
-}
-
-bool Renderbuffer::isRenderable(const Context *context,
-                                GLenum binding,
-                                const ImageIndex &imageIndex) const
-{
-    if (isEGLImageTarget())
-    {
-        return ImageSibling::isRenderable(context, binding, imageIndex);
-    }
-    return getFormat().info->renderbufferSupport(context->getClientVersion(),
-                                                 context->getExtensions());
-}
-
-InitState Renderbuffer::initState(const gl::ImageIndex & /*imageIndex*/) const
-{
-    if (isEGLImageTarget())
-    {
-        return sourceEGLImageInitState();
-    }
-
-    return mState.mInitState;
-}
-
-void Renderbuffer::setInitState(const gl::ImageIndex & /*imageIndex*/, InitState initState)
-{
-    if (isEGLImageTarget())
-    {
-        setSourceEGLImageInitState(initState);
-    }
-    else
-    {
-        mState.mInitState = initState;
-    }
-}
-
-rx::FramebufferAttachmentObjectImpl *Renderbuffer::getAttachmentImpl() const
-{
-    return mImplementation.get();
-}
-
-GLenum Renderbuffer::getImplementationColorReadFormat(const Context *context) const
-{
-    return mImplementation->getColorReadFormat(context);
-}
-
-GLenum Renderbuffer::getImplementationColorReadType(const Context *context) const
-{
-    return mImplementation->getColorReadType(context);
-}
-
-angle::Result Renderbuffer::getRenderbufferImage(const Context *context,
-                                                 const PixelPackState &packState,
-                                                 Buffer *packBuffer,
-                                                 GLenum format,
-                                                 GLenum type,
-                                                 void *pixels) const
-{
-    return mImplementation->getRenderbufferImage(context, packState, packBuffer, format, type,
-                                                 pixels);
+    return Extents(mWidth, mHeight, 1);
 }
 }  // namespace gl

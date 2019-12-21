@@ -27,50 +27,72 @@ class PackUnpackTest : public ANGLETest
         setConfigAlphaBits(8);
     }
 
-    void testSetUp() override
+    void SetUp() override
     {
+        ANGLETest::SetUp();
+
+        // Vertex Shader source
+        const std::string vs = SHADER_SOURCE
+        (   #version 300 es\n
+            precision mediump float;
+            in vec4 position;
+
+            void main()
+            {
+                gl_Position = position;
+            }
+        );
+
+        // clang-format off
         // Fragment Shader source
-        constexpr char kSNormFS[] = R"(#version 300 es
-precision mediump float;
-uniform mediump vec2 v;
-layout(location = 0) out mediump vec4 fragColor;
+        const std::string sNormFS = SHADER_SOURCE
+        (   #version 300 es\n
+            precision mediump float;
+            uniform mediump vec2 v;
+            layout(location = 0) out mediump vec4 fragColor;
 
-void main()
-{
-    uint u = packSnorm2x16(v);
-    vec2 r = unpackSnorm2x16(u);
-    fragColor = vec4(r, 0.0, 1.0);
-})";
-
-        // Fragment Shader source
-        constexpr char kUNormFS[] = R"(#version 300 es
-precision mediump float;
-uniform mediump vec2 v;
-layout(location = 0) out mediump vec4 fragColor;
-
-void main()
-{
-    uint u = packUnorm2x16(v);
-    vec2 r = unpackUnorm2x16(u);
-    fragColor = vec4(r, 0.0, 1.0);
-})";
+            void main()
+            {
+                uint u = packSnorm2x16(v);
+                vec2 r = unpackSnorm2x16(u);
+                fragColor = vec4(r, 0.0, 1.0);
+            }
+        );
 
         // Fragment Shader source
-        constexpr char kHalfFS[] = R"(#version 300 es
-precision mediump float;
-uniform mediump vec2 v;
-layout(location = 0) out mediump vec4 fragColor;
+        const std::string uNormFS = SHADER_SOURCE
+        (   #version 300 es\n
+            precision mediump float;
+            uniform mediump vec2 v;
+            layout(location = 0) out mediump vec4 fragColor;
 
-void main()
-{
-    uint u = packHalf2x16(v);
-    vec2 r = unpackHalf2x16(u);
-    fragColor = vec4(r, 0.0, 1.0);
-})";
+            void main()
+            {
+                uint u = packUnorm2x16(v);
+                vec2 r = unpackUnorm2x16(u);
+                fragColor = vec4(r, 0.0, 1.0);
+            }
+        );
 
-        mSNormProgram = CompileProgram(essl3_shaders::vs::Simple(), kSNormFS);
-        mUNormProgram = CompileProgram(essl3_shaders::vs::Simple(), kUNormFS);
-        mHalfProgram  = CompileProgram(essl3_shaders::vs::Simple(), kHalfFS);
+        // Fragment Shader source
+        const std::string halfFS = SHADER_SOURCE
+        (   #version 300 es\n
+            precision mediump float;
+            uniform mediump vec2 v;
+            layout(location = 0) out mediump vec4 fragColor;
+
+             void main()
+             {
+                 uint u = packHalf2x16(v);
+                 vec2 r = unpackHalf2x16(u);
+                 fragColor = vec4(r, 0.0, 1.0);
+             }
+        );
+        // clang-format on
+
+        mSNormProgram = CompileProgram(vs, sNormFS);
+        mUNormProgram = CompileProgram(vs, uNormFS);
+        mHalfProgram = CompileProgram(vs, halfFS);
         if (mSNormProgram == 0 || mUNormProgram == 0 || mHalfProgram == 0)
         {
             FAIL() << "shader compilation failed.";
@@ -82,22 +104,23 @@ void main()
 
         glGenFramebuffers(1, &mOffscreenFramebuffer);
         glBindFramebuffer(GL_FRAMEBUFFER, mOffscreenFramebuffer);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-                               mOffscreenTexture2D, 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mOffscreenTexture2D, 0);
 
         glViewport(0, 0, 16, 16);
 
-        const GLfloat color[] = {1.0f, 1.0f, 0.0f, 1.0f};
+        const GLfloat color[] = { 1.0f, 1.0f, 0.0f, 1.0f };
         glClearBufferfv(GL_COLOR, 0, color);
     }
 
-    void testTearDown() override
+    void TearDown() override
     {
         glDeleteTextures(1, &mOffscreenTexture2D);
         glDeleteFramebuffers(1, &mOffscreenFramebuffer);
         glDeleteProgram(mSNormProgram);
         glDeleteProgram(mUNormProgram);
         glDeleteProgram(mHalfProgram);
+
+        ANGLETest::TearDown();
     }
 
     void compareBeforeAfter(GLuint program, float input1, float input2)
@@ -105,22 +128,18 @@ void main()
         compareBeforeAfter(program, input1, input2, input1, input2);
     }
 
-    void compareBeforeAfter(GLuint program,
-                            float input1,
-                            float input2,
-                            float expect1,
-                            float expect2)
+    void compareBeforeAfter(GLuint program, float input1, float input2, float expect1, float expect2)
     {
         GLint vec2Location = glGetUniformLocation(program, "v");
 
         glUseProgram(program);
         glUniform2f(vec2Location, input1, input2);
 
-        drawQuad(program, essl3_shaders::PositionAttrib(), 0.5f);
+        drawQuad(program, "position", 0.5f);
 
         ASSERT_GL_NO_ERROR();
 
-        GLfloat p[2] = {0};
+        GLfloat p[2] = { 0 };
         glReadPixels(8, 8, 1, 1, GL_RG, GL_FLOAT, p);
 
         ASSERT_GL_NO_ERROR();
@@ -137,12 +156,9 @@ void main()
     GLuint mOffscreenTexture2D;
 };
 
-// Test the correctness of packSnorm2x16 and unpackSnorm2x16 functions calculating normal floating
-// numbers.
+// Test the correctness of packSnorm2x16 and unpackSnorm2x16 functions calculating normal floating numbers.
 TEST_P(PackUnpackTest, PackUnpackSnormNormal)
 {
-    // http://anglebug.com/4092
-    ANGLE_SKIP_TEST_IF((IsAndroid() && IsVulkan()) || isSwiftshader());
     // Expect the shader to output the same value as the input
     compareBeforeAfter(mSNormProgram, 0.5f, -0.2f);
     compareBeforeAfter(mSNormProgram, -0.35f, 0.75f);
@@ -154,8 +170,6 @@ TEST_P(PackUnpackTest, PackUnpackSnormNormal)
 // numbers.
 TEST_P(PackUnpackTest, PackUnpackUnormNormal)
 {
-    // http://anglebug.com/4092
-    ANGLE_SKIP_TEST_IF((IsAndroid() && IsVulkan()) || isSwiftshader());
     // Expect the shader to output the same value as the input
     compareBeforeAfter(mUNormProgram, 0.5f, 0.2f, 0.5f, 0.2f);
     compareBeforeAfter(mUNormProgram, 0.35f, 0.75f, 0.35f, 0.75f);
@@ -163,12 +177,18 @@ TEST_P(PackUnpackTest, PackUnpackUnormNormal)
     compareBeforeAfter(mUNormProgram, 1.0f, 0.00392f, 1.0f, 0.00392f);
 }
 
-// Test the correctness of packHalf2x16 and unpackHalf2x16 functions calculating normal floating
-// numbers.
+// Test the correctness of packHalf2x16 and unpackHalf2x16 functions calculating normal floating numbers.
 TEST_P(PackUnpackTest, PackUnpackHalfNormal)
 {
-    // http://anglebug.com/4092
-    ANGLE_SKIP_TEST_IF((IsAndroid() && IsVulkan()) || isSwiftshader());
+    // TODO(cwallez) figure out why it is broken on Intel on Mac
+#if defined(ANGLE_PLATFORM_APPLE)
+    if (IsIntel() && getPlatformRenderer() == EGL_PLATFORM_ANGLE_TYPE_OPENGL_ANGLE)
+    {
+        std::cout << "Test skipped on Intel on Mac." << std::endl;
+        return;
+    }
+#endif
+
     // Expect the shader to output the same value as the input
     compareBeforeAfter(mHalfProgram, 0.5f, -0.2f);
     compareBeforeAfter(mHalfProgram, -0.35f, 0.75f);
@@ -176,12 +196,9 @@ TEST_P(PackUnpackTest, PackUnpackHalfNormal)
     compareBeforeAfter(mHalfProgram, 1.0f, -0.00392f);
 }
 
-// Test the correctness of packSnorm2x16 and unpackSnorm2x16 functions calculating subnormal
-// floating numbers.
+// Test the correctness of packSnorm2x16 and unpackSnorm2x16 functions calculating subnormal floating numbers.
 TEST_P(PackUnpackTest, PackUnpackSnormSubnormal)
 {
-    // http://anglebug.com/4092
-    ANGLE_SKIP_TEST_IF((IsAndroid() && IsVulkan()) || isSwiftshader());
     // Expect the shader to output the same value as the input
     compareBeforeAfter(mSNormProgram, 0.00001f, -0.00001f);
 }
@@ -190,29 +207,21 @@ TEST_P(PackUnpackTest, PackUnpackSnormSubnormal)
 // floating numbers.
 TEST_P(PackUnpackTest, PackUnpackUnormSubnormal)
 {
-    // http://anglebug.com/4092
-    ANGLE_SKIP_TEST_IF((IsAndroid() && IsVulkan()) || isSwiftshader());
     // Expect the shader to output the same value as the input for positive numbers and clamp
     // to [0, 1]
     compareBeforeAfter(mUNormProgram, 0.00001f, -0.00001f, 0.00001f, 0.0f);
 }
 
-// Test the correctness of packHalf2x16 and unpackHalf2x16 functions calculating subnormal floating
-// numbers.
+// Test the correctness of packHalf2x16 and unpackHalf2x16 functions calculating subnormal floating numbers.
 TEST_P(PackUnpackTest, PackUnpackHalfSubnormal)
 {
-    // http://anglebug.com/4092
-    ANGLE_SKIP_TEST_IF((IsAndroid() && IsVulkan()) || isSwiftshader());
     // Expect the shader to output the same value as the input
     compareBeforeAfter(mHalfProgram, 0.00001f, -0.00001f);
 }
 
-// Test the correctness of packSnorm2x16 and unpackSnorm2x16 functions calculating zero floating
-// numbers.
+// Test the correctness of packSnorm2x16 and unpackSnorm2x16 functions calculating zero floating numbers.
 TEST_P(PackUnpackTest, PackUnpackSnormZero)
 {
-    // http://anglebug.com/4092
-    ANGLE_SKIP_TEST_IF((IsAndroid() && IsVulkan()) || isSwiftshader());
     // Expect the shader to output the same value as the input
     compareBeforeAfter(mSNormProgram, 0.00000f, -0.00000f);
 }
@@ -221,17 +230,12 @@ TEST_P(PackUnpackTest, PackUnpackSnormZero)
 // numbers.
 TEST_P(PackUnpackTest, PackUnpackUnormZero)
 {
-    // http://anglebug.com/4092
-    ANGLE_SKIP_TEST_IF((IsAndroid() && IsVulkan()) || isSwiftshader());
     compareBeforeAfter(mUNormProgram, 0.00000f, -0.00000f, 0.00000f, 0.00000f);
 }
 
-// Test the correctness of packHalf2x16 and unpackHalf2x16 functions calculating zero floating
-// numbers.
+// Test the correctness of packHalf2x16 and unpackHalf2x16 functions calculating zero floating numbers.
 TEST_P(PackUnpackTest, PackUnpackHalfZero)
 {
-    // http://anglebug.com/4092
-    ANGLE_SKIP_TEST_IF((IsAndroid() && IsVulkan()) || isSwiftshader());
     // Expect the shader to output the same value as the input
     compareBeforeAfter(mHalfProgram, 0.00000f, -0.00000f);
 }
@@ -240,21 +244,25 @@ TEST_P(PackUnpackTest, PackUnpackHalfZero)
 // numbers.
 TEST_P(PackUnpackTest, PackUnpackUnormOverflow)
 {
-    // http://anglebug.com/4092
-    ANGLE_SKIP_TEST_IF((IsAndroid() && IsVulkan()) || isSwiftshader());
     // Expect the shader to clamp the input to [0, 1]
     compareBeforeAfter(mUNormProgram, 67000.0f, -67000.0f, 1.0f, 0.0f);
 }
 
-// Test the correctness of packSnorm2x16 and unpackSnorm2x16 functions calculating overflow floating
-// numbers.
+// Test the correctness of packSnorm2x16 and unpackSnorm2x16 functions calculating overflow floating numbers.
 TEST_P(PackUnpackTest, PackUnpackSnormOverflow)
 {
-    // http://anglebug.com/4092
-    ANGLE_SKIP_TEST_IF((IsAndroid() && IsVulkan()) || isSwiftshader());
     // Expect the shader to clamp the input to [-1, 1]
     compareBeforeAfter(mSNormProgram, 67000.0f, -67000.0f, 1.0f, -1.0f);
 }
 
-ANGLE_INSTANTIATE_TEST_ES3(PackUnpackTest);
-}  // namespace
+// Use this to select which configurations (e.g. which renderer, which GLES major version) these tests should be run against.
+ANGLE_INSTANTIATE_TEST(PackUnpackTest,
+                       ES3_OPENGL(3, 3),
+                       ES3_OPENGL(4, 0),
+                       ES3_OPENGL(4, 1),
+                       ES3_OPENGL(4, 2),
+                       ES3_OPENGL(4, 3),
+                       ES3_OPENGL(4, 4),
+                       ES3_OPENGL(4, 5),
+                       ES3_OPENGLES());
+}

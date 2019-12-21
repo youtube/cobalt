@@ -1,5 +1,5 @@
 //
-// Copyright 2017 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2017 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -11,48 +11,57 @@
 
 #include <vector>
 
-#include "util/shader_utils.h"
+#include "shader_utils.h"
 
 namespace
 {
-constexpr char kSimpleScaleAndOffsetVS[] = R"(attribute vec2 vPosition;
-uniform float uScale;
-uniform float uOffset;
-void main()
-{
-    gl_Position = vec4(vPosition * vec2(uScale) + vec2(uOffset), 0, 1);
-})";
 
-constexpr char kSimpleDrawVS[] = R"(attribute vec2 vPosition;
-const float scale = 0.5;
-const float offset = -0.5;
-
-void main()
+const char *SimpleScaleAndOffsetVertexShaderSource()
 {
-    gl_Position = vec4(vPosition * vec2(scale) + vec2(offset), 0, 1);
-})";
+    // clang-format off
+    return SHADER_SOURCE
+    (
+        attribute vec2 vPosition;
+        uniform float uScale;
+        uniform float uOffset;
+        void main()
+        {
+            gl_Position = vec4(vPosition * vec2(uScale) + vec2(uOffset), 0, 1);
+        }
+    );
+    // clang-format on
+}
 
-constexpr char kSimpleTexCoordVS[] = R"(attribute vec2 vPosition;
-varying vec2 texCoord;
-void main()
+const char *SimpleDrawVertexShaderSource()
 {
-    gl_Position = vec4(vPosition, 0, 1);
-    texCoord = vPosition * 0.5 + vec2(0.5);
-})";
+    // clang-format off
+    return SHADER_SOURCE
+    (
+        attribute vec2 vPosition;
+        const float scale = 0.5;
+        const float offset = -0.5;
 
-constexpr char kSimpleFS[] = R"(precision mediump float;
-void main()
-{
-    gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-})";
+        void main()
+        {
+            gl_Position = vec4(vPosition * vec2(scale) + vec2(offset), 0, 1);
+        }
+    );
+    // clang-format on
+}
 
-constexpr char kSimpleTextureFS[] = R"(precision mediump float;
-varying vec2 texCoord;
-uniform sampler2D tex;
-void main()
+const char *SimpleFragmentShaderSource()
 {
-    gl_FragColor = texture2D(tex, texCoord);
-})";
+    // clang-format off
+    return SHADER_SOURCE
+    (
+        precision mediump float;
+        void main()
+        {
+            gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+        }
+    );
+    // clang-format on
+}
 
 void Generate2DTriangleData(size_t numTris, std::vector<float> *floatData)
 {
@@ -73,7 +82,9 @@ void Generate2DTriangleData(size_t numTris, std::vector<float> *floatData)
 
 GLuint SetupSimpleScaleAndOffsetProgram()
 {
-    GLuint program = CompileProgram(kSimpleScaleAndOffsetVS, kSimpleFS);
+    const std::string vs = SimpleScaleAndOffsetVertexShaderSource();
+    const std::string fs = SimpleFragmentShaderSource();
+    GLuint program       = CompileProgram(vs, fs);
     if (program == 0u)
     {
         return program;
@@ -92,21 +103,9 @@ GLuint SetupSimpleScaleAndOffsetProgram()
 
 GLuint SetupSimpleDrawProgram()
 {
-    GLuint program = CompileProgram(kSimpleDrawVS, kSimpleFS);
-    if (program == 0u)
-    {
-        return program;
-    }
-
-    // Use the program object
-    glUseProgram(program);
-
-    return program;
-}
-
-GLuint SetupSimpleTextureProgram()
-{
-    GLuint program = CompileProgram(kSimpleTexCoordVS, kSimpleTextureFS);
+    const std::string vs = SimpleDrawVertexShaderSource();
+    const std::string fs = SimpleFragmentShaderSource();
+    GLuint program       = CompileProgram(vs, fs);
     if (program == 0u)
     {
         return program;

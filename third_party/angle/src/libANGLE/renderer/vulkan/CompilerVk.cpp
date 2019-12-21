@@ -14,9 +14,18 @@
 namespace rx
 {
 
-CompilerVk::CompilerVk() : CompilerImpl() {}
+CompilerVk::CompilerVk() : CompilerImpl()
+{
+}
 
-CompilerVk::~CompilerVk() {}
+CompilerVk::~CompilerVk()
+{
+}
+
+gl::Error CompilerVk::release()
+{
+    return gl::NoError();
+}
 
 ShShaderOutput CompilerVk::getTranslatorOutputType() const
 {

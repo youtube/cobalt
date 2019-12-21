@@ -43,14 +43,17 @@ class ArrayBoundsClamper
 
     // Marks nodes in the tree that index arrays indirectly as
     // requiring clamping.
-    void MarkIndirectArrayBoundsForClamping(TIntermNode *root);
+    void MarkIndirectArrayBoundsForClamping(TIntermNode* root);
 
     // If necessary, output array clamp function source into the shader source.
-    void OutputClampingFunctionDefinition(TInfoSinkBase &out) const;
+    void OutputClampingFunctionDefinition(TInfoSinkBase& out) const;
 
-    void Cleanup() { mArrayBoundsClampDefinitionNeeded = false; }
+    void Cleanup()
+    {
+        mArrayBoundsClampDefinitionNeeded = false;
+    }
 
-  private:
+private:
     bool GetArrayBoundsClampDefinitionNeeded() const { return mArrayBoundsClampDefinitionNeeded; }
     void SetArrayBoundsClampDefinitionNeeded() { mArrayBoundsClampDefinitionNeeded = true; }
 
@@ -60,4 +63,4 @@ class ArrayBoundsClamper
 
 }  // namespace sh
 
-#endif  // THIRD_PARTY_COMPILER_ARRAYBOUNDSCLAMPER_H_
+#endif // THIRD_PARTY_COMPILER_ARRAYBOUNDSCLAMPER_H_

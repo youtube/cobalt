@@ -17,44 +17,34 @@
 #include "angle_gl.h"
 #include "common/angleutils.h"
 
-#include <map>
-
 namespace gl
 {
 class InfoLog;
-struct ProgramVaryingRef;
-
-using ProgramMergedVaryings = std::map<std::string, ProgramVaryingRef>;
 
 struct PackedVarying
 {
     PackedVarying(const sh::ShaderVariable &varyingIn, sh::InterpolationType interpolationIn)
-        : PackedVarying(varyingIn, interpolationIn, "", false)
-    {}
+        : PackedVarying(varyingIn, interpolationIn, "")
+    {
+    }
     PackedVarying(const sh::ShaderVariable &varyingIn,
                   sh::InterpolationType interpolationIn,
-                  const std::string &parentStructNameIn,
-                  GLuint fieldIndexIn)
+                  const std::string &parentStructNameIn)
         : varying(&varyingIn),
           vertexOnly(false),
           interpolation(interpolationIn),
           parentStructName(parentStructNameIn),
-          arrayIndex(GL_INVALID_INDEX),
-          fieldIndex(fieldIndexIn)
-    {}
+          arrayIndex(GL_INVALID_INDEX)
+    {
+    }
 
     bool isStructField() const { return !parentStructName.empty(); }
 
     bool isArrayElement() const { return arrayIndex != GL_INVALID_INDEX; }
 
-    std::string fullName() const
+    std::string nameWithArrayIndex() const
     {
         std::stringstream fullNameStr;
-        if (isStructField())
-        {
-            fullNameStr << parentStructName << ".";
-        }
-
         fullNameStr << varying->name;
         if (arrayIndex != GL_INVALID_INDEX)
         {
@@ -75,10 +65,6 @@ struct PackedVarying
     std::string parentStructName;
 
     GLuint arrayIndex;
-
-    // Field index in the struct.  In Vulkan, this is used to assign a
-    // struct-typed varying location to the location of its first field.
-    GLuint fieldIndex;
 };
 
 struct PackedVaryingRegister final
@@ -89,7 +75,8 @@ struct PackedVaryingRegister final
           varyingRowIndex(0),
           registerRow(0),
           registerColumn(0)
-    {}
+    {
+    }
 
     PackedVaryingRegister(const PackedVaryingRegister &) = default;
     PackedVaryingRegister &operator=(const PackedVaryingRegister &) = default;
@@ -105,17 +92,7 @@ struct PackedVaryingRegister final
         return registerRow * 4 + registerColumn;
     }
 
-    std::string tfVaryingName() const
-    {
-        if (packedVarying->isArrayElement() || packedVarying->isStructField())
-        {
-            return packedVarying->fullName();
-        }
-        else
-        {
-            return packedVarying->varying->name;
-        }
-    }
+    bool isStructField() const { return !structFieldName.empty(); }
 
     // Index to the array of varyings.
     const PackedVarying *packedVarying;
@@ -131,6 +108,12 @@ struct PackedVaryingRegister final
 
     // The column of the register row into which we've packed this varying.
     unsigned int registerColumn;
+
+    // Assigned after packing
+    unsigned int semanticIndex;
+
+    // Struct member this varying corresponds to.
+    std::string structFieldName;
 };
 
 // Supported packing modes:
@@ -141,22 +124,16 @@ enum class PackMode
 
     // We allow mat2 to take a 2x2 chunk.
     ANGLE_RELAXED,
-
-    // Each varying takes a separate register. No register sharing.
-    ANGLE_NON_CONFORMANT_D3D9,
 };
 
 class VaryingPacking final : angle::NonCopyable
 {
   public:
     VaryingPacking(GLuint maxVaryingVectors, PackMode packMode);
-    ~VaryingPacking();
 
-    bool packUserVaryings(gl::InfoLog &infoLog, const std::vector<PackedVarying> &packedVaryings);
-
-    bool collectAndPackUserVaryings(gl::InfoLog &infoLog,
-                                    const ProgramMergedVaryings &mergedVaryings,
-                                    const std::vector<std::string> &tfVaryings);
+    bool packUserVaryings(gl::InfoLog &infoLog,
+                          const std::vector<PackedVarying> &packedVaryings,
+                          const std::vector<std::string> &transformFeedbackVaryings);
 
     struct Register
     {
@@ -176,11 +153,8 @@ class VaryingPacking final : angle::NonCopyable
     {
         return static_cast<unsigned int>(mRegisterList.size());
     }
-
-    const std::vector<std::string> &getInactiveVaryingNames() const
-    {
-        return mInactiveVaryingNames;
-    }
+    unsigned int getRegisterCount() const;
+    size_t getRegisterMapSize() const { return mRegisterMap.size(); }
 
   private:
     bool packVarying(const PackedVarying &packedVarying);
@@ -194,8 +168,6 @@ class VaryingPacking final : angle::NonCopyable
 
     std::vector<Register> mRegisterMap;
     std::vector<PackedVaryingRegister> mRegisterList;
-    std::vector<PackedVarying> mPackedVaryings;
-    std::vector<std::string> mInactiveVaryingNames;
 
     PackMode mPackMode;
 };

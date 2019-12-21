@@ -1,5 +1,5 @@
 //
-// Copyright 2016 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -14,10 +14,10 @@
 
 #include <set>
 
-#include "GLSLANG/ShaderLang.h"
 #include "compiler/translator/BaseTypes.h"
 #include "compiler/translator/Common.h"
 #include "compiler/translator/InfoSink.h"
+#include "GLSLANG/ShaderLang.h"
 
 namespace sh
 {
@@ -37,11 +37,10 @@ class TextureFunctionHLSL final : angle::NonCopyable
             LOD0BIAS,
             SIZE,  // textureSize()
             FETCH,
-            GRAD,
-            GATHER
+            GRAD
         };
 
-        ImmutableString name() const;
+        TString name() const;
 
         bool operator<(const TextureFunction &rhs) const;
 
@@ -56,12 +55,12 @@ class TextureFunctionHLSL final : angle::NonCopyable
 
     // Returns the name of the texture function implementation to call.
     // The name that's passed in is the name of the GLSL texture function that it should implement.
-    ImmutableString useTextureFunction(const ImmutableString &name,
-                                       TBasicType samplerType,
-                                       int coords,
-                                       size_t argumentCount,
-                                       bool lod0,
-                                       sh::GLenum shaderType);
+    TString useTextureFunction(const TString &name,
+                               TBasicType samplerType,
+                               int coords,
+                               size_t argumentCount,
+                               bool lod0,
+                               sh::GLenum shaderType);
 
     void textureFunctionHeader(TInfoSinkBase &out,
                                const ShShaderOutput outputType,

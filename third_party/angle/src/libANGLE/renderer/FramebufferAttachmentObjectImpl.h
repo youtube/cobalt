@@ -11,17 +11,10 @@
 #ifndef LIBANGLE_RENDERER_FRAMEBUFFER_ATTACHMENT_OBJECT_IMPL_H_
 #define LIBANGLE_RENDERER_FRAMEBUFFER_ATTACHMENT_OBJECT_IMPL_H_
 
-#include "libANGLE/ImageIndex.h"
-#include "libANGLE/Observer.h"
-
-namespace gl
-{
-class Context;
-}  // namespace gl
+#include "libANGLE/FramebufferAttachment.h"
 
 namespace rx
 {
-class FramebufferAttachmentRenderTarget;
 
 class FramebufferAttachmentObjectImpl : angle::NonCopyable
 {
@@ -29,34 +22,14 @@ class FramebufferAttachmentObjectImpl : angle::NonCopyable
     FramebufferAttachmentObjectImpl() {}
     virtual ~FramebufferAttachmentObjectImpl() {}
 
-    virtual angle::Result getAttachmentRenderTarget(const gl::Context *context,
-                                                    GLenum binding,
-                                                    const gl::ImageIndex &imageIndex,
-                                                    GLsizei samples,
-                                                    FramebufferAttachmentRenderTarget **rtOut);
-
-    virtual angle::Result initializeContents(const gl::Context *context,
-                                             const gl::ImageIndex &imageIndex);
+    virtual gl::Error getAttachmentRenderTarget(GLenum binding,
+                                                const gl::ImageIndex &imageIndex,
+                                                FramebufferAttachmentRenderTarget **rtOut)
+    {
+        UNIMPLEMENTED();
+        return gl::OutOfMemory() << "getAttachmentRenderTarget not supported.";
+    }
 };
-
-inline angle::Result FramebufferAttachmentObjectImpl::getAttachmentRenderTarget(
-    const gl::Context *context,
-    GLenum binding,
-    const gl::ImageIndex &imageIndex,
-    GLsizei samples,
-    FramebufferAttachmentRenderTarget **rtOut)
-{
-    UNIMPLEMENTED();
-    return angle::Result::Stop;
-}
-
-inline angle::Result FramebufferAttachmentObjectImpl::initializeContents(
-    const gl::Context *context,
-    const gl::ImageIndex &imageIndex)
-{
-    UNIMPLEMENTED();
-    return angle::Result::Stop;
-}
 
 }  // namespace rx
 

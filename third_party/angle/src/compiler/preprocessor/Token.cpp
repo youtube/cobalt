@@ -1,5 +1,5 @@
 //
-// Copyright 2011 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2011 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -8,9 +8,6 @@
 
 #include "common/debug.h"
 #include "compiler/preprocessor/numeric_lex.h"
-
-namespace angle
-{
 
 namespace pp
 {
@@ -65,6 +62,12 @@ bool Token::uValue(unsigned int *value) const
     return numeric_lex_int(text, value);
 }
 
+bool Token::fValue(float *value) const
+{
+    ASSERT(type == CONST_FLOAT);
+    return numeric_lex_float(text, value);
+}
+
 std::ostream &operator<<(std::ostream &out, const Token &token)
 {
     if (token.hasLeadingSpace())
@@ -75,5 +78,3 @@ std::ostream &operator<<(std::ostream &out, const Token &token)
 }
 
 }  // namespace pp
-
-}  // namespace angle

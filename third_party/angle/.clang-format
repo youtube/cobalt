@@ -13,26 +13,7 @@ IndentWidth: 4
 ColumnLimit: 100
 
 # Always break before braces
-BreakBeforeBraces: Custom
-BraceWrapping:
-#  TODO(lujc) wait for clang-format-9 support in Chromium tools
-#  AfterCaseLabel: true
-  AfterClass: true
-  AfterControlStatement: true
-  AfterEnum: true
-  AfterFunction: true
-  AfterNamespace: true
-  AfterStruct: true
-  AfterUnion: true
-  BeforeCatch: true
-  BeforeElse: true
-  IndentBraces: false
-#  SplitEmptyFunction: false
-#  SplitEmptyRecord: false
-#  SplitEmptyNamespace: false
-
-  # Keeps extern "C" blocks unindented.
-#  AfterExternBlock: false
+BreakBeforeBraces: Allman
 
 # Indent case labels.
 IndentCaseLabels: true
@@ -52,9 +33,3 @@ AllowShortCaseLabelsOnASingleLine: false
 
 # Useful for spacing out functions in classes
 KeepEmptyLinesAtTheStartOfBlocks: true
-
-# Indent nested PP directives.
-#IndentPPDirectives: AfterHash
-
-# Include blocks style
-#IncludeBlocks: Preserve

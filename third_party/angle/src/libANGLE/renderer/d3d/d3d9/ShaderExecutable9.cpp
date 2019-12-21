@@ -1,5 +1,5 @@
 //
-// Copyright 2012 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2012-2013 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -14,18 +14,14 @@
 namespace rx
 {
 
-ShaderExecutable9::ShaderExecutable9(const void *function,
-                                     size_t length,
-                                     IDirect3DPixelShader9 *executable)
+ShaderExecutable9::ShaderExecutable9(const void *function, size_t length, IDirect3DPixelShader9 *executable)
     : ShaderExecutableD3D(function, length)
 {
-    mPixelExecutable  = executable;
+    mPixelExecutable = executable;
     mVertexExecutable = nullptr;
 }
 
-ShaderExecutable9::ShaderExecutable9(const void *function,
-                                     size_t length,
-                                     IDirect3DVertexShader9 *executable)
+ShaderExecutable9::ShaderExecutable9(const void *function, size_t length, IDirect3DVertexShader9 *executable)
     : ShaderExecutableD3D(function, length)
 {
     mVertexExecutable = executable;
@@ -48,4 +44,4 @@ IDirect3DPixelShader9 *ShaderExecutable9::getPixelShader() const
     return mPixelExecutable;
 }
 
-}  // namespace rx
+}

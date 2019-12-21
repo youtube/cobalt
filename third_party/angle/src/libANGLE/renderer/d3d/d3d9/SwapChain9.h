@@ -1,5 +1,5 @@
 //
-// Copyright 2012 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2012 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -28,22 +28,15 @@ class SwapChain9 : public SwapChainD3D
                GLenum backBufferFormat,
                GLenum depthBufferFormat,
                EGLint orientation);
-    ~SwapChain9() override;
+    virtual ~SwapChain9();
 
-    EGLint resize(DisplayD3D *displayD3D, EGLint backbufferWidth, EGLint backbufferHeight) override;
-    EGLint reset(DisplayD3D *displayD3D,
-                 EGLint backbufferWidth,
-                 EGLint backbufferHeight,
-                 EGLint swapInterval) override;
-    EGLint swapRect(DisplayD3D *displayD3D,
-                    EGLint x,
-                    EGLint y,
-                    EGLint width,
-                    EGLint height) override;
-    void recreate() override;
+    EGLint resize(EGLint backbufferWidth, EGLint backbufferHeight);
+    virtual EGLint reset(EGLint backbufferWidth, EGLint backbufferHeight, EGLint swapInterval);
+    virtual EGLint swapRect(EGLint x, EGLint y, EGLint width, EGLint height);
+    virtual void recreate();
 
-    RenderTargetD3D *getColorRenderTarget() override;
-    RenderTargetD3D *getDepthStencilRenderTarget() override;
+    RenderTargetD3D *getColorRenderTarget() override { return &mColorRenderTarget; }
+    RenderTargetD3D *getDepthStencilRenderTarget() override { return &mDepthStencilRenderTarget; }
 
     virtual IDirect3DSurface9 *getRenderTarget();
     virtual IDirect3DSurface9 *getDepthStencil();
@@ -70,11 +63,11 @@ class SwapChain9 : public SwapChainD3D
     IDirect3DSurface9 *mBackBuffer;
     IDirect3DSurface9 *mRenderTarget;
     IDirect3DSurface9 *mDepthStencil;
-    IDirect3DTexture9 *mOffscreenTexture;
+    IDirect3DTexture9* mOffscreenTexture;
 
     SurfaceRenderTarget9 mColorRenderTarget;
     SurfaceRenderTarget9 mDepthStencilRenderTarget;
 };
 
-}  // namespace rx
-#endif  // LIBANGLE_RENDERER_D3D_D3D9_SWAPCHAIN9_H_
+}
+#endif // LIBANGLE_RENDERER_D3D_D3D9_SWAPCHAIN9_H_

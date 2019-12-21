@@ -1,5 +1,5 @@
 //
-// Copyright 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -14,38 +14,44 @@
 //            http://www.opengles-book.com
 
 #include "SampleApplication.h"
-
+#include "shader_utils.h"
 #include "texture_utils.h"
-#include "util/geometry_utils.h"
-#include "util/shader_utils.h"
+#include "geometry_utils.h"
 
 class SimpleTextureCubemapSample : public SampleApplication
 {
   public:
-    SimpleTextureCubemapSample(int argc, char **argv)
-        : SampleApplication("SimpleTextureCubemap", argc, argv)
-    {}
-
-    bool initialize() override
+    SimpleTextureCubemapSample()
+        : SampleApplication("SimpleTextureCubemap", 1280, 720)
     {
-        constexpr char kVS[] = R"(attribute vec4 a_position;
-attribute vec3 a_normal;
-varying vec3 v_normal;
-void main()
-{
-    gl_Position = a_position;
-    v_normal = a_normal;
-})";
+    }
 
-        constexpr char kFS[] = R"(precision mediump float;
-varying vec3 v_normal;
-uniform samplerCube s_texture;
-void main()
-{
-    gl_FragColor = textureCube(s_texture, v_normal);
-})";
+    virtual bool initialize()
+    {
+        const std::string vs = SHADER_SOURCE
+        (
+            attribute vec4 a_position;
+            attribute vec3 a_normal;
+            varying vec3 v_normal;
+            void main()
+            {
+                gl_Position = a_position;
+                v_normal = a_normal;
+            }
+        );
 
-        mProgram = CompileProgram(kVS, kFS);
+        const std::string fs = SHADER_SOURCE
+        (
+            precision mediump float;
+            varying vec3 v_normal;
+            uniform samplerCube s_texture;
+            void main()
+            {
+                gl_FragColor = textureCube(s_texture, v_normal);
+            }
+        );
+
+        mProgram = CompileProgram(vs, fs);
         if (!mProgram)
         {
             return false;
@@ -53,7 +59,7 @@ void main()
 
         // Get the attribute locations
         mPositionLoc = glGetAttribLocation(mProgram, "a_position");
-        mNormalLoc   = glGetAttribLocation(mProgram, "a_normal");
+        mNormalLoc = glGetAttribLocation(mProgram, "a_normal");
 
         // Get the sampler locations
         mSamplerLoc = glGetUniformLocation(mProgram, "s_texture");
@@ -71,13 +77,13 @@ void main()
         return true;
     }
 
-    void destroy() override
+    virtual void destroy()
     {
         glDeleteProgram(mProgram);
         glDeleteTextures(1, &mTexture);
     }
 
-    void draw() override
+    virtual void draw()
     {
         // Set the viewport
         glViewport(0, 0, getWindow()->getWidth(), getWindow()->getHeight());
@@ -127,6 +133,6 @@ void main()
 
 int main(int argc, char **argv)
 {
-    SimpleTextureCubemapSample app(argc, argv);
+    SimpleTextureCubemapSample app;
     return app.run();
 }

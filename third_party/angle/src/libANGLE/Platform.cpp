@@ -15,16 +15,12 @@
 namespace
 {
 // TODO(jmadill): Make methods owned by egl::Display.
-angle::PlatformMethods &PlatformMethods()
-{
-    static angle::PlatformMethods platformMethods;
-    return platformMethods;
-}
+angle::PlatformMethods g_platformMethods;
 }  // anonymous namespace
 
 angle::PlatformMethods *ANGLEPlatformCurrent()
 {
-    return &PlatformMethods();
+    return &g_platformMethods;
 }
 
 bool ANGLE_APIENTRY ANGLEGetDisplayPlatform(angle::EGLDisplayType display,
@@ -57,13 +53,13 @@ bool ANGLE_APIENTRY ANGLEGetDisplayPlatform(angle::EGLDisplayType display,
     }
 
     // TODO(jmadill): Store platform methods in display.
-    PlatformMethods().context = context;
-    *platformMethodsOut       = &PlatformMethods();
+    g_platformMethods.context = context;
+    *platformMethodsOut       = &g_platformMethods;
     return true;
 }
 
 void ANGLE_APIENTRY ANGLEResetDisplayPlatform(angle::EGLDisplayType display)
 {
     // TODO(jmadill): Store platform methods in display.
-    PlatformMethods() = angle::PlatformMethods();
+    g_platformMethods = angle::PlatformMethods();
 }

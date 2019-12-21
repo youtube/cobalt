@@ -1,5 +1,5 @@
 //
-// Copyright 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -17,11 +17,7 @@
 #include "angle_gl.h"
 #include "libANGLE/Version.h"
 #include "libANGLE/renderer/gl/FunctionsGL.h"
-
-namespace angle
-{
-struct FeaturesGL;
-}  // namespace angle
+#include "libANGLE/renderer/gl/WorkaroundsGL.h"
 
 namespace rx
 {
@@ -32,8 +28,6 @@ namespace nativegl
 struct SupportRequirement
 {
     SupportRequirement();
-    SupportRequirement(const SupportRequirement &other);
-    ~SupportRequirement();
 
     // Version that this format became supported without extensions
     gl::Version version;
@@ -41,23 +35,18 @@ struct SupportRequirement
     // Extensions that are required if the minimum version is not met
     std::vector<std::string> versionExtensions;
 
-    // Sets of extensions that are required to support this format
-    // All the extensions in one of the sets have to be available for a format to be supported
-    std::vector<std::vector<std::string>> requiredExtensions;
+    // Extensions that are always required to support this format
+    std::vector<std::string> requiredExtensions;
 };
 
 struct InternalFormat
 {
     InternalFormat();
-    InternalFormat(const InternalFormat &other);
-    ~InternalFormat();
 
     SupportRequirement texture;
     SupportRequirement filter;
-    // Texture created with InternalFormat can be used in glFramebufferTexture2D
-    SupportRequirement textureAttachment;
-    // Renderbuffer created with InternalFormat can be used in glFramebufferRenderbuffer
     SupportRequirement renderbuffer;
+    SupportRequirement framebufferAttachment;
 };
 const InternalFormat &GetInternalFormatInfo(GLenum internalFormat, StandardGL standard);
 
@@ -68,7 +57,7 @@ struct TexImageFormat
     GLenum type;
 };
 TexImageFormat GetTexImageFormat(const FunctionsGL *functions,
-                                 const angle::FeaturesGL &features,
+                                 const WorkaroundsGL &workarounds,
                                  GLenum internalFormat,
                                  GLenum format,
                                  GLenum type);
@@ -79,7 +68,7 @@ struct TexSubImageFormat
     GLenum type;
 };
 TexSubImageFormat GetTexSubImageFormat(const FunctionsGL *functions,
-                                       const angle::FeaturesGL &features,
+                                       const WorkaroundsGL &workarounds,
                                        GLenum format,
                                        GLenum type);
 
@@ -88,7 +77,7 @@ struct CompressedTexImageFormat
     GLenum internalFormat;
 };
 CompressedTexImageFormat GetCompressedTexImageFormat(const FunctionsGL *functions,
-                                                     const angle::FeaturesGL &features,
+                                                     const WorkaroundsGL &workarounds,
                                                      GLenum internalFormat);
 
 struct CompressedTexSubImageFormat
@@ -96,7 +85,7 @@ struct CompressedTexSubImageFormat
     GLenum format;
 };
 CompressedTexSubImageFormat GetCompressedSubTexImageFormat(const FunctionsGL *functions,
-                                                           const angle::FeaturesGL &features,
+                                                           const WorkaroundsGL &workarounds,
                                                            GLenum format);
 
 struct CopyTexImageImageFormat
@@ -104,7 +93,7 @@ struct CopyTexImageImageFormat
     GLenum internalFormat;
 };
 CopyTexImageImageFormat GetCopyTexImageImageFormat(const FunctionsGL *functions,
-                                                   const angle::FeaturesGL &features,
+                                                   const WorkaroundsGL &workarounds,
                                                    GLenum internalFormat,
                                                    GLenum framebufferType);
 
@@ -113,7 +102,7 @@ struct TexStorageFormat
     GLenum internalFormat;
 };
 TexStorageFormat GetTexStorageFormat(const FunctionsGL *functions,
-                                     const angle::FeaturesGL &features,
+                                     const WorkaroundsGL &workarounds,
                                      GLenum internalFormat);
 
 struct RenderbufferFormat
@@ -121,7 +110,7 @@ struct RenderbufferFormat
     GLenum internalFormat;
 };
 RenderbufferFormat GetRenderbufferFormat(const FunctionsGL *functions,
-                                         const angle::FeaturesGL &features,
+                                         const WorkaroundsGL &workarounds,
                                          GLenum internalFormat);
 
 struct ReadPixelsFormat
@@ -130,11 +119,11 @@ struct ReadPixelsFormat
     GLenum type;
 };
 ReadPixelsFormat GetReadPixelsFormat(const FunctionsGL *functions,
-                                     const angle::FeaturesGL &features,
+                                     const WorkaroundsGL &workarounds,
                                      GLenum format,
                                      GLenum type);
-}  // namespace nativegl
+}
 
-}  // namespace rx
+}
 
-#endif  // LIBANGLE_RENDERER_GL_FORMATUTILSGL_H_
+#endif // LIBANGLE_RENDERER_GL_FORMATUTILSGL_H_

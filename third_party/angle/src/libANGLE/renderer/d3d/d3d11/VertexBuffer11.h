@@ -1,5 +1,5 @@
 //
-// Copyright 2012 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2012 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -12,7 +12,6 @@
 #include <stdint.h>
 
 #include "libANGLE/renderer/d3d/VertexBuffer.h"
-#include "libANGLE/renderer/d3d/d3d11/ResourceManager11.h"
 
 namespace rx
 {
@@ -23,37 +22,34 @@ class VertexBuffer11 : public VertexBuffer
   public:
     explicit VertexBuffer11(Renderer11 *const renderer);
 
-    angle::Result initialize(const gl::Context *context,
-                             unsigned int size,
-                             bool dynamicUsage) override;
+    gl::Error initialize(unsigned int size, bool dynamicUsage) override;
 
     // Warning: you should ensure binding really matches attrib.bindingIndex before using this
     // function.
-    angle::Result storeVertexAttributes(const gl::Context *context,
-                                        const gl::VertexAttribute &attrib,
-                                        const gl::VertexBinding &binding,
-                                        gl::VertexAttribType currentValueType,
-                                        GLint start,
-                                        size_t count,
-                                        GLsizei instances,
-                                        unsigned int offset,
-                                        const uint8_t *sourceData) override;
+    gl::Error storeVertexAttributes(const gl::VertexAttribute &attrib,
+                                    const gl::VertexBinding &binding,
+                                    GLenum currentValueType,
+                                    GLint start,
+                                    GLsizei count,
+                                    GLsizei instances,
+                                    unsigned int offset,
+                                    const uint8_t *sourceData) override;
 
     unsigned int getBufferSize() const override;
-    angle::Result setBufferSize(const gl::Context *context, unsigned int size) override;
-    angle::Result discard(const gl::Context *context) override;
+    gl::Error setBufferSize(unsigned int size) override;
+    gl::Error discard() override;
 
     void hintUnmapResource() override;
 
-    const d3d11::Buffer &getBuffer() const;
+    ID3D11Buffer *getBuffer() const;
 
   private:
     ~VertexBuffer11() override;
-    angle::Result mapResource(const gl::Context *context);
+    gl::Error mapResource();
 
     Renderer11 *const mRenderer;
 
-    d3d11::Buffer mBuffer;
+    ID3D11Buffer *mBuffer;
     unsigned int mBufferSize;
     bool mDynamicUsage;
 
@@ -62,4 +58,4 @@ class VertexBuffer11 : public VertexBuffer
 
 }  // namespace rx
 
-#endif  // LIBANGLE_RENDERER_D3D_D3D11_VERTEXBUFFER11_H_
+#endif // LIBANGLE_RENDERER_D3D_D3D11_VERTEXBUFFER11_H_

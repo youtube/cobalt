@@ -1,5 +1,5 @@
 //
-// Copyright 2016 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -28,7 +28,6 @@ namespace rx
 {
 
 class FramebufferGL;
-class RendererEGL;
 
 // TODO(fjhenigman) Implement swap control.  The following struct will be used for that.
 // State-tracking data for the swap control to allow DisplayOzone to remember per
@@ -76,19 +75,17 @@ class DisplayOzone final : public DisplayEGL
         bool initialize(int32_t width, int32_t height);
         void reset();
         bool resize(int32_t width, int32_t height);
-        GLuint createGLFB(const gl::Context *context);
-        FramebufferGL *framebufferGL(const gl::Context *context, const gl::FramebufferState &state);
-        void present(const gl::Context *context);
+        FramebufferGL *framebufferGL(const gl::FramebufferState &state);
+        void present();
         uint32_t getDRMFB();
         void bindTexImage();
         GLuint getTexture();
         int32_t getWidth() const { return mWidth; }
         int32_t getHeight() const { return mHeight; }
+        GLuint getGLFB() const { return mGLFB; }
         const NativeWindow *getNative() const { return mNative; }
 
       private:
-        bool createRenderbuffers();
-
         DisplayOzone *mDisplay;
         const NativeWindow *mNative;
         int mWidth;
@@ -106,6 +103,7 @@ class DisplayOzone final : public DisplayEGL
         EGLImageKHR mImage;
         GLuint mColorBuffer;
         GLuint mDSBuffer;
+        GLuint mGLFB;
         GLuint mTexture;
     };
 
@@ -128,27 +126,19 @@ class DisplayOzone final : public DisplayEGL
                                      NativePixmapType nativePixmap,
                                      const egl::AttributeMap &attribs) override;
 
-    ContextImpl *createContext(const gl::State &state,
-                               gl::ErrorSet *errorSet,
-                               const egl::Config *configuration,
-                               const gl::Context *shareContext,
-                               const egl::AttributeMap &attribs) override;
-
     egl::ConfigSet generateConfigs() override;
 
     bool testDeviceLost() override;
-    egl::Error restoreLostDevice(const egl::Display *display) override;
+    egl::Error restoreLostDevice() override;
 
     bool isValidNativeWindow(EGLNativeWindowType window) const override;
 
-    DeviceImpl *createDevice() override;
+    egl::Error getDevice(DeviceImpl **device) override;
 
-    egl::Error waitClient(const gl::Context *context) override;
-    egl::Error waitNative(const gl::Context *context, EGLint engine) override;
-
-    gl::Version getMaxSupportedESVersion() const override;
-
-    void destroyNativeContext(EGLContext context) override;
+    egl::Error waitClient() const override;
+    egl::Error waitNative(EGLint engine,
+                          egl::Surface *drawSurface,
+                          egl::Surface *readSurface) const override;
 
     // TODO(fjhenigman) Implement this.
     // Swap interval can be set globally or per drawable.
@@ -156,22 +146,11 @@ class DisplayOzone final : public DisplayEGL
     // one required so that the subsequent swapBuffers acts as expected.
     void setSwapInterval(EGLSurface drawable, SwapControlData *data);
 
-    WorkerContext *createWorkerContext(std::string *infoLog,
-                                       EGLContext sharedContext,
-                                       const native_egl::AttributeVector workerAttribs) override;
-
-    void initializeFrontendFeatures(angle::FrontendFeatures *features) const override;
-
-    void populateFeatureList(angle::FeatureList *features) override;
-
   private:
-    void generateExtensions(egl::DisplayExtensions *outExtensions) const override;
-
-    egl::Error makeCurrentSurfaceless(gl::Context *context) override;
-
     GLuint makeShader(GLuint type, const char *src);
-    void drawBuffer(const gl::Context *context, Buffer *buffer);
-    void drawWithTexture(const gl::Context *context, Buffer *buffer);
+    void drawBuffer(Buffer *buffer);
+    void drawWithBlit(Buffer *buffer);
+    void drawWithTexture(Buffer *buffer);
     void flushGL();
     bool hasUsableScreen(int fd);
     void presentScreen();
@@ -182,7 +161,18 @@ class DisplayOzone final : public DisplayEGL
                                 void *data);
     void pageFlipHandler(unsigned int sequence, uint64_t tv);
 
-    std::shared_ptr<RendererEGL> mRenderer;
+    // TODO(fjhenigman) Implement swap control.  The following stuff will be used for that.
+    enum class SwapControl
+    {
+        ABSENT,
+        EXT,
+        MESA,
+        SGI,
+    };
+    SwapControl mSwapControl;
+    int mMinSwapInterval;
+    int mMaxSwapInterval;
+    int mCurrentSwapInterval;
 
     gbm_device *mGBM;
     drmModeConnectorPtr mConnector;

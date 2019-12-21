@@ -16,31 +16,30 @@
 namespace rx
 {
 
-SurfaceNULL::SurfaceNULL(const egl::SurfaceState &surfaceState) : SurfaceImpl(surfaceState) {}
+SurfaceNULL::SurfaceNULL(const egl::SurfaceState &surfaceState) : SurfaceImpl(surfaceState)
+{
+}
 
-SurfaceNULL::~SurfaceNULL() {}
+SurfaceNULL::~SurfaceNULL()
+{
+}
 
-egl::Error SurfaceNULL::initialize(const egl::Display *display)
+egl::Error SurfaceNULL::initialize(const DisplayImpl *displayImpl)
 {
     return egl::NoError();
 }
 
-FramebufferImpl *SurfaceNULL::createDefaultFramebuffer(const gl::Context *context,
-                                                       const gl::FramebufferState &state)
+FramebufferImpl *SurfaceNULL::createDefaultFramebuffer(const gl::FramebufferState &state)
 {
     return new FramebufferNULL(state);
 }
 
-egl::Error SurfaceNULL::swap(const gl::Context *context)
+egl::Error SurfaceNULL::swap(const DisplayImpl *displayImpl)
 {
     return egl::NoError();
 }
 
-egl::Error SurfaceNULL::postSubBuffer(const gl::Context *context,
-                                      EGLint x,
-                                      EGLint y,
-                                      EGLint width,
-                                      EGLint height)
+egl::Error SurfaceNULL::postSubBuffer(EGLint x, EGLint y, EGLint width, EGLint height)
 {
     return egl::NoError();
 }
@@ -51,14 +50,12 @@ egl::Error SurfaceNULL::querySurfacePointerANGLE(EGLint attribute, void **value)
     return egl::NoError();
 }
 
-egl::Error SurfaceNULL::bindTexImage(const gl::Context *context,
-                                     gl::Texture *texture,
-                                     EGLint buffer)
+egl::Error SurfaceNULL::bindTexImage(gl::Texture *texture, EGLint buffer)
 {
     return egl::NoError();
 }
 
-egl::Error SurfaceNULL::releaseTexImage(const gl::Context *context, EGLint buffer)
+egl::Error SurfaceNULL::releaseTexImage(EGLint buffer)
 {
     return egl::NoError();
 }
@@ -66,10 +63,12 @@ egl::Error SurfaceNULL::releaseTexImage(const gl::Context *context, EGLint buffe
 egl::Error SurfaceNULL::getSyncValues(EGLuint64KHR *ust, EGLuint64KHR *msc, EGLuint64KHR *sbc)
 {
     UNIMPLEMENTED();
-    return egl::EglBadAccess();
+    return egl::Error(EGL_BAD_ACCESS);
 }
 
-void SurfaceNULL::setSwapInterval(EGLint interval) {}
+void SurfaceNULL::setSwapInterval(EGLint interval)
+{
+}
 
 EGLint SurfaceNULL::getWidth() const
 {
@@ -91,12 +90,6 @@ EGLint SurfaceNULL::isPostSubBufferSupported() const
 EGLint SurfaceNULL::getSwapBehavior() const
 {
     return EGL_BUFFER_PRESERVED;
-}
-
-angle::Result SurfaceNULL::initializeContents(const gl::Context *context,
-                                              const gl::ImageIndex &imageIndex)
-{
-    return angle::Result::Continue;
 }
 
 }  // namespace rx

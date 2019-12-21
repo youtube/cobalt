@@ -37,13 +37,12 @@ void CheckBlendFunctions(GLenum src, GLenum dst)
 constexpr const char *FloatingPointTextureExtensions[] = {
     "",
     "GL_EXT_texture_storage",
+    "GL_OES_texture_float",
+    "GL_OES_texture_float_linear",
     "GL_OES_texture_half_float",
     "GL_OES_texture_half_float_linear",
     "GL_EXT_color_buffer_half_float",
-    "GL_OES_texture_float",
-    "GL_OES_texture_float_linear",
     "GL_EXT_color_buffer_float",
-    "GL_EXT_float_blend",
     "GL_CHROMIUM_color_buffer_float_rgba",
     "GL_CHROMIUM_color_buffer_float_rgb",
 };
@@ -67,6 +66,13 @@ class WebGLCompatibilityTest : public ANGLETest
         setWebGLCompatibilityEnabled(true);
     }
 
+    void SetUp() override
+    {
+        ANGLETest::SetUp();
+        glRequestExtensionANGLE = reinterpret_cast<PFNGLREQUESTEXTENSIONANGLEPROC>(
+            eglGetProcAddress("glRequestExtensionANGLE"));
+    }
+
     template <typename T>
     void TestFloatTextureFormat(GLenum internalFormat,
                                 GLenum format,
@@ -79,47 +85,38 @@ class WebGLCompatibilityTest : public ANGLETest
     {
         ASSERT_GL_NO_ERROR();
 
-        constexpr char kVS[] =
-            R"(attribute vec4 position;
-varying vec2 texcoord;
-void main()
-{
-    gl_Position = vec4(position.xy, 0.0, 1.0);
-    texcoord = (position.xy * 0.5) + 0.5;
-})";
+        const std::string samplingVs =
+            "attribute vec4 position;\n"
+            "varying vec2 texcoord;\n"
+            "void main()\n"
+            "{\n"
+            "    gl_Position = vec4(position.xy, 0.0, 1.0);\n"
+            "    texcoord = (position.xy * 0.5) + 0.5;\n"
+            "}\n";
 
-        constexpr char kFS[] =
-            R"(precision mediump float;
-uniform sampler2D tex;
-uniform vec4 subtractor;
-varying vec2 texcoord;
-void main()
-{
-    vec4 color = texture2D(tex, texcoord);
-    if (abs(color.r - subtractor.r) +
-        abs(color.g - subtractor.g) +
-        abs(color.b - subtractor.b) +
-        abs(color.a - subtractor.a) < 8.0)
-    {
-        gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
-    }
-    else
-    {
-        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-    }
-})";
+        const std::string samplingFs =
+            "precision mediump float;\n"
+            "uniform sampler2D tex;\n"
+            "uniform vec4 subtractor;\n"
+            "varying vec2 texcoord;\n"
+            "void main()\n"
+            "{\n"
+            "    vec4 color = texture2D(tex, texcoord);\n"
+            "    if (abs(color.r - subtractor.r) +\n"
+            "        abs(color.g - subtractor.g) +\n"
+            "        abs(color.b - subtractor.b) +\n"
+            "        abs(color.a - subtractor.a) < 8.0)\n"
+            "    {\n"
+            "        gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);\n"
+            "    }\n"
+            "    else\n"
+            "    {\n"
+            "        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);\n"
+            "    }\n"
+            "}\n";
 
-        ANGLE_GL_PROGRAM(samplingProgram, kVS, kFS);
+        ANGLE_GL_PROGRAM(samplingProgram, samplingVs, samplingFs);
         glUseProgram(samplingProgram.get());
-
-        // Need RGBA8 renderbuffers for enough precision on the readback
-        if (IsGLExtensionRequestable("GL_OES_rgb8_rgba8"))
-        {
-            glRequestExtensionANGLE("GL_OES_rgb8_rgba8");
-        }
-        ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_OES_rgb8_rgba8") &&
-                           getClientMajorVersion() < 3);
-        ASSERT_GL_NO_ERROR();
 
         GLRenderbuffer rbo;
         glBindRenderbuffer(GL_RENDERBUFFER, rbo.get());
@@ -144,7 +141,7 @@ void main()
             }
             else
             {
-                ASSERT_TRUE(IsGLExtensionEnabled("GL_EXT_texture_storage"));
+                ASSERT_TRUE(extensionEnabled("GL_EXT_texture_storage"));
                 glTexStorage2DEXT(GL_TEXTURE_2D, 1, internalFormat, 1, 1);
             }
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1, 1, format, type, textureData);
@@ -192,73 +189,33 @@ void main()
                              glCheckFramebufferStatus(GL_FRAMEBUFFER));
             return;
         }
+        ASSERT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, glCheckFramebufferStatus(GL_FRAMEBUFFER));
 
-        GLenum framebufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-        if (framebufferStatus == GL_FRAMEBUFFER_UNSUPPORTED)
-        {
-            std::cout << "Framebuffer returned GL_FRAMEBUFFER_UNSUPPORTED, this is legal."
-                      << std::endl;
-            return;
-        }
-        ASSERT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, framebufferStatus);
+        const std::string renderingVs =
+            "attribute vec4 position;\n"
+            "void main()\n"
+            "{\n"
+            "    gl_Position = vec4(position.xy, 0.0, 1.0);\n"
+            "}\n";
 
-        ANGLE_GL_PROGRAM(renderingProgram, essl1_shaders::vs::Simple(),
-                         essl1_shaders::fs::UniformColor());
+        const std::string renderingFs =
+            "precision mediump float;\n"
+            "uniform vec4 writeValue;\n"
+            "void main()\n"
+            "{\n"
+            "   gl_FragColor = writeValue;\n"
+            "}\n";
+
+        ANGLE_GL_PROGRAM(renderingProgram, renderingVs, renderingFs);
         glUseProgram(renderingProgram.get());
 
-        glUniform4fv(glGetUniformLocation(renderingProgram.get(), essl1_shaders::ColorUniform()), 1,
-                     floatData);
+        glUniform4fv(glGetUniformLocation(renderingProgram.get(), "writeValue"), 1, floatData);
 
-        drawQuad(renderingProgram.get(), essl1_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+        drawQuad(renderingProgram.get(), "position", 0.5f, 1.0f, true);
 
         EXPECT_PIXEL_COLOR32F_NEAR(
             0, 0, GLColor32F(floatData[0], floatData[1], floatData[2], floatData[3]), 1.0f);
     }
-
-    void TestExtFloatBlend(bool shouldBlend)
-    {
-        constexpr char kVS[] =
-            R"(void main()
-{
-    gl_Position = vec4(0, 0, 0, 1);
-})";
-
-        constexpr char kFS[] =
-            R"(void main()
-{
-    gl_FragColor = vec4(0, 1, 0, 1);
-})";
-
-        ANGLE_GL_PROGRAM(program, kVS, kFS);
-        glUseProgram(program);
-
-        GLTexture texture;
-        glBindTexture(GL_TEXTURE_2D, texture);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 1, 1, 0, GL_RGBA, GL_FLOAT, nullptr);
-        EXPECT_GL_NO_ERROR();
-
-        GLFramebuffer fbo;
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
-        ASSERT_EGLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, glCheckFramebufferStatus(GL_FRAMEBUFFER));
-
-        glDisable(GL_BLEND);
-        glDrawArrays(GL_POINTS, 0, 1);
-        EXPECT_GL_NO_ERROR();
-
-        glEnable(GL_BLEND);
-        glDrawArrays(GL_POINTS, 0, 1);
-        if (shouldBlend)
-        {
-            EXPECT_GL_NO_ERROR();
-        }
-        else
-        {
-            EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-        }
-    }
-
-    void TestDifferentStencilMaskAndRef(GLenum errIfMismatch);
 
     // Called from RenderingFeedbackLoopWithDrawBuffersEXT.
     void drawBuffersEXTFeedbackLoop(GLuint program,
@@ -270,30 +227,24 @@ void main()
                                  const std::array<GLenum, 2> &drawBuffers,
                                  GLenum expectedError);
 
-    // Called from Enable[Compressed]TextureFormatExtensions
-    void validateTexImageExtensionFormat(GLenum format, const std::string &extName);
-    void validateCompressedTexImageExtensionFormat(GLenum format,
-                                                   GLsizei width,
-                                                   GLsizei height,
-                                                   GLsizei blockSize,
-                                                   const std::string &extName,
-                                                   bool subImageAllowed);
+    PFNGLREQUESTEXTENSIONANGLEPROC glRequestExtensionANGLE = nullptr;
 };
 
 class WebGL2CompatibilityTest : public WebGLCompatibilityTest
-{};
+{
+};
 
 // Context creation would fail if EGL_ANGLE_create_context_webgl_compatibility was not available so
 // the GL extension should always be present
 TEST_P(WebGLCompatibilityTest, ExtensionStringExposed)
 {
-    EXPECT_TRUE(IsGLExtensionEnabled("GL_ANGLE_webgl_compatibility"));
+    EXPECT_TRUE(extensionEnabled("GL_ANGLE_webgl_compatibility"));
 }
 
 // Verify that all extension entry points are available
 TEST_P(WebGLCompatibilityTest, EntryPoints)
 {
-    if (IsGLExtensionEnabled("GL_ANGLE_request_extension"))
+    if (extensionEnabled("GL_ANGLE_request_extension"))
     {
         EXPECT_NE(nullptr, eglGetProcAddress("glRequestExtensionANGLE"));
     }
@@ -331,7 +282,7 @@ TEST_P(WebGLCompatibilityTest, EnableExtensionUintIndices)
         return;
     }
 
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_OES_element_index_uint"));
+    EXPECT_FALSE(extensionEnabled("GL_OES_element_index_uint"));
 
     GLBuffer indexBuffer;
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer.get());
@@ -340,19 +291,19 @@ TEST_P(WebGLCompatibilityTest, EnableExtensionUintIndices)
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(data), data, GL_STATIC_DRAW);
 
     ANGLE_GL_PROGRAM(program, "void main() { gl_Position = vec4(0, 0, 0, 1); }",
-                     "void main() { gl_FragColor = vec4(0, 1, 0, 1); }");
+                     "void main() { gl_FragColor = vec4(0, 1, 0, 1); }")
     glUseProgram(program.get());
 
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+    glDrawElements(GL_TRIANGLES, 2, GL_UNSIGNED_INT, nullptr);
     EXPECT_GL_ERROR(GL_INVALID_ENUM);
 
-    if (IsGLExtensionRequestable("GL_OES_element_index_uint"))
+    if (extensionRequestable("GL_OES_element_index_uint"))
     {
         glRequestExtensionANGLE("GL_OES_element_index_uint");
         EXPECT_GL_NO_ERROR();
-        EXPECT_TRUE(IsGLExtensionEnabled("GL_OES_element_index_uint"));
+        EXPECT_TRUE(extensionEnabled("GL_OES_element_index_uint"));
 
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+        glDrawElements(GL_TRIANGLES, 2, GL_UNSIGNED_INT, nullptr);
         EXPECT_GL_NO_ERROR();
     }
 }
@@ -360,20 +311,20 @@ TEST_P(WebGLCompatibilityTest, EnableExtensionUintIndices)
 // Test enabling the GL_OES_standard_derivatives extension
 TEST_P(WebGLCompatibilityTest, EnableExtensionStandardDerivitives)
 {
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_OES_standard_derivatives"));
+    EXPECT_FALSE(extensionEnabled("GL_OES_standard_derivatives"));
 
-    constexpr char kFS[] =
-        R"(#extension GL_OES_standard_derivatives : require
-void main() { gl_FragColor = vec4(dFdx(vec2(1.0, 1.0)).x, 1, 0, 1); })";
-    ASSERT_EQ(0u, CompileShader(GL_FRAGMENT_SHADER, kFS));
+    const std::string source =
+        "#extension GL_OES_standard_derivatives : require\n"
+        "void main() { gl_FragColor = vec4(dFdx(vec2(1.0, 1.0)).x, 1, 0, 1); }\n";
+    ASSERT_EQ(0u, CompileShader(GL_FRAGMENT_SHADER, source));
 
-    if (IsGLExtensionRequestable("GL_OES_standard_derivatives"))
+    if (extensionRequestable("GL_OES_standard_derivatives"))
     {
         glRequestExtensionANGLE("GL_OES_standard_derivatives");
         EXPECT_GL_NO_ERROR();
-        EXPECT_TRUE(IsGLExtensionEnabled("GL_OES_standard_derivatives"));
+        EXPECT_TRUE(extensionEnabled("GL_OES_standard_derivatives"));
 
-        GLuint shader = CompileShader(GL_FRAGMENT_SHADER, kFS);
+        GLuint shader = CompileShader(GL_FRAGMENT_SHADER, source);
         ASSERT_NE(0u, shader);
         glDeleteShader(shader);
     }
@@ -382,24 +333,24 @@ void main() { gl_FragColor = vec4(dFdx(vec2(1.0, 1.0)).x, 1, 0, 1); })";
 // Test enabling the GL_EXT_shader_texture_lod extension
 TEST_P(WebGLCompatibilityTest, EnableExtensionTextureLOD)
 {
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_EXT_shader_texture_lod"));
+    EXPECT_FALSE(extensionEnabled("GL_EXT_shader_texture_lod"));
 
-    constexpr char kFS[] =
-        R"(#extension GL_EXT_shader_texture_lod : require
-uniform sampler2D u_texture;
-void main() {
-    gl_FragColor = texture2DGradEXT(u_texture, vec2(0.0, 0.0), vec2(0.0, 0.0), vec2(0.0,
-0.0));
-})";
-    ASSERT_EQ(0u, CompileShader(GL_FRAGMENT_SHADER, kFS));
+    const std::string source =
+        "#extension GL_EXT_shader_texture_lod : require\n"
+        "uniform sampler2D u_texture;\n"
+        "void main() {\n"
+        "    gl_FragColor = texture2DGradEXT(u_texture, vec2(0.0, 0.0), vec2(0.0, 0.0), vec2(0.0, "
+        "0.0));\n"
+        "}\n";
+    ASSERT_EQ(0u, CompileShader(GL_FRAGMENT_SHADER, source));
 
-    if (IsGLExtensionRequestable("GL_EXT_shader_texture_lod"))
+    if (extensionRequestable("GL_EXT_shader_texture_lod"))
     {
         glRequestExtensionANGLE("GL_EXT_shader_texture_lod");
         EXPECT_GL_NO_ERROR();
-        EXPECT_TRUE(IsGLExtensionEnabled("GL_EXT_shader_texture_lod"));
+        EXPECT_TRUE(extensionEnabled("GL_EXT_shader_texture_lod"));
 
-        GLuint shader = CompileShader(GL_FRAGMENT_SHADER, kFS);
+        GLuint shader = CompileShader(GL_FRAGMENT_SHADER, source);
         ASSERT_NE(0u, shader);
         glDeleteShader(shader);
     }
@@ -408,23 +359,23 @@ void main() {
 // Test enabling the GL_EXT_frag_depth extension
 TEST_P(WebGLCompatibilityTest, EnableExtensionFragDepth)
 {
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_EXT_frag_depth"));
+    EXPECT_FALSE(extensionEnabled("GL_EXT_frag_depth"));
 
-    constexpr char kFS[] =
-        R"(#extension GL_EXT_frag_depth : require
-void main() {
-    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-    gl_FragDepthEXT = 1.0;
-})";
-    ASSERT_EQ(0u, CompileShader(GL_FRAGMENT_SHADER, kFS));
+    const std::string source =
+        "#extension GL_EXT_frag_depth : require\n"
+        "void main() {\n"
+        "    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);\n"
+        "    gl_FragDepthEXT = 1.0;\n"
+        "}\n";
+    ASSERT_EQ(0u, CompileShader(GL_FRAGMENT_SHADER, source));
 
-    if (IsGLExtensionRequestable("GL_EXT_frag_depth"))
+    if (extensionRequestable("GL_EXT_frag_depth"))
     {
         glRequestExtensionANGLE("GL_EXT_frag_depth");
         EXPECT_GL_NO_ERROR();
-        EXPECT_TRUE(IsGLExtensionEnabled("GL_EXT_frag_depth"));
+        EXPECT_TRUE(extensionEnabled("GL_EXT_frag_depth"));
 
-        GLuint shader = CompileShader(GL_FRAGMENT_SHADER, kFS);
+        GLuint shader = CompileShader(GL_FRAGMENT_SHADER, source);
         ASSERT_NE(0u, shader);
         glDeleteShader(shader);
     }
@@ -433,7 +384,7 @@ void main() {
 // Test enabling the GL_EXT_texture_filter_anisotropic extension
 TEST_P(WebGLCompatibilityTest, EnableExtensionTextureFilterAnisotropic)
 {
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_EXT_texture_filter_anisotropic"));
+    EXPECT_FALSE(extensionEnabled("GL_EXT_texture_filter_anisotropic"));
 
     GLfloat maxAnisotropy = 0.0f;
     glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxAnisotropy);
@@ -450,11 +401,11 @@ TEST_P(WebGLCompatibilityTest, EnableExtensionTextureFilterAnisotropic)
     glGetTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, &currentAnisotropy);
     EXPECT_GL_ERROR(GL_INVALID_ENUM);
 
-    if (IsGLExtensionRequestable("GL_EXT_texture_filter_anisotropic"))
+    if (extensionRequestable("GL_EXT_texture_filter_anisotropic"))
     {
         glRequestExtensionANGLE("GL_EXT_texture_filter_anisotropic");
         EXPECT_GL_NO_ERROR();
-        EXPECT_TRUE(IsGLExtensionEnabled("GL_EXT_texture_filter_anisotropic"));
+        EXPECT_TRUE(extensionEnabled("GL_EXT_texture_filter_anisotropic"));
 
         glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxAnisotropy);
         ASSERT_GL_NO_ERROR();
@@ -469,754 +420,36 @@ TEST_P(WebGLCompatibilityTest, EnableExtensionTextureFilterAnisotropic)
     }
 }
 
-// Test enabling the EGL image extensions
-TEST_P(WebGLCompatibilityTest, EnableExtensionEGLImage)
-{
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_OES_EGL_image"));
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_OES_EGL_image_external"));
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_OES_EGL_image_external_essl3"));
-    EXPECT_FALSE(IsGLExtensionEnabled("NV_EGL_stream_consumer_external"));
-
-    constexpr char kFSES2[] =
-        R"(#extension GL_OES_EGL_image_external : require
-precision highp float;
-uniform samplerExternalOES sampler;
-void main()
-{
-    gl_FragColor = texture2D(sampler, vec2(0, 0));
-})";
-    EXPECT_EQ(0u, CompileShader(GL_FRAGMENT_SHADER, kFSES2));
-
-    constexpr char kFSES3[] =
-        R"(#version 300 es
-#extension GL_OES_EGL_image_external : require
-precision highp float;
-uniform samplerExternalOES sampler;
-void main()
-{
-    gl_FragColor = texture(sampler, vec2(0, 0));
-})";
-    if (getClientMajorVersion() > 3)
-    {
-        EXPECT_EQ(0u, CompileShader(GL_FRAGMENT_SHADER, kFSES3));
-    }
-
-    glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    GLint result;
-    glGetIntegerv(GL_TEXTURE_BINDING_EXTERNAL_OES, &result);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    if (IsGLExtensionRequestable("GL_OES_EGL_image_external"))
-    {
-        glRequestExtensionANGLE("GL_OES_EGL_image_external");
-        EXPECT_GL_NO_ERROR();
-        EXPECT_TRUE(IsGLExtensionEnabled("GL_OES_EGL_image_external"));
-
-        EXPECT_NE(0u, CompileShader(GL_FRAGMENT_SHADER, kFSES2));
-
-        glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
-        EXPECT_GL_NO_ERROR();
-
-        glGetIntegerv(GL_TEXTURE_BINDING_EXTERNAL_OES, &result);
-        EXPECT_GL_NO_ERROR();
-
-        if (getClientMajorVersion() > 3 &&
-            IsGLExtensionRequestable("GL_OES_EGL_image_external_essl3"))
-        {
-            glRequestExtensionANGLE("GL_OES_EGL_image_external_essl3");
-            EXPECT_GL_NO_ERROR();
-            EXPECT_TRUE(IsGLExtensionEnabled("GL_OES_EGL_image_external_essl3"));
-
-            EXPECT_NE(0u, CompileShader(GL_FRAGMENT_SHADER, kFSES3));
-        }
-        else
-        {
-            EXPECT_EQ(0u, CompileShader(GL_FRAGMENT_SHADER, kFSES3));
-        }
-    }
-}
-
 // Verify that shaders are of a compatible spec when the extension is enabled.
 TEST_P(WebGLCompatibilityTest, ExtensionCompilerSpec)
 {
-    EXPECT_TRUE(IsGLExtensionEnabled("GL_ANGLE_webgl_compatibility"));
+    EXPECT_TRUE(extensionEnabled("GL_ANGLE_webgl_compatibility"));
 
     // Use of reserved _webgl prefix should fail when the shader specification is for WebGL.
-    constexpr char kVS[] =
-        R"(struct Foo {
-    int _webgl_bar;
-};
-void main()
-{
-    Foo foo = Foo(1);
-})";
+    const std::string &vert =
+        "struct Foo {\n"
+        "    int _webgl_bar;\n"
+        "};\n"
+        "void main()\n"
+        "{\n"
+        "    Foo foo = Foo(1);\n"
+        "}";
 
     // Default fragement shader.
-    constexpr char kFS[] =
-        R"(void main()
-{
-    gl_FragColor = vec4(1.0,0.0,0.0,1.0);
-})";
+    const std::string &frag =
+        "void main()\n"
+        "{\n"
+        "    gl_FragColor = vec4(1.0,0.0,0.0,1.0);\n"
+        "}";
 
-    GLuint program = CompileProgram(kVS, kFS);
+    GLuint program = CompileProgram(vert, frag);
     EXPECT_EQ(0u, program);
     glDeleteProgram(program);
 }
 
-// Test enabling the GL_NV_pixel_buffer_object extension
-TEST_P(WebGLCompatibilityTest, EnablePixelBufferObjectExtensions)
-{
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_NV_pixel_buffer_object"));
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_OES_mapbuffer"));
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_EXT_map_buffer_range"));
-
-    // These extensions become core in in ES3/WebGL2.
-    ANGLE_SKIP_TEST_IF(getClientMajorVersion() >= 3);
-
-    GLBuffer buffer;
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, buffer);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    if (IsGLExtensionRequestable("GL_NV_pixel_buffer_object"))
-    {
-        glRequestExtensionANGLE("GL_NV_pixel_buffer_object");
-        EXPECT_GL_NO_ERROR();
-
-        // Create a framebuffer to read from
-        GLRenderbuffer renderbuffer;
-        glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA4, 1, 1);
-
-        GLFramebuffer fbo;
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER,
-                                  renderbuffer);
-        EXPECT_GL_NO_ERROR();
-
-        glBindBuffer(GL_PIXEL_PACK_BUFFER, buffer);
-        EXPECT_GL_NO_ERROR();
-
-        glBufferData(GL_PIXEL_PACK_BUFFER, 4, nullptr, GL_STATIC_DRAW);
-        glReadPixels(0, 0, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-        EXPECT_GL_NO_ERROR();
-    }
-}
-
-// Test enabling the GL_EXT_texture_storage extension
-TEST_P(WebGLCompatibilityTest, EnableTextureStorage)
-{
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_EXT_texture_storage"));
-
-    GLTexture texture;
-    glBindTexture(GL_TEXTURE_2D, texture);
-
-    GLint result;
-    glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_IMMUTABLE_FORMAT, &result);
-    if (getClientMajorVersion() >= 3)
-    {
-        EXPECT_GL_NO_ERROR();
-    }
-    else
-    {
-        EXPECT_GL_ERROR(GL_INVALID_ENUM);
-    }
-
-    if (IsGLExtensionRequestable("GL_EXT_texture_storage"))
-    {
-        glRequestExtensionANGLE("GL_EXT_texture_storage");
-        EXPECT_GL_NO_ERROR();
-        EXPECT_TRUE(IsGLExtensionEnabled("GL_EXT_texture_storage"));
-
-        glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_IMMUTABLE_FORMAT, &result);
-        EXPECT_GL_NO_ERROR();
-
-        const GLenum alwaysAcceptableFormats[] = {
-            GL_ALPHA8_EXT,
-            GL_LUMINANCE8_EXT,
-            GL_LUMINANCE8_ALPHA8_EXT,
-        };
-        for (const auto &acceptableFormat : alwaysAcceptableFormats)
-        {
-            GLTexture localTexture;
-            glBindTexture(GL_TEXTURE_2D, localTexture);
-            glTexStorage2DEXT(GL_TEXTURE_2D, 1, acceptableFormat, 1, 1);
-            EXPECT_GL_NO_ERROR();
-        }
-    }
-}
-
-// Test enabling the GL_OES_mapbuffer and GL_EXT_map_buffer_range extensions
-TEST_P(WebGLCompatibilityTest, EnableMapBufferExtensions)
-{
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_OES_mapbuffer"));
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_EXT_map_buffer_range"));
-
-    // These extensions become core in in ES3/WebGL2.
-    ANGLE_SKIP_TEST_IF(getClientMajorVersion() >= 3);
-
-    GLBuffer buffer;
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 4, nullptr, GL_STATIC_DRAW);
-
-    glMapBufferOES(GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY_OES);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    glMapBufferRangeEXT(GL_ELEMENT_ARRAY_BUFFER, 0, 4, GL_MAP_WRITE_BIT);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    GLint access = 0;
-    glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_ACCESS_OES, &access);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    if (IsGLExtensionRequestable("GL_OES_mapbuffer"))
-    {
-        glRequestExtensionANGLE("GL_OES_mapbuffer");
-        EXPECT_GL_NO_ERROR();
-
-        glMapBufferOES(GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY_OES);
-        glUnmapBufferOES(GL_ELEMENT_ARRAY_BUFFER);
-        glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_ACCESS_OES, &access);
-        EXPECT_GL_NO_ERROR();
-    }
-
-    if (IsGLExtensionRequestable("GL_EXT_map_buffer_range"))
-    {
-        glRequestExtensionANGLE("GL_EXT_map_buffer_range");
-        EXPECT_GL_NO_ERROR();
-
-        glMapBufferRangeEXT(GL_ELEMENT_ARRAY_BUFFER, 0, 4, GL_MAP_WRITE_BIT);
-        glUnmapBufferOES(GL_ELEMENT_ARRAY_BUFFER);
-        glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_ACCESS_OES, &access);
-        EXPECT_GL_NO_ERROR();
-    }
-}
-
-// Test enabling the GL_OES_fbo_render_mipmap extension
-TEST_P(WebGLCompatibilityTest, EnableRenderMipmapExtension)
-{
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_OES_fbo_render_mipmap"));
-
-    // This extensions become core in in ES3/WebGL2.
-    ANGLE_SKIP_TEST_IF(getClientMajorVersion() >= 3);
-
-    GLTexture texture;
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 2, 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    glTexImage2D(GL_TEXTURE_2D, 1, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-
-    GLFramebuffer fbo;
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
-    EXPECT_GL_NO_ERROR();
-
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 1);
-    EXPECT_GL_ERROR(GL_INVALID_VALUE);
-
-    if (IsGLExtensionRequestable("GL_OES_fbo_render_mipmap"))
-    {
-        glRequestExtensionANGLE("GL_OES_fbo_render_mipmap");
-        EXPECT_GL_NO_ERROR();
-
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 1);
-        EXPECT_GL_NO_ERROR();
-    }
-}
-
-// Test enabling the GL_EXT_blend_minmax extension
-TEST_P(WebGLCompatibilityTest, EnableBlendMinMaxExtension)
-{
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_EXT_blend_minmax"));
-
-    // This extensions become core in in ES3/WebGL2.
-    ANGLE_SKIP_TEST_IF(getClientMajorVersion() >= 3);
-
-    glBlendEquation(GL_MIN);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    glBlendEquation(GL_MAX);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    if (IsGLExtensionRequestable("GL_EXT_blend_minmax"))
-    {
-        glRequestExtensionANGLE("GL_EXT_blend_minmax");
-        EXPECT_GL_NO_ERROR();
-
-        glBlendEquation(GL_MIN);
-        glBlendEquation(GL_MAX);
-        EXPECT_GL_NO_ERROR();
-    }
-}
-
-// Test enabling the query extensions
-TEST_P(WebGLCompatibilityTest, EnableQueryExtensions)
-{
-    // Seems to be causing a device lost. http://anglebug.com/2423
-    ANGLE_SKIP_TEST_IF(IsAMD() && IsWindows() && IsOpenGL());
-
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_EXT_occlusion_query_boolean"));
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_EXT_disjoint_timer_query"));
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_CHROMIUM_sync_query"));
-
-    // This extensions become core in in ES3/WebGL2.
-    ANGLE_SKIP_TEST_IF(getClientMajorVersion() >= 3);
-
-    GLQueryEXT badQuery;
-
-    glBeginQueryEXT(GL_ANY_SAMPLES_PASSED_EXT, badQuery);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    glBeginQueryEXT(GL_ANY_SAMPLES_PASSED_CONSERVATIVE, badQuery);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    glBeginQueryEXT(GL_TIME_ELAPSED_EXT, badQuery);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    glQueryCounterEXT(GL_TIMESTAMP_EXT, badQuery);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    glBeginQueryEXT(GL_COMMANDS_COMPLETED_CHROMIUM, badQuery);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    if (IsGLExtensionRequestable("GL_EXT_occlusion_query_boolean"))
-    {
-        glRequestExtensionANGLE("GL_EXT_occlusion_query_boolean");
-        EXPECT_GL_NO_ERROR();
-
-        GLQueryEXT query;
-        glBeginQueryEXT(GL_ANY_SAMPLES_PASSED_EXT, query);
-        glEndQueryEXT(GL_ANY_SAMPLES_PASSED_EXT);
-        EXPECT_GL_NO_ERROR();
-    }
-
-    if (IsGLExtensionRequestable("GL_EXT_disjoint_timer_query"))
-    {
-        glRequestExtensionANGLE("GL_EXT_disjoint_timer_query");
-        EXPECT_GL_NO_ERROR();
-
-        GLQueryEXT query1;
-        glBeginQueryEXT(GL_TIME_ELAPSED_EXT, query1);
-        glEndQueryEXT(GL_TIME_ELAPSED_EXT);
-        EXPECT_GL_NO_ERROR();
-
-        GLQueryEXT query2;
-        glQueryCounterEXT(query2, GL_TIMESTAMP_EXT);
-        EXPECT_GL_NO_ERROR();
-    }
-
-    if (IsGLExtensionRequestable("GL_CHROMIUM_sync_query"))
-    {
-        glRequestExtensionANGLE("GL_CHROMIUM_sync_query");
-        EXPECT_GL_NO_ERROR();
-
-        GLQueryEXT query;
-        glBeginQueryEXT(GL_COMMANDS_COMPLETED_CHROMIUM, query);
-        glEndQueryEXT(GL_COMMANDS_COMPLETED_CHROMIUM);
-        EXPECT_GL_NO_ERROR();
-    }
-}
-
-// Test enabling the GL_ANGLE_framebuffer_multisample extension
-TEST_P(WebGLCompatibilityTest, EnableFramebufferMultisampleExtension)
-{
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_ANGLE_framebuffer_multisample"));
-
-    // This extensions become core in in ES3/WebGL2.
-    ANGLE_SKIP_TEST_IF(getClientMajorVersion() >= 3);
-
-    GLint maxSamples = 0;
-    glGetIntegerv(GL_MAX_SAMPLES, &maxSamples);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    GLRenderbuffer renderbuffer;
-    glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer);
-    glRenderbufferStorageMultisampleANGLE(GL_RENDERBUFFER, 1, GL_RGBA4, 1, 1);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    if (IsGLExtensionRequestable("GL_ANGLE_framebuffer_multisample"))
-    {
-        glRequestExtensionANGLE("GL_ANGLE_framebuffer_multisample");
-        EXPECT_GL_NO_ERROR();
-
-        glGetIntegerv(GL_MAX_SAMPLES, &maxSamples);
-        EXPECT_GL_NO_ERROR();
-
-        glRenderbufferStorageMultisampleANGLE(GL_RENDERBUFFER, maxSamples, GL_RGBA4, 1, 1);
-        EXPECT_GL_NO_ERROR();
-    }
-}
-
-// Test enabling the GL_ANGLE_instanced_arrays extension
-TEST_P(WebGLCompatibilityTest, EnableInstancedArraysExtensionANGLE)
-{
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_ANGLE_instanced_arrays"));
-
-    // This extensions become core in in ES3/WebGL2.
-    ANGLE_SKIP_TEST_IF(getClientMajorVersion() >= 3);
-
-    GLint divisor = 0;
-    glGetVertexAttribiv(0, GL_VERTEX_ATTRIB_ARRAY_DIVISOR, &divisor);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    glVertexAttribDivisorANGLE(0, 1);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    if (IsGLExtensionRequestable("GL_ANGLE_instanced_arrays"))
-    {
-        glRequestExtensionANGLE("GL_ANGLE_instanced_arrays");
-        EXPECT_GL_NO_ERROR();
-
-        glGetVertexAttribiv(0, GL_VERTEX_ATTRIB_ARRAY_DIVISOR, &divisor);
-        glVertexAttribDivisorANGLE(0, 1);
-        EXPECT_GL_NO_ERROR();
-    }
-}
-
-// Test enabling the GL_EXT_instanced_arrays extension
-TEST_P(WebGLCompatibilityTest, EnableInstancedArraysExtensionEXT)
-{
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_EXT_instanced_arrays"));
-
-    // This extensions become core in in ES3/WebGL2.
-    ANGLE_SKIP_TEST_IF(getClientMajorVersion() >= 3);
-
-    GLint divisor = 0;
-    glGetVertexAttribiv(0, GL_VERTEX_ATTRIB_ARRAY_DIVISOR, &divisor);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    glVertexAttribDivisorEXT(0, 1);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    if (IsGLExtensionRequestable("GL_EXT_instanced_arrays"))
-    {
-        glRequestExtensionANGLE("GL_EXT_instanced_arrays");
-        EXPECT_GL_NO_ERROR();
-
-        glGetVertexAttribiv(0, GL_VERTEX_ATTRIB_ARRAY_DIVISOR, &divisor);
-        glVertexAttribDivisorEXT(0, 1);
-        EXPECT_GL_NO_ERROR();
-    }
-}
-
-// Test enabling the GL_ANGLE_pack_reverse_row_order extension
-TEST_P(WebGLCompatibilityTest, EnablePackReverseRowOrderExtension)
-{
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_ANGLE_pack_reverse_row_order"));
-
-    GLint result = 0;
-    glGetIntegerv(GL_PACK_REVERSE_ROW_ORDER_ANGLE, &result);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    glPixelStorei(GL_PACK_REVERSE_ROW_ORDER_ANGLE, GL_TRUE);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    if (IsGLExtensionRequestable("GL_ANGLE_pack_reverse_row_order"))
-    {
-        glRequestExtensionANGLE("GL_ANGLE_pack_reverse_row_order");
-        EXPECT_GL_NO_ERROR();
-
-        glGetIntegerv(GL_PACK_REVERSE_ROW_ORDER_ANGLE, &result);
-        glPixelStorei(GL_PACK_REVERSE_ROW_ORDER_ANGLE, GL_TRUE);
-        EXPECT_GL_NO_ERROR();
-    }
-}
-
-// Test enabling the GL_EXT_unpack_subimage extension
-TEST_P(WebGLCompatibilityTest, EnablePackUnpackSubImageExtension)
-{
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_EXT_unpack_subimage"));
-
-    // This extensions become core in in ES3/WebGL2.
-    ANGLE_SKIP_TEST_IF(getClientMajorVersion() >= 3);
-
-    constexpr GLenum parameters[] = {
-        GL_UNPACK_ROW_LENGTH_EXT,
-        GL_UNPACK_SKIP_ROWS_EXT,
-        GL_UNPACK_SKIP_PIXELS_EXT,
-    };
-
-    for (GLenum param : parameters)
-    {
-        GLint resultI = 0;
-        glGetIntegerv(param, &resultI);
-        EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-        GLfloat resultF = 0.0f;
-        glGetFloatv(param, &resultF);
-        EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-        glPixelStorei(param, 0);
-        EXPECT_GL_ERROR(GL_INVALID_ENUM);
-    }
-
-    if (IsGLExtensionRequestable("GL_EXT_unpack_subimage"))
-    {
-        glRequestExtensionANGLE("GL_EXT_unpack_subimage");
-        EXPECT_GL_NO_ERROR();
-
-        for (GLenum param : parameters)
-        {
-            GLint resultI = 0;
-            glGetIntegerv(param, &resultI);
-
-            GLfloat resultF = 0.0f;
-            glGetFloatv(param, &resultF);
-
-            glPixelStorei(param, 0);
-
-            EXPECT_GL_NO_ERROR();
-        }
-    }
-}
-
-TEST_P(WebGLCompatibilityTest, EnableTextureRectangle)
-{
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_ANGLE_texture_rectangle"));
-
-    GLTexture texture;
-    glBindTexture(GL_TEXTURE_RECTANGLE_ANGLE, texture);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    GLint minFilter = 0;
-    glGetTexParameteriv(GL_TEXTURE_RECTANGLE_ANGLE, GL_TEXTURE_MIN_FILTER, &minFilter);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    if (IsGLExtensionRequestable("GL_ANGLE_texture_rectangle"))
-    {
-        glRequestExtensionANGLE("GL_ANGLE_texture_rectangle");
-        EXPECT_GL_NO_ERROR();
-
-        EXPECT_TRUE(IsGLExtensionEnabled("GL_ANGLE_texture_rectangle"));
-
-        glBindTexture(GL_TEXTURE_RECTANGLE_ANGLE, texture);
-        EXPECT_GL_NO_ERROR();
-
-        glTexImage2D(GL_TEXTURE_RECTANGLE_ANGLE, 0, GL_RGBA, 16, 16, 0, GL_RGBA, GL_UNSIGNED_BYTE,
-                     nullptr);
-        EXPECT_GL_NO_ERROR();
-
-        glDisableExtensionANGLE("GL_ANGLE_texture_rectangle");
-        EXPECT_GL_NO_ERROR();
-
-        EXPECT_FALSE(IsGLExtensionEnabled("GL_ANGLE_texture_rectangle"));
-
-        glBindTexture(GL_TEXTURE_RECTANGLE_ANGLE, texture);
-        EXPECT_GL_ERROR(GL_INVALID_ENUM);
-    }
-}
-
-// Test enabling the GL_NV_pack_subimage extension
-TEST_P(WebGLCompatibilityTest, EnablePackPackSubImageExtension)
-{
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_NV_pack_subimage"));
-
-    // This extensions become core in in ES3/WebGL2.
-    ANGLE_SKIP_TEST_IF(getClientMajorVersion() >= 3);
-
-    constexpr GLenum parameters[] = {
-        GL_PACK_ROW_LENGTH,
-        GL_PACK_SKIP_ROWS,
-        GL_PACK_SKIP_PIXELS,
-    };
-
-    for (GLenum param : parameters)
-    {
-        GLint resultI = 0;
-        glGetIntegerv(param, &resultI);
-        EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-        GLfloat resultF = 0.0f;
-        glGetFloatv(param, &resultF);
-        EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-        glPixelStorei(param, 0);
-        EXPECT_GL_ERROR(GL_INVALID_ENUM);
-    }
-
-    if (IsGLExtensionRequestable("GL_NV_pack_subimage"))
-    {
-        glRequestExtensionANGLE("GL_NV_pack_subimage");
-        EXPECT_GL_NO_ERROR();
-
-        for (GLenum param : parameters)
-        {
-            GLint resultI = 0;
-            glGetIntegerv(param, &resultI);
-
-            GLfloat resultF = 0.0f;
-            glGetFloatv(param, &resultF);
-
-            glPixelStorei(param, 0);
-
-            EXPECT_GL_NO_ERROR();
-        }
-    }
-}
-
-TEST_P(WebGLCompatibilityTest, EnableRGB8RGBA8Extension)
-{
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_OES_rgb8_rgba8"));
-
-    // This extensions become core in in ES3/WebGL2.
-    ANGLE_SKIP_TEST_IF(getClientMajorVersion() >= 3);
-
-    GLRenderbuffer renderbuffer;
-    glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer);
-    EXPECT_GL_NO_ERROR();
-
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGB8_OES, 1, 1);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8_OES, 1, 1);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    if (IsGLExtensionRequestable("GL_OES_rgb8_rgba8"))
-    {
-        glRequestExtensionANGLE("GL_OES_rgb8_rgba8");
-        EXPECT_GL_NO_ERROR();
-
-        EXPECT_TRUE(IsGLExtensionEnabled("GL_OES_rgb8_rgba8"));
-
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_RGB8_OES, 1, 1);
-        EXPECT_GL_NO_ERROR();
-
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8_OES, 1, 1);
-        EXPECT_GL_NO_ERROR();
-    }
-}
-
-// Test enabling the GL_ANGLE_framebuffer_blit extension
-TEST_P(WebGLCompatibilityTest, EnableFramebufferBlitExtension)
-{
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_ANGLE_framebuffer_blit"));
-
-    // This extensions become core in in ES3/WebGL2.
-    ANGLE_SKIP_TEST_IF(getClientMajorVersion() >= 3);
-
-    GLFramebuffer fbo;
-
-    glBindFramebuffer(GL_READ_FRAMEBUFFER_ANGLE, fbo);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    GLint result;
-    glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING_ANGLE, &result);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    glBlitFramebufferANGLE(0, 0, 1, 1, 0, 0, 1, 1, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    if (IsGLExtensionRequestable("GL_ANGLE_framebuffer_blit"))
-    {
-        glRequestExtensionANGLE("GL_ANGLE_framebuffer_blit");
-        EXPECT_GL_NO_ERROR();
-
-        glBindFramebuffer(GL_READ_FRAMEBUFFER_ANGLE, fbo);
-        glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING_ANGLE, &result);
-        EXPECT_GL_NO_ERROR();
-    }
-}
-
-// Test enabling the GL_OES_get_program_binary extension
-TEST_P(WebGLCompatibilityTest, EnableProgramBinaryExtension)
-{
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_OES_get_program_binary"));
-
-    // This extensions become core in in ES3/WebGL2.
-    ANGLE_SKIP_TEST_IF(getClientMajorVersion() >= 3);
-
-    GLint result = 0;
-    glGetIntegerv(GL_NUM_PROGRAM_BINARY_FORMATS, &result);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    glGetIntegerv(GL_PROGRAM_BINARY_FORMATS, &result);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    constexpr char kVS[] =
-        R"(void main()
-{
-    gl_Position = vec4(0.0, 0.0, 0.0, 1.0);
-})";
-    constexpr char kFS[] =
-        R"(precision highp float;
-void main()
-{
-    gl_FragColor = vec4(1.0);
-})";
-    ANGLE_GL_PROGRAM(program, kVS, kFS);
-
-    glGetProgramiv(program, GL_PROGRAM_BINARY_LENGTH, &result);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    uint8_t tempArray[512];
-    GLenum tempFormat  = 0;
-    GLsizei tempLength = 0;
-    glGetProgramBinaryOES(program, static_cast<GLsizei>(ArraySize(tempArray)), &tempLength,
-                          &tempFormat, tempArray);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    if (IsGLExtensionRequestable("GL_OES_get_program_binary"))
-    {
-        glRequestExtensionANGLE("GL_OES_get_program_binary");
-        EXPECT_GL_NO_ERROR();
-
-        glGetIntegerv(GL_NUM_PROGRAM_BINARY_FORMATS, &result);
-        glGetIntegerv(GL_PROGRAM_BINARY_FORMATS, &result);
-        EXPECT_GL_NO_ERROR();
-
-        GLint binaryLength = 0;
-        glGetProgramiv(program, GL_PROGRAM_BINARY_LENGTH, &binaryLength);
-        EXPECT_GL_NO_ERROR();
-
-        GLenum binaryFormat;
-        GLsizei writeLength = 0;
-        std::vector<uint8_t> binary(binaryLength);
-        glGetProgramBinaryOES(program, binaryLength, &writeLength, &binaryFormat, binary.data());
-        EXPECT_GL_NO_ERROR();
-
-        glProgramBinaryOES(program, binaryFormat, binary.data(), binaryLength);
-        EXPECT_GL_NO_ERROR();
-    }
-}
-
-// Test enabling the GL_OES_vertex_array_object extension
-TEST_P(WebGLCompatibilityTest, EnableVertexArrayExtension)
-{
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_OES_vertex_array_object"));
-
-    // This extensions become core in in ES3/WebGL2.
-    ANGLE_SKIP_TEST_IF(getClientMajorVersion() >= 3);
-
-    GLint result = 0;
-    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &result);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    // Expect that GL_OES_vertex_array_object is always available.  It is implemented in the GL
-    // frontend.
-    EXPECT_TRUE(IsGLExtensionRequestable("GL_OES_vertex_array_object"));
-
-    glRequestExtensionANGLE("GL_OES_vertex_array_object");
-    EXPECT_GL_NO_ERROR();
-
-    EXPECT_TRUE(IsGLExtensionEnabled("GL_OES_vertex_array_object"));
-
-    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &result);
-    EXPECT_GL_NO_ERROR();
-
-    GLuint vao = 0;
-    glGenVertexArraysOES(0, &vao);
-    EXPECT_GL_NO_ERROR();
-
-    glBindVertexArrayOES(vao);
-    EXPECT_GL_NO_ERROR();
-
-    glDeleteVertexArraysOES(1, &vao);
-    EXPECT_GL_NO_ERROR();
-}
-
 // Verify that the context generates the correct error when the framebuffer attachments are
 // different sizes
-TEST_P(WebGLCompatibilityTest, FramebufferAttachmentSizeMismatch)
+TEST_P(WebGLCompatibilityTest, FramebufferAttachmentSizeMissmatch)
 {
     GLFramebuffer fbo;
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
@@ -1238,11 +471,11 @@ TEST_P(WebGLCompatibilityTest, FramebufferAttachmentSizeMismatch)
     ASSERT_GLENUM_EQ(GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS,
                      glCheckFramebufferStatus(GL_FRAMEBUFFER));
 
-    if (IsGLExtensionRequestable("GL_EXT_draw_buffers"))
+    if (extensionRequestable("GL_EXT_draw_buffers"))
     {
         glRequestExtensionANGLE("GL_EXT_draw_buffers");
         EXPECT_GL_NO_ERROR();
-        EXPECT_TRUE(IsGLExtensionEnabled("GL_EXT_draw_buffers"));
+        EXPECT_TRUE(extensionEnabled("GL_EXT_draw_buffers"));
 
         glBindTexture(GL_TEXTURE_2D, textures[1]);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 2, 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
@@ -1269,21 +502,21 @@ TEST_P(WebGLCompatibilityTest, FramebufferAttachmentSizeMismatch)
 // Test that client-side array buffers are forbidden in WebGL mode
 TEST_P(WebGLCompatibilityTest, ForbidsClientSideArrayBuffer)
 {
-    constexpr char kVS[] =
-        R"(attribute vec3 a_pos;
-void main()
-{
-    gl_Position = vec4(a_pos, 1.0);
-})";
+    const std::string &vert =
+        "attribute vec3 a_pos;\n"
+        "void main()\n"
+        "{\n"
+        "    gl_Position = vec4(a_pos, 1.0);\n"
+        "}\n";
 
-    constexpr char kFS[] =
-        R"(precision highp float;
-void main()
-{
-    gl_FragColor = vec4(1.0);
-})";
+    const std::string &frag =
+        "precision highp float;\n"
+        "void main()\n"
+        "{\n"
+        "    gl_FragColor = vec4(1.0);\n"
+        "}\n";
 
-    ANGLE_GL_PROGRAM(program, kVS, kFS);
+    ANGLE_GL_PROGRAM(program, vert, frag);
 
     GLint posLocation = glGetAttribLocation(program.get(), "a_pos");
     ASSERT_NE(-1, posLocation);
@@ -1301,21 +534,21 @@ void main()
 // Test that client-side element array buffers are forbidden in WebGL mode
 TEST_P(WebGLCompatibilityTest, ForbidsClientSideElementBuffer)
 {
-    constexpr char kVS[] =
-        R"(attribute vec3 a_pos;
-void main()
-{
-    gl_Position = vec4(a_pos, 1.0);
-})";
+    const std::string &vert =
+        "attribute vec3 a_pos;\n"
+        "void main()\n"
+        "{\n"
+        "    gl_Position = vec4(a_pos, 1.0);\n"
+        "}\n";
 
-    constexpr char kFS[] =
-        R"(precision highp float;
-void main()
-{
-    gl_FragColor = vec4(1.0);
-})";
+    const std::string &frag =
+        "precision highp float;\n"
+        "void main()\n"
+        "{\n"
+        "    gl_FragColor = vec4(1.0);\n"
+        "}\n";
 
-    ANGLE_GL_PROGRAM(program, kVS, kFS);
+    ANGLE_GL_PROGRAM(program, vert, frag);
 
     GLint posLocation = glGetAttribLocation(program.get(), "a_pos");
     ASSERT_NE(-1, posLocation);
@@ -1336,83 +569,12 @@ void main()
     // Use the pointer with value of 1 for indices instead of an actual pointer because WebGL also
     // enforces that the top bit of indices must be 0 (i.e. offset >= 0) and would generate
     // GL_INVALID_VALUE in that case. Using a null pointer gets caught by another check.
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, reinterpret_cast<const void *>(intptr_t(1)));
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, reinterpret_cast<const void*>(intptr_t(1)));
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 }
 
-// Test that client-side array buffers are forbidden even if the program doesn't use the attribute
-TEST_P(WebGLCompatibilityTest, ForbidsClientSideArrayBufferEvenNotUsedOnes)
-{
-    constexpr char kVS[] =
-        R"(void main()
-{
-    gl_Position = vec4(1.0);
-})";
-
-    constexpr char kFS[] =
-        R"(precision highp float;
-void main()
-{
-    gl_FragColor = vec4(1.0);
-})";
-
-    ANGLE_GL_PROGRAM(program, kVS, kFS);
-
-    glUseProgram(program.get());
-
-    const auto &vertices = GetQuadVertices();
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 4, vertices.data());
-    glEnableVertexAttribArray(0);
-
-    ASSERT_GL_NO_ERROR();
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-}
-
-// Test that passing a null pixel data pointer to TexSubImage calls generates an INVALID_VALUE error
-TEST_P(WebGLCompatibilityTest, NullPixelDataForSubImage)
-{
-    // glTexSubImage2D
-    {
-        GLTexture texture;
-        glBindTexture(GL_TEXTURE_2D, texture);
-
-        // TexImage with null data - OK
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-        EXPECT_GL_NO_ERROR();
-
-        // TexSubImage with zero size and null data - OK
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-        EXPECT_GL_NO_ERROR();
-
-        // TexSubImage with non-zero size and null data - Invalid value
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-        EXPECT_GL_ERROR(GL_INVALID_VALUE);
-    }
-
-    // glTexSubImage3D
-    if (getClientMajorVersion() >= 3)
-    {
-        GLTexture texture;
-        glBindTexture(GL_TEXTURE_3D, texture);
-
-        // TexImage with null data - OK
-        glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA, 1, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-        EXPECT_GL_NO_ERROR();
-
-        // TexSubImage with zero size and null data - OK
-        glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0, 0, 0, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-        EXPECT_GL_NO_ERROR();
-
-        // TexSubImage with non-zero size and null data - Invalid value
-        glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0, 1, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-        EXPECT_GL_ERROR(GL_INVALID_VALUE);
-    }
-}
-
-// Tests the WebGL requirement of having the same stencil mask, writemask and ref for front and back
-// (when stencil testing is enabled)
-void WebGLCompatibilityTest::TestDifferentStencilMaskAndRef(GLenum errIfMismatch)
+// Tests the WebGL requirement of having the same stencil mask, writemask and ref for fron and back
+TEST_P(WebGLCompatibilityTest, RequiresSameStencilMaskAndRef)
 {
     // Run the test in an FBO to make sure we have some stencil bits.
     GLRenderbuffer renderbuffer;
@@ -1425,7 +587,7 @@ void WebGLCompatibilityTest::TestDifferentStencilMaskAndRef(GLenum errIfMismatch
                               renderbuffer.get());
 
     ANGLE_GL_PROGRAM(program, "void main() { gl_Position = vec4(0, 0, 0, 1); }",
-                     "void main() { gl_FragColor = vec4(0, 1, 0, 1); }");
+                     "void main() { gl_FragColor = vec4(0, 1, 0, 1); }")
     glUseProgram(program.get());
     ASSERT_GL_NO_ERROR();
 
@@ -1438,7 +600,7 @@ void WebGLCompatibilityTest::TestDifferentStencilMaskAndRef(GLenum errIfMismatch
     // Having a different front - back write mask generates an error.
     glStencilMaskSeparate(GL_FRONT, 1);
     glDrawArrays(GL_TRIANGLES, 0, 6);
-    EXPECT_GL_ERROR(errIfMismatch);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 
     // Setting both write masks separately to the same value is valid.
     glStencilMaskSeparate(GL_BACK, 1);
@@ -1448,7 +610,7 @@ void WebGLCompatibilityTest::TestDifferentStencilMaskAndRef(GLenum errIfMismatch
     // Having a different stencil front - back mask generates an error
     glStencilFuncSeparate(GL_FRONT, GL_ALWAYS, 0, 1);
     glDrawArrays(GL_TRIANGLES, 0, 6);
-    EXPECT_GL_ERROR(errIfMismatch);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 
     // Setting both masks separately to the same value is valid.
     glStencilFuncSeparate(GL_BACK, GL_ALWAYS, 0, 1);
@@ -1458,7 +620,7 @@ void WebGLCompatibilityTest::TestDifferentStencilMaskAndRef(GLenum errIfMismatch
     // Having a different stencil front - back reference generates an error
     glStencilFuncSeparate(GL_FRONT, GL_ALWAYS, 255, 1);
     glDrawArrays(GL_TRIANGLES, 0, 6);
-    EXPECT_GL_ERROR(errIfMismatch);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 
     // Setting both references separately to the same value is valid.
     glStencilFuncSeparate(GL_BACK, GL_ALWAYS, 255, 1);
@@ -1469,18 +631,6 @@ void WebGLCompatibilityTest::TestDifferentStencilMaskAndRef(GLenum errIfMismatch
     glStencilFuncSeparate(GL_BACK, GL_NEVER, 255, 1);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     ASSERT_GL_NO_ERROR();
-}
-
-TEST_P(WebGLCompatibilityTest, StencilTestEnabledDisallowsDifferentStencilMaskAndRef)
-{
-    glEnable(GL_STENCIL_TEST);
-    TestDifferentStencilMaskAndRef(GL_INVALID_OPERATION);
-}
-
-TEST_P(WebGLCompatibilityTest, StencilTestDisabledAllowsDifferentStencilMaskAndRef)
-{
-    glDisable(GL_STENCIL_TEST);
-    TestDifferentStencilMaskAndRef(GL_NO_ERROR);
 }
 
 // Test that GL_FIXED is forbidden
@@ -1514,14 +664,22 @@ TEST_P(WebGLCompatibilityTest, MaxStride)
 // Test the checks for OOB reads in the vertex buffers, non-instanced version
 TEST_P(WebGLCompatibilityTest, DrawArraysBufferOutOfBoundsNonInstanced)
 {
-    constexpr char kVS[] =
-        R"(attribute float a_pos;
-void main()
-{
-    gl_Position = vec4(a_pos, a_pos, a_pos, 1.0);
-})";
+    const std::string &vert =
+        "attribute float a_pos;\n"
+        "void main()\n"
+        "{\n"
+        "    gl_Position = vec4(a_pos, a_pos, a_pos, 1.0);\n"
+        "}\n";
 
-    ANGLE_GL_PROGRAM(program, kVS, essl1_shaders::fs::Red());
+    const std::string &frag =
+        "precision highp float;\n"
+        "void main()\n"
+        "{\n"
+        "    gl_FragColor = vec4(1.0);\n"
+        "}\n";
+
+    ANGLE_GL_PROGRAM(program, vert, frag);
+
     GLint posLocation = glGetAttribLocation(program.get(), "a_pos");
     ASSERT_NE(-1, posLocation);
     glUseProgram(program.get());
@@ -1532,247 +690,53 @@ void main()
 
     glEnableVertexAttribArray(posLocation);
 
-    const uint8_t *zeroOffset = nullptr;
+    const uint8_t* zeroOffset = nullptr;
 
     // Test touching the last element is valid.
-    glVertexAttribPointer(posLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 12);
+    glVertexAttribPointer(0, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 12);
     glDrawArrays(GL_POINTS, 0, 4);
     ASSERT_GL_NO_ERROR();
 
     // Test touching the last element + 1 is invalid.
-    glVertexAttribPointer(posLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 13);
+    glVertexAttribPointer(0, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 13);
     glDrawArrays(GL_POINTS, 0, 4);
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 
     // Test touching the last element is valid, using a stride.
-    glVertexAttribPointer(posLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 2, zeroOffset + 9);
+    glVertexAttribPointer(0, 1, GL_UNSIGNED_BYTE, GL_FALSE, 2, zeroOffset + 9);
     glDrawArrays(GL_POINTS, 0, 4);
     ASSERT_GL_NO_ERROR();
 
     // Test touching the last element + 1 is invalid, using a stride.
-    glVertexAttribPointer(posLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 2, zeroOffset + 10);
+    glVertexAttribPointer(0, 1, GL_UNSIGNED_BYTE, GL_FALSE, 2, zeroOffset + 10);
     glDrawArrays(GL_POINTS, 0, 4);
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 
     // Test any offset is valid if no vertices are drawn.
-    glVertexAttribPointer(posLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 32);
+    glVertexAttribPointer(0, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 32);
     glDrawArrays(GL_POINTS, 0, 0);
     ASSERT_GL_NO_ERROR();
-
-    // Test a case of overflow that could give a max vertex that's negative
-    constexpr GLint kIntMax = std::numeric_limits<GLint>::max();
-    glVertexAttribPointer(posLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 0);
-    glDrawArrays(GL_POINTS, kIntMax, kIntMax);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-}
-
-// Test that index values outside of the 32-bit integer range do not read out of bounds
-TEST_P(WebGLCompatibilityTest, LargeIndexRange)
-{
-    ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_OES_element_index_uint"));
-
-    constexpr char kVS[] =
-        R"(attribute vec4 a_Position;
-void main()
-{
-    gl_Position = a_Position;
-})";
-
-    ANGLE_GL_PROGRAM(program, kVS, essl1_shaders::fs::Red());
-    glUseProgram(program.get());
-
-    glEnableVertexAttribArray(glGetAttribLocation(program, "a_Position"));
-
-    constexpr float kVertexData[] = {
-        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-    };
-
-    GLBuffer vertexBuffer;
-    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(kVertexData), kVertexData, GL_STREAM_DRAW);
-
-    constexpr GLuint kMaxIntAsGLuint = static_cast<GLuint>(std::numeric_limits<GLint>::max());
-    constexpr GLuint kIndexData[]    = {
-        kMaxIntAsGLuint,
-        kMaxIntAsGLuint + 1,
-        kMaxIntAsGLuint + 2,
-        kMaxIntAsGLuint + 3,
-    };
-
-    GLBuffer indexBuffer;
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertexBuffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(kIndexData), kIndexData, GL_DYNAMIC_DRAW);
-
-    EXPECT_GL_NO_ERROR();
-
-    // First index is representable as 32-bit int but second is not
-    glDrawElements(GL_LINES, 2, GL_UNSIGNED_INT, 0);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    // Neither index is representable as 32-bit int
-    glDrawElements(GL_LINES, 2, GL_UNSIGNED_INT, reinterpret_cast<void *>(sizeof(GLuint) * 2));
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-}
-
-// Test for drawing with a null index buffer
-TEST_P(WebGLCompatibilityTest, NullIndexBuffer)
-{
-    constexpr char kVS[] =
-        R"(attribute float a_pos;
-void main()
-{
-    gl_Position = vec4(a_pos, a_pos, a_pos, 1.0);
-})";
-
-    ANGLE_GL_PROGRAM(program, kVS, essl1_shaders::fs::Red());
-    glUseProgram(program.get());
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    glEnableVertexAttribArray(0);
-
-    glDrawElements(GL_TRIANGLES, 0, GL_UNSIGNED_BYTE, 0);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-}
-
-// Test the checks for OOB reads in the vertex buffers, instanced version
-TEST_P(WebGL2CompatibilityTest, DrawArraysBufferOutOfBoundsInstanced)
-{
-    constexpr char kVS[] =
-        R"(attribute float a_pos;
-attribute float a_w;
-void main()
-{
-    gl_Position = vec4(a_pos, a_pos, a_pos, a_w);
-})";
-
-    ANGLE_GL_PROGRAM(program, kVS, essl1_shaders::fs::Red());
-    GLint posLocation = glGetAttribLocation(program.get(), "a_pos");
-    GLint wLocation   = glGetAttribLocation(program.get(), "a_w");
-    ASSERT_NE(-1, posLocation);
-    ASSERT_NE(-1, wLocation);
-    glUseProgram(program.get());
-
-    GLBuffer buffer;
-    glBindBuffer(GL_ARRAY_BUFFER, buffer.get());
-    glBufferData(GL_ARRAY_BUFFER, 16, nullptr, GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(posLocation);
-    glVertexAttribPointer(posLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, 0);
-    glVertexAttribDivisor(posLocation, 0);
-
-    glEnableVertexAttribArray(wLocation);
-    glVertexAttribDivisor(wLocation, 1);
-
-    const uint8_t *zeroOffset = nullptr;
-
-    // Test touching the last element is valid.
-    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 12);
-    glDrawArraysInstanced(GL_POINTS, 0, 1, 4);
-    ASSERT_GL_NO_ERROR();
-
-    // Test touching the last element + 1 is invalid.
-    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 13);
-    glDrawArraysInstanced(GL_POINTS, 0, 1, 4);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    // Test touching the last element is valid, using a stride.
-    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 2, zeroOffset + 9);
-    glDrawArraysInstanced(GL_POINTS, 0, 1, 4);
-    ASSERT_GL_NO_ERROR();
-
-    // Test touching the last element + 1 is invalid, using a stride.
-    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 2, zeroOffset + 10);
-    glDrawArraysInstanced(GL_POINTS, 0, 1, 4);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    // Test any offset is valid if no vertices are drawn.
-    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 32);
-    glDrawArraysInstanced(GL_POINTS, 0, 0, 1);
-    ASSERT_GL_NO_ERROR();
-
-    // Test any offset is valid if no primitives are drawn.
-    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 32);
-    glDrawArraysInstanced(GL_POINTS, 0, 1, 0);
-    ASSERT_GL_NO_ERROR();
-}
-
-// Test the checks for OOB reads in the vertex buffers, ANGLE_instanced_arrays version
-TEST_P(WebGLCompatibilityTest, DrawArraysBufferOutOfBoundsInstancedANGLE)
-{
-    ANGLE_SKIP_TEST_IF(!IsGLExtensionRequestable("GL_ANGLE_instanced_arrays"));
-    glRequestExtensionANGLE("GL_ANGLE_instanced_arrays");
-    EXPECT_GL_NO_ERROR();
-
-    constexpr char kVS[] =
-        R"(attribute float a_pos;
-attribute float a_w;
-void main()
-{
-    gl_Position = vec4(a_pos, a_pos, a_pos, a_w);
-})";
-
-    ANGLE_GL_PROGRAM(program, kVS, essl1_shaders::fs::Red());
-    GLint posLocation = glGetAttribLocation(program.get(), "a_pos");
-    GLint wLocation   = glGetAttribLocation(program.get(), "a_w");
-    ASSERT_NE(-1, posLocation);
-    ASSERT_NE(-1, wLocation);
-    glUseProgram(program.get());
-
-    GLBuffer buffer;
-    glBindBuffer(GL_ARRAY_BUFFER, buffer.get());
-    glBufferData(GL_ARRAY_BUFFER, 16, nullptr, GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(posLocation);
-    glVertexAttribPointer(posLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, 0);
-    glVertexAttribDivisorANGLE(posLocation, 0);
-
-    glEnableVertexAttribArray(wLocation);
-    glVertexAttribDivisorANGLE(wLocation, 1);
-
-    const uint8_t *zeroOffset = nullptr;
-
-    // Test touching the last element is valid.
-    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 12);
-    glDrawArraysInstancedANGLE(GL_POINTS, 0, 1, 4);
-    ASSERT_GL_NO_ERROR() << "touching the last element.";
-
-    // Test touching the last element + 1 is invalid.
-    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 13);
-    glDrawArraysInstancedANGLE(GL_POINTS, 0, 1, 4);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION) << "touching the last element + 1.";
-
-    // Test touching the last element is valid, using a stride.
-    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 2, zeroOffset + 9);
-    glDrawArraysInstancedANGLE(GL_POINTS, 0, 1, 4);
-    ASSERT_GL_NO_ERROR() << "touching the last element using a stride.";
-
-    // Test touching the last element + 1 is invalid, using a stride.
-    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 2, zeroOffset + 10);
-    glDrawArraysInstancedANGLE(GL_POINTS, 0, 1, 4);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION) << "touching the last element + 1 using a stride.";
-
-    // Test any offset is valid if no vertices are drawn.
-    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 32);
-    glDrawArraysInstancedANGLE(GL_POINTS, 0, 0, 1);
-    ASSERT_GL_NO_ERROR() << "any offset with no vertices.";
-
-    // Test any offset is valid if no primitives are drawn.
-    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 32);
-    glDrawArraysInstancedANGLE(GL_POINTS, 0, 1, 0);
-    ASSERT_GL_NO_ERROR() << "any offset with primitives.";
 }
 
 // Test the checks for OOB reads in the index buffer
 TEST_P(WebGLCompatibilityTest, DrawElementsBufferOutOfBoundsInIndexBuffer)
 {
-    constexpr char kVS[] =
-        R"(attribute float a_pos;
-void main()
-{
-    gl_Position = vec4(a_pos, a_pos, a_pos, 1.0);
-})";
+    const std::string &vert =
+        "attribute float a_pos;\n"
+        "void main()\n"
+        "{\n"
+        "    gl_Position = vec4(a_pos, a_pos, a_pos, 1.0);\n"
+        "}\n";
 
-    ANGLE_GL_PROGRAM(program, kVS, essl1_shaders::fs::Red());
+    const std::string &frag =
+        "precision highp float;\n"
+        "void main()\n"
+        "{\n"
+        "    gl_FragColor = vec4(1.0);\n"
+        "}\n";
+
+    ANGLE_GL_PROGRAM(program, vert, frag);
+
     GLint posLocation = glGetAttribLocation(program.get(), "a_pos");
     ASSERT_NE(-1, posLocation);
     glUseProgram(program.get());
@@ -1782,10 +746,11 @@ void main()
     glBufferData(GL_ARRAY_BUFFER, 16, nullptr, GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(posLocation);
-    glVertexAttribPointer(posLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, nullptr);
 
     const uint8_t *zeroOffset   = nullptr;
     const uint8_t zeroIndices[] = {0, 0, 0, 0, 0, 0, 0, 0};
+
+    glVertexAttribPointer(0, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset);
 
     GLBuffer indexBuffer;
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer.get());
@@ -1813,53 +778,6 @@ void main()
     // the historic behavior of WebGL implementations
     glDrawElements(GL_POINTS, 4, GL_UNSIGNED_BYTE, zeroOffset - 1);
     EXPECT_GL_ERROR(GL_INVALID_VALUE);
-}
-
-// Test the checks for OOB in vertex buffers caused by indices, non-instanced version
-TEST_P(WebGLCompatibilityTest, DrawElementsBufferOutOfBoundsInVertexBuffer)
-{
-    constexpr char kVS[] =
-        R"(attribute float a_pos;
-void main()
-{
-    gl_Position = vec4(a_pos, a_pos, a_pos, 1.0);
-})";
-
-    ANGLE_GL_PROGRAM(program, kVS, essl1_shaders::fs::Red());
-    GLint posLocation = glGetAttribLocation(program.get(), "a_pos");
-    ASSERT_NE(-1, posLocation);
-    glUseProgram(program.get());
-
-    GLBuffer vertexBuffer;
-    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer.get());
-    glBufferData(GL_ARRAY_BUFFER, 8, nullptr, GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(posLocation);
-    glVertexAttribPointer(posLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, nullptr);
-
-    const uint8_t *zeroOffset   = nullptr;
-    const uint8_t testIndices[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 255};
-
-    GLBuffer indexBuffer;
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer.get());
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(testIndices), testIndices, GL_STATIC_DRAW);
-    ASSERT_GL_NO_ERROR();
-
-    // Test touching the end of the vertex buffer is valid
-    glDrawElements(GL_POINTS, 1, GL_UNSIGNED_BYTE, zeroOffset + 7);
-    ASSERT_GL_NO_ERROR();
-
-    // Test touching just after the end of the vertex buffer is invalid
-    glDrawElements(GL_POINTS, 1, GL_UNSIGNED_BYTE, zeroOffset + 8);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    // Test touching the whole vertex buffer is valid
-    glDrawElements(GL_POINTS, 8, GL_UNSIGNED_BYTE, zeroOffset + 0);
-    ASSERT_GL_NO_ERROR();
-
-    // Test an index that would be negative
-    glDrawElements(GL_POINTS, 1, GL_UNSIGNED_BYTE, zeroOffset + 9);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 }
 
 // Test depth range with 'near' more or less than 'far.'
@@ -1919,177 +837,91 @@ TEST_P(WebGLCompatibilityTest, BlendWithConstantColor)
     }
 }
 
-// Test that binding/querying uniforms and attributes with invalid names generates errors
-TEST_P(WebGLCompatibilityTest, InvalidAttributeAndUniformNames)
+// Test the checks for OOB reads in the vertex buffers, instanced version
+TEST_P(WebGL2CompatibilityTest, DrawArraysBufferOutOfBoundsInstanced)
 {
-    const std::string validAttribName =
-        "abcdefghijklmnopqrstuvwxyz_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
-    const std::string validUniformName =
-        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_1234567890";
-    std::vector<char> invalidSet = {'"', '$', '`', '@', '\''};
-    if (getClientMajorVersion() < 3)
-    {
-        invalidSet.push_back('\\');
-    }
+    const std::string &vert =
+        "attribute float a_pos;\n"
+        "attribute float a_w;\n"
+        "void main()\n"
+        "{\n"
+        "    gl_Position = vec4(a_pos, a_pos, a_pos, a_w);\n"
+        "}\n";
 
-    std::string vert = "attribute float ";
-    vert += validAttribName;
-    vert +=
-        R"(;
-void main()
-{
-    gl_Position = vec4(1.0);
-})";
+    const std::string &frag =
+        "precision highp float;\n"
+        "void main()\n"
+        "{\n"
+        "    gl_FragColor = vec4(1.0);\n"
+        "}\n";
 
-    std::string frag =
-        R"(precision highp float;
-uniform vec4 )";
-    frag += validUniformName;
-    // Insert illegal characters into comments
-    frag +=
-        R"(;
-    // $ \" @ /*
-void main()
-{/*
-    ` @ $
-    */gl_FragColor = vec4(1.0);
-})";
+    ANGLE_GL_PROGRAM(program, vert, frag);
 
-    ANGLE_GL_PROGRAM(program, vert.c_str(), frag.c_str());
-    EXPECT_GL_NO_ERROR();
+    GLint posLocation = glGetAttribLocation(program.get(), "a_pos");
+    ASSERT_NE(-1, posLocation);
 
-    for (char invalidChar : invalidSet)
-    {
-        std::string invalidName = validAttribName + invalidChar;
-        glGetAttribLocation(program, invalidName.c_str());
-        EXPECT_GL_ERROR(GL_INVALID_VALUE)
-            << "glGetAttribLocation unexpectedly succeeded for name \"" << invalidName << "\".";
+    GLint wLocation = glGetAttribLocation(program.get(), "a_w");
+    ASSERT_NE(-1, wLocation);
 
-        glBindAttribLocation(program, 0, invalidName.c_str());
-        EXPECT_GL_ERROR(GL_INVALID_VALUE)
-            << "glBindAttribLocation unexpectedly succeeded for name \"" << invalidName << "\".";
-    }
+    glUseProgram(program.get());
 
-    for (char invalidChar : invalidSet)
-    {
-        std::string invalidName = validUniformName + invalidChar;
-        glGetUniformLocation(program, invalidName.c_str());
-        EXPECT_GL_ERROR(GL_INVALID_VALUE)
-            << "glGetUniformLocation unexpectedly succeeded for name \"" << invalidName << "\".";
-    }
+    GLBuffer buffer;
+    glBindBuffer(GL_ARRAY_BUFFER, buffer.get());
+    glBufferData(GL_ARRAY_BUFFER, 16, nullptr, GL_STATIC_DRAW);
 
-    for (char invalidChar : invalidSet)
-    {
-        std::string invalidAttribName = validAttribName + invalidChar;
-        const char *invalidVert[]     = {
-            "attribute float ",
-            invalidAttribName.c_str(),
-            R"(;,
-void main(),
-{,
-    gl_Position = vec4(1.0);,
-})",
-        };
+    glEnableVertexAttribArray(posLocation);
+    glVertexAttribDivisor(posLocation, 1);
 
-        GLuint shader = glCreateShader(GL_VERTEX_SHADER);
-        glShaderSource(shader, static_cast<GLsizei>(ArraySize(invalidVert)), invalidVert, nullptr);
-        EXPECT_GL_ERROR(GL_INVALID_VALUE);
-        glDeleteShader(shader);
-    }
-}
+    glEnableVertexAttribArray(wLocation);
+    glVertexAttribPointer(wLocation, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, 0);
+    glVertexAttribDivisor(wLocation, 0);
 
-// Test that line continuation is handled correctly when valdiating shader source
-TEST_P(WebGLCompatibilityTest, ShaderSourceLineContinuation)
-{
-    // Verify that a line continuation character (i.e. backslash) cannot be used
-    // within a preprocessor directive in a ES2 context.
-    ANGLE_SKIP_TEST_IF(getClientMajorVersion() >= 3);
+    const uint8_t* zeroOffset = nullptr;
 
-    const char *validVert =
-        R"(#define foo this is a test
-precision mediump float;
-void main()
-{
-    gl_Position = vec4(1.0);
-})";
+    // Test touching the last element is valid.
+    glVertexAttribPointer(0, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 12);
+    glDrawArraysInstanced(GL_POINTS, 0, 1, 4);
+    ASSERT_GL_NO_ERROR();
 
-    const char *invalidVert =
-        R"(#define foo this \
-    is a test
-precision mediump float;
-void main()
-{
-    gl_Position = vec4(1.0);
-})";
-
-    GLuint shader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(shader, 1, &validVert, nullptr);
-    EXPECT_GL_NO_ERROR();
-
-    glShaderSource(shader, 1, &invalidVert, nullptr);
-    EXPECT_GL_ERROR(GL_INVALID_VALUE);
-    glDeleteShader(shader);
-}
-
-// Test that line continuation is handled correctly when valdiating shader source
-TEST_P(WebGL2CompatibilityTest, ShaderSourceLineContinuation)
-{
-    const char *validVert =
-        R"(#version 300 es
-precision mediump float;
-
-void main ()
-{
-    float f\
-oo = 1.0;
-    gl_Position = vec4(foo);
-})";
-
-    const char *invalidVert =
-        R"(#version 300 es
-precision mediump float;
-
-void main ()
-{
-    float f\$
-oo = 1.0;
-    gl_Position = vec4(foo);
-})";
-
-    GLuint shader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(shader, 1, &validVert, nullptr);
-    EXPECT_GL_NO_ERROR();
-    glShaderSource(shader, 1, &invalidVert, nullptr);
-    EXPECT_GL_ERROR(GL_INVALID_VALUE);
-    glDeleteShader(shader);
-}
-
-// Tests bindAttribLocations for reserved prefixes and length limits
-TEST_P(WebGLCompatibilityTest, BindAttribLocationLimitation)
-{
-    constexpr int maxLocStringLength = 256;
-    const std::string tooLongString(maxLocStringLength + 1, '_');
-
-    glBindAttribLocation(0, 0, "_webgl_var");
-
+    // Test touching the last element + 1 is invalid.
+    glVertexAttribPointer(0, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 13);
+    glDrawArraysInstanced(GL_POINTS, 0, 1, 4);
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 
-    glBindAttribLocation(0, 0, static_cast<const GLchar *>(tooLongString.c_str()));
+    // Test touching the last element is valid, using a stride.
+    glVertexAttribPointer(0, 1, GL_UNSIGNED_BYTE, GL_FALSE, 2, zeroOffset + 9);
+    glDrawArraysInstanced(GL_POINTS, 0, 1, 4);
+    ASSERT_GL_NO_ERROR();
 
-    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+    // Test touching the last element + 1 is invalid, using a stride.
+    glVertexAttribPointer(0, 1, GL_UNSIGNED_BYTE, GL_FALSE, 2, zeroOffset + 10);
+    glDrawArraysInstanced(GL_POINTS, 0, 1, 4);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+
+    // Test any offset is valid if no vertices are drawn.
+    glVertexAttribPointer(0, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, zeroOffset + 32);
+    glDrawArraysInstanced(GL_POINTS, 0, 1, 0);
+    ASSERT_GL_NO_ERROR();
 }
 
-// Test that having no attributes with a zero divisor is valid in WebGL2
+// Test that at least one attribute has a zero divisor for WebGL
 TEST_P(WebGL2CompatibilityTest, InstancedDrawZeroDivisor)
 {
-    constexpr char kVS[] =
-        R"(attribute float a_pos;
-void main()
-{
-    gl_Position = vec4(a_pos, a_pos, a_pos, 1.0);
-})";
+    const std::string &vert =
+        "attribute float a_pos;\n"
+        "void main()\n"
+        "{\n"
+        "    gl_Position = vec4(a_pos, a_pos, a_pos, 1.0);\n"
+        "}\n";
 
-    ANGLE_GL_PROGRAM(program, kVS, essl1_shaders::fs::Red());
+    const std::string &frag =
+        "precision highp float;\n"
+        "void main()\n"
+        "{\n"
+        "    gl_FragColor = vec4(1.0);\n"
+        "}\n";
+
+    ANGLE_GL_PROGRAM(program, vert, frag);
 
     GLint posLocation = glGetAttribLocation(program.get(), "a_pos");
     ASSERT_NE(-1, posLocation);
@@ -2103,15 +935,19 @@ void main()
     glEnableVertexAttribArray(posLocation);
     glVertexAttribDivisor(posLocation, 1);
 
+    // Test touching the last element is valid.
     glVertexAttribPointer(0, 1, GL_UNSIGNED_BYTE, GL_FALSE, 0, nullptr);
     glDrawArraysInstanced(GL_POINTS, 0, 1, 4);
+    ASSERT_GL_ERROR(GL_INVALID_OPERATION);
+
+    glVertexAttribDivisor(posLocation, 0);
     ASSERT_GL_NO_ERROR();
 }
 
 // Tests that NPOT is not enabled by default in WebGL 1 and that it can be enabled
 TEST_P(WebGLCompatibilityTest, NPOT)
 {
-    EXPECT_FALSE(IsGLExtensionEnabled("GL_OES_texture_npot"));
+    EXPECT_FALSE(extensionEnabled("GL_OES_texture_npot"));
 
     // Create a texture and set an NPOT mip 0, should always be acceptable.
     GLTexture texture;
@@ -2130,7 +966,7 @@ TEST_P(WebGLCompatibilityTest, NPOT)
         ASSERT_GL_NO_ERROR();
     }
 
-    if (IsGLExtensionRequestable("GL_OES_texture_npot"))
+    if (extensionRequestable("GL_OES_texture_npot"))
     {
         glRequestExtensionANGLE("GL_OES_texture_npot");
         ASSERT_GL_NO_ERROR();
@@ -2168,26 +1004,26 @@ TEST_P(WebGLCompatibilityTest, DefaultPosition)
     // Draw a quad where each vertex is red if gl_Position is (0,0,0,0) before it is set,
     // and green otherwise.  The center of each quadrant will be red if and only if all
     // four corners are red.
-    constexpr char kVS[] =
-        R"(attribute vec3 pos;
-varying vec4 color;
-void main() {
-    if (gl_Position == vec4(0,0,0,0)) {
-        color = vec4(1,0,0,1);
-    } else {
-        color = vec4(0,1,0,1);
-    }
-    gl_Position = vec4(pos,1);
-})";
+    const std::string vertexShader =
+        "attribute vec3 pos;\n"
+        "varying vec4 color;\n"
+        "void main() {\n"
+        "    if (gl_Position == vec4(0,0,0,0)) {\n"
+        "        color = vec4(1,0,0,1);\n"
+        "    } else {\n"
+        "        color = vec4(0,1,0,1);\n"
+        "    }\n"
+        "    gl_Position = vec4(pos,1);\n"
+        "}\n";
 
-    constexpr char kFS[] =
-        R"(precision mediump float;
-varying vec4 color;
-void main() {
-    gl_FragColor = color;
-})";
+    const std::string fragmentShader =
+        "precision mediump float;\n"
+        "varying vec4 color;\n"
+        "void main() {\n"
+        "    gl_FragColor = color;\n"
+        "}\n";
 
-    ANGLE_GL_PROGRAM(program, kVS, kFS);
+    ANGLE_GL_PROGRAM(program, vertexShader, fragmentShader);
     drawQuad(program.get(), "pos", 0.0f, 1.0f, true);
     EXPECT_PIXEL_COLOR_EQ(getWindowWidth() * 1 / 4, getWindowHeight() * 1 / 4, GLColor::red);
     EXPECT_PIXEL_COLOR_EQ(getWindowWidth() * 1 / 4, getWindowHeight() * 3 / 4, GLColor::red);
@@ -2199,22 +1035,22 @@ void main() {
 // Based on WebGL test conformance/renderbuffers/feedback-loop.html.
 TEST_P(WebGLCompatibilityTest, RenderingFeedbackLoop)
 {
-    constexpr char kVS[] =
-        R"(attribute vec4 a_position;
-varying vec2 v_texCoord;
-void main() {
-    gl_Position = a_position;
-    v_texCoord = (a_position.xy * 0.5) + 0.5;
-})";
+    const std::string vertexShader =
+        "attribute vec4 a_position;\n"
+        "varying vec2 v_texCoord;\n"
+        "void main() {\n"
+        "    gl_Position = a_position;\n"
+        "    v_texCoord = (a_position.xy * 0.5) + 0.5;\n"
+        "}\n";
 
-    constexpr char kFS[] =
-        R"(precision mediump float;
-varying vec2 v_texCoord;
-uniform sampler2D u_texture;
-void main() {
-    // Shader swizzles color channels so we can tell if the draw succeeded.
-    gl_FragColor = texture2D(u_texture, v_texCoord).gbra;
-})";
+    const std::string fragmentShader =
+        "precision mediump float;\n"
+        "varying vec2 v_texCoord;\n"
+        "uniform sampler2D u_texture;\n"
+        "void main() {\n"
+        "    // Shader swizzles color channels so we can tell if the draw succeeded.\n"
+        "    gl_FragColor = texture2D(u_texture, v_texCoord).gbra;\n"
+        "}\n";
 
     GLTexture texture;
     FillTexture2D(texture.get(), 1, 1, GLColor::red, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
@@ -2227,7 +1063,7 @@ void main() {
 
     ASSERT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, glCheckFramebufferStatus(GL_FRAMEBUFFER));
 
-    ANGLE_GL_PROGRAM(program, kVS, kFS);
+    ANGLE_GL_PROGRAM(program, vertexShader, fragmentShader);
 
     GLint uniformLoc = glGetUniformLocation(program.get(), "u_texture");
     ASSERT_NE(-1, uniformLoc);
@@ -2282,11 +1118,11 @@ TEST_P(WebGLCompatibilityTest, MaxDrawBuffersAttachmentPoints)
 
     // Test that enabling the draw buffers extension will allow us to bind with a non-zero
     // attachment point.
-    if (IsGLExtensionRequestable("GL_EXT_draw_buffers"))
+    if (extensionRequestable("GL_EXT_draw_buffers"))
     {
         glRequestExtensionANGLE("GL_EXT_draw_buffers");
         EXPECT_GL_NO_ERROR();
-        EXPECT_TRUE(IsGLExtensionEnabled("GL_EXT_draw_buffers"));
+        EXPECT_TRUE(extensionEnabled("GL_EXT_draw_buffers"));
 
         glBindFramebuffer(GL_FRAMEBUFFER, fbo[1].get());
 
@@ -2302,14 +1138,21 @@ TEST_P(WebGLCompatibilityTest, MaxDrawBuffersAttachmentPoints)
 // Test that the offset in the index buffer is forced to be a multiple of the element size
 TEST_P(WebGLCompatibilityTest, DrawElementsOffsetRestriction)
 {
-    constexpr char kVS[] =
-        R"(attribute vec3 a_pos;
-void main()
-{
-    gl_Position = vec4(a_pos, 1.0);
-})";
+    const std::string &vert =
+        "attribute vec3 a_pos;\n"
+        "void main()\n"
+        "{\n"
+        "    gl_Position = vec4(a_pos, 1.0);\n"
+        "}\n";
 
-    ANGLE_GL_PROGRAM(program, kVS, essl1_shaders::fs::Red());
+    const std::string &frag =
+        "precision highp float;\n"
+        "void main()\n"
+        "{\n"
+        "    gl_FragColor = vec4(1.0);\n"
+        "}\n";
+
+    ANGLE_GL_PROGRAM(program, vert, frag);
 
     GLint posLocation = glGetAttribLocation(program.get(), "a_pos");
     ASSERT_NE(-1, posLocation);
@@ -2326,7 +1169,7 @@ void main()
     glEnableVertexAttribArray(posLocation);
 
     GLBuffer indexBuffer;
-    const GLubyte indices[] = {0, 0, 0, 0, 0, 0, 0, 0};
+    const GLubyte indices[] = {0, 0, 0, 0, 0, 0, 0};
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer.get());
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
@@ -2337,10 +1180,10 @@ void main()
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, zeroIndices);
     ASSERT_GL_NO_ERROR();
 
-    glDrawElements(GL_TRIANGLES, 4, GL_UNSIGNED_SHORT, zeroIndices);
+    glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_SHORT, zeroIndices);
     ASSERT_GL_NO_ERROR();
 
-    glDrawElements(GL_TRIANGLES, 4, GL_UNSIGNED_SHORT, zeroIndices + 1);
+    glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_SHORT, zeroIndices + 1);
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 }
 
@@ -2391,23 +1234,23 @@ void WebGLCompatibilityTest::drawBuffersEXTFeedbackLoop(GLuint program,
 // Based on WebGL test conformance/extensions/webgl-draw-buffers-feedback-loop.html
 TEST_P(WebGLCompatibilityTest, RenderingFeedbackLoopWithDrawBuffersEXT)
 {
-    constexpr char kVS[] =
-        R"(attribute vec4 aPosition;
-varying vec2 texCoord;
-void main() {
-    gl_Position = aPosition;
-    texCoord = (aPosition.xy * 0.5) + 0.5;
-})";
+    const std::string vertexShader =
+        "attribute vec4 aPosition;\n"
+        "varying vec2 texCoord;\n"
+        "void main() {\n"
+        "    gl_Position = aPosition;\n"
+        "    texCoord = (aPosition.xy * 0.5) + 0.5;\n"
+        "}\n";
 
-    constexpr char kFS[] =
-        R"(#extension GL_EXT_draw_buffers : require
-precision mediump float;
-uniform sampler2D tex;
-varying vec2 texCoord;
-void main() {
-    gl_FragData[0] = texture2D(tex, texCoord);
-    gl_FragData[1] = texture2D(tex, texCoord);
-})";
+    const std::string fragmentShader =
+        "#extension GL_EXT_draw_buffers : require\n"
+        "precision mediump float;\n"
+        "uniform sampler2D tex;\n"
+        "varying vec2 texCoord;\n"
+        "void main() {\n"
+        "    gl_FragData[0] = texture2D(tex, texCoord);\n"
+        "    gl_FragData[1] = texture2D(tex, texCoord);\n"
+        "}\n";
 
     GLsizei width  = 8;
     GLsizei height = 8;
@@ -2415,7 +1258,7 @@ void main() {
     // This shader cannot be run in ES3, because WebGL 2 does not expose the draw buffers
     // extension and gl_FragData semantics are changed to enforce indexing by zero always.
     // TODO(jmadill): This extension should be disabled in WebGL 2 contexts.
-    if (/*!IsGLExtensionEnabled("GL_EXT_draw_buffers")*/ getClientMajorVersion() != 2)
+    if (/*!extensionEnabled("GL_EXT_draw_buffers")*/ getClientMajorVersion() != 2)
     {
         // No WEBGL_draw_buffers support -- this is legal.
         return;
@@ -2424,10 +1267,13 @@ void main() {
     GLint maxDrawBuffers = 0;
     glGetIntegerv(GL_MAX_DRAW_BUFFERS, &maxDrawBuffers);
 
-    // Test skipped because MAX_DRAW_BUFFERS is too small.
-    ANGLE_SKIP_TEST_IF(maxDrawBuffers < 2);
+    if (maxDrawBuffers < 2)
+    {
+        std::cout << "Test skipped because MAX_DRAW_BUFFERS is too small." << std::endl;
+        return;
+    }
 
-    ANGLE_GL_PROGRAM(program, kVS, kFS);
+    ANGLE_GL_PROGRAM(program, vertexShader, fragmentShader);
     glUseProgram(program.get());
     glViewport(0, 0, width, height);
 
@@ -2453,18 +1299,13 @@ void main() {
                                GL_INVALID_OPERATION);
     drawBuffersEXTFeedbackLoop(program.get(), {{GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1}},
                                GL_INVALID_OPERATION);
-    // A feedback loop is formed regardless of drawBuffers settings.
-    drawBuffersEXTFeedbackLoop(program.get(), {{GL_COLOR_ATTACHMENT0, GL_NONE}},
-                               GL_INVALID_OPERATION);
+    drawBuffersEXTFeedbackLoop(program.get(), {{GL_COLOR_ATTACHMENT0, GL_NONE}}, GL_NO_ERROR);
 }
 
 // Test tests that texture copying feedback loops are properly rejected in WebGL.
 // Based on the WebGL test conformance/textures/misc/texture-copying-feedback-loops.html
 TEST_P(WebGLCompatibilityTest, TextureCopyingFeedbackLoops)
 {
-    // Vulkan does not support copying from a texture to itself. http://anglebug.com/2914
-    ANGLE_SKIP_TEST_IF(IsVulkan());
-
     GLTexture texture;
     glBindTexture(GL_TEXTURE_2D, texture.get());
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 2, 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
@@ -2542,64 +1383,47 @@ void WebGLCompatibilityTest::drawBuffersFeedbackLoop(GLuint program,
 // Based on WebGL test conformance/glsl/misc/shaders-with-invariance.html.
 TEST_P(WebGLCompatibilityTest, BuiltInInvariant)
 {
-    constexpr char kVS[] =
-        R"(varying vec4 v_varying;
-void main()
-{
-    gl_PointSize = 1.0;
-    gl_Position = v_varying;
-})";
-    constexpr char kFSInvariantGlFragCoord[] =
-        R"(invariant gl_FragCoord;
-void main()
-{
-    gl_FragColor = gl_FragCoord;
-})";
-    constexpr char kFSInvariantGlPointCoord[] =
-        R"(invariant gl_PointCoord;
-void main()
-{
-    gl_FragColor = vec4(gl_PointCoord, 0.0, 0.0);
-})";
+    const std::string vertexShaderVariant =
+        "varying vec4 v_varying;\n"
+        "void main()\n"
+        "{\n"
+        "    gl_PointSize = 1.0;\n"
+        "    gl_Position = v_varying;\n"
+        "}";
+    const std::string fragmentShaderInvariantGlFragCoord =
+        "invariant gl_FragCoord;\n"
+        "void main()\n"
+        "{\n"
+        "    gl_FragColor = gl_FragCoord;\n"
+        "}";
+    const std::string fragmentShaderInvariantGlPointCoord =
+        "invariant gl_PointCoord;\n"
+        "void main()\n"
+        "{\n"
+        "    gl_FragColor = vec4(gl_PointCoord, 0.0, 0.0);\n"
+        "}";
 
-    GLuint program = CompileProgram(kVS, kFSInvariantGlFragCoord);
+    GLuint program = CompileProgram(vertexShaderVariant, fragmentShaderInvariantGlFragCoord);
     EXPECT_EQ(0u, program);
 
-    program = CompileProgram(kVS, kFSInvariantGlPointCoord);
-    EXPECT_EQ(0u, program);
-}
-
-// Tests global namespace conflicts between uniforms and attributes.
-// Based on WebGL test conformance/glsl/misc/shaders-with-name-conflicts.html.
-TEST_P(WebGLCompatibilityTest, GlobalNamesConflict)
-{
-    constexpr char kVS[] =
-        R"(attribute vec4 foo;
-void main()
-{
-    gl_Position = foo;
-})";
-    constexpr char kFS[] =
-        R"(precision mediump float;
-uniform vec4 foo;
-void main()
-{
-    gl_FragColor = foo;
-})";
-
-    GLuint program = CompileProgram(kVS, kFS);
+    program = CompileProgram(vertexShaderVariant, fragmentShaderInvariantGlPointCoord);
     EXPECT_EQ(0u, program);
 }
 
 // Test dimension and image size validation of compressed textures
 TEST_P(WebGLCompatibilityTest, CompressedTextureS3TC)
 {
-    if (IsGLExtensionRequestable("GL_EXT_texture_compression_dxt1"))
+    if (extensionRequestable("GL_EXT_texture_compression_dxt1"))
     {
         glRequestExtensionANGLE("GL_EXT_texture_compression_dxt1");
     }
 
-    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_texture_compression_dxt1"));
+    if (!extensionEnabled("GL_EXT_texture_compression_dxt1"))
+    {
+        std::cout << "Test skipped because GL_EXT_texture_compression_dxt1 is not available."
+                  << std::endl;
+        return;
+    }
 
     constexpr uint8_t CompressedImageDXT1[] = {0x00, 0xf8, 0x00, 0xf8, 0xaa, 0xaa, 0xaa, 0xaa};
 
@@ -2683,7 +1507,7 @@ TEST_P(WebGLCompatibilityTest, L32FTextures)
 
     for (auto extension : FloatingPointTextureExtensions)
     {
-        if (strlen(extension) > 0 && IsGLExtensionRequestable(extension))
+        if (strlen(extension) > 0 && extensionRequestable(extension))
         {
             glRequestExtensionANGLE(extension);
             ASSERT_GL_NO_ERROR();
@@ -2691,19 +1515,19 @@ TEST_P(WebGLCompatibilityTest, L32FTextures)
 
         // Unsized L 32F
         {
-            bool texture = IsGLExtensionEnabled("GL_OES_texture_float");
-            bool filter  = IsGLExtensionEnabled("GL_OES_texture_float_linear");
+            bool texture = extensionEnabled("GL_OES_texture_float");
+            bool filter  = extensionEnabled("GL_OES_texture_float_linear");
             bool render  = false;
             TestFloatTextureFormat(GL_LUMINANCE, GL_LUMINANCE, GL_FLOAT, texture, filter, render,
                                    textureData, readPixelData);
         }
 
-        if (getClientMajorVersion() >= 3 || IsGLExtensionEnabled("GL_EXT_texture_storage"))
+        if (getClientMajorVersion() >= 3 || extensionEnabled("GL_EXT_texture_storage"))
         {
             // Sized L 32F
-            bool texture = IsGLExtensionEnabled("GL_OES_texture_float") &&
-                           IsGLExtensionEnabled("GL_EXT_texture_storage");
-            bool filter = IsGLExtensionEnabled("GL_OES_texture_float_linear");
+            bool texture = extensionEnabled("GL_OES_texture_float") &&
+                           extensionEnabled("GL_EXT_texture_storage");
+            bool filter = extensionEnabled("GL_OES_texture_float_linear");
             bool render = false;
             TestFloatTextureFormat(GL_LUMINANCE32F_EXT, GL_LUMINANCE, GL_FLOAT, texture, filter,
                                    render, textureData, readPixelData);
@@ -2718,7 +1542,7 @@ TEST_P(WebGLCompatibilityTest, A32FTextures)
 
     for (auto extension : FloatingPointTextureExtensions)
     {
-        if (strlen(extension) > 0 && IsGLExtensionRequestable(extension))
+        if (strlen(extension) > 0 && extensionRequestable(extension))
         {
             glRequestExtensionANGLE(extension);
             ASSERT_GL_NO_ERROR();
@@ -2726,19 +1550,19 @@ TEST_P(WebGLCompatibilityTest, A32FTextures)
 
         // Unsized A 32F
         {
-            bool texture = IsGLExtensionEnabled("GL_OES_texture_float");
-            bool filter  = IsGLExtensionEnabled("GL_OES_texture_float_linear");
+            bool texture = extensionEnabled("GL_OES_texture_float");
+            bool filter  = extensionEnabled("GL_OES_texture_float_linear");
             bool render  = false;
             TestFloatTextureFormat(GL_ALPHA, GL_ALPHA, GL_FLOAT, texture, filter, render,
                                    textureData, readPixelData);
         }
 
-        if (getClientMajorVersion() >= 3 || IsGLExtensionEnabled("GL_EXT_texture_storage"))
+        if (getClientMajorVersion() >= 3 || extensionEnabled("GL_EXT_texture_storage"))
         {
             // Sized A 32F
-            bool texture = IsGLExtensionEnabled("GL_OES_texture_float") &&
-                           IsGLExtensionEnabled("GL_EXT_texture_storage");
-            bool filter = IsGLExtensionEnabled("GL_OES_texture_float_linear");
+            bool texture = extensionEnabled("GL_OES_texture_float") &&
+                           extensionEnabled("GL_EXT_texture_storage");
+            bool filter = extensionEnabled("GL_OES_texture_float_linear");
             bool render = false;
             TestFloatTextureFormat(GL_ALPHA32F_EXT, GL_ALPHA, GL_FLOAT, texture, filter, render,
                                    textureData, readPixelData);
@@ -2754,7 +1578,7 @@ TEST_P(WebGLCompatibilityTest, LA32FTextures)
 
     for (auto extension : FloatingPointTextureExtensions)
     {
-        if (strlen(extension) > 0 && IsGLExtensionRequestable(extension))
+        if (strlen(extension) > 0 && extensionRequestable(extension))
         {
             glRequestExtensionANGLE(extension);
             ASSERT_GL_NO_ERROR();
@@ -2762,19 +1586,19 @@ TEST_P(WebGLCompatibilityTest, LA32FTextures)
 
         // Unsized LA 32F
         {
-            bool texture = IsGLExtensionEnabled("GL_OES_texture_float");
-            bool filter  = IsGLExtensionEnabled("GL_OES_texture_float_linear");
+            bool texture = extensionEnabled("GL_OES_texture_float");
+            bool filter  = extensionEnabled("GL_OES_texture_float_linear");
             bool render  = false;
             TestFloatTextureFormat(GL_LUMINANCE_ALPHA, GL_LUMINANCE_ALPHA, GL_FLOAT, texture,
                                    filter, render, textureData, readPixelData);
         }
 
-        if (getClientMajorVersion() >= 3 || IsGLExtensionEnabled("GL_EXT_texture_storage"))
+        if (getClientMajorVersion() >= 3 || extensionEnabled("GL_EXT_texture_storage"))
         {
             // Sized LA 32F
-            bool texture = IsGLExtensionEnabled("GL_OES_texture_float") &&
-                           IsGLExtensionEnabled("GL_EXT_texture_storage");
-            bool filter = IsGLExtensionEnabled("GL_OES_texture_float_linear");
+            bool texture = extensionEnabled("GL_OES_texture_float") &&
+                           extensionEnabled("GL_EXT_texture_storage");
+            bool filter = extensionEnabled("GL_OES_texture_float_linear");
             bool render = false;
             TestFloatTextureFormat(GL_LUMINANCE_ALPHA32F_EXT, GL_LUMINANCE_ALPHA, GL_FLOAT, texture,
                                    filter, render, textureData, readPixelData);
@@ -2788,7 +1612,7 @@ TEST_P(WebGLCompatibilityTest, R32FTextures)
 
     for (auto extension : FloatingPointTextureExtensions)
     {
-        if (strlen(extension) > 0 && IsGLExtensionRequestable(extension))
+        if (strlen(extension) > 0 && extensionRequestable(extension))
         {
             glRequestExtensionANGLE(extension);
             ASSERT_GL_NO_ERROR();
@@ -2796,22 +1620,22 @@ TEST_P(WebGLCompatibilityTest, R32FTextures)
 
         // Unsized R 32F
         {
-            bool texture = IsGLExtensionEnabled("GL_OES_texture_float") &&
-                           IsGLExtensionEnabled("GL_EXT_texture_rg");
-            bool filter = IsGLExtensionEnabled("GL_OES_texture_float_linear");
-            bool render = IsGLExtensionEnabled("GL_EXT_color_buffer_float");
+            bool texture =
+                extensionEnabled("GL_OES_texture_float") && extensionEnabled("GL_EXT_texture_rg");
+            bool filter = extensionEnabled("GL_OES_texture_float_linear");
+            bool render = extensionEnabled("GL_EXT_color_buffer_float");
             TestFloatTextureFormat(GL_RED, GL_RED, GL_FLOAT, texture, filter, render, data, data);
         }
 
-        if (getClientMajorVersion() >= 3 || IsGLExtensionEnabled("GL_EXT_texture_storage"))
+        if (getClientMajorVersion() >= 3 || extensionEnabled("GL_EXT_texture_storage"))
         {
             // Sized R 32F
             bool texture =
-                (getClientMajorVersion() >= 3) || (IsGLExtensionEnabled("GL_OES_texture_float") &&
-                                                   IsGLExtensionEnabled("GL_EXT_texture_rg") &&
-                                                   IsGLExtensionEnabled("GL_EXT_texture_storage"));
-            bool filter = IsGLExtensionEnabled("GL_OES_texture_float_linear");
-            bool render = IsGLExtensionEnabled("GL_EXT_color_buffer_float");
+                (getClientMajorVersion() >= 3) || (extensionEnabled("GL_OES_texture_float") &&
+                                                   extensionEnabled("GL_EXT_texture_rg") &&
+                                                   extensionEnabled("GL_EXT_texture_storage"));
+            bool filter = extensionEnabled("GL_OES_texture_float_linear");
+            bool render = extensionEnabled("GL_EXT_color_buffer_float");
             TestFloatTextureFormat(GL_R32F, GL_RED, GL_FLOAT, texture, filter, render, data, data);
         }
     }
@@ -2823,7 +1647,7 @@ TEST_P(WebGLCompatibilityTest, RG32FTextures)
 
     for (auto extension : FloatingPointTextureExtensions)
     {
-        if (strlen(extension) > 0 && IsGLExtensionRequestable(extension))
+        if (strlen(extension) > 0 && extensionRequestable(extension))
         {
             glRequestExtensionANGLE(extension);
             ASSERT_GL_NO_ERROR();
@@ -2831,22 +1655,22 @@ TEST_P(WebGLCompatibilityTest, RG32FTextures)
 
         // Unsized RG 32F
         {
-            bool texture = (IsGLExtensionEnabled("GL_OES_texture_float") &&
-                            IsGLExtensionEnabled("GL_EXT_texture_rg"));
-            bool filter  = IsGLExtensionEnabled("GL_OES_texture_float_linear");
-            bool render  = IsGLExtensionEnabled("GL_EXT_color_buffer_float");
+            bool texture =
+                (extensionEnabled("GL_OES_texture_float") && extensionEnabled("GL_EXT_texture_rg"));
+            bool filter = extensionEnabled("GL_OES_texture_float_linear");
+            bool render = extensionEnabled("GL_EXT_color_buffer_float");
             TestFloatTextureFormat(GL_RG, GL_RG, GL_FLOAT, texture, filter, render, data, data);
         }
 
-        if (getClientMajorVersion() >= 3 || IsGLExtensionEnabled("GL_EXT_texture_storage"))
+        if (getClientMajorVersion() >= 3 || extensionEnabled("GL_EXT_texture_storage"))
         {
             // Sized RG 32F
             bool texture =
-                (getClientMajorVersion() >= 3) || (IsGLExtensionEnabled("GL_OES_texture_float") &&
-                                                   IsGLExtensionEnabled("GL_EXT_texture_rg") &&
-                                                   IsGLExtensionEnabled("GL_EXT_texture_storage"));
-            bool filter = IsGLExtensionEnabled("GL_OES_texture_float_linear");
-            bool render = IsGLExtensionEnabled("GL_EXT_color_buffer_float");
+                (getClientMajorVersion() >= 3) || (extensionEnabled("GL_OES_texture_float") &&
+                                                   extensionEnabled("GL_EXT_texture_rg") &&
+                                                   extensionEnabled("GL_EXT_texture_storage"));
+            bool filter = extensionEnabled("GL_OES_texture_float_linear");
+            bool render = extensionEnabled("GL_EXT_color_buffer_float");
             TestFloatTextureFormat(GL_RG32F, GL_RG, GL_FLOAT, texture, filter, render, data, data);
         }
     }
@@ -2854,14 +1678,17 @@ TEST_P(WebGLCompatibilityTest, RG32FTextures)
 
 TEST_P(WebGLCompatibilityTest, RGB32FTextures)
 {
-    // TODO(syoussefi): Missing format support.  http://anglebug.com/2898
-    ANGLE_SKIP_TEST_IF(IsVulkan());
+    if (IsLinux() && IsIntel())
+    {
+        std::cout << "Test skipped on Linux Intel." << std::endl;
+        return;
+    }
 
     constexpr float data[] = {1000.0f, -500.0f, 10.0f, 1.0f};
 
     for (auto extension : FloatingPointTextureExtensions)
     {
-        if (strlen(extension) > 0 && IsGLExtensionRequestable(extension))
+        if (strlen(extension) > 0 && extensionRequestable(extension))
         {
             glRequestExtensionANGLE(extension);
             ASSERT_GL_NO_ERROR();
@@ -2869,20 +1696,20 @@ TEST_P(WebGLCompatibilityTest, RGB32FTextures)
 
         // Unsized RGB 32F
         {
-            bool texture = IsGLExtensionEnabled("GL_OES_texture_float");
-            bool filter  = IsGLExtensionEnabled("GL_OES_texture_float_linear");
-            bool render  = false;
+            bool texture = extensionEnabled("GL_OES_texture_float");
+            bool filter  = extensionEnabled("GL_OES_texture_float_linear");
+            bool render  = extensionEnabled("GL_CHROMIUM_color_buffer_float_rgb");
             TestFloatTextureFormat(GL_RGB, GL_RGB, GL_FLOAT, texture, filter, render, data, data);
         }
 
-        if (getClientMajorVersion() >= 3 || IsGLExtensionEnabled("GL_EXT_texture_storage"))
+        if (getClientMajorVersion() >= 3 || extensionEnabled("GL_EXT_texture_storage"))
         {
-            // Sized RGB 32F
+            // Sized RGBA 32F
             bool texture =
-                (getClientMajorVersion() >= 3) || (IsGLExtensionEnabled("GL_OES_texture_float") &&
-                                                   IsGLExtensionEnabled("GL_EXT_texture_storage"));
-            bool filter = IsGLExtensionEnabled("GL_OES_texture_float_linear");
-            bool render = IsGLExtensionEnabled("GL_CHROMIUM_color_buffer_float_rgb");
+                (getClientMajorVersion() >= 3) || (extensionEnabled("GL_OES_texture_float") &&
+                                                   extensionEnabled("GL_EXT_texture_storage"));
+            bool filter = extensionEnabled("GL_OES_texture_float_linear");
+            bool render = extensionEnabled("GL_CHROMIUM_color_buffer_float_rgb");
             TestFloatTextureFormat(GL_RGB32F, GL_RGB, GL_FLOAT, texture, filter, render, data,
                                    data);
         }
@@ -2891,14 +1718,11 @@ TEST_P(WebGLCompatibilityTest, RGB32FTextures)
 
 TEST_P(WebGLCompatibilityTest, RGBA32FTextures)
 {
-    // TODO(syoussefi): Missing format support.  http://anglebug.com/2898
-    ANGLE_SKIP_TEST_IF(IsVulkan());
-
     constexpr float data[] = {7000.0f, 100.0f, 33.0f, -1.0f};
 
     for (auto extension : FloatingPointTextureExtensions)
     {
-        if (strlen(extension) > 0 && IsGLExtensionRequestable(extension))
+        if (strlen(extension) > 0 && extensionRequestable(extension))
         {
             glRequestExtensionANGLE(extension);
             ASSERT_GL_NO_ERROR();
@@ -2906,253 +1730,26 @@ TEST_P(WebGLCompatibilityTest, RGBA32FTextures)
 
         // Unsized RGBA 32F
         {
-            bool texture = IsGLExtensionEnabled("GL_OES_texture_float");
-            bool filter  = IsGLExtensionEnabled("GL_OES_texture_float_linear");
-            bool render  = false;
+            bool texture = extensionEnabled("GL_OES_texture_float");
+            bool filter  = extensionEnabled("GL_OES_texture_float_linear");
+            bool render  = extensionEnabled("GL_EXT_color_buffer_float") ||
+                          extensionEnabled("GL_CHROMIUM_color_buffer_float_rgba");
             TestFloatTextureFormat(GL_RGBA, GL_RGBA, GL_FLOAT, texture, filter, render, data, data);
         }
 
-        if (getClientMajorVersion() >= 3 || IsGLExtensionEnabled("GL_EXT_texture_storage"))
+        if (getClientMajorVersion() >= 3 || extensionEnabled("GL_EXT_texture_storage"))
         {
             // Sized RGBA 32F
             bool texture =
-                (getClientMajorVersion() >= 3) || (IsGLExtensionEnabled("GL_OES_texture_float") &&
-                                                   IsGLExtensionEnabled("GL_EXT_texture_storage"));
-            bool filter = IsGLExtensionEnabled("GL_OES_texture_float_linear");
-            bool render = IsGLExtensionEnabled("GL_EXT_color_buffer_float") ||
-                          IsGLExtensionEnabled("GL_CHROMIUM_color_buffer_float_rgba");
+                (getClientMajorVersion() >= 3) || (extensionEnabled("GL_OES_texture_float") &&
+                                                   extensionEnabled("GL_EXT_texture_storage"));
+            bool filter = extensionEnabled("GL_OES_texture_float_linear");
+            bool render = extensionEnabled("GL_EXT_color_buffer_float") ||
+                          extensionEnabled("GL_CHROMIUM_color_buffer_float_rgba");
             TestFloatTextureFormat(GL_RGBA32F, GL_RGBA, GL_FLOAT, texture, filter, render, data,
                                    data);
         }
     }
-}
-
-// Test that has float color attachment caching works when color attachments change, by calling draw
-// command when blending is enabled
-TEST_P(WebGLCompatibilityTest, FramebufferFloatColorAttachment)
-{
-    if (getClientMajorVersion() >= 3)
-    {
-        ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_EXT_color_buffer_float"));
-    }
-    else
-    {
-        ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_OES_texture_float"));
-        ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_CHROMIUM_color_buffer_float_rgba"));
-    }
-
-    constexpr char kVS[] =
-        R"(void main()
-{
-    gl_Position = vec4(0, 0, 0, 1);
-})";
-
-    constexpr char kFS[] =
-        R"(void main()
-{
-    gl_FragColor = vec4(0, 1, 0, 1);
-})";
-
-    ANGLE_GL_PROGRAM(program, kVS, kFS);
-    glUseProgram(program);
-
-    glEnable(GL_BLEND);
-
-    GLTexture texture1;
-    glBindTexture(GL_TEXTURE_2D, texture1);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    EXPECT_GL_NO_ERROR();
-
-    GLTexture texture2;
-    glBindTexture(GL_TEXTURE_2D, texture2);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 1, 1, 0, GL_RGBA, GL_FLOAT, nullptr);
-    EXPECT_GL_NO_ERROR();
-
-    GLFramebuffer fbo1;
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo1);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture1, 0);
-    ASSERT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, glCheckFramebufferStatus(GL_FRAMEBUFFER));
-
-    GLFramebuffer fbo2;
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo2);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture2, 0);
-    ASSERT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, glCheckFramebufferStatus(GL_FRAMEBUFFER));
-    glDrawArrays(GL_POINTS, 0, 1);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    glDisable(GL_BLEND);
-    glDrawArrays(GL_POINTS, 0, 1);
-    EXPECT_GL_NO_ERROR();
-    glEnable(GL_BLEND);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo1);
-    glDrawArrays(GL_POINTS, 0, 1);
-
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0,
-                           0);  // test unbind
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture2, 0);
-    ASSERT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, glCheckFramebufferStatus(GL_FRAMEBUFFER));
-
-    glDrawArrays(GL_POINTS, 0, 1);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    glDisable(GL_BLEND);
-    glDrawArrays(GL_POINTS, 0, 1);
-    EXPECT_GL_NO_ERROR();
-    glEnable(GL_BLEND);
-
-    glBindTexture(GL_TEXTURE_2D, texture2);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-
-    glDrawArrays(GL_POINTS, 0, 1);
-    EXPECT_GL_NO_ERROR();
-}
-
-// Test that has float color attachment caching works with multiple color attachments bound to a
-// Framebuffer
-TEST_P(WebGLCompatibilityTest, FramebufferFloatColorAttachmentMRT)
-{
-    bool isWebGL2 = getClientMajorVersion() >= 3;
-    if (isWebGL2)
-    {
-        ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_EXT_color_buffer_float"));
-
-        constexpr char kVS[] =
-            R"(#version 300 es
-void main()
-{
-    gl_Position = vec4(0, 0, 0, 1);
-})";
-
-        constexpr char kFS[] =
-            R"(#version 300 es
-precision lowp float;
-layout(location = 0) out vec4 o_color0;
-layout(location = 1) out vec4 o_color1;
-void main()
-{
-    o_color0 = vec4(1, 0, 0, 1);
-    o_color1 = vec4(0, 1, 0, 1);
-})";
-
-        ANGLE_GL_PROGRAM(program, kVS, kFS);
-        glUseProgram(program);
-    }
-    else
-    {
-        ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_OES_texture_float"));
-        ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_CHROMIUM_color_buffer_float_rgba"));
-        ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_EXT_draw_buffers"));
-
-        constexpr char kVS[] =
-            R"(void main()
-{
-    gl_Position = vec4(0, 0, 0, 1);
-})";
-
-        constexpr char kFS[] =
-            R"(#extension GL_EXT_draw_buffers : require
-precision lowp float;
-void main()
-{
-    gl_FragData[0] = vec4(1, 0, 0, 1);
-    gl_FragData[1] = vec4(0, 1, 0, 1);
-})";
-
-        ANGLE_GL_PROGRAM(program, kVS, kFS);
-        glUseProgram(program);
-    }
-
-    glEnable(GL_BLEND);
-
-    GLTexture texture1;
-    glBindTexture(GL_TEXTURE_2D, texture1);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    EXPECT_GL_NO_ERROR();
-
-    GLTexture texture2;
-    glBindTexture(GL_TEXTURE_2D, texture2);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    EXPECT_GL_NO_ERROR();
-
-    GLTexture textureF1;
-    glBindTexture(GL_TEXTURE_2D, textureF1);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 1, 1, 0, GL_RGBA, GL_FLOAT, nullptr);
-    EXPECT_GL_NO_ERROR();
-
-    GLTexture textureF2;
-    glBindTexture(GL_TEXTURE_2D, textureF2);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 1, 1, 0, GL_RGBA, GL_FLOAT, nullptr);
-    EXPECT_GL_NO_ERROR();
-
-    GLFramebuffer fbo;
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture1, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, texture2, 0);
-    ASSERT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, glCheckFramebufferStatus(GL_FRAMEBUFFER));
-
-    GLenum drawbuffers[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
-    if (isWebGL2)
-    {
-        glDrawBuffers(2, drawbuffers);
-    }
-    else
-    {
-        glDrawBuffersEXT(2, drawbuffers);
-    }
-
-    glDrawArrays(GL_POINTS, 0, 1);
-    EXPECT_GL_NO_ERROR();
-
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureF1, 0);
-    glDrawArrays(GL_POINTS, 0, 1);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, textureF2, 0);
-    glDrawArrays(GL_POINTS, 0, 1);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture1, 0);
-    glDrawArrays(GL_POINTS, 0, 1);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    if (isWebGL2)
-    {
-        // WebGL 1 will report a FRAMEBUFFER_UNSUPPORTED for one unsigned_byte and one float
-        // attachment bound to one FBO at the same time
-        glDrawBuffers(1, drawbuffers);
-        ASSERT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, glCheckFramebufferStatus(GL_FRAMEBUFFER));
-        glDrawArrays(GL_POINTS, 0, 1);
-        EXPECT_GL_NO_ERROR();
-        glDrawBuffers(2, drawbuffers);
-    }
-
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, texture2, 0);
-    glDrawArrays(GL_POINTS, 0, 1);
-    EXPECT_GL_NO_ERROR();
-}
-
-// Test if blending of float32 color attachment generates GL_INVALID_OPERATION when
-// GL_EXT_float_blend is not enabled
-TEST_P(WebGLCompatibilityTest, FloatBlend)
-{
-    ANGLE_SKIP_TEST_IF(!IsGLExtensionRequestable("GL_EXT_float_blend"));
-    if (getClientMajorVersion() >= 3)
-    {
-        ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_EXT_color_buffer_float"));
-    }
-    else
-    {
-        ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_OES_texture_float"));
-        ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_CHROMIUM_color_buffer_float_rgba"));
-    }
-
-    TestExtFloatBlend(false);
-
-    glRequestExtensionANGLE("GL_EXT_float_blend");
-    ASSERT_GL_NO_ERROR();
-
-    TestExtFloatBlend(true);
 }
 
 TEST_P(WebGLCompatibilityTest, R16FTextures)
@@ -3164,7 +1761,7 @@ TEST_P(WebGLCompatibilityTest, R16FTextures)
 
     for (auto extension : FloatingPointTextureExtensions)
     {
-        if (strlen(extension) > 0 && IsGLExtensionRequestable(extension))
+        if (strlen(extension) > 0 && extensionRequestable(extension))
         {
             glRequestExtensionANGLE(extension);
             ASSERT_GL_NO_ERROR();
@@ -3172,10 +1769,11 @@ TEST_P(WebGLCompatibilityTest, R16FTextures)
 
         // Unsized R 16F (OES)
         {
-            bool texture = IsGLExtensionEnabled("GL_OES_texture_half_float") &&
-                           IsGLExtensionEnabled("GL_EXT_texture_rg");
-            bool filter = IsGLExtensionEnabled("GL_OES_texture_half_float_linear");
-            bool render = false;
+            bool texture = extensionEnabled("GL_OES_texture_half_float") &&
+                           extensionEnabled("GL_EXT_texture_rg");
+            bool filter = getClientMajorVersion() >= 3 ||
+                          extensionEnabled("GL_OES_texture_half_float_linear");
+            bool render = extensionEnabled("GL_EXT_color_buffer_half_float");
             TestFloatTextureFormat(GL_RED, GL_RED, GL_HALF_FLOAT_OES, texture, filter, render,
                                    textureData, readPixelsData);
         }
@@ -3189,23 +1787,15 @@ TEST_P(WebGLCompatibilityTest, R16FTextures)
                                    textureData, readPixelsData);
         }
 
-        if (getClientMajorVersion() >= 3)
+        if (getClientMajorVersion() >= 3 || extensionEnabled("GL_EXT_texture_storage"))
         {
             // Sized R 16F
-            bool texture = true;
-            bool filter  = true;
-            bool render  = IsGLExtensionEnabled("GL_EXT_color_buffer_float");
+            bool texture = getClientMajorVersion() >= 3;
+            bool filter  = getClientMajorVersion() >= 3 ||
+                          extensionEnabled("GL_OES_texture_half_float_linear");
+            bool render = extensionEnabled("GL_EXT_color_buffer_half_float") ||
+                          extensionEnabled("GL_EXT_color_buffer_float");
             TestFloatTextureFormat(GL_R16F, GL_RED, GL_HALF_FLOAT, texture, filter, render,
-                                   textureData, readPixelsData);
-        }
-        else if (IsGLExtensionEnabled("GL_EXT_texture_storage"))
-        {
-            // Sized R 16F (OES)
-            bool texture = IsGLExtensionEnabled("GL_OES_texture_half_float") &&
-                           IsGLExtensionEnabled("GL_EXT_texture_rg");
-            bool filter = IsGLExtensionEnabled("GL_OES_texture_half_float_linear");
-            bool render = IsGLExtensionEnabled("GL_EXT_color_buffer_half_float");
-            TestFloatTextureFormat(GL_R16F, GL_RED, GL_HALF_FLOAT_OES, texture, filter, render,
                                    textureData, readPixelsData);
         }
     }
@@ -3220,7 +1810,7 @@ TEST_P(WebGLCompatibilityTest, RG16FTextures)
 
     for (auto extension : FloatingPointTextureExtensions)
     {
-        if (strlen(extension) > 0 && IsGLExtensionRequestable(extension))
+        if (strlen(extension) > 0 && extensionRequestable(extension))
         {
             glRequestExtensionANGLE(extension);
             ASSERT_GL_NO_ERROR();
@@ -3228,10 +1818,12 @@ TEST_P(WebGLCompatibilityTest, RG16FTextures)
 
         // Unsized RG 16F (OES)
         {
-            bool texture = IsGLExtensionEnabled("GL_OES_texture_half_float") &&
-                           IsGLExtensionEnabled("GL_EXT_texture_rg");
-            bool filter = IsGLExtensionEnabled("GL_OES_texture_half_float_linear");
-            bool render = false;
+            bool texture = extensionEnabled("GL_OES_texture_half_float") &&
+                           extensionEnabled("GL_EXT_texture_rg");
+            bool filter = getClientMajorVersion() >= 3 ||
+                          extensionEnabled("GL_OES_texture_half_float_linear");
+            bool render = extensionEnabled("GL_EXT_color_buffer_half_float") &&
+                          extensionEnabled("GL_EXT_texture_rg");
             TestFloatTextureFormat(GL_RG, GL_RG, GL_HALF_FLOAT_OES, texture, filter, render,
                                    textureData, readPixelsData);
         }
@@ -3245,23 +1837,15 @@ TEST_P(WebGLCompatibilityTest, RG16FTextures)
                                    textureData, readPixelsData);
         }
 
-        if (getClientMajorVersion() >= 3)
+        if (getClientMajorVersion() >= 3 || extensionEnabled("GL_EXT_texture_storage"))
         {
             // Sized RG 16F
-            bool texture = true;
-            bool filter  = true;
-            bool render  = IsGLExtensionEnabled("GL_EXT_color_buffer_float");
+            bool texture = getClientMajorVersion() >= 3;
+            bool filter  = getClientMajorVersion() >= 3 ||
+                          extensionEnabled("GL_OES_texture_half_float_linear");
+            bool render = extensionEnabled("GL_EXT_color_buffer_half_float") ||
+                          extensionEnabled("GL_EXT_color_buffer_float");
             TestFloatTextureFormat(GL_RG16F, GL_RG, GL_HALF_FLOAT, texture, filter, render,
-                                   textureData, readPixelsData);
-        }
-        else if (IsGLExtensionEnabled("GL_EXT_texture_storage"))
-        {
-            // Sized RG 16F (OES)
-            bool texture = IsGLExtensionEnabled("GL_OES_texture_half_float") &&
-                           IsGLExtensionEnabled("GL_EXT_texture_rg");
-            bool filter = IsGLExtensionEnabled("GL_OES_texture_half_float_linear");
-            bool render = IsGLExtensionEnabled("GL_EXT_color_buffer_half_float");
-            TestFloatTextureFormat(GL_RG16F, GL_RG, GL_HALF_FLOAT_OES, texture, filter, render,
                                    textureData, readPixelsData);
         }
     }
@@ -3269,10 +1853,11 @@ TEST_P(WebGLCompatibilityTest, RG16FTextures)
 
 TEST_P(WebGLCompatibilityTest, RGB16FTextures)
 {
-    // TODO(syoussefi): Missing format support.  http://anglebug.com/2898
-    ANGLE_SKIP_TEST_IF(IsVulkan());
-
-    ANGLE_SKIP_TEST_IF(IsOzone() && IsIntel());
+    if (IsOzone() && IsIntel())
+    {
+        std::cout << "Test skipped on Intel Ozone." << std::endl;
+        return;
+    }
 
     constexpr float readPixelsData[] = {7000.0f, 100.0f, 33.0f, 1.0f};
     const GLushort textureData[]     = {
@@ -3281,7 +1866,7 @@ TEST_P(WebGLCompatibilityTest, RGB16FTextures)
 
     for (auto extension : FloatingPointTextureExtensions)
     {
-        if (strlen(extension) > 0 && IsGLExtensionRequestable(extension))
+        if (strlen(extension) > 0 && extensionRequestable(extension))
         {
             glRequestExtensionANGLE(extension);
             ASSERT_GL_NO_ERROR();
@@ -3289,11 +1874,10 @@ TEST_P(WebGLCompatibilityTest, RGB16FTextures)
 
         // Unsized RGB 16F (OES)
         {
-            bool texture = IsGLExtensionEnabled("GL_OES_texture_half_float");
-            bool filter  = IsGLExtensionEnabled("GL_OES_texture_half_float_linear");
-            // WebGL says that Unsized RGB 16F (OES) can be renderable with
-            // GL_EXT_color_buffer_half_float.
-            bool render = IsGLExtensionEnabled("GL_EXT_color_buffer_half_float");
+            bool texture = extensionEnabled("GL_OES_texture_half_float");
+            bool filter  = getClientMajorVersion() >= 3 ||
+                          extensionEnabled("GL_OES_texture_half_float_linear");
+            bool render = extensionEnabled("GL_EXT_color_buffer_half_float");
             TestFloatTextureFormat(GL_RGB, GL_RGB, GL_HALF_FLOAT_OES, texture, filter, render,
                                    textureData, readPixelsData);
         }
@@ -3307,25 +1891,14 @@ TEST_P(WebGLCompatibilityTest, RGB16FTextures)
                                    textureData, readPixelsData);
         }
 
-        if (getClientMajorVersion() >= 3)
+        if (getClientMajorVersion() >= 3 || extensionEnabled("GL_EXT_texture_storage"))
         {
             // Sized RGB 16F
-            bool texture = true;
-            bool filter  = true;
-            // It is unclear how EXT_color_buffer_half_float applies to ES3.0 and above, however,
-            // dEQP GLES3 es3fFboColorbufferTests.cpp verifies that texture attachment of GL_RGB16F
-            // is possible, so assume that all GLES implementations support it.
-            bool render = IsGLExtensionEnabled("GL_EXT_color_buffer_half_float");
+            bool texture = getClientMajorVersion() >= 3;
+            bool filter  = getClientMajorVersion() >= 3 ||
+                          extensionEnabled("GL_OES_texture_half_float_linear");
+            bool render = extensionEnabled("GL_EXT_color_buffer_half_float");
             TestFloatTextureFormat(GL_RGB16F, GL_RGB, GL_HALF_FLOAT, texture, filter, render,
-                                   textureData, readPixelsData);
-        }
-        else if (IsGLExtensionEnabled("GL_EXT_texture_storage"))
-        {
-            // Sized RGB 16F (OES)
-            bool texture = IsGLExtensionEnabled("GL_OES_texture_half_float");
-            bool filter  = IsGLExtensionEnabled("GL_OES_texture_half_float_linear");
-            bool render  = IsGLExtensionEnabled("GL_EXT_color_buffer_half_float");
-            TestFloatTextureFormat(GL_RGB16F, GL_RGB, GL_HALF_FLOAT_OES, texture, filter, render,
                                    textureData, readPixelsData);
         }
     }
@@ -3333,7 +1906,11 @@ TEST_P(WebGLCompatibilityTest, RGB16FTextures)
 
 TEST_P(WebGLCompatibilityTest, RGBA16FTextures)
 {
-    ANGLE_SKIP_TEST_IF(IsOzone() && IsIntel());
+    if (IsOzone() && IsIntel())
+    {
+        std::cout << "Test skipped on Intel Ozone." << std::endl;
+        return;
+    }
 
     constexpr float readPixelsData[] = {7000.0f, 100.0f, 33.0f, -1.0f};
     const GLushort textureData[]     = {
@@ -3342,7 +1919,7 @@ TEST_P(WebGLCompatibilityTest, RGBA16FTextures)
 
     for (auto extension : FloatingPointTextureExtensions)
     {
-        if (strlen(extension) > 0 && IsGLExtensionRequestable(extension))
+        if (strlen(extension) > 0 && extensionRequestable(extension))
         {
             glRequestExtensionANGLE(extension);
             ASSERT_GL_NO_ERROR();
@@ -3350,9 +1927,11 @@ TEST_P(WebGLCompatibilityTest, RGBA16FTextures)
 
         // Unsized RGBA 16F (OES)
         {
-            bool texture = IsGLExtensionEnabled("GL_OES_texture_half_float");
-            bool filter  = IsGLExtensionEnabled("GL_OES_texture_half_float_linear");
-            bool render  = IsGLExtensionEnabled("GL_EXT_color_buffer_half_float");
+            bool texture = extensionEnabled("GL_OES_texture_half_float");
+            bool filter  = getClientMajorVersion() >= 3 ||
+                          extensionEnabled("GL_OES_texture_half_float_linear");
+            bool render = extensionEnabled("GL_EXT_color_buffer_half_float") ||
+                          extensionEnabled("GL_EXT_color_buffer_float");
             TestFloatTextureFormat(GL_RGBA, GL_RGBA, GL_HALF_FLOAT_OES, texture, filter, render,
                                    textureData, readPixelsData);
         }
@@ -3366,168 +1945,42 @@ TEST_P(WebGLCompatibilityTest, RGBA16FTextures)
                                    textureData, readPixelsData);
         }
 
-        if (getClientMajorVersion() >= 3)
+        if (getClientMajorVersion() >= 3 || extensionEnabled("GL_EXT_texture_storage"))
         {
             // Sized RGBA 16F
-            bool texture = true;
-            bool filter  = true;
-            bool render  = IsGLExtensionEnabled("GL_EXT_color_buffer_float");
+            bool texture = getClientMajorVersion() >= 3;
+            bool filter  = getClientMajorVersion() >= 3 ||
+                          extensionEnabled("GL_OES_texture_half_float_linear");
+            bool render = extensionEnabled("GL_EXT_color_buffer_half_float") ||
+                          extensionEnabled("GL_EXT_color_buffer_float");
             TestFloatTextureFormat(GL_RGBA16F, GL_RGBA, GL_HALF_FLOAT, texture, filter, render,
                                    textureData, readPixelsData);
         }
-        else if (IsGLExtensionEnabled("GL_EXT_texture_storage"))
-        {
-            // Sized RGBA 16F (OES)
-            bool texture = IsGLExtensionEnabled("GL_OES_texture_half_float");
-            bool filter  = IsGLExtensionEnabled("GL_OES_texture_half_float_linear");
-            bool render  = IsGLExtensionEnabled("GL_EXT_color_buffer_half_float");
-            TestFloatTextureFormat(GL_RGBA16F, GL_RGBA, GL_HALF_FLOAT_OES, texture, filter, render,
-                                   textureData, readPixelsData);
-        }
     }
-}
-
-// Test that when GL_CHROMIUM_color_buffer_float_rgb[a] is enabled, sized GL_RGB[A]_32F formats are
-// accepted by glTexImage2D
-TEST_P(WebGLCompatibilityTest, SizedRGBA32FFormats)
-{
-    // Test skipped because it is only valid for WebGL1 contexts.
-    ANGLE_SKIP_TEST_IF(getClientMajorVersion() != 2);
-
-    ANGLE_SKIP_TEST_IF(!IsGLExtensionRequestable("GL_OES_texture_float"));
-
-    glRequestExtensionANGLE("GL_OES_texture_float");
-    ASSERT_GL_NO_ERROR();
-
-    GLTexture texture;
-    glBindTexture(GL_TEXTURE_2D, texture);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 1, 1, 0, GL_RGBA, GL_FLOAT, nullptr);
-    // dEQP implicitly defines error code ordering
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, 1, 1, 0, GL_RGB, GL_FLOAT, nullptr);
-    // dEQP implicitly defines error code ordering
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    if (IsGLExtensionRequestable("GL_CHROMIUM_color_buffer_float_rgba"))
-    {
-        glRequestExtensionANGLE("GL_CHROMIUM_color_buffer_float_rgba");
-        ASSERT_GL_NO_ERROR();
-
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 1, 1, 0, GL_RGBA, GL_FLOAT, nullptr);
-        EXPECT_GL_NO_ERROR();
-    }
-
-    if (IsGLExtensionRequestable("GL_CHROMIUM_color_buffer_float_rgb"))
-    {
-        glRequestExtensionANGLE("GL_CHROMIUM_color_buffer_float_rgb");
-        ASSERT_GL_NO_ERROR();
-
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, 1, 1, 0, GL_RGB, GL_FLOAT, nullptr);
-        EXPECT_GL_NO_ERROR();
-    }
-}
-
-// Verify GL_DEPTH_STENCIL_ATTACHMENT is a valid attachment point.
-TEST_P(WebGLCompatibilityTest, DepthStencilAttachment)
-{
-    ANGLE_SKIP_TEST_IF(getClientMajorVersion() > 2);
-
-    // Test that attaching a bound texture succeeds.
-    GLTexture texture;
-    glBindTexture(GL_TEXTURE_2D, texture);
-
-    GLFramebuffer fbo;
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, texture, 0);
-
-    GLint attachmentType = 0;
-    glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
-                                          GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, &attachmentType);
-    EXPECT_GL_NO_ERROR();
-    EXPECT_GLENUM_EQ(GL_TEXTURE, attachmentType);
-
-    // Test when if no attach object at the named attachment point and pname is not OBJECT_TYPE.
-    GLFramebuffer fbo2;
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo2);
-
-    glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
-                                          GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &attachmentType);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-}
-
-// Verify framebuffer attachments return expected types when in an inconsistant state.
-TEST_P(WebGLCompatibilityTest, FramebufferAttachmentConsistancy)
-{
-    ANGLE_SKIP_TEST_IF(getClientMajorVersion() > 2);
-
-    GLFramebuffer fbo;
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-
-    GLRenderbuffer rb1;
-    glBindRenderbuffer(GL_RENDERBUFFER, rb1);
-
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rb1);
-
-    GLint attachmentType = 0;
-    glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT,
-                                          GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, &attachmentType);
-
-    EXPECT_GL_NO_ERROR();
-    EXPECT_GLENUM_EQ(GL_RENDERBUFFER, attachmentType);
-
-    GLRenderbuffer rb2;
-    glBindRenderbuffer(GL_RENDERBUFFER, rb2);
-
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rb2);
-
-    glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
-                                          GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, &attachmentType);
-
-    EXPECT_GL_NO_ERROR();
-    EXPECT_GLENUM_EQ(GL_RENDERBUFFER, attachmentType);
-
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rb2);
-
-    glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
-                                          GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, &attachmentType);
-
-    EXPECT_GL_NO_ERROR();
-    EXPECT_GLENUM_EQ(GL_RENDERBUFFER, attachmentType);
-
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rb2);
-
-    glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
-                                          GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, &attachmentType);
-
-    EXPECT_GL_NO_ERROR();
-    EXPECT_GLENUM_EQ(GL_RENDERBUFFER, attachmentType);
 }
 
 // This tests that rendering feedback loops works as expected with WebGL 2.
 // Based on WebGL test conformance2/rendering/rendering-sampling-feedback-loop.html
 TEST_P(WebGL2CompatibilityTest, RenderingFeedbackLoopWithDrawBuffers)
 {
-    constexpr char kVS[] =
-        R"(#version 300 es
-in vec4 aPosition;
-out vec2 texCoord;
-void main() {
-    gl_Position = aPosition;
-    texCoord = (aPosition.xy * 0.5) + 0.5;
-})";
+    const std::string vertexShader =
+        "#version 300 es\n"
+        "in vec4 aPosition;\n"
+        "out vec2 texCoord;\n"
+        "void main() {\n"
+        "    gl_Position = aPosition;\n"
+        "    texCoord = (aPosition.xy * 0.5) + 0.5;\n"
+        "}\n";
 
-    constexpr char kFS[] =
-        R"(#version 300 es
-precision mediump float;
-uniform sampler2D tex;
-in vec2 texCoord;
-out vec4 oColor;
-void main() {
-    oColor = texture(tex, texCoord);
-})";
+    const std::string fragmentShader =
+        "#version 300 es\n"
+        "precision mediump float;\n"
+        "uniform sampler2D tex;\n"
+        "in vec2 texCoord;\n"
+        "out vec4 oColor;\n"
+        "void main() {\n"
+        "    oColor = texture(tex, texCoord);\n"
+        "}\n";
 
     GLsizei width  = 8;
     GLsizei height = 8;
@@ -3537,7 +1990,7 @@ void main() {
     // ES3 requires a minimum value of 4 for MAX_DRAW_BUFFERS.
     ASSERT_GE(maxDrawBuffers, 2);
 
-    ANGLE_GL_PROGRAM(program, kVS, kFS);
+    ANGLE_GL_PROGRAM(program, vertexShader, fragmentShader);
     glUseProgram(program.get());
     glViewport(0, 0, width, height);
 
@@ -3562,37 +2015,36 @@ void main() {
     drawBuffersFeedbackLoop(program.get(), {{GL_NONE, GL_COLOR_ATTACHMENT1}}, GL_INVALID_OPERATION);
     drawBuffersFeedbackLoop(program.get(), {{GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1}},
                             GL_INVALID_OPERATION);
-    // A feedback loop is formed regardless of drawBuffers settings.
-    drawBuffersFeedbackLoop(program.get(), {{GL_COLOR_ATTACHMENT0, GL_NONE}}, GL_INVALID_OPERATION);
+    drawBuffersFeedbackLoop(program.get(), {{GL_COLOR_ATTACHMENT0, GL_NONE}}, GL_NO_ERROR);
 }
 
 // This test covers detection of rendering feedback loops between the FBO and a depth Texture.
 // Based on WebGL test conformance2/rendering/depth-stencil-feedback-loop.html
 TEST_P(WebGL2CompatibilityTest, RenderingFeedbackLoopWithDepthStencil)
 {
-    constexpr char kVS[] =
-        R"(#version 300 es
-in vec4 aPosition;
-out vec2 texCoord;
-void main() {
-    gl_Position = aPosition;
-    texCoord = (aPosition.xy * 0.5) + 0.5;
-})";
+    const std::string vertexShader =
+        "#version 300 es\n"
+        "in vec4 aPosition;\n"
+        "out vec2 texCoord;\n"
+        "void main() {\n"
+        "    gl_Position = aPosition;\n"
+        "    texCoord = (aPosition.xy * 0.5) + 0.5;\n"
+        "}\n";
 
-    constexpr char kFS[] =
-        R"(#version 300 es
-precision mediump float;
-uniform sampler2D tex;
-in vec2 texCoord;
-out vec4 oColor;
-void main() {
-    oColor = texture(tex, texCoord);
-})";
+    const std::string fragmentShader =
+        "#version 300 es\n"
+        "precision mediump float;\n"
+        "uniform sampler2D tex;\n"
+        "in vec2 texCoord;\n"
+        "out vec4 oColor;\n"
+        "void main() {\n"
+        "    oColor = texture(tex, texCoord);\n"
+        "}\n";
 
     GLsizei width  = 8;
     GLsizei height = 8;
 
-    ANGLE_GL_PROGRAM(program, kVS, kFS);
+    ANGLE_GL_PROGRAM(program, vertexShader, fragmentShader);
     glUseProgram(program.get());
 
     glViewport(0, 0, width, height);
@@ -3603,12 +2055,12 @@ void main() {
     // Create textures and allocate storage
     GLTexture tex0;
     GLTexture tex1;
-    GLTexture tex2;
+    GLRenderbuffer rb;
     FillTexture2D(tex0.get(), width, height, GLColor::black, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
     FillTexture2D(tex1.get(), width, height, 0x80, 0, GL_DEPTH_COMPONENT16, GL_DEPTH_COMPONENT,
                   GL_UNSIGNED_INT);
-    FillTexture2D(tex2.get(), width, height, 0x40, 0, GL_DEPTH24_STENCIL8, GL_DEPTH_STENCIL,
-                  GL_UNSIGNED_INT_24_8);
+    glBindRenderbuffer(GL_RENDERBUFFER, rb.get());
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_STENCIL_INDEX8, width, height);
     ASSERT_GL_NO_ERROR();
 
     GLFramebuffer fbo;
@@ -3623,25 +2075,23 @@ void main() {
     // The same image is used as depth buffer during rendering.
     glEnable(GL_DEPTH_TEST);
     drawQuad(program.get(), "aPosition", 0.5f, 1.0f, true);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION) << "Same image as depth buffer should fail";
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 
     // The same image is used as depth buffer. But depth mask is false.
-    // This is now considered a feedback loop and should generate an error. http://crbug.com/763695
     glDepthMask(GL_FALSE);
     drawQuad(program.get(), "aPosition", 0.5f, 1.0f, true);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION) << "Depth writes disabled should still fail";
+    EXPECT_GL_NO_ERROR();
 
     // The same image is used as depth buffer. But depth test is not enabled during rendering.
-    // This is now considered a feedback loop and should generate an error. http://crbug.com/763695
     glDepthMask(GL_TRUE);
     glDisable(GL_DEPTH_TEST);
     drawQuad(program.get(), "aPosition", 0.5f, 1.0f, true);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION) << "Depth read disabled should still fail";
+    EXPECT_GL_NO_ERROR();
 
     // Test rendering and sampling feedback loop for stencil buffer
-    glBindTexture(GL_TEXTURE_2D, tex2.get());
+    glBindTexture(GL_RENDERBUFFER, rb.get());
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, tex2.get(), 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rb.get());
     ASSERT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, glCheckFramebufferStatus(GL_FRAMEBUFFER));
     constexpr GLint stencilClearValue = 0x40;
     glClearBufferiv(GL_STENCIL, 0, &stencilClearValue);
@@ -3649,28 +2099,24 @@ void main() {
     // The same image is used as stencil buffer during rendering.
     glEnable(GL_STENCIL_TEST);
     drawQuad(program.get(), "aPosition", 0.5f, 1.0f, true);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION) << "Same image as stencil buffer should fail";
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 
     // The same image is used as stencil buffer. But stencil mask is zero.
-    // This is now considered a feedback loop and should generate an error. http://crbug.com/763695
     glStencilMask(0x0);
     drawQuad(program.get(), "aPosition", 0.5f, 1.0f, true);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION) << "Stencil mask zero should still fail";
+    EXPECT_GL_NO_ERROR();
 
     // The same image is used as stencil buffer. But stencil test is not enabled during rendering.
-    // This is now considered a feedback loop and should generate an error. http://crbug.com/763695
     glStencilMask(0xffff);
     glDisable(GL_STENCIL_TEST);
     drawQuad(program.get(), "aPosition", 0.5f, 1.0f, true);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION) << "Stencil test disabled should still fail";
+    EXPECT_GL_NO_ERROR();
 }
 
 // The source and the target for CopyTexSubImage3D are the same 3D texture.
 // But the level of the 3D texture != the level of the read attachment.
 TEST_P(WebGL2CompatibilityTest, NoTextureCopyingFeedbackLoopBetween3DLevels)
 {
-    // http://anglebug.com/4092
-    ANGLE_SKIP_TEST_IF(IsVulkan());
     GLTexture texture;
     GLFramebuffer framebuffer;
 
@@ -3690,8 +2136,6 @@ TEST_P(WebGL2CompatibilityTest, NoTextureCopyingFeedbackLoopBetween3DLevels)
 // But the zoffset of the 3D texture != the layer of the read attachment.
 TEST_P(WebGL2CompatibilityTest, NoTextureCopyingFeedbackLoopBetween3DLayers)
 {
-    // http://anglebug.com/4092
-    ANGLE_SKIP_TEST_IF(IsVulkan());
     GLTexture texture;
     GLFramebuffer framebuffer;
 
@@ -3726,12 +2170,15 @@ TEST_P(WebGL2CompatibilityTest, TextureCopyingFeedbackLoop3D)
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 }
 
-// Verify that errors are generated when there isn't a defined conversion between the clear type and
-// the buffer type.
+// Verify that errors are generated when there isn not a defined conversion between the clear type
+// and the buffer type.
 TEST_P(WebGL2CompatibilityTest, ClearBufferTypeCompatibity)
 {
-    // Test skipped for D3D11 because it generates D3D11 runtime warnings.
-    ANGLE_SKIP_TEST_IF(IsD3D11());
+    if (IsD3D11())
+    {
+        std::cout << "Test skipped because it generates D3D11 runtime warnings." << std::endl;
+        return;
+    }
 
     constexpr float clearFloat[]       = {0.0f, 0.0f, 0.0f, 0.0f};
     constexpr int clearInt[]           = {0, 0, 0, 0};
@@ -3779,12 +2226,12 @@ TEST_P(WebGL2CompatibilityTest, ClearBufferTypeCompatibity)
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 
     // Float buffer
-    if (IsGLExtensionRequestable("GL_EXT_color_buffer_float"))
+    if (extensionRequestable("GL_EXT_color_buffer_float"))
     {
         glRequestExtensionANGLE("GL_EXT_color_buffer_float");
     }
 
-    if (IsGLExtensionEnabled("GL_EXT_color_buffer_float"))
+    if (extensionEnabled("GL_EXT_color_buffer_float"))
     {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 1, 1, 0, GL_RGBA, GL_FLOAT, nullptr);
         ASSERT_GL_NO_ERROR();
@@ -3817,29 +2264,6 @@ TEST_P(WebGL2CompatibilityTest, ClearBufferTypeCompatibity)
 
     glClear(GL_COLOR_BUFFER_BIT);
     EXPECT_GL_NO_ERROR();
-}
-
-// Test the interaction of WebGL compatibility clears with default framebuffers
-TEST_P(WebGL2CompatibilityTest, ClearBufferDefaultFramebuffer)
-{
-    constexpr float clearFloat[]       = {0.0f, 0.0f, 0.0f, 0.0f};
-    constexpr int clearInt[]           = {0, 0, 0, 0};
-    constexpr unsigned int clearUint[] = {0, 0, 0, 0};
-
-    // glClear works as usual, this is also a regression test for a bug where we
-    // iterated on maxDrawBuffers for default framebuffers, triggering an assert
-    glClear(GL_COLOR_BUFFER_BIT);
-    EXPECT_GL_NO_ERROR();
-
-    // Default framebuffers are normalized uints, so only glClearBufferfv works.
-    glClearBufferfv(GL_COLOR, 0, clearFloat);
-    EXPECT_GL_NO_ERROR();
-
-    glClearBufferiv(GL_COLOR, 0, clearInt);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    glClearBufferuiv(GL_COLOR, 0, clearUint);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 }
 
 // Verify that errors are generate when trying to blit from an image to itself
@@ -3909,744 +2333,16 @@ TEST_P(WebGL2CompatibilityTest, BlitFramebufferSameImage)
     ASSERT_GL_ERROR(GL_INVALID_OPERATION);
 }
 
-// Verify that errors are generated when the fragment shader output doesn't match the bound color
-// buffer types
-TEST_P(WebGL2CompatibilityTest, FragmentShaderColorBufferTypeMissmatch)
-{
-    constexpr char kVS[] =
-        R"(#version 300 es
-void main() {
-    gl_Position = vec4(0, 0, 0, 1);
-})";
-
-    constexpr char kFS[] =
-        R"(#version 300 es
-precision mediump float;
-layout(location = 0) out vec4 floatOutput;
-layout(location = 1) out uvec4 uintOutput;
-layout(location = 2) out ivec4 intOutput;
-void main() {
-    floatOutput = vec4(0, 0, 0, 1);
-    uintOutput = uvec4(0, 0, 0, 1);
-    intOutput = ivec4(0, 0, 0, 1);
-})";
-
-    ANGLE_GL_PROGRAM(program, kVS, kFS);
-    glUseProgram(program.get());
-
-    GLuint floatLocation = glGetFragDataLocation(program, "floatOutput");
-    GLuint uintLocation  = glGetFragDataLocation(program, "uintOutput");
-    GLuint intLocation   = glGetFragDataLocation(program, "intOutput");
-
-    GLFramebuffer fbo;
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-
-    GLRenderbuffer floatRenderbuffer;
-    glBindRenderbuffer(GL_RENDERBUFFER, floatRenderbuffer);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, 1, 1);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + floatLocation, GL_RENDERBUFFER,
-                              floatRenderbuffer);
-
-    GLRenderbuffer uintRenderbuffer;
-    glBindRenderbuffer(GL_RENDERBUFFER, uintRenderbuffer);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8UI, 1, 1);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + uintLocation, GL_RENDERBUFFER,
-                              uintRenderbuffer);
-
-    GLRenderbuffer intRenderbuffer;
-    glBindRenderbuffer(GL_RENDERBUFFER, intRenderbuffer);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8I, 1, 1);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + intLocation, GL_RENDERBUFFER,
-                              intRenderbuffer);
-
-    ASSERT_GL_NO_ERROR();
-
-    GLint maxDrawBuffers = 0;
-    glGetIntegerv(GL_MAX_DRAW_BUFFERS, &maxDrawBuffers);
-    std::vector<GLenum> drawBuffers(static_cast<size_t>(maxDrawBuffers), GL_NONE);
-    drawBuffers[floatLocation] = GL_COLOR_ATTACHMENT0 + floatLocation;
-    drawBuffers[uintLocation]  = GL_COLOR_ATTACHMENT0 + uintLocation;
-    drawBuffers[intLocation]   = GL_COLOR_ATTACHMENT0 + intLocation;
-
-    glDrawBuffers(maxDrawBuffers, drawBuffers.data());
-
-    // Check that the correct case generates no errors
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    EXPECT_GL_NO_ERROR();
-
-    // Unbind some buffers and verify that there are still no errors
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + uintLocation, GL_RENDERBUFFER,
-                              0);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + intLocation, GL_RENDERBUFFER,
-                              0);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    EXPECT_GL_NO_ERROR();
-
-    // Swap the int and uint buffers to and verify that an error is generated
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + uintLocation, GL_RENDERBUFFER,
-                              intRenderbuffer);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + intLocation, GL_RENDERBUFFER,
-                              uintRenderbuffer);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    // Swap the float and uint buffers to and verify that an error is generated
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + uintLocation, GL_RENDERBUFFER,
-                              floatRenderbuffer);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + floatLocation, GL_RENDERBUFFER,
-                              uintRenderbuffer);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + intLocation, GL_RENDERBUFFER,
-                              intRenderbuffer);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-}
-
-// Verify that errors are generated when the vertex shader intput doesn't match the bound attribute
-// types
-TEST_P(WebGL2CompatibilityTest, VertexShaderAttributeTypeMismatch)
-{
-    constexpr char kVS[] =
-        R"(#version 300 es
-in vec4 floatInput;
-in uvec4 uintInput;
-in ivec4 intInput;
-void main() {
-    gl_Position = vec4(floatInput.x, uintInput.x, intInput.x, 1);
-})";
-
-    constexpr char kFS[] =
-        R"(#version 300 es
-precision mediump float;
-out vec4 outputColor;
-void main() {
-    outputColor = vec4(0, 0, 0, 1);
-})";
-
-    ANGLE_GL_PROGRAM(program, kVS, kFS);
-    glUseProgram(program.get());
-
-    GLint floatLocation = glGetAttribLocation(program, "floatInput");
-    GLint uintLocation  = glGetAttribLocation(program, "uintInput");
-    GLint intLocation   = glGetAttribLocation(program, "intInput");
-
-    // Default attributes are of float types
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    // Set the default attributes to the correct types, should succeed
-    glVertexAttribI4ui(uintLocation, 0, 0, 0, 1);
-    glVertexAttribI4i(intLocation, 0, 0, 0, 1);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    EXPECT_GL_NO_ERROR();
-
-    // Change the default float attribute to an integer, should fail
-    glVertexAttribI4ui(floatLocation, 0, 0, 0, 1);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    // Use a buffer for some attributes
-    GLBuffer buffer;
-    glBindBuffer(GL_ARRAY_BUFFER, buffer);
-    glBufferData(GL_ARRAY_BUFFER, 1024, nullptr, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(floatLocation);
-    glVertexAttribPointer(floatLocation, 4, GL_FLOAT, GL_FALSE, 0, nullptr);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    EXPECT_GL_NO_ERROR();
-
-    // Use a float pointer attrib for a uint input
-    glEnableVertexAttribArray(uintLocation);
-    glVertexAttribPointer(uintLocation, 4, GL_FLOAT, GL_FALSE, 0, nullptr);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    // Use a uint pointer for the uint input
-    glVertexAttribIPointer(uintLocation, 4, GL_UNSIGNED_INT, 0, nullptr);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    EXPECT_GL_NO_ERROR();
-}
-
-// Test that it's not possible to query the non-zero color attachments without the drawbuffers
-// extension in WebGL1
-TEST_P(WebGLCompatibilityTest, FramebufferAttachmentQuery)
-{
-    ANGLE_SKIP_TEST_IF(getClientMajorVersion() > 2);
-    ANGLE_SKIP_TEST_IF(IsGLExtensionEnabled("GL_EXT_draw_buffers"));
-
-    GLFramebuffer fbo;
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-    EXPECT_GL_NO_ERROR();
-
-    GLint result;
-    glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1,
-                                          GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, &result);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    GLRenderbuffer renderbuffer;
-    glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA4, 1, 1);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_RENDERBUFFER, renderbuffer);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-}
-
-// Tests WebGL reports INVALID_OPERATION for mismatch of drawbuffers and fragment output
-TEST_P(WebGLCompatibilityTest, DrawBuffers)
-{
-    // Fails on Intel Ubuntu 19.04 Mesa 19.0.2 Vulkan. http://anglebug.com/3616
-    ANGLE_SKIP_TEST_IF(IsLinux() && IsIntel() && IsVulkan());
-
-    // Make sure we can use at least 4 attachments for the tests.
-    bool useEXT = false;
-    if (getClientMajorVersion() < 3)
-    {
-        ANGLE_SKIP_TEST_IF(!IsGLExtensionRequestable("GL_EXT_draw_buffers"));
-
-        glRequestExtensionANGLE("GL_EXT_draw_buffers");
-        useEXT = true;
-        EXPECT_GL_NO_ERROR();
-    }
-
-    GLint maxDrawBuffers = 0;
-    glGetIntegerv(GL_MAX_DRAW_BUFFERS, &maxDrawBuffers);
-    // Test skipped because MAX_DRAW_BUFFERS is too small.
-    ANGLE_SKIP_TEST_IF(maxDrawBuffers < 4);
-
-    // Clears all the renderbuffers to red.
-    auto ClearEverythingToRed = [](GLRenderbuffer *renderbuffers) {
-        GLFramebuffer clearFBO;
-        glBindFramebuffer(GL_FRAMEBUFFER, clearFBO);
-
-        glClearColor(1, 0, 0, 1);
-        for (int i = 0; i < 4; ++i)
-        {
-            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER,
-                                      renderbuffers[i]);
-            glClear(GL_COLOR_BUFFER_BIT);
-        }
-        ASSERT_GL_NO_ERROR();
-    };
-
-    // Checks that the renderbuffers specified by mask have the correct color
-    auto CheckColors = [](GLRenderbuffer *renderbuffers, int mask, GLColor color) {
-        GLFramebuffer readFBO;
-        glBindFramebuffer(GL_FRAMEBUFFER, readFBO);
-
-        for (int i = 0; i < 4; ++i)
-        {
-            if (mask & (1 << i))
-            {
-                glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER,
-                                          renderbuffers[i]);
-                EXPECT_PIXEL_COLOR_EQ(0, 0, color);
-            }
-        }
-        ASSERT_GL_NO_ERROR();
-    };
-
-    // Depending on whether we are using the extension or ES3, a different entrypoint must be called
-    auto DrawBuffers = [](bool useEXT, int numBuffers, GLenum *buffers) {
-        if (useEXT)
-        {
-            glDrawBuffersEXT(numBuffers, buffers);
-        }
-        else
-        {
-            glDrawBuffers(numBuffers, buffers);
-        }
-    };
-
-    // Initialized the test framebuffer
-    GLFramebuffer drawFBO;
-    glBindFramebuffer(GL_FRAMEBUFFER, drawFBO);
-
-    GLRenderbuffer renderbuffers[4];
-    for (int i = 0; i < 4; ++i)
-    {
-        glBindRenderbuffer(GL_RENDERBUFFER, renderbuffers[i]);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA4, 1, 1);
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_RENDERBUFFER,
-                                  renderbuffers[i]);
-    }
-
-    ASSERT_GL_NO_ERROR();
-
-    GLenum allDrawBuffers[] = {
-        GL_COLOR_ATTACHMENT0,
-        GL_COLOR_ATTACHMENT1,
-        GL_COLOR_ATTACHMENT2,
-        GL_COLOR_ATTACHMENT3,
-    };
-
-    GLenum halfDrawBuffers[] = {
-        GL_NONE,
-        GL_COLOR_ATTACHMENT1,
-        GL_NONE,
-        GL_COLOR_ATTACHMENT3,
-    };
-
-    // Test that when using gl_FragColor with no-array
-    const char *fragESSL1 =
-        R"(precision highp float;
-void main()
-{
-    gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
-})";
-    ANGLE_GL_PROGRAM(programESSL1, essl1_shaders::vs::Simple(), fragESSL1);
-
-    {
-        glBindFramebuffer(GL_FRAMEBUFFER, drawFBO);
-        DrawBuffers(useEXT, 4, allDrawBuffers);
-        drawQuad(programESSL1, essl1_shaders::PositionAttrib(), 0.5, 1.0, true);
-        EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-    }
-
-    // Test what happens when rendering to a subset of the outputs. There is a behavior difference
-    // between the extension and ES3. In the extension gl_FragData is implicitly declared as an
-    // array of size MAX_DRAW_BUFFERS, so the WebGL spec stipulates that elements not written to
-    // should default to 0. On the contrary, in ES3 outputs are specified one by one, so
-    // attachments not declared in the shader should not be written to.
-    const char *positionAttrib;
-    const char *writeOddOutputsVert;
-    const char *writeOddOutputsFrag;
-    if (useEXT)
-    {
-        positionAttrib      = essl1_shaders::PositionAttrib();
-        writeOddOutputsVert = essl1_shaders::vs::Simple();
-        writeOddOutputsFrag =
-            R"(#extension GL_EXT_draw_buffers : require
-precision highp float;
-void main()
-{
-    gl_FragData[1] = vec4(0.0, 1.0, 0.0, 1.0);
-    gl_FragData[3] = vec4(0.0, 1.0, 0.0, 1.0);
-})";
-    }
-    else
-    {
-        positionAttrib      = essl3_shaders::PositionAttrib();
-        writeOddOutputsVert = essl3_shaders::vs::Simple();
-        writeOddOutputsFrag =
-            R"(#version 300 es
-precision highp float;
-layout(location = 1) out vec4 output1;
-layout(location = 3) out vec4 output2;
-void main()
-{
-    output1 = vec4(0.0, 1.0, 0.0, 1.0);
-    output2 = vec4(0.0, 1.0, 0.0, 1.0);
-})";
-    }
-    ANGLE_GL_PROGRAM(writeOddOutputsProgram, writeOddOutputsVert, writeOddOutputsFrag);
-
-    // Test that attachments not written to get the "unwritten" color (useEXT)
-    // Or INVALID_OPERATION is generated if there's active draw buffer receive no output
-    {
-        ClearEverythingToRed(renderbuffers);
-
-        glBindFramebuffer(GL_FRAMEBUFFER, drawFBO);
-        DrawBuffers(useEXT, 4, allDrawBuffers);
-        drawQuad(writeOddOutputsProgram, positionAttrib, 0.5, 1.0, true);
-
-        if (useEXT)
-        {
-            ASSERT_GL_NO_ERROR();
-            CheckColors(renderbuffers, 0b1010, GLColor::green);
-            // In the extension, when an attachment isn't written to, it should get 0's
-            CheckColors(renderbuffers, 0b0101, GLColor(0, 0, 0, 0));
-        }
-        else
-        {
-            EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-        }
-    }
-
-    // TODO(syoussefi): Qualcomm driver crashes in the presence of VK_ATTACHMENT_UNUSED.
-    // http://anglebug.com/3423
-    ANGLE_SKIP_TEST_IF(IsVulkan() && IsAndroid());
-
-    // Test that attachments written to get the correct color from shader output but that even when
-    // the extension is used, disabled attachments are not written at all and stay red.
-    {
-        ClearEverythingToRed(renderbuffers);
-
-        glBindFramebuffer(GL_FRAMEBUFFER, drawFBO);
-        DrawBuffers(useEXT, 4, halfDrawBuffers);
-        drawQuad(writeOddOutputsProgram, positionAttrib, 0.5, 1.0, true);
-        ASSERT_GL_NO_ERROR();
-
-        CheckColors(renderbuffers, 0b1010, GLColor::green);
-        CheckColors(renderbuffers, 0b0101, GLColor::red);
-    }
-}
-
-// Test that it's possible to generate mipmaps on unsized floating point textures once the
-// extensions have been enabled
-TEST_P(WebGLCompatibilityTest, GenerateMipmapUnsizedFloatingPointTexture)
-{
-    if (IsGLExtensionRequestable("GL_OES_texture_float"))
-    {
-        glRequestExtensionANGLE("GL_OES_texture_float");
-    }
-    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_OES_texture_float"));
-
-    GLTexture texture;
-    glBindTexture(GL_TEXTURE_2D, texture);
-
-    constexpr GLColor32F data[4] = {
-        kFloatRed,
-        kFloatRed,
-        kFloatGreen,
-        kFloatBlue,
-    };
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 2, 2, 0, GL_RGBA, GL_FLOAT, data);
-    ASSERT_GL_NO_ERROR();
-
-    glGenerateMipmap(GL_TEXTURE_2D);
-    EXPECT_GL_NO_ERROR();
-}
-// Test that it's possible to generate mipmaps on unsized floating point textures once the
-// extensions have been enabled
-TEST_P(WebGLCompatibilityTest, GenerateMipmapSizedFloatingPointTexture)
-{
-    if (IsGLExtensionRequestable("GL_OES_texture_float"))
-    {
-        glRequestExtensionANGLE("GL_OES_texture_float");
-    }
-    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_OES_texture_float"));
-
-    if (IsGLExtensionRequestable("GL_EXT_texture_storage"))
-    {
-        glRequestExtensionANGLE("GL_EXT_texture_storage");
-    }
-    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_texture_storage"));
-
-    GLTexture texture;
-    glBindTexture(GL_TEXTURE_2D, texture);
-
-    constexpr GLColor32F data[4] = {
-        kFloatRed,
-        kFloatRed,
-        kFloatGreen,
-        kFloatBlue,
-    };
-    glTexStorage2DEXT(GL_TEXTURE_2D, 2, GL_RGBA32F, 2, 2);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 2, 2, GL_RGBA, GL_FLOAT, data);
-    ASSERT_GL_NO_ERROR();
-
-    glGenerateMipmap(GL_TEXTURE_2D);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    if (IsGLExtensionRequestable("GL_EXT_color_buffer_float"))
-    {
-        // Format is renderable but not filterable
-        glRequestExtensionANGLE("GL_EXT_color_buffer_float");
-        glGenerateMipmap(GL_TEXTURE_2D);
-        EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-    }
-
-    if (IsGLExtensionRequestable("GL_EXT_color_buffer_float_linear"))
-    {
-        // Format is renderable but not filterable
-        glRequestExtensionANGLE("GL_EXT_color_buffer_float_linear");
-
-        if (IsGLExtensionEnabled("GL_EXT_color_buffer_float"))
-        {
-            // Format is filterable and renderable
-            glGenerateMipmap(GL_TEXTURE_2D);
-            EXPECT_GL_NO_ERROR();
-        }
-        else
-        {
-            // Format is filterable but not renderable
-            glGenerateMipmap(GL_TEXTURE_2D);
-            EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-        }
-    }
-}
-
-// Verify that a texture format is only allowed with extension enabled.
-void WebGLCompatibilityTest::validateTexImageExtensionFormat(GLenum format,
-                                                             const std::string &extName)
-{
-    // Verify texture format fails by default.
-    glTexImage2D(GL_TEXTURE_2D, 0, format, 1, 1, 0, format, GL_UNSIGNED_BYTE, nullptr);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    if (IsGLExtensionRequestable(extName))
-    {
-        // Verify texture format is allowed once extension is enabled.
-        glRequestExtensionANGLE(extName.c_str());
-        EXPECT_TRUE(IsGLExtensionEnabled(extName));
-
-        glTexImage2D(GL_TEXTURE_2D, 0, format, 1, 1, 0, format, GL_UNSIGNED_BYTE, nullptr);
-        ASSERT_GL_NO_ERROR();
-    }
-}
-
-// Test enabling various non-compressed texture format extensions
-TEST_P(WebGLCompatibilityTest, EnableTextureFormatExtensions)
-{
-    ANGLE_SKIP_TEST_IF(IsOzone());
-    ANGLE_SKIP_TEST_IF(getClientMajorVersion() != 2);
-
-    GLTexture texture;
-    glBindTexture(GL_TEXTURE_2D, texture.get());
-
-    // Verify valid format is allowed.
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    ASSERT_GL_NO_ERROR();
-
-    // Verify invalid format fails.
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 1, 1, 0, GL_RGBA32F, GL_UNSIGNED_BYTE, nullptr);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    // Verify formats from enableable extensions.
-    if (!IsOpenGLES())
-    {
-        validateTexImageExtensionFormat(GL_RED_EXT, "GL_EXT_texture_rg");
-    }
-
-    validateTexImageExtensionFormat(GL_SRGB_EXT, "GL_EXT_texture_sRGB");
-    validateTexImageExtensionFormat(GL_BGRA_EXT, "GL_EXT_texture_format_BGRA8888");
-}
-
-void WebGLCompatibilityTest::validateCompressedTexImageExtensionFormat(GLenum format,
-                                                                       GLsizei width,
-                                                                       GLsizei height,
-                                                                       GLsizei blockSize,
-                                                                       const std::string &extName,
-                                                                       bool subImageAllowed)
-{
-    std::vector<GLubyte> data(blockSize, 0u);
-
-    GLTexture texture;
-    glBindTexture(GL_TEXTURE_2D, texture.get());
-
-    // Verify texture format fails by default.
-    glCompressedTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, blockSize, data.data());
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-
-    if (IsGLExtensionRequestable(extName))
-    {
-        // Verify texture format is allowed once extension is enabled.
-        glRequestExtensionANGLE(extName.c_str());
-        EXPECT_TRUE(IsGLExtensionEnabled(extName));
-
-        glCompressedTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, blockSize, data.data());
-        EXPECT_GL_NO_ERROR();
-
-        glCompressedTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, format, blockSize,
-                                  data.data());
-        if (subImageAllowed)
-        {
-            EXPECT_GL_NO_ERROR();
-        }
-        else
-        {
-            EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-        }
-    }
-}
-
-// Test enabling GL_EXT_texture_compression_dxt1 for GL_COMPRESSED_RGB_S3TC_DXT1_EXT
-TEST_P(WebGLCompatibilityTest, EnableCompressedTextureExtensionDXT1RGB)
-{
-    validateCompressedTexImageExtensionFormat(GL_COMPRESSED_RGB_S3TC_DXT1_EXT, 4, 4, 8,
-                                              "GL_EXT_texture_compression_dxt1", true);
-}
-
-// Test enabling GL_EXT_texture_compression_dxt1 for GL_COMPRESSED_RGBA_S3TC_DXT1_EXT
-TEST_P(WebGLCompatibilityTest, EnableCompressedTextureExtensionDXT1RGBA)
-{
-    validateCompressedTexImageExtensionFormat(GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 4, 4, 8,
-                                              "GL_EXT_texture_compression_dxt1", true);
-}
-
-// Test enabling GL_ANGLE_texture_compression_dxt3
-TEST_P(WebGLCompatibilityTest, EnableCompressedTextureExtensionDXT3)
-{
-    validateCompressedTexImageExtensionFormat(GL_COMPRESSED_RGBA_S3TC_DXT3_ANGLE, 4, 4, 16,
-                                              "GL_ANGLE_texture_compression_dxt3", true);
-}
-
-// Test enabling GL_ANGLE_texture_compression_dxt5
-TEST_P(WebGLCompatibilityTest, EnableCompressedTextureExtensionDXT5)
-{
-    validateCompressedTexImageExtensionFormat(GL_COMPRESSED_RGBA_S3TC_DXT5_ANGLE, 4, 4, 16,
-                                              "GL_ANGLE_texture_compression_dxt5", true);
-}
-
-// Test enabling GL_EXT_texture_compression_s3tc_srgb for GL_COMPRESSED_SRGB_S3TC_DXT1_EXT
-TEST_P(WebGLCompatibilityTest, EnableCompressedTextureExtensionDXT1SRGB)
-{
-    validateCompressedTexImageExtensionFormat(GL_COMPRESSED_SRGB_S3TC_DXT1_EXT, 4, 4, 8,
-                                              "GL_EXT_texture_compression_s3tc_srgb", true);
-}
-
-// Test enabling GL_EXT_texture_compression_s3tc_srgb for GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT
-TEST_P(WebGLCompatibilityTest, EnableCompressedTextureExtensionDXT1SRGBA)
-{
-    validateCompressedTexImageExtensionFormat(GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT, 4, 4, 8,
-                                              "GL_EXT_texture_compression_s3tc_srgb", true);
-}
-
-// Test enabling GL_EXT_texture_compression_s3tc_srgb for GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT
-TEST_P(WebGLCompatibilityTest, EnableCompressedTextureExtensionDXT3SRGBA)
-{
-    validateCompressedTexImageExtensionFormat(GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT, 4, 4, 16,
-                                              "GL_EXT_texture_compression_s3tc_srgb", true);
-}
-
-// Test enabling GL_EXT_texture_compression_s3tc_srgb for GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT
-TEST_P(WebGLCompatibilityTest, EnableCompressedTextureExtensionDXT5SRGBA)
-{
-    validateCompressedTexImageExtensionFormat(GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT, 4, 4, 16,
-                                              "GL_EXT_texture_compression_s3tc_srgb", true);
-}
-
-// Test enabling GL_OES_compressed_ETC1_RGB8_texture
-TEST_P(WebGLCompatibilityTest, EnableCompressedTextureExtensionETC1)
-{
-    validateCompressedTexImageExtensionFormat(GL_ETC1_RGB8_OES, 4, 4, 8,
-                                              "GL_OES_compressed_ETC1_RGB8_texture", false);
-}
-
-// Test enabling GL_ANGLE_lossy_etc_decode
-TEST_P(WebGLCompatibilityTest, EnableCompressedTextureExtensionLossyDecode)
-{
-    validateCompressedTexImageExtensionFormat(GL_ETC1_RGB8_LOSSY_DECODE_ANGLE, 4, 4, 8,
-                                              "GL_ANGLE_lossy_etc_decode", true);
-}
-
-// Linking should fail when corresponding vertex/fragment uniform blocks have different precision
-// qualifiers.
-TEST_P(WebGL2CompatibilityTest, UniformBlockPrecisionMismatch)
-{
-    constexpr char kVS[] =
-        R"(#version 300 es
-uniform Block { mediump vec4 val; };
-void main() { gl_Position = val; })";
-    constexpr char kFS[] =
-        R"(#version 300 es
-uniform Block { highp vec4 val; };
-out highp vec4 out_FragColor;
-void main() { out_FragColor = val; })";
-
-    GLuint vs = CompileShader(GL_VERTEX_SHADER, kVS);
-    ASSERT_NE(0u, vs);
-    GLuint fs = CompileShader(GL_FRAGMENT_SHADER, kFS);
-    ASSERT_NE(0u, fs);
-
-    GLuint program = glCreateProgram();
-
-    glAttachShader(program, vs);
-    glDeleteShader(vs);
-    glAttachShader(program, fs);
-    glDeleteShader(fs);
-
-    glLinkProgram(program);
-    GLint linkStatus;
-    glGetProgramiv(program, GL_LINK_STATUS, &linkStatus);
-    ASSERT_EQ(0, linkStatus);
-
-    glDeleteProgram(program);
-}
-
-// Test no attribute vertex shaders
-TEST_P(WebGL2CompatibilityTest, NoAttributeVertexShader)
-{
-    constexpr char kVS[] =
-        R"(#version 300 es
-void main()
-{
-
-    ivec2 xy = ivec2(gl_VertexID % 2, (gl_VertexID / 2 + gl_VertexID / 3) % 2);
-    gl_Position = vec4(vec2(xy) * 2. - 1., 0, 1);
-})";
-
-    ANGLE_GL_PROGRAM(program, kVS, essl3_shaders::fs::Red());
-    glUseProgram(program);
-
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    ASSERT_GL_NO_ERROR();
-    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::red);
-}
-
-// Tests bindAttribLocations for length limit
-TEST_P(WebGL2CompatibilityTest, BindAttribLocationLimitation)
-{
-    constexpr int maxLocStringLength = 1024;
-    const std::string tooLongString(maxLocStringLength + 1, '_');
-
-    glBindAttribLocation(0, 0, static_cast<const GLchar *>(tooLongString.c_str()));
-
-    EXPECT_GL_ERROR(GL_INVALID_VALUE);
-}
-
-// Covers a bug in transform feedback loop detection.
-TEST_P(WebGL2CompatibilityTest, TransformFeedbackCheckNullDeref)
-{
-    constexpr char kVS[] = R"(attribute vec4 color; void main() { color.r; })";
-    constexpr char kFS[] = R"(void main(){})";
-    ANGLE_GL_PROGRAM(program, kVS, kFS);
-    glUseProgram(program);
-
-    glEnableVertexAttribArray(0);
-    glDrawArrays(GL_POINTS, 0, 1);
-
-    // This should fail because it is trying to pull a vertex with no buffer.
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    GLBuffer buffer;
-    glBindBuffer(GL_ARRAY_BUFFER, buffer);
-    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, nullptr);
-
-    // This should fail because it is trying to pull a vertex from an empty buffer.
-    glDrawArrays(GL_POINTS, 0, 1);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-}
-
-// We should forbid two transform feedback outputs going to the same buffer.
-TEST_P(WebGL2CompatibilityTest, TransformFeedbackDoubleBinding)
-{
-    constexpr char kVS[] =
-        R"(attribute float a; varying float b; varying float c; void main() { b = a; c = a; })";
-    constexpr char kFS[] = R"(void main(){})";
-    ANGLE_GL_PROGRAM(program, kVS, kFS);
-    static const char *varyings[] = {"b", "c"};
-    glTransformFeedbackVaryings(program, 2, varyings, GL_SEPARATE_ATTRIBS);
-    glLinkProgram(program);
-    glUseProgram(program);
-    ASSERT_GL_NO_ERROR();
-
-    // Bind the transform feedback varyings to non-overlapping regions of the same buffer.
-    GLBuffer buffer;
-    glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER, 0, buffer, 0, 4);
-    glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER, 1, buffer, 4, 4);
-    glBufferData(GL_TRANSFORM_FEEDBACK_BUFFER, 8, nullptr, GL_STATIC_DRAW);
-    ASSERT_GL_NO_ERROR();
-    // Two varyings bound to the same buffer should be an error.
-    glBeginTransformFeedback(GL_POINTS);
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-}
-
-// Check the return type of a given parameter upon getting the active uniforms.
-TEST_P(WebGL2CompatibilityTest, UniformVariablesReturnTypes)
-{
-    ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::UniformColor());
-
-    std::vector<GLuint> validUniformIndices = {0};
-    std::vector<GLint> uniformNameLengthBuf(validUniformIndices.size());
-
-    // This should fail because GL_UNIFORM_NAME_LENGTH cannot be used in WebGL2.
-    glGetActiveUniformsiv(program, static_cast<GLsizei>(validUniformIndices.size()),
-                          &validUniformIndices[0], GL_UNIFORM_NAME_LENGTH,
-                          &uniformNameLengthBuf[0]);
-    EXPECT_GL_ERROR(GL_INVALID_ENUM);
-}
-
 // Use this to select which configurations (e.g. which renderer, which GLES major version) these
 // tests should be run against.
-ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(WebGLCompatibilityTest);
+ANGLE_INSTANTIATE_TEST(WebGLCompatibilityTest,
+                       ES2_D3D9(),
+                       ES2_D3D11(),
+                       ES3_D3D11(),
+                       ES2_OPENGL(),
+                       ES3_OPENGL(),
+                       ES2_OPENGLES(),
+                       ES3_OPENGLES());
 
-ANGLE_INSTANTIATE_TEST_ES3(WebGL2CompatibilityTest);
-}  // namespace angle
+ANGLE_INSTANTIATE_TEST(WebGL2CompatibilityTest, ES3_D3D11(), ES3_OPENGL(), ES3_OPENGLES());
+}  // namespace

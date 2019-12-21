@@ -1,5 +1,5 @@
 //
-// Copyright 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -17,7 +17,11 @@
 
 namespace angle
 {
-std::string GetExecutablePath()
+
+namespace
+{
+
+std::string GetExecutablePathImpl()
 {
     // We cannot use lstat to get the size of /proc/self/exe as it always returns 0
     // so we just use a big buffer and hope the path fits in it.
@@ -33,11 +37,27 @@ std::string GetExecutablePath()
     return path;
 }
 
-std::string GetExecutableDirectory()
+std::string GetExecutableDirectoryImpl()
 {
     std::string executablePath = GetExecutablePath();
     size_t lastPathSepLoc      = executablePath.find_last_of("/");
     return (lastPathSepLoc != std::string::npos) ? executablePath.substr(0, lastPathSepLoc) : "";
+}
+
+}  // anonymous namespace
+
+const char *GetExecutablePath()
+{
+    // TODO(jmadill): Make global static string thread-safe.
+    const static std::string &exePath = GetExecutablePathImpl();
+    return exePath.c_str();
+}
+
+const char *GetExecutableDirectory()
+{
+    // TODO(jmadill): Make global static string thread-safe.
+    const static std::string &exeDir = GetExecutableDirectoryImpl();
+    return exeDir.c_str();
 }
 
 const char *GetSharedLibraryExtension()
@@ -45,11 +65,20 @@ const char *GetSharedLibraryExtension()
     return "so";
 }
 
-double GetCurrentTime()
+Optional<std::string> GetCWD()
 {
-    struct timespec currentTime;
-    clock_gettime(CLOCK_MONOTONIC, &currentTime);
-    return currentTime.tv_sec + currentTime.tv_nsec * 1e-9;
+    std::array<char, 4096> pathBuf;
+    char *result = getcwd(pathBuf.data(), pathBuf.size());
+    if (result == nullptr)
+    {
+        return Optional<std::string>::Invalid();
+    }
+    return std::string(pathBuf.data());
+}
+
+bool SetCWD(const char *dirName)
+{
+    return (chdir(dirName) == 0);
 }
 
 }  // namespace angle

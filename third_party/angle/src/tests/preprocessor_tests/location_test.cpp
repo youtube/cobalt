@@ -1,5 +1,5 @@
 //
-// Copyright 2012 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2012 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -7,18 +7,13 @@
 #include "PreprocessorTest.h"
 #include "compiler/preprocessor/Token.h"
 
-namespace angle
-{
-
 class LocationTest : public PreprocessorTest
 {
-  protected:
-    LocationTest() : PreprocessorTest(SH_GLES2_SPEC) {}
-
+protected:
     void expectLocation(int count,
-                        const char *const string[],
+                        const char* const string[],
                         const int length[],
-                        const pp::SourceLocation &location)
+                        const pp::SourceLocation& location)
     {
         ASSERT_TRUE(mPreprocessor.init(count, string, length));
 
@@ -34,7 +29,7 @@ class LocationTest : public PreprocessorTest
 
 TEST_F(LocationTest, String0_Line1)
 {
-    const char *str = "foo";
+    const char* str = "foo";
     pp::SourceLocation loc(0, 1);
 
     SCOPED_TRACE("String0_Line1");
@@ -43,7 +38,7 @@ TEST_F(LocationTest, String0_Line1)
 
 TEST_F(LocationTest, String0_Line2)
 {
-    const char *str = "\nfoo";
+    const char* str = "\nfoo";
     pp::SourceLocation loc(0, 2);
 
     SCOPED_TRACE("String0_Line2");
@@ -52,7 +47,7 @@ TEST_F(LocationTest, String0_Line2)
 
 TEST_F(LocationTest, String1_Line1)
 {
-    const char *const str[] = {"\n\n", "foo"};
+    const char* const str[] = {"\n\n", "foo"};
     pp::SourceLocation loc(1, 1);
 
     SCOPED_TRACE("String1_Line1");
@@ -61,7 +56,7 @@ TEST_F(LocationTest, String1_Line1)
 
 TEST_F(LocationTest, String1_Line2)
 {
-    const char *const str[] = {"\n\n", "\nfoo"};
+    const char* const str[] = {"\n\n", "\nfoo"};
     pp::SourceLocation loc(1, 2);
 
     SCOPED_TRACE("String1_Line2");
@@ -70,7 +65,7 @@ TEST_F(LocationTest, String1_Line2)
 
 TEST_F(LocationTest, NewlineInsideCommentCounted)
 {
-    const char *str = "/*\n\n*/foo";
+    const char* str = "/*\n\n*/foo";
     pp::SourceLocation loc(0, 3);
 
     SCOPED_TRACE("NewlineInsideCommentCounted");
@@ -79,11 +74,12 @@ TEST_F(LocationTest, NewlineInsideCommentCounted)
 
 TEST_F(LocationTest, ErrorLocationAfterComment)
 {
-    const char *str = "/*\n\n*/@";
+    const char* str = "/*\n\n*/@";
 
     ASSERT_TRUE(mPreprocessor.init(1, &str, nullptr));
-    EXPECT_CALL(mDiagnostics,
-                print(pp::Diagnostics::PP_INVALID_CHARACTER, pp::SourceLocation(0, 3), "@"));
+    EXPECT_CALL(mDiagnostics, print(pp::Diagnostics::PP_INVALID_CHARACTER,
+                                    pp::SourceLocation(0, 3),
+                                    "@"));
 
     pp::Token token;
     mPreprocessor.lex(&token);
@@ -94,7 +90,7 @@ TEST_F(LocationTest, ErrorLocationAfterComment)
 
 TEST_F(LocationTest, TokenStraddlingTwoStrings)
 {
-    const char *const str[] = {"f", "oo"};
+    const char* const str[] = {"f", "oo"};
     pp::SourceLocation loc(0, 1);
 
     SCOPED_TRACE("TokenStraddlingTwoStrings");
@@ -103,7 +99,7 @@ TEST_F(LocationTest, TokenStraddlingTwoStrings)
 
 TEST_F(LocationTest, TokenStraddlingThreeStrings)
 {
-    const char *const str[] = {"f", "o", "o"};
+    const char* const str[] = {"f", "o", "o"};
     pp::SourceLocation loc(0, 1);
 
     SCOPED_TRACE("TokenStraddlingThreeStrings");
@@ -112,7 +108,7 @@ TEST_F(LocationTest, TokenStraddlingThreeStrings)
 
 TEST_F(LocationTest, EndOfFileWithoutNewline)
 {
-    const char *const str[] = {"foo"};
+    const char* const str[] = {"foo"};
     ASSERT_TRUE(mPreprocessor.init(1, str, nullptr));
 
     pp::Token token;
@@ -130,7 +126,7 @@ TEST_F(LocationTest, EndOfFileWithoutNewline)
 
 TEST_F(LocationTest, EndOfFileAfterNewline)
 {
-    const char *const str[] = {"foo\n"};
+    const char* const str[] = {"foo\n"};
     ASSERT_TRUE(mPreprocessor.init(1, str, nullptr));
 
     pp::Token token;
@@ -148,7 +144,7 @@ TEST_F(LocationTest, EndOfFileAfterNewline)
 
 TEST_F(LocationTest, EndOfFileAfterEmptyString)
 {
-    const char *const str[] = {"foo\n", "\n", ""};
+    const char* const str[] = {"foo\n", "\n", ""};
     ASSERT_TRUE(mPreprocessor.init(3, str, nullptr));
 
     pp::Token token;
@@ -166,9 +162,8 @@ TEST_F(LocationTest, EndOfFileAfterEmptyString)
 
 TEST_F(LocationTest, ValidLineDirective1)
 {
-    const char *str =
-        "#line 10\n"
-        "foo";
+    const char* str = "#line 10\n"
+                      "foo";
     pp::SourceLocation loc(0, 10);
 
     SCOPED_TRACE("ValidLineDirective1");
@@ -177,9 +172,8 @@ TEST_F(LocationTest, ValidLineDirective1)
 
 TEST_F(LocationTest, ValidLineDirective2)
 {
-    const char *str =
-        "#line 10 20\n"
-        "foo";
+    const char* str = "#line 10 20\n"
+                      "foo";
     pp::SourceLocation loc(20, 10);
 
     SCOPED_TRACE("ValidLineDirective2");
@@ -188,19 +182,18 @@ TEST_F(LocationTest, ValidLineDirective2)
 
 TEST_F(LocationTest, LineDirectiveCommentsIgnored)
 {
-    const char *str =
-        "/* bar */"
-        "#"
-        "/* bar */"
-        "line"
-        "/* bar */"
-        "10"
-        "/* bar */"
-        "20"
-        "/* bar */"
-        "// bar   "
-        "\n"
-        "foo";
+    const char* str = "/* bar */"
+                      "#"
+                      "/* bar */"
+                      "line"
+                      "/* bar */"
+                      "10"
+                      "/* bar */"
+                      "20"
+                      "/* bar */"
+                      "// bar   "
+                      "\n"
+                      "foo";
     pp::SourceLocation loc(20, 10);
 
     SCOPED_TRACE("LineDirectiveCommentsIgnored");
@@ -209,11 +202,10 @@ TEST_F(LocationTest, LineDirectiveCommentsIgnored)
 
 TEST_F(LocationTest, LineDirectiveWithMacro1)
 {
-    const char *str =
-        "#define L 10\n"
-        "#define F(x) x\n"
-        "#line L F(20)\n"
-        "foo";
+    const char* str = "#define L 10\n"
+                      "#define F(x) x\n"
+                      "#line L F(20)\n"
+                      "foo";
     pp::SourceLocation loc(20, 10);
 
     SCOPED_TRACE("LineDirectiveWithMacro1");
@@ -222,10 +214,9 @@ TEST_F(LocationTest, LineDirectiveWithMacro1)
 
 TEST_F(LocationTest, LineDirectiveWithMacro2)
 {
-    const char *str =
-        "#define LOC 10 20\n"
-        "#line LOC\n"
-        "foo";
+    const char* str = "#define LOC 10 20\n"
+                      "#line LOC\n"
+                      "foo";
     pp::SourceLocation loc(20, 10);
 
     SCOPED_TRACE("LineDirectiveWithMacro2");
@@ -234,9 +225,8 @@ TEST_F(LocationTest, LineDirectiveWithMacro2)
 
 TEST_F(LocationTest, LineDirectiveWithPredefinedMacro)
 {
-    const char *str =
-        "#line __LINE__ __FILE__\n"
-        "foo";
+    const char* str = "#line __LINE__ __FILE__\n"
+                      "foo";
     pp::SourceLocation loc(0, 1);
 
     SCOPED_TRACE("LineDirectiveWithMacro");
@@ -245,7 +235,7 @@ TEST_F(LocationTest, LineDirectiveWithPredefinedMacro)
 
 TEST_F(LocationTest, LineDirectiveNewlineBeforeStringBreak)
 {
-    const char *const str[] = {"#line 10 20\n", "foo"};
+    const char* const str[] = {"#line 10 20\n", "foo"};
     // String number is incremented after it is set by the line directive.
     // Also notice that line number is reset after the string break.
     pp::SourceLocation loc(21, 1);
@@ -256,7 +246,7 @@ TEST_F(LocationTest, LineDirectiveNewlineBeforeStringBreak)
 
 TEST_F(LocationTest, LineDirectiveNewlineAfterStringBreak)
 {
-    const char *const str[] = {"#line 10 20", "\nfoo"};
+    const char* const str[] = {"#line 10 20", "\nfoo"};
     // String number is incremented before it is set by the line directive.
     pp::SourceLocation loc(20, 10);
 
@@ -266,7 +256,7 @@ TEST_F(LocationTest, LineDirectiveNewlineAfterStringBreak)
 
 TEST_F(LocationTest, LineDirectiveMissingNewline)
 {
-    const char *str = "#line 10";
+    const char* str = "#line 10";
     ASSERT_TRUE(mPreprocessor.init(1, &str, nullptr));
 
     using testing::_;
@@ -277,76 +267,16 @@ TEST_F(LocationTest, LineDirectiveMissingNewline)
     mPreprocessor.lex(&token);
 }
 
-// Test for an error being generated when the line number overflows - regular version
-TEST_F(LocationTest, LineOverflowRegular)
-{
-    const char *str = "#line 0x7FFFFFFF\n\n";
-
-    ASSERT_TRUE(mPreprocessor.init(1, &str, nullptr));
-
-    using testing::_;
-    // Error reported about EOF.
-    EXPECT_CALL(mDiagnostics, print(pp::Diagnostics::PP_TOKENIZER_ERROR, _, _));
-
-    pp::Token token;
-    mPreprocessor.lex(&token);
-}
-
-// Test for an error being generated when the line number overflows - inside /* */ comment version
-TEST_F(LocationTest, LineOverflowInComment)
-{
-    const char *str = "#line 0x7FFFFFFF\n/*\n*/";
-
-    ASSERT_TRUE(mPreprocessor.init(1, &str, nullptr));
-
-    using testing::_;
-    // Error reported about EOF.
-    EXPECT_CALL(mDiagnostics, print(pp::Diagnostics::PP_TOKENIZER_ERROR, _, _));
-
-    pp::Token token;
-    mPreprocessor.lex(&token);
-}
-
-// Test for an error being generated when the line number overflows - inside \n continuation
-// version
-TEST_F(LocationTest, LineOverflowInContinuationN)
-{
-    const char *str = "#line 0x7FFFFFFF\n \\\n\n";
-
-    ASSERT_TRUE(mPreprocessor.init(1, &str, nullptr));
-
-    using testing::_;
-    // Error reported about EOF.
-    EXPECT_CALL(mDiagnostics, print(pp::Diagnostics::PP_TOKENIZER_ERROR, _, _));
-
-    pp::Token token;
-    mPreprocessor.lex(&token);
-}
-
-// Test for an error being generated when the line number overflows - inside \r\n continuation
-// version
-TEST_F(LocationTest, LineOverflowInContinuationRN)
-{
-    const char *str = "#line 0x7FFFFFFF\n \\\r\n\n";
-
-    ASSERT_TRUE(mPreprocessor.init(1, &str, nullptr));
-
-    using testing::_;
-    // Error reported about EOF.
-    EXPECT_CALL(mDiagnostics, print(pp::Diagnostics::PP_TOKENIZER_ERROR, _, _));
-
-    pp::Token token;
-    mPreprocessor.lex(&token);
-}
-
 struct LineTestParam
 {
-    const char *str;
+    const char* str;
     pp::Diagnostics::ID id;
 };
 
-class InvalidLineTest : public LocationTest, public testing::WithParamInterface<LineTestParam>
-{};
+class InvalidLineTest : public LocationTest,
+                        public testing::WithParamInterface<LineTestParam>
+{
+};
 
 TEST_P(InvalidLineTest, Identified)
 {
@@ -370,7 +300,7 @@ static const LineTestParam kParams[] = {
     {"#line 0xffffffff\n", pp::Diagnostics::PP_INTEGER_OVERFLOW},
     {"#line 10 0xffffffff\n", pp::Diagnostics::PP_INTEGER_OVERFLOW}};
 
-INSTANTIATE_TEST_SUITE_P(All, InvalidLineTest, testing::ValuesIn(kParams));
+INSTANTIATE_TEST_CASE_P(All, InvalidLineTest, testing::ValuesIn(kParams));
 
 struct LineExpressionTestParam
 {
@@ -380,12 +310,13 @@ struct LineExpressionTestParam
 
 class LineExpressionTest : public LocationTest,
                            public testing::WithParamInterface<LineExpressionTestParam>
-{};
+{
+};
 
 TEST_P(LineExpressionTest, ExpressionEvaluation)
 {
     LineExpressionTestParam param = GetParam();
-    const char *strs[3]           = {"#line ", param.expression, "\nfoo"};
+    const char *strs[3] = {"#line ", param.expression, "\nfoo"};
 
     pp::SourceLocation loc(2, param.expectedLine);
 
@@ -393,12 +324,28 @@ TEST_P(LineExpressionTest, ExpressionEvaluation)
 }
 
 static const LineExpressionTestParam kParamsLineExpressionTest[] = {
-    {"1 + 2", 3},  {"5 - 3", 2},        {"7 * 11", 77},  {"20 / 10", 2},  {"10 % 5", 0},
-    {"7 && 3", 1}, {"7 || 0", 1},       {"11 == 11", 1}, {"11 != 11", 0}, {"11 > 7", 1},
-    {"11 < 7", 0}, {"11 >= 7", 1},      {"11 <= 7", 0},  {"!11", 0},      {"-1", -1},
-    {"+9", 9},     {"(1 + 2) * 4", 12}, {"3 | 5", 7},    {"3 ^ 5", 6},    {"3 & 5", 1},
-    {"~5", ~5},    {"2 << 3", 16},      {"16 >> 2", 4}};
+    {"1 + 2", 3},
+    {"5 - 3", 2},
+    {"7 * 11", 77},
+    {"20 / 10", 2},
+    {"10 % 5", 0},
+    {"7 && 3", 1},
+    {"7 || 0", 1},
+    {"11 == 11", 1},
+    {"11 != 11", 0},
+    {"11 > 7", 1},
+    {"11 < 7", 0},
+    {"11 >= 7", 1},
+    {"11 <= 7", 0},
+    {"!11", 0},
+    {"-1", -1},
+    {"+9", 9},
+    {"(1 + 2) * 4", 12},
+    {"3 | 5", 7},
+    {"3 ^ 5", 6},
+    {"3 & 5", 1},
+    {"~5", ~5},
+    {"2 << 3", 16},
+    {"16 >> 2", 4}};
 
-INSTANTIATE_TEST_SUITE_P(All, LineExpressionTest, testing::ValuesIn(kParamsLineExpressionTest));
-
-}  // namespace angle
+INSTANTIATE_TEST_CASE_P(All, LineExpressionTest, testing::ValuesIn(kParamsLineExpressionTest));

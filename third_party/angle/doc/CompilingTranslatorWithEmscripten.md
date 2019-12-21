@@ -10,7 +10,8 @@ about how to do this.
 
 Pull top of tree ANGLE.
 
-Install the Emscripten toolchain per the [instructions](http://emscripten.org/).
+Install the Emscripten toolchain per the [instructions]
+(http://kripken.github.io/emscripten-site/).
 
 Symlink (preferred) or copy the ANGLE directory into ...emsdk/emscripten/master.
 

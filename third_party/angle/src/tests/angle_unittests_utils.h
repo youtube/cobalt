@@ -38,10 +38,7 @@ class NullFactory : public GLImplFactory
     TextureImpl *createTexture(const gl::TextureState &data) override { return nullptr; }
 
     // Renderbuffer creation
-    RenderbufferImpl *createRenderbuffer(const gl::RenderbufferState &state) override
-    {
-        return nullptr;
-    }
+    RenderbufferImpl *createRenderbuffer() override { return nullptr; }
 
     // Buffer creation
     BufferImpl *createBuffer(const gl::BufferState &state) override { return nullptr; }
@@ -53,9 +50,9 @@ class NullFactory : public GLImplFactory
     }
 
     // Query and Fence creation
-    QueryImpl *createQuery(gl::QueryType type) override { return nullptr; }
+    QueryImpl *createQuery(GLenum type) override { return nullptr; }
     FenceNVImpl *createFenceNV() override { return nullptr; }
-    SyncImpl *createSync() override { return nullptr; }
+    FenceSyncImpl *createFenceSync() override { return nullptr; }
 
     // Transform Feedback creation
     TransformFeedbackImpl *createTransformFeedback(const gl::TransformFeedbackState &state) override
@@ -64,48 +61,34 @@ class NullFactory : public GLImplFactory
     }
 
     // Sampler object creation
-    SamplerImpl *createSampler(const gl::SamplerState &state) override { return nullptr; }
-
-    // Program Pipeline creation
-    ProgramPipelineImpl *createProgramPipeline(const gl::ProgramPipelineState &data) override
-    {
-        return nullptr;
-    }
+    SamplerImpl *createSampler() override { return nullptr; }
 
     std::vector<PathImpl *> createPaths(GLsizei range) override
     {
         return std::vector<PathImpl *>();
     }
-
-    SemaphoreImpl *createSemaphore() override { return nullptr; }
-
-    OverlayImpl *createOverlay(const gl::OverlayState &state) override { return nullptr; }
 };
 
 // A class with all the factory methods mocked.
 class MockGLFactory : public GLImplFactory
 {
   public:
-    MOCK_METHOD1(createContext, ContextImpl *(const gl::State &));
+    MOCK_METHOD1(createContext, ContextImpl *(const gl::ContextState &));
     MOCK_METHOD0(createCompiler, CompilerImpl *());
     MOCK_METHOD1(createShader, ShaderImpl *(const gl::ShaderState &));
     MOCK_METHOD1(createProgram, ProgramImpl *(const gl::ProgramState &));
-    MOCK_METHOD1(createProgramPipeline, ProgramPipelineImpl *(const gl::ProgramPipelineState &));
     MOCK_METHOD1(createFramebuffer, FramebufferImpl *(const gl::FramebufferState &));
-    MOCK_METHOD0(createMemoryObject, MemoryObjectImpl *());
     MOCK_METHOD1(createTexture, TextureImpl *(const gl::TextureState &));
-    MOCK_METHOD1(createRenderbuffer, RenderbufferImpl *(const gl::RenderbufferState &));
+    MOCK_METHOD0(createRenderbuffer, RenderbufferImpl *());
     MOCK_METHOD1(createBuffer, BufferImpl *(const gl::BufferState &));
     MOCK_METHOD1(createVertexArray, VertexArrayImpl *(const gl::VertexArrayState &));
-    MOCK_METHOD1(createQuery, QueryImpl *(gl::QueryType type));
+    MOCK_METHOD1(createQuery, QueryImpl *(GLenum type));
     MOCK_METHOD0(createFenceNV, FenceNVImpl *());
-    MOCK_METHOD0(createSync, SyncImpl *());
+    MOCK_METHOD0(createFenceSync, FenceSyncImpl *());
     MOCK_METHOD1(createTransformFeedback,
                  TransformFeedbackImpl *(const gl::TransformFeedbackState &));
-    MOCK_METHOD1(createSampler, SamplerImpl *(const gl::SamplerState &));
+    MOCK_METHOD0(createSampler, SamplerImpl *());
     MOCK_METHOD1(createPaths, std::vector<PathImpl *>(GLsizei));
-    MOCK_METHOD0(createSemaphore, SemaphoreImpl *());
-    MOCK_METHOD1(createOverlay, OverlayImpl *(const gl::OverlayState &));
 };
 
 class MockEGLFactory : public EGLImplFactory
@@ -126,21 +109,13 @@ class MockEGLFactory : public EGLImplFactory
                  SurfaceImpl *(const egl::SurfaceState &,
                                NativePixmapType,
                                const egl::AttributeMap &));
-    MOCK_METHOD4(createImage,
-                 ImageImpl *(const egl::ImageState &,
-                             const gl::Context *,
-                             EGLenum,
-                             const egl::AttributeMap &));
-    MOCK_METHOD5(createContext,
-                 ContextImpl *(const gl::State &,
-                               gl::ErrorSet *,
-                               const egl::Config *,
-                               const gl::Context *,
-                               const egl::AttributeMap &));
-    MOCK_METHOD2(createStreamProducerD3DTexture,
+    MOCK_METHOD3(createImage,
+                 ImageImpl *(const egl::ImageState &, EGLenum, const egl::AttributeMap &));
+    MOCK_METHOD1(createContext, ContextImpl *(const gl::ContextState &));
+    MOCK_METHOD2(createStreamProducerD3DTextureNV12,
                  StreamProducerImpl *(egl::Stream::ConsumerType, const egl::AttributeMap &));
 };
 
 }  // namespace rx
 
-#endif  // TESTS_ANGLE_UNITTESTS_UTILS_H_
+#endif // TESTS_ANGLE_UNITTESTS_UTILS_H_

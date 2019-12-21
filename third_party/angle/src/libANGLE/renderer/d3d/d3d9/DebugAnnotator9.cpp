@@ -13,26 +13,19 @@
 namespace rx
 {
 
-void DebugAnnotator9::beginEvent(const char *eventName, const char *eventMessage)
+void DebugAnnotator9::beginEvent(const wchar_t *eventName)
 {
-    angle::LoggingAnnotator::beginEvent(eventName, eventMessage);
-    std::mbstate_t state = std::mbstate_t();
-    std::mbsrtowcs(mWCharMessage, &eventMessage, kMaxMessageLength, &state);
-    D3DPERF_BeginEvent(0, mWCharMessage);
+    D3DPERF_BeginEvent(0, eventName);
 }
 
-void DebugAnnotator9::endEvent(const char *eventName)
+void DebugAnnotator9::endEvent()
 {
-    angle::LoggingAnnotator::endEvent(eventName);
     D3DPERF_EndEvent();
 }
 
-void DebugAnnotator9::setMarker(const char *markerName)
+void DebugAnnotator9::setMarker(const wchar_t *markerName)
 {
-    angle::LoggingAnnotator::setMarker(markerName);
-    std::mbstate_t state = std::mbstate_t();
-    std::mbsrtowcs(mWCharMessage, &markerName, kMaxMessageLength, &state);
-    D3DPERF_SetMarker(0, mWCharMessage);
+    D3DPERF_SetMarker(0, markerName);
 }
 
 bool DebugAnnotator9::getStatus()
@@ -40,4 +33,4 @@ bool DebugAnnotator9::getStatus()
     return !!D3DPERF_GetStatus();
 }
 
-}  // namespace rx
+}

@@ -1,5 +1,5 @@
 //
-// Copyright 2017 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2017 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -8,6 +8,9 @@
 //   Tests for the EGL_KHR_surfaceless_context and GL_OES_surfaceless_context
 
 #include <gtest/gtest.h>
+
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
 
 #include "test_utils/ANGLETest.h"
 #include "test_utils/angle_test_configs.h"
@@ -23,8 +26,13 @@ class EGLSurfacelessContextTest : public ANGLETest
   public:
     EGLSurfacelessContextTest() : mDisplay(0) {}
 
-    void testSetUp() override
+    void SetUp() override
     {
+        PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT =
+            reinterpret_cast<PFNEGLGETPLATFORMDISPLAYEXTPROC>(
+                eglGetProcAddress("eglGetPlatformDisplayEXT"));
+        ASSERT_TRUE(eglGetPlatformDisplayEXT != nullptr);
+
         EGLint dispattrs[] = {EGL_PLATFORM_ANGLE_TYPE_ANGLE, GetParam().getRenderer(), EGL_NONE};
         mDisplay           = eglGetPlatformDisplayEXT(
             EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void *>(EGL_DEFAULT_DISPLAY), dispattrs);
@@ -54,7 +62,7 @@ class EGLSurfacelessContextTest : public ANGLETest
         ASSERT_NE(nullptr, mConfig);
     }
 
-    void testTearDown() override
+    void TearDown() override
     {
         eglMakeCurrent(mDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 
@@ -63,7 +71,7 @@ class EGLSurfacelessContextTest : public ANGLETest
             eglDestroyContext(mDisplay, mContext);
         }
 
-        if (mPbuffer != EGL_NO_SURFACE)
+        if (mContext != EGL_NO_SURFACE)
         {
             eglDestroySurface(mDisplay, mPbuffer);
         }
@@ -104,7 +112,7 @@ class EGLSurfacelessContextTest : public ANGLETest
 
     bool checkExtension(bool verbose = true) const
     {
-        if (!IsEGLDisplayExtensionEnabled(mDisplay, "EGL_KHR_surfaceless_context"))
+        if (!ANGLETest::eglDisplayExtensionEnabled(mDisplay, "EGL_KHR_surfaceless_context"))
         {
             if (verbose)
             {
@@ -257,8 +265,4 @@ TEST_P(EGLSurfacelessContextTest, Switcheroo)
 
 }  // anonymous namespace
 
-ANGLE_INSTANTIATE_TEST(EGLSurfacelessContextTest,
-                       WithNoFixture(ES2_D3D9()),
-                       WithNoFixture(ES2_D3D11()),
-                       WithNoFixture(ES2_OPENGL()),
-                       WithNoFixture(ES2_VULKAN()));
+ANGLE_INSTANTIATE_TEST(EGLSurfacelessContextTest, ES2_D3D9(), ES2_D3D11(), ES2_OPENGL());

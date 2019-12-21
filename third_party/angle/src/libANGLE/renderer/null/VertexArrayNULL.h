@@ -19,11 +19,7 @@ class VertexArrayNULL : public VertexArrayImpl
 {
   public:
     VertexArrayNULL(const gl::VertexArrayState &data);
-
-    angle::Result syncState(const gl::Context *context,
-                            const gl::VertexArray::DirtyBits &dirtyBits,
-                            gl::VertexArray::DirtyAttribBitsArray *attribBits,
-                            gl::VertexArray::DirtyBindingBitsArray *bindingBits) override;
+    ~VertexArrayNULL() override;
 };
 
 }  // namespace rx

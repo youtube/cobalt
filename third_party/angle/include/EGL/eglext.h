@@ -31,14 +31,14 @@ extern "C" {
 ** This header is generated from the Khronos OpenGL / OpenGL ES XML
 ** API Registry. The current version of the Registry, generator scripts
 ** used to make the header, and the header can be found at
-**   http://www.khronos.org/registry/egl
+**   http://www.opengl.org/registry/egl
 **
-** Khronos $Git commit SHA1: bae3518c48 $ on $Git commit date: 2018-05-17 10:56:57 -0700 $
+** Khronos $Revision$ on $Date$
 */
 
 #include <EGL/eglplatform.h>
 
-#define EGL_EGLEXT_VERSION 20180517
+#define EGL_EGLEXT_VERSION 20161230
 
 /* Generated C header for:
  * API: egl
@@ -132,15 +132,6 @@ EGLAPI EGLBoolean EGLAPIENTRY eglQueryDebugKHR (EGLint attribute, EGLAttrib *val
 EGLAPI EGLint EGLAPIENTRY eglLabelObjectKHR (EGLDisplay display, EGLenum objectType, EGLObjectKHR object, EGLLabelKHR label);
 #endif
 #endif /* EGL_KHR_debug */
-
-#ifndef EGL_KHR_display_reference
-#define EGL_KHR_display_reference 1
-#define EGL_TRACK_REFERENCES_KHR          0x3352
-typedef EGLBoolean (EGLAPIENTRYP PFNEGLQUERYDISPLAYATTRIBKHRPROC) (EGLDisplay dpy, EGLint name, EGLAttrib *value);
-#ifdef EGL_EGLEXT_PROTOTYPES
-EGLAPI EGLBoolean EGLAPIENTRY eglQueryDisplayAttribKHR (EGLDisplay dpy, EGLint name, EGLAttrib *value);
-#endif
-#endif /* EGL_KHR_display_reference */
 
 #ifndef EGL_KHR_fence_sync
 #define EGL_KHR_fence_sync 1
@@ -495,47 +486,6 @@ EGLAPI EGLClientBuffer EGLAPIENTRY eglCreateNativeClientBufferANDROID (const EGL
 #define EGL_FRONT_BUFFER_AUTO_REFRESH_ANDROID 0x314C
 #endif /* EGL_ANDROID_front_buffer_auto_refresh */
 
-#ifndef EGL_ANDROID_get_frame_timestamps
-#define EGL_ANDROID_get_frame_timestamps 1
-typedef khronos_stime_nanoseconds_t EGLnsecsANDROID;
-#define EGL_TIMESTAMP_PENDING_ANDROID     EGL_CAST(EGLnsecsANDROID,-2)
-#define EGL_TIMESTAMP_INVALID_ANDROID     EGL_CAST(EGLnsecsANDROID,-1)
-#define EGL_TIMESTAMPS_ANDROID            0x3430
-#define EGL_COMPOSITE_DEADLINE_ANDROID    0x3431
-#define EGL_COMPOSITE_INTERVAL_ANDROID    0x3432
-#define EGL_COMPOSITE_TO_PRESENT_LATENCY_ANDROID 0x3433
-#define EGL_REQUESTED_PRESENT_TIME_ANDROID 0x3434
-#define EGL_RENDERING_COMPLETE_TIME_ANDROID 0x3435
-#define EGL_COMPOSITION_LATCH_TIME_ANDROID 0x3436
-#define EGL_FIRST_COMPOSITION_START_TIME_ANDROID 0x3437
-#define EGL_LAST_COMPOSITION_START_TIME_ANDROID 0x3438
-#define EGL_FIRST_COMPOSITION_GPU_FINISHED_TIME_ANDROID 0x3439
-#define EGL_DISPLAY_PRESENT_TIME_ANDROID  0x343A
-#define EGL_DEQUEUE_READY_TIME_ANDROID    0x343B
-#define EGL_READS_DONE_TIME_ANDROID       0x343C
-typedef EGLBoolean (EGLAPIENTRYP PFNEGLGETCOMPOSITORTIMINGSUPPORTEDANDROIDPROC) (EGLDisplay dpy, EGLSurface surface, EGLint name);
-typedef EGLBoolean (EGLAPIENTRYP PFNEGLGETCOMPOSITORTIMINGANDROIDPROC) (EGLDisplay dpy, EGLSurface surface, EGLint numTimestamps,  const EGLint *names, EGLnsecsANDROID *values);
-typedef EGLBoolean (EGLAPIENTRYP PFNEGLGETNEXTFRAMEIDANDROIDPROC) (EGLDisplay dpy, EGLSurface surface, EGLuint64KHR *frameId);
-typedef EGLBoolean (EGLAPIENTRYP PFNEGLGETFRAMETIMESTAMPSUPPORTEDANDROIDPROC) (EGLDisplay dpy, EGLSurface surface, EGLint timestamp);
-typedef EGLBoolean (EGLAPIENTRYP PFNEGLGETFRAMETIMESTAMPSANDROIDPROC) (EGLDisplay dpy, EGLSurface surface, EGLuint64KHR frameId, EGLint numTimestamps,  const EGLint *timestamps, EGLnsecsANDROID *values);
-#ifdef EGL_EGLEXT_PROTOTYPES
-EGLAPI EGLBoolean EGLAPIENTRY eglGetCompositorTimingSupportedANDROID (EGLDisplay dpy, EGLSurface surface, EGLint name);
-EGLAPI EGLBoolean EGLAPIENTRY eglGetCompositorTimingANDROID (EGLDisplay dpy, EGLSurface surface, EGLint numTimestamps,  const EGLint *names, EGLnsecsANDROID *values);
-EGLAPI EGLBoolean EGLAPIENTRY eglGetNextFrameIdANDROID (EGLDisplay dpy, EGLSurface surface, EGLuint64KHR *frameId);
-EGLAPI EGLBoolean EGLAPIENTRY eglGetFrameTimestampSupportedANDROID (EGLDisplay dpy, EGLSurface surface, EGLint timestamp);
-EGLAPI EGLBoolean EGLAPIENTRY eglGetFrameTimestampsANDROID (EGLDisplay dpy, EGLSurface surface, EGLuint64KHR frameId, EGLint numTimestamps,  const EGLint *timestamps, EGLnsecsANDROID *values);
-#endif
-#endif /* EGL_ANDROID_get_frame_timestamps */
-
-#ifndef EGL_ANDROID_get_native_client_buffer
-#define EGL_ANDROID_get_native_client_buffer 1
-struct AHardwareBuffer;
-typedef EGLClientBuffer (EGLAPIENTRYP PFNEGLGETNATIVECLIENTBUFFERANDROIDPROC) (const struct AHardwareBuffer *buffer);
-#ifdef EGL_EGLEXT_PROTOTYPES
-EGLAPI EGLClientBuffer EGLAPIENTRY eglGetNativeClientBufferANDROID (const struct AHardwareBuffer *buffer);
-#endif
-#endif /* EGL_ANDROID_get_native_client_buffer */
-
 #ifndef EGL_ANDROID_image_native_buffer
 #define EGL_ANDROID_image_native_buffer 1
 #define EGL_NATIVE_BUFFER_ANDROID         0x3140
@@ -555,6 +505,7 @@ EGLAPI EGLint EGLAPIENTRY eglDupNativeFenceFDANDROID (EGLDisplay dpy, EGLSyncKHR
 
 #ifndef EGL_ANDROID_presentation_time
 #define EGL_ANDROID_presentation_time 1
+typedef khronos_stime_nanoseconds_t EGLnsecsANDROID;
 typedef EGLBoolean (EGLAPIENTRYP PFNEGLPRESENTATIONTIMEANDROIDPROC) (EGLDisplay dpy, EGLSurface surface, EGLnsecsANDROID time);
 #ifdef EGL_EGLEXT_PROTOTYPES
 EGLAPI EGLBoolean EGLAPIENTRY eglPresentationTimeANDROID (EGLDisplay dpy, EGLSurface surface, EGLnsecsANDROID time);
@@ -565,6 +516,11 @@ EGLAPI EGLBoolean EGLAPIENTRY eglPresentationTimeANDROID (EGLDisplay dpy, EGLSur
 #define EGL_ANDROID_recordable 1
 #define EGL_RECORDABLE_ANDROID            0x3142
 #endif /* EGL_ANDROID_recordable */
+
+#ifndef EGL_ANGLE_create_context_robust_resource_initialization
+#define EGL_ANGLE_create_context_robust_resource_initialization 1
+#define EGL_CONTEXT_ROBUST_RESOURCE_INITIALIZATION_ANGLE 0x320F
+#endif /* EGL_ANGLE_create_context_robust_resource_initialization */
 
 #ifndef EGL_ANGLE_d3d_share_handle_client_buffer
 #define EGL_ANGLE_d3d_share_handle_client_buffer 1
@@ -577,6 +533,16 @@ EGLAPI EGLBoolean EGLAPIENTRY eglPresentationTimeANDROID (EGLDisplay dpy, EGLSur
 #define EGL_D3D11_DEVICE_ANGLE            0x33A1
 #endif /* EGL_ANGLE_device_d3d */
 
+#ifndef EGL_ANGLE_keyed_mutex
+#define EGL_ANGLE_keyed_mutex 1
+#define EGL_DXGI_KEYED_MUTEX_ANGLE        0x33A2
+#endif /* EGL_ANGLE_keyed_mutex */
+
+#ifndef EGL_ANGLE_d3d_texture_client_buffer
+#define EGL_ANGLE_d3d_texture_client_buffer 1
+#define EGL_D3D_TEXTURE_ANGLE             0x33A3
+#endif /* EGL_ANGLE_d3d_texture_client_buffer */
+
 #ifndef EGL_ANGLE_query_surface_pointer
 #define EGL_ANGLE_query_surface_pointer 1
 typedef EGLBoolean (EGLAPIENTRYP PFNEGLQUERYSURFACEPOINTERANGLEPROC) (EGLDisplay dpy, EGLSurface surface, EGLint attribute, void **value);
@@ -585,14 +551,123 @@ EGLAPI EGLBoolean EGLAPIENTRY eglQuerySurfacePointerANGLE (EGLDisplay dpy, EGLSu
 #endif
 #endif /* EGL_ANGLE_query_surface_pointer */
 
+#ifndef EGL_ANGLE_software_display
+#define EGL_ANGLE_software_display 1
+#define EGL_SOFTWARE_DISPLAY_ANGLE ((EGLNativeDisplayType)-1)
+#endif /* EGL_ANGLE_software_display */
+
+#ifndef EGL_ANGLE_direct3d_display
+#define EGL_ANGLE_direct3d_display 1
+#define EGL_D3D11_ELSE_D3D9_DISPLAY_ANGLE ((EGLNativeDisplayType)-2)
+#define EGL_D3D11_ONLY_DISPLAY_ANGLE ((EGLNativeDisplayType)-3)
+#endif /* EGL_ANGLE_direct3d_display */
+
 #ifndef EGL_ANGLE_surface_d3d_texture_2d_share_handle
 #define EGL_ANGLE_surface_d3d_texture_2d_share_handle 1
 #endif /* EGL_ANGLE_surface_d3d_texture_2d_share_handle */
+
+#ifndef EGL_ANGLE_direct_composition
+#define EGL_ANGLE_direct_composition 1
+#define EGL_DIRECT_COMPOSITION_ANGLE 0x33A5
+#endif /* EGL_ANGLE_direct_composition */
+
+#ifndef EGL_ANGLE_platform_angle
+#define EGL_ANGLE_platform_angle 1
+#define EGL_PLATFORM_ANGLE_ANGLE          0x3202
+#define EGL_PLATFORM_ANGLE_TYPE_ANGLE     0x3203
+#define EGL_PLATFORM_ANGLE_MAX_VERSION_MAJOR_ANGLE 0x3204
+#define EGL_PLATFORM_ANGLE_MAX_VERSION_MINOR_ANGLE 0x3205
+#define EGL_PLATFORM_ANGLE_TYPE_DEFAULT_ANGLE 0x3206
+#endif /* EGL_ANGLE_platform_angle */
+
+#ifndef EGL_ANGLE_platform_angle_d3d
+#define EGL_ANGLE_platform_angle_d3d 1
+#define EGL_PLATFORM_ANGLE_TYPE_D3D9_ANGLE 0x3207
+#define EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE 0x3208
+#define EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE 0x3209
+#define EGL_PLATFORM_ANGLE_DEVICE_TYPE_HARDWARE_ANGLE 0x320A
+#define EGL_PLATFORM_ANGLE_DEVICE_TYPE_WARP_ANGLE 0x320B
+#define EGL_PLATFORM_ANGLE_DEVICE_TYPE_REFERENCE_ANGLE 0x320C
+#define EGL_PLATFORM_ANGLE_ENABLE_AUTOMATIC_TRIM_ANGLE 0x320F
+#endif /* EGL_ANGLE_platform_angle_d3d */
+
+#ifndef EGL_ANGLE_platform_angle_opengl
+#define EGL_ANGLE_platform_angle_opengl 1
+#define EGL_PLATFORM_ANGLE_TYPE_OPENGL_ANGLE 0x320D
+#define EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE 0x320E
+#endif /* EGL_ANGLE_platform_angle_opengl */
+
+#ifndef EGL_ANGLE_platform_angle_null
+#define EGL_ANGLE_platform_angle_null 1
+#define EGL_PLATFORM_ANGLE_TYPE_NULL_ANGLE 0x33AE
+#endif /* EGL_ANGLE_platform_angle_null */
+
+#ifndef EGL_ANGLE_platform_angle_vulkan
+#define EGL_ANGLE_platform_angle_vulkan 1
+#define EGL_PLATFORM_ANGLE_TYPE_VULKAN_ANGLE 0x3450
+#define EGL_PLATFORM_ANGLE_ENABLE_VALIDATION_LAYER_ANGLE 0x3451
+#endif /* EGL_ANGLE_platform_angle_vulkan */
 
 #ifndef EGL_ANGLE_window_fixed_size
 #define EGL_ANGLE_window_fixed_size 1
 #define EGL_FIXED_SIZE_ANGLE              0x3201
 #endif /* EGL_ANGLE_window_fixed_size */
+
+#ifndef EGL_ANGLE_x11_visual
+#define EGL_ANGLE_x11_visual
+#define EGL_X11_VISUAL_ID_ANGLE 0x33A3
+#endif /* EGL_ANGLE_x11_visual */
+
+#ifndef EGL_ANGLE_flexible_surface_compatibility
+#define EGL_ANGLE_flexible_surface_compatibility 1
+#define EGL_FLEXIBLE_SURFACE_COMPATIBILITY_SUPPORTED_ANGLE 0x33A6
+#endif /* EGL_ANGLE_flexible_surface_compatibility */
+
+#ifndef EGL_ANGLE_surface_orientation
+#define EGL_ANGLE_surface_orientation
+#define EGL_OPTIMAL_SURFACE_ORIENTATION_ANGLE 0x33A7
+#define EGL_SURFACE_ORIENTATION_ANGLE 0x33A8
+#define EGL_SURFACE_ORIENTATION_INVERT_X_ANGLE 0x0001
+#define EGL_SURFACE_ORIENTATION_INVERT_Y_ANGLE 0x0002
+#endif /* EGL_ANGLE_surface_orientation */
+
+#ifndef EGL_ANGLE_experimental_present_path
+#define EGL_ANGLE_experimental_present_path
+#define EGL_EXPERIMENTAL_PRESENT_PATH_ANGLE 0x33A4
+#define EGL_EXPERIMENTAL_PRESENT_PATH_FAST_ANGLE 0x33A9
+#define EGL_EXPERIMENTAL_PRESENT_PATH_COPY_ANGLE 0x33AA
+#endif /* EGL_ANGLE_experimental_present_path */
+
+#ifndef EGL_ANGLE_stream_producer_d3d_texture_nv12
+#define EGL_ANGLE_stream_producer_d3d_texture_nv12
+#define EGL_D3D_TEXTURE_SUBRESOURCE_ID_ANGLE 0x33AB
+typedef EGLBoolean(EGLAPIENTRYP PFNEGLCREATESTREAMPRODUCERD3DTEXTURENV12ANGLEPROC)(EGLDisplay dpy, EGLStreamKHR stream, const EGLAttrib *attrib_list);
+typedef EGLBoolean(EGLAPIENTRYP PFNEGLSTREAMPOSTD3DTEXTURENV12ANGLEPROC)(EGLDisplay dpy, EGLStreamKHR stream, void *texture, const EGLAttrib *attrib_list);
+#ifdef EGL_EGLEXT_PROTOTYPES
+EGLAPI EGLBoolean EGLAPIENTRY eglCreateStreamProducerD3DTextureNV12ANGLE(EGLDisplay dpy, EGLStreamKHR stream, const EGLAttrib *attrib_list);
+EGLAPI EGLBoolean EGLAPIENTRY eglStreamPostD3DTextureNV12ANGLE(EGLDisplay dpy, EGLStreamKHR stream, void *texture, const EGLAttrib *attrib_list);
+#endif
+#endif /* EGL_ANGLE_stream_producer_d3d_texture_nv12 */
+
+#ifndef EGL_ANGLE_create_context_webgl_compatibility
+#define EGL_ANGLE_create_context_webgl_compatibility 1
+#define EGL_CONTEXT_WEBGL_COMPATIBILITY_ANGLE 0x3AAC
+#endif /* EGL_ANGLE_create_context_webgl_compatibility */
+
+#ifndef EGL_ANGLE_display_texture_share_group
+#define EGL_ANGLE_display_texture_share_group 1
+#define EGL_DISPLAY_TEXTURE_SHARE_GROUP_ANGLE 0x3AAF
+#endif /* EGL_ANGLE_display_texture_share_group */
+
+#ifndef EGL_CHROMIUM_create_context_bind_generates_resource
+#define EGL_CHROMIUM_create_context_bind_generates_resource 1
+#define EGL_CONTEXT_BIND_GENERATES_RESOURCE_CHROMIUM 0x3AAD
+#endif /* EGL_CHROMIUM_create_context_bind_generates_resource */
+
+#ifndef EGL_ANGLE_create_context_client_arrays
+#define EGL_ANGLE_create_context_client_arrays 1
+#define EGL_CONTEXT_CLIENT_ARRAYS_ENABLED_ANGLE 0x3452
+#endif /* EGL_ANGLE_create_context_client_arrays */
 
 #ifndef EGL_ARM_implicit_external_sync
 #define EGL_ARM_implicit_external_sync 1
@@ -604,11 +679,6 @@ EGLAPI EGLBoolean EGLAPIENTRY eglQuerySurfacePointerANGLE (EGLDisplay dpy, EGLSu
 #define EGL_DISCARD_SAMPLES_ARM           0x3286
 #endif /* EGL_ARM_pixmap_multisample_discard */
 
-#ifndef EGL_EXT_bind_to_front
-#define EGL_EXT_bind_to_front 1
-#define EGL_FRONT_BUFFER_EXT              0x3464
-#endif /* EGL_EXT_bind_to_front */
-
 #ifndef EGL_EXT_buffer_age
 #define EGL_EXT_buffer_age 1
 #define EGL_BUFFER_AGE_EXT                0x313D
@@ -617,40 +687,6 @@ EGLAPI EGLBoolean EGLAPIENTRY eglQuerySurfacePointerANGLE (EGLDisplay dpy, EGLSu
 #ifndef EGL_EXT_client_extensions
 #define EGL_EXT_client_extensions 1
 #endif /* EGL_EXT_client_extensions */
-
-#ifndef EGL_EXT_client_sync
-#define EGL_EXT_client_sync 1
-#define EGL_SYNC_CLIENT_EXT               0x3364
-#define EGL_SYNC_CLIENT_SIGNAL_EXT        0x3365
-typedef EGLBoolean (EGLAPIENTRYP PFNEGLCLIENTSIGNALSYNCEXTPROC) (EGLDisplay dpy, EGLSync sync, const EGLAttrib *attrib_list);
-#ifdef EGL_EGLEXT_PROTOTYPES
-EGLAPI EGLBoolean EGLAPIENTRY eglClientSignalSyncEXT (EGLDisplay dpy, EGLSync sync, const EGLAttrib *attrib_list);
-#endif
-#endif /* EGL_EXT_client_sync */
-
-#ifndef EGL_EXT_compositor
-#define EGL_EXT_compositor 1
-#define EGL_PRIMARY_COMPOSITOR_CONTEXT_EXT 0x3460
-#define EGL_EXTERNAL_REF_ID_EXT           0x3461
-#define EGL_COMPOSITOR_DROP_NEWEST_FRAME_EXT 0x3462
-#define EGL_COMPOSITOR_KEEP_NEWEST_FRAME_EXT 0x3463
-typedef EGLBoolean (EGLAPIENTRYP PFNEGLCOMPOSITORSETCONTEXTLISTEXTPROC) (const EGLint *external_ref_ids, EGLint num_entries);
-typedef EGLBoolean (EGLAPIENTRYP PFNEGLCOMPOSITORSETCONTEXTATTRIBUTESEXTPROC) (EGLint external_ref_id, const EGLint *context_attributes, EGLint num_entries);
-typedef EGLBoolean (EGLAPIENTRYP PFNEGLCOMPOSITORSETWINDOWLISTEXTPROC) (EGLint external_ref_id, const EGLint *external_win_ids, EGLint num_entries);
-typedef EGLBoolean (EGLAPIENTRYP PFNEGLCOMPOSITORSETWINDOWATTRIBUTESEXTPROC) (EGLint external_win_id, const EGLint *window_attributes, EGLint num_entries);
-typedef EGLBoolean (EGLAPIENTRYP PFNEGLCOMPOSITORBINDTEXWINDOWEXTPROC) (EGLint external_win_id);
-typedef EGLBoolean (EGLAPIENTRYP PFNEGLCOMPOSITORSETSIZEEXTPROC) (EGLint external_win_id, EGLint width, EGLint height);
-typedef EGLBoolean (EGLAPIENTRYP PFNEGLCOMPOSITORSWAPPOLICYEXTPROC) (EGLint external_win_id, EGLint policy);
-#ifdef EGL_EGLEXT_PROTOTYPES
-EGLAPI EGLBoolean EGLAPIENTRY eglCompositorSetContextListEXT (const EGLint *external_ref_ids, EGLint num_entries);
-EGLAPI EGLBoolean EGLAPIENTRY eglCompositorSetContextAttributesEXT (EGLint external_ref_id, const EGLint *context_attributes, EGLint num_entries);
-EGLAPI EGLBoolean EGLAPIENTRY eglCompositorSetWindowListEXT (EGLint external_ref_id, const EGLint *external_win_ids, EGLint num_entries);
-EGLAPI EGLBoolean EGLAPIENTRY eglCompositorSetWindowAttributesEXT (EGLint external_win_id, const EGLint *window_attributes, EGLint num_entries);
-EGLAPI EGLBoolean EGLAPIENTRY eglCompositorBindTexWindowEXT (EGLint external_win_id);
-EGLAPI EGLBoolean EGLAPIENTRY eglCompositorSetSizeEXT (EGLint external_win_id, EGLint width, EGLint height);
-EGLAPI EGLBoolean EGLAPIENTRY eglCompositorSwapPolicyEXT (EGLint external_win_id, EGLint policy);
-#endif
-#endif /* EGL_EXT_compositor */
 
 #ifndef EGL_EXT_create_context_robustness
 #define EGL_EXT_create_context_robustness 1
@@ -677,6 +713,16 @@ EGLAPI EGLBoolean EGLAPIENTRY eglQueryDevicesEXT (EGLint max_devices, EGLDeviceE
 EGLAPI EGLBoolean EGLAPIENTRY eglQueryDisplayAttribEXT (EGLDisplay dpy, EGLint attribute, EGLAttrib *value);
 #endif
 #endif /* EGL_EXT_device_base */
+
+#ifndef EGL_ANGLE_device_creation
+#define EGL_ANGLE_device_creation 1
+typedef EGLDeviceEXT(EGLAPIENTRYP PFNEGLCREATEDEVICEANGLEPROC) (EGLint device_type, void *native_device, const EGLAttrib *attrib_list);
+typedef EGLBoolean(EGLAPIENTRYP PFNEGLRELEASEDEVICEANGLEPROC) (EGLDeviceEXT device);
+#ifdef EGL_EGLEXT_PROTOTYPES
+EGLAPI EGLDeviceEXT EGLAPIENTRY eglCreateDeviceANGLE(EGLint device_type, void *native_device, const EGLAttrib *attrib_list);
+EGLAPI EGLBoolean EGLAPIENTRY eglReleaseDeviceANGLE(EGLDeviceEXT device);
+#endif
+#endif /* EGL_ANGLE_device_creation */
 
 #ifndef EGL_EXT_device_drm
 #define EGL_EXT_device_drm 1
@@ -705,21 +751,6 @@ EGLAPI EGLBoolean EGLAPIENTRY eglQueryDisplayAttribEXT (EGLDisplay dpy, EGLint a
 #define EGL_EXT_gl_colorspace_bt2020_pq 1
 #define EGL_GL_COLORSPACE_BT2020_PQ_EXT   0x3340
 #endif /* EGL_EXT_gl_colorspace_bt2020_pq */
-
-#ifndef EGL_EXT_gl_colorspace_display_p3
-#define EGL_EXT_gl_colorspace_display_p3 1
-#define EGL_GL_COLORSPACE_DISPLAY_P3_EXT  0x3363
-#endif /* EGL_EXT_gl_colorspace_display_p3 */
-
-#ifndef EGL_EXT_gl_colorspace_display_p3_linear
-#define EGL_EXT_gl_colorspace_display_p3_linear 1
-#define EGL_GL_COLORSPACE_DISPLAY_P3_LINEAR_EXT 0x3362
-#endif /* EGL_EXT_gl_colorspace_display_p3_linear */
-
-#ifndef EGL_EXT_gl_colorspace_scrgb
-#define EGL_EXT_gl_colorspace_scrgb 1
-#define EGL_GL_COLORSPACE_SCRGB_EXT       0x3351
-#endif /* EGL_EXT_gl_colorspace_scrgb */
 
 #ifndef EGL_EXT_gl_colorspace_scrgb_linear
 #define EGL_EXT_gl_colorspace_scrgb_linear 1
@@ -772,18 +803,6 @@ EGLAPI EGLBoolean EGLAPIENTRY eglQueryDmaBufFormatsEXT (EGLDisplay dpy, EGLint m
 EGLAPI EGLBoolean EGLAPIENTRY eglQueryDmaBufModifiersEXT (EGLDisplay dpy, EGLint format, EGLint max_modifiers, EGLuint64KHR *modifiers, EGLBoolean *external_only, EGLint *num_modifiers);
 #endif
 #endif /* EGL_EXT_image_dma_buf_import_modifiers */
-
-#ifndef EGL_EXT_image_gl_colorspace
-#define EGL_EXT_image_gl_colorspace 1
-#define EGL_GL_COLORSPACE_DEFAULT_EXT     0x314D
-#endif /* EGL_EXT_image_gl_colorspace */
-
-#ifndef EGL_EXT_image_implicit_sync_control
-#define EGL_EXT_image_implicit_sync_control 1
-#define EGL_IMPORT_SYNC_TYPE_EXT          0x3470
-#define EGL_IMPORT_IMPLICIT_SYNC_EXT      0x3471
-#define EGL_IMPORT_EXPLICIT_SYNC_EXT      0x3472
-#endif /* EGL_EXT_image_implicit_sync_control */
 
 #ifndef EGL_EXT_multiview_window
 #define EGL_EXT_multiview_window 1
@@ -884,12 +903,6 @@ EGLAPI EGLBoolean EGLAPIENTRY eglStreamConsumerOutputEXT (EGLDisplay dpy, EGLStr
 #endif
 #endif /* EGL_EXT_stream_consumer_egloutput */
 
-#ifndef EGL_EXT_surface_CTA861_3_metadata
-#define EGL_EXT_surface_CTA861_3_metadata 1
-#define EGL_CTA861_3_MAX_CONTENT_LIGHT_LEVEL_EXT 0x3360
-#define EGL_CTA861_3_MAX_FRAME_AVERAGE_LEVEL_EXT 0x3361
-#endif /* EGL_EXT_surface_CTA861_3_metadata */
-
 #ifndef EGL_EXT_surface_SMPTE2086_metadata
 #define EGL_EXT_surface_SMPTE2086_metadata 1
 #define EGL_SMPTE2086_DISPLAY_PRIMARY_RX_EXT 0x3341
@@ -902,7 +915,6 @@ EGLAPI EGLBoolean EGLAPIENTRY eglStreamConsumerOutputEXT (EGLDisplay dpy, EGLStr
 #define EGL_SMPTE2086_WHITE_POINT_Y_EXT   0x3348
 #define EGL_SMPTE2086_MAX_LUMINANCE_EXT   0x3349
 #define EGL_SMPTE2086_MIN_LUMINANCE_EXT   0x334A
-#define EGL_METADATA_SCALING_EXT          50000
 #endif /* EGL_EXT_surface_SMPTE2086_metadata */
 
 #ifndef EGL_EXT_swap_buffers_with_damage
@@ -912,14 +924,6 @@ typedef EGLBoolean (EGLAPIENTRYP PFNEGLSWAPBUFFERSWITHDAMAGEEXTPROC) (EGLDisplay
 EGLAPI EGLBoolean EGLAPIENTRY eglSwapBuffersWithDamageEXT (EGLDisplay dpy, EGLSurface surface, EGLint *rects, EGLint n_rects);
 #endif
 #endif /* EGL_EXT_swap_buffers_with_damage */
-
-#ifndef EGL_EXT_sync_reuse
-#define EGL_EXT_sync_reuse 1
-typedef EGLBoolean (EGLAPIENTRYP PFNEGLUNSIGNALSYNCEXTPROC) (EGLDisplay dpy, EGLSync sync, const EGLAttrib *attrib_list);
-#ifdef EGL_EGLEXT_PROTOTYPES
-EGLAPI EGLBoolean EGLAPIENTRY eglUnsignalSyncEXT (EGLDisplay dpy, EGLSync sync, const EGLAttrib *attrib_list);
-#endif
-#endif /* EGL_EXT_sync_reuse */
 
 #ifndef EGL_EXT_yuv_surface
 #define EGL_EXT_yuv_surface 1
@@ -996,7 +1000,6 @@ EGLAPI EGLSurface EGLAPIENTRY eglCreatePixmapSurfaceHI (EGLDisplay dpy, EGLConfi
 #define EGL_DRM_BUFFER_STRIDE_MESA        0x31D4
 #define EGL_DRM_BUFFER_USE_SCANOUT_MESA   0x00000001
 #define EGL_DRM_BUFFER_USE_SHARE_MESA     0x00000002
-#define EGL_DRM_BUFFER_USE_CURSOR_MESA    0x00000004
 typedef EGLImageKHR (EGLAPIENTRYP PFNEGLCREATEDRMIMAGEMESAPROC) (EGLDisplay dpy, const EGLint *attrib_list);
 typedef EGLBoolean (EGLAPIENTRYP PFNEGLEXPORTDRMIMAGEMESAPROC) (EGLDisplay dpy, EGLImageKHR image, EGLint *name, EGLint *handle, EGLint *stride);
 #ifdef EGL_EGLEXT_PROTOTYPES
@@ -1050,11 +1053,6 @@ EGLAPI EGLBoolean EGLAPIENTRY eglSwapBuffersRegion2NOK (EGLDisplay dpy, EGLSurfa
 #define EGL_NV_3dvision_surface 1
 #define EGL_AUTO_STEREO_NV                0x3136
 #endif /* EGL_NV_3dvision_surface */
-
-#ifndef EGL_NV_context_priority_realtime
-#define EGL_NV_context_priority_realtime 1
-#define EGL_CONTEXT_PRIORITY_REALTIME_NV  0x3357
-#endif /* EGL_NV_context_priority_realtime */
 
 #ifndef EGL_NV_coverage_sample
 #define EGL_NV_coverage_sample 1
@@ -1123,9 +1121,9 @@ EGLAPI EGLBoolean EGLAPIENTRY eglPostSubBufferNV (EGLDisplay dpy, EGLSurface sur
 #define EGL_YUV_PLANE0_TEXTURE_UNIT_NV    0x332C
 #define EGL_YUV_PLANE1_TEXTURE_UNIT_NV    0x332D
 #define EGL_YUV_PLANE2_TEXTURE_UNIT_NV    0x332E
-typedef EGLBoolean (EGLAPIENTRYP PFNEGLSTREAMCONSUMERGLTEXTUREEXTERNALATTRIBSNVPROC) (EGLDisplay dpy, EGLStreamKHR stream, const EGLAttrib *attrib_list);
+typedef EGLBoolean (EGLAPIENTRYP PFNEGLSTREAMCONSUMERGLTEXTUREEXTERNALATTRIBSNVPROC) (EGLDisplay dpy, EGLStreamKHR stream, EGLAttrib *attrib_list);
 #ifdef EGL_EGLEXT_PROTOTYPES
-EGLAPI EGLBoolean EGLAPIENTRY eglStreamConsumerGLTextureExternalAttribsNV (EGLDisplay dpy, EGLStreamKHR stream, const EGLAttrib *attrib_list);
+EGLAPI EGLBoolean EGLAPIENTRY eglStreamConsumerGLTextureExternalAttribsNV (EGLDisplay dpy, EGLStreamKHR stream, EGLAttrib *attrib_list);
 #endif
 #endif /* EGL_NV_stream_consumer_gltexture_yuv */
 
@@ -1164,14 +1162,6 @@ EGLAPI EGLBoolean EGLAPIENTRY eglStreamConsumerGLTextureExternalAttribsNV (EGLDi
 #define EGL_NV_stream_fifo_synchronous 1
 #define EGL_STREAM_FIFO_SYNCHRONOUS_NV    0x3336
 #endif /* EGL_NV_stream_fifo_synchronous */
-
-#ifndef EGL_NV_stream_flush
-#define EGL_NV_stream_flush 1
-typedef EGLBoolean (EGLAPIENTRYP PFNEGLSTREAMFLUSHNVPROC) (EGLDisplay dpy, EGLStreamKHR stream);
-#ifdef EGL_EGLEXT_PROTOTYPES
-EGLAPI EGLBoolean EGLAPIENTRY eglStreamFlushNV (EGLDisplay dpy, EGLStreamKHR stream);
-#endif
-#endif /* EGL_NV_stream_flush */
 
 #ifndef EGL_NV_stream_frame_limits
 #define EGL_NV_stream_frame_limits 1
@@ -1310,9 +1300,6 @@ EGLAPI EGLuint64NV EGLAPIENTRY eglGetSystemTimeNV (void);
 #define EGL_TIZEN_image_native_surface 1
 #define EGL_NATIVE_SURFACE_TIZEN          0x32A1
 #endif /* EGL_TIZEN_image_native_surface */
-
-/* ANGLE EGL extensions */
-#include "eglext_angle.h"
 
 #ifdef __cplusplus
 }

@@ -7,18 +7,19 @@
 //   Performance tests for ANGLE index conversion in D3D11.
 //
 
+#include <sstream>
+
 #include "ANGLEPerfTest.h"
 #include "tests/test_utils/draw_call_perf_utils.h"
-
-#include <sstream>
 
 using namespace angle;
 
 namespace
 {
+
 struct IndexConversionPerfParams final : public RenderTestParams
 {
-    std::string story() const override
+    std::string suffix() const override
     {
         std::stringstream strstr;
 
@@ -27,11 +28,12 @@ struct IndexConversionPerfParams final : public RenderTestParams
             strstr << "_index_range";
         }
 
-        strstr << RenderTestParams::story();
+        strstr << RenderTestParams::suffix();
 
         return strstr.str();
     }
 
+    unsigned int iterations;
     unsigned int numIndexTris;
 
     // A second test, which covers using index ranges with an offset.
@@ -41,7 +43,7 @@ struct IndexConversionPerfParams final : public RenderTestParams
 // Provide a custom gtest parameter name function for IndexConversionPerfParams.
 std::ostream &operator<<(std::ostream &stream, const IndexConversionPerfParams &param)
 {
-    stream << param.backendAndStory().substr(1);
+    stream << param.suffix().substr(1);
     return stream;
 }
 
@@ -71,13 +73,15 @@ IndexConversionPerfTest::IndexConversionPerfTest()
       mProgram(0),
       mVertexBuffer(0),
       mIndexBuffer(0)
-{}
+{
+    mRunTimeSeconds = 3.0;
+}
 
 void IndexConversionPerfTest::initializeBenchmark()
 {
     const auto &params = GetParam();
 
-    ASSERT_LT(0u, params.iterationsPerStep);
+    ASSERT_LT(0u, params.iterations);
     ASSERT_LT(0u, params.numIndexTris);
 
     mProgram = SetupSimpleScaleAndOffsetProgram();
@@ -153,7 +157,7 @@ void IndexConversionPerfTest::drawConversion()
     // Trigger an update to ensure we convert once a frame
     updateBufferData();
 
-    for (unsigned int it = 0; it < params.iterationsPerStep; it++)
+    for (unsigned int it = 0; it < params.iterations; it++)
     {
         glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(params.numIndexTris * 3 - 1),
                        GL_UNSIGNED_SHORT, reinterpret_cast<void *>(0));
@@ -174,7 +178,7 @@ void IndexConversionPerfTest::drawIndexRange()
     // This test increments an offset each step. Drawing repeatedly may cause the system memory
     // to release. Then, using a fresh offset will require index range validation, which pages
     // it back in. The performance should be good even if the data is was used quite a bit.
-    for (unsigned int it = 0; it < params.iterationsPerStep; it++)
+    for (unsigned int it = 0; it < params.iterations; it++)
     {
         glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indexCount), GL_UNSIGNED_SHORT,
                        reinterpret_cast<void *>(offset));
@@ -186,28 +190,28 @@ void IndexConversionPerfTest::drawIndexRange()
 IndexConversionPerfParams IndexConversionPerfD3D11Params()
 {
     IndexConversionPerfParams params;
-    params.eglParameters     = egl_platform::D3D11_NULL();
-    params.majorVersion      = 2;
-    params.minorVersion      = 0;
-    params.windowWidth       = 256;
-    params.windowHeight      = 256;
-    params.iterationsPerStep = 225;
-    params.numIndexTris      = 3000;
-    params.indexRangeOffset  = 0;
+    params.eglParameters    = egl_platform::D3D11_NULL();
+    params.majorVersion     = 2;
+    params.minorVersion     = 0;
+    params.windowWidth      = 256;
+    params.windowHeight     = 256;
+    params.iterations       = 225;
+    params.numIndexTris     = 3000;
+    params.indexRangeOffset = 0;
     return params;
 }
 
 IndexConversionPerfParams IndexRangeOffsetPerfD3D11Params()
 {
     IndexConversionPerfParams params;
-    params.eglParameters     = egl_platform::D3D11_NULL();
-    params.majorVersion      = 2;
-    params.minorVersion      = 0;
-    params.windowWidth       = 256;
-    params.windowHeight      = 256;
-    params.iterationsPerStep = 16;
-    params.numIndexTris      = 50000;
-    params.indexRangeOffset  = 64;
+    params.eglParameters    = egl_platform::D3D11_NULL();
+    params.majorVersion     = 2;
+    params.minorVersion     = 0;
+    params.windowWidth      = 256;
+    params.windowHeight     = 256;
+    params.iterations       = 16;
+    params.numIndexTris     = 50000;
+    params.indexRangeOffset = 64;
     return params;
 }
 
@@ -219,4 +223,5 @@ TEST_P(IndexConversionPerfTest, Run)
 ANGLE_INSTANTIATE_TEST(IndexConversionPerfTest,
                        IndexConversionPerfD3D11Params(),
                        IndexRangeOffsetPerfD3D11Params());
+
 }  // namespace

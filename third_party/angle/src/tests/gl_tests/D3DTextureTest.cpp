@@ -12,8 +12,7 @@
 #include <d3d11.h>
 #include <windows.h>
 
-#include "util/EGLWindow.h"
-#include "util/com_utils.h"
+#include "com_utils.h"
 
 namespace angle
 {
@@ -33,10 +32,14 @@ class D3DTextureTest : public ANGLETest
         setConfigStencilBits(8);
     }
 
-    void testSetUp() override
+    void SetUp() override
     {
-        constexpr char kVS[] =
-            R"(precision highp float;
+        ANGLETest::SetUp();
+
+        // clang-format off
+        const std::string vsSource = SHADER_SOURCE
+        (
+            precision highp float;
             attribute vec4 position;
             varying vec2 texcoord;
 
@@ -45,33 +48,39 @@ class D3DTextureTest : public ANGLETest
                 gl_Position = position;
                 texcoord = (position.xy * 0.5) + 0.5;
                 texcoord.y = 1.0 - texcoord.y;
-            })";
+            }
+        );
 
-        constexpr char kTextureFS[] =
-            R"(precision highp float;
+        const std::string textureFSSource = SHADER_SOURCE
+        (
+            precision highp float;
             uniform sampler2D tex;
             varying vec2 texcoord;
 
             void main()
             {
                 gl_FragColor = texture2D(tex, texcoord);
-            })";
+            }
+        );
 
-        constexpr char kTextureFSNoSampling[] =
-            R"(precision highp float;
+        const std::string textureFSSourceNoSampling = SHADER_SOURCE
+        (
+            precision highp float;
 
             void main()
             {
                 gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0);
-            })";
+            }
+        );
+        // clang-format on
 
-        mTextureProgram = CompileProgram(kVS, kTextureFS);
+        mTextureProgram = CompileProgram(vsSource, textureFSSource);
         ASSERT_NE(0u, mTextureProgram) << "shader compilation failed.";
 
         mTextureUniformLocation = glGetUniformLocation(mTextureProgram, "tex");
         ASSERT_NE(-1, mTextureUniformLocation);
 
-        mTextureProgramNoSampling = CompileProgram(kVS, kTextureFSNoSampling);
+        mTextureProgramNoSampling = CompileProgram(vsSource, textureFSSourceNoSampling);
         ASSERT_NE(0u, mTextureProgramNoSampling) << "shader compilation failed.";
 
         mD3D11Module = LoadLibrary(TEXT("d3d11.dll"));
@@ -82,7 +91,7 @@ class D3DTextureTest : public ANGLETest
 
         EGLWindow *window  = getEGLWindow();
         EGLDisplay display = window->getDisplay();
-        if (IsEGLDisplayExtensionEnabled(display, "EGL_EXT_device_query"))
+        if (eglDisplayExtensionEnabled(display, "EGL_EXT_device_query"))
         {
             PFNEGLQUERYDISPLAYATTRIBEXTPROC eglQueryDisplayAttribEXT =
                 reinterpret_cast<PFNEGLQUERYDISPLAYATTRIBEXTPROC>(
@@ -98,7 +107,7 @@ class D3DTextureTest : public ANGLETest
                 device = reinterpret_cast<EGLDeviceEXT>(result);
             }
 
-            if (IsEGLDeviceExtensionEnabled(device, "EGL_ANGLE_device_d3d"))
+            if (eglDeviceExtensionEnabled(device, "EGL_ANGLE_device_d3d"))
             {
                 EGLAttrib result = 0;
                 if (eglQueryDeviceAttribEXT(device, EGL_D3D11_DEVICE_ANGLE, &result))
@@ -121,7 +130,7 @@ class D3DTextureTest : public ANGLETest
         }
     }
 
-    void testTearDown() override
+    void TearDown() override
     {
         glDeleteProgram(mTextureProgram);
 
@@ -139,51 +148,8 @@ class D3DTextureTest : public ANGLETest
             mD3D9Device->Release();
             mD3D9Device = nullptr;
         }
-    }
 
-    EGLSurface createD3D11PBuffer(size_t width,
-                                  size_t height,
-                                  UINT sampleCount,
-                                  UINT sampleQuality,
-                                  UINT bindFlags,
-                                  DXGI_FORMAT format,
-                                  const EGLint *attribs)
-    {
-        EGLWindow *window  = getEGLWindow();
-        EGLDisplay display = window->getDisplay();
-        EGLConfig config   = window->getConfig();
-
-        EXPECT_TRUE(mD3D11Device != nullptr);
-        ID3D11Texture2D *texture = nullptr;
-        CD3D11_TEXTURE2D_DESC desc(format, static_cast<UINT>(width), static_cast<UINT>(height), 1,
-                                   1, bindFlags);
-        desc.SampleDesc.Count   = sampleCount;
-        desc.SampleDesc.Quality = sampleQuality;
-        EXPECT_TRUE(SUCCEEDED(mD3D11Device->CreateTexture2D(&desc, nullptr, &texture)));
-
-        EGLSurface pbuffer = eglCreatePbufferFromClientBuffer(display, EGL_D3D_TEXTURE_ANGLE,
-                                                              texture, config, attribs);
-
-        texture->Release();
-
-        return pbuffer;
-    }
-
-    EGLSurface createD3D11PBuffer(size_t width,
-                                  size_t height,
-                                  EGLint eglTextureFormat,
-                                  EGLint eglTextureTarget,
-                                  UINT sampleCount,
-                                  UINT sampleQuality,
-                                  UINT bindFlags,
-                                  DXGI_FORMAT format)
-    {
-        EGLint attribs[] = {
-            EGL_TEXTURE_FORMAT, eglTextureFormat, EGL_TEXTURE_TARGET,
-            eglTextureTarget,   EGL_NONE,         EGL_NONE,
-        };
-        return createD3D11PBuffer(width, height, sampleCount, sampleQuality, bindFlags, format,
-                                  attribs);
+        ANGLETest::TearDown();
     }
 
     EGLSurface createPBuffer(size_t width,
@@ -193,27 +159,37 @@ class D3DTextureTest : public ANGLETest
                              UINT sampleCount,
                              UINT sampleQuality)
     {
+        EGLWindow *window  = getEGLWindow();
+        EGLDisplay display = window->getDisplay();
+        EGLConfig config   = window->getConfig();
+
+        EGLint attribs[] = {
+            EGL_TEXTURE_FORMAT, eglTextureFormat, EGL_TEXTURE_TARGET,
+            eglTextureTarget,   EGL_NONE,         EGL_NONE,
+        };
+
         if (mD3D11Device)
         {
-            return createD3D11PBuffer(
-                width, height, eglTextureFormat, eglTextureTarget, sampleCount, sampleQuality,
-                D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET, DXGI_FORMAT_R8G8B8A8_UNORM);
+            ID3D11Texture2D *texture = nullptr;
+            CD3D11_TEXTURE2D_DESC desc(DXGI_FORMAT_R8G8B8A8_UNORM, static_cast<UINT>(width),
+                                       static_cast<UINT>(height), 1, 1,
+                                       D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
+            desc.SampleDesc.Count   = sampleCount;
+            desc.SampleDesc.Quality = sampleQuality;
+            EXPECT_TRUE(SUCCEEDED(mD3D11Device->CreateTexture2D(&desc, nullptr, &texture)));
+
+            EGLSurface pbuffer = eglCreatePbufferFromClientBuffer(display, EGL_D3D_TEXTURE_ANGLE,
+                                                                  texture, config, attribs);
+
+            texture->Release();
+
+            return pbuffer;
         }
-
-        if (mD3D9Device)
+        else if (mD3D9Device)
         {
-            EGLWindow *window  = getEGLWindow();
-            EGLDisplay display = window->getDisplay();
-            EGLConfig config   = window->getConfig();
-
-            EGLint attribs[] = {
-                EGL_TEXTURE_FORMAT, eglTextureFormat, EGL_TEXTURE_TARGET,
-                eglTextureTarget,   EGL_NONE,         EGL_NONE,
-            };
-
             // Multisampled textures are not supported on D3D9.
-            EXPECT_TRUE(sampleCount <= 1);
-            EXPECT_TRUE(sampleQuality == 0);
+            ASSERT(sampleCount <= 1);
+            ASSERT(sampleQuality == 0);
 
             IDirect3DTexture9 *texture = nullptr;
             EXPECT_TRUE(SUCCEEDED(mD3D9Device->CreateTexture(
@@ -237,7 +213,7 @@ class D3DTextureTest : public ANGLETest
     {
         EGLWindow *window  = getEGLWindow();
         EGLDisplay display = window->getDisplay();
-        if (!IsEGLDisplayExtensionEnabled(display, "EGL_ANGLE_d3d_texture_client_buffer"))
+        if (!eglDisplayExtensionEnabled(display, "EGL_ANGLE_d3d_texture_client_buffer"))
         {
             std::cout << "Test skipped due to missing EGL_ANGLE_d3d_texture_client_buffer"
                       << std::endl;
@@ -264,34 +240,6 @@ class D3DTextureTest : public ANGLETest
         return true;
     }
 
-    void testTextureSamplesAs50PercentGreen(GLuint texture)
-    {
-        GLFramebuffer scratchFbo;
-        glBindFramebuffer(GL_FRAMEBUFFER, scratchFbo);
-        GLTexture scratchTexture;
-        glBindTexture(GL_TEXTURE_2D, scratchTexture);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 32, 32, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, scratchTexture,
-                               0);
-
-        glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        glUseProgram(mTextureProgram);
-        glUniform1i(mTextureUniformLocation, 0);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, texture);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-        drawQuad(mTextureProgram, "position", 0.5f);
-        ASSERT_GL_NO_ERROR();
-
-        EXPECT_PIXEL_COLOR_NEAR(0, 0, GLColor(0u, 127u, 0u, 255u), 2);
-    }
-
     GLuint mTextureProgram;
     GLuint mTextureProgramNoSampling;
     GLint mTextureUniformLocation;
@@ -301,433 +249,6 @@ class D3DTextureTest : public ANGLETest
 
     IDirect3DDevice9 *mD3D9Device = nullptr;
 };
-
-// Test creating pbuffer from textures with several different DXGI formats.
-TEST_P(D3DTextureTest, TestD3D11SupportedFormatsSurface)
-{
-    bool srgbSupported = IsGLExtensionEnabled("GL_EXT_sRGB") || getClientMajorVersion() == 3;
-    ANGLE_SKIP_TEST_IF(!valid() || !mD3D11Device || !srgbSupported);
-
-    const DXGI_FORMAT formats[] = {DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
-                                   DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_FORMAT_B8G8R8A8_UNORM_SRGB};
-    for (size_t i = 0; i < 4; ++i)
-    {
-        if (formats[i] == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
-        {
-            if (IsOpenGL())
-            {
-                // This generates an invalid format error when calling wglDXRegisterObjectNV().
-                // Reproducible at least on NVIDIA driver 390.65 on Windows 10.
-                std::cout << "DXGI_FORMAT_B8G8R8A8_UNORM_SRGB subtest skipped: IsOpenGL().\n";
-                continue;
-            }
-        }
-
-        EGLSurface pbuffer = createD3D11PBuffer(32, 32, EGL_TEXTURE_RGBA, EGL_TEXTURE_2D, 1, 0,
-                                                D3D11_BIND_RENDER_TARGET, formats[i]);
-        ASSERT_EGL_SUCCESS();
-        ASSERT_NE(EGL_NO_SURFACE, pbuffer);
-
-        EGLWindow *window  = getEGLWindow();
-        EGLDisplay display = window->getDisplay();
-
-        EGLint colorspace = EGL_NONE;
-        eglQuerySurface(display, pbuffer, EGL_GL_COLORSPACE, &colorspace);
-
-        if (formats[i] == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB ||
-            formats[i] == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
-        {
-            EXPECT_EQ(EGL_GL_COLORSPACE_SRGB, colorspace);
-        }
-        else
-        {
-            EXPECT_EQ(EGL_GL_COLORSPACE_LINEAR, colorspace);
-        }
-
-        eglMakeCurrent(display, pbuffer, pbuffer, window->getContext());
-        ASSERT_EGL_SUCCESS();
-        window->makeCurrent();
-        eglDestroySurface(display, pbuffer);
-    }
-}
-
-// Test binding a pbuffer created from a D3D texture as a texture image with several different DXGI
-// formats. The test renders to and samples from the pbuffer.
-TEST_P(D3DTextureTest, TestD3D11SupportedFormatsTexture)
-{
-    bool srgb8alpha8TextureAttachmentSupported = getClientMajorVersion() >= 3;
-    ANGLE_SKIP_TEST_IF(!valid() || !mD3D11Device || !srgb8alpha8TextureAttachmentSupported);
-
-    bool srgbWriteControlSupported =
-        IsGLExtensionEnabled("GL_EXT_sRGB_write_control") && !IsOpenGL();
-
-    const DXGI_FORMAT formats[] = {DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_B8G8R8A8_UNORM,
-                                   DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
-                                   DXGI_FORMAT_B8G8R8A8_UNORM_SRGB};
-    for (size_t i = 0; i < 4; ++i)
-    {
-        if (formats[i] == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
-        {
-            if (IsOpenGL())
-            {
-                // This generates an invalid format error when calling wglDXRegisterObjectNV().
-                // Reproducible at least on NVIDIA driver 390.65 on Windows 10.
-                std::cout << "DXGI_FORMAT_B8G8R8A8_UNORM_SRGB subtest skipped: IsOpenGL().\n";
-                continue;
-            }
-        }
-
-        SCOPED_TRACE(std::string("Test case:") + std::to_string(i));
-        EGLWindow *window  = getEGLWindow();
-        EGLDisplay display = window->getDisplay();
-
-        EGLSurface pbuffer =
-            createD3D11PBuffer(32, 32, EGL_TEXTURE_RGBA, EGL_TEXTURE_2D, 1, 0,
-                               D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE, formats[i]);
-        ASSERT_EGL_SUCCESS();
-        ASSERT_NE(EGL_NO_SURFACE, pbuffer);
-
-        EGLint colorspace = EGL_NONE;
-        eglQuerySurface(display, pbuffer, EGL_GL_COLORSPACE, &colorspace);
-
-        GLuint texture = 0u;
-        glGenTextures(1, &texture);
-        glBindTexture(GL_TEXTURE_2D, texture);
-        EGLBoolean result = eglBindTexImage(display, pbuffer, EGL_BACK_BUFFER);
-        ASSERT_EGL_SUCCESS();
-        ASSERT_EGL_TRUE(result);
-
-        GLuint fbo = 0u;
-        glGenFramebuffers(1, &fbo);
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
-        glViewport(0, 0, 32, 32);
-
-        GLint colorEncoding = 0;
-        glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                                              GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING_EXT,
-                                              &colorEncoding);
-
-        if (formats[i] == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB ||
-            formats[i] == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
-        {
-            EXPECT_EQ(EGL_GL_COLORSPACE_SRGB, colorspace);
-            EXPECT_EQ(GL_SRGB_EXT, colorEncoding);
-        }
-        else
-        {
-            EXPECT_EQ(EGL_GL_COLORSPACE_LINEAR, colorspace);
-            EXPECT_EQ(GL_LINEAR, colorEncoding);
-        }
-
-        // Clear the texture with 50% green and check that the color value written is correct.
-        glClearColor(0.0f, 0.5f, 0.0f, 1.0f);
-
-        if (colorEncoding == GL_SRGB_EXT)
-        {
-            glClear(GL_COLOR_BUFFER_BIT);
-            EXPECT_PIXEL_COLOR_NEAR(0, 0, GLColor(0u, 188u, 0u, 255u), 2);
-            // Disable SRGB and run the non-sRGB test case.
-            if (srgbWriteControlSupported)
-                glDisable(GL_FRAMEBUFFER_SRGB_EXT);
-        }
-
-        if (colorEncoding == GL_LINEAR || srgbWriteControlSupported)
-        {
-            glClear(GL_COLOR_BUFFER_BIT);
-            EXPECT_PIXEL_COLOR_NEAR(0, 0, GLColor(0u, 127u, 0u, 255u), 2);
-        }
-
-        // Draw with the texture to a linear framebuffer and check that the color value written is
-        // correct.
-        testTextureSamplesAs50PercentGreen(texture);
-
-        glBindFramebuffer(GL_FRAMEBUFFER, 0u);
-        glBindTexture(GL_TEXTURE_2D, 0u);
-        glDeleteTextures(1, &texture);
-        glDeleteFramebuffers(1, &fbo);
-        eglDestroySurface(display, pbuffer);
-    }
-}
-
-// Test binding a pbuffer created from a D3D texture as a texture image with typeless texture
-// formats.
-TEST_P(D3DTextureTest, TestD3D11TypelessTexture)
-{
-    EGLWindow *window  = getEGLWindow();
-    EGLDisplay display = window->getDisplay();
-
-    ANGLE_SKIP_TEST_IF(!valid());
-
-    // Typeless formats are optional in the spec and currently only supported on D3D11 backend.
-    ANGLE_SKIP_TEST_IF(!IsD3D11());
-
-    // GL_SRGB8_ALPHA8 texture attachment support is required.
-    ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3);
-
-    const std::array<EGLint, 2> eglGlColorspaces = {EGL_GL_COLORSPACE_LINEAR,
-                                                    EGL_GL_COLORSPACE_SRGB};
-    const std::array<DXGI_FORMAT, 2> dxgiFormats = {DXGI_FORMAT_R8G8B8A8_TYPELESS,
-                                                    DXGI_FORMAT_B8G8R8A8_TYPELESS};
-    for (auto eglGlColorspace : eglGlColorspaces)
-    {
-        for (auto dxgiFormat : dxgiFormats)
-        {
-            SCOPED_TRACE(std::string("Test case:") + std::to_string(eglGlColorspace) + " / " +
-                         std::to_string(dxgiFormat));
-
-            EGLint attribs[] = {
-                EGL_TEXTURE_FORMAT, EGL_TEXTURE_RGBA, EGL_TEXTURE_TARGET, EGL_TEXTURE_2D,
-                EGL_GL_COLORSPACE,  eglGlColorspace,  EGL_NONE,           EGL_NONE,
-            };
-
-            EGLSurface pbuffer = createD3D11PBuffer(
-                32, 32, 1, 0, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE, dxgiFormat,
-                attribs);
-
-            ASSERT_EGL_SUCCESS();
-            ASSERT_NE(EGL_NO_SURFACE, pbuffer);
-
-            EGLint colorspace = EGL_NONE;
-            eglQuerySurface(display, pbuffer, EGL_GL_COLORSPACE, &colorspace);
-
-            GLuint texture = 0u;
-            glGenTextures(1, &texture);
-            glBindTexture(GL_TEXTURE_2D, texture);
-            EGLBoolean result = eglBindTexImage(display, pbuffer, EGL_BACK_BUFFER);
-            ASSERT_EGL_SUCCESS();
-            ASSERT_EGL_TRUE(result);
-
-            GLuint fbo = 0u;
-            glGenFramebuffers(1, &fbo);
-            glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
-            glViewport(0, 0, 32, 32);
-
-            GLint colorEncoding = 0;
-            glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                                                  GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING_EXT,
-                                                  &colorEncoding);
-
-            if (eglGlColorspace == EGL_GL_COLORSPACE_LINEAR)
-            {
-                EXPECT_EQ(EGL_GL_COLORSPACE_LINEAR, colorspace);
-                EXPECT_EQ(GL_LINEAR, colorEncoding);
-            }
-            else
-            {
-                EXPECT_EQ(EGL_GL_COLORSPACE_SRGB, colorspace);
-                EXPECT_EQ(GL_SRGB_EXT, colorEncoding);
-            }
-
-            // Clear the texture with 50% green and check that the color value written is correct.
-            glClearColor(0.0f, 0.5f, 0.0f, 1.0f);
-
-            if (colorEncoding == GL_SRGB_EXT)
-            {
-                glClear(GL_COLOR_BUFFER_BIT);
-                EXPECT_PIXEL_COLOR_NEAR(0, 0, GLColor(0u, 188u, 0u, 255u), 2);
-            }
-            if (colorEncoding == GL_LINEAR)
-            {
-                glClear(GL_COLOR_BUFFER_BIT);
-                EXPECT_PIXEL_COLOR_NEAR(0, 0, GLColor(0u, 127u, 0u, 255u), 2);
-            }
-
-            // Draw with the texture to a linear framebuffer and check that the color value written
-            // is correct.
-            testTextureSamplesAs50PercentGreen(texture);
-
-            glBindFramebuffer(GL_FRAMEBUFFER, 0u);
-            glBindTexture(GL_TEXTURE_2D, 0u);
-            glDeleteTextures(1, &texture);
-            glDeleteFramebuffers(1, &fbo);
-            eglDestroySurface(display, pbuffer);
-        }
-    }
-}
-
-class D3DTextureTestES3 : public D3DTextureTest
-{
-  protected:
-    D3DTextureTestES3() : D3DTextureTest() {}
-};
-
-// Test swizzling a pbuffer created from a D3D texture as a texture image with typeless texture
-// formats.
-TEST_P(D3DTextureTestES3, TestD3D11TypelessTextureSwizzle)
-{
-    EGLWindow *window  = getEGLWindow();
-    EGLDisplay display = window->getDisplay();
-
-    ANGLE_SKIP_TEST_IF(!valid());
-
-    // Typeless formats are optional in the spec and currently only supported on D3D11 backend.
-    ANGLE_SKIP_TEST_IF(!IsD3D11());
-
-    const std::array<EGLint, 2> eglGlColorspaces = {EGL_GL_COLORSPACE_LINEAR,
-                                                    EGL_GL_COLORSPACE_SRGB};
-    const std::array<DXGI_FORMAT, 2> dxgiFormats = {DXGI_FORMAT_R8G8B8A8_TYPELESS,
-                                                    DXGI_FORMAT_B8G8R8A8_TYPELESS};
-    for (auto eglGlColorspace : eglGlColorspaces)
-    {
-        for (auto dxgiFormat : dxgiFormats)
-        {
-            SCOPED_TRACE(std::string("Test case:") + std::to_string(eglGlColorspace) + " / " +
-                         std::to_string(dxgiFormat));
-
-            EGLint attribs[] = {
-                EGL_TEXTURE_FORMAT, EGL_TEXTURE_RGBA, EGL_TEXTURE_TARGET, EGL_TEXTURE_2D,
-                EGL_GL_COLORSPACE,  eglGlColorspace,  EGL_NONE,           EGL_NONE,
-            };
-
-            EGLSurface pbuffer = createD3D11PBuffer(
-                32, 32, 1, 0, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE, dxgiFormat,
-                attribs);
-
-            ASSERT_EGL_SUCCESS();
-            ASSERT_NE(EGL_NO_SURFACE, pbuffer);
-
-            EGLint colorspace = EGL_NONE;
-            eglQuerySurface(display, pbuffer, EGL_GL_COLORSPACE, &colorspace);
-
-            GLuint texture = 0u;
-            glGenTextures(1, &texture);
-            glBindTexture(GL_TEXTURE_2D, texture);
-            EGLBoolean result = eglBindTexImage(display, pbuffer, EGL_BACK_BUFFER);
-            ASSERT_EGL_SUCCESS();
-            ASSERT_EGL_TRUE(result);
-
-            GLuint fbo = 0u;
-            glGenFramebuffers(1, &fbo);
-            glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
-            glViewport(0, 0, 32, 32);
-
-            GLint colorEncoding = 0;
-            glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                                                  GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING_EXT,
-                                                  &colorEncoding);
-
-            // Clear the texture with 50% blue and check that the color value written is correct.
-            glClearColor(0.0f, 0.0f, 0.5f, 1.0f);
-
-            if (colorEncoding == GL_SRGB_EXT)
-            {
-                glClear(GL_COLOR_BUFFER_BIT);
-                EXPECT_PIXEL_COLOR_NEAR(0, 0, GLColor(0u, 0u, 188u, 255u), 2);
-            }
-            if (colorEncoding == GL_LINEAR)
-            {
-                glClear(GL_COLOR_BUFFER_BIT);
-                EXPECT_PIXEL_COLOR_NEAR(0, 0, GLColor(0u, 0u, 127u, 255u), 2);
-            }
-
-            // Swizzle the green channel to be sampled from the blue channel of the texture and vice
-            // versa.
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_BLUE);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_GREEN);
-            ASSERT_GL_NO_ERROR();
-
-            // Draw with the texture to a linear framebuffer and check that the color value written
-            // is correct.
-            testTextureSamplesAs50PercentGreen(texture);
-
-            glBindFramebuffer(GL_FRAMEBUFFER, 0u);
-            glBindTexture(GL_TEXTURE_2D, 0u);
-            glDeleteTextures(1, &texture);
-            glDeleteFramebuffers(1, &fbo);
-            eglDestroySurface(display, pbuffer);
-        }
-    }
-}
-
-// Test that EGL_GL_COLORSPACE attrib is not allowed for typed D3D textures.
-TEST_P(D3DTextureTest, GlColorspaceNotAllowedForTypedD3DTexture)
-{
-    ANGLE_SKIP_TEST_IF(!valid());
-
-    // D3D11 device is required to be able to create the texture.
-    ANGLE_SKIP_TEST_IF(!mD3D11Device);
-
-    // SRGB support is required.
-    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_sRGB") && getClientMajorVersion() < 3);
-
-    EGLint attribsExplicitColorspace[] = {
-        EGL_TEXTURE_FORMAT, EGL_TEXTURE_RGBA,       EGL_TEXTURE_TARGET, EGL_TEXTURE_2D,
-        EGL_GL_COLORSPACE,  EGL_GL_COLORSPACE_SRGB, EGL_NONE,           EGL_NONE,
-    };
-    EGLSurface pbuffer =
-        createD3D11PBuffer(32, 32, 1, 0, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE,
-                           DXGI_FORMAT_R8G8B8A8_UNORM, attribsExplicitColorspace);
-
-    ASSERT_EGL_ERROR(EGL_BAD_MATCH);
-    ASSERT_EQ(EGL_NO_SURFACE, pbuffer);
-}
-
-// Test that trying to create a pbuffer from a typeless texture fails as expected on the backends
-// where they are known not to be supported.
-TEST_P(D3DTextureTest, TypelessD3DTextureNotSupported)
-{
-    ANGLE_SKIP_TEST_IF(!valid());
-
-    // D3D11 device is required to be able to create the texture.
-    ANGLE_SKIP_TEST_IF(!mD3D11Device);
-
-    // Currently typeless textures are supported on the D3D11 backend. We're testing the backends
-    // where there is no support.
-    ANGLE_SKIP_TEST_IF(IsD3D11());
-
-    // SRGB support is required.
-    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_sRGB") && getClientMajorVersion() < 3);
-
-    EGLint attribs[] = {
-        EGL_TEXTURE_FORMAT, EGL_TEXTURE_RGBA, EGL_TEXTURE_TARGET,
-        EGL_TEXTURE_2D,     EGL_NONE,         EGL_NONE,
-    };
-    EGLSurface pbuffer =
-        createD3D11PBuffer(32, 32, 1, 0, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE,
-                           DXGI_FORMAT_R8G8B8A8_TYPELESS, attribs);
-    ASSERT_EGL_ERROR(EGL_BAD_PARAMETER);
-    ASSERT_EQ(EGL_NO_SURFACE, pbuffer);
-}
-
-// Test creating a pbuffer with unnecessary EGL_WIDTH and EGL_HEIGHT attributes because that's what
-// Chromium does. This is a regression test for crbug.com/794086
-TEST_P(D3DTextureTest, UnnecessaryWidthHeightAttributes)
-{
-    ANGLE_SKIP_TEST_IF(!valid() || !IsD3D11());
-    ASSERT_TRUE(mD3D11Device != nullptr);
-    ID3D11Texture2D *texture = nullptr;
-    CD3D11_TEXTURE2D_DESC desc(DXGI_FORMAT_R8G8B8A8_UNORM, 1, 1, 1, 1, D3D11_BIND_RENDER_TARGET);
-    desc.SampleDesc.Count   = 1;
-    desc.SampleDesc.Quality = 0;
-    EXPECT_TRUE(SUCCEEDED(mD3D11Device->CreateTexture2D(&desc, nullptr, &texture)));
-
-    EGLint attribs[] = {
-        EGL_TEXTURE_FORMAT, EGL_TEXTURE_RGBA,
-        EGL_TEXTURE_TARGET, EGL_TEXTURE_2D,
-        EGL_WIDTH,          1,
-        EGL_HEIGHT,         1,
-        EGL_NONE,           EGL_NONE,
-    };
-
-    EGLWindow *window  = getEGLWindow();
-    EGLDisplay display = window->getDisplay();
-    EGLConfig config   = window->getConfig();
-
-    EGLSurface pbuffer =
-        eglCreatePbufferFromClientBuffer(display, EGL_D3D_TEXTURE_ANGLE, texture, config, attribs);
-
-    ASSERT_EGL_SUCCESS();
-    ASSERT_NE(pbuffer, EGL_NO_SURFACE);
-
-    texture->Release();
-
-    // Make current with fixture EGL to ensure the Surface can be released immediately.
-    getEGLWindow()->makeCurrent();
-    eglDestroySurface(display, pbuffer);
-}
 
 // Test creating a pbuffer from a d3d surface and clearing it
 TEST_P(D3DTextureTest, Clear)
@@ -755,12 +276,11 @@ TEST_P(D3DTextureTest, Clear)
     glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     ASSERT_GL_NO_ERROR();
-
     EXPECT_PIXEL_EQ(static_cast<GLint>(bufferSize) / 2, static_cast<GLint>(bufferSize) / 2, 255, 0,
                     255, 255);
 
-    // Make current with fixture EGL to ensure the Surface can be released immediately.
-    getEGLWindow()->makeCurrent();
+    // Make current with null to ensure the Surface can be released immediately.
+    eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
     eglDestroySurface(display, pbuffer);
 }
 
@@ -811,8 +331,8 @@ TEST_P(D3DTextureTest, DepthStencil)
     EXPECT_PIXEL_COLOR_EQ(static_cast<GLint>(bufferSize) / 2, static_cast<GLint>(bufferSize) / 2,
                           GLColor::green);
 
-    // Make current with fixture EGL to ensure the Surface can be released immediately.
-    getEGLWindow()->makeCurrent();
+    // Make current with null to ensure the Surface can be released immediately.
+    eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
     eglDestroySurface(display, pbuffer);
 }
 
@@ -824,7 +344,7 @@ TEST_P(D3DTextureTest, BindTexImage)
         return;
     }
 
-    EGLWindow *window  = getEGLWindow();
+    EGLWindow *window = getEGLWindow();
     EGLDisplay display = window->getDisplay();
 
     const size_t bufferSize = 32;
@@ -879,8 +399,8 @@ TEST_P(D3DTextureTest, BindTexImage)
 
     glDeleteTextures(1, &texture);
 
-    // Make current with fixture EGL to ensure the Surface can be released immediately.
-    getEGLWindow()->makeCurrent();
+    // Make current with null to ensure the Surface can be released immediately.
+    eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
     eglDestroySurface(display, pbuffer);
 }
 
@@ -894,7 +414,10 @@ TEST_P(D3DTextureTest, CheckSampleMismatch)
     }
 
     // Multisampling is not supported on D3D9 or OpenGL.
-    ANGLE_SKIP_TEST_IF(IsD3D9() || IsOpenGL());
+    if (IsD3D9() || IsOpenGL())
+    {
+        return;
+    }
 
     constexpr size_t bufferSize = 32;
 
@@ -902,57 +425,6 @@ TEST_P(D3DTextureTest, CheckSampleMismatch)
                                        static_cast<UINT>(D3D11_STANDARD_MULTISAMPLE_PATTERN));
     EXPECT_EGL_ERROR(EGL_BAD_PARAMETER);
     EXPECT_EQ(pbuffer, nullptr);
-}
-
-// Tests what happens when we make a PBuffer that isn't shader-readable.
-TEST_P(D3DTextureTest, NonReadablePBuffer)
-{
-    ANGLE_SKIP_TEST_IF(!valid() || !IsD3D11());
-
-    constexpr size_t bufferSize = 32;
-
-    EGLSurface pbuffer =
-        createD3D11PBuffer(bufferSize, bufferSize, EGL_TEXTURE_RGBA, EGL_TEXTURE_2D, 1, 0,
-                           D3D11_BIND_RENDER_TARGET, DXGI_FORMAT_R8G8B8A8_UNORM);
-
-    ASSERT_EGL_SUCCESS();
-    ASSERT_NE(pbuffer, EGL_NO_SURFACE);
-
-    EGLWindow *window  = getEGLWindow();
-    EGLDisplay display = window->getDisplay();
-
-    eglMakeCurrent(display, pbuffer, pbuffer, window->getContext());
-    ASSERT_EGL_SUCCESS();
-
-    glViewport(0, 0, static_cast<GLsizei>(bufferSize), static_cast<GLsizei>(bufferSize));
-
-    // Clear to green.
-    glClearColor(0.0f, 1.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-    ASSERT_GL_NO_ERROR();
-    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
-
-    // Copy the green color to a texture.
-    GLTexture tex;
-    glBindTexture(GL_TEXTURE_2D, tex);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 0, 0, bufferSize, bufferSize, 0);
-    ASSERT_GL_NO_ERROR();
-
-    // Clear to red.
-    glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-    ASSERT_GL_NO_ERROR();
-    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::red);
-
-    // Draw with the texture and expect green.
-    draw2DTexturedQuad(0.5f, 1.0f, false);
-    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
-
-    // Make current with fixture EGL to ensure the Surface can be released immediately.
-    getEGLWindow()->makeCurrent();
-    eglDestroySurface(display, pbuffer);
 }
 
 class D3DTextureTestMS : public D3DTextureTest
@@ -989,8 +461,8 @@ TEST_P(D3DTextureTestMS, Clear)
     ASSERT_GL_NO_ERROR();
     EXPECT_PIXEL_COLOR_EQ(testpoint, testpoint, GLColor::magenta);
 
-    // Make current with fixture EGL to ensure the Surface can be released immediately.
-    getEGLWindow()->makeCurrent();
+    // Make current with null to ensure the Surface can be released immediately.
+    eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
     eglDestroySurface(display, pbuffer);
 }
 
@@ -1036,8 +508,8 @@ TEST_P(D3DTextureTestMS, DrawProgram)
     // Verify that magenta was drawn
     EXPECT_PIXEL_COLOR_EQ(getWindowWidth() / 2, getWindowHeight() / 2, GLColor::magenta);
 
-    // Make current with fixture EGL to ensure the Surface can be released immediately.
-    getEGLWindow()->makeCurrent();
+    // Make current with null to ensure the Surface can be released immediately.
+    eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
     eglDestroySurface(display, pbuffer);
 }
 
@@ -1048,7 +520,6 @@ TEST_P(D3DTextureTestMS, BindTexture)
 
     EGLSurface pbuffer = createPBuffer(bufferSize, bufferSize, EGL_TEXTURE_RGBA, EGL_TEXTURE_2D, 4,
                                        static_cast<UINT>(D3D11_STANDARD_MULTISAMPLE_PATTERN));
-
     EXPECT_EGL_ERROR(EGL_BAD_ATTRIBUTE);
     EXPECT_EQ(pbuffer, nullptr);
 }
@@ -1066,380 +537,8 @@ TEST_P(D3DTextureTestMS, CheckSampleMismatch)
     EXPECT_EQ(pbuffer, nullptr);
 }
 
-// Test creating a pbuffer with a D3D texture and depth stencil bits in the EGL config creates keeps
-// its depth stencil buffer
-TEST_P(D3DTextureTestMS, DepthStencil)
-{
-    EGLWindow *window  = getEGLWindow();
-    EGLDisplay display = window->getDisplay();
-
-    const size_t bufferSize = 32;
-
-    EGLSurface pbuffer = createPBuffer(bufferSize, bufferSize, EGL_NO_TEXTURE, EGL_NO_TEXTURE, 4,
-                                       static_cast<UINT>(D3D11_STANDARD_MULTISAMPLE_PATTERN));
-    ASSERT_EGL_SUCCESS();
-    ASSERT_NE(EGL_NO_SURFACE, pbuffer);
-
-    // Apply the Pbuffer and clear it to purple and verify
-    eglMakeCurrent(display, pbuffer, pbuffer, window->getContext());
-    ASSERT_EGL_SUCCESS();
-
-    glViewport(0, 0, static_cast<GLsizei>(bufferSize), static_cast<GLsizei>(bufferSize));
-    glClearColor(0.0f, 1.0f, 1.0f, 1.0f);
-    glClearDepthf(0.5f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    ASSERT_GL_NO_ERROR();
-
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_FALSE);
-
-    glUseProgram(mTextureProgram);
-    glUniform1i(mTextureUniformLocation, 0);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, &GLColor::green);
-
-    // Draw a quad that will fail the depth test and verify that the buffer is unchanged
-    drawQuad(mTextureProgram, "position", 1.0f);
-    EXPECT_PIXEL_COLOR_EQ(static_cast<GLint>(bufferSize) / 2, static_cast<GLint>(bufferSize) / 2,
-                          GLColor::cyan);
-
-    // Draw a quad that will pass the depth test and verify that the buffer is green
-    drawQuad(mTextureProgram, "position", -1.0f);
-    EXPECT_PIXEL_COLOR_EQ(static_cast<GLint>(bufferSize) / 2, static_cast<GLint>(bufferSize) / 2,
-                          GLColor::green);
-
-    // Make current with fixture EGL to ensure the Surface can be released immediately.
-    getEGLWindow()->makeCurrent();
-    eglDestroySurface(display, pbuffer);
-}
-
-// Test copyTexImage2D with a multisampled resource
-TEST_P(D3DTextureTestMS, CopyTexImage2DTest)
-{
-    EGLWindow *window  = getEGLWindow();
-    EGLDisplay display = window->getDisplay();
-
-    constexpr size_t bufferSize = 32;
-
-    EGLSurface pbuffer = createPBuffer(bufferSize, bufferSize, EGL_NO_TEXTURE, EGL_NO_TEXTURE, 4,
-                                       static_cast<UINT>(D3D11_STANDARD_MULTISAMPLE_PATTERN));
-    ASSERT_EGL_SUCCESS();
-    ASSERT_NE(EGL_NO_SURFACE, pbuffer);
-
-    // Apply the Pbuffer and clear it to magenta and verify
-    eglMakeCurrent(display, pbuffer, pbuffer, window->getContext());
-    ASSERT_EGL_SUCCESS();
-
-    glViewport(0, 0, static_cast<GLsizei>(bufferSize), static_cast<GLsizei>(bufferSize));
-    glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    ASSERT_GL_NO_ERROR();
-
-    glUseProgram(mTextureProgram);
-    glUniform1i(mTextureUniformLocation, 0);
-
-    // Specify a 2D texture and set it to green
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, &GLColor::green);
-
-    // Copy from the multisampled framebuffer to the 2D texture
-    glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 0, 0, 1, 1, 0);
-
-    // Draw a quad and verify the color is magenta, not green
-    drawQuad(mTextureProgram, "position", 1.0f);
-    EXPECT_PIXEL_COLOR_EQ(static_cast<GLint>(bufferSize) / 2, static_cast<GLint>(bufferSize) / 2,
-                          GLColor::magenta);
-    ASSERT_GL_NO_ERROR();
-
-    // Make current with fixture EGL to ensure the Surface can be released immediately.
-    getEGLWindow()->makeCurrent();
-    eglDestroySurface(display, pbuffer);
-}
-
-// Test copyTexSubImage2D with a multisampled resource
-TEST_P(D3DTextureTestMS, CopyTexSubImage2DTest)
-{
-    EGLWindow *window  = getEGLWindow();
-    EGLDisplay display = window->getDisplay();
-
-    constexpr size_t bufferSize = 32;
-
-    EGLSurface pbuffer = createPBuffer(bufferSize, bufferSize, EGL_NO_TEXTURE, EGL_NO_TEXTURE, 4,
-                                       static_cast<UINT>(D3D11_STANDARD_MULTISAMPLE_PATTERN));
-    ASSERT_EGL_SUCCESS();
-    ASSERT_NE(EGL_NO_SURFACE, pbuffer);
-
-    // Apply the Pbuffer and clear it to magenta and verify
-    eglMakeCurrent(display, pbuffer, pbuffer, window->getContext());
-    ASSERT_EGL_SUCCESS();
-
-    glViewport(0, 0, static_cast<GLsizei>(bufferSize), static_cast<GLsizei>(bufferSize));
-    glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    ASSERT_GL_NO_ERROR();
-
-    glUseProgram(mTextureProgram);
-    glUniform1i(mTextureUniformLocation, 0);
-
-    // Specify a 2D texture and set it to green
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, &GLColor::green);
-
-    // Copy from the multisampled framebuffer to the 2D texture
-    glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, 1, 1);
-
-    // Draw a quad and verify the color is magenta, not green
-    drawQuad(mTextureProgram, "position", 1.0f);
-    EXPECT_PIXEL_COLOR_EQ(static_cast<GLint>(bufferSize) / 2, static_cast<GLint>(bufferSize) / 2,
-                          GLColor::magenta);
-    ASSERT_GL_NO_ERROR();
-
-    // Make current with fixture EGL to ensure the Surface can be released immediately.
-    getEGLWindow()->makeCurrent();
-    eglDestroySurface(display, pbuffer);
-}
-
-TEST_P(D3DTextureTest, ClearTextureImage)
-{
-    ANGLE_SKIP_TEST_IF(!valid() || !IsD3D11());
-
-    EGLWindow *window  = getEGLWindow();
-    EGLDisplay display = window->getDisplay();
-
-    window->makeCurrent();
-
-    const UINT bufferSize = 32;
-    EXPECT_TRUE(mD3D11Device != nullptr);
-    ID3D11Texture2D *d3d11_texture = nullptr;
-    CD3D11_TEXTURE2D_DESC desc(DXGI_FORMAT_R8G8B8A8_UNORM, bufferSize, bufferSize, 1, 1,
-                               D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
-    EXPECT_TRUE(SUCCEEDED(mD3D11Device->CreateTexture2D(&desc, nullptr, &d3d11_texture)));
-
-    const EGLint attribs[] = {EGL_NONE};
-
-    EGLImage image = eglCreateImageKHR(display, EGL_NO_CONTEXT, EGL_D3D11_TEXTURE_ANGLE,
-                                       static_cast<EGLClientBuffer>(d3d11_texture), attribs);
-    ASSERT_EGL_SUCCESS();
-    ASSERT_NE(image, EGL_NO_IMAGE_KHR);
-
-    GLuint texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    ASSERT_GL_NO_ERROR();
-
-    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, image);
-    ASSERT_GL_NO_ERROR();
-
-    GLuint fbo;
-    glGenFramebuffers(1, &fbo);
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
-    EXPECT_EQ(glCheckFramebufferStatus(GL_FRAMEBUFFER),
-              static_cast<unsigned>(GL_FRAMEBUFFER_COMPLETE));
-    ASSERT_GL_NO_ERROR();
-
-    glViewport(0, 0, static_cast<GLsizei>(bufferSize), static_cast<GLsizei>(bufferSize));
-    glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-    ASSERT_GL_NO_ERROR();
-    EXPECT_PIXEL_EQ(static_cast<GLint>(bufferSize) / 2, static_cast<GLint>(bufferSize) / 2, 255, 0,
-                    255, 255);
-
-    glDeleteFramebuffers(1, &fbo);
-    glDeleteTextures(1, &texture);
-
-    d3d11_texture->Release();
-}
-
-TEST_P(D3DTextureTest, NonRenderableTextureImage)
-{
-    ANGLE_SKIP_TEST_IF(!valid() || !IsD3D11());
-
-    EGLWindow *window  = getEGLWindow();
-    EGLDisplay display = window->getDisplay();
-
-    window->makeCurrent();
-
-    const UINT bufferSize = 32;
-    EXPECT_TRUE(mD3D11Device != nullptr);
-    ID3D11Texture2D *d3d11_texture = nullptr;
-    CD3D11_TEXTURE2D_DESC desc(DXGI_FORMAT_R8G8B8A8_UNORM, bufferSize, bufferSize, 1, 1,
-                               D3D11_BIND_SHADER_RESOURCE);
-    EXPECT_TRUE(SUCCEEDED(mD3D11Device->CreateTexture2D(&desc, nullptr, &d3d11_texture)));
-
-    const EGLint attribs[] = {EGL_NONE};
-
-    EGLImage image = eglCreateImageKHR(display, EGL_NO_CONTEXT, EGL_D3D11_TEXTURE_ANGLE,
-                                       static_cast<EGLClientBuffer>(d3d11_texture), attribs);
-    ASSERT_EGL_SUCCESS();
-    ASSERT_NE(image, EGL_NO_IMAGE_KHR);
-
-    GLuint texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    ASSERT_GL_NO_ERROR();
-
-    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, image);
-    ASSERT_GL_NO_ERROR();
-
-    GLuint fbo;
-    glGenFramebuffers(1, &fbo);
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
-    EXPECT_EQ(glCheckFramebufferStatus(GL_FRAMEBUFFER),
-              static_cast<unsigned>(GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT));
-    ASSERT_GL_NO_ERROR();
-
-    glDeleteFramebuffers(1, &fbo);
-    glDeleteTextures(1, &texture);
-
-    d3d11_texture->Release();
-}
-
-TEST_P(D3DTextureTest, RGBEmulationTextureImage)
-{
-    ANGLE_SKIP_TEST_IF(!valid() || !IsD3D11());
-
-    EGLWindow *window  = getEGLWindow();
-    EGLDisplay display = window->getDisplay();
-
-    window->makeCurrent();
-
-    const UINT bufferSize = 32;
-    EXPECT_TRUE(mD3D11Device != nullptr);
-    ID3D11Texture2D *d3d11_texture = nullptr;
-    CD3D11_TEXTURE2D_DESC desc(DXGI_FORMAT_R8G8B8A8_UNORM, bufferSize, bufferSize, 1, 1,
-                               D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
-    EXPECT_TRUE(SUCCEEDED(mD3D11Device->CreateTexture2D(&desc, nullptr, &d3d11_texture)));
-
-    const EGLint attribs[] = {EGL_TEXTURE_INTERNAL_FORMAT_ANGLE, GL_RGB, EGL_NONE};
-
-    EGLImage image = eglCreateImageKHR(display, EGL_NO_CONTEXT, EGL_D3D11_TEXTURE_ANGLE,
-                                       static_cast<EGLClientBuffer>(d3d11_texture), attribs);
-    ASSERT_EGL_SUCCESS();
-    ASSERT_NE(image, EGL_NO_IMAGE_KHR);
-
-    GLuint texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    ASSERT_GL_NO_ERROR();
-
-    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, image);
-    ASSERT_GL_NO_ERROR();
-
-    GLuint fbo;
-    glGenFramebuffers(1, &fbo);
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
-    EXPECT_EQ(glCheckFramebufferStatus(GL_FRAMEBUFFER),
-              static_cast<unsigned>(GL_FRAMEBUFFER_COMPLETE));
-    ASSERT_GL_NO_ERROR();
-
-    // Although we are writing 0.5 to the alpha channel it should have the same
-    // side effects as if alpha were 1.0.
-    glViewport(0, 0, static_cast<GLsizei>(bufferSize), static_cast<GLsizei>(bufferSize));
-    glClearColor(1.0f, 0.0f, 1.0f, 0.5f);
-    glClear(GL_COLOR_BUFFER_BIT);
-    ASSERT_GL_NO_ERROR();
-    EXPECT_PIXEL_EQ(static_cast<GLint>(bufferSize) / 2, static_cast<GLint>(bufferSize) / 2, 255, 0,
-                    255, 255);
-
-    GLuint rgbaRbo;
-    glGenRenderbuffers(1, &rgbaRbo);
-    glBindRenderbuffer(GL_RENDERBUFFER, rgbaRbo);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8_OES, bufferSize, bufferSize);
-
-    GLuint rgbaFbo;
-    glGenFramebuffers(1, &rgbaFbo);
-    glBindFramebuffer(GL_FRAMEBUFFER, rgbaFbo);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rgbaRbo);
-    EXPECT_EQ(glCheckFramebufferStatus(GL_FRAMEBUFFER),
-              static_cast<unsigned>(GL_FRAMEBUFFER_COMPLETE));
-    ASSERT_GL_NO_ERROR();
-
-    // BlitFramebuffer from/to RGBA framebuffer fails.
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, rgbaFbo);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo);
-    glBlitFramebufferANGLE(0, 0, bufferSize, bufferSize, 0, 0, bufferSize, bufferSize,
-                           GL_COLOR_BUFFER_BIT, GL_NEAREST);
-    ASSERT_GL_ERROR(GL_INVALID_OPERATION);
-    ASSERT_GL_NO_ERROR();
-
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, rgbaFbo);
-    glBlitFramebufferANGLE(0, 0, bufferSize, bufferSize, 0, 0, bufferSize, bufferSize,
-                           GL_COLOR_BUFFER_BIT, GL_NEAREST);
-    ASSERT_GL_ERROR(GL_INVALID_OPERATION);
-    ASSERT_GL_NO_ERROR();
-
-    GLuint rgbRbo;
-    glGenRenderbuffers(1, &rgbRbo);
-    glBindRenderbuffer(GL_RENDERBUFFER, rgbRbo);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGB8_OES, bufferSize, bufferSize);
-
-    GLuint rgbFbo;
-    glGenFramebuffers(1, &rgbFbo);
-    glBindFramebuffer(GL_FRAMEBUFFER, rgbFbo);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rgbRbo);
-    EXPECT_EQ(glCheckFramebufferStatus(GL_FRAMEBUFFER),
-              static_cast<unsigned>(GL_FRAMEBUFFER_COMPLETE));
-    ASSERT_GL_NO_ERROR();
-    glClearColor(1.0f, 0.0f, 1.0f, 0.5f);
-    glClear(GL_COLOR_BUFFER_BIT);
-    ASSERT_GL_NO_ERROR();
-
-    // Clear texture framebuffer.
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-    ASSERT_GL_NO_ERROR();
-    EXPECT_PIXEL_EQ(static_cast<GLint>(bufferSize) / 2, static_cast<GLint>(bufferSize) / 2, 0, 0, 0,
-                    255);
-
-    // BlitFramebuffer from/to RGB framebuffer succeeds.
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, rgbFbo);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo);
-    glBlitFramebufferANGLE(0, 0, bufferSize, bufferSize, 0, 0, bufferSize, bufferSize,
-                           GL_COLOR_BUFFER_BIT, GL_NEAREST);
-    ASSERT_GL_NO_ERROR();
-    EXPECT_PIXEL_EQ(static_cast<GLint>(bufferSize) / 2, static_cast<GLint>(bufferSize) / 2, 255, 0,
-                    255, 255);
-
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, rgbFbo);
-    glBlitFramebufferANGLE(0, 0, bufferSize, bufferSize, 0, 0, bufferSize, bufferSize,
-                           GL_COLOR_BUFFER_BIT, GL_NEAREST);
-    ASSERT_GL_NO_ERROR();
-    glBindFramebuffer(GL_FRAMEBUFFER, rgbFbo);
-    EXPECT_PIXEL_EQ(static_cast<GLint>(bufferSize) / 2, static_cast<GLint>(bufferSize) / 2, 0, 0, 0,
-                    255);
-
-    glDeleteFramebuffers(1, &rgbFbo);
-    glDeleteRenderbuffers(1, &rgbRbo);
-    glDeleteFramebuffers(1, &rgbaFbo);
-    glDeleteRenderbuffers(1, &rgbaRbo);
-    glDeleteFramebuffers(1, &fbo);
-    glDeleteTextures(1, &texture);
-
-    d3d11_texture->Release();
-}
-
 // Use this to select which configurations (e.g. which renderer, which GLES major version) these
 // tests should be run against.
-ANGLE_INSTANTIATE_TEST_ES2(D3DTextureTest);
-ANGLE_INSTANTIATE_TEST_ES3(D3DTextureTestES3);
-// D3D Debug device reports an error. http://anglebug.com/3513
-// ANGLE_INSTANTIATE_TEST(D3DTextureTestMS, ES2_D3D11());
-}  // namespace angle
+ANGLE_INSTANTIATE_TEST(D3DTextureTest, ES2_D3D9(), ES2_D3D11(), ES2_OPENGL());
+ANGLE_INSTANTIATE_TEST(D3DTextureTestMS, ES2_D3D11());
+}  // namespace

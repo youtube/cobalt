@@ -1,10 +1,10 @@
 //
-// Copyright 2002 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2002-2013 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 
-// Fence.h: Defines the gl::FenceNV and gl::Sync classes, which support the GL_NV_fence
+// Fence.h: Defines the gl::FenceNV and gl::FenceSync classes, which support the GL_NV_fence
 // extension and GLES3 sync objects.
 
 #ifndef LIBANGLE_FENCE_H_
@@ -19,8 +19,8 @@
 namespace rx
 {
 class FenceNVImpl;
-class SyncImpl;
-}  // namespace rx
+class FenceSyncImpl;
+}
 
 namespace gl
 {
@@ -31,9 +31,9 @@ class FenceNV final : angle::NonCopyable
     explicit FenceNV(rx::FenceNVImpl *impl);
     virtual ~FenceNV();
 
-    angle::Result set(const Context *context, GLenum condition);
-    angle::Result test(const Context *context, GLboolean *outResult);
-    angle::Result finish(const Context *context);
+    Error set(GLenum condition);
+    Error test(GLboolean *outResult);
+    Error finish();
 
     bool isSet() const { return mIsSet; }
     GLboolean getStatus() const { return mStatus; }
@@ -48,30 +48,27 @@ class FenceNV final : angle::NonCopyable
     GLenum mCondition;
 };
 
-class Sync final : public RefCountObject<GLuint>, public LabeledObject
+class FenceSync final : public RefCountObject, public LabeledObject
 {
   public:
-    Sync(rx::SyncImpl *impl, GLuint id);
-    ~Sync() override;
+    FenceSync(rx::FenceSyncImpl *impl, GLuint id);
+    virtual ~FenceSync();
 
-    void onDestroy(const Context *context) override;
+    void destroy(const Context *context) override {}
 
-    void setLabel(const Context *context, const std::string &label) override;
+    void setLabel(const std::string &label) override;
     const std::string &getLabel() const override;
 
-    angle::Result set(const Context *context, GLenum condition, GLbitfield flags);
-    angle::Result clientWait(const Context *context,
-                             GLbitfield flags,
-                             GLuint64 timeout,
-                             GLenum *outResult);
-    angle::Result serverWait(const Context *context, GLbitfield flags, GLuint64 timeout);
-    angle::Result getStatus(const Context *context, GLint *outResult) const;
+    Error set(GLenum condition, GLbitfield flags);
+    Error clientWait(GLbitfield flags, GLuint64 timeout, GLenum *outResult);
+    Error serverWait(GLbitfield flags, GLuint64 timeout);
+    Error getStatus(GLint *outResult) const;
 
     GLenum getCondition() const { return mCondition; }
     GLbitfield getFlags() const { return mFlags; }
 
   private:
-    rx::SyncImpl *mFence;
+    rx::FenceSyncImpl *mFence;
 
     std::string mLabel;
 
@@ -79,6 +76,6 @@ class Sync final : public RefCountObject<GLuint>, public LabeledObject
     GLbitfield mFlags;
 };
 
-}  // namespace gl
+}
 
-#endif  // LIBANGLE_FENCE_H_
+#endif   // LIBANGLE_FENCE_H_

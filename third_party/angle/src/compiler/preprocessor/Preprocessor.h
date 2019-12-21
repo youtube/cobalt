@@ -1,5 +1,5 @@
 //
-// Copyright 2011 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2011 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -9,11 +9,7 @@
 
 #include <cstddef>
 
-#include "GLSLANG/ShaderLang.h"
 #include "common/angleutils.h"
-
-namespace angle
-{
 
 namespace pp
 {
@@ -23,16 +19,10 @@ class DirectiveHandler;
 struct PreprocessorImpl;
 struct Token;
 
-struct PreprocessorSettings final
+struct PreprocessorSettings : private angle::NonCopyable
 {
-    PreprocessorSettings(ShShaderSpec shaderSpec)
-        : maxMacroExpansionDepth(1000), shaderSpec(shaderSpec)
-    {}
-
-    PreprocessorSettings(const PreprocessorSettings &other) = default;
-
+    PreprocessorSettings() : maxMacroExpansionDepth(1000) {}
     int maxMacroExpansionDepth;
-    ShShaderSpec shaderSpec;
 };
 
 class Preprocessor : angle::NonCopyable
@@ -66,7 +56,5 @@ class Preprocessor : angle::NonCopyable
 };
 
 }  // namespace pp
-
-}  // namespace angle
 
 #endif  // COMPILER_PREPROCESSOR_PREPROCESSOR_H_

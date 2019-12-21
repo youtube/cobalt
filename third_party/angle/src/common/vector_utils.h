@@ -8,9 +8,8 @@
 #ifndef COMMON_VECTOR_UTILS_H_
 #define COMMON_VECTOR_UTILS_H_
 
-#include <cmath>
 #include <cstddef>
-#include <ostream>
+#include <cmath>
 #include <type_traits>
 
 namespace angle
@@ -110,9 +109,6 @@ class VectorBase
     Type mData[Dimension];
 };
 
-template <size_t Dimension, typename Type>
-std::ostream &operator<<(std::ostream &ostream, const VectorBase<Dimension, Type> &vector);
-
 template <typename Type>
 class Vector<2, Type> : public VectorBase<2, Type>
 {
@@ -127,9 +123,6 @@ class Vector<2, Type> : public VectorBase<2, Type>
     const Type &x() const { return this->mData[0]; }
     const Type &y() const { return this->mData[1]; }
 };
-
-template <typename Type>
-std::ostream &operator<<(std::ostream &ostream, const Vector<2, Type> &vector);
 
 template <typename Type>
 class Vector<3, Type> : public VectorBase<3, Type>
@@ -152,9 +145,6 @@ class Vector<3, Type> : public VectorBase<3, Type>
 };
 
 template <typename Type>
-std::ostream &operator<<(std::ostream &ostream, const Vector<3, Type> &vector);
-
-template <typename Type>
 class Vector<4, Type> : public VectorBase<4, Type>
 {
   public:
@@ -172,9 +162,6 @@ class Vector<4, Type> : public VectorBase<4, Type>
     const Type &z() const { return this->mData[2]; }
     const Type &w() const { return this->mData[3]; }
 };
-
-template <typename Type>
-std::ostream &operator<<(std::ostream &ostream, const Vector<4, Type> &vector);
 
 // Implementation of constructors and misc operations
 
@@ -367,7 +354,7 @@ Vector<Dimension, Type> &VectorBase<Dimension, Type>::operator+=(
     {
         mData[i] += other.mData[i];
     }
-    return *static_cast<Vector<Dimension, Type> *>(this);
+    return *reinterpret_cast<Vector<Dimension, Type> *>(this);
 }
 
 template <size_t Dimension, typename Type>
@@ -378,7 +365,7 @@ Vector<Dimension, Type> &VectorBase<Dimension, Type>::operator-=(
     {
         mData[i] -= other.mData[i];
     }
-    return *static_cast<Vector<Dimension, Type> *>(this);
+    return *reinterpret_cast<Vector<Dimension, Type> *>(this);
 }
 
 template <size_t Dimension, typename Type>
@@ -389,7 +376,7 @@ Vector<Dimension, Type> &VectorBase<Dimension, Type>::operator*=(
     {
         mData[i] *= other.mData[i];
     }
-    return *static_cast<Vector<Dimension, Type> *>(this);
+    return *reinterpret_cast<Vector<Dimension, Type> *>(this);
 }
 
 template <size_t Dimension, typename Type>
@@ -400,7 +387,7 @@ Vector<Dimension, Type> &VectorBase<Dimension, Type>::operator/=(
     {
         mData[i] /= other.mData[i];
     }
-    return *static_cast<Vector<Dimension, Type> *>(this);
+    return *reinterpret_cast<Vector<Dimension, Type> *>(this);
 }
 
 template <size_t Dimension, typename Type>
@@ -410,7 +397,7 @@ Vector<Dimension, Type> &VectorBase<Dimension, Type>::operator*=(Type other)
     {
         mData[i] *= other;
     }
-    return *static_cast<Vector<Dimension, Type> *>(this);
+    return *reinterpret_cast<Vector<Dimension, Type> *>(this);
 }
 
 template <size_t Dimension, typename Type>
@@ -420,7 +407,7 @@ Vector<Dimension, Type> &VectorBase<Dimension, Type>::operator/=(Type other)
     {
         mData[i] /= other;
     }
-    return *static_cast<Vector<Dimension, Type> *>(this);
+    return *reinterpret_cast<Vector<Dimension, Type> *>(this);
 }
 
 // Implementation of comparison operators
@@ -470,22 +457,6 @@ Type VectorBase<Dimension, Type>::dot(const VectorBase<Dimension, Type> &other) 
 }
 
 template <size_t Dimension, typename Type>
-std::ostream &operator<<(std::ostream &ostream, const VectorBase<Dimension, Type> &vector)
-{
-    ostream << "[ ";
-    for (size_t elementIdx = 0; elementIdx < Dimension; elementIdx++)
-    {
-        if (elementIdx > 0)
-        {
-            ostream << ", ";
-        }
-        ostream << vector.data()[elementIdx];
-    }
-    ostream << " ]";
-    return ostream;
-}
-
-template <size_t Dimension, typename Type>
 Vector<Dimension, Type> VectorBase<Dimension, Type>::normalized() const
 {
     static_assert(std::is_floating_point<Type>::value,
@@ -494,28 +465,10 @@ Vector<Dimension, Type> VectorBase<Dimension, Type>::normalized() const
 }
 
 template <typename Type>
-std::ostream &operator<<(std::ostream &ostream, const Vector<2, Type> &vector)
-{
-    return ostream << static_cast<const VectorBase<2, Type> &>(vector);
-}
-
-template <typename Type>
 Vector<3, Type> Vector<3, Type>::cross(const Vector<3, Type> &other) const
 {
     return Vector<3, Type>(y() * other.z() - z() * other.y(), z() * other.x() - x() * other.z(),
                            x() * other.y() - y() * other.x());
-}
-
-template <typename Type>
-std::ostream &operator<<(std::ostream &ostream, const Vector<3, Type> &vector)
-{
-    return ostream << static_cast<const VectorBase<3, Type> &>(vector);
-}
-
-template <typename Type>
-std::ostream &operator<<(std::ostream &ostream, const Vector<4, Type> &vector)
-{
-    return ostream << static_cast<const VectorBase<4, Type> &>(vector);
 }
 
 }  // namespace angle

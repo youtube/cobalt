@@ -1,17 +1,16 @@
 //
-// Copyright 2013 The ANGLE Project Authors. All rights reserved.
+// Copyright (c) 2013 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 
 #include "gtest/gtest.h"
+#include "test_utils/ANGLETest.h"
 
-void ANGLEProcessTestArgs(int *argc, char *argv[]);
-
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
-    ANGLEProcessTestArgs(&argc, argv);
     testing::InitGoogleTest(&argc, argv);
+    testing::AddGlobalTestEnvironment(new ANGLETestEnvironment());
     int rt = RUN_ALL_TESTS();
     return rt;
 }

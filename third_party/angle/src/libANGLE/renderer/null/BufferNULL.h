@@ -23,38 +23,34 @@ class BufferNULL : public BufferImpl
     BufferNULL(const gl::BufferState &state, AllocationTrackerNULL *allocationTracker);
     ~BufferNULL() override;
 
-    angle::Result setData(const gl::Context *context,
-                          gl::BufferBinding target,
-                          const void *data,
-                          size_t size,
-                          gl::BufferUsage usage) override;
-    angle::Result setSubData(const gl::Context *context,
-                             gl::BufferBinding target,
-                             const void *data,
-                             size_t size,
-                             size_t offset) override;
-    angle::Result copySubData(const gl::Context *context,
-                              BufferImpl *source,
-                              GLintptr sourceOffset,
-                              GLintptr destOffset,
-                              GLsizeiptr size) override;
-    angle::Result map(const gl::Context *context, GLenum access, void **mapPtr) override;
-    angle::Result mapRange(const gl::Context *context,
-                           size_t offset,
-                           size_t length,
-                           GLbitfield access,
-                           void **mapPtr) override;
-    angle::Result unmap(const gl::Context *context, GLboolean *result) override;
+    gl::Error setData(ContextImpl *context,
+                      GLenum target,
+                      const void *data,
+                      size_t size,
+                      GLenum usage) override;
+    gl::Error setSubData(ContextImpl *context,
+                         GLenum target,
+                         const void *data,
+                         size_t size,
+                         size_t offset) override;
+    gl::Error copySubData(ContextImpl *contextImpl,
+                          BufferImpl *source,
+                          GLintptr sourceOffset,
+                          GLintptr destOffset,
+                          GLsizeiptr size) override;
+    gl::Error map(ContextImpl *contextImpl, GLenum access, void **mapPtr) override;
+    gl::Error mapRange(ContextImpl *contextImpl,
+                       size_t offset,
+                       size_t length,
+                       GLbitfield access,
+                       void **mapPtr) override;
+    gl::Error unmap(ContextImpl *contextImpl, GLboolean *result) override;
 
-    angle::Result getIndexRange(const gl::Context *context,
-                                gl::DrawElementsType type,
-                                size_t offset,
-                                size_t count,
-                                bool primitiveRestartEnabled,
-                                gl::IndexRange *outRange) override;
-
-    uint8_t *getDataPtr();
-    const uint8_t *getDataPtr() const;
+    gl::Error getIndexRange(GLenum type,
+                            size_t offset,
+                            size_t count,
+                            bool primitiveRestartEnabled,
+                            gl::IndexRange *outRange) override;
 
   private:
     std::vector<uint8_t> mData;
