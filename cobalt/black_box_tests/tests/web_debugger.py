@@ -238,7 +238,7 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
     self.debugger.evaluate_js('onEndTest()')
     self.assertTrue(self.runner.JSTestsSucceeded())
 
-  def test_dom(self):
+  def test_dom_tree(self):
     self.debugger.run_command('DOM.enable')
 
     doc_response = self.debugger.run_command('DOM.getDocument')
@@ -255,12 +255,17 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
     body_node = html_node['children'][1]
     self.assertEqual('BODY', body_node['nodeName'])
 
-    # body:
+    # <body>
     #   <h1><span>Web debugger</span></h1>
     #   <div#test>
     #     <div#A><div#A1/><div#A2/></div#A>
-    #     <div#B/>
+    #     <div#B><span#B1/></div#B>
+    #     <span#C/>
     #   </div#test>
+    #   <script/>
+    # </body>
+
+    # Request children of BODY including the entire subtree.
     self.debugger.run_command(
         'DOM.requestChildNodes',
         {
@@ -268,103 +273,165 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
             'depth': -1,  # entire subtree
         })
     child_nodes_event = self.debugger.wait_event('DOM.setChildNodes')
+    self.assertEqual(3, len(child_nodes_event['params']['nodes']))
 
     h1 = child_nodes_event['params']['nodes'][0]
-    span = h1['children'][0]
-    text = span['children'][0]
+    span_h1 = h1['children'][0]
+    text_h1 = span_h1['children'][0]
+    self.assertEqual(1, len(h1['children']))
+    self.assertEqual(1, len(span_h1['children']))
+    self.assertNotIn('children', text_h1)
+    self.assertEqual(1, h1['childNodeCount'])
+    self.assertEqual(1, span_h1['childNodeCount'])  # non-whitespace text
+    self.assertEqual(0, text_h1['childNodeCount'])
     self.assertEqual('H1', h1['nodeName'])
-    self.assertEqual('SPAN', span['nodeName'])
-    self.assertEqual('#text', text['nodeName'])
-    self.assertEqual('Web debugger', text['nodeValue'])
+    self.assertEqual('SPAN', span_h1['nodeName'])
+    self.assertEqual('#text', text_h1['nodeName'])
+    self.assertEqual('Web debugger', text_h1['nodeValue'])
 
-    test_div = child_nodes_event['params']['nodes'][1]
-    child_a = test_div['children'][0]
-    child_a1 = child_a['children'][0]
-    child_a2 = child_a['children'][1]
-    child_b = test_div['children'][1]
-    self.assertEqual(2, test_div['childNodeCount'])
-    self.assertEqual(2, child_a['childNodeCount'])
-    self.assertEqual(0, child_b['childNodeCount'])
-    self.assertEqual(['id', 'test'], test_div['attributes'])
-    self.assertEqual(['id', 'A'], child_a['attributes'])
-    self.assertEqual(['id', 'A1'], child_a1['attributes'])
-    self.assertEqual(['id', 'A2'], child_a2['attributes'])
-    self.assertEqual(['id', 'B'], child_b['attributes'])
-    self.assertEqual([], child_b['children'])
+    div_test = child_nodes_event['params']['nodes'][1]
+    div_a = div_test['children'][0]
+    div_a1 = div_a['children'][0]
+    div_a2 = div_a['children'][1]
+    div_b = div_test['children'][1]
+    span_b1 = div_b['children'][0]
+    text_b1 = span_b1['children'][0]  # 1 deeper than requested
+    span_c = div_test['children'][2]
+    text_c = span_c['children'][0]
+    self.assertEqual(3, len(div_test['children']))
+    self.assertEqual(2, len(div_a['children']))
+    self.assertNotIn('children', div_a1)
+    self.assertNotIn('children', div_a2)
+    self.assertEqual(1, len(div_b['children']))
+    self.assertEqual(1, len(span_b1['children']))
+    self.assertNotIn('children', text_b1)
+    self.assertEqual(1, len(span_c['children']))
+    self.assertNotIn('children', text_c)
+    self.assertEqual(3, div_test['childNodeCount'])
+    self.assertEqual(2, div_a['childNodeCount'])
+    self.assertEqual(0, div_a1['childNodeCount'])
+    self.assertEqual(0, div_a2['childNodeCount'])
+    self.assertEqual(1, div_b['childNodeCount'])
+    self.assertEqual(0, span_b1['childNodeCount'])  # whitespace text
+    self.assertEqual(0, text_b1['childNodeCount'])
+    self.assertEqual(0, span_c['childNodeCount'])  # whitespace text
+    self.assertEqual(0, text_c['childNodeCount'])
+    self.assertEqual(['id', 'test'], div_test['attributes'])
+    self.assertEqual(['id', 'A'], div_a['attributes'])
+    self.assertEqual(['id', 'A1'], div_a1['attributes'])
+    self.assertEqual(['id', 'A2'], div_a2['attributes'])
+    self.assertEqual(['id', 'B'], div_b['attributes'])
+    self.assertEqual(['id', 'B1'], span_b1['attributes'])
+    self.assertEqual(['id', 'C'], span_c['attributes'])
+    self.assertEqual(3, text_b1['nodeType'])  # Text
+    self.assertEqual('', text_b1['nodeValue'].strip())
+    self.assertEqual(3, text_c['nodeType'])  # Text
+    self.assertEqual('', text_c['nodeValue'].strip())
 
-    # Repeat, but only to depth 2 - not reporting children of A & B.
+    # Request children of BODY to depth 2.
+    # Not reporting children of <div#A> & <div#B>.
+    # Reporting lone text child of <span#C>
     self.debugger.run_command('DOM.requestChildNodes', {
         'nodeId': body_node['nodeId'],
         'depth': 2,
     })
     child_nodes_event = self.debugger.wait_event('DOM.setChildNodes')
+    self.assertEqual(3, len(child_nodes_event['params']['nodes']))
 
-    test_div = child_nodes_event['params']['nodes'][1]
-    child_a = test_div['children'][0]
-    child_b = test_div['children'][1]
-    self.assertFalse('children' in child_a)
-    self.assertFalse('children' in child_b)
-    self.assertEqual(2, test_div['childNodeCount'])
-    self.assertEqual(2, child_a['childNodeCount'])
-    self.assertEqual(0, child_b['childNodeCount'])
-    self.assertEqual(['id', 'test'], test_div['attributes'])
-    self.assertEqual(['id', 'A'], child_a['attributes'])
-    self.assertEqual(['id', 'B'], child_b['attributes'])
+    h1 = child_nodes_event['params']['nodes'][0]
+    span_h1 = h1['children'][0]
+    text_h1 = span_h1['children'][0]  # 1 deeper than requested
+    self.assertEqual('H1', h1['nodeName'])
+    self.assertEqual('SPAN', span_h1['nodeName'])
+    self.assertEqual('#text', text_h1['nodeName'])
+    self.assertEqual('Web debugger', text_h1['nodeValue'])
 
-    # Repeat, to default depth of 1 - not reporting children of "#test".
+    div_test = child_nodes_event['params']['nodes'][1]
+    div_a = div_test['children'][0]
+    div_b = div_test['children'][1]
+    span_c = div_test['children'][2]
+    text_c = span_c['children'][0]  # 1 deeper than requested
+    self.assertEqual(3, len(div_test['children']))
+    self.assertNotIn('children', div_a)
+    self.assertNotIn('children', div_b)
+    self.assertEqual(1, len(span_c['children']))
+    self.assertNotIn('children', text_c)
+    self.assertEqual(3, div_test['childNodeCount'])
+    self.assertEqual(2, div_a['childNodeCount'])
+    self.assertEqual(1, div_b['childNodeCount'])
+    self.assertEqual(0, span_c['childNodeCount'])  # whitespace text
+    self.assertEqual(['id', 'test'], div_test['attributes'])
+    self.assertEqual(['id', 'A'], div_a['attributes'])
+    self.assertEqual(['id', 'B'], div_b['attributes'])
+    self.assertEqual(['id', 'C'], span_c['attributes'])
+    self.assertEqual(3, text_c['nodeType'])  # Text
+    self.assertEqual('', text_c['nodeValue'].strip())
+
+    # Request children of BODY to default depth of 1.
+    # Not reporting children of <div#test>
     self.debugger.run_command('DOM.requestChildNodes', {
         'nodeId': body_node['nodeId'],
     })
     child_nodes_event = self.debugger.wait_event('DOM.setChildNodes')
+    self.assertEqual(3, len(child_nodes_event['params']['nodes']))
 
-    test_div = child_nodes_event['params']['nodes'][1]
-    self.assertFalse('children' in test_div)
-    self.assertEqual(2, test_div['childNodeCount'])
-    self.assertEqual(['id', 'test'], test_div['attributes'])
+    h1 = child_nodes_event['params']['nodes'][0]
+    div_test = child_nodes_event['params']['nodes'][1]
+    self.assertNotIn('children', h1)
+    self.assertNotIn('children', div_test)
+    self.assertEqual(1, h1['childNodeCount'])
+    self.assertEqual(3, div_test['childNodeCount'])
+    self.assertEqual(['id', 'test'], div_test['attributes'])
 
-    # Get the test div as a remote object, and request it as a node.
-    # This sends a 'DOM.setChildNodes' event for each node up to the root.
-    eval_result = self.debugger.evaluate_js('document.getElementById("test")')
+  def test_dom_remote_object(self):
+    self.debugger.run_command('DOM.enable')
+
+    doc_response = self.debugger.run_command('DOM.getDocument')
+    doc_root = doc_response['result']['root']
+    html_node = doc_root['children'][0]
+    body_node = html_node['children'][1]
+    self.debugger.run_command('DOM.requestChildNodes', {
+        'nodeId': body_node['nodeId'],
+    })
+    child_nodes_event = self.debugger.wait_event('DOM.setChildNodes')
+    div_test = child_nodes_event['params']['nodes'][1]
+
+    # Get <div#A1> as a remote object, and request it as a node.
+    # This sends 'DOM.setChildNodes' events for unknown nodes on the path from
+    # <div#test>, which is the nearest ancestor that was already reported.
+    eval_result = self.debugger.evaluate_js('document.getElementById("A1")')
     node_response = self.debugger.run_command('DOM.requestNode', {
         'objectId': eval_result['result']['objectId'],
     })
-    self.assertEqual(test_div['nodeId'], node_response['result']['nodeId'])
 
-    # Event reporting the requested <div#test>
-    node_event = self.debugger.wait_event('DOM.setChildNodes')
-    self.assertEqual(test_div['nodeId'],
-                     node_event['params']['nodes'][0]['nodeId'])
-    self.assertEqual(body_node['nodeId'], node_event['params']['parentId'])
+    # Event reporting the children of <div#test>
+    child_nodes_event = self.debugger.wait_event('DOM.setChildNodes')
+    self.assertEqual(div_test['nodeId'],
+                     child_nodes_event['params']['parentId'])
+    div_a = child_nodes_event['params']['nodes'][0]
+    div_b = child_nodes_event['params']['nodes'][1]
+    self.assertEqual(['id', 'A'], div_a['attributes'])
+    self.assertEqual(['id', 'B'], div_b['attributes'])
 
-    # Event reporting the parent <body>
-    node_event = self.debugger.wait_event('DOM.setChildNodes')
-    self.assertEqual(body_node['nodeId'],
-                     node_event['params']['nodes'][0]['nodeId'])
-    self.assertEqual(html_node['nodeId'], node_event['params']['parentId'])
+    # Event reporting the children of <div#A>
+    child_nodes_event = self.debugger.wait_event('DOM.setChildNodes')
+    self.assertEqual(div_a['nodeId'], child_nodes_event['params']['parentId'])
+    div_a1 = child_nodes_event['params']['nodes'][0]
+    div_a2 = child_nodes_event['params']['nodes'][1]
+    self.assertEqual(['id', 'A1'], div_a1['attributes'])
+    self.assertEqual(['id', 'A2'], div_a2['attributes'])
 
-    # Event reporting the parent <html>
-    node_event = self.debugger.wait_event('DOM.setChildNodes')
-    self.assertEqual(html_node['nodeId'],
-                     node_event['params']['nodes'][0]['nodeId'])
-    self.assertEqual(doc_root['nodeId'], node_event['params']['parentId'])
+    # The node we requested now has an ID as reported the last event.
+    self.assertEqual(div_a1['nodeId'], node_response['result']['nodeId'])
 
     # Round trip resolving test div to an object, then back to a node.
     resolve_response = self.debugger.run_command('DOM.resolveNode', {
-        'nodeId': test_div['nodeId'],
+        'nodeId': div_test['nodeId'],
     })
     node_response = self.debugger.run_command('DOM.requestNode', {
         'objectId': resolve_response['result']['object']['objectId'],
     })
-    self.assertEqual(test_div['nodeId'], node_response['result']['nodeId'])
-
-    # Event reporting the requested <div#test>
-    node_event = self.debugger.wait_event('DOM.setChildNodes')
-    self.assertEqual(test_div['nodeId'],
-                     node_event['params']['nodes'][0]['nodeId'])
-    self.assertEqual(body_node['nodeId'], node_event['params']['parentId'])
-    # Ignore the other two events reporting the parents.
-    node_event = self.debugger.wait_event('DOM.setChildNodes')
-    node_event = self.debugger.wait_event('DOM.setChildNodes')
+    self.assertEqual(div_test['nodeId'], node_response['result']['nodeId'])
 
     # End the test.
     self.debugger.evaluate_js('onEndTest()')
