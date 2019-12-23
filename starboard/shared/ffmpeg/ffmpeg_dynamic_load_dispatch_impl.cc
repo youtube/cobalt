@@ -244,6 +244,9 @@ void FFMPEGDispatchImpl::LoadSymbols() {
   INITSYMBOL(avutil_, av_malloc);
   INITSYMBOL(avutil_, av_freep);
   INITSYMBOL(avutil_, av_frame_alloc);
+#if LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
+  INITSYMBOL(avutil_, av_frame_free);
+#endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
   INITSYMBOL(avutil_, av_frame_unref);
   INITSYMBOL(avutil_, av_samples_get_buffer_size);
   INITSYMBOL(avutil_, av_opt_set_int);
@@ -254,6 +257,9 @@ void FFMPEGDispatchImpl::LoadSymbols() {
   INITSYMBOL(avcodec_, avcodec_version);
   SB_DCHECK(ffmpeg_->avcodec_version);
   INITSYMBOL(avcodec_, avcodec_alloc_context3);
+#if LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
+  INITSYMBOL(avcodec_, avcodec_free_context);
+#endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
   INITSYMBOL(avcodec_, avcodec_find_decoder);
   INITSYMBOL(avcodec_, avcodec_close);
   INITSYMBOL(avcodec_, avcodec_open2);
