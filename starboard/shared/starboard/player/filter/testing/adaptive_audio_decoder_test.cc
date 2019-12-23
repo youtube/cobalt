@@ -381,9 +381,14 @@ vector<vector<const char*>> GetSupportedTests() {
   //   sampling rate: 48.0k
   //   frames per AU: 960
   const char* kFilenames[] = {
-      "beneath_the_canopy_aac_stereo.dmp",  "beneath_the_canopy_aac_5_1.dmp",
-      "beneath_the_canopy_aac_mono.dmp",    "beneath_the_canopy_opus_5_1.dmp",
-      "beneath_the_canopy_opus_stereo.dmp", "beneath_the_canopy_opus_mono.dmp",
+      "beneath_the_canopy_aac_stereo.dmp",
+      "beneath_the_canopy_aac_5_1.dmp",
+      "beneath_the_canopy_aac_mono.dmp",
+      "beneath_the_canopy_opus_5_1.dmp",
+      "beneath_the_canopy_opus_stereo.dmp",
+      "beneath_the_canopy_opus_mono.dmp",
+      "sintel_ec3.dmp",
+      "sintel_ac3.dmp",
   };
 
   static vector<vector<const char*>> test_params;
