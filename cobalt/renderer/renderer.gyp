@@ -40,14 +40,7 @@
         'submission_queue.cc',
         'submission_queue.h',
       ],
-      'conditions': [
-        ['cobalt_minimum_frame_time_in_milliseconds != -1', {
-          'defines': [
-            'COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS=<(cobalt_minimum_frame_time_in_milliseconds)',
-          ],
-        }],
-      ],
-      
+
       'includes': [
         'renderer_parameters_setup.gypi',
       ],
@@ -67,6 +60,11 @@
         ['OS=="starboard"', {
           'dependencies': [
             '<(default_renderer_options_dependency)',
+          ],
+        }],
+        ['cobalt_minimum_frame_time_in_milliseconds != -1', {
+          'defines': [
+            'COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS=<(cobalt_minimum_frame_time_in_milliseconds)',
           ],
         }],
       ],
