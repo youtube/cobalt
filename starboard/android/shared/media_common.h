@@ -61,6 +61,8 @@ inline const char* SupportedVideoCodecToMimeType(
     return "video/avc";
   } else if (video_codec == kSbMediaVideoCodecH265) {
     return "video/hevc";
+  } else if (video_codec == kSbMediaVideoCodecAv1) {
+    return "video/av01";
   }
   return NULL;
 }

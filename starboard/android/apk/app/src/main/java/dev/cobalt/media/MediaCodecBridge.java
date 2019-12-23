@@ -101,6 +101,7 @@ class MediaCodecBridge {
     public static final String VIDEO_H265 = "video/hevc";
     public static final String VIDEO_VP8 = "video/x-vnd.on2.vp8";
     public static final String VIDEO_VP9 = "video/x-vnd.on2.vp9";
+    public static final String VIDEO_AV1 = "video/av01";
   }
 
   private BitrateAdjustmentTypes mBitrateAdjustmentType = BitrateAdjustmentTypes.NO_ADJUSTMENT;
@@ -858,6 +859,7 @@ class MediaCodecBridge {
         break;
       case MimeTypes.VIDEO_H265:
       case MimeTypes.VIDEO_VP9:
+      case MimeTypes.VIDEO_AV1:
         maxPixels = maxWidth * maxHeight;
         minCompressionRatio = 4;
         break;
