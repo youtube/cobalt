@@ -218,6 +218,16 @@
 // always become the constant kSbFoo.
 #define SB_FEATURE_RUNTIME_CONFIGS_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Introduce SbPlayerGetPreferredOutputMode() so the SbPlayer implementation can
+// explicitly indicate its preference on output mode, when all output modes are
+// supported.
+// For example, Cobalt used to always query for |kSbPlayerOutputModePunchOut|
+// first, without providing details about the video going to be played, and not
+// query for output modes if punch out is supported.  The new interface allows
+// the implementation to fine tune its output mode.  For example, it may decide
+// to use |kSbPlayerOutputModeDecodeToTexture| for low resolution videos.
+#define SB_PLAYER_GET_PREFERRED_OUTPUT_MODE_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
@@ -974,6 +984,26 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
     "version 10 or later."
 #endif  // !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
 #endif  // SB_API_VERSION >= 10
+
+#if SB_API_VERSION >= SB_PLAYER_GET_PREFERRED_OUTPUT_MODE_VERSION
+#if defined(SB_HAS_PLAYER_GET_PREFERRED_OUTPUT_MODE)
+#if !SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
+#error \
+    "SB_HAS_PLAYER_GET_PREFERRED_OUTPUT_MODE is required in this API "\
+       "version."
+#endif  // !SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
+#else   // defined(SB_HAS_PLAYER_GET_PREFERRED_OUTPUT_MODE)
+#define SB_HAS_PLAYER_GET_PREFERRED_OUTPUT_MODE 1
+#endif  // defined(SB_HAS_PLAYER_GET_PREFERRED_OUTPUT_MODE)
+#endif  // SB_API_VERSION >= SB_PLAYER_GET_PREFERRED_OUTPUT_MODE_VERSION
+
+#if SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
+#if SB_API_VERSION < 11
+#error \
+    "SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE) requires SB_API_VERSION 11 "\
+       "or later."
+#endif  // SB_API_VERSION < 11
+#endif  // SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
 
 // --- Derived Configuration -------------------------------------------------
 

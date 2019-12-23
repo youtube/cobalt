@@ -210,9 +210,8 @@ class StarboardPlayer {
 #endif  // SB_HAS(PLAYER_WITH_URL)
   // Returns the output mode that should be used for a video with the given
   // specifications.
-  static SbPlayerOutputMode ComputeSbPlayerOutputMode(
-      SbMediaVideoCodec codec, SbDrmSystem drm_system,
-      bool prefer_decode_to_texture);
+  SbPlayerOutputMode ComputeSbPlayerOutputMode(
+      bool prefer_decode_to_texture) const;
 
   // The following variables are initialized in the ctor and never changed.
 #if SB_HAS(PLAYER_WITH_URL)
