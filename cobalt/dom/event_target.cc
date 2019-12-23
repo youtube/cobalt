@@ -37,9 +37,7 @@ EventTarget::EventTarget(
     : debugger_hooks_(
           base::polymorphic_downcast<DOMSettings*>(settings)->debugger_hooks()),
       unpack_onerror_events_(onerror_event_parameter_handling ==
-                             kUnpackOnErrorEvents) {
-  DCHECK(debugger_hooks_);
-}
+                             kUnpackOnErrorEvents) {}
 
 void EventTarget::AddEventListener(const std::string& type,
                                    const EventListenerScriptValue& listener,
@@ -68,7 +66,7 @@ void EventTarget::RemoveEventListener(const std::string& type,
   for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
     if ((*iter)->EqualTo(listener_info)) {
-      debugger_hooks_->AsyncTaskCanceled((*iter)->task());
+      debugger_hooks_.AsyncTaskCanceled((*iter)->task());
       event_listener_infos_.erase(iter);
       return;
     }
@@ -276,7 +274,7 @@ void EventTarget::AddEventListenerInternal(
     for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
          iter != event_listener_infos_.end(); ++iter) {
       if ((*iter)->is_attribute() && (*iter)->type() == listener_info->type()) {
-        debugger_hooks_->AsyncTaskCanceled((*iter)->task());
+        debugger_hooks_.AsyncTaskCanceled((*iter)->task());
         event_listener_infos_.erase(iter);
         break;
       }
@@ -296,7 +294,7 @@ void EventTarget::AddEventListenerInternal(
     }
   }
 
-  debugger_hooks_->AsyncTaskScheduled(
+  debugger_hooks_.AsyncTaskScheduled(
       listener_info->task(), listener_info->type().c_str(),
       base::DebuggerHooks::AsyncTaskFrequency::kRecurring);
   event_listener_infos_.push_back(std::move(listener_info));

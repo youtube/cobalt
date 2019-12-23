@@ -25,6 +25,12 @@ namespace base {
 // directly access the DebugModule.
 class DebuggerHooks {
  public:
+  DebuggerHooks() = default;
+  DebuggerHooks(const DebuggerHooks&) = delete;
+  DebuggerHooks* operator=(const DebuggerHooks&) = delete;
+  DebuggerHooks(DebuggerHooks&&) = delete;
+  DebuggerHooks* operator=(DebuggerHooks&&) = delete;
+
   // Indicates whether an asynchronous task will run at most once or if it might
   // run multiple times.
   enum class AsyncTaskFrequency {
@@ -67,14 +73,14 @@ class DebuggerHooks {
 // Helper to start & finish async tasks using RAII.
 class ScopedAsyncTask {
  public:
-  ScopedAsyncTask(DebuggerHooks* debugger_hooks, const void* task)
+  ScopedAsyncTask(const DebuggerHooks& debugger_hooks, const void* task)
       : debugger_hooks_(debugger_hooks), task_(task) {
-    debugger_hooks_->AsyncTaskStarted(task_);
+    debugger_hooks_.AsyncTaskStarted(task_);
   }
-  ~ScopedAsyncTask() { debugger_hooks_->AsyncTaskFinished(task_); }
+  ~ScopedAsyncTask() { debugger_hooks_.AsyncTaskFinished(task_); }
 
  private:
-  DebuggerHooks* debugger_hooks_;
+  const DebuggerHooks& debugger_hooks_;
   const void* const task_;
 };
 

@@ -438,7 +438,7 @@ Element* Node::AsElement() { return NULL; }
 
 Text* Node::AsText() { return NULL; }
 
-base::DebuggerHooks* Node::debugger_hooks() const {
+const base::DebuggerHooks& Node::debugger_hooks() const {
   return base::polymorphic_downcast<DOMSettings*>(
              node_document()->html_element_context()->environment_settings())
       ->debugger_hooks();

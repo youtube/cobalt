@@ -60,7 +60,7 @@ class DOMSettings : public script::EnvironmentSettings {
               media::CanPlayTypeHandler* can_play_type_handler,
               script::JavaScriptEngine* engine,
               script::GlobalEnvironment* global_environment_proxy,
-              base::DebuggerHooks* debugger_hooks,
+              const base::DebuggerHooks& debugger_hooks,
               MutationObserverTaskManager* mutation_observer_task_manager,
               const Options& options = Options());
   ~DOMSettings() override;
@@ -93,7 +93,7 @@ class DOMSettings : public script::EnvironmentSettings {
   media::CanPlayTypeHandler* can_play_type_handler() const {
     return can_play_type_handler_;
   }
-  base::DebuggerHooks* debugger_hooks() const { return debugger_hooks_; }
+  const base::DebuggerHooks& debugger_hooks() const { return debugger_hooks_; }
   MutationObserverTaskManager* mutation_observer_task_manager() const {
     return mutation_observer_task_manager_;
   }
@@ -116,7 +116,7 @@ class DOMSettings : public script::EnvironmentSettings {
   media::CanPlayTypeHandler* can_play_type_handler_;
   script::JavaScriptEngine* javascript_engine_;
   script::GlobalEnvironment* global_environment_;
-  base::DebuggerHooks* debugger_hooks_;
+  const base::DebuggerHooks& debugger_hooks_;
   MutationObserverTaskManager* mutation_observer_task_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(DOMSettings);
