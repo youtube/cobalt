@@ -39,7 +39,7 @@ class AnimationFrameRequestCallbackList {
   typedef script::ScriptValue<FrameRequestCallback> FrameRequestCallbackArg;
 
   explicit AnimationFrameRequestCallbackList(
-      script::Wrappable* const owner, base::DebuggerHooks* const debugger_hooks)
+      script::Wrappable* const owner, const base::DebuggerHooks& debugger_hooks)
       : owner_(owner), debugger_hooks_(debugger_hooks) {}
 
   int32 RequestAnimationFrame(
@@ -68,7 +68,7 @@ class AnimationFrameRequestCallbackList {
       InternalList;
 
   script::Wrappable* const owner_;
-  base::DebuggerHooks* const debugger_hooks_;
+  const base::DebuggerHooks& debugger_hooks_;
   // Our list of frame request callbacks.
   InternalList frame_request_callbacks_;
 };

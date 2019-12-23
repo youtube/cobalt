@@ -66,7 +66,7 @@ class StubWindow {
             ? std::move(environment_settings)
             : std::unique_ptr<script::EnvironmentSettings>(new DOMSettings(
                   0, NULL, NULL, NULL, NULL, NULL, engine_.get(),
-                  global_environment(), &null_debugger_hooks_, NULL));
+                  global_environment(), null_debugger_hooks_, NULL));
     window_ = new dom::Window(
         environment_settings_.get(), cssom::ViewportSize(1920, 1080), 1.f,
         base::kApplicationStateStarted, css_parser_.get(), dom_parser_.get(),

@@ -253,7 +253,7 @@ void HTMLScriptElement::Prepare() {
     if (owner_document()
             ->html_element_context()
             ->enable_inline_script_warnings()) {
-      CLOG(WARNING, *debugger_hooks())
+      CLOG(WARNING, debugger_hooks())
           << "A request to synchronously load a script is being made as "
              "a result of a non-async <script> tag inlined within HTML. "
              "You should avoid this in Cobalt because if the app is "

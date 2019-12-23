@@ -60,7 +60,7 @@ class MutationObserver : public script::Wrappable {
   // code.
   MutationObserver(const NativeMutationCallback& native_callback,
                    MutationObserverTaskManager* task_manager,
-                   base::DebuggerHooks* debugger_hooks);
+                   const base::DebuggerHooks& debugger_hooks);
 
   // Web Api: MutationObserver
   MutationObserver(script::EnvironmentSettings* settings,
@@ -112,7 +112,7 @@ class MutationObserver : public script::Wrappable {
   WeakNodeVector observed_nodes_;
   MutationRecordSequence record_queue_;
   MutationObserverTaskManager* task_manager_;
-  base::DebuggerHooks* debugger_hooks_;
+  const base::DebuggerHooks& debugger_hooks_;
 };
 }  // namespace dom
 }  // namespace cobalt

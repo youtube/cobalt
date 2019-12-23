@@ -620,7 +620,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
       kDOMMaxElementDepth, fetcher_factory_.get(), data.network_module,
       media_source_registry_.get(), blob_registry_.get(),
       data.can_play_type_handler, javascript_engine_.get(),
-      global_environment_.get(), &debugger_hooks_,
+      global_environment_.get(), debugger_hooks_,
       &mutation_observer_task_manager_, data.options.dom_settings_options));
   DCHECK(environment_settings_);
 

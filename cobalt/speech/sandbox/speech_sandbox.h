@@ -48,6 +48,7 @@ class SpeechSandbox {
   std::unique_ptr<network::NetworkModule> network_module_;
   std::unique_ptr<AudioLoader> audio_loader_;
   scoped_refptr<SpeechRecognition> speech_recognition_;
+  base::NullDebuggerHooks null_debugger_hooks_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SpeechSandbox);
 };

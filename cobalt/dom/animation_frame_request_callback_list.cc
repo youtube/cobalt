@@ -31,7 +31,7 @@ int32 AnimationFrameRequestCallbackList::RequestAnimationFrame(
   frame_request_callbacks_.emplace_back(
       new FrameRequestCallbackWithCancelledFlag(owner_,
                                                 frame_request_callback));
-  debugger_hooks_->AsyncTaskScheduled(
+  debugger_hooks_.AsyncTaskScheduled(
       frame_request_callbacks_.back().get(), "requestAnimationFrame",
       base::DebuggerHooks::AsyncTaskFrequency::kOneshot);
   return static_cast<int32>(frame_request_callbacks_.size());
@@ -43,7 +43,7 @@ void AnimationFrameRequestCallbackList::CancelAnimationFrame(int32 in_handle) {
   const size_t handle = static_cast<size_t>(in_handle);
   if (handle > 0 && handle <= frame_request_callbacks_.size()) {
     auto& callback = frame_request_callbacks_.at(handle - 1);
-    debugger_hooks_->AsyncTaskCanceled(callback.get());
+    debugger_hooks_.AsyncTaskCanceled(callback.get());
     callback->cancelled = true;
   }
 }

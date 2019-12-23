@@ -85,7 +85,7 @@ class NativeCallback : public MutationObserver::CallbackInternal {
 MutationObserver::MutationObserver(
     const NativeMutationCallback& native_callback,
     MutationObserverTaskManager* task_manager,
-    base::DebuggerHooks* debugger_hooks)
+    const base::DebuggerHooks& debugger_hooks)
     : task_manager_(task_manager), debugger_hooks_(debugger_hooks) {
   callback_.reset(new NativeCallback(native_callback));
   task_manager_->OnMutationObserverCreated(this);
@@ -142,7 +142,7 @@ void MutationObserver::QueueMutationRecord(
   record_queue_.push_back(record);
   task_manager_->QueueMutationObserverMicrotask();
   MutationRecord* task = record.get();
-  debugger_hooks_->AsyncTaskScheduled(
+  debugger_hooks_.AsyncTaskScheduled(
       task, record->type().c_str(),
       base::DebuggerHooks::AsyncTaskFrequency::kOneshot);
 }
@@ -180,7 +180,7 @@ void MutationObserver::TraceMembers(script::Tracer* tracer) {
 void MutationObserver::CancelDebuggerAsyncTasks() {
   for (auto record : record_queue_) {
     MutationRecord* task = record.get();
-    debugger_hooks_->AsyncTaskCanceled(task);
+    debugger_hooks_.AsyncTaskCanceled(task);
   }
 }
 
