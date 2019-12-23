@@ -181,6 +181,7 @@
         'once_test.cc',
         'optional_test.cc',
         'player_create_test.cc',
+        'player_get_preferred_output_mode_test.cc',
         'player_output_mode_supported_test.cc',
         'random_helpers.cc',
         'recursive_mutex_test.cc',
