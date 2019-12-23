@@ -217,7 +217,7 @@ class Node : public EventTarget {
   uint32_t node_generation() const { return node_generation_; }
 
   // Returns the DebuggerHooks for the WebModule associated with this Node.
-  base::DebuggerHooks* debugger_hooks() const;
+  const base::DebuggerHooks& debugger_hooks() const;
 
   // Children classes implement this method to support type-safe visiting via
   // double dispatch.

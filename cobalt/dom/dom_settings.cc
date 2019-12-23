@@ -28,7 +28,7 @@ DOMSettings::DOMSettings(
     media::CanPlayTypeHandler* can_play_type_handler,
     script::JavaScriptEngine* engine,
     script::GlobalEnvironment* global_environment,
-    base::DebuggerHooks* debugger_hooks,
+    const base::DebuggerHooks& debugger_hooks,
     MutationObserverTaskManager* mutation_observer_task_manager,
     const Options& options)
     : max_dom_element_depth_(max_dom_element_depth),

@@ -51,7 +51,7 @@ class FakeSettings : public dom::DOMSettings {
  public:
   FakeSettings()
       : dom::DOMSettings(0, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                         &null_debugger_hooks_, NULL),
+                         null_debugger_hooks_, NULL),
         base_("https://127.0.0.1:1234") {
     network_module_.reset(new network::NetworkModule());
     this->set_network_module(network_module_.get());

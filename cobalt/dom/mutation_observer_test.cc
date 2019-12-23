@@ -72,7 +72,7 @@ class MutationObserverTest : public ::testing::Test {
     return new MutationObserver(
         base::Bind(&MutationCallbackMock::NativeMutationCallback,
                    base::Unretained(&callback_mock_)),
-        &task_manager_, &debugger_hooks_);
+        &task_manager_, debugger_hooks_);
   }
 
   ChildListMutationArguments CreateChildListMutationArguments() {
