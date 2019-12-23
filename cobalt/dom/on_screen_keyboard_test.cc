@@ -296,7 +296,22 @@ bool OnScreenKeyboardTest::EvaluateScript(const std::string& js_code,
 
 #if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
     SB_HAS(ON_SCREEN_KEYBOARD)
+
+bool SkipLocale() {
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION
+  bool skipTests = !SbWindowOnScreenKeyboardIsSupported();
+  if (skipTests) {
+    SB_LOG(INFO) << "On screen keyboard not supported. Test skipped.";
+  }
+  return skipTests;
+#else
+  return false;
+#endif
+}
+
 TEST_F(OnScreenKeyboardTest, ObjectExists) {
+  if (SkipLocale()) return;
+
   std::string result;
   EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard;", &result));
 
@@ -333,6 +348,8 @@ TEST_F(OnScreenKeyboardTest, ObjectExists) {
 }
 
 TEST_F(OnScreenKeyboardTest, ShowAndHide) {
+  if (SkipLocale()) return;
+
   // Not shown.
   std::string result;
   EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard.shown;", &result));
@@ -363,6 +380,8 @@ TEST_F(OnScreenKeyboardTest, ShowAndHide) {
 }
 
 TEST_F(OnScreenKeyboardTest, ShowAndHideMultipleTimes) {
+  if (SkipLocale()) return;
+
   std::string result;
   {
     InSequence seq;
@@ -396,6 +415,8 @@ TEST_F(OnScreenKeyboardTest, ShowAndHideMultipleTimes) {
 }
 
 TEST_F(OnScreenKeyboardTest, Data) {
+  if (SkipLocale()) return;
+
   std::string result = "(empty)";
   EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard.data;", &result));
   EXPECT_EQ("", result);
@@ -409,6 +430,8 @@ TEST_F(OnScreenKeyboardTest, Data) {
 }
 
 TEST_F(OnScreenKeyboardTest, FocusAndBlur) {
+  if (SkipLocale()) return;
+
   std::string result;
 
   {
@@ -426,6 +449,8 @@ TEST_F(OnScreenKeyboardTest, FocusAndBlur) {
       bindings::testing::IsAcceptablePrototypeString("Promise", result));
 }
 TEST_F(OnScreenKeyboardTest, FocusAndBlurMultipleTimes) {
+  if (SkipLocale()) return;
+
   std::string result;
   {
     InSequence seq;
@@ -454,6 +479,8 @@ TEST_F(OnScreenKeyboardTest, FocusAndBlurMultipleTimes) {
 }
 
 TEST_F(OnScreenKeyboardTest, ShowEventAttribute) {
+  if (SkipLocale()) return;
+
   EXPECT_CALL(*(on_screen_keyboard_bridge()),
               ShowMock(window()->on_screen_keyboard()->data()))
       .Times(3);
@@ -478,6 +505,8 @@ TEST_F(OnScreenKeyboardTest, ShowEventAttribute) {
 }
 
 TEST_F(OnScreenKeyboardTest, ShowEventListeners) {
+  if (SkipLocale()) return;
+
   std::string result;
   EXPECT_CALL(*(on_screen_keyboard_bridge()),
               ShowMock(window()->on_screen_keyboard()->data()));
@@ -502,6 +531,8 @@ TEST_F(OnScreenKeyboardTest, ShowEventListeners) {
 }
 
 TEST_F(OnScreenKeyboardTest, HideEventAttribute) {
+  if (SkipLocale()) return;
+
   EXPECT_CALL(*(on_screen_keyboard_bridge()), HideMock()).Times(3);
   const char let_script[] = R"(
     let promise;
@@ -524,6 +555,8 @@ TEST_F(OnScreenKeyboardTest, HideEventAttribute) {
 }
 
 TEST_F(OnScreenKeyboardTest, HideEventListeners) {
+  if (SkipLocale()) return;
+
   std::string result;
   EXPECT_CALL(*(on_screen_keyboard_bridge()), HideMock());
   const char script[] = R"(
@@ -547,6 +580,8 @@ TEST_F(OnScreenKeyboardTest, HideEventListeners) {
 }
 
 TEST_F(OnScreenKeyboardTest, FocusEventAttribute) {
+  if (SkipLocale()) return;
+
   EXPECT_CALL(*(on_screen_keyboard_bridge()), FocusMock()).Times(3);
   const char let_script[] = R"(
     let promise;
@@ -569,6 +604,8 @@ TEST_F(OnScreenKeyboardTest, FocusEventAttribute) {
 }
 
 TEST_F(OnScreenKeyboardTest, FocusEventListeners) {
+  if (SkipLocale()) return;
+
   std::string result;
   EXPECT_CALL(*(on_screen_keyboard_bridge()), FocusMock());
   const char script[] = R"(
@@ -592,6 +629,8 @@ TEST_F(OnScreenKeyboardTest, FocusEventListeners) {
 }
 
 TEST_F(OnScreenKeyboardTest, BlurEventAttribute) {
+  if (SkipLocale()) return;
+
   EXPECT_CALL(*(on_screen_keyboard_bridge()), BlurMock()).Times(3);
   const char let_script[] = R"(
     let promise;
@@ -614,6 +653,8 @@ TEST_F(OnScreenKeyboardTest, BlurEventAttribute) {
 }
 
 TEST_F(OnScreenKeyboardTest, BlurEventListeners) {
+  if (SkipLocale()) return;
+
   std::string result;
   EXPECT_CALL(*(on_screen_keyboard_bridge()), BlurMock());
   const char script[] = R"(
@@ -637,6 +678,8 @@ TEST_F(OnScreenKeyboardTest, BlurEventListeners) {
 }
 
 TEST_F(OnScreenKeyboardTest, BoundingRect) {
+  if (SkipLocale()) return;
+
   std::string result;
   EXPECT_CALL(*(on_screen_keyboard_bridge()), BoundingRectMock())
       .WillOnce(::testing::Return(nullptr));
@@ -645,6 +688,8 @@ TEST_F(OnScreenKeyboardTest, BoundingRect) {
 }
 
 TEST_F(OnScreenKeyboardTest, KeepFocus) {
+  if (SkipLocale()) return;
+
   std::string result;
   {
     InSequence seq;
