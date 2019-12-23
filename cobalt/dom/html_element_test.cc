@@ -224,9 +224,8 @@ TEST_F(HTMLElementTest, Dir) {
     html_element->set_dir("rtl");
     EXPECT_EQ("rtl", html_element->dir());
 
-    // Value "auto" is not supported.
     html_element->set_dir("auto");
-    EXPECT_EQ("", html_element->dir());
+    EXPECT_EQ("auto", html_element->dir());
 
     html_element->SetAttribute("Dir", "rtl");
     EXPECT_EQ("rtl", html_element->dir());
