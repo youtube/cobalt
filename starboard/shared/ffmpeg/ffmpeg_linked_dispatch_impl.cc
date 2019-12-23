@@ -53,10 +53,11 @@ void LoadSymbols(FFMPEGDispatch* ffmpeg) {
   SB_DCHECK(ffmpeg->avutil_version);
   INITSYMBOL(av_malloc);
   INITSYMBOL(av_freep);
-#if LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(52, 8, 0)
+#if LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
   INITSYMBOL(av_frame_alloc);
+  INITSYMBOL(av_frame_free);
   INITSYMBOL(av_frame_unref);
-#endif
+#endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
   INITSYMBOL(av_samples_get_buffer_size);
   INITSYMBOL(av_opt_set_int);
   INITSYMBOL(av_image_check_size);
@@ -66,6 +67,9 @@ void LoadSymbols(FFMPEGDispatch* ffmpeg) {
   INITSYMBOL(avcodec_version);
   SB_DCHECK(ffmpeg->avcodec_version);
   INITSYMBOL(avcodec_alloc_context3);
+#if LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
+  INITSYMBOL(avcodec_free_context);
+#endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
   INITSYMBOL(avcodec_find_decoder);
   INITSYMBOL(avcodec_close);
   INITSYMBOL(avcodec_open2);
@@ -73,10 +77,10 @@ void LoadSymbols(FFMPEGDispatch* ffmpeg) {
   INITSYMBOL(avcodec_decode_audio4);
   INITSYMBOL(avcodec_decode_video2);
   INITSYMBOL(avcodec_flush_buffers);
-#if LIBAVUTIL_VERSION_INT < AV_VERSION_INT(52, 8, 0)
+#if LIBAVUTIL_VERSION_INT < LIBAVUTIL_VERSION_52_8
   INITSYMBOL(avcodec_alloc_frame);
   INITSYMBOL(avcodec_get_frame_defaults);
-#endif
+#endif  // LIBAVUTIL_VERSION_INT > LIBAVUTIL_VERSION_52_8
   INITSYMBOL(avcodec_align_dimensions2);
 
   // Load symbols from the avformat shared library.

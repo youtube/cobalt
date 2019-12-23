@@ -42,6 +42,25 @@ void FFMPEGDispatch::CloseCodec(AVCodecContext* codec_context) {
   SbMutexRelease(&g_codec_mutex);
 }
 
+void FFMPEGDispatch::FreeFrame(AVFrame** frame) {
+#if LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
+  av_frame_free(frame);
+#else   // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
+  av_freep(frame);
+#endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
+}
+
+void FFMPEGDispatch::FreeContext(AVCodecContext** avctx) {
+#if LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
+  avcodec_free_context(avctx);
+#else   // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
+  if (avctx->extradata_size) {
+    av_freep(&((*avctx)->extradata));
+  }
+  av_freep(avctx);
+#endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
+}
+
 }  // namespace ffmpeg
 }  // namespace shared
 }  // namespace starboard
