@@ -76,7 +76,8 @@ SbPlayer SbPlayerCreate(SbWindow window,
 
   if (video_codec != kSbMediaVideoCodecNone &&
       video_codec != kSbMediaVideoCodecH264 &&
-      video_codec != kSbMediaVideoCodecVp9) {
+      video_codec != kSbMediaVideoCodecVp9 &&
+      video_codec != kSbMediaVideoCodecAv1) {
     SB_LOG(ERROR) << "Unsupported video codec " << video_codec;
     return kSbPlayerInvalid;
   }
