@@ -25,7 +25,6 @@
         '<@(stub_sources)',
         'atomic_public.h',
         'configuration_public.h',
-        'configuration_constants.cc',
         'thread_types_public.h',
       ],
       'conditions': [
