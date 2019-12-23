@@ -53,6 +53,9 @@ class FFMPEGDispatch {
   void* (*av_malloc)(size_t size);
   void (*av_freep)(void* ptr);
   AVFrame* (*av_frame_alloc)(void);
+#if LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
+  void (*av_frame_free)(AVFrame** frame);
+#endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
   void (*av_frame_unref)(AVFrame* frame);
   int (*av_samples_get_buffer_size)(int* linesize,
                                     int nb_channels,
@@ -75,6 +78,9 @@ class FFMPEGDispatch {
 
   unsigned (*avcodec_version)(void);
   AVCodecContext* (*avcodec_alloc_context3)(const AVCodec* codec);
+#if LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
+  void (*avcodec_free_context)(AVCodecContext** avctx);
+#endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
   AVCodec* (*avcodec_find_decoder)(int id);
   int (*avcodec_close)(AVCodecContext* avctx);
   int (*avcodec_open2)(AVCodecContext* avctx,
@@ -108,6 +114,9 @@ class FFMPEGDispatch {
   // this.
   int OpenCodec(AVCodecContext* codec_context, const AVCodec* codec);
   void CloseCodec(AVCodecContext* codec_context);
+
+  void FreeFrame(AVFrame** frame);
+  void FreeContext(AVCodecContext** avctx);
 };
 
 }  // namespace ffmpeg
