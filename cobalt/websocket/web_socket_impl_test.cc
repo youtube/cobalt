@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2019 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -86,6 +86,9 @@ class WebSocketImplTest : public ::testing::Test {
     network_task_runner_ = settings_->network_module()
                                ->url_request_context_getter()
                                ->GetNetworkTaskRunner();
+  }
+
+  void SetUp() override {
     // The holder is only created to be base::Passed() on the next line, it will
     // be empty so do not use it later.
     network_task_runner_->PostBlockingTask(
@@ -101,7 +104,8 @@ class WebSocketImplTest : public ::testing::Test {
             },
             websocket_impl_, &mock_channel_, settings()));
   }
-  ~WebSocketImplTest() {
+
+  void TearDown() override {
     network_task_runner_->PostBlockingTask(
         FROM_HERE,
         base::Bind(&WebSocketImpl::OnClose, websocket_impl_, true /*was_clan*/,
