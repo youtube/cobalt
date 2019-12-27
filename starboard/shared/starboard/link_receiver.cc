@@ -23,6 +23,7 @@
 #include "starboard/common/semaphore.h"
 #include "starboard/common/socket.h"
 #include "starboard/common/string.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/socket_waiter.h"

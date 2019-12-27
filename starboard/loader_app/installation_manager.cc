@@ -21,6 +21,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
 #include "starboard/loader_app/installation_store.pb.h"

@@ -14,6 +14,7 @@
 
 #include <string>
 
+#include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
 #include "starboard/nplb/file_helpers.h"
