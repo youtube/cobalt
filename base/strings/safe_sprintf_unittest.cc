@@ -13,10 +13,14 @@
 #include "base/logging.h"
 #include "base/macros.h"
 #include "build/build_config.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/common/string.h"
 #include "starboard/memory.h"
 #include "starboard/types.h"
-#include "testing/gtest/include/gtest/gtest.h"
+#endif
 
 // Death tests on Android are currently very flaky. No need to add more flaky
 // tests, as they just make it hard to spot real problems.
