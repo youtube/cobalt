@@ -24,7 +24,6 @@
 #include "base/synchronization/lock.h"
 #include "cobalt/base/get_application_key.h"
 #include "starboard/common/string.h"
-#include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
 
@@ -38,8 +37,13 @@ bool CreateDirsForKey(const std::string& key) {
     return false;
   }
   std::size_t prev_found = 0;
+<<<<<<< HEAD
   std::size_t found = key.find(kSbFileSepString);
   SbStringConcat(path.data(), kSbFileSepString, kSbFileMaxPath);
+=======
+  std::size_t found = key.find(SB_FILE_SEP_STRING);
+  SbStringConcat(path.data(), SB_FILE_SEP_STRING, SB_FILE_MAX_PATH);
+>>>>>>> Revert "Replace SB_FILE_SEP_STRING"
   while (found != std::string::npos) {
     SbStringConcat(path.data(),
                    key.substr(prev_found, found - prev_found).c_str(),
@@ -48,7 +52,7 @@ bool CreateDirsForKey(const std::string& key) {
       return false;
     }
     prev_found = found;
-    found = key.find(kSbFileSepString, prev_found + 1);
+    found = key.find(SB_FILE_SEP_STRING, prev_found + 1);
   }
   return true;
 }
@@ -79,7 +83,7 @@ bool SplashScreenCache::CacheSplashScreen(const std::string& key,
   if (!CreateDirsForKey(key)) {
     return false;
   }
-  std::string full_path = std::string(path.data()) + kSbFileSepString + key;
+  std::string full_path = std::string(path.data()) + SB_FILE_SEP_STRING + key;
   starboard::ScopedFile cache_file(
       full_path.c_str(), kSbFileCreateAlways | kSbFileWrite, NULL, NULL);
 
@@ -94,7 +98,7 @@ bool SplashScreenCache::IsSplashScreenCached(const std::string& key) const {
                        kSbFileMaxPath)) {
     return false;
   }
-  std::string full_path = std::string(path.data()) + kSbFileSepString + key;
+  std::string full_path = std::string(path.data()) + SB_FILE_SEP_STRING + key;
   return !key.empty() && SbFileExists(full_path.c_str());
 }
 
@@ -110,7 +114,7 @@ int SplashScreenCache::ReadCachedSplashScreen(
     result->reset();
     return 0;
   }
-  std::string full_path = std::string(path.data()) + kSbFileSepString + key;
+  std::string full_path = std::string(path.data()) + SB_FILE_SEP_STRING + key;
   starboard::ScopedFile cache_file(full_path.c_str(),
                                    kSbFileOpenOnly | kSbFileRead, NULL, NULL);
   SbFileInfo info;
@@ -142,19 +146,19 @@ base::Optional<std::string> SplashScreenCache::GetKeyForStartUrl(
   }
 
   std::string subpath = "";
-  std::string subcomponent = kSbFileSepString + std::string("splash_screen");
+  std::string subcomponent = kSbFileSepSSB_FILE_SEP_STRINGtring + std::string("splash_screen");
   if (SbStringConcat(path.data(), subcomponent.c_str(), kSbFileMaxPath) >=
       static_cast<int>(kSbFileMaxPath)) {
     return base::nullopt;
   }
   subpath += "splash_screen";
-  subcomponent = kSbFileSepString + *encoded_url;
+  subcomponent = SB_FILE_SEP_STRING + *encoded_url;
   if (SbStringConcat(path.data(), subcomponent.c_str(), kSbFileMaxPath) >=
       static_cast<int>(kSbFileMaxPath)) {
     return base::nullopt;
   }
   subpath += subcomponent;
-  subcomponent = kSbFileSepString + std::string("splash.html");
+  subcomponent = SB_FILE_SEP_STRING + std::string("splash.html");
   if (SbStringConcat(path.data(), subcomponent.c_str(), kSbFileMaxPath) >
       static_cast<int>(kSbFileMaxPath)) {
     return base::nullopt;

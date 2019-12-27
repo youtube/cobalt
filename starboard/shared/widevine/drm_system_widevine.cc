@@ -22,7 +22,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/string.h"
-#include "starboard/configuration_constants.h"
 #include "starboard/memory.h"
 #include "starboard/once.h"
 #include "starboard/shared/starboard/application.h"
@@ -94,7 +93,7 @@ std::string GetWidevineStoragePath() {
   auto path_size = path.size();
   SB_CHECK(
       SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(), path_size) &&
-      SbStringConcat(path.data(), kSbFileSepString, path_size) &&
+      SbStringConcat(path.data(), SB_FILE_SEP_STRING, path_size) &&
       SbStringConcat(path.data(), kWidevineStorageFileName, path_size));
   return std::string(path.data());
 }

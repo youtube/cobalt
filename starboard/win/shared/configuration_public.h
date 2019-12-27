@@ -165,6 +165,9 @@
 
 // --- Filesystem Configuration ----------------------------------------------
 
+// The string form of SB_FILE_SEP_CHAR.
+#define SB_FILE_SEP_STRING "\\"
+
 // On some platforms the file system stores access times at a coarser
 // granularity than other times. When this quirk is defined, we assume the
 // access time is of 1 day precision.
