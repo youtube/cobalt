@@ -37,13 +37,8 @@ bool CreateDirsForKey(const std::string& key) {
     return false;
   }
   std::size_t prev_found = 0;
-<<<<<<< HEAD
-  std::size_t found = key.find(kSbFileSepString);
-  SbStringConcat(path.data(), kSbFileSepString, kSbFileMaxPath);
-=======
   std::size_t found = key.find(SB_FILE_SEP_STRING);
-  SbStringConcat(path.data(), SB_FILE_SEP_STRING, SB_FILE_MAX_PATH);
->>>>>>> Revert "Replace SB_FILE_SEP_STRING"
+  SbStringConcat(path.data(), SB_FILE_SEP_STRING, kSbFileMaxPath);
   while (found != std::string::npos) {
     SbStringConcat(path.data(),
                    key.substr(prev_found, found - prev_found).c_str(),
@@ -146,7 +141,7 @@ base::Optional<std::string> SplashScreenCache::GetKeyForStartUrl(
   }
 
   std::string subpath = "";
-  std::string subcomponent = kSbFileSepSSB_FILE_SEP_STRINGtring + std::string("splash_screen");
+  std::string subcomponent = SB_FILE_SEP_STRING + std::string("splash_screen");
   if (SbStringConcat(path.data(), subcomponent.c_str(), kSbFileMaxPath) >=
       static_cast<int>(kSbFileMaxPath)) {
     return base::nullopt;
