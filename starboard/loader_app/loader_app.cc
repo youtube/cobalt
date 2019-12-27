@@ -16,6 +16,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/elf_loader/elf_loader.h"
 #include "starboard/event.h"
 #include "starboard/loader_app/installation_manager.h"

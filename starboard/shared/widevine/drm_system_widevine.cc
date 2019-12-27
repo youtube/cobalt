@@ -22,6 +22,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/string.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/memory.h"
 #include "starboard/once.h"
 #include "starboard/shared/starboard/application.h"
