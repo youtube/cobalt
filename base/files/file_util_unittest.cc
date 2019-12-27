@@ -71,6 +71,10 @@
 #include "starboard/types.h"
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/file.h"
+#endif
+
 // This macro helps avoid wrapped lines in the test structs.
 #define FPL(x) FILE_PATH_LITERAL(x)
 
@@ -298,15 +302,38 @@ class FindResultCollector {
 // Simple function to dump some text into a new file.
 void CreateTextFile(const FilePath& filename,
                     const std::wstring& contents) {
+#if defined(STARBOARD)
+  const std::string contents_ascii = UTF16ToASCII(WideToUTF16(contents));
+  SbFileError file_error = kSbFileOk;
+  SbFile file =
+      SbFileOpen(filename.value().c_str(), kSbFileCreateAlways | kSbFileWrite,
+                 nullptr, &file_error);
+  SB_CHECK((file_error == kSbFileOk));
+  SB_CHECK(SbFileWriteAll(file, contents_ascii.data(), contents_ascii.size()) ==
+           contents_ascii.size());
+  SB_CHECK(SbFileClose(file));
+#else   // !defined(STARBOARD)
   std::wofstream file;
   file.open(filename.value().c_str());
   ASSERT_TRUE(file.is_open());
   file << contents;
   file.close();
+#endif  // defined(STARBOARD)
 }
 
 // Simple function to take out some text from a file.
 std::wstring ReadTextFile(const FilePath& filename) {
+#if defined(STARBOARD)
+  const int size_in_bytes = 64 * sizeof(wchar_t);
+  char contents[size_in_bytes]{0};
+  SbFileError file_error = kSbFileOk;
+  SbFile file = SbFileOpen(filename.value().c_str(),
+                           kSbFileOpenOnly | kSbFileRead, nullptr, &file_error);
+  SB_CHECK(file_error == kSbFileOk);
+  SB_CHECK(SbFileReadAll(file, contents, size_in_bytes) != -1);
+  SB_CHECK(SbFileClose(file));
+  return UTF16ToWide(ASCIIToUTF16(contents));
+#else   // !defined(STARBOARD)
   wchar_t contents[64];
   std::wifstream file;
   file.open(filename.value().c_str());
@@ -314,6 +341,7 @@ std::wstring ReadTextFile(const FilePath& filename) {
   file.getline(contents, arraysize(contents));
   file.close();
   return std::wstring(contents);
+#endif  // defined(STARBOARD)
 }
 
 #if !defined(STARBOARD)
