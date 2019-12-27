@@ -915,7 +915,8 @@ void HTMLMediaElement::ClearMediaPlayer() {
 void HTMLMediaElement::NoneSupported(const std::string& message) {
   MLOG();
 
-  DLOG(WARNING) << "HTMLMediaElement::NoneSupported() error.";
+  DLOG(WARNING) << "HTMLMediaElement::NoneSupported() error with message: "
+                << message;
 
   StopPeriodicTimers();
   load_state_ = kWaitingForSource;
