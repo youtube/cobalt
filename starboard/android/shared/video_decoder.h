@@ -60,7 +60,8 @@ class VideoDecoder
                SbPlayerOutputMode output_mode,
                SbDecodeTargetGraphicsContextProvider*
                    decode_target_graphics_context_provider,
-               const char* max_video_capabilities);
+               const char* max_video_capabilities,
+               std::string* error_message);
   ~VideoDecoder() override;
 
   scoped_refptr<VideoRendererSink> GetSink();
@@ -89,7 +90,7 @@ class VideoDecoder
  private:
   // Attempt to initialize the codec.  Returns whether initialization was
   // successful.
-  bool InitializeCodec();
+  bool InitializeCodec(std::string* error_message);
   void TeardownCodec();
 
   void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,
@@ -99,6 +100,7 @@ class VideoDecoder
   void OnFlushing() override;
 
   void OnSurfaceDestroyed() override;
+  void ReportError(SbPlayerError error, const std::string& error_message);
 
   static int number_of_hardware_decoders_;
 
