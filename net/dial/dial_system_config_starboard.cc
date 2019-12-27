@@ -74,7 +74,7 @@ std::string DialSystemConfig::GeneratePlatformUuid() {
   DCHECK(success) << "kSbSystemPathCacheDirectory not implemented";
 
   std::string path(path_buffer.data());
-  path.append(SB_FILE_SEP_STRING);
+  path.append(kSbFileSepString);
   path.append(kInAppDialUuidFilename);
 
   bool created;

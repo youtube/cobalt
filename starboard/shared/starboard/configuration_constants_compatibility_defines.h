@@ -41,6 +41,8 @@
 
 #define kSbFileSepChar SB_FILE_SEP_CHAR
 
+#define kSbFileSepString SB_FILE_SEP_STRING
+
 #define kSbHasAc3Audio SB_HAS_AC3_AUDIO
 
 #define kSbHasAudiolessVideo SB_HAS_AUDIOLESS_VIDEO
