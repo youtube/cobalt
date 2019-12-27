@@ -48,7 +48,7 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
     SbDirectoryCreate(storage_path_.c_str());
 
     installation_store_path_ = storage_path_;
-    installation_store_path_ += SB_FILE_SEP_STRING;
+    installation_store_path_ += kSbFileSepString;
     installation_store_path_ += IM_STORE_FILE_NAME;
   }
 
@@ -173,7 +173,7 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
 
     while (SbDirectoryGetNext(dir, dir_entry.data(), dir_entry.size())) {
       std::string full_path = storage_path_;
-      full_path += SB_FILE_SEP_STRING;
+      full_path += kSbFileSepString;
       full_path += dir_entry.data();
       SbFileDelete(full_path.c_str());
     }
@@ -182,7 +182,7 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
 
     while (SbDirectoryGetNext(dir, &dir_entry)) {
       std::string full_path = storage_path_;
-      full_path += SB_FILE_SEP_STRING;
+      full_path += kSbFileSepString;
       full_path += dir_entry.name;
       SbFileDelete(full_path.c_str());
     }

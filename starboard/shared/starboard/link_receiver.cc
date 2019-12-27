@@ -157,7 +157,7 @@ void CreateTemporaryFile(const char* name, const char* contents, int size) {
     return;
   }
 
-  path += SB_FILE_SEP_STRING;
+  path += kSbFileSepString;
   path += name;
   ScopedFile file(path.c_str(), kSbFileCreateAlways | kSbFileWrite);
   if (!file.IsValid()) {

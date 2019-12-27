@@ -55,6 +55,9 @@ extern const uint32_t kSbFileMaxPath;
 // component separator character.
 extern const char kSbFileSepChar;
 
+// The string form of SB_FILE_SEP_CHAR.
+extern const char* kSbFileSepString;
+
 // Allow ac3 and ec3 support
 extern const bool kSbHasAc3Audio;
 

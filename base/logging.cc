@@ -252,7 +252,7 @@ PathString GetDefaultLogFile() {
   std::vector<char> path(kSbFileMaxPath + 1);
   SbSystemGetPath(kSbSystemPathDebugOutputDirectory, path.data(), path.size());
   PathString log_file = path.data();
-  log_file += SB_FILE_SEP_STRING "debug.log";
+  log_file += std::string(kSbFileSepString) + "debug.log";
   return log_file;
 #else
 #if defined(OS_WIN)

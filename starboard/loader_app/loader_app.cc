@@ -102,14 +102,14 @@ void LoadLibraryAndInitialize() {
     // installation_n/lib/libcobalt.so
     std::vector<char> lib_path(kSbFileMaxPath);
     SbStringFormatF(lib_path.data(), kSbFileMaxPath, "%s%s%s%s%s",
-                    installation_path.data(), SB_FILE_SEP_STRING,
-                    kCobaltLibraryPath, SB_FILE_SEP_STRING, kCobaltLibraryName);
+                    installation_path.data(), kSbFileSepString,
+                    kCobaltLibraryPath, kSbFileSepString, kCobaltLibraryName);
     SB_LOG(INFO) << "lib_path=" << lib_path.data();
 
     // installation_n/content
     std::vector<char> content_path(kSbFileMaxPath);
     SbStringFormatF(content_path.data(), kSbFileMaxPath, "%s%s%s",
-                    installation_path.data(), SB_FILE_SEP_STRING,
+                    installation_path.data(), kSbFileSepString,
                     kCobaltContentPath);
     SB_LOG(INFO) << "content_path=" << content_path.data();
 

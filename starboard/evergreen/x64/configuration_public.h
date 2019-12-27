@@ -142,11 +142,6 @@
 // Define this to how this platform copies varargs blocks.
 #define SB_VA_COPY(dest, source) va_copy(dest, source)
 
-// --- Filesystem Configuration ----------------------------------------------
-
-// The string form of SB_FILE_SEP_CHAR.
-#define SB_FILE_SEP_STRING "/"
-
 // --- Graphics Configuration ------------------------------------------------
 
 // Specifies whether this platform supports a performant accelerated blitter
