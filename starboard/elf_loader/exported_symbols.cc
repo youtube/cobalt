@@ -469,6 +469,7 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(kSbFileAltSepString);
   REGISTER_SYMBOL(kSbFileMaxPath);
   REGISTER_SYMBOL(kSbFileSepChar);
+  REGISTER_SYMBOL(kSbFileSepString);
   REGISTER_SYMBOL(kSbHasAc3Audio);
   REGISTER_SYMBOL(kSbHasAudiolessVideo);
   REGISTER_SYMBOL(kSbHasMediaWebmVp9Support);

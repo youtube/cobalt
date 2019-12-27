@@ -42,9 +42,9 @@ void Initialize() {
                                 base_path.size());
   SB_DCHECK(result);
   std::string data_path(base_path.data());
-  data_path += SB_FILE_SEP_STRING;
+  data_path += kSbFileSepString;
   data_path += "icu";
-  data_path += SB_FILE_SEP_STRING;
+  data_path += kSbFileSepString;
 #if U_IS_BIG_ENDIAN
   data_path += "icudt56b";
 #else

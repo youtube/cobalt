@@ -46,6 +46,9 @@ const uint32_t kSbFileMaxPath = 4096;
 // component separator character.
 const char kSbFileSepChar = '/';
 
+// The string form of SB_FILE_SEP_CHAR.
+const char* kSbFileSepString = "/";
+
 // Allow ac3 and ec3 support
 const bool kSbHasAc3Audio = false;
 

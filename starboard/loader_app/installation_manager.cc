@@ -521,7 +521,7 @@ bool InstallationManager::InitInstallationStorePath() {
 #endif
   storage_dir_ = storage_dir.data();
   store_path_ = storage_dir.data();
-  store_path_ += SB_FILE_SEP_STRING;
+  store_path_ += kSbFileSepString;
   store_path_ += IM_STORE_FILE_NAME;
   return true;
 }
@@ -580,7 +580,7 @@ bool InstallationManager::GetInstallationPathInternal(int installation_index,
   // TODO: We may need to setup different path for installation 0 which
   // would be the system image when more than 2 slots are available.
   SbStringFormatF(path, path_length, "%s%s%s%d", storage_dir_.c_str(),
-                  SB_FILE_SEP_STRING, "installation_", installation_index);
+                  kSbFileSepString, "installation_", installation_index);
 
   return true;
 }
