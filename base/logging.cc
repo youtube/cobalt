@@ -14,7 +14,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/configuration.h"
-#include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/system.h"
 #include "starboard/time.h"
@@ -252,7 +251,7 @@ PathString GetDefaultLogFile() {
   std::vector<char> path(kSbFileMaxPath + 1);
   SbSystemGetPath(kSbSystemPathDebugOutputDirectory, path.data(), path.size());
   PathString log_file = path.data();
-  log_file += std::string(kSbFileSepString) + "debug.log";
+  log_file += SB_FILE_SEP_STRING "debug.log";
   return log_file;
 #else
 #if defined(OS_WIN)

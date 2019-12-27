@@ -24,7 +24,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/configuration_constants.h"
 #include "starboard/once.h"
 #include "starboard/system.h"
 
@@ -42,9 +41,9 @@ void Initialize() {
                                 base_path.size());
   SB_DCHECK(result);
   std::string data_path(base_path.data());
-  data_path += kSbFileSepString;
+  data_path += SB_FILE_SEP_STRING;
   data_path += "icu";
-  data_path += kSbFileSepString;
+  data_path += SB_FILE_SEP_STRING;
 #if U_IS_BIG_ENDIAN
   data_path += "icudt56b";
 #else
