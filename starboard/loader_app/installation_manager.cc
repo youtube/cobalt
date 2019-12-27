@@ -21,7 +21,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
-#include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
 #include "starboard/loader_app/installation_store.pb.h"
@@ -521,7 +520,7 @@ bool InstallationManager::InitInstallationStorePath() {
 #endif
   storage_dir_ = storage_dir.data();
   store_path_ = storage_dir.data();
-  store_path_ += kSbFileSepString;
+  store_path_ += SB_FILE_SEP_STRING;
   store_path_ += IM_STORE_FILE_NAME;
   return true;
 }
@@ -580,7 +579,7 @@ bool InstallationManager::GetInstallationPathInternal(int installation_index,
   // TODO: We may need to setup different path for installation 0 which
   // would be the system image when more than 2 slots are available.
   SbStringFormatF(path, path_length, "%s%s%s%d", storage_dir_.c_str(),
-                  kSbFileSepString, "installation_", installation_index);
+                  SB_FILE_SEP_STRING, "installation_", installation_index);
 
   return true;
 }
