@@ -92,14 +92,15 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
               creation_parameters.drm_system(),
               creation_parameters.output_mode(),
               creation_parameters.decode_target_graphics_context_provider(),
-              creation_parameters.max_video_capabilities()));
+              creation_parameters.max_video_capabilities(), error_message));
       if (video_decoder_impl->is_valid()) {
         *video_renderer_sink = video_decoder_impl->GetSink();
         video_decoder->reset(video_decoder_impl.release());
       } else {
         video_decoder->reset();
         *video_renderer_sink = NULL;
-        *error_message = "Failed to create video decoder.";
+        *error_message =
+            "Failed to create video decoder with error: " + *error_message;
         return false;
       }
 

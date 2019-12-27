@@ -160,7 +160,7 @@ void PlayerWorker::UpdatePlayerState(SbPlayerState player_state) {
 void PlayerWorker::UpdatePlayerError(SbPlayerError error,
                                      const std::string& error_message) {
   error_occurred_ = true;
-  SB_LOG(WARNING) << "Encountered player error: " << error
+  SB_LOG(WARNING) << "Encountered player error " << error
                   << " with message: " << error_message;
 
   if (!player_error_func_) {
@@ -208,7 +208,7 @@ void PlayerWorker::DoInit() {
   } else {
     UpdatePlayerError(
         kSbPlayerErrorDecode,
-        "Failed to initialize PlayerWorker with error " + error_message);
+        "Failed to initialize PlayerWorker with error: " + error_message);
   }
 }
 
