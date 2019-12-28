@@ -568,6 +568,7 @@ result_value = v8::Undefined(isolate);
 
 void overloadedFunctionMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
   switch(info.Length()) {
     case(0): {
@@ -587,7 +588,7 @@ void overloadedFunctionMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
       WrapperFactory* wrapper_factory = V8cGlobalEnvironment::GetFromIsolate(isolate)->wrapper_factory();
       v8::Local<v8::Object> object;
       if (arg->IsObject()) {
-        object = arg->ToObject();
+        object = arg->ToObject(context).ToLocalChecked();
       }
       if (arg->IsNumber()) {
         overloadedFunctionMethod2(
@@ -613,7 +614,7 @@ void overloadedFunctionMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
       WrapperFactory* wrapper_factory = V8cGlobalEnvironment::GetFromIsolate(isolate)->wrapper_factory();
       v8::Local<v8::Object> object;
       if (arg->IsObject()) {
-        object = arg->ToObject();
+        object = arg->ToObject(context).ToLocalChecked();
       }
       if (arg->IsObject() ? wrapper_factory->DoesObjectImplementInterface(object, base::GetTypeId<ArbitraryInterface>()) : false) {
         overloadedFunctionMethod5(
@@ -714,6 +715,7 @@ result_value = v8::Undefined(isolate);
 
 void overloadedNullableMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
   switch(info.Length()) {
     case(1): {
@@ -723,7 +725,7 @@ void overloadedNullableMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
       WrapperFactory* wrapper_factory = V8cGlobalEnvironment::GetFromIsolate(isolate)->wrapper_factory();
       v8::Local<v8::Object> object;
       if (arg->IsObject()) {
-        object = arg->ToObject();
+        object = arg->ToObject(context).ToLocalChecked();
       }
       if (arg->IsNullOrUndefined()) {
         overloadedNullableMethod2(
@@ -1104,6 +1106,7 @@ result_value = v8::Undefined(isolate);
 
 void overloadedFunctionStaticMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
   switch(info.Length()) {
     case(1): {
