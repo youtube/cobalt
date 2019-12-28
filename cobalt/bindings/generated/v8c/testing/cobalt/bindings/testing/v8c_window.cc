@@ -850,7 +850,8 @@ void V8cGlobalEnvironment::CreateGlobalObject(
   // Intentionally not an |EntryScope|, since the context doesn't exist yet.
   v8::Isolate::Scope isolate_scope(isolate_);
   v8::HandleScope handle_scope(isolate_);
-  v8::Local<v8::ObjectTemplate> global_object_template = V8cWindow::GetTemplate(isolate_)->InstanceTemplate();
+  v8::Local<v8::ObjectTemplate> global_object_template =
+                V8cWindow::GetTemplate(isolate_)->InstanceTemplate();
 
   v8::Local<v8::Context> context =
       v8::Context::New(isolate_, nullptr, global_object_template);
@@ -867,7 +868,8 @@ void V8cGlobalEnvironment::CreateGlobalObject(
   v8::Local<v8::Object> global_object = context->Global();
   new WrapperPrivate(isolate_, global_interface, global_object);
 
-  auto actual_global_object = global_object->GetPrototype()->ToObject();
+  auto actual_global_object = global_object->GetPrototype()->
+                                          ToObject(context).ToLocalChecked();
   new WrapperPrivate(isolate_, global_interface, actual_global_object);
 
   wrapper_factory_->RegisterWrappableType(
@@ -1083,7 +1085,8 @@ template<>
 void GlobalEnvironment::CreateGlobalObject<Window>(
     const scoped_refptr<Window>& global_interface,
     EnvironmentSettings* environment_settings) {
-  base::polymorphic_downcast<v8c::V8cGlobalEnvironment*>(this)->CreateGlobalObject(global_interface, environment_settings);
+  base::polymorphic_downcast<v8c::V8cGlobalEnvironment*>(this)->
+                  CreateGlobalObject(global_interface, environment_settings);
 }
 
 }  // namespace script

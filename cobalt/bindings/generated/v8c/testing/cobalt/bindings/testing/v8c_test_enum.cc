@@ -71,7 +71,8 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
   // JSValue -> IDL enum algorithm described here:
   // http://heycam.github.io/webidl/#es-enumeration
   // 1. Let S be the result of calling ToString(V).
-  v8::MaybeLocal<v8::String> maybe_string = value->ToString(isolate->GetCurrentContext());
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::MaybeLocal<v8::String> maybe_string = value->ToString(context);
   v8::Local<v8::String> string;
   if (!maybe_string.ToLocal(&string)) {
     exception_state->SetSimpleException(cobalt::script::kConvertToEnumFailed);
@@ -81,37 +82,37 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
   bool match = false;
 // 3. Return the enumeration value of type E that is equal to S.
  if (
-      NewInternalString(isolate, "alpha")->Equals(value))
+      NewInternalString(isolate, "alpha")->Equals(context, value).ToChecked())
   {
     *out_enum = cobalt::bindings::testing::kTestEnumAlpha;
   }
  else  if (
-      NewInternalString(isolate, "beta")->Equals(value))
+      NewInternalString(isolate, "beta")->Equals(context, value).ToChecked())
   {
     *out_enum = cobalt::bindings::testing::kTestEnumBeta;
   }
  else  if (
-      NewInternalString(isolate, "gamma")->Equals(value))
+      NewInternalString(isolate, "gamma")->Equals(context, value).ToChecked())
   {
     *out_enum = cobalt::bindings::testing::kTestEnumGamma;
   }
  else  if (
-      NewInternalString(isolate, "enum-with-dashes")->Equals(value))
+      NewInternalString(isolate, "enum-with-dashes")->Equals(context, value).ToChecked())
   {
     *out_enum = cobalt::bindings::testing::kTestEnumEnumWithDashes;
   }
  else  if (
-      NewInternalString(isolate, "enum with spaces")->Equals(value))
+      NewInternalString(isolate, "enum with spaces")->Equals(context, value).ToChecked())
   {
     *out_enum = cobalt::bindings::testing::kTestEnumEnumWithSpaces;
   }
  else  if (
-      NewInternalString(isolate, "terrible----enum")->Equals(value))
+      NewInternalString(isolate, "terrible----enum")->Equals(context, value).ToChecked())
   {
     *out_enum = cobalt::bindings::testing::kTestEnumTerribleEnum;
   }
  else  if (
-      NewInternalString(isolate, "this is a terrible @#$%#$% enum")->Equals(value))
+      NewInternalString(isolate, "this is a terrible @#$%#$% enum")->Equals(context, value).ToChecked())
   {
     *out_enum = cobalt::bindings::testing::kTestEnumThisIsATerribleEnum;
   }
