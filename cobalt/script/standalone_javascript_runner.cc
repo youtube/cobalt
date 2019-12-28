@@ -24,14 +24,16 @@ namespace cobalt {
 namespace script {
 
 StandaloneJavascriptRunner::StandaloneJavascriptRunner(
-    const JavaScriptEngine::Options& javascript_engine_options) {
+    scoped_refptr<base::TaskRunner> task_runner,
+    const JavaScriptEngine::Options& javascript_engine_options)
+    : task_runner_(task_runner) {
   CommonInitialization(javascript_engine_options);
   global_environment_->CreateGlobalObject();
 }
 
-void StandaloneJavascriptRunner::RunInteractive() {
+bool StandaloneJavascriptRunner::RunInteractive() {
 #if defined(COBALT_LINUX)
-  while (!std::cin.eof() && std::cin.good()) {
+  if (!std::cin.eof() && std::cin.good()) {
     // Interactive prompt.
     std::cout << "> ";
 
@@ -41,11 +43,29 @@ void StandaloneJavascriptRunner::RunInteractive() {
     if (!line.empty()) {
       ExecuteAndPrintResult(base::SourceLocation("[stdin]", 1, 1), line);
     }
+    return true;
   }
-  std::cout << std::endl;
 #else
   NOTIMPLEMENTED();
 #endif
+  return false;
+}
+
+void StandaloneJavascriptRunner::RunUntilDone(
+    const base::Closure& quit_closure) {
+  DCHECK(task_runner_);
+  if (RunInteractive()) {
+    task_runner_->PostTask(FROM_HERE,
+                           BindOnce(&StandaloneJavascriptRunner::RunUntilDone,
+                                    base::Unretained(this), quit_closure));
+  } else {
+    Quit(quit_closure);
+  }
+}
+
+void StandaloneJavascriptRunner::Quit(const base::Closure& quit_closure) {
+  DCHECK(task_runner_);
+  task_runner_->PostTask(FROM_HERE, quit_closure);
 }
 
 void StandaloneJavascriptRunner::ExecuteFile(const base::FilePath& path) {
