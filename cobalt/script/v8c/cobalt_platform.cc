@@ -88,6 +88,7 @@ std::shared_ptr<v8::TaskRunner> CobaltPlatform::GetForegroundTaskRunner(
 
 void CobaltPlatform::RegisterIsolateOnThread(v8::Isolate* isolate,
                                              base::MessageLoop* message_loop) {
+  DCHECK(message_loop);
   auto task_runner = GetForegroundTaskRunner(isolate);
   CobaltPlatform::CobaltV8TaskRunner* cobalt_v8_task_runner =
       base::polymorphic_downcast<CobaltPlatform::CobaltV8TaskRunner*>(

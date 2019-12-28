@@ -72,10 +72,17 @@ void SetupBindings(GlobalEnvironment* global_environment) {
   DCHECK(set_result.FromJust());
 }
 
-int V8cMain(int argc, char** argv) {
-  cobalt::script::StandaloneJavascriptRunner standalone_runner;
+cobalt::script::StandaloneJavascriptRunner* g_javascript_runner = NULL;
+
+void StartApplication(int argc, char** argv, const char* /*link */,
+                      const base::Closure& quit_closure) {
+  DCHECK(!g_javascript_runner);
+  g_javascript_runner = new cobalt::script::StandaloneJavascriptRunner(
+      base::MessageLoop::current()->task_runner());
+  DCHECK(g_javascript_runner);
+
   GlobalEnvironment* global_environment =
-      standalone_runner.global_environment().get();
+      g_javascript_runner->global_environment().get();
   SetupBindings(global_environment);
   if (argc > 1) {
     // Command line arguments will be flag-value pairs of the form
@@ -88,7 +95,7 @@ int V8cMain(int argc, char** argv) {
         std::string filename = std::string(argv[i + 1]);
         // Execute source file.
         base::FilePath source_file(filename);
-        standalone_runner.ExecuteFile(source_file);
+        g_javascript_runner->ExecuteFile(source_file);
         ++i;
       } else if (std::string(argv[i]) == "-e") {
         // Execute inline script.
@@ -106,11 +113,16 @@ int V8cMain(int argc, char** argv) {
         ++i;
       }
     }
+    g_javascript_runner->Quit(quit_closure);
   } else {
-    standalone_runner.RunInteractive();
+    g_javascript_runner->RunUntilDone(quit_closure);
   }
+}
 
-  return 0;
+void StopApplication() {
+  DCHECK(g_javascript_runner);
+  delete g_javascript_runner;
+  g_javascript_runner = NULL;
 }
 
 }  // namespace
@@ -118,4 +130,5 @@ int V8cMain(int argc, char** argv) {
 }  // namespace script
 }  // namespace cobalt
 
-COBALT_WRAP_SIMPLE_MAIN(cobalt::script::v8c::V8cMain);
+COBALT_WRAP_BASE_MAIN(cobalt::script::v8c::StartApplication,
+                      cobalt::script::v8c::StopApplication);
