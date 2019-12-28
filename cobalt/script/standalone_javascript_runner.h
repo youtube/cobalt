@@ -39,8 +39,10 @@ class StandaloneJavascriptRunner {
 
   template <typename GlobalInterface>
   StandaloneJavascriptRunner(
+      scoped_refptr<base::TaskRunner> task_runner,
       const JavaScriptEngine::Options& javascript_engine_options,
       const scoped_refptr<GlobalInterface>& global_object) {
+    task_runner_ = task_runner;
     CommonInitialization(javascript_engine_options);
     global_environment_->CreateGlobalObject(global_object,
                                             environment_settings_.get());

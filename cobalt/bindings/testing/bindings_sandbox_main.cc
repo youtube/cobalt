@@ -25,15 +25,27 @@ using cobalt::script::StandaloneJavascriptRunner;
 
 namespace {
 
-int SandboxMain(int argc, char** argv) {
+cobalt::script::StandaloneJavascriptRunner* g_javascript_runner = NULL;
+
+void StartApplication(int argc, char** argv, const char* /*link */,
+                      const base::Closure& quit_closure) {
   scoped_refptr<Window> test_window = new Window();
   cobalt::script::JavaScriptEngine::Options javascript_engine_options;
-  StandaloneJavascriptRunner standalone_runner(javascript_engine_options,
-                                               test_window);
-  standalone_runner.RunInteractive();
-  return 0;
+
+  DCHECK(!g_javascript_runner);
+  g_javascript_runner = new cobalt::script::StandaloneJavascriptRunner(
+      base::MessageLoop::current()->task_runner(), javascript_engine_options,
+      test_window);
+  DCHECK(g_javascript_runner);
+  g_javascript_runner->RunUntilDone(quit_closure);
+}
+
+void StopApplication() {
+  DCHECK(g_javascript_runner);
+  delete g_javascript_runner;
+  g_javascript_runner = NULL;
 }
 
 }  // namespace
 
-COBALT_WRAP_SIMPLE_MAIN(SandboxMain);
+COBALT_WRAP_BASE_MAIN(StartApplication, StopApplication);
