@@ -478,7 +478,6 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(kSbNetworkReceiveBufferSize);
   REGISTER_SYMBOL(kSbMaxThreads);
   REGISTER_SYMBOL(kSbPathSepChar);
-  REGISTER_SYMBOL(kSbPathSepString);
   REGISTER_SYMBOL(kSbUserMaxSignedIn);
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 }

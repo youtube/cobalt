@@ -186,6 +186,9 @@
 // The string form of SB_FILE_SEP_CHAR.
 #define SB_FILE_SEP_STRING "/"
 
+// The string form of SB_PATH_SEP_CHAR.
+#define SB_PATH_SEP_STRING ":"
+
 // Some operating systems constantly return zero values for creation, access
 // and modification time for files and directories. When this quirk is defined,
 // we need to ignore corresponded time values in applications as well as take

@@ -69,8 +69,6 @@
 
 #define kSbPathSepChar SB_PATH_SEP_CHAR
 
-#define kSbPathSepString SB_PATH_SEP_STRING
-
 #define kSbUserMaxSignedIn SB_USER_MAX_SIGNED_IN
 
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
