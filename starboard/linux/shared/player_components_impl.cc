@@ -14,8 +14,10 @@
 
 #include "starboard/shared/starboard/player/filter/player_components.h"
 
+#include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/format_string.h"
 #if SB_API_VERSION >= 11
 #include "starboard/gles.h"
 #endif  // SB_API_VERSION >= 11
@@ -46,12 +48,13 @@ namespace {
 
 class PlayerComponentsImpl : public PlayerComponents {
  public:
-  void CreateAudioComponents(
-      const AudioParameters& audio_parameters,
-      scoped_ptr<AudioDecoder>* audio_decoder,
-      scoped_ptr<AudioRendererSink>* audio_renderer_sink) override {
+  bool CreateAudioComponents(const AudioParameters& audio_parameters,
+                             scoped_ptr<AudioDecoder>* audio_decoder,
+                             scoped_ptr<AudioRendererSink>* audio_renderer_sink,
+                             std::string* error_message) override {
     SB_DCHECK(audio_decoder);
     SB_DCHECK(audio_renderer_sink);
+    SB_DCHECK(error_message);
 
     typedef ::starboard::shared::ffmpeg::AudioDecoder FfmpegAudioDecoder;
     typedef ::starboard::shared::opus::OpusAudioDecoder OpusAudioDecoder;
@@ -87,6 +90,9 @@ class PlayerComponentsImpl : public PlayerComponents {
         audio_decoder->reset(audio_decoder_impl.release());
       } else {
         audio_decoder->reset();
+        SB_LOG(ERROR) << "Failed to create Opus audio decoder.";
+        *error_message = "Failed to create Opus audio decoder.";
+        return false;
       }
     } else {
       scoped_ptr<FfmpegAudioDecoder> audio_decoder_impl(
@@ -96,17 +102,26 @@ class PlayerComponentsImpl : public PlayerComponents {
         audio_decoder->reset(audio_decoder_impl.release());
       } else {
         audio_decoder->reset();
+        SB_LOG(ERROR) << "Failed to create audio decoder for codec "
+                      << audio_parameters.audio_codec;
+        *error_message =
+            FormatString("Failed to create audio decoder for codec %d.",
+                         audio_parameters.audio_codec);
+        return false;
       }
     }
 #endif  // SB_API_VERSION >= 11
     audio_renderer_sink->reset(new AudioRendererSinkImpl);
+
+    return true;
   }
 
-  void CreateVideoComponents(
+  bool CreateVideoComponents(
       const VideoParameters& video_parameters,
       scoped_ptr<VideoDecoder>* video_decoder,
       scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
-      scoped_refptr<VideoRendererSink>* video_renderer_sink) override {
+      scoped_refptr<VideoRendererSink>* video_renderer_sink,
+      std::string* error_message) override {
     typedef ::starboard::shared::aom::VideoDecoder Av1VideoDecoderImpl;
     typedef ::starboard::shared::de265::VideoDecoder H265VideoDecoderImpl;
     typedef ::starboard::shared::ffmpeg::VideoDecoder FfmpegVideoDecoderImpl;
@@ -117,6 +132,7 @@ class PlayerComponentsImpl : public PlayerComponents {
     SB_DCHECK(video_decoder);
     SB_DCHECK(video_render_algorithm);
     SB_DCHECK(video_renderer_sink);
+    SB_DCHECK(error_message);
 
     video_decoder->reset();
 
@@ -145,6 +161,13 @@ class PlayerComponentsImpl : public PlayerComponents {
               video_parameters.decode_target_graphics_context_provider));
       if (ffmpeg_video_decoder && ffmpeg_video_decoder->is_valid()) {
         video_decoder->reset(ffmpeg_video_decoder.release());
+      } else {
+        SB_LOG(ERROR) << "Failed to create video decoder for codec "
+                      << video_parameters.video_codec;
+        *error_message =
+            FormatString("Failed to create video decoder for codec %d.",
+                         video_parameters.video_codec);
+        return false;
       }
     }
 
@@ -157,6 +180,8 @@ class PlayerComponentsImpl : public PlayerComponents {
       *video_renderer_sink = new PunchoutVideoRendererSink(
           video_parameters.player, kVideoSinkRenderInterval);
     }
+
+    return true;
   }
 
   void GetAudioRendererParams(int* max_cached_frames,

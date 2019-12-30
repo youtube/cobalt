@@ -123,13 +123,14 @@ class AudioDecoderTest
     } else {
       components = PlayerComponents::Create();
     }
-    components->CreateAudioComponents(audio_parameters, audio_decoder,
-                                      audio_renderer_sink);
-    if (*audio_decoder) {
-      (*audio_decoder)
-          ->Initialize(std::bind(&AudioDecoderTest::OnOutput, this),
-                       std::bind(&AudioDecoderTest::OnError, this));
-    }
+    std::string error_message;
+    ASSERT_TRUE(components->CreateAudioComponents(
+        audio_parameters, audio_decoder, audio_renderer_sink, &error_message));
+    ASSERT_TRUE(*audio_decoder);
+
+    (*audio_decoder)
+        ->Initialize(std::bind(&AudioDecoderTest::OnOutput, this),
+                     std::bind(&AudioDecoderTest::OnError, this));
   }
 
   void OnOutput() {

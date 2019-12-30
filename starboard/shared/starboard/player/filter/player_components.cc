@@ -14,6 +14,7 @@
 
 #include "starboard/shared/starboard/player/filter/player_components.h"
 
+#include "starboard/common/log.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
@@ -30,7 +31,10 @@ namespace player {
 namespace filter {
 
 scoped_ptr<AudioRenderer> PlayerComponents::CreateAudioRenderer(
-    const AudioParameters& audio_parameters) {
+    const AudioParameters& audio_parameters,
+    std::string* error_message) {
+  SB_DCHECK(error_message);
+
   scoped_ptr<AudioDecoder> audio_decoder;
   scoped_ptr<AudioRendererSink> audio_renderer_sink;
 
@@ -39,12 +43,15 @@ scoped_ptr<AudioRenderer> PlayerComponents::CreateAudioRenderer(
     CreateStubAudioComponents(audio_parameters, &audio_decoder,
                               &audio_renderer_sink);
   } else {
-    CreateAudioComponents(audio_parameters, &audio_decoder,
-                          &audio_renderer_sink);
+    if (!CreateAudioComponents(audio_parameters, &audio_decoder,
+                               &audio_renderer_sink, error_message)) {
+      return scoped_ptr<AudioRenderer>();
+    }
   }
-  if (!audio_decoder || !audio_renderer_sink) {
-    return scoped_ptr<AudioRenderer>();
-  }
+
+  SB_DCHECK(audio_decoder);
+  SB_DCHECK(audio_renderer_sink);
+
   int max_cached_frames, max_frames_per_append;
   GetAudioRendererParams(&max_cached_frames, &max_frames_per_append);
   return make_scoped_ptr(
@@ -55,7 +62,10 @@ scoped_ptr<AudioRenderer> PlayerComponents::CreateAudioRenderer(
 
 scoped_ptr<VideoRenderer> PlayerComponents::CreateVideoRenderer(
     const VideoParameters& video_parameters,
-    MediaTimeProvider* media_time_provider) {
+    MediaTimeProvider* media_time_provider,
+    std::string* error_message) {
+  SB_DCHECK(error_message);
+
   scoped_ptr<VideoDecoder> video_decoder;
   scoped_ptr<VideoRenderAlgorithm> video_render_algorithm;
   scoped_refptr<VideoRendererSink> video_renderer_sink;
@@ -65,12 +75,16 @@ scoped_ptr<VideoRenderer> PlayerComponents::CreateVideoRenderer(
     CreateStubVideoComponents(video_parameters, &video_decoder,
                               &video_render_algorithm, &video_renderer_sink);
   } else {
-    CreateVideoComponents(video_parameters, &video_decoder,
-                          &video_render_algorithm, &video_renderer_sink);
+    if (!CreateVideoComponents(video_parameters, &video_decoder,
+                               &video_render_algorithm, &video_renderer_sink,
+                               error_message)) {
+      return scoped_ptr<VideoRenderer>();
+    }
   }
-  if (!video_decoder || !video_render_algorithm) {
-    return scoped_ptr<VideoRenderer>();
-  }
+
+  SB_DCHECK(video_decoder);
+  SB_DCHECK(video_render_algorithm);
+
   return make_scoped_ptr(
       new VideoRenderer(video_decoder.Pass(), media_time_provider,
                         video_render_algorithm.Pass(), video_renderer_sink));

@@ -133,7 +133,9 @@ void Start(const char* filename) {
   PlayerComponents::AudioParameters audio_parameters = {
       s_video_dmp_reader->audio_codec(),
       s_video_dmp_reader->audio_sample_info(), kSbDrmSystemInvalid};
-  s_audio_renderer = player_components->CreateAudioRenderer(audio_parameters);
+  std::string error_message;
+  s_audio_renderer =
+      player_components->CreateAudioRenderer(audio_parameters, &error_message);
   SB_DCHECK(s_audio_renderer);
 
   using std::placeholders::_1;

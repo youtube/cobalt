@@ -17,6 +17,7 @@
 #include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/video_decoder.h"
 #include "starboard/android/shared/video_render_algorithm.h"
+#include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/media.h"
@@ -39,12 +40,13 @@ namespace filter {
 namespace {
 
 class PlayerComponentsImpl : public PlayerComponents {
-  void CreateAudioComponents(
-      const AudioParameters& audio_parameters,
-      scoped_ptr<AudioDecoder>* audio_decoder,
-      scoped_ptr<AudioRendererSink>* audio_renderer_sink) override {
+  bool CreateAudioComponents(const AudioParameters& audio_parameters,
+                             scoped_ptr<AudioDecoder>* audio_decoder,
+                             scoped_ptr<AudioRendererSink>* audio_renderer_sink,
+                             std::string* error_message) override {
     SB_DCHECK(audio_decoder);
     SB_DCHECK(audio_renderer_sink);
+    SB_DCHECK(error_message);
 
     auto decoder_creator = [](const SbMediaAudioSampleInfo& audio_sample_info,
                               SbDrmSystem drm_system) {
@@ -73,13 +75,15 @@ class PlayerComponentsImpl : public PlayerComponents {
         new AdaptiveAudioDecoder(audio_parameters.audio_sample_info,
                                  audio_parameters.drm_system, decoder_creator));
     audio_renderer_sink->reset(new AudioRendererSinkImpl);
+    return true;
   }
 
-  void CreateVideoComponents(
+  bool CreateVideoComponents(
       const VideoParameters& video_parameters,
       scoped_ptr<VideoDecoder>* video_decoder,
       scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
-      scoped_refptr<VideoRendererSink>* video_renderer_sink) override {
+      scoped_refptr<VideoRendererSink>* video_renderer_sink,
+      std::string* error_message) override {
     using VideoDecoderImpl = ::starboard::android::shared::VideoDecoder;
     using VideoRenderAlgorithmImpl =
         ::starboard::android::shared::VideoRenderAlgorithm;
@@ -87,6 +91,7 @@ class PlayerComponentsImpl : public PlayerComponents {
     SB_DCHECK(video_decoder);
     SB_DCHECK(video_render_algorithm);
     SB_DCHECK(video_renderer_sink);
+    SB_DCHECK(error_message);
 
     scoped_ptr<VideoDecoderImpl> video_decoder_impl(new VideoDecoderImpl(
         video_parameters.video_codec, video_parameters.drm_system,
@@ -98,9 +103,12 @@ class PlayerComponentsImpl : public PlayerComponents {
     } else {
       video_decoder->reset();
       *video_renderer_sink = NULL;
+      *error_message = "Failed to create video decoder.";
+      return false;
     }
 
     video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
+    return true;
   }
 
   void GetAudioRendererParams(int* max_cached_frames,

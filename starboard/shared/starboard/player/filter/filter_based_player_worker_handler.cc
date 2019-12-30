@@ -16,6 +16,7 @@
 
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
+#include "starboard/format_string.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
@@ -88,7 +89,8 @@ bool FilterBasedPlayerWorkerHandler::Init(
     UpdateMediaInfoCB update_media_info_cb,
     GetPlayerStateCB get_player_state_cb,
     UpdatePlayerStateCB update_player_state_cb,
-    UpdatePlayerErrorCB update_player_error_cb) {
+    UpdatePlayerErrorCB update_player_error_cb,
+    std::string* error_message) {
   // This function should only be called once.
   SB_DCHECK(update_media_info_cb_ == NULL);
 
@@ -97,6 +99,7 @@ bool FilterBasedPlayerWorkerHandler::Init(
   SB_DCHECK(update_media_info_cb);
   SB_DCHECK(get_player_state_cb);
   SB_DCHECK(update_player_state_cb);
+  SB_DCHECK(error_message);
 
   AttachToCurrentThread();
 
@@ -123,15 +126,20 @@ bool FilterBasedPlayerWorkerHandler::Init(
       SB_LOG(ERROR) << "Audio channels requested " << required_audio_channels
                     << ", but currently supported less than or equal to "
                     << supported_audio_channels;
+      *error_message =
+          FormatString("Required channel %d is greater than maximum channel %d",
+                       required_audio_channels, supported_audio_channels);
       return false;
     }
 
     PlayerComponents::AudioParameters audio_parameters = {
         audio_codec_, audio_sample_info_, drm_system_};
 
-    audio_renderer_ = player_components->CreateAudioRenderer(audio_parameters);
+    audio_renderer_ =
+        player_components->CreateAudioRenderer(audio_parameters, error_message);
     if (!audio_renderer_) {
-      SB_DLOG(ERROR) << "Failed to create audio renderer";
+      SB_DLOG(ERROR) << "Failed to create audio renderer with error: "
+                     << *error_message;
       return false;
     }
     audio_renderer_->Initialize(
@@ -174,9 +182,10 @@ bool FilterBasedPlayerWorkerHandler::Init(
     SB_DCHECK(media_time_provider);
 
     video_renderer_ = player_components->CreateVideoRenderer(
-        video_parameters, media_time_provider);
+        video_parameters, media_time_provider, error_message);
     if (!video_renderer_) {
-      SB_DLOG(ERROR) << "Failed to create video renderer";
+      SB_DLOG(ERROR) << "Failed to create video renderer with error: "
+                     << *error_message;
       return false;
     }
     video_renderer_->Initialize(

@@ -142,9 +142,10 @@ class VideoDecoderTest
     } else {
       components = PlayerComponents::Create();
     }
-    components->CreateVideoComponents(video_parameters, &video_decoder_,
-                                      &video_render_algorithm_,
-                                      &video_renderer_sink_);
+    std::string error_message;
+    ASSERT_TRUE(components->CreateVideoComponents(
+        video_parameters, &video_decoder_, &video_render_algorithm_,
+        &video_renderer_sink_, &error_message));
     ASSERT_TRUE(video_decoder_);
 
     if (video_renderer_sink_) {
@@ -570,9 +571,10 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
               output_mode,
               fake_graphics_context_provider_.decoder_target_provider()};
 
-          components->CreateVideoComponents(
+          std::string error_message;
+          ASSERT_TRUE(components->CreateVideoComponents(
               video_parameters, &video_decoders[i], &video_render_algorithms[i],
-              &video_renderer_sinks[i]);
+              &video_renderer_sinks[i], &error_message));
           ASSERT_TRUE(video_decoders[i]);
 
           if (video_renderer_sinks[i]) {
