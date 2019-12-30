@@ -142,6 +142,9 @@
 // The string form of SB_FILE_SEP_CHAR.
 #define SB_FILE_SEP_STRING "/"
 
+// The string form of SB_PATH_SEP_CHAR.
+#define SB_PATH_SEP_STRING ":"
+
 // --- Graphics Configuration ------------------------------------------------
 
 // Specifies whether this platform supports a performant accelerated blitter

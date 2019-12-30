@@ -597,6 +597,10 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_FILE_SEP_STRING."
 #endif
 
+#if !defined(SB_PATH_SEP_STRING)
+#error "Your platform must define SB_PATH_SEP_STRING."
+#endif
+
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 #if defined(SB_DEFAULT_MMAP_THRESHOLD)
@@ -742,13 +746,6 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
-#if defined(SB_PATH_SEP_STRING)
-#error \
-    "SB_PATH_SEP_STRING should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbPathSepString in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
 #if defined(SB_USER_MAX_SIGNED_IN)
 #error \
     "SB_USER_MAX_SIGNED_IN should not be defined in Starboard " \
@@ -792,10 +789,6 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 
 #if !defined(SB_PATH_SEP_CHAR)
 #error "Your platform must define SB_PATH_SEP_CHAR."
-#endif
-
-#if !defined(SB_PATH_SEP_STRING)
-#error "Your platform must define SB_PATH_SEP_STRING."
 #endif
 
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION

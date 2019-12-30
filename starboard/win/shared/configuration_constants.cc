@@ -127,8 +127,5 @@ const char kSbPathSepChar = ';';
 }  // extern "C"
 #endif
 
-// The string form of SB_PATH_SEP_CHAR.
-const char* kSbPathSepString = ";";
-
 // The maximum number of users that can be signed in at the same time.
 const uint32_t kSbUserMaxSignedIn = 1;
