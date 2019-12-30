@@ -36,14 +36,14 @@ namespace filter {
 namespace {
 
 class PlayerComponentsImpl : public PlayerComponents {
-  void CreateAudioComponents(
-      const AudioParameters& audio_parameters,
-      scoped_ptr<AudioDecoder>* audio_decoder,
-      scoped_ptr<AudioRendererSink>* audio_renderer_sink) override {
+  bool CreateAudioComponents(const AudioParameters& audio_parameters,
+                             scoped_ptr<AudioDecoder>* audio_decoder,
+                             scoped_ptr<AudioRendererSink>* audio_renderer_sink,
+                             std::string* error_message) override {
     SB_DCHECK(audio_decoder);
     SB_DCHECK(audio_renderer_sink);
+    SB_DCHECK(error_message);
 
-#if SB_API_VERSION >= 11
     auto decoder_creator = [](const SbMediaAudioSampleInfo& audio_sample_info,
                               SbDrmSystem drm_system) {
       typedef ::starboard::shared::ffmpeg::AudioDecoder AudioDecoderImpl;
@@ -59,35 +59,28 @@ class PlayerComponentsImpl : public PlayerComponents {
     audio_decoder->reset(
         new AdaptiveAudioDecoder(audio_parameters.audio_sample_info,
                                  audio_parameters.drm_system, decoder_creator));
-#else   // SB_API_VERSION >= 11
-    typedef ::starboard::shared::ffmpeg::AudioDecoder AudioDecoderImpl;
-
-    scoped_ptr<AudioDecoderImpl> audio_decoder_impl(AudioDecoderImpl::Create(
-        audio_parameters.audio_codec, audio_parameters.audio_sample_info));
-    if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
-      audio_decoder->reset(audio_decoder_impl.release());
-    } else {
-      audio_decoder->reset();
-    }
-#endif  // SB_API_VERSION >= 11
     audio_renderer_sink->reset(new AudioRendererSinkImpl);
+    return true;
   }
 
-  void CreateVideoComponents(
+  bool CreateVideoComponents(
       const VideoParameters& video_parameters,
       scoped_ptr<VideoDecoder>* video_decoder,
       scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
-      scoped_refptr<VideoRendererSink>* video_renderer_sink) override {
+      scoped_refptr<VideoRendererSink>* video_renderer_sink,
+      std::string* error_message) override {
     using VideoDecoderImpl = ::starboard::raspi::shared::open_max::VideoDecoder;
     using ::starboard::raspi::shared::VideoRendererSinkImpl;
 
     SB_DCHECK(video_decoder);
     SB_DCHECK(video_render_algorithm);
     SB_DCHECK(video_renderer_sink);
+    SB_DCHECK(error_message);
 
     video_decoder->reset(new VideoDecoderImpl(video_parameters.video_codec));
     video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
     *video_renderer_sink = new VideoRendererSinkImpl(video_parameters.player);
+    return true;
   }
 
   void GetAudioRendererParams(int* max_cached_frames,
