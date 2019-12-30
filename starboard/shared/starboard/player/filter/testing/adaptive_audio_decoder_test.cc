@@ -137,8 +137,10 @@ class AdaptiveAudioDecoderTest
     } else {
       components = PlayerComponents::Create();
     }
-    components->CreateAudioComponents(audio_parameters, &audio_decoder_,
-                                      &audio_renderer_sink);
+    std::string error_message;
+    ASSERT_TRUE(components->CreateAudioComponents(
+        audio_parameters, &audio_decoder_, &audio_renderer_sink,
+        &error_message));
     ASSERT_TRUE(audio_decoder_);
 
     audio_decoder_->Initialize(

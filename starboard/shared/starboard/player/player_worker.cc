@@ -224,18 +224,21 @@ void PlayerWorker::DoInit() {
   update_player_error_cb =
       std::bind(&PlayerWorker::UpdatePlayerError, this, _1, _2);
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+  std::string error_message;
   if (handler_->Init(
           player_, std::bind(&PlayerWorker::UpdateMediaInfo, this, _1, _2, _3),
           std::bind(&PlayerWorker::player_state, this),
           std::bind(&PlayerWorker::UpdatePlayerState, this, _1),
-          update_player_error_cb)) {
+          update_player_error_cb, &error_message)) {
     UpdatePlayerState(kSbPlayerStateInitialized);
   } else {
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
-    UpdatePlayerError(kSbPlayerErrorDecode,
-                      "Failed to initialize PlayerWorker.");
+    UpdatePlayerError(
+        kSbPlayerErrorDecode,
+        "Failed to initialize PlayerWorker with error " + error_message);
 #else   // SB_HAS(PLAYER_ERROR_MESSAGE)
-    UpdatePlayerError("Failed to initialize PlayerWorker.");
+    UpdatePlayerError("Failed to initialize PlayerWorker with error " +
+                      error_message);
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
   }
 }

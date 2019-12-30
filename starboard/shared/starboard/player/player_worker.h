@@ -80,7 +80,8 @@ class PlayerWorker {
                       UpdateMediaInfoCB update_media_info_cb,
                       GetPlayerStateCB get_player_state_cb,
                       UpdatePlayerStateCB update_player_state_cb,
-                      UpdatePlayerErrorCB update_player_error_cb) = 0;
+                      UpdatePlayerErrorCB update_player_error_cb,
+                      std::string* error_message) = 0;
     virtual bool Seek(SbTime seek_to_time, int ticket) = 0;
     virtual bool WriteSample(const scoped_refptr<InputBuffer>& input_buffer,
                              bool* written) = 0;
