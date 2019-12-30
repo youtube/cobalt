@@ -20,7 +20,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
-#include "starboard/file.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
@@ -119,7 +118,6 @@ class VideoDmpReader {
   void Parse();
   AudioAccessUnit ReadAudioAccessUnit();
   VideoAccessUnit ReadVideoAccessUnit();
-  int ReadFromFile(ScopedFile* file, void* buffer, int bytes_to_read);
 
   ReadCB read_cb_;
 

@@ -17,6 +17,8 @@
 #include <algorithm>
 #include <functional>
 
+#include "starboard/shared/starboard/player/file_cache_reader.h"
+
 #if SB_HAS(PLAYER_FILTER_TESTS)
 namespace starboard {
 namespace shared {
@@ -97,11 +99,10 @@ using std::placeholders::_2;
 
 VideoDmpReader::VideoDmpReader(const char* filename)
     : reverse_byte_order_(false) {
-  ScopedFile file(filename, kSbFileOpenOnly | kSbFileRead);
-  SB_CHECK(file.IsValid()) << "Failed to open " << filename;
-  int64_t file_size = file.GetSize();
+  FileCacheReader reader(filename, 1024 * 1024);
+  int64_t file_size = reader.GetSize();
   SB_CHECK(file_size >= 0);
-  read_cb_ = std::bind(&VideoDmpReader::ReadFromFile, this, &file, _1, _2);
+  read_cb_ = std::bind(&FileCacheReader::Read, &reader, _1, _2);
   Parse();
 }
 
@@ -253,12 +254,6 @@ VideoDmpReader::VideoAccessUnit VideoDmpReader::ReadVideoAccessUnit() {
   return VideoAccessUnit(timestamp,
                          drm_sample_info_present ? &drm_sample_info : NULL,
                          std::move(data), video_sample_info);
-}
-
-int VideoDmpReader::ReadFromFile(ScopedFile* file,
-                                 void* buffer,
-                                 int bytes_to_read) {
-  return file->ReadAll(static_cast<char*>(buffer), bytes_to_read);
 }
 
 }  // namespace video_dmp
