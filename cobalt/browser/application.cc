@@ -66,6 +66,7 @@
 #include "cobalt/system_window/input_event.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 #include "starboard/configuration.h"
+#include "starboard/system.h"
 #include "url/gurl.h"
 
 using cobalt::cssom::ViewportSize;
@@ -96,7 +97,13 @@ std::string GetDevServersListenIp() {
 #else
   ip_v6 = false;
 #endif
+  // Default to INADDR_ANY
   std::string listen_ip(ip_v6 ? "::" : "0.0.0.0");
+
+  // Desktop PCs default to loopback.
+  if (SbSystemGetDeviceType() == kSbSystemDeviceTypeDesktopPC) {
+    listen_ip = ip_v6 ? "::1" : "127.0.0.1";
+  }
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
