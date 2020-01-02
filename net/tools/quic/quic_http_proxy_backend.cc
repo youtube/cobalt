@@ -48,7 +48,7 @@ bool QuicHttpProxyBackend::InitializeBackend(const std::string& backend_url) {
     return false;
   }
   if (proxy_thread_ == nullptr) {
-    proxy_thread_ = std::make_unique<base::Thread>("quic proxy thread");
+    proxy_thread_ = std::make_unique<base::Thread>("quic proxy thd");
     base::Thread::Options options;
     options.message_loop_type = base::MessageLoop::TYPE_IO;
     bool result = proxy_thread_->StartWithOptions(options);

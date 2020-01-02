@@ -217,7 +217,7 @@ TEST_F(MediaRecorderTest, DifferentThreadForAudioSource) {
 
   media_recorder_->Start(&exception_state_);
 
-  base::Thread t("MediaStreamAudioSource thread");
+  base::Thread t("MediaStrmAudio");
   t.Start();
   // media_recorder_ is a ref-counted object, binding it to PushData that will
   // later be executed on another thread violates the thread-unsafe assumption

@@ -41,6 +41,11 @@ class Thread {
   };
 
   explicit Thread(const std::string& name);
+  template <size_t N>
+  explicit Thread(char const (&name)[N]) : Thread(std::string(name)) {
+    // Common to all user code, limited by Linux pthreads default
+    static_assert(N <= 16, "Thread name too long, max 16");
+  }
   virtual ~Thread();
 
   // Subclasses should override the Run method.

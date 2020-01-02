@@ -698,6 +698,7 @@
       'defines': [
         'GMOCK_NO_MOVE_MOCK',
         'STARBOARD_OLD_ICU',
+        'BASE_DONT_ENFORCE_THREAD_NAME_LENGTH',
       ],
       'sources': [
         'at_exit_unittest.cc',
