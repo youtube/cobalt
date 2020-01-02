@@ -34,15 +34,14 @@ _NDK_VERSION = '20.1.5948944'
 # We download ndk-bundle separately, so it's not in this list.
 # Get available packages from "sdkmanager --list --verbose"
 _ANDROID_SDK_PACKAGES = [
-    'build-tools;28.0.3',
-    'cmake;3.6.4111459',
-    'cmdline-tools;latest',
+    'build-tools;29.0.2',
+    'cmake;3.10.2.4988404',
     'emulator',
     'extras;android;m2repository',
     'extras;google;m2repository',
     'ndk;' + _NDK_VERSION,
     'patcher;v4',
-    'platforms;android-28',
+    'platforms;android-29',
     'platform-tools',
 ]
 
@@ -55,7 +54,7 @@ _SDK_URL = 'https://dl.google.com/android/repository/commandlinetools-linux-6200
 
 # Location from which to download the Android NDK.
 # see https://developer.android.com/ndk/downloads (perhaps in "NDK archives")
-_NDK_ZIP_REVISION = 'android-ndk-r19c'
+_NDK_ZIP_REVISION = 'android-ndk-r20b'
 _NDK_ZIP_FILE = _NDK_ZIP_REVISION + '-linux-x86_64.zip'
 _NDK_URL = 'https://dl.google.com/android/repository/' + _NDK_ZIP_FILE
 
