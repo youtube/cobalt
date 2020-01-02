@@ -133,6 +133,9 @@ const uint32_t kSbMaxThreads = 90;
 // as a search path component separator character.
 const char kSbPathSepChar = ':';
 
+// The string form of SB_PATH_SEP_CHAR.
+const char* kSbPathSepString = ":";
+
 // The maximum number of users that can be signed in at the same time.
 const uint32_t kSbUserMaxSignedIn = 1;
 
