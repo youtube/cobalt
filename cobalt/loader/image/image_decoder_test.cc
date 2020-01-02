@@ -785,7 +785,7 @@ TEST(ImageDecoderTest, DecodeWEBPImageWithMultipleChunks) {
 
 // Test that we can properly decode animated WEBP image.
 TEST(ImageDecoderTest, DecodeAnimatedWEBPImage) {
-  base::Thread thread("AnimatedWebP test");
+  base::Thread thread("AnimatedWebP");
   thread.Start();
 
   MockImageDecoder image_decoder;
@@ -814,7 +814,7 @@ TEST(ImageDecoderTest, DecodeAnimatedWEBPImage) {
 
 // Test that we can properly decode animated WEBP image in multiple chunks.
 TEST(ImageDecoderTest, DecodeAnimatedWEBPImageWithMultipleChunks) {
-  base::Thread thread("AnimatedWebP test");
+  base::Thread thread("AnimatedWebP");
   thread.Start();
 
   MockImageDecoder image_decoder;

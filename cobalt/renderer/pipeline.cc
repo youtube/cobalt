@@ -90,7 +90,7 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
       render_target_(render_target),
       graphics_context_(graphics_context),
       rasterizer_thread_("Rasterizer"),
-      submission_disposal_thread_("Rasterizer Submission Disposal"),
+      submission_disposal_thread_("RasterzrSubDisp"),
       submit_even_if_render_tree_is_unchanged_(
           submit_even_if_render_tree_is_unchanged),
       last_did_rasterize_(false),
