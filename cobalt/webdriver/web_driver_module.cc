@@ -155,7 +155,7 @@ WebDriverModule::WebDriverModule(
     const SetProxyFunction& set_proxy_function,
     const base::Closure& shutdown_cb)
     : listen_ip_(listen_ip),
-      webdriver_thread_("WebDriver thread"),
+      webdriver_thread_("WebDriverThread"),
       create_session_driver_cb_(create_session_driver_cb),
       get_screenshot_function_(get_screenshot_function),
       set_proxy_function_(set_proxy_function),

@@ -189,7 +189,7 @@ GoogleSpeechService::GoogleSpeechService(
       started_(false),
       event_callback_(event_callback),
       fetcher_creator_(fetcher_creator),
-      thread_("speech_recognizer"),
+      thread_("SpeechRecognizr"),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           weak_this_(weak_ptr_factory_.GetWeakPtr())),
