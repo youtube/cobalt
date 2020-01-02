@@ -39,7 +39,7 @@ ScreencastModule::ScreencastModule(
     int server_port, const std::string& listen_ip,
     const GetScreenshotFunction& screenshot_function)
     : screenshot_dispatcher_(new WebDriverDispatcher()),
-      screenshot_thread_("Screencast Driver thread"),
+      screenshot_thread_("ScreencstDrvThd"),
       incoming_requests_(),
       last_served_request_(-1),
       screenshot_function_(screenshot_function),

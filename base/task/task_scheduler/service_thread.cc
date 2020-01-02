@@ -25,7 +25,7 @@ TimeDelta g_heartbeat_for_testing = TimeDelta();
 
 ServiceThread::ServiceThread(const TaskTracker* task_tracker,
                              RepeatingClosure report_heartbeat_metrics_callback)
-    : Thread("TaskSchedulerServiceThread"),
+    : Thread("TaskSchdSvcThd"),
       task_tracker_(task_tracker),
       report_heartbeat_metrics_callback_(
           std::move(report_heartbeat_metrics_callback)) {}
