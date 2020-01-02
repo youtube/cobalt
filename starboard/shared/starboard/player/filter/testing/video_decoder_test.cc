@@ -880,7 +880,8 @@ std::vector<TestParam> GetSupportedTests() {
                                        kSbPlayerOutputModePunchOut};
 
   const char* kFilenames[] = {"beneath_the_canopy_137_avc.dmp",
-                              "beneath_the_canopy_248_vp9.dmp"};
+                              "beneath_the_canopy_248_vp9.dmp",
+                              "sintel_399_av1.dmp"};
 
   static std::vector<TestParam> test_params;
 
