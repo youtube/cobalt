@@ -2555,6 +2555,7 @@
         # To be removed in the future when want to enable HTTP cache.
         'HTTP_CACHE_DISABLED_FOR_STARBOARD',
         'GMOCK_NO_MOVE_MOCK',
+        'BASE_DONT_ENFORCE_THREAD_NAME_LENGTH',
       ],
       'cflags': [
         # Avoid compiler errors due to conversion from "0x00" to char on Android.
@@ -2597,6 +2598,7 @@
       'type': 'static_library',
       'defines': [
         'GMOCK_NO_MOVE_MOCK',
+        'BASE_DONT_ENFORCE_THREAD_NAME_LENGTH',
       ],
       'sources': [
         # 'disk_cache/disk_cache_test_base.cc',
