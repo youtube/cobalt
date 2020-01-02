@@ -33,14 +33,14 @@ from starboard.tools import build
 # We download ndk-bundle separately, so it's not in this list.
 # Get available packages from "sdkmanager --list --verbose"
 _ANDROID_SDK_PACKAGES = [
-    'build-tools;28.0.3',
-    'cmake;3.6.4111459',
+    'build-tools;29.0.2',
+    'cmake;3.10.2.4988404',
     'emulator',
     'extras;android;m2repository',
     'extras;google;m2repository',
     'lldb;3.1',
     'patcher;v4',
-    'platforms;android-28',
+    'platforms;android-29',
     'platform-tools',
     'tools',
 ]
@@ -50,11 +50,11 @@ _SDK_LICENSE_PROMPT_SLEEP_SECONDS = 5
 
 # Location from which to download the SDK command-line tools
 # see https://developer.android.com/studio/index.html#command-tools
-_SDK_URL = 'https://dl.google.com/android/repository/sdk-tools-linux-3859397.zip'
+_SDK_URL = 'https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip'
 
 # Location from which to download the Android NDK.
 # see https://developer.android.com/ndk/downloads (perhaps in "NDK archives")
-_NDK_ZIP_REVISION = 'android-ndk-r19c'
+_NDK_ZIP_REVISION = 'android-ndk-r20b'
 _NDK_ZIP_FILE = _NDK_ZIP_REVISION + '-linux-x86_64.zip'
 _NDK_URL = 'https://dl.google.com/android/repository/' + _NDK_ZIP_FILE
 
