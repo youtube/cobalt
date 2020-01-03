@@ -44,7 +44,7 @@ void Decode(
 
 }  // namespace
 
-AsyncAudioDecoder::AsyncAudioDecoder() : thread_("AsyncAudioDec") {
+AsyncAudioDecoder::AsyncAudioDecoder() : thread_("AsyncAudioDecoder") {
   thread_.Start();
 }
 

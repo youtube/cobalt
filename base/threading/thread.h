@@ -115,15 +115,6 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   // name is a display string to identify the thread.
   explicit Thread(const std::string& name);
 
-#if !defined(BASE_DONT_ENFORCE_THREAD_NAME_LENGTH)
-  // Constructor, checks length of name literal at compile-time
-  template <size_t N>
-  explicit Thread(char const (&name)[N]) : Thread(std::string(name)) {
-    // 16 is common to Linux and other Starboard platforms
-    static_assert(N <= 16, "Thread name too long, max 16");
-  }
-#endif
-
   // Destroys the thread, stopping it if necessary.
   //
   // NOTE: ALL SUBCLASSES OF Thread MUST CALL Stop() IN THEIR DESTRUCTORS (or

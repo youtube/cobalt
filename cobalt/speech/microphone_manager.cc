@@ -37,7 +37,7 @@ MicrophoneManager::MicrophoneManager(
       successful_open_callback_(successful_open),
       microphone_creator_(microphone_creator),
       state_(kStopped),
-      thread_("MicrophoneThd") {
+      thread_("microphone_thread") {
   thread_.StartWithOptions(
       base::Thread::Options(base::MessageLoop::TYPE_IO, 0));
 }
