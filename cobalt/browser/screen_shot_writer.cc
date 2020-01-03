@@ -27,7 +27,7 @@ namespace cobalt {
 namespace browser {
 
 ScreenShotWriter::ScreenShotWriter(renderer::Pipeline* pipeline)
-    : pipeline_(pipeline), screenshot_thread_("ScreenshotIOThd") {
+    : pipeline_(pipeline), screenshot_thread_("Screenshot IO thread") {
   DCHECK(pipeline);
   screenshot_thread_.Start();
 }

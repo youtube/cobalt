@@ -94,7 +94,7 @@ void Ignore(int signal_id) {
 
 class SignalHandlerThread : public ::starboard::Thread {
  public:
-  SignalHandlerThread() : Thread("SignalHandlTh") {}
+  SignalHandlerThread() : Thread("SignalHandlerThread") {}
 
   void Run() override {
     SignalMask(kAllSignals, SIG_UNBLOCK);

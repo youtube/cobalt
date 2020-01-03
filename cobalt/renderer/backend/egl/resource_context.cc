@@ -27,7 +27,7 @@ namespace renderer {
 namespace backend {
 
 ResourceContext::ResourceContext(EGLDisplay display, EGLConfig config)
-    : display_(display), config_(config), thread_("GLTextureResrc") {
+    : display_(display), config_(config), thread_("GL Texture Resource") {
   context_ = CreateGLES3Context(display, config, EGL_NO_CONTEXT);
 
   // Create a dummy EGLSurface object to be assigned as the target surface

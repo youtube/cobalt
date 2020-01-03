@@ -49,7 +49,7 @@ bool FlacAudioEncoder::IsFlacMIMEType(const base::StringPiece& mime_type) {
   return match_iterator == mime_type_container.begin();
 }
 
-FlacAudioEncoder::FlacAudioEncoder() : thread_("FlacEncodingThd") {
+FlacAudioEncoder::FlacAudioEncoder() : thread_("flac_encoding_thread") {
   thread_.Start();
 }
 
