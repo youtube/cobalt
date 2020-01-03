@@ -12,3 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# Archive-related files were moved on trunk in b/142075599. Changes were not
+# ported. This redirect allows new buildbot code to find the old location of
+# port_symlink.py. Related code will be cleaned up in that same bug.
+from ..build import port_symlink
