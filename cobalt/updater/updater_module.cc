@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/bind_helpers.h"
 #include "base/callback_forward.h"
 #include "base/logging.h"
 #include "base/optional.h"
@@ -40,8 +41,6 @@ constexpr uint8_t kCobaltPublicKeyHash[] = {
     0x24, 0x45, 0x38, 0x79, 0xd4, 0x95, 0xfc, 0x57, 0x2d, 0xab};
 
 void QuitLoop(base::OnceClosure quit_closure) { std::move(quit_closure).Run(); }
-
-void Return() {}
 
 }  // namespace
 
@@ -96,6 +95,10 @@ void UpdaterModule::Finalize() {
   update_client_->RemoveObserver(updater_observer_.get());
   updater_observer_.reset();
   update_client_ = nullptr;
+
+  updater_configurator_->GetPrefService()->CommitPendingWrite(
+      base::BindOnce(&QuitLoop, base::Bind(base::DoNothing::Repeatedly())));
+
   updater_configurator_ = nullptr;
 }
 
@@ -123,9 +126,6 @@ void UpdaterModule::Update() {
   const std::vector<std::string> app_ids = {
       updater_configurator_->GetAppGuid()};
 
-  // TODO: get rid of this callback
-  base::Closure closure_callback = base::Bind(&Return);
-
   update_client_->Update(
       app_ids,
       base::BindOnce(
@@ -147,7 +147,7 @@ void UpdaterModule::Update() {
             base::ThreadTaskRunnerHandle::Get()->PostTask(
                 FROM_HERE, base::BindOnce(&QuitLoop, std::move(closure)));
           },
-          closure_callback));
+          base::Bind(base::DoNothing::Repeatedly())));
 
   // Mark the current installation as successful.
   updater_thread_.task_runner()->PostTask(
