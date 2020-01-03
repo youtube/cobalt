@@ -15,4 +15,16 @@
   'includes': [
     '../shared/starboard_platform_target.gypi',
   ],
+  'target_defaults': {
+    'sources': [
+      '<(DEPTH)/starboard/linux/x64x11/skia/configuration.cc',
+      '<(DEPTH)/starboard/linux/x64x11/skia/configuration.h',
+      '<(DEPTH)/starboard/linux/x64x11/skia/system_get_extensions.cc',
+    ],
+    'sources!': [
+      '<(DEPTH)/starboard/linux/shared/configuration.cc',
+      '<(DEPTH)/starboard/linux/shared/configuration.h',
+      '<(DEPTH)/starboard/linux/shared/system_get_extensions.cc',
+    ],
+  },
 }
