@@ -23,6 +23,12 @@ namespace cobalt {
 namespace media {
 namespace mp4 {
 
+namespace {
+
+const size_t kKeyIdSize = 16;
+
+}  // namespace
+
 FileType::FileType() {}
 FileType::~FileType() {}
 FourCC FileType::BoxType() const { return FOURCC_FTYP; }
@@ -142,8 +148,10 @@ SampleEncryptionEntry::~SampleEncryptionEntry() {}
 bool SampleEncryptionEntry::Parse(BufferReader* reader, uint8_t iv_size,
                                   bool has_subsamples) {
   // According to ISO/IEC FDIS 23001-7: CENC spec, IV should be either
-  // 64-bit (8-byte) or 128-bit (16-byte).
-  RCHECK(iv_size == 8 || iv_size == 16);
+  // 64-bit (8-byte) or 128-bit (16-byte). The 3rd Edition allows |iv_size|
+  // to be 0, for the case of a "constant IV". In this case, the existence of
+  // the constant IV must be ensured by the caller.
+  RCHECK(iv_size == 0 || iv_size == 8 || iv_size == 16);
 
   SbMemorySet(initialization_vector, 0, sizeof(initialization_vector));
   for (uint8_t i = 0; i < iv_size; i++)
@@ -210,18 +218,39 @@ bool SchemeType::Parse(BoxReader* reader) {
   return true;
 }
 
-TrackEncryption::TrackEncryption() : is_encrypted(false), default_iv_size(0) {}
+TrackEncryption::TrackEncryption()
+    : is_encrypted(false),
+      default_iv_size(0),
+      default_crypt_byte_block(0),
+      default_skip_byte_block(0),
+      default_constant_iv_size(0)
+{}
 TrackEncryption::~TrackEncryption() {}
 FourCC TrackEncryption::BoxType() const { return FOURCC_TENC; }
 
 bool TrackEncryption::Parse(BoxReader* reader) {
   uint8_t flag;
-  RCHECK(reader->ReadFullBoxHeader() && reader->SkipBytes(2) &&
-         reader->Read1(&flag) && reader->Read1(&default_iv_size) &&
-         reader->ReadVec(&default_kid, 16));
+  uint8_t possible_pattern_info;
+  RCHECK(reader->ReadFullBoxHeader() &&
+         reader->SkipBytes(1) &&  // skip reserved byte
+         reader->Read1(&possible_pattern_info) && reader->Read1(&flag) &&
+         reader->Read1(&default_iv_size) &&
+         reader->ReadVec(&default_kid, kKeyIdSize));
   is_encrypted = (flag != 0);
   if (is_encrypted) {
-    RCHECK(default_iv_size == 8 || default_iv_size == 16);
+     if (reader->version() > 0) {
+       default_crypt_byte_block = (possible_pattern_info >> 4) & 0x0f;
+       default_skip_byte_block = possible_pattern_info & 0x0f;
+     }
+     if (default_iv_size == 0) {
+       RCHECK(reader->Read1(&default_constant_iv_size));
+       RCHECK(default_constant_iv_size == 8 || default_constant_iv_size == 16);
+       SbMemorySet(default_constant_iv, 0, sizeof(default_constant_iv));
+       for (uint8_t i = 0; i < default_constant_iv_size; i++)
+         RCHECK(reader->Read1(default_constant_iv + i));
+     } else {
+       RCHECK(default_iv_size == 8 || default_iv_size == 16);
+     }
   } else {
     RCHECK(default_iv_size == 0);
   }
@@ -243,12 +272,21 @@ FourCC ProtectionSchemeInfo::BoxType() const { return FOURCC_SINF; }
 bool ProtectionSchemeInfo::Parse(BoxReader* reader) {
   RCHECK(reader->ScanChildren() && reader->ReadChild(&format) &&
          reader->ReadChild(&type));
-  if (type.type == FOURCC_CENC) RCHECK(reader->ReadChild(&info));
+  if (HasSupportedScheme()) RCHECK(reader->ReadChild(&info));
   // Other protection schemes are silently ignored. Since the protection scheme
   // type can't be determined until this box is opened, we return 'true' for
-  // non-CENC protection scheme types. It is the parent box's responsibility to
+  // unsupported protection schemes. It is the parent box's responsibility to
   // ensure that this scheme type is a supported one.
   return true;
+}
+
+bool ProtectionSchemeInfo::HasSupportedScheme() const {
+  FourCC fourCC = type.type;
+  if (fourCC == FOURCC_CENC)
+    return true;
+  if (fourCC == FOURCC_CBCS)
+    return true;
+  return false;
 }
 
 MovieHeader::MovieHeader()
@@ -646,7 +684,7 @@ bool VideoSampleEntry::Parse(BoxReader* reader) {
   if (format == FOURCC_ENCV) {
     // Continue scanning until a recognized protection scheme is found, or until
     // we run out of protection schemes.
-    while (sinf.type.type != FOURCC_CENC) {
+    while (!sinf.HasSupportedScheme()) {
       if (!reader->ReadChild(&sinf)) return false;
     }
   }
@@ -773,7 +811,7 @@ bool AudioSampleEntry::Parse(BoxReader* reader) {
   if (format == FOURCC_ENCA) {
     // Continue scanning until a recognized protection scheme is found, or until
     // we run out of protection schemes.
-    while (sinf.type.type != FOURCC_CENC) {
+    while (!sinf.HasSupportedScheme()) {
       if (!reader->ReadChild(&sinf)) return false;
     }
   }
@@ -1078,8 +1116,39 @@ bool SampleToGroup::Parse(BoxReader* reader) {
 }
 
 CencSampleEncryptionInfoEntry::CencSampleEncryptionInfoEntry()
-    : is_encrypted(false), iv_size(0) {}
+    : is_encrypted(false),
+      iv_size(0),
+      crypt_byte_block(0),
+      skip_byte_block(0),
+      constant_iv_size(0)
+{}
 CencSampleEncryptionInfoEntry::~CencSampleEncryptionInfoEntry() {}
+
+bool CencSampleEncryptionInfoEntry::Parse(BoxReader* reader) {
+  uint8_t flag;
+  uint8_t possible_pattern_info;
+  RCHECK(reader->SkipBytes(1) &&  // reserved.
+         reader->Read1(&possible_pattern_info) && reader->Read1(&flag) &&
+         reader->Read1(&iv_size) && reader->ReadVec(&key_id, kKeyIdSize));
+
+  is_encrypted = (flag != 0);
+  if (is_encrypted) {
+    crypt_byte_block = (possible_pattern_info >> 4) & 0x0f;
+    skip_byte_block = possible_pattern_info & 0x0f;
+    if (iv_size == 0) {
+      RCHECK(reader->Read1(&constant_iv_size));
+      RCHECK(constant_iv_size == 8 || constant_iv_size == 16);
+      SbMemorySet(constant_iv, 0, sizeof(constant_iv));
+      for (uint8_t i = 0; i < constant_iv_size; i++)
+        RCHECK(reader->Read1(constant_iv + i));
+    } else {
+      RCHECK(iv_size == 8 || iv_size == 16);
+    }
+  } else {
+    RCHECK(iv_size == 0);
+  }
+  return true;
+}
 
 SampleGroupDescription::SampleGroupDescription() : grouping_type(0) {}
 SampleGroupDescription::~SampleGroupDescription() {}
@@ -1096,7 +1165,6 @@ bool SampleGroupDescription::Parse(BoxReader* reader) {
 
   const uint8_t version = reader->version();
 
-  const size_t kKeyIdSize = 16;
   const size_t kEntrySize = sizeof(uint32_t) + kKeyIdSize;
   uint32_t default_length = 0;
   if (version == 1) {
@@ -1115,18 +1183,7 @@ bool SampleGroupDescription::Parse(BoxReader* reader) {
         RCHECK(description_length >= kEntrySize);
       }
     }
-
-    uint8_t flag;
-    RCHECK(reader->SkipBytes(2) &&  // reserved.
-           reader->Read1(&flag) && reader->Read1(&entries[i].iv_size) &&
-           reader->ReadVec(&entries[i].key_id, kKeyIdSize));
-
-    entries[i].is_encrypted = (flag != 0);
-    if (entries[i].is_encrypted) {
-      RCHECK(entries[i].iv_size == 8 || entries[i].iv_size == 16);
-    } else {
-      RCHECK(entries[i].iv_size == 0);
-    }
+    RCHECK(entries[i].Parse(reader));
   }
   return true;
 }

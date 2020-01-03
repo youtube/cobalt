@@ -16,6 +16,7 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "cobalt/media/base/audio_decoder_config.h"
+#include "cobalt/media/base/encryption_scheme.h"
 #include "cobalt/media/base/media_tracks.h"
 #include "cobalt/media/base/media_util.h"
 #include "cobalt/media/base/stream_parser_buffer.h"
@@ -37,6 +38,35 @@ namespace mp4 {
 
 namespace {
 const int kMaxEmptySampleLogs = 20;
+
+// Caller should be prepared to handle return of Unencrypted() in case of
+// unsupported scheme.
+EncryptionScheme GetEncryptionScheme(const ProtectionSchemeInfo& sinf) {
+  if (!sinf.HasSupportedScheme())
+    return Unencrypted();
+  FourCC fourcc = sinf.type.type;
+  EncryptionScheme::CipherMode mode = EncryptionScheme::CIPHER_MODE_UNENCRYPTED;
+  EncryptionScheme::Pattern pattern;
+  bool uses_pattern_encryption = false;
+  switch (fourcc) {
+    case FOURCC_CENC:
+      mode = EncryptionScheme::CIPHER_MODE_AES_CTR;
+      break;
+    case FOURCC_CBCS:
+      mode = EncryptionScheme::CIPHER_MODE_AES_CBC;
+      uses_pattern_encryption = true;
+      break;
+    default:
+      NOTREACHED();
+      break;
+  }
+  if (uses_pattern_encryption) {
+    uint8_t crypt = sinf.info.track_encryption.default_crypt_byte_block;
+    uint8_t skip = sinf.info.track_encryption.default_skip_byte_block;
+    pattern = EncryptionScheme::Pattern(crypt, skip);
+  }
+  return EncryptionScheme(mode, pattern);
+}
 }  // namespace
 
 MP4StreamParser::MP4StreamParser(DecoderBuffer::Allocator* buffer_allocator,
@@ -305,10 +335,15 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       }
       bool is_track_encrypted = entry.sinf.info.track_encryption.is_encrypted;
       is_track_encrypted_[audio_track_id] = is_track_encrypted;
-      audio_config.Initialize(
-          codec, sample_format, channel_layout, sample_per_second, extra_data,
-          is_track_encrypted ? AesCtrEncryptionScheme() : Unencrypted(),
-          base::TimeDelta(), 0);
+      EncryptionScheme scheme = Unencrypted();
+      if (is_track_encrypted) {
+        scheme = GetEncryptionScheme(entry.sinf);
+        if (!scheme.is_encrypted())
+          return false;
+      }
+      audio_config.Initialize(codec, sample_format, channel_layout,
+                              sample_per_second, extra_data, scheme,
+                              base::TimeDelta(), 0);
       DVLOG(1) << "audio_track_id=" << audio_track_id
                << " config=" << audio_config.AsHumanReadableString();
       if (!audio_config.IsValidConfig()) {
@@ -364,13 +399,18 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       }
       bool is_track_encrypted = entry.sinf.info.track_encryption.is_encrypted;
       is_track_encrypted_[video_track_id] = is_track_encrypted;
-      video_config.Initialize(
-          entry.video_codec, entry.video_codec_profile, PIXEL_FORMAT_YV12,
-          COLOR_SPACE_HD_REC709, coded_size, visible_rect, natural_size,
-          // No decoder-specific buffer needed for AVC;
-          // SPS/PPS are embedded in the video stream
-          EmptyExtraData(),
-          is_track_encrypted ? AesCtrEncryptionScheme() : Unencrypted());
+      EncryptionScheme scheme = Unencrypted();
+      if (is_track_encrypted) {
+        scheme = GetEncryptionScheme(entry.sinf);
+        if (!scheme.is_encrypted())
+          return false;
+      }
+      video_config.Initialize(entry.video_codec, entry.video_codec_profile,
+                              PIXEL_FORMAT_YV12, COLOR_SPACE_HD_REC709,
+                              coded_size, visible_rect, natural_size,
+                              // No decoder-specific buffer needed for AVC;
+                              // SPS/PPS are embedded in the video stream
+                              EmptyExtraData(), scheme);
       DVLOG(1) << "video_track_id=" << video_track_id
                << " config=" << video_config.AsHumanReadableString();
       if (!video_config.IsValidConfig()) {
