@@ -45,7 +45,7 @@ HTMLElementContext::HTMLElementContext()
       dom_stat_tracker_(NULL),
       page_visibility_state_weak_ptr_factory_(&page_visibility_state_),
       video_playback_rate_multiplier_(1.f),
-      sync_load_thread_("SynchronousLoad"),
+      sync_load_thread_("Synchronous Load"),
       html_element_factory_(new HTMLElementFactory()) {
   sync_load_thread_.Start();
 }
@@ -95,7 +95,7 @@ HTMLElementContext::HTMLElementContext(
       video_playback_rate_multiplier_(video_playback_rate_multiplier),
       synchronous_loader_interrupt_(synchronous_loader_interrupt),
       enable_inline_script_warnings_(enable_inline_script_warnings),
-      sync_load_thread_("SynchronousLoad"),
+      sync_load_thread_("Synchronous Load"),
       html_element_factory_(new HTMLElementFactory()) {
   sync_load_thread_.Start();
 }

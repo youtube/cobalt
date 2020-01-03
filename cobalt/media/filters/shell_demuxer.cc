@@ -190,7 +190,7 @@ ShellDemuxer::ShellDemuxer(
     : message_loop_(message_loop),
       buffer_allocator_(buffer_allocator),
       host_(NULL),
-      blocking_thread_("ShellDemuxerBlk"),
+      blocking_thread_("ShellDemuxerBlockingThread"),
       data_source_(data_source),
       media_log_(media_log),
       stopped_(false),

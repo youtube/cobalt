@@ -23,7 +23,7 @@ namespace {
 
 class SSLPlatformKeyTaskRunner {
  public:
-  SSLPlatformKeyTaskRunner() : worker_thread_("PlatformKeyThd") {
+  SSLPlatformKeyTaskRunner() : worker_thread_("Platform Key Thread") {
     base::Thread::Options options;
     options.joinable = false;
     worker_thread_.StartWithOptions(options);

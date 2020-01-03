@@ -91,7 +91,7 @@ InputDeviceManagerFuzzer::InputDeviceManagerFuzzer(
     KeyboardEventCallback keyboard_event_callback)
     : keyboard_event_callback_(keyboard_event_callback),
       next_key_index_(0),
-      thread_("InputDevMgrFuzz") {
+      thread_("InputDeviceManagerFuzzer") {
   key_infos_.push_back(KeyInfo(kKeyCodes, arraysize(kKeyCodes),
                                base::TimeDelta::FromMilliseconds(400)));
   // Modify the key_infos_ to use different input patterns.  For example, the
