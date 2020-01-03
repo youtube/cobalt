@@ -23,6 +23,9 @@ namespace cobalt {
 namespace media {
 namespace mp4 {
 
+// Size in bytes needed to store largest IV.
+const int kInitializationVectorSize = 16;
+
 enum TrackType { kInvalid = 0, kVideo, kAudio, kText, kHint };
 
 enum SampleFlags { kSampleIsNonSyncSample = 0x10000 };
@@ -86,7 +89,7 @@ struct MEDIA_EXPORT SampleEncryptionEntry {
   // anywhere.
   bool GetTotalSizeOfSubsamples(size_t* total_size) const;
 
-  uint8_t initialization_vector[16];
+  uint8_t initialization_vector[kInitializationVectorSize];
   std::vector<SubsampleEntry> subsamples;
 };
 
@@ -124,6 +127,10 @@ struct MEDIA_EXPORT TrackEncryption : Box {
   bool is_encrypted;
   uint8_t default_iv_size;
   std::vector<uint8_t> default_kid;
+  uint8_t default_crypt_byte_block;
+  uint8_t default_skip_byte_block;
+  uint8_t default_constant_iv_size;
+  uint8_t default_constant_iv[kInitializationVectorSize];
 };
 
 struct MEDIA_EXPORT SchemeInfo : Box {
@@ -138,6 +145,8 @@ struct MEDIA_EXPORT ProtectionSchemeInfo : Box {
   OriginalFormat format;
   SchemeType type;
   SchemeInfo info;
+
+  bool HasSupportedScheme() const;
 };
 
 struct MEDIA_EXPORT MovieHeader : Box {
@@ -289,10 +298,15 @@ struct MEDIA_EXPORT SampleDescription : Box {
 struct MEDIA_EXPORT CencSampleEncryptionInfoEntry {
   CencSampleEncryptionInfoEntry();
   ~CencSampleEncryptionInfoEntry();
+  bool Parse(BoxReader* reader);
 
   bool is_encrypted;
   uint8_t iv_size;
   std::vector<uint8_t> key_id;
+  uint8_t crypt_byte_block;
+  uint8_t skip_byte_block;
+  uint8_t constant_iv_size;
+  uint8_t constant_iv[kInitializationVectorSize];
 };
 
 struct MEDIA_EXPORT SampleGroupDescription : Box {  // 'sgpd'.

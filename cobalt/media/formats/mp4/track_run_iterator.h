@@ -98,6 +98,7 @@ class MEDIA_EXPORT TrackRunIterator {
   bool IsSampleEncrypted(size_t sample_index) const;
   uint8_t GetIvSize(size_t sample_index) const;
   const std::vector<uint8_t>& GetKeyId(size_t sample_index) const;
+  bool ApplyConstantIv(size_t sample_index, SampleEncryptionEntry* entry) const;
 
   const Movie* moov_;
   scoped_refptr<MediaLog> media_log_;
