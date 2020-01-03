@@ -12,29 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/configuration.h"
+#include "starboard/linux/x64x11/skia/configuration.h"
 
 #include "cobalt/extension/configuration.h"
 #include "starboard/common/configuration_defaults.h"
 
+// Omit namespace linux due to symbol name conflict.
 namespace starboard {
-namespace android {
-namespace shared {
+namespace x64x11 {
+namespace skia {
 
 namespace {
-
-const char* CobaltUserOnExitStrategy() {
-  return "suspend";
-}
 
 int CobaltEglSwapInterval() {
   return 0;
 }
 
+bool CobaltRasterizerType() {
+  return "hardware";
+}
+
 const CobaltExtensionConfigurationApi kConfigurationApi = {
     kCobaltExtensionConfigurationName,
     1,
-    &CobaltUserOnExitStrategy,
+    &common::CobaltUserOnExitStrategyDefault,
     &common::CobaltRenderDirtyRegionOnlyDefault,
     &CobaltEglSwapInterval,
     &common::CobaltFallbackSplashScreenUrlDefault,
@@ -55,6 +56,7 @@ const CobaltExtensionConfigurationApi kConfigurationApi = {
     &common::CobaltReduceGpuMemoryByDefault,
     &common::CobaltGcZealDefault,
     &common::CobaltRasterizerTypeDefault,
+    &CobaltRasterizerType,
 };
 
 }  // namespace
@@ -63,6 +65,6 @@ const void* GetConfigurationApi() {
   return &kConfigurationApi;
 }
 
-}  // namespace shared
-}  // namespace android
+}  // namespace skia
+}  // namespace x64x11
 }  // namespace starboard

@@ -21,6 +21,18 @@
         'configuration.cc',
         'configuration.h',
       ],
+      'conditions': [
+        ['rasterizer_type == "stub"', {
+          'defines': [
+            'COBALT_FORCE_STUB_RASTERIZER',
+          ],
+        }],
+        ['rasterizer_type == "direct-gles"', {
+          'defines': [
+            'COBALT_FORCE_DIRECT_GLES_RASTERIZER',
+          ],
+        }],
+      ],
     },
   ],
 }

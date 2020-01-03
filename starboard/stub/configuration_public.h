@@ -215,6 +215,10 @@
 
 #define SB_HAS_VIRTUAL_REALITY 1
 
+#ifndef COBALT_FORCE_STUB_RASTERIZER
+#define COBALT_FORCE_STUB_RASTERIZER 1
+#endif
+
 // --- I/O Configuration -----------------------------------------------------
 
 // Whether the current platform implements the on screen keyboard interface.

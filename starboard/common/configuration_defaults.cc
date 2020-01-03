@@ -97,5 +97,9 @@ bool CobaltGcZealDefault() {
   return false;
 }
 
+const char* CobaltRasterizerTypeDefault() {
+  return "direct-gles";
+}
+
 }  // namespace common
 }  // namespace starboard
