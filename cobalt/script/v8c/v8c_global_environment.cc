@@ -236,9 +236,7 @@ void V8cGlobalEnvironment::PreventGarbageCollection(
     const scoped_refptr<Wrappable>& wrappable) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  v8::HandleScope handle_scope(isolate_);
-  v8::Local<v8::Object> wrapper = wrapper_factory_->GetWrapper(wrappable);
-  WrapperPrivate::GetFromWrapperObject(wrapper)->IncrementRefCount();
+  AddRoot(wrappable.get());
 }
 
 void V8cGlobalEnvironment::AllowGarbageCollection(Wrappable* wrappable) {
@@ -248,9 +246,7 @@ void V8cGlobalEnvironment::AllowGarbageCollection(Wrappable* wrappable) {
   // AllowGarbageCollection is unnecessary when the environment is destroyed.
   if (destructing_) return;
 
-  v8::HandleScope handle_scope(isolate_);
-  v8::Local<v8::Object> wrapper = wrapper_factory_->GetWrapper(wrappable);
-  WrapperPrivate::GetFromWrapperObject(wrapper)->DecrementRefCount();
+  RemoveRoot(wrappable);
 }
 
 void V8cGlobalEnvironment::DisableEval(const std::string& message) {
@@ -318,35 +314,8 @@ ScriptValueFactory* V8cGlobalEnvironment::script_value_factory() {
 }
 
 V8cGlobalEnvironment::DestructionHelper::~DestructionHelper() {
-  class ForceWeakVisitor : public v8::PersistentHandleVisitor {
-   public:
-    explicit ForceWeakVisitor(v8::Isolate* isolate) : isolate_(isolate) {}
-    void VisitPersistentHandle(v8::Persistent<v8::Value>* value,
-                               uint16_t class_id) override {
-      if (class_id == WrapperPrivate::kClassId) {
-        v8::Local<v8::Value> v = value->Get(isolate_);
-        DCHECK(v->IsObject());
-        WrapperPrivate* wrapper_private =
-            WrapperPrivate::GetFromWrapperObject(v.As<v8::Object>());
-        wrapper_private->ForceWeakForShutDown();
-      }
-    }
-
-   private:
-    v8::Isolate* isolate_;
-  };
-
   TRACE_EVENT0("cobalt::script",
                "V8cGlobalEnvironment::DestructionHelper::~DestructionHelper()");
-
-  {
-    TRACE_EVENT0("cobalt::script",
-                 "V8cGlobalEnvironment::DestructionHelper::~DestructionHelper::"
-                 "ForceWeakVisitor");
-    v8::HandleScope handle_scope(isolate_);
-    ForceWeakVisitor force_weak_visitor(isolate_);
-    isolate_->VisitHandlesWithClassIds(&force_weak_visitor);
-  }
 
   V8cEngine::GetFromIsolate(isolate_)->heap_tracer()->DisableForShutdown();
   isolate_->SetData(kIsolateDataIndex, nullptr);
