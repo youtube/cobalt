@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/threading/thread_checker.h"
 #include "cobalt/script/v8c/isolate_fellowship.h"
 #include "cobalt/script/v8c/scoped_persistent.h"
 #include "cobalt/script/wrappable.h"
@@ -64,6 +65,9 @@ class V8cHeapTracer final : public v8::EmbedderHeapTracer,
   void AddRoot(Traceable* traceable);
   void RemoveRoot(Traceable* traceable);
 
+  void AddRoot(v8::TracedGlobal<v8::Value>* traced_global);
+  void RemoveRoot(v8::TracedGlobal<v8::Value>* traced_global);
+
   // Used during shutdown to ask V8cHeapTracer do nothing so that V8 can
   // GC every embedder-created object.
   void DisableForShutdown() {
@@ -77,7 +81,11 @@ class V8cHeapTracer final : public v8::EmbedderHeapTracer,
   v8::Platform* const platform_ =
       IsolateFellowship::GetInstance()->platform.get();
 
+  THREAD_CHECKER(thread_checker_);
+
   std::vector<Traceable*> frontier_;
+  // Traceables from frontier_ are also considered global objects,
+  // globals_ are the ones that hold no member references.
   std::unordered_set<Traceable*> visited_;
   std::unordered_multimap<Wrappable*, ScopedPersistent<v8::Value>*>
       reference_map_;
@@ -85,6 +93,7 @@ class V8cHeapTracer final : public v8::EmbedderHeapTracer,
   // TODO: A "counted" multiset approach here would be a bit nicer than
   // std::multiset.
   std::unordered_multiset<Traceable*> roots_;
+  std::unordered_multiset<v8::TracedGlobal<v8::Value>*> globals_;
 
   bool disabled_ = false;
 };
