@@ -14,6 +14,13 @@
 # limitations under the License.
 """Initialization for the starboard package."""
 
+# Archive-related files were moved on trunk in b/142075599. Changes were not
+# ported. This redirect allows new buildbot code to find the old location of
+# port_symlink.py. Related code will be cleaned up in that same bug.
+import sys
+from build import port_symlink
+sys.modules['tools.port_symlink'] = port_symlink
+
 # Provide a holder for the config package to insert an adapter for platforms
 # that refer to the deprecated config.starboard.PlatformConfigStarboard.
 PlatformConfigStarboard = None  # pylint: disable=invalid-name
