@@ -25,8 +25,9 @@ namespace {
 const int kDelayOneMinute = 60;
 const int kDelayOneHour = kDelayOneMinute * 60;
 
+const std::string kSabiString =
+    R"({"target_arch":"arm","target_arch_sub":"v7a","word_size":32,"endianness":"little","calling_convention":"eabi","floating_point_abi":"hard","floating_point_fpu":"vfpv3","signedness_of_char":"signed","alignment_char":1,"alignment_double":8,"alignment_float":4,"alignment_int":4,"alignment_llong":8,"alignment_long":4,"alignment_pointer":4,"alignment_short":2,"alignment_stack":4,"size_of_char":1,"size_of_double":8,"size_of_float":4,"size_of_int":4,"size_of_llong":8,"size_of_long":4,"size_of_pointer":4,"size_of_short":2})";
 const std::string kUpdaterChannel = "dev";
-
 }  // namespace
 
 namespace cobalt {
@@ -73,7 +74,8 @@ std::string Configurator::GetOSLongName() const {
 base::flat_map<std::string, std::string> Configurator::ExtraRequestParams()
     const {
   base::flat_map<std::string, std::string> params;
-  params.insert(std::make_pair("SABI", SB_SABI_JSON_ID));
+  // TODO: hook up the SABI string and updater channel.
+  params.insert(std::make_pair("SABI", kSabiString));
   params.insert(std::make_pair("sbversion", std::to_string(SB_API_VERSION)));
   params.insert(std::make_pair(
       "jsengine", script::GetJavaScriptEngineNameAndVersion()));

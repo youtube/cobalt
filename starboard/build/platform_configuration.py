@@ -208,6 +208,7 @@ class PlatformConfiguration(object):
     use_asan = 0
     use_tsan = 0
     use_source_code_coverage = 0
+    sabi_json_path = self.GetPathToSabiJsonFile()
 
     if use_clang:
       # Enable source coverage instrumentation if USE_SOURCE_CODE_COVERAGE
@@ -238,6 +239,9 @@ class PlatformConfiguration(object):
     if use_tsan:
       logging.info('Using Thread Sanitizer')
 
+    if not sabi_json_path:
+      sabi_json_path = 'starboard/sabi/default/sabi.json'
+
     variables = {
         'clang': use_clang,
 
@@ -263,7 +267,7 @@ class PlatformConfiguration(object):
         # requires JIT, or 1 on a platform that does not support JIT, is a
         # usage error.
         'cobalt_enable_jit': 1,
-        'sabi_json_path': self.GetPathToSabiJsonFile(),
+        'sabi_json_path': sabi_json_path,
 
         # TODO: Remove these compatibility variables.
         'cobalt_config': config_name,
@@ -349,7 +353,7 @@ class PlatformConfiguration(object):
       A string path to the appropriate Starboard ABI JSON file. This file is
       required for a variety of definitions and variables pertaining to the ABI.
     """
-    return 'starboard/sabi/default/sabi.json'
+    return None
 
   def GetTestTargets(self):
     """Gets all tests to be run in a unit test run.
