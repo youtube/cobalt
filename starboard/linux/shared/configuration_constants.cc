@@ -58,6 +58,10 @@ const bool kSbHasAudiolessVideo = true;
 // non-zero on platforms with webm/vp9 support.
 const bool kSbHasMediaWebmVp9Support = false;
 
+// On default Linux desktop, you must be a superuser in order to set real time
+// scheduling on threads.
+const bool kSbHasThreadPrioritySupport = false;
+
 // Determines the alignment that allocations should have on this platform.
 const size_t kSbMallocAlignment = 16;
 

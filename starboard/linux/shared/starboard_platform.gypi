@@ -361,6 +361,7 @@
       '<(DEPTH)/starboard/shared/stub/system_hide_splash_screen.cc',
       '<(DEPTH)/starboard/shared/stub/system_raise_platform_error.cc',
       '<(DEPTH)/starboard/shared/stub/system_sign_with_certification_secret_key.cc',
+      '<(DEPTH)/starboard/shared/stub/thread_create_priority.cc',
       '<(DEPTH)/starboard/shared/stub/ui_nav_get_interface.cc',
       '<(DEPTH)/starboard/shared/stub/window_blur_on_screen_keyboard.cc',
       '<(DEPTH)/starboard/shared/stub/window_focus_on_screen_keyboard.cc',
