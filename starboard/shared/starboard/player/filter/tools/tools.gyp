@@ -18,6 +18,8 @@
       'target_name': 'audio_dmp_player',
       'type': '<(final_executable_type)',
       'sources': [
+        '<(DEPTH)/starboard/shared/starboard/player/file_cache_reader.cc',
+        '<(DEPTH)/starboard/shared/starboard/player/file_cache_reader.cc',
         '<(DEPTH)/starboard/shared/starboard/player/video_dmp_common.cc',
         '<(DEPTH)/starboard/shared/starboard/player/video_dmp_common.h',
         '<(DEPTH)/starboard/shared/starboard/player/video_dmp_reader.cc',
