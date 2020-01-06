@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2019 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,24 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_PTHREAD_THREAD_CREATE_PRIORITY_H_
-#define STARBOARD_SHARED_PTHREAD_THREAD_CREATE_PRIORITY_H_
-
-#include "starboard/configuration_constants.h"
-#include "starboard/thread.h"
+#include "starboard/shared/pthread/thread_create_priority.h"
 
 namespace starboard {
 namespace shared {
 namespace pthread {
 
-// Set priority of the current thread.
-//
-// Implement this in a platform-specific thread_create_priority.cc if the
-// platform SB_HAS(THREAD_PRIORITY_SUPPORT)
-void ThreadSetPriority(SbThreadPriority priority);
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+
+// Default implementation without thread priority support
+void ThreadSetPriority(SbThreadPriority /* priority */) {}
+
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 }  // namespace pthread
 }  // namespace shared
 }  // namespace starboard
-
-#endif  // STARBOARD_SHARED_PTHREAD_THREAD_CREATE_PRIORITY_H_

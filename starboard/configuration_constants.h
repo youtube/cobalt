@@ -65,6 +65,9 @@ extern const bool kSbHasAudiolessVideo;
 // non-zero on platforms with webm/vp9 support.
 extern const bool kSbHasMediaWebmVp9Support;
 
+// Whether the current platform supports thread priorities.
+extern const bool kSbHasThreadPrioritySupport;
+
 // Determines the alignment that allocations should have on this platform.
 extern const size_t kSbMallocAlignment;
 

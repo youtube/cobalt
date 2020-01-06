@@ -673,6 +673,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
+#if defined(SB_HAS_THREAD_PRIORITY_SUPPORT)
+#error \
+    "SB_HAS_THREAD_PRIORITY_SUPPORT should not be defined in Starboard " \
+"versions 12 and later. Instead, define kSbHasThreadPrioritySupport in " \
+"starboard/<PLATFORM_PATH>/configuration_constants.cc."
+#endif
+
 #if defined(SB_MALLOC_ALIGNMENT)
 #error \
     "SB_MALLOC_ALIGNMENT should not be defined in Starboard " \
@@ -798,6 +805,10 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #define SB_HAS_AUDIOLESS_VIDEO 1
 #endif
 
+#if !defined(SB_HAS_THREAD_PRIORITY_SUPPORT)
+#error "Your platform must define SB_HAS_THREAD_PRIORITY_SUPPORT."
+#endif
+
 #if !defined(SB_MAX_THREADS)
 #error "Your platform must define SB_MAX_THREADS."
 #endif
@@ -842,10 +853,6 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #if defined(SB_IS_PLAYER_COMPOSITED) || defined(SB_IS_PLAYER_PUNCHED_OUT) || \
     defined(SB_IS_PLAYER_PRODUCING_TEXTURE)
 #error "New versions of Starboard specify player output mode at runtime."
-#endif
-
-#if !defined(SB_HAS_THREAD_PRIORITY_SUPPORT)
-#error "Your platform must define SB_HAS_THREAD_PRIORITY_SUPPORT."
 #endif
 
 #if !defined(SB_PREFERRED_RGBA_BYTE_ORDER)

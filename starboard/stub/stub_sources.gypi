@@ -272,6 +272,7 @@
         '<(DEPTH)/starboard/shared/stub/system_symbolize.cc',
         '<(DEPTH)/starboard/shared/stub/thread_context_get_pointer.cc',
         '<(DEPTH)/starboard/shared/stub/thread_create.cc',
+        '<(DEPTH)/starboard/shared/stub/thread_create_priority.cc',
         '<(DEPTH)/starboard/shared/stub/thread_create_local_key.cc',
         '<(DEPTH)/starboard/shared/stub/thread_destroy_local_key.cc',
         '<(DEPTH)/starboard/shared/stub/thread_detach.cc',

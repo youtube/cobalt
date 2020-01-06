@@ -222,9 +222,6 @@
 
 // --- Thread Configuration --------------------------------------------------
 
-// Whether the current platform supports thread priorities.
-#define SB_HAS_THREAD_PRIORITY_SUPPORT 1
-
 // --- Tuneable Parameters ---------------------------------------------------
 
 // --- User Configuration ----------------------------------------------------

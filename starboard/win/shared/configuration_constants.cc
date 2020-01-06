@@ -59,6 +59,9 @@ const bool kSbHasAudiolessVideo = false;
 // non-zero on platforms with webm/vp9 support.
 const bool kSbHasMediaWebmVp9Support = true;
 
+// Whether the current platform supports thread priorities.
+const bool kSbHasThreadPrioritySupport = true;
+
 // Determines the alignment that allocations should have on this platform.
 const size_t kSbMallocAlignment = 16;
 
