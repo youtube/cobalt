@@ -28,8 +28,7 @@ namespace starboard {
 namespace shared {
 namespace pthread {
 
-#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION && \
-    !SB_HAS(THREAD_PRIORITY_SUPPORT)
+#if !SB_HAS(THREAD_PRIORITY_SUPPORT)
 // Default implementation without thread priority support
 void ThreadSetPriority(SbThreadPriority /* priority */) {
 }

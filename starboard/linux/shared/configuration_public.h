@@ -345,11 +345,9 @@
 
 // --- Thread Configuration --------------------------------------------------
 
-#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // On default Linux desktop, you must be a superuser in order to set real time
 // scheduling on threads.
 #define SB_HAS_THREAD_PRIORITY_SUPPORT 0
-#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 #if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Defines the maximum number of simultaneous threads for this platform. Some

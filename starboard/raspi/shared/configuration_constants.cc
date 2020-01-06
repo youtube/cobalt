@@ -56,12 +56,6 @@ const bool kSbHasAudiolessVideo = false;
 // non-zero on platforms with webm/vp9 support.
 const bool kSbHasMediaWebmVp9Support = false;
 
-// On the current version of Raspbian, real time thread scheduling seems to be
-// broken in that higher priority threads do not always have priority over lower
-// priority threads.  It looks like the thread created last will always have the
-// highest priority.
-const bool kSbHasThreadPrioritySupport = true;
-
 // Determines the alignment that allocations should have on this platform.
 const size_t kSbMallocAlignment = 16;
 

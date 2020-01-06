@@ -47,8 +47,6 @@
 
 #define kSbHasMediaWebmVp9Support SB_HAS_MEDIA_WEBM_VP9_SUPPORT
 
-#define kSbHasThreadPrioritySupport SB_HAS_THREAD_PRIORITY_SUPPORT
-
 #define kSbMallocAlignment SB_MALLOC_ALIGNMENT
 
 #define kSbMaxThreadLocalKeys SB_MAX_THREAD_LOCAL_KEYS
