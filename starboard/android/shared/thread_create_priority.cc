@@ -23,8 +23,7 @@ namespace starboard {
 namespace shared {
 namespace pthread {
 
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
-    SB_HAS(THREAD_PRIORITY_SUPPORT)
+#if SB_HAS(THREAD_PRIORITY_SUPPORT)
 
 void SetNiceValue(int nice) {
   int result = setpriority(PRIO_PROCESS, 0, nice);
@@ -34,9 +33,6 @@ void SetNiceValue(int nice) {
 }
 
 void ThreadSetPriority(SbThreadPriority priority) {
-  if (!kSbHasThreadPrioritySupport)
-    return;
-
   // Nice value settings are selected from looking at:
   //   https://android.googlesource.com/platform/frameworks/native/+/jb-dev/include/utils/ThreadDefs.h#35
   switch (priority) {
@@ -65,8 +61,8 @@ void ThreadSetPriority(SbThreadPriority priority) {
   }
 }
 
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
-        // SB_HAS(THREAD_PRIORITY_SUPPORT)
+#endif  // SB_HAS(THREAD_PRIORITY_SUPPORT)
+
 }  // namespace pthread
 }  // namespace shared
 }  // namespace starboard
