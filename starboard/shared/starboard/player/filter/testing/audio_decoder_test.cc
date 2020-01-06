@@ -696,7 +696,7 @@ std::vector<const char*> GetSupportedTests() {
                               "beneath_the_canopy_opus_stereo.dmp",
                               "heaac.dmp",
                               "sintel_329_ec3.dmp",
-                              "sintel_389_ac3.dmp"};
+                              "sintel_381_ac3.dmp"};
 
   static std::vector<const char*> test_params;
 
