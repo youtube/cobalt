@@ -54,18 +54,7 @@ class CobaltX64Configuration(cobalt_configuration.CobaltConfiguration):
   def GetWebPlatformTestFilters(self):
     filters = super(CobaltX64Configuration, self).GetWebPlatformTestFilters()
     filters.extend([
-        # These tests are timing-sensitive, and are thus flaky on slower builds
-        test_filter.TestFilter(
-            'web_platform_tests',
-            'xhr/WebPlatformTest.Run/XMLHttpRequest_send_timeout_events_htm',
-            'debug'),
-        test_filter.TestFilter(
-            'web_platform_tests',
-            'streams/WebPlatformTest.Run/streams_readable_streams_templated_html',
-            'debug'),
-        test_filter.TestFilter(
-            'web_platform_tests',
-            'cors/WebPlatformTest.Run/cors_preflight_failure_htm', 'devel'),
+        test_filter.TestFilter('web_platform_tests', test_filter.FILTER_ALL),
     ])
     return filters
 
