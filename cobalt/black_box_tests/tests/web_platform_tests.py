@@ -48,6 +48,8 @@ class WebPlatformTests(black_box_tests.BlackBoxTestCase):
         if isinstance(filter, test_filter.TestFilter):
           if filter.config and filter.config != self.launcher_params.config:
             continue
+          if filter.test_name and filter.test_name == test_filter.FILTER_ALL:
+            return
           used_filters.append(filter.test_name)
         else:
           used_filters.append(filter)
