@@ -327,6 +327,10 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbMemoryFlush);
 #endif  // SB_CAN(MAP_EXECUTABLE_MEMORY)
 
+#if SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
+  REGISTER_SYMBOL(SbPlayerGetPreferredOutputMode);
+#endif
+
 #if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
   REGISTER_SYMBOL(SbMemoryMap);
   REGISTER_SYMBOL(SbMemoryUnmap);
