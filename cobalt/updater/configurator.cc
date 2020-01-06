@@ -55,7 +55,7 @@ std::vector<GURL> Configurator::UpdateUrl() const {
 
 std::vector<GURL> Configurator::PingUrl() const { return UpdateUrl(); }
 
-std::string Configurator::GetProdId() const { return "updater"; }
+std::string Configurator::GetProdId() const { return "cobalt"; }
 
 base::Version Configurator::GetBrowserVersion() const {
   return base::Version("1.0.0.0");  // version_info::GetVersion();
