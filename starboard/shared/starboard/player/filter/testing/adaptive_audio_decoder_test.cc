@@ -387,7 +387,7 @@ vector<vector<const char*>> GetSupportedTests() {
                               "beneath_the_canopy_opus_stereo.dmp",
                               "beneath_the_canopy_opus_mono.dmp",
                               "sintel_329_ec3.dmp",
-                              "sintel_389_ac3.dmp"};
+                              "sintel_381_ac3.dmp"};
 
   static vector<vector<const char*>> test_params;
 
