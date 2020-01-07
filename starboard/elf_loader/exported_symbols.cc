@@ -283,42 +283,6 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbGetGlesInterface);
 #endif  // SB_API_VERSION >= 11
 
-#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
-  REGISTER_SYMBOL(SbBlitterBlitRectToRect);
-  REGISTER_SYMBOL(SbBlitterBlitRectToRectTiled);
-  REGISTER_SYMBOL(SbBlitterBlitRectsToRects);
-  REGISTER_SYMBOL(SbBlitterCreateContext);
-  REGISTER_SYMBOL(SbBlitterCreateDefaultDevice);
-  REGISTER_SYMBOL(SbBlitterCreatePixelData);
-  REGISTER_SYMBOL(SbBlitterCreateRenderTargetSurface);
-  REGISTER_SYMBOL(SbBlitterCreateSurfaceFromPixelData);
-  REGISTER_SYMBOL(SbBlitterCreateSwapChainFromWindow);
-  REGISTER_SYMBOL(SbBlitterDestroyContext);
-  REGISTER_SYMBOL(SbBlitterDestroyDevice);
-  REGISTER_SYMBOL(SbBlitterDestroyPixelData);
-  REGISTER_SYMBOL(SbBlitterDestroySurface);
-  REGISTER_SYMBOL(SbBlitterDestroySwapChain);
-  REGISTER_SYMBOL(SbBlitterDownloadSurfacePixels);
-  REGISTER_SYMBOL(SbBlitterFillRect);
-  REGISTER_SYMBOL(SbBlitterFlipSwapChain);
-  REGISTER_SYMBOL(SbBlitterFlushContext);
-  REGISTER_SYMBOL(SbBlitterGetMaxContexts);
-  REGISTER_SYMBOL(SbBlitterGetPixelDataPitchInBytes);
-  REGISTER_SYMBOL(SbBlitterGetPixelDataPointer);
-  REGISTER_SYMBOL(SbBlitterGetRenderTargetFromSurface);
-  REGISTER_SYMBOL(SbBlitterGetRenderTargetFromSwapChain);
-  REGISTER_SYMBOL(SbBlitterGetSurfaceInfo);
-  REGISTER_SYMBOL(SbBlitterIsBlitterSupported);
-  REGISTER_SYMBOL(SbBlitterIsPixelFormatSupportedByDownloadSurfacePixels);
-  REGISTER_SYMBOL(SbBlitterIsPixelFormatSupportedByPixelData);
-  REGISTER_SYMBOL(SbBlitterIsSurfaceFormatSupportedByRenderTargetSurface);
-  REGISTER_SYMBOL(SbBlitterSetBlending);
-  REGISTER_SYMBOL(SbBlitterSetColor);
-  REGISTER_SYMBOL(SbBlitterSetModulateBlitsWithColor);
-  REGISTER_SYMBOL(SbBlitterSetRenderTarget);
-  REGISTER_SYMBOL(SbBlitterSetScissor);
-#endif
-
 #if SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION
   REGISTER_SYMBOL(SbFileAtomicReplace);
 #endif  // SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION

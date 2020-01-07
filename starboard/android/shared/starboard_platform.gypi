@@ -18,7 +18,6 @@
   },
   'includes': [
     '<(DEPTH)/starboard/shared/starboard/player/filter/player_filter.gypi',
-    '<(DEPTH)/starboard/stub/blitter_stub_sources.gypi',
   ],
   'targets': [
     {
@@ -50,7 +49,6 @@
         '<(DEPTH)/starboard/android/shared/bionic',
       ],
       'sources': [
-        '<@(blitter_stub_sources)',
         '<@(filter_based_player_sources)',
         'accessibility_get_caption_settings.cc',
         'accessibility_get_display_settings.cc',

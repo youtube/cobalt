@@ -12,12 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 {
-  'includes': [
-    'blitter_stub_sources.gypi',
-  ],
   'variables': {
     'stub_sources': [
-        '<@(blitter_stub_sources)',
         '<(DEPTH)/starboard/shared/starboard/application.cc',
         '<(DEPTH)/starboard/shared/starboard/command_line.cc',
         '<(DEPTH)/starboard/shared/starboard/command_line.h',

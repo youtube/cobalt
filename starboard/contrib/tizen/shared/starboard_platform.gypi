@@ -14,7 +14,6 @@
 {
   'includes': [
     '<(DEPTH)/starboard/shared/starboard/player/filter/player_filter.gypi',
-    '<(DEPTH)/starboard/stub/blitter_stub_sources.gypi',
   ],
   'variables': {
     'variables': {
@@ -25,7 +24,6 @@
     'has_cdm%': '<(has_cdm)',
     'starboard_platform_sources': [
       '<@(filter_based_player_sources)',
-      '<@(blitter_stub_sources)',
       '<(DEPTH)/starboard/contrib/tizen/shared/atomic_public.h',
       '<(DEPTH)/starboard/contrib/tizen/shared/configuration_public.h',
       '<(DEPTH)/starboard/contrib/tizen/shared/get_home_directory.cc',

@@ -26,7 +26,6 @@
       # Since we pretend gl_type is none, exclude this dependency and below,
       # explicitly include the one we need.
       '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
-      '<(DEPTH)/starboard/stub/blitter_stub_sources.gypi:blitter_stub_sources',
     ],
 
     'cobalt_platform_dependencies': [

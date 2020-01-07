@@ -15,7 +15,6 @@
   'includes': [
     '<(DEPTH)/starboard/build/convert_i18n_data.gypi',
     '<(DEPTH)/starboard/shared/starboard/player/filter/player_filter.gypi',
-    '<(DEPTH)/starboard/stub/blitter_stub_sources.gypi',
   ],
   'variables': {
     'sb_pedantic_warnings': 1,
@@ -102,7 +101,6 @@
       '<(DEPTH)/starboard/shared/win32/win32_audio_decoder.h',
     ],
     'win32_shared_media_player_files': [
-      '<@(blitter_stub_sources)',
       '<@(filter_based_player_sources)',
       '<(DEPTH)/starboard/shared/starboard/media/codec_util.cc',
       '<(DEPTH)/starboard/shared/starboard/media/codec_util.h',

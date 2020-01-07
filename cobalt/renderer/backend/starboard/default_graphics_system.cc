@@ -34,9 +34,6 @@ std::unique_ptr<GraphicsSystem> CreateDefaultGraphicsSystem(
   if (SbGetGlesInterface()) {
     return std::unique_ptr<GraphicsSystem>(
         new GraphicsSystemEGL(system_window));
-  } else if (SbBlitterIsBlitterSupported()) {
-    SB_UNREFERENCED_PARAMETER(system_window);
-    return std::unique_ptr<GraphicsSystem>(new GraphicsSystemBlitter());
   } else {
     SB_UNREFERENCED_PARAMETER(system_window);
     return std::unique_ptr<GraphicsSystem>(new GraphicsSystemStub());
@@ -44,7 +41,7 @@ std::unique_ptr<GraphicsSystem> CreateDefaultGraphicsSystem(
 #else  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
 #if SB_HAS(GLES2)
   return std::unique_ptr<GraphicsSystem>(new GraphicsSystemEGL(system_window));
-#elif SB_HAS(BLITTER)
+#elif SB_API_VERSION < SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)
   SB_UNREFERENCED_PARAMETER(system_window);
   return std::unique_ptr<GraphicsSystem>(new GraphicsSystemBlitter());
 #else
