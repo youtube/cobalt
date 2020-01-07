@@ -58,9 +58,8 @@ class DebugClient {
     // Event handlers called by the debug dispatcher from its thread. The
     // implementation is responsible for posting the event to its own message
     // loop if necessary.
-    virtual void OnDebugClientEvent(
-        const std::string& method,
-        const base::Optional<std::string>& json_params) = 0;
+    virtual void OnDebugClientEvent(const std::string& method,
+                                    const std::string& json_params) = 0;
 
     virtual void OnDebugClientDetach(const std::string& reason) = 0;
 
@@ -93,8 +92,7 @@ class DebugClient {
   void OnDetach(const std::string& reason);
 
   // Called by the dispatcher when a debugging event occurs.
-  void OnEvent(const std::string& method,
-               const base::Optional<std::string>& json_params);
+  void OnEvent(const std::string& method, const std::string& json_params);
 
   // No ownership. Access must be protected by |dispatcher_lock_|.
   backend::DebugDispatcher* dispatcher_;

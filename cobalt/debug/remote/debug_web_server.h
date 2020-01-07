@@ -59,9 +59,8 @@ class DebugWebServer : public net::HttpServer::Delegate,
   void OnDebuggerResponse(int id, const base::Optional<std::string>& response);
 
   // DebugClient::Delegate implementation.
-  void OnDebugClientEvent(
-      const std::string& method,
-      const base::Optional<std::string>& json_params) override;
+  void OnDebugClientEvent(const std::string& method,
+                          const std::string& json_params) override;
 
   void OnDebugClientDetach(const std::string& reason) override;
 

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/debug/backend/debug_backend.h"
+
 #include "base/memory/ptr_util.h"
 
 namespace cobalt {
@@ -29,7 +30,7 @@ DebugBackend::DebugBackend(script::GlobalEnvironment* global_environment,
 }
 
 void DebugBackend::SendEvent(const std::string& method,
-                             const base::Optional<std::string>& params) {
+                             const std::string& params) {
   on_event_callback_.Run(method, params);
 }
 

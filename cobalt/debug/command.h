@@ -90,7 +90,7 @@ class Command {
   }
 
   void SendResponse(const JSONObject& response) {
-    SendResponse(response ? JSONStringify(response) : "{}");
+    SendResponse(JSONStringify(response));
   }
 
   void SendResponse() { SendResponse(JSONObject()); }

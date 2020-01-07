@@ -114,9 +114,8 @@ class DebugHub : public script::Wrappable, public DebugClient::Delegate {
       const base::Optional<std::string>& response) const;
 
   // DebugClient::Delegate implementation.
-  void OnDebugClientEvent(
-      const std::string& method,
-      const base::Optional<std::string>& json_params) override;
+  void OnDebugClientEvent(const std::string& method,
+                          const std::string& json_params) override;
   void OnDebugClientDetach(const std::string& reason) override;
 
  private:

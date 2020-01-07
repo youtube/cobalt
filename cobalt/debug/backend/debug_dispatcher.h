@@ -136,11 +136,11 @@ class DebugDispatcher {
   void RemoveDomain(const std::string& domain);
 
   // Sends a protocol event to the frontend.
-  void SendEvent(const std::string& method, const JSONObject& params);
+  void SendEvent(const std::string& method,
+                 const JSONObject& params = JSONObject());
 
   // Sends a protocol event to the frontend.
-  void SendEvent(const std::string& method,
-                 const base::Optional<std::string>& params);
+  void SendEvent(const std::string& method, const std::string& params);
 
   // Calls |method| in |script_runner_| and creates a response object from
   // the result.
