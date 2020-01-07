@@ -21,7 +21,7 @@
         'includes_starboard': 1,
       },
       'conditions': [
-        ['OS=="starboard" or (OS=="lb_shell" and target_arch == "ps3")', {
+        ['OS=="starboard"', {
           'sources': [
             'allocator.h',
             'analytics/memory_tracker.cc',
@@ -36,6 +36,7 @@
             'bidirectional_fit_reuse_allocator.cc',
             'concurrent_map.h',
             'concurrent_ptr.h',
+            'cpp14oncpp11.h',
             'first_fit_reuse_allocator.h',
             'first_fit_reuse_allocator.cc',
             'fixed_no_free_allocator.cc',

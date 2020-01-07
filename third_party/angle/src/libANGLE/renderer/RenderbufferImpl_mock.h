@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -12,6 +12,7 @@
 #include "gmock/gmock.h"
 
 #include "libANGLE/Image.h"
+#include "libANGLE/Renderbuffer.h"
 #include "libANGLE/renderer/RenderbufferImpl.h"
 
 namespace rx
@@ -20,17 +21,26 @@ namespace rx
 class MockRenderbufferImpl : public RenderbufferImpl
 {
   public:
+    MockRenderbufferImpl() : RenderbufferImpl(mMockState) {}
     virtual ~MockRenderbufferImpl() { destructor(); }
-    MOCK_METHOD3(setStorage, gl::Error(GLenum, size_t, size_t));
-    MOCK_METHOD4(setStorageMultisample, gl::Error(size_t, GLenum, size_t, size_t));
-    MOCK_METHOD1(setStorageEGLImageTarget, gl::Error(egl::Image *));
+    MOCK_METHOD4(setStorage, angle::Result(const gl::Context *, GLenum, size_t, size_t));
+    MOCK_METHOD5(setStorageMultisample,
+                 angle::Result(const gl::Context *, size_t, GLenum, size_t, size_t));
+    MOCK_METHOD2(setStorageEGLImageTarget, angle::Result(const gl::Context *, egl::Image *));
 
-    MOCK_METHOD3(getAttachmentRenderTarget,
-                 gl::Error(GLenum, const gl::ImageIndex &, FramebufferAttachmentRenderTarget **));
+    MOCK_METHOD5(getAttachmentRenderTarget,
+                 angle::Result(const gl::Context *,
+                               GLenum,
+                               const gl::ImageIndex &,
+                               GLsizei,
+                               FramebufferAttachmentRenderTarget **));
 
     MOCK_METHOD0(destructor, void());
+
+  protected:
+    gl::RenderbufferState mMockState;
 };
 
-}
+}  // namespace rx
 
-#endif // LIBANGLE_RENDERER_RENDERBUFFERIMPLMOCK_H_
+#endif  // LIBANGLE_RENDERER_RENDERBUFFERIMPLMOCK_H_

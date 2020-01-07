@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -13,11 +13,84 @@
 #include <algorithm>
 #include <tuple>
 
+namespace
+{
+const char *GLSeverityToString(GLenum severity)
+{
+    switch (severity)
+    {
+        case GL_DEBUG_SEVERITY_HIGH:
+            return "HIGH";
+        case GL_DEBUG_SEVERITY_MEDIUM:
+            return "MEDIUM";
+        case GL_DEBUG_SEVERITY_LOW:
+            return "LOW";
+        case GL_DEBUG_SEVERITY_NOTIFICATION:
+        default:
+            return "NOTIFICATION";
+    }
+}
+
+const char *EGLMessageTypeToString(egl::MessageType messageType)
+{
+    switch (messageType)
+    {
+        case egl::MessageType::Critical:
+            return "CRITICAL";
+        case egl::MessageType::Error:
+            return "ERROR";
+        case egl::MessageType::Warn:
+            return "WARNING";
+        case egl::MessageType::Info:
+        default:
+            return "INFO";
+    }
+}
+
+const char *GLMessageTypeToString(GLenum type)
+{
+    switch (type)
+    {
+        case GL_DEBUG_TYPE_ERROR:
+            return "error";
+        case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
+            return "deprecated behavior";
+        case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
+            return "undefined behavior";
+        case GL_DEBUG_TYPE_PORTABILITY:
+            return "portability";
+        case GL_DEBUG_TYPE_PERFORMANCE:
+            return "performance";
+        case GL_DEBUG_TYPE_MARKER:
+            return "marker";
+        case GL_DEBUG_TYPE_PUSH_GROUP:
+            return "start of group";
+        case GL_DEBUG_TYPE_POP_GROUP:
+            return "end of group";
+        case GL_DEBUG_TYPE_OTHER:
+        default:
+            return "other message";
+    }
+}
+}  // namespace
+
 namespace gl
 {
 
-Debug::Debug()
-    : mOutputEnabled(false),
+Debug::Control::Control() {}
+
+Debug::Control::~Control() {}
+
+Debug::Control::Control(const Control &other) = default;
+
+Debug::Group::Group() {}
+
+Debug::Group::~Group() {}
+
+Debug::Group::Group(const Group &other) = default;
+
+Debug::Debug(bool initialDebugState)
+    : mOutputEnabled(initialDebugState),
       mCallbackFunction(nullptr),
       mCallbackUserParam(nullptr),
       mMessages(),
@@ -27,6 +100,8 @@ Debug::Debug()
 {
     pushDefaultGroup();
 }
+
+Debug::~Debug() {}
 
 void Debug::setMaxLoggedMessages(GLuint maxLoggedMessages)
 {
@@ -73,18 +148,46 @@ void Debug::insertMessage(GLenum source,
                           GLenum type,
                           GLuint id,
                           GLenum severity,
-                          const std::string &message)
+                          const std::string &message,
+                          gl::LogSeverity logSeverity) const
 {
     std::string messageCopy(message);
-    insertMessage(source, type, id, severity, std::move(messageCopy));
+    insertMessage(source, type, id, severity, std::move(messageCopy), logSeverity);
 }
 
 void Debug::insertMessage(GLenum source,
                           GLenum type,
                           GLuint id,
                           GLenum severity,
-                          std::string &&message)
+                          std::string &&message,
+                          gl::LogSeverity logSeverity) const
 {
+    {
+        // output all messages to the debug log
+        const char *messageTypeString = GLMessageTypeToString(type);
+        const char *severityString    = GLSeverityToString(severity);
+        std::ostringstream messageStream;
+        messageStream << "GL " << messageTypeString << ": " << severityString << ": " << message;
+        switch (logSeverity)
+        {
+            case gl::LOG_FATAL:
+                FATAL() << messageStream.str();
+                break;
+            case gl::LOG_ERR:
+                ERR() << messageStream.str();
+                break;
+            case gl::LOG_WARN:
+                WARN() << messageStream.str();
+                break;
+            case gl::LOG_INFO:
+                INFO() << messageStream.str();
+                break;
+            case gl::LOG_EVENT:
+                ANGLE_LOG(EVENT) << messageStream.str();
+                break;
+        }
+    }
+
     if (!isMessageEnabled(source, type, id, severity))
     {
         return;
@@ -209,7 +312,7 @@ void Debug::setMessageControl(GLenum source,
 void Debug::pushGroup(GLenum source, GLuint id, std::string &&message)
 {
     insertMessage(source, GL_DEBUG_TYPE_PUSH_GROUP, id, GL_DEBUG_SEVERITY_NOTIFICATION,
-                  std::string(message));
+                  std::string(message), gl::LOG_INFO);
 
     Group g;
     g.source  = source;
@@ -227,7 +330,7 @@ void Debug::popGroup()
     mGroups.pop_back();
 
     insertMessage(g.source, GL_DEBUG_TYPE_POP_GROUP, g.id, GL_DEBUG_SEVERITY_NOTIFICATION,
-                  g.message);
+                  g.message, gl::LOG_INFO);
 }
 
 size_t Debug::getGroupStackDepth() const
@@ -288,16 +391,83 @@ void Debug::pushDefaultGroup()
     c0.source   = GL_DONT_CARE;
     c0.type     = GL_DONT_CARE;
     c0.severity = GL_DONT_CARE;
-    c0.enabled = true;
+    c0.enabled  = true;
     g.controls.push_back(std::move(c0));
 
     Control c1;
     c1.source   = GL_DONT_CARE;
     c1.type     = GL_DONT_CARE;
     c1.severity = GL_DEBUG_SEVERITY_LOW;
-    c1.enabled = false;
+    c1.enabled  = false;
     g.controls.push_back(std::move(c1));
 
     mGroups.push_back(std::move(g));
 }
 }  // namespace gl
+
+namespace egl
+{
+
+namespace
+{
+angle::PackedEnumBitSet<MessageType> GetDefaultMessageTypeBits()
+{
+    angle::PackedEnumBitSet<MessageType> result;
+    result.set(MessageType::Critical);
+    result.set(MessageType::Error);
+    return result;
+}
+}  // anonymous namespace
+
+Debug::Debug() : mCallback(nullptr), mEnabledMessageTypes(GetDefaultMessageTypeBits()) {}
+
+void Debug::setCallback(EGLDEBUGPROCKHR callback, const AttributeMap &attribs)
+{
+    mCallback = callback;
+
+    const angle::PackedEnumBitSet<MessageType> defaultMessageTypes = GetDefaultMessageTypeBits();
+    if (mCallback != nullptr)
+    {
+        for (MessageType messageType : angle::AllEnums<MessageType>())
+        {
+            mEnabledMessageTypes[messageType] =
+                (attribs.getAsInt(egl::ToEGLenum(messageType), defaultMessageTypes[messageType]) ==
+                 EGL_TRUE);
+        }
+    }
+}
+
+EGLDEBUGPROCKHR Debug::getCallback() const
+{
+    return mCallback;
+}
+
+bool Debug::isMessageTypeEnabled(MessageType type) const
+{
+    return mEnabledMessageTypes[type];
+}
+
+void Debug::insertMessage(EGLenum error,
+                          const char *command,
+                          MessageType messageType,
+                          EGLLabelKHR threadLabel,
+                          EGLLabelKHR objectLabel,
+                          const std::string &message) const
+{
+    {
+        // output all messages to the debug log
+        const char *messageTypeString = EGLMessageTypeToString(messageType);
+        std::ostringstream messageStream;
+        messageStream << "EGL " << messageTypeString << ": " << command << ": " << message;
+        INFO() << messageStream.str();
+    }
+
+    // TODO(geofflang): Lock before checking the callback. http://anglebug.com/2464
+    if (mCallback && isMessageTypeEnabled(messageType))
+    {
+        mCallback(error, command, egl::ToEGLenum(messageType), threadLabel, objectLabel,
+                  message.c_str());
+    }
+}
+
+}  // namespace egl

@@ -6,8 +6,8 @@
 
 // IndexBufferOffsetTest.cpp: Test glDrawElements with an offset and an index buffer
 
-#include "system_utils.h"
 #include "test_utils/ANGLETest.h"
+#include "util/test_utils.h"
 
 using namespace angle;
 
@@ -24,21 +24,27 @@ class IndexBufferOffsetTest : public ANGLETest
         setConfigAlphaBits(8);
     }
 
-    void SetUp() override
+    void testSetUp() override
     {
-        ANGLETest::SetUp();
+        constexpr char kVS[] =
+            R"(precision highp float;
+            attribute vec2 position;
 
-        const std::string vertexShaderSource =
-            SHADER_SOURCE(precision highp float; attribute vec2 position;
+            void main()
+            {
+                gl_Position = vec4(position, 0.0, 1.0);
+            })";
 
-                          void main() { gl_Position = vec4(position, 0.0, 1.0); });
+        constexpr char kFS[] =
+            R"(precision highp float;
+            uniform vec4 color;
 
-        const std::string fragmentShaderSource =
-            SHADER_SOURCE(precision highp float; uniform vec4 color;
+            void main()
+            {
+                gl_FragColor = color;
+            })";
 
-                          void main() { gl_FragColor = color; });
-
-        mProgram = CompileProgram(vertexShaderSource, fragmentShaderSource);
+        mProgram = CompileProgram(kVS, kFS);
         ASSERT_NE(0u, mProgram);
 
         mColorUniformLocation      = glGetUniformLocation(mProgram, "color");
@@ -53,12 +59,11 @@ class IndexBufferOffsetTest : public ANGLETest
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer);
     }
 
-    void TearDown() override
+    void testTearDown() override
     {
         glDeleteBuffers(1, &mVertexBuffer);
         glDeleteBuffers(1, &mIndexBuffer);
         glDeleteProgram(mProgram);
-        ANGLETest::TearDown();
     }
 
     void runTest(GLenum type, int typeWidth, void *indexData)
@@ -86,7 +91,7 @@ class IndexBufferOffsetTest : public ANGLETest
         for (int i = 0; i < 16; i++)
         {
             glDrawElements(GL_TRIANGLES, 6, type, reinterpret_cast<void *>(indexDataWidth));
-            EXPECT_PIXEL_EQ(64, 64, 255, 0, 0, 255);
+            EXPECT_PIXEL_COLOR_EQ(64, 64, GLColor::red);
         }
 
         glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, indexDataWidth, indexDataWidth, nullIndexData);
@@ -94,7 +99,7 @@ class IndexBufferOffsetTest : public ANGLETest
 
         glUniform4f(mColorUniformLocation, 0.0f, 1.0f, 0.0f, 1.0f);
         glDrawElements(GL_TRIANGLES, 6, type, reinterpret_cast<void *>(indexDataWidth * 2));
-        EXPECT_PIXEL_EQ(64, 64, 0, 255, 0, 255);
+        EXPECT_PIXEL_COLOR_EQ(64, 64, GLColor::green);
 
         EXPECT_GL_NO_ERROR();
         swapBuffers();
@@ -117,6 +122,11 @@ TEST_P(IndexBufferOffsetTest, UInt8Index)
 // Test using an offset for an UInt16 index buffer
 TEST_P(IndexBufferOffsetTest, UInt16Index)
 {
+    // TODO(jie.a.chen@intel.com): Re-enable the test once the driver fix is
+    // available in public release.
+    // http://anglebug.com/2663
+    ANGLE_SKIP_TEST_IF(IsIntel() && IsVulkan());
+
     GLushort indexData[] = {0, 1, 2, 1, 2, 3};
     runTest(GL_UNSIGNED_SHORT, 2, indexData);
 }
@@ -124,15 +134,75 @@ TEST_P(IndexBufferOffsetTest, UInt16Index)
 // Test using an offset for an UInt32 index buffer
 TEST_P(IndexBufferOffsetTest, UInt32Index)
 {
-    if (getClientMajorVersion() < 3 && !extensionEnabled("GL_OES_element_index_uint"))
-    {
-        std::cout << "Test skipped because ES3 or GL_OES_element_index_uint is not available."
-                  << std::endl;
-        return;
-    }
+    ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 &&
+                       !IsGLExtensionEnabled("GL_OES_element_index_uint"));
 
     GLuint indexData[] = {0, 1, 2, 1, 2, 3};
     runTest(GL_UNSIGNED_INT, 4, indexData);
+}
+
+// Uses index buffer offset and 2 drawElement calls one of the other, makes sure the second
+// drawElement call will use the correct offset.
+TEST_P(IndexBufferOffsetTest, DrawAtDifferentOffsets)
+{
+    GLushort indexData[] = {0, 1, 2, 1, 2, 3};
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    size_t indexDataWidth = 6 * sizeof(GLushort);
+
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexDataWidth, indexData, GL_DYNAMIC_DRAW);
+    glUseProgram(mProgram);
+
+    glBindBuffer(GL_ARRAY_BUFFER, mVertexBuffer);
+    glVertexAttribPointer(mPositionAttributeLocation, 2, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(mPositionAttributeLocation);
+
+    glUniform4f(mColorUniformLocation, 1.0f, 0.0f, 0.0f, 1.0f);
+
+    glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_SHORT, 0);
+    glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_SHORT,
+                   reinterpret_cast<void *>(indexDataWidth / 2));
+
+    // Check the upper left triangle
+    EXPECT_PIXEL_COLOR_EQ(0, getWindowHeight() / 4, GLColor::red);
+
+    // Check the down right triangle
+    EXPECT_PIXEL_COLOR_EQ(getWindowWidth() - 1, getWindowHeight() - 1, GLColor::red);
+
+    EXPECT_GL_NO_ERROR();
+}
+
+// Uses index buffer offset and 2 drawElement calls one of the other with different counts,
+// makes sure the second drawElement call will have its data available.
+TEST_P(IndexBufferOffsetTest, DrawWithDifferentCountsSameOffset)
+{
+    GLubyte indexData[] = {99, 0, 1, 2, 1, 2, 3};
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    size_t indexDataWidth = 7 * sizeof(GLubyte);
+
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexDataWidth, indexData, GL_DYNAMIC_DRAW);
+    glUseProgram(mProgram);
+
+    glBindBuffer(GL_ARRAY_BUFFER, mVertexBuffer);
+    glVertexAttribPointer(mPositionAttributeLocation, 2, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(mPositionAttributeLocation);
+
+    glUniform4f(mColorUniformLocation, 1.0f, 0.0f, 0.0f, 1.0f);
+
+    // The first draw draws the first triangle, and the second draws a quad.
+    glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE, reinterpret_cast<void *>(1));
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, reinterpret_cast<void *>(1));
+
+    // Check the upper left triangle
+    EXPECT_PIXEL_COLOR_EQ(0, getWindowHeight() / 4, GLColor::red);
+
+    // Check the down right triangle
+    EXPECT_PIXEL_COLOR_EQ(getWindowWidth() - 1, getWindowHeight() - 1, GLColor::red);
+
+    EXPECT_GL_NO_ERROR();
 }
 
 ANGLE_INSTANTIATE_TEST(IndexBufferOffsetTest,
@@ -142,4 +212,5 @@ ANGLE_INSTANTIATE_TEST(IndexBufferOffsetTest,
                        ES2_OPENGL(),
                        ES3_OPENGL(),
                        ES2_OPENGLES(),
-                       ES3_OPENGLES());
+                       ES3_OPENGLES(),
+                       ES2_VULKAN());

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 The ANGLE Project Authors. All rights reserved.
+// Copyright 2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -20,13 +20,10 @@ class WindowSurfaceEGL : public SurfaceEGL
     WindowSurfaceEGL(const egl::SurfaceState &state,
                      const FunctionsEGL *egl,
                      EGLConfig config,
-                     EGLNativeWindowType window,
-                     const std::vector<EGLint> &attribList,
-                     EGLContext context,
-                     RendererGL *renderer);
+                     EGLNativeWindowType window);
     ~WindowSurfaceEGL() override;
 
-    egl::Error initialize(const DisplayImpl *displayImpl) override;
+    egl::Error initialize(const egl::Display *display) override;
 
   private:
     EGLNativeWindowType mWindow;
