@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2011 The ANGLE Project Authors. All rights reserved.
+// Copyright 2011 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -11,12 +11,15 @@
 
 #include "common/debug.h"
 
+namespace angle
+{
+
 namespace pp
 {
 
-Input::Input() : mCount(0), mString(0)
-{
-}
+Input::Input() : mCount(0), mString(0) {}
+
+Input::~Input() {}
 
 Input::Input(size_t count, const char *const string[], const int length[])
     : mCount(count), mString(string)
@@ -61,6 +64,11 @@ size_t Input::read(char *buf, size_t maxSize, int *lineNo)
             {
                 // Line continuation of backslash + newline.
                 skipChar();
+                // Fake an EOF if the line number would overflow.
+                if (*lineNo == INT_MAX)
+                {
+                    return 0;
+                }
                 ++(*lineNo);
             }
             else if (c != nullptr && (*c) == '\r')
@@ -70,6 +78,11 @@ size_t Input::read(char *buf, size_t maxSize, int *lineNo)
                 if (c != nullptr && (*c) == '\n')
                 {
                     skipChar();
+                }
+                // Fake an EOF if the line number would overflow.
+                if (*lineNo == INT_MAX)
+                {
+                    return 0;
                 }
                 ++(*lineNo);
             }
@@ -113,3 +126,5 @@ size_t Input::read(char *buf, size_t maxSize, int *lineNo)
 }
 
 }  // namespace pp
+
+}  // namespace angle

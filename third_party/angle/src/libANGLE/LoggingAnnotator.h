@@ -17,12 +17,12 @@ namespace angle
 class LoggingAnnotator : public gl::DebugAnnotator
 {
   public:
-    LoggingAnnotator(){};
-    ~LoggingAnnotator() override{};
-    void beginEvent(const wchar_t *eventName) override {}
-    void endEvent() override {}
-    void setMarker(const wchar_t *markerName) override {}
-    bool getStatus() override { return false; }
+    LoggingAnnotator() {}
+    ~LoggingAnnotator() override {}
+    void beginEvent(const char *eventName, const char *eventMessage) override;
+    void endEvent(const char *eventName) override;
+    void setMarker(const char *markerName) override;
+    bool getStatus() override;
     void logMessage(const gl::LogMessage &msg) const override;
 };
 

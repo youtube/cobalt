@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 The ANGLE Project Authors. All rights reserved.
+// Copyright 2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -8,26 +8,13 @@
 #ifndef COMPILER_TRANSLATOR_VALIDATEMAXPARAMETERS_H_
 #define COMPILER_TRANSLATOR_VALIDATEMAXPARAMETERS_H_
 
-#include "compiler/translator/IntermNode.h"
-
 namespace sh
 {
 
-class ValidateMaxParameters : public TIntermTraverser
-{
-  public:
-    // Returns false if maxParameters is exceeded.
-    static bool validate(TIntermNode *root, unsigned int maxParameters);
+class TIntermBlock;
 
-  protected:
-    bool visitFunctionDefinition(Visit visit, TIntermFunctionDefinition *node) override;
-
-  private:
-    ValidateMaxParameters(unsigned int maxParameters);
-
-    unsigned int mMaxParameters;
-    bool mValid;
-};
+// Return true if valid.
+bool ValidateMaxParameters(TIntermBlock *root, unsigned int maxParameters);
 
 }  // namespace sh
 

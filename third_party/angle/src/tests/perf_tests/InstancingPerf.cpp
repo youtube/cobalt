@@ -7,13 +7,14 @@
 //   Performance tests for ANGLE instanced draw calls.
 //
 
+#include "ANGLEPerfTest.h"
+
 #include <cmath>
 #include <sstream>
 
-#include "ANGLEPerfTest.h"
-#include "Matrix.h"
-#include "random_utils.h"
-#include "shader_utils.h"
+#include "util/Matrix.h"
+#include "util/random_utils.h"
+#include "util/shader_utils.h"
 
 using namespace angle;
 using namespace egl_platform;
@@ -49,17 +50,17 @@ struct InstancingPerfParams final : public RenderTestParams
         minorVersion      = 0;
         windowWidth       = 256;
         windowHeight      = 256;
-        iterations        = 1;
+        iterationsPerStep = 1;
         runTimeSeconds    = 10.0;
         animationEnabled  = false;
         instancingEnabled = true;
     }
 
-    std::string suffix() const override
+    std::string story() const override
     {
         std::stringstream strstr;
 
-        strstr << RenderTestParams::suffix();
+        strstr << RenderTestParams::story();
 
         if (!instancingEnabled)
         {
@@ -69,7 +70,6 @@ struct InstancingPerfParams final : public RenderTestParams
         return strstr.str();
     }
 
-    unsigned int iterations;
     double runTimeSeconds;
     bool animationEnabled;
     bool instancingEnabled;
@@ -77,7 +77,7 @@ struct InstancingPerfParams final : public RenderTestParams
 
 std::ostream &operator<<(std::ostream &os, const InstancingPerfParams &params)
 {
-    os << params.suffix().substr(1);
+    os << params.backendAndStory().substr(1);
     return os;
 }
 
@@ -103,17 +103,13 @@ class InstancingPerfBenchmark : public ANGLERenderTest,
 
 InstancingPerfBenchmark::InstancingPerfBenchmark()
     : ANGLERenderTest("InstancingPerf", GetParam()), mProgram(0), mNumPoints(75000)
-{
-    mRunTimeSeconds = GetParam().runTimeSeconds;
-}
+{}
 
 void InstancingPerfBenchmark::initializeBenchmark()
 {
     const auto &params = GetParam();
 
-    ASSERT_LT(0u, params.iterations);
-
-    const std::string vs =
+    const char kVS[] =
         "attribute vec2 aPosition;\n"
         "attribute vec3 aTranslate;\n"
         "attribute float aScale;\n"
@@ -129,7 +125,7 @@ void InstancingPerfBenchmark::initializeBenchmark()
         "    vColor = aColor;\n"
         "}\n";
 
-    const std::string fs =
+    constexpr char kFS[] =
         "precision mediump float;\n"
         "varying vec3 vColor;\n"
         "void main()\n"
@@ -137,7 +133,7 @@ void InstancingPerfBenchmark::initializeBenchmark()
         "    gl_FragColor = vec4(vColor, 1.0);\n"
         "}\n";
 
-    mProgram = CompileProgram(vs, fs);
+    mProgram = CompileProgram(kVS, kFS);
     ASSERT_NE(0u, mProgram);
 
     glUseProgram(mProgram);
@@ -280,10 +276,7 @@ void InstancingPerfBenchmark::drawBenchmark()
     // Animatino makes the test more interesting visually, but also eats up many CPU cycles.
     if (params.animationEnabled)
     {
-        // Not implemented for billboards.
-        ASSERT(params.instancingEnabled);
-
-        float time = static_cast<float>(mTimer->getElapsedTime());
+        float time = static_cast<float>(mTimer.getElapsedTime());
 
         for (size_t pointIndex = 0; pointIndex < mTranslateData.size(); ++pointIndex)
         {
@@ -314,14 +307,14 @@ void InstancingPerfBenchmark::drawBenchmark()
     // Render the instances/billboards.
     if (params.instancingEnabled)
     {
-        for (unsigned int it = 0; it < params.iterations; it++)
+        for (unsigned int it = 0; it < params.iterationsPerStep; it++)
         {
             glDrawElementsInstancedANGLE(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr, mNumPoints);
         }
     }
     else
     {
-        for (unsigned int it = 0; it < params.iterations; it++)
+        for (unsigned int it = 0; it < params.iterationsPerStep; it++)
         {
             glDrawElements(GL_TRIANGLES, 6 * mNumPoints, GL_UNSIGNED_INT, nullptr);
         }
@@ -344,10 +337,10 @@ InstancingPerfParams InstancingPerfD3D9Params()
     return params;
 }
 
-InstancingPerfParams InstancingPerfOpenGLParams()
+InstancingPerfParams InstancingPerfOpenGLOrGLESParams()
 {
     InstancingPerfParams params;
-    params.eglParameters = OPENGL();
+    params.eglParameters = OPENGL_OR_GLES();
     return params;
 }
 
@@ -359,6 +352,6 @@ TEST_P(InstancingPerfBenchmark, Run)
 ANGLE_INSTANTIATE_TEST(InstancingPerfBenchmark,
                        InstancingPerfD3D11Params(),
                        InstancingPerfD3D9Params(),
-                       InstancingPerfOpenGLParams());
+                       InstancingPerfOpenGLOrGLESParams());
 
 }  // anonymous namespace

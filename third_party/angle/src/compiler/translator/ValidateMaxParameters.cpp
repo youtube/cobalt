@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 The ANGLE Project Authors. All rights reserved.
+// Copyright 2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -7,34 +7,24 @@
 
 #include "compiler/translator/ValidateMaxParameters.h"
 
+#include "compiler/translator/IntermNode.h"
+#include "compiler/translator/Symbol.h"
+
 namespace sh
 {
 
-ValidateMaxParameters::ValidateMaxParameters(unsigned int maxParameters)
-    : TIntermTraverser(true, false, false), mMaxParameters(maxParameters), mValid(true)
+bool ValidateMaxParameters(TIntermBlock *root, unsigned int maxParameters)
 {
-}
-
-bool ValidateMaxParameters::visitFunctionDefinition(Visit visit, TIntermFunctionDefinition *node)
-{
-    if (!mValid)
+    for (TIntermNode *node : *root->getSequence())
     {
-        return false;
+        TIntermFunctionDefinition *definition = node->getAsFunctionDefinition();
+        if (definition != nullptr &&
+            definition->getFunctionPrototype()->getFunction()->getParamCount() > maxParameters)
+        {
+            return false;
+        }
     }
-
-    if (node->getFunctionPrototype()->getSequence()->size() > mMaxParameters)
-    {
-        mValid = false;
-    }
-
-    return mValid;
-}
-
-bool ValidateMaxParameters::validate(TIntermNode *root, unsigned int maxParameters)
-{
-    ValidateMaxParameters argsTraverser(maxParameters);
-    root->traverse(&argsTraverser);
-    return argsTraverser.mValid;
+    return true;
 }
 
 }  // namespace sh

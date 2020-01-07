@@ -14,18 +14,19 @@
 namespace rx
 {
 
-DeviceNULL::DeviceNULL() : DeviceImpl()
+DeviceNULL::DeviceNULL() : DeviceImpl() {}
+
+DeviceNULL::~DeviceNULL() {}
+
+egl::Error DeviceNULL::initialize()
 {
+    return egl::NoError();
 }
 
-DeviceNULL::~DeviceNULL()
-{
-}
-
-egl::Error DeviceNULL::getDevice(void **outValue)
+egl::Error DeviceNULL::getAttribute(const egl::Display *display, EGLint attribute, void **outValue)
 {
     UNIMPLEMENTED();
-    return egl::Error(EGL_BAD_ACCESS);
+    return egl::EglBadAccess();
 }
 
 EGLint DeviceNULL::getType()
@@ -33,13 +34,6 @@ EGLint DeviceNULL::getType()
     return 0;
 }
 
-void DeviceNULL::generateExtensions(egl::DeviceExtensions *outExtensions) const
-{
-}
-
-bool DeviceNULL::deviceExternallySourced()
-{
-    return false;
-}
+void DeviceNULL::generateExtensions(egl::DeviceExtensions *outExtensions) const {}
 
 }  // namespace rx

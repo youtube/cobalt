@@ -9,9 +9,9 @@
 
 #include "string_utils.h"
 
-#include <algorithm>
 #include <stdlib.h>
 #include <string.h>
+#include <algorithm>
 #include <fstream>
 #include <sstream>
 
@@ -57,15 +57,14 @@ std::vector<std::string> SplitString(const std::string &input,
 
         if (resultType == SPLIT_WANT_ALL || !piece.empty())
         {
-            result.push_back(piece);
+            result.push_back(std::move(piece));
         }
     }
 
     return result;
 }
 
-void SplitStringAlongWhitespace(const std::string &input,
-                                std::vector<std::string> *tokensOut)
+void SplitStringAlongWhitespace(const std::string &input, std::vector<std::string> *tokensOut)
 {
 
     std::istringstream stream(input);
@@ -100,6 +99,26 @@ std::string TrimString(const std::string &input, const std::string &trimChars)
     }
 
     return input.substr(begin, end - begin + 1);
+}
+
+std::string GetPrefix(const std::string &input, size_t offset, const char *delimiter)
+{
+    size_t match = input.find(delimiter, offset);
+    if (match == std::string::npos)
+    {
+        return input.substr(offset);
+    }
+    return input.substr(offset, match - offset);
+}
+
+std::string GetPrefix(const std::string &input, size_t offset, char delimiter)
+{
+    size_t match = input.find(delimiter, offset);
+    if (match == std::string::npos)
+    {
+        return input.substr(offset);
+    }
+    return input.substr(offset, match - offset);
 }
 
 bool HexStringToUInt(const std::string &input, unsigned int *uintOut)
@@ -138,24 +157,9 @@ bool ReadFileToString(const std::string &path, std::string *stringOut)
     return !inFile.fail();
 }
 
-Optional<std::vector<wchar_t>> WidenString(size_t length, const char *cString)
+bool BeginsWith(const std::string &str, const std::string &prefix)
 {
-    std::vector<wchar_t> wcstring(length + 1);
-#if !defined(ANGLE_PLATFORM_WINDOWS)
-    size_t written = mbstowcs(wcstring.data(), cString, length + 1);
-    if (written == 0)
-    {
-        return Optional<std::vector<wchar_t>>::Invalid();
-    }
-#else
-    size_t convertedChars = 0;
-    errno_t err = mbstowcs_s(&convertedChars, wcstring.data(), length + 1, cString, _TRUNCATE);
-    if (err != 0)
-    {
-        return Optional<std::vector<wchar_t>>::Invalid();
-    }
-#endif
-    return Optional<std::vector<wchar_t>>(wcstring);
+    return strncmp(str.c_str(), prefix.c_str(), prefix.length()) == 0;
 }
 
 bool BeginsWith(const std::string &str, const char *prefix)
@@ -168,6 +172,11 @@ bool BeginsWith(const char *str, const char *prefix)
     return strncmp(str, prefix, strlen(prefix)) == 0;
 }
 
+bool BeginsWith(const std::string &str, const std::string &prefix, const size_t prefixLength)
+{
+    return strncmp(str.c_str(), prefix.c_str(), prefixLength) == 0;
+}
+
 bool EndsWith(const std::string &str, const char *suffix)
 {
     const auto len = strlen(suffix);
@@ -177,6 +186,27 @@ bool EndsWith(const std::string &str, const char *suffix)
     const char *end = str.c_str() + str.size() - len;
 
     return memcmp(end, suffix, len) == 0;
+}
+
+void ToLower(std::string *str)
+{
+    for (auto &ch : *str)
+    {
+        ch = static_cast<char>(::tolower(ch));
+    }
+}
+
+bool ReplaceSubstring(std::string *str,
+                      const std::string &substring,
+                      const std::string &replacement)
+{
+    size_t replacePos = str->find(substring);
+    if (replacePos == std::string::npos)
+    {
+        return false;
+    }
+    str->replace(replacePos, substring.size(), replacement);
+    return true;
 }
 
 }  // namespace angle

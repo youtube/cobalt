@@ -7,6 +7,8 @@
 // Buffer9.cpp Defines the Buffer9 class.
 
 #include "libANGLE/renderer/d3d/d3d9/Buffer9.h"
+
+#include "libANGLE/Context.h"
 #include "libANGLE/renderer/d3d/d3d9/Renderer9.h"
 
 namespace rx
@@ -14,26 +16,32 @@ namespace rx
 
 Buffer9::Buffer9(const gl::BufferState &state, Renderer9 *renderer)
     : BufferD3D(state, renderer), mSize(0)
-{
-}
+{}
 
 Buffer9::~Buffer9()
 {
     mSize = 0;
 }
 
-gl::Error Buffer9::setData(ContextImpl * /*context*/,
-                           GLenum /*target*/,
-                           const void *data,
-                           size_t size,
-                           GLenum usage)
+size_t Buffer9::getSize() const
+{
+    return mSize;
+}
+
+bool Buffer9::supportsDirectBinding() const
+{
+    return false;
+}
+
+angle::Result Buffer9::setData(const gl::Context *context,
+                               gl::BufferBinding target,
+                               const void *data,
+                               size_t size,
+                               gl::BufferUsage usage)
 {
     if (size > mMemory.size())
     {
-        if (!mMemory.resize(size))
-        {
-            return gl::Error(GL_OUT_OF_MEMORY, "Failed to resize internal buffer.");
-        }
+        ANGLE_CHECK_GL_ALLOC(GetImplAs<Context9>(context), mMemory.resize(size));
     }
 
     mSize = size;
@@ -42,31 +50,35 @@ gl::Error Buffer9::setData(ContextImpl * /*context*/,
         memcpy(mMemory.data(), data, size);
     }
 
-    updateD3DBufferUsage(usage);
+    updateD3DBufferUsage(context, usage);
 
-    invalidateStaticData();
+    invalidateStaticData(context);
 
-    return gl::NoError();
+    return angle::Result::Continue;
 }
 
-gl::Error Buffer9::getData(const uint8_t **outData)
+angle::Result Buffer9::getData(const gl::Context *context, const uint8_t **outData)
 {
-    *outData = mMemory.data();
-    return gl::NoError();
+    if (mMemory.empty())
+    {
+        *outData = nullptr;
+    }
+    else
+    {
+        *outData = mMemory.data();
+    }
+    return angle::Result::Continue;
 }
 
-gl::Error Buffer9::setSubData(ContextImpl * /*context*/,
-                              GLenum /*target*/,
-                              const void *data,
-                              size_t size,
-                              size_t offset)
+angle::Result Buffer9::setSubData(const gl::Context *context,
+                                  gl::BufferBinding target,
+                                  const void *data,
+                                  size_t size,
+                                  size_t offset)
 {
     if (offset + size > mMemory.size())
     {
-        if (!mMemory.resize(offset + size))
-        {
-            return gl::Error(GL_OUT_OF_MEMORY, "Failed to resize internal buffer.");
-        }
+        ANGLE_CHECK_GL_ALLOC(GetImplAs<Context9>(context), mMemory.resize(size + offset));
     }
 
     mSize = std::max(mSize, offset + size);
@@ -75,16 +87,16 @@ gl::Error Buffer9::setSubData(ContextImpl * /*context*/,
         memcpy(mMemory.data() + offset, data, size);
     }
 
-    invalidateStaticData();
+    invalidateStaticData(context);
 
-    return gl::NoError();
+    return angle::Result::Continue;
 }
 
-gl::Error Buffer9::copySubData(ContextImpl *context,
-                               BufferImpl *source,
-                               GLintptr sourceOffset,
-                               GLintptr destOffset,
-                               GLsizeiptr size)
+angle::Result Buffer9::copySubData(const gl::Context *context,
+                                   BufferImpl *source,
+                                   GLintptr sourceOffset,
+                                   GLintptr destOffset,
+                                   GLsizeiptr size)
 {
     // Note: this method is currently unreachable
     Buffer9 *sourceBuffer = GetAs<Buffer9>(source);
@@ -92,38 +104,38 @@ gl::Error Buffer9::copySubData(ContextImpl *context,
 
     memcpy(mMemory.data() + destOffset, sourceBuffer->mMemory.data() + sourceOffset, size);
 
-    invalidateStaticData();
+    invalidateStaticData(context);
 
-    return gl::NoError();
+    return angle::Result::Continue;
 }
 
 // We do not support buffer mapping in D3D9
-gl::Error Buffer9::map(ContextImpl *context, GLenum access, void **mapPtr)
+angle::Result Buffer9::map(const gl::Context *context, GLenum access, void **mapPtr)
 {
-    UNREACHABLE();
-    return gl::Error(GL_INVALID_OPERATION);
+    ANGLE_HR_UNREACHABLE(GetImplAs<Context9>(context));
+    return angle::Result::Stop;
 }
 
-gl::Error Buffer9::mapRange(ContextImpl *context,
-                            size_t offset,
-                            size_t length,
-                            GLbitfield access,
-                            void **mapPtr)
+angle::Result Buffer9::mapRange(const gl::Context *context,
+                                size_t offset,
+                                size_t length,
+                                GLbitfield access,
+                                void **mapPtr)
 {
-    UNREACHABLE();
-    return gl::Error(GL_INVALID_OPERATION);
+    ANGLE_HR_UNREACHABLE(GetImplAs<Context9>(context));
+    return angle::Result::Stop;
 }
 
-gl::Error Buffer9::unmap(ContextImpl *context, GLboolean *result)
+angle::Result Buffer9::unmap(const gl::Context *context, GLboolean *result)
 {
-    UNREACHABLE();
-    return gl::Error(GL_INVALID_OPERATION);
+    ANGLE_HR_UNREACHABLE(GetImplAs<Context9>(context));
+    return angle::Result::Stop;
 }
 
-gl::Error Buffer9::markTransformFeedbackUsage()
+angle::Result Buffer9::markTransformFeedbackUsage(const gl::Context *context)
 {
-    UNREACHABLE();
-    return gl::Error(GL_INVALID_OPERATION);
+    ANGLE_HR_UNREACHABLE(GetImplAs<Context9>(context));
+    return angle::Result::Stop;
 }
 
 }  // namespace rx

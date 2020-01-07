@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -16,8 +16,8 @@
 #include "SampleApplication.h"
 
 #include "common/vector_utils.h"
-#include "shader_utils.h"
 #include "texture_utils.h"
+#include "util/shader_utils.h"
 
 #include <cstring>
 #include <iostream>
@@ -28,61 +28,58 @@ using namespace angle;
 class SimpleInstancingSample : public SampleApplication
 {
   public:
-    SimpleInstancingSample()
-        : SampleApplication("SimpleInstancing", 1280, 720)
-    {
-    }
+    SimpleInstancingSample(int argc, char **argv)
+        : SampleApplication("SimpleInstancing", argc, argv)
+    {}
 
-    virtual bool initialize()
+    bool initialize() override
     {
         // init instancing functions
-        char *extensionString = (char*)glGetString(GL_EXTENSIONS);
+        char *extensionString = (char *)glGetString(GL_EXTENSIONS);
         if (strstr(extensionString, "GL_ANGLE_instanced_arrays"))
         {
-            mVertexAttribDivisorANGLE = (PFNGLVERTEXATTRIBDIVISORANGLEPROC)eglGetProcAddress("glVertexAttribDivisorANGLE");
-            mDrawArraysInstancedANGLE = (PFNGLDRAWARRAYSINSTANCEDANGLEPROC)eglGetProcAddress("glDrawArraysInstancedANGLE");
-            mDrawElementsInstancedANGLE = (PFNGLDRAWELEMENTSINSTANCEDANGLEPROC)eglGetProcAddress("glDrawElementsInstancedANGLE");
+            mVertexAttribDivisorANGLE =
+                (PFNGLVERTEXATTRIBDIVISORANGLEPROC)eglGetProcAddress("glVertexAttribDivisorANGLE");
+            mDrawArraysInstancedANGLE =
+                (PFNGLDRAWARRAYSINSTANCEDANGLEPROC)eglGetProcAddress("glDrawArraysInstancedANGLE");
+            mDrawElementsInstancedANGLE = (PFNGLDRAWELEMENTSINSTANCEDANGLEPROC)eglGetProcAddress(
+                "glDrawElementsInstancedANGLE");
         }
 
-        if (!mVertexAttribDivisorANGLE || !mDrawArraysInstancedANGLE || !mDrawElementsInstancedANGLE)
+        if (!mVertexAttribDivisorANGLE || !mDrawArraysInstancedANGLE ||
+            !mDrawElementsInstancedANGLE)
         {
             std::cerr << "Unable to load GL_ANGLE_instanced_arrays entry points.";
             return false;
         }
 
-        const std::string vs = SHADER_SOURCE
-        (
-            attribute vec3 a_position;
-            attribute vec2 a_texCoord;
-            attribute vec3 a_instancePos;
-            varying vec2 v_texCoord;
-            void main()
-            {
-                gl_Position = vec4(a_position.xyz + a_instancePos.xyz, 1.0);
-                v_texCoord = a_texCoord;
-            }
-        );
+        constexpr char kVS[] = R"(attribute vec3 a_position;
+attribute vec2 a_texCoord;
+attribute vec3 a_instancePos;
+varying vec2 v_texCoord;
+void main()
+{
+    gl_Position = vec4(a_position.xyz + a_instancePos.xyz, 1.0);
+    v_texCoord = a_texCoord;
+})";
 
-        const std::string fs = SHADER_SOURCE
-        (
-            precision mediump float;
-            varying vec2 v_texCoord;
-            uniform sampler2D s_texture;
-            void main()
-            {
-                gl_FragColor = texture2D(s_texture, v_texCoord);
-            }
-        );
+        constexpr char kFS[] = R"(precision mediump float;
+varying vec2 v_texCoord;
+uniform sampler2D s_texture;
+void main()
+{
+    gl_FragColor = texture2D(s_texture, v_texCoord);
+})";
 
-        mProgram = CompileProgram(vs, fs);
+        mProgram = CompileProgram(kVS, kFS);
         if (!mProgram)
         {
             return false;
         }
 
         // Get the attribute locations
-        mPositionLoc = glGetAttribLocation(mProgram, "a_position");
-        mTexCoordLoc = glGetAttribLocation(mProgram, "a_texCoord");
+        mPositionLoc    = glGetAttribLocation(mProgram, "a_position");
+        mTexCoordLoc    = glGetAttribLocation(mProgram, "a_texCoord");
         mInstancePosLoc = glGetAttribLocation(mProgram, "a_instancePos");
 
         // Get the sampler location
@@ -94,10 +91,10 @@ class SimpleInstancingSample : public SampleApplication
         // Initialize the vertex and index vectors
         const GLfloat quadRadius = 0.01f;
 
-        mVertices.push_back(Vector3(-quadRadius,  quadRadius, 0.0f));
+        mVertices.push_back(Vector3(-quadRadius, quadRadius, 0.0f));
         mVertices.push_back(Vector3(-quadRadius, -quadRadius, 0.0f));
-        mVertices.push_back(Vector3( quadRadius, -quadRadius, 0.0f));
-        mVertices.push_back(Vector3( quadRadius,  quadRadius, 0.0f));
+        mVertices.push_back(Vector3(quadRadius, -quadRadius, 0.0f));
+        mVertices.push_back(Vector3(quadRadius, quadRadius, 0.0f));
 
         mTexcoords.push_back(Vector2(0.0f, 0.0f));
         mTexcoords.push_back(Vector2(0.0f, 1.0f));
@@ -125,13 +122,13 @@ class SimpleInstancingSample : public SampleApplication
         return true;
     }
 
-    virtual void destroy()
+    void destroy() override
     {
         glDeleteProgram(mProgram);
         glDeleteTextures(1, &mTextureID);
     }
 
-    virtual void draw()
+    void draw() override
     {
         // Set the viewport
         glViewport(0, 0, getWindow()->getWidth(), getWindow()->getHeight());
@@ -201,6 +198,6 @@ class SimpleInstancingSample : public SampleApplication
 
 int main(int argc, char **argv)
 {
-    SimpleInstancingSample app;
+    SimpleInstancingSample app(argc, argv);
     return app.run();
 }

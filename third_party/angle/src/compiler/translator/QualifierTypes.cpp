@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2002-2016 The ANGLE Project Authors. All rights reserved.
+// Copyright 2002 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -7,6 +7,8 @@
 #include "compiler/translator/QualifierTypes.h"
 
 #include "compiler/translator/Diagnostics.h"
+#include "compiler/translator/ImmutableStringBuilder.h"
+#include "nb/cpp14oncpp11.h"
 
 #include <algorithm>
 
@@ -15,6 +17,35 @@ namespace sh
 
 namespace
 {
+
+CONSTEXPR const ImmutableString kSpecifiedMultipleTimes(" specified multiple times");
+CONSTEXPR const ImmutableString kInvariantMultipleTimes(
+    "The invariant qualifier specified multiple times.");
+CONSTEXPR const ImmutableString kPrecisionMultipleTimes(
+    "The precision qualifier specified multiple times.");
+CONSTEXPR const ImmutableString kLayoutMultipleTimes(
+    "The layout qualifier specified multiple times.");
+CONSTEXPR const ImmutableString kLayoutAndInvariantDisallowed(
+    "The layout qualifier and invariant qualifier cannot coexist in the same "
+    "declaration according to the grammar.");
+CONSTEXPR const ImmutableString kInterpolationMultipleTimes(
+    "The interpolation qualifier specified multiple times.");
+CONSTEXPR const ImmutableString kOutputLayoutMultipleTimes(
+    "Output layout location specified multiple times.");
+CONSTEXPR const ImmutableString kInvariantQualifierFirst(
+    "The invariant qualifier has to be first in the expression.");
+CONSTEXPR const ImmutableString kStorageAfterInterpolation(
+    "Storage qualifiers have to be after interpolation qualifiers.");
+CONSTEXPR const ImmutableString kPrecisionAfterInterpolation(
+    "Precision qualifiers have to be after interpolation qualifiers.");
+CONSTEXPR const ImmutableString kStorageAfterLayout(
+    "Storage qualifiers have to be after layout qualifiers.");
+CONSTEXPR const ImmutableString kPrecisionAfterLayout(
+    "Precision qualifiers have to be after layout qualifiers.");
+CONSTEXPR const ImmutableString kPrecisionAfterStorage(
+    "Precision qualifiers have to be after storage qualifiers.");
+CONSTEXPR const ImmutableString kPrecisionAfterMemory(
+    "Precision qualifiers have to be after memory qualifiers.");
 
 // GLSL ES 3.10 does not impose a strict order on type qualifiers and allows multiple layout
 // declarations.
@@ -47,11 +78,18 @@ bool IsInvariantCorrect(const TTypeQualifierBuilder::QualifierSequence &qualifie
     return qualifiers.size() >= 1 && IsScopeQualifierWrapper(qualifiers[0]);
 }
 
+ImmutableString QualifierSpecifiedMultipleTimesErrorMessage(const ImmutableString &qualifierString)
+{
+    ImmutableStringBuilder errorMsg(qualifierString.length() + kSpecifiedMultipleTimes.length());
+    errorMsg << qualifierString << kSpecifiedMultipleTimes;
+    return errorMsg;
+}
+
 // Returns true if there are qualifiers which have been specified multiple times
 // If areQualifierChecksRelaxed is set to true, then layout qualifier repetition is allowed.
 bool HasRepeatingQualifiers(const TTypeQualifierBuilder::QualifierSequence &qualifiers,
                             bool areQualifierChecksRelaxed,
-                            std::string *errorMessage)
+                            ImmutableString *errorMessage)
 {
     bool invariantFound     = false;
     bool precisionFound     = false;
@@ -71,7 +109,7 @@ bool HasRepeatingQualifiers(const TTypeQualifierBuilder::QualifierSequence &qual
             {
                 if (invariantFound)
                 {
-                    *errorMessage = "The invariant qualifier specified multiple times.";
+                    *errorMessage = kInvariantMultipleTimes;
                     return true;
                 }
                 invariantFound = true;
@@ -81,7 +119,7 @@ bool HasRepeatingQualifiers(const TTypeQualifierBuilder::QualifierSequence &qual
             {
                 if (precisionFound)
                 {
-                    *errorMessage = "The precision qualifier specified multiple times.";
+                    *errorMessage = kPrecisionMultipleTimes;
                     return true;
                 }
                 precisionFound = true;
@@ -91,7 +129,7 @@ bool HasRepeatingQualifiers(const TTypeQualifierBuilder::QualifierSequence &qual
             {
                 if (layoutFound && !areQualifierChecksRelaxed)
                 {
-                    *errorMessage = "The layout qualifier specified multiple times.";
+                    *errorMessage = kLayoutMultipleTimes;
                     return true;
                 }
                 if (invariantFound && !areQualifierChecksRelaxed)
@@ -99,9 +137,7 @@ bool HasRepeatingQualifiers(const TTypeQualifierBuilder::QualifierSequence &qual
                     // This combination is not correct according to the syntax specified in the
                     // formal grammar in the ESSL 3.00 spec. In ESSL 3.10 the grammar does not have
                     // a similar restriction.
-                    *errorMessage =
-                        "The layout qualifier and invariant qualifier cannot coexist in the same "
-                        "declaration according to the grammar.";
+                    *errorMessage = kLayoutAndInvariantDisallowed;
                     return true;
                 }
                 layoutFound = true;
@@ -117,7 +153,7 @@ bool HasRepeatingQualifiers(const TTypeQualifierBuilder::QualifierSequence &qual
                 // 'smooth centroid' will be squashed to 'centroid'
                 if (interpolationFound)
                 {
-                    *errorMessage = "The interpolation qualifier specified multiple times.";
+                    *errorMessage = kInterpolationMultipleTimes;
                     return true;
                 }
                 interpolationFound = true;
@@ -142,8 +178,8 @@ bool HasRepeatingQualifiers(const TTypeQualifierBuilder::QualifierSequence &qual
                         TQualifier previousQualifier = previousQualifierWrapper->getQualifier();
                         if (currentQualifier == previousQualifier)
                         {
-                            *errorMessage = previousQualifierWrapper->getQualifierString().c_str();
-                            *errorMessage += " specified multiple times";
+                            *errorMessage = QualifierSpecifiedMultipleTimesErrorMessage(
+                                previousQualifierWrapper->getQualifierString());
                             return true;
                         }
                     }
@@ -167,8 +203,8 @@ bool HasRepeatingQualifiers(const TTypeQualifierBuilder::QualifierSequence &qual
                         TQualifier previousQualifier = previousQualifierWrapper->getQualifier();
                         if (currentQualifier == previousQualifier)
                         {
-                            *errorMessage = previousQualifierWrapper->getQualifierString().c_str();
-                            *errorMessage += " specified multiple times";
+                            *errorMessage = QualifierSpecifiedMultipleTimesErrorMessage(
+                                previousQualifierWrapper->getQualifierString());
                             return true;
                         }
                     }
@@ -185,7 +221,7 @@ bool HasRepeatingQualifiers(const TTypeQualifierBuilder::QualifierSequence &qual
         // GLSL ES 3.00.6 section 4.3.8.2 Output Layout Qualifiers
         // GLSL ES 3.10 section 4.4.2 Output Layout Qualifiers
         // "The qualifier may appear at most once within a declaration."
-        *errorMessage = "Output layout location specified multiple times.";
+        *errorMessage = kOutputLayoutMultipleTimes;
         return true;
     }
 
@@ -197,7 +233,7 @@ bool HasRepeatingQualifiers(const TTypeQualifierBuilder::QualifierSequence &qual
 // invariant-qualifier interpolation-qualifier storage-qualifier precision-qualifier
 // layout-qualifier has to be before storage-qualifier.
 bool AreQualifiersInOrder(const TTypeQualifierBuilder::QualifierSequence &qualifiers,
-                          std::string *errorMessage)
+                          ImmutableString *errorMessage)
 {
     bool foundInterpolation = false;
     bool foundStorage       = false;
@@ -209,20 +245,19 @@ bool AreQualifiersInOrder(const TTypeQualifierBuilder::QualifierSequence &qualif
             case QtInvariant:
                 if (foundInterpolation || foundStorage || foundPrecision)
                 {
-                    *errorMessage = "The invariant qualifier has to be first in the expression.";
+                    *errorMessage = kInvariantQualifierFirst;
                     return false;
                 }
                 break;
             case QtInterpolation:
                 if (foundStorage)
                 {
-                    *errorMessage = "Storage qualifiers have to be after interpolation qualifiers.";
+                    *errorMessage = kStorageAfterInterpolation;
                     return false;
                 }
                 else if (foundPrecision)
                 {
-                    *errorMessage =
-                        "Precision qualifiers have to be after interpolation qualifiers.";
+                    *errorMessage = kPrecisionAfterInterpolation;
                     return false;
                 }
                 foundInterpolation = true;
@@ -230,19 +265,19 @@ bool AreQualifiersInOrder(const TTypeQualifierBuilder::QualifierSequence &qualif
             case QtLayout:
                 if (foundStorage)
                 {
-                    *errorMessage = "Storage qualifiers have to be after layout qualifiers.";
+                    *errorMessage = kStorageAfterLayout;
                     return false;
                 }
                 else if (foundPrecision)
                 {
-                    *errorMessage = "Precision qualifiers have to be after layout qualifiers.";
+                    *errorMessage = kPrecisionAfterLayout;
                     return false;
                 }
                 break;
             case QtStorage:
                 if (foundPrecision)
                 {
-                    *errorMessage = "Precision qualifiers have to be after storage qualifiers.";
+                    *errorMessage = kPrecisionAfterStorage;
                     return false;
                 }
                 foundStorage = true;
@@ -250,7 +285,7 @@ bool AreQualifiersInOrder(const TTypeQualifierBuilder::QualifierSequence &qualif
             case QtMemory:
                 if (foundPrecision)
                 {
-                    *errorMessage = "Precision qualifiers have to be after memory qualifiers.";
+                    *errorMessage = kPrecisionAfterMemory;
                     return false;
                 }
                 break;
@@ -308,9 +343,11 @@ bool JoinVariableStorageQualifier(TQualifier *joinedQualifier, TQualifier storag
                     *joinedQualifier = EvqCentroid;
                     break;
                 case EvqVertexOut:
+                case EvqGeometryOut:
                     *joinedQualifier = EvqSmoothOut;
                     break;
                 case EvqFragmentIn:
+                case EvqGeometryIn:
                     *joinedQualifier = EvqSmoothIn;
                     break;
                 default:
@@ -326,9 +363,11 @@ bool JoinVariableStorageQualifier(TQualifier *joinedQualifier, TQualifier storag
                     *joinedQualifier = EvqFlat;
                     break;
                 case EvqVertexOut:
+                case EvqGeometryOut:
                     *joinedQualifier = EvqFlatOut;
                     break;
                 case EvqFragmentIn:
+                case EvqGeometryIn:
                     *joinedQualifier = EvqFlatIn;
                     break;
                 default:
@@ -341,9 +380,11 @@ bool JoinVariableStorageQualifier(TQualifier *joinedQualifier, TQualifier storag
             switch (storageQualifier)
             {
                 case EvqVertexOut:
+                case EvqGeometryOut:
                     *joinedQualifier = EvqCentroidOut;
                     break;
                 case EvqFragmentIn:
+                case EvqGeometryIn:
                     *joinedQualifier = EvqCentroidIn;
                     break;
                 default:
@@ -474,9 +515,9 @@ TTypeQualifier GetVariableTypeQualifierFromSortedSequence(
         }
         if (!isQualifierValid)
         {
-            const TString &qualifierString = qualifier->getQualifierString();
+            const ImmutableString &qualifierString = qualifier->getQualifierString();
             diagnostics->error(qualifier->getLine(), "invalid qualifier combination",
-                               qualifierString.c_str());
+                               qualifierString.data());
             break;
         }
     }
@@ -519,9 +560,9 @@ TTypeQualifier GetParameterTypeQualifierFromSortedSequence(
         }
         if (!isQualifierValid)
         {
-            const TString &qualifierString = qualifier->getQualifierString();
+            const ImmutableString &qualifierString = qualifier->getQualifierString();
             diagnostics->error(qualifier->getLine(), "invalid parameter qualifier",
-                               qualifierString.c_str());
+                               qualifierString.data());
             break;
         }
     }
@@ -568,6 +609,10 @@ TLayoutQualifier JoinLayoutQualifiers(TLayoutQualifier leftQualifier,
     {
         joinedQualifier.binding = rightQualifier.binding;
     }
+    if (rightQualifier.offset != -1)
+    {
+        joinedQualifier.offset = rightQualifier.offset;
+    }
     if (rightQualifier.matrixPacking != EmpUnspecified)
     {
         joinedQualifier.matrixPacking = rightQualifier.matrixPacking;
@@ -600,6 +645,53 @@ TLayoutQualifier JoinLayoutQualifiers(TLayoutQualifier leftQualifier,
     if (rightQualifier.imageInternalFormat != EiifUnspecified)
     {
         joinedQualifier.imageInternalFormat = rightQualifier.imageInternalFormat;
+    }
+
+    if (rightQualifier.primitiveType != EptUndefined)
+    {
+        if (joinedQualifier.primitiveType != EptUndefined &&
+            joinedQualifier.primitiveType != rightQualifier.primitiveType)
+        {
+            diagnostics->error(rightQualifierLocation,
+                               "Cannot have multiple different primitive specifiers",
+                               getGeometryShaderPrimitiveTypeString(rightQualifier.primitiveType));
+        }
+        joinedQualifier.primitiveType = rightQualifier.primitiveType;
+    }
+
+    if (rightQualifier.invocations != 0)
+    {
+        if (joinedQualifier.invocations != 0 &&
+            joinedQualifier.invocations != rightQualifier.invocations)
+        {
+            diagnostics->error(rightQualifierLocation,
+                               "Cannot have multiple different invocations specifiers",
+                               "invocations");
+        }
+        joinedQualifier.invocations = rightQualifier.invocations;
+    }
+
+    if (rightQualifier.maxVertices != -1)
+    {
+        if (joinedQualifier.maxVertices != -1 &&
+            joinedQualifier.maxVertices != rightQualifier.maxVertices)
+        {
+            diagnostics->error(rightQualifierLocation,
+                               "Cannot have multiple different max_vertices specifiers",
+                               "max_vertices");
+        }
+        joinedQualifier.maxVertices = rightQualifier.maxVertices;
+    }
+
+    if (rightQualifier.index != -1)
+    {
+        if (joinedQualifier.index != -1)
+        {
+            // EXT_blend_func_extended spec: "Each of these qualifiers may appear at most once"
+            diagnostics->error(rightQualifierLocation, "Cannot have multiple index specifiers",
+                               "index");
+        }
+        joinedQualifier.index = rightQualifier.index;
     }
 
     return joinedQualifier;
@@ -645,8 +737,8 @@ unsigned int TPrecisionQualifierWrapper::getRank() const
 }
 
 TTypeQualifier::TTypeQualifier(TQualifier scope, const TSourceLoc &loc)
-    : layoutQualifier(TLayoutQualifier::create()),
-      memoryQualifier(TMemoryQualifier::create()),
+    : layoutQualifier(TLayoutQualifier::Create()),
+      memoryQualifier(TMemoryQualifier::Create()),
       precision(EbpUndefined),
       qualifier(scope),
       invariant(false),
@@ -671,16 +763,16 @@ void TTypeQualifierBuilder::appendQualifier(const TQualifierWrapperBase *qualifi
 bool TTypeQualifierBuilder::checkSequenceIsValid(TDiagnostics *diagnostics) const
 {
     bool areQualifierChecksRelaxed = AreTypeQualifierChecksRelaxed(mShaderVersion);
-    std::string errorMessage;
+    ImmutableString errorMessage("");
     if (HasRepeatingQualifiers(mQualifiers, areQualifierChecksRelaxed, &errorMessage))
     {
-        diagnostics->error(mQualifiers[0]->getLine(), errorMessage.c_str(), "qualifier sequence");
+        diagnostics->error(mQualifiers[0]->getLine(), errorMessage.data(), "qualifier sequence");
         return false;
     }
 
     if (!areQualifierChecksRelaxed && !AreQualifiersInOrder(mQualifiers, &errorMessage))
     {
-        diagnostics->error(mQualifiers[0]->getLine(), errorMessage.c_str(), "qualifier sequence");
+        diagnostics->error(mQualifiers[0]->getLine(), errorMessage.data(), "qualifier sequence");
         return false;
     }
 

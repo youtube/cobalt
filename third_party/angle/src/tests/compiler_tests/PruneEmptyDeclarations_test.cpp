@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 The ANGLE Project Authors. All rights reserved.
+// Copyright 2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -7,9 +7,9 @@
 //   Tests for pruning empty declarations.
 //
 
+#include "GLSLANG/ShaderLang.h"
 #include "angle_gl.h"
 #include "gtest/gtest.h"
-#include "GLSLANG/ShaderLang.h"
 #include "tests/test_utils/compiler_test.h"
 
 using namespace sh;
@@ -22,8 +22,7 @@ class PruneEmptyDeclarationsTest : public MatchOutputCodeTest
   public:
     PruneEmptyDeclarationsTest()
         : MatchOutputCodeTest(GL_VERTEX_SHADER, 0, SH_GLSL_COMPATIBILITY_OUTPUT)
-    {
-    }
+    {}
 };
 
 TEST_F(PruneEmptyDeclarationsTest, EmptyDeclarationStartsDeclaratorList)
@@ -37,8 +36,10 @@ TEST_F(PruneEmptyDeclarationsTest, EmptyDeclarationStartsDeclaratorList)
         "   gl_Position = vec4(u * f);\n"
         "}\n";
     compile(shaderString);
-    ASSERT_TRUE(foundInCode("float f"));
+    ASSERT_TRUE(foundInCode("float _uf"));
+    ASSERT_TRUE(notFoundInCode("float, _uf"));
     ASSERT_TRUE(notFoundInCode("float, f"));
+    ASSERT_TRUE(notFoundInCode("float _u, _uf"));
 }
 
 TEST_F(PruneEmptyDeclarationsTest, EmptyStructDeclarationWithQualifiers)
@@ -52,9 +53,9 @@ TEST_F(PruneEmptyDeclarationsTest, EmptyStructDeclarationWithQualifiers)
         "   gl_Position = vec4(s.f);\n"
         "}\n";
     compile(shaderString);
-    ASSERT_TRUE(foundInCode("struct S"));
-    ASSERT_TRUE(foundInCode("uniform S"));
-    ASSERT_TRUE(notFoundInCode("const struct S"));
+    ASSERT_TRUE(foundInCode("struct _uS"));
+    ASSERT_TRUE(foundInCode("uniform _uS"));
+    ASSERT_TRUE(notFoundInCode("const struct _uS"));
 }
 
 }  // namespace

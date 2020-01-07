@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2002-2014 The ANGLE Project Authors. All rights reserved.
+// Copyright 2002 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -9,8 +9,8 @@
 
 #include <assert.h>
 
-#include "compiler/translator/Common.h"
 #include "compiler/translator/BaseTypes.h"
+#include "compiler/translator/Common.h"
 
 namespace sh
 {
@@ -20,7 +20,7 @@ class TDiagnostics;
 class TConstantUnion
 {
   public:
-    POOL_ALLOCATOR_NEW_DELETE();
+    POOL_ALLOCATOR_NEW_DELETE
     TConstantUnion();
 
     bool cast(TBasicType newType, const TConstantUnion &constant);
@@ -52,11 +52,12 @@ class TConstantUnion
         type                   = EbtYuvCscStandardEXT;
     }
 
-    int getIConst() const { return iConst; }
-    unsigned int getUConst() const { return uConst; }
-    float getFConst() const { return fConst; }
-    bool getBConst() const { return bConst; }
-    TYuvCscStandardEXT getYuvCscStandardEXTConst() const { return yuvCscStandardEXTConst; }
+    int getIConst() const;
+    unsigned int getUConst() const;
+    float getFConst() const;
+    bool getBConst() const;
+    bool isZero() const;
+    TYuvCscStandardEXT getYuvCscStandardEXTConst() const;
 
     bool operator==(const int i) const;
     bool operator==(const unsigned int u) const;
@@ -100,8 +101,10 @@ class TConstantUnion
     TConstantUnion operator||(const TConstantUnion &constant) const;
 
     TBasicType getType() const { return type; }
+
   private:
-    union {
+    union
+    {
         int iConst;           // used for ivec, scalar ints
         unsigned int uConst;  // used for uvec, scalar uints
         bool bConst;          // used for bvec, scalar bools
