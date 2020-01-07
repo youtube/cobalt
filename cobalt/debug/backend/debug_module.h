@@ -117,8 +117,7 @@ class DebugModule : public script::ScriptDebugger::Delegate {
                      base::WaitableEvent* created);
 
   // Sends a protocol event to the frontend through |DebugDispatcher|.
-  void SendEvent(const std::string& method,
-                 const base::Optional<std::string>& params);
+  void SendEvent(const std::string& method, const std::string& params);
 
   // script::ScriptDebugger::Delegate implementation.
   void OnScriptDebuggerPause() override;

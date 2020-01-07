@@ -36,7 +36,7 @@ JSONObject JSONParse(const std::string& json, int* parse_error) {
 JSONObject JSONParse(const std::string& json) { return JSONParse(json, NULL); }
 
 std::string JSONStringify(const JSONObject& json_object) {
-  DCHECK(json_object);
+  if (!json_object) return "{}";
   std::string json;
   base::JSONWriter::Write(*(json_object.get()), &json);
   return json;

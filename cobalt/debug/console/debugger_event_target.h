@@ -62,8 +62,7 @@ class DebuggerEventTarget : public script::Wrappable {
 
   // Dispatches a debugger event to the registered listeners.
   // May be called from any thread.
-  void DispatchEvent(const std::string& method,
-                     const base::Optional<std::string>& json_params);
+  void DispatchEvent(const std::string& method, const std::string& json_params);
 
   // Called from JavaScript to register an event listener callback.
   // May be called from any thread.

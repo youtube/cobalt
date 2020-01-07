@@ -148,7 +148,7 @@ void DebugHub::OnCommandResponse(
 }
 
 void DebugHub::OnDebugClientEvent(const std::string& method,
-                                  const base::Optional<std::string>& params) {
+                                  const std::string& params) {
   // Pass to the onEvent handler. The handler will notify the JavaScript
   // listener on the message loop the listener was registered on.
   on_event_->DispatchEvent(method, params);

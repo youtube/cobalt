@@ -260,8 +260,8 @@ void DebugWebServer::OnDebuggerResponse(
                              kNetworkTrafficAnnotation);
 }
 
-void DebugWebServer::OnDebugClientEvent(
-    const std::string& method, const base::Optional<std::string>& json_params) {
+void DebugWebServer::OnDebugClientEvent(const std::string& method,
+                                        const std::string& json_params) {
   // Squelch the Cobalt-specific log message meant only for the overlay console.
   if (method == kLogBrowserEntryAdded) {
     return;
@@ -278,12 +278,7 @@ void DebugWebServer::OnDebugClientEvent(
 
   JSONObject event(new base::DictionaryValue());
   event->SetString(kMethodField, method);
-  JSONObject params;
-  if (json_params) params = JSONParse(json_params.value());
-  // |params| may be NULL if event does not use them.
-  if (params) {
-    event->Set(kParamsField, std::move(params));
-  }
+  event->Set(kParamsField, JSONParse(json_params));
   server_->SendOverWebSocket(websocket_id_, JSONStringify(event),
                              kNetworkTrafficAnnotation);
 }

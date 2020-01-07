@@ -114,8 +114,7 @@ void TracingAgent::AppendTraceEvent(const std::string& trace_event_json) {
 
 void TracingAgent::FlushTraceEvents() {
   SendDataCollectedEvent();
-  dispatcher_->SendEvent(std::string(kInspectorDomain) + ".tracingComplete",
-                         JSONObject());
+  dispatcher_->SendEvent(std::string(kInspectorDomain) + ".tracingComplete");
 }
 
 void TracingAgent::SendDataCollectedEvent() {
