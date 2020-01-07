@@ -236,27 +236,18 @@ void Trace(LogSeverity severity, const char *message)
         switch (severity)
         {
             case LOG_FATAL:
-            {
                 SB_LOG(FATAL) << "Angle: " << message;
                 break;
-            }
-
             case LOG_ERR:
-            {
                 SB_LOG(ERROR) << "Angle: " << message;
                 break;
-            }
             case LOG_WARN:
-            {
                 SB_LOG(WARNING) << "Angle: " << message;
                 break;
-            }
             case LOG_INFO:
             default:
-            {
                 SB_LOG(INFO) << "Angle: " << message;
                 break;
-            }
         }
 #else
         // Note: we use fprintf because <iostream> includes static initializers.
