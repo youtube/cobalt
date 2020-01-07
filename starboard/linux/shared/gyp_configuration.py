@@ -98,5 +98,4 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
 
   __FILTERED_TESTS = {  # pylint: disable=invalid-name
       'nplb': ['SbDrmTest.AnySupportedKeySystems',],
-      'player_filter_tests': ['FileCacheReaderTest.FileCacheReader',],
   }

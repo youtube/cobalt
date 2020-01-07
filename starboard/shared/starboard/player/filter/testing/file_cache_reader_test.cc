@@ -88,7 +88,6 @@ TEST_F(FileCacheReaderTest, FileCacheReader) {
         std::min(sizes_to_read[size_index],
                  static_cast<int>(true_contents.size()) - true_offset);
     size_index = (size_index + 1) % sizes_to_read.size();
-    SB_CHECK(size_to_read <= read_contents.size());
 
     read_contents.resize(size_to_read);
     int bytes_read =
