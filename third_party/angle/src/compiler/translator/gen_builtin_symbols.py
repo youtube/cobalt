@@ -1382,9 +1382,11 @@ def process_single_function_group(
                 if unique_param_name not in defined_parameter_names:
                     id_counter += 1
                     param_template_args['id'] = id_counter
-                    template_builtin_id_declaration = '    static constexpr const TSymbolUniqueId {name_with_suffix} = TSymbolUniqueId({id});'
+                    template_builtin_id_declaration = '    static const TSymbolUniqueId {name_with_suffix};'
                     builtin_id_declarations.append(
                         template_builtin_id_declaration.format(**param_template_args))
+                    template_builtin_id_definition = 'const TSymbolUniqueId BuiltInId::{name_with_suffix} = TSymbolUniqueId({id});'
+                    builtin_id_definitions.append(template_builtin_id_definition.format(**param_template_args))
                     define_constexpr_variable(param_template_args, variable_declarations)
                     defined_parameter_names.add(unique_param_name)
                 parameters_list.append(
