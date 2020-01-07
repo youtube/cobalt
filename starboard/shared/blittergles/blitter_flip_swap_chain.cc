@@ -18,11 +18,20 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/recursive_mutex.h"
+#include "starboard/shared/blittergles/blitter_context.h"
 #include "starboard/shared/blittergles/blitter_internal.h"
 
 bool SbBlitterFlipSwapChain(SbBlitterSwapChain swap_chain) {
   if (!SbBlitterIsSwapChainValid(swap_chain)) {
     SB_DLOG(ERROR) << ": Invalid swap chain.";
+    return false;
+  }
+  starboard::shared::blittergles::SbBlitterContextRegistry* context_registry =
+      starboard::shared::blittergles::GetBlitterContextRegistry();
+  starboard::ScopedLock registry_lock(context_registry->mutex);
+  SbBlitterContextPrivate::ScopedCurrentContext scoped_current_context(
+      context_registry->context, &swap_chain->render_target);
+  if (scoped_current_context.InitializationError()) {
     return false;
   }
 

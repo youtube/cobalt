@@ -1676,7 +1676,7 @@ bool ValidateBindProgramPipeline(Context *context, ProgramPipelineID pipeline)
         return false;
     }
 
-    if (!context->isProgramPipelineGenerated({pipeline}))
+    if (!context->isProgramPipelineGenerated(pipeline))
     {
         context->validationError(GL_INVALID_OPERATION, kObjectNotGenerated);
         return false;
