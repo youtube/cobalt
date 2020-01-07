@@ -1539,6 +1539,12 @@ HTMLElement::DirState HTMLElement::GetUsedDirState() {
     return kDirLeftToRight;
   }
 
+  // Although the spec says to use the parent's directionality, the W3C test
+  // (the-dir-attribute-069.html) says to default to LTR. Chrome follows the
+  // W3C expectation, so follow Chrome. Additional discussion here:
+  //   https://github.com/w3c/i18n-drafts/issues/235
+  // The following code block which implements the spec is left for reference.
+#if 0
   // Otherwise, the directionality of the element is the same as the element's
   //   parent element's directionality.
   for (Node* ancestor_node = parent_node(); ancestor_node;
@@ -1556,6 +1562,7 @@ HTMLElement::DirState HTMLElement::GetUsedDirState() {
     }
     return ancestor_html_element->GetUsedDirState();
   }
+#endif
 
   return kDirLeftToRight;
 }

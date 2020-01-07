@@ -43,8 +43,7 @@ the-dir-attribute-065
 the-dir-attribute-066
 the-dir-attribute-067
 the-dir-attribute-068
-# TODO: fix edge cases for dir=auto
-#the-dir-attribute-069
+the-dir-attribute-069
 the-dir-attribute-070
 the-dir-attribute-071
 writing-modes-principal-flow-body-propagation
