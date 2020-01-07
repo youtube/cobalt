@@ -4,6 +4,8 @@
 
 #include "cobalt/media/base/media_util.h"
 
+#include "cobalt/media/base/encryption_pattern.h"
+
 namespace cobalt {
 namespace media {
 
@@ -13,7 +15,7 @@ EncryptionScheme Unencrypted() { return EncryptionScheme(); }
 
 EncryptionScheme AesCtrEncryptionScheme() {
   return EncryptionScheme(EncryptionScheme::CIPHER_MODE_AES_CTR,
-                          EncryptionScheme::Pattern());
+                          EncryptionPattern());
 }
 
 }  // namespace media
