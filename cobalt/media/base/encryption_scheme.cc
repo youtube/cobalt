@@ -7,26 +7,10 @@
 namespace cobalt {
 namespace media {
 
-EncryptionScheme::Pattern::Pattern() : encrypt_blocks_(0), skip_blocks_(0) {}
-
-EncryptionScheme::Pattern::Pattern(uint32_t encrypt_blocks,
-                                   uint32_t skip_blocks)
-    : encrypt_blocks_(encrypt_blocks), skip_blocks_(skip_blocks) {}
-
-EncryptionScheme::Pattern::~Pattern() {}
-
-bool EncryptionScheme::Pattern::Matches(const Pattern& other) const {
-  return encrypt_blocks_ == other.encrypt_blocks() &&
-         skip_blocks_ == other.skip_blocks();
-}
-
-bool EncryptionScheme::Pattern::IsInEffect() const {
-  return encrypt_blocks_ != 0 && skip_blocks_ != 0;
-}
-
 EncryptionScheme::EncryptionScheme() : mode_(CIPHER_MODE_UNENCRYPTED) {}
 
-EncryptionScheme::EncryptionScheme(CipherMode mode, const Pattern& pattern)
+EncryptionScheme::EncryptionScheme(CipherMode mode,
+                                   const EncryptionPattern& pattern)
     : mode_(mode), pattern_(pattern) {}
 
 EncryptionScheme::~EncryptionScheme() {}

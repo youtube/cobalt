@@ -46,7 +46,7 @@ EncryptionScheme GetEncryptionScheme(const ProtectionSchemeInfo& sinf) {
     return Unencrypted();
   FourCC fourcc = sinf.type.type;
   EncryptionScheme::CipherMode mode = EncryptionScheme::CIPHER_MODE_UNENCRYPTED;
-  EncryptionScheme::Pattern pattern;
+  EncryptionPattern pattern;
   bool uses_pattern_encryption = false;
   switch (fourcc) {
     case FOURCC_CENC:
@@ -61,9 +61,8 @@ EncryptionScheme GetEncryptionScheme(const ProtectionSchemeInfo& sinf) {
       break;
   }
   if (uses_pattern_encryption) {
-    uint8_t crypt = sinf.info.track_encryption.default_crypt_byte_block;
-    uint8_t skip = sinf.info.track_encryption.default_skip_byte_block;
-    pattern = EncryptionScheme::Pattern(crypt, skip);
+    pattern = {sinf.info.track_encryption.default_crypt_byte_block,
+               sinf.info.track_encryption.default_skip_byte_block};
   }
   return EncryptionScheme(mode, pattern);
 }
