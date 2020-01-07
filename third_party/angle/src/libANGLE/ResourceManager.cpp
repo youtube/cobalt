@@ -285,7 +285,7 @@ void RenderbufferManager::DeleteObject(const Context *context, Renderbuffer *ren
 
 RenderbufferID RenderbufferManager::createRenderbuffer()
 {
-    return {AllocateEmptyObject(&mHandleAllocator, &mObjectMap)};
+    return AllocateEmptyObject(&mHandleAllocator, &mObjectMap);
 }
 
 Renderbuffer *RenderbufferManager::getRenderbuffer(RenderbufferID handle) const

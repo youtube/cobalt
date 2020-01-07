@@ -105,6 +105,8 @@
           # Suppress "[type1] has C-linkage specified, but returns user-defined type [type2] which is incompatible with C"
           '-Wno-return-type-c-linkage',
           '-Wno-unused-parameter',
+          # Suppress warnings about unknown pragmas.
+          '-Wno-unknown-pragmas',
         ],
       }],
       ['cobalt_fastbuild==0', {
