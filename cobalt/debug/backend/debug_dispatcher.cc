@@ -175,13 +175,14 @@ void DebugDispatcher::HandlePause() {
 
 void DebugDispatcher::SendEvent(const std::string& method,
                                 const JSONObject& params) {
-  base::Optional<std::string> json_params;
-  if (params) json_params = JSONStringify(params);
-  SendEvent(method, json_params);
+  SendEvent(method, JSONStringify(params));
 }
 
-void DebugDispatcher::SendEvent(
-    const std::string& method, const base::Optional<std::string>& json_params) {
+void DebugDispatcher::SendEvent(const std::string& method,
+                                const std::string& json_params) {
+  DCHECK(!json_params.empty());
+  DCHECK_EQ(json_params.front(), '{');
+  DCHECK_EQ(json_params.back(), '}');
   for (auto* client : clients_) {
     client->OnEvent(method, json_params);
   }

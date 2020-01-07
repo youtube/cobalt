@@ -42,7 +42,7 @@ bool DebugClient::IsAttached() {
 }
 
 void DebugClient::OnEvent(const std::string& method,
-                          const base::Optional<std::string>& json_params) {
+                          const std::string& json_params) {
   DCHECK(delegate_);
   delegate_->OnDebugClientEvent(method, json_params);
 }

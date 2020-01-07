@@ -243,7 +243,7 @@ std::unique_ptr<DebuggerState> DebugModule::Freeze() {
 }
 
 void DebugModule::SendEvent(const std::string& method,
-                            const base::Optional<std::string>& params) {
+                            const std::string& params) {
   DCHECK(debug_dispatcher_);
   debug_dispatcher_->SendEvent(method, params);
 }
