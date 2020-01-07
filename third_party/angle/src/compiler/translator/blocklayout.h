@@ -68,7 +68,7 @@ constexpr size_t ComponentAlignment(size_t numComponents)
     return (numComponents == 3u ? 4u : numComponents);
 }
 
-constexpr BlockMemberInfo kDefaultBlockMemberInfo;
+constexpr BlockMemberInfo kDefaultBlockMemberInfo = BlockMemberInfo();
 
 class BlockLayoutEncoder
 {
