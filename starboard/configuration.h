@@ -86,6 +86,10 @@
 // not supported, as the stubs do.
 #define SB_ALL_RENDERERS_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Blitter API is no longer supported on any platform. Use the OpenGL ES
+// interface instead.
+#define SB_BLITTER_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // Require the captions API.
 // The system must implement the captions functions in
 // `starboard/accessibility.h` or use the provided stub implementations.
@@ -1025,6 +1029,12 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
        "or later."
 #endif  // SB_API_VERSION < 11
 #endif  // SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
+
+#if SB_API_VERSION >= SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)
+#error \
+    "Blitter API is no longer supported. All blitter functions in " \
+"'starboard/blitter.h' are deprecated."
+#endif  // Deprecate Blitter API
 
 // --- Derived Configuration -------------------------------------------------
 

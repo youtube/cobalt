@@ -18,7 +18,7 @@
 #include "starboard/blitter.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
 
-#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(BLITTER)
+#if SB_API_VERSION < SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)
 
 namespace cobalt {
 namespace renderer {
@@ -34,7 +34,6 @@ SbBlitterPixelDataFormat SkiaToBlitterPixelFormat(SkColorType skia_format);
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // #if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION ||
-        // SB_HAS(BLITTER)
+#endif  // SB_API_VERSION < SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)
 
 #endif  // COBALT_RENDERER_RASTERIZER_BLITTER_SKIA_BLITTER_CONVERSIONS_H_

@@ -80,7 +80,7 @@ std::unique_ptr<rasterizer::Rasterizer> CreateSkiaHardwareRasterizer(
 #endif  // #if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION ||
         // SB_HAS(GLES2)
 
-#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(BLITTER)
+#if SB_API_VERSION < SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)
 std::unique_ptr<rasterizer::Rasterizer> CreateBlitterSoftwareRasterizer(
     backend::GraphicsContext* graphics_context,
     const RendererModule::Options& options) {
@@ -100,8 +100,7 @@ std::unique_ptr<rasterizer::Rasterizer> CreateBlitterHardwareRasterizer(
           options.software_surface_cache_size_in_bytes,
           options.purge_skia_font_caches_on_destruction));
 }
-#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION ||
-        // SB_HAS(BLITTER)
+#endif  // SB_API_VERSION < SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)
 
 }  // namespace
 
@@ -115,11 +114,9 @@ RasterizerInfo GetDefaultRasterizerForPlatform() {
 #else
     return {"skia", base::Bind(&CreateSkiaHardwareRasterizer)};
 #endif
-  } else if (SbBlitterIsBlitterSupported()) {
-    return {"blitter", base::Bind(&CreateBlitterHardwareRasterizer)};
   } else {
     SB_LOG(ERROR)
-        << "Either GLES2 or the Starboard Blitter API must be available.";
+        << "GLES2 must be available.";
     SB_DCHECK(false);
     return {};
   }
@@ -130,7 +127,7 @@ RasterizerInfo GetDefaultRasterizerForPlatform() {
 #else
   return {"skia", base::Bind(&CreateSkiaHardwareRasterizer)};
 #endif
-#elif SB_HAS(BLITTER)
+#elif SB_API_VERSION < SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)
   return {"blitter", base::Bind(&CreateBlitterHardwareRasterizer)};
 #else
 #error "Either GLES2 or the Starboard Blitter API must be available."
