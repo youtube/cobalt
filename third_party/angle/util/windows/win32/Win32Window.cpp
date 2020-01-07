@@ -1,12 +1,12 @@
 //
-// Copyright (c) 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 
 // Win32Window.cpp: Implementation of OSWindow for Win32 (Windows)
 
-#include "windows/win32/Win32Window.h"
+#include "util/windows/win32/Win32Window.h"
 
 #include <sstream>
 
@@ -325,7 +325,7 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hWnd, UINT message, WPARAM wParam, LP
                 event.Type        = down ? Event::EVENT_KEY_PRESSED : Event::EVENT_KEY_RELEASED;
                 event.Key.Alt     = HIWORD(GetAsyncKeyState(VK_MENU)) != 0;
                 event.Key.Control = HIWORD(GetAsyncKeyState(VK_CONTROL)) != 0;
-                event.Key.Shift = HIWORD(GetAsyncKeyState(VK_SHIFT)) != 0;
+                event.Key.Shift   = HIWORD(GetAsyncKeyState(VK_SHIFT)) != 0;
                 event.Key.System =
                     HIWORD(GetAsyncKeyState(VK_LWIN)) || HIWORD(GetAsyncKeyState(VK_RWIN));
                 event.Key.Code = VirtualKeyCodeToKey(wParam, lParam);
@@ -350,7 +350,7 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hWnd, UINT message, WPARAM wParam, LP
                 event.Type               = Event::EVENT_MOUSE_BUTTON_PRESSED;
                 event.MouseButton.Button = MOUSEBUTTON_LEFT;
                 event.MouseButton.X      = static_cast<short>(LOWORD(lParam));
-                event.MouseButton.Y = static_cast<short>(HIWORD(lParam));
+                event.MouseButton.Y      = static_cast<short>(HIWORD(lParam));
                 window->pushEvent(event);
                 break;
             }
@@ -361,7 +361,7 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hWnd, UINT message, WPARAM wParam, LP
                 event.Type               = Event::EVENT_MOUSE_BUTTON_RELEASED;
                 event.MouseButton.Button = MOUSEBUTTON_LEFT;
                 event.MouseButton.X      = static_cast<short>(LOWORD(lParam));
-                event.MouseButton.Y = static_cast<short>(HIWORD(lParam));
+                event.MouseButton.Y      = static_cast<short>(HIWORD(lParam));
                 window->pushEvent(event);
                 break;
             }
@@ -373,7 +373,7 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hWnd, UINT message, WPARAM wParam, LP
                 event.Type               = Event::EVENT_MOUSE_BUTTON_PRESSED;
                 event.MouseButton.Button = MOUSEBUTTON_RIGHT;
                 event.MouseButton.X      = static_cast<short>(LOWORD(lParam));
-                event.MouseButton.Y = static_cast<short>(HIWORD(lParam));
+                event.MouseButton.Y      = static_cast<short>(HIWORD(lParam));
                 window->pushEvent(event);
                 break;
             }
@@ -385,7 +385,7 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hWnd, UINT message, WPARAM wParam, LP
                 event.Type               = Event::EVENT_MOUSE_BUTTON_RELEASED;
                 event.MouseButton.Button = MOUSEBUTTON_RIGHT;
                 event.MouseButton.X      = static_cast<short>(LOWORD(lParam));
-                event.MouseButton.Y = static_cast<short>(HIWORD(lParam));
+                event.MouseButton.Y      = static_cast<short>(HIWORD(lParam));
                 window->pushEvent(event);
                 break;
             }
@@ -398,7 +398,7 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hWnd, UINT message, WPARAM wParam, LP
                 event.Type               = Event::EVENT_MOUSE_BUTTON_PRESSED;
                 event.MouseButton.Button = MOUSEBUTTON_MIDDLE;
                 event.MouseButton.X      = static_cast<short>(LOWORD(lParam));
-                event.MouseButton.Y = static_cast<short>(HIWORD(lParam));
+                event.MouseButton.Y      = static_cast<short>(HIWORD(lParam));
                 window->pushEvent(event);
                 break;
             }
@@ -410,7 +410,7 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hWnd, UINT message, WPARAM wParam, LP
                 event.Type               = Event::EVENT_MOUSE_BUTTON_RELEASED;
                 event.MouseButton.Button = MOUSEBUTTON_MIDDLE;
                 event.MouseButton.X      = static_cast<short>(LOWORD(lParam));
-                event.MouseButton.Y = static_cast<short>(HIWORD(lParam));
+                event.MouseButton.Y      = static_cast<short>(HIWORD(lParam));
                 window->pushEvent(event);
                 break;
             }
@@ -486,21 +486,18 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hWnd, UINT message, WPARAM wParam, LP
 
 Win32Window::Win32Window()
     : mIsVisible(false),
-      mSetVisibleTimer(CreateTimer()),
       mIsMouseInWindow(false),
       mNativeWindow(0),
       mParentWindow(0),
       mNativeDisplay(0)
-{
-}
+{}
 
 Win32Window::~Win32Window()
 {
     destroy();
-    delete mSetVisibleTimer;
 }
 
-bool Win32Window::initialize(const std::string &name, size_t width, size_t height)
+bool Win32Window::initialize(const std::string &name, int width, int height)
 {
     destroy();
 
@@ -516,7 +513,7 @@ bool Win32Window::initialize(const std::string &name, size_t width, size_t heigh
     // Work around compile error from not defining "UNICODE" while Chromium does
     const LPSTR idcArrow = MAKEINTRESOURCEA(32512);
 
-    WNDCLASSEXA parentWindowClass   = {0};
+    WNDCLASSEXA parentWindowClass   = {};
     parentWindowClass.cbSize        = sizeof(WNDCLASSEXA);
     parentWindowClass.style         = 0;
     parentWindowClass.lpfnWndProc   = WndProc;
@@ -533,7 +530,7 @@ bool Win32Window::initialize(const std::string &name, size_t width, size_t heigh
         return false;
     }
 
-    WNDCLASSEXA childWindowClass   = {0};
+    WNDCLASSEXA childWindowClass   = {};
     childWindowClass.cbSize        = sizeof(WNDCLASSEXA);
     childWindowClass.style         = CS_OWNDC;
     childWindowClass.lpfnWndProc   = WndProc;
@@ -550,8 +547,8 @@ bool Win32Window::initialize(const std::string &name, size_t width, size_t heigh
         return false;
     }
 
-    DWORD parentStyle         = WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU;
-    DWORD parentExtendedStyle = WS_EX_APPWINDOW;
+    DWORD parentStyle = WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU;
+    DWORD parentExtendedStyle = WS_EX_APPWINDOW | WS_EX_TOOLWINDOW;
 
     RECT sizeRect = {0, 0, static_cast<LONG>(width), static_cast<LONG>(height)};
     AdjustWindowRectEx(&sizeRect, parentStyle, FALSE, parentExtendedStyle);
@@ -612,7 +609,7 @@ bool Win32Window::takeScreenshot(uint8_t *pixelData)
     // for a while before issuing screenshot if window was just made visible.
     {
         static const double WAIT_WINDOW_VISIBLE_MS = 0.5;  // Half a second for the animation
-        double timeSinceVisible                    = mSetVisibleTimer->getElapsedTime();
+        double timeSinceVisible                    = mSetVisibleTimer.getElapsedTime();
 
         if (timeSinceVisible < WAIT_WINDOW_VISIBLE_MS)
         {
@@ -627,7 +624,7 @@ bool Win32Window::takeScreenshot(uint8_t *pixelData)
 
     if (!error)
     {
-        screenDC = GetDC(nullptr);
+        screenDC = GetDC(HWND_DESKTOP);
         error    = screenDC == nullptr;
     }
 
@@ -649,18 +646,20 @@ bool Win32Window::takeScreenshot(uint8_t *pixelData)
         error     = tmpBitmap == nullptr;
     }
 
-    RECT rect = {0, 0, 0, 0};
+    POINT topLeft = {0, 0};
     if (!error)
     {
-        MapWindowPoints(mNativeWindow, nullptr, reinterpret_cast<LPPOINT>(&rect), 0);
+        error = (MapWindowPoints(mNativeWindow, HWND_DESKTOP, &topLeft, 1) == 0);
+    }
 
+    if (!error)
+    {
         error = SelectObject(tmpDC, tmpBitmap) == nullptr;
     }
 
     if (!error)
     {
-        error =
-            BitBlt(tmpDC, 0, 0, mWidth, mHeight, screenDC, rect.left, rect.top, SRCCOPY) == TRUE;
+        error = BitBlt(tmpDC, 0, 0, mWidth, mHeight, screenDC, topLeft.x, topLeft.y, SRCCOPY) == 0;
     }
 
     if (!error)
@@ -677,9 +676,9 @@ bool Win32Window::takeScreenshot(uint8_t *pixelData)
         bitmapInfo.biYPelsPerMeter = 0;
         bitmapInfo.biClrUsed       = 0;
         bitmapInfo.biClrImportant  = 0;
-        int getBitsResult = GetDIBits(screenDC, tmpBitmap, 0, mHeight, pixelData,
+        int getBitsResult          = GetDIBits(screenDC, tmpBitmap, 0, mHeight, pixelData,
                                       reinterpret_cast<BITMAPINFO *>(&bitmapInfo), DIB_RGB_COLORS);
-        error = getBitsResult != 0;
+        error                      = (getBitsResult == 0);
     }
 
     if (tmpBitmap != nullptr)
@@ -701,6 +700,8 @@ bool Win32Window::takeScreenshot(uint8_t *pixelData)
 
     return !error;
 }
+
+void Win32Window::resetNativeWindow() {}
 
 EGLNativeWindowType Win32Window::getNativeWindow() const
 {
@@ -733,11 +734,6 @@ void Win32Window::setMousePosition(int x, int y)
     ClientToScreen(mNativeWindow, &topLeft);
 
     SetCursorPos(topLeft.x + x, topLeft.y + y);
-}
-
-OSWindow *CreateOSWindow()
-{
-    return new Win32Window();
 }
 
 bool Win32Window::setPosition(int x, int y)
@@ -806,8 +802,8 @@ void Win32Window::setVisible(bool isVisible)
 
     if (isVisible)
     {
-        mSetVisibleTimer->stop();
-        mSetVisibleTimer->start();
+        mSetVisibleTimer.stop();
+        mSetVisibleTimer.start();
     }
 }
 
@@ -828,4 +824,10 @@ void Win32Window::pushEvent(Event event)
 void Win32Window::signalTestEvent()
 {
     PostMessage(mNativeWindow, WM_USER, 0, 0);
+}
+
+// static
+OSWindow *OSWindow::New()
+{
+    return new Win32Window();
 }

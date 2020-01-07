@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,7 +10,7 @@
 #include <sstream>
 
 #include "ANGLEPerfTest.h"
-#include "shader_utils.h"
+#include "util/shader_utils.h"
 
 using namespace angle;
 
@@ -21,6 +21,8 @@ struct InterleavedAttributeDataParams final : public RenderTestParams
 {
     InterleavedAttributeDataParams()
     {
+        iterationsPerStep = 1;
+
         // Common default values
         majorVersion = 2;
         minorVersion = 0;
@@ -35,7 +37,7 @@ struct InterleavedAttributeDataParams final : public RenderTestParams
 
 std::ostream &operator<<(std::ostream &os, const InterleavedAttributeDataParams &params)
 {
-    os << params.suffix().substr(1);
+    os << params.backendAndStory().substr(1);
 
     if (params.eglParameters.majorVersion != EGL_DONT_CARE)
     {
@@ -61,12 +63,20 @@ class InterleavedAttributeDataBenchmark
     GLuint mPositionColorBuffer[2];
 
     // The buffers contain two floats and 3 unsigned bytes per point sprite
-    const size_t mBytesPerSprite = 2 * sizeof(float) + 3;
+    // Has to be aligned for float access on arm
+    const size_t mBytesPerSpriteUnaligned = 2 * sizeof(float) + 3;
+    const size_t mBytesPerSprite =
+        ((mBytesPerSpriteUnaligned + sizeof(float) - 1) / sizeof(float)) * sizeof(float);
 };
 
 InterleavedAttributeDataBenchmark::InterleavedAttributeDataBenchmark()
     : ANGLERenderTest("InterleavedAttributeData", GetParam()), mPointSpriteProgram(0)
 {
+    // Timing out on Intel. http://crbug.com/921004
+    if (GetParam().eglParameters.renderer == EGL_PLATFORM_ANGLE_TYPE_OPENGL_ANGLE)
+    {
+        mSkipTest = true;
+    }
 }
 
 void InterleavedAttributeDataBenchmark::initializeBenchmark()
@@ -74,7 +84,7 @@ void InterleavedAttributeDataBenchmark::initializeBenchmark()
     const auto &params = GetParam();
 
     // Compile point sprite shaders
-    const std::string vs =
+    constexpr char kVS[] =
         "attribute vec4 aPosition;"
         "attribute vec4 aColor;"
         "varying vec4 vColor;"
@@ -85,7 +95,7 @@ void InterleavedAttributeDataBenchmark::initializeBenchmark()
         "    vColor = aColor;"
         "}";
 
-    const std::string fs =
+    constexpr char kFS[] =
         "precision mediump float;"
         "varying vec4 vColor;"
         "void main()"
@@ -93,7 +103,7 @@ void InterleavedAttributeDataBenchmark::initializeBenchmark()
         "    gl_FragColor = vColor;"
         "}";
 
-    mPointSpriteProgram = CompileProgram(vs, fs);
+    mPointSpriteProgram = CompileProgram(kVS, kFS);
     ASSERT_NE(0u, mPointSpriteProgram);
 
     glClearColor(0.0f, 1.0f, 0.0f, 1.0f);
@@ -106,10 +116,12 @@ void InterleavedAttributeDataBenchmark::initializeBenchmark()
         {
             float pointSpriteX =
                 (static_cast<float>(rand() % getWindow()->getWidth()) / getWindow()->getWidth()) *
-                    2.0f - 1.0f;
+                    2.0f -
+                1.0f;
             float pointSpriteY =
                 (static_cast<float>(rand() % getWindow()->getHeight()) / getWindow()->getHeight()) *
-                    2.0f - 1.0f;
+                    2.0f -
+                1.0f;
             GLubyte pointSpriteRed   = static_cast<GLubyte>(rand() % 255);
             GLubyte pointSpriteGreen = static_cast<GLubyte>(rand() % 255);
             GLubyte pointSpriteBlue  = static_cast<GLubyte>(rand() % 255);
@@ -179,7 +191,6 @@ void InterleavedAttributeDataBenchmark::drawBenchmark()
 
             // Then draw the colored pointsprites
             glDrawArrays(GL_POINTS, 0, GetParam().numSprites);
-            glFlush();
 
             glDisableVertexAttribArray(positionLocation);
             glDisableVertexAttribArray(colorLocation);
@@ -215,10 +226,17 @@ InterleavedAttributeDataParams D3D9Params()
     return params;
 }
 
-InterleavedAttributeDataParams OpenGLParams()
+InterleavedAttributeDataParams OpenGLOrGLESParams()
 {
     InterleavedAttributeDataParams params;
-    params.eglParameters = egl_platform::OPENGL();
+    params.eglParameters = egl_platform::OPENGL_OR_GLES();
+    return params;
+}
+
+InterleavedAttributeDataParams VulkanParams()
+{
+    InterleavedAttributeDataParams params;
+    params.eglParameters = egl_platform::VULKAN();
     return params;
 }
 
@@ -226,6 +244,7 @@ ANGLE_INSTANTIATE_TEST(InterleavedAttributeDataBenchmark,
                        D3D11Params(),
                        D3D11_9_3Params(),
                        D3D9Params(),
-                       OpenGLParams());
+                       OpenGLOrGLESParams(),
+                       VulkanParams());
 
 }  // anonymous namespace

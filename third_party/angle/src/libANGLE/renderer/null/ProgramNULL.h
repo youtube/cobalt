@@ -21,16 +21,16 @@ class ProgramNULL : public ProgramImpl
     ProgramNULL(const gl::ProgramState &state);
     ~ProgramNULL() override;
 
-    LinkResult load(const ContextImpl *contextImpl,
-                    gl::InfoLog &infoLog,
-                    gl::BinaryInputStream *stream) override;
-    gl::Error save(gl::BinaryOutputStream *stream) override;
+    std::unique_ptr<LinkEvent> load(const gl::Context *context,
+                                    gl::BinaryInputStream *stream,
+                                    gl::InfoLog &infoLog) override;
+    void save(const gl::Context *context, gl::BinaryOutputStream *stream) override;
     void setBinaryRetrievableHint(bool retrievable) override;
     void setSeparable(bool separable) override;
 
-    LinkResult link(ContextImpl *contextImpl,
-                    const gl::VaryingPacking &packing,
-                    gl::InfoLog &infoLog) override;
+    std::unique_ptr<LinkEvent> link(const gl::Context *context,
+                                    const gl::ProgramLinkedResources &resources,
+                                    gl::InfoLog &infoLog) override;
     GLboolean validate(const gl::Caps &caps, gl::InfoLog *infoLog) override;
 
     void setUniform1fv(GLint location, GLsizei count, const GLfloat *v) override;
@@ -82,17 +82,10 @@ class ProgramNULL : public ProgramImpl
                                GLboolean transpose,
                                const GLfloat *value) override;
 
-    // TODO: synchronize in syncState when dirty bits exist.
-    void setUniformBlockBinding(GLuint uniformBlockIndex, GLuint uniformBlockBinding) override;
+    void getUniformfv(const gl::Context *context, GLint location, GLfloat *params) const override;
+    void getUniformiv(const gl::Context *context, GLint location, GLint *params) const override;
+    void getUniformuiv(const gl::Context *context, GLint location, GLuint *params) const override;
 
-    // May only be called after a successful link operation.
-    // Return false for inactive blocks.
-    bool getUniformBlockSize(const std::string &blockName, size_t *sizeOut) const override;
-
-    // May only be called after a successful link operation.
-    // Returns false for inactive members.
-    bool getUniformBlockMemberInfo(const std::string &memberUniformName,
-                                   sh::BlockMemberInfo *memberInfoOut) const override;
     // CHROMIUM_path_rendering
     // Set parameters to control fragment shader input variable interpolation
     void setPathFragmentInputGen(const std::string &inputName,

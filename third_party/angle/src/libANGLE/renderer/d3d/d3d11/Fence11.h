@@ -1,16 +1,17 @@
 //
-// Copyright (c) 2013 The ANGLE Project Authors. All rights reserved.
+// Copyright 2013 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 
-// Fence11.h: Defines the rx::FenceNV11 and rx::FenceSync11 classes which implement rx::FenceNVImpl and rx::FenceSyncImpl.
+// Fence11.h: Defines the rx::FenceNV11 and rx::Sync11 classes which implement rx::FenceNVImpl
+// and rx::SyncImpl.
 
 #ifndef LIBANGLE_RENDERER_D3D_D3D11_FENCE11_H_
 #define LIBANGLE_RENDERER_D3D_D3D11_FENCE11_H_
 
 #include "libANGLE/renderer/FenceNVImpl.h"
-#include "libANGLE/renderer/FenceSyncImpl.h"
+#include "libANGLE/renderer/SyncImpl.h"
 
 namespace rx
 {
@@ -22,38 +23,53 @@ class FenceNV11 : public FenceNVImpl
     explicit FenceNV11(Renderer11 *renderer);
     ~FenceNV11() override;
 
-    gl::Error set(GLenum condition) override;
-    gl::Error test(GLboolean *outFinished) override;
-    gl::Error finish() override;
+    angle::Result set(const gl::Context *context, GLenum condition) override;
+    angle::Result test(const gl::Context *context, GLboolean *outFinished) override;
+    angle::Result finish(const gl::Context *context) override;
 
   private:
-    template<class T> friend gl::Error FenceSetHelper(T *fence);
-    template<class T> friend gl::Error FenceTestHelper(T *fence, bool flushCommandBuffer, GLboolean *outFinished);
+    template <class T>
+    friend angle::Result FenceSetHelper(const gl::Context *context, T *fence);
+    template <class T>
+    friend angle::Result FenceTestHelper(const gl::Context *context,
+                                         T *fence,
+                                         bool flushCommandBuffer,
+                                         GLboolean *outFinished);
 
     Renderer11 *mRenderer;
     ID3D11Query *mQuery;
 };
 
-class FenceSync11 : public FenceSyncImpl
+class Sync11 : public SyncImpl
 {
   public:
-    explicit FenceSync11(Renderer11 *renderer);
-    ~FenceSync11() override;
+    explicit Sync11(Renderer11 *renderer);
+    ~Sync11() override;
 
-    gl::Error set(GLenum condition, GLbitfield flags) override;
-    gl::Error clientWait(GLbitfield flags, GLuint64 timeout, GLenum *outResult) override;
-    gl::Error serverWait(GLbitfield flags, GLuint64 timeout) override;
-    gl::Error getStatus(GLint *outResult) override;
+    angle::Result set(const gl::Context *context, GLenum condition, GLbitfield flags) override;
+    angle::Result clientWait(const gl::Context *context,
+                             GLbitfield flags,
+                             GLuint64 timeout,
+                             GLenum *outResult) override;
+    angle::Result serverWait(const gl::Context *context,
+                             GLbitfield flags,
+                             GLuint64 timeout) override;
+    angle::Result getStatus(const gl::Context *context, GLint *outResult) override;
 
   private:
-    template<class T> friend gl::Error FenceSetHelper(T *fence);
-    template<class T> friend gl::Error FenceTestHelper(T *fence, bool flushCommandBuffer, GLboolean *outFinished);
+    template <class T>
+    friend angle::Result FenceSetHelper(const gl::Context *context, T *fence);
+    template <class T>
+    friend angle::Result FenceTestHelper(const gl::Context *context,
+                                         T *fence,
+                                         bool flushCommandBuffer,
+                                         GLboolean *outFinished);
 
     Renderer11 *mRenderer;
     ID3D11Query *mQuery;
     LONGLONG mCounterFrequency;
 };
 
-}
+}  // namespace rx
 
-#endif // LIBANGLE_RENDERER_D3D_D3D11_FENCE11_H_
+#endif  // LIBANGLE_RENDERER_D3D_D3D11_FENCE11_H_

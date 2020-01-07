@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010 The ANGLE Project Authors. All rights reserved.
+// Copyright 2010 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -18,8 +18,7 @@ class TDiagnostics;
 // 1.00 spec Appendix A.
 bool ValidateLimitations(TIntermNode *root,
                          GLenum shaderType,
-                         const TSymbolTable &symbolTable,
-                         int shaderVersion,
+                         TSymbolTable *symbolTable,
                          TDiagnostics *diagnostics);
 
 }  // namespace sh

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010 The ANGLE Project Authors. All rights reserved.
+// Copyright 2010 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,11 +10,12 @@
 
 #include "common/utilities.h"
 #include "compiler/preprocessor/numeric_lex.h"
+#include "compiler/translator/ImmutableStringBuilder.h"
 #include "compiler/translator/SymbolTable.h"
 
 bool atoi_clamp(const char *str, unsigned int *value)
 {
-    bool success = pp::numeric_lex_int(str, value);
+    bool success = angle::pp::numeric_lex_int(str, value);
     if (!success)
         *value = std::numeric_limits<unsigned int>::max();
     return success;
@@ -22,6 +23,24 @@ bool atoi_clamp(const char *str, unsigned int *value)
 
 namespace sh
 {
+
+namespace
+{
+
+bool IsInterpolationIn(TQualifier qualifier)
+{
+    switch (qualifier)
+    {
+        case EvqSmoothIn:
+        case EvqFlatIn:
+        case EvqCentroidIn:
+            return true;
+        default:
+            return false;
+    }
+}
+
+}  // anonymous namespace
 
 float NumericLexFloat32OutOfRangeToInfinity(const std::string &str)
 {
@@ -38,6 +57,10 @@ float NumericLexFloat32OutOfRangeToInfinity(const std::string &str)
 
     // The exponent offset reflects the position of the decimal point.
     int exponentOffset = -1;
+
+    // This is just a counter for how many decimal digits are written to decimalMantissa.
+    int mantissaDecimalDigits = 0;
+
     while (i < str.length())
     {
         const char c = str[i];
@@ -65,6 +88,7 @@ float NumericLexFloat32OutOfRangeToInfinity(const std::string &str)
             if (decimalMantissa <= (std::numeric_limits<unsigned int>::max() - 9u) / 10u)
             {
                 decimalMantissa = decimalMantissa * 10u + digit;
+                ++mantissaDecimalDigits;
             }
             if (!decimalPointSeen)
             {
@@ -144,12 +168,7 @@ float NumericLexFloat32OutOfRangeToInfinity(const std::string &str)
     double value = decimalMantissa;
 
     // Calculate the exponent offset to normalize the mantissa.
-    int normalizationExponentOffset = 0;
-    while (decimalMantissa >= 10u)
-    {
-        --normalizationExponentOffset;
-        decimalMantissa /= 10u;
-    }
+    int normalizationExponentOffset = 1 - mantissaDecimalDigits;
     // Apply the exponent.
     value *= std::pow(10.0, static_cast<double>(exponent + normalizationExponentOffset));
     if (value > static_cast<double>(std::numeric_limits<float>::max()))
@@ -165,11 +184,7 @@ float NumericLexFloat32OutOfRangeToInfinity(const std::string &str)
 
 bool strtof_clamp(const std::string &str, float *value)
 {
-    // Try the standard float parsing path first.
-    bool success = pp::numeric_lex_float(str, value);
-
-    // If the standard path doesn't succeed, take the path that can handle the following corner
-    // cases:
+    // Custom float parsing that can handle the following corner cases:
     //   1. The decimal mantissa is very small but the exponent is very large, putting the resulting
     //   number inside the float range.
     //   2. The decimal mantissa is very large but the exponent is very small, putting the resulting
@@ -177,8 +192,7 @@ bool strtof_clamp(const std::string &str, float *value)
     //   3. The value is out-of-range and should be evaluated as infinity.
     //   4. The value is too small and should be evaluated as zero.
     // See ESSL 3.00.6 section 4.1.4 for the relevant specification.
-    if (!success)
-        *value = NumericLexFloat32OutOfRangeToInfinity(str);
+    *value = NumericLexFloat32OutOfRangeToInfinity(str);
     return !gl::isInf(*value);
 }
 
@@ -186,11 +200,7 @@ GLenum GLVariableType(const TType &type)
 {
     if (type.getBasicType() == EbtFloat)
     {
-        if (type.isScalar())
-        {
-            return GL_FLOAT;
-        }
-        else if (type.isVector())
+        if (type.isVector())
         {
             switch (type.getNominalSize())
             {
@@ -202,6 +212,9 @@ GLenum GLVariableType(const TType &type)
                     return GL_FLOAT_VEC4;
                 default:
                     UNREACHABLE();
+#if !UNREACHABLE_IS_NORETURN
+                    return GL_NONE;
+#endif
             }
         }
         else if (type.isMatrix())
@@ -219,6 +232,9 @@ GLenum GLVariableType(const TType &type)
                             return GL_FLOAT_MAT2x4;
                         default:
                             UNREACHABLE();
+#if !UNREACHABLE_IS_NORETURN
+                            return GL_NONE;
+#endif
                     }
 
                 case 3:
@@ -232,6 +248,9 @@ GLenum GLVariableType(const TType &type)
                             return GL_FLOAT_MAT3x4;
                         default:
                             UNREACHABLE();
+#if !UNREACHABLE_IS_NORETURN
+                            return GL_NONE;
+#endif
                     }
 
                 case 4:
@@ -245,22 +264,26 @@ GLenum GLVariableType(const TType &type)
                             return GL_FLOAT_MAT4;
                         default:
                             UNREACHABLE();
+#if !UNREACHABLE_IS_NORETURN
+                            return GL_NONE;
+#endif
                     }
 
                 default:
                     UNREACHABLE();
+#if !UNREACHABLE_IS_NORETURN
+                    return GL_NONE;
+#endif
             }
         }
         else
-            UNREACHABLE();
+        {
+            return GL_FLOAT;
+        }
     }
     else if (type.getBasicType() == EbtInt)
     {
-        if (type.isScalar())
-        {
-            return GL_INT;
-        }
-        else if (type.isVector())
+        if (type.isVector())
         {
             switch (type.getNominalSize())
             {
@@ -272,18 +295,20 @@ GLenum GLVariableType(const TType &type)
                     return GL_INT_VEC4;
                 default:
                     UNREACHABLE();
+#if !UNREACHABLE_IS_NORETURN
+                    return GL_NONE;
+#endif
             }
         }
         else
-            UNREACHABLE();
+        {
+            ASSERT(!type.isMatrix());
+            return GL_INT;
+        }
     }
     else if (type.getBasicType() == EbtUInt)
     {
-        if (type.isScalar())
-        {
-            return GL_UNSIGNED_INT;
-        }
-        else if (type.isVector())
+        if (type.isVector())
         {
             switch (type.getNominalSize())
             {
@@ -295,18 +320,20 @@ GLenum GLVariableType(const TType &type)
                     return GL_UNSIGNED_INT_VEC4;
                 default:
                     UNREACHABLE();
+#if !UNREACHABLE_IS_NORETURN
+                    return GL_NONE;
+#endif
             }
         }
         else
-            UNREACHABLE();
+        {
+            ASSERT(!type.isMatrix());
+            return GL_UNSIGNED_INT;
+        }
     }
     else if (type.getBasicType() == EbtBool)
     {
-        if (type.isScalar())
-        {
-            return GL_BOOL;
-        }
-        else if (type.isVector())
+        if (type.isVector())
         {
             switch (type.getNominalSize())
             {
@@ -318,10 +345,16 @@ GLenum GLVariableType(const TType &type)
                     return GL_BOOL_VEC4;
                 default:
                     UNREACHABLE();
+#if !UNREACHABLE_IS_NORETURN
+                    return GL_NONE;
+#endif
             }
         }
         else
-            UNREACHABLE();
+        {
+            ASSERT(!type.isMatrix());
+            return GL_BOOL;
+        }
     }
 
     switch (type.getBasicType())
@@ -337,11 +370,13 @@ GLenum GLVariableType(const TType &type)
         case EbtSamplerExternal2DY2YEXT:
             return GL_SAMPLER_EXTERNAL_2D_Y2Y_EXT;
         case EbtSampler2DRect:
-            return GL_SAMPLER_2D_RECT_ARB;
+            return GL_SAMPLER_2D_RECT_ANGLE;
         case EbtSampler2DArray:
             return GL_SAMPLER_2D_ARRAY;
         case EbtSampler2DMS:
             return GL_SAMPLER_2D_MULTISAMPLE;
+        case EbtSampler2DMSArray:
+            return GL_SAMPLER_2D_MULTISAMPLE_ARRAY;
         case EbtISampler2D:
             return GL_INT_SAMPLER_2D;
         case EbtISampler3D:
@@ -352,6 +387,8 @@ GLenum GLVariableType(const TType &type)
             return GL_INT_SAMPLER_2D_ARRAY;
         case EbtISampler2DMS:
             return GL_INT_SAMPLER_2D_MULTISAMPLE;
+        case EbtISampler2DMSArray:
+            return GL_INT_SAMPLER_2D_MULTISAMPLE_ARRAY;
         case EbtUSampler2D:
             return GL_UNSIGNED_INT_SAMPLER_2D;
         case EbtUSampler3D:
@@ -362,6 +399,8 @@ GLenum GLVariableType(const TType &type)
             return GL_UNSIGNED_INT_SAMPLER_2D_ARRAY;
         case EbtUSampler2DMS:
             return GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE;
+        case EbtUSampler2DMSArray:
+            return GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE_ARRAY;
         case EbtSampler2DShadow:
             return GL_SAMPLER_2D_SHADOW;
         case EbtSamplerCubeShadow:
@@ -392,6 +431,8 @@ GLenum GLVariableType(const TType &type)
             return GL_INT_IMAGE_CUBE;
         case EbtUImageCube:
             return GL_UNSIGNED_INT_IMAGE_CUBE;
+        case EbtAtomicCounter:
+            return GL_UNSIGNED_INT_ATOMIC_COUNTER;
         default:
             UNREACHABLE();
     }
@@ -412,7 +453,8 @@ GLenum GLVariablePrecision(const TType &type)
             case EbpLow:
                 return GL_LOW_FLOAT;
             case EbpUndefined:
-            // Should be defined as the default precision by the parser
+                // Desktop specs do not use precision
+                return GL_NONE;
             default:
                 UNREACHABLE();
         }
@@ -428,7 +470,8 @@ GLenum GLVariablePrecision(const TType &type)
             case EbpLow:
                 return GL_LOW_INT;
             case EbpUndefined:
-            // Should be defined as the default precision by the parser
+                // Desktop specs do not use precision
+                return GL_NONE;
             default:
                 UNREACHABLE();
         }
@@ -438,14 +481,33 @@ GLenum GLVariablePrecision(const TType &type)
     return GL_NONE;
 }
 
-TString ArrayString(const TType &type)
+ImmutableString ArrayString(const TType &type)
 {
     if (!type.isArray())
-    {
-        return "";
-    }
+        return ImmutableString("");
 
-    return "[" + str(type.getArraySize()) + "]";
+    const TVector<unsigned int> &arraySizes         = *type.getArraySizes();
+    constexpr const size_t kMaxDecimalDigitsPerSize = 10u;
+    ImmutableStringBuilder arrayString(arraySizes.size() * (kMaxDecimalDigitsPerSize + 2u));
+    for (auto arraySizeIter = arraySizes.rbegin(); arraySizeIter != arraySizes.rend();
+         ++arraySizeIter)
+    {
+        arrayString << "[";
+        if (*arraySizeIter > 0)
+        {
+            arrayString.appendDecimal(*arraySizeIter);
+        }
+        arrayString << "]";
+    }
+    return arrayString;
+}
+
+ImmutableString GetTypeName(const TType &type, ShHashFunction64 hashFunction, NameMap *nameMap)
+{
+    if (type.getBasicType() == EbtStruct)
+        return HashName(type.getStruct(), hashFunction, nameMap);
+    else
+        return ImmutableString(type.getBuiltInTypeNameString());
 }
 
 bool IsVaryingOut(TQualifier qualifier)
@@ -457,6 +519,7 @@ bool IsVaryingOut(TQualifier qualifier)
         case EvqFlatOut:
         case EvqCentroidOut:
         case EvqVertexOut:
+        case EvqGeometryOut:
             return true;
 
         default:
@@ -475,6 +538,7 @@ bool IsVaryingIn(TQualifier qualifier)
         case EvqFlatIn:
         case EvqCentroidIn:
         case EvqFragmentIn:
+        case EvqGeometryIn:
             return true;
 
         default:
@@ -487,6 +551,12 @@ bool IsVaryingIn(TQualifier qualifier)
 bool IsVarying(TQualifier qualifier)
 {
     return IsVaryingIn(qualifier) || IsVaryingOut(qualifier);
+}
+
+bool IsGeometryShaderInput(GLenum shaderType, TQualifier qualifier)
+{
+    return (qualifier == EvqGeometryIn) ||
+           ((shaderType == GL_GEOMETRY_SHADER_EXT) && IsInterpolationIn(qualifier));
 }
 
 InterpolationType GetInterpolationType(TQualifier qualifier)
@@ -503,6 +573,8 @@ InterpolationType GetInterpolationType(TQualifier qualifier)
         case EvqFragmentIn:
         case EvqVaryingIn:
         case EvqVaryingOut:
+        case EvqGeometryIn:
+        case EvqGeometryOut:
             return INTERPOLATION_SMOOTH;
 
         case EvqCentroidIn:
@@ -511,7 +583,9 @@ InterpolationType GetInterpolationType(TQualifier qualifier)
 
         default:
             UNREACHABLE();
+#if !UNREACHABLE_IS_NORETURN
             return INTERPOLATION_SMOOTH;
+#endif
     }
 }
 
@@ -571,8 +645,19 @@ TType GetShaderVariableBasicType(const sh::ShaderVariable &var)
             return TType(EbtUInt, 4);
         default:
             UNREACHABLE();
+#if !UNREACHABLE_IS_NORETURN
             return TType();
+#endif
     }
+}
+
+void DeclareGlobalVariable(TIntermBlock *root, const TVariable *variable)
+{
+    TIntermDeclaration *declaration = new TIntermDeclaration();
+    declaration->appendDeclarator(new TIntermSymbol(variable));
+
+    TIntermSequence *globalSequence = root->getSequence();
+    globalSequence->insert(globalSequence->begin(), declaration);
 }
 
 // GLSL ES 1.0.17 4.6.1 The Invariant Qualifier
@@ -617,10 +702,240 @@ bool IsBuiltinFragmentInputVariable(TQualifier qualifier)
         case EvqFragCoord:
         case EvqPointCoord:
         case EvqFrontFacing:
+        case EvqHelperInvocation:
             return true;
         default:
             break;
     }
     return false;
 }
+
+bool IsShaderOutput(TQualifier qualifier)
+{
+    return IsVaryingOut(qualifier) || IsBuiltinOutputVariable(qualifier);
+}
+
+bool IsOutputESSL(ShShaderOutput output)
+{
+    return output == SH_ESSL_OUTPUT;
+}
+
+bool IsOutputGLSL(ShShaderOutput output)
+{
+    switch (output)
+    {
+        case SH_GLSL_130_OUTPUT:
+        case SH_GLSL_140_OUTPUT:
+        case SH_GLSL_150_CORE_OUTPUT:
+        case SH_GLSL_330_CORE_OUTPUT:
+        case SH_GLSL_400_CORE_OUTPUT:
+        case SH_GLSL_410_CORE_OUTPUT:
+        case SH_GLSL_420_CORE_OUTPUT:
+        case SH_GLSL_430_CORE_OUTPUT:
+        case SH_GLSL_440_CORE_OUTPUT:
+        case SH_GLSL_450_CORE_OUTPUT:
+        case SH_GLSL_COMPATIBILITY_OUTPUT:
+            return true;
+        default:
+            break;
+    }
+    return false;
+}
+bool IsOutputHLSL(ShShaderOutput output)
+{
+    switch (output)
+    {
+        case SH_HLSL_3_0_OUTPUT:
+        case SH_HLSL_4_1_OUTPUT:
+        case SH_HLSL_4_0_FL9_3_OUTPUT:
+            return true;
+        default:
+            break;
+    }
+    return false;
+}
+bool IsOutputVulkan(ShShaderOutput output)
+{
+    return output == SH_GLSL_VULKAN_OUTPUT;
+}
+bool IsOutputMetal(ShShaderOutput output)
+{
+    return output == SH_GLSL_METAL_OUTPUT;
+}
+
+bool IsInShaderStorageBlock(TIntermTyped *node)
+{
+    TIntermSwizzle *swizzleNode = node->getAsSwizzleNode();
+    if (swizzleNode)
+    {
+        return IsInShaderStorageBlock(swizzleNode->getOperand());
+    }
+
+    TIntermBinary *binaryNode = node->getAsBinaryNode();
+    if (binaryNode)
+    {
+        switch (binaryNode->getOp())
+        {
+            case EOpIndexDirectInterfaceBlock:
+            case EOpIndexIndirect:
+            case EOpIndexDirect:
+            case EOpIndexDirectStruct:
+                return IsInShaderStorageBlock(binaryNode->getLeft());
+            default:
+                return false;
+        }
+    }
+
+    const TType &type = node->getType();
+    return type.getQualifier() == EvqBuffer;
+}
+
+GLenum GetImageInternalFormatType(TLayoutImageInternalFormat iifq)
+{
+    switch (iifq)
+    {
+        case EiifRGBA32F:
+            return GL_RGBA32F;
+        case EiifRGBA16F:
+            return GL_RGBA16F;
+        case EiifR32F:
+            return GL_R32F;
+        case EiifRGBA32UI:
+            return GL_RGBA32UI;
+        case EiifRGBA16UI:
+            return GL_RGBA16UI;
+        case EiifRGBA8UI:
+            return GL_RGBA8UI;
+        case EiifR32UI:
+            return GL_R32UI;
+        case EiifRGBA32I:
+            return GL_RGBA32I;
+        case EiifRGBA16I:
+            return GL_RGBA16I;
+        case EiifRGBA8I:
+            return GL_RGBA8I;
+        case EiifR32I:
+            return GL_R32I;
+        case EiifRGBA8:
+            return GL_RGBA8;
+        case EiifRGBA8_SNORM:
+            return GL_RGBA8_SNORM;
+        default:
+            return GL_NONE;
+    }
+}
+
+bool IsSpecWithFunctionBodyNewScope(ShShaderSpec shaderSpec, int shaderVersion)
+{
+    return (shaderVersion == 100 && !sh::IsWebGLBasedSpec(shaderSpec));
+}
+
+ImplicitTypeConversion GetConversion(TBasicType t1, TBasicType t2)
+{
+    if (t1 == t2)
+        return ImplicitTypeConversion::Same;
+
+    switch (t1)
+    {
+        case EbtInt:
+            switch (t2)
+            {
+                case EbtInt:
+                    UNREACHABLE();
+                    break;
+                case EbtUInt:
+                    return ImplicitTypeConversion::Invalid;
+                case EbtFloat:
+                    return ImplicitTypeConversion::Left;
+                default:
+                    return ImplicitTypeConversion::Invalid;
+            }
+            break;
+        case EbtUInt:
+            switch (t2)
+            {
+                case EbtInt:
+                    return ImplicitTypeConversion::Invalid;
+                case EbtUInt:
+                    UNREACHABLE();
+                    break;
+                case EbtFloat:
+                    return ImplicitTypeConversion::Left;
+                default:
+                    return ImplicitTypeConversion::Invalid;
+            }
+            break;
+        case EbtFloat:
+            switch (t2)
+            {
+                case EbtInt:
+                case EbtUInt:
+                    return ImplicitTypeConversion::Right;
+                case EbtFloat:
+                    UNREACHABLE();
+                    break;
+                default:
+                    return ImplicitTypeConversion::Invalid;
+            }
+            break;
+        default:
+            return ImplicitTypeConversion::Invalid;
+    }
+    return ImplicitTypeConversion::Invalid;
+}
+
+bool IsValidImplicitConversion(sh::ImplicitTypeConversion conversion, TOperator op)
+{
+    switch (conversion)
+    {
+        case sh::ImplicitTypeConversion::Same:
+            return true;
+        case sh::ImplicitTypeConversion::Left:
+            switch (op)
+            {
+                case EOpEqual:
+                case EOpNotEqual:
+                case EOpLessThan:
+                case EOpGreaterThan:
+                case EOpLessThanEqual:
+                case EOpGreaterThanEqual:
+                case EOpAdd:
+                case EOpSub:
+                case EOpMul:
+                case EOpDiv:
+                    return true;
+                default:
+                    break;
+            }
+            break;
+        case sh::ImplicitTypeConversion::Right:
+            switch (op)
+            {
+                case EOpAssign:
+                case EOpInitialize:
+                case EOpEqual:
+                case EOpNotEqual:
+                case EOpLessThan:
+                case EOpGreaterThan:
+                case EOpLessThanEqual:
+                case EOpGreaterThanEqual:
+                case EOpAdd:
+                case EOpSub:
+                case EOpMul:
+                case EOpDiv:
+                case EOpAddAssign:
+                case EOpSubAssign:
+                case EOpMulAssign:
+                case EOpDivAssign:
+                    return true;
+                default:
+                    break;
+            }
+            break;
+        case sh::ImplicitTypeConversion::Invalid:
+            break;
+    }
+    return false;
+}
+
 }  // namespace sh

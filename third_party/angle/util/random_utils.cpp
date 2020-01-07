@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -24,17 +24,19 @@ RNG::RNG()
 }
 
 // Seed from fixed number.
-RNG::RNG(unsigned int seed) : mGenerator(seed)
-{
-}
+RNG::RNG(unsigned int seed) : mGenerator(seed) {}
 
-RNG::~RNG()
-{
-}
+RNG::~RNG() {}
 
 void RNG::reseed(unsigned int newSeed)
 {
     mGenerator.seed(newSeed);
+}
+
+bool RNG::randomBool(float probTrue)
+{
+    std::bernoulli_distribution dist(probTrue);
+    return dist(mGenerator);
 }
 
 int RNG::randomInt()
@@ -64,6 +66,13 @@ float RNG::randomFloat()
 float RNG::randomFloatBetween(float min, float max)
 {
     std::uniform_real_distribution<float> floatDistribution(min, max);
+    return floatDistribution(mGenerator);
+}
+
+float RNG::randomFloatNonnegative()
+{
+    std::uniform_real_distribution<float> floatDistribution(0.0f,
+                                                            std::numeric_limits<float>::max());
     return floatDistribution(mGenerator);
 }
 

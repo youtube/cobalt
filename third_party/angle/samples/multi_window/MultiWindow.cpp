@@ -1,50 +1,43 @@
 //
-// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 
 #include "SampleApplication.h"
 
-#include <cmath>
 #include <algorithm>
+#include <cmath>
 #include <vector>
 
-#include "Matrix.h"
-#include "random_utils.h"
-#include "shader_utils.h"
+#include "util/Matrix.h"
+#include "util/random_utils.h"
+#include "util/shader_utils.h"
 
 using namespace angle;
 
 class MultiWindowSample : public SampleApplication
 {
   public:
-    MultiWindowSample()
-        : SampleApplication("MultiWindow", 256, 256)
-    {
-    }
+    MultiWindowSample(int argc, char **argv)
+        : SampleApplication("MultiWindow", argc, argv, 2, 0, 256, 256)
+    {}
 
     bool initialize() override
     {
-        const std::string vs = SHADER_SOURCE
-        (
-            attribute vec4 vPosition;
-            void main()
-            {
-                gl_Position = vPosition;
-            }
-        );
+        constexpr char kVS[] = R"(attribute vec4 vPosition;
+void main()
+{
+    gl_Position = vPosition;
+})";
 
-        const std::string fs = SHADER_SOURCE
-        (
-            precision mediump float;
-            void main()
-            {
-                gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-            }
-        );
+        constexpr char kFS[] = R"(precision mediump float;
+void main()
+{
+    gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+})";
 
-        mProgram = CompileProgram(vs, fs);
+        mProgram = CompileProgram(kVS, kFS);
         if (!mProgram)
         {
             return false;
@@ -57,7 +50,7 @@ class MultiWindowSample : public SampleApplication
 
         window rootWindow;
         rootWindow.osWindow = getWindow();
-        rootWindow.surface = getSurface();
+        rootWindow.surface  = getSurface();
         mWindows.push_back(rootWindow);
 
         const size_t numWindows = 5;
@@ -65,13 +58,14 @@ class MultiWindowSample : public SampleApplication
         {
             window window;
 
-            window.osWindow = CreateOSWindow();
+            window.osWindow = OSWindow::New();
             if (!window.osWindow->initialize("MultiWindow", 256, 256))
             {
                 return false;
             }
 
-            window.surface = eglCreateWindowSurface(getDisplay(), getConfig(), window.osWindow->getNativeWindow(), nullptr);
+            window.surface = eglCreateWindowSurface(getDisplay(), getConfig(),
+                                                    window.osWindow->getNativeWindow(), nullptr);
             if (window.surface == EGL_NO_SURFACE)
             {
                 return false;
@@ -111,19 +105,19 @@ class MultiWindowSample : public SampleApplication
 
     void draw() override
     {
-        OSWindow* rootWindow = mWindows[0].osWindow;
-        int left = rootWindow->getX();
-        int right = rootWindow->getX() + rootWindow->getWidth();
-        int top = rootWindow->getY();
-        int bottom = rootWindow->getY() + rootWindow->getHeight();
+        OSWindow *rootWindow = mWindows[0].osWindow;
+        int left             = rootWindow->getX();
+        int right            = rootWindow->getX() + rootWindow->getWidth();
+        int top              = rootWindow->getY();
+        int bottom           = rootWindow->getY() + rootWindow->getHeight();
 
         for (auto &windowRecord : mWindows)
         {
             OSWindow *window = windowRecord.osWindow;
-            left = std::min(left, window->getX());
-            right = std::max(right, window->getX() + window->getWidth());
-            top = std::min(top, window->getY());
-            bottom = std::max(bottom, window->getY() + window->getHeight());
+            left             = std::min(left, window->getX());
+            right            = std::max(right, window->getX() + window->getWidth());
+            top              = std::min(top, window->getY());
+            bottom           = std::max(bottom, window->getY() + window->getHeight());
         }
 
         float midX = (left + right) * 0.5f;
@@ -141,16 +135,19 @@ class MultiWindowSample : public SampleApplication
 
             eglMakeCurrent(getDisplay(), surface, surface, getContext());
 
-            Matrix4 orthoMatrix = Matrix4::ortho(static_cast<float>(window->getX()), static_cast<float>(window->getX() + window->getWidth()),
-                                                 static_cast<float>(window->getY() + window->getHeight()), static_cast<float>(window->getY()),
-                                                 0.0f, 1.0f);
+            Matrix4 orthoMatrix =
+                Matrix4::ortho(static_cast<float>(window->getX()),
+                               static_cast<float>(window->getX() + window->getWidth()),
+                               static_cast<float>(window->getY() + window->getHeight()),
+                               static_cast<float>(window->getY()), 0.0f, 1.0f);
             Matrix4 mvpMatrix = orthoMatrix * viewMatrix * modelMatrix;
 
-            Vector3 vertices[] =
-            {
+            Vector3 vertices[] = {
                 Matrix4::transform(mvpMatrix, Vector4(midX, static_cast<float>(top), 0.0f, 1.0f)),
-                Matrix4::transform(mvpMatrix, Vector4(static_cast<float>(left), static_cast<float>(bottom), 0.0f, 1.0f)),
-                Matrix4::transform(mvpMatrix, Vector4(static_cast<float>(right), static_cast<float>(bottom), 0.0f, 1.0f)),
+                Matrix4::transform(mvpMatrix, Vector4(static_cast<float>(left),
+                                                      static_cast<float>(bottom), 0.0f, 1.0f)),
+                Matrix4::transform(mvpMatrix, Vector4(static_cast<float>(right),
+                                                      static_cast<float>(bottom), 0.0f, 1.0f)),
             };
 
             // Set the viewport
@@ -187,7 +184,7 @@ class MultiWindowSample : public SampleApplication
     // Window and surface data
     struct window
     {
-        OSWindow* osWindow;
+        OSWindow *osWindow;
         EGLSurface surface;
     };
     std::vector<window> mWindows;
@@ -197,6 +194,6 @@ class MultiWindowSample : public SampleApplication
 
 int main(int argc, char **argv)
 {
-    MultiWindowSample app;
+    MultiWindowSample app(argc, argv);
     return app.run();
 }

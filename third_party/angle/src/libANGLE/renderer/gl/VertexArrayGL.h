@@ -11,6 +11,10 @@
 
 #include "libANGLE/renderer/VertexArrayImpl.h"
 
+#include "common/mathutil.h"
+#include "libANGLE/Context.h"
+#include "libANGLE/renderer/gl/ContextGL.h"
+
 namespace rx
 {
 
@@ -25,67 +29,104 @@ class VertexArrayGL : public VertexArrayImpl
                   StateManagerGL *stateManager);
     ~VertexArrayGL() override;
 
-    gl::Error syncDrawArraysState(const gl::AttributesMask &activeAttributesMask,
-                                  GLint first,
-                                  GLsizei count,
-                                  GLsizei instanceCount) const;
-    gl::Error syncDrawElementsState(const gl::AttributesMask &activeAttributesMask,
-                                    GLsizei count,
-                                    GLenum type,
-                                    const void *indices,
-                                    GLsizei instanceCount,
-                                    bool primitiveRestartEnabled,
-                                    const void **outIndices) const;
-    gl::Error syncElementArrayState() const;
+    void destroy(const gl::Context *context) override;
+
+    angle::Result syncClientSideData(const gl::Context *context,
+                                     const gl::AttributesMask &activeAttributesMask,
+                                     GLint first,
+                                     GLsizei count,
+                                     GLsizei instanceCount) const;
+    angle::Result syncDrawElementsState(const gl::Context *context,
+                                        const gl::AttributesMask &activeAttributesMask,
+                                        GLsizei count,
+                                        gl::DrawElementsType type,
+                                        const void *indices,
+                                        GLsizei instanceCount,
+                                        bool primitiveRestartEnabled,
+                                        const void **outIndices) const;
 
     GLuint getVertexArrayID() const;
     GLuint getAppliedElementArrayBufferID() const;
 
-    void syncState(ContextImpl *contextImpl, const gl::VertexArray::DirtyBits &dirtyBits) override;
+    angle::Result syncState(const gl::Context *context,
+                            const gl::VertexArray::DirtyBits &dirtyBits,
+                            gl::VertexArray::DirtyAttribBitsArray *attribBits,
+                            gl::VertexArray::DirtyBindingBitsArray *bindingBits) override;
+
+    void applyNumViewsToDivisor(int numViews);
+    void applyActiveAttribLocationsMask(const gl::AttributesMask &activeMask);
+
+    void validateState() const;
 
   private:
-    gl::Error syncDrawState(const gl::AttributesMask &activeAttributesMask,
-                            GLint first,
-                            GLsizei count,
-                            GLenum type,
-                            const void *indices,
-                            GLsizei instanceCount,
-                            bool primitiveRestartEnabled,
-                            const void **outIndices) const;
+    angle::Result syncDrawState(const gl::Context *context,
+                                const gl::AttributesMask &activeAttributesMask,
+                                GLint first,
+                                GLsizei count,
+                                gl::DrawElementsType type,
+                                const void *indices,
+                                GLsizei instanceCount,
+                                bool primitiveRestartEnabled,
+                                const void **outIndices) const;
 
     // Apply index data, only sets outIndexRange if attributesNeedStreaming is true
-    gl::Error syncIndexData(GLsizei count,
-                            GLenum type,
-                            const void *indices,
-                            bool primitiveRestartEnabled,
-                            bool attributesNeedStreaming,
-                            gl::IndexRange *outIndexRange,
-                            const void **outIndices) const;
+    angle::Result syncIndexData(const gl::Context *context,
+                                GLsizei count,
+                                gl::DrawElementsType type,
+                                const void *indices,
+                                bool primitiveRestartEnabled,
+                                bool attributesNeedStreaming,
+                                gl::IndexRange *outIndexRange,
+                                const void **outIndices) const;
 
     // Returns the amount of space needed to stream all attributes that need streaming
     // and the data size of the largest attribute
-    void computeStreamingAttributeSizes(const gl::AttributesMask &activeAttributesMask,
+    void computeStreamingAttributeSizes(const gl::AttributesMask &attribsToStream,
                                         GLsizei instanceCount,
                                         const gl::IndexRange &indexRange,
                                         size_t *outStreamingDataSize,
                                         size_t *outMaxAttributeDataSize) const;
 
     // Stream attributes that have client data
-    gl::Error streamAttributes(const gl::AttributesMask &activeAttributesMask,
-                               GLsizei instanceCount,
-                               const gl::IndexRange &indexRange) const;
+    angle::Result streamAttributes(const gl::Context *context,
+                                   const gl::AttributesMask &attribsToStream,
+                                   GLsizei instanceCount,
+                                   const gl::IndexRange &indexRange) const;
+    void syncDirtyAttrib(const gl::Context *context,
+                         size_t attribIndex,
+                         const gl::VertexArray::DirtyAttribBits &dirtyAttribBits);
+    void syncDirtyBinding(const gl::Context *context,
+                          size_t bindingIndex,
+                          const gl::VertexArray::DirtyBindingBits &dirtyBindingBits);
 
-    void updateNeedsStreaming(size_t attribIndex);
     void updateAttribEnabled(size_t attribIndex);
-    void updateAttribPointer(size_t attribIndex);
-    void updateAttribDivisor(size_t attribIndex);
+    void updateAttribPointer(const gl::Context *context, size_t attribIndex);
+
+    bool supportVertexAttribBinding() const;
+
+    void updateAttribFormat(size_t attribIndex);
+    void updateAttribBinding(size_t attribIndex);
+    void updateBindingBuffer(const gl::Context *context, size_t bindingIndex);
+    void updateBindingDivisor(size_t bindingIndex);
+
+    void updateElementArrayBufferBinding(const gl::Context *context) const;
+
+    void callVertexAttribPointer(GLuint attribIndex,
+                                 const gl::VertexAttribute &attrib,
+                                 GLsizei stride,
+                                 GLintptr offset) const;
 
     const FunctionsGL *mFunctions;
     StateManagerGL *mStateManager;
 
     GLuint mVertexArrayID;
+    int mAppliedNumViews;
 
-    mutable BindingPointer<gl::Buffer> mAppliedElementArrayBuffer;
+    // Remember the program's active attrib location mask so that attributes can be enabled/disabled
+    // based on whether they are active in the program
+    gl::AttributesMask mProgramActiveAttribLocationsMask;
+
+    mutable gl::BindingPointer<gl::Buffer> mAppliedElementArrayBuffer;
 
     mutable std::vector<gl::VertexAttribute> mAppliedAttributes;
     mutable std::vector<gl::VertexBinding> mAppliedBindings;
@@ -95,9 +136,22 @@ class VertexArrayGL : public VertexArrayImpl
 
     mutable size_t mStreamingArrayBufferSize;
     mutable GLuint mStreamingArrayBuffer;
-
-    gl::AttributesMask mAttributesNeedStreaming;
 };
+
+ANGLE_INLINE angle::Result VertexArrayGL::syncDrawElementsState(
+    const gl::Context *context,
+    const gl::AttributesMask &activeAttributesMask,
+    GLsizei count,
+    gl::DrawElementsType type,
+    const void *indices,
+    GLsizei instanceCount,
+    bool primitiveRestartEnabled,
+    const void **outIndices) const
+{
+    return syncDrawState(context, activeAttributesMask, 0, count, type, indices, instanceCount,
+                         primitiveRestartEnabled, outIndices);
 }
+
+}  // namespace rx
 
 #endif  // LIBANGLE_RENDERER_GL_VERTEXARRAYGL_H_
