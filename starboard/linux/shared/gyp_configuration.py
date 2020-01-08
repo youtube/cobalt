@@ -115,6 +115,7 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
           'VideoDecoderTests/VideoDecoderTest.Preroll/8',
           'VideoDecoderTests/VideoDecoderTest.Preroll/10',
           'VideoDecoderTests/VideoDecoderTest.ResetAfterInput/4',
+          'VideoDecoderTests/VideoDecoderTest.ResetAfterInput/8',
           'VideoDecoderTests/VideoDecoderTest.ResetAfterInput/10',
       ],
   }
