@@ -126,7 +126,7 @@ bool LocalizedStrings::LoadStrings(const std::string& language) {
   const std::string filename = GetFilenameForLanguage(language);
   std::string file_contents;
   if (!ReadFile(filename, &file_contents)) {
-    DLOG(ERROR) << "Error reading i18n file.";
+    DLOG_ONCE(ERROR) << "Error reading i18n file.";
     return false;
   }
   DCHECK_GT(file_contents.length(), 0);
