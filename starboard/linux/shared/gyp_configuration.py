@@ -102,15 +102,19 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
       # formatted files that were added. The root cause is probably within the
       # decoder implementation so it is pending further investigation.
       'player_filter_tests': [
-          'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull/10',
+          'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull/4',
           'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull/8',
-          'VideoDecoderTests/VideoDecoderTest.MultipleInputs/10',
+          'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull/10',
+          'VideoDecoderTests/VideoDecoderTest.MultipleInputs/4',
           'VideoDecoderTests/VideoDecoderTest.MultipleInputs/8',
-          'VideoDecoderTests/VideoDecoderTest.MultipleResets/10',
+          'VideoDecoderTests/VideoDecoderTest.MultipleInputs/10',
+          'VideoDecoderTests/VideoDecoderTest.MultipleResets/4',
           'VideoDecoderTests/VideoDecoderTest.MultipleResets/8',
-          'VideoDecoderTests/VideoDecoderTest.Preroll/10',
+          'VideoDecoderTests/VideoDecoderTest.MultipleResets/10',
+          'VideoDecoderTests/VideoDecoderTest.Preroll/4',
           'VideoDecoderTests/VideoDecoderTest.Preroll/8',
+          'VideoDecoderTests/VideoDecoderTest.Preroll/10',
+          'VideoDecoderTests/VideoDecoderTest.ResetAfterInput/4',
           'VideoDecoderTests/VideoDecoderTest.ResetAfterInput/10',
-          'VideoDecoderTests/VideoDecoderTest.ResetAfterInput/8',
       ],
   }
