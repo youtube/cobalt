@@ -16,7 +16,9 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "cobalt/media/base/audio_decoder_config.h"
+#include "cobalt/media/base/color_space.h"
 #include "cobalt/media/base/encryption_scheme.h"
+#include "cobalt/media/base/hdr_metadata.h"
 #include "cobalt/media/base/media_tracks.h"
 #include "cobalt/media/base/media_util.h"
 #include "cobalt/media/base/stream_parser_buffer.h"
@@ -29,6 +31,7 @@
 #include "cobalt/media/formats/mp4/es_descriptor.h"
 #include "cobalt/media/formats/mp4/rcheck.h"
 #include "cobalt/media/formats/mpeg/adts_constants.h"
+#include "cobalt/media/formats/webm/webm_colour_parser.h"
 #include "starboard/memory.h"
 #include "starboard/types.h"
 
@@ -37,6 +40,8 @@ namespace media {
 namespace mp4 {
 
 namespace {
+
+using gfx::ColorSpace;
 
 const int kMaxEmptySampleLogs = 20;
 
@@ -67,6 +72,41 @@ EncryptionScheme GetEncryptionScheme(const ProtectionSchemeInfo& sinf) {
   }
   return EncryptionScheme(mode, pattern);
 }
+
+gfx::ColorSpace ConvertColorParameterInformationToColorSpace(
+    const ColorParameterInformation& info) {
+  auto primary_id = static_cast<ColorSpace::PrimaryID>(info.colour_primaries);
+  auto transfer_id =
+      static_cast<ColorSpace::TransferID>(info.transfer_characteristics);
+  auto matrix_id = static_cast<ColorSpace::MatrixID>(info.matrix_coefficients);
+
+  // Note that we don't check whether the embedded ids are valid.  We rely on
+  // the underlying video decoder to reject any ids that it doesn't support.
+  return gfx::ColorSpace(
+      primary_id, transfer_id, matrix_id,
+      info.full_range ? ColorSpace::kRangeIdFull : ColorSpace::kRangeIdLimited);
+}
+
+MasteringMetadata ConvertMdcvToMasteringMetadata(
+    const MasteringDisplayColorVolume& mdcv) {
+  MasteringMetadata mastering_metadata;
+
+  mastering_metadata.primary_r_chromaticity_x = mdcv.display_primaries_rx;
+  mastering_metadata.primary_r_chromaticity_y = mdcv.display_primaries_ry;
+  mastering_metadata.primary_g_chromaticity_x = mdcv.display_primaries_gx;
+  mastering_metadata.primary_g_chromaticity_y = mdcv.display_primaries_gy;
+  mastering_metadata.primary_b_chromaticity_x = mdcv.display_primaries_bx;
+  mastering_metadata.primary_b_chromaticity_y = mdcv.display_primaries_by;
+  mastering_metadata.white_point_chromaticity_x = mdcv.white_point_x;
+  mastering_metadata.white_point_chromaticity_y = mdcv.white_point_y;
+  mastering_metadata.luminance_max =
+      static_cast<float>(mdcv.max_display_mastering_luminance);
+  mastering_metadata.luminance_min =
+      static_cast<float>(mdcv.min_display_mastering_luminance);
+
+  return mastering_metadata;
+}
+
 }  // namespace
 
 MP4StreamParser::MP4StreamParser(DecoderBuffer::Allocator* buffer_allocator,
@@ -411,6 +451,30 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
                               // No decoder-specific buffer needed for AVC;
                               // SPS/PPS are embedded in the video stream
                               EmptyExtraData(), scheme);
+      if (entry.color_parameter_information) {
+        WebMColorMetadata color_metadata = {};
+
+        color_metadata.color_space =
+            ConvertColorParameterInformationToColorSpace(
+                *entry.color_parameter_information);
+
+        if (entry.mastering_display_color_volume) {
+          color_metadata.hdr_metadata.mastering_metadata =
+              ConvertMdcvToMasteringMetadata(
+                  *entry.mastering_display_color_volume);
+        }
+
+        if (entry.content_light_level_information) {
+          color_metadata.hdr_metadata.max_cll =
+              entry.content_light_level_information->max_content_light_level;
+          color_metadata.hdr_metadata.max_fall =
+              entry.content_light_level_information
+                  ->max_pic_average_light_level;
+        }
+
+        video_config.set_webm_color_metadata(color_metadata);
+      }
+
       DVLOG(1) << "video_track_id=" << video_track_id
                << " config=" << video_config.AsHumanReadableString();
       if (!video_config.IsValidConfig()) {
