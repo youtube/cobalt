@@ -281,12 +281,17 @@ bool ProtectionSchemeInfo::Parse(BoxReader* reader) {
 }
 
 bool ProtectionSchemeInfo::HasSupportedScheme() const {
-  FourCC fourCC = type.type;
-  if (fourCC == FOURCC_CENC)
+  FourCC four_cc = type.type;
+  if (four_cc == FOURCC_CENC)
     return true;
-  if (fourCC == FOURCC_CBCS)
+  if (four_cc == FOURCC_CBCS)
     return true;
   return false;
+}
+
+bool ProtectionSchemeInfo::IsCbcsEncryptionScheme() const {
+  FourCC four_cc = type.type;
+  return (four_cc == FOURCC_CBCS);
 }
 
 MovieHeader::MovieHeader()
