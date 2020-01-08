@@ -335,7 +335,7 @@ inline constexpr bool AnalyzerAssumeTrue(bool arg) {
   return arg || AnalyzerNoReturn();
 }
 
-#define ANALYZER_ASSUME_TRUE(arg) logging::AnalyzerAssumeTrue(!!(arg))
+#define ANALYZER_ASSUME_TRUE(arg) ::logging::AnalyzerAssumeTrue(!!(arg))
 #define ANALYZER_SKIP_THIS_PATH() \
   static_cast<void>(::logging::AnalyzerNoReturn())
 #define ANALYZER_ALLOW_UNUSED(var) static_cast<void>(var);
@@ -444,6 +444,44 @@ const LogSeverity LOG_0 = LOG_ERROR;
 #define LOG(severity) LAZY_STREAM(LOG_STREAM(severity), LOG_IS_ON(severity))
 #define LOG_IF(severity, condition) \
   LAZY_STREAM(LOG_STREAM(severity), LOG_IS_ON(severity) && (condition))
+
+#if defined(OFFICIAL_BUILD)
+#define LOG_ONCE(severity) EAT_STREAM_PARAMETERS
+#else  // defined(OFFICIAL_BUILD)
+#define LOG_ONCE_MSG "[once] "
+
+constexpr uint32_t kFnvOffsetBasis32 = 0x811c9dc5U;
+constexpr uint32_t kFnvPrime32 = 0x01000193U;
+
+inline constexpr uint32_t hash_32_fnv1a_const(
+    const char* const str,
+    const uint32_t value = ::logging::kFnvOffsetBasis32) noexcept {
+  return (str[0] == '\0')
+             ? value
+             : ::logging::hash_32_fnv1a_const(
+                   &str[1], static_cast<uint32_t>(1ULL * (value ^ str[0]) *
+                                                  kFnvPrime32));
+}
+
+template <uint32_t FILE_HASH, int LINE>
+struct LogOnceHelper {
+  static bool logged_;
+};
+
+template <uint32_t FILE_HASH, int LINE>
+bool LogOnceHelper<FILE_HASH, LINE>::logged_ = false;
+
+// LOG_ONCE() logs the streamed message only the first time when the
+// statement is executed. Note: When this is inline functions in included files,
+// the statement can be logged for each compilation unit.
+#define LOG_ONCE(severity)                                                    \
+  LOG_IF(severity,                                                            \
+         (!::logging::LogOnceHelper<::logging::hash_32_fnv1a_const(__FILE__), \
+                                    __LINE__>::logged_ &&                     \
+          (::logging::LogOnceHelper<::logging::hash_32_fnv1a_const(__FILE__), \
+                                    __LINE__>::logged_ = true)))              \
+      << LOG_ONCE_MSG
+#endif  // defined(OFFICIAL_BUILD)
 
 // The VLOG macros log with negative verbosities.
 #define VLOG_STREAM(verbose_level) \
@@ -851,6 +889,7 @@ DEFINE_CHECK_OP_IMPL(GT, > )
 #define DLOG_IS_ON(severity) LOG_IS_ON(severity)
 #define DLOG_IF(severity, condition) LOG_IF(severity, condition)
 #define DLOG_ASSERT(condition) LOG_ASSERT(condition)
+#define DLOG_ONCE(severity) LOG_ONCE(severity)
 #define DPLOG_IF(severity, condition) PLOG_IF(severity, condition)
 #define DVLOG_IF(verboselevel, condition) VLOG_IF(verboselevel, condition)
 #define DVPLOG_IF(verboselevel, condition) VPLOG_IF(verboselevel, condition)
@@ -864,6 +903,7 @@ DEFINE_CHECK_OP_IMPL(GT, > )
 #define DLOG_IS_ON(severity) false
 #define DLOG_IF(severity, condition) EAT_STREAM_PARAMETERS
 #define DLOG_ASSERT(condition) EAT_STREAM_PARAMETERS
+#define DLOG_ONCE(severity) EAT_STREAM_PARAMETERS
 #define DPLOG_IF(severity, condition) EAT_STREAM_PARAMETERS
 #define DVLOG_IF(verboselevel, condition) EAT_STREAM_PARAMETERS
 #define DVPLOG_IF(verboselevel, condition) EAT_STREAM_PARAMETERS
@@ -1218,7 +1258,10 @@ inline std::ostream& operator<<(std::ostream& out, const std::wstring& wstr) {
 // The NOTIMPLEMENTED() macro annotates codepaths which have not been
 // implemented yet. If output spam is a serious concern,
 // NOTIMPLEMENTED_LOG_ONCE can be used.
-
+#if defined(OFFICIAL_BUILD)
+#define NOTIMPLEMENTED() EAT_STREAM_PARAMETERS
+#define NOTIMPLEMENTED_LOG_ONCE() EAT_STREAM_PARAMETERS
+#else
 #if defined(COMPILER_GCC)
 // On Linux, with GCC, we can use __PRETTY_FUNCTION__ to get the demangled name
 // of the current function in the NOTIMPLEMENTED message.
@@ -1227,18 +1270,14 @@ inline std::ostream& operator<<(std::ostream& out, const std::wstring& wstr) {
 #define NOTIMPLEMENTED_MSG "NOT IMPLEMENTED"
 #endif
 
-#if defined(OS_ANDROID) && defined(OFFICIAL_BUILD)
-#define NOTIMPLEMENTED() EAT_STREAM_PARAMETERS
-#define NOTIMPLEMENTED_LOG_ONCE() EAT_STREAM_PARAMETERS
-#else
 #define NOTIMPLEMENTED() LOG(ERROR) << NOTIMPLEMENTED_MSG
-#define NOTIMPLEMENTED_LOG_ONCE()                      \
-  do {                                                 \
-    static bool logged_once = false;                   \
-    LOG_IF(ERROR, !logged_once) << NOTIMPLEMENTED_MSG; \
-    logged_once = true;                                \
-  } while (0);                                         \
-  EAT_STREAM_PARAMETERS
+#define NOTIMPLEMENTED_LOG_ONCE()                                             \
+  LOG_IF(ERROR,                                                               \
+         (!::logging::LogOnceHelper<::logging::hash_32_fnv1a_const(__FILE__), \
+                                    __LINE__>::logged_ &&                     \
+          (::logging::LogOnceHelper<::logging::hash_32_fnv1a_const(__FILE__), \
+                                    __LINE__>::logged_ = true)))              \
+      << NOTIMPLEMENTED_MSG
 #endif
 
 #endif  // BASE_LOGGING_H_

@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <memory>
 #include <unordered_map>
+#include <vector>
 
 #include "cobalt/renderer/rasterizer/egl/rect_allocator.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
@@ -376,8 +377,6 @@ void OffscreenTargetManager::AllocateUncachedTarget(
 }
 
 void OffscreenTargetManager::InitializeTargets(const math::Size& frame_size) {
-  DLOG(INFO) << "offscreen render target memory limit: " << memory_limit_;
-
   if (frame_size.width() >= 64 && frame_size.height() >= 64) {
     offscreen_target_size_mask_.SetSize(
         NextPowerOf2(frame_size.width() / 64) - 1,
@@ -430,8 +429,8 @@ void OffscreenTargetManager::InitializeTargets(const math::Size& frame_size) {
   } else if (num_atlases > kMaxAtlases) {
     DCHECK(atlas_size == max_size);
     num_atlases = kMaxAtlases;
-    DLOG(WARNING) << "More memory was allotted for offscreen render targets"
-                  << " than will be used.";
+    DLOG_ONCE(WARNING) << "More memory was allotted for offscreen render"
+                       << " targets than will be used.";
   }
   offscreen_cache_ = CreateOffscreenAtlas(atlas_size, true);
   CHECK(offscreen_cache_);
@@ -440,9 +439,6 @@ void OffscreenTargetManager::InitializeTargets(const math::Size& frame_size) {
         CreateOffscreenAtlas(atlas_size, true).release());
     CHECK(offscreen_atlases_.back());
   }
-
-  DLOG(INFO) << "Created " << num_atlases << " offscreen atlases of size "
-             << atlas_size.width() << " x " << atlas_size.height();
 
   // Create 1D texture atlases. These are just regular 2D textures that will
   // be used as 1D row textures. These atlases are not intended to be used by
@@ -456,9 +452,6 @@ void OffscreenTargetManager::InitializeTargets(const math::Size& frame_size) {
   CHECK(offscreen_atlases_1d_.back());
   offscreen_cache_1d_ = CreateOffscreenAtlas(atlas_size_1d, false);
   CHECK(offscreen_cache_1d_);
-  DLOG(INFO) << "Created " << offscreen_atlases_1d_.size() + 1
-             << " offscreen atlases of size " << atlas_size_1d.width() << " x "
-             << atlas_size_1d.height();
 }
 
 std::unique_ptr<OffscreenTargetManager::OffscreenAtlas>
