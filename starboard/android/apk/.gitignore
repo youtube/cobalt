@@ -5,7 +5,4 @@
 .DS_Store
 /build
 /captures
-.externalNativeBuild
-CMakeCache.txt
-CMakeFiles/
 build.id

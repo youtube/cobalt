@@ -130,10 +130,10 @@ android {
     externalNativeBuild {
         cmake {
             path 'CMakeLists.txt'
-            if (project.hasProperty('cobaltGradleDir')) {
-                // Resolve relative to the current dir at config time by getting a canonical File.
-                buildStagingDirectory new File(cobaltGradleDir, 'externalNativeBuild').canonicalFile
-            }
+            // Move the staging directory to be a sibling of the build directory, which we moved
+            // in the top-level build.gradle to be in a common top-level 'build' directory. Get
+            // the canonical file at config time so that it's still right at build time.
+            buildStagingDirectory new File("${buildDir}.cxx").canonicalFile
         }
     }
 }
