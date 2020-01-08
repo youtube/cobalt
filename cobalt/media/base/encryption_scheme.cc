@@ -16,7 +16,7 @@ EncryptionScheme::EncryptionScheme(CipherMode mode,
 EncryptionScheme::~EncryptionScheme() {}
 
 bool EncryptionScheme::Matches(const EncryptionScheme& other) const {
-  return mode_ == other.mode_ && pattern_.Matches(other.pattern_);
+  return mode_ == other.mode_ && pattern_ == other.pattern_;
 }
 
 }  // namespace media

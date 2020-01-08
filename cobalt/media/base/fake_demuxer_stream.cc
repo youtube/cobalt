@@ -17,6 +17,7 @@
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/media/base/bind_to_current_loop.h"
 #include "cobalt/media/base/decoder_buffer.h"
+#include "cobalt/media/base/decrypt_config.h"
 #include "cobalt/media/base/media_util.h"
 #include "cobalt/media/base/test_helpers.h"
 #include "cobalt/media/base/timestamp_constants.h"
@@ -193,7 +194,7 @@ void FakeDemuxerStream::DoRead() {
 
   // TODO(xhwang): Output out-of-order buffers if needed.
   if (is_encrypted_) {
-    buffer->set_decrypt_config(base::MakeUnique<DecryptConfig>(
+    buffer->set_decrypt_config(DecryptConfig::CreateCencConfig(
         std::string(kKeyId, kKeyId + arraysize(kKeyId)),
         std::string(kIv, kIv + arraysize(kIv)), std::vector<SubsampleEntry>()));
   }
