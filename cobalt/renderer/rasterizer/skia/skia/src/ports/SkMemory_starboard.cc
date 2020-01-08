@@ -52,18 +52,15 @@ void sk_free(void* p) {
 }
 
 void* sk_malloc_flags(size_t size, unsigned flags) {
-  void* p = SbMemoryAllocate(size);
+  void* p;
+  if (flags & SK_MALLOC_ZERO_INITIALIZE) {
+    p = SbMemoryCalloc(size, 1);
+  } else {
+    p = SbMemoryAllocate(size);
+  }
   if (flags & SK_MALLOC_THROW) {
     return throw_on_failure(size, p);
   } else {
     return p;
   }
-}
-
-void* sk_calloc(size_t size) {
-  void* p = SbMemoryAllocate(size);
-  if (p && size) {
-    SbMemorySet(p, 0, size);
-  }
-  return p;
 }

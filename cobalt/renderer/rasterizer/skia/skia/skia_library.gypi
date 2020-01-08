@@ -80,6 +80,9 @@
     # core
     '<(DEPTH)/third_party/skia/src/core/SkMultiPictureDraw.cpp',
 
+    # gpu
+    "<(DEPTH)/third_party/skia/src/gpu/gl/GrGLMakeNativeInterface_none.cpp",
+
     # utils concurrency
     '<(DEPTH)/third_party/skia/src/utils/SkCondVar.cpp',
     '<(DEPTH)/third_party/skia/src/utils/SkCondVar.h',

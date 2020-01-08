@@ -292,6 +292,7 @@ sk_sp<SkSurface> HardwareRasterizer::Impl::CreateFallbackSurface(
   // Wrap the given render target in a new skia surface.
   GrGLFramebufferInfo info;
   info.fFBOID = render_target->GetPlatformHandle();
+  info.fFormat = SB_GL_RGBA8;
   GrBackendRenderTarget skia_render_target(render_target->GetSize().width(),
                                            render_target->GetSize().height(), 0,
                                            0, info);
