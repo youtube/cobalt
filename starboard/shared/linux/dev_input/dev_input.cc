@@ -21,14 +21,13 @@
 #include <string.h>
 #include <sys/time.h>
 #include <unistd.h>
-#include <unordered_map>
-#include <vector>
 
 #include <algorithm>
 #include <cmath>
 #include <map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "starboard/common/log.h"
@@ -807,11 +806,6 @@ std::vector<InputDeviceInfo> GetInputDevices() {
 
     SB_DCHECK(info.fd != kInvalidFd);
     input_devices.push_back(info);
-  }
-
-  if (input_devices.empty()) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": No /dev/input support. "
-                   << "No keyboards or game controllers available.";
   }
 
   SbDirectoryClose(directory);
