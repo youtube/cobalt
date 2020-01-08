@@ -172,6 +172,7 @@ GrBackendRenderTarget CobaltRenderTargetToSkiaBackendRenderTarget(
 
   GrGLFramebufferInfo info;
   info.fFBOID = cobalt_render_target.GetPlatformHandle();
+  info.fFormat = SB_GL_RGBA8;
   GrBackendRenderTarget skia_render_target(size.width(), size.height(), 0, 0,
                                            info);
 
@@ -617,7 +618,7 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
   context_options.fGlyphCacheTextureMaximumBytes =
       skia_atlas_width * skia_atlas_height;
   context_options.fAvoidStencilBuffers = true;
-  gr_context_.reset(GrContext::MakeGL(context_options).get());
+  gr_context_.reset(GrContext::MakeGL(context_options).release());
 
   DCHECK(gr_context_);
   // The GrContext manages a budget for GPU resources.  Setting the budget equal
