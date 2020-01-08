@@ -20,14 +20,15 @@ namespace media {
 // encrypted, and the next nine are skipped. This pattern is applied
 // repeatedly until the end of the last 16-byte block in the subsample.
 // Any remaining bytes are left clear.
-// If either of crypt_byte_block or skip_byte_block is 0, pattern encryption
-// is disabled.
+// If crypt_byte_block is 0, pattern encryption is disabled.
 // TODO(jrummell): Use base::Optional<EncryptionPattern> everywhere, and remove
 // IsInEffect().
 class MEDIA_EXPORT EncryptionPattern {
  public:
   EncryptionPattern();
   EncryptionPattern(uint32_t crypt_byte_block, uint32_t skip_byte_block);
+  EncryptionPattern(const EncryptionPattern& rhs);
+  EncryptionPattern& operator=(const EncryptionPattern& rhs);
   ~EncryptionPattern();
 
   bool Matches(const EncryptionPattern& other) const;
@@ -37,9 +38,8 @@ class MEDIA_EXPORT EncryptionPattern {
 
   bool IsInEffect() const;
 
-  // Allow copy and assignment.
-  EncryptionPattern(const EncryptionPattern& rhs) = default;
-  EncryptionPattern& operator=(const EncryptionPattern& rhs) = default;
+  bool operator==(const EncryptionPattern& other) const;
+  bool operator!=(const EncryptionPattern& other) const;
 
  private:
   uint32_t crypt_byte_block_ = 0;  // Count of the encrypted blocks.

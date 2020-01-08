@@ -14,11 +14,11 @@
 namespace cobalt {
 namespace media {
 
-// Fills an initialized DecryptConfig, which can be sent to the Decryptor if
-// the stream has potentially encrypted frames. Also sets |data_offset| which
-// indicates where the encrypted data starts. Leaving the IV empty will tell
-// the decryptor that the frame is unencrypted. Returns true if |data| is valid,
-// false otherwise, in which case |decrypt_config| and |data_offset| will not be
+// Fills |decrypt_config|, which can be sent to the Decryptor if the stream
+// has potentially encrypted frames. Also sets |data_offset| which indicates
+// where the encrypted data starts. If the frame is unencrypted
+// |*decrypt_config| will be null. Returns true if |data| is valid, false
+// otherwise, in which case |decrypt_config| and |data_offset| will not be
 // changed. Current encrypted WebM request for comments specification is here
 // http://wiki.webmproject.org/encryption/webm-encryption-rfc
 bool MEDIA_EXPORT WebMCreateDecryptConfig(
