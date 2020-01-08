@@ -1820,7 +1820,7 @@ void BrowserModule::ApplyAutoMemSettings() {
       GetViewportSize().width_height(), options_.command_line_auto_mem_settings,
       options_.build_auto_mem_settings));
 
-  LOG(INFO) << "\n\n" << auto_mem_->ToPrettyPrintString(SbLogIsTty()) << "\n\n";
+  LOG(INFO) << auto_mem_->ToPrettyPrintString(SbLogIsTty());
 
   if (javascript_gc_threshold_in_bytes_) {
     DCHECK_EQ(*javascript_gc_threshold_in_bytes_,
