@@ -137,12 +137,19 @@ GrGLFuncPtr GetGLProc(void* ctx, const char name[]) {
   return EGL_CALL_SIMPLE(eglGetProcAddress(name));
 }
 
+sk_sp<const GrGLInterface> GrGLMakeNativeInterface() {
+  return GrGLMakeAssembledInterface(NULL, &GetGLProc);
+}
+
 const GrGLInterface* GrGLCreateNativeInterface() {
   return GrGLAssembleInterface(NULL, &GetGLProc);
 }
 #else  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)
 
 #include "third_party/skia/include/gpu/gl/GrGLInterface.h"
+
+sk_sp<const GrGLInterface> GrGLMakeNativeInterface() { return nullptr; }
+
 const GrGLInterface* GrGLCreateNativeInterface() { return nullptr; }
 
 #endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)

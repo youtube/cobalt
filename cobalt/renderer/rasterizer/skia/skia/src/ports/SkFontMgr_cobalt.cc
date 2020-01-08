@@ -230,15 +230,13 @@ SkTypeface* SkFontMgr_Cobalt::onMatchFamilyStyleCharacter(
 
 sk_sp<SkTypeface> SkFontMgr_Cobalt::onMakeFromData(sk_sp<SkData> data,
                                                    int face_index) const {
-  std::unique_ptr<SkStreamAsset> stream(
-      new SkMemoryStream(data->data(), data->size()));
-  return makeFromStream(std::unique_ptr<SkStreamAsset>(stream.get()),
+  return makeFromStream(std::make_unique<SkMemoryStream>(std::move(data)),
                         face_index);
 }
 
 sk_sp<SkTypeface> SkFontMgr_Cobalt::onMakeFromStreamIndex(
     std::unique_ptr<SkStreamAsset> stream, int face_index) const {
-  TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::onCreateFromStream()");
+  TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::onMakeFromStreamIndex()");
   bool is_fixed_pitch;
   SkFontStyle style;
   SkString name;
@@ -247,17 +245,13 @@ sk_sp<SkTypeface> SkFontMgr_Cobalt::onMakeFromStreamIndex(
     return NULL;
   }
   return sk_sp<SkTypeface>(new SkTypeface_CobaltStream(
-      stream.get(), face_index, style, is_fixed_pitch, name));
+      std::move(stream), face_index, style, is_fixed_pitch, name));
 }
 
 sk_sp<SkTypeface> SkFontMgr_Cobalt::onMakeFromFile(const char path[],
                                                    int face_index) const {
-  TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::onCreateFromFile()");
-  std::unique_ptr<SkStreamAsset> stream = SkStream::MakeFromFile(path);
-  return stream.get()
-             ? makeFromStream(std::unique_ptr<SkStreamAsset>(stream.release()),
-                              face_index)
-             : NULL;
+  TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::onMakeFromFile()");
+  return makeFromStream(SkStream::MakeFromFile(path), face_index);
 }
 
 sk_sp<SkTypeface> SkFontMgr_Cobalt::onLegacyMakeTypeface(

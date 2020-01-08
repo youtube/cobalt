@@ -49,7 +49,7 @@ class SkTypeface_Cobalt : public SkTypeface_FreeType {
 
 class SkTypeface_CobaltStream : public SkTypeface_Cobalt {
  public:
-  SkTypeface_CobaltStream(SkStreamAsset* stream, int face_index,
+  SkTypeface_CobaltStream(std::unique_ptr<SkStreamAsset> stream, int face_index,
                           SkFontStyle style, bool is_fixed_pitch,
                           const SkString& family_name);
 
