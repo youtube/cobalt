@@ -724,6 +724,16 @@ bool VideoSampleEntry::Parse(BoxReader* reader) {
           new HEVCBitstreamConverter(std::move(hevcConfig)));
       break;
     }
+    case FOURCC_VP09: {
+      DVLOG(2) << __func__ << " parsing VPCodecConfigurationRecord (vpcC)";
+      std::unique_ptr<VPCodecConfigurationRecord> vp_config(
+          new VPCodecConfigurationRecord());
+      RCHECK(reader->ReadChild(vp_config.get()));
+      frame_bitstream_converter = nullptr;
+      video_codec = kCodecVP9;
+      video_codec_profile = vp_config->profile;
+      break;
+    }
     case FOURCC_AV01: {
       DVLOG(2) << __func__ << " reading AV1 configuration.";
       AV1CodecConfigurationRecord av1_config;
@@ -752,6 +762,8 @@ bool VideoSampleEntry::IsFormatValid() const {
     case FOURCC_AVC3:
     case FOURCC_HEV1:
     case FOURCC_HVC1:
+      return true;
+    case FOURCC_VP09:
       return true;
     case FOURCC_AV01:
       return true;

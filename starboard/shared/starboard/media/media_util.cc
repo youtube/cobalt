@@ -200,8 +200,9 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
 #endif  // SB_API_VERSION < 11
       return mime_type.subtype() == "mp4";
     case kSbMediaVideoCodecVp8:
-    case kSbMediaVideoCodecVp9:
       return mime_type.subtype() == "webm";
+    case kSbMediaVideoCodecVp9:
+      return mime_type.subtype() == "mp4" || mime_type.subtype() == "webm";
   }
 
   SB_NOTREACHED();
