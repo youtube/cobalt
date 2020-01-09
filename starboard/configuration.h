@@ -228,6 +228,10 @@
 // to use |kSbPlayerOutputModeDecodeToTexture| for low resolution videos.
 #define SB_PLAYER_GET_PREFERRED_OUTPUT_MODE_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Introduce support of cbcs encryption scheme into SbDrmSystem, as defined in
+// ISO/IEC 23001 part 7.
+#define SB_DRM_CBCS_SUPPORT_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
