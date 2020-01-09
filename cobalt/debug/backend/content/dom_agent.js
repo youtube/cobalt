@@ -323,22 +323,6 @@ const _observerConfig = {
 let _nodeStore = new Map();
 let _nextNodeId = 1;
 
-// Clear the Elements tree in the frontend. It will call DOM.getDocument in
-// response to re-load the document.
-// https://chromedevtools.github.io/devtools-protocol/tot/DOM#event-documentUpdated
-function _documentUpdated() {
-  debugBackend.sendEvent('DOM.documentUpdated', '{}');
-}
-
-// This script is injected while initializing the WebModule and its associated
-// DebugModule along with its agents. That happens before the new document is
-// loaded for a navigation, so clear the old Elements tree in the frontend while
-// loading the new document.
-_documentUpdated();
-
-// Once the new document is loaded, make the frontend reload its Elements tree.
-document.addEventListener('load', _documentUpdated);
-
 // Namespace for constructors of types defined in the Devtools protocol.
 let devtools = {};
 
