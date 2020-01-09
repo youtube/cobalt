@@ -63,18 +63,20 @@ class Paragraph : public base::RefCounted<Paragraph> {
   };
 
   enum CodePoint {
-    kLeftToRightEmbedCodePoint,
+    kLeftToRightIsolateCodePoint,
     kLineFeedCodePoint,
     kNoBreakSpaceCodePoint,
     kObjectReplacementCharacterCodePoint,
-    kPopDirectionalFormattingCharacterCodePoint,
-    kRightToLeftEmbedCodePoint,
+    kPopDirectionalIsolateCodePoint,
+    kRightToLeftIsolateCodePoint,
   };
 
-  // http://unicode.org/reports/tr9/#Explicit_Directional_Embeddings
-  enum DirectionalEmbedding {
-    kLeftToRightDirectionalEmbedding,
-    kRightToLeftDirectionalEmbedding,
+  // http://unicode.org/reports/tr9/#Directional_Formatting_Characters
+  enum DirectionalFormatting {
+    // Setting the "dir" attribute corresponds to using directional isolates.
+    //   http://unicode.org/reports/tr9/#Markup_And_Formatting
+    kLeftToRightDirectionalIsolate,
+    kRightToLeftDirectionalIsolate,
   };
 
   enum TextOrder {
@@ -87,10 +89,10 @@ class Paragraph : public base::RefCounted<Paragraph> {
     kUppercaseTextTransform,
   };
 
-  typedef std::vector<DirectionalEmbedding> DirectionalEmbeddingStack;
+  typedef std::vector<DirectionalFormatting> DirectionalFormattingStack;
 
   Paragraph(const icu::Locale& locale, BaseDirection base_direction,
-            const DirectionalEmbeddingStack& directional_embedding_stack,
+            const DirectionalFormattingStack& directional_formatting_stack,
             icu::BreakIterator* line_break_iterator,
             icu::BreakIterator* character_break_iterator);
 
@@ -128,9 +130,9 @@ class Paragraph : public base::RefCounted<Paragraph> {
   const icu::Locale& GetLocale() const;
   BaseDirection base_direction() const { return base_direction_; }
 
-  // Return the direction of the top directional embedding in the paragraph's
+  // Return the direction of the top directional formatting in the paragraph's
   // stack or the base direction if the stack is empty.
-  BaseDirection GetDirectionalEmbeddingStackDirection() const;
+  BaseDirection GetDirectionalFormattingStackDirection() const;
 
   int GetBidiLevel(int32 position) const;
   bool IsRTL(int32 position) const;
@@ -138,10 +140,10 @@ class Paragraph : public base::RefCounted<Paragraph> {
   bool GetNextRunPosition(int32 position, int32* next_run_position) const;
   int32 GetTextEndPosition() const;
 
-  // Return the full directional embedding stack for the paragraph. This allows
+  // Return the full directional formatting stack for the paragraph. This allows
   // newly created paragraphs to copy the directional state of a preceding
   // paragraph.
-  const DirectionalEmbeddingStack& GetDirectionalEmbeddingStack() const;
+  const DirectionalFormattingStack& GetDirectionalFormattingStack() const;
 
   // Close the paragraph so that it becomes immutable and generates the text
   // runs.
@@ -215,9 +217,9 @@ class Paragraph : public base::RefCounted<Paragraph> {
   // The base direction of the paragraph.
   const BaseDirection base_direction_;
 
-  // The stack tracking all active directional embeddings in the paragraph.
-  // http://unicode.org/reports/tr9/#Explicit_Directional_Embeddings
-  DirectionalEmbeddingStack directional_embedding_stack_;
+  // The stack tracking all active directional formatting in the paragraph.
+  // http://unicode.org/reports/tr9/#Directional_Formatting_Characters
+  DirectionalFormattingStack directional_formatting_stack_;
 
   // The line break iterator to use when splitting the text boxes derived from
   // this text paragraph across multiple lines.

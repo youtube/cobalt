@@ -423,7 +423,7 @@ class ContainerBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
       : element_dir_(element_dir),
         css_computed_style_declaration_(css_computed_style_declaration),
         context_(context),
-        has_scoped_directional_embedding_(false),
+        has_scoped_directional_isolate_(false),
         paragraph_(paragraph),
         paragraph_scoped_(false) {}
   ~ContainerBoxGenerator();
@@ -440,10 +440,10 @@ class ContainerBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
       css_computed_style_declaration_;
   const BoxGenerator::Context* context_;
 
-  // If a directional embedding was added to the paragraph by this container box
+  // If a directional isolate was added to the paragraph by this container box
   // and needs to be popped in the destructor:
-  // http://unicode.org/reports/tr9/#Explicit_Directional_Embeddings
-  bool has_scoped_directional_embedding_;
+  // http://unicode.org/reports/tr9/#Explicit_Directional_Isolates
+  bool has_scoped_directional_isolate_;
 
   scoped_refptr<Paragraph>* paragraph_;
   scoped_refptr<Paragraph> prior_paragraph_;
@@ -453,14 +453,14 @@ class ContainerBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
 };
 
 ContainerBoxGenerator::~ContainerBoxGenerator() {
-  // If there's a scoped directional embedding, then it needs to popped from
+  // If there's a scoped directional isolate, then it needs to popped from
   // the paragraph so that this box does not impact the directionality of later
   // boxes in the paragraph.
-  // http://unicode.org/reports/tr9/#Terminating_Explicit_Directional_Embeddings_and_Overrides
-  if (has_scoped_directional_embedding_) {
+  // http://unicode.org/reports/tr9/#Terminating_Explicit_Directional_Isolates
+  if (has_scoped_directional_isolate_) {
     (*paragraph_)
         ->AppendCodePoint(
-            Paragraph::kPopDirectionalFormattingCharacterCodePoint);
+            Paragraph::kPopDirectionalIsolateCodePoint);
   }
 
   if (paragraph_scoped_) {
@@ -472,7 +472,7 @@ ContainerBoxGenerator::~ContainerBoxGenerator() {
     if (prior_paragraph_->IsClosed()) {
       *paragraph_ = new Paragraph(
           prior_paragraph_->GetLocale(), prior_paragraph_->base_direction(),
-          prior_paragraph_->GetDirectionalEmbeddingStack(),
+          prior_paragraph_->GetDirectionalFormattingStack(),
           context_->line_break_iterator, context_->character_break_iterator);
     } else {
       *paragraph_ = prior_paragraph_;
@@ -530,17 +530,17 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     // in the formatting context.
     case cssom::KeywordValue::kInline:
       // If the creating HTMLElement had an explicit directionality, then append
-      // a directional embedding to the paragraph. This will be popped from the
+      // a directional isolate to the paragraph. This will be popped from the
       // paragraph, when the ContainerBoxGenerator goes out of scope.
       // https://dev.w3.org/html5/spec-preview/global-attributes.html#the-directionality
-      // http://unicode.org/reports/tr9/#Explicit_Directional_Embeddings
+      // http://unicode.org/reports/tr9/#Explicit_Directional_Isolates
       // http://unicode.org/reports/tr9/#Markup_And_Formatting
       if (element_dir_ == DirState::kDirLeftToRight) {
-        has_scoped_directional_embedding_ = true;
-        (*paragraph_)->AppendCodePoint(Paragraph::kLeftToRightEmbedCodePoint);
+        has_scoped_directional_isolate_ = true;
+        (*paragraph_)->AppendCodePoint(Paragraph::kLeftToRightIsolateCodePoint);
       } else if (element_dir_ == DirState::kDirRightToLeft) {
-        has_scoped_directional_embedding_ = true;
-        (*paragraph_)->AppendCodePoint(Paragraph::kRightToLeftEmbedCodePoint);
+        has_scoped_directional_isolate_ = true;
+        (*paragraph_)->AppendCodePoint(Paragraph::kRightToLeftIsolateCodePoint);
       }
 
       // If the paragraph has not started yet, then add a no-break space to it,
@@ -683,7 +683,7 @@ void ContainerBoxGenerator::CreateScopedParagraph(
   } else if (element_dir_ == DirState::kDirRightToLeft) {
     base_direction = kRightToLeftBaseDirection;
   } else {
-    base_direction = prior_paragraph_->GetDirectionalEmbeddingStackDirection();
+    base_direction = prior_paragraph_->GetDirectionalFormattingStackDirection();
   }
 
   if (close_prior_paragraph == kCloseParagraph) {
@@ -691,7 +691,7 @@ void ContainerBoxGenerator::CreateScopedParagraph(
   }
 
   *paragraph_ = new Paragraph(prior_paragraph_->GetLocale(), base_direction,
-                              Paragraph::DirectionalEmbeddingStack(),
+                              Paragraph::DirectionalFormattingStack(),
                               context_->line_break_iterator,
                               context_->character_break_iterator);
 }
