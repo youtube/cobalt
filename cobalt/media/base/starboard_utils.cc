@@ -17,6 +17,7 @@
 #include <algorithm>
 
 #include "base/logging.h"
+#include "cobalt/media/base/decrypt_config.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 
@@ -146,11 +147,29 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
   DCHECK(subsample_mapping);
 
   const DecryptConfig* config = buffer->decrypt_config();
+
+#if SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
+  if (config->encryption_mode() == EncryptionMode::kCenc) {
+    drm_info->encryption_scheme = kSbDrmEncryptionSchemeAesCtr;
+  } else {
+    DCHECK_EQ(config->encryption_mode(), EncryptionMode::kCbcs);
+    drm_info->encryption_scheme = kSbDrmEncryptionSchemeAesCbc;
+  }
+#else   // SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
+  DCHECK_EQ(config->encryption_mode(), EncryptionMode::kCenc);
+#endif  // SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
+
+// Set content of |drm_info| to default or invalid values.
+#if SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
+  drm_info->encryption_pattern.crypt_byte_block = 0;
+  drm_info->encryption_pattern.skip_byte_block = 0;
+#endif  // SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
+  drm_info->initialization_vector_size = 0;
+  drm_info->identifier_size = 0;
+  drm_info->subsample_count = 0;
+  drm_info->subsample_mapping = NULL;
+
   if (!config || config->iv().empty() || config->key_id().empty()) {
-    drm_info->initialization_vector_size = 0;
-    drm_info->identifier_size = 0;
-    drm_info->subsample_count = 0;
-    drm_info->subsample_mapping = NULL;
     return;
   }
 
@@ -159,10 +178,6 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
 
   if (config->iv().size() > sizeof(drm_info->initialization_vector) ||
       config->key_id().size() > sizeof(drm_info->identifier)) {
-    drm_info->initialization_vector_size = 0;
-    drm_info->identifier_size = 0;
-    drm_info->subsample_count = 0;
-    drm_info->subsample_mapping = NULL;
     return;
   }
 
@@ -186,6 +201,20 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
     subsample_mapping->clear_byte_count = 0;
     subsample_mapping->encrypted_byte_count = buffer->data_size();
   }
+
+#if SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
+  if (buffer->decrypt_config()->HasPattern()) {
+    drm_info->encryption_pattern.crypt_byte_block =
+        config->encryption_pattern()->crypt_byte_block();
+    drm_info->encryption_pattern.skip_byte_block =
+        config->encryption_pattern()->skip_byte_block();
+  }
+#else   // SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
+  if (buffer->decrypt_config()->HasPattern()) {
+    DCHECK_EQ(config->encryption_pattern()->crypt_byte_block(), 0);
+    DCHECK_EQ(config->encryption_pattern()->skip_byte_block(), 0);
+  }
+#endif  // SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
 }
 
 // Ensure that the enums in starboard/media.h match enums in gfx::ColorSpace.

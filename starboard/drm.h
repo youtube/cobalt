@@ -83,8 +83,32 @@ typedef struct SbDrmKeyId {
   int identifier_size;
 } SbDrmKeyId;
 
+#if SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
+
+// Encryption scheme of the input sample, as defined in ISO/IEC 23001 part 7.
+typedef enum SbDrmEncryptionScheme {
+  kSbDrmEncryptionSchemeAesCtr,
+  kSbDrmEncryptionSchemeAesCbc,
+} SbDrmEncryptionScheme;
+
+// Encryption pattern of the input sample, as defined in ISO/IEC 23001 part 7.
+typedef struct SbDrmEncryptionPattern {
+  uint32_t crypt_byte_block;
+  uint32_t skip_byte_block;
+} SbDrmEncryptionPattern;
+
+#endif  // SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
+
 // All the optional information needed per sample for encrypted samples.
 typedef struct SbDrmSampleInfo {
+#if SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
+  // The encryption scheme of this sample.
+  SbDrmEncryptionScheme encryption_scheme;
+
+  // The encryption pattern of this sample.
+  SbDrmEncryptionPattern encryption_pattern;
+#endif  // SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
+
   // The Initialization Vector needed to decrypt this sample.
   uint8_t initialization_vector[16];
   int initialization_vector_size;
