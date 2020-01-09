@@ -107,7 +107,7 @@ void UpdateComputedStylesAndLayoutBoxTree(
 
     ScopedParagraph scoped_paragraph(
         new Paragraph(locale, (*initial_containing_block)->base_direction(),
-                      Paragraph::DirectionalEmbeddingStack(),
+                      Paragraph::DirectionalFormattingStack(),
                       line_break_iterator, character_break_iterator));
     BoxGenerator::Context context(
         used_style_provider, layout_stat_tracker, line_break_iterator,
