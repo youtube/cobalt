@@ -96,6 +96,19 @@ enum VideoCodecProfile {
 std::string MEDIA_EXPORT GetCodecName(VideoCodec codec);
 std::string MEDIA_EXPORT GetProfileName(VideoCodecProfile profile);
 
+// ParseNewStyleVp9CodecID handles parsing of new style vp9 codec IDs per
+// proposed VP Codec ISO Media File Format Binding specification:
+// https://storage.googleapis.com/downloads.webmproject.org/docs/vp9/vp-codec-iso-media-file-format-binding-20160516-draft.pdf
+// ParseLegacyVp9CodecID handles parsing of legacy VP9 codec strings defined
+// for WebM.
+// TODO(kqyang): Consolidate the two functions once we address crbug.com/667834
+MEDIA_EXPORT bool ParseNewStyleVp9CodecID(const std::string& codec_id,
+                                          VideoCodecProfile* profile,
+                                          uint8_t* level_idc);
+MEDIA_EXPORT bool ParseLegacyVp9CodecID(const std::string& codec_id,
+                                        VideoCodecProfile* profile,
+                                        uint8_t* level_idc);
+
 MEDIA_EXPORT bool ParseAv1CodecId(const std::string& codec_id,
                                   VideoCodecProfile* profile,
                                   uint8_t* level_idc,

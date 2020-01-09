@@ -109,6 +109,91 @@ std::string GetProfileName(VideoCodecProfile profile) {
   return "";
 }
 
+bool ParseNewStyleVp9CodecID(const std::string& codec_id,
+                             VideoCodecProfile* profile,
+                             uint8_t* level_idc) {
+  std::vector<std::string> fields = base::SplitString(
+      codec_id, ".", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
+
+  // TODO(kqyang): The spec specifies 8 fields. We do not allow missing or extra
+  // fields. See crbug.com/667834.
+  if (fields.size() != 8)
+    return false;
+
+  if (fields[0] != "vp09")
+    return false;
+
+  std::vector<int> values;
+  for (size_t i = 1; i < fields.size(); ++i) {
+    // Missing value is not allowed.
+    if (fields[i] == "")
+      return false;
+    int value;
+    if (!base::StringToInt(fields[i], &value))
+      return false;
+    if (value < 0)
+      return false;
+    values.push_back(value);
+  }
+
+  const int profile_idc = values[0];
+  switch (profile_idc) {
+    case 0:
+      *profile = VP9PROFILE_PROFILE0;
+      break;
+    case 1:
+      *profile = VP9PROFILE_PROFILE1;
+      break;
+    case 2:
+      *profile = VP9PROFILE_PROFILE2;
+      break;
+    case 3:
+      *profile = VP9PROFILE_PROFILE3;
+      break;
+    default:
+      return false;
+  }
+
+  *level_idc = values[1];
+  // TODO(kqyang): Check if |level_idc| is valid. See crbug.com/667834.
+
+  const int bit_depth = values[2];
+  if (bit_depth != 8 && bit_depth != 10 && bit_depth != 12)
+    return false;
+
+  const int color_space = values[3];
+  if (color_space > 7)
+    return false;
+
+  const int chroma_subsampling = values[4];
+  if (chroma_subsampling > 3)
+    return false;
+
+  const int transfer_function = values[5];
+  if (transfer_function > 1)
+    return false;
+
+  const int video_full_range_flag = values[6];
+  if (video_full_range_flag > 1)
+    return false;
+
+  return true;
+}
+
+bool ParseLegacyVp9CodecID(const std::string& codec_id,
+                           VideoCodecProfile* profile,
+                           uint8_t* level_idc) {
+  if (codec_id == "vp9" || codec_id == "vp9.0") {
+    // Profile is not included in the codec string. Assuming profile 0 to be
+    // backward compatible.
+    *profile = VP9PROFILE_PROFILE0;
+    // Use 0 to indicate unknown level.
+    *level_idc = 0;
+    return true;
+  }
+  return false;
+}
+
 bool ParseAv1CodecId(const std::string& codec_id, VideoCodecProfile* profile,
                      uint8_t* level_idc, gfx::ColorSpace* color_space) {
   // The codecs parameter string for the AOM AV1 codec is as follows:
@@ -510,12 +595,15 @@ VideoCodec StringToVideoCodec(const std::string& codec_id) {
   if (elem.empty()) return kUnknownVideoCodec;
   VideoCodecProfile profile = VIDEO_CODEC_PROFILE_UNKNOWN;
   uint8_t level = 0;
-  if (ParseAVCCodecId(codec_id, &profile, &level)) return kCodecH264;
-  if (codec_id == "vp8" || codec_id == "vp8.0") return kCodecVP8;
-  if (codec_id == "vp9" || codec_id == "vp9.0" || codec_id == "vp9.1" ||
-      codec_id == "vp9.2") {
+  if (codec_id == "vp8" || codec_id == "vp8.0")
+    return kCodecVP8;
+  if (ParseNewStyleVp9CodecID(codec_id, &profile, &level) ||
+      ParseLegacyVp9CodecID(codec_id, &profile, &level)) {
     return kCodecVP9;
   }
+  if (codec_id == "theora")
+    return kCodecTheora;
+  if (ParseAVCCodecId(codec_id, &profile, &level)) return kCodecH264;
   // We don't parse the full codec string as it must have been checked by
   // isTypeSupported() before passing into this function.
   if (codec_id.substr(0, 5) == "vp09.") {
@@ -524,7 +612,6 @@ VideoCodec StringToVideoCodec(const std::string& codec_id) {
   gfx::ColorSpace color_space;
   if (ParseAv1CodecId(codec_id, &profile, &level, &color_space))
     return kCodecAV1;
-  if (codec_id == "theora") return kCodecTheora;
   if (ParseHEVCCodecId(codec_id, &profile, &level)) return kCodecHEVC;
 
   return kUnknownVideoCodec;

@@ -133,6 +133,20 @@ static std::string TranslateLegacyAvc1CodecIds(const std::string& codec_id) {
   return codec_id;
 }
 
+static bool ParseVp9CodecID(const std::string& mime_type_lower_case,
+                            const std::string& codec_id,
+                            VideoCodecProfile* out_profile,
+                            uint8_t* out_level) {
+  if (mime_type_lower_case == "video/mp4") {
+    return ParseNewStyleVp9CodecID(codec_id, out_profile, out_level);
+  } else if (mime_type_lower_case == "video/webm") {
+    // Only legacy codec strings are supported in WebM.
+    // TODO(kqyang): Should we support new codec string in WebM?
+    return ParseLegacyVp9CodecID(codec_id, out_profile, out_level);
+  }
+  return false;
+}
+
 static bool IsValidH264Level(uint8_t level_idc) {
   // Valid levels taken from Table A-1 in ISO/IEC 14496-10.
   // Level_idc represents the standard level represented as decimal number
@@ -142,81 +156,6 @@ static bool IsValidH264Level(uint8_t level_idc) {
           (level_idc >= 30 && level_idc <= 32) ||
           (level_idc >= 40 && level_idc <= 42) ||
           (level_idc >= 50 && level_idc <= 51));
-}
-
-// Handle parsing of vp9 codec IDs.
-static bool ParseVp9CodecID(const std::string& mime_type_lower_case,
-                            const std::string& codec_id,
-                            VideoCodecProfile* profile) {
-  if (mime_type_lower_case == "video/webm") {
-    if (codec_id == "vp9" || codec_id == "vp9.0") {
-      // Profile is not included in the codec string. Assuming profile 0 to be
-      // backward compatible.
-      *profile = VP9PROFILE_PROFILE0;
-      return true;
-    }
-    // TODO(kqyang): Should we support new codec string in WebM?
-    return false;
-  } else if (mime_type_lower_case == "audio/webm") {
-    return false;
-  }
-
-  std::vector<std::string> fields = base::SplitString(
-      codec_id, std::string("."), base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
-  if (fields.size() < 1) return false;
-
-  if (fields[0] != "vp09") return false;
-
-  if (fields.size() > 8) return false;
-
-  std::vector<int> values;
-  for (size_t i = 1; i < fields.size(); ++i) {
-    // Missing value is not allowed.
-    if (fields[i] == "") return false;
-    int value;
-    if (!base::StringToInt(fields[i], &value)) return false;
-    if (value < 0) return false;
-    values.push_back(value);
-  }
-
-  // The spec specifies 8 fields (7 values excluding the first codec field).
-  // We do not allow missing fields.
-  if (values.size() < 7) return false;
-
-  const int profile_idc = values[0];
-  switch (profile_idc) {
-    case 0:
-      *profile = VP9PROFILE_PROFILE0;
-      break;
-    case 1:
-      *profile = VP9PROFILE_PROFILE1;
-      break;
-    case 2:
-      *profile = VP9PROFILE_PROFILE2;
-      break;
-    case 3:
-      *profile = VP9PROFILE_PROFILE3;
-      break;
-    default:
-      return false;
-  }
-
-  const int bit_depth = values[2];
-  if (bit_depth != 8 && bit_depth != 10 && bit_depth != 12) return false;
-
-  const int color_space = values[3];
-  if (color_space > 7) return false;
-
-  const int chroma_subsampling = values[4];
-  if (chroma_subsampling > 3) return false;
-
-  const int transfer_function = values[5];
-  if (transfer_function > 1) return false;
-
-  const int video_full_range_flag = values[6];
-  if (video_full_range_flag > 1) return false;
-
-  return true;
 }
 
 MimeUtil::MimeUtil() : allow_proprietary_codecs_(false) {
@@ -617,8 +556,26 @@ bool MimeUtil::StringToCodec(const std::string& mime_type_lower_case,
   }
 
   // If |codec_id| is not in |string_to_codec_map_|, then we assume that it is
-  // either H.264 or HEVC/H.265 codec ID because currently those are the only
-  // ones that are not added to the |string_to_codec_map_| and require parsing.
+  // either VP9, H.264 or HEVC/H.265 codec ID because currently those are the
+  // only ones that are not added to the |string_to_codec_map_| and require
+  // parsing.
+  if (ParseVp9CodecID(mime_type_lower_case, codec_id, out_profile, out_level)) {
+    *codec = MimeUtil::VP9;
+    switch (*out_profile) {
+      case VP9PROFILE_PROFILE0:
+        // Profile 0 should always be supported if VP9 is supported.
+        *is_ambiguous = false;
+        break;
+      default:
+        // We don't know if the underlying platform supports these profiles.
+        // Need to add platform level querying to get supported profiles
+        // (crbug/604566).
+        *is_ambiguous = true;
+        break;
+    }
+    return true;
+  }
+
   if (ParseAVCCodecId(codec_id, out_profile, out_level)) {
     *codec = MimeUtil::H264;
     switch (*out_profile) {
@@ -641,23 +598,6 @@ bool MimeUtil::StringToCodec(const std::string& mime_type_lower_case,
         *is_ambiguous = !IsValidH264Level(*out_level);
         break;
       default:
-        *is_ambiguous = true;
-    }
-    return true;
-  }
-
-  if (ParseVp9CodecID(mime_type_lower_case, codec_id, out_profile)) {
-    *codec = MimeUtil::VP9;
-    *out_level = 1;
-    switch (*out_profile) {
-      case VP9PROFILE_PROFILE0:
-        // Profile 0 should always be supported if VP9 is supported.
-        *is_ambiguous = false;
-        break;
-      default:
-        // We don't know if the underlying platform supports these profiles.
-        // Need to add platform level querying to get supported profiles
-        // (crbug/604566).
         *is_ambiguous = true;
     }
     return true;
