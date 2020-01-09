@@ -32,12 +32,12 @@ int ConvertBaseDirectionToBidiLevel(BaseDirection base_direction) {
 
 Paragraph::Paragraph(
     const icu::Locale& locale, BaseDirection base_direction,
-    const DirectionalEmbeddingStack& directional_embedding_stack,
+    const DirectionalFormattingStack& directional_formatting_stack,
     icu::BreakIterator* line_break_iterator,
     icu::BreakIterator* character_break_iterator)
     : locale_(locale),
       base_direction_(base_direction),
-      directional_embedding_stack_(directional_embedding_stack),
+      directional_formatting_stack_(directional_formatting_stack),
       line_break_iterator_(line_break_iterator),
       character_break_iterator_(character_break_iterator),
       is_closed_(false),
@@ -48,15 +48,15 @@ Paragraph::Paragraph(
   level_runs_.push_back(
       BidiLevelRun(0, ConvertBaseDirectionToBidiLevel(base_direction)));
 
-  // Walk through the passed in directional embedding stack and add each
-  // embedding to the text. This allows a paragraph to continue the directional
+  // Walk through the passed in directional formatting stack and add each
+  // formatting to the text. This allows a paragraph to continue the directional
   // state of a prior paragraph.
   DCHECK(unicode_text_.isEmpty());
-  for (size_t i = 0; i < directional_embedding_stack_.size(); ++i) {
-    if (directional_embedding_stack_[i] == kRightToLeftDirectionalEmbedding) {
-      unicode_text_ += base::unicode::kRightToLeftEmbeddingCharacter;
+  for (size_t i = 0; i < directional_formatting_stack_.size(); ++i) {
+    if (directional_formatting_stack_[i] == kRightToLeftDirectionalIsolate) {
+      unicode_text_ += base::unicode::kRightToLeftIsolateCharacter;
     } else {
-      unicode_text_ += base::unicode::kLeftToRightEmbeddingCharacter;
+      unicode_text_ += base::unicode::kLeftToRightIsolateCharacter;
     }
   }
 }
@@ -83,22 +83,19 @@ int32 Paragraph::AppendUtf8String(const std::string& utf8_string,
 }
 
 int32 Paragraph::AppendCodePoint(CodePoint code_point) {
-  // TODO: Switch from appending directional embedding characters to
-  // using directional isolate characters as soon as we upgrade to the latest
-  // version of ICU. Our current version doesn't support them.
   int32 start_position = GetTextEndPosition();
   DCHECK(!is_closed_);
   if (!is_closed_) {
     switch (code_point) {
-      case kLeftToRightEmbedCodePoint:
-        // If this is a directional embedding that is being added, then add it
-        // to the directional embedding stack. This guarantees that a
-        // corresponding pop directional formatting will later be added to the
+      case kLeftToRightIsolateCodePoint:
+        // If this is a directional isolate that is being added, then add it
+        // to the directional formatting stack. This guarantees that a
+        // corresponding pop directional isolate will later be added to the
         // text and allows later paragraphs to copy the directional state.
-        // http://unicode.org/reports/tr9/#Explicit_Directional_Embeddings
-        directional_embedding_stack_.push_back(
-            kLeftToRightDirectionalEmbedding);
-        unicode_text_ += base::unicode::kLeftToRightEmbeddingCharacter;
+        // http://unicode.org/reports/tr9/#Explicit_Directional_Isolates
+        directional_formatting_stack_.push_back(
+            kLeftToRightDirectionalIsolate);
+        unicode_text_ += base::unicode::kLeftToRightIsolateCharacter;
         break;
       case kLineFeedCodePoint:
         unicode_text_ += base::unicode::kNewLineCharacter;
@@ -109,19 +106,19 @@ int32 Paragraph::AppendCodePoint(CodePoint code_point) {
       case kObjectReplacementCharacterCodePoint:
         unicode_text_ += base::unicode::kObjectReplacementCharacter;
         break;
-      case kPopDirectionalFormattingCharacterCodePoint:
-        directional_embedding_stack_.pop_back();
-        unicode_text_ += base::unicode::kPopDirectionalFormattingCharacter;
+      case kPopDirectionalIsolateCodePoint:
+        directional_formatting_stack_.pop_back();
+        unicode_text_ += base::unicode::kPopDirectionalIsolateCharacter;
         break;
-      case kRightToLeftEmbedCodePoint:
-        // If this is a directional embedding that is being added, then add it
-        // to the directional embedding stack. This guarantees that a
-        // corresponding pop directional formatting will later be added to the
-        // text and allows later paragraphs to to copy the directional state.
-        // http://unicode.org/reports/tr9/#Explicit_Directional_Embeddings
-        directional_embedding_stack_.push_back(
-            kRightToLeftDirectionalEmbedding);
-        unicode_text_ += base::unicode::kRightToLeftEmbeddingCharacter;
+      case kRightToLeftIsolateCodePoint:
+        // If this is a directional isolate that is being added, then add it
+        // to the directional formatting stack. This guarantees that a
+        // corresponding pop directional isolate will later be added to the
+        // text and allows later paragraphs to copy the directional state.
+        // http://unicode.org/reports/tr9/#Explicit_Directional_Isolates
+        directional_formatting_stack_.push_back(
+            kRightToLeftDirectionalIsolate);
+        unicode_text_ += base::unicode::kRightToLeftIsolateCharacter;
         break;
     }
   }
@@ -249,11 +246,11 @@ const base::char16* Paragraph::GetTextBuffer() const {
 
 const icu::Locale& Paragraph::GetLocale() const { return locale_; }
 
-BaseDirection Paragraph::GetDirectionalEmbeddingStackDirection() const {
-  size_t stack_size = directional_embedding_stack_.size();
+BaseDirection Paragraph::GetDirectionalFormattingStackDirection() const {
+  size_t stack_size = directional_formatting_stack_.size();
   if (stack_size > 0) {
-    if (directional_embedding_stack_[stack_size - 1] ==
-        kRightToLeftDirectionalEmbedding) {
+    if (directional_formatting_stack_[stack_size - 1] ==
+        kRightToLeftDirectionalIsolate) {
       return kRightToLeftBaseDirection;
     } else {
       return kLeftToRightBaseDirection;
@@ -291,21 +288,21 @@ bool Paragraph::GetNextRunPosition(int32 position,
 
 int32 Paragraph::GetTextEndPosition() const { return unicode_text_.length(); }
 
-const Paragraph::DirectionalEmbeddingStack&
-Paragraph::GetDirectionalEmbeddingStack() const {
-  return directional_embedding_stack_;
+const Paragraph::DirectionalFormattingStack&
+Paragraph::GetDirectionalFormattingStack() const {
+  return directional_formatting_stack_;
 }
 
 void Paragraph::Close() {
   DCHECK(!is_closed_);
   if (!is_closed_) {
-    // Terminate all of the explicit directional embeddings that were previously
+    // Terminate all of the explicit directional isolates that were previously
     // added. However, do not clear the stack. A subsequent paragraph may need
     // to copy it.
-    // http://unicode.org/reports/tr9/#Terminating_Explicit_Directional_Embeddings_and_Overrides
-    for (size_t count = directional_embedding_stack_.size(); count > 0;
+    // http://unicode.org/reports/tr9/#Terminating_Explicit_Directional_Isolates
+    for (size_t count = directional_formatting_stack_.size(); count > 0;
          --count) {
-      unicode_text_ += base::unicode::kPopDirectionalFormattingCharacter;
+      unicode_text_ += base::unicode::kPopDirectionalIsolateCharacter;
     }
 
     is_closed_ = true;

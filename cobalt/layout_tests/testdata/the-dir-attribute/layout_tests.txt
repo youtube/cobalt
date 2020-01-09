@@ -15,12 +15,10 @@ the-dir-attribute-010
 the-dir-attribute-011
 the-dir-attribute-012
 the-dir-attribute-046
-# TODO: fix edge cases for dir=auto
-#the-dir-attribute-047
+the-dir-attribute-047
 the-dir-attribute-048
 the-dir-attribute-049
-# TODO: fix edge cases for dir=auto
-#the-dir-attribute-050
+the-dir-attribute-050
 # <bdi> not supported in Cobalt.
 #the-dir-attribute-051
 # <bdi> not supported in Cobalt.
