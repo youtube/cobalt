@@ -20,9 +20,6 @@
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "cobalt/renderer/backend/default_graphics_system.h"
-#include "cobalt/renderer/backend/graphics_context.h"
-#include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/backend/render_target.h"
 #include "cobalt/renderer/rasterizer/rasterizer.h"
 #include "cobalt/renderer/renderer_module.h"
@@ -37,9 +34,6 @@
 #undef CreateDirectory
 
 using cobalt::render_tree::ResourceProvider;
-using cobalt::renderer::backend::GraphicsContext;
-using cobalt::renderer::backend::GraphicsSystem;
-using cobalt::renderer::backend::RenderTarget;
 using cobalt::renderer::test::png_utils::DecodePNGToRGBA;
 using cobalt::renderer::test::png_utils::EncodeRGBAToPNG;
 
@@ -55,13 +49,12 @@ RenderTreePixelTester::Options::Options()
 RenderTreePixelTester::RenderTreePixelTester(
     const math::Size& test_surface_dimensions,
     const base::FilePath& expected_results_directory,
-    const base::FilePath& output_directory, const Options& options)
-    : expected_results_directory_(expected_results_directory),
+    const base::FilePath& output_directory,
+    backend::GraphicsContext* graphics_context, const Options& options)
+    : graphics_context_(graphics_context),
+      expected_results_directory_(expected_results_directory),
       output_directory_(output_directory),
       options_(options) {
-  graphics_system_ = cobalt::renderer::backend::CreateDefaultGraphicsSystem();
-  graphics_context_ = graphics_system_->CreateGraphicsContext();
-
   // Create our offscreen surface that will be the target of our test
   // rasterizations.
   test_surface_ = graphics_context_->CreateDownloadableOffscreenRenderTarget(
@@ -75,7 +68,7 @@ RenderTreePixelTester::RenderTreePixelTester(
   render_module_options.purge_skia_font_caches_on_destruction = false;
 
   rasterizer_ = render_module_options.create_rasterizer_function.Run(
-      graphics_context_.get(), render_module_options);
+      graphics_context_, render_module_options);
 }
 
 RenderTreePixelTester::~RenderTreePixelTester() {}

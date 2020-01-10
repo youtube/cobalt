@@ -21,6 +21,7 @@
 #include "base/files/file_util.h"
 #include "base/path_service.h"
 #include "cobalt/base/cobalt_paths.h"
+#include "cobalt/renderer/backend/default_graphics_system.h"
 
 namespace cobalt {
 namespace renderer {
@@ -57,7 +58,7 @@ const int kTestSurfaceHeight = 200;
 // kOutputAllTestDetails switches are set).
 base::FilePath GetTestOutputDirectory() {
   base::FilePath out_file_dir;
-  base::PathService::Get(cobalt::paths::DIR_COBALT_TEST_OUT, &out_file_dir);
+  base::PathService::Get(paths::DIR_COBALT_TEST_OUT, &out_file_dir);
   out_file_dir = out_file_dir.Append(FILE_PATH_LITERAL("cobalt"))
                      .Append(FILE_PATH_LITERAL("renderer"))
                      .Append(FILE_PATH_LITERAL("rasterizer"))
@@ -93,15 +94,33 @@ PixelTest::PixelTest() {
 
   pixel_tester_.emplace(math::Size(kTestSurfaceWidth, kTestSurfaceHeight),
                         GetTestInputDirectory(), GetTestOutputDirectory(),
-                        pixel_tester_options);
+                        graphics_context_, pixel_tester_options);
 
   output_surface_size_ = math::Size(kTestSurfaceWidth, kTestSurfaceHeight);
 }
 
 PixelTest::~PixelTest() {}
 
-void PixelTest::TestTree(
-    const scoped_refptr<cobalt::render_tree::Node>& test_tree) {
+// static
+backend::GraphicsSystem* PixelTest::graphics_system_ = nullptr;
+// static
+backend::GraphicsContext* PixelTest::graphics_context_ = nullptr;
+
+// static
+void PixelTest::SetUpTestCase() {
+  graphics_system_ = backend::CreateDefaultGraphicsSystem().release();
+  graphics_context_ = graphics_system_->CreateGraphicsContext().release();
+}
+
+// static
+void PixelTest::TearDownTestCase() {
+  delete graphics_context_;
+  graphics_context_ = nullptr;
+  delete graphics_system_;
+  graphics_system_ = nullptr;
+}
+
+void PixelTest::TestTree(const scoped_refptr<render_tree::Node>& test_tree) {
   // First extract the current test's name into a std::string so that we
   // can use it to load and save image files associated with this test.
   std::string current_test_name(

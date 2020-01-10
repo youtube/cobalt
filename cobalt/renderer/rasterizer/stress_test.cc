@@ -59,25 +59,46 @@ class StressTest : public testing::Test {
  public:
   StressTest();
 
+  static void SetUpTestCase();
+  static void TearDownTestCase();
+
   void TestTree(const Size& output_size, scoped_refptr<Node> tree);
   render_tree::ResourceProvider* GetResourceProvider() const {
     return rasterizer_->GetResourceProvider();
   }
 
  protected:
-  std::unique_ptr<backend::GraphicsSystem> graphics_system_;
-  std::unique_ptr<backend::GraphicsContext> graphics_context_;
   std::unique_ptr<rasterizer::Rasterizer> rasterizer_;
   scoped_refptr<backend::RenderTarget> render_target_;
+
+  static backend::GraphicsSystem* graphics_system_;
+  static backend::GraphicsContext* graphics_context_;
 };
 
 StressTest::StressTest() {
-  graphics_system_ = backend::CreateDefaultGraphicsSystem();
-  graphics_context_ = graphics_system_->CreateGraphicsContext();
   // Create the rasterizer using the platform default RenderModule options.
   RendererModule::Options render_module_options;
   rasterizer_ = render_module_options.create_rasterizer_function.Run(
-      graphics_context_.get(), render_module_options);
+      graphics_context_, render_module_options);
+}
+
+// static
+backend::GraphicsSystem* StressTest::graphics_system_ = nullptr;
+// static
+backend::GraphicsContext* StressTest::graphics_context_ = nullptr;
+
+// static
+void StressTest::SetUpTestCase() {
+  graphics_system_ = backend::CreateDefaultGraphicsSystem().release();
+  graphics_context_ = graphics_system_->CreateGraphicsContext().release();
+}
+
+// static
+void StressTest::TearDownTestCase() {
+  delete graphics_context_;
+  graphics_context_ = nullptr;
+  delete graphics_system_;
+  graphics_system_ = nullptr;
 }
 
 void StressTest::TestTree(const Size& output_size, scoped_refptr<Node> tree) {
