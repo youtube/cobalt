@@ -122,6 +122,8 @@ class CobaltRunner(object):
       self.target_params = [url_string]
     else:
       self.target_params.append(url_string)
+    if self.launcher_params.target_params:
+      self.target_params.extend(self.launcher_params.target_params)
 
   def SendResume(self):
     """Sends a resume signal to start Cobalt from preload."""
