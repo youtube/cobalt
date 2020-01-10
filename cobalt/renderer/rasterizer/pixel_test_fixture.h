@@ -19,6 +19,8 @@
 #include "base/optional.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/node.h"
+#include "cobalt/renderer/backend/graphics_context.h"
+#include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/render_tree_pixel_tester.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -33,19 +35,25 @@ class PixelTest : public testing::Test {
   PixelTest();
   ~PixelTest();
 
+  static void SetUpTestCase();
+  static void TearDownTestCase();
+
  protected:
   // This function will be executed by individual tests.  The current test's
   // name will be used to identify and load the relevant test data expected
   // output image from disk.  Additionally the current test's name will be used
   // to determine the names of output files when a rebase is requested, or when
   // an error mask image is requested.
-  void TestTree(const scoped_refptr<cobalt::render_tree::Node>& test_tree);
+  void TestTree(const scoped_refptr<render_tree::Node>& test_tree);
 
   const math::Size& output_surface_size() const { return output_surface_size_; }
 
   render_tree::ResourceProvider* GetResourceProvider() const {
     return pixel_tester_->GetResourceProvider();
   }
+
+  static backend::GraphicsSystem* graphics_system_;
+  static backend::GraphicsContext* graphics_context_;
 
  private:
   base::Optional<RenderTreePixelTester> pixel_tester_;
