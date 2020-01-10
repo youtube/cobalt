@@ -132,9 +132,9 @@ Window::Window(
     base::WaitableEvent* synchronous_loader_interrupt,
     bool enable_inline_script_warnings,
     const scoped_refptr<ui_navigation::NavItem>& ui_nav_root,
-    bool enable_map_to_mesh, int csp_insecure_allowed_token,
-    int dom_max_element_depth, float video_playback_rate_multiplier,
-    ClockType clock_type, const CacheCallback& splash_screen_cache_callback,
+    int csp_insecure_allowed_token, int dom_max_element_depth,
+    float video_playback_rate_multiplier, ClockType clock_type,
+    const CacheCallback& splash_screen_cache_callback,
     const scoped_refptr<captions::SystemCaptionSettings>& captions,
     bool log_tts)
     // 'window' object EventTargets require special handling for onerror events,
@@ -202,8 +202,7 @@ Window::Window(
       on_start_dispatch_event_callback_(on_start_dispatch_event_callback),
       on_stop_dispatch_event_callback_(on_stop_dispatch_event_callback),
       screenshot_manager_(settings, screenshot_function_callback),
-      ui_nav_root_(ui_nav_root),
-      enable_map_to_mesh_(enable_map_to_mesh) {
+      ui_nav_root_(ui_nav_root) {
 #if !defined(ENABLE_TEST_RUNNER)
   SB_UNREFERENCED_PARAMETER(clock_type);
 #endif

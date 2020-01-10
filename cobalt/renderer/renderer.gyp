@@ -67,11 +67,6 @@
             'COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS=<(cobalt_minimum_frame_time_in_milliseconds)',
           ],
         }],
-        ['enable_map_to_mesh != -1', {
-          'defines': [
-            'ENABLE_MAP_TO_MESH=<(enable_map_to_mesh)',
-          ],
-        }],
       ],
     },
 
@@ -115,10 +110,8 @@
         'renderer_copy_test_data',
       ],
       'conditions': [
-        ['enable_map_to_mesh != -1', {
-          'defines' : [
-            'ENABLE_MAP_TO_MESH=<(enable_map_to_mesh)',
-          ],
+        ['enable_map_to_mesh == 1', {
+          'defines' : ['ENABLE_MAP_TO_MESH'],
         }],
       ],
       'includes': [ '<(DEPTH)/cobalt/test/test.gypi' ],

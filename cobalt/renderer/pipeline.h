@@ -115,8 +115,6 @@ class Pipeline {
   // subsequently submitted to this pipeline.
   render_tree::ResourceProvider* GetResourceProvider();
 
-  bool IsMapToMeshEnabled();
-
  private:
   // All private data members should be accessed only on the rasterizer thread,
   // with the exception of rasterizer_thread_ itself through which messages

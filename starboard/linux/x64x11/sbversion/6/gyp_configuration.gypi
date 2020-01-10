@@ -34,10 +34,6 @@
     }, # end of configurations
   },
 
-  'variables': {
-    'enable_map_to_mesh': 1,
-  },
-
   'includes': [
     '<(DEPTH)/starboard/linux/x64x11/shared/gyp_configuration.gypi',
   ],

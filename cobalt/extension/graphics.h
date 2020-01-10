@@ -57,11 +57,6 @@ typedef struct CobaltExtensionGraphicsApi {
   // better to specify a lower delay. For example, '33' instead of '33.33'
   // for 30 Hz refresh.
   float (*GetMinimumFrameIntervalInMilliseconds)();
-
-  // The fields below this point were added in version 3 or later.
-
-  // Get whether the renderer should support 360 degree video or not.
-  bool (*IsMapToMeshEnabled)();
 } CobaltExtensionGraphicsApi;
 
 #ifdef __cplusplus

@@ -84,13 +84,6 @@
 // `SbGetGlesInterface()` to return `nullptr` when OpenGL is not supported and
 // implement `SbBlitterIsBlitterSupported()` to return false when blitter is
 // not supported, as the stubs do.
-//
-// This change also effectively deprecates the gyp variable
-// "enable_map_to_mesh" in favor of CobaltGraphicsExtensionApi function
-// `IsMapToMeshEnabled()` and the command line switch --disable_map_to_mesh.
-// Now, Cobalt will assume the platform supports map_to_mesh, so platforms that
-// do not will have to have return |false| from `IsMapToMeshEnabled()` or use
-// the provided command line switch.
 #define SB_ALL_RENDERERS_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // Require the captions API.
