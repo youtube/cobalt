@@ -158,7 +158,6 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbPlayerCreate);
   REGISTER_SYMBOL(SbPlayerDestroy);
   REGISTER_SYMBOL(SbPlayerGetCurrentFrame);
-  REGISTER_SYMBOL(SbPlayerOutputModeSupported);
   REGISTER_SYMBOL(SbPlayerSetBounds);
   REGISTER_SYMBOL(SbPlayerSetPlaybackRate);
   REGISTER_SYMBOL(SbPlayerSetVolume);
@@ -291,8 +290,10 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbMemoryFlush);
 #endif  // SB_CAN(MAP_EXECUTABLE_MEMORY)
 
-#if SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   REGISTER_SYMBOL(SbPlayerGetPreferredOutputMode);
+#else
+  REGISTER_SYMBOL(SbPlayerOutputModeSupported);
 #endif
 
 #if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)

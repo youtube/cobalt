@@ -117,6 +117,51 @@ typedef enum SbPlayerOutputMode {
   kSbPlayerOutputModeInvalid,
 } SbPlayerOutputMode;
 
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
+// The playback related parameters to pass into SbPlayerCreate() and
+// SbPlayerGetPreferredOutputMode().
+typedef struct SbPlayerCreationParam {
+  // The audio mime of the stream if available.  Otherwise it will point to an
+  // empty string.  It will never be NULL.
+  const char* audio_mime;
+  // The video mime of the stream if available.  Otherwise it will point to an
+  // empty string.  It will never be NULL.
+  const char* video_mime;
+  // Provides an appropriate DRM system if the media stream has encrypted
+  // portions.  It will be |kSbDrmSystemInvalid| if the stream does not have
+  // encrypted portions.
+  SbDrmSystem drm_system;
+  // Contains a populated SbMediaAudioSampleInfo if |audio_sample_info.codec|
+  // isn't |kSbMediaAudioCodecNone|.  When |audio_sample_info.codec| is
+  // |kSbMediaAudioCodecNone|, the video doesn't have an audio track.
+  SbMediaAudioSampleInfo audio_sample_info;
+  // Contains a populated SbMediaVideoSampleInfo if |video_sample_info.codec|
+  // isn't |kSbMediaVideoCodecNone|.  When |video_sample_info.codec| is
+  // |kSbMediaVideoCodecNone|, the video is audio only.
+  SbMediaVideoSampleInfo video_sample_info;
+  // Selects how the decoded video frames will be output.  For example,
+  // |kSbPlayerOutputModePunchOut| indicates that the decoded video frames will
+  // be output to a background video layer by the platform, and
+  // |kSbPlayerOutputDecodeToTexture| indicates that the decoded video frames
+  // should be made available for the application to pull via calls to
+  // SbPlayerGetCurrentFrame().
+  SbPlayerOutputMode output_mode;
+  // Indicates the max video capabilities required. The web app will not provide
+  // a video stream exceeding the maximums described by this parameter. Allows
+  // the platform to optimize playback pipeline for low quality video streams if
+  // it knows that it will never adapt to higher quality streams. The string
+  // uses the same format as the string passed in to
+  // SbMediaCanPlayMimeAndKeySystem(), for example, when it is set to
+  // "width=1920; height=1080; framerate=15;", the video will never adapt to
+  // resolution higher than 1920x1080 or frame per second higher than 15 fps.
+  // When the maximums are unknown, this will be set to an empty string.  It
+  // will never be set to NULL.
+  const char* max_video_capabilities;
+} SbPlayerCreationParam;
+
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
 #if SB_API_VERSION >= 11
 
 // Identify the type of side data accompanied with |SbPlayerSampleInfo|, as side
@@ -414,15 +459,16 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 //   is no longer valid after this function returns.  The implementation has to
 //   make a copy of the content if it is needed after the function returns.
 #if SB_API_VERSION >= 11
-// |max_video_capabilities|: This string communicates the video maximums to the
-//   platform. The web app will not provide a video stream exceeding the
-//   maximums described by this parameter. Allows the platform to optimize
-//   playback pipeline for low quality video streams if it knows that it will
-//   never adapt to higher quality streams. The string uses the same format as
-//   the string passed in to SbMediaCanPlayMimeAndKeySystem(), for example, when
-//   it is set to "width=1920; height=1080; framerate=15;", the video will never
-//   adapt to resolution higher than 1920x1080 or frame per second higher than
-//   15 fps. When the maximums are unknown, this will be set to NULL.
+// |max_video_capabilities|: This string communicates the max video capabilities
+//   required to the platform. The web app will not provide a video stream
+//   exceeding the maximums described by this parameter. Allows the platform to
+//   optimize playback pipeline for low quality video streams if it knows that
+//   it will never adapt to higher quality streams. The string uses the same
+//   format as the string passed in to SbMediaCanPlayMimeAndKeySystem(), for
+//   example, when it is set to "width=1920; height=1080; framerate=15;", the
+//   video will never adapt to resolution higher than 1920x1080 or frame per
+//   second higher than 15 fps. When the maximums are unknown, this will be set
+//   to NULL.
 #endif  // SB_API_VERSION >= 11
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
     SB_HAS(AUDIOLESS_VIDEO)
@@ -473,6 +519,21 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 // |decoder_status_func|, |player_status_func|, or |player_error_func| if it
 // applies), then |kSbPlayerInvalid| must be returned.
 #endif  // SB_API_VERSION >= 10
+
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
+SB_EXPORT SbPlayer
+SbPlayerCreate(SbWindow window,
+               const SbPlayerCreationParam* creation_param,
+               SbPlayerDeallocateSampleFunc sample_deallocate_func,
+               SbPlayerDecoderStatusFunc decoder_status_func,
+               SbPlayerStatusFunc player_status_func,
+               SbPlayerErrorFunc player_error_func,
+               void* context,
+               SbDecodeTargetGraphicsContextProvider* context_provider);
+
+#else  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
 SB_EXPORT SbPlayer
 SbPlayerCreate(SbWindow window,
                SbMediaVideoCodec video_codec,
@@ -498,42 +559,38 @@ SbPlayerCreate(SbWindow window,
                void* context,
                SbPlayerOutputMode output_mode,
                SbDecodeTargetGraphicsContextProvider* context_provider);
+
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+// Returns the preferred output mode of the implementation when a video
+// described by |creation_param| is played.  It is assumed that it is okay to
+// call SbPlayerCreate() with the same video described by |creation_param|,
+// with its |output_mode| member replaced by the returned output mode.
+// When the caller has no preference on the output mode, it will set
+// |creation_param->output_mode| to |kSbPlayerOutputModeInvalid|, and the
+// implementation can return its preferred output mode based on the information
+// contained in |creation_param|.  The caller can also set
+// |creation_param->output_mode| to its preferred output mode, and the
+// implementation should return the same output mode if it is supported,
+// otherwise the implementation should return an output mode that it is
+// supported, as if |creation_param->output_mode| is set to
+// |kSbPlayerOutputModeInvalid| prior to the call.
+// Note that it is not the responsibility of this function to verify whether the
+// video described by |creation_param| can be played on the platform, and the
+// implementation should try its best effort to return a valid output mode.
+// |creation_param| will never be NULL.
+SB_EXPORT SbPlayerOutputMode
+SbPlayerGetPreferredOutputMode(const SbPlayerCreationParam* creation_param);
+
+#else   // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 // Returns true if the given player output mode is supported by the platform.
 // If this function returns true, it is okay to call SbPlayerCreate() with
 // the given |output_mode|.
 SB_EXPORT bool SbPlayerOutputModeSupported(SbPlayerOutputMode output_mode,
                                            SbMediaVideoCodec codec,
                                            SbDrmSystem drm_system);
-
-#if SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
-// Returns the preferred output mode of the platform when a video described by
-// the parameters is played.
-// If the returned output mode is not |kSbPlayerOutputModeInvalid|, it is
-// implied that calling SbPlayerOutputModeSupported() with the returned output
-// will return true.
-// |audio_sample_info|: The caller must provide a populated |audio_sample_info|
-//   if its |codec| member isn't |kSbMediaAudioCodecNone|.  When the video
-//   doesn't contain an audio track, |codec| contained in |audio_sample_info|
-//   will be |kSbMediaAudioCodecNone|.  In either case, |audio_sample_info| will
-//   not be NULL.  See media.h for the format of the |SbMediaAudioSampleInfo|
-//   struct.
-// |video_sample_info|: The caller must provide a populated |video_sample_info|
-//   if its |codec| member isn't |kSbMediaVideoCodecNone|.  When the video
-//   doesn't contain a video track, |codec| contained in |video_sample_info|
-//   will be |kSbMediaVideoCodecNone|.  In either case, |video_sample_info| will
-//   not be NULL.  See media.h for the format of the |SbMediaVideoSampleInfo|
-//   struct.
-// |max_video_capabilities| points to the max video capabilities associated with
-//   the video if there is any.  It points to an empty string when there is no
-//   max video capabilities associated with the video.  It will never be NULL.
-// When any input parameters are invalid, the function should return
-// |kSbPlayerOutputModeInvalid|, for example, when |audio_sample_info| is NULL.
-SB_EXPORT SbPlayerOutputMode
-SbPlayerGetPreferredOutputMode(const SbMediaAudioSampleInfo* audio_sample_info,
-                               const SbMediaVideoSampleInfo* video_sample_info,
-                               SbDrmSystem drm_system,
-                               const char* max_video_capabilities);
-#endif  // SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
 // Destroys |player|, freeing all associated resources. Each callback must
 // receive one more callback to say that the player was destroyed. Callbacks

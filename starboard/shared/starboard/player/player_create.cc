@@ -33,6 +33,42 @@ using starboard::shared::starboard::player::filter::
     FilterBasedPlayerWorkerHandler;
 using starboard::shared::starboard::player::PlayerWorker;
 
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
+SbPlayer SbPlayerCreate(SbWindow window,
+                        const SbPlayerCreationParam* creation_param,
+                        SbPlayerDeallocateSampleFunc sample_deallocate_func,
+                        SbPlayerDecoderStatusFunc decoder_status_func,
+                        SbPlayerStatusFunc player_status_func,
+                        SbPlayerErrorFunc player_error_func,
+                        void* context,
+                        SbDecodeTargetGraphicsContextProvider* provider) {
+  if (!creation_param) {
+    SB_LOG(ERROR) << "CreationParam cannot be null.";
+    return kSbPlayerInvalid;
+  }
+  if (!creation_param->audio_mime) {
+    SB_LOG(ERROR) << "creation_param->audio_mime cannot be null.";
+    return kSbPlayerInvalid;
+  }
+  if (!creation_param->video_mime) {
+    SB_LOG(ERROR) << "creation_param->video_mime cannot be null.";
+    return kSbPlayerInvalid;
+  }
+  if (!creation_param->max_video_capabilities) {
+    SB_LOG(ERROR) << "creation_param->max_video_capabilities cannot be null.";
+    return kSbPlayerInvalid;
+  }
+  SbMediaAudioCodec audio_codec = creation_param->audio_sample_info.codec;
+  SbMediaVideoCodec video_codec = creation_param->video_sample_info.codec;
+  SbDrmSystem drm_system = creation_param->drm_system;
+  const SbMediaAudioSampleInfo* audio_sample_info =
+      &creation_param->audio_sample_info;
+  const char* max_video_capabilities = creation_param->max_video_capabilities;
+  const auto output_mode = creation_param->output_mode;
+
+#else  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
 SbPlayer SbPlayerCreate(SbWindow window,
                         SbMediaVideoCodec video_codec,
                         SbMediaAudioCodec audio_codec,
@@ -53,6 +89,8 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         void* context,
                         SbPlayerOutputMode output_mode,
                         SbDecodeTargetGraphicsContextProvider* provider) {
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
   SB_UNREFERENCED_PARAMETER(window);
 #if SB_API_VERSION >= 11
   SB_UNREFERENCED_PARAMETER(max_video_capabilities);
@@ -120,10 +158,17 @@ SbPlayer SbPlayerCreate(SbWindow window,
     return kSbPlayerInvalid;
   }
 
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  if (SbPlayerGetPreferredOutputMode(creation_param) != output_mode) {
+    SB_LOG(ERROR) << "Unsupported player output mode " << output_mode;
+    return kSbPlayerInvalid;
+  }
+#else   // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   if (!SbPlayerOutputModeSupported(output_mode, video_codec, drm_system)) {
     SB_LOG(ERROR) << "Unsupported player output mode " << output_mode;
     return kSbPlayerInvalid;
   }
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
   UpdateActiveSessionPlatformPlaybackState(kPlaying);
 

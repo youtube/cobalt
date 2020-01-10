@@ -112,6 +112,9 @@ class MEDIA_EXPORT VideoDecoderConfig {
     return webm_color_metadata_;
   }
 
+  void set_mime(const std::string& mime) { mime_ = mime; }
+  const std::string& mime() const { return mime_; }
+
  private:
   VideoCodec codec_;
   VideoCodecProfile profile_;
@@ -130,6 +133,13 @@ class MEDIA_EXPORT VideoDecoderConfig {
   EncryptionScheme encryption_scheme_;
 
   WebMColorMetadata webm_color_metadata_;
+
+  // |mime_| contains the mime type string specified when creating the stream.
+  // For example, when the stream is created via MediaSource, it is the mime
+  // string passed to addSourceBuffer().  It can be an empty string when the
+  // appropriate mime string is unknown.  It is provided as an extra information
+  // and can be inconsistent with the other member variables.
+  std::string mime_;
 
   // Not using DISALLOW_COPY_AND_ASSIGN here intentionally to allow the compiler
   // generated copy constructor and assignment operator. Since the extra data is
