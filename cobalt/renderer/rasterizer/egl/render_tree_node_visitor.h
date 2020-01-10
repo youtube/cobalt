@@ -82,6 +82,8 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   void Visit(render_tree::RectShadowNode* shadow_node) override;
   void Visit(render_tree::TextNode* text_node) override;
 
+  int64_t GetFallbackRasterizeCount();
+
  private:
   void GetScratchTexture(scoped_refptr<render_tree::Node> node, float size,
                          DrawObject::TextureInfo* out_texture_info);
@@ -120,6 +122,8 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   SkCanvas* fallback_render_target_;
   backend::RenderTarget* render_target_;
   backend::RenderTarget* onscreen_render_target_;
+
+  int64_t fallback_rasterize_count_;
 
   uint32_t last_draw_id_;
 };

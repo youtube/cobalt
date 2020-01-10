@@ -122,6 +122,10 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
           "The most recent time animations started playing."),
       animations_end_time_("Time.Renderer.Rasterize.Animations.End", 0,
                            "The most recent time animations ended playing."),
+      fallback_rasterize_count_(
+          "Count.Renderer.Rasterize.FallbackRasterize", 0,
+          "Total number of times Skia was used to render a "
+          "non-text render tree node."),
 #if defined(ENABLE_DEBUGGER)
       ALLOW_THIS_IN_INITIALIZER_LIST(dump_current_render_tree_command_handler_(
           "dump_render_tree",
@@ -479,6 +483,8 @@ void Pipeline::UpdateRasterizeStats(bool did_rasterize,
     ++new_render_tree_rasterize_count_;
     new_render_tree_rasterize_time_ = end_time.ToInternalValue();
   }
+
+  fallback_rasterize_count_ = rasterizer_->GetFallbackRasterizeCount();
 }
 
 bool Pipeline::RasterizeSubmissionToRenderTarget(

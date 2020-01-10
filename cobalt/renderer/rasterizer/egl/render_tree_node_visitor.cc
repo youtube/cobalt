@@ -319,7 +319,8 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(
       fallback_render_target_(fallback_render_target),
       render_target_(render_target),
       onscreen_render_target_(render_target),
-      last_draw_id_(0) {
+      last_draw_id_(0),
+      fallback_rasterize_count_(0) {
   draw_state_.scissor.Intersect(content_rect);
 }
 
@@ -825,6 +826,10 @@ void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
   FallbackRasterize(text_node);
 }
 
+int64_t RenderTreeNodeVisitor::GetFallbackRasterizeCount() {
+  return fallback_rasterize_count_;
+}
+
 // Get a scratch texture row region for use in rendering |node|.
 void RenderTreeNodeVisitor::GetScratchTexture(
     scoped_refptr<render_tree::Node> node, float size,
@@ -908,6 +913,10 @@ void RenderTreeNodeVisitor::FallbackRasterize(
     scoped_refptr<render_tree::Node> node) {
   OffscreenTargetManager::TargetInfo target_info;
   math::RectF content_rect;
+
+  if (node->GetTypeId() != base::GetTypeId<render_tree::TextNode>()) {
+      ++fallback_rasterize_count_;
+  }
 
   // Retrieve the previously cached contents or try to allocate a cached
   // render target for the node.

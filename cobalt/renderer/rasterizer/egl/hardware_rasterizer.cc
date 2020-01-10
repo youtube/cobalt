@@ -68,6 +68,8 @@ class HardwareRasterizer::Impl {
     return fallback_rasterizer_->GetResourceProvider();
   }
 
+  int64_t GetFallbackRasterizeCount() { return fallback_rasterize_count_; }
+
   void MakeCurrent() { graphics_context_->MakeCurrent(); }
   void ReleaseContext() { graphics_context_->ReleaseCurrentContext(); }
 
@@ -92,6 +94,8 @@ class HardwareRasterizer::Impl {
   std::unique_ptr<ShaderProgramManager> shader_program_manager_;
   std::unique_ptr<OffscreenTargetManager> offscreen_target_manager_;
 
+  int64_t fallback_rasterize_count_;
+
   backend::GraphicsContextEGL* graphics_context_;
   THREAD_CHECKER(thread_checker_);
 };
@@ -108,6 +112,7 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
           skia_cache_size_in_bytes, scratch_surface_cache_size_in_bytes,
           purge_skia_font_caches_on_destruction,
           force_deterministic_rendering)),
+      fallback_rasterize_count_(0),
       graphics_context_(
           base::polymorphic_downcast<backend::GraphicsContextEGL*>(
               graphics_context)) {
@@ -254,6 +259,8 @@ void HardwareRasterizer::Impl::RasterizeTree(
     render_tree->Accept(&visitor);
   }
 
+  fallback_rasterize_count_ += visitor.GetFallbackRasterizeCount();
+
   graphics_state_->BeginFrame();
 
   // Rasterize to offscreen targets using skia.
@@ -339,6 +346,10 @@ void HardwareRasterizer::Submit(
 
 render_tree::ResourceProvider* HardwareRasterizer::GetResourceProvider() {
   return impl_->GetResourceProvider();
+}
+
+int64_t HardwareRasterizer::GetFallbackRasterizeCount() {
+  return impl_->GetFallbackRasterizeCount();
 }
 
 void HardwareRasterizer::MakeCurrent() { return impl_->MakeCurrent(); }
