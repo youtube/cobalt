@@ -35,6 +35,10 @@ namespace renderer {
 // provided on each call to TestTree().
 class RenderTreePixelTester {
  public:
+  bool IsMapToMeshEnabled() {
+    return backend::GraphicsContext::IsMapToMeshEnabled(graphics_context_);
+  }
+
   struct Options {
     Options();
 

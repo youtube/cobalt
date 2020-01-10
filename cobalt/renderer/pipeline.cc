@@ -207,6 +207,12 @@ render_tree::ResourceProvider* Pipeline::GetResourceProvider() {
   return rasterizer_->GetResourceProvider();
 }
 
+bool Pipeline::IsMapToMeshEnabled(const Pipeline* pipeline) {
+  backend::GraphicsContext* graphics_context =
+      pipeline ? pipeline->graphics_context_ : nullptr;
+  return backend::GraphicsContext::IsMapToMeshEnabled(graphics_context);
+}
+
 void Pipeline::Submit(const Submission& render_tree_submission) {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::Submit()");
 

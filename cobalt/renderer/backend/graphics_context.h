@@ -94,6 +94,9 @@ class GraphicsContext {
   // Note: Return a negative number if no value is specified by the platform.
   virtual float GetMinimumFrameIntervalInMilliseconds();
 
+  // Get whether the renderer should support 360 degree video or not.
+  static bool IsMapToMeshEnabled(const GraphicsContext* graphics_context);
+
  private:
   GraphicsSystem* system_;
 

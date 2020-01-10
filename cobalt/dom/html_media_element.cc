@@ -1630,7 +1630,8 @@ std::string HTMLMediaElement::MaxVideoCapabilities() const {
 bool HTMLMediaElement::PreferDecodeToTexture() {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::PreferDecodeToTexture()");
 
-#if defined(ENABLE_MAP_TO_MESH)
+  if (!node_document()->window()->enable_map_to_mesh()) return false;
+
   cssom::PropertyValue* filter = NULL;
   if (node_document()->UpdateComputedStyleOnElementAndAncestor(this) &&
       computed_style()) {
@@ -1654,10 +1655,6 @@ bool HTMLMediaElement::PreferDecodeToTexture() {
       cssom::MapToMeshFunction::ExtractFromFilterList(filter);
 
   return map_to_mesh_filter;
-#else   // defined(ENABLE_MAP_TO_MESH)
-  // If map-to-mesh is disabled, we never prefer decode-to-texture.
-  return false;
-#endif  // defined(ENABLE_MAP_TO_MESH)
 }
 
 namespace {

@@ -55,6 +55,10 @@ class PixelTest : public testing::Test {
   static backend::GraphicsSystem* graphics_system_;
   static backend::GraphicsContext* graphics_context_;
 
+  bool IsMapToMeshEnabled() {
+    return pixel_tester_->IsMapToMeshEnabled();
+  }
+
  private:
   base::Optional<RenderTreePixelTester> pixel_tester_;
   math::Size output_surface_size_;

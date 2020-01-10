@@ -110,8 +110,10 @@
         'renderer_copy_test_data',
       ],
       'conditions': [
-        ['enable_map_to_mesh == 1', {
-          'defines' : ['ENABLE_MAP_TO_MESH'],
+        ['enable_map_to_mesh != -1', {
+          'defines' : [
+            'ENABLE_MAP_TO_MESH=<(enable_map_to_mesh)',
+          ],
         }],
       ],
       'includes': [ '<(DEPTH)/cobalt/test/test.gypi' ],
