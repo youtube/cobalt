@@ -27,6 +27,9 @@
 #include "cobalt/layout_tests/test_utils.h"
 #include "cobalt/math/size.h"
 #include "cobalt/render_tree/animations/animate_node.h"
+#include "cobalt/renderer/backend/default_graphics_system.h"
+#include "cobalt/renderer/backend/graphics_context.h"
+#include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/render_tree_pixel_tester.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -99,6 +102,7 @@ struct GetTestName {
 };
 
 void RunTest(const TestInfo& test_info,
+             renderer::backend::GraphicsContext* graphics_context,
              renderer::RenderTreePixelTester::Options pixel_tester_options) {
   // Output the name of the current input file so that it is visible in test
   // output.
@@ -130,7 +134,7 @@ void RunTest(const TestInfo& test_info,
 
   renderer::RenderTreePixelTester pixel_tester(
       viewport_size.width_height(), GetTestInputRootDirectory(),
-      GetTestOutputRootDirectory(), pixel_tester_options);
+      GetTestOutputRootDirectory(), graphics_context, pixel_tester_options);
 
   browser::WebModule::LayoutResults layout_results = SnapshotURL(
       test_info.url, viewport_size, pixel_tester.GetResourceProvider(),
@@ -170,18 +174,47 @@ void RunTest(const TestInfo& test_info,
 }  // namespace
 
 // This test does a fuzzy pixel compare with the expected output.
-class Layout : public ::testing::TestWithParam<TestInfo> {};
+class Layout : public ::testing::TestWithParam<TestInfo> {
+ public:
+  static void SetUpTestCase();
+  static void TearDownTestCase();
+
+ protected:
+  static renderer::backend::GraphicsSystem* graphics_system_;
+  static renderer::backend::GraphicsContext* graphics_context_;
+};
+
+// static
+renderer::backend::GraphicsSystem* Layout::graphics_system_ = nullptr;
+// static
+renderer::backend::GraphicsContext* Layout::graphics_context_ = nullptr;
+
+// static
+void Layout::SetUpTestCase() {
+  graphics_system_ = renderer::backend::CreateDefaultGraphicsSystem().release();
+  graphics_context_ = graphics_system_->CreateGraphicsContext().release();
+}
+
+// static
+void Layout::TearDownTestCase() {
+  delete graphics_context_;
+  graphics_context_ = nullptr;
+  delete graphics_system_;
+  graphics_system_ = nullptr;
+}
+
 TEST_P(Layout, Test) {
-  RunTest(GetParam(), renderer::RenderTreePixelTester::Options());
+  RunTest(GetParam(), graphics_context_,
+          renderer::RenderTreePixelTester::Options());
 }
 
 // This test does an exact pixel compare with the expected output.
-class LayoutExact : public ::testing::TestWithParam<TestInfo> {};
+class LayoutExact : public Layout {};
 TEST_P(LayoutExact, Test) {
   renderer::RenderTreePixelTester::Options pixel_tester_options;
   pixel_tester_options.gaussian_blur_sigma = 0;
   pixel_tester_options.acceptable_channel_range = 0;
-  RunTest(GetParam(), pixel_tester_options);
+  RunTest(GetParam(), graphics_context_, pixel_tester_options);
 }
 
 // Cobalt-specific test cases.

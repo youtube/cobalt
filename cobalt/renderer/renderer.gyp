@@ -138,6 +138,5 @@
       },
       'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
-
   ],
 }
