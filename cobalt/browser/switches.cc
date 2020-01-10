@@ -213,18 +213,19 @@ const char kDisableJavaScriptJit[] = "disable_javascript_jit";
 const char kDisableJavaScriptJitHelp[] =
     "Specifies that javascript jit should be disabled.";
 
-const char kDisableMapToMesh[] = "disable_map_to_mesh";
-const char kDisableMapToMeshHelp[] =
-    "Specifies that map to mesh should be disabled. Cobalt maps 360 video "
-    "textures onto a sphere in order to project 360 video onto the viewport "
-    "by default. Specifying this flag renders 360 degree video unprojected.";
-
 const char kDisableTimerResolutionLimit[] = "disable_timer_resolution_limit";
 const char kDisableTimerResolutionLimitHelp[] =
     "By default, window.performance.now() will return values at a clamped "
     "minimum resolution of 20us.  By specifying this flag, the limit will be "
     "removed and the resolution will be 1us (or larger depending on the "
     "platform.";
+
+const char kEnableMapToMeshRectanglar[] = "enable_map_to_mesh_rectangular";
+const char kEnableMapToMeshRectanglarHelp[] =
+    "If toggled and map-to-mesh is supported on this platform, this allows it "
+    "to accept the 'rectangular' keyword. Useful to get rectangular stereo "
+    "video on platforms that do not support stereoscopy natively, letting the "
+    "client apply a stereo mesh projection (one that differs for each eye).";
 
 const char kEncodedImageCacheSizeInBytes[] =
     "encoded_image_cache_size_in_bytes";
@@ -446,8 +447,8 @@ std::string HelpMessage() {
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
         {kDisableJavaScriptJit, kDisableJavaScriptJitHelp},
-        {kDisableMapToMesh, kDisableMapToMeshHelp},
         {kDisableTimerResolutionLimit, kDisableTimerResolutionLimitHelp},
+        {kEnableMapToMeshRectanglar, kEnableMapToMeshRectanglarHelp},
         {kEncodedImageCacheSizeInBytes, kEncodedImageCacheSizeInBytesHelp},
         {kForceMigrationForStoragePartitioning,
          kForceMigrationForStoragePartitioningHelp},

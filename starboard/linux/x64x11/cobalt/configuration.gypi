@@ -13,6 +13,10 @@
 # limitations under the License.
 
 {
+  'variables': {
+    'enable_map_to_mesh%': 1,
+  },
+
   'includes': [
     '../../shared/cobalt/configuration.gypi',
   ],

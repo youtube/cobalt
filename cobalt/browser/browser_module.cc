@@ -438,9 +438,8 @@ BrowserModule::BrowserModule(const GURL& url,
   lifecycle_observers_.AddObserver(debug_console_.get());
 #endif  // defined(ENABLE_DEBUGGER)
 
-  if (command_line->HasSwitch(switches::kDisableMapToMesh) ||
-      !renderer_module_->pipeline()->IsMapToMeshEnabled()) {
-    options_.web_module_options.enable_map_to_mesh = false;
+  if (command_line->HasSwitch(switches::kEnableMapToMeshRectanglar)) {
+    options_.web_module_options.enable_map_to_mesh_rectangular = true;
   }
 
   if (qr_overlay_info_layer_) {
