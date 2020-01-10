@@ -3890,7 +3890,7 @@ TEST_F(PixelTest, DrawOffscreenYUVImage) {
 }
 #endif  // !SB_HAS(BLITTER)
 
-#if defined(ENABLE_MAP_TO_MESH)
+#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || ENABLE_MAP_TO_MESH
 
 namespace {
 scoped_refptr<Mesh> CreateCubeMesh(ResourceProvider* resource_provider) {
@@ -3972,6 +3972,11 @@ scoped_refptr<Node> CreateMapToMeshTestRenderTree(
 }  // namespace
 
 TEST_F(PixelTest, MapToMeshRGBTest) {
+  if (!IsMapToMeshEnabled()) {
+    SB_LOG(INFO) << "Map to mesh not supported. Test skipped.";
+    return;
+  }
+
   // Tests that MapToMesh filter works as expected with an RGBA texture.
   scoped_refptr<Image> image =
       CreateColoredCheckersImage(GetResourceProvider(), Size(200, 200));
@@ -4008,7 +4013,8 @@ TEST_F(PixelTest, MapToMeshUYVYTest) {
   TestTree(CreateMapToMeshTestRenderTree(GetResourceProvider(), image));
 }
 
-#endif  // defined(ENABLE_MAP_TO_MESH)
+#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION ||
+        // ENABLE_MAP_TO_MESH
 
 TEST_F(PixelTest, DrawNullImage) {
   // An ImageNode with no source is legal, though it should result in nothing
