@@ -16,14 +16,11 @@
 
 #include "starboard/configuration.h"
 
-#if SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
 SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
-    const SbMediaAudioSampleInfo* audio_sample_info,
-    const SbMediaVideoSampleInfo* video_sample_info,
-    SbDrmSystem drm_system,
-    const char* max_video_capabilities) {
+    const SbPlayerCreationParam* /*creation_param*/) {
   return kSbPlayerOutputModeInvalid;
 }
 
-#endif  // SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)

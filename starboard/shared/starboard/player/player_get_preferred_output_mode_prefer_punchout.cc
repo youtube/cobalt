@@ -14,43 +14,61 @@
 
 #include "starboard/player.h"
 
-#include "starboard/configuration.h"
+#include <algorithm>
 
-#if SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
+#include "starboard/configuration.h"
+#include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
+
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
 SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
-    const SbMediaAudioSampleInfo* audio_sample_info,
-    const SbMediaVideoSampleInfo* video_sample_info,
-    SbDrmSystem drm_system,
-    const char* max_video_capabilities) {
-  SB_UNREFERENCED_PARAMETER(max_video_capabilities);
+    const SbPlayerCreationParam* creation_param) {
+  using starboard::shared::starboard::player::filter::VideoDecoder;
 
-  if (!audio_sample_info) {
-    SB_LOG(ERROR) << "audio_sample_info cannot be NULL";
+  if (!creation_param) {
+    SB_LOG(ERROR) << "creation_param cannot be NULL";
     return kSbPlayerOutputModeInvalid;
   }
 
-  if (!video_sample_info) {
-    SB_LOG(ERROR) << "video_sample_info cannot be NULL";
+  if (!creation_param->audio_mime) {
+    SB_LOG(ERROR) << "creation_param->audio_mime cannot be NULL";
     return kSbPlayerOutputModeInvalid;
   }
 
-  if (!max_video_capabilities) {
-    SB_LOG(ERROR) << "max_video_capabilities cannot be NULL";
+  if (!creation_param->video_mime) {
+    SB_LOG(ERROR) << "creation_param->video_mime cannot be NULL";
     return kSbPlayerOutputModeInvalid;
   }
 
-  if (SbPlayerOutputModeSupported(kSbPlayerOutputModePunchOut,
-                                  video_sample_info->codec, drm_system)) {
-    return kSbPlayerOutputModePunchOut;
+  if (!creation_param->max_video_capabilities) {
+    SB_LOG(ERROR) << "creation_param->max_video_capabilities cannot be NULL";
+    return kSbPlayerOutputModeInvalid;
   }
-  if (SbPlayerOutputModeSupported(kSbPlayerOutputModeDecodeToTexture,
-                                  video_sample_info->codec, drm_system)) {
-    return kSbPlayerOutputModeDecodeToTexture;
+
+  auto codec = creation_param->video_sample_info.codec;
+  auto drm_system = creation_param->drm_system;
+
+  SbPlayerOutputMode output_modes_to_check[] = {
+      kSbPlayerOutputModePunchOut, kSbPlayerOutputModeDecodeToTexture,
+  };
+
+  // Check |kSbPlayerOutputModeDecodeToTexture| first if the caller prefers it.
+  if (creation_param->output_mode == kSbPlayerOutputModeDecodeToTexture) {
+    std::swap(output_modes_to_check[0], output_modes_to_check[1]);
+  }
+
+  if (VideoDecoder::OutputModeSupported(output_modes_to_check[0], codec,
+                                        drm_system)) {
+    return output_modes_to_check[0];
+  }
+
+  if (VideoDecoder::OutputModeSupported(output_modes_to_check[1], codec,
+                                        drm_system)) {
+    return output_modes_to_check[1];
   }
 
   SB_NOTREACHED();
   return kSbPlayerOutputModeInvalid;
 }
 
-#endif  // SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)

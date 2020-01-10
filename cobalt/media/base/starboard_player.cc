@@ -557,8 +557,30 @@ void StarboardPlayer::CreatePlayer() {
   }
 #endif  // SB_API_VERSION >= 11
 
-  DCHECK(SbPlayerOutputModeSupported(output_mode_, video_codec, drm_system_));
   bool has_audio = audio_codec != kSbMediaAudioCodecNone;
+
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
+  SbPlayerCreationParam creation_param = {};
+  creation_param.audio_mime =
+      audio_config_.IsValidConfig() ? audio_config_.mime().c_str() : "";
+  creation_param.video_mime =
+      video_config_.IsValidConfig() ? video_config_.mime().c_str() : "";
+  creation_param.drm_system = drm_system_;
+  creation_param.audio_sample_info = audio_sample_info_;
+  creation_param.video_sample_info = video_sample_info_;
+  creation_param.output_mode = output_mode_;
+  creation_param.max_video_capabilities = max_video_capabilities_.c_str();
+  DCHECK_EQ(SbPlayerGetPreferredOutputMode(&creation_param), output_mode_);
+  player_ = SbPlayerCreate(
+      window_, &creation_param, &StarboardPlayer::DeallocateSampleCB,
+      &StarboardPlayer::DecoderStatusCB, &StarboardPlayer::PlayerStatusCB,
+      &StarboardPlayer::PlayerErrorCB, this,
+      get_decode_target_graphics_context_provider_func_.Run());
+
+#else  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
+  DCHECK(SbPlayerOutputModeSupported(output_mode_, video_codec, drm_system_));
   player_ = SbPlayerCreate(
       window_, video_codec, audio_codec,
 #if SB_API_VERSION < 10
@@ -576,6 +598,9 @@ void StarboardPlayer::CreatePlayer() {
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
       this, output_mode_,
       get_decode_target_graphics_context_provider_func_.Run());
+
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
   DCHECK(SbPlayerIsValid(player_));
 
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
@@ -939,6 +964,28 @@ SbPlayerOutputMode StarboardPlayer::ComputeSbUrlPlayerOutputMode(
 // static
 SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
     bool prefer_decode_to_texture) const {
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  SbPlayerCreationParam creation_param = {};
+  creation_param.audio_mime =
+      audio_config_.IsValidConfig() ? audio_config_.mime().c_str() : "";
+  creation_param.video_mime =
+      video_config_.IsValidConfig() ? video_config_.mime().c_str() : "";
+  creation_param.drm_system = drm_system_;
+  creation_param.audio_sample_info = audio_sample_info_;
+  creation_param.video_sample_info = video_sample_info_;
+  creation_param.max_video_capabilities = max_video_capabilities_.c_str();
+
+  // Try to choose |kSbPlayerOutputModeDecodeToTexture| when
+  // |prefer_decode_to_texture| is true.
+  if (prefer_decode_to_texture) {
+    creation_param.output_mode = kSbPlayerOutputModeDecodeToTexture;
+  } else {
+    creation_param.output_mode = kSbPlayerOutputModePunchOut;
+  }
+  auto output_mode = SbPlayerGetPreferredOutputMode(&creation_param);
+  CHECK_NE(kSbPlayerOutputModeInvalid, output_mode);
+  return output_mode;
+#else  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   SbMediaVideoCodec video_codec = kSbMediaVideoCodecNone;
 
 #if SB_API_VERSION >= 11
@@ -956,13 +1003,6 @@ SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
     }
   }
 
-#if SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
-  auto output_mode = SbPlayerGetPreferredOutputMode(
-      &audio_sample_info_, &video_sample_info_, drm_system_,
-      max_video_capabilities_.c_str());
-  CHECK_NE(kSbPlayerOutputModeInvalid, output_mode);
-  return output_mode;
-#else   // SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
   if (SbPlayerOutputModeSupported(kSbPlayerOutputModePunchOut, video_codec,
                                   drm_system_)) {
     return kSbPlayerOutputModePunchOut;
@@ -970,7 +1010,7 @@ SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
   CHECK(SbPlayerOutputModeSupported(kSbPlayerOutputModeDecodeToTexture,
                                     video_codec, drm_system_));
   return kSbPlayerOutputModeDecodeToTexture;
-#endif  // SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 }
 
 }  // namespace media

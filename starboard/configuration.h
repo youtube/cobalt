@@ -645,13 +645,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif  // defined(SB_HAS_AC3_AUDIO)
 #endif  // SB_API_VERSION >= 11
 
-#if SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 #if SB_API_VERSION < 11
 #error \
-    "SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE) requires SB_API_VERSION 11 "\
-       "or later."
+    "SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT) requires " \
+    "SB_API_VERSION 11 or later."
 #endif  // SB_API_VERSION < 11
-#endif  // SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
 // --- Derived Configuration -------------------------------------------------
 
