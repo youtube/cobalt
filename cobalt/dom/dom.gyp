@@ -347,11 +347,6 @@
         '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
         '<(DEPTH)/url/url.gyp:url',
       ],
-      'conditions': [
-        ['enable_map_to_mesh == 1', {
-          'defines' : ['ENABLE_MAP_TO_MESH'],
-        }],
-      ],
       # This target doesn't generate any headers, but it exposes generated
       # header files (for idl dictionaries) through this module's public header
       # files. So mark this target as a hard dependency to ensure that any

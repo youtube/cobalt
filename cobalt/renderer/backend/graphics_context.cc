@@ -15,6 +15,7 @@
 #include "cobalt/renderer/backend/graphics_context.h"
 
 #include "base/logging.h"
+#include "starboard/gles.h"
 #include "starboard/string.h"
 
 namespace cobalt {
@@ -60,6 +61,43 @@ float GraphicsContext::GetMinimumFrameIntervalInMilliseconds() {
   // Return negative value, if the GraphicsExtension is not implemented
   // or the GraphicsExtension version is below 2.
   return -1.0f;
+}
+
+bool GraphicsContext::IsMapToMeshEnabled(
+    const GraphicsContext* graphics_context) {
+  const CobaltExtensionGraphicsApi* graphics_ext =
+      graphics_context ? graphics_context->graphics_extension_ : nullptr;
+#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
+#if defined(ENABLE_MAP_TO_MESH)
+#error \
+    "ENABLE_MAP_TO_MESH is deprecated after Starboard version 12, use \
+the Cobalt graphics extension function IsMapToMeshEnabled() instead."
+#endif  // defined(ENABLE_MAP_TO_MESH)
+  if (graphics_ext && graphics_ext->version >= 3) {
+    return graphics_ext->IsMapToMeshEnabled();
+  }
+
+  // If there is a callable gles interface, assume map to mesh is enabled, as
+  // it is for most platforms.
+  return SbGetGlesInterface() != nullptr;
+#else  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
+#if defined(ENABLE_MAP_TO_MESH)
+  if (graphics_ext && graphics_ext->version >= 3) {
+    DLOG(ERROR)
+        << "ENABLE_MAP_TO_MESH and "
+           "CobaltExtensionGraphicsApi::IsMapToMeshEnabled() are both defined. "
+           "Remove 'enable_map_to_mesh' from your \"gyp_configuration.gypi\" "
+           "file in favor of using IsMapToMeshEnabled().";
+  }
+  return static_cast<bool>(ENABLE_MAP_TO_MESH);
+#endif
+
+  if (graphics_ext && graphics_ext->version >= 3) {
+    return graphics_ext->IsMapToMeshEnabled();
+  }
+
+  return false;
+#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
 }
 
 }  // namespace backend
