@@ -35,8 +35,8 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
  public:
   typedef std::deque<scoped_refptr<StreamParserBuffer>> BufferQueue;
 
-  ChunkDemuxerStream(Type type, bool splice_frames_enabled,
-                     MediaTrack::Id media_track_id);
+  ChunkDemuxerStream(Type type, const std::string& mime,
+                     bool splice_frames_enabled, MediaTrack::Id media_track_id);
   ~ChunkDemuxerStream() override;
 
   // ChunkDemuxerStream control methods.
@@ -147,6 +147,8 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
 
   // Specifies the type of the stream.
   Type type_;
+
+  const std::string mime_;
 
   Liveness liveness_;
 
@@ -351,6 +353,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // Returns a pointer to a new ChunkDemuxerStream instance, which is owned by
   // ChunkDemuxer.
   ChunkDemuxerStream* CreateDemuxerStream(const std::string& source_id,
+                                          const std::string& mime,
                                           DemuxerStream::Type type);
 
   void OnNewTextTrack(ChunkDemuxerStream* text_stream,

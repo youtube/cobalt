@@ -34,9 +34,11 @@ using base::TimeDelta;
 namespace cobalt {
 namespace media {
 
-ChunkDemuxerStream::ChunkDemuxerStream(Type type, bool splice_frames_enabled,
+ChunkDemuxerStream::ChunkDemuxerStream(Type type, const std::string& mime,
+                                       bool splice_frames_enabled,
                                        MediaTrack::Id media_track_id)
     : type_(type),
+      mime_(mime),
       liveness_(DemuxerStream::LIVENESS_UNKNOWN),
       media_track_id_(media_track_id),
       state_(UNINITIALIZED),
@@ -272,13 +274,17 @@ DemuxerStream::Liveness ChunkDemuxerStream::liveness() const {
 AudioDecoderConfig ChunkDemuxerStream::audio_decoder_config() {
   CHECK_EQ(type_, AUDIO);
   base::AutoLock auto_lock(lock_);
-  return stream_->GetCurrentAudioDecoderConfig();
+  auto config = stream_->GetCurrentAudioDecoderConfig();
+  config.set_mime(mime_);
+  return config;
 }
 
 VideoDecoderConfig ChunkDemuxerStream::video_decoder_config() {
   CHECK_EQ(type_, VIDEO);
   base::AutoLock auto_lock(lock_);
-  return stream_->GetCurrentVideoDecoderConfig();
+  auto config = stream_->GetCurrentVideoDecoderConfig();
+  config.set_mime(mime_);
+  return config;
 }
 
 bool ChunkDemuxerStream::SupportsConfigChanges() { return true; }
@@ -632,8 +638,8 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
 
   std::unique_ptr<SourceBufferState> source_state(new SourceBufferState(
       std::move(stream_parser), std::move(frame_processor),
-      base::Bind(&ChunkDemuxer::CreateDemuxerStream, base::Unretained(this),
-                 id),
+      base::Bind(&ChunkDemuxer::CreateDemuxerStream, base::Unretained(this), id,
+                 type),
       media_log_, buffer_allocator_));
 
   SourceBufferState::NewTextTrackCB new_text_track_cb;
@@ -1195,7 +1201,8 @@ MediaTrack::Id ChunkDemuxer::GenerateMediaTrackId() {
 }
 
 ChunkDemuxerStream* ChunkDemuxer::CreateDemuxerStream(
-    const std::string& source_id, DemuxerStream::Type type) {
+    const std::string& source_id, const std::string& mime,
+    DemuxerStream::Type type) {
   // New ChunkDemuxerStreams can be created only during initialization segment
   // processing, which happens when a new chunk of data is appended and the
   // lock_ must be held by ChunkDemuxer::AppendData.
@@ -1223,8 +1230,8 @@ ChunkDemuxerStream* ChunkDemuxer::CreateDemuxerStream(
       return NULL;
   }
 
-  std::unique_ptr<ChunkDemuxerStream> stream(
-      new ChunkDemuxerStream(type, splice_frames_enabled_, media_track_id));
+  std::unique_ptr<ChunkDemuxerStream> stream(new ChunkDemuxerStream(
+      type, mime, splice_frames_enabled_, media_track_id));
   DCHECK(track_id_to_demux_stream_map_.find(media_track_id) ==
          track_id_to_demux_stream_map_.end());
   track_id_to_demux_stream_map_[media_track_id] = stream.get();

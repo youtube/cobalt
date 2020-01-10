@@ -21,6 +21,8 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+#if !SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
 TEST(SbPlayerOutputModeSupportedTest, SunnyDay) {
   SbMediaVideoCodec kVideoCodec = kSbMediaVideoCodecH264;
   SbDrmSystem kDrmSystem = kSbDrmSystemInvalid;
@@ -45,6 +47,8 @@ TEST(SbPlayerOutputModeSupportedTest, RainyDayInvalid) {
                                             kVideoCodec, kDrmSystem);
   EXPECT_FALSE(result);
 }
+
+#endif  // !SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
 }  // namespace
 }  // namespace nplb

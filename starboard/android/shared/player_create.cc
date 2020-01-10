@@ -30,21 +30,19 @@ using starboard::android::shared::cobalt::
     UpdateActiveSessionPlatformPlaybackState;
 
 SbPlayer SbPlayerCreate(SbWindow window,
-                        SbMediaVideoCodec video_codec,
-                        SbMediaAudioCodec audio_codec,
-                        SbDrmSystem drm_system,
-                        const SbMediaAudioSampleInfo* audio_sample_info,
-                        const char* max_video_capabilities,
+                        const SbPlayerCreationParam* creation_param,
                         SbPlayerDeallocateSampleFunc sample_deallocate_func,
                         SbPlayerDecoderStatusFunc decoder_status_func,
                         SbPlayerStatusFunc player_status_func,
                         SbPlayerErrorFunc player_error_func,
                         void* context,
-                        SbPlayerOutputMode output_mode,
                         SbDecodeTargetGraphicsContextProvider* provider) {
   SB_UNREFERENCED_PARAMETER(window);
-  SB_UNREFERENCED_PARAMETER(max_video_capabilities);
-  SB_UNREFERENCED_PARAMETER(provider);
+
+  if (!creation_param) {
+    SB_LOG(ERROR) << "CreationParam cannot be null.";
+    return kSbPlayerInvalid;
+  }
 
   if (!sample_deallocate_func || !decoder_status_func || !player_status_func
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
@@ -54,17 +52,13 @@ SbPlayer SbPlayerCreate(SbWindow window,
     return kSbPlayerInvalid;
   }
 
+  auto audio_codec = creation_param->audio_sample_info.codec;
+  auto video_codec = creation_param->video_sample_info.codec;
+
   if (audio_codec != kSbMediaAudioCodecNone &&
       audio_codec != kSbMediaAudioCodecAac &&
       audio_codec != kSbMediaAudioCodecOpus) {
     SB_LOG(ERROR) << "Unsupported audio codec " << audio_codec;
-    return kSbPlayerInvalid;
-  }
-
-  if (audio_codec == kSbMediaAudioCodecAac && !audio_sample_info) {
-    SB_LOG(ERROR)
-        << "SbPlayerCreate() requires a non-NULL SbMediaAudioSampleInfo "
-        << "when |audio_codec| is not kSbMediaAudioCodecNone";
     return kSbPlayerInvalid;
   }
 
@@ -84,7 +78,8 @@ SbPlayer SbPlayerCreate(SbWindow window,
     return kSbPlayerInvalid;
   }
 
-  if (!SbPlayerOutputModeSupported(output_mode, video_codec, drm_system)) {
+  auto output_mode = creation_param->output_mode;
+  if (SbPlayerGetPreferredOutputMode(creation_param) != output_mode) {
     SB_LOG(ERROR) << "Unsupported player output mode " << output_mode;
     return kSbPlayerInvalid;
   }
@@ -98,13 +93,13 @@ SbPlayer SbPlayerCreate(SbWindow window,
   UpdateActiveSessionPlatformPlaybackState(kPlaying);
 
   starboard::scoped_ptr<PlayerWorker::Handler> handler(
-      new FilterBasedPlayerWorkerHandler(video_codec, audio_codec, drm_system,
-                                         audio_sample_info, output_mode,
-                                         provider));
+      new FilterBasedPlayerWorkerHandler(
+          video_codec, audio_codec, creation_param->drm_system,
+          &creation_param->audio_sample_info, output_mode, provider));
   SbPlayer player = SbPlayerPrivate::CreateInstance(
-      audio_codec, video_codec, audio_sample_info, sample_deallocate_func,
-      decoder_status_func, player_status_func, player_error_func, context,
-      handler.Pass());
+      audio_codec, video_codec, &creation_param->audio_sample_info,
+      sample_deallocate_func, decoder_status_func, player_status_func,
+      player_error_func, context, handler.Pass());
 
   // TODO: accomplish this through more direct means.
   // Set the bounds to initialize the VideoSurfaceView. The initial values don't

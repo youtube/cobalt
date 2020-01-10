@@ -541,7 +541,6 @@ source_set("starboard_platform") {
     "//starboard/shared/starboard/player/player_get_preferred_output_mode_prefer_punchout.cc",
     "//starboard/shared/starboard/player/player_internal.cc",
     "//starboard/shared/starboard/player/player_internal.h",
-    "//starboard/shared/starboard/player/player_output_mode_supported.cc",
     "//starboard/shared/starboard/player/player_seek.cc",
     "//starboard/shared/starboard/player/player_set_bounds.cc",
     "//starboard/shared/starboard/player/player_set_playback_rate.cc",
