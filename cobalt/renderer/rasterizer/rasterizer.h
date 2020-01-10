@@ -80,6 +80,11 @@ class Rasterizer {
   // subsequently submitted to this pipeline.  This call must be thread-safe.
   virtual render_tree::ResourceProvider* GetResourceProvider() = 0;
 
+  // Returns the total number of times Skia was used to render a non-text
+  // render tree node. For Blitter and Skia rasterizer, this value should always
+  // be 0.
+  virtual int64_t GetFallbackRasterizeCount() { return 0; }
+
   // Helper class to allow one to create a RAII object that will acquire the
   // current context upon construction and release it upon destruction.
   class ScopedMakeCurrent {
