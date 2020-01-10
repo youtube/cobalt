@@ -110,10 +110,12 @@ public class MediaDrmBridge {
       this.mErrorMessage = errorMessage;
     }
 
+    @UsedByNative
     public boolean isSuccess() {
       return mIsSuccess;
     }
 
+    @UsedByNative
     public String getErrorMessage() {
       return mErrorMessage;
     }
