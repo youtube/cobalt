@@ -47,15 +47,7 @@
 
     # Enable support for the map to mesh filter, which is primarily used to
     # implement spherical video playback.
-    # This setting is deprecated in favor of the cobalt graphics extension
-    # (CobaltGraphicsExtensionApi) function `IsMapToMeshEnabled()`.
-    # If the CobaltGraphicsExtensionApi is not implemented, then Cobalt will
-    # fall back onto a default. For starboard API versions 12 and later, the
-    # default is true (i.e. Cobalt will assume map to mesh is supported).
-    # For earlier starboard API versions, if this gyp variable is redefined to
-    # a value other than -1, it will use the new value as the default. If it is
-    # not redefined, the default is false.
-    'enable_map_to_mesh%': -1,
+    'enable_map_to_mesh%': 0,
 
     # This variable defines what Cobalt's preferred strategy should be for
     # handling internally triggered application exit requests (e.g. the user

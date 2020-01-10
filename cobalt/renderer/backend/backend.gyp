@@ -28,13 +28,6 @@
         '<(DEPTH)/cobalt/math/math.gyp:math',
         '<(DEPTH)/cobalt/renderer/backend/starboard/platform_backend.gyp:renderer_platform_backend',
       ],
-      'conditions': [
-        ['enable_map_to_mesh != -1', {
-          'defines' : [
-            'ENABLE_MAP_TO_MESH=<(enable_map_to_mesh)',
-          ],
-        }],
-      ],
     },
   ],
 }

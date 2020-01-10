@@ -19,6 +19,7 @@
   'variables': {
     'yasm_exists': 1,
     'sb_target_platform': 'evergreen-arm64',
+    'enable_map_to_mesh': 1,
 
     'compiler_flags': [
       '-isystem<(cobalt_repo_root)/third_party/musl/arch/aarch64',

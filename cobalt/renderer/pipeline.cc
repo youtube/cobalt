@@ -203,17 +203,6 @@ render_tree::ResourceProvider* Pipeline::GetResourceProvider() {
   return rasterizer_->GetResourceProvider();
 }
 
-bool Pipeline::IsMapToMeshEnabled() {
-  return graphics_context_ ? graphics_context_->IsMapToMeshEnabled()
-#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
-                           : true;
-#elif defined(ENABLE_MAP_TO_MESH)
-                           : ENABLE_MAP_TO_MESH;
-#else
-                           : false;
-#endif
-}
-
 void Pipeline::Submit(const Submission& render_tree_submission) {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::Submit()");
 

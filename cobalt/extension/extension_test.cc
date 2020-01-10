@@ -36,8 +36,7 @@ TEST(ExtensionTest, PlatformService) {
 
   EXPECT_STREQ(extension_api->name, kExtensionName);
   EXPECT_TRUE(extension_api->version == 1 ||
-              extension_api->version == 2 ||
-              extension_api->version == 3) << "Invalid version";
+              extension_api->version == 2) << "Invalid version";
   EXPECT_TRUE(extension_api->Has != NULL);
   EXPECT_TRUE(extension_api->Open != NULL);
   EXPECT_TRUE(extension_api->Close != NULL);
@@ -61,14 +60,10 @@ TEST(ExtensionTest, Graphics) {
 
   EXPECT_STREQ(extension_api->name, kExtensionName);
   EXPECT_TRUE(extension_api->version == 1 ||
-              extension_api->version == 2 ||
-              extension_api->version == 3) << "Invalid version";
+              extension_api->version == 2) << "Invalid version";
   EXPECT_TRUE(extension_api->GetMaximumFrameIntervalInMilliseconds != NULL);
   if (extension_api->version >= 2) {
     EXPECT_TRUE(extension_api->GetMinimumFrameIntervalInMilliseconds != NULL);
-  }
-  if (extension_api->version >= 3) {
-    EXPECT_TRUE(extension_api->IsMapToMeshEnabled != NULL);
   }
 
   float maximum_frame_interval =
@@ -98,8 +93,7 @@ TEST(ExtensionTest, InstallationManager) {
 
   EXPECT_STREQ(extension_api->name, kExtensionName);
   EXPECT_TRUE(extension_api->version == 1 ||
-              extension_api->version == 2 ||
-              extension_api->version == 3) << "Invalid version";
+              extension_api->version == 2) << "Invalid version";
   EXPECT_TRUE(extension_api->GetCurrentInstallationIndex != NULL);
   EXPECT_TRUE(extension_api->MarkInstallationSuccessful != NULL);
   EXPECT_TRUE(extension_api->RequestRollForwardToInstallation != NULL);
