@@ -222,15 +222,21 @@
 // always become the constant kSbFoo.
 #define SB_FEATURE_RUNTIME_CONFIGS_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Introduce SbPlayerGetPreferredOutputMode() so the SbPlayer implementation can
-// explicitly indicate its preference on output mode, when all output modes are
-// supported.
-// For example, Cobalt used to always query for |kSbPlayerOutputModePunchOut|
-// first, without providing details about the video going to be played, and not
-// query for output modes if punch out is supported.  The new interface allows
-// the implementation to fine tune its output mode.  For example, it may decide
-// to use |kSbPlayerOutputModeDecodeToTexture| for low resolution videos.
-#define SB_PLAYER_GET_PREFERRED_OUTPUT_MODE_VERSION SB_EXPERIMENTAL_API_VERSION
+// Improve player creation and output mode query.
+// 1. Introduce the new type SbPlayerCreationParam that holds the common
+//    parameters used to create an SbPlayer() and to query for the output mode
+//    support.
+// 2. Replace SbPlayerOutputModeSupported() by SbPlayerGetPreferredOutputMode()
+//    so the SbPlayer implementation can explicitly indicate its preference on
+//    output mode, when all output modes are supported.
+//    For example, Cobalt used to always query for |kSbPlayerOutputModePunchOut|
+//    first, without providing details about the video going to be played, and
+//    not query for output modes if punch out is supported.  The new interface
+//    allows the implementation to fine tune its output mode.  For example, it
+//    may decide to use |kSbPlayerOutputModeDecodeToTexture| for low resolution
+//    videos.
+#define SB_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT_VERSION \
+  SB_EXPERIMENTAL_API_VERSION
 
 // Introduce support of cbcs encryption scheme into SbDrmSystem, as defined in
 // ISO/IEC 23001 part 7.
@@ -1010,25 +1016,27 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif  // !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
 #endif  // SB_API_VERSION >= 10
 
-#if SB_API_VERSION >= SB_PLAYER_GET_PREFERRED_OUTPUT_MODE_VERSION
-#if defined(SB_HAS_PLAYER_GET_PREFERRED_OUTPUT_MODE)
-#if !SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
+#if SB_API_VERSION >= \
+    SB_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT_VERSION
+#if defined(SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+#if !SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 #error \
-    "SB_HAS_PLAYER_GET_PREFERRED_OUTPUT_MODE is required in this API "\
-       "version."
-#endif  // !SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
-#else   // defined(SB_HAS_PLAYER_GET_PREFERRED_OUTPUT_MODE)
-#define SB_HAS_PLAYER_GET_PREFERRED_OUTPUT_MODE 1
-#endif  // defined(SB_HAS_PLAYER_GET_PREFERRED_OUTPUT_MODE)
-#endif  // SB_API_VERSION >= SB_PLAYER_GET_PREFERRED_OUTPUT_MODE_VERSION
+    "SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT is required in" \
+    " this API version."
+#endif  // !SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+#else   // defined(SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+#define SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT 1
+#endif  // defined(SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+#endif  // SB_API_VERSION >=
+        // SB_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT_VERSION
 
-#if SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 #if SB_API_VERSION < 11
 #error \
-    "SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE) requires SB_API_VERSION 11 "\
-       "or later."
+    "SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT) requires " \
+    "SB_API_VERSION 11 or later."
 #endif  // SB_API_VERSION < 11
-#endif  // SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
 #if SB_API_VERSION >= SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)
 #error \
