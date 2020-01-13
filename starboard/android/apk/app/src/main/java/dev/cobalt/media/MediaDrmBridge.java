@@ -697,9 +697,23 @@ public class MediaDrmBridge {
     }
 
     if (mMediaDrm != null) {
-      mMediaDrm.release();
+      if (Build.VERSION.SDK_INT >= 28) {
+        closeMediaDrmV28(mMediaDrm);
+      } else {
+        releaseMediaDrmDeprecated(mMediaDrm);
+      }
       mMediaDrm = null;
     }
+  }
+
+  @SuppressWarnings("deprecation")
+  private void releaseMediaDrmDeprecated(MediaDrm mediaDrm) {
+    mediaDrm.release();
+  }
+
+  @RequiresApi(28)
+  private void closeMediaDrmV28(MediaDrm mediaDrm) {
+    mediaDrm.close();
   }
 
   private boolean isNativeMediaDrmBridgeValid() {
