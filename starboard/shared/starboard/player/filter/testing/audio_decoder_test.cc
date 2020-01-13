@@ -96,8 +96,6 @@ class AudioDecoderTest
 
     CreateComponents(dmp_reader_.audio_codec(), dmp_reader_.audio_sample_info(),
                      &audio_decoder_, &audio_renderer_sink_);
-    ASSERT_TRUE(audio_decoder_);
-    ASSERT_TRUE(audio_renderer_sink_);
   }
 
  protected:
@@ -124,13 +122,14 @@ class AudioDecoderTest
       components = PlayerComponents::Create();
     }
     std::string error_message;
-    ASSERT_TRUE(components->CreateAudioComponents(
-        audio_parameters, audio_decoder, audio_renderer_sink, &error_message));
-    ASSERT_TRUE(*audio_decoder);
+    components->CreateAudioComponents(audio_parameters, audio_decoder,
+                                      audio_renderer_sink, &error_message);
 
-    (*audio_decoder)
-        ->Initialize(std::bind(&AudioDecoderTest::OnOutput, this),
-                     std::bind(&AudioDecoderTest::OnError, this));
+    if (*audio_decoder) {
+      (*audio_decoder)
+          ->Initialize(std::bind(&AudioDecoderTest::OnOutput, this),
+                       std::bind(&AudioDecoderTest::OnError, this));
+    }
   }
 
   void OnOutput() {
