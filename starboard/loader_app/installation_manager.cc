@@ -73,6 +73,7 @@ class InstallationManager {
   int current_installation_;
   std::string store_path_;
   std::string storage_dir_;
+  std::string content_dir_;
   const int max_num_installations_;
   const int lowest_priority_;
   const int highest_priority_;
@@ -523,6 +524,15 @@ bool InstallationManager::InitInstallationStorePath() {
   store_path_ = storage_dir.data();
   store_path_ += kSbFileSepString;
   store_path_ += IM_STORE_FILE_NAME;
+
+  if (max_num_installations_ > 2) {
+    std::vector<char> content_dir(kSbFileMaxPath);
+    if (!SbSystemGetPath(kSbSystemPathContentDirectory, content_dir.data(),
+                         kSbFileMaxPath)) {
+      return false;
+    }
+    content_dir_ = content_dir.data();
+  }
   return true;
 }
 
@@ -577,10 +587,15 @@ bool InstallationManager::GetInstallationPathInternal(int installation_index,
     SB_LOG(ERROR) << "GetInstallationPath: path is null";
     return false;
   }
-  // TODO: We may need to setup different path for installation 0 which
-  // would be the system image when more than 2 slots are available.
-  SbStringFormatF(path, path_length, "%s%s%s%d", storage_dir_.c_str(),
-                  kSbFileSepString, "installation_", installation_index);
+  // When more than 2 slots are availabe the installation 0 slot is
+  // located under the content directory.
+  if (installation_index == 0 && max_num_installations_ > 2) {
+    SbStringFormatF(path, path_length, "%s%s%s%s%s", content_dir_.c_str(),
+                    kSbFileSepString, "app", kSbFileSepString, "cobalt");
+  } else {
+    SbStringFormatF(path, path_length, "%s%s%s%d", storage_dir_.c_str(),
+                    kSbFileSepString, "installation_", installation_index);
+  }
 
   return true;
 }
@@ -588,6 +603,11 @@ bool InstallationManager::GetInstallationPathInternal(int installation_index,
 bool InstallationManager::CreateInstallationDirs() {
   std::vector<char> path(kSbFileMaxPath);
   for (int i = 0; i < max_num_installations_; i++) {
+    // The index 0 slot when more than 2 slots are available is
+    // under the content directory.
+    if (i == 0 && max_num_installations_ > 2) {
+      continue;
+    }
     if (!GetInstallationPathInternal(i, path.data(), kSbFileMaxPath)) {
       return false;
     }

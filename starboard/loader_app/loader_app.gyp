@@ -18,7 +18,7 @@
   'targets': [
     {
       'target_name': 'loader_app',
-      'type': 'executable',
+      'type': '<(final_executable_type)',
       'conditions': [
         ['target_arch in ["x86", "x64", "arm", "arm64"] ', {
           'sources': [
@@ -35,6 +35,17 @@
           ],
         }],
       ],
+    },
+    {
+      'target_name': 'loader_app_deploy',
+      'type': 'none',
+      'dependencies': [
+        'loader_app',
+      ],
+      'variables': {
+        'executable_name': 'loader_app',
+      },
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
   ],
 }
