@@ -16,8 +16,10 @@
 
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
+#include "starboard/common/murmurhash2.h"
 #include "starboard/format_string.h"
 #include "starboard/memory.h"
+#include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
@@ -47,6 +49,31 @@ class MonotonicSystemTimeProviderImpl : public MonotonicSystemTimeProvider {
     return SbTimeGetMonotonicNow();
   }
 };
+
+#if defined(COBALT_BUILD_TYPE_GOLD)
+
+void DumpInputHash(const InputBuffer* input_buffer) {}
+
+#else  // defined(COBALT_BUILD_TYPE_GOLD)
+
+void DumpInputHash(const InputBuffer* input_buffer) {
+  static const bool s_dump_input_hash =
+      Application::Get()->GetCommandLine()->HasSwitch("dump_video_input_hash");
+
+  if (!s_dump_input_hash) {
+    return;
+  }
+
+  bool is_audio = input_buffer->sample_type() == kSbMediaTypeAudio;
+  SB_LOG(ERROR) << "Dump "
+                << (input_buffer->drm_info() ? "encrypted " : "clear ")
+                << (is_audio ? "audio input hash @ " : "video input hash @ ")
+                << input_buffer->timestamp() << ": "
+                << MurmurHash2_32(input_buffer->data(), input_buffer->size(),
+                                  0);
+}
+
+#endif  // defined(COBALT_BUILD_TYPE_GOLD)
 
 }  // namespace
 
@@ -254,6 +281,7 @@ bool FilterBasedPlayerWorkerHandler::WriteSample(
         if (!SbDrmSystemIsValid(drm_system_)) {
           return false;
         }
+        DumpInputHash(input_buffer);
         SbDrmSystemPrivate::DecryptStatus decrypt_status =
             drm_system_->Decrypt(input_buffer);
         if (decrypt_status == SbDrmSystemPrivate::kRetry) {
@@ -265,6 +293,7 @@ bool FilterBasedPlayerWorkerHandler::WriteSample(
           return false;
         }
       }
+      DumpInputHash(input_buffer);
       audio_renderer_->WriteSample(input_buffer);
     }
   } else {
@@ -287,6 +316,7 @@ bool FilterBasedPlayerWorkerHandler::WriteSample(
         if (!SbDrmSystemIsValid(drm_system_)) {
           return false;
         }
+        DumpInputHash(input_buffer);
         SbDrmSystemPrivate::DecryptStatus decrypt_status =
             drm_system_->Decrypt(input_buffer);
         if (decrypt_status == SbDrmSystemPrivate::kRetry) {
@@ -302,6 +332,7 @@ bool FilterBasedPlayerWorkerHandler::WriteSample(
         media_time_provider_impl_->UpdateVideoDuration(
             input_buffer->timestamp());
       }
+      DumpInputHash(input_buffer);
       video_renderer_->WriteSample(input_buffer);
     }
   }
