@@ -18,7 +18,6 @@ import static android.content.Context.AUDIO_SERVICE;
 import static android.media.AudioManager.GET_DEVICES_INPUTS;
 import static dev.cobalt.util.Log.TAG;
 
-import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -34,6 +33,7 @@ import android.util.Size;
 import android.view.WindowManager;
 import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.CaptioningManager;
+import androidx.annotation.RequiresApi;
 import dev.cobalt.account.UserAuthorizer;
 import dev.cobalt.feedback.FeedbackService;
 import dev.cobalt.media.AudioOutputManager;
@@ -326,7 +326,7 @@ public class StarboardBridge {
     }
   }
 
-  @TargetApi(23)
+  @RequiresApi(23)
   private boolean isMicrophoneConnectedV23() {
     // A check specifically for microphones is not available before API 28, so it is assumed that a
     // connected input audio device is a microphone.
@@ -497,7 +497,7 @@ public class StarboardBridge {
    * https://developer.android.com/reference/android/view/Display.HdrCapabilities.html for valid
    * values.
    */
-  @TargetApi(24)
+  @RequiresApi(24)
   @SuppressWarnings("unused")
   @UsedByNative
   public boolean isHdrTypeSupported(int hdrType) {

@@ -20,7 +20,6 @@ package dev.cobalt.media;
 
 import static dev.cobalt.media.Log.TAG;
 
-import android.annotation.TargetApi;
 import android.media.DeniedByServerException;
 import android.media.MediaCrypto;
 import android.media.MediaCryptoException;
@@ -30,6 +29,7 @@ import android.media.MediaDrmException;
 import android.media.NotProvisionedException;
 import android.media.UnsupportedSchemeException;
 import android.os.Build;
+import androidx.annotation.RequiresApi;
 import dev.cobalt.coat.CobaltHttpHelper;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
@@ -429,7 +429,7 @@ public class MediaDrmBridge {
     mMediaDrm.setPropertyString("sessionSharing", "enable");
   }
 
-  @TargetApi(23)
+  @RequiresApi(23)
   private void setOnKeyStatusChangeListenerV23() {
     mMediaDrm.setOnKeyStatusChangeListener(
         new MediaDrm.OnKeyStatusChangeListener() {
