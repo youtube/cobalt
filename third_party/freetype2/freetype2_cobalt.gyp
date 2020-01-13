@@ -47,6 +47,7 @@
       'include_dirs': [
         '<(ft2_dir)/include_cobalt',
         '<(ft2_dir)/include',
+        '<(DEPTH)/third_party/brotli/c/include',
       ],
       'dependencies': [
         '<(DEPTH)/third_party/libpng/libpng.gyp:libpng',
