@@ -270,7 +270,12 @@ TEST_P(InstallationManagerTest, GetInstallationPath) {
   ASSERT_EQ(IM_SUCCESS, ImInitialize(GetParam()));
   std::vector<char> buf0(kSbFileMaxPath);
   ASSERT_EQ(IM_SUCCESS, ImGetInstallationPath(0, buf0.data(), kSbFileMaxPath));
-  ASSERT_TRUE(SbFileExists(buf0.data()));
+  // For 3 or more slots the 0 index one is under the content directory,
+  // which will not have the correct file path for a Cobalt binary when running
+  // a test.
+  if (GetParam() < 3) {
+    ASSERT_TRUE(SbFileExists(buf0.data()));
+  }
   std::vector<char> buf1(kSbFileMaxPath);
   ASSERT_EQ(IM_SUCCESS, ImGetInstallationPath(1, buf1.data(), kSbFileMaxPath));
   ASSERT_TRUE(SbFileExists(buf1.data()));
