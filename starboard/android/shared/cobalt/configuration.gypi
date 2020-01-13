@@ -22,6 +22,8 @@
     'enable_account_manager': 1,
     'enable_map_to_mesh': 1,
 
+    'cobalt_enable_quic': 0,
+
     # Some Android devices do not advertise their support for
     # EGL_SWAP_BEHAVIOR_PRESERVED_BIT properly, so, we play it safe and disable
     # relying on it for Android.
