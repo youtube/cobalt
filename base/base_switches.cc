@@ -24,6 +24,12 @@ const char kEnableCrashReporter[]           = "enable-crash-reporter";
 // Comma-separated list of feature names to enable. See also kDisableFeatures.
 const char kEnableFeatures[] = "enable-features";
 
+// Setting this switch defines which font format Cobalt will load from it's
+// local font package. Values include 'ttf', 'ttf-preferred', 'woff2', and
+// 'woff2-preferred'. Values with 'preferred' load all fonts but prioritize the
+// format specified. 'ttf' is the default value.
+const char kFontFormat[] = "font-format";
+
 // Generates full memory crash dump.
 const char kFullMemoryCrashReport[]         = "full-memory-crash-report";
 
