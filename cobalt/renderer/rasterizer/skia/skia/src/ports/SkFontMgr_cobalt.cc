@@ -21,6 +21,8 @@
 #include "SkStream.h"
 #include "SkString.h"
 #include "SkTSearch.h"
+#include "base/base_switches.h"
+#include "base/command_line.h"
 #include "base/memory/ptr_util.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontConfigParser_cobalt.h"
@@ -280,6 +282,25 @@ void SkFontMgr_Cobalt::BuildNameToFamilyMap(
     SkTDArray<FontFamilyInfo*>* config_font_families,
     PriorityStyleSetArrayMap* priority_fallback_families) {
   TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::BuildNameToFamilyMap()");
+
+  auto command_line = base::CommandLine::ForCurrentProcess();
+  SkFontStyleSet_Cobalt::FontFormatSetting font_format =
+      SkFontStyleSet_Cobalt::kTtf;
+  if (command_line->HasSwitch(switches::kFontFormat)) {
+    std::string setting =
+        command_line->GetSwitchValueASCII(switches::kFontFormat);
+    if (setting.compare("woff2") == 0) {
+      font_format = SkFontStyleSet_Cobalt::kWoff2;
+    } else if (setting.compare("woff2-preferred") == 0) {
+      font_format = SkFontStyleSet_Cobalt::kWoff2Preferred;
+    } else if (setting.compare("ttf-preferred") == 0) {
+      font_format = SkFontStyleSet_Cobalt::kTtfPreferred;
+    } else if (setting.compare("ttf") != 0) {
+      LOG(WARNING) << "Invalid setting specified for font format. "
+                   << "Using default TTF.";
+    }
+  }
+
   for (int i = 0; i < config_font_families->count(); i++) {
     FontFamilyInfo& family_info = *(*config_font_families)[i];
     bool is_named_family = family_info.names.count() > 0;
@@ -293,7 +314,7 @@ void SkFontMgr_Cobalt::BuildNameToFamilyMap(
 
     sk_sp<SkFontStyleSet_Cobalt> new_family(new SkFontStyleSet_Cobalt(
         family_info, font_files_directory, &local_typeface_stream_manager_,
-        &family_mutex_));
+        &family_mutex_, font_format));
 
     // Do not add the family if none of its fonts were available. This allows
     // the configuration files to specify a superset of all fonts, and ones that
