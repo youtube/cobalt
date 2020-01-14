@@ -27,7 +27,8 @@ import android.graphics.BitmapFactory;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.os.Build;
 import android.util.Size;
 import android.view.WindowManager;
@@ -347,19 +348,25 @@ public class StarboardBridge {
     return audioManager.isMicrophoneMute();
   }
 
-  /** @return true if we have an active network connection and it's on a wireless network. */
+  /** @return true if we have an active network connection and it's on an wireless network. */
   @SuppressWarnings("unused")
   @UsedByNative
   boolean isCurrentNetworkWireless() {
+    if (Build.VERSION.SDK_INT >= 23) {
+      return isCurrentNetworkWirelessV23();
+    } else {
+      return isCurrentNetworkWirelessDeprecated();
+    }
+  }
+
+  @SuppressWarnings("deprecation")
+  private boolean isCurrentNetworkWirelessDeprecated() {
     ConnectivityManager connMgr =
         (ConnectivityManager) appContext.getSystemService(Context.CONNECTIVITY_SERVICE);
-
-    NetworkInfo activeInfo = connMgr.getActiveNetworkInfo();
-
+    android.net.NetworkInfo activeInfo = connMgr.getActiveNetworkInfo();
     if (activeInfo == null) {
       return false;
     }
-
     switch (activeInfo.getType()) {
       case ConnectivityManager.TYPE_ETHERNET:
         return false;
@@ -369,6 +376,22 @@ public class StarboardBridge {
         // over wifi.
         return true;
     }
+  }
+
+  @RequiresApi(23)
+  private boolean isCurrentNetworkWirelessV23() {
+    ConnectivityManager connMgr =
+        (ConnectivityManager) appContext.getSystemService(Context.CONNECTIVITY_SERVICE);
+    Network activeNetwork = connMgr.getActiveNetwork();
+    if (activeNetwork == null) {
+      return false;
+    }
+    NetworkCapabilities activeCapabilities = connMgr.getNetworkCapabilities(activeNetwork);
+    if (activeCapabilities == null) {
+      return false;
+    }
+    // Consider anything that's not definitely wired to be wireless.
+    return !activeCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET);
   }
 
   /**
