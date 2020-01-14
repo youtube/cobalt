@@ -20,7 +20,7 @@
       'target_name': 'loader_app',
       'type': '<(final_executable_type)',
       'conditions': [
-        ['target_arch in ["x86", "x64", "arm", "arm64"] ', {
+        ['target_arch in ["ia32", "x64", "arm", "arm64"] ', {
           'sources': [
             'loader_app.cc',
             'system_get_extension_shim.h',
