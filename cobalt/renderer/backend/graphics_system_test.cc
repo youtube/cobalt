@@ -46,7 +46,7 @@ TEST(GraphicsSystemTest, GraphicsSystemCanBeInitializedOften) {
     graphics_system = CreateDefaultGraphicsSystem();
     graphics_system.reset();
   }
-  SbTimeMonotonic time_per_initialization =
+  SbTimeMonotonic time_per_initialization = kSbTimeMillisecond +
       (SbTimeGetMonotonicNow() - start) / kReferenceCount;
   SB_LOG(INFO) << "Measured duration "
                << time_per_initialization / kSbTimeMillisecond
@@ -85,7 +85,7 @@ TEST(GraphicsSystemTest, GraphicsContextCanBeInitializedOften) {
     graphics_context.reset();
     graphics_system.reset();
   }
-  SbTimeMonotonic time_per_initialization =
+  SbTimeMonotonic time_per_initialization = kSbTimeMillisecond +
       (SbTimeGetMonotonicNow() - start) / kReferenceCount;
   SB_LOG(INFO) << "Measured duration "
                << time_per_initialization / kSbTimeMillisecond
