@@ -230,7 +230,7 @@
     # Set to "true" to enable v8 snapshot generation at Cobalt build time.
     'cobalt_v8_buildtime_snapshot%': '<(cobalt_v8_buildtime_snapshot)',
 
-    'cobalt_enable_quic%': 1,
+    'cobalt_enable_quic': 1,
 
     # Cache parameters
 
