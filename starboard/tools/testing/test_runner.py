@@ -212,6 +212,7 @@ class TestRunner(object):
                specified_targets,
                target_params,
                out_directory,
+               loader_out_directory,
                platform_tests_only,
                application_name=None,
                dry_run=False,
@@ -224,15 +225,14 @@ class TestRunner(object):
     self.device_id = device_id
     self.target_params = target_params
     self.out_directory = out_directory
+    self.loader_out_directory = loader_out_directory
     if not self.out_directory:
       self.out_directory = paths.BuildOutputDirectory(self.platform,
                                                       self.config)
     self.coverage_directory = os.path.join(self.out_directory, "coverage")
-    if self.loader_platform:
+    if not self.loader_out_directory and self.loader_platform and self.loader_config:
       self.loader_out_directory = paths.BuildOutputDirectory(
           self.loader_platform, self.loader_config)
-    else:
-      self.loader_out_directory = None
 
     self._platform_config = build.GetPlatformConfig(platform)
     if self.loader_platform:
@@ -417,7 +417,8 @@ class TestRunner(object):
         coverage_directory=self.coverage_directory,
         env_variables=env,
         loader_platform=self.loader_platform,
-        loader_config=self.loader_config)
+        loader_config=self.loader_config,
+        loader_out_directory=self.loader_out_directory)
 
     test_reader = TestLineReader(read_pipe)
     test_launcher = TestLauncher(launcher)
@@ -828,8 +829,9 @@ def main():
   runner = TestRunner(args.platform, args.config, args.loader_platform,
                       args.loader_config, args.device_id, args.target_name,
                       target_params, args.out_directory,
-                      args.platform_tests_only, args.application_name,
-                      args.dry_run, args.xml_output_dir, args.log_xml_results)
+                      args.loader_out_directory, args.platform_tests_only,
+                      args.application_name, args.dry_run, args.xml_output_dir,
+                      args.log_xml_results)
 
   def Abort(signum, frame):
     del signum, frame  # Unused.

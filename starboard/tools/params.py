@@ -51,4 +51,5 @@ class LauncherParams(PlatformConfigParams):
     super(LauncherParams, self).__init__()
     self.device_id = None
     self.out_directory = None
+    self.loader_out_directory = None
     self.target_params = None

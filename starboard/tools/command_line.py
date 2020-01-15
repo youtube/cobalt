@@ -54,9 +54,9 @@ def AddPlatformConfigArguments(arg_parser):
       '-C',
       '--loader_config',
       default=None,
-      help="Specifies the config to build the loader with (eg 'qa' or 'devel'). This flag is only "
-      'relevant for Evergreen builds, and requires that --loader_platform be '
-      'given.')
+      help="Specifies the config to build the loader with (eg 'qa' or 'devel')."
+      'This flag is only relevant for Evergreen builds, and requires that '
+      '--loader_platform be given.')
 
 
 def AddLauncherArguments(arg_parser):
@@ -75,6 +75,12 @@ def AddLauncherArguments(arg_parser):
       '--out_directory',
       help='Directory containing tool binaries or their components.'
       ' Automatically derived if absent.')
+  arg_parser.add_argument(
+      '-O',
+      '--loader_out_directory',
+      default=None,
+      help='Identical to --out_directory, except used for the loader platform '
+      'when building and running in Evergreen mode.')
 
 
 def CreatePlatformConfigParams(arg_parser=None):
