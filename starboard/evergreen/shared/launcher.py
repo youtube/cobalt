@@ -54,6 +54,11 @@ class Launcher(abstract_launcher.AbstractLauncher):
     if not self.loader_config:
       raise ValueError('|loader_config| cannot be |None|.')
 
+    self.loader_out_directory = kwargs.get('loader_out_directory')
+    if not self.loader_out_directory:
+      self.loader_out_directory = paths.BuildOutputDirectory(
+          self.loader_platform, self.loader_config)
+
     # The relationship of loader platforms and configurations to evergreen
     # platforms and configurations is many-to-many. We need a separate directory
     # for each of them, i.e. linux-x64x11_debug__evergreen-x64_gold.
@@ -144,10 +149,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # specified by |staging_directory_loader|. A symbolic link here would cause
     # future symbolic links to fall through to the original out-directories.
     shutil.copytree(
-        os.path.join(
-            paths.BuildOutputDirectory(self.loader_platform,
-                                       self.loader_config), 'deploy',
-            _LOADER_TARGET), staging_directory_loader)
+        os.path.join(self.loader_out_directory, 'deploy', _LOADER_TARGET),
+        staging_directory_loader)
 
     port_symlink.MakeSymLink(
         os.path.join(self.out_directory, 'deploy', self.target_name),
@@ -185,4 +188,3 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def GetTargetPath(self):
     return self.launcher.GetTargetPath()
-
