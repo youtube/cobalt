@@ -164,7 +164,7 @@ std::string MakeBorder(const std::string& body, const char border_ch) {
   }
 
   std::stringstream ss;
-  ss << "\n\n";
+  ss << "\n";
 
   FillStream(max_span + 4, border_ch, &ss);
   ss << "\n";
@@ -177,7 +177,7 @@ std::string MakeBorder(const std::string& body, const char border_ch) {
     ss << "\n";
   }
   FillStream(max_span + 4, border_ch, &ss);
-  ss << "\n\n";
+  ss << "\n";
   return ss.str();
 }
 

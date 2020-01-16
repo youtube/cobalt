@@ -367,9 +367,9 @@ std::vector<MemorySetting*> AutoMem::AllMemorySettingsMutable() {
 std::string AutoMem::ToPrettyPrintString(bool use_color_ascii) const {
   std::stringstream ss;
 
-  ss << "AutoMem:\n\n";
+  ss << "AutoMem:\n";
   std::vector<const MemorySetting*> all_settings = AllMemorySettings();
-  ss << GeneratePrettyPrintTable(use_color_ascii, all_settings) << "\n";
+  ss << GeneratePrettyPrintTable(use_color_ascii, all_settings);
 
   int64_t cpu_consumption =
       SumMemoryConsumption(MemorySetting::kCPU, all_settings);
