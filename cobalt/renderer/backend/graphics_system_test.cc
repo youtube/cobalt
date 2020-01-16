@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
 #include <memory>
 
 #include "base/optional.h"
@@ -29,7 +30,7 @@ namespace backend {
 namespace {
 
 // Number of initializations to use for measuring the reference creation time.
-const int kReferenceCount = 3;
+const int kReferenceCount = 5;
 }  // namespace
 
 TEST(GraphicsSystemTest, GraphicsSystemCanBeInitializedOften) {
@@ -46,11 +47,16 @@ TEST(GraphicsSystemTest, GraphicsSystemCanBeInitializedOften) {
     graphics_system = CreateDefaultGraphicsSystem();
     graphics_system.reset();
   }
-  SbTimeMonotonic time_per_initialization = kSbTimeMillisecond +
+  SbTimeMonotonic time_per_initialization =
       (SbTimeGetMonotonicNow() - start) / kReferenceCount;
   SB_LOG(INFO) << "Measured duration "
                << time_per_initialization / kSbTimeMillisecond
                << "ms per initialization.";
+
+  // Graphics system initializations should not take more than the maximum of
+  // 200ms or three times as long as the time we just measured.
+  SbTimeMonotonic maximum_time_per_initialization =
+      std::max(3 * time_per_initialization, 200 * kSbTimeMillisecond);
 
   SbTimeMonotonic last = SbTimeGetMonotonicNow();
   for (int i = 0; i < 20; ++i) {
@@ -59,7 +65,7 @@ TEST(GraphicsSystemTest, GraphicsSystemCanBeInitializedOften) {
     SbTimeMonotonic now = SbTimeGetMonotonicNow();
     SB_LOG(INFO) << "Test duration " << (now - last) / kSbTimeMillisecond
                  << "ms.";
-    ASSERT_LT(now - last, time_per_initialization * 3);
+    ASSERT_LT(now - last, maximum_time_per_initialization);
     last = now;
   }
 }
@@ -91,6 +97,11 @@ TEST(GraphicsSystemTest, GraphicsContextCanBeInitializedOften) {
                << time_per_initialization / kSbTimeMillisecond
                << "ms per initialization.";
 
+  // Graphics system and context initializations should not take more than the
+  // maximum of 200ms or three times as long as the time we just measured.
+  SbTimeMonotonic maximum_time_per_initialization =
+      std::max(3 * time_per_initialization, 200 * kSbTimeMillisecond);
+
   SbTimeMonotonic last = SbTimeGetMonotonicNow();
   for (int i = 0; i < 20; ++i) {
     graphics_system = CreateDefaultGraphicsSystem();
@@ -102,7 +113,7 @@ TEST(GraphicsSystemTest, GraphicsContextCanBeInitializedOften) {
     SbTimeMonotonic now = SbTimeGetMonotonicNow();
     SB_LOG(INFO) << "Test duration " << (now - last) / kSbTimeMillisecond
                  << "ms.";
-    ASSERT_LT(now - last, time_per_initialization * 3);
+    ASSERT_LT(now - last, maximum_time_per_initialization);
     last = now;
   }
 }
