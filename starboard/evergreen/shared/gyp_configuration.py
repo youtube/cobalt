@@ -88,7 +88,6 @@ class EvergreenConfiguration(platform_configuration.PlatformConfiguration):
     return filters
 
   __FILTERED_TESTS = {  # pylint: disable=invalid-name
-      'elf_loader_test': [test_filter.FILTER_ALL],
       'nplb': ['MemoryReportingTest.CapturesMemMapUnmap',
                'MemoryReportingTest.CapturesOperatorDeleteNothrow',
                'SbAudioSinkTest.*',
