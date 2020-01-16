@@ -46,6 +46,7 @@ struct UnionTypeDefaultTraits {
   // ScriptValue<ArrayBufferView>* manually.
   static const bool is_array_buffer_view_type = false;
   static const bool is_script_value_type = false;
+  static const bool is_dictionary_type = false;
 };
 
 // Default traits for types with no specialization
@@ -60,6 +61,13 @@ struct UnionTypeTraits<scoped_refptr<T> >
     : UnionTypeDefaultTraits<scoped_refptr<T> > {
   static base::TypeId GetTypeID() { return base::GetTypeId<T>(); }
   static const bool is_interface_type = true;
+};
+
+template <typename T>
+struct UnionTypeTraits<
+    T, typename std::enable_if<T::is_a_generated_dict::value>::type>
+    : UnionTypeDefaultTraits<T> {
+  static const bool is_dictionary_type = true;
 };
 
 template <>

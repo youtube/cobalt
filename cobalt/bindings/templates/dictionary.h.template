@@ -182,6 +182,8 @@ class {{class_name}} {
 
 {% endfor %}
 
+ using is_a_generated_dict = std::true_type;
+
  private:
 {% for member in members %}
 {% if not member.default_value %}

@@ -54,10 +54,10 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
                  script::UnionType2<T1, T2>* out_union) {
   DCHECK_EQ(0, conversion_flags);
   // JS -> IDL type conversion procedure described here:
-  // http://heycam.github.io/webidl/#es-union
+  // https://www.w3.org/TR/WebIDL-1/#es-union
+  // ( Draft: http://heycam.github.io/webidl/#es-union )
 
-  // TODO: Support Date, RegExp, DOMException, Error, ArrayBuffer, DataView,
-  //       TypedArrayName, callback functions, dictionary.
+  // TODO: Support Date, RegExp, DOMException, Error, callback functions.
 
   // 1. If the union type includes a nullable type and |V| is null or undefined,
   // then return the IDL value null.
@@ -79,7 +79,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
   T1 t1;
   T2 t2;
 
-  // 4. If |V| is a platform object, then:
+  // 3. If |V| is a platform object, then:
   //   1. If |types| includes an interface type that V implements, then return
   //      the IDL value that is a reference to the object |V|.
   //   2. If |types| includes object, then return the IDL value that is a
@@ -118,7 +118,92 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     }
   }
 
-  // 11. If |Type(V)| is Object, then:
+  // 4. If |V| object, then
+  // 1. If |types| includes object, then return the IDL value that is a
+  // reference to
+  //      the object V.
+  // Not implemented
+
+  // 5. If V is a DOMException platform object, then:
+  // 1. If types includes DOMException or Error, then return the result of
+  // converting
+  //      V to that type.
+  // Not implemented
+
+  // 6. If V is a native Error object (that is, it has an ErrorData internal
+  // slot),
+  //    then:
+  // 1. If types includes Error, then return the result of converting V to
+  // Error.
+  // 2. If types includes object, then return the IDL value that is a reference
+  // to
+  //      the object V.
+  // Not implemented
+
+  // 7. If V is an object with an ArrayBufferData internal slot, then:
+  // 1. If types includes ArrayBuffer, then return the result of converting V
+  // to
+  //      ArrayBuffer.
+  // 2. If types includes object, then return the IDL value that is a reference
+  //      to the object V.
+  // Not implemented
+
+  // 8. If V is an object with a DataView internal slot, then:
+  // 1. If types includes DataView, then return the result of converting V to
+  // DataView.
+  // 2. If types includes object, then return the IDL value that is a reference
+  // to
+  //      the object V.
+  //   Note: Only ArrayBufferView is implemented, other DataViews are not.
+  if (value.isObject() && JS_IsArrayBufferViewObject(&value.toObject())) {
+    if (UnionTypeTraitsT1::is_array_buffer_view_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t1);
+      *out_union = script::UnionType2<T1, T2>(t1);
+      return;
+    }
+
+    if (UnionTypeTraitsT2::is_array_buffer_view_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t2);
+      *out_union = script::UnionType2<T1, T2>(t2);
+      return;
+    }
+  }
+
+  // 9. If V is an object with a TypedArrayName internal slot, then:
+  // 1. If types includes a typed array type whose name is the value of V’s
+  // TypedArrayName  //      internal slot, then return the result of
+  // converting V to that type.
+  // 2. If types includes object, then return the IDL value that is a reference
+  // to the object V.
+  // Not implemented
+
+  // 10. If IsCallable(V) is true, then
+  // 1. If types includes a callback function type, then return the result of
+  // converting V to
+  //      that callback function type.
+  // 2. If types includes object, then return the IDL value that is a reference
+  // to the object V.
+  // Not implemented
+
+  // 11. If |V| is null or undefined object, then:
+  // 1. If types includes a dictionary type, then return the result of
+  // converting V to
+  //      that dictionary type.
+  if (value.isObject()) {
+    if (UnionTypeTraitsT1::is_dictionary_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t1);
+      *out_union = script::UnionType2<T1, T2>(t1);
+      return;
+    }
+
+    if (UnionTypeTraitsT2::is_dictionary_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t2);
+      *out_union = script::UnionType2<T1, T2>(t2);
+      return;
+    }
+  }
+
+  // 12. If |Type(V)| is Object, then:
   //   1. If |types| includes a sequence type, then
   //     1. Let |method| be the result of GetMethod(V, @@iterator)
   //     2. ReturnIfAbrupt(method)
@@ -138,7 +223,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     }
   }
 
-  // 12. If |Type(V)| is Boolean, then:
+  // 13. If |Type(V)| is Boolean, then:
   // 1. If |types| includes a boolean, then return the result of converting |V|
   //      to boolean.
   if (value.isBoolean()) {
@@ -155,7 +240,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     }
   }
 
-  // 13. If |Type(V)| is a Number, then:
+  // 14. If |Type(V)| is a Number, then:
   //   1. If |types| includes a numeric type, then return the result of
   //      converting |V| to that numeric type.
   if (value.isNumber()) {
@@ -172,7 +257,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     }
   }
 
-  // 14. If |types| includes a string type, then return the result of converting
+  // 15. If |types| includes a string type, then return the result of converting
   //     |V| to that type.
   if (value.isString()) {
     if (UnionTypeTraitsT1::is_string_type) {
@@ -188,7 +273,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     }
   }
 
-  // 15. If |types| includes a numeric type, then return the result of
+  // 16. If |types| includes a numeric type, then return the result of
   //     converting |V| to that numeric type.
   if (UnionTypeTraitsT1::is_numeric_type) {
     FromJSValue(context, value, conversion_flags, exception_state, &t1);
@@ -202,7 +287,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     return;
   }
 
-  // 16. If |types| includes a boolean, then return the result of converting |V|
+  // 17. If |types| includes a boolean, then return the result of converting |V|
   //     to boolean.
   if (UnionTypeTraitsT1::is_boolean_type) {
     FromJSValue(context, value, conversion_flags, exception_state, &t1);
@@ -216,24 +301,8 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     return;
   }
 
-  // 17. If |types| includes an ArrayBufferView type, then return the result of
-  //     converting |V| to ArrayBufferView type.
-  //     This step has to be before 18 to catch array_buffer_view types.
-  if (value.isObject() && JS_IsArrayBufferViewObject(&value.toObject())) {
-    if (UnionTypeTraitsT1::is_array_buffer_view_type) {
-      FromJSValue(context, value, conversion_flags, exception_state, &t1);
-      *out_union = script::UnionType2<T1, T2>(t1);
-      return;
-    }
-
-    if (UnionTypeTraitsT2::is_array_buffer_view_type) {
-      FromJSValue(context, value, conversion_flags, exception_state, &t2);
-      *out_union = script::UnionType2<T1, T2>(t2);
-      return;
-    }
-  }
-
-  // 18. If |types| includes any ScriptValue type, then return the result of
+  // Note: non-spec fallback
+  //     If |types| includes any ScriptValue type, then return the result of
   //     converting |V| to that ScriptValue type.
   if (value.isObject() && JS_IsArrayBufferObject(&value.toObject())) {
     if (UnionTypeTraitsT1::is_script_value_type) {
@@ -249,7 +318,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     }
   }
 
-  // 19. Throw a TypeError.
+  // 18. Throw a TypeError.
   exception_state->SetSimpleException(kNotUnionType);
 }
 
@@ -279,10 +348,10 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
                  script::UnionType3<T1, T2, T3>* out_union) {
   DCHECK_EQ(0, conversion_flags);
   // JS -> IDL type conversion procedure described here:
-  // http://heycam.github.io/webidl/#es-union
+  // https://www.w3.org/TR/WebIDL-1/#es-union
+  // ( Draft: http://heycam.github.io/webidl/#es-union )
 
-  // TODO: Support Date, RegExp, DOMException, Error, ArrayBuffer, DataView,
-  //       TypedArrayName, callback functions, dictionary.
+  // TODO: Support Date, RegExp, DOMException, Error, callback functions.
 
   // 1. If the union type includes a nullable type and |V| is null or undefined,
   // then return the IDL value null.
@@ -306,7 +375,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
   T2 t2;
   T3 t3;
 
-  // 4. If |V| is a platform object, then:
+  // 3. If |V| is a platform object, then:
   //   1. If |types| includes an interface type that V implements, then return
   //      the IDL value that is a reference to the object |V|.
   //   2. If |types| includes object, then return the IDL value that is a
@@ -353,7 +422,104 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     }
   }
 
-  // 11. If |Type(V)| is Object, then:
+  // 4. If |V| object, then
+  // 1. If |types| includes object, then return the IDL value that is a
+  // reference to
+  //      the object V.
+  // Not implemented
+
+  // 5. If V is a DOMException platform object, then:
+  // 1. If types includes DOMException or Error, then return the result of
+  // converting
+  //      V to that type.
+  // Not implemented
+
+  // 6. If V is a native Error object (that is, it has an ErrorData internal
+  // slot),
+  //    then:
+  // 1. If types includes Error, then return the result of converting V to
+  // Error.
+  // 2. If types includes object, then return the IDL value that is a reference
+  // to
+  //      the object V.
+  // Not implemented
+
+  // 7. If V is an object with an ArrayBufferData internal slot, then:
+  // 1. If types includes ArrayBuffer, then return the result of converting V
+  // to
+  //      ArrayBuffer.
+  // 2. If types includes object, then return the IDL value that is a reference
+  //      to the object V.
+  // Not implemented
+
+  // 8. If V is an object with a DataView internal slot, then:
+  // 1. If types includes DataView, then return the result of converting V to
+  // DataView.
+  // 2. If types includes object, then return the IDL value that is a reference
+  // to
+  //      the object V.
+  //   Note: Only ArrayBufferView is implemented, other DataViews are not.
+  if (value.isObject() && JS_IsArrayBufferViewObject(&value.toObject())) {
+    if (UnionTypeTraitsT1::is_array_buffer_view_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t1);
+      *out_union = script::UnionType3<T1, T2, T3>(t1);
+      return;
+    }
+
+    if (UnionTypeTraitsT2::is_array_buffer_view_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t2);
+      *out_union = script::UnionType3<T1, T2, T3>(t2);
+      return;
+    }
+
+    if (UnionTypeTraitsT3::is_array_buffer_view_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t3);
+      *out_union = script::UnionType3<T1, T2, T3>(t3);
+      return;
+    }
+  }
+
+  // 9. If V is an object with a TypedArrayName internal slot, then:
+  // 1. If types includes a typed array type whose name is the value of V’s
+  // TypedArrayName  //      internal slot, then return the result of
+  // converting V to that type.
+  // 2. If types includes object, then return the IDL value that is a reference
+  // to the object V.
+  // Not implemented
+
+  // 10. If IsCallable(V) is true, then
+  // 1. If types includes a callback function type, then return the result of
+  // converting V to
+  //      that callback function type.
+  // 2. If types includes object, then return the IDL value that is a reference
+  // to the object V.
+  // Not implemented
+
+  // 11. If |V| is null or undefined object, then:
+  // 1. If types includes a dictionary type, then return the result of
+  // converting V to
+  //      that dictionary type.
+  if (value.isObject()) {
+    if (UnionTypeTraitsT1::is_dictionary_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t1);
+      *out_union = script::UnionType3<T1, T2, T3>(t1);
+      return;
+    }
+
+    if (UnionTypeTraitsT2::is_dictionary_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t2);
+      *out_union = script::UnionType3<T1, T2, T3>(t2);
+      return;
+    }
+
+    if (UnionTypeTraitsT3::is_dictionary_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t3);
+      *out_union = script::UnionType3<T1, T2, T3>(t3);
+      return;
+    }
+  }
+
+  // 12. If |Type(V)| is Object, then:
   //   1. If |types| includes a sequence type, then
   //     1. Let |method| be the result of GetMethod(V, @@iterator)
   //     2. ReturnIfAbrupt(method)
@@ -379,7 +545,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     }
   }
 
-  // 12. If |Type(V)| is Boolean, then:
+  // 13. If |Type(V)| is Boolean, then:
   // 1. If |types| includes a boolean, then return the result of converting |V|
   //      to boolean.
   if (value.isBoolean()) {
@@ -402,7 +568,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     }
   }
 
-  // 13. If |Type(V)| is a Number, then:
+  // 14. If |Type(V)| is a Number, then:
   //   1. If |types| includes a numeric type, then return the result of
   //      converting |V| to that numeric type.
   if (value.isNumber()) {
@@ -425,7 +591,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     }
   }
 
-  // 14. If |types| includes a string type, then return the result of converting
+  // 15. If |types| includes a string type, then return the result of converting
   //     |V| to that type.
   if (value.isString()) {
     if (UnionTypeTraitsT1::is_string_type) {
@@ -447,7 +613,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     }
   }
 
-  // 15. If |types| includes a numeric type, then return the result of
+  // 16. If |types| includes a numeric type, then return the result of
   //     converting |V| to that numeric type.
   if (UnionTypeTraitsT1::is_numeric_type) {
     FromJSValue(context, value, conversion_flags, exception_state, &t1);
@@ -467,7 +633,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     return;
   }
 
-  // 16. If |types| includes a boolean, then return the result of converting |V|
+  // 17. If |types| includes a boolean, then return the result of converting |V|
   //     to boolean.
   if (UnionTypeTraitsT1::is_boolean_type) {
     FromJSValue(context, value, conversion_flags, exception_state, &t1);
@@ -487,30 +653,8 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     return;
   }
 
-  // 17. If |types| includes an ArrayBufferView type, then return the result of
-  //     converting |V| to ArrayBufferView type.
-  //     This step has to be before 18 to catch array_buffer_view types.
-  if (value.isObject() && JS_IsArrayBufferViewObject(&value.toObject())) {
-    if (UnionTypeTraitsT1::is_array_buffer_view_type) {
-      FromJSValue(context, value, conversion_flags, exception_state, &t1);
-      *out_union = script::UnionType3<T1, T2, T3>(t1);
-      return;
-    }
-
-    if (UnionTypeTraitsT2::is_array_buffer_view_type) {
-      FromJSValue(context, value, conversion_flags, exception_state, &t2);
-      *out_union = script::UnionType3<T1, T2, T3>(t2);
-      return;
-    }
-
-    if (UnionTypeTraitsT3::is_array_buffer_view_type) {
-      FromJSValue(context, value, conversion_flags, exception_state, &t3);
-      *out_union = script::UnionType3<T1, T2, T3>(t3);
-      return;
-    }
-  }
-
-  // 18. If |types| includes any ScriptValue type, then return the result of
+  // Note: non-spec fallback
+  //     If |types| includes any ScriptValue type, then return the result of
   //     converting |V| to that ScriptValue type.
   if (value.isObject() && JS_IsArrayBufferObject(&value.toObject())) {
     if (UnionTypeTraitsT1::is_script_value_type) {
@@ -532,7 +676,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     }
   }
 
-  // 19. Throw a TypeError.
+  // 18. Throw a TypeError.
   exception_state->SetSimpleException(kNotUnionType);
 }
 
@@ -566,10 +710,10 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
                  script::UnionType4<T1, T2, T3, T4>* out_union) {
   DCHECK_EQ(0, conversion_flags);
   // JS -> IDL type conversion procedure described here:
-  // http://heycam.github.io/webidl/#es-union
+  // https://www.w3.org/TR/WebIDL-1/#es-union
+  // ( Draft: http://heycam.github.io/webidl/#es-union )
 
-  // TODO: Support Date, RegExp, DOMException, Error, ArrayBuffer, DataView,
-  //       TypedArrayName, callback functions, dictionary.
+  // TODO: Support Date, RegExp, DOMException, Error, callback functions.
 
   // 1. If the union type includes a nullable type and |V| is null or undefined,
   // then return the IDL value null.
@@ -595,7 +739,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
   T3 t3;
   T4 t4;
 
-  // 4. If |V| is a platform object, then:
+  // 3. If |V| is a platform object, then:
   //   1. If |types| includes an interface type that V implements, then return
   //      the IDL value that is a reference to the object |V|.
   //   2. If |types| includes object, then return the IDL value that is a
@@ -650,7 +794,116 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     }
   }
 
-  // 11. If |Type(V)| is Object, then:
+  // 4. If |V| object, then
+  // 1. If |types| includes object, then return the IDL value that is a
+  // reference to
+  //      the object V.
+  // Not implemented
+
+  // 5. If V is a DOMException platform object, then:
+  // 1. If types includes DOMException or Error, then return the result of
+  // converting
+  //      V to that type.
+  // Not implemented
+
+  // 6. If V is a native Error object (that is, it has an ErrorData internal
+  // slot),
+  //    then:
+  // 1. If types includes Error, then return the result of converting V to
+  // Error.
+  // 2. If types includes object, then return the IDL value that is a reference
+  // to
+  //      the object V.
+  // Not implemented
+
+  // 7. If V is an object with an ArrayBufferData internal slot, then:
+  // 1. If types includes ArrayBuffer, then return the result of converting V
+  // to
+  //      ArrayBuffer.
+  // 2. If types includes object, then return the IDL value that is a reference
+  //      to the object V.
+  // Not implemented
+
+  // 8. If V is an object with a DataView internal slot, then:
+  // 1. If types includes DataView, then return the result of converting V to
+  // DataView.
+  // 2. If types includes object, then return the IDL value that is a reference
+  // to
+  //      the object V.
+  //   Note: Only ArrayBufferView is implemented, other DataViews are not.
+  if (value.isObject() && JS_IsArrayBufferViewObject(&value.toObject())) {
+    if (UnionTypeTraitsT1::is_array_buffer_view_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t1);
+      *out_union = script::UnionType4<T1, T2, T3, T4>(t1);
+      return;
+    }
+
+    if (UnionTypeTraitsT2::is_array_buffer_view_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t2);
+      *out_union = script::UnionType4<T1, T2, T3, T4>(t2);
+      return;
+    }
+
+    if (UnionTypeTraitsT3::is_array_buffer_view_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t3);
+      *out_union = script::UnionType4<T1, T2, T3, T4>(t3);
+      return;
+    }
+
+    if (UnionTypeTraitsT4::is_array_buffer_view_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t4);
+      *out_union = script::UnionType4<T1, T2, T3, T4>(t4);
+      return;
+    }
+  }
+
+  // 9. If V is an object with a TypedArrayName internal slot, then:
+  // 1. If types includes a typed array type whose name is the value of V’s
+  // TypedArrayName  //      internal slot, then return the result of
+  // converting V to that type.
+  // 2. If types includes object, then return the IDL value that is a reference
+  // to the object V.
+  // Not implemented
+
+  // 10. If IsCallable(V) is true, then
+  // 1. If types includes a callback function type, then return the result of
+  // converting V to
+  //      that callback function type.
+  // 2. If types includes object, then return the IDL value that is a reference
+  // to the object V.
+  // Not implemented
+
+  // 11. If |V| is null or undefined object, then:
+  // 1. If types includes a dictionary type, then return the result of
+  // converting V to
+  //      that dictionary type.
+  if (value.isObject()) {
+    if (UnionTypeTraitsT1::is_dictionary_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t1);
+      *out_union = script::UnionType4<T1, T2, T3, T4>(t1);
+      return;
+    }
+
+    if (UnionTypeTraitsT2::is_dictionary_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t2);
+      *out_union = script::UnionType4<T1, T2, T3, T4>(t2);
+      return;
+    }
+
+    if (UnionTypeTraitsT3::is_dictionary_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t3);
+      *out_union = script::UnionType4<T1, T2, T3, T4>(t3);
+      return;
+    }
+
+    if (UnionTypeTraitsT4::is_dictionary_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t4);
+      *out_union = script::UnionType4<T1, T2, T3, T4>(t4);
+      return;
+    }
+  }
+
+  // 12. If |Type(V)| is Object, then:
   //   1. If |types| includes a sequence type, then
   //     1. Let |method| be the result of GetMethod(V, @@iterator)
   //     2. ReturnIfAbrupt(method)
@@ -682,7 +935,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     }
   }
 
-  // 12. If |Type(V)| is Boolean, then:
+  // 13. If |Type(V)| is Boolean, then:
   // 1. If |types| includes a boolean, then return the result of converting |V|
   //      to boolean.
   if (value.isBoolean()) {
@@ -711,7 +964,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     }
   }
 
-  // 13. If |Type(V)| is a Number, then:
+  // 14. If |Type(V)| is a Number, then:
   //   1. If |types| includes a numeric type, then return the result of
   //      converting |V| to that numeric type.
   if (value.isNumber()) {
@@ -740,7 +993,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     }
   }
 
-  // 14. If |types| includes a string type, then return the result of converting
+  // 15. If |types| includes a string type, then return the result of converting
   //     |V| to that type.
   if (value.isString()) {
     if (UnionTypeTraitsT1::is_string_type) {
@@ -768,7 +1021,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     }
   }
 
-  // 15. If |types| includes a numeric type, then return the result of
+  // 16. If |types| includes a numeric type, then return the result of
   //     converting |V| to that numeric type.
   if (UnionTypeTraitsT1::is_numeric_type) {
     FromJSValue(context, value, conversion_flags, exception_state, &t1);
@@ -794,7 +1047,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     return;
   }
 
-  // 16. If |types| includes a boolean, then return the result of converting |V|
+  // 17. If |types| includes a boolean, then return the result of converting |V|
   //     to boolean.
   if (UnionTypeTraitsT1::is_boolean_type) {
     FromJSValue(context, value, conversion_flags, exception_state, &t1);
@@ -820,36 +1073,8 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     return;
   }
 
-  // 17. If |types| includes an ArrayBufferView type, then return the result of
-  //     converting |V| to ArrayBufferView type.
-  //     This step has to be before 18 to catch array_buffer_view types.
-  if (value.isObject() && JS_IsArrayBufferViewObject(&value.toObject())) {
-    if (UnionTypeTraitsT1::is_array_buffer_view_type) {
-      FromJSValue(context, value, conversion_flags, exception_state, &t1);
-      *out_union = script::UnionType4<T1, T2, T3, T4>(t1);
-      return;
-    }
-
-    if (UnionTypeTraitsT2::is_array_buffer_view_type) {
-      FromJSValue(context, value, conversion_flags, exception_state, &t2);
-      *out_union = script::UnionType4<T1, T2, T3, T4>(t2);
-      return;
-    }
-
-    if (UnionTypeTraitsT3::is_array_buffer_view_type) {
-      FromJSValue(context, value, conversion_flags, exception_state, &t3);
-      *out_union = script::UnionType4<T1, T2, T3, T4>(t3);
-      return;
-    }
-
-    if (UnionTypeTraitsT4::is_array_buffer_view_type) {
-      FromJSValue(context, value, conversion_flags, exception_state, &t4);
-      *out_union = script::UnionType4<T1, T2, T3, T4>(t4);
-      return;
-    }
-  }
-
-  // 18. If |types| includes any ScriptValue type, then return the result of
+  // Note: non-spec fallback
+  //     If |types| includes any ScriptValue type, then return the result of
   //     converting |V| to that ScriptValue type.
   if (value.isObject() && JS_IsArrayBufferObject(&value.toObject())) {
     if (UnionTypeTraitsT1::is_script_value_type) {
@@ -877,7 +1102,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     }
   }
 
-  // 19. Throw a TypeError.
+  // 18. Throw a TypeError.
   exception_state->SetSimpleException(kNotUnionType);
 }
 
@@ -915,10 +1140,10 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
                  script::UnionType5<T1, T2, T3, T4, T5>* out_union) {
   DCHECK_EQ(0, conversion_flags);
   // JS -> IDL type conversion procedure described here:
-  // http://heycam.github.io/webidl/#es-union
+  // https://www.w3.org/TR/WebIDL-1/#es-union
+  // ( Draft: http://heycam.github.io/webidl/#es-union )
 
-  // TODO: Support Date, RegExp, DOMException, Error, ArrayBuffer, DataView,
-  //       TypedArrayName, callback functions, dictionary.
+  // TODO: Support Date, RegExp, DOMException, Error, callback functions.
 
   // 1. If the union type includes a nullable type and |V| is null or undefined,
   // then return the IDL value null.
@@ -946,7 +1171,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
   T4 t4;
   T5 t5;
 
-  // 4. If |V| is a platform object, then:
+  // 3. If |V| is a platform object, then:
   //   1. If |types| includes an interface type that V implements, then return
   //      the IDL value that is a reference to the object |V|.
   //   2. If |types| includes object, then return the IDL value that is a
@@ -1009,7 +1234,128 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     }
   }
 
-  // 11. If |Type(V)| is Object, then:
+  // 4. If |V| object, then
+  // 1. If |types| includes object, then return the IDL value that is a
+  // reference to
+  //      the object V.
+  // Not implemented
+
+  // 5. If V is a DOMException platform object, then:
+  // 1. If types includes DOMException or Error, then return the result of
+  // converting
+  //      V to that type.
+  // Not implemented
+
+  // 6. If V is a native Error object (that is, it has an ErrorData internal
+  // slot),
+  //    then:
+  // 1. If types includes Error, then return the result of converting V to
+  // Error.
+  // 2. If types includes object, then return the IDL value that is a reference
+  // to
+  //      the object V.
+  // Not implemented
+
+  // 7. If V is an object with an ArrayBufferData internal slot, then:
+  // 1. If types includes ArrayBuffer, then return the result of converting V
+  // to
+  //      ArrayBuffer.
+  // 2. If types includes object, then return the IDL value that is a reference
+  //      to the object V.
+  // Not implemented
+
+  // 8. If V is an object with a DataView internal slot, then:
+  // 1. If types includes DataView, then return the result of converting V to
+  // DataView.
+  // 2. If types includes object, then return the IDL value that is a reference
+  // to
+  //      the object V.
+  //   Note: Only ArrayBufferView is implemented, other DataViews are not.
+  if (value.isObject() && JS_IsArrayBufferViewObject(&value.toObject())) {
+    if (UnionTypeTraitsT1::is_array_buffer_view_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t1);
+      *out_union = script::UnionType5<T1, T2, T3, T4, T5>(t1);
+      return;
+    }
+
+    if (UnionTypeTraitsT2::is_array_buffer_view_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t2);
+      *out_union = script::UnionType5<T1, T2, T3, T4, T5>(t2);
+      return;
+    }
+
+    if (UnionTypeTraitsT3::is_array_buffer_view_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t3);
+      *out_union = script::UnionType5<T1, T2, T3, T4, T5>(t3);
+      return;
+    }
+
+    if (UnionTypeTraitsT4::is_array_buffer_view_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t4);
+      *out_union = script::UnionType5<T1, T2, T3, T4, T5>(t4);
+      return;
+    }
+
+    if (UnionTypeTraitsT5::is_array_buffer_view_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t5);
+      *out_union = script::UnionType5<T1, T2, T3, T4, T5>(t5);
+      return;
+    }
+  }
+
+  // 9. If V is an object with a TypedArrayName internal slot, then:
+  // 1. If types includes a typed array type whose name is the value of V’s
+  // TypedArrayName  //      internal slot, then return the result of
+  // converting V to that type.
+  // 2. If types includes object, then return the IDL value that is a reference
+  // to the object V.
+  // Not implemented
+
+  // 10. If IsCallable(V) is true, then
+  // 1. If types includes a callback function type, then return the result of
+  // converting V to
+  //      that callback function type.
+  // 2. If types includes object, then return the IDL value that is a reference
+  // to the object V.
+  // Not implemented
+
+  // 11. If |V| is null or undefined object, then:
+  // 1. If types includes a dictionary type, then return the result of
+  // converting V to
+  //      that dictionary type.
+  if (value.isObject()) {
+    if (UnionTypeTraitsT1::is_dictionary_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t1);
+      *out_union = script::UnionType5<T1, T2, T3, T4, T5>(t1);
+      return;
+    }
+
+    if (UnionTypeTraitsT2::is_dictionary_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t2);
+      *out_union = script::UnionType5<T1, T2, T3, T4, T5>(t2);
+      return;
+    }
+
+    if (UnionTypeTraitsT3::is_dictionary_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t3);
+      *out_union = script::UnionType5<T1, T2, T3, T4, T5>(t3);
+      return;
+    }
+
+    if (UnionTypeTraitsT4::is_dictionary_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t4);
+      *out_union = script::UnionType5<T1, T2, T3, T4, T5>(t4);
+      return;
+    }
+
+    if (UnionTypeTraitsT5::is_dictionary_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t5);
+      *out_union = script::UnionType5<T1, T2, T3, T4, T5>(t5);
+      return;
+    }
+  }
+
+  // 12. If |Type(V)| is Object, then:
   //   1. If |types| includes a sequence type, then
   //     1. Let |method| be the result of GetMethod(V, @@iterator)
   //     2. ReturnIfAbrupt(method)
@@ -1047,7 +1393,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     }
   }
 
-  // 12. If |Type(V)| is Boolean, then:
+  // 13. If |Type(V)| is Boolean, then:
   // 1. If |types| includes a boolean, then return the result of converting |V|
   //      to boolean.
   if (value.isBoolean()) {
@@ -1082,7 +1428,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     }
   }
 
-  // 13. If |Type(V)| is a Number, then:
+  // 14. If |Type(V)| is a Number, then:
   //   1. If |types| includes a numeric type, then return the result of
   //      converting |V| to that numeric type.
   if (value.isNumber()) {
@@ -1117,7 +1463,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     }
   }
 
-  // 14. If |types| includes a string type, then return the result of converting
+  // 15. If |types| includes a string type, then return the result of converting
   //     |V| to that type.
   if (value.isString()) {
     if (UnionTypeTraitsT1::is_string_type) {
@@ -1151,7 +1497,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     }
   }
 
-  // 15. If |types| includes a numeric type, then return the result of
+  // 16. If |types| includes a numeric type, then return the result of
   //     converting |V| to that numeric type.
   if (UnionTypeTraitsT1::is_numeric_type) {
     FromJSValue(context, value, conversion_flags, exception_state, &t1);
@@ -1183,7 +1529,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     return;
   }
 
-  // 16. If |types| includes a boolean, then return the result of converting |V|
+  // 17. If |types| includes a boolean, then return the result of converting |V|
   //     to boolean.
   if (UnionTypeTraitsT1::is_boolean_type) {
     FromJSValue(context, value, conversion_flags, exception_state, &t1);
@@ -1215,42 +1561,8 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     return;
   }
 
-  // 17. If |types| includes an ArrayBufferView type, then return the result of
-  //     converting |V| to ArrayBufferView type.
-  //     This step has to be before 18 to catch array_buffer_view types.
-  if (value.isObject() && JS_IsArrayBufferViewObject(&value.toObject())) {
-    if (UnionTypeTraitsT1::is_array_buffer_view_type) {
-      FromJSValue(context, value, conversion_flags, exception_state, &t1);
-      *out_union = script::UnionType5<T1, T2, T3, T4, T5>(t1);
-      return;
-    }
-
-    if (UnionTypeTraitsT2::is_array_buffer_view_type) {
-      FromJSValue(context, value, conversion_flags, exception_state, &t2);
-      *out_union = script::UnionType5<T1, T2, T3, T4, T5>(t2);
-      return;
-    }
-
-    if (UnionTypeTraitsT3::is_array_buffer_view_type) {
-      FromJSValue(context, value, conversion_flags, exception_state, &t3);
-      *out_union = script::UnionType5<T1, T2, T3, T4, T5>(t3);
-      return;
-    }
-
-    if (UnionTypeTraitsT4::is_array_buffer_view_type) {
-      FromJSValue(context, value, conversion_flags, exception_state, &t4);
-      *out_union = script::UnionType5<T1, T2, T3, T4, T5>(t4);
-      return;
-    }
-
-    if (UnionTypeTraitsT5::is_array_buffer_view_type) {
-      FromJSValue(context, value, conversion_flags, exception_state, &t5);
-      *out_union = script::UnionType5<T1, T2, T3, T4, T5>(t5);
-      return;
-    }
-  }
-
-  // 18. If |types| includes any ScriptValue type, then return the result of
+  // Note: non-spec fallback
+  //     If |types| includes any ScriptValue type, then return the result of
   //     converting |V| to that ScriptValue type.
   if (value.isObject() && JS_IsArrayBufferObject(&value.toObject())) {
     if (UnionTypeTraitsT1::is_script_value_type) {
@@ -1284,7 +1596,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     }
   }
 
-  // 19. Throw a TypeError.
+  // 18. Throw a TypeError.
   exception_state->SetSimpleException(kNotUnionType);
 }
 
