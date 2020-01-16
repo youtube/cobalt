@@ -33,7 +33,7 @@ const char kRemoteDebuggingPortHelp[] =
     "Remote web debugger is served from the specified port. If 0, then the "
     "remote web debugger is disabled.";
 
-    const char kWaitForWebDebugger[] = "wait_for_web_debugger";
+const char kWaitForWebDebugger[] = "wait_for_web_debugger";
 const char kWaitForWebDebuggerHelp[] =
     "Waits for remote web debugger to connect before loading the page.  A "
     "number may optionally be specified to indicate which in a sequence of "
