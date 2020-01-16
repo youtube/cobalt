@@ -182,6 +182,7 @@
 9-4-3-relative-positioned-elements-are-offset-from-normal-flow-via-right-and-bottom
 9-4-3-relative-positioned-elements-participate-in-stacking-context
 9-4-3-relative-positioned-elements-use-left-and-top-versus-right-and-bottom
+9-4-3-relative-positioned-elements-use-left-and-top-versus-right-and-bottom-rtl
 9-4-3-relative-positioned-elements-with-inline-block-display-are-offset-from-normal-flow
 9-4-3-relative-positioned-elements-with-inline-display-are-offset-from-normal-flow
 9-7-display-should-resolve-to-block-if-position-is-absolute

@@ -404,10 +404,12 @@ void ContainerBox::UpdateOffsetOfRelativelyPositionedChildBox(
     // property of the containing block is 'ltr', the value of 'left' wins and
     // 'right' becomes -'left'. If 'direction' of the containing block is 'rtl',
     // 'right' wins and 'left' is ignored.
-
-    // TODO: Take into account the value of the 'direction' property, which
-    //       doesn't exist at the time of this writing.
-    offset.set_x(*maybe_left);
+    if (child_layout_params.containing_block_direction ==
+        kLeftToRightBaseDirection) {
+      offset.set_x(*maybe_left);
+    } else {
+      offset.set_x(-*maybe_right);
+    }
   }
 
   // The 'top' and 'bottom' properties move relatively positioned element(s) up
