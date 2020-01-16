@@ -94,7 +94,7 @@
         '<(DEPTH)/sql/sql.gyp:sql_unittests_deploy',
       ],
       'conditions': [
-        ['has_elf_loader == "True"', {
+        ['has_elf_loader == "True" and sb_evergreen != 1', {
           'dependencies': [
             '<(DEPTH)/starboard/elf_loader/elf_loader.gyp:elf_loader_test_deploy',
           ],
