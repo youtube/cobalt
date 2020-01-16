@@ -17,4 +17,6 @@ interface UnionTypesInterface {
   attribute (double or DOMString?) unionWithNullableMemberProperty;
   attribute (double or DOMString)? nullableUnionProperty;
   attribute (BaseInterface or DOMString) unionBaseProperty;
+  attribute (DOMString or double or TestDictionary) unionWithDictionaryProperty;
+  attribute (DerivedDictionary or ArbitraryInterface) unionDictsObjectsProperty;
 };
