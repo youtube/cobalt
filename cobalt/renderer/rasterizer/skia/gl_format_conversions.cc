@@ -45,7 +45,7 @@ GLenum ConvertRenderTreeFormatToGL(render_tree::PixelFormat pixel_format) {
   return GL_RGBA;
 }
 
-GrColorType ConvertGLFormatToGr(GLenum gl_format) {
+GrColorType ConvertGLFormatToGrColorType(GLenum gl_format) {
   switch (gl_format) {
     case GL_RGBA:
       return GrColorType::kRGBA_8888;
@@ -68,6 +68,31 @@ GrColorType ConvertGLFormatToGr(GLenum gl_format) {
     default: { NOTREACHED() << "Unsupported GL format."; }
   }
   return GrColorType::kRGBA_8888;
+}
+
+GLenum ConvertBaseGLFormatToSizedInternalFormat(GLenum gl_format) {
+  switch (gl_format) {
+    case GL_RGBA:
+      return GL_RGBA8;
+    case GL_BGRA_EXT:
+      return GL_BGRA8_EXT;
+    // Note GL_ALPHA and GL_RED_EXT probably don't really work.
+    // They're only for use w/ SbDecodeTargets that are never drawn via skia
+    case GL_ALPHA:
+#if defined(GL_RED_EXT)
+    case GL_RED_EXT:
+#endif
+      return GL_ALPHA8_EXT;
+    // Note GL_LUMINANCE_ALPHA and GL_RG_EXT probably don't really work.
+    // They're only for use w/ SbDecodeTargets that are never drawn via skia
+    case GL_LUMINANCE_ALPHA:
+#if defined(GL_RG_EXT)
+    case GL_RG_EXT:
+#endif
+      return GL_RGBA8;
+    default: { NOTREACHED() << "Unsupported GL format."; }
+  }
+  return GL_RGBA8;
 }
 
 }  // namespace skia
