@@ -99,4 +99,11 @@ class EvergreenConfiguration(platform_configuration.PlatformConfiguration):
       # specific Starboard implementation, rely on the platform to test this
       # directly instead.
       'player_filter_tests': [test_filter.FILTER_ALL],
+
+      # elf_loader_test and installation_manager_test are explicitly tests that
+      # validate the correctness of the underlying platform. We should not be
+      # running these tests in Evergreen mode, and instead will rely on the
+      # platform to test this directly instead.
+      'elf_loader_test': [test_filter.FILTER_ALL],
+      'installation_manager_test': [test_filter.FILTER_ALL],
   }
