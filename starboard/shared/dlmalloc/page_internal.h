@@ -62,9 +62,6 @@ typedef void* SbPageVirtualMemory;
 // actually have mmap(), we call that directly. Otherwise we use
 // platform-specific system allocators.
 //
-// Platforms that have OS support for the virtual region ("MORECORE") behavior
-// will enable SB_HAS_VIRTUAL_REGIONS in configuration_public.h.
-//
 // Platforms that support SbMap() must be at least starboard version 12 or
 // enable SB_HAS_MMAP in their configuration_public.h file. dlmalloc is very
 // flexible and if a platform can't implement virtual regions, it will use
@@ -76,7 +73,8 @@ typedef void* SbPageVirtualMemory;
 //
 // See also dlmalloc_config.h which controls some dlmalloc behavior.
 
-#if SB_HAS(VIRTUAL_REGIONS)
+#if SB_API_VERSION < SB_VIRTUAL_REGIONS_FLAG_DEPRECATED && \
+    SB_HAS(VIRTUAL_REGIONS)
 // Reserves a virtual address space |size_bytes| big, without mapping any
 // physical pages to that range, returning a pointer to the beginning of the
 // reserved virtual address range. To get memory that is actually usable and
@@ -103,7 +101,8 @@ int SbPageUnmapAndFreePhysical(SbPageVirtualMemory virtual_address,
 
 // How big of a virtual region dlmalloc should allocate.
 size_t SbPageGetVirtualRegionSize();
-#endif
+#endif  // SB_API_VERSION < SB_VIRTUAL_REGIONS_FLAG_DEPRECATED &&
+        // SB_HAS(VIRTUAL_REGIONS)
 
 #if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
 // Allocates |size_bytes| worth of physical memory pages and maps them into an
