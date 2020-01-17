@@ -116,7 +116,6 @@ title: "Starboard Configuration Reference Guide"
 | :--- |
 | **`SB_MEMORY_PAGE_SIZE`**<br><br>The memory page size, which controls the size of chunks on memory that allocators deal with, and the alignment of those chunks. This doesn't have to be the hardware-defined physical page size, but it should be a multiple of it.<br><br>The default value in the Stub implementation is `4096` |
 | **`SB_CAN_MAP_EXECUTABLE_MEMORY`**<br><br>Whether this platform can map executable memory. Implies this system can map memory. This is required for platforms that want to JIT.<br><br>The default value in the Stub implementation is `1` |
-| **`SB_HAS_VIRTUAL_REGIONS`**<br><br>Whether this platform has and should use an growable heap (e.g. with sbrk()) to map physical memory to the virtual address space.<br><br>The default value in the Stub implementation is `0` |
 | **`SB_MALLOC_ALIGNMENT`**<br><br>Determines the alignment that allocations should have on this platform.<br><br>The default value in the Stub implementation is `((size_t)16U)` |
 | **`SB_DEFAULT_MMAP_THRESHOLD`**<br><br>Determines the threshhold of allocation size that should be done with mmap (if available), rather than allocated within the core heap.<br><br>The default value in the Stub implementation is `((size_t)(256 * 1024U))` |
 | **`SB_MEMORY_LOG_PATH`**<br><br>Defines the path where memory debugging logs should be written to.<br><br>The default value in the Stub implementation is `"/tmp/starboard"` |
