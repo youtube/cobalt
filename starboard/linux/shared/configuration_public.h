@@ -318,9 +318,11 @@
 // required for platforms that want to JIT.
 #define SB_CAN_MAP_EXECUTABLE_MEMORY 1
 
+#if SB_API_VERSION < SB_VIRTUAL_REGIONS_FLAG_DEPRECATED
 // Whether this platform has and should use an growable heap (e.g. with sbrk())
 // to map physical memory to the virtual address space.
 #define SB_HAS_VIRTUAL_REGIONS 0
+#endif  // SB_API_VERSION < SB_VIRTUAL_REGIONS_FLAG_DEPRECATED
 
 #if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Specifies the alignment for IO Buffers, in bytes. Some low-level network APIs

@@ -204,10 +204,6 @@
 // required for platforms that want to JIT.
 #define SB_CAN_MAP_EXECUTABLE_MEMORY 1
 
-// Whether this platform has and should use an growable heap (e.g. with sbrk())
-// to map physical memory to the virtual address space.
-#define SB_HAS_VIRTUAL_REGIONS 0
-
 // --- Network Configuration -------------------------------------------------
 
 // Specifies whether this platform supports IPV6.
