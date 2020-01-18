@@ -33,7 +33,7 @@ namespace base {
 // instead of by reference.
 class Token {
  public:
-  static const uint32 kHashSlotCount = 4 * 1024;
+  static const uint32 kHashSlotCount = 8 * 1024;
   static const uint32 kStringsPerSlot = 4;
 
   Token();
