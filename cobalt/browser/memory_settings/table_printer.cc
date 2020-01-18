@@ -115,6 +115,10 @@ class TablePrinterImpl {
   // ex: "|________|________|"
   std::string MakeRowDelimiter() const;
 
+  // Follows a data row to provide verticle space before a TopSeparatorRow().
+  // ex: "|        |        |"
+  std::string MakeTopSeparatorRowAbove() const;
+
   // ex: " _________________ "
   std::string MakeTopSeparatorRow() const;
 
@@ -136,9 +140,10 @@ std::string TablePrinterImpl::ToString(const Table& rows,
   TablePrinterImpl printer(column_sizes, text_color, table_color);
 
   std::stringstream output_ss;
-  output_ss << printer.MakeTopSeparatorRow() << "\n";
   output_ss << printer.MakeHeaderRow(rows[0]) << "\n";
+  output_ss << printer.MakeTopSeparatorRow() << "\n";
 
+  std::string separator_row_above = printer.MakeTopSeparatorRowAbove();
   std::string row_delimiter = printer.MakeRowDelimiter();
 
   // Print body.
@@ -147,9 +152,10 @@ std::string TablePrinterImpl::ToString(const Table& rows,
 
     const std::string row_string = printer.MakeDataRow(row);
 
+    output_ss << separator_row_above << "\n";
     output_ss << row_string << "\n";
+    output_ss << row_delimiter << "\n";
   }
-  output_ss << row_delimiter << "\n";
   return output_ss.str();
 }
 
@@ -214,7 +220,7 @@ std::string TablePrinterImpl::MakeHeaderRow(const Row& header_row) const {
   std::stringstream ss;
 
   for (size_t i = 0; i < header_row.size(); ++i) {
-    ss << "|" << header_row[i];
+    ss << " " << header_row[i];
     const size_t name_size = header_row[i].size();
     const size_t col_width = column_sizes_[i];
 
@@ -224,7 +230,7 @@ std::string TablePrinterImpl::MakeHeaderRow(const Row& header_row) const {
       ss << " ";
     }
   }
-  ss << "|";
+  ss << " ";
   return ss.str();
 }
 
@@ -298,6 +304,21 @@ std::string TablePrinterImpl::MakeTopSeparatorRow() const {
   std::string output = AddColor(table_color_, ss.str());
   return output;
 }
+
+std::string TablePrinterImpl::MakeTopSeparatorRowAbove() const {
+  std::stringstream ss;
+  for (size_t i = 0; i < column_sizes_.size(); ++i) {
+    ss << "|";
+    const size_t col_width = column_sizes_[i];
+    for (size_t j = 0; j < col_width; ++j) {
+      ss << " ";
+    }
+  }
+  ss << "|";
+  std::string output = AddColor(table_color_, ss.str());
+  return output;
+}
+
 }  // namespace.
 
 bool TablePrinter::SystemSupportsColor() { return SbLogIsTty(); }
