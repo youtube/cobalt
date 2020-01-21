@@ -25,6 +25,14 @@ class InsetsLayoutUnit : public math::InsetsBase<InsetsLayoutUnit, LayoutUnit> {
   std::string ToString() const;
 };
 
+inline InsetsLayoutUnit operator+(const InsetsLayoutUnit& lhs,
+                                  const InsetsLayoutUnit& rhs) {
+  return InsetsLayoutUnit(lhs.left() + rhs.left(),
+                          lhs.top() + rhs.top(),
+                          lhs.right() + rhs.right(),
+                          lhs.bottom() + rhs.bottom());
+}
+
 }  // namespace layout
 }  // namespace cobalt
 

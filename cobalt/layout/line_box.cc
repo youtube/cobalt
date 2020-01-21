@@ -475,12 +475,18 @@ void LineBox::BeginEstimateStaticPositionForAbsolutelyPositionedChild(
   // The static-position containing block is the containing block of a
   // hypothetical box that would have been the first box of the element if its
   // specified 'position' value had been 'static'.
-  //
+
   // The static position for 'left' is the distance from the left edge of the
   // containing block to the left margin edge of a hypothetical box that would
   // have been the first box of the element if its 'position' property had been
   // 'static' and 'float' had been 'none'. The value is negative if the
   // hypothetical box is to the left of the containing block.
+  //   https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width
+
+  // The static position for 'right' is the distance from the right edge of the
+  // containing block to the right margin edge of the same hypothetical box as
+  // above. The value is positive if the hypothetical box is to the left of the
+  // containing block's edge.
   //   https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width
 
   // For the purposes of this section and the next, the term "static position"
@@ -498,6 +504,7 @@ void LineBox::BeginEstimateStaticPositionForAbsolutelyPositionedChild(
   } else {
     child_box->SetStaticPositionLeftFromParent(LayoutUnit());
   }
+  child_box->SetStaticPositionRightFromParent(LayoutUnit());
   child_box->SetStaticPositionTopFromParent(LayoutUnit());
 }
 

@@ -47,7 +47,8 @@ void BlockContainerBox::UpdateContentWidthAndMargins(
     const base::Optional<LayoutUnit>& maybe_height) {
   if (IsAbsolutelyPositioned()) {
     UpdateWidthAssumingAbsolutelyPositionedBox(
-        containing_block_width, maybe_left, maybe_right, maybe_width,
+        containing_block_direction, containing_block_width,
+        maybe_left, maybe_right, maybe_width,
         maybe_margin_left, maybe_margin_right, maybe_height);
   } else {
     base::Optional<LayoutUnit> maybe_nulled_width = maybe_width;
@@ -346,6 +347,7 @@ void BlockContainerBox::DumpProperties(std::ostream* stream) const {
 //     + "padding-right" + "border-right-width" + "margin-right" + "right"
 //     = width of containing block
 void BlockContainerBox::UpdateWidthAssumingAbsolutelyPositionedBox(
+    BaseDirection containing_block_direction,
     LayoutUnit containing_block_width,
     const base::Optional<LayoutUnit>& maybe_left,
     const base::Optional<LayoutUnit>& maybe_right,
@@ -359,11 +361,23 @@ void BlockContainerBox::UpdateWidthAssumingAbsolutelyPositionedBox(
     set_margin_left(maybe_margin_left.value_or(LayoutUnit()));
     set_margin_right(maybe_margin_right.value_or(LayoutUnit()));
 
-    // Then set "left" to the static position...
-    set_left(GetStaticPositionLeft());
+    // Then, if the "direction" property of the element establishing the
+    // static-position containing block is "ltr"...
+    if (containing_block_direction == kLeftToRightBaseDirection) {
+      // ...set "left" to the static position...
+      set_left(GetStaticPositionLeft());
 
-    // ...and apply rule number three (the width is shrink-to-fit).
-    set_width(GetShrinkToFitWidth(containing_block_width, maybe_height));
+      // ...and apply rule number three (the width is shrink-to-fit; solve for
+      // "right").
+      set_width(GetShrinkToFitWidth(containing_block_width, maybe_height));
+    } else {
+      // ...otherwise, set "right" to the static position...
+      // ...and apply rule number one (the width is shrink-to-fit; solve for
+      // "left").
+      set_width(GetShrinkToFitWidth(containing_block_width, maybe_height));
+      set_left(containing_block_width - GetStaticPositionRight() -
+               GetMarginBoxWidth());
+    }
     return;
   }
 
@@ -380,10 +394,17 @@ void BlockContainerBox::UpdateWidthAssumingAbsolutelyPositionedBox(
       // under the extra constraint that the two margins get equal values...
       LayoutUnit horizontal_margin = horizontal_margin_sum / 2;
       if (horizontal_margin < LayoutUnit()) {
-        // ...unless this would make them negative, in which case set
-        // "margin-left" to zero and solve for "margin-right".
-        set_margin_left(LayoutUnit());
-        set_margin_right(horizontal_margin_sum);
+        // ...unless this would make them negative, in which case when direction
+        // of the containing block is "ltr" ("rtl"), set "margin-left"
+        // ("margin-right") to zero and solve for "margin-right"
+        // ("margin-left").
+        if (containing_block_direction == kLeftToRightBaseDirection) {
+          set_margin_left(LayoutUnit());
+          set_margin_right(horizontal_margin_sum);
+        } else {
+          set_margin_left(horizontal_margin_sum);
+          set_margin_right(LayoutUnit());
+        }
       } else {
         set_margin_left(horizontal_margin);
         set_margin_right(horizontal_margin);
@@ -399,9 +420,14 @@ void BlockContainerBox::UpdateWidthAssumingAbsolutelyPositionedBox(
       set_margin_left(*maybe_margin_left);
       set_margin_right(horizontal_margin_sum - *maybe_margin_left);
     } else {
-      // If the values are over-constrained, ignore the value for "right".
+      // If the values are over-constrained, ignore the value for "left" (in
+      // case the "direction" property of the containing block is "rtl") or
+      // "right" (in case "direction" is "ltr") and solve for that value.
       set_margin_left(*maybe_margin_left);
       set_margin_right(*maybe_margin_right);
+      if (containing_block_direction == kRightToLeftBaseDirection) {
+        set_left(containing_block_width - GetMarginBoxWidth() - *maybe_right);
+      }
     }
     return;
   }
@@ -424,8 +450,16 @@ void BlockContainerBox::UpdateWidthAssumingAbsolutelyPositionedBox(
   // 2. "left" and "right" are "auto" and "width" is not "auto"...
   if (!maybe_left && !maybe_right && maybe_width) {
     set_width(*maybe_width);
-    // ...then set "left" to the static position.
-    set_left(GetStaticPositionLeft());
+    // ...if the "direction" property of the element establishing the
+    // static-position containing block is "ltr" set "left" to the static
+    // position, otherwise set "right" to the static position. Then solve for
+    // "left" (if "direction" is "rtl") or "right" (if "direction" is "ltr").
+    if (containing_block_direction == kLeftToRightBaseDirection) {
+      set_left(GetStaticPositionLeft());
+    } else {
+      set_left(containing_block_width - GetStaticPositionRight() -
+               GetMarginBoxWidth());
+    }
     DCHECK_EQ(left(), left());  // Check for NaN.
     return;
   }

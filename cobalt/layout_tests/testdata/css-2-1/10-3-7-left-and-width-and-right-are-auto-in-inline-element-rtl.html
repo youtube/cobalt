@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <!--
  | If all three of "left", "width", and "right" are "auto": first set any "auto"
- | values for "margin-left" and "margin-right" to 0. Then, for dir=ltr, set
- | "left" to the static position and apply rule:
+ | values for "margin-left" and "margin-right" to 0. Then, for dir=rtl, set
+ | "right" to the static position and apply rule:
  |
- |     3. "width" and "right" are "auto" and "left" is not "auto", then
- |        the width is shrink-to-fit . Then solve for "right".
+ |     1. "left" and "width" are "auto" and "right" is not "auto", then
+ |         the width is shrink-to-fit. Then solve for "left".
  |
  |   https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width
  -->
@@ -56,7 +56,7 @@
     }
   </style>
 </head>
-<body>
+<body dir="rtl">
   <div class="first containing-block">
     <span>
       <div class="auto-margin-left non-auto-margin-right block"></div>
