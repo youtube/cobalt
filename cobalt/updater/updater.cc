@@ -49,7 +49,6 @@
 
 namespace {
 
-// TODO: use randomized scheduling.
 void TaskSchedulerStart() {
   base::TaskScheduler::Create("Updater");
   const auto task_scheduler_init_params =
