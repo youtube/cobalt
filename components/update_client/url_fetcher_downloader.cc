@@ -105,7 +105,8 @@ void UrlFetcherDownloader::CreateDownloadDir() {
   }
 
   SB_DLOG(INFO) << "installation_path = " << installation_path.data();
-  download_dir_ = base::FilePath(installation_path.data());
+  download_dir_ = base::FilePath(
+      std::string(installation_path.begin(), installation_path.end()));
 
   // Cleanup the download dir.
   CleanupDirectory(download_dir_);

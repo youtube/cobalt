@@ -19,6 +19,7 @@
 
 #include "base/bind_helpers.h"
 #include "base/callback_forward.h"
+#include "base/files/file_path.h"
 #include "base/logging.h"
 #include "base/optional.h"
 #include "base/rand_util.h"
@@ -27,13 +28,13 @@
 #include "base/task/post_task.h"
 #include "base/task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
-#include "cobalt/extension/installation_manager.h"
+#include "base/version.h"
 #include "cobalt/updater/crash_client.h"
 #include "cobalt/updater/crash_reporter.h"
 #include "components/crx_file/crx_verifier.h"
-
-// TODO: write the evergreen version to a seperate manifest file.
-#define COBALT_EVERGREEN_VERSION "1.0.0.0"
+#include "components/update_client/utils.h"
+#include "starboard/configuration_constants.h"
+#include "starboard/loader_app/installation_manager.h"
 
 namespace {
 
@@ -88,6 +89,14 @@ void UpdaterModule::Initialize() {
   updater_observer_.reset(new Observer(update_client_));
   update_client_->AddObserver(updater_observer_.get());
 
+  installation_manager_ =
+      static_cast<const CobaltExtensionInstallationManagerApi*>(
+          SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
+  if (!installation_manager_) {
+    SB_LOG(ERROR) << "Updater failed to get installation manager extension.";
+    return;
+  }
+
   // Schedule the first update check.
   updater_thread_.task_runner()->PostTask(
       FROM_HERE, base::Bind(&UpdaterModule::Update, base::Unretained(this)));
@@ -95,6 +104,7 @@ void UpdaterModule::Initialize() {
 
 void UpdaterModule::Finalize() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  installation_manager_ = nullptr;
   update_client_->RemoveObserver(updater_observer_.get());
   updater_observer_.reset();
   update_client_ = nullptr;
@@ -107,43 +117,71 @@ void UpdaterModule::Finalize() {
 
 void UpdaterModule::MarkSuccessful() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  const CobaltExtensionInstallationManagerApi* installation_api =
-      static_cast<const CobaltExtensionInstallationManagerApi*>(
-          SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
-  if (!installation_api) {
-    SB_LOG(ERROR) << "Failed to get installation manager extension";
+  int index = installation_manager_->GetCurrentInstallationIndex();
+  if (index == IM_EXT_ERROR) {
+    SB_LOG(ERROR) << "Updater failed to get current installation index.";
     return;
   }
-  int index = installation_api->GetCurrentInstallationIndex();
-  if (index != IM_EXT_ERROR) {
-    if (installation_api->MarkInstallationSuccessful(index) != IM_EXT_SUCCESS) {
-      SB_LOG(ERROR)
-          << "Updater failed to mark the current installation successful";
-    }
+  if (installation_manager_->MarkInstallationSuccessful(index) !=
+      IM_EXT_SUCCESS) {
+    SB_LOG(ERROR)
+        << "Updater failed to mark the current installation successful";
   }
 }
 
 void UpdaterModule::Update() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  // TODO: get SABI string, get correct appid for the channel
   const std::vector<std::string> app_ids = {
       updater_configurator_->GetAppGuid()};
+
+  // Get the update version from the manifest file under the current
+  // installation path.
+  int index = installation_manager_->GetCurrentInstallationIndex();
+  if (index == IM_EXT_ERROR) {
+    SB_LOG(ERROR) << "Updater failed to get current installation index.";
+    return;
+  }
+  std::vector<char> installation_path(kSbFileMaxPath);
+  if (installation_manager_->GetInstallationPath(
+          index, installation_path.data(), kSbFileMaxPath) == IM_ERROR) {
+    SB_LOG(ERROR) << "Updater failed to get installation path.";
+    return;
+  }
+  auto manifest = update_client::ReadManifest(base::FilePath(
+      std::string(installation_path.begin(), installation_path.end())));
+  if (!manifest) {
+    SB_LOG(ERROR) << "Updater failed to read the manifest file of the current "
+                     "installation.";
+    return;
+  }
+  auto* version_path = manifest->FindPath({"version"});
+  if (!version_path) {
+    SB_LOG(ERROR) << "Updater failed to find the version in the manifest.";
+    return;
+  }
+  const base::Version manifest_version(version_path->GetString());
+  if (!manifest_version.IsValid()) {
+    SB_LOG(ERROR) << "Updater failed to get the current update version.";
+    return;
+  }
 
   update_client_->Update(
       app_ids,
       base::BindOnce(
-          [](const std::vector<std::string>& ids)
+          [](base::Version manifest_version,
+             const std::vector<std::string>& ids)
               -> std::vector<base::Optional<update_client::CrxComponent>> {
             update_client::CrxComponent component;
-            component.name = "cobalt_test";
+            component.name = "cobalt";
             component.app_id = ids[0];
-            component.version = base::Version(COBALT_EVERGREEN_VERSION);
+            component.version = manifest_version;
             component.pk_hash.assign(std::begin(kCobaltPublicKeyHash),
                                      std::end(kCobaltPublicKeyHash));
             component.requires_network_encryption = true;
             component.crx_format_requirement = crx_file::VerifierFormat::CRX3;
             return {component};
-          }),
+          },
+          manifest_version),
       false,
       base::BindOnce(
           [](base::OnceClosure closure, update_client::Error error) {

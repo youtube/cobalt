@@ -21,6 +21,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/message_loop/message_loop.h"
 #include "base/threading/thread.h"
+#include "cobalt/extension/installation_manager.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/updater/configurator.h"
 #include "components/prefs/pref_service.h"
@@ -68,6 +69,7 @@ class UpdaterModule {
   std::unique_ptr<Observer> updater_observer_;
   network::NetworkModule* network_module_;
   scoped_refptr<Configurator> updater_configurator_;
+  const CobaltExtensionInstallationManagerApi* installation_manager_;
   int update_check_count_ = 0;
 
   THREAD_CHECKER(thread_checker_);
