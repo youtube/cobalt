@@ -13,10 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
 """A portable interface for symlinking."""
-
 
 import argparse
 import logging
@@ -42,8 +39,9 @@ def ToLongPath(path):
   else:
     return path
 
+
 def IsSymLink(path):
-  """Platform neutral version os os.path.islink()"""
+  """Platform neutral version os os.path.islink()."""
   if IsWindows():
     # pylint: disable=g-import-not-at-top
     from starboard.tools import win_symlink
@@ -52,12 +50,12 @@ def IsSymLink(path):
     return os.path.islink(path)
 
 
-def MakeSymLink(from_folder, link_folder):
+def MakeSymLink(target_path, link_path):
   """Makes a symlink.
 
   Args:
-    from_folder: Path to the actual folder
-    link_folder: Path to the link
+    target_path: target path to be linked to
+    link_path: path to place the link
 
   Returns:
     None
@@ -65,10 +63,10 @@ def MakeSymLink(from_folder, link_folder):
   if IsWindows():
     # pylint: disable=g-import-not-at-top
     from starboard.tools import win_symlink
-    win_symlink.CreateReparsePoint(from_folder, link_folder)
+    win_symlink.CreateReparsePoint(target_path, link_path)
   else:
-    util.MakeDirs(os.path.dirname(link_folder))
-    os.symlink(from_folder, link_folder)
+    util.MakeDirs(os.path.dirname(link_path))
+    os.symlink(target_path, link_path)
 
 
 def ReadSymLink(link_path):
@@ -96,17 +94,17 @@ def DelSymLink(link_path):
 
 def Rmtree(path):
   """See Rmtree() for documentation of this function."""
-  if not os.path.exists(path):
-    return
   if IsWindows():
     # pylint: disable=g-import-not-at-top
     from starboard.tools import win_symlink
-    win_symlink.RmtreeShallow(path)
+    func = win_symlink.RmtreeShallow
+  elif not os.path.islink(path):
+    func = shutil.rmtree
   else:
-    if os.path.islink(path):
-      os.unlink(path)
-    else:
-      shutil.rmtree(path)
+    os.unlink(path)
+    return
+  if os.path.exists(path):
+    func(path)
 
 
 def OsWalk(root_dir, topdown=True, onerror=None, followlinks=False):
@@ -127,19 +125,20 @@ def _CreateArgumentParser():
       sys.stderr.write('error: %s\n' % message)
       self.print_help()
       sys.exit(2)
-  help_msg = (
-      'Example 1:\n'
-      '  python port_link.py --link "actual_folder_path" "link_path"\n\n'
-      'Example 2:\n'
-      '  python port_link.py --link "../actual_folder_path" "link_path"\n\n')
+
+  help_msg = ('Example 1:\n'
+              '  python port_link.py --link "target_path" "link_path"\n\n'
+              'Example 2:\n'
+              '  python port_link.py --link "../target_path" "link_path"\n\n')
   # Enables new lines in the description and epilog.
   formatter_class = argparse.RawDescriptionHelpFormatter
   parser = MyParser(epilog=help_msg, formatter_class=formatter_class)
   parser.add_argument(
-      '-a',
-      '--use_absolute_symlinks',
-      action='store_true',
-      help='Generated symlinks are stored as absolute paths.')
+      '--link',
+      help='The target path and link path to be used when '
+      'creating the symbolic link.',
+      metavar='"path"',
+      nargs=2)
   parser.add_argument(
       '-f',
       '--force',
@@ -147,10 +146,16 @@ def _CreateArgumentParser():
       help='Force the symbolic link to be created, removing existing files and '
       'directories if needed.')
   group = parser.add_mutually_exclusive_group(required=True)
-  group.add_argument('--link',
-                     help='Issues an scp command to upload src to remote_dst',
-                     metavar='"path"',
-                     nargs=2)
+  group.add_argument(
+      '-a',
+      '--use_absolute_path',
+      action='store_true',
+      help='Generated symlink is stored as an absolute path.')
+  group.add_argument(
+      '-r',
+      '--use_relative_path',
+      action='store_true',
+      help='Generated symlink is stored as a relative path.')
   return parser
 
 
@@ -159,19 +164,31 @@ def main():
   parser = _CreateArgumentParser()
   args = parser.parse_args()
 
-  folder_path, link_path = args.link
-  if args.use_absolute_symlinks:
-    folder_path = os.path.abspath(folder_path)
-    link_path = os.path.abspath(link_path)
-  if '.' in folder_path:
-    d1 = os.path.abspath(folder_path)
-  else:
-    d1 = os.path.abspath(os.path.join(link_path, folder_path))
-  if not os.path.isdir(d1):
-    logging.warning('%s is not a directory.', d1)
+  target_path, link_path = args.link
+
   if args.force:
     Rmtree(link_path)
-  MakeSymLink(from_folder=folder_path, link_folder=link_path)
+  if args.use_absolute_path:
+    target_path = os.path.abspath(target_path)
+  elif args.use_relative_path:
+    # os.path.relpath() requires its second parameter be a directory. If our
+    # target is a file, i.e. the link we will be creating should be to a file,
+    # we need to calculate the relative path between our target and the
+    # directory that our link will reside in, not the full path to the link
+    # itself. If we do not, our relative path will ascend one level too far.
+    # This is visible in the following examples.
+    #
+    # os.path.relpath(
+    #     '/target/file.txt', '/link/file.txt') = '../../target/file.txt' [bad]
+    #
+    # os.path.relpath(
+    #     '/target/file.txt', '/link')          = '../target/file.txt'   [good]
+    if os.path.isfile(target_path):
+      relative_link_path = os.path.dirname(link_path)
+    else:
+      relative_link_path = link_path
+    target_path = os.path.relpath(target_path, relative_link_path)
+  MakeSymLink(target_path=target_path, link_path=link_path)
 
 
 if __name__ == '__main__':
