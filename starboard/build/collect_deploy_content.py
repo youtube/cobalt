@@ -12,9 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-"""Builds a symlink farm pointing to specified subdirectories of the input dir.
-"""
+"""Builds a symlink farm pointing to specified subdirectories of the input dir."""
 
 import argparse
 import logging
@@ -23,7 +21,6 @@ import sys
 
 import _env  # pylint: disable=unused-import
 import starboard.tools.port_symlink as port_symlink
-
 
 # The name of an environment variable that when set to |'1'|, signals to us that
 # we should log all output directories that we have populated.
@@ -49,13 +46,18 @@ def main(argv):
   parser.add_argument(
       '-o', dest='output_dir', required=True, help='output directory')
   parser.add_argument(
-      '-s', dest='stamp_file', required=True,
+      '-s',
+      dest='stamp_file',
+      required=True,
       help='stamp file to update after the output directory is populated')
   parser.add_argument(
-      '--use_absolute_symlinks', action='store_true',
+      '--use_absolute_symlinks',
+      action='store_true',
       help='Generated symlinks are stored as absolute paths.')
   parser.add_argument(
-      'subdirs', metavar='subdirs', nargs='*',
+      'subdirs',
+      metavar='subdirs',
+      nargs='*',
       help='subdirectories within both the input and output directories')
   options = parser.parse_args(argv[1:])
 
@@ -106,10 +108,11 @@ def main(argv):
         logging.error(msg)
 
     if options.use_absolute_symlinks:
-      port_symlink.MakeSymLink(from_folder=os.path.abspath(src_path),
-                               link_folder=os.path.abspath(dst_path))
+      port_symlink.MakeSymLink(
+          target_path=os.path.abspath(src_path),
+          link_path=os.path.abspath(dst_path))
     else:
-      port_symlink.MakeSymLink(from_folder=rel_path, link_folder=dst_path)
+      port_symlink.MakeSymLink(target_path=rel_path, link_path=dst_path)
 
   if options.stamp_file:
     with open(options.stamp_file, 'w') as stamp_file:
