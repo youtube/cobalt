@@ -32,8 +32,8 @@
       'action': [
         'python',
         '<(DEPTH)/starboard/tools/port_symlink.py',
-        '-a',
         '-f',
+        '-r',
         '--link',
         '<(executable_file)',
         '<(deploy_executable_file)',
