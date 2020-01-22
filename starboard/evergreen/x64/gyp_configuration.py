@@ -40,6 +40,7 @@ class EvergreenX64Configuration(shared_configuration.EvergreenConfiguration):
     super(EvergreenX64Configuration,
           self).__init__(platform_name, asan_enabled_by_default,
                          goma_supports_compiler, sabi_json_path)
+    self.AppendApplicationConfigurationPath(os.path.dirname(__file__))
     self._host_toolchain = None
 
   def GetTargetToolchain(self):

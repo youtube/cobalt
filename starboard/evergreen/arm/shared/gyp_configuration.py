@@ -13,9 +13,12 @@
 # limitations under the License.
 """Starboard Evergreen ARM shared platform configuration for gyp_cobalt."""
 
+import os.path
+
 from starboard.build import clang as clang_build
 from starboard.evergreen.shared import gyp_configuration as shared_configuration
 from starboard.tools import build
+from starboard.tools.testing import test_filter
 from starboard.tools.toolchain import ar
 from starboard.tools.toolchain import bash
 from starboard.tools.toolchain import clang
@@ -37,6 +40,7 @@ class EvergreenArmConfiguration(shared_configuration.EvergreenConfiguration):
     super(EvergreenArmConfiguration,
           self).__init__(platform_name, asan_enabled_by_default,
                          goma_supports_compiler, sabi_json_path)
+    self.AppendApplicationConfigurationPath(os.path.dirname(__file__))
     self._host_toolchain = None
 
   def GetTargetToolchain(self):
@@ -74,8 +78,17 @@ class EvergreenArmConfiguration(shared_configuration.EvergreenConfiguration):
     return self._host_toolchain
 
   def GetTestFilters(self):
-    # pylint: disable=useless-super-delegation
-    return super(EvergreenArmConfiguration, self).GetTestFilters()
+    filters = super(EvergreenArmConfiguration, self).GetTestFilters()
+    for target, tests in self.__FILTERED_TESTS.iteritems():
+      filters.extend(test_filter.TestFilter(target, test) for test in tests)
+    return filters
+
+  __FILTERED_TESTS = {  # pylint: disable=invalid-name
+      'nplb': ['SbSystemGetStackTest.SunnyDayStackDirection',
+               'SbSystemGetStackTest.SunnyDay',
+               'SbSystemGetStackTest.SunnyDayShortStack',
+               'SbSystemSymbolizeTest.SunnyDay'],
+  }
 
 
 def CreatePlatformConfig():
