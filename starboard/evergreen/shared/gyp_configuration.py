@@ -34,7 +34,6 @@ class EvergreenConfiguration(platform_configuration.PlatformConfiguration):
     self.sabi_json_path = sabi_json_path
     super(EvergreenConfiguration, self).__init__(platform,
                                                  asan_enabled_by_default)
-    self.AppendApplicationConfigurationPath(os.path.dirname(__file__))
 
   def GetBuildFormat(self):
     """Returns the desired build format."""
