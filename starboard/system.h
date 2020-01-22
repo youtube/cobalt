@@ -322,6 +322,8 @@ SB_EXPORT bool SbSystemRaisePlatformError(
 // to close a dialog that was opened in response to the error.
 //
 // |handle|: The platform error to be cleared.
+
+// presubmit: allow sb_export mismatch
 SB_EXPORT void SbSystemClearPlatformError(SbSystemPlatformError handle);
 #endif  // SB_API_VERSION < 11
 
@@ -391,6 +393,8 @@ SB_EXPORT SbSystemConnectionType SbSystemGetConnectionType();
 // |path_id|: The system path to be retrieved.
 // |out_path|: The platform-defined system path specified by |path_id|.
 // |path_length|: The length of the system path.
+
+// presubmit: allow sb_export mismatch
 SB_EXPORT bool SbSystemGetPath(SbSystemPathId path_id,
                                char* out_path,
                                int path_length);
