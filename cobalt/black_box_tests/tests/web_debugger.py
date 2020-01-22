@@ -193,6 +193,13 @@ class DebuggerConnection(object):
     self.context_id = context_event['params']['context']['id']
     assert self.context_id > 0
 
+  def enable_dom(self):
+    """Helper to enable the 'DOM' domain and get the document."""
+    self.run_command('DOM.enable')
+    self.wait_event('DOM.documentUpdated')
+    doc_response = self.run_command('DOM.getDocument')
+    return doc_response['result']['root']
+
   def evaluate_js(self, expression):
     """Helper for the 'Runtime.evaluate' command to run some JavaScript."""
     if _DEBUG:
@@ -268,10 +275,7 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
     self.assertEqual('hello', console_event['params']['args'][0]['value'])
 
   def test_dom_tree(self):
-    self.debugger.run_command('DOM.enable')
-
-    doc_response = self.debugger.run_command('DOM.getDocument')
-    doc_root = doc_response['result']['root']
+    doc_root = self.debugger.enable_dom()
     self.assertEqual('#document', doc_root['nodeName'])
 
     doc_url = doc_root['documentURL']
@@ -413,10 +417,7 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
     self.assertEqual(['id', 'test'], div_test['attributes'])
 
   def test_dom_remote_object(self):
-    self.debugger.run_command('DOM.enable')
-
-    doc_response = self.debugger.run_command('DOM.getDocument')
-    doc_root = doc_response['result']['root']
+    doc_root = self.debugger.enable_dom()
     html_node = doc_root['children'][0]
     body_node = html_node['children'][1]
     self.debugger.run_command('DOM.requestChildNodes', {
@@ -463,10 +464,7 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
     self.assertEqual(div_test['nodeId'], node_response['result']['nodeId'])
 
   def test_dom_childlist_mutation(self):
-    self.debugger.run_command('DOM.enable')
-
-    doc_response = self.debugger.run_command('DOM.getDocument')
-    doc_root = doc_response['result']['root']
+    doc_root = self.debugger.enable_dom()
     # document: <html><head></head><body></body></html>
     html_node = doc_root['children'][0]
     head_node = html_node['children'][0]
@@ -619,10 +617,7 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
     self.assertEqual(0, div_d['childNodeCount'])  # Whitespace not reported.
 
   def test_dom_text_mutation(self):
-    self.debugger.run_command('DOM.enable')
-
-    doc_response = self.debugger.run_command('DOM.getDocument')
-    doc_root = doc_response['result']['root']
+    doc_root = self.debugger.enable_dom()
     # document: <html><head></head><body></body></html>
     html_node = doc_root['children'][0]
     body_node = html_node['children'][1]
@@ -762,10 +757,7 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
     self.assertEqual('Four', inserted_event['params']['node']['nodeValue'])
 
   def test_dom_attribute_mutation(self):
-    self.debugger.run_command('DOM.enable')
-
-    doc_response = self.debugger.run_command('DOM.getDocument')
-    doc_root = doc_response['result']['root']
+    doc_root = self.debugger.enable_dom()
     # document: <html><head></head><body></body></html>
     html_node = doc_root['children'][0]
     body_node = html_node['children'][1]
