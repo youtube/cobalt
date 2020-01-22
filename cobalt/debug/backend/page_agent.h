@@ -55,7 +55,7 @@ class PageAgent {
   DebugDispatcher* dispatcher_;
 
   // Map of member functions implementing commands.
-  CommandMap<PageAgent> commands_;
+  CommandMap commands_;
 };
 
 }  // namespace backend

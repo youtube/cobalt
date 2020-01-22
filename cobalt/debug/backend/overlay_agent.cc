@@ -80,15 +80,15 @@ OverlayAgent::OverlayAgent(DebugDispatcher* dispatcher,
                            std::unique_ptr<RenderLayer> render_layer)
     : dispatcher_(dispatcher),
       render_layer_(std::move(render_layer)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this, kInspectorDomain)) {
+      commands_(kInspectorDomain) {
   DCHECK(dispatcher_);
   DCHECK(render_layer_);
 
-  commands_["disable"] = &OverlayAgent::Disable;
-  commands_["enable"] = &OverlayAgent::Enable;
-  commands_["highlightNode"] = &OverlayAgent::HighlightNode;
-  commands_["highlightRect"] = &OverlayAgent::HighlightRect;
-  commands_["hideHighlight"] = &OverlayAgent::HideHighlight;
+  commands_["disable"] = base::Bind(&OverlayAgent::Disable, base::Unretained(this));
+  commands_["enable"] = base::Bind(&OverlayAgent::Enable, base::Unretained(this));
+  commands_["highlightNode"] = base::Bind(&OverlayAgent::HighlightNode, base::Unretained(this));
+  commands_["highlightRect"] = base::Bind(&OverlayAgent::HighlightRect, base::Unretained(this));
+  commands_["hideHighlight"] = base::Bind(&OverlayAgent::HideHighlight, base::Unretained(this));
 }
 
 void OverlayAgent::Thaw(JSONObject agent_state) {

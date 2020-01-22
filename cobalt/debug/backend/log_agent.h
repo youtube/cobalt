@@ -53,7 +53,7 @@ class LogAgent {
   DebugDispatcher* dispatcher_;
 
   // Map of member functions implementing commands.
-  CommandMap<LogAgent> commands_;
+  CommandMap commands_;
 
   // Indicates whether a client has enabled the "Log" protocol domain.
   bool enabled_;

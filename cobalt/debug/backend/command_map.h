@@ -28,19 +28,17 @@ namespace cobalt {
 namespace debug {
 namespace backend {
 
-// Type of an agent member function that implements a protocol command.
-template <class T>
-using CommandFn = void (T::*)(Command command);
+// Type of a function that implements a protocol command.
+using CommandFn = base::Callback<void(Command command)>;
 
 // A map of method names to agent command functions. Provides a standard
 // implementation of the top-level domain command handler.
-template <class T>
-class CommandMap : public std::map<std::string, CommandFn<T>> {
+class CommandMap : public std::map<std::string, CommandFn> {
  public:
   // If |domain| is specified, then commands for that domain should be mapped
   // using just the the simple method name (i.e. "method" not "Domain.method").
-  explicit CommandMap(T* agent, const std::string& domain = std::string())
-      : agent_(agent), domain_(domain) {}
+  explicit CommandMap(const std::string& domain = std::string())
+      : domain_(domain) {}
 
   // Calls the mapped method implementation.
   // Passes ownership of the command to the mapped method, otherwise returns
@@ -53,18 +51,17 @@ class CommandMap : public std::map<std::string, CommandFn<T>> {
             : command.GetMethod();
     auto iter = this->find(method);
     if (iter == this->end()) return base::make_optional(std::move(command));
-    auto command_fn = iter->second;
-    (agent_->*command_fn)(std::move(command));
+    auto command_impl = iter->second;
+    command_impl.Run(std::move(command));
     return base::nullopt;
   }
 
   // Binds |RunCommand| to a callback to be registered with |DebugDispatcher|.
   DebugDispatcher::CommandHandler Bind() {
-    return base::Bind(&CommandMap<T>::RunCommand, base::Unretained(this));
+    return base::Bind(&CommandMap::RunCommand, base::Unretained(this));
   }
 
  private:
-  T* agent_;
   std::string domain_;
 };
 

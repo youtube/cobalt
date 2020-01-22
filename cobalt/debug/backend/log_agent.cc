@@ -51,12 +51,12 @@ const char* GetLogLevelFromSeverity(int severity) {
 
 LogAgent::LogAgent(DebugDispatcher* dispatcher)
     : dispatcher_(dispatcher),
-      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this, kInspectorDomain)),
+      commands_(kInspectorDomain),
       enabled_(false) {
   DCHECK(dispatcher_);
 
-  commands_["enable"] = &LogAgent::Enable;
-  commands_["disable"] = &LogAgent::Disable;
+  commands_["enable"] = base::Bind(&LogAgent::Enable, base::Unretained(this));
+  commands_["disable"] = base::Bind(&LogAgent::Disable, base::Unretained(this));
 
   // Get log output while still making it available elsewhere.
   log_message_handler_callback_id_ =

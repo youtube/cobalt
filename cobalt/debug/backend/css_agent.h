@@ -50,7 +50,7 @@ class CSSAgent : public script::Wrappable {
   DebugDispatcher* dispatcher_;
 
   // Map of member functions implementing commands.
-  CommandMap<CSSAgent> commands_;
+  CommandMap commands_;
 
   // Whether we successfully loaded the agent's JavaScript implementation.
   bool script_loaded_ = false;
