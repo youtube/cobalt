@@ -21,6 +21,8 @@
       'target_name': 'debug',
       'type': 'static_library',
       'sources': [
+        'backend/agent_base.cc',
+        'backend/agent_base.h',
         'backend/command_map.h',
         'backend/console_agent.cc',
         'backend/console_agent.h',

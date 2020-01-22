@@ -31,6 +31,9 @@ namespace debug {
 namespace backend {
 
 // Routes protocol messages to the V8 inspector through the V8cScriptDebugger.
+//
+// Since V8cScriptDebugger keeps track of its own enabled state for the domains
+// it implements, the ScriptDebuggerAgent doesn't use AgentBase.
 class ScriptDebuggerAgent {
  public:
   ScriptDebuggerAgent(DebugDispatcher* dispatcher,

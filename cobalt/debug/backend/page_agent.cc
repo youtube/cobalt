@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/debug/backend/page_agent.h"
+
+#include <string>
 
 #include "base/bind.h"
 #include "base/values.h"
+#include "cobalt/debug/json_object.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/transform_2d.h"
@@ -32,47 +33,28 @@ namespace cobalt {
 namespace debug {
 namespace backend {
 
-namespace {
-// Definitions from the set specified here:
-// https://chromedevtools.github.io/devtools-protocol/tot/Page
-constexpr char kInspectorDomain[] = "Page";
-}  // namespace
-
 PageAgent::PageAgent(DebugDispatcher* dispatcher, dom::Window* window,
                      std::unique_ptr<RenderLayer> render_layer,
                      render_tree::ResourceProvider* resource_provider)
-    : window_(window),
+    : AgentBase("Page", dispatcher),
+      window_(window),
       render_layer_(std::move(render_layer)),
-      resource_provider_(resource_provider),
-      dispatcher_(dispatcher),
-      commands_(kInspectorDomain) {
-  DCHECK(dispatcher_);
+      resource_provider_(resource_provider) {
   DCHECK(window_);
   DCHECK(window_->document());
   DCHECK(render_layer_);
   DCHECK(resource_provider_);
 
-  commands_["disable"] = base::Bind(&PageAgent::Disable, base::Unretained(this));
-  commands_["enable"] = base::Bind(&PageAgent::Enable, base::Unretained(this));
   commands_["reload"] = base::Bind(&PageAgent::Reload, base::Unretained(this));
-  commands_["getResourceTree"] = base::Bind(&PageAgent::GetResourceTree, base::Unretained(this));
-  commands_["setOverlayMessage"] = base::Bind(&PageAgent::SetOverlayMessage, base::Unretained(this));
+  commands_["getResourceTree"] =
+      base::Bind(&PageAgent::GetResourceTree, base::Unretained(this));
+  commands_["setOverlayMessage"] =
+      base::Bind(&PageAgent::SetOverlayMessage, base::Unretained(this));
 }
-
-void PageAgent::Thaw(JSONObject agent_state) {
-  dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
-}
-
-JSONObject PageAgent::Freeze() {
-  dispatcher_->RemoveDomain(kInspectorDomain);
-  return JSONObject();
-}
-
-void PageAgent::Disable(Command command) { command.SendResponse(); }
-
-void PageAgent::Enable(Command command) { command.SendResponse(); }
 
 void PageAgent::Reload(Command command) {
+  if (!EnsureEnabled(&command)) return;
+
   // We don't care about the 'ignoreCache' parameter since navigating creates a
   // new WebModule with a new cache (i.e. cache is always cleared on navigate).
   window_->location()->Reload();
@@ -80,6 +62,8 @@ void PageAgent::Reload(Command command) {
 }
 
 void PageAgent::GetResourceTree(Command command) {
+  if (!EnsureEnabled(&command)) return;
+
   JSONObject response(new base::DictionaryValue());
   JSONObject frame(new base::DictionaryValue());
   frame->SetString("id", "Cobalt");
@@ -94,6 +78,8 @@ void PageAgent::GetResourceTree(Command command) {
 }
 
 void PageAgent::SetOverlayMessage(Command command) {
+  if (!EnsureEnabled(&command)) return;
+
   std::string message;
   JSONObject params = JSONParse(command.GetParams());
   bool got_message = false;
