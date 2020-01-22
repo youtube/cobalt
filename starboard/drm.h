@@ -389,29 +389,6 @@ SB_EXPORT void SbDrmCloseSession(SbDrmSystem drm_system,
                                  const void* session_id,
                                  int session_id_size);
 
-// Returns the number of keys installed in |drm_system|.
-//
-// |drm_system|: The system for which the number of installed keys is retrieved.
-SB_EXPORT int SbDrmGetKeyCount(SbDrmSystem drm_system);
-
-// Gets |out_key|, |out_key_size|, and |out_status| for the key with |index|
-// in |drm_system|. Returns whether a key is installed at |index|.
-// If not, the output parameters, which all must not be NULL, will not be
-// modified.
-SB_EXPORT bool SbDrmGetKeyStatus(SbDrmSystem drm_system,
-                                 const void* session_id,
-                                 int session_id_size,
-                                 int index,
-                                 void** out_key,
-                                 int* out_key_size,
-                                 SbDrmKeyStatus* out_status);
-
-// Removes all installed keys for |drm_system|. Any outstanding session update
-// requests are also invalidated.
-//
-// |drm_system|: The DRM system for which keys should be removed.
-SB_EXPORT void SbDrmRemoveAllKeys(SbDrmSystem drm_system);
-
 #if SB_API_VERSION >= 10
 
 // Returns true if server certificate of |drm_system| can be updated via
