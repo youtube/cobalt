@@ -21,15 +21,9 @@ namespace cobalt {
 namespace debug {
 namespace backend {
 
-namespace {
-// Definitions from the set specified here:
-// https://chromedevtools.github.io/devtools-protocol/tot/Console
-constexpr char kInspectorDomain[] = "Console";
-
-// The "Console" protocol domain is deprecated, but we still use it to forward
-// console messages from our console web API implementation (used only with
-// mozjs) to avoid blurring the line to the "Runtime" domain implementation.
-}  // namespace
+ConsoleAgent::ConsoleAgent(DebugDispatcher* dispatcher, dom::Console* console)
+    : AgentBase("Console", dispatcher),
+      ALLOW_THIS_IN_INITIALIZER_LIST(console_listener_(console, this)) {}
 
 ConsoleAgent::Listener::Listener(dom::Console* console,
                                  ConsoleAgent* console_agent)
@@ -40,37 +34,13 @@ void ConsoleAgent::Listener::OnMessage(const std::string& message,
   console_agent_->OnMessageAdded(message, level);
 }
 
-ConsoleAgent::ConsoleAgent(DebugDispatcher* dispatcher, dom::Console* console)
-    : dispatcher_(dispatcher),
-      ALLOW_THIS_IN_INITIALIZER_LIST(console_listener_(console, this)),
-      commands_(kInspectorDomain) {
-  DCHECK(dispatcher_);
-
-  commands_["disable"] = base::Bind(&ConsoleAgent::Disable, base::Unretained(this));
-  commands_["enable"] = base::Bind(&ConsoleAgent::Enable, base::Unretained(this));
-}
-
-void ConsoleAgent::Thaw(JSONObject agent_state) {
-  dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
-}
-
-JSONObject ConsoleAgent::Freeze() {
-  dispatcher_->RemoveDomain(kInspectorDomain);
-  return JSONObject();
-}
-
-void ConsoleAgent::Disable(Command command) { command.SendResponse(); }
-
-void ConsoleAgent::Enable(Command command) { command.SendResponse(); }
-
 void ConsoleAgent::OnMessageAdded(const std::string& text,
                                   dom::Console::Level level) {
   JSONObject params(new base::DictionaryValue());
   params->SetString("message.text", text);
   params->SetString("message.level", dom::Console::GetLevelAsString(level));
   params->SetString("message.source", "console-api");
-  dispatcher_->SendEvent(std::string(kInspectorDomain) + ".messageAdded",
-                         params);
+  dispatcher_->SendEvent(domain_ + ".messageAdded", params);
 }
 
 }  // namespace backend

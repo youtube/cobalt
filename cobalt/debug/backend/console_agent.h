@@ -17,25 +17,25 @@
 
 #include <string>
 
-#include "cobalt/debug/backend/command_map.h"
+#include "cobalt/debug/backend/agent_base.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"
-#include "cobalt/debug/command.h"
-#include "cobalt/debug/json_object.h"
 #include "cobalt/dom/console.h"
 
 namespace cobalt {
 namespace debug {
 namespace backend {
 
-// The ConsoleAgent forwards messages from our IDL implementation of the
-// 'console' web API. Since V8 obscures our console with its own builtin, this
-// ends up only being used when mozjs is the JS engine.
-class ConsoleAgent {
+// Even though the "Console" protocol domain is deprecated, we still use it to
+// forward console messages from our own console web API implementation to avoid
+// blurring the line to our "Runtime" domain implementation (the modern event
+// for console logging is "Runtime.consoleAPICalled"). This is only
+// relevant when running mozjs since V8 obscures our console with its own
+// builtin implementation.
+//
+// https://chromedevtools.github.io/devtools-protocol/tot/Console
+class ConsoleAgent : public AgentBase {
  public:
   ConsoleAgent(DebugDispatcher* dispatcher, dom::Console* console);
-
-  void Thaw(JSONObject agent_state);
-  JSONObject Freeze();
 
  private:
   class Listener : public dom::Console::Listener {
@@ -43,22 +43,13 @@ class ConsoleAgent {
     Listener(dom::Console* console, ConsoleAgent* console_agent);
     void OnMessage(const std::string& message,
                    dom::Console::Level level) override;
-
-   private:
     ConsoleAgent* console_agent_;
   };
-
-  void Enable(Command command);
-  void Disable(Command command);
 
   // Called by |console_listener_| when a new message is output.
   void OnMessageAdded(const std::string& text, dom::Console::Level level);
 
-  DebugDispatcher* dispatcher_;
   Listener console_listener_;
-
-  // Map of member functions implementing commands.
-  CommandMap commands_;
 };
 
 }  // namespace backend

@@ -15,9 +15,8 @@
 #define COBALT_DEBUG_BACKEND_CSS_AGENT_H_
 
 #include "cobalt/cssom/css_style_rule.h"
-#include "cobalt/debug/backend/command_map.h"
+#include "cobalt/debug/backend/agent_base.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"
-#include "cobalt/debug/command.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
@@ -26,34 +25,19 @@ namespace cobalt {
 namespace debug {
 namespace backend {
 
-class CSSAgent : public script::Wrappable {
+// https://chromedevtools.github.io/devtools-protocol/tot/CSS
+class CSSAgent : public AgentBase, public script::Wrappable {
  public:
   typedef script::Sequence<scoped_refptr<cssom::CSSStyleRule>>
       CSSStyleRuleSequence;
 
   explicit CSSAgent(DebugDispatcher* dispatcher);
 
-  void Thaw(JSONObject agent_state);
-  JSONObject Freeze();
-
   // IDL: Returns a sequence of CSSStyleRules that match the element.
   CSSStyleRuleSequence GetMatchingCSSRules(
       const scoped_refptr<dom::Element>& element);
 
   DEFINE_WRAPPABLE_TYPE(CSSAgent);
-
- private:
-  void Enable(Command command);
-  void Disable(Command command);
-
-  // Helper object to connect to the debug dispatcher, etc.
-  DebugDispatcher* dispatcher_;
-
-  // Map of member functions implementing commands.
-  CommandMap commands_;
-
-  // Whether we successfully loaded the agent's JavaScript implementation.
-  bool script_loaded_ = false;
 };
 
 }  // namespace backend
