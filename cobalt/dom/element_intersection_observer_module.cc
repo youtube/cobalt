@@ -98,6 +98,13 @@ void ElementIntersectionObserverModule::RegisterIntersectionObserverForTarget(
   AddLayoutTargetForObserver(observer);
 
   InvalidateLayoutBoxesForElement();
+  // We record a mutation when an intersection observer target is added, in
+  // order to mark the layout as dirty and make sure that the intersection
+  // observer creates an entry for any new intersection.
+  Document* node_document = element_->node_document();
+  if (node_document != nullptr) {
+    node_document->RecordMutation();
+  }
 }
 
 void ElementIntersectionObserverModule::UnregisterIntersectionObserverForTarget(
@@ -199,7 +206,7 @@ void ElementIntersectionObserverModule::InvalidateLayoutBoxesForElement() {
     NOTREACHED();
     return;
   }
-  html_element->InvalidateLayoutBoxesOfNodeAndDescendants();
+  html_element->InvalidateLayoutBoxesOfNodeAndAncestors();
 }
 
 }  // namespace dom

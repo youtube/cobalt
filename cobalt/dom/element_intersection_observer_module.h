@@ -60,9 +60,12 @@ class ElementIntersectionObserverModule : public script::Traceable {
   void TraceMembers(script::Tracer* tracer) override;
 
  private:
-  void InvalidateLayoutBoxesForElement();
   void AddLayoutTargetForObserver(IntersectionObserver* observer);
   void RemoveLayoutTargetForObserver(IntersectionObserver* observer);
+  // We invalidate the layout boxes when an intersection observer root/target
+  // is added/removed, so that the boxes associated with the roots and targets
+  // get updated accordingly during the box generation phase.
+  void InvalidateLayoutBoxesForElement();
 
   Element* element_;
   IntersectionObserverVector root_registered_intersection_observers_;
