@@ -14,33 +14,17 @@
 #ifndef COBALT_DEBUG_BACKEND_DOM_AGENT_H_
 #define COBALT_DEBUG_BACKEND_DOM_AGENT_H_
 
-#include "cobalt/debug/backend/command_map.h"
+#include "cobalt/debug/backend/agent_base.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"
-#include "cobalt/debug/command.h"
-#include "cobalt/debug/json_object.h"
 
 namespace cobalt {
 namespace debug {
 namespace backend {
 
-class DOMAgent {
+// https://chromedevtools.github.io/devtools-protocol/tot/DOM
+class DOMAgent : public AgentBase {
  public:
   explicit DOMAgent(DebugDispatcher* dispatcher);
-
-  void Thaw(JSONObject agent_state);
-  JSONObject Freeze();
-
- private:
-  void Enable(Command command);
-  void Disable(Command command);
-
-  DebugDispatcher* dispatcher_;
-
-  // Map of member functions implementing commands.
-  CommandMap commands_;
-
-  // Whether we successfully loaded the agent's JavaScript implementation.
-  bool script_loaded_ = false;
 };
 
 }  // namespace backend
