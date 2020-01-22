@@ -631,6 +631,7 @@ SB_EXPORT void SbPlayerDestroy(SbPlayer player);
 //   been called with ticket X, a client should ignore all
 //   |SbPlayerDecoderStatusFunc| calls that do not pass in ticket X.
 
+// presubmit: allow sb_export mismatch
 SB_EXPORT void SbPlayerSeek(SbPlayer player,
                             SbMediaTime seek_to_pts,
                             int ticket);
@@ -705,6 +706,7 @@ SB_EXPORT void SbPlayerSeek2(SbPlayer player,
 // |sample_drm_info|: The DRM system related info for the media sample. This
 //   value is required for encrypted samples. Otherwise, it must be |NULL|.
 #if SB_API_VERSION < 10
+// presubmit: allow sb_export mismatch
 SB_EXPORT void SbPlayerWriteSample(
     SbPlayer player,
     SbMediaType sample_type,
@@ -825,6 +827,8 @@ SB_EXPORT void SbPlayerSetVolume(SbPlayer player, double volume);
 //
 // |player|: The player about which information is being retrieved.
 // |out_player_info|: The information retrieved for the player.
+
+// presubmit: allow sb_export mismatch
 SB_EXPORT void SbPlayerGetInfo(SbPlayer player, SbPlayerInfo* out_player_info);
 #else   // SB_API_VERSION < 10
 // SbPlayerGetInfo2 is like the deprecated SbPlayerGetInfo, but accepts
