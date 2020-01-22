@@ -59,6 +59,8 @@ inline const char* SupportedVideoCodecToMimeType(
     return "video/x-vnd.on2.vp9";
   } else if (video_codec == kSbMediaVideoCodecH264) {
     return "video/avc";
+  } else if (video_codec == kSbMediaVideoCodecAv1) {
+    return "video/av01";
   }
   return NULL;
 }
