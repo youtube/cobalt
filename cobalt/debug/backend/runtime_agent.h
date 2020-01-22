@@ -45,7 +45,7 @@ class RuntimeAgent {
   dom::Window* window_;
 
   // Map of member functions implementing commands.
-  CommandMap<RuntimeAgent> commands_;
+  CommandMap commands_;
 
   // Whether we successfully loaded the agent's JavaScript implementation.
   bool script_loaded_ = false;

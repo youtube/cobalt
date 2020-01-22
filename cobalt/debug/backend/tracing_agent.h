@@ -56,7 +56,7 @@ class TracingAgent : public script::ScriptDebugger::TraceDelegate  {
   JSONList collected_events_;
 
   // Map of member functions implementing commands.
-  CommandMap<TracingAgent> commands_;
+  CommandMap commands_;
 };
 
 }  // namespace backend

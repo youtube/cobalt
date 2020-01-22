@@ -45,18 +45,18 @@ PageAgent::PageAgent(DebugDispatcher* dispatcher, dom::Window* window,
       render_layer_(std::move(render_layer)),
       resource_provider_(resource_provider),
       dispatcher_(dispatcher),
-      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this, kInspectorDomain)) {
+      commands_(kInspectorDomain) {
   DCHECK(dispatcher_);
   DCHECK(window_);
   DCHECK(window_->document());
   DCHECK(render_layer_);
   DCHECK(resource_provider_);
 
-  commands_["disable"] = &PageAgent::Disable;
-  commands_["enable"] = &PageAgent::Enable;
-  commands_["reload"] = &PageAgent::Reload;
-  commands_["getResourceTree"] = &PageAgent::GetResourceTree;
-  commands_["setOverlayMessage"] = &PageAgent::SetOverlayMessage;
+  commands_["disable"] = base::Bind(&PageAgent::Disable, base::Unretained(this));
+  commands_["enable"] = base::Bind(&PageAgent::Enable, base::Unretained(this));
+  commands_["reload"] = base::Bind(&PageAgent::Reload, base::Unretained(this));
+  commands_["getResourceTree"] = base::Bind(&PageAgent::GetResourceTree, base::Unretained(this));
+  commands_["setOverlayMessage"] = base::Bind(&PageAgent::SetOverlayMessage, base::Unretained(this));
 }
 
 void PageAgent::Thaw(JSONObject agent_state) {

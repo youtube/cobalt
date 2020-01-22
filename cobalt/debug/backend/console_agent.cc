@@ -43,11 +43,11 @@ void ConsoleAgent::Listener::OnMessage(const std::string& message,
 ConsoleAgent::ConsoleAgent(DebugDispatcher* dispatcher, dom::Console* console)
     : dispatcher_(dispatcher),
       ALLOW_THIS_IN_INITIALIZER_LIST(console_listener_(console, this)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this, kInspectorDomain)) {
+      commands_(kInspectorDomain) {
   DCHECK(dispatcher_);
 
-  commands_["disable"] = &ConsoleAgent::Disable;
-  commands_["enable"] = &ConsoleAgent::Enable;
+  commands_["disable"] = base::Bind(&ConsoleAgent::Disable, base::Unretained(this));
+  commands_["enable"] = base::Bind(&ConsoleAgent::Enable, base::Unretained(this));
 }
 
 void ConsoleAgent::Thaw(JSONObject agent_state) {
