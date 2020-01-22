@@ -35,6 +35,7 @@
 #include "starboard/image.h"
 #include "starboard/log.h"
 #include "starboard/memory.h"
+#include "starboard/memory_reporter.h"
 #include "starboard/microphone.h"
 #include "starboard/mutex.h"
 #include "starboard/once.h"
@@ -128,6 +129,19 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbFileSeek);
   REGISTER_SYMBOL(SbFileTruncate);
   REGISTER_SYMBOL(SbFileWrite);
+  REGISTER_SYMBOL(SbMediaGetAudioConfiguration);
+  REGISTER_SYMBOL(SbMediaGetAudioOutputCount);
+  REGISTER_SYMBOL(SbMediaIsOutputProtected);
+  REGISTER_SYMBOL(SbMediaIsSupported);
+  REGISTER_SYMBOL(SbMediaSetOutputProtection);
+  REGISTER_SYMBOL(SbMemoryAllocate);
+  REGISTER_SYMBOL(SbMemoryAllocateAligned);
+  REGISTER_SYMBOL(SbMemoryAllocateNoReport);
+  REGISTER_SYMBOL(SbMemoryDeallocate);
+  REGISTER_SYMBOL(SbMemoryDeallocateAligned);
+  REGISTER_SYMBOL(SbMemoryDeallocateNoReport);
+  REGISTER_SYMBOL(SbMemoryReallocate);
+  REGISTER_SYMBOL(SbMemorySetReporter);
   REGISTER_SYMBOL(SbImageDecode);
   REGISTER_SYMBOL(SbImageIsDecodeSupported);
   REGISTER_SYMBOL(SbLog);
@@ -330,6 +344,7 @@ ExportedSymbols::ExportedSymbols(
 
 #if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
   REGISTER_SYMBOL(SbAccessibilityGetCaptionSettings);
+  REGISTER_SYMBOL(SbAccessibilitySetCaptionsEnabled);
 #endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
 
 #if SB_API_VERSION >= SB_MICROPHONE_REQUIRED_VERSION || SB_HAS(MICROPHONE)
