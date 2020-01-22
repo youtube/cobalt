@@ -29,8 +29,10 @@
 #include "base/task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/version.h"
+#include "cobalt/extension/installation_manager.h"
 #include "cobalt/updater/crash_client.h"
 #include "cobalt/updater/crash_reporter.h"
+#include "cobalt/updater/util.h"
 #include "components/crx_file/crx_verifier.h"
 #include "components/update_client/utils.h"
 #include "starboard/configuration_constants.h"
@@ -50,6 +52,7 @@ void QuitLoop(base::OnceClosure quit_closure) { std::move(quit_closure).Run(); }
 
 namespace cobalt {
 namespace updater {
+
 UpdaterModule::UpdaterModule(network::NetworkModule* network_module)
     : updater_thread_("updater"), network_module_(network_module) {
   updater_thread_.StartWithOptions(
@@ -89,14 +92,6 @@ void UpdaterModule::Initialize() {
   updater_observer_.reset(new Observer(update_client_));
   update_client_->AddObserver(updater_observer_.get());
 
-  installation_manager_ =
-      static_cast<const CobaltExtensionInstallationManagerApi*>(
-          SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
-  if (!installation_manager_) {
-    SB_LOG(ERROR) << "Updater failed to get installation manager extension.";
-    return;
-  }
-
   // Schedule the first update check.
   updater_thread_.task_runner()->PostTask(
       FROM_HERE, base::Bind(&UpdaterModule::Update, base::Unretained(this)));
@@ -104,7 +99,6 @@ void UpdaterModule::Initialize() {
 
 void UpdaterModule::Finalize() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  installation_manager_ = nullptr;
   update_client_->RemoveObserver(updater_observer_.get());
   updater_observer_.reset();
   update_client_ = nullptr;
@@ -117,12 +111,20 @@ void UpdaterModule::Finalize() {
 
 void UpdaterModule::MarkSuccessful() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  int index = installation_manager_->GetCurrentInstallationIndex();
+
+  auto installation_manager =
+      static_cast<const CobaltExtensionInstallationManagerApi*>(
+          SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
+  if (!installation_manager) {
+    SB_LOG(ERROR) << "Updater failed to get installation manager extension.";
+    return;
+  }
+  int index = installation_manager->GetCurrentInstallationIndex();
   if (index == IM_EXT_ERROR) {
     SB_LOG(ERROR) << "Updater failed to get current installation index.";
     return;
   }
-  if (installation_manager_->MarkInstallationSuccessful(index) !=
+  if (installation_manager->MarkInstallationSuccessful(index) !=
       IM_EXT_SUCCESS) {
     SB_LOG(ERROR)
         << "Updater failed to mark the current installation successful";
@@ -134,32 +136,7 @@ void UpdaterModule::Update() {
   const std::vector<std::string> app_ids = {
       updater_configurator_->GetAppGuid()};
 
-  // Get the update version from the manifest file under the current
-  // installation path.
-  int index = installation_manager_->GetCurrentInstallationIndex();
-  if (index == IM_EXT_ERROR) {
-    SB_LOG(ERROR) << "Updater failed to get current installation index.";
-    return;
-  }
-  std::vector<char> installation_path(kSbFileMaxPath);
-  if (installation_manager_->GetInstallationPath(
-          index, installation_path.data(), kSbFileMaxPath) == IM_ERROR) {
-    SB_LOG(ERROR) << "Updater failed to get installation path.";
-    return;
-  }
-  auto manifest = update_client::ReadManifest(base::FilePath(
-      std::string(installation_path.begin(), installation_path.end())));
-  if (!manifest) {
-    SB_LOG(ERROR) << "Updater failed to read the manifest file of the current "
-                     "installation.";
-    return;
-  }
-  auto* version_path = manifest->FindPath({"version"});
-  if (!version_path) {
-    SB_LOG(ERROR) << "Updater failed to find the version in the manifest.";
-    return;
-  }
-  const base::Version manifest_version(version_path->GetString());
+  const base::Version manifest_version(GetEvergreenVersion());
   if (!manifest_version.IsValid()) {
     SB_LOG(ERROR) << "Updater failed to get the current update version.";
     return;
