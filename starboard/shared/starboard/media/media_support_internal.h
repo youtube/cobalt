@@ -54,24 +54,24 @@ extern "C" {
 //        it indicates that the fps shouldn't be considered.
 // |decode_to_texture_required|: Whether or not the resulting video frames can
 //                               be decoded and used as textures by the GPU.
-SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
+bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-                                       int profile,
-                                       int level,
-                                       int bit_depth,
-                                       SbMediaPrimaryId primary_id,
-                                       SbMediaTransferId transfer_id,
-                                       SbMediaMatrixId matrix_id,
+                             int profile,
+                             int level,
+                             int bit_depth,
+                             SbMediaPrimaryId primary_id,
+                             SbMediaTransferId transfer_id,
+                             SbMediaMatrixId matrix_id,
 #endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-                                       int frame_width,
-                                       int frame_height,
-                                       int64_t bitrate,
-                                       int fps
+                             int frame_width,
+                             int frame_height,
+                             int64_t bitrate,
+                             int fps
 #if SB_API_VERSION >= 10
-                                       ,
-                                       bool decode_to_texture_required
+                             ,
+                             bool decode_to_texture_required
 #endif  // SB_API_VERSION >= 10
-                                       );
+                             );
 
 // Indicates whether this platform supports |audio_codec| at |bitrate|.
 // If |audio_codec| is not supported under any condition, this function
@@ -79,8 +79,7 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
 //
 // |audio_codec|: The media's audio codec (|SbMediaAudioCodec|).
 // |bitrate|: The media's bitrate.
-SB_EXPORT bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
-                                       int64_t bitrate);
+bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec, int64_t bitrate);
 
 #if !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 // Indicates whether this platform supports |transfer_id| as a transfer
@@ -88,8 +87,7 @@ SB_EXPORT bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
 // function returns |false|.
 //
 // |transfer_id|: The id of transfer charateristics listed in SbMediaTransferId.
-SB_EXPORT bool SbMediaIsTransferCharacteristicsSupported(
-    SbMediaTransferId transfer_id);
+bool SbMediaIsTransferCharacteristicsSupported(SbMediaTransferId transfer_id);
 #endif  // !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 
 #ifdef __cplusplus

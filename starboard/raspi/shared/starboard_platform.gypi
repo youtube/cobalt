@@ -361,6 +361,7 @@
         '<(DEPTH)/starboard/shared/stub/accessibility_get_caption_settings.cc',
         '<(DEPTH)/starboard/shared/stub/accessibility_get_display_settings.cc',
         '<(DEPTH)/starboard/shared/stub/accessibility_get_text_to_speech_settings.cc',
+        '<(DEPTH)/starboard/shared/stub/accessibility_set_captions_enabled.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_create_transformer.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_destroy_transformer.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_get_tag.cc',
