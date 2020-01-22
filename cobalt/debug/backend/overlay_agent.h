@@ -46,7 +46,7 @@ class OverlayAgent {
   std::unique_ptr<RenderLayer> render_layer_;
 
   // Map of member functions implementing commands.
-  CommandMap<OverlayAgent> commands_;
+  CommandMap commands_;
 
   // Whether we successfully loaded the agent's JavaScript implementation.
   bool script_loaded_ = false;

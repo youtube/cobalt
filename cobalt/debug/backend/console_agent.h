@@ -58,7 +58,7 @@ class ConsoleAgent {
   Listener console_listener_;
 
   // Map of member functions implementing commands.
-  CommandMap<ConsoleAgent> commands_;
+  CommandMap commands_;
 };
 
 }  // namespace backend

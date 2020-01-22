@@ -38,11 +38,11 @@ TracingAgent::TracingAgent(DebugDispatcher* dispatcher,
       script_debugger_(script_debugger),
       tracing_started_(false),
       collected_size_(0),
-      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this, kInspectorDomain)) {
+      commands_(kInspectorDomain) {
   DCHECK(dispatcher_);
 
-  commands_["end"] = &TracingAgent::End;
-  commands_["start"] = &TracingAgent::Start;
+  commands_["end"] = base::Bind(&TracingAgent::End, base::Unretained(this));
+  commands_["start"] = base::Bind(&TracingAgent::Start, base::Unretained(this));
 }
 
 void TracingAgent::Thaw(JSONObject agent_state) {

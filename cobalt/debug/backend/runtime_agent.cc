@@ -34,15 +34,15 @@ constexpr char kScriptFile[] = "runtime_agent.js";
 RuntimeAgent::RuntimeAgent(DebugDispatcher* dispatcher, dom::Window* window)
     : dispatcher_(dispatcher),
       window_(window),
-      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this, kInspectorDomain)) {
+      commands_(kInspectorDomain) {
   DCHECK(dispatcher_);
   if (!dispatcher_->RunScriptFile(kScriptFile)) {
     DLOG(WARNING) << "Cannot execute Runtime initialization script.";
   }
 
-  commands_["enable"] = &RuntimeAgent::Enable;
-  commands_["disable"] = &RuntimeAgent::Disable;
-  commands_["compileScript"] = &RuntimeAgent::CompileScript;
+  commands_["enable"] = base::Bind(&RuntimeAgent::Enable, base::Unretained(this));
+  commands_["disable"] = base::Bind(&RuntimeAgent::Disable, base::Unretained(this));
+  commands_["compileScript"] = base::Bind(&RuntimeAgent::CompileScript, base::Unretained(this));
 }
 
 void RuntimeAgent::Thaw(JSONObject agent_state) {

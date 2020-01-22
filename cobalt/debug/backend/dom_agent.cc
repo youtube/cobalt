@@ -29,11 +29,11 @@ constexpr char kScriptFile[] = "dom_agent.js";
 
 DOMAgent::DOMAgent(DebugDispatcher* dispatcher)
     : dispatcher_(dispatcher),
-      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this, kInspectorDomain)) {
+      commands_(kInspectorDomain) {
   DCHECK(dispatcher_);
 
-  commands_["disable"] = &DOMAgent::Disable;
-  commands_["enable"] = &DOMAgent::Enable;
+  commands_["disable"] = base::Bind(&DOMAgent::Disable, base::Unretained(this));
+  commands_["enable"] = base::Bind(&DOMAgent::Enable, base::Unretained(this));
 }
 
 void DOMAgent::Thaw(JSONObject agent_state) {

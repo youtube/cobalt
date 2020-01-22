@@ -16,6 +16,7 @@
 
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_element.h"
+#include "base/bind.h"
 
 namespace cobalt {
 namespace debug {
@@ -32,11 +33,11 @@ constexpr char kScriptFile[] = "css_agent.js";
 
 CSSAgent::CSSAgent(DebugDispatcher* dispatcher)
     : dispatcher_(dispatcher),
-      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this, kInspectorDomain)) {
+      commands_(kInspectorDomain) {
   DCHECK(dispatcher_);
 
-  commands_["disable"] = &CSSAgent::Disable;
-  commands_["enable"] = &CSSAgent::Enable;
+  commands_["disable"] = base::Bind(&CSSAgent::Disable, base::Unretained(this));
+  commands_["enable"] = base::Bind(&CSSAgent::Enable, base::Unretained(this));
 }
 
 void CSSAgent::Thaw(JSONObject agent_state) {
