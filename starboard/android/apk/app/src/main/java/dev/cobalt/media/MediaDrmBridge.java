@@ -546,7 +546,12 @@ public class MediaDrmBridge {
         Log.e(TAG, "Failed to provision device during MediaCrypto creation.");
         return false;
       }
-      return true;
+      try {
+        mMediaCryptoSession = openSession();
+      } catch (NotProvisionedException e2) {
+        Log.e(TAG, "Device still not provisioned after supposedly successful provisioning", e2);
+        return false;
+      }
     }
 
     if (mMediaCryptoSession == null) {
