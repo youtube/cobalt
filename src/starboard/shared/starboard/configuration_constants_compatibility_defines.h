@@ -27,9 +27,61 @@
 
 #else  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#define kSbDefaultMmapThreshold SB_DEFAULT_MMAP_THRESHOLD
+
+#define kSbFileMaxName SB_FILE_MAX_NAME
+
+#define kSbFileMaxOpen SB_FILE_MAX_OPEN
+
+#define kSbFileAltSepChar SB_FILE_ALT_SEP_CHAR
+
+#define kSbFileAltSepString SB_FILE_ALT_SEP_STRING
+
+#define kSbFileMaxPath SB_FILE_MAX_PATH
+
+#define kSbFileSepChar SB_FILE_SEP_CHAR
+
+#define kSbFileSepString SB_FILE_SEP_STRING
+
+#define kSbHasAc3Audio SB_HAS_AC3_AUDIO
+
+#define kSbHasAudiolessVideo SB_HAS_AUDIOLESS_VIDEO
+
+#define kSbHasMediaWebmVp9Support SB_HAS_MEDIA_WEBM_VP9_SUPPORT
+
+#define kSbHasThreadPrioritySupport SB_HAS_THREAD_PRIORITY_SUPPORT
+
 #define kSbMallocAlignment SB_MALLOC_ALIGNMENT
 
+#define kSbMaxThreadLocalKeys SB_MAX_THREAD_LOCAL_KEYS
+
 #define kSbMaxThreadNameLength SB_MAX_THREAD_NAME_LENGTH
+
+#define kSbMediaMaxAudioBitrateInBitsPerSecond \
+  SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND
+
+#define kSbMediaMaxVideoBitrateInBitsPerSecond \
+  SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND
+
+#define kSbMediaMaximumVideoFrames SB_MEDIA_MAXIMUM_VIDEO_FRAMES
+
+#define kSbMediaMaximumVideoPrerollFrames SB_MEDIA_MAXIMUM_VIDEO_PREROLL_FRAMES
+
+#define kSbMediaVideoFrameAlignment SB_MEDIA_VIDEO_FRAME_ALIGNMENT
+
+#define kSbMemoryLogPath SB_MEMORY_LOG_PATH
+
+#define kSbMemoryPageSize SB_MEMORY_PAGE_SIZE
+
+#define kSbNetworkReceiveBufferSize SB_NETWORK_RECEIVE_BUFFER_SIZE
+
+#define kSbMaxThreads SB_MAX_THREADS
+
+#define kSbPathSepChar SB_PATH_SEP_CHAR
+
+#define kSbPathSepString SB_PATH_SEP_STRING
+
+#define kSbUserMaxSignedIn SB_USER_MAX_SIGNED_IN
 
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 

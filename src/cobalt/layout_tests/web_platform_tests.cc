@@ -202,6 +202,9 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
   // ready for layout should be performed.  See cobalt/dom/test_runner.h.
   browser::WebModule::Options web_module_options;
   web_module_options.layout_trigger = layout::LayoutManager::kTestRunnerMode;
+  // We assume that we won't suspend/resume while running the tests, and so
+  // we take advantage of the convenience of inline script tags.
+  web_module_options.enable_inline_script_warnings = false;
 
   // Prepare a slot for our results to be placed when ready.
   base::Optional<browser::WebModule::LayoutResults> results;

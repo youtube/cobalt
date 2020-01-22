@@ -57,7 +57,10 @@
 #include "cobalt/dom/html_unknown_element.h"
 #include "cobalt/dom/html_video_element.h"
 #include "cobalt/dom/rule_matching.h"
+#include "cobalt/dom/text.h"
 #include "cobalt/loader/image/animated_image_tracker.h"
+#include "third_party/icu/source/common/unicode/uchar.h"
+#include "third_party/icu/source/common/unicode/utf8.h"
 
 using cobalt::cssom::ViewportSize;
 
@@ -166,10 +169,10 @@ std::string HTMLElement::dir() const {
   // return the conforming value associated with the state the attribute is in,
   // or the empty string if the attribute is in a state with no associated
   // keyword value.
-  // https://dev.w3.org/html5/spec-preview/global-attributes.html#the-directionality
-  // https://dev.w3.org/html5/spec-preview/common-dom-interfaces.html#limited-to-only-known-values
-  // NOTE: Value "auto" is not supported.
-  if (dir_ == kDirLeftToRight) {
+  // https://html.spec.whatwg.org/commit-snapshots/ebcac971c2add28a911283899da84ec509876c44/#the-dir-attribute
+  if (dir_ == kDirAuto) {
+    return "auto";
+  } else if (dir_ == kDirLeftToRight) {
     return "ltr";
   } else if (dir_ == kDirRightToLeft) {
     return "rtl";
@@ -1392,9 +1395,10 @@ void HTMLElement::RunUnFocusingSteps() {
 
 void HTMLElement::SetDir(const std::string& value) {
   // https://html.spec.whatwg.org/commit-snapshots/ebcac971c2add28a911283899da84ec509876c44/#the-dir-attribute
-  // NOTE: Value "auto" is not supported.
   auto previous_dir = dir_;
-  if (value == "ltr") {
+  if (value == "auto") {
+    dir_ = kDirAuto;
+  } else if (value == "ltr") {
     dir_ = kDirLeftToRight;
   } else if (value == "rtl") {
     dir_ = kDirRightToLeft;
@@ -1422,6 +1426,145 @@ void HTMLElement::SetTabIndex(const std::string& value) {
   } else {
     tabindex_ = base::nullopt;
   }
+}
+
+namespace {
+// This is similar to base rtl.h's GetStringDirection; however, this takes a
+// utf8 string and only pays attention to L, AL, and R character types.
+HTMLElement::DirState GetStringDirection(const std::string& utf8_string) {
+  int32_t length = static_cast<int32_t>(utf8_string.length());
+  for (int32_t index = 0; index < length;) {
+    int32_t ch;
+    U8_NEXT(utf8_string.data(), index, length, ch);
+    if (ch < 0) {
+      LOG(ERROR) << "Unable to determine directionality of " << utf8_string;
+      break;
+    }
+
+    int32_t property = u_getIntPropertyValue(ch, UCHAR_BIDI_CLASS);
+    if (property == U_LEFT_TO_RIGHT) {
+      return HTMLElement::kDirLeftToRight;
+    }
+    if (property == U_RIGHT_TO_LEFT ||
+        property == U_RIGHT_TO_LEFT_ARABIC) {
+      return HTMLElement::kDirRightToLeft;
+    }
+  }
+  return HTMLElement::kDirNotDefined;
+}
+}  // namespace
+
+// This is similar to dir_state() except it will resolve kDirAuto to
+// kDirLeftToRight or kDirRightToLeft according to the spec:
+//   https://html.spec.whatwg.org/commit-snapshots/ebcac971c2add28a911283899da84ec509876c44/#the-directionality
+// If "dir" was not defined for this element, then this function will return
+// kDirNotDefined.
+HTMLElement::DirState HTMLElement::GetUsedDirState() {
+  // If the element's dir attribute is in the auto state
+  // If the element is a bdi element and the dir attribute is not in a defined
+  //   state (i.e. it is not present or has an invalid value)
+  if (dir_ != kDirAuto) {
+    return dir_;
+  }
+
+  // Find the first character in tree order that matches the following criteria:
+  //   The character is from a Text node that is a descendant of the element
+  //     whose directionality is being determined.
+  //   The character is of bidirectional character type L, AL, or R. [BIDI]
+  //   The character is not in a Text node that has an ancestor element that is
+  //     a descendant of the element whose directionality is being determined
+  //     and that is either:
+  //       A bdi element.
+  //       A script element.
+  //       A style element.
+  //       A textarea element.
+  //       An element with a dir attribute in a defined state.
+  //   If such a character is found and it is of bidirectional character type
+  //     AL or R, the directionality of the element is 'rtl'.
+  //   If such a character is found and it is of bidirectional character type
+  //     L, the directionality of the element is 'ltr'.
+
+  // A tree is a finite hierarchical tree structure. In tree order is preorder,
+  // depth-first traversal of a tree.
+  //   https://dom.spec.whatwg.org/#concept-tree-order
+  std::vector<Node*> stack;
+
+  // Add children in reverse order so that pop_back() will result in preorder
+  // depth-first traversal.
+  for (Node* child_node = last_child(); child_node;
+       child_node = child_node->previous_sibling()) {
+    stack.push_back(child_node);
+  }
+
+  while (!stack.empty()) {
+    Node* node = stack.back();
+    stack.pop_back();
+
+    Text* text = node->AsText();
+    if (text) {
+      // If the text has strong directionality, then return it.
+      DirState dir = GetStringDirection(text->text());
+      if (dir != kDirNotDefined) {
+        return dir;
+      }
+    }
+
+    // Traverse children only if this is not:
+    //   A bdi element.
+    //   A script element.
+    //   A style element.
+    //   A textarea element.
+    //   An element with a dir attribute in a defined state.
+    Element* element = node->AsElement();
+    if (element) {
+      HTMLElement* html_element = element->AsHTMLElement();
+      if (html_element) {
+        if (html_element->AsHTMLScriptElement() ||
+            html_element->AsHTMLStyleElement() ||
+            html_element->dir_state() != kDirNotDefined) {
+          continue;
+        }
+      }
+    }
+
+    for (Node* child_node = node->last_child(); child_node;
+         child_node = child_node->previous_sibling()) {
+      stack.push_back(child_node);
+    }
+  }
+
+  // Otherwise, if the element is a document element, the directionality of
+  //   the element is 'ltr'.
+  if (IsDocumentElement()) {
+    return kDirLeftToRight;
+  }
+
+  // Although the spec says to use the parent's directionality, the W3C test
+  // (the-dir-attribute-069.html) says to default to LTR. Chrome follows the
+  // W3C expectation, so follow Chrome. Additional discussion here:
+  //   https://github.com/w3c/i18n-drafts/issues/235
+  // The following code block which implements the spec is left for reference.
+#if 0
+  // Otherwise, the directionality of the element is the same as the element's
+  //   parent element's directionality.
+  for (Node* ancestor_node = parent_node(); ancestor_node;
+       ancestor_node = ancestor_node->parent_node()) {
+    Element* ancestor_element = ancestor_node->AsElement();
+    if (!ancestor_element) {
+      continue;
+    }
+    HTMLElement* ancestor_html_element = ancestor_element->AsHTMLElement();
+    if (!ancestor_html_element) {
+      continue;
+    }
+    if (ancestor_html_element->dir_state() == kDirNotDefined) {
+      continue;
+    }
+    return ancestor_html_element->GetUsedDirState();
+  }
+#endif
+
+  return kDirLeftToRight;
 }
 
 // Algorithm:

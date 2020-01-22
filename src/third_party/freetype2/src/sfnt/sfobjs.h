@@ -1,23 +1,23 @@
-/***************************************************************************/
-/*                                                                         */
-/*  sfobjs.h                                                               */
-/*                                                                         */
-/*    SFNT object management (specification).                              */
-/*                                                                         */
-/*  Copyright 1996-2015 by                                                 */
-/*  David Turner, Robert Wilhelm, and Werner Lemberg.                      */
-/*                                                                         */
-/*  This file is part of the FreeType project, and may only be used,       */
-/*  modified, and distributed under the terms of the FreeType project      */
-/*  license, LICENSE.TXT.  By continuing to use, modify, or distribute     */
-/*  this file you indicate that you have read the license and              */
-/*  understand and accept it fully.                                        */
-/*                                                                         */
-/***************************************************************************/
+/****************************************************************************
+ *
+ * sfobjs.h
+ *
+ *   SFNT object management (specification).
+ *
+ * Copyright (C) 1996-2019 by
+ * David Turner, Robert Wilhelm, and Werner Lemberg.
+ *
+ * This file is part of the FreeType project, and may only be used,
+ * modified, and distributed under the terms of the FreeType project
+ * license, LICENSE.TXT.  By continuing to use, modify, or distribute
+ * this file you indicate that you have read the license and
+ * understand and accept it fully.
+ *
+ */
 
 
-#ifndef __SFOBJS_H__
-#define __SFOBJS_H__
+#ifndef SFOBJS_H_
+#define SFOBJS_H_
 
 
 #include <ft2build.h>
@@ -53,7 +53,7 @@ FT_BEGIN_HEADER
 
 FT_END_HEADER
 
-#endif /* __SFDRIVER_H__ */
+#endif /* SFOBJS_H_ */
 
 
 /* END */

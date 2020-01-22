@@ -42,16 +42,16 @@ bool WriteRecord(const std::unique_ptr<starboard::StorageRecord>& record,
 
 bool Upgrade(Savegame::ByteVector* bytes_ptr,
              const std::unique_ptr<starboard::StorageRecord>& record) {
-  DLOG(INFO) << "UPGRADING Record with size=" << bytes_ptr->size();
   if (IsUpgradeRequired(*bytes_ptr)) {
+    DLOG(INFO) << "Upgrading Record with size=" << bytes_ptr->size();
     if (!UpgradeStore(bytes_ptr)) {
       DLOG(ERROR) << "Upgrade failed";
       return false;
     }
+    DLOG(INFO) << "Upgraded successfully bytes_ptr.size=" << bytes_ptr->size();
   }
 
   WriteRecord(record, *bytes_ptr);
-  DLOG(INFO) << "UPGRADING bytes_ptr.size=" << bytes_ptr->size();
   return true;
 }
 

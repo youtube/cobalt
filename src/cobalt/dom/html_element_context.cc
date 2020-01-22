@@ -45,7 +45,7 @@ HTMLElementContext::HTMLElementContext()
       dom_stat_tracker_(NULL),
       page_visibility_state_weak_ptr_factory_(&page_visibility_state_),
       video_playback_rate_multiplier_(1.f),
-      sync_load_thread_("Synchronous Load"),
+      sync_load_thread_("SynchronousLoad"),
       html_element_factory_(new HTMLElementFactory()) {
   sync_load_thread_.Start();
 }
@@ -70,7 +70,7 @@ HTMLElementContext::HTMLElementContext(
     const std::string& font_language_script,
     base::ApplicationState initial_application_state,
     base::WaitableEvent* synchronous_loader_interrupt,
-    float video_playback_rate_multiplier)
+    bool enable_inline_script_warnings, float video_playback_rate_multiplier)
     : environment_settings_(environment_settings),
       fetcher_factory_(fetcher_factory),
       loader_factory_(loader_factory),
@@ -94,7 +94,8 @@ HTMLElementContext::HTMLElementContext(
       page_visibility_state_weak_ptr_factory_(&page_visibility_state_),
       video_playback_rate_multiplier_(video_playback_rate_multiplier),
       synchronous_loader_interrupt_(synchronous_loader_interrupt),
-      sync_load_thread_("Synchronous Load"),
+      enable_inline_script_warnings_(enable_inline_script_warnings),
+      sync_load_thread_("SynchronousLoad"),
       html_element_factory_(new HTMLElementFactory()) {
   sync_load_thread_.Start();
 }

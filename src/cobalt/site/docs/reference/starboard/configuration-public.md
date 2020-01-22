@@ -45,7 +45,6 @@ title: "Starboard Configuration Reference Guide"
 
 | Properties |
 | :--- |
-| **`SB_MEDIA_BUFFER_ALIGNMENT`**<br><br>Specifies how media buffers must be aligned on this platform as some decoders may have special requirement on the alignment of buffers being decoded.<br><br>The default value in the Stub implementation is `128U` |
 | **`SB_MEDIA_VIDEO_FRAME_ALIGNMENT`**<br><br>Specifies how video frame buffers must be aligned on this platform.<br><br>The default value in the Stub implementation is `256U` |
 | **`SB_MEDIA_MAXIMUM_VIDEO_PREROLL_FRAMES`**<br><br>The encoded video frames are compressed in different ways, so their decoding time can vary a lot.  Occasionally a single frame can take longer time to decode than the average time per frame.  The player has to cache some frames to account for such inconsistency.  The number of frames being cached are controlled by SB_MEDIA_MAXIMUM_VIDEO_PREROLL_FRAMES and SB_MEDIA_MAXIMUM_VIDEO_FRAMES.  Specify the number of video frames to be cached before the playback starts. Note that setting this value too large may increase the playback start delay.<br><br>The default value in the Stub implementation is `4` |
 | **`SB_MEDIA_MAXIMUM_VIDEO_FRAMES`**<br><br>Specify the number of video frames to be cached during playback.  A large value leads to more stable fps but also causes the app to use more memory.<br><br>The default value in the Stub implementation is `12` |
@@ -89,22 +88,11 @@ title: "Starboard Configuration Reference Guide"
 
 | Properties |
 | :--- |
-| **`SB_HAS_BLITTER`**<br><br>Specifies whether this platform supports a performant accelerated blitter API. The basic requirement is a scaled, clipped, alpha-blended blit.<br><br>The default value in the Stub implementation is `0` |
 | **`SB_PREFERRED_RGBA_BYTE_ORDER`**<br><br>Specifies the preferred byte order of color channels in a pixel. Refer to starboard/configuration.h for the possible values. EGL/GLES platforms should generally prefer a byte order of RGBA, regardless of endianness.<br><br>The default value in the Stub implementation is <br>`SB_PREFERRED_RGBA_BYTE_ORDER_RGBA` |
 | **`SB_HAS_BILINEAR_FILTERING_SUPPORT`**<br><br>Indicates whether or not the given platform supports bilinear filtering. This can be checked to enable/disable renderer tests that verify that this is working properly.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_NV12_TEXTURE_SUPPORT`**<br><br>Indicates whether or not the given platform supports rendering of NV12 textures. These textures typically originate from video decoders.<br><br>The default value in the Stub implementation is `0` |
 | **`SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER`**<br><br>Whether the current platform should frequently flip its display buffer.  If this is not required (i.e. SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER is set to 0), then optimizations are enabled so the display buffer is not flipped if the scene hasn't changed.<br><br>The default value in the Stub implementation is `0` |
 | **`SB_HAS_VIRTUAL_REALITY`**<br><br>The default value in the Stub implementation is `1` |
-
-
-## I/O Configuration
-
-| Properties |
-| :--- |
-| **`SB_HAS_MICROPHONE`**<br><br>Whether the current platform has microphone supported.<br><br>The default value in the Stub implementation is `1` |
-| **`SB_HAS_ON_SCREEN_KEYBOARD`**<br><br>Whether the current platform implements the on screen keyboard interface.<br><br>The default value in the Stub implementation is `0` |
-| **`SB_HAS_SPEECH_RECOGNIZER`**<br><br>Whether the current platform has speech recognizer.<br><br>The default value in the Stub implementation is `1` |
-| **`SB_HAS_SPEECH_SYNTHESIS`**<br><br>Whether the current platform has speech synthesis.<br><br>The default value in the Stub implementation is `1` |
 
 
 ## Media Configuration
@@ -127,10 +115,7 @@ title: "Starboard Configuration Reference Guide"
 | Properties |
 | :--- |
 | **`SB_MEMORY_PAGE_SIZE`**<br><br>The memory page size, which controls the size of chunks on memory that allocators deal with, and the alignment of those chunks. This doesn't have to be the hardware-defined physical page size, but it should be a multiple of it.<br><br>The default value in the Stub implementation is `4096` |
-| **`SB_HAS_MMAP`**<br><br>Whether this platform has and should use an MMAP function to map physical memory to the virtual address space.<br><br>The default value in the Stub implementation is `1` |
-| **`SB_CAN_MAP_EXECUTABLE_MEMORY`**<br><br>Whether this platform can map executable memory. Implies SB_HAS_MMAP. This is required for platforms that want to JIT.<br><br>The default value in the Stub implementation is `1` |
-| **`SB_HAS_VIRTUAL_REGIONS`**<br><br>Whether this platform has and should use an growable heap (e.g. with sbrk()) to map physical memory to the virtual address space.<br><br>The default value in the Stub implementation is `0` |
-| **`SB_NETWORK_IO_BUFFER_ALIGNMENT`**<br><br>Specifies the alignment for IO Buffers, in bytes. Some low-level network APIs may require buffers to have a specific alignment, and this is the place to specify that.<br><br>The default value in the Stub implementation is `16` |
+| **`SB_CAN_MAP_EXECUTABLE_MEMORY`**<br><br>Whether this platform can map executable memory. Implies this system can map memory. This is required for platforms that want to JIT.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_MALLOC_ALIGNMENT`**<br><br>Determines the alignment that allocations should have on this platform.<br><br>The default value in the Stub implementation is `((size_t)16U)` |
 | **`SB_DEFAULT_MMAP_THRESHOLD`**<br><br>Determines the threshhold of allocation size that should be done with mmap (if available), rather than allocated within the core heap.<br><br>The default value in the Stub implementation is `((size_t)(256 * 1024U))` |
 | **`SB_MEMORY_LOG_PATH`**<br><br>Defines the path where memory debugging logs should be written to.<br><br>The default value in the Stub implementation is `"/tmp/starboard"` |
@@ -140,7 +125,6 @@ title: "Starboard Configuration Reference Guide"
 
 | Properties |
 | :--- |
-| **`SB_HAS_IPV6`**<br><br>Specifies whether this platform supports IPV6.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_PIPE`**<br><br>Specifies whether this platform supports pipe.<br><br>The default value in the Stub implementation is `1` |
 
 
@@ -175,13 +159,6 @@ title: "Starboard Configuration Reference Guide"
 | **`SB_MAX_THREADS`**<br><br>Defines the maximum number of simultaneous threads for this platform. Some platforms require sharing thread handles with other kinds of system handles, like mutexes, so we want to keep this managable.<br><br>The default value in the Stub implementation is `90` |
 | **`SB_MAX_THREAD_LOCAL_KEYS`**<br><br>The maximum number of thread local storage keys supported by this platform.<br><br>The default value in the Stub implementation is `512` |
 | **`SB_MAX_THREAD_NAME_LENGTH`**<br><br>The maximum length of the name for a thread, including the NULL-terminator.<br><br>The default value in the Stub implementation is `16` |
-
-
-## Timing API
-
-| Properties |
-| :--- |
-| **`SB_HAS_TIME_THREAD_NOW`**<br><br>Whether this platform has an API to retrieve how long the current thread has spent in the executing state.<br><br>The default value in the Stub implementation is `1` |
 
 
 ## Tuneable Parameters

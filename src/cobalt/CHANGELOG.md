@@ -4,12 +4,13 @@ This document records all notable changes made to Cobalt since the last release.
 
 ## Version 21
 
- - **DevTools and WebDriver listen to ANY interface, except on Linux.**
+ - **DevTools and WebDriver listen to ANY interface, except on desktop PCs.**
 
    DevTools and WebDriver servers listen to connections on any network interface
-   by default, except on Linux where they listen only to loopback (localhost) by
-   default. A new "--dev_servers_listen_ip" command line parameter can be used
-   to specify a different interface for both of them to listen to.
+   by default, except on desktop PCs (i.e. Linux and Win32) where they listen
+   only to loopback (localhost) by default. A new "--dev_servers_listen_ip"
+   command line parameter can be used to specify a different interface for both
+   of them to listen to.
 
  - **DevTools shows asynchronous stack traces.**
 
@@ -207,6 +208,12 @@ This document records all notable changes made to Cobalt since the last release.
      minimum framerate causing Cobalt to rerender the display even if nothing has
      changed after the specified interval.
 
+### Version 20.lts.3
+ - **Improvements and Bug Fixes**
+
+   - Fix a bug where deep links that are fired before the WebModule is loaded
+     were ignored. Now Cobalt stores the last deep link fired before WebModule
+     is loaded & handles the deep link once the WebModule is loaded.
 
 ## Version 19
  - **Add support for V8 JavaScript Engine**

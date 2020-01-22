@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "base/logging.h"
 #include "base/message_loop/message_loop.h"
 #include "cobalt/debug/debug_client.h"
 #include "cobalt/debug/json_object.h"
@@ -48,27 +49,54 @@ class Command {
         domain_(method_, 0, method_.find('.')),
         json_params_(json_params),
         callback_(response_callback),
-        task_runner_(base::MessageLoop::current()->task_runner()) {}
+        task_runner_(base::MessageLoop::current()->task_runner()),
+        response_sent_(false) {
+    DCHECK(!method_.empty());
+    DCHECK(!domain_.empty());
+    DCHECK(!callback_.is_null());
+  }
 
-  Command(Command&) = delete;
-  Command(Command&&) = delete;
+  // Not copyable.
+  Command(const Command&) = delete;
+  Command& operator=(const Command&) = delete;
+
+  // Movable.
+  Command(Command&&) = default;
+  Command& operator=(Command&&) = default;
+
+  ~Command() {
+    // A response must be sent for all commands, except for the residual null
+    // objects that have been moved-from.
+    DCHECK(response_sent_ || is_null()) << "No response sent for " << method_;
+  }
+
+  // Returns true if this instance has been moved-from and is no longer active.
+  bool is_null() {
+    // We use the default move constructor, and rely on callback's is_null()
+    // to detect whether it has been moved-from. A DCHECK in our constructor
+    // ensures that only moved-from callbacks are null.
+    return callback_.is_null();
+  }
 
   const std::string& GetMethod() const { return method_; }
   const std::string& GetDomain() const { return domain_; }
   const std::string& GetParams() const { return json_params_; }
 
-  void SendResponse(const std::string& json_response) const {
+  void SendResponse(const std::string& json_response) {
+    DCHECK(!is_null()) << "Sending response for null Command";
+    DCHECK(!response_sent_) << "Response already sent for " << method_;
+    response_sent_ = true;
     task_runner_->PostTask(FROM_HERE, base::Bind(callback_, json_response));
   }
 
-  void SendResponse(const JSONObject& response) const {
-    SendResponse(response ? JSONStringify(response) : "{}");
+  void SendResponse(const JSONObject& response) {
+    SendResponse(JSONStringify(response));
   }
 
-  void SendResponse() const { SendResponse(JSONObject()); }
+  void SendResponse() { SendResponse(JSONObject()); }
 
   void SendErrorResponse(ErrorCode error_code,
-                         const std::string& error_message) const {
+                         const std::string& error_message) {
     JSONObject error_response(new base::DictionaryValue());
     error_response->SetInteger("error.code", error_code);
     error_response->SetString("error.message", error_message);
@@ -81,6 +109,7 @@ class Command {
   std::string json_params_;
   DebugClient::ResponseCallback callback_;
   base::SingleThreadTaskRunner* task_runner_;
+  bool response_sent_;
 };
 
 }  // namespace debug

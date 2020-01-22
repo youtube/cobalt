@@ -102,7 +102,7 @@ JSONObject OverlayAgent::Freeze() {
   return JSONObject();
 }
 
-void OverlayAgent::Enable(const Command& command) {
+void OverlayAgent::Enable(Command command) {
   if (script_loaded_) {
     enabled_ = true;
     command.SendResponse();
@@ -112,12 +112,12 @@ void OverlayAgent::Enable(const Command& command) {
   }
 }
 
-void OverlayAgent::Disable(const Command& command) {
+void OverlayAgent::Disable(Command command) {
   enabled_ = false;
   command.SendResponse();
 }
 
-void OverlayAgent::HighlightNode(const Command& command) {
+void OverlayAgent::HighlightNode(Command command) {
   if (!enabled_) {
     command.SendErrorResponse(Command::kInvalidRequest,
                               "Overlay inspector not enabled.");
@@ -146,13 +146,13 @@ void OverlayAgent::HighlightNode(const Command& command) {
   command.SendResponse();
 }
 
-void OverlayAgent::HighlightRect(const Command& command) {
+void OverlayAgent::HighlightRect(Command command) {
   JSONObject params = JSONParse(command.GetParams());
   render_layer_->SetFrontLayer(RenderHighlightRect(params.get()));
   command.SendResponse();
 }
 
-void OverlayAgent::HideHighlight(const Command& command) {
+void OverlayAgent::HideHighlight(Command command) {
   render_layer_->SetFrontLayer(scoped_refptr<render_tree::Node>());
   command.SendResponse();
 }

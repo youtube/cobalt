@@ -106,9 +106,6 @@ bool WebMCreateDecryptConfig(const uint8_t* data, int data_size,
   const uint8_t signal_byte = data[0];
   int frame_offset = sizeof(signal_byte);
 
-  // Setting the DecryptConfig object of the buffer while leaving the
-  // initialization vector empty will tell the decryptor that the frame is
-  // unencrypted.
   std::string counter_block;
   std::vector<SubsampleEntry> subsample_entries;
 
@@ -148,9 +145,14 @@ bool WebMCreateDecryptConfig(const uint8_t* data, int data_size,
     }
   }
 
-  decrypt_config->reset(new DecryptConfig(
-      std::string(reinterpret_cast<const char*>(key_id), key_id_size),
-      counter_block, subsample_entries));
+  if (counter_block.empty()) {
+    // If the frame is unencrypted the DecryptConfig object should be NULL.
+    decrypt_config->reset();
+  } else {
+    *decrypt_config = DecryptConfig::CreateCencConfig(
+        std::string(reinterpret_cast<const char*>(key_id), key_id_size),
+        counter_block, subsample_entries);
+  }
   *data_offset = frame_offset;
 
   return true;

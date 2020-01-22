@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -22,34 +22,19 @@
 namespace rx
 {
 
-DisplayGL::DisplayGL(const egl::DisplayState &state)
-    : DisplayImpl(state), mRenderer(nullptr), mCurrentDrawSurface(nullptr)
-{
-}
+DisplayGL::DisplayGL(const egl::DisplayState &state) : DisplayImpl(state) {}
 
-DisplayGL::~DisplayGL()
-{
-}
+DisplayGL::~DisplayGL() {}
 
 egl::Error DisplayGL::initialize(egl::Display *display)
 {
-    mRenderer = new RendererGL(getFunctionsGL(), display->getAttributeMap());
-
-    const gl::Version &maxVersion = mRenderer->getMaxSupportedESVersion();
-    if (maxVersion < gl::Version(2, 0))
-    {
-        return egl::Error(EGL_NOT_INITIALIZED, "OpenGL ES 2.0 is not supportable.");
-    }
-
-    return egl::Error(EGL_SUCCESS);
+    return egl::NoError();
 }
 
-void DisplayGL::terminate()
-{
-    SafeDelete(mRenderer);
-}
+void DisplayGL::terminate() {}
 
 ImageImpl *DisplayGL::createImage(const egl::ImageState &state,
+                                  const gl::Context *context,
                                   EGLenum target,
                                   const egl::AttributeMap &attribs)
 {
@@ -57,13 +42,7 @@ ImageImpl *DisplayGL::createImage(const egl::ImageState &state,
     return nullptr;
 }
 
-ContextImpl *DisplayGL::createContext(const gl::ContextState &state)
-{
-    ASSERT(mRenderer != nullptr);
-    return new ContextGL(state, mRenderer);
-}
-
-StreamProducerImpl *DisplayGL::createStreamProducerD3DTextureNV12(
+StreamProducerImpl *DisplayGL::createStreamProducerD3DTexture(
     egl::Stream::ConsumerType consumerType,
     const egl::AttributeMap &attribs)
 {
@@ -71,42 +50,38 @@ StreamProducerImpl *DisplayGL::createStreamProducerD3DTextureNV12(
     return nullptr;
 }
 
-egl::Error DisplayGL::makeCurrent(egl::Surface *drawSurface, egl::Surface *readSurface, gl::Context *context)
+egl::Error DisplayGL::makeCurrent(egl::Surface *drawSurface,
+                                  egl::Surface *readSurface,
+                                  gl::Context *context)
 {
-    // Notify the previous surface (if it still exists) that it is no longer current
-    if (mCurrentDrawSurface &&
-        mState.surfaceSet.find(mCurrentDrawSurface) != mState.surfaceSet.end())
-    {
-        ANGLE_TRY(GetImplAs<SurfaceGL>(mCurrentDrawSurface)->unMakeCurrent());
-    }
-    mCurrentDrawSurface = nullptr;
-
     if (!context)
     {
-        return egl::Error(EGL_SUCCESS);
+        return egl::NoError();
     }
 
     // Pause transform feedback before making a new surface current, to workaround anglebug.com/1426
     ContextGL *glContext = GetImplAs<ContextGL>(context);
     glContext->getStateManager()->pauseTransformFeedback();
 
-    if (drawSurface != nullptr)
+    if (drawSurface == nullptr)
     {
-        SurfaceGL *glDrawSurface = GetImplAs<SurfaceGL>(drawSurface);
-        ANGLE_TRY(glDrawSurface->makeCurrent());
-        mCurrentDrawSurface = drawSurface;
-        return egl::Error(EGL_SUCCESS);
+        ANGLE_TRY(makeCurrentSurfaceless(context));
     }
-    else
-    {
-        return makeCurrentSurfaceless(context);
-    }
+
+    return egl::NoError();
 }
 
-gl::Version DisplayGL::getMaxSupportedESVersion() const
+gl::Version DisplayGL::getMaxConformantESVersion() const
 {
-    ASSERT(mRenderer != nullptr);
-    return mRenderer->getMaxSupportedESVersion();
+    // 3.1 support is in progress.
+    return std::min(getMaxSupportedESVersion(), gl::Version(3, 0));
+}
+
+void DisplayGL::generateExtensions(egl::DisplayExtensions *outExtensions) const
+{
+    // Advertise robust resource initialization on all OpenGL backends for testing even though it is
+    // not fully implemented.
+    outExtensions->robustResourceInitialization = true;
 }
 
 egl::Error DisplayGL::makeCurrentSurfaceless(gl::Context *context)
@@ -114,4 +89,4 @@ egl::Error DisplayGL::makeCurrentSurfaceless(gl::Context *context)
     UNIMPLEMENTED();
     return egl::NoError();
 }
-}
+}  // namespace rx

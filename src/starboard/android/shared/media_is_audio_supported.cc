@@ -17,6 +17,7 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/configuration.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/media.h"
 
 using starboard::android::shared::JniEnvExt;
@@ -26,7 +27,7 @@ using starboard::android::shared::SupportedAudioCodecToMimeType;
 bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec, int64_t bitrate) {
   // Android now uses libopus based opus decoder.
   if (audio_codec == kSbMediaAudioCodecOpus &&
-      bitrate < SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND) {
+      bitrate < kSbMediaMaxAudioBitrateInBitsPerSecond) {
     return true;
   }
   const char* mime = SupportedAudioCodecToMimeType(audio_codec);

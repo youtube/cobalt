@@ -98,6 +98,7 @@ class ReplacedBox : public Box {
   // https://www.w3.org/TR/CSS21/visudet.html#block-replaced-width and
   // https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width.
   virtual void UpdateHorizontalMargins(
+      BaseDirection containing_block_direction,
       LayoutUnit containing_block_width, LayoutUnit border_box_width,
       const base::Optional<LayoutUnit>& maybe_margin_left,
       const base::Optional<LayoutUnit>& maybe_margin_right) = 0;

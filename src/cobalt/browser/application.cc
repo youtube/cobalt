@@ -66,6 +66,7 @@
 #include "cobalt/system_window/input_event.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 #include "starboard/configuration.h"
+#include "starboard/system.h"
 #include "url/gurl.h"
 
 using cobalt::cssom::ViewportSize;
@@ -96,7 +97,13 @@ std::string GetDevServersListenIp() {
 #else
   ip_v6 = false;
 #endif
+  // Default to INADDR_ANY
   std::string listen_ip(ip_v6 ? "::" : "0.0.0.0");
+
+  // Desktop PCs default to loopback.
+  if (SbSystemGetDeviceType() == kSbSystemDeviceTypeDesktopPC) {
+    listen_ip = ip_v6 ? "::1" : "127.0.0.1";
+  }
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
@@ -687,8 +694,8 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
                                         : base::kApplicationStateStarted),
                         &event_dispatcher_, account_manager_.get(), options));
 #if SB_IS(EVERGREEN)
-  updater_module_.reset(new updater::UpdaterModule(
-      message_loop_, browser_module_->GetNetworkModule()));
+  updater_module_.reset(
+      new updater::UpdaterModule(browser_module_->GetNetworkModule()));
 #endif
   UpdateUserAgent();
 
@@ -791,11 +798,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
         base::TimeDelta::FromSeconds(duration_in_seconds));
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
-
-#if SB_IS(EVERGREEN)
-  // Run the first update check after the application is started.
-  updater_module_->Update();
-#endif
 }
 
 Application::~Application() {

@@ -59,9 +59,9 @@ JSONObject ConsoleAgent::Freeze() {
   return JSONObject();
 }
 
-void ConsoleAgent::Disable(const Command& command) { command.SendResponse(); }
+void ConsoleAgent::Disable(Command command) { command.SendResponse(); }
 
-void ConsoleAgent::Enable(const Command& command) { command.SendResponse(); }
+void ConsoleAgent::Enable(Command command) { command.SendResponse(); }
 
 void ConsoleAgent::OnMessageAdded(const std::string& text,
                                   dom::Console::Level level) {

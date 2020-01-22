@@ -21,6 +21,7 @@
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
@@ -51,16 +52,16 @@ using video_dmp::VideoDmpReader;
 const SbTimeMonotonic kWaitForNextEventTimeOut = 5 * kSbTimeSecond;
 
 std::string GetTestInputDirectory() {
-  const size_t kPathSize = SB_FILE_MAX_PATH + 1;
+  const size_t kPathSize = kSbFileMaxPath + 1;
 
-  char content_path[kPathSize];
-  SB_CHECK(SbSystemGetPath(kSbSystemPathContentDirectory, content_path,
+  std::vector<char> content_path(kPathSize);
+  SB_CHECK(SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),
                            kPathSize));
   std::string directory_path =
-      std::string(content_path) + SB_FILE_SEP_CHAR + "test" +
-      SB_FILE_SEP_CHAR + "starboard" + SB_FILE_SEP_CHAR + "shared" +
-      SB_FILE_SEP_CHAR + "starboard" + SB_FILE_SEP_CHAR + "player" +
-      SB_FILE_SEP_CHAR + "testdata";
+      std::string(content_path.data()) + kSbFileSepChar + "test" +
+      kSbFileSepChar + "starboard" + kSbFileSepChar + "shared" +
+      kSbFileSepChar + "starboard" + kSbFileSepChar + "player" +
+      kSbFileSepChar + "testdata";
 
   SB_CHECK(SbDirectoryCanOpen(directory_path.c_str()))
       << "Cannot open directory " << directory_path;
@@ -76,7 +77,7 @@ void DeallocateSampleFunc(SbPlayer player,
 }
 
 std::string ResolveTestFileName(const char* filename) {
-  return GetTestInputDirectory() + SB_FILE_SEP_CHAR + filename;
+  return GetTestInputDirectory() + kSbFileSepChar + filename;
 }
 
 class AudioDecoderTest
@@ -95,8 +96,6 @@ class AudioDecoderTest
 
     CreateComponents(dmp_reader_.audio_codec(), dmp_reader_.audio_sample_info(),
                      &audio_decoder_, &audio_renderer_sink_);
-    ASSERT_TRUE(audio_decoder_);
-    ASSERT_TRUE(audio_renderer_sink_);
   }
 
  protected:
@@ -122,8 +121,10 @@ class AudioDecoderTest
     } else {
       components = PlayerComponents::Create();
     }
+    std::string error_message;
     components->CreateAudioComponents(audio_parameters, audio_decoder,
-                                      audio_renderer_sink);
+                                      audio_renderer_sink, &error_message);
+
     if (*audio_decoder) {
       (*audio_decoder)
           ->Initialize(std::bind(&AudioDecoderTest::OnOutput, this),
@@ -689,10 +690,13 @@ TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
 #endif  // SB_API_VERSION >= 11
 
 std::vector<const char*> GetSupportedTests() {
-  const char* kFilenames[] = {
-      "beneath_the_canopy_aac_5_1.dmp", "beneath_the_canopy_aac_stereo.dmp",
-      "beneath_the_canopy_opus_5_1.dmp", "beneath_the_canopy_opus_stereo.dmp",
-      "heaac.dmp"};
+  const char* kFilenames[] = {"beneath_the_canopy_aac_5_1.dmp",
+                              "beneath_the_canopy_aac_stereo.dmp",
+                              "beneath_the_canopy_opus_5_1.dmp",
+                              "beneath_the_canopy_opus_stereo.dmp",
+                              "heaac.dmp",
+                              "sintel_329_ec3.dmp",
+                              "sintel_381_ac3.dmp"};
 
   static std::vector<const char*> test_params;
 

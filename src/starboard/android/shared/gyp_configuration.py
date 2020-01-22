@@ -281,6 +281,32 @@ class AndroidConfiguration(PlatformConfiguration):
   # A map of failing or crashing tests per target.
   __FILTERED_TESTS = {  # pylint: disable=invalid-name
       'player_filter_tests': [
+          # Filter flaky failed tests temporarily.
+          'VideoDecoderTests/VideoDecoderTest.SingleInput/0',
+          'VideoDecoderTests/VideoDecoderTest.SingleInput/2',
+          'VideoDecoderTests/VideoDecoderTest.SingleInput/4',
+          'VideoDecoderTests/VideoDecoderTest.SingleInput/6',
+          'VideoDecoderTests/VideoDecoderTest.ResetBeforeInput/0',
+          'VideoDecoderTests/VideoDecoderTest.ResetBeforeInput/2',
+          'VideoDecoderTests/VideoDecoderTest.ResetBeforeInput/4',
+          'VideoDecoderTests/VideoDecoderTest.ResetBeforeInput/6',
+          'VideoDecoderTests/VideoDecoderTest.MultipleResets/0',
+          'VideoDecoderTests/VideoDecoderTest.MultipleResets/2',
+          'VideoDecoderTests/VideoDecoderTest.MultipleResets/4',
+          'VideoDecoderTests/VideoDecoderTest.MultipleResets/6',
+          'VideoDecoderTests/VideoDecoderTest.MultipleInputs/0',
+          'VideoDecoderTests/VideoDecoderTest.MultipleInputs/2',
+          'VideoDecoderTests/VideoDecoderTest.MultipleInputs/4',
+          'VideoDecoderTests/VideoDecoderTest.MultipleInputs/6',
+          'VideoDecoderTests/VideoDecoderTest.Preroll/0',
+          'VideoDecoderTests/VideoDecoderTest.Preroll/2',
+          'VideoDecoderTests/VideoDecoderTest.Preroll/4',
+          'VideoDecoderTests/VideoDecoderTest.Preroll/6',
+          'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/0',
+          'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/2',
+          'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/4',
+          'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/6',
+
           # GetMaxNumberOfCachedFrames() on Android is device dependent,
           # and Android doesn't provide an API to get it. So, this function
           # doesn't make sense on Android. But HoldFramesUntilFull tests depend

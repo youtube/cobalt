@@ -43,8 +43,8 @@ class CSSAgent : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(CSSAgent);
 
  private:
-  void Enable(const Command& command);
-  void Disable(const Command& command);
+  void Enable(Command command);
+  void Disable(Command command);
 
   // Helper object to connect to the debug dispatcher, etc.
   DebugDispatcher* dispatcher_;

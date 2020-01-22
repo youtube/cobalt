@@ -150,6 +150,11 @@ StarboardPlayer::StarboardPlayer(
   DCHECK(set_bounds_helper_);
   DCHECK(video_frame_provider_);
 
+#if SB_API_VERSION >= 11
+  audio_sample_info_.codec = kSbMediaAudioCodecNone;
+  video_sample_info_.codec = kSbMediaVideoCodecNone;
+#endif  // SB_API_VERSION >= 11
+
   if (audio_config.IsValidConfig()) {
     UpdateAudioConfig(audio_config);
   }
@@ -157,9 +162,7 @@ StarboardPlayer::StarboardPlayer(
     UpdateVideoConfig(video_config);
   }
 
-  output_mode_ = ComputeSbPlayerOutputMode(
-      MediaVideoCodecToSbMediaVideoCodec(video_config.codec()), drm_system,
-      prefer_decode_to_texture);
+  output_mode_ = ComputeSbPlayerOutputMode(prefer_decode_to_texture);
 
   CreatePlayer();
 
@@ -935,24 +938,39 @@ SbPlayerOutputMode StarboardPlayer::ComputeSbUrlPlayerOutputMode(
 
 // static
 SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
-    SbMediaVideoCodec codec, SbDrmSystem drm_system,
-    bool prefer_decode_to_texture) {
-  // Try to choose the output mode according to the passed in value of
-  // |prefer_decode_to_texture|.  If the preferred output mode is unavailable
-  // though, fallback to an output mode that is available.
-  SbPlayerOutputMode output_mode = kSbPlayerOutputModeInvalid;
-  if (SbPlayerOutputModeSupported(kSbPlayerOutputModePunchOut, codec,
-                                  drm_system)) {
-    output_mode = kSbPlayerOutputModePunchOut;
-  }
-  if ((prefer_decode_to_texture || output_mode == kSbPlayerOutputModeInvalid) &&
-      SbPlayerOutputModeSupported(kSbPlayerOutputModeDecodeToTexture, codec,
-                                  drm_system)) {
-    output_mode = kSbPlayerOutputModeDecodeToTexture;
-  }
-  CHECK_NE(kSbPlayerOutputModeInvalid, output_mode);
+    bool prefer_decode_to_texture) const {
+  SbMediaVideoCodec video_codec = kSbMediaVideoCodecNone;
 
+#if SB_API_VERSION >= 11
+  video_codec = video_sample_info_.codec;
+#else   // SB_API_VERSION >= 11
+  video_codec = MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
+#endif  // SB_API_VERSION >= 11
+
+  // Try to choose |kSbPlayerOutputModeDecodeToTexture| when
+  // |prefer_decode_to_texture| is true.
+  if (prefer_decode_to_texture) {
+    if (SbPlayerOutputModeSupported(kSbPlayerOutputModeDecodeToTexture,
+                                    video_codec, drm_system_)) {
+      return kSbPlayerOutputModeDecodeToTexture;
+    }
+  }
+
+#if SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
+  auto output_mode = SbPlayerGetPreferredOutputMode(
+      &audio_sample_info_, &video_sample_info_, drm_system_,
+      max_video_capabilities_.c_str());
+  CHECK_NE(kSbPlayerOutputModeInvalid, output_mode);
   return output_mode;
+#else   // SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
+  if (SbPlayerOutputModeSupported(kSbPlayerOutputModePunchOut, video_codec,
+                                  drm_system_)) {
+    return kSbPlayerOutputModePunchOut;
+  }
+  CHECK(SbPlayerOutputModeSupported(kSbPlayerOutputModeDecodeToTexture,
+                                    video_codec, drm_system_));
+  return kSbPlayerOutputModeDecodeToTexture;
+#endif  // SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
 }
 
 }  // namespace media

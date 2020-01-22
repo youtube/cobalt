@@ -226,9 +226,12 @@ scoped_refptr<StreamParserBuffer> StreamParserBuffer::Clone() const {
   clone->set_splice_timestamp(splice_timestamp());
   const DecryptConfig* decrypt_config = this->decrypt_config();
   if (decrypt_config) {
-    clone->set_decrypt_config(std::unique_ptr<DecryptConfig>(
-        new DecryptConfig(decrypt_config->key_id(), decrypt_config->iv(),
-                          decrypt_config->subsamples())));
+    clone->set_decrypt_config(
+        std::make_unique<DecryptConfig>(
+          decrypt_config->encryption_mode(),
+                          decrypt_config->key_id(), decrypt_config->iv(),
+                          decrypt_config->subsamples(),
+                          decrypt_config->encryption_pattern()));
   }
 
   return clone;

@@ -16,9 +16,11 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <vector>
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/shared/nouser/user_internal.h"
 
 namespace starboard {
@@ -38,20 +40,18 @@ bool GetHomeDirectory(SbUser user, char* out_path, int path_size) {
 
   SB_DLOG(WARNING) << "No HOME environment variable.";
   struct passwd passwd;
-  const size_t kBufferSize = SB_FILE_MAX_PATH * 4;
-  char* buffer = new char[kBufferSize];
+  const size_t kBufferSize = kSbFileMaxPath * 4;
+  std::vector<char> buffer(kBufferSize);
   struct passwd* pw_result = NULL;
   int result =
-      getpwuid_r(getuid(), &passwd, buffer, kBufferSize, &pw_result);
+      getpwuid_r(getuid(), &passwd, buffer.data(), kBufferSize, &pw_result);
   if (result != 0) {
     SB_DLOG(ERROR) << "getpwuid_r failed for uid " << getuid() << ": result = "
                    << result;
-    delete[] buffer;
     return false;
   }
 
   SbStringCopy(out_path, passwd.pw_dir, path_size);
-  delete[] buffer;
   return true;
 }
 

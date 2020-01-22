@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -18,22 +18,22 @@ namespace rx
 class DeviceD3D : public DeviceImpl
 {
   public:
-    DeviceD3D();
+    DeviceD3D(EGLint deviceType, void *nativeDevice);
     ~DeviceD3D() override;
 
-    egl::Error initialize(void *device, EGLint deviceType, EGLBoolean external);
-    egl::Error getDevice(void **outValue) override;
+    egl::Error initialize() override;
+    egl::Error getAttribute(const egl::Display *display,
+                            EGLint attribute,
+                            void **outValue) override;
     EGLint getType() override;
     void generateExtensions(egl::DeviceExtensions *outExtensions) const override;
-    bool deviceExternallySourced() override { return mDeviceExternallySourced; }
 
   private:
     void *mDevice;
     EGLint mDeviceType;
-    bool mDeviceExternallySourced;
     bool mIsInitialized;
 };
 
-}
+}  // namespace rx
 
-#endif // LIBANGLE_RENDERER_D3D_DEVICED3D_H_
+#endif  // LIBANGLE_RENDERER_D3D_DEVICED3D_H_

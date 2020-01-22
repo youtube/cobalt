@@ -383,10 +383,13 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 //   be |kSbMediaAudioCodecNone|. In addition, the caller must provide a
 //   populated |audio_sample_info| if the audio codec is
 //   |kSbMediaAudioCodecAac|.
-#if SB_HAS(AUDIOLESS_VIDEO)
-//   This can be set to |kSbMediaAudioCodecNone| to play a video without any
-//   audio track.  In such case |audio_sample_info| must be NULL.
-#endif  // SB_HAS(AUDIOLESS_VIDEO)
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
+    SB_HAS(AUDIOLESS_VIDEO)
+//   If |kSbHasAudiolessVideo| is |true| or SB_HAS(AUDIOLESS_VIDEO), this can
+//   be set to |kSbMediaAudioCodecNone| to play a video without any audio
+//   track.  In such case |audio_sample_info| must be NULL.
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+        // SB_HAS(AUDIOLESS_VIDEO)
 //
 #if SB_API_VERSION < 10
 // |duration_pts|: The expected media duration in 90KHz ticks (PTS). It may be
@@ -421,9 +424,12 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 //   adapt to resolution higher than 1920x1080 or frame per second higher than
 //   15 fps. When the maximums are unknown, this will be set to NULL.
 #endif  // SB_API_VERSION >= 11
-#if SB_HAS(AUDIOLESS_VIDEO)
-//   When |audio_codec| is |kSbMediaAudioCodecNone|, this must be set to NULL.
-#endif  // SB_HAS(AUDIOLESS_VIDEO)
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
+    SB_HAS(AUDIOLESS_VIDEO)
+//   If |kSbHasAudiolessVideo| is |true| or SB_HAS(AUDIOLESS_VIDEO), when
+//   |audio_codec| is |kSbMediaAudioCodecNone|, this must be set to NULL.
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+        // SB_HAS(AUDIOLESS_VIDEO)
 //
 // |sample_deallocator_func|: If not |NULL|, the player calls this function
 //   on an internal thread to free the sample buffers passed into
@@ -498,6 +504,36 @@ SbPlayerCreate(SbWindow window,
 SB_EXPORT bool SbPlayerOutputModeSupported(SbPlayerOutputMode output_mode,
                                            SbMediaVideoCodec codec,
                                            SbDrmSystem drm_system);
+
+#if SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
+// Returns the preferred output mode of the platform when a video described by
+// the parameters is played.
+// If the returned output mode is not |kSbPlayerOutputModeInvalid|, it is
+// implied that calling SbPlayerOutputModeSupported() with the returned output
+// will return true.
+// |audio_sample_info|: The caller must provide a populated |audio_sample_info|
+//   if its |codec| member isn't |kSbMediaAudioCodecNone|.  When the video
+//   doesn't contain an audio track, |codec| contained in |audio_sample_info|
+//   will be |kSbMediaAudioCodecNone|.  In either case, |audio_sample_info| will
+//   not be NULL.  See media.h for the format of the |SbMediaAudioSampleInfo|
+//   struct.
+// |video_sample_info|: The caller must provide a populated |video_sample_info|
+//   if its |codec| member isn't |kSbMediaVideoCodecNone|.  When the video
+//   doesn't contain a video track, |codec| contained in |video_sample_info|
+//   will be |kSbMediaVideoCodecNone|.  In either case, |video_sample_info| will
+//   not be NULL.  See media.h for the format of the |SbMediaVideoSampleInfo|
+//   struct.
+// |max_video_capabilities| points to the max video capabilities associated with
+//   the video if there is any.  It points to an empty string when there is no
+//   max video capabilities associated with the video.  It will never be NULL.
+// When any input parameters are invalid, the function should return
+// |kSbPlayerOutputModeInvalid|, for example, when |audio_sample_info| is NULL.
+SB_EXPORT SbPlayerOutputMode
+SbPlayerGetPreferredOutputMode(const SbMediaAudioSampleInfo* audio_sample_info,
+                               const SbMediaVideoSampleInfo* video_sample_info,
+                               SbDrmSystem drm_system,
+                               const char* max_video_capabilities);
+#endif  // SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
 
 // Destroys |player|, freeing all associated resources. Each callback must
 // receive one more callback to say that the player was destroyed. Callbacks

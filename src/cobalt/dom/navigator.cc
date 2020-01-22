@@ -15,6 +15,7 @@
 #include "cobalt/dom/navigator.h"
 
 #include <memory>
+#include <vector>
 
 #include "base/optional.h"
 #include "cobalt/dom/captions/system_caption_settings.h"
@@ -24,6 +25,7 @@
 #include "cobalt/media_capture/media_devices.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/script/script_value_factory.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/media.h"
 
@@ -54,15 +56,16 @@ Navigator::Navigator(
 const std::string& Navigator::language() const { return language_; }
 
 base::Optional<std::string> GetFilenameForLicenses() {
-  char buffer[SB_FILE_MAX_PATH + 1] = {0};
-  bool got_path = SbSystemGetPath(kSbSystemPathContentDirectory, buffer,
-                                  SB_ARRAY_SIZE_INT(buffer));
+  const size_t kBufferSize = kSbFileMaxPath + 1;
+  std::vector<char> buffer(kBufferSize, 0);
+  bool got_path = SbSystemGetPath(kSbSystemPathContentDirectory, buffer.data(),
+                                  static_cast<int>(kBufferSize));
   if (!got_path) {
     SB_DLOG(ERROR) << "Cannot get content path for licenses files.";
     return base::Optional<std::string>();
   }
 
-  return std::string(buffer).append(kLicensesRelativePath);
+  return std::string(buffer.data()).append(kLicensesRelativePath);
 }
 
 const std::string Navigator::licenses() const {

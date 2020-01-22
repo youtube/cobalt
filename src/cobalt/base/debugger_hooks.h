@@ -16,6 +16,8 @@
 
 #include <string>
 
+#include "base/logging.h"
+
 namespace base {
 
 // Interface to allow the WebModule and the various objects implementing the
@@ -23,12 +25,22 @@ namespace base {
 // directly access the DebugModule.
 class DebuggerHooks {
  public:
+  DebuggerHooks() = default;
+  DebuggerHooks(const DebuggerHooks&) = delete;
+  DebuggerHooks* operator=(const DebuggerHooks&) = delete;
+  DebuggerHooks(DebuggerHooks&&) = delete;
+  DebuggerHooks* operator=(DebuggerHooks&&) = delete;
+
   // Indicates whether an asynchronous task will run at most once or if it might
   // run multiple times.
   enum class AsyncTaskFrequency {
     kOneshot,
     kRecurring,
   };
+
+  // Logs a message to the JavaScript console.
+  virtual void ConsoleLog(::logging::LogSeverity severity,
+                          std::string message) const = 0;
 
   // Record the JavaScript stack on the WebModule thread at the point a task is
   // initiated that will run at a later time (on the same thread), allowing it
@@ -61,20 +73,22 @@ class DebuggerHooks {
 // Helper to start & finish async tasks using RAII.
 class ScopedAsyncTask {
  public:
-  ScopedAsyncTask(DebuggerHooks* debugger_hooks, const void* task)
+  ScopedAsyncTask(const DebuggerHooks& debugger_hooks, const void* task)
       : debugger_hooks_(debugger_hooks), task_(task) {
-    debugger_hooks_->AsyncTaskStarted(task_);
+    debugger_hooks_.AsyncTaskStarted(task_);
   }
-  ~ScopedAsyncTask() { debugger_hooks_->AsyncTaskFinished(task_); }
+  ~ScopedAsyncTask() { debugger_hooks_.AsyncTaskFinished(task_); }
 
  private:
-  DebuggerHooks* debugger_hooks_;
+  const DebuggerHooks& debugger_hooks_;
   const void* const task_;
 };
 
 // Null implementation for gold builds and tests where there is no debugger.
 class NullDebuggerHooks : public DebuggerHooks {
  public:
+  void ConsoleLog(::logging::LogSeverity severity,
+                  std::string message) const override {}
   void AsyncTaskScheduled(const void* task, const std::string& name,
                           AsyncTaskFrequency frequency) const override {}
   void AsyncTaskStarted(const void* task) const override {}

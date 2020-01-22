@@ -22,6 +22,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/string.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/memory.h"
 #include "starboard/once.h"
 #include "starboard/shared/starboard/application.h"
@@ -89,12 +90,13 @@ class Registry {
 SB_ONCE_INITIALIZE_FUNCTION(Registry, GetRegistry);
 
 std::string GetWidevineStoragePath() {
-  char path[SB_FILE_MAX_PATH + 1] = {0};
-  auto path_size = SB_ARRAY_SIZE_INT(path);
-  SB_CHECK(SbSystemGetPath(kSbSystemPathCacheDirectory, path, path_size) &&
-           SbStringConcat(path, SB_FILE_SEP_STRING, path_size) &&
-           SbStringConcat(path, kWidevineStorageFileName, path_size));
-  return path;
+  std::vector<char> path(kSbFileMaxPath + 1, 0);
+  auto path_size = path.size();
+  SB_CHECK(
+      SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(), path_size) &&
+      SbStringConcat(path.data(), kSbFileSepString, path_size) &&
+      SbStringConcat(path.data(), kWidevineStorageFileName, path_size));
+  return std::string(path.data());
 }
 
 // Converts |::widevine::Cdm::KeyStatus| to starboard's |SbDrmKeyStatus|
@@ -423,6 +425,12 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
   input.iv_length = static_cast<uint32_t>(initialization_vector.size());
   input.is_video = (buffer->sample_type() == kSbMediaTypeVideo);
 
+#if SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
+  input.pattern.encrypted_blocks =
+      drm_info->encryption_pattern.crypt_byte_block;
+  input.pattern.clear_blocks = drm_info->encryption_pattern.skip_byte_block;
+#endif  // SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
+
   std::vector<uint8_t> output_data(buffer->size());
   wv3cdm::OutputBuffer output;
   output.data = output_data.data();
@@ -463,6 +471,13 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
     if (subsample.encrypted_byte_count) {
       input.last_subsample = i + 1 == buffer->drm_info()->subsample_count;
       input.encryption_scheme = wv3cdm::EncryptionScheme::kAesCtr;
+#if SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
+      if (drm_info->encryption_scheme == kSbDrmEncryptionSchemeAesCbc) {
+        input.encryption_scheme = wv3cdm::EncryptionScheme::kAesCbc;
+      } else {
+        SB_DCHECK(drm_info->encryption_scheme == kSbDrmEncryptionSchemeAesCtr);
+      }
+#endif  // SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
       input.data_length = subsample.encrypted_byte_count;
 
       wv3cdm::Status status = cdm_->decrypt(input, output);

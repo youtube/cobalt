@@ -19,6 +19,7 @@
 
 #include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/thread.h"
 
@@ -52,8 +53,8 @@ class TLSKeyManager {
   void ShutdownTLSForThread();
 
  private:
-  // We add 1 to SB_MAX_THREADS here to account for the main thread.
-  static const int kMaxThreads = SB_MAX_THREADS + 1;
+  // We add 1 to kSbMaxThreads here to account for the main thread.
+  static const int kMaxThreads = kSbMaxThreads + 1;
   struct KeyRecord {
     bool valid;
     SbThreadLocalDestructor destructor;

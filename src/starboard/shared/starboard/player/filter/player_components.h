@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_PLAYER_COMPONENTS_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_PLAYER_COMPONENTS_H_
 
+#include <string>
+
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/decode_target.h"
@@ -63,11 +65,13 @@ class PlayerComponents {
   static scoped_ptr<PlayerComponents> Create();
 
   scoped_ptr<AudioRenderer> CreateAudioRenderer(
-      const AudioParameters& audio_parameters);
+      const AudioParameters& audio_parameters,
+      std::string* error_message);
 
   scoped_ptr<VideoRenderer> CreateVideoRenderer(
       const VideoParameters& video_parameters,
-      MediaTimeProvider* media_time_provider);
+      MediaTimeProvider* media_time_provider,
+      std::string* error_message);
 
 #if COBALT_BUILD_TYPE_GOLD
  private:
@@ -75,16 +79,18 @@ class PlayerComponents {
   // Note that the following functions are exposed in non-Gold build to allow
   // unit tests to run.
 
-  virtual void CreateAudioComponents(
+  virtual bool CreateAudioComponents(
       const AudioParameters& audio_parameters,
       scoped_ptr<AudioDecoder>* audio_decoder,
-      scoped_ptr<AudioRendererSink>* audio_renderer_sink) = 0;
+      scoped_ptr<AudioRendererSink>* audio_renderer_sink,
+      std::string* error_message) = 0;
 
-  virtual void CreateVideoComponents(
+  virtual bool CreateVideoComponents(
       const VideoParameters& video_parameters,
       scoped_ptr<VideoDecoder>* video_decoder,
       scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
-      scoped_refptr<VideoRendererSink>* video_renderer_sink) = 0;
+      scoped_refptr<VideoRendererSink>* video_renderer_sink,
+      std::string* error_message) = 0;
 
   // Check AudioRenderer ctor for more details on the parameters.
   virtual void GetAudioRendererParams(int* max_cached_frames,

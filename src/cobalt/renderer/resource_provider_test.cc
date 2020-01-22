@@ -136,10 +136,12 @@ class ResourceProviderTest : public testing::Test {
   ResourceProviderTest();
   ~ResourceProviderTest();
 
+  static void SetUpTestCase();
+  static void TearDownTestCase();
+
   // Lets the fixture know that it will run the run loop manually, and the
   // ResourceProviderTest destructor does not need to run it.
   void SetWillRunRunLoopManually() { run_run_loop_manually_ = true; }
-
 
   void Quit() {
     message_loop_.task_runner()->PostTask(FROM_HERE, run_loop_.QuitClosure());
@@ -148,23 +150,21 @@ class ResourceProviderTest : public testing::Test {
  protected:
   base::MessageLoop message_loop_;
   base::RunLoop run_loop_;
-  std::unique_ptr<backend::GraphicsSystem> graphics_system_;
-  std::unique_ptr<backend::GraphicsContext> graphics_context_;
   std::unique_ptr<rasterizer::Rasterizer> rasterizer_;
 
   bool run_run_loop_manually_;
+
+  static backend::GraphicsSystem* graphics_system_;
+  static backend::GraphicsContext* graphics_context_;
 };
 
 ResourceProviderTest::ResourceProviderTest()
     : message_loop_(base::MessageLoop::TYPE_DEFAULT),
       run_run_loop_manually_(false) {
-  graphics_system_ = backend::CreateDefaultGraphicsSystem();
-  graphics_context_ = graphics_system_->CreateGraphicsContext();
-
   // Create the rasterizer using the platform default RenderModule options.
   RendererModule::Options render_module_options;
   rasterizer_ = render_module_options.create_rasterizer_function.Run(
-      graphics_context_.get(), render_module_options);
+      graphics_context_, render_module_options);
 }
 
 ResourceProviderTest::~ResourceProviderTest() {
@@ -172,6 +172,25 @@ ResourceProviderTest::~ResourceProviderTest() {
     message_loop_.task_runner()->PostTask(FROM_HERE, run_loop_.QuitClosure());
     run_loop_.Run();
   }
+}
+
+// static
+backend::GraphicsSystem* ResourceProviderTest::graphics_system_ = nullptr;
+// static
+backend::GraphicsContext* ResourceProviderTest::graphics_context_ = nullptr;
+
+// static
+void ResourceProviderTest::SetUpTestCase() {
+  graphics_system_ = backend::CreateDefaultGraphicsSystem().release();
+  graphics_context_ = graphics_system_->CreateGraphicsContext().release();
+}
+
+// static
+void ResourceProviderTest::TearDownTestCase() {
+  delete graphics_context_;
+  graphics_context_ = nullptr;
+  delete graphics_system_;
+  graphics_system_ = nullptr;
 }
 
 // The following test ensures that any thread can successfully create render

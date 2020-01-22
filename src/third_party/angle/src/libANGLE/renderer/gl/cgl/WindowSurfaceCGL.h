@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -17,7 +17,8 @@ typedef _CGLContextObject *CGLContextObj;
 struct __IOSurface;
 typedef __IOSurface *IOSurfaceRef;
 
-@class SwapLayer;
+// WebKit's build process requires that every Objective-C class name has the prefix "Web".
+@class WebSwapLayer;
 
 namespace rx
 {
@@ -25,8 +26,8 @@ namespace rx
 class DisplayCGL;
 class FramebufferGL;
 class FunctionsGL;
+class RendererGL;
 class StateManagerGL;
-struct WorkaroundsGL;
 
 struct SharedSwapState
 {
@@ -57,18 +58,23 @@ class WindowSurfaceCGL : public SurfaceGL
     WindowSurfaceCGL(const egl::SurfaceState &state,
                      RendererGL *renderer,
                      EGLNativeWindowType layer,
-                     const FunctionsGL *functions,
                      CGLContextObj context);
     ~WindowSurfaceCGL() override;
 
-    egl::Error initialize(const DisplayImpl *displayImpl) override;
-    egl::Error makeCurrent() override;
+    egl::Error initialize(const egl::Display *display) override;
+    egl::Error makeCurrent(const gl::Context *context) override;
 
-    egl::Error swap(const DisplayImpl *displayImpl) override;
-    egl::Error postSubBuffer(EGLint x, EGLint y, EGLint width, EGLint height) override;
+    egl::Error swap(const gl::Context *context) override;
+    egl::Error postSubBuffer(const gl::Context *context,
+                             EGLint x,
+                             EGLint y,
+                             EGLint width,
+                             EGLint height) override;
     egl::Error querySurfacePointerANGLE(EGLint attribute, void **value) override;
-    egl::Error bindTexImage(gl::Texture *texture, EGLint buffer) override;
-    egl::Error releaseTexImage(EGLint buffer) override;
+    egl::Error bindTexImage(const gl::Context *context,
+                            gl::Texture *texture,
+                            EGLint buffer) override;
+    egl::Error releaseTexImage(const gl::Context *context, EGLint buffer) override;
     void setSwapInterval(EGLint interval) override;
 
     EGLint getWidth() const override;
@@ -77,10 +83,11 @@ class WindowSurfaceCGL : public SurfaceGL
     EGLint isPostSubBufferSupported() const override;
     EGLint getSwapBehavior() const override;
 
-    FramebufferImpl *createDefaultFramebuffer(const gl::FramebufferState &state) override;
+    FramebufferImpl *createDefaultFramebuffer(const gl::Context *context,
+                                              const gl::FramebufferState &state) override;
 
   private:
-    SwapLayer *mSwapLayer;
+    WebSwapLayer *mSwapLayer;
     SharedSwapState mSwapState;
     uint64_t mCurrentSwapId;
 
@@ -88,13 +95,10 @@ class WindowSurfaceCGL : public SurfaceGL
     CGLContextObj mContext;
     const FunctionsGL *mFunctions;
     StateManagerGL *mStateManager;
-    RendererGL *mRenderer;
-    const WorkaroundsGL &mWorkarounds;
 
-    GLuint mFramebuffer;
     GLuint mDSRenderbuffer;
 };
 
 }  // namespace rx
 
-#endif // LIBANGLE_RENDERER_GL_CGL_WINDOWSURFACECGL_H_
+#endif  // LIBANGLE_RENDERER_GL_CGL_WINDOWSURFACECGL_H_

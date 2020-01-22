@@ -56,7 +56,7 @@ JSONObject RuntimeAgent::Freeze() {
   return JSONObject();
 }
 
-void RuntimeAgent::Enable(const Command& command) {
+void RuntimeAgent::Enable(Command command) {
   if (!script_loaded_) {
     command.SendErrorResponse(Command::kInternalError,
                               "Cannot create Runtime inspector.");
@@ -76,9 +76,9 @@ void RuntimeAgent::Enable(const Command& command) {
   command.SendResponse();
 }
 
-void RuntimeAgent::Disable(const Command& command) { command.SendResponse(); }
+void RuntimeAgent::Disable(Command command) { command.SendResponse(); }
 
-void RuntimeAgent::CompileScript(const Command& command) {
+void RuntimeAgent::CompileScript(Command command) {
   // TODO: Parse the JS without eval-ing it... This is to support:
   // a) Multi-line input from the devtools console
   // b) https://developers.google.com/web/tools/chrome-devtools/snippets

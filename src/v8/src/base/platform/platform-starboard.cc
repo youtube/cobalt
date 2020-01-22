@@ -24,6 +24,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/memory.h"
 #include "starboard/time.h"
 #include "starboard/time_zone.h"
@@ -127,10 +128,10 @@ int OS::ActivationFrameAlignment() {
 }
 
 // static
-size_t OS::AllocatePageSize() { return SB_MEMORY_PAGE_SIZE; }
+size_t OS::AllocatePageSize() { return kSbMemoryPageSize; }
 
 // static
-size_t OS::CommitPageSize() { return SB_MEMORY_PAGE_SIZE; }
+size_t OS::CommitPageSize() { return kSbMemoryPageSize; }
 
 // static
 void OS::SetRandomMmapSeed(int64_t seed) { SB_NOTIMPLEMENTED(); }
@@ -324,7 +325,7 @@ bool OS::Remove(const char* path) {
   return false;
 }
 
-char OS::DirectorySeparator() { return SB_FILE_SEP_CHAR; }
+char OS::DirectorySeparator() { return kSbFileSepChar; }
 
 bool OS::isDirectorySeparator(const char ch) {
   return ch == DirectorySeparator();

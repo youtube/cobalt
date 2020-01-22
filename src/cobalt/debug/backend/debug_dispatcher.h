@@ -110,8 +110,7 @@ class DebugDispatcher {
   // is supported, ownership of the command parameter should be kept and used to
   // send the response. If the command is not supported, the command should be
   // returned so the dispatcher can try calling a JS fallback implementation.
-  typedef base::Callback<std::unique_ptr<Command>(
-      std::unique_ptr<Command> command)>
+  typedef base::Callback<base::Optional<Command>(Command command)>
       CommandHandler;
 
   DebugDispatcher(script::ScriptDebugger* script_debugger,
@@ -137,11 +136,11 @@ class DebugDispatcher {
   void RemoveDomain(const std::string& domain);
 
   // Sends a protocol event to the frontend.
-  void SendEvent(const std::string& method, const JSONObject& params);
+  void SendEvent(const std::string& method,
+                 const JSONObject& params = JSONObject());
 
   // Sends a protocol event to the frontend.
-  void SendEvent(const std::string& method,
-                 const base::Optional<std::string>& params);
+  void SendEvent(const std::string& method, const std::string& params);
 
   // Calls |method| in |script_runner_| and creates a response object from
   // the result.
@@ -155,7 +154,7 @@ class DebugDispatcher {
   // called from any thread - the command will be run on the dispatcher's
   // message loop, and the response will be sent to the callback and message
   // loop held in the command object.
-  void SendCommand(std::unique_ptr<Command> command);
+  void SendCommand(Command command);
 
   // Sets or unsets the paused state and calls |HandlePause| if set.
   // Must be called on the debug target (WebModule) thread.
@@ -180,7 +179,7 @@ class DebugDispatcher {
   // name in the command registry and running the corresponding function.
   // The response callback will be run on the message loop specified in the
   // info structure with the result as an argument.
-  void DispatchCommand(std::unique_ptr<Command> command);
+  void DispatchCommand(Command command);
 
   // Called by |SendCommand| if a debugger command is received while script
   // execution is paused.

@@ -316,6 +316,7 @@ result_value = v8::Undefined(isolate);
 
 void staticFunctionStaticMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
   switch(info.Length()) {
     case(0): {
@@ -335,7 +336,7 @@ void staticFunctionStaticMethod(const v8::FunctionCallbackInfo<v8::Value>& info)
       WrapperFactory* wrapper_factory = V8cGlobalEnvironment::GetFromIsolate(isolate)->wrapper_factory();
       v8::Local<v8::Object> object;
       if (arg->IsObject()) {
-        object = arg->ToObject();
+        object = arg->ToObject(context).ToLocalChecked();
       }
       if (arg->IsNumber()) {
         staticFunctionStaticMethod2(
@@ -361,7 +362,7 @@ void staticFunctionStaticMethod(const v8::FunctionCallbackInfo<v8::Value>& info)
       WrapperFactory* wrapper_factory = V8cGlobalEnvironment::GetFromIsolate(isolate)->wrapper_factory();
       v8::Local<v8::Object> object;
       if (arg->IsObject()) {
-        object = arg->ToObject();
+        object = arg->ToObject(context).ToLocalChecked();
       }
       if (arg->IsObject() ? wrapper_factory->DoesObjectImplementInterface(object, base::GetTypeId<ArbitraryInterface>()) : false) {
         staticFunctionStaticMethod5(

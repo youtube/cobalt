@@ -82,7 +82,7 @@ void DebugDispatcher::RemoveClient(DebugClient* client) {
   clients_.erase(client);
 }
 
-void DebugDispatcher::SendCommand(std::unique_ptr<Command> command) {
+void DebugDispatcher::SendCommand(Command command) {
   // Create a closure that will run the command and the response callback.
   // The task is either posted to the debug target (WebModule) thread if
   // that thread is running normally, or added to a queue of debugger tasks
@@ -98,7 +98,7 @@ void DebugDispatcher::SendCommand(std::unique_ptr<Command> command) {
   }
 }
 
-void DebugDispatcher::DispatchCommand(std::unique_ptr<Command> command) {
+void DebugDispatcher::DispatchCommand(Command command) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // This workaround allows both the overlay console and remote DevTools to
@@ -106,29 +106,30 @@ void DebugDispatcher::DispatchCommand(std::unique_ptr<Command> command) {
   // command, we first inject a "Runtime.disable" command so that the V8
   // Inspector will send the "Runtime.executionContextCreated" event for every
   // "Runtime.enable" command rather than just for the first one.
-  if (command->GetMethod() == "Runtime.enable") {
-    DispatchCommand(std::make_unique<Command>(
-        "Runtime.disable", "", base::Bind(&NoOpResponseCallback)));
+  if (command.GetMethod() == "Runtime.enable") {
+    DispatchCommand(
+        Command("Runtime.disable", "", base::Bind(&NoOpResponseCallback)));
   }
 
-  DomainRegistry::iterator iter = domain_registry_.find(command->GetDomain());
+  DomainRegistry::iterator iter = domain_registry_.find(command.GetDomain());
   if (iter != domain_registry_.end()) {
-    command = iter->second.Run(std::move(command));
+    auto opt_command = iter->second.Run(std::move(command));
     // The agent command implementation kept the command to send the response.
-    if (!command) return;
+    if (!opt_command) return;
+    command = std::move(*opt_command);
   }
 
   // The agent didn't have a native implementation. Try to run a
   // JavaScript implementation (which the agent would have loaded at the
   // same time as it registered its domain command handler).
   JSONObject response =
-      RunScriptCommand(command->GetMethod(), command->GetParams());
+      RunScriptCommand(command.GetMethod(), command.GetParams());
   if (response) {
-    command->SendResponse(response);
+    command.SendResponse(response);
   } else {
-    DLOG(WARNING) << "Command not implemented: " << command->GetMethod();
-    command->SendErrorResponse(Command::kMethodNotFound,
-                               "Command not implemented");
+    DLOG(WARNING) << "Command not implemented: " << command.GetMethod();
+    command.SendErrorResponse(Command::kMethodNotFound,
+                              "Command not implemented");
   }
 }
 
@@ -174,13 +175,14 @@ void DebugDispatcher::HandlePause() {
 
 void DebugDispatcher::SendEvent(const std::string& method,
                                 const JSONObject& params) {
-  base::Optional<std::string> json_params;
-  if (params) json_params = JSONStringify(params);
-  SendEvent(method, json_params);
+  SendEvent(method, JSONStringify(params));
 }
 
-void DebugDispatcher::SendEvent(
-    const std::string& method, const base::Optional<std::string>& json_params) {
+void DebugDispatcher::SendEvent(const std::string& method,
+                                const std::string& json_params) {
+  DCHECK(!json_params.empty());
+  DCHECK_EQ(json_params.front(), '{');
+  DCHECK_EQ(json_params.back(), '}');
   for (auto* client : clients_) {
     client->OnEvent(method, json_params);
   }
@@ -211,12 +213,12 @@ JSONObject DebugDispatcher::RunScriptCommand(const std::string& method,
     if (result) {
       response->Set("result", std::unique_ptr<base::Value>(result.release()));
     }
-  } else if (!json_result.empty()) {
+  } else if (json_result.empty()) {
+    // Unimplemented commands aren't successful, and |json_result| is empty.
+    response.reset();
+  } else {
     // On error, |json_result| is the error message.
     response->SetString("error.message", json_result);
-  } else {
-    // An empty error means the method isn't implemented so return no response.
-    response.reset();
   }
   return response;
 }

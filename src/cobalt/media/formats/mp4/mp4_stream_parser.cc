@@ -16,6 +16,9 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "cobalt/media/base/audio_decoder_config.h"
+#include "cobalt/media/base/color_space.h"
+#include "cobalt/media/base/encryption_scheme.h"
+#include "cobalt/media/base/hdr_metadata.h"
 #include "cobalt/media/base/media_tracks.h"
 #include "cobalt/media/base/media_util.h"
 #include "cobalt/media/base/stream_parser_buffer.h"
@@ -28,6 +31,7 @@
 #include "cobalt/media/formats/mp4/es_descriptor.h"
 #include "cobalt/media/formats/mp4/rcheck.h"
 #include "cobalt/media/formats/mpeg/adts_constants.h"
+#include "cobalt/media/formats/webm/webm_colour_parser.h"
 #include "starboard/memory.h"
 #include "starboard/types.h"
 
@@ -36,7 +40,73 @@ namespace media {
 namespace mp4 {
 
 namespace {
+
+using gfx::ColorSpace;
+
 const int kMaxEmptySampleLogs = 20;
+
+// Caller should be prepared to handle return of Unencrypted() in case of
+// unsupported scheme.
+EncryptionScheme GetEncryptionScheme(const ProtectionSchemeInfo& sinf) {
+  if (!sinf.HasSupportedScheme())
+    return Unencrypted();
+  FourCC fourcc = sinf.type.type;
+  EncryptionScheme::CipherMode mode = EncryptionScheme::CIPHER_MODE_UNENCRYPTED;
+  EncryptionPattern pattern;
+  bool uses_pattern_encryption = false;
+  switch (fourcc) {
+    case FOURCC_CENC:
+      mode = EncryptionScheme::CIPHER_MODE_AES_CTR;
+      break;
+    case FOURCC_CBCS:
+      mode = EncryptionScheme::CIPHER_MODE_AES_CBC;
+      uses_pattern_encryption = true;
+      break;
+    default:
+      NOTREACHED();
+      break;
+  }
+  if (uses_pattern_encryption) {
+    pattern = {sinf.info.track_encryption.default_crypt_byte_block,
+               sinf.info.track_encryption.default_skip_byte_block};
+  }
+  return EncryptionScheme(mode, pattern);
+}
+
+gfx::ColorSpace ConvertColorParameterInformationToColorSpace(
+    const ColorParameterInformation& info) {
+  auto primary_id = static_cast<ColorSpace::PrimaryID>(info.colour_primaries);
+  auto transfer_id =
+      static_cast<ColorSpace::TransferID>(info.transfer_characteristics);
+  auto matrix_id = static_cast<ColorSpace::MatrixID>(info.matrix_coefficients);
+
+  // Note that we don't check whether the embedded ids are valid.  We rely on
+  // the underlying video decoder to reject any ids that it doesn't support.
+  return gfx::ColorSpace(
+      primary_id, transfer_id, matrix_id,
+      info.full_range ? ColorSpace::kRangeIdFull : ColorSpace::kRangeIdLimited);
+}
+
+MasteringMetadata ConvertMdcvToMasteringMetadata(
+    const MasteringDisplayColorVolume& mdcv) {
+  MasteringMetadata mastering_metadata;
+
+  mastering_metadata.primary_r_chromaticity_x = mdcv.display_primaries_rx;
+  mastering_metadata.primary_r_chromaticity_y = mdcv.display_primaries_ry;
+  mastering_metadata.primary_g_chromaticity_x = mdcv.display_primaries_gx;
+  mastering_metadata.primary_g_chromaticity_y = mdcv.display_primaries_gy;
+  mastering_metadata.primary_b_chromaticity_x = mdcv.display_primaries_bx;
+  mastering_metadata.primary_b_chromaticity_y = mdcv.display_primaries_by;
+  mastering_metadata.white_point_chromaticity_x = mdcv.white_point_x;
+  mastering_metadata.white_point_chromaticity_y = mdcv.white_point_y;
+  mastering_metadata.luminance_max =
+      static_cast<float>(mdcv.max_display_mastering_luminance);
+  mastering_metadata.luminance_min =
+      static_cast<float>(mdcv.min_display_mastering_luminance);
+
+  return mastering_metadata;
+}
+
 }  // namespace
 
 MP4StreamParser::MP4StreamParser(DecoderBuffer::Allocator* buffer_allocator,
@@ -305,10 +375,15 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       }
       bool is_track_encrypted = entry.sinf.info.track_encryption.is_encrypted;
       is_track_encrypted_[audio_track_id] = is_track_encrypted;
-      audio_config.Initialize(
-          codec, sample_format, channel_layout, sample_per_second, extra_data,
-          is_track_encrypted ? AesCtrEncryptionScheme() : Unencrypted(),
-          base::TimeDelta(), 0);
+      EncryptionScheme scheme = Unencrypted();
+      if (is_track_encrypted) {
+        scheme = GetEncryptionScheme(entry.sinf);
+        if (!scheme.is_encrypted())
+          return false;
+      }
+      audio_config.Initialize(codec, sample_format, channel_layout,
+                              sample_per_second, extra_data, scheme,
+                              base::TimeDelta(), 0);
       DVLOG(1) << "audio_track_id=" << audio_track_id
                << " config=" << audio_config.AsHumanReadableString();
       if (!audio_config.IsValidConfig()) {
@@ -364,13 +439,42 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       }
       bool is_track_encrypted = entry.sinf.info.track_encryption.is_encrypted;
       is_track_encrypted_[video_track_id] = is_track_encrypted;
-      video_config.Initialize(
-          entry.video_codec, entry.video_codec_profile, PIXEL_FORMAT_YV12,
-          COLOR_SPACE_HD_REC709, coded_size, visible_rect, natural_size,
-          // No decoder-specific buffer needed for AVC;
-          // SPS/PPS are embedded in the video stream
-          EmptyExtraData(),
-          is_track_encrypted ? AesCtrEncryptionScheme() : Unencrypted());
+      EncryptionScheme scheme = Unencrypted();
+      if (is_track_encrypted) {
+        scheme = GetEncryptionScheme(entry.sinf);
+        if (!scheme.is_encrypted())
+          return false;
+      }
+      video_config.Initialize(entry.video_codec, entry.video_codec_profile,
+                              PIXEL_FORMAT_YV12, COLOR_SPACE_HD_REC709,
+                              coded_size, visible_rect, natural_size,
+                              // No decoder-specific buffer needed for AVC;
+                              // SPS/PPS are embedded in the video stream
+                              EmptyExtraData(), scheme);
+      if (entry.color_parameter_information) {
+        WebMColorMetadata color_metadata = {};
+
+        color_metadata.color_space =
+            ConvertColorParameterInformationToColorSpace(
+                *entry.color_parameter_information);
+
+        if (entry.mastering_display_color_volume) {
+          color_metadata.hdr_metadata.mastering_metadata =
+              ConvertMdcvToMasteringMetadata(
+                  *entry.mastering_display_color_volume);
+        }
+
+        if (entry.content_light_level_information) {
+          color_metadata.hdr_metadata.max_cll =
+              entry.content_light_level_information->max_content_light_level;
+          color_metadata.hdr_metadata.max_fall =
+              entry.content_light_level_information
+                  ->max_pic_average_light_level;
+        }
+
+        video_config.set_webm_color_metadata(color_metadata);
+      }
+
       DVLOG(1) << "video_track_id=" << video_track_id
                << " config=" << video_config.AsHumanReadableString();
       if (!video_config.IsValidConfig()) {
@@ -602,15 +706,12 @@ bool MP4StreamParser::EnqueueSample(BufferQueueMap* buffers, bool* err) {
   if (decrypt_config) {
     if (!subsamples.empty()) {
       // Create a new config with the updated subsamples.
-      decrypt_config.reset(new DecryptConfig(decrypt_config->key_id(),
-                                             decrypt_config->iv(), subsamples));
+      decrypt_config.reset(
+          new DecryptConfig(decrypt_config->encryption_mode(),
+                            decrypt_config->key_id(), decrypt_config->iv(),
+                            subsamples, decrypt_config->encryption_pattern()));
     }
     // else, use the existing config.
-  } else if (is_track_encrypted_[runs_->track_id()]) {
-    // The media pipeline requires a DecryptConfig with an empty |iv|.
-    // TODO(ddorwin): Refactor so we do not need a fake key ID ("1");
-    decrypt_config.reset(
-        new DecryptConfig("1", "", std::vector<SubsampleEntry>()));
   }
 
   StreamParserBuffer::Type buffer_type =

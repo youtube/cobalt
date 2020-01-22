@@ -1,23 +1,23 @@
-/***************************************************************************/
-/*                                                                         */
-/*  svfntfmt.h                                                             */
-/*                                                                         */
-/*    The FreeType font format service (specification only).               */
-/*                                                                         */
-/*  Copyright 2003-2015 by                                                 */
-/*  David Turner, Robert Wilhelm, and Werner Lemberg.                      */
-/*                                                                         */
-/*  This file is part of the FreeType project, and may only be used,       */
-/*  modified, and distributed under the terms of the FreeType project      */
-/*  license, LICENSE.TXT.  By continuing to use, modify, or distribute     */
-/*  this file you indicate that you have read the license and              */
-/*  understand and accept it fully.                                        */
-/*                                                                         */
-/***************************************************************************/
+/****************************************************************************
+ *
+ * svfntfmt.h
+ *
+ *   The FreeType font format service (specification only).
+ *
+ * Copyright (C) 2003-2019 by
+ * David Turner, Robert Wilhelm, and Werner Lemberg.
+ *
+ * This file is part of the FreeType project, and may only be used,
+ * modified, and distributed under the terms of the FreeType project
+ * license, LICENSE.TXT.  By continuing to use, modify, or distribute
+ * this file you indicate that you have read the license and
+ * understand and accept it fully.
+ *
+ */
 
 
-#ifndef __SVFNTFMT_H__
-#define __SVFNTFMT_H__
+#ifndef SVFNTFMT_H_
+#define SVFNTFMT_H_
 
 #include FT_INTERNAL_SERVICE_H
 
@@ -26,9 +26,9 @@ FT_BEGIN_HEADER
 
 
   /*
-   *  A trivial service used to return the name of a face's font driver,
-   *  according to the XFree86 nomenclature.  Note that the service data
-   *  is a simple constant string pointer.
+   * A trivial service used to return the name of a face's font driver,
+   * according to the XFree86 nomenclature.  Note that the service data is a
+   * simple constant string pointer.
    */
 
 #define FT_SERVICE_ID_FONT_FORMAT  "font-format"
@@ -49,7 +49,7 @@ FT_BEGIN_HEADER
 FT_END_HEADER
 
 
-#endif /* __SVFNTFMT_H__ */
+#endif /* SVFNTFMT_H_ */
 
 
 /* END */

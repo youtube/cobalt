@@ -25,11 +25,138 @@
 
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+// Determines the threshhold of allocation size that should be done with mmap
+// (if available), rather than allocated within the core heap.
+extern const size_t kSbDefaultMmapThreshold;
+
+// The current platform's maximum length of the name of a single directory
+// entry, not including the absolute path.
+extern const int32_t kSbFileMaxName;
+
+// The current platform's maximum number of files that can be opened at the
+// same time by one process.
+extern const uint32_t kSbFileMaxOpen;
+
+// The current platform's alternate file path component separator character.
+// This is like SB_FILE_SEP_CHAR, except if your platform supports an alternate
+// character, then you can place that here. For example, on windows machines,
+// the primary separator character is probably '\', but the alternate is '/'.
+extern const char kSbFileAltSepChar;
+
+// The string form of SB_FILE_ALT_SEP_CHAR.
+extern const char* kSbFileAltSepString;
+
+// The current platform's maximum length of an absolute path.
+extern const uint32_t kSbFileMaxPath;
+
+// The current platform's file path component separator character. This is the
+// character that appears after a directory in a file path. For example, the
+// absolute canonical path of the file "/path/to/a/file.txt" uses '/' as a path
+// component separator character.
+extern const char kSbFileSepChar;
+
+// The string form of SB_FILE_SEP_CHAR.
+extern const char* kSbFileSepString;
+
+// Allow ac3 and ec3 support
+extern const bool kSbHasAc3Audio;
+
+// Allow playing audioless video.
+extern const bool kSbHasAudiolessVideo;
+
+// Specifies whether this platform has webm/vp9 support.  This should be set to
+// non-zero on platforms with webm/vp9 support.
+extern const bool kSbHasMediaWebmVp9Support;
+
+// Whether the current platform supports thread priorities.
+extern const bool kSbHasThreadPrioritySupport;
+
 // Determines the alignment that allocations should have on this platform.
 extern const size_t kSbMallocAlignment;
 
+// The maximum number of thread local storage keys supported by this platform.
+// This comes from _POSIX_THREAD_KEYS_MAX. The value of PTHREAD_KEYS_MAX is
+// higher, but unit tests show that the implementation doesn't support nearly
+// as many keys.
+extern const uint32_t kSbMaxThreadLocalKeys;
+
 // The maximum length of the name for a thread, including the NULL-terminator.
 extern const int32_t kSbMaxThreadNameLength;
+
+// Defines the path where memory debugging logs should be written to.
+extern const char* kSbMemoryLogPath;
+
+// The maximum audio bitrate the platform can decode.  The following value
+// equals to 5M bytes per seconds which is more than enough for compressed
+// audio.
+extern const uint32_t kSbMediaMaxAudioBitrateInBitsPerSecond;
+
+// The maximum video bitrate the platform can decode.  The following value
+// equals to 8M bytes per seconds which is more than enough for compressed
+// video.
+extern const uint32_t kSbMediaMaxVideoBitrateInBitsPerSecond;
+
+// Specify the number of video frames to be cached during playback.  A large
+// value leads to more stable fps but also causes the app to use more memory.
+extern const uint32_t kSbMediaMaximumVideoFrames;
+
+// The encoded video frames are compressed in different ways, so their decoding
+// time can vary a lot.  Occasionally a single frame can take longer time to
+// decode than the average time per frame.  The player has to cache some frames
+// to account for such inconsistency.  The number of frames being cached are
+// controlled by SB_MEDIA_MAXIMUM_VIDEO_PREROLL_FRAMES and
+// SB_MEDIA_MAXIMUM_VIDEO_FRAMES.
+//
+// Specify the number of video frames to be cached before the playback starts.
+// Note that setting this value too large may increase the playback start delay.
+extern const uint32_t kSbMediaMaximumVideoPrerollFrames;
+
+// Specifies how video frame buffers must be aligned on this platform.
+extern const uint32_t kSbMediaVideoFrameAlignment;
+
+// The memory page size, which controls the size of chunks on memory that
+// allocators deal with, and the alignment of those chunks. This doesn't have to
+// be the hardware-defined physical page size, but it should be a multiple of
+// it.
+extern const size_t kSbMemoryPageSize;
+
+// Specifies the network receive buffer size in bytes, set via
+// SbSocketSetReceiveBufferSize().
+//
+// Setting this to 0 indicates that SbSocketSetReceiveBufferSize() should
+// not be called. Use this for OSs (such as Linux) where receive buffer
+// auto-tuning is better.
+//
+// On some platforms, this may affect max TCP window size which may
+// dramatically affect throughput in the presence of latency.
+//
+// If your platform does not have a good TCP auto-tuning mechanism,
+// a setting of (128 * 1024) here is recommended.
+extern const uint32_t kSbNetworkReceiveBufferSize;
+
+// Defines the maximum number of simultaneous threads for this platform. Some
+// platforms require sharing thread handles with other kinds of system handles,
+// like mutexes, so we want to keep this manageable.
+extern const uint32_t kSbMaxThreads;
+
+// The current platform's search path component separator character. When
+// specifying an ordered list of absolute paths of directories to search for a
+// given reason, this is the character that appears between entries. For
+// example, the search path of "/etc/search/first:/etc/search/second" uses ':'
+// as a search path component separator character.
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern const char kSbPathSepChar;
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+
+// The string form of SB_PATH_SEP_CHAR.
+extern const char* kSbPathSepString;
+
+// The maximum number of users that can be signed in at the same time.
+extern const uint32_t kSbUserMaxSignedIn;
 
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 

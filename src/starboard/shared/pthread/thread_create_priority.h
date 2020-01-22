@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_PTHREAD_THREAD_CREATE_PRIORITY_H_
 #define STARBOARD_SHARED_PTHREAD_THREAD_CREATE_PRIORITY_H_
 
+#include "starboard/configuration_constants.h"
 #include "starboard/thread.h"
 
 namespace starboard {

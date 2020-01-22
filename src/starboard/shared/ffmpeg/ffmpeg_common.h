@@ -26,6 +26,10 @@ extern "C" {
 
 #include "starboard/shared/internal_only.h"
 
+#ifndef LIBAVUTIL_VERSION_52_8
+#define LIBAVUTIL_VERSION_52_8 AV_VERSION_INT(52, 8, 0)
+#endif
+
 #if !defined(LIBAVUTIL_VERSION_MAJOR)
 #error "LIBAVUTIL_VERSION_MAJOR not defined"
 #endif  // !defined(LIBAVUTIL_VERSION_MAJOR)

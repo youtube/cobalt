@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 The ANGLE Project Authors. All rights reserved.
+// Copyright 2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -9,17 +9,20 @@
 
 #include "ANGLEPerfTest.h"
 
+#include <array>
 #include <iostream>
 #include <random>
 #include <sstream>
 
-#include "Matrix.h"
-#include "shader_utils.h"
+#include "common/debug.h"
+#include "util/Matrix.h"
+#include "util/shader_utils.h"
 
 using namespace angle;
 
 namespace
 {
+constexpr unsigned int kIterationsPerStep = 4;
 
 // Controls when we call glUniform, if the data is the same as last frame.
 enum DataMode
@@ -32,51 +35,90 @@ enum DataMode
 enum DataType
 {
     VEC4,
-    MAT4,
+    MAT3x3,
+    MAT3x4,
+    MAT4x4,
+};
+
+// Determines if we state change the program between draws.
+// This covers a performance problem in ANGLE where calling UseProgram reuploads uniform data.
+enum ProgramMode
+{
+    SINGLE,
+    MULTIPLE,
+};
+
+enum MatrixLayout
+{
+    TRANSPOSE,
+    NO_TRANSPOSE,
 };
 
 struct UniformsParams final : public RenderTestParams
 {
     UniformsParams()
     {
+        iterationsPerStep = kIterationsPerStep;
+
         // Common default params
-        majorVersion = 2;
+        majorVersion = 3;
         minorVersion = 0;
         windowWidth  = 720;
         windowHeight = 720;
     }
 
-    std::string suffix() const override;
+    std::string story() const override;
     size_t numVertexUniforms   = 200;
     size_t numFragmentUniforms = 200;
 
-    DataType dataType = DataType::VEC4;
-    DataMode dataMode = DataMode::REPEAT;
-
-    // static parameters
-    size_t iterations = 4;
+    DataType dataType         = DataType::VEC4;
+    DataMode dataMode         = DataMode::REPEAT;
+    MatrixLayout matrixLayout = MatrixLayout::NO_TRANSPOSE;
+    ProgramMode programMode   = ProgramMode::SINGLE;
 };
 
 std::ostream &operator<<(std::ostream &os, const UniformsParams &params)
 {
-    os << params.suffix().substr(1);
+    os << params.backendAndStory().substr(1);
     return os;
 }
 
-std::string UniformsParams::suffix() const
+std::string UniformsParams::story() const
 {
     std::stringstream strstr;
 
-    strstr << RenderTestParams::suffix();
+    strstr << RenderTestParams::story();
+
+    if (eglParameters.deviceType == EGL_PLATFORM_ANGLE_DEVICE_TYPE_NULL_ANGLE)
+    {
+        strstr << "_null";
+    }
 
     if (dataType == DataType::VEC4)
     {
         strstr << "_" << (numVertexUniforms + numFragmentUniforms) << "_vec4";
     }
+    else if (dataType == DataType::MAT3x3)
+    {
+        strstr << "_" << (numVertexUniforms + numFragmentUniforms) << "_mat3x3";
+    }
+    else if (dataType == DataType::MAT3x4)
+    {
+        strstr << "_" << (numVertexUniforms + numFragmentUniforms) << "_mat3x4";
+    }
     else
     {
-        ASSERT(dataType == DataType::MAT4);
-        strstr << "_matrix";
+        strstr << "_" << (numVertexUniforms + numFragmentUniforms) << "_mat4x4";
+    }
+
+    if (matrixLayout == MatrixLayout::TRANSPOSE)
+    {
+        strstr << "_transpose";
+    }
+
+    if (programMode == ProgramMode::MULTIPLE)
+    {
+        strstr << "_multiprogram";
     }
 
     if (dataMode == DataMode::REPEAT)
@@ -100,9 +142,14 @@ class UniformsBenchmark : public ANGLERenderTest,
   private:
     void initShaders();
 
-    GLuint mProgram;
+    template <bool MultiProgram, typename SetUniformFunc>
+    void drawLoop(const SetUniformFunc &setUniformsFunc);
+
+    std::array<GLuint, 2> mPrograms;
     std::vector<GLuint> mUniformLocations;
-    std::vector<Matrix4> mMatrixData[2];
+
+    using MatrixData = std::array<std::vector<Matrix4>, 2>;
+    MatrixData mMatrixData;
 };
 
 std::vector<Matrix4> GenMatrixData(size_t count, int parity)
@@ -127,27 +174,44 @@ std::vector<Matrix4> GenMatrixData(size_t count, int parity)
     return data;
 }
 
-UniformsBenchmark::UniformsBenchmark() : ANGLERenderTest("Uniforms", GetParam()), mProgram(0u)
-{
-}
+UniformsBenchmark::UniformsBenchmark() : ANGLERenderTest("Uniforms", GetParam()), mPrograms({}) {}
 
 void UniformsBenchmark::initializeBenchmark()
 {
     const auto &params = GetParam();
-
-    ASSERT_GT(params.iterations, 0u);
 
     // Verify the uniform counts are within the limits
     GLint maxVertexUniformVectors, maxFragmentUniformVectors;
     glGetIntegerv(GL_MAX_VERTEX_UNIFORM_VECTORS, &maxVertexUniformVectors);
     glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_VECTORS, &maxFragmentUniformVectors);
 
-    bool isMatrix = params.dataType == DataType::MAT4;
+    GLint vectorCountPerUniform;
+    bool isMatrix;
+    switch (params.dataType)
+    {
+        case DataType::MAT3x3:
+            vectorCountPerUniform = 3;
+            isMatrix              = true;
+            break;
+        case DataType::MAT3x4:
+            // depends on transpose, conservatively set to 4
+            vectorCountPerUniform = 4;
+            isMatrix              = true;
+            break;
+        case DataType::MAT4x4:
+            vectorCountPerUniform = 4;
+            isMatrix              = true;
+            break;
+        default:
+            vectorCountPerUniform = 1;
+            isMatrix              = false;
+            break;
+    }
 
     GLint numVertexUniformVectors =
-        static_cast<GLint>(params.numVertexUniforms) * (isMatrix ? 4 : 1);
+        static_cast<GLint>(params.numVertexUniforms) * vectorCountPerUniform;
     GLint numFragmentUniformVectors =
-        static_cast<GLint>(params.numFragmentUniforms) * (isMatrix ? 4 : 1);
+        static_cast<GLint>(params.numFragmentUniforms) * vectorCountPerUniform;
 
     if (numVertexUniformVectors > maxVertexUniformVectors)
     {
@@ -181,8 +245,9 @@ void UniformsBenchmark::initializeBenchmark()
         }
     }
 
-    GLint attribLocation = glGetAttribLocation(mProgram, "pos");
+    GLint attribLocation = glGetAttribLocation(mPrograms[0], "pos");
     ASSERT_NE(-1, attribLocation);
+    ASSERT_EQ(attribLocation, glGetAttribLocation(mPrograms[1], "pos"));
     glVertexAttrib4f(attribLocation, 1.0f, 0.0f, 0.0f, 1.0f);
 
     ASSERT_GL_NO_ERROR();
@@ -198,19 +263,38 @@ std::string GetUniformLocationName(size_t idx, bool vertexShader)
 void UniformsBenchmark::initShaders()
 {
     const auto &params = GetParam();
-    bool isMatrix      = (params.dataType == DataType::MAT4);
+
+    const std::string kUniformVarPlaceHolder = "%s";
+    std::string typeString;
+    std::string uniformOperationTemplate;
+    switch (params.dataType)
+    {
+        case DataType::VEC4:
+            typeString               = "vec4";
+            uniformOperationTemplate = kUniformVarPlaceHolder;
+            break;
+        case DataType::MAT3x3:
+            typeString = "mat3";
+            uniformOperationTemplate =
+                "mat4(" + kUniformVarPlaceHolder + ") * vec4(1.0, 1.0, 1.0, 1.0)";
+            break;
+        case DataType::MAT3x4:
+            typeString = "mat3x4";
+            uniformOperationTemplate =
+                "mat4(" + kUniformVarPlaceHolder + ") * vec4(1.0, 1.0, 1.0, 1.0)";
+            break;
+        case DataType::MAT4x4:
+            typeString               = "mat4";
+            uniformOperationTemplate = kUniformVarPlaceHolder + "* vec4(1.0, 1.0, 1.0, 1.0)";
+            break;
+        default:
+            UNREACHABLE();
+    }
 
     std::stringstream vstrstr;
+    vstrstr << "#version 300 es\n";
     vstrstr << "precision mediump float;\n";
-    std::string typeString  = isMatrix ? "mat4" : "vec4";
-    std::string constVector = "const vec4 one = vec4(1, 1, 1, 1);\n";
-
-    vstrstr << "attribute vec4 pos;\n";
-
-    if (isMatrix)
-    {
-        vstrstr << constVector;
-    }
+    vstrstr << "in vec4 pos;\n";
 
     for (size_t i = 0; i < params.numVertexUniforms; i++)
     {
@@ -222,22 +306,21 @@ void UniformsBenchmark::initShaders()
                "    gl_Position = pos;\n";
     for (size_t i = 0; i < params.numVertexUniforms; i++)
     {
-        vstrstr << "    gl_Position += " << GetUniformLocationName(i, true);
-        if (isMatrix)
-        {
-            vstrstr << " * one";
-        }
+        std::string uniformOperation = uniformOperationTemplate;
+        std::size_t pos              = uniformOperation.find(kUniformVarPlaceHolder);
+        ASSERT(pos != std::string::npos);
+        uniformOperation.replace(pos, kUniformVarPlaceHolder.size(),
+                                 GetUniformLocationName(i, true));
+        vstrstr << "    gl_Position += ";
+        vstrstr << uniformOperation;
         vstrstr << ";\n";
     }
     vstrstr << "}";
 
     std::stringstream fstrstr;
+    fstrstr << "#version 300 es\n";
     fstrstr << "precision mediump float;\n";
-
-    if (isMatrix)
-    {
-        fstrstr << constVector;
-    }
+    fstrstr << "out vec4 fragColor;\n";
 
     for (size_t i = 0; i < params.numFragmentUniforms; i++)
     {
@@ -245,66 +328,138 @@ void UniformsBenchmark::initShaders()
     }
     fstrstr << "void main()\n"
                "{\n"
-               "    gl_FragColor = vec4(0, 0, 0, 0);\n";
+               "    fragColor = vec4(0, 0, 0, 0);\n";
     for (size_t i = 0; i < params.numFragmentUniforms; i++)
     {
-        fstrstr << "    gl_FragColor += " << GetUniformLocationName(i, false);
-        if (isMatrix)
-        {
-            fstrstr << " * one";
-        }
+        std::string uniformOperation = uniformOperationTemplate;
+        std::size_t pos              = uniformOperation.find(kUniformVarPlaceHolder);
+        ASSERT(pos != std::string::npos);
+        uniformOperation.replace(pos, kUniformVarPlaceHolder.size(),
+                                 GetUniformLocationName(i, false));
+        fstrstr << "    fragColor += ";
+        fstrstr << uniformOperation;
         fstrstr << ";\n";
     }
     fstrstr << "}";
 
-    mProgram = CompileProgram(vstrstr.str(), fstrstr.str());
-    ASSERT_NE(0u, mProgram);
+    mPrograms[0] = CompileProgram(vstrstr.str().c_str(), fstrstr.str().c_str());
+    ASSERT_NE(0u, mPrograms[0]);
+    mPrograms[1] = CompileProgram(vstrstr.str().c_str(), fstrstr.str().c_str());
+    ASSERT_NE(0u, mPrograms[1]);
 
     for (size_t i = 0; i < params.numVertexUniforms; ++i)
     {
-        GLint location = glGetUniformLocation(mProgram, GetUniformLocationName(i, true).c_str());
+        std::string name = GetUniformLocationName(i, true);
+        GLint location   = glGetUniformLocation(mPrograms[0], name.c_str());
         ASSERT_NE(-1, location);
+        ASSERT_EQ(location, glGetUniformLocation(mPrograms[1], name.c_str()));
         mUniformLocations.push_back(location);
     }
     for (size_t i = 0; i < params.numFragmentUniforms; ++i)
     {
-        GLint location = glGetUniformLocation(mProgram, GetUniformLocationName(i, false).c_str());
+        std::string name = GetUniformLocationName(i, false);
+        GLint location   = glGetUniformLocation(mPrograms[0], name.c_str());
         ASSERT_NE(-1, location);
+        ASSERT_EQ(location, glGetUniformLocation(mPrograms[1], name.c_str()));
         mUniformLocations.push_back(location);
     }
 
     // Use the program object
-    glUseProgram(mProgram);
+    glUseProgram(mPrograms[0]);
 }
 
 void UniformsBenchmark::destroyBenchmark()
 {
-    glDeleteProgram(mProgram);
+    glDeleteProgram(mPrograms[0]);
+    glDeleteProgram(mPrograms[1]);
+}
+
+// Hopefully the compiler is smart enough to inline the lambda setUniformsFunc.
+template <bool MultiProgram, typename SetUniformFunc>
+void UniformsBenchmark::drawLoop(const SetUniformFunc &setUniformsFunc)
+{
+    const auto &params = GetParam();
+
+    size_t frameIndex = 0;
+
+    for (size_t it = 0; it < params.iterationsPerStep; ++it, frameIndex = (frameIndex == 0 ? 1 : 0))
+    {
+        if (MultiProgram)
+        {
+            glUseProgram(mPrograms[frameIndex]);
+        }
+        if (params.dataMode == DataMode::UPDATE)
+        {
+            for (size_t uniform = 0; uniform < mUniformLocations.size(); ++uniform)
+            {
+                setUniformsFunc(mUniformLocations, mMatrixData, uniform, frameIndex);
+            }
+        }
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+    }
 }
 
 void UniformsBenchmark::drawBenchmark()
 {
     const auto &params = GetParam();
 
-    size_t frameIndex = 0;
+    GLboolean transpose = static_cast<GLboolean>(params.matrixLayout == MatrixLayout::TRANSPOSE);
 
-    for (size_t it = 0; it < params.iterations; ++it, frameIndex = (frameIndex == 0 ? 1 : 0))
+    switch (params.dataType)
     {
-        for (size_t uniform = 0; uniform < mUniformLocations.size(); ++uniform)
+        case DataType::MAT4x4:
         {
-            if (params.dataType == DataType::MAT4)
+            auto setFunc = [=](const std::vector<GLuint> &locations, const MatrixData &matrixData,
+                               size_t uniform, size_t frameIndex) {
+                glUniformMatrix4fv(locations[uniform], 1, transpose,
+                                   matrixData[frameIndex][uniform].data);
+            };
+
+            drawLoop<false>(setFunc);
+            break;
+        }
+        case DataType::MAT3x4:
+        {
+            auto setFunc = [=](const std::vector<GLuint> &locations, const MatrixData &matrixData,
+                               size_t uniform, size_t frameIndex) {
+                glUniformMatrix3x4fv(locations[uniform], 1, transpose,
+                                     matrixData[frameIndex][uniform].data);
+            };
+
+            drawLoop<false>(setFunc);
+            break;
+        }
+        case DataType::MAT3x3:
+        {
+            auto setFunc = [=](const std::vector<GLuint> &locations, const MatrixData &matrixData,
+                               size_t uniform, size_t frameIndex) {
+                glUniformMatrix3fv(locations[uniform], 1, transpose,
+                                   matrixData[frameIndex][uniform].data);
+            };
+
+            drawLoop<false>(setFunc);
+            break;
+        }
+        case DataType::VEC4:
+        {
+            auto setFunc = [](const std::vector<GLuint> &locations, const MatrixData &matrixData,
+                              size_t uniform, size_t frameIndex) {
+                float value = static_cast<float>(uniform);
+                glUniform4f(locations[uniform], value, value, value, value);
+            };
+
+            if (params.programMode == ProgramMode::MULTIPLE)
             {
-                glUniformMatrix4fv(mUniformLocations[uniform], 1, GL_FALSE,
-                                   mMatrixData[frameIndex][uniform].data);
+                drawLoop<true>(setFunc);
             }
             else
             {
-                float value = static_cast<float>(uniform);
-                glUniform4f(mUniformLocations[uniform], value, value, value, value);
+                drawLoop<false>(setFunc);
             }
+            break;
         }
-
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        default:
+            UNREACHABLE();
     }
 
     ASSERT_GL_NO_ERROR();
@@ -312,24 +467,31 @@ void UniformsBenchmark::drawBenchmark()
 
 using namespace egl_platform;
 
-UniformsParams VectorUniforms(const EGLPlatformParameters &egl, DataMode dataMode)
+UniformsParams VectorUniforms(const EGLPlatformParameters &egl,
+                              DataMode dataMode,
+                              ProgramMode programMode = ProgramMode::SINGLE)
 {
     UniformsParams params;
     params.eglParameters = egl;
     params.dataMode      = dataMode;
+    params.programMode   = programMode;
     return params;
 }
 
-UniformsParams MatrixUniforms(const EGLPlatformParameters &egl, DataMode dataMode)
+UniformsParams MatrixUniforms(const EGLPlatformParameters &egl,
+                              DataMode dataMode,
+                              DataType dataType,
+                              MatrixLayout matrixLayout)
 {
     UniformsParams params;
     params.eglParameters = egl;
-    params.dataType      = DataType::MAT4;
+    params.dataType      = dataType;
     params.dataMode      = dataMode;
+    params.matrixLayout  = matrixLayout;
 
     // Reduce the number of uniforms to fit within smaller upper limits on some configs.
-    params.numVertexUniforms   = 100;
-    params.numFragmentUniforms = 100;
+    params.numVertexUniforms   = 55;
+    params.numFragmentUniforms = 55;
 
     return params;
 }
@@ -341,13 +503,27 @@ TEST_P(UniformsBenchmark, Run)
     run();
 }
 
-ANGLE_INSTANTIATE_TEST(UniformsBenchmark,
-                       VectorUniforms(D3D9(), DataMode::UPDATE),
-                       VectorUniforms(D3D11(), DataMode::REPEAT),
-                       VectorUniforms(D3D11(), DataMode::UPDATE),
-                       VectorUniforms(OPENGL(), DataMode::REPEAT),
-                       VectorUniforms(OPENGL(), DataMode::UPDATE),
-                       MatrixUniforms(D3D11(), DataMode::REPEAT),
-                       MatrixUniforms(D3D11(), DataMode::UPDATE),
-                       MatrixUniforms(OPENGL(), DataMode::REPEAT),
-                       MatrixUniforms(OPENGL(), DataMode::UPDATE));
+ANGLE_INSTANTIATE_TEST(
+    UniformsBenchmark,
+    VectorUniforms(D3D11(), DataMode::REPEAT),
+    VectorUniforms(D3D11(), DataMode::UPDATE),
+    VectorUniforms(D3D11_NULL(), DataMode::UPDATE),
+    VectorUniforms(OPENGL_OR_GLES(), DataMode::UPDATE),
+    VectorUniforms(OPENGL_OR_GLES(), DataMode::REPEAT),
+    VectorUniforms(OPENGL_OR_GLES_NULL(), DataMode::UPDATE),
+    MatrixUniforms(D3D11(), DataMode::UPDATE, DataType::MAT4x4, MatrixLayout::NO_TRANSPOSE),
+    MatrixUniforms(OPENGL_OR_GLES(),
+                   DataMode::UPDATE,
+                   DataType::MAT4x4,
+                   MatrixLayout::NO_TRANSPOSE),
+    MatrixUniforms(VULKAN_NULL(), DataMode::UPDATE, DataType::MAT4x4, MatrixLayout::NO_TRANSPOSE),
+    MatrixUniforms(VULKAN_NULL(), DataMode::UPDATE, DataType::MAT4x4, MatrixLayout::TRANSPOSE),
+    MatrixUniforms(VULKAN_NULL(), DataMode::REPEAT, DataType::MAT4x4, MatrixLayout::NO_TRANSPOSE),
+    MatrixUniforms(VULKAN_NULL(), DataMode::UPDATE, DataType::MAT3x4, MatrixLayout::NO_TRANSPOSE),
+    MatrixUniforms(VULKAN_NULL(), DataMode::UPDATE, DataType::MAT3x3, MatrixLayout::TRANSPOSE),
+    MatrixUniforms(VULKAN_NULL(), DataMode::REPEAT, DataType::MAT3x3, MatrixLayout::TRANSPOSE),
+    MatrixUniforms(VULKAN(), DataMode::UPDATE, DataType::MAT4x4, MatrixLayout::NO_TRANSPOSE),
+    MatrixUniforms(VULKAN(), DataMode::REPEAT, DataType::MAT4x4, MatrixLayout::NO_TRANSPOSE),
+    MatrixUniforms(VULKAN(), DataMode::UPDATE, DataType::MAT3x3, MatrixLayout::NO_TRANSPOSE),
+    MatrixUniforms(VULKAN(), DataMode::REPEAT, DataType::MAT3x3, MatrixLayout::NO_TRANSPOSE),
+    VectorUniforms(D3D11_NULL(), DataMode::REPEAT, ProgramMode::MULTIPLE));

@@ -16,6 +16,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/event.h"
 #include "starboard/player.h"
@@ -40,15 +41,16 @@ using starboard::scoped_ptr;
 // TODO: Merge test file resolving function with the ones used in the player
 // filter tests.
 std::string GetTestInputDirectory() {
-  const size_t kPathSize = SB_FILE_MAX_PATH + 1;
+  const size_t kPathSize = kSbFileMaxPath + 1;
 
-  char content_path[kPathSize];
-  SB_CHECK(
-      SbSystemGetPath(kSbSystemPathContentDirectory, content_path, kPathSize));
+  std::vector<char> content_path(kPathSize);
+  SB_CHECK(SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),
+                           kPathSize));
   std::string directory_path =
-      std::string(content_path) + SB_FILE_SEP_CHAR + "test" + SB_FILE_SEP_CHAR +
-      "starboard" + SB_FILE_SEP_CHAR + "shared" + SB_FILE_SEP_CHAR +
-      "starboard" + SB_FILE_SEP_CHAR + "player" + SB_FILE_SEP_CHAR + "testdata";
+      std::string(content_path.data()) + kSbFileSepChar + "test" +
+      kSbFileSepChar + "starboard" + kSbFileSepChar + "shared" +
+      kSbFileSepChar + "starboard" + kSbFileSepChar + "player" +
+      kSbFileSepChar + "testdata";
 
   SB_CHECK(SbDirectoryCanOpen(directory_path.c_str()))
       << "Cannot open directory " << directory_path;
@@ -56,7 +58,7 @@ std::string GetTestInputDirectory() {
 }
 
 std::string ResolveTestFileName(const char* filename) {
-  return GetTestInputDirectory() + SB_FILE_SEP_CHAR + filename;
+  return GetTestInputDirectory() + kSbFileSepChar + filename;
 }
 
 scoped_ptr<VideoDmpReader> s_video_dmp_reader;
@@ -131,7 +133,9 @@ void Start(const char* filename) {
   PlayerComponents::AudioParameters audio_parameters = {
       s_video_dmp_reader->audio_codec(),
       s_video_dmp_reader->audio_sample_info(), kSbDrmSystemInvalid};
-  s_audio_renderer = player_components->CreateAudioRenderer(audio_parameters);
+  std::string error_message;
+  s_audio_renderer =
+      player_components->CreateAudioRenderer(audio_parameters, &error_message);
   SB_DCHECK(s_audio_renderer);
 
   using std::placeholders::_1;

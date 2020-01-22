@@ -43,12 +43,13 @@ AVCodecID GetFfmpegCodecIdByMediaCodec(SbMediaAudioCodec audio_codec) {
   switch (audio_codec) {
     case kSbMediaAudioCodecAac:
       return AV_CODEC_ID_AAC;
-#if SB_HAS(AC3_AUDIO)
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || SB_HAS(AC3_AUDIO)
     case kSbMediaAudioCodecAc3:
-      return AV_CODEC_ID_AC3;
+      return kSbHasAc3Audio ? AV_CODEC_ID_AC3 : AV_CODEC_ID_NONE;
     case kSbMediaAudioCodecEac3:
-      return AV_CODEC_ID_EAC3;
-#endif  // SB_HAS(AC3_AUDIO)
+      return kSbHasAc3Audio ? AV_CODEC_ID_EAC3 : AV_CODEC_ID_NONE;
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+        // SB_HAS(AC3_AUDIO)
     case kSbMediaAudioCodecOpus:
       return AV_CODEC_ID_OPUS;
     default:
@@ -125,11 +126,9 @@ void AudioDecoderImpl<FFMPEG>::Decode(
   packet.data = const_cast<uint8_t*>(input_buffer->data());
   packet.size = input_buffer->size();
 
-#if LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(52, 8, 0)
-  ffmpeg_->av_frame_unref(av_frame_);
-#else   // LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(52, 8, 0)
+#if LIBAVUTIL_VERSION_INT < LIBAVUTIL_VERSION_52_8
   ffmpeg_->avcodec_get_frame_defaults(av_frame_);
-#endif  // LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(52, 8, 0)
+#endif  // LIBAVUTIL_VERSION_INT < LIBAVUTIL_VERSION_52_8
   int frame_decoded = 0;
   int result = ffmpeg_->avcodec_decode_audio4(codec_context_, av_frame_,
                                               &frame_decoded, &packet);
@@ -315,11 +314,11 @@ void AudioDecoderImpl<FFMPEG>::InitializeCodec() {
     return;
   }
 
-#if LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(52, 8, 0)
+#if LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
   av_frame_ = ffmpeg_->av_frame_alloc();
-#else   // LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(52, 8, 0)
+#else   // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
   av_frame_ = ffmpeg_->avcodec_alloc_frame();
-#endif  // LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(52, 8, 0)
+#endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
   if (av_frame_ == NULL) {
     SB_LOG(ERROR) << "Unable to allocate audio frame";
     TeardownCodec();
@@ -329,12 +328,9 @@ void AudioDecoderImpl<FFMPEG>::InitializeCodec() {
 void AudioDecoderImpl<FFMPEG>::TeardownCodec() {
   if (codec_context_) {
     ffmpeg_->CloseCodec(codec_context_);
-    if (codec_context_->extradata_size) {
-      ffmpeg_->av_freep(&codec_context_->extradata);
-    }
-    ffmpeg_->av_freep(&codec_context_);
+    ffmpeg_->FreeContext(&codec_context_);
   }
-  ffmpeg_->av_freep(&av_frame_);
+  ffmpeg_->FreeFrame(&av_frame_);
 }
 
 }  // namespace ffmpeg

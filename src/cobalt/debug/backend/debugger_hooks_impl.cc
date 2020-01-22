@@ -14,11 +14,28 @@
 
 #include "cobalt/debug/backend/debugger_hooks_impl.h"
 
+#include <sstream>
+
+#include "base/json/string_escape.h"
 #include "cobalt/script/script_debugger.h"
 
 namespace cobalt {
 namespace debug {
 namespace backend {
+
+namespace {
+
+// Indexed by ::logging::LogSeverity
+const char* kConsoleMethodName[] = {
+    "info",   // LOG_INFO
+    "warn",   // LOG_WARNING
+    "error",  // LOG_ERROR
+    "error",  // LOG_FATAL - there is no console.fatal() function.
+};
+static_assert(::logging::LOG_NUM_SEVERITIES == arraysize(kConsoleMethodName),
+              "Incorrect count of kConsoleMethodName");
+
+}  // namespace
 
 void DebuggerHooksImpl::AttachDebugger(
     script::ScriptDebugger* script_debugger) {
@@ -30,6 +47,15 @@ void DebuggerHooksImpl::DetachDebugger() {
     script_debugger_->AllAsyncTasksCanceled();
   }
   script_debugger_ = nullptr;
+}
+
+void DebuggerHooksImpl::ConsoleLog(::logging::LogSeverity severity,
+                                   std::string message) const {
+  if (!script_debugger_) return;
+  std::ostringstream js_code;
+  js_code << "console." << kConsoleMethodName[severity] << '('
+          << base::GetQuotedJSONString(message) << ')';
+  script_debugger_->EvaluateDebuggerScript(js_code.str(), nullptr);
 }
 
 void DebuggerHooksImpl::AsyncTaskScheduled(const void* task,

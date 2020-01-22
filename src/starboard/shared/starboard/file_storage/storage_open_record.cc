@@ -14,7 +14,10 @@
 
 #include "starboard/common/storage.h"
 
+#include <vector>
+
 #include "starboard/common/log.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/shared/starboard/file_storage/storage_internal.h"
 #include "starboard/user.h"
@@ -24,17 +27,17 @@ SbStorageRecord SbStorageOpenRecord(SbUser user, const char* name) {
     return kSbStorageInvalidRecord;
   }
 
-  char path[SB_FILE_MAX_PATH];
+  std::vector<char> path(kSbFileMaxPath);
   bool success = starboard::shared::starboard::GetUserStorageFilePath(
-      user, name, path, SB_ARRAY_SIZE_INT(path));
+      user, name, path.data(), static_cast<int>(path.size()));
   if (!success) {
     return kSbStorageInvalidRecord;
   }
 
   // This will always create the storage file, even if it is just opened and
   // closed without doing any operation.
-  SbFile file = SbFileOpen(path, kSbFileOpenAlways | kSbFileRead | kSbFileWrite,
-                           NULL, NULL);
+  SbFile file = SbFileOpen(
+      path.data(), kSbFileOpenAlways | kSbFileRead | kSbFileWrite, NULL, NULL);
   if (!SbFileIsValid(file)) {
     return kSbStorageInvalidRecord;
   }

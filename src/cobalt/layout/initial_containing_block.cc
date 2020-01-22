@@ -103,8 +103,14 @@ InitialContainingBlockCreationResults CreateInitialContainingBlock(
   initial_style_state->SetData(initial_containing_block_style);
   initial_style_state->set_animations(new web_animations::AnimationSet());
 
+  BaseDirection base_direction = kLeftToRightBaseDirection;
+  auto html = document->html();
+  if (html && html->GetUsedDirState() == dom::HTMLElement::kDirRightToLeft) {
+    base_direction = kRightToLeftBaseDirection;
+  }
+
   results.box = base::WrapRefCounted(new BlockLevelBlockContainerBox(
-      initial_style_state, kLeftToRightBaseDirection, used_style_provider,
+      initial_style_state, base_direction, used_style_provider,
       layout_stat_tracker));
 
   return results;

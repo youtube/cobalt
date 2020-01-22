@@ -20,13 +20,14 @@
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "cobalt/base/cobalt_paths.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/system.h"
 
 namespace {
 base::FilePath GetOrCreateDirectory(SbSystemPathId path_id) {
-  std::unique_ptr<char[]> path(new char[SB_FILE_MAX_PATH]);
+  std::unique_ptr<char[]> path(new char[kSbFileMaxPath]);
   path[0] = '\0';
-  if (SbSystemGetPath(path_id, path.get(), SB_FILE_MAX_PATH)) {
+  if (SbSystemGetPath(path_id, path.get(), kSbFileMaxPath)) {
     base::FilePath directory(path.get());
     if (base::PathExists(directory) || base::CreateDirectory(directory)) {
       return directory;

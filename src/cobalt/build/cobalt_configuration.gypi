@@ -180,8 +180,10 @@
     # milliseconds and can be a floating point number. Keep in mind that
     # swapping frames may take some additional processing time, so it may be
     # better to specify a lower delay. For example, '33' instead of '33.33'
-    # for 30 Hz refresh.
-    'cobalt_minimum_frame_time_in_milliseconds%': '16.0',
+    # for 30 Hz refresh. This value is deprecated in favor of the usage of
+    # CobaltExtensionGraphicsApi::GetMinimumFrameIntervalInMilliseconds API.
+    # The default value has been moved into cobalt/renderer/pipeline.cc.
+    'cobalt_minimum_frame_time_in_milliseconds%': '-1',
 
     # Cobalt will call eglSwapInterval() and specify this value before calling
     # eglSwapBuffers() each frame.
@@ -228,7 +230,7 @@
     # Set to "true" to enable v8 snapshot generation at Cobalt build time.
     'cobalt_v8_buildtime_snapshot%': '<(cobalt_v8_buildtime_snapshot)',
 
-    'cobalt_enable_quic': 1,
+    'cobalt_enable_quic%': 1,
 
     # Cache parameters
 

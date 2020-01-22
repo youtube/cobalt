@@ -1,23 +1,23 @@
-/***************************************************************************/
-/*                                                                         */
-/*  pfrload.h                                                              */
-/*                                                                         */
-/*    FreeType PFR loader (specification).                                 */
-/*                                                                         */
-/*  Copyright 2002-2015 by                                                 */
-/*  David Turner, Robert Wilhelm, and Werner Lemberg.                      */
-/*                                                                         */
-/*  This file is part of the FreeType project, and may only be used,       */
-/*  modified, and distributed under the terms of the FreeType project      */
-/*  license, LICENSE.TXT.  By continuing to use, modify, or distribute     */
-/*  this file you indicate that you have read the license and              */
-/*  understand and accept it fully.                                        */
-/*                                                                         */
-/***************************************************************************/
+/****************************************************************************
+ *
+ * pfrload.h
+ *
+ *   FreeType PFR loader (specification).
+ *
+ * Copyright (C) 2002-2019 by
+ * David Turner, Robert Wilhelm, and Werner Lemberg.
+ *
+ * This file is part of the FreeType project, and may only be used,
+ * modified, and distributed under the terms of the FreeType project
+ * license, LICENSE.TXT.  By continuing to use, modify, or distribute
+ * this file you indicate that you have read the license and
+ * understand and accept it fully.
+ *
+ */
 
 
-#ifndef __PFRLOAD_H__
-#define __PFRLOAD_H__
+#ifndef PFRLOAD_H_
+#define PFRLOAD_H_
 
 #include "pfrobjs.h"
 #include FT_INTERNAL_STREAM_H
@@ -117,7 +117,7 @@ FT_BEGIN_HEADER
 
 FT_END_HEADER
 
-#endif /* __PFRLOAD_H__ */
+#endif /* PFRLOAD_H_ */
 
 
 /* END */

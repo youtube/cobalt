@@ -19,6 +19,7 @@
 
 #include "base/lazy_instance.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/css_rule_visitor.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/dom/cdata_section.h"
@@ -26,6 +27,7 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/document_type.h"
 #include "cobalt/dom/dom_exception.h"
+#include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/html_collection.h"
@@ -435,6 +437,12 @@ DocumentType* Node::AsDocumentType() { return NULL; }
 Element* Node::AsElement() { return NULL; }
 
 Text* Node::AsText() { return NULL; }
+
+const base::DebuggerHooks& Node::debugger_hooks() const {
+  return base::polymorphic_downcast<DOMSettings*>(
+             node_document()->html_element_context()->environment_settings())
+      ->debugger_hooks();
+}
 
 void Node::TraceMembers(script::Tracer* tracer) {
   EventTarget::TraceMembers(tracer);

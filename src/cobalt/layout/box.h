@@ -62,7 +62,8 @@ struct LayoutParams {
   LayoutParams()
       : shrink_to_fit_width_forced(false),
         freeze_width(false),
-        freeze_height(false) {}
+        freeze_height(false),
+        containing_block_direction(kLeftToRightBaseDirection) {}
 
   // Normally the used values of "width", "margin-left", and "margin-right" are
   // calculated by choosing the 1 out of 10 algorithms based on the computed
@@ -91,11 +92,17 @@ struct LayoutParams {
   //   https://www.w3.org/TR/CSS21/visuren.html#containing-block
   SizeLayoutUnit containing_block_size;
 
+  // Margin calculations can depend on the direction property of the containing
+  // block.
+  //   https://www.w3.org/TR/CSS21/visudet.html#blockwidth
+  BaseDirection containing_block_direction;
+
   bool operator==(const LayoutParams& rhs) const {
     return shrink_to_fit_width_forced == rhs.shrink_to_fit_width_forced &&
            freeze_width == rhs.freeze_width &&
            freeze_height == rhs.freeze_height &&
-           containing_block_size == rhs.containing_block_size;
+           containing_block_size == rhs.containing_block_size &&
+           containing_block_direction == rhs.containing_block_direction;
   }
 
   base::Optional<LayoutUnit> maybe_margin_top;
@@ -772,6 +779,7 @@ class Box : public base::RefCounted<Box> {
   // https://www.w3.org/TR/CSS21/visudet.html#blockwidth and
   // https://www.w3.org/TR/CSS21/visudet.html#block-replaced-width.
   void UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
+      BaseDirection containing_block_direction,
       LayoutUnit containing_block_width, LayoutUnit border_box_width,
       const base::Optional<LayoutUnit>& possibly_overconstrained_margin_left,
       const base::Optional<LayoutUnit>& possibly_overconstrained_margin_right);

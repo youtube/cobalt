@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/media/media_support_internal.h"
 
 #include "starboard/configuration.h"
+#include "starboard/configuration_constants.h"
 #if SB_API_VERSION >= 11
 #include "starboard/gles.h"
 #endif  // SB_API_VERSION >= 11
@@ -89,5 +90,5 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
           (video_codec == kSbMediaVideoCodecH265 && is_de265_supported()) ||
           (video_codec == kSbMediaVideoCodecVp9 && is_vpx_supported())) &&
          frame_width <= 1920 && frame_height <= 1080 &&
-         bitrate <= SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND && fps <= 60;
+         bitrate <= kSbMediaMaxVideoBitrateInBitsPerSecond && fps <= 60;
 }

@@ -42,7 +42,7 @@ bool DebugClient::IsAttached() {
 }
 
 void DebugClient::OnEvent(const std::string& method,
-                          const base::Optional<std::string>& json_params) {
+                          const std::string& json_params) {
   DCHECK(delegate_);
   delegate_->OnDebugClientEvent(method, json_params);
 }
@@ -67,8 +67,7 @@ void DebugClient::SendCommand(const std::string& method,
     DLOG(WARNING) << "Debug client is not attached to dispatcher.";
     return;
   }
-  dispatcher_->SendCommand(
-      std::make_unique<Command>(method, json_params, callback));
+  dispatcher_->SendCommand(Command(method, json_params, callback));
 }
 
 }  // namespace debug

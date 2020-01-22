@@ -22,4 +22,4 @@
     void addListener(DebuggerEventCallback callback);
 };
 
-callback DebuggerEventCallback = void(DOMString method, DOMString? json_params);
+callback DebuggerEventCallback = void(DOMString method, DOMString json_params);

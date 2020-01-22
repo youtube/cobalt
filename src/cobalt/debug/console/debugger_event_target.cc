@@ -30,8 +30,8 @@ DebuggerEventTarget::~DebuggerEventTarget() {
   }
 }
 
-void DebuggerEventTarget::DispatchEvent(
-    const std::string& method, const base::Optional<std::string>& json_params) {
+void DebuggerEventTarget::DispatchEvent(const std::string& method,
+                                        const std::string& json_params) {
   base::AutoLock auto_lock(lock_);
 
   for (ListenerSet::const_iterator it = listeners_.begin();

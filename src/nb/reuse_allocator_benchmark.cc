@@ -25,6 +25,7 @@
 #include "nb/fixed_no_free_allocator.h"
 #include "starboard/client_porting/wrap_main/wrap_main.h"
 #include "starboard/common/log.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/event.h"
 #include "starboard/file.h"
 #include "starboard/memory.h"
@@ -67,18 +68,19 @@ std::string ReadFileContent(const std::string& pathname) {
 
 void LoadAllocationPlayback(std::vector<AllocationCommand>* commands,
                             const std::string& filename) {
-  char buffer[SB_FILE_MAX_NAME * 16];
-  bool result = SbSystemGetPath(kSbSystemPathContentDirectory, buffer,
-                                SB_ARRAY_SIZE(buffer));
+  std::vector<char> buffer(kSbFileMaxName * 16);
+
+  bool result = SbSystemGetPath(kSbSystemPathContentDirectory, buffer.data(),
+                                buffer.size());
   SB_DCHECK(result);
-  std::string path_name = buffer;
-  path_name += SB_FILE_SEP_CHAR;
+  std::string path_name(buffer.begin(), buffer.end());
+  path_name += kSbFileSepChar;
   path_name += "test";
-  path_name += SB_FILE_SEP_CHAR;
+  path_name += kSbFileSepChar;
   path_name += "nb";
-  path_name += SB_FILE_SEP_CHAR;
+  path_name += kSbFileSepChar;
   path_name += "testdata";
-  path_name += SB_FILE_SEP_CHAR;
+  path_name += kSbFileSepChar;
   path_name += filename;
 
   std::map<uint64_t, uint32_t> address_map;

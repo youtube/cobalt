@@ -5,6 +5,7 @@ btoa-with-null-char
 changing-css-text-triggers-layout
 console-trace-should-not-crash
 divs-with-background-color-and-text
+div-with-border-of-non-integer-size
 fixed-width-divs-with-background-color
 font-weight
 image-from-blob

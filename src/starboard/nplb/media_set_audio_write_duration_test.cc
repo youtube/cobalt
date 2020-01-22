@@ -16,6 +16,7 @@
 
 #include "starboard/common/optional.h"
 #include "starboard/common/spin_lock.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
@@ -35,15 +36,14 @@ const SbTime kDuration = kSbTimeSecond / 2;
 const SbTime kSmallWaitInterval = 10 * kSbTimeMillisecond;
 
 std::string GetTestInputDirectory() {
-  const size_t kPathSize = SB_FILE_MAX_PATH + 1;
-
-  char content_path[kPathSize];
-  SB_CHECK(
-      SbSystemGetPath(kSbSystemPathContentDirectory, content_path, kPathSize));
+  std::vector<char> content_path(kSbFileMaxPath);
+  SB_CHECK(SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),
+                           kSbFileMaxPath));
   std::string directory_path =
-      std::string(content_path) + SB_FILE_SEP_CHAR + "test" + SB_FILE_SEP_CHAR +
-      "starboard" + SB_FILE_SEP_CHAR + "shared" + SB_FILE_SEP_CHAR +
-      "starboard" + SB_FILE_SEP_CHAR + "player" + SB_FILE_SEP_CHAR + "testdata";
+      std::string(content_path.data()) + kSbFileSepChar + "test" +
+      kSbFileSepChar + "starboard" + kSbFileSepChar + "shared" +
+      kSbFileSepChar + "starboard" + kSbFileSepChar + "player" +
+      kSbFileSepChar + "testdata";
 
   SB_CHECK(SbDirectoryCanOpen(directory_path.c_str()))
       << "Cannot open directory " << directory_path;
@@ -59,7 +59,7 @@ static void DeallocateSampleFunc(SbPlayer player,
 }
 
 std::string ResolveTestFileName(const char* filename) {
-  auto ret = GetTestInputDirectory() + SB_FILE_SEP_CHAR + filename;
+  auto ret = GetTestInputDirectory() + kSbFileSepChar + filename;
   return ret;
 }
 

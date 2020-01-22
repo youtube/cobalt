@@ -3,7 +3,7 @@
 #
 
 
-# Copyright 2003-2015 by
+# Copyright (C) 2003-2019 by
 # David Turner, Robert Wilhelm, and Werner Lemberg.
 #
 # This file is part of the FreeType project, and may only be used, modified,
@@ -38,10 +38,9 @@ AUTOF_DRV_SRC := $(AUTOF_DIR)/afangles.c \
                  $(AUTOF_DIR)/aflatin.c  \
                  $(AUTOF_DIR)/afloader.c \
                  $(AUTOF_DIR)/afmodule.c \
-                 $(AUTOF_DIR)/afpic.c    \
                  $(AUTOF_DIR)/afranges.c \
-                 $(AUTOF_DIR)/afwarp.c   \
-                 $(AUTOF_DIR)/hbshim.c
+                 $(AUTOF_DIR)/afshaper.c \
+                 $(AUTOF_DIR)/afwarp.c
 
 # AUTOF driver headers
 #

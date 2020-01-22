@@ -15,15 +15,16 @@
 #include "starboard/shared/starboard/media/media_support_internal.h"
 
 #include "starboard/configuration.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/media.h"
 
 bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec, int64_t bitrate) {
   if (audio_codec == kSbMediaAudioCodecAac) {
-    return bitrate <= SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND;
+    return bitrate <= kSbMediaMaxAudioBitrateInBitsPerSecond;
   }
 
   if (audio_codec == kSbMediaAudioCodecOpus) {
-    return bitrate <= SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND;
+    return bitrate <= kSbMediaMaxAudioBitrateInBitsPerSecond;
   }
 
   return false;

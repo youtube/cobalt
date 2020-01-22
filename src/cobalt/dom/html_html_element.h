@@ -36,6 +36,8 @@ class HTMLHtmlElement : public HTMLElement {
   // Custom, not in any spec.
   scoped_refptr<HTMLHtmlElement> AsHTMLHtmlElement() override { return this; }
 
+  DirState GetUsedDirState() override;
+
   DEFINE_WRAPPABLE_TYPE(HTMLHtmlElement);
 
  private:

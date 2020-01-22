@@ -17,6 +17,7 @@
 #include <algorithm>
 
 #include "starboard/common/string.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/memory.h"
 #include "starboard/nplb/file_helpers.h"
@@ -29,22 +30,22 @@ namespace nplb {
 namespace {
 
 // Size of appropriate path buffer.
-const size_t kPathSize = SB_FILE_MAX_PATH + 1;
+const size_t kPathSize = kSbFileMaxPath + 1;
 
 void BasicTest(SbSystemPathId id,
                bool expect_result,
                bool expected_result,
                int line) {
 #define LOCAL_CONTEXT "Context : id=" << id << ", line=" << line;
-  char path[kPathSize];
-  SbMemorySet(path, 0xCD, kPathSize);
-  bool result = SbSystemGetPath(id, path, kPathSize);
+  std::vector<char> path(kPathSize);
+  SbMemorySet(path.data(), 0xCD, kPathSize);
+  bool result = SbSystemGetPath(id, path.data(), kPathSize);
   if (expect_result) {
     EXPECT_EQ(expected_result, result) << LOCAL_CONTEXT;
   }
   if (result) {
     EXPECT_NE('\xCD', path[0]) << LOCAL_CONTEXT;
-    int len = static_cast<int>(SbStringGetLength(path));
+    int len = static_cast<int>(SbStringGetLength(path.data()));
     EXPECT_GT(len, 0) << LOCAL_CONTEXT;
   } else {
     EXPECT_EQ('\xCD', path[0]) << LOCAL_CONTEXT;
@@ -53,10 +54,10 @@ void BasicTest(SbSystemPathId id,
 }
 
 void UnmodifiedOnFailureTest(SbSystemPathId id, int line) {
-  char path[kPathSize];
-  SbMemorySet(path, 0xCD, kPathSize);
+  std::vector<char> path(kPathSize);
+  SbMemorySet(path.data(), 0xCD, kPathSize);
   for (size_t i = 0; i <= kPathSize; ++i) {
-    if (SbSystemGetPath(id, path, i)) {
+    if (SbSystemGetPath(id, path.data(), i)) {
       return;
     }
     for (auto ch : path) {
@@ -71,13 +72,12 @@ TEST(SbSystemGetPathTest, ReturnsRequiredPaths) {
 }
 
 TEST(SbSystemGetPathTest, FailsGracefullyZeroBufferLength) {
-  char path[kPathSize] = {0};
-  bool result = SbSystemGetPath(kSbSystemPathContentDirectory, path, 0);
+  std::vector<char> path(kPathSize, 0);
+  bool result = SbSystemGetPath(kSbSystemPathContentDirectory, path.data(), 0);
   EXPECT_FALSE(result);
 }
 
 TEST(SbSystemGetPathTest, FailsGracefullyNullBuffer) {
-  char path[kPathSize] = {0};
   bool result = SbSystemGetPath(kSbSystemPathContentDirectory, NULL, kPathSize);
   EXPECT_FALSE(result);
 }
@@ -110,93 +110,96 @@ TEST(SbSystemGetPathTest, DoesNotTouchOutputBufferOnFailureForDefinedIds) {
 }
 
 TEST(SbSystemGetPathTest, CanCreateAndRemoveDirectoryInCache) {
-  char path[kPathSize];
-  SbMemorySet(path, 0xCD, kPathSize);
-  bool result = SbSystemGetPath(kSbSystemPathCacheDirectory, path, kPathSize);
+  std::vector<char> path(kPathSize);
+  SbMemorySet(path.data(), 0xCD, kPathSize);
+  bool result =
+      SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(), kPathSize);
   EXPECT_TRUE(result);
   if (result) {
     EXPECT_NE('\xCD', path[0]);
     // Delete a directory and confirm that it does not exist.
     std::string sub_path =
-        SB_FILE_SEP_STRING + ScopedRandomFile::MakeRandomFilename();
-    EXPECT_GT(SbStringConcat(path, sub_path.c_str(), kPathSize), 0);
-    EXPECT_TRUE(SbFileDelete(path));
-    EXPECT_FALSE(SbFileExists(path));
+        kSbFileSepString + ScopedRandomFile::MakeRandomFilename();
+    EXPECT_GT(SbStringConcat(path.data(), sub_path.c_str(), kPathSize), 0);
+    EXPECT_TRUE(SbFileDelete(path.data()));
+    EXPECT_FALSE(SbFileExists(path.data()));
 
     // Create the directory and confirm it exists and can be opened.
-    EXPECT_TRUE(SbDirectoryCreate(path));
-    EXPECT_TRUE(SbFileExists(path));
-    EXPECT_TRUE(SbDirectoryCanOpen(path));
-    SbDirectory directory = SbDirectoryOpen(path, NULL);
+    EXPECT_TRUE(SbDirectoryCreate(path.data()));
+    EXPECT_TRUE(SbFileExists(path.data()));
+    EXPECT_TRUE(SbDirectoryCanOpen(path.data()));
+    SbDirectory directory = SbDirectoryOpen(path.data(), NULL);
     EXPECT_TRUE(SbDirectoryIsValid(directory));
 
     // Lastly, close and delete the directory.
     EXPECT_TRUE(SbDirectoryClose(directory));
-    EXPECT_TRUE(SbFileDelete(path));
-    EXPECT_FALSE(SbFileExists(path));
+    EXPECT_TRUE(SbFileDelete(path.data()));
+    EXPECT_FALSE(SbFileExists(path.data()));
   }
 }
 
 TEST(SbSystemGetPathTest, CanWriteAndReadCache) {
-  char path[kPathSize];
-  SbMemorySet(path, 0xCD, kPathSize);
-  bool result = SbSystemGetPath(kSbSystemPathCacheDirectory, path, kPathSize);
+  std::vector<char> path(kPathSize);
+  SbMemorySet(path.data(), 0xCD, kPathSize);
+  bool result =
+      SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(), kPathSize);
   EXPECT_TRUE(result);
   if (result) {
     EXPECT_NE('\xCD', path[0]);
-    int len = static_cast<int>(SbStringGetLength(path));
+    int len = static_cast<int>(SbStringGetLength(path.data()));
     EXPECT_GT(len, 0);
     // Delete a file and confirm that it does not exist.
     std::string sub_path =
-        SB_FILE_SEP_STRING + ScopedRandomFile::MakeRandomFilename();
-    EXPECT_GT(SbStringConcat(path, sub_path.c_str(), kPathSize), 0);
-    EXPECT_TRUE(SbFileDelete(path));
-    EXPECT_FALSE(SbFileExists(path));
+        kSbFileSepString + ScopedRandomFile::MakeRandomFilename();
+    EXPECT_GT(SbStringConcat(path.data(), sub_path.c_str(), kPathSize), 0);
+    EXPECT_TRUE(SbFileDelete(path.data()));
+    EXPECT_FALSE(SbFileExists(path.data()));
 
     // Write to the file and check that we can read from it.
     std::string content_to_write = "test content";
     {
       starboard::ScopedFile test_file_writer(
-          path, kSbFileCreateAlways | kSbFileWrite, NULL, NULL);
+          path.data(), kSbFileCreateAlways | kSbFileWrite, NULL, NULL);
       EXPECT_GT(
           test_file_writer.WriteAll(content_to_write.c_str(),
                                     static_cast<int>(content_to_write.size())),
           0);
     }
-    EXPECT_TRUE(SbFileExists(path));
+    EXPECT_TRUE(SbFileExists(path.data()));
     SbFileInfo info;
-    EXPECT_TRUE(SbFileGetPathInfo(path, &info));
+    EXPECT_TRUE(SbFileGetPathInfo(path.data(), &info));
     const int kFileSize = static_cast<int>(info.size);
     EXPECT_GT(kFileSize, 0);
     const int kBufferLength = 16 * 1024;
     char content_read[kBufferLength] = {0};
     {
       starboard::ScopedFile test_file_reader(
-          path, kSbFileOpenOnly | kSbFileRead, NULL, NULL);
+          path.data(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
       EXPECT_GT(test_file_reader.ReadAll(content_read, kFileSize), 0);
     }
     EXPECT_EQ(content_read, content_to_write);
 
     // Lastly, delete the file.
-    EXPECT_TRUE(SbFileDelete(path));
-    EXPECT_FALSE(SbFileExists(path));
+    EXPECT_TRUE(SbFileDelete(path.data()));
+    EXPECT_FALSE(SbFileExists(path.data()));
   }
 }
 
 TEST(SbSystemGetPath, ExecutableFileCreationTimeIsSound) {
   // Verify that the creation time of the current executable file is not
   // greater than the current time.
-  char path[kPathSize];
-  SbMemorySet(path, 0xCD, kPathSize);
-  bool result = SbSystemGetPath(kSbSystemPathExecutableFile, path, kPathSize);
+  std::vector<char> path(kPathSize);
+  SbMemorySet(path.data(), 0xCD, kPathSize);
+  bool result =
+      SbSystemGetPath(kSbSystemPathExecutableFile, path.data(), kPathSize);
   ASSERT_TRUE(result);
 
   EXPECT_NE('\xCD', path[0]);
-  int len = static_cast<int>(SbStringGetLength(path));
+  int len = static_cast<int>(SbStringGetLength(path.data()));
   EXPECT_GT(len, 0);
 
   SbFileInfo executable_file_info;
-  result = SbFileGetPathInfo(path, &executable_file_info);
+  result = SbFileGetPathInfo(path.data(), &executable_file_info);
   ASSERT_TRUE(result);
 
   SbTime now = SbTimeGetNow();

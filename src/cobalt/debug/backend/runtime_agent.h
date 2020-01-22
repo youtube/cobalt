@@ -37,9 +37,9 @@ class RuntimeAgent {
   JSONObject Freeze();
 
  private:
-  void CompileScript(const Command& command);
-  void Disable(const Command& command);
-  void Enable(const Command& command);
+  void CompileScript(Command command);
+  void Disable(Command command);
+  void Enable(Command command);
 
   DebugDispatcher* dispatcher_;
   dom::Window* window_;

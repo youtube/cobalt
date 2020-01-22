@@ -98,7 +98,8 @@ int MozjsMain(int argc, char** argv) {
       }
     }
   } else {
-    standalone_runner.RunInteractive();
+    while (standalone_runner.RunInteractive()) {
+    }
   }
 
   return 0;

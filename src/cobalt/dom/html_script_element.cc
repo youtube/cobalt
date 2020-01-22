@@ -22,6 +22,7 @@
 #include "base/compiler_specific.h"
 #include "base/strings/string_util.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/base/console_log.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
@@ -248,6 +249,23 @@ void HTMLScriptElement::Prepare() {
     // Option 2
     // If the element has a src attribute, and the element has been flagged as
     // "parser-inserted", and the element does not have an async attribute.
+
+    if (owner_document()
+            ->html_element_context()
+            ->enable_inline_script_warnings()) {
+      CLOG(WARNING, debugger_hooks())
+          << "A request to synchronously load a script is being made as "
+             "a result of a non-async <script> tag inlined within HTML. "
+             "You should avoid this in Cobalt because if the app is "
+             "suspended while loading the script, Cobalt's current "
+             "logic is to abort the load and without any retries or "
+             "signals. To avoid difficult to diagnose suspend/resume "
+             "bugs, it is recommended to use JavaScript to create a "
+             "script element and load it async. The <script> reference "
+             "appears at: \""
+          << inline_script_location_ << "\" and its src is \"" << src() << "\"";
+    }
+
     load_option_ = 2;
   } else if (HasAttribute("src") && !async()) {
     // Option 4
@@ -400,8 +418,7 @@ void HTMLScriptElement::Prepare() {
       const std::string& text = content.value_or(base::EmptyString());
       if (bypass_csp || text.empty() ||
           csp_delegate->AllowInline(CspDelegate::kScript,
-                                    inline_script_location_,
-                                    text)) {
+                                    inline_script_location_, text)) {
         fetched_last_url_origin_ = document_->location()->GetOriginAsObject();
         ExecuteInternal();
       } else {
@@ -428,7 +445,8 @@ void HTMLScriptElement::OnSyncLoadingComplete(
   if (!error) return;
 
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnSyncLoadingComplete()");
-  LOG(ERROR) << *error;
+  LOG(ERROR) << "Error during synchronous script load referenced from \""
+             << inline_script_location_ << "\" : " << *error;
 }
 
 // Algorithm for OnContentProduced:

@@ -54,7 +54,7 @@ JSONObject TracingAgent::Freeze() {
   return JSONObject();
 }
 
-void TracingAgent::End(const Command& command) {
+void TracingAgent::End(Command command) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (!tracing_started_) {
     command.SendErrorResponse(Command::kInvalidRequest, "Tracing not started");
@@ -66,7 +66,7 @@ void TracingAgent::End(const Command& command) {
   script_debugger_->StopTracing();
 }
 
-void TracingAgent::Start(const Command& command) {
+void TracingAgent::Start(Command command) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (tracing_started_) {
     command.SendErrorResponse(Command::kInvalidRequest,
@@ -114,8 +114,7 @@ void TracingAgent::AppendTraceEvent(const std::string& trace_event_json) {
 
 void TracingAgent::FlushTraceEvents() {
   SendDataCollectedEvent();
-  dispatcher_->SendEvent(std::string(kInspectorDomain) + ".tracingComplete",
-                         JSONObject());
+  dispatcher_->SendEvent(std::string(kInspectorDomain) + ".tracingComplete");
 }
 
 void TracingAgent::SendDataCollectedEvent() {

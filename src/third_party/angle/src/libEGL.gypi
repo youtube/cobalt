@@ -22,6 +22,7 @@
             [
                 '.',
                 '../include',
+                '../src/common/third_party/base',
             ],
             'sources':
             [
@@ -69,6 +70,7 @@
             [
                 '.',
                 '../include',
+                '../src/common/third_party/base',
             ],
             'sources':
             [

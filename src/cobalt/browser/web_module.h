@@ -135,6 +135,16 @@ class WebModule : public LifecycleObserver {
     // Whether Cobalt is forbidden to render without receiving CSP headers.
     csp::CSPHeaderPolicy require_csp;
 
+    // If true, Cobalt will log a warning each time it parses a non-async
+    // <script> tag inlined in HTML.  Cobalt has a known issue where if it is
+    // paused or suspended while loading inlined <script> tags, it will abort
+    // the script fetch and silently fail without any follow up actions.  It is
+    // recommended that production code always avoid non-async <script> tags
+    // inlined in HTML.  This is likely not an issue for tests, however, where
+    // we control the suspend/resume activities, so this flag can be used in
+    // these cases to disable the warning.
+    bool enable_inline_script_warnings = true;
+
     // Encoded image cache capacity in bytes.
     int encoded_image_cache_capacity = 1024 * 1024;
 

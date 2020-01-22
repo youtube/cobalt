@@ -6,7 +6,6 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
-#include "base/cpp14oncpp11.h"
 #include "base/memory/ptr_util.h"
 #include "base/metrics/statistics_recorder.h"
 #include "base/synchronization/atomic_flag.h"
@@ -25,6 +24,7 @@
 #include "base/threading/thread.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
+#include "nb/cpp14oncpp11.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(OS_WIN)

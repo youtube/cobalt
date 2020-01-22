@@ -173,6 +173,7 @@ class Window : public EventTarget,
       const ScreenshotManager::ProvideScreenshotFunctionCallback&
           screenshot_function_callback,
       base::WaitableEvent* synchronous_loader_interrupt,
+      bool enable_inline_script_warnings = false,
       const scoped_refptr<ui_navigation::NavItem>& ui_nav_root = nullptr,
       int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0,
       float video_playback_rate_multiplier = 1.f,

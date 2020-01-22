@@ -16,7 +16,9 @@
 
 #include <sstream>
 #include <string>
+#include <vector>
 
+#include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -26,18 +28,17 @@ namespace nplb {
 
 namespace {
 // Size of appropriate path buffer.
-const size_t kPathSize = SB_FILE_MAX_PATH + 1;
+const size_t kPathSize = kSbFileMaxPath + 1;
 }  // namespace
 
 std::string GetTempDir() {
   // It seems there's absolutely no way to get to std::string without a copy.
-  char path[kPathSize] = {0};
-  if (!SbSystemGetPath(kSbSystemPathTempDirectory, path,
-                       SB_ARRAY_SIZE_INT(path))) {
+  std::vector<char> path(kPathSize, 0);
+  if (!SbSystemGetPath(kSbSystemPathTempDirectory, path.data(), path.size())) {
     return "";
   }
 
-  return path;
+  return path.data();
 }
 
 // static
@@ -67,7 +68,7 @@ std::string ScopedRandomFile::MakeRandomFilePath() {
     return "";
   }
 
-  filename_stream << SB_FILE_SEP_CHAR << MakeRandomFilename();
+  filename_stream << kSbFileSepChar << MakeRandomFilename();
   return filename_stream.str();
 }
 

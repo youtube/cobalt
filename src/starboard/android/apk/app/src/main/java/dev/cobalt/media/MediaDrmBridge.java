@@ -20,7 +20,6 @@ package dev.cobalt.media;
 
 import static dev.cobalt.media.Log.TAG;
 
-import android.annotation.TargetApi;
 import android.media.DeniedByServerException;
 import android.media.MediaCrypto;
 import android.media.MediaCryptoException;
@@ -30,6 +29,7 @@ import android.media.MediaDrmException;
 import android.media.NotProvisionedException;
 import android.media.UnsupportedSchemeException;
 import android.os.Build;
+import androidx.annotation.RequiresApi;
 import dev.cobalt.coat.CobaltHttpHelper;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
@@ -110,10 +110,12 @@ public class MediaDrmBridge {
       this.mErrorMessage = errorMessage;
     }
 
+    @UsedByNative
     public boolean isSuccess() {
       return mIsSuccess;
     }
 
+    @UsedByNative
     public String getErrorMessage() {
       return mErrorMessage;
     }
@@ -427,7 +429,7 @@ public class MediaDrmBridge {
     mMediaDrm.setPropertyString("sessionSharing", "enable");
   }
 
-  @TargetApi(23)
+  @RequiresApi(23)
   private void setOnKeyStatusChangeListenerV23() {
     mMediaDrm.setOnKeyStatusChangeListener(
         new MediaDrm.OnKeyStatusChangeListener() {
@@ -695,9 +697,23 @@ public class MediaDrmBridge {
     }
 
     if (mMediaDrm != null) {
-      mMediaDrm.release();
+      if (Build.VERSION.SDK_INT >= 28) {
+        closeMediaDrmV28(mMediaDrm);
+      } else {
+        releaseMediaDrmDeprecated(mMediaDrm);
+      }
       mMediaDrm = null;
     }
+  }
+
+  @SuppressWarnings("deprecation")
+  private void releaseMediaDrmDeprecated(MediaDrm mediaDrm) {
+    mediaDrm.release();
+  }
+
+  @RequiresApi(28)
+  private void closeMediaDrmV28(MediaDrm mediaDrm) {
+    mediaDrm.close();
   }
 
   private boolean isNativeMediaDrmBridgeValid() {

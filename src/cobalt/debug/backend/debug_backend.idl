@@ -16,7 +16,7 @@
   Conditional=ENABLE_DEBUGGER
 ]
 interface DebugBackend {
-  void sendEvent(DOMString method, DOMString? params);
+  void sendEvent(DOMString method, optional DOMString params = "{}");
 
   // Convert between JS objects and a remote representation for the frontend.
   DOMString createRemoteObject(object obj, DOMString group);

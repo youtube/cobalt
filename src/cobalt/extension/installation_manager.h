@@ -19,6 +19,7 @@
 
 #include "starboard/configuration.h"
 
+#define IM_EXT_INVALID_INDEX -1
 #define IM_EXT_ERROR -1
 #define IM_EXT_SUCCESS 0
 

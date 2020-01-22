@@ -17,6 +17,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
+using ::testing::ContainsRegex;
 using ::testing::InSequence;
 using ::testing::Return;
 using ::testing::SaveArg;
@@ -163,6 +164,108 @@ TEST_F(UnionTypesBindingsTest, GetNullableUnion) {
       .WillOnce(Return(base::nullopt));
   EXPECT_TRUE(EvaluateScript("test.nullableUnionProperty == null;", &result));
   EXPECT_STREQ("true", result.c_str());
+}
+
+TEST_F(UnionTypesBindingsTest, ConvertDictFromJS) {
+  InSequence dummy;
+
+  // Union can still accept a string
+  UnionTypesInterface::UnionDictPropertyType property;
+  EXPECT_CALL(test_mock(), set_union_with_dictionary_property(_))
+      .WillOnce(SaveArg<0>(&property));
+  EXPECT_TRUE(
+      EvaluateScript("test.unionWithDictionaryProperty = 'foo';", NULL));
+  ASSERT_TRUE(property.IsType<std::string>());
+  EXPECT_EQ("foo", property.AsType<std::string>());
+
+  // Dictionary is properly converted and populated
+  EXPECT_CALL(test_mock(), set_union_with_dictionary_property(_))
+      .WillOnce(SaveArg<0>(&property));
+  EXPECT_TRUE(
+      EvaluateScript("test.unionWithDictionaryProperty = "
+                     "{ 'stringMember' : 'foo', 'longMember' : 42 };",
+                     NULL));
+  ASSERT_TRUE(property.IsType<TestDictionary>());
+  EXPECT_TRUE(property.AsType<TestDictionary>().has_string_member());
+  EXPECT_EQ(property.AsType<TestDictionary>().string_member(), "foo");
+  EXPECT_TRUE(property.AsType<TestDictionary>().has_long_member());
+  EXPECT_EQ(property.AsType<TestDictionary>().long_member(), 42);
+
+  // Derived dictionary can be converted, and takes precedence over an object
+  UnionTypesInterface::UnionObjectsPropertyType other_property;
+  EXPECT_CALL(test_mock(), set_union_dicts_objects_property(_))
+      .WillOnce(SaveArg<0>(&other_property));
+  EXPECT_TRUE(
+      EvaluateScript("test.unionDictsObjectsProperty = "
+                     "{ 'additionalMember' : true, 'longMember' : 2 };",
+                     NULL));
+  ASSERT_TRUE(other_property.IsType<DerivedDictionary>());
+  EXPECT_EQ(true,
+            other_property.AsType<DerivedDictionary>().additional_member());
+  EXPECT_EQ(2, other_property.AsType<DerivedDictionary>().long_member());
+
+  // Union can still accept an arbitrary object as well
+  EXPECT_CALL(test_mock(), set_union_dicts_objects_property(_))
+      .WillOnce(SaveArg<0>(&other_property));
+  EXPECT_TRUE(EvaluateScript(
+      "test.unionDictsObjectsProperty = new ArbitraryInterface();", NULL));
+  ASSERT_TRUE(other_property.IsType<scoped_refptr<ArbitraryInterface> >());
+  EXPECT_TRUE(other_property.AsType<scoped_refptr<ArbitraryInterface> >());
+}
+
+TEST_F(UnionTypesBindingsTest, ConvertDictToJS) {
+  InSequence dummy;
+
+  // Return a string
+  std::string result;
+  EXPECT_CALL(test_mock(), union_with_dictionary_property())
+      .WillOnce(Return(
+          UnionTypesInterface::UnionDictPropertyType(std::string("foo"))));
+  EXPECT_TRUE(EvaluateScript(
+      "typeof test.unionWithDictionaryProperty == \"string\";", &result));
+  EXPECT_EQ("true", result);
+
+  // Return a dictionary with default member set
+  EXPECT_CALL(test_mock(), union_with_dictionary_property())
+      .WillOnce(
+          Return(UnionTypesInterface::UnionDictPropertyType(TestDictionary())));
+  EXPECT_TRUE(EvaluateScript(
+      "test.unionWithDictionaryProperty['memberWithDefault']", &result));
+  EXPECT_EQ("5", result);
+
+  // Return an arbitrary object
+  EXPECT_CALL(test_mock(), union_dicts_objects_property())
+      .WillOnce(Return(UnionTypesInterface::UnionObjectsPropertyType(
+          base::WrapRefCounted(new ArbitraryInterface()))));
+  EXPECT_TRUE(EvaluateScript(
+      "Object.getPrototypeOf(test.unionDictsObjectsProperty) === "
+      "ArbitraryInterface.prototype;",
+      &result));
+  EXPECT_EQ("true", result);
+
+  // Return a derived dictionary with default boolean member set
+  EXPECT_CALL(test_mock(), union_dicts_objects_property())
+      .WillOnce(Return(
+          UnionTypesInterface::UnionObjectsPropertyType(DerivedDictionary())));
+  EXPECT_TRUE(EvaluateScript(
+      "test.unionDictsObjectsProperty['additionalMember'] == false", &result));
+  EXPECT_EQ("true", result);
+}
+
+TEST_F(UnionTypesBindingsTest, ConvertDictFromJSInvalid) {
+  InSequence dummy;
+
+  std::string result;
+  EXPECT_FALSE(EvaluateScript("test.unionDictsObjectsProperty = 42;", &result));
+  EXPECT_THAT(result, ContainsRegex("TypeError:"));
+
+  EXPECT_FALSE(
+      EvaluateScript("test.unionDictsObjectsProperty = 'foo';", &result));
+  EXPECT_THAT(result, ContainsRegex("TypeError:"));
+
+  EXPECT_FALSE(
+      EvaluateScript("test.unionDictsObjectsProperty = true;", &result));
+  EXPECT_THAT(result, ContainsRegex("TypeError:"));
 }
 
 }  // namespace testing

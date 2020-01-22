@@ -77,10 +77,8 @@ typedef enum SbMediaAudioCodec {
   kSbMediaAudioCodecNone,
 
   kSbMediaAudioCodecAac,
-#if SB_HAS(AC3_AUDIO)
   kSbMediaAudioCodecAc3,
   kSbMediaAudioCodecEac3,
-#endif  // SB_HAS(AC3_AUDIO)
   kSbMediaAudioCodecOpus,
   kSbMediaAudioCodecVorbis,
 } SbMediaAudioCodec;

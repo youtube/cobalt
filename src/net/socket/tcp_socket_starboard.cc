@@ -19,6 +19,7 @@
 #include "net/base/network_activity_monitor.h"
 #include "net/socket/socket_net_log_params.h"
 #include "net/socket/socket_options.h"
+#include "starboard/configuration_constants.h"
 
 namespace net {
 
@@ -164,8 +165,8 @@ void TCPSocketStarboard::SetDefaultOptionsForClient() {
 
   SbSocketSetTcpWindowScaling(socket_, true);
 
-  if (SB_NETWORK_RECEIVE_BUFFER_SIZE != 0) {
-    SbSocketSetReceiveBufferSize(socket_, SB_NETWORK_RECEIVE_BUFFER_SIZE);
+  if (kSbNetworkReceiveBufferSize != 0) {
+    SbSocketSetReceiveBufferSize(socket_, kSbNetworkReceiveBufferSize);
   }
 }
 

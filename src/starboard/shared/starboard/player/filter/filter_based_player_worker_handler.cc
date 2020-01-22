@@ -16,7 +16,10 @@
 
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
+#include "starboard/common/murmurhash2.h"
+#include "starboard/format_string.h"
 #include "starboard/memory.h"
+#include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
@@ -46,6 +49,31 @@ class MonotonicSystemTimeProviderImpl : public MonotonicSystemTimeProvider {
     return SbTimeGetMonotonicNow();
   }
 };
+
+#if defined(COBALT_BUILD_TYPE_GOLD)
+
+void DumpInputHash(const InputBuffer* input_buffer) {}
+
+#else  // defined(COBALT_BUILD_TYPE_GOLD)
+
+void DumpInputHash(const InputBuffer* input_buffer) {
+  static const bool s_dump_input_hash =
+      Application::Get()->GetCommandLine()->HasSwitch("dump_video_input_hash");
+
+  if (!s_dump_input_hash) {
+    return;
+  }
+
+  bool is_audio = input_buffer->sample_type() == kSbMediaTypeAudio;
+  SB_LOG(ERROR) << "Dump "
+                << (input_buffer->drm_info() ? "encrypted " : "clear ")
+                << (is_audio ? "audio input hash @ " : "video input hash @ ")
+                << input_buffer->timestamp() << ": "
+                << MurmurHash2_32(input_buffer->data(), input_buffer->size(),
+                                  0);
+}
+
+#endif  // defined(COBALT_BUILD_TYPE_GOLD)
 
 }  // namespace
 
@@ -88,7 +116,8 @@ bool FilterBasedPlayerWorkerHandler::Init(
     UpdateMediaInfoCB update_media_info_cb,
     GetPlayerStateCB get_player_state_cb,
     UpdatePlayerStateCB update_player_state_cb,
-    UpdatePlayerErrorCB update_player_error_cb) {
+    UpdatePlayerErrorCB update_player_error_cb,
+    std::string* error_message) {
   // This function should only be called once.
   SB_DCHECK(update_media_info_cb_ == NULL);
 
@@ -97,6 +126,7 @@ bool FilterBasedPlayerWorkerHandler::Init(
   SB_DCHECK(update_media_info_cb);
   SB_DCHECK(get_player_state_cb);
   SB_DCHECK(update_player_state_cb);
+  SB_DCHECK(error_message);
 
   AttachToCurrentThread();
 
@@ -123,15 +153,20 @@ bool FilterBasedPlayerWorkerHandler::Init(
       SB_LOG(ERROR) << "Audio channels requested " << required_audio_channels
                     << ", but currently supported less than or equal to "
                     << supported_audio_channels;
+      *error_message =
+          FormatString("Required channel %d is greater than maximum channel %d",
+                       required_audio_channels, supported_audio_channels);
       return false;
     }
 
     PlayerComponents::AudioParameters audio_parameters = {
         audio_codec_, audio_sample_info_, drm_system_};
 
-    audio_renderer_ = player_components->CreateAudioRenderer(audio_parameters);
+    audio_renderer_ =
+        player_components->CreateAudioRenderer(audio_parameters, error_message);
     if (!audio_renderer_) {
-      SB_DLOG(ERROR) << "Failed to create audio renderer";
+      SB_DLOG(ERROR) << "Failed to create audio renderer with error: "
+                     << *error_message;
       return false;
     }
     audio_renderer_->Initialize(
@@ -174,9 +209,10 @@ bool FilterBasedPlayerWorkerHandler::Init(
     SB_DCHECK(media_time_provider);
 
     video_renderer_ = player_components->CreateVideoRenderer(
-        video_parameters, media_time_provider);
+        video_parameters, media_time_provider, error_message);
     if (!video_renderer_) {
-      SB_DLOG(ERROR) << "Failed to create video renderer";
+      SB_DLOG(ERROR) << "Failed to create video renderer with error: "
+                     << *error_message;
       return false;
     }
     video_renderer_->Initialize(
@@ -245,6 +281,7 @@ bool FilterBasedPlayerWorkerHandler::WriteSample(
         if (!SbDrmSystemIsValid(drm_system_)) {
           return false;
         }
+        DumpInputHash(input_buffer);
         SbDrmSystemPrivate::DecryptStatus decrypt_status =
             drm_system_->Decrypt(input_buffer);
         if (decrypt_status == SbDrmSystemPrivate::kRetry) {
@@ -256,6 +293,7 @@ bool FilterBasedPlayerWorkerHandler::WriteSample(
           return false;
         }
       }
+      DumpInputHash(input_buffer);
       audio_renderer_->WriteSample(input_buffer);
     }
   } else {
@@ -278,6 +316,7 @@ bool FilterBasedPlayerWorkerHandler::WriteSample(
         if (!SbDrmSystemIsValid(drm_system_)) {
           return false;
         }
+        DumpInputHash(input_buffer);
         SbDrmSystemPrivate::DecryptStatus decrypt_status =
             drm_system_->Decrypt(input_buffer);
         if (decrypt_status == SbDrmSystemPrivate::kRetry) {
@@ -293,6 +332,7 @@ bool FilterBasedPlayerWorkerHandler::WriteSample(
         media_time_provider_impl_->UpdateVideoDuration(
             input_buffer->timestamp());
       }
+      DumpInputHash(input_buffer);
       video_renderer_->WriteSample(input_buffer);
     }
   }

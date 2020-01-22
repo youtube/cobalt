@@ -1980,6 +1980,7 @@ void Box::UpdateUiNavigationItem() {
 
 // Based on https://www.w3.org/TR/CSS21/visudet.html#blockwidth.
 void Box::UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
+    BaseDirection containing_block_direction,
     LayoutUnit containing_block_width, LayoutUnit border_box_width,
     const base::Optional<LayoutUnit>& possibly_overconstrained_margin_left,
     const base::Optional<LayoutUnit>& possibly_overconstrained_margin_right) {
@@ -2000,20 +2001,22 @@ void Box::UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
     maybe_margin_right = maybe_margin_right.value_or(LayoutUnit());
   }
 
-  if (maybe_margin_left) {
-    // If all of the above have a computed value other than "auto", the values
-    // are said to be "over-constrained" and the specified value of
-    // "margin-right" is ignored and the value is calculated so as to make
-    // the equality true.
-    //
-    // If there is exactly one value specified as "auto", its used value
-    // follows from the equality.
+  // If all of the above have a computed value other than "auto", the values
+  // are said to be "over-constrained" and one of the used values will have to
+  // be different from its computed value. If the "direction" property of the
+  // containing block has the value "ltr", the specified value of "margin-right"
+  // is ignored and the value is calculated so as to make the equality true. If
+  // the value of "direction" is "rtl", this happens to "margin-left" instead.
+  //
+  // If there is exactly one value specified as "auto", its used value follows
+  // from the equality.
+  if (maybe_margin_left &&
+        (!maybe_margin_right ||
+         containing_block_direction == kLeftToRightBaseDirection)) {
     set_margin_left(*maybe_margin_left);
     set_margin_right(containing_block_width - *maybe_margin_left -
                      border_box_width);
   } else if (maybe_margin_right) {
-    // If there is exactly one value specified as "auto", its used value
-    // follows from the equality.
     set_margin_left(containing_block_width - border_box_width -
                     *maybe_margin_right);
     set_margin_right(*maybe_margin_right);

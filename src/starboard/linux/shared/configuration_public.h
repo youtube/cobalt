@@ -132,44 +132,62 @@
 
 // --- Filesystem Configuration ----------------------------------------------
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The current platform's maximum length of the name of a single directory
 // entry, not including the absolute path.
 #define SB_FILE_MAX_NAME 64
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The current platform's maximum length of an absolute path.
 #define SB_FILE_MAX_PATH 4096
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The current platform's maximum number of files that can be opened at the
 // same time by one process.
 #define SB_FILE_MAX_OPEN 256
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The current platform's file path component separator character. This is the
 // character that appears after a directory in a file path. For example, the
 // absolute canonical path of the file "/path/to/a/file.txt" uses '/' as a path
 // component separator character.
 #define SB_FILE_SEP_CHAR '/'
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The current platform's alternate file path component separator character.
 // This is like SB_FILE_SEP_CHAR, except if your platform supports an alternate
 // character, then you can place that here. For example, on windows machines,
 // the primary separator character is probably '\', but the alternate is '/'.
 #define SB_FILE_ALT_SEP_CHAR '/'
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The current platform's search path component separator character. When
 // specifying an ordered list of absolute paths of directories to search for a
 // given reason, this is the character that appears between entries. For
 // example, the search path of "/etc/search/first:/etc/search/second" uses ':'
 // as a search path component separator character.
 #define SB_PATH_SEP_CHAR ':'
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The string form of SB_FILE_SEP_CHAR.
 #define SB_FILE_SEP_STRING "/"
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The string form of SB_FILE_ALT_SEP_CHAR.
 #define SB_FILE_ALT_SEP_STRING "/"
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The string form of SB_PATH_SEP_CHAR.
 #define SB_PATH_SEP_STRING ":"
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 // --- Graphics Configuration ------------------------------------------------
 
@@ -204,19 +222,25 @@
 
 // --- Media Configuration ---------------------------------------------------
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The maximum audio bitrate the platform can decode.  The following value
 // equals to 5M bytes per seconds which is more than enough for compressed
 // audio.
 #define SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND (40 * 1024 * 1024)
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The maximum video bitrate the platform can decode.  The following value
 // equals to 25M bytes per seconds which is more than enough for compressed
 // video.
 #define SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND (200 * 1024 * 1024)
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Specifies whether this platform has webm/vp9 support.  This should be set to
 // non-zero on platforms with webm/vp9 support.
 #define SB_HAS_MEDIA_WEBM_VP9_SUPPORT 0
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 // Specifies whether this platform updates audio frames asynchronously.  In such
 // case an extra parameter will be added to |SbAudioSinkConsumeFramesFunc| to
@@ -225,27 +249,38 @@
 // details.
 #define SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING 0
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Specifies the stack size for threads created inside media stack.  Set to 0 to
 // use the default thread stack size.  Set to non-zero to explicitly set the
 // stack size for media stack threads.
 #define SB_MEDIA_THREAD_STACK_SIZE 0U
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Allow playing audioless video.
 #define SB_HAS_AUDIOLESS_VIDEO 1
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Allow ac3 and ec3 support
 #define SB_HAS_AC3_AUDIO 1
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 // --- Decoder-only Params ---
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Specifies how media buffers must be aligned on this platform as some
 // decoders may have special requirement on the alignment of buffers being
 // decoded.
 #define SB_MEDIA_BUFFER_ALIGNMENT 128U
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Specifies how video frame buffers must be aligned on this platform.
 #define SB_MEDIA_VIDEO_FRAME_ALIGNMENT 256U
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The encoded video frames are compressed in different ways, their decoding
 // time can vary a lot.  Occasionally a single frame can take longer time to
 // decode than the average time per frame.  The player has to cache some frames
@@ -255,18 +290,23 @@
 // Specify the number of video frames to be cached before the playback starts.
 // Note that set this value too large may increase the playback start delay.
 #define SB_MEDIA_MAXIMUM_VIDEO_PREROLL_FRAMES 4
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Specify the number of video frames to be cached during playback.  A large
 // value leads to more stable fps but also causes the app to use more memory.
 #define SB_MEDIA_MAXIMUM_VIDEO_FRAMES 12
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 // --- Memory Configuration --------------------------------------------------
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The memory page size, which controls the size of chunks on memory that
 // allocators deal with, and the alignment of those chunks. This doesn't have to
 // be the hardware-defined physical page size, but it should be a multiple of
 // it.
 #define SB_MEMORY_PAGE_SIZE 4096
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 // Whether this platform has and should use an MMAP function to map physical
 // memory to the virtual address space.
@@ -278,26 +318,34 @@
 // required for platforms that want to JIT.
 #define SB_CAN_MAP_EXECUTABLE_MEMORY 1
 
+#if SB_API_VERSION < SB_VIRTUAL_REGIONS_FLAG_DEPRECATED
 // Whether this platform has and should use an growable heap (e.g. with sbrk())
 // to map physical memory to the virtual address space.
 #define SB_HAS_VIRTUAL_REGIONS 0
+#endif  // SB_API_VERSION < SB_VIRTUAL_REGIONS_FLAG_DEPRECATED
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Specifies the alignment for IO Buffers, in bytes. Some low-level network APIs
 // may require buffers to have a specific alignment, and this is the place to
 // specify that.
 #define SB_NETWORK_IO_BUFFER_ALIGNMENT 16
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 #if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Determines the alignment that allocations should have on this platform.
 #define SB_MALLOC_ALIGNMENT ((size_t)16U)
 #endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Determines the threshhold of allocation size that should be done with mmap
 // (if available), rather than allocated within the core heap.
 #define SB_DEFAULT_MMAP_THRESHOLD ((size_t)(256 * 1024U))
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Defines the path where memory debugging logs should be written to.
 #define SB_MEMORY_LOG_PATH "/tmp/starboard"
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 // --- Network Configuration -------------------------------------------------
 
@@ -309,17 +357,23 @@
 
 // --- Thread Configuration --------------------------------------------------
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // On default Linux desktop, you must be a superuser in order to set real time
 // scheduling on threads.
 #define SB_HAS_THREAD_PRIORITY_SUPPORT 0
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Defines the maximum number of simultaneous threads for this platform. Some
 // platforms require sharing thread handles with other kinds of system handles,
 // like mutexes, so we want to keep this managable.
 #define SB_MAX_THREADS 90
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The maximum number of thread local storage keys supported by this platform.
 #define SB_MAX_THREAD_LOCAL_KEYS 512
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 #if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The maximum length of the name for a thread, including the NULL-terminator.
@@ -328,6 +382,7 @@
 
 // --- Tuneable Parameters ---------------------------------------------------
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Specifies the network receive buffer size in bytes, set via
 // SbSocketSetReceiveBufferSize().
 //
@@ -341,11 +396,14 @@
 // If your platform does not have a good TCP auto-tuning mechanism,
 // a setting of (128 * 1024) here is recommended.
 #define SB_NETWORK_RECEIVE_BUFFER_SIZE (0)
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 // --- User Configuration ----------------------------------------------------
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // The maximum number of users that can be signed in at the same time.
 #define SB_USER_MAX_SIGNED_IN 1
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 // --- Timing API ------------------------------------------------------------
 

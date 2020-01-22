@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 The ANGLE Project Authors. All rights reserved.
+// Copyright 2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -8,11 +8,10 @@
 
 #include <gtest/gtest.h>
 
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
-
 #include "test_utils/ANGLETest.h"
 #include "test_utils/angle_test_configs.h"
+#include "test_utils/gl_raii.h"
+#include "util/EGLWindow.h"
 
 using namespace angle;
 
@@ -35,7 +34,7 @@ class EGLContextSharingTest : public ANGLETest
   public:
     EGLContextSharingTest() : mContexts{EGL_NO_CONTEXT, EGL_NO_CONTEXT}, mTexture(0) {}
 
-    void TearDown() override
+    void testTearDown() override
     {
         glDeleteTextures(1, &mTexture);
 
@@ -49,7 +48,8 @@ class EGLContextSharingTest : public ANGLETest
             }
         }
 
-        ANGLETest::TearDown();
+        // Set default test state to not give an error on shutdown.
+        getEGLWindow()->makeCurrent();
     }
 
     EGLContext mContexts[2];
@@ -95,7 +95,7 @@ TEST_P(EGLContextSharingTest, DisplayShareGroupContextCreation)
     mContexts[0] = eglCreateContext(display, config, nullptr, inShareGroupContextAttribs);
     mContexts[1] = eglCreateContext(display, config, mContexts[1], inShareGroupContextAttribs);
 
-    if (!ANGLETest::eglDisplayExtensionEnabled(display, "EGL_ANGLE_display_texture_share_group"))
+    if (!IsEGLDisplayExtensionEnabled(display, "EGL_ANGLE_display_texture_share_group"))
     {
         // Make sure an error is generated and early-exit
         ASSERT_EGL_ERROR(EGL_BAD_ATTRIBUTE);
@@ -122,7 +122,7 @@ TEST_P(EGLContextSharingTest, DisplayShareGroupContextCreation)
 TEST_P(EGLContextSharingTest, DisplayShareGroupObjectSharing)
 {
     EGLDisplay display = getEGLWindow()->getDisplay();
-    if (!ANGLETest::eglDisplayExtensionEnabled(display, "EGL_ANGLE_display_texture_share_group"))
+    if (!IsEGLDisplayExtensionEnabled(display, "EGL_ANGLE_display_texture_share_group"))
     {
         std::cout << "Test skipped because EGL_ANGLE_display_texture_share_group is not present."
                   << std::endl;
@@ -204,7 +204,7 @@ TEST_P(EGLContextSharingTest, DisplayShareGroupObjectSharing)
 TEST_P(EGLContextSharingTest, DisplayShareGroupReleasedWithLastContext)
 {
     EGLDisplay display = getEGLWindow()->getDisplay();
-    if (!ANGLETest::eglDisplayExtensionEnabled(display, "EGL_ANGLE_display_texture_share_group"))
+    if (!IsEGLDisplayExtensionEnabled(display, "EGL_ANGLE_display_texture_share_group"))
     {
         std::cout << "Test skipped because EGL_ANGLE_display_texture_share_group is not present."
                   << std::endl;
@@ -244,6 +244,126 @@ TEST_P(EGLContextSharingTest, DisplayShareGroupReleasedWithLastContext)
     ASSERT_GL_FALSE(glIsTexture(textureFromCtx0));
 }
 
+// Tests that deleting an object on one Context doesn't destroy it ahead-of-time. Mostly focused
+// on the Vulkan back-end where we manage object lifetime manually.
+TEST_P(EGLContextSharingTest, TextureLifetime)
+{
+    EGLWindow *eglWindow = getEGLWindow();
+    EGLConfig config     = getEGLWindow()->getConfig();
+    EGLDisplay display   = getEGLWindow()->getDisplay();
+
+    // Create a pbuffer surface for use with a shared context.
+    EGLSurface surface     = eglWindow->getSurface();
+    EGLContext mainContext = eglWindow->getContext();
+
+    // Initialize a shared context.
+    mContexts[0] = eglCreateContext(display, config, mainContext, nullptr);
+    ASSERT_NE(mContexts[0], EGL_NO_CONTEXT);
+
+    // Create a Texture on the shared context.
+    ASSERT_EGL_TRUE(eglMakeCurrent(display, surface, surface, mContexts[0]));
+
+    constexpr GLsizei kTexSize                  = 2;
+    const GLColor kTexData[kTexSize * kTexSize] = {GLColor::red, GLColor::green, GLColor::blue,
+                                                   GLColor::yellow};
+    GLTexture tex;
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, kTexSize, kTexSize, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                 kTexData);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+    // Make the main Context current and draw with the texture.
+    ASSERT_EGL_TRUE(eglMakeCurrent(display, surface, surface, mainContext));
+
+    glBindTexture(GL_TEXTURE_2D, tex);
+    ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Texture2D(), essl1_shaders::fs::Texture2D());
+    glUseProgram(program);
+
+    // No uniform update because the update seems to hide the error on Vulkan.
+
+    // Enqueue the draw call.
+    drawQuad(program, essl1_shaders::PositionAttrib(), 0.5f);
+    EXPECT_GL_NO_ERROR();
+
+    // Delete the texture in the main context to orphan it.
+    // Do not read back the data to keep the commands in the graph.
+    tex.reset();
+
+    // Bind and delete the test context. This should trigger texture garbage collection.
+    ASSERT_EGL_TRUE(eglMakeCurrent(display, surface, surface, mContexts[0]));
+    SafeDestroyContext(display, mContexts[0]);
+
+    // Bind the main context to clean up the test.
+    ASSERT_EGL_TRUE(eglMakeCurrent(display, surface, surface, mainContext));
+}
+
+// Tests that deleting an object on one Context doesn't destroy it ahead-of-time. Mostly focused
+// on the Vulkan back-end where we manage object lifetime manually.
+TEST_P(EGLContextSharingTest, SamplerLifetime)
+{
+    EGLWindow *eglWindow = getEGLWindow();
+    EGLConfig config     = getEGLWindow()->getConfig();
+    EGLDisplay display   = getEGLWindow()->getDisplay();
+
+    ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3);
+    ANGLE_SKIP_TEST_IF(!IsEGLDisplayExtensionEnabled(display, "EGL_KHR_create_context"));
+
+    // Create a pbuffer surface for use with a shared context.
+    EGLSurface surface     = eglWindow->getSurface();
+    EGLContext mainContext = eglWindow->getContext();
+
+    std::vector<EGLint> contextAttributes;
+    contextAttributes.push_back(EGL_CONTEXT_MAJOR_VERSION_KHR);
+    contextAttributes.push_back(getClientMajorVersion());
+    contextAttributes.push_back(EGL_NONE);
+
+    // Initialize a shared context.
+    mContexts[0] = eglCreateContext(display, config, mainContext, contextAttributes.data());
+    ASSERT_NE(mContexts[0], EGL_NO_CONTEXT);
+
+    // Create a Texture on the shared context. Also create a Sampler object.
+    ASSERT_EGL_TRUE(eglMakeCurrent(display, surface, surface, mContexts[0]));
+
+    constexpr GLsizei kTexSize                  = 2;
+    const GLColor kTexData[kTexSize * kTexSize] = {GLColor::red, GLColor::green, GLColor::blue,
+                                                   GLColor::yellow};
+    GLTexture tex;
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, kTexSize, kTexSize, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                 kTexData);
+
+    GLSampler sampler;
+    glBindSampler(0, sampler);
+    glSamplerParameteri(sampler, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glSamplerParameteri(sampler, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+    // Make the main Context current and draw with the texture and sampler.
+    ASSERT_EGL_TRUE(eglMakeCurrent(display, surface, surface, mainContext));
+
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glBindSampler(0, sampler);
+    ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Texture2D(), essl1_shaders::fs::Texture2D());
+    glUseProgram(program);
+
+    // No uniform update because the update seems to hide the error on Vulkan.
+
+    // Enqueue the draw call.
+    drawQuad(program, essl1_shaders::PositionAttrib(), 0.5f);
+    EXPECT_GL_NO_ERROR();
+
+    // Delete the texture and sampler in the main context to orphan them.
+    // Do not read back the data to keep the commands in the graph.
+    tex.reset();
+    sampler.reset();
+
+    // Bind and delete the test context. This should trigger texture garbage collection.
+    ASSERT_EGL_TRUE(eglMakeCurrent(display, surface, surface, mContexts[0]));
+    SafeDestroyContext(display, mContexts[0]);
+
+    // Bind the main context to clean up the test.
+    ASSERT_EGL_TRUE(eglMakeCurrent(display, surface, surface, mainContext));
+}
 }  // anonymous namespace
 
 ANGLE_INSTANTIATE_TEST(EGLContextSharingTest,
@@ -251,4 +371,6 @@ ANGLE_INSTANTIATE_TEST(EGLContextSharingTest,
                        ES2_D3D11(),
                        ES3_D3D11(),
                        ES2_OPENGL(),
-                       ES3_OPENGL());
+                       ES3_OPENGL(),
+                       ES2_VULKAN(),
+                       ES3_VULKAN());

@@ -137,47 +137,6 @@
 // Define this to how this platform copies varargs blocks.
 #define SB_VA_COPY(dest, source) va_copy(dest, source)
 
-// --- Filesystem Configuration ----------------------------------------------
-
-// The current platform's maximum length of the name of a single directory
-// entry, not including the absolute path.
-#define SB_FILE_MAX_NAME 64
-
-// The current platform's maximum length of an absolute path.
-#define SB_FILE_MAX_PATH 4096
-
-// The current platform's maximum number of files that can be opened at the
-// same time by one process.
-#define SB_FILE_MAX_OPEN 256
-
-// The current platform's file path component separator character. This is the
-// character that appears after a directory in a file path. For example, the
-// absolute canonical path of the file "/path/to/a/file.txt" uses '/' as a path
-// component separator character.
-#define SB_FILE_SEP_CHAR '/'
-
-// The current platform's alternate file path component separator character.
-// This is like SB_FILE_SEP_CHAR, except if your platform supports an alternate
-// character, then you can place that here. For example, on windows machines,
-// the primary separator character is probably '\', but the alternate is '/'.
-#define SB_FILE_ALT_SEP_CHAR '/'
-
-// The current platform's search path component separator character. When
-// specifying an ordered list of absolute paths of directories to search for a
-// given reason, this is the character that appears between entries. For
-// example, the search path of "/etc/search/first:/etc/search/second" uses ':'
-// as a search path component separator character.
-#define SB_PATH_SEP_CHAR ':'
-
-// The string form of SB_FILE_SEP_CHAR.
-#define SB_FILE_SEP_STRING "/"
-
-// The string form of SB_FILE_ALT_SEP_CHAR.
-#define SB_FILE_ALT_SEP_STRING "/"
-
-// The string form of SB_PATH_SEP_CHAR.
-#define SB_PATH_SEP_STRING ":"
-
 // --- Graphics Configuration ------------------------------------------------
 
 // Specifies whether this platform supports a performant accelerated blitter
@@ -211,20 +170,6 @@
 
 // --- Media Configuration ---------------------------------------------------
 
-// The maximum audio bitrate the platform can decode.  The following value
-// equals to 5M bytes per seconds which is more than enough for compressed
-// audio.
-#define SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND (40 * 1024 * 1024)
-
-// The maximum video bitrate the platform can decode.  The following value
-// equals to 25M bytes per seconds which is more than enough for compressed
-// video.
-#define SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND (200 * 1024 * 1024)
-
-// Specifies whether this platform has webm/vp9 support.  This should be set to
-// non-zero on platforms with webm/vp9 support.
-#define SB_HAS_MEDIA_WEBM_VP9_SUPPORT 0
-
 // Specifies whether this platform updates audio frames asynchronously.  In such
 // case an extra parameter will be added to |SbAudioSinkConsumeFramesFunc| to
 // indicate the absolute time that the consumed audio frames are reported.
@@ -232,42 +177,9 @@
 // details.
 #define SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING 0
 
-// Specifies the stack size for threads created inside media stack.  Set to 0 to
-// use the default thread stack size.  Set to non-zero to explicitly set the
-// stack size for media stack threads.
-#define SB_MEDIA_THREAD_STACK_SIZE 0U
-
 // --- Decoder-only Params ---
 
-// Specifies how media buffers must be aligned on this platform as some
-// decoders may have special requirement on the alignment of buffers being
-// decoded.
-#define SB_MEDIA_BUFFER_ALIGNMENT 128U
-
-// Specifies how video frame buffers must be aligned on this platform.
-#define SB_MEDIA_VIDEO_FRAME_ALIGNMENT 256U
-
-// The encoded video frames are compressed in different ways, their decoding
-// time can vary a lot.  Occasionally a single frame can take longer time to
-// decode than the average time per frame.  The player has to cache some frames
-// to account for such inconsistency.  The number of frames being cached are
-// controlled by the following two macros.
-//
-// Specify the number of video frames to be cached before the playback starts.
-// Note that set this value too large may increase the playback start delay.
-#define SB_MEDIA_MAXIMUM_VIDEO_PREROLL_FRAMES 4
-
-// Specify the number of video frames to be cached during playback.  A large
-// value leads to more stable fps but also causes the app to use more memory.
-#define SB_MEDIA_MAXIMUM_VIDEO_FRAMES 12
-
 // --- Memory Configuration --------------------------------------------------
-
-// The memory page size, which controls the size of chunks on memory that
-// allocators deal with, and the alignment of those chunks. This doesn't have to
-// be the hardware-defined physical page size, but it should be a multiple of
-// it.
-#define SB_MEMORY_PAGE_SIZE 4096
 
 // Whether this platform has and should use an MMAP function to map physical
 // memory to the virtual address space.
@@ -278,22 +190,6 @@
 // Whether this platform can map executable memory. Implies SB_HAS_MMAP. This is
 // required for platforms that want to JIT.
 #define SB_CAN_MAP_EXECUTABLE_MEMORY 1
-
-// Whether this platform has and should use an growable heap (e.g. with sbrk())
-// to map physical memory to the virtual address space.
-#define SB_HAS_VIRTUAL_REGIONS 0
-
-// Specifies the alignment for IO Buffers, in bytes. Some low-level network APIs
-// may require buffers to have a specific alignment, and this is the place to
-// specify that.
-#define SB_NETWORK_IO_BUFFER_ALIGNMENT 16
-
-// Determines the threshhold of allocation size that should be done with mmap
-// (if available), rather than allocated within the core heap.
-#define SB_DEFAULT_MMAP_THRESHOLD ((size_t)(256 * 1024U))
-
-// Defines the path where memory debugging logs should be written to.
-#define SB_MEMORY_LOG_PATH "/tmp/starboard"
 
 // The Raspberry Pi does not apparently align fields in a heap-allocated struct
 // by over 16 bytes.
@@ -312,20 +208,6 @@
 
 // --- Thread Configuration --------------------------------------------------
 
-// On the current version of Raspbian, real time thread scheduling seems to be
-// broken in that higher priority threads do not always have priority over lower
-// priority threads.  It looks like the thread created last will always have the
-// highest priority.
-#define SB_HAS_THREAD_PRIORITY_SUPPORT 1
-
-// Defines the maximum number of simultaneous threads for this platform. Some
-// platforms require sharing thread handles with other kinds of system handles,
-// like mutexes, so we want to keep this managable.
-#define SB_MAX_THREADS 90
-
-// The maximum number of thread local storage keys supported by this platform.
-#define SB_MAX_THREAD_LOCAL_KEYS 512
-
 // --- Timing API ------------------------------------------------------------
 
 // Whether this platform has an API to retrieve how long the current thread
@@ -334,24 +216,7 @@
 
 // --- Tuneable Parameters ---------------------------------------------------
 
-// Specifies the network receive buffer size in bytes, set via
-// SbSocketSetReceiveBufferSize().
-//
-// Setting this to 0 indicates that SbSocketSetReceiveBufferSize() should
-// not be called. Use this for OSs (such as Linux) where receive buffer
-// auto-tuning is better.
-//
-// On some platforms, this may affect max TCP window size which may
-// dramatically affect throughput in the presence of latency.
-//
-// If your platform does not have a good TCP auto-tuning mechanism,
-// a setting of (128 * 1024) here is recommended.
-#define SB_NETWORK_RECEIVE_BUFFER_SIZE (0)
-
 // --- User Configuration ----------------------------------------------------
-
-// The maximum number of users that can be signed in at the same time.
-#define SB_USER_MAX_SIGNED_IN 1
 
 // --- Platform Specific Audits ----------------------------------------------
 

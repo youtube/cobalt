@@ -14,6 +14,7 @@
 
 #include <string>
 
+#include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
 #include "starboard/nplb/file_helpers.h"
@@ -24,8 +25,9 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-const char* kManyFileSeparators =
-    SB_FILE_SEP_STRING SB_FILE_SEP_STRING SB_FILE_SEP_STRING SB_FILE_SEP_STRING;
+const std::string kManyFileSeparators = std::string(kSbFileSepString) +
+                                        kSbFileSepString + kSbFileSepString +
+                                        kSbFileSepString;
 
 // NOTE: There is a test missing here, for creating a directory right off of the
 // root. But, this is likely to fail due to permissions, so we can't make a
@@ -48,7 +50,7 @@ TEST(SbDirectoryCreateTest, SunnyDay) {
 TEST(SbDirectoryCreateTest, SunnyDayTrailingSeparators) {
   ScopedRandomFile dir(ScopedRandomFile::kDontCreate);
 
-  std::string path = dir.filename() + kManyFileSeparators;
+  std::string path = dir.filename() + kManyFileSeparators.c_str();
 
   EXPECT_FALSE(SbDirectoryCanOpen(path.c_str()));
   EXPECT_TRUE(SbDirectoryCreate(path.c_str()));
@@ -56,29 +58,27 @@ TEST(SbDirectoryCreateTest, SunnyDayTrailingSeparators) {
 }
 
 TEST(SbDirectoryCreateTest, SunnyDayTempDirectory) {
-  const int kMaxFilePath = SB_FILE_MAX_PATH;
-  char temp_path[kMaxFilePath];
-  bool system_path_success =
-      SbSystemGetPath(kSbSystemPathTempDirectory, temp_path, kMaxFilePath);
+  std::vector<char> temp_path(kSbFileMaxPath);
+  bool system_path_success = SbSystemGetPath(kSbSystemPathTempDirectory,
+                                             temp_path.data(), kSbFileMaxPath);
   ASSERT_TRUE(system_path_success);
-  EXPECT_TRUE(SbDirectoryCanOpen(temp_path));
-  EXPECT_TRUE(SbDirectoryCreate(temp_path));
-  EXPECT_TRUE(SbDirectoryCanOpen(temp_path));
+  EXPECT_TRUE(SbDirectoryCanOpen(temp_path.data()));
+  EXPECT_TRUE(SbDirectoryCreate(temp_path.data()));
+  EXPECT_TRUE(SbDirectoryCanOpen(temp_path.data()));
 }
 
 TEST(SbDirectoryCreateTest, SunnyDayTempDirectoryManySeparators) {
-  const int kMaxFilePath = SB_FILE_MAX_PATH;
-  char temp_path[kMaxFilePath];
-  bool system_path_success =
-      SbSystemGetPath(kSbSystemPathTempDirectory, temp_path, kMaxFilePath);
+  std::vector<char> temp_path(kSbFileMaxPath);
+  bool system_path_success = SbSystemGetPath(
+      kSbSystemPathTempDirectory, temp_path.data(), temp_path.size());
   ASSERT_TRUE(system_path_success);
-  const int new_size =
-      SbStringConcat(temp_path, kManyFileSeparators, kMaxFilePath);
-  ASSERT_LT(new_size, kMaxFilePath);
+  const int new_size = SbStringConcat(
+      temp_path.data(), kManyFileSeparators.c_str(), kSbFileMaxPath);
+  ASSERT_LT(new_size, kSbFileMaxPath);
 
-  EXPECT_TRUE(SbDirectoryCanOpen(temp_path));
-  EXPECT_TRUE(SbDirectoryCreate(temp_path));
-  EXPECT_TRUE(SbDirectoryCanOpen(temp_path));
+  EXPECT_TRUE(SbDirectoryCanOpen(temp_path.data()));
+  EXPECT_TRUE(SbDirectoryCreate(temp_path.data()));
+  EXPECT_TRUE(SbDirectoryCanOpen(temp_path.data()));
 }
 
 TEST(SbDirectoryCreateTest, FailureNullPath) {
@@ -91,7 +91,7 @@ TEST(SbDirectoryCreateTest, FailureEmptyPath) {
 
 TEST(SbDirectoryCreateTest, FailureNonexistentParent) {
   ScopedRandomFile dir(ScopedRandomFile::kDontCreate);
-  std::string path = dir.filename() + SB_FILE_SEP_STRING "test";
+  std::string path = dir.filename() + kSbFileSepString + "test";
 
   EXPECT_FALSE(SbDirectoryCanOpen(path.c_str()));
   EXPECT_FALSE(SbDirectoryCreate(path.c_str()));

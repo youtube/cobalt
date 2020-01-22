@@ -237,6 +237,8 @@ void PNGImageDecoder::HeaderAvailableCallback() {
   if (interlace_type == PNG_INTERLACE_ADAM7) {
     // Notify libpng to send us rows for interlaced pngs.
     png_set_interlace_handling(png_);
+    DLOG(WARNING) << "Interlaced PNGs are not displayed properly in older "
+                     "versions of Cobalt";
   }
 
   // Updates |info_| to reflect any transformations that have been requested.
@@ -321,7 +323,7 @@ void PNGImageDecoder::RowAvailableCallback(png_bytep row_buffer,
       decoded_image_data_->GetMemory() +
       decoded_image_data_->GetDescriptor().pitch_in_bytes * row_index;
 
-  png_bytep pixel = row_buffer;
+  png_bytep pixel = row;
 
   switch (pixel_format()) {
     case render_tree::kPixelFormatRGBA8: {

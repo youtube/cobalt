@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/configuration_constants.h"
 #include "starboard/nplb/thread_helpers.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -141,7 +142,7 @@ TEST(SbThreadCreateTest, SunnyDayDetached) {
 }
 
 TEST(SbThreadCreateTest, Summertime) {
-  const int kMany = SB_MAX_THREADS;
+  const int kMany = kSbMaxThreads;
   std::vector<SbThread> threads(kMany);
   for (int i = 0; i < kMany; ++i) {
     threads[i] = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity,

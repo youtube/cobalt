@@ -64,9 +64,11 @@ bool InlineLevelReplacedBox::IsHiddenByEllipsis() const {
 }
 
 void InlineLevelReplacedBox::UpdateHorizontalMargins(
+    BaseDirection containing_block_direction,
     LayoutUnit containing_block_width, LayoutUnit border_box_width,
     const base::Optional<LayoutUnit>& maybe_margin_left,
     const base::Optional<LayoutUnit>& maybe_margin_right) {
+  SB_UNREFERENCED_PARAMETER(containing_block_direction);
   SB_UNREFERENCED_PARAMETER(containing_block_width);
   SB_UNREFERENCED_PARAMETER(border_box_width);
 

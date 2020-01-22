@@ -538,6 +538,7 @@ source_set("starboard_platform") {
     "//starboard/shared/starboard/player/player_destroy.cc",
     "//starboard/shared/starboard/player/player_get_current_frame.cc",
     "//starboard/shared/starboard/player/player_get_info.cc",
+    "//starboard/shared/starboard/player/player_get_preferred_output_mode_prefer_punchout.cc",
     "//starboard/shared/starboard/player/player_internal.cc",
     "//starboard/shared/starboard/player/player_internal.h",
     "//starboard/shared/starboard/player/player_output_mode_supported.cc",

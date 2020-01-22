@@ -50,7 +50,7 @@ class EventTargetTest : public ::testing::Test {
  protected:
   EventTargetTest()
       : environment_settings_(0, nullptr, nullptr, nullptr, nullptr, nullptr,
-                              nullptr, nullptr, &debugger_hooks_, nullptr,
+                              nullptr, nullptr, debugger_hooks_, nullptr,
                               DOMSettings::Options()) {}
 
   StrictMock<test::MockDebuggerHooks> debugger_hooks_;

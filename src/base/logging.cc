@@ -14,6 +14,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/configuration.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/system.h"
 #include "starboard/time.h"
@@ -248,11 +249,10 @@ PathString GetDefaultLogFile() {
 #if defined(STARBOARD)
   // On Starboard, we politely ask for the log directory, like a civilized
   // platform.
-  char path[SB_FILE_MAX_PATH + 1];
-  SbSystemGetPath(kSbSystemPathDebugOutputDirectory, path,
-                  SB_ARRAY_SIZE_INT(path));
-  PathString log_file = path;
-  log_file += SB_FILE_SEP_STRING "debug.log";
+  std::vector<char> path(kSbFileMaxPath + 1);
+  SbSystemGetPath(kSbSystemPathDebugOutputDirectory, path.data(), path.size());
+  PathString log_file = path.data();
+  log_file += std::string(kSbFileSepString) + "debug.log";
   return log_file;
 #else
 #if defined(OS_WIN)

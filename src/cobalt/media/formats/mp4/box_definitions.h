@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
+#include "base/optional.h"
 #include "cobalt/media/base/decrypt_config.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/media_log.h"
@@ -22,6 +23,9 @@
 namespace cobalt {
 namespace media {
 namespace mp4 {
+
+// Size in bytes needed to store largest IV.
+const int kInitializationVectorSize = 16;
 
 enum TrackType { kInvalid = 0, kVideo, kAudio, kText, kHint };
 
@@ -86,7 +90,7 @@ struct MEDIA_EXPORT SampleEncryptionEntry {
   // anywhere.
   bool GetTotalSizeOfSubsamples(size_t* total_size) const;
 
-  uint8_t initialization_vector[16];
+  uint8_t initialization_vector[kInitializationVectorSize];
   std::vector<SubsampleEntry> subsamples;
 };
 
@@ -124,6 +128,10 @@ struct MEDIA_EXPORT TrackEncryption : Box {
   bool is_encrypted;
   uint8_t default_iv_size;
   std::vector<uint8_t> default_kid;
+  uint8_t default_crypt_byte_block;
+  uint8_t default_skip_byte_block;
+  uint8_t default_constant_iv_size;
+  uint8_t default_constant_iv[kInitializationVectorSize];
 };
 
 struct MEDIA_EXPORT SchemeInfo : Box {
@@ -138,6 +146,9 @@ struct MEDIA_EXPORT ProtectionSchemeInfo : Box {
   OriginalFormat format;
   SchemeType type;
   SchemeInfo info;
+
+  bool HasSupportedScheme() const;
+  bool IsCbcsEncryptionScheme() const;
 };
 
 struct MEDIA_EXPORT MovieHeader : Box {
@@ -239,6 +250,37 @@ struct MEDIA_EXPORT PixelAspectRatioBox : Box {
   uint32_t v_spacing;
 };
 
+struct MEDIA_EXPORT ColorParameterInformation : Box {
+  DECLARE_BOX_METHODS(ColorParameterInformation);
+
+  uint16 colour_primaries;
+  uint16 transfer_characteristics;
+  uint16 matrix_coefficients;
+  bool full_range;
+};
+
+struct MEDIA_EXPORT MasteringDisplayColorVolume : Box {
+  DECLARE_BOX_METHODS(MasteringDisplayColorVolume);
+
+  float display_primaries_gx;
+  float display_primaries_gy;
+  float display_primaries_bx;
+  float display_primaries_by;
+  float display_primaries_rx;
+  float display_primaries_ry;
+  float white_point_x;
+  float white_point_y;
+  uint32 max_display_mastering_luminance;
+  uint32 min_display_mastering_luminance;
+};
+
+struct MEDIA_EXPORT ContentLightLevelInformation : Box {
+  DECLARE_BOX_METHODS(ContentLightLevelInformation);
+
+  uint16 max_content_light_level;
+  uint16 max_pic_average_light_level;
+};
+
 struct MEDIA_EXPORT VideoSampleEntry : Box {
   DECLARE_BOX_METHODS(VideoSampleEntry);
 
@@ -252,6 +294,10 @@ struct MEDIA_EXPORT VideoSampleEntry : Box {
 
   VideoCodec video_codec;
   VideoCodecProfile video_codec_profile;
+
+  base::Optional<ColorParameterInformation> color_parameter_information;
+  base::Optional<MasteringDisplayColorVolume> mastering_display_color_volume;
+  base::Optional<ContentLightLevelInformation> content_light_level_information;
 
   bool IsFormatValid() const;
 
@@ -289,10 +335,15 @@ struct MEDIA_EXPORT SampleDescription : Box {
 struct MEDIA_EXPORT CencSampleEncryptionInfoEntry {
   CencSampleEncryptionInfoEntry();
   ~CencSampleEncryptionInfoEntry();
+  bool Parse(BoxReader* reader);
 
   bool is_encrypted;
   uint8_t iv_size;
   std::vector<uint8_t> key_id;
+  uint8_t crypt_byte_block;
+  uint8_t skip_byte_block;
+  uint8_t constant_iv_size;
+  uint8_t constant_iv[kInitializationVectorSize];
 };
 
 struct MEDIA_EXPORT SampleGroupDescription : Box {  // 'sgpd'.

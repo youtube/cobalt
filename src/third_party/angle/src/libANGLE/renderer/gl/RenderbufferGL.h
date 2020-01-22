@@ -11,42 +11,54 @@
 
 #include "libANGLE/renderer/RenderbufferImpl.h"
 
+namespace angle
+{
+struct FeaturesGL;
+}  // namespace angle
+
 namespace gl
 {
 class TextureCapsMap;
-}
+}  // namespace gl
 
 namespace rx
 {
 
+class BlitGL;
 class FunctionsGL;
 class StateManagerGL;
-struct WorkaroundsGL;
 
 class RenderbufferGL : public RenderbufferImpl
 {
   public:
-    RenderbufferGL(const FunctionsGL *functions,
-                   const WorkaroundsGL &workarounds,
-                   StateManagerGL *stateManager,
-                   const gl::TextureCapsMap &textureCaps);
+    RenderbufferGL(const gl::RenderbufferState &state, GLuint id);
     ~RenderbufferGL() override;
 
-    virtual gl::Error setStorage(GLenum internalformat, size_t width, size_t height) override;
-    virtual gl::Error setStorageMultisample(size_t samples, GLenum internalformat, size_t width, size_t height) override;
-    virtual gl::Error setStorageEGLImageTarget(egl::Image *image) override;
+    void onDestroy(const gl::Context *context) override;
+
+    angle::Result setStorage(const gl::Context *context,
+                             GLenum internalformat,
+                             size_t width,
+                             size_t height) override;
+    angle::Result setStorageMultisample(const gl::Context *context,
+                                        size_t samples,
+                                        GLenum internalformat,
+                                        size_t width,
+                                        size_t height) override;
+    angle::Result setStorageEGLImageTarget(const gl::Context *context, egl::Image *image) override;
+
+    angle::Result initializeContents(const gl::Context *context,
+                                     const gl::ImageIndex &imageIndex) override;
 
     GLuint getRenderbufferID() const;
+    GLenum getNativeInternalFormat() const;
 
   private:
-    const FunctionsGL *mFunctions;
-    const WorkaroundsGL &mWorkarounds;
-    StateManagerGL *mStateManager;
-    const gl::TextureCapsMap &mTextureCaps;
-
     GLuint mRenderbufferID;
+
+    GLenum mNativeInternalFormat;
 };
 
-}
+}  // namespace rx
 
-#endif // LIBANGLE_RENDERER_GL_RENDERBUFFERGL_H_
+#endif  // LIBANGLE_RENDERER_GL_RENDERBUFFERGL_H_

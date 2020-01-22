@@ -20,23 +20,26 @@
 #include <unistd.h>
 
 #include <cstring>
+#include <vector>
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/user.h"
 
 namespace {
-const int kMaxPathSize = SB_FILE_MAX_PATH;
+const int kMaxPathSize = kSbFileMaxPath;
 
 // Gets the path to the cache directory, using the user's home directory.
 bool GetCacheDirectory(char* out_path, int path_size) {
-  char home_path[kMaxPathSize + 1];
+  std::vector<char> home_path(kMaxPathSize + 1);
   if (!SbUserGetProperty(SbUserGetCurrent(), kSbUserPropertyHomeDirectory,
-                         home_path, kMaxPathSize)) {
+                         home_path.data(), kMaxPathSize)) {
     return false;
   }
-  int result = SbStringFormatF(out_path, path_size, "%s/.cache", home_path);
+  int result =
+      SbStringFormatF(out_path, path_size, "%s/.cache", home_path.data());
   if (result < 0 || result >= path_size) {
     out_path[0] = '\0';
     return false;
@@ -46,13 +49,13 @@ bool GetCacheDirectory(char* out_path, int path_size) {
 
 // Gets the path to the storage directory, using the user's home directory.
 bool GetStorageDirectory(char* out_path, int path_size) {
-  char home_path[kMaxPathSize + 1];
+  std::vector<char> home_path(kMaxPathSize + 1);
   if (!SbUserGetProperty(SbUserGetCurrent(), kSbUserPropertyHomeDirectory,
-                         home_path, kMaxPathSize)) {
+                         home_path.data(), kMaxPathSize)) {
     return false;
   }
-  int result =
-      SbStringFormatF(out_path, path_size, "%s/.cobalt_storage", home_path);
+  int result = SbStringFormatF(out_path, path_size, "%s/.cobalt_storage",
+                               home_path.data());
   if (result < 0 || result >= path_size) {
     out_path[0] = '\0';
     return false;
@@ -69,8 +72,8 @@ bool GetExecutablePath(char* out_path, int path_size) {
     return false;
   }
 
-  char path[kMaxPathSize + 1];
-  ssize_t bytes_read = readlink("/proc/self/exe", path, kMaxPathSize);
+  std::vector<char> path(kMaxPathSize + 1);
+  ssize_t bytes_read = readlink("/proc/self/exe", path.data(), kMaxPathSize);
   if (bytes_read < 1) {
     return false;
   }
@@ -80,7 +83,7 @@ bool GetExecutablePath(char* out_path, int path_size) {
     return false;
   }
 
-  SbStringCopy(out_path, path, path_size);
+  SbStringCopy(out_path, path.data(), path_size);
   return true;
 }
 
@@ -106,12 +109,12 @@ bool GetExecutableDirectory(char* out_path, int path_size) {
 
 // Gets only the name portion of the current executable.
 bool GetExecutableName(char* out_path, int path_size) {
-  char path[kMaxPathSize] = {0};
-  if (!GetExecutablePath(path, kMaxPathSize)) {
+  std::vector<char> path(kMaxPathSize, 0);
+  if (!GetExecutablePath(path.data(), kMaxPathSize)) {
     return false;
   }
 
-  const char* last_slash = SbStringFindLastCharacter(path, '/');
+  const char* last_slash = SbStringFindLastCharacter(path.data(), '/');
   if (SbStringCopy(out_path, last_slash + 1, path_size) >= path_size) {
     return false;
   }
@@ -120,13 +123,13 @@ bool GetExecutableName(char* out_path, int path_size) {
 
 // Gets the path to a temporary directory that is unique to this process.
 bool GetTemporaryDirectory(char* out_path, int path_size) {
-  char binary_name[kMaxPathSize] = {0};
-  if (!GetExecutableName(binary_name, kMaxPathSize)) {
+  std::vector<char> binary_name(kMaxPathSize, 0);
+  if (!GetExecutableName(binary_name.data(), kMaxPathSize)) {
     return false;
   }
 
-  int result = SbStringFormatF(out_path, path_size, "/tmp/%s-%d", binary_name,
-                               static_cast<int>(getpid()));
+  int result = SbStringFormatF(out_path, path_size, "/tmp/%s-%d",
+                               binary_name.data(), static_cast<int>(getpid()));
   if (result < 0 || result >= path_size) {
     out_path[0] = '\0';
     return false;
@@ -141,47 +144,48 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
     return false;
   }
 
-  const int kPathSize = SB_FILE_MAX_PATH;
-  char path[kPathSize];
+  const int kPathSize = kSbFileMaxPath;
+  std::vector<char> path(kPathSize);
   path[0] = '\0';
 
   switch (path_id) {
     case kSbSystemPathContentDirectory:
-      if (!GetExecutableDirectory(path, kPathSize)) {
+      if (!GetExecutableDirectory(path.data(), kPathSize)) {
         return false;
       }
-      if (SbStringConcat(path, "/content", kPathSize) >= kPathSize) {
+      if (SbStringConcat(path.data(), "/content", kPathSize) >= kPathSize) {
         return false;
       }
       break;
 
     case kSbSystemPathCacheDirectory:
-      if (!GetCacheDirectory(path, kPathSize)) {
+      if (!GetCacheDirectory(path.data(), kPathSize)) {
         return false;
       }
-      if (SbStringConcat(path, "/cobalt", kPathSize) >= kPathSize) {
+      if (SbStringConcat(path.data(), "/cobalt", kPathSize) >= kPathSize) {
         return false;
       }
-      if (!SbDirectoryCreate(path)) {
+      if (!SbDirectoryCreate(path.data())) {
         return false;
       }
       break;
 
     case kSbSystemPathDebugOutputDirectory:
-      if (!SbSystemGetPath(kSbSystemPathTempDirectory, path, kPathSize)) {
+      if (!SbSystemGetPath(kSbSystemPathTempDirectory, path.data(),
+                           kPathSize)) {
         return false;
       }
-      if (SbStringConcat(path, "/log", kPathSize) >= kPathSize) {
+      if (SbStringConcat(path.data(), "/log", kPathSize) >= kPathSize) {
         return false;
       }
-      SbDirectoryCreate(path);
+      SbDirectoryCreate(path.data());
       break;
 
     case kSbSystemPathTempDirectory:
-      if (!GetTemporaryDirectory(path, kPathSize)) {
+      if (!GetTemporaryDirectory(path.data(), kPathSize)) {
         return false;
       }
-      SbDirectoryCreate(path);
+      SbDirectoryCreate(path.data());
       break;
 
     case kSbSystemPathTestOutputDirectory:
@@ -197,7 +201,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
 
 #if SB_API_VERSION >= SB_STORAGE_PATH_VERSION
     case kSbSystemPathStorageDirectory:
-      if (!GetStorageDirectory(path, kPathSize)) {
+      if (!GetStorageDirectory(path.data(), kPathSize)) {
         return false;
       }
       break;
@@ -209,11 +213,11 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       return false;
   }
 
-  int length = SbStringGetLength(path);
+  int length = SbStringGetLength(path.data());
   if (length < 1 || length > path_size) {
     return false;
   }
 
-  SbStringCopy(out_path, path, path_size);
+  SbStringCopy(out_path, path.data(), path_size);
   return true;
 }

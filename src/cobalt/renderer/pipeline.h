@@ -272,6 +272,10 @@ class Pipeline {
   base::CValCollectionTimerStats<base::CValPublic>
       rasterize_animations_interval_timer_;
 
+  // The total number of times Skia was used to render
+  // a non-text render tree node.
+  base::CVal<int64, base::CValPublic> fallback_rasterize_count_;
+
   // The total number of new render trees that have been rasterized.
   base::CVal<int, base::CValPublic> new_render_tree_rasterize_count_;
   // The last time that a newly encountered render tree was first rasterized.

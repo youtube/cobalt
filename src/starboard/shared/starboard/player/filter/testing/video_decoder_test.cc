@@ -24,6 +24,7 @@
 #include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/common/string.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"
@@ -69,15 +70,16 @@ struct TestParam {
 const SbTimeMonotonic kDefaultWaitForNextEventTimeOut = 5 * kSbTimeSecond;
 
 std::string GetTestInputDirectory() {
-  const size_t kPathSize = SB_FILE_MAX_PATH + 1;
+  const size_t kPathSize = kSbFileMaxPath + 1;
 
-  char content_path[kPathSize];
-  EXPECT_TRUE(
-      SbSystemGetPath(kSbSystemPathContentDirectory, content_path, kPathSize));
+  std::vector<char> content_path(kPathSize);
+  EXPECT_TRUE(SbSystemGetPath(kSbSystemPathContentDirectory,
+                              content_path.data(), kPathSize));
   std::string directory_path =
-      std::string(content_path) + SB_FILE_SEP_CHAR + "test" + SB_FILE_SEP_CHAR +
-      "starboard" + SB_FILE_SEP_CHAR + "shared" + SB_FILE_SEP_CHAR +
-      "starboard" + SB_FILE_SEP_CHAR + "player" + SB_FILE_SEP_CHAR + "testdata";
+      std::string(content_path.data()) + kSbFileSepChar + "test" +
+      kSbFileSepChar + "starboard" + kSbFileSepChar + "shared" +
+      kSbFileSepChar + "starboard" + kSbFileSepChar + "player" +
+      kSbFileSepChar + "testdata";
 
   SB_CHECK(SbDirectoryCanOpen(directory_path.c_str())) << directory_path;
   return directory_path;
@@ -92,7 +94,7 @@ void DeallocateSampleFunc(SbPlayer player,
 }
 
 std::string ResolveTestFileName(const char* filename) {
-  return GetTestInputDirectory() + SB_FILE_SEP_CHAR + filename;
+  return GetTestInputDirectory() + kSbFileSepChar + filename;
 }
 
 AssertionResult AlmostEqualTime(SbTime time1, SbTime time2) {
@@ -140,9 +142,10 @@ class VideoDecoderTest
     } else {
       components = PlayerComponents::Create();
     }
-    components->CreateVideoComponents(video_parameters, &video_decoder_,
-                                      &video_render_algorithm_,
-                                      &video_renderer_sink_);
+    std::string error_message;
+    ASSERT_TRUE(components->CreateVideoComponents(
+        video_parameters, &video_decoder_, &video_render_algorithm_,
+        &video_renderer_sink_, &error_message));
     ASSERT_TRUE(video_decoder_);
 
     if (video_renderer_sink_) {
@@ -568,9 +571,10 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
               output_mode,
               fake_graphics_context_provider_.decoder_target_provider()};
 
-          components->CreateVideoComponents(
+          std::string error_message;
+          ASSERT_TRUE(components->CreateVideoComponents(
               video_parameters, &video_decoders[i], &video_render_algorithms[i],
-              &video_renderer_sinks[i]);
+              &video_renderer_sinks[i], &error_message));
           ASSERT_TRUE(video_decoders[i]);
 
           if (video_renderer_sinks[i]) {
@@ -878,7 +882,8 @@ std::vector<TestParam> GetSupportedTests() {
                                        kSbPlayerOutputModePunchOut};
 
   const char* kFilenames[] = {"beneath_the_canopy_137_avc.dmp",
-                              "beneath_the_canopy_248_vp9.dmp"};
+                              "beneath_the_canopy_248_vp9.dmp",
+                              "sintel_399_av1.dmp"};
 
   static std::vector<TestParam> test_params;
 

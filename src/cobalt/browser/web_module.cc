@@ -518,7 +518,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
   supports_map_to_mesh = css_parser::Parser::kDoesNotSupportMapToMesh;
 #endif
 
-  css_parser_ = css_parser::Parser::Create(supports_map_to_mesh);
+  css_parser_ =
+      css_parser::Parser::Create(debugger_hooks_, supports_map_to_mesh);
   DCHECK(css_parser_);
 
   dom_parser_.reset(new dom_parser::Parser(
@@ -619,7 +620,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
       kDOMMaxElementDepth, fetcher_factory_.get(), data.network_module,
       media_source_registry_.get(), blob_registry_.get(),
       data.can_play_type_handler, javascript_engine_.get(),
-      global_environment_.get(), &debugger_hooks_,
+      global_environment_.get(), debugger_hooks_,
       &mutation_observer_task_manager_, data.options.dom_settings_options));
   DCHECK(environment_settings_);
 
@@ -687,8 +688,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
                  base::Unretained(this)),
       base::Bind(&WebModule::Impl::OnStopDispatchEvent, base::Unretained(this)),
       data.options.provide_screenshot_function, &synchronous_loader_interrupt_,
-      data.ui_nav_root, data.options.csp_insecure_allowed_token,
-      data.dom_max_element_depth, data.options.video_playback_rate_multiplier,
+      data.options.enable_inline_script_warnings, data.ui_nav_root,
+      data.options.csp_insecure_allowed_token, data.dom_max_element_depth,
+      data.options.video_playback_rate_multiplier,
 #if defined(ENABLE_TEST_RUNNER)
       data.options.layout_trigger == layout::LayoutManager::kTestRunnerMode
           ? dom::Window::kClockTypeTestRunner

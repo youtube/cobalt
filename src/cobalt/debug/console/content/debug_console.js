@@ -33,7 +33,7 @@ function DebugConsole(debuggerClient) {
   let loadResult = this.consoleValues.loadActiveSet();
   this.printToMessageLog(MessageLog.INTERACTIVE, loadResult);
 
-  this.debugCommands = initDebugCommands();
+  this.debugCommands = new DebugCommands(this);
 }
 
 DebugConsole.prototype.printToMessageLog = function(severity, message) {
@@ -82,22 +82,8 @@ DebugConsole.prototype.executeImmediate = function(command) {
     return true;
   } else if (command.trim() == 'help') {
     // Treat 'help' as a special case for users not expecting JS execution.
-    help();
+    this.debugCommands.help();
     this.commandInput.clearCurrentCommand();
-    return true;
-  }
-  return false;
-}
-
-// JavaScript commands executed in this (debug console) web module.
-// The only commands we execute here are methods of the debug object
-// (or its shorthand equivalent).
-DebugConsole.prototype.executeDebug = function(command) {
-  if (command.trim().indexOf('debug.') == 0 ||
-      command.trim().indexOf('d.') == 0) {
-    let debug = this.debugCommands;
-    let d = this.debugCommands;
-    eval(command);
     return true;
   }
   return false;
@@ -124,7 +110,7 @@ DebugConsole.prototype.executeCommand = function(command) {
     return;
   }
   this.commandInput.storeAndClearCurrentCommand();
-  if (this.executeDebug(command)) {
+  if (this.debugCommands.executeCommand(command)) {
     this.printToMessageLog(MessageLog.INTERACTIVE, '');
     return;
   }

@@ -13,54 +13,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Common command line parser for all Starboard tools.
-
-Arguments can be added to the parser returned from CreateParser() on a
-per-tool basis.
-"""
+"""Adds common command-line arguments to a provided argument parser."""
 
 import argparse
-
 import _env  # pylint: disable=unused-import
 from starboard.tools import build
+from starboard.tools import params
 import starboard.tools.config
 import starboard.tools.platform
 
 
-def CreateParser():
-  """Returns an argparse.ArgumentParser object set up for Starboard tools."""
-  arg_parser = CreatePlatformConfigParser(
-      description='Runs application/tool executables.')
-  arg_parser.add_argument(
-      '-d', '--device_id', help='Devkit or IP address for the target device.')
-  arg_parser.add_argument(
-      '--target_params',
-      help='Command line arguments to pass to the executable.'
-      ' Because different executables could have differing command'
-      ' line syntax, list all arguments exactly as you would to the'
-      ' executable between a set of double quotation marks.')
-  arg_parser.add_argument(
-      '-o',
-      '--out_directory',
-      help='Directory containing tool binaries or their components.'
-      ' Automatically derived if absent.')
-  return arg_parser
-
-
-def CreatePlatformConfigParser(description=None, **kwargs):
-  """An arg parser suitable for building.
-
-  Args:
-    description: Description passed onto argument parser, if none then a default
-      is assigned.
-    **kwargs: are constructor arguments for the argparser.
-
-  Returns:
-    An arg parser ready to parse a command argument string.
-  """
-  if description is None:
-    description = 'Runs build related tool.'
-  arg_parser = argparse.ArgumentParser(description=description, **kwargs)
+def AddPlatformConfigArguments(arg_parser):
+  """Adds the platform configuration arguments required for building."""
   default_config, default_platform = build.GetDefaultConfigAndPlatform()
   arg_parser.add_argument(
       '-p',
@@ -80,6 +44,7 @@ def CreatePlatformConfigParser(description=None, **kwargs):
   arg_parser.add_argument(
       '-P',
       '--loader_platform',
+      default=None,
       help='Specifies the platform to build the loader with. This flag is only '
       'relevant for Evergreen builds, and should be the platform you intend to '
       "run your tests on (eg 'linux-x64x11', or 'raspi-2'). Requires that "
@@ -88,7 +53,75 @@ def CreatePlatformConfigParser(description=None, **kwargs):
   arg_parser.add_argument(
       '-C',
       '--loader_config',
-      help="Specifies the config to build the loader with (eg 'qa' or 'devel'). This flag is only "
-      'relevant for Evergreen builds, and requires that --loader_platform be '
-      'given.')
-  return arg_parser
+      default=None,
+      help="Specifies the config to build the loader with (eg 'qa' or 'devel')."
+      'This flag is only relevant for Evergreen builds, and requires that '
+      '--loader_platform be given.')
+
+
+def AddLauncherArguments(arg_parser):
+  """Adds the platform configuration and device information arguments require by launchers."""
+  AddPlatformConfigArguments(arg_parser)
+  arg_parser.add_argument(
+      '-d', '--device_id', help='Devkit or IP address for the target device.')
+  arg_parser.add_argument(
+      '--target_params',
+      help='Command line arguments to pass to the executable.'
+      ' Because different executables could have differing command'
+      ' line syntax, list all arguments exactly as you would to the'
+      ' executable between a set of double quotation marks.')
+  arg_parser.add_argument(
+      '-o',
+      '--out_directory',
+      help='Directory containing tool binaries or their components.'
+      ' Automatically derived if absent.')
+  arg_parser.add_argument(
+      '-O',
+      '--loader_out_directory',
+      default=None,
+      help='Identical to --out_directory, except used for the loader platform '
+      'when building and running in Evergreen mode.')
+
+
+def CreatePlatformConfigParams(arg_parser=None):
+  """Returns a PlatformConfigParams object initialized from an argument parser.
+
+  This is a helper function that simplifies the creation of a
+  PlatformConfigParams object. This function will create an argument parser if
+  one is not provided, however if one is provided it is assumed that it has the
+  necessary arguments added.
+
+  Args:
+    arg_parser: The argument parser to used for initialization. When |None| it
+      will be created and initialized with the minimum required parameters.
+  """
+  if not arg_parser:
+    arg_parser = argparse.ArgumentParser()
+    AddPlatformConfigArguments(arg_parser)
+  platform_config_params = params.PlatformConfigParams()
+  _, _ = arg_parser.parse_known_args(namespace=platform_config_params)
+  return platform_config_params
+
+
+def CreateLauncherParams(arg_parser=None):
+  """Returns a LauncherParams object initialized from an argument parser.
+
+  This is a helper function that simplifies the creation of a LauncherParams
+  object. This function will create an argument parser if one is not provided,
+  however if one is provided it is assumed that it has the necessary arguments
+  added.
+
+  Args:
+    arg_parser: The argument parser to used for initialization. When |None| it
+      will be created and initialized with the minimum required parameters.
+  """
+  if not arg_parser:
+    arg_parser = argparse.ArgumentParser()
+    AddLauncherArguments(arg_parser)
+  launcher_params = params.LauncherParams()
+  args, _ = arg_parser.parse_known_args(namespace=launcher_params)
+  if args.target_params is None:
+    launcher_params.target_params = []
+  else:
+    launcher_params.target_params = [args.target_params]
+  return launcher_params

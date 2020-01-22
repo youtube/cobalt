@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/configuration_constants.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -176,7 +177,7 @@ TEST(SbThreadLocalValueTest, SunnyDayFreshlyCreatedValuesAreNull) {
 }
 
 TEST(SbThreadLocalValueTest, SunnyDayMany) {
-  const int kMany = (2 * SB_MAX_THREAD_LOCAL_KEYS) / 3;
+  const int kMany = (2 * kSbMaxThreadLocalKeys) / 3;
   std::vector<SbThreadLocalKey> keys(kMany);
 
   for (int i = 0; i < kMany; ++i) {

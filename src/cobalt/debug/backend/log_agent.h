@@ -36,8 +36,8 @@ class LogAgent {
   JSONObject Freeze();
 
  private:
-  void Enable(const Command& command);
-  void Disable(const Command& command);
+  void Enable(Command command);
+  void Disable(Command command);
 
   // Called by LogMessageHandler for each log message.
   // May be called from any thread.

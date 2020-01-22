@@ -14,6 +14,7 @@
 
 #include "net/dial/dial_system_config.h"
 
+#include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/system.h"
 
@@ -66,14 +67,14 @@ std::string GenerateRandomUuid() {
 
 // static
 std::string DialSystemConfig::GeneratePlatformUuid() {
-  char path_buffer[SB_FILE_MAX_PATH];
-  bool success = SbSystemGetPath(kSbSystemPathCacheDirectory, path_buffer,
-                                 sizeof(path_buffer));
+  std::vector<char> path_buffer(kSbFileMaxPath);
+  bool success = SbSystemGetPath(kSbSystemPathCacheDirectory,
+                                 path_buffer.data(), path_buffer.size());
 
   DCHECK(success) << "kSbSystemPathCacheDirectory not implemented";
 
-  std::string path(path_buffer);
-  path.append(SB_FILE_SEP_STRING);
+  std::string path(path_buffer.data());
+  path.append(kSbFileSepString);
   path.append(kInAppDialUuidFilename);
 
   bool created;

@@ -183,8 +183,8 @@ udata_createDummy(const char *dir, const char *type, const char *name, UErrorCod
     if(U_SUCCESS(*pErrorCode)) {
         udata_finish(udata_create(dir, type, name, &dummyDataInfo, NULL, pErrorCode), pErrorCode);
         if(U_FAILURE(*pErrorCode)) {
-            fprintf(stderr, "error %s writing dummy data file %s" U_FILE_SEP_STRING "%s.%s\n",
-                    u_errorName(*pErrorCode), dir, name, type);
+            fprintf(stderr, "error %s writing dummy data file %s%s%s.%s\n",
+                    u_errorName(*pErrorCode), dir, U_FILE_SEP_STRING, name, type);
             exit(*pErrorCode);
         }
     }

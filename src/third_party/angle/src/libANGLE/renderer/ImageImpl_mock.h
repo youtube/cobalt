@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -18,15 +18,10 @@ namespace rx
 class MockImageImpl : public ImageImpl
 {
   public:
-    MockImageImpl(const egl::ImageState &state,
-                  EGLenum /*target*/,
-                  const egl::AttributeMap & /*attribs*/)
-        : ImageImpl(state)
-    {
-    }
+    MockImageImpl(const egl::ImageState &state) : ImageImpl(state) {}
     virtual ~MockImageImpl() { destructor(); }
-    MOCK_METHOD0(initialize, egl::Error(void));
-    MOCK_METHOD1(orphan, gl::Error(egl::ImageSibling *));
+    MOCK_METHOD1(initialize, egl::Error(const egl::Display *));
+    MOCK_METHOD2(orphan, angle::Result(const gl::Context *, egl::ImageSibling *));
     MOCK_METHOD0(destructor, void());
 };
 }  // namespace rx

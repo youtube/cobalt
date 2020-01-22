@@ -31,8 +31,8 @@ class DOMAgent {
   JSONObject Freeze();
 
  private:
-  void Enable(const Command& command);
-  void Disable(const Command& command);
+  void Enable(Command command);
+  void Disable(Command command);
 
   DebugDispatcher* dispatcher_;
 

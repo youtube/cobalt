@@ -26,10 +26,10 @@ import unittest
 
 import _env  # pylint: disable=unused-import
 from cobalt.black_box_tests import black_box_cobalt_runner
-from cobalt.tools.automated_testing import cobalt_runner
 from proxy_server import ProxyServer
 from starboard.tools import abstract_launcher
 from starboard.tools import build
+from starboard.tools import command_line
 
 _PORT_SELECTION_RETRY_LIMIT = 10
 _PORT_SELECTION_RANGE = [5000, 7000]
@@ -60,8 +60,8 @@ _TESTS_NEEDING_DEEP_LINK = [
 ]
 # Location of test files.
 _TEST_DIR_PATH = 'cobalt.black_box_tests.tests.'
-# Platform dependent device parameters.
-_device_params = None
+# Platform configuration and device information parameters.
+_launcher_params = None
 # Binding address used to create the test server.
 _binding_address = None
 # Port used to create the web platform test http server.
@@ -72,8 +72,8 @@ class BlackBoxTestCase(unittest.TestCase):
 
   def __init__(self, *args, **kwargs):
     super(BlackBoxTestCase, self).__init__(*args, **kwargs)
-    self.device_params = _device_params
-    self.platform_config = build.GetPlatformConfig(_device_params.platform)
+    self.launcher_params = _launcher_params
+    self.platform_config = build.GetPlatformConfig(_launcher_params.platform)
     self.cobalt_config = self.platform_config.GetApplicationConfiguration(
         'cobalt')
 
@@ -89,10 +89,12 @@ class BlackBoxTestCase(unittest.TestCase):
 
   def CreateCobaltRunner(self, url, target_params=None):
     all_target_params = list(target_params) if target_params else []
-    if _device_params.target_params is not None:
-      all_target_params += _device_params.target_params
+    if _launcher_params.target_params is not None:
+      all_target_params += _launcher_params.target_params
     new_runner = black_box_cobalt_runner.BlackBoxCobaltRunner(
-        device_params=_device_params, url=url, target_params=all_target_params)
+        launcher_params=_launcher_params,
+        url=url,
+        target_params=all_target_params)
     return new_runner
 
   def GetBindingAddress(self):
@@ -102,15 +104,17 @@ class BlackBoxTestCase(unittest.TestCase):
     return _wpt_http_port
 
 
-def LoadTests(platform, config, device_id, out_directory):
+def LoadTests(launcher_params):
   launcher = abstract_launcher.LauncherFactory(
-      platform,
+      launcher_params.platform,
       'cobalt',
-      config,
-      device_id=device_id,
+      launcher_params.config,
+      device_id=launcher_params.device_id,
       target_params=None,
       output_file=None,
-      out_directory=out_directory)
+      out_directory=launcher_params.out_directory,
+      loader_platform=launcher_params.loader_platform,
+      loader_config=launcher_params.loader_config)
 
   test_targets = _TESTS_NO_SIGNAL
 
@@ -138,10 +142,10 @@ class BlackBoxTests(object):
                wpt_http_port=None):
     logging.basicConfig(level=logging.DEBUG)
 
-    # Setup global variables used by test cases
-    global _device_params
-    _device_params = cobalt_runner.GetDeviceParamsFromCommandLine()
-    # Keep other modules from seeing these args
+    # Setup global variables used by test cases.
+    global _launcher_params
+    _launcher_params = command_line.CreateLauncherParams()
+    # Keep other modules from seeing these args.
     sys.argv = sys.argv[:1]
     global _binding_address
     _binding_address = server_binding_address
@@ -151,7 +155,7 @@ class BlackBoxTests(object):
       wpt_http_port = str(self.GetUnusedPort([server_binding_address]))
     global _wpt_http_port
     _wpt_http_port = wpt_http_port
-    _device_params.target_params.append(
+    _launcher_params.target_params.append(
         '--web-platform-test-server=http://web-platform.test:%s' %
         wpt_http_port)
 
@@ -161,8 +165,8 @@ class BlackBoxTests(object):
       proxy_port = str(self.GetUnusedPort([server_binding_address]))
     if proxy_address is None:
       proxy_address = server_binding_address
-    _device_params.target_params.append('--proxy=%s:%s' %
-                                        (proxy_address, proxy_port))
+    _launcher_params.target_params.append('--proxy=%s:%s' %
+                                          (proxy_address, proxy_port))
 
     self.proxy_port = proxy_port
     self.test_name = test_name
@@ -189,9 +193,7 @@ class BlackBoxTests(object):
         suite = unittest.TestLoader().loadTestsFromModule(
             importlib.import_module(_TEST_DIR_PATH + self.test_name))
       else:
-        suite = LoadTests(_device_params.platform, _device_params.config,
-                          _device_params.device_id,
-                          _device_params.out_directory)
+        suite = LoadTests(_launcher_params)
       return_code = not unittest.TextTestRunner(
           verbosity=0, stream=sys.stdout).run(suite).wasSuccessful()
       return return_code
@@ -268,7 +270,7 @@ if __name__ == '__main__':
   # Running this script on the command line and importing this file are
   # different and create two modules.
   # Import this module to ensure we are using the same module as the tests to
-  # make module-owned variables like device_param accessible to the tests.
+  # make module-owned variables like launcher_param accessible to the tests.
   main_module = importlib.import_module(
       'cobalt.black_box_tests.black_box_tests')
   sys.exit(main_module.main())

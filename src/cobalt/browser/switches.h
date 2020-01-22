@@ -141,6 +141,8 @@ extern const char kRetainRemoteTypefaceCacheDuringSuspend[];
 extern const char kRetainRemoteTypefaceCacheDuringSuspendHelp[];
 extern const char kScratchSurfaceCacheSizeInBytes[];
 extern const char kScratchSurfaceCacheSizeInBytesHelp[];
+extern const char kSilenceInlineScriptWarnings[];
+extern const char kSilenceInlineScriptWarningsHelp[];
 extern const char kSkiaCacheSizeInBytes[];
 extern const char kSkiaCacheSizeInBytesHelp[];
 extern const char kSkiaTextureAtlasDimensions[];

@@ -18,6 +18,7 @@
 10-3-3-margin-auto-should-be-treated-as-zero-if-sum-is-greater-than-containing-block-width
 10-3-3-margin-right-should-be-ignored-if-overconstrained
 10-3-3-one-auto-should-follow-from-equality
+10-3-3-overconstrained-should-respect-direction
 10-3-4-block-level-replaced-box-margins-should-be-calculated-as-for-non-replaced-box
 10-3-4-block-level-replaced-box-width-should-be-calculated-as-for-inline-replaced-box
 10-3-7-absolute-element-children-should-shrink-to-fit
@@ -181,6 +182,7 @@
 9-4-3-relative-positioned-elements-are-offset-from-normal-flow-via-right-and-bottom
 9-4-3-relative-positioned-elements-participate-in-stacking-context
 9-4-3-relative-positioned-elements-use-left-and-top-versus-right-and-bottom
+9-4-3-relative-positioned-elements-use-left-and-top-versus-right-and-bottom-rtl
 9-4-3-relative-positioned-elements-with-inline-block-display-are-offset-from-normal-flow
 9-4-3-relative-positioned-elements-with-inline-display-are-offset-from-normal-flow
 9-7-display-should-resolve-to-block-if-position-is-absolute

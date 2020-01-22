@@ -1,23 +1,23 @@
-/***************************************************************************/
-/*                                                                         */
-/*  t42parse.h                                                             */
-/*                                                                         */
-/*    Type 42 font parser (specification).                                 */
-/*                                                                         */
-/*  Copyright 2002-2015 by                                                 */
-/*  Roberto Alameda.                                                       */
-/*                                                                         */
-/*  This file is part of the FreeType project, and may only be used,       */
-/*  modified, and distributed under the terms of the FreeType project      */
-/*  license, LICENSE.TXT.  By continuing to use, modify, or distribute     */
-/*  this file you indicate that you have read the license and              */
-/*  understand and accept it fully.                                        */
-/*                                                                         */
-/***************************************************************************/
+/****************************************************************************
+ *
+ * t42parse.h
+ *
+ *   Type 42 font parser (specification).
+ *
+ * Copyright (C) 2002-2019 by
+ * Roberto Alameda.
+ *
+ * This file is part of the FreeType project, and may only be used,
+ * modified, and distributed under the terms of the FreeType project
+ * license, LICENSE.TXT.  By continuing to use, modify, or distribute
+ * this file you indicate that you have read the license and
+ * understand and accept it fully.
+ *
+ */
 
 
-#ifndef __T42PARSE_H__
-#define __T42PARSE_H__
+#ifndef T42PARSE_H_
+#define T42PARSE_H_
 
 
 #include "t42objs.h"
@@ -85,7 +85,7 @@ FT_BEGIN_HEADER
 FT_END_HEADER
 
 
-#endif /* __T42PARSE_H__ */
+#endif /* T42PARSE_H_ */
 
 
 /* END */

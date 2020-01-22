@@ -92,7 +92,7 @@
 #endif  // defined(STARBOARD)
 
 #if defined(STARBOARD)
-#define malloc_getpagesize SB_MEMORY_PAGE_SIZE
+#define malloc_getpagesize kSbMemoryPageSize
 #else
 #define malloc_getpagesize LB_PAGE_SIZE
 #endif
@@ -102,7 +102,8 @@
 #if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
 #define LB_HAS_MMAP
 #endif
-#if SB_HAS(VIRTUAL_REGIONS)
+#if SB_API_VERSION < SB_VIRTUAL_REGIONS_FLAG_DEPRECATED && \
+    SB_HAS(VIRTUAL_REGIONS)
 #define LB_HAS_VIRTUAL_REGIONS
 #endif
 #endif  // defined(STARBOARD)
@@ -130,7 +131,7 @@
 #if defined(STARBOARD)
 
 #if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
-#define DEFAULT_MMAP_THRESHOLD SB_DEFAULT_MMAP_THRESHOLD
+#define DEFAULT_MMAP_THRESHOLD kSbDefaultMmapThreshold
 #endif
 
 #define MALLOC_ALIGNMENT kSbMallocAlignment
