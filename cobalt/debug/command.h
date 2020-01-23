@@ -103,6 +103,14 @@ class Command {
     SendResponse(error_response);
   }
 
+  // Constructs a Command with a no-op response callback.
+  static Command IgnoreResponse(const std::string& method,
+                                const std::string& params = "") {
+    return Command(
+        method, params,
+        base::Bind([](const base::Optional<std::string>& response) {}));
+  }
+
  private:
   std::string method_;
   std::string domain_;
