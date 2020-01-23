@@ -16,6 +16,8 @@
 #include "base/metrics/histogram.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/media/base/audio_decoder_config.h"
 #include "cobalt/media/base/bind_to_current_loop.h"
@@ -33,6 +35,39 @@ using base::TimeDelta;
 
 namespace cobalt {
 namespace media {
+
+namespace {
+
+// Parse type and codecs from mime type. It will return "video/mp4" and
+// "avc1.42E01E, mp4a.40.2" for "video/mp4; codecs="avc1.42E01E, mp4a.40.2".
+// Note that this function does minimum validation as the media stack will check
+// the type and codecs strictly.
+bool ParseMimeType(const std::string& mime_type, std::string* type,
+                   std::string* codecs) {
+  DCHECK(type);
+  DCHECK(codecs);
+  static const char kCodecs[] = "codecs=";
+
+  // SplitString will also trim the results.
+  std::vector<std::string> tokens = ::base::SplitString(
+      mime_type, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+  // The first one has to be mime type with delimiter '/' like 'video/mp4'.
+  if (tokens.size() < 2 || tokens[0].find('/') == tokens[0].npos) {
+    return false;
+  }
+  *type = tokens[0];
+  for (size_t i = 1; i < tokens.size(); ++i) {
+    if (base::strncasecmp(tokens[i].c_str(), kCodecs, strlen(kCodecs))) {
+      continue;
+    }
+    *codecs = tokens[i].substr(strlen("codecs="));
+    base::TrimString(*codecs, " \"", codecs);
+    break;
+  }
+  return !codecs->empty();
+}
+
+}  // namespace
 
 ChunkDemuxerStream::ChunkDemuxerStream(Type type, const std::string& mime,
                                        bool splice_frames_enabled,
@@ -613,10 +648,16 @@ void ChunkDemuxer::CancelPendingSeek(TimeDelta seek_time) {
 }
 
 ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
-                                         const std::string& type,
-                                         const std::string& codecs) {
-  DVLOG(1) << __func__ << " id=" << id << " mime_type=" << type
-           << " codecs=" << codecs;
+                                         const std::string& mime) {
+  DVLOG(1) << __func__ << " id=" << id << " mime_type=" << mime;
+
+  std::string type;
+  std::string codecs;
+
+  if (!ParseMimeType(mime, &type, &codecs)) {
+    return kNotSupported;
+  }
+
   base::AutoLock auto_lock(lock_);
 
   if ((state_ != WAITING_FOR_INIT && state_ != INITIALIZING) || IsValidId(id))
@@ -639,7 +680,7 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
   std::unique_ptr<SourceBufferState> source_state(new SourceBufferState(
       std::move(stream_parser), std::move(frame_processor),
       base::Bind(&ChunkDemuxer::CreateDemuxerStream, base::Unretained(this), id,
-                 type),
+                 mime),
       media_log_, buffer_allocator_));
 
   SourceBufferState::NewTextTrackCB new_text_track_cb;

@@ -59,6 +59,13 @@ SbPlayer SbPlayerCreate(SbWindow window,
     SB_LOG(ERROR) << "creation_param->max_video_capabilities cannot be null.";
     return kSbPlayerInvalid;
   }
+
+  SB_LOG(INFO) << "SbPlayerCreate() called with audio mime \""
+               << creation_param->audio_mime << "\", video mime \""
+               << creation_param->video_mime
+               << "\", and max video capabilities \""
+               << creation_param->max_video_capabilities << "\".";
+
   SbMediaAudioCodec audio_codec = creation_param->audio_sample_info.codec;
   SbMediaVideoCodec video_codec = creation_param->video_sample_info.codec;
   SbDrmSystem drm_system = creation_param->drm_system;
