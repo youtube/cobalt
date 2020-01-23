@@ -142,25 +142,12 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
     from msvc_toolchain import MSVCUWPToolchain  # pylint: disable=g-import-not-at-top,g-bad-import-order
     return MSVCUWPToolchain()
 
-  def IsWin10orHigher(self):
-    try:
-      # Both Win10 and Win2016-Server will return 10.0+
-      major, _, _ = GetWindowsVersion()
-      return major >= 10
-    except Exception as e:
-      print 'Error while getting version for windows: ' + str(e)
-    return False
-
   def GetTestFilters(self):
     """Gets all tests to be excluded from a unit test run.
 
     Returns:
       A list of initialized TestFilter objects.
     """
-    if not self.IsWin10orHigher():
-      logging.error('Tests can only be executed on Win10 and higher.')
-      return [test_filter.DISABLE_TESTING]
-
     filters = super(Win32SharedConfiguration, self).GetTestFilters()
     for target, tests in self.__FILTERED_TESTS.iteritems():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
