@@ -23,12 +23,12 @@
 #include <vector>
 
 #include "base/command_line.h"
-#include "base/logging.h"
 #include "cobalt/browser/memory_settings/memory_settings.h"
 #include "cobalt/browser/memory_settings/test_common.h"
 #include "cobalt/browser/switches.h"
 #include "starboard/common/log.h"
 #include "starboard/memory.h"
+#include "starboard/string.h"
 #include "starboard/system.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
@@ -37,32 +37,42 @@ namespace cobalt {
 namespace browser {
 namespace memory_settings {
 
+namespace {
+// Returns true if all tokens exist in the string in the given order.
+bool HasTokensInOrder(const std::string& value,
+                      std::initializer_list<const char*> tokens) {
+  std::string::size_type current_position = 0;
+  for (auto token : tokens) {
+    std::string::size_type position = value.find(token, current_position);
+    EXPECT_NE(position, std::string::npos);
+    EXPECT_GE(position, current_position);
+    if (position == std::string::npos) {
+      SB_DLOG(INFO) << "Token \"" << token << "\" not found in order.";
+      return false;
+    }
+    current_position = position + SbStringGetLength(token);
+  }
+  return true;
+}
+}  // namespace
+
 TEST(MemorySettingsPrettyPrint, GeneratePrettyPrintTable) {
   TestSettingGroup setting_group;
   setting_group.LoadDefault();
   std::string actual_string =
       GeneratePrettyPrintTable(false, setting_group.AsConstVector());
 
-  const char* expected_string =
-      " SETTING NAME                           VALUE                   TYPE   SOURCE    \n"
-      " _______________________________________________________________________________ \n"
-      "|                                      |             |         |      |         |\n"
-      "| image_cache_size_in_bytes            |        1234 |  0.0 MB |  GPU | CmdLine |\n"
-      "|______________________________________|_____________|_________|______|_________|\n"
-      "|                                      |             |         |      |         |\n"
-      "| javascript_gc_threshold_in_bytes     |        1112 |  0.0 MB |  CPU | AutoSet |\n"
-      "|______________________________________|_____________|_________|______|_________|\n"
-      "|                                      |             |         |      |         |\n"
-      "| skia_atlas_texture_dimensions        | 1234x4567x2 | 10.7 MB |  GPU | CmdLine |\n"
-      "|______________________________________|_____________|_________|______|_________|\n"
-      "|                                      |             |         |      |         |\n"
-      "| skia_cache_size_in_bytes             |    12345678 | 11.8 MB |  GPU | CmdLine |\n"
-      "|______________________________________|_____________|_________|______|_________|\n"
-      "|                                      |             |         |      |         |\n"
-      "| software_surface_cache_size_in_bytes |         N/A |     N/A |  N/A |     N/A |\n"
-      "|______________________________________|_____________|_________|______|_________|\n";
-
-  EXPECT_STREQ(expected_string, actual_string.c_str());
+  // clang-format off
+  EXPECT_TRUE(HasTokensInOrder(
+      actual_string,
+      {"SETTING NAME", "VALUE", "TYPE", "SOURCE", "\n",
+       "image_cache_size_in_bytes", "1234", "0.0 MB", "GPU", "CmdLine", "\n",
+       "javascript_gc_threshold_in_bytes", "1112", "0.0 MB", "CPU", "AutoSet", "\n",  // NOLINT(whitespace/line_length)
+       "skia_atlas_texture_dimensions", "1234x4567x2", "10.7 MB", "GPU", "CmdLine", "\n",  // NOLINT(whitespace/line_length)
+       "skia_cache_size_in_bytes", "12345678", "11.8 MB", "GPU", "CmdLine", "\n",  // NOLINT(whitespace/line_length)
+       "software_surface_cache_size_in_bytes", "N/A", "N/A", "N/A", "N/A", "\n"
+      }));
+  // clang-format on
 }
 
 TEST(MemorySettingsPrettyPrint, GenerateMemoryTableWithUnsetGpuMemory) {
@@ -77,17 +87,12 @@ TEST(MemorySettingsPrettyPrint, GenerateMemoryTableWithUnsetGpuMemory) {
                           128 * 1024 * 1024,  // 128 MB CPU consumption
                           0);                 // 0 MB GPU consumption.
 
-  const char* expected_output =
-      " MEMORY           SOURCE   TOTAL       SETTINGS CONSUME   \n"
-      " ________________________________________________________ \n"
-      "|                |        |           |                  |\n"
-      "| max_cpu_memory |  Build |  256.0 MB |         128.0 MB |\n"
-      "|________________|________|___________|__________________|\n"
-      "|                |        |           |                  |\n"
-      "| max_gpu_memory |  Unset | <UNKNOWN> |           0.0 MB |\n"
-      "|________________|________|___________|__________________|\n";
-
-  EXPECT_STREQ(expected_output, actual_output.c_str()) << actual_output;
+  // clang-format off
+  EXPECT_TRUE(HasTokensInOrder(
+      actual_output, {"MEMORY", "SOURCE", "TOTAL", "SETTINGS CONSUME", "\n",
+                      "max_cpu_memory", "Build", "256.0 MB", "128.0 MB", "\n",
+                      "max_gpu_memory", "Unset", "<UNKNOWN>", "0.0 MB", "\n"}));
+  // clang-format on
 }
 
 TEST(MemorySettingsPrettyPrint, GenerateMemoryTableWithGpuMemory) {
@@ -103,47 +108,12 @@ TEST(MemorySettingsPrettyPrint, GenerateMemoryTableWithGpuMemory) {
                           128 * 1024 * 1024,   // 128 MB CPU consumption.
                           23592960);           // 22.5 MB GPU consumption.
 
-  const char* expected_output =
-      " MEMORY           SOURCE   TOTAL      SETTINGS CONSUME   \n"
-      " _______________________________________________________ \n"
-      "|                |        |          |                  |\n"
-      "| max_cpu_memory |  Build | 256.0 MB |         128.0 MB |\n"
-      "|________________|________|__________|__________________|\n"
-      "|                |        |          |                  |\n"
-      "| max_gpu_memory |  Build |  64.0 MB |          22.5 MB |\n"
-      "|________________|________|__________|__________________|\n";
-
-  EXPECT_STREQ(expected_output, actual_output.c_str()) << actual_output;
-}
-
-TEST(MemorySettingsPrettyPrint, ToString) {
-  TestSettingGroup test_setting_group;
-  test_setting_group.LoadDefault();
-
-  std::string actual_string =
-      GeneratePrettyPrintTable(false,  // No color.
-                               test_setting_group.AsConstVector());
-
-  const char* expected_string =
-      " SETTING NAME                           VALUE                   TYPE   SOURCE    \n"
-      " _______________________________________________________________________________ \n"
-      "|                                      |             |         |      |         |\n"
-      "| image_cache_size_in_bytes            |        1234 |  0.0 MB |  GPU | CmdLine |\n"
-      "|______________________________________|_____________|_________|______|_________|\n"
-      "|                                      |             |         |      |         |\n"
-      "| javascript_gc_threshold_in_bytes     |        1112 |  0.0 MB |  CPU | AutoSet |\n"
-      "|______________________________________|_____________|_________|______|_________|\n"
-      "|                                      |             |         |      |         |\n"
-      "| skia_atlas_texture_dimensions        | 1234x4567x2 | 10.7 MB |  GPU | CmdLine |\n"
-      "|______________________________________|_____________|_________|______|_________|\n"
-      "|                                      |             |         |      |         |\n"
-      "| skia_cache_size_in_bytes             |    12345678 | 11.8 MB |  GPU | CmdLine |\n"
-      "|______________________________________|_____________|_________|______|_________|\n"
-      "|                                      |             |         |      |         |\n"
-      "| software_surface_cache_size_in_bytes |         N/A |     N/A |  N/A |     N/A |\n"
-      "|______________________________________|_____________|_________|______|_________|\n";
-
-  EXPECT_STREQ(expected_string, actual_string.c_str()) << actual_string;
+  // clang-format off
+  EXPECT_TRUE(HasTokensInOrder(
+      actual_output, {"MEMORY", "SOURCE", "TOTAL", "SETTINGS CONSUME", "\n",
+                      "max_cpu_memory", "Build", "256.0 MB", "128.0 MB", "\n",
+                      "max_gpu_memory", "Build", "64.0 MB", "22.5 MB", "\n"}));
+  // clang-format on
 }
 
 TEST(MemorySettingsPrettyPrint, GenerateMemoryWithInvalidGpuMemoryConsumption) {
@@ -160,17 +130,13 @@ TEST(MemorySettingsPrettyPrint, GenerateMemoryWithInvalidGpuMemoryConsumption) {
       128 * 1024 * 1024,   // 128 MB CPU consumption.
       16 * 1024 * 1024);   // 16 MB GPU consumption.
 
-  const char* expected_output =
-      " MEMORY           SOURCE          TOTAL       SETTINGS CONSUME   \n"
-      " _______________________________________________________________ \n"
-      "|                |               |           |                  |\n"
-      "| max_cpu_memory |         Build |  256.0 MB |         128.0 MB |\n"
-      "|________________|_______________|___________|__________________|\n"
-      "|                |               |           |                  |\n"
-      "| max_gpu_memory | Starboard API | <UNKNOWN> |          16.0 MB |\n"
-      "|________________|_______________|___________|__________________|\n";
-
-  EXPECT_STREQ(expected_output, actual_output.c_str()) << actual_output;
+  // clang-format off
+  EXPECT_TRUE(HasTokensInOrder(
+      actual_output, {"MEMORY", "SOURCE", "TOTAL", "SETTINGS CONSUME", "\n",
+                      "max_cpu_memory", "Build", "256.0 MB", "128.0 MB", "\n",
+                      "max_gpu_memory", "Starboard API", "<UNKNOWN>", "16.0 MB", "\n"  // NOLINT(whitespace/line_length)
+                     }));
+  // clang-format on
 }
 
 }  // namespace memory_settings
