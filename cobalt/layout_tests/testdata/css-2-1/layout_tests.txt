@@ -15,8 +15,9 @@
 10-3-2-replaced-box-width
 10-3-3-auto-margin-left-and-right-should-center-element-horizontally
 10-3-3-auto-width-should-zero-other-autos
+10-3-3-correct-margin-is-ignored-if-overconstrained
+10-3-3-correct-margin-is-ignored-if-overconstrained-rtl
 10-3-3-margin-auto-should-be-treated-as-zero-if-sum-is-greater-than-containing-block-width
-10-3-3-margin-right-should-be-ignored-if-overconstrained
 10-3-3-one-auto-should-follow-from-equality
 10-3-3-overconstrained-should-respect-direction
 10-3-4-block-level-replaced-box-margins-should-be-calculated-as-for-non-replaced-box

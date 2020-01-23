@@ -1,8 +1,11 @@
 <!DOCTYPE html>
 <!--
  | If all of properties have a computed value other than "auto", the values are
- | said to be "over-constrained" and the specified value of "margin-right" is
- | ignored.
+ | said to be "over-constrained" and one of the used values will have to be
+ | different from its computed value. If the "direction" property of the
+ | containing block has the value "ltr", the specified value of "margin-right"
+ | is ignored and the value is calculated so as to make the equality true. If
+ | the value of "direction" is "rtl", this happens to "margin-left" instead.
  |   https://www.w3.org/TR/CSS21/visudet.html#blockwidth
  -->
 <html>
@@ -36,6 +39,9 @@
   </div>
   <div class="containing-block">
     <div class="margin-right block"></div>
+  </div>
+  <div class="containing-block">
+    <div class="margin-left margin-right block"></div>
   </div>
 </body>
 </html>
