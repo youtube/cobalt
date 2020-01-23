@@ -44,6 +44,25 @@ SbPlayer SbPlayerCreate(SbWindow window,
     return kSbPlayerInvalid;
   }
 
+  if (!creation_param->audio_mime) {
+    SB_LOG(ERROR) << "creation_param->audio_mime cannot be null.";
+    return kSbPlayerInvalid;
+  }
+  if (!creation_param->video_mime) {
+    SB_LOG(ERROR) << "creation_param->video_mime cannot be null.";
+    return kSbPlayerInvalid;
+  }
+  if (!creation_param->max_video_capabilities) {
+    SB_LOG(ERROR) << "creation_param->max_video_capabilities cannot be null.";
+    return kSbPlayerInvalid;
+  }
+
+  SB_LOG(INFO) << "SbPlayerCreate() called with audio mime \""
+               << creation_param->audio_mime << "\", video mime \""
+               << creation_param->video_mime
+               << "\", and max video capabilities \""
+               << creation_param->max_video_capabilities << "\".";
+
   if (!sample_deallocate_func || !decoder_status_func || !player_status_func
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
       || !player_error_func
