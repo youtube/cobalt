@@ -20,6 +20,7 @@ import os
 
 import _env  # pylint: disable=unused-import, relative-import
 from starboard.build.application_configuration import ApplicationConfiguration
+from starboard.optional import get_optional_tests
 from starboard.tools import environment
 from starboard.tools import paths
 from starboard.tools import platform
@@ -356,10 +357,7 @@ class PlatformConfiguration(object):
         'player_filter_tests',
         'starboard_platform_tests',
     ]
-    if os.path.exists(os.path.join(paths.STARBOARD_ROOT, 'elf_loader')):
-      tests.append('elf_loader_test')
-    if os.path.exists(os.path.join(paths.STARBOARD_ROOT, 'loader_app')):
-      tests.append('installation_manager_test')
+    tests.extend(get_optional_tests.DoMain())
     return tests
 
   def GetDefaultTargetBuildFile(self):
