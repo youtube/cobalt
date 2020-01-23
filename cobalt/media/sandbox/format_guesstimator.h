@@ -38,7 +38,7 @@ class FormatGuesstimator {
   bool is_adaptive() const { return !adaptive_path_.empty(); }
   bool is_audio() const {
     DCHECK(is_adaptive());
-    return mime_.find("audio/") == 0;
+    return mime_type_.find("audio/") == 0;
   }
 
   const GURL& progressive_url() const {
@@ -53,13 +53,9 @@ class FormatGuesstimator {
     return adaptive_path_.value();
   }
 
-  const std::string& mime() const {
+  const std::string& mime_type() const {
     DCHECK(is_valid());
-    return mime_;
-  }
-  const std::string& codecs() const {
-    DCHECK(is_valid());
-    return codecs_;
+    return mime_type_;
   }
 
  private:
@@ -69,8 +65,7 @@ class FormatGuesstimator {
 
   GURL progressive_url_;
   base::FilePath adaptive_path_;
-  std::string mime_;
-  std::string codecs_;
+  std::string mime_type_;
 };
 
 }  // namespace sandbox

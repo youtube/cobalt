@@ -19,6 +19,8 @@
 
 #include "base/bind.h"
 #include "base/path_service.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "cobalt/math/size.h"
 #include "cobalt/media/base/audio_codecs.h"
@@ -43,20 +45,18 @@ namespace sandbox {
 
 namespace {
 
-// Container to organize the pairs of supported mime types and their codecs.
-struct SupportedTypeCodecInfo {
-  std::string mime;
-  std::string codecs;
-};
+// The possible mime type configurations that are supported by cobalt.
+const std::vector<std::string> kSupportedMimeTypes = {
+    "audio/mp4; codecs=\"ac-3\"",
+    "audio/mp4; codecs=\"ec-3\"",
+    "audio/mp4; codecs=\"mp4a.40.2\"",
+    "audio/webm; codecs=\"opus\"",
 
-// The possible mime and codec configurations that are supported by cobalt.
-const std::vector<SupportedTypeCodecInfo> kSupportedTypesAndCodecs = {
-    {"audio/mp4", "ac-3"},          {"audio/mp4", "ec-3"},
-    {"audio/mp4", "mp4a.40.2"},     {"audio/webm", "opus"},
-
-    {"video/mp4", "av01.0.05M.08"}, {"video/mp4", "avc1.640028, mp4a.40.2"},
-    {"video/mp4", "avc1.640028"},   {"video/mp4", "hvc1.1.6.H150.90"},
-    {"video/webm", "vp9"},
+    "video/mp4; codecs=\"av01.0.05M.08\"",
+    "video/mp4; codecs=\"avc1.640028, mp4a.40.2\"",
+    "video/mp4; codecs=\"avc1.640028\"",
+    "video/mp4; codecs=\"hvc1.1.6.H150.90\"",
+    "video/webm; codecs=\"vp9\"",
 };
 
 // Can be called as:
@@ -103,6 +103,28 @@ void OnInitSegmentReceived(std::unique_ptr<MediaTracks> tracks) {
   SB_UNREFERENCED_PARAMETER(tracks);
 }
 
+// Extract the value of "codecs" parameter from content type. It will return
+// "avc1.42E01E" for "video/mp4; codecs="avc1.42E01E".
+// Note that this function assumes that the input is always valid and does
+// minimum validation..
+std::string ExtractCodec(const std::string& content_type) {
+  static const char kCodecs[] = "codecs=";
+
+  // SplitString will also trim the results.
+  std::vector<std::string> tokens = ::base::SplitString(
+      content_type, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+  for (size_t i = 1; i < tokens.size(); ++i) {
+    if (base::strncasecmp(tokens[i].c_str(), kCodecs, strlen(kCodecs))) {
+      continue;
+    }
+    auto codec = tokens[i].substr(strlen("codecs="));
+    base::TrimString(codec, " \"", &codec);
+    return codec;
+  }
+  NOTREACHED();
+  return "";
+}
+
 }  // namespace
 
 FormatGuesstimator::FormatGuesstimator(const std::string& path_or_url,
@@ -126,17 +148,15 @@ void FormatGuesstimator::InitializeAsProgressive(const GURL& url) {
     return;
   }
   progressive_url_ = url;
-  mime_ = "video/mp4";
-  codecs_ = "avc1.640028, mp4a.40.2";
+  mime_type_ = "video/mp4; codecs=\"avc1.640028, mp4a.40.2\"";
 }
 
 void FormatGuesstimator::InitializeAsAdaptive(const base::FilePath& path,
                                               MediaModule* media_module) {
   std::vector<uint8_t> header = ReadHeader(path);
 
-  for (const auto& expected_supported_info : kSupportedTypesAndCodecs) {
-    DCHECK(mime_.empty());
-    DCHECK(codecs_.empty());
+  for (const auto& expected_supported_mime_type : kSupportedMimeTypes) {
+    DCHECK(mime_type_.empty());
 
     ChunkDemuxer* chunk_demuxer = NULL;
     WebMediaPlayerHelper::ChunkDemuxerOpenCB open_cb = base::Bind(
@@ -158,8 +178,7 @@ void FormatGuesstimator::InitializeAsAdaptive(const base::FilePath& path,
     }
 
     const std::string id = "stream";
-    if (chunk_demuxer->AddId(id, expected_supported_info.mime,
-                             expected_supported_info.codecs) !=
+    if (chunk_demuxer->AddId(id, expected_supported_mime_type) !=
         ChunkDemuxer::kOk) {
       continue;
     }
@@ -183,11 +202,10 @@ void FormatGuesstimator::InitializeAsAdaptive(const base::FilePath& path,
             chunk_demuxer->GetStream(DemuxerStream::Type::AUDIO)) {
       const AudioDecoderConfig& decoder_config =
           demuxer_stream->audio_decoder_config();
-      if (StringToAudioCodec(expected_supported_info.codecs) ==
+      if (StringToAudioCodec(ExtractCodec(expected_supported_mime_type)) ==
           decoder_config.codec()) {
         adaptive_path_ = path;
-        mime_ = expected_supported_info.mime;
-        codecs_ = expected_supported_info.codecs;
+        mime_type_ = expected_supported_mime_type;
         break;
       }
       continue;
@@ -196,11 +214,10 @@ void FormatGuesstimator::InitializeAsAdaptive(const base::FilePath& path,
     DCHECK(demuxer_stream);
     const VideoDecoderConfig& decoder_config =
         demuxer_stream->video_decoder_config();
-    if (StringToVideoCodec(expected_supported_info.codecs) ==
+    if (StringToVideoCodec(ExtractCodec(expected_supported_mime_type)) ==
         decoder_config.codec()) {
       adaptive_path_ = path;
-      mime_ = expected_supported_info.mime;
-      codecs_ = expected_supported_info.codecs;
+      mime_type_ = expected_supported_mime_type;
       break;
     }
   }
