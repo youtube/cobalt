@@ -45,3 +45,4 @@ the-dir-attribute-069
 the-dir-attribute-070
 the-dir-attribute-071
 writing-modes-principal-flow-body-propagation
+writing-modes-principal-flow-root-propagation
