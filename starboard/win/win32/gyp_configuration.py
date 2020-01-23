@@ -55,10 +55,7 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
     Returns:
       A list of initialized TestFilter objects.
     """
-    if not self.IsWin10orHigher():
-      logging.error('Tests can only be executed on Win10 and higher.')
-      return [test_filter.DISABLE_TESTING]
-    elif os.environ.get('COBALT_WIN_BUILDBOT_DISABLE_TESTS', '0') == '1':
+    if os.environ.get('COBALT_WIN_BUILDBOT_DISABLE_TESTS', '0') == '1':
       logging.error('COBALT_WIN_BUILDBOT_DISABLE_TESTS=1, Tests are disabled.')
       return [test_filter.DISABLE_TESTING]
     else:
