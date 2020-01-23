@@ -12,14 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This files contains all targets that should be created by gyp_cobalt by
+# This file contains all targets that should be created by gyp_cobalt by
 # default.
 
 {
-  'variables': {
-    'has_elf_loader%' : '<!(python ../../build/file_exists.py <(DEPTH)/starboard/elf_loader/elf_loader.gyp)',
-    'has_loader_app%' : '<!(python ../../build/file_exists.py <(DEPTH)/starboard/loader_app/loader_app.gyp)',
-  },
   'targets': [
     {
       'target_name': 'Default',
@@ -94,14 +90,9 @@
         '<(DEPTH)/sql/sql.gyp:sql_unittests_deploy',
       ],
       'conditions': [
-        ['has_elf_loader == "True" and sb_evergreen != 1', {
+        ['sb_evergreen != 1', {
           'dependencies': [
-            '<(DEPTH)/starboard/elf_loader/elf_loader.gyp:elf_loader_test_deploy',
-          ],
-        }],
-        ['has_loader_app == "True" and sb_evergreen != 1', {
-          'dependencies': [
-            '<(DEPTH)/starboard/loader_app/loader_app.gyp:*',
+            '<!@pymod_do_main(starboard.optional.get_optional_tests -g)',
           ],
         }],
         ['OS=="starboard"', {
