@@ -16,12 +16,20 @@
 
 #include <pthread.h>
 
+#include "starboard/common/experimental/concurrency_debug.h"
 #include "starboard/shared/pthread/is_success.h"
 
 SbMutexResult SbMutexAcquire(SbMutex* mutex) {
   if (!mutex) {
     return kSbMutexDestroyed;
   }
+
+#if SB_ENABLE_CONCURRENTY_DEBUG
+  starboard::experimental::ScopedMutexWaitTracker tracker(mutex);
+  if (tracker.acquired()) {
+    return kSbMutexAcquired;
+  }
+#endif  // SB_ENABLE_CONCURRENTY_DEBUG
 
   int result = pthread_mutex_lock(mutex);
   if (IsSuccess(result)) {

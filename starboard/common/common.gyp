@@ -65,6 +65,9 @@
         'thread_collision_warner.h',
         'thread.cc',
         'thread.h',
+
+        'experimental/concurrency_debug.cc',
+        'experimental/concurrency_debug.h',
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when
