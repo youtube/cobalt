@@ -73,6 +73,10 @@
     # Whether this is an evergreen build.
     'sb_evergreen': 0,
 
+    # Whether this is an evergreen compatible platform. A compatible platform
+    # can run the elf_loader and launch the evergreen build.
+    'sb_evergreen_compatible': 0,
+
     # The operating system of the target, separate from the target_arch. In many
     # cases, an 'unknown' value is fine, but, if set to 'linux', then we can
     # assume some things, and it'll save us some configuration time.

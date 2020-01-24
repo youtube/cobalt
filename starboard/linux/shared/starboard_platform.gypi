@@ -454,6 +454,11 @@
           '<(DEPTH)/third_party/vpx_includes/vpx_includes.gyp:vpx',
         ],
       }],
+      ['sb_evergreen_compatible == 1', {
+        'starboard_platform_dependencies': [
+          '<(DEPTH)/third_party/llvm-project/libunwind/libunwind.gyp:unwind_starboard',
+       ]},
+      ],
     ],
   },
   'conditions': [

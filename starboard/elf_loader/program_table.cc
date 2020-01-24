@@ -15,7 +15,9 @@
 #include "starboard/elf_loader/program_table.h"
 
 #include "starboard/common/log.h"
+#include "starboard/elf_loader/evergreen_info.h"
 #include "starboard/memory.h"
+#include "starboard/string.h"
 
 #define MAYBE_MAP_FLAG(x, from, to) (((x) & (from)) ? (to) : 0)
 
@@ -344,10 +346,21 @@ bool ProgramTable::ReserveLoadMemory() {
   SB_CHECK(false);
 #endif
   base_memory_address_ = reinterpret_cast<Addr>(load_start_);
-
   SB_LOG(INFO) << "Load start=" << std::hex << load_start_
                << " base_memory_address=0x" << base_memory_address_;
   return true;
+}
+
+void ProgramTable::PublishEvergreenInfo(const char* file_path) {
+  EvergreenInfo evergreen_info;
+  SbMemorySet(&evergreen_info, sizeof(EvergreenInfo), 0);
+  SbStringCopy(evergreen_info.file_path_buf, file_path,
+               EVERGREEN_FILE_PATH_MAX_SIZE);
+  evergreen_info.base_address = base_memory_address_;
+  evergreen_info.load_size = load_size_;
+  evergreen_info.phdr_table = (uint64_t)phdr_table_;
+  evergreen_info.phdr_table_num = phdr_num_;
+  SetEvergreenInfo(&evergreen_info);
 }
 
 Addr ProgramTable::GetBaseMemoryAddress() {
@@ -355,6 +368,7 @@ Addr ProgramTable::GetBaseMemoryAddress() {
 }
 
 ProgramTable::~ProgramTable() {
+  SetEvergreenInfo(NULL);
 #if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
   if (load_start_) {
     SbMemoryUnmap(load_start_, load_size_);

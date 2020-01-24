@@ -51,7 +51,14 @@
 // this file.
 
 #include "build/build_config.h"
+
 #include "utilities.h"
+
+#if SB_IS(EVERGREEN_COMPATIBLE)
+#include "starboard/common/log.h"
+#include "starboard/elf_loader/evergreen_info.h"
+#include "starboard/memory.h"
+#endif
 
 #if defined(HAVE_SYMBOLIZE)
 
@@ -491,6 +498,17 @@ static char *GetHex(const char *start, const char *end, uint64_t *hex) {
   return const_cast<char *>(p);
 }
 
+#if SB_IS(EVERGREEN_COMPATIBLE)
+static ATTRIBUTE_NOINLINE int OpenFile(const char* file_name) {
+  int object_fd = -1;
+  NO_INTR(object_fd = open(file_name, O_RDONLY));
+  if (object_fd < 0) {
+    return -1;
+  }
+  return object_fd;
+}
+#endif
+
 // Search for the object file (from /proc/self/maps) that contains
 // the specified pc. If found, open this file and return the file handle,
 // and also set start_address to the start address of where this object
@@ -601,8 +619,26 @@ static ATTRIBUTE_NOINLINE bool SymbolizeAndDemangle(void *pc, char *out,
   uint64_t pc0 = reinterpret_cast<uintptr_t>(pc);
   uint64_t start_address = 0;
 
+#if SB_IS(EVERGREEN_COMPATIBLE)
+  char* file_name = NULL;
+  EvergreenInfo evergreen_info;
+  if (GetEvergreenInfo(&evergreen_info)) {
+    if (IS_EVERGREEN_ADDRESS(pc, evergreen_info)) {
+      file_name = evergreen_info.file_path_buf;
+      start_address = evergreen_info.base_address;
+    }
+  }
+  int object_fd = -1;
+  if (file_name != NULL) {
+    object_fd = OpenFile(file_name);
+  } else {
+    object_fd =
+        OpenObjectFileContainingPcAndGetStartAddress(pc0, start_address);
+  }
+#else
   int object_fd =
       OpenObjectFileContainingPcAndGetStartAddress(pc0, start_address);
+#endif
   if (object_fd == -1) {
     return false;
   }

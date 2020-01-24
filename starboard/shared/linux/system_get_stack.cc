@@ -14,10 +14,47 @@
 
 #include "starboard/system.h"
 
+#if SB_IS(EVERGREEN_COMPATIBLE)
+#define UNW_LOCAL_ONLY
+#include <libunwind.h>
+#include "starboard/common/log.h"
+#include "starboard/memory.h"
+#else
 #include <execinfo.h>
-
 #include <algorithm>
+#endif
 
+#if SB_IS(EVERGREEN_COMPATIBLE)
+int SbSystemGetStack(void** out_stack, int stack_size) {
+  unw_cursor_t cursor;
+  unw_context_t context;
+
+  // Initialize cursor to current frame for local unwinding.
+  int ret = unw_getcontext(&context);
+  if (ret < 0) {
+    return 0;
+  }
+  ret = unw_init_local(&cursor, &context);
+  if (ret < 0) {
+    return 0;
+  }
+  // Unwind frames one by one, going up the frame stack.
+  int i = 0;
+  for (; i < stack_size; i++) {
+    ret = unw_step(&cursor);
+    if (ret <= 0) {
+      break;
+    }
+    unw_word_t pc = 0;
+    ret = unw_get_reg(&cursor, UNW_REG_IP, &pc);
+    if (pc == 0) {
+      break;
+    }
+    out_stack[i] = reinterpret_cast<void*>(pc);
+  }
+  return i;
+}
+#else
 int SbSystemGetStack(void** out_stack, int stack_size) {
   int count = std::max(backtrace(out_stack, stack_size), 0);
 
@@ -33,3 +70,4 @@ int SbSystemGetStack(void** out_stack, int stack_size) {
 
   return count - 1;
 }
+#endif

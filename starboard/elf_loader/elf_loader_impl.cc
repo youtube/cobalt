@@ -126,6 +126,9 @@ bool ElfLoaderImpl::Load(
 
   SB_LOG(INFO) << "Applied relocations";
 
+  program_table_->PublishEvergreenInfo(name);
+  SB_LOG(INFO) << "Published Evergreen Info";
+
   SB_LOG(INFO) << "Call constructors";
   dynamic_section_->CallConstructors();
 
