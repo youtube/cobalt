@@ -67,6 +67,10 @@
           # protobuf uses hash_map.
           '-Wno-deprecated',
           '-fno-exceptions',
+          # Enable unwind tables used by libunwind for stack traces.
+          '-funwind-tables',
+          # Disable usage of frame pointers.
+          '-fomit-frame-pointer',
           # Don't warn about the "struct foo f = {0};" initialization pattern.
           '-Wno-missing-field-initializers',
           # Do not warn for implicit sign conversions.

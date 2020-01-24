@@ -13,6 +13,9 @@
 # limitations under the License.
 
 {
+  'variables': {
+    'sb_evergreen_compatible%': '<!(python <(DEPTH)/build/file_exists.py <(DEPTH)/starboard/elf_loader/evergreen_info.gyp)',
+  },
   'target_defaults': {
     'default_configuration': 'linux-x64x11_debug',
     'configurations': {

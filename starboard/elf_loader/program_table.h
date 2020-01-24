@@ -60,6 +60,10 @@ class ProgramTable {
   // Retrieves the base load address for the binary.
   Addr GetBaseMemoryAddress();
 
+  // Publish the memory mapping information of the library to
+  // the EvergreenInfo API.
+  void PublishEvergreenInfo(const char* file_path);
+
   ~ProgramTable();
 
  private:

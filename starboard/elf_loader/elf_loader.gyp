@@ -56,6 +56,7 @@
         'src/src/',
       ],
       'dependencies': [
+        '<(DEPTH)/starboard/elf_loader/evergreen_info.gyp:evergreen_info',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
       ],
       'sources': [
