@@ -23,7 +23,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/third_party/musl/musl.gyp:c',
-        '<(DEPTH)/third_party/llvm-project/libunwind/libunwind.gyp:unwind',
+        '<(DEPTH)/third_party/llvm-project/libunwind/libunwind.gyp:unwind_evergreen',
       ],
       'cflags': [
         '-nostdinc',

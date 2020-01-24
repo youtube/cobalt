@@ -14,6 +14,10 @@
 
 #include "starboard/common/log.h"
 
+#if SB_IS(EVERGREEN_COMPATIBLE)
+#include "starboard/elf_loader/evergreen_info.h"
+#include "starboard/memory.h"
+#endif
 #include "starboard/system.h"
 
 void SbLogRawDumpStack(int frames_to_skip) {
@@ -24,12 +28,24 @@ void SbLogRawDumpStack(int frames_to_skip) {
   void* stack[256];
   int count = SbSystemGetStack(stack, SB_ARRAY_SIZE_INT(stack));
 
+#if SB_IS(EVERGREEN_COMPATIBLE)
+  EvergreenInfo evergreen_info;
+  bool valid_evergreen_info = GetEvergreenInfo(&evergreen_info);
+#endif
   // Skip over SbLogRawDumpStack's stack frame.
   for (int i = 1 + frames_to_skip; i < count; ++i) {
     char symbol[512];
+    void* address = stack[i];
     bool result =
         SbSystemSymbolize(stack[i], symbol, SB_ARRAY_SIZE_INT(symbol));
-    SbLogRawFormatF("\t%s [%p]\n", (result ? symbol : "<unknown>"), stack[i]);
+#if SB_IS(EVERGREEN_COMPATIBLE)
+    if (!result && valid_evergreen_info &&
+        IS_EVERGREEN_ADDRESS(stack[i], evergreen_info)) {
+      address = reinterpret_cast<void*>(reinterpret_cast<uint64_t>(stack[i]) -
+                                        evergreen_info.base_address);
+    }
+#endif
+    SbLogRawFormatF("\t%s [%p]\n", (result ? symbol : "<unknown>"), address);
     SbLogFlush();
   }
 }

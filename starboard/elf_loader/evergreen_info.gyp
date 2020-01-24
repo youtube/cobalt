@@ -1,4 +1,4 @@
-# Copyright 2016 The Cobalt Authors. All Rights Reserved.
+# Copyright 2020 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,21 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# This files contains all targets that should be created by gyp_cobalt by
+# default.
 {
   'targets': [
     {
-      'target_name': 'starboard_base_symbolize',
+      'target_name': 'evergreen_info',
       'type': 'static_library',
       'sources': [
-        '<(DEPTH)/base/third_party/symbolize/demangle.cc',
-        '<(DEPTH)/base/third_party/symbolize/symbolize.cc',
-      ],
-      'conditions': [
-        ['sb_evergreen_compatible == 1', {
-          'dependencies': [
-            '<(DEPTH)/starboard/elf_loader/evergreen_info.gyp:evergreen_info',
-          ],},
-        ],
+        'evergreen_info.h',
+        'evergreen_info.cc',
       ],
     },
   ],
