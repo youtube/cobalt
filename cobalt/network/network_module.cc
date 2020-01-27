@@ -90,6 +90,12 @@ void NetworkModule::SetProxy(const std::string& custom_proxy_rules) {
                             custom_proxy_rules));
 }
 
+void NetworkModule::DisableQuic() {
+  task_runner()->PostTask(
+      FROM_HERE, base::Bind(&URLRequestContext::DisableQuic,
+                            base::Unretained(url_request_context_.get())));
+}
+
 void NetworkModule::Initialize(const std::string& user_agent_string,
                                base::EventDispatcher* event_dispatcher) {
   thread_.reset(new base::Thread("NetworkModule"));
