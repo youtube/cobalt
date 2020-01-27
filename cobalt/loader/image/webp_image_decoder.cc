@@ -78,10 +78,35 @@ size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
     if (config_.input.has_animation) {
       animated_webp_image_->AppendChunk(data, input_byte);
     } else {
-      // Copies and decodes the next available data. Returns VP8_STATUS_OK when
-      // the image is successfully decoded. Returns VP8_STATUS_SUSPENDED when
-      // more data is expected. Returns error in other cases.
-      VP8StatusCode status = WebPIAppend(internal_decoder_, data, input_byte);
+      auto data_to_decode = data;
+      auto bytes_to_decode = input_byte;
+
+      // |cached_uncompressed_data_| is non-empty indicates that the last
+      // WebPIUpdate() returns VP8_STATUS_SUSPENDED, and we have to concatenate
+      // the data before send it to WebPIUpdate() again.  This should rarely
+      // happen.
+      if (!cached_uncompressed_data_.empty()) {
+        cached_uncompressed_data_.insert(
+            cached_uncompressed_data_.end(),
+            reinterpret_cast<const char*>(data),
+            reinterpret_cast<const char*>(data) + input_byte);
+        data_to_decode =
+            reinterpret_cast<const uint8*>(cached_uncompressed_data_.data());
+        bytes_to_decode = cached_uncompressed_data_.size();
+      }
+      // Send the available data to the decoder without copying. Note that as
+      // webp images are mostly used in the form of animated webp, the data sent
+      // to DecodeChunkInternal() contains a whole webp image most of the time.
+      // Not making an extra copy of the data inside the internal decoder is
+      // more optimal in such casts, so WebPIUpdate() is used, instead of
+      // WebPIAppend().  The latter makes a copying of the data inside the
+      // internal decoder.
+      // Returns VP8_STATUS_OK when the image is successfully decoded. Returns
+      // VP8_STATUS_SUSPENDED when more data is expected, in such case we have
+      // to cache the data already appended as required by WebPIUpdate().
+      // Any other return codes indicate an error.
+      VP8StatusCode status =
+          WebPIUpdate(internal_decoder_, data_to_decode, bytes_to_decode);
       if (status == VP8_STATUS_OK) {
         DCHECK(decoded_image_data_);
         DCHECK(config_.output.u.RGBA.rgba);
@@ -89,7 +114,16 @@ size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
         DCHECK_EQ(config_.output.u.RGBA.stride,
                   decoded_image_data_->GetDescriptor().pitch_in_bytes);
         set_state(kDone);
-      } else if (status != VP8_STATUS_SUSPENDED) {
+      } else if (status == VP8_STATUS_SUSPENDED) {
+        // Only copying the data into |cached_uncompressed_data_| when it is
+        // empty, as otherwise the data has already been appended into it before
+        // calling WebPIUpdate().
+        if (cached_uncompressed_data_.empty()) {
+          cached_uncompressed_data_.assign(
+              reinterpret_cast<const char*>(data),
+              reinterpret_cast<const char*>(data) + input_byte);
+        }
+      } else {
         DLOG(ERROR) << "WebPIAppend error, status code: " << status;
         DeleteInternalDecoder();
         set_state(kError);
