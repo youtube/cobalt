@@ -56,7 +56,11 @@ size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
       return 0;
     }
 
-    if (!config_.input.has_animation) {
+    if (config_.input.has_animation) {
+      animated_webp_image_ = new AnimatedWebPImage(
+          math::Size(config_.input.width, config_.input.height),
+          !!config_.input.has_alpha, resource_provider());
+    } else {
       decoded_image_data_ = AllocateImageData(
           math::Size(config_.input.width, config_.input.height),
           !!config_.input.has_alpha);
@@ -66,16 +70,14 @@ size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
       if (!CreateInternalDecoder()) {
         return 0;
       }
-    } else {
-      animated_webp_image_ = new AnimatedWebPImage(
-          math::Size(config_.input.width, config_.input.height),
-          !!config_.input.has_alpha, resource_provider());
     }
     set_state(kReadLines);
   }
 
   if (state() == kReadLines) {
-    if (!config_.input.has_animation) {
+    if (config_.input.has_animation) {
+      animated_webp_image_->AppendChunk(data, input_byte);
+    } else {
       // Copies and decodes the next available data. Returns VP8_STATUS_OK when
       // the image is successfully decoded. Returns VP8_STATUS_SUSPENDED when
       // more data is expected. Returns error in other cases.
@@ -93,8 +95,6 @@ size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
         set_state(kError);
         return 0;
       }
-    } else {
-      animated_webp_image_->AppendChunk(data, input_byte);
     }
   }
 
