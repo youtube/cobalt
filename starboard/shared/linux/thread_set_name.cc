@@ -34,8 +34,6 @@ void SbThreadSetName(const char* name) {
 
   if (SbStringGetLength(name) >= SB_ARRAY_SIZE_INT(buffer)) {
     SbStringCopy(buffer, name, SB_ARRAY_SIZE_INT(buffer));
-    SB_DLOG(WARNING) << "Thread name \"" << name << "\" was truncated to \""
-                     << buffer << "\"";
     name = buffer;
   }
 

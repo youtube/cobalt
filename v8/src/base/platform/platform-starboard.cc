@@ -310,10 +310,7 @@ int OS::GetCurrentProcessId() {
 
 int OS::GetCurrentThreadId() { return SbThreadGetId(); }
 
-int OS::GetLastError() {
-  SB_NOTIMPLEMENTED();
-  return 0;
-}
+int OS::GetLastError() { return SbSystemGetLastError(); }
 
 // ----------------------------------------------------------------------------
 // POSIX stdio support.
