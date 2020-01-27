@@ -27,7 +27,7 @@ H5vcc::H5vcc(const Settings& settings) {
   crash_log_ = new H5vccCrashLog();
   runtime_ =
       new H5vccRuntime(settings.event_dispatcher, settings.initial_deep_link);
-  settings_ = new H5vccSettings(settings.media_module);
+  settings_ = new H5vccSettings(settings.media_module, settings.network_module);
 #if defined(COBALT_ENABLE_SSO)
   sso_ = new H5vccSso();
 #endif
