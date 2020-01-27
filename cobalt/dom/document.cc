@@ -867,8 +867,6 @@ void Document::SampleTimelineTime() { default_timeline_->Sample(); }
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 void Document::SetPartialLayout(bool enabled) {
   partial_layout_is_enabled_ = enabled;
-  DLOG(INFO) << "Partial Layout is "
-             << (partial_layout_is_enabled_ ? "on" : "off");
 }
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 

@@ -474,12 +474,12 @@ bool LogOnceHelper<FILE_HASH, LINE>::logged_ = false;
 // LOG_ONCE() logs the streamed message only the first time when the
 // statement is executed. Note: When this is inline functions in included files,
 // the statement can be logged for each compilation unit.
-#define LOG_ONCE(severity)                                                    \
-  LOG_IF(severity,                                                            \
-         (!::logging::LogOnceHelper<::logging::hash_32_fnv1a_const(__FILE__), \
-                                    __LINE__>::logged_ &&                     \
-          (::logging::LogOnceHelper<::logging::hash_32_fnv1a_const(__FILE__), \
-                                    __LINE__>::logged_ = true)))              \
+#define LOG_ONCE(severity)                                                     \
+  LOG_IF(severity,                                                             \
+         (!::logging::LogOnceHelper<::logging::hash_32_fnv1a_const(__FILE__),  \
+                                    __LINE__>::logged_ &&                      \
+          ((::logging::LogOnceHelper<::logging::hash_32_fnv1a_const(__FILE__), \
+                                    __LINE__>::logged_ = true) == true)))      \
       << LOG_ONCE_MSG
 #endif  // defined(OFFICIAL_BUILD)
 

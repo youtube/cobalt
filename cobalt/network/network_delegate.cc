@@ -14,6 +14,8 @@
 
 #include "cobalt/network/network_delegate.h"
 
+#include <set>
+
 #include "cobalt/network/local_network.h"
 #include "cobalt/network/socket_address_parser.h"
 #include "net/base/net_errors.h"
@@ -38,9 +40,9 @@ int NetworkDelegate::OnBeforeURLRequest(
       url.SchemeIs("data")) {
     return net::OK;
   } else if (https_requirement_ == kHTTPSOptional) {
-    DLOG(WARNING)
-        << "Page must be served over secure scheme, it will fail to load "
-           "in production builds of Cobalt.";
+    DLOG_ONCE(WARNING)
+        << "Pages must be served over secure scheme, otherwise it will fail to "
+           "load in production builds of Cobalt.";
     return net::OK;
   }
 

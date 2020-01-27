@@ -63,7 +63,8 @@ bool GetSystemProperty(SbSystemPropertyId property_id,
 #endif
     case kSbSystemPropertySpeechApiKey:
       return false;
-
+    case kSbSystemPropertyUserAgentAuxField:
+      return false;
     case kSbSystemPropertyFriendlyName:
       return CopyStringAndTestIfSuccess(out_value, value_length, kFriendlyName);
 

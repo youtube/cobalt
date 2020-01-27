@@ -379,9 +379,10 @@ scoped_refptr<Crypto> Window::crypto() const { return crypto_; }
 std::string Window::Btoa(const std::string& string_to_encode,
                          script::ExceptionState* exception_state) {
   TRACE_EVENT0("cobalt::dom", "Window::Btoa()");
-  LOG(WARNING) << "In older Cobalt(<19), btoa() can not take a string"
-                  " containing NUL. Be careful that you don't need to stay "
-                  "compatible with old versions of Cobalt if you use btoa.";
+  LOG_ONCE(WARNING)
+      << "In older Cobalt(<19), btoa() can not take a string"
+         " containing NULL. Be careful that you don't need to stay "
+         "compatible with old versions of Cobalt if you use btoa.";
   auto output = ForgivingBase64Encode(string_to_encode);
   if (!output) {
     DOMException::Raise(DOMException::kInvalidCharacterErr, exception_state);
