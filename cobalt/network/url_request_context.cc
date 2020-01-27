@@ -188,6 +188,11 @@ void URLRequestContext::SetProxy(const std::string& proxy_rules) {
       std::make_unique<ProxyConfigService>(proxy_config));
 }
 
+void URLRequestContext::DisableQuic() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  storage_.http_network_session()->DisableQuic();
+}
+
 #if defined(ENABLE_DEBUGGER)
 void URLRequestContext::OnQuicToggle(const std::string& /*message*/) {
   DCHECK(storage_.http_network_session());
