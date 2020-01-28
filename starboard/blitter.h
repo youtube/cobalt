@@ -318,7 +318,7 @@ static SB_C_FORCE_INLINE bool SbBlitterIsContextValid(
 // This function is thread-safe.
 //
 // Returns |kSbBlitterInvalidDevice| on failure.
-SB_EXPORT SbBlitterDevice SbBlitterCreateDefaultDevice();
+SB_DEPRECATED(SB_EXPORT SbBlitterDevice SbBlitterCreateDefaultDevice());
 
 // Destroys |device|, cleaning up all resources associated with it.
 // This function is thread-safe, but it should not be called if |device| is
@@ -327,7 +327,7 @@ SB_EXPORT SbBlitterDevice SbBlitterCreateDefaultDevice();
 // The return value indicates whether the destruction succeeded.
 //
 // |device|: The SbBlitterDevice object to be destroyed.
-SB_EXPORT bool SbBlitterDestroyDevice(SbBlitterDevice device);
+SB_DEPRECATED(SB_EXPORT bool SbBlitterDestroyDevice(SbBlitterDevice device));
 
 // Creates and returns an |SbBlitterSwapChain| that can then be used to send
 // graphics to the display. This function links |device| to |window|'s output,
@@ -338,8 +338,9 @@ SB_EXPORT bool SbBlitterDestroyDevice(SbBlitterDevice device);
 // to create |window|.
 //
 // Returns |kSbBlitterInvalidSwapChain| on failure.
-SB_EXPORT SbBlitterSwapChain
-SbBlitterCreateSwapChainFromWindow(SbBlitterDevice device, SbWindow window);
+SB_DEPRECATED(SB_EXPORT SbBlitterSwapChain
+                  SbBlitterCreateSwapChainFromWindow(SbBlitterDevice device,
+                                                     SbWindow window));
 
 // Destroys |swap_chain|, cleaning up all resources associated with it.
 // This function is not thread-safe and must be called on the same thread
@@ -348,7 +349,8 @@ SbBlitterCreateSwapChainFromWindow(SbBlitterDevice device, SbWindow window);
 // The return value indicates whether the destruction succeeded.
 //
 // |swap_chain|: The SbBlitterSwapChain to be destroyed.
-SB_EXPORT bool SbBlitterDestroySwapChain(SbBlitterSwapChain swap_chain);
+SB_DEPRECATED(
+    SB_EXPORT bool SbBlitterDestroySwapChain(SbBlitterSwapChain swap_chain));
 
 // Returns the |SbBlitterRenderTarget| object that is owned by |swap_chain|.
 // The returned object can be used to provide a target to blitter draw calls
@@ -358,8 +360,9 @@ SB_EXPORT bool SbBlitterDestroySwapChain(SbBlitterSwapChain swap_chain);
 //
 // |swap_chain|: The SbBlitterSwapChain for which the target object is being
 // retrieved.
-SB_EXPORT SbBlitterRenderTarget
-SbBlitterGetRenderTargetFromSwapChain(SbBlitterSwapChain swap_chain);
+SB_DEPRECATED(
+    SB_EXPORT SbBlitterRenderTarget
+        SbBlitterGetRenderTargetFromSwapChain(SbBlitterSwapChain swap_chain));
 
 // Indicates whether |device| supports calls to |SbBlitterCreatePixelData|
 // with the specified |pixel_format|. This function is thread-safe.
@@ -367,9 +370,9 @@ SbBlitterGetRenderTargetFromSwapChain(SbBlitterSwapChain swap_chain);
 // |device|: The device for which compatibility is being checked.
 // |pixel_format|: The SbBlitterPixelDataFormat for which compatibility is
 // being checked.
-SB_EXPORT bool SbBlitterIsPixelFormatSupportedByPixelData(
+SB_DEPRECATED(SB_EXPORT bool SbBlitterIsPixelFormatSupportedByPixelData(
     SbBlitterDevice device,
-    SbBlitterPixelDataFormat pixel_format);
+    SbBlitterPixelDataFormat pixel_format));
 
 // Allocates an |SbBlitterPixelData| object through |device| with |width|,
 // |height| and |pixel_format|. |pixel_format| must be supported by |device|
@@ -385,11 +388,11 @@ SB_EXPORT bool SbBlitterIsPixelFormatSupportedByPixelData(
 // |SbBlitterDestroyPixelData()|.
 //
 // Returns |kSbBlitterInvalidPixelData| upon failure.
-SB_EXPORT SbBlitterPixelData
-SbBlitterCreatePixelData(SbBlitterDevice device,
-                         int width,
-                         int height,
-                         SbBlitterPixelDataFormat pixel_format);
+SB_DEPRECATED(SB_EXPORT SbBlitterPixelData SbBlitterCreatePixelData(
+    SbBlitterDevice device,
+    int width,
+    int height,
+    SbBlitterPixelDataFormat pixel_format));
 
 // Destroys |pixel_data|. Note that this function does not need to be called
 // and should not be called if |SbBlitterCreateSurfaceFromPixelData()| has been
@@ -400,7 +403,8 @@ SbBlitterCreatePixelData(SbBlitterDevice device,
 // The return value indicates whether the destruction succeeded.
 //
 // |pixel_data|: The object to be destroyed.
-SB_EXPORT bool SbBlitterDestroyPixelData(SbBlitterPixelData pixel_data);
+SB_DEPRECATED(
+    SB_EXPORT bool SbBlitterDestroyPixelData(SbBlitterPixelData pixel_data));
 
 // Retrieves the pitch (in bytes) for |pixel_data|. This indicates the number of
 // bytes per row of pixel data in the image.
@@ -410,7 +414,8 @@ SB_EXPORT bool SbBlitterDestroyPixelData(SbBlitterPixelData pixel_data);
 // Returns |-1| in the event of an error.
 //
 // |pixel_data|: The object for which you are retrieving the pitch.
-SB_EXPORT int SbBlitterGetPixelDataPitchInBytes(SbBlitterPixelData pixel_data);
+SB_DEPRECATED(SB_EXPORT int SbBlitterGetPixelDataPitchInBytes(
+    SbBlitterPixelData pixel_data));
 
 // Retrieves a CPU-accessible pointer to the pixel data represented by
 // |pixel_data|. This pixel data can be modified by the CPU to initialize it
@@ -424,7 +429,8 @@ SB_EXPORT int SbBlitterGetPixelDataPitchInBytes(SbBlitterPixelData pixel_data);
 // This function is not thread-safe.
 //
 // Returns |NULL| in the event of an error.
-SB_EXPORT void* SbBlitterGetPixelDataPointer(SbBlitterPixelData pixel_data);
+SB_DEPRECATED(SB_EXPORT void* SbBlitterGetPixelDataPointer(
+    SbBlitterPixelData pixel_data));
 
 // Creates an |SbBlitterSurface| object on |device|. Note that |device| must
 // match the device that was used to create the |SbBlitterPixelData| object
@@ -441,9 +447,9 @@ SB_EXPORT void* SbBlitterGetPixelDataPointer(SbBlitterPixelData pixel_data);
 // should not be modified on another thread while this function is called.
 //
 // Returns |kSbBlitterInvalidSurface| in the event of an error.
-SB_EXPORT SbBlitterSurface
-SbBlitterCreateSurfaceFromPixelData(SbBlitterDevice device,
-                                    SbBlitterPixelData pixel_data);
+SB_DEPRECATED(SB_EXPORT SbBlitterSurface SbBlitterCreateSurfaceFromPixelData(
+    SbBlitterDevice device,
+    SbBlitterPixelData pixel_data));
 
 // Indicates whether the |device| supports calls to
 // |SbBlitterCreateRenderTargetSurface()| with |surface_format|.
@@ -452,9 +458,10 @@ SbBlitterCreateSurfaceFromPixelData(SbBlitterDevice device,
 //
 // |device|: The device being checked for compatibility.
 // |surface_format|: The surface format being checked for compatibility.
-SB_EXPORT bool SbBlitterIsSurfaceFormatSupportedByRenderTargetSurface(
-    SbBlitterDevice device,
-    SbBlitterSurfaceFormat surface_format);
+SB_DEPRECATED(
+    SB_EXPORT bool SbBlitterIsSurfaceFormatSupportedByRenderTargetSurface(
+        SbBlitterDevice device,
+        SbBlitterSurfaceFormat surface_format));
 
 // Creates a new surface with undefined pixel data on |device| with the
 // specified |width|, |height| and |surface_format|. One can set the pixel data
@@ -464,11 +471,11 @@ SB_EXPORT bool SbBlitterIsSurfaceFormatSupportedByRenderTargetSurface(
 // This function is thread-safe.
 //
 // Returns |kSbBlitterInvalidSurface| upon failure.
-SB_EXPORT SbBlitterSurface
-SbBlitterCreateRenderTargetSurface(SbBlitterDevice device,
-                                   int width,
-                                   int height,
-                                   SbBlitterSurfaceFormat surface_format);
+SB_DEPRECATED(SB_EXPORT SbBlitterSurface SbBlitterCreateRenderTargetSurface(
+    SbBlitterDevice device,
+    int width,
+    int height,
+    SbBlitterSurfaceFormat surface_format));
 
 // Destroys the |surface| object, cleaning up all resources associated with it.
 //
@@ -477,7 +484,7 @@ SbBlitterCreateRenderTargetSurface(SbBlitterDevice device,
 // The return value indicates whether the destruction succeeded.
 //
 // |surface|: The object to be destroyed.
-SB_EXPORT bool SbBlitterDestroySurface(SbBlitterSurface surface);
+SB_DEPRECATED(SB_EXPORT bool SbBlitterDestroySurface(SbBlitterSurface surface));
 
 // Returns the |SbBlitterRenderTarget| object owned by |surface|.  The returned
 // object can be used as a target for draw calls.
@@ -486,8 +493,9 @@ SB_EXPORT bool SbBlitterDestroySurface(SbBlitterSurface surface);
 // able to provide a render target or on any other error.
 //
 // This function is not thread-safe.
-SB_EXPORT SbBlitterRenderTarget
-SbBlitterGetRenderTargetFromSurface(SbBlitterSurface surface);
+SB_DEPRECATED(
+    SB_EXPORT SbBlitterRenderTarget
+        SbBlitterGetRenderTargetFromSurface(SbBlitterSurface surface));
 
 // Retrieves an |SbBlitterSurfaceInfo| structure, which describes immutable
 // parameters of the |surface|, such as its width, height and pixel format.
@@ -498,8 +506,9 @@ SbBlitterGetRenderTargetFromSurface(SbBlitterSurface surface);
 // successfully.
 //
 // This function is not thread-safe.
-SB_EXPORT bool SbBlitterGetSurfaceInfo(SbBlitterSurface surface,
-                                       SbBlitterSurfaceInfo* surface_info);
+SB_DEPRECATED(
+    SB_EXPORT bool SbBlitterGetSurfaceInfo(SbBlitterSurface surface,
+                                           SbBlitterSurfaceInfo* surface_info));
 
 // Indicates whether the combination of parameter values is valid for calls
 // to |SbBlitterDownloadSurfacePixels()|.
@@ -508,9 +517,10 @@ SB_EXPORT bool SbBlitterGetSurfaceInfo(SbBlitterSurface surface,
 //
 // |surface|: The surface being checked.
 // |pixel_format|: The pixel format that would be used on the surface.
-SB_EXPORT bool SbBlitterIsPixelFormatSupportedByDownloadSurfacePixels(
-    SbBlitterSurface surface,
-    SbBlitterPixelDataFormat pixel_format);
+SB_DEPRECATED(
+    SB_EXPORT bool SbBlitterIsPixelFormatSupportedByDownloadSurfacePixels(
+        SbBlitterSurface surface,
+        SbBlitterPixelDataFormat pixel_format));
 
 // Downloads |surface| pixel data into CPU memory pointed to by
 // |out_pixel_data|, formatted according to the requested |pixel_format| and
@@ -532,11 +542,11 @@ SB_EXPORT bool SbBlitterIsPixelFormatSupportedByDownloadSurfacePixels(
 //
 // |out_pixel_data|: A pointer to a region of memory with a size of
 //                   surface_height * |pitch_in_bytes| bytes.
-SB_EXPORT bool SbBlitterDownloadSurfacePixels(
+SB_DEPRECATED(SB_EXPORT bool SbBlitterDownloadSurfacePixels(
     SbBlitterSurface surface,
     SbBlitterPixelDataFormat pixel_format,
     int pitch_in_bytes,
-    void* out_pixel_data);
+    void* out_pixel_data));
 
 // Flips the |swap_chain| by making the buffer previously accessible to
 // draw commands via |SbBlitterGetRenderTargetFromSwapChain()| visible on the
@@ -555,7 +565,8 @@ SB_EXPORT bool SbBlitterDownloadSurfacePixels(
 // This function is not thread-safe.
 //
 // |swap_chain|: The SbBlitterSwapChain to be flipped.
-SB_EXPORT bool SbBlitterFlipSwapChain(SbBlitterSwapChain swap_chain);
+SB_DEPRECATED(
+    SB_EXPORT bool SbBlitterFlipSwapChain(SbBlitterSwapChain swap_chain));
 
 // Returns the maximum number of contexts that |device| can support in
 // parallel. Note that devices often support only a single context.
@@ -566,7 +577,7 @@ SB_EXPORT bool SbBlitterFlipSwapChain(SbBlitterSwapChain swap_chain);
 //
 // |device|: The SbBlitterDevice for which the maximum number of contexts is
 // returned.
-SB_EXPORT int SbBlitterGetMaxContexts(SbBlitterDevice device);
+SB_DEPRECATED(SB_EXPORT int SbBlitterGetMaxContexts(SbBlitterDevice device));
 
 // Creates an |SbBlitterContext| object on |device|. The returned context can be
 // used to set up draw state and issue draw calls.
@@ -587,7 +598,8 @@ SB_EXPORT int SbBlitterGetMaxContexts(SbBlitterDevice device);
 //
 // |device|: The |SbBlitterDevice| for which the |SbBlitterContext| object is
 // created.
-SB_EXPORT SbBlitterContext SbBlitterCreateContext(SbBlitterDevice device);
+SB_DEPRECATED(
+    SB_EXPORT SbBlitterContext SbBlitterCreateContext(SbBlitterDevice device));
 
 // Destroys the specified |context|, freeing all its resources.
 //
@@ -596,7 +608,7 @@ SB_EXPORT SbBlitterContext SbBlitterCreateContext(SbBlitterDevice device);
 // The return value indicates whether the destruction succeeded.
 //
 // |context|: The object to be destroyed.
-SB_EXPORT bool SbBlitterDestroyContext(SbBlitterContext context);
+SB_DEPRECATED(SB_EXPORT bool SbBlitterDestroyContext(SbBlitterContext context));
 
 // Flushes all draw calls previously issued to |context|. Calling this function
 // guarantees that the device processes all draw calls issued to this point on
@@ -610,7 +622,7 @@ SB_EXPORT bool SbBlitterDestroyContext(SbBlitterContext context);
 // The return value indicates whether the flush succeeded.
 //
 // |context|: The context for which draw calls are being flushed.
-SB_EXPORT bool SbBlitterFlushContext(SbBlitterContext context);
+SB_DEPRECATED(SB_EXPORT bool SbBlitterFlushContext(SbBlitterContext context));
 
 // Sets up |render_target| as the render target that all subsequent draw calls
 // made on |context| will use.
@@ -621,8 +633,9 @@ SB_EXPORT bool SbBlitterFlushContext(SbBlitterContext context);
 //
 // |context|: The object for which the render target is being set.
 // |render_target|: The target that the |context| should use for draw calls.
-SB_EXPORT bool SbBlitterSetRenderTarget(SbBlitterContext context,
-                                        SbBlitterRenderTarget render_target);
+SB_DEPRECATED(SB_EXPORT bool SbBlitterSetRenderTarget(
+    SbBlitterContext context,
+    SbBlitterRenderTarget render_target));
 
 // Sets the blending state for the specified |context|. By default, blending
 // is disabled on a |SbBlitterContext|.
@@ -648,7 +661,8 @@ SB_EXPORT bool SbBlitterSetRenderTarget(SbBlitterContext context,
 //
 // If |blending| is |false|, the source color and source alpha overwrite
 // the destination color and alpha.
-SB_EXPORT bool SbBlitterSetBlending(SbBlitterContext context, bool blending);
+SB_DEPRECATED(SB_EXPORT bool SbBlitterSetBlending(SbBlitterContext context,
+                                                  bool blending));
 
 // Sets the context's current color.  The current color's default value is
 // |SbBlitterColorFromRGBA(255, 255, 255 255)|.
@@ -664,8 +678,8 @@ SB_EXPORT bool SbBlitterSetBlending(SbBlitterContext context, bool blending);
 //
 // |context|: The context for which the color is being set.
 // |color|: The context's new color, specified in unpremultiplied alpha format.
-SB_EXPORT bool SbBlitterSetColor(SbBlitterContext context,
-                                 SbBlitterColor color);
+SB_DEPRECATED(SB_EXPORT bool SbBlitterSetColor(SbBlitterContext context,
+                                               SbBlitterColor color));
 
 // Sets whether or not blit calls should have their source pixels modulated by
 // the current color, which is set using |SbBlitterSetColor()|, before being
@@ -678,9 +692,9 @@ SB_EXPORT bool SbBlitterSetColor(SbBlitterContext context,
 //
 // |modulate_blits_with_color|: Indicates whether to modulate source pixels
 // in blit calls.
-SB_EXPORT bool SbBlitterSetModulateBlitsWithColor(
+SB_DEPRECATED(SB_EXPORT bool SbBlitterSetModulateBlitsWithColor(
     SbBlitterContext context,
-    bool modulate_blits_with_color);
+    bool modulate_blits_with_color));
 
 // Sets the scissor rectangle, which dictates a visibility area that affects
 // all draw calls. Only pixels within the scissor rectangle are rendered, and
@@ -695,8 +709,8 @@ SB_EXPORT bool SbBlitterSetModulateBlitsWithColor(
 //
 // Returns whether the scissor was successfully set. It returns an error if
 // it is called before a render target has been specified for the context.
-SB_EXPORT bool SbBlitterSetScissor(SbBlitterContext context,
-                                   SbBlitterRect rect);
+SB_DEPRECATED(SB_EXPORT bool SbBlitterSetScissor(SbBlitterContext context,
+                                                 SbBlitterRect rect));
 
 // Issues a draw call on |context| that fills the specified rectangle |rect|.
 // The rectangle's color is determined by the last call to
@@ -708,7 +722,8 @@ SB_EXPORT bool SbBlitterSetScissor(SbBlitterContext context,
 //
 // |context|: The context on which the draw call will operate.
 // |rect|: The rectangle to be filled.
-SB_EXPORT bool SbBlitterFillRect(SbBlitterContext context, SbBlitterRect rect);
+SB_DEPRECATED(SB_EXPORT bool SbBlitterFillRect(SbBlitterContext context,
+                                               SbBlitterRect rect));
 
 // Issues a draw call on |context| that blits the area of |source_surface|
 // specified by |src_rect| to |context|'s current render target at |dst_rect|.
@@ -722,10 +737,11 @@ SB_EXPORT bool SbBlitterFillRect(SbBlitterContext context, SbBlitterRect rect);
 // The return value indicates whether the draw call succeeded.
 //
 // |src_rect|: The area to be block transferred (blitted).
-SB_EXPORT bool SbBlitterBlitRectToRect(SbBlitterContext context,
-                                       SbBlitterSurface source_surface,
-                                       SbBlitterRect src_rect,
-                                       SbBlitterRect dst_rect);
+SB_DEPRECATED(
+    SB_EXPORT bool SbBlitterBlitRectToRect(SbBlitterContext context,
+                                           SbBlitterSurface source_surface,
+                                           SbBlitterRect src_rect,
+                                           SbBlitterRect dst_rect));
 
 // This function functions identically to SbBlitterBlitRectToRect(), except
 // it permits values of |src_rect| outside the dimensions of |source_surface|.
@@ -737,10 +753,11 @@ SB_EXPORT bool SbBlitterBlitRectToRect(SbBlitterContext context,
 // This function is not thread-safe.
 //
 // The return value indicates whether the draw call succeeded.
-SB_EXPORT bool SbBlitterBlitRectToRectTiled(SbBlitterContext context,
-                                            SbBlitterSurface source_surface,
-                                            SbBlitterRect src_rect,
-                                            SbBlitterRect dst_rect);
+SB_DEPRECATED(
+    SB_EXPORT bool SbBlitterBlitRectToRectTiled(SbBlitterContext context,
+                                                SbBlitterSurface source_surface,
+                                                SbBlitterRect src_rect,
+                                                SbBlitterRect dst_rect));
 
 // This function achieves the same effect as calling |SbBlitterBlitRectToRect()|
 // |num_rects| times with each of the |num_rects| values of |src_rects| and
@@ -750,11 +767,12 @@ SB_EXPORT bool SbBlitterBlitRectToRectTiled(SbBlitterContext context,
 // This function is not thread-safe.
 //
 // The return value indicates whether the draw call succeeded.
-SB_EXPORT bool SbBlitterBlitRectsToRects(SbBlitterContext context,
-                                         SbBlitterSurface source_surface,
-                                         const SbBlitterRect* src_rects,
-                                         const SbBlitterRect* dst_rects,
-                                         int num_rects);
+SB_DEPRECATED(
+    SB_EXPORT bool SbBlitterBlitRectsToRects(SbBlitterContext context,
+                                             SbBlitterSurface source_surface,
+                                             const SbBlitterRect* src_rects,
+                                             const SbBlitterRect* dst_rects,
+                                             int num_rects));
 
 #ifdef __cplusplus
 }  // extern "C"
