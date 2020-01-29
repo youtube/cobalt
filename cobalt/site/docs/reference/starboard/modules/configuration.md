@@ -83,10 +83,6 @@ header available.
 
 Whether the current platform has 64-bit atomic operations.
 
-### SB_HAS_AC3_AUDIO_API_VERSION ###
-
-Add support for audio in ac3.
-
 ### SB_HAS_AV1_VERSION ###
 
 Replace kSbMediaVideoCodecVp10 by kSbMediaVideoCodecAv1. kSbMediaVideoCodecVp10

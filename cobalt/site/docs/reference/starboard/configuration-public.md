@@ -72,7 +72,6 @@ title: "Starboard Configuration Reference Guide"
 | **`SB_PREFERRED_RGBA_BYTE_ORDER`**<br><br>Specifies the preferred byte order of color channels in a pixel. Refer to starboard/configuration.h for the possible values. EGL/GLES platforms should generally prefer a byte order of RGBA, regardless of endianness.<br><br>The default value in the Stub implementation is <br>`SB_PREFERRED_RGBA_BYTE_ORDER_RGBA` |
 | **`SB_HAS_BILINEAR_FILTERING_SUPPORT`**<br><br>Indicates whether or not the given platform supports bilinear filtering. This can be checked to enable/disable renderer tests that verify that this is working properly.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_NV12_TEXTURE_SUPPORT`**<br><br>Indicates whether or not the given platform supports rendering of NV12 textures. These textures typically originate from video decoders.<br><br>The default value in the Stub implementation is `0` |
-| **`SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER`**<br><br>Whether the current platform should frequently flip its display buffer.  If this is not required (i.e. SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER is set to 0), then optimizations are enabled so the display buffer is not flipped if the scene hasn't changed.<br><br>The default value in the Stub implementation is `0` |
 | **`SB_HAS_VIRTUAL_REALITY`**<br><br>The default value in the Stub implementation is `1` |
 
 
@@ -86,8 +85,6 @@ title: "Starboard Configuration Reference Guide"
 | **`SB_HAS_QUIRK_NO_FFS`**<br><br>dlmalloc will use the ffs intrinsic if available.  Platforms on which this is not available should define the following quirk.<br><br>By default, this property is undefined. |
 | **`SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND`**<br><br>The maximum audio bitrate the platform can decode.  The following value equals to 5M bytes per seconds which is more than enough for compressed audio.<br><br>The default value in the Stub implementation is `(40 * 1024 * 1024)` |
 | **`SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND`**<br><br>The maximum video bitrate the platform can decode.  The following value equals to 25M bytes per seconds which is more than enough for compressed video.<br><br>The default value in the Stub implementation is `(200 * 1024 * 1024)` |
-| **`SB_HAS_MEDIA_WEBM_VP9_SUPPORT`**<br><br>Specifies whether this platform has webm/vp9 support.  This should be set to non-zero on platforms with webm/vp9 support.<br><br>The default value in the Stub implementation is `0` |
-| **`SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING`**<br><br>Specifies whether this platform updates audio frames asynchronously.  In such case an extra parameter will be added to |SbAudioSinkConsumeFramesFunc| to indicate the absolute time that the consumed audio frames are reported. Check document for |SbAudioSinkConsumeFramesFunc| in audio_sink.h for more details.<br><br>The default value in the Stub implementation is `0` |
 | **`SB_MEDIA_THREAD_STACK_SIZE`**<br><br>Specifies the stack size for threads created inside media stack.  Set to 0 to use the default thread stack size.  Set to non-zero to explicitly set the stack size for media stack threads.<br><br>The default value in the Stub implementation is `0U` |
 
 
@@ -128,7 +125,6 @@ title: "Starboard Configuration Reference Guide"
 
 | Properties |
 | :--- |
-| **`SB_HAS_THREAD_PRIORITY_SUPPORT`**<br><br>Whether the current platform supports thread priorities.<br><br>The default value in the Stub implementation is `0` |
 | **`SB_MAX_THREADS`**<br><br>Defines the maximum number of simultaneous threads for this platform. Some platforms require sharing thread handles with other kinds of system handles, like mutexes, so we want to keep this managable.<br><br>The default value in the Stub implementation is `90` |
 | **`SB_MAX_THREAD_LOCAL_KEYS`**<br><br>The maximum number of thread local storage keys supported by this platform.<br><br>The default value in the Stub implementation is `512` |
 | **`SB_MAX_THREAD_NAME_LENGTH`**<br><br>The maximum length of the name for a thread, including the NULL-terminator.<br><br>The default value in the Stub implementation is `16` |
