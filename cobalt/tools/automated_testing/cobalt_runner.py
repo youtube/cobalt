@@ -213,7 +213,8 @@ class CobaltRunner(object):
         output_file=self.launcher_write_pipe,
         out_directory=self.launcher_params.out_directory,
         loader_platform=self.launcher_params.loader_platform,
-        loader_config=self.launcher_params.loader_config)
+        loader_config=self.launcher_params.loader_config,
+        loader_out_directory=self.launcher_params.loader_out_directory)
 
     self.runner_thread = threading.Thread(target=self._RunLauncher)
     self.runner_thread.start()

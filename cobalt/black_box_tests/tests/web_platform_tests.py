@@ -71,6 +71,7 @@ class WebPlatformTests(black_box_tests.BlackBoxTestCase):
           out_directory=self.launcher_params.out_directory,
           env_variables={'ASAN_OPTIONS': 'intercept_tls_get_addr=0'},
           loader_platform=self.launcher_params.loader_platform,
-          loader_config=self.launcher_params.loader_config)
+          loader_config=self.launcher_params.loader_config,
+          loader_out_directory=self.launcher_params.loader_out_directory)
       status = launcher.Run()
       self.assertEqual(status, 0)
