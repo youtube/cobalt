@@ -514,8 +514,12 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
       output.data += subsample.encrypted_byte_count;
       output.data_length -= subsample.encrypted_byte_count;
 
-      input.block_offset += subsample.encrypted_byte_count;
-      input.block_offset %= 16;
+      // Only need to update block offset under CTR mode, CBC is block based and
+      // the block offset stays 0.
+      if (input.encryption_scheme == wv3cdm::EncryptionScheme::kAesCtr) {
+        input.block_offset += subsample.encrypted_byte_count;
+        input.block_offset %= 16;
+      }
 
       encrypted_offset += subsample.encrypted_byte_count;
 
