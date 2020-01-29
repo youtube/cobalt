@@ -46,11 +46,14 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
   def GetVariables(self, configuration):
     variables = super(RaspiPlatformConfig, self).GetVariables(configuration)
     variables.update({
-        'clang': 0,
-        'sysroot': self.sysroot,
+        'clang':
+            0,
+        'sysroot':
+            self.sysroot,
         'include_path_platform_deploy_gypi':
             'starboard/raspi/shared/platform_deploy.gypi',
-        'STRIP': os.environ.get('STRIP')
+        'STRIP':
+            os.environ.get('STRIP')
     })
 
     return variables

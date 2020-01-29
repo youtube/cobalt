@@ -47,9 +47,12 @@ class EvergreenConfiguration(platform_configuration.PlatformConfiguration):
     variables = super(EvergreenConfiguration, self).GetVariables(
         config_name, use_clang=1)
     variables.update({
-        'javascript_engine': 'v8',
-        'cobalt_enable_jit': 1,
-        'cobalt_repo_root': paths.REPOSITORY_ROOT,
+        'javascript_engine':
+            'v8',
+        'cobalt_enable_jit':
+            1,
+        'cobalt_repo_root':
+            paths.REPOSITORY_ROOT,
         'include_path_platform_deploy_gypi':
             'starboard/evergreen/shared/platform_deploy.gypi',
     })
