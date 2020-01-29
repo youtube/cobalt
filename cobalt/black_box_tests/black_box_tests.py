@@ -114,7 +114,8 @@ def LoadTests(launcher_params):
       output_file=None,
       out_directory=launcher_params.out_directory,
       loader_platform=launcher_params.loader_platform,
-      loader_config=launcher_params.loader_config)
+      loader_config=launcher_params.loader_config,
+      loader_out_directory=launcher_params.loader_out_directory)
 
   test_targets = _TESTS_NO_SIGNAL
 
