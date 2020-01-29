@@ -198,13 +198,14 @@ SbBlitterContextPrivate::ScopedCurrentContext::ScopedCurrentContext(
 }
 
 SbBlitterContextPrivate::ScopedCurrentContext::~ScopedCurrentContext() {
-  if (was_current_) {
+  if (was_current_ &&
+      previous_render_target_ != kSbBlitterInvalidRenderTarget) {
     context_->MakeCurrentWithRenderTarget(previous_render_target_);
   } else {
     GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
     EGL_CALL(eglMakeCurrent(context_->device->display, EGL_NO_SURFACE,
                             EGL_NO_SURFACE, EGL_NO_CONTEXT));
-    context_->is_current = false;
-    context_->device->mutex.Release();
   }
+  context_->is_current = was_current_;
+  context_->device->mutex.Release();
 }
