@@ -30,5 +30,31 @@
         '<(DEPTH)/cobalt/renderer/backend/starboard/platform_backend.gyp:renderer_platform_backend',
       ],
     },
+    {
+      'target_name': 'graphics_system_test',
+      'type': '<(gtest_target_type)',
+      'sources': [
+        'graphics_system_test.cc',
+      ],
+      'dependencies': [
+        '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/testing/gmock.gyp:gmock',
+        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
+        '<(DEPTH)/testing/gtest.gyp:gtest',
+        '<(DEPTH)/cobalt/renderer/backend/backend.gyp:renderer_backend',
+        '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
+      ],
+    },
+    {
+      'target_name': 'graphics_system_test_deploy',
+      'type': 'none',
+      'dependencies': [
+        'graphics_system_test',
+      ],
+      'variables': {
+        'executable_name': 'graphics_system_test',
+      },
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
+    },
   ],
 }
