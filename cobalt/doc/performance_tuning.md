@@ -200,14 +200,10 @@ file.
 
 Some platforms require that the display buffer is swapped frequently, and
 so in these cases Cobalt will render the scene every frame, even if it is
-not changing, which consumes CPU resources.  This behavior is defined by the
-value of `SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER` in your platform's
-`configuration_public.h` file.  Unless your platform is restricted in this
-aspect, you should ensure that `SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER`
-is set to `0`.  If the platform needs a new frame submitted periodically,
-an alternative to setting `SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER` to `1`
-is to implement the Cobalt Extension "dev.cobalt.extension.Graphics" and
-report the maximum frame interval via `GetMaximumFrameIntervalInMilliseconds`.
+not changing, which consumes CPU resources.  If the platform needs a new frame
+submitted periodically implement the Cobalt Extension
+"dev.cobalt.extension.Graphics" and report the maximum frame interval via
+`GetMaximumFrameIntervalInMilliseconds`.
 
 See `SbSystemGetExtension` and
 [`CobaltExtensionGraphicsApi`](../extension/graphics.h).
@@ -252,7 +248,7 @@ even while JavaScript is being executed, and to ensure that JavaScript is
 processed (e.g. in response to a key press) before images are decoded.  Thus
 having support for priorities can improve the overall performance of the
 application.  To enable thread priority support, you should set the value
-of `SB_HAS_THREAD_PRIORITY_SUPPORT` to `1` in your `configuration_public.h`
+of `kSbHasThreadPrioritySupport` to `true` in your `configuration_constants.h`
 file, and then also ensure that your platform's implementation of
 `SbThreadCreate()` properly forwards the priority parameter down to the
 platform.
