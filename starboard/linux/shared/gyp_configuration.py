@@ -45,8 +45,10 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
     variables = super(LinuxConfiguration, self).GetVariables(
         config_name, use_clang=1)
     variables.update({
-        'javascript_engine': 'v8',
-        'cobalt_enable_jit': 1,
+        'javascript_engine':
+            'v8',
+        'cobalt_enable_jit':
+            1,
         'include_path_platform_deploy_gypi':
             'starboard/linux/shared/platform_deploy.gypi',
     })

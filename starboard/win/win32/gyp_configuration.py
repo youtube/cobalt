@@ -18,17 +18,16 @@ from __future__ import print_function
 import imp
 import logging
 import os
-import subprocess
-import sys
 
 import _env  # pylint: disable=unused-import
-
-from starboard.tools.testing import test_filter
 import starboard.shared.win32.gyp_configuration as gyp_configuration
+from starboard.tools.testing import test_filter
+
 
 def CreatePlatformConfig():
   try:
-    win_lib_config = WinWin32PlatformConfig('win-win32', sabi_json_path='starboard/sabi/x64/windows/sabi.json')
+    win_lib_config = WinWin32PlatformConfig(
+        'win-win32', sabi_json_path='starboard/sabi/x64/windows/sabi.json')
     return win_lib_config
   except RuntimeError as e:
     logging.critical(e)
@@ -39,7 +38,8 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
   """Starboard win-32 platform configuration."""
 
   def __init__(self, platform, sabi_json_path=None):
-    super(WinWin32PlatformConfig, self).__init__(platform, sabi_json_path=sabi_json_path)
+    super(WinWin32PlatformConfig, self).__init__(
+        platform, sabi_json_path=sabi_json_path)
 
   def GetLauncher(self):
     """Gets the module used to launch applications on this platform."""
@@ -72,7 +72,7 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
           # performs an optimization that defeats the SB_C_NOINLINE 'noinline'
           # attribute.
           'SbSystemGetStackTest.SunnyDayStackDirection',
-       ],
+      ],
       'player_filter_tests': [
           # This test fails on win-win32.
           'AudioDecoderTests/AudioDecoderTest.MultipleInvalidInput/0',
@@ -97,7 +97,7 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
           'VideoDecoderTests/VideoDecoderTest.Preroll/0',
           'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull/0',
           'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/0',
-],
+      ],
   }
 
   def GetVariables(self, configuration):

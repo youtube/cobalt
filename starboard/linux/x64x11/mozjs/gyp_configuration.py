@@ -16,8 +16,8 @@
 from starboard.linux.x64x11 import gyp_configuration as linux_configuration
 
 
-class LinuxX64X11MozjsConfiguration(
-    linux_configuration.LinuxX64X11Configuration):
+class LinuxX64X11MozjsConfiguration(linux_configuration.LinuxX64X11Configuration
+                                   ):
   """Starboard Linux X64 X11 mozjs platform configuration."""
 
   def GetVariables(self, config_name):
@@ -32,5 +32,4 @@ class LinuxX64X11MozjsConfiguration(
 
 def CreatePlatformConfig():
   return LinuxX64X11MozjsConfiguration(
-      'linux-x64x11-mozjs',
-      sabi_json_path='starboard/sabi/x64/sysv/sabi.json')
+      'linux-x64x11-mozjs', sabi_json_path='starboard/sabi/x64/sysv/sabi.json')
