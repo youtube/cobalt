@@ -480,7 +480,6 @@ source_set("starboard_platform") {
     "//starboard/shared/starboard/file_storage/storage_get_record_size.cc",
     "//starboard/shared/starboard/file_storage/storage_open_record.cc",
     "//starboard/shared/starboard/file_storage/storage_read_record.cc",
-    "//starboard/shared/starboard/log_message.cc",
     "//starboard/shared/starboard/log_raw_dump_stack.cc",
     "//starboard/shared/starboard/log_raw_format.cc",
     "//starboard/shared/starboard/media/codec_util.cc",
