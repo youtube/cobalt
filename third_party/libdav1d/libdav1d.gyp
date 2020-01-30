@@ -8,7 +8,7 @@
         '<(libdav1d_dir)/include/dav1d',
     ],
 
-    'libdav1d_bitdepth_common_source': [
+    'libdav1d_bitdepth_sources': [
       'src/cdef.h',
       'src/cdef_apply.h',
       'src/cdef_apply_tmpl.c',
@@ -36,35 +36,18 @@
       'src/recon.h',
       'src/recon_tmpl.c',
     ],
+  },
 
-    'libdav1d_bitdepth_arm_source': [
-      'src/arm/cdef_init_tmpl.c',
-      'src/arm/ipred_init_tmpl.c',
-      'src/arm/itx_init_tmpl.c',
-      'src/arm/loopfilter_init_tmpl.c',
-      'src/arm/looprestoration_init_tmpl.c',
-      'src/arm/mc_init_tmpl.c',
+  'target_defaults': {
+    'include_dirs': [
+      '<(DEPTH)/third_party/libdav1d/',
+      '<(DEPTH)/third_party/libdav1d/include',
+      '<(DEPTH)/third_party/libdav1d/include/dav1d',
     ],
-
-    'libdav1d_bitdepth_ppc_source': [
-      'src/ppc/cdef_init_tmpl.c',
-      'src/ppc/looprestoration_init_tmpl.c',
-    ],
-
-    'libdav1d_bitdepth_x86_source': [
-      'src/x86/cdef_init_tmpl.c',
-      'src/x86/film_grain_init_tmpl.c',
-      'src/x86/ipred_init_tmpl.c',
-      'src/x86/itx_init_tmpl.c',
-      'src/x86/loopfilter_init_tmpl.c',
-      'src/x86/looprestoration_init_tmpl.c',
-      'src/x86/mc_init_tmpl.c',
-    ],
-
     # These values are determined by the configure script in the project,
     # and included via the |build/config.h| file however in this case we
     # determine these using gyp and inject them into the compilation.
-    'libdav1d_defines': [
+    'defines': [
       'ARCH_AARCH64=(SB_IS_ARCH_ARM & SB_IS_64_BIT)',
       'ARCH_ARM=(SB_IS_ARCH_ARM & SB_IS_32_BIT)',
       'ARCH_PPC64LE=SB_IS_ARCH_PPC',
@@ -82,12 +65,11 @@
       'STACK_ALIGNMENT=32'
     ],
   },
+
   'targets': [
     {
       'target_name': 'libdav1d_entrypoint',
       'type': 'static_library',
-      'include_dirs': ['<@(libdav1d_include_dirs)'],
-      'defines': ['<@(libdav1d_defines)'],
       'sources': [
         'src/lib.c',
         'src/thread_task.c',
@@ -97,37 +79,39 @@
     {
       'target_name': 'libdav1d_bitdepth16',
       'type': 'static_library',
-      'include_dirs': ['<@(libdav1d_include_dirs)'],
       'defines': [
-        '<@(libdav1d_defines)',
         'BITDEPTH=16',
       ],
       'sources': [
-        '<@(libdav1d_bitdepth_common_source)',
+        '<@(libdav1d_bitdepth_sources)',
       ]
     },
     {
       'target_name': 'libdav1d_bitdepth8',
       'type': 'static_library',
-      'include_dirs': ['<@(libdav1d_include_dirs)'],
       'defines': [
-        '<@(libdav1d_defines)',
         'BITDEPTH=8',
       ],
       'sources': [
-        '<@(libdav1d_bitdepth_common_source)',
+        '<@(libdav1d_bitdepth_sources)',
+      ]
+    },
+    {
+      'target_name': 'libdav1d_no_asm',
+      'type': 'static_library',
+      'sources': [
+        'src/cpu.c',
+        'src/cpu.h',
+        'src/msac.c',
+        'src/msac.h',
       ]
     },
     {
       'target_name': 'libdav1d',
       'type': 'static_library',
-      'include_dirs': ['<@(libdav1d_include_dirs)'],
-      'defines': ['<@(libdav1d_defines)'],
       'sources': [
         'src/cdf.c',
         'src/cdf.h',
-        'src/cpu.c',
-        'src/cpu.h',
         'src/ctx.h',
         'src/data.c',
         'src/data.h',
@@ -146,8 +130,6 @@
         'src/lf_mask.h',
         'src/log.c',
         'src/log.h',
-        'src/msac.c',
-        'src/msac.h',
         'src/obu.c',
         'src/obu.h',
         'src/picture.c',
@@ -170,12 +152,17 @@
         'src/wedge.h',
       ],
       'dependencies': [
-        'libdav1d_entrypoint',
         'libdav1d_bitdepth16',
         'libdav1d_bitdepth8',
+        'libdav1d_entrypoint',
+        'libdav1d_no_asm',
       ],
       'direct_dependent_settings': {
-        'include_dirs': [ '<@(libdav1d_include_dirs)' ],
+        'include_dirs': [
+          '<(DEPTH)/third_party/libdav1d/',
+          '<(DEPTH)/third_party/libdav1d/include',
+          '<(DEPTH)/third_party/libdav1d/include/dav1d',
+        ],
       },
     },
   ]
