@@ -30,17 +30,18 @@
 
 #include <stdlib.h>
 
-#if defined(HAVE_ALIGNED_MALLOC) || defined(HAVE_MEMALIGN)
-#include <malloc.h>
-#endif
-
 #include "common/attributes.h"
+
+#include "starboard/memory.h"
 
 /*
  * Allocate 32-byte aligned memory. The return value can be released
  * by calling the standard free() function.
  */
 static inline void *dav1d_alloc_aligned(size_t sz, size_t align) {
+#if defined(STARBOARD)
+  return SbMemoryAllocateAligned(align, sz);
+#else  // defined(STARBOARD)
 #ifdef HAVE_POSIX_MEMALIGN
     void *ptr;
     assert(!(align & (align - 1)));
@@ -53,9 +54,13 @@ static inline void *dav1d_alloc_aligned(size_t sz, size_t align) {
 #else
 #error Missing aligned alloc implementation
 #endif
+#endif  // defined(STARBOARD)
 }
 
 static inline void dav1d_free_aligned(void* ptr) {
+#if defined(STARBOARD)
+  SbMemoryDeallocateAligned(ptr);
+#else  // defined(STARBOARD)
 #ifdef HAVE_POSIX_MEMALIGN
     free(ptr);
 #elif defined(HAVE_ALIGNED_MALLOC)
@@ -63,6 +68,7 @@ static inline void dav1d_free_aligned(void* ptr) {
 #elif defined(HAVE_MEMALIGN)
     free(ptr);
 #endif
+#endif  // defined(STARBOARD)
 }
 
 static inline void dav1d_freep_aligned(void* ptr) {
