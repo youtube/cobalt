@@ -12,4 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-// This file has been moved to //starboard/common/log_message.cc.
+// This file has been moved to //starboard/common/log.cc.
