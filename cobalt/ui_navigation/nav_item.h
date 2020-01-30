@@ -46,6 +46,10 @@ class NavItem : public base::RefCountedThreadSafe<NavItem> {
     GetInterface().set_item_enabled(nav_item_, enabled);
   }
 
+  void SetDir(NativeItemDir dir) {
+    GetInterface().set_item_dir(nav_item_, dir);
+  }
+
   void SetSize(float width, float height) {
     GetInterface().set_item_size(nav_item_, width, height);
   }

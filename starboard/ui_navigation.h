@@ -61,6 +61,37 @@ typedef enum SbUiNavItemType {
   kSbUiNavItemTypeContainer,
 } SbUiNavItemType;
 
+// Navigation items of type kSbUiNavItemTypeContainer have directionality. If
+// directionality is not specified for a container, it should default to
+// left-to-right and top-to-bottom.
+//
+//   For left-to-right, content offset x = 0 shows the leftmost content.
+//                          |<--Container Size-->|
+//     +--------------------+--------------------+--------------------+
+//     | Not selectable.    | Selectable.        | Selectable.        |
+//     | Offscreen.         | Onscreen.          | Offscreen.         |
+//     | Negative position. | Positive position. | Positive position. |
+//     +--------------------+--------------------+--------------------+
+//                          ^
+//                  Content Offset X = 0.
+//
+//   For right-to-left, content offset x = 0 shows the rightmost content.
+//                          |<--Container Size-->|
+//     +--------------------+--------------------+--------------------+
+//     | Selectable.        | Selectable.        | Not selectable.    |
+//     | Offscreen.         | Onscreen.          | Offscreen.         |
+//     | Negative position. | Positive position. | Positive position. |
+//     +--------------------+--------------------+--------------------+
+//                          ^
+//                  Content Offset X = 0.
+//
+//   Top-to-bottom is similar to left-to-right, but for the Y position.
+//   Bottom-to-top is similar to right-to-left, but for the Y position.
+typedef struct SbUiNavItemDir {
+  bool is_left_to_right;
+  bool is_top_to_bottom;
+} SbUiNavItemDir;
+
 // This represents a 2x3 transform matrix in row-major order.
 //   | a b tx |
 //   | c d ty |
@@ -122,6 +153,11 @@ typedef struct SbUiNavInterface {
   // once this function returns, no callbacks associated with this item will
   // be invoked until the item is re-enabled.
   void (*set_item_enabled)(SbUiNavItem item, bool enabled);
+
+  // This specifies directionality for container items. Containers within
+  // containers do not inherit directionality. Directionality must be specified
+  // for each container explicitly.
+  void (*set_item_dir)(SbUiNavItem item, SbUiNavItemDir dir);
 
   // Set the interactable size of the specified navigation item. By default,
   // an item's size is (0,0).

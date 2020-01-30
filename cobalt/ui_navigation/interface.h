@@ -28,6 +28,7 @@ using NativeItem = SbUiNavItem;
 using NativeItemType = SbUiNavItemType;
 constexpr NativeItemType kNativeItemTypeFocus = kSbUiNavItemTypeFocus;
 constexpr NativeItemType kNativeItemTypeContainer = kSbUiNavItemTypeContainer;
+using NativeItemDir = SbUiNavItemDir;
 using NativeMatrix2x3 = SbUiNavMatrix2x3;
 using NativeMatrix4 = SbUiNavMatrix4;
 using NativeCallbacks = SbUiNavCallbacks;
@@ -42,6 +43,11 @@ typedef void* NativeItem;
 enum NativeItemType {
   kNativeItemTypeFocus,
   kNativeItemTypeContainer,
+};
+
+struct NativeItemDir {
+  bool is_left_to_right;
+  bool is_top_to_bottom;
 };
 
 struct NativeMatrix2x3 {
@@ -65,6 +71,7 @@ struct NativeInterface {
   void (*destroy_item)(NativeItem item);
   void (*set_focus)(NativeItem item);
   void (*set_item_enabled)(NativeItem item, bool enabled);
+  void (*set_item_dir)(NativeItem item, NativeItemDir dir);
   void (*set_item_size)(NativeItem item, float width, float height);
   void (*set_item_transform)(NativeItem item, const NativeMatrix2x3* transform);
   bool (*get_item_focus_transform)(NativeItem item,
