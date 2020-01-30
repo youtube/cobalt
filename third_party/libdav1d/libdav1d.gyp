@@ -65,16 +65,16 @@
     # and included via the |build/config.h| file however in this case we
     # determine these using gyp and inject them into the compilation.
     'libdav1d_defines': [
-      'ARCH_AARCH64=0',
-      'ARCH_ARM=0',
-      'ARCH_PPC64LE=0',
-      'ARCH_X86=1',
-      'ARCH_X86_32=0',
-      'ARCH_X86_64=1',
+      'ARCH_AARCH64=(SB_IS_ARCH_ARM & SB_IS_64_BIT)',
+      'ARCH_ARM=(SB_IS_ARCH_ARM & SB_IS_32_BIT)',
+      'ARCH_PPC64LE=SB_IS_ARCH_PPC',
+      'ARCH_X86=SB_IS_ARCH_X86',
+      'ARCH_X86_32=(SB_IS_ARCH_X86 & SB_IS_32_BIT)',
+      'ARCH_X86_64=(SB_IS_ARCH_X86 & SB_IS_64_BIT)',
       'CONFIG_16BPC=1',
       'CONFIG_8BPC=1',
       'CONFIG_LOG=1',
-      'ENDIANNESS_BIG=0',
+      'ENDIANNESS_BIG=SB_IS_BIG_ENDIAN',
       'HAVE_ASM=0',
       'HAVE_CLOCK_GETTIME=1',
       'HAVE_POSIX_MEMALIGN=1',
