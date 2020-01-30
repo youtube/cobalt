@@ -52,6 +52,11 @@ void SetItemEnabled(NativeItem item, bool enabled) {
   SB_UNREFERENCED_PARAMETER(enabled);
 }
 
+void SetItemDir(NativeItem item, NativeItemDir dir) {
+  SB_UNREFERENCED_PARAMETER(item);
+  SB_UNREFERENCED_PARAMETER(dir);
+}
+
 void SetItemSize(NativeItem item, float width, float height) {
   SB_UNREFERENCED_PARAMETER(item);
   SB_UNREFERENCED_PARAMETER(width);
@@ -116,6 +121,7 @@ NativeInterface InitializeInterface() {
   interface.destroy_item = &DestroyItem;
   interface.set_focus = &SetFocus;
   interface.set_item_enabled = &SetItemEnabled;
+  interface.set_item_dir = &SetItemDir;
   interface.set_item_size = &SetItemSize;
   interface.set_item_transform = &SetItemTransform;
   interface.get_item_focus_transform = &GetItemFocusTransform;
