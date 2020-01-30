@@ -330,6 +330,11 @@
 // stack size for media stack threads.
 #define SB_MEDIA_THREAD_STACK_SIZE 0U
 
+// Specifies whether this platform support the improved player creation and
+// output mode query.  Please see comments of SbPlayerCreate() and
+// SbPlayerGetPreferredOutputMode() in player.h for more details.
+#define SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT 1
+
 // --- Decoder-only Params ---
 
 // Specifies how media buffers must be aligned on this platform as some
