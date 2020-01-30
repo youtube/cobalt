@@ -46,6 +46,8 @@
 #include "src/thread_task.h"
 #include "src/wedge.h"
 
+#include "common/starboard_memory.h"
+
 static COLD void init_internal(void) {
     dav1d_init_wedge_masks();
     dav1d_init_interintra_masks();

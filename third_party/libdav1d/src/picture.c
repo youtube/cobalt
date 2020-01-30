@@ -44,6 +44,8 @@
 #include "src/thread.h"
 #include "src/thread_task.h"
 
+#include "common/starboard_memory.h"
+
 int dav1d_default_picture_alloc(Dav1dPicture *const p, void *const cookie) {
     assert(cookie == NULL);
     const int hbd = p->p.bpc > 8;

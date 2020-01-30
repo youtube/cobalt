@@ -58,6 +58,8 @@
 
 #include "common/intops.h"
 
+#include "common/starboard_memory.h"
+
 #define av1_zero(a) memset(a, 0, sizeof(a))
 
 #define ATTRIBUTE_PACKED

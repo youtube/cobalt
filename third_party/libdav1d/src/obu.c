@@ -43,6 +43,8 @@
 #include "src/ref.h"
 #include "src/thread_task.h"
 
+#include "common/starboard_memory.h"
+
 static int parse_seq_hdr(Dav1dContext *const c, GetBits *const gb,
                          Dav1dSequenceHeader *const hdr)
 {
