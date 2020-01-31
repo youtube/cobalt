@@ -20,7 +20,6 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/source_location.h"
-#include "cobalt/cssom/css_parser.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/element.h"
@@ -61,22 +60,66 @@ class ScriptCallback : public IntersectionObserver::CallbackInternal {
   IntersectionObserver::IntersectionObserverCallbackArg::Reference callback_;
 };
 
+// Implement the CallbackInternal interface for a native callback.
+class NativeCallback : public IntersectionObserver::CallbackInternal {
+ public:
+  explicit NativeCallback(
+      const IntersectionObserver::NativeIntersectionObserverCallback& callback)
+      : callback_(callback) {}
+  bool RunCallback(
+      const IntersectionObserver::IntersectionObserverEntrySequence&
+          intersections,
+      const scoped_refptr<IntersectionObserver>& observer) override {
+    callback_.Run(intersections, observer);
+    return true;
+  }
+
+ private:
+  IntersectionObserver::NativeIntersectionObserverCallback callback_;
+};
+
 }  // namespace
+
+IntersectionObserver::IntersectionObserver(
+    const scoped_refptr<Document>& document, cssom::CSSParser* css_parser,
+    const NativeIntersectionObserverCallback& native_callback,
+    script::ExceptionState* exception_state)
+    : IntersectionObserver(document, css_parser, native_callback,
+                           IntersectionObserverInit(), exception_state) {}
+
+IntersectionObserver::IntersectionObserver(
+    const scoped_refptr<Document>& document, cssom::CSSParser* css_parser,
+    const NativeIntersectionObserverCallback& native_callback,
+    const IntersectionObserverInit& options,
+    script::ExceptionState* exception_state) {
+  InitNativeCallback(native_callback);
+  InitIntersectionObserverInternal(document, css_parser, options,
+                                   exception_state);
+}
 
 IntersectionObserver::IntersectionObserver(
     script::EnvironmentSettings* settings,
     const IntersectionObserverCallbackArg& callback,
-    script::ExceptionState* exception_state) {
-  InitIntersectionObserverInternal(settings, callback,
-                                   IntersectionObserverInit(), exception_state);
-}
+    script::ExceptionState* exception_state)
+    : IntersectionObserver(settings, callback, IntersectionObserverInit(),
+                           exception_state) {}
 
 IntersectionObserver::IntersectionObserver(
     script::EnvironmentSettings* settings,
     const IntersectionObserverCallbackArg& callback,
     const IntersectionObserverInit& options,
     script::ExceptionState* exception_state) {
-  InitIntersectionObserverInternal(settings, callback, options,
+  InitScriptCallback(callback);
+  const scoped_refptr<Document>& document =
+      base::polymorphic_downcast<dom::DOMSettings*>(settings)
+          ->window()
+          ->document();
+  cssom::CSSParser* css_parser =
+      base::polymorphic_downcast<dom::DOMSettings*>(settings)
+          ->window()
+          ->html_element_context()
+          ->css_parser();
+  InitIntersectionObserverInternal(document, css_parser, options,
                                    exception_state);
 }
 
@@ -186,22 +229,33 @@ void IntersectionObserver::TraceMembers(script::Tracer* tracer) {
   tracer->TraceItems(queued_entries_);
 }
 
+void IntersectionObserver::InitNativeCallback(
+    const NativeIntersectionObserverCallback& native_callback) {
+  callback_.reset(new NativeCallback(native_callback));
+}
+
+void IntersectionObserver::InitScriptCallback(
+    const IntersectionObserverCallbackArg& callback) {
+  callback_.reset(new ScriptCallback(callback, this));
+}
+
 void IntersectionObserver::InitIntersectionObserverInternal(
-    script::EnvironmentSettings* settings,
-    const IntersectionObserverCallbackArg& callback,
+    const scoped_refptr<Document>& document, cssom::CSSParser* css_parser,
     const IntersectionObserverInit& options,
     script::ExceptionState* exception_state) {
   // https://www.w3.org/TR/intersection-observer/#intersection-observer-interface
+  // Set this.root to options.root. If not provided, set to the implicit root.
+  if (options.root()) {
+    root_ = base::AsWeakPtr(options.root().get());
+  } else {
+    root_ = base::AsWeakPtr(document->document_element().get());
+  }
+
   // Attempt to parse a root margin from options.rootMargin. If a list is
   // returned, set this's internal [[rootMargin]] slot to that. Otherwise, throw
   // a SyntaxError exception.
   // https://www.w3.org/TR/intersection-observer/#parse-a-root-margin
   root_margin_ = options.root_margin();
-  cssom::CSSParser* css_parser =
-      base::polymorphic_downcast<dom::DOMSettings*>(settings)
-          ->window()
-          ->html_element_context()
-          ->css_parser();
   scoped_refptr<cssom::PropertyListValue> property_list_value =
       base::polymorphic_downcast<cssom::PropertyListValue*>(
           css_parser
@@ -247,25 +301,10 @@ void IntersectionObserver::InitIntersectionObserverInternal(
     sort(thresholds_.begin(), thresholds_.end());
   }
   // If thresholds is empty, append 0 to thresholds.
-
   if (thresholds_.empty()) {
     thresholds_.push_back(0);
   }
 
-  // Set this's internal [[callback]] slot to callback.
-  callback_.reset(new ScriptCallback(callback, this));
-
-  // Set this.root to options.root.
-  if (options.root()) {
-    root_ = base::AsWeakPtr(options.root().get());
-  } else {
-    root_ =
-        base::AsWeakPtr(base::polymorphic_downcast<dom::DOMSettings*>(settings)
-                            ->window()
-                            ->document()
-                            ->document_element()
-                            .get());
-  }
   root_->RegisterIntersectionObserverRoot(this);
   intersection_observer_task_manager_ =
       root_->owner_document()->intersection_observer_task_manager();
