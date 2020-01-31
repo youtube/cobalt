@@ -21,9 +21,9 @@
 #include "base/memory/singleton.h"
 #include "base/synchronization/lock.h"
 
-// Unfortunately, the Starboard interface is still experimental and supported
-// only on the PS4 for now.
-#include "starboard/ps4/core_dump_handler.h"
+#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
+#include STARBOARD_CORE_DUMP_HANDLER_INCLUDE
+#endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 
 #include "starboard/system.h"
 
