@@ -1,5 +1,7 @@
 6-scrolling-area-absolute-positioned-children
+6-scrolling-area-absolute-positioned-children-rtl
 6-scrolling-area-absolute-positioned-grandchildren
+6-scrolling-area-absolute-positioned-grandchildren-rtl
 6-scrolling-area-fix-positioned-children-excluded
 6-scrolling-area-fix-positioned-children-included
 6-scrolling-area-not-visible-grandchildren-excluded
