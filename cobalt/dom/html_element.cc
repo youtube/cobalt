@@ -2063,7 +2063,7 @@ void HTMLElement::UpdateUiNavigationType() {
   }
 
   if (ui_nav_item_type) {
-    SbUiNavItemDir ui_nav_item_dir;
+    ui_navigation::NativeItemDir ui_nav_item_dir;
     ui_nav_item_dir.is_left_to_right =
         directionality() == kLeftToRightDirectionality;
     ui_nav_item_dir.is_top_to_bottom = true;
