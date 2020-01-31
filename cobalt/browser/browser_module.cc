@@ -58,7 +58,7 @@
 
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 #include "base/memory/ptr_util.h"
-#include "starboard/ps4/core_dump_handler.h"
+#include STARBOARD_CORE_DUMP_HANDLER_INCLUDE
 #endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 
 using cobalt::cssom::ViewportSize;
