@@ -64,7 +64,7 @@ TEST(SbSocketGetInterfaceAddressTest, SunnyDayNullDestination) {
 
   EXPECT_TRUE(SbSocketGetInterfaceAddress(NULL, &source, &netmask));
   // A netmask that starts with 0 is likely incorrect.
-  EXPECT_TRUE(netmask.address[0] & 0x8);
+  EXPECT_TRUE(netmask.address[0] & 0x80);
   EXPECT_TRUE(source.type == kSbSocketAddressTypeIpv4 ||
               source.type == kSbSocketAddressTypeIpv6);
   EXPECT_TRUE(netmask.type == kSbSocketAddressTypeIpv4 ||
@@ -89,7 +89,7 @@ TEST_P(SbSocketGetInterfaceAddressTest, SunnyDayDestination) {
   EXPECT_FALSE(IsLocalhost(&source));
 
   // A netmask that starts with 0 is likely incorrect.
-  EXPECT_TRUE(netmask.address[0] & 0x8);
+  EXPECT_TRUE(netmask.address[0] & 0x80);
   EXPECT_EQ(GetAddressType(), source.type);
   EXPECT_EQ(GetAddressType(), netmask.type);
   EXPECT_EQ(0, source.port);
@@ -128,7 +128,7 @@ TEST_P(SbSocketGetInterfaceAddressTest, SunnyDaySourceForDestination) {
   EXPECT_EQ(GetAddressType(), source.type);
   EXPECT_NE(0, source.port);
   // A netmask that starts with 0 is likely incorrect.
-  EXPECT_TRUE(netmask.address[0] & 0x8);
+  EXPECT_TRUE(netmask.address[0] & 0x80);
   EXPECT_EQ(GetAddressType(), netmask.type);
   EXPECT_NE(0, SbMemoryCompare(source.address, invalid_address.address,
                                SB_ARRAY_SIZE(source.address)));
