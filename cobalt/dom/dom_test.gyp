@@ -44,7 +44,6 @@
         'font_cache_test.cc',
         'html_element_factory_test.cc',
         'html_element_test.cc',
-        'intersection_observer_test.cc',
         'keyboard_event_test.cc',
         'local_storage_database_test.cc',
         'location_test.cc',

@@ -21,7 +21,6 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/dom/intersection_observer_entry.h"
 #include "cobalt/layout/intersection_observer_root.h"
@@ -37,7 +36,6 @@
 namespace cobalt {
 namespace dom {
 
-class Document;
 class Element;
 class IntersectionObserverInit;
 class IntersectionObserverTaskManager;
@@ -58,24 +56,7 @@ class IntersectionObserver : public base::SupportsWeakPtr<IntersectionObserver>,
   typedef script::ScriptValue<IntersectionObserverCallback>
       IntersectionObserverCallbackArg;
 
-  typedef base::Callback<void(const IntersectionObserverEntrySequence&,
-                              const scoped_refptr<IntersectionObserver>&)>
-      NativeIntersectionObserverCallback;
-
   typedef script::UnionType2<double, script::Sequence<double>> ThresholdType;
-
-  // Not part of the spec. Support creating IntersectionObservers from native
-  // Cobalt code.
-  IntersectionObserver(
-      const scoped_refptr<Document>& document, cssom::CSSParser* css_parser,
-      const NativeIntersectionObserverCallback& native_callback,
-      script::ExceptionState* exception_state);
-
-  IntersectionObserver(
-      const scoped_refptr<Document>& document, cssom::CSSParser* css_parser,
-      const NativeIntersectionObserverCallback& native_callback,
-      const IntersectionObserverInit& options,
-      script::ExceptionState* exception_state);
 
   // Web API: IntersectionObserver
   IntersectionObserver(script::EnvironmentSettings* settings,
@@ -131,11 +112,9 @@ class IntersectionObserver : public base::SupportsWeakPtr<IntersectionObserver>,
 
  private:
   IntersectionObserverTaskManager* task_manager();
-  void InitNativeCallback(
-      const NativeIntersectionObserverCallback& native_callback);
-  void InitScriptCallback(const IntersectionObserverCallbackArg& callback);
   void InitIntersectionObserverInternal(
-      const scoped_refptr<Document>& document, cssom::CSSParser* css_parser,
+      script::EnvironmentSettings* settings,
+      const IntersectionObserverCallbackArg& callback,
       const IntersectionObserverInit& options,
       script::ExceptionState* exception_state);
   void TrackObservationTarget(const scoped_refptr<Element>& target);
