@@ -24,6 +24,7 @@
         'gtest_workarounds.h',
         'html_collection_testing.h',
         'mock_event_listener.h',
+        'mock_layout_boxes.h',
         'stub_css_parser.cc',
         'stub_css_parser.h',
         'stub_environment_settings.h',
