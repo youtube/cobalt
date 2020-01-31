@@ -30,8 +30,8 @@
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_div_element.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/dom/layout_boxes.h"
 #include "cobalt/dom/named_node_map.h"
-#include "cobalt/dom/testing/mock_layout_boxes.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/testing/stub_window.h"
 #include "cobalt/dom/window.h"
@@ -41,7 +41,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using cobalt::cssom::ViewportSize;
-using cobalt::dom::testing::MockLayoutBoxes;
 using testing::_;
 using testing::Return;
 
@@ -74,6 +73,44 @@ const char* kHtmlElementTagNames[] = {
     // "audio", "script", and "video" are excluded since they need more setup.
     "a",   "body", "br",   "div", "head", "h1",    "html",
     "img", "link", "meta", "p",   "span", "style", "title"};
+
+class MockLayoutBoxes : public LayoutBoxes {
+ public:
+  MOCK_CONST_METHOD0(type, Type());
+  MOCK_CONST_METHOD0(GetClientRects, scoped_refptr<DOMRectList>());
+
+  MOCK_CONST_METHOD0(IsInline, bool());
+
+  MOCK_CONST_METHOD0(GetBorderEdgeLeft, float());
+  MOCK_CONST_METHOD0(GetBorderEdgeTop, float());
+  MOCK_CONST_METHOD0(GetBorderEdgeWidth, float());
+  MOCK_CONST_METHOD0(GetBorderEdgeHeight, float());
+  MOCK_CONST_METHOD0(GetBorderEdgeOffsetFromContainingBlock, math::Vector2dF());
+
+  MOCK_CONST_METHOD0(GetBorderLeftWidth, float());
+  MOCK_CONST_METHOD0(GetBorderTopWidth, float());
+
+  MOCK_CONST_METHOD0(GetMarginEdgeWidth, float());
+  MOCK_CONST_METHOD0(GetMarginEdgeHeight, float());
+
+  MOCK_CONST_METHOD0(GetPaddingEdgeOffset, math::Vector2dF());
+  MOCK_CONST_METHOD0(GetPaddingEdgeWidth, float());
+  MOCK_CONST_METHOD0(GetPaddingEdgeHeight, float());
+  MOCK_CONST_METHOD0(GetPaddingEdgeOffsetFromContainingBlock,
+                     math::Vector2dF());
+
+  MOCK_CONST_METHOD0(GetContentEdgeOffset, math::Vector2dF());
+  MOCK_CONST_METHOD0(GetContentEdgeWidth, float());
+  MOCK_CONST_METHOD0(GetContentEdgeHeight, float());
+  MOCK_CONST_METHOD0(GetContentEdgeOffsetFromContainingBlock,
+                     math::Vector2dF());
+
+  MOCK_CONST_METHOD1(GetScrollArea, math::RectF(dom::Directionality));
+
+  MOCK_METHOD0(InvalidateSizes, void());
+  MOCK_METHOD0(InvalidateCrossReferences, void());
+  MOCK_METHOD0(InvalidateRenderTreeNodes, void());
+};
 
 // Takes the fist child of the given element repeatedly to the given depth.
 scoped_refptr<HTMLElement> GetFirstChildAtDepth(
