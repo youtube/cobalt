@@ -18,6 +18,7 @@
 #include <atomic>
 #include <functional>
 #include <map>
+#include <vector>
 
 #include "starboard/android/shared/audio_sink_min_required_frames_tester.h"
 #include "starboard/android/shared/jni_env_ext.h"
@@ -104,8 +105,10 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
  private:
   static void* ThreadEntryPoint(void* context);
   void AudioThreadFunc();
+  int HandleAudioTrackError(int error);
+  void DisableTunnelModeIfPossible(jobject j_audio_output_manager);
 
-  int WriteData(JniEnvExt* env, const void* buffer, int size);
+  int WriteData(JniEnvExt* env, void* buffer, int size, SbTime presentation_time_ns);
 
   Type* type_;
   int channels_;
@@ -113,6 +116,8 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
   SbMediaAudioSampleType sample_type_;
   void* frame_buffer_;
   int frames_per_channel_;
+  int preferred_buffer_size_;
+  int audio_session_id_;
   SbAudioSinkUpdateSourceStatusFunc update_source_status_func_;
   SbAudioSinkConsumeFramesFunc consume_frame_func_;
   void* context_;
@@ -127,6 +132,11 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
   double playback_rate_;
 
   int written_frames_;
+
+  SbTime total_written_frames_in_time_ns_;
+  SbMediaAudioSampleType original_sample_type_;
+  std::vector<uint8_t> frame_buffer_internal_;
+  int max_frames_per_request_;
 };
 
 }  // namespace shared

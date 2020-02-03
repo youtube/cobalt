@@ -27,11 +27,12 @@ namespace shared {
 class VideoRenderAlgorithm : public ::starboard::shared::starboard::player::
                                  filter::VideoRenderAlgorithm {
  public:
+  VideoRenderAlgorithm();
   void Render(MediaTimeProvider* media_time_provider,
               std::list<scoped_refptr<VideoFrame>>* frames,
               VideoRendererSink::DrawFrameCB draw_frame_cb) override;
-  void Reset() override {}
-  int GetDroppedFrames() override { return dropped_frames_; }
+  void Reset() override;
+  int GetDroppedFrames() override; 
 
  private:
   class VideoFrameReleaseTimeHelper {
@@ -47,6 +48,7 @@ class VideoRenderAlgorithm : public ::starboard::shared::starboard::player::
 
   VideoFrameReleaseTimeHelper video_frame_release_time_helper_;
   int dropped_frames_ = 0;
+  bool is_tunnled_;
 };
 
 }  // namespace shared

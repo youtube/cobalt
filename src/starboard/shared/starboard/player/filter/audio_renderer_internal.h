@@ -135,7 +135,10 @@ class AudioRenderer : public MediaTimeProvider,
   void GetSourceStatus(int* frames_in_buffer,
                        int* offset_in_frames,
                        bool* is_playing,
-                       bool* is_eos_reached) override;
+                       bool* is_eos_reached,
+                       SbTime* seek_time_us = NULL,
+                       SbTime* frames_sent_to_sink_in_time = NULL,
+                       double* playback_rate = NULL) override;
 #if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
   void ConsumeFrames(int frames_consumed, SbTime frames_consumed_at) override;
 #else   // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)

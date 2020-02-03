@@ -35,9 +35,10 @@ public class AudioTrackBridge {
   private AudioTrack audioTrack;
   private AudioTimestamp audioTimestamp = new AudioTimestamp();
   private long maxFramePositionSoFar = 0;
+  private int mAudioSessionId = -1;
 
   public AudioTrackBridge(
-      int sampleType, int sampleRate, int channelCount, int preferredBufferSizeInBytes) {
+      int sampleType, int sampleRate, int channelCount, int preferredBufferSizeInBytes, int audio_session_id) {
     int channelConfig;
     switch (channelCount) {
       case 1:
@@ -52,12 +53,21 @@ public class AudioTrackBridge {
       default:
         throw new RuntimeException("Unsupported channel count: " + channelCount);
     }
+    mAudioSessionId = audio_session_id;
 
-    AudioAttributes attributes =
-        new AudioAttributes.Builder()
+    AudioAttributes attributes;
+    if (audio_session_id != -1) {
+        attributes = (new AudioAttributes.Builder())
+            .setLegacyStreamType(AudioManager.STREAM_MUSIC)
+            .setFlags(AudioAttributes.FLAG_HW_AV_SYNC)
+            .build();
+    } else {
+        attributes =
+            new AudioAttributes.Builder()
             .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
             .setUsage(AudioAttributes.USAGE_MEDIA)
             .build();
+    }
     AudioFormat format =
         new AudioFormat.Builder()
             .setEncoding(sampleType)
@@ -67,15 +77,20 @@ public class AudioTrackBridge {
 
     int audioTrackBufferSize = preferredBufferSizeInBytes;
     while (audioTrackBufferSize > 0) {
-      try {
-        audioTrack =
-            new AudioTrack(
-                attributes,
-                format,
-                audioTrackBufferSize,
-                AudioTrack.MODE_STREAM,
-                AudioManager.AUDIO_SESSION_ID_GENERATE);
-      } catch (Exception e) {
+    try {
+        if (audio_session_id != -1) {
+            audioTrack = new AudioTrack(attributes, format, audioTrackBufferSize,
+                    AudioTrack.MODE_STREAM, audio_session_id);
+        } else {
+            audioTrack =
+                new AudioTrack(
+                        attributes,
+                        format,
+                        audioTrackBufferSize,
+                        AudioTrack.MODE_STREAM,
+                        AudioManager.AUDIO_SESSION_ID_GENERATE);
+        }
+     } catch (Exception e) {
         audioTrack = null;
       }
       // AudioTrack ctor can fail in multiple, platform specific ways, so do a thorough check
@@ -148,11 +163,18 @@ public class AudioTrackBridge {
 
   @SuppressWarnings("unused")
   @UsedByNative
-  private int write(byte[] audioData, int sizeInBytes) {
+  private int write(byte[] audioData, int sizeInBytes, long presentationTimeUs) {
     if (audioTrack == null) {
       Log.e(TAG, "Unable to write with NULL audio track.");
       return 0;
     }
+
+    // TODO: SDK check for below API
+    if (mAudioSessionId != -1) {
+      ByteBuffer byteBuffer = ByteBuffer.wrap(audioData);
+      return audioTrack.write(byteBuffer, sizeInBytes, AudioTrack.WRITE_NON_BLOCKING, presentationTimeUs);
+    }
+
     if (Build.VERSION.SDK_INT >= 23) {
       return audioTrack.write(audioData, 0, sizeInBytes, AudioTrack.WRITE_NON_BLOCKING);
     } else {

@@ -18,13 +18,14 @@
 
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
-
+#include "starboard/android/shared/media_agency.h"
 namespace starboard {
 namespace android {
 namespace shared {
 
 namespace {
 
+using ::starboard::android::shared::MediaAgency;
 const SbTimeMonotonic kBufferTooLateThreshold = -30 * kSbTimeMillisecond;
 const SbTimeMonotonic kBufferReadyThreshold = 50 * kSbTimeMillisecond;
 
@@ -35,6 +36,25 @@ jlong GetSystemNanoTime() {
 }
 
 }  // namespace
+
+VideoRenderAlgorithm::VideoRenderAlgorithm() {
+  is_tunnled_ = 
+    MediaAgency::GetInstance()->IsTunnelModeEnabled(this);
+}
+
+// video seek would call reset. Meanwhile it may switch to 
+// non-tunnel if audio end-point switching occur
+void VideoRenderAlgorithm::Reset() {
+  is_tunnled_ = 
+    MediaAgency::GetInstance()->IsTunnelModeEnabled(this);
+}
+
+int VideoRenderAlgorithm::GetDroppedFrames() {
+  if (is_tunnled_) {
+    return MediaAgency::GetInstance()->GetDroppedFramesTunnel(this);
+  }
+  return dropped_frames_;
+}
 
 void VideoRenderAlgorithm::Render(
     MediaTimeProvider* media_time_provider,

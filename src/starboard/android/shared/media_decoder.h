@@ -52,6 +52,7 @@ class MediaDecoder : private MediaCodecBridge::Handler {
    public:
     virtual void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,
                                      const DequeueOutputResult& output) = 0;
+    virtual void ProcessInputBuffer(MediaCodecBridge* media_codec_bridge) {};
     virtual void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) = 0;
     // This function gets called frequently on the decoding thread to give the
     // Host a chance to process when the MediaDecoder is decoding video.
@@ -77,12 +78,15 @@ class MediaDecoder : private MediaCodecBridge::Handler {
                int height,
                jobject j_output_surface,
                SbDrmSystem drm_system,
-               const SbMediaColorMetadata* color_metadata);
+               const SbMediaColorMetadata* color_metadata,
+               int audio_session_id);
   ~MediaDecoder();
 
-  void Initialize(const ErrorCB& error_cb);
+  typedef std::function<void(int64_t, int64_t)> FrameRenderedCB;
+  void Initialize(const ErrorCB& error_cb, const FrameRenderedCB& frame_rendered_cb = nullptr);
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer);
   void WriteEndOfStream();
+  void SetPlaybackRate(double playback_rate, int64_t playback_at_time);
 
   size_t GetNumberOfPendingTasks() const {
     return number_of_pending_tasks_.load();
@@ -148,12 +152,14 @@ class MediaDecoder : private MediaCodecBridge::Handler {
                                          int64_t presentation_time_us,
                                          int size) override;
   void OnMediaCodecOutputFormatChanged() override;
+  void OnMediaCodecFrameRendered(int64_t presentation_time_us, int64_t render_at_system_time_ns) override;
 
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
 
   const SbMediaType media_type_;
   Host* host_;
   ErrorCB error_cb_;
+  FrameRenderedCB frame_rendered_cb_;
 
   atomic_bool stream_ended_;
 
@@ -166,6 +172,7 @@ class MediaDecoder : private MediaCodecBridge::Handler {
   atomic_int32_t number_of_pending_tasks_;
 
   Mutex mutex_;
+  int audio_session_id_;
   ConditionVariable condition_variable_;
   std::deque<Event> pending_tasks_;
   std::vector<int> input_buffer_indices_;

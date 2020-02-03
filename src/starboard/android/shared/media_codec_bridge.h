@@ -88,6 +88,9 @@ class MediaCodecBridge {
                                                    int64_t presentation_time_us,
                                                    int size) = 0;
     virtual void OnMediaCodecOutputFormatChanged() = 0;
+    virtual void OnMediaCodecFrameRendered(
+            int64_t presentation_time_us, 
+            int64_t render_at_system_time_ns) = 0;
 
    protected:
     ~Handler() {}
@@ -106,7 +109,8 @@ class MediaCodecBridge {
       Handler* handler,
       jobject j_surface,
       jobject j_media_crypto,
-      const SbMediaColorMetadata* color_metadata);
+      const SbMediaColorMetadata* color_metadata,
+      int audio_session_id);
 
   ~MediaCodecBridge();
 
@@ -143,6 +147,8 @@ class MediaCodecBridge {
                                          int64_t presentation_time_us,
                                          int size);
   void OnMediaCodecOutputFormatChanged();
+  void OnMediaCodecFrameRendered(int64_t presentation_time_us, int64_t render_at_system_time_ns);
+  void SetPlaybackRate(jdouble playback_rate, jlong playback_at_time);
 
  private:
   // |MediaCodecBridge|s must only be created through its factory methods.

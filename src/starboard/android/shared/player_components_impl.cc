@@ -25,12 +25,21 @@
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
-#include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
+#include "audio_renderer_sink_android.h"
+#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/drm_system.h"
+
+#include "sys/system_properties.h"
+
+#include "starboard/android/shared/media_agency.h"
+using ::starboard::android::shared::MediaAgency;
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -40,6 +49,17 @@ namespace filter {
 namespace {
 
 class PlayerComponentsImpl : public PlayerComponents {
+public:
+  PlayerComponentsImpl() { 
+    audio_renderer_sink_android_ = NULL;
+    // kSbMediaAudioCodecNone is 0
+    memset(&audio_sample_info_, 0, sizeof(audio_sample_info_));
+  }
+
+  ~PlayerComponentsImpl() {
+  }
+
+private:
   bool CreateAudioComponents(const AudioParameters& audio_parameters,
                              scoped_ptr<AudioDecoder>* audio_decoder,
                              scoped_ptr<AudioRendererSink>* audio_renderer_sink,
@@ -74,7 +94,11 @@ class PlayerComponentsImpl : public PlayerComponents {
     audio_decoder->reset(
         new AdaptiveAudioDecoder(audio_parameters.audio_sample_info,
                                  audio_parameters.drm_system, decoder_creator));
-    audio_renderer_sink->reset(new AudioRendererSinkImpl);
+    audio_renderer_sink->reset(new AudioRendererSinkAndroid);
+
+    audio_renderer_sink_android_ = 
+        static_cast<AudioRendererSinkAndroid* >(audio_renderer_sink->get());
+    audio_sample_info_ = audio_parameters.audio_sample_info;
     return true;
   }
 
@@ -93,10 +117,14 @@ class PlayerComponentsImpl : public PlayerComponents {
     SB_DCHECK(video_renderer_sink);
     SB_DCHECK(error_message);
 
+    // Note: CreateAudioComponents should be called prior to this.
+    // TODO: error handle if tunnel fail
+    int audio_session_id = CreateAudioSessionId(video_parameters);
     scoped_ptr<VideoDecoderImpl> video_decoder_impl(new VideoDecoderImpl(
         video_parameters.video_codec, video_parameters.drm_system,
         video_parameters.output_mode,
-        video_parameters.decode_target_graphics_context_provider));
+        video_parameters.decode_target_graphics_context_provider,
+        audio_session_id));
     if (video_decoder_impl->is_valid()) {
       *video_renderer_sink = video_decoder_impl->GetSink();
       video_decoder->reset(video_decoder_impl.release());
@@ -108,6 +136,12 @@ class PlayerComponentsImpl : public PlayerComponents {
     }
 
     video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
+    if (video_decoder && audio_renderer_sink_android_ != NULL) {
+        VideoRenderAlgorithmImpl *video_render_algorithm_impl = 
+            static_cast<VideoRenderAlgorithmImpl* >(video_render_algorithm->get());
+        MediaAgency::GetInstance()->UpdatePlayerClient(audio_session_id, 
+                audio_renderer_sink_android_, video_render_algorithm_impl);
+    }
     return true;
   }
 
@@ -119,6 +153,77 @@ class PlayerComponentsImpl : public PlayerComponents {
     *max_cached_frames = 128 * 1024;
     *max_frames_per_append = 16384;
   }
+private:
+  AudioRendererSinkAndroid* audio_renderer_sink_android_;
+  SbMediaAudioSampleInfo audio_sample_info_;
+
+  int CreateAudioSessionId(const VideoParameters& video_parameters) {
+      using ::starboard::android::shared::JniEnvExt;
+      using ::starboard::android::shared::ScopedLocalJavaRef;
+      using ::starboard::android::shared::SupportedVideoCodecToMimeType;
+      using ::starboard::android::shared::DrmSystem;
+
+      bool tunnelEnable = true;
+      int audio_session_id = -1;
+      char val[PROP_VALUE_MAX] = {0};
+      int ret = __system_property_get("zxy.tunnel.enable", val);
+      if (ret != 0) {
+          tunnelEnable = (bool)atoi(val);
+      }
+      if (tunnelEnable && 
+              video_parameters.output_mode == kSbPlayerOutputModePunchOut &&
+              audio_sample_info_.codec != kSbMediaAudioCodecNone &&
+              video_parameters.video_codec != kSbMediaVideoCodecNone) {
+          JniEnvExt* env = JniEnvExt::Get();
+
+          ScopedLocalJavaRef<jobject> j_context(env->CallStarboardObjectMethodOrAbort(
+                      "getApplicationContext", "()Landroid/content/Context;"));
+          const char* mime = 
+              SupportedVideoCodecToMimeType(video_parameters.video_codec);
+          jstring j_mime(env->NewStringStandardUTFOrAbort(mime));
+          DrmSystem* drm_system_ptr = 
+              static_cast<DrmSystem*>(video_parameters.drm_system);
+          jobject j_media_crypto = 
+              drm_system_ptr ? drm_system_ptr->GetMediaCrypto() : NULL;
+          audio_session_id = env->CallStaticIntMethodOrAbort(
+                  "dev/cobalt/media/MediaCodecBridge", "createAudioSessionIdForTunnel",
+                  "(Ljava/lang/String;ZLandroid/content/Context;)"
+                  "I", j_mime, !!j_media_crypto,
+                  j_context.Get());
+
+          ScopedLocalJavaRef<jobject> j_audio_output_manager(
+                  env->CallStarboardObjectMethodOrAbort(
+                      "getAudioOutputManager",
+                      "()Ldev/cobalt/media/AudioOutputManager;"));
+
+          int max_cached_frames;
+          int max_frames_per_append;
+          GetAudioRendererParams(&max_cached_frames, &max_frames_per_append);
+          jobject j_audio_track_bridge = env->CallObjectMethodOrAbort(
+                  j_audio_output_manager.Get(), "createAudioTrackBridge",
+                  "(IIIII)Ldev/cobalt/media/AudioTrackBridge;",
+                  2,  // Tunnel only support kSbMediaAudioSampleTypeInt16Deprecated
+                      // convert it to Android AudioFormat.ENCODING_PCM_16BIT
+                  audio_sample_info_.samples_per_second,
+                  audio_sample_info_.number_of_channels,
+                  max_cached_frames, audio_session_id);
+          if (!j_audio_track_bridge) {
+              SB_LOG(ERROR) << "audio do not support tuennl mode, sample rate:" 
+                      << audio_sample_info_.samples_per_second << " channels:" 
+                      << audio_sample_info_.number_of_channels << " audio format:"
+                      << audio_sample_info_.codec << " share buffer frames:"
+                      << max_cached_frames;
+              audio_session_id =  -1;
+          } else {
+              env->CallVoidMethodOrAbort(
+                      j_audio_output_manager.Get(), "destroyAudioTrackBridge",
+                      "(Ldev/cobalt/media/AudioTrackBridge;)V", j_audio_track_bridge);
+          }
+      }
+
+      return audio_session_id;
+  }
+
 };
 
 }  // namespace

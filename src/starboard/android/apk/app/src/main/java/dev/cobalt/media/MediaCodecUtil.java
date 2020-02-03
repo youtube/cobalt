@@ -22,6 +22,7 @@ import android.media.MediaCodecInfo.CodecCapabilities;
 import android.media.MediaCodecInfo.CodecProfileLevel;
 import android.media.MediaCodecInfo.VideoCapabilities;
 import android.media.MediaCodecList;
+import android.media.MediaFormat;
 import android.os.Build;
 import dev.cobalt.util.IsEmulator;
 import dev.cobalt.util.Log;
@@ -603,6 +604,19 @@ public class MediaCodecUtil {
       }
     }
     return "";
+  }
+
+  public static boolean isVideoFeatureSupported(String mimeType, boolean isSecure, String feature) {
+    MediaCodecUtil.FindVideoDecoderResult findVideoDecoderResult =
+      MediaCodecUtil.findVideoDecoder(mimeType, isSecure, 0, 0, 0, 0, false);
+
+    int maxWidth = findVideoDecoderResult.videoCapabilities.getSupportedWidths().getUpper();
+    int maxHeight = findVideoDecoderResult.videoCapabilities.getSupportedHeights().getUpper();
+    MediaFormat format = MediaFormat.createVideoFormat(mimeType, maxWidth, maxHeight);
+    format.setFeatureEnabled(feature, true);
+    MediaCodecList mcl = new MediaCodecList(MediaCodecList.ALL_CODECS);
+    String codecName = mcl.findDecoderForFormat(format);
+    return (codecName == null) ? false : true;
   }
 
   /**
