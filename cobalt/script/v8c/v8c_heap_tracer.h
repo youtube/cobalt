@@ -64,6 +64,12 @@ class V8cHeapTracer final : public v8::EmbedderHeapTracer,
   void AddRoot(Traceable* traceable);
   void RemoveRoot(Traceable* traceable);
 
+  // Used during shutdown to ask V8cHeapTracer do nothing so that V8 can
+  // GC every embedder-created object.
+  void DisableForShutdown() {
+    disabled_ = true;
+  }
+
  private:
   void MaybeAddToFrontier(Traceable* traceable);
 
@@ -79,6 +85,8 @@ class V8cHeapTracer final : public v8::EmbedderHeapTracer,
   // TODO: A "counted" multiset approach here would be a bit nicer than
   // std::multiset.
   std::unordered_multiset<Traceable*> roots_;
+
+  bool disabled_ = false;
 };
 
 }  // namespace v8c
