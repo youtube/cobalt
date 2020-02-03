@@ -149,24 +149,28 @@ def _CheckExportValidity(input_api, output_api):
 
 def CheckChangeOnUpload(input_api, output_api):
     results = []
-    results.extend(_CheckCodeGeneration(input_api, output_api))
-    results.extend(_CheckChangeHasBugField(input_api, output_api))
+    # Disabled in Cobalt.
+    # results.extend(_CheckCodeGeneration(input_api, output_api))
+    # results.extend(_CheckChangeHasBugField(input_api, output_api))
     results.extend(input_api.canned_checks.CheckChangeHasDescription(input_api, output_api))
     results.extend(_CheckNewHeaderWithoutGnChange(input_api, output_api))
-    results.extend(_CheckExportValidity(input_api, output_api))
-    results.extend(
-        input_api.canned_checks.CheckPatchFormatted(
-            input_api, output_api, result_factory=output_api.PresubmitError))
+    # Disabled in Cobalt.
+    # results.extend(_CheckExportValidity(input_api, output_api))
+    # results.extend(
+    #     input_api.canned_checks.CheckPatchFormatted(
+    #         input_api, output_api, result_factory=output_api.PresubmitError))
     return results
 
 
 def CheckChangeOnCommit(input_api, output_api):
     results = []
-    results.extend(_CheckCodeGeneration(input_api, output_api))
+    # Disabled in Cobalt.
+    # results.extend(_CheckCodeGeneration(input_api, output_api))
     results.extend(
         input_api.canned_checks.CheckPatchFormatted(
             input_api, output_api, result_factory=output_api.PresubmitError))
-    results.extend(_CheckChangeHasBugField(input_api, output_api))
-    results.extend(_CheckExportValidity(input_api, output_api))
+    # Disabled in Cobalt.
+    # results.extend(_CheckChangeHasBugField(input_api, output_api))
+    # results.extend(_CheckExportValidity(input_api, output_api))
     results.extend(input_api.canned_checks.CheckChangeHasDescription(input_api, output_api))
     return results
