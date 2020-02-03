@@ -318,7 +318,7 @@
   {
 #ifdef FT_CONFIG_OPTION_USE_BROTLI
 
-    FT_ULong             uncompressed_size = dst_size;
+    size_t            uncompressed_size = dst_size;
     BrotliDecoderResult  result;
 
 
