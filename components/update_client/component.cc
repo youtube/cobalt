@@ -154,12 +154,7 @@ void InstallOnBlockingTaskRunner(
   }
 
   CrxInstaller::Result result(install_error);
-  if (install_error != InstallError::NONE) {
-    main_task_runner->PostTask(
-        FROM_HERE,
-        base::BindOnce(std::move(callback), ErrorCategory::kInstall,
-                       static_cast<int>(result.error), result.extended_error));
-  }
+  InstallComplete(main_task_runner, std::move(callback), unpack_path, result);
 #else
   installer->Install(
       unpack_path, public_key,
