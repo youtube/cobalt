@@ -62,6 +62,9 @@ class UpdaterModule {
   explicit UpdaterModule(network::NetworkModule* network_module);
   ~UpdaterModule();
 
+  std::string GetUpdaterChannel() const;
+  void SetUpdaterChannel(const std::string& updater_channel);
+
  private:
   base::Thread updater_thread_;
   scoped_refptr<update_client::UpdateClient> update_client_;
