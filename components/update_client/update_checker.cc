@@ -39,6 +39,9 @@ namespace update_client {
 
 namespace {
 
+// TODO: switch to prod channel as default.
+const std::string kDefaultUpdaterChannel = "dev";
+
 // Returns a sanitized version of the brand or an empty string otherwise.
 std::string SanitizeBrand(const std::string& brand) {
   return IsValidBrand(brand) ? brand : std::string("");
@@ -218,11 +221,25 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
         MakeProtocolUpdateCheck(is_update_disabled),
         MakeProtocolPing(app_id, metadata_)));
   }
+  std::string updater_channel = config_->GetChannel();
+#if defined(OS_STARBOARD)
+  // If the updater channel is not set, read from pref store instead.
+  if (updater_channel.empty()) {
+    // All apps of the update use the same channel.
+    updater_channel = GetPersistedData()->GetUpdaterChannel(ids_checked_[0]);
+    if (updater_channel.empty()) {
+      updater_channel = kDefaultUpdaterChannel;
+    }
+  } else {
+    // Update the record of updater channel in pref store.
+    GetPersistedData()->SetUpdaterChannel(ids_checked_[0], updater_channel);
+  }
+#endif
 
   const auto request = MakeProtocolRequest(
       session_id, config_->GetProdId(),
       config_->GetBrowserVersion().GetString(), config_->GetLang(),
-      config_->GetChannel(), config_->GetOSLongName(),
+      updater_channel, config_->GetOSLongName(),
       config_->GetDownloadPreference(), additional_attributes,
       updater_state_attributes_.get(), std::move(apps));
 

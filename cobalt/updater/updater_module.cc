@@ -109,6 +109,14 @@ void UpdaterModule::Finalize() {
   updater_configurator_ = nullptr;
 }
 
+std::string UpdaterModule::GetUpdaterChannel() const {
+  return updater_configurator_->GetChannel();
+}
+
+void UpdaterModule::SetUpdaterChannel(const std::string& updater_channel) {
+  updater_configurator_->SetChannel(updater_channel);
+}
+
 void UpdaterModule::MarkSuccessful() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
