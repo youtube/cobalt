@@ -73,6 +73,8 @@ class Configurator : public update_client::Configurator {
   GetProtocolHandlerFactory() const override;
   update_client::RecoveryCRXElevator GetRecoveryCRXElevator() const override;
 
+  void SetChannel(const std::string& updater_channel);
+
  private:
   friend class base::RefCountedThreadSafe<Configurator>;
   ~Configurator() override;
@@ -81,6 +83,7 @@ class Configurator : public update_client::Configurator {
   scoped_refptr<update_client::NetworkFetcherFactory> network_fetcher_factory_;
   scoped_refptr<update_client::UnzipperFactory> unzip_factory_;
   scoped_refptr<update_client::PatcherFactory> patch_factory_;
+  std::string updater_channel_;
   DISALLOW_COPY_AND_ASSIGN(Configurator);
 };
 

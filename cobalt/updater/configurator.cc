@@ -25,8 +25,6 @@ namespace {
 const int kDelayOneMinute = 60;
 const int kDelayOneHour = kDelayOneMinute * 60;
 
-const std::string kUpdaterChannel = "dev";
-
 }  // namespace
 
 namespace cobalt {
@@ -60,9 +58,7 @@ base::Version Configurator::GetBrowserVersion() const {
   return base::Version("1.0.0.0");  // version_info::GetVersion();
 }
 
-std::string Configurator::GetChannel() const {
- return kUpdaterChannel;
-}
+std::string Configurator::GetChannel() const { return updater_channel_; }
 
 std::string Configurator::GetBrand() const { return {}; }
 
@@ -132,6 +128,10 @@ Configurator::GetProtocolHandlerFactory() const {
 update_client::RecoveryCRXElevator Configurator::GetRecoveryCRXElevator()
     const {
   return {};
+}
+
+void Configurator::SetChannel(const std::string& updater_channel) {
+  updater_channel_ = updater_channel;
 }
 
 }  // namespace updater

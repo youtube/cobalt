@@ -55,6 +55,10 @@ class PersistedData {
   // the specified |id|. "" indicates that there is no recorded version value
   // for the |id|.
   std::string GetLastUnpackedVersion(const std::string& id) const;
+
+  // Returns the updater channel that is set for the specified |id|. ""
+  // indicates that there is no recorded updater channel value for the |id|.
+  std::string GetUpdaterChannel(const std::string& id) const;
 #endif
 
   // Returns the PingFreshness (a random token that is written into the profile
@@ -82,6 +86,9 @@ class PersistedData {
   // the specified |id|.
   void SetLastUnpackedVersion(const std::string& id,
                               const std::string& version);
+
+  // Records the updater channel that is set for the specified |id|.
+  void SetUpdaterChannel(const std::string& id, const std::string& channel);
 #endif
 
   // This is called only via update_client's RegisterUpdateClientPreferences.

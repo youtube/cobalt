@@ -84,6 +84,9 @@ std::string PersistedData::GetPingFreshness(const std::string& id) const {
 std::string PersistedData::GetLastUnpackedVersion(const std::string& id) const {
   return GetString(id, "version");
 }
+std::string PersistedData::GetUpdaterChannel(const std::string& id) const {
+  return GetString(id, "updaterchannel");
+}
 #endif
 
 std::string PersistedData::GetCohort(const std::string& id) const {
@@ -145,6 +148,10 @@ void PersistedData::SetString(const std::string& id,
 void PersistedData::SetLastUnpackedVersion(const std::string& id,
                                            const std::string& version) {
   SetString(id, "version", version);
+}
+void PersistedData::SetUpdaterChannel(const std::string& id,
+                                      const std::string& channel) {
+  SetString(id, "updaterchannel", channel);
 }
 #endif
 
