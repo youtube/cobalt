@@ -39,8 +39,8 @@ const int kMaxRequiredFrames = 16 * 1024;
 const int kRequiredFramesIncrement = 2 * 1024;
 const int kMinStablePlayedFrames = 12 * 1024;
 
-const int kSampleFrequency22k = 22050;
-const int kSampleFrequency48k = 48000;
+const int kSampleFrequency22050 = 22050;
+const int kSampleFrequency48000 = 48000;
 
 // Helper function to compute the size of the two valid starboard audio sample
 // types.
@@ -423,10 +423,10 @@ void AudioTrackAudioSinkType::TestMinRequiredFrames() {
     sample_type = kSbMediaAudioSampleTypeInt16Deprecated;
     SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(sample_type));
   }
-  min_required_frames_tester_.AddTest(2, sample_type, kSampleFrequency48k,
+  min_required_frames_tester_.AddTest(2, sample_type, kSampleFrequency48000,
                                       onMinRequiredFramesForWebAudioReceived,
                                       8 * 1024);
-  min_required_frames_tester_.AddTest(2, sample_type, kSampleFrequency22k,
+  min_required_frames_tester_.AddTest(2, sample_type, kSampleFrequency22050,
                                       onMinRequiredFramesForWebAudioReceived,
                                       4 * 1024);
   min_required_frames_tester_.Start();
@@ -436,17 +436,17 @@ int AudioTrackAudioSinkType::GetMinBufferSizeInFramesInternal(
     int channels,
     SbMediaAudioSampleType sample_type,
     int sampling_frequency_hz) {
-  if (sampling_frequency_hz <= kSampleFrequency22k) {
+  if (sampling_frequency_hz <= kSampleFrequency22050) {
     ScopedLock lock(min_required_frames_map_mutex_);
-    if (min_required_frames_map_.find(kSampleFrequency22k) !=
+    if (min_required_frames_map_.find(kSampleFrequency22050) !=
         min_required_frames_map_.end()) {
-      return min_required_frames_map_[kSampleFrequency22k];
+      return min_required_frames_map_[kSampleFrequency22050];
     }
-  } else if (sampling_frequency_hz <= kSampleFrequency48k) {
+  } else if (sampling_frequency_hz <= kSampleFrequency48000) {
     ScopedLock lock(min_required_frames_map_mutex_);
-    if (min_required_frames_map_.find(kSampleFrequency48k) !=
+    if (min_required_frames_map_.find(kSampleFrequency48000) !=
         min_required_frames_map_.end()) {
-      return min_required_frames_map_[kSampleFrequency48k];
+      return min_required_frames_map_[kSampleFrequency48000];
     }
   }
   return kMaxRequiredFrames;
