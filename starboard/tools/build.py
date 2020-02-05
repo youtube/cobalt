@@ -250,7 +250,7 @@ def _LoadPlatformConfig(platform_name):
     else:
       module_path = os.path.join('config', '%s.py' % platform_name)
       platform_module = importlib.import_module('config.%s' % platform_name)
-  except ImportError:
+  except (ImportError, IOError):
     logging.exception('Unable to import "%s".', module_path)
     return None
 
