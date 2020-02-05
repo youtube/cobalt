@@ -18,6 +18,7 @@
 
 #include "starboard/common/mutex.h"
 #include "starboard/configuration.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
 
@@ -119,9 +120,13 @@ void StubAudioSink::AudioThreadFunc() {
 
       SbThreadSleep(frames_to_consume * kSbTimeSecond / sampling_frequency_hz_);
       consume_frame_func_(frames_to_consume,
-#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+                          kSbHasAsyncAudioFramesReporting
+                              ? SbTimeGetMonotonicNow()
+                              : (SbTime)kSbTimeMax,
+#elif SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
                           SbTimeGetMonotonicNow(),
-#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#endif
                           context_);
     } else {
       // Wait for five millisecond if we are paused.

@@ -348,9 +348,10 @@ V8cGlobalEnvironment::DestructionHelper::~DestructionHelper() {
     isolate_->VisitHandlesWithClassIds(&force_weak_visitor);
   }
 
-  isolate_->SetEmbedderHeapTracer(nullptr);
+  V8cEngine::GetFromIsolate(isolate_)->heap_tracer()->DisableForShutdown();
   isolate_->SetData(kIsolateDataIndex, nullptr);
   isolate_->LowMemoryNotification();
+  isolate_->SetEmbedderHeapTracer(nullptr);
 }
 
 // static

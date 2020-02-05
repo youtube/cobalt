@@ -84,7 +84,18 @@
 // `SbGetGlesInterface()` to return `nullptr` when OpenGL is not supported and
 // implement `SbBlitterIsBlitterSupported()` to return false when blitter is
 // not supported, as the stubs do.
+//
+// This change also effectively deprecates the gyp variable
+// "enable_map_to_mesh" in favor of CobaltGraphicsExtensionApi function
+// `IsMapToMeshEnabled()` and the command line switch --disable_map_to_mesh.
+// Now, Cobalt will assume the platform supports map_to_mesh, so platforms that
+// do not will have to have return |false| from `IsMapToMeshEnabled()` or use
+// the provided command line switch.
 #define SB_ALL_RENDERERS_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Blitter API is no longer supported on any platform. Use the OpenGL ES
+// interface instead.
+#define SB_BLITTER_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // Require the captions API.
 // The system must implement the captions functions in
@@ -218,15 +229,21 @@
 // always become the constant kSbFoo.
 #define SB_FEATURE_RUNTIME_CONFIGS_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Introduce SbPlayerGetPreferredOutputMode() so the SbPlayer implementation can
-// explicitly indicate its preference on output mode, when all output modes are
-// supported.
-// For example, Cobalt used to always query for |kSbPlayerOutputModePunchOut|
-// first, without providing details about the video going to be played, and not
-// query for output modes if punch out is supported.  The new interface allows
-// the implementation to fine tune its output mode.  For example, it may decide
-// to use |kSbPlayerOutputModeDecodeToTexture| for low resolution videos.
-#define SB_PLAYER_GET_PREFERRED_OUTPUT_MODE_VERSION SB_EXPERIMENTAL_API_VERSION
+// Improve player creation and output mode query.
+// 1. Introduce the new type SbPlayerCreationParam that holds the common
+//    parameters used to create an SbPlayer() and to query for the output mode
+//    support.
+// 2. Replace SbPlayerOutputModeSupported() by SbPlayerGetPreferredOutputMode()
+//    so the SbPlayer implementation can explicitly indicate its preference on
+//    output mode, when all output modes are supported.
+//    For example, Cobalt used to always query for |kSbPlayerOutputModePunchOut|
+//    first, without providing details about the video going to be played, and
+//    not query for output modes if punch out is supported.  The new interface
+//    allows the implementation to fine tune its output mode.  For example, it
+//    may decide to use |kSbPlayerOutputModeDecodeToTexture| for low resolution
+//    videos.
+#define SB_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT_VERSION \
+  SB_EXPERIMENTAL_API_VERSION
 
 // Introduce support of cbcs encryption scheme into SbDrmSystem, as defined in
 // ISO/IEC 23001 part 7.
@@ -675,6 +692,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
+#if defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
+#error \
+    "SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING should not be defined in Starboard " \
+"versions 12 and later. Instead, define kSbHasAsyncAudioFramesReporting in " \
+"starboard/<PLATFORM_PATH>/configuration_constants.cc."
+#endif
+
 #if defined(SB_HAS_AUDIOLESS_VIDEO)
 #error \
     "SB_HAS_AUDIOLESS_VIDEO should not be defined in Starboard " \
@@ -823,6 +847,14 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #define SB_HAS_AC3_AUDIO 1
 #endif  // defined(SB_HAS_AC3_AUDIO)
 #endif  // SB_API_VERSION >= 11
+
+#if SB_API_VERSION >= 10
+#if !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
+#error \
+    "Your platform must define SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING in API "\
+    "version 10 or later."
+#endif  // !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
+#endif  // SB_API_VERSION >= 10
 
 #if SB_API_VERSION >= 10
 #define SB_HAS_AUDIOLESS_VIDEO 1
@@ -998,33 +1030,33 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif  // !SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
 #endif  // SB_API_VERSION < 10
 
-#if SB_API_VERSION >= 10
-#if !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
+#if SB_API_VERSION >= \
+    SB_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT_VERSION
+#if defined(SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+#if !SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 #error \
-    "Your platform must define SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING in API "\
-    "version 10 or later."
-#endif  // !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
-#endif  // SB_API_VERSION >= 10
+    "SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT is required in" \
+    " this API version."
+#endif  // !SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+#else   // defined(SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+#define SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT 1
+#endif  // defined(SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+#endif  // SB_API_VERSION >=
+        // SB_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT_VERSION
 
-#if SB_API_VERSION >= SB_PLAYER_GET_PREFERRED_OUTPUT_MODE_VERSION
-#if defined(SB_HAS_PLAYER_GET_PREFERRED_OUTPUT_MODE)
-#if !SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
-#error \
-    "SB_HAS_PLAYER_GET_PREFERRED_OUTPUT_MODE is required in this API "\
-       "version."
-#endif  // !SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
-#else   // defined(SB_HAS_PLAYER_GET_PREFERRED_OUTPUT_MODE)
-#define SB_HAS_PLAYER_GET_PREFERRED_OUTPUT_MODE 1
-#endif  // defined(SB_HAS_PLAYER_GET_PREFERRED_OUTPUT_MODE)
-#endif  // SB_API_VERSION >= SB_PLAYER_GET_PREFERRED_OUTPUT_MODE_VERSION
-
-#if SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 #if SB_API_VERSION < 11
 #error \
-    "SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE) requires SB_API_VERSION 11 "\
-       "or later."
+    "SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT) requires " \
+    "SB_API_VERSION 11 or later."
 #endif  // SB_API_VERSION < 11
-#endif  // SB_HAS(PLAYER_GET_PREFERRED_OUTPUT_MODE)
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
+#if SB_API_VERSION >= SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)
+#error \
+    "Blitter API is no longer supported. All blitter functions in " \
+"'starboard/blitter.h' are deprecated."
+#endif  // Deprecate Blitter API
 
 // --- Derived Configuration -------------------------------------------------
 

@@ -18,45 +18,8 @@ namespace cobalt {
 namespace debug {
 namespace backend {
 
-namespace {
-// Definitions from the set specified here:
-// https://chromedevtools.github.io/devtools-protocol/tot/DOM
-constexpr char kInspectorDomain[] = "DOM";
-
-// File to load JavaScript DOM debugging domain implementation from.
-constexpr char kScriptFile[] = "dom_agent.js";
-}  // namespace
-
 DOMAgent::DOMAgent(DebugDispatcher* dispatcher)
-    : dispatcher_(dispatcher),
-      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this, kInspectorDomain)) {
-  DCHECK(dispatcher_);
-
-  commands_["disable"] = &DOMAgent::Disable;
-  commands_["enable"] = &DOMAgent::Enable;
-}
-
-void DOMAgent::Thaw(JSONObject agent_state) {
-  dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
-  script_loaded_ = dispatcher_->RunScriptFile(kScriptFile);
-  DLOG_IF(ERROR, !script_loaded_) << "Failed to load " << kScriptFile;
-}
-
-JSONObject DOMAgent::Freeze() {
-  dispatcher_->RemoveDomain(kInspectorDomain);
-  return JSONObject();
-}
-
-void DOMAgent::Enable(Command command) {
-  if (script_loaded_) {
-    command.SendResponse();
-  } else {
-    command.SendErrorResponse(Command::kInternalError,
-                              "Cannot create DOM inspector.");
-  }
-}
-
-void DOMAgent::Disable(Command command) { command.SendResponse(); }
+    : AgentBase("DOM", "dom_agent.js", dispatcher) {}
 
 }  // namespace backend
 }  // namespace debug

@@ -28,6 +28,10 @@ namespace cobalt {
 namespace debug {
 namespace backend {
 
+// There aren't enable/disable commands in the Tracing domain, so the
+// TracingAgent doesn't use AgentBase.
+//
+// https://chromedevtools.github.io/devtools-protocol/tot/Tracing
 class TracingAgent : public script::ScriptDebugger::TraceDelegate  {
  public:
   explicit TracingAgent(DebugDispatcher* dispatcher,
@@ -56,7 +60,7 @@ class TracingAgent : public script::ScriptDebugger::TraceDelegate  {
   JSONList collected_events_;
 
   // Map of member functions implementing commands.
-  CommandMap<TracingAgent> commands_;
+  CommandMap commands_;
 };
 
 }  // namespace backend

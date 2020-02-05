@@ -323,6 +323,24 @@ const _observerConfig = {
 let _nodeStore = new Map();
 let _nextNodeId = 1;
 
+// Clear the Elements tree in DevTools. It will call DOM.getDocument in response
+// to re-load the document.
+// https://chromedevtools.github.io/devtools-protocol/tot/DOM#event-documentUpdated
+function _documentUpdated() {
+  debugBackend.sendEvent('DOM.documentUpdated', '{}');
+}
+
+// This script is injected when the 'DOM' domain is enabled. When navigating
+// with DevTools connected, that happens when restoring debugger state for the
+// new WebModule and its associated DebugModule along with its agents. That all
+// happens before the new document is loaded, so immediately clear the old
+// document from the Elements tree in DevTools while loading the new document.
+_documentUpdated();
+
+// Once the document is loaded, make DevTools reload its Elements tree again to
+// pick up the new document.
+document.addEventListener('load', _documentUpdated);
+
 // Namespace for constructors of types defined in the Devtools protocol.
 let devtools = {};
 

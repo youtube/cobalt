@@ -52,6 +52,9 @@ const char* kSbFileSepString = "/";
 // Allow ac3 and ec3 support
 const bool kSbHasAc3Audio = false;
 
+// Specifies whether this platform updates audio frames asynchronously.
+const bool kSbHasAsyncAudioFramesReporting = true;
+
 // Allow playing audioless video.
 const bool kSbHasAudiolessVideo = false;
 

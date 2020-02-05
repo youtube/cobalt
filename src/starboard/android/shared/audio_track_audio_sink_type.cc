@@ -389,14 +389,11 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     SbAudioSinkConsumeFramesFunc consume_frames_func,
     void* context) {
-  // Try to create AudioTrack with the same size buffer as in renderer. But
-  // AudioTrack would not start playing until the buffer is fully filled once. A
-  // large buffer may cause AudioTrack not able to start. And Cobalt now write
-  // no more than 1s of audio data and no more than 0.5 ahead to starboard
-  // player, limit the buffer size to store at most 0.5s of audio data.
+  int min_required_frames = SbAudioSinkGetMinBufferSizeInFrames(
+      channels, audio_sample_type, sampling_frequency_hz);
+  SB_DCHECK(frames_per_channel >= min_required_frames);
   int preferred_buffer_size_in_bytes =
-      std::min(frames_per_channel, sampling_frequency_hz / 2) * channels *
-      GetSampleSize(audio_sample_type);
+      min_required_frames * channels * GetSampleSize(audio_sample_type);
   AudioTrackAudioSink* audio_sink = new AudioTrackAudioSink(
       this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
       frames_per_channel, preferred_buffer_size_in_bytes,

@@ -346,7 +346,12 @@ void AlsaAudioSink::WriteFrames(double playback_rate,
           IncrementPointerByBytes(frame_buffer_,
                                   offset_in_frames * bytes_per_frame),
           frames_to_buffer_end);
-      consume_frame_func_(consumed, context_);
+      consume_frame_func_(
+          consumed,
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+          (SbTime)kSbTimeMax,  // Async audio frames reporting not supported
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+          context_);
       if (consumed != frames_to_buffer_end) {
         SB_DLOG(INFO) << "alsa::AlsaAudioSink exits write frames : consumed "
                       << consumed << " frames, with " << frames_to_buffer_end
@@ -363,7 +368,12 @@ void AlsaAudioSink::WriteFrames(double playback_rate,
                         IncrementPointerByBytes(
                             frame_buffer_, offset_in_frames * bytes_per_frame),
                         frames_to_write);
-    consume_frame_func_(consumed, context_);
+    consume_frame_func_(
+        consumed,
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+        (SbTime)kSbTimeMax,  // Async audio frames reporting not supported
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+        context_);
   } else {
     // A very low quality resampler that simply shift the audio frames to play
     // at the right time.
@@ -392,7 +402,12 @@ void AlsaAudioSink::WriteFrames(double playback_rate,
 
     int consumed =
         AlsaWriteFrames(playback_handle_, &resample_buffer_[0], target_frames);
-    consume_frame_func_(consumed * playback_rate_, context_);
+    consume_frame_func_(
+        consumed * playback_rate_,
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+        (SbTime)kSbTimeMax,  // Async audio frames reporting not supported
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+        context_);
   }
 }
 

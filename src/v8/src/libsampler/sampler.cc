@@ -484,7 +484,7 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
   state->fp = reinterpret_cast<void*>(ucontext->uc_mcontext.gregs[11]);
   state->lr = reinterpret_cast<void*>(ucontext->uc_mcontext.gregs[14]);
 #endif  // V8_HOST_ARCH_*
-#elif V8_OS_IOS
+#elif V8_OS_IOS || (V8_OS_STARBOARD && defined(__APPLE__))
 
 #if V8_TARGET_ARCH_ARM64
   // Building for the iOS device.

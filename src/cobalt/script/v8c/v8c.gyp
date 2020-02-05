@@ -83,7 +83,6 @@
       ],
       'defines': [
         'ENGINE_SUPPORTS_INT64',
-        'ENGINE_SUPPORTS_JIT',
         # The file name to store our V8 startup snapshot file at.  This is a
         # serialized representation of a |v8::Isolate| after completing all
         # tasks prior to creation of the global object (e.g., executing self
@@ -100,11 +99,9 @@
           'ENGINE_SUPPORTS_INT64',
         ],
       },
-      # V8 always requires JIT.  |cobalt_enable_jit| must be set to true to
-      # use V8.  Failure to do will result in a build failure.
       'conditions' :[
-        ['cobalt_enable_jit == 0', {
-          'defines': [ '<(gyp_static_assert_false)', ],
+        ['cobalt_enable_jit == 1', {
+          'defines': ['ENGINE_SUPPORTS_JIT',],
         }],
       ],
     },

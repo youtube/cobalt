@@ -16,29 +16,24 @@
 
 #include <string>
 
-#include "base/memory/weak_ptr.h"
-#include "base/message_loop/message_loop.h"
 #include "cobalt/base/log_message_handler.h"
-#include "cobalt/debug/backend/command_map.h"
+#include "cobalt/debug/backend/agent_base.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"
-#include "cobalt/debug/command.h"
 
 namespace cobalt {
 namespace debug {
 namespace backend {
 
-class LogAgent {
+// Sends Cobalt C++ log messages (not the JS Console log messages) to a custom
+// "Logging.browserEntryAdded" event to be displayed in the overlay console.
+//
+// https://chromedevtools.github.io/devtools-protocol/tot/Log
+class LogAgent : public AgentBase {
  public:
   explicit LogAgent(DebugDispatcher* dispatcher);
   ~LogAgent();
 
-  void Thaw(JSONObject agent_state);
-  JSONObject Freeze();
-
  private:
-  void Enable(Command command);
-  void Disable(Command command);
-
   // Called by LogMessageHandler for each log message.
   // May be called from any thread.
   bool OnLogMessage(int severity, const char* file, int line,
@@ -48,15 +43,6 @@ class LogAgent {
   // Must be called on |message_loop_|.
   void OnLogMessageInternal(int severity, const char* file, int line,
                             size_t message_start, const std::string& str);
-
-  // Helper object to connect to the debug dispatcher, etc.
-  DebugDispatcher* dispatcher_;
-
-  // Map of member functions implementing commands.
-  CommandMap<LogAgent> commands_;
-
-  // Indicates whether a client has enabled the "Log" protocol domain.
-  bool enabled_;
 
   // The callback id of our recipient of log messages so we can unregister it.
   base::LogMessageHandler::CallbackId log_message_handler_callback_id_;

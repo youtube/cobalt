@@ -116,9 +116,6 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
       graphics_context_(
           base::polymorphic_downcast<backend::GraphicsContextEGL*>(
               graphics_context)) {
-  DLOG(INFO) << "offscreen_target_cache_size_in_bytes: "
-             << offscreen_target_cache_size_in_bytes;
-
   backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
       graphics_context_);
   graphics_state_.reset(new GraphicsState());

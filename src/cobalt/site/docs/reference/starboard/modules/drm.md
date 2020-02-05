@@ -305,30 +305,6 @@ payload.
 void SbDrmGenerateSessionUpdateRequest(SbDrmSystem drm_system, int ticket, const char *type, const void *initialization_data, int initialization_data_size)
 ```
 
-### SbDrmGetKeyCount ###
-
-Returns the number of keys installed in `drm_system`.
-
-`drm_system`: The system for which the number of installed keys is retrieved.
-
-#### Declaration ####
-
-```
-int SbDrmGetKeyCount(SbDrmSystem drm_system)
-```
-
-### SbDrmGetKeyStatus ###
-
-Gets `out_key`, `out_key_size`, and `out_status` for the key with `index` in
-`drm_system`. Returns whether a key is installed at `index`. If not, the output
-parameters, which all must not be NULL, will not be modified.
-
-#### Declaration ####
-
-```
-bool SbDrmGetKeyStatus(SbDrmSystem drm_system, const void *session_id, int session_id_size, int index, void **out_key, int *out_key_size, SbDrmKeyStatus *out_status)
-```
-
 ### SbDrmIsServerCertificateUpdatable ###
 
 Returns true if server certificate of `drm_system` can be updated via
@@ -341,19 +317,6 @@ the life time of `drm_system`.
 
 ```
 bool SbDrmIsServerCertificateUpdatable(SbDrmSystem drm_system)
-```
-
-### SbDrmRemoveAllKeys ###
-
-Removes all installed keys for `drm_system`. Any outstanding session update
-requests are also invalidated.
-
-`drm_system`: The DRM system for which keys should be removed.
-
-#### Declaration ####
-
-```
-void SbDrmRemoveAllKeys(SbDrmSystem drm_system)
 ```
 
 ### SbDrmSystemIsValid ###

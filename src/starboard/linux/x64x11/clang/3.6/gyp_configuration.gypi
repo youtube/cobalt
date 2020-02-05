@@ -19,6 +19,7 @@
             '-Wl,--wrap=malloc',
             '-Wl,--wrap=free',
     ],
+    'cobalt_v8_emit_builtins_as_inline_asm': 0,
   },
 
   'target_defaults': {

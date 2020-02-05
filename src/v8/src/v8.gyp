@@ -39,6 +39,10 @@
       ['host_os=="win"', {
         'compiler_flags_host': ['/wd4267', '/wd4312', '/wd4351', '/wd4355', '/wd4800', '/wd4838', '/wd4715', '/EHsc'],
       }],
+      ['host_os=="mac"', {
+        'cflags': ['-std=c++11',],
+        'cflags_host': ['-std=c++11',],
+      }],
       ['v8_enable_embedded_builtins==1', {
         'defines': [
           'V8_EMBEDDED_BUILTINS',
@@ -56,8 +60,7 @@
     'generate_bytecode_output_root': '<(SHARED_INTERMEDIATE_DIR)/generate-bytecode-output-root',
     'generate_bytecode_builtins_list_output': '<(generate_bytecode_output_root)/builtins-generated/bytecodes-builtins-list.h',
 
-    # 'v8_use_snapshot': '<(cobalt_v8_buildtime_snapshot)',
-    'v8_use_snapshot': 1,
+    'v8_use_snapshot': '<(cobalt_v8_buildtime_snapshot)',
     'v8_optimized_debug': 0,
     'v8_use_external_startup_data': 0,
     # TODO: Enable i18n support.
@@ -514,7 +517,14 @@
              ],
             },
           ],
-          'sources': ['<(INTERMEDIATE_DIR)/embedded.cc'],
+          'conditions': [
+            # Xcode toolchain needs raw asm or otherwise will crash at runtime.
+            ['cobalt_v8_emit_builtins_as_inline_asm==1', {
+              'sources': ['<(INTERMEDIATE_DIR)/embedded.S'],
+            },{
+              'sources': ['<(INTERMEDIATE_DIR)/embedded.cc'],
+            }]
+          ],
         }],
         ['v8_use_external_startup_data', {
           'sources': ['<(INTERMEDIATE_DIR)/snapshot_blob.bin'],
@@ -898,11 +908,15 @@
                     'trap-handler/handler-outside-win.cc',
                   ],
                 }],
-                ['host_os=="linux" and v8_target_arch=="x64"', {
-                  'sources': [
-                    "trap-handler/handler-inside-posix.cc",
-                    "trap-handler/handler-inside-posix.h",
-                    "trap-handler/handler-outside-posix.cc",
+                ['host_os=="linux" or host_os=="mac"', {
+                  'conditions': [
+                    ['v8_target_arch=="x64"', {
+                      'sources': [
+                        "trap-handler/handler-inside-posix.cc",
+                        "trap-handler/handler-inside-posix.h",
+                        "trap-handler/handler-outside-posix.cc",
+                      ],
+                    }],
                   ],
                 }],
               ],
@@ -1173,6 +1187,16 @@
                     '<(torque_output_root)',
                   ],
                   'msvs_disabled_warnings': [4351, 4355, 4800],
+                }],
+                ['host_os == "mac"', {
+                  'sources': [
+                    'base/debug/stack_trace_posix.cc',
+                    'base/platform/platform-macos.cc',
+                    'base/platform/platform-posix.h',
+                    'base/platform/platform-posix.cc',
+                    'base/platform/platform-posix-time.h',
+                    'base/platform/platform-posix-time.cc',
+                  ],
                 }],
               ],
             }, {

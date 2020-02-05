@@ -36,7 +36,9 @@ HTMLElement::DirState HTMLHtmlElement::GetUsedDirState() {
   // root element itself.
   // https://www.w3.org/TR/css-writing-modes-3/#principal-flow
   if (node_document() && node_document()->body()) {
-    return node_document()->body()->GetUsedDirState();
+    if (node_document()->body()->dir_state() != kDirNotDefined) {
+      return node_document()->body()->GetUsedDirState();
+    }
   }
   return HTMLElement::GetUsedDirState();
 }

@@ -22,46 +22,14 @@ namespace cobalt {
 namespace debug {
 namespace backend {
 
-namespace {
-// Definitions from the set specified here:
-// https://chromedevtools.github.io/devtools-protocol/tot/Runtime
-constexpr char kInspectorDomain[] = "Runtime";
-
-// File to load JavaScript runtime implementation from.
-constexpr char kScriptFile[] = "runtime_agent.js";
-}  // namespace
-
 RuntimeAgent::RuntimeAgent(DebugDispatcher* dispatcher, dom::Window* window)
-    : dispatcher_(dispatcher),
-      window_(window),
-      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this, kInspectorDomain)) {
-  DCHECK(dispatcher_);
-  if (!dispatcher_->RunScriptFile(kScriptFile)) {
-    DLOG(WARNING) << "Cannot execute Runtime initialization script.";
-  }
-
-  commands_["enable"] = &RuntimeAgent::Enable;
-  commands_["disable"] = &RuntimeAgent::Disable;
-  commands_["compileScript"] = &RuntimeAgent::CompileScript;
+    : AgentBase("Runtime", "runtime_agent.js", dispatcher), window_(window) {
+  commands_["compileScript"] =
+      base::Bind(&RuntimeAgent::CompileScript, base::Unretained(this));
 }
 
-void RuntimeAgent::Thaw(JSONObject agent_state) {
-  dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
-  script_loaded_ = dispatcher_->RunScriptFile(kScriptFile);
-  DLOG_IF(ERROR, !script_loaded_) << "Failed to load " << kScriptFile;
-}
-
-JSONObject RuntimeAgent::Freeze() {
-  dispatcher_->RemoveDomain(kInspectorDomain);
-  return JSONObject();
-}
-
-void RuntimeAgent::Enable(Command command) {
-  if (!script_loaded_) {
-    command.SendErrorResponse(Command::kInternalError,
-                              "Cannot create Runtime inspector.");
-    return;
-  }
+bool RuntimeAgent::DoEnable(Command* command) {
+  if (!AgentBase::DoEnable(command)) return false;
 
   // Send an executionContextCreated event.
   // https://chromedevtools.github.io/devtools-protocol/1-3/Runtime#event-executionContextCreated
@@ -70,15 +38,13 @@ void RuntimeAgent::Enable(Command command) {
   params->SetString("context.origin", window_->location()->origin());
   params->SetString("context.name", "Cobalt");
   params->SetBoolean("context.auxData.isDefault", true);
-  dispatcher_->SendEvent(
-      std::string(kInspectorDomain) + ".executionContextCreated", params);
-
-  command.SendResponse();
+  dispatcher_->SendEvent(domain_ + ".executionContextCreated", params);
+  return true;
 }
 
-void RuntimeAgent::Disable(Command command) { command.SendResponse(); }
-
 void RuntimeAgent::CompileScript(Command command) {
+  if (!EnsureEnabled(&command)) return;
+
   // TODO: Parse the JS without eval-ing it... This is to support:
   // a) Multi-line input from the devtools console
   // b) https://developers.google.com/web/tools/chrome-devtools/snippets

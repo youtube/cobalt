@@ -612,10 +612,6 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
       force_deterministic_rendering_(force_deterministic_rendering) {
   TRACE_EVENT0("cobalt::renderer", "HardwareRasterizer::Impl::Impl()");
 
-  DLOG(INFO) << "skia_cache_size_in_bytes: " << skia_cache_size_in_bytes;
-  DLOG(INFO) << "scratch_surface_cache_size_in_bytes: "
-             << scratch_surface_cache_size_in_bytes;
-
   graphics_context_->MakeCurrent();
 
   GrContextOptions context_options;
@@ -656,7 +652,6 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
 
   int max_surface_size = std::max(gr_context_->caps()->maxRenderTargetSize(),
                                   gr_context_->caps()->maxTextureSize());
-  DLOG(INFO) << "Max renderer surface size: " << max_surface_size;
 }
 
 HardwareRasterizer::Impl::~Impl() {

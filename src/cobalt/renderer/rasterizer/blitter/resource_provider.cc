@@ -20,7 +20,7 @@
 #include "cobalt/renderer/rasterizer/blitter/render_tree_blitter_conversions.h"
 #include "starboard/blitter.h"
 
-#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(BLITTER)
+#if SB_API_VERSION < SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)
 
 namespace cobalt {
 namespace renderer {
@@ -205,5 +205,4 @@ scoped_refptr<render_tree::Image> ResourceProvider::DrawOffscreenImage(
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // #if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION ||
-        // SB_HAS(BLITTER)
+#endif  // SB_API_VERSION < SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)

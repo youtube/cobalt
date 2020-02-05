@@ -15,7 +15,7 @@
 #ifndef COBALT_DEBUG_BACKEND_RUNTIME_AGENT_H_
 #define COBALT_DEBUG_BACKEND_RUNTIME_AGENT_H_
 
-#include "cobalt/debug/backend/command_map.h"
+#include "cobalt/debug/backend/agent_base.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"
 #include "cobalt/debug/command.h"
 #include "cobalt/debug/json_object.h"
@@ -29,26 +29,18 @@ namespace backend {
 // just enough to support console input. When using the V8 JavaScript engine,
 // this class is not needed since the V8 inspector implements the Runtime domain
 // for us.
-class RuntimeAgent {
+//
+// https://chromedevtools.github.io/devtools-protocol/tot/Runtime
+class RuntimeAgent : public AgentBase {
  public:
   RuntimeAgent(DebugDispatcher* dispatcher, dom::Window* window);
 
-  void Thaw(JSONObject agent_state);
-  JSONObject Freeze();
-
  private:
   void CompileScript(Command command);
-  void Disable(Command command);
-  void Enable(Command command);
 
-  DebugDispatcher* dispatcher_;
+  bool DoEnable(Command* command) override;
+
   dom::Window* window_;
-
-  // Map of member functions implementing commands.
-  CommandMap<RuntimeAgent> commands_;
-
-  // Whether we successfully loaded the agent's JavaScript implementation.
-  bool script_loaded_ = false;
 };
 
 }  // namespace backend

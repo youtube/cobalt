@@ -22,6 +22,7 @@
 #include "starboard/shared/gles/gl_call.h"
 
 SbBlitterSurfacePrivate::~SbBlitterSurfacePrivate() {
+  SbBlitterContextPrivate::ScopedCurrentContext scoped_current_context;
   GL_CALL(glDeleteTextures(1, &color_texture_handle));
   if (render_target != NULL) {
     GL_CALL(glDeleteFramebuffers(1, &render_target->framebuffer_handle));

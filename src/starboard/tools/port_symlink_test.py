@@ -24,6 +24,8 @@ import _env  # pylint: disable=relative-import,unused-import
 from starboard.tools import port_symlink
 from starboard.tools import util
 
+_TARGET_FILENAME = 'target.txt'
+
 
 # Replace this function signature for other implementations of symlink
 # functions.
@@ -54,16 +56,16 @@ class PortSymlinkTest(unittest.TestCase):
     self.tmp_dir = os.path.join(tempfile.gettempdir(), 'port_symlink')
     if os.path.exists(self.tmp_dir):
       Rmtree(self.tmp_dir)
-    self.from_dir = os.path.join(self.tmp_dir, 'from_dir')
-    self.test_txt = os.path.join(self.from_dir, 'test.txt')
-    self.inner_dir = os.path.join(self.from_dir, 'inner_dir')
+    self.target_dir = os.path.join(self.tmp_dir, 'target')
+    self.inner_dir = os.path.join(self.target_dir, 'inner')
     self.link_dir = os.path.join(self.tmp_dir, 'link')
+    self.target_file = os.path.join(self.target_dir, _TARGET_FILENAME)
     _MakeDirs(self.tmp_dir)
-    _MakeDirs(self.from_dir)
+    _MakeDirs(self.target_dir)
     _MakeDirs(self.inner_dir)
-    MakeSymLink(self.from_dir, self.link_dir)
-    with open(self.test_txt, 'w') as fd:
-      fd.write('hello world')
+    with open(self.target_file, 'w') as fd:
+      fd.write('hallo welt!')
+    MakeSymLink(self.target_dir, self.link_dir)
 
   def tearDown(self):
     Rmtree(self.tmp_dir)
@@ -71,33 +73,30 @@ class PortSymlinkTest(unittest.TestCase):
 
   def testSanity(self):
     self.assertTrue(os.path.isdir(self.tmp_dir))
-    self.assertTrue(os.path.isdir(self.from_dir))
+    self.assertTrue(os.path.isdir(self.target_dir))
     self.assertTrue(os.path.isdir(self.inner_dir))
 
-  def testReadSymlinkNormalDirectory(self):
-    self.assertIsNone(ReadSymLink(self.from_dir))
+  def testReadSymlinkNormalPath(self):
+    self.assertIsNone(ReadSymLink(self.target_dir))
 
-  def testReadSymlinkNormalFile(self):
-    self.assertIsNone(ReadSymLink(self.test_txt))
-
-  def testSymlinkDir(self):
+  def testSymlinkPath(self):
     self.assertTrue(os.path.exists(self.link_dir))
     self.assertTrue(IsSymLink(self.link_dir))
     from_dir_2 = ReadSymLink(self.link_dir)
-    self.assertTrue(_IsSamePath(from_dir_2, self.from_dir))
+    self.assertTrue(_IsSamePath(from_dir_2, self.target_dir))
 
-  def testRelativeSymlinkDir(self):
+  def testRelativeSymlinkPath(self):
     rel_link_dir = os.path.join(self.tmp_dir, 'foo', 'rel_link')
-    rel_dir_path = os.path.relpath(self.from_dir, rel_link_dir)
+    rel_dir_path = os.path.relpath(self.target_dir, rel_link_dir)
     MakeSymLink(rel_dir_path, rel_link_dir)
     self.assertTrue(IsSymLink(rel_link_dir))
     link_value = ReadSymLink(rel_link_dir)
-    self.assertIn('..', link_value,
-                  msg='Expected ".." in relative path %s' % link_value)
+    self.assertIn(
+        '..', link_value, msg='Expected ".." in relative path %s' % link_value)
 
   def testDelSymlink(self):
     link_dir2 = os.path.join(self.tmp_dir, 'link2')
-    MakeSymLink(self.from_dir, link_dir2)
+    MakeSymLink(self.target_dir, link_dir2)
     self.assertTrue(IsSymLink(link_dir2))
     port_symlink.DelSymLink(link_dir2)
     self.assertFalse(os.path.exists(link_dir2))
@@ -105,19 +104,30 @@ class PortSymlinkTest(unittest.TestCase):
   def testRmtreeRemovesLink(self):
     Rmtree(self.link_dir)
     self.assertFalse(os.path.exists(self.link_dir))
-    self.assertTrue(os.path.exists(self.from_dir))
+    self.assertTrue(os.path.exists(self.target_dir))
+
+  def testRmtreeRemovesBrokenLink(self):
+    Rmtree(self.target_dir)
+    # os.path.exists() will return false for broken links (not true for reparse
+    # points on Windows) since their target does not exist. Rmtree
+    # implementations should still be able to remove the link.
+    if not port_symlink.IsWindows():
+      self.assertFalse(os.path.exists(self.link_dir))
+    self.assertTrue(IsSymLink(self.link_dir))
+    Rmtree(self.link_dir)
+    self.assertFalse(IsSymLink(self.link_dir))
 
   def testRmtreeDoesNotFollowSymlinks(self):
     """Tests that Rmtree(...) will delete the symlink and not the target."""
     external_temp_dir = tempfile.mkdtemp()
     try:
-      external_temp_file = os.path.join(external_temp_dir, 'test.txt')
+      external_temp_file = os.path.join(external_temp_dir, _TARGET_FILENAME)
       with open(external_temp_file, 'w') as fd:
-        fd.write('HI')
+        fd.write('hallo!')
       link_dir = os.path.join(self.tmp_dir, 'foo', 'link_dir')
       MakeSymLink(external_temp_file, link_dir)
       Rmtree(self.tmp_dir)
-      # The target file should still exist
+      # The target file should still exist.
       self.assertTrue(os.path.isfile(external_temp_file))
     finally:
       shutil.rmtree(external_temp_file, ignore_errors=True)
@@ -134,10 +144,10 @@ class PortSymlinkTest(unittest.TestCase):
     print ''
     self.assertIn(self.link_dir, paths_nofollow_links)
     self.assertIn(self.link_dir, paths_follow_links)
-    self.assertIn(os.path.join(self.link_dir, 'test.txt'),
-                  paths_follow_links)
-    self.assertNotIn(os.path.join(self.link_dir, 'test.txt'),
-                     paths_nofollow_links)
+    self.assertIn(
+        os.path.join(self.link_dir, _TARGET_FILENAME), paths_follow_links)
+    self.assertNotIn(
+        os.path.join(self.link_dir, _TARGET_FILENAME), paths_nofollow_links)
 
 
 def _MakeDirs(path):

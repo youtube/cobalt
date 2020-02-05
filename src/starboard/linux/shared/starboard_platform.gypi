@@ -14,7 +14,6 @@
 {
   'includes': [
     '<(DEPTH)/starboard/shared/starboard/player/filter/player_filter.gypi',
-    '<(DEPTH)/starboard/stub/blitter_stub_sources.gypi',
   ],
   'variables': {
     'variables': {
@@ -24,7 +23,6 @@
     # This has_cdm gets exported to gyp files that include this one.
     'has_cdm%': '<(has_cdm)',
     'starboard_platform_sources': [
-      '<@(blitter_stub_sources)',
       '<@(filter_based_player_sources)',
       '<(DEPTH)/starboard/linux/shared/atomic_public.h',
       '<(DEPTH)/starboard/linux/shared/audio_sink_type_dispatcher.cc',
@@ -89,6 +87,8 @@
       '<(DEPTH)/starboard/shared/libaom/aom_library_loader.h',
       '<(DEPTH)/starboard/shared/libaom/aom_video_decoder.cc',
       '<(DEPTH)/starboard/shared/libaom/aom_video_decoder.h',
+      '<(DEPTH)/starboard/shared/libdav1d/dav1d_video_decoder.cc',
+      '<(DEPTH)/starboard/shared/libdav1d/dav1d_video_decoder.h',
       '<(DEPTH)/starboard/shared/libde265/de265_library_loader.cc',
       '<(DEPTH)/starboard/shared/libde265/de265_library_loader.h',
       '<(DEPTH)/starboard/shared/libde265/de265_video_decoder.cc',
@@ -258,7 +258,6 @@
       '<(DEPTH)/starboard/shared/starboard/file_storage/storage_get_record_size.cc',
       '<(DEPTH)/starboard/shared/starboard/file_storage/storage_open_record.cc',
       '<(DEPTH)/starboard/shared/starboard/file_storage/storage_read_record.cc',
-      '<(DEPTH)/starboard/shared/starboard/log_message.cc',
       '<(DEPTH)/starboard/shared/starboard/log_mutex.cc',
       '<(DEPTH)/starboard/shared/starboard/log_mutex.h',
       '<(DEPTH)/starboard/shared/starboard/log_raw_dump_stack.cc',
@@ -330,6 +329,7 @@
       '<(DEPTH)/starboard/shared/stub/accessibility_get_caption_settings.cc',
       '<(DEPTH)/starboard/shared/stub/accessibility_get_display_settings.cc',
       '<(DEPTH)/starboard/shared/stub/accessibility_get_text_to_speech_settings.cc',
+      '<(DEPTH)/starboard/shared/stub/accessibility_set_captions_enabled.cc',
       '<(DEPTH)/starboard/shared/linux/cpu_features_get.cc',
       '<(DEPTH)/starboard/shared/stub/cryptography_create_transformer.cc',
       '<(DEPTH)/starboard/shared/stub/cryptography_destroy_transformer.cc',
@@ -384,6 +384,7 @@
       '<(DEPTH)/third_party/boringssl/boringssl.gyp:crypto',
       '<(DEPTH)/third_party/de265_includes/de265_includes.gyp:de265',
       '<(DEPTH)/third_party/dlmalloc/dlmalloc.gyp:dlmalloc',
+      '<(DEPTH)/third_party/libdav1d/libdav1d.gyp:libdav1d',
       '<(DEPTH)/third_party/libevent/libevent.gyp:libevent',
       '<(DEPTH)/third_party/opus/opus.gyp:opus',
       '<(DEPTH)/third_party/pulseaudio_includes/pulseaudio_includes.gyp:pulseaudio',
@@ -453,6 +454,11 @@
           '<(DEPTH)/third_party/vpx_includes/vpx_includes.gyp:vpx',
         ],
       }],
+      ['sb_evergreen_compatible == 1', {
+        'starboard_platform_dependencies': [
+          '<(DEPTH)/third_party/llvm-project/libunwind/libunwind.gyp:unwind_starboard',
+       ]},
+      ],
     ],
   },
   'conditions': [

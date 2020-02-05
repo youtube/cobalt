@@ -118,6 +118,7 @@ class BlockContainerBox : public ContainerBox {
       const base::Optional<LayoutUnit>& maybe_height);
 
   void UpdateWidthAssumingAbsolutelyPositionedBox(
+      BaseDirection containing_block_direction,
       LayoutUnit containing_block_width,
       const base::Optional<LayoutUnit>& maybe_left,
       const base::Optional<LayoutUnit>& maybe_right,

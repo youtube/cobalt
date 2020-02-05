@@ -272,6 +272,8 @@ class Box : public base::RefCounted<Box> {
   // containing block's content box or padding box) to its content box.
   Vector2dLayoutUnit GetContainingBlockOffsetFromItsContentBox(
       const ContainerBox* containing_block) const;
+  InsetsLayoutUnit GetContainingBlockInsetFromItsContentBox(
+      const ContainerBox* containing_block) const;
 
   // Returns boxes relative to the root or containing block, that take into
   // account transforms.
@@ -313,6 +315,15 @@ class Box : public base::RefCounted<Box> {
   void SetStaticPositionLeftFromParent(LayoutUnit left);
   void SetStaticPositionLeftFromContainingBlockToParent(LayoutUnit left);
   LayoutUnit GetStaticPositionLeft() const;
+
+  // The static position for 'right' is the distance from the right edge of the
+  // containing block to the right margin edge of the same hypothetical box as
+  // above. The value is positive if the hypothetical box is to the left of the
+  // containing block's edge.
+  //   https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width
+  void SetStaticPositionRightFromParent(LayoutUnit right);
+  void SetStaticPositionRightFromContainingBlockToParent(LayoutUnit right);
+  LayoutUnit GetStaticPositionRight() const;
 
   // For the purposes of this section and the next, the term "static position"
   // (of an element) refers, roughly, to the position an element would have had
@@ -418,7 +429,11 @@ class Box : public base::RefCounted<Box> {
   LayoutUnit GetContentBoxTopEdgeOffsetFromMarginBox() const;
   Vector2dLayoutUnit GetContentBoxOffsetFromContainingBlockContentBox(
       const ContainerBox* containing_block) const;
+  InsetsLayoutUnit GetContentBoxInsetFromContainingBlockContentBox(
+      const ContainerBox* containing_block) const;
   Vector2dLayoutUnit GetContentBoxOffsetFromContainingBlock() const;
+  InsetsLayoutUnit GetContentBoxInsetFromContainingBlock(
+      const ContainerBox* containing_block) const;
   LayoutUnit GetContentBoxLeftEdgeOffsetFromContainingBlock() const;
   LayoutUnit GetContentBoxTopEdgeOffsetFromContainingBlock() const;
   LayoutUnit GetContentBoxStartEdgeOffsetFromContainingBlock(
@@ -919,6 +934,11 @@ class Box : public base::RefCounted<Box> {
   // 'static' and 'float' had been 'none'. The value is negative if the
   // hypothetical box is to the left of the containing block.
   //   https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width
+  // The static position for 'right' is the distance from the right edge of the
+  // containing block to the right margin edge of the same hypothetical box as
+  // above. The value is positive if the hypothetical box is to the left of the
+  // containing block's edge.
+  //   https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width
   // For the purposes of this section and the next, the term "static position"
   // (of an element) refers, roughly, to the position an element would have had
   // in the normal flow. More precisely, the static position for 'top' is the
@@ -926,8 +946,8 @@ class Box : public base::RefCounted<Box> {
   // of a hypothetical box that would have been the first box of the element if
   // its specified 'position' value had been 'static'.
   //   https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-height
-  Vector2dLayoutUnit static_position_offset_from_parent_;
-  Vector2dLayoutUnit static_position_offset_from_containing_block_to_parent_;
+  InsetsLayoutUnit static_position_offset_from_parent_;
+  InsetsLayoutUnit static_position_offset_from_containing_block_to_parent_;
 
   // Used values of "margin-left", "margin-top", "margin-right",
   // and "margin-bottom".

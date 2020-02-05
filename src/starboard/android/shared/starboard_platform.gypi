@@ -18,7 +18,6 @@
   },
   'includes': [
     '<(DEPTH)/starboard/shared/starboard/player/filter/player_filter.gypi',
-    '<(DEPTH)/starboard/stub/blitter_stub_sources.gypi',
   ],
   'targets': [
     {
@@ -50,7 +49,6 @@
         '<(DEPTH)/starboard/android/shared/bionic',
       ],
       'sources': [
-        '<@(blitter_stub_sources)',
         '<@(filter_based_player_sources)',
         'accessibility_get_caption_settings.cc',
         'accessibility_get_display_settings.cc',
@@ -371,7 +369,6 @@
         '<(DEPTH)/starboard/shared/starboard/file_storage/storage_get_record_size.cc',
         '<(DEPTH)/starboard/shared/starboard/file_storage/storage_open_record.cc',
         '<(DEPTH)/starboard/shared/starboard/file_storage/storage_read_record.cc',
-        '<(DEPTH)/starboard/shared/starboard/log_message.cc',
         '<(DEPTH)/starboard/shared/starboard/log_mutex.cc',
         '<(DEPTH)/starboard/shared/starboard/log_mutex.h',
         '<(DEPTH)/starboard/shared/starboard/log_raw_dump_stack.cc',
@@ -417,7 +414,6 @@
         '<(DEPTH)/starboard/shared/starboard/player/player_get_preferred_output_mode_prefer_punchout.cc',
         '<(DEPTH)/starboard/shared/starboard/player/player_internal.cc',
         '<(DEPTH)/starboard/shared/starboard/player/player_internal.h',
-        '<(DEPTH)/starboard/shared/starboard/player/player_output_mode_supported.cc',
         '<(DEPTH)/starboard/shared/starboard/player/player_seek.cc',
         '<(DEPTH)/starboard/shared/starboard/player/player_seek2.cc',
         '<(DEPTH)/starboard/shared/starboard/player/player_set_volume.cc',

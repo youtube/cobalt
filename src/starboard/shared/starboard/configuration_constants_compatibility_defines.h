@@ -45,6 +45,8 @@
 
 #define kSbHasAc3Audio SB_HAS_AC3_AUDIO
 
+#define kSbHasAsyncAudioFramesReporting SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING
+
 #define kSbHasAudiolessVideo SB_HAS_AUDIOLESS_VIDEO
 
 #define kSbHasMediaWebmVp9Support SB_HAS_MEDIA_WEBM_VP9_SUPPORT

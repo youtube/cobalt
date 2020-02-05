@@ -61,6 +61,7 @@
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/layout/topmost_event_target.h"
 #include "cobalt/loader/image/animated_image_tracker.h"
+#include "cobalt/loader/switches.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/page_visibility/visibility_state.h"
 #include "cobalt/script/error_report.h"
@@ -486,37 +487,10 @@ WebModule::Impl::Impl(const ConstructionData& data)
           false, "True when a render tree is produced but not yet rasterized."),
       resource_provider_(data.resource_provider),
       resource_provider_type_id_(data.resource_provider->GetTypeId()) {
-  // Currently we rely on a platform to explicitly specify that it supports
-  // the map-to-mesh filter via the ENABLE_MAP_TO_MESH define (and the
-  // 'enable_map_to_mesh' gyp variable).  When we have better support for
-  // checking for decode to texture support, it would be nice to switch this
-  // logic to something like:
-  //
-  //   supports_map_to_mesh =
-  //      (resource_provider_->Supports3D() && SbPlayerSupportsDecodeToTexture()
-  //           ? css_parser::Parser::kSupportsMapToMesh
-  //           : css_parser::Parser::kDoesNotSupportMapToMesh);
-  //
-  // Note that it is important that we do not parse map-to-mesh filters if we
-  // cannot render them, since web apps may check for map-to-mesh support by
-  // testing whether it parses or not via the CSS.supports() Web API.
-  css_parser::Parser::SupportsMapToMeshFlag supports_map_to_mesh;
-#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
-  if (SbGetGlesInterface()) {
-    supports_map_to_mesh =
-        data.options.enable_map_to_mesh_rectangular
-            ? css_parser::Parser::kSupportsMapToMeshRectangular
-            : css_parser::Parser::kSupportsMapToMesh;
-  } else {
-    supports_map_to_mesh = css_parser::Parser::kDoesNotSupportMapToMesh;
-  }
-#elif defined(ENABLE_MAP_TO_MESH)
-  supports_map_to_mesh = data.options.enable_map_to_mesh_rectangular
-                             ? css_parser::Parser::kSupportsMapToMeshRectangular
-                             : css_parser::Parser::kSupportsMapToMesh;
-#else
-  supports_map_to_mesh = css_parser::Parser::kDoesNotSupportMapToMesh;
-#endif
+  css_parser::Parser::SupportsMapToMeshFlag supports_map_to_mesh =
+      data.options.enable_map_to_mesh
+          ? css_parser::Parser::kSupportsMapToMesh
+          : css_parser::Parser::kDoesNotSupportMapToMesh;
 
   css_parser_ =
       css_parser::Parser::Create(debugger_hooks_, supports_map_to_mesh);
@@ -689,8 +663,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
       base::Bind(&WebModule::Impl::OnStopDispatchEvent, base::Unretained(this)),
       data.options.provide_screenshot_function, &synchronous_loader_interrupt_,
       data.options.enable_inline_script_warnings, data.ui_nav_root,
-      data.options.csp_insecure_allowed_token, data.dom_max_element_depth,
-      data.options.video_playback_rate_multiplier,
+      data.options.enable_map_to_mesh, data.options.csp_insecure_allowed_token,
+      data.dom_max_element_depth, data.options.video_playback_rate_multiplier,
 #if defined(ENABLE_TEST_RUNNER)
       data.options.layout_trigger == layout::LayoutManager::kTestRunnerMode
           ? dom::Window::kClockTypeTestRunner

@@ -42,6 +42,9 @@ void V8cHeapTracer::RegisterV8References(
 void V8cHeapTracer::TracePrologue() {
   TRACE_EVENT0("cobalt::script", "V8cHeapTracer::TracePrologue");
 
+  if (disabled_) {
+    return;
+  }
   DCHECK_EQ(frontier_.size(), 0);
   DCHECK_EQ(visited_.size(), 0);
 
@@ -58,6 +61,9 @@ void V8cHeapTracer::TracePrologue() {
 bool V8cHeapTracer::AdvanceTracing(double deadline_in_ms) {
   TRACE_EVENT0("cobalt::script", "V8cHeapTracer::AdvanceTracing");
 
+  if (disabled_) {
+    return true;
+  }
   double start_time = platform_->MonotonicallyIncreasingTime();
   while (platform_->MonotonicallyIncreasingTime() - start_time <
          deadline_in_ms) {
@@ -92,11 +98,19 @@ bool V8cHeapTracer::AdvanceTracing(double deadline_in_ms) {
   return true;
 }
 
-bool V8cHeapTracer::IsTracingDone() { return frontier_.empty(); }
+bool V8cHeapTracer::IsTracingDone() {
+  if (disabled_) {
+    return true;
+  }
+  return frontier_.empty();
+}
 
 void V8cHeapTracer::TraceEpilogue() {
   TRACE_EVENT0("cobalt::script", "V8cHeapTracer::TraceEpilogue");
 
+  if (disabled_) {
+    return;
+  }
   DCHECK(frontier_.empty());
   visited_.clear();
 }
@@ -106,6 +120,7 @@ void V8cHeapTracer::EnterFinalPause(EmbedderStackState stack_state) {
 }
 
 void V8cHeapTracer::Trace(Traceable* traceable) {
+  DCHECK(!disabled_);
   MaybeAddToFrontier(traceable);
 }
 

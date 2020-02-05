@@ -85,7 +85,6 @@
 	      '<(DEPTH)/starboard/shared/stub/system_gles.cc',
       ],
       'sources!': [
-        '<@(blitter_stub_sources)',
 	      '<(DEPTH)/starboard/shared/gles/system_gles2.cc',
       ],
       'defines': [

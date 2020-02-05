@@ -45,8 +45,10 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
     variables = super(LinuxConfiguration, self).GetVariables(
         config_name, use_clang=1)
     variables.update({
-        'javascript_engine': 'v8',
-        'cobalt_enable_jit': 1,
+        'javascript_engine':
+            'v8',
+        'cobalt_enable_jit':
+            1,
         'include_path_platform_deploy_gypi':
             'starboard/linux/shared/platform_deploy.gypi',
     })
@@ -98,24 +100,4 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
 
   __FILTERED_TESTS = {  # pylint: disable=invalid-name
       'nplb': ['SbDrmTest.AnySupportedKeySystems',],
-      # TODO: Temporarily disable these tests because they are failing on av1
-      # formatted files that were added. The root cause is probably within the
-      # decoder implementation so it is pending further investigation.
-      'player_filter_tests': [
-          'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull/4',
-          'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull/8',
-          'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull/10',
-          'VideoDecoderTests/VideoDecoderTest.MultipleInputs/4',
-          'VideoDecoderTests/VideoDecoderTest.MultipleInputs/8',
-          'VideoDecoderTests/VideoDecoderTest.MultipleInputs/10',
-          'VideoDecoderTests/VideoDecoderTest.MultipleResets/4',
-          'VideoDecoderTests/VideoDecoderTest.MultipleResets/8',
-          'VideoDecoderTests/VideoDecoderTest.MultipleResets/10',
-          'VideoDecoderTests/VideoDecoderTest.Preroll/4',
-          'VideoDecoderTests/VideoDecoderTest.Preroll/8',
-          'VideoDecoderTests/VideoDecoderTest.Preroll/10',
-          'VideoDecoderTests/VideoDecoderTest.ResetAfterInput/4',
-          'VideoDecoderTests/VideoDecoderTest.ResetAfterInput/8',
-          'VideoDecoderTests/VideoDecoderTest.ResetAfterInput/10',
-      ],
   }

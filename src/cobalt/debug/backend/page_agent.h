@@ -16,34 +16,26 @@
 #define COBALT_DEBUG_BACKEND_PAGE_AGENT_H_
 
 #include <memory>
-#include <string>
 
-#include "base/memory/weak_ptr.h"
-#include "cobalt/debug/backend/command_map.h"
+#include "cobalt/debug/backend/agent_base.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"
 #include "cobalt/debug/backend/render_layer.h"
 #include "cobalt/debug/command.h"
-#include "cobalt/debug/json_object.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/render_tree/resource_provider.h"
-#include "cobalt/script/script_debugger.h"
 
 namespace cobalt {
 namespace debug {
 namespace backend {
 
-class PageAgent {
+// https://chromedevtools.github.io/devtools-protocol/tot/Page
+class PageAgent : public AgentBase {
  public:
   PageAgent(DebugDispatcher* dispatcher, dom::Window* window,
             std::unique_ptr<RenderLayer> render_layer,
             render_tree::ResourceProvider* resource_provider);
 
-  void Thaw(JSONObject agent_state);
-  JSONObject Freeze();
-
  private:
-  void Enable(Command command);
-  void Disable(Command command);
   void Reload(Command command);
   void GetResourceTree(Command command);
   void SetOverlayMessage(Command command);
@@ -51,11 +43,6 @@ class PageAgent {
   dom::Window* window_;
   std::unique_ptr<RenderLayer> render_layer_;
   render_tree::ResourceProvider* resource_provider_;
-
-  DebugDispatcher* dispatcher_;
-
-  // Map of member functions implementing commands.
-  CommandMap<PageAgent> commands_;
 };
 
 }  // namespace backend

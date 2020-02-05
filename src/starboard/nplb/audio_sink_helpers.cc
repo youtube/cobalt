@@ -17,6 +17,7 @@
 #include <algorithm>
 
 #include "starboard/common/log.h"
+#include "starboard/configuration_constants.h"
 
 namespace starboard {
 namespace nplb {
@@ -203,15 +204,22 @@ void AudioSinkTestEnvironment::OnUpdateSourceStatus(int* frames_in_buffer,
   condition_variable_.Signal();
 }
 
-void AudioSinkTestEnvironment::OnConsumeFrames(int frames_consumed
-#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-                                               ,
-                                               SbTime frames_consumed_at
-#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-                                               ) {
-#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-  SB_DCHECK(frames_consumed_at <= SbTimeGetMonotonicNow());
-#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+void AudioSinkTestEnvironment::OnConsumeFrames(
+    int frames_consumed
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
+    SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+    ,
+    SbTime frames_consumed_at
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+        // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+    ) {
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
+    SB_HAS(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
+  if (kSbHasAsyncAudioFramesReporting) {
+    SB_DCHECK(frames_consumed_at <= SbTimeGetMonotonicNow());
+  }
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+        // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
   ScopedLock lock(mutex_);
   frames_consumed_ += frames_consumed;
   condition_variable_.Signal();
@@ -230,18 +238,28 @@ void AudioSinkTestEnvironment::UpdateSourceStatusFunc(int* frames_in_buffer,
 }
 
 // static
-void AudioSinkTestEnvironment::ConsumeFramesFunc(int frames_consumed,
-#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-                                                 SbTime frames_consumed_at,
-#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-                                                 void* context) {
+void AudioSinkTestEnvironment::ConsumeFramesFunc(
+    int frames_consumed,
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
+    SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+    SbTime frames_consumed_at,
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+        // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+    void* context) {
   AudioSinkTestEnvironment* environment =
       reinterpret_cast<AudioSinkTestEnvironment*>(context);
-#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
+    SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+  if (!kSbHasAsyncAudioFramesReporting)
+    frames_consumed_at = (SbTime)kSbTimeMax;
+#endif
   environment->OnConsumeFrames(frames_consumed, frames_consumed_at);
-#else   // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+        // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
   environment->OnConsumeFrames(frames_consumed);
-#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+        // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 }
 
 }  // namespace nplb

@@ -20,6 +20,7 @@ import os
 
 import _env  # pylint: disable=unused-import, relative-import
 from starboard.build.application_configuration import ApplicationConfiguration
+from starboard.optional import get_optional_tests
 from starboard.tools import environment
 from starboard.tools import paths
 from starboard.tools import platform
@@ -256,13 +257,6 @@ class PlatformConfiguration(object):
         # support JIT.
         'javascript_engine': 'v8',
 
-        # Disable JIT and run in interpreter-only mode by default. It can be
-        # set to 1 to run in JIT mode.  For SpiderMonkey in particular, we
-        # have found that disabling JIT often results in faster JavaScript
-        # execution and lower memory usage.  Setting this to 0 for engine that
-        # requires JIT, or 1 on a platform that does not support JIT, is a
-        # usage error.
-        'cobalt_enable_jit': 1,
         'sabi_json_path': self.GetPathToSabiJsonFile(),
 
         # TODO: Remove these compatibility variables.
@@ -363,10 +357,7 @@ class PlatformConfiguration(object):
         'player_filter_tests',
         'starboard_platform_tests',
     ]
-    if os.path.exists(os.path.join(paths.STARBOARD_ROOT, 'elf_loader')):
-      tests.append('elf_loader_test')
-    if os.path.exists(os.path.join(paths.STARBOARD_ROOT, 'loader_app')):
-      tests.append('installation_manager_test')
+    tests.extend(get_optional_tests.DoMain())
     return tests
 
   def GetDefaultTargetBuildFile(self):

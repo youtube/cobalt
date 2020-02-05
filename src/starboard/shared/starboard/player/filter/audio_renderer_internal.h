@@ -61,13 +61,13 @@ class AudioRenderer : public MediaTimeProvider,
   // 1. Avoid using too much memory.
   // 2. Have the audio cache full to simulate the state that the renderer can no
   //    longer accept more data.
-  // |max_frames_per_append| is the max number of frames that the audio renderer
+  // |min_frames_per_append| is the min number of frames that the audio renderer
   // tries to append to the sink buffer at once.
   AudioRenderer(scoped_ptr<AudioDecoder> decoder,
                 scoped_ptr<AudioRendererSink> audio_renderer_sink,
                 const SbMediaAudioSampleInfo& audio_sample_info,
                 int max_cached_frames,
-                int max_frames_per_append);
+                int min_frames_per_append);
   ~AudioRenderer();
 
   void WriteSample(const scoped_refptr<InputBuffer>& input_buffer);
@@ -103,7 +103,7 @@ class AudioRenderer : public MediaTimeProvider,
   };
 
   const int max_cached_frames_;
-  const int max_frames_per_append_;
+  const int min_frames_per_append_;
   // |buffered_frames_to_start_| would be initialized in OnFirstOutput().
   // Before it's initialized, set it to a large number.
   int buffered_frames_to_start_ = 48 * 1024;
@@ -136,11 +136,14 @@ class AudioRenderer : public MediaTimeProvider,
                        int* offset_in_frames,
                        bool* is_playing,
                        bool* is_eos_reached) override;
-#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
+    SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
   void ConsumeFrames(int frames_consumed, SbTime frames_consumed_at) override;
-#else   // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+        // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
   void ConsumeFrames(int frames_consumed) override;
-#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+        // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 
   void UpdateVariablesOnSinkThread_Locked(SbTime system_time_on_consume_frames);
 

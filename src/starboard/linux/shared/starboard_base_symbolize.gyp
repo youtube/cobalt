@@ -20,6 +20,13 @@
         '<(DEPTH)/base/third_party/symbolize/demangle.cc',
         '<(DEPTH)/base/third_party/symbolize/symbolize.cc',
       ],
+      'conditions': [
+        ['sb_evergreen_compatible == 1', {
+          'dependencies': [
+            '<(DEPTH)/starboard/elf_loader/evergreen_info.gyp:evergreen_info',
+          ],},
+        ],
+      ],
     },
   ],
 }

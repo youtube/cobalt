@@ -118,15 +118,15 @@ int SandboxMain(int argc, char** argv) {
   demuxer->Initialize(&demuxer_host, base::Bind(OnDemuxerStatus), false);
 
   ChunkDemuxer::Status status =
-      demuxer->AddId("audio", "audio/mp4", "mp4a.40.2");
+      demuxer->AddId("audio", "audio/mp4; codecs=\"mp4a.40.2\"");
   DCHECK_EQ(status, ChunkDemuxer::kOk);
 
   int video_url_length = SbStringGetLength(argv[2]);
   if (video_url_length > 5 &&
       SbStringCompare(argv[2] + video_url_length - 5, ".webm", 5) == 0) {
-    status = demuxer->AddId("video", "video/webm", "vp9");
+    status = demuxer->AddId("video", "video/webm; codecs=\"vp9\"");
   } else {
-    status = demuxer->AddId("video", "video/mp4", "avc1.640028");
+    status = demuxer->AddId("video", "video/mp4; codecs=\"avc1.640028\"");
   }
   DCHECK_EQ(status, ChunkDemuxer::kOk);
 

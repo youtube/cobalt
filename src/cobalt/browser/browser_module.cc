@@ -58,7 +58,7 @@
 
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 #include "base/memory/ptr_util.h"
-#include "starboard/ps4/core_dump_handler.h"
+#include STARBOARD_CORE_DUMP_HANDLER_INCLUDE
 #endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 
 using cobalt::cssom::ViewportSize;
@@ -438,8 +438,11 @@ BrowserModule::BrowserModule(const GURL& url,
   lifecycle_observers_.AddObserver(debug_console_.get());
 #endif  // defined(ENABLE_DEBUGGER)
 
-  if (command_line->HasSwitch(switches::kEnableMapToMeshRectanglar)) {
-    options_.web_module_options.enable_map_to_mesh_rectangular = true;
+  const renderer::Pipeline* pipeline =
+      renderer_module_ ? renderer_module_->pipeline() : nullptr;
+  if (command_line->HasSwitch(switches::kDisableMapToMesh) ||
+      !renderer::Pipeline::IsMapToMeshEnabled(pipeline)) {
+    options_.web_module_options.enable_map_to_mesh = false;
   }
 
   if (qr_overlay_info_layer_) {
@@ -1820,7 +1823,7 @@ void BrowserModule::ApplyAutoMemSettings() {
       GetViewportSize().width_height(), options_.command_line_auto_mem_settings,
       options_.build_auto_mem_settings));
 
-  LOG(INFO) << "\n\n" << auto_mem_->ToPrettyPrintString(SbLogIsTty()) << "\n\n";
+  LOG(INFO) << auto_mem_->ToPrettyPrintString(SbLogIsTty());
 
   if (javascript_gc_threshold_in_bytes_) {
     DCHECK_EQ(*javascript_gc_threshold_in_bytes_,

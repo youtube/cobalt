@@ -12,19 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 {
-  'includes': [
-    'blitter_stub_sources.gypi',
-  ],
   'variables': {
     'stub_sources': [
-        '<@(blitter_stub_sources)',
         '<(DEPTH)/starboard/shared/starboard/application.cc',
         '<(DEPTH)/starboard/shared/starboard/command_line.cc',
         '<(DEPTH)/starboard/shared/starboard/command_line.h',
         '<(DEPTH)/starboard/shared/starboard/event_cancel.cc',
         '<(DEPTH)/starboard/shared/starboard/event_schedule.cc',
         '<(DEPTH)/starboard/shared/starboard/file_mode_string_to_flags.cc',
-        '<(DEPTH)/starboard/shared/starboard/log_message.cc',
         '<(DEPTH)/starboard/shared/starboard/player/filter/stub_player_components_impl.cc',
         '<(DEPTH)/starboard/shared/starboard/queue_application.cc',
         '<(DEPTH)/starboard/shared/stub/accessibility_get_caption_settings.cc',

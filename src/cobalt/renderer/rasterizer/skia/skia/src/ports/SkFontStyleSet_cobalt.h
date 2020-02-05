@@ -20,7 +20,7 @@
 #include "SkFontMgr.h"
 #include "SkStream.h"
 #include "SkString.h"
-#include "SkTArray.h"
+#include "SkTHash.h"
 #include "SkTypeface.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontUtil_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkStream_cobalt.h"
@@ -76,10 +76,18 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
     sk_sp<SkTypeface> typeface;
   };
 
+  enum FontFormatSetting {
+    kTtf,
+    kWoff2,
+    kTtfPreferred,
+    kWoff2Preferred,
+  };
+
   SkFontStyleSet_Cobalt(
       const FontFamilyInfo& family_info, const char* base_path,
       SkFileMemoryChunkStreamManager* const local_typeface_stream_manager,
-      SkMutex* const manager_owned_mutex);
+      SkMutex* const manager_owned_mutex,
+      FontFormatSetting font_format_setting);
 
   // From SkFontStyleSet
   int count() override;

@@ -21,7 +21,7 @@
 #include "cobalt/render_tree/brush.h"
 #include "starboard/blitter.h"
 
-#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(BLITTER)
+#if SB_API_VERSION < SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)
 
 namespace cobalt {
 namespace renderer {
@@ -53,5 +53,4 @@ SbBlitterSurface LinearGradientCache::Get(const LinearGradientBrush& brush) {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // #if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION ||
-        // SB_HAS(BLITTER)
+#endif  // SB_API_VERSION < SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)

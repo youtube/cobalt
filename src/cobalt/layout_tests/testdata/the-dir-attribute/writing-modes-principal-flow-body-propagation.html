@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <!--
- | The body element's direction should propagate to the root element.
+ | As a special case for handling HTML documents, if the root element has a body
+ | child element, the used value of the of writing-mode and direction properties
+ | on root element are taken from the computed writing-mode and direction of the
+ | first such child element instead of from the root element's own values.
  |   https://www.w3.org/TR/css-writing-modes-3/#principal-flow
  -->
 <html dir="ltr">

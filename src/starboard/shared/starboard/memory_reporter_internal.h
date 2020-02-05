@@ -25,13 +25,11 @@ extern "C" {
 
 // Internal function used to track mapped memory. This is used internally by
 // implementations of SbMemoryMap().
-SB_EXPORT void SbMemoryReporterReportMappedMemory(const void* memory,
-                                                  size_t size);
+void SbMemoryReporterReportMappedMemory(const void* memory, size_t size);
 
 // Internal function used to track mapped memory. This is used internally by
 // implementations of SbMemoryUnmap().
-SB_EXPORT void SbMemoryReporterReportUnmappedMemory(const void* memory,
-                                                    size_t size);
+void SbMemoryReporterReportUnmappedMemory(const void* memory, size_t size);
 
 #ifdef __cplusplus
 }  // extern "C"

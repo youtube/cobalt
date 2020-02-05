@@ -82,15 +82,6 @@ class PlayerComponentsImpl : public PlayerComponents {
     *video_renderer_sink = new VideoRendererSinkImpl(video_parameters.player);
     return true;
   }
-
-  void GetAudioRendererParams(int* max_cached_frames,
-                              int* max_frames_per_append) const override {
-    SB_DCHECK(max_cached_frames);
-    SB_DCHECK(max_frames_per_append);
-
-    *max_cached_frames = 128 * 1024;
-    *max_frames_per_append = 16384;
-  }
 };
 
 }  // namespace

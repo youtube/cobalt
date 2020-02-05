@@ -30,13 +30,6 @@ using math::Clamp;
 using render_tree::ColorRGBA;
 
 namespace {
-// Definitions from the set specified here:
-// https://chromedevtools.github.io/devtools-protocol/tot/Overlay
-constexpr char kInspectorDomain[] = "Overlay";
-
-// File to load JavaScript Overlay DevTools domain implementation from.
-constexpr char kScriptFile[] = "overlay_agent.js";
-
 // Returns the float value of a param, or 0.0 if undefined or non-numeric.
 float GetFloatParam(const Value* params, base::StringPiece key) {
   if (!params || !params->is_dict()) return 0.0f;
@@ -78,51 +71,21 @@ scoped_refptr<render_tree::RectNode> RenderHighlightRect(const Value* params) {
 
 OverlayAgent::OverlayAgent(DebugDispatcher* dispatcher,
                            std::unique_ptr<RenderLayer> render_layer)
-    : dispatcher_(dispatcher),
-      render_layer_(std::move(render_layer)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this, kInspectorDomain)) {
-  DCHECK(dispatcher_);
+    : AgentBase("Overlay", "overlay_agent.js", dispatcher),
+      render_layer_(std::move(render_layer)) {
   DCHECK(render_layer_);
 
-  commands_["disable"] = &OverlayAgent::Disable;
-  commands_["enable"] = &OverlayAgent::Enable;
-  commands_["highlightNode"] = &OverlayAgent::HighlightNode;
-  commands_["highlightRect"] = &OverlayAgent::HighlightRect;
-  commands_["hideHighlight"] = &OverlayAgent::HideHighlight;
-}
-
-void OverlayAgent::Thaw(JSONObject agent_state) {
-  dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
-  script_loaded_ = dispatcher_->RunScriptFile(kScriptFile);
-  DLOG_IF(ERROR, !script_loaded_) << "Failed to load " << kScriptFile;
-}
-
-JSONObject OverlayAgent::Freeze() {
-  dispatcher_->RemoveDomain(kInspectorDomain);
-  return JSONObject();
-}
-
-void OverlayAgent::Enable(Command command) {
-  if (script_loaded_) {
-    enabled_ = true;
-    command.SendResponse();
-  } else {
-    command.SendErrorResponse(Command::kInternalError,
-                              "Cannot create Overlay inspector.");
-  }
-}
-
-void OverlayAgent::Disable(Command command) {
-  enabled_ = false;
-  command.SendResponse();
+  commands_["highlightNode"] =
+      base::Bind(&OverlayAgent::HighlightNode, base::Unretained(this));
+  commands_["highlightRect"] =
+      base::Bind(&OverlayAgent::HighlightRect, base::Unretained(this));
+  commands_["hideHighlight"] =
+      base::Bind(&OverlayAgent::HideHighlight, base::Unretained(this));
 }
 
 void OverlayAgent::HighlightNode(Command command) {
-  if (!enabled_) {
-    command.SendErrorResponse(Command::kInvalidRequest,
-                              "Overlay inspector not enabled.");
-    return;
-  }
+  if (!EnsureEnabled(&command)) return;
+
   // Use the injected JavaScript helper to get the rectangles to highlight for
   // the specified node.
   JSONObject rects_response = dispatcher_->RunScriptCommand(
@@ -147,12 +110,16 @@ void OverlayAgent::HighlightNode(Command command) {
 }
 
 void OverlayAgent::HighlightRect(Command command) {
+  if (!EnsureEnabled(&command)) return;
+
   JSONObject params = JSONParse(command.GetParams());
   render_layer_->SetFrontLayer(RenderHighlightRect(params.get()));
   command.SendResponse();
 }
 
 void OverlayAgent::HideHighlight(Command command) {
+  if (!EnsureEnabled(&command)) return;
+
   render_layer_->SetFrontLayer(scoped_refptr<render_tree::Node>());
   command.SendResponse();
 }

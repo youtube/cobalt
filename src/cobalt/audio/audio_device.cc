@@ -44,9 +44,11 @@ class AudioDevice::Impl {
                                      int* offset_in_frames, bool* is_playing,
                                      bool* is_eos_reached, void* context);
   static void ConsumeFramesFunc(int frames_consumed,
-#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
+    SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
                                 SbTime frames_consumed_at,
-#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+                                // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
                                 void* context);
 
   void UpdateSourceStatus(int* frames_in_buffer, int* offset_in_frames,
@@ -144,14 +146,19 @@ void AudioDevice::Impl::UpdateSourceStatusFunc(int* frames_in_buffer,
 }
 
 // static
-void AudioDevice::Impl::ConsumeFramesFunc(int frames_consumed,
-#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-                                          SbTime frames_consumed_at,
-#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-                                          void* context) {
-#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+void AudioDevice::Impl::ConsumeFramesFunc(
+    int frames_consumed,
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
+    SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+    SbTime frames_consumed_at,
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+        // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+    void* context) {
+#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
+    SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
   SB_UNREFERENCED_PARAMETER(frames_consumed_at);
-#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+        // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 
   AudioDevice::Impl* impl = reinterpret_cast<AudioDevice::Impl*>(context);
   DCHECK(impl);
@@ -174,7 +181,7 @@ void AudioDevice::Impl::UpdateSourceStatus(int* frames_in_buffer,
   DCHECK_GE(frames_rendered_, frames_consumed_);
   *frames_in_buffer = static_cast<int>(frames_rendered_ - frames_consumed_);
 
-  if ((frames_per_channel_ - *frames_in_buffer) >= kRenderBufferSizeFrames) {
+  while ((frames_per_channel_ - *frames_in_buffer) >= kRenderBufferSizeFrames) {
     // If there was silence last time we were called, then the buffer has
     // already been zeroed out and we don't need to do it again.
     if (!was_silence_last_update_) {

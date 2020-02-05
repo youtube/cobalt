@@ -419,6 +419,10 @@ int32 HTMLElement::scroll_height() {
 
 // Algorithm for scrollLeft:
 //   https://www.w3.org/TR/cssom-view-1/#dom-element-scrollleft
+// For RTL, the rightmost content is visible when scrollLeft == 0, and
+// scrollLeft values are <= 0. Chrome does not behave this way currently, but
+// it is the spec that has been adopted.
+//   https://readable-email.org/list/www-style/topic/cssom-view-value-of-scrollleft-in-rtl-situations-is-completely-busted-across-browsers
 float HTMLElement::scroll_left() {
   // This is only partially implemented and will only work for elements with
   // UI navigation containers.
@@ -2059,9 +2063,15 @@ void HTMLElement::UpdateUiNavigationType() {
   }
 
   if (ui_nav_item_type) {
+    ui_navigation::NativeItemDir ui_nav_item_dir;
+    ui_nav_item_dir.is_left_to_right =
+        directionality() == kLeftToRightDirectionality;
+    ui_nav_item_dir.is_top_to_bottom = true;
+
     if (ui_nav_item_) {
       if (ui_nav_item_->GetType() == *ui_nav_item_type) {
         // Keep using the existing navigation item.
+        ui_nav_item_->SetDir(ui_nav_item_dir);
         return;
       }
       // The current navigation item isn't of the correct type. Disable it so
@@ -2086,6 +2096,7 @@ void HTMLElement::UpdateUiNavigationType() {
             base::Unretained(base::MessageLoop::current()->task_runner().get()),
             FROM_HERE,
             base::Bind(&HTMLElement::OnUiNavScroll, base::AsWeakPtr(this))));
+    ui_nav_item_->SetDir(ui_nav_item_dir);
   } else if (ui_nav_item_) {
     // This navigation item is no longer relevant.
     ui_nav_item_->SetEnabled(false);

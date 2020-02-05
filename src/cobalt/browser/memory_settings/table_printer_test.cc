@@ -16,6 +16,8 @@
 
 #include "cobalt/browser/memory_settings/table_printer.h"
 
+#include "starboard/common/log.h"
+#include "starboard/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -26,6 +28,7 @@ namespace memory_settings {
 #define GREEN_START "\x1b[32m"
 #define COLOR_END "\x1b[0m"
 
+namespace {
 std::vector<std::string> MakeRow2(const std::string& col1,
                                   const std::string& col2) {
   std::vector<std::string> row;
@@ -34,6 +37,24 @@ std::vector<std::string> MakeRow2(const std::string& col1,
   return row;
 }
 
+// Returns true if all tokens exist in the string in the given order.
+bool HasTokensInOrder(const std::string& value,
+                      std::initializer_list<const char*> tokens) {
+  std::string::size_type current_position = 0;
+  for (auto token : tokens) {
+    std::string::size_type position = value.find(token, current_position);
+    EXPECT_NE(position, std::string::npos);
+    EXPECT_GE(position, current_position);
+    if (position == std::string::npos) {
+      SB_DLOG(INFO) << "Token \"" << token << "\" not found in order.";
+      return false;
+    }
+    current_position = position + SbStringGetLength(token);
+  }
+  return true;
+}
+}  // namespace
+
 TEST(TablePrinter, ToString) {
   TablePrinter table;
 
@@ -41,15 +62,8 @@ TEST(TablePrinter, ToString) {
   table.AddRow(MakeRow2("col1", "col2"));
   table.AddRow(MakeRow2("value1", "value2"));
 
-  std::string table_str = table.ToString();
-  std::string expected_table_str =
-      " col1     col2     \n"
-      " _________________ \n"
-      "|        |        |\n"
-      "| value1 | value2 |\n"
-      "|________|________|\n";
-
-  EXPECT_STREQ(expected_table_str.c_str(), table_str.c_str());
+  EXPECT_TRUE(HasTokensInOrder(
+      table.ToString(), {"col1", "col2", "\n", "value1", "value2", "\n"}));
 }
 
 TEST(TablePrinter, ToStringWithColor) {
@@ -63,22 +77,10 @@ TEST(TablePrinter, ToStringWithColor) {
   table.AddRow(MakeRow2("col1", "col2"));
   table.AddRow(MakeRow2("value1", "value2"));
 
-// These defines will wrap color constants for string literals.
-#define R(STR) RED_START STR COLOR_END
-#define G(STR) GREEN_START STR COLOR_END
-
-  std::string table_str = table.ToString();
-  std::string expected_table_str =
-      " col1     col2     \n"
-      G(" _________________ ") "\n"
-      G("|        |        |") "\n"
-      G("|") " " R("value1") " " G("|") " " R("value2") " " G("|") "\n"
-      G("|________|________|") "\n";
-
-#undef R
-#undef G
-
-  EXPECT_STREQ(expected_table_str.c_str(), table_str.c_str());
+  EXPECT_TRUE(HasTokensInOrder(
+      table.ToString(),
+      {"col1", "col2", "\n", RED_START, "value1", COLOR_END, RED_START,
+       "value2", COLOR_END, "\n", GREEN_START, COLOR_END}));
 }
 
 #undef RED_START
