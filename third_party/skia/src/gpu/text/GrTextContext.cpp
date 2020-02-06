@@ -174,7 +174,12 @@ SkFont GrTextContext::InitDistanceFieldFont(const SkFont& font,
 
     dfFont.setEdging(SkFont::Edging::kAntiAlias);
     dfFont.setForceAutoHinting(false);
+// Don't override the font hinting we specify in Cobalt. This will cause glyphs
+// to unexpectedly become hinted in SkTypeface_FreeType::onFilterRec and our
+// text rendering to be slightly off.
+#if !defined(COBALT)
     dfFont.setHinting(SkFontHinting::kNormal);
+#endif
 
     // The sub-pixel position will always happen when transforming to the screen.
     dfFont.setSubpixel(false);

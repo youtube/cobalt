@@ -26,19 +26,41 @@ namespace rasterizer {
 namespace skia {
 namespace {
 
-struct NonTrivialStaticFields {
-  NonTrivialStaticFields() { default_font.setSubpixel(true); }
+struct NonTrivialFontStaticFields {
+  NonTrivialFontStaticFields() {
+    // setSubpixel(true) and setLinearMetrics(true) in order to produce similar
+    // behavior to the old SkPaint::setSubpixel(true) for metrics. Disable
+    // glyph hinting since setLinearMetrics(true) forces unhinted linear
+    // metrics, so it is not designed to be used with hinted glyphs.
+    default_font.setSubpixel(true);
+    default_font.setLinearMetrics(true);
+    default_font.setHinting(SkFontHinting::kSlight);
+  }
 
   SkFont default_font;
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(NonTrivialStaticFields);
+  DISALLOW_COPY_AND_ASSIGN(NonTrivialFontStaticFields);
 };
 
-// |non_trivial_static_fields| will be lazily created on the first time it's
-// accessed.
-base::LazyInstance<NonTrivialStaticFields>::DestructorAtExit
-    non_trivial_static_fields = LAZY_INSTANCE_INITIALIZER;
+// |non_trivial_font_static_fields| will be lazily created on the first time
+// it's accessed.
+base::LazyInstance<NonTrivialFontStaticFields>::DestructorAtExit
+    non_trivial_font_static_fields = LAZY_INSTANCE_INITIALIZER;
+
+struct NonTrivialPaintStaticFields {
+  NonTrivialPaintStaticFields() { default_paint.setAntiAlias(true); }
+
+  SkPaint default_paint;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(NonTrivialPaintStaticFields);
+};
+
+// |non_trivial_paint_static_fields| will be lazily created on the first time
+// it's accessed.
+base::LazyInstance<NonTrivialPaintStaticFields>::DestructorAtExit
+    non_trivial_paint_static_fields = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 
@@ -138,7 +160,11 @@ SkFont Font::GetSkFont() const {
 }
 
 const SkFont& Font::GetDefaultSkFont() {
-  return non_trivial_static_fields.Get().default_font;
+  return non_trivial_font_static_fields.Get().default_font;
+}
+
+const SkPaint& Font::GetDefaultSkPaint() {
+  return non_trivial_paint_static_fields.Get().default_paint;
 }
 
 }  // namespace skia
