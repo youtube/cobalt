@@ -207,6 +207,9 @@ This document records all notable changes made to Cobalt since the last release.
      setting (in `cobalt/extension/graphics.h`) to allow a platform to indicate a
      minimum framerate causing Cobalt to rerender the display even if nothing has
      changed after the specified interval.
+   - Removed old embedded screen reader from Cobalt source code, all platforms
+     should use the new JavaScript screen reader updated and shipped from YouTube
+     now.
 
 ### Version 20.lts.3
  - **Improvements and Bug Fixes**
