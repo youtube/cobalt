@@ -1,0 +1,464 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "fc8d0c4d_7fb8c331",
+        "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/AudioOutputManager.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 51,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-02-06T00:00:48Z",
+      "side": 1,
+      "message": "audioSessionId, and the same to the one below.",
+      "range": {
+        "startLine": 51,
+        "startChar": 92,
+        "endLine": 51,
+        "endChar": 108
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "5a1b90c7_dc0a32b9",
+        "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/AudioTrackBridge.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 60,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-02-06T00:00:48Z",
+      "side": 1,
+      "message": "nit: Remove the brackets to be in consistent with similar code below.",
+      "range": {
+        "startLine": 60,
+        "startChar": 21,
+        "endLine": 60,
+        "endChar": 52
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "41dfcfc6_58861ed4",
+        "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/AudioTrackBridge.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 92,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-02-06T00:00:48Z",
+      "side": 1,
+      "message": "audioTrack \u003d new AudioTrack(..., audioSessionId \u003d\u003d -1 ? AudioManager.AUDIO_SESSION_ID_GENERATE : audioSessionId);",
+      "range": {
+        "startLine": 81,
+        "startChar": 0,
+        "endLine": 92,
+        "endChar": 9
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "c2ee150a_7b6db8b2",
+        "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 28,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-02-06T00:00:48Z",
+      "side": 1,
+      "message": "Let\u0027s move this above the previous line to keep the import list sorted alphabetically.  And do the same for the ones below.",
+      "range": {
+        "startLine": 28,
+        "startChar": 0,
+        "endLine": 28,
+        "endChar": 54
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "0bec1405_035bb988",
+        "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 411,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-02-06T00:00:48Z",
+      "side": 1,
+      "message": "Actually, for our none tunneled mode implementation, once the frames are sent to the platform via releaseOutputBuffer, we consider them as rendered.  And maybe these frames are dropped by the platform without reporting back as dropped frames.  So we can consider to always enabled the listener to keep dropped frame reporting more accurate.\nWe may also need to guard this by Android version.",
+      "range": {
+        "startLine": 409,
+        "startChar": 0,
+        "endLine": 411,
+        "endChar": 5
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "7ad948e3_16fb0fde",
+        "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 415,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-02-06T00:00:48Z",
+      "side": 1,
+      "message": "Consider remove this to avoid spamming the log.",
+      "range": {
+        "startLine": 415,
+        "startChar": 4,
+        "endLine": 415,
+        "endChar": 73
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "3cece559_176a8d37",
+        "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 421,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-02-06T00:00:48Z",
+      "side": 1,
+      "message": "Can we reset the callback by calling \"mMediaCodec.setOnFrameRenderedListener(null, null);\" before mNativeMediaCodecBridge is set to null, to avoid the synchronization and the check?  Another way is to batch the result and only report back every one second, etc..",
+      "range": {
+        "startLine": 416,
+        "startChar": 0,
+        "endLine": 421,
+        "endChar": 5
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "f9f0bfae_1c971858",
+        "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 683,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-02-06T00:00:48Z",
+      "side": 1,
+      "message": "double playbackRate, long playbackRateSetAtTimeIn(Ms/Us).",
+      "range": {
+        "startLine": 683,
+        "startChar": 31,
+        "endLine": 683,
+        "endChar": 74
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "4a94cc64_598bae0a",
+        "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 690,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-02-06T00:00:48Z",
+      "side": 1,
+      "message": "We will need to refactor this if it doesn\u0027t work on other Android TV platforms.",
+      "range": {
+        "startLine": 684,
+        "startChar": 0,
+        "endLine": 690,
+        "endChar": 49
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "cf324ec9_64f5b129",
+        "filename": "src/starboard/android/shared/audio_renderer_sink_android.h",
+        "patchSetId": 1
+      },
+      "lineNbr": 1,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-02-06T00:00:48Z",
+      "side": 1,
+      "message": "2020",
+      "range": {
+        "startLine": 1,
+        "startChar": 13,
+        "endLine": 1,
+        "endChar": 17
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "0f0dd89a_4803eccb",
+        "filename": "src/starboard/android/shared/audio_track_audio_sink_type.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 19,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-02-06T00:00:48Z",
+      "side": 1,
+      "message": "Empty line above and below.",
+      "range": {
+        "startLine": 19,
+        "startChar": 0,
+        "endLine": 19,
+        "endChar": 50
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "4752283a_5c76b6c1",
+        "filename": "src/starboard/android/shared/audio_track_audio_sink_type.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 20,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-02-06T00:00:48Z",
+      "side": 1,
+      "message": "This could be redundant, as the following code is already inside starboard::android::shared namespace.",
+      "range": {
+        "startLine": 20,
+        "startChar": 0,
+        "endLine": 20,
+        "endChar": 48
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "d420f9af_6e96b7ed",
+        "filename": "src/starboard/android/shared/audio_track_audio_sink_type.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 85,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-02-06T00:00:48Z",
+      "side": 1,
+      "message": "Indent issue.  Please refer to Google C++ Style Guide at https://google.github.io/styleguide/cppguide.html for more details.\n\nOne quick way to resolve such issue is to install \"clang-format-9\", and run the following command: \"git clang-format-9 --style\u003dchromium HEAD~1\" inside the git folder with this CL as the last commit.  It will automatically format the last git commit.",
+      "range": {
+        "startLine": 85,
+        "startChar": 0,
+        "endLine": 85,
+        "endChar": 4
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "522bee32_8e6542d3",
+        "filename": "src/starboard/android/shared/player_components_impl.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 33,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-02-06T00:00:48Z",
+      "side": 1,
+      "message": "Use full path, and merge into the above section of includes.",
+      "range": {
+        "startLine": 33,
+        "startChar": 0,
+        "endLine": 33,
+        "endChar": 40
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "46a84ebe_b24d39de",
+        "filename": "src/starboard/android/shared/player_components_impl.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 37,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-02-06T00:00:48Z",
+      "side": 1,
+      "message": "Make them sorted alphabetically, into the headers above.",
+      "range": {
+        "startLine": 34,
+        "startChar": 0,
+        "endLine": 37,
+        "endChar": 48
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "2aedf242_264fe5cf",
+        "filename": "src/starboard/android/shared/player_components_impl.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 39,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-02-06T00:00:48Z",
+      "side": 1,
+      "message": "Is this a platform specific header?",
+      "range": {
+        "startLine": 39,
+        "startChar": 0,
+        "endLine": 39,
+        "endChar": 34
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "361bc887_b8a25173",
+        "filename": "src/starboard/android/shared/player_components_impl.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 105,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-02-06T00:00:48Z",
+      "side": 1,
+      "message": "I can see why |audio_session_id| is created here, registered into MediaAgency to hand to the audio renderer sink.  Because we rely on both the audio parameters and video parameters to create the audio session id, and CreateAudioComponents() doesn\u0027t know the video parameters.\n\nWe may solve this using one the following methods:\n1. Merge CreateAudioComponents() and CreateVideoComponents() into one function CreateComponents().\n2. Passing VideoParameters to CreateAudioComponents(), and passing AudioParameters to CreateVideoComponents().\n\nNote that now we have SbPlayerCreationParam that encapsulate all information needed, we can pick above method #2 and simply pass SbPlayerCreationParam to CreateAudioComponents() and CreateVideoComponents(), and remove the existing types AudioParameters and VideoParameters.",
+      "range": {
+        "startLine": 105,
+        "startChar": 7,
+        "endLine": 105,
+        "endChar": 28
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "38aaf48b_d55f8065",
+        "filename": "src/starboard/android/shared/player_components_impl.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 158,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-02-06T00:00:48Z",
+      "side": 1,
+      "message": "SbMediaAudioSampleInfo audio_sample_info_ \u003d {};  and remove the memset in the ctor.",
+      "range": {
+        "startLine": 158,
+        "startChar": 2,
+        "endLine": 158,
+        "endChar": 44
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "860e2be7_c2034bb7",
+        "filename": "src/starboard/android/shared/player_components_impl.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 172,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-02-06T00:00:48Z",
+      "side": 1,
+      "message": "We need to find a platform independent way for this.",
+      "range": {
+        "startLine": 166,
+        "startChar": 0,
+        "endLine": 172,
+        "endChar": 7
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "7f3f3c91_a3925c83",
+        "filename": "src/starboard/android/shared/player_components_impl.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 189,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-02-06T00:00:48Z",
+      "side": 1,
+      "message": "Maybe we can consider to move this function into AudioOutputManager, so it is much convenient to call to it.  Just use\nScopedLocalJavaRef\u003cjobject\u003e j_audio_output_manager(\n      env-\u003eCallStarboardObjectMethodOrAbort(\n          \"getAudioOutputManager\", \"()Ldev/cobalt/media/AudioOutputManager;\"));\nto get the audio output manager, and then call \"createAudioSessionIdForTunnel\" on it to get the audio session id.",
+      "range": {
+        "startLine": 189,
+        "startChar": 56,
+        "endLine": 189,
+        "endChar": 85
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    }
+  ]
+}
