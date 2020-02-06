@@ -20,6 +20,7 @@
 
 #include "starboard/shared/posix/time_internal.h"
 #include "starboard/shared/pthread/is_success.h"
+#include "starboard/shared/pthread/types_internal.h"
 #include "starboard/shared/starboard/lazy_initialization_internal.h"
 #include "starboard/time.h"
 
@@ -54,7 +55,8 @@ SbConditionVariableResult SbConditionVariableWaitTimed(
   struct timespec timeout_ts;
   ToTimespec(&timeout_ts, timeout_time);
 
-  if (!EnsureInitialized(&condition->initialized_state)) {
+  if (!EnsureInitialized(
+          &(SB_PTHREAD_INTERNAL_CONDITION(condition)->initialized_state))) {
     // The condition variable is set to SB_CONDITION_VARIABLE_INITIALIZER and
     // is uninitialized, so call SbConditionVariableCreate() to initialize the
     // condition variable. SbConditionVariableCreate() is responsible for
@@ -62,8 +64,9 @@ SbConditionVariableResult SbConditionVariableWaitTimed(
     SbConditionVariableCreate(condition, mutex);
   }
 
-  int result =
-      pthread_cond_timedwait(&condition->condition, mutex, &timeout_ts);
+  int result = pthread_cond_timedwait(
+      &(SB_PTHREAD_INTERNAL_CONDITION(condition)->condition),
+      SB_PTHREAD_INTERNAL_MUTEX(mutex), &timeout_ts);
   if (IsSuccess(result)) {
     return kSbConditionVariableSignaled;
   }

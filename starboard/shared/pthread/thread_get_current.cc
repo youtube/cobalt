@@ -16,6 +16,8 @@
 
 #include <pthread.h>
 
+#include "starboard/shared/pthread/types_internal.h"
+
 SbThread SbThreadGetCurrent() {
-  return pthread_self();
+  return SB_THREAD(pthread_self());
 }

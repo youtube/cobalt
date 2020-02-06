@@ -38,9 +38,9 @@ typedef SbOnceControl __libcpp_exec_once_flag;
 #define _LIBCPP_EXEC_ONCE_INITIALIZER SB_ONCE_INITIALIZER
 
 typedef SbThread __libcpp_thread_t;
-typedef SbThreadId __libcpp_thread_id;
+typedef SbThread __libcpp_thread_id;
 typedef SbThreadLocalKey __libcpp_tls_key;
-#define _LIBCPP_NULL_THREAD kSbThreadInvalidId
+#define _LIBCPP_NULL_THREAD kSbThreadInvalid
 
 // The calling-convention for the thread-local storage destructor. This is
 // mostly used on Windows platforms, and documentation can be found at
@@ -244,10 +244,10 @@ int __libcpp_thread_create(__libcpp_thread_t* __t, void* (*__func)(void*),
   return 0;
 }
 
-__libcpp_thread_id __libcpp_thread_get_current_id() { return SbThreadGetId(); }
+__libcpp_thread_id __libcpp_thread_get_current_id() { return SbThreadGetCurrent(); }
 
 __libcpp_thread_id __libcpp_thread_get_id(const __libcpp_thread_t* __t) {
-  return kSbThreadInvalid;
+  return *__t;
 }
 
 int __libcpp_thread_join(__libcpp_thread_t* __t) {

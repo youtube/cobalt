@@ -16,6 +16,9 @@
 
 #include <pthread.h>
 
+#include "starboard/shared/pthread/types_internal.h"
+
 bool SbThreadIsEqual(SbThread thread1, SbThread thread2) {
-  return pthread_equal(thread1, thread2) != 0;
+  return pthread_equal(SB_PTHREAD_INTERNAL_THREAD(thread1),
+                       SB_PTHREAD_INTERNAL_THREAD(thread2)) != 0;
 }
