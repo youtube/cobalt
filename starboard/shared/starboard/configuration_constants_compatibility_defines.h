@@ -83,6 +83,8 @@
 
 #define kSbPathSepString SB_PATH_SEP_STRING
 
+#define kSbPreferredRgbaByteOrder SB_PREFERRED_RGBA_BYTE_ORDER
+
 #define kSbUserMaxSignedIn SB_USER_MAX_SIGNED_IN
 
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
