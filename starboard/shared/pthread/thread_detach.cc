@@ -16,10 +16,12 @@
 
 #include <pthread.h>
 
+#include "starboard/shared/pthread/types_internal.h"
+
 void SbThreadDetach(SbThread thread) {
   if (!SbThreadIsValid(thread)) {
     return;
   }
 
-  pthread_detach(thread);
+  pthread_detach(SB_PTHREAD_INTERNAL_THREAD(thread));
 }

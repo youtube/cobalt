@@ -16,10 +16,15 @@
 
 #include <windows.h>
 
+#include "starboard/common/log.h"
+#include "starboard/shared/win32/types_internal.h"
+
 bool SbMutexCreate(SbMutex* mutex) {
+  SB_COMPILE_ASSERT(sizeof(SbMutex) >= sizeof(SRWLOCK),
+                    srwlock_larger_than_sb_mutex);
   if (!mutex) {
     return false;
   }
-  InitializeSRWLock(reinterpret_cast<PSRWLOCK>(mutex));
+  InitializeSRWLock(SB_WIN32_INTERNAL_MUTEX(mutex));
   return true;
 }

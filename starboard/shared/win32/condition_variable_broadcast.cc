@@ -16,10 +16,12 @@
 
 #include <windows.h>
 
+#include "starboard/shared/win32/types_internal.h"
+
 bool SbConditionVariableBroadcast(SbConditionVariable* condition) {
   if (!condition) {
     return false;
   }
-  WakeAllConditionVariable(reinterpret_cast<PCONDITION_VARIABLE>(condition));
+  WakeAllConditionVariable(SB_WIN32_INTERNAL_CONDITION(condition));
   return true;
 }

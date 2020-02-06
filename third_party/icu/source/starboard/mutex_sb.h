@@ -25,7 +25,11 @@
 #ifndef ICU_SOURCE_STARBOARD_MUTEX_SB_H_
 #define ICU_SOURCE_STARBOARD_MUTEX_SB_H_
 
+#if SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
+#include "starboard/condition_variable.h"
+#else
 #include "starboard/thread_types.h"
+#endif  // SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
 
 typedef SbMutex UMutex;
 typedef SbConditionVariable UConditionVar;

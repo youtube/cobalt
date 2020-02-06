@@ -17,6 +17,7 @@
 #include <windows.h>
 
 #include "starboard/shared/win32/time_utils.h"
+#include "starboard/shared/win32/types_internal.h"
 
 using starboard::shared::win32::ConvertSbTimeToMillisRoundUp;
 
@@ -32,8 +33,7 @@ SbConditionVariableResult SbConditionVariableWaitTimed(
     timeout = 0;
   }
   bool result = SleepConditionVariableSRW(
-      reinterpret_cast<PCONDITION_VARIABLE>(condition),
-      reinterpret_cast<PSRWLOCK>(mutex),
+      SB_WIN32_INTERNAL_CONDITION(condition), SB_WIN32_INTERNAL_MUTEX(mutex),
       ConvertSbTimeToMillisRoundUp(timeout), 0);
 
   if (timeout == 0) {

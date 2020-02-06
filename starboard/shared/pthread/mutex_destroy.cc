@@ -19,6 +19,7 @@
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/pthread/is_success.h"
+#include "starboard/shared/pthread/types_internal.h"
 
 bool SbMutexDestroy(SbMutex* mutex) {
   if (!mutex) {
@@ -28,16 +29,15 @@ bool SbMutexDestroy(SbMutex* mutex) {
 #if SB_API_VERSION >= SB_MUTEX_ACQUIRE_TRY_API_CHANGE_VERSION
   // Both trying to recursively acquire a mutex that is locked by the calling
   // thread, as well as deleting a locked mutex, result in undefined behavior.
-  return IsSuccess(pthread_mutex_destroy(mutex));
+  return IsSuccess(pthread_mutex_destroy(SB_PTHREAD_INTERNAL_MUTEX(mutex)));
 #else   // SB_API_VERSION >= SB_MUTEX_ACQUIRE_TRY_API_CHANGE_VERSION
   // Destroying a locked mutex is undefined, so fail if the mutex is
   // already locked,
-  if (!IsSuccess(pthread_mutex_trylock(mutex))) {
+  if (!IsSuccess(pthread_mutex_trylock(SB_PTHREAD_INTERNAL_MUTEX(mutex)))) {
     SB_LOG(ERROR) << "Trying to destroy a locked mutex";
     return false;
   }
-
-  return IsSuccess(pthread_mutex_unlock(mutex)) &&
-         IsSuccess(pthread_mutex_destroy(mutex));
+  return IsSuccess(pthread_mutex_unlock(SB_PTHREAD_INTERNAL_MUTEX(mutex))) &&
+         IsSuccess(pthread_mutex_destroy(SB_PTHREAD_INTERNAL_MUTEX(mutex)));
 #endif  // SB_API_VERSION >= SB_MUTEX_ACQUIRE_TRY_API_CHANGE_VERSION
 }

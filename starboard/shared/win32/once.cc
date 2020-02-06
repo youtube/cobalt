@@ -16,6 +16,9 @@
 
 #include <windows.h>
 
+#include "starboard/common/log.h"
+#include "starboard/shared/win32/types_internal.h"
+
 namespace {
 BOOL CALLBACK OnceTrampoline(PINIT_ONCE once_control,
                              void* parameter,
@@ -29,9 +32,11 @@ BOOL CALLBACK OnceTrampoline(PINIT_ONCE once_control,
 }  // namespace
 
 bool SbOnce(SbOnceControl* once_control, SbOnceInitRoutine init_routine) {
+  SB_COMPILE_ASSERT(sizeof(SbOnceControl) >= sizeof(INIT_ONCE),
+                    init_once_larger_than_sb_once_control);
   if (!once_control || !init_routine) {
     return false;
   }
-  return InitOnceExecuteOnce(reinterpret_cast<PINIT_ONCE>(once_control),
+  return InitOnceExecuteOnce(SB_WIN32_INTERNAL_ONCE(once_control),
                              OnceTrampoline, init_routine, NULL);
 }

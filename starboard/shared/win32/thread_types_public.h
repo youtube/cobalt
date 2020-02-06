@@ -17,6 +17,10 @@
 #ifndef STARBOARD_SHARED_WIN32_THREAD_TYPES_PUBLIC_H_
 #define STARBOARD_SHARED_WIN32_THREAD_TYPES_PUBLIC_H_
 
+#if SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
+#error "The starboard/shared/win32/thread_types_public.h is deprecated."
+#endif  // SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
+
 // --- SbConditionVariable ---
 
 // Transparent Condition Variable handle.

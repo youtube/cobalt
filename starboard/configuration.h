@@ -249,6 +249,10 @@
 // "starboard/shared/starboard/audio_sink/audio_sink_internal.*".
 #define SB_AUDIO_SINK_ERROR_HANDLING_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Defines new, portable thread types with stable ABI for
+// SbThread, SbMutex, SbOnce and SbConditionVariable.
+#define SB_PORTABLE_THREAD_TYPES_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // Introduce support of cbcs encryption scheme into SbDrmSystem, as defined in
 // ISO/IEC 23001 part 7.
 #define SB_DRM_CBCS_SUPPORT_VERSION SB_EXPERIMENTAL_API_VERSION

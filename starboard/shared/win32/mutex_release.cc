@@ -16,7 +16,9 @@
 
 #include <windows.h>
 
+#include "starboard/shared/win32/types_internal.h"
+
 bool SbMutexRelease(SbMutex* mutex) {
-  ReleaseSRWLockExclusive(reinterpret_cast<PSRWLOCK>(mutex));
+  ReleaseSRWLockExclusive(SB_WIN32_INTERNAL_MUTEX(mutex));
   return true;
 }

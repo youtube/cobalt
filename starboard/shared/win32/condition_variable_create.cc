@@ -16,12 +16,16 @@
 
 #include <windows.h>
 
+#include "starboard/common/log.h"
+#include "starboard/shared/win32/types_internal.h"
+
 bool SbConditionVariableCreate(SbConditionVariable* out_condition,
                                SbMutex* /*opt_mutex*/) {
+  SB_COMPILE_ASSERT(sizeof(SbConditionVariable) >= sizeof(CONDITION_VARIABLE),
+                    condition_variable_larger_than_sb_condition_variable);
   if (!out_condition) {
     return false;
   }
-  InitializeConditionVariable(
-      reinterpret_cast<PCONDITION_VARIABLE>(out_condition));
+  InitializeConditionVariable(SB_WIN32_INTERNAL_CONDITION(out_condition));
   return true;
 }

@@ -16,7 +16,9 @@
 
 #include <windows.h>
 
+#include "starboard/shared/win32/types_internal.h"
+
 SbMutexResult SbMutexAcquireTry(SbMutex* mutex) {
-  bool result = TryAcquireSRWLockExclusive(reinterpret_cast<PSRWLOCK>(mutex));
+  bool result = TryAcquireSRWLockExclusive(SB_WIN32_INTERNAL_MUTEX(mutex));
   return result ? kSbMutexAcquired : kSbMutexBusy;
 }

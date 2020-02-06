@@ -16,15 +16,17 @@
 
 #include <windows.h>
 
+#include "starboard/shared/win32/types_internal.h"
+
 SbConditionVariableResult SbConditionVariableWait(
     SbConditionVariable* condition,
     SbMutex* mutex) {
   if (!condition || !mutex) {
     return kSbConditionVariableFailed;
   }
-  bool result = SleepConditionVariableSRW(
-      reinterpret_cast<PCONDITION_VARIABLE>(condition),
-      reinterpret_cast<PSRWLOCK>(mutex), INFINITE, 0);
+  bool result =
+      SleepConditionVariableSRW(SB_WIN32_INTERNAL_CONDITION(condition),
+                                SB_WIN32_INTERNAL_MUTEX(mutex), INFINITE, 0);
 
   return result ? kSbConditionVariableSignaled : kSbConditionVariableFailed;
 }
