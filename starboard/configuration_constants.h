@@ -142,6 +142,11 @@ extern const uint32_t kSbNetworkReceiveBufferSize;
 // like mutexes, so we want to keep this manageable.
 extern const uint32_t kSbMaxThreads;
 
+// Specifies the preferred byte order of color channels in a pixel. Refer to
+// starboard/configuration.h for the possible values. EGL/GLES platforms should
+// generally prefer a byte order of RGBA, regardless of endianness.
+extern const int kSbPreferredRgbaByteOrder;
+
 // The current platform's search path component separator character. When
 // specifying an ordered list of absolute paths of directories to search for a
 // given reason, this is the character that appears between entries. For
