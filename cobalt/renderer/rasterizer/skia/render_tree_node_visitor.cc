@@ -1697,13 +1697,14 @@ void RenderText(SkCanvas* render_target,
     GlyphBuffer* skia_glyph_buffer =
         base::polymorphic_downcast<GlyphBuffer*>(glyph_buffer.get());
 
-    SkPaint paint;
+    SkPaint paint(Font::GetDefaultSkPaint());
     paint.setARGB(color.a() * 255, color.r() * 255, color.g() * 255,
                   color.b() * 255);
 
     if (blur_sigma > 0.0f) {
       sk_sp<SkMaskFilter> mf(
           SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur_sigma));
+      paint.setFilterQuality(SkFilterQuality::kHigh_SkFilterQuality);
       paint.setMaskFilter(mf);
     }
 
