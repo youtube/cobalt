@@ -23,6 +23,7 @@
 #include "starboard/common/string.h"
 #include "starboard/shared/pthread/is_success.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
+#include "starboard/shared/pthread/types_internal.h"
 
 namespace starboard {
 namespace shared {
@@ -123,7 +124,10 @@ SbThread SbThreadCreate(int64_t stack_size,
   params->priority = priority;
 
   SbThread thread = kSbThreadInvalid;
-  result = pthread_create(&thread, &attributes, ThreadFunc, params);
+  SB_COMPILE_ASSERT(sizeof(SbThread) >= sizeof(pthread_t),
+                    pthread_t_larger_than_sb_thread);
+  result = pthread_create(SB_PTHREAD_INTERNAL_THREAD_PTR(thread), &attributes,
+                          ThreadFunc, params);
 
   pthread_attr_destroy(&attributes);
   if (IsSuccess(result)) {

@@ -16,7 +16,12 @@
 
 #include <pthread.h>
 
+#include "starboard/common/log.h"
+#include "starboard/shared/pthread/types_internal.h"
+
 bool SbOnce(SbOnceControl* once_control, SbOnceInitRoutine init_routine) {
+  SB_COMPILE_ASSERT(sizeof(SbOnceControl) >= sizeof(pthread_once_t),
+                    pthread_once_t_larger_than_sb_once_control);
   if (once_control == NULL) {
     return false;
   }
@@ -24,5 +29,6 @@ bool SbOnce(SbOnceControl* once_control, SbOnceInitRoutine init_routine) {
     return false;
   }
 
-  return pthread_once(once_control, init_routine) == 0;
+  return pthread_once(SB_PTHREAD_INTERNAL_ONCE(once_control), init_routine) ==
+         0;
 }

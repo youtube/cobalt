@@ -17,13 +17,13 @@
 #include <pthread.h>
 
 #include "starboard/shared/pthread/is_success.h"
+#include "starboard/shared/pthread/types_internal.h"
 
 SbMutexResult SbMutexAcquireTry(SbMutex* mutex) {
   if (!mutex) {
     return kSbMutexDestroyed;
   }
-
-  int result = pthread_mutex_trylock(mutex);
+  int result = pthread_mutex_trylock(SB_PTHREAD_INTERNAL_MUTEX(mutex));
   if (IsSuccess(result)) {
     return kSbMutexAcquired;
   }

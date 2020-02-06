@@ -20,6 +20,7 @@
 #define STARBOARD_CONDITION_VARIABLE_H_
 
 #include "starboard/export.h"
+#include "starboard/mutex.h"
 #include "starboard/thread_types.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
@@ -27,6 +28,33 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#if SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
+
+// Max size of the SbConditionVariable type.
+#define SB_CONDITION_VARIABLE_MAX_SIZE 64
+
+// An opaque handle to a condition variable type with
+// reserved memory buffer of size SB_CONDITION_VARIABLE_MAX_SIZE and
+// aligned at void pointer type.
+typedef union SbConditionVariable {
+  // Reserved memory in which the implementation should map its
+  // native condition variable type.
+  uint8_t condition_buffer[SB_CONDITION_VARIABLE_MAX_SIZE];
+
+  // Guarantees alignment of the type to a void pointer.
+  void* ptr;
+} SbConditionVariable;
+
+#ifdef __cplusplus
+#define SB_CONDITION_VARIABLE_INITIALIZER \
+  {}
+#else
+#define SB_CONDITION_VARIABLE_INITIALIZER \
+  { 0 }
+#endif
+
+#endif  // SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
 
 // Enumeration of possible results from waiting on a condvar.
 typedef enum SbConditionVariableResult {

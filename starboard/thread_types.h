@@ -31,6 +31,8 @@
 
 #include "starboard/configuration.h"
 
+#if SB_API_VERSION < SB_PORTABLE_THREAD_TYPES_VERSION
+
 // This platform-specific include file must define:
 //
 //   SbConditionVariable
@@ -60,4 +62,5 @@
 #error "SB_ONCE_INITIALIZER not defined by platform."
 #endif
 
+#endif  // SB_API_VERSION < SB_PORTABLE_THREAD_TYPES_VERSION
 #endif  // STARBOARD_THREAD_TYPES_H_

@@ -16,12 +16,16 @@
 
 #include <pthread.h>
 
+#include "starboard/common/log.h"
 #include "starboard/shared/pthread/is_success.h"
+#include "starboard/shared/pthread/types_internal.h"
 
 bool SbMutexCreate(SbMutex* mutex) {
+  SB_COMPILE_ASSERT(sizeof(SbMutex) >= sizeof(pthread_mutex_t),
+                    pthread_mutex_t_larger_than_sb_mutex);
   if (!mutex) {
     return false;
   }
 
-  return IsSuccess(pthread_mutex_init(mutex, NULL));
+  return IsSuccess(pthread_mutex_init(SB_PTHREAD_INTERNAL_MUTEX(mutex), NULL));
 }

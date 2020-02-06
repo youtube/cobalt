@@ -18,6 +18,7 @@
 
 #include "starboard/common/experimental/concurrency_debug.h"
 #include "starboard/shared/pthread/is_success.h"
+#include "starboard/shared/pthread/types_internal.h"
 
 SbMutexResult SbMutexAcquire(SbMutex* mutex) {
   if (!mutex) {
@@ -30,8 +31,7 @@ SbMutexResult SbMutexAcquire(SbMutex* mutex) {
     return kSbMutexAcquired;
   }
 #endif  // SB_ENABLE_CONCURRENTY_DEBUG
-
-  int result = pthread_mutex_lock(mutex);
+  int result = pthread_mutex_lock(SB_PTHREAD_INTERNAL_MUTEX(mutex));
   if (IsSuccess(result)) {
     return kSbMutexAcquired;
   }
