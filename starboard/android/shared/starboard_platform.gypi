@@ -13,7 +13,7 @@
 # limitations under the License.
 {
   'variables': {
-    'has_input_events_filter' : '<!(python ../../../build/file_exists.py <(DEPTH)/starboard/android/shared/input_events_filter.cc)',
+    'has_input_events_filter' : '<!(python <(DEPTH)/build/file_exists.py <(DEPTH)/starboard/android/shared/input_events_filter.cc)',
     'has_drm_system_extension%': '<!(test -e <(DEPTH)/starboard/android/shared/drm_system_extension/drm_system_extension.gyp && echo 1 || echo 0)',
   },
   'includes': [
@@ -477,7 +477,7 @@
         'starboard_base_symbolize',
       ],
       'conditions': [
-        ['has_input_events_filter=="True"', {
+        ['has_input_events_filter==1', {
           'sources': [
             'input_events_filter.cc',
             'input_events_filter.h',

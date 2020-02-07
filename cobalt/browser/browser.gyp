@@ -15,7 +15,7 @@
 {
   'variables': {
     'sb_pedantic_warnings': 1,
-    'has_updater%' : '<!(python ../../build/file_exists.py <(DEPTH)/cobalt/updater/updater.gyp)',
+    'has_updater%' : '<!(python <(DEPTH)/build/file_exists.py <(DEPTH)/cobalt/updater/updater.gyp)',
   },
   'targets': [
     {
@@ -203,7 +203,7 @@
             'COBALT_MESH_CACHE_SIZE_IN_BYTES=<(mesh_cache_size_in_bytes)',
           ],
         }],
-        ['sb_evergreen == 1 and has_updater == "True"', {
+        ['sb_evergreen == 1 and has_updater == 1', {
           'dependencies': [
             '<(DEPTH)/cobalt/updater/updater.gyp:updater',
           ],
