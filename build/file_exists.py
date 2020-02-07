@@ -12,15 +12,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-"""Writes True if the argument is a file."""
+"""Writes "1" if the argument is a file, otherwise "0"."""
 
 import os.path
 import sys
 
+
 def main():
-  sys.stdout.write(str(os.path.isfile(sys.argv[1])))
+  sys.stdout.write("1" if os.path.isfile(sys.argv[1]) else "0")
   return 0
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
   sys.exit(main())
