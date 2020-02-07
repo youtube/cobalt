@@ -302,7 +302,7 @@ constexpr bool IsStandardContainerComplexIterator() {
       /*std::forward_list,*/ std::list, std::set, std::multiset>();
 }
 
-#if __cplusplus < 201402L
+#if defined(STARBOARD)
 template <class T>
 struct EMUCaller<
     T,
@@ -310,7 +310,7 @@ struct EMUCaller<
                             std::is_trivially_destructible<T>::value>::type> {
   static size_t Call(const T& value) { return 0; }
 };
-#else
+#else   // defined(STARBOARD)
 // Work around MSVS bug. For some reason constexpr function doesn't work.
 // However variable template does.
 template <typename T>
@@ -324,7 +324,7 @@ struct EMUCaller<
     std::enable_if_t<!HasEMU<T>::value && IsKnownNonAllocatingType_v<T>>> {
   static size_t Call(const T& value) { return 0; }
 };
-#endif
+#endif  // defined(STARBOARD)
 
 }  // namespace internal
 
