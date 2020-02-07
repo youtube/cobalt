@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include "starboard/shared/starboard/player/filter/stub_audio_decoder.h"
+
+#include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 
 namespace starboard {
