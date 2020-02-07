@@ -991,6 +991,11 @@ void ANGLETestBase::draw3DTexturedQuad(GLfloat positionAttribZ,
     }
 }
 
+bool ANGLETestBase::platformSupportsMultithreading() const
+{
+    return (IsOpenGLES() && IsAndroid()) || IsVulkan();
+}
+
 void ANGLETestBase::checkD3D11SDKLayersMessages()
 {
 #if defined(ANGLE_PLATFORM_WINDOWS)
@@ -1278,6 +1283,13 @@ bool IsVulkan()
     const char *renderer = reinterpret_cast<const char *>(glGetString(GL_RENDERER));
     std::string rendererString(renderer);
     return (rendererString.find("Vulkan") != std::string::npos);
+}
+
+bool IsMetal()
+{
+    const char *renderer = reinterpret_cast<const char *>(glGetString(GL_RENDERER));
+    std::string rendererString(renderer);
+    return (rendererString.find("Metal") != std::string::npos);
 }
 
 bool IsDebug()

@@ -21,13 +21,13 @@ vars = {
   'checkout_src_internal': False,
 
   # Version of Chromium our Chromium-based DEPS are mirrored from.
-  'chromium_revision': '5fe256ab5e5eb3d73d23ab52c69ba113145d921b',
+  'chromium_revision': 'd209d45ba4bacfaf948e0015f9f7ef71b0d93bbf',
 
   # Current revision of VK-GL-CTS (a.k.a dEQP).
   'vk_gl_cts_revision': '54ec6f2b1390bf33ea10424dca610f8bcbfefa06',
 
   # Current revision of glslang, the Khronos SPIRV compiler.
-  'glslang_revision': 'f4d4668529f1dad0e475295456b601353fe7cf33',
+  'glslang_revision': '0de87ee9a5bf5d094a3faa1a71fd9080e80b6be0',
 
   # Current revision of googletest.
   # Note: this dep cannot be auto-rolled b/c of nesting.
@@ -48,19 +48,19 @@ vars = {
   'spirv_headers_revision': 'af64a9e826bf5bb5fcd2434dd71be1e41e922563',
 
   # Current revision of SPIRV-Tools for Vulkan.
-  'spirv_tools_revision': '2ee9aaa288d91fbaec5bc51473169c079c764240',
+  'spirv_tools_revision': 'e82a428605f6ce0a07337b36f8ba3935c9f165ac',
 
   # Current revision of Khronos Vulkan-Headers.
-  'vulkan_headers_revision': 'ba6cbb0478684580d6f6f3465d8b2c0ea594b642',
+  'vulkan_headers_revision': '2b89fd4e2734b728ca0be72a13f2265c5f5aa88e',
 
   # Current revision of Khronos Vulkan-Loader.
-  'vulkan_loader_revision': '96bd3651364f3145d7b8d495497f40f376e37a81',
+  'vulkan_loader_revision': '79e03670c2a328bea3c1a3f80ea913f296a487e6',
 
   # Current revision of Khronos Vulkan-Tools.
-  'vulkan_tools_revision': '40cd2166a44647a4283517e31af4589410c654eb',
+  'vulkan_tools_revision': '0a0625a3dca69b9d7ecb73558539ce5e3cd4ddfa',
 
   # Current revision of Khronos Vulkan-ValidationLayers.
-  'vulkan_validation_revision': '720c5deb024426c0320fc07803155939af2fa9b9',
+  'vulkan_validation_revision': 'e72b61c7c20dd2443f955b956f96b2976ccee004',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling catapult
@@ -71,17 +71,17 @@ vars = {
 deps = {
 
   'build': {
-    'url': '{chromium_git}/chromium/src/build.git@258e22bc612da7425c3a64d733041683a9d123f1',
+    'url': '{chromium_git}/chromium/src/build.git@ebec9c5ad46c21f00d2e305ac233676327f672cd',
     'condition': 'not build_with_chromium',
   },
 
   'buildtools': {
-    'url': '{chromium_git}/chromium/src/buildtools.git@cf454b247c611167388742c7a31ef138a6031172',
+    'url': '{chromium_git}/chromium/src/buildtools.git@6b3e658d6fe8cd9c2588796d296f07312b776054',
     'condition': 'not build_with_chromium',
   },
 
   'testing': {
-    'url': '{chromium_git}/chromium/src/testing@85152663b9e65c5372e8eb080d936e1b6fbd3b6b',
+    'url': '{chromium_git}/chromium/src/testing@72e16daaa56023ddf5e38460b8cfb785db048812',
     'condition': 'not build_with_chromium',
   },
 
@@ -184,7 +184,7 @@ deps = {
   },
 
   'third_party/SwiftShader': {
-    'url': '{swiftshader_git}/SwiftShader@2377845dd216b8288a763f7f1417d75bb7c8ce23',
+    'url': '{swiftshader_git}/SwiftShader@bbd0694f9ab2fbcebba7f674d832dcca9a898a59',
     'condition': 'not build_with_chromium',
   },
 
@@ -210,12 +210,12 @@ deps = {
   },
 
   'third_party/zlib': {
-    'url': '{chromium_git}/chromium/src/third_party/zlib@403ca5ad3a324530113a89a20fcabcea92242721',
+    'url': '{chromium_git}/chromium/src/third_party/zlib@e77e1c06c8881abff0c7418368d147ff4a474d08',
     'condition': 'not build_with_chromium',
   },
 
   'tools/clang': {
-    'url': '{chromium_git}/chromium/src/tools/clang.git@662cbb8d60f813b110f637f38adf60d9b2c57418',
+    'url': '{chromium_git}/chromium/src/tools/clang.git@05979d8cad7315e31c42120dd83e5765a87629d3',
     'condition': 'not build_with_chromium',
   },
 
@@ -246,7 +246,7 @@ deps = {
   },
 
   'third_party/android_ndk': {
-    'url': '{chromium_git}/android_ndk.git@89e8db0cdf323af8bc24de875d7d2a43a66bf10e',
+    'url': '{chromium_git}/android_ndk.git@27c0a8d090c666a50e40fceb4ee5b40b1a2d3f87',
     'condition': 'not build_with_chromium',
   },
 }
@@ -383,6 +383,34 @@ hooks = [
                 '--no_auth',
                 '--bucket', 'angle-glslang-validator',
                 '-s', 'tools/glslang/glslang_validator.exe.sha1',
+    ],
+  },
+
+  # Download flex/bison binaries for Linux.
+  {
+    'name': 'linux_flex_bison',
+    'pattern': '.',
+    'condition': 'checkout_linux and not build_with_chromium',
+    'action': [ 'download_from_google_storage',
+                '--no_resume',
+                '--platform=linux*',
+                '--no_auth',
+                '--bucket', 'angle-flex-bison',
+                '-d', 'tools/flex-bison/linux/',
+    ],
+  },
+
+  # Download flex/bison binaries for Windows.
+  {
+    'name': 'win_flex_bison',
+    'pattern': '.',
+    'condition': 'checkout_win and not build_with_chromium',
+    'action': [ 'download_from_google_storage',
+                '--no_resume',
+                '--platform=win32*',
+                '--no_auth',
+                '--bucket', 'angle-flex-bison',
+                '-d', 'tools/flex-bison/windows/',
     ],
   },
 ]

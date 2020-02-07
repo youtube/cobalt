@@ -339,7 +339,7 @@ class SharedResourceUse final : angle::NonCopyable
         return mUse->serial;
     }
 
-    // The base counter value for an live resource is "1". Any value greater than one indicates
+    // The base counter value for a live resource is "1". Any value greater than one indicates
     // the resource is in use by a vk::CommandGraph.
     ANGLE_INLINE bool isCurrentlyInGraph() const
     {
@@ -382,6 +382,9 @@ class CommandGraphResource : angle::NonCopyable
 
     // Returns true if the resource is in use by the renderer.
     bool isResourceInUse(ContextVk *contextVk) const;
+    // Returns true if the resource has commands in the graph.  This is used to know if a flush
+    // should be performed, e.g. if we need to wait for the GPU to finish with the resource.
+    bool isCurrentlyInGraph() const { return mUse.isCurrentlyInGraph(); }
 
     // queries, to know if the queue they are submitted on has finished execution.
     Serial getLatestSerial() const { return mUse.getSerial(); }
@@ -396,6 +399,14 @@ class CommandGraphResource : angle::NonCopyable
     // was not used in this set of command nodes.
     void onGraphAccess(CommandGraph *commandGraph);
     void updateCurrentAccessNodes();
+
+    // If a resource is recreated, as in released and reinitialized, the next access to the
+    // resource will not create an edge from its last node and will create a new independent node.
+    // This is because mUse is reset and the graph believes it's an entirely new resource.  In very
+    // particular cases, such as recreating an image with full mipchain or adding STORAGE_IMAGE flag
+    // to its uses, this function is used to preserve the link between the previous and new
+    // nodes allocated for this resource.
+    void onResourceRecreated(CommandGraph *commandGraph);
 
     // Allocates a write node via getNewWriteNode and returns a started command buffer.
     // The started command buffer will render outside of a RenderPass.
@@ -524,6 +535,8 @@ class CommandGraph final : angle::NonCopyable
     void popDebugMarker();
     // Host-visible buffer write availability operation:
     void makeHostVisibleBufferWriteAvailable();
+    // External memory synchronization:
+    void syncExternalMemory();
 
     void onResourceUse(const SharedResourceUse &resourceUse);
     void releaseResourceUses();
@@ -610,6 +623,12 @@ ANGLE_INLINE void CommandGraphResource::updateCurrentAccessNodes()
         mCurrentWritingNode = nullptr;
         mCurrentReadingNodes.clear();
     }
+}
+
+ANGLE_INLINE void CommandGraphResource::onResourceRecreated(CommandGraph *commandGraph)
+{
+    // Store reference to usage in graph.
+    commandGraph->onResourceUse(mUse);
 }
 
 ANGLE_INLINE void CommandGraphResource::onGraphAccess(CommandGraph *commandGraph)

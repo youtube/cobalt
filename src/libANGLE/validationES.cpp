@@ -157,21 +157,25 @@ bool ValidReadPixelsFormatEnum(Context *context, GLenum format)
 }
 
 bool ValidReadPixelsFormatType(Context *context,
-                               GLenum framebufferComponentType,
+                               const gl::InternalFormat *info,
                                GLenum format,
                                GLenum type)
 {
-    switch (framebufferComponentType)
+    switch (info->componentType)
     {
         case GL_UNSIGNED_NORMALIZED:
             // TODO(geofflang): Don't accept BGRA here.  Some chrome internals appear to try to use
             // ReadPixels with BGRA even if the extension is not present
-            return (format == GL_RGBA && type == GL_UNSIGNED_BYTE) ||
+            return (format == GL_RGBA && type == GL_UNSIGNED_BYTE && info->pixelBytes >= 1) ||
+                   (context->getExtensions().textureNorm16 && format == GL_RGBA &&
+                    type == GL_UNSIGNED_SHORT && info->pixelBytes >= 2) ||
                    (context->getExtensions().readFormatBGRA && format == GL_BGRA_EXT &&
                     type == GL_UNSIGNED_BYTE);
 
         case GL_SIGNED_NORMALIZED:
-            return (format == GL_RGBA && type == GL_UNSIGNED_BYTE);
+            return (format == GL_RGBA && type == GL_BYTE && info->pixelBytes >= 1) ||
+                   (context->getExtensions().textureNorm16 && format == GL_RGBA &&
+                    type == GL_UNSIGNED_SHORT && info->pixelBytes >= 2);
 
         case GL_INT:
             return (format == GL_RGBA_INTEGER && type == GL_INT);
@@ -761,8 +765,8 @@ bool ValidFramebufferTarget(const Context *context, GLenum target)
 
 bool ValidMipLevel(const Context *context, TextureType type, GLint level)
 {
-    const auto &caps    = context->getCaps();
-    size_t maxDimension = 0;
+    const auto &caps = context->getCaps();
+    int maxDimension = 0;
     switch (type)
     {
         case TextureType::_2D:
@@ -790,7 +794,7 @@ bool ValidMipLevel(const Context *context, TextureType type, GLint level)
             UNREACHABLE();
     }
 
-    return level <= log2(static_cast<int>(maxDimension)) && level >= 0;
+    return level <= log2(maxDimension) && level >= 0;
 }
 
 bool ValidImageSizeParameters(Context *context,
@@ -1128,7 +1132,7 @@ bool ValidateAttachmentTarget(Context *context, GLenum attachment)
         }
 
         // Color attachment 0 is validated below because it is always valid
-        const unsigned int colorAttachment = (attachment - GL_COLOR_ATTACHMENT0_EXT);
+        const int colorAttachment = (attachment - GL_COLOR_ATTACHMENT0_EXT);
         if (colorAttachment >= context->getCaps().maxColorAttachments)
         {
             context->validationError(GL_INVALID_OPERATION, kInvalidAttachment);
@@ -1204,7 +1208,7 @@ bool ValidateRenderbufferStorageParametersBase(Context *context,
         return false;
     }
 
-    if (static_cast<GLuint>(std::max(width, height)) > context->getCaps().maxRenderbufferSize)
+    if (std::max(width, height) > context->getCaps().maxRenderbufferSize)
     {
         context->validationError(GL_INVALID_VALUE, kResourceMaxRenderbufferSize);
         return false;
@@ -2244,7 +2248,7 @@ bool ValidateStateQuery(Context *context, GLenum pname, GLenum *nativeType, unsi
 
     if (pname >= GL_DRAW_BUFFER0 && pname <= GL_DRAW_BUFFER15)
     {
-        unsigned int colorAttachment = (pname - GL_DRAW_BUFFER0);
+        int colorAttachment = (pname - GL_DRAW_BUFFER0);
 
         if (colorAttachment >= caps.maxDrawBuffers)
         {
@@ -2521,7 +2525,7 @@ bool ValidateCopyTexImageParametersBase(Context *context,
 
     const Caps &caps = context->getCaps();
 
-    GLuint maxDimension = 0;
+    GLint maxDimension = 0;
     switch (texType)
     {
         case TextureType::_2D:
@@ -3308,7 +3312,8 @@ bool ValidateDiscardFramebufferBase(Context *context,
                 return false;
             }
 
-            if (attachments[i] >= GL_COLOR_ATTACHMENT0 + context->getCaps().maxColorAttachments)
+            if (attachments[i] >=
+                GL_COLOR_ATTACHMENT0 + static_cast<GLuint>(context->getCaps().maxColorAttachments))
             {
                 context->validationError(GL_INVALID_OPERATION, kExceedsMaxColorAttachments);
                 return false;
@@ -3566,7 +3571,7 @@ bool ValidateDrawBuffersBase(Context *context, GLsizei n, const GLenum *bufs)
         context->validationError(GL_INVALID_VALUE, kNegativeCount);
         return false;
     }
-    if (static_cast<GLuint>(n) > context->getCaps().maxDrawBuffers)
+    if (n > context->getCaps().maxDrawBuffers)
     {
         context->validationError(GL_INVALID_VALUE, kIndexExceedsMaxDrawBuffer);
         return false;
@@ -3977,7 +3982,8 @@ bool ValidateGetFramebufferAttachmentParameterivBase(Context *context,
         default:
             if ((clientVersion < 3 && !context->getExtensions().drawBuffers) ||
                 attachment < GL_COLOR_ATTACHMENT0_EXT ||
-                (attachment - GL_COLOR_ATTACHMENT0_EXT) >= context->getCaps().maxColorAttachments)
+                (attachment - GL_COLOR_ATTACHMENT0_EXT) >=
+                    static_cast<GLuint>(context->getCaps().maxColorAttachments))
             {
                 context->validationError(GL_INVALID_ENUM, kInvalidAttachment);
                 return false;
@@ -5359,7 +5365,7 @@ bool ValidateGetVertexAttribBase(Context *context,
         return false;
     }
 
-    if (index >= context->getCaps().maxVertexAttributes)
+    if (index >= static_cast<GLuint>(context->getCaps().maxVertexAttributes))
     {
         context->validationError(GL_INVALID_VALUE, kIndexExceedsMaxVertexAttribute);
         return false;
@@ -5615,10 +5621,8 @@ bool ValidateReadPixelsBase(Context *context,
     GLenum currentType = GL_NONE;
     ANGLE_VALIDATION_TRY(readFramebuffer->getImplementationColorReadType(context, &currentType));
 
-    GLenum currentComponentType = readBuffer->getFormat().info->componentType;
-
     bool validFormatTypeCombination =
-        ValidReadPixelsFormatType(context, currentComponentType, format, type);
+        ValidReadPixelsFormatType(context, readBuffer->getFormat().info, format, type);
 
     if (!(currentFormat == format && currentType == type) && !validFormatTypeCombination)
     {
@@ -6386,8 +6390,7 @@ bool ValidateTexStorageMultisample(Context *context,
                                    GLsizei height)
 {
     const Caps &caps = context->getCaps();
-    if (static_cast<GLuint>(width) > caps.max2DTextureSize ||
-        static_cast<GLuint>(height) > caps.max2DTextureSize)
+    if (width > caps.max2DTextureSize || height > caps.max2DTextureSize)
     {
         context->validationError(GL_INVALID_VALUE, kTextureWidthOrHeightOutOfRange);
         return false;
@@ -6550,7 +6553,7 @@ bool ValidateGetMultisamplefvBase(Context *context, GLenum pname, GLuint index, 
 
 bool ValidateSampleMaskiBase(Context *context, GLuint maskNumber, GLbitfield mask)
 {
-    if (maskNumber >= context->getCaps().maxSampleMaskWords)
+    if (maskNumber >= static_cast<GLuint>(context->getCaps().maxSampleMaskWords))
     {
         context->validationError(GL_INVALID_VALUE, kInvalidSampleMaskNumber);
         return false;

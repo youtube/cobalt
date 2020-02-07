@@ -776,8 +776,9 @@ const ExtensionInfoMap &GetExtensionInfoMap()
         map["GL_OES_rgb8_rgba8"] = enableableExtension(&Extensions::rgb8rgba8);
         map["GL_EXT_texture_format_BGRA8888"] = enableableExtension(&Extensions::textureFormatBGRA8888);
         map["GL_EXT_texture_type_2_10_10_10_REV"] = enableableExtension(&Extensions::textureFormat2101010REV);
-        map["GL_EXT_read_format_bgra"] = esOnlyExtension(&Extensions::readFormatBGRA);
+        map["GL_EXT_read_format_bgra"] = enableableExtension(&Extensions::readFormatBGRA);
         map["GL_NV_pixel_buffer_object"] = enableableExtension(&Extensions::pixelBufferObject);
+        map["GL_ARB_sync"] = enableableExtension(&Extensions::glSync);
         map["GL_OES_mapbuffer"] = enableableExtension(&Extensions::mapBuffer);
         map["GL_EXT_map_buffer_range"] = enableableExtension(&Extensions::mapBufferRange);
         map["GL_EXT_color_buffer_half_float"] = enableableExtension(&Extensions::colorBufferHalfFloat);
@@ -897,6 +898,8 @@ const ExtensionInfoMap &GetExtensionInfoMap()
         map["GL_ANGLE_texture_external_update"] = enableableExtension(&Extensions::textureExternalUpdateANGLE);
         map["GL_ANGLE_base_vertex_base_instance"] = enableableExtension(&Extensions::baseVertexBaseInstance);
         map["GL_ANGLE_get_image"] = enableableExtension(&Extensions::getImageANGLE);
+        map["GL_OES_draw_elements_base_vertex"] = enableableExtension(&Extensions::drawElementsBaseVertexOES);
+        map["GL_EXT_draw_elements_base_vertex"] = enableableExtension(&Extensions::drawElementsBaseVertexEXT);
         // GLES1 extensinos
         map["GL_OES_point_size_array"] = enableableExtension(&Extensions::pointSizeArray);
         map["GL_OES_texture_cube_map"] = enableableExtension(&Extensions::textureCubeMap);
