@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright 2019 The Cobalt Authors. All Rights Reserved.
+# Copyright 2020 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Generates the ID of the Starboard ABI JSON for a given platform."""
+"""Generates the ID of a specified Starboard ABI JSON file."""
 
 import _env  # pylint: disable=unused-import
 
@@ -22,11 +22,10 @@ import json
 import os
 import sys
 
-from starboard.tools import build
-from starboard.tools import paths
+from starboard.sabi import sabi_utils
 
 
-def _GenerateSabiId(filename, platform, omaha):
+def _GenerateSabiId(sabi_json, omaha):
   """Returns the Starboard ABI ID for |platform|.
 
   This function will generate the sorted, whitespace-stripped id of the
@@ -37,30 +36,18 @@ def _GenerateSabiId(filename, platform, omaha):
   value will be ready to be copied directly into Omaha as-is.
 
   Args:
-    filename: The Starboard ABI JSON that will be used.
-    platform: The platform whose Starboard ABI JSON will be used.
+    sabi_json: The contents of the Starboard ABI JSON that will be used.
     omaha: Whether or not this string will be used for Omaha.
 
   Returns:
     The final, processed id of the Starboard ABI JSON for this platform.
   """
-  if platform:
-    platform_configuration = build.GetPlatformConfig(platform)
-    if not platform_configuration:
-      raise ValueError('Failed to get platform configuration.')
-    filename = platform_configuration.GetPathToSabiJsonFile()
-    filename = os.path.join(paths.REPOSITORY_ROOT, filename)
-  with open(filename) as f:
-    sabi_json = json.load(f)
-    if 'variables' not in sabi_json:
-      raise ValueError("'variables' entry not found in Starboard ABI file.")
-    sabi_id = json.dumps(sabi_json['variables'], sort_keys=True)
-    if omaha:
-      sabi_id = '\\\\' + sabi_id[:-1] + '\\\\}'
-      sabi_id = sabi_id.replace('"', '\\"')
-      sabi_id = '"{}"'.format(sabi_id)
-    return ''.join(sabi_id.split())
-  return ''
+  sabi_id = json.dumps(sabi_json, sort_keys=True)
+  if omaha:
+    sabi_id = '\\\\' + sabi_id[:-1] + '\\\\}'
+    sabi_id = sabi_id.replace('"', '\\"')
+    sabi_id = '"{}"'.format(sabi_id)
+  return ''.join(sabi_id.split())
 
 
 def DoMain(argv=None):
@@ -73,22 +60,10 @@ def DoMain(argv=None):
       default=False,
       help='Whether or not this string will be used for Omaha.',
   )
-  group = arg_parser.add_mutually_exclusive_group(required=True)
-  group.add_argument(
-      '-f',
-      '--filename',
-      default=None,
-      help='The Starboard ABI JSON file that should be used.',
-  )
-  group.add_argument(
-      '-p',
-      '--platform',
-      default=None,
-      help='The platform whose Starboard ABI JSON should be used.',
-  )
+  sabi_utils.AddSabiArguments(arg_parser)
   args, _ = arg_parser.parse_known_args(argv)
-  return _GenerateSabiId(
-      filename=args.filename, platform=args.platform, omaha=args.omaha)
+  sabi_json = sabi_utils.LoadSabi(args.filename, args.platform)
+  return _GenerateSabiId(sabi_json, args.omaha)
 
 
 def main():
