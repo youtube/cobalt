@@ -31,18 +31,19 @@ declare_args() {
 
   # Don't build extra (test, samples etc) for Windows UWP. We don't have
   # infrastructure (e.g. windowing helper functions) in place to run them.
-  angle_build_all = !angle_is_winuwp && angle_has_build
+  angle_build_all = !build_with_chromium && !angle_is_winuwp && angle_has_build
 }
 
-if (!build_with_chromium && angle_build_all) {
+if (angle_build_all) {
   group("all") {
     testonly = true
     deps = [
+      ":angle",
       ":angle_shader_translator",
       ":translator_fuzzer",
       ":xxhash_fuzzer",
-      "//samples:all",
-      "//src/tests:all",
+      "$angle_root/samples:angle_samples",
+      "$angle_root/src/tests:angle_tests",
     ]
   }
 }
@@ -449,6 +450,10 @@ angle_static_library("translator") {
     defines += [ "ANGLE_ENABLE_METAL" ]
   }
 
+  if (angle_enable_swiftshader) {
+    defines += [ "ANGLE_ENABLE_SWIFTSHADER" ]
+  }
+
   public_configs += [ ":external_config" ]
 
   deps = [
@@ -549,12 +554,14 @@ config("angle_backend_config") {
     defines += [ "ANGLE_ENABLE_NULL" ]
   }
 
+  configs = []
+
   if (angle_enable_metal) {
-    configs = [ "src/libANGLE/renderer/metal:angle_metal_backend_config" ]
+    configs += [ "src/libANGLE/renderer/metal:angle_metal_backend_config" ]
   }
 
   if (angle_enable_vulkan) {
-    configs = [ "src/libANGLE/renderer/vulkan:angle_vulkan_backend_config" ]
+    configs += [ "src/libANGLE/renderer/vulkan:angle_vulkan_backend_config" ]
   }
 }
 
@@ -633,8 +640,10 @@ angle_source_set("libANGLE_base") {
   ]
 
   if (is_win) {
+    if (angle_enable_d3d9) {
+      libs += [ "delayimp.lib" ]
+    }
     libs += [
-      "delayimp.lib",
       "gdi32.lib",
       "user32.lib",
     ]
@@ -1133,8 +1142,7 @@ foreach(is_shared_library,
     if (is_fuchsia) {
       sources += util_fuchsia_sources
       public_deps += [
-        "$angle_root/src/common/fuchsia_egl",
-        "src/libANGLE/renderer/vulkan:angle_vulkan",
+        "src/common/fuchsia_egl",
         "//third_party/fuchsia-sdk/sdk:async_loop_cpp",
         "//third_party/fuchsia-sdk/sdk:async_loop_default",
         "//third_party/fuchsia-sdk/sdk:fdio",
@@ -1174,7 +1182,6 @@ foreach(is_shared_library,
 
 # Convenience targets for some of the samples so they can be built
 # with Chromium's toolchain.
-
 angle_executable("angle_shader_translator") {
   testonly = true
 
@@ -1295,9 +1302,9 @@ if (build_with_chromium && !is_component_build && is_android &&
   }
 }
 
-# Note: libGLESv1_CM is not presently included because most Chrome users don't care about it.
 group("angle") {
   data_deps = [
+    ":libGLESv1_CM",
     ":libGLESv2",
     ":libEGL",
   ]
