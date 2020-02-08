@@ -41,7 +41,6 @@ void V8cHeapTracer::RegisterV8References(
 
 void V8cHeapTracer::TracePrologue() {
   TRACE_EVENT0("cobalt::script", "V8cHeapTracer::TracePrologue");
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (disabled_) {
     return;
@@ -57,14 +56,10 @@ void V8cHeapTracer::TracePrologue() {
   for (Traceable* traceable : roots_) {
     MaybeAddToFrontier(traceable);
   }
-  for (v8::TracedGlobal<v8::Value>* traced_global : globals_) {
-    RegisterEmbedderReference(*traced_global);
-  }
 }
 
 bool V8cHeapTracer::AdvanceTracing(double deadline_in_ms) {
   TRACE_EVENT0("cobalt::script", "V8cHeapTracer::AdvanceTracing");
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (disabled_) {
     return true;
@@ -104,7 +99,6 @@ bool V8cHeapTracer::AdvanceTracing(double deadline_in_ms) {
 }
 
 bool V8cHeapTracer::IsTracingDone() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (disabled_) {
     return true;
   }
@@ -159,18 +153,6 @@ void V8cHeapTracer::RemoveRoot(Traceable* traceable) {
   auto it = roots_.find(traceable);
   DCHECK(it != roots_.end());
   roots_.erase(it);
-}
-
-void V8cHeapTracer::AddRoot(v8::TracedGlobal<v8::Value>* traced_global) {
-  DCHECK(traced_global);
-  globals_.insert(traced_global);
-}
-
-void V8cHeapTracer::RemoveRoot(v8::TracedGlobal<v8::Value>* traced_global) {
-  DCHECK(traced_global);
-  auto it = globals_.find(traced_global);
-  DCHECK(it != globals_.end());
-  globals_.erase(it);
 }
 
 void V8cHeapTracer::MaybeAddToFrontier(Traceable* traceable) {
