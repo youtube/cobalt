@@ -18,7 +18,7 @@
 #include <list>
 
 #include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
+#include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 
 namespace starboard {
 namespace android {
