@@ -112,9 +112,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
   UpdateActiveSessionPlatformPlaybackState(kPlaying);
 
   starboard::scoped_ptr<PlayerWorker::Handler> handler(
-      new FilterBasedPlayerWorkerHandler(
-          video_codec, audio_codec, creation_param->drm_system,
-          &creation_param->audio_sample_info, output_mode, provider));
+      new FilterBasedPlayerWorkerHandler(creation_param, provider));
   SbPlayer player = SbPlayerPrivate::CreateInstance(
       audio_codec, video_codec, &creation_param->audio_sample_info,
       sample_deallocate_func, decoder_status_func, player_status_func,

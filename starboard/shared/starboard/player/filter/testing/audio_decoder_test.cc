@@ -111,8 +111,8 @@ class AudioDecoderTest
     audio_renderer_sink->reset();
     audio_decoder->reset();
 
-    PlayerComponents::AudioParameters audio_parameters = {
-        codec, audio_sample_info, kSbDrmSystemInvalid};
+    PlayerComponents::CreationParameters creation_parameters(codec, "",
+                                                             audio_sample_info);
 
     scoped_ptr<PlayerComponents> components;
     if (using_stub_decoder_) {
@@ -122,13 +122,15 @@ class AudioDecoderTest
       components = PlayerComponents::Create();
     }
     std::string error_message;
-    components->CreateAudioComponents(audio_parameters, audio_decoder,
-                                      audio_renderer_sink, &error_message);
-
-    if (*audio_decoder) {
+    if (components->CreateComponents(creation_parameters, audio_decoder,
+                                     audio_renderer_sink, nullptr, nullptr,
+                                     nullptr, &error_message)) {
+      SB_CHECK(*audio_decoder);
       (*audio_decoder)
           ->Initialize(std::bind(&AudioDecoderTest::OnOutput, this),
                        std::bind(&AudioDecoderTest::OnError, this));
+    } else {
+      audio_decoder->reset();
     }
   }
 

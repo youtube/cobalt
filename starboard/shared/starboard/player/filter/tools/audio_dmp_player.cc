@@ -130,12 +130,12 @@ void Start(const char* filename) {
   s_video_dmp_reader.reset(
       new VideoDmpReader(ResolveTestFileName(filename).c_str()));
   scoped_ptr<PlayerComponents> player_components = PlayerComponents::Create();
-  PlayerComponents::AudioParameters audio_parameters = {
-      s_video_dmp_reader->audio_codec(),
-      s_video_dmp_reader->audio_sample_info(), kSbDrmSystemInvalid};
+  PlayerComponents::CreationParameters creation_parameters(
+      s_video_dmp_reader->audio_codec(), "",
+      s_video_dmp_reader->audio_sample_info());
   std::string error_message;
-  s_audio_renderer =
-      player_components->CreateAudioRenderer(audio_parameters, &error_message);
+  player_components->CreateRenderers(creation_parameters, &s_audio_renderer,
+                                     nullptr, &error_message);
   SB_DCHECK(s_audio_renderer);
 
   using std::placeholders::_1;

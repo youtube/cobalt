@@ -40,74 +40,76 @@ namespace filter {
 namespace {
 
 class PlayerComponentsImpl : public PlayerComponents {
-  bool CreateAudioComponents(const AudioParameters& audio_parameters,
-                             scoped_ptr<AudioDecoder>* audio_decoder,
-                             scoped_ptr<AudioRendererSink>* audio_renderer_sink,
-                             std::string* error_message) override {
-    SB_DCHECK(audio_decoder);
-    SB_DCHECK(audio_renderer_sink);
-    SB_DCHECK(error_message);
-
-    auto decoder_creator = [](const SbMediaAudioSampleInfo& audio_sample_info,
-                              SbDrmSystem drm_system) {
-      using AacAudioDecoder = ::starboard::android::shared::AudioDecoder;
-      using OpusAudioDecoder = ::starboard::shared::opus::OpusAudioDecoder;
-
-      if (audio_sample_info.codec == kSbMediaAudioCodecAac) {
-        scoped_ptr<AacAudioDecoder> audio_decoder_impl(new AacAudioDecoder(
-            audio_sample_info.codec, audio_sample_info, drm_system));
-        if (audio_decoder_impl->is_valid()) {
-          return audio_decoder_impl.PassAs<AudioDecoder>();
-        }
-      } else if (audio_sample_info.codec == kSbMediaAudioCodecOpus) {
-        scoped_ptr<OpusAudioDecoder> audio_decoder_impl(
-            new OpusAudioDecoder(audio_sample_info));
-        if (audio_decoder_impl->is_valid()) {
-          return audio_decoder_impl.PassAs<AudioDecoder>();
-        }
-      } else {
-        SB_NOTREACHED();
-      }
-      return scoped_ptr<AudioDecoder>();
-    };
-
-    audio_decoder->reset(
-        new AdaptiveAudioDecoder(audio_parameters.audio_sample_info,
-                                 audio_parameters.drm_system, decoder_creator));
-    audio_renderer_sink->reset(new AudioRendererSinkImpl);
-    return true;
-  }
-
-  bool CreateVideoComponents(
-      const VideoParameters& video_parameters,
+  bool CreateComponents(
+      const CreationParameters& creation_parameters,
+      scoped_ptr<AudioDecoder>* audio_decoder,
+      scoped_ptr<AudioRendererSink>* audio_renderer_sink,
       scoped_ptr<VideoDecoder>* video_decoder,
       scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
       scoped_refptr<VideoRendererSink>* video_renderer_sink,
       std::string* error_message) override {
-    using VideoDecoderImpl = ::starboard::android::shared::VideoDecoder;
-    using VideoRenderAlgorithmImpl =
-        ::starboard::android::shared::VideoRenderAlgorithm;
-
-    SB_DCHECK(video_decoder);
-    SB_DCHECK(video_render_algorithm);
-    SB_DCHECK(video_renderer_sink);
     SB_DCHECK(error_message);
 
-    scoped_ptr<VideoDecoderImpl> video_decoder_impl(new VideoDecoderImpl(
-        video_parameters.video_codec, video_parameters.drm_system,
-        video_parameters.output_mode,
-        video_parameters.decode_target_graphics_context_provider));
-    if (video_decoder_impl->is_valid()) {
-      *video_renderer_sink = video_decoder_impl->GetSink();
-      video_decoder->reset(video_decoder_impl.release());
-    } else {
-      video_decoder->reset();
-      *video_renderer_sink = NULL;
-      *error_message = "Failed to create video decoder.";
-      return false;
+    if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
+      SB_DCHECK(audio_decoder);
+      SB_DCHECK(audio_renderer_sink);
+
+      auto decoder_creator = [](const SbMediaAudioSampleInfo& audio_sample_info,
+                                SbDrmSystem drm_system) {
+        using AacAudioDecoder = ::starboard::android::shared::AudioDecoder;
+        using OpusAudioDecoder = ::starboard::shared::opus::OpusAudioDecoder;
+
+        if (audio_sample_info.codec == kSbMediaAudioCodecAac) {
+          scoped_ptr<AacAudioDecoder> audio_decoder_impl(new AacAudioDecoder(
+              audio_sample_info.codec, audio_sample_info, drm_system));
+          if (audio_decoder_impl->is_valid()) {
+            return audio_decoder_impl.PassAs<AudioDecoder>();
+          }
+        } else if (audio_sample_info.codec == kSbMediaAudioCodecOpus) {
+          scoped_ptr<OpusAudioDecoder> audio_decoder_impl(
+              new OpusAudioDecoder(audio_sample_info));
+          if (audio_decoder_impl->is_valid()) {
+            return audio_decoder_impl.PassAs<AudioDecoder>();
+          }
+        } else {
+          SB_NOTREACHED();
+        }
+        return scoped_ptr<AudioDecoder>();
+      };
+
+      audio_decoder->reset(new AdaptiveAudioDecoder(
+          creation_parameters.audio_sample_info(),
+          creation_parameters.drm_system(), decoder_creator));
+      audio_renderer_sink->reset(new AudioRendererSinkImpl);
     }
 
-    video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
+    if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
+      using VideoDecoderImpl = ::starboard::android::shared::VideoDecoder;
+      using VideoRenderAlgorithmImpl =
+          ::starboard::android::shared::VideoRenderAlgorithm;
+
+      SB_DCHECK(video_decoder);
+      SB_DCHECK(video_render_algorithm);
+      SB_DCHECK(video_renderer_sink);
+      SB_DCHECK(error_message);
+
+      scoped_ptr<VideoDecoderImpl> video_decoder_impl(new VideoDecoderImpl(
+          creation_parameters.video_codec(), creation_parameters.drm_system(),
+          creation_parameters.output_mode(),
+          creation_parameters.decode_target_graphics_context_provider()));
+      if (video_decoder_impl->is_valid()) {
+        *video_renderer_sink = video_decoder_impl->GetSink();
+        video_decoder->reset(video_decoder_impl.release());
+      } else {
+        video_decoder->reset();
+        *video_renderer_sink = NULL;
+        *error_message = "Failed to create video decoder.";
+        return false;
+      }
+
+      video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
+    }
+
     return true;
   }
 };
