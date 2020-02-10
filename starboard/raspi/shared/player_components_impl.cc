@@ -36,50 +36,55 @@ namespace filter {
 namespace {
 
 class PlayerComponentsImpl : public PlayerComponents {
-  bool CreateAudioComponents(const AudioParameters& audio_parameters,
-                             scoped_ptr<AudioDecoder>* audio_decoder,
-                             scoped_ptr<AudioRendererSink>* audio_renderer_sink,
-                             std::string* error_message) override {
-    SB_DCHECK(audio_decoder);
-    SB_DCHECK(audio_renderer_sink);
-    SB_DCHECK(error_message);
-
-    auto decoder_creator = [](const SbMediaAudioSampleInfo& audio_sample_info,
-                              SbDrmSystem drm_system) {
-      typedef ::starboard::shared::ffmpeg::AudioDecoder AudioDecoderImpl;
-
-      scoped_ptr<AudioDecoderImpl> audio_decoder_impl(
-          AudioDecoderImpl::Create(audio_sample_info.codec, audio_sample_info));
-      if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
-        return audio_decoder_impl.PassAs<AudioDecoder>();
-      }
-      return scoped_ptr<AudioDecoder>();
-    };
-
-    audio_decoder->reset(
-        new AdaptiveAudioDecoder(audio_parameters.audio_sample_info,
-                                 audio_parameters.drm_system, decoder_creator));
-    audio_renderer_sink->reset(new AudioRendererSinkImpl);
-    return true;
-  }
-
-  bool CreateVideoComponents(
-      const VideoParameters& video_parameters,
+  bool CreateComponents(
+      const CreationParameters& creation_parameters,
+      scoped_ptr<AudioDecoder>* audio_decoder,
+      scoped_ptr<AudioRendererSink>* audio_renderer_sink,
       scoped_ptr<VideoDecoder>* video_decoder,
       scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
       scoped_refptr<VideoRendererSink>* video_renderer_sink,
       std::string* error_message) override {
-    using VideoDecoderImpl = ::starboard::raspi::shared::open_max::VideoDecoder;
-    using ::starboard::raspi::shared::VideoRendererSinkImpl;
-
-    SB_DCHECK(video_decoder);
-    SB_DCHECK(video_render_algorithm);
-    SB_DCHECK(video_renderer_sink);
     SB_DCHECK(error_message);
 
-    video_decoder->reset(new VideoDecoderImpl(video_parameters.video_codec));
-    video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
-    *video_renderer_sink = new VideoRendererSinkImpl(video_parameters.player);
+    if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
+      SB_DCHECK(audio_decoder);
+      SB_DCHECK(audio_renderer_sink);
+
+      auto decoder_creator = [](const SbMediaAudioSampleInfo& audio_sample_info,
+                                SbDrmSystem drm_system) {
+        typedef ::starboard::shared::ffmpeg::AudioDecoder AudioDecoderImpl;
+
+        scoped_ptr<AudioDecoderImpl> audio_decoder_impl(
+            AudioDecoderImpl::Create(audio_sample_info.codec,
+                                     audio_sample_info));
+        if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
+          return audio_decoder_impl.PassAs<AudioDecoder>();
+        }
+        return scoped_ptr<AudioDecoder>();
+      };
+
+      audio_decoder->reset(new AdaptiveAudioDecoder(
+          creation_parameters.audio_sample_info(),
+          creation_parameters.drm_system(), decoder_creator));
+      audio_renderer_sink->reset(new AudioRendererSinkImpl);
+    }
+
+    if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
+      using VideoDecoderImpl =
+          ::starboard::raspi::shared::open_max::VideoDecoder;
+      using ::starboard::raspi::shared::VideoRendererSinkImpl;
+
+      SB_DCHECK(video_decoder);
+      SB_DCHECK(video_render_algorithm);
+      SB_DCHECK(video_renderer_sink);
+
+      video_decoder->reset(
+          new VideoDecoderImpl(creation_parameters.video_codec()));
+      video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
+      *video_renderer_sink =
+          new VideoRendererSinkImpl(creation_parameters.player());
+    }
+
     return true;
   }
 };

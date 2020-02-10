@@ -48,137 +48,142 @@ namespace {
 
 class PlayerComponentsImpl : public PlayerComponents {
  public:
-  bool CreateAudioComponents(const AudioParameters& audio_parameters,
-                             scoped_ptr<AudioDecoder>* audio_decoder,
-                             scoped_ptr<AudioRendererSink>* audio_renderer_sink,
-                             std::string* error_message) override {
-    SB_DCHECK(audio_decoder);
-    SB_DCHECK(audio_renderer_sink);
-    SB_DCHECK(error_message);
-
-    typedef ::starboard::shared::ffmpeg::AudioDecoder FfmpegAudioDecoder;
-    typedef ::starboard::shared::opus::OpusAudioDecoder OpusAudioDecoder;
-
-#if SB_API_VERSION >= 11
-    auto decoder_creator = [](const SbMediaAudioSampleInfo& audio_sample_info,
-                              SbDrmSystem drm_system) {
-      if (audio_sample_info.codec == kSbMediaAudioCodecOpus) {
-        scoped_ptr<OpusAudioDecoder> audio_decoder_impl(
-            new OpusAudioDecoder(audio_sample_info));
-        if (audio_decoder_impl->is_valid()) {
-          return audio_decoder_impl.PassAs<AudioDecoder>();
-        }
-      } else {
-        scoped_ptr<FfmpegAudioDecoder> audio_decoder_impl(
-            FfmpegAudioDecoder::Create(audio_sample_info.codec,
-                                       audio_sample_info));
-        if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
-          return audio_decoder_impl.PassAs<AudioDecoder>();
-        }
-      }
-      return scoped_ptr<AudioDecoder>();
-    };
-
-    audio_decoder->reset(
-        new AdaptiveAudioDecoder(audio_parameters.audio_sample_info,
-                                 audio_parameters.drm_system, decoder_creator));
-#else   // SB_API_VERSION >= 11
-    if (audio_parameters.audio_codec == kSbMediaAudioCodecOpus) {
-      scoped_ptr<OpusAudioDecoder> audio_decoder_impl(
-          new OpusAudioDecoder(audio_parameters.audio_sample_info));
-      if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
-        audio_decoder->reset(audio_decoder_impl.release());
-      } else {
-        audio_decoder->reset();
-        SB_LOG(ERROR) << "Failed to create Opus audio decoder.";
-        *error_message = "Failed to create Opus audio decoder.";
-        return false;
-      }
-    } else {
-      scoped_ptr<FfmpegAudioDecoder> audio_decoder_impl(
-          FfmpegAudioDecoder::Create(audio_parameters.audio_codec,
-                                     audio_parameters.audio_sample_info));
-      if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
-        audio_decoder->reset(audio_decoder_impl.release());
-      } else {
-        audio_decoder->reset();
-        SB_LOG(ERROR) << "Failed to create audio decoder for codec "
-                      << audio_parameters.audio_codec;
-        *error_message =
-            FormatString("Failed to create audio decoder for codec %d.",
-                         audio_parameters.audio_codec);
-        return false;
-      }
-    }
-#endif  // SB_API_VERSION >= 11
-    audio_renderer_sink->reset(new AudioRendererSinkImpl);
-
-    return true;
-  }
-
-  bool CreateVideoComponents(
-      const VideoParameters& video_parameters,
+  bool CreateComponents(
+      const CreationParameters& creation_parameters,
+      scoped_ptr<AudioDecoder>* audio_decoder,
+      scoped_ptr<AudioRendererSink>* audio_renderer_sink,
       scoped_ptr<VideoDecoder>* video_decoder,
       scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
       scoped_refptr<VideoRendererSink>* video_renderer_sink,
       std::string* error_message) override {
-    typedef ::starboard::shared::aom::VideoDecoder Av1VideoDecoderImpl;
-    typedef ::starboard::shared::de265::VideoDecoder H265VideoDecoderImpl;
-    typedef ::starboard::shared::ffmpeg::VideoDecoder FfmpegVideoDecoderImpl;
-    typedef ::starboard::shared::vpx::VideoDecoder VpxVideoDecoderImpl;
-
-    const SbTime kVideoSinkRenderInterval = 10 * kSbTimeMillisecond;
-
-    SB_DCHECK(video_decoder);
-    SB_DCHECK(video_render_algorithm);
-    SB_DCHECK(video_renderer_sink);
     SB_DCHECK(error_message);
 
-    video_decoder->reset();
+    if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
+      SB_DCHECK(audio_decoder);
+      SB_DCHECK(audio_renderer_sink);
 
-#if SB_API_VERSION < 11
-    const SbMediaVideoCodec kAv1VideoCodec = kSbMediaVideoCodecVp10;
-#else   // SB_API_VERSION < 11
-    const SbMediaVideoCodec kAv1VideoCodec = kSbMediaVideoCodecAv1;
-#endif  // SB_API_VERSION < 11
+      typedef ::starboard::shared::ffmpeg::AudioDecoder FfmpegAudioDecoder;
+      typedef ::starboard::shared::opus::OpusAudioDecoder OpusAudioDecoder;
 
-    if (video_parameters.video_codec == kSbMediaVideoCodecVp9) {
-      video_decoder->reset(new VpxVideoDecoderImpl(
-          video_parameters.video_codec, video_parameters.output_mode,
-          video_parameters.decode_target_graphics_context_provider));
-    } else if (video_parameters.video_codec == kAv1VideoCodec) {
-      video_decoder->reset(new Av1VideoDecoderImpl(
-          video_parameters.video_codec, video_parameters.output_mode,
-          video_parameters.decode_target_graphics_context_provider));
-    } else if (video_parameters.video_codec == kSbMediaVideoCodecH265) {
-      video_decoder->reset(new H265VideoDecoderImpl(
-          video_parameters.video_codec, video_parameters.output_mode,
-          video_parameters.decode_target_graphics_context_provider));
-    } else {
-      scoped_ptr<FfmpegVideoDecoderImpl> ffmpeg_video_decoder(
-          FfmpegVideoDecoderImpl::Create(
-              video_parameters.video_codec, video_parameters.output_mode,
-              video_parameters.decode_target_graphics_context_provider));
-      if (ffmpeg_video_decoder && ffmpeg_video_decoder->is_valid()) {
-        video_decoder->reset(ffmpeg_video_decoder.release());
+#if SB_API_VERSION >= 11
+      auto decoder_creator = [](const SbMediaAudioSampleInfo& audio_sample_info,
+                                SbDrmSystem drm_system) {
+        if (audio_sample_info.codec == kSbMediaAudioCodecOpus) {
+          scoped_ptr<OpusAudioDecoder> audio_decoder_impl(
+              new OpusAudioDecoder(audio_sample_info));
+          if (audio_decoder_impl->is_valid()) {
+            return audio_decoder_impl.PassAs<AudioDecoder>();
+          }
+        } else {
+          scoped_ptr<FfmpegAudioDecoder> audio_decoder_impl(
+              FfmpegAudioDecoder::Create(audio_sample_info.codec,
+                                         audio_sample_info));
+          if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
+            return audio_decoder_impl.PassAs<AudioDecoder>();
+          }
+        }
+        return scoped_ptr<AudioDecoder>();
+      };
+
+      audio_decoder->reset(new AdaptiveAudioDecoder(
+          creation_parameters.audio_sample_info(),
+          creation_parameters.drm_system(), decoder_creator));
+#else   // SB_API_VERSION >= 11
+      if (creation_parameters.audio_codec() == kSbMediaAudioCodecOpus) {
+        scoped_ptr<OpusAudioDecoder> audio_decoder_impl(
+            new OpusAudioDecoder(creation_parameters.audio_sample_info()));
+        if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
+          audio_decoder->reset(audio_decoder_impl.release());
+        } else {
+          audio_decoder->reset();
+          SB_LOG(ERROR) << "Failed to create Opus audio decoder.";
+          *error_message = "Failed to create Opus audio decoder.";
+          return false;
+        }
       } else {
-        SB_LOG(ERROR) << "Failed to create video decoder for codec "
-                      << video_parameters.video_codec;
-        *error_message =
-            FormatString("Failed to create video decoder for codec %d.",
-                         video_parameters.video_codec);
-        return false;
+        scoped_ptr<FfmpegAudioDecoder> audio_decoder_impl(
+            FfmpegAudioDecoder::Create(
+                creation_parameters.audio_codec(),
+                creation_parameters.audio_sample_info()));
+        if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
+          audio_decoder->reset(audio_decoder_impl.release());
+        } else {
+          audio_decoder->reset();
+          SB_LOG(ERROR) << "Failed to create audio decoder for codec "
+                        << creation_parameters.audio_codec();
+          *error_message =
+              FormatString("Failed to create audio decoder for codec %d.",
+                           creation_parameters.audio_codec());
+          return false;
+        }
       }
+#endif  // SB_API_VERSION >= 11
+      audio_renderer_sink->reset(new AudioRendererSinkImpl);
     }
 
-    video_render_algorithm->reset(new VideoRenderAlgorithmImpl([]() {
-      return 60.;  // default refresh rate
-    }));
-    if (video_parameters.output_mode == kSbPlayerOutputModeDecodeToTexture) {
-      *video_renderer_sink = NULL;
-    } else {
-      *video_renderer_sink = new PunchoutVideoRendererSink(
-          video_parameters.player, kVideoSinkRenderInterval);
+    if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
+      typedef ::starboard::shared::aom::VideoDecoder Av1VideoDecoderImpl;
+      typedef ::starboard::shared::de265::VideoDecoder H265VideoDecoderImpl;
+      typedef ::starboard::shared::ffmpeg::VideoDecoder FfmpegVideoDecoderImpl;
+      typedef ::starboard::shared::vpx::VideoDecoder VpxVideoDecoderImpl;
+
+      const SbTime kVideoSinkRenderInterval = 10 * kSbTimeMillisecond;
+
+      SB_DCHECK(video_decoder);
+      SB_DCHECK(video_render_algorithm);
+      SB_DCHECK(video_renderer_sink);
+
+      video_decoder->reset();
+
+#if SB_API_VERSION < 11
+      const SbMediaVideoCodec kAv1VideoCodec = kSbMediaVideoCodecVp10;
+#else   // SB_API_VERSION < 11
+      const SbMediaVideoCodec kAv1VideoCodec = kSbMediaVideoCodecAv1;
+#endif  // SB_API_VERSION < 11
+
+      if (creation_parameters.video_codec() == kSbMediaVideoCodecVp9) {
+        video_decoder->reset(new VpxVideoDecoderImpl(
+            creation_parameters.video_codec(),
+            creation_parameters.output_mode(),
+            creation_parameters.decode_target_graphics_context_provider()));
+      } else if (creation_parameters.video_codec() == kAv1VideoCodec) {
+        video_decoder->reset(new Av1VideoDecoderImpl(
+            creation_parameters.video_codec(),
+            creation_parameters.output_mode(),
+            creation_parameters.decode_target_graphics_context_provider()));
+      } else if (creation_parameters.video_codec() == kSbMediaVideoCodecH265) {
+        video_decoder->reset(new H265VideoDecoderImpl(
+            creation_parameters.video_codec(),
+            creation_parameters.output_mode(),
+            creation_parameters.decode_target_graphics_context_provider()));
+      } else {
+        scoped_ptr<FfmpegVideoDecoderImpl> ffmpeg_video_decoder(
+            FfmpegVideoDecoderImpl::Create(
+                creation_parameters.video_codec(),
+                creation_parameters.output_mode(),
+                creation_parameters.decode_target_graphics_context_provider()));
+        if (ffmpeg_video_decoder && ffmpeg_video_decoder->is_valid()) {
+          video_decoder->reset(ffmpeg_video_decoder.release());
+        } else {
+          SB_LOG(ERROR) << "Failed to create video decoder for codec "
+                        << creation_parameters.video_codec();
+          *error_message =
+              FormatString("Failed to create video decoder for codec %d.",
+                           creation_parameters.video_codec());
+          return false;
+        }
+      }
+
+      video_render_algorithm->reset(new VideoRenderAlgorithmImpl([]() {
+        return 60.;  // default refresh rate
+      }));
+      if (creation_parameters.output_mode() ==
+          kSbPlayerOutputModeDecodeToTexture) {
+        *video_renderer_sink = NULL;
+      } else {
+        *video_renderer_sink = new PunchoutVideoRendererSink(
+            creation_parameters.player(), kVideoSinkRenderInterval);
+      }
     }
 
     return true;
