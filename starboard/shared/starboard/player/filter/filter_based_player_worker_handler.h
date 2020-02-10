@@ -42,6 +42,11 @@ namespace filter {
 class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
                                        private JobQueue::JobOwner {
  public:
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  FilterBasedPlayerWorkerHandler(
+      const SbPlayerCreationParam* creation_param,
+      SbDecodeTargetGraphicsContextProvider* provider);
+#else   // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   FilterBasedPlayerWorkerHandler(
       SbMediaVideoCodec video_codec,
       SbMediaAudioCodec audio_codec,
@@ -49,6 +54,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
       const SbMediaAudioSampleInfo* audio_sample_info,
       SbPlayerOutputMode output_mode,
       SbDecodeTargetGraphicsContextProvider* provider);
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
  private:
   bool IsPunchoutMode() const;
@@ -104,7 +110,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   bool paused_ = false;
   double playback_rate_ = 1.0;
   double volume_ = 1.0;
-  PlayerWorker::Bounds bounds_;
+  PlayerWorker::Bounds bounds_ = {};
   JobQueue::JobToken update_job_token_;
   std::function<void()> update_job_;
 
@@ -126,6 +132,13 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   SbPlayerOutputMode output_mode_;
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider_;
+
+  std::string audio_mime_;
+  std::string video_mime_;
+  std::string max_video_capabilities_;
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  SbMediaVideoSampleInfo video_sample_info_;
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 };
 
 }  // namespace filter

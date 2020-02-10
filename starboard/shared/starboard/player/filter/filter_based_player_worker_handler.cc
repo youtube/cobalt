@@ -77,6 +77,36 @@ void DumpInputHash(const InputBuffer* input_buffer) {
 
 }  // namespace
 
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
+    const SbPlayerCreationParam* creation_param,
+    SbDecodeTargetGraphicsContextProvider* provider)
+    : JobOwner(kDetached),
+      video_codec_(creation_param->video_sample_info.codec),
+      audio_codec_(creation_param->audio_sample_info.codec),
+      drm_system_(creation_param->drm_system),
+      output_mode_(creation_param->output_mode),
+      decode_target_graphics_context_provider_(provider),
+      audio_mime_(creation_param->audio_mime),
+      video_mime_(creation_param->video_mime),
+      max_video_capabilities_(creation_param->max_video_capabilities),
+      video_sample_info_(creation_param->video_sample_info) {
+  if (audio_codec_ != kSbMediaAudioCodecNone) {
+    audio_sample_info_ = creation_param->audio_sample_info;
+
+    if (audio_sample_info_.audio_specific_config_size > 0) {
+      audio_specific_config_.reset(
+          new int8_t[audio_sample_info_.audio_specific_config_size]);
+      SbMemoryCopy(audio_specific_config_.get(),
+                   audio_sample_info_.audio_specific_config,
+                   audio_sample_info_.audio_specific_config_size);
+      audio_sample_info_.audio_specific_config = audio_specific_config_.get();
+    }
+  }
+
+  update_job_ = std::bind(&FilterBasedPlayerWorkerHandler::Update, this);
+}
+#else   // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
     SbMediaVideoCodec video_codec,
     SbMediaAudioCodec audio_codec,
@@ -104,8 +134,8 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
   }
 
   update_job_ = std::bind(&FilterBasedPlayerWorkerHandler::Update, this);
-  bounds_ = PlayerWorker::Bounds();
 }
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
 bool FilterBasedPlayerWorkerHandler::IsPunchoutMode() const {
   return (output_mode_ == kSbPlayerOutputModePunchOut);
@@ -158,30 +188,10 @@ bool FilterBasedPlayerWorkerHandler::Init(
                        required_audio_channels, supported_audio_channels);
       return false;
     }
+  }
 
-    PlayerComponents::AudioParameters audio_parameters = {
-        audio_codec_, audio_sample_info_, drm_system_};
-
-    audio_renderer_ =
-        player_components->CreateAudioRenderer(audio_parameters, error_message);
-    if (!audio_renderer_) {
-      SB_DLOG(ERROR) << "Failed to create audio renderer with error: "
-                     << *error_message;
-      return false;
-    }
-    audio_renderer_->Initialize(
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
-        std::bind(&FilterBasedPlayerWorkerHandler::OnError, this, _1, _2),
-#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
-        std::bind(&FilterBasedPlayerWorkerHandler::OnError, this),
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
-        std::bind(&FilterBasedPlayerWorkerHandler::OnPrerolled, this,
-                  kSbMediaTypeAudio),
-        std::bind(&FilterBasedPlayerWorkerHandler::OnEnded, this,
-                  kSbMediaTypeAudio));
-    audio_renderer_->SetPlaybackRate(playback_rate_);
-    audio_renderer_->SetVolume(volume_);
-  } else {
+  if (audio_codec_ == kSbMediaAudioCodecNone &&
+      video_codec_ != kSbMediaVideoCodecNone) {
     media_time_provider_impl_.reset(
         new MediaTimeProviderImpl(scoped_ptr<MonotonicSystemTimeProvider>(
             new MonotonicSystemTimeProviderImpl)));
@@ -198,23 +208,47 @@ bool FilterBasedPlayerWorkerHandler::Init(
     media_time_provider_impl_->SetPlaybackRate(playback_rate_);
   }
 
-  if (video_codec_ != kSbMediaVideoCodecNone) {
-    PlayerComponents::VideoParameters video_parameters = {
-        player_, video_codec_, drm_system_, output_mode_,
-        decode_target_graphics_context_provider_};
+  PlayerComponents::CreationParameters creation_parameters(
+      audio_codec_, audio_mime_, audio_sample_info_, video_codec_, video_mime_,
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+      video_sample_info_,
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+      max_video_capabilities_, player_, output_mode_,
+      decode_target_graphics_context_provider_, GetMediaTimeProvider(),
+      drm_system_);
 
+  {
     ::starboard::ScopedLock lock(video_renderer_existence_mutex_);
-
-    auto media_time_provider = GetMediaTimeProvider();
-    SB_DCHECK(media_time_provider);
-
-    video_renderer_ = player_components->CreateVideoRenderer(
-        video_parameters, media_time_provider, error_message);
-    if (!video_renderer_) {
-      SB_DLOG(ERROR) << "Failed to create video renderer with error: "
-                     << *error_message;
+    if (!player_components->CreateRenderers(creation_parameters,
+                                            &audio_renderer_, &video_renderer_,
+                                            error_message)) {
+      SB_LOG(ERROR) << "Failed to create renderer with error: "
+                    << *error_message;
       return false;
     }
+  }
+  if (audio_codec_ != kSbMediaAudioCodecNone) {
+    SB_DCHECK(audio_renderer_);
+  }
+  if (video_codec_ != kSbMediaVideoCodecNone) {
+    SB_DCHECK(video_renderer_);
+  }
+
+  if (audio_renderer_) {
+    audio_renderer_->Initialize(
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+        std::bind(&FilterBasedPlayerWorkerHandler::OnError, this, _1, _2),
+#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
+        std::bind(&FilterBasedPlayerWorkerHandler::OnError, this),
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+        std::bind(&FilterBasedPlayerWorkerHandler::OnPrerolled, this,
+                  kSbMediaTypeAudio),
+        std::bind(&FilterBasedPlayerWorkerHandler::OnEnded, this,
+                  kSbMediaTypeAudio));
+    audio_renderer_->SetPlaybackRate(playback_rate_);
+    audio_renderer_->SetVolume(volume_);
+  }
+  if (video_renderer_) {
     video_renderer_->Initialize(
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
         std::bind(&FilterBasedPlayerWorkerHandler::OnError, this, _1, _2),

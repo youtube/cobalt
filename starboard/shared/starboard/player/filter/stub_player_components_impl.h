@@ -29,27 +29,24 @@ namespace filter {
 
 class StubPlayerComponentsImpl : public PlayerComponents {
  public:
-  bool CreateAudioComponents(const AudioParameters& audio_parameters,
-                             scoped_ptr<AudioDecoder>* audio_decoder,
-                             scoped_ptr<AudioRendererSink>* audio_renderer_sink,
-                             std::string* error_message) override {
-    SB_DCHECK(error_message);
-
-    CreateStubAudioComponents(audio_parameters, audio_decoder,
-                              audio_renderer_sink);
-    return true;
-  }
-
-  bool CreateVideoComponents(
-      const VideoParameters& video_parameters,
+  bool CreateComponents(
+      const CreationParameters& creation_parameters,
+      scoped_ptr<AudioDecoder>* audio_decoder,
+      scoped_ptr<AudioRendererSink>* audio_renderer_sink,
       scoped_ptr<VideoDecoder>* video_decoder,
       scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
       scoped_refptr<VideoRendererSink>* video_renderer_sink,
       std::string* error_message) override {
     SB_DCHECK(error_message);
 
-    CreateStubVideoComponents(video_parameters, video_decoder,
-                              video_render_algorithm, video_renderer_sink);
+    if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
+      CreateStubAudioComponents(creation_parameters, audio_decoder,
+                                audio_renderer_sink);
+    }
+    if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
+      CreateStubVideoComponents(creation_parameters, video_decoder,
+                                video_render_algorithm, video_renderer_sink);
+    }
     return true;
   }
 };

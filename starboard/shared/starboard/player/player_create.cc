@@ -68,7 +68,9 @@ SbPlayer SbPlayerCreate(SbWindow window,
 
   SbMediaAudioCodec audio_codec = creation_param->audio_sample_info.codec;
   SbMediaVideoCodec video_codec = creation_param->video_sample_info.codec;
+#if SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
   SbDrmSystem drm_system = creation_param->drm_system;
+#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
   const SbMediaAudioSampleInfo* audio_sample_info =
       &creation_param->audio_sample_info;
   const char* max_video_capabilities = creation_param->max_video_capabilities;
@@ -179,10 +181,15 @@ SbPlayer SbPlayerCreate(SbWindow window,
 
   UpdateActiveSessionPlatformPlaybackState(kPlaying);
 
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  starboard::scoped_ptr<PlayerWorker::Handler> handler(
+      new FilterBasedPlayerWorkerHandler(creation_param, provider));
+#else   // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   starboard::scoped_ptr<PlayerWorker::Handler> handler(
       new FilterBasedPlayerWorkerHandler(video_codec, audio_codec, drm_system,
                                          audio_sample_info, output_mode,
                                          provider));
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
   SbPlayer player = SbPlayerPrivate::CreateInstance(
       audio_codec, video_codec, audio_sample_info, sample_deallocate_func,

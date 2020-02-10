@@ -125,9 +125,9 @@ class AdaptiveAudioDecoderTest
       ASSERT_GT(dmp_reader->number_of_audio_buffers(), 0);
     }
 
-    PlayerComponents::AudioParameters audio_parameters = {
-        dmp_readers_[0]->audio_codec(), dmp_readers_[0]->audio_sample_info(),
-        kSbDrmSystemInvalid};
+    PlayerComponents::CreationParameters creation_parameters(
+        dmp_readers_[0]->audio_codec(), "",
+        dmp_readers_[0]->audio_sample_info());
 
     scoped_ptr<AudioRendererSink> audio_renderer_sink;
     scoped_ptr<PlayerComponents> components;
@@ -138,9 +138,9 @@ class AdaptiveAudioDecoderTest
       components = PlayerComponents::Create();
     }
     std::string error_message;
-    ASSERT_TRUE(components->CreateAudioComponents(
-        audio_parameters, &audio_decoder_, &audio_renderer_sink,
-        &error_message));
+    ASSERT_TRUE(components->CreateComponents(
+        creation_parameters, &audio_decoder_, &audio_renderer_sink, nullptr,
+        nullptr, nullptr, &error_message));
     ASSERT_TRUE(audio_decoder_);
 
     audio_decoder_->Initialize(
