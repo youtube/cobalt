@@ -60,7 +60,9 @@ base::Version Configurator::GetBrowserVersion() const {
   return base::Version("1.0.0.0");  // version_info::GetVersion();
 }
 
-std::string Configurator::GetChannel() const { return {}; }
+std::string Configurator::GetChannel() const {
+ return kUpdaterChannel;
+}
 
 std::string Configurator::GetBrand() const { return {}; }
 
@@ -77,7 +79,6 @@ base::flat_map<std::string, std::string> Configurator::ExtraRequestParams()
   params.insert(std::make_pair("sbversion", std::to_string(SB_API_VERSION)));
   params.insert(std::make_pair(
       "jsengine", script::GetJavaScriptEngineNameAndVersion()));
-  params.insert(std::make_pair("updaterchannel", kUpdaterChannel));
   return params;
 }
 
