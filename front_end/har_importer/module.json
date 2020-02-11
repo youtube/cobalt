@@ -1,0 +1,11 @@
+{
+    "dependencies": [
+        "common",
+        "browser_sdk"
+    ],
+    "modules": [
+        "har_importer.js",
+        "HARFormat.js",
+        "HARImporter.js"
+    ]
+}

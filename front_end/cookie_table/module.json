@@ -1,0 +1,12 @@
+{
+    "dependencies": [
+        "ui",
+        "sdk",
+        "data_grid"
+    ],
+    "scripts": [],
+    "modules": [
+        "cookie_table.js",
+        "CookiesTable.js"
+    ]
+}
