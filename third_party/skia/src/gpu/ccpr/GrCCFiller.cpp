@@ -212,7 +212,7 @@ void GrCCFiller::PathInfo::tessellateFan(
         }
     }
 
-    fFanTessellation.reset(vertices);
+    fFanTessellation.reset(static_cast<const GrTessellator::WindingVertex*>(vertices));
 }
 
 GrCCFiller::BatchID GrCCFiller::closeCurrentBatch() {
