@@ -34,9 +34,6 @@ def main():
       "-t", "--target_name", required=True, help="Name of executable target.")
   launcher_params = command_line.CreateLauncherParams(arg_parser)
 
-  if launcher_params.target_params:
-    launcher_params.target_params = launcher_params.target_params.split(" ")
-
   launcher = abstract_launcher.LauncherFactory(
       launcher_params.platform,
       launcher_params.target_name,
