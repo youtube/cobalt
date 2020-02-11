@@ -14,9 +14,9 @@
 
 {
   'variables': {
-    'variables' : {
-      'sb_evergreen_compatible': '<!(python <(DEPTH)/build/file_exists.py <(DEPTH)/starboard/elf_loader/evergreen_info.gyp)',
-    }
+    # TODO: Enable the check once the .eh_frame issue is resolved.
+    #'sb_evergreen_compatible%': '<!(python <(DEPTH)/build/file_exists.py <(DEPTH)/starboard/elf_loader/evergreen_info.gyp)',
+    'sb_evergreen_compatible%': '0',
   },
   'target_defaults': {
     'default_configuration': 'linux-x64x11_debug',
