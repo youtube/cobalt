@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "cobalt/dom/storage.h"
+#include "cobalt/dom/global_stats.h"
 #include "cobalt/storage/store/memory_store.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -48,20 +49,34 @@ base::Optional<std::string> ToOptStr(const char* str) {
 
 }  // namespace
 
-TEST(StorageAreaTest, InitialState) {
+class StorageAreaTest : public ::testing::Test {
+ protected:
+  StorageAreaTest();
+  ~StorageAreaTest() override;
+};
+
+StorageAreaTest::StorageAreaTest() {
+  EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
+}
+
+StorageAreaTest::~StorageAreaTest() {
+  EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
+}
+
+TEST_F(StorageAreaTest, InitialState) {
   scoped_refptr<MockStorage> mock_storage(new MockStorage());
   EXPECT_EQ(0, mock_storage->length());
   EXPECT_EQ(0, mock_storage->area_->size_bytes());
 }
 
-TEST(StorageAreaTest, Identifier) {
+TEST_F(StorageAreaTest, Identifier) {
   scoped_refptr<MockStorage> mock_storage(new MockStorage());
   EXPECT_EQ(0, mock_storage->length());
   loader::Origin origin(GURL("https://www.example.com"));
   EXPECT_EQ(origin, mock_storage->area_->origin());
 }
 
-TEST(StorageAreaTest, SetItem) {
+TEST_F(StorageAreaTest, SetItem) {
   scoped_refptr<MockStorage> mock_storage(new MockStorage());
   EXPECT_CALL(*mock_storage,
               DispatchEvent(base::Optional<std::string>("key"),
@@ -70,7 +85,7 @@ TEST(StorageAreaTest, SetItem) {
   mock_storage->SetItem("key", "value");
 }
 
-TEST(StorageAreaTest, IndexedKeys) {
+TEST_F(StorageAreaTest, IndexedKeys) {
   scoped_refptr<MockStorage> mock_storage(new MockStorage());
 
   std::set<std::string> found_keys;
@@ -89,7 +104,7 @@ TEST(StorageAreaTest, IndexedKeys) {
   EXPECT_EQ(test_keys, found_keys);
 }
 
-TEST(StorageAreaTest, Overwrite) {
+TEST_F(StorageAreaTest, Overwrite) {
   scoped_refptr<MockStorage> mock_storage(new MockStorage());
   EXPECT_EQ(base::nullopt, mock_storage->GetItem("key"));
   EXPECT_CALL(*mock_storage,
@@ -103,7 +118,7 @@ TEST(StorageAreaTest, Overwrite) {
   EXPECT_EQ(std::string("new_value"), mock_storage->GetItem("key"));
 }
 
-TEST(StorageAreaTest, KeyOrder) {
+TEST_F(StorageAreaTest, KeyOrder) {
   scoped_refptr<MockStorage> mock_storage(new MockStorage());
 
   std::vector<std::string> found_keys0;

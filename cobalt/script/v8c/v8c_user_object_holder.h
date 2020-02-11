@@ -46,7 +46,6 @@ class V8cUserObjectHolder
       : isolate_(isolate),
         handle_(isolate, value),
         prevent_garbage_collection_count_(0) {
-    handle_.SetWeak();
   }
   V8cUserObjectHolder(const V8cUserObjectHolder&) = delete;
   V8cUserObjectHolder& operator=(const V8cUserObjectHolder&) = delete;
@@ -55,9 +54,6 @@ class V8cUserObjectHolder
         handle_(other.isolate_, other.v8_value()),
         prevent_garbage_collection_count_(
             other.prevent_garbage_collection_count_) {
-    if (prevent_garbage_collection_count_ == 0) {
-      handle_.SetWeak();
-    }
     other.isolate_ = nullptr;
     other.handle_.Clear();
     other.prevent_garbage_collection_count_ = 0;
@@ -66,9 +62,6 @@ class V8cUserObjectHolder
     isolate_ = other.isolate_;
     handle_.Set(isolate_, other.v8_value());
     prevent_garbage_collection_count_ = other.prevent_garbage_collection_count_;
-    if (prevent_garbage_collection_count_ == 0) {
-      handle_.SetWeak();
-    }
     other.isolate_ = nullptr;
     other.handle_.Clear();
     other.prevent_garbage_collection_count_ = 0;
@@ -99,14 +92,22 @@ class V8cUserObjectHolder
 
   void PreventGarbageCollection() override {
     if (prevent_garbage_collection_count_++ == 0 && !handle_.IsEmpty()) {
-      handle_.ClearWeak();
+      V8cHeapTracer* tracer =
+          V8cEngine::GetFromIsolate(isolate_)->heap_tracer();
+      if (tracer) {
+        tracer->AddRoot(handle_.traced_global_ptr());
+      }
     }
   }
 
   void AllowGarbageCollection() override {
     DCHECK_GT(prevent_garbage_collection_count_, 0);
     if (--prevent_garbage_collection_count_ == 0 && !handle_.IsEmpty()) {
-      handle_.SetWeak();
+      V8cHeapTracer* tracer =
+          V8cEngine::GetFromIsolate(isolate_)->heap_tracer();
+      if (tracer) {
+        tracer->RemoveRoot(handle_.traced_global_ptr());
+      }
     }
   }
 

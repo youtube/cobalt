@@ -17,18 +17,33 @@
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/keycode.h"
+#include "cobalt/dom/global_stats.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
 namespace dom {
 
-TEST(KeyboardEventTest, ShouldHaveBubblesAndCancelableSet) {
+class KeyboardEventTest : public ::testing::Test {
+ protected:
+  KeyboardEventTest();
+  ~KeyboardEventTest() override;
+};
+
+KeyboardEventTest::KeyboardEventTest() {
+  EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
+}
+
+KeyboardEventTest::~KeyboardEventTest() {
+  EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
+}
+
+TEST_F(KeyboardEventTest, ShouldHaveBubblesAndCancelableSet) {
   scoped_refptr<KeyboardEvent> keyboard_event = new KeyboardEvent("keydown");
   EXPECT_TRUE(keyboard_event->bubbles());
   EXPECT_TRUE(keyboard_event->cancelable());
 }
 
-TEST(KeyboardEventTest, CanGetKeyLocation) {
+TEST_F(KeyboardEventTest, CanGetKeyLocation) {
   KeyboardEventInit init;
   scoped_refptr<KeyboardEvent> keyboard_event =
       new KeyboardEvent("keydown", init);
@@ -48,7 +63,7 @@ TEST(KeyboardEventTest, CanGetKeyLocation) {
             KeyboardEvent::kDomKeyLocationRight);
 }
 
-TEST(KeyboardEventTest, CanGetKeyIdentifierAndKeyAndCode) {
+TEST_F(KeyboardEventTest, CanGetKeyIdentifierAndKeyAndCode) {
   KeyboardEventInit init;
   init.set_key_code(keycode::kA);
   scoped_refptr<KeyboardEvent> keyboard_event_a =
@@ -121,7 +136,7 @@ TEST(KeyboardEventTest, CanGetKeyIdentifierAndKeyAndCode) {
   EXPECT_EQ(keyboard_event_space->code(), "Space");
 }
 
-TEST(KeyboardEventTest, CanGetAltKey) {
+TEST_F(KeyboardEventTest, CanGetAltKey) {
   KeyboardEventInit init;
   scoped_refptr<KeyboardEvent> keyboard_event =
       new KeyboardEvent("keydown", init);
@@ -134,7 +149,7 @@ TEST(KeyboardEventTest, CanGetAltKey) {
   EXPECT_TRUE(keyboard_event_a->alt_key());
 }
 
-TEST(KeyboardEventTest, CanGetCtrlKey) {
+TEST_F(KeyboardEventTest, CanGetCtrlKey) {
   KeyboardEventInit init;
   scoped_refptr<KeyboardEvent> keyboard_event =
       new KeyboardEvent("keydown", init);
@@ -147,7 +162,7 @@ TEST(KeyboardEventTest, CanGetCtrlKey) {
   EXPECT_TRUE(keyboard_event_c->ctrl_key());
 }
 
-TEST(KeyboardEventTest, CanGetMetaKey) {
+TEST_F(KeyboardEventTest, CanGetMetaKey) {
   KeyboardEventInit init;
   scoped_refptr<KeyboardEvent> keyboard_event =
       new KeyboardEvent("keydown", init);
@@ -160,7 +175,7 @@ TEST(KeyboardEventTest, CanGetMetaKey) {
   EXPECT_TRUE(keyboard_event_m->meta_key());
 }
 
-TEST(KeyboardEventTest, CanGetShiftKey) {
+TEST_F(KeyboardEventTest, CanGetShiftKey) {
   KeyboardEventInit init;
   scoped_refptr<KeyboardEvent> keyboard_event =
       new KeyboardEvent("keydown", init);
@@ -173,7 +188,7 @@ TEST(KeyboardEventTest, CanGetShiftKey) {
   EXPECT_TRUE(keyboard_event_s->shift_key());
 }
 
-TEST(KeyboardEventTest, CanGetModifierState) {
+TEST_F(KeyboardEventTest, CanGetModifierState) {
   KeyboardEventInit init;
   scoped_refptr<KeyboardEvent> keyboard_event =
       new KeyboardEvent("keydown", init);
@@ -194,7 +209,7 @@ TEST(KeyboardEventTest, CanGetModifierState) {
   EXPECT_TRUE(keyboard_event_m->GetModifierState("Shift"));
 }
 
-TEST(KeyboardEventTest, CanGetRepeat) {
+TEST_F(KeyboardEventTest, CanGetRepeat) {
   KeyboardEventInit init;
   scoped_refptr<KeyboardEvent> keyboard_event =
       new KeyboardEvent("keydown", init);

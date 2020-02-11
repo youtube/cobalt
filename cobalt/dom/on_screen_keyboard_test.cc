@@ -23,6 +23,7 @@
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/local_storage_database.h"
+#include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/window.h"
@@ -247,6 +248,7 @@ class OnScreenKeyboardTest : public ::testing::Test {
     on_screen_keyboard_bridge_.reset();
     window_ = nullptr;
     global_environment_ = nullptr;
+    EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
   }
 
   bool EvaluateScript(const std::string& js_code, std::string* result);
