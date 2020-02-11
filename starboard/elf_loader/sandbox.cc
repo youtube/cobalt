@@ -57,8 +57,8 @@ void LoadLibraryAndInitialize(const std::string& library_path,
     return;
   }
 
-  SB_LOG(INFO) << "Found SbEventHandle at address=0x" << std::hex
-               << g_sb_event_func << ".";
+  SB_LOG(INFO) << "Found SbEventHandle at address: "
+               << reinterpret_cast<void*>(g_sb_event_func);
 }
 
 void SbEventHandle(const SbEvent* event) {

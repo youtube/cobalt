@@ -131,7 +131,7 @@ void LoadLibraryAndInitialize() {
     SB_DLOG(INFO) << "Successfully loaded Cobalt!\n";
     void* p = g_elf_loader.LookupSymbol("SbEventHandle");
     if (p != NULL) {
-      SB_DLOG(INFO) << "Symbol Lookup succeeded address=0x" << std::hex << p;
+      SB_DLOG(INFO) << "Symbol Lookup succeeded address: " << p;
       g_sb_event_func = (void (*)(const SbEvent*))p;
       break;
     } else {
