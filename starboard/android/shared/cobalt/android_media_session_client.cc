@@ -289,12 +289,16 @@ class AndroidMediaSessionClient : public MediaSessionClient {
       }
     }
 
-    jlong duration = session_state.duration();
-    // Set duration to negative if duration is unknown or infinite, as with live
-    // playback.
-    // https://developer.android.com/reference/android/support/v4/media/MediaMetadataCompat#METADATA_KEY_DURATION
-    if (duration == kSbTimeMax) {
-      duration = -1;
+    jlong durationInMilliseconds;
+    if (session_state.duration() == kSbTimeMax) {
+      // Set duration to negative if duration is unknown or infinite, as with live
+      // playback.
+      // https://developer.android.com/reference/android/support/v4/media/MediaMetadataCompat#METADATA_KEY_DURATION
+      durationInMilliseconds = -1;
+    } else {
+      // SbTime is measured in microseconds while Android MediaSession expects
+      // duration in milliseconds.
+      durationInMilliseconds = session_state.duration() / kSbTimeMillisecond;
     }
 
     env->CallStarboardVoidMethodOrAbort(
@@ -305,7 +309,7 @@ class AndroidMediaSessionClient : public MediaSessionClient {
         session_state.current_playback_position() / kSbTimeMillisecond,
         static_cast<jfloat>(session_state.actual_playback_rate()),
         j_title.Get(), j_artist.Get(), j_album.Get(), j_artwork.Get(),
-        duration);
+        durationInMilliseconds);
   }
 };
 
