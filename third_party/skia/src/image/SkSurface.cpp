@@ -202,8 +202,8 @@ void SkSurface_Base::onAsyncRescaleAndReadPixels(const SkImageInfo& info, const 
     if (src->readPixels(pm, srcX, srcY)) {
         class Result : public AsyncReadResult {
         public:
-            Result(std::unique_ptr<const char[]> data, size_t rowBytes)
-                    : fData(std::move(data)), fRowBytes(rowBytes) {}
+            Result(const char* data, size_t rowBytes)
+                    : fData(data), fRowBytes(rowBytes) {}
             int count() const override { return 1; }
             const void* data(int i) const override { return fData.get(); }
             size_t rowBytes(int i) const override { return fRowBytes; }
@@ -212,7 +212,7 @@ void SkSurface_Base::onAsyncRescaleAndReadPixels(const SkImageInfo& info, const 
             std::unique_ptr<const char[]> fData;
             size_t fRowBytes;
         };
-        callback(context, skstd::make_unique<Result>(std::move(data), rowBytes));
+        callback(context, skstd::make_unique<Result>(data.release(), rowBytes));
     } else {
         callback(context, nullptr);
     }
