@@ -348,7 +348,7 @@ void SkFontStyleSet_Cobalt::CreateStreamProviderTypeface(
   if (GenerateStyleFaceInfo(style_entry, stream.get())) {
     LOG(INFO) << "Scanned font from file: " << style_entry->face_name.c_str()
               << "(" << style_entry->font_style.weight() << ", "
-              << style_entry->font_style.width()
+              << style_entry->font_style.width() << ", "
               << style_entry->font_style.slant() << ")";
     style_entry->typeface.reset(new SkTypeface_CobaltStreamProvider(
         stream_provider, style_entry->face_index, style_entry->font_style,
