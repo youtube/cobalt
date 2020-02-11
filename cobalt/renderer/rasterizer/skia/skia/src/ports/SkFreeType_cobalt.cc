@@ -43,12 +43,16 @@ SkFontStyle GenerateSkFontStyleFromFace(FT_Face face) {
   TT_OS2* os2 = static_cast<TT_OS2*>(FT_Get_Sfnt_Table(face, ft_sfnt_os2));
   if (os2 && os2->version != 0xffff) {
     weight = os2->usWeightClass;
+// We modify the logic here because Cobalt only supports the default font width,
+// and also only supports upright and italic font slants (no oblique).
+#if 0
     width = os2->usWidthClass;
 
     // OS/2::fsSelection bit 9 indicates oblique.
     if (SkToBool(os2->fsSelection & (1u << 9))) {
       slant = SkFontStyle::kOblique_Slant;
     }
+#endif
   } else if (0 == FT_Get_PS_Font_Info(face, &psFontInfo) && psFontInfo.weight) {
     static const struct {
       char const* const name;
