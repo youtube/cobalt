@@ -32,8 +32,8 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
  public:
   // The callback that V8 will run when the |v8::Object| that we live inside
   // of dies.
-  static void Callback(const v8::WeakCallbackInfo<WrapperPrivate>& data) {
-    delete data.GetParameter();
+  static void Callback(const v8::WeakCallbackInfo<void>& data) {
+    delete reinterpret_cast<WrapperPrivate*>(data.GetParameter());
   }
 
   // Get the internal |WrapperPrivate*| data within |object|.  This function
@@ -64,20 +64,14 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
                  v8::Local<v8::Object> wrapper)
       : isolate_(isolate),
         wrappable_(wrappable),
-        wrapper_(isolate, wrapper),
         traced_global_(isolate, wrapper) {
     wrapper->SetAlignedPointerInInternalField(kInternalFieldDataIndex, this);
     wrapper->SetAlignedPointerInInternalField(kInternalFieldDummyIndex,
                                               nullptr);
-    wrapper_.SetWeak(this, &WrapperPrivate::Callback,
-                     v8::WeakCallbackType::kParameter);
-    wrapper_.SetWrapperClassId(kClassId);
+    traced_global_.SetFinalizationCallback(this, &WrapperPrivate::Callback);
+    traced_global_.SetWrapperClassId(kClassId);
   }
-  ~WrapperPrivate() {
-    DCHECK_EQ(ref_count_, 0);
-    wrapper_.ClearWeak();
-    wrapper_.Reset();
-  }
+  ~WrapperPrivate() = default;
 
   template <typename T>
   scoped_refptr<T> wrappable() const {
@@ -86,33 +80,8 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
 
   Wrappable* raw_wrappable() const { return wrappable_.get(); }
 
-  v8::Local<v8::Object> wrapper() const { return wrapper_.Get(isolate_); }
-
-  void IncrementRefCount() {
-    DCHECK_GE(ref_count_, 0);
-    ref_count_++;
-    wrapper_.ClearWeak();
-  }
-
-  void DecrementRefCount() {
-    DCHECK_GT(ref_count_, 0);
-    if (--ref_count_ == 0) {
-      wrapper_.SetWeak(this, &WrapperPrivate::Callback,
-                       v8::WeakCallbackType::kParameter);
-    }
-  }
-
-  // This should only be called for the special case of shutdown, where we
-  // want to keep nothing alive and run all finalizers.
-  void ForceWeakForShutDown() {
-    ref_count_ = 0;
-    wrapper_.SetWeak(this, &WrapperPrivate::Callback,
-                     v8::WeakCallbackType::kParameter);
-    // There is no guarantee that the finalization callback provided to SetWeak
-    // will be called, so release the wrappable's reference now. This will help
-    // ensure the wrappable is destroyed before the GlobalEnvironment is
-    // destroyed.
-    wrappable_ = nullptr;
+  v8::Local<v8::Object> wrapper() const {
+    return v8::Local<v8::Object>::Cast(traced_global_.Get(isolate_));
   }
 
   const v8::TracedGlobal<v8::Value>& traced_global() { return traced_global_; }
@@ -136,9 +105,7 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
 
   v8::Isolate* isolate_;
   scoped_refptr<Wrappable> wrappable_;
-  v8::Global<v8::Object> wrapper_;
   v8::TracedGlobal<v8::Value> traced_global_;
-  int ref_count_ = 0;
 
   DISALLOW_COPY_AND_ASSIGN(WrapperPrivate);
 };

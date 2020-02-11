@@ -76,7 +76,12 @@ EventTargetListenerInfo::EventTargetListenerInfo(
 }
 
 EventTargetListenerInfo::~EventTargetListenerInfo() {
-  if (!IsNull()) {
+  if (event_listener_reference_.get() ||
+      on_error_event_listener_reference_.get()) {
+    // If any instances are destroyed after V8 shutdown, the ScriptValues
+    // will already be gone, so we use the references' pointer validity
+    // instead of IsNull() to test if the EventListener is added to global
+    // stats.
     GlobalStats::GetInstance()->RemoveEventListener();
   }
 }

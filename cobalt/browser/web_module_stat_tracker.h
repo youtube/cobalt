@@ -149,8 +149,8 @@ class WebModuleStatTracker : public base::StopWatchOwner {
   const bool should_track_event_stats_;
 
   // Web module owns the dom and layout stat trackers.
-  std::unique_ptr<dom::DomStatTracker> dom_stat_tracker_;
   std::unique_ptr<layout::LayoutStatTracker> layout_stat_tracker_;
+  std::unique_ptr<dom::DomStatTracker> dom_stat_tracker_;
 
   // Event-related
   base::CVal<bool> event_is_processing_;
