@@ -250,7 +250,7 @@
 #define SB_DRM_CBCS_SUPPORT_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // Deprecate the SB_HAS_VIRTUAL_REGIONS flag as all platforms define it to 0.
-#define SB_VIRTUAL_REGIONS_FLAG_DEPRECATED SB_API_VERSION
+#define SB_VIRTUAL_REGIONS_FLAG_DEPRECATED SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
 
