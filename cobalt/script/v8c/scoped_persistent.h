@@ -27,12 +27,11 @@ class ScopedPersistent {
   ScopedPersistent() {}
 
   ScopedPersistent(v8::Isolate* isolate, v8::Local<T> handle)
-      : handle_(isolate, handle), traced_global_(isolate, handle) {}
+      : traced_global_(isolate, handle) {}
 
   ScopedPersistent(v8::Isolate* isolate, v8::MaybeLocal<T> maybe) {
     v8::Local<T> local;
     if (maybe.ToLocal(&local)) {
-      handle_.Reset(isolate, local);
       traced_global_.Reset(isolate, local);
     }
   }
@@ -40,46 +39,36 @@ class ScopedPersistent {
   ~ScopedPersistent() { Clear(); }
 
   v8::Local<T> NewLocal(v8::Isolate* isolate) const {
-    return v8::Local<T>::New(isolate, handle_);
+    return v8::Local<T>::New(isolate, traced_global_);
   }
 
-  template <typename P>
-  void SetWeak(P* parameters, void (*callback)(const v8::WeakCallbackInfo<P>&),
-               v8::WeakCallbackType type = v8::WeakCallbackType::kParameter) {
-    handle_.SetWeak(parameters, callback, type);
-  }
-
-  void SetWeak() { handle_.SetWeak(); }
-
-  void ClearWeak() { handle_.template ClearWeak<void>(); }
-
-  bool IsEmpty() const { return handle_.IsEmpty(); }
-  bool IsWeak() const { return handle_.IsWeak(); }
+  bool IsEmpty() const { return traced_global_.IsEmpty(); }
 
   void Set(v8::Isolate* isolate, v8::Local<T> handle) {
-    handle_.Reset(isolate, handle);
+    traced_global_.Reset(isolate, handle);
   }
 
-  void Clear() { handle_.Reset(); }
+  void Clear() { traced_global_.Reset(); }
 
   bool operator==(const ScopedPersistent<T>& other) {
-    return handle_ == other.handle_;
+    return traced_global_ == other.handle_;
   }
 
   template <class S>
   bool operator==(const v8::Local<S> other) const {
-    return handle_ == other;
+    return traced_global_ == other;
   }
 
-  v8::Persistent<T>& Get() { return handle_; }
-  const v8::Persistent<T>& Get() const { return handle_; }
+  v8::TracedGlobal<T>& Get() { return traced_global_; }
+  const v8::TracedGlobal<T>& Get() const { return traced_global_; }
   const v8::TracedGlobal<T>& traced_global() const {
-    DCHECK(!handle_.IsEmpty());
+    DCHECK(!traced_global_.IsEmpty());
     return traced_global_;
   }
 
+  v8::TracedGlobal<T>* traced_global_ptr() { return &traced_global_; }
+
  private:
-  v8::Persistent<T> handle_;
   v8::TracedGlobal<T> traced_global_;
 };
 

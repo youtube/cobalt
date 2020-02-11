@@ -14,6 +14,7 @@
 
 #include "cobalt/dom/event.h"
 
+#include "cobalt/dom/global_stats.h"
 #include "base/time/time.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -21,7 +22,17 @@
 namespace cobalt {
 namespace dom {
 
-TEST(EventTest, DefaultConstructor) {
+class EventTest : public ::testing::Test {
+ protected:
+  EventTest(){
+    EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
+  }
+  ~EventTest() override {
+    EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
+  }
+};
+
+TEST_F(EventTest, DefaultConstructor) {
   scoped_refptr<Event> event = new Event(base::Token("event"));
 
   EXPECT_EQ("event", event->type());
@@ -36,7 +47,7 @@ TEST(EventTest, DefaultConstructor) {
   EXPECT_FALSE(event->immediate_propagation_stopped());
 }
 
-TEST(EventTest, NonDefaultConstructor) {
+TEST_F(EventTest, NonDefaultConstructor) {
   scoped_refptr<Event> event =
       new Event(base::Token("event"), Event::kBubbles, Event::kCancelable);
 
@@ -52,7 +63,7 @@ TEST(EventTest, NonDefaultConstructor) {
   EXPECT_FALSE(event->immediate_propagation_stopped());
 }
 
-TEST(EventTest, TimeStamp) {
+TEST_F(EventTest, TimeStamp) {
   // Ensure that the creation timestamp of the event is in a reasonable range.
   // Since base::Time::Now() doesn't guarantee that the result is monotonically
   // increasing, we use a 60 seconds episilon as it is large enough to ensure
@@ -65,7 +76,7 @@ TEST(EventTest, TimeStamp) {
   EXPECT_GE(event->time_stamp(), now_in_js - episilon_in_ms);
 }
 
-TEST(EventTest, InitEvent) {
+TEST_F(EventTest, InitEvent) {
   scoped_refptr<Event> event = new Event(base::Token("event_1"));
   double time_stamp = static_cast<double>(event->time_stamp());
 
@@ -95,20 +106,20 @@ TEST(EventTest, InitEvent) {
   EXPECT_FALSE(event->cancelable());
 }
 
-TEST(EventTest, StopPropagation) {
+TEST_F(EventTest, StopPropagation) {
   scoped_refptr<Event> event = new Event(base::Token("event"));
   event->StopPropagation();
   EXPECT_TRUE(event->propagation_stopped());
 }
 
-TEST(EventTest, StopImmediatePropagation) {
+TEST_F(EventTest, StopImmediatePropagation) {
   scoped_refptr<Event> event = new Event(base::Token("event"));
   event->StopImmediatePropagation();
   EXPECT_TRUE(event->propagation_stopped());
   EXPECT_TRUE(event->immediate_propagation_stopped());
 }
 
-TEST(EventTest, PreventDefault) {
+TEST_F(EventTest, PreventDefault) {
   scoped_refptr<Event> event = new Event(
       base::Token("event"), Event::kNotBubbles, Event::kNotCancelable);
   event->PreventDefault();
@@ -120,7 +131,7 @@ TEST(EventTest, PreventDefault) {
   EXPECT_TRUE(event->default_prevented());
 }
 
-TEST(EventTest, EventPhase) {
+TEST_F(EventTest, EventPhase) {
   scoped_refptr<Event> event = new Event(base::Token("event"));
   event->set_event_phase(Event::kCapturingPhase);
   EXPECT_EQ(Event::kCapturingPhase, event->event_phase());

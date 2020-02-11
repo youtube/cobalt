@@ -20,6 +20,7 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/dom/font_face.h"
+#include "cobalt/dom/global_stats.h"
 #include "cobalt/loader/font/remote_typeface_cache.h"
 #include "cobalt/loader/font/typeface_decoder.h"
 #include "cobalt/loader/loader.h"
@@ -58,7 +59,9 @@ std::unique_ptr<FontCache::FontFaceMap> CreateFontFaceMapHelper(
 class FontCacheTest : public ::testing::Test {
  public:
   FontCacheTest();
-  ~FontCacheTest() override {}
+  ~FontCacheTest() override {
+    EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
+  }
 
   void DummyOnTypefaceLoadEvent() {}
 

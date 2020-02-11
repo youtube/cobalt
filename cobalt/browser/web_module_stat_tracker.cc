@@ -32,8 +32,8 @@ WebModuleStatTracker::WebModuleStatTracker(const std::string& name,
                                            bool should_track_event_stats)
     : name_(name),
       should_track_event_stats_(should_track_event_stats),
-      dom_stat_tracker_(new dom::DomStatTracker(name)),
       layout_stat_tracker_(new layout::LayoutStatTracker(name)),
+      dom_stat_tracker_(new dom::DomStatTracker(name)),
       event_is_processing_(
           base::StringPrintf("Event.%s.IsProcessing", name.c_str()), false,
           "Nonzero when an event is being processed."),
