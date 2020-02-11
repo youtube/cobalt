@@ -19,8 +19,10 @@
 #include <string>
 #include <vector>
 
+#include "base/command_line.h"
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/script/v8c/switches.h"
 #include "cobalt/script/v8c/v8c_tracing_controller.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/file.h"
@@ -59,8 +61,17 @@ void V8FlagsInit() {
   for (auto flag_str : kV8CommandLineFlags) {
     v8::V8::SetFlagsFromString(flag_str, SbStringGetLength(flag_str));
   }
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kV8Flags)) {
+    std::string all_flags =
+        command_line->GetSwitchValueASCII(switches::kV8Flags);
+    // V8::SetFlagsFromString is capable of taking multiple flags separated by
+    // spaces.
+    v8::V8::SetFlagsFromString(all_flags.c_str(), all_flags.length());
+  }
+#endif
 }
-
 }  // namespace
 
 IsolateFellowship::IsolateFellowship() {
