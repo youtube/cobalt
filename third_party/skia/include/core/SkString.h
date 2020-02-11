@@ -11,6 +11,7 @@
 #include "include/core/SkRefCnt.h"
 #include "include/core/SkScalar.h"
 #include "include/core/SkTypes.h"
+#include "include/private/SkMacros.h"
 #include "include/private/SkMalloc.h"
 #include "include/private/SkTArray.h"
 #include "include/private/SkTo.h"
@@ -239,7 +240,7 @@ public:
 private:
     struct Rec {
     public:
-        constexpr Rec(uint32_t len, int32_t refCnt)
+        CONSTEXPR Rec(uint32_t len, int32_t refCnt)
             : fLength(len), fRefCnt(refCnt), fBeginningOfData(0)
         { }
         static sk_sp<Rec> Make(const char text[], size_t len);
