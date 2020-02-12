@@ -1,4 +1,4 @@
-// Copyright 2019 The Cobalt Authors. All Rights Reserved.
+// Copyright 2020 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,17 +15,12 @@
 #include "starboard/system.h"
 
 #include "cobalt/extension/configuration.h"
-#include "cobalt/extension/graphics.h"
 #include "starboard/common/string.h"
-#include "starboard/shared/win32/configuration.h"
-#include "starboard/shared/win32/graphics.h"
+#include "starboard/raspi/shared/configuration.h"
 
 const void* SbSystemGetExtension(const char* name) {
-  if (SbStringCompareAll(name, kCobaltExtensionGraphicsName) == 0) {
-    return starboard::shared::win32::GetGraphicsApi();
-  }
   if (SbStringCompareAll(name, kCobaltExtensionConfigurationName) == 0) {
-    return starboard::shared::win32::GetConfigurationApi();
+    return starboard::raspi::shared::GetConfigurationApi();
   }
   return NULL;
 }

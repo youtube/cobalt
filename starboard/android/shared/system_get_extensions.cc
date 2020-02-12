@@ -14,7 +14,9 @@
 
 #include "starboard/system.h"
 
+#include "cobalt/extension/configuration.h"
 #include "cobalt/extension/platform_service.h"
+#include "starboard/android/shared/configuration.h"
 #include "starboard/android/shared/platform_service.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -22,6 +24,9 @@
 const void* SbSystemGetExtension(const char* name) {
   if (SbStringCompareAll(name, kCobaltExtensionPlatformServiceName) == 0) {
     return starboard::android::shared::GetPlatformServiceApi();
+  }
+  if (SbStringCompareAll(name, kCobaltExtensionConfigurationName) == 0) {
+    return starboard::android::shared::GetConfigurationApi();
   }
   return NULL;
 }

@@ -77,6 +77,8 @@
         'bionic/net_if.cpp',
         'bionic/private/bionic_macros.h',
         'bionic/private/ErrnoRestorer.h',
+        'configuration.cc',
+        'configuration.h',
         'configuration_public.h',
         'configuration_constants.cc',
         'decode_target_create.cc',
