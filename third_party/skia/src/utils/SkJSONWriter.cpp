@@ -15,6 +15,10 @@
 
 #include "src/utils/SkJSONWriter.h"
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/stdio_leaks_poem.h"
+#endif
+
 void SkJSONWriter::appendS64(int64_t value) {
     this->beginValue();
     this->appendf("%" PRId64, value);
