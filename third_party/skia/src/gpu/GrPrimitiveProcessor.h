@@ -67,7 +67,7 @@ public:
         constexpr GrSLType           gpuType() const { return fGPUType; }
 
         inline CONSTEXPR size_t size() const;
-        constexpr size_t sizeAlign4() const { return SkAlign4(this->size()); }
+        CONSTEXPR size_t sizeAlign4() const { return SkAlign4(this->size()); }
 
         GrShaderVar asShaderVar() const {
             return {fName, fGPUType, GrShaderVar::kIn_TypeModifier};
