@@ -173,7 +173,7 @@ std::unique_ptr<SkDiscardableMemory> DiscardableMemoryPool::make(size_t bytes) {
     fList.addToHead(dm.get());
     fUsed += bytes;
     this->dumpDownTo(fBudget);
-    return dm;
+    return std::unique_ptr<SkDiscardableMemory>(dm.release());
 }
 
 void DiscardableMemoryPool::removeFromPool(PoolDiscardableMemory* dm) {

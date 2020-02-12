@@ -304,7 +304,7 @@ std::unique_ptr<SkCanvas> SkCanvasStateUtils::MakeFromCanvasState(const SkCanvas
                                                                   state_v1->layers[i].y));
     }
 
-    return canvas;
+    return std::unique_ptr<SkCanvas>(canvas.release());
 }
 
 ////////////////////////////////////////////////////////////////////////////////

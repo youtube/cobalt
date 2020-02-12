@@ -58,7 +58,7 @@ struct GrGlyph {
         : fPackedID{skGlyph.getPackedID()}
         , fMaskFormat{FormatFromSkGlyph(skGlyph.maskFormat())}
         , fMaskStyle{MaskStyleFromSkGlyph(skGlyph)}
-        , fBounds{GrIRect16::Make(skGlyph.iRect())} {}
+        , fBounds(GrIRect16::Make(skGlyph.iRect())) {}
 
 
     SkRect destRect(SkPoint origin) {
