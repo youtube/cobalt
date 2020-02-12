@@ -28,6 +28,8 @@
         'common.cc',
         'condition_variable.cc',
         'condition_variable.h',
+        'configuration_defaults.cc',
+        'configuration_defaults.h',
         'flat_map.h',
         'locked_ptr.h',
         'log.cc',
