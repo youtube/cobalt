@@ -1,4 +1,4 @@
-// Copyright 2019 The Cobalt Authors. All Rights Reserved.
+// Copyright 2020 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,18 +15,12 @@
 #include "starboard/system.h"
 
 #include "cobalt/extension/configuration.h"
-#include "cobalt/extension/platform_service.h"
-#include "starboard/android/shared/configuration.h"
-#include "starboard/android/shared/platform_service.h"
-#include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/linux/x64x11/gczeal/configuration.h"
 
 const void* SbSystemGetExtension(const char* name) {
-  if (SbStringCompareAll(name, kCobaltExtensionPlatformServiceName) == 0) {
-    return starboard::android::shared::GetPlatformServiceApi();
-  }
   if (SbStringCompareAll(name, kCobaltExtensionConfigurationName) == 0) {
-    return starboard::android::shared::GetConfigurationApi();
+    return starboard::shared::GetConfigurationApi();
   }
   return NULL;
 }

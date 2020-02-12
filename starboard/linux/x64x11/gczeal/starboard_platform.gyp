@@ -12,6 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 {
+  'variables': {
+    'sources': [
+      '<(DEPTH)/starboard/linux/x64x11/gczeal/configuration.cc',
+      '<(DEPTH)/starboard/linux/x64x11/gczeal/configuration.h'
+      '<(DEPTH)/starboard/linux/x64x11/gczeal/system_get_extensions.cc',
+    ],
+    'sources!': [
+      '<(DEPTH)/starboard/linux/shared/system_get_extensions.cc',
+    ],
+  },
   'includes': [
     '../shared/starboard_platform_target.gypi',
   ],
