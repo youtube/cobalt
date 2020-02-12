@@ -24,14 +24,14 @@ public:
 
     static CONSTEXPR GrSwizzle Concat(const GrSwizzle& a, const GrSwizzle& b);
 
-    constexpr bool operator==(const GrSwizzle& that) const { return fKey == that.fKey; }
-    constexpr bool operator!=(const GrSwizzle& that) const { return !(*this == that); }
+    CONSTEXPR bool operator==(const GrSwizzle& that) const { return fKey == that.fKey; }
+    CONSTEXPR bool operator!=(const GrSwizzle& that) const { return !(*this == that); }
 
     /** Compact representation of the swizzle suitable for a key. */
-    constexpr uint16_t asKey() const { return fKey; }
+    CONSTEXPR uint16_t asKey() const { return fKey; }
 
     /** 4 char null terminated string consisting only of chars 'r', 'g', 'b', 'a', '0', and '1'. */
-    constexpr const char* c_str() const { return fSwiz; }
+    CONSTEXPR const char* c_str() const { return fSwiz; }
 
     CONSTEXPR char operator[](int i) const {
         SkASSERT(i >= 0 && i < 4);
