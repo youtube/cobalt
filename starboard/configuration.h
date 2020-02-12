@@ -262,6 +262,16 @@
 
 // Add link register to SbThreadContext.
 #define SB_THREAD_CONTEXT_LINK_REGISTER_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Make GYP configuration variables cobalt extensions instead.
+// This change moves all of the GYP configuration variables to be members of
+// the struct declared in "cobalt/extension/configuration.h". All members are
+// function pointers that can be set for each platform, otherwise defaults
+// will be used. These can be referenced through functions declared in
+// "cobalt/configuration/configuration.h", which will use the extension API if
+// available, but will otherwise fall back onto default values.
+#define SB_FEATURE_GYP_CONFIGURATION_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
