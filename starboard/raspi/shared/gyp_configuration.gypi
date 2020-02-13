@@ -35,8 +35,13 @@
 
       # Force char to be signed.
       '-fsigned-char',
+
       # Disable strict aliasing.
       '-fno-strict-aliasing',
+
+      # Allow Skia's SkVx.h to convert between vectors of different element
+      # types or number of subparts.
+      '-flax-vector-conversions',
 
       # To support large files
       '-D_FILE_OFFSET_BITS=64',
