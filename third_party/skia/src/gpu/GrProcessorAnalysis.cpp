@@ -11,7 +11,7 @@
 
 GrColorFragmentProcessorAnalysis::GrColorFragmentProcessorAnalysis(
         const GrProcessorAnalysisColor& input,
-        const GrFragmentProcessor* const* processors,
+        const std::unique_ptr<const GrFragmentProcessor>* processors,
         int cnt) {
     fCompatibleWithCoverageAsAlpha = true;
     fIsOpaque = input.isOpaque();
@@ -23,7 +23,7 @@ GrColorFragmentProcessorAnalysis::GrColorFragmentProcessorAnalysis(
             !fIsOpaque) {
             break;
         }
-        const GrFragmentProcessor* fp = processors[i];
+        const GrFragmentProcessor* fp = processors[i].get();
         if (fKnowOutputColor &&
             fp->hasConstantOutputForConstantInput(fLastKnownOutputColor, &fLastKnownOutputColor)) {
             ++fProcessorsToEliminate;

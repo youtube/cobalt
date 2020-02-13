@@ -174,7 +174,7 @@ GrProcessorSet::Analysis GrProcessorSet::finalize(
     const std::unique_ptr<const GrFragmentProcessor>* fps =
             fFragmentProcessors.get() + fFragmentProcessorOffset;
     GrColorFragmentProcessorAnalysis colorAnalysis(
-            colorInput, unique_ptr_address_as_pointer_address(fps), fColorFragmentProcessorCnt);
+            colorInput, fps, fColorFragmentProcessorCnt);
     fps += fColorFragmentProcessorCnt;
     int n = this->numCoverageFragmentProcessors();
     bool hasCoverageFP = n > 0;
