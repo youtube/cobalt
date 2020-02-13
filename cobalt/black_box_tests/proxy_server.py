@@ -24,15 +24,16 @@ import json
 import os
 import signal
 import subprocess
-import sys
-SRC_DIR = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
 import tempfile
 import time
+
+SRC_DIR = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
 
 
 class ProxyServer(object):
 
-  def __init__(self, hostname='0.0.0.0', port='8000', host_resolve_map=None):
+  def __init__(self, hostname='0.0.0.0', port='8000', host_resolve_map=None,
+               client_ips=None):
     self.command = [
         'python',
         os.path.join(SRC_DIR, 'third_party', 'proxy_py', 'proxy.py'),
@@ -42,10 +43,14 @@ class ProxyServer(object):
     self.host_resolver_path = None
 
     if host_resolve_map:
-        with tempfile.NamedTemporaryFile(delete=False) as hosts:
-            json.dump(host_resolve_map, hosts)
-        self.host_resolver_path = hosts.name
-        self.command += ['--host_resolver', self.host_resolver_path]
+      with tempfile.NamedTemporaryFile(delete=False) as hosts:
+        json.dump(host_resolve_map, hosts)
+      self.host_resolver_path = hosts.name
+      self.command += ['--host_resolver', self.host_resolver_path]
+
+    if client_ips:
+      self.command += ['--client_ips']
+      self.command += client_ips
 
   def __enter__(self):
     self.proc = subprocess.Popen(self.command)
@@ -55,4 +60,4 @@ class ProxyServer(object):
   def __exit__(self, exc_type, exc_value, traceback):
     self.proc.send_signal(signal.SIGINT)
     if self.host_resolver_path:
-        os.unlink(self.host_resolver_path)
+      os.unlink(self.host_resolver_path)
