@@ -98,7 +98,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   // Store a copy of |SbMediaAudioSampleInfo::audio_specific_config| passed to
   // the ctor so it is valid for the life time of the player worker.
   scoped_array<int8_t> audio_specific_config_;
-  SbMediaAudioSampleInfo audio_sample_info_;
+  SbMediaAudioSampleInfo audio_sample_info_ = {kSbMediaAudioCodecNone};
 
   // |media_time_provider_impl_| is used to provide the media playback time when
   // there is no audio track.  In such case |audio_renderer_| will be NULL.
@@ -137,7 +137,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   std::string video_mime_;
   std::string max_video_capabilities_;
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-  SbMediaVideoSampleInfo video_sample_info_;
+  SbMediaVideoSampleInfo video_sample_info_ = {};
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 };
 
