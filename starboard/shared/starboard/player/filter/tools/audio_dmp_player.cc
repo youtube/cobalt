@@ -38,6 +38,12 @@ using starboard::shared::starboard::player::InputBuffer;
 using starboard::shared::starboard::player::JobThread;
 using starboard::scoped_ptr;
 
+#ifdef SB_MEDIA_PLAYER_THREAD_STACK_SIZE
+const int kJobThreadStackSize = SB_MEDIA_PLAYER_THREAD_STACK_SIZE;
+#else   // SB_MEDIA_PLAYER_THREAD_STACK_SIZE
+const int kJobThreadStackSize = 0;
+#endif  // SB_MEDIA_PLAYER_THREAD_STACK_SIZE
+
 // TODO: Merge test file resolving function with the ones used in the player
 // filter tests.
 std::string GetTestInputDirectory() {
@@ -167,7 +173,7 @@ void SbEventHandle(const SbEvent* event) {
         return;
       }
 
-      s_job_thread.reset(new JobThread("audio"));
+      s_job_thread.reset(new JobThread("audio", kJobThreadStackSize));
       s_job_thread->job_queue()->Schedule(
           std::bind(Start, data->argument_values[1]));
       break;
