@@ -474,9 +474,11 @@ ExportedSymbols::ExportedSymbols(
 }
 
 const void* ExportedSymbols::Lookup(const char* name) {
-  const void* ret = map_[name];
-  SB_CHECK(ret) << name;
-  return ret;
+  const void* address = map_[name];
+  // Any symbol that is not registered as part of the Starboard API in the
+  // constructor of this class is a leak, and is an error.
+  SB_CHECK(address) << "Failed to retrieve the address of '" << name << "'.";
+  return address;
 }
 
 }  // namespace elf_loader
