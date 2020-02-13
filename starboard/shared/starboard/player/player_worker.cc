@@ -35,9 +35,9 @@ using std::placeholders::_3;
 
 #ifdef SB_MEDIA_PLAYER_THREAD_STACK_SIZE
 const int kPlayerStackSize = SB_MEDIA_PLAYER_THREAD_STACK_SIZE;
-#else
+#else   // SB_MEDIA_PLAYER_THREAD_STACK_SIZE
 const int kPlayerStackSize = 0;
-#endif
+#endif  // SB_MEDIA_PLAYER_THREAD_STACK_SIZE
 
 // 8 ms is enough to ensure that DoWritePendingSamples() is called twice for
 // every frame in HFR.
