@@ -28,7 +28,11 @@
 #include "src/core/SkTypefaceCache.h"
 #include "src/utils/SkUTF.h"
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#else
 #include <stdlib.h>
+#endif
 
 void SkGraphics::Init() {
     // SkGraphics::Init() must be thread-safe and idempotent.

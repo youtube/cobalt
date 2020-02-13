@@ -32,6 +32,10 @@
 #include "spirv-tools/libspirv.hpp"
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/common/log.h"
+#endif
+
 // include the built-in shader symbols as static strings
 
 #define STRINGIFY(x) #x
@@ -1488,15 +1492,24 @@ bool Compiler::toGLSL(Program& program, String* out) {
 }
 
 bool Compiler::toMetal(Program& program, OutputStream& out) {
+#if defined(STARBOARD)
+    SB_NOTREACHED();
+    return false;
+#else
     if (!this->optimize(program)) {
         return false;
     }
     MetalCodeGenerator cg(fContext.get(), &program, this, &out);
     bool result = cg.generateCode();
     return result;
+#endif
 }
 
 bool Compiler::toMetal(Program& program, String* out) {
+#if defined(STARBOARD)
+    SB_NOTREACHED();
+    return false;
+#else
     if (!this->optimize(program)) {
         return false;
     }
@@ -1506,6 +1519,7 @@ bool Compiler::toMetal(Program& program, String* out) {
         *out = buffer.str();
     }
     return result;
+#endif
 }
 
 bool Compiler::toCPP(Program& program, String name, OutputStream& out) {

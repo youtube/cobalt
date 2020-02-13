@@ -84,6 +84,9 @@
     # gpu
     "<(DEPTH)/third_party/skia/src/gpu/gl/GrGLMakeNativeInterface_none.cpp",
 
+    '<(DEPTH)/third_party/skia/src/sksl/SkSLMetalCodeGenerator.cpp',
+    '<(DEPTH)/third_party/skia/src/sksl/SkSLMetalCodeGenerator.h',
+
     # utils concurrency
     '<(DEPTH)/third_party/skia/src/utils/SkCondVar.cpp',
     '<(DEPTH)/third_party/skia/src/utils/SkCondVar.h',

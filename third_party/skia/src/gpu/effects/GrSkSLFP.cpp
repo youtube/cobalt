@@ -17,6 +17,11 @@
 #include "src/gpu/glsl/GrGLSLFragmentShaderBuilder.h"
 #include "src/gpu/glsl/GrGLSLProgramBuilder.h"
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#define printf(format, ...) SbLogFormatF(format, __VA_ARGS__)
+#endif
+
 GrSkSLFPFactory::GrSkSLFPFactory(const char* name, const GrShaderCaps* shaderCaps, const char* sksl,
                                  SkSL::Program::Kind kind)
         : fKind(kind)

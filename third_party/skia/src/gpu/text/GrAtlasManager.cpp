@@ -11,6 +11,11 @@
 #include "src/gpu/GrImageInfo.h"
 #include "src/gpu/text/GrStrikeCache.h"
 
+#if defined(STARBOARD)
+#include "starboard/file.h"
+#define remove(path) SbFileDelete(path)
+#endif
+
 GrAtlasManager::GrAtlasManager(GrProxyProvider* proxyProvider, GrStrikeCache* glyphCache,
                                size_t maxTextureBytes,
                                GrDrawOpAtlas::AllowMultitexturing allowMultitexturing)
