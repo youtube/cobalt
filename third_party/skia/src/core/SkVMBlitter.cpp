@@ -14,6 +14,10 @@
 #include "src/core/SkLRUCache.h"
 #include "src/core/SkVM.h"
 
+#if defined(STARBOARD)
+#include "starboard/common/log.h"
+#endif
+
 namespace {
 
     enum class Coverage { Full, UniformA8, MaskA8, MaskLCD16, Mask3D };
@@ -64,7 +68,10 @@ namespace {
     }
 
     static SkLRUCache<Key, skvm::Program>* try_acquire_program_cache() {
-    #if defined(SK_BUILD_FOR_IOS)
+    #if defined(STARBOARD)
+        SB_NOTREACHED();
+        return nullptr;
+    #elif defined(SK_BUILD_FOR_IOS)
         // iOS doesn't support thread_local on versions less than 9.0. pthread
         // based fallbacks must be used there. We could also use an SkSpinlock
         // and tryAcquire()/release(), or...
