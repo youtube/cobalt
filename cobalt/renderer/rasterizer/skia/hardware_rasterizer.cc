@@ -29,6 +29,7 @@
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "cobalt/renderer/rasterizer/egl/textured_mesh_renderer.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
+#include "cobalt/renderer/rasterizer/skia/gl_format_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_mesh.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_resource_provider.h"
 #include "cobalt/renderer/rasterizer/skia/render_tree_node_visitor.h"
@@ -172,7 +173,7 @@ GrBackendRenderTarget CobaltRenderTargetToSkiaBackendRenderTarget(
 
   GrGLFramebufferInfo info;
   info.fFBOID = cobalt_render_target.GetPlatformHandle();
-  info.fFormat = SB_GL_RGBA8;
+  info.fFormat = ConvertBaseGLFormatToSizedInternalFormat(GL_RGBA);
   GrBackendRenderTarget skia_render_target(size.width(), size.height(), 0, 0,
                                            info);
 

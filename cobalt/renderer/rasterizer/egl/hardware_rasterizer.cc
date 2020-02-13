@@ -34,6 +34,7 @@
 #include "cobalt/renderer/rasterizer/egl/render_tree_node_visitor.h"
 #include "cobalt/renderer/rasterizer/egl/shader_program_manager.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
+#include "cobalt/renderer/rasterizer/skia/gl_format_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
@@ -292,7 +293,7 @@ sk_sp<SkSurface> HardwareRasterizer::Impl::CreateFallbackSurface(
   // Wrap the given render target in a new skia surface.
   GrGLFramebufferInfo info;
   info.fFBOID = render_target->GetPlatformHandle();
-  info.fFormat = SB_GL_RGBA8;
+  info.fFormat = skia::ConvertBaseGLFormatToSizedInternalFormat(GL_RGBA);
   GrBackendRenderTarget skia_render_target(render_target->GetSize().width(),
                                            render_target->GetSize().height(), 0,
                                            0, info);

@@ -73,7 +73,9 @@ GrColorType ConvertGLFormatToGrColorType(GLenum gl_format) {
 GLenum ConvertBaseGLFormatToSizedInternalFormat(GLenum gl_format) {
   switch (gl_format) {
     case GL_RGBA:
-      return GL_RGBA8;
+      // GL_RGBA8 is only defined in OpenGL ES 3. Use the GL_RGBA8_OES define
+      // which is an extension available in OpenGL ES 2.
+      return GL_RGBA8_OES;
     case GL_BGRA_EXT:
       return GL_BGRA8_EXT;
     // Note GL_ALPHA and GL_RED_EXT probably don't really work.
@@ -89,10 +91,10 @@ GLenum ConvertBaseGLFormatToSizedInternalFormat(GLenum gl_format) {
 #if defined(GL_RG_EXT)
     case GL_RG_EXT:
 #endif
-      return GL_RGBA8;
+      return GL_RGBA8_OES;
     default: { NOTREACHED() << "Unsupported GL format."; }
   }
-  return GL_RGBA8;
+  return GL_RGBA8_OES;
 }
 
 }  // namespace skia
