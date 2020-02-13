@@ -79,6 +79,7 @@
 
     # core
     '<(DEPTH)/third_party/skia/src/core/SkMultiPictureDraw.cpp',
+    '<(DEPTH)/third_party/skia/src/core/SkTime.cpp',
 
     # gpu
     "<(DEPTH)/third_party/skia/src/gpu/gl/GrGLMakeNativeInterface_none.cpp",
