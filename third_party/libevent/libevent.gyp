@@ -95,6 +95,10 @@
                   'include_dirs': [ 'starboard/ps4' ],
                   }
                 ],
+                [ 'target_os == "prospero"', {
+                  'include_dirs': [ 'starboard/ps5' ],
+                  }
+                ],
               ],
             }],
             # libevent has platform-specific implementation files.  Since its
