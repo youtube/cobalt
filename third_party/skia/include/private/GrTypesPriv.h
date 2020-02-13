@@ -771,10 +771,14 @@ enum class GrBackendObjectOwnership : bool {
     kOwned = true
 };
 
+// On some platforms, sizeof(T*) != sizeof(std::unique_ptr<T>) so an array of
+// std::unique_ptr<T> cannot be casted to an array of T*.
 template <typename T>
-T* const* unique_ptr_address_as_pointer_address(std::unique_ptr<T> const* up) {
-    static_assert(sizeof(T*) == sizeof(std::unique_ptr<T>), "unique_ptr not expected size.");
-    return reinterpret_cast<T* const*>(up);
+std::unique_ptr<const T>* unique_ptr_array_to_unique_const_ptr_array(
+    std::unique_ptr<T>* up_array) {
+    static_assert(sizeof(std::unique_ptr<const T>) ==
+                  sizeof(std::unique_ptr<T>), "unique_ptr not expected size.");
+    return reinterpret_cast< std::unique_ptr<const T>* >(up_array);
 }
 
 /*
