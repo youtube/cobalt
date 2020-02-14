@@ -194,7 +194,10 @@ def _CheckGNFormatted(input_api, output_api):
 
 def _CheckIncludesFormatted(input_api, output_api):
   """Make sure #includes in files we're changing have been formatted."""
-  files = [str(f) for f in input_api.AffectedFiles() if f.Action() != 'D']
+  # NOTE: os.getcwd() != input_api.change.RepositoryRoot(), so the file path
+  #       of AffectedFiles() needs to be converted.
+  files = [os.path.relpath(f.AbsoluteLocalPath())
+           for f in input_api.AffectedFiles() if f.Action() != 'D']
   cmd = ['python',
          'tools/rewrite_includes.py',
          '--dry-run'] + files
