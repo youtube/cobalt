@@ -92,7 +92,7 @@
       'conditions': [
         ['sb_evergreen != 1', {
           'dependencies': [
-            '<!@pymod_do_main(starboard.optional.get_optional_tests -g)',
+            '<!@pymod_do_main(starboard.optional.get_optional_tests -g -d <(DEPTH))',
           ],
         }],
         ['OS=="starboard"', {
