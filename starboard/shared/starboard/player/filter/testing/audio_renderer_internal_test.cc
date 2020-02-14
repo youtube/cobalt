@@ -132,7 +132,7 @@ class AudioRendererTest : public ::testing::Test {
 
     int frames_written = 0;
 
-    while (audio_renderer_->IsSeekingInProgress()) {
+    while (!prerolled_) {
       SbTime timestamp =
           frames_written * kSbTimeSecond / kDefaultSamplesPerSecond;
       scoped_refptr<InputBuffer> input_buffer = CreateInputBuffer(timestamp);
@@ -168,9 +168,11 @@ class AudioRendererTest : public ::testing::Test {
     job_queue_.RunUntilIdle();
   }
   void Seek(SbTime seek_to_time) {
+    EXPECT_TRUE(prerolled_);
+    prerolled_ = false;
     audio_renderer_->Seek(seek_to_time);
     job_queue_.RunUntilIdle();
-    EXPECT_TRUE(audio_renderer_->IsSeekingInProgress());
+    EXPECT_FALSE(prerolled_);
   }
 
   void CallConsumedCB() {
@@ -218,7 +220,10 @@ class AudioRendererTest : public ::testing::Test {
   }
 
   void OnError() {}
-  void OnPrerolled() {}
+  void OnPrerolled() {
+    SB_DCHECK(job_queue_.BelongsToCurrentThread());
+    prerolled_ = true;
+  }
   void OnEnded() {}
 
   SbMediaAudioSampleType sample_type_;
@@ -229,6 +234,7 @@ class AudioRendererTest : public ::testing::Test {
 
   AudioDecoder::OutputCB output_cb_;
   AudioDecoder::ConsumedCB consumed_cb_;
+  bool prerolled_ = true;
 
   scoped_ptr<AudioRenderer> audio_renderer_;
   MockAudioDecoder* audio_decoder_;
@@ -292,7 +298,6 @@ TEST_F(AudioRendererTest, StateAfterConstructed) {
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamWritten());
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
   EXPECT_TRUE(audio_renderer_->CanAcceptMoreData());
-  EXPECT_FALSE(audio_renderer_->IsSeekingInProgress());
   bool is_playing = true;
   bool is_eos_played = true;
   bool is_underflow = true;
@@ -331,7 +336,7 @@ TEST_F(AudioRendererTest, SunnyDay) {
             0);
   EXPECT_FALSE(is_playing);
   EXPECT_FALSE(is_eos_played);
-  EXPECT_FALSE(audio_renderer_->IsSeekingInProgress());
+  EXPECT_TRUE(prerolled_);
 
   audio_renderer_->Play();
 
@@ -423,7 +428,7 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
             0);
   EXPECT_FALSE(is_playing);
   EXPECT_FALSE(is_eos_played);
-  EXPECT_FALSE(audio_renderer_->IsSeekingInProgress());
+  EXPECT_TRUE(prerolled_);
 
   audio_renderer_->Play();
 
@@ -567,13 +572,13 @@ TEST_F(AudioRendererTest, DecoderReturnsEOSWithoutAnyData) {
 
   EXPECT_TRUE(audio_renderer_->IsEndOfStreamWritten());
   EXPECT_FALSE(audio_renderer_->CanAcceptMoreData());
-  EXPECT_TRUE(audio_renderer_->IsSeekingInProgress());
+  EXPECT_FALSE(prerolled_);
 
   // Return EOS from decoder without sending any audio data, which is valid.
   SendDecoderOutput(new DecodedAudio);
 
   EXPECT_TRUE(audio_renderer_->IsEndOfStreamPlayed());
-  EXPECT_FALSE(audio_renderer_->IsSeekingInProgress());
+  EXPECT_TRUE(prerolled_);
   bool is_playing = true;
   bool is_eos_played = false;
   bool is_underflow = true;
@@ -614,13 +619,13 @@ TEST_F(AudioRendererTest, DecoderConsumeAllInputBeforeReturningData) {
 
   EXPECT_TRUE(audio_renderer_->IsEndOfStreamWritten());
   EXPECT_FALSE(audio_renderer_->CanAcceptMoreData());
-  EXPECT_TRUE(audio_renderer_->IsSeekingInProgress());
+  EXPECT_FALSE(prerolled_);
 
   // Return EOS from decoder without sending any audio data, which is valid.
   SendDecoderOutput(new DecodedAudio);
 
   EXPECT_TRUE(audio_renderer_->IsEndOfStreamPlayed());
-  EXPECT_FALSE(audio_renderer_->IsSeekingInProgress());
+  EXPECT_TRUE(prerolled_);
   bool is_playing = true;
   bool is_eos_played = false;
   bool is_underflow = true;
@@ -650,7 +655,7 @@ TEST_F(AudioRendererTest, MoreNumberOfOuputBuffersThanInputBuffers) {
 
   int frames_written = 0;
 
-  while (audio_renderer_->IsSeekingInProgress()) {
+  while (!prerolled_) {
     SbTime timestamp =
         frames_written * kSbTimeSecond / kDefaultSamplesPerSecond;
     WriteSample(CreateInputBuffer(timestamp));
@@ -672,7 +677,7 @@ TEST_F(AudioRendererTest, MoreNumberOfOuputBuffersThanInputBuffers) {
             0);
   EXPECT_FALSE(is_playing);
   EXPECT_FALSE(is_eos_played);
-  EXPECT_FALSE(audio_renderer_->IsSeekingInProgress());
+  EXPECT_TRUE(prerolled_);
 
   audio_renderer_->Play();
 
@@ -750,7 +755,7 @@ TEST_F(AudioRendererTest, LessNumberOfOuputBuffersThanInputBuffers) {
 
   int frames_written = 0;
 
-  while (audio_renderer_->IsSeekingInProgress()) {
+  while (!prerolled_) {
     SbTime timestamp =
         frames_written * kSbTimeSecond / kDefaultSamplesPerSecond;
     SbTime output_time = timestamp;
@@ -772,7 +777,7 @@ TEST_F(AudioRendererTest, LessNumberOfOuputBuffersThanInputBuffers) {
   EXPECT_EQ(audio_renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played,
                                                  &is_underflow),
             0);
-  EXPECT_FALSE(audio_renderer_->IsSeekingInProgress());
+  EXPECT_TRUE(prerolled_);
 
   audio_renderer_->Play();
 
@@ -850,7 +855,7 @@ TEST_F(AudioRendererTest, Seek) {
   EXPECT_EQ(audio_renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played,
                                                  &is_underflow),
             0);
-  EXPECT_FALSE(audio_renderer_->IsSeekingInProgress());
+  EXPECT_TRUE(prerolled_);
 
   audio_renderer_->Play();
 
@@ -892,7 +897,7 @@ TEST_F(AudioRendererTest, Seek) {
   EXPECT_GE(audio_renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played,
                                                  &is_underflow),
             seek_time);
-  EXPECT_FALSE(audio_renderer_->IsSeekingInProgress());
+  EXPECT_TRUE(prerolled_);
 
   audio_renderer_->Play();
   SendDecoderOutput(new DecodedAudio);
