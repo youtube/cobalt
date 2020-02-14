@@ -58,7 +58,7 @@ class MediaTimeProviderImpl : public MediaTimeProvider,
   // video duration, |is_eos_played| of GetCurrentMediaTime() will return true.
   // When VideoEndOfStreamReached() is called without any prior calls to
   // UpdateVideoDuration(), the |seek_to_time_| will be used as video duration.
-  void UpdateVideoDuration(optional<SbTime> video_duration);
+  void UpdateVideoDuration(SbTime video_duration);
   void VideoEndOfStreamReached();
 
  private:
