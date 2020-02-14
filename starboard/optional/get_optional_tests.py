@@ -26,38 +26,36 @@ from starboard.tools import paths
 
 
 def _Posixify(path):
-  """Returns an absolute, POSIX-ified version of |path|.
+  """Returns a normalized, POSIX-ified version of |path|.
 
   When providing dependencies in GYP the paths must be POSIX paths. This
-  function strips drive information from the path, joins the path with the
-  repository root to make it absolute, and normalizes the path.
+  function normalizes |path|, and replaces the path separators with the POSIX
+  path separator.
 
   Args:
-    path: The path to turn into an absolute, POSIX path.
+    path: The path to turn into a normalized, POSIX path.
 
   Returns:
-    An absolute, POSIX path.
+    A normalized, POSIX path.
   """
-  _, repository_root = os.path.splitdrive(paths.REPOSITORY_ROOT)
-  return os.path.normpath(os.path.join(repository_root,
-                                       path)).replace(os.path.sep,
-                                                      posixpath.sep)
+  return os.path.normpath(path).replace(os.path.sep, posixpath.sep)
 
 
-def _GetOptionalTestTargets(as_gyp_dependencies):
+def _GetOptionalTestTargets(as_gyp_dependencies, depth):
   """Returns optional test targets for use in GYP or Python.
 
   This function will try to import optional test targets, and fail gracefully if
   they cannot be imported.
 
-  GYP has a hard time parsing lists passed to it, so when the test targets
-  should be returned in a GYP-friendly format we need to generate a string of
-  concatenated items, delimited by a newline. Further, each test target should
-  be an absolute path to ensure no confusion about which target is desired.
+  When the test targets should be returned in a GYP-friendly format we need to
+  ensure that the paths are POSIX paths, and that they are concatenated into a
+  single string, delimited by newlines.
 
   Args:
     as_gyp_dependencies: Whether or not the test targets should be returned in a
       GYP-friendly format.
+    depth: The <(DEPTH) of GYP, i.e. the path to prepend to each test target
+      when |as_gyp_dependencies| is |True|.
 
   Returns:
     When |as_gyp_dependencies| is |True|, a string of concatenated paths to test
@@ -69,7 +67,8 @@ def _GetOptionalTestTargets(as_gyp_dependencies):
     from starboard.optional.internal import test_targets
     if as_gyp_dependencies:
       return '\n'.join([
-          _Posixify(path) for path in test_targets.TEST_TARGET_GYP_DEPENDENCIES
+          _Posixify(os.path.join(depth, path))
+          for path in test_targets.TEST_TARGET_GYP_DEPENDENCIES
       ])
     return test_targets.TEST_TARGET_NAMES
   except ImportError:
@@ -87,8 +86,16 @@ def DoMain(argv=None):
       default=False,
       help='Whether or not to return the test targets in a GYP-friendly format.'
   )
+  arg_parser.add_argument(
+      '-d',
+      '--depth',
+      default='',
+      help='The <(DEPTH) of GYP, i.e. the path to prepend to each test target.')
   args, _ = arg_parser.parse_known_args(argv)
-  return _GetOptionalTestTargets(args.as_gyp_dependencies)
+
+  if args.as_gyp_dependencies != bool(args.depth):
+    arg_parser.error('You must specify both --as-gyp-dependencies and --depth.')
+  return _GetOptionalTestTargets(args.as_gyp_dependencies, args.depth)
 
 
 def main():
