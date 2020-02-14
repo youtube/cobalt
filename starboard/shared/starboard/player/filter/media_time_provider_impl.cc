@@ -112,8 +112,7 @@ SbTime MediaTimeProviderImpl::GetCurrentMediaTime(bool* is_playing,
   return current;
 }
 
-void MediaTimeProviderImpl::UpdateVideoDuration(
-    optional<SbTime> video_duration) {
+void MediaTimeProviderImpl::UpdateVideoDuration(SbTime video_duration) {
   ScopedLock scoped_lock(mutex_);
   video_duration_ = video_duration;
 }
