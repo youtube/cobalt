@@ -79,8 +79,6 @@ class AudioRenderer : public MediaTimeProvider,
   bool IsEndOfStreamWritten() const;
   bool IsEndOfStreamPlayed() const;
   bool CanAcceptMoreData() const;
-  // TODO: Remove the following function and its tests.
-  bool IsSeekingInProgress() const;
 
   // MediaTimeProvider methods
   void Initialize(const ErrorCB& error_cb,

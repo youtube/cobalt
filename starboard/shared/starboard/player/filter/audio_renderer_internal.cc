@@ -163,11 +163,6 @@ bool AudioRenderer::CanAcceptMoreData() const {
          (!decoder_sample_rate_ || !time_stretcher_.IsQueueFull());
 }
 
-bool AudioRenderer::IsSeekingInProgress() const {
-  SB_DCHECK(BelongsToCurrentThread());
-  return seeking_;
-}
-
 void AudioRenderer::Initialize(const ErrorCB& error_cb,
                                const PrerolledCB& prerolled_cb,
                                const EndedCB& ended_cb) {
