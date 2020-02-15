@@ -36,7 +36,7 @@
       '<(DEPTH)/starboard/shared/win32/media_is_video_supported.cc',
       '<(DEPTH)/starboard/shared/win32/minidump.cc',
       '<(DEPTH)/starboard/shared/win32/minidump.h',
-      '<(DEPTH)/starboard/shared/win32/player_components_impl.cc',
+      '<(DEPTH)/starboard/shared/win32/player_components_factory.cc',
       '<(DEPTH)/starboard/shared/win32/playready_license.cc',
       '<(DEPTH)/starboard/shared/win32/starboard_main.cc',
       '<(DEPTH)/starboard/shared/win32/system_get_device_type.cc',

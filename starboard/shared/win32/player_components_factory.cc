@@ -14,11 +14,9 @@
 
 #include "starboard/shared/starboard/player/filter/player_components.h"
 
+#include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
-#include "starboard/raspi/shared/open_max/video_decoder.h"
-#include "starboard/raspi/shared/video_renderer_sink_impl.h"
-#include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
@@ -26,6 +24,8 @@
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
+#include "starboard/shared/win32/audio_decoder.h"
+#include "starboard/shared/win32/video_decoder.h"
 
 namespace starboard {
 namespace shared {
@@ -35,8 +35,8 @@ namespace filter {
 
 namespace {
 
-class PlayerComponentsImpl : public PlayerComponents {
-  bool CreateComponents(
+class PlayerComponentsFactory : public PlayerComponents::Factory {
+  bool CreateSubComponents(
       const CreationParameters& creation_parameters,
       scoped_ptr<AudioDecoder>* audio_decoder,
       scoped_ptr<AudioRendererSink>* audio_renderer_sink,
@@ -52,15 +52,10 @@ class PlayerComponentsImpl : public PlayerComponents {
 
       auto decoder_creator = [](const SbMediaAudioSampleInfo& audio_sample_info,
                                 SbDrmSystem drm_system) {
-        typedef ::starboard::shared::ffmpeg::AudioDecoder AudioDecoderImpl;
+        using AudioDecoderImpl = ::starboard::shared::win32::AudioDecoder;
 
-        scoped_ptr<AudioDecoderImpl> audio_decoder_impl(
-            AudioDecoderImpl::Create(audio_sample_info.codec,
-                                     audio_sample_info));
-        if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
-          return audio_decoder_impl.PassAs<AudioDecoder>();
-        }
-        return scoped_ptr<AudioDecoder>();
+        return scoped_ptr<AudioDecoder>(new AudioDecoderImpl(
+            audio_sample_info.codec, audio_sample_info, drm_system));
       };
 
       audio_decoder->reset(new AdaptiveAudioDecoder(
@@ -70,19 +65,19 @@ class PlayerComponentsImpl : public PlayerComponents {
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-      using VideoDecoderImpl =
-          ::starboard::raspi::shared::open_max::VideoDecoder;
-      using ::starboard::raspi::shared::VideoRendererSinkImpl;
+      using VideoDecoderImpl = ::starboard::shared::win32::VideoDecoder;
 
       SB_DCHECK(video_decoder);
       SB_DCHECK(video_render_algorithm);
       SB_DCHECK(video_renderer_sink);
 
-      video_decoder->reset(
-          new VideoDecoderImpl(creation_parameters.video_codec()));
+      scoped_ptr<VideoDecoderImpl> video_decoder_impl(new VideoDecoderImpl(
+          creation_parameters.video_codec(), creation_parameters.output_mode(),
+          creation_parameters.decode_target_graphics_context_provider(),
+          creation_parameters.drm_system()));
+      *video_renderer_sink = NULL;
+      video_decoder->reset(video_decoder_impl.release());
       video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
-      *video_renderer_sink =
-          new VideoRendererSinkImpl(creation_parameters.player());
     }
 
     return true;
@@ -92,15 +87,18 @@ class PlayerComponentsImpl : public PlayerComponents {
 }  // namespace
 
 // static
-scoped_ptr<PlayerComponents> PlayerComponents::Create() {
-  return make_scoped_ptr<PlayerComponents>(new PlayerComponentsImpl);
+scoped_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
+  return make_scoped_ptr<PlayerComponents::Factory>(
+      new PlayerComponentsFactory);
 }
 
 // static
 bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
                                        SbMediaVideoCodec codec,
                                        SbDrmSystem drm_system) {
-  return output_mode == kSbPlayerOutputModePunchOut;
+  SB_UNREFERENCED_PARAMETER(codec);
+  SB_UNREFERENCED_PARAMETER(drm_system);
+  return output_mode == kSbPlayerOutputModeDecodeToTexture;
 }
 
 }  // namespace filter

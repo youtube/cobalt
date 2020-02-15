@@ -494,7 +494,7 @@
           'sources': [
             'drm_create_system.cc',
             'media_is_supported.cc',
-            'player_components_impl.cc',
+            'player_components_factory.cc',
           ],
         }],
       ],

@@ -26,7 +26,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
-#include "starboard/shared/starboard/player/filter/media_time_provider_impl.h"
+#include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
@@ -84,7 +84,6 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   void OnEnded(SbMediaType media_type);
 
   SbDecodeTarget GetCurrentDecodeTarget() override;
-  MediaTimeProvider* GetMediaTimeProvider() const;
 
   SbPlayer player_ = kSbPlayerInvalid;
   UpdateMediaInfoCB update_media_info_cb_;
@@ -100,12 +99,23 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   scoped_array<int8_t> audio_specific_config_;
   SbMediaAudioSampleInfo audio_sample_info_ = {kSbMediaAudioCodecNone};
 
-  // |media_time_provider_impl_| is used to provide the media playback time when
-  // there is no audio track.  In such case |audio_renderer_| will be NULL.
-  // When there is an audio track, |media_time_provider_impl_| will be NULL.
-  scoped_ptr<MediaTimeProviderImpl> media_time_provider_impl_;
-  scoped_ptr<AudioRenderer> audio_renderer_;
-  scoped_ptr<VideoRenderer> video_renderer_;
+  // A mutex guarding changes to the existence (e.g. creation/destruction)
+  // of the |player_components_| object.  This is necessary because calls to
+  // GetCurrentDecodeTarget() need to be supported on arbitrary threads, and
+  // GetCurrentDecodeTarget() will call into the video renderer held by
+  // |player_components_|.  This mutex only needs to be held when any thread
+  // creates or resets |player_components_|, and when GetCurrentDecodeTarget()
+  // reads from the video renderer held by |player_components_|.  This is
+  // because GetCurrentDecodeTarget() won't modify |player_components_|, and all
+  // other accesses are happening from the same thread.
+  Mutex player_components_existence_mutex_;
+
+  scoped_ptr<PlayerComponents> player_components_;
+  // The following three variables cache the return values of member functions
+  // of |player_components_|.  Their lifetime is tied to |player_components_|.
+  MediaTimeProvider* media_time_provider_ = nullptr;
+  AudioRenderer* audio_renderer_ = nullptr;
+  VideoRenderer* video_renderer_ = nullptr;
 
   bool paused_ = false;
   double playback_rate_ = 1.0;
@@ -118,16 +128,6 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   bool video_prerolled_ = false;
   bool audio_ended_ = false;
   bool video_ended_ = false;
-
-  // A mutex guarding changes to the existence (e.g. creation/destruction)
-  // of the |video_renderer_| object.  This is necessary because calls to
-  // GetCurrentDecodeTarget() need to be supported on arbitrary threads, and
-  // GetCurrentDecodeTarget() will call into |video_renderer_|.  This mutex
-  // only needs to be held when any thread creates or resets |video_renderer_|,
-  // and when GetCurrentDecodeTarget() reads from it.  This is because
-  // GetCurrentDecodeTarget() won't modify |video_renderer_|, and all other
-  // accesses are happening from the same thread.
-  ::starboard::Mutex video_renderer_existence_mutex_;
 
   SbPlayerOutputMode output_mode_;
   SbDecodeTargetGraphicsContextProvider*
