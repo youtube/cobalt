@@ -76,6 +76,10 @@
 #include "cobalt/debug/debug_client.h"
 #endif  // ENABLE_DEBUGGER
 
+#if SB_IS(EVERGREEN)
+#include "cobalt/updater/updater_module.h"
+#endif
+
 namespace cobalt {
 namespace browser {
 
@@ -93,9 +97,7 @@ class BrowserModule {
               memory_settings::AutoMemSettings::kTypeCommandLine),
           build_auto_mem_settings(memory_settings::AutoMemSettings::kTypeBuild),
           enable_splash_screen_on_reloads(true) {}
-    network::NetworkModule::Options network_module_options;
     renderer::RendererModule::Options renderer_module_options;
-    storage::StorageManager::Options storage_manager_options;
     WebModule::Options web_module_options;
     media::MediaModule::Options media_module_options;
     std::string initial_deep_link;
@@ -117,11 +119,14 @@ class BrowserModule {
                 base::ApplicationState initial_application_state,
                 base::EventDispatcher* event_dispatcher,
                 account::AccountManager* account_manager,
+                network::NetworkModule* network_module,
+#if SB_IS(EVERGREEN)
+                updater::UpdaterModule* updater_module,
+#endif
                 const Options& options);
   ~BrowserModule();
 
-  network::NetworkModule* GetNetworkModule() { return &network_module_; }
-  std::string GetUserAgent() { return network_module_.GetUserAgent(); }
+  std::string GetUserAgent() { return network_module_->GetUserAgent(); }
 
   // Recreates web module with the given URL. In the case where Cobalt is
   // currently suspended, this defers the navigation and instead sets
@@ -468,8 +473,6 @@ class BrowserModule {
 
   base::EventDispatcher* event_dispatcher_;
 
-  storage::StorageManager storage_manager_;
-
   // Whether the browser module has yet rendered anything. On the very first
   // render, we hide the system splash screen.
   bool is_rendered_;
@@ -497,7 +500,12 @@ class BrowserModule {
   std::unique_ptr<media::CanPlayTypeHandler> can_play_type_handler_;
 
   // Sets up the network component for requesting internet resources.
-  network::NetworkModule network_module_;
+  network::NetworkModule* network_module_;
+
+#if SB_IS(EVERGREEN)
+  // A reference to the Cobalt updater.
+  updater::UpdaterModule* updater_module_;
+#endif
 
   // Manages the three render trees, combines and renders them.
   RenderTreeCombiner render_tree_combiner_;
