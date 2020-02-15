@@ -70,6 +70,9 @@ class AudioRenderer : public MediaTimeProvider,
                 int min_frames_per_append);
   ~AudioRenderer();
 
+  void Initialize(const ErrorCB& error_cb,
+                  const PrerolledCB& prerolled_cb,
+                  const EndedCB& ended_cb);
   void WriteSample(const scoped_refptr<InputBuffer>& input_buffer);
   void WriteEndOfStream();
 
@@ -81,9 +84,6 @@ class AudioRenderer : public MediaTimeProvider,
   bool CanAcceptMoreData() const;
 
   // MediaTimeProvider methods
-  void Initialize(const ErrorCB& error_cb,
-                  const PrerolledCB& prerolled_cb,
-                  const EndedCB& ended_cb) override;
   void Play() override;
   void Pause() override;
   void SetPlaybackRate(double playback_rate) override;

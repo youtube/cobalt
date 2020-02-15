@@ -27,9 +27,6 @@ namespace filter {
 
 class MediaTimeProvider {
  public:
-  virtual void Initialize(const ErrorCB& error_cb,
-                          const PrerolledCB& prerolled_cb,
-                          const EndedCB& ended_cb) = 0;
   virtual void Play() = 0;
   virtual void Pause() = 0;
   virtual void SetPlaybackRate(double playback_rate) = 0;

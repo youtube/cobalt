@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/filter/stub_player_components_impl.h"
+#include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
 
 #include "starboard/shared/starboard/player/filter/player_components.h"
 
@@ -23,15 +23,9 @@ namespace player {
 namespace filter {
 
 // static
-scoped_ptr<PlayerComponents> PlayerComponents::Create() {
-  return make_scoped_ptr<PlayerComponents>(new StubPlayerComponentsImpl);
-}
-
-// static
-bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
-                                       SbMediaVideoCodec codec,
-                                       SbDrmSystem drm_system) {
-  return output_mode == kSbPlayerOutputModePunchOut;
+scoped_ptr<PlayerComponents::Factory> StubPlayerComponentsFactory::Create() {
+  return make_scoped_ptr<PlayerComponents::Factory>(
+      new StubPlayerComponentsFactory);
 }
 
 }  // namespace filter

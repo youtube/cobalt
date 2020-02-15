@@ -167,7 +167,7 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/file_mode_string_to_flags.cc",
     "//starboard/shared/starboard/player/filter/stub_audio_decoder.cc",
     "//starboard/shared/starboard/player/filter/stub_audio_decoder.h",
-    "//starboard/shared/starboard/player/filter/stub_player_components_impl.cc",
+    "//starboard/shared/starboard/player/filter/stub_player_components_factory.cc",
     "//starboard/shared/starboard/player/filter/stub_video_decoder.cc",
     "//starboard/shared/starboard/player/filter/stub_video_decoder.h",
     "//starboard/shared/starboard/queue_application.cc",
