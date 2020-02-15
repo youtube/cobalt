@@ -56,7 +56,9 @@
 #include "cobalt/browser/device_authentication.h"
 #include "cobalt/browser/memory_settings/auto_mem_settings.h"
 #include "cobalt/browser/memory_tracker/tool.h"
+#include "cobalt/browser/storage_upgrade_handler.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/browser/user_agent_string.h"
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/math/size.h"
 #include "cobalt/script/javascript_engine.h"
@@ -526,11 +528,13 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
       GetRequestedViewportSize(command_line);
 
   WebModule::Options web_options;
+  storage::StorageManager::Options storage_manager_options;
+  network::NetworkModule::Options network_module_options;
   // Create the main components of our browser.
   BrowserModule::Options options(web_options);
   options.web_module_options.name = "MainWebModule";
   options.initial_deep_link = GetInitialDeepLink();
-  options.network_module_options.preferred_language = language;
+  network_module_options.preferred_language = language;
   options.command_line_auto_mem_settings =
       memory_settings::GetSettings(*command_line);
   options.build_auto_mem_settings = memory_settings::GetDefaultBuildSettings();
@@ -557,7 +561,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   if (command_line->HasSwitch(browser::switches::kNullSavegame)) {
-    options.storage_manager_options.savegame_options.factory =
+    storage_manager_options.savegame_options.factory =
         &storage::SavegameFake::Create;
   }
 #if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
@@ -594,14 +598,14 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   } else {
     partition_key = base::GetApplicationKey(initial_url);
   }
-  options.storage_manager_options.savegame_options.id = partition_key;
+  storage_manager_options.savegame_options.id = partition_key;
 
   base::Optional<std::string> default_key =
       base::GetApplicationKey(GURL(kDefaultURL));
   if (command_line->HasSwitch(
           browser::switches::kForceMigrationForStoragePartitioning) ||
       partition_key == default_key) {
-    options.storage_manager_options.savegame_options.fallback_to_default_id =
+    storage_manager_options.savegame_options.fallback_to_default_id =
         true;
   }
 
@@ -617,14 +621,14 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   options.web_module_options.track_event_stats = true;
 
   if (command_line->HasSwitch(browser::switches::kProxy)) {
-    options.network_module_options.custom_proxy =
+    network_module_options.custom_proxy =
         command_line->GetSwitchValueASCII(browser::switches::kProxy);
   }
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #if defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
   if (command_line->HasSwitch(browser::switches::kIgnoreCertificateErrors)) {
-    options.network_module_options.ignore_certificate_errors = true;
+    network_module_options.ignore_certificate_errors = true;
   }
 #endif  // defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
 
@@ -679,7 +683,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   security_flags.csp_header_policy = csp::kCSPRequired;
 #endif  // defined(COBALT_FORCE_CSP)
 
-  options.network_module_options.https_requirement =
+  network_module_options.https_requirement =
       security_flags.https_requirement;
   options.web_module_options.require_csp = security_flags.csp_header_policy;
   options.web_module_options.csp_enforcement_mode = dom::kCspEnforcementEnable;
@@ -688,15 +692,30 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   options.web_module_loaded_callback =
       base::Bind(&Application::DispatchEarlyDeepLink, base::Unretained(this));
   account_manager_.reset(new account::AccountManager());
-  browser_module_.reset(
-      new BrowserModule(initial_url,
-                        (should_preload ? base::kApplicationStatePreloading
-                                        : base::kApplicationStateStarted),
-                        &event_dispatcher_, account_manager_.get(), options));
+
+  storage_manager_.reset(new storage::StorageManager(
+      std::unique_ptr<storage::StorageManager::UpgradeHandler>(
+          new StorageUpgradeHandler(initial_url)),
+      storage_manager_options));
+
+  network_module_.reset(new network::NetworkModule(
+      CreateUserAgentString(GetUserAgentPlatformInfoFromSystem()),
+      storage_manager_.get(), &event_dispatcher_,
+      network_module_options));
+
 #if SB_IS(EVERGREEN)
-  updater_module_.reset(
-      new updater::UpdaterModule(browser_module_->GetNetworkModule()));
+  updater_module_.reset(new updater::UpdaterModule(network_module_.get()));
 #endif
+  browser_module_.reset(new BrowserModule(
+      initial_url,
+      (should_preload ? base::kApplicationStatePreloading
+                      : base::kApplicationStateStarted),
+      &event_dispatcher_, account_manager_.get(), network_module_.get(),
+#if SB_IS(EVERGREEN)
+      updater_module_.get(),
+#endif
+      options));
+
   UpdateUserAgent();
 
   app_status_ = (should_preload ? kPreloadingAppStatus : kRunningAppStatus);

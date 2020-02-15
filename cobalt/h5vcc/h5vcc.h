@@ -33,6 +33,11 @@
 #include "cobalt/h5vcc/h5vcc_trace_event.h"
 #include "cobalt/script/wrappable.h"
 
+#if SB_IS(EVERGREEN)
+#include "cobalt/h5vcc/h5vcc_updater.h"
+#include "cobalt/updater/updater_module.h"
+#endif
+
 namespace cobalt {
 namespace h5vcc {
 
@@ -42,10 +47,16 @@ class H5vcc : public script::Wrappable {
     Settings()
         : media_module(NULL),
           network_module(NULL),
+#if SB_IS(EVERGREEN)
+          updater_module(NULL),
+#endif
           account_manager(NULL),
           event_dispatcher(NULL) {}
     media::MediaModule* media_module;
     network::NetworkModule* network_module;
+#if SB_IS(EVERGREEN)
+    updater::UpdaterModule* updater_module;
+#endif
     account::AccountManager* account_manager;
     base::EventDispatcher* event_dispatcher;
     std::string initial_deep_link;
@@ -74,6 +85,9 @@ class H5vcc : public script::Wrappable {
   const scoped_refptr<H5vccTraceEvent>& trace_event() const {
     return trace_event_;
   }
+#if SB_IS(EVERGREEN)
+  const scoped_refptr<H5vccUpdater>& updater() const { return updater_; }
+#endif
 
   DEFINE_WRAPPABLE_TYPE(H5vcc);
   void TraceMembers(script::Tracer* tracer) override;
@@ -90,6 +104,9 @@ class H5vcc : public script::Wrappable {
   scoped_refptr<H5vccStorage> storage_;
   scoped_refptr<H5vccSystem> system_;
   scoped_refptr<H5vccTraceEvent> trace_event_;
+#if SB_IS(EVERGREEN)
+  scoped_refptr<H5vccUpdater> updater_;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(H5vcc);
 };
