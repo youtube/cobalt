@@ -179,6 +179,7 @@
         '../h5vcc/h5vcc_storage.idl',
         '../h5vcc/h5vcc_system.idl',
         '../h5vcc/h5vcc_trace_event.idl',
+        '../h5vcc/h5vcc_updater.idl',
 
         '../media_capture/blob_event.idl',
         '../media_capture/media_device_info.idl',
