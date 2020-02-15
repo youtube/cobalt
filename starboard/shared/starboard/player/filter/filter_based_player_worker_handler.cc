@@ -22,7 +22,6 @@
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
-#include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/time.h"
@@ -35,20 +34,11 @@ namespace filter {
 
 namespace {
 
-typedef MediaTimeProviderImpl::MonotonicSystemTimeProvider
-    MonotonicSystemTimeProvider;
-
 using std::placeholders::_1;
 using std::placeholders::_2;
 
 // TODO: Make this configurable inside SbPlayerCreate().
 const SbTimeMonotonic kUpdateInterval = 200 * kSbTimeMillisecond;
-
-class MonotonicSystemTimeProviderImpl : public MonotonicSystemTimeProvider {
-  SbTimeMonotonic GetMonotonicNow() const override {
-    return SbTimeGetMonotonicNow();
-  }
-};
 
 #if defined(COBALT_BUILD_TYPE_GOLD)
 
@@ -170,8 +160,9 @@ bool FilterBasedPlayerWorkerHandler::Init(
   SB_DCHECK(!update_player_error_cb);
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
-  scoped_ptr<PlayerComponents> player_components = PlayerComponents::Create();
-  SB_DCHECK(player_components);
+  scoped_ptr<PlayerComponents::Factory> factory =
+      PlayerComponents::Factory::Create();
+  SB_DCHECK(factory);
 
   if (audio_codec_ != kSbMediaAudioCodecNone) {
     // TODO: This is not ideal as we should really handle the creation failure
@@ -190,42 +181,26 @@ bool FilterBasedPlayerWorkerHandler::Init(
     }
   }
 
-  if (audio_codec_ == kSbMediaAudioCodecNone &&
-      video_codec_ != kSbMediaVideoCodecNone) {
-    media_time_provider_impl_.reset(
-        new MediaTimeProviderImpl(scoped_ptr<MonotonicSystemTimeProvider>(
-            new MonotonicSystemTimeProviderImpl)));
-    media_time_provider_impl_->Initialize(
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
-        std::bind(&FilterBasedPlayerWorkerHandler::OnError, this, _1, _2),
-#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
-        std::bind(&FilterBasedPlayerWorkerHandler::OnError, this),
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
-        std::bind(&FilterBasedPlayerWorkerHandler::OnPrerolled, this,
-                  kSbMediaTypeAudio),
-        std::bind(&FilterBasedPlayerWorkerHandler::OnEnded, this,
-                  kSbMediaTypeAudio));
-    media_time_provider_impl_->SetPlaybackRate(playback_rate_);
-  }
-
-  PlayerComponents::CreationParameters creation_parameters(
+  PlayerComponents::Factory::CreationParameters creation_parameters(
       audio_codec_, audio_mime_, audio_sample_info_, video_codec_, video_mime_,
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
       video_sample_info_,
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
       max_video_capabilities_, player_, output_mode_,
-      decode_target_graphics_context_provider_, GetMediaTimeProvider(),
-      drm_system_);
+      decode_target_graphics_context_provider_, drm_system_);
 
   {
-    ::starboard::ScopedLock lock(video_renderer_existence_mutex_);
-    if (!player_components->CreateRenderers(creation_parameters,
-                                            &audio_renderer_, &video_renderer_,
-                                            error_message)) {
+    ::starboard::ScopedLock lock(player_components_existence_mutex_);
+    player_components_ =
+        factory->CreateComponents(creation_parameters, error_message);
+    if (!player_components_) {
       SB_LOG(ERROR) << "Failed to create renderer with error: "
                     << *error_message;
       return false;
     }
+    media_time_provider_ = player_components_->GetMediaTimeProvider();
+    audio_renderer_ = player_components_->GetAudioRenderer();
+    video_renderer_ = player_components_->GetVideoRenderer();
   }
   if (audio_codec_ != kSbMediaAudioCodecNone) {
     SB_DCHECK(audio_renderer_);
@@ -233,6 +208,7 @@ bool FilterBasedPlayerWorkerHandler::Init(
   if (video_codec_ != kSbMediaVideoCodecNone) {
     SB_DCHECK(video_renderer_);
   }
+  SB_DCHECK(media_time_provider_);
 
   if (audio_renderer_) {
     audio_renderer_->Initialize(
@@ -245,9 +221,9 @@ bool FilterBasedPlayerWorkerHandler::Init(
                   kSbMediaTypeAudio),
         std::bind(&FilterBasedPlayerWorkerHandler::OnEnded, this,
                   kSbMediaTypeAudio));
-    audio_renderer_->SetPlaybackRate(playback_rate_);
     audio_renderer_->SetVolume(volume_);
   }
+  media_time_provider_->SetPlaybackRate(playback_rate_);
   if (video_renderer_) {
     video_renderer_->Initialize(
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
@@ -270,7 +246,7 @@ bool FilterBasedPlayerWorkerHandler::Seek(SbTime seek_to_time, int ticket) {
   SB_UNREFERENCED_PARAMETER(ticket);
   SB_DCHECK(BelongsToCurrentThread());
 
-  if (!GetMediaTimeProvider()) {
+  if (!media_time_provider_) {
     return false;
   }
 
@@ -279,11 +255,11 @@ bool FilterBasedPlayerWorkerHandler::Seek(SbTime seek_to_time, int ticket) {
     seek_to_time = 0;
   }
 
-  GetMediaTimeProvider()->Pause();
+  media_time_provider_->Pause();
   if (video_renderer_) {
     video_renderer_->Seek(seek_to_time);
   }
-  GetMediaTimeProvider()->Seek(seek_to_time);
+  media_time_provider_->Seek(seek_to_time);
   audio_prerolled_ = false;
   video_prerolled_ = false;
   return true;
@@ -362,10 +338,6 @@ bool FilterBasedPlayerWorkerHandler::WriteSample(
           return false;
         }
       }
-      if (media_time_provider_impl_) {
-        media_time_provider_impl_->UpdateVideoDuration(
-            input_buffer->timestamp());
-      }
       DumpInputHash(input_buffer);
       video_renderer_->WriteSample(input_buffer);
     }
@@ -395,9 +367,6 @@ bool FilterBasedPlayerWorkerHandler::WriteEndOfStream(SbMediaType sample_type) {
       SB_LOG(WARNING) << "Try to write video EOS after EOS is enqueued";
     } else {
       SB_LOG(INFO) << "Video EOS enqueued";
-      if (media_time_provider_impl_) {
-        media_time_provider_impl_->VideoEndOfStreamReached();
-      }
       video_renderer_->WriteEndOfStream();
     }
   }
@@ -408,17 +377,17 @@ bool FilterBasedPlayerWorkerHandler::WriteEndOfStream(SbMediaType sample_type) {
 bool FilterBasedPlayerWorkerHandler::SetPause(bool pause) {
   SB_DCHECK(BelongsToCurrentThread());
 
-  if (!GetMediaTimeProvider()) {
+  if (!media_time_provider_) {
     return false;
   }
 
   paused_ = pause;
 
   if (pause) {
-    GetMediaTimeProvider()->Pause();
+    media_time_provider_->Pause();
     SB_DLOG(INFO) << "Playback paused.";
   } else {
-    GetMediaTimeProvider()->Play();
+    media_time_provider_->Play();
     SB_DLOG(INFO) << "Playback started.";
   }
 
@@ -430,11 +399,11 @@ bool FilterBasedPlayerWorkerHandler::SetPlaybackRate(double playback_rate) {
 
   playback_rate_ = playback_rate;
 
-  if (!GetMediaTimeProvider()) {
+  if (!media_time_provider_) {
     return false;
   }
 
-  GetMediaTimeProvider()->SetPlaybackRate(playback_rate_);
+  media_time_provider_->SetPlaybackRate(playback_rate_);
   return true;
 }
 
@@ -502,10 +471,11 @@ void FilterBasedPlayerWorkerHandler::OnPrerolled(SbMediaType media_type) {
   audio_prerolled_ |= media_type == kSbMediaTypeAudio;
   video_prerolled_ |= media_type == kSbMediaTypeVideo;
 
-  if (audio_prerolled_ && (!video_renderer_ || video_prerolled_)) {
+  if ((!audio_renderer_ || audio_prerolled_) &&
+      (!video_renderer_ || video_prerolled_)) {
     update_player_state_cb_(kSbPlayerStatePresenting);
     if (!paused_) {
-      GetMediaTimeProvider()->Play();
+      media_time_provider_->Play();
     }
   }
 }
@@ -516,10 +486,12 @@ void FilterBasedPlayerWorkerHandler::OnEnded(SbMediaType media_type) {
         std::bind(&FilterBasedPlayerWorkerHandler::OnEnded, this, media_type));
     return;
   }
+
   audio_ended_ |= media_type == kSbMediaTypeAudio;
   video_ended_ |= media_type == kSbMediaTypeVideo;
 
-  if (audio_ended_ && (!video_renderer_ || video_ended_)) {
+  if ((!audio_renderer_ || audio_ended_) &&
+      (!video_renderer_ || video_ended_)) {
     update_player_state_cb_(kSbPlayerStateEndOfStream);
   }
 }
@@ -527,7 +499,7 @@ void FilterBasedPlayerWorkerHandler::OnEnded(SbMediaType media_type) {
 void FilterBasedPlayerWorkerHandler::Update() {
   SB_DCHECK(BelongsToCurrentThread());
 
-  if (!GetMediaTimeProvider()) {
+  if (!media_time_provider_) {
     return;
   }
 
@@ -539,7 +511,7 @@ void FilterBasedPlayerWorkerHandler::Update() {
     bool is_playing;
     bool is_eos_played;
     bool is_underflow;
-    auto media_time = GetMediaTimeProvider()->GetCurrentMediaTime(
+    auto media_time = media_time_provider_->GetCurrentMediaTime(
         &is_playing, &is_eos_played, &is_underflow);
     update_media_info_cb_(media_time, dropped_frames, is_underflow);
   }
@@ -552,37 +524,30 @@ void FilterBasedPlayerWorkerHandler::Stop() {
 
   RemoveJobByToken(update_job_token_);
 
-  scoped_ptr<VideoRenderer> video_renderer;
+  scoped_ptr<PlayerComponents> player_components;
   {
-    // Set |video_renderer_| to null with the lock, but we actually destroy
+    // Set |player_components_| to null with the lock, but we actually destroy
     // it outside of the lock.  This is because the VideoRenderer destructor
     // may post a task to destroy the SbDecodeTarget to the same thread that
     // might call GetCurrentDecodeTarget(), which would try to take this lock.
-    ::starboard::ScopedLock lock(video_renderer_existence_mutex_);
-    video_renderer = video_renderer_.Pass();
+    ::starboard::ScopedLock lock(player_components_existence_mutex_);
+    player_components = player_components_.Pass();
+    media_time_provider_ = nullptr;
+    audio_renderer_ = nullptr;
+    video_renderer_ = nullptr;
   }
-  video_renderer.reset();
-  audio_renderer_.reset();
-  media_time_provider_impl_.reset();
+  player_components.reset();
 }
 
 SbDecodeTarget FilterBasedPlayerWorkerHandler::GetCurrentDecodeTarget() {
   SbDecodeTarget decode_target = kSbDecodeTargetInvalid;
-  if (video_renderer_existence_mutex_.AcquireTry()) {
+  if (player_components_existence_mutex_.AcquireTry()) {
     if (video_renderer_) {
       decode_target = video_renderer_->GetCurrentDecodeTarget();
     }
-    video_renderer_existence_mutex_.Release();
+    player_components_existence_mutex_.Release();
   }
   return decode_target;
-}
-
-MediaTimeProvider* FilterBasedPlayerWorkerHandler::GetMediaTimeProvider()
-    const {
-  if (audio_renderer_) {
-    return audio_renderer_.get();
-  }
-  return media_time_provider_impl_.get();
 }
 
 }  // namespace filter

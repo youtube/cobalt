@@ -30,7 +30,7 @@
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
-#include "starboard/shared/starboard/player/filter/stub_player_components_impl.h"
+#include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
@@ -149,7 +149,7 @@ class VideoDecoderTest
     ASSERT_TRUE(VideoDecoder::OutputModeSupported(
         output_mode, dmp_reader_.video_codec(), kSbDrmSystemInvalid));
 
-    PlayerComponents::CreationParameters creation_parameters(
+    PlayerComponents::Factory::CreationParameters creation_parameters(
         dmp_reader_.video_codec(), "",
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
         GetVideoInputBuffer(0)->video_sample_info(),
@@ -157,15 +157,14 @@ class VideoDecoderTest
         "", &player_, output_mode,
         fake_graphics_context_provider_.decoder_target_provider(), nullptr);
 
-    scoped_ptr<PlayerComponents> components;
+    scoped_ptr<PlayerComponents::Factory> factory;
     if (using_stub_decoder_) {
-      components = make_scoped_ptr<StubPlayerComponentsImpl>(
-          new StubPlayerComponentsImpl);
+      factory = StubPlayerComponentsFactory::Create();
     } else {
-      components = PlayerComponents::Create();
+      factory = PlayerComponents::Factory::Create();
     }
     std::string error_message;
-    ASSERT_TRUE(components->CreateComponents(
+    ASSERT_TRUE(factory->CreateSubComponents(
         creation_parameters, nullptr, nullptr, &video_decoder_,
         &video_render_algorithm_, &video_renderer_sink_, &error_message));
     ASSERT_TRUE(video_decoder_);
@@ -556,7 +555,8 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
   // Create three more decoders for each supported combinations.
   const int kDecodersToCreate = 3;
 
-  scoped_ptr<PlayerComponents> components = PlayerComponents::Create();
+  scoped_ptr<PlayerComponents::Factory> factory =
+      PlayerComponents::Factory::Create();
 
   SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
                                        kSbPlayerOutputModePunchOut};
@@ -593,7 +593,7 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
             kSbMediaAudioCodecNone
 #endif  // SB_API_VERSION >= 11
           };
-          PlayerComponents::CreationParameters creation_parameters(
+          PlayerComponents::Factory::CreationParameters creation_parameters(
               dmp_reader_.video_codec(), "",
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
               CreateVideoSampleInfo(dmp_reader_.video_codec()),
@@ -603,7 +603,7 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
               nullptr);
 
           std::string error_message;
-          ASSERT_TRUE(components->CreateComponents(
+          ASSERT_TRUE(factory->CreateSubComponents(
               creation_parameters, nullptr, nullptr, &video_decoders[i],
               &video_render_algorithms[i], &video_renderer_sinks[i],
               &error_message));

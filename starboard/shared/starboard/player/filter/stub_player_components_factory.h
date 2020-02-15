@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_STUB_PLAYER_COMPONENTS_IMPL_H_
-#define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_STUB_PLAYER_COMPONENTS_IMPL_H_
-
-#include "starboard/shared/starboard/player/filter/player_components.h"
+#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_STUB_PLAYER_COMPONENTS_FACTORY_H_
+#define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_STUB_PLAYER_COMPONENTS_FACTORY_H_
 
 #include <string>
 
 #include "starboard/common/log.h"
+#include "starboard/shared/starboard/player/filter/player_components.h"
 
 namespace starboard {
 namespace shared {
@@ -27,9 +26,11 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-class StubPlayerComponentsImpl : public PlayerComponents {
+class StubPlayerComponentsFactory : public PlayerComponents::Factory {
  public:
-  bool CreateComponents(
+  static scoped_ptr<PlayerComponents::Factory> Create();
+
+  bool CreateSubComponents(
       const CreationParameters& creation_parameters,
       scoped_ptr<AudioDecoder>* audio_decoder,
       scoped_ptr<AudioRendererSink>* audio_renderer_sink,
@@ -49,6 +50,11 @@ class StubPlayerComponentsImpl : public PlayerComponents {
     }
     return true;
   }
+
+ private:
+  StubPlayerComponentsFactory() {}
+
+  SB_DISALLOW_COPY_AND_ASSIGN(StubPlayerComponentsFactory);
 };
 
 }  // namespace filter
@@ -57,4 +63,4 @@ class StubPlayerComponentsImpl : public PlayerComponents {
 }  // namespace shared
 }  // namespace starboard
 
-#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_STUB_PLAYER_COMPONENTS_IMPL_H_
+#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_STUB_PLAYER_COMPONENTS_FACTORY_H_

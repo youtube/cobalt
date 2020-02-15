@@ -43,9 +43,6 @@ class MediaTimeProviderImpl : public MediaTimeProvider,
   explicit MediaTimeProviderImpl(
       scoped_ptr<MonotonicSystemTimeProvider> system_time_provider);
 
-  void Initialize(const ErrorCB& error_cb,
-                  const PrerolledCB& prerolled_cb,
-                  const EndedCB& ended_cb) override;
   void Play() override;
   void Pause() override;
   void SetPlaybackRate(double playback_rate) override;
@@ -53,13 +50,6 @@ class MediaTimeProviderImpl : public MediaTimeProvider,
   SbTime GetCurrentMediaTime(bool* is_playing,
                              bool* is_eos_played,
                              bool* is_underflow) override;
-
-  // When video end of stream is reached and the current media time passes the
-  // video duration, |is_eos_played| of GetCurrentMediaTime() will return true.
-  // When VideoEndOfStreamReached() is called without any prior calls to
-  // UpdateVideoDuration(), the |seek_to_time_| will be used as video duration.
-  void UpdateVideoDuration(SbTime video_duration);
-  void VideoEndOfStreamReached();
 
  private:
   // When not NULL, |current_time| will be set to the current monotonic time
@@ -70,18 +60,12 @@ class MediaTimeProviderImpl : public MediaTimeProvider,
 
   scoped_ptr<MonotonicSystemTimeProvider> system_time_provider_;
 
-  PrerolledCB prerolled_cb_;
-  EndedCB ended_cb_;
-
   Mutex mutex_;
 
-  double playback_rate_ = 1.0;
+  double playback_rate_ = 0.0;
   bool is_playing_ = false;
   SbTime seek_to_time_ = 0;
   SbTimeMonotonic seek_to_time_set_at_ = SbTimeGetMonotonicNow();
-
-  optional<SbTime> video_duration_;
-  bool is_video_end_of_stream_reached_ = false;
 };
 
 }  // namespace filter

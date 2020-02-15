@@ -72,7 +72,7 @@
         '<(DEPTH)/starboard/raspi/shared/open_max/open_max_video_decode_component.h',
         '<(DEPTH)/starboard/raspi/shared/open_max/video_decoder.cc',
         '<(DEPTH)/starboard/raspi/shared/open_max/video_decoder.h',
-        '<(DEPTH)/starboard/raspi/shared/player_components_impl.cc',
+        '<(DEPTH)/starboard/raspi/shared/player_components_factory.cc',
         '<(DEPTH)/starboard/raspi/shared/system_get_device_type.cc',
         '<(DEPTH)/starboard/raspi/shared/system_get_property.cc',
         '<(DEPTH)/starboard/raspi/shared/system_gles2.cc',

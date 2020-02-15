@@ -22,7 +22,7 @@
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
-#include "starboard/shared/starboard/player/filter/stub_player_components_impl.h"
+#include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -125,20 +125,19 @@ class AdaptiveAudioDecoderTest
       ASSERT_GT(dmp_reader->number_of_audio_buffers(), 0);
     }
 
-    PlayerComponents::CreationParameters creation_parameters(
+    PlayerComponents::Factory::CreationParameters creation_parameters(
         dmp_readers_[0]->audio_codec(), "",
         dmp_readers_[0]->audio_sample_info());
 
     scoped_ptr<AudioRendererSink> audio_renderer_sink;
-    scoped_ptr<PlayerComponents> components;
+    scoped_ptr<PlayerComponents::Factory> factory;
     if (using_stub_decoder_) {
-      components = make_scoped_ptr<StubPlayerComponentsImpl>(
-          new StubPlayerComponentsImpl);
+      factory = StubPlayerComponentsFactory::Create();
     } else {
-      components = PlayerComponents::Create();
+      factory = PlayerComponents::Factory::Create();
     }
     std::string error_message;
-    ASSERT_TRUE(components->CreateComponents(
+    ASSERT_TRUE(factory->CreateSubComponents(
         creation_parameters, &audio_decoder_, &audio_renderer_sink, nullptr,
         nullptr, nullptr, &error_message));
     ASSERT_TRUE(audio_decoder_);

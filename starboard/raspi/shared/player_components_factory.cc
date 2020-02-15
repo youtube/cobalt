@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/filter/player_components.h"
-
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/raspi/shared/open_max/video_decoder.h"
@@ -22,6 +20,7 @@
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
+#include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
@@ -35,8 +34,8 @@ namespace filter {
 
 namespace {
 
-class PlayerComponentsImpl : public PlayerComponents {
-  bool CreateComponents(
+class PlayerComponentsFactory : public PlayerComponents::Factory {
+  bool CreateSubComponents(
       const CreationParameters& creation_parameters,
       scoped_ptr<AudioDecoder>* audio_decoder,
       scoped_ptr<AudioRendererSink>* audio_renderer_sink,
@@ -92,8 +91,9 @@ class PlayerComponentsImpl : public PlayerComponents {
 }  // namespace
 
 // static
-scoped_ptr<PlayerComponents> PlayerComponents::Create() {
-  return make_scoped_ptr<PlayerComponents>(new PlayerComponentsImpl);
+scoped_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
+  return make_scoped_ptr<PlayerComponents::Factory>(
+      new PlayerComponentsFactory);
 }
 
 // static
