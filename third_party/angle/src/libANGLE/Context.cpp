@@ -431,12 +431,12 @@ void Context::initialize()
             new Texture(mImplementation.get(), {0}, TextureType::_2DMultisampleArray);
         mZeroTextures[TextureType::_2DMultisampleArray].set(this, zeroTexture2DMultisampleArray);
 
-        for (unsigned int i = 0; i < mState.mCaps.maxAtomicCounterBufferBindings; i++)
+        for (int i = 0; i < mState.mCaps.maxAtomicCounterBufferBindings; i++)
         {
             bindBufferRange(BufferBinding::AtomicCounter, i, {0}, 0, 0);
         }
 
-        for (unsigned int i = 0; i < mState.mCaps.maxShaderStorageBufferBindings; i++)
+        for (int i = 0; i < mState.mCaps.maxShaderStorageBufferBindings; i++)
         {
             bindBufferRange(BufferBinding::ShaderStorage, i, {0}, 0, 0);
         }
@@ -476,7 +476,7 @@ void Context::initialize()
 
     bindRenderbuffer(GL_RENDERBUFFER, {0});
 
-    for (unsigned int i = 0; i < mState.mCaps.maxUniformBufferBindings; i++)
+    for (int i = 0; i < mState.mCaps.maxUniformBufferBindings; i++)
     {
         bindBufferRange(BufferBinding::Uniform, i, {0}, 0, -1);
     }
@@ -1161,7 +1161,7 @@ void Context::bindVertexBuffer(GLuint bindingIndex,
 
 void Context::bindSampler(GLuint textureUnit, SamplerID samplerHandle)
 {
-    ASSERT(textureUnit < mState.mCaps.maxCombinedTextureImageUnits);
+    ASSERT(textureUnit < static_cast<GLuint>(mState.mCaps.maxCombinedTextureImageUnits));
     Sampler *sampler =
         mState.mSamplerManager->checkSamplerAllocation(mImplementation.get(), samplerHandle);
     mState.setSamplerBinding(this, textureUnit, sampler);
@@ -2314,23 +2314,41 @@ void Context::drawElementsInstanced(PrimitiveMode mode,
     MarkShaderStorageBufferUsage(this);
 }
 
-void Context::drawElementsBaseVertex(GLenum mode,
+void Context::drawElementsBaseVertex(PrimitiveMode mode,
                                      GLsizei count,
-                                     GLenum type,
+                                     DrawElementsType type,
                                      const void *indices,
                                      GLint basevertex)
 {
-    UNIMPLEMENTED();
+    // No-op if count draws no primitives for given mode
+    if (noopDraw(mode, count))
+    {
+        return;
+    }
+
+    ANGLE_CONTEXT_TRY(prepareForDraw(mode));
+    ANGLE_CONTEXT_TRY(
+        mImplementation->drawElementsBaseVertex(this, mode, count, type, indices, basevertex));
+    MarkShaderStorageBufferUsage(this);
 }
 
-void Context::drawElementsInstancedBaseVertex(GLenum mode,
+void Context::drawElementsInstancedBaseVertex(PrimitiveMode mode,
                                               GLsizei count,
-                                              GLenum type,
+                                              DrawElementsType type,
                                               const void *indices,
                                               GLsizei instancecount,
                                               GLint basevertex)
 {
-    UNIMPLEMENTED();
+    // No-op if count draws no primitives for given mode
+    if (noopDrawInstanced(mode, count, instancecount))
+    {
+        return;
+    }
+
+    ANGLE_CONTEXT_TRY(prepareForDraw(mode));
+    ANGLE_CONTEXT_TRY(mImplementation->drawElementsInstancedBaseVertex(
+        this, mode, count, type, indices, instancecount, basevertex));
+    MarkShaderStorageBufferUsage(this);
 }
 
 void Context::drawRangeElements(PrimitiveMode mode,
@@ -2352,15 +2370,24 @@ void Context::drawRangeElements(PrimitiveMode mode,
     MarkShaderStorageBufferUsage(this);
 }
 
-void Context::drawRangeElementsBaseVertex(GLenum mode,
+void Context::drawRangeElementsBaseVertex(PrimitiveMode mode,
                                           GLuint start,
                                           GLuint end,
                                           GLsizei count,
-                                          GLenum type,
+                                          DrawElementsType type,
                                           const void *indices,
                                           GLint basevertex)
 {
-    UNIMPLEMENTED();
+    // No-op if count draws no primitives for given mode
+    if (noopDraw(mode, count))
+    {
+        return;
+    }
+
+    ANGLE_CONTEXT_TRY(prepareForDraw(mode));
+    ANGLE_CONTEXT_TRY(mImplementation->drawRangeElementsBaseVertex(this, mode, start, end, count,
+                                                                   type, indices, basevertex));
+    MarkShaderStorageBufferUsage(this);
 }
 
 void Context::drawArraysIndirect(PrimitiveMode mode, const void *indirect)
@@ -3678,7 +3705,8 @@ void Context::updateCaps()
             if (!formatInfo.isInt() && formatInfo.isRequiredRenderbufferFormat(getClientVersion()))
             {
                 ASSERT(getClientVersion() < ES_3_0 || formatMaxSamples >= 4);
-                mState.mCaps.maxSamples = std::min(mState.mCaps.maxSamples, formatMaxSamples);
+                mState.mCaps.maxSamples =
+                    std::min(static_cast<GLuint>(mState.mCaps.maxSamples), formatMaxSamples);
             }
 
             // Handle GLES 3.1 MAX_*_SAMPLES values similarly to MAX_SAMPLES.
@@ -3691,8 +3719,8 @@ void Context::updateCaps()
                 // multisamples, which must be at least one."
                 if (formatInfo.isInt())
                 {
-                    mState.mCaps.maxIntegerSamples =
-                        std::min(mState.mCaps.maxIntegerSamples, formatMaxSamples);
+                    mState.mCaps.maxIntegerSamples = std::min(
+                        static_cast<GLuint>(mState.mCaps.maxIntegerSamples), formatMaxSamples);
                 }
 
                 // GLES 3.1 section 19.3.1.
@@ -3701,12 +3729,14 @@ void Context::updateCaps()
                     if (formatInfo.depthBits > 0)
                     {
                         mState.mCaps.maxDepthTextureSamples =
-                            std::min(mState.mCaps.maxDepthTextureSamples, formatMaxSamples);
+                            std::min(static_cast<GLuint>(mState.mCaps.maxDepthTextureSamples),
+                                     formatMaxSamples);
                     }
                     else if (formatInfo.redBits > 0)
                     {
                         mState.mCaps.maxColorTextureSamples =
-                            std::min(mState.mCaps.maxColorTextureSamples, formatMaxSamples);
+                            std::min(static_cast<GLuint>(mState.mCaps.maxColorTextureSamples),
+                                     formatMaxSamples);
                     }
                 }
             }

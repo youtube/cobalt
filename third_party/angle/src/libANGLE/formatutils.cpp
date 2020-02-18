@@ -360,9 +360,26 @@ bool InternalFormat::isLUMA() const
             (luminanceBits + alphaBits) > 0);
 }
 
-GLenum InternalFormat::getReadPixelsFormat() const
+GLenum InternalFormat::getReadPixelsFormat(const Extensions &extensions) const
 {
-    return format;
+    switch (format)
+    {
+        case GL_BGRA_EXT:
+            // BGRA textures may be enabled but calling glReadPixels with BGRA is disallowed without
+            // GL_EXT_texture_format_BGRA8888.  Read as RGBA instead.
+            if (!extensions.readFormatBGRA)
+            {
+                return GL_RGBA;
+            }
+            else
+            {
+                return GL_BGRA_EXT;
+            }
+            break;
+
+        default:
+            return format;
+    }
 }
 
 GLenum InternalFormat::getReadPixelsType(const Version &version) const
@@ -987,6 +1004,7 @@ static InternalFormatInfoMap BuildInternalFormatInfoMap()
     AddRGBAFormat(&map, GL_RGBA,           false,  4,  4,  4,  4, 0, GL_RGBA,           GL_UNSIGNED_SHORT_4_4_4_4,      GL_UNSIGNED_NORMALIZED, false, AlwaysSupported,                                  AlwaysSupported, RequireES<2, 0>,                                NeverSupported);
     AddRGBAFormat(&map, GL_RGBA,           false,  5,  5,  5,  1, 0, GL_RGBA,           GL_UNSIGNED_SHORT_5_5_5_1,      GL_UNSIGNED_NORMALIZED, false, AlwaysSupported,                                  AlwaysSupported, RequireES<2, 0>,                                NeverSupported);
     AddRGBAFormat(&map, GL_RGBA,           false,  8,  8,  8,  8, 0, GL_RGBA,           GL_UNSIGNED_BYTE,               GL_UNSIGNED_NORMALIZED, false, AlwaysSupported,                                  AlwaysSupported, RequireES<2, 0>,                                NeverSupported);
+    AddRGBAFormat(&map, GL_RGBA,           false, 16, 16, 16, 16, 0, GL_RGBA,           GL_UNSIGNED_SHORT,              GL_UNSIGNED_NORMALIZED, false, RequireExt<&Extensions::textureNorm16>,           AlwaysSupported, RequireExt<&Extensions::textureNorm16>,         NeverSupported);
     AddRGBAFormat(&map, GL_RGBA,           false, 10, 10, 10,  2, 0, GL_RGBA,           GL_UNSIGNED_INT_2_10_10_10_REV, GL_UNSIGNED_NORMALIZED, false, RequireExt<&Extensions::textureFormat2101010REV>, AlwaysSupported, NeverSupported,                                 NeverSupported);
     AddRGBAFormat(&map, GL_RGBA,           false,  8,  8,  8,  8, 0, GL_RGBA,           GL_BYTE,                        GL_SIGNED_NORMALIZED,   false, NeverSupported,                                   NeverSupported,  NeverSupported,                                 NeverSupported);
     AddRGBAFormat(&map, GL_SRGB,           false,  8,  8,  8,  0, 0, GL_SRGB,           GL_UNSIGNED_BYTE,               GL_UNSIGNED_NORMALIZED, true,  RequireExt<&Extensions::sRGB>,                    AlwaysSupported, NeverSupported,                                 NeverSupported);

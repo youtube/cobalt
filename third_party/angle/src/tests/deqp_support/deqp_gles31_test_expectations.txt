@@ -565,9 +565,6 @@
 2324 : dEQP-GLES31.functional.debug.negative_coverage.get_error.vertex_array.draw_range_elements_incomplete_primitive = FAIL
 
 // These tests are failing because of compile errors with SSBOs in compute shaders.
-1951 D3D11 : dEQP-GLES31.functional.debug.negative_coverage.callbacks.compute.exceed_shared_memory_size_limit = FAIL
-1951 D3D11 : dEQP-GLES31.functional.debug.negative_coverage.get_error.compute.exceed_shared_memory_size_limit = FAIL
-1951 D3D11 : dEQP-GLES31.functional.debug.negative_coverage.log.compute.exceed_shared_memory_size_limit = FAIL
 
 1442 D3D11 : dEQP-GLES31.functional.stencil_texturing.* = SKIP
 // TODO(xinghua.cao@intel.com): FAIL expectation instead of SKIP should be sufficient for OpenGL, but the
@@ -624,14 +621,7 @@
 
 // General Vulkan failures
 
-// Limits:
-// MAX_FRAMEBUFFER_SAMPLES is 0
-3520 VULKAN : dEQP-GLES31.functional.state_query.integer.max_framebuffer_samples* = FAIL
-// MAX_UNIFORM_LOCATIONS is 0
-3520 VULKAN : dEQP-GLES31.functional.state_query.integer.max_uniform_locations* = FAIL
-
 // Front-end query bugs:
-3596 VULKAN : dEQP-GLES31.functional.program_interface_query.program_input.resource_list.compute.empty = FAIL
 3596 VULKAN : dEQP-GLES31.functional.program_interface_query.shader_storage_block.buffer_data_size.* = FAIL
 
 // Shader support:
@@ -650,11 +640,14 @@
 3579 ANDROID VULKAN : dEQP-GLES31.functional.fbo.no_attachments.* = SKIP
 
 // Debug:
-3590 VULKAN : dEQP-GLES31.functional.debug.negative_coverage.*exceed_shared_memory_size_limit = FAIL
+3590 SWIFTSHADER : dEQP-GLES31.functional.debug.negative_coverage.get_error.buffer.framebuffer_texture2d = FAIL
 
 // Stencil textures (some missing support for base level):
 3683 VULKAN PIXEL2ORXL : dEQP-GLES31.functional.stencil_texturing.format.* = FAIL
 3683 VULKAN PIXEL2ORXL : dEQP-GLES31.functional.stencil_texturing.misc.compare_mode_effect = FAIL
+
+// Instanced lines with base vertex:
+4166 VULKAN PIXEL2ORXL : dEQP-GLES31.functional.draw_base_vertex.draw_elements_instanced_base_vertex.lines.instanced_attributes = FAIL
 
 // Need to support non-color when staging image updates
 4080 ANDROID VULKAN : dEQP-GLES31.functional.stencil_texturing.misc.base_level = SKIP

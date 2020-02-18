@@ -3142,6 +3142,10 @@ TEST_P(GLSLTest_ES31, ArraysOfArraysSampler)
 // Test that structs containing arrays of samplers work as expected.
 TEST_P(GLSLTest_ES31, StructArraySampler)
 {
+    // ASAN error on vulkan backend; ASAN tests only enabled on Mac Swangle
+    // (http://crbug.com/1029378)
+    ANGLE_SKIP_TEST_IF(IsOSX() && isSwiftshader());
+
     constexpr char kFS[] =
         "#version 310 es\n"
         "precision mediump float;\n"
@@ -6161,6 +6165,7 @@ void main()
                 static_cast<GLfloat>(getWindowHeight()));
 
     // Draw to backbuffer.
+    glClear(GL_COLOR_BUFFER_BIT);
     glDrawArrays(GL_POINTS, 0, 1);
     ASSERT_GL_NO_ERROR();
 
@@ -6180,6 +6185,7 @@ void main()
     ASSERT_GLENUM_EQ(GL_FRAMEBUFFER_COMPLETE, glCheckFramebufferStatus(GL_FRAMEBUFFER));
 
     // Draw to user FBO.
+    glClear(GL_COLOR_BUFFER_BIT);
     glDrawArrays(GL_POINTS, 0, 1);
     ASSERT_GL_NO_ERROR();
 

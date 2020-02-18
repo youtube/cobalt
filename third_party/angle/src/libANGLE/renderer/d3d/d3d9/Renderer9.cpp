@@ -306,11 +306,17 @@ egl::Error Renderer9::initialize()
             mAdapter, mDeviceType, mDeviceWindow,
             behaviorFlags | D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_PUREDEVICE,
             &presentParameters, &mDevice);
+
+        if (FAILED(result))
+        {
+            ERR() << "CreateDevice1 failed: (" << gl::FmtHR(result) << ")";
+        }
     }
     if (result == D3DERR_OUTOFVIDEOMEMORY || result == E_OUTOFMEMORY || result == D3DERR_DEVICELOST)
     {
         return egl::EglBadAlloc(D3D9_INIT_OUT_OF_MEMORY)
-               << "CreateDevice failed: device lost of out of memory";
+               << "CreateDevice failed: device lost or out of memory (" << gl::FmtHR(result)
+               << ")";
     }
 
     if (FAILED(result))
@@ -325,7 +331,8 @@ egl::Error Renderer9::initialize()
             ASSERT(result == D3DERR_OUTOFVIDEOMEMORY || result == E_OUTOFMEMORY ||
                    result == D3DERR_NOTAVAILABLE || result == D3DERR_DEVICELOST);
             return egl::EglBadAlloc(D3D9_INIT_OUT_OF_MEMORY)
-                   << "CreateDevice2 failed: device lost, not available, or of out of memory";
+                   << "CreateDevice2 failed: device lost, not available, or of out of memory ("
+                   << gl::FmtHR(result) << ")";
         }
     }
 
@@ -3213,14 +3220,14 @@ angle::Result Renderer9::applyTextures(const gl::Context *context, gl::ShaderTyp
     }
 
     // Set all the remaining textures to NULL
-    size_t samplerCount = (shaderType == gl::ShaderType::Fragment)
-                              ? caps.maxShaderTextureImageUnits[gl::ShaderType::Fragment]
-                              : caps.maxShaderTextureImageUnits[gl::ShaderType::Vertex];
+    int samplerCount = (shaderType == gl::ShaderType::Fragment)
+                           ? caps.maxShaderTextureImageUnits[gl::ShaderType::Fragment]
+                           : caps.maxShaderTextureImageUnits[gl::ShaderType::Vertex];
 
     // TODO(jmadill): faster way?
-    for (size_t samplerIndex = samplerRange.high(); samplerIndex < samplerCount; samplerIndex++)
+    for (int samplerIndex = samplerRange.high(); samplerIndex < samplerCount; samplerIndex++)
     {
-        ANGLE_TRY(setTexture(context, shaderType, static_cast<int>(samplerIndex), nullptr));
+        ANGLE_TRY(setTexture(context, shaderType, samplerIndex, nullptr));
     }
 
     return angle::Result::Continue;
