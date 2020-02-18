@@ -96,12 +96,19 @@ SbMediaVideoCodec MediaVideoCodecToSbMediaVideoCodec(VideoCodec codec) {
 
 SbMediaAudioSampleInfo MediaAudioConfigToSbMediaAudioSampleInfo(
     const AudioDecoderConfig& audio_decoder_config) {
+  DCHECK(audio_decoder_config.IsValidConfig());
+
   SbMediaAudioSampleInfo audio_sample_info;
 
 #if SB_API_VERSION >= 11
   audio_sample_info.codec =
       MediaAudioCodecToSbMediaAudioCodec(audio_decoder_config.codec());
 #endif  // SB_API_VERSION >= 11
+
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  audio_sample_info.mime = audio_decoder_config.mime().c_str();
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
   // TODO: Make this work with non AAC audio.
   audio_sample_info.format_tag = 0x00ff;
   audio_sample_info.number_of_channels =

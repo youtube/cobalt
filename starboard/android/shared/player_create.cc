@@ -44,24 +44,36 @@ SbPlayer SbPlayerCreate(SbWindow window,
     return kSbPlayerInvalid;
   }
 
-  if (!creation_param->audio_mime) {
-    SB_LOG(ERROR) << "creation_param->audio_mime cannot be null.";
+  bool has_audio =
+      creation_param->audio_sample_info.codec != kSbMediaAudioCodecNone;
+  bool has_video =
+      creation_param->video_sample_info.codec != kSbMediaVideoCodecNone;
+
+  const char* audio_mime =
+      has_audio ? creation_param->audio_sample_info.mime : "";
+  const char* video_mime =
+      has_video ? creation_param->video_sample_info.mime : "";
+  const char* max_video_capabilities =
+      has_video ? creation_param->video_sample_info.max_video_capabilities : "";
+
+  if (!audio_mime) {
+    SB_LOG(ERROR) << "creation_param->audio_sample_info.mime cannot be null.";
     return kSbPlayerInvalid;
   }
-  if (!creation_param->video_mime) {
-    SB_LOG(ERROR) << "creation_param->video_mime cannot be null.";
+  if (!video_mime) {
+    SB_LOG(ERROR) << "creation_param->video_sample_info.mime cannot be null.";
     return kSbPlayerInvalid;
   }
-  if (!creation_param->max_video_capabilities) {
-    SB_LOG(ERROR) << "creation_param->max_video_capabilities cannot be null.";
+  if (!max_video_capabilities) {
+    SB_LOG(ERROR) << "creation_param->video_sample_info.max_video_capabilities"
+                  << " cannot be null.";
     return kSbPlayerInvalid;
   }
 
-  SB_LOG(INFO) << "SbPlayerCreate() called with audio mime \""
-               << creation_param->audio_mime << "\", video mime \""
-               << creation_param->video_mime
-               << "\", and max video capabilities \""
-               << creation_param->max_video_capabilities << "\".";
+  SB_LOG(INFO) << "SbPlayerCreate() called with audio mime \"" << audio_mime
+               << "\", video mime \"" << video_mime
+               << "\", and max video capabilities \"" << max_video_capabilities
+               << "\".";
 
   if (!sample_deallocate_func || !decoder_status_func || !player_status_func
 #if SB_HAS(PLAYER_ERROR_MESSAGE)

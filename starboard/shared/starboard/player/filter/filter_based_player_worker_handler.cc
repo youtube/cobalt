@@ -78,9 +78,6 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
       audio_sample_info_(creation_param->audio_sample_info),
       output_mode_(creation_param->output_mode),
       decode_target_graphics_context_provider_(provider),
-      audio_mime_(creation_param->audio_mime),
-      video_mime_(creation_param->video_mime),
-      max_video_capabilities_(creation_param->max_video_capabilities),
       video_sample_info_(creation_param->video_sample_info) {
   update_job_ = std::bind(&FilterBasedPlayerWorkerHandler::Update, this);
 }

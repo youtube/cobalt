@@ -30,18 +30,22 @@ SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
     return kSbPlayerOutputModeInvalid;
   }
 
-  if (!creation_param->audio_mime) {
-    SB_LOG(ERROR) << "creation_param->audio_mime cannot be NULL";
+  if (creation_param->audio_sample_info.codec != kSbMediaAudioCodecNone &&
+      !creation_param->audio_sample_info.mime) {
+    SB_LOG(ERROR) << "creation_param->audio_sample_info.mime cannot be NULL";
     return kSbPlayerOutputModeInvalid;
   }
 
-  if (!creation_param->video_mime) {
-    SB_LOG(ERROR) << "creation_param->video_mime cannot be NULL";
+  if (creation_param->video_sample_info.codec != kSbMediaVideoCodecNone &&
+      !creation_param->video_sample_info.mime) {
+    SB_LOG(ERROR) << "creation_param->video_sample_info.mime cannot be NULL";
     return kSbPlayerOutputModeInvalid;
   }
 
-  if (!creation_param->max_video_capabilities) {
-    SB_LOG(ERROR) << "creation_param->max_video_capabilities cannot be NULL";
+  if (creation_param->video_sample_info.codec != kSbMediaVideoCodecNone &&
+      !creation_param->video_sample_info.max_video_capabilities) {
+    SB_LOG(ERROR) << "creation_param->video_sample_info.max_video_capabilities"
+                  << " cannot be NULL";
     return kSbPlayerOutputModeInvalid;
   }
 
