@@ -406,6 +406,26 @@ typedef struct SbMediaVideoSampleInfo {
   // The video codec of this sample.
   SbMediaVideoCodec codec;
 #endif  // SB_API_VERSION >= 11
+
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  // The mime of the video stream when |codec| isn't kSbMediaVideoCodecNone.  It
+  // may point to an empty string if the mime is not available, and it can only
+  // be set to NULL when |codec| is kSbMediaVideoCodecNone.
+  const char* mime;
+
+  // Indicates the max video capabilities required. The web app will not provide
+  // a video stream exceeding the maximums described by this parameter. Allows
+  // the platform to optimize playback pipeline for low quality video streams if
+  // it knows that it will never adapt to higher quality streams. The string
+  // uses the same format as the string passed in to
+  // SbMediaCanPlayMimeAndKeySystem(), for example, when it is set to
+  // "width=1920; height=1080; framerate=15;", the video will never adapt to
+  // resolution higher than 1920x1080 or frame per second higher than 15 fps.
+  // When the maximums are unknown, this will be set to an empty string.  It can
+  // only be set to NULL when |codec| is kSbMediaVideoCodecNone.
+  const char* max_video_capabilities;
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
   // Indicates whether the associated sample is a key frame (I-frame).
   // Video key frames must always start with SPS and PPS NAL units.
   bool is_key_frame;
@@ -468,9 +488,17 @@ typedef struct SbMediaAudioConfiguration {
 // http://msdn.microsoft.com/en-us/library/dd390970(v=vs.85).aspx
 typedef struct SbMediaAudioSampleInfo {
 #if SB_API_VERSION >= 11
-  // The video codec of this sample.
+  // The audio codec of this sample.
   SbMediaAudioCodec codec;
 #endif  // SB_API_VERSION >= 11
+
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  // The mime of the audio stream when |codec| isn't kSbMediaAudioCodecNone.  It
+  // may point to an empty string if the mime is not available, and it can only
+  // be set to NULL when |codec| is kSbMediaAudioCodecNone.
+  const char* mime;
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
   // The waveform-audio format type code.
   uint16_t format_tag;
 

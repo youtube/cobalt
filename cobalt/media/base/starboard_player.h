@@ -235,7 +235,7 @@ class StarboardPlayer {
   SbMediaAudioSampleInfo audio_sample_info_ = {};
   SbMediaVideoSampleInfo video_sample_info_ = {};
 #if SB_API_VERSION < 11
-  SbMediaColorMetadata media_color_metadata;
+  SbMediaColorMetadata media_color_metadata_;
 #endif  // SB_API_VERSION < 11
   DecodingBuffers decoding_buffers_;
   int ticket_ = SB_PLAYER_INITIAL_TICKET;

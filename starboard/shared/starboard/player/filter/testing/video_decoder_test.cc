@@ -113,6 +113,8 @@ shared::starboard::media::VideoSampleInfo CreateVideoSampleInfo(
   shared::starboard::media::VideoSampleInfo video_sample_info = {};
 
   video_sample_info.codec = codec;
+  video_sample_info.mime = "";
+  video_sample_info.max_video_capabilities = "";
 
   video_sample_info.color_metadata.primaries = kSbMediaPrimaryIdBt709;
   video_sample_info.color_metadata.transfer = kSbMediaTransferIdBt709;

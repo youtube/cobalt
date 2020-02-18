@@ -84,8 +84,10 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
   int size_;
   std::vector<uint8_t> side_data_;
   SbTime timestamp_;
+
   media::AudioSampleInfo audio_sample_info_;
   media::VideoSampleInfo video_sample_info_;
+
   bool has_drm_info_;
   SbDrmSampleInfo drm_info_;
   std::vector<SbDrmSubSampleMapping> subsamples_;

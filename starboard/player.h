@@ -122,12 +122,6 @@ typedef enum SbPlayerOutputMode {
 // The playback related parameters to pass into SbPlayerCreate() and
 // SbPlayerGetPreferredOutputMode().
 typedef struct SbPlayerCreationParam {
-  // The audio mime of the stream if available.  Otherwise it will point to an
-  // empty string.  It will never be NULL.
-  const char* audio_mime;
-  // The video mime of the stream if available.  Otherwise it will point to an
-  // empty string.  It will never be NULL.
-  const char* video_mime;
   // Provides an appropriate DRM system if the media stream has encrypted
   // portions.  It will be |kSbDrmSystemInvalid| if the stream does not have
   // encrypted portions.
@@ -147,17 +141,6 @@ typedef struct SbPlayerCreationParam {
   // should be made available for the application to pull via calls to
   // SbPlayerGetCurrentFrame().
   SbPlayerOutputMode output_mode;
-  // Indicates the max video capabilities required. The web app will not provide
-  // a video stream exceeding the maximums described by this parameter. Allows
-  // the platform to optimize playback pipeline for low quality video streams if
-  // it knows that it will never adapt to higher quality streams. The string
-  // uses the same format as the string passed in to
-  // SbMediaCanPlayMimeAndKeySystem(), for example, when it is set to
-  // "width=1920; height=1080; framerate=15;", the video will never adapt to
-  // resolution higher than 1920x1080 or frame per second higher than 15 fps.
-  // When the maximums are unknown, this will be set to an empty string.  It
-  // will never be set to NULL.
-  const char* max_video_capabilities;
 } SbPlayerCreationParam;
 
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
