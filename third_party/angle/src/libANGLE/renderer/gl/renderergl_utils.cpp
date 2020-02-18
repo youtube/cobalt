@@ -422,9 +422,9 @@ static GLint QueryQueryValue(const FunctionsGL *functions, GLenum target, GLenum
     return result;
 }
 
-void CapCombinedLimitToESShaders(GLuint *combinedLimit, gl::ShaderMap<GLuint> &perShaderLimit)
+void CapCombinedLimitToESShaders(GLint *combinedLimit, gl::ShaderMap<GLint> &perShaderLimit)
 {
-    GLuint combinedESLimit = 0;
+    GLint combinedESLimit = 0;
     for (gl::ShaderType shaderType : gl::kAllGraphicsShaderTypes)
     {
         combinedESLimit += perShaderLimit[shaderType];
@@ -1079,11 +1079,11 @@ void GenerateCaps(const FunctionsGL *functions,
     // TODO(geofflang): The gl-uniform-arrays WebGL conformance test struggles to complete on time
     // if the max uniform vectors is too large.  Artificially limit the maximum until the test is
     // updated.
-    caps->maxVertexUniformVectors = std::min(1024u, caps->maxVertexUniformVectors);
+    caps->maxVertexUniformVectors = std::min(1024, caps->maxVertexUniformVectors);
     caps->maxShaderUniformComponents[gl::ShaderType::Vertex] =
         std::min(caps->maxVertexUniformVectors * 4,
                  caps->maxShaderUniformComponents[gl::ShaderType::Vertex]);
-    caps->maxFragmentUniformVectors = std::min(1024u, caps->maxFragmentUniformVectors);
+    caps->maxFragmentUniformVectors = std::min(1024, caps->maxFragmentUniformVectors);
     caps->maxShaderUniformComponents[gl::ShaderType::Fragment] =
         std::min(caps->maxFragmentUniformVectors * 4,
                  caps->maxShaderUniformComponents[gl::ShaderType::Fragment]);
@@ -1113,6 +1113,7 @@ void GenerateCaps(const FunctionsGL *functions,
                                     functions->hasGLExtension("GL_ARB_pixel_buffer_object") ||
                                     functions->hasGLExtension("GL_EXT_pixel_buffer_object") ||
                                     functions->hasGLESExtension("GL_NV_pixel_buffer_object");
+    extensions->glSync = nativegl::SupportsFenceSync(functions);
     extensions->mapBuffer = functions->isAtLeastGL(gl::Version(1, 5)) ||
                             functions->isAtLeastGLES(gl::Version(3, 0)) ||
                             functions->hasGLESExtension("GL_OES_mapbuffer");
@@ -1419,6 +1420,16 @@ void GenerateCaps(const FunctionsGL *functions,
     extensions->baseVertexBaseInstance =
         functions->isAtLeastGL(gl::Version(3, 2)) || functions->isAtLeastGLES(gl::Version(3, 2)) ||
         functions->hasGLESExtension("GL_OES_draw_elements_base_vertex") ||
+        functions->hasGLESExtension("GL_EXT_draw_elements_base_vertex");
+
+    // OES_draw_elements_base_vertex
+    extensions->drawElementsBaseVertexOES =
+        functions->isAtLeastGL(gl::Version(3, 2)) || functions->isAtLeastGLES(gl::Version(3, 2)) ||
+        functions->hasGLESExtension("GL_OES_draw_elements_base_vertex");
+
+    // EXT_draw_elements_base_vertex
+    extensions->drawElementsBaseVertexEXT =
+        functions->isAtLeastGL(gl::Version(3, 2)) || functions->isAtLeastGLES(gl::Version(3, 2)) ||
         functions->hasGLESExtension("GL_EXT_draw_elements_base_vertex");
 
     // ANGLE_compressed_texture_etc

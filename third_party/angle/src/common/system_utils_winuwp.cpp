@@ -33,14 +33,24 @@ std::string GetEnvironmentVar(const char *variableName)
     return "";
 }
 
+const char *GetPathSeparatorForEnvironmentVar()
+{
+    return ";";
+}
+
 const char *GetSharedLibraryExtension()
 {
     return "dll";
 }
 
-const char *GetPathSeparator()
+const char *GetExecutableExtension()
 {
-    return ";";
+    return ".exe";
+}
+
+char GetPathSeparator()
+{
+    return '\\';
 }
 
 double GetCurrentTime()
