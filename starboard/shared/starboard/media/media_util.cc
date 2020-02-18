@@ -231,6 +231,14 @@ AudioSampleInfo& AudioSampleInfo::operator=(
                  audio_specific_config_size);
     audio_specific_config = audio_specific_config_storage.data();
   }
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  if (codec == kSbMediaAudioCodecNone) {
+    mime_storage.clear();
+  } else {
+    mime_storage = that.mime;
+  }
+  mime = mime_storage.c_str();
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   return *this;
 }
 
@@ -248,6 +256,17 @@ VideoSampleInfo::VideoSampleInfo(const SbMediaVideoSampleInfo& that) {
 VideoSampleInfo& VideoSampleInfo::operator=(
     const SbMediaVideoSampleInfo& that) {
   *static_cast<SbMediaVideoSampleInfo*>(this) = that;
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  if (codec == kSbMediaVideoCodecNone) {
+    mime_storage.clear();
+    max_video_capabilities_storage.clear();
+  } else {
+    mime_storage = that.mime;
+    max_video_capabilities_storage = that.max_video_capabilities;
+  }
+  mime = mime_storage.c_str();
+  max_video_capabilities = max_video_capabilities_storage.c_str();
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 #if SB_API_VERSION < 11
   if (color_metadata) {
     color_metadata_storage = *color_metadata;
@@ -623,7 +642,21 @@ bool operator==(const SbMediaVideoSampleInfo& sample_info_1,
   if (sample_info_1.codec != sample_info_2.codec) {
     return false;
   }
+  if (sample_info_1.codec == kSbMediaVideoCodecNone) {
+    return true;
+  }
 #endif  // SB_API_VERSION >= 11
+
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  if (SbStringCompareAll(sample_info_1.mime, sample_info_2.mime) != 0) {
+    return false;
+  }
+  if (SbStringCompareAll(sample_info_1.max_video_capabilities,
+                         sample_info_2.max_video_capabilities) != 0) {
+    return false;
+  }
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
   if (sample_info_1.is_key_frame != sample_info_2.is_key_frame) {
     return false;
   }
