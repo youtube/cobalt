@@ -5,9 +5,9 @@
  * found in the LICENSE file.
  */
 
-#include "SkTypes.h"
+#include "include/core/SkTypes.h"
 
-#if defined(GOOGLE3)
+#if defined(SK_BUILD_FOR_GOOGLE3)
 void SkDebugfForDumpStackTrace(const char* data, void* unused) {
     SkDebugf("%s", data);
 }

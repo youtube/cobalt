@@ -5,10 +5,20 @@
  * found in the LICENSE file.
  */
 
-#include "gm.h"
-#include "Resources.h"
-#include "SkCodec.h"
-#include "SkImage.h"
+#include "gm/gm.h"
+#include "include/codec/SkCodec.h"
+#include "include/core/SkBitmap.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkImage.h"
+#include "include/core/SkImageInfo.h"
+#include "include/core/SkRefCnt.h"
+#include "include/core/SkScalar.h"
+#include "include/core/SkSize.h"
+#include "include/core/SkStream.h"
+#include "include/core/SkString.h"
+#include "tools/Resources.h"
+
+#include <memory>
 
 namespace skiagm {
 
@@ -26,17 +36,18 @@ protected:
         return SkISize::Make(2*kSize, 2*kSize);
     }
 
-    void onDraw(SkCanvas* canvas) override {
+    DrawResult onDraw(SkCanvas* canvas, SkString* errorMsg) override {
         // Create image.
-        const char* path = "mandrill_512_q075.jpg";
+        const char* path = "images/mandrill_512_q075.jpg";
         sk_sp<SkImage> image = GetResourceAsImage(path);
         if (!image) {
-            SkDebugf("Failure: Is the resource path set properly?");
-            return;
+            *errorMsg = "Couldn't load images/mandrill_512_q075.jpg. "
+                        "Did you forget to set the resource path?";
+            return DrawResult::kFail;
         }
 
         // Create matching bitmap.
-        std::unique_ptr<SkCodec> codec(SkCodec::NewFromStream(GetResourceAsStream(path)));
+        std::unique_ptr<SkCodec> codec(SkCodec::MakeFromStream(GetResourceAsStream(path)));
         SkBitmap bitmap;
         bitmap.allocPixels(codec->getInfo());
         codec->getPixels(codec->getInfo(), bitmap.getPixels(), bitmap.rowBytes());
@@ -62,6 +73,7 @@ protected:
         srgbCanvas.translate(SkScalar(kSize), 0.0f);
         srgbCanvas.drawBitmap(bitmap, 0.0f, 0.0f, nullptr);
         canvas->drawBitmap(srgbBMCanvas, 0.0f, 0.0f, nullptr);
+        return DrawResult::kOk;
     }
 
 private:
@@ -72,7 +84,6 @@ private:
 
 //////////////////////////////////////////////////////////////////////////////
 
-static GM* MyFactory(void*) { return new BitmapImageGM; }
-static GMRegistry reg(MyFactory);
+DEF_GM( return new BitmapImageGM; )
 
 }

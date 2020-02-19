@@ -5,12 +5,14 @@
  * found in the LICENSE file.
  */
 
-#include "SkRegionPriv.h"
-#include "SkBlitter.h"
-#include "SkScan.h"
-#include "SkTSort.h"
-#include "SkTDArray.h"
-#include "SkPath.h"
+#include "include/core/SkPath.h"
+#include "include/private/SkTDArray.h"
+#include "include/private/SkTo.h"
+#include "src/core/SkBlitter.h"
+#include "src/core/SkRegionPriv.h"
+#include "src/core/SkSafeMath.h"
+#include "src/core/SkScan.h"
+#include "src/core/SkTSort.h"
 
 // The rgnbuilder caller *seems* to pass short counts, possible often seens early failure, so
 // we may not want to promote this to a "std" routine just yet.
@@ -123,33 +125,30 @@ bool SkRgnBuilder::init(int maxHeight, int maxTransitions, bool pathIsInverse) {
         return false;
     }
 
+    SkSafeMath  safe;
+
     if (pathIsInverse) {
         // allow for additional X transitions to "invert" each scanline
         // [ L' ... normal transitions ... R' ]
         //
-        maxTransitions += 2;
+        maxTransitions = safe.addInt(maxTransitions, 2);
     }
 
     // compute the count with +1 and +3 slop for the working buffer
-    int64_t count = sk_64_mul(maxHeight + 1, 3 + maxTransitions);
+    size_t count = safe.mul(safe.addInt(maxHeight, 1), safe.addInt(3, maxTransitions));
 
     if (pathIsInverse) {
         // allow for two "empty" rows for the top and bottom
         //      [ Y, 1, L, R, S] == 5 (*2 for top and bottom)
-        count += 10;
+        count = safe.add(count, 10);
     }
 
-    if (count < 0 || !sk_64_isS32(count)) {
+    if (!safe || !SkTFitsIn<int32_t>(count)) {
         return false;
     }
-    fStorageCount = sk_64_asS32(count);
+    fStorageCount = SkToS32(count);
 
-    int64_t size = sk_64_mul(fStorageCount, sizeof(SkRegion::RunType));
-    if (size < 0 || !sk_64_isS32(size)) {
-        return false;
-    }
-
-    fStorage = (SkRegion::RunType*)sk_malloc_flags(sk_64_asS32(size), 0);
+    fStorage = (SkRegion::RunType*)sk_malloc_canfail(fStorageCount, sizeof(SkRegion::RunType));
     if (nullptr == fStorage) {
         return false;
     }
@@ -218,7 +217,7 @@ void SkRgnBuilder::copyToRect(SkIRect* r) const {
     const Scanline* line = (const Scanline*)fStorage;
     SkASSERT(line->fXCount == 2);
 
-    r->set(line->firstX()[0], fTop, line->firstX()[1], line->fLastY + 1);
+    r->setLTRB(line->firstX()[0], fTop, line->firstX()[1], line->fLastY + 1);
 }
 
 void SkRgnBuilder::copyToRgn(SkRegion::RunType runs[]) const {
@@ -237,11 +236,11 @@ void SkRgnBuilder::copyToRgn(SkRegion::RunType runs[]) const {
             memcpy(runs, line->firstX(), count * sizeof(SkRegion::RunType));
             runs += count;
         }
-        *runs++ = SkRegion::kRunTypeSentinel;
+        *runs++ = SkRegion_kRunTypeSentinel;
         line = line->nextScanline();
     } while (line < stop);
     SkASSERT(line == stop);
-    *runs = SkRegion::kRunTypeSentinel;
+    *runs = SkRegion_kRunTypeSentinel;
 }
 
 static unsigned verb_to_initial_last_index(unsigned verb) {
@@ -282,7 +281,7 @@ static int count_path_runtype_values(const SkPath& path, int* itop, int* ibot) {
     SkScalar    top = SkIntToScalar(SK_MaxS16);
     SkScalar    bot = SkIntToScalar(SK_MinS16);
 
-    while ((verb = iter.next(pts, false)) != SkPath::kDone_Verb) {
+    while ((verb = iter.next(pts)) != SkPath::kDone_Verb) {
         maxEdges += verb_to_max_edges(verb);
 
         int lastIndex = verb_to_initial_last_index(verb);
@@ -321,14 +320,24 @@ static bool check_inverse_on_empty_return(SkRegion* dst, const SkPath& path, con
 }
 
 bool SkRegion::setPath(const SkPath& path, const SkRegion& clip) {
-    SkDEBUGCODE(this->validate();)
+    SkDEBUGCODE(SkRegionPriv::Validate(*this));
 
-    if (clip.isEmpty()) {
+    if (clip.isEmpty() || !path.isFinite()) {
         return this->setEmpty();
     }
 
     if (path.isEmpty()) {
         return check_inverse_on_empty_return(this, path, clip);
+    }
+
+    // Our builder is very fragile, and can't be called with spans/rects out of Y->X order.
+    // To ensure this, we only "fill" clipped to a rect (the clip's bounds), and if the
+    // clip is more complex than that, we just post-intersect the result with the clip.
+    if (clip.isComplex()) {
+        if (!this->setPath(path, SkRegion(clip.getBounds()))) {
+            return false;
+        }
+        return this->op(clip, kIntersect_Op);
     }
 
     //  compute worst-case rgn-size for the path
@@ -373,7 +382,7 @@ bool SkRegion::setPath(const SkPath& path, const SkRegion& clip) {
         tmp.fRunHead->computeRunBounds(&tmp.fBounds);
         this->swap(tmp);
     }
-    SkDEBUGCODE(this->validate();)
+    SkDEBUGCODE(SkRegionPriv::Validate(*this));
     return true;
 }
 
@@ -388,23 +397,23 @@ struct Edge {
         kCompleteLink = (kY0Link | kY1Link)
     };
 
-    SkRegion::RunType fX;
-    SkRegion::RunType fY0, fY1;
+    SkRegionPriv::RunType fX;
+    SkRegionPriv::RunType fY0, fY1;
     uint8_t fFlags;
     Edge*   fNext;
 
     void set(int x, int y0, int y1) {
         SkASSERT(y0 != y1);
 
-        fX = (SkRegion::RunType)(x);
-        fY0 = (SkRegion::RunType)(y0);
-        fY1 = (SkRegion::RunType)(y1);
+        fX = (SkRegionPriv::RunType)(x);
+        fY0 = (SkRegionPriv::RunType)(y0);
+        fY1 = (SkRegionPriv::RunType)(y1);
         fFlags = 0;
         SkDEBUGCODE(fNext = nullptr;)
     }
 
     int top() const {
-        return SkFastMin32(fY0, fY1);
+        return SkMin32(fY0, fY1);
     }
 };
 

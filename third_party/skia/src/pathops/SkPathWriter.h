@@ -7,9 +7,9 @@
 #ifndef SkPathWriter_DEFINED
 #define SkPathWriter_DEFINED
 
-#include "SkPath.h"
-#include "SkTArray.h"
-#include "SkTDArray.h"
+#include "include/core/SkPath.h"
+#include "include/private/SkTArray.h"
+#include "include/private/SkTDArray.h"
 
 class SkOpPtT;
 
@@ -41,9 +41,9 @@ private:
     void moveTo();
     const SkTArray<SkPath>& partials() const { return fPartials; }
     bool someAssemblyRequired();
-    void update(const SkOpPtT* pt);
+    SkPoint update(const SkOpPtT* pt);
 
-    SkPath fCurrent;  // contour under construction 
+    SkPath fCurrent;  // contour under construction
     SkTArray<SkPath> fPartials;   // contours with mismatched starts and ends
     SkTDArray<const SkOpPtT*> fEndPtTs;  // possible pt values for partial starts and ends
     SkPath* fPathPtr;  // closed contours are written here

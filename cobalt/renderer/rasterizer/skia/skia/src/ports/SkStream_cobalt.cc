@@ -40,7 +40,7 @@ SkFileMemoryChunkStreamManager::SkFileMemoryChunkStreamManager(
 SkFileMemoryChunkStreamProvider*
 SkFileMemoryChunkStreamManager::GetStreamProvider(
     const std::string& file_path) {
-  SkAutoMutexAcquire scoped_mutex(stream_provider_mutex_);
+  SkAutoMutexExclusive scoped_mutex(stream_provider_mutex_);
 
   // Return a pre-existing stream provider if it exists.
   SkFileMemoryChunkStreamProviderMap::iterator iter =
@@ -61,7 +61,7 @@ SkFileMemoryChunkStreamManager::GetStreamProvider(
 }
 
 void SkFileMemoryChunkStreamManager::PurgeUnusedMemoryChunks() {
-  SkAutoMutexAcquire scoped_mutex(stream_provider_mutex_);
+  SkAutoMutexExclusive scoped_mutex(stream_provider_mutex_);
   for (std::vector<std::unique_ptr<SkFileMemoryChunkStreamProvider>>::iterator
            iter = stream_provider_array_.begin();
        iter != stream_provider_array_.end(); ++iter) {
@@ -107,7 +107,7 @@ SkFileMemoryChunkStream* SkFileMemoryChunkStreamProvider::OpenStream() const {
 
 std::unique_ptr<const SkFileMemoryChunks>
 SkFileMemoryChunkStreamProvider::CreateMemoryChunksSnapshot() {
-  SkAutoMutexAcquire scoped_mutex(memory_chunks_mutex_);
+  SkAutoMutexExclusive scoped_mutex(memory_chunks_mutex_);
   return std::unique_ptr<const SkFileMemoryChunks>(
       new SkFileMemoryChunks(memory_chunks_));
 }
@@ -118,7 +118,7 @@ void SkFileMemoryChunkStreamProvider::PurgeUnusedMemoryChunks() {
   // Scope the logic that accesses the memory chunks so that releasing reserved
   // memory chunks does not happen within the lock.
   {
-    SkAutoMutexAcquire scoped_mutex(memory_chunks_mutex_);
+    SkAutoMutexExclusive scoped_mutex(memory_chunks_mutex_);
 
     // Walk the memory chunks, adding any with a single ref. These are not
     // externally referenced and can be purged.
@@ -158,7 +158,7 @@ SkFileMemoryChunkStreamProvider::TryGetMemoryChunk(
   // creation of a new memory chunk and the read from the stream into its memory
   // to occur outside of a lock.
   {
-    SkAutoMutexAcquire scoped_mutex(memory_chunks_mutex_);
+    SkAutoMutexExclusive scoped_mutex(memory_chunks_mutex_);
     SkFileMemoryChunks::const_iterator iter = memory_chunks_.find(index);
     if (iter != memory_chunks_.end()) {
       return iter->second;
@@ -182,7 +182,7 @@ SkFileMemoryChunkStreamProvider::TryGetMemoryChunk(
 
   // Re-lock the mutex. It's time to potentially add the newly created chunk to
   // |memory_chunks_|.
-  SkAutoMutexAcquire scoped_mutex(memory_chunks_mutex_);
+  SkAutoMutexExclusive scoped_mutex(memory_chunks_mutex_);
   scoped_refptr<const SkFileMemoryChunk>& chunk = memory_chunks_[index];
   // If there isn't a pre-existing chunk (this can occur if there was a race
   // between two calls to TryGetMemoryChunk() and the other call won), and the
@@ -303,7 +303,7 @@ bool SkFileMemoryChunkStream::rewind() {
   return true;
 }
 
-SkFileMemoryChunkStream* SkFileMemoryChunkStream::duplicate() const {
+SkFileMemoryChunkStream* SkFileMemoryChunkStream::onDuplicate() const {
   return stream_provider_->OpenStream();
 }
 
@@ -323,8 +323,10 @@ bool SkFileMemoryChunkStream::move(long offset) {
   return seek(stream_position_ + offset);
 }
 
-SkFileMemoryChunkStream* SkFileMemoryChunkStream::fork() const {
-  std::unique_ptr<SkFileMemoryChunkStream> that(duplicate());
+SkFileMemoryChunkStream* SkFileMemoryChunkStream::onFork() const {
+  std::unique_ptr<SkFileMemoryChunkStream> that(
+      base::polymorphic_downcast<SkFileMemoryChunkStream*>(
+          duplicate().release()));
   that->seek(stream_position_);
   return that.release();
 }

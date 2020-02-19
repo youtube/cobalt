@@ -5,10 +5,10 @@
  * found in the LICENSE file.
  */
 
-#include "SkMathPriv.h"
-#include "SkPoint.h"
-#include "SkScalar.h"
-#include "Test.h"
+#include "include/core/SkScalar.h"
+#include "src/core/SkMathPriv.h"
+#include "src/core/SkPointPriv.h"
+#include "tests/Test.h"
 
 /*
    Duplicates lots of code from gpu/src/GrPathUtils.cpp
@@ -42,7 +42,7 @@ static inline int estimate_distance(const SkPoint points[]) {
 }
 
 static inline SkScalar compute_distance(const SkPoint points[]) {
-    return points[1].distanceToLineSegmentBetween(points[0], points[2]);
+    return SkPointPriv::DistanceToLineSegmentBetween(points[1], points[0], points[2]);
 }
 
 static inline uint32_t estimate_pointCount(int distance) {

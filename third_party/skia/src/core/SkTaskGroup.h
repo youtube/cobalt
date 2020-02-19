@@ -8,8 +8,9 @@
 #ifndef SkTaskGroup_DEFINED
 #define SkTaskGroup_DEFINED
 
-#include "SkExecutor.h"
-#include "SkTypes.h"
+#include "include/core/SkExecutor.h"
+#include "include/core/SkTypes.h"
+#include "include/private/SkNoncopyable.h"
 #include <atomic>
 #include <functional>
 
@@ -25,8 +26,11 @@ public:
     // Add a batch of N tasks, all calling fn with different arguments.
     void batch(int N, std::function<void(int)> fn);
 
-    // Block until all Tasks previously add()ed to this SkTaskGroup have run.
-    // You may safely reuse this SkTaskGroup after wait() returns.
+    // Returns true if all Tasks previously add()ed to this SkTaskGroup have run.
+    // It is safe to reuse this SkTaskGroup once done().
+    bool done() const;
+
+    // Block until done().
     void wait();
 
     // A convenience for testing tools.

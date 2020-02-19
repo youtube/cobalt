@@ -8,8 +8,8 @@
 #ifndef SkSVGNode_DEFINED
 #define SkSVGNode_DEFINED
 
-#include "SkRefCnt.h"
-#include "SkSVGAttribute.h"
+#include "experimental/svg/model/SkSVGAttribute.h"
+#include "include/core/SkRefCnt.h"
 
 class SkCanvas;
 class SkMatrix;
@@ -27,11 +27,14 @@ enum class SkSVGTag {
     kLine,
     kLinearGradient,
     kPath,
+    kPattern,
     kPolygon,
     kPolyline,
+    kRadialGradient,
     kRect,
     kStop,
-    kSvg
+    kSvg,
+    kUse
 };
 
 class SkSVGNode : public SkRefCnt {
@@ -49,13 +52,17 @@ public:
     void setAttribute(SkSVGAttribute, const SkSVGValue&);
 
     void setClipPath(const SkSVGClip&);
+    void setClipRule(const SkSVGFillRule&);
     void setFill(const SkSVGPaint&);
     void setFillOpacity(const SkSVGNumberType&);
     void setFillRule(const SkSVGFillRule&);
     void setOpacity(const SkSVGNumberType&);
     void setStroke(const SkSVGPaint&);
+    void setStrokeDashArray(const SkSVGDashArray&);
+    void setStrokeDashOffset(const SkSVGLength&);
     void setStrokeOpacity(const SkSVGNumberType&);
     void setStrokeWidth(const SkSVGLength&);
+    void setVisibility(const SkSVGVisibility&);
 
 protected:
     SkSVGNode(SkSVGTag);

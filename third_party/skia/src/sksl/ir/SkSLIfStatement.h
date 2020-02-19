@@ -8,8 +8,8 @@
 #ifndef SKSL_IFSTATEMENT
 #define SKSL_IFSTATEMENT
 
-#include "SkSLExpression.h"
-#include "SkSLStatement.h"
+#include "src/sksl/ir/SkSLExpression.h"
+#include "src/sksl/ir/SkSLStatement.h"
 
 namespace SkSL {
 
@@ -17,13 +17,18 @@ namespace SkSL {
  * An 'if' statement.
  */
 struct IfStatement : public Statement {
-    IfStatement(Position position, bool isStatic, std::unique_ptr<Expression> test,
+    IfStatement(int offset, bool isStatic, std::unique_ptr<Expression> test,
                 std::unique_ptr<Statement> ifTrue, std::unique_ptr<Statement> ifFalse)
-    : INHERITED(position, kIf_Kind)
+    : INHERITED(offset, kIf_Kind)
     , fIsStatic(isStatic)
     , fTest(std::move(test))
     , fIfTrue(std::move(ifTrue))
     , fIfFalse(std::move(ifFalse)) {}
+
+    std::unique_ptr<Statement> clone() const override {
+        return std::unique_ptr<Statement>(new IfStatement(fOffset, fIsStatic, fTest->clone(),
+                fIfTrue->clone(), fIfFalse ? fIfFalse->clone() : nullptr));
+    }
 
     String description() const override {
         String result;

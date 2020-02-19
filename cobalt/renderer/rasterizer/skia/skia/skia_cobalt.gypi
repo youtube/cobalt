@@ -23,7 +23,7 @@
     'src/effects/SkYUV2RGBShader.cc',
     'src/effects/SkYUV2RGBShader.h',
     'src/google_logging.cc',
-    'src/gpu/gl/GrGLCreateNativeInterface_cobalt.cc',
+    'src/gpu/gl/GrGLMakeNativeInterface_cobalt.cc',
     'src/ports/SkFontConfigParser_cobalt.cc',
     'src/ports/SkFontConfigParser_cobalt.h',
     'src/ports/SkFontMgr_cobalt.cc',

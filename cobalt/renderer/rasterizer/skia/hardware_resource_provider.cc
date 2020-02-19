@@ -58,7 +58,7 @@ HardwareResourceProvider::HardwareResourceProvider(
       submit_offscreen_callback_(submit_offscreen_callback),
       purge_skia_font_caches_on_destruction_(
           purge_skia_font_caches_on_destruction),
-      max_texture_size_(gr_context->caps()->maxTextureSize()),
+      max_texture_size_(gr_context->maxTextureSize()),
       self_message_loop_(base::MessageLoop::current()) {
   // Initialize the font manager now to ensure that it doesn't get initialized
   // on multiple threads simultaneously later.
@@ -512,7 +512,7 @@ HardwareResourceProvider::CreateTypefaceFromRawData(
 
   sk_sp<SkTypeface_Cobalt> typeface(
       base::polymorphic_downcast<SkTypeface_Cobalt*>(
-          SkTypeface::MakeFromStream(stream.release()).release()));
+          SkTypeface::MakeFromStream(std::move(stream)).release()));
   if (typeface) {
     return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
   } else {

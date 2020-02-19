@@ -8,12 +8,14 @@
 #ifndef SkShadowTessellator_DEFINED
 #define SkShadowTessellator_DEFINED
 
-#include "SkColor.h"
-#include "SkPoint.h"
-#include "SkRefCnt.h"
+#include "include/core/SkColor.h"
+#include "include/core/SkPoint.h"
+#include "include/core/SkRefCnt.h"
+#include <functional>  // std::function
 
 class SkMatrix;
 class SkPath;
+struct SkPoint3;
 class SkVertices;
 
 namespace SkShadowTessellator {
@@ -35,6 +37,8 @@ sk_sp<SkVertices> MakeAmbient(const SkPath& path, const SkMatrix& ctm,
  */
 sk_sp<SkVertices> MakeSpot(const SkPath& path, const SkMatrix& ctm, const SkPoint3& zPlane,
                            const SkPoint3& lightPos, SkScalar lightRadius, bool transparent);
+
+
 }
 
 #endif

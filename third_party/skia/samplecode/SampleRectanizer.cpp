@@ -5,14 +5,15 @@
  * found in the LICENSE file.
  */
 
-#include "gm.h"
-#include "SampleCode.h"
-#include "SkRandom.h"
-#include "SkUtils.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkFont.h"
+#include "include/core/SkPaint.h"
+#include "include/utils/SkRandom.h"
+#include "samplecode/Sample.h"
+#include "src/utils/SkUTF.h"
 #if SK_SUPPORT_GPU
-#include "GrRectanizer_pow2.h"
-#include "GrRectanizer_skyline.h"
-
+#include "src/gpu/GrRectanizer_pow2.h"
+#include "src/gpu/GrRectanizer_skyline.h"
 
 // This slide visualizes the various GrRectanizer-derived classes behavior
 // for various input sets
@@ -23,10 +24,11 @@
 //          Rand -> random rects from 2-256
 //          Pow2Rand -> random power of 2 sized rects from 2-256
 //          SmallPow2 -> 128x128 rects
-class RectanizerView : public SampleView {
+class RectanizerView : public Sample {
 public:
     RectanizerView()
-        : fCurRandRect(0) {
+        : fCurRandRect(0)
+        , fCurRectanizer(0) {
         for (int i = 0; i < 3; ++i) {
            fRects[i].setReserve(kNumRandRects);
         }
@@ -45,21 +47,18 @@ public:
 
         fCurRects = &fRects[0];
 
-        fRectanizers[0] = new GrRectanizerPow2(kWidth, kHeight);
-        fRectanizers[1] = new GrRectanizerSkyline(kWidth, kHeight);
-        fCurRectanizer = fRectanizers[0];
+        fRectanizers.push_back(
+            std::unique_ptr<GrRectanizer>(new GrRectanizerPow2(kWidth, kHeight)));
+        fRectanizers.push_back(
+            std::unique_ptr<GrRectanizer>(new GrRectanizerSkyline(kWidth, kHeight)));
     }
 
 protected:
-    bool onQuery(SkEvent* evt) override {
-        if (SampleCode::TitleQ(*evt)) {
-            SampleCode::TitleR(evt, "Rectanizer");
-            return true;
-        }
-        SkUnichar uni;
-        if (SampleCode::CharQ(*evt, &uni)) {
-            char utf8[kMaxBytesInUTF8Sequence];
-            size_t size = SkUTF8_FromUnichar(uni, utf8);
+    SkString name() override { return SkString("Rectanizer"); }
+
+    bool onChar(SkUnichar uni) override {
+            char utf8[SkUTF::kMaxBytesInUTF8Sequence];
+            size_t size = SkUTF::ToUTF8(uni, utf8);
             // Only consider events for single char keys
             if (1 == size) {
                 switch (utf8[0]) {
@@ -73,21 +72,20 @@ protected:
                     break;
                 }
             }
-        }
-        return this->INHERITED::onQuery(evt);
+            return false;
     }
 
     void onDrawContent(SkCanvas* canvas) override {
         if (fCurRandRect < kNumRandRects) {
-            if (fCurRectanizer->addRect((*fCurRects)[fCurRandRect].fWidth,
-                                        (*fCurRects)[fCurRandRect].fHeight,
-                                        &fRectLocations[fCurRandRect])) {
+            if (fRectanizers[fCurRectanizer]->addRect((*fCurRects)[fCurRandRect].fWidth,
+                                                      (*fCurRects)[fCurRandRect].fHeight,
+                                                      &fRectLocations[fCurRandRect])) {
                 ++fCurRandRect;
             }
         }
 
-        SkPaint blackBigFont;
-        blackBigFont.setTextSize(20);
+        SkFont blackBigFont;
+        blackBigFont.setSize(20);
         SkPaint blackStroke;
         blackStroke.setStyle(SkPaint::kStroke_Style);
         SkPaint redFill;
@@ -115,19 +113,17 @@ protected:
                    this->getRectanizerName(),
                    this->getRectsName(),
                    totArea,
-                   100.0f * fCurRectanizer->percentFull(),
+                   100.0f * fRectanizers[fCurRectanizer]->percentFull(),
                    100.0f * totArea / ((float)kWidth*kHeight),
                    fCurRandRect,
                    kNumRandRects);
-        canvas->drawString(str, 50, kHeight + 50, blackBigFont);
+        canvas->drawString(str, 50, kHeight + 50, blackBigFont, SkPaint());
 
         str.printf("Press \'j\' to toggle rectanizer");
-        canvas->drawString(str, 50, kHeight + 100, blackBigFont);
+        canvas->drawString(str, 50, kHeight + 100, blackBigFont, SkPaint());
 
         str.printf("Press \'h\' to toggle rects");
-        canvas->drawString(str, 50, kHeight + 150, blackBigFont);
-
-        this->inval(nullptr);
+        canvas->drawString(str, 50, kHeight + 150, blackBigFont, SkPaint());
     }
 
 private:
@@ -139,15 +135,15 @@ private:
     static const int kMinRectSize = 2;
     static const int kMaxRectSize = 256;
 
-    int                   fCurRandRect;
-    SkTDArray<SkISize>    fRects[3];
-    SkTDArray<SkISize>*   fCurRects;
-    SkTDArray<SkIPoint16> fRectLocations;
-    GrRectanizer*         fRectanizers[2];
-    GrRectanizer*         fCurRectanizer;
+    int                                     fCurRandRect;
+    SkTDArray<SkISize>                      fRects[3];
+    SkTDArray<SkISize>*                     fCurRects;
+    SkTDArray<SkIPoint16>                   fRectLocations;
+    SkTArray<std::unique_ptr<GrRectanizer>> fRectanizers;
+    int                                     fCurRectanizer;
 
     const char* getRectanizerName() const {
-        if (fCurRectanizer == fRectanizers[0]) {
+        if (!fCurRectanizer) {
             return "Pow2";
         } else {
             return "Skyline";
@@ -155,13 +151,9 @@ private:
     }
 
     void cycleRectanizer() {
-        if (fCurRectanizer == fRectanizers[0]) {
-            fCurRectanizer = fRectanizers[1];
-        } else {
-            fCurRectanizer = fRectanizers[0];
-        }
+        fCurRectanizer = (fCurRectanizer + 1) % fRectanizers.count();
 
-        fCurRectanizer->reset();
+        fRectanizers[fCurRectanizer]->reset();
         fCurRandRect = 0;
     }
 
@@ -184,15 +176,15 @@ private:
             fCurRects = &fRects[0];
         }
 
-        fCurRectanizer->reset();
+        fRectanizers[fCurRectanizer]->reset();
         fCurRandRect = 0;
     }
 
-    typedef SampleView INHERITED;
+    typedef Sample INHERITED;
 };
 
 //////////////////////////////////////////////////////////////////////////////
-static SkView* MyFactory() { return new RectanizerView; }
-static SkViewRegister reg(MyFactory);
+
+DEF_SAMPLE( return new RectanizerView(); )
 
 #endif

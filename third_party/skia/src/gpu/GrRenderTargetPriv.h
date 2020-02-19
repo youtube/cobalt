@@ -8,8 +8,8 @@
 #ifndef GrRenderTargetPriv_DEFINED
 #define GrRenderTargetPriv_DEFINED
 
-#include "GrRenderTarget.h"
-#include "GrGpu.h"
+#include "src/gpu/GrGpu.h"
+#include "src/gpu/GrRenderTarget.h"
 
 class GrStencilSettings;
 
@@ -21,23 +21,34 @@ public:
     /**
      * GrStencilAttachment is not part of the public API.
      */
-    GrStencilAttachment* getStencilAttachment() const { return fRenderTarget->fStencilAttachment; }
+    GrStencilAttachment* getStencilAttachment() const {
+        return fRenderTarget->fStencilAttachment.get();
+    }
 
     /**
      * Attaches the GrStencilAttachment onto the render target. If stencil is a nullptr then the
      * currently attached GrStencilAttachment will be removed if one was previously attached. This
      * function returns false if there were any failure in attaching the GrStencilAttachment.
      */
-    bool attachStencilAttachment(GrStencilAttachment* stencil);
+    void attachStencilAttachment(sk_sp<GrStencilAttachment> stencil);
 
     int numStencilBits() const;
 
-    // Finds a render target's multisample specs. The pipeline is only needed in case the info isn't
-    // cached and we need to flush the draw state in order to query it. The pipeline is not expected
-    // to affect the multisample information itself.
-    const GrGpu::MultisampleSpecs& getMultisampleSpecs(const GrPipeline&) const;
+    /**
+     * Returns a unique key that identifies this render target's sample pattern. (Must be
+     * multisampled.)
+     */
+    int getSamplePatternKey() const;
 
-    GrRenderTargetFlags flags() const { return fRenderTarget->fFlags; }
+    /**
+     * Retrieves the per-pixel HW sample locations for this render target, and, as a by-product, the
+     * actual number of samples in use. (This may differ from fSampleCnt.) Sample locations are
+     * returned as 0..1 offsets relative to the top-left corner of the pixel.
+     */
+    const SkTArray<SkPoint>& getSampleLocations() const {
+        int samplePatternKey = this->getSamplePatternKey();
+        return fRenderTarget->getGpu()->retrieveSampleLocations(samplePatternKey);
+    }
 
 private:
     explicit GrRenderTargetPriv(GrRenderTarget* renderTarget) : fRenderTarget(renderTarget) {}

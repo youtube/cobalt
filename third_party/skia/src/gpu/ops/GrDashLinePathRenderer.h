@@ -8,13 +8,13 @@
 #ifndef GrDashLinePathRenderer_DEFINED
 #define GrDashLinePathRenderer_DEFINED
 
-#include "GrPathRenderer.h"
+#include "src/gpu/GrPathRenderer.h"
 
 class GrGpu;
 
 class GrDashLinePathRenderer : public GrPathRenderer {
 private:
-    bool onCanDrawPath(const CanDrawPathArgs&) const override;
+    CanDrawPath onCanDrawPath(const CanDrawPathArgs&) const override;
 
     StencilSupport onGetStencilSupport(const GrShape&) const override {
         return kNoSupport_StencilSupport;

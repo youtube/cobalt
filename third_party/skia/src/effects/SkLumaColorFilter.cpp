@@ -5,23 +5,24 @@
  * found in the LICENSE file.
  */
 
-#include "SkLumaColorFilter.h"
-#include "SkPM4f.h"
-#include "SkColorPriv.h"
-#include "SkRasterPipeline.h"
-#include "SkString.h"
+#include "include/core/SkString.h"
+#include "include/effects/SkLumaColorFilter.h"
+#include "include/private/SkColorData.h"
+#include "src/core/SkEffectPriv.h"
+#include "src/core/SkRasterPipeline.h"
 
 #if SK_SUPPORT_GPU
-#include "GrContext.h"
-#include "glsl/GrGLSLFragmentProcessor.h"
-#include "glsl/GrGLSLFragmentShaderBuilder.h"
+#include "include/gpu/GrContext.h"
+#include "src/gpu/effects/generated/GrLumaColorFilterEffect.h"
+#include "src/gpu/glsl/GrGLSLFragmentProcessor.h"
+#include "src/gpu/glsl/GrGLSLFragmentShaderBuilder.h"
 #endif
 
-void SkLumaColorFilter::onAppendStages(SkRasterPipeline* p,
-                                       SkColorSpace* dst,
-                                       SkArenaAlloc* scratch,
-                                       bool shaderIsOpaque) const {
-    p->append(SkRasterPipeline::luminance_to_alpha);
+bool SkLumaColorFilter::onAppendStages(const SkStageRec& rec, bool shaderIsOpaque) const {
+    rec.fPipeline->append(SkRasterPipeline::bt709_luminance_or_luma_to_alpha);
+    rec.fPipeline->append(SkRasterPipeline::clamp_0);
+    rec.fPipeline->append(SkRasterPipeline::clamp_1);
+    return true;
 }
 
 sk_sp<SkColorFilter> SkLumaColorFilter::Make() {
@@ -36,72 +37,9 @@ sk_sp<SkFlattenable> SkLumaColorFilter::CreateProc(SkReadBuffer&) {
 
 void SkLumaColorFilter::flatten(SkWriteBuffer&) const {}
 
-#ifndef SK_IGNORE_TO_STRING
-void SkLumaColorFilter::toString(SkString* str) const {
-    str->append("SkLumaColorFilter ");
-}
-#endif
-
 #if SK_SUPPORT_GPU
-class LumaColorFilterEffect : public GrFragmentProcessor {
-public:
-    static sk_sp<GrFragmentProcessor> Make() {
-        return sk_sp<GrFragmentProcessor>(new LumaColorFilterEffect);
-    }
-
-    const char* name() const override { return "Luminance-to-Alpha"; }
-
-    class GLSLProcessor : public GrGLSLFragmentProcessor {
-    public:
-        static void GenKey(const GrProcessor&, const GrShaderCaps&, GrProcessorKeyBuilder*) {}
-
-        void emitCode(EmitArgs& args) override {
-            if (nullptr == args.fInputColor) {
-                args.fInputColor = "vec4(1)";
-            }
-
-            GrGLSLFPFragmentBuilder* fragBuilder = args.fFragBuilder;
-            fragBuilder->codeAppendf("\tfloat luma = dot(vec3(%f, %f, %f), %s.rgb);\n",
-                                     SK_ITU_BT709_LUM_COEFF_R,
-                                     SK_ITU_BT709_LUM_COEFF_G,
-                                     SK_ITU_BT709_LUM_COEFF_B,
-                                     args.fInputColor);
-            fragBuilder->codeAppendf("\t%s = vec4(0, 0, 0, luma);\n",
-                                     args.fOutputColor);
-
-        }
-
-    private:
-        typedef GrGLSLFragmentProcessor INHERITED;
-    };
-
-private:
-    LumaColorFilterEffect() : INHERITED(kConstantOutputForConstantInput_OptimizationFlag) {
-        this->initClassID<LumaColorFilterEffect>();
-    }
-
-    GrGLSLFragmentProcessor* onCreateGLSLInstance() const override {
-        return new GLSLProcessor;
-    }
-
-    virtual void onGetGLSLProcessorKey(const GrShaderCaps& caps,
-                                       GrProcessorKeyBuilder* b) const override {
-        GLSLProcessor::GenKey(*this, caps, b);
-    }
-
-    bool onIsEqual(const GrFragmentProcessor&) const override { return true; }
-
-    GrColor4f constantOutputForConstantInput(GrColor4f input) const override {
-        float luma = SK_ITU_BT709_LUM_COEFF_R * input.fRGBA[0] +
-                     SK_ITU_BT709_LUM_COEFF_G * input.fRGBA[1] +
-                     SK_ITU_BT709_LUM_COEFF_B * input.fRGBA[2];
-        return GrColor4f(0, 0, 0, luma);
-    }
-
-    typedef GrFragmentProcessor INHERITED;
-};
-
-sk_sp<GrFragmentProcessor> SkLumaColorFilter::asFragmentProcessor(GrContext*, SkColorSpace*) const {
-    return LumaColorFilterEffect::Make();
+std::unique_ptr<GrFragmentProcessor> SkLumaColorFilter::asFragmentProcessor(
+        GrRecordingContext*, const GrColorInfo&) const {
+    return GrLumaColorFilterEffect::Make();
 }
 #endif

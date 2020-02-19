@@ -8,34 +8,34 @@
 #ifndef SkSweepGradient_DEFINED
 #define SkSweepGradient_DEFINED
 
-#include "SkGradientShaderPriv.h"
+#include "src/shaders/gradients/SkGradientShaderPriv.h"
 
 class SkSweepGradient final : public SkGradientShaderBase {
 public:
-    SkSweepGradient(SkScalar cx, SkScalar cy, const Descriptor&);
+    SkSweepGradient(const SkPoint& center, SkScalar t0, SkScalar t1, const Descriptor&);
 
     GradientType asAGradient(GradientInfo* info) const override;
 
 #if SK_SUPPORT_GPU
-    sk_sp<GrFragmentProcessor> asFragmentProcessor(const AsFPArgs&) const override;
+    std::unique_ptr<GrFragmentProcessor> asFragmentProcessor(const GrFPArgs&) const override;
 #endif
 
-    SK_TO_STRING_OVERRIDE()
-    SK_DECLARE_PUBLIC_FLATTENABLE_DESERIALIZATION_PROCS(SkSweepGradient)
+    SkScalar getTBias() const { return fTBias; }
+
+    SkScalar getTScale() const { return fTScale; }
 
 protected:
     void flatten(SkWriteBuffer& buffer) const override;
-    sk_sp<SkShader> onMakeColorSpace(SkColorSpaceXformer* xformer) const override;
 
-    bool adjustMatrixAndAppendStages(SkArenaAlloc* alloc,
-                                     SkMatrix* matrix,
-                                     SkRasterPipeline* tPipeline,
-                                     SkRasterPipeline* postPipeline) const override;
-
-    bool onIsRasterPipelineOnly() const override { return true; }
+    void appendGradientStages(SkArenaAlloc* alloc, SkRasterPipeline* tPipeline,
+                              SkRasterPipeline* postPipeline) const override;
 
 private:
-    const SkPoint fCenter;
+    SK_FLATTENABLE_HOOKS(SkSweepGradient)
+
+    const SkPoint  fCenter;
+    const SkScalar fTBias,
+                   fTScale;
 
     friend class SkGradientShader;
     typedef SkGradientShaderBase INHERITED;

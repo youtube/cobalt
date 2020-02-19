@@ -5,13 +5,19 @@
  * found in the LICENSE file.
  */
 
-#include "CanvasStateHelpers.h"
+#include "include/core/SkTypes.h"
 #ifdef SK_SUPPORT_LEGACY_CLIPTOLAYERFLAG
-#include "SkCanvas.h"
-#include "SkCanvasStateUtils.h"
-#include "SkPaint.h"
-#include "SkRect.h"
-#include "SkRegion.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkClipOp.h"
+#include "include/core/SkColor.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkRect.h"
+#include "include/core/SkRegion.h"
+#include "include/core/SkScalar.h"
+#include "include/utils/SkCanvasStateUtils.h"
+#include "tests/CanvasStateHelpers.h"
+
+#include <memory>
 
 void complex_layers_draw(SkCanvas* canvas, float left, float top,
                          float right, float bottom, int32_t spacer) {
@@ -58,7 +64,7 @@ extern "C" bool complex_clips_draw_from_canvas_state(SkCanvasState* state,
 
     SkRegion localRegion;
     for (int32_t i = 0; i < regionRects; ++i) {
-        localRegion.op(rectCoords[0], rectCoords[1], rectCoords[2], rectCoords[3],
+        localRegion.op({rectCoords[0], rectCoords[1], rectCoords[2], rectCoords[3]},
                        SkRegion::kUnion_Op);
         rectCoords += 4;
     }

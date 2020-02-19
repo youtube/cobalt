@@ -5,75 +5,19 @@
  * found in the LICENSE file.
  */
 
-#include "SkTypes.h"
+#include "include/core/SkTypes.h"
 
-#if SK_SUPPORT_GPU
-
-#include "GrContextFactory.h"
-#include "GrCaps.h"
-#include "Test.h"
+#include "include/core/SkExecutor.h"
+#include "src/gpu/GrCaps.h"
+#include "src/gpu/GrContextPriv.h"
+#include "tests/Test.h"
+#include "tools/gpu/GrContextFactory.h"
 
 using namespace sk_gpu_test;
 
-DEF_GPUTEST(GrContextFactory_NVPRContextOptionHasPathRenderingSupport, reporter, /*factory*/) {
-    // Test that if NVPR is requested, the context always has path rendering
-    // or the context creation fails.
-    GrContextFactory testFactory;
-    // Test that if NVPR is possible, caps are in sync.
+DEF_GPUTEST(GrContextFactory_abandon, reporter, options) {
     for (int i = 0; i < GrContextFactory::kContextTypeCnt; ++i) {
-        GrContextFactory::ContextType ctxType = static_cast<GrContextFactory::ContextType>(i);
-        GrContext* context = testFactory.get(ctxType,
-                                           GrContextFactory::ContextOverrides::kRequireNVPRSupport);
-        if (!context) {
-            continue;
-        }
-        REPORTER_ASSERT(
-            reporter,
-            context->caps()->shaderCaps()->pathRenderingSupport());
-    }
-}
-
-DEF_GPUTEST(GrContextFactory_NoPathRenderingIfNVPRDisabled, reporter, /*factory*/) {
-    // Test that if NVPR is explicitly disabled, the context has no path rendering support.
-
-    GrContextFactory testFactory;
-    for (int i = 0; i <= GrContextFactory::kLastContextType; ++i) {
-        GrContextFactory::ContextType ctxType = (GrContextFactory::ContextType)i;
-        GrContext* context =
-            testFactory.get(ctxType, GrContextFactory::ContextOverrides::kDisableNVPR);
-        if (context) {
-            REPORTER_ASSERT(
-                reporter,
-                !context->caps()->shaderCaps()->pathRenderingSupport());
-        }
-    }
-}
-
-DEF_GPUTEST(GrContextFactory_RequiredSRGBSupport, reporter, /*factory*/) {
-    // Test that if sRGB support is requested, the context always has that capability
-    // or the context creation fails. Also test that if the creation fails, a context
-    // created without that flag would not have had sRGB support.
-    GrContextFactory testFactory;
-    // Test that if sRGB is requested, caps are in sync.
-    for (int i = 0; i < GrContextFactory::kContextTypeCnt; ++i) {
-        GrContextFactory::ContextType ctxType = static_cast<GrContextFactory::ContextType>(i);
-        GrContext* context =
-            testFactory.get(ctxType, GrContextFactory::ContextOverrides::kRequireSRGBSupport);
-
-        if (context) {
-            REPORTER_ASSERT(reporter, context->caps()->srgbSupport());
-        } else {
-            context = testFactory.get(ctxType);
-            if (context) {
-                REPORTER_ASSERT(reporter, !context->caps()->srgbSupport());
-            }
-        }
-    }
-}
-
-DEF_GPUTEST(GrContextFactory_abandon, reporter, /*factory*/) {
-    GrContextFactory testFactory;
-    for (int i = 0; i < GrContextFactory::kContextTypeCnt; ++i) {
+        GrContextFactory testFactory(options);
         GrContextFactory::ContextType ctxType = (GrContextFactory::ContextType) i;
         ContextInfo info1 = testFactory.getContextInfo(ctxType);
         if (!info1.grContext()) {
@@ -96,10 +40,9 @@ DEF_GPUTEST(GrContextFactory_abandon, reporter, /*factory*/) {
     }
 }
 
-DEF_GPUTEST(GrContextFactory_sharedContexts, reporter, /*factory*/) {
-    GrContextFactory testFactory;
-
+DEF_GPUTEST(GrContextFactory_sharedContexts, reporter, options) {
     for (int i = 0; i < GrContextFactory::kContextTypeCnt; ++i) {
+        GrContextFactory testFactory(options);
         GrContextFactory::ContextType ctxType = static_cast<GrContextFactory::ContextType>(i);
         ContextInfo info1 = testFactory.getContextInfo(ctxType);
         if (!info1.grContext()) {
@@ -117,10 +60,6 @@ DEF_GPUTEST(GrContextFactory_sharedContexts, reporter, /*factory*/) {
 
         // Create a new base context
         ContextInfo info3 = testFactory.getContextInfo(ctxType);
-        if (!info3.grContext()) {
-            // Vulkan NexusPlayer bot fails here. Sigh.
-            continue;
-        }
 
         // Creating a context in a share group may fail, but should never crash.
         ContextInfo info4 = testFactory.getSharedContextInfo(info3.grContext());
@@ -139,4 +78,34 @@ DEF_GPUTEST(GrContextFactory_sharedContexts, reporter, /*factory*/) {
     }
 }
 
+DEF_GPUTEST(GrContextFactory_executorAndTaskGroup, reporter, options) {
+    for (int i = 0; i < GrContextFactory::kContextTypeCnt; ++i) {
+        // Verify that contexts have a task group iff we supply an executor with context options
+        GrContextOptions contextOptions = options;
+        contextOptions.fExecutor = nullptr;
+        GrContextFactory serialFactory(contextOptions);
+
+        std::unique_ptr<SkExecutor> threadPool = SkExecutor::MakeFIFOThreadPool(1);
+        contextOptions.fExecutor = threadPool.get();
+        GrContextFactory threadedFactory(contextOptions);
+
+        GrContextFactory::ContextType ctxType = static_cast<GrContextFactory::ContextType>(i);
+        ContextInfo serialInfo = serialFactory.getContextInfo(ctxType);
+        if (GrContext* serialContext = serialInfo.grContext()) {
+            REPORTER_ASSERT(reporter, nullptr == serialContext->priv().getTaskGroup());
+        }
+
+        ContextInfo threadedInfo = threadedFactory.getContextInfo(ctxType);
+        if (GrContext* threadedContext = threadedInfo.grContext()) {
+            REPORTER_ASSERT(reporter, nullptr != threadedContext->priv().getTaskGroup());
+        }
+    }
+}
+
+#ifdef SK_ENABLE_DUMP_GPU
+DEF_GPUTEST_FOR_ALL_CONTEXTS(GrContextDump, reporter, ctxInfo) {
+    // Ensure that GrContext::dump doesn't assert (which is possible, if the JSON code is wrong)
+    SkString result = ctxInfo.grContext()->dump();
+    REPORTER_ASSERT(reporter, !result.isEmpty());
+}
 #endif

@@ -62,7 +62,7 @@ in the document (the cross-reference table). The table of contents
 lists the specific byte position for each object. The objects may have
 references to other objects and the ASCII size of those references is
 dependent on the object number assigned to the referenced object;
-therefore we can’t calculate the table of contents until the size of
+therefore we can't calculate the table of contents until the size of
 objects is known, which requires assignment of object numbers.  The
 document uses SkWStream::bytesWritten() to query the offsets of each
 object and build the cross-reference table.
@@ -91,7 +91,7 @@ PDFs.
     210399  % Byte offset to the start of the table of contents.
     %%EOF
 
-The class SkPDFObjNumMap and the virtual class SkPDFObject are used to
+The the virtual class SkPDFObject are used to
 manage the needs of the file format. Any object that will represent a
 PDF object must inherit from SkPDFObject and implement the methods to
 generate the binary representation and report any other SkPDFObjects
@@ -99,6 +99,10 @@ used as resources. SkPDFTypes.h defines most of the basic PDF object
 types: bool, int, scalar, string, name, array, dictionary, and stream.
 (A stream is a dictionary containing at least a Length entry followed
 by the data of the stream.)
+
+Streams are now handled in a slightly different way.  The SkPDFStreamOut()
+function compresses and serializes the binary data immediately instead of
+creating a new object.
 
 All of these PDF object types except the stream type can be used in
 both a direct and an indirect fashion, i.e. an array can have an int
@@ -128,23 +132,15 @@ have an object number assigned.
     ...stream contents can be arbitrary, including binary...  
     endstream`
 
-The PDF backend requires all indirect objects used in a PDF to be
-added to the SkPDFObjNumMap of the SkPDFDocument. The catalog is
-responsible for assigning object numbers and generating the table of
-contents required at the end of PDF files. In some sense, generating a
-PDF is a three step process. In the first step all the objects and
-references among them are created (mostly done by SkPDFDevice). In the
-second step, SkPDFObjNumMap assigns and remembers object numbers.
-Finally, in the third
-step, the header is printed, each object is printed, and then the
-table of contents and trailer are printed. SkPDFDocument takes care of
-collecting all the objects from the various SkPDFDevice instances,
-adding them to an SkPDFObjNumMap, iterating through the objects once to
-set their file positions, and iterating again to generate the final
-PDF.
+Indirect objects are either:
 
-As an optimization, many leaf nodes in the direct graph of indirect
-objects can be assigned object numbers and serialized early.
+  - Serialized as soon as they are needed, and a new SkPDFIndirectReference is
+    returned, or
+
+  - Serialized later, but reserve a document-unique SkPDFIndirectReference to
+    allow other objects to refer to it.
+
+Example document:
 
     %PDF-1.4
     2 0 obj <<
@@ -232,17 +228,9 @@ stream.
 
 There are a number of high level PDF objects (like fonts, graphic
 states, etc) that are likely to be referenced multiple times in a
-single PDF. To ensure that there is only one copy of each object
-instance these objects an implemented with an
-[interning pattern](http://en.wikipedia.org/wiki/String_interning).
-As such, the classes representing these objects (like
-SkPDFGraphicState) have private constructors and static methods to
-retrieve an instance of the class.
-
-The SkPDFCanon object owns the interned objects.  For obvious reasons,
-the returned instance should not be modified. A mechanism to ensure
-that interned classes are immutable is needed.  See [issue
-2683](https://bug.skia.org/2683).
+single PDF. To ensure that there is only one copy of each object,
+the SkPDFDocument holds on to a mapping from type-specific keys onto the
+SkPDFIndirectReference for these objects.
 
 <span id="Graphic_States">Graphic States</span>
 -----------------------------------------------
@@ -336,9 +324,9 @@ specified in the ContentEntry, similarly the Matrix and drawing state
 Certain objects have specific properties that need to be dealt
 with. Images, layers (see below), and fonts assume the standard PDF
 coordinate system, so we have to undo any flip to the Skia coordinate
-system before drawing these entities. We don’t currently support
+system before drawing these entities. We don't currently support
 inverted paths, so filling an inverted path will give the wrong result
-([issue 241](https://bug.skia.org/241)). PDF doesn’t draw zero length
+([issue 241](https://bug.skia.org/241)). PDF doesn't draw zero length
 lines that have butt of square caps, so that is emulated.
 
 ### <span id="Layers">Layers</span> ###
@@ -367,7 +355,7 @@ There are many details for dealing with fonts, so this document will
 only talk about some of the more important ones. A couple short
 details:
 
-*   We can’t assume that an arbitrary font will be available at PDF view
+*   We can't assume that an arbitrary font will be available at PDF view
     time, so we embed all fonts in accordance with modern PDF
     guidelines.
 *   Most fonts these days are TrueType fonts, so this is where most of
@@ -408,7 +396,7 @@ subsetting support to Skia for TrueType fonts.
 Skia has two types of predefined shaders, image shaders and gradient
 shaders. In both cases, shaders are effectively positioned absolutely,
 so the initial position and bounds of where they are visible is part
-of the immutable state of the shader object. Each of the Skia’s tile
+of the immutable state of the shader object. Each of the Skia's tile
 modes needs to be considered and handled explicitly. The image shader
 we generate will be tiled, so tiling is handled by default. To support
 mirroring, we draw the image, reversed, on the appropriate axis, or on
@@ -452,8 +440,8 @@ modes](https://codereview.appspot.com/4631078/).
 I will describe the system with this change applied.
 
 First, a bit of terminology and definition. When drawing something
-with an emulated xfer mode, what’s already drawn to the device is
-called the destination or Dst, and what’s about to be drawn is the
+with an emulated xfer mode, what's already drawn to the device is
+called the destination or Dst, and what's about to be drawn is the
 source or Src. Src (and Dst) can have regions where it is transparent
 (alpha equals zero), but it also has an inherent shape. For most kinds
 of drawn objects, the shape is the same as where alpha is not
@@ -464,11 +452,11 @@ has a shape that is 10x10. The xfermodes gm test demonstrates the
 interaction between shape and alpha in combination with the port-duff
 xfer modes.
 
-The clear xfer mode removes any part of Dst that is within Src’s
+The clear xfer mode removes any part of Dst that is within Src's
 shape. This is accomplished by bundling the current content of the
 device (Dst) into a single entity and then drawing that with the
-inverse of Src’s shape used as a mask (we want Dst where Src
-isn’t). The implementation of that takes a couple more steps. You may
+inverse of Src's shape used as a mask (we want Dst where Src
+isn't). The implementation of that takes a couple more steps. You may
 have to refer back to [the content stream section](#Generating_a_content_stream). For any draw call, a
 ContentEntry is created through a method called
 SkPDFDevice::setUpContentEntry(). This method examines the xfer modes
@@ -486,17 +474,17 @@ x-object, an invert function, and the Dst form x-object to draw Dst
 with the inverse shape of Src as a mask. This works well when the
 shape of Src is the same as the opaque part of the drawing, since PDF
 uses the alpha channel of the mask form x-object to do masking. When
-shape doesn’t match the alpha channel, additional action is
-required. The drawing routines where shape and alpha don’t match, set
+shape doesn't match the alpha channel, additional action is
+required. The drawing routines where shape and alpha don't match, set
 state to indicate the shape (always rectangular), which
 finishContentEntry uses. The clear xfer mode is a special case; if
-shape is needed, then Src isn’t used, so there is code to not bother
+shape is needed, then Src isn't used, so there is code to not bother
 drawing Src if shape is required and the xfer mode is clear.
 
 SrcMode is clear plus Src being drawn afterward. DstMode simply omits
 drawing Src. DstOver is the same as SrcOver with Src and Dst swapped -
 this is accomplished by inserting the new ContentEntry at the
-beginning of the list of ContentEntry’s in setUpContentEntry instead
+beginning of the list of ContentEntry's in setUpContentEntry instead
 of at the end. SrcIn, SrcOut, DstIn, DstOut are similar to each, the
 difference being an inverted or non-inverted mask and swapping Src and
 Dst (or not). SrcIn is SrcMode with Src drawn with Dst as a
@@ -508,10 +496,6 @@ a mask.
 <span id="Known_issues">Known issues</span>
 -------------------------------------------
 
-*   [issue 237](https://bug.skia.org/237)
-    SkMaskFilter is not supported.
-*   [issue 238](https://bug.skia.org/238)
-    SkColorFilter is not supported.
 *   [issue 249](https://bug.skia.org/249)
     SrcAtop Xor, and Plus xfer modes are not supported.
 *   [issue 240](https://bug.skia.org/240)

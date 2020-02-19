@@ -8,10 +8,11 @@
 #ifndef SkMaskGamma_DEFINED
 #define SkMaskGamma_DEFINED
 
-#include "SkTypes.h"
-#include "SkColor.h"
-#include "SkColorPriv.h"
-#include "SkRefCnt.h"
+#include "include/core/SkColor.h"
+#include "include/core/SkRefCnt.h"
+#include "include/core/SkTypes.h"
+#include "include/private/SkColorData.h"
+#include "include/private/SkNoncopyable.h"
 
 /**
  * SkColorSpaceLuminance is used to convert luminances to and from linear and
@@ -146,10 +147,11 @@ public:
 
     /**
      * Provides direct access to the full table set, so it can be uploaded
-     * into a texture.
+     * into a texture or analyzed in other ways.
+     * Returns nullptr if fGammaTables hasn't been initialized.
      */
     const uint8_t* getGammaTables() const {
-        return (const uint8_t*) fGammaTables;
+        return fIsLinear ? nullptr : (const uint8_t*) fGammaTables;
     }
 
 private:

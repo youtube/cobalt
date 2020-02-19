@@ -5,20 +5,31 @@
  * found in the LICENSE file.
  */
 
-#include "gm.h"
-#include "SkInsetConvexPolygon.h"
-#include "SkPathPriv.h"
+#include "gm/gm.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkColor.h"
+#include "include/core/SkMatrix.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkPath.h"
+#include "include/core/SkPoint.h"
+#include "include/core/SkRect.h"
+#include "include/core/SkScalar.h"
+#include "include/core/SkSize.h"
+#include "include/core/SkString.h"
+#include "include/core/SkTypes.h"
+#include "src/core/SkPathPriv.h"
+
+#include <memory>
 
 static void create_ngon(int n, SkPoint* pts, SkScalar width, SkScalar height) {
-    float angleStep = 360.0f / n, angle = 0.0f, sin, cos;
+    float angleStep = 360.0f / n, angle = 0.0f;
     if ((n % 2) == 1) {
         angle = angleStep/2.0f;
     }
 
     for (int i = 0; i < n; ++i) {
-        sin = SkScalarSinCos(SkDegreesToRadians(angle), &cos);
-        pts[i].fX = -sin * width;
-        pts[i].fY = cos * height;
+        pts[i].fX = -SkScalarSin(SkDegreesToRadians(angle)) * width;
+        pts[i].fY =  SkScalarCos(SkDegreesToRadians(angle)) * height;
         angle += angleStep;
     }
 }
@@ -56,9 +67,9 @@ const SkPoint gPoints3[] = {
 const SkPoint gPoints4[] = {
     { -6.0f, -50.0f },
     { 4.0f, -50.0f },
-    { 5.0f, -25.0f },
+    { 5.0f, -25.0f },  // remove if collinear diagonal points are not concave
     { 6.0f,   0.0f },
-    { 5.0f,  25.0f },
+    { 5.0f,  25.0f },  // remove if collinear diagonal points are not concave
     { 4.0f,  50.0f },
     { -4.0f,  50.0f }
 };
@@ -317,9 +328,8 @@ protected:
             this->drawPath(canvas, i, &offset);
         }
 
-        // Repro for crbug.com/472723 (Missing AA on portions of graphic with GPU rasterization)
         {
-            canvas->translate(356.0f, 50.0f);
+            // Repro for crbug.com/472723 (Missing AA on portions of graphic with GPU rasterization)
 
             SkPaint p;
             p.setAntiAlias(true);
@@ -334,7 +344,55 @@ protected:
             p1.lineTo(59.4380493f, 364.671021f);
             p1.lineTo(385.414276f, 690.647217f);
             p1.lineTo(386.121399f, 689.940125f);
+            canvas->save();
+            canvas->translate(356.0f, 50.0f);
             canvas->drawPath(p1, p);
+            canvas->restore();
+
+            // Repro for crbug.com/869172 (SVG path incorrectly simplified when using GPU
+            // Rasterization). This will only draw anything in the stroke-and-fill version.
+            SkPath p2;
+            p2.moveTo(10.f, 0.f);
+            p2.lineTo(38.f, 0.f);
+            p2.lineTo(66.f, 0.f);
+            p2.lineTo(94.f, 0.f);
+            p2.lineTo(122.f, 0.f);
+            p2.lineTo(150.f, 0.f);
+            p2.lineTo(150.f, 0.f);
+            p2.lineTo(122.f, 0.f);
+            p2.lineTo(94.f, 0.f);
+            p2.lineTo(66.f, 0.f);
+            p2.lineTo(38.f, 0.f);
+            p2.lineTo(10.f, 0.f);
+            p2.close();
+            canvas->save();
+            canvas->translate(0.0f, 500.0f);
+            canvas->drawPath(p2, p);
+            canvas->restore();
+
+            // Repro for crbug.com/856137. This path previously caused GrAAConvexTessellator to turn
+            // inset rings into outsets when adjacent bisector angles converged outside the previous
+            // ring due to accumulated error.
+            SkPath p3;
+            p3.setFillType(SkPath::kEvenOdd_FillType);
+            p3.moveTo(1184.96f, 982.557f);
+            p3.lineTo(1183.71f, 982.865f);
+            p3.lineTo(1180.99f, 982.734f);
+            p3.lineTo(1178.5f, 981.541f);
+            p3.lineTo(1176.35f, 979.367f);
+            p3.lineTo(1178.94f, 938.854f);
+            p3.lineTo(1181.35f, 936.038f);
+            p3.lineTo(1183.96f, 934.117f);
+            p3.lineTo(1186.67f, 933.195f);
+            p3.lineTo(1189.36f, 933.342f);
+            p3.lineTo(1191.58f, 934.38f);
+            p3.close();
+            canvas->save();
+            SkMatrix m;
+            m.setAll(0.0893210843f, 0, 79.1197586f, 0, 0.0893210843f, 300, 0, 0, 1);
+            canvas->concat(m);
+            canvas->drawPath(p3, p);
+            canvas->restore();
         }
     }
 
@@ -350,173 +408,8 @@ private:
     typedef GM INHERITED;
 };
 
-// This GM is intended to exercise the insetting of convex polygons
-class ConvexPolygonInsetGM : public GM {
-public:
-    ConvexPolygonInsetGM() {
-        this->setBGColor(0xFFFFFFFF);
-    }
-
-protected:
-    SkString onShortName() override {
-        return SkString("convex-polygon-inset");
-    }
-    SkISize onISize() override { return SkISize::Make(kGMWidth, kGMHeight); }
-    bool runAsBench() const override { return true; }
-
-    static void GetPath(int index, SkPath::Direction dir,
-                        std::unique_ptr<SkPoint[]>* data, int* numPts) {
-        if (index < (int)SK_ARRAY_COUNT(ConvexLineOnlyData::gPoints)) {
-            // manually specified
-            *numPts = (int)ConvexLineOnlyData::gSizes[index];
-            data->reset(new SkPoint[*numPts]);
-            if (SkPath::kCW_Direction == dir) {
-                for (int i = 0; i < *numPts; ++i) {
-                    (*data)[i] = ConvexLineOnlyData::gPoints[index][i];
-                }
-            } else {
-                for (int i = 0; i < *numPts; ++i) {
-                    (*data)[i] = ConvexLineOnlyData::gPoints[index][*numPts - i - 1];
-                }
-            }
-        } else {
-            // procedurally generated
-            SkScalar width = kMaxPathHeight / 2;
-            SkScalar height = kMaxPathHeight / 2;
-            switch (index - SK_ARRAY_COUNT(ConvexLineOnlyData::gPoints)) {
-                case 0:
-                    *numPts = 3;
-                    break;
-                case 1:
-                    *numPts = 4;
-                    break;
-                case 2:
-                    *numPts = 5;
-                    break;
-                case 3:             // squashed pentagon
-                    *numPts = 5;
-                    width = kMaxPathHeight / 5;
-                    break;
-                case 4:
-                    *numPts = 6;
-                    break;
-                case 5:
-                    *numPts = 8;
-                    break;
-                case 6:              // squashed octogon
-                    *numPts = 8;
-                    width = kMaxPathHeight / 5;
-                    break;
-                case 7:
-                    *numPts = 20;
-                    break;
-                case 8:
-                    *numPts = 100;
-                    break;
-                default:
-                    *numPts = 3;
-                    break;
-            }
-
-            data->reset(new SkPoint[*numPts]);
-
-            create_ngon(*numPts, data->get(), width, height);
-            if (SkPath::kCCW_Direction == dir) {
-                // reverse it
-                for (int i = 0; i < *numPts/2; ++i) {
-                    SkPoint tmp = (*data)[i];
-                    (*data)[i] = (*data)[*numPts - i - 1];
-                    (*data)[*numPts - i - 1] = tmp;
-                }
-            }
-        }
-    }
-
-    // Draw a single path several times, shrinking it, flipping its direction
-    // and changing its start vertex each time.
-    void drawPath(SkCanvas* canvas, int index, SkPoint* offset) {
-
-        SkPoint center;
-        {
-            std::unique_ptr<SkPoint[]> data(nullptr);
-            int numPts;
-            GetPath(index, SkPath::kCW_Direction, &data, &numPts);
-            SkRect bounds;
-            bounds.set(data.get(), numPts);
-            if (offset->fX + bounds.width() > kGMWidth) {
-                offset->fX = 0;
-                offset->fY += kMaxPathHeight;
-            }
-            center = { offset->fX + SkScalarHalf(bounds.width()), offset->fY };
-            offset->fX += bounds.width();
-        }
-
-        const SkPath::Direction dirs[2] = { SkPath::kCW_Direction, SkPath::kCCW_Direction };
-        const float insets[] = { 5, 10, 15, 20, 25, 30, 35, 40 };
-        const SkColor colors[] = { 0xFF901313, 0xFF8D6214, 0xFF698B14, 0xFF1C8914,
-                                   0xFF148755, 0xFF146C84, 0xFF142482, 0xFF4A1480 };
-
-        SkPaint paint;
-        paint.setAntiAlias(true);
-        paint.setStyle(SkPaint::kStroke_Style);
-        paint.setStrokeWidth(1);
-
-        std::unique_ptr<SkPoint[]> data(nullptr);
-        int numPts;
-        GetPath(index, dirs[index % 2], &data, &numPts);
-        {
-            SkPath path;
-            path.moveTo(data.get()[0]);
-            for (int i = 1; i < numPts; ++i) {
-                path.lineTo(data.get()[i]);
-            }
-            path.close();
-            canvas->save();
-            canvas->translate(center.fX, center.fY);
-            canvas->drawPath(path, paint);
-            canvas->restore();
-        }
-
-        SkTDArray<SkPoint> insetPoly;
-        for (size_t i = 0; i < SK_ARRAY_COUNT(insets); ++i) {
-            if (SkInsetConvexPolygon(data.get(), numPts, insets[i], &insetPoly)) {
-                SkPath path;
-                path.moveTo(insetPoly[0]);
-                for (int i = 1; i < insetPoly.count(); ++i) {
-                    path.lineTo(insetPoly[i]);
-                }
-                path.close();
-
-                paint.setColor(colors[i]);
-                canvas->save();
-                canvas->translate(center.fX, center.fY);
-                canvas->drawPath(path, paint);
-                canvas->restore();
-            }
-        }
-    }
-
-    void onDraw(SkCanvas* canvas) override {
-        // the right edge of the last drawn path
-        SkPoint offset = { 0, SkScalarHalf(kMaxPathHeight) };
-
-        for (int i = 0; i < kNumPaths; ++i) {
-            this->drawPath(canvas, i, &offset);
-        }
-    }
-
-private:
-    static constexpr int kNumPaths = 20;
-    static constexpr int kMaxPathHeight = 100;
-    static constexpr int kGMWidth = 512;
-    static constexpr int kGMHeight = 512;
-
-    typedef GM INHERITED;
-};
-
 //////////////////////////////////////////////////////////////////////////////
 
 DEF_GM(return new ConvexLineOnlyPathsGM(false);)
 DEF_GM(return new ConvexLineOnlyPathsGM(true);)
-DEF_GM(return new ConvexPolygonInsetGM();)
 }
