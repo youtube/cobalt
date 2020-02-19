@@ -4,9 +4,9 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
-#include "SkGeometry.h"
-#include "SkOpEdgeBuilder.h"
-#include "SkReduceOrder.h"
+#include "src/core/SkGeometry.h"
+#include "src/pathops/SkOpEdgeBuilder.h"
+#include "src/pathops/SkReduceOrder.h"
 
 void SkOpEdgeBuilder::init() {
     fOperand = false;
@@ -175,10 +175,11 @@ bool SkOpEdgeBuilder::close() {
 bool SkOpEdgeBuilder::walk() {
     uint8_t* verbPtr = fPathVerbs.begin();
     uint8_t* endOfFirstHalf = &verbPtr[fSecondHalf];
-    SkPoint* pointsPtr = fPathPts.begin() - 1;
+    SkPoint* pointsPtr = fPathPts.begin();
     SkScalar* weightPtr = fWeights.begin();
     SkPath::Verb verb;
     SkOpContour* contour = fContourBuilder.contour();
+    int moveToPtrBump = 0;
     while ((verb = (SkPath::Verb) *verbPtr) != SkPath::kDone_Verb) {
         if (verbPtr == endOfFirstHalf) {
             fOperand = true;
@@ -198,7 +199,8 @@ bool SkOpEdgeBuilder::walk() {
                 }
                 contour->init(fGlobalState, fOperand,
                     fXorMask[fOperand] == kEvenOdd_PathOpsMask);
-                pointsPtr += 1;
+                pointsPtr += moveToPtrBump;
+                moveToPtrBump = 1;
                 continue;
             case SkPath::kLine_Verb:
                 fContourBuilder.addLine(pointsPtr);
@@ -214,6 +216,9 @@ bool SkOpEdgeBuilder::walk() {
                         }
                         if (!SkScalarsAreFinite(&pair[0].fX, SK_ARRAY_COUNT(pair) * 2)) {
                             return false;
+                        }
+                        for (unsigned index = 0; index < SK_ARRAY_COUNT(pair); ++index) {
+                            force_small_to_zero(&pair[index]);
                         }
                         SkPoint cStorage[2][2];
                         SkPath::Verb v1 = SkReduceOrder::Quad(&pair[0], cStorage[0]);
@@ -237,7 +242,7 @@ bool SkOpEdgeBuilder::walk() {
                 if (v1.dot(v2) < 0) {
                     // FIXME: max curvature for conics hasn't been implemented; use placeholder
                     SkScalar maxCurvature = SkFindQuadMaxCurvature(pointsPtr);
-                    if (maxCurvature > 0) {
+                    if (0 < maxCurvature && maxCurvature < 1) {
                         SkConic conic(pointsPtr, weight);
                         SkConic pair[2];
                         if (!conic.chopAt(maxCurvature, pair)) {
@@ -304,6 +309,7 @@ bool SkOpEdgeBuilder::walk() {
                         }
                         if (prior < index) {
                             split->fT[0] = splits[prior].fT[0];
+                            split->fPts[0] = splits[prior].fPts[0];
                         }
                         int next = index;
                         int breakLimit = SkTMin(breaks, (int) SK_ARRAY_COUNT(splits) - 1);
@@ -312,22 +318,16 @@ bool SkOpEdgeBuilder::walk() {
                         }
                         if (next > index) {
                             split->fT[1] = splits[next].fT[1];
+                            split->fPts[3] = splits[next].fPts[3];
                         }
                         if (prior < index || next > index) {
-                            if (0 == split->fT[0] && 1 == split->fT[1]) {
-                                fContourBuilder.addCubic(pointsPtr);
-                                break;
-                            }
-                            SkDCubic part = SkDCubic::SubDivide(pointsPtr, split->fT[0],
-                                    split->fT[1]);
-                            if (!part.toFloatPoints(split->fPts)) {
-                                return false;
-                            }
                             split->fVerb = SkReduceOrder::Cubic(split->fPts, split->fReduced);
                         }
                         SkPoint* curve = SkPath::kCubic_Verb == split->fVerb
                                 ? split->fPts : split->fReduced;
-                        SkAssertResult(can_add_curve(split->fVerb, curve));
+                        if (!can_add_curve(split->fVerb, curve)) {
+                            return false;
+                        }
                         fContourBuilder.addCurve(split->fVerb, curve);
                     }
                 }

@@ -94,20 +94,21 @@ class SkFontMgr_Cobalt : public SkFontMgr {
                                const SkFontStyle& font_style) const override;
 
   // NOTE: This returns NULL if the typeface cannot be created.
-  SkTypeface* onCreateFromData(SkData* data, int face_index) const override;
+  sk_sp<SkTypeface> onMakeFromData(sk_sp<SkData> data,
+                                   int face_index) const override;
 
   // NOTE: This returns NULL if the typeface cannot be created.
-  SkTypeface* onCreateFromStream(SkStreamAsset* stream,
-                                 int face_index) const override;
+  sk_sp<SkTypeface> onMakeFromStreamIndex(std::unique_ptr<SkStreamAsset> stream,
+                                          int face_index) const override;
 
   // NOTE: This returns NULL if the typeface cannot be created.
-  SkTypeface* onCreateFromFile(const char path[],
-                               int face_index) const override;
+  sk_sp<SkTypeface> onMakeFromFile(const char path[],
+                                   int face_index) const override;
 
   // NOTE: This always returns a non-NULL value. If no match can be found, then
   // the best match among the default family is returned.
-  SkTypeface* onLegacyCreateTypeface(const char family_name[],
-                                     SkFontStyle style) const override;
+  sk_sp<SkTypeface> onLegacyMakeTypeface(const char family_name[],
+                                         SkFontStyle style) const override;
 
  private:
   typedef base::hash_map<std::string, SkFontStyleSet_Cobalt*> NameToStyleSetMap;

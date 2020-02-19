@@ -5,10 +5,10 @@
  * found in the LICENSE file.
  */
 
-#include "SkTypes.h"
-#if defined(SK_BUILD_FOR_WIN32)
+#include "include/core/SkTypes.h"
+#if defined(SK_BUILD_FOR_WIN)
 
-#include "SkAutoCoInitialize.h"
+#include "src/utils/win/SkAutoCoInitialize.h"
 
 #include <objbase.h>
 #include <winerror.h>
@@ -29,4 +29,4 @@ bool SkAutoCoInitialize::succeeded() {
     return SUCCEEDED(this->fHR) || RPC_E_CHANGED_MODE == this->fHR;
 }
 
-#endif//defined(SK_BUILD_FOR_WIN32)
+#endif//defined(SK_BUILD_FOR_WIN)

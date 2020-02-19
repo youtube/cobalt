@@ -5,12 +5,23 @@
  * found in the LICENSE file.
  */
 
-#include "gm.h"
-#include "SkBlurMaskFilter.h"
-#include "SkCanvas.h"
-#include "SkColorFilter.h"
+#include "gm/gm.h"
+#include "include/core/SkBitmap.h"
+#include "include/core/SkBlendMode.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkColor.h"
+#include "include/core/SkColorFilter.h"
+#include "include/core/SkFont.h"
+#include "include/core/SkMaskFilter.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkScalar.h"
+#include "include/core/SkShader.h"
+#include "include/core/SkSize.h"
+#include "include/core/SkString.h"
+#include "include/core/SkTypeface.h"
+#include "src/core/SkBlurMask.h"
+#include "src/effects/SkEmbossMaskFilter.h"
 
-#ifdef SK_SUPPORT_LEGACY_EMBOSSMASKFILTER
 static SkBitmap make_bm() {
     SkBitmap bm;
     bm.allocN32Pixels(100, 100);
@@ -41,17 +52,35 @@ protected:
         SkPaint paint;
         SkBitmap bm = make_bm();
         canvas->drawBitmap(bm, 10, 10, &paint);
-
-        const SkScalar dir[] = { 1, 1, 1 };
-        paint.setMaskFilter(SkBlurMaskFilter::MakeEmboss(3, dir, 0.3f, 0.1f));
         canvas->translate(bm.width() + SkIntToScalar(10), 0);
+
+        paint.setMaskFilter(SkEmbossMaskFilter::Make(
+            SkBlurMask::ConvertRadiusToSigma(3),
+            { { SK_Scalar1, SK_Scalar1, SK_Scalar1 }, 0, 128, 16*2 }));
         canvas->drawBitmap(bm, 10, 10, &paint);
+        canvas->translate(bm.width() + SkIntToScalar(10), 0);
 
         // this combination of emboss+colorfilter used to crash -- so we exercise it to
         // confirm that we have a fix.
-        paint.setColorFilter(SkColorFilter::MakeModeFilter(0xFFFF0000, SkBlendMode::kSrcATop));
-        canvas->translate(bm.width() + SkIntToScalar(10), 0);
+        paint.setColorFilter(SkColorFilters::Blend(0xFFFF0000, SkBlendMode::kSrcATop));
         canvas->drawBitmap(bm, 10, 10, &paint);
+        canvas->translate(bm.width() + SkIntToScalar(10), 0);
+
+        paint.setAntiAlias(true);
+        paint.setStyle(SkPaint::kStroke_Style);
+        paint.setStrokeWidth(SkIntToScalar(10));
+        paint.setMaskFilter(SkEmbossMaskFilter::Make(
+            SkBlurMask::ConvertRadiusToSigma(4),
+            { { SK_Scalar1, SK_Scalar1, SK_Scalar1 }, 0, 128, 16*2 }));
+        paint.setColorFilter(nullptr);
+        paint.setShader(SkShaders::Color(SK_ColorBLUE));
+        paint.setDither(true);
+        canvas->drawCircle(SkIntToScalar(50), SkIntToScalar(50),
+                           SkIntToScalar(30), paint);
+        canvas->translate(SkIntToScalar(100), 0);
+
+        paint.setStyle(SkPaint::kFill_Style);
+        canvas->drawString("Hello", 0, 50, SkFont(nullptr, 50), paint);
     }
 
 private:
@@ -59,4 +88,3 @@ private:
 };
 
 DEF_GM(return new EmbossGM;)
-#endif

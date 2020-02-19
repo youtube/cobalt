@@ -19,7 +19,7 @@
 #define SkFile FILE
 #endif
 
-#include "SkString.h"
+#include "include/core/SkString.h"
 
 enum SkFILE_Flags {
     kRead_SkFILE_Flag   = 0x01,
@@ -86,10 +86,10 @@ public:
     class Iter {
     public:
         Iter();
-        Iter(const char path[], const char suffix[] = NULL);
+        Iter(const char path[], const char suffix[] = nullptr);
         ~Iter();
 
-        void reset(const char path[], const char suffix[] = NULL);
+        void reset(const char path[], const char suffix[] = nullptr);
         /** If getDir is true, only returns directories.
             Results are undefined if true and false calls are
             interleaved on a single iterator.

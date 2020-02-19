@@ -5,11 +5,12 @@
  * found in the LICENSE file.
  */
 
-#include "SkRefCnt.h"
-#include "SkThreadUtils.h"
-#include "SkTypes.h"
-#include "SkWeakRefCnt.h"
-#include "Test.h"
+#include "include/core/SkRefCnt.h"
+#include "include/core/SkTypes.h"
+#include "include/private/SkWeakRefCnt.h"
+#include "tests/Test.h"
+
+#include <thread>
 
 static void bounce_ref(void* data) {
     SkRefCnt* ref = static_cast<SkRefCnt*>(data);
@@ -22,11 +23,8 @@ static void bounce_ref(void* data) {
 static void test_refCnt(skiatest::Reporter* reporter) {
     SkRefCnt* ref = new SkRefCnt();
 
-    SkThread thing1(bounce_ref, ref);
-    SkThread thing2(bounce_ref, ref);
-
-    SkAssertResult(thing1.start());
-    SkAssertResult(thing2.start());
+    std::thread thing1(bounce_ref, ref);
+    std::thread thing2(bounce_ref, ref);
 
     thing1.join();
     thing2.join();
@@ -55,15 +53,10 @@ static void bounce_weak_weak_ref(void* data) {
 static void test_weakRefCnt(skiatest::Reporter* reporter) {
     SkWeakRefCnt* ref = new SkWeakRefCnt();
 
-    SkThread thing1(bounce_ref, ref);
-    SkThread thing2(bounce_ref, ref);
-    SkThread thing3(bounce_weak_ref, ref);
-    SkThread thing4(bounce_weak_weak_ref, ref);
-
-    SkAssertResult(thing1.start());
-    SkAssertResult(thing2.start());
-    SkAssertResult(thing3.start());
-    SkAssertResult(thing4.start());
+    std::thread thing1(bounce_ref, ref);
+    std::thread thing2(bounce_ref, ref);
+    std::thread thing3(bounce_weak_ref, ref);
+    std::thread thing4(bounce_weak_weak_ref, ref);
 
     thing1.join();
     thing2.join();
@@ -87,12 +80,11 @@ static int gUnrefCounter;
 static int gNewCounter;
 static int gDeleteCounter;
 
-#define check(reporter, ref, unref, make, kill)             \
-    REPORTER_ASSERT(reporter, gRefCounter == ref);          \
-    REPORTER_ASSERT(reporter, gUnrefCounter == unref);      \
-    REPORTER_ASSERT(reporter, gNewCounter == make);         \
-    REPORTER_ASSERT(reporter, gDeleteCounter == kill);
-
+#define check(reporter, ref, unref, make, kill)        \
+    REPORTER_ASSERT(reporter, gRefCounter == ref);     \
+    REPORTER_ASSERT(reporter, gUnrefCounter == unref); \
+    REPORTER_ASSERT(reporter, gNewCounter == make);    \
+    REPORTER_ASSERT(reporter, gDeleteCounter == kill)
 
 class Effect {
 public:
@@ -146,7 +138,7 @@ struct EffectImpl : public Effect {
 static sk_sp<Effect> make_effect() {
     auto foo = EffectImpl::Create();
     foo->fValue = 42;
-    return std::move(foo);
+    return foo;
 }
 
 static void reset_counters() {
@@ -242,7 +234,7 @@ DEF_TEST(sk_sp, reporter) {
     check(reporter, 0, 0, 1, 0);
     paint.set(std::move(baz));
     check(reporter, 0, 0, 1, 0);
-    REPORTER_ASSERT(reporter, !baz);
+    REPORTER_ASSERT(reporter, !baz);  // NOLINT(bugprone-use-after-move)
     paint.set(nullptr);
     check(reporter, 0, 1, 1, 1);
 
@@ -287,28 +279,13 @@ DEF_TEST(sk_sp, reporter) {
         REPORTER_ASSERT(reporter, nullptr == empty);
         REPORTER_ASSERT(reporter, empty == nullptr);
         REPORTER_ASSERT(reporter, empty == empty);
-
-        REPORTER_ASSERT(reporter, nullptr <= empty);
-        REPORTER_ASSERT(reporter, empty <= nullptr);
-        REPORTER_ASSERT(reporter, empty <= empty);
-
-        REPORTER_ASSERT(reporter, nullptr >= empty);
-        REPORTER_ASSERT(reporter, empty >= nullptr);
-        REPORTER_ASSERT(reporter, empty >= empty);
     }
 
     {
         sk_sp<SkRefCnt> a = sk_make_sp<SkRefCnt>();
         sk_sp<SkRefCnt> b = sk_make_sp<SkRefCnt>();
         REPORTER_ASSERT(reporter, a != b);
-        REPORTER_ASSERT(reporter, (a < b) != (b < a));
-        REPORTER_ASSERT(reporter, (b > a) != (a > b));
-        REPORTER_ASSERT(reporter, (a <= b) != (b <= a));
-        REPORTER_ASSERT(reporter, (b >= a) != (a >= b));
-
         REPORTER_ASSERT(reporter, a == a);
-        REPORTER_ASSERT(reporter, a <= a);
-        REPORTER_ASSERT(reporter, a >= a);
     }
 
     // http://wg21.cmeerw.net/lwg/issue998

@@ -5,8 +5,8 @@
  * found in the LICENSE file.
  */
 
-#include "SkDebugfTracer.h"
-#include "SkTraceEvent.h"
+#include "src/core/SkTraceEvent.h"
+#include "tools/trace/SkDebugfTracer.h"
 
 SkEventTracer::Handle SkDebugfTracer::addTraceEvent(char phase,
                                                     const uint8_t* categoryEnabledFlag,
@@ -24,11 +24,11 @@ SkEventTracer::Handle SkDebugfTracer::addTraceEvent(char phase,
         } else {
             args.append(" ");
         }
+        skia::tracing_internals::TraceValueUnion value;
+        value.as_uint = argValues[i];
         switch (argTypes[i]) {
             case TRACE_VALUE_TYPE_BOOL:
-                args.appendf("%s=%s",
-                             argNames[i],
-                             (*reinterpret_cast<bool*>(argValues[i]) ? "true" : "false"));
+                args.appendf("%s=%s", argNames[i], value.as_bool ? "true" : "false");
                 break;
             case TRACE_VALUE_TYPE_UINT:
                 args.appendf("%s=%u", argNames[i], static_cast<uint32_t>(argValues[i]));
@@ -37,16 +37,15 @@ SkEventTracer::Handle SkDebugfTracer::addTraceEvent(char phase,
                 args.appendf("%s=%d", argNames[i], static_cast<int32_t>(argValues[i]));
                 break;
             case TRACE_VALUE_TYPE_DOUBLE:
-                args.appendf("%s=%g", argNames[i], *SkTCast<const double*>(&argValues[i]));
+                args.appendf("%s=%g", argNames[i], value.as_double);
                 break;
             case TRACE_VALUE_TYPE_POINTER:
-                args.appendf("%s=0x%p", argNames[i], reinterpret_cast<void*>(argValues[i]));
+                args.appendf("%s=0x%p", argNames[i], value.as_pointer);
                 break;
             case TRACE_VALUE_TYPE_STRING:
             case TRACE_VALUE_TYPE_COPY_STRING: {
                 static constexpr size_t kMaxLen = 20;
-                const char* str = reinterpret_cast<const char*>(argValues[i]);
-                SkString string(str);
+                SkString string(value.as_string);
                 size_t truncAt = string.size();
                 size_t newLineAt = SkStrFind(string.c_str(), "\n");
                 if (newLineAt > 0) {
@@ -67,8 +66,9 @@ SkEventTracer::Handle SkDebugfTracer::addTraceEvent(char phase,
     }
     bool open = (phase == TRACE_EVENT_PHASE_COMPLETE);
     if (open) {
-        SkDebugf(
-                "[% 2d]%s %s%s #%d {\n", fIndent.size(), fIndent.c_str(), name, args.c_str(), fCnt);
+        const char* category = this->getCategoryGroupName(categoryEnabledFlag);
+        SkDebugf("[% 2d]%s <%s> %s%s #%d {\n", fIndent.size(), fIndent.c_str(), category, name,
+                 args.c_str(), fCnt);
         fIndent.append(" ");
     } else {
         SkDebugf("%s%s #%d\n", name, args.c_str(), fCnt);
@@ -82,9 +82,4 @@ void SkDebugfTracer::updateTraceEventDuration(const uint8_t* categoryEnabledFlag
                                               SkEventTracer::Handle handle) {
     fIndent.resize(fIndent.size() - 1);
     SkDebugf("[% 2d]%s } %s\n", fIndent.size(), fIndent.c_str(), name);
-}
-
-const uint8_t* SkDebugfTracer::getCategoryGroupEnabled(const char* name) {
-    static uint8_t yes = SkEventTracer::kEnabledForRecording_CategoryGroupEnabledFlags;
-    return &yes;
 }

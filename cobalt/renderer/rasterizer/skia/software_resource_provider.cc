@@ -211,7 +211,7 @@ SoftwareResourceProvider::CreateTypefaceFromRawData(
 
   sk_sp<SkTypeface_Cobalt> typeface(
       base::polymorphic_downcast<SkTypeface_Cobalt*>(
-          SkTypeface::MakeFromStream(stream.release()).release()));
+          SkTypeface::MakeFromStream(std::move(stream)).release()));
   if (typeface) {
     return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
   } else {

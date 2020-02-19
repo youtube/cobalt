@@ -8,7 +8,8 @@
 #ifndef GrMtlTrampoline_DEFINED
 #define GrMtlTrampoline_DEFINED
 
-#include "GrTypes.h"
+#include "include/core/SkRefCnt.h"
+#include "include/gpu/GrTypes.h"
 
 class GrContext;
 class GrGpu;
@@ -20,10 +21,7 @@ struct GrContextOptions;
  */
 class GrMtlTrampoline {
 public:
-    static GrGpu* CreateGpu(GrContext* context,
-                            const GrContextOptions& options,
-                            void* device,
-                            void* queue);
+    static sk_sp<GrGpu> MakeGpu(GrContext*, const GrContextOptions&, void* device, void* queue);
 };
 
 #endif

@@ -8,11 +8,11 @@
 #ifndef SKSL_FIELD
 #define SKSL_FIELD
 
-#include "SkSLModifiers.h"
-#include "SkSLPosition.h"
-#include "SkSLSymbol.h"
-#include "SkSLType.h"
-#include "SkSLVariable.h"
+#include "src/sksl/SkSLPosition.h"
+#include "src/sksl/ir/SkSLModifiers.h"
+#include "src/sksl/ir/SkSLSymbol.h"
+#include "src/sksl/ir/SkSLType.h"
+#include "src/sksl/ir/SkSLVariable.h"
 
 namespace SkSL {
 
@@ -22,8 +22,8 @@ namespace SkSL {
  * result of declaring anonymous interface blocks.
  */
 struct Field : public Symbol {
-    Field(Position position, const Variable& owner, int fieldIndex)
-    : INHERITED(position, kField_Kind, owner.fType.fields()[fieldIndex].fName)
+    Field(int offset, const Variable& owner, int fieldIndex)
+    : INHERITED(offset, kField_Kind, owner.fType.fields()[fieldIndex].fName)
     , fOwner(owner)
     , fFieldIndex(fieldIndex) {}
 

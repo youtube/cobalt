@@ -5,9 +5,12 @@
  * found in the LICENSE file.
  */
 
-#include "SkDashPathPriv.h"
-#include "SkPathMeasure.h"
-#include "SkStrokeRec.h"
+#include "include/core/SkPathMeasure.h"
+#include "include/core/SkStrokeRec.h"
+#include "src/core/SkPointPriv.h"
+#include "src/utils/SkDashPathPriv.h"
+
+#include <utility>
 
 static inline int is_even(int x) {
     return !(x & 1);
@@ -82,66 +85,134 @@ static void outset_for_stroke(SkRect* rect, const SkStrokeRec& rec) {
     rect->outset(radius, radius);
 }
 
-// Only handles lines for now. If returns true, dstPath is the new (smaller)
-// path. If returns false, then dstPath parameter is ignored.
-static bool cull_path(const SkPath& srcPath, const SkStrokeRec& rec,
-                      const SkRect* cullRect, SkScalar intervalLength,
-                      SkPath* dstPath) {
-    if (nullptr == cullRect) {
+// If line is zero-length, bump out the end by a tiny amount
+// to draw endcaps. The bump factor is sized so that
+// SkPoint::Distance() computes a non-zero length.
+// Offsets SK_ScalarNearlyZero or smaller create empty paths when Iter measures length.
+// Large values are scaled by SK_ScalarNearlyZero so significant bits change.
+static void adjust_zero_length_line(SkPoint pts[2]) {
+    SkASSERT(pts[0] == pts[1]);
+    pts[1].fX += SkTMax(1.001f, pts[1].fX) * SK_ScalarNearlyZero;
+}
+
+static bool clip_line(SkPoint pts[2], const SkRect& bounds, SkScalar intervalLength,
+                      SkScalar priorPhase) {
+    SkVector dxy = pts[1] - pts[0];
+
+    // only horizontal or vertical lines
+    if (dxy.fX && dxy.fY) {
+        return false;
+    }
+    int xyOffset = SkToBool(dxy.fY);  // 0 to adjust horizontal, 1 to adjust vertical
+
+    SkScalar minXY = (&pts[0].fX)[xyOffset];
+    SkScalar maxXY = (&pts[1].fX)[xyOffset];
+    bool swapped = maxXY < minXY;
+    if (swapped) {
+        using std::swap;
+        swap(minXY, maxXY);
+    }
+
+    SkASSERT(minXY <= maxXY);
+    SkScalar leftTop = (&bounds.fLeft)[xyOffset];
+    SkScalar rightBottom = (&bounds.fRight)[xyOffset];
+    if (maxXY < leftTop || minXY > rightBottom) {
         return false;
     }
 
-    SkPoint pts[2];
-    if (!srcPath.isLine(pts)) {
-        return false;
-    }
-
-    SkRect bounds = *cullRect;
-    outset_for_stroke(&bounds, rec);
-
-    SkScalar dx = pts[1].x() - pts[0].x();
-    SkScalar dy = pts[1].y() - pts[0].y();
-
-    // just do horizontal lines for now (lazy)
-    if (dy) {
-        return false;
-    }
-
-    SkScalar minX = pts[0].fX;
-    SkScalar maxX = pts[1].fX;
-
-    if (dx < 0) {
-        SkTSwap(minX, maxX);
-    }
-
-    SkASSERT(minX <= maxX);
-    if (maxX < bounds.fLeft || minX > bounds.fRight) {
-        return false;
-    }
-
-    // Now we actually perform the chop, removing the excess to the left and
-    // right of the bounds (keeping our new line "in phase" with the dash,
+    // Now we actually perform the chop, removing the excess to the left/top and
+    // right/bottom of the bounds (keeping our new line "in phase" with the dash,
     // hence the (mod intervalLength).
 
-    if (minX < bounds.fLeft) {
-        minX = bounds.fLeft - SkScalarMod(bounds.fLeft - minX,
-                                          intervalLength);
+    if (minXY < leftTop) {
+        minXY = leftTop - SkScalarMod(leftTop - minXY, intervalLength);
+        if (!swapped) {
+            minXY -= priorPhase;  // for rectangles, adjust by prior phase
+        }
     }
-    if (maxX > bounds.fRight) {
-        maxX = bounds.fRight + SkScalarMod(maxX - bounds.fRight,
-                                           intervalLength);
+    if (maxXY > rightBottom) {
+        maxXY = rightBottom + SkScalarMod(maxXY - rightBottom, intervalLength);
+        if (swapped) {
+            maxXY += priorPhase;  // for rectangles, adjust by prior phase
+        }
     }
 
-    SkASSERT(maxX >= minX);
-    if (dx < 0) {
-        SkTSwap(minX, maxX);
+    SkASSERT(maxXY >= minXY);
+    if (swapped) {
+        using std::swap;
+        swap(minXY, maxXY);
     }
-    pts[0].fX = minX;
-    pts[1].fX = maxX;
+    (&pts[0].fX)[xyOffset] = minXY;
+    (&pts[1].fX)[xyOffset] = maxXY;
 
-    dstPath->moveTo(pts[0]);
-    dstPath->lineTo(pts[1]);
+    if (minXY == maxXY) {
+        adjust_zero_length_line(pts);
+    }
     return true;
+}
+
+// Handles only lines and rects.
+// If cull_path() returns true, dstPath is the new smaller path,
+// otherwise dstPath may have been changed but you should ignore it.
+static bool cull_path(const SkPath& srcPath, const SkStrokeRec& rec,
+                      const SkRect* cullRect, SkScalar intervalLength, SkPath* dstPath) {
+    if (!cullRect) {
+        SkPoint pts[2];
+        if (srcPath.isLine(pts) && pts[0] == pts[1]) {
+            adjust_zero_length_line(pts);
+            dstPath->moveTo(pts[0]);
+            dstPath->lineTo(pts[1]);
+            return true;
+        }
+        return false;
+    }
+
+    SkRect bounds;
+    bounds = *cullRect;
+    outset_for_stroke(&bounds, rec);
+
+    {
+        SkPoint pts[2];
+        if (srcPath.isLine(pts)) {
+            if (clip_line(pts, bounds, intervalLength, 0)) {
+                dstPath->moveTo(pts[0]);
+                dstPath->lineTo(pts[1]);
+                return true;
+            }
+            return false;
+        }
+    }
+
+    if (srcPath.isRect(nullptr)) {
+        // We'll break the rect into four lines, culling each separately.
+        SkPath::Iter iter(srcPath, false);
+
+        SkPoint pts[4];  // Rects are all moveTo and lineTo, so we'll only use pts[0] and pts[1].
+        SkAssertResult(SkPath::kMove_Verb == iter.next(pts));
+
+        SkScalar accum = 0;  // Sum of unculled edge lengths to keep the phase correct.
+        while (iter.next(pts) == SkPath::kLine_Verb) {
+            // Notice this vector v and accum work with the original unclipped length.
+            SkVector v = pts[1] - pts[0];
+
+            if (clip_line(pts, bounds, intervalLength, SkScalarMod(accum, intervalLength))) {
+                // pts[0] may have just been changed by clip_line().
+                // If that's not where we ended the previous lineTo(), we need to moveTo() there.
+                SkPoint last;
+                if (!dstPath->getLastPt(&last) || last != pts[0]) {
+                    dstPath->moveTo(pts[0]);
+                }
+                dstPath->lineTo(pts[1]);
+            }
+
+            // We either just traveled v.fX horizontally or v.fY vertically.
+            SkASSERT(v.fX == 0 || v.fY == 0);
+            accum += SkScalarAbs(v.fX + v.fY);
+        }
+        return !dstPath->isEmpty();
+    }
+
+    return false;
 }
 
 class SpecialLineRec {
@@ -166,7 +237,7 @@ public:
 
         fPathLength = pathLength;
         fTangent.scale(SkScalarInvert(pathLength));
-        fTangent.rotateCCW(&fNormal);
+        SkPointPriv::RotateCCW(fTangent, &fNormal);
         fNormal.scale(SkScalarHalf(rec->getWidth()));
 
         // now estimate how many quads will be added to the path
@@ -217,6 +288,8 @@ bool SkDashPath::InternalFilter(SkPath* dst, const SkPath& src, SkStrokeRec* rec
                                 int32_t count, SkScalar initialDashLength, int32_t initialDashIndex,
                                 SkScalar intervalLength,
                                 StrokeRecApplication strokeRecApplication) {
+    // we must always have an even number of intervals
+    SkASSERT(is_even(count));
 
     // we do nothing if the src wants to be filled
     SkStrokeRec::Style style = rec->getStyle();
@@ -231,6 +304,51 @@ bool SkDashPath::InternalFilter(SkPath* dst, const SkPath& src, SkStrokeRec* rec
     SkPath cullPathStorage;
     const SkPath* srcPtr = &src;
     if (cull_path(src, *rec, cullRect, intervalLength, &cullPathStorage)) {
+        // if rect is closed, starts in a dash, and ends in a dash, add the initial join
+        // potentially a better fix is described here: bug.skia.org/7445
+        if (src.isRect(nullptr) && src.isLastContourClosed() && is_even(initialDashIndex)) {
+            SkScalar pathLength = SkPathMeasure(src, false, rec->getResScale()).getLength();
+            SkScalar endPhase = SkScalarMod(pathLength + initialDashLength, intervalLength);
+            int index = 0;
+            while (endPhase > intervals[index]) {
+                endPhase -= intervals[index++];
+                SkASSERT(index <= count);
+                if (index == count) {
+                    // We have run out of intervals. endPhase "should" never get to this point,
+                    // but it could if the subtracts underflowed. Hence we will pin it as if it
+                    // perfectly ran through the intervals.
+                    // See crbug.com/875494 (and skbug.com/8274)
+                    endPhase = 0;
+                    break;
+                }
+            }
+            // if dash ends inside "on", or ends at beginning of "off"
+            if (is_even(index) == (endPhase > 0)) {
+                SkPoint midPoint = src.getPoint(0);
+                // get vector at end of rect
+                int last = src.countPoints() - 1;
+                while (midPoint == src.getPoint(last)) {
+                    --last;
+                    SkASSERT(last >= 0);
+                }
+                // get vector at start of rect
+                int next = 1;
+                while (midPoint == src.getPoint(next)) {
+                    ++next;
+                    SkASSERT(next < last);
+                }
+                SkVector v = midPoint - src.getPoint(last);
+                const SkScalar kTinyOffset = SK_ScalarNearlyZero;
+                // scale vector to make start of tiny right angle
+                v *= kTinyOffset;
+                cullPathStorage.moveTo(midPoint - v);
+                cullPathStorage.lineTo(midPoint);
+                v = midPoint - src.getPoint(next);
+                // scale vector to make end of tiny right angle
+                v *= kTinyOffset;
+                cullPathStorage.lineTo(midPoint - v);
+            }
+        }
         srcPtr = &cullPathStorage;
     }
 

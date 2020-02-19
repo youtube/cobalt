@@ -8,10 +8,10 @@
 #ifndef SkClipStackDevice_DEFINED
 #define SkClipStackDevice_DEFINED
 
-#include "SkClipStack.h"
-#include "SkDevice.h"
+#include "src/core/SkClipStack.h"
+#include "src/core/SkDevice.h"
 
-class SK_API SkClipStackDevice : public SkBaseDevice {
+class SkClipStackDevice : public SkBaseDevice {
 public:
     SkClipStackDevice(const SkImageInfo& info, const SkSurfaceProps& props)
         : SkBaseDevice(info, props)

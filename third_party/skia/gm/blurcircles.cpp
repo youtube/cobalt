@@ -5,12 +5,18 @@
 * found in the LICENSE file.
 */
 
-#include "gm.h"
-#include "SkBlurMask.h"
-#include "SkBlurMaskFilter.h"
-#include "SkCanvas.h"
-#include "SkPaint.h"
-#include "SkString.h"
+#include "gm/gm.h"
+#include "include/core/SkBlurTypes.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkColor.h"
+#include "include/core/SkMaskFilter.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkRefCnt.h"
+#include "include/core/SkScalar.h"
+#include "include/core/SkSize.h"
+#include "include/core/SkString.h"
+#include "include/core/SkTypes.h"
+#include "src/core/SkBlurMask.h"
 
 class BlurCirclesGM : public skiagm::GM {
 public:
@@ -31,10 +37,9 @@ protected:
         const float blurRadii[kNumBlurs] = { 1,5,10,20 };
 
         for (int i = 0; i < kNumBlurs; ++i) {
-            fBlurFilters[i] = SkBlurMaskFilter::Make(
+            fBlurFilters[i] = SkMaskFilter::MakeBlur(
                                     kNormal_SkBlurStyle,
-                                    SkBlurMask::ConvertRadiusToSigma(SkIntToScalar(blurRadii[i])),
-                                    SkBlurMaskFilter::kHighQuality_BlurFlag);
+                                    SkBlurMask::ConvertRadiusToSigma(SkIntToScalar(blurRadii[i])));
         }
     }
 

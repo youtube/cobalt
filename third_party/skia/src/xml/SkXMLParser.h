@@ -10,7 +10,7 @@
 #ifndef SkXMLParser_DEFINED
 #define SkXMLParser_DEFINED
 
-#include "SkString.h"
+#include "include/core/SkString.h"
 
 class SkStream;
 
@@ -53,7 +53,7 @@ private:
 
 class SkXMLParser {
 public:
-            SkXMLParser(SkXMLParserError* parserError = NULL);
+    SkXMLParser(SkXMLParserError* parserError = nullptr);
     virtual ~SkXMLParser();
 
     /** Returns true for success
