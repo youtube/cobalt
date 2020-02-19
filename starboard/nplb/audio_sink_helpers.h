@@ -31,8 +31,6 @@ namespace nplb {
 // type and storage type that is valid on this platform.
 class AudioSinkTestFrameBuffers {
  public:
-  static const int kFramesPerChannel = 4096;
-
   explicit AudioSinkTestFrameBuffers(int channels);
   AudioSinkTestFrameBuffers(int channels, SbMediaAudioSampleType sample_type);
   AudioSinkTestFrameBuffers(int channels,
@@ -48,7 +46,7 @@ class AudioSinkTestFrameBuffers {
   int bytes_per_frame() const {
     return sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated ? 2 : 4;
   }
-  static int frames_per_channel() { return kFramesPerChannel; }
+  int frames_per_channel() const { return frames_per_channel_; }
   void** frame_buffers() {
     return frame_buffers_.empty() ? NULL : &frame_buffers_[0];
   }
@@ -59,6 +57,7 @@ class AudioSinkTestFrameBuffers {
   int channels_;
   SbMediaAudioSampleType sample_type_;
   SbMediaAudioFrameStorageType storage_type_;
+  int frames_per_channel_;
   std::vector<uint8_t> frame_buffer_;
   std::vector<void*> frame_buffers_;
 };
