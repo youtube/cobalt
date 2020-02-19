@@ -17,7 +17,7 @@ The RoboCop has two primary jobs:
 
 1) Monitor and approve the semi-autonomous [git merges](https://googleplex-android-review.git.corp.google.com/#/q/owner:31977622648%2540project.gserviceaccount.com+status:open) from Skia's repository into the Android source tree. See autoroller documentation <a href="#autoroller_doc">here</a> for details on how to interact with it.
 
-2) Stay on top of incoming Android-related bugs in both the [Skia](https://bugs.chromium.org/p/skia/issues/list?can=2&q=OpSys%3DAndroid&sort=-id&colspec=ID+Type+Status+Priority+Owner+Summary&cells=tiles) and [Android](https://buganizer.corp.google.com/issues?q=componentid:1346%20status:open) bug trackers.  For Skia bugs, this means triaging and assigning all Android bugs that are currently unassigned.  For Android, this means following the [Android guidelines](go/android-buganizer) to verifying that all Skia bugs are TL-triaged (if not reach out to djsollen@).
+2) Stay on top of incoming Android-related bugs in both the [Skia](https://bugs.chromium.org/p/skia/issues/list?can=2&q=OpSys%3DAndroid&sort=-id&colspec=ID+Type+Status+Priority+Owner+Summary&cells=tiles) and [Android](https://buganizer.corp.google.com/issues?q=assignee:skia-android-triage%20status:open) bug trackers.  For Skia bugs, this means triaging and assigning all Android bugs that are currently unassigned.  For Android, this means following the [Android guidelines](go/android-buganizer) to verifying that all Skia bugs are TL-triaged (if not reach out to djsollen@).
 
 The RoboCop's job is NOT to address issues in Perf and Gold. You'll get your chance when you are the general Skia sheriff.
 
@@ -33,11 +33,13 @@ You can send the autoroller into dry run mode via the UI. The uploaded change wi
 
 You can also stop the autoroller via the UI. This is useful in cases where a failure needs to be investigated and you do not want to waste TH resources by running unnecessary tests.
 
+If the autoroller displays an error in the UI then look for more detail in it's [cloud logs](https://pantheon.corp.google.com/logs/viewer?project=google.com:skia-buildbots&resource=logging_log%2Fname%2Fandroid-master-autoroll&logName=projects%2Fgoogle.com:skia-buildbots%2Flogs%2Fautoroll).
+
 If you need any more information about the autoroller please look at [skia:5538](https://bugs.chromium.org/p/skia/issues/detail?id=5538) or ask rmistry@ / skiabot@.
 
 We also have autorollers into release branches (also restricted only to Googlers):
 
-* [https://android-o-roll.skia.org](https://android-o-roll.skia.org).
+* [https://android-o-roll.skia.org](https://android-o-roll.skia.org) ([cloud logs](https://pantheon.corp.google.com/logs/viewer?project=google.com:skia-buildbots&resource=logging_log%2Fname%2Fandroid-o-autoroll&logName=projects%2Fgoogle.com:skia-buildbots%2Flogs%2Fautoroll)).
 
 Changes created by these rollers need to be manually approved.<br/>
 The changes created by the release rollers:

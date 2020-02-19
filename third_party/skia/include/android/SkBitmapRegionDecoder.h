@@ -8,16 +8,16 @@
 #ifndef SkBitmapRegionDecoder_DEFINED
 #define SkBitmapRegionDecoder_DEFINED
 
-#include "SkBitmap.h"
-#include "SkBRDAllocator.h"
-#include "SkEncodedImageFormat.h"
-#include "SkStream.h"
+#include "include/android/SkBRDAllocator.h"
+#include "include/core/SkBitmap.h"
+#include "include/core/SkEncodedImageFormat.h"
+#include "include/core/SkStream.h"
 
 /*
  * This class aims to provide an interface to test multiple implementations of
  * SkBitmapRegionDecoder.
  */
-class SkBitmapRegionDecoder {
+class SK_API SkBitmapRegionDecoder {
 public:
 
     enum Strategy {
@@ -63,11 +63,6 @@ public:
                               const SkIRect& desiredSubset, int sampleSize,
                               SkColorType colorType, bool requireUnpremul,
                               sk_sp<SkColorSpace> prefColorSpace = nullptr) = 0;
-    /*
-     * @param  Requested destination color type
-     * @return true if we support the requested color type and false otherwise
-     */
-    virtual bool conversionSupported(SkColorType colorType) = 0;
 
     virtual SkEncodedImageFormat getEncodedFormat() = 0;
 

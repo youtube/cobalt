@@ -8,29 +8,37 @@
 #ifndef SkScalerContext_DEFINED
 #define SkScalerContext_DEFINED
 
-#include "SkGlyph.h"
-#include "SkMask.h"
-#include "SkMaskGamma.h"
-#include "SkMatrix.h"
-#include "SkPaint.h"
-#include "SkTypeface.h"
+#include <memory>
 
+#include "include/core/SkFont.h"
+#include "include/core/SkFontTypes.h"
+#include "include/core/SkMaskFilter.h"
+#include "include/core/SkMatrix.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkTypeface.h"
+#include "include/private/SkMacros.h"
+#include "src/core/SkGlyph.h"
+#include "src/core/SkMask.h"
+#include "src/core/SkMaskGamma.h"
+#include "src/core/SkStrikeForGPU.h"
+#include "src/core/SkSurfacePriv.h"
+#include "src/core/SkWriteBuffer.h"
+
+class SkAutoDescriptor;
 class SkDescriptor;
 class SkMaskFilter;
 class SkPathEffect;
-class SkRasterizer;
+class SkScalerContext;
+class SkScalerContext_DW;
 
-struct SkScalerContextEffects {
-    SkScalerContextEffects() : fPathEffect(nullptr), fMaskFilter(nullptr), fRasterizer(nullptr) {}
-    SkScalerContextEffects(SkPathEffect* pe, SkMaskFilter* mf, SkRasterizer* ra)
-        : fPathEffect(pe), fMaskFilter(mf), fRasterizer(ra) {}
-
-    SkPathEffect*   fPathEffect;
-    SkMaskFilter*   fMaskFilter;
-    SkRasterizer*   fRasterizer;
+enum SkScalerContextFlags : uint32_t {
+    kNone                      = 0,
+    kFakeGamma                 = 1 << 0,
+    kBoostContrast             = 1 << 1,
+    kFakeGammaAndBoostContrast = kFakeGamma | kBoostContrast,
 };
 
-enum SkAxisAlignment {
+enum SkAxisAlignment : uint32_t {
     kNone_SkAxisAlignment,
     kX_SkAxisAlignment,
     kY_SkAxisAlignment
@@ -39,19 +47,26 @@ enum SkAxisAlignment {
 /*
  *  To allow this to be forward-declared, it must be its own typename, rather
  *  than a nested struct inside SkScalerContext (where it started).
+ *
+ *  SkScalerContextRec must be dense, and all bytes must be set to a know quantity because this
+ *  structure is used to calculate a checksum.
  */
+SK_BEGIN_REQUIRE_DENSE
 struct SkScalerContextRec {
     uint32_t    fFontID;
     SkScalar    fTextSize, fPreScaleX, fPreSkewX;
     SkScalar    fPost2x2[2][2];
     SkScalar    fFrameWidth, fMiterLimit;
 
+private:
     //These describe the parameters to create (uniquely identify) the pre-blend.
-    uint32_t    fLumBits;
-    uint8_t     fDeviceGamma; //2.6, (0.0, 4.0) gamma, 0.0 for sRGB
-    uint8_t     fPaintGamma;  //2.6, (0.0, 4.0) gamma, 0.0 for sRGB
-    uint8_t     fContrast;    //0.8+1, [0.0, 1.0] artificial contrast
-    uint8_t     fReservedAlign;
+    uint32_t      fLumBits;
+    uint8_t       fDeviceGamma; //2.6, (0.0, 4.0) gamma, 0.0 for sRGB
+    uint8_t       fPaintGamma;  //2.6, (0.0, 4.0) gamma, 0.0 for sRGB
+    uint8_t       fContrast;    //0.8+1, [0.0, 1.0] artificial contrast
+    const uint8_t fReservedAlign{0};
+
+public:
 
     SkScalar getDeviceGamma() const {
         return SkIntToScalar(fDeviceGamma) / (1 << 6);
@@ -70,6 +85,7 @@ struct SkScalerContextRec {
     }
 
     SkScalar getContrast() const {
+        sk_ignore_unused_variable(fReservedAlign);
         return SkIntToScalar(fContrast) / ((1 << 8) - 1);
     }
     void setContrast(SkScalar c) {
@@ -97,13 +113,30 @@ struct SkScalerContextRec {
     }
 
     uint8_t     fMaskFormat;
+private:
     uint8_t     fStrokeJoin : 4;
     uint8_t     fStrokeCap : 4;
+
+public:
     uint16_t    fFlags;
+
     // Warning: when adding members note that the size of this structure
     // must be a multiple of 4. SkDescriptor requires that its arguments be
     // multiples of four and this structure is put in an SkDescriptor in
-    // SkPaint::MakeRec.
+    // SkPaint::MakeRecAndEffects.
+
+    SkString dump() const {
+        SkString msg;
+        msg.appendf("Rec\n");
+        msg.appendf("  textsize %g prescale %g preskew %g post [%g %g %g %g]\n",
+                   fTextSize, fPreScaleX, fPreSkewX, fPost2x2[0][0],
+                   fPost2x2[0][1], fPost2x2[1][0], fPost2x2[1][1]);
+        msg.appendf("  frame %g miter %g format %d join %d cap %d flags %#hx\n",
+                   fFrameWidth, fMiterLimit, fMaskFormat, fStrokeJoin, fStrokeCap, fFlags);
+        msg.appendf("  lum bits %x, device gamma %d, paint gamma %d contrast %d\n", fLumBits,
+                    fDeviceGamma, fPaintGamma, fContrast);
+        return msg;
+    }
 
     void    getMatrixFrom2x2(SkMatrix*) const;
     void    getLocalMatrix(SkMatrix*) const;
@@ -154,8 +187,10 @@ struct SkScalerContextRec {
                          SkMatrix* remainingRotation = nullptr,
                          SkMatrix* total = nullptr);
 
-    inline SkPaint::Hinting getHinting() const;
-    inline void setHinting(SkPaint::Hinting);
+    SkAxisAlignment computeAxisAlignmentForHText() const;
+
+    inline SkFontHinting getHinting() const;
+    inline void setHinting(SkFontHinting);
 
     SkMask::Format getFormat() const {
         return static_cast<SkMask::Format>(fMaskFormat);
@@ -165,9 +200,27 @@ struct SkScalerContextRec {
         return fLumBits;
     }
 
-    void setLuminanceColor(SkColor c) {
-        fLumBits = c;
-    }
+    // setLuminanceColor forces the alpha to be 0xFF because the blitter that draws the glyph
+    // will apply the alpha from the paint. Don't apply the alpha twice.
+    void setLuminanceColor(SkColor c);
+
+private:
+    // TODO: remove
+    friend class SkScalerContext;
+};
+SK_END_REQUIRE_DENSE
+
+// TODO: rename SkScalerContextEffects -> SkStrikeEffects
+struct SkScalerContextEffects {
+    SkScalerContextEffects() : fPathEffect(nullptr), fMaskFilter(nullptr) {}
+    SkScalerContextEffects(SkPathEffect* pe, SkMaskFilter* mf)
+            : fPathEffect(pe), fMaskFilter(mf) {}
+    explicit SkScalerContextEffects(const SkPaint& paint)
+            : fPathEffect(paint.getPathEffect())
+            , fMaskFilter(paint.getMaskFilter()) {}
+
+    SkPathEffect*   fPathEffect;
+    SkMaskFilter*   fMaskFilter;
 };
 
 //The following typedef hides from the rest of the implementation the number of
@@ -179,16 +232,13 @@ typedef SkTMaskGamma<3, 3, 3> SkMaskGamma;
 
 class SkScalerContext {
 public:
-    typedef SkScalerContextRec Rec;
-
     enum Flags {
         kFrameAndFill_Flag        = 0x0001,
-        kDevKernText_Flag         = 0x0002,
+        kUnused                   = 0x0002,
         kEmbeddedBitmapText_Flag  = 0x0004,
         kEmbolden_Flag            = 0x0008,
         kSubpixelPositioning_Flag = 0x0010,
         kForceAutohinting_Flag    = 0x0020,  // Use auto instead of bytcode hinting if hinting.
-        kVertical_Flag            = 0x0040,
 
         // together, these two flags resulting in a two bit value which matches
         // up with the SkPaint::Hinting enum.
@@ -204,6 +254,8 @@ public:
         // Generate A8 from LCD source (for GDI and CoreGraphics).
         // only meaningful if fMaskFormat is kA8
         kGenA8FromLCD_Flag        = 0x0800, // could be 0x200 (bit meaning dependent on fMaskFormat)
+        kLinearMetrics_Flag       = 0x1000,
+        kBaselineSnap_Flag        = 0x2000,
     };
 
     // computed values
@@ -224,32 +276,19 @@ public:
         return SkToBool(fRec.fFlags & kSubpixelPositioning_Flag);
     }
 
-    bool isVertical() const {
-        return SkToBool(fRec.fFlags & kVertical_Flag);
+    bool isLinearMetrics() const {
+        return SkToBool(fRec.fFlags & kLinearMetrics_Flag);
     }
 
-    /** Return the corresponding glyph for the specified unichar. Since contexts
-        may be chained (under the hood), the glyphID that is returned may in
-        fact correspond to a different font/context. In that case, we use the
-        base-glyph-count to know how to translate back into local glyph space.
-     */
-    uint16_t charToGlyphID(SkUnichar uni) {
-        return generateCharToGlyph(uni);
-    }
-
-    /** Map the glyphID to its glyph index, and then to its char code. Unmapped
-        glyphs return zero.
-    */
-    SkUnichar glyphIDToChar(uint16_t glyphID) {
-        return (glyphID < getGlyphCount()) ? generateGlyphToChar(glyphID) : 0;
-    }
+    // DEPRECATED
+    bool isVertical() const { return false; }
 
     unsigned    getGlyphCount() { return this->generateGlyphCount(); }
     void        getAdvance(SkGlyph*);
     void        getMetrics(SkGlyph*);
     void        getImage(const SkGlyph&);
-    void        getPath(SkPackedGlyphID, SkPath*);
-    void        getFontMetrics(SkPaint::FontMetrics*);
+    bool SK_WARN_UNUSED_RESULT getPath(SkPackedGlyphID, SkPath*);
+    void        getFontMetrics(SkFontMetrics*);
 
     /** Return the size in bytes of the associated gamma lookup table
      */
@@ -257,36 +296,74 @@ public:
                                   int* width, int* height);
 
     /** Get the associated gamma lookup table. The 'data' pointer must point to pre-allocated
-        memory, with size in bytes greater than or equal to the return value of getGammaLUTSize().
+     *  memory, with size in bytes greater than or equal to the return value of getGammaLUTSize().
+     *
+     *  If the lookup table hasn't been initialized (e.g., it's linear), this will return false.
      */
-    static void   GetGammaLUTData(SkScalar contrast, SkScalar paintGamma, SkScalar deviceGamma,
-                                  void* data);
+    static bool   GetGammaLUTData(SkScalar contrast, SkScalar paintGamma, SkScalar deviceGamma,
+                                  uint8_t* data);
 
-    static void MakeRec(const SkPaint&, const SkSurfaceProps* surfaceProps,
-                        const SkMatrix*, Rec* rec);
-    static inline void PostMakeRec(const SkPaint&, Rec*);
+    static void MakeRecAndEffects(const SkFont& font, const SkPaint& paint,
+                                  const SkSurfaceProps& surfaceProps,
+                                  SkScalerContextFlags scalerContextFlags,
+                                  const SkMatrix& deviceMatrix,
+                                  SkScalerContextRec* rec,
+                                  SkScalerContextEffects* effects);
 
-    static SkMaskGamma::PreBlend GetMaskPreBlend(const Rec& rec);
+    // If we are creating rec and effects from a font only, then there is no device around either.
+    static void MakeRecAndEffectsFromFont(const SkFont& font,
+                                          SkScalerContextRec* rec,
+                                          SkScalerContextEffects* effects) {
+        SkPaint paint;
+        return MakeRecAndEffects(
+                font, paint, SkSurfaceProps(SkSurfaceProps::kLegacyFontHost_InitType),
+                SkScalerContextFlags::kNone, SkMatrix::I(), rec, effects);
+    }
 
-    const Rec& getRec() const { return fRec; }
+    static SkDescriptor*  MakeDescriptorForPaths(SkFontID fontID,
+                                                 SkAutoDescriptor* ad);
+
+    static SkDescriptor* AutoDescriptorGivenRecAndEffects(
+        const SkScalerContextRec& rec,
+        const SkScalerContextEffects& effects,
+        SkAutoDescriptor* ad);
+
+    static std::unique_ptr<SkDescriptor> DescriptorGivenRecAndEffects(
+        const SkScalerContextRec& rec,
+        const SkScalerContextEffects& effects);
+
+    static void DescriptorBufferGiveRec(const SkScalerContextRec& rec, void* buffer);
+    static bool CheckBufferSizeForRec(const SkScalerContextRec& rec,
+                                      const SkScalerContextEffects& effects,
+                                      size_t size);
+
+    static SkMaskGamma::PreBlend GetMaskPreBlend(const SkScalerContextRec& rec);
+
+    const SkScalerContextRec& getRec() const { return fRec; }
 
     SkScalerContextEffects getEffects() const {
-        return { fPathEffect.get(), fMaskFilter.get(), fRasterizer.get() };
+        return { fPathEffect.get(), fMaskFilter.get() };
     }
 
     /**
     *  Return the axis (if any) that the baseline for horizontal text should land on.
     *  As an example, the identity matrix will return kX_SkAxisAlignment
     */
-    SkAxisAlignment computeAxisAlignmentForHText();
+    SkAxisAlignment computeAxisAlignmentForHText() const;
+
+    static SkDescriptor* CreateDescriptorAndEffectsUsingPaint(
+        const SkFont&, const SkPaint&, const SkSurfaceProps&,
+        SkScalerContextFlags scalerContextFlags,
+        const SkMatrix& deviceMatrix, SkAutoDescriptor* ad,
+        SkScalerContextEffects* effects);
 
 protected:
-    Rec         fRec;
+    SkScalerContextRec fRec;
 
-    /** Generates the contents of glyph.fAdvanceX and glyph.fAdvanceY.
-     *  May call getMetrics if that would be just as fast.
+    /** Generates the contents of glyph.fAdvanceX and glyph.fAdvanceY if it can do so quickly.
+     *  Returns true if it could, false otherwise.
      */
-    virtual void generateAdvance(SkGlyph* glyph) = 0;
+    virtual bool generateAdvance(SkGlyph* glyph) = 0;
 
     /** Generates the contents of glyph.fWidth, fHeight, fTop, fLeft,
      *  as well as fAdvanceX and fAdvanceY if not already set.
@@ -297,43 +374,36 @@ protected:
 
     /** Generates the contents of glyph.fImage.
      *  When called, glyph.fImage will be pointing to a pre-allocated,
-     *  uninitialized region of memory of size glyph.computeImageSize().
+     *  uninitialized region of memory of size glyph.imageSize().
      *  This method may change glyph.fMaskFormat if the new image size is
      *  less than or equal to the old image size.
      *
-     *  Because glyph.computeImageSize() will determine the size of fImage,
+     *  Because glyph.imageSize() will determine the size of fImage,
      *  generateMetrics will be called before generateImage.
      */
     virtual void generateImage(const SkGlyph& glyph) = 0;
 
     /** Sets the passed path to the glyph outline.
      *  If this cannot be done the path is set to empty;
-     *  this is indistinguishable from a glyph with an empty path.
+     *  @return false if this glyph does not have any path.
      */
-    virtual void generatePath(SkGlyphID glyphId, SkPath* path) = 0;
+    virtual bool SK_WARN_UNUSED_RESULT generatePath(SkGlyphID glyphId, SkPath* path) = 0;
 
     /** Retrieves font metrics. */
-    virtual void generateFontMetrics(SkPaint::FontMetrics*) = 0;
+    virtual void generateFontMetrics(SkFontMetrics*) = 0;
 
     /** Returns the number of glyphs in the font. */
     virtual unsigned generateGlyphCount() = 0;
-
-    /** Returns the glyph id for the given unichar.
-     *  If there is no 1:1 mapping from the unichar to a glyph id, returns 0.
-     */
-    virtual uint16_t generateCharToGlyph(SkUnichar unichar) = 0;
-
-    /** Returns the unichar for the given glyph id.
-     *  If there is no 1:1 mapping from the glyph id to a unichar, returns 0.
-     *  The default implementation always returns 0, indicating failure.
-     */
-    virtual SkUnichar generateGlyphToChar(uint16_t glyphId);
 
     void forceGenerateImageFromPath() { fGenerateImageFromPath = true; }
     void forceOffGenerateImageFromPath() { fGenerateImageFromPath = false; }
 
 private:
-    friend class SkRandomScalerContext; // For debug purposes
+    friend class RandomScalerContext;  // For debug purposes
+
+    static SkScalerContextRec PreprocessRec(const SkTypeface& typeface,
+                                            const SkScalerContextEffects& effects,
+                                            const SkDescriptor& desc);
 
     // never null
     sk_sp<SkTypeface> fTypeface;
@@ -341,41 +411,34 @@ private:
     // optional objects, which may be null
     sk_sp<SkPathEffect> fPathEffect;
     sk_sp<SkMaskFilter> fMaskFilter;
-    sk_sp<SkRasterizer> fRasterizer;
 
     // if this is set, we draw the image from a path, rather than
     // calling generateImage.
     bool fGenerateImageFromPath;
 
-    void internalGetPath(SkPackedGlyphID id, SkPath* fillPath,
-                         SkPath* devPath, SkMatrix* fillToDevMatrix);
+    /** Returns false if the glyph has no path at all. */
+    bool internalGetPath(SkPackedGlyphID id, SkPath* devPath);
 
     // SkMaskGamma::PreBlend converts linear masks to gamma correcting masks.
 protected:
     // Visible to subclasses so that generateImage can apply the pre-blend directly.
     const SkMaskGamma::PreBlend fPreBlend;
-private:
-    // When there is a filter, previous steps must create a linear mask
-    // and the pre-blend applied as a final step.
-    const SkMaskGamma::PreBlend fPreBlendForFilter;
 };
 
 #define kRec_SkDescriptorTag            SkSetFourByteTag('s', 'r', 'e', 'c')
-#define kPathEffect_SkDescriptorTag     SkSetFourByteTag('p', 't', 'h', 'e')
-#define kMaskFilter_SkDescriptorTag     SkSetFourByteTag('m', 's', 'k', 'f')
-#define kRasterizer_SkDescriptorTag     SkSetFourByteTag('r', 'a', 's', 't')
+#define kEffects_SkDescriptorTag        SkSetFourByteTag('e', 'f', 'c', 't')
 
 ///////////////////////////////////////////////////////////////////////////////
 
-SkPaint::Hinting SkScalerContextRec::getHinting() const {
+SkFontHinting SkScalerContextRec::getHinting() const {
     unsigned hint = (fFlags & SkScalerContext::kHinting_Mask) >>
                                             SkScalerContext::kHinting_Shift;
-    return static_cast<SkPaint::Hinting>(hint);
+    return static_cast<SkFontHinting>(hint);
 }
 
-void SkScalerContextRec::setHinting(SkPaint::Hinting hinting) {
+void SkScalerContextRec::setHinting(SkFontHinting hinting) {
     fFlags = (fFlags & ~SkScalerContext::kHinting_Mask) |
-                                (hinting << SkScalerContext::kHinting_Shift);
+                        (static_cast<unsigned>(hinting) << SkScalerContext::kHinting_Shift);
 }
 
 

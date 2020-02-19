@@ -5,14 +5,14 @@
  * found in the LICENSE file.
  */
 
-#include "../private/SkLeanWindows.h"
-#include "../private/SkSemaphore.h"
+#include "include/private/SkSemaphore.h"
+#include "src/core/SkLeanWindows.h"
 
 #if defined(STARBOARD)
-#include "starboard/common/semaphore.h"
+    #include "starboard/common/semaphore.h"
 
-    struct SkBaseSemaphore::OSSemaphore {
-      starboard::Semaphore fSemaphore;
+    struct SkSemaphore::OSSemaphore {
+        starboard::Semaphore fSemaphore;
 
         OSSemaphore(): fSemaphore(0/*initial count*/)  {}
 
@@ -20,20 +20,19 @@
         void wait() { fSemaphore.Take(); }
     };
 #elif defined(SK_BUILD_FOR_MAC) || defined(SK_BUILD_FOR_IOS)
-    #include <mach/mach.h>
-    struct SkBaseSemaphore::OSSemaphore {
-        semaphore_t fSemaphore;
+    #include <dispatch/dispatch.h>
 
-        OSSemaphore()  {
-            semaphore_create(mach_task_self(), &fSemaphore, SYNC_POLICY_LIFO, 0/*initial count*/);
-        }
-        ~OSSemaphore() { semaphore_destroy(mach_task_self(), fSemaphore); }
+    struct SkSemaphore::OSSemaphore {
+        dispatch_semaphore_t fSemaphore;
 
-        void signal(int n) { while (n --> 0) { semaphore_signal(fSemaphore); } }
-        void wait() { semaphore_wait(fSemaphore); }
+        OSSemaphore()  { fSemaphore = dispatch_semaphore_create(0/*initial count*/); }
+        ~OSSemaphore() { dispatch_release(fSemaphore); }
+
+        void signal(int n) { while (n --> 0) { dispatch_semaphore_signal(fSemaphore); } }
+        void wait() { dispatch_semaphore_wait(fSemaphore, DISPATCH_TIME_FOREVER); }
     };
-#elif defined(SK_BUILD_FOR_WIN32)
-    struct SkBaseSemaphore::OSSemaphore {
+#elif defined(SK_BUILD_FOR_WIN)
+    struct SkSemaphore::OSSemaphore {
         HANDLE fSemaphore;
 
         OSSemaphore()  {
@@ -53,7 +52,7 @@
     // It's important we test for Mach before this.  This code will compile but not work there.
     #include <errno.h>
     #include <semaphore.h>
-    struct SkBaseSemaphore::OSSemaphore {
+    struct SkSemaphore::OSSemaphore {
         sem_t fSemaphore;
 
         OSSemaphore()  { sem_init(&fSemaphore, 0/*cross process?*/, 0/*initial count*/); }
@@ -69,21 +68,21 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 
-void SkBaseSemaphore::osSignal(int n) {
+SkSemaphore::~SkSemaphore() {
+    delete fOSSemaphore;
+}
+
+void SkSemaphore::osSignal(int n) {
     fOSSemaphoreOnce([this] { fOSSemaphore = new OSSemaphore; });
     fOSSemaphore->signal(n);
 }
 
-void SkBaseSemaphore::osWait() {
+void SkSemaphore::osWait() {
     fOSSemaphoreOnce([this] { fOSSemaphore = new OSSemaphore; });
     fOSSemaphore->wait();
 }
 
-void SkBaseSemaphore::cleanup() {
-    delete fOSSemaphore;
-}
-
-bool SkBaseSemaphore::try_wait() {
+bool SkSemaphore::try_wait() {
     int count = fCount.load(std::memory_order_relaxed);
     if (count > 0) {
         return fCount.compare_exchange_weak(count, count-1, std::memory_order_acquire);

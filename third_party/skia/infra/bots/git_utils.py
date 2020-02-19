@@ -47,13 +47,14 @@ class GitBranch(object):
   created temporary branch upon exit.
   """
   def __init__(self, branch_name, commit_msg, upload=True, commit_queue=False,
-               delete_when_finished=True):
+               delete_when_finished=True, cc_list=None):
     self._branch_name = branch_name
     self._commit_msg = commit_msg
     self._upload = upload
     self._commit_queue = commit_queue
     self._patch_set = 0
     self._delete_when_finished = delete_when_finished
+    self._cc_list = cc_list
 
   def __enter__(self):
     subprocess.check_call(['git', 'reset', '--hard', 'HEAD'])
@@ -76,6 +77,8 @@ class GitBranch(object):
       upload_cmd.append('--use-commit-queue')
       # Need the --send-mail flag to publish the CL and remove WIP bit.
       upload_cmd.append('--send-mail')
+    if self._cc_list:
+      upload_cmd.extend(['--cc=%s' % ','.join(self._cc_list)])
     subprocess.check_call(upload_cmd)
     output = subprocess.check_output(['git', 'cl', 'issue']).rstrip()
     return re.match('^Issue number: (?P<issue>\d+) \((?P<issue_url>.+)\)$',
@@ -96,7 +99,7 @@ class GitBranch(object):
 class NewGitCheckout(utils.tmp_dir):
   """Creates a new local checkout of a Git repository."""
 
-  def __init__(self, repository, commit='HEAD'):
+  def __init__(self, repository, local=None):
     """Set parameters for this local copy of a Git repository.
 
     Because this is a new checkout, rather than a reference to an existing
@@ -113,12 +116,14 @@ class NewGitCheckout(utils.tmp_dir):
       repository: URL of the remote repository (e.g.,
           'https://skia.googlesource.com/common') or path to a local repository
           (e.g., '/path/to/repo/.git') to check out a copy of
-      commit: commit hash, branch, or tag within refspec, indicating what point
-          to update the local checkout to
+      local: optional path to an existing copy of the remote repo on local disk.
+          If provided, the initial clone is performed with the local copy as the
+          upstream, then the upstream is switched to the remote repo and the
+          new copy is updated from there.
     """
     super(NewGitCheckout, self).__init__()
     self._repository = repository
-    self._commit = commit
+    self._local = local
 
   @property
   def root(self):
@@ -131,5 +136,14 @@ class NewGitCheckout(utils.tmp_dir):
     Uses the parameters that were passed into the constructor.
     """
     super(NewGitCheckout, self).__enter__()
-    subprocess.check_output(args=['git', 'clone', self._repository, self.root])
+    remote = self._repository
+    if self._local:
+      remote = self._local
+    subprocess.check_output(args=['git', 'clone', remote, self.root])
+    if self._local:
+      subprocess.check_call([
+          'git', 'remote', 'set-url', 'origin', self._repository])
+      subprocess.check_call(['git', 'remote', 'update'])
+      subprocess.check_call(['git', 'checkout', 'master'])
+      subprocess.check_call(['git', 'reset', '--hard', 'origin/master'])
     return self

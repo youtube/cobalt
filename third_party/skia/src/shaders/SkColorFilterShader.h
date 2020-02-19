@@ -8,8 +8,8 @@
 #ifndef SkColorFilterShader_DEFINED
 #define SkColorFilterShader_DEFINED
 
-#include "SkColorFilter.h"
-#include "SkShaderBase.h"
+#include "include/core/SkColorFilter.h"
+#include "src/shaders/SkShaderBase.h"
 
 class SkArenaAlloc;
 
@@ -18,20 +18,16 @@ public:
     SkColorFilterShader(sk_sp<SkShader> shader, sk_sp<SkColorFilter> filter);
 
 #if SK_SUPPORT_GPU
-    sk_sp<GrFragmentProcessor> asFragmentProcessor(const AsFPArgs&) const override;
+    std::unique_ptr<GrFragmentProcessor> asFragmentProcessor(const GrFPArgs&) const override;
 #endif
-
-    SK_TO_STRING_OVERRIDE()
-    SK_DECLARE_PUBLIC_FLATTENABLE_DESERIALIZATION_PROCS(SkColorFilterShader)
 
 protected:
     void flatten(SkWriteBuffer&) const override;
-    sk_sp<SkShader> onMakeColorSpace(SkColorSpaceXformer* xformer) const override;
-    bool onAppendStages(SkRasterPipeline*, SkColorSpace* dstCS, SkArenaAlloc*,
-                        const SkMatrix&, const SkPaint&, const SkMatrix* localM) const override;
-    bool onIsRasterPipelineOnly() const override { return true; }
+    bool onAppendStages(const SkStageRec&) const override;
 
 private:
+    SK_FLATTENABLE_HOOKS(SkColorFilterShader)
+
     sk_sp<SkShader>      fShader;
     sk_sp<SkColorFilter> fFilter;
 

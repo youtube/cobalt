@@ -8,10 +8,10 @@
 #ifndef SkPathEffect_DEFINED
 #define SkPathEffect_DEFINED
 
-#include "SkFlattenable.h"
-#include "SkPath.h"
-#include "SkPoint.h"
-#include "SkRect.h"
+#include "include/core/SkFlattenable.h"
+#include "include/core/SkPath.h"
+#include "include/core/SkPoint.h"
+#include "include/core/SkRect.h"
 
 class SkPath;
 class SkStrokeRec;
@@ -58,14 +58,13 @@ public:
      *  If this method returns true, the caller will apply (as needed) the
      *  resulting stroke-rec to dst and then draw.
      */
-    virtual bool filterPath(SkPath* dst, const SkPath& src,
-                            SkStrokeRec*, const SkRect* cullR) const = 0;
+    bool filterPath(SkPath* dst, const SkPath& src, SkStrokeRec*, const SkRect* cullR) const;
 
     /**
      *  Compute a conservative bounds for its effect, given the src bounds.
      *  The baseline implementation just assigns src to dst.
      */
-    virtual void computeFastBounds(SkRect* dst, const SkRect& src) const;
+    void computeFastBounds(SkRect* dst, const SkRect& src) const;
 
     /** \class PointData
 
@@ -76,7 +75,7 @@ public:
     public:
         PointData()
             : fFlags(0)
-            , fPoints(NULL)
+            , fPoints(nullptr)
             , fNumPoints(0) {
             fSize.set(SK_Scalar1, SK_Scalar1);
             // 'asPoints' needs to initialize/fill-in 'fClipRect' if it sets
@@ -112,7 +111,7 @@ public:
      *  Does applying this path effect to 'src' yield a set of points? If so,
      *  optionally return the points in 'results'.
      */
-    virtual bool asPoints(PointData* results, const SkPath& src,
+    bool asPoints(PointData* results, const SkPath& src,
                           const SkStrokeRec&, const SkMatrix&,
                           const SkRect* cullR) const;
 
@@ -132,7 +131,7 @@ public:
     };
 
     struct DashInfo {
-        DashInfo() : fIntervals(NULL), fCount(0), fPhase(0) {}
+        DashInfo() : fIntervals(nullptr), fCount(0), fPhase(0) {}
         DashInfo(SkScalar* intervals, int32_t count, SkScalar phase)
             : fIntervals(intervals), fCount(count), fPhase(phase) {}
 
@@ -143,20 +142,39 @@ public:
                                         //   mod the sum of all intervals
     };
 
-    virtual DashType asADash(DashInfo* info) const;
+    DashType asADash(DashInfo* info) const;
 
-    SK_TO_STRING_PUREVIRT()
-    SK_DEFINE_FLATTENABLE_TYPE(SkPathEffect)
+    static void RegisterFlattenables();
 
-#ifdef SK_BUILD_FOR_ANDROID_FRAMEWORK
-    /// Override for subclasses as appropriate.
-    virtual bool exposedInAndroidJavaAPI() const { return false; }
-#endif
+    static SkFlattenable::Type GetFlattenableType() {
+        return kSkPathEffect_Type;
+    }
 
-    SK_DECLARE_FLATTENABLE_REGISTRAR_GROUP()
+    SkFlattenable::Type getFlattenableType() const override {
+        return kSkPathEffect_Type;
+    }
+
+    static sk_sp<SkPathEffect> Deserialize(const void* data, size_t size,
+                                          const SkDeserialProcs* procs = nullptr) {
+        return sk_sp<SkPathEffect>(static_cast<SkPathEffect*>(
+                                  SkFlattenable::Deserialize(
+                                  kSkPathEffect_Type, data, size, procs).release()));
+    }
 
 protected:
     SkPathEffect() {}
+
+    virtual bool onFilterPath(SkPath*, const SkPath&, SkStrokeRec*, const SkRect*) const = 0;
+    virtual SkRect onComputeFastBounds(const SkRect& src) const {
+        return src;
+    }
+    virtual bool onAsPoints(PointData*, const SkPath&, const SkStrokeRec&, const SkMatrix&,
+                            const SkRect*) const {
+        return false;
+    }
+    virtual DashType onAsADash(DashInfo*) const {
+        return kNone_DashType;
+    }
 
 private:
     // illegal

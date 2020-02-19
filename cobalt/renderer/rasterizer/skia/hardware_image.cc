@@ -216,18 +216,22 @@ class HardwareFrontendImage::HardwareBackendImage {
     }
 
     if (texture_->GetTarget() == GL_TEXTURE_2D) {
+      GLenum internal_format =
+          ConvertBaseGLFormatToSizedInternalFormat(texture_->GetFormat());
       GrGLTextureInfo texture_info = {texture_->GetTarget(),
-                                      texture_->gl_handle()};
-      GrPixelConfig pixel_config = ConvertGLFormatToGr(texture_->GetFormat());
+                                      texture_->gl_handle(), internal_format};
       const math::Size& texture_size = texture_->GetSize();
       gr_texture_.reset(new GrBackendTexture(texture_size.width(),
                                              texture_size.height(),
-                                             pixel_config, texture_info));
+                                             GrMipMapped::kNo, texture_info));
 
       DCHECK(gr_texture_);
 
+      GrColorType gr_color_type =
+          ConvertGLFormatToGrColorType(texture_->GetFormat());
+      SkColorType sk_color_type = GrColorTypeToSkColorType(gr_color_type);
       image_ = SkImage::MakeFromTexture(gr_context, *gr_texture_,
-                                        kTopLeft_GrSurfaceOrigin,
+                                        kTopLeft_GrSurfaceOrigin, sk_color_type,
                                         kPremul_SkAlphaType, nullptr);
     }
   }

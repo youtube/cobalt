@@ -8,23 +8,28 @@
 #ifndef GrMockBuffer_DEFINED
 #define GrMockBuffer_DEFINED
 
-#include "GrBuffer.h"
-#include "GrMockGpu.h"
+#include "src/gpu/GrCaps.h"
+#include "src/gpu/GrGpuBuffer.h"
+#include "src/gpu/mock/GrMockGpu.h"
 
-class GrMockBuffer : public GrBuffer {
+class GrMockBuffer : public GrGpuBuffer {
 public:
-    GrMockBuffer(GrMockGpu* gpu, size_t sizeInBytes, GrBufferType type,
+    GrMockBuffer(GrMockGpu* gpu, size_t sizeInBytes, GrGpuBufferType type,
                  GrAccessPattern accessPattern)
             : INHERITED(gpu, sizeInBytes, type, accessPattern) {
         this->registerWithCache(SkBudgeted::kYes);
     }
 
 private:
-    void onMap() override {}
-    void onUnmap() override {}
+    void onMap() override {
+        if (GrCaps::kNone_MapFlags != this->getGpu()->caps()->mapBufferFlags()) {
+            fMapPtr = sk_malloc_throw(this->size());
+        }
+    }
+    void onUnmap() override { sk_free(fMapPtr); }
     bool onUpdateData(const void* src, size_t srcSizeInBytes) override { return true; }
 
-    typedef GrBuffer INHERITED;
+    typedef GrGpuBuffer INHERITED;
 };
 
 #endif

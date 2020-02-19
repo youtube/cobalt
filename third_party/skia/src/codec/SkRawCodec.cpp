@@ -5,21 +5,22 @@
  * found in the LICENSE file.
  */
 
-#include "SkCodec.h"
-#include "SkCodecPriv.h"
-#include "SkColorPriv.h"
-#include "SkData.h"
-#include "SkJpegCodec.h"
-#include "SkMutex.h"
-#include "SkRawCodec.h"
-#include "SkRefCnt.h"
-#include "SkStream.h"
-#include "SkStreamPriv.h"
-#include "SkSwizzler.h"
-#include "SkTArray.h"
-#include "SkTaskGroup.h"
-#include "SkTemplates.h"
-#include "SkTypes.h"
+#include "include/codec/SkCodec.h"
+#include "include/core/SkData.h"
+#include "include/core/SkRefCnt.h"
+#include "include/core/SkStream.h"
+#include "include/core/SkTypes.h"
+#include "include/private/SkColorData.h"
+#include "include/private/SkMutex.h"
+#include "include/private/SkTArray.h"
+#include "include/private/SkTemplates.h"
+#include "src/codec/SkCodecPriv.h"
+#include "src/codec/SkJpegCodec.h"
+#include "src/codec/SkRawCodec.h"
+#include "src/core/SkColorSpacePriv.h"
+#include "src/core/SkMakeUnique.h"
+#include "src/core/SkStreamPriv.h"
+#include "src/core/SkTaskGroup.h"
 
 #include "dng_area_task.h"
 #include "dng_color_space.h"
@@ -96,16 +97,12 @@ public:
     explicit SkDngHost(dng_memory_allocator* allocater) : dng_host(allocater) {}
 
     void PerformAreaTask(dng_area_task& task, const dng_rect& area) override {
-        // The area task gets split up into max_tasks sub-tasks. The max_tasks is defined by the
-        // dng-sdks default implementation of dng_area_task::MaxThreads() which returns 8 or 32
-        // sub-tasks depending on the architecture.
-        const int maxTasks = static_cast<int>(task.MaxThreads());
-
         SkTaskGroup taskGroup;
 
         // tileSize is typically 256x256
         const dng_point tileSize(task.FindTileSize(area));
-        const std::vector<dng_rect> taskAreas = compute_task_areas(maxTasks, area, tileSize);
+        const std::vector<dng_rect> taskAreas = compute_task_areas(this->PerformAreaTaskThreads(),
+                                                                   area, tileSize);
         const int numTasks = static_cast<int>(taskAreas.size());
 
         SkMutex mutex;
@@ -116,10 +113,10 @@ public:
                 try {
                     task.ProcessOnThread(taskIndex, taskAreas[taskIndex], tileSize, this->Sniffer());
                 } catch (dng_exception& exception) {
-                    SkAutoMutexAcquire lock(mutex);
+                    SkAutoMutexExclusive lock(mutex);
                     exceptions.push_back(exception);
                 } catch (...) {
-                    SkAutoMutexAcquire lock(mutex);
+                    SkAutoMutexExclusive lock(mutex);
                     exceptions.push_back(dng_exception(dng_error_unknown));
                 }
             });
@@ -128,15 +125,23 @@ public:
         taskGroup.wait();
         task.Finish(numTasks);
 
-        // Currently we only re-throw the first catched exception.
+        // We only re-throw the first exception.
         if (!exceptions.empty()) {
             Throw_dng_error(exceptions.front().ErrorCode(), nullptr, nullptr);
         }
     }
 
     uint32 PerformAreaTaskThreads() override {
-        // FIXME: Need to get the real amount of available threads used in the SkTaskGroup.
+#ifdef SK_BUILD_FOR_ANDROID
+        // Only use 1 thread. DNGs with the warp effect require a lot of memory,
+        // and the amount of memory required scales linearly with the number of
+        // threads. The sample used in CTS requires over 500 MB, so even two
+        // threads is significantly expensive. There is no good way to tell
+        // whether the image has the warp effect.
+        return 1;
+#else
         return kMaxMPThreads;
+#endif
     }
 
 private:
@@ -158,21 +163,6 @@ bool safe_add_to_size_t(T arg1, T arg2, size_t* result) {
     return false;
 }
 
-class SkDngMemoryAllocator : public dng_memory_allocator {
-public:
-    ~SkDngMemoryAllocator() override {}
-
-    dng_memory_block* Allocate(uint32 size) override {
-        // To avoid arbitary allocation requests which might lead to out-of-memory, limit the
-        // amount of memory that can be allocated at once. The memory limit is based on experiments
-        // and supposed to be sufficient for all valid DNG images.
-        if (size > 300 * 1024 * 1024) {  // 300 MB
-            ThrowMemoryFull();
-        }
-        return dng_memory_allocator::Allocate(size);
-    }
-};
-
 bool is_asset_stream(const SkStream& stream) {
     return stream.hasLength() && stream.hasPosition();
 }
@@ -183,7 +173,7 @@ class SkRawStream {
 public:
     virtual ~SkRawStream() {}
 
-   /* 
+   /*
     * Gets the length of the stream. Depending on the type of stream, this may require reading to
     * the end of the stream.
     */
@@ -196,7 +186,7 @@ public:
      * Note: for performance reason, this function is destructive to the SkRawStream. One should
      *       abandon current object after the function call.
      */
-   virtual SkMemoryStream* transferBuffer(size_t offset, size_t size) = 0;
+   virtual std::unique_ptr<SkMemoryStream> transferBuffer(size_t offset, size_t size) = 0;
 };
 
 class SkRawLimitedDynamicMemoryWStream : public SkDynamicMemoryWStream {
@@ -225,13 +215,12 @@ private:
 // Note: the maximum buffer size is 100MB (limited by SkRawLimitedDynamicMemoryWStream).
 class SkRawBufferedStream : public SkRawStream {
 public:
-    // Will take the ownership of the stream.
-    explicit SkRawBufferedStream(SkStream* stream)
-        : fStream(stream)
+    explicit SkRawBufferedStream(std::unique_ptr<SkStream> stream)
+        : fStream(std::move(stream))
         , fWholeStreamRead(false)
     {
         // Only use SkRawBufferedStream when the stream is not an asset stream.
-        SkASSERT(!is_asset_stream(*stream));
+        SkASSERT(!is_asset_stream(*fStream));
     }
 
     ~SkRawBufferedStream() override {}
@@ -256,7 +245,7 @@ public:
         return this->bufferMoreData(sum) && fStreamBuffer.read(data, offset, length);
     }
 
-    SkMemoryStream* transferBuffer(size_t offset, size_t size) override {
+    std::unique_ptr<SkMemoryStream> transferBuffer(size_t offset, size_t size) override {
         sk_sp<SkData> data(SkData::MakeUninitialized(size));
         if (offset > fStreamBuffer.bytesWritten()) {
             // If the offset is not buffered, read from fStream directly and skip the buffering.
@@ -288,7 +277,7 @@ public:
                 }
             }
         }
-        return new SkMemoryStream(data);
+        return SkMemoryStream::Make(data);
     }
 
 private:
@@ -333,12 +322,11 @@ private:
 
 class SkRawAssetStream : public SkRawStream {
 public:
-    // Will take the ownership of the stream.
-    explicit SkRawAssetStream(SkStream* stream)
-        : fStream(stream)
+    explicit SkRawAssetStream(std::unique_ptr<SkStream> stream)
+        : fStream(std::move(stream))
     {
         // Only use SkRawAssetStream when the stream is an asset stream.
-        SkASSERT(is_asset_stream(*stream));
+        SkASSERT(is_asset_stream(*fStream));
     }
 
     ~SkRawAssetStream() override {}
@@ -361,7 +349,7 @@ public:
         return fStream->seek(offset) && (fStream->read(data, length) == length);
     }
 
-    SkMemoryStream* transferBuffer(size_t offset, size_t size) override {
+    std::unique_ptr<SkMemoryStream> transferBuffer(size_t offset, size_t size) override {
         if (fStream->getLength() < offset) {
             return nullptr;
         }
@@ -382,7 +370,7 @@ public:
             sk_sp<SkData> data(SkData::MakeWithCopy(
                 static_cast<const uint8_t*>(fStream->getMemoryBase()) + offset, bytesToRead));
             fStream.reset();
-            return new SkMemoryStream(data);
+            return SkMemoryStream::Make(data);
         } else {
             sk_sp<SkData> data(SkData::MakeUninitialized(bytesToRead));
             if (!fStream->seek(offset)) {
@@ -392,7 +380,7 @@ public:
             if (bytesRead < bytesToRead) {
                 data = SkData::MakeSubset(data.get(), 0, bytesRead);
             }
-            return new SkMemoryStream(data);
+            return SkMemoryStream::Make(data);
         }
     }
 private:
@@ -447,6 +435,12 @@ public:
      */
     static SkDngImage* NewFromStream(SkRawStream* stream) {
         std::unique_ptr<SkDngImage> dngImage(new SkDngImage(stream));
+#if defined(IS_FUZZING_WITH_LIBFUZZER)
+        // Libfuzzer easily runs out of memory after here. To avoid that
+        // We just pretend all streams are invalid. Our AFL-fuzzer
+        // should still exercise this code; it's more resistant to OOM.
+        return nullptr;
+#endif
         if (!dngImage->initFromPiex() && !dngImage->readDng()) {
             return nullptr;
         }
@@ -507,10 +501,6 @@ public:
         } catch (...) {
             return nullptr;
         }
-    }
-
-    const SkEncodedInfo& getEncodedInfo() const {
-        return fEncodedInfo;
     }
 
     int width() const {
@@ -607,11 +597,9 @@ private:
 
     SkDngImage(SkRawStream* stream)
         : fStream(stream)
-        , fEncodedInfo(SkEncodedInfo::Make(SkEncodedInfo::kRGB_Color,
-                                           SkEncodedInfo::kOpaque_Alpha, 8))
     {}
 
-    SkDngMemoryAllocator fAllocator;
+    dng_memory_allocator fAllocator;
     std::unique_ptr<SkRawStream> fStream;
     std::unique_ptr<dng_host> fHost;
     std::unique_ptr<dng_info> fInfo;
@@ -620,7 +608,6 @@ private:
 
     int fWidth;
     int fHeight;
-    SkEncodedInfo fEncodedInfo;
     bool fIsScalable;
     bool fIsXtransImage;
 };
@@ -630,12 +617,13 @@ private:
  * SkJpegCodec. If PIEX returns kFail, then the file is invalid, return nullptr. In other cases,
  * fallback to create SkRawCodec for DNG images.
  */
-SkCodec* SkRawCodec::NewFromStream(SkStream* stream, Result* result) {
+std::unique_ptr<SkCodec> SkRawCodec::MakeFromStream(std::unique_ptr<SkStream> stream,
+                                                    Result* result) {
     std::unique_ptr<SkRawStream> rawStream;
     if (is_asset_stream(*stream)) {
-        rawStream.reset(new SkRawAssetStream(stream));
+        rawStream.reset(new SkRawAssetStream(std::move(stream)));
     } else {
-        rawStream.reset(new SkRawBufferedStream(stream));
+        rawStream.reset(new SkRawBufferedStream(std::move(stream)));
     }
 
     // Does not take the ownership of rawStream.
@@ -648,14 +636,13 @@ SkCodec* SkRawCodec::NewFromStream(SkStream* stream, Result* result) {
             return nullptr;
         }
 
-        sk_sp<SkColorSpace> colorSpace;
-        switch (imageData.color_space) {
-            case ::piex::PreviewImageData::kSrgb:
-                colorSpace = SkColorSpace::MakeSRGB();
-                break;
-            case ::piex::PreviewImageData::kAdobeRgb:
-                colorSpace = SkColorSpace_Base::MakeNamed(SkColorSpace_Base::kAdobeRGB_Named);
-                break;
+        std::unique_ptr<SkEncodedInfo::ICCProfile> profile;
+        if (imageData.color_space == ::piex::PreviewImageData::kAdobeRgb) {
+            skcms_ICCProfile skcmsProfile;
+            skcms_Init(&skcmsProfile);
+            skcms_SetTransferFunction(&skcmsProfile, &SkNamedTransferFn::k2Dot2);
+            skcms_SetXYZD50(&skcmsProfile, &SkNamedGamut::kAdobeRGB);
+            profile = SkEncodedInfo::ICCProfile::Make(skcmsProfile);
         }
 
         //  Theoretically PIEX can return JPEG compressed image or uncompressed RGB image. We only
@@ -666,13 +653,14 @@ SkCodec* SkRawCodec::NewFromStream(SkStream* stream, Result* result) {
             // transferBuffer() is destructive to the rawStream. Abandon the rawStream after this
             // function call.
             // FIXME: one may avoid the copy of memoryStream and use the buffered rawStream.
-            SkMemoryStream* memoryStream =
-                rawStream->transferBuffer(imageData.preview.offset, imageData.preview.length);
+            auto memoryStream = rawStream->transferBuffer(imageData.preview.offset,
+                                                          imageData.preview.length);
             if (!memoryStream) {
                 *result = kInvalidInput;
                 return nullptr;
             }
-            return SkJpegCodec::NewFromStream(memoryStream, result, std::move(colorSpace));
+            return SkJpegCodec::MakeFromStream(std::move(memoryStream), result,
+                                               std::move(profile));
         }
     }
 
@@ -689,30 +677,12 @@ SkCodec* SkRawCodec::NewFromStream(SkStream* stream, Result* result) {
     }
 
     *result = kSuccess;
-    return new SkRawCodec(dngImage.release());
+    return std::unique_ptr<SkCodec>(new SkRawCodec(dngImage.release()));
 }
 
 SkCodec::Result SkRawCodec::onGetPixels(const SkImageInfo& dstInfo, void* dst,
                                         size_t dstRowBytes, const Options& options,
                                         int* rowsDecoded) {
-    if (!conversion_possible(dstInfo, this->getInfo()) ||
-        !this->initializeColorXform(dstInfo, options.fPremulBehavior))
-    {
-        SkCodecPrintf("Error: cannot convert input type to output type.\n");
-        return kInvalidConversion;
-    }
-
-    SkImageInfo swizzlerInfo = dstInfo;
-    std::unique_ptr<uint32_t[]> xformBuffer = nullptr;
-    if (this->colorXform()) {
-        swizzlerInfo = swizzlerInfo.makeColorType(kRGBA_8888_SkColorType);
-        xformBuffer.reset(new uint32_t[dstInfo.width()]);
-    }
-
-    std::unique_ptr<SkSwizzler> swizzler(SkSwizzler::CreateSwizzler(
-            this->getEncodedInfo(), nullptr, swizzlerInfo, options));
-    SkASSERT(swizzler);
-
     const int width = dstInfo.width();
     const int height = dstInfo.height();
     std::unique_ptr<dng_image> image(fDngImage->render(width, height));
@@ -742,6 +712,20 @@ SkCodec::Result SkRawCodec::onGetPixels(const SkImageInfo& dstInfo, void* dst,
     buffer.fPixelSize = sizeof(uint8_t);
     buffer.fRowStep = width * 3;
 
+    constexpr auto srcFormat = skcms_PixelFormat_RGB_888;
+    skcms_PixelFormat dstFormat;
+    if (!sk_select_xform_format(dstInfo.colorType(), false, &dstFormat)) {
+        return kInvalidConversion;
+    }
+
+    const skcms_ICCProfile* const srcProfile = this->getEncodedInfo().profile();
+    skcms_ICCProfile dstProfileStorage;
+    const skcms_ICCProfile* dstProfile = nullptr;
+    if (auto cs = dstInfo.colorSpace()) {
+        cs->toProfile(&dstProfileStorage);
+        dstProfile = &dstProfileStorage;
+    }
+
     for (int i = 0; i < height; ++i) {
         buffer.fArea = dng_rect(i, 0, i + 1, width);
 
@@ -749,18 +733,18 @@ SkCodec::Result SkRawCodec::onGetPixels(const SkImageInfo& dstInfo, void* dst,
             image->Get(buffer, dng_image::edge_zero);
         } catch (...) {
             *rowsDecoded = i;
-            return kIncompleteInput; 
+            return kIncompleteInput;
         }
 
-        if (this->colorXform()) {
-            swizzler->swizzle(xformBuffer.get(), &srcRow[0]);
-
-            this->applyColorXform(dstRow, xformBuffer.get(), dstInfo.width(), kOpaque_SkAlphaType);
-            dstRow = SkTAddOffset<void>(dstRow, dstRowBytes);
-        } else {
-            swizzler->swizzle(dstRow, &srcRow[0]);
-            dstRow = SkTAddOffset<void>(dstRow, dstRowBytes);
+        if (!skcms_Transform(&srcRow[0], srcFormat, skcms_AlphaFormat_Unpremul, srcProfile,
+                             dstRow,     dstFormat, skcms_AlphaFormat_Unpremul, dstProfile,
+                             dstInfo.width())) {
+            SkDebugf("failed to transform\n");
+            *rowsDecoded = i;
+            return kInternalError;
         }
+
+        dstRow = SkTAddOffset<void>(dstRow, dstRowBytes);
     }
     return kSuccess;
 }
@@ -768,7 +752,7 @@ SkCodec::Result SkRawCodec::onGetPixels(const SkImageInfo& dstInfo, void* dst,
 SkISize SkRawCodec::onGetScaledDimensions(float desiredScale) const {
     SkASSERT(desiredScale <= 1.f);
 
-    const SkISize dim = this->getInfo().dimensions();
+    const SkISize dim = this->dimensions();
     SkASSERT(dim.fWidth != 0 && dim.fHeight != 0);
 
     if (!fDngImage->isScalable()) {
@@ -794,7 +778,7 @@ SkISize SkRawCodec::onGetScaledDimensions(float desiredScale) const {
 }
 
 bool SkRawCodec::onDimensionsSupported(const SkISize& dim) {
-    const SkISize fullDim = this->getInfo().dimensions();
+    const SkISize fullDim = this->dimensions();
     const float fullShortEdge = static_cast<float>(SkTMin(fullDim.fWidth, fullDim.fHeight));
     const float shortEdge = static_cast<float>(SkTMin(dim.fWidth, dim.fHeight));
 
@@ -806,7 +790,8 @@ bool SkRawCodec::onDimensionsSupported(const SkISize& dim) {
 SkRawCodec::~SkRawCodec() {}
 
 SkRawCodec::SkRawCodec(SkDngImage* dngImage)
-    : INHERITED(dngImage->width(), dngImage->height(), dngImage->getEncodedInfo(),
-                SkColorSpaceXform::kRGBA_8888_ColorFormat, nullptr,
-                SkColorSpace::MakeSRGB())
+    : INHERITED(SkEncodedInfo::Make(dngImage->width(), dngImage->height(),
+                                    SkEncodedInfo::kRGB_Color,
+                                    SkEncodedInfo::kOpaque_Alpha, 8),
+                skcms_PixelFormat_RGBA_8888, nullptr)
     , fDngImage(dngImage) {}

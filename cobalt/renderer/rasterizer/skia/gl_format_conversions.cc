@@ -45,29 +45,56 @@ GLenum ConvertRenderTreeFormatToGL(render_tree::PixelFormat pixel_format) {
   return GL_RGBA;
 }
 
-GrPixelConfig ConvertGLFormatToGr(GLenum gl_format) {
+GrColorType ConvertGLFormatToGrColorType(GLenum gl_format) {
   switch (gl_format) {
     case GL_RGBA:
-      return kRGBA_8888_GrPixelConfig;
+      return GrColorType::kRGBA_8888;
     case GL_BGRA_EXT:
-      return kBGRA_8888_GrPixelConfig;
+      return GrColorType::kBGRA_8888;
     // Note GL_ALPHA and GL_RED_EXT probably don't really work.
     // They're only for use w/ SbDecodeTargets that are never drawn via skia
     case GL_ALPHA:
 #if defined(GL_RED_EXT)
     case GL_RED_EXT:
 #endif
-      return kAlpha_8_GrPixelConfig;
+      return GrColorType::kAlpha_8;
     // Note GL_LUMINANCE_ALPHA and GL_RG_EXT probably don't really work.
     // They're only for use w/ SbDecodeTargets that are never drawn via skia
     case GL_LUMINANCE_ALPHA:
 #if defined(GL_RG_EXT)
     case GL_RG_EXT:
 #endif
-      return kRGBA_8888_GrPixelConfig;
+      return GrColorType::kRGBA_8888;
     default: { NOTREACHED() << "Unsupported GL format."; }
   }
-  return kRGBA_8888_GrPixelConfig;
+  return GrColorType::kRGBA_8888;
+}
+
+GLenum ConvertBaseGLFormatToSizedInternalFormat(GLenum gl_format) {
+  switch (gl_format) {
+    case GL_RGBA:
+      // GL_RGBA8 is only defined in OpenGL ES 3. Use the GL_RGBA8_OES define
+      // which is an extension available in OpenGL ES 2.
+      return GL_RGBA8_OES;
+    case GL_BGRA_EXT:
+      return GL_BGRA8_EXT;
+    // Note GL_ALPHA and GL_RED_EXT probably don't really work.
+    // They're only for use w/ SbDecodeTargets that are never drawn via skia
+    case GL_ALPHA:
+#if defined(GL_RED_EXT)
+    case GL_RED_EXT:
+#endif
+      return GL_ALPHA8_EXT;
+    // Note GL_LUMINANCE_ALPHA and GL_RG_EXT probably don't really work.
+    // They're only for use w/ SbDecodeTargets that are never drawn via skia
+    case GL_LUMINANCE_ALPHA:
+#if defined(GL_RG_EXT)
+    case GL_RG_EXT:
+#endif
+      return GL_RGBA8_OES;
+    default: { NOTREACHED() << "Unsupported GL format."; }
+  }
+  return GL_RGBA8_OES;
 }
 
 }  // namespace skia

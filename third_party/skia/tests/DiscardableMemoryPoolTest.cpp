@@ -4,9 +4,13 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
-#include "SkDiscardableMemoryPool.h"
 
-#include "Test.h"
+#include "include/core/SkRefCnt.h"
+#include "src/core/SkDiscardableMemory.h"
+#include "src/lazy/SkDiscardableMemoryPool.h"
+#include "tests/Test.h"
+
+#include <memory>
 
 DEF_TEST(DiscardableMemoryPool, reporter) {
     sk_sp<SkDiscardableMemoryPool> pool(SkDiscardableMemoryPool::Make(1));

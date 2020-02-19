@@ -5,15 +5,23 @@
  * found in the LICENSE file.
  */
 
-#include "SkData.h"
-#include "SkDataTable.h"
-#include "SkOSFile.h"
-#include "SkOSPath.h"
-#include "SkReadBuffer.h"
-#include "SkWriteBuffer.h"
-#include "SkStream.h"
-#include "SkTArray.h"
-#include "Test.h"
+#include "include/core/SkData.h"
+#include "include/core/SkDataTable.h"
+#include "include/core/SkRWBuffer.h"
+#include "include/core/SkRefCnt.h"
+#include "include/core/SkStream.h"
+#include "include/core/SkString.h"
+#include "include/core/SkTypes.h"
+#include "include/private/SkTArray.h"
+#include "include/private/SkTemplates.h"
+#include "src/core/SkOSFile.h"
+#include "src/core/SkTaskGroup.h"
+#include "src/utils/SkOSPath.h"
+#include "tests/Test.h"
+
+#include <cstdio>
+#include <cstring>
+#include <memory>
 
 static void test_is_equal(skiatest::Reporter* reporter,
                           const SkDataTable* a, const SkDataTable* b) {
@@ -201,7 +209,6 @@ DEF_TEST(Data, reporter) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include "SkRWBuffer.h"
 
 const char gABC[] = "abcdefghijklmnopqrstuvwxyz";
 
@@ -250,8 +257,6 @@ static void check_alphabet_buffer(skiatest::Reporter* reporter, const SkROBuffer
     REPORTER_ASSERT(reporter, offset == size);
     check_abcs(reporter, storage.get(), size);
 }
-
-#include "SkTaskGroup.h"
 
 DEF_TEST(RWBuffer, reporter) {
     // Knowing that the default capacity is 4096, choose N large enough so we force it to use

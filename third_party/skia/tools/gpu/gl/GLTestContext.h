@@ -8,8 +8,8 @@
 #ifndef GLTestContext_DEFINED
 #define GLTestContext_DEFINED
 
-#include "TestContext.h"
-#include "gl/GrGLInterface.h"
+#include "include/gpu/gl/GrGLInterface.h"
+#include "tools/gpu/TestContext.h"
 
 namespace sk_gpu_test {
 /**
@@ -20,24 +20,20 @@ class GLTestContext : public TestContext {
 public:
     ~GLTestContext() override;
 
-    virtual GrBackend backend() override { return kOpenGL_GrBackend; }
-    virtual GrBackendContext backendContext() override {
-        return reinterpret_cast<GrBackendContext>(fGL.get());
-    }
+    virtual GrBackendApi backend() override { return GrBackendApi::kOpenGL; }
 
     bool isValid() const { return SkToBool(this->gl()); }
 
-    const GrGLInterface *gl() const { return fGL.get(); }
+    const GrGLInterface* gl() const { return fGL.get(); }
 
     /** Used for testing EGLImage integration. Take a GL_TEXTURE_2D and wraps it in an EGL Image */
-    virtual GrEGLImage texture2DToEGLImage(GrGLuint /*texID*/) const { return 0; }
+    virtual GrEGLImage texture2DToEGLImage(GrGLuint /*texID*/) const { return nullptr; }
 
     virtual void destroyEGLImage(GrEGLImage) const { }
 
     /** Used for testing GL_TEXTURE_RECTANGLE integration. */
-    GrGLint createTextureRectangle(int width, int height, GrGLenum internalFormat,
-                                   GrGLenum externalFormat, GrGLenum externalType,
-                                   GrGLvoid *data);
+    GrGLuint createTextureRectangle(int width, int height, GrGLenum internalFormat,
+                                    GrGLenum externalFormat, GrGLenum externalType, GrGLvoid* data);
 
     /**
      * Used for testing EGLImage integration. Takes a EGLImage and wraps it in a
@@ -64,7 +60,7 @@ public:
                           const char* name, const char* ext = nullptr) const {
         using Proc = Ret(GR_GL_FUNCTION_TYPE*)(Args...);
         if (!SkStrStartsWith(name, "gl")) {
-            SkFAIL("getGLProcAddress: proc name must have 'gl' prefix");
+            SK_ABORT("getGLProcAddress: proc name must have 'gl' prefix");
             *out = nullptr;
         } else if (ext) {
             SkString fullname(name);
@@ -75,13 +71,15 @@ public:
         }
     }
 
+    sk_sp<GrContext> makeGrContext(const GrContextOptions& options) override;
+
 protected:
     GLTestContext();
 
     /*
      * Methods that sublcasses must call from their constructors and destructors.
      */
-    void init(const GrGLInterface *, std::unique_ptr<FenceSync> = nullptr);
+    void init(sk_sp<const GrGLInterface>, std::unique_ptr<FenceSync> = nullptr);
 
     void teardown() override;
 

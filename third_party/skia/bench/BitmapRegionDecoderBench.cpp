@@ -5,10 +5,10 @@
  * found in the LICENSE file.
  */
 
-#include "BitmapRegionDecoderBench.h"
-#include "CodecBenchPriv.h"
-#include "SkBitmap.h"
-#include "SkOSFile.h"
+#include "bench/BitmapRegionDecoderBench.h"
+#include "bench/CodecBenchPriv.h"
+#include "include/core/SkBitmap.h"
+#include "src/core/SkOSFile.h"
 
 BitmapRegionDecoderBench::BitmapRegionDecoderBench(const char* baseName, SkData* encoded,
         SkColorType colorType, uint32_t sampleSize, const SkIRect& subset)
@@ -40,8 +40,10 @@ void BitmapRegionDecoderBench::onDelayedSetup() {
 }
 
 void BitmapRegionDecoderBench::onDraw(int n, SkCanvas* canvas) {
+    auto ct = fBRD->computeOutputColorType(fColorType);
+    auto cs = fBRD->computeOutputColorSpace(ct, nullptr);
     for (int i = 0; i < n; i++) {
         SkBitmap bm;
-        SkAssertResult(fBRD->decodeRegion(&bm, nullptr, fSubset, fSampleSize, fColorType, false));
+        SkAssertResult(fBRD->decodeRegion(&bm, nullptr, fSubset, fSampleSize, ct, false, cs));
     }
 }

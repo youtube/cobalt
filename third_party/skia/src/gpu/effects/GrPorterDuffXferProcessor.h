@@ -8,14 +8,18 @@
 #ifndef GrPorterDuffXferProcessor_DEFINED
 #define GrPorterDuffXferProcessor_DEFINED
 
-#include "GrTypes.h"
-#include "GrXferProcessor.h"
-#include "SkBlendMode.h"
+#include "include/core/SkBlendMode.h"
+#include "include/gpu/GrTypes.h"
+#include "src/gpu/GrXferProcessor.h"
 
 // See the comment above GrXPFactory's definition about this warning suppression.
-#if defined(__GNUC__) || defined(__clang)
+#if defined(__GNUC__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
+#endif
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnon-virtual-dtor"
 #endif
 class GrPorterDuffXPFactory : public GrXPFactory {
 public:
@@ -37,7 +41,8 @@ public:
 
     static AnalysisProperties SrcOverAnalysisProperties(const GrProcessorAnalysisColor&,
                                                         const GrProcessorAnalysisCoverage&,
-                                                        const GrCaps&);
+                                                        const GrCaps&,
+                                                        GrClampType);
 
 private:
     constexpr GrPorterDuffXPFactory(SkBlendMode);
@@ -45,11 +50,13 @@ private:
     sk_sp<const GrXferProcessor> makeXferProcessor(const GrProcessorAnalysisColor&,
                                                    GrProcessorAnalysisCoverage,
                                                    bool hasMixedSamples,
-                                                   const GrCaps&) const override;
+                                                   const GrCaps&,
+                                                   GrClampType) const override;
 
     AnalysisProperties analysisProperties(const GrProcessorAnalysisColor&,
                                           const GrProcessorAnalysisCoverage&,
-                                          const GrCaps&) const override;
+                                          const GrCaps&,
+                                          GrClampType) const override;
 
     GR_DECLARE_XP_FACTORY_TEST
     static void TestGetXPOutputTypes(const GrXferProcessor*, int* outPrimary, int* outSecondary);
@@ -59,8 +66,11 @@ private:
     friend class GrPorterDuffTest; // for TestGetXPOutputTypes()
     typedef GrXPFactory INHERITED;
 };
-#if defined(__GNUC__) || defined(__clang)
+#if defined(__GNUC__)
 #pragma GCC diagnostic pop
+#endif
+#if defined(__clang__)
+#pragma clang diagnostic pop
 #endif
 
 #endif

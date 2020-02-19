@@ -8,10 +8,10 @@
 #ifndef SkStreamBuffer_DEFINED
 #define SkStreamBuffer_DEFINED
 
-#include "SkData.h"
-#include "SkStream.h"
-#include "SkTypes.h"
-#include "../private/SkTHash.h"
+#include "include/core/SkData.h"
+#include "include/core/SkStream.h"
+#include "include/core/SkTypes.h"
+#include "include/private/SkTHash.h"
 
 /**
  *  Helper class for reading from a stream that may not have all its data
@@ -24,9 +24,7 @@
  */
 class SkStreamBuffer : SkNoncopyable {
 public:
-    // Takes ownership of the SkStream.
-    SkStreamBuffer(SkStream*);
-
+    SkStreamBuffer(std::unique_ptr<SkStream>);
     ~SkStreamBuffer();
 
     /**

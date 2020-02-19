@@ -8,8 +8,9 @@
 #ifndef SkBlendModePriv_DEFINED
 #define SkBlendModePriv_DEFINED
 
-#include "SkBlendMode.h"
-#include "SkPM4f.h"
+#include "include/core/SkBlendMode.h"
+#include "include/core/SkColor.h"
+#include "include/private/SkColorData.h"
 
 class SkRasterPipeline;
 
@@ -19,14 +20,8 @@ static inline bool SkBlendMode_CaresAboutRBOrder(SkBlendMode mode) {
     return (mode > SkBlendMode::kLastSeparableMode);
 }
 
-void SkBlendMode_AppendStagesNoClamp(SkBlendMode, SkRasterPipeline*);
-void SkBlendMode_AppendClampIfNeeded(SkBlendMode, SkRasterPipeline*);
-
-static inline void SkBlendMode_AppendStages(SkBlendMode mode, SkRasterPipeline* p) {
-    // Only plus clamps, so maybe append a clamping plus here instead of a second stage?
-    SkBlendMode_AppendStagesNoClamp(mode, p);
-    SkBlendMode_AppendClampIfNeeded(mode, p);
-}
+bool SkBlendMode_ShouldPreScaleCoverage(SkBlendMode, bool rgb_coverage);
+void SkBlendMode_AppendStages(SkBlendMode, SkRasterPipeline*);
 
 enum class SkBlendModeCoeff {
     kZero, /** 0 */
@@ -45,10 +40,10 @@ enum class SkBlendModeCoeff {
 
 bool SkBlendMode_AsCoeff(SkBlendMode mode, SkBlendModeCoeff* src, SkBlendModeCoeff* dst);
 
-SkPM4f SkBlendMode_Apply(SkBlendMode, const SkPM4f& src, const SkPM4f& dst);
+SkPMColor4f SkBlendMode_Apply(SkBlendMode, const SkPMColor4f& src, const SkPMColor4f& dst);
 
 #if SK_SUPPORT_GPU
-#include "GrXferProcessor.h"
+#include "src/gpu/GrXferProcessor.h"
 const GrXPFactory* SkBlendMode_AsXPFactory(SkBlendMode);
 #endif
 
