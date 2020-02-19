@@ -79,10 +79,6 @@ InputBuffer::InputBuffer(SbMediaType sample_type,
   if (sample_type_ == kSbMediaTypeVideo) {
     SB_DCHECK(sample_info.video_sample_info);
     video_sample_info_ = *sample_info.video_sample_info;
-    if (video_sample_info_.color_metadata) {
-      color_metadata_ = *video_sample_info_.color_metadata;
-      video_sample_info_.color_metadata = &color_metadata_;
-    }
   } else {
     SB_DCHECK(sample_type_ == kSbMediaTypeAudio && audio_sample_info);
     audio_sample_info_ = *audio_sample_info;

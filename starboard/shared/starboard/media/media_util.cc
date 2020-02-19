@@ -211,6 +211,52 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
 
 }  // namespace
 
+AudioSampleInfo::AudioSampleInfo() {
+  SbMemorySet(this, 0, sizeof(SbMediaAudioSampleInfo));
+#if SB_API_VERSION >= 11
+  codec = kSbMediaAudioCodecNone;
+#endif  // SB_API_VERSION >= 11
+}
+
+AudioSampleInfo::AudioSampleInfo(const SbMediaAudioSampleInfo& that) {
+  *this = that;
+}
+
+AudioSampleInfo& AudioSampleInfo::operator=(
+    const SbMediaAudioSampleInfo& that) {
+  *static_cast<SbMediaAudioSampleInfo*>(this) = that;
+  if (audio_specific_config_size > 0) {
+    audio_specific_config_storage.resize(audio_specific_config_size);
+    SbMemoryCopy(audio_specific_config_storage.data(), audio_specific_config,
+                 audio_specific_config_size);
+    audio_specific_config = audio_specific_config_storage.data();
+  }
+  return *this;
+}
+
+VideoSampleInfo::VideoSampleInfo() {
+  SbMemorySet(this, 0, sizeof(SbMediaAudioSampleInfo));
+#if SB_API_VERSION >= 11
+  codec = kSbMediaVideoCodecNone;
+#endif  // SB_API_VERSION >= 11
+}
+
+VideoSampleInfo::VideoSampleInfo(const SbMediaVideoSampleInfo& that) {
+  *this = that;
+}
+
+VideoSampleInfo& VideoSampleInfo::operator=(
+    const SbMediaVideoSampleInfo& that) {
+  *static_cast<SbMediaVideoSampleInfo*>(this) = that;
+#if SB_API_VERSION < 11
+  if (color_metadata) {
+    color_metadata_storage = *color_metadata;
+    color_metadata = &color_metadata_storage;
+  }
+#endif  // SB_API_VERSION < 11
+  return *this;
+}
+
 bool IsAudioOutputSupported(SbMediaAudioCodingType coding_type, int channels) {
   int count = SbMediaGetAudioOutputCount();
 

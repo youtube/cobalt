@@ -35,6 +35,7 @@
       ],
       'dependencies': [
         '<@(starboard_platform_dependencies)',
+        '<(DEPTH)/starboard/shared/starboard/media/media.gyp:media_util',
       ],
     },
   ],

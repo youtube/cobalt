@@ -70,7 +70,8 @@ enum RecordType {
 };
 
 // Helper structures to allow returning structs containing pointers without
-// explicit memory management.
+// explicit memory management.  Use our own structure instead of the one defined
+// in media_util.* to ensure that video_dmp has minimum dependency.
 struct SbMediaAudioSampleInfoWithConfig : public SbMediaAudioSampleInfo {
   SbMediaAudioSampleInfoWithConfig() {}
   SbMediaAudioSampleInfoWithConfig(const SbMediaAudioSampleInfoWithConfig& that)

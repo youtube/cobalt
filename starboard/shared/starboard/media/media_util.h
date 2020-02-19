@@ -17,6 +17,7 @@
 
 #include <ostream>
 #include <string>
+#include <vector>
 
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
@@ -26,6 +27,26 @@ namespace starboard {
 namespace shared {
 namespace starboard {
 namespace media {
+
+struct AudioSampleInfo : SbMediaAudioSampleInfo {
+  AudioSampleInfo();
+  explicit AudioSampleInfo(const SbMediaAudioSampleInfo& that);
+  AudioSampleInfo& operator=(const SbMediaAudioSampleInfo& that);
+
+ private:
+  std::vector<char> audio_specific_config_storage;
+};
+
+struct VideoSampleInfo : SbMediaVideoSampleInfo {
+  VideoSampleInfo();
+  explicit VideoSampleInfo(const SbMediaVideoSampleInfo& that);
+  VideoSampleInfo& operator=(const SbMediaVideoSampleInfo& that);
+
+ private:
+#if SB_API_VERSION < 11
+  SbMediaColorMetadata color_metadata_storage;
+#endif  // SB_API_VERSION < 11
+};
 
 bool IsAudioOutputSupported(SbMediaAudioCodingType coding_type, int channels);
 

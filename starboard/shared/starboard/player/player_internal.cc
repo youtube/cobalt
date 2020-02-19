@@ -56,8 +56,7 @@ SbPlayerPrivate::SbPlayerPrivate(
       context_(context),
       media_time_updated_at_(SbTimeGetMonotonicNow()) {
 #if SB_API_VERSION < 11
-  if (audio_codec != kSbMediaAudioCodecNone) {
-    SB_DCHECK(audio_sample_info);
+  if (audio_sample_info) {
     audio_sample_info_ = *audio_sample_info;
   }
 #endif  // SB_API_VERSION < 11

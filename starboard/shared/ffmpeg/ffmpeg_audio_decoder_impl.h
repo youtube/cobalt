@@ -24,6 +24,7 @@
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
@@ -76,7 +77,7 @@ class AudioDecoderImpl<FFMPEG> : public AudioDecoder,
 
   bool stream_ended_;
   std::queue<scoped_refptr<DecodedAudio> > decoded_audios_;
-  SbMediaAudioSampleInfo audio_sample_info_;
+  starboard::media::AudioSampleInfo audio_sample_info_;
 };
 
 }  // namespace ffmpeg

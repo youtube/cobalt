@@ -108,8 +108,9 @@ AssertionResult AlmostEqualTime(SbTime time1, SbTime time2) {
 }
 
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-SbMediaVideoSampleInfo CreateVideoSampleInfo(SbMediaVideoCodec codec) {
-  SbMediaVideoSampleInfo video_sample_info = {};
+shared::starboard::media::VideoSampleInfo CreateVideoSampleInfo(
+    SbMediaVideoCodec codec) {
+  shared::starboard::media::VideoSampleInfo video_sample_info = {};
 
   video_sample_info.codec = codec;
 

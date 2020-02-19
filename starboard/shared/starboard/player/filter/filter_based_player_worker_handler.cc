@@ -75,25 +75,13 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
       video_codec_(creation_param->video_sample_info.codec),
       audio_codec_(creation_param->audio_sample_info.codec),
       drm_system_(creation_param->drm_system),
+      audio_sample_info_(creation_param->audio_sample_info),
       output_mode_(creation_param->output_mode),
       decode_target_graphics_context_provider_(provider),
       audio_mime_(creation_param->audio_mime),
       video_mime_(creation_param->video_mime),
       max_video_capabilities_(creation_param->max_video_capabilities),
       video_sample_info_(creation_param->video_sample_info) {
-  if (audio_codec_ != kSbMediaAudioCodecNone) {
-    audio_sample_info_ = creation_param->audio_sample_info;
-
-    if (audio_sample_info_.audio_specific_config_size > 0) {
-      audio_specific_config_.reset(
-          new int8_t[audio_sample_info_.audio_specific_config_size]);
-      SbMemoryCopy(audio_specific_config_.get(),
-                   audio_sample_info_.audio_specific_config,
-                   audio_sample_info_.audio_specific_config_size);
-      audio_sample_info_.audio_specific_config = audio_specific_config_.get();
-    }
-  }
-
   update_job_ = std::bind(&FilterBasedPlayerWorkerHandler::Update, this);
 }
 #else   // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
@@ -110,19 +98,9 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
       drm_system_(drm_system),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(provider) {
-  if (audio_codec != kSbMediaAudioCodecNone) {
+  if (audio_sample_info) {
     audio_sample_info_ = *audio_sample_info;
-
-    if (audio_sample_info_.audio_specific_config_size > 0) {
-      audio_specific_config_.reset(
-          new int8_t[audio_sample_info_.audio_specific_config_size]);
-      SbMemoryCopy(audio_specific_config_.get(),
-                   audio_sample_info->audio_specific_config,
-                   audio_sample_info->audio_specific_config_size);
-      audio_sample_info_.audio_specific_config = audio_specific_config_.get();
-    }
   }
-
   update_job_ = std::bind(&FilterBasedPlayerWorkerHandler::Update, this);
 }
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)

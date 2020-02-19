@@ -22,6 +22,7 @@
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/audio_channel_layout_mixer.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_resampler.h"
@@ -76,7 +77,7 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   SbMediaAudioFrameStorageType output_storage_type_;
   int output_samples_per_second_;
   int output_number_of_channels_;
-  SbMediaAudioSampleInfo input_audio_sample_info_ = {};
+  media::AudioSampleInfo input_audio_sample_info_;
 
   OutputCB output_cb_ = nullptr;
   ErrorCB error_cb_ = nullptr;
