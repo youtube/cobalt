@@ -1397,10 +1397,19 @@ void GrGLCaps::initFormatTable(const GrGLContextInfo& ctxInfo, const GrGLInterfa
         if (GR_IS_GR_GL(standard)) {
             info.fFlags |= msaaRenderFlags;
         } else if (GR_IS_GR_GL_ES(standard)) {
+#if defined(STARBOARD)
+            // Starboard code in GrGLUtil.cpp may override the driver version
+            // from GLES 3.0 to 2.0 if the config specifies that only GLES 2.0
+            // features should be used. This will confuse the regular
+            // capabilities check. Since all Starboard GLES platforms must
+            // support rendering to RGBA8 buffers, no check is needed here.
+            info.fFlags |= msaaRenderFlags;
+#else
             if (version >= GR_GL_VER(3,0) || ctxInfo.hasExtension("GL_OES_rgb8_rgba8") ||
                 ctxInfo.hasExtension("GL_ARM_rgba8")) {
                 info.fFlags |= msaaRenderFlags;
             }
+#endif
         } else if (GR_IS_GR_WEBGL(standard)) {
             info.fFlags |= msaaRenderFlags;
         }
