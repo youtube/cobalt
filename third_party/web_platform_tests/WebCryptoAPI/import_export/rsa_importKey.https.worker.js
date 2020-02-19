@@ -1,4 +1,4 @@
 importScripts("/resources/testharness.js");
-importScripts("getRandomValues.js");
+importScripts("rsa_importKey.js");
 run_test();
 done();
