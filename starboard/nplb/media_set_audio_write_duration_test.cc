@@ -20,6 +20,7 @@
 #include "starboard/nplb/player_creation_param_helpers.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"

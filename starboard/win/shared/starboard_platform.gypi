@@ -102,8 +102,6 @@
     ],
     'win32_shared_media_player_files': [
       '<@(filter_based_player_sources)',
-      '<(DEPTH)/starboard/shared/starboard/media/codec_util.cc',
-      '<(DEPTH)/starboard/shared/starboard/media/codec_util.h',
       '<(DEPTH)/starboard/shared/starboard/media/media_can_play_mime_and_key_system.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_get_audio_buffer_budget.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_get_audio_output_count_single_audio_output.cc',
@@ -118,8 +116,6 @@
       '<(DEPTH)/starboard/shared/starboard/media/media_is_buffer_pool_allocate_on_demand.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_is_buffer_using_memory_pool.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_is_transfer_characteristics_supported.cc',
-      '<(DEPTH)/starboard/shared/starboard/media/media_util.cc',
-      '<(DEPTH)/starboard/shared/starboard/media/media_util.h',
       '<(DEPTH)/starboard/shared/starboard/player/decoded_audio_internal.cc',
       '<(DEPTH)/starboard/shared/starboard/player/input_buffer_internal.cc',
       '<(DEPTH)/starboard/shared/starboard/player/input_buffer_internal.h',
@@ -475,6 +471,7 @@
       ],
       'dependencies': [
         '<@(starboard_platform_dependencies)',
+        '<(DEPTH)/starboard/shared/starboard/media/media.gyp:media_util',
         'convert_i18n_data',
       ],
     },

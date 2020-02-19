@@ -126,7 +126,8 @@ SbPlayerSampleInfo VideoDmpReader::GetPlayerSampleInfo(SbMediaType type,
   return SbPlayerSampleInfo();
 }
 
-SbMediaAudioSampleInfo VideoDmpReader::GetAudioSampleInfo(size_t index) const {
+const SbMediaAudioSampleInfo& VideoDmpReader::GetAudioSampleInfo(
+    size_t index) const {
   SB_DCHECK(index < audio_access_units_.size());
   const AudioAccessUnit& au = audio_access_units_[index];
   return au.audio_sample_info();

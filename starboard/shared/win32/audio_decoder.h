@@ -21,6 +21,7 @@
 #include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
@@ -57,7 +58,7 @@ class AudioDecoder
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
 
   const SbMediaAudioCodec audio_codec_;
-  const SbMediaAudioSampleInfo audio_sample_info_;
+  const starboard::media::AudioSampleInfo audio_sample_info_;
   SbDrmSystem const drm_system_;
   const SbMediaAudioSampleType sample_type_;
   bool stream_ended_;

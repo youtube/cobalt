@@ -19,6 +19,7 @@
 
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 
@@ -48,7 +49,7 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   OutputCB output_cb_;
   SbMediaAudioSampleType sample_type_;
   SbMediaAudioCodec audio_codec_;
-  SbMediaAudioSampleInfo audio_sample_info_;
+  starboard::media::AudioSampleInfo audio_sample_info_;
   bool stream_ended_;
   std::queue<scoped_refptr<DecodedAudio> > decoded_audios_;
   scoped_refptr<InputBuffer> last_input_buffer_;
