@@ -322,6 +322,8 @@ class AndroidConfiguration(PlatformConfiguration):
           # Android currently does not support multi-video playback, which
           # the following tests depend upon.
           'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders/*',
+          # The test is failing on Nvidia Shield.
+          'AudioRendererTest.SunnyDay',
       ],
       'nplb': [
           # This test is failing because localhost is not defined for IPv6 in
@@ -330,8 +332,6 @@ class AndroidConfiguration(PlatformConfiguration):
           # Crashing in audio_track_audio_sink_type.cc.
           'SbAudioSinkCreateTest.*',
           'SbAudioSinkTest.*',
-          # The test is failing on Nvidia Shield.
-          'AudioRendererTest.SunnyDay',
       ],
   }
 
