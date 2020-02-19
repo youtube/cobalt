@@ -365,7 +365,7 @@ TEST_F(AudioRendererTest, SunnyDay) {
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
 
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  renderer_callback_->ConsumeFrames(frames_to_consume, (SbTime)kSbTimeMax);
+  renderer_callback_->ConsumeFrames(frames_to_consume, SbTimeGetMonotonicNow());
 #else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   renderer_callback_->ConsumeFrames(frames_to_consume);
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
@@ -378,7 +378,7 @@ TEST_F(AudioRendererTest, SunnyDay) {
 
   const int remaining_frames = frames_in_buffer - frames_to_consume;
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  renderer_callback_->ConsumeFrames(remaining_frames, (SbTime)kSbTimeMax);
+  renderer_callback_->ConsumeFrames(remaining_frames, SbTimeGetMonotonicNow());
 #else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   renderer_callback_->ConsumeFrames(remaining_frames);
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
@@ -450,13 +450,13 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
 
   // Consume frames in two batches, so we can test if |GetCurrentMediaTime()|
   // is incrementing in an expected manner.
-  const int frames_to_consume = frames_in_buffer / 4;
+  const int frames_to_consume = std::min(frames_written, frames_in_buffer) / 2;
   SbTime new_media_time;
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
 
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  renderer_callback_->ConsumeFrames(frames_to_consume, (SbTime)kSbTimeMax);
+  renderer_callback_->ConsumeFrames(frames_to_consume, SbTimeGetMonotonicNow());
 #else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   renderer_callback_->ConsumeFrames(frames_to_consume);
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
@@ -467,7 +467,7 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
 
   const int remaining_frames = frames_in_buffer - frames_to_consume;
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  renderer_callback_->ConsumeFrames(remaining_frames, (SbTime)kSbTimeMax);
+  renderer_callback_->ConsumeFrames(remaining_frames, SbTimeGetMonotonicNow());
 #else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   renderer_callback_->ConsumeFrames(remaining_frames);
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
@@ -524,7 +524,7 @@ TEST_F(AudioRendererTest, StartPlayBeforePreroll) {
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
 
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  renderer_callback_->ConsumeFrames(frames_to_consume, (SbTime)kSbTimeMax);
+  renderer_callback_->ConsumeFrames(frames_to_consume, SbTimeGetMonotonicNow());
 #else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   renderer_callback_->ConsumeFrames(frames_to_consume);
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
@@ -537,7 +537,7 @@ TEST_F(AudioRendererTest, StartPlayBeforePreroll) {
 
   const int remaining_frames = frames_in_buffer - frames_to_consume;
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  renderer_callback_->ConsumeFrames(remaining_frames, (SbTime)kSbTimeMax);
+  renderer_callback_->ConsumeFrames(remaining_frames, SbTimeGetMonotonicNow());
 #else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   renderer_callback_->ConsumeFrames(remaining_frames);
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
@@ -705,7 +705,7 @@ TEST_F(AudioRendererTest, MoreNumberOfOuputBuffersThanInputBuffers) {
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
 
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  renderer_callback_->ConsumeFrames(frames_to_consume, (SbTime)kSbTimeMax);
+  renderer_callback_->ConsumeFrames(frames_to_consume, SbTimeGetMonotonicNow());
 #else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   renderer_callback_->ConsumeFrames(frames_to_consume);
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
@@ -718,7 +718,7 @@ TEST_F(AudioRendererTest, MoreNumberOfOuputBuffersThanInputBuffers) {
 
   const int remaining_frames = frames_in_buffer - frames_to_consume;
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  renderer_callback_->ConsumeFrames(remaining_frames, (SbTime)kSbTimeMax);
+  renderer_callback_->ConsumeFrames(remaining_frames, SbTimeGetMonotonicNow());
 #else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   renderer_callback_->ConsumeFrames(remaining_frames);
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
@@ -804,7 +804,7 @@ TEST_F(AudioRendererTest, LessNumberOfOuputBuffersThanInputBuffers) {
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
 
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  renderer_callback_->ConsumeFrames(frames_to_consume, (SbTime)kSbTimeMax);
+  renderer_callback_->ConsumeFrames(frames_to_consume, SbTimeGetMonotonicNow());
 #else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   renderer_callback_->ConsumeFrames(frames_to_consume);
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
@@ -815,7 +815,7 @@ TEST_F(AudioRendererTest, LessNumberOfOuputBuffersThanInputBuffers) {
 
   const int remaining_frames = frames_in_buffer - frames_to_consume;
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  renderer_callback_->ConsumeFrames(remaining_frames, (SbTime)kSbTimeMax);
+  renderer_callback_->ConsumeFrames(remaining_frames, SbTimeGetMonotonicNow());
 #else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   renderer_callback_->ConsumeFrames(remaining_frames);
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
@@ -883,7 +883,7 @@ TEST_F(AudioRendererTest, Seek) {
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
 
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  renderer_callback_->ConsumeFrames(frames_to_consume, (SbTime)kSbTimeMax);
+  renderer_callback_->ConsumeFrames(frames_to_consume, SbTimeGetMonotonicNow());
 #else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   renderer_callback_->ConsumeFrames(frames_to_consume);
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
@@ -909,7 +909,7 @@ TEST_F(AudioRendererTest, Seek) {
   EXPECT_TRUE(is_playing);
   EXPECT_TRUE(is_eos_reached);
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  renderer_callback_->ConsumeFrames(frames_in_buffer, (SbTime)kSbTimeMax);
+  renderer_callback_->ConsumeFrames(frames_in_buffer, SbTimeGetMonotonicNow());
 #else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
   renderer_callback_->ConsumeFrames(frames_in_buffer);
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
