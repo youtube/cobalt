@@ -8,8 +8,8 @@
 #ifndef SKSL_EXPRESSION
 #define SKSL_EXPRESSION
 
-#include "SkSLType.h"
-#include "SkSLVariable.h"
+#include "src/sksl/ir/SkSLType.h"
+#include "src/sksl/ir/SkSLVariable.h"
 
 #include <unordered_map>
 
@@ -28,12 +28,15 @@ struct Expression : public IRNode {
         kBinary_Kind,
         kBoolLiteral_Kind,
         kConstructor_Kind,
+        kExternalFunctionCall_Kind,
+        kExternalValue_Kind,
         kIntLiteral_Kind,
         kFieldAccess_Kind,
         kFloatLiteral_Kind,
         kFunctionReference_Kind,
         kFunctionCall_Kind,
         kIndex_Kind,
+        kNullLiteral_Kind,
         kPrefix_Kind,
         kPostfix_Kind,
         kSetting_Kind,
@@ -44,8 +47,8 @@ struct Expression : public IRNode {
         kDefined_Kind
     };
 
-    Expression(Position position, Kind kind, const Type& type)
-    : INHERITED(position)
+    Expression(int offset, Kind kind, const Type& type)
+    : INHERITED(offset)
     , fKind(kind)
     , fType(std::move(type)) {}
 
@@ -67,6 +70,22 @@ struct Expression : public IRNode {
     }
 
     /**
+     * For an expression which evaluates to a constant int, returns the value. Otherwise calls
+     * ABORT.
+     */
+    virtual int64_t getConstantInt() const {
+        ABORT("not a constant int");
+    }
+
+    /**
+     * For an expression which evaluates to a constant float, returns the value. Otherwise calls
+     * ABORT.
+     */
+    virtual double getConstantFloat() const {
+        ABORT("not a constant float");
+    }
+
+    /**
      * Returns true if evaluating the expression potentially has side effects. Expressions may never
      * return false if they actually have side effects, but it is legal (though suboptimal) to
      * return true if there are not actually any side effects.
@@ -84,6 +103,40 @@ struct Expression : public IRNode {
                                                           const DefinitionMap& definitions) {
         return nullptr;
     }
+
+    virtual int coercionCost(const Type& target) const {
+        return fType.coercionCost(target);
+    }
+
+    /**
+     * For a literal vector expression, return the floating point value of the n'th vector
+     * component. It is an error to call this method on an expression which is not a literal vector.
+     */
+    virtual SKSL_FLOAT getFVecComponent(int n) const {
+        SkASSERT(false);
+        return 0;
+    }
+
+    /**
+     * For a literal vector expression, return the integer value of the n'th vector component. It is
+     * an error to call this method on an expression which is not a literal vector.
+     */
+    virtual SKSL_INT getIVecComponent(int n) const {
+        SkASSERT(false);
+        return 0;
+    }
+
+    /**
+     * For a literal matrix expression, return the floating point value of the component at
+     * [col][row]. It is an error to call this method on an expression which is not a literal
+     * matrix.
+     */
+    virtual SKSL_FLOAT getMatComponent(int col, int row) const {
+        SkASSERT(false);
+        return 0;
+    }
+
+    virtual std::unique_ptr<Expression> clone() const = 0;
 
     const Kind fKind;
     const Type& fType;

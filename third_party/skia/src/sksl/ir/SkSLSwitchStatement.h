@@ -8,23 +8,34 @@
 #ifndef SKSL_SWITCHSTATEMENT
 #define SKSL_SWITCHSTATEMENT
 
-#include "SkSLStatement.h"
-#include "SkSLSwitchCase.h"
+#include "src/sksl/ir/SkSLStatement.h"
+#include "src/sksl/ir/SkSLSwitchCase.h"
 
 namespace SkSL {
+
+class SymbolTable;
 
 /**
  * A 'switch' statement.
  */
 struct SwitchStatement : public Statement {
-    SwitchStatement(Position position, bool isStatic, std::unique_ptr<Expression> value,
+    SwitchStatement(int offset, bool isStatic, std::unique_ptr<Expression> value,
                     std::vector<std::unique_ptr<SwitchCase>> cases,
                     const std::shared_ptr<SymbolTable> symbols)
-    : INHERITED(position, kSwitch_Kind)
+    : INHERITED(offset, kSwitch_Kind)
     , fIsStatic(isStatic)
     , fValue(std::move(value))
     , fSymbols(std::move(symbols))
     , fCases(std::move(cases)) {}
+
+    std::unique_ptr<Statement> clone() const override {
+        std::vector<std::unique_ptr<SwitchCase>> cloned;
+        for (const auto& s : fCases) {
+            cloned.push_back(std::unique_ptr<SwitchCase>((SwitchCase*) s->clone().release()));
+        }
+        return std::unique_ptr<Statement>(new SwitchStatement(fOffset, fIsStatic, fValue->clone(),
+                                                              std::move(cloned), fSymbols));
+    }
 
     String description() const override {
         String result;

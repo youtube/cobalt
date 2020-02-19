@@ -5,9 +5,9 @@
  * found in the LICENSE file.
  */
 
-#include "SkJpegUtility.h"
+#include "src/codec/SkJpegUtility.h"
 
-#include "SkCodecPriv.h"
+#include "src/codec/SkCodecPriv.h"
 
 /*
  * Call longjmp to continue execution on an error
@@ -17,7 +17,10 @@ void skjpeg_err_exit(j_common_ptr dinfo) {
     // JpegDecoderMgr will take care of freeing memory
     skjpeg_error_mgr* error = (skjpeg_error_mgr*) dinfo->err;
     (*error->output_message) (dinfo);
-    longjmp(error->fJmpBuf, 1);
+    if (error->fJmpBufStack.empty()) {
+        SK_ABORT("JPEG error with no jmp_buf set.");
+    }
+    longjmp(*error->fJmpBufStack.back(), 1);
 }
 
 // Functions for buffered sources //
@@ -40,6 +43,9 @@ static boolean sk_fill_buffered_input_buffer(j_decompress_ptr dinfo) {
 
     // libjpeg is still happy with a less than full read, as long as the result is non-zero
     if (bytes == 0) {
+        // Let libjpeg know that the buffer needs to be refilled
+        src->next_input_byte = nullptr;
+        src->bytes_in_buffer = 0;
         return false;
     }
 

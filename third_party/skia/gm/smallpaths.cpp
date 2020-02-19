@@ -5,8 +5,15 @@
  * found in the LICENSE file.
  */
 
-#include "gm.h"
-#include "SkPath.h"
+#include "gm/gm.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkPath.h"
+#include "include/core/SkRect.h"
+#include "include/core/SkScalar.h"
+#include "include/core/SkSize.h"
+#include "include/core/SkString.h"
+#include "include/core/SkTypes.h"
 
 typedef SkScalar (*MakePathProc)(SkPath*);
 
@@ -48,8 +55,7 @@ static SkScalar make_star(SkPath* path, int n) {
     path->moveTo(c, c - r);
     for (int i = 1; i < n; i++) {
         rad += drad;
-        SkScalar cosV, sinV = SkScalarSinCos(rad, &cosV);
-        path->lineTo(c + cosV * r, c + sinV * r);
+        path->lineTo(c + SkScalarCos(rad) * r, c + SkScalarSin(rad) * r);
     }
     path->close();
     return r * 2 * 6 / 5;
@@ -106,7 +112,7 @@ static SkScalar make_curve(SkPath* path) {
 }
 
 static SkScalar make_battery(SkPath* path) {
-    static SkScalar xOffset = 5.f;
+    static SkScalar xOffset = 5.0f;
 
     path->moveTo(24.67f + xOffset, 0.33000004f);
     path->lineTo(8.3299999f + xOffset, 0.33000004f);
@@ -132,7 +138,7 @@ static SkScalar make_battery(SkPath* path) {
 }
 
 static SkScalar make_battery2(SkPath* path) {
-    static SkScalar xOffset = 5.f;
+    static SkScalar xOffset = 225.625f;
 
     path->moveTo(32.669998f + xOffset, 9.8640003f);
     path->lineTo(0.33000004f + xOffset, 9.8640003f);
@@ -193,6 +199,19 @@ constexpr SkScalar gMiters[] = {
     4.0f,
 };
 
+constexpr SkScalar gXTranslate[] = {
+    0.0f,
+    0.0f,
+    0.0f,
+    0.0f,
+    0.0f,
+    0.0f,
+    0.0f,
+    0.0f,
+    -220.625f,
+    0.0f,
+};
+
 #define N   SK_ARRAY_COUNT(gProcs)
 
 // This GM tests out drawing small paths (i.e., for Ganesh, using the Distance
@@ -225,7 +244,7 @@ protected:
         canvas->save();
         for (size_t i = 0; i < N; i++) {
             canvas->drawPath(fPath[i], paint);
-            canvas->translate(SkIntToScalar(0), fDY[i]);
+            canvas->translate(gXTranslate[i], fDY[i]);
         }
         canvas->restore();
         canvas->translate(SkIntToScalar(120), SkIntToScalar(0));
@@ -238,7 +257,7 @@ protected:
             paint.setStrokeWidth(gWidths[i]);
             paint.setStrokeMiter(gMiters[i]);
             canvas->drawPath(fPath[i], paint);
-            canvas->translate(SkIntToScalar(0), fDY[i]);
+            canvas->translate(gXTranslate[i], fDY[i]);
         }
         canvas->restore();
         canvas->translate(SkIntToScalar(120), SkIntToScalar(0));
@@ -251,7 +270,7 @@ protected:
             paint.setStrokeWidth(gWidths[i] + 2.0f);
             paint.setStrokeMiter(gMiters[i]);
             canvas->drawPath(fPath[i], paint);
-            canvas->translate(SkIntToScalar(0), fDY[i]);
+            canvas->translate(gXTranslate[i], fDY[i]);
         }
         canvas->restore();
         canvas->translate(SkIntToScalar(120), SkIntToScalar(0));
@@ -263,7 +282,7 @@ protected:
             paint.setStrokeWidth(gWidths[i]);
             paint.setStrokeMiter(gMiters[i]);
             canvas->drawPath(fPath[i], paint);
-            canvas->translate(SkIntToScalar(0), fDY[i]);
+            canvas->translate(gXTranslate[i], fDY[i]);
         }
 
     }

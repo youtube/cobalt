@@ -8,7 +8,7 @@
 #ifndef GrDistanceFieldGenFromVector_DEFINED
 #define GrDistanceFieldGenFromVector_DEFINED
 
-#include "SkPath.h"
+#include "include/core/SkPath.h"
 
 class SkMatrix;
 
@@ -32,7 +32,7 @@ bool GrGenerateDistanceFieldFromPath(unsigned char* distanceField,
 
 inline bool IsDistanceFieldSupportedFillType(SkPath::FillType fFillType)
 {
-	return (SkPath::kEvenOdd_FillType == fFillType ||
+    return (SkPath::kEvenOdd_FillType == fFillType ||
             SkPath::kInverseEvenOdd_FillType == fFillType);
 }
 

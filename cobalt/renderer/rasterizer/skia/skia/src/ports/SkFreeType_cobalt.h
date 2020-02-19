@@ -25,7 +25,7 @@ namespace sk_freetype_cobalt {
 // not it has a fixed pitch. It also generates the font's character map if that
 // optional parameter is provided.
 bool ScanFont(SkStreamAsset* stream, int face_index, SkString* name,
-              SkTypeface::Style* style, bool* is_fixed_pitch,
+              SkFontStyle* style, bool* is_fixed_pitch,
               font_character_map::CharacterMap* maybe_character_map = NULL);
 
 }  // namespace sk_freetype_cobalt

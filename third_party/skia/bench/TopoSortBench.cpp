@@ -5,19 +5,18 @@
  * found in the LICENSE file.
  */
 
-#include "Benchmark.h"
-#include "SkRandom.h"
-#include "SkString.h"
-#include "SkTTopoSort.h"
+#include "bench/Benchmark.h"
+#include "include/core/SkString.h"
+#include "include/utils/SkRandom.h"
+#include "src/core/SkTTopoSort.h"
 
-#include "sk_tool_utils.h"
+#include "tools/ToolUtils.h"
 
 class TopoSortBench : public Benchmark {
 public:
     TopoSortBench() { }
 
     ~TopoSortBench() override {
-        sk_tool_utils::TopoTestNode::DeallocNodes(&fGraph);
     }
 
     bool isSuitableFor(Backend backend) override {
@@ -31,7 +30,7 @@ protected:
 
     // Delayed initialization only done if onDraw will be called.
     void onDelayedSetup() override {
-        sk_tool_utils::TopoTestNode::AllocNodes(&fGraph, kNumElements);
+        ToolUtils::TopoTestNode::AllocNodes(&fGraph, kNumElements);
 
         for (int i = kNumElements-1; i > 0; --i) {
             int numEdges = fRand.nextU() % (kMaxEdges+1);
@@ -39,7 +38,7 @@ protected:
             for (int j = 0; j < numEdges; ++j) {
                 int dep = fRand.nextU() % i;
 
-                fGraph[i]->dependsOn(fGraph[dep]);
+                fGraph[i]->dependsOn(fGraph[dep].get());
             }
         }
     }
@@ -50,9 +49,9 @@ protected:
                 fGraph[j]->reset();
             }
 
-            sk_tool_utils::TopoTestNode::Shuffle(&fGraph, &fRand);
+            ToolUtils::TopoTestNode::Shuffle(&fGraph, &fRand);
 
-            SkDEBUGCODE(bool actualResult =) SkTTopoSort<sk_tool_utils::TopoTestNode>(&fGraph);
+            SkDEBUGCODE(bool actualResult =) SkTTopoSort<ToolUtils::TopoTestNode>(&fGraph);
             SkASSERT(actualResult);
 
 #ifdef SK_DEBUG
@@ -67,7 +66,7 @@ private:
     static const int kNumElements = 1000;
     static const int kMaxEdges = 5;
 
-    SkTDArray<sk_tool_utils::TopoTestNode*> fGraph;
+    SkTArray<sk_sp<ToolUtils::TopoTestNode>> fGraph;
     SkRandom fRand;
 
     typedef Benchmark INHERITED;

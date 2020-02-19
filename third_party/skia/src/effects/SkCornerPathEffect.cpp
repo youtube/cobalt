@@ -6,13 +6,19 @@
  */
 
 
-#include "SkCornerPathEffect.h"
-#include "SkPath.h"
-#include "SkPoint.h"
-#include "SkReadBuffer.h"
-#include "SkWriteBuffer.h"
+#include "include/core/SkPath.h"
+#include "include/core/SkPoint.h"
+#include "include/effects/SkCornerPathEffect.h"
+#include "src/core/SkReadBuffer.h"
+#include "src/core/SkWriteBuffer.h"
 
-SkCornerPathEffect::SkCornerPathEffect(SkScalar radius) : fRadius(radius) {}
+SkCornerPathEffect::SkCornerPathEffect(SkScalar radius) {
+    // check with ! to catch NaNs
+    if (!(radius > 0)) {
+        radius = 0;
+    }
+    fRadius = radius;
+}
 SkCornerPathEffect::~SkCornerPathEffect() {}
 
 static bool ComputeStep(const SkPoint& a, const SkPoint& b, SkScalar radius,
@@ -29,14 +35,14 @@ static bool ComputeStep(const SkPoint& a, const SkPoint& b, SkScalar radius,
     }
 }
 
-bool SkCornerPathEffect::filterPath(SkPath* dst, const SkPath& src,
-                                    SkStrokeRec*, const SkRect*) const {
-    if (0 == fRadius) {
+bool SkCornerPathEffect::onFilterPath(SkPath* dst, const SkPath& src,
+                                      SkStrokeRec*, const SkRect*) const {
+    if (fRadius <= 0) {
         return false;
     }
 
     SkPath::Iter    iter(src, false);
-    SkPath::Verb    verb, prevVerb = (SkPath::Verb)-1;
+    SkPath::Verb    verb, prevVerb = SkPath::kDone_Verb;
     SkPoint         pts[4];
 
     bool        closed;
@@ -51,9 +57,9 @@ bool SkCornerPathEffect::filterPath(SkPath* dst, const SkPath& src,
     lastCorner.set(0, 0);
 
     for (;;) {
-        switch (verb = iter.next(pts, false)) {
+        switch (verb = iter.next(pts)) {
             case SkPath::kMove_Verb:
-                    // close out the previous (open) contour
+                // close out the previous (open) contour
                 if (SkPath::kLine_Verb == prevVerb) {
                     dst->lineTo(lastCorner);
                 }
@@ -118,7 +124,7 @@ bool SkCornerPathEffect::filterPath(SkPath* dst, const SkPath& src,
                     dst->quadTo(lastCorner.fX, lastCorner.fY,
                                 lastCorner.fX + firstStep.fX,
                                 lastCorner.fY + firstStep.fY);
-                    }
+                }
                 dst->close();
                 prevIsValid = false;
                 break;
@@ -126,7 +132,10 @@ bool SkCornerPathEffect::filterPath(SkPath* dst, const SkPath& src,
                 if (prevIsValid) {
                     dst->lineTo(lastCorner);
                 }
-                goto DONE;
+                return true;
+            default:
+                SkDEBUGFAIL("default should not be reached");
+                return false;
         }
 
         if (SkPath::kMove_Verb == prevVerb) {
@@ -134,7 +143,7 @@ bool SkCornerPathEffect::filterPath(SkPath* dst, const SkPath& src,
         }
         prevVerb = verb;
     }
-DONE:
+
     return true;
 }
 
@@ -145,11 +154,3 @@ sk_sp<SkFlattenable> SkCornerPathEffect::CreateProc(SkReadBuffer& buffer) {
 void SkCornerPathEffect::flatten(SkWriteBuffer& buffer) const {
     buffer.writeScalar(fRadius);
 }
-
-#ifndef SK_IGNORE_TO_STRING
-void SkCornerPathEffect::toString(SkString* str) const {
-    str->appendf("SkCornerPathEffect: (");
-    str->appendf("radius: %.2f", fRadius);
-    str->appendf(")");
-}
-#endif

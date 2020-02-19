@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2006 The Android Open Source Project
  *
@@ -10,9 +9,11 @@
 #ifndef SkInterpolator_DEFINED
 #define SkInterpolator_DEFINED
 
-#include "SkScalar.h"
+#include "include/core/SkScalar.h"
+#include "include/private/SkNoncopyable.h"
+#include "include/private/SkTo.h"
 
-class SkInterpolatorBase : SkNoncopyable {
+class SK_API SkInterpolatorBase : SkNoncopyable {
 public:
     enum Result {
         kNormal_Result,
@@ -67,8 +68,8 @@ protected:
         kReset = 2,
         kHasBlend = 4
     };
-    static SkScalar ComputeRelativeT(SkMSec time, SkMSec prevTime,
-                             SkMSec nextTime, const SkScalar blend[4] = NULL);
+    static SkScalar ComputeRelativeT(SkMSec time, SkMSec prevTime, SkMSec nextTime,
+                                     const SkScalar blend[4] = nullptr);
     int16_t fFrameCount;
     uint8_t fElemCount;
     uint8_t fFlags;
@@ -84,7 +85,7 @@ protected:
 #endif
 };
 
-class SkInterpolator : public SkInterpolatorBase {
+class SK_API SkInterpolator : public SkInterpolatorBase {
 public:
     SkInterpolator();
     SkInterpolator(int elemCount, int frameCount);
@@ -102,7 +103,7 @@ public:
                         1 is a linear blend (default)
     */
     bool setKeyFrame(int index, SkMSec time, const SkScalar values[],
-                     const SkScalar blend[4] = NULL);
+                     const SkScalar blend[4] = nullptr);
 
     /** Return the computed values given the specified time. Return whether
         those values are the result of pinning to either the first
@@ -111,7 +112,7 @@ public:
         @param time The time to sample (in milliseconds)
         @param (may be null) where to write the computed values.
     */
-    Result timeToValues(SkMSec time, SkScalar values[] = NULL) const;
+    Result timeToValues(SkMSec time, SkScalar values[] = nullptr) const;
 
 private:
     SkScalar* fValues;  // pointer into fStorage

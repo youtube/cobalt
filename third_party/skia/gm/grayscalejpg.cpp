@@ -5,16 +5,19 @@
  * found in the LICENSE file.
  */
 
-#include "Resources.h"
-#include "SkImage.h"
-#include "gm.h"
+#include "gm/gm.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkImage.h"
+#include "include/core/SkRefCnt.h"
+#include "include/core/SkTypes.h"
+#include "tools/Resources.h"
 
 /*
  *  Test decoding grayscale JPEG
  *  http://crbug.com/436079
  */
 DEF_SIMPLE_GM(grayscalejpg, canvas, 128, 128) {
-    const char kResource[] = "grayscale.jpg";
+    const char kResource[] = "images/grayscale.jpg";
     sk_sp<SkImage> image(GetResourceAsImage(kResource));
     if (image) {
         canvas->drawImage(image, 0.0f, 0.0f);

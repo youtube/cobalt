@@ -5,7 +5,7 @@
  * found in the LICENSE file.
  */
 
-#include "SkStream.h"
+#include "include/core/SkStream.h"
 
 #if defined(SK_BUILD_FOR_MAC)
 #include <ApplicationServices/ApplicationServices.h>
@@ -19,10 +19,10 @@ int main(int argc, char** argv) {
     CFDataRef dataRef = CGColorSpaceCopyICCProfile(cs);
     const uint8_t* data = CFDataGetBytePtr(dataRef);
     size_t size = CFDataGetLength(dataRef);
-    
+
     SkFILEWStream file("monitor_0.icc");
     file.write(data, size);
-    
+
     CFRelease(cs);
     CFRelease(dataRef);
     return 0;

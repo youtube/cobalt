@@ -8,7 +8,10 @@
 #ifndef SkAnalyticEdge_DEFINED
 #define SkAnalyticEdge_DEFINED
 
-#include "SkEdge.h"
+#include "include/private/SkTo.h"
+#include "src/core/SkEdge.h"
+
+#include <utility>
 
 struct SkAnalyticEdge {
     // Similar to SkEdge, the conic edges will be converted to quadratic edges
@@ -77,8 +80,11 @@ struct SkAnalyticEdge {
         fSavedDY = dY;
     }
 
-    inline bool setLine(const SkPoint& p0, const SkPoint& p1);
-    inline bool updateLine(SkFixed ax, SkFixed ay, SkFixed bx, SkFixed by, SkFixed slope);
+    bool setLine(const SkPoint& p0, const SkPoint& p1);
+    bool updateLine(SkFixed ax, SkFixed ay, SkFixed bx, SkFixed by, SkFixed slope);
+
+    // return true if we're NOT done with this edge
+    bool update(SkFixed last_y, bool sortY = true);
 
 #ifdef SK_DEBUG
     void dump() const {
@@ -121,8 +127,8 @@ struct SkAnalyticCubicEdge : public SkAnalyticEdge {
 
     SkFixed fSnappedY; // to make sure that y is increasing with smooth jump and snapping
 
-    bool setCubic(const SkPoint pts[4]);
-    bool updateCubic();
+    bool setCubic(const SkPoint pts[4], bool sortY = true);
+    bool updateCubic(bool sortY = true);
     inline void keepContinuous() {
         SkASSERT(SkAbs32(fX - SkFixedMul(fDX, fY - SnapY(fCEdge.fCy)) - fCEdge.fCx) < SK_Fixed1);
         fCEdge.fCx = fX;
@@ -130,49 +136,69 @@ struct SkAnalyticCubicEdge : public SkAnalyticEdge {
     }
 };
 
-bool SkAnalyticEdge::setLine(const SkPoint& p0, const SkPoint& p1) {
-    fRiteE = nullptr;
+struct SkBezier {
+    int fCount; // 2 line, 3 quad, 4 cubic
+    SkPoint fP0;
+    SkPoint fP1;
 
-    // We must set X/Y using the same way (e.g., times 4, to FDot6, then to Fixed) as Quads/Cubics.
-    // Otherwise the order of the edge might be wrong due to precision limit.
-    const int accuracy = kDefaultAccuracy;
-    const int multiplier = (1 << kDefaultAccuracy);
-    SkFixed x0 = SkFDot6ToFixed(SkScalarToFDot6(p0.fX * multiplier)) >> accuracy;
-    SkFixed y0 = SnapY(SkFDot6ToFixed(SkScalarToFDot6(p0.fY * multiplier)) >> accuracy);
-    SkFixed x1 = SkFDot6ToFixed(SkScalarToFDot6(p1.fX * multiplier)) >> accuracy;
-    SkFixed y1 = SnapY(SkFDot6ToFixed(SkScalarToFDot6(p1.fY * multiplier)) >> accuracy);
-
-    int winding = 1;
-
-    if (y0 > y1) {
-        SkTSwap(x0, x1);
-        SkTSwap(y0, y1);
-        winding = -1;
+    // See if left shift, covert to SkFDot6, and round has the same top and bottom y.
+    // If so, the edge will be empty.
+    static inline bool IsEmpty(SkScalar y0, SkScalar y1, int shift = 2) {
+#ifdef SK_RASTERIZE_EVEN_ROUNDING
+        return SkScalarRoundToFDot6(y0, shift) == SkScalarRoundToFDot6(y1, shift);
+#else
+        SkScalar scale = (1 << (shift + 6));
+        return SkFDot6Round(int(y0 * scale)) == SkFDot6Round(int(y1 * scale));
+#endif
     }
+};
 
-    // are we a zero-height line?
-    SkFDot6 dy = SkFixedToFDot6(y1 - y0);
-    if (dy == 0) {
-        return false;
+struct SkLine : public SkBezier {
+    bool set(const SkPoint pts[2]){
+        if (IsEmpty(pts[0].fY, pts[1].fY)) {
+            return false;
+        }
+        fCount = 2;
+        fP0 = pts[0];
+        fP1 = pts[1];
+        return true;
     }
-    SkFDot6 dx = SkFixedToFDot6(x1 - x0);
-    SkFixed slope = QuickSkFDot6Div(dx, dy);
-    SkFixed absSlope = SkAbs32(slope);
+};
 
-    fX          = x0;
-    fDX         = slope;
-    fUpperX     = x0;
-    fY          = y0;
-    fUpperY     = y0;
-    fLowerY     = y1;
-    fDY         = dx == 0 || slope == 0 ? SK_MaxS32 : absSlope < kInverseTableSize
-                                                    ? QuickFDot6Inverse::Lookup(absSlope)
-                                                    : SkAbs32(QuickSkFDot6Div(dy, dx));
-    fCurveCount = 0;
-    fWinding    = SkToS8(winding);
-    fCurveShift = 0;
+struct SkQuad : public SkBezier {
+    SkPoint fP2;
 
-    return true;
-}
+    bool set(const SkPoint pts[3]){
+        if (IsEmpty(pts[0].fY, pts[2].fY)) {
+            return false;
+        }
+        fCount = 3;
+        fP0 = pts[0];
+        fP1 = pts[1];
+        fP2 = pts[2];
+        return true;
+    }
+};
+
+struct SkCubic : public SkBezier {
+    SkPoint fP2;
+    SkPoint fP3;
+
+    bool set(const SkPoint pts[4]){
+        // We do not chop at y extrema for cubics so pts[0], pts[1], pts[2], pts[3] may not be
+        // monotonic. Therefore, we have to check the emptiness for all three pairs, instead of just
+        // checking IsEmpty(pts[0].fY, pts[3].fY).
+        if (IsEmpty(pts[0].fY, pts[1].fY) && IsEmpty(pts[1].fY, pts[2].fY) &&
+                IsEmpty(pts[2].fY, pts[3].fY)) {
+            return false;
+        }
+        fCount = 4;
+        fP0 = pts[0];
+        fP1 = pts[1];
+        fP2 = pts[2];
+        fP3 = pts[3];
+        return true;
+    }
+};
 
 #endif

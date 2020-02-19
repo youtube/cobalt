@@ -21,7 +21,7 @@
 
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/renderer/rasterizer/skia/text_shaper.h"
-#include "third_party/skia/include/ports/SkFontMgr.h"
+#include "third_party/skia/include/core/SkFontMgr.h"
 
 namespace cobalt {
 namespace renderer {

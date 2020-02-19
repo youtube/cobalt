@@ -5,20 +5,21 @@
  * found in the LICENSE file.
  */
 
-#include "SkBmpRLECodec.h"
-#include "SkCodecPriv.h"
-#include "SkColorPriv.h"
-#include "SkStream.h"
+#include "include/core/SkStream.h"
+#include "include/private/SkColorData.h"
+#include "src/codec/SkBmpRLECodec.h"
+#include "src/codec/SkCodecPriv.h"
 
 /*
  * Creates an instance of the decoder
  * Called only by NewFromStream
  */
-SkBmpRLECodec::SkBmpRLECodec(int width, int height, const SkEncodedInfo& info, SkStream* stream,
+SkBmpRLECodec::SkBmpRLECodec(SkEncodedInfo&& info,
+                             std::unique_ptr<SkStream> stream,
                              uint16_t bitsPerPixel, uint32_t numColors,
                              uint32_t bytesPerColor, uint32_t offset,
                              SkCodec::SkScanlineOrder rowOrder)
-    : INHERITED(width, height, info, stream, bitsPerPixel, rowOrder)
+    : INHERITED(std::move(info), std::move(stream), bitsPerPixel, rowOrder)
     , fColorTable(nullptr)
     , fNumColors(numColors)
     , fBytesPerColor(bytesPerColor)
@@ -274,16 +275,15 @@ SkCodec::Result SkBmpRLECodec::onPrepareToDecode(const SkImageInfo& dstInfo,
  */
 int SkBmpRLECodec::decodeRows(const SkImageInfo& info, void* dst, size_t dstRowBytes,
         const Options& opts) {
-    const int width = this->getInfo().width();
     int height = info.height();
 
     // Account for sampling.
-    SkImageInfo dstInfo = info.makeWH(get_scaled_dimension(width, fSampleX), height);
+    SkImageInfo dstInfo = info.makeWH(this->fillWidth(), height);
 
     // Set the background as transparent.  Then, if the RLE code skips pixels,
     // the skipped pixels will be transparent.
     if (dst) {
-        SkSampler::Fill(dstInfo, dst, dstRowBytes, SK_ColorTRANSPARENT, opts.fZeroInitialized);
+        SkSampler::Fill(dstInfo, dst, dstRowBytes, opts.fZeroInitialized);
     }
 
     // Adjust the height and the dst if the previous call to decodeRows() left us
@@ -331,16 +331,16 @@ int SkBmpRLECodec::decodeRows(const SkImageInfo& info, void* dst, size_t dstRowB
 
 int SkBmpRLECodec::decodeRLE(const SkImageInfo& dstInfo, void* dst, size_t dstRowBytes) {
     // Use the original width to count the number of pixels in each row.
-    const int width = this->getInfo().width();
+    const int width = this->dimensions().width();
 
     // This tells us the number of rows that we are meant to decode.
     const int height = dstInfo.height();
 
     // Set RLE flags
-    static const uint8_t RLE_ESCAPE = 0;
-    static const uint8_t RLE_EOL = 0;
-    static const uint8_t RLE_EOF = 1;
-    static const uint8_t RLE_DELTA = 2;
+    constexpr uint8_t RLE_ESCAPE = 0;
+    constexpr uint8_t RLE_EOL = 0;
+    constexpr uint8_t RLE_EOF = 1;
+    constexpr uint8_t RLE_DELTA = 2;
 
     // Destination parameters
     int x = 0;
@@ -521,9 +521,8 @@ int SkBmpRLECodec::decodeRLE(const SkImageInfo& dstInfo, void* dst, size_t dstRo
 }
 
 bool SkBmpRLECodec::skipRows(int count) {
-    const SkImageInfo rowInfo = SkImageInfo::Make(this->getInfo().width(), count, kN32_SkColorType,
-            kUnpremul_SkAlphaType);
-
+    const SkImageInfo rowInfo = SkImageInfo::Make(this->dimensions().width(), count,
+                                                  kN32_SkColorType, kUnpremul_SkAlphaType);
     return count == this->decodeRows(rowInfo, nullptr, 0, this->options());
 }
 
@@ -538,6 +537,10 @@ public:
         SkASSERT(fCodec);
     }
 
+    int fillWidth() const override {
+        return fCodec->fillWidth();
+    }
+
 private:
     int onSetSampleX(int sampleX) override {
         return fCodec->setSampleX(sampleX);
@@ -547,20 +550,19 @@ private:
     SkBmpRLECodec* fCodec;
 };
 
-SkSampler* SkBmpRLECodec::getSampler(bool /*createIfNecessary*/) {
-    // We will always create an SkBmpRLESampler if one is requested.
-    // This allows clients to always use the SkBmpRLESampler's
-    // version of fill(), which does nothing since RLE decodes have
-    // already filled pixel memory.  This seems fine, since creating
-    // an SkBmpRLESampler is pretty inexpensive.
-    if (!fSampler) {
+SkSampler* SkBmpRLECodec::getSampler(bool createIfNecessary) {
+    if (!fSampler && createIfNecessary) {
         fSampler.reset(new SkBmpRLESampler(this));
     }
 
     return fSampler.get();
 }
 
-int SkBmpRLECodec::setSampleX(int sampleX){
+int SkBmpRLECodec::setSampleX(int sampleX) {
     fSampleX = sampleX;
-    return get_scaled_dimension(this->getInfo().width(), sampleX);
+    return this->fillWidth();
+}
+
+int SkBmpRLECodec::fillWidth() const {
+    return get_scaled_dimension(this->dimensions().width(), fSampleX);
 }

@@ -5,14 +5,15 @@
  * found in the LICENSE file.
  */
 
-#include "SkBitmap.h"
-#include "SkCanvas.h"
-#include "SkBBoxHierarchy.h"
-#include "SkPaint.h"
-#include "SkPicture.h"
-#include "SkPictureRecorder.h"
+#include "include/core/SkBitmap.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkPicture.h"
+#include "include/core/SkPictureRecorder.h"
+#include "src/core/SkBBoxHierarchy.h"
+#include "src/core/SkRectPriv.h"
 
-#include "Test.h"
+#include "tests/Test.h"
 
 class PictureBBHTestBase {
 public:
@@ -93,14 +94,31 @@ DEF_TEST(PictureBBH, reporter) {
     emptyClipPictureTest.run(reporter);
 }
 
-DEF_TEST(RTreeMakeLargest, r) {
-    // A call to insert() with 2 or more rects and a bounds of SkRect::MakeLargest()
-    // used to fall into an infinite loop.
-
+DEF_TEST(PictureNegativeSpace, r) {
     SkRTreeFactory factory;
-    std::unique_ptr<SkBBoxHierarchy> bbh{ factory(SkRect::MakeLargest()) };
+    SkPictureRecorder recorder;
 
-    SkRect rects[] = { {0,0, 10,10}, {5,5,15,15} };
-    bbh->insert(rects, SK_ARRAY_COUNT(rects));
-    REPORTER_ASSERT(r, bbh->getRootBound() == SkRect::MakeWH(15,15));
+    SkRect cull = {-200,-200,+200,+200};
+
+    {
+        auto canvas = recorder.beginRecording(cull, &factory);
+            canvas->save();
+            canvas->clipRect(cull);
+            canvas->drawRect({-20,-20,-10,-10}, SkPaint{});
+            canvas->drawRect({-20,-20,-10,-10}, SkPaint{});
+            canvas->restore();
+        auto pic = recorder.finishRecordingAsPicture();
+        REPORTER_ASSERT(r, pic->approximateOpCount() == 5);
+        REPORTER_ASSERT(r, pic->cullRect() == (SkRect{-20,-20,-10,-10}));
+    }
+
+    {
+        auto canvas = recorder.beginRecording(cull, &factory);
+            canvas->clipRect(cull);
+            canvas->drawRect({-20,-20,-10,-10}, SkPaint{});
+            canvas->drawRect({-20,-20,-10,-10}, SkPaint{});
+        auto pic = recorder.finishRecordingAsPicture();
+        REPORTER_ASSERT(r, pic->approximateOpCount() == 3);
+        REPORTER_ASSERT(r, pic->cullRect() == (SkRect{-20,-20,-10,-10}));
+    }
 }

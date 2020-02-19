@@ -8,10 +8,11 @@
 #ifndef SkDOM_DEFINED
 #define SkDOM_DEFINED
 
-#include "../private/SkTemplates.h"
-#include "SkArenaAlloc.h"
-#include "SkScalar.h"
-#include "SkTypes.h"
+#include "include/core/SkScalar.h"
+#include "include/core/SkTypes.h"
+#include "include/private/SkNoncopyable.h"
+#include "include/private/SkTemplates.h"
+#include "src/core/SkArenaAlloc.h"
 
 struct SkDOMNode;
 struct SkDOMAttr;
@@ -45,8 +46,8 @@ public:
     Type getType(const Node*) const;
 
     const char* getName(const Node*) const;
-    const Node* getFirstChild(const Node*, const char elem[] = NULL) const;
-    const Node* getNextSibling(const Node*, const char elem[] = NULL) const;
+    const Node* getFirstChild(const Node*, const char elem[] = nullptr) const;
+    const Node* getNextSibling(const Node*, const char elem[] = nullptr) const;
 
     const char* findAttr(const Node*, const char attrName[]) const;
     const Attr* getFirstAttr(const Node*) const;
@@ -55,7 +56,7 @@ public:
     const char* getAttrValue(const Node*, const Attr*) const;
 
     // helpers for walking children
-    int countChildren(const Node* node, const char elem[] = NULL) const;
+    int countChildren(const Node* node, const char elem[] = nullptr) const;
 
     // helpers for calling SkParse
     bool findS32(const Node*, const char name[], int32_t* value) const;

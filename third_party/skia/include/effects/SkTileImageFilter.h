@@ -8,9 +8,10 @@
 #ifndef SkTileImageFilter_DEFINED
 #define SkTileImageFilter_DEFINED
 
-#include "SkImageFilter.h"
+#include "include/core/SkImageFilter.h"
 
-class SK_API SkTileImageFilter : public SkImageFilter {
+// DEPRECATED: Use include/effects/SkImageFilters::Tile
+class SK_API SkTileImageFilter {
 public:
     /** Create a tile image filter
         @param src  Defines the pixels to tile
@@ -21,28 +22,10 @@ public:
                                      const SkRect& dst,
                                      sk_sp<SkImageFilter> input);
 
-    SkIRect onFilterBounds(const SkIRect& src, const SkMatrix&, MapDirection) const override;
-    SkIRect onFilterNodeBounds(const SkIRect&, const SkMatrix&, MapDirection) const override;
-    SkRect computeFastBounds(const SkRect& src) const override;
-
-    SK_TO_STRING_OVERRIDE()
-    SK_DECLARE_PUBLIC_FLATTENABLE_DESERIALIZATION_PROCS(SkTileImageFilter)
-
-protected:
-    void flatten(SkWriteBuffer& buffer) const override;
-
-    sk_sp<SkSpecialImage> onFilterImage(SkSpecialImage* source, const Context&,
-                                        SkIPoint* offset) const override;
-    sk_sp<SkImageFilter> onMakeColorSpace(SkColorSpaceXformer*) const override;
+    static void RegisterFlattenables();
 
 private:
-    SkTileImageFilter(const SkRect& srcRect, const SkRect& dstRect, sk_sp<SkImageFilter> input)
-        : INHERITED(&input, 1, nullptr), fSrcRect(srcRect), fDstRect(dstRect) {}
-
-    SkRect fSrcRect;
-    SkRect fDstRect;
-
-    typedef SkImageFilter INHERITED;
+    SkTileImageFilter() = delete;
 };
 
 #endif

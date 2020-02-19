@@ -8,14 +8,14 @@
 #ifndef SkSVGRenderContext_DEFINED
 #define SkSVGRenderContext_DEFINED
 
-#include "SkPaint.h"
-#include "SkPath.h"
-#include "SkRect.h"
-#include "SkSize.h"
-#include "SkSVGAttribute.h"
-#include "SkSVGIDMapper.h"
-#include "SkTLazy.h"
-#include "SkTypes.h"
+#include "experimental/svg/model/SkSVGAttribute.h"
+#include "experimental/svg/model/SkSVGIDMapper.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkPath.h"
+#include "include/core/SkRect.h"
+#include "include/core/SkSize.h"
+#include "include/core/SkTypes.h"
+#include "src/core/SkTLazy.h"
 
 class SkCanvas;
 class SkSVGLength;
@@ -61,6 +61,7 @@ public:
     SkSVGRenderContext(SkCanvas*, const SkSVGIDMapper&, const SkSVGLengthContext&,
                        const SkSVGPresentationContext&);
     SkSVGRenderContext(const SkSVGRenderContext&);
+    SkSVGRenderContext(const SkSVGRenderContext&, SkCanvas*);
     ~SkSVGRenderContext();
 
     const SkSVGLengthContext& lengthContext() const { return *fLengthContext; }
@@ -69,6 +70,7 @@ public:
     const SkSVGPresentationContext& presentationContext() const { return *fPresentationContext; }
 
     SkCanvas* canvas() const { return fCanvas; }
+    void saveOnce();
 
     enum ApplyFlags {
         kLeaf = 1 << 0, // the target node doesn't have descendants

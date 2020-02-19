@@ -23,17 +23,20 @@ dpkg_all_installed() {
 
 if command -v lsb_release > /dev/null ; then
     case $(lsb_release -i -s) in
-        Ubuntu)
+        Ubuntu|Debian)
             PACKAGES=$(cat<<-EOF
 		build-essential
 		freeglut3-dev
 		libfontconfig-dev
 		libfreetype6-dev
 		libgif-dev
+		libgl1-mesa-dev
 		libglu1-mesa-dev
-		libosmesa6-dev
-		libpng12-dev
-		libqt4-dev
+		libharfbuzz-dev
+		libicu-dev
+		libjpeg-dev
+		libpng-dev
+		libwebp-dev
 		EOF
             )
            if [ $(lsb_release -r -s) = '14.04' ] ; then

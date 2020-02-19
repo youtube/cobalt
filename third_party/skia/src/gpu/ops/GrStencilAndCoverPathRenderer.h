@@ -8,10 +8,10 @@
 #ifndef GrBuiltInPathRenderer_DEFINED
 #define GrBuiltInPathRenderer_DEFINED
 
-#include "GrPathRenderer.h"
+#include "src/gpu/GrPathRenderer.h"
 
-class GrContext;
 class GrGpu;
+class GrResourceProvider;
 
 /**
  * Uses GrGpu::stencilPath followed by a cover rectangle. This subclass doesn't apply AA; it relies
@@ -28,7 +28,7 @@ private:
         return GrPathRenderer::kStencilOnly_StencilSupport;
     }
 
-    bool onCanDrawPath(const CanDrawPathArgs&) const override;
+    CanDrawPath onCanDrawPath(const CanDrawPathArgs&) const override;
 
     bool onDrawPath(const DrawPathArgs&) override;
 

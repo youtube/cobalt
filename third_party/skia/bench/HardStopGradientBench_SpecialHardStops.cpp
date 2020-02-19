@@ -5,14 +5,14 @@
  * found in the LICENSE file.
  */
 
-#include "Benchmark.h"
+#include "bench/Benchmark.h"
 
-#include "SkCanvas.h"
-#include "SkShader.h"
-#include "SkGradientShader.h"
-#include "SkString.h"
-#include "SkColor.h"
-#include "SkPaint.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkColor.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkShader.h"
+#include "include/core/SkString.h"
+#include "include/effects/SkGradientShader.h"
 
 enum class Kind {
     k001,
@@ -84,7 +84,7 @@ public:
         };
 
         SkScalar* positions = fKind == Kind::k001 ? pos_001 :
-                              fKind == Kind::k011 ? pos_011 : 
+                              fKind == Kind::k011 ? pos_011 :
                                                     pos_centered;
 
         int count = fKind == Kind::kCentered ? 4 : 3;
@@ -93,7 +93,7 @@ public:
                                                       colors,
                                                       positions,
                                                       count,
-                                                      SkShader::kClamp_TileMode,
+                                                      SkTileMode::kClamp,
                                                       0,
                                                       nullptr));
     }
@@ -109,7 +109,7 @@ private:
     int      fW;
     int      fH;
     Kind     fKind;
-    SkPaint  fPaint; 
+    SkPaint  fPaint;
 };
 
 DEF_BENCH(return new HardStopGradientBench_SpecialHardStops(100, 100, Kind::k001););

@@ -5,11 +5,20 @@
  * found in the LICENSE file.
  */
 
-#include "SkData.h"
-#include "SkCanvas.h"
-#include "SkGraphics.h"
-#include "SkImageGenerator.h"
-#include "Test.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkData.h"
+
+#include "include/core/SkGraphics.h"
+#include "include/core/SkImageGenerator.h"
+#include "include/core/SkYUVAIndex.h"
+#include "include/private/SkImageInfoPriv.h"
+#include "tests/Test.h"
+
+#if defined(SK_BUILD_FOR_MAC) || defined(SK_BUILD_FOR_IOS)
+    #include "include/ports/SkImageGeneratorCG.h"
+#elif defined(SK_BUILD_FOR_WIN)
+    #include "include/ports/SkImageGeneratorWIC.h"
+#endif
 
 static bool gMyFactoryWasCalled;
 
@@ -35,6 +44,14 @@ static void test_imagegenerator_factory(skiatest::Reporter* reporter) {
     gen = SkImageGenerator::MakeFromEncoded(data);
     REPORTER_ASSERT(reporter, nullptr == gen);
     REPORTER_ASSERT(reporter, gMyFactoryWasCalled);
+
+    // This just verifies that the signatures match.
+#if defined(SK_BUILD_FOR_MAC) || defined(SK_BUILD_FOR_IOS)
+    SkGraphics::SetImageGeneratorFromEncodedDataFactory(SkImageGeneratorCG::MakeFromEncodedCG);
+#elif defined(SK_BUILD_FOR_WIN)
+    SkGraphics::SetImageGeneratorFromEncodedDataFactory(SkImageGeneratorWIC::MakeFromEncodedWIC);
+#endif
+
     SkGraphics::SetImageGeneratorFromEncodedDataFactory(prev);
 }
 
@@ -45,25 +62,33 @@ public:
 
 DEF_TEST(ImageGenerator, reporter) {
     MyImageGenerator ig;
-    SkYUVSizeInfo sizeInfo;
-    sizeInfo.fSizes[SkYUVSizeInfo::kY] = SkISize::Make(200, 200);
-    sizeInfo.fSizes[SkYUVSizeInfo::kU] = SkISize::Make(100, 100);
-    sizeInfo.fSizes[SkYUVSizeInfo::kV] = SkISize::Make( 50,  50);
-    sizeInfo.fWidthBytes[SkYUVSizeInfo::kY] = 0;
-    sizeInfo.fWidthBytes[SkYUVSizeInfo::kU] = 0;
-    sizeInfo.fWidthBytes[SkYUVSizeInfo::kV] = 0;
-    void* planes[3] = { nullptr };
+    SkYUVASizeInfo sizeInfo;
+    sizeInfo.fSizes[0] = SkISize::Make(200, 200);
+    sizeInfo.fSizes[1] = SkISize::Make(100, 100);
+    sizeInfo.fSizes[2] = SkISize::Make( 50,  50);
+    sizeInfo.fSizes[3] = SkISize::Make( 25,  25);
+    sizeInfo.fWidthBytes[0] = 0;
+    sizeInfo.fWidthBytes[1] = 0;
+    sizeInfo.fWidthBytes[2] = 0;
+    sizeInfo.fWidthBytes[3] = 0;
+    void* planes[4] = { nullptr };
+    SkYUVAIndex yuvaIndices[4];
     SkYUVColorSpace colorSpace;
 
     // Check that the YUV decoding API does not cause any crashes
-    ig.queryYUV8(&sizeInfo, nullptr);
-    ig.queryYUV8(&sizeInfo, &colorSpace);
-    sizeInfo.fWidthBytes[SkYUVSizeInfo::kY] = 250;
-    sizeInfo.fWidthBytes[SkYUVSizeInfo::kU] = 250;
-    sizeInfo.fWidthBytes[SkYUVSizeInfo::kV] = 250;
+    ig.queryYUVA8(&sizeInfo, yuvaIndices, nullptr);
+    ig.queryYUVA8(&sizeInfo, yuvaIndices, &colorSpace);
+    sizeInfo.fWidthBytes[0] = 250;
+    sizeInfo.fWidthBytes[1] = 250;
+    sizeInfo.fWidthBytes[2] = 250;
+    sizeInfo.fWidthBytes[3] = 250;
+    yuvaIndices[0] = { 0, SkColorChannel::kR };
+    yuvaIndices[1] = { 1, SkColorChannel::kR };
+    yuvaIndices[2] = { 2, SkColorChannel::kR };
+    yuvaIndices[3] = { 3, SkColorChannel::kR };
     int dummy;
-    planes[SkYUVSizeInfo::kY] = planes[SkYUVSizeInfo::kU] = planes[SkYUVSizeInfo::kV] = &dummy;
-    ig.getYUV8Planes(sizeInfo, planes);
+    planes[0] = planes[1] = planes[2] = planes[3] = &dummy;
+    ig.getYUVA8Planes(sizeInfo, yuvaIndices, planes);
 
     // Suppressed due to https://code.google.com/p/skia/issues/detail?id=4339
     if (false) {
@@ -71,8 +96,8 @@ DEF_TEST(ImageGenerator, reporter) {
     }
 }
 
-#include "SkAutoMalloc.h"
-#include "SkPictureRecorder.h"
+#include "include/core/SkPictureRecorder.h"
+#include "src/core/SkAutoMalloc.h"
 
 static sk_sp<SkPicture> make_picture() {
     SkPictureRecorder recorder;
@@ -84,15 +109,18 @@ DEF_TEST(PictureImageGenerator, reporter) {
     const struct {
         SkColorType fColorType;
         SkAlphaType fAlphaType;
-        bool        fExpectSuccess;
     } recs[] = {
-        { kRGBA_8888_SkColorType, kPremul_SkAlphaType, kRGBA_8888_SkColorType == kN32_SkColorType },
-        { kBGRA_8888_SkColorType, kPremul_SkAlphaType, kBGRA_8888_SkColorType == kN32_SkColorType },
-        { kRGBA_F16_SkColorType,  kPremul_SkAlphaType, true },
+        { kRGBA_8888_SkColorType, kPremul_SkAlphaType },
+        { kBGRA_8888_SkColorType, kPremul_SkAlphaType },
+        { kRGBA_F16_SkColorType,  kPremul_SkAlphaType },
+        { kRGBA_F32_SkColorType,  kPremul_SkAlphaType },
+        { kRGBA_1010102_SkColorType, kPremul_SkAlphaType },
 
-        { kRGBA_8888_SkColorType, kUnpremul_SkAlphaType, false },
-        { kBGRA_8888_SkColorType, kUnpremul_SkAlphaType, false },
-        { kRGBA_F16_SkColorType,  kUnpremul_SkAlphaType, false },
+        { kRGBA_8888_SkColorType, kUnpremul_SkAlphaType },
+        { kBGRA_8888_SkColorType, kUnpremul_SkAlphaType },
+        { kRGBA_F16_SkColorType,  kUnpremul_SkAlphaType },
+        { kRGBA_F32_SkColorType,  kUnpremul_SkAlphaType },
+        { kRGBA_1010102_SkColorType, kUnpremul_SkAlphaType },
     };
 
     auto colorspace = SkColorSpace::MakeSRGB();
@@ -101,55 +129,11 @@ DEF_TEST(PictureImageGenerator, reporter) {
                                                  SkImage::BitDepth::kU8, colorspace);
 
     // worst case for all requests
-    SkAutoMalloc storage(100 * 100 * SkColorTypeBytesPerPixel(kRGBA_F16_SkColorType));
+    SkAutoMalloc storage(100 * 100 * SkColorTypeBytesPerPixel(kRGBA_F32_SkColorType));
 
     for (const auto& rec : recs) {
         SkImageInfo info = SkImageInfo::Make(100, 100, rec.fColorType, rec.fAlphaType, colorspace);
-        bool success = gen->getPixels(info, storage.get(), info.minRowBytes());
-        REPORTER_ASSERT(reporter, success == rec.fExpectSuccess);
+        REPORTER_ASSERT(reporter, gen->getPixels(info, storage.get(), info.minRowBytes()));
     }
 }
 
-#include "SkImagePriv.h"
-
-DEF_TEST(ColorXformGenerator, r) {
-    SkBitmap a, b, c, d, e;
-    SkImageInfo info = SkImageInfo::MakeS32(1, 1, kPremul_SkAlphaType);
-    a.allocPixels(info);
-    b.allocPixels(info.makeColorSpace(nullptr));
-    c.allocPixels(info.makeColorSpace(SkColorSpace::MakeRGB(SkColorSpace::kSRGB_RenderTargetGamma,
-                                                            SkColorSpace::kRec2020_Gamut)));
-    d.allocPixels(info.makeColorSpace(SkColorSpace::MakeRGB(SkColorSpace::kSRGB_RenderTargetGamma,
-                                                            SkColorSpace::kAdobeRGB_Gamut)));
-    e.allocPixels(info);
-    a.eraseColor(0);
-    b.eraseColor(1);
-    c.eraseColor(2);
-    d.eraseColor(3);
-    e.eraseColor(4);
-
-    sk_sp<SkColorSpace> srgb = SkColorSpace::MakeSRGB();
-    sk_sp<SkImage> ia = SkMakeImageInColorSpace(a, srgb, 0);
-    sk_sp<SkImage> ib = SkMakeImageInColorSpace(b, srgb, b.getGenerationID());
-    sk_sp<SkImage> ic = SkMakeImageInColorSpace(c, srgb, c.getGenerationID());
-    sk_sp<SkImage> id = SkMakeImageInColorSpace(d, srgb, 0);
-    sk_sp<SkImage> ie = SkMakeImageInColorSpace(e, srgb, e.getGenerationID(),
-                                                kAlways_SkCopyPixelsMode);
-
-    // Equal because sRGB->sRGB is a no-op.
-    REPORTER_ASSERT(r, ia->uniqueID() == a.getGenerationID());
-
-    // Equal because nullptr->sRGB is a no-op (nullptr is treated as sRGB), and because
-    // we pass the explicit id that we want.  In the no-op case, the implementation
-    // actually asserts that if we pass an id, it must match the id on the bitmap.
-    REPORTER_ASSERT(r, ib->uniqueID() == b.getGenerationID());
-
-    // Equal because we pass in an explicit id.
-    REPORTER_ASSERT(r, ic->uniqueID() == c.getGenerationID());
-
-    // Not equal because sRGB->Adobe is not a no-op and we do not pass an explicit id.
-    REPORTER_ASSERT(r, id->uniqueID() != d.getGenerationID());
-
-    // Equal because we pass in an explicit id. Forcing a copy, but still want the id respected.
-    REPORTER_ASSERT(r, ie->uniqueID() == e.getGenerationID());
-}

@@ -7,14 +7,14 @@
 #ifndef SkPictureFlat_DEFINED
 #define SkPictureFlat_DEFINED
 
-#include "SkCanvas.h"
-#include "SkChecksum.h"
-#include "SkReadBuffer.h"
-#include "SkWriteBuffer.h"
-#include "SkPaint.h"
-#include "SkPicture.h"
-#include "SkPtrRecorder.h"
-#include "SkTDynamicHash.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkPicture.h"
+#include "include/private/SkChecksum.h"
+#include "src/core/SkPtrRecorder.h"
+#include "src/core/SkReadBuffer.h"
+#include "src/core/SkTDynamicHash.h"
+#include "src/core/SkWriteBuffer.h"
 
 /*
  * Note: While adding new DrawTypes, it is necessary to add to the end of this list
@@ -30,10 +30,10 @@ enum DrawType {
     CLIP_RECT,
     CLIP_RRECT,
     CONCAT,
-    DRAW_BITMAP,
-    DRAW_BITMAP_MATRIX, // deprecated, M41 was last Chromium version to write this to an .skp
-    DRAW_BITMAP_NINE,
-    DRAW_BITMAP_RECT,
+    DRAW_BITMAP_RETIRED_2016_REMOVED_2018,
+    DRAW_BITMAP_MATRIX_RETIRED_2016_REMOVED_2018,
+    DRAW_BITMAP_NINE_RETIRED_2016_REMOVED_2018,
+    DRAW_BITMAP_RECT_RETIRED_2016_REMOVED_2018,
     DRAW_CLEAR,
     DRAW_DATA,
     DRAW_OVAL,
@@ -41,17 +41,17 @@ enum DrawType {
     DRAW_PATH,
     DRAW_PICTURE,
     DRAW_POINTS,
-    DRAW_POS_TEXT,
-    DRAW_POS_TEXT_TOP_BOTTOM, // fast variant of DRAW_POS_TEXT
-    DRAW_POS_TEXT_H,
-    DRAW_POS_TEXT_H_TOP_BOTTOM, // fast variant of DRAW_POS_TEXT_H
+    DRAW_POS_TEXT_REMOVED_1_2019,
+    DRAW_POS_TEXT_TOP_BOTTOM_REMOVED_1_2019,
+    DRAW_POS_TEXT_H_REMOVED_1_2019,
+    DRAW_POS_TEXT_H_TOP_BOTTOM_REMOVED_1_2019,
     DRAW_RECT,
     DRAW_RRECT,
-    DRAW_SPRITE,
-    DRAW_TEXT,
-    DRAW_TEXT_ON_PATH,
-    DRAW_TEXT_TOP_BOTTOM,   // fast variant of DRAW_TEXT
-    DRAW_VERTICES_RETIRED_03_2017,
+    DRAW_SPRITE_RETIRED_2015_REMOVED_2018,
+    DRAW_TEXT_REMOVED_1_2019,
+    DRAW_TEXT_ON_PATH_RETIRED_08_2018_REMOVED_10_2018,
+    DRAW_TEXT_TOP_BOTTOM_REMOVED_1_2019,
+    DRAW_VERTICES_RETIRED_03_2017_REMOVED_01_2018,
     RESTORE,
     ROTATE,
     SAVE,
@@ -61,9 +61,9 @@ enum DrawType {
     SKEW,
     TRANSLATE,
     NOOP,
-    BEGIN_COMMENT_GROUP, // deprecated (M44)
-    COMMENT,             // deprecated (M44)
-    END_COMMENT_GROUP,   // deprecated (M44)
+    BEGIN_COMMENT_GROUP_obsolete,
+    COMMENT_obsolete,
+    END_COMMENT_GROUP_obsolete,
 
     // new ops -- feel free to re-alphabetize on next version bump
     DRAW_DRRECT,
@@ -74,18 +74,18 @@ enum DrawType {
     DRAW_PICTURE_MATRIX_PAINT,
     DRAW_TEXT_BLOB,
     DRAW_IMAGE,
-    DRAW_IMAGE_RECT_STRICT, // deprecated (M45)
+    DRAW_IMAGE_RECT_STRICT_obsolete,
     DRAW_ATLAS,
     DRAW_IMAGE_NINE,
     DRAW_IMAGE_RECT,
 
-    SAVE_LAYER_SAVELAYERFLAGS_DEPRECATED_JAN_2016,
+    SAVE_LAYER_SAVELAYERFLAGS_DEPRECATED_JAN_2016_REMOVED_01_2018,
     SAVE_LAYER_SAVELAYERREC,
 
     DRAW_ANNOTATION,
     DRAW_DRAWABLE,
     DRAW_DRAWABLE_MATRIX,
-    DRAW_TEXT_RSXFORM,
+    DRAW_TEXT_RSXFORM_DEPRECATED_DEC_2018,
 
     TRANSLATE_Z, // deprecated (M60)
 
@@ -95,11 +95,18 @@ enum DrawType {
     DRAW_REGION,
     DRAW_VERTICES_OBJECT,
 
-    LAST_DRAWTYPE_ENUM = DRAW_VERTICES_OBJECT
-};
+    FLUSH,
 
-// In the 'match' method, this constant will match any flavor of DRAW_BITMAP*
-static const int kDRAW_BITMAP_FLAVOR = LAST_DRAWTYPE_ENUM+1;
+    DRAW_EDGEAA_IMAGE_SET,
+
+    SAVE_BEHIND,
+
+    DRAW_EDGEAA_QUAD,
+
+    DRAW_BEHIND_PAINT,
+
+    LAST_DRAWTYPE_ENUM = DRAW_BEHIND_PAINT,
+};
 
 enum DrawVertexFlags {
     DRAW_VERTICES_HAS_TEXS    = 0x01,
@@ -124,6 +131,10 @@ enum SaveLayerRecFlatFlags {
     SAVELAYERREC_HAS_FLAGS      = 1 << 3,
     SAVELAYERREC_HAS_CLIPMASK   = 1 << 4,
     SAVELAYERREC_HAS_CLIPMATRIX = 1 << 5,
+};
+
+enum SaveBehindFlatFlags {
+    SAVEBEHIND_HAS_SUBSET = 1 << 0,
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -156,23 +167,25 @@ static inline bool ClipParams_unpackDoAA(uint32_t packed) {
 
 class SkTypefacePlayback {
 public:
-    SkTypefacePlayback();
-    virtual ~SkTypefacePlayback();
+    SkTypefacePlayback() : fCount(0), fArray(nullptr) {}
+    ~SkTypefacePlayback() = default;
 
-    int count() const { return fCount; }
+    void setCount(size_t count);
 
-    void reset(const SkRefCntSet*);
+    size_t count() const { return fCount; }
 
-    void setCount(int count);
-    SkRefCnt* set(int index, SkRefCnt*);
+    sk_sp<SkTypeface>& operator[](size_t index) {
+        SkASSERT(index < fCount);
+        return fArray[index];
+    }
 
     void setupBuffer(SkReadBuffer& buffer) const {
-        buffer.setTypefaceArray((SkTypeface**)fArray, fCount);
+        buffer.setTypefaceArray(fArray.get(), fCount);
     }
 
 protected:
-    int fCount;
-    SkRefCnt** fArray;
+    size_t fCount;
+    std::unique_ptr<sk_sp<SkTypeface>[]> fArray;
 };
 
 class SkFactoryPlayback {

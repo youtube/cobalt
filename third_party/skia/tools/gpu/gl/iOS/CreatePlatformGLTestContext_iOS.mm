@@ -6,13 +6,18 @@
  * found in the LICENSE file.
  */
 
-#include "gl/GLTestContext.h"
+#include "tools/gpu/gl/GLTestContext.h"
 #import <OpenGLES/EAGL.h>
 #include <dlfcn.h>
 
 #define EAGLCTX ((EAGLContext*)(fEAGLContext))
 
 namespace {
+
+std::function<void()> context_restorer() {
+    EAGLContext* context = [EAGLContext currentContext];
+    return [context] { [EAGLContext setCurrentContext:context]; };
+}
 
 class IOSGLTestContext : public sk_gpu_test::GLTestContext {
 public:
@@ -23,6 +28,7 @@ private:
     void destroyGLContext();
 
     void onPlatformMakeCurrent() const override;
+    std::function<void()> onPlatformGetAutoContextRestore() const override;
     void onPlatformSwapBuffers() const override;
     GrGLFuncPtr onPlatformGetProcAddress(const char*) const override;
 
@@ -36,11 +42,19 @@ IOSGLTestContext::IOSGLTestContext(IOSGLTestContext* shareContext)
 
     if (shareContext) {
         EAGLContext* iosShareContext = shareContext->fEAGLContext;
-        fEAGLContext = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2
-                                            sharegroup: [iosShareContext sharegroup]];
+        fEAGLContext = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES3
+                                            sharegroup:[iosShareContext sharegroup]];
+        if (fEAGLContext == nil) {
+            fEAGLContext = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2
+                                                sharegroup:[iosShareContext sharegroup]];
+        }
     } else {
-        fEAGLContext = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2];
+        fEAGLContext = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES3];
+        if (fEAGLContext == nil) {
+            fEAGLContext = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2];
+        }
     }
+    SkScopeExit restorer(context_restorer());
     [EAGLContext setCurrentContext:fEAGLContext];
 
     sk_sp<const GrGLInterface> gl(GrGLCreateNativeInterface());
@@ -59,7 +73,7 @@ IOSGLTestContext::IOSGLTestContext(IOSGLTestContext* shareContext)
         "/System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries/libGL.dylib",
         RTLD_LAZY);
 
-    this->init(gl.release());
+    this->init(std::move(gl));
 }
 
 IOSGLTestContext::~IOSGLTestContext() {
@@ -70,11 +84,12 @@ IOSGLTestContext::~IOSGLTestContext() {
 void IOSGLTestContext::destroyGLContext() {
     if (fEAGLContext) {
         if ([EAGLContext currentContext] == fEAGLContext) {
+            // This will ensure that the context is immediately deleted.
             [EAGLContext setCurrentContext:nil];
         }
         fEAGLContext = nil;
     }
-    if (RTLD_DEFAULT != fGLLibrary) {
+    if (nullptr != fGLLibrary) {
         dlclose(fGLLibrary);
     }
 }
@@ -86,10 +101,18 @@ void IOSGLTestContext::onPlatformMakeCurrent() const {
     }
 }
 
+std::function<void()> IOSGLTestContext::onPlatformGetAutoContextRestore() const {
+    if ([EAGLContext currentContext] == fEAGLContext) {
+		return nullptr;
+	}
+    return context_restorer();
+}
+
 void IOSGLTestContext::onPlatformSwapBuffers() const { }
 
 GrGLFuncPtr IOSGLTestContext::onPlatformGetProcAddress(const char* procName) const {
-    return reinterpret_cast<GrGLFuncPtr>(dlsym(fGLLibrary, procName));
+    void* handle = (nullptr == fGLLibrary) ? RTLD_DEFAULT : fGLLibrary;
+    return reinterpret_cast<GrGLFuncPtr>(dlsym(handle, procName));
 }
 
 }  // anonymous namespace

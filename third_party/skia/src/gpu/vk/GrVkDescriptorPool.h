@@ -8,9 +8,8 @@
 #ifndef GrVkDescriptorPool_DEFINED
 #define GrVkDescriptorPool_DEFINED
 
-#include "GrVkResource.h"
-
-#include "vk/GrVkDefines.h"
+#include "include/gpu/vk/GrVkTypes.h"
+#include "src/gpu/vk/GrVkResource.h"
 
 class GrVkGpu;
 
@@ -33,13 +32,13 @@ public:
 
 #ifdef SK_TRACE_VK_RESOURCES
     void dumpInfo() const override {
-        SkDebugf("GrVkDescriptorPool: %d, type %d (%d refs)\n", fDescPool, fType, 
+        SkDebugf("GrVkDescriptorPool: %d, type %d (%d refs)\n", fDescPool, fType,
                  this->getRefCnt());
     }
 #endif
 
 private:
-    void freeGPUData(const GrVkGpu* gpu) const override;
+    void freeGPUData(GrVkGpu* gpu) const override;
 
     VkDescriptorType     fType;
     uint32_t             fCount;

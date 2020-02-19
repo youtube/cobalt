@@ -9,19 +9,31 @@
 #ifndef SKFONTHOST_FREETYPE_COMMON_H_
 #define SKFONTHOST_FREETYPE_COMMON_H_
 
-#include "SkGlyph.h"
-#include "SkMutex.h"
-#include "SkScalerContext.h"
-#include "SkTypeface.h"
-#include "SkTypes.h"
+#include "include/core/SkTypeface.h"
+#include "include/core/SkTypes.h"
+#include "include/private/SkMutex.h"
+#include "src/core/SkGlyph.h"
+#include "src/core/SkScalerContext.h"
+#include "src/utils/SkCharToGlyphCache.h"
 
-#include "SkFontMgr.h"
+#include "include/core/SkFontMgr.h"
 
 // These are forward declared to avoid pimpl but also hide the FreeType implementation.
 typedef struct FT_LibraryRec_* FT_Library;
 typedef struct FT_FaceRec_* FT_Face;
 typedef struct FT_StreamRec_* FT_Stream;
 typedef signed long FT_Pos;
+
+
+#ifdef SK_DEBUG
+const char* SkTraceFtrGetError(int);
+#define SK_TRACEFTR(ERR, MSG, ...) \
+    SkDebugf("%s:%lu:1: error: 0x%x '%s' " MSG "\n", __FILE__, __LINE__, ERR, \
+            SkTraceFtrGetError((int)(ERR)), __VA_ARGS__)
+#else
+#define SK_TRACEFTR(ERR, ...) do { sk_ignore_unused_variable(ERR); } while (false)
+#endif
+
 
 class SkScalerContext_FreeType_Base : public SkScalerContext {
 protected:
@@ -35,7 +47,8 @@ protected:
     {}
 
     void generateGlyphImage(FT_Face face, const SkGlyph& glyph, const SkMatrix& bitmapTransform);
-    void generateGlyphPath(FT_Face face, SkPath* path);
+    bool generateGlyphPath(FT_Face face, SkPath* path);
+    bool generateFacePath(FT_Face face, SkGlyphID glyphID, SkPath* path);
 private:
     typedef SkScalerContext INHERITED;
 };
@@ -65,6 +78,7 @@ public:
             const SkFontArguments::VariationPosition position,
             SkFixed* axisValues,
             const SkString& name);
+        static bool GetAxes(FT_Face face, AxisDefinitions* axes);
 
     private:
         FT_Face openFace(SkStreamAsset* stream, int ttcIndex, FT_Stream ftStream) const;
@@ -72,31 +86,41 @@ public:
         mutable SkMutex fLibraryMutex;
     };
 
+    /** Fetch units/EM from "head" table if needed (ie for bitmap fonts) */
+    static int GetUnitsPerEm(FT_Face face);
 protected:
     SkTypeface_FreeType(const SkFontStyle& style, bool isFixedPitch)
         : INHERITED(style, isFixedPitch)
     {}
 
+    std::unique_ptr<SkFontData> cloneFontData(const SkFontArguments&) const;
     virtual SkScalerContext* onCreateScalerContext(const SkScalerContextEffects&,
                                                    const SkDescriptor*) const override;
     void onFilterRec(SkScalerContextRec*) const override;
+    void getGlyphToUnicodeMap(SkUnichar*) const override;
     std::unique_ptr<SkAdvancedTypefaceMetrics> onGetAdvancedMetrics() const override;
+    void getPostScriptGlyphNames(SkString* dstArray) const override;
     int onGetUPEM() const override;
     bool onGetKerningPairAdjustments(const uint16_t glyphs[], int count,
                                      int32_t adjustments[]) const override;
-    int onCharsToGlyphs(const void* chars, Encoding, uint16_t glyphs[],
-                        int glyphCount) const override;
+    void onCharsToGlyphs(const SkUnichar uni[], int count, SkGlyphID glyphs[]) const override;
     int onCountGlyphs() const override;
 
     LocalizedStrings* onCreateFamilyNameIterator() const override;
 
     int onGetVariationDesignPosition(SkFontArguments::VariationPosition::Coordinate coordinates[],
                                      int coordinateCount) const override;
+    int onGetVariationDesignParameters(SkFontParameters::Variation::Axis parameters[],
+                                       int parameterCount) const override;
     int onGetTableTags(SkFontTableTag tags[]) const override;
     size_t onGetTableData(SkFontTableTag, size_t offset,
                           size_t length, void* data) const override;
+    sk_sp<SkData> onCopyTableData(SkFontTableTag) const override;
 
 private:
+    mutable SkMutex fC2GCacheMutex;
+    mutable SkCharToGlyphCache fC2GCache;
+
     typedef SkTypeface INHERITED;
 };
 

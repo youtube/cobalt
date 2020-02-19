@@ -5,11 +5,12 @@
  * found in the LICENSE file.
  */
 
-#include "SkMathPriv.h"
-#include "SkFixed.h"
-#include "SkFloatBits.h"
-#include "SkFloatingPoint.h"
-#include "SkScalar.h"
+#include "include/core/SkScalar.h"
+#include "include/private/SkFixed.h"
+#include "include/private/SkFloatBits.h"
+#include "include/private/SkFloatingPoint.h"
+#include "src/core/SkMathPriv.h"
+#include "src/core/SkSafeMath.h"
 
 #define sub_shift(zeros, x, n)  \
     zeros -= n;                 \
@@ -67,20 +68,26 @@ int32_t SkSqrtBits(int32_t x, int count) {
     return root;
 }
 
-///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-float SkScalarSinCos(float radians, float* cosValue) {
-    float sinValue = sk_float_sin(radians);
+size_t SkSafeMath::Add(size_t x, size_t y) {
+    SkSafeMath tmp;
+    size_t sum = tmp.add(x, y);
+    return tmp.ok() ? sum : SIZE_MAX;
+}
 
-    if (cosValue) {
-        *cosValue = sk_float_cos(radians);
-        if (SkScalarNearlyZero(*cosValue)) {
-            *cosValue = 0;
-        }
+size_t SkSafeMath::Mul(size_t x, size_t y) {
+    SkSafeMath tmp;
+    size_t prod = tmp.mul(x, y);
+    return tmp.ok() ? prod : SIZE_MAX;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool sk_floats_are_unit(const float array[], size_t count) {
+    bool is_unit = true;
+    for (size_t i = 0; i < count; ++i) {
+        is_unit &= (array[i] >= 0) & (array[i] <= 1);
     }
-
-    if (SkScalarNearlyZero(sinValue)) {
-        sinValue = 0;
-    }
-    return sinValue;
+    return is_unit;
 }

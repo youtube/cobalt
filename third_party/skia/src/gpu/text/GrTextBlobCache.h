@@ -8,12 +8,12 @@
 #ifndef GrTextBlobCache_DEFINED
 #define GrTextBlobCache_DEFINED
 
-#include "GrAtlasTextContext.h"
-#include "SkMessageBus.h"
-#include "SkRefCnt.h"
-#include "SkTArray.h"
-#include "SkTextBlobRunIterator.h"
-#include "SkTHash.h"
+#include "include/core/SkRefCnt.h"
+#include "include/private/SkTArray.h"
+#include "include/private/SkTHash.h"
+#include "src/core/SkMessageBus.h"
+#include "src/core/SkTextBlobPriv.h"
+#include "src/gpu/text/GrTextBlob.h"
 
 class GrTextBlobCache {
 public:
@@ -23,48 +23,47 @@ public:
      */
     typedef void (*PFOverBudgetCB)(void* data);
 
-    GrTextBlobCache(PFOverBudgetCB cb, void* data)
-        : fPool(0u, kMinGrowthSize)
-        , fCallback(cb)
+    GrTextBlobCache(PFOverBudgetCB cb, void* data, uint32_t uniqueID)
+        : fCallback(cb)
         , fData(data)
-        , fBudget(kDefaultBudget) {
+        , fSizeBudget(kDefaultBudget)
+        , fUniqueID(uniqueID)
+        , fPurgeBlobInbox(uniqueID) {
         SkASSERT(cb && data);
     }
     ~GrTextBlobCache();
 
-    // creates an uncached blob
-    sk_sp<GrAtlasTextBlob> makeBlob(int glyphCount, int runCount) {
-        return GrAtlasTextBlob::Make(&fPool, glyphCount, runCount);
+    sk_sp<GrTextBlob> makeBlob(const SkGlyphRunList& glyphRunList,
+                               GrColor color,
+                               GrStrikeCache* strikeCache) {
+        return GrTextBlob::Make(
+                glyphRunList.totalGlyphCount(), glyphRunList.size(), color, strikeCache);
     }
 
-    sk_sp<GrAtlasTextBlob> makeBlob(const SkTextBlob* blob) {
-        int glyphCount = 0;
-        int runCount = 0;
-        BlobGlyphCount(&glyphCount, &runCount, blob);
-        return GrAtlasTextBlob::Make(&fPool, glyphCount, runCount);
-    }
-
-    sk_sp<GrAtlasTextBlob> makeCachedBlob(const SkTextBlob* blob,
-                                          const GrAtlasTextBlob::Key& key,
-                                          const SkMaskFilter::BlurRec& blurRec,
-                                          const SkPaint& paint) {
-        sk_sp<GrAtlasTextBlob> cacheBlob(this->makeBlob(blob));
+    sk_sp<GrTextBlob> makeCachedBlob(const SkGlyphRunList& glyphRunList,
+                                     const GrTextBlob::Key& key,
+                                     const SkMaskFilterBase::BlurRec& blurRec,
+                                     const SkPaint& paint,
+                                     GrColor color,
+                                     GrStrikeCache* strikeCache) {
+        sk_sp<GrTextBlob> cacheBlob(makeBlob(glyphRunList, color, strikeCache));
         cacheBlob->setupKey(key, blurRec, paint);
         this->add(cacheBlob);
-        blob->notifyAddedToCache();
+        glyphRunList.temporaryShuntBlobNotifyAddedToCache(fUniqueID);
         return cacheBlob;
     }
 
-    sk_sp<GrAtlasTextBlob> find(const GrAtlasTextBlob::Key& key) const {
+    sk_sp<GrTextBlob> find(const GrTextBlob::Key& key) const {
         const auto* idEntry = fBlobIDCache.find(key.fUniqueID);
         return idEntry ? idEntry->find(key) : nullptr;
     }
 
-    void remove(GrAtlasTextBlob* blob) {
-        auto  id      = GrAtlasTextBlob::GetKey(*blob).fUniqueID;
+    void remove(GrTextBlob* blob) {
+        auto  id      = GrTextBlob::GetKey(*blob).fUniqueID;
         auto* idEntry = fBlobIDCache.find(id);
         SkASSERT(idEntry);
 
+        fCurrentSize -= blob->size();
         fBlobList.remove(blob);
         idEntry->removeBlob(blob);
         if (idEntry->fBlobs.empty()) {
@@ -72,7 +71,7 @@ public:
         }
     }
 
-    void makeMRU(GrAtlasTextBlob* blob) {
+    void makeMRU(GrTextBlob* blob) {
         if (fBlobList.head() == blob) {
             return;
         }
@@ -92,18 +91,26 @@ public:
     }
 
     void setBudget(size_t budget) {
-        fBudget = budget;
+        fSizeBudget = budget;
         this->checkPurge();
     }
 
     struct PurgeBlobMessage {
-        uint32_t fID;
+        PurgeBlobMessage(uint32_t blobID, uint32_t contextUniqueID)
+                : fBlobID(blobID), fContextID(contextUniqueID) {}
+
+        uint32_t fBlobID;
+        uint32_t fContextID;
     };
 
-    static void PostPurgeBlobMessage(uint32_t);
+    static void PostPurgeBlobMessage(uint32_t blobID, uint32_t cacheID);
+
+    void purgeStaleBlobs();
+
+    size_t usedBytes() const { return fCurrentSize; }
 
 private:
-    using BitmapBlobList = SkTInternalLList<GrAtlasTextBlob>;
+    using BitmapBlobList = SkTInternalLList<GrTextBlob>;
 
     struct BlobIDCacheEntry {
         BlobIDCacheEntry() : fID(SK_InvalidGenID) {}
@@ -113,32 +120,32 @@ private:
             return entry.fID;
         }
 
-        void addBlob(sk_sp<GrAtlasTextBlob> blob) {
+        void addBlob(sk_sp<GrTextBlob> blob) {
             SkASSERT(blob);
-            SkASSERT(GrAtlasTextBlob::GetKey(*blob).fUniqueID == fID);
-            SkASSERT(!this->find(GrAtlasTextBlob::GetKey(*blob)));
+            SkASSERT(GrTextBlob::GetKey(*blob).fUniqueID == fID);
+            SkASSERT(!this->find(GrTextBlob::GetKey(*blob)));
 
             fBlobs.emplace_back(std::move(blob));
         }
 
-        void removeBlob(GrAtlasTextBlob* blob) {
+        void removeBlob(GrTextBlob* blob) {
             SkASSERT(blob);
-            SkASSERT(GrAtlasTextBlob::GetKey(*blob).fUniqueID == fID);
+            SkASSERT(GrTextBlob::GetKey(*blob).fUniqueID == fID);
 
-            auto index = this->findBlobIndex(GrAtlasTextBlob::GetKey(*blob));
+            auto index = this->findBlobIndex(GrTextBlob::GetKey(*blob));
             SkASSERT(index >= 0);
 
             fBlobs.removeShuffle(index);
         }
 
-        sk_sp<GrAtlasTextBlob> find(const GrAtlasTextBlob::Key& key) const {
+        sk_sp<GrTextBlob> find(const GrTextBlob::Key& key) const {
             auto index = this->findBlobIndex(key);
             return index < 0 ? nullptr : fBlobs[index];
         }
 
-        int findBlobIndex(const GrAtlasTextBlob::Key& key) const{
+        int findBlobIndex(const GrTextBlob::Key& key) const{
             for (int i = 0; i < fBlobs.count(); ++i) {
-                if (GrAtlasTextBlob::GetKey(*fBlobs[i]) == key) {
+                if (GrTextBlob::GetKey(*fBlobs[i]) == key) {
                     return i;
                 }
             }
@@ -148,82 +155,36 @@ private:
         uint32_t                             fID;
         // Current clients don't generate multiple GrAtlasTextBlobs per SkTextBlob, so an array w/
         // linear search is acceptable.  If usage changes, we should re-evaluate this structure.
-        SkSTArray<1, sk_sp<GrAtlasTextBlob>, true> fBlobs;
+        SkSTArray<1, sk_sp<GrTextBlob>, true> fBlobs;
     };
 
-    void add(sk_sp<GrAtlasTextBlob> blob) {
-        auto  id      = GrAtlasTextBlob::GetKey(*blob).fUniqueID;
+    void add(sk_sp<GrTextBlob> blob) {
+        auto  id      = GrTextBlob::GetKey(*blob).fUniqueID;
         auto* idEntry = fBlobIDCache.find(id);
         if (!idEntry) {
             idEntry = fBlobIDCache.set(id, BlobIDCacheEntry(id));
         }
 
         // Safe to retain a raw ptr temporarily here, because the cache will hold a ref.
-        GrAtlasTextBlob* rawBlobPtr = blob.get();
+        GrTextBlob* rawBlobPtr = blob.get();
         fBlobList.addToHead(rawBlobPtr);
+        fCurrentSize += blob->size();
         idEntry->addBlob(std::move(blob));
 
         this->checkPurge(rawBlobPtr);
     }
 
-    void checkPurge(GrAtlasTextBlob* blob = nullptr) {
-        // First, purge all stale blob IDs.
-        {
-            SkTArray<PurgeBlobMessage> msgs;
-            fPurgeBlobInbox.poll(&msgs);
-
-            for (const auto& msg : msgs) {
-                auto* idEntry = fBlobIDCache.find(msg.fID);
-                if (!idEntry) {
-                    // no cache entries for id
-                    continue;
-                }
-
-                // remove all blob entries from the LRU list
-                for (const auto& blob : idEntry->fBlobs) {
-                    fBlobList.remove(blob.get());
-                }
-
-                // drop the idEntry itself (unrefs all blobs)
-                fBlobIDCache.remove(msg.fID);
-            }
-        }
-
-        // If we are still overbudget, then unref until we are below budget again
-        if (fPool.size() > fBudget) {
-            BitmapBlobList::Iter iter;
-            iter.init(fBlobList, BitmapBlobList::Iter::kTail_IterStart);
-            GrAtlasTextBlob* lruBlob = nullptr;
-            while (fPool.size() > fBudget && (lruBlob = iter.get()) && lruBlob != blob) {
-                // Backup the iterator before removing and unrefing the blob
-                iter.prev();
-
-                this->remove(lruBlob);
-            }
-
-            // If we break out of the loop with lruBlob == blob, then we haven't purged enough
-            // use the call back and try to free some more.  If we are still overbudget after this,
-            // then this single textblob is over our budget
-            if (blob && lruBlob == blob) {
-                (*fCallback)(fData);
-            }
-
-#ifdef SPEW_BUDGET_MESSAGE
-            if (fPool.size() > fBudget) {
-                SkDebugf("Single textblob is larger than our whole budget");
-            }
-#endif
-        }
-    }
+    void checkPurge(GrTextBlob* blob = nullptr);
 
     static const int kMinGrowthSize = 1 << 16;
     static const int kDefaultBudget = 1 << 22;
-    GrMemoryPool fPool;
     BitmapBlobList fBlobList;
     SkTHashMap<uint32_t, BlobIDCacheEntry> fBlobIDCache;
     PFOverBudgetCB fCallback;
     void* fData;
-    size_t fBudget;
+    size_t fSizeBudget;
+    size_t fCurrentSize{0};
+    uint32_t fUniqueID;      // unique id to use for messaging
     SkMessageBus<PurgeBlobMessage>::Inbox fPurgeBlobInbox;
 };
 

@@ -8,21 +8,7 @@
 #ifndef SkTInternalLList_DEFINED
 #define SkTInternalLList_DEFINED
 
-#include "SkTypes.h"
-
-/**
- * Helper class to automatically initialize the doubly linked list created pointers.
- */
-template <typename T> class SkPtrWrapper {
-  public:
-      SkPtrWrapper() : fPtr(NULL) {}
-      SkPtrWrapper& operator =(T* ptr) { fPtr = ptr; return *this; }
-      operator T*() const { return fPtr; }
-      T* operator->() { return fPtr; }
-  private:
-      T* fPtr;
-};
-
+#include "include/core/SkTypes.h"
 
 /**
  * This macro creates the member variables required by the SkTInternalLList class. It should be
@@ -31,18 +17,20 @@ template <typename T> class SkPtrWrapper {
 #define SK_DECLARE_INTERNAL_LLIST_INTERFACE(ClassName)              \
     friend class SkTInternalLList<ClassName>;                       \
     /* back pointer to the owning list - for debugging */           \
-    SkDEBUGCODE(SkPtrWrapper<SkTInternalLList<ClassName> > fList;)  \
-    SkPtrWrapper<ClassName> fPrev;                                  \
-    SkPtrWrapper<ClassName> fNext
+    SkDEBUGCODE(SkTInternalLList<ClassName>* fList = nullptr;)      \
+    ClassName* fPrev = nullptr;                                     \
+    ClassName* fNext = nullptr
 
 /**
  * This class implements a templated internal doubly linked list data structure.
  */
-template <class T> class SkTInternalLList : SkNoncopyable {
+template <class T> class SkTInternalLList {
 public:
-    SkTInternalLList()
-        : fHead(NULL)
-        , fTail(NULL) {
+    SkTInternalLList() {}
+
+    void reset() {
+        fHead = nullptr;
+        fTail = nullptr;
     }
 
     void remove(T* entry) {
@@ -63,25 +51,25 @@ public:
             fTail = prev;
         }
 
-        entry->fPrev = NULL;
-        entry->fNext = NULL;
+        entry->fPrev = nullptr;
+        entry->fNext = nullptr;
 
 #ifdef SK_DEBUG
-        entry->fList = NULL;
+        entry->fList = nullptr;
 #endif
     }
 
     void addToHead(T* entry) {
-        SkASSERT(NULL == entry->fPrev && NULL == entry->fNext);
-        SkASSERT(NULL == entry->fList);
+        SkASSERT(nullptr == entry->fPrev && nullptr == entry->fNext);
+        SkASSERT(nullptr == entry->fList);
 
-        entry->fPrev = NULL;
+        entry->fPrev = nullptr;
         entry->fNext = fHead;
         if (fHead) {
             fHead->fPrev = entry;
         }
         fHead = entry;
-        if (NULL == fTail) {
+        if (nullptr == fTail) {
             fTail = entry;
         }
 
@@ -91,16 +79,16 @@ public:
     }
 
     void addToTail(T* entry) {
-        SkASSERT(NULL == entry->fPrev && NULL == entry->fNext);
-        SkASSERT(NULL == entry->fList);
+        SkASSERT(nullptr == entry->fPrev && nullptr == entry->fNext);
+        SkASSERT(nullptr == entry->fList);
 
         entry->fPrev = fTail;
-        entry->fNext = NULL;
+        entry->fNext = nullptr;
         if (fTail) {
             fTail->fNext = entry;
         }
         fTail = entry;
-        if (NULL == fHead) {
+        if (nullptr == fHead) {
             fHead = entry;
         }
 
@@ -117,7 +105,7 @@ public:
     void addBefore(T* newEntry, T* existingEntry) {
         SkASSERT(newEntry);
 
-        if (NULL == existingEntry) {
+        if (nullptr == existingEntry) {
             this->addToTail(newEntry);
             return;
         }
@@ -127,7 +115,7 @@ public:
         T* prev = existingEntry->fPrev;
         existingEntry->fPrev = newEntry;
         newEntry->fPrev = prev;
-        if (NULL == prev) {
+        if (nullptr == prev) {
             SkASSERT(fHead == existingEntry);
             fHead = newEntry;
         } else {
@@ -146,7 +134,7 @@ public:
     void addAfter(T* newEntry, T* existingEntry) {
         SkASSERT(newEntry);
 
-        if (NULL == existingEntry) {
+        if (nullptr == existingEntry) {
             this->addToHead(newEntry);
             return;
         }
@@ -156,7 +144,7 @@ public:
         T* next = existingEntry->fNext;
         existingEntry->fNext = newEntry;
         newEntry->fNext = next;
-        if (NULL == next) {
+        if (nullptr == next) {
             SkASSERT(fTail == existingEntry);
             fTail = newEntry;
         } else {
@@ -207,7 +195,7 @@ public:
             kTail_IterStart
         };
 
-        Iter() : fCurr(NULL) {}
+        Iter() : fCurr(nullptr) {}
         Iter(const Iter& iter) : fCurr(iter.fCurr) {}
         Iter& operator= (const Iter& iter) { fCurr = iter.fCurr; return *this; }
 
@@ -228,8 +216,8 @@ public:
          * Return the next/previous element in the list or NULL if at the end.
          */
         T* next() {
-            if (NULL == fCurr) {
-                return NULL;
+            if (nullptr == fCurr) {
+                return nullptr;
             }
 
             fCurr = fCurr->fNext;
@@ -237,17 +225,32 @@ public:
         }
 
         T* prev() {
-            if (NULL == fCurr) {
-                return NULL;
+            if (nullptr == fCurr) {
+                return nullptr;
             }
 
             fCurr = fCurr->fPrev;
             return fCurr;
         }
 
+        /**
+         * C++11 range-for interface.
+         */
+        bool operator!=(const Iter& that) { return fCurr != that.fCurr; }
+        T* operator*() { return this->get(); }
+        void operator++() { this->next(); }
+
     private:
         T* fCurr;
     };
+
+    Iter begin() const {
+        Iter iter;
+        iter.init(*this, Iter::kHead_IterStart);
+        return iter;
+    }
+
+    Iter end() const { return Iter(); }
 
 #ifdef SK_DEBUG
     void validate() const {
@@ -255,12 +258,12 @@ public:
         Iter iter;
         for (T* item = iter.init(*this, Iter::kHead_IterStart); item; item = iter.next()) {
             SkASSERT(this->isInList(item));
-            if (NULL == item->fPrev) {
+            if (nullptr == item->fPrev) {
                 SkASSERT(fHead == item);
             } else {
                 SkASSERT(item->fPrev->fNext == item);
             }
-            if (NULL == item->fNext) {
+            if (nullptr == item->fNext) {
                 SkASSERT(fTail == item);
             } else {
                 SkASSERT(item->fNext->fPrev == item);
@@ -289,10 +292,11 @@ public:
 #endif // SK_DEBUG
 
 private:
-    T* fHead;
-    T* fTail;
+    T* fHead = nullptr;
+    T* fTail = nullptr;
 
-    typedef SkNoncopyable INHERITED;
+    SkTInternalLList(const SkTInternalLList&) = delete;
+    SkTInternalLList& operator=(const SkTInternalLList&) = delete;
 };
 
 #endif

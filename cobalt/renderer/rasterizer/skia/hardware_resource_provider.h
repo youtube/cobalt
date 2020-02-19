@@ -25,8 +25,8 @@
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
 #include "cobalt/renderer/rasterizer/skia/text_shaper.h"
+#include "third_party/skia/include/core/SkFontMgr.h"
 #include "third_party/skia/include/gpu/GrContext.h"
-#include "third_party/skia/include/ports/SkFontMgr.h"
 
 namespace cobalt {
 namespace renderer {
