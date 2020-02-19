@@ -40,12 +40,6 @@ class SkNV122RGBShader : public SkShaderBase {
 
     void shadeSpan(int x, int y, SkPMColor[], int count) override;
 
-    void set3DMask(const SkMask* mask) override {
-      // forward to our proxy
-      y_shader_context_->set3DMask(mask);
-      uv_shader_context_->set3DMask(mask);
-    }
-
    private:
     SkYUVColorSpace color_space_;
 
@@ -56,12 +50,11 @@ class SkNV122RGBShader : public SkShaderBase {
   };
 
 #if SK_SUPPORT_GPU
-  sk_sp<GrFragmentProcessor> asFragmentProcessor(
-      const AsFPArgs&) const override;
+  std::unique_ptr<GrFragmentProcessor> asFragmentProcessor(
+      const GrFPArgs&) const override;
 #endif
 
-  SK_TO_STRING_OVERRIDE()
-  SK_DECLARE_PUBLIC_FLATTENABLE_DESERIALIZATION_PROCS(SkNV122RGBShader)
+  SK_FLATTENABLE_HOOKS(SkNV122RGBShader)
 
  protected:
   void flatten(SkWriteBuffer&) const override;

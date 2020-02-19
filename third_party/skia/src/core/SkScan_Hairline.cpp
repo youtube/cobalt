@@ -5,12 +5,15 @@
  * found in the LICENSE file.
  */
 
-#include "SkScan.h"
-#include "SkBlitter.h"
-#include "SkMathPriv.h"
-#include "SkRasterClip.h"
-#include "SkFDot6.h"
-#include "SkLineClipper.h"
+#include "include/core/SkPaint.h"
+#include "src/core/SkBlitter.h"
+#include "src/core/SkFDot6.h"
+#include "src/core/SkLineClipper.h"
+#include "src/core/SkMathPriv.h"
+#include "src/core/SkRasterClip.h"
+#include "src/core/SkScan.h"
+
+#include <utility>
 
 static void horiline(int x, int stopx, SkFixed fy, SkFixed dy,
                      SkBlitter* blitter) {
@@ -85,9 +88,9 @@ void SkScan::HairLineRgn(const SkPoint array[], int arrayCount, const SkRegion* 
             // lineclipper, we know they will fit in 32bits (26.6)
             const SkIRect& bounds = clip->getBounds();
 
-            clipR.set(SkIntToFDot6(bounds.fLeft), SkIntToFDot6(bounds.fTop),
-                      SkIntToFDot6(bounds.fRight), SkIntToFDot6(bounds.fBottom));
-            ptsR.set(x0, y0, x1, y1);
+            clipR.setLTRB(SkIntToFDot6(bounds.fLeft), SkIntToFDot6(bounds.fTop),
+                          SkIntToFDot6(bounds.fRight), SkIntToFDot6(bounds.fBottom));
+            ptsR.setLTRB(x0, y0, x1, y1);
             ptsR.sort();
 
             // outset the right and bottom, to account for how hairlines are
@@ -109,8 +112,9 @@ void SkScan::HairLineRgn(const SkPoint array[], int arrayCount, const SkRegion* 
 
         if (SkAbs32(dx) > SkAbs32(dy)) { // mostly horizontal
             if (x0 > x1) {   // we want to go left-to-right
-                SkTSwap<SkFDot6>(x0, x1);
-                SkTSwap<SkFDot6>(y0, y1);
+                using std::swap;
+                swap(x0, x1);
+                swap(y0, y1);
             }
             int ix0 = SkFDot6Round(x0);
             int ix1 = SkFDot6Round(x1);
@@ -124,8 +128,9 @@ void SkScan::HairLineRgn(const SkPoint array[], int arrayCount, const SkRegion* 
             horiline(ix0, ix1, startY, slope, blitter);
         } else {              // mostly vertical
             if (y0 > y1) {   // we want to go top-to-bottom
-                SkTSwap<SkFDot6>(x0, x1);
-                SkTSwap<SkFDot6>(y0, y1);
+                using std::swap;
+                swap(x0, x1);
+                swap(y0, y1);
             }
             int iy0 = SkFDot6Round(y0);
             int iy1 = SkFDot6Round(y1);
@@ -143,17 +148,25 @@ void SkScan::HairLineRgn(const SkPoint array[], int arrayCount, const SkRegion* 
 
 // we don't just draw 4 lines, 'cause that can leave a gap in the bottom-right
 // and double-hit the top-left.
-// TODO: handle huge coordinates on rect (before calling SkScalarToFixed)
-void SkScan::HairRect(const SkRect& rect, const SkRasterClip& clip,
-                      SkBlitter* blitter) {
+void SkScan::HairRect(const SkRect& rect, const SkRasterClip& clip, SkBlitter* blitter) {
     SkAAClipBlitterWrapper wrapper;
-    SkBlitterClipper    clipper;
-    SkIRect             r;
+    SkBlitterClipper clipper;
+    // Create the enclosing bounds of the hairrect. i.e. we will stroke the interior of r.
+    SkIRect r = SkIRect::MakeLTRB(SkScalarFloorToInt(rect.fLeft),
+                                  SkScalarFloorToInt(rect.fTop),
+                                  SkScalarFloorToInt(rect.fRight + 1),
+                                  SkScalarFloorToInt(rect.fBottom + 1));
 
-    r.set(SkScalarToFixed(rect.fLeft) >> 16,
-          SkScalarToFixed(rect.fTop) >> 16,
-          (SkScalarToFixed(rect.fRight) >> 16) + 1,
-          (SkScalarToFixed(rect.fBottom) >> 16) + 1);
+    // Note: r might be crazy big, if rect was huge, possibly getting pinned to max/min s32.
+    // We need to trim it back to something reasonable before we can query its width etc.
+    // since r.fRight - r.fLeft might wrap around to negative even if fRight > fLeft.
+    //
+    // We outset the clip bounds by 1 before intersecting, since r is being stroked and not filled
+    // so we don't want to pin an edge of it to the clip. The intersect's job is mostly to just
+    // get the actual edge values into a reasonable range (e.g. so width() can't overflow).
+    if (!r.intersect(clip.getBounds().makeOutset(1, 1))) {
+        return;
+    }
 
     if (clip.quickReject(r)) {
         return;
@@ -189,14 +202,14 @@ void SkScan::HairRect(const SkRect& rect, const SkRasterClip& clip,
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "SkPath.h"
-#include "SkGeometry.h"
-#include "SkNx.h"
+#include "include/core/SkPath.h"
+#include "include/private/SkNx.h"
+#include "src/core/SkGeometry.h"
 
 #define kMaxCubicSubdivideLevel 9
 #define kMaxQuadSubdivideLevel  5
 
-static int compute_int_quad_dist(const SkPoint pts[3]) {
+static uint32_t compute_int_quad_dist(const SkPoint pts[3]) {
     // compute the vector between the control point ([1]) and the middle of the
     // line connecting the start and end ([0] and [2])
     SkScalar dx = SkScalarHalf(pts[0].fX + pts[2].fX) - pts[1].fX;
@@ -204,9 +217,11 @@ static int compute_int_quad_dist(const SkPoint pts[3]) {
     // we want everyone to be positive
     dx = SkScalarAbs(dx);
     dy = SkScalarAbs(dy);
-    // convert to whole pixel values (use ceiling to be conservative)
-    int idx = SkScalarCeilToInt(dx);
-    int idy = SkScalarCeilToInt(dy);
+    // convert to whole pixel values (use ceiling to be conservative).
+    // assign to unsigned so we can safely add 1/2 of the smaller and still fit in
+    // uint32_t, since SkScalarCeilToInt() returns 31 bits at most.
+    uint32_t idx = SkScalarCeilToInt(dx);
+    uint32_t idy = SkScalarCeilToInt(dy);
     // use the cheap approx for distance
     if (idx > idy) {
         return idx + (idy >> 1);
@@ -334,6 +349,13 @@ static bool quick_cubic_niceness_check(const SkPoint pts[4]) {
            lt_90(pts[2], pts[3], pts[0]);
 }
 
+typedef SkNx<2, uint32_t> Sk2x32;
+
+static inline Sk2x32 sk2s_is_finite(const Sk2s& x) {
+    const Sk2x32 exp_mask = Sk2x32(0xFF << 23);
+    return (Sk2x32::Load(&x) & exp_mask) != exp_mask;
+}
+
 static void hair_cubic(const SkPoint pts[4], const SkRegion* clip, SkBlitter* blitter,
                        SkScan::HairRgnProc lineproc) {
     const int lines = compute_cubic_segs(pts);
@@ -357,12 +379,17 @@ static void hair_cubic(const SkPoint pts[4], const SkRegion* clip, SkBlitter* bl
     Sk2s B = coeff.fB;
     Sk2s C = coeff.fC;
     Sk2s D = coeff.fD;
+    Sk2x32 is_finite(~0);   // start out as true
     for (int i = 1; i < lines; ++i) {
         t = t + dt;
-        (((A * t + B) * t + C) * t + D).store(&tmp[i]);
+        Sk2s p = ((A * t + B) * t + C) * t + D;
+        is_finite &= sk2s_is_finite(p);
+        p.store(&tmp[i]);
     }
-    tmp[lines] = pts[3];
-    lineproc(tmp, lines + 1, clip, blitter);
+    if (is_finite.allTrue()) {
+        tmp[lines] = pts[3];
+        lineproc(tmp, lines + 1, clip, blitter);
+    } // else some point(s) are non-finite, so don't draw
 }
 
 static SkRect compute_nocheck_cubic_bounds(const SkPoint pts[4]) {
@@ -404,7 +431,7 @@ static inline void haircubic(const SkPoint pts[4], const SkRegion* clip, const S
 }
 
 static int compute_quad_level(const SkPoint pts[3]) {
-    int d = compute_int_quad_dist(pts);
+    uint32_t d = compute_int_quad_dist(pts);
     /*  quadratics approach the line connecting their start and end points
      4x closer with each subdivision, so we compute the number of
      subdivisions to be the minimum need to get that distance to be less
@@ -643,21 +670,20 @@ void SkScan::FrameRect(const SkRect& r, const SkPoint& strokeSize,
     SkScalar ry = SkScalarHalf(dy);
     SkRect   outer, tmp;
 
-    outer.set(r.fLeft - rx, r.fTop - ry,
-                r.fRight + rx, r.fBottom + ry);
+    outer.setLTRB(r.fLeft - rx, r.fTop - ry, r.fRight + rx, r.fBottom + ry);
 
     if (r.width() <= dx || r.height() <= dy) {
         SkScan::FillRect(outer, clip, blitter);
         return;
     }
 
-    tmp.set(outer.fLeft, outer.fTop, outer.fRight, outer.fTop + dy);
+    tmp.setLTRB(outer.fLeft, outer.fTop, outer.fRight, outer.fTop + dy);
     SkScan::FillRect(tmp, clip, blitter);
     tmp.fTop = outer.fBottom - dy;
     tmp.fBottom = outer.fBottom;
     SkScan::FillRect(tmp, clip, blitter);
 
-    tmp.set(outer.fLeft, outer.fTop + dy, outer.fLeft + dx, outer.fBottom - dy);
+    tmp.setLTRB(outer.fLeft, outer.fTop + dy, outer.fLeft + dx, outer.fBottom - dy);
     SkScan::FillRect(tmp, clip, blitter);
     tmp.fLeft = outer.fRight - dx;
     tmp.fRight = outer.fRight;
@@ -672,7 +698,7 @@ void SkScan::HairLine(const SkPoint pts[], int count, const SkRasterClip& clip,
         const SkRegion* clipRgn = nullptr;
 
         SkRect r;
-        r.set(pts, count);
+        r.setBounds(pts, count);
         r.outset(SK_ScalarHalf, SK_ScalarHalf);
 
         SkAAClipBlitterWrapper wrap;
@@ -693,7 +719,7 @@ void SkScan::AntiHairLine(const SkPoint pts[], int count, const SkRasterClip& cl
         const SkRegion* clipRgn = nullptr;
 
         SkRect r;
-        r.set(pts, count);
+        r.setBounds(pts, count);
 
         SkAAClipBlitterWrapper wrap;
         if (!clip.quickContains(r.roundOut().makeOutset(1, 1))) {

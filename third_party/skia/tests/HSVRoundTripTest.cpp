@@ -5,16 +5,16 @@
  * found in the LICENSE file.
  */
 
-#include "Test.h"
+#include "tests/Test.h"
 
-#include "SkColor.h"
+#include "include/core/SkColor.h"
 
 DEF_TEST(ColorToHSVRoundTrip, reporter) {
     SkScalar hsv[3];
     for (U8CPU r = 0; r <= 255; r++) {
         for (U8CPU g = 0; g <= 255; g++) {
             for (U8CPU b = 0; b <= 255; b++) {
-                SkColor color = SkColorSetARGBInline(0xFF, r, g, b);
+                SkColor color = SkColorSetRGB(r, g, b);
                 SkColorToHSV(color, hsv);
                 SkColor result = SkHSVToColor(0xFF, hsv);
                 if (result != color) {

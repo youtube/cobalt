@@ -8,8 +8,8 @@
 #ifndef SKSL_FUNCTIONCALL
 #define SKSL_FUNCTIONCALL
 
-#include "SkSLExpression.h"
-#include "SkSLFunctionDeclaration.h"
+#include "src/sksl/ir/SkSLExpression.h"
+#include "src/sksl/ir/SkSLFunctionDeclaration.h"
 
 namespace SkSL {
 
@@ -17,9 +17,9 @@ namespace SkSL {
  * A function invocation.
  */
 struct FunctionCall : public Expression {
-    FunctionCall(Position position, const Type& type, const FunctionDeclaration& function,
+    FunctionCall(int offset, const Type& type, const FunctionDeclaration& function,
                  std::vector<std::unique_ptr<Expression>> arguments)
-    : INHERITED(position, kFunctionCall_Kind, type)
+    : INHERITED(offset, kFunctionCall_Kind, type)
     , fFunction(std::move(function))
     , fArguments(std::move(arguments)) {}
 
@@ -32,8 +32,17 @@ struct FunctionCall : public Expression {
         return fFunction.fModifiers.fFlags & Modifiers::kHasSideEffects_Flag;
     }
 
+    std::unique_ptr<Expression> clone() const override {
+        std::vector<std::unique_ptr<Expression>> cloned;
+        for (const auto& arg : fArguments) {
+            cloned.push_back(arg->clone());
+        }
+        return std::unique_ptr<Expression>(new FunctionCall(fOffset, fType, fFunction,
+                                                            std::move(cloned)));
+    }
+
     String description() const override {
-        String result = fFunction.fName + "(";
+        String result = String(fFunction.fName) + "(";
         String separator;
         for (size_t i = 0; i < fArguments.size(); i++) {
             result += separator;

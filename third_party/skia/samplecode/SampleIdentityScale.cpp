@@ -5,51 +5,42 @@
  * found in the LICENSE file.
  */
 
-#include "DecodeFile.h"
-#include "gm.h"
-
-#include "Resources.h"
-#include "SampleCode.h"
-#include "SkBlurMaskFilter.h"
-#include "SkCanvas.h"
-#include "SkColorPriv.h"
-#include "SkPath.h"
-#include "SkRandom.h"
-#include "SkStream.h"
-#include "SkTime.h"
-#include "SkClipOpPriv.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkColorPriv.h"
+#include "include/core/SkFont.h"
+#include "include/core/SkPath.h"
+#include "include/core/SkStream.h"
+#include "include/core/SkTime.h"
+#include "include/effects/SkBlurMaskFilter.h"
+#include "include/utils/SkRandom.h"
+#include "samplecode/DecodeFile.h"
+#include "samplecode/Sample.h"
+#include "src/core/SkClipOpPriv.h"
+#include "tools/Resources.h"
 
 // Intended to exercise pixel snapping observed with scaled images (and
 // with non-scaled images, but for a different reason):  Bug 1145
 
-class IdentityScaleView : public SampleView {
+class IdentityScaleView : public Sample {
 public:
     IdentityScaleView(const char imageFilename[]) {
-      SkString resourcePath = GetResourcePath(imageFilename);
-      if (!decode_file(resourcePath.c_str(), &fBM)) {
-          fBM.allocN32Pixels(1, 1);
-          *(fBM.getAddr32(0,0)) = 0xFF0000FF; // red == bad
-      }
+        if (!DecodeDataToBitmap(GetResourceAsData(imageFilename), &fBM)) {
+            fBM.allocN32Pixels(1, 1);
+            *(fBM.getAddr32(0,0)) = 0xFF0000FF; // red == bad
+        }
     }
 
 protected:
     SkBitmap fBM;
 
-    // overrides from SkEventSink
-    bool onQuery(SkEvent* evt) override {
-        if (SampleCode::TitleQ(*evt)) {
-            SampleCode::TitleR(evt, "IdentityScale");
-            return true;
-        }
-        return this->INHERITED::onQuery(evt);
-    }
+    SkString name() override { return SkString("IdentityScale"); }
 
     void onDrawContent(SkCanvas* canvas) override {
 
+        SkFont font(nullptr, 48);
         SkPaint paint;
 
         paint.setAntiAlias(true);
-        paint.setTextSize(48);
         paint.setFilterQuality(kHigh_SkFilterQuality);
 
         SkTime::DateTime time;
@@ -71,15 +62,13 @@ protected:
         }
         canvas->drawBitmap( fBM, 100, 100, &paint );
         canvas->restore();
-        canvas->drawString(text, 100, 400, paint );
-        this->inval(nullptr);
+        canvas->drawString(text, 100, 400, font, paint);
     }
 
 private:
-    typedef SampleView INHERITED;
+    typedef Sample INHERITED;
 };
 
 //////////////////////////////////////////////////////////////////////////////
 
-static SkView* MyFactory() { return new IdentityScaleView("mandrill_256.png"); }
-static SkViewRegister reg(MyFactory);
+DEF_SAMPLE( return new IdentityScaleView("images/mandrill_256.png"); )

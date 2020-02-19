@@ -29,6 +29,7 @@
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "cobalt/renderer/rasterizer/egl/textured_mesh_renderer.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
+#include "cobalt/renderer/rasterizer/skia/gl_format_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_mesh.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_resource_provider.h"
 #include "cobalt/renderer/rasterizer/skia/render_tree_node_visitor.h"
@@ -42,9 +43,9 @@
 #include "third_party/skia/include/gpu/GrBackendSurface.h"
 #include "third_party/skia/include/gpu/GrContext.h"
 #include "third_party/skia/include/gpu/GrContextOptions.h"
-#include "third_party/skia/include/gpu/GrRenderTarget.h"
 #include "third_party/skia/include/gpu/GrTexture.h"
 #include "third_party/skia/include/gpu/gl/GrGLInterface.h"
+#include "third_party/skia/src/gpu/GrRenderTarget.h"
 #include "third_party/skia/src/gpu/GrResourceProvider.h"
 
 namespace {
@@ -163,25 +164,20 @@ SkSurfaceProps GetRenderTargetSurfaceProps(bool force_deterministic_rendering) {
 }
 
 // Takes meta-data from a Cobalt RenderTarget object and uses it to fill out
-// a Skia backend render target descriptor.  Additionally, it also references
-// the actual render target object as well so that Skia can then recover
-// the Cobalt render target object.
-GrBackendRenderTargetDesc CobaltRenderTargetToSkiaBackendRenderTargetDesc(
+// a Skia backend render target.  Additionally, it also references the actual
+// render target object as well so that Skia can then recover the Cobalt render
+// target object.
+GrBackendRenderTarget CobaltRenderTargetToSkiaBackendRenderTarget(
     const cobalt::renderer::backend::RenderTarget& cobalt_render_target) {
   const math::Size& size = cobalt_render_target.GetSize();
 
-  GrBackendRenderTargetDesc skia_desc;
-  skia_desc.fWidth = size.width();
-  skia_desc.fHeight = size.height();
-  skia_desc.fConfig = kRGBA_8888_GrPixelConfig;
-  skia_desc.fOrigin = kBottomLeft_GrSurfaceOrigin;
-  skia_desc.fSampleCnt = 0;
-  // Skia uses this for some clip operations.
-  skia_desc.fStencilBits = 0;
-  skia_desc.fRenderTargetHandle =
-      static_cast<GrBackendObject>(cobalt_render_target.GetPlatformHandle());
+  GrGLFramebufferInfo info;
+  info.fFBOID = cobalt_render_target.GetPlatformHandle();
+  info.fFormat = ConvertBaseGLFormatToSizedInternalFormat(GL_RGBA);
+  GrBackendRenderTarget skia_render_target(size.width(), size.height(), 0, 0,
+                                           info);
 
-  return skia_desc;
+  return skia_render_target;
 }
 
 glm::mat4 ModelViewMatrixSurfaceOriginAdjustment(GrSurfaceOrigin origin) {
@@ -619,8 +615,7 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
   context_options.fGlyphCacheTextureMaximumBytes =
       skia_atlas_width * skia_atlas_height;
   context_options.fAvoidStencilBuffers = true;
-  gr_context_.reset(
-      GrContext::Create(kOpenGL_GrBackend, NULL, context_options));
+  gr_context_.reset(GrContext::MakeGL(context_options).release());
 
   DCHECK(gr_context_);
   // The GrContext manages a budget for GPU resources.  Setting the budget equal
@@ -650,8 +645,9 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
 
   graphics_context_->ReleaseCurrentContext();
 
-  int max_surface_size = std::max(gr_context_->caps()->maxRenderTargetSize(),
-                                  gr_context_->caps()->maxTextureSize());
+  int max_surface_size = std::max(gr_context_->maxRenderTargetSize(),
+                                  gr_context_->maxTextureSize());
+  DLOG(INFO) << "Max renderer surface size: " << max_surface_size;
 }
 
 HardwareRasterizer::Impl::~Impl() {
@@ -737,14 +733,14 @@ void HardwareRasterizer::Impl::SubmitOffscreenToRenderTarget(
       graphics_context_, render_target_egl.get());
 
   // Create a canvas from the render target.
-  GrBackendRenderTargetDesc skia_desc =
-      CobaltRenderTargetToSkiaBackendRenderTargetDesc(*render_target);
-  skia_desc.fOrigin = kTopLeft_GrSurfaceOrigin;
+  GrBackendRenderTarget skia_render_target =
+      CobaltRenderTargetToSkiaBackendRenderTarget(*render_target);
 
   SkSurfaceProps surface_props =
       GetRenderTargetSurfaceProps(force_deterministic_rendering_);
   sk_sp<SkSurface> sk_output_surface = SkSurface::MakeFromBackendRenderTarget(
-      gr_context_.get(), skia_desc, &surface_props);
+      gr_context_.get(), skia_render_target, kTopLeft_GrSurfaceOrigin,
+      kRGBA_8888_SkColorType, nullptr, &surface_props);
   SkCanvas* canvas = sk_output_surface->getCanvas();
 
   canvas->clear(SkColorSetARGB(0, 0, 0, 0));
@@ -821,11 +817,11 @@ SkCanvas* HardwareRasterizer::Impl::GetCanvasFromRenderTarget(
     SkSurfaceProps surface_props =
         GetRenderTargetSurfaceProps(force_deterministic_rendering_);
     // Create a canvas from the render target.
-    GrBackendRenderTargetDesc skia_desc =
-        CobaltRenderTargetToSkiaBackendRenderTargetDesc(*render_target);
-    skia_desc.fOrigin = kBottomLeft_GrSurfaceOrigin;
+    GrBackendRenderTarget skia_render_target =
+        CobaltRenderTargetToSkiaBackendRenderTarget(*render_target);
     sk_output_surface = SkSurface::MakeFromBackendRenderTarget(
-        gr_context_.get(), skia_desc, &surface_props);
+        gr_context_.get(), skia_render_target, kBottomLeft_GrSurfaceOrigin,
+        kRGBA_8888_SkColorType, nullptr, &surface_props);
 
     sk_output_surface_map_[surface_map_key] = sk_output_surface;
   } else {

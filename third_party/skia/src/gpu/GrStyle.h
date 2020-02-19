@@ -8,10 +8,10 @@
 #ifndef GrStyle_DEFINED
 #define GrStyle_DEFINED
 
-#include "GrTypes.h"
-#include "SkPathEffect.h"
-#include "SkStrokeRec.h"
-#include "SkTemplates.h"
+#include "include/core/SkPathEffect.h"
+#include "include/core/SkStrokeRec.h"
+#include "include/gpu/GrTypes.h"
+#include "include/private/SkTemplates.h"
 
 /**
  * Represents the various ways that a GrShape can be styled. It has fill/stroking information
@@ -81,7 +81,7 @@ public:
         this->initPathEffect(std::move(pe));
     }
 
-    GrStyle(const GrStyle& that) : fStrokeRec(SkStrokeRec::kFill_InitStyle) { *this = that; }
+    GrStyle(const GrStyle& that) = default;
 
     explicit GrStyle(const SkPaint& paint) : fStrokeRec(paint) {
         this->initPathEffect(paint.refPathEffect());
@@ -187,6 +187,7 @@ private:
 
     struct DashInfo {
         DashInfo() : fType(SkPathEffect::kNone_DashType) {}
+        DashInfo(const DashInfo& that) { *this = that; }
         DashInfo& operator=(const DashInfo& that) {
             fType = that.fType;
             fPhase = that.fPhase;
@@ -200,7 +201,7 @@ private:
             fIntervals.reset(0);
         }
         SkPathEffect::DashType      fType;
-        SkScalar                    fPhase;
+        SkScalar                    fPhase{0};
         SkAutoSTArray<4, SkScalar>  fIntervals;
     };
 

@@ -5,12 +5,15 @@
  * found in the LICENSE file.
  */
 
-
 #ifndef SkBuffer_DEFINED
 #define SkBuffer_DEFINED
 
-#include "SkScalar.h"
-#include "SkTypes.h"
+#include "include/core/SkScalar.h"
+#include "include/core/SkTypes.h"
+#include "include/private/SkNoncopyable.h"
+#include "src/core/SkSafeMath.h"
+
+#include <limits>
 
 /** \class SkRBuffer
 
@@ -21,12 +24,12 @@
 */
 class SkRBuffer : SkNoncopyable {
 public:
-    SkRBuffer() : fData(0), fPos(0), fStop(0) {}
+    SkRBuffer() : fData(nullptr), fPos(nullptr), fStop(nullptr) {}
 
     /** Initialize RBuffer with a data point and length.
     */
     SkRBuffer(const void* data, size_t size) {
-        SkASSERT(data != 0 || size == 0);
+        SkASSERT(data != nullptr || size == 0);
         fData = (const char*)data;
         fPos = (const char*)data;
         fStop = (const char*)data + size;
@@ -60,6 +63,12 @@ public:
     bool readS32(int32_t* x)  { return this->read(x, 4); }
     bool readU32(uint32_t* x) { return this->read(x, 4); }
 
+    // returns nullptr on failure
+    const void* skip(size_t bytes);
+    template <typename T> const T* skipCount(size_t count) {
+        return static_cast<const T*>(this->skip(SkSafeMath::Mul(count, sizeof(T))));
+    }
+
 private:
     const char* fData;
     const char* fPos;
@@ -77,18 +86,18 @@ private:
 */
 class SkWBuffer : SkNoncopyable {
 public:
-    SkWBuffer() : fData(0), fPos(0), fStop(0) {}
+    SkWBuffer() : fData(nullptr), fPos(nullptr), fStop(nullptr) {}
     SkWBuffer(void* data) { reset(data); }
     SkWBuffer(void* data, size_t size) { reset(data, size); }
 
     void reset(void* data) {
         fData = (char*)data;
         fPos = (char*)data;
-        fStop = 0;  // no bounds checking
+        fStop = nullptr;  // no bounds checking
     }
 
     void reset(void* data, size_t size) {
-        SkASSERT(data != 0 || size == 0);
+        SkASSERT(data != nullptr || size == 0);
         fData = (char*)data;
         fPos = (char*)data;
         fStop = (char*)data + size;

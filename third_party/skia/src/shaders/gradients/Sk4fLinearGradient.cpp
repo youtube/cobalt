@@ -5,27 +5,29 @@
  * found in the LICENSE file.
  */
 
-#include "Sk4fLinearGradient.h"
-#include "Sk4x4f.h"
+#include "include/core/SkPaint.h"
+#include "src/shaders/gradients/Sk4fLinearGradient.h"
 
 #include <cmath>
+#include <utility>
 
 namespace {
 
 template<ApplyPremul premul>
-void ramp(const Sk4f& c, const Sk4f& dc, SkPM4f dst[], int n) {
+void ramp(const Sk4f& c, const Sk4f& dc, SkPMColor dst[], int n,
+          const Sk4f& bias0, const Sk4f& bias1) {
     SkASSERT(n > 0);
 
-    const Sk4f dc2 = dc + dc;
-    const Sk4f dc4 = dc2 + dc2;
+    const Sk4f dc2 = dc + dc,
+               dc4 = dc2 + dc2;
 
-    Sk4f c0 = c ;
-    Sk4f c1 = c + dc;
-    Sk4f c2 = c0 + dc2;
-    Sk4f c3 = c1 + dc2;
+    Sk4f c0 =  c +      DstTraits<premul>::pre_lerp_bias(bias0),
+         c1 =  c + dc + DstTraits<premul>::pre_lerp_bias(bias1),
+         c2 = c0 + dc2,
+         c3 = c1 + dc2;
 
     while (n >= 4) {
-        DstTraits<premul>::store4x(c0, c1, c2, c3, dst);
+        DstTraits<premul>::store4x(c0, c1, c2, c3, dst, bias0, bias1);
         dst += 4;
 
         c0 = c0 + dc4;
@@ -35,26 +37,26 @@ void ramp(const Sk4f& c, const Sk4f& dc, SkPM4f dst[], int n) {
         n -= 4;
     }
     if (n & 2) {
-        DstTraits<premul>::store(c0, dst++);
-        DstTraits<premul>::store(c1, dst++);
+        DstTraits<premul>::store(c0, dst++, bias0);
+        DstTraits<premul>::store(c1, dst++, bias1);
         c0 = c0 + dc2;
     }
     if (n & 1) {
-        DstTraits<premul>::store(c0, dst);
+        DstTraits<premul>::store(c0, dst, bias0);
     }
 }
 
-template<SkShader::TileMode>
+template<SkTileMode>
 SkScalar pinFx(SkScalar);
 
 template<>
-SkScalar pinFx<SkShader::kClamp_TileMode>(SkScalar fx) {
+SkScalar pinFx<SkTileMode::kClamp>(SkScalar fx) {
     return fx;
 }
 
 template<>
-SkScalar pinFx<SkShader::kRepeat_TileMode>(SkScalar fx) {
-    SkScalar f = SkScalarFraction(fx);
+SkScalar pinFx<SkTileMode::kRepeat>(SkScalar fx) {
+    SkScalar f = SkScalarIsFinite(fx) ? SkScalarFraction(fx) : 0;
     if (f < 0) {
         f = SkTMin(f + 1, nextafterf(1, 0));
     }
@@ -64,8 +66,8 @@ SkScalar pinFx<SkShader::kRepeat_TileMode>(SkScalar fx) {
 }
 
 template<>
-SkScalar pinFx<SkShader::kMirror_TileMode>(SkScalar fx) {
-    SkScalar f = SkScalarMod(fx, 2.0f);
+SkScalar pinFx<SkTileMode::kMirror>(SkScalar fx) {
+    SkScalar f = SkScalarIsFinite(fx) ? SkScalarMod(fx, 2.0f) : 0;
     if (f < 0) {
         f = SkTMin(f + 2, nextafterf(2, 0));
     }
@@ -141,37 +143,71 @@ SkLinearGradient::LinearGradient4fContext::findInterval(SkScalar fx) const {
     }
 }
 
+
 void SkLinearGradient::
-LinearGradient4fContext::shadeSpan4f(int x, int y, SkPM4f dst[], int count) {
+LinearGradient4fContext::shadeSpan(int x, int y, SkPMColor dst[], int count) {
     SkASSERT(count > 0);
+
+    float bias0 = 0,
+          bias1 = 0;
+
+    if (fDither) {
+        static constexpr float dither_cell[] = {
+            -3/8.0f,  1/8.0f,
+             3/8.0f, -1/8.0f,
+        };
+
+        const int rowIndex = (y & 1) << 1;
+        bias0 = dither_cell[rowIndex + 0];
+        bias1 = dither_cell[rowIndex + 1];
+
+        if (x & 1) {
+            using std::swap;
+            swap(bias0, bias1);
+        }
+    }
+
     if (fColorsArePremul) {
-        this->shadePremulSpan<ApplyPremul::False>(x, y, dst, count);
+        // In premul interpolation mode, components are pre-scaled by 255 and the store
+        // op is truncating. We pre-bias here to achieve rounding.
+        bias0 += 0.5f;
+        bias1 += 0.5f;
+
+        this->shadePremulSpan<ApplyPremul::False>(x, y, dst, count, bias0, bias1);
     } else {
-        this->shadePremulSpan<ApplyPremul::True>(x, y, dst, count);
+        // In unpremul interpolation mode, Components are not pre-scaled.
+        bias0 *= 1/255.0f;
+        bias1 *= 1/255.0f;
+
+        this->shadePremulSpan<ApplyPremul::True >(x, y, dst, count, bias0, bias1);
     }
 }
 
 template<ApplyPremul premul>
 void SkLinearGradient::
-LinearGradient4fContext::shadePremulSpan(int x, int y, SkPM4f dst[], int count) const {
-    const SkLinearGradient& shader =
-        static_cast<const SkLinearGradient&>(fShader);
+LinearGradient4fContext::shadePremulSpan(int x, int y, SkPMColor dst[], int count,
+                                         float bias0, float bias1) const {
+    const SkLinearGradient& shader = static_cast<const SkLinearGradient&>(fShader);
     switch (shader.fTileMode) {
-    case kClamp_TileMode:
-        this->shadeSpanInternal<premul, kClamp_TileMode>(x, y, dst, count);
+        case SkTileMode::kDecal:
+        SkASSERT(false);    // decal only supported via stages
+        // fall-through
+        case SkTileMode::kClamp:
+            this->shadeSpanInternal<premul, SkTileMode::kClamp >(x, y, dst, count, bias0, bias1);
         break;
-    case kRepeat_TileMode:
-        this->shadeSpanInternal<premul, kRepeat_TileMode>(x, y, dst, count);
+        case SkTileMode::kRepeat:
+            this->shadeSpanInternal<premul, SkTileMode::kRepeat>(x, y, dst, count, bias0, bias1);
         break;
-    case kMirror_TileMode:
-        this->shadeSpanInternal<premul, kMirror_TileMode>(x, y, dst, count);
+        case SkTileMode::kMirror:
+            this->shadeSpanInternal<premul, SkTileMode::kMirror>(x, y, dst, count, bias0, bias1);
         break;
     }
 }
 
-template<ApplyPremul premul, SkShader::TileMode tileMode>
+template<ApplyPremul premul, SkTileMode tileMode>
 void SkLinearGradient::
-LinearGradient4fContext::shadeSpanInternal(int x, int y, SkPM4f dst[], int count) const {
+LinearGradient4fContext::shadeSpanInternal(int x, int y, SkPMColor dst[], int count,
+                                           float bias0, float bias1) const {
     SkPoint pt;
     fDstToPosProc(fDstToPos,
                   x + SK_ScalarHalf,
@@ -185,11 +221,13 @@ LinearGradient4fContext::shadeSpanInternal(int x, int y, SkPM4f dst[], int count
                                                    fx,
                                                    dx,
                                                    SkScalarNearlyZero(dx * count));
+    Sk4f bias4f0(bias0),
+         bias4f1(bias1);
+
     while (count > 0) {
         // What we really want here is SkTPin(advance, 1, count)
         // but that's a significant perf hit for >> stops; investigate.
-        const int n = SkScalarTruncToInt(
-            SkTMin<SkScalar>(proc.currentAdvance() + 1, SkIntToScalar(count)));
+        const int n = SkTMin(SkScalarTruncToInt(proc.currentAdvance() + 1), count);
 
         // The current interval advance can be +inf (e.g. when reaching
         // the clamp mode end intervals) - when that happens, we expect to
@@ -201,16 +239,22 @@ LinearGradient4fContext::shadeSpanInternal(int x, int y, SkPM4f dst[], int count
         if (proc.currentRampIsZero()) {
             DstTraits<premul>::store(proc.currentColor(), dst, n);
         } else {
-            ramp<premul>(proc.currentColor(), proc.currentColorGrad(), dst, n);
+            ramp<premul>(proc.currentColor(), proc.currentColorGrad(), dst, n,
+                         bias4f0, bias4f1);
         }
 
         proc.advance(SkIntToScalar(n));
         count -= n;
         dst   += n;
+
+        if (n & 1) {
+            using std::swap;
+            swap(bias4f0, bias4f1);
+        }
     }
 }
 
-template<ApplyPremul premul, SkShader::TileMode tileMode>
+template<ApplyPremul premul, SkTileMode tileMode>
 class SkLinearGradient::
 LinearGradient4fContext::LinearIntervalProcessor {
 public:
@@ -230,7 +274,7 @@ public:
         SkASSERT(fAdvX >= 0);
         SkASSERT(firstInterval <= lastInterval);
 
-        if (tileMode != kClamp_TileMode && !is_vertical) {
+        if (tileMode != SkTileMode::kClamp && !is_vertical) {
             const auto spanX = (lastInterval->fT1 - firstInterval->fT0) / dx;
             SkASSERT(spanX >= 0);
 
@@ -250,7 +294,7 @@ public:
 
     SkScalar currentAdvance() const {
         SkASSERT(fAdvX >= 0);
-        SkASSERT(fAdvX <= (fInterval->fT1 - fInterval->fT0) / fDx || !std::isfinite(fAdvX));
+        SkASSERT(!std::isfinite(fAdvX) || fAdvX <= (fInterval->fT1 - fInterval->fT0) / fDx);
         return fAdvX;
     }
 
@@ -306,7 +350,7 @@ private:
         SkASSERT(i <= fLastInterval);
         i++;
 
-        if (tileMode == kClamp_TileMode) {
+        if (tileMode == SkTileMode::kClamp) {
             SkASSERT(i <= fLastInterval);
             return i;
         }

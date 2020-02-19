@@ -5,11 +5,11 @@
  * found in the LICENSE file.
  */
 
-#include "SkCanvas.h"
-#include "SkPaint.h"
-#include "SkSVGPath.h"
-#include "SkSVGRenderContext.h"
-#include "SkSVGValue.h"
+#include "experimental/svg/model/SkSVGPath.h"
+#include "experimental/svg/model/SkSVGRenderContext.h"
+#include "experimental/svg/model/SkSVGValue.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkPaint.h"
 
 SkSVGPath::SkSVGPath() : INHERITED(SkSVGTag::kPath) { }
 
@@ -33,10 +33,9 @@ void SkSVGPath::onDraw(SkCanvas* canvas, const SkSVGLengthContext&, const SkPain
 }
 
 SkPath SkSVGPath::onAsPath(const SkSVGRenderContext& ctx) const {
-    // the computed fillType follows inheritance rules and needs to be applied at draw time.
-    fPath.setFillType(FillRuleToFillType(*ctx.presentationContext().fInherited.fFillRule.get()));
-
     SkPath path = fPath;
+    // clip-rule can be inherited and needs to be applied at clip time.
+    path.setFillType(ctx.presentationContext().fInherited.fClipRule.get()->asFillType());
     this->mapToParent(&path);
     return path;
 }

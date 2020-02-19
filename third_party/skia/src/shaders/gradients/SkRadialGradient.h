@@ -8,42 +8,27 @@
 #ifndef SkRadialGradient_DEFINED
 #define SkRadialGradient_DEFINED
 
-#include "SkGradientShaderPriv.h"
+#include "src/shaders/gradients/SkGradientShaderPriv.h"
 
-class SkRadialGradient : public SkGradientShaderBase {
+class SkRadialGradient final : public SkGradientShaderBase {
 public:
     SkRadialGradient(const SkPoint& center, SkScalar radius, const Descriptor&);
 
-    class RadialGradientContext : public SkGradientShaderBase::GradientShaderBaseContext {
-    public:
-        RadialGradientContext(const SkRadialGradient&, const ContextRec&);
-
-        void shadeSpan(int x, int y, SkPMColor dstC[], int count) override;
-
-    private:
-        typedef SkGradientShaderBase::GradientShaderBaseContext INHERITED;
-    };
-
     GradientType asAGradient(GradientInfo* info) const override;
 #if SK_SUPPORT_GPU
-    sk_sp<GrFragmentProcessor> asFragmentProcessor(const AsFPArgs&) const override;
+    std::unique_ptr<GrFragmentProcessor> asFragmentProcessor(const GrFPArgs&) const override;
 #endif
-
-    SK_TO_STRING_OVERRIDE()
-    SK_DECLARE_PUBLIC_FLATTENABLE_DESERIALIZATION_PROCS(SkRadialGradient)
 
 protected:
     SkRadialGradient(SkReadBuffer& buffer);
     void flatten(SkWriteBuffer& buffer) const override;
-    Context* onMakeContext(const ContextRec&, SkArenaAlloc*) const override;
-    sk_sp<SkShader> onMakeColorSpace(SkColorSpaceXformer* xformer) const override;
-    
-    bool adjustMatrixAndAppendStages(SkArenaAlloc* alloc,
-                                     SkMatrix* matrix,
-                                     SkRasterPipeline* tPipeline,
-                                     SkRasterPipeline* postPipeline) const final;
+
+    void appendGradientStages(SkArenaAlloc* alloc, SkRasterPipeline* tPipeline,
+                              SkRasterPipeline* postPipeline) const override;
 
 private:
+    SK_FLATTENABLE_HOOKS(SkRadialGradient)
+
     const SkPoint fCenter;
     const SkScalar fRadius;
 

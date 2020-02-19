@@ -9,8 +9,8 @@
 #ifndef SkScan_DEFINED
 #define SkScan_DEFINED
 
-#include "SkFixed.h"
-#include "SkRect.h"
+#include "include/core/SkRect.h"
+#include "include/private/SkFixed.h"
 #include <atomic>
 
 class SkRasterClip;
@@ -79,16 +79,17 @@ private:
     static void FillRect(const SkRect&, const SkRegion* clip, SkBlitter*);
     static void AntiFillRect(const SkRect&, const SkRegion* clip, SkBlitter*);
     static void AntiFillXRect(const SkXRect&, const SkRegion*, SkBlitter*);
-    static void AntiFillPath(const SkPath&, const SkRegion& clip, SkBlitter*,
-                             bool forceRLE = false);
+    static void AntiFillPath(const SkPath&, const SkRegion& clip, SkBlitter*, bool forceRLE);
     static void FillTriangle(const SkPoint pts[], const SkRegion*, SkBlitter*);
 
     static void AntiFrameRect(const SkRect&, const SkPoint& strokeSize,
                               const SkRegion*, SkBlitter*);
     static void HairLineRgn(const SkPoint[], int count, const SkRegion*, SkBlitter*);
     static void AntiHairLineRgn(const SkPoint[], int count, const SkRegion*, SkBlitter*);
-    static void AAAFillPath(const SkPath& path, const SkRegion& origClip, SkBlitter* blitter,
-                            bool forceRLE = false); // SkAAClip uses forceRLE
+    static void AAAFillPath(const SkPath& path, SkBlitter* blitter, const SkIRect& pathIR,
+                            const SkIRect& clipBounds, bool forceRLE);
+    static void SAAFillPath(const SkPath& path, SkBlitter* blitter, const SkIRect& pathIR,
+                            const SkIRect& clipBounds, bool forceRLE);
 };
 
 /** Assign an SkXRect from a SkIRect, by promoting the src rect's coordinates

@@ -5,10 +5,10 @@
  * found in the LICENSE file.
  */
 
-#include "GrGLPath.h"
-#include "GrGLPathRendering.h"
-#include "GrGLGpu.h"
-#include "GrStyle.h"
+#include "src/gpu/GrStyle.h"
+#include "src/gpu/gl/GrGLGpu.h"
+#include "src/gpu/gl/GrGLPath.h"
+#include "src/gpu/gl/GrGLPathRendering.h"
 
 namespace {
 inline GrGLubyte verb_to_gl_path_cmd(SkPath::Verb verb) {
@@ -196,7 +196,7 @@ inline bool init_path_object_for_general_path(GrGLGpu* gpu, GrGLuint pathID,
 static GrPathRendering::FillType convert_skpath_filltype(SkPath::FillType fill) {
     switch (fill) {
         default:
-            SkFAIL("Incomplete Switch\n");
+            SK_ABORT("Incomplete Switch\n");
         case SkPath::kWinding_FillType:
         case SkPath::kInverseWinding_FillType:
             return GrPathRendering::kWinding_FillType;
@@ -330,6 +330,8 @@ GrGLPath::GrGLPath(GrGLGpu* gpu, const SkPath& origSkPath, const GrStyle& style)
 }
 
 void GrGLPath::onRelease() {
+    TRACE_EVENT0("skia.gpu", TRACE_FUNC);
+
     if (0 != fPathID) {
         static_cast<GrGLGpu*>(this->getGpu())->glPathRendering()->deletePaths(fPathID, 1);
         fPathID = 0;

@@ -4,10 +4,10 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
-#include "SkArenaAlloc.h"
-#include "SkFloatBits.h"
-#include "SkOpCoincidence.h"
-#include "SkPathOpsTypes.h"
+#include "include/private/SkFloatBits.h"
+#include "src/core/SkArenaAlloc.h"
+#include "src/pathops/SkOpCoincidence.h"
+#include "src/pathops/SkPathOpsTypes.h"
 
 static bool arguments_denormalized(float a, float b, int epsilon) {
     float denormalizedCheck = FLT_EPSILON * epsilon / 2;
@@ -120,7 +120,10 @@ bool AlmostDequalUlps(float a, float b) {
 }
 
 bool AlmostDequalUlps(double a, double b) {
-    return AlmostDequalUlps(SkDoubleToScalar(a), SkDoubleToScalar(b));
+    if (fabs(a) < SK_ScalarMax && fabs(b) < SK_ScalarMax) {
+        return AlmostDequalUlps(SkDoubleToScalar(a), SkDoubleToScalar(b));
+    }
+    return fabs(a - b) / SkTMax(fabs(a), fabs(b)) < FLT_EPSILON * 16;
 }
 
 bool AlmostEqualUlps(float a, float b) {

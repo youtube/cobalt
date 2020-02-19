@@ -7,14 +7,13 @@
 #ifndef SkPngCodec_DEFINED
 #define SkPngCodec_DEFINED
 
-#include "SkCodec.h"
-#include "SkColorSpaceXform.h"
-#include "SkColorTable.h"
-#include "SkPngChunkReader.h"
-#include "SkEncodedImageFormat.h"
-#include "SkImageInfo.h"
-#include "SkRefCnt.h"
-#include "SkSwizzler.h"
+#include "include/codec/SkCodec.h"
+#include "include/core/SkEncodedImageFormat.h"
+#include "include/core/SkImageInfo.h"
+#include "include/core/SkPngChunkReader.h"
+#include "include/core/SkRefCnt.h"
+#include "src/codec/SkColorTable.h"
+#include "src/codec/SkSwizzler.h"
 
 class SkStream;
 
@@ -23,8 +22,8 @@ public:
     static bool IsPng(const char*, size_t);
 
     // Assume IsPng was called and returned true.
-    static SkCodec* NewFromStream(SkStream*, Result*,
-                                  SkPngChunkReader* = nullptr);
+    static std::unique_ptr<SkCodec> MakeFromStream(std::unique_ptr<SkStream>, Result*,
+                                                   SkPngChunkReader* = nullptr);
 
     // FIXME (scroggo): Temporarily needed by AutoCleanPng.
     void setIdatLength(size_t len) { fIdatLength = len; }
@@ -45,14 +44,13 @@ protected:
         void* fPtr;
     };
 
-    SkPngCodec(const SkEncodedInfo&, const SkImageInfo&, SkStream*, SkPngChunkReader*,
-            void* png_ptr, void* info_ptr, int bitDepth);
+    SkPngCodec(SkEncodedInfo&&, std::unique_ptr<SkStream>, SkPngChunkReader*,
+               void* png_ptr, void* info_ptr, int bitDepth);
 
     Result onGetPixels(const SkImageInfo&, void*, size_t, const Options&, int*)
             override;
     SkEncodedImageFormat onGetEncodedFormat() const override { return SkEncodedImageFormat::kPNG; }
     bool onRewind() override;
-    uint64_t onGetFillValue(const SkImageInfo&) const override;
 
     SkSampler* getSampler(bool createIfNecessary) override;
     void applyXformRow(void* dst, const void* src);
@@ -71,7 +69,7 @@ protected:
      *  libpng will call any relevant callbacks installed. This will continue decoding
      *  until it reaches the end of the file, or until a callback tells libpng to stop.
      */
-    void processData();
+    bool processData();
 
     Result onStartIncrementalDecode(const SkImageInfo& dstInfo, void* pixels, size_t rowBytes,
             const SkCodec::Options&) override;

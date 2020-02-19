@@ -13,6 +13,7 @@
   'dependencies': [
     '<(DEPTH)/third_party/freetype2/freetype2_cobalt.gyp:freetype2',
     '<(DEPTH)/third_party/libpng/libpng.gyp:libpng',
+    '<(DEPTH)/third_party/skia/third_party/skcms/skcms.gyp:skcms',
     '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
     'skia_library_opts.gyp:skia_opts',
   ],
@@ -25,8 +26,22 @@
   ],
 
   'sources': [
+    # from "core.gypi"
+    '<@(skia_core_sources)',
+    '<@(skia_pathops_sources)',
+    '<@(skia_skpicture_sources)',
+
+    # from "effects.gypi"
+    '<@(skia_effects_sources)',
+
+    # from "gpu.gypi"
     '<@(skia_gpu_sources)',
-    '<@(skia_native_gpu_sources)',
+    '<@(skia_ccpr_sources)',
+    '<@(skia_nvpr_sources)',
+
+    # from "utils.gypi"
+    '<@(skia_utils_sources)',
+
     '<(DEPTH)/third_party/skia/src/codec/SkBmpBaseCodec.cpp',
     '<(DEPTH)/third_party/skia/src/codec/SkBmpCodec.cpp',
     '<(DEPTH)/third_party/skia/src/codec/SkBmpMaskCodec.cpp',
@@ -34,6 +49,7 @@
     '<(DEPTH)/third_party/skia/src/codec/SkBmpStandardCodec.cpp',
     '<(DEPTH)/third_party/skia/src/codec/SkCodec.cpp',
     '<(DEPTH)/third_party/skia/src/codec/SkCodecImageGenerator.cpp',
+    '<(DEPTH)/third_party/skia/src/codec/SkColorTable.cpp',
     '<(DEPTH)/third_party/skia/src/codec/SkGifCodec.cpp',
     '<(DEPTH)/third_party/skia/src/codec/SkMaskSwizzler.cpp',
     '<(DEPTH)/third_party/skia/src/codec/SkMasks.cpp',
@@ -42,6 +58,7 @@
     '<(DEPTH)/third_party/skia/src/codec/SkStreamBuffer.cpp',
     '<(DEPTH)/third_party/skia/src/codec/SkSwizzler.cpp',
     '<(DEPTH)/third_party/skia/src/codec/SkWbmpCodec.cpp',
+    '<(DEPTH)/third_party/skia/src/effects/imagefilters/SkBlurImageFilter.cpp',
     '<(DEPTH)/third_party/skia/src/images/SkImageEncoder.cpp',
     '<(DEPTH)/third_party/skia/src/ports/SkDiscardableMemory_none.cpp',
     '<(DEPTH)/third_party/skia/src/ports/SkImageGenerator_skia.cpp',
@@ -52,20 +69,23 @@
     '<(DEPTH)/third_party/skia/src/ports/SkFontHost_FreeType.cpp',
     '<(DEPTH)/third_party/skia/src/ports/SkFontHost_FreeType_common.cpp',
     '<(DEPTH)/third_party/skia/src/ports/SkFontHost_FreeType_common.h',
-    '<(DEPTH)/third_party/skia/src/ports/SkGlobalInitialization_none.cpp',
+    '<(DEPTH)/third_party/skia/src/ports/SkGlobalInitialization_default.cpp',
   ],
   # Exclude all unused skia files
   'sources!': [
     # codec
     '<(DEPTH)/third_party/skia/src/codec/SkAndroidCodec.cpp',
-    '<(DEPTH)/third_party/skia/src/codec/SkRawAdapterCodec.cpp',
     '<(DEPTH)/third_party/skia/src/codec/SkSampledCodec.cpp',
-    '<(DEPTH)/third_party/skia/src/codec/SkWebpAdapterCodec.cpp',
 
     # core
-    '<(DEPTH)/third_party/skia/src/core/SkExecutor.cpp',
-    '<(DEPTH)/third_party/skia/src/core/SkTaskGroup.cpp',
     '<(DEPTH)/third_party/skia/src/core/SkMultiPictureDraw.cpp',
+    '<(DEPTH)/third_party/skia/src/core/SkTime.cpp',
+
+    # gpu
+    "<(DEPTH)/third_party/skia/src/gpu/gl/GrGLMakeNativeInterface_none.cpp",
+
+    '<(DEPTH)/third_party/skia/src/sksl/SkSLMetalCodeGenerator.cpp',
+    '<(DEPTH)/third_party/skia/src/sksl/SkSLMetalCodeGenerator.h',
 
     # utils concurrency
     '<(DEPTH)/third_party/skia/src/utils/SkCondVar.cpp',
@@ -79,7 +99,6 @@
     '<(DEPTH)/third_party/skia/include/utils/SkCubicInterval.h',
     '<(DEPTH)/third_party/skia/include/utils/SkCullPoints.h',
     '<(DEPTH)/third_party/skia/include/utils/SkDebugUtils.h',
-    '<(DEPTH)/third_party/skia/include/utils/SkDumpCanvas.h',
     '<(DEPTH)/third_party/skia/include/utils/SkEventTracer.h',
     '<(DEPTH)/third_party/skia/include/utils/SkFrontBufferedStream.h',
     '<(DEPTH)/third_party/skia/include/utils/SkInterpolator.h',
@@ -100,7 +119,6 @@
     '<(DEPTH)/third_party/skia/src/utils/SkCanvasStack.h',
     '<(DEPTH)/third_party/skia/src/utils/SkCubicInterval.cpp',
     '<(DEPTH)/third_party/skia/src/utils/SkCullPoints.cpp',
-    '<(DEPTH)/third_party/skia/src/utils/SkDumpCanvas.cpp',
     '<(DEPTH)/third_party/skia/src/utils/SkFloatUtils.h',
     '<(DEPTH)/third_party/skia/src/utils/SkFrontBufferedStream.cpp',
     '<(DEPTH)/third_party/skia/src/utils/SkGatherPixelRefsAndRects.cpp',
@@ -119,14 +137,11 @@
     '<(DEPTH)/third_party/skia/src/utils/SkSHA1.h',
     '<(DEPTH)/third_party/skia/src/utils/SkTFitsIn.h',
     '<(DEPTH)/third_party/skia/src/utils/SkTLogic.h',
-    '<(DEPTH)/third_party/skia/src/utils/SkThreadUtils.h',
     '<(DEPTH)/third_party/skia/src/utils/SkThreadUtils_pthread.cpp',
-    '<(DEPTH)/third_party/skia/src/utils/SkThreadUtils_pthread.h',
     '<(DEPTH)/third_party/skia/src/utils/SkThreadUtils_pthread_linux.cpp',
     '<(DEPTH)/third_party/skia/src/utils/SkThreadUtils_pthread_mach.cpp',
     '<(DEPTH)/third_party/skia/src/utils/SkThreadUtils_pthread_other.cpp',
     '<(DEPTH)/third_party/skia/src/utils/SkThreadUtils_win.cpp',
-    '<(DEPTH)/third_party/skia/src/utils/SkThreadUtils_win.h',
 
     # mac
     '<(DEPTH)/third_party/skia/include/utils/mac/SkCGUtils.h',
@@ -148,18 +163,14 @@
     '<(DEPTH)/third_party/skia/src/utils/win/SkTScopedComPtr.h',
     '<(DEPTH)/third_party/skia/src/utils/win/SkWGL.h',
     '<(DEPTH)/third_party/skia/src/utils/win/SkWGL_win.cpp',
-
-    # testing
-    '<(DEPTH)/third_party/skia/src/fonts/SkRandomScalerContext.cpp',
-    '<(DEPTH)/third_party/skia/src/fonts/SkRandomScalerContext.h',
-    '<(DEPTH)/third_party/skia/src/fonts/SkTestScalerContext.cpp',
-    '<(DEPTH)/third_party/skia/src/fonts/SkTestScalerContext.h',
   ],
 
   'direct_dependent_settings': {
     'include_dirs': [
       #temporary until we can hide SkFontHost
+      '<(DEPTH)/third_party/skia',
       '<(DEPTH)/third_party/skia/src/core',
+      '<(DEPTH)/third_party/skia/src/utils',
 
       '<(DEPTH)/third_party/skia/include/core',
       '<(DEPTH)/third_party/skia/include/effects',

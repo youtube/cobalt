@@ -4,8 +4,10 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
-#include "SkIntersections.h"
-#include "SkPathOpsLine.h"
+#include "src/pathops/SkIntersections.h"
+#include "src/pathops/SkPathOpsLine.h"
+
+#include <utility>
 
 void SkIntersections::cleanUpParallelLines(bool parallel) {
     while (fUsed > 2) {
@@ -47,13 +49,13 @@ int SkIntersections::intersectRay(const SkDLine& a, const SkDLine& b) {
              byLen  * axLen         -   ayLen          * bxLen == 0 ( == denom )
      */
     double denom = bLen.fY * aLen.fX - aLen.fY * bLen.fX;
-    SkDVector ab0 = a[0] - b[0];
-    double numerA = ab0.fY * bLen.fX - bLen.fY * ab0.fX;
-    double numerB = ab0.fY * aLen.fX - aLen.fY * ab0.fX;
-    numerA /= denom;
-    numerB /= denom;
     int used;
     if (!approximately_zero(denom)) {
+        SkDVector ab0 = a[0] - b[0];
+        double numerA = ab0.fY * bLen.fX - bLen.fY * ab0.fX;
+        double numerB = ab0.fY * aLen.fX - aLen.fY * ab0.fX;
+        numerA /= denom;
+        numerB /= denom;
         fT[0][0] = numerA;
         fT[1][0] = numerB;
         used = 1;
@@ -122,10 +124,10 @@ int SkIntersections::intersect(const SkDLine& a, const SkDLine& b) {
             computePoints(a, 1);
         }
     }
-/* Allow tracking that both sets of end points are near each other -- the lines are entirely 
+/* Allow tracking that both sets of end points are near each other -- the lines are entirely
    coincident -- even when the end points are not exactly the same.
    Mark this as a 'wild card' for the end points, so that either point is considered totally
-   coincident. Then, avoid folding the lines over each other, but allow either end to mate 
+   coincident. Then, avoid folding the lines over each other, but allow either end to mate
    to the next set of lines.
  */
     if (fAllowNear || !unparallel) {
@@ -182,7 +184,8 @@ static int horizontal_coincident(const SkDLine& line, double y) {
     double min = line[0].fY;
     double max = line[1].fY;
     if (min > max) {
-        SkTSwap(min, max);
+        using std::swap;
+        swap(min, max);
     }
     if (min > y || max < y) {
         return 0;
@@ -194,7 +197,8 @@ static int horizontal_coincident(const SkDLine& line, double y) {
 }
 
 double SkIntersections::HorizontalIntercept(const SkDLine& line, double y) {
-     return SkPinT((y - line[0].fY) / (line[1].fY - line[0].fY));
+    SkASSERT(line[1].fY != line[0].fY);
+    return SkPinT((y - line[0].fY) / (line[1].fY - line[0].fY));
 }
 
 int SkIntersections::horizontal(const SkDLine& line, double left, double right,
@@ -258,7 +262,8 @@ static int vertical_coincident(const SkDLine& line, double x) {
     double min = line[0].fX;
     double max = line[1].fX;
     if (min > max) {
-        SkTSwap(min, max);
+        using std::swap;
+        swap(min, max);
     }
     if (!precisely_between(min, x, max)) {
         return 0;
@@ -270,6 +275,7 @@ static int vertical_coincident(const SkDLine& line, double x) {
 }
 
 double SkIntersections::VerticalIntercept(const SkDLine& line, double x) {
+    SkASSERT(line[1].fX != line[0].fX);
     return SkPinT((x - line[0].fX) / (line[1].fX - line[0].fX));
 }
 

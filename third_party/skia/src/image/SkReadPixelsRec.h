@@ -8,7 +8,8 @@
 #ifndef SkReadPixelsRec_DEFINED
 #define SkReadPixelsRec_DEFINED
 
-#include "SkImageInfo.h"
+#include "include/core/SkImageInfo.h"
+#include "include/core/SkPixmap.h"
 
 /**
  *  Helper class to package and trim the parameters passed to readPixels()
@@ -18,6 +19,14 @@ struct SkReadPixelsRec {
         : fPixels(pixels)
         , fRowBytes(rowBytes)
         , fInfo(info)
+        , fX(x)
+        , fY(y)
+    {}
+
+    SkReadPixelsRec(const SkPixmap& pm, int x, int y)
+        : fPixels(pm.writable_addr())
+        , fRowBytes(pm.rowBytes())
+        , fInfo(pm.info())
         , fX(x)
         , fY(y)
     {}
