@@ -109,7 +109,7 @@ class VideoDmpReader {
   size_t number_of_video_buffers() const { return video_access_units_.size(); }
 
   SbPlayerSampleInfo GetPlayerSampleInfo(SbMediaType type, size_t index) const;
-  SbMediaAudioSampleInfo GetAudioSampleInfo(size_t index) const;
+  const SbMediaAudioSampleInfo& GetAudioSampleInfo(size_t index) const;
 
  private:
   VideoDmpReader(const VideoDmpReader&) = delete;

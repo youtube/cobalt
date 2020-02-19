@@ -249,7 +249,7 @@ class AudioRendererTest : public ::testing::Test {
   }
 
   static const SbMediaAudioSampleInfo& GetDefaultAudioSampleInfo() {
-    static SbMediaAudioSampleInfo audio_sample_info = {};
+    static starboard::media::AudioSampleInfo audio_sample_info = {};
 
 #if SB_API_VERSION >= 11
     audio_sample_info.codec = kSbMediaAudioCodecAac;

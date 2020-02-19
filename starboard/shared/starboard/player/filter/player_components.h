@@ -26,6 +26,7 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
@@ -136,7 +137,7 @@ class PlayerComponents {
       // |audio_codec| can be set to kSbMediaAudioCodecNone for audioless video.
       SbMediaAudioCodec audio_codec_ = kSbMediaAudioCodecNone;
       std::string audio_mime_;
-      SbMediaAudioSampleInfo audio_sample_info_ = {};
+      media::AudioSampleInfo audio_sample_info_;
 
       // The following members are only used by the video stream, and only need
       // to be set when |video_codec| isn't kSbMediaVideoCodecNone.
@@ -145,7 +146,7 @@ class PlayerComponents {
       SbMediaVideoCodec video_codec_ = kSbMediaVideoCodecNone;
       std::string video_mime_;
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-      SbMediaVideoSampleInfo video_sample_info_ = {};
+      media::VideoSampleInfo video_sample_info_;
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
       std::string max_video_capabilities_;
       SbPlayer player_ = kSbPlayerInvalid;
