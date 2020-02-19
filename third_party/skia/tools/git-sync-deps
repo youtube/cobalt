@@ -11,8 +11,8 @@ Args:
   An optional list of deps_os values.
 
 Environment Variables:
-  GIT_EXECUTABLE: path to "git" binary; if unset, will look for one of
-  ['git', 'git.exe', 'git.bat'] in your default path.
+  GIT_EXECUTABLE: path to "git" binary; if unset, will look for git in
+  your default path.
 
   GIT_SYNC_DEPS_PATH: file to get the dependency list from; if unset,
   will use the file ../DEPS relative to this script's directory.
@@ -43,7 +43,7 @@ def git_executable():
       A string suitable for passing to subprocess functions, or None.
   """
   envgit = os.environ.get('GIT_EXECUTABLE')
-  searchlist = ['git', 'git.exe', 'git.bat']
+  searchlist = ['git']
   if envgit:
     searchlist.insert(0, envgit)
   with open(os.devnull, 'w') as devnull:
@@ -204,6 +204,10 @@ def git_sync_deps(deps_file_path, command_line_os_requests, verbose):
         raise Exception('%r is parent of %r' % (other_dir, directory))
   list_of_arg_lists = []
   for directory in sorted(dependencies):
+    if not isinstance(dependencies[directory], basestring):
+      if verbose:
+        print 'Skipping "%s".' % directory
+      continue
     if '@' in dependencies[directory]:
       repo, checkoutable = dependencies[directory].split('@', 1)
     else:
@@ -215,10 +219,6 @@ def git_sync_deps(deps_file_path, command_line_os_requests, verbose):
       (git, repo, checkoutable, relative_directory, verbose))
 
   multithread(git_checkout_to_directory, list_of_arg_lists)
-
-  for directory in deps_file.get('recursedeps', []):
-    recursive_path = os.path.join(deps_file_directory, directory, 'DEPS')
-    git_sync_deps(recursive_path, command_line_os_requests, verbose)
 
 
 def multithread(function, list_of_arg_lists):

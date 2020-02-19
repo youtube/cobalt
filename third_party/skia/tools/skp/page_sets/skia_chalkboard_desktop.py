@@ -14,8 +14,8 @@ class SkiaBuildbotDesktopPage(page_module.Page):
   def __init__(self, url, page_set):
     super(SkiaBuildbotDesktopPage, self).__init__(
         url=url,
+        name=url,
         page_set=page_set,
-        credentials_path='data/credentials.json',
         shared_page_state_class=shared_page_state.SharedDesktopPageState)
     self.archive_data_file = 'data/skia_chalkboard_desktop.json'
 
@@ -30,8 +30,8 @@ class SkiaChalkboardDesktopPageSet(story.StorySet):
 
     urls_list = [
       # Why: from fmalita
-      ('http://ie.microsoft.com/testdrive/Performance/Chalkboard/Images/'
-       'Chalkboard.svg'),
+      ('https://testdrive-archive.azurewebsites.net/performance/chalkboard/'
+       'Images/Chalkboard.svg'),
     ]
 
     for url in urls_list:

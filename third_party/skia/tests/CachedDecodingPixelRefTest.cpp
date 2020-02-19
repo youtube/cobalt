@@ -5,19 +5,21 @@
  * found in the LICENSE file.
  */
 
-#include "SkBitmap.h"
-#include "SkCanvas.h"
-#include "SkData.h"
-#include "SkDiscardableMemoryPool.h"
-#include "SkImage.h"
-#include "SkImageEncoder.h"
-#include "SkImageGenerator.h"
-#include "SkMakeUnique.h"
-#include "SkResourceCache.h"
-#include "SkStream.h"
-#include "SkUtils.h"
+#include "include/core/SkBitmap.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkColor.h"
+#include "include/core/SkImage.h"
+#include "include/core/SkImageGenerator.h"
+#include "include/core/SkImageInfo.h"
+#include "include/core/SkRefCnt.h"
+#include "include/core/SkTypes.h"
+#include "include/private/SkColorData.h"
+#include "src/core/SkMakeUnique.h"
+#include "src/core/SkUtils.h"
+#include "tests/Test.h"
+#include "tools/ToolUtils.h"
 
-#include "Test.h"
+#include <utility>
 
 class TestImageGenerator : public SkImageGenerator {
 public:
@@ -29,7 +31,7 @@ public:
     static int Width() { return 10; }
     static int Height() { return 10; }
     // value choosen so that there is no loss when converting to to RGB565 and back
-    static SkColor Color() { return 0xff10355a; }
+    static SkColor   Color() { return ToolUtils::color_to_565(0xffaabbcc); }
     static SkPMColor PMColor() { return SkPreMultiplyColor(Color()); }
 
     TestImageGenerator(TestType type, skiatest::Reporter* reporter,

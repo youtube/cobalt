@@ -8,8 +8,8 @@
 #ifndef SkNormalSource_DEFINED
 #define SkNormalSource_DEFINED
 
-#include "SkFlattenable.h"
-#include "SkShaderBase.h"
+#include "include/core/SkFlattenable.h"
+#include "src/shaders/SkShaderBase.h"
 
 class SkMatrix;
 struct SkPoint3;
@@ -28,7 +28,7 @@ public:
     /** Returns a fragment processor that takes no input and outputs a normal (already rotated)
         as its output color. To be used as a child fragment processor.
     */
-    virtual sk_sp<GrFragmentProcessor> asFragmentProcessor(const SkShaderBase::AsFPArgs&) const = 0;
+    virtual std::unique_ptr<GrFragmentProcessor> asFragmentProcessor(const GrFPArgs&) const = 0;
 #endif
 
     class Provider {
@@ -68,8 +68,15 @@ public:
     */
     static sk_sp<SkNormalSource> MakeFlat();
 
-    SK_DEFINE_FLATTENABLE_TYPE(SkNormalSource)
-    SK_DECLARE_FLATTENABLE_REGISTRAR_GROUP()
+    static Type GetFlattenableType() { return kSkNormalSource_Type; }
+    Type getFlattenableType() const override { return GetFlattenableType(); }
+
+    static sk_sp<SkNormalSource> Deserialize(const void* data, size_t size,
+                                             const SkDeserialProcs* procs = nullptr) {
+        return sk_sp<SkNormalSource>(static_cast<SkNormalSource*>(
+                SkFlattenable::Deserialize(GetFlattenableType(), data, size, procs).release()));
+    }
+    static void RegisterFlattenables();
 };
 
 #endif

@@ -5,16 +5,19 @@
  * found in the LICENSE file.
  */
 
-#include "GrVkResourceProvider.h"
 
-#include "GrVkGpu.h"
-#include "GrProcessor.h"
-#include "GrRenderTargetPriv.h" // TODO: remove once refPipelineState gets passed stencil settings.
-#include "GrVkPipelineState.h"
-#include "GrVkPipelineStateBuilder.h"
-#include "SkOpts.h"
-#include "glsl/GrGLSLFragmentProcessor.h"
-#include "glsl/GrGLSLProgramDataManager.h"
+#include "include/gpu/GrContextOptions.h"
+#include "src/core/SkOpts.h"
+#include "src/gpu/GrContextPriv.h"
+#include "src/gpu/GrProcessor.h"
+#include "src/gpu/GrRenderTargetPriv.h"
+#include "src/gpu/GrStencilSettings.h"
+#include "src/gpu/glsl/GrGLSLFragmentProcessor.h"
+#include "src/gpu/glsl/GrGLSLProgramDataManager.h"
+#include "src/gpu/vk/GrVkGpu.h"
+#include "src/gpu/vk/GrVkPipelineState.h"
+#include "src/gpu/vk/GrVkPipelineStateBuilder.h"
+#include "src/gpu/vk/GrVkResourceProvider.h"
 
 #ifdef GR_PIPELINE_STATE_CACHE_STATS
 // Display pipeline state cache usage
@@ -22,7 +25,7 @@ static const bool c_DisplayVkPipelineCache{false};
 #endif
 
 struct GrVkResourceProvider::PipelineStateCache::Entry {
-    Entry(GrVkGpu* gpu, sk_sp<GrVkPipelineState> pipelineState)
+    Entry(GrVkGpu* gpu, GrVkPipelineState* pipelineState)
     : fGpu(gpu)
     , fPipelineState(pipelineState) {}
 
@@ -33,11 +36,11 @@ struct GrVkResourceProvider::PipelineStateCache::Entry {
     }
 
     GrVkGpu* fGpu;
-    sk_sp<GrVkPipelineState> fPipelineState;
+    std::unique_ptr<GrVkPipelineState> fPipelineState;
 };
 
 GrVkResourceProvider::PipelineStateCache::PipelineStateCache(GrVkGpu* gpu)
-    : fMap(kMaxEntries)
+    : fMap(gpu->getContext()->priv().options().fRuntimeProgramCacheSize)
     , fGpu(gpu)
 #ifdef GR_PIPELINE_STATE_CACHE_STATS
     , fTotalRequests(0)
@@ -73,58 +76,45 @@ void GrVkResourceProvider::PipelineStateCache::release() {
     fMap.reset();
 }
 
-sk_sp<GrVkPipelineState> GrVkResourceProvider::PipelineStateCache::refPipelineState(
-                                                               const GrPipeline& pipeline,
-                                                               const GrPrimitiveProcessor& primProc,
-                                                               GrPrimitiveType primitiveType,
-                                                               const GrVkRenderPass& renderPass) {
+GrVkPipelineState* GrVkResourceProvider::PipelineStateCache::refPipelineState(
+        GrRenderTarget* renderTarget,
+        const GrProgramInfo& programInfo,
+        GrPrimitiveType primitiveType,
+        VkRenderPass compatibleRenderPass) {
 #ifdef GR_PIPELINE_STATE_CACHE_STATS
     ++fTotalRequests;
 #endif
     GrStencilSettings stencil;
-    if (pipeline.isStencilEnabled()) {
-        GrRenderTarget* rt = pipeline.getRenderTarget();
+    if (programInfo.pipeline().isStencilEnabled()) {
         // TODO: attach stencil and create settings during render target flush.
-        SkASSERT(rt->renderTargetPriv().getStencilAttachment());
-        stencil.reset(*pipeline.getUserStencil(), pipeline.hasStencilClip(),
-                      rt->renderTargetPriv().numStencilBits());
+        SkASSERT(renderTarget->renderTargetPriv().getStencilAttachment());
+        stencil.reset(*programInfo.pipeline().getUserStencil(),
+                      programInfo.pipeline().hasStencilClip(),
+                      renderTarget->renderTargetPriv().numStencilBits());
     }
 
+    // TODO: can this be unified between GL, Vk and Mtl?
     // Get GrVkProgramDesc
-    GrVkPipelineState::Desc desc;
-    if (!GrVkPipelineState::Desc::Build(&desc, primProc, pipeline, stencil,
-                                        primitiveType, *fGpu->caps()->shaderCaps())) {
+    GrVkPipelineStateBuilder::Desc desc;
+    if (!GrVkPipelineStateBuilder::Desc::Build(&desc, renderTarget, programInfo, stencil,
+                                               primitiveType, fGpu)) {
         GrCapsDebugf(fGpu->caps(), "Failed to build vk program descriptor!\n");
         return nullptr;
     }
-    desc.finalize();
 
     std::unique_ptr<Entry>* entry = fMap.find(desc);
-    if (!entry) {
-        // Didn't find an origin-independent version, check with the specific origin
-        GrSurfaceOrigin origin = pipeline.getRenderTarget()->origin();
-        desc.setSurfaceOriginKey(GrGLSLFragmentShaderBuilder::KeyForSurfaceOrigin(origin));
-        desc.finalize();
-        entry = fMap.find(desc);
-    }
     if (!entry) {
 #ifdef GR_PIPELINE_STATE_CACHE_STATS
         ++fCacheMisses;
 #endif
-        sk_sp<GrVkPipelineState> pipelineState(
-            GrVkPipelineStateBuilder::CreatePipelineState(fGpu,
-                                                          pipeline,
-                                                          stencil,
-                                                          primProc,
-                                                          primitiveType,
-                                                          &desc,
-                                                          renderPass));
-        if (nullptr == pipelineState) {
+        GrVkPipelineState* pipelineState(GrVkPipelineStateBuilder::CreatePipelineState(
+                fGpu, renderTarget, programInfo,
+                stencil, primitiveType, &desc, compatibleRenderPass));
+        if (!pipelineState) {
             return nullptr;
         }
-        entry = fMap.insert(desc, std::unique_ptr<Entry>(new Entry(fGpu,
-                                                                   std::move(pipelineState))));
-        return (*entry)->fPipelineState;
+        entry = fMap.insert(desc, std::unique_ptr<Entry>(new Entry(fGpu, pipelineState)));
+        return (*entry)->fPipelineState.get();
     }
-    return (*entry)->fPipelineState;
+    return (*entry)->fPipelineState.get();
 }

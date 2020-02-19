@@ -6,7 +6,7 @@
  */
 
 
-#include "SkJPEGWriteUtility.h"
+#include "src/images/SkJPEGWriteUtility.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -24,7 +24,7 @@ static boolean sk_empty_output_buffer(j_compress_ptr cinfo) {
     if (!dest->fStream->write(dest->fBuffer,
             skjpeg_destination_mgr::kBufferSize)) {
         ERREXIT(cinfo, JERR_FILE_WRITE);
-        return false;
+        return FALSE;
     }
 
     dest->next_output_byte = dest->fBuffer;
@@ -60,5 +60,8 @@ void skjpeg_error_exit(j_common_ptr cinfo) {
     /* Let the memory manager delete any temp files before we die */
     jpeg_destroy(cinfo);
 
-    longjmp(error->fJmpBuf, -1);
+    if (error->fJmpBufStack.empty()) {
+        SK_ABORT("JPEG error with no jmp_buf set.");
+    }
+    longjmp(*error->fJmpBufStack.back(), -1);
 }

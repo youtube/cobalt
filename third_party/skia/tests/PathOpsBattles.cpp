@@ -4,8 +4,8 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
-#include "PathOpsExtendedTest.h"
-#include "PathOpsTestCommon.h"
+#include "tests/PathOpsExtendedTest.h"
+#include "tests/PathOpsTestCommon.h"
 
 #define TEST(name) { name, #name }
 
@@ -10682,7 +10682,7 @@ path.close();
 }
 
 static void (*firstTest)(skiatest::Reporter* , const char* filename) = battleOp183;
-static void (*stopTest)(skiatest::Reporter* , const char* filename) = 0;
+static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 
 static struct TestDesc tests[] = {
     TEST(battleOp1),

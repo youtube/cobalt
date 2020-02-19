@@ -8,18 +8,54 @@
 #ifndef SKSL_STRING
 #define SKSL_STRING
 
+#include "src/sksl/SkSLDefines.h"
+#include <cstring>
+#include <stdarg.h>
+#include <string>
 
-#ifdef SKSL_STANDALONE
-    #define SKSL_STRING_BASE std::string
-    #include <string>
-#else
-    #define SKSL_STRING_BASE SkString
-    #include "SkString.h"
+#ifndef SKSL_STANDALONE
+#include "include/core/SkString.h"
 #endif
 
 namespace SkSL {
 
-class String : public SKSL_STRING_BASE {
+// Represents a (not necessarily null-terminated) slice of a string.
+struct StringFragment {
+    StringFragment()
+    : fChars("")
+    , fLength(0) {}
+
+    StringFragment(const char* chars)
+    : fChars(chars)
+    , fLength(strlen(chars)) {}
+
+    StringFragment(const char* chars, size_t length)
+    : fChars(chars)
+    , fLength(length) {}
+
+    char operator[](size_t idx) const {
+        return fChars[idx];
+    }
+
+    bool operator==(const char* s) const;
+    bool operator!=(const char* s) const;
+    bool operator==(StringFragment s) const;
+    bool operator!=(StringFragment s) const;
+    bool operator<(StringFragment s) const;
+
+#ifndef SKSL_STANDALONE
+    operator SkString() const { return SkString(fChars, fLength); }
+#endif
+
+    const char* fChars;
+    size_t fLength;
+};
+
+bool operator==(const char* s1, StringFragment s2);
+
+bool operator!=(const char* s1, StringFragment s2);
+
+class SK_API String : public std::string {
 public:
     String() = default;
     String(const String&) = default;
@@ -27,29 +63,38 @@ public:
     String& operator=(const String&) = default;
     String& operator=(String&&) = default;
 
-#ifndef SKSL_STANDALONE
-    String(const SkString& s)
-    : INHERITED(s) {}
-#endif
-
     String(const char* s)
     : INHERITED(s) {}
 
     String(const char* s, size_t size)
     : INHERITED(s, size) {}
 
+    String(StringFragment s)
+    : INHERITED(s.fChars, s.fLength) {}
+
     static String printf(const char* fmt, ...);
 
-#ifdef SKSL_STANDALONE
     void appendf(const char* fmt, ...);
-#endif
+    // For API compatibility with SkString's reset (vs. std:string's clear)
+    void reset();
+    // For API compatibility with SkString's findLastOf(vs. find_last_of -> size_t)
+    int findLastOf(const char c) const;
+
     void vappendf(const char* fmt, va_list va);
 
     bool startsWith(const char* s) const;
     bool endsWith(const char* s) const;
 
+    int find(const char* substring, int fromPos = 0) const;
+    int find(const String& substring, int fromPos = 0) const;
+
     String operator+(const char* s) const;
     String operator+(const String& s) const;
+    String operator+(StringFragment s) const;
+    String& operator+=(char c);
+    String& operator+=(const char* s);
+    String& operator+=(const String& s);
+    String& operator+=(StringFragment s);
     bool operator==(const char* s) const;
     bool operator!=(const char* s) const;
     bool operator==(const String& s) const;
@@ -58,8 +103,12 @@ public:
     friend bool operator==(const char* s1, const String& s2);
     friend bool operator!=(const char* s1, const String& s2);
 
+#ifndef SKSL_STANDALONE
+    operator SkString() const { return SkString(c_str()); }
+#endif
+
 private:
-    typedef SKSL_STRING_BASE INHERITED;
+    typedef std::string INHERITED;
 };
 
 String operator+(const char* s1, const String& s2);
@@ -75,31 +124,30 @@ String to_string(int64_t value);
 
 String to_string(uint64_t value);
 
-int stoi(String s);
+SKSL_INT stoi(const String& s);
 
-double stod(String s);
+SKSL_FLOAT stod(const String& s);
 
-long stol(String s);
+long stol(const String& s);
 
-} // namespace
+} // namespace  SkSL
 
-#ifdef SKSL_STANDALONE
 namespace std {
+    template<> struct hash<SkSL::StringFragment> {
+        size_t operator()(const SkSL::StringFragment& s) const {
+            size_t result = 0;
+            for (size_t i = 0; i < s.fLength; ++i) {
+                result = result * 101 + s.fChars[i];
+            }
+            return result;
+        }
+    };
+
     template<> struct hash<SkSL::String> {
         size_t operator()(const SkSL::String& s) const {
             return hash<std::string>{}(s);
         }
     };
-} // namespace
-#else
-#include "SkOpts.h"
-namespace std {
-    template<> struct hash<SkSL::String> {
-        size_t operator()(const SkSL::String& s) const {
-            return SkOpts::hash_fn(s.c_str(), s.size(), 0);
-        }
-    };
-} // namespace
-#endif // SKIA_STANDALONE
+} // namespace std
 
 #endif

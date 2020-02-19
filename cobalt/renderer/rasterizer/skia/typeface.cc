@@ -77,8 +77,7 @@ render_tree::GlyphIndex SkiaTypeface::GetGlyphForCharacter(
   // If we reach this point, the character's glyph was not previously cached and
   // needs to be retrieved now.
   render_tree::GlyphIndex glyph = render_tree::kInvalidGlyphIndex;
-  typeface_->charsToGlyphs(&utf32_character, SkTypeface::kUTF32_Encoding,
-                           &glyph, 1);
+  typeface_->unicharsToGlyphs(&utf32_character, 1, &glyph);
 
   // Both cache and return the character's glyph.
   if (utf32_character < kPrimaryPageSize) {

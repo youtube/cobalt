@@ -4,18 +4,39 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
-#include "gm.h"
-#include "sk_tool_utils.h"
-#include "SkBitmap.h"
-#include "SkGradientShader.h"
-#include "SkShader.h"
-#include "SkUtils.h"
 
-namespace skiagm {
+#include "gm/gm.h"
+#include "include/core/SkBitmap.h"
+#include "include/core/SkBlendMode.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkColor.h"
+#include "include/core/SkFont.h"
+#include "include/core/SkFontStyle.h"
+#include "include/core/SkFontTypes.h"
+#include "include/core/SkImageInfo.h"
+#include "include/core/SkMatrix.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkRect.h"
+#include "include/core/SkRefCnt.h"
+#include "include/core/SkScalar.h"
+#include "include/core/SkShader.h"
+#include "include/core/SkSize.h"
+#include "include/core/SkString.h"
+#include "include/core/SkTileMode.h"
+#include "include/core/SkTypeface.h"
+#include "include/core/SkTypes.h"
+#include "include/effects/SkGradientShader.h"
+#include "include/utils/SkTextUtils.h"
+#include "src/utils/SkUTF.h"
+#include "tools/ToolUtils.h"
+
+#include <string.h>
+
+namespace {
 
 static uint16_t gData[] = { 0xFFFF, 0xCCCF, 0xCCCF, 0xFFFF };
 
-class ColorEmojiBlendModesGM : public GM {
+class ColorEmojiBlendModesGM : public skiagm::GM {
 public:
     const static int W = 64;
     const static int H = 64;
@@ -34,28 +55,25 @@ protected:
         paint.setShader(SkGradientShader::MakeSweep(0, 0, colors, nullptr, SK_ARRAY_COUNT(colors),
                                                     0, &local));
 
-        sk_sp<SkTypeface> orig(sk_tool_utils::create_portable_typeface("serif",
-                                   SkFontStyle::FromOldStyle(SkTypeface::kBold)));
+        sk_sp<SkTypeface> orig(ToolUtils::create_portable_typeface("serif", SkFontStyle::Bold()));
         if (nullptr == orig) {
             orig = SkTypeface::MakeDefault();
         }
-        fColorType = sk_tool_utils::emoji_typeface();
+        fColorType = ToolUtils::emoji_typeface();
 
         fBG.installPixels(SkImageInfo::Make(2, 2, kARGB_4444_SkColorType,
                                             kOpaque_SkAlphaType), gData, 4);
     }
 
-    virtual SkString onShortName() override {
-        SkString name("coloremoji_blendmodes");
-        name.append(sk_tool_utils::platform_os_emoji());
-        return name;
+    SkString onShortName() override {
+        return SkString("coloremoji_blendmodes");
     }
 
-    virtual SkISize onISize() override {
-        return SkISize::Make(400, 640);
+    SkISize onISize() override {
+        return {400, 640};
     }
 
-    virtual void onDraw(SkCanvas* canvas) override {
+    void onDraw(SkCanvas* canvas) override {
         canvas->translate(SkIntToScalar(10), SkIntToScalar(20));
 
         const SkBlendMode gModes[] = {
@@ -95,18 +113,13 @@ protected:
         const SkScalar h = SkIntToScalar(H);
         SkMatrix m;
         m.setScale(SkIntToScalar(6), SkIntToScalar(6));
-        auto s = SkShader::MakeBitmapShader(fBG, SkShader::kRepeat_TileMode,
-                                            SkShader::kRepeat_TileMode, &m);
+        auto s = fBG.makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat, &m);
 
-        SkPaint labelP;
-        labelP.setAntiAlias(true);
-        sk_tool_utils::set_portable_typeface(&labelP);
-        labelP.setTextAlign(SkPaint::kCenter_Align);
+        SkFont labelFont(ToolUtils::create_portable_typeface());
 
         SkPaint textP;
         textP.setAntiAlias(true);
-        textP.setTypeface(fColorType);
-        textP.setTextSize(SkIntToScalar(70));
+        SkFont textFont(fColorType, 70);
 
         const int W = 5;
 
@@ -115,7 +128,7 @@ protected:
         SkScalar x = x0, y = y0;
         for (size_t i = 0; i < SK_ARRAY_COUNT(gModes); i++) {
             SkRect r;
-            r.set(x, y, x+w, y+h);
+            r.setLTRB(x, y, x+w, y+h);
 
             SkPaint p;
             p.setStyle(SkPaint::kFill_Style);
@@ -131,14 +144,16 @@ protected:
                 SkAutoCanvasRestore arc(canvas, true);
                 canvas->clipRect(r);
                 textP.setBlendMode(gModes[i]);
-                textP.setTextEncoding(SkPaint::kUTF32_TextEncoding);
-                const char* text = sk_tool_utils::emoji_sample_text();
-                SkUnichar unichar = SkUTF8_ToUnichar(text);
-                canvas->drawText(&unichar, 4, x+ w/10.f, y + 7.f*h/8.f, textP);
+                const char* text    = ToolUtils::emoji_sample_text();
+                SkUnichar unichar = SkUTF::NextUTF8(&text, text + strlen(text));
+                SkASSERT(unichar >= 0);
+                canvas->drawSimpleText(&unichar, 4, SkTextEncoding::kUTF32,
+                                       x+ w/10.f, y + 7.f*h/8.f, textFont, textP);
             }
 #if 1
             const char* label = SkBlendMode_Name(gModes[i]);
-            canvas->drawString(label, x + w/2, y - labelP.getTextSize()/2, labelP);
+            SkTextUtils::DrawString(canvas, label, x + w/2, y - labelFont.getSize()/2,
+                                    labelFont, SkPaint(), SkTextUtils::kCenter_Align);
 #endif
             x += w + SkIntToScalar(10);
             if ((i % W) == W - 1) {
@@ -154,10 +169,6 @@ private:
 
     typedef GM INHERITED;
 };
+}  // namespace
 
-//////////////////////////////////////////////////////////////////////////////
-
-static GM* MyFactory(void*) { return new ColorEmojiBlendModesGM; }
-static GMRegistry reg(MyFactory);
-
-}
+DEF_GM( return new ColorEmojiBlendModesGM; )

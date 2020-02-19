@@ -5,58 +5,13 @@
  * found in the LICENSE file.
  */
 
-#include "SkArenaAlloc.h"
-#include "SkBitmap.h"
-#include "SkCanvas.h"
-#include "SkColorSpaceXformer.h"
-#include "SkDrawLooper.h"
-#include "SkLightingImageFilter.h"
-#include "SkTypes.h"
-#include "Test.h"
-
-/*
- *  Subclass of looper that just draws once, with an offset in X.
- */
-class TestLooper : public SkDrawLooper {
-public:
-
-    SkDrawLooper::Context* makeContext(SkCanvas*, SkArenaAlloc* alloc) const override {
-        return alloc->make<TestDrawLooperContext>();
-    }
-
-    sk_sp<SkDrawLooper> onMakeColorSpace(SkColorSpaceXformer*) const override {
-        return nullptr;
-    }
-
-#ifndef SK_IGNORE_TO_STRING
-    void toString(SkString* str) const override {
-        str->append("TestLooper:");
-    }
-#endif
-
-    SK_DECLARE_PUBLIC_FLATTENABLE_DESERIALIZATION_PROCS(TestLooper)
-
-private:
-    class TestDrawLooperContext : public SkDrawLooper::Context {
-    public:
-        TestDrawLooperContext() : fOnce(true) {}
-        ~TestDrawLooperContext() override {}
-
-        bool next(SkCanvas* canvas, SkPaint*) override {
-            if (fOnce) {
-                fOnce = false;
-                canvas->translate(SkIntToScalar(10), 0);
-                return true;
-            }
-            return false;
-        }
-
-    private:
-        bool fOnce;
-    };
-};
-
-sk_sp<SkFlattenable> TestLooper::CreateProc(SkReadBuffer&) { return sk_make_sp<TestLooper>(); }
+#include "include/core/SkBitmap.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkPoint3.h"
+#include "include/core/SkTypes.h"
+#include "include/effects/SkImageFilters.h"
+#include "src/core/SkArenaAlloc.h"
+#include "tests/Test.h"
 
 static void test_drawBitmap(skiatest::Reporter* reporter) {
     SkBitmap src;
@@ -84,14 +39,6 @@ static void test_drawBitmap(skiatest::Reporter* reporter) {
     // if the bitmap is clipped out, we don't draw it
     canvas.drawBitmap(src, SkIntToScalar(-10), 0, &paint);
     REPORTER_ASSERT(reporter, 0 == *dst.getAddr32(5, 5));
-
-    // now install our looper, which will draw, since it internally translates
-    // to the left. The test is to ensure that canvas' quickReject machinary
-    // allows us through, even though sans-looper we would look like we should
-    // be clipped out.
-    paint.setLooper(sk_make_sp<TestLooper>());
-    canvas.drawBitmap(src, SkIntToScalar(-10), 0, &paint);
-    REPORTER_ASSERT(reporter, 0xFFFFFFFF == *dst.getAddr32(5, 5));
 }
 
 static void test_layers(skiatest::Reporter* reporter) {
@@ -164,7 +111,7 @@ DEF_TEST(QuickReject_MatrixState, reporter) {
     canvas.setMatrix(matrix);
 
     SkPaint paint;
-    sk_sp<SkImageFilter> filter = SkLightingImageFilter::MakeDistantLitDiffuse(
+    sk_sp<SkImageFilter> filter = SkImageFilters::DistantLitDiffuse(
             SkPoint3::Make(1.0f, 1.0f, 1.0f), 0xFF0000FF, 2.0f, 0.5f, nullptr);
     REPORTER_ASSERT(reporter, filter);
     paint.setImageFilter(filter);

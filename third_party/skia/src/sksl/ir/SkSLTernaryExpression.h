@@ -8,8 +8,8 @@
 #ifndef SKSL_TERNARYEXPRESSION
 #define SKSL_TERNARYEXPRESSION
 
-#include "SkSLExpression.h"
-#include "../SkSLPosition.h"
+#include "src/sksl/SkSLPosition.h"
+#include "src/sksl/ir/SkSLExpression.h"
 
 namespace SkSL {
 
@@ -17,17 +17,23 @@ namespace SkSL {
  * A ternary expression (test ? ifTrue : ifFalse).
  */
 struct TernaryExpression : public Expression {
-    TernaryExpression(Position position, std::unique_ptr<Expression> test,
+    TernaryExpression(int offset, std::unique_ptr<Expression> test,
                       std::unique_ptr<Expression> ifTrue, std::unique_ptr<Expression> ifFalse)
-    : INHERITED(position, kTernary_Kind, ifTrue->fType)
+    : INHERITED(offset, kTernary_Kind, ifTrue->fType)
     , fTest(std::move(test))
     , fIfTrue(std::move(ifTrue))
     , fIfFalse(std::move(ifFalse)) {
-        ASSERT(fIfTrue->fType == fIfFalse->fType);
+        SkASSERT(fIfTrue->fType == fIfFalse->fType);
     }
 
     bool hasSideEffects() const override {
         return fTest->hasSideEffects() || fIfTrue->hasSideEffects() || fIfFalse->hasSideEffects();
+    }
+
+    std::unique_ptr<Expression> clone() const override {
+        return std::unique_ptr<Expression>(new TernaryExpression(fOffset, fTest->clone(),
+                                                                 fIfTrue->clone(),
+                                                                 fIfFalse->clone()));
     }
 
     String description() const override {

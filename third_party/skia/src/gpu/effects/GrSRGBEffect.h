@@ -8,7 +8,7 @@
 #ifndef GrSRGBEffect_DEFINED
 #define GrSRGBEffect_DEFINED
 
-#include "GrFragmentProcessor.h"
+#include "src/gpu/GrFragmentProcessor.h"
 
 class GrSRGBEffect : public GrFragmentProcessor {
 public:
@@ -25,14 +25,16 @@ public:
     /**
      * Creates an effect that applies the sRGB transfer function (or its inverse)
      */
-    static sk_sp<GrFragmentProcessor> Make(Mode mode, Alpha alpha) {
-        return sk_sp<GrFragmentProcessor>(new GrSRGBEffect(mode, alpha));
+    static std::unique_ptr<GrFragmentProcessor> Make(Mode mode, Alpha alpha) {
+        return std::unique_ptr<GrFragmentProcessor>(new GrSRGBEffect(mode, alpha));
     }
 
     const char* name() const override { return "sRGB"; }
 
     Mode mode() const { return fMode; }
     Alpha alpha() const { return fAlpha; }
+
+    std::unique_ptr<GrFragmentProcessor> clone() const override;
 
 private:
     GrSRGBEffect(Mode mode, Alpha);
@@ -41,7 +43,7 @@ private:
     void onGetGLSLProcessorKey(const GrShaderCaps&, GrProcessorKeyBuilder*) const override;
     bool onIsEqual(const GrFragmentProcessor&) const override;
 
-    GrColor4f constantOutputForConstantInput(GrColor4f input) const override;
+    SkPMColor4f constantOutputForConstantInput(const SkPMColor4f& input) const override;
 
     Mode fMode;
     Alpha fAlpha;

@@ -8,14 +8,14 @@
 #ifndef GrAAConvexPathRenderer_DEFINED
 #define GrAAConvexPathRenderer_DEFINED
 
-#include "GrPathRenderer.h"
+#include "src/gpu/GrPathRenderer.h"
 
 class GrAAConvexPathRenderer : public GrPathRenderer {
 public:
     GrAAConvexPathRenderer();
 
 private:
-    bool onCanDrawPath(const CanDrawPathArgs&) const override;
+    CanDrawPath onCanDrawPath(const CanDrawPathArgs&) const override;
 
     bool onDrawPath(const DrawPathArgs&) override;
 };

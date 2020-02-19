@@ -5,21 +5,21 @@
  * found in the LICENSE file.
  */
 
-#include "Benchmark.h"
+#include "bench/Benchmark.h"
 
-#include "SkCanvas.h"
-#include "SkShader.h"
-#include "SkGradientShader.h"
-#include "SkString.h"
-#include "SkColor.h"
-#include "SkPaint.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkColor.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkShader.h"
+#include "include/core/SkString.h"
+#include "include/effects/SkGradientShader.h"
 
 class HardStopGradientBench_ScaleNumHardStops : public Benchmark {
 public:
     HardStopGradientBench_ScaleNumHardStops(int colorCount, int hardStopCount) {
         SkASSERT(hardStopCount <= colorCount/2);
 
-        fName.printf("hardstop_scale_num_hard_stops_%03d_colors_%03d_hard_stops", 
+        fName.printf("hardstop_scale_num_hard_stops_%03d_colors_%03d_hard_stops",
                      colorCount, hardStopCount);
 
         fColorCount    = colorCount;
@@ -37,7 +37,7 @@ public:
     void onPreDraw(SkCanvas* canvas) override {
         // Left to right
         SkPoint points[2] = {
-            SkPoint::Make(0,        kSize/2), 
+            SkPoint::Make(0,        kSize/2),
             SkPoint::Make(kSize-1,  kSize/2),
         };
 
@@ -72,7 +72,7 @@ public:
                                                       colors.get(),
                                                       positions.get(),
                                                       fColorCount,
-                                                      SkShader::kClamp_TileMode,
+                                                      SkTileMode::kClamp,
                                                       0,
                                                       nullptr));
     }
