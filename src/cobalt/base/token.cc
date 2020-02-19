@@ -15,7 +15,6 @@
 #include "cobalt/base/token.h"
 
 #include <set>
-#include <vector>
 
 #include "base/logging.h"
 #include "base/memory/singleton.h"
@@ -43,10 +42,9 @@ class TokenStorage {
  private:
   friend struct base::DefaultSingletonTraits<TokenStorage>;
 
-  TokenStorage()
-      : hash_table_(Token::kHashSlotCount * Token::kStringsPerSlot) {}
+  TokenStorage() {}
 
-  std::vector<std::string> hash_table_;
+  std::string hash_table_[Token::kHashSlotCount * Token::kStringsPerSlot];
   // The collision table contains Tokens whose hash values collide with one of
   // the existing Token.  This should happen very rare.
   std::set<std::string> collision_table_;

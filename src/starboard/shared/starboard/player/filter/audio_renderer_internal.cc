@@ -104,6 +104,24 @@ AudioRenderer::~AudioRenderer() {
   SB_DCHECK(BelongsToCurrentThread());
 }
 
+void AudioRenderer::Initialize(const ErrorCB& error_cb,
+                               const PrerolledCB& prerolled_cb,
+                               const EndedCB& ended_cb) {
+  SB_DCHECK(error_cb);
+  SB_DCHECK(prerolled_cb);
+  SB_DCHECK(ended_cb);
+  SB_DCHECK(!error_cb_);
+  SB_DCHECK(!prerolled_cb_);
+  SB_DCHECK(!ended_cb_);
+
+  error_cb_ = error_cb;
+  prerolled_cb_ = prerolled_cb;
+  ended_cb_ = ended_cb;
+
+  decoder_->Initialize(std::bind(&AudioRenderer::OnDecoderOutput, this),
+                       error_cb);
+}
+
 void AudioRenderer::WriteSample(
     const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(BelongsToCurrentThread());
@@ -161,29 +179,6 @@ bool AudioRenderer::CanAcceptMoreData() const {
   SB_DCHECK(BelongsToCurrentThread());
   return eos_state_ == kEOSNotReceived && can_accept_more_data_ &&
          (!decoder_sample_rate_ || !time_stretcher_.IsQueueFull());
-}
-
-bool AudioRenderer::IsSeekingInProgress() const {
-  SB_DCHECK(BelongsToCurrentThread());
-  return seeking_;
-}
-
-void AudioRenderer::Initialize(const ErrorCB& error_cb,
-                               const PrerolledCB& prerolled_cb,
-                               const EndedCB& ended_cb) {
-  SB_DCHECK(error_cb);
-  SB_DCHECK(prerolled_cb);
-  SB_DCHECK(ended_cb);
-  SB_DCHECK(!error_cb_);
-  SB_DCHECK(!prerolled_cb_);
-  SB_DCHECK(!ended_cb_);
-
-  error_cb_ = error_cb;
-  prerolled_cb_ = prerolled_cb;
-  ended_cb_ = ended_cb;
-
-  decoder_->Initialize(std::bind(&AudioRenderer::OnDecoderOutput, this),
-                       error_cb);
 }
 
 void AudioRenderer::Play() {

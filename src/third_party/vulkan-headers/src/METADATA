@@ -1,0 +1,20 @@
+name: "vulkan-headers"
+description:
+  "Subtree at third_party/vulkan-headers/src."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/third_party/vulkan-headers_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://github.com/KhronosGroup/Vulkan-Headers"
+  }
+  version: "0e57fc1cfa56a203efe43e4dfb9b3c9e9b105593"
+  last_upgrade_date {
+    year: 2019
+    month: 12
+    day: 9
+  }
+}

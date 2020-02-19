@@ -405,15 +405,16 @@ int evergreen_dl_iterate_phdr(
                  int (*callback) (struct dl_phdr_info *info,
                                   size_t size, void *data),
                  void *data) {
+  bool ret = false;
   EvergreenInfo evergreen_info;
-  GetEvergreenInfo(&evergreen_info);
-
-  struct dl_phdr_info info;
-  info.dlpi_addr =  evergreen_info.base_address;
-  info.dlpi_name = evergreen_info.file_path_buf;
-  info.dlpi_phdr = reinterpret_cast<Elf_Phdr*>(evergreen_info.phdr_table);
-  info.dlpi_phnum = evergreen_info.phdr_table_num;
-  bool ret = callback(&info, sizeof(info), data);
+  if(GetEvergreenInfo(&evergreen_info)) {
+    struct dl_phdr_info info;
+    info.dlpi_addr =  evergreen_info.base_address;
+    info.dlpi_name = evergreen_info.file_path_buf;
+    info.dlpi_phdr = reinterpret_cast<Elf_Phdr*>(evergreen_info.phdr_table);
+    info.dlpi_phnum = evergreen_info.phdr_table_num;
+    ret = callback(&info, sizeof(info), data);
+  }
 
   return ret || ::dl_iterate_phdr(callback, data);
 }
@@ -576,11 +577,11 @@ inline bool LocalAddressSpace::findUnwindSections(pint_t targetAddr,
 #endif
             cbdata->sects->dwarf_index_section = eh_frame_hdr_start;
             cbdata->sects->dwarf_index_section_length = phdr->p_memsz;
-            EHHeaderParser<LocalAddressSpace>::decodeEHHdr(
+            found_hdr = EHHeaderParser<LocalAddressSpace>::decodeEHHdr(
                 *cbdata->addressSpace, eh_frame_hdr_start, phdr->p_memsz,
                 hdrInfo);
-            cbdata->sects->dwarf_section = hdrInfo.eh_frame_ptr;
-            found_hdr = true;
+            if (found_hdr)
+              cbdata->sects->dwarf_section = hdrInfo.eh_frame_ptr;
           }
         }
 

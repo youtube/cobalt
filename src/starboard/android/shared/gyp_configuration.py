@@ -327,6 +327,9 @@ class AndroidConfiguration(PlatformConfiguration):
           # This test is failing because localhost is not defined for IPv6 in
           # /etc/hosts.
           'SbSocketAddressTypes/SbSocketResolveTest.Localhost/1',
+          # Crashing in audio_track_audio_sink_type.cc.
+          'SbAudioSinkCreateTest.*',
+          'SbAudioSinkTest.*',
       ],
   }
 

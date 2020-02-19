@@ -1,0 +1,20 @@
+name: "angle"
+description:
+  "Subtree at third_party/angle."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/external/angle_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://chromium.googlesource.com/angle/angle"
+  }
+  version: "c1776c61e5c3722cb2de95aac1119289ff822469"
+  last_upgrade_date {
+    year: 2019
+    month: 11
+    day: 20
+  }
+}

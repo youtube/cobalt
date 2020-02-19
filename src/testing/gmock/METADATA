@@ -1,0 +1,20 @@
+name: "gmock"
+description:
+  "Subtree at testing/gmock."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/external/gmock_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://github.com/google/googlemock.git"
+  }
+  version: "38513a8bb154f0b6d0a4088814fe92552696d465"
+  last_upgrade_date {
+    year: 2012
+    month: 11
+    day: 15
+  }
+}

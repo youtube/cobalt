@@ -1,0 +1,20 @@
+name: "pyjson5"
+description:
+  "Subtree at third_party/pyjson5."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/third_party/pyjson5_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://github.com/dpranke/pyjson5.git"
+  }
+  version: "268dba8be99529cabaec36456924ed1c5511a56c"
+  last_upgrade_date {
+    year: 2017
+    month: 12
+    day: 7
+  }
+}

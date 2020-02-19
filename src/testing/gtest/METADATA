@@ -1,0 +1,20 @@
+name: "gtest"
+description:
+  "Subtree at testing/gtest."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/external/gtest_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://github.com/google/googletest.git"
+  }
+  version: "a1c4b46bc2c12ea7c61108f001a5b5eb4a8ccad0"
+  last_upgrade_date {
+    year: 2012
+    month: 7
+    day: 9
+  }
+}

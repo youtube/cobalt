@@ -30,7 +30,7 @@
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
-#include "starboard/shared/starboard/player/filter/stub_player_components_impl.h"
+#include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
@@ -107,6 +107,24 @@ AssertionResult AlmostEqualTime(SbTime time1, SbTime time2) {
          << "time " << time1 << " doesn't match with time " << time2;
 }
 
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+SbMediaVideoSampleInfo CreateVideoSampleInfo(SbMediaVideoCodec codec) {
+  SbMediaVideoSampleInfo video_sample_info = {};
+
+  video_sample_info.codec = codec;
+
+  video_sample_info.color_metadata.primaries = kSbMediaPrimaryIdBt709;
+  video_sample_info.color_metadata.transfer = kSbMediaTransferIdBt709;
+  video_sample_info.color_metadata.matrix = kSbMediaMatrixIdBt709;
+  video_sample_info.color_metadata.range = kSbMediaRangeIdLimited;
+
+  video_sample_info.frame_width = 1920;
+  video_sample_info.frame_height = 1080;
+
+  return video_sample_info;
+}
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
 class VideoDecoderTest
     : public ::testing::TestWithParam<std::tuple<TestParam, bool>> {
  public:
@@ -131,21 +149,24 @@ class VideoDecoderTest
     ASSERT_TRUE(VideoDecoder::OutputModeSupported(
         output_mode, dmp_reader_.video_codec(), kSbDrmSystemInvalid));
 
-    PlayerComponents::VideoParameters video_parameters = {
-        &player_, dmp_reader_.video_codec(), kSbDrmSystemInvalid, output_mode,
-        fake_graphics_context_provider_.decoder_target_provider()};
+    PlayerComponents::Factory::CreationParameters creation_parameters(
+        dmp_reader_.video_codec(), "",
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+        GetVideoInputBuffer(0)->video_sample_info(),
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+        "", &player_, output_mode,
+        fake_graphics_context_provider_.decoder_target_provider(), nullptr);
 
-    scoped_ptr<PlayerComponents> components;
+    scoped_ptr<PlayerComponents::Factory> factory;
     if (using_stub_decoder_) {
-      components = make_scoped_ptr<StubPlayerComponentsImpl>(
-          new StubPlayerComponentsImpl);
+      factory = StubPlayerComponentsFactory::Create();
     } else {
-      components = PlayerComponents::Create();
+      factory = PlayerComponents::Factory::Create();
     }
     std::string error_message;
-    ASSERT_TRUE(components->CreateVideoComponents(
-        video_parameters, &video_decoder_, &video_render_algorithm_,
-        &video_renderer_sink_, &error_message));
+    ASSERT_TRUE(factory->CreateSubComponents(
+        creation_parameters, nullptr, nullptr, &video_decoder_,
+        &video_render_algorithm_, &video_renderer_sink_, &error_message));
     ASSERT_TRUE(video_decoder_);
 
     if (video_renderer_sink_) {
@@ -534,7 +555,8 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
   // Create three more decoders for each supported combinations.
   const int kDecodersToCreate = 3;
 
-  scoped_ptr<PlayerComponents> components = PlayerComponents::Create();
+  scoped_ptr<PlayerComponents::Factory> factory =
+      PlayerComponents::Factory::Create();
 
   SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
                                        kSbPlayerOutputModePunchOut};
@@ -566,15 +588,25 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
             video_renderer_sinks[kDecodersToCreate];
 
         for (int i = 0; i < kDecodersToCreate; ++i) {
-          PlayerComponents::VideoParameters video_parameters = {
-              &players[i], dmp_reader_.video_codec(), kSbDrmSystemInvalid,
-              output_mode,
-              fake_graphics_context_provider_.decoder_target_provider()};
+          SbMediaAudioSampleInfo dummy_audio_sample_info = {
+#if SB_API_VERSION >= 11
+            kSbMediaAudioCodecNone
+#endif  // SB_API_VERSION >= 11
+          };
+          PlayerComponents::Factory::CreationParameters creation_parameters(
+              dmp_reader_.video_codec(), "",
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+              CreateVideoSampleInfo(dmp_reader_.video_codec()),
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+              "", &players[i], output_mode,
+              fake_graphics_context_provider_.decoder_target_provider(),
+              nullptr);
 
           std::string error_message;
-          ASSERT_TRUE(components->CreateVideoComponents(
-              video_parameters, &video_decoders[i], &video_render_algorithms[i],
-              &video_renderer_sinks[i], &error_message));
+          ASSERT_TRUE(factory->CreateSubComponents(
+              creation_parameters, nullptr, nullptr, &video_decoders[i],
+              &video_render_algorithms[i], &video_renderer_sinks[i],
+              &error_message));
           ASSERT_TRUE(video_decoders[i]);
 
           if (video_renderer_sinks[i]) {

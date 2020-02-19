@@ -1,0 +1,20 @@
+name: "gtest-parallel"
+description:
+  "Subtree at testing/gtest-parallel."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/testing/gtest-parallel_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://github.com/google/gtest-parallel.git"
+  }
+  version: "d0cebaba01c5dbf3af8a1c89b64eed7596c2b56c"
+  last_upgrade_date {
+    year: 2016
+    month: 8
+    day: 3
+  }
+}

@@ -14,11 +14,12 @@
 
 #include "starboard/shared/starboard/player/filter/player_components.h"
 
-#include "starboard/common/log.h"
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
+#include "starboard/shared/starboard/player/filter/media_time_provider_impl.h"
 #include "starboard/shared/starboard/player/filter/punchout_video_renderer_sink.h"
 #include "starboard/shared/starboard/player/filter/stub_audio_decoder.h"
 #include "starboard/shared/starboard/player/filter/stub_video_decoder.h"
@@ -30,70 +31,248 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-scoped_ptr<AudioRenderer> PlayerComponents::CreateAudioRenderer(
-    const AudioParameters& audio_parameters,
+namespace {
+
+typedef MediaTimeProviderImpl::MonotonicSystemTimeProvider
+    MonotonicSystemTimeProvider;
+
+class MonotonicSystemTimeProviderImpl : public MonotonicSystemTimeProvider {
+  SbTimeMonotonic GetMonotonicNow() const override {
+    return SbTimeGetMonotonicNow();
+  }
+};
+
+class PlayerComponentsImpl : public PlayerComponents {
+ public:
+  PlayerComponentsImpl(scoped_ptr<MediaTimeProviderImpl> media_time_provider,
+                       scoped_ptr<AudioRenderer> audio_renderer,
+                       scoped_ptr<VideoRenderer> video_renderer)
+      : media_time_provider_(media_time_provider.Pass()),
+        audio_renderer_(audio_renderer.Pass()),
+        video_renderer_(video_renderer.Pass()) {
+    SB_DCHECK(media_time_provider_ || audio_renderer_);
+    SB_DCHECK(audio_renderer_ || video_renderer_);
+  }
+
+  MediaTimeProvider* GetMediaTimeProvider() override {
+    return audio_renderer_
+               ? static_cast<MediaTimeProvider*>(audio_renderer_.get())
+               : media_time_provider_.get();
+  }
+  AudioRenderer* GetAudioRenderer() override { return audio_renderer_.get(); }
+  VideoRenderer* GetVideoRenderer() override { return video_renderer_.get(); }
+
+ private:
+  // |media_time_provider_| will only be used when |audio_renderer_| is nullptr.
+  scoped_ptr<MediaTimeProviderImpl> media_time_provider_;
+  scoped_ptr<AudioRenderer> audio_renderer_;
+  scoped_ptr<VideoRenderer> video_renderer_;
+};
+
+}  // namespace
+
+PlayerComponents::Factory::CreationParameters::CreationParameters(
+    SbMediaAudioCodec audio_codec,
+    const std::string& audio_mime,
+    const SbMediaAudioSampleInfo& audio_sample_info,
+    SbDrmSystem drm_system)
+    : audio_codec_(audio_codec),
+      audio_mime_(audio_mime),
+      audio_sample_info_(audio_sample_info),
+      drm_system_(drm_system) {
+  SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
+  TryToCopyAudioSpecificConfig();
+}
+
+PlayerComponents::Factory::CreationParameters::CreationParameters(
+    SbMediaVideoCodec video_codec,
+    const std::string& video_mime,
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+    const SbMediaVideoSampleInfo& video_sample_info,
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+    const std::string& max_video_capabilities,
+    SbPlayer player,
+    SbPlayerOutputMode output_mode,
+    SbDecodeTargetGraphicsContextProvider*
+        decode_target_graphics_context_provider,
+    SbDrmSystem drm_system)
+    : video_codec_(video_codec),
+      video_mime_(video_mime),
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+      video_sample_info_(video_sample_info),
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+      max_video_capabilities_(max_video_capabilities),
+      player_(player),
+      output_mode_(output_mode),
+      decode_target_graphics_context_provider_(
+          decode_target_graphics_context_provider),
+      drm_system_(drm_system) {
+  SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
+  SB_DCHECK(SbPlayerIsValid(player_));
+  SB_DCHECK(output_mode_ != kSbPlayerOutputModeInvalid);
+}
+
+PlayerComponents::Factory::CreationParameters::CreationParameters(
+    SbMediaAudioCodec audio_codec,
+    const std::string& audio_mime,
+    const SbMediaAudioSampleInfo& audio_sample_info,
+    SbMediaVideoCodec video_codec,
+    const std::string& video_mime,
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+    const SbMediaVideoSampleInfo& video_sample_info,
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+    const std::string& max_video_capabilities,
+    SbPlayer player,
+    SbPlayerOutputMode output_mode,
+    SbDecodeTargetGraphicsContextProvider*
+        decode_target_graphics_context_provider,
+    SbDrmSystem drm_system)
+    : audio_codec_(audio_codec),
+      audio_mime_(audio_mime),
+      audio_sample_info_(audio_sample_info),
+      video_codec_(video_codec),
+      video_mime_(video_mime),
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+      video_sample_info_(video_sample_info),
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+      max_video_capabilities_(max_video_capabilities),
+      player_(player),
+      output_mode_(output_mode),
+      decode_target_graphics_context_provider_(
+          decode_target_graphics_context_provider),
+      drm_system_(drm_system) {
+  SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone ||
+            video_codec_ != kSbMediaVideoCodecNone);
+  TryToCopyAudioSpecificConfig();
+}
+
+PlayerComponents::Factory::CreationParameters::CreationParameters(
+    const CreationParameters& that) {
+  this->audio_codec_ = that.audio_codec_;
+  this->audio_mime_ = that.audio_mime_;
+  this->audio_sample_info_ = that.audio_sample_info_;
+  this->video_codec_ = that.video_codec_;
+  this->video_mime_ = that.video_mime_;
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  this->video_sample_info_ = that.video_sample_info_;
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  this->max_video_capabilities_ = that.max_video_capabilities_;
+  this->player_ = that.player_;
+  this->output_mode_ = that.output_mode_;
+  this->decode_target_graphics_context_provider_ =
+      that.decode_target_graphics_context_provider_;
+  this->drm_system_ = that.drm_system_;
+
+  TryToCopyAudioSpecificConfig();
+}
+
+void PlayerComponents::Factory::CreationParameters::
+    TryToCopyAudioSpecificConfig() {
+  if (audio_sample_info_.audio_specific_config_size > 0) {
+    auto audio_specific_config = reinterpret_cast<const uint8_t*>(
+        audio_sample_info_.audio_specific_config);
+    audio_specific_config_.assign(
+        audio_specific_config,
+        audio_specific_config + audio_sample_info_.audio_specific_config_size);
+    audio_sample_info_.audio_specific_config = audio_specific_config_.data();
+  }
+}
+
+scoped_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
+    const CreationParameters& creation_parameters,
     std::string* error_message) {
+  SB_DCHECK(creation_parameters.audio_codec() != kSbMediaAudioCodecNone ||
+            creation_parameters.video_codec() != kSbMediaVideoCodecNone);
   SB_DCHECK(error_message);
 
   scoped_ptr<AudioDecoder> audio_decoder;
   scoped_ptr<AudioRendererSink> audio_renderer_sink;
-
-  auto command_line = shared::starboard::Application::Get()->GetCommandLine();
-  if (command_line->HasSwitch("use_stub_audio_decoder")) {
-    CreateStubAudioComponents(audio_parameters, &audio_decoder,
-                              &audio_renderer_sink);
-  } else {
-    if (!CreateAudioComponents(audio_parameters, &audio_decoder,
-                               &audio_renderer_sink, error_message)) {
-      return scoped_ptr<AudioRenderer>();
-    }
-  }
-
-  SB_DCHECK(audio_decoder);
-  SB_DCHECK(audio_renderer_sink);
-
-  int max_cached_frames, min_frames_per_append;
-  GetAudioRendererParams(audio_parameters, &max_cached_frames,
-                         &min_frames_per_append);
-
-  return make_scoped_ptr(
-      new AudioRenderer(audio_decoder.Pass(), audio_renderer_sink.Pass(),
-                        audio_parameters.audio_sample_info, max_cached_frames,
-                        min_frames_per_append));
-}
-
-scoped_ptr<VideoRenderer> PlayerComponents::CreateVideoRenderer(
-    const VideoParameters& video_parameters,
-    MediaTimeProvider* media_time_provider,
-    std::string* error_message) {
-  SB_DCHECK(error_message);
-
   scoped_ptr<VideoDecoder> video_decoder;
   scoped_ptr<VideoRenderAlgorithm> video_render_algorithm;
   scoped_refptr<VideoRendererSink> video_renderer_sink;
 
   auto command_line = shared::starboard::Application::Get()->GetCommandLine();
-  if (command_line->HasSwitch("use_stub_video_decoder")) {
-    CreateStubVideoComponents(video_parameters, &video_decoder,
+  bool use_stub_audio_decoder =
+      command_line->HasSwitch("use_stub_audio_decoder");
+  bool use_stub_video_decoder =
+      command_line->HasSwitch("use_stub_video_decoder");
+
+  if (use_stub_audio_decoder && use_stub_video_decoder) {
+    CreateStubAudioComponents(creation_parameters, &audio_decoder,
+                              &audio_renderer_sink);
+    CreateStubVideoComponents(creation_parameters, &video_decoder,
                               &video_render_algorithm, &video_renderer_sink);
   } else {
-    if (!CreateVideoComponents(video_parameters, &video_decoder,
-                               &video_render_algorithm, &video_renderer_sink,
-                               error_message)) {
-      return scoped_ptr<VideoRenderer>();
+    auto copy_of_creation_parameters = creation_parameters;
+    if (use_stub_audio_decoder) {
+      copy_of_creation_parameters.reset_audio_codec();
+    } else if (use_stub_video_decoder) {
+      copy_of_creation_parameters.reset_video_codec();
+    }
+    if (!CreateSubComponents(copy_of_creation_parameters, &audio_decoder,
+                             &audio_renderer_sink, &video_decoder,
+                             &video_render_algorithm, &video_renderer_sink,
+                             error_message)) {
+      return scoped_ptr<PlayerComponents>();
+    }
+    if (use_stub_audio_decoder) {
+      SB_DCHECK(!audio_decoder);
+      SB_DCHECK(!audio_renderer_sink);
+      CreateStubAudioComponents(creation_parameters, &audio_decoder,
+                                &audio_renderer_sink);
+    } else if (use_stub_video_decoder) {
+      SB_DCHECK(!video_decoder);
+      SB_DCHECK(!video_render_algorithm);
+      SB_DCHECK(!video_renderer_sink);
+      CreateStubVideoComponents(creation_parameters, &video_decoder,
+                                &video_render_algorithm, &video_renderer_sink);
     }
   }
 
-  SB_DCHECK(video_decoder);
-  SB_DCHECK(video_render_algorithm);
+  scoped_ptr<MediaTimeProviderImpl> media_time_provider_impl;
+  scoped_ptr<AudioRenderer> audio_renderer;
+  scoped_ptr<VideoRenderer> video_renderer;
 
-  return make_scoped_ptr(
-      new VideoRenderer(video_decoder.Pass(), media_time_provider,
-                        video_render_algorithm.Pass(), video_renderer_sink));
+  if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
+    SB_DCHECK(audio_decoder);
+    SB_DCHECK(audio_renderer_sink);
+
+    int max_cached_frames, min_frames_per_append;
+    GetAudioRendererParams(creation_parameters, &max_cached_frames,
+                           &min_frames_per_append);
+
+    audio_renderer.reset(
+        new AudioRenderer(audio_decoder.Pass(), audio_renderer_sink.Pass(),
+                          creation_parameters.audio_sample_info(),
+                          max_cached_frames, min_frames_per_append));
+  }
+
+  if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
+    SB_DCHECK(video_decoder);
+    SB_DCHECK(video_render_algorithm);
+
+    MediaTimeProvider* media_time_provider = nullptr;
+    if (audio_renderer) {
+      media_time_provider = audio_renderer.get();
+    } else {
+      media_time_provider_impl.reset(
+          new MediaTimeProviderImpl(scoped_ptr<MonotonicSystemTimeProvider>(
+              new MonotonicSystemTimeProviderImpl)));
+      media_time_provider = media_time_provider_impl.get();
+    }
+    video_renderer.reset(
+        new VideoRenderer(video_decoder.Pass(), media_time_provider,
+                          video_render_algorithm.Pass(), video_renderer_sink));
+  }
+
+  SB_DCHECK(audio_renderer || video_renderer);
+  return scoped_ptr<PlayerComponents>(
+      new PlayerComponentsImpl(media_time_provider_impl.Pass(),
+                               audio_renderer.Pass(), video_renderer.Pass()));
 }
 
-void PlayerComponents::CreateStubAudioComponents(
-    const AudioParameters& audio_parameters,
+void PlayerComponents::Factory::CreateStubAudioComponents(
+    const CreationParameters& creation_parameters,
     scoped_ptr<AudioDecoder>* audio_decoder,
     scoped_ptr<AudioRendererSink>* audio_renderer_sink) {
   SB_DCHECK(audio_decoder);
@@ -105,18 +284,19 @@ void PlayerComponents::CreateStubAudioComponents(
     return scoped_ptr<AudioDecoder>(
         new StubAudioDecoder(audio_sample_info.codec, audio_sample_info));
   };
-  audio_decoder->reset(
-      new AdaptiveAudioDecoder(audio_parameters.audio_sample_info,
-                               audio_parameters.drm_system, decoder_creator));
+  audio_decoder->reset(new AdaptiveAudioDecoder(
+      creation_parameters.audio_sample_info(), creation_parameters.drm_system(),
+      decoder_creator));
 #else   // SB_API_VERSION >= 11
-  audio_decoder->reset(new StubAudioDecoder(
-      audio_parameters.audio_codec, audio_parameters.audio_sample_info));
+  audio_decoder->reset(
+      new StubAudioDecoder(creation_parameters.audio_codec(),
+                           creation_parameters.audio_sample_info()));
 #endif  // SB_API_VERISON >= 11
   audio_renderer_sink->reset(new AudioRendererSinkImpl);
 }
 
-void PlayerComponents::CreateStubVideoComponents(
-    const VideoParameters& video_parameters,
+void PlayerComponents::Factory::CreateStubVideoComponents(
+    const CreationParameters& creation_parameters,
     scoped_ptr<VideoDecoder>* video_decoder,
     scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
     scoped_refptr<VideoRendererSink>* video_renderer_sink) {
@@ -129,11 +309,11 @@ void PlayerComponents::CreateStubVideoComponents(
   video_decoder->reset(new StubVideoDecoder);
   video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
   *video_renderer_sink = new PunchoutVideoRendererSink(
-      video_parameters.player, kVideoSinkRenderInterval);
+      creation_parameters.player(), kVideoSinkRenderInterval);
 }
 
-void PlayerComponents::GetAudioRendererParams(
-    const AudioParameters& audio_parameters,
+void PlayerComponents::Factory::GetAudioRendererParams(
+    const CreationParameters& creation_parameters,
     int* max_cached_frames,
     int* min_frames_per_append) const {
   SB_DCHECK(max_cached_frames);
@@ -144,11 +324,11 @@ void PlayerComponents::GetAudioRendererParams(
   // AudioRenderer prefers to use kSbMediaAudioSampleTypeFloat32 and only uses
   // kSbMediaAudioSampleTypeInt16Deprecated when float32 is not supported.
   int min_frames_required = SbAudioSinkGetMinBufferSizeInFrames(
-      audio_parameters.audio_sample_info.number_of_channels,
+      creation_parameters.audio_sample_info().number_of_channels,
       SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)
           ? kSbMediaAudioSampleTypeFloat32
           : kSbMediaAudioSampleTypeInt16Deprecated,
-      audio_parameters.audio_sample_info.samples_per_second);
+      creation_parameters.audio_sample_info().samples_per_second);
   *max_cached_frames = min_frames_required + *min_frames_per_append * 2;
 #else   // SB_API_VERSION >= 11
   *max_cached_frames = 8 * 1024;

@@ -1,0 +1,20 @@
+name: "freetype2"
+description:
+  "Subtree at third_party/freetype2."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/third_party/freetype2_mirror"
+  }
+  url {
+    type: GIT
+    value: "git://git.savannah.gnu.org/freetype/freetype2.git"
+  }
+  version: "551bd3a90e352fa3a66ee7644c07440939c03d81"
+  last_upgrade_date {
+    year: 2019
+    month: 12
+    day: 3
+  }
+}

@@ -14,7 +14,9 @@
 
 {
   'variables': {
-    'sb_evergreen_compatible%': '<!(python <(DEPTH)/build/file_exists.py <(DEPTH)/starboard/elf_loader/evergreen_info.gyp)',
+    'variables': {
+      'sb_evergreen_compatible': '<!(python <(DEPTH)/build/file_exists.py <(DEPTH)/starboard/elf_loader/evergreen_info.gyp)',
+    },
 
     # Override that omits the "data" subdirectory.
     # TODO: Remove when omitted for all platforms in base_configuration.gypi.

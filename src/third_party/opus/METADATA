@@ -1,0 +1,20 @@
+name: "opus"
+description:
+  "Subtree at third_party/opus."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/third_party/opus_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://github.com/xiph/opus.git"
+  }
+  version: "c1c247d7e715100a50ca185948c7336bdd4dfdba"
+  last_upgrade_date {
+    year: 2018
+    month: 6
+    day: 14
+  }
+}

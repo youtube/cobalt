@@ -50,6 +50,8 @@
       '<(DEPTH)/starboard/shared/starboard/player/filter/punchout_video_renderer_sink.h',
       '<(DEPTH)/starboard/shared/starboard/player/filter/stub_audio_decoder.cc',
       '<(DEPTH)/starboard/shared/starboard/player/filter/stub_audio_decoder.h',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/stub_player_components_factory.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/stub_player_components_factory.h',
       '<(DEPTH)/starboard/shared/starboard/player/filter/stub_video_decoder.cc',
       '<(DEPTH)/starboard/shared/starboard/player/filter/stub_video_decoder.h',
       '<(DEPTH)/starboard/shared/starboard/player/filter/video_decoder_internal.h',

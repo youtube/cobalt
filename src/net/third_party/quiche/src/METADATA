@@ -1,0 +1,20 @@
+name: "quiche"
+description:
+  "Subtree at net/third_party/quiche/src."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/third_party/quiche_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://quiche.googlesource.com/quiche"
+  }
+  version: "b6880f79b56f38c05be91191f9630e9aa66ecc2d"
+  last_upgrade_date {
+    year: 2019
+    month: 3
+    day: 6
+  }
+}

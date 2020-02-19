@@ -38,6 +38,12 @@ using starboard::shared::starboard::player::InputBuffer;
 using starboard::shared::starboard::player::JobThread;
 using starboard::scoped_ptr;
 
+#ifdef SB_MEDIA_PLAYER_THREAD_STACK_SIZE
+const int kJobThreadStackSize = SB_MEDIA_PLAYER_THREAD_STACK_SIZE;
+#else   // SB_MEDIA_PLAYER_THREAD_STACK_SIZE
+const int kJobThreadStackSize = 0;
+#endif  // SB_MEDIA_PLAYER_THREAD_STACK_SIZE
+
 // TODO: Merge test file resolving function with the ones used in the player
 // filter tests.
 std::string GetTestInputDirectory() {
@@ -62,7 +68,7 @@ std::string ResolveTestFileName(const char* filename) {
 }
 
 scoped_ptr<VideoDmpReader> s_video_dmp_reader;
-scoped_ptr<AudioRenderer> s_audio_renderer;
+scoped_ptr<PlayerComponents> s_player_components;
 int s_audio_sample_index;
 scoped_ptr<JobThread> s_job_thread;
 SbTime s_duration;
@@ -89,19 +95,19 @@ starboard::scoped_refptr<InputBuffer> GetAudioInputBuffer(size_t index) {
 }
 
 void OnTimer() {
-  if (!s_audio_renderer->CanAcceptMoreData()) {
+  if (!s_player_components->GetAudioRenderer()->CanAcceptMoreData()) {
     s_job_thread->job_queue()->Schedule(std::bind(OnTimer), kSbTimeMillisecond);
     return;
   }
 
   if (s_audio_sample_index == s_video_dmp_reader->number_of_audio_buffers()) {
     SB_LOG(INFO) << "EOS written, duration " << s_duration << " microseconds.";
-    s_audio_renderer->WriteEndOfStream();
+    s_player_components->GetAudioRenderer()->WriteEndOfStream();
     return;
   } else {
     auto input_buffer = GetAudioInputBuffer(s_audio_sample_index);
     s_duration = input_buffer->timestamp();
-    s_audio_renderer->WriteSample(input_buffer);
+    s_player_components->GetAudioRenderer()->WriteSample(input_buffer);
     ++s_audio_sample_index;
   }
 
@@ -115,12 +121,12 @@ void ErrorCB(SbPlayerError error, const std::string& error_message) {
 
 void PrerolledCB() {
   SB_LOG(INFO) << "Playback started.";
-  s_audio_renderer->Play();
+  s_player_components->GetAudioRenderer()->Play();
 }
 
 void EndedCB() {
   SB_LOG(INFO) << "Playback finished.";
-  s_audio_renderer.reset();
+  s_player_components.reset();
   s_video_dmp_reader.reset();
   SbSystemRequestStop(0);
 }
@@ -129,23 +135,25 @@ void Start(const char* filename) {
   SB_LOG(INFO) << "Loading " << filename;
   s_video_dmp_reader.reset(
       new VideoDmpReader(ResolveTestFileName(filename).c_str()));
-  scoped_ptr<PlayerComponents> player_components = PlayerComponents::Create();
-  PlayerComponents::AudioParameters audio_parameters = {
-      s_video_dmp_reader->audio_codec(),
-      s_video_dmp_reader->audio_sample_info(), kSbDrmSystemInvalid};
+  scoped_ptr<PlayerComponents::Factory> factory =
+      PlayerComponents::Factory::Create();
+  PlayerComponents::Factory::CreationParameters creation_parameters(
+      s_video_dmp_reader->audio_codec(), "",
+      s_video_dmp_reader->audio_sample_info());
   std::string error_message;
-  s_audio_renderer =
-      player_components->CreateAudioRenderer(audio_parameters, &error_message);
-  SB_DCHECK(s_audio_renderer);
+  s_player_components =
+      factory->CreateComponents(creation_parameters, &error_message);
+  SB_DCHECK(s_player_components);
+  SB_DCHECK(s_player_components->GetAudioRenderer());
 
   using std::placeholders::_1;
   using std::placeholders::_2;
 
-  s_audio_renderer->Initialize(std::bind(ErrorCB, _1, _2),
-                               std::bind(PrerolledCB), std::bind(EndedCB));
-  s_audio_renderer->SetPlaybackRate(1.0);
-  s_audio_renderer->SetVolume(1.0);
-  s_audio_renderer->Seek(0);
+  s_player_components->GetAudioRenderer()->Initialize(
+      std::bind(ErrorCB, _1, _2), std::bind(PrerolledCB), std::bind(EndedCB));
+  s_player_components->GetAudioRenderer()->SetPlaybackRate(1.0);
+  s_player_components->GetAudioRenderer()->SetVolume(1.0);
+  s_player_components->GetAudioRenderer()->Seek(0);
   s_job_thread->job_queue()->Schedule(std::bind(OnTimer));
 }
 
@@ -167,7 +175,7 @@ void SbEventHandle(const SbEvent* event) {
         return;
       }
 
-      s_job_thread.reset(new JobThread("audio"));
+      s_job_thread.reset(new JobThread("audio", kJobThreadStackSize));
       s_job_thread->job_queue()->Schedule(
           std::bind(Start, data->argument_values[1]));
       break;

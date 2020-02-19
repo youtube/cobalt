@@ -79,7 +79,7 @@ bool GetExecutablePath(char* out_path, int path_size) {
   }
 
   path[bytes_read] = '\0';
-  if (bytes_read > path_size) {
+  if (bytes_read >= path_size) {
     return false;
   }
 

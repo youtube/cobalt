@@ -34,7 +34,7 @@
       '<(DEPTH)/starboard/linux/shared/decode_target_release.cc',
       '<(DEPTH)/starboard/linux/shared/media_is_audio_supported.cc',
       '<(DEPTH)/starboard/linux/shared/media_is_video_supported.cc',
-      '<(DEPTH)/starboard/linux/shared/player_components_impl.cc',
+      '<(DEPTH)/starboard/linux/shared/player_components_factory.cc',
       '<(DEPTH)/starboard/linux/shared/system_get_connection_type.cc',
       '<(DEPTH)/starboard/linux/shared/system_get_device_type.cc',
       '<(DEPTH)/starboard/linux/shared/system_get_path.cc',

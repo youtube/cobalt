@@ -28,7 +28,7 @@
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
-#include "starboard/shared/starboard/player/filter/stub_player_components_impl.h"
+#include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -111,24 +111,25 @@ class AudioDecoderTest
     audio_renderer_sink->reset();
     audio_decoder->reset();
 
-    PlayerComponents::AudioParameters audio_parameters = {
-        codec, audio_sample_info, kSbDrmSystemInvalid};
+    PlayerComponents::Factory::CreationParameters creation_parameters(
+        codec, "", audio_sample_info);
 
-    scoped_ptr<PlayerComponents> components;
+    scoped_ptr<PlayerComponents::Factory> factory;
     if (using_stub_decoder_) {
-      components = make_scoped_ptr<StubPlayerComponentsImpl>(
-          new StubPlayerComponentsImpl);
+      factory = StubPlayerComponentsFactory::Create();
     } else {
-      components = PlayerComponents::Create();
+      factory = PlayerComponents::Factory::Create();
     }
     std::string error_message;
-    components->CreateAudioComponents(audio_parameters, audio_decoder,
-                                      audio_renderer_sink, &error_message);
-
-    if (*audio_decoder) {
+    if (factory->CreateSubComponents(creation_parameters, audio_decoder,
+                                     audio_renderer_sink, nullptr, nullptr,
+                                     nullptr, &error_message)) {
+      SB_CHECK(*audio_decoder);
       (*audio_decoder)
           ->Initialize(std::bind(&AudioDecoderTest::OnOutput, this),
                        std::bind(&AudioDecoderTest::OnError, this));
+    } else {
+      audio_decoder->reset();
     }
   }
 

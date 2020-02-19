@@ -51,6 +51,8 @@
 #include "src/thread_task.h"
 #include "src/warpmv.h"
 
+#include "common/starboard_memory.h"
+
 static void init_quant_tables(const Dav1dSequenceHeader *const seq_hdr,
                               const Dav1dFrameHeader *const frame_hdr,
                               const int qidx, uint16_t (*dq)[3][2])

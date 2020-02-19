@@ -16,7 +16,9 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_PLAYER_COMPONENTS_H_
 
 #include <string>
+#include <vector>
 
+#include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/decode_target.h"
@@ -39,77 +41,180 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-// This class creates all the platform specific components that is required by
-// |FilterBasedPlayerWorkerHandler| to function.
+// This class holds necessary media stack components required by
+// by |FilterBasedPlayerWorkerHandler| to function.  It owns the components, and
+// the returned value of each function won't change over the lifetime of this
+// object, so it is safe to cache the returned objects.
 class PlayerComponents {
  public:
-  struct AudioParameters {
-    SbMediaAudioCodec audio_codec;
-    const SbMediaAudioSampleInfo& audio_sample_info;
-    SbDrmSystem drm_system;
-  };
+  // This class creates PlayerComponents.
+  class Factory {
+   public:
+    class CreationParameters {
+     public:
+      CreationParameters(SbMediaAudioCodec audio_codec,
+                         const std::string& audio_mime,
+                         const SbMediaAudioSampleInfo& audio_sample_info,
+                         SbDrmSystem drm_system = kSbDrmSystemInvalid);
+      CreationParameters(SbMediaVideoCodec video_codec,
+                         const std::string& video_mime,
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+                         const SbMediaVideoSampleInfo& video_sample_info,
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+                         const std::string& max_video_capabilities,
+                         SbPlayer player,
+                         SbPlayerOutputMode output_mode,
+                         SbDecodeTargetGraphicsContextProvider*
+                             decode_target_graphics_context_provider,
+                         SbDrmSystem drm_system = kSbDrmSystemInvalid);
+      CreationParameters(SbMediaAudioCodec audio_codec,
+                         const std::string& audio_mime,
+                         const SbMediaAudioSampleInfo& audio_sample_info,
+                         SbMediaVideoCodec video_codec,
+                         const std::string& video_mime,
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+                         const SbMediaVideoSampleInfo& video_sample_info,
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+                         const std::string& max_video_capabilities,
+                         SbPlayer player,
+                         SbPlayerOutputMode output_mode,
+                         SbDecodeTargetGraphicsContextProvider*
+                             decode_target_graphics_context_provider,
+                         SbDrmSystem drm_system = kSbDrmSystemInvalid);
+      CreationParameters(const CreationParameters& that);
+      void operator=(const CreationParameters& that) = delete;
 
-  struct VideoParameters {
-    SbPlayer player;
-    SbMediaVideoCodec video_codec;
-    SbDrmSystem drm_system;
-    SbPlayerOutputMode output_mode;
-    SbDecodeTargetGraphicsContextProvider*
-        decode_target_graphics_context_provider;
-  };
+      void reset_audio_codec() { audio_codec_ = kSbMediaAudioCodecNone; }
+      void reset_video_codec() { video_codec_ = kSbMediaVideoCodecNone; }
 
-  virtual ~PlayerComponents() {}
+      SbMediaAudioCodec audio_codec() const { return audio_codec_; }
+      const std::string& audio_mime() const {
+        SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
+        return audio_mime_;
+      }
+      const SbMediaAudioSampleInfo& audio_sample_info() const {
+        SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
+        return audio_sample_info_;
+      }
 
-  // Individual platform should implement this function to allow the creation of
-  // a PlayerComponents instance.
-  static scoped_ptr<PlayerComponents> Create();
+      SbMediaVideoCodec video_codec() const { return video_codec_; }
+      const std::string& video_mime() const {
+        SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
+        return video_mime_;
+      }
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+      const SbMediaVideoSampleInfo& video_sample_info() const {
+        SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
+        return video_sample_info_;
+      }
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+      const std::string& max_video_capabilities() const {
+        SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
+        return max_video_capabilities_;
+      }
+      SbPlayer player() const {
+        SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
+        return player_;
+      }
+      SbPlayerOutputMode output_mode() const {
+        SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
+        return output_mode_;
+      }
+      SbDecodeTargetGraphicsContextProvider*
+      decode_target_graphics_context_provider() const {
+        SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
+        return decode_target_graphics_context_provider_;
+      }
 
-  scoped_ptr<AudioRenderer> CreateAudioRenderer(
-      const AudioParameters& audio_parameters,
-      std::string* error_message);
+      SbDrmSystem drm_system() const { return drm_system_; }
 
-  scoped_ptr<VideoRenderer> CreateVideoRenderer(
-      const VideoParameters& video_parameters,
-      MediaTimeProvider* media_time_provider,
-      std::string* error_message);
+     private:
+      void TryToCopyAudioSpecificConfig();
+
+      // The following members are only used by the audio stream, and only need
+      // to be set when |audio_codec| isn't kSbMediaAudioCodecNone.
+      // |audio_codec| can be set to kSbMediaAudioCodecNone for audioless video.
+      SbMediaAudioCodec audio_codec_ = kSbMediaAudioCodecNone;
+      std::string audio_mime_;
+      SbMediaAudioSampleInfo audio_sample_info_ = {};
+
+      // The following members are only used by the video stream, and only need
+      // to be set when |video_codec| isn't kSbMediaVideoCodecNone.
+      // |video_codec| can be set to kSbMediaVideoCodecNone for audio only
+      // video.
+      SbMediaVideoCodec video_codec_ = kSbMediaVideoCodecNone;
+      std::string video_mime_;
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+      SbMediaVideoSampleInfo video_sample_info_ = {};
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+      std::string max_video_capabilities_;
+      SbPlayer player_ = kSbPlayerInvalid;
+      SbPlayerOutputMode output_mode_ = kSbPlayerOutputModeInvalid;
+      SbDecodeTargetGraphicsContextProvider*
+          decode_target_graphics_context_provider_ = nullptr;
+
+      // The following member are used by both the audio stream and the video
+      // stream, when they are encrypted.
+      SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
+
+      std::vector<uint8_t> audio_specific_config_;
+    };
+
+    virtual ~Factory() {}
+
+    // TODO: Consider making it return Factory*.
+    // Individual platform should implement this function to allow the creation
+    // of a Factory instance.
+    static scoped_ptr<Factory> Create();
+
+    virtual scoped_ptr<PlayerComponents> CreateComponents(
+        const CreationParameters& creation_parameters,
+        std::string* error_message);
 
 #if COBALT_BUILD_TYPE_GOLD
- private:
+   private:
 #endif  // COBALT_BUILD_TYPE_GOLD
-  // Note that the following functions are exposed in non-Gold build to allow
-  // unit tests to run.
 
-  virtual bool CreateAudioComponents(
-      const AudioParameters& audio_parameters,
-      scoped_ptr<AudioDecoder>* audio_decoder,
-      scoped_ptr<AudioRendererSink>* audio_renderer_sink,
-      std::string* error_message) = 0;
+    // Note that the following function is exposed in non-Gold build to allow
+    // unit tests to run.
+    virtual bool CreateSubComponents(
+        const CreationParameters& creation_parameters,
+        scoped_ptr<AudioDecoder>* audio_decoder,
+        scoped_ptr<AudioRendererSink>* audio_renderer_sink,
+        scoped_ptr<VideoDecoder>* video_decoder,
+        scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
+        scoped_refptr<VideoRendererSink>* video_renderer_sink,
+        std::string* error_message) = 0;
 
-  virtual bool CreateVideoComponents(
-      const VideoParameters& video_parameters,
-      scoped_ptr<VideoDecoder>* video_decoder,
-      scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
-      scoped_refptr<VideoRendererSink>* video_renderer_sink,
-      std::string* error_message) = 0;
+   protected:
+    Factory() {}
 
- protected:
-  PlayerComponents() {}
+    void CreateStubAudioComponents(
+        const CreationParameters& creation_parameters,
+        scoped_ptr<AudioDecoder>* audio_decoder,
+        scoped_ptr<AudioRendererSink>* audio_renderer_sink);
 
-  void CreateStubAudioComponents(
-      const AudioParameters& audio_parameters,
-      scoped_ptr<AudioDecoder>* audio_decoder,
-      scoped_ptr<AudioRendererSink>* audio_renderer_sink);
+    void CreateStubVideoComponents(
+        const CreationParameters& creation_parameters,
+        scoped_ptr<VideoDecoder>* video_decoder,
+        scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
+        scoped_refptr<VideoRendererSink>* video_renderer_sink);
 
-  void CreateStubVideoComponents(
-      const VideoParameters& video_parameters,
-      scoped_ptr<VideoDecoder>* video_decoder,
-      scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
-      scoped_refptr<VideoRendererSink>* video_renderer_sink);
+    // Check AudioRenderer ctor for more details on the parameters.
+    void GetAudioRendererParams(const CreationParameters& creation_parameters,
+                                int* max_cached_frames,
+                                int* min_frames_per_append) const;
 
-  // Check AudioRenderer ctor for more details on the parameters.
-  void GetAudioRendererParams(const AudioParameters& audio_parameters,
-                              int* max_cached_frames,
-                              int* min_frames_per_append) const;
+   private:
+    SB_DISALLOW_COPY_AND_ASSIGN(Factory);
+  };
+
+  PlayerComponents() = default;
+  virtual ~PlayerComponents() {}
+
+  virtual MediaTimeProvider* GetMediaTimeProvider() = 0;
+  virtual AudioRenderer* GetAudioRenderer() = 0;
+  virtual VideoRenderer* GetVideoRenderer() = 0;
 
  private:
   SB_DISALLOW_COPY_AND_ASSIGN(PlayerComponents);

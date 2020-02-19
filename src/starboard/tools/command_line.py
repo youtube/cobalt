@@ -123,5 +123,5 @@ def CreateLauncherParams(arg_parser=None):
   if args.target_params is None:
     launcher_params.target_params = []
   else:
-    launcher_params.target_params = [args.target_params]
+    launcher_params.target_params = args.target_params.split(' ')
   return launcher_params

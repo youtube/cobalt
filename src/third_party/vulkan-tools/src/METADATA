@@ -1,0 +1,20 @@
+name: "vulkan-tools"
+description:
+  "Subtree at third_party/vulkan-tools/src."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/third_party/vulkan-tools_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://github.com/KhronosGroup/Vulkan-Tools"
+  }
+  version: "c1a7421f0f93b322822515a3d7457f1033602efe"
+  last_upgrade_date {
+    year: 2019
+    month: 12
+    day: 11
+  }
+}

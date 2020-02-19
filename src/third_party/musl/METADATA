@@ -1,0 +1,20 @@
+name: "musl"
+description:
+  "Subtree at third_party/musl."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/third_party/musl_mirror"
+  }
+  url {
+    type: GIT
+    value: "git://git.musl-libc.org/musl"
+  }
+  version: "0fa1e638e87cf257e9f96b4019b2076afd674a19"
+  last_upgrade_date {
+    year: 2018
+    month: 9
+    day: 4
+  }
+}

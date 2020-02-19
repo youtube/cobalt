@@ -17,12 +17,12 @@
 
 {
   'variables': {
-    'has_platform_tests%' : '<!(python ../build/file_exists.py <(DEPTH)/<(starboard_path)/starboard_platform_tests.gyp)',
+    'has_platform_tests%' : '<!(python <(DEPTH)/build/file_exists.py <(DEPTH)/<(starboard_path)/starboard_platform_tests.gyp)',
   },
   'conditions': [
     # If 'starboard_platform_tests' is not defined by the platform, then an
     # empty 'starboard_platform_tests' target is defined.
-    ['has_platform_tests=="False"', {
+    ['has_platform_tests==0', {
       'targets': [
         {
           'target_name': 'starboard_platform_tests',
@@ -74,7 +74,7 @@
             '<(DEPTH)/starboard/examples/glclear/glclear.gyp:starboard_glclear_example',
           ],
         }],
-        ['has_platform_tests=="True"', {
+        ['has_platform_tests==1', {
           'dependencies': [
             '<(DEPTH)/<(starboard_path)/starboard_platform_tests.gyp:*',
           ],

@@ -1,0 +1,20 @@
+name: "skia"
+description:
+  "Subtree at third_party/skia."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/third_party/skia_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://skia.googlesource.com/skia"
+  }
+  version: "0eefc0552cfb5ac077560b7c2630c5bd475ea585"
+  last_upgrade_date {
+    year: 2017
+    month: 8
+    day: 22
+  }
+}

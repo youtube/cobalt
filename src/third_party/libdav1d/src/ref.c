@@ -31,6 +31,8 @@
 
 #include "src/ref.h"
 
+#include "common/starboard_memory.h"
+
 static void default_free_callback(const uint8_t *const data, void *const user_data) {
     assert(data == user_data);
     dav1d_free_aligned(user_data);
