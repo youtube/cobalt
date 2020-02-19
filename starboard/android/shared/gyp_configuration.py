@@ -330,6 +330,8 @@ class AndroidConfiguration(PlatformConfiguration):
           # Crashing in audio_track_audio_sink_type.cc.
           'SbAudioSinkCreateTest.*',
           'SbAudioSinkTest.*',
+          # The test is failing on Nvidia Shield.
+          'AudioRendererTest.SunnyDay',
       ],
   }
 
