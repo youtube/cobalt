@@ -1,6 +1,11 @@
 name: "skia"
 description:
   "Subtree at third_party/skia."
+  "Skia is an open-source graphics library for drawing, geometries, and "
+  "images, with both hardware and software support. Cobalt most recently "
+  "updated its version of Skia from m61 to m79 because many changes took place "
+  "in between those two releases, and bringing in those changes will make it "
+  "easier to update the Skia porting layer again in the future."
 
 third_party {
   url {
@@ -11,10 +16,10 @@ third_party {
     type: GIT
     value: "https://skia.googlesource.com/skia"
   }
-  version: "0eefc0552cfb5ac077560b7c2630c5bd475ea585"
+  version: "2542bdfcd686c7bfa9f687d80627f8ef468b2838"
   last_upgrade_date {
-    year: 2017
-    month: 8
-    day: 22
+    year: 2019
+    month: 10
+    day: 28
   }
 }
