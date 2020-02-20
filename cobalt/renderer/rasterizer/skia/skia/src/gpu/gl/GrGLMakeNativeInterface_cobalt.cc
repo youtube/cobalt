@@ -74,7 +74,9 @@ GrGLFuncPtr GetGLProc(void* ctx, const char name[]) {
   REGISTER_GL_FUNCTION(GetShaderInfoLog);
   REGISTER_GL_FUNCTION(GetShaderiv);
   REGISTER_GL_FUNCTION(GetString);
+#if defined(GLES3_SUPPORTED)
   REGISTER_GL_FUNCTION(GetStringi);
+#endif
   REGISTER_GL_FUNCTION(GetUniformLocation);
   REGISTER_GL_FUNCTION(IsTexture);
   REGISTER_GL_FUNCTION(LinkProgram);
