@@ -74,6 +74,7 @@ GrGLFuncPtr GetGLProc(void* ctx, const char name[]) {
   REGISTER_GL_FUNCTION(GetShaderInfoLog);
   REGISTER_GL_FUNCTION(GetShaderiv);
   REGISTER_GL_FUNCTION(GetString);
+  REGISTER_GL_FUNCTION(GetStringi);
   REGISTER_GL_FUNCTION(GetUniformLocation);
   REGISTER_GL_FUNCTION(IsTexture);
   REGISTER_GL_FUNCTION(LinkProgram);
@@ -89,6 +90,8 @@ GrGLFuncPtr GetGLProc(void* ctx, const char name[]) {
   REGISTER_GL_FUNCTION(StencilOp);
   REGISTER_GL_FUNCTION(StencilOpSeparate);
   REGISTER_GL_FUNCTION(TexImage2D);
+  REGISTER_GL_FUNCTION(TexParameterf);
+  REGISTER_GL_FUNCTION(TexParameterfv);
   REGISTER_GL_FUNCTION(TexParameteri);
   REGISTER_GL_FUNCTION(TexParameteriv);
   REGISTER_GL_FUNCTION(TexSubImage2D);
