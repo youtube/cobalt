@@ -73,7 +73,7 @@ class Configurator : public update_client::Configurator {
   GetProtocolHandlerFactory() const override;
   update_client::RecoveryCRXElevator GetRecoveryCRXElevator() const override;
 
-  void SetChannel(const std::string& updater_channel);
+  void SetChannel(const std::string& updater_channel) override;
 
  private:
   friend class base::RefCountedThreadSafe<Configurator>;
