@@ -177,7 +177,8 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     Handler* handler,
     jobject j_surface,
     jobject j_media_crypto,
-    const SbMediaColorMetadata* color_metadata) {
+    const SbMediaColorMetadata* color_metadata,
+    bool require_software_codec) {
   const char* mime = SupportedVideoCodecToMimeType(video_codec);
   if (!mime) {
     return scoped_ptr<MediaCodecBridge>(NULL);
@@ -221,8 +222,8 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
       "Ldev/cobalt/media/MediaCodecBridge$ColorInfo;)"
       "Ldev/cobalt/media/MediaCodecBridge;",
       reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime.Get(),
-      !!j_media_crypto, false, width, height, j_surface, j_media_crypto,
-      j_color_info.Get());
+      !!j_media_crypto, require_software_codec, width, height, j_surface,
+      j_media_crypto, j_color_info.Get());
 
   if (!j_media_codec_bridge) {
     return scoped_ptr<MediaCodecBridge>(NULL);
@@ -393,7 +394,6 @@ void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
 
   JniEnvExt* env = JniEnvExt::Get();
   SB_DCHECK(env->GetObjectRefType(j_media_codec_bridge_) == JNIGlobalRefType);
-
 
   j_reused_get_output_format_result_ = env->NewObjectOrAbort(
       "dev/cobalt/media/MediaCodecBridge$GetOutputFormatResult", "()V");

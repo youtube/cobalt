@@ -24,6 +24,9 @@ namespace shared {
 
 class VideoSurfaceHolder {
  public:
+  // Return true only if the video surface is available.
+  static bool IsVideoSurfaceAvailable();
+
   // OnSurfaceDestroyed() will be invoked when surface is destroyed. When this
   // function is called, the decoder no longer owns the surface. Calling
   // AcquireVideoSurface(), ReleaseVideoSurface(), GetVideoWindowSize() or

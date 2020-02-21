@@ -32,6 +32,7 @@
 #include "starboard/drm.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
+#include "starboard/string.h"
 #include "starboard/thread.h"
 
 namespace starboard {
@@ -113,6 +114,8 @@ bool IsIdentity(const SbMediaColorMetadata& color_metadata) {
 
 }  // namespace
 
+int VideoDecoder::number_of_hardware_decoders_ = 0;
+
 class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
  public:
   bool Render() {
@@ -157,14 +160,24 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
                            SbDrmSystem drm_system,
                            SbPlayerOutputMode output_mode,
                            SbDecodeTargetGraphicsContextProvider*
-                               decode_target_graphics_context_provider)
+                               decode_target_graphics_context_provider,
+                           const char* max_video_capabilities)
     : video_codec_(video_codec),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       has_new_texture_available_(false),
-      surface_condition_variable_(surface_destroy_mutex_) {
+      surface_condition_variable_(surface_destroy_mutex_),
+      require_software_codec_(max_video_capabilities &&
+                              SbStringGetLength(max_video_capabilities) > 0) {
+  if (require_software_codec_) {
+    SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture);
+  }
+  if (!require_software_codec_) {
+    number_of_hardware_decoders_++;
+  }
+
   if (!InitializeCodec()) {
     SB_LOG(ERROR) << "Failed to initialize video decoder.";
     TeardownCodec();
@@ -174,6 +187,10 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
 VideoDecoder::~VideoDecoder() {
   TeardownCodec();
   ClearVideoWindow();
+
+  if (!require_software_codec_) {
+    number_of_hardware_decoders_--;
+  }
 }
 
 scoped_refptr<VideoDecoder::VideoRendererSink> VideoDecoder::GetSink() {
@@ -344,7 +361,7 @@ bool VideoDecoder::InitializeCodec() {
   SB_DCHECK(!drm_system_ || j_media_crypto);
   media_decoder_.reset(new MediaDecoder(
       this, video_codec_, width, height, j_output_surface, drm_system_,
-      color_metadata_ ? &*color_metadata_ : nullptr));
+      color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_));
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
       media_decoder_->Initialize(error_cb_);
