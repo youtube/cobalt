@@ -23,12 +23,15 @@ namespace gles {
 
 BufferImplStub::BufferImplStub() {}
 
-void BufferImplStub::Allocate(Usage usage, khronos_usize_t size) {}
+bool BufferImplStub::Allocate(Usage usage, khronos_usize_t size) {
+  return false;
+}
 
-void BufferImplStub::SetData(khronos_intptr_t offset,
+bool BufferImplStub::SetData(khronos_intptr_t offset,
                              khronos_usize_t size,
                              const void* data) {
   SB_DCHECK(data);
+  return false;
 }
 
 void* BufferImplStub::Map() {

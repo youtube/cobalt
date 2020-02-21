@@ -28,8 +28,8 @@ class BufferImplStub : public BufferImpl {
   BufferImplStub();
   ~BufferImplStub() SB_OVERRIDE {}
 
-  void Allocate(Usage usage, size_t size) SB_OVERRIDE;
-  void SetData(intptr_t offset, size_t size, const void* data) SB_OVERRIDE;
+  bool Allocate(Usage usage, size_t size) SB_OVERRIDE;
+  bool SetData(intptr_t offset, size_t size, const void* data) SB_OVERRIDE;
 
   void* Map() SB_OVERRIDE;
   bool Unmap() SB_OVERRIDE;

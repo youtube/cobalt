@@ -28,8 +28,6 @@ class WindowSurfaceImplStub : public SurfaceImplStub {
   WindowSurfaceImplStub();
   virtual ~WindowSurfaceImplStub();
 
-  bool IsDisplayRenderTarget() const SB_OVERRIDE { return true; }
-
   int GetWidth() const SB_OVERRIDE { return width_; }
   int GetHeight() const SB_OVERRIDE { return height_; }
 
