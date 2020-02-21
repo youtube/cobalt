@@ -19,12 +19,12 @@
 
 #if SB_API_VERSION >= SB_SABI_FILE_VERSION
 
-// 8-byte integers make structs 4-byte aligned on ia32.
-#if SB_IS(ARCH_IA32) || (SB_IS(ARCH_X86) && SB_IS(32_BIT))
+// 8-byte integers make structs 4-byte aligned on x86.
+#if SB_IS(ARCH_X86)
 #define ALIGNMENT_8_BYTE_INT 4
-#else  // !SB_IS(ARCH_IA32) && (!SB_IS(ARCH_X86) || !SB_IS(32_BIT))
+#else   // !SB_IS(ARCH_X86)
 #define ALIGNMENT_8_BYTE_INT 8
-#endif  // SB_IS(ARCH_IA32) || (SB_IS(ARCH_X86) && SB_IS(32_BIT))
+#endif  // SB_IS(ARCH_X86)
 
 namespace starboard {
 namespace sabi {

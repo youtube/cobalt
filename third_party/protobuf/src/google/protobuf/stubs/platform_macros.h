@@ -45,12 +45,16 @@
 #elif SB_IS(64_BIT)
 #define GOOGLE_PROTOBUF_ARCH_64_BIT 1
 #endif
-#if SB_IS(ARCH_ARM)
+#if SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)
 #define GOOGLE_PROTOBUF_ARCH_ARM 1
-#elif SB_IS(ARCH_X86) && SB_IS(64_BIT)
-#define GOOGLE_PROTOBUF_ARCH_X64 1
-#elif SB_IS(ARCH_X86) && SB_IS(32_BIT)
+// TODO: Remove redundant #if word size checks when
+//       SB_MINIMUM_API_VERSION >= SB_SABI_FILE_VERSION.
+#elif SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
+#if SB_IS(32_BIT)
 #define GOOGLE_PROTOBUF_ARCH_IA32 1
+#elif SB_IS(64_BIT)
+#define GOOGLE_PROTOBUF_ARCH_X64 1
+#endif
 #elif SB_IS(ARCH_MIPS)
 #define GOOGLE_PROTOBUF_ARCH_MIPS 1
 #endif

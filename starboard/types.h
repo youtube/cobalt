@@ -128,7 +128,7 @@ SB_COMPILE_ASSERT(sizeof(int) == sizeof(int32_t),  // NOLINT[runtime/int]
 #define INT_MAX 0x7FFFFFFF
 #endif
 
-#if SB_HAS(32_BIT_LONG)
+#if SB_SIZE_OF(LONG) == 4
 
 SB_COMPILE_ASSERT(sizeof(long) == sizeof(int32_t),  // NOLINT[runtime/int]
                   starboard_long_is_32_bits);
@@ -144,7 +144,7 @@ SB_COMPILE_ASSERT(sizeof(long) == sizeof(int32_t),  // NOLINT[runtime/int]
 #define ULONG_MAX UINT_MAX
 #endif
 
-#else  // SB_HAS(32_BIT_LONG)
+#else  // SB_SIZE_OF(LONG) == 8
 
 SB_COMPILE_ASSERT(sizeof(long) == sizeof(int64_t),  // NOLINT[runtime/int]
                   starboard_long_is_64_bits);
@@ -160,7 +160,7 @@ SB_COMPILE_ASSERT(sizeof(long) == sizeof(int64_t),  // NOLINT[runtime/int]
 #define ULONG_MAX SB_INT64_C(0xFFFFFFFFFFFFFFFF)
 #endif
 
-#endif  // SB_HAS(32_BIT_LONG)
+#endif  // SB_SIZE_OF(LONG) == 4
 
 #if defined(_MSC_VER)
 #pragma warning(push)

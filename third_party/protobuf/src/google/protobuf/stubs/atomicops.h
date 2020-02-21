@@ -101,7 +101,7 @@ typedef intptr_t Atomic64;
 // Use AtomicWord for a machine-sized pointer.  It will use the Atomic32 or
 // Atomic64 routines below, depending on your architecture.
 #if defined(STARBOARD)
-#if SB_HAS(64_BIT_POINTERS)
+#if SB_SIZE_OF(POINTER) == 8
 typedef SbAtomic64 AtomicWord;
 #else
 typedef SbAtomic32 AtomicWord;

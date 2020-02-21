@@ -40,7 +40,7 @@
 
 #include <cstdlib>
 
-#if defined(ANDROID) && SB_IS(ARCH_ARM)
+#if defined(ANDROID) && (SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64))
 #include <asm/hwcap.h>
 #endif
 
@@ -51,7 +51,7 @@
 
 namespace {
 
-#if SB_IS(ARCH_ARM)
+#if SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)
 
 // Android hwcap.h defines these flags conditionally, depending on target arch
 #if SB_IS(32_BIT) || defined(ANDROID)
@@ -89,7 +89,7 @@ namespace {
 
 #endif  // SB_IS(32_BIT)
 
-#elif SB_IS(ARCH_X86)
+#elif SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
 
 // x86_xgetbv returns the value of an Intel Extended Control Register (XCR).
 // Currently only XCR0 is defined by Intel so |xcr| should always be zero.
@@ -119,7 +119,7 @@ void x86_cpuid(int cpuid_info[4], int info_type) {
 }
 #endif  // SB_IS(32_BIT)
 
-#endif  // SB_IS(ARCH_ARM)
+#endif  // SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)
 
 using starboard::shared::SetX86FeaturesInvalid;
 using starboard::shared::SetArmFeaturesInvalid;
@@ -341,7 +341,7 @@ uint32_t ReadElfHwcaps(uint32_t hwcap_type) {
   return hwcap;
 }
 
-#if SB_IS(ARCH_ARM)
+#if SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)
 // Checks if a space-separated list of items |list|, in the form of a string,
 // contains one given item |item|.
 bool HasItemInList(const char* list, const char* flag) {
@@ -581,7 +581,7 @@ bool SbCPUFeaturesGet_ARM(SbCPUFeatures* features) {
   return true;
 }
 
-#elif SB_IS(ARCH_X86)
+#elif SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
 
 bool SbCPUFeaturesGet_X86(SbCPUFeatures* features) {
   memset(features, 0, sizeof(*features));
@@ -729,9 +729,9 @@ bool SbCPUFeaturesGet_X86(SbCPUFeatures* features) {
 
 // TODO: Only ARM/ARM64 and X86/X86_64 are currently implemented and tested
 bool SbCPUFeaturesGet(SbCPUFeatures* features) {
-#if SB_IS(ARCH_ARM)
+#if SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)
   return SbCPUFeaturesGet_ARM(features);
-#elif SB_IS(ARCH_X86)
+#elif SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
   return SbCPUFeaturesGet_X86(features);
 #else
   SB_NOTIMPLEMENTED();
