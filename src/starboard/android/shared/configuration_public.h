@@ -49,6 +49,7 @@
 // SbMemorySet in third_party/protobuf/src/google/protobuf/stubs/port.h.
 #define SB_HAS_QUIRK_MEMSET_IN_SYSTEM_HEADERS 1
 
+#define SB_HAS_FEATURE_TUNNEL_PLAYBACK 1
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be

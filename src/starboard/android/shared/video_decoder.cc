@@ -18,12 +18,14 @@
 
 #include <cmath>
 #include <functional>
+#include <list>
 
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/decode_target_create.h"
 #include "starboard/android/shared/decode_target_internal.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/media_agency.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/window_internal.h"
 #include "starboard/common/string.h"
@@ -43,6 +45,8 @@ namespace {
 using ::starboard::shared::starboard::player::filter::VideoFrame;
 using std::placeholders::_1;
 using std::placeholders::_2;
+using std::placeholders::_3;
+using std::placeholders::_4;
 
 class VideoFrameImpl : public VideoFrame {
  public:
@@ -113,6 +117,96 @@ bool IsIdentity(const SbMediaColorMetadata& color_metadata) {
 
 }  // namespace
 
+class VideoFrameTracker : public RefCountedThreadSafe<VideoFrameTracker> {
+ public:
+  VideoFrameTracker(int audio_session_id)
+      : audio_session_id_(audio_session_id),
+        seek_to_time_(0),
+        frame_dropped_(0) {}
+
+  ~VideoFrameTracker() {}
+
+  void TrackFrame(SbTime media_time_us, SbTime track_time_us) {
+    starboard::ScopedLock lock(mutex_);
+    if (frame_queue_.empty()) {
+      frame_queue_.emplace_back(media_time_us, track_time_us);
+      return;
+    }
+    // sort the list by media_time_us. Note if there is B frames, the input
+    // media_time_us is not monotonic.
+    for (std::list<TrackedFrameInfo>::iterator it = frame_queue_.end();
+         it != frame_queue_.begin(); --it) {
+      if (it->media_time_us_ < media_time_us) {
+        frame_queue_.emplace(it, media_time_us, track_time_us);
+        return;
+      }
+    }
+    frame_queue_.emplace_front(media_time_us, track_time_us);
+  }
+
+  void OnFrameRendered(SbTime media_time_us, SbTime render_time_us) {
+    starboard::ScopedLock lock(mutex_);
+    // FIXME: seek_to_time_ should be valid (not -1) prior to OnFrameRendered
+    // after Reset()(seek operation)
+    // warning: media_time_us_ should >= seek_to_time_
+
+    std::list<TrackedFrameInfo>::iterator it = frame_queue_.begin();
+    while (it != frame_queue_.end()) {
+      if (it->media_time_us_ > media_time_us) {
+        break;
+      }
+
+      if (it->media_time_us_ < seek_to_time_) {
+        it = frame_queue_.erase(it);
+      } else if (it->media_time_us_ < media_time_us) {
+        // frame drop here
+        SB_LOG(ERROR) << "Video Frame Drop:" << it->media_time_us_;
+        frame_dropped_++;
+        MediaAgency::GetInstance()->SetDroppedFramesTunnel(audio_session_id_,
+                                                           frame_dropped_);
+        it = frame_queue_.erase(it);
+      } else if (it->media_time_us_ == media_time_us) {
+        it = frame_queue_.erase(it);
+      } else {
+        ++it;
+      }
+    }
+  }
+
+  int GetFrameDropped() {
+    starboard::ScopedLock lock(mutex_);
+    return frame_dropped_;
+  }
+
+  void Reset(int audio_session_id) {
+    starboard::ScopedLock lock(mutex_);
+    frame_queue_.clear();
+    audio_session_id_ = audio_session_id;
+    seek_to_time_ = -1;
+  }
+
+  void SetSeekTime(SbTime seek_time_us) {
+    starboard::ScopedLock lock(mutex_);
+    seek_to_time_ = seek_time_us;
+  }
+
+ private:
+  struct TrackedFrameInfo {
+    TrackedFrameInfo(SbTime media_time_us, SbTime track_time_us) {
+      media_time_us_ = media_time_us;
+      track_time_us_ = track_time_us;
+    }
+    SbTime media_time_us_;
+    SbTime track_time_us_;
+  };
+
+  std::list<TrackedFrameInfo> frame_queue_;
+  int audio_session_id_;
+  SbTime seek_to_time_;
+  starboard::Mutex mutex_;
+  int frame_dropped_;
+};
+
 class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
  public:
   bool Render() {
@@ -157,14 +251,22 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
                            SbDrmSystem drm_system,
                            SbPlayerOutputMode output_mode,
                            SbDecodeTargetGraphicsContextProvider*
-                               decode_target_graphics_context_provider)
+                               decode_target_graphics_context_provider,
+                           int audio_session_id)
     : video_codec_(video_codec),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
+      audio_session_id_(audio_session_id),
       has_new_texture_available_(false),
-      surface_condition_variable_(surface_destroy_mutex_) {
+      surface_condition_variable_(surface_destroy_mutex_),
+      input_eos_(false) {
+  video_frame_tracker_ = new VideoFrameTracker(audio_session_id_);
+  MediaAgency::GetInstance()->RegisterPlayerClient(
+      audio_session_id_, this,
+      std::bind(&VideoDecoder::OnPlaybackStatus, this, _1, _2, _3, _4));
+
   if (!InitializeCodec()) {
     SB_LOG(ERROR) << "Failed to initialize video decoder.";
     TeardownCodec();
@@ -172,6 +274,7 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
 }
 
 VideoDecoder::~VideoDecoder() {
+  MediaAgency::GetInstance()->UnregisterPlayerClient(audio_session_id_);
   TeardownCodec();
   ClearVideoWindow();
 }
@@ -191,14 +294,56 @@ void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
   SB_DCHECK(!decoder_status_cb_);
   SB_DCHECK(error_cb);
   SB_DCHECK(!error_cb_);
-
-  decoder_status_cb_ = decoder_status_cb;
+  {
+    starboard::ScopedLock lock(decoder_status_cb_mutex_);
+    decoder_status_cb_ = decoder_status_cb;
+  }
   error_cb_ = error_cb;
 
-  media_decoder_->Initialize(error_cb_);
+  media_decoder_->Initialize(
+      error_cb_, std::bind(&VideoDecoder::onFrameRendered, this, _1, _2));
+}
+
+void VideoDecoder::OnPlaybackStatus(int action,
+                                    double playback_rate,
+                                    int64_t playback_at_time,
+                                    SbTime seek_to_time_us) {
+  // OnPlaybackStatus() will not occur after |VideoDecoder| destruction.
+  // UnregisterPlayerClient() is prior to |VideoDecoder| destruction
+  if (action & kSbPlaybackStatusCapabilityChange) {
+#if SB_API_VERSION >= 10
+    error_cb_(kSbPlayerErrorCapabilityChanged, "Audio Capability Change");
+    SB_LOG(ERROR) << "Audio capability change";
+#endif
+    return;
+  }
+
+  if (action & kSbPlaybackStatusUpdateSeekTime) {
+    video_frame_tracker_->SetSeekTime(seek_to_time_us);
+  }
+
+  if (action & kSbPlaybackStatusUpdatePlaybackRate) {
+    // FIXME: alternatively using Schedule() to switch to main thread
+    // to avoid the lock. It may defer to set playback rate due to
+    // synchronous call
+    starboard::ScopedLock lock(media_decoder_mutex_);
+    if (media_decoder_->is_valid()) {
+      media_decoder_->SetPlaybackRate(playback_rate, playback_at_time);
+    }
+  }
+}
+
+void VideoDecoder::onFrameRendered(int64_t presentation_time_us,
+                                   int64_t render_at_system_time_ns) {
+  video_frame_tracker_->OnFrameRendered(presentation_time_us,
+                                        render_at_system_time_ns);
 }
 
 size_t VideoDecoder::GetPrerollFrameCount() const {
+  // Tunnel mode preroll done without waiting for output frame
+  if (audio_session_id_ != -1) {
+    return 0;
+  }
   if (first_buffer_received_ && first_buffer_timestamp_ != 0) {
     return kNonInitialPrerollFrameCount;
   }
@@ -206,6 +351,9 @@ size_t VideoDecoder::GetPrerollFrameCount() const {
 }
 
 SbTime VideoDecoder::GetPrerollTimeout() const {
+  if (audio_session_id_ != -1) {
+    decoder_status_cb_(kNeedMoreInput, new VideoFrame(0));
+  }
   if (first_buffer_received_ && first_buffer_timestamp_ != 0) {
     return kSbTimeMax;
   }
@@ -256,6 +404,8 @@ void VideoDecoder::WriteInputBuffer(
   if (number_of_frames_being_decoded_.increment() < kMaxPendingWorkSize) {
     decoder_status_cb_(kNeedMoreInput, NULL);
   }
+  video_frame_tracker_->TrackFrame(input_buffer->timestamp(),
+                                   SbTimeGetMonotonicNow());
 }
 
 void VideoDecoder::WriteEndOfStream() {
@@ -280,6 +430,7 @@ void VideoDecoder::WriteEndOfStream() {
         << "Trying to write end of stream when codec is not available.";
     return;
   }
+  input_eos_ = true;  // tunnel use input eos instead of output eos
   media_decoder_->WriteEndOfStream();
 }
 
@@ -287,6 +438,7 @@ void VideoDecoder::Reset() {
   TeardownCodec();
   number_of_frames_being_decoded_.store(0);
   first_buffer_received_ = false;
+  video_frame_tracker_->Reset(audio_session_id_);
 }
 
 bool VideoDecoder::InitializeCodec() {
@@ -342,12 +494,21 @@ bool VideoDecoder::InitializeCodec() {
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
+
+  // need to get real-time audio session id since it may change after switching
+  // audio end point
+  audio_session_id_ =
+      MediaAgency::GetInstance()->GetAudioSessionIdByVideoDecoder(this);
+  video_frame_tracker_->Reset(audio_session_id_);
+
+  starboard::ScopedLock lock(media_decoder_mutex_);
   media_decoder_.reset(new MediaDecoder(
       this, video_codec_, width, height, j_output_surface, drm_system_,
-      color_metadata_ ? &*color_metadata_ : nullptr));
+      color_metadata_ ? &*color_metadata_ : nullptr, audio_session_id_));
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
-      media_decoder_->Initialize(error_cb_);
+      media_decoder_->Initialize(
+          error_cb_, std::bind(&VideoDecoder::onFrameRendered, this, _1, _2));
     }
     return true;
   }
@@ -361,7 +522,10 @@ void VideoDecoder::TeardownCodec() {
     ReleaseVideoSurface();
     owns_video_surface_ = false;
   }
-  media_decoder_.reset();
+  {
+    starboard::ScopedLock lock(media_decoder_mutex_);
+    media_decoder_.reset();
+  }
   color_metadata_ = starboard::nullopt;
 
   SbDecodeTarget decode_target_to_release = kSbDecodeTargetInvalid;
@@ -395,6 +559,22 @@ void VideoDecoder::TeardownCodec() {
   }
 }
 
+void VideoDecoder::ProcessInputBuffer(MediaCodecBridge* media_codec_bridge) {
+  SB_DCHECK(decoder_status_cb_);
+  if (audio_session_id_ == -1) {
+    return;
+  }
+
+  number_of_frames_being_decoded_.decrement();
+
+  starboard::ScopedLock lock(decoder_status_cb_mutex_);
+  if (decoder_status_cb_) {
+    decoder_status_cb_(
+        input_eos_ ? kBufferFull : kNeedMoreInput,
+        NULL /*new VideoFrameImpl(dequeue_output_result, media_codec_bridge)*/);
+  }
+}
+
 void VideoDecoder::ProcessOutputBuffer(
     MediaCodecBridge* media_codec_bridge,
     const DequeueOutputResult& dequeue_output_result) {
@@ -421,6 +601,10 @@ void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
 }
 
 bool VideoDecoder::Tick(MediaCodecBridge* media_codec_bridge) {
+  if (audio_session_id_ != -1) {
+    // tunnel mode render in low level. Should not be here.
+    return true;
+  }
   return sink_->Render();
 }
 
