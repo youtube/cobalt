@@ -181,11 +181,11 @@
 # undef SIXTEEN_BIT
 # undef EIGHT_BIT
 # if SB_IS(64_BIT)
-#  if SB_HAS(64_BIT_LONG)
+#  if SB_SIZE_OF(LONG) == 8
 #   define SIXTY_FOUR_BIT_LONG
-#  else  // SB_HAS(64_BIT_LONG)
+#  else  // SB_SIZE_OF(LONG) != 8
 #   define SIXTY_FOUR_BIT
-#  endif  // SB_HAS(64_BIT_LONG)
+#  endif  // SB_SIZE_OF(LONG) == 8
 # else  // SB_IS(64_BIT)
 #  define BN_LLONG
 #  define THIRTY_TWO_BIT

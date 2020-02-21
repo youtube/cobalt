@@ -32,6 +32,10 @@
 
 #include <stddef.h>
 
+#if defined(STARBOARD)
+#include "starboard/configuration.h"
+#endif
+
 #ifdef __GNUC__
 #define ATTR_ALIAS __attribute__((may_alias))
 #define ATTR_FORMAT_PRINTF(fmt, attr) __attribute__((__format__(__printf__, fmt, attr)))

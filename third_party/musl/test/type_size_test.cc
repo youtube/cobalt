@@ -65,13 +65,13 @@ SB_COMPILE_ASSERT(sizeof(useconds_t) == SB_SIZE_OF_INT,
 SB_COMPILE_ASSERT(sizeof(wint_t) == SB_SIZE_OF_INT,
                   SB_SIZE_OF_INT_is_inconsistent_with_sizeof_wint_t);
 
-#if SB_IS(ARCH_ARM) && SB_IS(64_BIT)
+#if SB_IS(ARCH_ARM64)
 SB_COMPILE_ASSERT(sizeof(blksize_t) == SB_SIZE_OF_INT,
                   SB_SIZE_OF_INT_is_inconsistent_with_sizeof_blksize_t);
-#else   // !SB_IS(ARCH_ARM) || !SB_IS(64_BIT)
+#else   // !SB_IS(ARCH_ARM64)
 SB_COMPILE_ASSERT(sizeof(blksize_t) == SB_SIZE_OF_LONG,
                   SB_SIZE_OF_LONG_is_inconsistent_with_sizeof_blksize_t);
-#endif  // SB_IS(ARCH_ARM) && SB_IS(64_BIT)
+#endif  // SB_IS(ARCH_ARM64)
 
 SB_COMPILE_ASSERT(sizeof(clock_t) == SB_SIZE_OF_LONG,
                   SB_SIZE_OF_LONG_is_inconsistent_with_sizeof_clock_t);
@@ -107,13 +107,13 @@ SB_COMPILE_ASSERT(sizeof(uint16_t) == SB_SIZE_OF_SHORT,
 SB_COMPILE_ASSERT(sizeof(intptr_t) == SB_EXPECTED_TYPE_SIZE,
                   SB_EXPECTED_TYPE_SIZE_is_inconsistent_with_sizeof_intptr_t);
 
-#if SB_IS(ARCH_ARM) && SB_IS(64_BIT)
+#if SB_IS(ARCH_ARM64)
 SB_COMPILE_ASSERT(sizeof(nlink_t) == SB_SIZE_OF_INT,
                   SB_SIZE_OF_INT_is_inconsistent_with_sizeof_nlink_t);
-#else   // !SB_IS(ARCH_ARM) || !SB_IS(64_BIT)
+#else   // !SB_IS(ARCH_ARM64)
 SB_COMPILE_ASSERT(sizeof(nlink_t) == SB_EXPECTED_TYPE_SIZE,
                   SB_EXPECTED_TYPE_SIZE_is_inconsistent_with_sizeof_nlink_t);
-#endif  // SB_IS(ARCH_ARM) && SB_IS(64_BIT)
+#endif  // SB_IS(ARCH_ARM64)
 
 SB_COMPILE_ASSERT(sizeof(ptrdiff_t) == SB_EXPECTED_TYPE_SIZE,
                   SB_EXPECTED_TYPE_SIZE_is_inconsistent_with_sizeof_ptrdiff_t);
@@ -173,7 +173,7 @@ SB_COMPILE_ASSERT(sizeof(uintmax_t) == SB_EXPECTED_TYPE_SIZE,
 
 #undef SB_EXPECTED_TYPE_SIZE
 
-#if SB_IS(ARCH_I386)
+#if SB_IS(ARCH_X86)
 #if defined(__WCHAR_TYPE__)
 #else   // !defined(__WCHAR_TYPE__)
 SB_COMPILE_ASSERT(sizeof(wchar_t) == SB_SIZE_OF_LONG,
@@ -181,15 +181,14 @@ SB_COMPILE_ASSERT(sizeof(wchar_t) == SB_SIZE_OF_LONG,
 #endif  // defined(__WCHAR_TYPE__)
 // TODO: Decide if we should, and how, verify that __WCHAR_TYPE__ is the
 //       expected size.
-#else   // !SB_IS(ARCH_I386)
+#else   // !SB_IS(ARCH_X86)
 SB_COMPILE_ASSERT(sizeof(wchar_t) == SB_SIZE_OF_INT,
                   SB_SIZE_OF_INT_is_inconsistent_with_sizeof_wchar_t);
-#endif  // SB_IS(ARCH_I386)
+#endif  // SB_IS(ARCH_X86)
 
-#if (SB_IS(ARCH_I386) && SB_IS(32_BIT) && \
-     defined(__FLT_EVAL_METHOD__) && (__FLT_EVAL_METHOD__ != 0)) || \
-    (SB_IS(ARCH_X86) && SB_IS(64_BIT) && \
-     defined(__FLT_EVAL_METHOD__) && (__FLT_EVAL_METHOD__ == 2))
+#if (defined(__FLT_EVAL_METHOD__)) && \
+    ((SB_IS(ARCH_X86) && (__FLT_EVAL_METHOD__ != 0)) || \
+     (SB_IS(ARCH_X64) && (__FLT_EVAL_METHOD__ == 2)))
 SB_COMPILE_ASSERT(sizeof(float_t) == SB_SIZE_OF_LONG_DOUBLE,
                   SB_SIZE_OF_LONG_DOUBLE_is_inconsistent_with_sizeof_float_t);
 

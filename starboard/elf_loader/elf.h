@@ -379,7 +379,7 @@ typedef struct {
 #define ET_DYN 3
 #define EV_CURRENT 1
 
-#if SB_HAS(32_BIT_POINTERS)
+#if SB_SIZE_OF(POINTER) == 4
 typedef Elf32_Ehdr Ehdr;
 typedef Elf32_Phdr Phdr;
 typedef Elf32_Addr Addr;
@@ -394,7 +394,7 @@ typedef Elf32_Sword Sword;
 #define ELF_R_TYPE ELF32_R_TYPE
 #define ELF_R_SYM ELF32_R_SYM
 #define ELF_CLASS_VALUE ELFCLASS32
-#elif SB_HAS(64_BIT_POINTERS)
+#elif SB_SIZE_OF(POINTER) == 8
 typedef Elf64_Ehdr Ehdr;
 typedef Elf64_Phdr Phdr;
 typedef Elf64_Addr Addr;
@@ -426,7 +426,7 @@ typedef Elf64_Sword Sword;
 
 // TODO: Refactor the code to detect it at runtime
 // using DT_PLTREL.
-#if (SB_IS(ARCH_ARM) || SB_IS(ARCH_X86)) && SB_IS(64_BIT)
+#if SB_IS(ARCH_ARM64) || SB_IS(ARCH_X64)
 #define USE_RELA
 #endif
 
@@ -436,13 +436,13 @@ typedef Rela rel_t;
 typedef Rel rel_t;
 #endif
 
-#if SB_IS(ARCH_ARM) && SB_IS(32_BIT)
+#if SB_IS(ARCH_ARM)
 #define ELF_MACHINE 40
-#elif SB_IS(ARCH_X86) && SB_IS(32_BIT)
+#elif SB_IS(ARCH_X86)
 #define ELF_MACHINE 3
-#elif SB_IS(ARCH_X86) && SB_IS(64_BIT)
+#elif SB_IS(ARCH_X64)
 #define ELF_MACHINE 62
-#elif SB_IS(ARCH_ARM) && SB_IS(64_BIT)
+#elif SB_IS(ARCH_ARM64)
 #define ELF_MACHINE 183
 #else
 #error "Unsupported target CPU architecture"
@@ -596,7 +596,7 @@ typedef enum DynamicFlags {
 } DynamicFalgs;
 
 // Relocation types per CPU architecture
-#if SB_IS(ARCH_ARM) && SB_IS(32_BIT)
+#if SB_IS(ARCH_ARM)
 typedef enum RelocationTypes {
   R_ARM_ABS32 = 2,
   R_ARM_REL32 = 3,
@@ -605,7 +605,7 @@ typedef enum RelocationTypes {
   R_ARM_COPY = 20,
   R_ARM_RELATIVE = 23,
 } RelocationTypes;
-#elif SB_IS(ARCH_ARM) && SB_IS(64_BIT)
+#elif SB_IS(ARCH_ARM64)
 typedef enum RelocationTypes {
   R_AARCH64_ABS64 = 257,
   R_AARCH64_COPY = 1024,
@@ -613,7 +613,7 @@ typedef enum RelocationTypes {
   R_AARCH64_JUMP_SLOT = 1026,
   R_AARCH64_RELATIVE = 1027,
 } RelocationTypes;
-#elif SB_IS(ARCH_X86) && SB_IS(32_BIT)
+#elif SB_IS(ARCH_X86)
 typedef enum RelocationTypes {
   R_386_32 = 1,
   R_386_PC32 = 2,
@@ -621,7 +621,7 @@ typedef enum RelocationTypes {
   R_386_JMP_SLOT = 7,
   R_386_RELATIVE = 8,
 } RelocationTypes;
-#elif SB_IS(ARCH_X86) && SB_IS(64_BIT)
+#elif SB_IS(ARCH_X64)
 typedef enum RelocationTypes {
   R_X86_64_64 = 1,
   R_X86_64_PC32 = 2,
@@ -637,9 +637,9 @@ typedef enum RelocationTypes {
 #ifndef PAGE_SIZE
 #define PAGE_SHIFT 12
 
-#if SB_HAS(32_BIT_POINTERS)
+#if SB_SIZE_OF(POINTER) == 4
 #define PAGE_SIZE (1UL << PAGE_SHIFT)
-#elif SB_HAS(64_BIT_POINTERS)
+#elif SB_SIZE_OF(POINTER) == 8
 #define PAGE_SIZE (1ULL << PAGE_SHIFT)
 #else
 #error "Unsupported pointer size"
