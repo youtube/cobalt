@@ -106,7 +106,8 @@ MediaDecoder::MediaDecoder(Host* host,
                            int height,
                            jobject j_output_surface,
                            SbDrmSystem drm_system,
-                           const SbMediaColorMetadata* color_metadata)
+                           const SbMediaColorMetadata* color_metadata,
+                           bool require_software_codec)
     : media_type_(kSbMediaTypeVideo),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
@@ -115,7 +116,7 @@ MediaDecoder::MediaDecoder(Host* host,
   SB_DCHECK(!drm_system_ || j_media_crypto);
   media_codec_bridge_ = MediaCodecBridge::CreateVideoMediaCodecBridge(
       video_codec, width, height, this, j_output_surface, j_media_crypto,
-      color_metadata);
+      color_metadata, require_software_codec);
   if (!media_codec_bridge_) {
     SB_LOG(ERROR) << "Failed to create video media codec bridge.";
   }

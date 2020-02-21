@@ -38,6 +38,9 @@ public class MediaCodecUtil {
   // A high priority white list of brands/model that should always attempt to
   // play vp9.
   private static final Map<String, Set<String>> vp9WhiteList = new HashMap<>();
+  // A white list of software codec names that can be used.
+  private static final Set<String> softwareCodecWhiteList = new HashSet<>();
+
   // Whether we should report vp9 codecs as supported or not.  Will be set
   // based on whether vp9WhiteList contains our brand/model.  If this is set
   // to true, then codecBlackList will be ignored.
@@ -369,6 +372,8 @@ public class MediaCodecUtil {
     isVp9WhiteListed =
         vp9WhiteList.containsKey(Build.BRAND)
             && vp9WhiteList.get(Build.BRAND).contains(Build.MODEL);
+
+    softwareCodecWhiteList.add("OMX.google.h264.decoder");
   }
 
   private MediaCodecUtil() {}
@@ -390,7 +395,8 @@ public class MediaCodecUtil {
       int fps,
       boolean mustSupportHdr) {
     FindVideoDecoderResult findVideoDecoderResult =
-        findVideoDecoder(mimeType, secure, frameWidth, frameHeight, bitrate, fps, mustSupportHdr);
+        findVideoDecoder(
+            mimeType, secure, frameWidth, frameHeight, bitrate, fps, mustSupportHdr, false);
     return !findVideoDecoderResult.name.equals("")
         && (!mustSupportHdr || isHdrCapableVp9Decoder(findVideoDecoderResult));
   }
@@ -416,7 +422,7 @@ public class MediaCodecUtil {
     }
 
     FindVideoDecoderResult findVideoDecoderResult =
-        findVideoDecoder(VP9_MIME_TYPE, false, 0, 0, 0, 0, true);
+        findVideoDecoder(VP9_MIME_TYPE, false, 0, 0, 0, 0, true, false);
     return isHdrCapableVp9Decoder(findVideoDecoderResult);
   }
 
@@ -451,13 +457,15 @@ public class MediaCodecUtil {
       int frameHeight,
       int bitrate,
       int fps,
-      boolean hdr) {
+      boolean hdr,
+      boolean requireSoftwareCodec) {
     Log.v(
         TAG,
         String.format(
             "Searching for video decoder with parameters "
-                + "mimeType: %s, secure: %b, frameWidth: %d, frameHeight: %d, bitrate: %d, fps: %d",
-            mimeType, secure, frameWidth, frameHeight, bitrate, fps));
+                + "mimeType: %s, secure: %b, frameWidth: %d, frameHeight: %d,"
+                + " bitrate: %d, fps: %d, hdr: %b, requireSoftwareCodec: %b",
+            mimeType, secure, frameWidth, frameHeight, bitrate, fps, hdr, requireSoftwareCodec));
     Log.v(
         TAG,
         String.format(
@@ -477,8 +485,11 @@ public class MediaCodecUtil {
         if (!supportedType.equalsIgnoreCase(mimeType)) {
           continue;
         }
-
         String name = info.getName();
+        if (requireSoftwareCodec && !softwareCodecWhiteList.contains(name)) {
+          Log.v(TAG, String.format("Rejecting %s, reason: require software codec", name));
+          continue;
+        }
         if (!isVp9WhiteListed && codecBlackList.contains(name)) {
           Log.v(TAG, String.format("Rejecting %s, reason: codec is black listed", name));
           continue;
@@ -570,6 +581,7 @@ public class MediaCodecUtil {
         FindVideoDecoderResult findVideoDecoderResult =
             new FindVideoDecoderResult(resultName, videoCapabilities, codecCapabilities);
         if (hdr && !isHdrCapableVp9Decoder(findVideoDecoderResult)) {
+          Log.v(TAG, String.format("Rejecting %s, reason: codec does not support HDR", name));
           continue;
         }
         Log.v(TAG, String.format("Found suitable decoder, %s", name));

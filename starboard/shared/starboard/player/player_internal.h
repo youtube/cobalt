@@ -70,8 +70,6 @@ struct SbPlayerPrivate {
                   << number_of_players_ << " players.";
   }
 
-  static int number_of_players() { return number_of_players_; }
-
  private:
   SbPlayerPrivate(
       SbMediaAudioCodec audio_codec,
