@@ -60,18 +60,18 @@
           '-fsigned-char',
         ],
       }],
+      # x86
+      ['target_arch=="x86"', {
+        'compiler_flags': [
+          '-march=i686',
+          '-target', 'i686-unknown-unknown-elf',
+        ],
+      }],
       # x64
       ['target_arch=="x64"', {
         'compiler_flags': [
           '-march=x86-64',
           '-target', 'x86_64-unknown-linux-elf',
-        ],
-      }],
-      # ia32
-      ['target_arch=="ia32"', {
-        'compiler_flags': [
-          '-march=i686',
-          '-target', 'i686-unknown-unknown-elf',
         ],
       }],
     ],
