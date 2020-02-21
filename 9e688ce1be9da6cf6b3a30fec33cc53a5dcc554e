@@ -25,6 +25,30 @@
     },
     {
       "key": {
+        "uuid": "4d119721_ab862d61",
+        "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/AudioOutputManager.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 51,
+      "author": {
+        "id": 10853
+      },
+      "writtenOn": "2020-02-21T14:38:30Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "fc8d0c4d_7fb8c331",
+      "range": {
+        "startLine": 51,
+        "startChar": 92,
+        "endLine": 51,
+        "endChar": 108
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "5a1b90c7_dc0a32b9",
         "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/AudioTrackBridge.java",
         "patchSetId": 1
@@ -48,6 +72,30 @@
     },
     {
       "key": {
+        "uuid": "9b7959d0_a17916b7",
+        "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/AudioTrackBridge.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 60,
+      "author": {
+        "id": 10853
+      },
+      "writtenOn": "2020-02-21T14:38:30Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "5a1b90c7_dc0a32b9",
+      "range": {
+        "startLine": 60,
+        "startChar": 21,
+        "endLine": 60,
+        "endChar": 52
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "41dfcfc6_58861ed4",
         "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/AudioTrackBridge.java",
         "patchSetId": 1
@@ -68,6 +116,30 @@
       "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
       "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "70665997_96d3e71d",
+        "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/AudioTrackBridge.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 92,
+      "author": {
+        "id": 10853
+      },
+      "writtenOn": "2020-02-21T14:38:30Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "41dfcfc6_58861ed4",
+      "range": {
+        "startLine": 81,
+        "startChar": 0,
+        "endLine": 92,
+        "endChar": 9
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
     },
     {
       "key": {
@@ -117,6 +189,30 @@
     },
     {
       "key": {
+        "uuid": "a208999a_d8bb4827",
+        "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 411,
+      "author": {
+        "id": 10853
+      },
+      "writtenOn": "2020-02-21T14:38:30Z",
+      "side": 1,
+      "message": "It is a good point. Frame renderer information is propagated from ACodec and it relies on fence to determine frame render.\nI suggest that we can separate another patch for non-tunnel mode. Let\u0027s keep this patch purely for tunnel mode.",
+      "parentUuid": "0bec1405_035bb988",
+      "range": {
+        "startLine": 409,
+        "startChar": 0,
+        "endLine": 411,
+        "endChar": 5
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
         "uuid": "7ad948e3_16fb0fde",
         "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
         "patchSetId": 1
@@ -140,6 +236,30 @@
     },
     {
       "key": {
+        "uuid": "ea475ca3_8ab55755",
+        "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 415,
+      "author": {
+        "id": 10853
+      },
+      "writtenOn": "2020-02-21T14:38:30Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "7ad948e3_16fb0fde",
+      "range": {
+        "startLine": 415,
+        "startChar": 4,
+        "endLine": 415,
+        "endChar": 73
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "3cece559_176a8d37",
         "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
         "patchSetId": 1
@@ -151,6 +271,30 @@
       "writtenOn": "2020-02-06T00:00:48Z",
       "side": 1,
       "message": "Can we reset the callback by calling \"mMediaCodec.setOnFrameRenderedListener(null, null);\" before mNativeMediaCodecBridge is set to null, to avoid the synchronization and the check?  Another way is to batch the result and only report back every one second, etc..",
+      "range": {
+        "startLine": 416,
+        "startChar": 0,
+        "endLine": 421,
+        "endChar": 5
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "823df612_24f0f712",
+        "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 421,
+      "author": {
+        "id": 10853
+      },
+      "writtenOn": "2020-02-21T14:38:30Z",
+      "side": 1,
+      "message": "OnFrameRendered would run in different thread. And mNativeMediaCodecBridge would be reset to 0 in another thread (stop()).",
+      "parentUuid": "3cece559_176a8d37",
       "range": {
         "startLine": 416,
         "startChar": 0,
@@ -186,6 +330,30 @@
     },
     {
       "key": {
+        "uuid": "472bc5f7_11f8eae5",
+        "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 683,
+      "author": {
+        "id": 10853
+      },
+      "writtenOn": "2020-02-21T14:38:30Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "f9f0bfae_1c971858",
+      "range": {
+        "startLine": 683,
+        "startChar": 31,
+        "endLine": 683,
+        "endChar": 74
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "4a94cc64_598bae0a",
         "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
         "patchSetId": 1
@@ -197,6 +365,30 @@
       "writtenOn": "2020-02-06T00:00:48Z",
       "side": 1,
       "message": "We will need to refactor this if it doesn\u0027t work on other Android TV platforms.",
+      "range": {
+        "startLine": 684,
+        "startChar": 0,
+        "endLine": 690,
+        "endChar": 49
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "95c5d1f3_41a39f3c",
+        "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 690,
+      "author": {
+        "id": 10853
+      },
+      "writtenOn": "2020-02-21T14:38:30Z",
+      "side": 1,
+      "message": "Yes, this is one of three proposals. It needs patch in platform side to work. It is simple change in platform and I can provide sample code. I can share details in email to talk for this.",
+      "parentUuid": "4a94cc64_598bae0a",
       "range": {
         "startLine": 684,
         "startChar": 0,
@@ -232,6 +424,30 @@
     },
     {
       "key": {
+        "uuid": "cf7f60e3_038d820a",
+        "filename": "src/starboard/android/shared/audio_renderer_sink_android.h",
+        "patchSetId": 1
+      },
+      "lineNbr": 1,
+      "author": {
+        "id": 10853
+      },
+      "writtenOn": "2020-02-21T14:38:30Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "cf324ec9_64f5b129",
+      "range": {
+        "startLine": 1,
+        "startChar": 13,
+        "endLine": 1,
+        "endChar": 17
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "0f0dd89a_4803eccb",
         "filename": "src/starboard/android/shared/audio_track_audio_sink_type.cc",
         "patchSetId": 1
@@ -252,6 +468,30 @@
       "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
       "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "82fc68d9_210cd94b",
+        "filename": "src/starboard/android/shared/audio_track_audio_sink_type.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 19,
+      "author": {
+        "id": 10853
+      },
+      "writtenOn": "2020-02-21T14:38:30Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "0f0dd89a_4803eccb",
+      "range": {
+        "startLine": 19,
+        "startChar": 0,
+        "endLine": 19,
+        "endChar": 50
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
     },
     {
       "key": {
@@ -278,6 +518,30 @@
     },
     {
       "key": {
+        "uuid": "b23d9f19_61d3f189",
+        "filename": "src/starboard/android/shared/audio_track_audio_sink_type.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 20,
+      "author": {
+        "id": 10853
+      },
+      "writtenOn": "2020-02-21T14:38:30Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "4752283a_5c76b6c1",
+      "range": {
+        "startLine": 20,
+        "startChar": 0,
+        "endLine": 20,
+        "endChar": 48
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "d420f9af_6e96b7ed",
         "filename": "src/starboard/android/shared/audio_track_audio_sink_type.cc",
         "patchSetId": 1
@@ -298,6 +562,30 @@
       "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
       "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "b55c3b2f_ea424ca2",
+        "filename": "src/starboard/android/shared/audio_track_audio_sink_type.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 85,
+      "author": {
+        "id": 10853
+      },
+      "writtenOn": "2020-02-21T14:38:30Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "d420f9af_6e96b7ed",
+      "range": {
+        "startLine": 85,
+        "startChar": 0,
+        "endLine": 85,
+        "endChar": 4
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
     },
     {
       "key": {
@@ -324,6 +612,30 @@
     },
     {
       "key": {
+        "uuid": "0814baf3_75e2fd6b",
+        "filename": "src/starboard/android/shared/player_components_impl.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 33,
+      "author": {
+        "id": 10853
+      },
+      "writtenOn": "2020-02-21T14:38:30Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "522bee32_8e6542d3",
+      "range": {
+        "startLine": 33,
+        "startChar": 0,
+        "endLine": 33,
+        "endChar": 40
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "46a84ebe_b24d39de",
         "filename": "src/starboard/android/shared/player_components_impl.cc",
         "patchSetId": 1
@@ -344,6 +656,30 @@
       "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
       "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "553603c4_ad683df7",
+        "filename": "src/starboard/android/shared/player_components_impl.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 37,
+      "author": {
+        "id": 10853
+      },
+      "writtenOn": "2020-02-21T14:38:30Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "46a84ebe_b24d39de",
+      "range": {
+        "startLine": 34,
+        "startChar": 0,
+        "endLine": 37,
+        "endChar": 48
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
     },
     {
       "key": {
@@ -370,6 +706,30 @@
     },
     {
       "key": {
+        "uuid": "e72e55d4_4bb44469",
+        "filename": "src/starboard/android/shared/player_components_impl.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 39,
+      "author": {
+        "id": 10853
+      },
+      "writtenOn": "2020-02-21T14:38:30Z",
+      "side": 1,
+      "message": "It is common for all AOSP devices. It is used for debug. It can be removed after I work out a new way to config whether tunnel mode is enabled.",
+      "parentUuid": "2aedf242_264fe5cf",
+      "range": {
+        "startLine": 39,
+        "startChar": 0,
+        "endLine": 39,
+        "endChar": 34
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
         "uuid": "361bc887_b8a25173",
         "filename": "src/starboard/android/shared/player_components_impl.cc",
         "patchSetId": 1
@@ -381,6 +741,30 @@
       "writtenOn": "2020-02-06T00:00:48Z",
       "side": 1,
       "message": "I can see why |audio_session_id| is created here, registered into MediaAgency to hand to the audio renderer sink.  Because we rely on both the audio parameters and video parameters to create the audio session id, and CreateAudioComponents() doesn\u0027t know the video parameters.\n\nWe may solve this using one the following methods:\n1. Merge CreateAudioComponents() and CreateVideoComponents() into one function CreateComponents().\n2. Passing VideoParameters to CreateAudioComponents(), and passing AudioParameters to CreateVideoComponents().\n\nNote that now we have SbPlayerCreationParam that encapsulate all information needed, we can pick above method #2 and simply pass SbPlayerCreationParam to CreateAudioComponents() and CreateVideoComponents(), and remove the existing types AudioParameters and VideoParameters.",
+      "range": {
+        "startLine": 105,
+        "startChar": 7,
+        "endLine": 105,
+        "endChar": 28
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "f9cafb16_6bed69b9",
+        "filename": "src/starboard/android/shared/player_components_impl.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 105,
+      "author": {
+        "id": 10853
+      },
+      "writtenOn": "2020-02-21T14:38:30Z",
+      "side": 1,
+      "message": "As we talked, method #1 would be used to simply change here. It would be refined later.",
+      "parentUuid": "361bc887_b8a25173",
       "range": {
         "startLine": 105,
         "startChar": 7,
@@ -427,6 +811,30 @@
       "writtenOn": "2020-02-06T00:00:48Z",
       "side": 1,
       "message": "We need to find a platform independent way for this.",
+      "range": {
+        "startLine": 166,
+        "startChar": 0,
+        "endLine": 172,
+        "endChar": 7
+      },
+      "revId": "9e688ce1be9da6cf6b3a30fec33cc53a5dcc554e",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "e78a90e1_035d0f56",
+        "filename": "src/starboard/android/shared/player_components_impl.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 172,
+      "author": {
+        "id": 10853
+      },
+      "writtenOn": "2020-02-21T14:38:30Z",
+      "side": 1,
+      "message": "These lines are just for debugging. It is not mandatory. I think we need a build option or switch to enable/disable tunnel mode.",
+      "parentUuid": "860e2be7_c2034bb7",
       "range": {
         "startLine": 166,
         "startChar": 0,
