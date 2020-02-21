@@ -25,11 +25,22 @@
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
-#include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
+#include "starboard/android/shared/audio_renderer_sink_android.h"
+#include "starboard/android/shared/drm_system.h"
+#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/media_agency.h"
+#include "starboard/android/shared/media_common.h"
+
+using ::starboard::android::shared::DrmSystem;
+using ::starboard::android::shared::JniEnvExt;
+using ::starboard::android::shared::MediaAgency;
+using ::starboard::android::shared::ScopedLocalJavaRef;
+using ::starboard::android::shared::SupportedVideoCodecToMimeType;
 
 namespace starboard {
 namespace shared {
@@ -74,7 +85,11 @@ class PlayerComponentsImpl : public PlayerComponents {
     audio_decoder->reset(
         new AdaptiveAudioDecoder(audio_parameters.audio_sample_info,
                                  audio_parameters.drm_system, decoder_creator));
-    audio_renderer_sink->reset(new AudioRendererSinkImpl);
+    audio_renderer_sink->reset(new AudioRendererSinkAndroid);
+
+    audio_renderer_sink_android_ =
+        static_cast<AudioRendererSinkAndroid*>(audio_renderer_sink->get());
+    audio_sample_info_ = audio_parameters.audio_sample_info;
     return true;
   }
 
@@ -93,10 +108,17 @@ class PlayerComponentsImpl : public PlayerComponents {
     SB_DCHECK(video_renderer_sink);
     SB_DCHECK(error_message);
 
+    // Note: CreateAudioComponents should be called prior to this.
+    int audio_session_id = -1;
+#if SB_HAS(FEATURE_TUNNEL_PLAYBACK)
+    audio_session_id = CreateAudioSessionId(video_parameters);
+#endif
+
     scoped_ptr<VideoDecoderImpl> video_decoder_impl(new VideoDecoderImpl(
         video_parameters.video_codec, video_parameters.drm_system,
         video_parameters.output_mode,
-        video_parameters.decode_target_graphics_context_provider));
+        video_parameters.decode_target_graphics_context_provider,
+        audio_session_id));
     if (video_decoder_impl->is_valid()) {
       *video_renderer_sink = video_decoder_impl->GetSink();
       video_decoder->reset(video_decoder_impl.release());
@@ -108,7 +130,93 @@ class PlayerComponentsImpl : public PlayerComponents {
     }
 
     video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
+    if (video_decoder && audio_renderer_sink_android_ != NULL) {
+      VideoRenderAlgorithmImpl* video_render_algorithm_impl =
+          static_cast<VideoRenderAlgorithmImpl*>(video_render_algorithm->get());
+      MediaAgency::GetInstance()->UpdatePlayerClient(
+          audio_session_id, audio_renderer_sink_android_,
+          video_render_algorithm_impl);
+    }
     return true;
+  }
+
+ private:
+  AudioRendererSinkAndroid* audio_renderer_sink_android_ = NULL;
+  // kSbMediaAudioCodecNone is 0
+  SbMediaAudioSampleInfo audio_sample_info_ = {};
+
+  bool IsVideoTunnelSupported(const VideoParameters& video_parameters) {
+    const char* mime =
+        SupportedVideoCodecToMimeType(video_parameters.video_codec);
+    if (!mime) {
+      return false;
+    }
+    JniEnvExt* env = JniEnvExt::Get();
+    ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(mime));
+    DrmSystem* drm_system_ptr =
+        static_cast<DrmSystem*>(video_parameters.drm_system);
+    jobject j_media_crypto =
+        drm_system_ptr ? drm_system_ptr->GetMediaCrypto() : NULL;
+
+    return env->CallStaticBooleanMethodOrAbort(
+               "dev/cobalt/media/MediaCodecUtil", "hasTunnelCapableDecoder",
+               "(Ljava/lang/String;Z)Z", j_mime.Get(),
+               !!j_media_crypto) == JNI_TRUE;
+  }
+
+  int CreateAudioSessionId(const VideoParameters& video_parameters) {
+    int audio_session_id = -1;
+    if (video_parameters.output_mode == kSbPlayerOutputModePunchOut &&
+        audio_sample_info_.codec != kSbMediaAudioCodecNone &&
+        video_parameters.video_codec != kSbMediaVideoCodecNone) {
+      JniEnvExt* env = JniEnvExt::Get();
+
+      if (!IsVideoTunnelSupported(video_parameters)) {
+        return -1;
+      }
+
+      ScopedLocalJavaRef<jobject> j_audio_output_manager(
+          env->CallStarboardObjectMethodOrAbort(
+              "getAudioOutputManager",
+              "()Ldev/cobalt/media/AudioOutputManager;"));
+
+      audio_session_id = env->CallIntMethodOrAbort(
+          j_audio_output_manager.Get(), "createAudioSessionId", "()I");
+      if (audio_session_id == -1) {
+        // https://android.googlesource.com/platform/frameworks/base/+
+        // /master/media/java/android/media/AudioSystem.java#432
+        // ERROR in AudioSystem.java is -1 and means failure of
+        // createAudioSessionId
+        return -1;
+      }
+
+      // try to check if support tunnel mode in audio pipeline
+      int audio_track_buffer_frames = 1024;
+      jobject j_audio_track_bridge = env->CallObjectMethodOrAbort(
+          j_audio_output_manager.Get(), "createAudioTrackBridge",
+          "(IIIII)Ldev/cobalt/media/AudioTrackBridge;",
+          2,  // 2 is Android AudioFormat.ENCODING_PCM_16BIT
+              // equivalently kSbMediaAudioSampleTypeInt16Deprecated
+              // Tunnel mode only support ENCODING_PCM_16BIT
+          audio_sample_info_.samples_per_second,
+          audio_sample_info_.number_of_channels, audio_track_buffer_frames,
+          audio_session_id);
+
+      if (!j_audio_track_bridge) {
+        SB_LOG(ERROR) << "audio do not support tuennl mode, sample rate:"
+                      << audio_sample_info_.samples_per_second
+                      << " channels:" << audio_sample_info_.number_of_channels
+                      << " audio format:" << audio_sample_info_.codec
+                      << " share buffer frames:" << audio_track_buffer_frames;
+        audio_session_id = -1;
+      } else {
+        env->CallVoidMethodOrAbort(
+            j_audio_output_manager.Get(), "destroyAudioTrackBridge",
+            "(Ldev/cobalt/media/AudioTrackBridge;)V", j_audio_track_bridge);
+      }
+    }
+
+    return audio_session_id;
   }
 };
 
