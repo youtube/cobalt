@@ -209,7 +209,7 @@ bool Relocations::ApplyResolvedReloc(const Rela* rela, Addr sym_addr) {
                 << " addend=0x" << std::hex << addend;
   Addr* target = reinterpret_cast<Addr*>(reloc);
   switch (rela_type) {
-#if SB_IS(ARCH_ARM) && SB_IS(64_BIT)
+#if SB_IS(ARCH_ARM64)
     case R_AARCH64_JUMP_SLOT:
       SB_DLOG(INFO) << "  R_AARCH64_JUMP_SLOT target=" << std::hex << target
                     << " addr=" << (sym_addr + addend);
@@ -241,7 +241,7 @@ bool Relocations::ApplyResolvedReloc(const Rela* rela, Addr sym_addr) {
       return false;
 #endif
 
-#if SB_IS(ARCH_X86) && SB_IS(64_BIT)
+#if SB_IS(ARCH_X64)
     case R_X86_64_JMP_SLOT:
       SB_DLOG(INFO) << "  R_X86_64_JMP_SLOT target=" << std::hex << target
                     << " addr=" << (sym_addr + addend);
@@ -288,7 +288,7 @@ bool Relocations::ApplyResolvedReloc(const Rel* rel, Addr sym_addr) {
 
   Addr* target = reinterpret_cast<Addr*>(reloc);
   switch (rel_type) {
-#if SB_IS(ARCH_ARM) && SB_IS(32_BIT)
+#if SB_IS(ARCH_ARM)
     case R_ARM_JUMP_SLOT:
       SB_DLOG(INFO) << "  R_ARM_JUMP_SLOT target=" << std::hex << target
                     << " addr=" << sym_addr;
@@ -329,7 +329,7 @@ bool Relocations::ApplyResolvedReloc(const Rel* rel, Addr sym_addr) {
       return false;
 #endif
 
-#if SB_IS(ARCH_X86) && SB_IS(32_BIT)
+#if SB_IS(ARCH_X86)
     case R_386_JMP_SLOT:
       SB_DLOG(INFO) << "  R_386_JMP_SLOT target=" << std::hex << target
                     << " addr=" << sym_addr;
@@ -375,7 +375,7 @@ bool Relocations::ApplyResolvedReloc(const Rel* rel, Addr sym_addr) {
 
 RelocationType Relocations::GetRelocationType(Word r_type) {
   switch (r_type) {
-#if SB_IS(ARCH_ARM) && SB_IS(32_BIT)
+#if SB_IS(ARCH_ARM)
     case R_ARM_JUMP_SLOT:
     case R_ARM_GLOB_DAT:
     case R_ARM_ABS32:
@@ -389,7 +389,7 @@ RelocationType Relocations::GetRelocationType(Word r_type) {
       return RELOCATION_TYPE_COPY;
 #endif
 
-#if SB_IS(ARCH_ARM) && SB_IS(64_BIT)
+#if SB_IS(ARCH_ARM64)
     case R_AARCH64_JUMP_SLOT:
     case R_AARCH64_GLOB_DAT:
     case R_AARCH64_ABS64:
@@ -402,7 +402,7 @@ RelocationType Relocations::GetRelocationType(Word r_type) {
       return RELOCATION_TYPE_COPY;
 #endif
 
-#if SB_IS(ARCH_X86) && SB_IS(32_BIT)
+#if SB_IS(ARCH_X86)
     case R_386_JMP_SLOT:
     case R_386_GLOB_DAT:
     case R_386_32:
@@ -415,7 +415,7 @@ RelocationType Relocations::GetRelocationType(Word r_type) {
       return RELOCATION_TYPE_PC_RELATIVE;
 #endif
 
-#if SB_IS(ARCH_X86) && SB_IS(64_BIT)
+#if SB_IS(ARCH_X64)
     case R_X86_64_JMP_SLOT:
     case R_X86_64_GLOB_DAT:
     case R_X86_64_64:

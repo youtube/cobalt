@@ -33,8 +33,10 @@
 #define SB_IS_GLIBC 0
 #endif
 
+// TODO: Remove redundant #if checks when
+//       SB_MINIMUM_API_VERSION >= SB_SABI_FILE_VERSION.
 // clang-format off
-#if SB_IS_ARCH_X86
+#if SB_IS_ARCH_X86 || SB_IS_ARCH_X64
 # if SB_IS_32_BIT
 #  error("TODO: Validate UCONTEXT macros on 32-bit X86")
 #  define UCONTEXT_IP(ucontext) ((ucontext)->uc_mcontext.gregs[REG_EIP])
@@ -45,7 +47,7 @@
 #  define UCONTEXT_SP(ucontext) ((ucontext)->uc_mcontext.gregs[REG_RSP])
 #  define UCONTEXT_FP(ucontext) ((ucontext)->uc_mcontext.gregs[REG_RBP])
 # endif
-#elif SB_IS_ARCH_ARM
+#elif SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
 # if SB_IS_32_BIT
 #  if SB_IS_GLIBC && ((__GLIBC__ * 100 + __GLIBC_MINOR__) < 204)
 #   error("TODO: Validate UCONTEXT macros on 32-bit ARM w/ old GLIBC")

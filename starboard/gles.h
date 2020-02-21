@@ -69,13 +69,13 @@ typedef void     SbGlVoid;
 // the compiler is concerned. We check the Starboard configuration and set the
 // types to those exact types used by OpenGL ES 2.0
 // (https://www.khronos.org/registry/OpenGL/api/GLES2/gl2ext.h).
-#if SB_HAS(64_BIT_POINTERS) && SB_HAS(32_BIT_LONG)
+#if (SB_SIZE_OF(POINTER) == 8) && (SB_SIZE_OF(LONG) == 4)
 typedef long long int SbGlIntPtr;  // NOLINT
 typedef long long int SbGlSizeiPtr;  // NOLINT
-#else   // !SB_HAS(64_BIT_POINTERS) || !SB_HAS(32_BIT_LONG)
+#else   // (SB_SIZE_OF(POINTER) != 8) || (SB_SIZE_OF(LONG) != 4)
 typedef long int SbGlIntPtr;  // NOLINT
 typedef long int SbGlSizeiPtr;  // NOLINT
-#endif  // SB_HAS(64_BIT_POINTERS) && SB_HAS(32_BIT_LONG)
+#endif  // (SB_SIZE_OF(POINTER) == 8) && (SB_SIZE_OF(LONG) == 4)
 
 typedef struct SbGlesInterface {
   // The following prototypes were adapted from the prototypes declared in

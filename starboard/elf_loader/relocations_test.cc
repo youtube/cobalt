@@ -37,7 +37,7 @@ class RelocationsTest : public ::testing::Test {
   scoped_ptr<Relocations> relocations_;
 };
 
-#if SB_IS(ARCH_X86) && SB_IS(64_BIT)
+#if SB_IS(ARCH_X64)
 TEST_F(RelocationsTest, Initialize_X86_64) {
   char buff[1024] = "AAAAAAAAAAAAAAAAAAA";
   Addr load_bias = reinterpret_cast<Addr>(&buff);

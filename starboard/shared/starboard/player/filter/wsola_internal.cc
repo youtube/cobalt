@@ -33,10 +33,10 @@
 #include "starboard/memory.h"
 
 // TODO: Detect Neon on ARM platform and enable SIMD.
-#if SB_IS(ARCH_X86)
+#if SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
 #define USE_SIMD 1
 #include <xmmintrin.h>
-#endif  // SB_IS(ARCH_X86)
+#endif  // SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
 
 namespace starboard {
 namespace shared {
@@ -85,7 +85,7 @@ void MultiChannelDotProduct(const scoped_refptr<DecodedAudio>& a,
     const float* a_src = a_frames + frame_offset_a * a->channels() + ch;
     const float* b_src = b_frames + frame_offset_b * b->channels() + ch;
 
-#if SB_IS(ARCH_X86)
+#if SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
     // First sum all components.
     __m128 m_sum = _mm_setzero_ps();
     for (int s = 0; s < last_index; s += 4) {
@@ -98,7 +98,7 @@ void MultiChannelDotProduct(const scoped_refptr<DecodedAudio>& a,
     m_sum = _mm_add_ps(_mm_movehl_ps(m_sum, m_sum), m_sum);
     _mm_store_ss(dot_product + ch,
                  _mm_add_ss(m_sum, _mm_shuffle_ps(m_sum, m_sum, 1)));
-#elif SB_IS(ARCH_ARM)
+#elif SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)
     // First sum all components.
     float32x4_t m_sum = vmovq_n_f32(0);
     for (int s = 0; s < last_index; s += 4)
@@ -107,7 +107,7 @@ void MultiChannelDotProduct(const scoped_refptr<DecodedAudio>& a,
     // Reduce to a single float for this channel.
     float32x2_t m_half = vadd_f32(vget_high_f32(m_sum), vget_low_f32(m_sum));
     dot_product[ch] = vget_lane_f32(vpadd_f32(m_half, m_half), 0);
-#endif  // SB_IS(ARCH_X86)
+#endif  // SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
   }
 
   if (!rem) {
