@@ -23,7 +23,7 @@
       'variables': {
         'variables': {
           'host_arch%':
-            '<!(uname -m | sed -e "s/i.86/ia32/;s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/;s/i86pc/ia32/")',
+            '<!(uname -m | sed -e "s/i.86/x86/;s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/;s/i86pc/x86/")',
         },
 
         # Copy conditionally-set variables out one scope.
@@ -164,7 +164,7 @@
             },
             'android_ndk_root%': '<(android_ndk_root)',
             'conditions': [
-              ['target_arch == "ia32"', {
+              ['target_arch == "x86"', {
                 'android_app_abi%': 'x86',
                 'android_ndk_sysroot%': '<(android_ndk_root)/platforms/android-9/arch-x86',
               }],

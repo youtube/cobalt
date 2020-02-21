@@ -69,7 +69,7 @@
       }],
       ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
          or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
-        (target_arch=="arm" or target_arch=="ia32" or \
+        (target_arch=="arm" or target_arch=="x86" or \
          target_arch=="mipsel")', {
         'target_conditions': [
           ['_toolset=="host"', {
