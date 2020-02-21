@@ -166,6 +166,12 @@ class Configurator : public base::RefCountedThreadSafe<Configurator> {
   // Chrome update functionality.
   virtual RecoveryCRXElevator GetRecoveryCRXElevator() const = 0;
 
+#if defined(OS_STARBOARD)
+  // Sets the value we use for the "updaterchannel=" and "prodchannel="
+  // parameters.
+  virtual void SetChannel(const std::string& channel) = 0;
+#endif
+
  protected:
   friend class base::RefCountedThreadSafe<Configurator>;
 

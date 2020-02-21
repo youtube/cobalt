@@ -230,6 +230,9 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
     if (updater_channel.empty()) {
       updater_channel = kDefaultUpdaterChannel;
     }
+    // Set the updater channel from the persistent store or to default channel,
+    // if it's not set already.
+    config_->SetChannel(updater_channel);
   } else {
     // Update the record of updater channel in pref store.
     GetPersistedData()->SetUpdaterChannel(ids_checked_[0], updater_channel);
