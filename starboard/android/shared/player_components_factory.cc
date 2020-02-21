@@ -55,18 +55,16 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
       auto decoder_creator = [](const SbMediaAudioSampleInfo& audio_sample_info,
                                 SbDrmSystem drm_system) {
-        using AacAudioDecoder = ::starboard::android::shared::AudioDecoder;
-        using OpusAudioDecoder = ::starboard::shared::opus::OpusAudioDecoder;
-
         if (audio_sample_info.codec == kSbMediaAudioCodecAac) {
-          scoped_ptr<AacAudioDecoder> audio_decoder_impl(new AacAudioDecoder(
-              audio_sample_info.codec, audio_sample_info, drm_system));
+          scoped_ptr<android::shared::AudioDecoder> audio_decoder_impl(
+              new android::shared::AudioDecoder(audio_sample_info.codec,
+                                                audio_sample_info, drm_system));
           if (audio_decoder_impl->is_valid()) {
             return audio_decoder_impl.PassAs<AudioDecoder>();
           }
         } else if (audio_sample_info.codec == kSbMediaAudioCodecOpus) {
-          scoped_ptr<OpusAudioDecoder> audio_decoder_impl(
-              new OpusAudioDecoder(audio_sample_info));
+          scoped_ptr<opus::OpusAudioDecoder> audio_decoder_impl(
+              new opus::OpusAudioDecoder(audio_sample_info));
           if (audio_decoder_impl->is_valid()) {
             return audio_decoder_impl.PassAs<AudioDecoder>();
           }
@@ -83,19 +81,18 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-      using VideoDecoderImpl = ::starboard::android::shared::VideoDecoder;
-      using VideoRenderAlgorithmImpl =
-          ::starboard::android::shared::VideoRenderAlgorithm;
-
       SB_DCHECK(video_decoder);
       SB_DCHECK(video_render_algorithm);
       SB_DCHECK(video_renderer_sink);
       SB_DCHECK(error_message);
 
-      scoped_ptr<VideoDecoderImpl> video_decoder_impl(new VideoDecoderImpl(
-          creation_parameters.video_codec(), creation_parameters.drm_system(),
-          creation_parameters.output_mode(),
-          creation_parameters.decode_target_graphics_context_provider()));
+      scoped_ptr<android::shared::VideoDecoder> video_decoder_impl(
+          new android::shared::VideoDecoder(
+              creation_parameters.video_codec(),
+              creation_parameters.drm_system(),
+              creation_parameters.output_mode(),
+              creation_parameters.decode_target_graphics_context_provider(),
+              creation_parameters.max_video_capabilities()));
       if (video_decoder_impl->is_valid()) {
         *video_renderer_sink = video_decoder_impl->GetSink();
         video_decoder->reset(video_decoder_impl.release());
@@ -106,7 +103,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         return false;
       }
 
-      video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
+      video_render_algorithm->reset(new android::shared::VideoRenderAlgorithm);
     }
 
     return true;

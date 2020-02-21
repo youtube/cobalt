@@ -68,6 +68,15 @@ Java_dev_cobalt_media_VideoSurfaceView_nativeOnVideoSurfaceChanged(
   }
 }
 
+// static
+bool VideoSurfaceHolder::IsVideoSurfaceAvailable() {
+  // We only consider video surface is available when there is a video
+  // surface and it is not held by any decoder, i.e.
+  // g_video_surface_holder is NULL.
+  ScopedLock lock(*GetViewSurfaceMutex());
+  return !g_video_surface_holder && g_j_video_surface;
+}
+
 jobject VideoSurfaceHolder::AcquireVideoSurface() {
   ScopedLock lock(*GetViewSurfaceMutex());
   SB_DCHECK(g_video_surface_holder == NULL);
