@@ -418,7 +418,7 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
 
   Seek(0);
 
-  FillRendererWithDecodedAudioAndWriteEOS();
+  int frames_written = FillRendererWithDecodedAudioAndWriteEOS();
   bool is_playing = false;
   bool is_eos_played = true;
   bool is_underflow = true;
