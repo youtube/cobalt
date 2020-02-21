@@ -122,7 +122,7 @@
           'defines': [
             'OPENSSL_NO_ASM',
           ],
-        }, {  # target_os in ["linux", "android", "tvos"] and asm_target_arch in ["none", "mips", "ia32"]
+        }, {  # target_os in ["linux", "android", "tvos"] and asm_target_arch in ["none", "mips", "x86"]
           'conditions': [
             ['target_os=="linux" or target_os=="android"', {
               'conditions': [
