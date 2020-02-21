@@ -24,7 +24,7 @@ namespace egl {
 
 class SurfaceImplStub : public SurfaceImpl {
  public:
-  virtual bool IsDisplayRenderTarget() const { return false; }
+  bool IsWindowSurface() const final { return false; }
 };
 
 }  // namespace egl
