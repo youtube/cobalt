@@ -44,6 +44,10 @@
     # Where yasm can be found on the target device.
     'path_to_yasm%': "yasm",
 
+    # The Starboard API version of the current build configuration. The default
+    # value is meant to be overridden by a Starboard ABI file.
+    'sb_api_version%': 0,
+
     # Enabling this variable enables pedantic levels of warnings for the current
     # toolchain.
     'sb_pedantic_warnings%': 0,
