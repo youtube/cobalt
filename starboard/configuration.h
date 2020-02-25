@@ -1003,15 +1003,86 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #endif
 #endif
 
+#if defined(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET)
+#error "COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET is deprecated."
+#error "Implement |SbMediaGetAudioBufferBudget| instead."
+#endif  // defined(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET)
+
+#if defined(COBALT_MEDIA_BUFFER_ALIGNMENT)
+#error "COBALT_MEDIA_BUFFER_ALIGNMENT is deprecated."
+#error "Implement |SbMediaGetBufferAlignment| instead."
+#endif  // defined(COBALT_MEDIA_BUFFER_ALIGNMENT
+
+#if defined(COBALT_MEDIA_BUFFER_ALLOCATION_UNIT)
+#error "COBALT_MEDIA_BUFFER_ALLOCATION_UNIT is deprecated."
+#error "Implement |SbMediaGetBufferAllocationUnit| instead."
+#endif  // defined(COBALT_MEDIA_BUFFER_ALLOCATION_UNIT
+
+#if defined( \
+    COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS)
+#error "COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS"
+#error "is deprecated. Implement"
+#error "|SbMediaGetBufferGarbageCollectionDurationThreshold| instead."
+#endif  // defined(COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS)
+
+#if defined(COBALT_MEDIA_BUFFER_PADDING)
+#error "COBALT_MEDIA_BUFFER_PADDING is deprecated."
+#error "Implement |SbMediaGetBufferPadding| instead."
+#endif  // defined(COBALT_MEDIA_BUFFER_PADDING)
+
+#if defined(COBALT_MEDIA_BUFFER_STORAGE_TYPE_FILE)
+#error "COBALT_MEDIA_BUFFER_STORAGE_TYPE_FILE is deprecated."
+#error "Implement |SbMediaGetBufferStorageType| instead."
+#endif  // defined(COBALT_MEDIA_BUFFER_STORAGE_TYPE_FILE)
+
+#if defined(COBALT_MEDIA_BUFFER_STORAGE_TYPE_MEMORY)
+#error "COBALT_MEDIA_BUFFER_STORAGE_TYPE_MEMORY is deprecated."
+#error "Implement |SbMediaGetBufferStorageType| instead."
+#endif  // defined(COBALT_MEDIA_BUFFER_STORAGE_TYPE_MEMORY)
+
+#if defined(COBALT_MEDIA_BUFFER_INITIAL_CAPACITY)
+#error "COBALT_MEDIA_BUFFER_INITIAL_CAPACITY is deprecated."
+#error "implement |SbMediaGetInitialBufferCapacity| instead."
+#endif  // defined(COBALT_MEDIA_BUFFER_INITIAL_CAPACITY)
+
+#if defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P)
+#error "COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P is deprecated."
+#error "Implement |SbMediaGetMaxBufferCapacity| instead."
+#endif  // defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P)
+
+#if defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K)
+#error "COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K is deprecated."
+#error "Implement |SbMediaGetMaxBufferCapacity| instead."
+#endif  // defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K)
+
+#if defined(COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET)
+#error "COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET is deprecated."
+#error "Implement |SbMediaGetProgressiveBufferBudget| instead."
+#endif  // defined(COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET)
+
+#if defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P)
+#error "COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P is deprecated."
+#error "Implement |SbMediaGetVideoBufferBudget| instead."
+#endif  // defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P)
+
+#if defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K)
+#error "COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K is deprecated."
+#error "Implement |SbMediaGetVideoBufferBudget| instead."
+#endif  // defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K)
+
+#if defined(COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND)
+#error "COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND is deprecated."
+#error "Implement |SbMediaIsBufferPoolAllocateOnDemand| instead."
+#endif  // defined(COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND)
+
 #if defined(SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT)
 #error "SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT is deprecated."
-#error "Use gyp variable |cobalt_media_buffer_non_video_budget| instead."
+#error "Implement function |SbMediaGetAudioBufferBudget| instead."
 #endif  // defined(SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT)
 
 #if defined(SB_MEDIA_SOURCE_BUFFER_STREAM_VIDEO_MEMORY_LIMIT)
 #error "SB_MEDIA_SOURCE_BUFFER_STREAM_VIDEO_MEMORY_LIMIT is deprecated."
-#error "Use gyp variable |cobalt_media_buffer_video_budget_1080p| instead."
-#error "Use gyp variable |cobalt_media_buffer_video_budget_4k| instead."
+#error "Implement function |SbMediaGetVideoBufferBudget| instead."
 #endif  // defined(SB_MEDIA_SOURCE_BUFFER_STREAM_VIDEO_MEMORY_LIMIT)
 
 #if defined(SB_MEDIA_MAIN_BUFFER_BUDGET)
