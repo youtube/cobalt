@@ -212,9 +212,6 @@
     # Set to 1 to enable H5vccSSO (Single Sign On).
     'enable_sso%': 0,
 
-    # Set to 1 to compile with SPDY support.
-    'enable_spdy%': 1,
-
     # Set to 1 to enable filtering of HTTP headers before sending.
     'enable_xhr_header_filtering%': 0,
 
@@ -586,11 +583,6 @@
       ['in_app_dial == 1', {
         'defines': [
           'DIAL_SERVER',
-        ],
-      }],
-      ['enable_spdy == 0', {
-        'defines': [
-          'COBALT_DISABLE_SPDY',
         ],
       }],
       ['enable_debugger == 1', {

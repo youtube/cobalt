@@ -144,14 +144,9 @@ class HttpStreamFactory::JobController
 
   // Invoked to notify the Request and Factory of the readiness of new
   // SPDY session.
-#if !defined(COBALT_DISABLE_SPDY)
   void OnNewSpdySessionReady(
       Job* job,
       const base::WeakPtr<SpdySession>& spdy_session) override;
-#else
-  void OnNewSpdySessionReady(Job*, const base::WeakPtr<SpdySession>&) override {
-  }
-#endif
 
   // Invoked when the |job| finishes pre-connecting sockets.
   void OnPreconnectsComplete(Job* job) override;
@@ -170,7 +165,6 @@ class HttpStreamFactory::JobController
   // will wait for Job::Resume() to be called before advancing.
   bool ShouldWait(Job* job) override;
 
-#if !defined(COBALT_DISABLE_SPDY)
   // Called when |job| determines the appropriate |spdy_session_key| for the
   // Request. Note that this does not mean that SPDY is necessarily supported
   // for this SpdySessionKey, since we may need to wait for NPN to complete
@@ -180,11 +174,6 @@ class HttpStreamFactory::JobController
 
   // Remove session from the SpdySessionRequestMap.
   void RemoveRequestFromSpdySessionRequestMapForJob(Job* job) override;
-#else
-  void SetSpdySessionKey(Job* /*job*/,
-                         const SpdySessionKey& /*spdy_session_key*/) override {}
-  void RemoveRequestFromSpdySessionRequestMapForJob(Job* /*job*/) override {}
-#endif
 
   const NetLogWithSource* GetNetLog() const override;
 
@@ -304,10 +293,8 @@ class HttpStreamFactory::JobController
   quic::QuicTransportVersion SelectQuicVersion(
       const quic::QuicTransportVersionVector& advertised_versions);
 
-#if !defined(COBALT_DISABLE_SPDY)
   // Remove session from the SpdySessionRequestMap.
   void RemoveRequestFromSpdySessionRequestMap();
-#endif
 
   // Returns true if the |request_| can be fetched via an alternative
   // proxy server, and sets |alternative_proxy_info| to the alternative proxy

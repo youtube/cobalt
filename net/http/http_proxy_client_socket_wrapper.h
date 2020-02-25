@@ -167,10 +167,8 @@ class NET_EXPORT_PRIVATE HttpProxyClientSocketWrapper
   int DoHttpProxyConnect();
   int DoHttpProxyConnectComplete(int result);
 
-#if !defined(COBALT_DISABLE_SPDY)
   int DoSpdyProxyCreateStream();
   int DoSpdyProxyCreateStreamComplete(int result);
-#endif
 
 #if !defined(QUIC_DISABLED_FOR_STARBOARD)
   int DoQuicProxyCreateSession();
@@ -223,9 +221,7 @@ class NET_EXPORT_PRIVATE HttpProxyClientSocketWrapper
   // if necessary.
   CompletionOnceCallback connect_callback_;
 
-#if !defined(COBALT_DISABLE_SPDY)
   SpdyStreamRequest spdy_stream_request_;
-#endif
 
 #if !defined(QUIC_DISABLED_FOR_STARBOARD)
   QuicStreamRequest quic_stream_request_;
