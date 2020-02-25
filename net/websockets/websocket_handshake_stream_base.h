@@ -101,13 +101,11 @@ class NET_EXPORT WebSocketHandshakeStreamBase : public HttpStream {
         bool using_proxy,
         WebSocketEndpointLockManager* websocket_endpoint_lock_manager) = 0;
 
-#if !defined(COBALT_DISABLE_SPDY)
     // Create a WebSocketHttp2HandshakeStream. This is called after the
     // underlying HTTP/2 connection has been established but before the stream
     // has been opened.  This cannot be called more than once.
     virtual std::unique_ptr<WebSocketHandshakeStreamBase> CreateHttp2Stream(
         base::WeakPtr<SpdySession> session) = 0;
-#endif
   };
 
   // After the handshake has completed, this method creates a WebSocketStream

@@ -22,7 +22,6 @@
 #include "net/websockets/websocket_stream.h"
 #include "starboard/types.h"
 
-#if !defined(COBALT_DISABLE_SPDY)
 namespace net {
 
 struct LoadTimingInfo;
@@ -179,6 +178,5 @@ class NET_EXPORT_PRIVATE WebSocketHttp2HandshakeStream
 };
 
 }  // namespace net
-#endif  // !defined(COBALT_DISABLE_SPDY)
 
 #endif  // NET_WEBSOCKETS_WEBSOCKET_HTTP2_HANDSHAKE_STREAM_H_

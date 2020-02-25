@@ -244,7 +244,6 @@ class NET_EXPORT_PRIVATE HttpStreamRequest {
 
   const NetLogWithSource& net_log() const { return net_log_; }
 
-#if !defined(COBALT_DISABLE_SPDY)
   // Called when the |helper_| determines the appropriate |spdy_session_key|
   // for the Request. Note that this does not mean that SPDY is necessarily
   // supported for this SpdySessionKey, since we may need to wait for NPN to
@@ -258,7 +257,6 @@ class NET_EXPORT_PRIVATE HttpStreamRequest {
     return spdy_session_key_.value();
   }
   void ResetSpdySessionKey() { spdy_session_key_.reset(); }
-#endif
 
   StreamType stream_type() const { return stream_type_; }
 
@@ -274,9 +272,7 @@ class NET_EXPORT_PRIVATE HttpStreamRequest {
       websocket_handshake_stream_create_helper_;
   const NetLogWithSource net_log_;
 
-#if !defined(COBALT_DISABLE_SPDY)
   base::Optional<SpdySessionKey> spdy_session_key_;
-#endif
 
   bool completed_;
   bool was_alpn_negotiated_;
