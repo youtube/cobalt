@@ -96,7 +96,7 @@
       ['OS=="linux" and host_arch=="x64"', {
         'binutils_dir%': 'third_party/binutils/Linux_x64/Release/bin',
       }],
-      ['OS=="linux" and host_arch=="ia32"', {
+      ['OS=="linux" and host_arch=="x86"', {
         'binutils_dir%': 'third_party/binutils/Linux_ia32/Release/bin',
       }],
 
@@ -105,7 +105,7 @@
       # are using a custom toolchain and need to control -B in ldflags.
       # Do not use 32-bit gold on 32-bit hosts as it runs out address space
       # for component=static_library builds.
-      ['((OS=="linux" or OS=="android") and (target_arch=="x64" or target_arch=="arm" or (target_arch=="ia32" and host_arch=="x64"))) or (OS=="linux" and target_arch=="mipsel")', {
+      ['((OS=="linux" or OS=="android") and (target_arch=="x64" or target_arch=="arm" or (target_arch=="x86" and host_arch=="x64"))) or (OS=="linux" and target_arch=="mipsel")', {
         'linux_use_bundled_gold%': 1,
       }, {
         'linux_use_bundled_gold%': 0,
@@ -115,7 +115,7 @@
       # be used except on x86 and x86-64 (the only two architectures which
       # are currently checke in).  Force this off via GYP_DEFINES when you
       # are using a custom toolchain and need to control -B in cflags.
-      ['OS=="linux" and (target_arch=="ia32" or target_arch=="x64")', {
+      ['OS=="linux" and (target_arch=="x86" or target_arch=="x64")', {
         'linux_use_bundled_binutils%': 1,
       }, {
         'linux_use_bundled_binutils%': 0,
@@ -133,7 +133,7 @@
     'gcmole%': 0,
   },
   'conditions': [
-    ['host_arch=="ia32" or host_arch=="x64" or \
+    ['host_arch=="x86" or host_arch=="x64" or \
       host_arch=="ppc" or host_arch=="ppc64" or \
       host_arch=="s390" or host_arch=="s390x" or \
       clang==1', {
@@ -145,7 +145,7 @@
         'host_cxx_is_biarch%': 0,
       },
     }],
-    ['target_arch=="ia32" or target_arch=="x64" or \
+    ['target_arch=="x86" or target_arch=="x64" or \
       target_arch=="ppc" or target_arch=="ppc64" or target_arch=="s390" or \
       target_arch=="s390x" or clang==1', {
       'variables': {
@@ -350,11 +350,11 @@
           }],
         ],
       }],  # ppc
-      ['v8_target_arch=="ia32"', {
+      ['v8_target_arch=="x86"', {
         'defines': [
           'V8_TARGET_ARCH_IA32',
         ],
-      }],  # v8_target_arch=="ia32"
+      }],  # v8_target_arch=="x86"
       ['v8_target_arch=="mips" or v8_target_arch=="mipsel" \
         or v8_target_arch=="mips64" or v8_target_arch=="mips64el"', {
         'target_conditions': [
@@ -986,7 +986,7 @@
           'CharacterSet': '1',
         },
       }],
-      ['OS=="win" and v8_target_arch=="ia32"', {
+      ['OS=="win" and v8_target_arch=="x86"', {
         'msvs_settings': {
           'VCCLCompilerTool': {
             # Ensure no surprising artifacts from 80bit double math with x86.
@@ -1003,7 +1003,7 @@
       }],
       ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
          or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
-        v8_target_arch=="ia32"', {
+        v8_target_arch=="x86"', {
         'cflags': [
           '-msse2',
           '-mfpmath=sse',
@@ -1012,7 +1012,7 @@
       }],
       ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
          or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
-        (v8_target_arch=="arm" or v8_target_arch=="ia32" or \
+        (v8_target_arch=="arm" or v8_target_arch=="x86" or \
          v8_target_arch=="mips" or v8_target_arch=="mipsel" or \
          v8_target_arch=="ppc" or v8_target_arch=="s390")', {
         'target_conditions': [
