@@ -14,6 +14,7 @@
 #include "base/containers/flat_map.h"
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
+#include "base/synchronization/lock.h"
 #include "cobalt/network/network_module.h"
 #include "components/update_client/configurator.h"
 
@@ -84,6 +85,8 @@ class Configurator : public update_client::Configurator {
   scoped_refptr<update_client::UnzipperFactory> unzip_factory_;
   scoped_refptr<update_client::PatcherFactory> patch_factory_;
   std::string updater_channel_;
+  base::Lock updater_channel_lock_;
+
   DISALLOW_COPY_AND_ASSIGN(Configurator);
 };
 
