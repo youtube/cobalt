@@ -4,6 +4,12 @@ This document records all notable changes made to Cobalt since the last release.
 
 ## Version 21
 
+ - **scratch_surface_cache_size_in_bytes is removed.**
+
+   Because it never ended up being used, scratch_suface_cache_size_in_bytes has
+   been removed. This had only been implemented for possible performance gains,
+   but was found to have inconsistent improvement.
+
  - **Disabling spdy is no longer supported.**
 
    Since updating to Chromium m70, we have enabled spdy by default. We can no
