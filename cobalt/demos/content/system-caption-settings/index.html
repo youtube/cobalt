@@ -13,6 +13,7 @@
   <body>
     <div id="captionWindow">
       <span id="caption">Captions will look like this</span>
+      <span id="captionsDisabled" style="visibility:hidden;color:white">Captions are disabled</span>
     </div>
   </body>
   <script>
@@ -30,9 +31,14 @@
       }
     }
 
-    setCaptionStyle("caption", "backgroundColor", settings.backgroundColorState, settings.backgroundColor);
-    setCaptionStyle("caption", "color", settings.fontColorState, settings.fontColor);
-    setCaptionStyle("caption", "fontSize", settings.fontSizeState, `${settings.fontSize}px`);
-    setCaptionStyle("captionWindow", "backgroundColor", settings.windowColorState, settings.windowColor);
+    if (settings.isEnabled) {
+      setCaptionStyle("caption", "backgroundColor", settings.backgroundColorState, settings.backgroundColor);
+      setCaptionStyle("caption", "color", settings.fontColorState, settings.fontColor);
+      setCaptionStyle("caption", "fontSize", settings.fontSizeState, `${settings.fontSize}px`);
+      setCaptionStyle("captionWindow", "backgroundColor", settings.windowColorState, settings.windowColor);
+    } else {
+      document.getElementById("captionsDisabled").style.visibility = "visible";
+      document.getElementById("caption").style.visibility = "hidden";
+    }
   </script>
 </html>
