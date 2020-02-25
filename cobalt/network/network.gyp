@@ -52,6 +52,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/configuration/configuration.gyp:configuration',
         '<(DEPTH)/cobalt/network_bridge/network_bridge.gyp:network_bridge',
         '<(DEPTH)/cobalt/storage/storage.gyp:storage',
         '<(DEPTH)/net/net.gyp:net',

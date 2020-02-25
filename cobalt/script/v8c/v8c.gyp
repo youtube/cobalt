@@ -77,6 +77,7 @@
         'wrapper_private.h',
       ],
       'dependencies': [
+        '<(DEPTH)/cobalt/configuration/configuration.gyp:configuration',
         '<(DEPTH)/cobalt/script/script.gyp:script',
         '<(DEPTH)/v8/src/v8.gyp:v8',
         '<(DEPTH)/v8/src/v8.gyp:v8_libplatform',
