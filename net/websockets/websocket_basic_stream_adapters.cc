@@ -48,7 +48,6 @@ bool WebSocketClientSocketHandleAdapter::is_initialized() const {
   return connection_->is_initialized();
 }
 
-#if !defined(COBALT_DISABLE_SPDY)
 WebSocketSpdyStreamAdapter::WebSocketSpdyStreamAdapter(
     base::WeakPtr<SpdyStream> stream,
     Delegate* delegate,
@@ -208,6 +207,5 @@ void WebSocketSpdyStreamAdapter::CallDelegateOnClose() {
   if (delegate_)
     delegate_->OnClose(stream_error_);
 }
-#endif
 
 }  // namespace net

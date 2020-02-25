@@ -216,7 +216,6 @@ HttpStreamFactory::Job::Job(Delegate* delegate,
       was_alpn_negotiated_(false),
       negotiated_protocol_(kProtoUnknown),
       num_streams_(0),
-#if !defined(COBALT_DISABLE_SPDY)
       pushed_stream_id_(kNoPushedStreamFound),
       spdy_session_direct_(
           !(proxy_info.is_https() && origin_url_.SchemeIs(url::kHttpScheme))),
@@ -227,7 +226,6 @@ HttpStreamFactory::Job::Job(Delegate* delegate,
                                                 origin_url_,
                                                 request_info_.privacy_mode,
                                                 request_info_.socket_tag)),
-#endif
       stream_type_(HttpStreamRequest::BIDIRECTIONAL_STREAM),
       init_connection_already_resumed_(false),
       ptr_factory_(this) {
@@ -420,7 +418,6 @@ bool HttpStreamFactory::Job::ShouldForceQuic(HttpNetworkSession* session,
 #endif
 }
 
-#if !defined(COBALT_DISABLE_SPDY)
 // static
 SpdySessionKey HttpStreamFactory::Job::GetSpdySessionKey(
     bool spdy_session_direct,
@@ -438,10 +435,8 @@ SpdySessionKey HttpStreamFactory::Job::GetSpdySessionKey(
   return SpdySessionKey(HostPortPair::FromURL(origin_url), proxy_server,
                         privacy_mode, socket_tag);
 }
-#endif
 
 bool HttpStreamFactory::Job::CanUseExistingSpdySession() const {
-#if !defined(COBALT_DISABLE_SPDY)
   DCHECK(!using_quic_);
 
   if (proxy_info_.is_direct() &&
@@ -456,9 +451,6 @@ bool HttpStreamFactory::Job::CanUseExistingSpdySession() const {
   // https://crbug.com/133176
   return origin_url_.SchemeIs(url::kHttpsScheme) || try_websocket_over_http2_ ||
          proxy_info_.proxy_server().is_https();
-#else
-  return false;
-#endif
 }
 
 void HttpStreamFactory::Job::OnStreamReadyCallback() {
@@ -494,7 +486,6 @@ void HttpStreamFactory::Job::OnBidirectionalStreamImplReadyCallback() {
   // |this| may be deleted after this call.
 }
 
-#if !defined(COBALT_DISABLE_SPDY)
 void HttpStreamFactory::Job::OnNewSpdySessionReadyCallback() {
   DCHECK(stream_.get() || bidirectional_stream_impl_.get());
   DCHECK_NE(job_type_, PRECONNECT);
@@ -509,7 +500,6 @@ void HttpStreamFactory::Job::OnNewSpdySessionReadyCallback() {
   delegate_->OnNewSpdySessionReady(this, spdy_session);
   // |this| may be deleted after this call.
 }
-#endif
 
 void HttpStreamFactory::Job::OnStreamFailedCallback(int result) {
   DCHECK_NE(job_type_, PRECONNECT);
@@ -560,15 +550,12 @@ void HttpStreamFactory::Job::OnHttpsProxyTunnelResponseCallback(
 }
 
 void HttpStreamFactory::Job::OnPreconnectsComplete() {
-#if !defined(COBALT_DISABLE_SPDY)
   DCHECK(!new_spdy_session_);
-#endif
 
   delegate_->OnPreconnectsComplete(this);
   // |this| may be deleted after this call.
 }
 
-#if !defined(COBALT_DISABLE_SPDY)
 // static
 int HttpStreamFactory::Job::OnHostResolution(
     SpdySessionPool* spdy_session_pool,
@@ -585,7 +572,6 @@ int HttpStreamFactory::Job::OnHostResolution(
              ? ERR_SPDY_SESSION_ALREADY_EXISTS
              : OK;
 }
-#endif
 
 void HttpStreamFactory::Job::OnIOComplete(int result) {
   TRACE_EVENT0(kNetTracingCategory, "HttpStreamFactory::Job::OnIOComplete");
@@ -599,13 +585,11 @@ void HttpStreamFactory::Job::RunLoop(int result) {
   if (result == ERR_IO_PENDING)
     return;
 
-#if !defined(COBALT_DISABLE_SPDY)
   if (!using_quic_) {
     // Resume all throttled Jobs with the same SpdySessionKey if there are any,
     // now that this job is done.
     session_->spdy_session_pool()->ResumePendingRequests(spdy_session_key_);
   }
-#endif
 
   if (job_type_ == PRECONNECT) {
     base::ThreadTaskRunnerHandle::Get()->PostTask(
@@ -680,15 +664,11 @@ void HttpStreamFactory::Job::RunLoop(int result) {
 
     case OK:
       next_state_ = STATE_DONE;
-#if !defined(COBALT_DISABLE_SPDY)
       if (new_spdy_session_.get()) {
         base::ThreadTaskRunnerHandle::Get()->PostTask(
             FROM_HERE, base::Bind(&Job::OnNewSpdySessionReadyCallback,
                                   ptr_factory_.GetWeakPtr()));
       } else if (is_websocket_) {
-#else
-      if (is_websocket_) {
-#endif
         DCHECK(websocket_stream_);
         base::ThreadTaskRunnerHandle::Get()->PostTask(
             FROM_HERE, base::Bind(&Job::OnWebSocketHandshakeStreamReadyCallback,
@@ -837,7 +817,6 @@ int HttpStreamFactory::Job::DoEvaluateThrottle() {
     return OK;
   if (using_quic_)
     return OK;
-#if !defined(COBALT_DISABLE_SPDY)
   // Ask |delegate_delegate_| to update the spdy session key for the request
   // that launched this job.
   delegate_->SetSpdySessionKey(this, spdy_session_key_);
@@ -864,10 +843,6 @@ int HttpStreamFactory::Job::DoEvaluateThrottle() {
       FROM_HERE, callback, base::TimeDelta::FromMilliseconds(kHTTP2ThrottleMs));
   net_log_.AddEvent(NetLogEventType::HTTP_STREAM_JOB_THROTTLED);
   return ERR_IO_PENDING;
-#else
-  // No SPDY support.
-  return OK;
-#endif
 }
 
 void HttpStreamFactory::Job::ResumeInitConnection() {
@@ -976,7 +951,6 @@ int HttpStreamFactory::Job::DoInitConnectionImpl() {
   }
 #endif
 
-#if !defined(COBALT_DISABLE_SPDY)
   // Check first if there is a pushed stream matching the request, or an HTTP/2
   // connection this request can pool to.  If so, then go straight to using
   // that.
@@ -1002,7 +976,6 @@ int HttpStreamFactory::Job::DoInitConnectionImpl() {
       return OK;
     }
   }
-#endif
 
 #if defined(COBALT_QUIC46)
   // HTTPS QUIC proxy should be disabled, these changes can be removed
@@ -1036,15 +1009,11 @@ int HttpStreamFactory::Job::DoInitConnectionImpl() {
   // If we can't use a SPDY session, don't bother checking for one after
   // the hostname is resolved.
   OnHostResolutionCallback resolution_callback =
-#if !defined(COBALT_DISABLE_SPDY)
       CanUseExistingSpdySession()
           ? base::Bind(&Job::OnHostResolution, session_->spdy_session_pool(),
                        spdy_session_key_, enable_ip_based_pooling_,
                        try_websocket_over_http2_)
           : OnHostResolutionCallback();
-#else
-      OnHostResolutionCallback();
-#endif
   if (is_websocket_) {
     DCHECK(request_info_.socket_tag == SocketTag());
     SSLConfig websocket_server_ssl_config = server_ssl_config_;
@@ -1086,7 +1055,6 @@ int HttpStreamFactory::Job::DoInitConnectionComplete(int result) {
     return OK;
   }
 
-#if !defined(COBALT_DISABLE_SPDY)
   if (result == ERR_SPDY_SESSION_ALREADY_EXISTS) {
     // We found a SPDY connection after resolving the host. This is
     // probably an IP pooled connection.
@@ -1103,7 +1071,6 @@ int HttpStreamFactory::Job::DoInitConnectionComplete(int result) {
     }
     return OK;
   }
-#endif
 
   // |result| may be the result of any of the stacked pools. The following
   // logic is used when determining how to interpret an error.
@@ -1133,9 +1100,7 @@ int HttpStreamFactory::Job::DoInitConnectionComplete(int result) {
             return ERR_NOT_IMPLEMENTED;
           }
 
-#if !defined(COBALT_DISABLE_SPDY)
           using_spdy_ = true;
-#endif
         }
       }
     }
@@ -1145,13 +1110,11 @@ int HttpStreamFactory::Job::DoInitConnectionComplete(int result) {
     // http://crbug.com/642354
     if (!proxy_socket->IsConnected())
       return ERR_CONNECTION_CLOSED;
-#if !defined(COBALT_DISABLE_SPDY)
     if (proxy_socket->IsUsingSpdy()) {
       was_alpn_negotiated_ = true;
       negotiated_protocol_ = proxy_socket->GetProxyNegotiatedProtocol();
       using_spdy_ = true;
     }
-#endif
   }
 
   if (result == ERR_PROXY_AUTH_REQUESTED ||
@@ -1236,7 +1199,6 @@ int HttpStreamFactory::Job::DoWaitingUserAction(int result) {
   return ERR_IO_PENDING;
 }
 
-#if !defined(COBALT_DISABLE_SPDY)
 int HttpStreamFactory::Job::SetSpdyHttpStreamOrBidirectionalStreamImpl(
     base::WeakPtr<SpdySession> session) {
   DCHECK(using_spdy_);
@@ -1268,14 +1230,9 @@ int HttpStreamFactory::Job::SetSpdyHttpStreamOrBidirectionalStreamImpl(
                                              net_log_.source());
   return OK;
 }
-#endif
 
 int HttpStreamFactory::Job::DoCreateStream() {
-#if !defined(COBALT_DISABLE_SPDY)
   DCHECK(connection_->socket() || existing_spdy_session_.get());
-#else
-  DCHECK(connection_->socket());
-#endif
   DCHECK(!using_quic_);
 
   next_state_ = STATE_CREATE_STREAM_COMPLETE;
@@ -1318,7 +1275,6 @@ int HttpStreamFactory::Job::DoCreateStream() {
 
   // It is possible that a pushed stream has been opened by a server since last
   // time Job checked above.
-#if !defined(COBALT_DISABLE_SPDY)
   if (!existing_spdy_session_) {
     // WebSocket over HTTP/2 is only allowed to use existing HTTP/2 connections.
     // Therefore |using_spdy_| could not have been set unless a connection had
@@ -1387,9 +1343,6 @@ int HttpStreamFactory::Job::DoCreateStream() {
   // reuse state from the underlying socket, sampled by SpdyHttpStream,
   // bubble up to the request.
   return SetSpdyHttpStreamOrBidirectionalStreamImpl(new_spdy_session_);
-#else
-  return ERR_SPDY_PROTOCOL_ERROR;
-#endif
 }
 
 int HttpStreamFactory::Job::DoCreateStreamComplete(int result) {

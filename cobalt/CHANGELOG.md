@@ -4,6 +4,12 @@ This document records all notable changes made to Cobalt since the last release.
 
 ## Version 21
 
+ - **Disabling spdy is no longer supported.**
+
+   Since updating to Chromium m70, we have enabled spdy by default. We can no
+   longer support disabling it, so we are removing the GYP configuration
+   variable entirely.
+
  - **DevTools and WebDriver listen to ANY interface, except on desktop PCs.**
 
    DevTools and WebDriver servers listen to connections on any network interface

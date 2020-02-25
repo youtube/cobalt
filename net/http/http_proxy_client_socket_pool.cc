@@ -84,11 +84,7 @@ HttpProxySocketParams::HttpProxySocketParams(
     : transport_params_(transport_params),
       ssl_params_(ssl_params),
       quic_version_(quic_version),
-#if !defined(COBALT_DISABLE_SPDY)
       spdy_session_pool_(spdy_session_pool),
-#else
-      spdy_session_pool_(nullptr),
-#endif
       quic_stream_factory_(quic_stream_factory),
       user_agent_(user_agent),
       endpoint_(endpoint),

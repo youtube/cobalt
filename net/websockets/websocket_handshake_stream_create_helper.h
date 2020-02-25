@@ -45,11 +45,9 @@ class NET_EXPORT_PRIVATE WebSocketHandshakeStreamCreateHelper
       bool using_proxy,
       WebSocketEndpointLockManager* websocket_endpoint_lock_manager) override;
 
-#if !defined(COBALT_DISABLE_SPDY)
   // Creates a WebSocketHttp2HandshakeStream over an HTTP/2 connection.
   std::unique_ptr<WebSocketHandshakeStreamBase> CreateHttp2Stream(
       base::WeakPtr<SpdySession> session) override;
-#endif
 
   // WebSocketHandshakeStreamCreateHelper methods
 

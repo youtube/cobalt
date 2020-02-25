@@ -340,11 +340,7 @@ class NET_EXPORT HttpNetworkSession {
     return websocket_endpoint_lock_manager_.get();
   }
   SpdySessionPool* spdy_session_pool() {
-#if defined(COBALT_DISABLE_SPDY)
-    return NULL;
-#else
     return &spdy_session_pool_;
-#endif  // defined(COBALT_DISABLE_SPDY)
   }
 #if !defined(QUIC_DISABLED_FOR_STARBOARD)
   QuicStreamFactory* quic_stream_factory() { return &quic_stream_factory_; }
@@ -441,9 +437,7 @@ class NET_EXPORT HttpNetworkSession {
 #if !defined(QUIC_DISABLED_FOR_STARBOARD)
   QuicStreamFactory quic_stream_factory_;
 #endif
-#if !defined(COBALT_DISABLE_SPDY)
   SpdySessionPool spdy_session_pool_;
-#endif  // !defined(COBALT_DISABLE_SPDY)
   std::unique_ptr<HttpStreamFactory> http_stream_factory_;
   std::map<HttpResponseBodyDrainer*, std::unique_ptr<HttpResponseBodyDrainer>>
       response_drainers_;
