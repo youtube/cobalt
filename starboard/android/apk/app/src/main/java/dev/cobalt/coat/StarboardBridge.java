@@ -147,7 +147,7 @@ public class StarboardBridge {
 
   @SuppressWarnings("unused")
   @UsedByNative
-  void beforeStartOrResume() {
+  protected void beforeStartOrResume() {
     Log.i(TAG, "Prepare to resume");
     // Bring our platform services to life before resuming so that they're ready to deal with
     // whatever the web app wants to do with them as part of its start/resume logic.
@@ -160,7 +160,7 @@ public class StarboardBridge {
 
   @SuppressWarnings("unused")
   @UsedByNative
-  void beforeSuspend() {
+  protected void beforeSuspend() {
     Log.i(TAG, "Prepare to suspend");
     // We want the MediaSession to be deactivated immediately before suspending so that by the time
     // the launcher is visible our "Now Playing" card is already gone. Then Cobalt and the web app
@@ -174,7 +174,7 @@ public class StarboardBridge {
 
   @SuppressWarnings("unused")
   @UsedByNative
-  void afterStopped() {
+  protected void afterStopped() {
     starboardStopped = true;
     ttsHelper.shutdown();
     userAuthorizer.shutdown();
@@ -453,7 +453,7 @@ public class StarboardBridge {
   /** Returns string for kSbSystemPropertyUserAgentAuxField */
   @SuppressWarnings("unused")
   @UsedByNative
-  String getUserAgentAuxField() {
+  protected String getUserAgentAuxField() {
     StringBuilder sb = new StringBuilder();
 
     String packageName = appContext.getApplicationInfo().packageName;
