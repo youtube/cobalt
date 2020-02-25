@@ -30,6 +30,7 @@
 #include "cobalt/renderer/backend/egl/texture_data_cpu.h"
 #endif
 
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/renderer/backend/egl/display.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/texture.h"
@@ -151,13 +152,13 @@ GraphicsSystemEGL::GraphicsSystemEGL(
 
   // Setup our configuration to support RGBA and compatibility with PBuffer
   // objects (for offscreen rendering).
+  EGLint egl_bit =
+      configuration::Configuration::GetInstance()->CobaltRenderDirtyRegionOnly()
+          ? EGL_WINDOW_BIT | EGL_PBUFFER_BIT | EGL_SWAP_BEHAVIOR_PRESERVED_BIT
+          : EGL_WINDOW_BIT | EGL_PBUFFER_BIT;
   EGLint attribute_list[] = {
     EGL_SURFACE_TYPE,  // this must be first
-    EGL_WINDOW_BIT | EGL_PBUFFER_BIT
-#if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
-        | EGL_SWAP_BEHAVIOR_PRESERVED_BIT
-#endif  // #if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
-    ,
+    egl_bit,
     EGL_RED_SIZE,
     8,
     EGL_GREEN_SIZE,
@@ -178,21 +179,22 @@ GraphicsSystemEGL::GraphicsSystemEGL(
   base::Optional<ChooseConfigResult> choose_config_results =
       ChooseConfig(display_, attribute_list, system_window);
 
-#if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
-  // Try to allow preservation of the frame contents between swap calls --
-  // this will allow rendering of only parts of the frame that have changed.
-  DCHECK_EQ(EGL_SURFACE_TYPE, attribute_list[0]);
-  EGLint& surface_type_value = attribute_list[1];
+  if (configuration::Configuration::GetInstance()
+          ->CobaltRenderDirtyRegionOnly()) {
+    // Try to allow preservation of the frame contents between swap calls --
+    // this will allow rendering of only parts of the frame that have changed.
+    DCHECK_EQ(EGL_SURFACE_TYPE, attribute_list[0]);
+    EGLint& surface_type_value = attribute_list[1];
 
-  // Swap buffer preservation may not be supported. If we failed to find a
-  // config with the EGL_SWAP_BEHAVIOR_PRESERVED_BIT attribute, try again
-  // without it.
-  if (!choose_config_results) {
-    surface_type_value &= ~EGL_SWAP_BEHAVIOR_PRESERVED_BIT;
-    choose_config_results =
-        ChooseConfig(display_, attribute_list, system_window);
+    // Swap buffer preservation may not be supported. If we failed to find a
+    // config with the EGL_SWAP_BEHAVIOR_PRESERVED_BIT attribute, try again
+    // without it.
+    if (!choose_config_results) {
+      surface_type_value &= ~EGL_SWAP_BEHAVIOR_PRESERVED_BIT;
+      choose_config_results =
+          ChooseConfig(display_, attribute_list, system_window);
+    }
   }
-#endif  // #if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
 
   DCHECK(choose_config_results);
 

@@ -16,6 +16,7 @@
 #define COBALT_SCRIPT_V8C_ISOLATE_FELLOWSHIP_H_
 
 #include "base/memory/singleton.h"
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/script/v8c/cobalt_platform.h"
 #include "v8/include/libplatform/libplatform.h"
 #include "v8/include/v8-platform.h"

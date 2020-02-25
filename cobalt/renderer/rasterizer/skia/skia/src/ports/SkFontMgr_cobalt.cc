@@ -25,6 +25,7 @@
 #include "base/command_line.h"
 #include "base/memory/ptr_util.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontConfigParser_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFreeType_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
@@ -35,8 +36,10 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
     const char* system_font_config_directory,
     const char* system_font_files_directory,
     const SkTArray<SkString, true>& default_families)
-    : local_typeface_stream_manager_("Font.LocalTypefaceCache",
-                                     COBALT_LOCAL_TYPEFACE_CACHE_SIZE_IN_BYTES),
+    : local_typeface_stream_manager_(
+          "Font.LocalTypefaceCache",
+          cobalt::configuration::Configuration::GetInstance()
+              ->CobaltLocalTypefaceCacheSizeInBytes()),
       default_family_(NULL) {
   TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::SkFontMgr_Cobalt()");
 

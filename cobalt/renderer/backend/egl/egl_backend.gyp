@@ -48,6 +48,7 @@
         'COBALT_EGL_SWAP_INTERVAL=<(cobalt_egl_swap_interval)',
       ],
       'dependencies': [
+        '<(DEPTH)/cobalt/configuration/configuration.gyp:configuration',
         '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
       ],
 
