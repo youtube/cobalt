@@ -28,7 +28,7 @@
 {
   'variables': {
     'v8_code': 1,
-    # Enable support for Intel VTune. Supported on ia32/x64 only
+    # Enable support for Intel VTune. Supported on x86/x64 only
     'v8_enable_vtunejit%': 0,
     'v8_enable_i18n_support%': 1,
 

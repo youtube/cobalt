@@ -13,7 +13,7 @@
       'DISABLE_UNWIND_STARBOARD',
       'DISABLE_WASM_STARBOARD',
       # Disable mitigations for executing untrusted code.
-      # Disabled by default on ia32 due to conflicting requirements with embedded
+      # Disabled by default on x86 due to conflicting requirements with embedded
       # builtins. 
       # Chrome enabled this by default only on Android since it doesn't support
       # site-isolation and on simulator builds which test code generation
@@ -413,7 +413,7 @@
         ['want_separate_host_toolset', {
           'toolsets': ['host', 'target'],
         }],
-        ['v8_target_arch=="ia32"', {
+        ['v8_target_arch=="x86"', {
           'sources': [
             '<(DEPTH)/v8/src/builtins/ia32/builtins-ia32.cc',
           ],
@@ -553,13 +553,21 @@
               # mksnapshot needs to know which target OS to use at runtime.  It's weird,
               # but the target OS is really <(OS).
               '--target_os=<(OS)',
-              '--target_arch=<(v8_target_arch)',
             ],
           },
           'inputs': [
             '<(mksnapshot_exec)',
           ],
           'conditions': [
+            ['v8_target_arch=="x86"', {
+              'variables': {
+                'mksnapshot_flags': ['--target_arch=ia32'],
+              },
+            }, {
+              'variables': {
+                'mksnapshot_flags': ['--target_arch=<(v8_target_arch)'],
+              },
+            }],
             ['v8_enable_embedded_builtins==1', {
               # In this case we use `embedded_variant "Default"`
               # and `suffix = ''` for the template `embedded${suffix}.S`.
@@ -572,7 +580,7 @@
               },
             }, {
                #'outputs': ['<(DEPTH)/v8/src/snapshot/embedded/embedded-empty.cc']
-             }],
+            }],
             ['v8_random_seed', {
               'variables': {
                 'mksnapshot_flags': ['--random-seed', '<(v8_random_seed)'],
@@ -824,7 +832,7 @@
         ['want_separate_host_toolset', {
           'toolsets': ['host', 'target'],
         }],
-        ['v8_target_arch=="ia32"', {
+        ['v8_target_arch=="x86"', {
           'sources': [  ### gcmole(arch:ia32) ###
             '<!@pymod_do_main(v8.gypfiles.GN-scraper "<(DEPTH)/v8/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"x86.*?sources \+= ")',
           ],
