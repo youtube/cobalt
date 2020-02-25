@@ -37,29 +37,32 @@ namespace {
 // according to the update_snapshot_time gyp target.
 const char kIsolateFellowshipBuildTime[] = __DATE__ " " __TIME__;
 
-const char* kV8CommandLineFlags[] = {"--optimize_for_size",
-                                     // Starboard disallow rwx memory access.
-                                     "--write_protect_code_memory",
-                                     // Cobalt's TraceMembers and
-                                     // ScriptValue::*Reference do not currently
-                                     // support incremental tracing.
-                                     "--noincremental_marking_wrappers",
-                                     "--noexpose_wasm",
-                                     "--novalidate_asm",
-#if defined(COBALT_GC_ZEAL)
-                                     "--gc_interval=1200",
-#endif
-#if !defined(ENGINE_SUPPORTS_JIT)
-                                     "--jitless"
-#endif
-};
-
 // Configure v8's global command line flag options for Cobalt.
 // It can be called more than once, but make sure it is called before any
 // v8 instance is created.
 void V8FlagsInit() {
+  std::vector<std::string> kV8CommandLineFlags = {
+    "--optimize_for_size",
+    // Starboard disallow rwx memory access.
+    "--write_protect_code_memory",
+    // Cobalt's TraceMembers and
+    // ScriptValue::*Reference do not currently
+    // support incremental tracing.
+    "--noincremental_marking_wrappers",
+    "--noexpose_wasm",
+    "--novalidate_asm",
+#if !defined(ENGINE_SUPPORTS_JIT)
+    "--jitless"
+#endif
+  };
+
+  if (configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+    kV8CommandLineFlags.push_back("--gc_interval=1200");
+  }
+
   for (auto flag_str : kV8CommandLineFlags) {
-    v8::V8::SetFlagsFromString(flag_str, SbStringGetLength(flag_str));
+    v8::V8::SetFlagsFromString(flag_str.c_str(),
+                               SbStringGetLength(flag_str.c_str()));
   }
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
@@ -110,7 +113,7 @@ IsolateFellowship::~IsolateFellowship() {
   // DCHECK here.
   delete[] startup_data.data;
   startup_data = {nullptr, 0};
-#endif
+#endif  // !defined(COBALT_V8_BUILDTIME_SNAPSHOT)
 }
 
 #if !defined(COBALT_V8_BUILDTIME_SNAPSHOT)

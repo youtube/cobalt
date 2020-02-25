@@ -20,6 +20,7 @@
 #include "base/bind.h"
 #include "base/threading/thread_checker.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/render_tree/resource_provider_stub.h"
 #include "cobalt/renderer/backend/blitter/graphics_context.h"
 #include "cobalt/renderer/backend/blitter/render_target.h"
@@ -62,9 +63,7 @@ class HardwareRasterizer::Impl {
 #if defined(ENABLE_DEBUGGER)
   void OnToggleHighlightSoftwareDraws(const std::string& message);
 #endif
-#if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
   void SetupLastFrameSurface(int width, int height);
-#endif  // #if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
   THREAD_CHECKER(thread_checker_);
 
   backend::GraphicsContextBlitter* context_;
@@ -159,11 +158,12 @@ void HardwareRasterizer::Impl::Submit(
       base::polymorphic_downcast<backend::RenderTargetBlitter*>(
           render_target.get());
 
-#if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
-  if (!SbBlitterIsSurfaceValid(current_frame_)) {
-    SetupLastFrameSurface(width, height);
+  if (configuration::Configuration::GetInstance()
+          ->CobaltRenderDirtyRegionOnly()) {
+    if (!SbBlitterIsSurfaceValid(current_frame_)) {
+      SetupLastFrameSurface(width, height);
+    }
   }
-#endif  // #if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
 
   SbBlitterRenderTarget visitor_render_target = kSbBlitterInvalidRenderTarget;
   if (SbBlitterIsSurfaceValid(current_frame_)) {
@@ -272,13 +272,11 @@ render_tree::ResourceProvider* HardwareRasterizer::Impl::GetResourceProvider() {
   return resource_provider_.get();
 }
 
-#if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
 void HardwareRasterizer::Impl::SetupLastFrameSurface(int width, int height) {
   current_frame_ =
       SbBlitterCreateRenderTargetSurface(context_->GetSbBlitterDevice(), width,
                                          height, kSbBlitterSurfaceFormatRGBA8);
 }
-#endif  // #if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
 
 HardwareRasterizer::HardwareRasterizer(
     backend::GraphicsContext* graphics_context, int skia_atlas_width,

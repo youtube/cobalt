@@ -38,6 +38,7 @@
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/user_agent_string.h"
 #include "cobalt/browser/webapi_extension.h"
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/input_event_init.h"
@@ -600,7 +601,8 @@ void BrowserModule::Navigate(const GURL& url_reference) {
     options.on_screen_keyboard_bridge = on_screen_keyboard_bridge_.get();
   }
   options.image_cache_capacity_multiplier_when_playing_video =
-      COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER_WHEN_PLAYING_VIDEO;
+      configuration::Configuration::GetInstance()
+          ->CobaltImageCacheCapacityMultiplierWhenPlayingVideo();
   if (input_device_manager_) {
     options.camera_3d = input_device_manager_->camera_3d();
   }

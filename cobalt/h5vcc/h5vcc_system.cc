@@ -15,6 +15,7 @@
 #include "cobalt/h5vcc/h5vcc_system.h"
 
 #include "base/strings/stringprintf.h"
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/version.h"
 #include "cobalt_build_id.h"  // NOLINT(build/include)
 #include "starboard/system.h"
@@ -67,7 +68,8 @@ bool H5vccSystem::TriggerHelp() const { return false; }
 uint32 H5vccSystem::user_on_exit_strategy() const {
   // Convert from the Cobalt gyp setting variable's enum options to the H5VCC
   // interface enum options.
-  std::string exit_strategy_str(COBALT_USER_ON_EXIT_STRATEGY);
+  std::string exit_strategy_str(
+      configuration::Configuration::GetInstance()->CobaltUserOnExitStrategy());
   if (exit_strategy_str == "stop") {
     return static_cast<UserOnExitStrategy>(kUserOnExitStrategyClose);
   } else if (exit_strategy_str == "suspend") {

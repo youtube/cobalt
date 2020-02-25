@@ -59,6 +59,7 @@
 #include "cobalt/browser/storage_upgrade_handler.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/user_agent_string.h"
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/math/size.h"
 #include "cobalt/script/javascript_engine.h"
@@ -248,7 +249,8 @@ base::Optional<GURL> GetFallbackSplashScreenURL() {
     fallback_splash_screen_string =
         command_line->GetSwitchValueASCII(switches::kFallbackSplashScreenURL);
   } else {
-    fallback_splash_screen_string = COBALT_FALLBACK_SPLASH_SCREEN_URL;
+    fallback_splash_screen_string = configuration::Configuration::GetInstance()
+                                        ->CobaltFallbackSplashScreenUrl();
   }
   if (IsStringNone(fallback_splash_screen_string)) {
     return base::Optional<GURL>();

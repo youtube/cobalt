@@ -23,6 +23,7 @@
 #include "base/debug/leak_annotations.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/renderer/backend/egl/framebuffer_render_target.h"
 #include "cobalt/renderer/backend/egl/graphics_system.h"
 #include "cobalt/renderer/backend/egl/pbuffer_render_target.h"
@@ -533,7 +534,9 @@ void GraphicsContextEGL::SwapBuffers(RenderTargetEGL* surface) {
   // current implementation of eglSwapBuffers() does nothing for PBuffers,
   // so only check for framebuffer render targets.
   if (surface->GetPlatformHandle() == 0) {
-    EGL_CALL_SIMPLE(eglSwapInterval(display_, COBALT_EGL_SWAP_INTERVAL));
+    EGL_CALL_SIMPLE(eglSwapInterval(
+        display_,
+        configuration::Configuration::GetInstance()->CobaltEglSwapInterval()));
     EGL_CALL_SIMPLE(eglSwapBuffers(display_, surface->GetSurface()));
     EGLint swap_err = EGL_CALL_SIMPLE(eglGetError());
     if (swap_err != EGL_SUCCESS) {

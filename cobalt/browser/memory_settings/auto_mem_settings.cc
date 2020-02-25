@@ -26,6 +26,7 @@
 #include "base/strings/string_util.h"
 #include "cobalt/browser/memory_settings/constants.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/configuration/configuration.h"
 #include "starboard/blitter.h"
 
 namespace cobalt {
@@ -198,33 +199,36 @@ bool Set(const base::CommandLine& command_line,
 
 AutoMemSettings GetDefaultBuildSettings() {
   AutoMemSettings settings(AutoMemSettings::kTypeBuild);
+  configuration::Configuration* config =
+      configuration::Configuration::GetInstance();
   settings.has_blitter = HasBlitter();
 
   settings.cobalt_encoded_image_cache_size_in_bytes =
       MakeValidIfGreaterThanOrEqualToZero(
-          COBALT_ENCODED_IMAGE_CACHE_SIZE_IN_BYTES);
+          config->CobaltEncodedImageCacheSizeInBytes());
   settings.cobalt_image_cache_size_in_bytes =
-      MakeValidIfGreaterThanOrEqualToZero(COBALT_IMAGE_CACHE_SIZE_IN_BYTES);
+      MakeValidIfGreaterThanOrEqualToZero(
+          config->CobaltImageCacheSizeInBytes());
   settings.javascript_garbage_collection_threshold_in_bytes =
       MakeValidIfGreaterThanOrEqualToZero(
-          COBALT_JS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES);
+          config->CobaltJsGarbageCollectionThresholdInBytes());
   settings.remote_typeface_cache_capacity_in_bytes =
       MakeValidIfGreaterThanOrEqualToZero(
-          COBALT_REMOTE_TYPEFACE_CACHE_SIZE_IN_BYTES);
+          config->CobaltRemoteTypefaceCacheSizeInBytes());
   settings.skia_cache_size_in_bytes =
-      MakeValidIfGreaterThanOrEqualToZero(COBALT_SKIA_CACHE_SIZE_IN_BYTES);
-  settings.skia_texture_atlas_dimensions =
-      MakeDimensionsIfValid(TextureDimensions(
-          COBALT_SKIA_GLYPH_ATLAS_WIDTH, COBALT_SKIA_GLYPH_ATLAS_HEIGHT,
-          kSkiaGlyphAtlasTextureBytesPerPixel));
+      MakeValidIfGreaterThanOrEqualToZero(config->CobaltSkiaCacheSizeInBytes());
+  settings.skia_texture_atlas_dimensions = MakeDimensionsIfValid(
+      TextureDimensions(config->CobaltSkiaGlyphAtlasWidth(),
+                        config->CobaltSkiaGlyphAtlasHeight(),
+                        kSkiaGlyphAtlasTextureBytesPerPixel));
 
   // Render tree node cache settings for various rasterizers.
   settings.software_surface_cache_size_in_bytes =
       MakeValidIfGreaterThanOrEqualToZero(
-          COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES);
+          config->CobaltSoftwareSurfaceCacheSizeInBytes());
   settings.offscreen_target_cache_size_in_bytes =
       MakeValidIfGreaterThanOrEqualToZero(
-          COBALT_OFFSCREEN_TARGET_CACHE_SIZE_IN_BYTES);
+          config->CobaltOffscreenTargetCacheSizeInBytes());
 
   settings.max_cpu_in_bytes =
       MakeValidIfGreaterThanOrEqualToZero(COBALT_MAX_CPU_USAGE_IN_BYTES);
@@ -232,9 +236,9 @@ AutoMemSettings GetDefaultBuildSettings() {
       MakeValidIfGreaterThanOrEqualToZero(COBALT_MAX_GPU_USAGE_IN_BYTES);
 
   settings.reduce_cpu_memory_by =
-      MakeValidIfGreaterThanOrEqualToZero(COBALT_REDUCE_CPU_MEMORY_BY);
+      MakeValidIfGreaterThanOrEqualToZero(config->CobaltReduceCpuMemoryBy());
   settings.reduce_gpu_memory_by =
-      MakeValidIfGreaterThanOrEqualToZero(COBALT_REDUCE_GPU_MEMORY_BY);
+      MakeValidIfGreaterThanOrEqualToZero(config->CobaltReduceGpuMemoryBy());
 
   return settings;
 }
