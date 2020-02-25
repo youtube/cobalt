@@ -6,7 +6,6 @@
 
 #include <vector>
 
-#include "cobalt/build/build_config.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"
 
@@ -34,14 +33,9 @@ DecoderBuffer::ScopedAllocatorPtr::ScopedAllocatorPtr(Allocator* allocator,
     : allocator_(allocator), type_(type) {
   if (size > 0) {
     DCHECK(allocator_);
-#if SB_API_VERSION >= 10
     int padding = SbMediaGetBufferPadding(DemuxerStreamTypeToSbMediaType(type));
     int alignment =
         SbMediaGetBufferAlignment(DemuxerStreamTypeToSbMediaType(type));
-#else   // SB_API_VERSION >= 10
-    int padding = COBALT_MEDIA_BUFFER_PADDING;
-    int alignment = COBALT_MEDIA_BUFFER_ALIGNMENT;
-#endif  // SB_API_VERSION >= 10
     allocations_ = allocator_->Allocate(size + padding, alignment,
                                         static_cast<intptr_t>(type));
     static bool logged_warning = false;

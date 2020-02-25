@@ -369,7 +369,6 @@ void ShellDemuxer::AllocateBuffer() {
                                video_demuxer_stream_->GetTotalBufferSize();
     size_t total_buffer_count = audio_demuxer_stream_->GetTotalBufferCount() +
                                 video_demuxer_stream_->GetTotalBufferCount();
-#if SB_API_VERSION >= 10
     int progressive_budget = SbMediaGetProgressiveBufferBudget(
         MediaVideoCodecToSbMediaVideoCodec(VideoConfig().codec()),
         VideoConfig().visible_rect().size().width(),
@@ -377,11 +376,6 @@ void ShellDemuxer::AllocateBuffer() {
         VideoConfig().webm_color_metadata().BitsPerChannel);
     int progressive_duration_cap_in_seconds =
         SbMediaGetBufferGarbageCollectionDurationThreshold() / kSbTimeSecond;
-#else   // SB_API_VERSION >= 10
-    int progressive_budget = COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET;
-    int progressive_duration_cap_in_seconds =
-        COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS;
-#endif  // SB_API_VERSION >= 10
     const int kEstimatedBufferCountPerSeconds = 70;
     int progressive_buffer_count_cap =
         progressive_duration_cap_in_seconds * kEstimatedBufferCountPerSeconds;

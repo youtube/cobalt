@@ -158,11 +158,7 @@ SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config,
       range_for_next_append_(ranges_.end()),
       last_output_buffer_timestamp_(kNoDecodeTimestamp()),
       max_interbuffer_distance_(kNoTimestamp),
-#if SB_API_VERSION >= 10
       memory_limit_(SbMediaGetAudioBufferBudget()) {
-#else   // SB_API_VERSION >= 10
-      memory_limit_(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET) {
-#endif  // SB_API_VERSION >= 10
 
   DCHECK(audio_config.IsValidConfig());
   audio_configs_.push_back(audio_config);
@@ -180,16 +176,8 @@ SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config,
       max_interbuffer_distance_(kNoTimestamp) {
   DCHECK(video_config.IsValidConfig());
   video_configs_.push_back(video_config);
-#if SB_API_VERSION >= 10
   // This gets updated via taking a max in UpdateMediaBufferMembers.
   memory_limit_ = 0;
-#else   // SB_API_VERSION >= 10
-  VideoResolution resolution =
-      GetVideoResolution(video_config.visible_rect().size());
-  memory_limit_ = resolution <= kVideoResolution1080p
-                      ? COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P
-                      : COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K;
-#endif  // SB_API_VERSION >= 10
   UpdateMediaBufferMembers(video_config);
 }
 
@@ -204,13 +192,8 @@ SourceBufferStream::SourceBufferStream(const TextTrackConfig& text_config,
       range_for_next_append_(ranges_.end()),
       last_output_buffer_timestamp_(kNoDecodeTimestamp()),
       max_interbuffer_distance_(kNoTimestamp),
-#if SB_API_VERSION >= 10
       memory_limit_(SbMediaGetAudioBufferBudget()) {
 }
-#else   // SB_API_VERSION >= 10
-      memory_limit_(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET) {
-}
-#endif  // SB_API_VERSION >= 10
 
 SourceBufferStream::~SourceBufferStream() {
   while (!ranges_.empty()) {
@@ -753,13 +736,8 @@ bool SourceBufferStream::GarbageCollectIfNeeded(DecodeTimestamp media_time,
 
   size_t bytes_to_free = 0;
 
-#if SB_API_VERSION >= 10
   int garbage_collection_duration_threshold_in_seconds =
       SbMediaGetBufferGarbageCollectionDurationThreshold() / kSbTimeSecond;
-#else   // SB_API_VERSION >= 10
-  int garbage_collection_duration_threshold_in_seconds =
-      COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS;
-#endif  // SB_API_VERSION >= 10
   // Check if we're under or at the memory/duration limit.
   const auto kGcDurationThresholdInMilliseconds =
       garbage_collection_duration_threshold_in_seconds * 1000;
@@ -1564,7 +1542,6 @@ bool SourceBufferStream::UpdateAudioConfig(const AudioDecoderConfig& config) {
 void SourceBufferStream::UpdateMediaBufferMembers(
     const VideoDecoderConfig& config) {
   DVLOG(3) << "UpdateMediaBufferMembers.";
-#if SB_API_VERSION >= 10
   resolution_width_ = config.visible_rect().size().width();
   resolution_height_ = config.visible_rect().size().height();
   bits_per_pixel_ = config.webm_color_metadata().BitsPerChannel;
@@ -1574,13 +1551,6 @@ void SourceBufferStream::UpdateMediaBufferMembers(
       memory_limit_,
       static_cast<size_t>(SbMediaGetVideoBufferBudget(
           codec_, resolution_width_, resolution_height_, bits_per_pixel_)));
-#else   // SB_API_VERSION >= 10
-  VideoResolution resolution = GetVideoResolution(config.visible_rect().size());
-  // TODO: Reduce the memory limit when there is no more 4k samples cached.
-  if (resolution > kVideoResolution1080p) {
-    memory_limit_ = COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K;
-  }
-#endif  // SB_API_VERSION >= 10
 }
 
 bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config) {

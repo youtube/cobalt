@@ -390,6 +390,10 @@
     # reproducing bugs.
     'cobalt_gc_zeal%': 0,
 
+    # The cobalt_media_* variables defined below are deprecated. Their
+    # corresponding Starboard functions should be defined instead of setting
+    # their values through GYP.
+
     # This can be set to "memory" or "file".  When it is set to "memory", the
     # media buffers will be stored in main memory allocated by SbMemory
     # functions.  When it is set to "file", the media buffers will be stored in
@@ -397,7 +401,7 @@
     # SbSystemGetPath() with "kSbSystemPathCacheDirectory".  Note that when its
     # value is "file" the media stack will still allocate memory to cache the
     # the buffers in use.
-    'cobalt_media_buffer_storage_type%': 'memory',
+    'cobalt_media_buffer_storage_type%': '',
     # When either |cobalt_media_buffer_initial_capacity| or
     # |cobalt_media_buffer_allocation_unit| isn't zero, media buffers will be
     # allocated using a memory pool.  Set the following variable to 1 to
@@ -407,20 +411,20 @@
     # |cobalt_media_buffer_initial_capacity| bytes for media buffer on startup
     # and will not release any media buffer memory back to the system even if
     # there is no media buffers allocated.
-    'cobalt_media_buffer_pool_allocate_on_demand%': 1,
+    'cobalt_media_buffer_pool_allocate_on_demand%': -1,
     # The amount of memory that will be used to store media buffers allocated
     # during system startup.  To allocate a large chunk at startup helps with
     # reducing fragmentation and can avoid failures to allocate incrementally.
     # This can be set to 0.
-    'cobalt_media_buffer_initial_capacity%': 21 * 1024 * 1024,
+    'cobalt_media_buffer_initial_capacity%': -1,
     # The maximum amount of memory that will be used to store media buffers when
     # video resolution is no larger than 1080p. This must be larger than sum of
     # 1080p video budget and non-video budget.
-    'cobalt_media_buffer_max_capacity_1080p%': 50 * 1024 * 1024,
+    'cobalt_media_buffer_max_capacity_1080p%': -1,
     # The maximum amount of memory that will be used to store media buffers when
     # video resolution is 4k. If 0, then memory can grow without bound. This
     # must be larger than sum of 4k video budget and non-video budget.
-    'cobalt_media_buffer_max_capacity_4k%': 140 * 1024 * 1024,
+    'cobalt_media_buffer_max_capacity_4k%': -1,
 
     # When the media stack needs more memory to store media buffers, it will
     # allocate extra memory in units of |cobalt_media_buffer_allocation_unit|.
@@ -428,22 +432,22 @@
     # memory on demand.  When |cobalt_media_buffer_initial_capacity| and this
     # value are both set to 0, the media stack will allocate individual buffers
     # directly using SbMemory functions.
-    'cobalt_media_buffer_allocation_unit%': 1 * 1024 * 1024,
+    'cobalt_media_buffer_allocation_unit%': -1,
 
     # The media buffer will be allocated using the following alignment.  Set
     # this to a larger value may increase the memory consumption of media
     # buffers.
-    'cobalt_media_buffer_alignment%': 1,
+    'cobalt_media_buffer_alignment%': -1,
     # Extra bytes allocated at the end of a media buffer to ensure that the
     # buffer can be use optimally by specific instructions like SIMD.  Set to 0
     # to remove any padding.
-    'cobalt_media_buffer_padding%': 0,
+    'cobalt_media_buffer_padding%': -1,
 
     # The memory used when playing mp4 videos that is not in DASH format.  The
     # resolution of such videos shouldn't go beyond 1080p.  Its value should be
     # less than the sum of 'cobalt_media_buffer_non_video_budget' and
     # 'cobalt_media_buffer_video_budget_1080p' but not less than 8 MB.
-    'cobalt_media_buffer_progressive_budget%': 12 * 1024 * 1024,
+    'cobalt_media_buffer_progressive_budget%': -1,
 
     # Specifies the maximum amount of memory used by audio or text buffers of
     # media source before triggering a garbage collection.  A large value will
@@ -451,7 +455,7 @@
     # JavaScript app less likely to re-download audio data.  Note that the
     # JavaScript app may experience significant difficulty if this value is too
     # low.
-    'cobalt_media_buffer_non_video_budget%': 5 * 1024 * 1024,
+    'cobalt_media_buffer_non_video_budget%': -1,
 
     # Specifies the maximum amount of memory used by video buffers of media
     # source before triggering a garbage collection when the video resolution is
@@ -459,14 +463,14 @@
     # used by video buffers but will also make JavaScript app less likely to
     # re-download video data.  Note that the JavaScript app may experience
     # significant difficulty if this value is too low.
-    'cobalt_media_buffer_video_budget_1080p%': 30 * 1024 * 1024,
+    'cobalt_media_buffer_video_budget_1080p%': -1,
     # Specifies the maximum amount of memory used by video buffers of media
     # source before triggering a garbage collection when the video resolution is
     # lower than 4k (3840x2160).  A large value will cause more memory being
     # used by video buffers but will also make JavaScript app less likely to
     # re-download video data.  Note that the JavaScript app may experience
     # significant difficulty if this value is too low.
-    'cobalt_media_buffer_video_budget_4k%': 100 * 1024 * 1024,
+    'cobalt_media_buffer_video_budget_4k%': -1,
 
     # Specifies the duration threshold of media source garbage collection.  When
     # the accumulated duration in a source buffer exceeds this value, the media
@@ -477,7 +481,7 @@
     # system heap.
     # This should be set to 170 for most of the platforms.  But it can be
     # further reduced on systems with extremely low memory.
-    'cobalt_media_source_garbage_collection_duration_threshold_in_seconds%': 170,
+    'cobalt_media_source_garbage_collection_duration_threshold_in_seconds%': -1,
 
     'compiler_flags_host': [
       '-D__LB_HOST__',  # TODO: Is this still needed?
@@ -544,27 +548,89 @@
   'target_defaults': {
     'defines': [
       'COBALT',
-      'COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND=<(cobalt_media_buffer_pool_allocate_on_demand)',
-      'COBALT_MEDIA_BUFFER_INITIAL_CAPACITY=<(cobalt_media_buffer_initial_capacity)',
-      'COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P=<(cobalt_media_buffer_max_capacity_1080p)',
-      'COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K=<(cobalt_media_buffer_max_capacity_4k)',
-      'COBALT_MEDIA_BUFFER_ALLOCATION_UNIT=<(cobalt_media_buffer_allocation_unit)',
-      'COBALT_MEDIA_BUFFER_ALIGNMENT=<(cobalt_media_buffer_alignment)',
-      'COBALT_MEDIA_BUFFER_PADDING=<(cobalt_media_buffer_padding)',
-      'COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET=<(cobalt_media_buffer_progressive_budget)',
-      'COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET=<(cobalt_media_buffer_non_video_budget)',
-      'COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P=<(cobalt_media_buffer_video_budget_1080p)',
-      'COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K=<(cobalt_media_buffer_video_budget_4k)',
-      'COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS=<(cobalt_media_source_garbage_collection_duration_threshold_in_seconds)',
     ],
     'conditions': [
+      ['cobalt_media_buffer_pool_allocate_on_demand != -1', {
+        'defines': [
+          'COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND=<(cobalt_media_buffer_pool_allocate_on_demand)',
+        ],
+      }],
+      ['cobalt_media_buffer_initial_capacity != -1', {
+        'defines': [
+          'COBALT_MEDIA_BUFFER_INITIAL_CAPACITY=<(cobalt_media_buffer_initial_capacity)',
+        ],
+      }],
+      ['cobalt_media_buffer_max_capacity_1080p != -1', {
+        'defines': [
+          'COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P=<(cobalt_media_buffer_max_capacity_1080p)',
+        ],
+      }],
+      ['cobalt_media_buffer_max_capacity_4k != -1', {
+        'defines': [
+          'COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K=<(cobalt_media_buffer_max_capacity_4k)',
+        ],
+      }],
+      ['cobalt_media_buffer_max_capacity_4k != -1', {
+        'defines': [
+          'COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K=<(cobalt_media_buffer_max_capacity_4k)',
+        ],
+      }],
+      ['cobalt_media_buffer_max_capacity_4k != -1', {
+        'defines': [
+          'COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K=<(cobalt_media_buffer_max_capacity_4k)',
+        ],
+      }],
+      ['cobalt_media_buffer_allocation_unit != -1', {
+        'defines': [
+          'COBALT_MEDIA_BUFFER_ALLOCATION_UNIT=<(cobalt_media_buffer_allocation_unit)',
+        ],
+      }],
+      ['cobalt_media_buffer_alignment != -1', {
+        'defines': [
+          'COBALT_MEDIA_BUFFER_ALIGNMENT=<(cobalt_media_buffer_alignment)',
+        ],
+      }],
+      ['cobalt_media_buffer_padding != -1', {
+        'defines': [
+          'COBALT_MEDIA_BUFFER_PADDING=<(cobalt_media_buffer_padding)',
+        ],
+      }],
+      ['cobalt_media_buffer_progressive_budget != -1', {
+        'defines': [
+          'COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET=<(cobalt_media_buffer_progressive_budget)',
+        ],
+      }],
+      ['cobalt_media_buffer_non_video_budget != -1', {
+        'defines': [
+          'COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET=<(cobalt_media_buffer_non_video_budget)',
+        ],
+      }],
+      ['cobalt_media_buffer_video_budget_1080p != -1', {
+        'defines': [
+          'COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P=<(cobalt_media_buffer_video_budget_1080p)',
+        ],
+      }],
+      ['cobalt_media_buffer_video_budget_4k != -1', {
+        'defines': [
+          'COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K=<(cobalt_media_buffer_video_budget_4k)',
+        ],
+      }],
+      ['cobalt_media_source_garbage_collection_duration_threshold_in_seconds != -1', {
+        'defines': [
+          'COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS=<(cobalt_media_source_garbage_collection_duration_threshold_in_seconds)',
+        ],
+      }],
       ['cobalt_media_buffer_storage_type == "memory"', {
         'defines': [
           'COBALT_MEDIA_BUFFER_STORAGE_TYPE_MEMORY=1',
         ],
       }, {
-        'defines': [
-          'COBALT_MEDIA_BUFFER_STORAGE_TYPE_FILE=1',
+        'conditions': [
+          ['cobalt_media_buffer_storage_type != ""', {
+            'defines': [
+              'COBALT_MEDIA_BUFFER_STORAGE_TYPE_FILE=1',
+            ],
+          }],
         ],
       }],
       ['cobalt_gc_zeal == 1', {

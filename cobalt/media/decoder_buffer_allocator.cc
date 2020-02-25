@@ -40,38 +40,19 @@ bool IsLargeAllocation(std::size_t size) {
 }
 
 bool IsMemoryPoolEnabled() {
-#if SB_API_VERSION >= 10
   return SbMediaIsBufferUsingMemoryPool();
-#elif COBALT_MEDIA_BUFFER_INITIAL_CAPACITY > 0 || \
-      COBALT_MEDIA_BUFFER_ALLOCATION_UNIT > 0
-  return true;
-#endif  // COBALT_MEDIA_BUFFER_INITIAL_CAPACITY == 0 &&
-        // COBALT_MEDIA_BUFFER_ALLOCATION_UNIT == 0
-  return false;
 }
 
 bool IsMemoryPoolAllocatedOnDemand() {
-#if SB_API_VERSION >= 10
   return SbMediaIsBufferPoolAllocateOnDemand();
-#else  // SB_API_VERSION >= 10
-  return COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND;
-#endif  // SB_API_VERSION >= 10
 }
 
 int GetInitialBufferCapacity() {
-#if SB_API_VERSION >= 10
   return SbMediaGetInitialBufferCapacity();
-#else   // SB_API_VERSION >= 10
-  return COBALT_MEDIA_BUFFER_INITIAL_CAPACITY;
-#endif  // SB_API_VERSION >= 10
 }
 
 int GetBufferAllocationUnit() {
-#if SB_API_VERSION >= 10
   return SbMediaGetBufferAllocationUnit();
-#else   // SB_API_VERSION >= 10
-  return COBALT_MEDIA_BUFFER_ALLOCATION_UNIT;
-#endif  // SB_API_VERSION >= 10
 }
 
 }  // namespace
@@ -93,14 +74,10 @@ DecoderBufferAllocator::DecoderBufferAllocator()
 
   TRACK_MEMORY_SCOPE("Media");
 
-#if SB_API_VERSION >= 10
   // We cannot call SbMediaGetMaxBufferCapacity because |video_codec_| is not
   // set yet. Use 0 (unbounded) until |video_codec_| is updated in
   // UpdateVideoConfig().
   int max_capacity = 0;
-#else   // SB_API_VERSION >= 10
-  int max_capacity = COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P;
-#endif  // SB_API_VERSION >= 10
   reuse_allocator_.reset(new ReuseAllocator(
       &fallback_allocator_, initial_capacity_, allocation_unit_, max_capacity));
   DLOG(INFO) << "Allocated " << initial_capacity_
@@ -136,7 +113,6 @@ DecoderBuffer::Allocator::Allocations DecoderBufferAllocator::Allocate(
   if (!reuse_allocator_) {
     DCHECK(is_memory_pool_allocated_on_demand_);
 
-#if SB_API_VERSION >= 10
     int max_capacity = 0;
     if (video_codec_ != kSbMediaVideoCodecNone) {
       DCHECK_GT(resolution_width_, 0);
@@ -145,13 +121,6 @@ DecoderBuffer::Allocator::Allocations DecoderBufferAllocator::Allocate(
       max_capacity = SbMediaGetMaxBufferCapacity(
           video_codec_, resolution_width_, resolution_height_, bits_per_pixel_);
     }
-#else   // SB_API_VERSION >= 10
-    VideoResolution resolution =
-        GetVideoResolution(math::Size(resolution_width_, resolution_height_));
-    int max_capacity = resolution <= kVideoResolution1080p
-                           ? COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P
-                           : COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K;
-#endif  // SB_API_VERSION >= 10
     reuse_allocator_.reset(new ReuseAllocator(&fallback_allocator_,
                                               initial_capacity_,
                                               allocation_unit_, max_capacity));
@@ -225,16 +194,8 @@ void DecoderBufferAllocator::UpdateVideoConfig(
     return;
   }
 
-#if SB_API_VERSION >= 10
   reuse_allocator_->IncreaseMaxCapacityIfNecessary(SbMediaGetMaxBufferCapacity(
       video_codec_, resolution_width_, resolution_height_, bits_per_pixel_));
-#else   // SB_API_VERSION >= 10
-  VideoResolution resolution = GetVideoResolution(config.visible_rect().size());
-  if (reuse_allocator_->max_capacity() && resolution > kVideoResolution1080p) {
-    reuse_allocator_->IncreaseMaxCapacityIfNecessary(
-        COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K);
-  }
-#endif  // SB_API_VERSION >= 10
   DLOG(INFO) << "Max capacity of decoder buffer allocator after increasing is "
              << reuse_allocator_->GetCapacity();
 }
