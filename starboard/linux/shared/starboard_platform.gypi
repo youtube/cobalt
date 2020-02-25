@@ -376,6 +376,7 @@
       '<(DEPTH)/starboard/common/common.gyp:common',
       '<(DEPTH)/starboard/linux/shared/starboard_base_symbolize.gyp:starboard_base_symbolize',
       '<(DEPTH)/starboard/shared/ffmpeg/ffmpeg.gyp:ffmpeg_dynamic_load',
+      '<(DEPTH)/starboard/shared/starboard/media/media.gyp:media_util',
       '<(DEPTH)/third_party/aom_includes/aom_includes.gyp:aom',
       '<(DEPTH)/third_party/boringssl/boringssl.gyp:crypto',
       '<(DEPTH)/third_party/de265_includes/de265_includes.gyp:de265',
