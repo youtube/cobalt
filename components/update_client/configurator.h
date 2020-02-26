@@ -170,6 +170,8 @@ class Configurator : public base::RefCountedThreadSafe<Configurator> {
   // Sets the value we use for the "updaterchannel=" and "prodchannel="
   // parameters.
   virtual void SetChannel(const std::string& channel) = 0;
+
+  virtual bool IsChannelChanged() const = 0;
 #endif
 
  protected:

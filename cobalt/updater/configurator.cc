@@ -80,6 +80,8 @@ base::flat_map<std::string, std::string> Configurator::ExtraRequestParams()
   params.insert(std::make_pair("sbversion", std::to_string(SB_API_VERSION)));
   params.insert(std::make_pair(
       "jsengine", script::GetJavaScriptEngineNameAndVersion()));
+  params.insert(std::make_pair("updaterchannelchanged",
+                               IsChannelChanged() ? "True" : "False"));
   return params;
 }
 
