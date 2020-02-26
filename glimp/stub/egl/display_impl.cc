@@ -74,34 +74,6 @@ void DisplayImplStub::InitializeSupportedConfigs() {
   supported_configs_.insert(config);
 }
 
-nb::scoped_ptr<SurfaceImpl> DisplayImplStub::CreateWindowSurface(
-    const Config* config,
-    EGLNativeWindowType win,
-    const AttribMap& attributes) {
-  SB_DCHECK(config->find(EGL_RED_SIZE)->second == 8);
-  SB_DCHECK(config->find(EGL_GREEN_SIZE)->second == 8);
-  SB_DCHECK(config->find(EGL_BLUE_SIZE)->second == 8);
-  SB_DCHECK(config->find(EGL_ALPHA_SIZE)->second == 8);
-  SB_DCHECK(config->find(EGL_BUFFER_SIZE)->second == 32);
-  SB_DCHECK(config->find(EGL_LUMINANCE_SIZE)->second == 0);
-  SB_DCHECK(config->find(EGL_COLOR_BUFFER_TYPE)->second == EGL_RGB_BUFFER);
-  return nb::scoped_ptr<SurfaceImpl>(new WindowSurfaceImplStub());
-}
-
-nb::scoped_ptr<SurfaceImpl> DisplayImplStub::CreatePbufferSurface(
-    const Config* config,
-    const AttribMap& attributes) {
-  SB_DCHECK(config->find(EGL_RED_SIZE)->second == 8);
-  SB_DCHECK(config->find(EGL_GREEN_SIZE)->second == 8);
-  SB_DCHECK(config->find(EGL_BLUE_SIZE)->second == 8);
-  SB_DCHECK(config->find(EGL_ALPHA_SIZE)->second == 8);
-  SB_DCHECK(config->find(EGL_BUFFER_SIZE)->second == 32);
-  SB_DCHECK(config->find(EGL_LUMINANCE_SIZE)->second == 0);
-  SB_DCHECK(config->find(EGL_COLOR_BUFFER_TYPE)->second == EGL_RGB_BUFFER);
-  return nb::scoped_ptr<SurfaceImpl>(new PbufferSurfaceImplStub(
-      attributes.find(EGL_WIDTH)->second, attributes.find(EGL_HEIGHT)->second));
-}
-
 nb::scoped_ptr<gles::ContextImpl> DisplayImplStub::CreateContext(
     const Config* config,
     int gles_version) {
