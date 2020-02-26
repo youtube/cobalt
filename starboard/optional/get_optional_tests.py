@@ -41,7 +41,7 @@ def _Posixify(path):
   return os.path.normpath(path).replace(os.path.sep, posixpath.sep)
 
 
-def _GetOptionalTestTargets(as_gyp_dependencies, depth):
+def GetOptionalTestTargets(as_gyp_dependencies=False, depth=''):
   """Returns optional test targets for use in GYP or Python.
 
   This function will try to import optional test targets, and fail gracefully if
@@ -95,7 +95,7 @@ def DoMain(argv=None):
 
   if args.as_gyp_dependencies != bool(args.depth):
     arg_parser.error('You must specify both --as-gyp-dependencies and --depth.')
-  return _GetOptionalTestTargets(args.as_gyp_dependencies, args.depth)
+  return GetOptionalTestTargets(args.as_gyp_dependencies, args.depth)
 
 
 def main():

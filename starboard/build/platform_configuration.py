@@ -357,7 +357,7 @@ class PlatformConfiguration(object):
         'player_filter_tests',
         'starboard_platform_tests',
     ]
-    tests.extend(get_optional_tests.DoMain())
+    tests.extend(get_optional_tests.GetOptionalTestTargets())
     return tests
 
   def GetDefaultTargetBuildFile(self):
