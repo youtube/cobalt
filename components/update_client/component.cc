@@ -106,6 +106,7 @@ void InstallOnBlockingTaskRunner(
     const std::string& public_key,
 #if defined(OS_STARBOARD)
     const int installation_index,
+    const bool is_channel_changed,
 #endif
     const std::string& fingerprint,
     scoped_refptr<CrxInstaller> installer,
@@ -155,6 +156,12 @@ void InstallOnBlockingTaskRunner(
 
   CrxInstaller::Result result(install_error);
   InstallComplete(main_task_runner, std::move(callback), unpack_path, result);
+
+  // Restart the app if installation is successful after the web app sets a new
+  // channel.
+  if (install_error == InstallError::NONE && is_channel_changed) {
+    SbSystemRequestStop(0);
+  }
 #else
   installer->Install(
       unpack_path, public_key,
@@ -168,6 +175,7 @@ void UnpackCompleteOnBlockingTaskRunner(
     const base::FilePath& crx_path,
 #if defined(OS_STARBOARD)
     const int installation_index,
+    const bool is_channel_changed,
 #endif
     const std::string& fingerprint,
     scoped_refptr<CrxInstaller> installer,
@@ -188,7 +196,7 @@ void UnpackCompleteOnBlockingTaskRunner(
       base::BindOnce(&InstallOnBlockingTaskRunner, main_task_runner,
                      result.unpack_path, result.public_key,
 #if defined(OS_STARBOARD)
-                     installation_index,
+                     installation_index, is_channel_changed,
 #endif
                      fingerprint, installer, std::move(callback)));
 }
@@ -202,6 +210,7 @@ void StartInstallOnBlockingTaskRunner(
     PersistedData* metadata,
     const std::string& id,
     const std::string& version,
+    const bool is_channel_changed,
 #endif
     const std::string& fingerprint,
     scoped_refptr<CrxInstaller> installer,
@@ -216,7 +225,7 @@ void StartInstallOnBlockingTaskRunner(
   unpacker->Unpack(base::BindOnce(&UnpackCompleteOnBlockingTaskRunner,
                                   main_task_runner, crx_path,
 #if defined(OS_STARBOARD)
-                                  installation_index,
+                                  installation_index, is_channel_changed,
 #endif
                                   fingerprint, installer, std::move(callback)));
 }
@@ -827,9 +836,9 @@ void Component::StateUpdatingDiff::DoHandle() {
               component.crx_component()->pk_hash, component.crx_path_,
 #if defined(OS_STARBOARD)
               component.installation_index_,
-              update_context.update_checker->GetPersistedData(),
-              component.id_,
+              update_context.update_checker->GetPersistedData(), component.id_,
               component.next_version_.GetString(),
+              update_context.config->IsChannelChanged(),
 #endif
               component.next_fp_, component.crx_component()->installer,
               update_context.config->GetUnzipperFactory()->Create(),
@@ -895,8 +904,8 @@ void Component::StateUpdating::DoHandle() {
 #if defined(OS_STARBOARD)
                      component.installation_index_,
                      update_context.update_checker->GetPersistedData(),
-                     component.id_,
-                     component.next_version_.GetString(),
+                     component.id_, component.next_version_.GetString(),
+                     update_context.config->IsChannelChanged(),
 #endif
                      component.next_fp_, component.crx_component()->installer,
                      update_context.config->GetUnzipperFactory()->Create(),
