@@ -65,6 +65,11 @@ class UpdaterModule {
   std::string GetUpdaterChannel() const;
   void SetUpdaterChannel(const std::string& updater_channel);
 
+  void MarkChannelChanged() { updater_configurator_->MarkChannelChanged(); }
+  bool IsChannelChanged() { return updater_configurator_->IsChannelChanged(); }
+
+  void RunUpdateCheck();
+
  private:
   base::Thread updater_thread_;
   scoped_refptr<update_client::UpdateClient> update_client_;
