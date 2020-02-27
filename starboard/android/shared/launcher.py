@@ -402,3 +402,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     sys.stderr.write('ADB forward local port {} '
                      '=> device port {}\n'.format(self.local_port, port))
     return socket.gethostbyname('localhost'), self.local_port
+
+  def GetDeviceIp(self):
+    """Gets the device IP. TODO: Implement."""
+    return None

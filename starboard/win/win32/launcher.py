@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#
 # Copyright 2017 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,6 +17,7 @@
 from __future__ import print_function
 
 import os
+import socket
 import subprocess
 import sys
 import traceback
@@ -24,7 +25,9 @@ import traceback
 import starboard.shared.win32.mini_dump_printer as mini_dump_printer
 import starboard.tools.abstract_launcher as abstract_launcher
 
+
 class Launcher(abstract_launcher.AbstractLauncher):
+
   def __init__(self, platform, target_name, config, device_id, **kwargs):
     super(Launcher, self).__init__(platform, target_name, config, device_id,
                                    **kwargs)
@@ -36,8 +39,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
       os.remove(self.executable_mini_dump_path)
 
   def Run(self):
-    self.LogLn('\n***Running Launcher***')
     """Runs launcher's executable_path."""
+    self.LogLn('\n***Running Launcher***')
     self.proc = subprocess.Popen(
         [self.executable_path] + self.target_command_line_params,
         stdout=self.output_file,
@@ -52,32 +55,36 @@ class Launcher(abstract_launcher.AbstractLauncher):
     return rtn_code
 
   def Kill(self):
-    self.LogLn("\n***Killing Launcher***")
+    self.LogLn('\n***Killing Launcher***')
     if self.pid:
       try:
         self.proc.kill()
       except OSError:
-        self.LogLn("Error killing launcher with SIGKILL:")
+        self.LogLn('Error killing launcher with SIGKILL:')
         traceback.print_exc(file=sys.stdout)
         # If for some reason Kill() fails then os_.exit(1) will kill the
         # child process without cleanup. Otherwise the process will hang.
         os._exit(1)
     else:
-      self.LogLn("Kill() called before Run(), cannot kill.")
+      self.LogLn('Kill() called before Run(), cannot kill.')
     return
 
   def Log(self, s):
-    self.output_file.write(s);
+    self.output_file.write(s)
 
   def LogLn(self, s):
-    self.Log(s + '\n');
+    self.Log(s + '\n')
 
   def DetectAndHandleCrashDump(self):
     if not os.path.exists(self.executable_mini_dump_path):
       return
-    self.LogLn('\n*** Found crash dump! ***\nMinDumpPath:'\
-               + self.executable_mini_dump_path)
+    self.LogLn('\n*** Found crash dump! ***\nMinDumpPath:' +
+               self.executable_mini_dump_path)
     mini_dump_printer.PrintMiniDump(
         self.executable_mini_dump_path,
         self.executable_path,
         self.output_file)
+
+  def GetDeviceIp(self):
+    """Gets the device IP."""
+    return socket.gethostbyname(socket.getfqdn())

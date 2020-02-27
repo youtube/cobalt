@@ -47,11 +47,14 @@ class Launcher(abstract_launcher.AbstractLauncher):
   def __init__(self, platform, target_name, config, device_id, **kwargs):
     super(Launcher, self).__init__(platform, target_name, config, device_id,
                                    **kwargs)
-    if not self.device_id:
+    if self.device_id:
+      self.device_ip = self.device_id
+    else:
       if socket.has_ipv6:  #  If the device supports IPv6:
         self.device_id = "[::1]"  #  Use IPv6 loopback address (rfc2732 format).
       else:
         self.device_id = socket.gethostbyname("localhost")  # pylint: disable=W6503
+      self.device_ip = socket.gethostbyname(socket.gethostname())
 
     self.executable = self.GetTargetPath()
 
@@ -129,7 +132,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
     return True
 
   def SendDeepLink(self, link):
-    # The connect call in SendLink occassionally fails. Retry a few times if this happens.
+    # The connect call in SendLink occassionally fails. Retry a few times if
+    # this happens.
     connection_attempts = 3
     return send_link.SendLink(
         os.path.basename(self.executable), link, connection_attempts)
@@ -149,3 +153,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
       else:
         elapsed_time += .005
       time.sleep(.005)
+
+  def GetDeviceIp(self):
+    """Gets the device IP."""
+    return self.device_ip
