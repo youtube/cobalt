@@ -16,7 +16,6 @@
 import logging
 import os
 import shutil
-import tempfile
 
 import _env  # pylint: disable=unused-import
 from starboard.tools import abstract_launcher
@@ -188,3 +187,6 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def GetTargetPath(self):
     return self.launcher.GetTargetPath()
+
+  def GetDeviceIp(self):
+    return self.launcher.GetDeviceIp()

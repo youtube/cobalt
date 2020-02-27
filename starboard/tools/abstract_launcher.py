@@ -145,6 +145,11 @@ class AbstractLauncher(object):
     """Kills the launcher. Must be implemented in subclasses."""
     pass
 
+  @abc.abstractmethod
+  def GetDeviceIp(self):
+    """Gets the device IP. Must be implemented in subclasses."""
+    pass
+
   def SupportsSuspendResume(self):
     return False
 
