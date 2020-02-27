@@ -33,25 +33,25 @@ void *dav1d_frame_task(void *const data) {
     Dav1dFrameContext *const f = data;
 
     dav1d_set_thread_name("dav1d-frame");
-    pthread_mutex_lock(&f->frame_thread.td.lock);
+    dav1d_pthread_mutex_lock(&f->frame_thread.td.lock);
     for (;;) {
         while (!f->n_tile_data && !f->frame_thread.die) {
-            pthread_cond_wait(&f->frame_thread.td.cond,
+            dav1d_pthread_cond_wait(&f->frame_thread.td.cond,
                               &f->frame_thread.td.lock);
         }
         if (f->frame_thread.die) break;
-        pthread_mutex_unlock(&f->frame_thread.td.lock);
+        dav1d_pthread_mutex_unlock(&f->frame_thread.td.lock);
 
         const int res = dav1d_decode_frame(f);
         if (res)
             memset(f->frame_thread.cf, 0,
                    (size_t)f->frame_thread.cf_sz * 128 * 128 / 2);
 
-        pthread_mutex_lock(&f->frame_thread.td.lock);
+        dav1d_pthread_mutex_lock(&f->frame_thread.td.lock);
         f->n_tile_data = 0;
-        pthread_cond_signal(&f->frame_thread.td.cond);
+        dav1d_pthread_cond_signal(&f->frame_thread.td.cond);
     }
-    pthread_mutex_unlock(&f->frame_thread.td.lock);
+    dav1d_pthread_mutex_unlock(&f->frame_thread.td.lock);
 
     return NULL;
 }
@@ -66,24 +66,24 @@ void *dav1d_tile_task(void *const data) {
     dav1d_set_thread_name("dav1d-tile");
 
     for (;;) {
-        pthread_mutex_lock(&fttd->lock);
+        dav1d_pthread_mutex_lock(&fttd->lock);
         fttd->available |= mask;
         int did_signal = 0;
         while (!fttd->tasks_left && !t->tile_thread.die) {
             if (!did_signal) {
                 did_signal = 1;
-                pthread_cond_signal(&fttd->icond);
+                dav1d_pthread_cond_signal(&fttd->icond);
             }
-            pthread_cond_wait(&fttd->cond, &fttd->lock);
+            dav1d_pthread_cond_wait(&fttd->cond, &fttd->lock);
         }
         if (t->tile_thread.die) {
-            pthread_cond_signal(&fttd->icond);
-            pthread_mutex_unlock(&fttd->lock);
+            dav1d_pthread_cond_signal(&fttd->icond);
+            dav1d_pthread_mutex_unlock(&fttd->lock);
             break;
         }
         fttd->available &= ~mask;
         const int task_idx = fttd->num_tasks - fttd->tasks_left--;
-        pthread_mutex_unlock(&fttd->lock);
+        dav1d_pthread_mutex_unlock(&fttd->lock);
 
         if (f->frame_thread.pass == 1 || f->n_tc >= f->frame_hdr->tiling.cols) {
             // we can (or in fact, if >, we need to) do full tile decoding.
@@ -96,10 +96,10 @@ void *dav1d_tile_task(void *const data) {
                 int progress = error ? TILE_ERROR : 1 + (t->by >> f->sb_shift);
 
                 // signal progress
-                pthread_mutex_lock(&ts->tile_thread.lock);
+                dav1d_pthread_mutex_lock(&ts->tile_thread.lock);
                 atomic_store(&ts->progress, progress);
-                pthread_cond_signal(&ts->tile_thread.cond);
-                pthread_mutex_unlock(&ts->tile_thread.lock);
+                dav1d_pthread_cond_signal(&ts->tile_thread.cond);
+                dav1d_pthread_mutex_unlock(&ts->tile_thread.lock);
                 if (error) break;
             }
         } else {
@@ -115,11 +115,11 @@ void *dav1d_tile_task(void *const data) {
             // solve the broadcast() below and allow us to use signal(). However,
             // for now, we use linear dependency tracking because it's simpler.
             if ((progress = atomic_load(&ts->progress)) < sby) {
-                pthread_mutex_lock(&ts->tile_thread.lock);
+                dav1d_pthread_mutex_lock(&ts->tile_thread.lock);
                 while ((progress = atomic_load(&ts->progress)) < sby)
-                    pthread_cond_wait(&ts->tile_thread.cond,
+                    dav1d_pthread_cond_wait(&ts->tile_thread.cond,
                                       &ts->tile_thread.lock);
-                pthread_mutex_unlock(&ts->tile_thread.lock);
+                dav1d_pthread_mutex_unlock(&ts->tile_thread.lock);
             }
             if (progress == TILE_ERROR) continue;
 
@@ -132,10 +132,10 @@ void *dav1d_tile_task(void *const data) {
             progress = error ? TILE_ERROR : 1 + sby;
 
             // signal progress
-            pthread_mutex_lock(&ts->tile_thread.lock);
+            dav1d_pthread_mutex_lock(&ts->tile_thread.lock);
             atomic_store(&ts->progress, progress);
-            pthread_cond_broadcast(&ts->tile_thread.cond);
-            pthread_mutex_unlock(&ts->tile_thread.lock);
+            dav1d_pthread_cond_broadcast(&ts->tile_thread.cond);
+            dav1d_pthread_mutex_unlock(&ts->tile_thread.lock);
         }
     }
 
