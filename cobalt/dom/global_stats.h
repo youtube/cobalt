@@ -70,6 +70,8 @@ class GlobalStats {
   void IncreaseXHRMemoryUsage(size_t delta);
   void DecreaseXHRMemoryUsage(size_t delta);
 
+  void OnFontRequestComplete(int64 start_time);
+
  private:
   GlobalStats();
   ~GlobalStats();
@@ -92,6 +94,9 @@ class GlobalStats {
 
   friend struct base::DefaultSingletonTraits<GlobalStats>;
   DISALLOW_COPY_AND_ASSIGN(GlobalStats);
+
+  // Font-related tracking
+  base::CVal<int64, base::CValPublic> total_font_request_time_;
 };
 
 }  // namespace dom
