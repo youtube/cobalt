@@ -112,7 +112,7 @@ class AudioDecoderTest
     audio_decoder->reset();
 
     PlayerComponents::Factory::CreationParameters creation_parameters(
-        codec, "", audio_sample_info);
+        codec, audio_sample_info);
 
     scoped_ptr<PlayerComponents::Factory> factory;
     if (using_stub_decoder_) {
