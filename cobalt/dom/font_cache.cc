@@ -15,6 +15,7 @@
 #include <memory>
 
 #include "cobalt/dom/font_cache.h"
+#include "cobalt/dom/global_stats.h"
 
 namespace cobalt {
 namespace dom {
@@ -163,6 +164,7 @@ scoped_refptr<render_tree::Font> FontCache::TryGetFont(
     FontListFont::State* state) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   FontFaceMap::iterator font_face_map_iterator = font_face_map_->find(family);
+  int64 request_time_start = base::TimeTicks::Now().ToInternalValue();
   if (font_face_map_iterator != font_face_map_->end()) {
     // Retrieve the font face style set entry that most closely matches the
     // desired style. Given that a font face was found for this family, it
@@ -184,11 +186,14 @@ scoped_refptr<render_tree::Font> FontCache::TryGetFont(
              style_set_entry->sources.begin();
          source_iterator != style_set_entry->sources.end(); ++source_iterator) {
       if (source_iterator->IsUrlSource()) {
-        return TryGetRemoteFont(source_iterator->GetUrl(), size, state);
+        auto font = TryGetRemoteFont(source_iterator->GetUrl(), size, state);
+        GlobalStats::GetInstance()->OnFontRequestComplete(request_time_start);
+        return font;
       } else {
         scoped_refptr<render_tree::Font> font =
             TryGetLocalFontByFaceName(source_iterator->GetName(), size, state);
         if (font.get() != NULL) {
+          GlobalStats::GetInstance()->OnFontRequestComplete(request_time_start);
           return font;
         }
       }
@@ -197,7 +202,9 @@ scoped_refptr<render_tree::Font> FontCache::TryGetFont(
     *state = FontListFont::kUnavailableState;
     return NULL;
   } else {
-    return TryGetLocalFont(family, style, size, state);
+    auto font = TryGetLocalFont(family, style, size, state);
+    GlobalStats::GetInstance()->OnFontRequestComplete(request_time_start);
+    return font;
   }
 }
 

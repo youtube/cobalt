@@ -109,6 +109,10 @@ def time_cobalt_start():
   return 'Time.Cobalt.Start'
 
 
+def total_font_request_time():
+  return 'Time.MainWebModule.DOM.FontCache.TotalFontRequestTime'
+
+
 def time_dom_html_script_element_execute():
   return 'Time.MainWebModule.DOM.HtmlScriptElement.Execute'
 
