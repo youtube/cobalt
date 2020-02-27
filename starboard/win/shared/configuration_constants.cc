@@ -59,7 +59,7 @@ const bool kSbHasAc3Audio = false;
 const bool kSbHasAsyncAudioFramesReporting = false;
 
 // Allow playing audioless video.
-const bool kSbHasAudiolessVideo = false;
+const bool kSbHasAudiolessVideo = true;
 
 // Specifies whether this platform has webm/vp9 support.  This should be set to
 // non-zero on platforms with webm/vp9 support.
