@@ -126,8 +126,7 @@ class AdaptiveAudioDecoderTest
     }
 
     PlayerComponents::Factory::CreationParameters creation_parameters(
-        dmp_readers_[0]->audio_codec(), "",
-        dmp_readers_[0]->audio_sample_info());
+        dmp_readers_[0]->audio_codec(), dmp_readers_[0]->audio_sample_info());
 
     scoped_ptr<AudioRendererSink> audio_renderer_sink;
     scoped_ptr<PlayerComponents::Factory> factory;

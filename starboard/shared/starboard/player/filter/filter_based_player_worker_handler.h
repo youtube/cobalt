@@ -132,9 +132,6 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider_;
 
-  std::string audio_mime_;
-  std::string video_mime_;
-  std::string max_video_capabilities_;
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   media::VideoSampleInfo video_sample_info_;
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
