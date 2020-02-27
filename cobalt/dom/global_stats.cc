@@ -46,7 +46,10 @@ GlobalStats::GlobalStats()
           "Count.DOM.ActiveJavaScriptEvents", 0,
           "Total number of currently active JavaScript events."),
       num_xhrs_("Count.XHR", 0, "Total number of currently active XHRs."),
-      xhr_memory_("Memory.XHR", 0, "Memory allocated by XHRs in bytes.") {}
+      xhr_memory_("Memory.XHR", 0, "Memory allocated by XHRs in bytes."),
+      total_font_request_time_(
+          "Time.MainWebModule.DOM.FontCache.TotalFontRequestTime", 0,
+          "The time it takes for all fonts requests to complete") {}
 
 GlobalStats::~GlobalStats() {}
 
@@ -106,6 +109,11 @@ void GlobalStats::IncreaseXHRMemoryUsage(size_t delta) { xhr_memory_ += delta; }
 void GlobalStats::DecreaseXHRMemoryUsage(size_t delta) {
   DCHECK_GE(xhr_memory_.value(), delta);
   xhr_memory_ -= delta;
+}
+
+void GlobalStats::OnFontRequestComplete(int64 start_time) {
+  total_font_request_time_ +=
+      base::TimeTicks::Now().ToInternalValue() - start_time;
 }
 
 }  // namespace dom
