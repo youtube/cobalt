@@ -348,7 +348,7 @@ TEST_P(WebPlatformTest, Run) {
 
   GURL test_url = GURL(test_server).Resolve(GetParam().url);
 
-  std::cout << "(" << test_url << ")" << std::endl;
+  LOG(INFO) << "(" << test_url << ")" << std::endl;
 
   bool got_results = false;
   std::string json_results = RunWebPlatformTest(test_url, &got_results);
