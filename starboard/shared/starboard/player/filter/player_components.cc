@@ -73,11 +73,9 @@ class PlayerComponentsImpl : public PlayerComponents {
 
 PlayerComponents::Factory::CreationParameters::CreationParameters(
     SbMediaAudioCodec audio_codec,
-    const std::string& audio_mime,
     const SbMediaAudioSampleInfo& audio_sample_info,
     SbDrmSystem drm_system)
     : audio_codec_(audio_codec),
-      audio_mime_(audio_mime),
       audio_sample_info_(audio_sample_info),
       drm_system_(drm_system) {
   SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
@@ -86,22 +84,18 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
 
 PlayerComponents::Factory::CreationParameters::CreationParameters(
     SbMediaVideoCodec video_codec,
-    const std::string& video_mime,
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
     const SbMediaVideoSampleInfo& video_sample_info,
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-    const std::string& max_video_capabilities,
     SbPlayer player,
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     SbDrmSystem drm_system)
     : video_codec_(video_codec),
-      video_mime_(video_mime),
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
       video_sample_info_(video_sample_info),
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-      max_video_capabilities_(max_video_capabilities),
       player_(player),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
@@ -114,28 +108,22 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
 
 PlayerComponents::Factory::CreationParameters::CreationParameters(
     SbMediaAudioCodec audio_codec,
-    const std::string& audio_mime,
     const SbMediaAudioSampleInfo& audio_sample_info,
     SbMediaVideoCodec video_codec,
-    const std::string& video_mime,
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
     const SbMediaVideoSampleInfo& video_sample_info,
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-    const std::string& max_video_capabilities,
     SbPlayer player,
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     SbDrmSystem drm_system)
     : audio_codec_(audio_codec),
-      audio_mime_(audio_mime),
       audio_sample_info_(audio_sample_info),
       video_codec_(video_codec),
-      video_mime_(video_mime),
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
       video_sample_info_(video_sample_info),
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-      max_video_capabilities_(max_video_capabilities),
       player_(player),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
@@ -149,14 +137,11 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
 PlayerComponents::Factory::CreationParameters::CreationParameters(
     const CreationParameters& that) {
   this->audio_codec_ = that.audio_codec_;
-  this->audio_mime_ = that.audio_mime_;
   this->audio_sample_info_ = that.audio_sample_info_;
   this->video_codec_ = that.video_codec_;
-  this->video_mime_ = that.video_mime_;
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   this->video_sample_info_ = that.video_sample_info_;
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-  this->max_video_capabilities_ = that.max_video_capabilities_;
   this->player_ = that.player_;
   this->output_mode_ = that.output_mode_;
   this->decode_target_graphics_context_provider_ =

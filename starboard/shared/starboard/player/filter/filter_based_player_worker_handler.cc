@@ -157,12 +157,12 @@ bool FilterBasedPlayerWorkerHandler::Init(
   }
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
-      audio_codec_, audio_mime_, audio_sample_info_, video_codec_, video_mime_,
+      audio_codec_, audio_sample_info_, video_codec_,
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
       video_sample_info_,
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-      max_video_capabilities_, player_, output_mode_,
-      decode_target_graphics_context_provider_, drm_system_);
+      player_, output_mode_, decode_target_graphics_context_provider_,
+      drm_system_);
 
   {
     ::starboard::ScopedLock lock(player_components_existence_mutex_);

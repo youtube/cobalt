@@ -54,29 +54,23 @@ class PlayerComponents {
     class CreationParameters {
      public:
       CreationParameters(SbMediaAudioCodec audio_codec,
-                         const std::string& audio_mime,
                          const SbMediaAudioSampleInfo& audio_sample_info,
                          SbDrmSystem drm_system = kSbDrmSystemInvalid);
       CreationParameters(SbMediaVideoCodec video_codec,
-                         const std::string& video_mime,
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
                          const SbMediaVideoSampleInfo& video_sample_info,
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-                         const std::string& max_video_capabilities,
                          SbPlayer player,
                          SbPlayerOutputMode output_mode,
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
                          SbDrmSystem drm_system = kSbDrmSystemInvalid);
       CreationParameters(SbMediaAudioCodec audio_codec,
-                         const std::string& audio_mime,
                          const SbMediaAudioSampleInfo& audio_sample_info,
                          SbMediaVideoCodec video_codec,
-                         const std::string& video_mime,
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
                          const SbMediaVideoSampleInfo& video_sample_info,
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-                         const std::string& max_video_capabilities,
                          SbPlayer player,
                          SbPlayerOutputMode output_mode,
                          SbDecodeTargetGraphicsContextProvider*
@@ -89,30 +83,36 @@ class PlayerComponents {
       void reset_video_codec() { video_codec_ = kSbMediaVideoCodecNone; }
 
       SbMediaAudioCodec audio_codec() const { return audio_codec_; }
-      const std::string& audio_mime() const {
-        SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
-        return audio_mime_;
-      }
+
       const SbMediaAudioSampleInfo& audio_sample_info() const {
         SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
         return audio_sample_info_;
       }
 
       SbMediaVideoCodec video_codec() const { return video_codec_; }
-      const std::string& video_mime() const {
-        SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
-        return video_mime_;
-      }
+
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+      const char* audio_mime() const {
+        SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
+        return audio_sample_info_.mime;
+      }
+
       const SbMediaVideoSampleInfo& video_sample_info() const {
         SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
         return video_sample_info_;
       }
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-      const std::string& max_video_capabilities() const {
+
+      const char* video_mime() const {
         SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
-        return max_video_capabilities_;
+        return video_sample_info_.mime;
       }
+
+      const char* max_video_capabilities() const {
+        SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
+        return video_sample_info_.max_video_capabilities;
+      }
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
       SbPlayer player() const {
         SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
         return player_;
@@ -136,7 +136,6 @@ class PlayerComponents {
       // to be set when |audio_codec| isn't kSbMediaAudioCodecNone.
       // |audio_codec| can be set to kSbMediaAudioCodecNone for audioless video.
       SbMediaAudioCodec audio_codec_ = kSbMediaAudioCodecNone;
-      std::string audio_mime_;
       media::AudioSampleInfo audio_sample_info_;
 
       // The following members are only used by the video stream, and only need
@@ -144,11 +143,9 @@ class PlayerComponents {
       // |video_codec| can be set to kSbMediaVideoCodecNone for audio only
       // video.
       SbMediaVideoCodec video_codec_ = kSbMediaVideoCodecNone;
-      std::string video_mime_;
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
       media::VideoSampleInfo video_sample_info_;
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-      std::string max_video_capabilities_;
       SbPlayer player_ = kSbPlayerInvalid;
       SbPlayerOutputMode output_mode_ = kSbPlayerOutputModeInvalid;
       SbDecodeTargetGraphicsContextProvider*
