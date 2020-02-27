@@ -4129,17 +4129,17 @@ void dav1d_cdf_thread_wait(CdfThreadContext *const cdf) {
     if (!cdf->t) return;
 
     if (atomic_load(cdf->progress)) return;
-    pthread_mutex_lock(&cdf->t->lock);
+    dav1d_pthread_mutex_lock(&cdf->t->lock);
     while (!atomic_load(cdf->progress))
-        pthread_cond_wait(&cdf->t->cond, &cdf->t->lock);
-    pthread_mutex_unlock(&cdf->t->lock);
+        dav1d_pthread_cond_wait(&cdf->t->cond, &cdf->t->lock);
+    dav1d_pthread_mutex_unlock(&cdf->t->lock);
 }
 
 void dav1d_cdf_thread_signal(CdfThreadContext *const cdf) {
     if (!cdf->t) return;
 
-    pthread_mutex_lock(&cdf->t->lock);
+    dav1d_pthread_mutex_lock(&cdf->t->lock);
     atomic_store(cdf->progress, 1);
-    pthread_cond_broadcast(&cdf->t->cond);
-    pthread_mutex_unlock(&cdf->t->lock);
+    dav1d_pthread_cond_broadcast(&cdf->t->cond);
+    dav1d_pthread_mutex_unlock(&cdf->t->lock);
 }

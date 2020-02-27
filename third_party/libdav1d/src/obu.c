@@ -1505,9 +1505,9 @@ int dav1d_parse_obus(Dav1dContext *const c, Dav1dData *const in, int global) {
                     c->frame_thread.next = 0;
 
                 Dav1dFrameContext *const f = &c->fc[next];
-                pthread_mutex_lock(&f->frame_thread.td.lock);
+                dav1d_pthread_mutex_lock(&f->frame_thread.td.lock);
                 while (f->n_tile_data > 0)
-                    pthread_cond_wait(&f->frame_thread.td.cond,
+                    dav1d_pthread_cond_wait(&f->frame_thread.td.cond,
                                       &f->frame_thread.td.lock);
                 Dav1dThreadPicture *const out_delayed =
                     &c->frame_thread.out_delayed[next];
@@ -1522,7 +1522,7 @@ int dav1d_parse_obus(Dav1dContext *const c, Dav1dData *const in, int global) {
                                          &c->refs[c->frame_hdr->existing_frame_idx].p);
                 out_delayed->visible = 1;
                 dav1d_data_props_copy(&out_delayed->p.m, &in->m);
-                pthread_mutex_unlock(&f->frame_thread.td.lock);
+                dav1d_pthread_mutex_unlock(&f->frame_thread.td.lock);
             }
             if (c->refs[c->frame_hdr->existing_frame_idx].p.p.frame_hdr->frame_type == DAV1D_FRAME_TYPE_KEY) {
                 const int r = c->frame_hdr->existing_frame_idx;
