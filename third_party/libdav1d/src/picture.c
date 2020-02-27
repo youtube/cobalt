@@ -303,10 +303,10 @@ int dav1d_thread_picture_wait(const Dav1dThreadPicture *const p,
     if ((state = atomic_load_explicit(progress, memory_order_acquire)) >= y)
         return state == FRAME_ERROR;
 
-    pthread_mutex_lock(&p->t->lock);
+    dav1d_pthread_mutex_lock(&p->t->lock);
     while ((state = atomic_load_explicit(progress, memory_order_relaxed)) < y)
-        pthread_cond_wait(&p->t->cond, &p->t->lock);
-    pthread_mutex_unlock(&p->t->lock);
+        dav1d_pthread_cond_wait(&p->t->cond, &p->t->lock);
+    dav1d_pthread_mutex_unlock(&p->t->lock);
     return state == FRAME_ERROR;
 }
 
@@ -319,11 +319,11 @@ void dav1d_thread_picture_signal(const Dav1dThreadPicture *const p,
     if (!p->t)
         return;
 
-    pthread_mutex_lock(&p->t->lock);
+    dav1d_pthread_mutex_lock(&p->t->lock);
     if (plane_type != PLANE_TYPE_Y)
         atomic_store(&p->progress[0], y);
     if (plane_type != PLANE_TYPE_BLOCK)
         atomic_store(&p->progress[1], y);
-    pthread_cond_broadcast(&p->t->cond);
-    pthread_mutex_unlock(&p->t->lock);
+    dav1d_pthread_cond_broadcast(&p->t->cond);
+    dav1d_pthread_mutex_unlock(&p->t->lock);
 }
