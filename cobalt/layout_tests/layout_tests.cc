@@ -106,7 +106,7 @@ void RunTest(const TestInfo& test_info,
              renderer::RenderTreePixelTester::Options pixel_tester_options) {
   // Output the name of the current input file so that it is visible in test
   // output.
-  std::cout << "(" << test_info << ")" << std::endl;
+  LOG(INFO) << "(" << test_info << ")" << std::endl;
 
   // Setup a message loop for the current thread since we will be constructing
   // a WebModule, which requires a message loop to exist for the current
