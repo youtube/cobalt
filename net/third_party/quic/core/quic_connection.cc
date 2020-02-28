@@ -354,10 +354,15 @@ QuicConnection::QuicConnection(
   if (received_packet_manager_.decide_when_to_send_acks()) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_rpm_decides_when_to_send_acks);
   }
+#if defined(STARBOARD)
+  LOG(INFO) << "Created QUIC connection for address: "
+            << peer_address().ToString();
+#else
   QUIC_DLOG(INFO) << ENDPOINT
                   << "Created connection with connection_id: " << connection_id
                   << " and version: "
                   << QuicVersionToString(transport_version());
+#endif
 
   QUIC_BUG_IF(!QuicUtils::IsConnectionIdValidForVersion(connection_id,
                                                         transport_version()))
