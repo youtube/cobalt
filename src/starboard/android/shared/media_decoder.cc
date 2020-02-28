@@ -79,7 +79,8 @@ MediaDecoder::MediaDecoder(Host* host,
     : media_type_(kSbMediaTypeAudio),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
-      condition_variable_(mutex_) {
+      condition_variable_(mutex_),
+      audio_session_id_(-1) {
   SB_DCHECK(host_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
@@ -106,16 +107,18 @@ MediaDecoder::MediaDecoder(Host* host,
                            int height,
                            jobject j_output_surface,
                            SbDrmSystem drm_system,
-                           const SbMediaColorMetadata* color_metadata)
+                           const SbMediaColorMetadata* color_metadata,
+                           int audio_session_id)
     : media_type_(kSbMediaTypeVideo),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
-      condition_variable_(mutex_) {
+      condition_variable_(mutex_),
+      audio_session_id_(audio_session_id) {
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
   media_codec_bridge_ = MediaCodecBridge::CreateVideoMediaCodecBridge(
       video_codec, width, height, this, j_output_surface, j_media_crypto,
-      color_metadata);
+      color_metadata, audio_session_id);
   if (!media_codec_bridge_) {
     SB_LOG(ERROR) << "Failed to create video media codec bridge.";
   }
@@ -127,12 +130,14 @@ MediaDecoder::~MediaDecoder() {
   JoinOnThreads();
 }
 
-void MediaDecoder::Initialize(const ErrorCB& error_cb) {
+void MediaDecoder::Initialize(const ErrorCB& error_cb,
+                              const FrameRenderedCB& frame_rendered_cb) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(error_cb);
   SB_DCHECK(!error_cb_);
 
   error_cb_ = error_cb;
+  frame_rendered_cb_ = frame_rendered_cb;
 }
 
 void MediaDecoder::WriteInputBuffer(
@@ -244,6 +249,32 @@ void MediaDecoder::DecoderThreadFunc() {
           pending_queue_input_buffer_task_ ||
           (!pending_tasks.empty() && !input_buffer_indices.empty());
       bool has_output = !dequeue_output_results.empty();
+
+      // tunnel mode only handle input buffer here
+      if (audio_session_id_ != -1) {
+        if (!has_input) {
+          ScopedLock scoped_lock(mutex_);
+          CollectPendingData_Locked(&pending_tasks, &input_buffer_indices,
+                                    &dequeue_output_results);
+        }
+        bool can_process_input =
+            pending_queue_input_buffer_task_ ||
+            (!pending_tasks.empty() && !input_buffer_indices.empty());
+        if (can_process_input) {
+          ProcessOneInputBuffer(&pending_tasks, &input_buffer_indices);
+        } else {
+          ScopedLock scoped_lock(mutex_);
+          CollectPendingData_Locked(&pending_tasks, &input_buffer_indices,
+                                    &dequeue_output_results);
+          can_process_input =
+              !pending_tasks.empty() && !input_buffer_indices.empty();
+          if (!can_process_input) {
+            condition_variable_.WaitTimed(kSbTimeMillisecond);
+          }
+        }
+        continue;
+      }
+
       if (!has_input || !has_output) {
         ScopedLock scoped_lock(mutex_);
         CollectPendingData_Locked(&pending_tasks, &input_buffer_indices,
@@ -518,6 +549,11 @@ void MediaDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
   if (input_buffer_indices_.size() == 1) {
     condition_variable_.Signal();
   }
+  // Tunnel mode video feed ES data into input buffer when input buffer is
+  // available
+  if (audio_session_id_ != -1) {
+    host_->ProcessInputBuffer(media_codec_bridge_.get());
+  }
 }
 
 void MediaDecoder::OnMediaCodecOutputBufferAvailable(
@@ -553,6 +589,18 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
   condition_variable_.Signal();
 }
 
+void MediaDecoder::OnMediaCodecFrameRendered(int64_t presentation_time_us,
+                                             int64_t render_at_system_time_ns) {
+  frame_rendered_cb_(presentation_time_us, render_at_system_time_ns);
+}
+
+void MediaDecoder::SetPlaybackRate(double playback_rate,
+                                   int64_t playback_at_time) {
+  if (media_codec_bridge_) {
+    media_codec_bridge_->SetPlaybackRate(jdouble(playback_rate),
+                                         jlong(playback_at_time));
+  }
+}
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard

@@ -23,6 +23,7 @@ import static dev.cobalt.media.Log.TAG;
 import android.media.AudioFormat;
 import android.media.MediaCodec;
 import android.media.MediaCodec.CryptoInfo;
+import android.media.MediaCodecInfo.CodecCapabilities;
 import android.media.MediaCodecInfo.VideoCapabilities;
 import android.media.MediaCrypto;
 import android.media.MediaFormat;
@@ -36,7 +37,7 @@ import java.nio.ByteBuffer;
 /** A wrapper of the MediaCodec class. */
 @SuppressWarnings("unused")
 @UsedByNative
-class MediaCodecBridge {
+class MediaCodecBridge implements MediaCodec.OnFrameRenderedListener {
   // Error code for MediaCodecBridge. Keep this value in sync with
   // MEDIA_CODEC_* values in media_codec_bridge.h.
   private static final int MEDIA_CODEC_OK = 0;
@@ -336,7 +337,8 @@ class MediaCodecBridge {
       MediaCodec mediaCodec,
       String mime,
       boolean adaptivePlaybackSupported,
-      BitrateAdjustmentTypes bitrateAdjustmentType) {
+      BitrateAdjustmentTypes bitrateAdjustmentType,
+      int audioSessionId) {
     if (mediaCodec == null) {
       throw new IllegalArgumentException();
     }
@@ -401,6 +403,19 @@ class MediaCodecBridge {
           }
         };
     mMediaCodec.setCallback(mCallback);
+    // TODO: add support for non tunnel
+    if (audioSessionId != -1) {
+      mMediaCodec.setOnFrameRenderedListener(this, null);
+    }
+  }
+
+  public void onFrameRendered(MediaCodec codec, long presentationTimeUs, long nanoTime) {
+    synchronized (mCallback) {
+      if (mNativeMediaCodecBridge == 0) {
+        return;
+      }
+      nativeOnMediaCodecFrameRendered(mNativeMediaCodecBridge, presentationTimeUs, nanoTime);
+    }
   }
 
   @SuppressWarnings("unused")
@@ -431,7 +446,7 @@ class MediaCodecBridge {
     }
     MediaCodecBridge bridge =
         new MediaCodecBridge(
-            nativeMediaCodecBridge, mediaCodec, mime, true, BitrateAdjustmentTypes.NO_ADJUSTMENT);
+            nativeMediaCodecBridge, mediaCodec, mime, true, BitrateAdjustmentTypes.NO_ADJUSTMENT, -1);
 
     MediaFormat mediaFormat = createAudioFormat(mime, sampleRate, channelCount);
     setFrameHasADTSHeader(mediaFormat);
@@ -460,16 +475,17 @@ class MediaCodecBridge {
       int height,
       Surface surface,
       MediaCrypto crypto,
-      ColorInfo colorInfo) {
+      ColorInfo colorInfo,
+      int audioSessionId) {
     MediaCodec mediaCodec = null;
 
     boolean findHDRDecoder = android.os.Build.VERSION.SDK_INT >= 24 && colorInfo != null;
     // On first pass, try to find a decoder with HDR if the color info is non-null.
     MediaCodecUtil.FindVideoDecoderResult findVideoDecoderResult =
-        MediaCodecUtil.findVideoDecoder(mime, isSecure, 0, 0, 0, 0, findHDRDecoder);
+        MediaCodecUtil.findVideoDecoder(mime, isSecure, 0, 0, 0, 0, findHDRDecoder, false);
     if (findVideoDecoderResult.name.equals("") && findHDRDecoder) {
       // On second pass, forget HDR.
-      findVideoDecoderResult = MediaCodecUtil.findVideoDecoder(mime, isSecure, 0, 0, 0, 0, false);
+      findVideoDecoderResult = MediaCodecUtil.findVideoDecoder(mime, isSecure, 0, 0, 0, 0, false, false);
     }
     try {
       String decoderName = findVideoDecoderResult.name;
@@ -488,7 +504,7 @@ class MediaCodecBridge {
     }
     MediaCodecBridge bridge =
         new MediaCodecBridge(
-            nativeMediaCodecBridge, mediaCodec, mime, true, BitrateAdjustmentTypes.NO_ADJUSTMENT);
+            nativeMediaCodecBridge, mediaCodec, mime, true, BitrateAdjustmentTypes.NO_ADJUSTMENT, audioSessionId);
     MediaFormat mediaFormat =
         createVideoDecoderFormat(mime, width, height, findVideoDecoderResult.videoCapabilities);
 
@@ -505,6 +521,12 @@ class MediaCodecBridge {
         mediaFormat.setInteger(MediaFormat.KEY_COLOR_RANGE, colorInfo.colorRange);
       }
       mediaFormat.setByteBuffer(MediaFormat.KEY_HDR_STATIC_INFO, colorInfo.hdrStaticInfo);
+    }
+
+    if (audioSessionId != -1) {
+      mediaFormat.setFeatureEnabled(
+          CodecCapabilities.FEATURE_TunneledPlayback, true);
+      mediaFormat.setInteger(MediaFormat.KEY_AUDIO_SESSION_ID, audioSessionId);
     }
 
     int maxWidth = findVideoDecoderResult.videoCapabilities.getSupportedWidths().getUpper();
@@ -639,6 +661,18 @@ class MediaCodecBridge {
       return MEDIA_CODEC_ERROR;
     }
     return MEDIA_CODEC_OK;
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  private void setPlaybackRate(double playbackRate, long playbackRateSetAtTimeInUs) {
+    Bundle bundle = new Bundle();
+    String param = String.format("rate:%.3f;at:%d", playbackRate, playbackRateSetAtTimeInUs);
+    // FIXME: Build.VERSION.SDK_INT >= 26 support setVendorParamete, otherwise it needs change
+    // in ACodec.cpp to transfer this parameter to low level. And platform need patch to
+    // support this parameter
+    bundle.putString("vendor.playbackrate.video-playback-rate", param);
+    mMediaCodec.setParameters(bundle);
   }
 
   @SuppressWarnings("unused")
@@ -976,4 +1010,6 @@ class MediaCodecBridge {
       int size);
 
   private native void nativeOnMediaCodecOutputFormatChanged(long nativeMediaCodecBridge);
+  private native void nativeOnMediaCodecFrameRendered(
+      long nativeMediaCodecBridge, long presentationTimeUs, long renderAtSystemTimeNs);
 }
