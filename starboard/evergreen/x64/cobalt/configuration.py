@@ -74,7 +74,6 @@ class CobaltX64Configuration(cobalt_configuration.CobaltConfiguration):
   __FILTERED_TESTS = {
       'base_unittests': [test_filter.FILTER_ALL],
       'css_parser_test': ['LocaleNumeric/ScannerTest.*'],
-      'dom_parser_test': [test_filter.FILTER_ALL],
       'nb_test': ['MemoryTrackerImplTest.MultiThreadedStress*Test'],
       'net_unittests': [test_filter.FILTER_ALL],
   }

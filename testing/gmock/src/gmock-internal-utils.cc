@@ -37,6 +37,9 @@
 
 #include "gmock/internal/gmock-internal-utils.h"
 
+#if GTEST_OS_STARBOARD
+#include "starboard/common/log.h"
+#endif
 #if !GTEST_OS_STARBOARD
 #include <ctype.h>
 #endif  // !GTEST_OS_STARBOARD
@@ -145,13 +148,26 @@ GTEST_API_ void Log(LogSeverity severity,
 
   if (severity == kWarning) {
     // Prints a GMOCK WARNING marker to make the warnings easily searchable.
+#if GTEST_OS_STARBOARD
+    SB_LOG(INFO) << "\nGMOCK WARNING:";
+#else
     std::cout << "\nGMOCK WARNING:";
+#endif
   }
   // Pre-pends a new-line to message if it doesn't start with one.
   if (message.empty() || message[0] != '\n') {
+#if GTEST_OS_STARBOARD
+    SB_LOG(INFO) << "\nGMOCK WARNING:";
+#else
     std::cout << "\n";
+#endif
   }
+
+#if GTEST_OS_STARBOARD
+  SB_LOG(INFO) << "\nGMOCK WARNING:";
+#else
   std::cout << message;
+#endif
   if (stack_frames_to_skip >= 0) {
 #ifdef NDEBUG
     // In opt mode, we have to be conservative and skip no stack frame.
@@ -164,13 +180,26 @@ GTEST_API_ void Log(LogSeverity severity,
 
     // Appends a new-line to message if it doesn't end with one.
     if (!message.empty() && *message.rbegin() != '\n') {
+#if GTEST_OS_STARBOARD
+      SB_LOG(INFO) << "\n";
+#else
       std::cout << "\n";
+#endif
     }
+
+#if GTEST_OS_STARBOARD
+    SB_LOG(INFO) << "Stack trace:\n"
+         << ::testing::internal::GetCurrentOsStackTraceExceptTop(
+             ::testing::UnitTest::GetInstance(), actual_to_skip);
+  }
+  SB_LOG(INFO) << ::std::flush;
+#else
     std::cout << "Stack trace:\n"
          << ::testing::internal::GetCurrentOsStackTraceExceptTop(
              ::testing::UnitTest::GetInstance(), actual_to_skip);
   }
   std::cout << ::std::flush;
+#endif
 }
 
 }  // namespace internal
