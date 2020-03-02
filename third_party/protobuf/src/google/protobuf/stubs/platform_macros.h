@@ -55,8 +55,6 @@
 #elif SB_IS(64_BIT)
 #define GOOGLE_PROTOBUF_ARCH_X64 1
 #endif
-#elif SB_IS(ARCH_MIPS)
-#define GOOGLE_PROTOBUF_ARCH_MIPS 1
 #endif
 #else   // defined(STARBOARD)
 #if defined(_M_X64) || defined(__x86_64__)
