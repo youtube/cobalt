@@ -134,15 +134,6 @@
 #  else   // SB_IS(BIG_ENDIAN)
 #   define ARCH_CPU_ARMEL 1
 #  endif  // SB_IS(BIG_ENDIAN)
-# elif SB_IS(ARCH_PPC)
-#  define ARCH_CPU_PPC_FAMILY 1
-# elif SB_IS(ARCH_MIPS)
-#  define ARCH_CPU_MIPS_FAMILY 1
-#  if SB_IS(BIG_ENDIAN)
-#   define ARCH_CPU_MIPS 1
-#  else   // SB_IS(BIG_ENDIAN)
-#   define ARCH_CPU_MIPSEL 1
-#  endif  // SB_IS(BIG_ENDIAN)
 # endif  // SB_IS(ARCH_X86)
 #else   // SB_API_VERSION < SB_SABI_FILE_VERSION
 #  if SB_IS(ARCH_X86)
@@ -152,15 +143,6 @@
 #    elif SB_IS(64_BIT)
 #      define ARCH_CPU_X86_64 1
 #    endif  // SB_IS(32_BIT)
-#  elif SB_IS(ARCH_PPC)
-#    define ARCH_CPU_PPC_FAMILY 1
-#  elif SB_IS(ARCH_MIPS)
-#    define ARCH_CPU_MIPS_FAMILY 1
-#    if SB_IS(BIG_ENDIAN)
-#      define ARCH_CPU_MIPS 1
-#    else  // SB_IS(BIG_ENDIAN)
-#      define ARCH_CPU_MIPSEL 1
-#    endif  // SB_IS(BIG_ENDIAN)
 #  elif SB_IS(ARCH_ARM)
 #    define ARCH_CPU_ARM_FAMILY 1
 #    if SB_IS(BIG_ENDIAN)
