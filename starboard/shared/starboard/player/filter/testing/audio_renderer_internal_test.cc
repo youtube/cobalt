@@ -253,6 +253,9 @@ class AudioRendererTest : public ::testing::Test {
 
 #if SB_API_VERSION >= 11
     audio_sample_info.codec = kSbMediaAudioCodecAac;
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+    audio_sample_info.mime = "";
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 #endif  // SB_API_VERSION >= 11
     audio_sample_info.number_of_channels = kDefaultNumberOfChannels;
     audio_sample_info.samples_per_second = kDefaultSamplesPerSecond;
