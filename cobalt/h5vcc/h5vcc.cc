@@ -36,7 +36,7 @@ H5vcc::H5vcc(const Settings& settings, const scoped_refptr<dom::Window>& window,
   storage_ = new H5vccStorage(settings.network_module);
   system_ = new H5vccSystem();
   trace_event_ = new H5vccTraceEvent();
-#if defined(COBALT_HAS_UPDATER)
+#if SB_IS(EVERGREEN)
   updater_ = new H5vccUpdater(settings.updater_module);
 #endif
 }
