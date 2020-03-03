@@ -56,6 +56,23 @@ TEST(SbUserGetPropertyTest, SunnyDay) {
   TestProperty(current, kSbUserPropertyAvatarUrl);
 }
 
+TEST(SbUserGetPropertyTest, MultipleTimes) {
+  SbUser current = SbUserGetCurrent();
+  if (!SbUserIsValid(current)) {
+    // Sadly, we can't really test in this case.
+    return;
+  }
+
+  TestProperty(current, kSbUserPropertyUserName);
+  TestProperty(current, kSbUserPropertyUserName);
+
+  TestProperty(current, kSbUserPropertyUserId);
+  TestProperty(current, kSbUserPropertyUserId);
+
+  TestProperty(current, kSbUserPropertyAvatarUrl);
+  TestProperty(current, kSbUserPropertyAvatarUrl);
+}
+
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
