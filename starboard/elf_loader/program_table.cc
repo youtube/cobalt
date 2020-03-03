@@ -16,6 +16,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/elf_loader/evergreen_info.h"
+#include "starboard/elf_loader/log.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
 
@@ -53,26 +54,26 @@ bool ProgramTable::LoadProgramHeader(const Ehdr* elf_header, File* elf_file) {
   }
   phdr_num_ = elf_header->e_phnum;
 
-  SB_LOG(INFO) << "Program Header count=" << phdr_num_;
+  SB_DLOG(INFO) << "Program Header count=" << phdr_num_;
   // Like the kernel, only accept program header tables smaller than 64 KB.
   if (phdr_num_ < 1 || phdr_num_ > 65536 / elf_header->e_phentsize) {
     SB_LOG(ERROR) << "Invalid program header count: " << phdr_num_;
     return false;
   }
 
-  SB_LOG(INFO) << "elf_header->e_phoff=" << elf_header->e_phoff;
-  SB_LOG(INFO) << "elf_header->e_phnum=" << elf_header->e_phnum;
+  SB_DLOG(INFO) << "elf_header->e_phoff=" << elf_header->e_phoff;
+  SB_DLOG(INFO) << "elf_header->e_phnum=" << elf_header->e_phnum;
 
   Addr page_min = PAGE_START(elf_header->e_phoff);
   Addr page_max = PAGE_END(elf_header->e_phoff + (phdr_num_ * elf_header->e_phentsize));
   Addr page_offset = PAGE_OFFSET(elf_header->e_phoff);
 
-  SB_LOG(INFO) << "page_min=" << page_min;
-  SB_LOG(INFO) << "page_max=" << page_max;
+  SB_DLOG(INFO) << "page_min=" << page_min;
+  SB_DLOG(INFO) << "page_max=" << page_max;
 
   phdr_size_ = page_max - page_min;
 
-  SB_LOG(INFO) << "page_max - page_min=" << page_max - page_min;
+  SB_DLOG(INFO) << "page_max - page_min=" << page_max - page_min;
 
 #if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
   phdr_mmap_ =
@@ -82,7 +83,7 @@ bool ProgramTable::LoadProgramHeader(const Ehdr* elf_header, File* elf_file) {
     return false;
   }
 
-  SB_LOG(INFO) << "Allocated address=" << phdr_mmap_;
+  SB_DLOG(INFO) << "Allocated address=" << phdr_mmap_;
 #else
   SB_CHECK(false);
 #endif
@@ -96,7 +97,7 @@ bool ProgramTable::LoadProgramHeader(const Ehdr* elf_header, File* elf_file) {
     (SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP))
   bool mp_result =
       SbMemoryProtect(phdr_mmap_, phdr_size_, kSbMemoryMapProtectRead);
-  SB_LOG(INFO) << "mp_result=" << mp_result;
+  SB_DLOG(INFO) << "mp_result=" << mp_result;
   if (!mp_result) {
     SB_LOG(ERROR) << "Failed to protect program header";
     return false;
@@ -132,28 +133,28 @@ bool ProgramTable::LoadSegments(File* elf_file) {
     Addr file_start = phdr->p_offset;
     Addr file_end = file_start + phdr->p_filesz;
 
-    SB_LOG(INFO) << " phdr->p_offset=" << phdr->p_offset
-                 << " phdr->p_filesz=" << phdr->p_filesz;
+    SB_DLOG(INFO) << " phdr->p_offset=" << phdr->p_offset
+                  << " phdr->p_filesz=" << phdr->p_filesz;
 
     Addr file_page_start = PAGE_START(file_start);
     Addr file_length = file_end - file_page_start;
 
-    SB_LOG(INFO) << "Mapping segment: "
-                 << " file_page_start=" << file_page_start
-                 << " file_length=" << file_length << " seg_page_start=0x"
-                 << std::hex << seg_page_start;
+    SB_DLOG(INFO) << "Mapping segment: "
+                  << " file_page_start=" << file_page_start
+                  << " file_length=" << file_length << " seg_page_start=0x"
+                  << std::hex << seg_page_start;
 
 #if SB_API_VERSION >= 10 &&                                         \
     (SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)) && \
     SB_CAN(MAP_EXECUTABLE_MEMORY)
     if (file_length != 0) {
       const int prot_flags = PFLAGS_TO_PROT(phdr->p_flags);
-      SB_LOG(INFO) << "segment prot_flags=" << std::hex << prot_flags;
+      SB_DLOG(INFO) << "segment prot_flags=" << std::hex << prot_flags;
 
       void* seg_addr = reinterpret_cast<void*>(seg_page_start);
       bool mp_ret =
           SbMemoryProtect(seg_addr, file_length, kSbMemoryMapProtectWrite);
-      SB_LOG(INFO) << "segment vaddress=" << seg_addr;
+      SB_DLOG(INFO) << "segment vaddress=" << seg_addr;
 
       if (!mp_ret) {
         SB_LOG(ERROR) << "Failed to unprotect segment";
@@ -162,12 +163,12 @@ bool ProgramTable::LoadSegments(File* elf_file) {
       if (!elf_file->ReadFromOffset(file_page_start,
                                     reinterpret_cast<char*>(seg_addr),
                                     file_length)) {
-        SB_LOG(INFO) << "Failed to read segment from file offset: "
-                     << file_page_start;
+        SB_DLOG(INFO) << "Failed to read segment from file offset: "
+                      << file_page_start;
         return false;
       }
       mp_ret = SbMemoryProtect(seg_addr, file_length, prot_flags);
-      SB_LOG(INFO) << "mp_ret=" << mp_ret;
+      SB_DLOG(INFO) << "mp_ret=" << mp_ret;
       if (!mp_ret) {
         SB_LOG(ERROR) << "Failed to protect segment";
         return false;
@@ -201,7 +202,7 @@ bool ProgramTable::LoadSegments(File* elf_file) {
       bool mprotect_fix = SbMemoryProtect(reinterpret_cast<void*>(seg_file_end),
                                           seg_page_end - seg_file_end,
                                           kSbMemoryMapProtectWrite);
-      SB_LOG(INFO) << "mprotect_fix=" << mprotect_fix;
+      SB_DLOG(INFO) << "mprotect_fix=" << mprotect_fix;
       if (!mprotect_fix) {
         SB_LOG(ERROR) << "Failed to unprotect end of segment";
         return false;
@@ -218,7 +219,7 @@ bool ProgramTable::LoadSegments(File* elf_file) {
       SbMemoryProtect(reinterpret_cast<void*>(seg_file_end),
                       seg_page_end - seg_file_end,
                       PFLAGS_TO_PROT(phdr->p_flags));
-      SB_LOG(INFO) << "mprotect_fix=" << mprotect_fix;
+      SB_DLOG(INFO) << "mprotect_fix=" << mprotect_fix;
       if (!mprotect_fix) {
         SB_LOG(ERROR) << "Failed to protect end of segment";
         return false;
@@ -240,22 +241,22 @@ size_t ProgramTable::GetLoadMemorySize() {
     const Phdr* phdr = &phdr_table_[i];
 
     if (phdr->p_type != PT_LOAD) {
-      SB_LOG(INFO) << "GetLoadMemorySize: ignoring segment with type: "
-                   << phdr->p_type;
+      SB_DLOG(INFO) << "GetLoadMemorySize: ignoring segment with type: "
+                    << phdr->p_type;
       continue;
     }
     found_pt_load = true;
 
     if (phdr->p_vaddr < min_vaddr) {
-      SB_LOG(INFO) << "p_vaddr=" << std::hex << phdr->p_vaddr;
+      SB_DLOG(INFO) << "p_vaddr=" << std::hex << phdr->p_vaddr;
       min_vaddr = phdr->p_vaddr;
     }
 
     if (phdr->p_vaddr + phdr->p_memsz > max_vaddr) {
       max_vaddr = phdr->p_vaddr + phdr->p_memsz;
-      SB_LOG(INFO) << "phdr->p_vaddr=" << phdr->p_vaddr
-                   << " phdr->p_memsz=" << phdr->p_memsz;
-      SB_LOG(INFO) << " max_vaddr=0x" << std::hex << max_vaddr;
+      SB_DLOG(INFO) << "phdr->p_vaddr=" << phdr->p_vaddr
+                    << " phdr->p_memsz=" << phdr->p_memsz;
+      SB_DLOG(INFO) << " max_vaddr=0x" << std::hex << max_vaddr;
     }
   }
   if (!found_pt_load) {
@@ -276,11 +277,11 @@ void ProgramTable::GetDynamicSection(Dyn** dynamic,
 
   for (phdr = phdr_table_; phdr < phdr_limit; phdr++) {
     if (phdr->p_type != PT_DYNAMIC) {
-      SB_LOG(INFO) << "Ignore section with type: " << phdr->p_type;
+      SB_DLOG(INFO) << "Ignore section with type: " << phdr->p_type;
       continue;
     }
 
-    SB_LOG(INFO) << "Reading at vaddr: " << phdr->p_vaddr;
+    SB_DLOG(INFO) << "Reading at vaddr: " << phdr->p_vaddr;
     *dynamic = reinterpret_cast<Dyn*>(base_memory_address_ + phdr->p_vaddr);
     if (dynamic_count) {
       *dynamic_count = (size_t)(phdr->p_memsz / sizeof(Dyn));
@@ -331,7 +332,7 @@ bool ProgramTable::ReserveLoadMemory() {
     return false;
   }
 
-  SB_LOG(INFO) << "Load size=" << load_size_;
+  SB_DLOG(INFO) << "Load size=" << load_size_;
 
 #if SB_API_VERSION >= 10 && \
     (SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP))

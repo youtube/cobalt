@@ -15,6 +15,7 @@
 #include "starboard/elf_loader/file_impl.h"
 
 #include "starboard/common/log.h"
+#include "starboard/elf_loader/log.h"
 
 namespace {
 void LogLastError(const char* msg) {
@@ -37,7 +38,7 @@ FileImpl::~FileImpl() {
 }
 
 bool FileImpl::Open(const char* name) {
-  SB_LOG(INFO) << "Loading: " << name;
+  SB_DLOG(INFO) << "Loading: " << name;
   file_ = SbFileOpen(name, kSbFileOpenOnly | kSbFileRead, NULL, NULL);
   if (!file_) {
     return false;
@@ -50,14 +51,14 @@ bool FileImpl::ReadFromOffset(int64_t offset, char* buffer, int size) {
     return false;
   }
   int64_t ret = SbFileSeek(file_, kSbFileFromBegin, offset);
-  SB_LOG(INFO) << "SbFileSeek: ret=" << ret;
+  SB_DLOG(INFO) << "SbFileSeek: ret=" << ret;
   if (ret == -1) {
-    SB_LOG(INFO) << "SbFileSeek: failed";
+    LogLastError("SbFileSeek: failed");
     return false;
   }
 
   int count = SbFileReadAll(file_, buffer, size);
-  SB_LOG(INFO) << "SbFileReadAll: count=" << count;
+  SB_DLOG(INFO) << "SbFileReadAll: count=" << count;
   if (count == -1) {
     LogLastError("SbFileReadAll failed");
     return false;
