@@ -15,6 +15,7 @@
 #include "starboard/elf_loader/elf_header.h"
 
 #include "starboard/common/log.h"
+#include "starboard/elf_loader/log.h"
 #include "starboard/memory.h"
 
 namespace starboard {
@@ -25,7 +26,7 @@ ElfHeader::ElfHeader() {
 }
 
 bool ElfHeader::LoadElfHeader(File* file) {
-  SB_LOG(INFO) << "LoadElfHeader";
+  SB_DLOG(INFO) << "LoadElfHeader";
   if (!file->ReadFromOffset(0, reinterpret_cast<char*>(elf_header_.get()),
                             sizeof(Ehdr))) {
     SB_LOG(ERROR) << "Failed to read file";

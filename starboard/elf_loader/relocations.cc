@@ -15,12 +15,7 @@
 #include "starboard/elf_loader/relocations.h"
 
 #include "starboard/common/log.h"
-
-// Disables additional logs that would otherwise completely flood the typical
-// logs. These logs, combined with the extended logging in gnu_hash_table.cc,
-// generate upwards of 15MiB of logs for small shared libraries.
-#undef SB_DLOG
-#define SB_DLOG(severity) SB_EAT_STREAM_PARAMETERS
+#include "starboard/elf_loader/log.h"
 
 namespace starboard {
 namespace elf_loader {
@@ -44,8 +39,8 @@ bool Relocations::HasTextRelocations() {
 }
 
 bool Relocations::InitRelocations() {
-  SB_LOG(INFO) << "InitRelocations: dynamic_count="
-               << dynamic_section_->GetDynamicTableSize();
+  SB_DLOG(INFO) << "InitRelocations: dynamic_count="
+                << dynamic_section_->GetDynamicTableSize();
   const Dyn* dynamic = dynamic_section_->GetDynamicTable();
   for (int i = 0; i < dynamic_section_->GetDynamicTableSize(); i++) {
     Addr dyn_value = dynamic[i].d_un.d_val;
@@ -147,14 +142,14 @@ bool Relocations::InitRelocations() {
 }
 
 bool Relocations::ApplyAllRelocations() {
-  SB_LOG(INFO) << "Applying regular relocations";
+  SB_DLOG(INFO) << "Applying regular relocations";
   if (!ApplyRelocations(reinterpret_cast<rel_t*>(relocations_),
                         relocations_size_ / sizeof(rel_t))) {
     SB_LOG(ERROR) << "regular relocations failed";
     return false;
   }
 
-  SB_LOG(INFO) << "Applying PLT relocations";
+  SB_DLOG(INFO) << "Applying PLT relocations";
   if (!ApplyRelocations(reinterpret_cast<rel_t*>(plt_relocations_),
                         plt_relocations_size_ / sizeof(rel_t))) {
     SB_LOG(ERROR) << "PLT relocations failed";
@@ -164,8 +159,8 @@ bool Relocations::ApplyAllRelocations() {
 }
 
 bool Relocations::ApplyRelocations(const rel_t* rel, size_t rel_count) {
-  SB_LOG(INFO) << "rel=" << std::hex << rel << std::dec
-               << " rel_count=" << rel_count;
+  SB_DLOG(INFO) << "rel=" << std::hex << rel << std::dec
+                << " rel_count=" << rel_count;
 
   if (!rel)
     return true;
