@@ -16,6 +16,7 @@
 #include "starboard/common/log.h"
 #include "starboard/elf_loader/elf.h"
 #include "starboard/elf_loader/file_impl.h"
+#include "starboard/elf_loader/log.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
 
@@ -44,26 +45,26 @@ bool ElfLoaderImpl::Load(
     return false;
   }
 
-  SB_LOG(INFO) << "Loaded ELF header";
+  SB_DLOG(INFO) << "Loaded ELF header";
 
   program_table_.reset(new ProgramTable());
   program_table_->LoadProgramHeader(elf_header_loader_->GetHeader(),
                                     elf_file_.get());
 
-  SB_LOG(INFO) << "Loaded Program header";
+  SB_DLOG(INFO) << "Loaded Program header";
 
   if (!program_table_->ReserveLoadMemory()) {
     SB_LOG(ERROR) << "Failed to reserve memory space";
     return false;
   }
 
-  SB_LOG(INFO) << "Reserved address space";
+  SB_DLOG(INFO) << "Reserved address space";
 
   if (!program_table_->LoadSegments(elf_file_.get())) {
     SB_LOG(ERROR) << "Failed to load segments";
     return false;
   }
-  SB_LOG(INFO) << "Loaded segments";
+  SB_DLOG(INFO) << "Loaded segments";
 
   Dyn* dynamic = NULL;
   size_t dynamic_count = 0;
@@ -80,12 +81,12 @@ bool ElfLoaderImpl::Load(
     SB_LOG(ERROR) << "Failed to initialize dynamic section";
     return false;
   }
-  SB_LOG(INFO) << "Initialized dynamic section";
+  SB_DLOG(INFO) << "Initialized dynamic section";
   if (!dynamic_section_->InitDynamicSymbols()) {
     SB_LOG(ERROR) << "Failed to load dynamic symbols";
     return false;
   }
-  SB_LOG(INFO) << "Initialized dynamic symbols";
+  SB_DLOG(INFO) << "Initialized dynamic symbols";
 
   exported_symbols_.reset(new ExportedSymbols(custom_get_extension));
   relocations_.reset(new Relocations(program_table_->GetBaseMemoryAddress(),
@@ -96,7 +97,7 @@ bool ElfLoaderImpl::Load(
     return false;
   }
   if (relocations_->HasTextRelocations()) {
-    SB_LOG(INFO) << "HasTextRelocations";
+    SB_DLOG(INFO) << "HasTextRelocations";
     // Adjust the memory protection to its to allow modifications.
     if (program_table_->AdjustMemoryProtectionOfReadOnlySegments(
             kSbMemoryMapProtectWrite) < 0) {
@@ -104,7 +105,7 @@ bool ElfLoaderImpl::Load(
       return false;
     }
   }
-  SB_LOG(INFO) << "Loaded relocations";
+  SB_DLOG(INFO) << "Loaded relocations";
   if (!relocations_->ApplyAllRelocations()) {
     SB_LOG(ERROR) << "Failed to apply relocations";
     return false;
@@ -124,15 +125,15 @@ bool ElfLoaderImpl::Load(
 #endif
   }
 
-  SB_LOG(INFO) << "Applied relocations";
+  SB_DLOG(INFO) << "Applied relocations";
 
   program_table_->PublishEvergreenInfo(name);
-  SB_LOG(INFO) << "Published Evergreen Info";
+  SB_DLOG(INFO) << "Published Evergreen Info";
 
-  SB_LOG(INFO) << "Call constructors";
+  SB_DLOG(INFO) << "Call constructors";
   dynamic_section_->CallConstructors();
 
-  SB_LOG(INFO) << "Finished loading";
+  SB_DLOG(INFO) << "Finished loading";
 
   return true;
 }

@@ -15,6 +15,7 @@
 #include "starboard/elf_loader/dynamic_section.h"
 
 #include "starboard/common/log.h"
+#include "starboard/elf_loader/log.h"
 
 namespace starboard {
 namespace elf_loader {
@@ -41,52 +42,52 @@ DynamicSection::DynamicSection(Addr base_memory_address,
       fini_func_(NULL) {}
 
 bool DynamicSection::InitDynamicSection() {
-  SB_LOG(INFO) << "Dynamic section count=" << dynamic_count_;
+  SB_DLOG(INFO) << "Dynamic section count=" << dynamic_count_;
   for (int i = 0; i < dynamic_count_; i++) {
     Addr dyn_value = dynamic_[i].d_un.d_val;
     uintptr_t dyn_addr = base_memory_address_ + dynamic_[i].d_un.d_ptr;
-    SB_LOG(INFO) << "Dynamic tag=" << dynamic_[i].d_tag;
+    SB_DLOG(INFO) << "Dynamic tag=" << dynamic_[i].d_tag;
     switch (dynamic_[i].d_tag) {
       case DT_DEBUG:
         // TODO: implement.
         break;
       case DT_INIT:
-        SB_LOG(INFO) << "  DT_INIT addr=0x" << std::hex << dyn_addr;
+        SB_DLOG(INFO) << "  DT_INIT addr=0x" << std::hex << dyn_addr;
         init_func_ = reinterpret_cast<linker_function_t>(dyn_addr);
         break;
       case DT_FINI:
-        SB_LOG(INFO) << "  DT_FINI addr=0x" << std::hex << dyn_addr;
+        SB_DLOG(INFO) << "  DT_FINI addr=0x" << std::hex << dyn_addr;
         fini_func_ = reinterpret_cast<linker_function_t>(dyn_addr);
         break;
       case DT_INIT_ARRAY:
-        SB_LOG(INFO) << "  DT_INIT_ARRAY addr=0x" << std::hex << dyn_addr;
+        SB_DLOG(INFO) << "  DT_INIT_ARRAY addr=0x" << std::hex << dyn_addr;
         init_array_ = reinterpret_cast<linker_function_t*>(dyn_addr);
         break;
       case DT_INIT_ARRAYSZ:
         init_array_count_ = dyn_value / sizeof(Addr);
-        SB_LOG(INFO) << "  DT_INIT_ARRAYSZ value=0x" << std::hex << dyn_value
-                     << " count=" << std::dec << init_array_count_;
+        SB_DLOG(INFO) << "  DT_INIT_ARRAYSZ value=0x" << std::hex << dyn_value
+                      << " count=" << std::dec << init_array_count_;
         break;
       case DT_FINI_ARRAY:
-        SB_LOG(INFO) << "  DT_FINI_ARRAY addr=0x" << std::hex << dyn_addr;
+        SB_DLOG(INFO) << "  DT_FINI_ARRAY addr=0x" << std::hex << dyn_addr;
         fini_array_ = reinterpret_cast<linker_function_t*>(dyn_addr);
         break;
       case DT_FINI_ARRAYSZ:
         fini_array_count_ = dyn_value / sizeof(Addr);
-        SB_LOG(INFO) << "  DT_FINI_ARRAYSZ value=0x" << std::hex << dyn_value
-                     << " count=" << fini_array_count_;
+        SB_DLOG(INFO) << "  DT_FINI_ARRAYSZ value=0x" << std::hex << dyn_value
+                      << " count=" << fini_array_count_;
         break;
       case DT_PREINIT_ARRAY:
-        SB_LOG(INFO) << "  DT_PREINIT_ARRAY addr=0x" << std::hex << dyn_addr;
+        SB_DLOG(INFO) << "  DT_PREINIT_ARRAY addr=0x" << std::hex << dyn_addr;
         preinit_array_ = reinterpret_cast<linker_function_t*>(dyn_addr);
         break;
       case DT_PREINIT_ARRAYSZ:
         preinit_array_count_ = dyn_value / sizeof(Addr);
-        SB_LOG(INFO) << "  DT_PREINIT_ARRAYSZ addr=" << dyn_addr
-                     << " count=" << preinit_array_count_;
+        SB_DLOG(INFO) << "  DT_PREINIT_ARRAYSZ addr=" << dyn_addr
+                      << " count=" << preinit_array_count_;
         break;
       case DT_SYMBOLIC:
-        SB_LOG(INFO) << "  DT_SYMBOLIC";
+        SB_DLOG(INFO) << "  DT_SYMBOLIC";
         has_DT_SYMBOLIC_ = true;
         break;
       case DT_FLAGS:
@@ -109,19 +110,19 @@ bool DynamicSection::InitDynamicSymbols() {
     uintptr_t dyn_addr = base_memory_address_ + dynamic_[i].d_un.d_ptr;
     switch (dynamic_[i].d_tag) {
       case DT_HASH:
-        SB_LOG(INFO) << "  DT_HASH addr=0x" << std::hex << dyn_addr;
+        SB_DLOG(INFO) << "  DT_HASH addr=0x" << std::hex << dyn_addr;
         elf_hash_.Init(dyn_addr);
         break;
       case DT_GNU_HASH:
-        SB_LOG(INFO) << "  DT_GNU_HASH addr=0x" << std::hex << dyn_addr;
+        SB_DLOG(INFO) << "  DT_GNU_HASH addr=0x" << std::hex << dyn_addr;
         gnu_hash_.Init(dyn_addr);
         break;
       case DT_STRTAB:
-        SB_LOG(INFO) << "  DT_STRTAB addr=0x" << std::hex << dyn_addr;
+        SB_DLOG(INFO) << "  DT_STRTAB addr=0x" << std::hex << dyn_addr;
         string_table_ = reinterpret_cast<const char*>(dyn_addr);
         break;
       case DT_SYMTAB:
-        SB_LOG(INFO) << "  DT_SYMTAB addr=0x" << std::hex << dyn_addr;
+        SB_DLOG(INFO) << "  DT_SYMTAB addr=0x" << std::hex << dyn_addr;
         symbol_table_ = reinterpret_cast<Sym*>(dyn_addr);
         break;
       default:
