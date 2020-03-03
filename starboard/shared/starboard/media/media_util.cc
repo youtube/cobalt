@@ -235,6 +235,7 @@ AudioSampleInfo& AudioSampleInfo::operator=(
   if (codec == kSbMediaAudioCodecNone) {
     mime_storage.clear();
   } else {
+    SB_DCHECK(that.mime);
     mime_storage = that.mime;
   }
   mime = mime_storage.c_str();
@@ -261,6 +262,7 @@ VideoSampleInfo& VideoSampleInfo::operator=(
     mime_storage.clear();
     max_video_capabilities_storage.clear();
   } else {
+    SB_DCHECK(that.mime);
     mime_storage = that.mime;
     max_video_capabilities_storage = that.max_video_capabilities;
   }
