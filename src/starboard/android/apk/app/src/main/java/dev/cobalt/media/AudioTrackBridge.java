@@ -26,6 +26,7 @@ import androidx.annotation.RequiresApi;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 // A wrapper of the android AudioTrack class.
 // Android AudioTrack would not start playing until the buffer is fully
@@ -36,8 +37,27 @@ public class AudioTrackBridge {
   private AudioTimestamp audioTimestamp = new AudioTimestamp();
   private long maxFramePositionSoFar = 0;
 
-  public AudioTrackBridge(
-      int sampleType, int sampleRate, int channelCount, int preferredBufferSizeInBytes) {
+  private ByteBuffer avSyncHeader;
+  private int bytesUntilNextAvSync;
+  private int audioSessionId = -1;
+  private static final int AV_SYNC_HEADER_V1_SIZE = 16;
+
+  public static int getBytesPerSample(int audioFormat) {
+    switch (audioFormat) {
+      case AudioFormat.ENCODING_PCM_16BIT:
+        return 2;
+      case AudioFormat.ENCODING_PCM_FLOAT:
+        return 4;
+      case AudioFormat.ENCODING_INVALID:
+      default:
+        // FIXME: if starboard support more formats, it
+        // should change accordingly
+        throw new RuntimeException("Unsupport audio format " + audioFormat);
+    }
+  }
+
+  public AudioTrackBridge(int sampleType, int sampleRate, int channelCount,
+          int preferredBufferSizeInBytes, int audioSessionIdVal) {
     int channelConfig;
     switch (channelCount) {
       case 1:
@@ -52,12 +72,36 @@ public class AudioTrackBridge {
       default:
         throw new RuntimeException("Unsupported channel count: " + channelCount);
     }
+    audioSessionId = audioSessionIdVal;
 
-    AudioAttributes attributes =
-        new AudioAttributes.Builder()
-            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-            .setUsage(AudioAttributes.USAGE_MEDIA)
-            .build();
+    AudioAttributes attributes;
+    if (audioSessionIdVal != -1) {
+      // Android 9.0 support v2 sync header that align sync header and audio data
+      // V1 sync header has the align problem for multichannel audio.
+      if (Build.VERSION.SDK_INT < 28) {
+        int frameSize = getBytesPerSample(sampleType) * channelCount;
+        if (AV_SYNC_HEADER_V1_SIZE % frameSize != 0) {
+            audioTrack = null;
+            Log.w(
+                TAG,
+                String.format(
+                  "Unsupport tunnel mode due to unaligned bytes problem " +
+                  "sampleType:%d channel:%d sync header size %d",
+                  sampleType, channelCount, AV_SYNC_HEADER_V1_SIZE));
+            return;
+        }
+      }
+      attributes = new AudioAttributes.Builder()
+        .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE)
+        .setFlags(AudioAttributes.FLAG_HW_AV_SYNC)
+        .setUsage(AudioAttributes.USAGE_MEDIA)
+        .build();
+    } else {
+      attributes = new AudioAttributes.Builder()
+        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+        .setUsage(AudioAttributes.USAGE_MEDIA)
+        .build();
+    }
     AudioFormat format =
         new AudioFormat.Builder()
             .setEncoding(sampleType)
@@ -66,15 +110,16 @@ public class AudioTrackBridge {
             .build();
 
     int audioTrackBufferSize = preferredBufferSizeInBytes;
+    // FIXME: it is not necessary to loop until 0 since there is new
+    // implementation based on AudioTrack getMinBufferSize. Especially
+    // for tunnel mode, it would fail if audio HAL do not support and then
+    // it is not helpful to retry.
     while (audioTrackBufferSize > 0) {
       try {
-        audioTrack =
-            new AudioTrack(
-                attributes,
-                format,
-                audioTrackBufferSize,
-                AudioTrack.MODE_STREAM,
-                AudioManager.AUDIO_SESSION_ID_GENERATE);
+        audioTrack = new AudioTrack(attributes, format, audioTrackBufferSize,
+            AudioTrack.MODE_STREAM,
+            (audioSessionIdVal != -1) ? audioSessionIdVal
+            : AudioManager.AUDIO_SESSION_ID_GENERATE);
       } catch (Exception e) {
         audioTrack = null;
       }
@@ -104,6 +149,8 @@ public class AudioTrackBridge {
       audioTrack.release();
     }
     audioTrack = null;
+    avSyncHeader = null;
+    bytesUntilNextAvSync = 0;
   }
 
   @SuppressWarnings("unused")
@@ -144,21 +191,85 @@ public class AudioTrackBridge {
       return;
     }
     audioTrack.flush();
+    avSyncHeader = null;
+    bytesUntilNextAvSync = 0;
   }
 
   @SuppressWarnings("unused")
   @UsedByNative
-  private int write(byte[] audioData, int sizeInBytes) {
+  private int write(byte[] audioData, int sizeInBytes, long presentationTimeNs) {
     if (audioTrack == null) {
       Log.e(TAG, "Unable to write with NULL audio track.");
       return 0;
     }
+
+    if (audioSessionId != -1) {
+      return writeWithAvSync(audioData, sizeInBytes, presentationTimeNs);
+    }
+
     if (Build.VERSION.SDK_INT >= 23) {
       return audioTrack.write(audioData, 0, sizeInBytes, AudioTrack.WRITE_NON_BLOCKING);
     } else {
       ByteBuffer byteBuffer = ByteBuffer.wrap(audioData);
       return audioTrack.write(byteBuffer, sizeInBytes, AudioTrack.WRITE_NON_BLOCKING);
     }
+  }
+
+  @SuppressWarnings("unused")
+  private int writeWithAvSync(
+      byte[] audioData, int sizeInBytes, long presentationTimeNs) {
+    if (audioTrack == null) {
+      Log.e(TAG, "Unable to write with NULL audio track.");
+      return 0;
+    }
+
+    if (audioSessionId == -1) {
+      return write(audioData, sizeInBytes, presentationTimeNs);
+    }
+
+    // Android support tunnel mode from 5.0 (API version 21). However
+    // below API start support on API version 23
+    // Unit Test for avSyncHeader writing by itself via change below to
+    // if (Build.VERSION.SDK_INT >= 100) {
+    if (Build.VERSION.SDK_INT >= 23) {
+      ByteBuffer byteBuffer = ByteBuffer.wrap(audioData);
+      return audioTrack.write(
+          byteBuffer, sizeInBytes, AudioTrack.WRITE_NON_BLOCKING, presentationTimeNs);
+    }
+
+    if (avSyncHeader == null) {
+      avSyncHeader = ByteBuffer.allocate(AV_SYNC_HEADER_V1_SIZE);
+      avSyncHeader.order(ByteOrder.BIG_ENDIAN);
+      avSyncHeader.putInt(0x55550001);
+    }
+    if (bytesUntilNextAvSync == 0) {
+      avSyncHeader.putInt(4, sizeInBytes);
+      avSyncHeader.putLong(8, presentationTimeNs);
+      avSyncHeader.position(0);
+      bytesUntilNextAvSync = sizeInBytes;
+    }
+    int avSyncHeaderBytesRemaining = avSyncHeader.remaining();
+    if (avSyncHeaderBytesRemaining > 0) {
+      int result = audioTrack.write(
+          avSyncHeader, avSyncHeaderBytesRemaining, AudioTrack.WRITE_NON_BLOCKING);
+      if (result < 0) {
+        bytesUntilNextAvSync = 0;
+        return result;
+      }
+      if (result < avSyncHeaderBytesRemaining) {
+        return 0;
+      }
+    }
+
+    int sizeToWrite = Math.min(bytesUntilNextAvSync, sizeInBytes);
+    ByteBuffer byteBuffer = ByteBuffer.wrap(audioData);
+    int result = audioTrack.write(byteBuffer, sizeToWrite, AudioTrack.WRITE_NON_BLOCKING);
+    if (result < 0) {
+      bytesUntilNextAvSync = 0;
+      return result;
+    }
+    bytesUntilNextAvSync -= result;
+    return result;
   }
 
   @SuppressWarnings("unused")

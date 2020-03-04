@@ -44,12 +44,15 @@ class MediaDecoder : private MediaCodecBridge::Handler {
  public:
   typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
+  typedef std::function<void(int64_t, int64_t)> FrameRenderedCB;
 
   // This class should be implemented by the users of MediaDecoder to receive
   // various notifications.  Note that all such functions are called on the
   // decoder thread.
   class Host {
    public:
+    virtual void ProcessInputBuffer(MediaCodecBridge* media_codec_bridge,
+                                    bool eos = false){};
     virtual void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,
                                      const DequeueOutputResult& output) = 0;
     virtual void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) = 0;
@@ -77,10 +80,13 @@ class MediaDecoder : private MediaCodecBridge::Handler {
                int height,
                jobject j_output_surface,
                SbDrmSystem drm_system,
-               const SbMediaColorMetadata* color_metadata);
+               const SbMediaColorMetadata* color_metadata,
+               int audio_session_id);
   ~MediaDecoder();
 
-  void Initialize(const ErrorCB& error_cb);
+  void Initialize(const ErrorCB& error_cb,
+                  const FrameRenderedCB& frame_rendered_cb = nullptr);
+  void SetPlaybackRate(double playback_rate, int64_t playback_at_time);
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer);
   void WriteEndOfStream();
 
@@ -141,6 +147,8 @@ class MediaDecoder : private MediaCodecBridge::Handler {
   void OnMediaCodecError(bool is_recoverable,
                          bool is_transient,
                          const std::string& diagnostic_info) override;
+  void OnMediaCodecFrameRendered(int64_t presentation_time_us,
+                                 int64_t render_at_system_time_ns) override;
   void OnMediaCodecInputBufferAvailable(int buffer_index) override;
   void OnMediaCodecOutputBufferAvailable(int buffer_index,
                                          int flags,
@@ -153,6 +161,7 @@ class MediaDecoder : private MediaCodecBridge::Handler {
 
   const SbMediaType media_type_;
   Host* host_;
+  FrameRenderedCB frame_rendered_cb_;
   ErrorCB error_cb_;
 
   atomic_bool stream_ended_;
@@ -171,6 +180,7 @@ class MediaDecoder : private MediaCodecBridge::Handler {
   std::vector<int> input_buffer_indices_;
   std::vector<DequeueOutputResult> dequeue_output_results_;
 
+  int audio_session_id_ = -1;
   bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;
 
