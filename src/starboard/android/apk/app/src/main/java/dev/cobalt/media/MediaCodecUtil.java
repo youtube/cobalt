@@ -22,6 +22,7 @@ import android.media.MediaCodecInfo.CodecCapabilities;
 import android.media.MediaCodecInfo.CodecProfileLevel;
 import android.media.MediaCodecInfo.VideoCapabilities;
 import android.media.MediaCodecList;
+import android.media.MediaFormat;
 import android.os.Build;
 import dev.cobalt.util.IsEmulator;
 import dev.cobalt.util.Log;
@@ -390,7 +391,7 @@ public class MediaCodecUtil {
       int fps,
       boolean mustSupportHdr) {
     FindVideoDecoderResult findVideoDecoderResult =
-        findVideoDecoder(mimeType, secure, frameWidth, frameHeight, bitrate, fps, mustSupportHdr);
+        findVideoDecoder(mimeType, secure, frameWidth, frameHeight, bitrate, fps, mustSupportHdr, false);
     return !findVideoDecoderResult.name.equals("")
         && (!mustSupportHdr || isHdrCapableVp9Decoder(findVideoDecoderResult));
   }
@@ -416,8 +417,17 @@ public class MediaCodecUtil {
     }
 
     FindVideoDecoderResult findVideoDecoderResult =
-        findVideoDecoder(VP9_MIME_TYPE, false, 0, 0, 0, 0, true);
+        findVideoDecoder(VP9_MIME_TYPE, false, 0, 0, 0, 0, true, false);
     return isHdrCapableVp9Decoder(findVideoDecoderResult);
+  }
+
+  /** Determine whether the system support tunnel mode */
+  @SuppressWarnings("unused")
+  @UsedByNative
+  public static boolean hasTunnelCapableDecoder(String mimeType, boolean isSecure) {
+    FindVideoDecoderResult findVideoDecoderResult =
+        findVideoDecoder(mimeType, isSecure, 0, 0, 0, 0, false, true);
+    return !findVideoDecoderResult.name.equals("");
   }
 
   /** Determine whether findVideoDecoderResult is capable of playing HDR VP9 */
@@ -451,7 +461,8 @@ public class MediaCodecUtil {
       int frameHeight,
       int bitrate,
       int fps,
-      boolean hdr) {
+      boolean hdr,
+      boolean tunnel) {
     Log.v(
         TAG,
         String.format(
@@ -518,6 +529,16 @@ public class MediaCodecUtil {
               TAG,
               String.format(
                   "Rejecting %s, reason: want secure decoder and !FEATURE_SecurePlayback", name));
+          continue;
+        }
+
+        if (tunnel
+            && !codecCapabilities.isFeatureSupported(
+                MediaCodecInfo.CodecCapabilities.FEATURE_TunneledPlayback)) {
+          Log.v(
+              TAG,
+              String.format(
+                  "Rejecting %s, reason: want tunnel decoder and !FEATURE_TunneledPlayback", name));
           continue;
         }
 
