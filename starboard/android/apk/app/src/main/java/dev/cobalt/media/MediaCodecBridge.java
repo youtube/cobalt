@@ -327,7 +327,6 @@ class MediaCodecBridge {
       hdrStaticInfo.putShort((short) (minMasteringLuminance + 0.5f));
       hdrStaticInfo.putShort((short) DEFAULT_MAX_CLL);
       hdrStaticInfo.putShort((short) DEFAULT_MAX_FALL);
-      hdrStaticInfo.rewind();
       this.hdrStaticInfo = hdrStaticInfo;
     }
   }
