@@ -22,7 +22,6 @@
     # TODO: Remove when omitted for all platforms in base_configuration.gypi.
     'sb_static_contents_output_data_dir': '<(PRODUCT_DIR)/content',
 
-    'target_arch': 'arm',
     'target_os': 'linux',
 
     'sysroot%': '/',
