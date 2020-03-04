@@ -1,0 +1,18 @@
+name: "zlib"
+description:
+  "Zlib compression, required by QUIC, libpng, WebSockets and Freetype2"
+
+third_party {
+  url {
+    type: GIT
+    value: "https://github.com/madler/zlib"
+  }
+  # NOTE: This is @v1.2.5 release hash, which does not match the repo
+  # version exactly, because of various intermediate Chromium changes
+  version: "9712272c78b9d9c93746d9c8e156a3728c65ca72"
+  last_upgrade_date {
+    year: 2010
+    month: 04
+    day: 19
+  }
+}
