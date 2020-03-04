@@ -211,8 +211,9 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
 
     if (frames->front()->timestamp() != last_frame_timestamp_) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+      ++times_logged_;
       auto now = SbTimeGetMonotonicNow();
-      SB_LOG(WARNING)
+      SB_LOG_IF(WARNING, times_logged_ < kMaxLogPerPlaybackSession)
           << "Dropping frame @ " << frames->front()->timestamp()
           << " microseconds, the elasped media time/system time from"
           << " last Render() call are "
@@ -223,8 +224,9 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
       ++dropped_frames_;
     } else {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+      ++times_logged_;
       auto now = SbTimeGetMonotonicNow();
-      SB_LOG(WARNING)
+      SB_LOG_IF(WARNING, times_logged_ < kMaxLogPerPlaybackSession)
           << "Frame @ " << frames->front()->timestamp()
           << " microseconds should be displayed "
           << cadence_pattern_generator_.GetNumberOfTimesCurrentFrameDisplays()
