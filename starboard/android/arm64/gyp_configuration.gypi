@@ -14,7 +14,6 @@
 
 {
   'variables': {
-    'target_arch': 'arm64',
     'arm_version': 8,
     'armv7': 0,
     'arm_thumb': 0,

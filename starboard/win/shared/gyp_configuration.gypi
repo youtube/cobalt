@@ -13,7 +13,6 @@
 # limitations under the License.
 {
   'variables': {
-    'target_arch': 'x64',
     'target_os': 'win',
 
     # Use a hardware rasterizer and graphical setup.
