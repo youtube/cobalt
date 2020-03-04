@@ -60,6 +60,9 @@ class VideoRenderAlgorithmImpl : public VideoRenderAlgorithm {
   VideoFrameRateEstimator frame_rate_estimate_;
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  static constexpr int kMaxLogPerPlaybackSession = 32;
+
+  int times_logged_ = 0;
   SbTime media_time_of_last_render_call_;
   SbTime system_time_of_last_render_call_;
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
