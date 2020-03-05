@@ -47,35 +47,17 @@
     # These values are determined by the configure script in the project,
     # and included via the |build/config.h| file however in this case we
     # determine these using gyp and inject them into the compilation.
-    'conditions': [
-      # TODO: Consolidate these defines when
-      # SB_MINIMUM_API_VERSION >= SB_SABI_FILE_VERSION.
-      ['sb_api_version >= 12', {
-        'defines': [
-          'ARCH_AARCH64=SB_IS(ARCH_ARM64)',
-          'ARCH_ARM=SB_IS(ARCH_ARM)',
-          'ARCH_PPC64LE=SB_IS(ARCH_PPC)',
-          'ARCH_X86=(SB_IS(ARCH_X86) || SB_IS(ARCH_X64))',
-          'ARCH_X86_32=SB_IS(ARCH_X86)',
-          'ARCH_X86_64=SB_IS(ARCH_X64)',
-          'ENDIANNESS_BIG=SB_IS(BIG_ENDIAN)',
-        ],
-      }, {
-        'defines': [
-          'ARCH_AARCH64=(SB_IS_ARCH_ARM & SB_IS_64_BIT)',
-          'ARCH_ARM=(SB_IS_ARCH_ARM & SB_IS_32_BIT)',
-          'ARCH_PPC64LE=SB_IS_ARCH_PPC',
-          'ARCH_X86=SB_IS_ARCH_X86',
-          'ARCH_X86_32=(SB_IS_ARCH_X86 & SB_IS_32_BIT)',
-          'ARCH_X86_64=(SB_IS_ARCH_X86 & SB_IS_64_BIT)',
-          'ENDIANNESS_BIG=SB_IS_BIG_ENDIAN',
-        ],
-      }],
-    ],
     'defines': [
+      'ARCH_AARCH64=SB_IS(ARCH_ARM64)',
+      'ARCH_ARM=SB_IS(ARCH_ARM)',
+      'ARCH_PPC64LE=SB_IS(ARCH_PPC)',
+      'ARCH_X86=(SB_IS(ARCH_X86) || SB_IS(ARCH_X64))',
+      'ARCH_X86_32=SB_IS(ARCH_X86)',
+      'ARCH_X86_64=SB_IS(ARCH_X64)',
       'CONFIG_16BPC=1',
       'CONFIG_8BPC=1',
       'CONFIG_LOG=1',
+      'ENDIANNESS_BIG=SB_IS(BIG_ENDIAN)',
       'HAVE_ASM=0',
       'HAVE_CLOCK_GETTIME=1',
       'HAVE_POSIX_MEMALIGN=1',
