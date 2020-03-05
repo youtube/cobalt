@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "third_party/zlib2/google/zip_writer.h"
+#include "third_party/zlib/google/zip_writer.h"
 
 #include "base/files/file.h"
 #include "base/strings/string_util.h"
-#include "third_party/zlib2/google/zip_internal.h"
+#include "third_party/zlib/google/zip_internal.h"
 
 namespace zip {
 namespace internal {

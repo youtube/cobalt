@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "third_party/zlib2/google/zip_reader.h"
+#include "third_party/zlib/google/zip_reader.h"
 
 #include <utility>
 
@@ -15,7 +15,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "build/build_config.h"
-#include "third_party/zlib2/google/zip_internal.h"
+#include "third_party/zlib/google/zip_internal.h"
 
 #if defined(USE_SYSTEM_MINIZIP)
 #include <minizip/unzip.h>
