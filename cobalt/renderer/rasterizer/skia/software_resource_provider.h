@@ -108,6 +108,9 @@ class SoftwareResourceProvider : public render_tree::ResourceProvider {
                      render_tree::FontProvider* font_provider,
                      render_tree::FontVector* maybe_used_fonts) override;
 
+  scoped_refptr<render_tree::LottieAnimation> CreateLottieAnimation(
+      const char* data, size_t length) override;
+
   scoped_refptr<render_tree::Mesh> CreateMesh(
       std::unique_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
       render_tree::Mesh::DrawMode draw_mode) override;

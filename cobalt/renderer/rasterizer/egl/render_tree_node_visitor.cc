@@ -612,6 +612,11 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
                     : DrawObjectManager::kBlendSrcAlpha);
 }
 
+void RenderTreeNodeVisitor::Visit(render_tree::LottieNode* lottie_node) {
+  // Use Skottie to render Lottie animations.
+  FallbackRasterize(lottie_node);
+}
+
 void RenderTreeNodeVisitor::Visit(
     render_tree::PunchThroughVideoNode* video_node) {
   if (!IsVisible(video_node->GetBounds())) {
