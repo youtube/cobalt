@@ -218,10 +218,8 @@ class Nursery
         return heapEnd_;
     }
 
-#ifdef JS_GC_ZEAL
     void enterZealMode();
     void leaveZealMode();
-#endif
 
   private:
     /*

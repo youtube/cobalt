@@ -80,33 +80,31 @@ BEGIN_TEST(testGCFinalizeCallback)
     CHECK(checkFinalizeStatus());
     CHECK(checkFinalizeIsCompartmentGC(true));
 
-#ifdef JS_GC_ZEAL
+    if (configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+      /* Full GC with reset due to new compartment, becoming compartment GC. */
 
-    /* Full GC with reset due to new compartment, becoming compartment GC. */
+      FinalizeCalls = 0;
+      JS_SetGCZeal(cx, 9, 1000000);
+      JS::PrepareForFullGC(rt);
+      js::SliceBudget budget(js::WorkBudget(1));
+      rt->gc.startDebugGC(GC_NORMAL, budget);
+      CHECK(rt->gc.state() == js::gc::MARK);
+      CHECK(rt->gc.isFullGc());
 
-    FinalizeCalls = 0;
-    JS_SetGCZeal(cx, 9, 1000000);
-    JS::PrepareForFullGC(rt);
-    js::SliceBudget budget(js::WorkBudget(1));
-    rt->gc.startDebugGC(GC_NORMAL, budget);
-    CHECK(rt->gc.state() == js::gc::MARK);
-    CHECK(rt->gc.isFullGc());
+      JS::RootedObject global4(cx, createTestGlobal());
+      budget = js::SliceBudget(js::WorkBudget(1));
+      rt->gc.debugGCSlice(budget);
+      CHECK(!rt->gc.isIncrementalGCInProgress());
+      CHECK(!rt->gc.isFullGc());
+      CHECK(checkMultipleGroups());
+      CHECK(checkFinalizeStatus());
 
-    JS::RootedObject global4(cx, createTestGlobal());
-    budget = js::SliceBudget(js::WorkBudget(1));
-    rt->gc.debugGCSlice(budget);
-    CHECK(!rt->gc.isIncrementalGCInProgress());
-    CHECK(!rt->gc.isFullGc());
-    CHECK(checkMultipleGroups());
-    CHECK(checkFinalizeStatus());
-
-    for (unsigned i = 0; i < FinalizeCalls - 1; ++i)
+      for (unsigned i = 0; i < FinalizeCalls - 1; ++i)
         CHECK(!IsCompartmentGCBuffer[i]);
-    CHECK(IsCompartmentGCBuffer[FinalizeCalls - 1]);
+      CHECK(IsCompartmentGCBuffer[FinalizeCalls - 1]);
 
-    JS_SetGCZeal(cx, 0, 0);
-
-#endif
+      JS_SetGCZeal(cx, 0, 0);
+    }
 
     /*
      * Make some use of the globals here to ensure the compiler doesn't optimize

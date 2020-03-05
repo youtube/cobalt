@@ -189,9 +189,7 @@ static bool enableIon = false;
 static bool enableAsmJS = false;
 static bool enableNativeRegExp = false;
 static bool enableUnboxedArrays = false;
-#ifdef JS_GC_ZEAL
 static char gZealStr[128];
-#endif
 static bool printTiming = false;
 static const char* jsCacheDir = nullptr;
 static const char* jsCacheAsmJSPath = nullptr;
@@ -6493,16 +6491,16 @@ SetRuntimeOptions(JSRuntime* rt, const OptionParser& op)
     dumpEntrainedVariables = op.getBoolOption("dump-entrained-variables");
 #endif
 
-#ifdef JS_GC_ZEAL
-    const char* zealStr = op.getStringOption("gc-zeal");
-    gZealStr[0] = 0;
-    if (zealStr) {
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+      const char* zealStr = op.getStringOption("gc-zeal");
+      gZealStr[0] = 0;
+      if (zealStr) {
         if (!rt->gc.parseAndSetZeal(zealStr))
-            return false;
+          return false;
         strncpy(gZealStr, zealStr, sizeof(gZealStr));
-        gZealStr[sizeof(gZealStr)-1] = 0;
+        gZealStr[sizeof(gZealStr) - 1] = 0;
+      }
     }
-#endif
 
     return true;
 }
@@ -6519,10 +6517,10 @@ SetWorkerRuntimeOptions(JSRuntime* rt)
     rt->setOffthreadIonCompilationEnabled(offthreadCompilation);
     rt->profilingScripts = enableCodeCoverage || enableDisassemblyDumps;
 
-#ifdef JS_GC_ZEAL
-    if (*gZealStr)
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+      if (*gZealStr)
         rt->gc.parseAndSetZeal(gZealStr);
-#endif
+    }
 
     JS_SetNativeStackQuota(rt, gMaxStackSize);
 }
@@ -6639,149 +6637,213 @@ main(int argc, char** argv, char** envp)
     op.setHelpWidth(80);
     op.setVersion(JS_GetImplementationVersion());
 
-    if (!op.addMultiStringOption('f', "file", "PATH", "File path to run")
-        || !op.addMultiStringOption('m', "module", "PATH", "Module path to run")
-        || !op.addMultiStringOption('e', "execute", "CODE", "Inline code to run")
-        || !op.addBoolOption('i', "shell", "Enter prompt after running code")
-        || !op.addBoolOption('c', "compileonly", "Only compile, don't run (syntax checking mode)")
-        || !op.addBoolOption('w', "warnings", "Emit warnings")
-        || !op.addBoolOption('W', "nowarnings", "Don't emit warnings")
-        || !op.addBoolOption('s', "strict", "Check strictness")
-        || !op.addBoolOption('D', "dump-bytecode", "Dump bytecode with exec count for all scripts")
-        || !op.addBoolOption('b', "print-timing", "Print sub-ms runtime for each file that's run")
-        || !op.addStringOption('\0', "js-cache", "[path]",
-                               "Enable the JS cache by specifying the path of the directory to use "
-                               "to hold cache files")
-        || !op.addBoolOption('\0', "no-js-cache-per-process",
-                               "Deactivates cache per process. Otherwise, generate a separate cache"
-                               "sub-directory for this process inside the cache directory"
-                               "specified by --js-cache. This cache directory will be removed"
-                               "when the js shell exits. This is useful for running tests in"
-                               "parallel.")
-        || !op.addBoolOption('\0', "code-coverage", "Enable code coverage instrumentation.")
+    if (!op.addMultiStringOption('f', "file", "PATH", "File path to run") ||
+        !op.addMultiStringOption('m', "module", "PATH", "Module path to run") ||
+        !op.addMultiStringOption('e', "execute", "CODE",
+                                 "Inline code to run") ||
+        !op.addBoolOption('i', "shell", "Enter prompt after running code") ||
+        !op.addBoolOption('c', "compileonly",
+                          "Only compile, don't run (syntax checking mode)") ||
+        !op.addBoolOption('w', "warnings", "Emit warnings") ||
+        !op.addBoolOption('W', "nowarnings", "Don't emit warnings") ||
+        !op.addBoolOption('s', "strict", "Check strictness") ||
+        !op.addBoolOption('D', "dump-bytecode",
+                          "Dump bytecode with exec count for all scripts") ||
+        !op.addBoolOption('b', "print-timing",
+                          "Print sub-ms runtime for each file that's run") ||
+        !op.addStringOption('\0', "js-cache", "[path]",
+                            "Enable the JS cache by specifying the path of the "
+                            "directory to use "
+                            "to hold cache files") ||
+        !op.addBoolOption(
+            '\0', "no-js-cache-per-process",
+            "Deactivates cache per process. Otherwise, generate a separate "
+            "cache"
+            "sub-directory for this process inside the cache directory"
+            "specified by --js-cache. This cache directory will be removed"
+            "when the js shell exits. This is useful for running tests in"
+            "parallel.") ||
+        !op.addBoolOption('\0', "code-coverage",
+                          "Enable code coverage instrumentation.")
 #ifdef DEBUG
-        || !op.addBoolOption('O', "print-alloc", "Print the number of allocations at exit")
+        || !op.addBoolOption('O', "print-alloc",
+                             "Print the number of allocations at exit")
 #endif
-        || !op.addOptionalStringArg("script", "A script to execute (after all options)")
-        || !op.addOptionalMultiStringArg("scriptArgs",
-                                         "String arguments to bind as |scriptArgs| in the "
-                                         "shell's global")
-        || !op.addIntOption('\0', "thread-count", "COUNT", "Use COUNT auxiliary threads "
-                            "(default: # of cores - 1)", -1)
-        || !op.addBoolOption('\0', "ion", "Enable IonMonkey (default)")
-        || !op.addBoolOption('\0', "no-ion", "Disable IonMonkey")
-        || !op.addBoolOption('\0', "no-asmjs", "Disable asm.js compilation")
-        || !op.addBoolOption('\0', "no-native-regexp", "Disable native regexp compilation")
-        || !op.addBoolOption('\0', "no-unboxed-objects", "Disable creating unboxed plain objects")
-        || !op.addBoolOption('\0', "unboxed-arrays", "Allow creating unboxed arrays")
-        || !op.addStringOption('\0', "ion-shared-stubs", "on/off",
-                               "Use shared stubs (default: off, on to enable)")
-        || !op.addStringOption('\0', "ion-scalar-replacement", "on/off",
-                               "Scalar Replacement (default: on, off to disable)")
-        || !op.addStringOption('\0', "ion-gvn", "[mode]",
-                               "Specify Ion global value numbering:\n"
-                               "  off: disable GVN\n"
-                               "  on:  enable GVN (default)\n")
-        || !op.addStringOption('\0', "ion-licm", "on/off",
-                               "Loop invariant code motion (default: on, off to disable)")
-        || !op.addStringOption('\0', "ion-edgecase-analysis", "on/off",
-                               "Find edge cases where Ion can avoid bailouts (default: on, off to disable)")
-        || !op.addStringOption('\0', "ion-pgo", "on/off",
-                               "Profile guided optimization (default: off, on to enable)")
-        || !op.addStringOption('\0', "ion-range-analysis", "on/off",
-                               "Range analysis (default: on, off to disable)")
+        || !op.addOptionalStringArg(
+               "script", "A script to execute (after all options)") ||
+        !op.addOptionalMultiStringArg(
+            "scriptArgs",
+            "String arguments to bind as |scriptArgs| in the "
+            "shell's global") ||
+        !op.addIntOption('\0', "thread-count", "COUNT",
+                         "Use COUNT auxiliary threads "
+                         "(default: # of cores - 1)",
+                         -1) ||
+        !op.addBoolOption('\0', "ion", "Enable IonMonkey (default)") ||
+        !op.addBoolOption('\0', "no-ion", "Disable IonMonkey") ||
+        !op.addBoolOption('\0', "no-asmjs", "Disable asm.js compilation") ||
+        !op.addBoolOption('\0', "no-native-regexp",
+                          "Disable native regexp compilation") ||
+        !op.addBoolOption('\0', "no-unboxed-objects",
+                          "Disable creating unboxed plain objects") ||
+        !op.addBoolOption('\0', "unboxed-arrays",
+                          "Allow creating unboxed arrays") ||
+        !op.addStringOption('\0', "ion-shared-stubs", "on/off",
+                            "Use shared stubs (default: off, on to enable)") ||
+        !op.addStringOption(
+            '\0', "ion-scalar-replacement", "on/off",
+            "Scalar Replacement (default: on, off to disable)") ||
+        !op.addStringOption('\0', "ion-gvn", "[mode]",
+                            "Specify Ion global value numbering:\n"
+                            "  off: disable GVN\n"
+                            "  on:  enable GVN (default)\n") ||
+        !op.addStringOption(
+            '\0', "ion-licm", "on/off",
+            "Loop invariant code motion (default: on, off to disable)") ||
+        !op.addStringOption('\0', "ion-edgecase-analysis", "on/off",
+                            "Find edge cases where Ion can avoid bailouts "
+                            "(default: on, off to disable)") ||
+        !op.addStringOption(
+            '\0', "ion-pgo", "on/off",
+            "Profile guided optimization (default: off, on to enable)") ||
+        !op.addStringOption('\0', "ion-range-analysis", "on/off",
+                            "Range analysis (default: on, off to disable)")
 #if defined(__APPLE__)
-        || !op.addStringOption('\0', "ion-sincos", "on/off",
-                               "Replace sin(x)/cos(x) to sincos(x) (default: on, off to disable)")
+        ||
+        !op.addStringOption(
+            '\0', "ion-sincos", "on/off",
+            "Replace sin(x)/cos(x) to sincos(x) (default: on, off to disable)")
 #else
-        || !op.addStringOption('\0', "ion-sincos", "on/off",
-                               "Replace sin(x)/cos(x) to sincos(x) (default: off, on to enable)")
+        ||
+        !op.addStringOption(
+            '\0', "ion-sincos", "on/off",
+            "Replace sin(x)/cos(x) to sincos(x) (default: off, on to enable)")
 #endif
-        || !op.addStringOption('\0', "ion-sink", "on/off",
-                               "Sink code motion (default: off, on to enable)")
-        || !op.addStringOption('\0', "ion-loop-unrolling", "on/off",
-                               "Loop unrolling (default: off, on to enable)")
-        || !op.addStringOption('\0', "ion-instruction-reordering", "on/off",
-                               "Instruction reordering (default: off, on to enable)")
-        || !op.addBoolOption('\0', "ion-check-range-analysis",
-                               "Range analysis checking")
-        || !op.addBoolOption('\0', "ion-extra-checks",
-                               "Perform extra dynamic validation checks")
-        || !op.addStringOption('\0', "ion-inlining", "on/off",
-                               "Inline methods where possible (default: on, off to disable)")
-        || !op.addStringOption('\0', "ion-osr", "on/off",
-                               "On-Stack Replacement (default: on, off to disable)")
-        || !op.addStringOption('\0', "ion-limit-script-size", "on/off",
-                               "Don't compile very large scripts (default: on, off to disable)")
-        || !op.addIntOption('\0', "ion-warmup-threshold", "COUNT",
-                            "Wait for COUNT calls or iterations before compiling "
-                            "(default: 1000)", -1)
-        || !op.addStringOption('\0', "ion-regalloc", "[mode]",
-                               "Specify Ion register allocation:\n"
-                               "  backtracking: Priority based backtracking register allocation (default)\n"
-                               "  testbed: Backtracking allocator with experimental features\n"
-                               "  stupid: Simple block local register allocation")
-        || !op.addBoolOption('\0', "ion-eager", "Always ion-compile methods (implies --baseline-eager)")
-        || !op.addStringOption('\0', "ion-offthread-compile", "on/off",
-                               "Compile scripts off thread (default: on)")
-        || !op.addStringOption('\0', "ion-parallel-compile", "on/off",
-                               "--ion-parallel compile is deprecated. Use --ion-offthread-compile.")
-        || !op.addBoolOption('\0', "baseline", "Enable baseline compiler (default)")
-        || !op.addBoolOption('\0', "no-baseline", "Disable baseline compiler")
-        || !op.addBoolOption('\0', "baseline-eager", "Always baseline-compile methods")
-        || !op.addIntOption('\0', "baseline-warmup-threshold", "COUNT",
-                            "Wait for COUNT calls or iterations before baseline-compiling "
-                            "(default: 10)", -1)
-        || !op.addBoolOption('\0', "non-writable-jitcode", "Allocate JIT code as non-writable memory.")
-        || !op.addBoolOption('\0', "no-fpu", "Pretend CPU does not support floating-point operations "
-                             "to test JIT codegen (no-op on platforms other than x86).")
-        || !op.addBoolOption('\0', "no-sse3", "Pretend CPU does not support SSE3 instructions and above "
-                             "to test JIT codegen (no-op on platforms other than x86 and x64).")
-        || !op.addBoolOption('\0', "no-sse4", "Pretend CPU does not support SSE4 instructions"
-                             "to test JIT codegen (no-op on platforms other than x86 and x64).")
-        || !op.addBoolOption('\0', "enable-avx", "AVX is disabled by default. Enable AVX. "
-                             "(no-op on platforms other than x86 and x64).")
-        || !op.addBoolOption('\0', "no-avx", "No-op. AVX is currently disabled by default.")
-        || !op.addBoolOption('\0', "fuzzing-safe", "Don't expose functions that aren't safe for "
-                             "fuzzers to call")
-        || !op.addBoolOption('\0', "disable-oom-functions", "Disable functions that cause "
-                            "artificial OOMs")
-        || !op.addBoolOption('\0', "no-threads", "Disable helper threads")
+        ||
+        !op.addStringOption('\0', "ion-sink", "on/off",
+                            "Sink code motion (default: off, on to enable)") ||
+        !op.addStringOption('\0', "ion-loop-unrolling", "on/off",
+                            "Loop unrolling (default: off, on to enable)") ||
+        !op.addStringOption(
+            '\0', "ion-instruction-reordering", "on/off",
+            "Instruction reordering (default: off, on to enable)") ||
+        !op.addBoolOption('\0', "ion-check-range-analysis",
+                          "Range analysis checking") ||
+        !op.addBoolOption('\0', "ion-extra-checks",
+                          "Perform extra dynamic validation checks") ||
+        !op.addStringOption(
+            '\0', "ion-inlining", "on/off",
+            "Inline methods where possible (default: on, off to disable)") ||
+        !op.addStringOption(
+            '\0', "ion-osr", "on/off",
+            "On-Stack Replacement (default: on, off to disable)") ||
+        !op.addStringOption(
+            '\0', "ion-limit-script-size", "on/off",
+            "Don't compile very large scripts (default: on, off to disable)") ||
+        !op.addIntOption('\0', "ion-warmup-threshold", "COUNT",
+                         "Wait for COUNT calls or iterations before compiling "
+                         "(default: 1000)",
+                         -1) ||
+        !op.addStringOption(
+            '\0', "ion-regalloc", "[mode]",
+            "Specify Ion register allocation:\n"
+            "  backtracking: Priority based backtracking register allocation "
+            "(default)\n"
+            "  testbed: Backtracking allocator with experimental features\n"
+            "  stupid: Simple block local register allocation") ||
+        !op.addBoolOption(
+            '\0', "ion-eager",
+            "Always ion-compile methods (implies --baseline-eager)") ||
+        !op.addStringOption('\0', "ion-offthread-compile", "on/off",
+                            "Compile scripts off thread (default: on)") ||
+        !op.addStringOption('\0', "ion-parallel-compile", "on/off",
+                            "--ion-parallel compile is deprecated. Use "
+                            "--ion-offthread-compile.") ||
+        !op.addBoolOption('\0', "baseline",
+                          "Enable baseline compiler (default)") ||
+        !op.addBoolOption('\0', "no-baseline", "Disable baseline compiler") ||
+        !op.addBoolOption('\0', "baseline-eager",
+                          "Always baseline-compile methods") ||
+        !op.addIntOption(
+            '\0', "baseline-warmup-threshold", "COUNT",
+            "Wait for COUNT calls or iterations before baseline-compiling "
+            "(default: 10)",
+            -1) ||
+        !op.addBoolOption('\0', "non-writable-jitcode",
+                          "Allocate JIT code as non-writable memory.") ||
+        !op.addBoolOption(
+            '\0', "no-fpu",
+            "Pretend CPU does not support floating-point operations "
+            "to test JIT codegen (no-op on platforms other than x86).") ||
+        !op.addBoolOption(
+            '\0', "no-sse3",
+            "Pretend CPU does not support SSE3 instructions and above "
+            "to test JIT codegen (no-op on platforms other than x86 and "
+            "x64).") ||
+        !op.addBoolOption('\0', "no-sse4",
+                          "Pretend CPU does not support SSE4 instructions"
+                          "to test JIT codegen (no-op on platforms other than "
+                          "x86 and x64).") ||
+        !op.addBoolOption('\0', "enable-avx",
+                          "AVX is disabled by default. Enable AVX. "
+                          "(no-op on platforms other than x86 and x64).") ||
+        !op.addBoolOption('\0', "no-avx",
+                          "No-op. AVX is currently disabled by default.") ||
+        !op.addBoolOption('\0', "fuzzing-safe",
+                          "Don't expose functions that aren't safe for "
+                          "fuzzers to call") ||
+        !op.addBoolOption('\0', "disable-oom-functions",
+                          "Disable functions that cause "
+                          "artificial OOMs") ||
+        !op.addBoolOption('\0', "no-threads", "Disable helper threads")
 #ifdef DEBUG
-        || !op.addBoolOption('\0', "dump-entrained-variables", "Print variables which are "
+        || !op.addBoolOption('\0', "dump-entrained-variables",
+                             "Print variables which are "
                              "unnecessarily entrained by inner functions")
 #endif
-        || !op.addBoolOption('\0', "no-ggc", "Disable Generational GC")
-        || !op.addBoolOption('\0', "no-cgc", "Disable Compacting GC")
-        || !op.addBoolOption('\0', "no-incremental-gc", "Disable Incremental GC")
-        || !op.addIntOption('\0', "available-memory", "SIZE",
-                            "Select GC settings based on available memory (MB)", 0)
+        || !op.addBoolOption('\0', "no-ggc", "Disable Generational GC") ||
+        !op.addBoolOption('\0', "no-cgc", "Disable Compacting GC") ||
+        !op.addBoolOption('\0', "no-incremental-gc",
+                          "Disable Incremental GC") ||
+        !op.addIntOption('\0', "available-memory", "SIZE",
+                         "Select GC settings based on available memory (MB)", 0)
 #if defined(JS_CODEGEN_ARM)
         || !op.addStringOption('\0', "arm-hwcap", "[features]",
-                               "Specify ARM code generation features, or 'help' to list all features.")
-        || !op.addIntOption('\0', "arm-asm-nop-fill", "SIZE",
-                            "Insert the given number of NOP instructions at all possible pool locations.", 0)
-        || !op.addIntOption('\0', "asm-pool-max-offset", "OFFSET",
-                            "The maximum pc relative OFFSET permitted in pool reference instructions.", 1024)
+                               "Specify ARM code generation features, or "
+                               "'help' to list all features.") ||
+        !op.addIntOption('\0', "arm-asm-nop-fill", "SIZE",
+                         "Insert the given number of NOP instructions at all "
+                         "possible pool locations.",
+                         0) ||
+        !op.addIntOption('\0', "asm-pool-max-offset", "OFFSET",
+                         "The maximum pc relative OFFSET permitted in pool "
+                         "reference instructions.",
+                         1024)
 #endif
 #if defined(JS_SIMULATOR_ARM)
-        || !op.addBoolOption('\0', "arm-sim-icache-checks", "Enable icache flush checks in the ARM "
-                             "simulator.")
-        || !op.addIntOption('\0', "arm-sim-stop-at", "NUMBER", "Stop the ARM simulator after the given "
-                            "NUMBER of instructions.", -1)
+        || !op.addBoolOption('\0', "arm-sim-icache-checks",
+                             "Enable icache flush checks in the ARM "
+                             "simulator.") ||
+        !op.addIntOption('\0', "arm-sim-stop-at", "NUMBER",
+                         "Stop the ARM simulator after the given "
+                         "NUMBER of instructions.",
+                         -1)
 #elif defined(JS_SIMULATOR_MIPS32) || defined(JS_SIMULATOR_MIPS64)
-	|| !op.addBoolOption('\0', "mips-sim-icache-checks", "Enable icache flush checks in the MIPS "
-                             "simulator.")
-        || !op.addIntOption('\0', "mips-sim-stop-at", "NUMBER", "Stop the MIPS simulator after the given "
-                            "NUMBER of instructions.", -1)
+        || !op.addBoolOption('\0', "mips-sim-icache-checks",
+                             "Enable icache flush checks in the MIPS "
+                             "simulator.") ||
+        !op.addIntOption('\0', "mips-sim-stop-at", "NUMBER",
+                         "Stop the MIPS simulator after the given "
+                         "NUMBER of instructions.",
+                         -1)
 #endif
-        || !op.addIntOption('\0', "nursery-size", "SIZE-MB", "Set the maximum nursery size in MB", 16)
-#ifdef JS_GC_ZEAL
-        || !op.addStringOption('z', "gc-zeal", "LEVEL[,N]", gc::ZealModeHelpText)
-#endif
-        || !op.addStringOption('\0', "module-load-path", "DIR", "Set directory to load modules from")
-    )
-    {
+        || !op.addIntOption('\0', "nursery-size", "SIZE-MB",
+                            "Set the maximum nursery size in MB", 16) ||
+        (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal() &&
+         !op.addStringOption('z', "gc-zeal", "LEVEL[,N]",
+                             gc::ZealModeHelpText)) ||
+        !op.addStringOption('\0', "module-load-path", "DIR",
+                            "Set directory to load modules from")) {
         return EXIT_FAILURE;
     }
 

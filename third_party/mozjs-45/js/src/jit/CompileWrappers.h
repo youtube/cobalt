@@ -52,9 +52,7 @@ class CompileRuntime
     // &GetJitContext()->runtime->nativeIterCache.last
     const void* addressOfLastCachedNativeIterator();
 
-#ifdef JS_GC_ZEAL
     const void* addressOfGCZeal();
-#endif
 
     const void* addressOfInterruptUint32();
 

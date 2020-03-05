@@ -112,21 +112,21 @@ js::Nursery::~Nursery()
 void
 js::Nursery::updateDecommittedRegion()
 {
-#ifndef JS_GC_ZEAL
-    if (numActiveChunks_ < numNurseryChunks_) {
-        // Bug 994054: madvise on MacOS is too slow to make this
-        //             optimization worthwhile.
+    if (!cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+        if (numActiveChunks_ < numNurseryChunks_) {
+            // Bug 994054: madvise on MacOS is too slow to make this
+            //             optimization worthwhile.
 # ifndef XP_DARWIN
-        uintptr_t decommitStart = chunk(numActiveChunks_).start();
-        uintptr_t decommitSize = heapEnd() - decommitStart;
+            uintptr_t decommitStart = chunk(numActiveChunks_).start();
+            uintptr_t decommitSize = heapEnd() - decommitStart;
 #if !defined(STARBOARD)
-        MOZ_ASSERT(decommitStart == AlignBytes(decommitStart, Alignment));
-        MOZ_ASSERT(decommitSize == AlignBytes(decommitStart, Alignment));
+            MOZ_ASSERT(decommitStart == AlignBytes(decommitStart, Alignment));
+            MOZ_ASSERT(decommitSize == AlignBytes(decommitStart, Alignment));
 #endif
-        MarkPagesUnused((void*)decommitStart, decommitSize);
+            MarkPagesUnused((void*)decommitStart, decommitSize);
 # endif
+        }
     }
-#endif
 }
 
 void
@@ -139,10 +139,10 @@ js::Nursery::enable()
     numActiveChunks_ = 1;
     setCurrentChunk(0);
     currentStart_ = position();
-#ifdef JS_GC_ZEAL
-    if (runtime()->gcZeal() == ZealGenerationalGCValue)
-        enterZealMode();
-#endif
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+        if (runtime()->gcZeal() == ZealGenerationalGCValue)
+            enterZealMode();
+    }
 }
 
 void
@@ -166,7 +166,6 @@ js::Nursery::isEmpty() const
     return position() == currentStart_;
 }
 
-#ifdef JS_GC_ZEAL
 void
 js::Nursery::enterZealMode() {
     if (isEnabled())
@@ -181,7 +180,6 @@ js::Nursery::leaveZealMode() {
         currentStart_ = start();
     }
 }
-#endif // JS_GC_ZEAL
 
 JSObject*
 js::Nursery::allocateObject(JSContext* cx, size_t size, size_t numDynamic, const js::Class* clasp)
@@ -513,10 +511,10 @@ js::Nursery::collect(JSRuntime* rt, JS::gcreason::Reason reason, ObjectGroupList
 
     // Make sure hashtables have been updated after the collection.
     TIME_START(checkHashTables);
-#ifdef JS_GC_ZEAL
-    if (rt->gcZeal() == ZealCheckHashTablesOnMinorGC)
-        CheckHashTablesAfterMovingGC(rt);
-#endif
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+        if (rt->gcZeal() == ZealCheckHashTablesOnMinorGC)
+            CheckHashTablesAfterMovingGC(rt);
+    }
     TIME_END(checkHashTables);
 
     // Resize the nursery.
@@ -668,21 +666,21 @@ js::Nursery::sweep()
     }
     cellsWithUid_.clear();
 
-#ifdef JS_GC_ZEAL
-    /* Poison the nursery contents so touching a freed object will crash. */
-    JS_POISON((void*)start(), JS_SWEPT_NURSERY_PATTERN, nurserySize());
-    for (int i = 0; i < numNurseryChunks_; ++i)
-        initChunk(i);
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+        /* Poison the nursery contents so touching a freed object will crash. */
+        JS_POISON((void*)start(), JS_SWEPT_NURSERY_PATTERN, nurserySize());
+        for (int i = 0; i < numNurseryChunks_; ++i)
+            initChunk(i);
+    }
 
-    if (runtime()->gcZeal() == ZealGenerationalGCValue) {
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal() &&
+        runtime()->gcZeal() == ZealGenerationalGCValue) {
         MOZ_ASSERT(numActiveChunks_ == numNurseryChunks_);
 
         /* Only reset the alloc point when we are close to the end. */
         if (currentChunk_ + 1 == numNurseryChunks_)
             setCurrentChunk(0);
-    } else
-#endif
-    {
+    } else {
 #ifdef JS_CRASH_DIAGNOSTICS
         JS_POISON((void*)start(), JS_SWEPT_NURSERY_PATTERN, allocationEnd() - start());
         for (int i = 0; i < numActiveChunks_; ++i)
@@ -699,20 +697,20 @@ js::Nursery::sweep()
 void
 js::Nursery::growAllocableSpace()
 {
-#ifdef JS_GC_ZEAL
-    MOZ_ASSERT_IF(runtime()->gcZeal() == ZealGenerationalGCValue,
-                  numActiveChunks_ == numNurseryChunks_);
-#endif
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+        MOZ_ASSERT_IF(runtime()->gcZeal() == ZealGenerationalGCValue,
+                    numActiveChunks_ == numNurseryChunks_);
+    }
     numActiveChunks_ = Min(numActiveChunks_ * 2, numNurseryChunks_);
 }
 
 void
 js::Nursery::shrinkAllocableSpace()
 {
-#ifdef JS_GC_ZEAL
-    if (runtime()->gcZeal() == ZealGenerationalGCValue)
-        return;
-#endif
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+        if (runtime()->gcZeal() == ZealGenerationalGCValue)
+            return;
+    }
     numActiveChunks_ = Max(numActiveChunks_ - 1, 1);
     updateDecommittedRegion();
 }

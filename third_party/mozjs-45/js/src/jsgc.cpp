@@ -1159,13 +1159,11 @@ GCRuntime::GCRuntime(JSRuntime* rt) :
     manipulatingDeadZones(false),
     objectsMarkedInDeadZones(0),
     poked(false),
-#ifdef JS_GC_ZEAL
     zealMode(0),
     zealFrequency(0),
     nextScheduled(0),
     deterministicOnly(false),
     incrementalLimit(0),
-#endif
     validate(true),
     fullCompartmentChecks(false),
     mallocBytesUntilGC(0),
@@ -1181,8 +1179,6 @@ GCRuntime::GCRuntime(JSRuntime* rt) :
 {
     setGCMode(JSGC_MODE_GLOBAL);
 }
-
-#ifdef JS_GC_ZEAL
 
 void
 GCRuntime::getZeal(uint8_t* zeal, uint32_t* frequency, uint32_t* scheduled)
@@ -1262,8 +1258,6 @@ GCRuntime::parseAndSetZeal(const char* str)
     return true;
 }
 
-#endif
-
 /*
  * Lifetime in number of major GCs for type sets attached to scripts containing
  * observed types.
@@ -1311,11 +1305,11 @@ GCRuntime::init(uint32_t maxbytes, uint32_t maxNurseryBytes)
             return false;
     }
 
-#ifdef JS_GC_ZEAL
-    const char* zealSpec = js_sb_getenv("JS_GC_ZEAL");
-    if (zealSpec && zealSpec[0] && !parseAndSetZeal(zealSpec))
-        return false;
-#endif
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+        const char* zealSpec = js_sb_getenv("JS_GC_ZEAL");
+        if (zealSpec && zealSpec[0] && !parseAndSetZeal(zealSpec))
+            return false;
+    }
 
     if (!InitTrace(*this))
         return false;
@@ -1341,10 +1335,10 @@ GCRuntime::finish()
     helperState.finish();
     allocTask.cancel(GCParallelTask::CancelAndWait);
 
-#ifdef JS_GC_ZEAL
-    /* Free memory associated with GC verification. */
-    finishVerifier();
-#endif
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+        /* Free memory associated with GC verification. */
+        finishVerifier();
+    }
 
     /* Delete all remaining zones. */
     if (rt->gcInitialized) {
@@ -2791,9 +2785,14 @@ GCRuntime::releaseRelocatedArenasWithoutUnlocking(ArenaHeader* arenaList, const 
         fullSpan.initFinal(arena->thingsStart(thingKind), arena->thingsEnd() - thingSize, thingSize);
         aheader->setFirstFreeSpan(&fullSpan);
 
-#if defined(JS_CRASH_DIAGNOSTICS) || defined(JS_GC_ZEAL)
+#if defined(JS_CRASH_DIAGNOSTICS)
         JS_POISON(reinterpret_cast<void*>(arena->thingsStart(thingKind)),
                   JS_MOVED_TENURED_PATTERN, Arena::thingsSpan(thingSize));
+#else
+        if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+            JS_POISON(reinterpret_cast<void*>(arena->thingsStart(thingKind)),
+                    JS_MOVED_TENURED_PATTERN, Arena::thingsSpan(thingSize));
+        }
 #endif
 
         releaseArena(aheader, lock);
@@ -3209,12 +3208,12 @@ GCRuntime::triggerZoneGC(Zone* zone, JS::gcreason::Reason reason)
     if (rt->isHeapCollecting())
         return false;
 
-#ifdef JS_GC_ZEAL
-    if (zealMode == ZealAllocValue) {
-        triggerGC(reason);
-        return true;
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+        if (zealMode == ZealAllocValue) {
+            triggerGC(reason);
+            return true;
+        }
     }
-#endif
 
     if (zone->isAtomsZone()) {
         /* We can't do a zone GC of the atoms compartment. */
@@ -3238,13 +3237,13 @@ GCRuntime::maybeGC(Zone* zone)
 {
     MOZ_ASSERT(CurrentThreadCanAccessRuntime(rt));
 
-#ifdef JS_GC_ZEAL
-    if (zealMode == ZealAllocValue || zealMode == ZealPokeValue) {
-        JS::PrepareForFullGC(rt);
-        gc(GC_NORMAL, JS::gcreason::DEBUG_GC);
-        return true;
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+        if (zealMode == ZealAllocValue || zealMode == ZealPokeValue) {
+            JS::PrepareForFullGC(rt);
+            gc(GC_NORMAL, JS::gcreason::DEBUG_GC);
+            return true;
+        }
     }
-#endif
 
     if (gcIfRequested())
         return true;
@@ -3639,10 +3638,10 @@ GCRuntime::shouldReleaseObservedTypes()
 {
     bool releaseTypes = false;
 
-#ifdef JS_GC_ZEAL
-    if (zealMode != 0)
-        releaseTypes = true;
-#endif
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+        if (zealMode != 0)
+            releaseTypes = true;
+    }
 
     /* We may miss the exact target GC due to resets. */
     if (majorGCNumber >= jitReleaseNumber)
@@ -5956,11 +5955,11 @@ AutoGCSlice::~AutoGCSlice()
 void
 GCRuntime::pushZealSelectedObjects()
 {
-#ifdef JS_GC_ZEAL
-    /* Push selected objects onto the mark stack and clear the list. */
-    for (JSObject** obj = selectedForMarking.begin(); obj != selectedForMarking.end(); obj++)
-        TraceManuallyBarrieredEdge(&marker, obj, "selected obj");
-#endif
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+        /* Push selected objects onto the mark stack and clear the list. */
+        for (JSObject** obj = selectedForMarking.begin(); obj != selectedForMarking.end(); obj++)
+            TraceManuallyBarrieredEdge(&marker, obj, "selected obj");
+    }
 }
 
 static bool
@@ -5991,16 +5990,16 @@ GCRuntime::incrementalCollectSlice(SliceBudget& budget, JS::gcreason::Reason rea
     gc::State initialState = incrementalState;
 
     int zeal = 0;
-#ifdef JS_GC_ZEAL
-    if (reason == JS::gcreason::DEBUG_GC && !budget.isUnlimited()) {
-        /*
-         * Do the incremental collection type specified by zeal mode if the
-         * collection was triggered by runDebugGC() and incremental GC has not
-         * been cancelled by resetIncrementalGC().
-         */
-        zeal = zealMode;
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+        if (reason == JS::gcreason::DEBUG_GC && !budget.isUnlimited()) {
+            /*
+             * Do the incremental collection type specified by zeal mode if the
+             * collection was triggered by runDebugGC() and incremental GC has not
+             * been cancelled by resetIncrementalGC().
+             */
+            zeal = zealMode;
+        }
     }
-#endif
 
     MOZ_ASSERT_IF(isIncrementalGCInProgress(), isIncremental);
     isIncremental = !budget.isUnlimited();
@@ -6286,10 +6285,10 @@ GCRuntime::gcCycle(bool nonincrementalByAPI, SliceBudget& budget, JS::gcreason::
 
     chunkAllocationSinceLastGC = false;
 
-#ifdef JS_GC_ZEAL
-    /* Keeping these around after a GC is dangerous. */
-    clearSelectedForMarking();
-#endif
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+        /* Keeping these around after a GC is dangerous. */
+        clearSelectedForMarking();
+    }
 
     /* Clear gcMallocBytes for all zones. */
     for (ZonesIter zone(rt, WithAtoms); !zone.done(); zone.next())
@@ -6302,7 +6301,6 @@ GCRuntime::gcCycle(bool nonincrementalByAPI, SliceBudget& budget, JS::gcreason::
     return false;
 }
 
-#ifdef JS_GC_ZEAL
 static bool
 IsDeterministicGCReason(JS::gcreason::Reason reason)
 {
@@ -6317,7 +6315,6 @@ IsDeterministicGCReason(JS::gcreason::Reason reason)
 
     return true;
 }
-#endif
 
 gcstats::ZoneGCStats
 GCRuntime::scanZonesBeforeGC()
@@ -6357,10 +6354,10 @@ GCRuntime::checkIfGCAllowedInCurrentState(JS::gcreason::Reason reason)
     if (rt->mainThread.suppressGC)
         return false;
 
-#ifdef JS_GC_ZEAL
-    if (deterministicOnly && !IsDeterministicGCReason(reason))
-        return false;
-#endif
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+        if (deterministicOnly && !IsDeterministicGCReason(reason))
+            return false;
+    }
 
     return true;
 }
@@ -6503,18 +6500,18 @@ GCRuntime::notifyDidPaint()
 {
     MOZ_ASSERT(CurrentThreadCanAccessRuntime(rt));
 
-#ifdef JS_GC_ZEAL
-    if (zealMode == ZealFrameVerifierPreValue) {
-        verifyPreBarriers();
-        return;
-    }
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+        if (zealMode == ZealFrameVerifierPreValue) {
+            verifyPreBarriers();
+            return;
+        }
 
-    if (zealMode == ZealFrameGCValue) {
-        JS::PrepareForFullGC(rt);
-        gc(GC_NORMAL, JS::gcreason::REFRESH_FRAME);
-        return;
+        if (zealMode == ZealFrameGCValue) {
+            JS::PrepareForFullGC(rt);
+            gc(GC_NORMAL, JS::gcreason::REFRESH_FRAME);
+            return;
+        }
     }
-#endif
 
     if (isIncrementalGCInProgress() && !interFrameGC) {
         JS::PrepareForIncrementalGC(rt);
@@ -6876,61 +6873,60 @@ gc::MergeCompartments(JSCompartment* source, JSCompartment* target)
 void
 GCRuntime::runDebugGC()
 {
-#ifdef JS_GC_ZEAL
-    int type = zealMode;
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+        int type = zealMode;
 
-    if (rt->mainThread.suppressGC)
-        return;
+        if (rt->mainThread.suppressGC)
+            return;
 
-    if (type == js::gc::ZealGenerationalGCValue)
-        return minorGC(JS::gcreason::DEBUG_GC);
+        if (type == js::gc::ZealGenerationalGCValue)
+            return minorGC(JS::gcreason::DEBUG_GC);
 
-    PrepareForDebugGC(rt);
+        PrepareForDebugGC(rt);
 
-    auto budget = SliceBudget::unlimited();
-    if (type == ZealIncrementalRootsThenFinish ||
-        type == ZealIncrementalMarkAllThenFinish ||
-        type == ZealIncrementalMultipleSlices)
-    {
-        js::gc::State initialState = incrementalState;
-        if (type == ZealIncrementalMultipleSlices) {
-            /*
-             * Start with a small slice limit and double it every slice. This
-             * ensure that we get multiple slices, and collection runs to
-             * completion.
-             */
-            if (!isIncrementalGCInProgress())
-                incrementalLimit = zealFrequency / 2;
-            else
-                incrementalLimit *= 2;
-            budget = SliceBudget(WorkBudget(incrementalLimit));
-        } else {
-            // This triggers incremental GC but is actually ignored by IncrementalMarkSlice.
-            budget = SliceBudget(WorkBudget(1));
-        }
-
-        if (!isIncrementalGCInProgress())
-            invocationKind = GC_SHRINK;
-        collect(false, budget, JS::gcreason::DEBUG_GC);
-
-        /*
-         * For multi-slice zeal, reset the slice size when we get to the sweep
-         * or compact phases.
-         */
-        if (type == ZealIncrementalMultipleSlices) {
-            if ((initialState == MARK && incrementalState == SWEEP) ||
-                (initialState == SWEEP && incrementalState == COMPACT))
-            {
-                incrementalLimit = zealFrequency / 2;
+        auto budget = SliceBudget::unlimited();
+        if (type == ZealIncrementalRootsThenFinish ||
+            type == ZealIncrementalMarkAllThenFinish ||
+            type == ZealIncrementalMultipleSlices)
+        {
+            js::gc::State initialState = incrementalState;
+            if (type == ZealIncrementalMultipleSlices) {
+                /*
+                 * Start with a small slice limit and double it every slice. This
+                 * ensure that we get multiple slices, and collection runs to
+                 * completion.
+                 */
+                if (!isIncrementalGCInProgress())
+                    incrementalLimit = zealFrequency / 2;
+                else
+                    incrementalLimit *= 2;
+                budget = SliceBudget(WorkBudget(incrementalLimit));
+            } else {
+                // This triggers incremental GC but is actually ignored by IncrementalMarkSlice.
+                budget = SliceBudget(WorkBudget(1));
             }
-        }
-    } else if (type == ZealCompactValue) {
-        gc(GC_SHRINK, JS::gcreason::DEBUG_GC);
-    } else {
-        gc(GC_NORMAL, JS::gcreason::DEBUG_GC);
-    }
 
-#endif
+            if (!isIncrementalGCInProgress())
+                invocationKind = GC_SHRINK;
+            collect(false, budget, JS::gcreason::DEBUG_GC);
+
+            /*
+             * For multi-slice zeal, reset the slice size when we get to the sweep
+             * or compact phases.
+             */
+            if (type == ZealIncrementalMultipleSlices) {
+                if ((initialState == MARK && incrementalState == SWEEP) ||
+                    (initialState == SWEEP && incrementalState == COMPACT))
+                {
+                    incrementalLimit = zealFrequency / 2;
+                }
+            }
+        } else if (type == ZealCompactValue) {
+            gc(GC_SHRINK, JS::gcreason::DEBUG_GC);
+        } else {
+            gc(GC_NORMAL, JS::gcreason::DEBUG_GC);
+        }
+    }
 }
 
 void
@@ -6947,7 +6943,6 @@ GCRuntime::setFullCompartmentChecks(bool enabled)
     fullCompartmentChecks = enabled;
 }
 
-#ifdef JS_GC_ZEAL
 bool
 GCRuntime::selectForMarking(JSObject* object)
 {
@@ -6967,7 +6962,6 @@ GCRuntime::setDeterministic(bool enabled)
     MOZ_ASSERT(!rt->isHeapMajorCollecting());
     deterministicOnly = enabled;
 }
-#endif
 
 #ifdef DEBUG
 
