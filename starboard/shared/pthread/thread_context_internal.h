@@ -32,6 +32,7 @@ struct SbThreadContextPrivate {
   void* ip_ = nullptr;
   void* sp_ = nullptr;
   void* fp_ = nullptr;
+  void* lr_ = nullptr;
 };
 #endif  // SB_API_VERSION >= 11
 
