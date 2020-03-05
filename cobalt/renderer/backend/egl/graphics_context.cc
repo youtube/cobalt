@@ -96,6 +96,10 @@ GraphicsSystemEGL* GraphicsContextEGL::system_egl() {
   return base::polymorphic_downcast<GraphicsSystemEGL*>(system());
 }
 
+const GraphicsSystemEGL* GraphicsContextEGL::system_egl() const {
+  return base::polymorphic_downcast<GraphicsSystemEGL*>(system());
+}
+
 bool GraphicsContextEGL::ComputeReadPixelsNeedVerticalFlip() {
   // This computation is expensive, so it is cached the first time that it is
   // computed. Simply return the value if it is already cached.
@@ -494,6 +498,10 @@ std::unique_ptr<uint8_t[]> GraphicsContextEGL::DownloadPixelDataAsRGBA(
 void GraphicsContextEGL::Finish() {
   ScopedMakeCurrent scoped_current_context(this);
   GL_CALL(glFinish());
+}
+
+math::Size GraphicsContextEGL::GetWindowSize() const {
+  return system_egl()->GetWindowSize();
 }
 
 void GraphicsContextEGL::Blit(GLuint texture, int x, int y, int width,

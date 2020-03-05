@@ -45,6 +45,8 @@ class GraphicsSystemEGL : public GraphicsSystem {
   std::unique_ptr<RawTextureMemoryEGL> AllocateRawTextureMemory(
       size_t size_in_bytes, size_t alignment);
 
+  math::Size GetWindowSize() const;
+
  private:
   EGLDisplay display_;
   EGLConfig config_;
