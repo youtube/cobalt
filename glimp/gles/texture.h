@@ -40,7 +40,9 @@ class Texture : public nb::RefCountedThreadSafe<Texture> {
                   GLsizei height);
 
   // Implements support for glTexSubImage2D().
-  void UpdateData(GLint level,
+  // This function will return true if successful, false if memory allocation
+  // failed.
+  bool UpdateData(GLint level,
                   GLint xoffset,
                   GLint yoffset,
                   GLsizei width,

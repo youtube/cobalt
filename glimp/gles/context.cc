@@ -1497,8 +1497,10 @@ void Context::TexImage2D(GLenum target,
         level, 0, 0, width, height, pitch_in_bytes, bound_pixel_unpack_buffer_,
         nb::AsInteger(pixels));
   } else if (pixels) {
-    texture_object->UpdateData(level, 0, 0, width, height, pitch_in_bytes,
-                               pixels);
+    if (!texture_object->UpdateData(level, 0, 0, width, height, pitch_in_bytes,
+                                    pixels)) {
+      SetError(GL_OUT_OF_MEMORY);
+    }
   }
 }
 
@@ -1576,8 +1578,10 @@ void Context::TexSubImage2D(GLenum target,
         level, xoffset, yoffset, width, height, pitch_in_bytes,
         bound_pixel_unpack_buffer_, nb::AsInteger(pixels));
   } else {
-    texture_object->UpdateData(level, xoffset, yoffset, width, height,
-                               pitch_in_bytes, pixels);
+    if (!texture_object->UpdateData(level, xoffset, yoffset, width, height,
+                                    pitch_in_bytes, pixels)) {
+      SetError(GL_OUT_OF_MEMORY);
+    }
   }
 }
 
