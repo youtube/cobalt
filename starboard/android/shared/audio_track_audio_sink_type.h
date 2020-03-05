@@ -52,6 +52,7 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
       int frames_per_channel,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
       SbAudioSinkConsumeFramesFunc consume_frames_func,
+      SbAudioSinkPrivate::ErrorFunc error_func,
       void* context);
 
   bool IsValid(SbAudioSink audio_sink) override {

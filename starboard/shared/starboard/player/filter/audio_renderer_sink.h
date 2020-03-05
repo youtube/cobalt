@@ -44,6 +44,11 @@ class AudioRendererSink {
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
         // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 
+    // When |capability_changed| is true, it hints that the error is caused by a
+    // a transisent capability on the platform.  The app should retry playback
+    // to recover from the error.
+    virtual void OnError(bool capability_changed) = 0;
+
    protected:
     ~RenderCallback() {}
   };

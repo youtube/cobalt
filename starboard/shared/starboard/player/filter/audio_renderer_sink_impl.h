@@ -66,6 +66,7 @@ class AudioRendererSinkImpl : public AudioRendererSink {
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
         // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
                                 void* context);
+  static void ErrorFunc(bool capability_changed, void* context);
 
   ThreadChecker thread_checker_;
   SbAudioSinkPrivate* audio_sink_;

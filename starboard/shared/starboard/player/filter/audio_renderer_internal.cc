@@ -447,6 +447,18 @@ void AudioRenderer::ConsumeFrames(int frames_consumed
   }
 }
 
+void AudioRenderer::OnError(bool capability_changed) {
+  SB_DCHECK(error_cb_);
+  if (capability_changed) {
+    error_cb_(kSbPlayerErrorCapabilityChanged, "failed to start audio sink");
+  } else {
+    // Send |kSbPlayerErrorDecode| on fatal audio sink error.  The error code
+    // will be mapped into MediaError eventually, and there is no corresponding
+    // error code in MediaError for audio sink error anyway.
+    error_cb_(kSbPlayerErrorDecode, "failed to start audio sink");
+  }
+}
+
 void AudioRenderer::UpdateVariablesOnSinkThread_Locked(
     SbTime system_time_on_consume_frames) {
   mutex_.DCheckAcquired();
