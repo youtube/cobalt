@@ -36,10 +36,12 @@ void TextureImplStub::Initialize(int level,
   SB_DCHECK(level == 0);
 }
 
-void TextureImplStub::UpdateData(int level,
+bool TextureImplStub::UpdateData(int level,
                                  const nb::Rect<int>& window,
                                  int pitch_in_bytes,
-                                 const void* pixels) {}
+                                 const void* pixels) {
+  return false;
+}
 
 void TextureImplStub::UpdateDataFromBuffer(
     int level,

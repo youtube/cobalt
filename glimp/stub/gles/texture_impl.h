@@ -36,7 +36,7 @@ class TextureImplStub : public TextureImpl {
   void Initialize(int level, PixelFormat pixel_format, int width, int height)
       SB_OVERRIDE;
 
-  void UpdateData(int level,
+  bool UpdateData(int level,
                   const nb::Rect<int>& window,
                   int pitch_in_bytes,
                   const void* pixels) SB_OVERRIDE;
