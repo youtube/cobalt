@@ -21,8 +21,12 @@
   'includes': [
     '../../../../../third_party/skia/gyp/core.gypi',
     '../../../../../third_party/skia/gyp/effects.gypi',
+    '../../../../../third_party/skia/gyp/effects_imagefilters.gypi',
     '../../../../../third_party/skia/gyp/gpu.gypi',
     '../../../../../third_party/skia/gyp/utils.gypi',
+    '../../../../../third_party/skia/modules/skottie/skottie.gypi',
+    '../../../../../third_party/skia/modules/sksg/sksg.gypi',
+    '../../../../../third_party/skia/modules/skshaper/skshaper.gypi',
   ],
 
   'sources': [
@@ -31,16 +35,18 @@
     '<@(skia_pathops_sources)',
     '<@(skia_skpicture_sources)',
 
-    # from "effects.gypi"
     '<@(skia_effects_sources)',
+    '<@(skia_effects_imagefilter_sources)',
 
     # from "gpu.gypi"
     '<@(skia_gpu_sources)',
     '<@(skia_ccpr_sources)',
     '<@(skia_nvpr_sources)',
 
-    # from "utils.gypi"
     '<@(skia_utils_sources)',
+    '<@(skia_skottie_sources)',
+    '<@(skia_sksg_sources)',
+    '<@(skia_shaper_primitive_sources)',
 
     '<(DEPTH)/third_party/skia/src/codec/SkBmpBaseCodec.cpp',
     '<(DEPTH)/third_party/skia/src/codec/SkBmpCodec.cpp',
@@ -58,7 +64,6 @@
     '<(DEPTH)/third_party/skia/src/codec/SkStreamBuffer.cpp',
     '<(DEPTH)/third_party/skia/src/codec/SkSwizzler.cpp',
     '<(DEPTH)/third_party/skia/src/codec/SkWbmpCodec.cpp',
-    '<(DEPTH)/third_party/skia/src/effects/imagefilters/SkBlurImageFilter.cpp',
     '<(DEPTH)/third_party/skia/src/images/SkImageEncoder.cpp',
     '<(DEPTH)/third_party/skia/src/ports/SkDiscardableMemory_none.cpp',
     '<(DEPTH)/third_party/skia/src/ports/SkImageGenerator_skia.cpp',
@@ -105,7 +110,6 @@
     '<(DEPTH)/third_party/skia/include/utils/SkLayer.h',
     '<(DEPTH)/third_party/skia/include/utils/SkMeshUtils.h',
     '<(DEPTH)/third_party/skia/include/utils/SkNinePatch.h',
-    '<(DEPTH)/third_party/skia/include/utils/SkParse.h',
     '<(DEPTH)/third_party/skia/include/utils/SkParsePaint.h',
     '<(DEPTH)/third_party/skia/include/utils/SkParsePath.h',
     '<(DEPTH)/third_party/skia/include/utils/SkRandom.h',
@@ -129,7 +133,6 @@
     '<(DEPTH)/third_party/skia/src/utils/SkMD5.h',
     '<(DEPTH)/third_party/skia/src/utils/SkMeshUtils.cpp',
     '<(DEPTH)/third_party/skia/src/utils/SkNinePatch.cpp',
-    '<(DEPTH)/third_party/skia/src/utils/SkParse.cpp',
     '<(DEPTH)/third_party/skia/src/utils/SkParseColor.cpp',
     '<(DEPTH)/third_party/skia/src/utils/SkParsePath.cpp',
     '<(DEPTH)/third_party/skia/src/utils/SkPathUtils.cpp',
