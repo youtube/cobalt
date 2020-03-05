@@ -19,7 +19,6 @@
 
 #include <string>
 
-#include "starboard/atomic.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/decode_target.h"
 #include "starboard/shared/internal_only.h"
@@ -52,6 +51,9 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
       const scoped_refptr<InputBuffer>& input_buffer) override;
   void WriteEndOfStream() override;
   void Reset() override;
+
+  int AllocatePicture(Dav1dPicture* picture) const;
+  void ReleasePicture(Dav1dPicture* picture) const;
 
  private:
   const int kDav1dSuccess = 0;
