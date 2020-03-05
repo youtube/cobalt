@@ -17,6 +17,7 @@
     # These two set the paths so we can include skia/gyp/core.gypi
     'skia_src_path': '<(DEPTH)/third_party/skia/src',
     'skia_include_path': '<(DEPTH)/third_party/skia/include',
+    'skia_modules_path': '<(DEPTH)/third_party/skia/modules',
 
     # This list will contain all defines that also need to be exported to
     # dependent components.
@@ -67,6 +68,10 @@
     'SK_IGNORE_ETC1_SUPPORT',
 
     'SK_DEFAULT_FONT_CACHE_LIMIT=<(default_font_cache_limit)',
+
+    # Use scalar portable implementations instead of Clang/GCC vector extensions
+    # in SkVx.h, as this causes an internal compiler error for raspi-2.
+    'SKNX_NO_SIMD',
   ],
 
   'direct_dependent_settings': {
