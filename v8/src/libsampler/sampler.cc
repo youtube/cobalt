@@ -614,7 +614,12 @@ void Sampler::DoSample() {
       SbThreadContextGetPointer(context, kSbThreadContextStackPointer,
                                 &state.sp) &&
       SbThreadContextGetPointer(context, kSbThreadContextFramePointer,
-                                &state.fp)) {
+                                &state.fp)
+#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+      && SbThreadContextGetPointer(context, kSbThreadContextLinkRegister,
+                                   &state.lr)
+#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+      ) {
     SampleStack(state);
   }
   SbThreadSamplerThaw(thread_sampler);
