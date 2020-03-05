@@ -641,7 +641,6 @@ class GCRuntime
     void onOutOfMallocMemory();
     void onOutOfMallocMemory(const AutoLockGC& lock);
 
-#ifdef JS_GC_ZEAL
     const void* addressOfZealMode() { return &zealMode; }
     void getZeal(uint8_t* zeal, uint32_t* frequency, uint32_t* nextScheduled);
     void setZeal(uint8_t zeal, uint32_t frequency);
@@ -652,7 +651,6 @@ class GCRuntime
     bool selectForMarking(JSObject* object);
     void clearSelectedForMarking();
     void setDeterministic(bool enable);
-#endif
 
     size_t maxMallocBytesAllocated() { return maxMallocBytes; }
 
@@ -826,14 +824,14 @@ class GCRuntime
         return NonEmptyChunksIter(ChunkPool::Iter(availableChunks_), ChunkPool::Iter(fullChunks_));
     }
 
-#ifdef JS_GC_ZEAL
     void startVerifyPreBarriers();
     bool endVerifyPreBarriers();
     void finishVerifier();
-    bool isVerifyPreBarriersEnabled() const { return !!verifyPreData; }
-#else
-    bool isVerifyPreBarriersEnabled() const { return false; }
-#endif
+    bool isVerifyPreBarriersEnabled() const {
+      return cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()
+                 ? !!verifyPreData
+                 : false;
+    }
 
     // Free certain LifoAlloc blocks from the background sweep thread.
     void freeUnusedLifoBlocksAfterSweeping(LifoAlloc* lifo);
@@ -1260,7 +1258,6 @@ class GCRuntime
      *
      * zeal_ value 14 performs periodic shrinking collections.
      */
-#ifdef JS_GC_ZEAL
     int zealMode;
     int zealFrequency;
     int nextScheduled;
@@ -1268,7 +1265,6 @@ class GCRuntime
     int incrementalLimit;
 
     js::Vector<JSObject*, 0, js::SystemAllocPolicy> selectedForMarking;
-#endif
 
     bool validate;
     bool fullCompartmentChecks;
@@ -1348,37 +1344,33 @@ class MOZ_RAII AutoEnterIteration {
     }
 };
 
-#ifdef JS_GC_ZEAL
 inline int
 GCRuntime::zeal() {
-    return zealMode;
+    return cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal() ? zealMode : 0;
 }
 
 inline bool
 GCRuntime::upcomingZealousGC() {
-    return nextScheduled == 1;
+    return cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal() ? nextScheduled == 1 : false;
 }
 
 inline bool
 GCRuntime::needZealousGC() {
-    if (nextScheduled > 0 && --nextScheduled == 0) {
-        if (zealMode == ZealAllocValue ||
-            zealMode == ZealGenerationalGCValue ||
-            (zealMode >= ZealIncrementalRootsThenFinish &&
-             zealMode <= ZealIncrementalMultipleSlices) ||
-            zealMode == ZealCompactValue)
-        {
-            nextScheduled = zealFrequency;
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+        if (nextScheduled > 0 && --nextScheduled == 0) {
+            if (zealMode == ZealAllocValue ||
+                zealMode == ZealGenerationalGCValue ||
+                (zealMode >= ZealIncrementalRootsThenFinish &&
+                zealMode <= ZealIncrementalMultipleSlices) ||
+                zealMode == ZealCompactValue)
+            {
+                nextScheduled = zealFrequency;
+            }
+            return true;
         }
-        return true;
     }
     return false;
 }
-#else
-inline int GCRuntime::zeal() { return 0; }
-inline bool GCRuntime::upcomingZealousGC() { return false; }
-inline bool GCRuntime::needZealousGC() { return false; }
-#endif
 
 } /* namespace gc */
 } /* namespace js */

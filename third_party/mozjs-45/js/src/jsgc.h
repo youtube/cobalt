@@ -9,6 +9,8 @@
 #ifndef jsgc_h
 #define jsgc_h
 
+#include "cobalt/configuration/configuration.h"
+
 #include "mozilla/Atomics.h"
 #include "mozilla/DebugOnly.h"
 #include "mozilla/EnumeratedArray.h"
@@ -1310,8 +1312,6 @@ enum VerifierType {
     PreBarrierVerifier
 };
 
-#ifdef JS_GC_ZEAL
-
 extern const char* ZealModeHelpText;
 
 /* Check that write barriers have been used correctly. See jsgc.cpp. */
@@ -1320,20 +1320,6 @@ VerifyBarriers(JSRuntime* rt, VerifierType type);
 
 void
 MaybeVerifyBarriers(JSContext* cx, bool always = false);
-
-#else
-
-static inline void
-VerifyBarriers(JSRuntime* rt, VerifierType type)
-{
-}
-
-static inline void
-MaybeVerifyBarriers(JSContext* cx, bool always = false)
-{
-}
-
-#endif
 
 /*
  * Instances of this class set the |JSRuntime::suppressGC| flag for the duration

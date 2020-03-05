@@ -26,8 +26,6 @@
 using namespace js;
 using namespace js::gc;
 
-#ifdef JS_GC_ZEAL
-
 /*
  * Write barrier verification
  *
@@ -373,8 +371,10 @@ gc::GCRuntime::verifyPreBarriers()
 void
 gc::VerifyBarriers(JSRuntime* rt, VerifierType type)
 {
-    if (type == PreBarrierVerifier)
-        rt->gc.verifyPreBarriers();
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+        if (type == PreBarrierVerifier)
+            rt->gc.verifyPreBarriers();
+    }
 }
 
 void
@@ -399,8 +399,10 @@ gc::GCRuntime::maybeVerifyPreBarriers(bool always)
 void
 js::gc::MaybeVerifyBarriers(JSContext* cx, bool always)
 {
-    GCRuntime* gc = &cx->runtime()->gc;
-    gc->maybeVerifyPreBarriers(always);
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+        GCRuntime* gc = &cx->runtime()->gc;
+        gc->maybeVerifyPreBarriers(always);
+    }
 }
 
 void
@@ -411,5 +413,3 @@ js::gc::GCRuntime::finishVerifier()
         verifyPreData = nullptr;
     }
 }
-
-#endif /* JS_GC_ZEAL */

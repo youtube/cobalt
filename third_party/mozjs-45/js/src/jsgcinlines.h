@@ -31,11 +31,11 @@ GCRuntime::poke()
 {
     poked = true;
 
-#ifdef JS_GC_ZEAL
-    /* Schedule a GC to happen "soon" after a GC poke. */
-    if (zealMode == ZealPokeValue)
-        nextScheduled = 1;
-#endif
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+        /* Schedule a GC to happen "soon" after a GC poke. */
+        if (zealMode == ZealPokeValue)
+            nextScheduled = 1;
+    }
 }
 
 class ArenaIter

@@ -12,23 +12,23 @@ using mozilla::ScopedDeletePtr;
 
 BEGIN_TEST(testGCHeapPostBarriers)
 {
-#ifdef JS_GC_ZEAL
+  if (configuration::Configuration::GetInstance()->CobaltGcZeal()) {
     AutoLeaveZeal nozeal(cx);
-#endif /* JS_GC_ZEAL */
+  }
 
-    /* Sanity check - objects start in the nursery and then become tenured. */
-    JS_GC(cx->runtime());
-    JS::RootedObject obj(cx, NurseryObject());
-    CHECK(js::gc::IsInsideNursery(obj.get()));
-    JS_GC(cx->runtime());
-    CHECK(!js::gc::IsInsideNursery(obj.get()));
-    JS::RootedObject tenuredObject(cx, obj);
+  /* Sanity check - objects start in the nursery and then become tenured. */
+  JS_GC(cx->runtime());
+  JS::RootedObject obj(cx, NurseryObject());
+  CHECK(js::gc::IsInsideNursery(obj.get()));
+  JS_GC(cx->runtime());
+  CHECK(!js::gc::IsInsideNursery(obj.get()));
+  JS::RootedObject tenuredObject(cx, obj);
 
-    /* Currently JSObject and JSFunction objects are nursery allocated. */
-    CHECK(TestHeapPostBarriers(NurseryObject()));
-    CHECK(TestHeapPostBarriers(NurseryFunction()));
+  /* Currently JSObject and JSFunction objects are nursery allocated. */
+  CHECK(TestHeapPostBarriers(NurseryObject()));
+  CHECK(TestHeapPostBarriers(NurseryFunction()));
 
-    return true;
+  return true;
 }
 
 MOZ_NEVER_INLINE bool
