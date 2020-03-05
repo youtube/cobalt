@@ -51,6 +51,13 @@ class CobaltARMConfiguration(cobalt_configuration.CobaltConfiguration):
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
+  def GetWebPlatformTestFilters(self):
+    filters = super(CobaltARMConfiguration, self).GetWebPlatformTestFilters()
+    filters.extend([
+        test_filter.TestFilter('web_platform_tests', test_filter.FILTER_ALL),
+    ])
+    return filters
+
   def GetTestEnvVariables(self):
     return {
         'base_unittests': {
