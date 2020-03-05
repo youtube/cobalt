@@ -110,66 +110,39 @@
 //   or with gcc, run: "echo | gcc -E -dM -"
 #if defined(OS_STARBOARD)
 #include "starboard/configuration.h"
-# if SB_IS(32_BIT)
-#  define ARCH_CPU_32_BITS 1
-# elif SB_IS(64_BIT)
-#  define ARCH_CPU_64_BITS 1
-# endif  // SB_IS(32_BIT)
+#if SB_IS(32_BIT)
+# define ARCH_CPU_32_BITS 1
+#elif SB_IS(64_BIT)
+# define ARCH_CPU_64_BITS 1
+#endif  // SB_IS(32_BIT)
+#if SB_IS(BIG_ENDIAN)
+# define ARCH_CPU_BIG_ENDIAN 1
+#else   // SB_IS(BIG_ENDIAN)
+# define ARCH_CPU_LITTLE_ENDIAN 1
+#endif  // SB_IS(BIG_ENDIAN)
+#if SB_IS(ARCH_X86)
+# define ARCH_CPU_X86_FAMILY 1
+# define ARCH_CPU_X86 1
+#elif SB_IS(ARCH_X64)
+# define ARCH_CPU_X86_FAMILY 1
+# define ARCH_CPU_X86_64 1
+#elif SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)
+# define ARCH_CPU_ARM_FAMILY 1
 # if SB_IS(BIG_ENDIAN)
-#  define ARCH_CPU_BIG_ENDIAN 1
+#  define ARCH_CPU_ARM 1
 # else   // SB_IS(BIG_ENDIAN)
-#  define ARCH_CPU_LITTLE_ENDIAN 1
+#  define ARCH_CPU_ARMEL 1
 # endif  // SB_IS(BIG_ENDIAN)
-#if SB_API_VERSION >= SB_SABI_FILE_VERSION
-# if SB_IS(ARCH_X86)
-#  define ARCH_CPU_X86_FAMILY 1
-#  define ARCH_CPU_X86 1
-# elif SB_IS(ARCH_X64)
-#  define ARCH_CPU_X86_FAMILY 1
-#  define ARCH_CPU_X86_64 1
-# elif SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)
-#  define ARCH_CPU_ARM_FAMILY 1
-#  if SB_IS(BIG_ENDIAN)
-#   define ARCH_CPU_ARM 1
-#  else   // SB_IS(BIG_ENDIAN)
-#   define ARCH_CPU_ARMEL 1
-#  endif  // SB_IS(BIG_ENDIAN)
-# elif SB_IS(ARCH_PPC)
-#  define ARCH_CPU_PPC_FAMILY 1
-# elif SB_IS(ARCH_MIPS)
-#  define ARCH_CPU_MIPS_FAMILY 1
-#  if SB_IS(BIG_ENDIAN)
-#   define ARCH_CPU_MIPS 1
-#  else   // SB_IS(BIG_ENDIAN)
-#   define ARCH_CPU_MIPSEL 1
-#  endif  // SB_IS(BIG_ENDIAN)
-# endif  // SB_IS(ARCH_X86)
-#else   // SB_API_VERSION < SB_SABI_FILE_VERSION
-#  if SB_IS(ARCH_X86)
-#    define ARCH_CPU_X86_FAMILY 1
-#    if SB_IS(32_BIT)
-#      define ARCH_CPU_X86 1
-#    elif SB_IS(64_BIT)
-#      define ARCH_CPU_X86_64 1
-#    endif  // SB_IS(32_BIT)
-#  elif SB_IS(ARCH_PPC)
-#    define ARCH_CPU_PPC_FAMILY 1
-#  elif SB_IS(ARCH_MIPS)
-#    define ARCH_CPU_MIPS_FAMILY 1
-#    if SB_IS(BIG_ENDIAN)
-#      define ARCH_CPU_MIPS 1
-#    else  // SB_IS(BIG_ENDIAN)
-#      define ARCH_CPU_MIPSEL 1
-#    endif  // SB_IS(BIG_ENDIAN)
-#  elif SB_IS(ARCH_ARM)
-#    define ARCH_CPU_ARM_FAMILY 1
-#    if SB_IS(BIG_ENDIAN)
-#      define ARCH_CPU_ARM 1
-#    else  // SB_IS(BIG_ENDIAN)
-#      define ARCH_CPU_ARMEL 1
-#    endif  // SB_IS(BIG_ENDIAN)
-#  endif  // SB_IS(ARCH_X86)
-#endif  // SB_API_VERSION >= SB_SABI_FILE_VERSION
+#elif SB_IS(ARCH_PPC)
+# define ARCH_CPU_PPC_FAMILY 1
+#elif SB_IS(ARCH_MIPS)
+# define ARCH_CPU_MIPS_FAMILY 1
+# if SB_IS(BIG_ENDIAN)
+#  define ARCH_CPU_MIPS 1
+# else   // SB_IS(BIG_ENDIAN)
+#  define ARCH_CPU_MIPSEL 1
+# endif  // SB_IS(BIG_ENDIAN)
+#endif  // SB_IS(ARCH_X86)
 #elif defined(_M_X64) || defined(__x86_64__)
 #define ARCH_CPU_X86_FAMILY 1
 #define ARCH_CPU_X86_64 1

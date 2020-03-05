@@ -36,26 +36,24 @@ SbThreadContextPrivate::SbThreadContextPrivate(ucontext_t* ucontext) {
 
 // TODO: Remove redundant #if checks when
 //       SB_MINIMUM_API_VERSION >= SB_SABI_FILE_VERSION.
-#if SB_IS_ARCH_X86 || SB_IS_ARCH_X64
-#if SB_IS_64_BIT
+#if SB_IS_ARCH_X64
   // 64-bit X86 (aka X64)
   ip_ = reinterpret_cast<void*>(mcontext.gregs[REG_RIP]);
   sp_ = reinterpret_cast<void*>(mcontext.gregs[REG_RSP]);
   fp_ = reinterpret_cast<void*>(mcontext.gregs[REG_RBP]);
-#else
+#elif SB_IS_ARCH_X86
   // 32-bit X86
   ip_ = reinterpret_cast<void*>(mcontext.gregs[REG_EIP]);
   sp_ = reinterpret_cast<void*>(mcontext.gregs[REG_ESP]);
   fp_ = reinterpret_cast<void*>(mcontext.gregs[REG_EBP]);
-#endif
-#elif SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
-#if SB_IS_64_BIT
+#elif SB_IS_ARCH_ARM64
   // 64-bit ARM
   ip_ = reinterpret_cast<void*>(mcontext.pc);
   sp_ = reinterpret_cast<void*>(mcontext.sp);
   fp_ = reinterpret_cast<void*>(mcontext.regs[29]);
   lr_ = reinterpret_cast<void*>(mcontext.regs[30]);
-#elif SB_IS_GLIBC && ((__GLIBC__ * 100 + __GLIBC_MINOR__) < 204)
+#elif SB_IS_ARCH_ARM
+#if SB_IS_GLIBC && ((__GLIBC__ * 100 + __GLIBC_MINOR__) < 204)
   // 32-bit ARM w/ old GLIBC that used gregs[]
   ip_ = reinterpret_cast<void*>(mcontext.gregs[R15]);
   sp_ = reinterpret_cast<void*>(mcontext.gregs[R13]);
