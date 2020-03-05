@@ -67,7 +67,6 @@ class CobaltARMConfiguration(cobalt_configuration.CobaltConfiguration):
   __FILTERED_TESTS = {
       'base_unittests': [test_filter.FILTER_ALL],
       'bindings_test': ['DateBindingsTest.PosixEpoch'],
-      'css_parser_test': ['LocaleNumeric/ScannerTest.*'],
       'nb_test': ['MemoryTrackerImplTest.MultiThreadedStress*Test'],
       'net_unittests': [test_filter.FILTER_ALL],
       'renderer_test': [

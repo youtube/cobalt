@@ -42,6 +42,11 @@ class ScannerTest : public ::testing::Test,
       return;
     }
 
+#if SB_IS(EVERGREEN)
+    // We don't support changing locale for Evergreen so run only
+    // if the default/empty local is passed in the param.
+    locale_okay_ = (GetParam()[0] == 0);
+#else
     // Save the old locale.
     char* old_locale_cstr = setlocale(LC_NUMERIC, nullptr);
     EXPECT_TRUE(old_locale_cstr != nullptr) << "Cant' save original locale";
@@ -51,17 +56,19 @@ class ScannerTest : public ::testing::Test,
     // values we'll skip the test if we can't change the locale to it.
     locale_okay_ =
         (GetParam()[0] == 0 || setlocale(LC_NUMERIC, GetParam()) != nullptr);
+#endif
   }
 
   virtual void TearDown() {
+#if !SB_IS(EVERGREEN)
     if (!old_locale_.empty()) setlocale(LC_NUMERIC, old_locale_.c_str());
+#endif
   }
 
   // TODO: Use GTEST_SKIP in |SetUp| when we have a newer version of gtest.
   bool SkipLocale() {
     if (!locale_okay_) {
-      std::cout << "[  SKIPPED ] Can't set locale to " << GetParam()
-                << std::endl;
+      SbLogFormatF("[  SKIPPED ] Can't set locale to %s \n", GetParam());
     }
     return !locale_okay_;
   }
