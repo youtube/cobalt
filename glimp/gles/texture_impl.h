@@ -49,9 +49,11 @@ class TextureImpl {
   // of this method define a window within the existing texture data of which
   // should be updated with the provided (non-NULL) |pixels|.  The provided
   // |pitch_in_bytes| refers to the input data pixel rows.
+  // This function will return true if successful, false if memory allocation
+  // failed.
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glTexImage2D.xml
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glTexSubImage2D.xml
-  virtual void UpdateData(int level,
+  virtual bool UpdateData(int level,
                           const nb::Rect<int>& window,
                           int pitch_in_bytes,
                           const void* pixels) = 0;
