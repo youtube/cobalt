@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "third_party/zlib2/google/zip.h"
+#include "third_party/zlib/google/zip.h"
 
 #include <list>
 #include <string>
@@ -15,9 +15,9 @@
 #include "base/memory/ptr_util.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
-#include "third_party/zlib2/google/zip_internal.h"
-#include "third_party/zlib2/google/zip_reader.h"
-#include "third_party/zlib2/google/zip_writer.h"
+#include "third_party/zlib/google/zip_internal.h"
+#include "third_party/zlib/google/zip_reader.h"
+#include "third_party/zlib/google/zip_writer.h"
 
 namespace zip {
 namespace {

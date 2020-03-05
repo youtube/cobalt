@@ -1,7 +1,7 @@
 name: "zlib"
 description:
-  "Subtree at third_party/zlib2. Temporary location until zlib can be "
-  "properly updated."
+  "Subtree at third_party/zlib. Zlib compression, required by QUIC, libpng, "
+  "WebSockets and Freetype2."
 
 third_party {
   url {

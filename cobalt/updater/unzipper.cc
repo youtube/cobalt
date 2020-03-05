@@ -8,7 +8,7 @@
 #include "base/callback.h"
 #include "base/files/file_path.h"
 #include "starboard/time.h"
-#include "third_party/zlib2/google/zip.h"
+#include "third_party/zlib/google/zip.h"
 
 namespace cobalt {
 namespace updater {

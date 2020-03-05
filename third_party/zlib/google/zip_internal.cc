@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "third_party/zlib2/google/zip_internal.h"
+#include "third_party/zlib/google/zip_internal.h"
 
 #include <stddef.h>
 

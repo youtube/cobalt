@@ -10,7 +10,7 @@
 
 #include "base/files/file_path.h"
 #include "build/build_config.h"
-#include "third_party/zlib2/google/zip.h"
+#include "third_party/zlib/google/zip.h"
 
 #if defined(USE_SYSTEM_MINIZIP)
 #include <minizip/unzip.h>
