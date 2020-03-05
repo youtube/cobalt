@@ -25,6 +25,7 @@
 #include "cobalt/render_tree/font_provider.h"
 #include "cobalt/render_tree/glyph_buffer.h"
 #include "cobalt/render_tree/image.h"
+#include "cobalt/render_tree/lottie_animation.h"
 #include "cobalt/render_tree/mesh.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/typeface.h"
@@ -205,6 +206,12 @@ class ResourceProvider {
                              bool is_rtl,
                              render_tree::FontProvider* font_provider,
                              render_tree::FontVector* maybe_used_fonts) = 0;
+
+  // This function will wrap the given Lottie animation data into a
+  // LottieAnimation that can be used in a render tree, and return it to the
+  // caller.
+  virtual scoped_refptr<LottieAnimation> CreateLottieAnimation(
+      const char* data, size_t length) = 0;
 
   // Consumes a list of vertices and returns a Mesh instance.
   virtual scoped_refptr<Mesh> CreateMesh(

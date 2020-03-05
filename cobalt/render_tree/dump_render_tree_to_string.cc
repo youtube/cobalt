@@ -20,6 +20,7 @@
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/image_node.h"
+#include "cobalt/render_tree/lottie_node.h"
 #include "cobalt/render_tree/matrix_transform_3d_node.h"
 #include "cobalt/render_tree/matrix_transform_node.h"
 #include "cobalt/render_tree/node_visitor.h"
@@ -48,6 +49,7 @@ class DebugTreePrinter : public NodeVisitor {
   void Visit(CompositionNode* composition) override;
   void Visit(FilterNode* text) override;
   void Visit(ImageNode* image) override;
+  void Visit(LottieNode* lottie) override;
   void Visit(MatrixTransform3DNode* transform) override;
   void Visit(MatrixTransformNode* transform) override;
   void Visit(PunchThroughVideoNode* punch_through) override;
@@ -131,6 +133,11 @@ void DebugTreePrinter::Visit(FilterNode* filter) {
 
 void DebugTreePrinter::Visit(ImageNode* image) {
   AddNamedNodeString(image, "ImageNode");
+  result_ << "\n";
+}
+
+void DebugTreePrinter::Visit(LottieNode* lottie) {
+  AddNamedNodeString(lottie, "LottieNode");
   result_ << "\n";
 }
 

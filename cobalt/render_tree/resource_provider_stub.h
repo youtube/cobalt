@@ -24,6 +24,7 @@
 #include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/font_provider.h"
 #include "cobalt/render_tree/image.h"
+#include "cobalt/render_tree/lottie_animation.h"
 #include "cobalt/render_tree/mesh.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "third_party/ots/include/opentype-sanitiser.h"
@@ -409,6 +410,13 @@ class ResourceProviderStub : public ResourceProvider {
     return base::WrapRefCounted(new GlyphBuffer(math::RectF(
         0, glyph_bounds.y(), glyph_bounds.width() * utf8_string.size(),
         glyph_bounds.height())));
+  }
+
+  scoped_refptr<LottieAnimation> CreateLottieAnimation(const char* data,
+                                                       size_t length) override {
+    SB_UNREFERENCED_PARAMETER(data);
+    SB_UNREFERENCED_PARAMETER(length);
+    return scoped_refptr<LottieAnimation>(NULL);
   }
 
   // Create a mesh which can map replaced boxes to 3D shapes.

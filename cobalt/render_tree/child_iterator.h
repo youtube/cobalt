@@ -19,6 +19,7 @@
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/image_node.h"
+#include "cobalt/render_tree/lottie_node.h"
 #include "cobalt/render_tree/matrix_transform_3d_node.h"
 #include "cobalt/render_tree/matrix_transform_node.h"
 #include "cobalt/render_tree/node.h"

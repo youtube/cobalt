@@ -187,6 +187,12 @@ scoped_refptr<GlyphBuffer> ResourceProvider::CreateGlyphBuffer(
   return skia_resource_provider_->CreateGlyphBuffer(utf8_string, font);
 }
 
+scoped_refptr<render_tree::LottieAnimation>
+ResourceProvider::CreateLottieAnimation(const char* data, size_t length) {
+  NOTIMPLEMENTED();
+  return scoped_refptr<render_tree::LottieAnimation>(NULL);
+}
+
 scoped_refptr<render_tree::Mesh> ResourceProvider::CreateMesh(
     std::unique_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
     render_tree::Mesh::DrawMode draw_mode) {
