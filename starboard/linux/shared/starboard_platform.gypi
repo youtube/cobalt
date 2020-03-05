@@ -204,6 +204,7 @@
       '<(DEPTH)/starboard/shared/pthread/mutex_release.cc',
       '<(DEPTH)/starboard/shared/pthread/once.cc',
       '<(DEPTH)/starboard/shared/pthread/thread_context_get_pointer.cc',
+      '<(DEPTH)/starboard/shared/pthread/thread_context_internal.cc',
       '<(DEPTH)/starboard/shared/pthread/thread_context_internal.h',
       '<(DEPTH)/starboard/shared/pthread/thread_create.cc',
       '<(DEPTH)/starboard/shared/pthread/thread_create_local_key.cc',
