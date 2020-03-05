@@ -142,6 +142,7 @@ class AudioRenderer : public MediaTimeProvider,
   void ConsumeFrames(int frames_consumed) override;
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
         // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+  void OnError(bool capability_changed) override;
 
   void UpdateVariablesOnSinkThread_Locked(SbTime system_time_on_consume_frames);
 

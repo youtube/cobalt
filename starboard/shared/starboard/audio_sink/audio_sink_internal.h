@@ -20,10 +20,18 @@
 #include "starboard/shared/internal_only.h"
 
 struct SbAudioSinkPrivate {
+#if SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
+  // When |capability_changed| is true, it hints that the error is caused by a
+  // a transisent capability on the platform.  The app should retry playback to
+  // recover from the error.
+  typedef void (*ErrorFunc)(bool capability_changed, void* context);
+#endif  // SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
+
   class Type {
    public:
     virtual ~Type() {}
 
+    // |error_func| can be NULL to indicate that there is no error handling.
     virtual SbAudioSink Create(
         int channels,
         int sampling_frequency_hz,
@@ -33,6 +41,9 @@ struct SbAudioSinkPrivate {
         int frame_buffers_size_in_frames,
         SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
         SbAudioSinkConsumeFramesFunc consume_frames_func,
+#if SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
+        ErrorFunc error_func,
+#endif  // SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
         void* context) = 0;
     virtual bool IsValid(SbAudioSink audio_sink) = 0;
     virtual void Destroy(SbAudioSink audio_sink) = 0;

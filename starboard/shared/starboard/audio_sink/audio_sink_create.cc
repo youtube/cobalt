@@ -77,7 +77,11 @@ SbAudioSink SbAudioSinkCreate(
   SbAudioSink audio_sink = audio_sink_type->Create(
       channels, sampling_frequency_hz, audio_sample_type,
       audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
-      update_source_status_func, consume_frames_func, context);
+      update_source_status_func, consume_frames_func,
+#if SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
+      NULL /*error_func*/,
+#endif  // SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
+      context);
   if (audio_sink_type->IsValid(audio_sink)) {
     return audio_sink;
   }
@@ -89,7 +93,11 @@ SbAudioSink SbAudioSinkCreate(
   audio_sink = fallback_audio_sink_type->Create(
       channels, sampling_frequency_hz, audio_sample_type,
       audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
-      update_source_status_func, consume_frames_func, context);
+      update_source_status_func, consume_frames_func,
+#if SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
+      NULL /*error_func*/,
+#endif  // SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
+      context);
   if (fallback_audio_sink_type->IsValid(audio_sink)) {
     return audio_sink;
   }
