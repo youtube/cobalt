@@ -36,6 +36,8 @@
         'render_tree_node_visitor.h',
         'scratch_surface_cache.cc',
         'scratch_surface_cache.h',
+        'skottie_animation.cc',
+        'skottie_animation.h',
         'text_shaper.cc',
         'text_shaper.h',
         'typeface.cc',

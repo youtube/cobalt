@@ -75,6 +75,7 @@ class AnimateNode::TraverseListBuilder : public NodeVisitor {
   void Visit(CompositionNode* composition) override { VisitNode(composition); }
   void Visit(FilterNode* text) override { VisitNode(text); }
   void Visit(ImageNode* image) override { VisitNode(image); }
+  void Visit(LottieNode* lottie) override { VisitNode(lottie); }
   void Visit(MatrixTransform3DNode* transform) override {
     VisitNode(transform);
   }
@@ -249,6 +250,7 @@ class AnimateNode::BoundsVisitor : public NodeVisitor {
   void Visit(CompositionNode* composition) override { VisitNode(composition); }
   void Visit(FilterNode* text) override { VisitNode(text); }
   void Visit(ImageNode* image) override { VisitNode(image); }
+  void Visit(LottieNode* lottie) override { VisitNode(lottie); }
   void Visit(MatrixTransform3DNode* transform) override {
     VisitNode(transform);
   }
@@ -404,6 +406,7 @@ class AnimateNode::ApplyVisitor : public NodeVisitor {
   void Visit(CompositionNode* composition) override { VisitNode(composition); }
   void Visit(FilterNode* text) override { VisitNode(text); }
   void Visit(ImageNode* image) override { VisitNode(image); }
+  void Visit(LottieNode* lottie) override { VisitNode(lottie); }
   void Visit(MatrixTransform3DNode* transform) override {
     VisitNode(transform);
   }

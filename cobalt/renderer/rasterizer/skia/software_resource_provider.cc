@@ -23,6 +23,7 @@
 #include "cobalt/renderer/rasterizer/skia/glyph_buffer.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
+#include "cobalt/renderer/rasterizer/skia/skottie_animation.h"
 #include "cobalt/renderer/rasterizer/skia/software_image.h"
 #include "cobalt/renderer/rasterizer/skia/software_mesh.h"
 #include "cobalt/renderer/rasterizer/skia/typeface.h"
@@ -243,6 +244,14 @@ float SoftwareResourceProvider::GetTextWidth(
     render_tree::FontVector* maybe_used_fonts) {
   return text_shaper_.GetTextWidth(text_buffer, text_length, language, is_rtl,
                                    font_provider, maybe_used_fonts);
+}
+
+scoped_refptr<render_tree::LottieAnimation>
+SoftwareResourceProvider::CreateLottieAnimation(const char* data,
+                                                size_t length) {
+  TRACE_EVENT0("cobalt::renderer",
+               "SoftwareResourceProvider::CreateLottieAnimation()");
+  return base::WrapRefCounted(new SkottieAnimation(data, length));
 }
 
 scoped_refptr<render_tree::Mesh> SoftwareResourceProvider::CreateMesh(

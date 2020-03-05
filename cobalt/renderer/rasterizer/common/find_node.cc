@@ -45,6 +45,9 @@ class FinderNodeVisitor : public render_tree::NodeVisitor {
   void Visit(render_tree::ImageNode* image_node) override {
     VisitNode(image_node);
   }
+  void Visit(render_tree::LottieNode* lottie_node) override {
+    VisitNode(lottie_node);
+  }
   void Visit(render_tree::MatrixTransform3DNode* transform_3d_node) override {
     VisitNode(transform_3d_node);
   }
