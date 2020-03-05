@@ -177,6 +177,7 @@
       'hard_dependency': 1,
       'dependencies': [
         'build_include_directory',
+        '<(DEPTH)/cobalt/configuration/configuration.gyp:configuration',
         '<(DEPTH)/starboard/client_porting/pr_starboard/pr_starboard.gyp:pr_starboard',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
         '<(DEPTH)/third_party/icu/icu.gyp:icui18n',

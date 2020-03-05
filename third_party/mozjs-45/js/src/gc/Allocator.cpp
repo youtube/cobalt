@@ -23,10 +23,10 @@ using namespace gc;
 bool
 GCRuntime::gcIfNeededPerAllocation(JSContext* cx)
 {
-#ifdef JS_GC_ZEAL
-    if (needZealousGC())
-        runDebugGC();
-#endif
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+        if (needZealousGC())
+            runDebugGC();
+    }
 
     // Invoking the interrupt callback can fail and we can't usefully
     // handle that here. Just check in case we need to collect instead.
@@ -56,7 +56,7 @@ GCRuntime::checkAllocatorState(JSContext* cx, AllocKind kind)
             return false;
     }
 
-#if defined(JS_GC_ZEAL) || defined(DEBUG)
+#if defined(DEBUG)
     MOZ_ASSERT_IF(rt->isAtomsCompartment(cx->compartment()),
                   kind == AllocKind::STRING ||
                   kind == AllocKind::FAT_INLINE_STRING ||
@@ -64,6 +64,16 @@ GCRuntime::checkAllocatorState(JSContext* cx, AllocKind kind)
                   kind == AllocKind::JITCODE);
     MOZ_ASSERT(!rt->isHeapBusy());
     MOZ_ASSERT(isAllocAllowed());
+#else
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+        MOZ_ASSERT_IF(rt->isAtomsCompartment(cx->compartment()),
+                    kind == AllocKind::STRING ||
+                    kind == AllocKind::FAT_INLINE_STRING ||
+                    kind == AllocKind::SYMBOL ||
+                    kind == AllocKind::JITCODE);
+        MOZ_ASSERT(!rt->isHeapBusy());
+        MOZ_ASSERT(isAllocAllowed());
+    }
 #endif
 
     // Crash if we perform a GC action when it is not safe.

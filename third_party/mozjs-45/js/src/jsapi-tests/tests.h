@@ -416,7 +416,6 @@ class TestJSPrincipals : public JSPrincipals
     }
 };
 
-#ifdef JS_GC_ZEAL
 /*
  * Temporarily disable the GC zeal setting. This is only useful in tests that
  * need very explicit GC behavior and should not be used elsewhere.
@@ -439,6 +438,5 @@ class AutoLeaveZeal
         JS_SetGCZeal(cx_, zeal_, frequency_);
     }
 };
-#endif /* JS_GC_ZEAL */
 
 #endif /* jsapi_tests_tests_h */

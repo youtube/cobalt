@@ -21,6 +21,7 @@
 #include "base/lazy_instance.h"
 #include "base/strings/stringprintf.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/script/mozjs-45/conversion_helpers.h"
 #include "cobalt/script/mozjs-45/embedded_resources.h"
 #include "cobalt/script/mozjs-45/mozjs_exception_state.h"
