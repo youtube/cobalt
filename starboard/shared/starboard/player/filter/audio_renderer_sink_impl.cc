@@ -84,7 +84,11 @@ void AudioRendererSinkImpl::Start(
         channels, sampling_frequency_hz, audio_sample_type,
         audio_frame_storage_type, frame_buffers, frames_per_channel,
         &AudioRendererSinkImpl::UpdateSourceStatusFunc,
-        &AudioRendererSinkImpl::ConsumeFramesFunc, this);
+        &AudioRendererSinkImpl::ConsumeFramesFunc,
+#if SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
+        &AudioRendererSinkImpl::ErrorFunc,
+#endif  // SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
+        this);
     if (!audio_sink_type->IsValid(audio_sink_)) {
       SB_LOG(WARNING) << "Created invalid SbAudioSink from "
                          "SbAudioSinkPrivate::Type. Destroying and "
@@ -97,7 +101,11 @@ void AudioRendererSinkImpl::Start(
             channels, sampling_frequency_hz, audio_sample_type,
             audio_frame_storage_type, frame_buffers, frames_per_channel,
             &AudioRendererSinkImpl::UpdateSourceStatusFunc,
-            &AudioRendererSinkImpl::ConsumeFramesFunc, this);
+            &AudioRendererSinkImpl::ConsumeFramesFunc,
+#if SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
+            &AudioRendererSinkImpl::ErrorFunc,
+#endif  // SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
+            this);
         if (!fallback_type->IsValid(audio_sink_)) {
           SB_LOG(ERROR) << "Failed to create SbAudioSink from Fallback type.";
           fallback_type->Destroy(audio_sink_);
@@ -196,6 +204,16 @@ void AudioRendererSinkImpl::ConsumeFramesFunc(
   audio_renderer_sink->render_callback_->ConsumeFrames(frames_consumed);
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
         // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+}
+
+// static
+void AudioRendererSinkImpl::ErrorFunc(bool capability_changed, void* context) {
+  AudioRendererSinkImpl* audio_renderer_sink =
+      static_cast<AudioRendererSinkImpl*>(context);
+  SB_DCHECK(audio_renderer_sink);
+  SB_DCHECK(audio_renderer_sink->render_callback_);
+
+  audio_renderer_sink->render_callback_->OnError(capability_changed);
 }
 
 }  // namespace filter

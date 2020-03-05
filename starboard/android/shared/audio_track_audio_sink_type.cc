@@ -388,6 +388,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     int frames_per_channel,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     SbAudioSinkConsumeFramesFunc consume_frames_func,
+    SbAudioSinkPrivate::ErrorFunc error_func,
     void* context) {
   int min_required_frames = SbAudioSinkGetMinBufferSizeInFrames(
       channels, audio_sample_type, sampling_frequency_hz);

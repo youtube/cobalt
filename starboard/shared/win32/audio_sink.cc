@@ -183,6 +183,7 @@ class XAudioAudioSinkType : public SbAudioSinkPrivate::Type,
       int frame_buffers_size_in_frames,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
       SbAudioSinkConsumeFramesFunc consume_frames_func,
+      SbAudioSinkPrivate::ErrorFunc error_func,
       void* context);
 
   bool IsValid(SbAudioSink audio_sink) override {
@@ -432,6 +433,7 @@ SbAudioSink XAudioAudioSinkType::Create(
     int frame_buffers_size_in_frames,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     SbAudioSinkConsumeFramesFunc consume_frames_func,
+    SbAudioSinkPrivate::ErrorFunc error_func,
     void* context) {
   SB_DCHECK(audio_frame_storage_type ==
             kSbMediaAudioFrameStorageTypeInterleaved);
