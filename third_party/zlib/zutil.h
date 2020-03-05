@@ -21,6 +21,10 @@
 
 #include "zlib.h"
 
+/* Preemptively include <stdio.h> to prevent compilation errors resulting from
+ * redefining fdopen() to |NULL|. */
+#include <stdio.h>
+
 #if defined(STARBOARD)
 #  include "starboard/memory.h"
 #elif defined(STDC) && !defined(Z_SOLO)
