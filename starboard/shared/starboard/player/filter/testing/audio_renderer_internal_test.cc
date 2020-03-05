@@ -280,17 +280,13 @@ class AudioRendererTest : public ::testing::Test {
   }
 };
 
-bool SkipAsyncAudioFramesReportingTests() {
+bool HasAsyncAudioFramesReporting() {
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  if (!kSbHasAsyncAudioFramesReporting) {
-    SB_LOG(INFO) << "Platform does not have async audio frames reporting. "
-                    "Test skipped. ";
-  }
-  return !kSbHasAsyncAudioFramesReporting;
+  return kSbHasAsyncAudioFramesReporting;
 #elif SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-  return false;
-#else
   return true;
+#else
+  return false;
 #endif
 }
 
@@ -315,8 +311,10 @@ TEST_F(AudioRendererTest, StateAfterConstructed) {
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
     !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 TEST_F(AudioRendererTest, SunnyDay) {
-  if (SkipAsyncAudioFramesReportingTests())
+  if (HasAsyncAudioFramesReporting()) {
+    SB_LOG(INFO) << "Platform has async audio frames reporting. Test skipped.";
     return;
+  }
 
   {
     InSequence seq;
@@ -396,8 +394,10 @@ TEST_F(AudioRendererTest, SunnyDay) {
 
 #if SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
 TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
-  if (SkipAsyncAudioFramesReportingTests())
+  if (HasAsyncAudioFramesReporting()) {
+    SB_LOG(INFO) << "Platform has async audio frames reporting. Test skipped.";
     return;
+  }
 
   const int kPlaybackRate = 2;
 
@@ -483,8 +483,10 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
 #endif  // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
 
 TEST_F(AudioRendererTest, StartPlayBeforePreroll) {
-  if (SkipAsyncAudioFramesReportingTests())
+  if (HasAsyncAudioFramesReporting()) {
+    SB_LOG(INFO) << "Platform has async audio frames reporting. Test skipped.";
     return;
+  }
 
   {
     ::testing::InSequence seq;
@@ -554,8 +556,10 @@ TEST_F(AudioRendererTest, StartPlayBeforePreroll) {
 }
 
 TEST_F(AudioRendererTest, DecoderReturnsEOSWithoutAnyData) {
-  if (SkipAsyncAudioFramesReportingTests())
+  if (HasAsyncAudioFramesReporting()) {
+    SB_LOG(INFO) << "Platform has async audio frames reporting. Test skipped.";
     return;
+  }
 
   {
     ::testing::InSequence seq;
@@ -594,8 +598,10 @@ TEST_F(AudioRendererTest, DecoderReturnsEOSWithoutAnyData) {
 
 // Test decoders that take many input samples before returning any output.
 TEST_F(AudioRendererTest, DecoderConsumeAllInputBeforeReturningData) {
-  if (SkipAsyncAudioFramesReportingTests())
+  if (HasAsyncAudioFramesReporting()) {
+    SB_LOG(INFO) << "Platform has async audio frames reporting. Test skipped.";
     return;
+  }
 
   {
     ::testing::InSequence seq;
@@ -640,8 +646,10 @@ TEST_F(AudioRendererTest, DecoderConsumeAllInputBeforeReturningData) {
 }
 
 TEST_F(AudioRendererTest, MoreNumberOfOuputBuffersThanInputBuffers) {
-  if (SkipAsyncAudioFramesReportingTests())
+  if (HasAsyncAudioFramesReporting()) {
+    SB_LOG(INFO) << "Platform has async audio frames reporting. Test skipped.";
     return;
+  }
 
   {
     ::testing::InSequence seq;
@@ -735,8 +743,10 @@ TEST_F(AudioRendererTest, MoreNumberOfOuputBuffersThanInputBuffers) {
 }
 
 TEST_F(AudioRendererTest, LessNumberOfOuputBuffersThanInputBuffers) {
-  if (SkipAsyncAudioFramesReportingTests())
+  if (HasAsyncAudioFramesReporting()) {
+    SB_LOG(INFO) << "Platform has async audio frames reporting. Test skipped.";
     return;
+  }
 
   {
     ::testing::InSequence seq;
@@ -830,8 +840,10 @@ TEST_F(AudioRendererTest, LessNumberOfOuputBuffersThanInputBuffers) {
 }
 
 TEST_F(AudioRendererTest, Seek) {
-  if (SkipAsyncAudioFramesReportingTests())
+  if (HasAsyncAudioFramesReporting()) {
+    SB_LOG(INFO) << "Platform has async audio frames reporting. Test skipped.";
     return;
+  }
 
   {
     ::testing::InSequence seq;
