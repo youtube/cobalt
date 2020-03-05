@@ -256,6 +256,8 @@
 // Deprecate the SB_HAS_VIRTUAL_REGIONS flag as all platforms define it to 0.
 #define SB_VIRTUAL_REGIONS_FLAG_DEPRECATED SB_EXPERIMENTAL_API_VERSION
 
+// Add link register to SbThreadContext.
+#define SB_THREAD_CONTEXT_LINK_REGISTER_VERSION SB_EXPERIMENTAL_API_VERSION
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------

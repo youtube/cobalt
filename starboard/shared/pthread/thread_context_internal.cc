@@ -54,16 +54,19 @@ SbThreadContextPrivate::SbThreadContextPrivate(ucontext_t* ucontext) {
   ip_ = reinterpret_cast<void*>(mcontext.pc);
   sp_ = reinterpret_cast<void*>(mcontext.sp);
   fp_ = reinterpret_cast<void*>(mcontext.regs[29]);
+  lr_ = reinterpret_cast<void*>(mcontext.regs[30]);
 #elif SB_IS_GLIBC && ((__GLIBC__ * 100 + __GLIBC_MINOR__) < 204)
   // 32-bit ARM w/ old GLIBC that used gregs[]
   ip_ = reinterpret_cast<void*>(mcontext.gregs[R15]);
   sp_ = reinterpret_cast<void*>(mcontext.gregs[R13]);
   fp_ = reinterpret_cast<void*>(mcontext.gregs[R11]);
+  lr_ = reinterpret_cast<void*>(mcontext.gregs[R14]);
 #else
   // 32-bit ARM
   ip_ = reinterpret_cast<void*>(mcontext.arm_pc);
   sp_ = reinterpret_cast<void*>(mcontext.arm_sp);
   fp_ = reinterpret_cast<void*>(mcontext.arm_fp);
+  lr_ = reinterpret_cast<void*>(mcontext.arm_lr);
 #endif
 #else  // SB_IS_ARCH_XXX
 #error "SbThreadContext isn't implemented for this CPU architecture"

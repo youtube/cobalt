@@ -41,6 +41,12 @@ bool SbThreadContextGetPointer(SbThreadContext context,
       *out_value = context->fp_;
       return true;
 
+#if SB_API_VERSION >= SB_THREAD_CONTEXT_LINK_REGISTER_VERSION
+    case kSbThreadContextLinkRegister:
+      *out_value = context->lr_;
+      return true;
+#endif  // SB_API_VERSION >= SB_THREAD_CONTEXT_LINK_REGISTER_VERSION
+
     default:
       SB_NOTIMPLEMENTED() << "SbThreadContextGetPointer not implemented for "
                           << property;
