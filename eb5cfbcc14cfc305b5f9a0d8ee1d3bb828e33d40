@@ -1,0 +1,349 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "3aa90027_66088d71",
+        "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/AudioTrackBridge.java",
+        "patchSetId": 5
+      },
+      "lineNbr": 78,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-03-05T03:47:47Z",
+      "side": 1,
+      "message": "Let\u0027s turn this into \"if (audioSessionIdVal \u003d\u003d -1) {\" and reverse the two blocks.",
+      "range": {
+        "startLine": 78,
+        "startChar": 4,
+        "endLine": 78,
+        "endChar": 34
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "a644028f_bb3f54a5",
+        "filename": "src/starboard/android/shared/audio_track_audio_sink_type.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 37,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-03-05T03:47:47Z",
+      "side": 1,
+      "message": "kMaxFramesPerRequestInTunneledMode",
+      "range": {
+        "startLine": 37,
+        "startChar": 10,
+        "endLine": 37,
+        "endChar": 36
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "35be4827_91226cc5",
+        "filename": "src/starboard/android/shared/audio_track_audio_sink_type.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 78,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-03-05T03:47:47Z",
+      "side": 1,
+      "message": "Not necessary, as we are in an anonymous namespace.  And the same to the one for the next function.",
+      "range": {
+        "startLine": 78,
+        "startChar": 0,
+        "endLine": 78,
+        "endChar": 6
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "c8900974_c8ef4af9",
+        "filename": "src/starboard/android/shared/audio_track_audio_sink_type.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 439,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-03-05T03:47:47Z",
+      "side": 1,
+      "message": "How often will this happen?  It seems that this can be recovered, so what\u0027s the cause?",
+      "range": {
+        "startLine": 439,
+        "startChar": 36,
+        "endLine": 439,
+        "endChar": 53
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "a2a64e84_673535aa",
+        "filename": "src/starboard/android/shared/audio_track_audio_sink_type.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 526,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-03-05T03:47:47Z",
+      "side": 1,
+      "message": "Sorry that I haven\u0027t implemented error callback for audio sink, and made it quiet inconvenient to retry on capability change.  I am going to add a callback to AudioRendererSink::RenderCallback.  I already had a rough implementation.  I will try to release another open source release once this is finished.",
+      "range": {
+        "startLine": 520,
+        "startChar": 0,
+        "endLine": 526,
+        "endChar": 70
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "9817d4d2_e059873f",
+        "filename": "src/starboard/android/shared/configuration_public.h",
+        "patchSetId": 5
+      },
+      "lineNbr": 54,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-03-05T03:47:47Z",
+      "side": 1,
+      "message": "We needn\u0027t this macro, as we will always enable tunneled mode on Android once this CL is enabled.  Note that, we should make sure that the code path without tunneled mode still works.",
+      "range": {
+        "startLine": 54,
+        "startChar": 0,
+        "endLine": 54,
+        "endChar": 40
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "e2958a9d_1a8c6da7",
+        "filename": "src/starboard/android/shared/media_agency.h",
+        "patchSetId": 5
+      },
+      "lineNbr": 23,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-03-05T03:47:47Z",
+      "side": 1,
+      "message": "empty line below",
+      "range": {
+        "startLine": 23,
+        "startChar": 0,
+        "endLine": 23,
+        "endChar": 51
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "281eb46d_33567ea7",
+        "filename": "src/starboard/android/shared/video_decoder.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 577,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-03-05T03:47:47Z",
+      "side": 1,
+      "message": "Let\u0027s name it |end_of_stream_played| or |end_of_stream_reached|, just to be explicit.",
+      "range": {
+        "startLine": 577,
+        "startChar": 43,
+        "endLine": 577,
+        "endChar": 46
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "1463a5a3_0b5d9512",
+        "filename": "src/starboard/android/shared/video_decoder.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 586,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-03-05T03:47:47Z",
+      "side": 1,
+      "message": "This is just checked in line 578, so this check is redundant.",
+      "range": {
+        "startLine": 586,
+        "startChar": 6,
+        "endLine": 586,
+        "endChar": 24
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "f95dd2ad_bb4eef1a",
+        "filename": "src/starboard/android/shared/video_decoder.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 588,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-03-05T03:47:47Z",
+      "side": 1,
+      "message": "Tunneled",
+      "range": {
+        "startLine": 588,
+        "startChar": 9,
+        "endLine": 588,
+        "endChar": 15
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "1c5220ec_d303e440",
+        "filename": "src/starboard/android/shared/video_decoder.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 592,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-03-05T03:47:47Z",
+      "side": 1,
+      "message": "supports.",
+      "range": {
+        "startLine": 592,
+        "startChar": 37,
+        "endLine": 592,
+        "endChar": 44
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "289d49ec_5bc86844",
+        "filename": "src/starboard/android/shared/video_decoder.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 630,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-03-05T03:47:47Z",
+      "side": 1,
+      "message": "In that case, I\u0027d turn this if statement into:\nSB_DCHECK(audio_session_id_ \u003d\u003d -1);",
+      "range": {
+        "startLine": 630,
+        "startChar": 4,
+        "endLine": 630,
+        "endChar": 59
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "24fe5069_cb7a22ba",
+        "filename": "src/starboard/android/shared/video_render_algorithm.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 45,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-03-05T03:47:47Z",
+      "side": 1,
+      "message": "If audio end-point is switched, the whole playback should be retried because capability changed has been propagated to Cobalt.",
+      "range": {
+        "startLine": 44,
+        "startChar": 0,
+        "endLine": 45,
+        "endChar": 48
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "b8c3ad6a_3d2dcd34",
+        "filename": "src/starboard/android/shared/video_render_algorithm.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 56,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-03-05T03:47:47Z",
+      "side": 1,
+      "message": "We can create another VideoRenderAlgorithm, maybe name it VideoRenderAlgorithmTunneledMode, and handles all tunneled mode operations, to avoid modifying this class.  VideoRenderAlgorithmTunneledMode can be hooked up inside PlayerComponentsFactory.",
+      "range": {
+        "startLine": 50,
+        "startChar": 0,
+        "endLine": 56,
+        "endChar": 0
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "94de6995_492faa6e",
+        "filename": "src/starboard/android/shared/video_render_algorithm.h",
+        "patchSetId": 5
+      },
+      "lineNbr": 51,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-03-05T03:47:47Z",
+      "side": 1,
+      "message": "is_tunneled_, and let\u0027s set it to false here just in case.",
+      "range": {
+        "startLine": 51,
+        "startChar": 7,
+        "endLine": 51,
+        "endChar": 18
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    }
+  ]
+}
