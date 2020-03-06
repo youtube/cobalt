@@ -62,8 +62,7 @@ class H5vcc : public script::Wrappable {
     std::string initial_deep_link;
   };
 
-  H5vcc(const Settings& config, const scoped_refptr<dom::Window>& window,
-        dom::MutationObserverTaskManager* mutation_observer_task_manager);
+  explicit H5vcc(const Settings& config);
   const scoped_refptr<H5vccAccessibility>& accessibility() const {
     return accessibility_;
   }

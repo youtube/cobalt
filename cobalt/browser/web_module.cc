@@ -1048,8 +1048,7 @@ void WebModule::Impl::InjectCustomWindowAttributes(
            attributes.begin();
        iter != attributes.end(); ++iter) {
     global_environment_->Bind(
-        iter->first, iter->second.Run(window_, &mutation_observer_task_manager_,
-                                      global_environment_.get()));
+        iter->first, iter->second.Run(window_, global_environment_.get()));
   }
 }
 
