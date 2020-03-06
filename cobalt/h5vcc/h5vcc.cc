@@ -19,10 +19,8 @@
 namespace cobalt {
 namespace h5vcc {
 
-H5vcc::H5vcc(const Settings& settings, const scoped_refptr<dom::Window>& window,
-             dom::MutationObserverTaskManager* mutation_observer_task_manager) {
-  accessibility_ = new H5vccAccessibility(settings.event_dispatcher, window,
-                                          mutation_observer_task_manager);
+H5vcc::H5vcc(const Settings& settings) {
+  accessibility_ = new H5vccAccessibility(settings.event_dispatcher);
   account_info_ = new H5vccAccountInfo(settings.account_manager);
   audio_config_array_ = new H5vccAudioConfigArray();
   c_val_ = new dom::CValView();

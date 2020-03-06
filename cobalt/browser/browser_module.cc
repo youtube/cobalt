@@ -194,18 +194,15 @@ void OnScreenshotMessage(BrowserModule* browser_module,
 scoped_refptr<script::Wrappable> CreateH5VCC(
     const h5vcc::H5vcc::Settings& settings,
     const scoped_refptr<dom::Window>& window,
-    dom::MutationObserverTaskManager* mutation_observer_task_manager,
     script::GlobalEnvironment* global_environment) {
+  SB_UNREFERENCED_PARAMETER(window);
   SB_UNREFERENCED_PARAMETER(global_environment);
-  return scoped_refptr<script::Wrappable>(
-      new h5vcc::H5vcc(settings, window, mutation_observer_task_manager));
+  return scoped_refptr<script::Wrappable>(new h5vcc::H5vcc(settings));
 }
 
 scoped_refptr<script::Wrappable> CreateExtensionInterface(
     const scoped_refptr<dom::Window>& window,
-    dom::MutationObserverTaskManager* mutation_observer_task_manager,
     script::GlobalEnvironment* global_environment) {
-  SB_UNREFERENCED_PARAMETER(mutation_observer_task_manager);
   return CreateWebAPIExtensionObject(window, global_environment);
 }
 
