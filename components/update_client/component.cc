@@ -564,6 +564,14 @@ void Component::StateChecking::DoHandle() {
   component.update_check_complete_ = base::BindOnce(
       &Component::StateChecking::UpdateCheckComplete, base::Unretained(this));
 
+#if defined(OS_STARBOARD)
+  // Set component.is_channel_changed_ here so that it's synced with the
+  // "updaterchannelchanged" attribute in the update check request sent to
+  // Omaha.
+  component.is_channel_changed_ =
+      component.update_context_.config->IsChannelChanged();
+#endif
+
   component.NotifyObservers(Events::COMPONENT_CHECKING_FOR_UPDATES);
 }
 
@@ -838,7 +846,7 @@ void Component::StateUpdatingDiff::DoHandle() {
               component.installation_index_,
               update_context.update_checker->GetPersistedData(), component.id_,
               component.next_version_.GetString(),
-              update_context.config->IsChannelChanged(),
+              component.is_channel_changed_,
 #endif
               component.next_fp_, component.crx_component()->installer,
               update_context.config->GetUnzipperFactory()->Create(),
@@ -905,7 +913,7 @@ void Component::StateUpdating::DoHandle() {
                      component.installation_index_,
                      update_context.update_checker->GetPersistedData(),
                      component.id_, component.next_version_.GetString(),
-                     update_context.config->IsChannelChanged(),
+                     component.is_channel_changed_,
 #endif
                      component.next_fp_, component.crx_component()->installer,
                      update_context.config->GetUnzipperFactory()->Create(),
