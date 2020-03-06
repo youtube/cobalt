@@ -92,7 +92,6 @@ class WebModule : public LifecycleObserver {
   struct Options {
     typedef base::Callback<scoped_refptr<script::Wrappable>(
         const scoped_refptr<dom::Window>& window,
-        dom::MutationObserverTaskManager* mutation_observer_task_manager,
         script::GlobalEnvironment* global_environment)>
         CreateObjectFunction;
     typedef base::hash_map<std::string, CreateObjectFunction>

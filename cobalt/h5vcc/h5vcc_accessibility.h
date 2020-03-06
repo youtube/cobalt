@@ -33,10 +33,7 @@ class H5vccAccessibility : public script::Wrappable {
   typedef script::CallbackFunction<void()> H5vccAccessibilityCallback;
   typedef script::ScriptValue<H5vccAccessibilityCallback>
       H5vccAccessibilityCallbackHolder;
-  H5vccAccessibility(
-      base::EventDispatcher* event_dispatcher,
-      const scoped_refptr<dom::Window>& window,
-      dom::MutationObserverTaskManager* mutation_observer_task_manager);
+  explicit H5vccAccessibility(base::EventDispatcher* event_dispatcher);
   ~H5vccAccessibility();
 
   bool high_contrast_text() const;
