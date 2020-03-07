@@ -109,7 +109,7 @@ def _RunTest(test_path, raspi_ip, flags):
     signal.signal(signal.SIGTERM,
                   functools.partial(_SigIntOrSigTermHandler, process))
 
-    process.expect(r'\S+ password:', timeout=_PEXPECT_EXPECT_TIMEOUT)
+    process.expect(r'.* password:', timeout=_PEXPECT_EXPECT_TIMEOUT)
     process.sendline(_RASPI_PASSWORD)
 
     while True:
@@ -129,7 +129,7 @@ def _RunTest(test_path, raspi_ip, flags):
     signal.signal(signal.SIGTERM,
                   functools.partial(_SigIntOrSigTermHandler, process))
 
-    process.expect(r'\S+ password:', timeout=_PEXPECT_EXPECT_TIMEOUT)
+    process.expect(r'.* password:', timeout=_PEXPECT_EXPECT_TIMEOUT)
     process.sendline(_RASPI_PASSWORD)
 
     # Escape command line metacharacters in the flags
