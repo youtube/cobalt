@@ -255,6 +255,29 @@
     },
     {
       "key": {
+        "uuid": "495bc071_71b4f110",
+        "filename": "src/starboard/android/shared/media_agency.h",
+        "patchSetId": 5
+      },
+      "lineNbr": 28,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2020-03-07T01:05:53Z",
+      "side": 1,
+      "message": "One thing worth mentioning is that I am trying to reduce the dependency on MediaAgency (see my comments on other file) and eventually remove it.\nFeel free to keep it for now (and remove unused functions when you are addressing the other comments), but I will try to gradually reduce its surface.",
+      "range": {
+        "startLine": 28,
+        "startChar": 6,
+        "endLine": 28,
+        "endChar": 17
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
         "uuid": "281eb46d_33567ea7",
         "filename": "src/starboard/android/shared/video_decoder.cc",
         "patchSetId": 5
