@@ -25,6 +25,30 @@
     },
     {
       "key": {
+        "uuid": "edc597bd_7dc6a806",
+        "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/AudioTrackBridge.java",
+        "patchSetId": 5
+      },
+      "lineNbr": 78,
+      "author": {
+        "id": 10975
+      },
+      "writtenOn": "2020-03-09T14:42:27Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "3aa90027_66088d71",
+      "range": {
+        "startLine": 78,
+        "startChar": 4,
+        "endLine": 78,
+        "endChar": 34
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "be681ff2_5e2cba16",
         "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
         "patchSetId": 5
@@ -36,6 +60,30 @@
       "writtenOn": "2020-03-07T01:01:44Z",
       "side": 1,
       "message": "Let\u0027s use an inner class as the listener, instead of make the outer class inherit from it.",
+      "range": {
+        "startLine": 40,
+        "startChar": 34,
+        "endLine": 40,
+        "endChar": 68
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "47c05342_4cdf9b6f",
+        "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
+        "patchSetId": 5
+      },
+      "lineNbr": 40,
+      "author": {
+        "id": 10975
+      },
+      "writtenOn": "2020-03-09T14:42:27Z",
+      "side": 1,
+      "message": "Good point. I would change it",
+      "parentUuid": "be681ff2_5e2cba16",
       "range": {
         "startLine": 40,
         "startChar": 34,
@@ -71,6 +119,30 @@
     },
     {
       "key": {
+        "uuid": "80dfe64d_de514716",
+        "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecUtil.java",
+        "patchSetId": 5
+      },
+      "lineNbr": 465,
+      "author": {
+        "id": 10975
+      },
+      "writtenOn": "2020-03-09T14:42:27Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "d058a9e0_10dbff50",
+      "range": {
+        "startLine": 465,
+        "startChar": 14,
+        "endLine": 465,
+        "endChar": 20
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "ce3b2874_b840c5f9",
         "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecUtil.java",
         "patchSetId": 5
@@ -91,6 +163,30 @@
       "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
       "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "76fdbc9b_2f27be49",
+        "filename": "src/starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecUtil.java",
+        "patchSetId": 5
+      },
+      "lineNbr": 541,
+      "author": {
+        "id": 10975
+      },
+      "writtenOn": "2020-03-09T14:42:27Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "ce3b2874_b840c5f9",
+      "range": {
+        "startLine": 541,
+        "startChar": 46,
+        "endLine": 541,
+        "endChar": 60
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
     },
     {
       "key": {
@@ -117,6 +213,30 @@
     },
     {
       "key": {
+        "uuid": "7a5e6a06_b4234063",
+        "filename": "src/starboard/android/shared/audio_renderer_sink_android.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 210,
+      "author": {
+        "id": 10975
+      },
+      "writtenOn": "2020-03-09T14:42:27Z",
+      "side": 1,
+      "message": "Ack",
+      "parentUuid": "62b1828a_9682e960",
+      "range": {
+        "startLine": 209,
+        "startChar": 0,
+        "endLine": 210,
+        "endChar": 40
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "a644028f_bb3f54a5",
         "filename": "src/starboard/android/shared/audio_track_audio_sink_type.cc",
         "patchSetId": 5
@@ -137,6 +257,30 @@
       "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
       "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "ca4175e6_55ebff33",
+        "filename": "src/starboard/android/shared/audio_track_audio_sink_type.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 37,
+      "author": {
+        "id": 10975
+      },
+      "writtenOn": "2020-03-09T14:42:27Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "a644028f_bb3f54a5",
+      "range": {
+        "startLine": 37,
+        "startChar": 10,
+        "endLine": 37,
+        "endChar": 36
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
     },
     {
       "key": {
@@ -163,6 +307,30 @@
     },
     {
       "key": {
+        "uuid": "48fe6cca_3b9d1183",
+        "filename": "src/starboard/android/shared/audio_track_audio_sink_type.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 78,
+      "author": {
+        "id": 10975
+      },
+      "writtenOn": "2020-03-09T14:42:27Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "35be4827_91226cc5",
+      "range": {
+        "startLine": 78,
+        "startChar": 0,
+        "endLine": 78,
+        "endChar": 6
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "c8900974_c8ef4af9",
         "filename": "src/starboard/android/shared/audio_track_audio_sink_type.cc",
         "patchSetId": 5
@@ -174,6 +342,30 @@
       "writtenOn": "2020-03-05T03:47:47Z",
       "side": 1,
       "message": "How often will this happen?  It seems that this can be recovered, so what\u0027s the cause?",
+      "range": {
+        "startLine": 439,
+        "startChar": 36,
+        "endLine": 439,
+        "endChar": 53
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "78c10500_73ed16ee",
+        "filename": "src/starboard/android/shared/audio_track_audio_sink_type.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 439,
+      "author": {
+        "id": 10975
+      },
+      "writtenOn": "2020-03-09T14:42:27Z",
+      "side": 1,
+      "message": "Mostly it would not happen since AOSP can restore AudioTrack in native framewrok side. https://android.googlesource.com/platform/frameworks/av/+/refs/heads/pie-release/media/libaudioclient/AudioTrack.cpp#2224\nFor some specific cases:\n1, Tunnel mode would use direct output mode. It do not support restore. If there is any error in server side (audio track is client), it can\u0027t restore, e.g. audio end point switch\n2, Audio capability change. If internal speaker support multi channel PCM and BT speaker only support stereo, switching from internal speaker to BT speaker may occur dead object because it can\u0027t restore audio track successfully for multi channel stream.",
+      "parentUuid": "c8900974_c8ef4af9",
       "range": {
         "startLine": 439,
         "startChar": 36,
@@ -209,6 +401,30 @@
     },
     {
       "key": {
+        "uuid": "521ce342_2fd35307",
+        "filename": "src/starboard/android/shared/audio_track_audio_sink_type.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 526,
+      "author": {
+        "id": 10975
+      },
+      "writtenOn": "2020-03-09T14:42:27Z",
+      "side": 1,
+      "message": "It is great. If we can have a common path to notify audio error, the patch in MediaAgency can be removed. I utilize MediaAgency to tell video decoder to notify this error to JS.",
+      "parentUuid": "a2a64e84_673535aa",
+      "range": {
+        "startLine": 520,
+        "startChar": 0,
+        "endLine": 526,
+        "endChar": 70
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
         "uuid": "9817d4d2_e059873f",
         "filename": "src/starboard/android/shared/configuration_public.h",
         "patchSetId": 5
@@ -220,6 +436,30 @@
       "writtenOn": "2020-03-05T03:47:47Z",
       "side": 1,
       "message": "We needn\u0027t this macro, as we will always enable tunneled mode on Android once this CL is enabled.  Note that, we should make sure that the code path without tunneled mode still works.",
+      "range": {
+        "startLine": 54,
+        "startChar": 0,
+        "endLine": 54,
+        "endChar": 40
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "9e6bf899_33da0ccb",
+        "filename": "src/starboard/android/shared/configuration_public.h",
+        "patchSetId": 5
+      },
+      "lineNbr": 54,
+      "author": {
+        "id": 10975
+      },
+      "writtenOn": "2020-03-09T14:42:27Z",
+      "side": 1,
+      "message": "Yes, this patch ensure tunnel and non tunnel mode work. Current patch for tunnel mode playback rate needs platform support. I am still thinking the impact if platform do not support playback rate",
+      "parentUuid": "9817d4d2_e059873f",
       "range": {
         "startLine": 54,
         "startChar": 0,
@@ -255,6 +495,30 @@
     },
     {
       "key": {
+        "uuid": "48df2ad9_e0f7a766",
+        "filename": "src/starboard/android/shared/media_agency.h",
+        "patchSetId": 5
+      },
+      "lineNbr": 23,
+      "author": {
+        "id": 10975
+      },
+      "writtenOn": "2020-03-09T14:42:27Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "e2958a9d_1a8c6da7",
+      "range": {
+        "startLine": 23,
+        "startChar": 0,
+        "endLine": 23,
+        "endChar": 51
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "495bc071_71b4f110",
         "filename": "src/starboard/android/shared/media_agency.h",
         "patchSetId": 5
@@ -266,6 +530,30 @@
       "writtenOn": "2020-03-07T01:05:53Z",
       "side": 1,
       "message": "One thing worth mentioning is that I am trying to reduce the dependency on MediaAgency (see my comments on other file) and eventually remove it.\nFeel free to keep it for now (and remove unused functions when you are addressing the other comments), but I will try to gradually reduce its surface.",
+      "range": {
+        "startLine": 28,
+        "startChar": 6,
+        "endLine": 28,
+        "endChar": 17
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "dd3fec71_42e3de5f",
+        "filename": "src/starboard/android/shared/media_agency.h",
+        "patchSetId": 5
+      },
+      "lineNbr": 28,
+      "author": {
+        "id": 10975
+      },
+      "writtenOn": "2020-03-09T14:42:27Z",
+      "side": 1,
+      "message": "Great. MediaAgency is just a simply way to connect audio and video modules and avoid to change common interface.",
+      "parentUuid": "495bc071_71b4f110",
       "range": {
         "startLine": 28,
         "startChar": 6,
@@ -301,6 +589,30 @@
     },
     {
       "key": {
+        "uuid": "e59c2ee5_fa5b0af7",
+        "filename": "src/starboard/android/shared/video_decoder.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 577,
+      "author": {
+        "id": 10975
+      },
+      "writtenOn": "2020-03-09T14:42:27Z",
+      "side": 1,
+      "message": "Ack",
+      "parentUuid": "281eb46d_33567ea7",
+      "range": {
+        "startLine": 577,
+        "startChar": 43,
+        "endLine": 577,
+        "endChar": 46
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "1463a5a3_0b5d9512",
         "filename": "src/starboard/android/shared/video_decoder.cc",
         "patchSetId": 5
@@ -312,6 +624,30 @@
       "writtenOn": "2020-03-05T03:47:47Z",
       "side": 1,
       "message": "This is just checked in line 578, so this check is redundant.",
+      "range": {
+        "startLine": 586,
+        "startChar": 6,
+        "endLine": 586,
+        "endChar": 24
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "a3e712c5_6b91244c",
+        "filename": "src/starboard/android/shared/video_decoder.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 586,
+      "author": {
+        "id": 10975
+      },
+      "writtenOn": "2020-03-09T14:42:27Z",
+      "side": 1,
+      "message": "I will remove line 578. There is race condition problem here. MediaDecoder may call ProcessInputBuffer earlier than decoder_status_cb_ being set.",
+      "parentUuid": "1463a5a3_0b5d9512",
       "range": {
         "startLine": 586,
         "startChar": 6,
@@ -347,6 +683,30 @@
     },
     {
       "key": {
+        "uuid": "6e425b35_f824cac3",
+        "filename": "src/starboard/android/shared/video_decoder.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 588,
+      "author": {
+        "id": 10975
+      },
+      "writtenOn": "2020-03-09T14:42:27Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "f95dd2ad_bb4eef1a",
+      "range": {
+        "startLine": 588,
+        "startChar": 9,
+        "endLine": 588,
+        "endChar": 15
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "1c5220ec_d303e440",
         "filename": "src/starboard/android/shared/video_decoder.cc",
         "patchSetId": 5
@@ -367,6 +727,30 @@
       "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
       "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "e148f4bd_5996a44f",
+        "filename": "src/starboard/android/shared/video_decoder.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 592,
+      "author": {
+        "id": 10975
+      },
+      "writtenOn": "2020-03-09T14:42:27Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "1c5220ec_d303e440",
+      "range": {
+        "startLine": 592,
+        "startChar": 37,
+        "endLine": 592,
+        "endChar": 44
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
     },
     {
       "key": {
@@ -393,6 +777,30 @@
     },
     {
       "key": {
+        "uuid": "a7d1ca0e_354ab818",
+        "filename": "src/starboard/android/shared/video_decoder.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 630,
+      "author": {
+        "id": 10975
+      },
+      "writtenOn": "2020-03-09T14:42:27Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "289d49ec_5bc86844",
+      "range": {
+        "startLine": 630,
+        "startChar": 4,
+        "endLine": 630,
+        "endChar": 59
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "24fe5069_cb7a22ba",
         "filename": "src/starboard/android/shared/video_render_algorithm.cc",
         "patchSetId": 5
@@ -413,6 +821,30 @@
       "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
       "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "883715b5_fcf2a6b9",
+        "filename": "src/starboard/android/shared/video_render_algorithm.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 45,
+      "author": {
+        "id": 10975
+      },
+      "writtenOn": "2020-03-09T14:42:27Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "24fe5069_cb7a22ba",
+      "range": {
+        "startLine": 44,
+        "startChar": 0,
+        "endLine": 45,
+        "endChar": 48
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
     },
     {
       "key": {
@@ -463,6 +895,30 @@
     },
     {
       "key": {
+        "uuid": "540f16f2_d1748f4c",
+        "filename": "src/starboard/android/shared/video_render_algorithm.cc",
+        "patchSetId": 5
+      },
+      "lineNbr": 56,
+      "author": {
+        "id": 10975
+      },
+      "writtenOn": "2020-03-09T14:42:27Z",
+      "side": 1,
+      "message": "I agree with new VideoRenderAlgorithmTunneledMode that is would simple. Because it only handle the dropped frames.",
+      "parentUuid": "ee13eb82_ad6f4788",
+      "range": {
+        "startLine": 50,
+        "startChar": 0,
+        "endLine": 56,
+        "endChar": 0
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
         "uuid": "94de6995_492faa6e",
         "filename": "src/starboard/android/shared/video_render_algorithm.h",
         "patchSetId": 5
@@ -483,6 +939,30 @@
       "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
       "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "ccfb00a0_8b0c22ab",
+        "filename": "src/starboard/android/shared/video_render_algorithm.h",
+        "patchSetId": 5
+      },
+      "lineNbr": 51,
+      "author": {
+        "id": 10975
+      },
+      "writtenOn": "2020-03-09T14:42:27Z",
+      "side": 1,
+      "message": "Ack",
+      "parentUuid": "94de6995_492faa6e",
+      "range": {
+        "startLine": 51,
+        "startChar": 7,
+        "endLine": 51,
+        "endChar": 18
+      },
+      "revId": "eb5cfbcc14cfc305b5f9a0d8ee1d3bb828e33d40",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
     }
   ]
 }
