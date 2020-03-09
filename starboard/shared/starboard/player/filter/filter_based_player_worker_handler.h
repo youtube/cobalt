@@ -58,7 +58,6 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
  private:
-  bool IsPunchoutMode() const;
   bool Init(SbPlayer player,
             UpdateMediaInfoCB update_media_info_cb,
             GetPlayerStateCB get_player_state_cb,
