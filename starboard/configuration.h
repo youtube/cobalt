@@ -331,7 +331,7 @@ struct CompileAssert {};
   TypeName(const TypeName&) = delete;         \
   void operator=(const TypeName&) = delete
 
-// An enumeration of values for the kSbPreferredByteOrder configuration
+// An enumeration of values for the SB_PREFERRED_RGBA_BYTE_ORDER configuration
 // variable.  Setting this up properly means avoiding slow color swizzles when
 // passing pixel data from one library to another.  Note that these definitions
 // are in byte-order and so are endianness-independent.
@@ -865,13 +865,6 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
-#if defined(SB_PREFERRED_RGBA_BYTE_ORDER)
-#error \
-    "SB_PREFERRED_RGBA_BYTE_ORDER should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbPreferredRgbaByteOrder in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
 #if defined(SB_USER_MAX_SIGNED_IN)
 #error \
     "SB_USER_MAX_SIGNED_IN should not be defined in Starboard " \
@@ -951,20 +944,6 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_PATH_SEP_STRING."
 #endif
 
-#if !defined(SB_PREFERRED_RGBA_BYTE_ORDER)
-// Legal values for SB_PREFERRED_RGBA_BYTE_ORDER are defined in this file above
-// as SB_PREFERRED_RGBA_BYTE_ORDER_*.
-// If your platform uses GLES, you should set this to
-// SB_PREFERRED_RGBA_BYTE_ORDER_RGBA.
-#error "Your platform must define SB_PREFERRED_RGBA_BYTE_ORDER."
-#endif
-
-#if SB_PREFERRED_RGBA_BYTE_ORDER != SB_PREFERRED_RGBA_BYTE_ORDER_RGBA && \
-    SB_PREFERRED_RGBA_BYTE_ORDER != SB_PREFERRED_RGBA_BYTE_ORDER_BGRA && \
-    SB_PREFERRED_RGBA_BYTE_ORDER != SB_PREFERRED_RGBA_BYTE_ORDER_ARGB
-#error "SB_PREFERRED_RGBA_BYTE_ORDER has been assigned an invalid value."
-#endif
-
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 #if (SB_API_VERSION < 12 && !defined(SB_HAS_MICROPHONE))
@@ -981,6 +960,20 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #if defined(SB_IS_PLAYER_COMPOSITED) || defined(SB_IS_PLAYER_PUNCHED_OUT) || \
     defined(SB_IS_PLAYER_PRODUCING_TEXTURE)
 #error "New versions of Starboard specify player output mode at runtime."
+#endif
+
+#if !defined(SB_PREFERRED_RGBA_BYTE_ORDER)
+// Legal values for SB_PREFERRED_RGBA_BYTE_ORDER are defined in this file above
+// as SB_PREFERRED_RGBA_BYTE_ORDER_*.
+// If your platform uses GLES, you should set this to
+// SB_PREFERRED_RGBA_BYTE_ORDER_RGBA.
+#error "Your platform must define SB_PREFERRED_RGBA_BYTE_ORDER."
+#endif
+
+#if SB_PREFERRED_RGBA_BYTE_ORDER != SB_PREFERRED_RGBA_BYTE_ORDER_RGBA && \
+    SB_PREFERRED_RGBA_BYTE_ORDER != SB_PREFERRED_RGBA_BYTE_ORDER_BGRA && \
+    SB_PREFERRED_RGBA_BYTE_ORDER != SB_PREFERRED_RGBA_BYTE_ORDER_ARGB
+#error "SB_PREFERRED_RGBA_BYTE_ORDER has been assigned an invalid value."
 #endif
 
 #if !defined(SB_HAS_BILINEAR_FILTERING_SUPPORT)
