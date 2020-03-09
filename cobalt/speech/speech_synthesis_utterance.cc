@@ -45,21 +45,30 @@ SpeechSynthesisUtterance::SpeechSynthesisUtterance(
       rate_(utterance->rate_),
       pitch_(utterance->pitch_),
       pending_speak_(false) {
-  set_onstart(EventListenerScriptValue::Reference(this, *utterance->onstart())
-                  .referenced_value());
-  set_onend(EventListenerScriptValue::Reference(this, *utterance->onend())
-                .referenced_value());
-  set_onerror(EventListenerScriptValue::Reference(this, *utterance->onerror())
-                  .referenced_value());
-  set_onpause(EventListenerScriptValue::Reference(this, *utterance->onpause())
-                  .referenced_value());
-  set_onresume(EventListenerScriptValue::Reference(this, *utterance->onresume())
-                   .referenced_value());
-  set_onmark(EventListenerScriptValue::Reference(this, *utterance->onmark())
-                 .referenced_value());
-  set_onboundary(
-      EventListenerScriptValue::Reference(this, *utterance->onboundary())
-          .referenced_value());
+  using ListenerSetterFunctionType = base::Callback<void(
+      SpeechSynthesisUtterance*,
+      const cobalt::dom::EventTarget::EventListenerScriptValue&)>;
+  auto ListenerCopyHelper = [this](
+                                const EventListenerScriptValue* script_value,
+                                const ListenerSetterFunctionType& setter_func) {
+    if (script_value) {
+      setter_func.Run(this, *script_value);
+    }
+  };
+  ListenerCopyHelper(utterance->onstart(),
+                     base::Bind(&SpeechSynthesisUtterance::set_onstart));
+  ListenerCopyHelper(utterance->onend(),
+                     base::Bind(&SpeechSynthesisUtterance::set_onend));
+  ListenerCopyHelper(utterance->onerror(),
+                     base::Bind(&SpeechSynthesisUtterance::set_onerror));
+  ListenerCopyHelper(utterance->onpause(),
+                     base::Bind(&SpeechSynthesisUtterance::set_onpause));
+  ListenerCopyHelper(utterance->onresume(),
+                     base::Bind(&SpeechSynthesisUtterance::set_onresume));
+  ListenerCopyHelper(utterance->onmark(),
+                     base::Bind(&SpeechSynthesisUtterance::set_onmark));
+  ListenerCopyHelper(utterance->onboundary(),
+                     base::Bind(&SpeechSynthesisUtterance::set_onboundary));
 }
 
 void SpeechSynthesisUtterance::DispatchErrorCancelledEvent() {
