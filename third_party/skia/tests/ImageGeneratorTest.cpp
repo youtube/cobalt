@@ -106,7 +106,7 @@ static sk_sp<SkPicture> make_picture() {
 }
 
 DEF_TEST(PictureImageGenerator, reporter) {
-    constexpr struct {
+    const struct {
         SkColorType fColorType;
         SkAlphaType fAlphaType;
     } recs[] = {

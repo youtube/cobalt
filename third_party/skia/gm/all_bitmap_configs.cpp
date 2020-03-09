@@ -173,15 +173,12 @@ sk_sp<SkImage> make_not_native32_color_wheel() {
     n32bitmap.eraseColor(SK_ColorTRANSPARENT);
     SkCanvas n32canvas(n32bitmap);
     color_wheel_native(&n32canvas);
-    SkColorType ct;
-    if (SK_PMCOLOR_BYTE_ORDER(B, G, R, A)) {
-        ct = kRGBA_8888_SkColorType;
-    } else if (SK_PMCOLOR_BYTE_ORDER(R, G, B, A)) {
-        ct = kBGRA_8888_SkColorType;
-    } else {
-        NOTREACHED() << "Byte order must be BGRA or RGBA.";
-    }
-    DCHECK(ct != kN32_SkColorType) << "BRGA!=RGBA";
+    #if SK_PMCOLOR_BYTE_ORDER(B,G,R,A)
+        const SkColorType ct = kRGBA_8888_SkColorType;
+    #elif SK_PMCOLOR_BYTE_ORDER(R,G,B,A)
+        const SkColorType ct = kBGRA_8888_SkColorType;
+    #endif
+    static_assert(ct != kN32_SkColorType, "BRGA!=RGBA");
     SkAssertResult(ToolUtils::copy_to(&notN32bitmap, ct, n32bitmap));
     SkASSERT(notN32bitmap.colorType() == ct);
     return SkImage::MakeFromBitmap(notN32bitmap);
