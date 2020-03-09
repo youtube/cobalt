@@ -195,14 +195,13 @@ SkCanvasState* SkCanvasStateUtils::CaptureCanvasState(SkCanvas* canvas) {
         layerState->height = pmap.height();
 
         switch (pmap.colorType()) {
+            case kN32_SkColorType:
+                layerState->raster.config = kARGB_8888_RasterConfig;
+                break;
             case kRGB_565_SkColorType:
                 layerState->raster.config = kRGB_565_RasterConfig;
                 break;
             default:
-                if (pmap.colorType() == kN32_SkColorType) {
-                    layerState->raster.config = kARGB_8888_RasterConfig;
-                    break;
-                }
                 return nullptr;
         }
         layerState->raster.rowBytes = pmap.rowBytes();

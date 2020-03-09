@@ -218,15 +218,10 @@ static inline SkPMColor premultiply_argb_as_bgra(U8CPU a, U8CPU r, U8CPU g, U8CP
 }
 
 static inline bool is_rgba(SkColorType colorType) {
-#if defined(STARBOARD) && SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-    return (GetSkPmcolor() == SkPmcolorIsRgba) ? (kBGRA_8888_SkColorType != colorType)
-                                               : (kBGRA_8888_SkColorType == colorType);
-#else
 #ifdef SK_PMCOLOR_IS_RGBA
     return (kBGRA_8888_SkColorType != colorType);
 #else
     return (kRGBA_8888_SkColorType == colorType);
-#endif
 #endif
 }
 
