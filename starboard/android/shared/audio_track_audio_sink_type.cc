@@ -17,6 +17,8 @@
 #include <algorithm>
 #include <vector>
 
+#include "starboard/shared/starboard/player/filter/common.h"
+
 namespace {
 starboard::android::shared::AudioTrackAudioSinkType*
     audio_track_audio_sink_type_;
@@ -185,6 +187,12 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   JniEnvExt* env = JniEnvExt::Get();
   bool was_playing = false;
 
+  SB_LOG(INFO) << "AudioTrackAudioSink thread started.";
+
+#if defined(SB_PLAYER_FILTER_ENABLE_STATE_CHECK)
+  SbTime last_playback_head_changed_at = -1;
+#endif  // defined(SB_PLAYER_FILTER_ENABLE_STATE_CHECK)
+
   while (!quit_) {
     int playback_head_position = 0;
     SbTime frames_consumed_at = 0;
@@ -206,6 +214,23 @@ void AudioTrackAudioSink::AudioThreadFunc() {
           std::max(playback_head_position, last_playback_head_position_);
       int frames_consumed =
           playback_head_position - last_playback_head_position_;
+
+#if defined(SB_PLAYER_FILTER_ENABLE_STATE_CHECK)
+      if (last_playback_head_position_ == playback_head_position) {
+        auto now = SbTimeGetMonotonicNow();
+        SbTime elapsed = now - last_playback_head_changed_at;
+        if (was_playing && elapsed > 5 * kSbTimeSecond) {
+          last_playback_head_changed_at = now;
+          SB_LOG(INFO) << "last playback head position is "
+                       << last_playback_head_position_
+                       << " and it hasn't been updated for " << elapsed
+                       << " microseconds.";
+        }
+      } else {
+        last_playback_head_changed_at = SbTimeGetMonotonicNow();
+      }
+#endif  // defined(SB_PLAYER_FILTER_ENABLE_STATE_CHECK)
+
       last_playback_head_position_ = playback_head_position;
       frames_consumed = std::min(frames_consumed, written_frames_);
 
@@ -232,9 +257,11 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     if (was_playing && !is_playing) {
       was_playing = false;
       env->CallVoidMethodOrAbort(j_audio_track_bridge_, "pause", "()V");
+      SB_LOG(INFO) << "AudioTrackAudioSink paused.";
     } else if (!was_playing && is_playing) {
       was_playing = true;
       env->CallVoidMethodOrAbort(j_audio_track_bridge_, "play", "()V");
+      SB_LOG(INFO) << "AudioTrackAudioSink playing.";
     }
 
     if (!is_playing || frames_in_buffer == 0) {
