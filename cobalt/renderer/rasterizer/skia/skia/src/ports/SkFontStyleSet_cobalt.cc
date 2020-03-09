@@ -112,15 +112,14 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
     }
     ++extension;
 
-    // Only add font formats that match the format setting, except ttc for CJK.
+    // Only add font formats that match the format setting.
     if (font_format_setting == kTtf) {
       if (SbStringCompareNoCase("ttf", extension) != 0 &&
           SbStringCompareNoCase(extension, "ttc") != 0) {
         continue;
       }
     } else if (font_format_setting == kWoff2 &&
-               SbStringCompareNoCase("woff2", extension) != 0 &&
-               SbStringCompareNoCase(extension, "ttc") != 0) {
+               SbStringCompareNoCase("woff2", extension) != 0) {
       continue;
     }
 
