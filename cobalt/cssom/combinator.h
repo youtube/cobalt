@@ -37,7 +37,7 @@ enum CombinatorType {
 };
 
 // Avoids the clang error: arithmetic between different enumeration types.
-constexpr size_t kCombinatorCount = static_cast<size_t>(kCombinatorTypeCount);
+const size_t kCombinatorCount = static_cast<size_t>(kCombinatorTypeCount);
 
 // A combinator is punctuation that represents a particular kind of relationship
 // between the selectors on either side.
