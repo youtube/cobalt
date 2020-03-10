@@ -58,13 +58,6 @@ base::Version Configurator::GetBrowserVersion() const {
   return base::Version("1.0.0.0");  // version_info::GetVersion();
 }
 
-// The updater channel is accessed by main web module thread and update client
-// thread. Use a lock to prevent synchronization issue.
-std::string Configurator::GetChannel() const {
-  base::AutoLock auto_lock(const_cast<base::Lock&>(updater_channel_lock_));
-  return updater_channel_;
-}
-
 std::string Configurator::GetBrand() const { return {}; }
 
 std::string Configurator::GetLang() const { return {}; }
@@ -137,11 +130,29 @@ update_client::RecoveryCRXElevator Configurator::GetRecoveryCRXElevator()
   return {};
 }
 
-// SetChannel is called by main web module thread and update client thread. Use
-// a lock to prevent synchronization issue.
+// The updater channel is get and set by main web module thread and update
+// client thread. The getter and set use a lock to prevent synchronization
+// issue.
+std::string Configurator::GetChannel() const {
+  base::AutoLock auto_lock(const_cast<base::Lock&>(updater_channel_lock_));
+  return updater_channel_;
+}
+
 void Configurator::SetChannel(const std::string& updater_channel) {
   base::AutoLock auto_lock(updater_channel_lock_);
   updater_channel_ = updater_channel;
+}
+
+// The updater status is get by main web module thread and set by the updater
+// thread. The getter and set use a lock to prevent synchronization issue.
+std::string Configurator::GetUpdaterStatus() const {
+  base::AutoLock auto_lock(const_cast<base::Lock&>(updater_status_lock_));
+  return updater_status_;
+}
+
+void Configurator::SetUpdaterStatus(const std::string& status) {
+  base::AutoLock auto_lock(updater_status_lock_);
+  updater_status_ = status;
 }
 
 }  // namespace updater
