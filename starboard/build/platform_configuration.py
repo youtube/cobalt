@@ -256,7 +256,6 @@ class PlatformConfiguration(object):
         # V8 are supported.  Note that V8 can only be used on platforms that
         # support JIT.
         'javascript_engine': 'v8',
-
         'sabi_json_path': self.GetPathToSabiJsonFile(),
 
         # TODO: Remove these compatibility variables.
@@ -354,6 +353,7 @@ class PlatformConfiguration(object):
     tests = [
         'nplb',
         'nplb_blitter_pixel_tests',
+        'nplb_evergreen_compat_tests',
         'player_filter_tests',
         'starboard_platform_tests',
     ]

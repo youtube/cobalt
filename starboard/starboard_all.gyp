@@ -64,6 +64,7 @@
         '<(DEPTH)/starboard/examples/blitter/blitter.gyp:*',
         '<(DEPTH)/starboard/examples/window/window.gyp:*',
         '<(DEPTH)/starboard/nplb/blitter_pixel_tests/blitter_pixel_tests.gyp:*',
+        '<(DEPTH)/starboard/nplb/nplb_evergreen_compat_tests/nplb_evergreen_compat_tests.gyp:*',
         '<(DEPTH)/starboard/nplb/nplb.gyp:*',
         '<(DEPTH)/starboard/starboard.gyp:*',
         '<(DEPTH)/starboard/tools/tools.gyp:*',
