@@ -38,8 +38,9 @@ class H5vccUpdater : public script::Wrappable {
       : updater_module_(updater_module) {}
 
   std::string GetUpdaterChannel() const;
-
   void SetUpdaterChannel(const std::string& channel);
+
+  std::string GetUpdateStatus() const;
 
 #else
   H5vccUpdater() {}

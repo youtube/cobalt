@@ -14,6 +14,7 @@
 
 #include "cobalt/updater/updater_module.h"
 
+#include <map>
 #include <utility>
 #include <vector>
 
@@ -40,11 +41,31 @@
 
 namespace {
 
+using update_client::ComponentState;
+
 // The SHA256 hash of the "cobalt_evergreen_public" key.
 constexpr uint8_t kCobaltPublicKeyHash[] = {
     0xfd, 0x81, 0xea, 0x59, 0xa2, 0xa3, 0x88, 0xf6, 0xf2, 0x20, 0x21,
     0xaa, 0x90, 0xda, 0x5a, 0x8e, 0x51, 0xdf, 0x80, 0x6e, 0x0a, 0x0a,
     0x24, 0x45, 0x38, 0x79, 0xd4, 0x95, 0xfc, 0x57, 0x2d, 0xab};
+
+// The map to translate updater status from enum to readable string.
+const std::map<ComponentState, const char*> updater_status_map = {
+    {ComponentState::kNew, "Will check for update soon"},
+    {ComponentState::kChecking, "Checking for update"},
+    {ComponentState::kCanUpdate, "Update is available"},
+    {ComponentState::kDownloadingDiff, "Downloading delta update"},
+    {ComponentState::kDownloading, "Downloading update"},
+    {ComponentState::kDownloaded, "Update is downloaded"},
+    {ComponentState::kUpdatingDiff, "Installing delta update"},
+    {ComponentState::kUpdating, "Installing update"},
+    {ComponentState::kUpdated, "Update installed, pending restart"},
+    {ComponentState::kUpToDate, "App is up to date"},
+    {ComponentState::kUpdateError, "Failed to update"},
+    {ComponentState::kUninstalled, "Update uninstalled"},
+    {ComponentState::kRun, "Transitioning..."},
+    // ComponentState::kLastStatus is not meaningful to show to users.
+};
 
 void QuitLoop(base::OnceClosure quit_closure) { std::move(quit_closure).Run(); }
 
@@ -52,6 +73,22 @@ void QuitLoop(base::OnceClosure quit_closure) { std::move(quit_closure).Run(); }
 
 namespace cobalt {
 namespace updater {
+
+void Observer::OnEvent(Events event, const std::string& id) {
+  std::string status;
+  if (update_client_->GetCrxUpdateState(id, &crx_update_item_)) {
+    auto status_iterator = updater_status_map.find(crx_update_item_.state);
+    if (status_iterator == updater_status_map.end()) {
+      return;
+    } else {
+      status = std::string(status_iterator->second);
+    }
+  } else {
+    status = "No status available";
+  }
+  updater_configurator_->SetUpdaterStatus(status);
+  SB_LOG(INFO) << "Updater status is " << status;
+}
 
 UpdaterModule::UpdaterModule(network::NetworkModule* network_module)
     : updater_thread_("updater"), network_module_(network_module) {
@@ -89,7 +126,7 @@ void UpdaterModule::Initialize() {
   updater_configurator_ = base::MakeRefCounted<Configurator>(network_module_);
   update_client_ = update_client::UpdateClientFactory(updater_configurator_);
 
-  updater_observer_.reset(new Observer(update_client_));
+  updater_observer_.reset(new Observer(update_client_, updater_configurator_));
   update_client_->AddObserver(updater_observer_.get());
 
   // Schedule the first update check.

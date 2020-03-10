@@ -29,5 +29,9 @@ void H5vccUpdater::SetUpdaterChannel(const std::string& channel) {
   }
 }
 
+std::string H5vccUpdater::GetUpdateStatus() const {
+  return updater_module_->GetUpdaterStatus();
+}
+
 }  // namespace h5vcc
 }  // namespace cobalt
