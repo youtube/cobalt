@@ -1,0 +1,31 @@
+version: '2.4'
+
+x-common-definitions: &common-definitions
+  stdin_open: true
+  tty: true
+  volumes:
+    - ${COBALT_SRC}:/code/
+    - ./docker/linux/scripts:/scripts
+
+services:
+  base:
+    build:
+      context: ./docker/linux
+      dockerfile: base/Dockerfile
+    image: base
+  stub:
+    <<: *common-definitions
+    build:
+      context: ./docker/linux
+      dockerfile: stub/Dockerfile
+    environment:
+      - TARGET=stub
+      - CONFIG=debug
+  linux-x64x11:
+    <<: *common-definitions
+    build:
+      context: ./docker/linux
+      dockerfile: linux-x64x11/Dockerfile
+    environment:
+      - TARGET=linux-x64x11
+      - CONFIG=debug
