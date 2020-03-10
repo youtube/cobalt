@@ -71,6 +71,11 @@ class HardwareRasterizer::Impl {
 
   int64_t GetFallbackRasterizeCount() { return fallback_rasterize_count_; }
 
+  void ResetGraphicsStateCache() {
+    graphics_state_->SetDirty();
+    GetFallbackContext()->resetContext();
+  }
+
   void MakeCurrent() { graphics_context_->MakeCurrent(); }
   void ReleaseContext() { graphics_context_->ReleaseCurrentContext(); }
 
@@ -347,6 +352,10 @@ render_tree::ResourceProvider* HardwareRasterizer::GetResourceProvider() {
 
 int64_t HardwareRasterizer::GetFallbackRasterizeCount() {
   return impl_->GetFallbackRasterizeCount();
+}
+
+void HardwareRasterizer::ResetGraphicsStateCache() {
+  impl_->ResetGraphicsStateCache();
 }
 
 void HardwareRasterizer::MakeCurrent() { return impl_->MakeCurrent(); }
