@@ -79,6 +79,9 @@ class Configurator : public update_client::Configurator {
   void MarkChannelChanged() { is_channel_changed = true; }
   bool IsChannelChanged() const override { return is_channel_changed; }
 
+  std::string GetUpdaterStatus() const;
+  void SetUpdaterStatus(const std::string& status);
+
  private:
   friend class base::RefCountedThreadSafe<Configurator>;
   ~Configurator() override;
@@ -90,6 +93,8 @@ class Configurator : public update_client::Configurator {
   std::string updater_channel_;
   base::Lock updater_channel_lock_;
   bool is_channel_changed = false;
+  std::string updater_status_;
+  base::Lock updater_status_lock_;
 
   DISALLOW_COPY_AND_ASSIGN(Configurator);
 };

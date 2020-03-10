@@ -35,20 +35,17 @@ namespace updater {
 // updater changes status.
 class Observer : public update_client::UpdateClient::Observer {
  public:
-  explicit Observer(scoped_refptr<update_client::UpdateClient> update_client)
-      : update_client_(update_client) {}
+  Observer(scoped_refptr<update_client::UpdateClient> update_client,
+           scoped_refptr<Configurator> updater_configurator)
+      : update_client_(update_client),
+        updater_configurator_(updater_configurator) {}
 
   // Overrides for update_client::UpdateClient::Observer.
-  void OnEvent(Events event, const std::string& id) override {
-    update_client_->GetCrxUpdateState(id, &crx_update_item_);
-  }
-
-  const update_client::CrxUpdateItem& crx_update_item() const {
-    return crx_update_item_;
-  }
+  void OnEvent(Events event, const std::string& id) override;
 
  private:
   scoped_refptr<update_client::UpdateClient> update_client_;
+  scoped_refptr<Configurator> updater_configurator_;
   update_client::CrxUpdateItem crx_update_item_;
   DISALLOW_COPY_AND_ASSIGN(Observer);
 };
@@ -69,6 +66,10 @@ class UpdaterModule {
   bool IsChannelChanged() { return updater_configurator_->IsChannelChanged(); }
 
   void RunUpdateCheck();
+
+  std::string GetUpdaterStatus() const {
+    return updater_configurator_->GetUpdaterStatus();
+  }
 
  private:
   base::Thread updater_thread_;
