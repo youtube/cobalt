@@ -10,9 +10,7 @@
 #include "src/strings/string-stream.h"
 #include "src/utils/ostreams.h"
 
-#if defined(V8_OS_STARBOARD)
 #include "src/objects/tagged-impl-inl.h"
-#endif
 
 namespace v8 {
 namespace internal {

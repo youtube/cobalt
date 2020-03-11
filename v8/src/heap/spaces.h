@@ -771,7 +771,13 @@ class MemoryChunk : public BasicMemoryChunk {
   bool TrySetProgressBar(size_t old_value, size_t new_value) {
     DCHECK(IsFlagSet<AccessMode::ATOMIC>(HAS_PROGRESS_BAR));
     return progress_bar_.compare_exchange_strong(old_value, new_value,
+#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
                                                  std::memory_order_acq_rel);
+#else
+    // On some compiler acq_rel can't be used with compare_exchange_strong,
+    // but seq_cst can safely replace it.
+                                                 std::memory_order_seq_cst);
+#endif
   }
 
   void ResetProgressBar() {

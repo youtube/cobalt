@@ -945,6 +945,14 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     Goto(label->plain_label());
   }
 
+#if defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
+  // Added this function to explicitly convert TNode to SloppyTNode which certain
+  // compiler refuses to do.
+  void Branch(TNode<BoolT> condition, Label* true_label,
+              Label* false_label) {
+    Branch(static_cast<SloppyTNode<IntegralT>>(condition), true_label, false_label);
+  }
+#endif
   void Branch(TNode<BoolT> condition, const std::function<void()>& true_body,
               const std::function<void()>& false_body);
   void Branch(TNode<BoolT> condition, Label* true_label,

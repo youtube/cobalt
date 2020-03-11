@@ -5002,9 +5002,13 @@ bool Genesis::InstallExtraNatives() {
 
   native_context()->set_extras_binding_object(*extras_binding);
 
+  // MSVC-generated mksnapshot.exe can not generate correct asm for posix
+  // target platform.
+#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
   for (int i = 0; i < ExtraNatives::GetBuiltinsCount(); i++) {
     if (!Bootstrapper::CompileExtraBuiltin(isolate(), i)) return false;
   }
+#endif
 
   return true;
 }

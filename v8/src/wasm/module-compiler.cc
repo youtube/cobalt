@@ -163,18 +163,20 @@ enum CompileBaselineOnly : bool {
 // runs empty.
 class CompilationUnitQueues {
  public:
-  explicit CompilationUnitQueues(int max_tasks) : queues_(max_tasks) {
+#if !defined(DISABLE_WASM_STARBOARD)
+  explicit CompilationUnitQueues(int max_tasks) : queues_((size_t)max_tasks) {
     DCHECK_LT(0, max_tasks);
     for (int task_id = 0; task_id < max_tasks; ++task_id) {
       queues_[task_id].next_steal_task_id = next_task_id(task_id);
     }
     for (auto& atomic_counter : num_units_) {
     // API leak
-#if !defined(DISABLE_WASM_STARBOARD)
       std::atomic_init(&atomic_counter, size_t{0});
-#endif
     }
   }
+#else
+  explicit CompilationUnitQueues(int /*max_tasks*/) {}
+#endif
 
   base::Optional<WasmCompilationUnit> GetNextUnit(
       int task_id, CompileBaselineOnly baseline_only) {
@@ -1318,7 +1320,10 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   auto native_module = isolate->wasm_engine()->NewNativeModule(
       isolate, enabled, code_size_estimate,
       wasm::NativeModule::kCanAllocateMoreMemory, std::move(module));
+#if !defined(DISABLE_WASM_STARBOARD)
+  // std::move(uint8_t[]) issue
   native_module->SetWireBytes(std::move(wire_bytes_copy));
+#endif
   native_module->SetRuntimeStubs(isolate);
 
   CompileNativeModule(isolate, thrower, wasm_module, native_module.get());
@@ -1436,6 +1441,7 @@ AsyncCompileJob::~AsyncCompileJob() {
 
 void AsyncCompileJob::CreateNativeModule(
     std::shared_ptr<const WasmModule> module) {
+#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
   // Embedder usage count for declared shared memories.
   if (module->has_shared_memory) {
     isolate_->CountUsage(v8::Isolate::UseCounterFeature::kWasmSharedMemory);
@@ -1460,6 +1466,7 @@ void AsyncCompileJob::CreateNativeModule(
   native_module_->SetRuntimeStubs(isolate_);
 
   if (stream_) stream_->NotifyNativeModuleCreated(native_module_);
+#endif
 }
 
 void AsyncCompileJob::PrepareRuntimeObjects() {

@@ -35,6 +35,20 @@ def GetWindowsVersion():
       return (int(major), int(minor), int(build))
   raise IOError('Could not retrieve windows version')
 
+def GetCompilerOptionsFromWinSdk(win_sdk):
+  """Convert mandatory include files in win_sdk to compiler options."""
+  force_include_files = win_sdk.versioned_winmd_files
+  missing_files = []
+  for f in force_include_files:
+    if not os.path.exists(f):
+      missing_files.append(f)
+  if missing_files:
+    logging.critical('\n***** Missing files *****: \n' + \
+                     '\n'.join(missing_files) + \
+                     '\nCompiling may have problems.\n')
+  # /FU"path" will force include that path for every file compiled.
+  compiler_options = ['/FU' + _QuotePath(f) for f in force_include_files]
+  return compiler_options
 
 def _QuotePath(path):
   return '"' + path + '"'
@@ -69,18 +83,7 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
       return 'UNKNOWN'
 
   def AdditionalPlatformCompilerOptions(self):
-    force_include_files = self.GetSdk().versioned_winmd_files
-    missing_files = []
-    for f in force_include_files:
-      if not os.path.exists(f):
-        missing_files.append(f)
-    if missing_files:
-      logging.critical('\n***** Missing files *****: \n' + \
-                       '\n'.join(missing_files) + \
-                       '\nCompiling may have problems.\n')
-    # /FU"path" will force include that path for every file compiled.
-    compiler_options = ['/FU' + _QuotePath(f) for f in force_include_files]
-    return compiler_options
+    return GetCompilerOptionsFromWinSdk(self.GetSdk())
 
   def GetVariables(self, configuration):
     sdk = self.GetSdk()
