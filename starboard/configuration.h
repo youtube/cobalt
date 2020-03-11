@@ -545,8 +545,8 @@ struct CompileAssert {};
 #error "Your platform's SB_API_VERSION < SB_MINIMUM_API_VERSION."
 #endif
 
-#if !SB_IS(ARCH_ARM) && !SB_IS(ARCH_ARM64) && !SB_IS(ARCH_MIPS) && \
-    !SB_IS(ARCH_PPC) && !SB_IS(ARCH_X86) && !SB_IS(ARCH_X64)
+#if !SB_IS(ARCH_ARM) && !SB_IS(ARCH_ARM64) && !SB_IS(ARCH_X86) && \
+    !SB_IS(ARCH_X64)
 #error "Your platform doesn't define a known architecture."
 #endif
 
