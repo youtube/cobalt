@@ -54,6 +54,7 @@
         'defines': [
           'ARCH_AARCH64=SB_IS(ARCH_ARM64)',
           'ARCH_ARM=SB_IS(ARCH_ARM)',
+          'ARCH_PPC64LE=SB_IS(ARCH_PPC)',
           'ARCH_X86=(SB_IS(ARCH_X86) || SB_IS(ARCH_X64))',
           'ARCH_X86_32=SB_IS(ARCH_X86)',
           'ARCH_X86_64=SB_IS(ARCH_X64)',
