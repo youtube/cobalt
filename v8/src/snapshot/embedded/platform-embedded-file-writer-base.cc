@@ -137,10 +137,13 @@ std::unique_ptr<PlatformEmbeddedFileWriterBase> NewPlatformEmbeddedFileWriter(
   auto embedded_target_arch = ToEmbeddedTargetArch(target_arch);
   auto embedded_target_os = ToEmbeddedTargetOs(target_os);
 
-  if (embedded_target_os == EmbeddedTargetOs::kStarboard) {
+  if (embedded_target_os == EmbeddedTargetOs::kStarboard
+      && DefaultEmbeddedTargetOs() == EmbeddedTargetOs::kMac) {
     // target OS is "Starboard" for all starboard build so we need to
     // use host OS macros to decide which writer to use.
-    embedded_target_os = ToEmbeddedTargetOs(nullptr);
+    // Cobalt also has Windows-based Posix target platform,
+    // in which case generic writer should be used.
+    embedded_target_os = EmbeddedTargetOs::kMac;
   }
 
   if (embedded_target_os == EmbeddedTargetOs::kAIX) {

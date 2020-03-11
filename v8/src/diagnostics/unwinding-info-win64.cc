@@ -22,7 +22,11 @@ bool CanRegisterUnwindInfoForNonABICompliantCodeRange() {
 
 bool RegisterUnwindInfoForExceptionHandlingOnly() {
   DCHECK(CanRegisterUnwindInfoForNonABICompliantCodeRange());
+#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
   return !IsWindows8OrGreater() || !FLAG_win64_unwinding_info;
+#else
+  return false;
+#endif
 }
 
 #pragma pack(push, 1)

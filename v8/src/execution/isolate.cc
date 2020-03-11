@@ -97,7 +97,13 @@
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif
 
-extern "C" const uint8_t* v8_Default_embedded_blob_;
+#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
+#define CONST const
+#else
+#define CONST
+#endif
+
+extern "C" CONST uint8_t* v8_Default_embedded_blob_;
 extern "C" uint32_t v8_Default_embedded_blob_size_;
 
 namespace v8 {
@@ -115,7 +121,7 @@ namespace internal {
 #define TRACE_ISOLATE(tag)
 #endif
 
-const uint8_t* DefaultEmbeddedBlob() { return v8_Default_embedded_blob_; }
+uint8_t* DefaultEmbeddedBlob() { return v8_Default_embedded_blob_; }
 uint32_t DefaultEmbeddedBlobSize() { return v8_Default_embedded_blob_size_; }
 
 #ifdef V8_MULTI_SNAPSHOTS
@@ -135,7 +141,12 @@ namespace {
 // variables before accessing them. Different threads may race, but this is fine
 // since they all attempt to set the same values of the blob pointer and size.
 
-std::atomic<const uint8_t*> current_embedded_blob_(nullptr);
+#if defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
+// This is why we need the CONST workaround in this file: atomic can't be used
+// with const on some compiler.
+// TODO[johnx] restore the const qualifier after compiler upgrade.
+#endif
+std::atomic<CONST uint8_t*> current_embedded_blob_(nullptr);
 std::atomic<uint32_t> current_embedded_blob_size_(0);
 
 // The various workflows around embedded snapshots are fairly complex. We need
@@ -166,16 +177,16 @@ std::atomic<uint32_t> current_embedded_blob_size_(0);
 // - current_embedded_blob_refs_
 base::LazyMutex current_embedded_blob_refcount_mutex_ = LAZY_MUTEX_INITIALIZER;
 
-const uint8_t* sticky_embedded_blob_ = nullptr;
+CONST uint8_t* sticky_embedded_blob_ = nullptr;
 uint32_t sticky_embedded_blob_size_ = 0;
 
 bool enable_embedded_blob_refcounting_ = true;
 int current_embedded_blob_refs_ = 0;
 
-const uint8_t* StickyEmbeddedBlob() { return sticky_embedded_blob_; }
+CONST uint8_t* StickyEmbeddedBlob() { return sticky_embedded_blob_; }
 uint32_t StickyEmbeddedBlobSize() { return sticky_embedded_blob_size_; }
 
-void SetStickyEmbeddedBlob(const uint8_t* blob, uint32_t blob_size) {
+void SetStickyEmbeddedBlob(CONST uint8_t* blob, uint32_t blob_size) {
   sticky_embedded_blob_ = blob;
   sticky_embedded_blob_size_ = blob_size;
 }
@@ -221,7 +232,7 @@ bool Isolate::CurrentEmbeddedBlobIsBinaryEmbedded() {
   return blob == DefaultEmbeddedBlob();
 }
 
-void Isolate::SetEmbeddedBlob(const uint8_t* blob, uint32_t blob_size) {
+void Isolate::SetEmbeddedBlob(CONST uint8_t* blob, uint32_t blob_size) {
   CHECK_NOT_NULL(blob);
 
   embedded_blob_ = blob;
@@ -3238,7 +3249,7 @@ bool IsolateIsCompatibleWithEmbeddedBlob(Isolate* isolate) {
 }  // namespace
 
 void Isolate::InitializeDefaultEmbeddedBlob() {
-  const uint8_t* blob = DefaultEmbeddedBlob();
+  CONST uint8_t* blob = DefaultEmbeddedBlob();
   uint32_t size = DefaultEmbeddedBlobSize();
 
 #ifdef V8_MULTI_SNAPSHOTS
@@ -3281,11 +3292,15 @@ void Isolate::CreateAndSetEmbeddedBlob() {
     InstructionStream::CreateOffHeapInstructionStream(this, &data, &size);
 
     CHECK_EQ(0, current_embedded_blob_refs_);
+#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
     const uint8_t* const_data = const_cast<const uint8_t*>(data);
     SetEmbeddedBlob(const_data, size);
+#else
+    SetEmbeddedBlob(data, size);
+#endif
     current_embedded_blob_refs_++;
 
-    SetStickyEmbeddedBlob(const_data, size);
+    SetStickyEmbeddedBlob(data, size);
   }
 
   CreateOffHeapTrampolines(this);

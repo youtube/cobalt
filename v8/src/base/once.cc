@@ -33,7 +33,11 @@ void CallOnceImpl(OnceType* once, std::function<void()> init_func) {
   // atomically.
   uint8_t expected = ONCE_STATE_UNINITIALIZED;
   if (once->compare_exchange_strong(expected, ONCE_STATE_EXECUTING_FUNCTION,
+#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
                                     std::memory_order_acq_rel)) {
+#else
+                                    std::memory_order_seq_cst)) {
+#endif
     // We are the first thread to call this function, so we have to call the
     // function.
     init_func();
