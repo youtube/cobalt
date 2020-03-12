@@ -33,6 +33,8 @@ from starboard.tools import command_line
 
 _PORT_SELECTION_RETRY_LIMIT = 10
 _PORT_SELECTION_RANGE = [5000, 7000]
+# List of blocked ports.
+_RESTRICTED_PORTS = [6000, 6665, 6666, 6667, 6668, 6669, 6697]
 _SERVER_EXIT_TIMEOUT_SECONDS = 30
 # These tests can only be run on platforms whose app launcher can send suspend/
 # resume signals.
@@ -215,8 +217,10 @@ class BlackBoxTests(object):
       socks.append((address, socket.socket(socket.AF_INET, socket.SOCK_STREAM)))
     try:
       for _ in range(_PORT_SELECTION_RETRY_LIMIT):
-        port = random.randint(_PORT_SELECTION_RANGE[0],
-                              _PORT_SELECTION_RANGE[1])
+        port = random.choice([
+            i for i in range(_PORT_SELECTION_RANGE[0], _PORT_SELECTION_RANGE[1])
+            if i not in _RESTRICTED_PORTS
+        ])
         unused = True
         for sock in socks:
           result = sock[1].connect_ex((sock[0], port))
