@@ -67,6 +67,8 @@ class HardwareRasterizer : public Rasterizer {
 
   int64_t GetFallbackRasterizeCount() override;
 
+  void ResetGraphicsStateCache();
+
   void MakeCurrent() override;
   void ReleaseContext() override;
 

@@ -24,6 +24,7 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
@@ -57,7 +58,6 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
  private:
-  bool IsPunchoutMode() const;
   bool Init(SbPlayer player,
             UpdateMediaInfoCB update_media_info_cb,
             GetPlayerStateCB get_player_state_cb,
@@ -94,10 +94,8 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   SbMediaVideoCodec video_codec_;
   SbMediaAudioCodec audio_codec_;
   SbDrmSystem drm_system_;
-  // Store a copy of |SbMediaAudioSampleInfo::audio_specific_config| passed to
-  // the ctor so it is valid for the life time of the player worker.
-  scoped_array<int8_t> audio_specific_config_;
-  SbMediaAudioSampleInfo audio_sample_info_ = {kSbMediaAudioCodecNone};
+
+  media::AudioSampleInfo audio_sample_info_;
 
   // A mutex guarding changes to the existence (e.g. creation/destruction)
   // of the |player_components_| object.  This is necessary because calls to
@@ -133,11 +131,8 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider_;
 
-  std::string audio_mime_;
-  std::string video_mime_;
-  std::string max_video_capabilities_;
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-  SbMediaVideoSampleInfo video_sample_info_ = {};
+  media::VideoSampleInfo video_sample_info_;
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 };
 

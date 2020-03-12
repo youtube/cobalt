@@ -234,8 +234,8 @@ struct Dav1dFrameContext {
     // threading (refer to tc[] for per-thread things)
     struct FrameTileThreadData {
         uint64_t available;
-        pthread_mutex_t lock;
-        pthread_cond_t cond, icond;
+        dav1d_pthread_mutex_t lock;
+        dav1d_pthread_cond_t cond, icond;
         int tasks_left, num_tasks;
         int (*task_idx_to_sby_and_tile_idx)[2];
         int titsati_sz, titsati_init[2];
@@ -255,8 +255,8 @@ struct Dav1dTileState {
 
     atomic_int progress; // in sby units, TILE_ERROR after a decoding error
     struct {
-        pthread_mutex_t lock;
-        pthread_cond_t cond;
+      dav1d_pthread_mutex_t lock;
+      dav1d_pthread_cond_t cond;
     } tile_thread;
     struct {
         uint8_t *pal_idx;

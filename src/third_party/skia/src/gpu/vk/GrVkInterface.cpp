@@ -5,37 +5,24 @@
  * found in the LICENSE file.
  */
 
-#include "vk/GrVkInterface.h"
-#include "vk/GrVkBackendContext.h"
-#include "vk/GrVkUtil.h"
+#include "include/gpu/vk/GrVkBackendContext.h"
+#include "include/gpu/vk/GrVkExtensions.h"
+#include "src/gpu/vk/GrVkInterface.h"
+#include "src/gpu/vk/GrVkUtil.h"
 
-#define ACQUIRE_PROC(name, instance, device) fFunctions.f##name = \
-    reinterpret_cast<PFN_vk##name>(getProc("vk"#name, instance, device));
+#define ACQUIRE_PROC(name, instance, device) \
+    fFunctions.f##name = reinterpret_cast<PFN_vk##name>(getProc("vk" #name, instance, device))
 
-GrVkInterface::GetProc make_unified_getter(const GrVkInterface::GetInstanceProc& iproc,
-                                           const GrVkInterface::GetDeviceProc& dproc) {
-    return [&iproc, &dproc](const char* proc_name, VkInstance instance, VkDevice device) {
-        if (device != VK_NULL_HANDLE) {
-            return dproc(device, proc_name);
-        }
-        return iproc(instance, proc_name);
-    };
-}
+#define ACQUIRE_PROC_SUFFIX(name, suffix, instance, device) \
+    fFunctions.f##name =                                    \
+            reinterpret_cast<PFN_vk##name##suffix>(getProc("vk" #name #suffix, instance, device))
 
-GrVkInterface::GrVkInterface(const GetInstanceProc& getInstanceProc,
-                             const GetDeviceProc& getDeviceProc,
+GrVkInterface::GrVkInterface(GrVkGetProc getProc,
                              VkInstance instance,
                              VkDevice device,
-                             uint32_t extensionFlags)
-        : GrVkInterface(make_unified_getter(getInstanceProc, getDeviceProc),
-                        instance,
-                        device,
-                        extensionFlags) {}
-
-GrVkInterface::GrVkInterface(GetProc getProc,
-                             VkInstance instance,
-                             VkDevice device,
-                             uint32_t extensionFlags) {
+                             uint32_t instanceVersion,
+                             uint32_t physicalDeviceVersion,
+                             const GrVkExtensions* extensions) {
     if (getProc == nullptr) {
         return;
     }
@@ -58,13 +45,6 @@ GrVkInterface::GrVkInterface(GetProc getProc,
     ACQUIRE_PROC(DestroyDevice, instance, VK_NULL_HANDLE);
     ACQUIRE_PROC(EnumerateDeviceExtensionProperties, instance, VK_NULL_HANDLE);
     ACQUIRE_PROC(EnumerateDeviceLayerProperties, instance, VK_NULL_HANDLE);
-
-    if (extensionFlags & kEXT_debug_report_GrVkExtensionFlag) {
-        // Also instance Procs.
-        ACQUIRE_PROC(CreateDebugReportCallbackEXT, instance, VK_NULL_HANDLE);
-        ACQUIRE_PROC(DebugReportMessageEXT, instance, VK_NULL_HANDLE);
-        ACQUIRE_PROC(DestroyDebugReportCallbackEXT, instance, VK_NULL_HANDLE);
-    }
 
     // Device Procs.
     ACQUIRE_PROC(GetDeviceQueue, VK_NULL_HANDLE, device);
@@ -186,6 +166,88 @@ GrVkInterface::GrVkInterface(GetProc getProc,
     ACQUIRE_PROC(CmdNextSubpass, VK_NULL_HANDLE, device);
     ACQUIRE_PROC(CmdEndRenderPass, VK_NULL_HANDLE, device);
     ACQUIRE_PROC(CmdExecuteCommands, VK_NULL_HANDLE, device);
+
+    // Functions for VK_KHR_get_physical_device_properties2
+    if (physicalDeviceVersion >= VK_MAKE_VERSION(1, 1, 0)) {
+        ACQUIRE_PROC(GetPhysicalDeviceFeatures2, instance, VK_NULL_HANDLE);
+        ACQUIRE_PROC(GetPhysicalDeviceProperties2, instance, VK_NULL_HANDLE);
+        ACQUIRE_PROC(GetPhysicalDeviceFormatProperties2, instance, VK_NULL_HANDLE);
+        ACQUIRE_PROC(GetPhysicalDeviceImageFormatProperties2, instance, VK_NULL_HANDLE);
+        ACQUIRE_PROC(GetPhysicalDeviceQueueFamilyProperties2, instance, VK_NULL_HANDLE);
+        ACQUIRE_PROC(GetPhysicalDeviceMemoryProperties2, instance, VK_NULL_HANDLE);
+        ACQUIRE_PROC(GetPhysicalDeviceSparseImageFormatProperties2, instance, VK_NULL_HANDLE);
+    } else if (extensions->hasExtension(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
+                                        1)) {
+        ACQUIRE_PROC_SUFFIX(GetPhysicalDeviceFeatures2, KHR, instance, VK_NULL_HANDLE);
+        ACQUIRE_PROC_SUFFIX(GetPhysicalDeviceProperties2, KHR, instance, VK_NULL_HANDLE);
+        ACQUIRE_PROC_SUFFIX(GetPhysicalDeviceFormatProperties2, KHR, instance, VK_NULL_HANDLE);
+        ACQUIRE_PROC_SUFFIX(GetPhysicalDeviceImageFormatProperties2, KHR, instance, VK_NULL_HANDLE);
+        ACQUIRE_PROC_SUFFIX(GetPhysicalDeviceQueueFamilyProperties2, KHR, instance, VK_NULL_HANDLE);
+        ACQUIRE_PROC_SUFFIX(GetPhysicalDeviceMemoryProperties2, KHR, instance, VK_NULL_HANDLE);
+        ACQUIRE_PROC_SUFFIX(GetPhysicalDeviceSparseImageFormatProperties2, KHR, instance,
+                            VK_NULL_HANDLE);
+    }
+
+    // Functions for VK_KHR_get_memory_requirements2
+    if (physicalDeviceVersion >= VK_MAKE_VERSION(1, 1, 0)) {
+        ACQUIRE_PROC(GetImageMemoryRequirements2, VK_NULL_HANDLE, device);
+        ACQUIRE_PROC(GetBufferMemoryRequirements2, VK_NULL_HANDLE, device);
+        ACQUIRE_PROC(GetImageSparseMemoryRequirements2, VK_NULL_HANDLE, device);
+    } else if (extensions->hasExtension(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME, 1)) {
+        ACQUIRE_PROC_SUFFIX(GetImageMemoryRequirements2, KHR, VK_NULL_HANDLE, device);
+        ACQUIRE_PROC_SUFFIX(GetBufferMemoryRequirements2, KHR, VK_NULL_HANDLE, device);
+        ACQUIRE_PROC_SUFFIX(GetImageSparseMemoryRequirements2, KHR, VK_NULL_HANDLE, device);
+    }
+
+    // Functions for VK_KHR_bind_memory2
+    if (physicalDeviceVersion >= VK_MAKE_VERSION(1, 1, 0)) {
+        ACQUIRE_PROC(BindBufferMemory2, VK_NULL_HANDLE, device);
+        ACQUIRE_PROC(BindImageMemory2, VK_NULL_HANDLE, device);
+    } else if (extensions->hasExtension(VK_KHR_BIND_MEMORY_2_EXTENSION_NAME, 1)) {
+        ACQUIRE_PROC_SUFFIX(BindBufferMemory2, KHR, VK_NULL_HANDLE, device);
+        ACQUIRE_PROC_SUFFIX(BindImageMemory2, KHR, VK_NULL_HANDLE, device);
+    }
+
+    // Functions for VK_KHR_maintenance1 or vulkan 1.1
+    if (physicalDeviceVersion >= VK_MAKE_VERSION(1, 1, 0)) {
+        ACQUIRE_PROC(TrimCommandPool, VK_NULL_HANDLE, device);
+    } else if (extensions->hasExtension(VK_KHR_MAINTENANCE1_EXTENSION_NAME, 1)) {
+        ACQUIRE_PROC_SUFFIX(TrimCommandPool, KHR, VK_NULL_HANDLE, device);
+    }
+
+    // Functions for VK_KHR_maintenance3 or vulkan 1.1
+    if (physicalDeviceVersion >= VK_MAKE_VERSION(1, 1, 0)) {
+        ACQUIRE_PROC(GetDescriptorSetLayoutSupport, VK_NULL_HANDLE, device);
+    } else if (extensions->hasExtension(VK_KHR_MAINTENANCE3_EXTENSION_NAME, 1)) {
+        ACQUIRE_PROC_SUFFIX(GetDescriptorSetLayoutSupport, KHR, VK_NULL_HANDLE, device);
+    }
+
+    // Functions for VK_KHR_external_memory_capabilities
+    if (physicalDeviceVersion >= VK_MAKE_VERSION(1, 1, 0)) {
+        ACQUIRE_PROC(GetPhysicalDeviceExternalBufferProperties, instance, VK_NULL_HANDLE);
+    } else if (extensions->hasExtension(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME, 1)) {
+        ACQUIRE_PROC_SUFFIX(GetPhysicalDeviceExternalBufferProperties, KHR, instance,
+                            VK_NULL_HANDLE);
+    }
+
+    // Functions for VK_KHR_sampler_ycbcr_conversion
+    if (physicalDeviceVersion >= VK_MAKE_VERSION(1, 1, 0)) {
+        ACQUIRE_PROC(CreateSamplerYcbcrConversion, VK_NULL_HANDLE, device);
+        ACQUIRE_PROC(DestroySamplerYcbcrConversion, VK_NULL_HANDLE, device);
+    } else if (extensions->hasExtension(VK_KHR_SAMPLER_YCBCR_CONVERSION_EXTENSION_NAME, 1)) {
+        ACQUIRE_PROC_SUFFIX(CreateSamplerYcbcrConversion, KHR, VK_NULL_HANDLE, device);
+        ACQUIRE_PROC_SUFFIX(DestroySamplerYcbcrConversion, KHR, VK_NULL_HANDLE, device);
+    }
+
+#ifdef SK_BUILD_FOR_ANDROID
+    // Functions for VK_ANDROID_external_memory_android_hardware_buffer
+    if (extensions->hasExtension(
+            VK_ANDROID_EXTERNAL_MEMORY_ANDROID_HARDWARE_BUFFER_EXTENSION_NAME, 2)) {
+        ACQUIRE_PROC_SUFFIX(GetAndroidHardwareBufferProperties, ANDROID, VK_NULL_HANDLE, device);
+        ACQUIRE_PROC_SUFFIX(GetMemoryAndroidHardwareBuffer, ANDROID, VK_NULL_HANDLE, device);
+    }
+#endif
+
 }
 
 #ifdef SK_DEBUG
@@ -198,153 +260,224 @@ GrVkInterface::GrVkInterface(GetProc getProc,
     if (kIsDebug) { SkDebugf("%s:%d GrVkInterface::validate() failed.\n", __FILE__, __LINE__); } \
     return false;
 
-bool GrVkInterface::validate(uint32_t extensionFlags) const {
+bool GrVkInterface::validate(uint32_t instanceVersion, uint32_t physicalDeviceVersion,
+                             const GrVkExtensions* extensions) const {
     // functions that are always required
-    if (NULL == fFunctions.fCreateInstance ||
-        NULL == fFunctions.fDestroyInstance ||
-        NULL == fFunctions.fEnumeratePhysicalDevices ||
-        NULL == fFunctions.fGetPhysicalDeviceFeatures ||
-        NULL == fFunctions.fGetPhysicalDeviceFormatProperties ||
-        NULL == fFunctions.fGetPhysicalDeviceImageFormatProperties ||
-        NULL == fFunctions.fGetPhysicalDeviceProperties ||
-        NULL == fFunctions.fGetPhysicalDeviceQueueFamilyProperties ||
-        NULL == fFunctions.fGetPhysicalDeviceMemoryProperties ||
-        NULL == fFunctions.fCreateDevice ||
-        NULL == fFunctions.fDestroyDevice ||
-        NULL == fFunctions.fEnumerateInstanceExtensionProperties ||
-        NULL == fFunctions.fEnumerateDeviceExtensionProperties ||
-        NULL == fFunctions.fEnumerateInstanceLayerProperties ||
-        NULL == fFunctions.fEnumerateDeviceLayerProperties ||
-        NULL == fFunctions.fGetDeviceQueue ||
-        NULL == fFunctions.fQueueSubmit ||
-        NULL == fFunctions.fQueueWaitIdle ||
-        NULL == fFunctions.fDeviceWaitIdle ||
-        NULL == fFunctions.fAllocateMemory ||
-        NULL == fFunctions.fFreeMemory ||
-        NULL == fFunctions.fMapMemory ||
-        NULL == fFunctions.fUnmapMemory ||
-        NULL == fFunctions.fFlushMappedMemoryRanges ||
-        NULL == fFunctions.fInvalidateMappedMemoryRanges ||
-        NULL == fFunctions.fGetDeviceMemoryCommitment ||
-        NULL == fFunctions.fBindBufferMemory ||
-        NULL == fFunctions.fBindImageMemory ||
-        NULL == fFunctions.fGetBufferMemoryRequirements ||
-        NULL == fFunctions.fGetImageMemoryRequirements ||
-        NULL == fFunctions.fGetImageSparseMemoryRequirements ||
-        NULL == fFunctions.fGetPhysicalDeviceSparseImageFormatProperties ||
-        NULL == fFunctions.fQueueBindSparse ||
-        NULL == fFunctions.fCreateFence ||
-        NULL == fFunctions.fDestroyFence ||
-        NULL == fFunctions.fResetFences ||
-        NULL == fFunctions.fGetFenceStatus ||
-        NULL == fFunctions.fWaitForFences ||
-        NULL == fFunctions.fCreateSemaphore ||
-        NULL == fFunctions.fDestroySemaphore ||
-        NULL == fFunctions.fCreateEvent ||
-        NULL == fFunctions.fDestroyEvent ||
-        NULL == fFunctions.fGetEventStatus ||
-        NULL == fFunctions.fSetEvent ||
-        NULL == fFunctions.fResetEvent ||
-        NULL == fFunctions.fCreateQueryPool ||
-        NULL == fFunctions.fDestroyQueryPool ||
-        NULL == fFunctions.fGetQueryPoolResults ||
-        NULL == fFunctions.fCreateBuffer ||
-        NULL == fFunctions.fDestroyBuffer ||
-        NULL == fFunctions.fCreateBufferView ||
-        NULL == fFunctions.fDestroyBufferView ||
-        NULL == fFunctions.fCreateImage ||
-        NULL == fFunctions.fDestroyImage ||
-        NULL == fFunctions.fGetImageSubresourceLayout ||
-        NULL == fFunctions.fCreateImageView ||
-        NULL == fFunctions.fDestroyImageView ||
-        NULL == fFunctions.fCreateShaderModule ||
-        NULL == fFunctions.fDestroyShaderModule ||
-        NULL == fFunctions.fCreatePipelineCache ||
-        NULL == fFunctions.fDestroyPipelineCache ||
-        NULL == fFunctions.fGetPipelineCacheData ||
-        NULL == fFunctions.fMergePipelineCaches ||
-        NULL == fFunctions.fCreateGraphicsPipelines ||
-        NULL == fFunctions.fCreateComputePipelines ||
-        NULL == fFunctions.fDestroyPipeline ||
-        NULL == fFunctions.fCreatePipelineLayout ||
-        NULL == fFunctions.fDestroyPipelineLayout ||
-        NULL == fFunctions.fCreateSampler ||
-        NULL == fFunctions.fDestroySampler ||
-        NULL == fFunctions.fCreateDescriptorSetLayout ||
-        NULL == fFunctions.fDestroyDescriptorSetLayout ||
-        NULL == fFunctions.fCreateDescriptorPool ||
-        NULL == fFunctions.fDestroyDescriptorPool ||
-        NULL == fFunctions.fResetDescriptorPool ||
-        NULL == fFunctions.fAllocateDescriptorSets ||
-        NULL == fFunctions.fFreeDescriptorSets ||
-        NULL == fFunctions.fUpdateDescriptorSets ||
-        NULL == fFunctions.fCreateFramebuffer ||
-        NULL == fFunctions.fDestroyFramebuffer ||
-        NULL == fFunctions.fCreateRenderPass ||
-        NULL == fFunctions.fDestroyRenderPass ||
-        NULL == fFunctions.fGetRenderAreaGranularity ||
-        NULL == fFunctions.fCreateCommandPool ||
-        NULL == fFunctions.fDestroyCommandPool ||
-        NULL == fFunctions.fResetCommandPool ||
-        NULL == fFunctions.fAllocateCommandBuffers ||
-        NULL == fFunctions.fFreeCommandBuffers ||
-        NULL == fFunctions.fBeginCommandBuffer ||
-        NULL == fFunctions.fEndCommandBuffer ||
-        NULL == fFunctions.fResetCommandBuffer ||
-        NULL == fFunctions.fCmdBindPipeline ||
-        NULL == fFunctions.fCmdSetViewport ||
-        NULL == fFunctions.fCmdSetScissor ||
-        NULL == fFunctions.fCmdSetLineWidth ||
-        NULL == fFunctions.fCmdSetDepthBias ||
-        NULL == fFunctions.fCmdSetBlendConstants ||
-        NULL == fFunctions.fCmdSetDepthBounds ||
-        NULL == fFunctions.fCmdSetStencilCompareMask ||
-        NULL == fFunctions.fCmdSetStencilWriteMask ||
-        NULL == fFunctions.fCmdSetStencilReference ||
-        NULL == fFunctions.fCmdBindDescriptorSets ||
-        NULL == fFunctions.fCmdBindIndexBuffer ||
-        NULL == fFunctions.fCmdBindVertexBuffers ||
-        NULL == fFunctions.fCmdDraw ||
-        NULL == fFunctions.fCmdDrawIndexed ||
-        NULL == fFunctions.fCmdDrawIndirect ||
-        NULL == fFunctions.fCmdDrawIndexedIndirect ||
-        NULL == fFunctions.fCmdDispatch ||
-        NULL == fFunctions.fCmdDispatchIndirect ||
-        NULL == fFunctions.fCmdCopyBuffer ||
-        NULL == fFunctions.fCmdCopyImage ||
-        NULL == fFunctions.fCmdBlitImage ||
-        NULL == fFunctions.fCmdCopyBufferToImage ||
-        NULL == fFunctions.fCmdCopyImageToBuffer ||
-        NULL == fFunctions.fCmdUpdateBuffer ||
-        NULL == fFunctions.fCmdFillBuffer ||
-        NULL == fFunctions.fCmdClearColorImage ||
-        NULL == fFunctions.fCmdClearDepthStencilImage ||
-        NULL == fFunctions.fCmdClearAttachments ||
-        NULL == fFunctions.fCmdResolveImage ||
-        NULL == fFunctions.fCmdSetEvent ||
-        NULL == fFunctions.fCmdResetEvent ||
-        NULL == fFunctions.fCmdWaitEvents ||
-        NULL == fFunctions.fCmdPipelineBarrier ||
-        NULL == fFunctions.fCmdBeginQuery ||
-        NULL == fFunctions.fCmdEndQuery ||
-        NULL == fFunctions.fCmdResetQueryPool ||
-        NULL == fFunctions.fCmdWriteTimestamp ||
-        NULL == fFunctions.fCmdCopyQueryPoolResults ||
-        NULL == fFunctions.fCmdPushConstants ||
-        NULL == fFunctions.fCmdBeginRenderPass ||
-        NULL == fFunctions.fCmdNextSubpass ||
-        NULL == fFunctions.fCmdEndRenderPass ||
-        NULL == fFunctions.fCmdExecuteCommands) {
+    if (nullptr == fFunctions.fCreateInstance ||
+        nullptr == fFunctions.fDestroyInstance ||
+        nullptr == fFunctions.fEnumeratePhysicalDevices ||
+        nullptr == fFunctions.fGetPhysicalDeviceFeatures ||
+        nullptr == fFunctions.fGetPhysicalDeviceFormatProperties ||
+        nullptr == fFunctions.fGetPhysicalDeviceImageFormatProperties ||
+        nullptr == fFunctions.fGetPhysicalDeviceProperties ||
+        nullptr == fFunctions.fGetPhysicalDeviceQueueFamilyProperties ||
+        nullptr == fFunctions.fGetPhysicalDeviceMemoryProperties ||
+        nullptr == fFunctions.fCreateDevice ||
+        nullptr == fFunctions.fDestroyDevice ||
+        nullptr == fFunctions.fEnumerateInstanceExtensionProperties ||
+        nullptr == fFunctions.fEnumerateDeviceExtensionProperties ||
+        nullptr == fFunctions.fEnumerateInstanceLayerProperties ||
+        nullptr == fFunctions.fEnumerateDeviceLayerProperties ||
+        nullptr == fFunctions.fGetDeviceQueue ||
+        nullptr == fFunctions.fQueueSubmit ||
+        nullptr == fFunctions.fQueueWaitIdle ||
+        nullptr == fFunctions.fDeviceWaitIdle ||
+        nullptr == fFunctions.fAllocateMemory ||
+        nullptr == fFunctions.fFreeMemory ||
+        nullptr == fFunctions.fMapMemory ||
+        nullptr == fFunctions.fUnmapMemory ||
+        nullptr == fFunctions.fFlushMappedMemoryRanges ||
+        nullptr == fFunctions.fInvalidateMappedMemoryRanges ||
+        nullptr == fFunctions.fGetDeviceMemoryCommitment ||
+        nullptr == fFunctions.fBindBufferMemory ||
+        nullptr == fFunctions.fBindImageMemory ||
+        nullptr == fFunctions.fGetBufferMemoryRequirements ||
+        nullptr == fFunctions.fGetImageMemoryRequirements ||
+        nullptr == fFunctions.fGetImageSparseMemoryRequirements ||
+        nullptr == fFunctions.fGetPhysicalDeviceSparseImageFormatProperties ||
+        nullptr == fFunctions.fQueueBindSparse ||
+        nullptr == fFunctions.fCreateFence ||
+        nullptr == fFunctions.fDestroyFence ||
+        nullptr == fFunctions.fResetFences ||
+        nullptr == fFunctions.fGetFenceStatus ||
+        nullptr == fFunctions.fWaitForFences ||
+        nullptr == fFunctions.fCreateSemaphore ||
+        nullptr == fFunctions.fDestroySemaphore ||
+        nullptr == fFunctions.fCreateEvent ||
+        nullptr == fFunctions.fDestroyEvent ||
+        nullptr == fFunctions.fGetEventStatus ||
+        nullptr == fFunctions.fSetEvent ||
+        nullptr == fFunctions.fResetEvent ||
+        nullptr == fFunctions.fCreateQueryPool ||
+        nullptr == fFunctions.fDestroyQueryPool ||
+        nullptr == fFunctions.fGetQueryPoolResults ||
+        nullptr == fFunctions.fCreateBuffer ||
+        nullptr == fFunctions.fDestroyBuffer ||
+        nullptr == fFunctions.fCreateBufferView ||
+        nullptr == fFunctions.fDestroyBufferView ||
+        nullptr == fFunctions.fCreateImage ||
+        nullptr == fFunctions.fDestroyImage ||
+        nullptr == fFunctions.fGetImageSubresourceLayout ||
+        nullptr == fFunctions.fCreateImageView ||
+        nullptr == fFunctions.fDestroyImageView ||
+        nullptr == fFunctions.fCreateShaderModule ||
+        nullptr == fFunctions.fDestroyShaderModule ||
+        nullptr == fFunctions.fCreatePipelineCache ||
+        nullptr == fFunctions.fDestroyPipelineCache ||
+        nullptr == fFunctions.fGetPipelineCacheData ||
+        nullptr == fFunctions.fMergePipelineCaches ||
+        nullptr == fFunctions.fCreateGraphicsPipelines ||
+        nullptr == fFunctions.fCreateComputePipelines ||
+        nullptr == fFunctions.fDestroyPipeline ||
+        nullptr == fFunctions.fCreatePipelineLayout ||
+        nullptr == fFunctions.fDestroyPipelineLayout ||
+        nullptr == fFunctions.fCreateSampler ||
+        nullptr == fFunctions.fDestroySampler ||
+        nullptr == fFunctions.fCreateDescriptorSetLayout ||
+        nullptr == fFunctions.fDestroyDescriptorSetLayout ||
+        nullptr == fFunctions.fCreateDescriptorPool ||
+        nullptr == fFunctions.fDestroyDescriptorPool ||
+        nullptr == fFunctions.fResetDescriptorPool ||
+        nullptr == fFunctions.fAllocateDescriptorSets ||
+        nullptr == fFunctions.fFreeDescriptorSets ||
+        nullptr == fFunctions.fUpdateDescriptorSets ||
+        nullptr == fFunctions.fCreateFramebuffer ||
+        nullptr == fFunctions.fDestroyFramebuffer ||
+        nullptr == fFunctions.fCreateRenderPass ||
+        nullptr == fFunctions.fDestroyRenderPass ||
+        nullptr == fFunctions.fGetRenderAreaGranularity ||
+        nullptr == fFunctions.fCreateCommandPool ||
+        nullptr == fFunctions.fDestroyCommandPool ||
+        nullptr == fFunctions.fResetCommandPool ||
+        nullptr == fFunctions.fAllocateCommandBuffers ||
+        nullptr == fFunctions.fFreeCommandBuffers ||
+        nullptr == fFunctions.fBeginCommandBuffer ||
+        nullptr == fFunctions.fEndCommandBuffer ||
+        nullptr == fFunctions.fResetCommandBuffer ||
+        nullptr == fFunctions.fCmdBindPipeline ||
+        nullptr == fFunctions.fCmdSetViewport ||
+        nullptr == fFunctions.fCmdSetScissor ||
+        nullptr == fFunctions.fCmdSetLineWidth ||
+        nullptr == fFunctions.fCmdSetDepthBias ||
+        nullptr == fFunctions.fCmdSetBlendConstants ||
+        nullptr == fFunctions.fCmdSetDepthBounds ||
+        nullptr == fFunctions.fCmdSetStencilCompareMask ||
+        nullptr == fFunctions.fCmdSetStencilWriteMask ||
+        nullptr == fFunctions.fCmdSetStencilReference ||
+        nullptr == fFunctions.fCmdBindDescriptorSets ||
+        nullptr == fFunctions.fCmdBindIndexBuffer ||
+        nullptr == fFunctions.fCmdBindVertexBuffers ||
+        nullptr == fFunctions.fCmdDraw ||
+        nullptr == fFunctions.fCmdDrawIndexed ||
+        nullptr == fFunctions.fCmdDrawIndirect ||
+        nullptr == fFunctions.fCmdDrawIndexedIndirect ||
+        nullptr == fFunctions.fCmdDispatch ||
+        nullptr == fFunctions.fCmdDispatchIndirect ||
+        nullptr == fFunctions.fCmdCopyBuffer ||
+        nullptr == fFunctions.fCmdCopyImage ||
+        nullptr == fFunctions.fCmdBlitImage ||
+        nullptr == fFunctions.fCmdCopyBufferToImage ||
+        nullptr == fFunctions.fCmdCopyImageToBuffer ||
+        nullptr == fFunctions.fCmdUpdateBuffer ||
+        nullptr == fFunctions.fCmdFillBuffer ||
+        nullptr == fFunctions.fCmdClearColorImage ||
+        nullptr == fFunctions.fCmdClearDepthStencilImage ||
+        nullptr == fFunctions.fCmdClearAttachments ||
+        nullptr == fFunctions.fCmdResolveImage ||
+        nullptr == fFunctions.fCmdSetEvent ||
+        nullptr == fFunctions.fCmdResetEvent ||
+        nullptr == fFunctions.fCmdWaitEvents ||
+        nullptr == fFunctions.fCmdPipelineBarrier ||
+        nullptr == fFunctions.fCmdBeginQuery ||
+        nullptr == fFunctions.fCmdEndQuery ||
+        nullptr == fFunctions.fCmdResetQueryPool ||
+        nullptr == fFunctions.fCmdWriteTimestamp ||
+        nullptr == fFunctions.fCmdCopyQueryPoolResults ||
+        nullptr == fFunctions.fCmdPushConstants ||
+        nullptr == fFunctions.fCmdBeginRenderPass ||
+        nullptr == fFunctions.fCmdNextSubpass ||
+        nullptr == fFunctions.fCmdEndRenderPass ||
+        nullptr == fFunctions.fCmdExecuteCommands) {
         RETURN_FALSE_INTERFACE
     }
 
-    if (extensionFlags & kEXT_debug_report_GrVkExtensionFlag) {
-        if (NULL == fFunctions.fCreateDebugReportCallbackEXT ||
-            NULL == fFunctions.fDebugReportMessageEXT ||
-            NULL == fFunctions.fDestroyDebugReportCallbackEXT) {
+    // Functions for VK_KHR_get_physical_device_properties2 or vulkan 1.1
+    if (physicalDeviceVersion >= VK_MAKE_VERSION(1, 1, 0) ||
+        extensions->hasExtension(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME, 1)) {
+        if (nullptr == fFunctions.fGetPhysicalDeviceFeatures2 ||
+            nullptr == fFunctions.fGetPhysicalDeviceProperties2 ||
+            nullptr == fFunctions.fGetPhysicalDeviceFormatProperties2 ||
+            nullptr == fFunctions.fGetPhysicalDeviceImageFormatProperties2 ||
+            nullptr == fFunctions.fGetPhysicalDeviceQueueFamilyProperties2 ||
+            nullptr == fFunctions.fGetPhysicalDeviceMemoryProperties2 ||
+            nullptr == fFunctions.fGetPhysicalDeviceSparseImageFormatProperties2) {
             RETURN_FALSE_INTERFACE
         }
     }
+
+    // Functions for VK_KHR_get_memory_requirements2 or vulkan 1.1
+    if (physicalDeviceVersion >= VK_MAKE_VERSION(1, 1, 0) ||
+        extensions->hasExtension(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME, 1)) {
+        if (nullptr == fFunctions.fGetImageMemoryRequirements2 ||
+            nullptr == fFunctions.fGetBufferMemoryRequirements2 ||
+            nullptr == fFunctions.fGetImageSparseMemoryRequirements2) {
+            RETURN_FALSE_INTERFACE
+        }
+    }
+
+    // Functions for VK_KHR_bind_memory2
+    if (physicalDeviceVersion >= VK_MAKE_VERSION(1, 1, 0) ||
+        extensions->hasExtension(VK_KHR_BIND_MEMORY_2_EXTENSION_NAME, 1)) {
+        if (nullptr == fFunctions.fBindBufferMemory2 ||
+            nullptr == fFunctions.fBindImageMemory2) {
+            RETURN_FALSE_INTERFACE
+        }
+    }
+
+    // Functions for VK_KHR_maintenance1 or vulkan 1.1
+    if (physicalDeviceVersion >= VK_MAKE_VERSION(1, 1, 0) ||
+        extensions->hasExtension(VK_KHR_MAINTENANCE1_EXTENSION_NAME, 1)) {
+        if (nullptr == fFunctions.fTrimCommandPool) {
+            RETURN_FALSE_INTERFACE
+        }
+    }
+
+    // Functions for VK_KHR_maintenance3 or vulkan 1.1
+    if (physicalDeviceVersion >= VK_MAKE_VERSION(1, 1, 0) ||
+        extensions->hasExtension(VK_KHR_MAINTENANCE3_EXTENSION_NAME, 1)) {
+        if (nullptr == fFunctions.fGetDescriptorSetLayoutSupport) {
+            RETURN_FALSE_INTERFACE
+        }
+    }
+
+    // Functions for VK_KHR_external_memory_capabilities
+    if (physicalDeviceVersion >= VK_MAKE_VERSION(1, 1, 0) ||
+        extensions->hasExtension(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME, 1)) {
+        if (nullptr == fFunctions.fGetPhysicalDeviceExternalBufferProperties) {
+            RETURN_FALSE_INTERFACE
+        }
+    }
+
+    // Functions for VK_KHR_sampler_ycbcr_conversion
+    if (physicalDeviceVersion >= VK_MAKE_VERSION(1, 1, 0) ||
+        extensions->hasExtension(VK_KHR_SAMPLER_YCBCR_CONVERSION_EXTENSION_NAME, 1)) {
+        if (nullptr == fFunctions.fCreateSamplerYcbcrConversion ||
+            nullptr == fFunctions.fDestroySamplerYcbcrConversion) {
+            RETURN_FALSE_INTERFACE
+        }
+    }
+
+#ifdef SK_BUILD_FOR_ANDROID
+    // Functions for VK_ANDROID_external_memory_android_hardware_buffer
+    if (extensions->hasExtension(
+            VK_ANDROID_EXTERNAL_MEMORY_ANDROID_HARDWARE_BUFFER_EXTENSION_NAME, 2)) {
+        if (nullptr == fFunctions.fGetAndroidHardwareBufferProperties ||
+            nullptr == fFunctions.fGetMemoryAndroidHardwareBuffer) {
+            RETURN_FALSE_INTERFACE
+        }
+    }
+#endif
+
     return true;
 }
 

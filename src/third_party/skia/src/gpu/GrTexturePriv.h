@@ -8,7 +8,8 @@
 #ifndef GrTexturePriv_DEFINED
 #define GrTexturePriv_DEFINED
 
-#include "GrTexture.h"
+#include "include/gpu/GrTexture.h"
+#include "src/gpu/GrSamplerState.h"
 
 /** Class that adds methods to GrTexture that are only intended for use internal to Skia.
     This class is purely a privileged window into GrTexture. It should never have additional data
@@ -17,49 +18,49 @@
     implemented privately in GrTexture with a inline public method here). */
 class GrTexturePriv {
 public:
-    void dirtyMipMaps(bool mipMapsDirty) {
-        fTexture->dirtyMipMaps(mipMapsDirty);
+    void markMipMapsDirty() {
+        fTexture->markMipMapsDirty();
     }
+
+    void markMipMapsClean() {
+        fTexture->markMipMapsClean();
+    }
+
+    GrMipMapsStatus mipMapsStatus() const { return fTexture->fMipMapsStatus; }
 
     bool mipMapsAreDirty() const {
-        return GrTexture::kValid_MipMapsStatus != fTexture->fMipMapsStatus;
+        return GrMipMapsStatus::kValid != this->mipMapsStatus();
     }
 
-    bool hasMipMaps() const {
-        return GrTexture::kNotAllocated_MipMapsStatus != fTexture->fMipMapsStatus;
-    }
-
-    void setMaxMipMapLevel(int maxMipMapLevel) const {
-        fTexture->fMaxMipMapLevel = maxMipMapLevel;
+    GrMipMapped mipMapped() const {
+        if (GrMipMapsStatus::kNotAllocated != this->mipMapsStatus()) {
+            return GrMipMapped::kYes;
+        }
+        return GrMipMapped::kNo;
     }
 
     int maxMipMapLevel() const {
         return fTexture->fMaxMipMapLevel;
     }
 
-    GrSLType imageStorageType() const {
-        if (GrPixelConfigIsSint(fTexture->config())) {
-            return kIImageStorage2D_GrSLType;
-        } else {
-            return kImageStorage2D_GrSLType;
-        }
+    GrTextureType textureType() const { return fTexture->fTextureType; }
+    bool hasRestrictedSampling() const {
+        return GrTextureTypeHasRestrictedSampling(this->textureType());
+    }
+    /** Filtering is clamped to this value. */
+    GrSamplerState::Filter highestFilterMode() const {
+        return this->hasRestrictedSampling() ? GrSamplerState::Filter::kBilerp
+                                             : GrSamplerState::Filter::kMipMap;
     }
 
-    GrSLType samplerType() const { return fTexture->fSamplerType; }
-
-    /** The filter used is clamped to this value in GrProcessor::TextureSampler. */
-    GrSamplerParams::FilterMode highestFilterMode() const { return fTexture->fHighestFilterMode; }
-
-    void setMipColorMode(SkDestinationSurfaceColorMode colorMode) const {
-        fTexture->fMipColorMode = colorMode;
-    }
-    SkDestinationSurfaceColorMode mipColorMode() const { return fTexture->fMipColorMode; }
-
-    static void ComputeScratchKey(const GrSurfaceDesc&, GrScratchKey*);
-    static void ComputeScratchKey(GrPixelConfig config, int width, int height,
-                                  GrSurfaceOrigin origin, bool isRenderTarget, int sampleCnt,
-                                  bool isMipMapped, GrScratchKey* key);
-
+    static void ComputeScratchKey(GrPixelConfig config,
+                                  int width,
+                                  int height,
+                                  GrRenderable,
+                                  int sampleCnt,
+                                  GrMipMapped,
+                                  GrProtected,
+                                  GrScratchKey* key);
 
 private:
     GrTexturePriv(GrTexture* texture) : fTexture(texture) { }

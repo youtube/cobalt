@@ -39,10 +39,7 @@ bool ShouldForceTextToSpeech() {
 
 }  // namespace
 
-H5vccAccessibility::H5vccAccessibility(
-    base::EventDispatcher* event_dispatcher,
-    const scoped_refptr<dom::Window>& window,
-    dom::MutationObserverTaskManager* mutation_observer_task_manager)
+H5vccAccessibility::H5vccAccessibility(base::EventDispatcher* event_dispatcher)
     : event_dispatcher_(event_dispatcher) {
   task_runner_ = base::MessageLoop::current()->task_runner();
   on_application_event_callback_ = base::Bind(

@@ -22,11 +22,39 @@
 
 #include "starboard/configuration.h"
 #include "starboard/export.h"
+#include "starboard/thread.h"
 #include "starboard/thread_types.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#if SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
+
+// Max size of the SbMutex type.
+#define SB_MUTEX_MAX_SIZE 64
+
+// An opaque handle to a mutex type with reserved memory
+// buffer of size SB_MUTEX_MAX_SIZE and aligned at void
+// pointer type.
+typedef union SbMutex {
+  // Reserved memory in which the implementation should map its
+  // native mutex type.
+  uint8_t mutex_buffer[SB_MUTEX_MAX_SIZE];
+
+  // Guarantees alignment of the type to a void pointer.
+  void* ptr;
+} SbMutex;
+
+#ifdef __cplusplus
+#define SB_MUTEX_INITIALIZER \
+  {}
+#else
+#define SB_MUTEX_INITIALIZER \
+  { 0 }
+#endif
+
+#endif  // SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
 
 // Enumeration of possible results from acquiring a mutex.
 typedef enum SbMutexResult {

@@ -211,6 +211,73 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
 
 }  // namespace
 
+AudioSampleInfo::AudioSampleInfo() {
+  SbMemorySet(this, 0, sizeof(SbMediaAudioSampleInfo));
+#if SB_API_VERSION >= 11
+  codec = kSbMediaAudioCodecNone;
+#endif  // SB_API_VERSION >= 11
+}
+
+AudioSampleInfo::AudioSampleInfo(const SbMediaAudioSampleInfo& that) {
+  *this = that;
+}
+
+AudioSampleInfo& AudioSampleInfo::operator=(
+    const SbMediaAudioSampleInfo& that) {
+  *static_cast<SbMediaAudioSampleInfo*>(this) = that;
+  if (audio_specific_config_size > 0) {
+    audio_specific_config_storage.resize(audio_specific_config_size);
+    SbMemoryCopy(audio_specific_config_storage.data(), audio_specific_config,
+                 audio_specific_config_size);
+    audio_specific_config = audio_specific_config_storage.data();
+  }
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  if (codec == kSbMediaAudioCodecNone) {
+    mime_storage.clear();
+  } else {
+    SB_DCHECK(that.mime);
+    mime_storage = that.mime;
+  }
+  mime = mime_storage.c_str();
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  return *this;
+}
+
+VideoSampleInfo::VideoSampleInfo() {
+  SbMemorySet(this, 0, sizeof(SbMediaAudioSampleInfo));
+#if SB_API_VERSION >= 11
+  codec = kSbMediaVideoCodecNone;
+#endif  // SB_API_VERSION >= 11
+}
+
+VideoSampleInfo::VideoSampleInfo(const SbMediaVideoSampleInfo& that) {
+  *this = that;
+}
+
+VideoSampleInfo& VideoSampleInfo::operator=(
+    const SbMediaVideoSampleInfo& that) {
+  *static_cast<SbMediaVideoSampleInfo*>(this) = that;
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  if (codec == kSbMediaVideoCodecNone) {
+    mime_storage.clear();
+    max_video_capabilities_storage.clear();
+  } else {
+    SB_DCHECK(that.mime);
+    mime_storage = that.mime;
+    max_video_capabilities_storage = that.max_video_capabilities;
+  }
+  mime = mime_storage.c_str();
+  max_video_capabilities = max_video_capabilities_storage.c_str();
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+#if SB_API_VERSION < 11
+  if (color_metadata) {
+    color_metadata_storage = *color_metadata;
+    color_metadata = &color_metadata_storage;
+  }
+#endif  // SB_API_VERSION < 11
+  return *this;
+}
+
 bool IsAudioOutputSupported(SbMediaAudioCodingType coding_type, int channels) {
   int count = SbMediaGetAudioOutputCount();
 
@@ -577,7 +644,21 @@ bool operator==(const SbMediaVideoSampleInfo& sample_info_1,
   if (sample_info_1.codec != sample_info_2.codec) {
     return false;
   }
+  if (sample_info_1.codec == kSbMediaVideoCodecNone) {
+    return true;
+  }
 #endif  // SB_API_VERSION >= 11
+
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  if (SbStringCompareAll(sample_info_1.mime, sample_info_2.mime) != 0) {
+    return false;
+  }
+  if (SbStringCompareAll(sample_info_1.max_video_capabilities,
+                         sample_info_2.max_video_capabilities) != 0) {
+    return false;
+  }
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
   if (sample_info_1.is_key_frame != sample_info_2.is_key_frame) {
     return false;
   }

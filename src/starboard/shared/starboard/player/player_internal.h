@@ -20,12 +20,14 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/player_worker.h"
 #include "starboard/time.h"
 #include "starboard/window.h"
 
 struct SbPlayerPrivate {
  public:
+  typedef starboard::shared::starboard::media::AudioSampleInfo AudioSampleInfo;
   typedef starboard::shared::starboard::player::PlayerWorker PlayerWorker;
 
   static SbPlayerPrivate* CreateInstance(
@@ -92,7 +94,7 @@ struct SbPlayerPrivate {
   SbPlayerDeallocateSampleFunc sample_deallocate_func_;
   void* context_;
 #if SB_API_VERSION < 11
-  SbMediaAudioSampleInfo audio_sample_info_;
+  AudioSampleInfo audio_sample_info_;
 #endif  // SB_API_VERSION < 11
 
   starboard::Mutex mutex_;

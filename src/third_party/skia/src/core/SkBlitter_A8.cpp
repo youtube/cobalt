@@ -5,10 +5,10 @@
  * found in the LICENSE file.
  */
 
-#include "SkCoreBlitters.h"
-#include "SkColorPriv.h"
-#include "SkShader.h"
-#include "SkXfermodePriv.h"
+#include "include/core/SkShader.h"
+#include "include/private/SkColorData.h"
+#include "src/core/SkCoreBlitters.h"
+#include "src/core/SkXfermodePriv.h"
 
 SkA8_Coverage_Blitter::SkA8_Coverage_Blitter(const SkPixmap& device,
                              const SkPaint& paint) : SkRasterBlitter(device) {
@@ -67,7 +67,10 @@ void SkA8_Coverage_Blitter::blitRect(int x, int y, int width, int height) {
 }
 
 void SkA8_Coverage_Blitter::blitMask(const SkMask& mask, const SkIRect& clip) {
-    SkASSERT(SkMask::kA8_Format == mask.fFormat);
+    if (SkMask::kA8_Format != mask.fFormat) {
+        this->INHERITED::blitMask(mask, clip);
+        return;
+    }
 
     int x = clip.fLeft;
     int y = clip.fTop;

@@ -8,10 +8,11 @@
 #ifndef SKSL_BINARYEXPRESSION
 #define SKSL_BINARYEXPRESSION
 
-#include "SkSLExpression.h"
-#include "SkSLExpression.h"
-#include "../SkSLIRGenerator.h"
-#include "../SkSLToken.h"
+#include "src/sksl/SkSLCompiler.h"
+#include "src/sksl/SkSLIRGenerator.h"
+#include "src/sksl/SkSLLexer.h"
+#include "src/sksl/ir/SkSLExpression.h"
+#include "src/sksl/ir/SkSLExpression.h"
 
 namespace SkSL {
 
@@ -19,9 +20,9 @@ namespace SkSL {
  * A binary operation.
  */
 struct BinaryExpression : public Expression {
-    BinaryExpression(Position position, std::unique_ptr<Expression> left, Token::Kind op,
+    BinaryExpression(int offset, std::unique_ptr<Expression> left, Token::Kind op,
                      std::unique_ptr<Expression> right, const Type& type)
-    : INHERITED(position, kBinary_Kind, type)
+    : INHERITED(offset, kBinary_Kind, type)
     , fLeft(std::move(left))
     , fOperator(op)
     , fRight(std::move(right)) {}
@@ -34,12 +35,17 @@ struct BinaryExpression : public Expression {
     }
 
     bool hasSideEffects() const override {
-        return Token::IsAssignment(fOperator) || fLeft->hasSideEffects() ||
+        return Compiler::IsAssignment(fOperator) || fLeft->hasSideEffects() ||
                fRight->hasSideEffects();
     }
 
+    std::unique_ptr<Expression> clone() const override {
+        return std::unique_ptr<Expression>(new BinaryExpression(fOffset, fLeft->clone(), fOperator,
+                                                                fRight->clone(), fType));
+    }
+
     String description() const override {
-        return "(" + fLeft->description() + " " + Token::OperatorName(fOperator) + " " +
+        return "(" + fLeft->description() + " " + Compiler::OperatorName(fOperator) + " " +
                fRight->description() + ")";
     }
 

@@ -6,19 +6,11 @@
  */
 
 
-#include "SkTSearch.h"
+#include "src/core/SkTSearch.h"
 
-#include "SkMalloc.h"
+#include "include/private/SkMalloc.h"
 
-#if defined(STARBOARD)
-#include "starboard/character.h"
-#include "starboard/common/string.h"
-#define strncmp SbStringCompare
-#define strlen SbStringGetLength
-#define tolower SbCharacterToLower
-#else
 #include <ctype.h>
-#endif
 
 static inline const char* index_into_base(const char*const* base, int index,
                                           size_t elemSize)

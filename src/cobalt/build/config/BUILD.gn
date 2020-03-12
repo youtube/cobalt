@@ -56,10 +56,6 @@ config("compiler_defaults") {
   if (enable_in_app_dial) {
     defines += [ "DIAL_SERVER" ]
   }
-
-  if (!enable_spdy) {
-    defines += [ "COBALT_DISABLE_SPDY" ]
-  }
 }
 
 config("final_executable_target_config") {

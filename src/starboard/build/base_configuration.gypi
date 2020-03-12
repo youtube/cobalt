@@ -44,6 +44,10 @@
     # Where yasm can be found on the target device.
     'path_to_yasm%': "yasm",
 
+    # The Starboard API version of the current build configuration. The default
+    # value is meant to be overridden by a Starboard ABI file.
+    'sb_api_version%': 0,
+
     # Enabling this variable enables pedantic levels of warnings for the current
     # toolchain.
     'sb_pedantic_warnings%': 0,
@@ -203,9 +207,8 @@
     'conditions': [
       ['host_os=="linux"', {
         'conditions': [
-          ['target_arch=="arm" or target_arch=="ia32" or target_arch=="x32"\
-           or target_arch=="mips" or target_arch=="mipsel" or\
-           target_arch=="ppc"', {
+          ['target_arch=="arm" or target_arch=="x86" or target_arch=="mips" or \
+	    target_arch=="mipsel" or target_arch=="ppc"', {
             # All the 32 bit CPU architectures v8 supports.
             'compiler_flags_cc_host%': [
               '-m32',

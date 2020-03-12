@@ -146,6 +146,9 @@ SbAudioSink StubAudioSinkType::Create(
     int frame_buffers_size_in_frames,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     SbAudioSinkConsumeFramesFunc consume_frames_func,
+#if SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
+    SbAudioSinkPrivate::ErrorFunc error_func,
+#endif  // SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
     void* context) {
   SB_UNREFERENCED_PARAMETER(audio_frame_storage_type);
   SB_UNREFERENCED_PARAMETER(audio_sample_type);

@@ -45,7 +45,7 @@ def DoMain(_):
 
   # Convert machine type to format recognized by gyp.
   if re.match(r'i.86', host_arch) or host_arch == 'i86pc':
-    host_arch = 'ia32'
+    host_arch = 'x86'
   elif host_arch in ['x86_64', 'amd64']:
     host_arch = 'x64'
   elif host_arch.startswith('arm'):
@@ -69,7 +69,7 @@ def DoMain(_):
   # Distinguish between different userland bitness by querying
   # the python binary.
   if host_arch == 'x64' and platform.architecture()[0] == '32bit':
-    host_arch = 'ia32'
+    host_arch = 'x86'
 
   return host_arch
 

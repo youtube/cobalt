@@ -215,10 +215,14 @@ void StarboardPlayer::UpdateVideoConfig(
   video_sample_info_.color_metadata =
       MediaToSbMediaColorMetadata(video_config_.webm_color_metadata());
 #else   // SB_API_VERSION >= 11
-  media_color_metadata =
+  media_color_metadata_ =
       MediaToSbMediaColorMetadata(video_config_.webm_color_metadata());
-  video_sample_info_.color_metadata = &media_color_metadata;
+  video_sample_info_.color_metadata = &media_color_metadata_;
 #endif  // SB_API_VERSION >= 11
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  video_sample_info_.mime = video_config_.mime().c_str();
+  video_sample_info_.max_video_capabilities = max_video_capabilities_.c_str();
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 }
 
 void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
@@ -562,15 +566,10 @@ void StarboardPlayer::CreatePlayer() {
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
   SbPlayerCreationParam creation_param = {};
-  creation_param.audio_mime =
-      audio_config_.IsValidConfig() ? audio_config_.mime().c_str() : "";
-  creation_param.video_mime =
-      video_config_.IsValidConfig() ? video_config_.mime().c_str() : "";
   creation_param.drm_system = drm_system_;
   creation_param.audio_sample_info = audio_sample_info_;
   creation_param.video_sample_info = video_sample_info_;
   creation_param.output_mode = output_mode_;
-  creation_param.max_video_capabilities = max_video_capabilities_.c_str();
   DCHECK_EQ(SbPlayerGetPreferredOutputMode(&creation_param), output_mode_);
   player_ = SbPlayerCreate(
       window_, &creation_param, &StarboardPlayer::DeallocateSampleCB,
@@ -966,14 +965,9 @@ SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
     bool prefer_decode_to_texture) const {
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   SbPlayerCreationParam creation_param = {};
-  creation_param.audio_mime =
-      audio_config_.IsValidConfig() ? audio_config_.mime().c_str() : "";
-  creation_param.video_mime =
-      video_config_.IsValidConfig() ? video_config_.mime().c_str() : "";
   creation_param.drm_system = drm_system_;
   creation_param.audio_sample_info = audio_sample_info_;
   creation_param.video_sample_info = video_sample_info_;
-  creation_param.max_video_capabilities = max_video_capabilities_.c_str();
 
   // Try to choose |kSbPlayerOutputModeDecodeToTexture| when
   // |prefer_decode_to_texture| is true.

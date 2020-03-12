@@ -30,8 +30,6 @@ class PbufferSurfaceImplStub : public SurfaceImplStub {
   PbufferSurfaceImplStub(int width, int height);
   virtual ~PbufferSurfaceImplStub();
 
-  bool IsDisplayRenderTarget() const SB_OVERRIDE { return false; }
-
   int GetWidth() const SB_OVERRIDE { return width_; }
   int GetHeight() const SB_OVERRIDE { return height_; }
 

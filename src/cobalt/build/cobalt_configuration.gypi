@@ -212,9 +212,6 @@
     # Set to 1 to enable H5vccSSO (Single Sign On).
     'enable_sso%': 0,
 
-    # Set to 1 to compile with SPDY support.
-    'enable_spdy%': 1,
-
     # Set to 1 to enable filtering of HTTP headers before sending.
     'enable_xhr_header_filtering%': 0,
 
@@ -253,7 +250,6 @@
     # texture memory usage (though it doesn't consider video textures and
     # display color buffers):
     #   - skia_cache_size_in_bytes (GLES2 rasterizer only)
-    #   - scratch_surface_cache_size_in_bytes
     #   - image_cache_size_in_bytes
     #   - skia_glyph_atlas_width * skia_glyph_atlas_height
     #
@@ -266,12 +262,6 @@
     # using the hardware-accelerated Skia rasterizer (e.g. as opposed to the
     # Blitter API).
     'skia_cache_size_in_bytes%': 4 * 1024 * 1024,
-
-    # Determines the capacity of the scratch surface cache.  The scratch
-    # surface cache facilitates the reuse of temporary offscreen surfaces
-    # within a single frame.  This setting is only relevant when using the
-    # hardware-accelerated Skia rasterizer.
-    'scratch_surface_cache_size_in_bytes%': 0,
 
     # Determines the amount of GPU memory the offscreen target atlases will
     # use. This is specific to the direct-GLES rasterizer and caches any render
@@ -586,11 +576,6 @@
       ['in_app_dial == 1', {
         'defines': [
           'DIAL_SERVER',
-        ],
-      }],
-      ['enable_spdy == 0', {
-        'defines': [
-          'COBALT_DISABLE_SPDY',
         ],
       }],
       ['enable_debugger == 1', {

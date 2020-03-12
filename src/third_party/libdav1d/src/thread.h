@@ -28,6 +28,190 @@
 #ifndef DAV1D_SRC_THREAD_H
 #define DAV1D_SRC_THREAD_H
 
+#ifdef STARBOARD
+
+#include <errno.h>
+
+#include "starboard/common/log.h"
+#include "starboard/condition_variable.h"
+#include "starboard/mutex.h"
+#include "starboard/once.h"
+#include "starboard/thread.h"
+#include "starboard/thread_types.h"
+
+typedef SbThread dav1d_pthread_t;
+typedef SbMutex dav1d_pthread_mutex_t;
+typedef SbConditionVariable dav1d_pthread_cond_t;
+typedef SbOnceControl dav1d_pthread_once_t;
+typedef struct { int64_t stack_size; } dav1d_pthread_attr_t;
+
+#define dav1d_set_thread_name SbThreadSetName
+#define dav1d_init_thread() \
+  do {                      \
+  } while (0)
+
+// pthread interface
+static inline int dav1d_pthread_create(dav1d_pthread_t* thread,
+                                       const dav1d_pthread_attr_t* attr,
+                                       void* (*func)(void*),
+                                       void* arg);
+static inline int dav1d_pthread_join(dav1d_pthread_t* thread, void** res);
+static inline int dav1d_pthread_once(dav1d_pthread_once_t* once_control,
+                                     void (*init_routine)(void));
+
+// pthread attributes
+static inline int dav1d_pthread_attr_init(dav1d_pthread_attr_t* const attr);
+static inline int dav1d_pthread_attr_destroy(dav1d_pthread_attr_t* const attr);
+static inline int dav1d_pthread_attr_setstacksize(
+    dav1d_pthread_attr_t* const attr,
+    const int64_t stack_size);
+
+// pthread mutex
+static inline int dav1d_pthread_mutex_init(dav1d_pthread_mutex_t* const mutex,
+                                           const void* const attr);
+static inline int dav1d_pthread_mutex_destroy(
+    dav1d_pthread_mutex_t* const mutex);
+static inline int dav1d_pthread_mutex_lock(dav1d_pthread_mutex_t* const mutex);
+static inline int dav1d_pthread_mutex_unlock(
+    dav1d_pthread_mutex_t* const mutex);
+
+// pthread condition variable
+static inline int dav1d_pthread_cond_init(dav1d_pthread_cond_t* const cond,
+                                          const void* const attr);
+static inline int dav1d_pthread_cond_destroy(dav1d_pthread_cond_t* const cond);
+static inline int dav1d_pthread_cond_wait(dav1d_pthread_cond_t* const cond,
+                                          dav1d_pthread_mutex_t* const mutex);
+static inline int dav1d_pthread_cond_signal(dav1d_pthread_cond_t* const cond);
+static inline int dav1d_pthread_cond_broadcast(
+    dav1d_pthread_cond_t* const cond);
+
+// static
+int dav1d_pthread_create(dav1d_pthread_t* thread,
+                         const dav1d_pthread_attr_t* attr,
+                         void* (*func)(void*),
+                         void* arg) {
+  *thread = SbThreadCreate(attr->stack_size, kSbThreadNoPriority,
+                           kSbThreadNoAffinity, true, NULL, func, arg);
+  // Options for errno are EAGAIN, EINVAL or EPERM.
+  // In the case of SbThreadCreate failure, EINVAL is the most appropriate.
+  // https://pubs.opengroup.org/onlinepubs/7908799/xsh/pthread_create.html
+  return SbThreadIsValid(*thread) ? 0 : EINVAL;
+}
+
+// static
+int dav1d_pthread_join(dav1d_pthread_t* thread, void** res) {
+  if (SbThreadIsEqual(SbThreadGetCurrent(), *thread)) {
+    return EDEADLK;
+  }
+  // Note: all threads are joinable in this context.
+  // Thus the only failure case for SbThreadJoin is that no thread could be
+  // found corresponding to the given thread ID.
+  // https://pubs.opengroup.org/onlinepubs/7908799/xsh/pthread_join.html
+  return SbThreadJoin(*thread, res) ? 0 : ESRCH;
+}
+
+// static
+int dav1d_pthread_once(dav1d_pthread_once_t* once_control,
+                       void (*init_routine)(void)) {
+  // No errors are defined so we default to EINVAL.
+  // https://pubs.opengroup.org/onlinepubs/7908799/xsh/pthread_once.html
+  return SbOnce(once_control, init_routine) ? 0 : EINVAL;
+}
+
+// static
+int dav1d_pthread_attr_init(dav1d_pthread_attr_t* const attr) {
+  attr->stack_size = 0;
+  return 0;
+}
+
+// static
+int dav1d_pthread_attr_destroy(dav1d_pthread_attr_t* const attr) {
+  return 0;
+}
+
+// static
+int dav1d_pthread_attr_setstacksize(dav1d_pthread_attr_t* const attr,
+                                    const int64_t stack_size) {
+  attr->stack_size = stack_size;
+  return 0;
+}
+
+// static
+int dav1d_pthread_mutex_init(dav1d_pthread_mutex_t* const mutex,
+                             const void* const attr) {
+  SB_UNREFERENCED_PARAMETER(attr);
+  SbMutexCreate(mutex);
+  return 0;
+}
+
+// static
+int dav1d_pthread_mutex_destroy(dav1d_pthread_mutex_t* const mutex) {
+  SbMutexDestroy(mutex);
+  return 0;
+}
+
+// static
+int dav1d_pthread_mutex_lock(dav1d_pthread_mutex_t* const mutex) {
+  SbMutexAcquire(mutex);
+  return 0;
+}
+
+// static
+int dav1d_pthread_mutex_unlock(dav1d_pthread_mutex_t* const mutex) {
+  SbMutexRelease(mutex);
+  return 0;
+}
+
+// static
+int dav1d_pthread_cond_init(dav1d_pthread_cond_t* const cond,
+                            const void* const attr) {
+  SB_UNREFERENCED_PARAMETER(attr);
+  SbConditionVariableCreate(cond, NULL);
+  return 0;
+}
+
+// static
+int dav1d_pthread_cond_destroy(dav1d_pthread_cond_t* const cond) {
+  SbConditionVariableDestroy(cond);
+  return 0;
+}
+
+// static
+int dav1d_pthread_cond_wait(dav1d_pthread_cond_t* const cond,
+                            dav1d_pthread_mutex_t* const mutex) {
+  switch (SbConditionVariableWait(cond, mutex)) {
+    case kSbConditionVariableSignaled: {
+      return 0;
+    }
+    case kSbConditionVariableTimedOut: {
+      return ETIMEDOUT;
+    }
+    case kSbConditionVariableFailed: {
+      return EINVAL;
+    }
+  }
+  SB_NOTREACHED();
+  return EINVAL;
+}
+
+// static
+int dav1d_pthread_cond_signal(dav1d_pthread_cond_t* const cond) {
+  SbConditionVariableSignal(cond);
+  return 0;
+}
+
+// static
+int dav1d_pthread_cond_broadcast(dav1d_pthread_cond_t* const cond) {
+  SbConditionVariableBroadcast(cond);
+  return 0;
+}
+
+#ifndef DAV1D_PTHREAD_ONCE_INIT
+#define DAV1D_PTHREAD_ONCE_INIT SB_ONCE_INITIALIZER
+#endif
+
+#else  // STARBOARD
+
 #if defined(_WIN32)
 
 #include <windows.h>
@@ -174,5 +358,7 @@ static inline void dav1d_set_thread_name(const char *const name) {
 #endif
 
 #endif
+
+#endif  // STARBOARD
 
 #endif /* DAV1D_SRC_THREAD_H */

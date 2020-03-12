@@ -148,7 +148,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     retry_count = 0
     expected_prompts = [
         r'.*Are\syou\ssure.*',  # Fingerprint verification
-        r'\S+ password:',  # Password prompt
+        r'.* password:',  # Password prompt
         '.*[a-zA-Z]+.*',  # Any other text input
     ]
     while True:
@@ -266,3 +266,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self.shutdown_initiated.set()
     # Wait up to three seconds for the run to be set to inactive.
     self.run_inactive.wait(3)
+
+  def GetDeviceIp(self):
+    """Gets the device IP."""
+    return self.device_id

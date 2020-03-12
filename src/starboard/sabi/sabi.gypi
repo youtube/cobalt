@@ -104,9 +104,15 @@
     ],
     'conditions': [
       ['endianness=="little"', {
-        'defines': ['SB_IS_BIG_ENDIAN=0'],
+        'defines': [
+          'SB_IS_BIG_ENDIAN=0',
+          'SB_IS_LITTLE_ENDIAN=1',
+        ],
       }, {
-        'defines': ['SB_IS_BIG_ENDIAN=1'],
+        'defines': [
+          'SB_IS_BIG_ENDIAN=1',
+          'SB_IS_LITTLE_ENDIAN=0',
+        ],
       }],
       ['signedness_of_char=="signed"', {
         'defines': ['SB_HAS_SIGNED_CHAR=1'],
@@ -117,26 +123,6 @@
         'defines': ['SB_HAS_SIGNED_ENUM=1'],
       }, {
         'defines': ['SB_HAS_SIGNED_ENUM=0'],
-      }],
-      # TODO: Remove when all platforms have adopted the ABI manifest.
-      ['size_of_pointer==4', {
-        'defines': ['SB_HAS_32_BIT_POINTERS=1'],
-      }, {
-        'defines': ['SB_HAS_64_BIT_POINTERS=1'],
-      }],
-      # TODO: Remove when all platforms have adopted the ABI manifest.
-      ['size_of_long==4', {
-        'defines': ['SB_HAS_32_BIT_LONG=1'],
-      }, {
-        'defines': ['SB_HAS_64_BIT_LONG=1'],
-      }],
-      # TODO: Remove when all platforms have adopted the ABI manifest.
-      ['target_arch=="arm64"', {
-        'defines': ['SB_IS_ARCH_ARM=1'],
-      }],
-      # TODO: Remove when all platforms have adopted the ABI manifest.
-      ['target_arch=="x64" or target_arch=="ia32"', {
-        'defines': ['SB_IS_ARCH_X86=1'],
       }],
     ],
   },

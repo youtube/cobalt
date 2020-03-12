@@ -40,7 +40,7 @@ void Texture::Initialize(GLint level,
   texture_allocated_ = true;
 }
 
-void Texture::UpdateData(GLint level,
+bool Texture::UpdateData(GLint level,
                          GLint xoffset,
                          GLint yoffset,
                          GLsizei width,
@@ -48,8 +48,9 @@ void Texture::UpdateData(GLint level,
                          int pitch_in_bytes,
                          const GLvoid* pixels) {
   SB_DCHECK(pixels != NULL);
-  impl_->UpdateData(level, nb::Rect<int>(xoffset, yoffset, width, height),
-                    pitch_in_bytes, pixels);
+  return impl_->UpdateData(level,
+                           nb::Rect<int>(xoffset, yoffset, width, height),
+                           pitch_in_bytes, pixels);
 }
 
 void Texture::UpdateDataFromBuffer(

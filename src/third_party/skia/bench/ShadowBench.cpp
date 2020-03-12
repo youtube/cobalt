@@ -4,11 +4,12 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
-#include "Benchmark.h"
-#include "SkCanvas.h"
-#include "SkPaint.h"
-#include "SkDrawShadowRec.h"
-#include "SkShadowUtils.h"
+#include "bench/Benchmark.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkPath.h"
+#include "include/utils/SkShadowUtils.h"
+#include "src/core/SkDrawShadowInfo.h"
 
 class ShadowBench : public Benchmark {
 // Draws a set of shadowed rrects filling the canvas, in various modes:
@@ -20,8 +21,6 @@ public:
         , fForceGeometric(forceGeometric) {
         computeName("shadows");
     }
-
-    bool isVisual() override { return true; }
 
 protected:
     enum {
@@ -64,9 +63,8 @@ protected:
         fRec.fZPlaneParams = SkPoint3::Make(0, 0, kElevation);
         fRec.fLightPos = SkPoint3::Make(270, 0, 600);
         fRec.fLightRadius = 800;
-        fRec.fAmbientAlpha = 0.1f;
-        fRec.fSpotAlpha = 0.25f;
-        fRec.fColor = SK_ColorBLACK;
+        fRec.fAmbientColor = 0x19000000;
+        fRec.fSpotColor = 0x40000000;
         fRec.fFlags = 0;
         if (fTransparent) {
             fRec.fFlags |= SkShadowFlags::kTransparentOccluder_ShadowFlag;

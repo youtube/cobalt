@@ -13,6 +13,19 @@
 # limitations under the License.
 
 {
+  'variables': {
+    'variables': {
+      'has_nb_platform': '<!(test -e <(sb_target_platform)/nb_platform.gyp && echo 1 || echo 0)',
+    },
+    'nb_dependencies': [],
+    'conditions': [
+      ['has_nb_platform==1', {
+        'nb_dependencies': [
+          '<(DEPTH)/nb/<(sb_target_platform)/nb_platform.gyp:nb_platform',
+        ],
+      }],
+    ],
+  },
   'targets': [
     {
       'target_name': 'nb',
@@ -73,14 +86,7 @@
           ],
           'dependencies': [
             '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
-          ],
-        }],
-        ['sb_target_platform == "ps4"', {
-          'sources': [
-            'kernel_contiguous_allocator_ps4.cc',
-            'kernel_contiguous_allocator_ps4.h',
-            'kernel_no_free_allocator_ps4.cc',
-            'kernel_no_free_allocator_ps4.h',
+            '<@(nb_dependencies)',
           ],
         }],
       ],

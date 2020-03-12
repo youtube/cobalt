@@ -35,9 +35,11 @@ class ContextImplStub : public ContextImpl {
   ContextImpl::ExtensionList GetExtensions() const SB_OVERRIDE;
   int GetMaxVertexAttribs() const SB_OVERRIDE;
   int GetMaxFragmentTextureUnits() const SB_OVERRIDE;
+  int GetMaxCombinedTextureImageUnits() const SB_OVERRIDE;
   int GetMaxTextureSize() const SB_OVERRIDE;
   int GetMaxRenderbufferSize() const SB_OVERRIDE;
   int GetMaxFragmentUniformVectors() const SB_OVERRIDE;
+  int GetMaxVertexTextureImageUnits() const SB_OVERRIDE { return 0; }
 
   nb::scoped_ptr<ProgramImpl> CreateProgram() SB_OVERRIDE;
 

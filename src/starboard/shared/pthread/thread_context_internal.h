@@ -15,11 +15,24 @@
 #ifndef STARBOARD_SHARED_PTHREAD_THREAD_CONTEXT_INTERNAL_H_
 #define STARBOARD_SHARED_PTHREAD_THREAD_CONTEXT_INTERNAL_H_
 
+#include <signal.h>
+
 #include "starboard/thread.h"
 
 #if SB_API_VERSION >= 11
 struct SbThreadContextPrivate {
-  ucontext_t* ucontext = nullptr;
+  explicit SbThreadContextPrivate(ucontext_t* ucontext);
+
+  SbThreadContextPrivate() = default;
+  SbThreadContextPrivate(const SbThreadContextPrivate&) = default;
+  SbThreadContextPrivate(SbThreadContextPrivate&&) = default;
+  SbThreadContextPrivate& operator=(const SbThreadContextPrivate&) = default;
+  SbThreadContextPrivate& operator=(SbThreadContextPrivate&&) = default;
+
+  void* ip_ = nullptr;
+  void* sp_ = nullptr;
+  void* fp_ = nullptr;
+  void* lr_ = nullptr;
 };
 #endif  // SB_API_VERSION >= 11
 

@@ -14,7 +14,11 @@
 
 {
   'variables': {
-    'target_arch': 'ia32',
+    'target_arch': 'x86',
+    # Android x86 does not support the instruction set required by SSE4, while
+    # Opus still tries to build all SSE code in for run time selection, causing
+    # build errors. Exclude all SSE-related code.
+    'sb_disable_opus_sse': 1,
   },
 
   'target_defaults': {

@@ -5,8 +5,9 @@
  * found in the LICENSE file.
  */
 
-#include "SkRasterClip.h"
-#include "SkPath.h"
+#include "include/core/SkPath.h"
+#include "src/core/SkRasterClip.h"
+#include "src/core/SkRegionPriv.h"
 
 enum MutateResult {
     kDoNothing_MutateResult,
@@ -56,12 +57,12 @@ static MutateResult mutate_conservative_op(SkRegion::Op* op, bool inverseFilled)
                 return kContinue_MutateResult;
         }
     }
-    SkFAIL("should not get here");
+    SkASSERT(false);    // unknown op
     return kDoNothing_MutateResult;
 }
 
-void SkConservativeClip::op(const SkRect& localRect, const SkMatrix& ctm, const SkIRect& devBounds,
-                            SkRegion::Op op, bool doAA) {
+void SkConservativeClip::opRect(const SkRect& localRect, const SkMatrix& ctm,
+                                const SkIRect& devBounds, SkRegion::Op op, bool doAA) {
     SkIRect ir;
     switch (mutate_conservative_op(&op, false)) {
         case kDoNothing_MutateResult:
@@ -75,16 +76,16 @@ void SkConservativeClip::op(const SkRect& localRect, const SkMatrix& ctm, const 
             ir = doAA ? devRect.roundOut() : devRect.round();
         } break;
     }
-    this->op(ir, op);
+    this->opIRect(ir, op);
 }
 
-void SkConservativeClip::op(const SkRRect& rrect, const SkMatrix& ctm, const SkIRect& devBounds,
-                            SkRegion::Op op, bool doAA) {
-    this->op(rrect.getBounds(), ctm, devBounds, op, doAA);
+void SkConservativeClip::opRRect(const SkRRect& rrect, const SkMatrix& ctm,
+                                 const SkIRect& devBounds, SkRegion::Op op, bool doAA) {
+    this->opRect(rrect.getBounds(), ctm, devBounds, op, doAA);
 }
 
-void SkConservativeClip::op(const SkPath& path, const SkMatrix& ctm, const SkIRect& devBounds,
-                            SkRegion::Op op, bool doAA) {
+void SkConservativeClip::opPath(const SkPath& path, const SkMatrix& ctm, const SkIRect& devBounds,
+                                SkRegion::Op op, bool doAA) {
     SkIRect ir;
     switch (mutate_conservative_op(&op, path.isInverseFillType())) {
         case kDoNothing_MutateResult:
@@ -99,14 +100,14 @@ void SkConservativeClip::op(const SkPath& path, const SkMatrix& ctm, const SkIRe
             break;
         }
     }
-    return this->op(ir, op);
+    return this->opIRect(ir, op);
 }
 
-void SkConservativeClip::op(const SkRegion& rgn, SkRegion::Op op) {
-    this->op(rgn.getBounds(), op);
+void SkConservativeClip::opRegion(const SkRegion& rgn, SkRegion::Op op) {
+    this->opIRect(rgn.getBounds(), op);
 }
 
-void SkConservativeClip::op(const SkIRect& devRect, SkRegion::Op op) {
+void SkConservativeClip::opIRect(const SkIRect& devRect, SkRegion::Op op) {
     if (SkRegion::kIntersect_Op == op) {
         if (!fBounds.intersect(devRect)) {
             fBounds.setEmpty();
@@ -459,7 +460,7 @@ void SkRasterClip::validate() const {
         SkASSERT(fAA.isEmpty());
     }
 
-    fBW.validate();
+    SkRegionPriv::Validate(fBW);
     fAA.validate();
 
     SkASSERT(this->computeIsEmpty() == fIsEmpty);

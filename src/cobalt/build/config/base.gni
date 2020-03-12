@@ -203,11 +203,6 @@ if (!defined(enable_sso)) {
   enable_sso = false
 }
 
-# Set to true to compile with SPDY support.
-if (!defined(enable_spdy)) {
-  enable_spdy = false
-}
-
 # Set to true to enable filtering of HTTP headers before sending.
 if (!defined(enable_xhr_header_filtering)) {
   enable_xhr_header_filtering = false

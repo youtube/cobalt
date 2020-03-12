@@ -2656,8 +2656,8 @@ int dav1d_decode_frame(Dav1dFrameContext *const f) {
             if (!f->frame_thread.tile_start_off) {
                 for (int n = 0; n < f->n_ts; n++) {
                     Dav1dTileState *const ts = &f->ts[n];
-                    pthread_cond_destroy(&ts->tile_thread.cond);
-                    pthread_mutex_destroy(&ts->tile_thread.lock);
+                    dav1d_pthread_cond_destroy(&ts->tile_thread.cond);
+                    dav1d_pthread_mutex_destroy(&ts->tile_thread.lock);
                 }
                 f->n_ts = 0;
                 goto error;
@@ -2673,17 +2673,17 @@ int dav1d_decode_frame(Dav1dFrameContext *const f) {
             f->ts = ts_new;
             for (int n = f->n_ts; n < n_ts; f->n_ts = ++n) {
                 Dav1dTileState *const ts = &f->ts[n];
-                if (pthread_mutex_init(&ts->tile_thread.lock, NULL)) goto error;
-                if (pthread_cond_init(&ts->tile_thread.cond, NULL)) {
-                    pthread_mutex_destroy(&ts->tile_thread.lock);
+                if (dav1d_pthread_mutex_init(&ts->tile_thread.lock, NULL)) goto error;
+                if (dav1d_pthread_cond_init(&ts->tile_thread.cond, NULL)) {
+                    dav1d_pthread_mutex_destroy(&ts->tile_thread.lock);
                     goto error;
                 }
             }
         } else {
             for (int n = n_ts; n < f->n_ts; n++) {
                 Dav1dTileState *const ts = &f->ts[n];
-                pthread_cond_destroy(&ts->tile_thread.cond);
-                pthread_mutex_destroy(&ts->tile_thread.lock);
+                dav1d_pthread_cond_destroy(&ts->tile_thread.cond);
+                dav1d_pthread_mutex_destroy(&ts->tile_thread.lock);
             }
             memcpy(ts_new, f->ts, sizeof(*f->ts) * n_ts);
             dav1d_free_aligned(f->ts);
@@ -3045,7 +3045,7 @@ int dav1d_decode_frame(Dav1dFrameContext *const f) {
             // signal available tasks to worker threads
             int num_tasks;
 
-            pthread_mutex_lock(&f->tile_thread.lock);
+            dav1d_pthread_mutex_lock(&f->tile_thread.lock);
             assert(!f->tile_thread.tasks_left);
             if (f->frame_thread.pass == 1 || f->n_tc >= f->frame_hdr->tiling.cols) {
                 // we can (or in fact, if >, we need to) do full tile decoding.
@@ -3058,8 +3058,8 @@ int dav1d_decode_frame(Dav1dFrameContext *const f) {
                 num_tasks = f->sbh * f->frame_hdr->tiling.cols;
             }
             f->tile_thread.num_tasks = f->tile_thread.tasks_left = num_tasks;
-            pthread_cond_broadcast(&f->tile_thread.cond);
-            pthread_mutex_unlock(&f->tile_thread.lock);
+            dav1d_pthread_cond_broadcast(&f->tile_thread.cond);
+            dav1d_pthread_mutex_unlock(&f->tile_thread.lock);
 
             // loopfilter + cdef + restoration
             for (int tile_row = 0; tile_row < f->frame_hdr->tiling.rows; tile_row++) {
@@ -3074,20 +3074,20 @@ int dav1d_decode_frame(Dav1dFrameContext *const f) {
                             &f->ts[tile_row * f->frame_hdr->tiling.cols + tile_col];
 
                         if ((progress = atomic_load(&ts->progress)) <= sby) {
-                            pthread_mutex_lock(&ts->tile_thread.lock);
+                            dav1d_pthread_mutex_lock(&ts->tile_thread.lock);
                             while ((progress = atomic_load(&ts->progress)) <= sby)
-                                pthread_cond_wait(&ts->tile_thread.cond,
+                                dav1d_pthread_cond_wait(&ts->tile_thread.cond,
                                                   &ts->tile_thread.lock);
-                            pthread_mutex_unlock(&ts->tile_thread.lock);
+                            dav1d_pthread_mutex_unlock(&ts->tile_thread.lock);
                         }
                         if (progress == TILE_ERROR) {
                             dav1d_thread_picture_signal(&f->sr_cur, FRAME_ERROR,
                                                         PLANE_TYPE_ALL);
                             const uint64_t all_mask = ~0ULL >> (64 - f->n_tc);
-                            pthread_mutex_lock(&f->tile_thread.lock);
+                            dav1d_pthread_mutex_lock(&f->tile_thread.lock);
                             while (f->tile_thread.available != all_mask)
-                                pthread_cond_wait(&f->tile_thread.icond, &f->tile_thread.lock);
-                            pthread_mutex_unlock(&f->tile_thread.lock);
+                                dav1d_pthread_cond_wait(&f->tile_thread.icond, &f->tile_thread.lock);
+                            dav1d_pthread_mutex_unlock(&f->tile_thread.lock);
                             goto error;
                         }
                     }
@@ -3101,10 +3101,10 @@ int dav1d_decode_frame(Dav1dFrameContext *const f) {
             }
 
             const uint64_t all_mask = ~0ULL >> (64 - f->n_tc);
-            pthread_mutex_lock(&f->tile_thread.lock);
+            dav1d_pthread_mutex_lock(&f->tile_thread.lock);
             while (f->tile_thread.available != all_mask)
-                pthread_cond_wait(&f->tile_thread.icond, &f->tile_thread.lock);
-            pthread_mutex_unlock(&f->tile_thread.lock);
+                dav1d_pthread_cond_wait(&f->tile_thread.icond, &f->tile_thread.lock);
+            dav1d_pthread_mutex_unlock(&f->tile_thread.lock);
         }
 
         if (f->frame_thread.pass <= 1 && f->frame_hdr->refresh_context) {
@@ -3186,9 +3186,9 @@ int dav1d_submit_frame(Dav1dContext *const c) {
             c->frame_thread.next = 0;
 
         f = &c->fc[next];
-        pthread_mutex_lock(&f->frame_thread.td.lock);
+        dav1d_pthread_mutex_lock(&f->frame_thread.td.lock);
         while (f->n_tile_data > 0)
-            pthread_cond_wait(&f->frame_thread.td.cond,
+            dav1d_pthread_cond_wait(&f->frame_thread.td.cond,
                               &f->frame_thread.td.lock);
         out_delayed = &c->frame_thread.out_delayed[next];
         if (out_delayed->p.data[0]) {
@@ -3517,8 +3517,8 @@ int dav1d_submit_frame(Dav1dContext *const c) {
             return res;
         }
     } else {
-        pthread_cond_signal(&f->frame_thread.td.cond);
-        pthread_mutex_unlock(&f->frame_thread.td.lock);
+        dav1d_pthread_cond_signal(&f->frame_thread.td.cond);
+        dav1d_pthread_mutex_unlock(&f->frame_thread.td.lock);
     }
 
     return 0;
@@ -3546,8 +3546,8 @@ error:
     f->n_tile_data = 0;
 
     if (c->n_fc > 1) {
-        pthread_cond_signal(&f->frame_thread.td.cond);
-        pthread_mutex_unlock(&f->frame_thread.td.lock);
+        dav1d_pthread_cond_signal(&f->frame_thread.td.cond);
+        dav1d_pthread_mutex_unlock(&f->frame_thread.td.lock);
     }
 
     return res;

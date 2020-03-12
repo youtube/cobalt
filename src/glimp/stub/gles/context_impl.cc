@@ -54,6 +54,10 @@ int ContextImplStub::GetMaxFragmentTextureUnits() const {
   return 16;
 }
 
+int ContextImplStub::GetMaxCombinedTextureImageUnits() const {
+  return 0;
+}
+
 int ContextImplStub::GetMaxTextureSize() const {
   return 4096;
 }

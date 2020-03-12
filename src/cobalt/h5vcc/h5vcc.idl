@@ -26,6 +26,10 @@
 // This is created by the BrowserModule and passed directly to the Window
 // during construction.
 
+// Note: every attribute defined here must have a corresponding interface idl
+// file included in browser_bindings_gen.gyp unconditionally, even if there is
+// a condition before the declaration of the attribute.
+
 interface H5vcc {
   readonly attribute H5vccAccessibility accessibility;
   readonly attribute H5vccAccountInfo accountInfo;
@@ -40,4 +44,6 @@ interface H5vcc {
   readonly attribute H5vccStorage storage;
   readonly attribute H5vccSystem system;
   readonly attribute H5vccTraceEvent traceEvent;
+  [Conditional=SB_IS_EVERGREEN]
+      readonly attribute H5vccUpdater updater;
 };

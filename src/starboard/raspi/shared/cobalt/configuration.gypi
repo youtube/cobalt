@@ -18,13 +18,6 @@
   'variables': {
     'in_app_dial%': 0,
 
-    # VideoCore's tiled renderer will do a render for every tile of a render
-    # target even if only part of that target was rendered to.  Since the
-    # scratch surface cache is designed to choose large offscreen surfaces so
-    # that they can be maximally reused, it is not a very good fit for a tiled
-    # renderer.
-    'scratch_surface_cache_size_in_bytes' : 0,
-
     # This atlas size works better than the auto-mem setting.
     'skia_glyph_atlas_width%': '2048',
     'skia_glyph_atlas_height%': '2048',

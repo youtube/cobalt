@@ -89,7 +89,7 @@
             'lib/builtins/trunctfsf2.c',
           ],
         }],
-        ['sb_evergreen == 1 and target_arch == "ia32"', {
+        ['sb_evergreen == 1 and target_arch == "x86"', {
           'sources': [
             'lib/builtins/i386/divdi3.S',
             'lib/builtins/i386/moddi3.S',

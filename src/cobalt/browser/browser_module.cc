@@ -35,7 +35,6 @@
 #include "cobalt/base/tokens.h"
 #include "cobalt/browser/on_screen_keyboard_starboard_bridge.h"
 #include "cobalt/browser/screen_shot_writer.h"
-#include "cobalt/browser/storage_upgrade_handler.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/user_agent_string.h"
 #include "cobalt/browser/webapi_extension.h"
@@ -195,18 +194,15 @@ void OnScreenshotMessage(BrowserModule* browser_module,
 scoped_refptr<script::Wrappable> CreateH5VCC(
     const h5vcc::H5vcc::Settings& settings,
     const scoped_refptr<dom::Window>& window,
-    dom::MutationObserverTaskManager* mutation_observer_task_manager,
     script::GlobalEnvironment* global_environment) {
+  SB_UNREFERENCED_PARAMETER(window);
   SB_UNREFERENCED_PARAMETER(global_environment);
-  return scoped_refptr<script::Wrappable>(
-      new h5vcc::H5vcc(settings, window, mutation_observer_task_manager));
+  return scoped_refptr<script::Wrappable>(new h5vcc::H5vcc(settings));
 }
 
 scoped_refptr<script::Wrappable> CreateExtensionInterface(
     const scoped_refptr<dom::Window>& window,
-    dom::MutationObserverTaskManager* mutation_observer_task_manager,
     script::GlobalEnvironment* global_environment) {
-  SB_UNREFERENCED_PARAMETER(mutation_observer_task_manager);
   return CreateWebAPIExtensionObject(window, global_environment);
 }
 
@@ -235,6 +231,10 @@ BrowserModule::BrowserModule(const GURL& url,
                              base::ApplicationState initial_application_state,
                              base::EventDispatcher* event_dispatcher,
                              account::AccountManager* account_manager,
+                             network::NetworkModule* network_module,
+#if SB_IS(EVERGREEN)
+                             updater::UpdaterModule* updater_module,
+#endif
                              const Options& options)
     : ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
@@ -242,15 +242,12 @@ BrowserModule::BrowserModule(const GURL& url,
       options_(options),
       self_message_loop_(base::MessageLoop::current()),
       event_dispatcher_(event_dispatcher),
-      storage_manager_(std::unique_ptr<storage::StorageManager::UpgradeHandler>(
-                           new StorageUpgradeHandler(url)),
-                       options_.storage_manager_options),
       is_rendered_(false),
       can_play_type_handler_(media::MediaModule::CreateCanPlayTypeHandler()),
-      network_module_(
-          CreateUserAgentString(GetUserAgentPlatformInfoFromSystem()),
-          &storage_manager_, event_dispatcher_,
-          options_.network_module_options),
+      network_module_(network_module),
+#if SB_IS(EVERGREEN)
+      updater_module_(updater_module),
+#endif
       splash_screen_cache_(new SplashScreenCache()),
 #if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
     SB_HAS(ON_SCREEN_KEYBOARD)
@@ -369,7 +366,10 @@ BrowserModule::BrowserModule(const GURL& url,
                       "h5vcc"));
   h5vcc::H5vcc::Settings h5vcc_settings;
   h5vcc_settings.media_module = media_module_.get();
-  h5vcc_settings.network_module = &network_module_;
+  h5vcc_settings.network_module = network_module_;
+#if SB_IS(EVERGREEN)
+  h5vcc_settings.updater_module = updater_module_;
+#endif
   h5vcc_settings.account_manager = account_manager;
   h5vcc_settings.event_dispatcher = event_dispatcher_;
   h5vcc_settings.initial_deep_link = options_.initial_deep_link;
@@ -432,7 +432,7 @@ BrowserModule::BrowserModule(const GURL& url,
       application_state_,
       base::Bind(&BrowserModule::QueueOnDebugConsoleRenderTreeProduced,
                  base::Unretained(this)),
-      &network_module_, GetViewportSize(), GetResourceProvider(),
+      network_module_, GetViewportSize(), GetResourceProvider(),
       kLayoutMaxRefreshFrequencyInHz,
       base::Bind(&BrowserModule::CreateDebugClient, base::Unretained(this))));
   lifecycle_observers_.AddObserver(debug_console_.get());
@@ -570,7 +570,7 @@ void BrowserModule::Navigate(const GURL& url_reference) {
           application_state_,
           base::Bind(&BrowserModule::QueueOnSplashScreenRenderTreeProduced,
                      base::Unretained(this)),
-          &network_module_, viewport_size, GetResourceProvider(),
+          network_module_, viewport_size, GetResourceProvider(),
           kLayoutMaxRefreshFrequencyInHz, fallback_splash_screen_url_, url,
           splash_screen_cache_.get(),
           base::Bind(&BrowserModule::DestroySplashScreen, weak_this_)));
@@ -640,7 +640,7 @@ void BrowserModule::Navigate(const GURL& url_reference) {
       base::Bind(&BrowserModule::OnError, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowClose, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowMinimize, base::Unretained(this)),
-      can_play_type_handler_.get(), media_module_.get(), &network_module_,
+      can_play_type_handler_.get(), media_module_.get(), network_module_,
       viewport_size, video_pixel_ratio, GetResourceProvider(),
       kLayoutMaxRefreshFrequencyInHz, options));
   lifecycle_observers_.AddObserver(web_module_.get());
@@ -1451,7 +1451,7 @@ void BrowserModule::GetDebugDispatcherInternal(
 
 void BrowserModule::SetProxy(const std::string& proxy_rules) {
   // NetworkModule will ensure this happens on the correct thread.
-  network_module_.SetProxy(proxy_rules);
+  network_module_->SetProxy(proxy_rules);
 }
 
 void BrowserModule::Start() {

@@ -138,7 +138,7 @@ void Start(const char* filename) {
   scoped_ptr<PlayerComponents::Factory> factory =
       PlayerComponents::Factory::Create();
   PlayerComponents::Factory::CreationParameters creation_parameters(
-      s_video_dmp_reader->audio_codec(), "",
+      s_video_dmp_reader->audio_codec(),
       s_video_dmp_reader->audio_sample_info());
   std::string error_message;
   s_player_components =

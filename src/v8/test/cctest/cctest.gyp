@@ -228,7 +228,7 @@
       'wasm/wasm-run-utils.cc',
       'wasm/wasm-run-utils.h',
     ],
-    'cctest_sources_ia32': [  ### gcmole(arch:ia32) ###
+    'cctest_sources_x86': [  ### gcmole(arch:x86) ###
       'test-assembler-ia32.cc',
       'test-code-stubs.cc',
       'test-code-stubs.h',
@@ -341,9 +341,9 @@
         '<(generated_file)',
       ],
       'conditions': [
-        ['v8_target_arch=="ia32"', {
+        ['v8_target_arch=="x86"', {
           'sources': [
-            '<@(cctest_sources_ia32)',
+            '<@(cctest_sources_x86)',
           ],
         }],
         ['v8_target_arch=="x64"', {

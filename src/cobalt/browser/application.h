@@ -101,13 +101,19 @@ class Application {
   // Account manager.
   std::unique_ptr<account::AccountManager> account_manager_;
 
-  // Main components of the Cobalt browser application.
-  std::unique_ptr<BrowserModule> browser_module_;
+  // Storage manager used by the network module below.
+  std::unique_ptr<storage::StorageManager> storage_manager_;
+
+  // Sets up the network component for requesting internet resources.
+  std::unique_ptr<network::NetworkModule> network_module_;
 
 #if SB_IS(EVERGREEN)
   // Cobalt Updater.
   std::unique_ptr<updater::UpdaterModule> updater_module_;
 #endif
+
+  // Main components of the Cobalt browser application.
+  std::unique_ptr<BrowserModule> browser_module_;
 
   // Event callbacks.
   base::EventCallback network_event_callback_;

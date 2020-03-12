@@ -26,6 +26,10 @@ SbMediaAudioSampleInfo CreateAudioSampleInfo(SbMediaAudioCodec codec) {
   audio_sample_info.codec = codec;
 #endif  // SB_API_VERSION >= 11
 
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  audio_sample_info.mime = "";
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
   switch (codec) {
     case kSbMediaAudioCodecNone:
       break;
@@ -106,6 +110,11 @@ SbMediaVideoSampleInfo CreateVideoSampleInfo(SbMediaVideoCodec codec) {
   video_sample_info.codec = codec;
 #endif  // SB_API_VERSION >= 11
 
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  video_sample_info.mime = "";
+  video_sample_info.max_video_capabilities = "";
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
 #if SB_API_VERSION >= 11
   video_sample_info.color_metadata.primaries = kSbMediaPrimaryIdBt709;
   video_sample_info.color_metadata.transfer = kSbMediaTransferIdBt709;
@@ -132,13 +141,10 @@ SbPlayerCreationParam CreatePlayerCreationParam(SbMediaAudioCodec audio_codec,
                                                 SbMediaVideoCodec video_codec) {
   SbPlayerCreationParam creation_param = {};
 
-  creation_param.audio_mime = "";
-  creation_param.video_mime = "";
   creation_param.drm_system = kSbDrmSystemInvalid;
   creation_param.audio_sample_info = CreateAudioSampleInfo(audio_codec);
   creation_param.video_sample_info = CreateVideoSampleInfo(video_codec);
   creation_param.output_mode = kSbPlayerOutputModeInvalid;
-  creation_param.max_video_capabilities = "";
 
   return creation_param;
 }

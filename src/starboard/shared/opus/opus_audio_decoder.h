@@ -21,6 +21,7 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
@@ -34,6 +35,8 @@ class OpusAudioDecoder
     : public ::starboard::shared::starboard::player::filter::AudioDecoder,
       private starboard::player::JobQueue::JobOwner {
  public:
+  typedef shared::starboard::media::AudioSampleInfo AudioSampleInfo;
+
   explicit OpusAudioDecoder(const SbMediaAudioSampleInfo& audio_sample_info);
   ~OpusAudioDecoder() override;
 
@@ -58,7 +61,7 @@ class OpusAudioDecoder
   OpusMSDecoder* decoder_ = NULL;
   bool stream_ended_ = false;
   std::queue<scoped_refptr<DecodedAudio> > decoded_audios_;
-  SbMediaAudioSampleInfo audio_sample_info_;
+  AudioSampleInfo audio_sample_info_;
   int frames_per_au_ = kMaxOpusFramesPerAU;
 };
 

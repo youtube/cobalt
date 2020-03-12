@@ -6,11 +6,11 @@
  */
 
 in uniform sampler2D image;
-in uniform colorSpaceXform colorXform;
-in mat4 matrix;
+in half4x4 matrix;
 
 @constructorParams {
-    GrSamplerParams samplerParams
+    GrColorType srcColorType,
+    GrSamplerState samplerParams
 }
 
 @coordTransform(image) {
@@ -22,61 +22,60 @@ in mat4 matrix;
 }
 
 @make {
-    static sk_sp<GrFragmentProcessor> Make(sk_sp<GrTextureProxy> proxy,
-                                           sk_sp<GrColorSpaceXform> colorSpaceXform,
-                                           const SkMatrix& matrix) {
-        return sk_sp<GrFragmentProcessor>(
-            new GrSimpleTextureEffect(std::move(proxy), std::move(colorSpaceXform), matrix,
-                    GrSamplerParams(SkShader::kClamp_TileMode, GrSamplerParams::kNone_FilterMode)));
+    static std::unique_ptr<GrFragmentProcessor> Make(sk_sp<GrTextureProxy> proxy,
+                                                     GrColorType srcColorType,
+                                                     const SkMatrix& matrix) {
+        return std::unique_ptr<GrFragmentProcessor>(
+            new GrSimpleTextureEffect(std::move(proxy), matrix, srcColorType,
+                    GrSamplerState(GrSamplerState::WrapMode::kClamp, GrSamplerState::Filter::kNearest)));
     }
 
     /* clamp mode */
-    static sk_sp<GrFragmentProcessor> Make(sk_sp<GrTextureProxy> proxy,
-                                           sk_sp<GrColorSpaceXform> colorSpaceXform,
-                                           const SkMatrix& matrix,
-                                           GrSamplerParams::FilterMode filterMode) {
-        return sk_sp<GrFragmentProcessor>(
-            new GrSimpleTextureEffect(std::move(proxy), std::move(colorSpaceXform), matrix,
-                                      GrSamplerParams(SkShader::kClamp_TileMode, filterMode)));
+    static std::unique_ptr<GrFragmentProcessor> Make(sk_sp<GrTextureProxy> proxy,
+                                                     GrColorType srcColorType,
+                                                     const SkMatrix& matrix,
+                                                     GrSamplerState::Filter filter) {
+        return std::unique_ptr<GrFragmentProcessor>(
+            new GrSimpleTextureEffect(std::move(proxy), matrix, srcColorType,
+                                      GrSamplerState(GrSamplerState::WrapMode::kClamp, filter)));
      }
 
-    static sk_sp<GrFragmentProcessor> Make(sk_sp<GrTextureProxy> proxy,
-                                           sk_sp<GrColorSpaceXform> colorSpaceXform,
-                                           const SkMatrix& matrix,
-                                           const GrSamplerParams& p) {
-        return sk_sp<GrFragmentProcessor>(
-            new GrSimpleTextureEffect(std::move(proxy), std::move(colorSpaceXform), matrix, p));
+    static std::unique_ptr<GrFragmentProcessor> Make(sk_sp<GrTextureProxy> proxy,
+                                                     GrColorType srcColorType,
+                                                     const SkMatrix& matrix,
+                                                     const GrSamplerState& p) {
+        return std::unique_ptr<GrFragmentProcessor>(
+            new GrSimpleTextureEffect(std::move(proxy), matrix, srcColorType, p));
     }
 }
 
 @optimizationFlags {
-    kCompatibleWithCoverageAsAlpha_OptimizationFlag |
-    (GrPixelConfigIsOpaque(image->config()) ? kPreservesOpaqueInput_OptimizationFlag :
-                                              kNone_OptimizationFlags)
+    ModulateForSamplerOptFlags(srcColorType,
+            samplerParams.wrapModeX() == GrSamplerState::WrapMode::kClampToBorder ||
+            samplerParams.wrapModeY() == GrSamplerState::WrapMode::kClampToBorder)
 }
 
 void main() {
-    sk_OutColor = sk_InColor * texture(image, sk_TransformedCoords2D[0], colorXform);
+    sk_OutColor = sk_InColor * sample(image, sk_TransformedCoords2D[0]);
 }
 
 @test(testData) {
     int texIdx = testData->fRandom->nextBool() ? GrProcessorUnitTest::kSkiaPMTextureIdx
                                                : GrProcessorUnitTest::kAlphaTextureIdx;
-    static const SkShader::TileMode kTileModes[] = {
-        SkShader::kClamp_TileMode,
-        SkShader::kRepeat_TileMode,
-        SkShader::kMirror_TileMode,
-    };
-    SkShader::TileMode tileModes[] = {
-        kTileModes[testData->fRandom->nextULessThan(SK_ARRAY_COUNT(kTileModes))],
-        kTileModes[testData->fRandom->nextULessThan(SK_ARRAY_COUNT(kTileModes))],
-    };
-    GrSamplerParams params(tileModes, testData->fRandom->nextBool()
-                                                               ? GrSamplerParams::kBilerp_FilterMode
-                                                               : GrSamplerParams::kNone_FilterMode);
+    GrSamplerState::WrapMode wrapModes[2];
+    GrTest::TestWrapModes(testData->fRandom, wrapModes);
+    if (!testData->caps()->npotTextureTileSupport()) {
+        // Performing repeat sampling on npot textures will cause asserts on HW
+        // that lacks support.
+        wrapModes[0] = GrSamplerState::WrapMode::kClamp;
+        wrapModes[1] = GrSamplerState::WrapMode::kClamp;
+    }
+
+    GrSamplerState params(wrapModes, testData->fRandom->nextBool()
+                                                               ? GrSamplerState::Filter::kBilerp
+                                                               : GrSamplerState::Filter::kNearest);
 
     const SkMatrix& matrix = GrTest::TestMatrix(testData->fRandom);
-    sk_sp<GrColorSpaceXform> colorSpaceXform = GrTest::TestColorXform(testData->fRandom);
-    return GrSimpleTextureEffect::Make(testData->textureProxy(texIdx), std::move(colorSpaceXform),
-                                       matrix);
+    return GrSimpleTextureEffect::Make(testData->textureProxy(texIdx),
+                                       testData->textureProxyColorType(texIdx), matrix, params);
 }

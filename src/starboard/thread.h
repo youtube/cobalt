@@ -29,6 +29,15 @@
 extern "C" {
 #endif
 
+#if SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
+
+// An opaque handle to a thread type.
+typedef void* SbThread;
+
+#define kSbThreadInvalid (SbThread) NULL
+
+#endif  // SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
+
 // A spectrum of thread priorities. Platforms map them appropriately to their
 // own priority system. Note that scheduling is platform-specific, and what
 // these priorities mean, if they mean anything at all, is also
@@ -285,6 +294,12 @@ typedef enum SbThreadContextProperty {
 
   // Pointer to the the current stack frame.
   kSbThreadContextFramePointer,
+
+#if SB_API_VERSION >= SB_THREAD_CONTEXT_LINK_REGISTER_VERSION
+  // Pointer to where to return to when the current function call completes, or
+  // nullptr on platforms without a link register.
+  kSbThreadContextLinkRegister,
+#endif  // SB_API_VERSION >= SB_THREAD_CONTEXT_LINK_REGISTER_VERSION
 } SbThreadContextProperty;
 
 // Gets the specified pointer-type |property| from the specified |context|.

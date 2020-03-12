@@ -108,10 +108,13 @@ AssertionResult AlmostEqualTime(SbTime time1, SbTime time2) {
 }
 
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-SbMediaVideoSampleInfo CreateVideoSampleInfo(SbMediaVideoCodec codec) {
-  SbMediaVideoSampleInfo video_sample_info = {};
+shared::starboard::media::VideoSampleInfo CreateVideoSampleInfo(
+    SbMediaVideoCodec codec) {
+  shared::starboard::media::VideoSampleInfo video_sample_info = {};
 
   video_sample_info.codec = codec;
+  video_sample_info.mime = "";
+  video_sample_info.max_video_capabilities = "";
 
   video_sample_info.color_metadata.primaries = kSbMediaPrimaryIdBt709;
   video_sample_info.color_metadata.transfer = kSbMediaTransferIdBt709;
@@ -150,11 +153,11 @@ class VideoDecoderTest
         output_mode, dmp_reader_.video_codec(), kSbDrmSystemInvalid));
 
     PlayerComponents::Factory::CreationParameters creation_parameters(
-        dmp_reader_.video_codec(), "",
+        dmp_reader_.video_codec(),
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
         GetVideoInputBuffer(0)->video_sample_info(),
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-        "", &player_, output_mode,
+        &player_, output_mode,
         fake_graphics_context_provider_.decoder_target_provider(), nullptr);
 
     scoped_ptr<PlayerComponents::Factory> factory;
@@ -594,11 +597,11 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
 #endif  // SB_API_VERSION >= 11
           };
           PlayerComponents::Factory::CreationParameters creation_parameters(
-              dmp_reader_.video_codec(), "",
+              dmp_reader_.video_codec(),
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
               CreateVideoSampleInfo(dmp_reader_.video_codec()),
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-              "", &players[i], output_mode,
+              &players[i], output_mode,
               fake_graphics_context_provider_.decoder_target_provider(),
               nullptr);
 

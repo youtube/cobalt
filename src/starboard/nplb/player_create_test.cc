@@ -83,7 +83,8 @@ SbPlayer CallSbPlayerCreate(
   }
   creation_param.drm_system = drm_system;
   creation_param.output_mode = output_mode;
-  creation_param.max_video_capabilities = max_video_capabilities;
+  creation_param.video_sample_info.max_video_capabilities =
+      max_video_capabilities;
 
   return SbPlayerCreate(window, &creation_param, sample_deallocate_func,
                         decoder_status_func, player_status_func, DummyErrorFunc,

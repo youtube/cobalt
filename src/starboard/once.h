@@ -28,6 +28,33 @@
 extern "C" {
 #endif
 
+#if SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
+
+// Max size of the SbOnceControl type.
+#define SB_ONCE_MAX_SIZE 16
+
+// An opaque handle to a once control type with
+// reserved memory buffer of size SB_ONCE_MAX_SIZE and
+// aligned at void  pointer type.
+typedef union SbOnceControl {
+  // Reserved memory in which the implementation should map its
+  // native once control variable type.
+  uint8_t once_buffer[SB_ONCE_MAX_SIZE];
+
+  // Guarantees alignment of the type to a void pointer.
+  void* ptr;
+} SbOnceControl;
+
+#ifdef __cplusplus
+#define SB_ONCE_INITIALIZER \
+  {}
+#else
+#define SB_ONCE_INITIALIZER \
+  { 0 }
+#endif
+
+#endif  // SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
+
 // Function pointer type for methods that can be called via the SbOnce() system.
 typedef void (*SbOnceInitRoutine)(void);
 

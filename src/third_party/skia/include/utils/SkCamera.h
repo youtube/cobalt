@@ -10,7 +10,8 @@
 #ifndef SkCamera_DEFINED
 #define SkCamera_DEFINED
 
-#include "SkMatrix.h"
+#include "include/core/SkMatrix.h"
+#include "include/private/SkNoncopyable.h"
 
 class SkCanvas;
 
@@ -75,7 +76,7 @@ public:
     SkPatch3D();
 
     void    reset();
-    void    transform(const SkMatrix3D&, SkPatch3D* dst = NULL) const;
+    void    transform(const SkMatrix3D&, SkPatch3D* dst = nullptr) const;
 
     // dot a unit vector with the patch's normal
     SkScalar dotWith(SkScalar dx, SkScalar dy, SkScalar dz) const;
@@ -115,7 +116,7 @@ private:
     void doUpdate() const;
 };
 
-class Sk3DView : SkNoncopyable {
+class SK_API Sk3DView : SkNoncopyable {
 public:
     Sk3DView();
     ~Sk3DView();
@@ -128,11 +129,11 @@ public:
     void rotateY(SkScalar deg);
     void rotateZ(SkScalar deg);
 
-#ifdef SK_BUILD_FOR_ANDROID
+#ifdef SK_BUILD_FOR_ANDROID_FRAMEWORK
     void setCameraLocation(SkScalar x, SkScalar y, SkScalar z);
-    SkScalar getCameraLocationX();
-    SkScalar getCameraLocationY();
-    SkScalar getCameraLocationZ();
+    SkScalar getCameraLocationX() const;
+    SkScalar getCameraLocationY() const;
+    SkScalar getCameraLocationZ() const;
 #endif
 
     void getMatrix(SkMatrix*) const;

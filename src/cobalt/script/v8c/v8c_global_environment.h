@@ -126,7 +126,7 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
  private:
   // A helper class to trigger a final necessary garbage collection to run
   // finalizer callbacks precisely in between |global_wrappable_| getting
-  // propped up and |context_| + |global_object_| getting reset.
+  // propped up and |context_| getting reset.
   class DestructionHelper {
    public:
     explicit DestructionHelper(v8::Isolate* isolate) : isolate_(isolate) {}
@@ -166,7 +166,6 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
   scoped_refptr<Wrappable> global_wrappable_;
   DestructionHelper destruction_helper_;
   v8::Global<v8::Context> context_;
-  v8::Global<v8::Object> global_object_;
 
   std::unique_ptr<WrapperFactory> wrapper_factory_;
   std::unique_ptr<V8cScriptValueFactory> script_value_factory_;

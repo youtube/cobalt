@@ -34,6 +34,8 @@
         'native_promise.h',
         'scoped_persistent.h',
         'stack_trace_helpers.cc',
+        'switches.cc',
+        'switches.h',
         'type_traits.h',
         'union_type_conversion_forward.h',
         'union_type_conversion_impl.h',

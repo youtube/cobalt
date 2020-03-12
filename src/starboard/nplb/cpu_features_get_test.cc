@@ -113,30 +113,32 @@ TEST(SbCPUFeaturesGetTest, SunnyDay) {
     // If the architecture is unknown, SbCPUFeaturesGet() must return
     // false.
     EXPECT_NE(kSbCPUFeaturesArchitectureUnknown, features.architecture);
-#if SB_IS(ARCH_ARM)
+
+#if SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)
     EXPECT_TRUE(features.architecture == kSbCPUFeaturesArchitectureArm ||
                 features.architecture == kSbCPUFeaturesArchitectureArm64);
-    ExpectMipsInvalid(features);
-    ExpectX86Invalid(features);
-#elif SB_IS(ARCH_MIPS)
+#else   // !SB_IS(ARCH_ARM) && !SB_IS(ARCH_ARM64)
+    ExpectArmInvalid(features);
+#endif  // SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)
+
+#if SB_IS(ARCH_MIPS)
     EXPECT_TRUE(features.architecture == kSbCPUFeaturesArchitectureMips ||
                 features.architecture == kSbCPUFeaturesArchitectureMips64);
-    ExpectArmInvalid(features);
-    ExpectX86Invalid(features);
-#elif SB_IS(ARCH_PPC)
+#else   // !SB_IS(ARCH_MIPS)
+    ExpectMipsInvalid(features);
+#endif  // SB_IS(ARCH_MIPS)
+
+#if SB_IS(ARCH_PPC)
     EXPECT_TRUE(features.architecture == kSbCPUFeaturesArchitecturePpc ||
                 features.architecture == kSbCPUFeaturesArchitecturePpc64);
-    ExpectArmInvalid(features);
-    ExpectMipsInvalid(features);
-    ExpectX86Invalid(features);
-#elif SB_IS(ARCH_X86)
+#endif  // SB_IS(ARCH_PPC)
+
+#if SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
     EXPECT_TRUE(features.architecture == kSbCPUFeaturesArchitectureX86 ||
                 features.architecture == kSbCPUFeaturesArchitectureX86_64);
-    ExpectArmInvalid(features);
-    ExpectMipsInvalid(features);
-#else
-#error "Unexpected CPU architecture configuration is set."
-#endif
+#else   // !SB_IS(ARCH_X86) && !SB_IS(ARCH_X64)
+    ExpectX86Invalid(features);
+#endif  // SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
   }
 }
 

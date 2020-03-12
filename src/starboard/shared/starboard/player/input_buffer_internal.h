@@ -23,6 +23,7 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard {
 namespace shared {
@@ -83,13 +84,10 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
   int size_;
   std::vector<uint8_t> side_data_;
   SbTime timestamp_;
-  union {
-    SbMediaAudioSampleInfo audio_sample_info_;
-    SbMediaVideoSampleInfo video_sample_info_;
-  };
-#if SB_API_VERSION < 11
-  SbMediaColorMetadata color_metadata_;
-#endif  // SB_API_VERSION < 11
+
+  media::AudioSampleInfo audio_sample_info_;
+  media::VideoSampleInfo video_sample_info_;
+
   bool has_drm_info_;
   SbDrmSampleInfo drm_info_;
   std::vector<SbDrmSubSampleMapping> subsamples_;

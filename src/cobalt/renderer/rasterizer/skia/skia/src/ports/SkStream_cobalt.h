@@ -26,6 +26,7 @@
 #include "base/containers/small_map.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/c_val.h"
+#include "cobalt/base/polymorphic_downcast.h"
 
 // The SkFileMemoryChunkStream classes provide a stream type that mixes features
 // of both file streams and memory streams. While the stream initially reads
@@ -172,13 +173,13 @@ class SkFileMemoryChunkStream : public SkStreamAsset {
 
   // Required by SkStreamRewindable
   bool rewind() override;
-  SkFileMemoryChunkStream* duplicate() const override;
+  SkFileMemoryChunkStream* onDuplicate() const override;
 
   // Required by SkStreamSeekable
   size_t getPosition() const override;
   bool seek(size_t position) override;
   bool move(long offset) override;
-  SkFileMemoryChunkStream* fork() const override;
+  SkFileMemoryChunkStream* onFork() const override;
 
   // Required by SkStreamAsset
   size_t getLength() const override;

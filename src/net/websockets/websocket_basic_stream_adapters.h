@@ -44,7 +44,6 @@ class NET_EXPORT_PRIVATE WebSocketClientSocketHandleAdapter
   std::unique_ptr<ClientSocketHandle> connection_;
 };
 
-#if !defined(COBALT_DISABLE_SPDY)
 // Adapter to make WebSocketBasicStream use an HTTP/2 stream.
 // Sets itself as a delegate of the SpdyStream, and forwards headers-related
 // methods to WebSocketHttp2HandshakeStream, which implements
@@ -147,7 +146,6 @@ class NET_EXPORT_PRIVATE WebSocketSpdyStreamAdapter
 
   base::WeakPtrFactory<WebSocketSpdyStreamAdapter> weak_factory_;
 };
-#endif
 
 }  // namespace net
 

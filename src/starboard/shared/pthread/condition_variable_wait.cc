@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/condition_variable.h"
+#include "starboard/condition_variable.h"
 
 #include <pthread.h>
 
 #include "starboard/shared/pthread/is_success.h"
+#include "starboard/shared/pthread/types_internal.h"
 #include "starboard/shared/starboard/lazy_initialization_internal.h"
 
 using starboard::shared::starboard::EnsureInitialized;
@@ -28,7 +29,8 @@ SbConditionVariableResult SbConditionVariableWait(
     return kSbConditionVariableFailed;
   }
 
-  if (!EnsureInitialized(&condition->initialized_state)) {
+  if (!EnsureInitialized(
+          &(SB_PTHREAD_INTERNAL_CONDITION(condition)->initialized_state))) {
     // The condition variable is set to SB_CONDITION_VARIABLE_INITIALIZER and
     // is uninitialized, so call SbConditionVariableCreate() to initialize the
     // condition variable. SbConditionVariableCreate() is responsible for
@@ -36,7 +38,9 @@ SbConditionVariableResult SbConditionVariableWait(
     SbConditionVariableCreate(condition, mutex);
   }
 
-  if (IsSuccess(pthread_cond_wait(&condition->condition, mutex))) {
+  if (IsSuccess(pthread_cond_wait(
+          &(SB_PTHREAD_INTERNAL_CONDITION(condition)->condition),
+          SB_PTHREAD_INTERNAL_MUTEX(mutex)))) {
     return kSbConditionVariableSignaled;
   }
 

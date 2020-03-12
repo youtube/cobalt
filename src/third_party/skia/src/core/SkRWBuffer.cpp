@@ -5,12 +5,15 @@
  * found in the LICENSE file.
  */
 
-#include "SkRWBuffer.h"
+#include "include/core/SkRWBuffer.h"
 
-#include "SkAtomics.h"
-#include "SkMalloc.h"
-#include "SkMakeUnique.h"
-#include "SkStream.h"
+#include "include/core/SkStream.h"
+#include "include/private/SkMalloc.h"
+#include "include/private/SkTo.h"
+#include "src/core/SkMakeUnique.h"
+
+#include <atomic>
+#include <new>
 
 // Force small chunks to be a page's worth
 static const size_t kMinAllocSize = 4096;
@@ -62,7 +65,7 @@ private:
 };
 
 struct SkBufferHead {
-    mutable int32_t fRefCnt;
+    mutable std::atomic<int32_t> fRefCnt;
     SkBufferBlock   fBlock;
 
     SkBufferHead(size_t capacity) : fRefCnt(1), fBlock(capacity) {}
@@ -80,14 +83,14 @@ struct SkBufferHead {
     }
 
     void ref() const {
-        SkASSERT(fRefCnt > 0);
-        sk_atomic_inc(&fRefCnt);
+        SkAssertResult(fRefCnt.fetch_add(+1, std::memory_order_relaxed));
     }
 
     void unref() const {
-        SkASSERT(fRefCnt > 0);
         // A release here acts in place of all releases we "should" have been doing in ref().
-        if (1 == sk_atomic_fetch_add(&fRefCnt, -1, sk_memory_order_acq_rel)) {
+        int32_t oldRefCnt = fRefCnt.fetch_add(-1, std::memory_order_acq_rel);
+        SkASSERT(oldRefCnt);
+        if (1 == oldRefCnt) {
             // Like unique(), the acquire is only needed on success.
             SkBufferBlock* block = fBlock.fNext;
             sk_free((void*)this);
@@ -101,7 +104,7 @@ struct SkBufferHead {
 
     void validate(size_t minUsed, const SkBufferBlock* tail = nullptr) const {
 #ifdef SK_DEBUG
-        SkASSERT(fRefCnt > 0);
+        SkASSERT(fRefCnt.load(std::memory_order_relaxed) > 0);
         size_t totalUsed = 0;
         const SkBufferBlock* block = &fBlock;
         const SkBufferBlock* lastBlock = block;
@@ -315,8 +318,6 @@ public:
         return fBuffer->size() == fGlobalOffset;
     }
 
-    SkStreamAsset* duplicate() const override { return new SkROBufferStreamAsset(fBuffer); }
-
     size_t getPosition() const override {
         return fGlobalOffset;
     }
@@ -341,14 +342,17 @@ public:
         return true;
     }
 
-    SkStreamAsset* fork() const override {
-        SkStreamAsset* clone = this->duplicate();
-        clone->seek(this->getPosition());
-        return clone;
+private:
+    SkStreamAsset* onDuplicate() const override {
+        return new SkROBufferStreamAsset(fBuffer);
     }
 
+    SkStreamAsset* onFork() const override {
+        auto clone = this->duplicate();
+        clone->seek(this->getPosition());
+        return clone.release();
+    }
 
-private:
     sk_sp<SkROBuffer> fBuffer;
     SkROBuffer::Iter  fIter;
     size_t            fLocalOffset;

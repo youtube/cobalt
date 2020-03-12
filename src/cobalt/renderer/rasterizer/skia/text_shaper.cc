@@ -70,8 +70,8 @@ void TryAddFontToUsedFonts(Font* font,
   maybe_used_fonts->push_back(font);
 }
 
-bool ShouldFakeBoldText(const render_tree::FontProvider* font_provider,
-                        const Font* font) {
+bool ShouldEmbolden(const render_tree::FontProvider* font_provider,
+                    const Font* font) {
   // A font-weight greater than 500 indicates bold if it is available. Use
   // synthetic bolding if this is a bold weight and the selected font
   // synthesizes bold.
@@ -333,14 +333,14 @@ void TextShaper::ShapeComplexRun(const base::char16* text_buffer,
   hb_glyph_position_t* hb_positions =
       hb_buffer_get_glyph_positions(buffer, NULL);
 
-  // If |maybe_builder| has been provided, the allocate enough memory within
+  // If |maybe_builder| has been provided, then allocate enough memory within
   // the builder for the shaped glyphs.
   const SkTextBlobBuilder::RunBuffer* run_buffer = NULL;
   if (maybe_builder) {
-    SkPaint paint = script_run.font->GetSkPaint();
-    paint.setTextEncoding(SkPaint::kGlyphID_TextEncoding);
-    paint.setFakeBoldText(ShouldFakeBoldText(font_provider, script_run.font));
-    run_buffer = &(maybe_builder->allocRunPos(paint, glyph_count));
+    SkFont font = script_run.font->GetSkFont();
+    font.setEmbolden(ShouldEmbolden(font_provider, script_run.font));
+
+    run_buffer = &(maybe_builder->allocRunPos(font, glyph_count));
   }
 
   // Walk each of the shaped glyphs.
@@ -498,14 +498,13 @@ void TextShaper::ShapeSimpleRun(const base::char16* text_buffer,
 void TextShaper::AddFontRunToGlyphBuffer(
     const render_tree::FontProvider* font_provider, const Font* font,
     const int glyph_count, SkTextBlobBuilder* builder) {
-  SkPaint paint = font->GetSkPaint();
-  paint.setTextEncoding(SkPaint::kGlyphID_TextEncoding);
-  paint.setFakeBoldText(ShouldFakeBoldText(font_provider, font));
+  SkFont sk_font = font->GetSkFont();
+  sk_font.setEmbolden(ShouldEmbolden(font_provider, font));
 
   // Allocate space within the text blob for the glyphs and copy them into the
   // blob.
   const SkTextBlobBuilder::RunBuffer& buffer =
-      builder->allocRunPosH(paint, glyph_count, 0);
+      builder->allocRunPosH(sk_font, glyph_count, 0);
   std::copy(&local_glyphs_[0], &local_glyphs_[0] + glyph_count, buffer.glyphs);
   std::copy(&local_positions_[0], &local_positions_[0] + glyph_count,
             buffer.pos);

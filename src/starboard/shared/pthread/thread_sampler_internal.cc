@@ -22,6 +22,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/shared/pthread/thread_context_internal.h"
+#include "starboard/shared/pthread/types_internal.h"
 #include "starboard/thread.h"
 
 namespace {
@@ -100,7 +101,7 @@ SbThreadContext SignalHandler::Freeze(SbThreadSampler sampler) {
     return kSbThreadContextInvalid;
   }
   frozen_sampler_ = sampler;
-  pthread_kill(sampler->thread(), SIGPROF);
+  pthread_kill(SB_PTHREAD_INTERNAL_THREAD(sampler->thread()), SIGPROF);
   sem_wait(&freeze_semaphore_);
   return &sb_context_;
 }
@@ -109,7 +110,7 @@ bool SignalHandler::Thaw(SbThreadSampler sampler) {
   starboard::ScopedLock lock(GetMutex());
   SB_DCHECK(frozen_sampler_ == sampler) << "SbThreadSampler didn't freeze.";
   if (frozen_sampler_ != sampler) return false;
-  sb_context_.ucontext = nullptr;
+  sb_context_ = SbThreadContextPrivate();
   sem_post(&thaw_semaphore_);
   frozen_sampler_ = kSbThreadSamplerInvalid;
   return true;
@@ -119,7 +120,7 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
                                          void* context) {
   SB_UNREFERENCED_PARAMETER(info);
   if (signal != SIGPROF) return;
-  sb_context_.ucontext = reinterpret_cast<ucontext_t*>(context);
+  sb_context_ = SbThreadContextPrivate(reinterpret_cast<ucontext_t*>(context));
   // |Freeze| can return the context now.
   sem_post(&freeze_semaphore_);
   // Keep this thread frozen until |Thaw| is called.

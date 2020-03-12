@@ -8,8 +8,8 @@
 #ifndef SkGeometry_DEFINED
 #define SkGeometry_DEFINED
 
-#include "SkMatrix.h"
-#include "SkNx.h"
+#include "include/core/SkMatrix.h"
+#include "include/private/SkNx.h"
 
 static inline Sk2s from_point(const SkPoint& point) {
     return Sk2s::Load(&point);
@@ -154,6 +154,9 @@ int SkChopCubicAtInflections(const SkPoint src[4], SkPoint dst[10]);
 int SkFindCubicMaxCurvature(const SkPoint src[4], SkScalar tValues[3]);
 int SkChopCubicAtMaxCurvature(const SkPoint src[4], SkPoint dst[13],
                               SkScalar tValues[3] = nullptr);
+/** Returns t value of cusp if cubic has one; returns -1 otherwise.
+ */
+SkScalar SkFindCubicCusp(const SkPoint src[4]);
 
 bool SkChopMonoCubicAtX(SkPoint src[4], SkScalar y, SkPoint dst[7]);
 bool SkChopMonoCubicAtY(SkPoint src[4], SkScalar x, SkPoint dst[7]);
@@ -167,6 +170,32 @@ enum class SkCubicType {
     kLineOrPoint
 };
 
+static inline bool SkCubicIsDegenerate(SkCubicType type) {
+    switch (type) {
+        case SkCubicType::kSerpentine:
+        case SkCubicType::kLoop:
+        case SkCubicType::kLocalCusp:
+        case SkCubicType::kCuspAtInfinity:
+            return false;
+        case SkCubicType::kQuadratic:
+        case SkCubicType::kLineOrPoint:
+            return true;
+    }
+    SK_ABORT("Invalid SkCubicType");
+}
+
+static inline const char* SkCubicTypeName(SkCubicType type) {
+    switch (type) {
+        case SkCubicType::kSerpentine: return "kSerpentine";
+        case SkCubicType::kLoop: return "kLoop";
+        case SkCubicType::kLocalCusp: return "kLocalCusp";
+        case SkCubicType::kCuspAtInfinity: return "kCuspAtInfinity";
+        case SkCubicType::kQuadratic: return "kQuadratic";
+        case SkCubicType::kLineOrPoint: return "kLineOrPoint";
+    }
+    SK_ABORT("Invalid SkCubicType");
+}
+
 /** Returns the cubic classification.
 
     t[],s[] are set to the two homogeneous parameter values at which points the lines L & M
@@ -179,6 +208,8 @@ enum class SkCubicType {
 
     d[] is filled with the cubic inflection function coefficients. See "Resolution Independent
     Curve Rendering using Programmable Graphics Hardware", 4.2 Curve Categorization:
+
+    If the input points contain infinities or NaN, the return values are undefined.
 
     https://www.microsoft.com/en-us/research/wp-content/uploads/2005/01/p1000-loop.pdf
 */
@@ -242,13 +273,13 @@ struct SkConic {
      *  return the power-of-2 number of quads needed to approximate this conic
      *  with a sequence of quads. Will be >= 0.
      */
-    int computeQuadPOW2(SkScalar tol) const;
+    int SK_API computeQuadPOW2(SkScalar tol) const;
 
     /**
      *  Chop this conic into N quads, stored continguously in pts[], where
      *  N = 1 << pow2. The amount of storage needed is (1 + 2 * N)
      */
-    int SK_WARN_UNUSED_RESULT chopIntoQuadsPOW2(SkPoint pts[], int pow2) const;
+    int SK_API SK_WARN_UNUSED_RESULT chopIntoQuadsPOW2(SkPoint pts[], int pow2) const;
 
     bool findXExtrema(SkScalar* t) const;
     bool findYExtrema(SkScalar* t) const;
@@ -277,7 +308,7 @@ struct SkConic {
 };
 
 // inline helpers are contained in a namespace to avoid external leakage to fragile SkNx members
-namespace {
+namespace {  // NOLINT(google-build-namespaces)
 
 /**
  *  use for : eval(t) == A * t^2 + B * t + C
@@ -372,7 +403,7 @@ struct SkCubicCoeff {
 
 }
 
-#include "SkTemplates.h"
+#include "include/private/SkTemplates.h"
 
 /**
  *  Help class to allocate storage for approximating a conic with N quads.

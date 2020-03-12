@@ -55,7 +55,6 @@ void HttpStreamFactory::ProcessAlternativeServices(
   std::string alternative_service_str;
   headers->GetNormalizedHeader(kAlternativeServiceHeader,
                                &alternative_service_str);
-#if !defined(COBALT_DISABLE_SPDY)
   spdy::SpdyAltSvcWireFormat::AlternativeServiceVector
       alternative_service_vector;
   if (!spdy::SpdyAltSvcWireFormat::ParseHeaderFieldValue(
@@ -105,7 +104,6 @@ void HttpStreamFactory::ProcessAlternativeServices(
 
   session->http_server_properties()->SetAlternativeServices(
       RewriteHost(http_server), alternative_service_info_vector);
-#endif
 }
 
 url::SchemeHostPort HttpStreamFactory::RewriteHost(

@@ -62,10 +62,8 @@ class NET_EXPORT_PRIVATE WebSocketStreamRequestAPI
  public:
   virtual void OnBasicHandshakeStreamCreated(
       WebSocketBasicHandshakeStream* handshake_stream) = 0;
-#if !defined(COBALT_DISABLE_SPDY)
   virtual void OnHttp2HandshakeStreamCreated(
       WebSocketHttp2HandshakeStream* handshake_stream) = 0;
-#endif
   virtual void OnFailure(const std::string& message) = 0;
 };
 

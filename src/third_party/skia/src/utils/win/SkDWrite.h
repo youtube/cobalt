@@ -8,8 +8,8 @@
 #ifndef SkDWrite_DEFINED
 #define SkDWrite_DEFINED
 
-#include "SkFontStyle.h"
-#include "SkTemplates.h"
+#include "include/core/SkFontStyle.h"
+#include "include/private/SkTemplates.h"
 
 #include <dwrite.h>
 #include <winsdkver.h>
@@ -38,8 +38,8 @@ HRESULT sk_wchar_to_skstring(WCHAR* name, int nameLen, SkString* skname);
 ////////////////////////////////////////////////////////////////////////////////
 // Locale
 
-void sk_get_locale_string(IDWriteLocalizedStrings* names, const WCHAR* preferedLocale,
-                       SkString* skname);
+HRESULT sk_get_locale_string(IDWriteLocalizedStrings* names, const WCHAR* preferedLocale,
+                             SkString* skname);
 
 typedef int (WINAPI *SkGetUserDefaultLocaleNameProc)(LPWSTR, int);
 HRESULT SkGetGetUserDefaultLocaleNameProc(SkGetUserDefaultLocaleNameProc* proc);

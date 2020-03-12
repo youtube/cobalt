@@ -261,7 +261,6 @@ HttpNetworkSession::HttpNetworkSession(const Params& params,
           params.quic_client_connection_options,
           params.quic_enable_socket_recv_optimization),
 #endif
-#if !defined(COBALT_DISABLE_SPDY)
       spdy_session_pool_(context.host_resolver,
                          context.ssl_config_service,
                          context.http_server_properties,
@@ -273,7 +272,6 @@ HttpNetworkSession::HttpNetworkSession(const Params& params,
                          AddDefaultHttp2Settings(params.http2_settings),
                          params.greased_http2_frame,
                          params.time_func),
-#endif
       http_stream_factory_(std::make_unique<HttpStreamFactory>(this)),
       params_(params),
       context_(context) {
@@ -309,11 +307,9 @@ HttpNetworkSession::HttpNetworkSession(const Params& params,
 HttpNetworkSession::~HttpNetworkSession() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   response_drainers_.clear();
-#if !defined(COBALT_DISABLE_SPDY)
   // TODO(bnc): CloseAllSessions() is also called in SpdySessionPool destructor,
   // one of the two calls should be removed.
   spdy_session_pool_.CloseAllSessions();
-#endif
 }
 
 void HttpNetworkSession::AddResponseDrainer(
@@ -367,11 +363,7 @@ std::unique_ptr<base::Value> HttpNetworkSession::SocketPoolInfoToValue() const {
 
 std::unique_ptr<base::Value> HttpNetworkSession::SpdySessionPoolInfoToValue()
     const {
-#if !defined(COBALT_DISABLE_SPDY)
   return spdy_session_pool_.SpdySessionPoolInfoToValue();
-#else
-  return std::unique_ptr<base::Value>();
-#endif
 }
 
 std::unique_ptr<base::Value> HttpNetworkSession::QuicInfoToValue() const {
@@ -446,9 +438,7 @@ std::unique_ptr<base::Value> HttpNetworkSession::QuicInfoToValue() const {
 void HttpNetworkSession::CloseAllConnections() {
   normal_socket_pool_manager_->FlushSocketPoolsWithError(ERR_ABORTED);
   websocket_socket_pool_manager_->FlushSocketPoolsWithError(ERR_ABORTED);
-#if !defined(COBALT_DISABLE_SPDY)
   spdy_session_pool_.CloseCurrentSessions(ERR_ABORTED);
-#endif
 #if !defined(QUIC_DISABLED_FOR_STARBOARD)
   quic_stream_factory_.CloseAllSessions(ERR_ABORTED, quic::QUIC_INTERNAL_ERROR);
 #endif
@@ -457,9 +447,7 @@ void HttpNetworkSession::CloseAllConnections() {
 void HttpNetworkSession::CloseIdleConnections() {
   normal_socket_pool_manager_->CloseIdleSockets();
   websocket_socket_pool_manager_->CloseIdleSockets();
-#if !defined(COBALT_DISABLE_SPDY)
   spdy_session_pool_.CloseCurrentIdleSessions();
-#endif
 }
 
 bool HttpNetworkSession::IsProtocolEnabled(NextProto protocol) const {
@@ -485,9 +473,7 @@ void HttpNetworkSession::SetServerPushDelegate(
     return;
 
   push_delegate_ = std::move(push_delegate);
-#if !defined(COBALT_DISABLE_SPDY)
   spdy_session_pool_.set_server_push_delegate(push_delegate_.get());
-#endif
 #if !defined(QUIC_DISABLED_FOR_STARBOARD)
   quic_stream_factory_.set_server_push_delegate(push_delegate_.get());
 #endif
@@ -522,10 +508,8 @@ void HttpNetworkSession::DumpMemoryStats(
     http_network_session_dump = pmd->CreateAllocatorDump(name);
     normal_socket_pool_manager_->DumpMemoryStats(
         pmd, http_network_session_dump->absolute_name());
-#if !defined(COBALT_DISABLE_SPDY)
     spdy_session_pool_.DumpMemoryStats(
         pmd, http_network_session_dump->absolute_name());
-#endif
     if (http_stream_factory_) {
       http_stream_factory_->DumpMemoryStats(
           pmd, http_network_session_dump->absolute_name());

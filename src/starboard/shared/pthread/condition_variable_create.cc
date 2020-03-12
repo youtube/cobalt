@@ -16,7 +16,9 @@
 
 #include <pthread.h>
 
+#include "starboard/common/log.h"
 #include "starboard/shared/pthread/is_success.h"
+#include "starboard/shared/pthread/types_internal.h"
 #include "starboard/shared/starboard/lazy_initialization_internal.h"
 
 using starboard::shared::starboard::SetInitialized;
@@ -44,6 +46,9 @@ struct ConditionVariableAttributes {
 
 bool SbConditionVariableCreate(SbConditionVariable* out_condition,
                                SbMutex* /*opt_mutex*/) {
+  SB_COMPILE_ASSERT(
+      sizeof(SbConditionVariable) >= sizeof(SbConditionVariablePrivate),
+      sb_condition_variable_private_larger_than_sb_condition_variable);
   if (!out_condition) {
     return false;
   }
@@ -66,11 +71,13 @@ bool SbConditionVariableCreate(SbConditionVariable* out_condition,
 #endif  // !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
 
   bool status = IsSuccess(pthread_cond_init(
-                    &out_condition->condition, attributes.attributes()));
+      &(SB_PTHREAD_INTERNAL_CONDITION(out_condition)->condition),
+      attributes.attributes()));
 
   // We mark that we are initialized regardless of whether initialization
   // was successful or not.
-  SetInitialized(&out_condition->initialized_state);
+  SetInitialized(
+      &(SB_PTHREAD_INTERNAL_CONDITION(out_condition)->initialized_state));
 
   if (!status) {
     SB_DLOG(ERROR) << "Failed to call pthread_cond_init().";

@@ -5,13 +5,40 @@
  * found in the LICENSE file.
  */
 
-#include "SkExecutor.h"
-#include "SkMakeUnique.h"
-#include "SkMutex.h"
-#include "SkSemaphore.h"
-#include "SkSpinlock.h"
-#include "SkTArray.h"
-#include "SkThreadUtils.h"
+#include "include/core/SkExecutor.h"
+#include "include/private/SkMutex.h"
+#include "include/private/SkSemaphore.h"
+#include "include/private/SkSpinlock.h"
+#include "include/private/SkTArray.h"
+#include "src/core/SkMakeUnique.h"
+#include <deque>
+#include <thread>
+
+#if defined(STARBOARD)
+#include "starboard/thread.h"
+#endif
+
+namespace {
+
+#if defined(STARBOARD)
+// Starboardize std::thread as thread creation is undefined for stub builds.
+class SkThread {
+public:
+    SkThread(SbThreadEntryPoint entry_point, void* context) {
+        SbThreadCreate(0,                    // default stack_size.
+                       kSbThreadNoPriority,  // default priority.
+                       kSbThreadNoAffinity,  // default affinity.
+                       true,                 // joinable.
+                       "SkThread", entry_point, this);
+    }
+
+    bool join() { return SbThreadJoin((SbThread)this, NULL); }
+};
+#else
+typedef std::thread SkThread;
+#endif
+
+}  // namespace
 
 #if defined(STARBOARD)
 #include "starboard/system.h"
@@ -19,8 +46,8 @@ static int num_cores() {
   return SbSystemGetNumberOfProcessors();
 }
 #else  // defined(STARBOARD)
-#if defined(SK_BUILD_FOR_WIN32)
-    #include <windows.h>
+#if defined(SK_BUILD_FOR_WIN)
+    #include "src/core/SkLeanWindows.h"
     static int num_cores() {
         SYSTEM_INFO sysinfo;
         GetNativeSystemInfo(&sysinfo);
@@ -43,23 +70,45 @@ class SkTrivialExecutor final : public SkExecutor {
     }
 };
 
-static SkTrivialExecutor gTrivial;
-static SkExecutor* gDefaultExecutor = &gTrivial;
+static SkExecutor* gDefaultExecutor = nullptr;
 
+void SetDefaultTrivialExecutor() {
+    static SkTrivialExecutor *gTrivial = new SkTrivialExecutor();
+    gDefaultExecutor = gTrivial;
+}
 SkExecutor& SkExecutor::GetDefault() {
+    if (!gDefaultExecutor) {
+        SetDefaultTrivialExecutor();
+    }
     return *gDefaultExecutor;
 }
 void SkExecutor::SetDefault(SkExecutor* executor) {
-    gDefaultExecutor = executor ? executor : &gTrivial;
+    if (executor) {
+        gDefaultExecutor = executor;
+    } else {
+        SetDefaultTrivialExecutor();
+    }
+}
+
+// We'll always push_back() new work, but pop from the front of deques or the back of SkTArray.
+static inline std::function<void(void)> pop(std::deque<std::function<void(void)>>* list) {
+    std::function<void(void)> fn = std::move(list->front());
+    list->pop_front();
+    return fn;
+}
+static inline std::function<void(void)> pop(SkTArray<std::function<void(void)>>* list) {
+    std::function<void(void)> fn = std::move(list->back());
+    list->pop_back();
+    return fn;
 }
 
 // An SkThreadPool is an executor that runs work on a fixed pool of OS threads.
+template <typename WorkList>
 class SkThreadPool final : public SkExecutor {
 public:
     explicit SkThreadPool(int threads) {
         for (int i = 0; i < threads; i++) {
-            fThreads.emplace_back(new SkThread(&Loop, this));
-            fThreads.back()->start();
+            fThreads.emplace_back(&Loop, this);
         }
     }
 
@@ -70,14 +119,14 @@ public:
         }
         // Wait for each thread to shut down.
         for (int i = 0; i < fThreads.count(); i++) {
-            fThreads[i]->join();
+            fThreads[i].join();
         }
     }
 
     virtual void add(std::function<void(void)> work) override {
         // Add some work to our pile of work to do.
         {
-            SkAutoExclusive lock(fWorkLock);
+            SkAutoMutexExclusive lock(fWorkLock);
             fWork.emplace_back(std::move(work));
         }
         // Tell the Loop() threads to pick it up.
@@ -96,10 +145,9 @@ private:
     bool do_work() {
         std::function<void(void)> work;
         {
-            SkAutoExclusive lock(fWorkLock);
+            SkAutoMutexExclusive lock(fWorkLock);
             SkASSERT(!fWork.empty());        // TODO: if (fWork.empty()) { return true; } ?
-            work = std::move(fWork.back());
-            fWork.pop_back();
+            work = pop(&fWork);
         }
 
         if (!work) {
@@ -110,22 +158,28 @@ private:
         return true;
     }
 
-    static void Loop(void* ctx) {
+    static void* Loop(void* ctx) {
         auto pool = (SkThreadPool*)ctx;
         do {
             pool->fWorkAvailable.wait();
         } while (pool->do_work());
+        return NULL;
     }
 
     // Both SkMutex and SkSpinlock can work here.
     using Lock = SkMutex;
 
-    SkTArray<std::unique_ptr<SkThread>> fThreads;
-    SkTArray<std::function<void(void)>> fWork;
-    Lock                                fWorkLock;
-    SkSemaphore                         fWorkAvailable;
+    SkTArray<SkThread>    fThreads;
+    WorkList              fWork;
+    Lock                  fWorkLock;
+    SkSemaphore           fWorkAvailable;
 };
 
-std::unique_ptr<SkExecutor> SkExecutor::MakeThreadPool(int threads) {
-    return skstd::make_unique<SkThreadPool>(threads > 0 ? threads : num_cores());
+std::unique_ptr<SkExecutor> SkExecutor::MakeFIFOThreadPool(int threads) {
+    using WorkList = std::deque<std::function<void(void)>>;
+    return skstd::make_unique<SkThreadPool<WorkList>>(threads > 0 ? threads : num_cores());
+}
+std::unique_ptr<SkExecutor> SkExecutor::MakeLIFOThreadPool(int threads) {
+    using WorkList = SkTArray<std::function<void(void)>>;
+    return skstd::make_unique<SkThreadPool<WorkList>>(threads > 0 ? threads : num_cores());
 }

@@ -245,6 +245,14 @@
 #define SB_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT_VERSION \
   SB_EXPERIMENTAL_API_VERSION
 
+// Introduce error handling into reference SbAudioSinkPrivate implementation in
+// "starboard/shared/starboard/audio_sink/audio_sink_internal.*".
+#define SB_AUDIO_SINK_ERROR_HANDLING_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Defines new, portable thread types with stable ABI for
+// SbThread, SbMutex, SbOnce and SbConditionVariable.
+#define SB_PORTABLE_THREAD_TYPES_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // Introduce support of cbcs encryption scheme into SbDrmSystem, as defined in
 // ISO/IEC 23001 part 7.
 #define SB_DRM_CBCS_SUPPORT_VERSION SB_EXPERIMENTAL_API_VERSION
@@ -252,6 +260,8 @@
 // Deprecate the SB_HAS_VIRTUAL_REGIONS flag as all platforms define it to 0.
 #define SB_VIRTUAL_REGIONS_FLAG_DEPRECATED SB_EXPERIMENTAL_API_VERSION
 
+// Add link register to SbThreadContext.
+#define SB_THREAD_CONTEXT_LINK_REGISTER_VERSION SB_EXPERIMENTAL_API_VERSION
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
@@ -279,6 +289,11 @@
 // Determines at compile-time whether this platform has a quirk.
 #define SB_HAS_QUIRK(SB_FEATURE) \
   ((defined SB_HAS_QUIRK_##SB_FEATURE) && SB_HAS_QUIRK_##SB_FEATURE)
+
+// Determines at compile-time the size of a data type, or 0 if the data type
+// that was specified was invalid.
+#define SB_SIZE_OF(DATATYPE) \
+  ((defined SB_SIZE_OF_##DATATYPE) ? (SB_SIZE_OF_##DATATYPE) : (0))
 
 // A constant expression that evaluates to the size_t size of a statically-sized
 // array.
@@ -530,8 +545,8 @@ struct CompileAssert {};
 #error "Your platform's SB_API_VERSION < SB_MINIMUM_API_VERSION."
 #endif
 
-#if !SB_IS(ARCH_ARM) && !SB_IS(ARCH_MIPS) && !SB_IS(ARCH_PPC) && \
-    !SB_IS(ARCH_X86)
+#if !SB_IS(ARCH_ARM) && !SB_IS(ARCH_ARM64) && !SB_IS(ARCH_MIPS) && \
+    !SB_IS(ARCH_PPC) && !SB_IS(ARCH_X86) && !SB_IS(ARCH_X64)
 #error "Your platform doesn't define a known architecture."
 #endif
 
@@ -539,23 +554,39 @@ struct CompileAssert {};
 #error "Your platform must be exactly one of { 32-bit, 64-bit }."
 #endif
 
-#if SB_HAS(32_BIT_POINTERS) == SB_HAS(64_BIT_POINTERS)
-#error "Your platform's pointer sizes must be either 32 bit or 64 bit."
+#if SB_API_VERSION >= SB_SABI_FILE_VERSION
+
+#if !SB_IS(BIG_ENDIAN) && !SB_IS(LITTLE_ENDIAN) || \
+    (SB_IS(BIG_ENDIAN) == SB_IS(LITTLE_ENDIAN))
+#error "Your platform's endianness must be defined as big or little."
 #endif
 
-#if SB_HAS(32_BIT_LONG) == SB_HAS(64_BIT_LONG)
-#error "Your platform's long size must be either 32 bit or 64 bit."
-#endif
+#else   // SB_API_VERSION < SB_SABI_FILE_VERSION
+
+#if SB_IS(ARCH_X86) && SB_IS(64_BIT)
+#undef SB_IS_ARCH_X86
+#define SB_IS_ARCH_X64 1
+#endif  // SB_IS(ARCH_X86) && SB_IS(64_BIT)
+
+#if SB_IS(ARCH_ARM) && SB_IS(64_BIT)
+#undef SB_IS_ARCH_ARM
+#define SB_IS_ARCH_ARM64 1
+#endif  // SB_IS(ARCH_ARM) && SB_IS(64_BIT)
 
 #if SB_HAS(32_BIT_LONG)
-SB_COMPILE_ASSERT(sizeof(long) == 4,  // NOLINT(runtime/int)
-                  SB_HAS_32_BIT_LONG_is_inconsistent_with_sizeof_long);
-#endif
+#define SB_SIZE_OF_LONG 4
+#elif SB_HAS(64_BIT_LONG)
+#define SB_SIZE_OF_LONG 8
+#endif  // SB_HAS(32_BIT_LONG)
 
-#if SB_HAS(64_BIT_LONG)
-SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
-                  SB_HAS_64_BIT_LONG_is_inconsistent_with_sizeof_long);
-#endif
+#if SB_HAS(32_BIT_POINTERS)
+#define SB_SIZE_OF_POINTER 4
+#elif SB_HAS(64_BIT_POINTERS)
+#define SB_SIZE_OF_POINTER 8
+#endif  // SB_HAS(32_BIT_POINTER)
+
+SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
+                  SB_SIZE_OF_LONG_is_inconsistent_with_sizeof_long);
 
 #if !defined(SB_IS_BIG_ENDIAN)
 #error "Your platform must define SB_IS_BIG_ENDIAN."
@@ -563,6 +594,16 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 
 #if defined(SB_IS_LITTLE_ENDIAN)
 #error "SB_IS_LITTLE_ENDIAN is set based on SB_IS_BIG_ENDIAN."
+#endif
+
+#endif  // SB_API_VERSION >= SB_SABI_FILE_VERSION
+
+#if (SB_SIZE_OF(POINTER) != 4) && (SB_SIZE_OF(POINTER) != 8)
+#error "Your platform's pointer sizes must be either 32 bit or 64 bit."
+#endif
+
+#if (SB_SIZE_OF(LONG) != 4) && (SB_SIZE_OF(LONG) != 8)
+#error "Your platform's long size must be either 32 bit or 64 bit."
 #endif
 
 #if SB_IS(WCHAR_T_UTF16) == SB_IS(WCHAR_T_UTF32)
@@ -1060,12 +1101,16 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 
 // --- Derived Configuration -------------------------------------------------
 
+#if SB_API_VERSION < SB_SABI_FILE_VERSION
+
 // Whether the current platform is little endian.
 #if SB_IS(BIG_ENDIAN)
 #define SB_IS_LITTLE_ENDIAN 0
 #else
 #define SB_IS_LITTLE_ENDIAN 1
 #endif
+
+#endif  // SB_API_VERSION < SB_SABI_FILE_VERSION
 
 // Whether the current platform has 64-bit atomic operations.
 #if SB_IS(64_BIT)

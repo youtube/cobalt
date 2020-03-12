@@ -96,10 +96,8 @@ scoped_refptr<script::Wrappable> CreateDebugHub(
     const debug::console::DebugHub::GetHudModeCallback& get_hud_mode_function,
     const debug::CreateDebugClientCallback& create_debug_client_callback,
     const scoped_refptr<dom::Window>& window,
-    dom::MutationObserverTaskManager* mutation_observer_task_manager,
     script::GlobalEnvironment* global_environment) {
   SB_UNREFERENCED_PARAMETER(window);
-  SB_UNREFERENCED_PARAMETER(mutation_observer_task_manager);
   SB_UNREFERENCED_PARAMETER(global_environment);
   return new debug::console::DebugHub(get_hud_mode_function,
                                       create_debug_client_callback);

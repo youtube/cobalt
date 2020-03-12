@@ -8,10 +8,12 @@
 #ifndef SkFrameHolder_DEFINED
 #define SkFrameHolder_DEFINED
 
-#include "SkTypes.h"
-#include "SkCodecAnimation.h"
-#include "SkCodecAnimationPriv.h"
-#include "SkRect.h"
+#include "include/codec/SkCodecAnimation.h"
+#include "include/core/SkRect.h"
+#include "include/core/SkTypes.h"
+#include "include/private/SkEncodedInfo.h"
+#include "include/private/SkNoncopyable.h"
+#include "src/codec/SkCodecAnimationPriv.h"
 
 /**
  *  Base class for a single frame of an animated image.
@@ -35,19 +37,30 @@ public:
     virtual ~SkFrame() {}
 
     /**
+     * An explicit move constructor, as
+     * https://en.cppreference.com/w/cpp/language/move_constructor says that
+     * there is no implicit move constructor if there are user-declared
+     * destructors, and we have one, immediately above.
+     *
+     * Without a move constructor, it is harder to use an SkFrame, or an
+     * SkFrame subclass, inside a std::vector.
+     */
+    SkFrame(SkFrame&&) = default;
+
+    /**
      *  0-based index of the frame in the image sequence.
      */
     int frameId() const { return fId; }
 
     /**
-     *  Whether this frame reports alpha.
+     *  How this frame reports its alpha.
      *
      *  This only considers the rectangle of this frame, and
      *  considers it to have alpha even if it is opaque once
      *  blended with the frame behind it.
      */
-    bool reportsAlpha() const {
-        return this->onReportsAlpha();
+    SkEncodedInfo::Alpha reportedAlpha() const {
+        return this->onReportedAlpha();
     }
 
     /**
@@ -130,7 +143,7 @@ public:
     }
 
 protected:
-    virtual bool onReportsAlpha() const = 0;
+    virtual SkEncodedInfo::Alpha onReportedAlpha() const = 0;
 
 private:
     static constexpr int kUninitialized = -2;
@@ -166,7 +179,7 @@ public:
 
     /**
      *  Compute the opacity and required frame, based on
-     *  whether the frame reportsAlpha and how it blends
+     *  the frame's reportedAlpha and how it blends
      *  with prior frames.
      */
     void setAlphaAndRequiredFrame(SkFrame*);
