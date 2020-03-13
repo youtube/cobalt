@@ -36,6 +36,7 @@ _NDK_VERSION = '20.1.5948944'
 _ANDROID_SDK_PACKAGES = [
     'build-tools;28.0.3',
     'cmake;3.6.4111459',
+    'cmdline-tools;latest',
     'emulator',
     'extras;android;m2repository',
     'extras;google;m2repository',
@@ -43,7 +44,6 @@ _ANDROID_SDK_PACKAGES = [
     'patcher;v4',
     'platforms;android-28',
     'platform-tools',
-    'tools',
 ]
 
 # Seconds to sleep before writing "y" for android sdk update license prompt.
@@ -51,7 +51,7 @@ _SDK_LICENSE_PROMPT_SLEEP_SECONDS = 5
 
 # Location from which to download the SDK command-line tools
 # see https://developer.android.com/studio/index.html#command-tools
-_SDK_URL = 'https://dl.google.com/android/repository/sdk-tools-linux-3859397.zip'
+_SDK_URL = 'https://dl.google.com/android/repository/commandlinetools-linux-6200805_latest.zip'
 
 # Location from which to download the Android NDK.
 # see https://developer.android.com/ndk/downloads (perhaps in "NDK archives")
@@ -73,7 +73,8 @@ else:
 
 _NDK_PATH = os.path.join(_SDK_PATH, 'ndk', _NDK_VERSION)
 
-_SDKMANAGER_TOOL = os.path.join(_SDK_PATH, 'tools', 'bin', 'sdkmanager')
+_SDKMANAGER_TOOL = os.path.join(_SDK_PATH, 'cmdline-tools', '1.0', 'bin',
+                                'sdkmanager')
 
 
 def _MakeDirs(destination_path):
@@ -230,6 +231,14 @@ def _DownloadInstallOrUpdateSdk():
     if os.path.exists(_STARBOARD_TOOLCHAINS_SDK_DIR):
       shutil.rmtree(_STARBOARD_TOOLCHAINS_SDK_DIR)
     _DownloadAndUnzipFile(_SDK_URL, _STARBOARD_TOOLCHAINS_SDK_DIR)
+    # TODO: Remove this workaround for sdkmanager incorrectly picking up the
+    # "tools" directory from the ZIP as the name of its component.
+    if not os.access(_SDKMANAGER_TOOL, os.X_OK):
+      old_tools_dir = os.path.join(_STARBOARD_TOOLCHAINS_SDK_DIR, 'tools')
+      new_tools_dir = os.path.join(_STARBOARD_TOOLCHAINS_SDK_DIR,
+                                   'cmdline-tools', '1.0')
+      os.mkdir(os.path.dirname(new_tools_dir))
+      os.rename(old_tools_dir, new_tools_dir)
     if not os.access(_SDKMANAGER_TOOL, os.X_OK):
       logging.error('SDK download failed.')
       sys.exit(1)
