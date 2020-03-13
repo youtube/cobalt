@@ -20,11 +20,21 @@
 #include "starboard/configuration.h"
 #include "starboard/shared/pthread/is_success.h"
 #include "starboard/shared/pthread/types_internal.h"
+#include "starboard/shared/starboard/lazy_initialization_internal.h"
+
+using starboard::shared::starboard::IsInitialized;
 
 bool SbMutexDestroy(SbMutex* mutex) {
   if (!mutex) {
     return false;
   }
+
+#if SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
+  if (!IsInitialized(&(SB_INTERNAL_MUTEX(mutex)->initialized_state))) {
+    // If the mutex is not initialized there is nothing to destroy.
+    return true;
+  }
+#endif
 
 #if SB_API_VERSION >= SB_MUTEX_ACQUIRE_TRY_API_CHANGE_VERSION
   // Both trying to recursively acquire a mutex that is locked by the calling

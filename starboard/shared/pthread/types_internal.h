@@ -18,10 +18,14 @@
 #define STARBOARD_SHARED_PTHREAD_TYPES_INTERNAL_H_
 
 #if SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
-#define SB_PTHREAD_INTERNAL_MUTEX(mutex_ptr) \
-  reinterpret_cast<pthread_mutex_t*>((mutex_ptr)->mutex_buffer)
-#define SB_PTHREAD_INTERNAL_ONCE(once_ptr) \
-  reinterpret_cast<pthread_once_t*>((once_ptr)->once_buffer)
+#define SB_INTERNAL_MUTEX(mutex_var) \
+  reinterpret_cast<SbMutexPrivate*>((mutex_var)->mutex_buffer)
+#define SB_PTHREAD_INTERNAL_MUTEX(mutex_var) \
+  &(reinterpret_cast<SbMutexPrivate*>((mutex_var)->mutex_buffer)->mutex)
+#define SB_INTERNAL_ONCE(once_var) \
+  reinterpret_cast<SbOnceControlPrivate*>((once_var)->once_buffer)
+#define SB_PTHREAD_INTERNAL_ONCE(once_var) \
+  &(reinterpret_cast<SbOnceControlPrivate*>((once_var)->once_buffer)->once)
 #define SB_PTHREAD_INTERNAL_THREAD(thread) reinterpret_cast<pthread_t>(thread)
 #define SB_PTHREAD_INTERNAL_THREAD_PTR(thread) \
   reinterpret_cast<pthread_t*>(&(thread))
@@ -30,8 +34,8 @@
   reinterpret_cast<SbConditionVariablePrivate*>(     \
       (condition_var)->condition_buffer)
 #else
-#define SB_PTHREAD_INTERNAL_MUTEX(mutex_ptr) (mutex_ptr)
-#define SB_PTHREAD_INTERNAL_ONCE(once_ptr) (once_ptr)
+#define SB_PTHREAD_INTERNAL_MUTEX(mutex_var) (mutex_var)
+#define SB_PTHREAD_INTERNAL_ONCE(once_var) (once_var)
 #define SB_PTHREAD_INTERNAL_THREAD(thread) (thread)
 #define SB_PTHREAD_INTERNAL_THREAD_PTR(thread) \
   reinterpret_cast<pthread_t*>(&(thread))
@@ -48,5 +52,21 @@ typedef struct SbConditionVariablePrivate {
   InitializedState initialized_state;
   pthread_cond_t condition;
 } SbConditionVariablePrivate;
+
+// Wrapping pthread_mutex_t to add initialization state
+// which allows for lazy initialization to PTHREAD_MUTEX_INITIALIZER.
+// NOTE: The actual value of PTHREAD_MUTEX_INITIALIZER.
+typedef struct SbMutexPrivate {
+  InitializedState initialized_state;
+  pthread_mutex_t mutex;
+} SbMutexPrivate;
+
+// Wrapping pthread_once_t to add initialization state
+// which allows for lazy initialization to PTHREAD_ONCE_INIT.
+// NOTE: The actual value of PTHREAD_ONCE_INIT.
+typedef struct SbOnceControlPrivate {
+  InitializedState initialized_state;
+  pthread_once_t once;
+} SbOnceControlPrivate;
 
 #endif  // STARBOARD_SHARED_PTHREAD_TYPES_INTERNAL_H_

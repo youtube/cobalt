@@ -31,7 +31,7 @@ extern "C" {
 #if SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
 
 // Max size of the SbOnceControl type.
-#define SB_ONCE_MAX_SIZE 16
+#define SB_ONCE_MAX_SIZE 64
 
 // An opaque handle to a once control type with
 // reserved memory buffer of size SB_ONCE_MAX_SIZE and
