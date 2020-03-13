@@ -14,10 +14,11 @@
 
 {
   'variables': {
-    'executable_file': '<(PRODUCT_DIR)/lib/lib<(executable_name).so',
     'deploy_executable_file': '<(target_deploy_dir)/lib/lib<(executable_name).so',
+    'executable_file': '<(PRODUCT_DIR)/lib/lib<(executable_name).so',
   },
   'includes': [
+    '<(DEPTH)/<(include_path_platform_deploy_postprocess_gypi)',
     '<(DEPTH)/starboard/build/collect_deploy_content.gypi',
   ],
   'actions': [

@@ -54,6 +54,8 @@ class EvergreenConfiguration(platform_configuration.PlatformConfiguration):
             paths.REPOSITORY_ROOT,
         'include_path_platform_deploy_gypi':
             'starboard/evergreen/shared/platform_deploy.gypi',
+        'include_path_platform_deploy_postprocess_gypi':
+            'starboard/evergreen/shared/default_no_platform_deploy_postprocess.gypi',
     })
     return variables
 
