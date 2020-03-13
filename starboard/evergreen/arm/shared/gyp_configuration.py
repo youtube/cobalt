@@ -83,6 +83,14 @@ class EvergreenArmConfiguration(shared_configuration.EvergreenConfiguration):
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
+  def GetVariables(self, config_name):
+    variables = super(EvergreenArmConfiguration, self).GetVariables(config_name)
+    variables.update({
+        'include_path_platform_deploy_postprocess_gypi':
+            'starboard/evergreen/arm/shared/platform_deploy_postprocess.gypi',
+    })
+    return variables
+
   __FILTERED_TESTS = {  # pylint: disable=invalid-name
       'nplb': ['SbSystemGetStackTest.SunnyDayStackDirection',
                'SbSystemGetStackTest.SunnyDay',
