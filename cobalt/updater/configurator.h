@@ -78,6 +78,7 @@ class Configurator : public update_client::Configurator {
 
   void MarkChannelChanged() { is_channel_changed = true; }
   bool IsChannelChanged() const override { return is_channel_changed; }
+  bool IsChannelValid(const std::string& channel);
 
   std::string GetUpdaterStatus() const;
   void SetUpdaterStatus(const std::string& status);
