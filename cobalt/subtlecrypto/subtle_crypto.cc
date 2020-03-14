@@ -109,7 +109,8 @@ PromiseArray SubtleCrypto::Decrypt(EncryptionAlgorithm algorithm,
   // 3. Let normalizedAlgorithm be the result of normalizing an algorithm, with
   // alg set to algorithm and op set to "decrypt".
   std::string normalizedAlgorithm = getName<AesCtrParams>(algorithm);
-  if (normalizedAlgorithm.empty()) getName<Algorithm>(algorithm);
+  if (normalizedAlgorithm.empty())
+    normalizedAlgorithm = getName<Algorithm>(algorithm);
   // 5. Let promise be a new Promise.
   auto promise = CreatePromise();
   // 4. If an error occurred, return a Promise rejected with
@@ -169,7 +170,8 @@ PromiseArray SubtleCrypto::Encrypt(EncryptionAlgorithm algorithm,
   // 3. Let normalizedAlgorithm be the result of normalizing an algorithm, with
   // alg set to algorithm and op set to "encrypt".
   std::string normalizedAlgorithm = getName<AesCtrParams>(algorithm);
-  if (normalizedAlgorithm.empty()) getName<Algorithm>(algorithm);
+  if (normalizedAlgorithm.empty())
+    normalizedAlgorithm = getName<Algorithm>(algorithm);
   // 5. Let promise be a new Promise.
   auto promise = CreatePromise();
   // 4. If an error occurred, return a Promise rejected with
@@ -358,7 +360,7 @@ PromiseWrappable SubtleCrypto::ImportKey(
     return reject(promise, new DOMException(DOMException::kNotSupportedErr));
   }
 
-  if ((normalizedAlgorithm == "AES-CTR" || normalizedAlgorithm != "HMAC")) {
+  if (!(normalizedAlgorithm == "AES-CTR" || normalizedAlgorithm == "HMAC")) {
     return reject(promise, new DOMException(DOMException::kNotSupportedErr));
   }
 
