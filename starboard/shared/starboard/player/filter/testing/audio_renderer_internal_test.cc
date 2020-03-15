@@ -453,7 +453,8 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
 
   // Consume frames in two batches, so we can test if |GetCurrentMediaTime()|
   // is incrementing in an expected manner.
-  const int frames_to_consume = std::min(frames_written, frames_in_buffer) / 2;
+  const int frames_to_consume =
+      std::min(frames_written / kPlaybackRate, frames_in_buffer) / 2;
   SbTime new_media_time;
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
