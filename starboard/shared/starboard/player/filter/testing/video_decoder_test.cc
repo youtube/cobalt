@@ -28,9 +28,9 @@
 #include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"
-#include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
+#include "starboard/shared/starboard/player/filter/testing/test_util.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
@@ -62,40 +62,7 @@ using ::testing::Combine;
 using ::testing::ValuesIn;
 using video_dmp::VideoDmpReader;
 
-struct TestParam {
-  SbPlayerOutputMode output_mode;
-  const char* filename;
-};
-
 const SbTimeMonotonic kDefaultWaitForNextEventTimeOut = 5 * kSbTimeSecond;
-
-std::string GetTestInputDirectory() {
-  const size_t kPathSize = kSbFileMaxPath + 1;
-
-  std::vector<char> content_path(kPathSize);
-  EXPECT_TRUE(SbSystemGetPath(kSbSystemPathContentDirectory,
-                              content_path.data(), kPathSize));
-  std::string directory_path =
-      std::string(content_path.data()) + kSbFileSepChar + "test" +
-      kSbFileSepChar + "starboard" + kSbFileSepChar + "shared" +
-      kSbFileSepChar + "starboard" + kSbFileSepChar + "player" +
-      kSbFileSepChar + "testdata";
-
-  SB_CHECK(SbDirectoryCanOpen(directory_path.c_str())) << directory_path;
-  return directory_path;
-}
-
-void DeallocateSampleFunc(SbPlayer player,
-                          void* context,
-                          const void* sample_buffer) {
-  SB_UNREFERENCED_PARAMETER(player);
-  SB_UNREFERENCED_PARAMETER(context);
-  SB_UNREFERENCED_PARAMETER(sample_buffer);
-}
-
-std::string ResolveTestFileName(const char* filename) {
-  return GetTestInputDirectory() + kSbFileSepChar + filename;
-}
 
 AssertionResult AlmostEqualTime(SbTime time1, SbTime time2) {
   const SbTime kEpsilon = kSbTimeSecond / 1000;
@@ -129,7 +96,7 @@ shared::starboard::media::VideoSampleInfo CreateVideoSampleInfo(
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
 class VideoDecoderTest
-    : public ::testing::TestWithParam<std::tuple<TestParam, bool>> {
+    : public ::testing::TestWithParam<std::tuple<VideoTestParam, bool>> {
  public:
   VideoDecoderTest()
       : test_filename_(std::get<0>(GetParam()).filename),
@@ -454,11 +421,12 @@ class VideoDecoderTest
     auto video_sample_info =
         dmp_reader_.GetPlayerSampleInfo(kSbMediaTypeVideo, index);
 #if SB_API_VERSION >= 11
-    auto input_buffer =
-        new InputBuffer(DeallocateSampleFunc, NULL, NULL, video_sample_info);
+    auto input_buffer = new InputBuffer(StubDeallocateSampleFunc, NULL, NULL,
+                                        video_sample_info);
 #else   // SB_API_VERSION >= 11
-    auto input_buffer = new InputBuffer(kSbMediaTypeVideo, DeallocateSampleFunc,
-                                        NULL, NULL, video_sample_info, NULL);
+    auto input_buffer =
+        new InputBuffer(kSbMediaTypeVideo, StubDeallocateSampleFunc, NULL, NULL,
+                        video_sample_info, NULL);
 #endif  // SB_API_VERSION >= 11
     auto iter = invalid_inputs_.find(index);
     if (iter != invalid_inputs_.end()) {
@@ -912,63 +880,9 @@ TEST_P(VideoDecoderTest, DecodeFullGOP) {
   ASSERT_FALSE(error_occurred);
 }
 
-std::vector<TestParam> GetSupportedTests() {
-  SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
-                                       kSbPlayerOutputModePunchOut};
-
-  const char* kFilenames[] = {"beneath_the_canopy_137_avc.dmp",
-                              "beneath_the_canopy_248_vp9.dmp",
-                              "sintel_399_av1.dmp"};
-
-  static std::vector<TestParam> test_params;
-
-  if (!test_params.empty()) {
-    return test_params;
-  }
-
-  for (auto filename : kFilenames) {
-    VideoDmpReader dmp_reader(ResolveTestFileName(filename).c_str());
-    SB_DCHECK(dmp_reader.number_of_video_buffers() > 0);
-
-    for (auto output_mode : kOutputModes) {
-      if (!VideoDecoder::OutputModeSupported(
-              output_mode, dmp_reader.video_codec(), kSbDrmSystemInvalid)) {
-        continue;
-      }
-
-      const auto& video_sample_info =
-          dmp_reader.GetPlayerSampleInfo(kSbMediaTypeVideo, 0)
-              .video_sample_info;
-
-      if (SbMediaIsVideoSupported(
-              dmp_reader.video_codec(),
-#if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-              -1, -1, 8, kSbMediaPrimaryIdUnspecified,
-              kSbMediaTransferIdUnspecified, kSbMediaMatrixIdUnspecified,
-#endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-#if SB_API_VERSION >= 11
-              video_sample_info.frame_width, video_sample_info.frame_height,
-#else   // SB_API_VERSION >= 11
-              video_sample_info->frame_width, video_sample_info->frame_height,
-#endif  // SB_API_VERSION >= 11
-              dmp_reader.video_bitrate(), dmp_reader.video_fps()
-#if SB_API_VERSION >= 10
-                                              ,
-              false
-#endif  // SB_API_VERSION >= 10
-              )) {
-        test_params.push_back({output_mode, filename});
-      }
-    }
-  }
-
-  SB_DCHECK(!test_params.empty());
-  return test_params;
-}
-
 INSTANTIATE_TEST_CASE_P(VideoDecoderTests,
                         VideoDecoderTest,
-                        Combine(ValuesIn(GetSupportedTests()), Bool()));
+                        Combine(ValuesIn(GetSupportedVideoTests()), Bool()));
 
 }  // namespace
 }  // namespace testing
