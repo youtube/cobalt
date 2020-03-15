@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_internal_impl.h"
 
 #include <algorithm>
 
@@ -28,7 +28,7 @@ namespace filter {
 namespace {
 
 // This class works only when the input format and output format are the same.
-// It allows for a simplified AudioRenderer implementation by always using a
+// It allows for a simplified AudioRendererImpl implementation by always using a
 // resampler.
 class IdentityAudioResampler : public AudioResampler {
  public:
@@ -49,8 +49,8 @@ class IdentityAudioResampler : public AudioResampler {
   bool eos_reached_;
 };
 
-// AudioRenderer uses AudioTimeStretcher internally to adjust to playback rate.
-// So we try to use kSbMediaAudioSampleTypeFloat32 and only use
+// AudioRendererImpl uses AudioTimeStretcher internally to adjust to playback
+// rate. So we try to use kSbMediaAudioSampleTypeFloat32 and only use
 // kSbMediaAudioSampleTypeInt16Deprecated when float32 is not supported.  To use
 // kSbMediaAudioSampleTypeFloat32 will cause an extra conversion from float32 to
 // int16 before the samples are sent to the audio sink.
@@ -64,11 +64,12 @@ SbMediaAudioSampleType GetSinkAudioSampleType(
 
 }  // namespace
 
-AudioRenderer::AudioRenderer(scoped_ptr<AudioDecoder> decoder,
-                             scoped_ptr<AudioRendererSink> audio_renderer_sink,
-                             const SbMediaAudioSampleInfo& audio_sample_info,
-                             int max_cached_frames,
-                             int min_frames_per_append)
+AudioRendererImpl::AudioRendererImpl(
+    scoped_ptr<AudioDecoder> decoder,
+    scoped_ptr<AudioRendererSink> audio_renderer_sink,
+    const SbMediaAudioSampleInfo& audio_sample_info,
+    int max_cached_frames,
+    int min_frames_per_append)
     : max_cached_frames_(max_cached_frames),
       min_frames_per_append_(min_frames_per_append),
       channels_(audio_sample_info.number_of_channels),
@@ -78,10 +79,10 @@ AudioRenderer::AudioRenderer(scoped_ptr<AudioDecoder> decoder,
       frames_consumed_set_at_(SbTimeGetMonotonicNow()),
       decoder_(decoder.Pass()),
       process_audio_data_job_(
-          std::bind(&AudioRenderer::ProcessAudioData, this)),
+          std::bind(&AudioRendererImpl::ProcessAudioData, this)),
       audio_renderer_sink_(audio_renderer_sink.Pass()) {
-  SB_DLOG(INFO) << "Creating AudioRenderer with " << channels_ << " channels, "
-                << bytes_per_frame_ << " bytes per frame, "
+  SB_DLOG(INFO) << "Creating AudioRendererImpl with " << channels_
+                << " channels, " << bytes_per_frame_ << " bytes per frame, "
                 << max_cached_frames_ << " max cached frames, and "
                 << min_frames_per_append_ << " min frames per append.";
   SB_DCHECK(decoder_ != NULL);
@@ -91,22 +92,22 @@ AudioRenderer::AudioRenderer(scoped_ptr<AudioDecoder> decoder,
   frame_buffers_[0] = &frame_buffer_[0];
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-  Schedule(std::bind(&AudioRenderer::CheckAudioSinkStatus, this),
+  Schedule(std::bind(&AudioRendererImpl::CheckAudioSinkStatus, this),
            kCheckAudioSinkStatusInterval);
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 }
 
-AudioRenderer::~AudioRenderer() {
-  SB_DLOG(INFO) << "Destroying AudioRenderer with " << channels_
+AudioRendererImpl::~AudioRendererImpl() {
+  SB_DLOG(INFO) << "Destroying AudioRendererImpl with " << channels_
                 << " channels, " << bytes_per_frame_ << " bytes per frame, "
                 << max_cached_frames_ << " max cached frames, and "
                 << min_frames_per_append_ << " min frames per append.";
   SB_DCHECK(BelongsToCurrentThread());
 }
 
-void AudioRenderer::Initialize(const ErrorCB& error_cb,
-                               const PrerolledCB& prerolled_cb,
-                               const EndedCB& ended_cb) {
+void AudioRendererImpl::Initialize(const ErrorCB& error_cb,
+                                   const PrerolledCB& prerolled_cb,
+                                   const EndedCB& ended_cb) {
   SB_DCHECK(error_cb);
   SB_DCHECK(prerolled_cb);
   SB_DCHECK(ended_cb);
@@ -118,11 +119,11 @@ void AudioRenderer::Initialize(const ErrorCB& error_cb,
   prerolled_cb_ = prerolled_cb;
   ended_cb_ = ended_cb;
 
-  decoder_->Initialize(std::bind(&AudioRenderer::OnDecoderOutput, this),
+  decoder_->Initialize(std::bind(&AudioRendererImpl::OnDecoderOutput, this),
                        error_cb);
 }
 
-void AudioRenderer::WriteSample(
+void AudioRendererImpl::WriteSample(
     const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(input_buffer);
@@ -137,11 +138,11 @@ void AudioRenderer::WriteSample(
   can_accept_more_data_ = false;
 
   decoder_->Decode(input_buffer,
-                   std::bind(&AudioRenderer::OnDecoderConsumed, this));
+                   std::bind(&AudioRendererImpl::OnDecoderConsumed, this));
   first_input_written_ = true;
 }
 
-void AudioRenderer::WriteEndOfStream() {
+void AudioRendererImpl::WriteEndOfStream() {
   SB_DCHECK(BelongsToCurrentThread());
   // TODO: Check |can_accept_more_data_| and make WriteEndOfStream() depend on
   // CanAcceptMoreData() or callback.
@@ -160,28 +161,28 @@ void AudioRenderer::WriteEndOfStream() {
   first_input_written_ = true;
 }
 
-void AudioRenderer::SetVolume(double volume) {
+void AudioRendererImpl::SetVolume(double volume) {
   SB_DCHECK(BelongsToCurrentThread());
   audio_renderer_sink_->SetVolume(volume);
 }
 
-bool AudioRenderer::IsEndOfStreamWritten() const {
+bool AudioRendererImpl::IsEndOfStreamWritten() const {
   SB_DCHECK(BelongsToCurrentThread());
   return eos_state_ >= kEOSWrittenToDecoder;
 }
 
-bool AudioRenderer::IsEndOfStreamPlayed() const {
+bool AudioRendererImpl::IsEndOfStreamPlayed() const {
   ScopedLock lock(mutex_);
   return IsEndOfStreamPlayed_Locked();
 }
 
-bool AudioRenderer::CanAcceptMoreData() const {
+bool AudioRendererImpl::CanAcceptMoreData() const {
   SB_DCHECK(BelongsToCurrentThread());
   return eos_state_ == kEOSNotReceived && can_accept_more_data_ &&
          (!decoder_sample_rate_ || !time_stretcher_.IsQueueFull());
 }
 
-void AudioRenderer::Play() {
+void AudioRendererImpl::Play() {
   SB_DCHECK(BelongsToCurrentThread());
 
   ScopedLock lock(mutex_);
@@ -189,14 +190,14 @@ void AudioRenderer::Play() {
   consume_frames_called_ = false;
 }
 
-void AudioRenderer::Pause() {
+void AudioRendererImpl::Pause() {
   SB_DCHECK(BelongsToCurrentThread());
 
   ScopedLock lock(mutex_);
   paused_ = true;
 }
 
-void AudioRenderer::SetPlaybackRate(double playback_rate) {
+void AudioRendererImpl::SetPlaybackRate(double playback_rate) {
   SB_DCHECK(BelongsToCurrentThread());
 
   ScopedLock lock(mutex_);
@@ -221,7 +222,7 @@ void AudioRenderer::SetPlaybackRate(double playback_rate) {
   }
 }
 
-void AudioRenderer::Seek(SbTime seek_to_time) {
+void AudioRendererImpl::Seek(SbTime seek_to_time) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(seek_to_time >= 0);
 
@@ -271,14 +272,14 @@ void AudioRenderer::Seek(SbTime seek_to_time) {
   CancelPendingJobs();
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-  Schedule(std::bind(&AudioRenderer::CheckAudioSinkStatus, this),
+  Schedule(std::bind(&AudioRendererImpl::CheckAudioSinkStatus, this),
            kCheckAudioSinkStatusInterval);
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 }
 
-SbTime AudioRenderer::GetCurrentMediaTime(bool* is_playing,
-                                          bool* is_eos_played,
-                                          bool* is_underflow) {
+SbTime AudioRendererImpl::GetCurrentMediaTime(bool* is_playing,
+                                              bool* is_eos_played,
+                                              bool* is_underflow) {
   SB_DCHECK(is_playing);
   SB_DCHECK(is_eos_played);
   SB_DCHECK(is_underflow);
@@ -360,10 +361,10 @@ SbTime AudioRenderer::GetCurrentMediaTime(bool* is_playing,
   return media_time;
 }
 
-void AudioRenderer::GetSourceStatus(int* frames_in_buffer,
-                                    int* offset_in_frames,
-                                    bool* is_playing,
-                                    bool* is_eos_reached) {
+void AudioRendererImpl::GetSourceStatus(int* frames_in_buffer,
+                                        int* offset_in_frames,
+                                        bool* is_playing,
+                                        bool* is_eos_reached) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   sink_callbacks_since_last_check_.increment();
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
@@ -404,14 +405,14 @@ void AudioRenderer::GetSourceStatus(int* frames_in_buffer,
   }
 }
 
-void AudioRenderer::ConsumeFrames(int frames_consumed
+void AudioRendererImpl::ConsumeFrames(int frames_consumed
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
     SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-                                  ,
-                                  SbTime frames_consumed_at
+                                      ,
+                                      SbTime frames_consumed_at
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
         // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-                                  ) {
+) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   sink_callbacks_since_last_check_.increment();
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
@@ -447,7 +448,7 @@ void AudioRenderer::ConsumeFrames(int frames_consumed
   }
 }
 
-void AudioRenderer::OnError(bool capability_changed) {
+void AudioRendererImpl::OnError(bool capability_changed) {
   SB_DCHECK(error_cb_);
   if (capability_changed) {
     error_cb_(kSbPlayerErrorCapabilityChanged, "failed to start audio sink");
@@ -459,7 +460,7 @@ void AudioRenderer::OnError(bool capability_changed) {
   }
 }
 
-void AudioRenderer::UpdateVariablesOnSinkThread_Locked(
+void AudioRendererImpl::UpdateVariablesOnSinkThread_Locked(
     SbTime system_time_on_consume_frames) {
   mutex_.DCheckAcquired();
 
@@ -505,7 +506,7 @@ void AudioRenderer::UpdateVariablesOnSinkThread_Locked(
   }
 }
 
-void AudioRenderer::OnFirstOutput(
+void AudioRendererImpl::OnFirstOutput(
     const SbMediaAudioSampleType decoded_sample_type,
     const SbMediaAudioFrameStorageType decoded_storage_type,
     const int decoded_sample_rate) {
@@ -549,13 +550,13 @@ void AudioRenderer::OnFirstOutput(
   }
 }
 
-bool AudioRenderer::IsEndOfStreamPlayed_Locked() const {
+bool AudioRendererImpl::IsEndOfStreamPlayed_Locked() const {
   mutex_.DCheckAcquired();
   return eos_state_ >= kEOSSentToSink &&
          total_frames_sent_to_sink_ == total_frames_consumed_by_sink_;
 }
 
-void AudioRenderer::OnDecoderConsumed() {
+void AudioRendererImpl::OnDecoderConsumed() {
   SB_DCHECK(BelongsToCurrentThread());
 
   // TODO: Unify EOS and non EOS request once WriteEndOfStream() depends on
@@ -567,7 +568,7 @@ void AudioRenderer::OnDecoderConsumed() {
   }
 }
 
-void AudioRenderer::OnDecoderOutput() {
+void AudioRendererImpl::OnDecoderOutput() {
   SB_DCHECK(BelongsToCurrentThread());
 
   ++pending_decoder_outputs_;
@@ -580,7 +581,7 @@ void AudioRenderer::OnDecoderOutput() {
   ProcessAudioData();
 }
 
-void AudioRenderer::ProcessAudioData() {
+void AudioRendererImpl::ProcessAudioData() {
   SB_DCHECK(BelongsToCurrentThread());
 
   process_audio_data_job_token_.ResetToInvalid();
@@ -674,7 +675,7 @@ void AudioRenderer::ProcessAudioData() {
   }
 }
 
-bool AudioRenderer::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
+bool AudioRendererImpl::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(is_frame_buffer_full);
 
@@ -742,7 +743,7 @@ bool AudioRenderer::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
 }
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-void AudioRenderer::CheckAudioSinkStatus() {
+void AudioRendererImpl::CheckAudioSinkStatus() {
   SB_DCHECK(BelongsToCurrentThread());
 
   // Check if sink callbacks are called too frequently.
@@ -771,7 +772,7 @@ void AudioRenderer::CheckAudioSinkStatus() {
                      << sink_callbacks_since_last_check
                      << " callbacks since last check.";
   }
-  Schedule(std::bind(&AudioRenderer::CheckAudioSinkStatus, this),
+  Schedule(std::bind(&AudioRendererImpl::CheckAudioSinkStatus, this),
            kCheckAudioSinkStatusInterval);
 }
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_internal_impl.h"
 
 #include <algorithm>
 #include <functional>
@@ -32,10 +32,10 @@ const SbTime kSeekTimeoutRetryInterval = 25 * kSbTimeMillisecond;
 
 }  // namespace
 
-VideoRenderer::VideoRenderer(scoped_ptr<VideoDecoder> decoder,
-                             MediaTimeProvider* media_time_provider,
-                             scoped_ptr<VideoRenderAlgorithm> algorithm,
-                             scoped_refptr<VideoRendererSink> sink)
+VideoRendererImpl::VideoRendererImpl(scoped_ptr<VideoDecoder> decoder,
+                                     MediaTimeProvider* media_time_provider,
+                                     scoped_ptr<VideoRenderAlgorithm> algorithm,
+                                     scoped_refptr<VideoRendererSink> sink)
     : media_time_provider_(media_time_provider),
       algorithm_(algorithm.Pass()),
       sink_(sink),
@@ -57,13 +57,13 @@ VideoRenderer::VideoRenderer(scoped_ptr<VideoDecoder> decoder,
   last_buffering_state_update_ = SbTimeGetMonotonicNow();
   last_output_ = last_buffering_state_update_;
   last_can_accept_more_data = last_buffering_state_update_;
-  Schedule(std::bind(&VideoRenderer::CheckBufferingState, this),
+  Schedule(std::bind(&VideoRendererImpl::CheckBufferingState, this),
            kCheckBufferingStateInterval);
   time_of_last_lag_warning_ = SbTimeGetMonotonicNow() - kMinLagWarningInterval;
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 }
 
-VideoRenderer::~VideoRenderer() {
+VideoRendererImpl::~VideoRendererImpl() {
   SB_DCHECK(BelongsToCurrentThread());
 
   sink_ = NULL;
@@ -82,9 +82,9 @@ VideoRenderer::~VideoRenderer() {
   decoder_.reset();
 }
 
-void VideoRenderer::Initialize(const ErrorCB& error_cb,
-                               const PrerolledCB& prerolled_cb,
-                               const EndedCB& ended_cb) {
+void VideoRendererImpl::Initialize(const ErrorCB& error_cb,
+                                   const PrerolledCB& prerolled_cb,
+                                   const EndedCB& ended_cb) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(prerolled_cb);
   SB_DCHECK(ended_cb);
@@ -94,14 +94,14 @@ void VideoRenderer::Initialize(const ErrorCB& error_cb,
   prerolled_cb_ = prerolled_cb;
   ended_cb_ = ended_cb;
 
-  decoder_->Initialize(std::bind(&VideoRenderer::OnDecoderStatus, this, _1, _2),
-                       error_cb);
+  decoder_->Initialize(
+      std::bind(&VideoRendererImpl::OnDecoderStatus, this, _1, _2), error_cb);
   if (sink_) {
-    sink_->SetRenderCB(std::bind(&VideoRenderer::Render, this, _1));
+    sink_->SetRenderCB(std::bind(&VideoRendererImpl::Render, this, _1));
   }
 }
 
-void VideoRenderer::WriteSample(
+void VideoRendererImpl::WriteSample(
     const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(input_buffer);
@@ -131,7 +131,7 @@ void VideoRenderer::WriteSample(
   decoder_->WriteInputBuffer(input_buffer);
 }
 
-void VideoRenderer::WriteEndOfStream() {
+void VideoRendererImpl::WriteEndOfStream() {
   SB_DCHECK(BelongsToCurrentThread());
 
   SB_LOG_IF(WARNING, end_of_stream_written_.load())
@@ -148,7 +148,7 @@ void VideoRenderer::WriteEndOfStream() {
   decoder_->WriteEndOfStream();
 }
 
-void VideoRenderer::Seek(SbTime seek_to_time) {
+void VideoRendererImpl::Seek(SbTime seek_to_time) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(seek_to_time >= 0);
 
@@ -169,7 +169,8 @@ void VideoRenderer::Seek(SbTime seek_to_time) {
 
   auto preroll_timeout = decoder_->GetPrerollTimeout();
   if (preroll_timeout != kSbTimeMax) {
-    Schedule(std::bind(&VideoRenderer::OnSeekTimeout, this), preroll_timeout);
+    Schedule(std::bind(&VideoRendererImpl::OnSeekTimeout, this),
+             preroll_timeout);
   }
 
   ScopedLock scoped_lock_decoder_frames(decoder_frames_mutex_);
@@ -186,7 +187,7 @@ void VideoRenderer::Seek(SbTime seek_to_time) {
   algorithm_->Reset();  // This is also guarded by sink_frames_mutex_.
 }
 
-bool VideoRenderer::CanAcceptMoreData() const {
+bool VideoRendererImpl::CanAcceptMoreData() const {
   SB_DCHECK(BelongsToCurrentThread());
   bool can_accept_more_data =
       number_of_frames_.load() <
@@ -200,17 +201,17 @@ bool VideoRenderer::CanAcceptMoreData() const {
   return can_accept_more_data;
 }
 
-void VideoRenderer::SetBounds(int z_index,
-                              int x,
-                              int y,
-                              int width,
-                              int height) {
+void VideoRendererImpl::SetBounds(int z_index,
+                                  int x,
+                                  int y,
+                                  int width,
+                                  int height) {
   if (sink_) {
     sink_->SetBounds(z_index, x, y, width, height);
   }
 }
 
-SbDecodeTarget VideoRenderer::GetCurrentDecodeTarget() {
+SbDecodeTarget VideoRendererImpl::GetCurrentDecodeTarget() {
   // FilterBasedPlayerWorkerHandler::Stop() ensures that this function won't be
   // called right before VideoRenderer dtor is called and |decoder_| is set to
   // NULL inside the dtor.
@@ -231,15 +232,16 @@ SbDecodeTarget VideoRenderer::GetCurrentDecodeTarget() {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   auto end = SbTimeGetMonotonicNow();
   if (end - start > kMaxGetCurrentDecodeTargetDuration) {
-    SB_LOG(WARNING) << "VideoRenderer::GetCurrentDecodeTarget() takes "
+    SB_LOG(WARNING) << "VideoRendererImpl::GetCurrentDecodeTarget() takes "
                     << end - start << " microseconds.";
   }
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   return decode_target;
 }
 
-void VideoRenderer::OnDecoderStatus(VideoDecoder::Status status,
-                                    const scoped_refptr<VideoFrame>& frame) {
+void VideoRendererImpl::OnDecoderStatus(
+    VideoDecoder::Status status,
+    const scoped_refptr<VideoFrame>& frame) {
   if (status == VideoDecoder::kReleaseAllFrames) {
     ScopedLock scoped_lock_decoder_frames(decoder_frames_mutex_);
     ScopedLock scoped_lock_sink_frames(sink_frames_mutex_);
@@ -304,7 +306,7 @@ void VideoRenderer::OnDecoderStatus(VideoDecoder::Status status,
   need_more_input_.store(status == VideoDecoder::kNeedMoreInput);
 }
 
-void VideoRenderer::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
+void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   auto now = SbTimeGetMonotonicNow();
   if (time_of_last_render_call_ != -1) {
@@ -351,20 +353,20 @@ void VideoRenderer::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 }
 
-void VideoRenderer::OnSeekTimeout() {
+void VideoRendererImpl::OnSeekTimeout() {
   SB_DCHECK(BelongsToCurrentThread());
   if (number_of_frames_.load() > 0) {
     if (seeking_.exchange(false)) {
       Schedule(prerolled_cb_);
     }
   } else if (seeking_.load()) {
-    Schedule(std::bind(&VideoRenderer::OnSeekTimeout, this),
+    Schedule(std::bind(&VideoRendererImpl::OnSeekTimeout, this),
              kSeekTimeoutRetryInterval);
   }
 }
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-void VideoRenderer::CheckBufferingState() {
+void VideoRendererImpl::CheckBufferingState() {
   if (end_of_stream_decoded_.load()) {
     return;
   }
@@ -392,11 +394,11 @@ void VideoRenderer::CheckBufferingState() {
   auto elasped = now - last_output_;
   SB_LOG_IF(ERROR, elasped > kDelayBeforeWarning)
       << "Haven't received any output for " << elasped << " microseconds.";
-  Schedule(std::bind(&VideoRenderer::CheckBufferingState, this),
+  Schedule(std::bind(&VideoRendererImpl::CheckBufferingState, this),
            kCheckBufferingStateInterval);
 }
 
-void VideoRenderer::CheckForFrameLag(SbTime last_decoded_frame_timestamp) {
+void VideoRendererImpl::CheckForFrameLag(SbTime last_decoded_frame_timestamp) {
   SbTimeMonotonic now = SbTimeGetMonotonicNow();
   // Limit check frequency to minimize call to GetCurrentMediaTime().
   if (now - time_of_last_lag_warning_ < kMinLagWarningInterval) {
