@@ -18,12 +18,14 @@
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_internal_impl.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
 #include "starboard/shared/starboard/player/filter/media_time_provider_impl.h"
 #include "starboard/shared/starboard/player/filter/punchout_video_renderer_sink.h"
 #include "starboard/shared/starboard/player/filter/stub_audio_decoder.h"
 #include "starboard/shared/starboard/player/filter/stub_video_decoder.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_internal_impl.h"
 
 namespace starboard {
 namespace shared {
@@ -227,9 +229,9 @@ scoped_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
                            &min_frames_per_append);
 
     audio_renderer.reset(
-        new AudioRenderer(audio_decoder.Pass(), audio_renderer_sink.Pass(),
-                          creation_parameters.audio_sample_info(),
-                          max_cached_frames, min_frames_per_append));
+        new AudioRendererImpl(audio_decoder.Pass(), audio_renderer_sink.Pass(),
+                              creation_parameters.audio_sample_info(),
+                              max_cached_frames, min_frames_per_append));
   }
 
   if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
@@ -245,9 +247,9 @@ scoped_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
               new MonotonicSystemTimeProviderImpl)));
       media_time_provider = media_time_provider_impl.get();
     }
-    video_renderer.reset(
-        new VideoRenderer(video_decoder.Pass(), media_time_provider,
-                          video_render_algorithm.Pass(), video_renderer_sink));
+    video_renderer.reset(new VideoRendererImpl(
+        video_decoder.Pass(), media_time_provider,
+        video_render_algorithm.Pass(), video_renderer_sink));
   }
 
   SB_DCHECK(audio_renderer || video_renderer);
