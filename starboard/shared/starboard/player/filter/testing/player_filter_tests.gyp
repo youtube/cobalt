@@ -25,6 +25,8 @@
         '<(DEPTH)/starboard/shared/starboard/player/filter/testing/audio_renderer_internal_test.cc',
         '<(DEPTH)/starboard/shared/starboard/player/filter/testing/file_cache_reader_test.cc',
         '<(DEPTH)/starboard/shared/starboard/player/filter/testing/media_time_provider_impl_test.cc',
+        '<(DEPTH)/starboard/shared/starboard/player/filter/testing/test_util.cc',
+        '<(DEPTH)/starboard/shared/starboard/player/filter/testing/test_util.h',
         '<(DEPTH)/starboard/shared/starboard/player/filter/testing/video_decoder_test.cc',
         '<(DEPTH)/starboard/shared/starboard/player/filter/testing/video_frame_cadence_pattern_generator_test.cc',
         '<(DEPTH)/starboard/shared/starboard/player/filter/testing/video_frame_rate_estimator_test.cc',
@@ -61,6 +63,46 @@
       ],
       'variables': {
         'executable_name': 'player_filter_tests',
+      },
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
+    },
+    {
+      'target_name': 'player_filter_benchmarks',
+      'type': '<(final_executable_type)',
+      'conditions': [
+        ['gl_type != "none"', {
+          'dependencies': [
+            # This is needed because VideoDecoderTest depends on
+            # FakeGraphicsContextProvider which depends on EGL and GLES.
+            '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
+          ],
+        }],
+      ],
+      'defines': [
+        # This allows the benchmarks to include internal only header files.
+        'STARBOARD_IMPLEMENTATION',
+      ],
+      'sources': [
+        '<(DEPTH)/starboard/shared/starboard/player/filter/testing/audio_decoder_benchmark.cc',
+        '<(DEPTH)/starboard/shared/starboard/player/filter/testing/test_util.cc',
+        '<(DEPTH)/starboard/common/benchmark_main.cc',
+      ],
+      'dependencies': [
+        '<@(cobalt_platform_dependencies)',
+        '<(DEPTH)/starboard/shared/starboard/player/player.gyp:video_dmp',
+        '<(DEPTH)/starboard/shared/starboard/player/player.gyp:player_copy_test_data',
+        '<(DEPTH)/starboard/starboard.gyp:starboard',
+        '<(DEPTH)/third_party/google_benchmark/google_benchmark.gyp:google_benchmark',
+      ],
+    },
+    {
+      'target_name': 'player_filter_benchmarks_deploy',
+      'type': 'none',
+      'dependencies': [
+        'player_filter_benchmarks',
+      ],
+      'variables': {
+        'executable_name': 'player_filter_benchmarks',
       },
       'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },

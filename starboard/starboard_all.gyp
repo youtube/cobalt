@@ -85,7 +85,7 @@
         }],
         ['sb_filter_based_player==1', {
           'dependencies': [
-            '<(DEPTH)/starboard/shared/starboard/player/filter/testing/player_filter_tests.gyp:*',
+            '<(DEPTH)/starboard/shared/starboard/player/filter/testing/player_filter_tests.gyp:player_filter_tests_deploy',
             '<(DEPTH)/starboard/shared/starboard/player/filter/tools/tools.gyp:*',
           ],
         }],
