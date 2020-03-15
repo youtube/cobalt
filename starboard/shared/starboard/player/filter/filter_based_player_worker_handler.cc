@@ -480,6 +480,10 @@ void FilterBasedPlayerWorkerHandler::OnPrerolled(SbMediaType media_type) {
   if ((!audio_renderer_ || audio_prerolled_) &&
       (!video_renderer_ || video_prerolled_)) {
     update_player_state_cb_(kSbPlayerStatePresenting);
+    // The call is required to improve the calculation of media time in
+    // PlayerInternal, because it updates the system monotonic time used as the
+    // base of media time extrapolation.
+    Update();
     if (!paused_) {
       media_time_provider_->Play();
     }
