@@ -22,6 +22,7 @@
 #include "starboard/media.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
 #include "starboard/shared/starboard/player/filter/mock_audio_decoder.h"
 #include "starboard/shared/starboard/player/filter/mock_audio_renderer_sink.h"
@@ -113,7 +114,7 @@ class AudioRendererTest : public ::testing::Test {
 
     const int kMaxCachedFrames = 256 * 1024;
     const int kMaxFramesPerAppend = 16384;
-    audio_renderer_.reset(new AudioRenderer(
+    audio_renderer_.reset(new AudioRendererImpl(
         make_scoped_ptr<AudioDecoder>(audio_decoder_),
         make_scoped_ptr<AudioRendererSink>(audio_renderer_sink_),
         GetDefaultAudioSampleInfo(), kMaxCachedFrames, kMaxFramesPerAppend));
