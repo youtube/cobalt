@@ -29,13 +29,13 @@
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
+#include "starboard/shared/starboard/player/filter/testing/test_util.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if SB_HAS(PLAYER_FILTER_TESTS)
-// TODO: Write test for HE-AAC
 
 namespace starboard {
 namespace shared {
@@ -51,35 +51,6 @@ using ::testing::ValuesIn;
 using video_dmp::VideoDmpReader;
 
 const SbTimeMonotonic kWaitForNextEventTimeOut = 5 * kSbTimeSecond;
-
-std::string GetTestInputDirectory() {
-  const size_t kPathSize = kSbFileMaxPath + 1;
-
-  std::vector<char> content_path(kPathSize);
-  SB_CHECK(SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),
-                           kPathSize));
-  std::string directory_path =
-      std::string(content_path.data()) + kSbFileSepChar + "test" +
-      kSbFileSepChar + "starboard" + kSbFileSepChar + "shared" +
-      kSbFileSepChar + "starboard" + kSbFileSepChar + "player" +
-      kSbFileSepChar + "testdata";
-
-  SB_CHECK(SbDirectoryCanOpen(directory_path.c_str()))
-      << "Cannot open directory " << directory_path;
-  return directory_path;
-}
-
-void DeallocateSampleFunc(SbPlayer player,
-                          void* context,
-                          const void* sample_buffer) {
-  SB_UNREFERENCED_PARAMETER(player);
-  SB_UNREFERENCED_PARAMETER(context);
-  SB_UNREFERENCED_PARAMETER(sample_buffer);
-}
-
-std::string ResolveTestFileName(const char* filename) {
-  return GetTestInputDirectory() + kSbFileSepChar + filename;
-}
 
 class AudioDecoderTest
     : public ::testing::TestWithParam<std::tuple<const char*, bool> > {
@@ -106,31 +77,12 @@ class AudioDecoderTest
                         const SbMediaAudioSampleInfo& audio_sample_info,
                         scoped_ptr<AudioDecoder>* audio_decoder,
                         scoped_ptr<AudioRendererSink>* audio_renderer_sink) {
-    ASSERT_TRUE(audio_decoder);
-    ASSERT_TRUE(audio_renderer_sink);
-
-    audio_renderer_sink->reset();
-    audio_decoder->reset();
-
-    PlayerComponents::Factory::CreationParameters creation_parameters(
-        codec, audio_sample_info);
-
-    scoped_ptr<PlayerComponents::Factory> factory;
-    if (using_stub_decoder_) {
-      factory = StubPlayerComponentsFactory::Create();
-    } else {
-      factory = PlayerComponents::Factory::Create();
-    }
-    std::string error_message;
-    if (factory->CreateSubComponents(creation_parameters, audio_decoder,
-                                     audio_renderer_sink, nullptr, nullptr,
-                                     nullptr, &error_message)) {
+    if (CreateAudioComponents(using_stub_decoder_, codec, audio_sample_info,
+                              audio_decoder, audio_renderer_sink)) {
       SB_CHECK(*audio_decoder);
       (*audio_decoder)
           ->Initialize(std::bind(&AudioDecoderTest::OnOutput, this),
                        std::bind(&AudioDecoderTest::OnError, this));
-    } else {
-      audio_decoder->reset();
     }
   }
 
@@ -350,13 +302,13 @@ class AudioDecoderTest
     auto player_sample_info =
         dmp_reader_.GetPlayerSampleInfo(kSbMediaTypeAudio, index);
 #if SB_API_VERSION >= 11
-    auto input_buffer = new InputBuffer(DeallocateSampleFunc, nullptr, nullptr,
-                                        player_sample_info);
+    auto input_buffer = new InputBuffer(StubDeallocateSampleFunc, nullptr,
+                                        nullptr, player_sample_info);
 #else   // SB_API_VERSION >= 11
     SbMediaAudioSampleInfo audio_sample_info =
         dmp_reader_.GetAudioSampleInfo(index);
     auto input_buffer =
-        new InputBuffer(kSbMediaTypeAudio, DeallocateSampleFunc, nullptr,
+        new InputBuffer(kSbMediaTypeAudio, StubDeallocateSampleFunc, nullptr,
                         nullptr, player_sample_info, &audio_sample_info);
 #endif  // SB_API_VERSION >= 11
     auto iter = invalid_inputs_.find(index);
@@ -659,6 +611,7 @@ TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
   SbTime duration = kSbTimeSecond / 2;
   SbMediaSetAudioWriteDuration(duration);
 
+  SbTime start = SbTimeGetMonotonicNow();
   int start_index = 0;
   Event event;
   while (true) {
@@ -685,43 +638,21 @@ TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
   }
   WriteEndOfStream();
   ASSERT_NO_FATAL_FAILURE(DrainOutputs());
+  SbTime elapsed = SbTimeGetMonotonicNow() - start;
+  SB_LOG(INFO) << "Decoding " << dmp_reader_.number_of_audio_buffers() << " au "
+               << " of " << media::GetCodecName(dmp_reader_.audio_codec())
+               << " takes " << elapsed << " microseconds.";
+
   ASSERT_TRUE(last_decoded_audio_);
   ASSERT_NO_FATAL_FAILURE(AssertInvalidOutputFormat());
 }
 
 #endif  // SB_API_VERSION >= 11
 
-std::vector<const char*> GetSupportedTests() {
-  const char* kFilenames[] = {"beneath_the_canopy_aac_5_1.dmp",
-                              "beneath_the_canopy_aac_stereo.dmp",
-                              "beneath_the_canopy_opus_5_1.dmp",
-                              "beneath_the_canopy_opus_stereo.dmp",
-                              "heaac.dmp",
-                              "sintel_329_ec3.dmp",
-                              "sintel_381_ac3.dmp"};
-
-  static std::vector<const char*> test_params;
-
-  if (!test_params.empty()) {
-    return test_params;
-  }
-
-  for (auto filename : kFilenames) {
-    VideoDmpReader dmp_reader(ResolveTestFileName(filename).c_str());
-    SB_DCHECK(dmp_reader.number_of_audio_buffers() > 0);
-    if (SbMediaIsAudioSupported(dmp_reader.audio_codec(),
-                                dmp_reader.audio_bitrate())) {
-      test_params.push_back(filename);
-    }
-  }
-
-  SB_DCHECK(!test_params.empty());
-  return test_params;
-}
-
 INSTANTIATE_TEST_CASE_P(AudioDecoderTests,
                         AudioDecoderTest,
-                        Combine(ValuesIn(GetSupportedTests()), Bool()));
+                        Combine(ValuesIn(GetSupportedAudioTestFiles(true)),
+                                Bool()));
 
 }  // namespace
 }  // namespace testing
