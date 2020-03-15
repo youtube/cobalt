@@ -249,10 +249,18 @@ TEST_P(SbMediaSetAudioWriteDurationTest, WriteLimitedInput) {
 
   WaitForPlayerState(kSbPlayerStatePresenting);
 
-  // Check that the playback time is > 0.
-  SbPlayerInfo2 info;
-  SbPlayerGetInfo2(player, &info);
-  ASSERT_GT(info.current_media_timestamp, 0);
+  // Wait until the playback time is > 0.
+  const SbTime kMaxWaitTime = 5 * kSbTimeSecond;
+  SbTime start_of_wait = SbTimeGetMonotonicNow();
+  SbPlayerInfo2 info = {};
+
+  while (SbTimeGetMonotonicNow() - start_of_wait < kMaxWaitTime &&
+         info.current_media_timestamp == 0) {
+    SbThreadSleep(kSbTimeMillisecond * 500);
+    SbPlayerGetInfo2(player, &info);
+  }
+
+  EXPECT_GT(info.current_media_timestamp, 0);
 
   SbPlayerDestroy(player);
 }
