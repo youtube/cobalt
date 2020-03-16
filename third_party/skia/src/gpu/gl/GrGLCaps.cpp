@@ -1519,6 +1519,11 @@ void GrGLCaps::initFormatTable(const GrGLContextInfo& ctxInfo, const GrGLInterfa
         } else if (GR_IS_GR_WEBGL(standard)) {
             r8Support = ctxInfo.version() >= GR_GL_VER(2, 0);
         }
+// TODO: Disable R8 texture support to force similar rendering paths.
+// R8 support currently breaks text rendering.
+#if defined(COBALT)
+        r8Support = false;
+#endif
 
         if (r8Support) {
             info.fFlags |= FormatInfo::kTexturable_Flag | msaaRenderFlags;
