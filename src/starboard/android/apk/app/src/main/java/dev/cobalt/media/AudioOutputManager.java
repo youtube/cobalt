@@ -48,9 +48,18 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
   @SuppressWarnings("unused")
   @UsedByNative
   AudioTrackBridge createAudioTrackBridge(
-      int sampleType, int sampleRate, int channelCount, int preferredBufferSizeInBytes) {
+      int sampleType,
+      int sampleRate,
+      int channelCount,
+      int preferredBufferSizeInBytes,
+      int tunnelingAudioSessionId) {
     AudioTrackBridge audioTrackBridge =
-        new AudioTrackBridge(sampleType, sampleRate, channelCount, preferredBufferSizeInBytes);
+        new AudioTrackBridge(
+            sampleType,
+            sampleRate,
+            channelCount,
+            preferredBufferSizeInBytes,
+            tunnelingAudioSessionId);
     if (!audioTrackBridge.isAudioTrackValid()) {
       Log.e(TAG, "AudioTrackBridge has invalid audio track");
       return null;
@@ -127,5 +136,13 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
         throw new RuntimeException("Unsupported channel count: " + channelCount);
     }
     return AudioTrack.getMinBufferSize(sampleRate, channelConfig, sampleType);
+  }
+
+  /** generate audio session id. */
+  @SuppressWarnings("unused")
+  @UsedByNative
+  int createAudioSessionId() {
+    AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+    return audioManager.generateAudioSessionId();
   }
 }
