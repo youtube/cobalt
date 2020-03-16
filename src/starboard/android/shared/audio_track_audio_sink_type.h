@@ -18,6 +18,7 @@
 #include <atomic>
 #include <functional>
 #include <map>
+#include <vector>
 
 #include "starboard/android/shared/audio_sink_min_required_frames_tester.h"
 #include "starboard/android/shared/jni_env_ext.h"
@@ -92,6 +93,7 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
       int preferred_buffer_size,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
       SbAudioSinkConsumeFramesFunc consume_frame_func,
+      SbAudioSinkPrivate::ErrorFunc error_func,
       void* context);
   ~AudioTrackAudioSink() override;
 
@@ -106,7 +108,14 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
   static void* ThreadEntryPoint(void* context);
   void AudioThreadFunc();
 
-  int WriteData(JniEnvExt* env, const void* buffer, int size);
+  // Error handle
+  bool DisableTunneledModeIfPossible(jobject j_audio_output_manager);
+  int HandleAudioTrackError(int error);
+
+  int WriteData(JniEnvExt* env,
+                void* buffer,
+                int size,
+                SbTime presentation_time_ns);
 
   Type* type_;
   int channels_;
@@ -114,10 +123,15 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
   SbMediaAudioSampleType sample_type_;
   void* frame_buffer_;
   int frames_per_channel_;
+  int preferred_buffer_size_;
+  int tunneling_audio_session_id_;
   SbAudioSinkUpdateSourceStatusFunc update_source_status_func_;
   SbAudioSinkConsumeFramesFunc consume_frame_func_;
+  SbAudioSinkPrivate::ErrorFunc error_func_;
   void* context_;
   int last_playback_head_position_;
+  // audio track may be destroied while end point switch
+  starboard::Mutex audio_track_bridge_mutex_;
   jobject j_audio_track_bridge_;
   jobject j_audio_data_;
 
@@ -128,6 +142,12 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
   double playback_rate_;
 
   int written_frames_;
+
+  SbTime total_written_frames_in_time_ns_;
+  SbMediaAudioSampleType original_sample_type_;
+  int max_frames_per_request_;
+
+  std::vector<uint8_t> frame_buffer_internal_;
 };
 
 }  // namespace shared
