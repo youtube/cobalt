@@ -54,6 +54,10 @@ class DecodedAudio : public RefCountedThreadSafe<DecodedAudio> {
   void SwitchFormatTo(SbMediaAudioSampleType new_sample_type,
                       SbMediaAudioFrameStorageType new_storage_type);
   void ShrinkTo(size_t new_size);
+  // During seeking, the target time can be in the middle of the DecodedAudio
+  // object.  This function will adjust the object to the seek target time by
+  // removing the frames in the beginning that are before the seek target time.
+  void AdjustForSeekTime(int samples_per_second, SbTime seeking_to_time);
 
  private:
   void SwitchSampleTypeTo(SbMediaAudioSampleType new_sample_type);

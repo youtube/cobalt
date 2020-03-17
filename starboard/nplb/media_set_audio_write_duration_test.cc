@@ -93,7 +93,7 @@ class SbMediaSetAudioWriteDurationTest
     }
 
     SbPlayerSampleInfo player_sample_info =
-        dmp_reader_.GetPlayerSampleInfo(kSbMediaTypeAudio, ++index_);
+        dmp_reader_.GetPlayerSampleInfo(kSbMediaTypeAudio, index_++);
 
     SbPlayerSampleInfo sample_info = {};
     sample_info.buffer = player_sample_info.buffer;
