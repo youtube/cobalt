@@ -303,7 +303,7 @@ egl::TexturedMeshRenderer::Image::Texture GetTextureFromHardwareFrontendImage(
     // y-axis before passing it on to a GL renderer.
     math::Size image_size(image->GetSize());
     result.content_region = math::Rect::RoundFromRectF(math::RectF(
-        image_size.width() * local_transform.Get(0, 2) /
+        -image_size.width() * local_transform.Get(0, 2) /
             local_transform.Get(0, 0),
         image_size.height() *
             (1 + local_transform.Get(1, 2) / local_transform.Get(1, 1)),
