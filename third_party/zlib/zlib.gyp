@@ -52,6 +52,12 @@
           'include_dirs': [
             '.',
           ],
+          'all_dependent_settings': {
+            'defines': [
+               # To prevent Zlib ever from redefining const keyword in zconf.h
+              'STDC'
+            ]
+          },
           'direct_dependent_settings': {
             'include_dirs': [
               '.',
