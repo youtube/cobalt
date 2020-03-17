@@ -27,6 +27,8 @@ namespace player {
 
 namespace {
 
+using ::starboard::shared::starboard::media::GetBytesPerSample;
+
 void ConvertSample(const int16_t* source, float* destination) {
   *destination = static_cast<float>(*source) / 32768.f;
 }
@@ -59,13 +61,7 @@ DecodedAudio::DecodedAudio(int channels,
       size_(size) {}
 
 int DecodedAudio::frames() const {
-  int bytes_per_sample;
-  if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated) {
-    bytes_per_sample = 2;
-  } else {
-    SB_DCHECK(sample_type_ == kSbMediaAudioSampleTypeFloat32);
-    bytes_per_sample = 4;
-  }
+  int bytes_per_sample = GetBytesPerSample(sample_type_);
   SB_DCHECK(size_ % (bytes_per_sample * channels_) == 0);
   return static_cast<int>(size_ / bytes_per_sample / channels_);
 }
@@ -73,6 +69,44 @@ int DecodedAudio::frames() const {
 void DecodedAudio::ShrinkTo(size_t new_size) {
   SB_DCHECK(new_size <= size_);
   size_ = new_size;
+}
+
+void DecodedAudio::AdjustForSeekTime(int samples_per_second,
+                                     SbTime seeking_to_time) {
+  SB_DCHECK(!is_end_of_stream());
+  SB_DCHECK(samples_per_second != 0);
+
+  int frames_to_remove =
+      (seeking_to_time - timestamp()) * samples_per_second / kSbTimeSecond;
+
+  if (samples_per_second == 0 || frames_to_remove < 0 ||
+      frames_to_remove >= frames()) {
+    SB_LOG(WARNING) << "AdjustForSeekTime failed for seeking_to_time at "
+                    << seeking_to_time << " for samples_per_second "
+                    << samples_per_second << ", and there are " << frames()
+                    << " frames in the DecodedAudio object.";
+    return;
+  }
+
+  auto bytes_per_sample = GetBytesPerSample(sample_type_);
+  auto bytes_per_frame = bytes_per_sample * channels();
+
+  if (storage_type_ == kSbMediaAudioFrameStorageTypeInterleaved) {
+    SbMemoryMove(buffer(), buffer() + bytes_per_frame * frames_to_remove,
+                 (frames() - frames_to_remove) * bytes_per_frame);
+  } else {
+    SB_DCHECK(storage_type_ == kSbMediaAudioFrameStorageTypePlanar);
+    const uint8_t* source_addr = buffer();
+    uint8_t* dest_addr = buffer();
+    for (int channel = 0; channel < channels(); ++channel) {
+      SbMemoryMove(dest_addr, source_addr + bytes_per_sample * frames_to_remove,
+                   (frames() - frames_to_remove) * bytes_per_sample);
+      source_addr += frames() * bytes_per_sample;
+      dest_addr += (frames() - frames_to_remove) * bytes_per_sample;
+    }
+  }
+  size_ = (frames() - frames_to_remove) * bytes_per_frame;
+  timestamp_ += frames_to_remove * kSbTimeSecond / samples_per_second;
 }
 
 void DecodedAudio::SwitchFormatTo(
