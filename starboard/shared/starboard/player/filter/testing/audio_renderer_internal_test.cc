@@ -128,14 +128,14 @@ class AudioRendererTest : public ::testing::Test {
   // until the renderer reaches its preroll threshold.
   // Once the renderer is "full", an EndOfStream is written.
   // Returns the number of frames written.
-  int FillRendererWithDecodedAudioAndWriteEOS() {
+  int FillRendererWithDecodedAudioAndWriteEOS(SbTime start_timestamp) {
     const int kFramesPerBuffer = 1024;
 
     int frames_written = 0;
 
     while (!prerolled_) {
-      SbTime timestamp =
-          frames_written * kSbTimeSecond / kDefaultSamplesPerSecond;
+      SbTime timestamp = start_timestamp + frames_written * kSbTimeSecond /
+                                               kDefaultSamplesPerSecond;
       scoped_refptr<InputBuffer> input_buffer = CreateInputBuffer(timestamp);
       WriteSample(input_buffer);
       CallConsumedCB();
@@ -328,7 +328,7 @@ TEST_F(AudioRendererTest, SunnyDay) {
 
   Seek(0);
 
-  int frames_written = FillRendererWithDecodedAudioAndWriteEOS();
+  int frames_written = FillRendererWithDecodedAudioAndWriteEOS(0);
 
   bool is_playing = true;
   bool is_eos_played = true;
@@ -422,7 +422,7 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
 
   Seek(0);
 
-  int frames_written = FillRendererWithDecodedAudioAndWriteEOS();
+  int frames_written = FillRendererWithDecodedAudioAndWriteEOS(0);
   bool is_playing = false;
   bool is_eos_played = true;
   bool is_underflow = true;
@@ -503,7 +503,7 @@ TEST_F(AudioRendererTest, StartPlayBeforePreroll) {
 
   audio_renderer_->Play();
 
-  int frames_written = FillRendererWithDecodedAudioAndWriteEOS();
+  int frames_written = FillRendererWithDecodedAudioAndWriteEOS(0);
 
   SendDecoderOutput(new DecodedAudio);
 
@@ -864,7 +864,7 @@ TEST_F(AudioRendererTest, Seek) {
 
   Seek(0);
 
-  int frames_written = FillRendererWithDecodedAudioAndWriteEOS();
+  int frames_written = FillRendererWithDecodedAudioAndWriteEOS(0);
 
   bool is_playing;
   bool is_eos_played;
@@ -909,7 +909,7 @@ TEST_F(AudioRendererTest, Seek) {
   EXPECT_GE(new_media_time, media_time);
   Seek(seek_time);
 
-  frames_written += FillRendererWithDecodedAudioAndWriteEOS();
+  frames_written += FillRendererWithDecodedAudioAndWriteEOS(seek_time);
 
   EXPECT_GE(audio_renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played,
                                                  &is_underflow),

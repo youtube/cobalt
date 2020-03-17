@@ -610,6 +610,10 @@ void AudioRendererImpl::ProcessAudioData() {
         decoder_->Read(&decoded_audio_sample_rate);
     SB_DCHECK(decoded_audio);
     if (!audio_renderer_sink_->HasStarted()) {
+      if (!decoded_audio->is_end_of_stream()) {
+        decoded_audio->AdjustForSeekTime(decoded_audio_sample_rate,
+                                         seeking_to_time_);
+      }
       OnFirstOutput(decoded_audio->sample_type(), decoded_audio->storage_type(),
                     decoded_audio_sample_rate);
     }
