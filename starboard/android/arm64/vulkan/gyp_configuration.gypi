@@ -19,6 +19,26 @@
     'arm_thumb': 0,
     'arm_neon': 0,
     'arm_fpu': 'vfpv3-d16',
+
+    'enable_vulkan': 1,
+
+    'platform_libraries': [
+      '-lc++_shared',
+      '-lEGL_angle',
+      '-lGLESv2_angle',
+      '-lGLESv1_CM_angle',
+      '-lfeature_support_angle',
+      '-lOpenSLES',
+      '-landroid',
+      '-llog',
+      '-lmediandk',
+    ],
+
+    'linker_flags': [
+      '-Wl',
+      '--verbose',
+      '-Llib',
+    ],
   },
 
   'target_defaults': {
