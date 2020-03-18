@@ -15,6 +15,7 @@
 #include <cmath>
 #include <functional>
 #include <numeric>
+#include <queue>
 
 #include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
@@ -23,6 +24,7 @@
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
+#include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
