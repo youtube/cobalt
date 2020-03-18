@@ -40,7 +40,6 @@
       'action': [
         '<(DEPTH)/starboard/android/apk/cobalt-gradle.sh',
         '--sdk', '<(ANDROID_HOME)',
-        '--ndk', '<(NDK_HOME)',
         '--cache', '$${PWD}/<(GRADLE_FILES_DIR)/cache',
         '--project-dir', '$${PWD}/<(DEPTH)/starboard/android/apk/',
         '-P', 'cobaltBuildAbi=<(ANDROID_ABI)',
