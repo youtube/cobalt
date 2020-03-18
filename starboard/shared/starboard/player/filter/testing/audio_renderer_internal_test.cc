@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_internal_impl.h"
 
 #include <functional>
 #include <set>
