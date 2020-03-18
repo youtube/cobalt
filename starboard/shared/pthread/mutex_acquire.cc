@@ -19,22 +19,12 @@
 #include "starboard/common/experimental/concurrency_debug.h"
 #include "starboard/shared/pthread/is_success.h"
 #include "starboard/shared/pthread/types_internal.h"
-#include "starboard/shared/starboard/lazy_initialization_internal.h"
-
-using starboard::shared::starboard::EnsureInitialized;
-using starboard::shared::starboard::SetInitialized;
 
 SbMutexResult SbMutexAcquire(SbMutex* mutex) {
   if (!mutex) {
     return kSbMutexDestroyed;
   }
 
-#if SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
-  if (!EnsureInitialized(&(SB_INTERNAL_MUTEX(mutex)->initialized_state))) {
-    *SB_PTHREAD_INTERNAL_MUTEX(mutex) = PTHREAD_MUTEX_INITIALIZER;
-    SetInitialized(&(SB_INTERNAL_MUTEX(mutex)->initialized_state));
-  }
-#endif
 #if SB_ENABLE_CONCURRENTY_DEBUG
   starboard::experimental::ScopedMutexWaitTracker tracker(mutex);
   if (tracker.acquired()) {

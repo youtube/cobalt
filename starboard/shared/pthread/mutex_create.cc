@@ -19,21 +19,13 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/pthread/is_success.h"
 #include "starboard/shared/pthread/types_internal.h"
-#include "starboard/shared/starboard/lazy_initialization_internal.h"
-
-using starboard::shared::starboard::SetInitialized;
 
 bool SbMutexCreate(SbMutex* mutex) {
-#if SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
-  SB_COMPILE_ASSERT(sizeof(SbMutex) >= sizeof(SbMutexPrivate),
-                    sb_mutex_private_larger_than_sb_mutex);
-#endif
+  SB_COMPILE_ASSERT(sizeof(SbMutex) >= sizeof(pthread_mutex_t),
+                    pthread_mutex_t_larger_than_sb_mutex);
   if (!mutex) {
     return false;
   }
 
-#if SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
-  SetInitialized(&(SB_INTERNAL_MUTEX(mutex)->initialized_state));
-#endif
   return IsSuccess(pthread_mutex_init(SB_PTHREAD_INTERNAL_MUTEX(mutex), NULL));
 }
