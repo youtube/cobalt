@@ -24,6 +24,11 @@ extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
   tzset();
   starboard::shared::signal::InstallCrashSignalHandlers();
   starboard::shared::signal::InstallSuspendSignalHandlers();
+
+  // Call backtrace() once to work around potential
+  // crash bugs in glibc, in dlopen()
+  SbLogRawDumpStack(3);
+
   starboard::shared::x11::ApplicationX11 application;
   int result = 0;
   {
