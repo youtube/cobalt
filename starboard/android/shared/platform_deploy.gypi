@@ -48,6 +48,7 @@
         '-P', 'cobaltGradleDir=$${PWD}/<(GRADLE_FILES_DIR)',
         '-P', 'cobaltProductDir=$${PWD}/<(PRODUCT_DIR)',
         '-P', 'cobaltTarget=<(executable_name)',
+        '-P', 'enableVulkan=<(enable_vulkan)',
         'assembleCobalt_<(GRADLE_BUILD_TYPE)',
       ],
       'message': 'Build APK: <(apk)',
