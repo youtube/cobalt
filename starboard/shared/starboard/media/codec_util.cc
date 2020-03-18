@@ -584,7 +584,13 @@ VideoConfig::VideoConfig(SbMediaVideoCodec video_codec,
     : width_(width), height_(height) {
   if (video_codec == kSbMediaVideoCodecVp9) {
     video_codec_ = video_codec;
-  } else if (video_codec == kSbMediaVideoCodecH264) {
+  }
+#if SB_API_VERSION >= 11
+  else if(video_codec == kSbMediaVideoCodecAv1) {
+    video_codec_ = video_codec;
+  }
+#endif  // SB_API_VERSION >= 11
+  else if (video_codec == kSbMediaVideoCodecH264) {
     avc_parameter_sets_ =
         AvcParameterSets(AvcParameterSets::kAnnexB, data, size);
     if (avc_parameter_sets_->is_valid()) {
