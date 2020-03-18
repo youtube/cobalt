@@ -17,7 +17,7 @@
 # be started:
 # Run -> Edit Configurations -> "app" -> Debugger -> Debug Type = Dual
 
-cmake_minimum_required(VERSION 3.4.1)
+cmake_minimum_required(VERSION 3.10.2)
 
 # Map Android ABI to Cobalt architecture
 if(ANDROID_ABI STREQUAL x86)
