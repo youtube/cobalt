@@ -32,7 +32,7 @@ extern "C" {
 #if SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
 
 // Max size of the SbConditionVariable type.
-#define SB_CONDITION_VARIABLE_MAX_SIZE 64
+#define SB_CONDITION_VARIABLE_MAX_SIZE 80
 
 // An opaque handle to a condition variable type with
 // reserved memory buffer of size SB_CONDITION_VARIABLE_MAX_SIZE and
