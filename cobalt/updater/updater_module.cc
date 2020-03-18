@@ -26,6 +26,7 @@
 #include "base/rand_util.h"
 #include "base/run_loop.h"
 #include "base/stl_util.h"
+#include "base/strings/strcat.h"
 #include "base/task/post_task.h"
 #include "base/task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
@@ -79,9 +80,13 @@ void Observer::OnEvent(Events event, const std::string& id) {
   if (update_client_->GetCrxUpdateState(id, &crx_update_item_)) {
     auto status_iterator = updater_status_map.find(crx_update_item_.state);
     if (status_iterator == updater_status_map.end()) {
-      return;
+      status = "Status is unknown.";
     } else {
       status = std::string(status_iterator->second);
+    }
+    if (crx_update_item_.state == ComponentState::kUpdateError) {
+      status +=
+          ", error code is " + std::to_string(crx_update_item_.error_code);
     }
   } else {
     status = "No status available";
