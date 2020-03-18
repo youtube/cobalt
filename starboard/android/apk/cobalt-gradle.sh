@@ -22,7 +22,6 @@ GRADLE_ARGS=()
 while [ "$1" ]; do
   case "$1" in
     --sdk) shift; ANDROID_HOME="$1" ;;
-    --ndk) shift; ANDROID_NDK_HOME="$1" ;;
     --cache) shift; mkdir -p "$1";
              GRADLE_ARGS+=("--project-cache-dir" $(cd "$1"; pwd)) ;;
     --reset) RESET_GRADLE=1 ;;
@@ -50,9 +49,7 @@ if [[ "${RESET_GRADLE}" ]]; then
 fi
 
 export ANDROID_HOME
-export ANDROID_NDK_HOME
 echo "ANDROID_HOME=${ANDROID_HOME}"
-echo "ANDROID_NDK_HOME=${ANDROID_NDK_HOME}"
 echo "TASK: ${GRADLE_ARGS[-1]}"
 
 # Allow parallel gradle builds, as defined by a COBALT_GRADLE_BUILD_COUNT envvar
