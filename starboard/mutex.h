@@ -32,7 +32,7 @@ extern "C" {
 #if SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
 
 // Max size of the SbMutex type.
-#define SB_MUTEX_MAX_SIZE 64
+#define SB_MUTEX_MAX_SIZE 80
 
 // An opaque handle to a mutex type with reserved memory
 // buffer of size SB_MUTEX_MAX_SIZE and aligned at void
