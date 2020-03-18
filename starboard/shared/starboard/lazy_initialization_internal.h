@@ -58,7 +58,8 @@ static SB_C_INLINE bool EnsureInitialized(InitializedState* state) {
       SbThreadYield();
     } while (SbAtomicAcquire_Load(state) != INITIALIZED_STATE_INITIALIZED);
   } else {
-    SB_DCHECK(original == INITIALIZED_STATE_INITIALIZED);
+    SB_DCHECK(original == INITIALIZED_STATE_INITIALIZED)
+        << "Unexpected original=" << original;
   }
 
   return true;
