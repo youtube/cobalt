@@ -28,7 +28,7 @@ from starboard.tools import build
 
 # Which version of the Android NDK and CMake to install and build with.
 # Note that build.gradle parses these out of this file too.
-_NDK_VERSION = '20.1.5948944'
+_NDK_VERSION = '21.0.6113669'
 _CMAKE_VERSION = '3.10.2.4988404'
 
 # Packages to install in the Android SDK.
@@ -37,7 +37,7 @@ _CMAKE_VERSION = '3.10.2.4988404'
 _ANDROID_SDK_PACKAGES = [
     'build-tools;29.0.2',
     'cmake;' + _CMAKE_VERSION,
-    'cmdline-tools;latest',
+    'cmdline-tools;1.0',
     'emulator',
     'extras;android;m2repository',
     'extras;google;m2repository',
