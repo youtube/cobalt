@@ -55,8 +55,12 @@ echo "ANDROID_HOME=${ANDROID_HOME}"
 # or default to 1 if that's not set (so buildbot only runs 1 gradle at a time).
 BUCKETS=${COBALT_GRADLE_BUILD_COUNT:-1}
 if [ "$BUCKETS"==1 ]; then
-  echo "Gradle daemon disabled for Cobalt build"
-  GRADLE_ARGS+=("-Dorg.gradle.daemon=false")
+  echo "Gradle daemon and parallel gradle disabled for Cobalt build"
+  GRADLE_ARGS+=(
+    "-Dorg.gradle.parallel=false"
+    "-Dorg.gradle.workers.max=1"
+    "-Dorg.gradle.daemon=false"
+  )
 fi
 
 MD5=$(echo "${GRADLE_ARGS[@]}" | md5sum)
