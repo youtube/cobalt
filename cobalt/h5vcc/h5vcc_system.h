@@ -17,6 +17,10 @@
 
 #include <string>
 
+#include "starboard/configuration.h"
+#if SB_IS(EVERGREEN)
+#include "cobalt/h5vcc/h5vcc_updater.h"
+#endif
 #include "cobalt/media/media_module.h"
 #include "cobalt/script/wrappable.h"
 
@@ -25,7 +29,11 @@ namespace h5vcc {
 
 class H5vccSystem : public script::Wrappable {
  public:
+#if SB_IS(EVERGREEN)
+  explicit H5vccSystem(H5vccUpdater* updater);
+#else
   H5vccSystem();
+#endif
 
   bool are_keys_reversed() const;
   std::string build_id() const;
@@ -47,6 +55,9 @@ class H5vccSystem : public script::Wrappable {
 
  private:
   std::string video_container_size_;
+#if SB_IS(EVERGREEN)
+  scoped_refptr<H5vccUpdater> updater_;
+#endif
   DISALLOW_COPY_AND_ASSIGN(H5vccSystem);
 };
 
