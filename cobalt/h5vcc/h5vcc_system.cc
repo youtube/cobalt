@@ -22,7 +22,11 @@
 namespace cobalt {
 namespace h5vcc {
 
+#if SB_IS(EVERGREEN)
+H5vccSystem::H5vccSystem(H5vccUpdater* updater) : updater_(updater) {}
+#else
 H5vccSystem::H5vccSystem() {}
+#endif
 
 bool H5vccSystem::are_keys_reversed() const {
   return SbSystemHasCapability(kSbSystemCapabilityReversedEnterAndBack);
@@ -67,6 +71,13 @@ uint32 H5vccSystem::user_on_exit_strategy() const {
   if (exit_strategy_str == "stop") {
     return static_cast<UserOnExitStrategy>(kUserOnExitStrategyClose);
   } else if (exit_strategy_str == "suspend") {
+#if SB_IS(EVERGREEN)
+    // Note: The status string used here must be synced with the
+    // ComponentState::kUpdated status string defined in updater_module.cc.
+    if (updater_->GetUpdateStatus() == "Update installed, pending restart") {
+      return static_cast<UserOnExitStrategy>(kUserOnExitStrategyClose);
+    }
+#endif
     return static_cast<UserOnExitStrategy>(kUserOnExitStrategyMinimize);
   } else if (exit_strategy_str == "noexit") {
     return static_cast<UserOnExitStrategy>(kUserOnExitStrategyNoExit);
