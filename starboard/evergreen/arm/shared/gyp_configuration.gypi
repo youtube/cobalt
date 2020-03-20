@@ -21,6 +21,8 @@
 
     'compiler_flags': [
       '-isystem<(cobalt_repo_root)/third_party/musl/arch/arm',
+
+      # Force char to be signed.
       '-fsigned-char',
     ],
 
@@ -32,9 +34,11 @@
     'defines' : [
       # Ensure that the Starboardized __external_threading file is included.
       '_LIBCPP_HAS_THREAD_API_EXTERNAL',
+
       # Ensure that only the forward declarations and type definitions are included
       # in __external_threading.
       '_LIBCPP_HAS_THREAD_LIBRARY_EXTERNAL',
+
       # Enable GNU extensions to get prototypes like ffsl.
       '_GNU_SOURCE=1',
     ],
