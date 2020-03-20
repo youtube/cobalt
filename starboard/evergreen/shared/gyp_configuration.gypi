@@ -26,6 +26,7 @@
     'compiler_flags': [
       # We'll pretend not to be Linux, but Starboard instead.
       '-U__linux__',
+
       # Pretend not to be unix, so that _LIBCPP_HAS_CATOPEN is not defined in
       # third_party/llvm-project/libcxx/include/__config. Then leaks catopen,
       # catgets and catclose are plugged.
@@ -43,8 +44,13 @@
     'defines' : [
       '_LIBCPP_HAS_MUSL_LIBC',
       '__STDC_FORMAT_MACROS', # so that we get PRI*
+
       # File format of the shared object we will generate.
       '__ELF__',
+
+      # Use scalar portable implementations instead of Clang/GCC vector
+      # extensions in SkVx.h.
+      'SKNX_NO_SIMD',
     ],
   },
   'includes': [
