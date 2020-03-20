@@ -115,6 +115,10 @@ class ContextImpl {
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glGenBuffers.xml
   virtual nb::scoped_ptr<BufferImpl> CreateBuffer() = 0;
 
+  // Called via glGenBuffersForVideoFrame(). Must create a platform-specific
+  // BufferImpl object representing a buffer for compressed textures.
+  virtual nb::scoped_ptr<BufferImpl> CreateBufferForVideoFrame() = 0;
+
   // Called via glGenTextures().  Must create a platform-specific TextureImpl
   // object representing a texture.
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glGenTextures.xml

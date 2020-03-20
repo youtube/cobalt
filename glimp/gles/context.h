@@ -115,6 +115,7 @@ class Context {
   void CompileShader(GLuint shader);
 
   void GenBuffers(GLsizei n, GLuint* buffers);
+  void GenBuffersForVideoFrame(GLsizei n, GLuint* buffers);
   void DeleteBuffers(GLsizei n, const GLuint* buffers);
   void BindBuffer(GLenum target, GLuint buffer);
   void BufferData(GLenum target,

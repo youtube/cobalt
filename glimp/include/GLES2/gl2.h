@@ -887,6 +887,8 @@ GL_APICALL void GL_APIENTRY glFramebufferTexture2D(GLenum target,
                                                    GLint level);
 GL_APICALL void GL_APIENTRY glFrontFace(GLenum mode);
 GL_APICALL void GL_APIENTRY glGenBuffers(GLsizei n, GLuint* buffers);
+GL_APICALL void GL_APIENTRY glGenBuffersForVideoFrame(GLsizei n,
+                                                      GLuint* buffers);
 GL_APICALL void GL_APIENTRY glGenerateMipmap(GLenum target);
 GL_APICALL void GL_APIENTRY glGenFramebuffers(GLsizei n, GLuint* framebuffers);
 GL_APICALL void GL_APIENTRY glGenRenderbuffers(GLsizei n,
