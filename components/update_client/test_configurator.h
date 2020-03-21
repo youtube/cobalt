@@ -16,22 +16,36 @@
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "components/update_client/configurator.h"
-#include "services/network/test/test_url_loader_factory.h"
 #include "url/gurl.h"
+
+#if defined(STARBOARD)
+#include "cobalt/network/network_module.h"
+#include "components/update_client/net/network_cobalt.h"
+#else
+#include "services/network/test/test_url_loader_factory.h"
+#endif
 
 class PrefService;
 
+#if !defined(STARBOARD)
 namespace network {
 class SharedURLLoaderFactory;
 }  // namespace network
+#endif
 
 namespace update_client {
 
 class ActivityDataService;
+class ProtocolHandlerFactory;
+#if defined(STARBOARD)
+class NetworkFetcherCobaltFactory;
+class PatchCobaltFactory;
+class UnzipCobaltFactory;
+#else
 class NetworkFetcherFactory;
 class PatchChromiumFactory;
-class ProtocolHandlerFactory;
 class UnzipChromiumFactory;
+#endif
 
 #define POST_INTERCEPT_SCHEME "https"
 #define POST_INTERCEPT_HOSTNAME "localhost2"
@@ -111,9 +125,15 @@ class TestConfigurator : public Configurator {
   void SetUpdateCheckUrl(const GURL& url);
   void SetPingUrl(const GURL& url);
   void SetAppGuid(const std::string& app_guid);
+
+#if defined(STARBOARD)
+  void SetChannel(const std::string& channel) override {}
+  bool IsChannelChanged() const override { return false; }
+#else
   network::TestURLLoaderFactory* test_url_loader_factory() {
     return &test_url_loader_factory_;
   }
+#endif
 
  private:
   friend class base::RefCountedThreadSafe<TestConfigurator>;
@@ -131,12 +151,20 @@ class TestConfigurator : public Configurator {
   GURL ping_url_;
   std::string app_guid_;
 
+#if defined(STARBOARD)
+  scoped_refptr<update_client::UnzipCobaltFactory> unzip_factory_;
+  scoped_refptr<update_client::PatchCobaltFactory> patch_factory_;
+
+  scoped_refptr<NetworkFetcherCobaltFactory> network_fetcher_factory_;
+  std::unique_ptr<cobalt::network::NetworkModule> network_module_;
+#else
   scoped_refptr<update_client::UnzipChromiumFactory> unzip_factory_;
   scoped_refptr<update_client::PatchChromiumFactory> patch_factory_;
 
   scoped_refptr<network::SharedURLLoaderFactory> test_shared_loader_factory_;
   network::TestURLLoaderFactory test_url_loader_factory_;
   scoped_refptr<NetworkFetcherFactory> network_fetcher_factory_;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(TestConfigurator);
 };
