@@ -18,7 +18,9 @@
 #include "components/update_client/protocol_serializer_json.h"
 #include "components/update_client/updater_state.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#if !defined(STARBOARD)
 #include "third_party/re2/src/re2/re2.h"
+#endif
 
 using base::Value;
 using std::string;

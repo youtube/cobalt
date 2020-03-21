@@ -68,6 +68,26 @@
      'defines': [
        'COMPONENTS_PREFS_IMPLEMENTATION',
      ],
-    }
+    },
+    {
+      'target_name': 'test_support',
+      'type': 'static_library',
+      'sources': [
+        'mock_pref_change_callback.cc',
+        'mock_pref_change_callback.h',
+        'pref_store_observer_mock.cc',
+        'pref_store_observer_mock.h',
+        'testing_pref_service.cc',
+        'testing_pref_service.h',
+        'testing_pref_store.cc',
+        'testing_pref_store.h',
+      ],
+      'dependencies': [
+        'prefs',
+        '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/testing/gmock.gyp:gmock',
+        '<(DEPTH)/testing/gtest.gyp:gtest',
+      ],
+    },
   ]
 }

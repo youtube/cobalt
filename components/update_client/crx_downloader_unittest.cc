@@ -21,8 +21,13 @@
 #include "components/update_client/update_client_errors.h"
 #include "components/update_client/utils.h"
 #include "net/base/net_errors.h"
+#if defined(STARBOARD)
+#include "net/url_request/test_url_request_interceptor.h"
+#include "net/url_request/url_request_test_util.h"
+#else
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "services/network/test/test_url_loader_factory.h"
+#endif
 #include "testing/gtest/include/gtest/gtest.h"
 
 using base::ContentsEqual;
@@ -30,6 +35,11 @@ using base::ContentsEqual;
 namespace update_client {
 
 namespace {
+
+#if defined(STARBOARD)
+// Intercepts HTTP GET requests sent to "localhost".
+typedef net::LocalHostTestURLRequestInterceptor GetInterceptor;
+#endif
 
 const char kTestFileName[] = "jebgalgnebhfojomionfpkfelancnnkf.crx";
 

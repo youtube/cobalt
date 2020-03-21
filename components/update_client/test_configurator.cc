@@ -9,16 +9,21 @@
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/version.h"
 #include "components/prefs/pref_service.h"
+#if !defined(STARBOARD)
 #include "components/services/patch/in_process_file_patcher.h"
 #include "components/services/unzip/in_process_unzipper.h"
-#include "components/update_client/activity_data_service.h"
 #include "components/update_client/net/network_chromium.h"
 #include "components/update_client/patch/patch_impl.h"
+#include "components/update_client/unzip/unzip_impl.h"
+#include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
+#else
+#include "components/update_client/patch/patch_impl_cobalt.h"
+#include "components/update_client/unzip/unzip_impl_cobalt.h"
+#endif
+#include "components/update_client/activity_data_service.h"
 #include "components/update_client/patcher.h"
 #include "components/update_client/protocol_handler.h"
-#include "components/update_client/unzip/unzip_impl.h"
 #include "components/update_client/unzipper.h"
-#include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "url/gurl.h"
 
 namespace update_client {
@@ -34,6 +39,7 @@ std::vector<GURL> MakeDefaultUrls() {
 
 }  // namespace
 
+#if !defined(STARBOARD)
 TestConfigurator::TestConfigurator()
     : brand_("TEST"),
       initial_time_(0),
@@ -50,8 +56,28 @@ TestConfigurator::TestConfigurator()
       network_fetcher_factory_(
           base::MakeRefCounted<NetworkFetcherChromiumFactory>(
               test_shared_loader_factory_)) {}
+#else
+TestConfigurator::TestConfigurator()
+    : brand_("TEST"),
+      initial_time_(0),
+      ondemand_time_(0),
+      enabled_cup_signing_(false),
+      enabled_component_updates_(true),
+      unzip_factory_(base::MakeRefCounted<update_client::UnzipCobaltFactory>()),
+      patch_factory_(
+          base::MakeRefCounted<update_client::PatchCobaltFactory>()) {
+  cobalt::network::NetworkModule::Options network_options;
+  network_module_.reset(new cobalt::network::NetworkModule(network_options));
+  network_fetcher_factory_ =
+      base::MakeRefCounted<NetworkFetcherCobaltFactory>(network_module_.get());
+}
+#endif
 
-TestConfigurator::~TestConfigurator() {}
+TestConfigurator::~TestConfigurator() {
+#if defined(STARBOARD)
+  network_module_.reset();
+#endif
+}
 
 int TestConfigurator::InitialDelay() const {
   return initial_time_;
