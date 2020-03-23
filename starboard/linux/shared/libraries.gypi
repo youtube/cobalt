@@ -25,11 +25,6 @@
       '-Wl,--wrap=eglSwapBuffers',
     ],
 
-    'cobalt_platform_dependencies': [
-      # GL Linux makes some GL calls within decode_target_internal.cc.
-      '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
-    ],
-
     'platform_libraries': [
       '-lX11',
       '-lXcomposite',

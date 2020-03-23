@@ -127,7 +127,6 @@
         'COBALT_REDUCE_GPU_MEMORY_BY=<(reduce_gpu_memory_by)',
       ],
       'dependencies': [
-        '<@(cobalt_platform_dependencies)',
         '<(DEPTH)/cobalt/account/account.gyp:account',
         '<(DEPTH)/cobalt/audio/audio.gyp:audio',
         '<(DEPTH)/cobalt/base/base.gyp:base',
@@ -207,6 +206,10 @@
         ['sb_evergreen == 1', {
           'dependencies': [
             '<(DEPTH)/cobalt/updater/updater.gyp:updater',
+          ],
+        }, {
+          'dependencies': [
+            '<@(cobalt_platform_dependencies)',
           ],
         }],
       ],
