@@ -71,6 +71,8 @@ class V8cScriptDebugger : public ScriptDebugger,
   void runMessageLoopOnPause(int contextGroupId) override;
   void quitMessageLoopOnPause() override;
   void runIfWaitingForDebugger(int contextGroupId) override;
+  std::unique_ptr<v8_inspector::StringBuffer> valueSubtype(
+      v8::Local<v8::Value> value) override;
   v8::Local<v8::Context> ensureDefaultContextInGroup(
       int contextGroupId) override;
   void consoleAPIMessage(int contextGroupId,
