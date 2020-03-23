@@ -88,6 +88,15 @@ inline const SbGlesInterface& CobaltGetGlesInterface() {
 }  // namespace cobalt
 #endif  // SB_API_VERSION >= 11
 
+// The following *_CALL, *_CALL_SIMPLE macros provide a mechanism to
+// transparently use the Starboard OpenGL ES and EGL interfaces if available,
+// while also providing error-checking. The *_CALL macros should be used when
+// the return value of the function to invoke is not desired, otherwise use
+// *_CALL_SIMPLE to propagate the returned value. For example:
+//
+// eglMakeCurrent(...) becomes EGL_CALL(eglMakeCurrent(...)).
+// ... = eglGetError() becomes ... = EGL_CALL_SIMPLE(eglGetError()).
+
 #define EGL_CALL(x)    \
   do {                 \
     EGL_CALL_PREFIX x; \
