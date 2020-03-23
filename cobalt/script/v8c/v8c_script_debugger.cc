@@ -306,6 +306,35 @@ void V8cScriptDebugger::runIfWaitingForDebugger(int contextGroupId) {
 }
 
 // v8_inspector::V8InspectorClient implementation.
+std::unique_ptr<v8_inspector::StringBuffer> V8cScriptDebugger::valueSubtype(
+    v8::Local<v8::Value> value) {
+  if (value->IsNullOrUndefined() || !value->IsObject()) {
+    return nullptr;
+  }
+
+  v8::Local<v8::Object> object = value.As<v8::Object>();
+  if (!WrapperPrivate::HasWrapperPrivate(object)) {
+    return nullptr;
+  }
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  DCHECK(wrapper_private);
+  Wrappable::JSObjectType type =
+      wrapper_private->raw_wrappable()->GetJSObjectType();
+  if (type == Wrappable::JSObjectType::kNode) {
+    return v8_inspector::StringBuffer::create(ToStringView("node"));
+  } else if (type == Wrappable::JSObjectType::kArray) {
+    return v8_inspector::StringBuffer::create(ToStringView("array"));
+  } else if (type == Wrappable::JSObjectType::kError) {
+    return v8_inspector::StringBuffer::create(ToStringView("error"));
+  } else if (type == Wrappable::JSObjectType::kBlob) {
+    return v8_inspector::StringBuffer::create(ToStringView("blob"));
+  }
+  return nullptr;
+}
+
+// v8_inspector::V8InspectorClient implementation.
 void V8cScriptDebugger::consoleAPIMessage(
     int contextGroupId, v8::Isolate::MessageErrorLevel level,
     const v8_inspector::StringView& message,

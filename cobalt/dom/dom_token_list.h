@@ -56,6 +56,7 @@ class DOMTokenList : public script::Wrappable {
   Element* element() { return element_; }
 
   DEFINE_WRAPPABLE_TYPE(DOMTokenList);
+  JSObjectType GetJSObjectType() override { return JSObjectType::kArray; }
   void TraceMembers(script::Tracer* tracer) override;
 
  private:

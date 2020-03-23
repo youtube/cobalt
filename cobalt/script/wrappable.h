@@ -55,6 +55,14 @@ class Wrappable : public base::RefCounted<Wrappable>, public Traceable {
     }
   };
 
+  enum class JSObjectType {
+    kObject,
+    kNode,
+    kArray,
+    kError,
+    kBlob,
+  };
+
   // Used for RTTI on wrappable types. This is implemented within the
   // DEFINE_WRAPPABLE_TYPE macro, defined below, which should be added to the
   // class definition of each wrappable type.
@@ -66,6 +74,7 @@ class Wrappable : public base::RefCounted<Wrappable>, public Traceable {
   // own any |Traceable|s must override |TraceMembers| and trace them.
   void TraceMembers(Tracer* /*tracer*/) override {}
   bool IsWrappable() const final { return true; }
+  virtual JSObjectType GetJSObjectType() { return JSObjectType::kObject; };
 
  protected:
   virtual ~Wrappable() { }
