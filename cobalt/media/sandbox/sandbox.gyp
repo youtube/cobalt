@@ -70,7 +70,13 @@
         '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:trace_event',
         '<(DEPTH)/url/url.gyp:url',
-        '<@(cobalt_platform_dependencies)',
+      ],
+      'conditions': [
+        ['sb_evergreen == 0', {
+          'dependencies': [
+            '<@(cobalt_platform_dependencies)',
+          ],
+        }],
       ],
     },
     {

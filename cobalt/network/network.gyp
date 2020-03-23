@@ -77,8 +77,12 @@
           ],
         }],
         ['enable_configure_request_job_factory == 1', {
-          'dependencies': [
-            '<@(cobalt_platform_dependencies)',
+          'conditions': [
+            ['sb_evergreen == 0', {
+              'dependencies': [
+                '<@(cobalt_platform_dependencies)',
+              ],
+            }],
           ],
           'defines': [
             'ENABLE_CONFIGURE_REQUEST_JOB_FACTORY',
