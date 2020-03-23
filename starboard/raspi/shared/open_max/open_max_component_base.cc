@@ -36,7 +36,8 @@ SbOnceControl s_open_max_initialization_once = SB_ONCE_INITIALIZER;
 
 void DoInitializeOpenMax() {
   OMX_ERRORTYPE error = OMX_Init();
-  SB_DCHECK(error == OMX_ErrorNone);
+  SB_DCHECK(error == OMX_ErrorNone)
+      << "OMX_Init() failed with error code: 0x" << std::hex << error << ".";
 }
 
 void InitializeOpenMax() {
