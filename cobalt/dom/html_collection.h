@@ -62,6 +62,7 @@ class HTMLCollection : public script::Wrappable {
       script::PropertyEnumerator* enumerator) const = 0;
 
   DEFINE_WRAPPABLE_TYPE(HTMLCollection);
+  JSObjectType GetJSObjectType() override { return JSObjectType::kArray; }
 
  protected:
   HTMLCollection();

@@ -44,6 +44,7 @@ class NodeList : public script::Wrappable {
   void AppendNode(const scoped_refptr<Node>& node);
 
   DEFINE_WRAPPABLE_TYPE(NodeList);
+  JSObjectType GetJSObjectType() override { return JSObjectType::kArray; }
   void TraceMembers(script::Tracer* tracer) override;
 
  protected:

@@ -72,6 +72,7 @@ class Blob : public script::Wrappable {
   const std::string& type() const { return type_; }
 
   DEFINE_WRAPPABLE_TYPE(Blob);
+  JSObjectType GetJSObjectType() override { return JSObjectType::kBlob; }
 
  private:
   static const BlobPropertyBag& EmptyBlobPropertyBag();
