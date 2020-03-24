@@ -14,6 +14,9 @@
 
 #include "starboard/shared/starboard/media/codec_util.h"
 
+#include <vector>
+
+#include "starboard/shared/starboard/media/avc_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -22,7 +25,198 @@ namespace starboard {
 namespace media {
 namespace {
 
-class CodecUtilTest : public ::testing::Test {
+const auto kIdrStartCode = 0x65;
+const auto kSpsStartCode = AvcParameterSets::kSpsStartCode;
+const auto kPpsStartCode = AvcParameterSets::kPpsStartCode;
+const auto kAnnexB = AvcParameterSets::kAnnexB;
+
+const std::vector<uint8_t> kSpsInAnnexB = {0, 0, 0, 1, kSpsStartCode, 10, 11};
+const std::vector<uint8_t> kPpsInAnnexB = {0, 0, 0, 1, kPpsStartCode, 20};
+const std::vector<uint8_t> kIdrInAnnexB = {0, 0, 0, 1, kIdrStartCode,
+                                           1, 2, 3, 4};
+
+std::vector<uint8_t> operator+(const std::vector<uint8_t>& left,
+                               const std::vector<uint8_t>& right) {
+  std::vector<uint8_t> result(left);
+  result.insert(result.end(), right.begin(), right.end());
+  return result;
+}
+
+#if SB_API_VERSION >= 11
+TEST(VideoConfigTest, CtorWithSbMediaVideoSampleInfo) {
+  SbMediaVideoSampleInfo video_sample_info = {kSbMediaVideoCodecH264};
+  video_sample_info.is_key_frame = true;
+  video_sample_info.frame_width = 1920;
+  video_sample_info.frame_height = 1080;
+
+  std::vector<uint8_t> nalus_in_annex_b =
+      kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
+
+  VideoConfig config_1(video_sample_info.codec, video_sample_info.frame_width,
+                       video_sample_info.frame_height, nalus_in_annex_b.data(),
+                       nalus_in_annex_b.size());
+  VideoConfig config_2(video_sample_info, nalus_in_annex_b.data(),
+                       nalus_in_annex_b.size());
+  ASSERT_TRUE(config_1 == config_2);
+}
+#endif  // SB_API_VERSION >= 11
+
+TEST(VideoConfigTest, IsValid) {
+  std::vector<uint8_t> nalus_in_annex_b =
+      kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
+
+  {
+    VideoConfig config(kSbMediaVideoCodecH264, 1920, 1080, kPpsInAnnexB.data(),
+                       kPpsInAnnexB.size());
+    ASSERT_TRUE(config.is_valid());
+  }
+  {
+    VideoConfig config(kSbMediaVideoCodecH264, 1920, 1080, kIdrInAnnexB.data(),
+                       kIdrInAnnexB.size());
+    ASSERT_TRUE(config.is_valid());
+  }
+  {
+    VideoConfig config(kSbMediaVideoCodecH264, 1920, 1080,
+                       nalus_in_annex_b.data(), nalus_in_annex_b.size());
+    ASSERT_TRUE(config.is_valid());
+  }
+  {
+    // The implementation only fails when the format is avc and the input isn't
+    // empty and doesn't start with a nalu header.
+    VideoConfig config(kSbMediaVideoCodecH264, 1920, 1080,
+                       nalus_in_annex_b.data() + 1,
+                       nalus_in_annex_b.size() - 1);
+    ASSERT_FALSE(config.is_valid());
+  }
+  {
+    VideoConfig config(kSbMediaVideoCodecVp9, 1920, 1080, nullptr, 0);
+    ASSERT_TRUE(config.is_valid());
+  }
+}
+
+TEST(VideoConfigTest, SelfComparison) {
+  {
+    std::vector<uint8_t> nalus_in_annex_b =
+        kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
+
+    VideoConfig config(kSbMediaVideoCodecH264, 640, 480,
+                       nalus_in_annex_b.data(), nalus_in_annex_b.size());
+    EXPECT_TRUE(config == config);
+    EXPECT_FALSE(config != config);
+  }
+  {
+    VideoConfig config(kSbMediaVideoCodecVp9, 640, 480, nullptr, 0);
+    EXPECT_TRUE(config == config);
+    EXPECT_FALSE(config != config);
+  }
+}
+
+TEST(VideoConfigTest, H264) {
+  std::vector<uint8_t> nalus_in_annex_b =
+      kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
+
+  VideoConfig config(kSbMediaVideoCodecH264, 640, 480, nalus_in_annex_b.data(),
+                     nalus_in_annex_b.size());
+
+  // Different resolution, same parameter sets.
+  VideoConfig config_1(kSbMediaVideoCodecH264, 1920, 1080,
+                       nalus_in_annex_b.data(), nalus_in_annex_b.size());
+  EXPECT_TRUE(config != config_1);
+  EXPECT_TRUE(config.avc_parameter_sets() == config_1.avc_parameter_sets());
+  EXPECT_FALSE(config == config_1);
+
+  // Same resolution, different parameter sets.
+  nalus_in_annex_b =
+      kSpsInAnnexB + kPpsInAnnexB + std::vector<uint8_t>({99}) + kIdrInAnnexB;
+  VideoConfig config_2(kSbMediaVideoCodecH264, 640, 480,
+                       nalus_in_annex_b.data(), nalus_in_annex_b.size());
+  EXPECT_TRUE(config != config_2);
+  EXPECT_FALSE(config == config_2);
+
+  // Same resolution, same parameter sets, different idr data.
+  nalus_in_annex_b = kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
+  nalus_in_annex_b.push_back(99);
+
+  VideoConfig config_3(kSbMediaVideoCodecH264, 640, 480,
+                       nalus_in_annex_b.data(), nalus_in_annex_b.size());
+  EXPECT_TRUE(config == config_3);
+  EXPECT_FALSE(config != config_3);
+}
+
+TEST(VideoConfigTest, H264MultiSpsPps) {
+  // Single sps and pps.
+  std::vector<uint8_t> nalus_in_annex_b =
+      kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
+
+  VideoConfig config_single_sps_pps(kSbMediaVideoCodecH264, 640, 480,
+                                    nalus_in_annex_b.data(),
+                                    nalus_in_annex_b.size());
+
+  // Same resolution, multiple parameter sets.
+  nalus_in_annex_b =
+      kSpsInAnnexB + kSpsInAnnexB + kPpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
+
+  VideoConfig config_dual_sps_pps(kSbMediaVideoCodecH264, 640, 480,
+                                  nalus_in_annex_b.data(),
+                                  nalus_in_annex_b.size());
+  EXPECT_TRUE(config_single_sps_pps != config_dual_sps_pps);
+  EXPECT_FALSE(config_single_sps_pps == config_dual_sps_pps);
+  EXPECT_TRUE(config_dual_sps_pps.avc_parameter_sets() ==
+              AvcParameterSets(kAnnexB, nalus_in_annex_b.data(),
+                               nalus_in_annex_b.size()));
+
+  // Same resolution, different parameter sets.
+  nalus_in_annex_b =
+      kSpsInAnnexB + kPpsInAnnexB + std::vector<uint8_t>({99}) + kIdrInAnnexB;
+  VideoConfig config_1(kSbMediaVideoCodecH264, 640, 480,
+                       nalus_in_annex_b.data(), nalus_in_annex_b.size());
+  EXPECT_TRUE(config_single_sps_pps != config_1);
+  EXPECT_FALSE(config_single_sps_pps == config_1);
+
+  // Same resolution, same parameter sets, different idr data.
+  nalus_in_annex_b = kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
+  nalus_in_annex_b.push_back(99);
+
+  VideoConfig config_2(kSbMediaVideoCodecH264, 640, 480,
+                       nalus_in_annex_b.data(), nalus_in_annex_b.size());
+  EXPECT_TRUE(config_single_sps_pps == config_2);
+  EXPECT_FALSE(config_single_sps_pps != config_2);
+}
+
+TEST(VideoConfigTest, Vp9) {
+  // The class shouldn't look into vp9 bitstreams.
+  const uint8_t kInvalidData[] = {1, 7, 25};
+
+  VideoConfig config(kSbMediaVideoCodecVp9, 640, 480, kInvalidData,
+                     SB_ARRAY_SIZE(kInvalidData));
+
+  // Different resolution, same data.
+  VideoConfig config_1(kSbMediaVideoCodecVp9, 1920, 1080, kInvalidData,
+                       SB_ARRAY_SIZE(kInvalidData));
+  EXPECT_TRUE(config != config_1);
+  EXPECT_FALSE(config == config_1);
+
+  // Same resolution, different data (one less byte).
+  VideoConfig config_2(kSbMediaVideoCodecVp9, 640, 480, kInvalidData,
+                       SB_ARRAY_SIZE(kInvalidData) - 1);
+  EXPECT_TRUE(config == config_2);
+  EXPECT_FALSE(config != config_2);
+}
+
+TEST(VideoConfigTest, H264VsVp9) {
+  std::vector<uint8_t> nalus_in_annex_b =
+      kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
+
+  VideoConfig config_h264(kSbMediaVideoCodecH264, 640, 480,
+                          nalus_in_annex_b.data(), nalus_in_annex_b.size());
+  VideoConfig config_vp9(kSbMediaVideoCodecVp9, 640, 480,
+                         nalus_in_annex_b.data(), nalus_in_annex_b.size());
+
+  EXPECT_TRUE(config_h264 != config_vp9);
+  EXPECT_FALSE(config_h264 == config_vp9);
+}
+
+class ParseVideoCodecTest : public ::testing::Test {
  protected:
   bool Parse(const char* codec_string) {
     return ParseVideoCodec(codec_string, &codec_, &profile_, &level_,
@@ -39,7 +233,7 @@ class CodecUtilTest : public ::testing::Test {
   SbMediaMatrixId matrix_id_;
 };
 
-TEST_F(CodecUtilTest, SimpleCodecs) {
+TEST_F(ParseVideoCodecTest, SimpleCodecs) {
   const char* kCodecStrings[] = {"vp8", "vp9"};
   const SbMediaVideoCodec kVideoCodecs[] = {kSbMediaVideoCodecVp8,
                                             kSbMediaVideoCodecVp9};
@@ -55,7 +249,7 @@ TEST_F(CodecUtilTest, SimpleCodecs) {
   }
 }
 
-TEST_F(CodecUtilTest, ShortFormAv1) {
+TEST_F(ParseVideoCodecTest, ShortFormAv1) {
   ASSERT_TRUE(Parse("av01.0.01M.08"));
 #if SB_API_VERSION < 11
   EXPECT_EQ(codec_, kSbMediaVideoCodecVp10);
@@ -70,7 +264,7 @@ TEST_F(CodecUtilTest, ShortFormAv1) {
   EXPECT_EQ(matrix_id_, kSbMediaMatrixIdBt709);
 }
 
-TEST_F(CodecUtilTest, LongFormAv1) {
+TEST_F(ParseVideoCodecTest, LongFormAv1) {
   ASSERT_TRUE(Parse("av01.0.04M.10.0.110.09.16.09.0"));
 #if SB_API_VERSION < 11
   EXPECT_EQ(codec_, kSbMediaVideoCodecVp10);
@@ -85,7 +279,7 @@ TEST_F(CodecUtilTest, LongFormAv1) {
   EXPECT_EQ(matrix_id_, kSbMediaMatrixIdBt2020NonconstantLuminance);
 }
 
-TEST_F(CodecUtilTest, InvalidAv1) {
+TEST_F(ParseVideoCodecTest, InvalidAv1) {
   EXPECT_FALSE(Parse("av01.0.04M.10.0.110.9.16.9.0"));
   EXPECT_FALSE(Parse("av01.0.04M.10.0.110.09.16.09"));
   EXPECT_FALSE(Parse("av01.0.04M.10.0.110.09.16"));
@@ -101,7 +295,7 @@ TEST_F(CodecUtilTest, InvalidAv1) {
   EXPECT_FALSE(Parse("av01.0.04M.10.0.110.09.16.09.2"));
 }
 
-TEST_F(CodecUtilTest, Avc) {
+TEST_F(ParseVideoCodecTest, Avc) {
   ASSERT_TRUE(Parse("avc1.640028"));
   EXPECT_EQ(codec_, kSbMediaVideoCodecH264);
   EXPECT_EQ(profile_, 100);
@@ -121,13 +315,13 @@ TEST_F(CodecUtilTest, Avc) {
   EXPECT_EQ(matrix_id_, kSbMediaMatrixIdUnspecified);
 }
 
-TEST_F(CodecUtilTest, InvalidAvc) {
+TEST_F(ParseVideoCodecTest, InvalidAvc) {
   EXPECT_FALSE(Parse("avc1.64002"));
   EXPECT_FALSE(Parse("avc2.640028"));
   EXPECT_FALSE(Parse("avc3.640028.1"));
 }
 
-TEST_F(CodecUtilTest, H265) {
+TEST_F(ParseVideoCodecTest, H265) {
   ASSERT_TRUE(Parse("hvc1.1.2.L93.B0"));
   EXPECT_EQ(codec_, kSbMediaVideoCodecH265);
   EXPECT_EQ(profile_, 1);
@@ -145,7 +339,7 @@ TEST_F(CodecUtilTest, H265) {
   EXPECT_TRUE(Parse("hvc1.C1.ABCDEF01.H93.B0"));
 }
 
-TEST_F(CodecUtilTest, InvalidH265) {
+TEST_F(ParseVideoCodecTest, InvalidH265) {
   EXPECT_FALSE(Parse("hvc2.1.2.L93.B0"));
   EXPECT_FALSE(Parse("hvc1.D1.2.L93.B0"));
   EXPECT_FALSE(Parse("hvc1.A111.2.L93.B0"));
@@ -156,7 +350,7 @@ TEST_F(CodecUtilTest, InvalidH265) {
   EXPECT_FALSE(Parse("hvc1.1.2.L93.B0.B1.B2.B3.B4.B5.B6"));
 }
 
-TEST_F(CodecUtilTest, ShortFormVp9) {
+TEST_F(ParseVideoCodecTest, ShortFormVp9) {
   ASSERT_TRUE(Parse("vp09.00.41.08"));
   EXPECT_EQ(codec_, kSbMediaVideoCodecVp9);
   EXPECT_EQ(profile_, 0);
@@ -167,7 +361,7 @@ TEST_F(CodecUtilTest, ShortFormVp9) {
   EXPECT_EQ(matrix_id_, kSbMediaMatrixIdBt709);
 }
 
-TEST_F(CodecUtilTest, MediumFormVp9) {
+TEST_F(ParseVideoCodecTest, MediumFormVp9) {
   ASSERT_TRUE(Parse("vp09.02.10.10.01.09.16.09"));
   EXPECT_EQ(codec_, kSbMediaVideoCodecVp9);
   EXPECT_EQ(profile_, 2);
@@ -178,7 +372,7 @@ TEST_F(CodecUtilTest, MediumFormVp9) {
   EXPECT_EQ(matrix_id_, kSbMediaMatrixIdBt2020NonconstantLuminance);
 }
 
-TEST_F(CodecUtilTest, LongFormVp9) {
+TEST_F(ParseVideoCodecTest, LongFormVp9) {
   ASSERT_TRUE(Parse("vp09.02.10.10.01.09.16.09.01"));
   EXPECT_EQ(codec_, kSbMediaVideoCodecVp9);
   EXPECT_EQ(profile_, 2);
@@ -189,7 +383,7 @@ TEST_F(CodecUtilTest, LongFormVp9) {
   EXPECT_EQ(matrix_id_, kSbMediaMatrixIdBt2020NonconstantLuminance);
 }
 
-TEST_F(CodecUtilTest, InvalidVp9) {
+TEST_F(ParseVideoCodecTest, InvalidVp9) {
   EXPECT_FALSE(Parse("vp09.02.10.10.01.9.16.9"));
   EXPECT_FALSE(Parse("vp09.02.10.10.01.09.16"));
   EXPECT_FALSE(Parse("vp09.02.10.10.01.09"));
