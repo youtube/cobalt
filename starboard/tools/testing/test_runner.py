@@ -239,6 +239,7 @@ class TestRunner(object):
       self._loader_platform_config = build.GetPlatformConfig(loader_platform)
     self._app_config = self._platform_config.GetApplicationConfiguration(
         application_name)
+    self.application_name = application_name
     self.dry_run = dry_run
     self.xml_output_dir = xml_output_dir
     self.log_xml_results = log_xml_results
@@ -335,11 +336,21 @@ class TestRunner(object):
 
   def _GetTestFilters(self):
     filters = self._platform_config.GetTestFilters()
-    if not filters:
-      filters = []
     app_filters = self._app_config.GetTestFilters()
     if app_filters:
       filters.extend(app_filters)
+    # Regardless of our own platform, if we are Evergreen we also need to
+    # filter the tests that are filtered by the underlying platform. For
+    # example, the 'evergreen-arm-hardfp' needs to filter the 'raspi-2'
+    # filtered tests when it is running on a Raspberry Pi 2.
+    if self.loader_platform and self.loader_config:
+      loader_platform_config = build.GetPlatformConfig(self.loader_platform)
+      loader_app_config = loader_platform_config.GetApplicationConfiguration(
+          self.application_name)
+      for filter in (loader_platform_config.GetTestFilters() +
+                     loader_app_config.GetTestFilters()):
+        if filter not in filters:
+          filters.append(filter)
     return filters
 
   def _GetAllTestEnvVariables(self):
