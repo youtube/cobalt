@@ -21,6 +21,7 @@ import _env  # pylint: disable=unused-import
 from cobalt.black_box_tests import black_box_tests
 from cobalt.black_box_tests.web_platform_test_server import WebPlatformTestServer
 from starboard.tools import abstract_launcher
+from starboard.tools import build
 from starboard.tools.testing import test_filter
 
 
@@ -38,6 +39,20 @@ class WebPlatformTests(black_box_tests.BlackBoxTestCase):
       target_params = []
 
       filters = self.cobalt_config.GetWebPlatformTestFilters()
+
+      # Regardless of our own platform, if we are Evergreen we also need to
+      # filter the tests that are filtered by the underlying platform. For
+      # example, the 'evergreen-arm-hardfp' needs to filter the 'raspi-2'
+      # filtered tests when it is running on a Raspberry Pi 2.
+      if self.launcher_params.IsEvergreen():
+        loader_platform_config = build.GetPlatformConfig(
+            self.launcher_params.loader_platform)
+        loader_platform_cobalt_config = loader_platform_config.GetApplicationConfiguration(
+            'cobalt')
+        for filter in loader_platform_cobalt_config.GetWebPlatformTestFilters():
+          if filter not in filters:
+            filters.append(filter)
+
       used_filters = []
 
       for filter in filters:
@@ -64,7 +79,9 @@ class WebPlatformTests(black_box_tests.BlackBoxTestCase):
       if self.launcher_params.IsEvergreen():
         # TODO: Remove this once the memory leaks when running executables in
         # Evergreen mode have been resolved.
-        env_variables_config = {'ASAN_OPTIONS': 'detect_leaks=0:intercept_tls_get_addr=0'}
+        env_variables_config = {
+            'ASAN_OPTIONS': 'detect_leaks=0:intercept_tls_get_addr=0'
+        }
       else:
         env_variables_config = {'ASAN_OPTIONS': 'intercept_tls_get_addr=0'}
 
