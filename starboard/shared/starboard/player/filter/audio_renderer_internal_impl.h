@@ -32,6 +32,7 @@
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
 #include "starboard/shared/starboard/player/filter/audio_resampler.h"
 #include "starboard/shared/starboard/player/filter/audio_time_stretcher.h"
+#include "starboard/shared/starboard/player/filter/media_time_provider.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/time.h"
@@ -53,6 +54,7 @@ const int kFramesInBufferBeginUnderflow = 1024;
 // pipeline to coordinate data transfer between these parties.  It also serves
 // as the authority of playback time.
 class AudioRendererImpl : public AudioRenderer,
+                          public MediaTimeProvider,
                           private AudioRendererSink::RenderCallback,
                           private JobQueue::JobOwner {
  public:
