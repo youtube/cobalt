@@ -47,8 +47,8 @@ class MonotonicSystemTimeProviderImpl : public MonotonicSystemTimeProvider {
 class PlayerComponentsImpl : public PlayerComponents {
  public:
   PlayerComponentsImpl(scoped_ptr<MediaTimeProviderImpl> media_time_provider,
-                       scoped_ptr<AudioRenderer> audio_renderer,
-                       scoped_ptr<VideoRenderer> video_renderer)
+                       scoped_ptr<AudioRendererImpl> audio_renderer,
+                       scoped_ptr<VideoRendererImpl> video_renderer)
       : media_time_provider_(media_time_provider.Pass()),
         audio_renderer_(audio_renderer.Pass()),
         video_renderer_(video_renderer.Pass()) {
@@ -67,8 +67,8 @@ class PlayerComponentsImpl : public PlayerComponents {
  private:
   // |media_time_provider_| will only be used when |audio_renderer_| is nullptr.
   scoped_ptr<MediaTimeProviderImpl> media_time_provider_;
-  scoped_ptr<AudioRenderer> audio_renderer_;
-  scoped_ptr<VideoRenderer> video_renderer_;
+  scoped_ptr<AudioRendererImpl> audio_renderer_;
+  scoped_ptr<VideoRendererImpl> video_renderer_;
 };
 
 }  // namespace
@@ -217,8 +217,8 @@ scoped_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
   }
 
   scoped_ptr<MediaTimeProviderImpl> media_time_provider_impl;
-  scoped_ptr<AudioRenderer> audio_renderer;
-  scoped_ptr<VideoRenderer> video_renderer;
+  scoped_ptr<AudioRendererImpl> audio_renderer;
+  scoped_ptr<VideoRendererImpl> video_renderer;
 
   if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
     SB_DCHECK(audio_decoder);
