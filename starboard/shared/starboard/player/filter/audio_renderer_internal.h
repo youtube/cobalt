@@ -15,7 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_H_
 
-#include "starboard/shared/starboard/player/filter/media_time_provider.h"
+#include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
 namespace starboard {
@@ -24,8 +24,10 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-class AudioRenderer : public MediaTimeProvider {
+class AudioRenderer {
  public:
+  virtual ~AudioRenderer() {}
+
   virtual void Initialize(const ErrorCB& error_cb,
                           const PrerolledCB& prerolled_cb,
                           const EndedCB& ended_cb) = 0;

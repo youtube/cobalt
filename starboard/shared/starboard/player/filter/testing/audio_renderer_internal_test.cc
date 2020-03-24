@@ -237,7 +237,7 @@ class AudioRendererTest : public ::testing::Test {
   AudioDecoder::ConsumedCB consumed_cb_;
   bool prerolled_ = true;
 
-  scoped_ptr<AudioRenderer> audio_renderer_;
+  scoped_ptr<AudioRendererImpl> audio_renderer_;
   MockAudioDecoder* audio_decoder_;
   MockAudioRendererSink* audio_renderer_sink_;
   AudioRendererSink::RenderCallback* renderer_callback_;
