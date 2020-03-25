@@ -56,35 +56,31 @@
         '<(DEPTH)/cobalt/demos/demos.gyp:copy_demos',
       ],
     },
+    {
+      'target_name': 'snapshot_app_stats',
+      'type': '<(final_executable_type)',
+      'sources': [
+        'snapshot_app_stats.cc',
+      ],
+      'dependencies': [
+        'cobalt',
+        '<(DEPTH)/cobalt/browser/browser.gyp:browser',
+        '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
+      ],
+    },
+    {
+      'target_name': 'snapshot_app_stats_deploy',
+      'type': 'none',
+      'dependencies': [
+        'snapshot_app_stats',
+      ],
+      'variables': {
+        'executable_name': 'snapshot_app_stats',
+      },
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
+    },
   ],
   'conditions': [
-    ['build_snapshot_app_stats', {
-      'targets': [
-        {
-          'target_name': 'snapshot_app_stats',
-          'type': '<(final_executable_type)',
-          'sources': [
-            'snapshot_app_stats.cc',
-          ],
-          'dependencies': [
-            'cobalt',
-            '<(DEPTH)/cobalt/browser/browser.gyp:browser',
-            '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
-          ],
-        },
-        {
-          'target_name': 'snapshot_app_stats_deploy',
-          'type': 'none',
-          'dependencies': [
-            'snapshot_app_stats',
-          ],
-          'variables': {
-            'executable_name': 'snapshot_app_stats',
-          },
-          'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
-        },
-      ]
-    }],
     ['final_executable_type == "shared_library" and sb_evergreen != 1', {
       'targets': [
         {
