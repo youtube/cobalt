@@ -6,7 +6,6 @@ title: "Starboard: gyp_configuration Reference Guide"
 | Variables |
 | :--- |
 | **`abort_on_allocation_failure`**<br><br> Halt execution on failure to allocate memory.<br><br>The default value is `1`. |
-| **`build_snapshot_app_stats`**<br><br> Some platforms have difficulty linking snapshot_app_stats<br><br>The default value is `1`. |
 | **`cobalt`**<br><br> Whether Cobalt is being built.<br><br>The default value is `1`. |
 | **`cobalt_config`**<br><br> Contains the current build configuration.<br><br>The default value is `'gold'`. |
 | **`cobalt_egl_swap_interval`**<br><br> Cobalt will call eglSwapInterval() and specify this value before calling eglSwapBuffers() each frame.<br><br>The default value is `1`. |

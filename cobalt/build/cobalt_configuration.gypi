@@ -229,9 +229,6 @@
     # "file:///cobalt/browser/splash_screen/". If '', no file is copied.
     'cobalt_splash_screen_file%': '',
 
-    # Some platforms have difficulty linking snapshot_app_stats
-    'build_snapshot_app_stats%': 1,
-
     # Set to "true" to enable v8 snapshot generation at Cobalt build time.
     'cobalt_v8_buildtime_snapshot%': '<(cobalt_v8_buildtime_snapshot)',
 
