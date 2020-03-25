@@ -39,8 +39,13 @@ namespace update_client {
 
 namespace {
 
-// TODO: switch to prod channel as default.
+#if defined(COBALT_BUILD_TYPE_DEBUG) || defined(COBALT_BUILD_TYPE_DEVEL)
 const std::string kDefaultUpdaterChannel = "dev";
+#elif defined(COBALT_BUILD_TYPE_QA)
+const std::string kDefaultUpdaterChannel = "qa";
+#elif defined(COBALT_BUILD_TYPE_GOLD)
+const std::string kDefaultUpdaterChannel = "prod";
+#endif
 
 // Returns a sanitized version of the brand or an empty string otherwise.
 std::string SanitizeBrand(const std::string& brand) {
