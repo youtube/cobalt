@@ -51,6 +51,14 @@ class CobaltARMConfiguration(cobalt_configuration.CobaltConfiguration):
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
+  def GetWebPlatformTestFilters(self):
+    filters = super(CobaltARMConfiguration, self).GetWebPlatformTestFilters()
+    filters += [
+        ('csp/WebPlatformTest.Run/'
+         'content_security_policy_media_src_media_src_allowed_html'),
+    ]
+    return filters
+
   def GetTestEnvVariables(self):
     return {
         'base_unittests': {
