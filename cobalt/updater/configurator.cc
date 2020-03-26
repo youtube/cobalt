@@ -32,7 +32,7 @@ const std::set<std::string> valid_channels = {"dev"};
 #elif defined(COBALT_BUILD_TYPE_QA)
 // Find more information about these test channels in the Evergreen test plan.
 const std::set<std::string> valid_channels = {
-    "qa", "test_mismatched_sabi", "test_bad_update",
+    "qa", "test", "test_mismatched_sabi", "test_bad_update",
     "test_verification_failure", "test_insufficient_storage"};
 #elif defined(COBALT_BUILD_TYPE_GOLD)
 const std::set<std::string> valid_channels = {"prod", "dogfood"};
