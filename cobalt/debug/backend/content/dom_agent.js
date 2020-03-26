@@ -309,10 +309,6 @@ function _getPreviousSibling(node) {
   return node;
 }
 
-// TODO: Don't use an actual MutationObserver since the page under test can
-// disconnect it from the nodes being observed. Instead set _onNodeMutated() as
-// a callback on DebugBackend and hook it up to MutationObserverTaskManager to
-// always run when notifying actual MutationObservers.
 const _nodeObserver = new MutationObserver(_onNodeMutated);
 const _observerConfig = {
   attributes: true,
