@@ -63,5 +63,4 @@ void HTTPTransport::SetRootCACertificatePath(const base::FilePath& cert) {
 }
 #endif  // defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
 
-
 }  // namespace crashpad

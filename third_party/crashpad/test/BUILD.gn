@@ -167,72 +167,72 @@ static_library("test") {
 }
 
 if (!crashpad_is_in_starboard && !crashpad_is_in_native_target_build) {
-  source_set("test_test") {
-    testonly = true
+source_set("test_test") {
+  testonly = true
 
-    sources = [
-      "hex_string_test.cc",
-      "main_arguments_test.cc",
+  sources = [
+    "hex_string_test.cc",
+    "main_arguments_test.cc",
+    "multiprocess_exec_test.cc",
+    "scoped_guarded_page_test.cc",
+    "scoped_temp_dir_test.cc",
+    "test_paths_test.cc",
+  ]
+
+  if (crashpad_is_ios) {
+    sources -= [
       "multiprocess_exec_test.cc",
       "scoped_guarded_page_test.cc",
       "scoped_temp_dir_test.cc",
       "test_paths_test.cc",
     ]
+  }
 
-    if (crashpad_is_ios) {
-      sources -= [
-        "multiprocess_exec_test.cc",
-        "scoped_guarded_page_test.cc",
-        "scoped_temp_dir_test.cc",
-        "test_paths_test.cc",
-      ]
-    }
+  # TODO(crbug.com/812974): Remove !crashpad_is_fuchsia when Fuchsia is no
+  # longer treated as a posix platform.
+  if (crashpad_is_posix && !crashpad_is_fuchsia && !crashpad_is_ios) {
+    sources += [ "multiprocess_posix_test.cc" ]
+  }
 
-    # TODO(crbug.com/812974): Remove !crashpad_is_fuchsia when Fuchsia is no
-    # longer treated as a posix platform.
-    if (crashpad_is_posix && !crashpad_is_fuchsia && !crashpad_is_ios) {
-      sources += [ "multiprocess_posix_test.cc" ]
-    }
+  if (crashpad_is_mac) {
+    sources += [ "mac/mach_multiprocess_test.cc" ]
+  }
 
-    if (crashpad_is_mac) {
-      sources += [ "mac/mach_multiprocess_test.cc" ]
-    }
+  if (crashpad_is_win) {
+    sources += [
+      "win/win_child_process_test.cc",
+      "win/win_multiprocess_test.cc",
+    ]
+  }
 
-    if (crashpad_is_win) {
-      sources += [
-        "win/win_child_process_test.cc",
-        "win/win_multiprocess_test.cc",
-      ]
-    }
+  deps = [
+    ":test",
+    "../compat",
+    "../third_party/gtest:gmock",
+    "../third_party/gtest:gtest",
+    "../third_party/mini_chromium:base",
+    "../util",
+  ]
 
-    deps = [
-      ":test",
+  data_deps = [ ":crashpad_test_test_multiprocess_exec_test_child" ]
+
+  if (crashpad_is_ios) {
+    deps -= [
       "../compat",
-      "../third_party/gtest:gmock",
-      "../third_party/gtest:gtest",
-      "../third_party/mini_chromium:base",
       "../util",
     ]
 
-    data_deps = [ ":crashpad_test_test_multiprocess_exec_test_child" ]
-
-    if (crashpad_is_ios) {
-      deps -= [
-        "../compat",
-        "../util",
-      ]
-
-      data_deps -= [ ":crashpad_test_test_multiprocess_exec_test_child" ]
-    }
+    data_deps -= [ ":crashpad_test_test_multiprocess_exec_test_child" ]
   }
+}
 
-  if (!crashpad_is_ios) {
-    crashpad_executable("crashpad_test_test_multiprocess_exec_test_child") {
-      sources = [ "multiprocess_exec_test_child.cc" ]
+if (!crashpad_is_ios) {
+  crashpad_executable("crashpad_test_test_multiprocess_exec_test_child") {
+    sources = [ "multiprocess_exec_test_child.cc" ]
 
-      deps = [ "../third_party/mini_chromium:base" ]
-    }
+    deps = [ "../third_party/mini_chromium:base" ]
   }
+}
 }
 
 static_library("gmock_main") {

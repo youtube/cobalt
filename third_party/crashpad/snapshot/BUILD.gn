@@ -328,169 +328,169 @@ config("snapshot_test_link") {
 }
 
 if (!crashpad_is_in_starboard && !crashpad_is_in_native_target_build) {
-  source_set("snapshot_test") {
-    testonly = true
+source_set("snapshot_test") {
+  testonly = true
 
-    sources = [
-      "cpu_context_test.cc",
-      "memory_snapshot_test.cc",
-      "minidump/process_snapshot_minidump_test.cc",
-    ]
+  sources = [
+    "cpu_context_test.cc",
+    "memory_snapshot_test.cc",
+    "minidump/process_snapshot_minidump_test.cc",
+  ]
 
-    if (crashpad_is_mac) {
-      sources += [
-        "mac/cpu_context_mac_test.cc",
-        "mac/mach_o_image_annotations_reader_test.cc",
-        "mac/mach_o_image_reader_test.cc",
-        "mac/mach_o_image_segment_reader_test.cc",
-        "mac/process_reader_mac_test.cc",
-        "mac/process_types_test.cc",
-        "mac/system_snapshot_mac_test.cc",
-      ]
-    }
-
-    if (crashpad_is_linux || crashpad_is_android) {
-      sources += [
-        "linux/debug_rendezvous_test.cc",
-        "linux/exception_snapshot_linux_test.cc",
-        "linux/process_reader_linux_test.cc",
-        "linux/system_snapshot_linux_test.cc",
-        "sanitized/process_snapshot_sanitized_test.cc",
-        "sanitized/sanitization_information_test.cc",
-      ]
-    } else if (!crashpad_is_ios) {
-      sources += [ "crashpad_info_client_options_test.cc" ]
-    }
-
-    if (crashpad_is_linux || crashpad_is_android || crashpad_is_fuchsia ||
-        crashpad_is_win) {
-      sources += [ "crashpad_types/crashpad_info_reader_test.cc" ]
-    }
-
-    if (crashpad_is_linux || crashpad_is_android || crashpad_is_fuchsia) {
-      sources += [
-        "crashpad_types/image_annotation_reader_test.cc",
-        "elf/elf_image_reader_test.cc",
-        "elf/elf_image_reader_test_note.S",
-      ]
-    }
-
-    if (crashpad_is_win) {
-      sources += [
-        "win/cpu_context_win_test.cc",
-        "win/exception_snapshot_win_test.cc",
-        "win/extra_memory_ranges_test.cc",
-        "win/module_snapshot_win_test.cc",
-        "win/pe_image_reader_test.cc",
-        "win/process_reader_win_test.cc",
-        "win/process_snapshot_win_test.cc",
-        "win/system_snapshot_win_test.cc",
-      ]
-    } else if (!crashpad_is_fuchsia) {
-      # Timezones are currently non-functional on Fuchsia:
-      # https://fuchsia.googlesource.com/zircon/+/master/third_party/ulib/musl/src/time/__tz.c#9
-      # https://crashpad.chromium.org/bug/196. Relevant upstream bugs are ZX-337
-      # and ZX-1731.
-      sources += [ "posix/timezone_test.cc" ]
-    }
-
-    if (crashpad_is_fuchsia) {
-      sources += [
-        "fuchsia/process_reader_fuchsia_test.cc",
-        "fuchsia/process_snapshot_fuchsia_test.cc",
-      ]
-    }
-
-    # public_configs isn’t quite right. snapshot_test_link sets ldflags, and
-    # what’s really needed is a way to push ldflags to dependent targets that
-    # produce linker output. Luckily in this case, all dependents do produce
-    # linker output. https://crbug.com/796183.
-    public_configs = [ ":snapshot_test_link" ]
-
-    deps = [
-      ":test_support",
-      "../client",
-      "../compat",
-      "../test",
-      "../third_party/gtest:gtest",
-      "../third_party/mini_chromium:base",
-      "../util",
-    ]
-
-    data_deps = [
-      ":crashpad_snapshot_test_module",
-      ":crashpad_snapshot_test_module_large",
-      ":crashpad_snapshot_test_module_small",
-    ]
-
-    if (crashpad_is_mac) {
-      libs = [ "OpenCL.framework" ]
-
-      data_deps += [
-        ":crashpad_snapshot_test_module_crashy_initializer",
-        ":crashpad_snapshot_test_no_op",
-      ]
-    }
-
-    if (crashpad_is_linux || crashpad_is_android) {
-      libs = [ "dl" ]
-    }
-
-    if ((crashpad_is_linux || crashpad_is_android || crashpad_is_fuchsia) &&
-        target_cpu != "mipsel" && target_cpu != "mips64el" && !using_old_compiler) {
-      data_deps += [ ":crashpad_snapshot_test_both_dt_hash_styles" ]
-    }
-
-    if (crashpad_is_win) {
-      cflags = [ "/wd4201" ]  # nonstandard extension used : nameless struct/union
-
-      data_deps += [
-        ":crashpad_snapshot_test_annotations",
-        ":crashpad_snapshot_test_crashing_child",
-        ":crashpad_snapshot_test_dump_without_crashing",
-        ":crashpad_snapshot_test_extra_memory_ranges",
-        ":crashpad_snapshot_test_image_reader",
-        ":crashpad_snapshot_test_image_reader_module",
-      ]
-    }
-  }
-
-  crashpad_loadable_module("crashpad_snapshot_test_module") {
-    testonly = true
-    sources = [ "crashpad_info_client_options_test_module.cc" ]
-    deps = [
-      "../client",
-      "../third_party/mini_chromium:base",
+  if (crashpad_is_mac) {
+    sources += [
+      "mac/cpu_context_mac_test.cc",
+      "mac/mach_o_image_annotations_reader_test.cc",
+      "mac/mach_o_image_reader_test.cc",
+      "mac/mach_o_image_segment_reader_test.cc",
+      "mac/process_reader_mac_test.cc",
+      "mac/process_types_test.cc",
+      "mac/system_snapshot_mac_test.cc",
     ]
   }
 
-  crashpad_loadable_module("crashpad_snapshot_test_module_large") {
-    testonly = true
-    sources = [ "crashpad_info_size_test_module.cc" ]
-
-    deps = []
-    if (crashpad_is_linux || crashpad_is_android || crashpad_is_fuchsia) {
-      sources += [ "crashpad_info_size_test_note.S" ]
-      deps += [ "../util" ]
-    }
-
-    defines = [ "CRASHPAD_INFO_SIZE_TEST_MODULE_LARGE" ]
-    deps += [ "../third_party/mini_chromium:base" ]
+  if (crashpad_is_linux || crashpad_is_android) {
+    sources += [
+      "linux/debug_rendezvous_test.cc",
+      "linux/exception_snapshot_linux_test.cc",
+      "linux/process_reader_linux_test.cc",
+      "linux/system_snapshot_linux_test.cc",
+      "sanitized/process_snapshot_sanitized_test.cc",
+      "sanitized/sanitization_information_test.cc",
+    ]
+  } else if (!crashpad_is_ios) {
+    sources += [ "crashpad_info_client_options_test.cc" ]
   }
 
-  crashpad_loadable_module("crashpad_snapshot_test_module_small") {
-    testonly = true
-    sources = [ "crashpad_info_size_test_module.cc" ]
-
-    deps = []
-    if (crashpad_is_linux || crashpad_is_android || crashpad_is_fuchsia) {
-      sources += [ "crashpad_info_size_test_note.S" ]
-      deps += [ "../util" ]
-    }
-
-    defines = [ "CRASHPAD_INFO_SIZE_TEST_MODULE_SMALL" ]
-    deps += [ "../third_party/mini_chromium:base" ]
+  if (crashpad_is_linux || crashpad_is_android || crashpad_is_fuchsia ||
+      crashpad_is_win) {
+    sources += [ "crashpad_types/crashpad_info_reader_test.cc" ]
   }
+
+  if (crashpad_is_linux || crashpad_is_android || crashpad_is_fuchsia) {
+    sources += [
+      "crashpad_types/image_annotation_reader_test.cc",
+      "elf/elf_image_reader_test.cc",
+      "elf/elf_image_reader_test_note.S",
+    ]
+  }
+
+  if (crashpad_is_win) {
+    sources += [
+      "win/cpu_context_win_test.cc",
+      "win/exception_snapshot_win_test.cc",
+      "win/extra_memory_ranges_test.cc",
+      "win/module_snapshot_win_test.cc",
+      "win/pe_image_reader_test.cc",
+      "win/process_reader_win_test.cc",
+      "win/process_snapshot_win_test.cc",
+      "win/system_snapshot_win_test.cc",
+    ]
+  } else if (!crashpad_is_fuchsia) {
+    # Timezones are currently non-functional on Fuchsia:
+    # https://fuchsia.googlesource.com/zircon/+/master/third_party/ulib/musl/src/time/__tz.c#9
+    # https://crashpad.chromium.org/bug/196. Relevant upstream bugs are ZX-337
+    # and ZX-1731.
+    sources += [ "posix/timezone_test.cc" ]
+  }
+
+  if (crashpad_is_fuchsia) {
+    sources += [
+      "fuchsia/process_reader_fuchsia_test.cc",
+      "fuchsia/process_snapshot_fuchsia_test.cc",
+    ]
+  }
+
+  # public_configs isn’t quite right. snapshot_test_link sets ldflags, and
+  # what’s really needed is a way to push ldflags to dependent targets that
+  # produce linker output. Luckily in this case, all dependents do produce
+  # linker output. https://crbug.com/796183.
+  public_configs = [ ":snapshot_test_link" ]
+
+  deps = [
+    ":test_support",
+    "../client",
+    "../compat",
+    "../test",
+    "../third_party/gtest:gtest",
+    "../third_party/mini_chromium:base",
+    "../util",
+  ]
+
+  data_deps = [
+    ":crashpad_snapshot_test_module",
+    ":crashpad_snapshot_test_module_large",
+    ":crashpad_snapshot_test_module_small",
+  ]
+
+  if (crashpad_is_mac) {
+    libs = [ "OpenCL.framework" ]
+
+    data_deps += [
+      ":crashpad_snapshot_test_module_crashy_initializer",
+      ":crashpad_snapshot_test_no_op",
+    ]
+  }
+
+  if (crashpad_is_linux || crashpad_is_android) {
+    libs = [ "dl" ]
+  }
+
+  if ((crashpad_is_linux || crashpad_is_android || crashpad_is_fuchsia) &&
+      target_cpu != "mipsel" && target_cpu != "mips64el" && !using_old_compiler) {
+    data_deps += [ ":crashpad_snapshot_test_both_dt_hash_styles" ]
+  }
+
+  if (crashpad_is_win) {
+    cflags = [ "/wd4201" ]  # nonstandard extension used : nameless struct/union
+
+    data_deps += [
+      ":crashpad_snapshot_test_annotations",
+      ":crashpad_snapshot_test_crashing_child",
+      ":crashpad_snapshot_test_dump_without_crashing",
+      ":crashpad_snapshot_test_extra_memory_ranges",
+      ":crashpad_snapshot_test_image_reader",
+      ":crashpad_snapshot_test_image_reader_module",
+    ]
+  }
+}
+
+crashpad_loadable_module("crashpad_snapshot_test_module") {
+  testonly = true
+  sources = [ "crashpad_info_client_options_test_module.cc" ]
+  deps = [
+    "../client",
+    "../third_party/mini_chromium:base",
+  ]
+}
+
+crashpad_loadable_module("crashpad_snapshot_test_module_large") {
+  testonly = true
+  sources = [ "crashpad_info_size_test_module.cc" ]
+
+  deps = []
+  if (crashpad_is_linux || crashpad_is_android || crashpad_is_fuchsia) {
+    sources += [ "crashpad_info_size_test_note.S" ]
+    deps += [ "../util" ]
+  }
+
+  defines = [ "CRASHPAD_INFO_SIZE_TEST_MODULE_LARGE" ]
+  deps += [ "../third_party/mini_chromium:base" ]
+}
+
+crashpad_loadable_module("crashpad_snapshot_test_module_small") {
+  testonly = true
+  sources = [ "crashpad_info_size_test_module.cc" ]
+
+  deps = []
+  if (crashpad_is_linux || crashpad_is_android || crashpad_is_fuchsia) {
+    sources += [ "crashpad_info_size_test_note.S" ]
+    deps += [ "../util" ]
+  }
+
+  defines = [ "CRASHPAD_INFO_SIZE_TEST_MODULE_SMALL" ]
+  deps += [ "../third_party/mini_chromium:base" ]
+}
 }
 
 if ((crashpad_is_linux || crashpad_is_android || crashpad_is_fuchsia) &&

@@ -39,7 +39,6 @@
 #include <openssl/ssl.h>
 #endif
 
-
 namespace crashpad {
 
 namespace {
@@ -148,9 +147,9 @@ class SSLStream : public Stream {
         LOG(ERROR) << "SSL_CTX_load_verify_locations";
         return false;
       }
-#else  // OS_LINUX
+#else
 #error cert store location
-#endif  // OS_LINUX
+#endif
     }
 #endif  // defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
 
