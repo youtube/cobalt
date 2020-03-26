@@ -1,0 +1,24 @@
+# Format: google3/devtools/metadata/metadata.proto (go/google3metadata)
+
+name: "crashpad"
+description:
+  "Crashpad is a crash reporter tool created by Chromium. This will allow "
+  "Cobalt to track and resolve crashes on most systems in a way that requires "
+  "little disk space and is platform agnostic."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/third_party/crashpad_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://chromium.googlesource.com/crashpad/crashpad"
+  }
+  version: "af62d7fcf61da5a8a6bb9336f0b5ee22547d36a7"
+  last_upgrade_date {
+    year: 2020
+    month: 3
+    day: 26
+  }
+}
