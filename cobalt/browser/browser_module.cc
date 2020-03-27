@@ -1638,10 +1638,8 @@ void BrowserModule::InitializeSystemWindow() {
       system_window_.get());
   InstantiateRendererModule();
 
-#if SB_API_VERSION >= 10
   options_.media_module_options.allow_resume_after_suspend =
       SbSystemSupportsResume();
-#endif  // SB_API_VERSION >= 10
   media_module_.reset(new media::MediaModule(system_window_.get(),
                                              GetResourceProvider(),
                                              options_.media_module_options));

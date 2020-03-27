@@ -313,9 +313,7 @@ ExportedSymbols::ExportedSymbols(
 #if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
   REGISTER_SYMBOL(SbMemoryMap);
   REGISTER_SYMBOL(SbMemoryUnmap);
-#if SB_API_VERSION >= 10
   REGISTER_SYMBOL(SbMemoryProtect);
-#endif  // SB_API_VERSION >= 10
 #endif  // SB_HAS(MMAP)
 
 #if SB_API_VERSION >= SB_UI_NAVIGATION_VERSION
@@ -398,7 +396,6 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbTimeIsTimeThreadNowSupported);
 #endif
 
-#if SB_API_VERSION >= 10
   REGISTER_SYMBOL(SbDrmIsServerCertificateUpdatable);
   REGISTER_SYMBOL(SbDrmUpdateServerCertificate);
   REGISTER_SYMBOL(SbMediaGetAudioBufferBudget);
@@ -418,7 +415,6 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbPlayerSeek2);
   REGISTER_SYMBOL(SbPlayerWriteSample2);
   REGISTER_SYMBOL(SbSystemSupportsResume);
-#endif  // SB_API_VERSION >= 10
 
 #if SB_API_VERSION >= 11
   REGISTER_SYMBOL(SbAudioSinkGetMinBufferSizeInFrames);

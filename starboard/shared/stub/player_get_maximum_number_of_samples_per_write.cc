@@ -14,9 +14,7 @@
 
 #include "starboard/player.h"
 
-#if SB_API_VERSION >= 10
 int SbPlayerGetMaximumNumberOfSamplesPerWrite(SbPlayer /*player*/,
                                               SbMediaType /*sample_type*/) {
   return 0;
 }
-#endif  // SB_API_VERSION >= 10

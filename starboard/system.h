@@ -55,12 +55,6 @@ typedef enum SbSystemPathId {
   // usable by Starboard applications.
   kSbSystemPathFontConfigurationDirectory,
 
-#if SB_API_VERSION < 10
-  // Deprecated and unused. Tests looking for static data should instead look
-  // in the 'test' subdirectory of kSbSystemPathContentDirectory.
-  kSbSystemPathSourceDirectory,
-#endif  // SB_API_VERSION < 10
-
   // Path to a directory where temporary files can be written.
   kSbSystemPathTempDirectory,
 
@@ -130,21 +124,14 @@ typedef enum SbSystemPropertyId {
   // User-Agent, say.
   kSbSystemPropertyPlatformName,
 
-#if SB_API_VERSION < 10
-  // A universally-unique ID for the current user.
-  kSbSystemPropertyPlatformUuid,
-#endif  // SB_API_VERSION < 10
-
   // The Google Speech API key. The platform manufacturer is responsible
   // for registering a Google Speech API key for their products. In the API
   // Console (http://developers.google.com/console), you can enable the
   // Speech APIs and generate a Speech API key.
   kSbSystemPropertySpeechApiKey,
 
-#if SB_API_VERSION >= 5
   // A field that, if available, is appended to the user agent
   kSbSystemPropertyUserAgentAuxField,
-#endif  // SB_API_VERSION >= 5
 } SbSystemPropertyId;
 
 // Enumeration of device types.
@@ -203,14 +190,12 @@ typedef enum SbSystemCapabilityId {
   // call.
   kSbSystemCapabilityCanQueryGPUMemoryStats,
 
-#if SB_API_VERSION >= 10
   // Whether this system sets the |timestamp| field of SbInputData. If the
   // system does not set this field, then it will automatically be set; however,
   // the relative time between input events likely will not be preserved, so
   // time-related calculations (e.g. velocity for move events) will be
   // incorrect.
   kSbSystemCapabilitySetsInputTimestamp,
-#endif
 
   // ATTENTION: Do not add more to this enum. Instead add an "IsSupported"
   // function in the relevant module.
@@ -594,7 +579,6 @@ SB_EXPORT void SbSystemSort(void* base,
 // from any thread and must be idempotent.
 SB_EXPORT void SbSystemHideSplashScreen();
 
-#if SB_API_VERSION >= 10
 // Returns false if the platform doesn't need resume after suspend support. In
 // such case Cobalt will free up the resource it retains for resume after
 // suspend.
@@ -603,7 +587,6 @@ SB_EXPORT void SbSystemHideSplashScreen();
 // The return value of this function cannot change over the life time of the
 // application.
 SB_EXPORT bool SbSystemSupportsResume();
-#endif  // SB_API_VERSION >= 10
 
 #if SB_API_VERSION >= 11
 // Returns pointer to a constant global struct implementing the extension named

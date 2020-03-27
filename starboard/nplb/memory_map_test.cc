@@ -201,7 +201,6 @@ CopySumFunctionIntoMemory(void* memory) {
                          original_function);
 }
 
-#if SB_API_VERSION >= 10
 // Cobalt can not map executable memory. If executable memory is needed, map
 // non-executable memory first and use SbMemoryProtect to change memory accesss
 // to executable.
@@ -219,10 +218,8 @@ TEST(SbMemoryMapTest, CanNotDirectlyMapMemoryWithExecFlag) {
     EXPECT_FALSE(SbMemoryUnmap(memory, 0));
   }
 }
-#endif  // 10
 #endif  // SB_CAN(MAP_EXECUTABLE_MEMORY)
 
-#if SB_API_VERSION >= 10
 TEST(SbMemoryMapTest, CanChangeMemoryProtection) {
   SbMemoryMapFlags all_from_flags[] = {
     SbMemoryMapFlags(kSbMemoryMapProtectReserved),
@@ -292,7 +289,6 @@ TEST(SbMemoryMapTest, CanChangeMemoryProtection) {
     }
   }
 }
-#endif  // SB_API_VERSION >= 10
 
 #endif  // SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
 

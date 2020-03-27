@@ -46,10 +46,8 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
       SbDrmSessionUpdateRequestFunc update_request_callback,
       SbDrmSessionUpdatedFunc session_updated_callback,
       SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback
-#if SB_API_VERSION >= 10
       ,
       SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback
-#endif  // SB_API_VERSION >= 10
 #if SB_HAS(DRM_SESSION_CLOSED)
       ,
       SbDrmSessionClosedFunc session_closed_callback
@@ -80,7 +78,6 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
 
   DecryptStatus Decrypt(InputBuffer* buffer) override;
 
-#if SB_API_VERSION >= 10
   bool IsServerCertificateUpdatable() override { return true; }
 
   // This function is called by the app to explicitly set the server
@@ -92,7 +89,6 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   void UpdateServerCertificate(int ticket,
                                const void* certificate,
                                int certificate_size) override;
-#endif  // SB_API_VERSION >= 10
 
  private:
   // Stores the data necessary to call GenerateSessionUpdateRequestInternal().
@@ -164,9 +160,7 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   const SbDrmSessionUpdateRequestFunc session_update_request_callback_;
   const SbDrmSessionUpdatedFunc session_updated_callback_;
   const SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback_;
-#if SB_API_VERSION >= 10
   const SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback_;
-#endif  // SB_API_VERSION >= 10
 #if SB_HAS(DRM_SESSION_CLOSED)
   const SbDrmSessionClosedFunc session_closed_callback_;
 #endif  // SB_HAS(DRM_SESSION_CLOSED)
@@ -194,11 +188,8 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   std::string first_wvcdm_session_id_;
 
   scoped_ptr<::widevine::Cdm> cdm_;
-#if SB_API_VERSION >= 10
+
   bool is_server_certificate_set_ = false;
-#else   // SB_API_VERSION >= 10
-  bool is_server_certificate_set_ = true;
-#endif  // SB_API_VERSION >= 10
 
   volatile bool quitting_ = false;
 

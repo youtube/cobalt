@@ -108,15 +108,12 @@ bool ElfLoaderImpl::Load(
 
   if (relocations_->HasTextRelocations()) {
     // Restores the memory protection to its original state.
-#if SB_API_VERSION >= 10 && \
-    (SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP))
+#if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
     if (program_table_->AdjustMemoryProtectionOfReadOnlySegments(
             kSbMemoryMapProtectReserved) < 0) {
       SB_LOG(ERROR) << "Unable to restore segment protection";
       return false;
     }
-#else
-    SB_CHECK(false);
 #endif
   }
 

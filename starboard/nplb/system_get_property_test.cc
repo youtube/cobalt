@@ -133,9 +133,6 @@ TEST(SbSystemGetPropertyTest, DoesNotTouchOutputBufferOnFailureForDefinedIds) {
   UnmodifiedOnFailureTest(kSbSystemPropertyNetworkOperatorName, __LINE__);
 #endif
   UnmodifiedOnFailureTest(kSbSystemPropertyPlatformName, __LINE__);
-#if SB_API_VERSION < 10
-  UnmodifiedOnFailureTest(kSbSystemPropertyPlatformUuid, __LINE__);
-#endif  // SB_API_VERSION < 10
   UnmodifiedOnFailureTest(kSbSystemPropertySpeechApiKey, __LINE__);
 #if SB_API_VERSION >= 5
   UnmodifiedOnFailureTest(kSbSystemPropertyUserAgentAuxField, __LINE__);

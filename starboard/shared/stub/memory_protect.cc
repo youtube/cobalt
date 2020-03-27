@@ -15,10 +15,8 @@
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 
-#if SB_API_VERSION >= 10
 bool SbMemoryProtect(void* /*virtual_address*/,
                      int64_t /*size_bytes*/,
                      int /*flags*/) {
   return false;
 }
-#endif

@@ -40,7 +40,6 @@ TEST(SbDrmTest, AnySupportedKeySystems) {
   EXPECT_TRUE(any_supported_key_systems) << " no DRM key systems supported";
 }
 
-#if SB_API_VERSION >= 10
 TEST(SbDrmTest, NullCallbacks) {
   for (int i = 0; i < SB_ARRAY_SIZE_INT(kKeySystems); ++i) {
     const char* key_system = kKeySystems[i];
@@ -111,7 +110,6 @@ TEST(SbDrmTest, MultiDrm) {
     SbDrmDestroySystem(drm_system);
   }
 }
-#endif  // SB_API_VERSION >= 10
 
 }  // namespace
 }  // namespace nplb

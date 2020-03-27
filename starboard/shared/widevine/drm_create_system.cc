@@ -32,11 +32,9 @@ SbDrmSystem SbDrmCreateSystem(
     SbDrmSessionUpdateRequestFunc update_request_callback,
     SbDrmSessionUpdatedFunc session_updated_callback,
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback
-#if SB_API_VERSION >= 10
     ,
     SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback,
     SbDrmSessionClosedFunc session_closed_callback
-#endif  // SB_API_VERSION >= 10
     ) {
   using starboard::shared::widevine::DrmSystemWidevine;
   if (!update_request_callback || !session_updated_callback) {
@@ -45,11 +43,9 @@ SbDrmSystem SbDrmCreateSystem(
   if (!key_statuses_changed_callback) {
     return kSbDrmSystemInvalid;
   }
-#if SB_API_VERSION >= 10
   if (!server_certificate_updated_callback || !session_closed_callback) {
     return kSbDrmSystemInvalid;
   }
-#endif  // SB_API_VERSION >= 10
   if (!DrmSystemWidevine::IsKeySystemSupported()) {
     SB_DLOG(WARNING) << "Invalid key system " << key_system;
     return kSbDrmSystemInvalid;
@@ -60,10 +56,8 @@ SbDrmSystem SbDrmCreateSystem(
                                session_updated_callback
                                ,
                                key_statuses_changed_callback
-#if SB_API_VERSION >= 10
                                ,
                                server_certificate_updated_callback
-#endif  // SB_API_VERSION >= 10
 #if SB_HAS(DRM_SESSION_CLOSED)
                                ,
                                session_closed_callback

@@ -205,10 +205,8 @@ DrmSystemWidevine::DrmSystemWidevine(
     SbDrmSessionUpdateRequestFunc session_update_request_callback,
     SbDrmSessionUpdatedFunc session_updated_callback,
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback
-#if SB_API_VERSION >= 10
     ,
     SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback
-#endif  // SB_API_VERSION >= 10
 #if SB_HAS(DRM_SESSION_CLOSED)
     ,
     SbDrmSessionClosedFunc session_closed_callback
@@ -220,9 +218,7 @@ DrmSystemWidevine::DrmSystemWidevine(
       session_update_request_callback_(session_update_request_callback),
       session_updated_callback_(session_updated_callback),
       key_statuses_changed_callback_(key_statuses_changed_callback),
-#if SB_API_VERSION >= 10
       server_certificate_updated_callback_(server_certificate_updated_callback),
-#endif  // SB_API_VERSION >= 10
 #if SB_HAS(DRM_SESSION_CLOSED)
       session_closed_callback_(session_closed_callback),
 #endif  // SB_HAS(DRM_SESSION_CLOSED)
@@ -245,11 +241,7 @@ DrmSystemWidevine::DrmSystemWidevine(
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
   EnsureWidevineCdmIsInitialized(company_name, model_name);
-#if SB_API_VERSION >= 10
   const bool kEnablePrivacyMode = true;
-#else   // SB_API_VERSION >= 10
-  const bool kEnablePrivacyMode = false;
-#endif  // SB_API_VERSION >= 10
   cdm_.reset(wv3cdm::create(this, NULL, kEnablePrivacyMode));
   SB_DCHECK(cdm_);
 
@@ -332,14 +324,9 @@ void DrmSystemWidevine::UpdateSession(int ticket,
     first_update_session_received_.store(true);
   }
   SB_DLOG(INFO) << "Update keys status " << status;
-#if SB_API_VERSION >= 10
   session_updated_callback_(this, context_, ticket,
                             CdmStatusToSbDrmStatus(status), "",
                             sb_drm_session_id, sb_drm_session_id_size);
-#else   // SB_API_VERSION >= 10
-  session_updated_callback_(this, context_, ticket, sb_drm_session_id,
-                            sb_drm_session_id_size, status == wv3cdm::kSuccess);
-#endif  // SB_API_VERSION >= 10
 
   // It is possible that |key| actually contains a server certificate, in such
   // case try to process the pending GenerateSessionUpdateRequest() calls.
@@ -361,7 +348,6 @@ void DrmSystemWidevine::CloseSession(const void* sb_drm_session_id,
 #endif  // SB_HAS(DRM_SESSION_CLOSED)
 }
 
-#if SB_API_VERSION >= 10
 void DrmSystemWidevine::UpdateServerCertificate(int ticket,
                                                 const void* certificate,
                                                 int certificate_size) {
@@ -375,7 +361,6 @@ void DrmSystemWidevine::UpdateServerCertificate(int ticket,
   server_certificate_updated_callback_(this, context_, ticket,
                                        CdmStatusToSbDrmStatus(status), "");
 }
-#endif  // SB_API_VERSION >= 10
 
 void IncrementIv(uint8_t* iv, size_t block_count) {
   if (0 == block_count)
@@ -582,16 +567,10 @@ void DrmSystemWidevine::GenerateSessionUpdateRequestInternal(
         SbDrmTicketIsValid(ticket) ? NULL : kFirstSbDrmSessionId;
     int session_id_size =
         session_id ? static_cast<int>(SbStringGetLength(session_id)) : 0;
-#if SB_API_VERSION >= 10
     session_update_request_callback_(
         this, context_, ticket, CdmStatusToSbDrmStatus(status),
         kSbDrmSessionRequestTypeLicenseRequest, "", session_id, session_id_size,
         NULL, 0, NULL);
-#else   // SB_API_VERSION >= 10
-    // Send an empty request to signal an error.
-    session_update_request_callback_(this, context_, ticket, session_id,
-                                     session_id_size, NULL, 0, NULL);
-#endif  // SB_API_VERSION >= 10
   }
 
   // When |status| is |kDeferred|, it indicates that the cdm requires
@@ -704,12 +683,10 @@ int DrmSystemWidevine::GetAndResetTicket(const std::string& sb_drm_session_id) {
 
 std::string DrmSystemWidevine::WvdmSessionIdToSbDrmSessionId(
     const std::string& wvcdm_session_id) {
-#if SB_API_VERSION >= 10
   SB_DCHECK(wvcdm_session_id != kFirstSbDrmSessionId);
   if (wvcdm_session_id == first_wvcdm_session_id_) {
     return kFirstSbDrmSessionId;
   }
-#endif  // SB_API_VERSION >= 10
   return wvcdm_session_id;
 }
 
@@ -720,12 +697,10 @@ bool DrmSystemWidevine::SbDrmSessionIdToWvdmSessionId(
   SB_DCHECK(wvcdm_session_id);
   const std::string str_sb_drm_session_id(
       static_cast<const char*>(sb_drm_session_id), sb_drm_session_id_size);
-#if SB_API_VERSION >= 10
   if (str_sb_drm_session_id == kFirstSbDrmSessionId) {
     *wvcdm_session_id = first_wvcdm_session_id_;
     return !first_wvcdm_session_id_.empty();
   }
-#endif  // SB_API_VERSION >= 10
   *wvcdm_session_id = str_sb_drm_session_id;
   return true;
 }
@@ -742,14 +717,9 @@ void DrmSystemWidevine::SendServerCertificateRequest(int ticket) {
                              kFirstSbDrmSessionId, message);
   } else {
 // Signals failure by sending NULL as the session id.
-#if SB_API_VERSION >= 10
     session_update_request_callback_(
         this, context_, ticket, CdmStatusToSbDrmStatus(status),
         kSbDrmSessionRequestTypeLicenseRequest, "", NULL, 0, NULL, 0, NULL);
-#else   // SB_API_VERSION >= 10
-    session_update_request_callback_(this, context_, ticket, NULL, 0, NULL, 0,
-                                     NULL);
-#endif  // SB_API_VERSION >= 10
   }
 }
 
@@ -788,8 +758,6 @@ void DrmSystemWidevine::SendSessionUpdateRequest(
     const std::string& message) {
   int ticket = GetAndResetTicket(sb_drm_session_id);
 
-#if SB_API_VERSION >= 10
-
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   if (number_of_session_updates_sent_ > maximum_number_of_session_updates_) {
     SB_LOG(INFO) << "Number of drm sessions exceeds maximum allowed session"
@@ -807,12 +775,6 @@ void DrmSystemWidevine::SendSessionUpdateRequest(
       this, context_, ticket, kSbDrmStatusSuccess, type, "",
       sb_drm_session_id.c_str(), static_cast<int>(sb_drm_session_id.size()),
       message.c_str(), static_cast<int>(message.size()), NULL);
-#else   // SB_API_VERSION >= 10
-  session_update_request_callback_(
-      this, context_, ticket, sb_drm_session_id.c_str(),
-      static_cast<int>(sb_drm_session_id.size()), message.c_str(),
-      static_cast<int>(message.size()), NULL);
-#endif  // SB_API_VERSION >= 10
 }
 
 }  // namespace widevine

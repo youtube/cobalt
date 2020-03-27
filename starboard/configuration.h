@@ -38,7 +38,7 @@
 
 // The minimum API version allowed by this version of the Starboard headers,
 // inclusive.
-#define SB_MINIMUM_API_VERSION 6
+#define SB_MINIMUM_API_VERSION 10
 
 // The maximum API version allowed by this version of the Starboard headers,
 // inclusive.
@@ -899,17 +899,13 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #endif  // defined(SB_HAS_AC3_AUDIO)
 #endif  // SB_API_VERSION >= 11
 
-#if SB_API_VERSION >= 10
 #if !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
 #error \
     "Your platform must define SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING in API "\
     "version 10 or later."
 #endif  // !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
-#endif  // SB_API_VERSION >= 10
 
-#if SB_API_VERSION >= 10
 #define SB_HAS_AUDIOLESS_VIDEO 1
-#endif
 
 #if !defined(SB_HAS_THREAD_PRIORITY_SUPPORT)
 #error "Your platform must define SB_HAS_THREAD_PRIORITY_SUPPORT."
@@ -1105,7 +1101,6 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #endif  // defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 #endif  // SB_API_VERSION >= 11
 
-#if SB_API_VERSION >= 10
 #if defined(SB_HAS_DRM_SESSION_CLOSED)
 #if !SB_HAS(DRM_SESSION_CLOSED)
 #error "SB_HAS_DRM_SESSION_CLOSED is required in this API version."
@@ -1113,7 +1108,6 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #else   // defined(SB_HAS_DRM_SESSION_CLOSED)
 #define SB_HAS_DRM_SESSION_CLOSED 1
 #endif  // defined(SB_HAS_DRM_SESSION_CLOSED)
-#endif  // SB_API_VERSION >= 10
 
 #if SB_API_VERSION < SB_SPEECH_RECOGNIZER_IS_REQUIRED && SB_API_VERSION >= 5
 #if !defined(SB_HAS_SPEECH_RECOGNIZER)
@@ -1134,23 +1128,9 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #error "SB_HAS_ON_SCREEN_KEYBOARD not supported in this API version."
 #endif
 
-#if SB_HAS(CAPTIONS) && (SB_API_VERSION < 10)
-#error "SB_HAS_CAPTIONS not supported in this API version."
-#endif
-
-#if SB_API_VERSION >= 10
 #define SB_HAS_PLAYER_FILTER_TESTS 1
-#endif
 
-#if SB_API_VERSION >= 10
 #define SB_HAS_PLAYER_ERROR_MESSAGE 1
-#endif
-
-#if SB_API_VERSION < 10
-#if !SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
-#define SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES 1
-#endif  // !SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
-#endif  // SB_API_VERSION < 10
 
 #if SB_API_VERSION >= \
     SB_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT_VERSION
