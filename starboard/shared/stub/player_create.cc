@@ -35,9 +35,6 @@ SbPlayer SbPlayerCreate(
 SbPlayer SbPlayerCreate(SbWindow /*window*/,
                         SbMediaVideoCodec /*video_codec*/,
                         SbMediaAudioCodec /*audio_codec*/,
-#if SB_API_VERSION < 10
-                        SbMediaTime /*duration_pts*/,
-#endif  // SB_API_VERSION < 10
                         SbDrmSystem /*drm_system*/,
                         const SbMediaAudioSampleInfo* /*audio_sample_info*/,
 #if SB_API_VERSION >= 11

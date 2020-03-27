@@ -42,12 +42,8 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                              int frame_width,
                              int frame_height,
                              int64_t bitrate,
-                             int fps
-#if SB_API_VERSION >= 10
-                             ,
-                             bool decode_to_texture_required
-#endif  // SB_API_VERSION >= 10
-                             ) {
+                             int fps,
+                             bool decode_to_texture_required) {
 #if SB_API_VERSION < 11
   const auto kSbMediaVideoCodecAv1 = kSbMediaVideoCodecVp10;
 #endif  // SB_API_VERSION < 11
@@ -67,7 +63,6 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
   }
 #endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 
-#if SB_API_VERSION >= 10
   if (decode_to_texture_required) {
     bool has_gles_support = false;
 
@@ -83,7 +78,6 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
     // Assume that all GLES2 Linux platforms can play decode-to-texture video
     // just as well as normal video.
   }
-#endif  // SB_API_VERSION >= 10
 
   return ((video_codec == kSbMediaVideoCodecAv1 && is_aom_supported()) ||
           video_codec == kSbMediaVideoCodecH264 ||

@@ -27,16 +27,10 @@ void* SbMemoryMap(int64_t size_bytes, int flags, const char* name) {
   ULONG protect = PAGE_NOACCESS;
   // |flags| is a bitmask of SbMemoryMapFlags, but |protect| is not a bitmask.
   switch (flags) {
-#if SB_API_VERSION >= 10
     case kSbMemoryMapProtectReserved: {
       protect = PAGE_NOACCESS;
       break;
     }
-#else
-    case 0:
-      protect = PAGE_NOACCESS;
-      break;
-#endif
     case kSbMemoryMapProtectRead:
       protect = PAGE_READONLY;
       break;
@@ -51,14 +45,10 @@ void* SbMemoryMap(int64_t size_bytes, int flags, const char* name) {
       return SB_MEMORY_MAP_FAILED;
   }
 
-#if SB_API_VERSION >= 10
   void* memory = VirtualAllocFromApp(
       NULL, size_bytes,
      (flags == kSbMemoryMapProtectReserved) ? MEM_RESERVE : MEM_COMMIT,
       protect);
-#else
-  void* memory = VirtualAllocFromApp(NULL, size_bytes, MEM_COMMIT, protect);
-#endif
   if (PAGE_READONLY != protect) {
     SbMemoryReporterReportMappedMemory(memory, size_bytes);
   }

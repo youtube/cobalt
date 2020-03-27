@@ -1025,9 +1025,7 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       DLOG(INFO) << "Finished suspending.";
       break;
     case kSbEventTypeResume:
-#if SB_API_VERSION >= 10
       DCHECK(SbSystemSupportsResume());
-#endif  // SB_API_VERSION >= 10
       DLOG(INFO) << "Got resume event.";
       app_status_ = kPausedAppStatus;
       ++app_resume_count_;

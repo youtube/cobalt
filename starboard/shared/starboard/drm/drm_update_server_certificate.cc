@@ -17,8 +17,6 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 
-#if SB_API_VERSION >= 10
-
 void SbDrmUpdateServerCertificate(SbDrmSystem drm_system,
                                   int ticket,
                                   const void* certificate,
@@ -35,5 +33,3 @@ void SbDrmUpdateServerCertificate(SbDrmSystem drm_system,
 
   drm_system->UpdateServerCertificate(ticket, certificate, certificate_size);
 }
-
-#endif  // SB_API_VERSION >= 10

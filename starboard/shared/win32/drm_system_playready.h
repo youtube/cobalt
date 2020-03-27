@@ -81,7 +81,6 @@ class DrmSystemPlayready : public SbDrmSystemPrivate {
 
   void OnUwpResume();
 
-#if SB_API_VERSION >= 10
   bool IsServerCertificateUpdatable() override { return false; }
   void UpdateServerCertificate(int ticket,
                                const void* certificate,
@@ -90,7 +89,6 @@ class DrmSystemPlayready : public SbDrmSystemPrivate {
     SB_UNREFERENCED_PARAMETER(certificate);
     SB_UNREFERENCED_PARAMETER(certificate_size);
   }
-#endif  // SB_API_VERSION >= 10
 
  private:
   std::string GenerateAndAdvanceSessionId();

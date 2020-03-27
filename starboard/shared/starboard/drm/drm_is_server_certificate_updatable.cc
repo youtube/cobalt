@@ -17,8 +17,6 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 
-#if SB_API_VERSION >= 10
-
 bool SbDrmIsServerCertificateUpdatable(SbDrmSystem drm_system) {
   if (!SbDrmSystemIsValid(drm_system)) {
     SB_DLOG(ERROR) << "Invalid DRM system.";
@@ -27,5 +25,3 @@ bool SbDrmIsServerCertificateUpdatable(SbDrmSystem drm_system) {
 
   return drm_system->IsServerCertificateUpdatable();
 }
-
-#endif  // SB_API_VERSION >= 10

@@ -16,7 +16,6 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_API_VERSION >= 10
 namespace starboard {
 namespace nplb {
 namespace {
@@ -198,4 +197,3 @@ TEST(SbMediaBufferTest, VideoBudget) {
 }
 }  // namespace nplb
 }  // namespace starboard
-#endif  // SB_API_VERSION >= 10

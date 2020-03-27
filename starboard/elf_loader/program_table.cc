@@ -93,8 +93,7 @@ bool ProgramTable::LoadProgramHeader(const Ehdr* elf_header, File* elf_file) {
                   << page_min;
     return false;
   }
-#if SB_API_VERSION >= 10 && \
-    (SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP))
+#if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
   bool mp_result =
       SbMemoryProtect(phdr_mmap_, phdr_size_, kSbMemoryMapProtectRead);
   SB_DLOG(INFO) << "mp_result=" << mp_result;
@@ -144,8 +143,7 @@ bool ProgramTable::LoadSegments(File* elf_file) {
                   << " file_length=" << file_length << " seg_page_start=0x"
                   << std::hex << seg_page_start;
 
-#if SB_API_VERSION >= 10 &&                                         \
-    (SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)) && \
+#if (SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)) && \
     SB_CAN(MAP_EXECUTABLE_MEMORY)
     if (file_length != 0) {
       const int prot_flags = PFLAGS_TO_PROT(phdr->p_flags);
@@ -196,8 +194,7 @@ bool ProgramTable::LoadSegments(File* elf_file) {
     // between them. This is done by using a private anonymous
     // map for all extra pages.
     if (seg_page_end > seg_file_end) {
-#if SB_API_VERSION >= 10 &&                                         \
-    (SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)) && \
+#if (SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)) && \
     SB_CAN(MAP_EXECUTABLE_MEMORY)
       bool mprotect_fix = SbMemoryProtect(reinterpret_cast<void*>(seg_file_end),
                                           seg_page_end - seg_file_end,
@@ -213,8 +210,7 @@ bool ProgramTable::LoadSegments(File* elf_file) {
 
       SbMemorySet(reinterpret_cast<void*>(seg_file_end), 0,
                   seg_page_end - seg_file_end);
-#if SB_API_VERSION >= 10 &&                                         \
-    (SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)) && \
+#if (SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)) && \
     SB_CAN(MAP_EXECUTABLE_MEMORY)
       SbMemoryProtect(reinterpret_cast<void*>(seg_file_end),
                       seg_page_end - seg_file_end,
@@ -309,8 +305,7 @@ int ProgramTable::AdjustMemoryProtectionOfReadOnlySegments(
     Addr seg_page_start = PAGE_START(phdr->p_vaddr) + base_memory_address_;
     Addr seg_page_end =
         PAGE_END(phdr->p_vaddr + phdr->p_memsz) + base_memory_address_;
-#if SB_API_VERSION >= 10 &&                                         \
-    (SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)) && \
+#if (SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)) && \
     SB_CAN(MAP_EXECUTABLE_MEMORY)
     int ret = SbMemoryProtect(reinterpret_cast<void*>(seg_page_start),
                               seg_page_end - seg_page_start,
@@ -334,8 +329,7 @@ bool ProgramTable::ReserveLoadMemory() {
 
   SB_DLOG(INFO) << "Load size=" << load_size_;
 
-#if SB_API_VERSION >= 10 && \
-    (SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP))
+#if (SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP))
   load_start_ =
       SbMemoryMap(load_size_, kSbMemoryMapProtectReserved, "reserved_mem");
   if (load_start_ == MAP_FAILED) {

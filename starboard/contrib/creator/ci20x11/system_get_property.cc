@@ -36,52 +36,6 @@ bool CopyStringAndTestIfSuccess(char* out_value,
   return true;
 }
 
-#if SB_API_VERSION < 10
-
-bool GetPlatformUuid(char* out_value, int value_length) {
-  struct ifreq interface;
-  struct ifconf config;
-  char buf[1024];
-
-  int fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
-  if (fd == -1) {
-    return false;
-  }
-  config.ifc_len = sizeof(buf);
-  config.ifc_buf = buf;
-  int result = ioctl(fd, SIOCGIFCONF, &config);
-  if (result == -1) {
-    return false;
-  }
-
-  struct ifreq* cur_interface = config.ifc_req;
-  const struct ifreq* const end =
-      cur_interface + (config.ifc_len / sizeof(struct ifreq));
-
-  for (; cur_interface != end; ++cur_interface) {
-    SbStringCopy(interface.ifr_name, cur_interface->ifr_name,
-                 sizeof(cur_interface->ifr_name));
-    if (ioctl(fd, SIOCGIFFLAGS, &interface) == -1) {
-      continue;
-    }
-    if (interface.ifr_flags & IFF_LOOPBACK) {
-      continue;
-    }
-    if (ioctl(fd, SIOCGIFHWADDR, &interface) == -1) {
-      continue;
-    }
-    SbStringFormatF(
-        out_value, value_length, "%x:%x:%x:%x:%x:%x",
-        interface.ifr_addr.sa_data[0], interface.ifr_addr.sa_data[1],
-        interface.ifr_addr.sa_data[2], interface.ifr_addr.sa_data[3],
-        interface.ifr_addr.sa_data[4], interface.ifr_addr.sa_data[5]);
-    return true;
-  }
-  return false;
-}
-
-#endif  // SB_API_VERSION < 10
-
 }  // namespace
 
 bool SbSystemGetProperty(SbSystemPropertyId property_id,
@@ -110,11 +64,6 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
 
     case kSbSystemPropertyPlatformName:
       return CopyStringAndTestIfSuccess(out_value, value_length, kPlatformName);
-
-#if SB_API_VERSION < 10
-    case kSbSystemPropertyPlatformUuid:
-      return GetPlatformUuid(out_value, value_length);
-#endif  // SB_API_VERSION < 10
 
     default:
       SB_DLOG(WARNING) << __FUNCTION__

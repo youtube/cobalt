@@ -100,10 +100,6 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
                            const std::string& codec,
                            const char* key_system,
                            bool decode_to_texture_required) {
-#if SB_API_VERSION < 10
-  SB_UNREFERENCED_PARAMETER(decode_to_texture_required);
-#endif  // SB_API_VERSION < 10
-
   SbMediaVideoCodec video_codec;
   int profile = -1;
   int level = -1;
@@ -164,19 +160,15 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
   if (!SbMediaIsVideoSupported(video_codec, profile, level, bit_depth,
                                primary_id, transfer_id, matrix_id, width,
                                height, bitrate, fps
-#if SB_API_VERSION >= 10
                                ,
                                decode_to_texture_required
-#endif  // SB_API_VERSION >= 10
                                )) {
     return false;
   }
 #else  //  SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
   if (!SbMediaIsVideoSupported(video_codec, width, height, bitrate, fps
-#if SB_API_VERSION >= 10
                                ,
                                decode_to_texture_required
-#endif  // SB_API_VERSION >= 10
                                )) {
     return false;
   }
@@ -367,7 +359,6 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const MimeType& mime_type,
   }
 
   bool decode_to_texture_required = false;
-#if SB_API_VERSION >= 10
   std::string decode_to_texture_value =
       mime_type.GetParamStringValue("decode-to-texture", "false");
   if (decode_to_texture_value == "true") {
@@ -377,7 +368,6 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const MimeType& mime_type,
     // decode-to-texture, trivially reject.
     return kSbMediaSupportTypeNotSupported;
   }
-#endif  // SB_API_VERSION >= 10
 
   if (codecs.size() == 0) {
     // This is a progressive query.  We only support "video/mp4" in this case.
