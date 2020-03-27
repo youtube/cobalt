@@ -162,12 +162,7 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
 #else   // SB_API_VERSION >= 11
               video_sample_info->frame_width, video_sample_info->frame_height,
 #endif  // SB_API_VERSION >= 11
-              dmp_reader.video_bitrate(), dmp_reader.video_fps()
-#if SB_API_VERSION >= 10
-                                              ,
-              false
-#endif  // SB_API_VERSION >= 10
-              )) {
+              dmp_reader.video_bitrate(), dmp_reader.video_fps(), false)) {
         test_params.push_back({output_mode, filename});
       }
     }

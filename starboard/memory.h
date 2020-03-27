@@ -56,9 +56,7 @@ extern "C" {
 typedef enum SbMemoryMapFlags {
 // No flags set: Reserves virtual address space. SbMemoryProtect() can later
 // make it accessible.
-#if SB_API_VERSION >= 10
   kSbMemoryMapProtectReserved = 0,
-#endif
   kSbMemoryMapProtectRead = 1 << 0,   // Mapped memory can be read.
   kSbMemoryMapProtectWrite = 1 << 1,  // Mapped memory can be written to.
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
@@ -221,13 +219,11 @@ SB_EXPORT void* SbMemoryMap(int64_t size_bytes, int flags, const char* name);
 // |SbMemoryUnmap(0xA000, 0x2000)| should free both regions.
 SB_EXPORT bool SbMemoryUnmap(void* virtual_address, int64_t size_bytes);
 
-#if SB_API_VERSION >= 10
 // Change the protection of |size_bytes| of memory regions, starting from
 // |virtual_address|, to |flags|, returning |true| on success.
 SB_EXPORT bool SbMemoryProtect(void* virtual_address,
                                int64_t size_bytes,
                                int flags);
-#endif
 
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
 // Flushes any data in the given virtual address range that is cached locally in

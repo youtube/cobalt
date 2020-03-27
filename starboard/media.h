@@ -31,20 +31,6 @@ extern "C" {
 
 // --- Types -----------------------------------------------------------------
 
-#if SB_API_VERSION < 10
-// Time represented in 90KHz ticks.
-typedef int64_t SbMediaTime;
-
-#define SB_MEDIA_TIME_TO_SB_TIME(media) \
-  (((media == SB_PLAYER_NO_DURATION)    \
-        ? SB_PLAYER_NO_DURATION         \
-        : ((media == kSbInt64Max) ? kSbInt64Max : (media * 100 / 9))))
-#define SB_TIME_TO_SB_MEDIA_TIME(time) \
-  (((time == SB_PLAYER_NO_DURATION)    \
-        ? SB_PLAYER_NO_DURATION        \
-        : ((time == kSbInt64Max) ? kSbInt64Max : (time * 9 / 100))))
-#endif  // SB_API_VERSION < 10
-
 // Types of media component streams.
 typedef enum SbMediaType {
   // Value used for audio streams.
@@ -531,14 +517,6 @@ typedef struct SbMediaAudioSampleInfo {
 typedef SbMediaAudioSampleInfo SbMediaAudioHeader;
 #endif  // SB_API_VERSION < 11
 
-#if SB_API_VERSION < 10
-// --- Constants -------------------------------------------------------------
-
-// TODO: remove entirely.
-// One second in SbMediaTime (90KHz ticks).
-#define kSbMediaTimeSecond ((SbMediaTime)(90000))
-#endif  // SB_API_VERSION < 10
-
 // --- Functions -------------------------------------------------------------
 
 // Indicates whether this platform supports decoding |video_codec| and
@@ -609,7 +587,6 @@ SB_EXPORT bool SbMediaIsOutputProtected();
 //   disabled.
 SB_EXPORT bool SbMediaSetOutputProtection(bool enabled);
 
-#if SB_API_VERSION >= 10
 // Value used when a video's resolution is not known.
 #define kSbMediaVideoResolutionDimensionInvalid 0
 // Value used when a video's bits per pixel is not known.
@@ -732,7 +709,6 @@ SB_EXPORT int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
                                           int resolution_width,
                                           int resolution_height,
                                           int bits_per_pixel);
-#endif  // SB_API_VERSION >= 10
 
 #if SB_API_VERSION >= 11
 // Communicate to the platform how far past |current_playback_position| the app

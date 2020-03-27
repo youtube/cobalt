@@ -93,9 +93,6 @@ SbPlayer SbPlayerCreate(SbWindow window,
 SbPlayer SbPlayerCreate(SbWindow window,
                         SbMediaVideoCodec video_codec,
                         SbMediaAudioCodec audio_codec,
-#if SB_API_VERSION < 10
-                        SbMediaTime duration_pts,
-#endif  // SB_API_VERSION < 10
                         SbDrmSystem drm_system,
                         const SbMediaAudioSampleInfo* audio_sample_info,
 #if SB_API_VERSION >= 11
@@ -116,9 +113,6 @@ SbPlayer SbPlayerCreate(SbWindow window,
 #if SB_API_VERSION >= 11
   SB_UNREFERENCED_PARAMETER(max_video_capabilities);
 #endif  // SB_API_VERSION >= 11
-#if SB_API_VERSION < 10
-  SB_UNREFERENCED_PARAMETER(duration_pts);
-#endif  // SB_API_VERSION < 10
 #if SB_API_VERSION >= 11
   if (audio_sample_info) {
     SB_DCHECK(audio_sample_info->codec == audio_codec);
@@ -147,20 +141,16 @@ SbPlayer SbPlayerCreate(SbWindow window,
   const int kDefaultFrameHeight = 0;
   const int kDefaultFrameRate = 0;
   if (video_codec != kSbMediaVideoCodecNone &&
-      !SbMediaIsVideoSupported(video_codec,
+      !SbMediaIsVideoSupported(
+          video_codec,
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-                               kDefaultProfile, kDefaultLevel,
-                               kDefaultColorDepth, kSbMediaPrimaryIdUnspecified,
-                               kSbMediaTransferIdUnspecified,
-                               kSbMediaMatrixIdUnspecified,
+          kDefaultProfile, kDefaultLevel, kDefaultColorDepth,
+          kSbMediaPrimaryIdUnspecified, kSbMediaTransferIdUnspecified,
+          kSbMediaMatrixIdUnspecified,
 #endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-                               kDefaultFrameWidth, kDefaultFrameHeight,
-                               kDefaultBitRate, kDefaultFrameRate
-#if SB_API_VERSION >= 10
-                               ,
-                               output_mode == kSbPlayerOutputModeDecodeToTexture
-#endif
-                               )) {
+          kDefaultFrameWidth, kDefaultFrameHeight, kDefaultBitRate,
+          kDefaultFrameRate,
+          output_mode == kSbPlayerOutputModeDecodeToTexture)) {
     SB_LOG(ERROR) << "Unsupported video codec " << video_codec;
     return kSbPlayerInvalid;
   }

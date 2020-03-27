@@ -28,11 +28,7 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec /*video_codec*/,
                              int /*frame_width*/,
                              int /*frame_height*/,
                              int64_t /*bitrate*/,
-                             int /*fps*/
-#if SB_API_VERSION >= 10
-                             ,
-                             bool /*decode_to_texture_required*/
-#endif  // SB_API_VERSION >= 10
-                             ) {
+                             int /*fps*/,
+                             bool /*decode_to_texture_required*/) {
   return false;
 }

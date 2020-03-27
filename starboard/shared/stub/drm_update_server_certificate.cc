@@ -14,8 +14,6 @@
 
 #include "starboard/drm.h"
 
-#if SB_API_VERSION >= 10
-
 void SbDrmUpdateServerCertificate(SbDrmSystem drm_system,
                                   int ticket,
                                   const void* certificate,
@@ -25,5 +23,3 @@ void SbDrmUpdateServerCertificate(SbDrmSystem drm_system,
   SB_UNREFERENCED_PARAMETER(certificate);
   SB_UNREFERENCED_PARAMETER(certificate_size);
 }
-
-#endif  // SB_API_VERSION >= 10

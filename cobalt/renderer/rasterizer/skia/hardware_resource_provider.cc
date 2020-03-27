@@ -214,9 +214,7 @@ uint32_t DecodeTargetFormatToGLFormat(
       }
 #endif  // SB_API_VERSION >= 7
     } break;
-#if SB_API_VERSION >= 10
     case kSbDecodeTargetFormat3Plane10BitYUVI420:
-#endif
     case kSbDecodeTargetFormat3PlaneYUVI420: {
       DCHECK_LT(plane, 3);
 #if SB_API_VERSION >= 7 && defined(GL_RED_EXT)
@@ -242,11 +240,9 @@ DecodeTargetFormatToRenderTreeMultiPlaneFormat(SbDecodeTargetFormat format) {
     case kSbDecodeTargetFormat3PlaneYUVI420: {
       return render_tree::kMultiPlaneImageFormatYUV3PlaneBT709;
     } break;
-#if SB_API_VERSION >= 10
     case kSbDecodeTargetFormat3Plane10BitYUVI420: {
       return render_tree::kMultiPlaneImageFormatYUV3Plane10BitBT2020;
     } break;
-#endif
     default: { NOTREACHED(); }
   }
   return render_tree::kMultiPlaneImageFormatYUV2PlaneBT709;
