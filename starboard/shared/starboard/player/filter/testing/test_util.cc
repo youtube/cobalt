@@ -76,6 +76,12 @@ std::vector<const char*> GetSupportedAudioTestFiles(bool include_heaac) {
   //   codec: kSbMediaAudioCodecOpus
   //   sampling rate: 48.0k
   //   frames per AU: 960
+
+  // IMPORTANT: do not change the order of test files unless necessary. If you
+  // must change the order of these tests please make sure you update the test
+  // filters for every platform, just in case a particular test case should be
+  // disabled.
+
   const char* kFilenames[] = {"beneath_the_canopy_aac_stereo.dmp",
                               "beneath_the_canopy_aac_5_1.dmp",
                               "beneath_the_canopy_aac_mono.dmp",
@@ -115,6 +121,11 @@ std::vector<const char*> GetSupportedAudioTestFiles(bool include_heaac) {
 std::vector<VideoTestParam> GetSupportedVideoTests() {
   SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
                                        kSbPlayerOutputModePunchOut};
+
+  // IMPORTANT: do not change the order of test files unless necessary. If you
+  // must change the order of these tests please make sure you update the test
+  // filters for every platform, just in case a particular test case should be
+  // disabled.
 
   const char* kFilenames[] = {"beneath_the_canopy_137_avc.dmp",
                               "beneath_the_canopy_248_vp9.dmp",
