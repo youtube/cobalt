@@ -53,7 +53,6 @@ TEST_F(RelocationsTest, Initialize_X86_64) {
   scoped_ptr<DynamicSection> dynamic_section(
       new DynamicSection(load_bias, dyn, dyn_count, dyn_flags));
   dynamic_section->InitDynamicSection();
-  dynamic_section->InitDynamicSymbols();
 
   scoped_ptr<ExportedSymbols> exported_symbols(new ExportedSymbols());
   relocations_.reset(new Relocations(load_bias, dynamic_section.get(),
