@@ -82,11 +82,6 @@ bool ElfLoaderImpl::Load(
     return false;
   }
   SB_DLOG(INFO) << "Initialized dynamic section";
-  if (!dynamic_section_->InitDynamicSymbols()) {
-    SB_LOG(ERROR) << "Failed to load dynamic symbols";
-    return false;
-  }
-  SB_DLOG(INFO) << "Initialized dynamic symbols";
 
   exported_symbols_.reset(new ExportedSymbols(custom_get_extension));
   relocations_.reset(new Relocations(program_table_->GetBaseMemoryAddress(),

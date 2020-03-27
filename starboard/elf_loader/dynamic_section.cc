@@ -97,18 +97,6 @@ bool DynamicSection::InitDynamicSection() {
       case DT_SONAME:
         soname_ = string_table_ + dyn_value;
         break;
-      default:
-        break;
-    }
-  }
-  return true;
-}
-
-bool DynamicSection::InitDynamicSymbols() {
-  for (int i = 0; i < dynamic_count_; i++) {
-    Addr dyn_value = dynamic_[i].d_un.d_val;
-    uintptr_t dyn_addr = base_memory_address_ + dynamic_[i].d_un.d_ptr;
-    switch (dynamic_[i].d_tag) {
       case DT_HASH:
         SB_DLOG(INFO) << "  DT_HASH addr=0x" << std::hex << dyn_addr;
         elf_hash_.Init(dyn_addr);
