@@ -328,6 +328,10 @@ INSTANTIATE_TEST_CASE_P(
     CSSOMViewLayoutTests, Layout,
     ::testing::ValuesIn(EnumerateLayoutTests("cssom-view")),
     GetTestName());
+// Custom DOM (https://dom.spec.whatwg.org/) test cases.
+INSTANTIATE_TEST_CASE_P(DOMLayoutTests, Layout,
+                        ::testing::ValuesIn(EnumerateLayoutTests("dom")),
+                        GetTestName());
 // "dir" attribute tests.
 // https://html.spec.whatwg.org/multipage/dom.html#the-dir-attribute
 INSTANTIATE_TEST_CASE_P(
