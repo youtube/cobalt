@@ -32,8 +32,20 @@ const std::set<std::string> valid_channels = {"dev"};
 #elif defined(COBALT_BUILD_TYPE_QA)
 // Find more information about these test channels in the Evergreen test plan.
 const std::set<std::string> valid_channels = {
-    "qa", "test", "test_mismatched_sabi", "test_bad_update",
-    "test_verification_failure", "test_insufficient_storage"};
+    "qa",
+    // A normal test channel that serves a valid update
+    "test",
+    // Test an update with mismatched sabi
+    "tmsabi",
+    // Test an update whose updater module is broken
+    "tbupdater",
+    // Test an update that crashes
+    "tcrash",
+    // Test an update that fails verification
+    "tfailv",
+    // Test an update that's larger than the available storage on the device
+    "tistore",
+};
 #elif defined(COBALT_BUILD_TYPE_GOLD)
 const std::set<std::string> valid_channels = {"prod", "dogfood"};
 #endif
