@@ -130,8 +130,9 @@ size_t DynamicSection::GetDynamicTableSize() {
 
 void DynamicSection::CallConstructors() {
   CallFunction(init_func_, "DT_INIT");
-  for (size_t n = 0; n < init_array_count_; ++n)
+  for (size_t n = 0; n < init_array_count_; ++n) {
     CallFunction(init_array_[n], "DT_INIT_ARRAY");
+  }
 }
 
 void DynamicSection::CallDestructors() {
