@@ -61,6 +61,8 @@ class CobaltRaspiConfiguration(cobalt_configuration.CobaltConfiguration):
     filters += [
         ('csp/WebPlatformTest.Run/'
          'content_security_policy_media_src_media_src_allowed_html'),
+        ('websockets/WebPlatformTest.Run/'
+         'websockets_interfaces_WebSocket_bufferedAmount_bufferedAmount_arraybuffer_html'),
     ]
     return filters
 
