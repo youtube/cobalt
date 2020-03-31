@@ -578,14 +578,19 @@ void DrmSystemWidevine::GenerateSessionUpdateRequestInternal(
               kSbDrmTicketInvalid);
 
     SB_DLOG(ERROR) << "GenerateKeyRequest status " << status;
-// Send an empty request to signal an error.
+    const char* session_id =
+        SbDrmTicketIsValid(ticket) ? NULL : kFirstSbDrmSessionId;
+    int session_id_size =
+        session_id ? static_cast<int>(SbStringGetLength(session_id)) : 0;
 #if SB_API_VERSION >= 10
     session_update_request_callback_(
         this, context_, ticket, CdmStatusToSbDrmStatus(status),
-        kSbDrmSessionRequestTypeLicenseRequest, "", NULL, 0, NULL, 0, NULL);
+        kSbDrmSessionRequestTypeLicenseRequest, "", session_id, session_id_size,
+        NULL, 0, NULL);
 #else   // SB_API_VERSION >= 10
-    session_update_request_callback_(this, context_, ticket, NULL, 0, NULL, 0,
-                                     NULL);
+    // Send an empty request to signal an error.
+    session_update_request_callback_(this, context_, ticket, session_id,
+                                     session_id_size, NULL, 0, NULL);
 #endif  // SB_API_VERSION >= 10
   }
 
