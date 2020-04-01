@@ -28,52 +28,52 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-Network.NetworkItemView = class extends UI.TabbedPane {
+export default class NetworkItemView extends UI.TabbedPane {
   /**
    * @param {!SDK.NetworkRequest} request
    * @param {!Network.NetworkTimeCalculator} calculator
    */
   constructor(request, calculator) {
     super();
+    this._request = request;
     this.element.classList.add('network-item-view');
 
     this._resourceViewTabSetting = Common.settings.createSetting('resourceViewTab', 'preview');
 
     this._headersView = new Network.RequestHeadersView(request);
-    this.appendTab(Network.NetworkItemView.Tabs.Headers, Common.UIString('Headers'), this._headersView);
+    this.appendTab(
+        Tabs.Headers, Common.UIString('Headers'), this._headersView, Common.UIString('Headers and request body'));
 
     this.addEventListener(UI.TabbedPane.Events.TabSelected, this._tabSelected, this);
 
     if (request.resourceType() === Common.resourceTypes.WebSocket) {
       const frameView = new Network.ResourceWebSocketFrameView(request);
-      this.appendTab(Network.NetworkItemView.Tabs.WsFrames, Common.UIString('Frames'), frameView);
+      this.appendTab(Tabs.WsFrames, Common.UIString('Messages'), frameView, Common.UIString('WebSocket messages'));
     } else if (request.mimeType === 'text/event-stream') {
-      this.appendTab(
-          Network.NetworkItemView.Tabs.EventSource, Common.UIString('EventStream'),
-          new Network.EventSourceMessagesView(request));
+      this.appendTab(Tabs.EventSource, Common.UIString('EventStream'), new Network.EventSourceMessagesView(request));
     } else {
       this._responseView = new Network.RequestResponseView(request);
       const previewView = new Network.RequestPreviewView(request);
-      this.appendTab(Network.NetworkItemView.Tabs.Preview, Common.UIString('Preview'), previewView);
+      this.appendTab(Tabs.Preview, Common.UIString('Preview'), previewView, Common.UIString('Response preview'));
       if (request.signedExchangeInfo() && request.signedExchangeInfo().errors &&
           request.signedExchangeInfo().errors.length) {
         const icon = UI.Icon.create('smallicon-error');
         icon.title = Common.UIString('SignedExchange error');
-        this.setTabIcon(Network.NetworkItemView.Tabs.Preview, icon);
+        this.setTabIcon(Tabs.Preview, icon);
       }
-      this.appendTab(Network.NetworkItemView.Tabs.Response, Common.UIString('Response'), this._responseView);
-    }
-
-    if (request.requestCookies || request.responseCookies) {
-      this._cookiesView = new Network.RequestCookiesView(request);
-      this.appendTab(Network.NetworkItemView.Tabs.Cookies, Common.UIString('Cookies'), this._cookiesView);
+      this.appendTab(
+          Tabs.Response, Common.UIString('Response'), this._responseView, Common.UIString('Raw response data'));
     }
 
     this.appendTab(
-        Network.NetworkItemView.Tabs.Timing, Common.UIString('Timing'),
-        new Network.RequestTimingView(request, calculator));
+        Tabs.Initiator, ls`Initiator`, new Network.RequestInitiatorView(request), ls`Request initiator call stack`);
 
-    this._request = request;
+    this.appendTab(
+        Tabs.Timing, Common.UIString('Timing'), new Network.RequestTimingView(request, calculator),
+        Common.UIString('Request and response timeline'));
+
+    /** @type {?Network.RequestCookiesView} */
+    this._cookiesView = null;
   }
 
   /**
@@ -81,23 +81,51 @@ Network.NetworkItemView = class extends UI.TabbedPane {
    */
   wasShown() {
     super.wasShown();
+    this._request.addEventListener(
+        SDK.NetworkRequest.Events.RequestHeadersChanged, this._maybeAppendCookiesPanel, this);
+    this._request.addEventListener(
+        SDK.NetworkRequest.Events.ResponseHeadersChanged, this._maybeAppendCookiesPanel, this);
+    this._maybeAppendCookiesPanel();
     this._selectTab();
+  }
+
+  /**
+   * @override
+   */
+  willHide() {
+    this._request.removeEventListener(
+        SDK.NetworkRequest.Events.RequestHeadersChanged, this._maybeAppendCookiesPanel, this);
+    this._request.removeEventListener(
+        SDK.NetworkRequest.Events.ResponseHeadersChanged, this._maybeAppendCookiesPanel, this);
+  }
+
+  _maybeAppendCookiesPanel() {
+    const cookiesPresent = this._request.requestCookies || this._request.responseCookies;
+    console.assert(cookiesPresent || !this._cookiesView, 'Cookies were introduced in headers and then removed!');
+    if (cookiesPresent && !this._cookiesView) {
+      this._cookiesView = new Network.RequestCookiesView(this._request);
+      this.appendTab(
+          Tabs.Cookies, Common.UIString('Cookies'), this._cookiesView, Common.UIString('Request and response cookies'));
+    }
   }
 
   /**
    * @param {string=} tabId
    */
   _selectTab(tabId) {
-    if (!tabId)
+    if (!tabId) {
       tabId = this._resourceViewTabSetting.get();
+    }
 
-    if (!this.selectTab(tabId))
+    if (!this.selectTab(tabId)) {
       this.selectTab('headers');
+    }
   }
 
   _tabSelected(event) {
-    if (!event.data.isUserGesture)
+    if (!event.data.isUserGesture) {
       return;
+    }
     this._resourceViewTabSetting.set(event.data.tabId);
   }
 
@@ -113,16 +141,17 @@ Network.NetworkItemView = class extends UI.TabbedPane {
    * @return {!Promise}
    */
   async revealResponseBody(line) {
-    this._selectTab(Network.NetworkItemView.Tabs.Response);
-    if (this._responseView && typeof line === 'number')
+    this._selectTab(Tabs.Response);
+    if (this._responseView && typeof line === 'number') {
       await this._responseView.revealLine(/** @type {number} */ (line));
+    }
   }
 
   /**
    * @param {string} header
    */
   revealRequestHeader(header) {
-    this._selectTab(Network.NetworkItemView.Tabs.Headers);
+    this._selectTab(Tabs.Headers);
     this._headersView.revealRequestHeader(header);
   }
 
@@ -130,20 +159,37 @@ Network.NetworkItemView = class extends UI.TabbedPane {
    * @param {string} header
    */
   revealResponseHeader(header) {
-    this._selectTab(Network.NetworkItemView.Tabs.Headers);
+    this._selectTab(Tabs.Headers);
     this._headersView.revealResponseHeader(header);
   }
-};
+}
 
 /**
  * @enum {string}
  */
-Network.NetworkItemView.Tabs = {
+export const Tabs = {
   Cookies: 'cookies',
   EventSource: 'eventSource',
   Headers: 'headers',
+  Initiator: 'initiator',
   Preview: 'preview',
   Response: 'response',
   Timing: 'timing',
   WsFrames: 'webSocketFrames'
 };
+
+/* Legacy exported object */
+self.Network = self.Network || {};
+
+/* Legacy exported object */
+Network = Network || {};
+
+/**
+ * @constructor
+ */
+Network.NetworkItemView = NetworkItemView;
+
+/**
+ * @enum {string}
+ */
+Network.NetworkItemView.Tabs = Tabs;

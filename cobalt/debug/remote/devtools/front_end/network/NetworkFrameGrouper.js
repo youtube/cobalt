@@ -5,13 +5,13 @@
 /**
  * @implements {Network.GroupLookupInterface}
  */
-Network.NetworkFrameGrouper = class {
+export default class NetworkFrameGrouper {
   /**
    * @param {!Network.NetworkLogView} parentView
    */
   constructor(parentView) {
     this._parentView = parentView;
-    /** @type {!Map<!SDK.ResourceTreeFrame, !Network.FrameGroupNode>} */
+    /** @type {!Map<!SDK.ResourceTreeFrame, !FrameGroupNode>} */
     this._activeGroups = new Map();
   }
 
@@ -22,12 +22,14 @@ Network.NetworkFrameGrouper = class {
    */
   groupNodeForRequest(request) {
     const frame = SDK.ResourceTreeModel.frameForRequest(request);
-    if (!frame || frame.isTopFrame())
+    if (!frame || frame.isTopFrame()) {
       return null;
+    }
     let groupNode = this._activeGroups.get(frame);
-    if (groupNode)
+    if (groupNode) {
       return groupNode;
-    groupNode = new Network.FrameGroupNode(this._parentView, frame);
+    }
+    groupNode = new FrameGroupNode(this._parentView, frame);
     this._activeGroups.set(frame, groupNode);
     return groupNode;
   }
@@ -38,9 +40,9 @@ Network.NetworkFrameGrouper = class {
   reset() {
     this._activeGroups.clear();
   }
-};
+}
 
-Network.FrameGroupNode = class extends Network.NetworkGroupNode {
+export class FrameGroupNode extends Network.NetworkGroupNode {
   /**
    * @param {!Network.NetworkLogView} parentView
    * @param {!SDK.ResourceTreeFrame} frame
@@ -48,8 +50,6 @@ Network.FrameGroupNode = class extends Network.NetworkGroupNode {
   constructor(parentView, frame) {
     super(parentView);
     this._frame = frame;
-    /** @type {?Element} */
-    this._productBadge = null;
   }
 
   /**
@@ -66,16 +66,28 @@ Network.FrameGroupNode = class extends Network.NetworkGroupNode {
    */
   renderCell(cell, columnId) {
     super.renderCell(cell, columnId);
-    if (columnId === 'name') {
+    const columnIndex = this.dataGrid.indexOfVisibleColumn(columnId);
+    if (columnIndex === 0) {
       const name = this.displayName();
-      if (!this._productBadge) {
-        this._productBadge = this.parentView().badgePool.badgeForFrame(this._frame);
-        this._productBadge.classList.add('network-frame-group-badge');
-      }
       cell.appendChild(UI.Icon.create('largeicon-navigator-frame', 'network-frame-group-icon'));
-      cell.appendChild(this._productBadge);
       cell.createTextChild(name);
       cell.title = name;
     }
   }
-};
+}
+
+/* Legacy exported object */
+self.Network = self.Network || {};
+
+/* Legacy exported object */
+Network = Network || {};
+
+/**
+ * @constructor
+ */
+Network.NetworkFrameGrouper = NetworkFrameGrouper;
+
+/**
+ * @constructor
+ */
+Network.FrameGroupNode = FrameGroupNode;

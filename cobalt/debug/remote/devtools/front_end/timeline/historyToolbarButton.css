@@ -4,6 +4,13 @@
  * found in the LICENSE file.
  */
 
+<<<<<<< HEAD
+=======
+.content {
+  margin-left: 5px;
+}
+
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
 .history-dropdown-button {
   width: 160px;
   height: 26px;
@@ -21,4 +28,15 @@
   text-overflow: ellipsis;
   flex: 1 1;
   min-width: 35px;
+}
+
+.history-dropdown-button[data-keyboard-focus="true"]:focus::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 0px;
+  right: 0px;
+  bottom: 2px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.08);
 }

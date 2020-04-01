@@ -1,5 +1,6 @@
 {
     "extensions": [
+<<<<<<< HEAD
         // {
         //     "type": "view",
         //     "location": "sources-sidebar",
@@ -75,6 +76,83 @@
         //     "persistence": "permanent",
         //     "className": "BrowserDebugger.ObjectEventListenersSidebarPane"
         // },
+=======
+        {
+            "type": "view",
+            "location": "sources.sidebar-bottom",
+            "id": "sources.eventListenerBreakpoints",
+            "title": "Event Listener Breakpoints",
+            "order": 9,
+            "persistence": "permanent",
+            "className": "BrowserDebugger.EventListenerBreakpointsSidebarPane"
+        },
+        {
+            "type": "@UI.ContextFlavorListener",
+            "contextTypes": [
+                "SDK.DebuggerPausedDetails"
+            ],
+            "className": "BrowserDebugger.XHRBreakpointsSidebarPane"
+        },
+        {
+            "type": "view",
+            "location": "sources.sidebar-bottom",
+            "id": "sources.xhrBreakpoints",
+            "title": "XHR/fetch Breakpoints",
+            "order": 5,
+            "hasToolbar": true,
+            "persistence": "permanent",
+            "className": "BrowserDebugger.XHRBreakpointsSidebarPane"
+        },
+        {
+            "type": "view",
+            "location": "sources.sidebar-bottom",
+            "id": "sources.domBreakpoints",
+            "title": "DOM Breakpoints",
+            "order": 7,
+            "persistence": "permanent",
+            "factoryName": "BrowserDebugger.DOMBreakpointsSidebarPane"
+        },
+        {
+            "type": "view",
+            "location": "elements-sidebar",
+            "id": "elements.domBreakpoints",
+            "title": "DOM Breakpoints",
+            "order": 6,
+            "persistence": "permanent",
+            "factoryName": "BrowserDebugger.DOMBreakpointsSidebarPane"
+        },
+        {
+            "type": "@Elements.MarkerDecorator",
+            "factoryName": "Elements.GenericDecorator",
+            "marker": "breakpoint-marker",
+            "title": "DOM Breakpoint",
+            "color": "rgb(105, 140, 254)"
+        },
+        {
+            "type": "@UI.ContextMenu.Provider",
+            "contextTypes": [
+                "SDK.DOMNode"
+            ],
+            "className": "BrowserDebugger.DOMBreakpointsSidebarPane.ContextMenuProvider"
+        },
+        {
+            "type": "@UI.ContextFlavorListener",
+            "contextTypes": [
+                "SDK.DebuggerPausedDetails"
+            ],
+            "className": "BrowserDebugger.DOMBreakpointsSidebarPane"
+        },
+        {
+            "type": "view",
+            "location": "sources.sidebar-bottom",
+            "id": "sources.globalListeners",
+            "title": "Global Listeners",
+            "order": 8,
+            "hasToolbar": true,
+            "persistence": "permanent",
+            "className": "BrowserDebugger.ObjectEventListenersSidebarPane"
+        },
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
         {
             "type": "view",
             "location": "navigator-view",
@@ -118,8 +196,14 @@
         "sources",
         "console"
     ],
+<<<<<<< HEAD
     "scripts": [
         // "DOMBreakpointsSidebarPane.js",
+=======
+    "modules": [
+        "browser_debugger.js",
+        "DOMBreakpointsSidebarPane.js",
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
         "EventListenerBreakpointsSidebarPane.js",
         "ObjectEventListenersSidebarPane.js",
         // "XHRBreakpointsSidebarPane.js"

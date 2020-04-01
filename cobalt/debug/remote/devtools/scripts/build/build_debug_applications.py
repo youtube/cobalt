@@ -26,18 +26,18 @@ def main(argv):
         input_path = argv[input_path_flag_index + 1]
         output_path_flag_index = argv.index('--output_path')
         output_path = argv[output_path_flag_index + 1]
-        application_names = argv[1:input_path_flag_index]
+        build_stamp_index = argv.index('--build_stamp')
+        build_stamp_path = argv[build_stamp_index + 1]
     except:
         print('Usage: %s app_1 app_2 ... app_N --input_path <input_path> --output_path <output_path>' % argv[0])
         raise
 
-    loader = modular_build.DescriptorLoader(input_path)
-    for app in application_names:
-        descriptors = loader.load_application(app)
-        builder = DebugBuilder(app, descriptors, input_path, output_path)
-        builder.build_app()
+    symlink_dir_or_copy(input_path, output_path)
 
+    with open(build_stamp_path, 'w') as file:
+        file.write('stamp')
 
+<<<<<<< HEAD
 def copy_json_file(src, dest):
     parsed_json = modular_build.load_and_parse_json(src)
     with open(dest, 'wt') as output:
@@ -52,51 +52,43 @@ def symlink_or_copy_file(src, dest, safe=False):
         copy_json_file(src, dest)
     elif hasattr(os, 'symlink'):
         os.symlink(src, dest)
+=======
+
+def symlink_dir_or_copy(src, dest):
+    if hasattr(os, 'symlink'):
+        if path.exists(dest):
+            if os.path.islink(dest):
+                os.unlink(dest)
+            else:
+                shutil.rmtree(dest)
+        os.symlink(join(os.getcwd(), src), dest)
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     else:
-        shutil.copy(src, dest)
+        for filename in os.listdir(src):
+            new_src = join(os.getcwd(), src, filename)
+            if os.path.isdir(new_src):
+                copy_dir(new_src, join(dest, filename))
+            else:
+                copy_file(new_src, join(dest, filename), safe=True)
 
 
-def symlink_or_copy_dir(src, dest):
+def copy_file(src, dest, safe=False):
+    if safe and path.exists(dest):
+        os.remove(dest)
+    shutil.copy(src, dest)
+
+
+def copy_dir(src, dest):
     if path.exists(dest):
         shutil.rmtree(dest)
     for src_dir, dirs, files in os.walk(src):
         subpath = path.relpath(src_dir, src)
         dest_dir = path.normpath(join(dest, subpath))
-        os.mkdir(dest_dir)
+        os.makedirs(dest_dir)
         for name in files:
             src_name = join(os.getcwd(), src_dir, name)
             dest_name = join(dest_dir, name)
-            symlink_or_copy_file(src_name, dest_name)
-
-
-# Outputs:
-#   <app_name>.html as-is
-#   <app_name>.js as-is
-#   <module_name>/<all_files>
-class DebugBuilder(object):
-
-    def __init__(self, application_name, descriptors, application_dir, output_dir):
-        self.application_name = application_name
-        self.descriptors = descriptors
-        self.application_dir = application_dir
-        self.output_dir = output_dir
-
-    def app_file(self, extension):
-        return self.application_name + '.' + extension
-
-    def build_app(self):
-        if self.descriptors.has_html:
-            self._build_html()
-        for filename in os.listdir(self.application_dir):
-            src = join(os.getcwd(), self.application_dir, filename)
-            if os.path.isdir(src):
-                symlink_or_copy_dir(src, join(self.output_dir, filename))
-            else:
-                symlink_or_copy_file(src, join(self.output_dir, filename), safe=True)
-
-    def _build_html(self):
-        html_name = self.app_file('html')
-        symlink_or_copy_file(join(os.getcwd(), self.application_dir, html_name), join(self.output_dir, html_name), True)
+            copy_file(src_name, dest_name)
 
 
 if __name__ == '__main__':

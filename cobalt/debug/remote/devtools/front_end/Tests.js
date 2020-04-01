@@ -67,10 +67,11 @@
    * @param {string} message Failure description.
    */
   TestSuite.prototype.fail = function(message) {
-    if (this.controlTaken_)
+    if (this.controlTaken_) {
       this.reportFailure_(message);
-    else
+    } else {
       throw message;
+    }
   };
 
   /**
@@ -82,8 +83,9 @@
   TestSuite.prototype.assertEquals = function(expected, actual, opt_message) {
     if (expected !== actual) {
       let message = 'Expected: \'' + expected + '\', but was \'' + actual + '\'';
-      if (opt_message)
+      if (opt_message) {
         message = opt_message + '(' + message + ')';
+      }
       this.fail(message);
     }
   };
@@ -147,8 +149,9 @@
     const methodName = args.shift();
     try {
       this[methodName].apply(this, args);
-      if (!this.controlTaken_)
+      if (!this.controlTaken_) {
         this.reportOk_();
+      }
     } catch (e) {
       this.reportFailure_(e);
     }
@@ -177,16 +180,18 @@
    */
   TestSuite.prototype.addSniffer = function(receiver, methodName, override, opt_sticky) {
     const orig = receiver[methodName];
-    if (typeof orig !== 'function')
+    if (typeof orig !== 'function') {
       this.fail('Cannot find method to override: ' + methodName);
+    }
     const test = this;
     receiver[methodName] = function(var_args) {
       let result;
       try {
         result = orig.apply(this, arguments);
       } finally {
-        if (!opt_sticky)
+        if (!opt_sticky) {
           receiver[methodName] = orig;
+        }
       }
       // In case of exception the override won't be called.
       try {
@@ -223,8 +228,9 @@
     }
 
     function onSchedule() {
-      if (scheduleShouldFail)
+      if (scheduleShouldFail) {
         test.fail('Unexpected Throttler.schedule');
+      }
     }
 
     checkState();
@@ -347,8 +353,9 @@
   // frontend is being loaded.
   TestSuite.prototype.testPauseWhenLoadingDevTools = function() {
     const debuggerModel = SDK.targetManager.mainTarget().model(SDK.DebuggerModel);
-    if (debuggerModel.debuggerPausedDetails)
+    if (debuggerModel.debuggerPausedDetails) {
       return;
+    }
 
     this.showPanel('sources').then(function() {
       // Script execution can already be paused.
@@ -430,8 +437,9 @@
     const test = this;
 
     function finishRequest(request, finishTime) {
-      if (!request.responseHeadersText)
+      if (!request.responseHeadersText) {
         test.fail('Failure: resource does not have response headers text');
+      }
       const index = request.responseHeadersText.indexOf('Date:');
       test.assertEquals(
           112, request.responseHeadersText.substring(index).length, 'Incorrect response headers text length');
@@ -501,8 +509,9 @@
         test.assertTrue(request.timing.pushEnd < request.endTime, 'pushEnd should be before endTime');
         test.assertTrue(request.startTime < request.timing.pushEnd, 'pushEnd should be after startTime');
       }
-      if (!--pendingRequestCount)
+      if (!--pendingRequestCount) {
         test.releaseControl();
+      }
     }
 
     this.addSniffer(SDK.NetworkDispatcher.prototype, '_finishNetworkRequest', finishRequest, true);
@@ -518,15 +527,17 @@
       return SDK.consoleModel.messages().filter(a => a.source !== SDK.ConsoleMessage.MessageSource.Violation);
     }
 
-    if (filteredMessages().length === 1)
+    if (filteredMessages().length === 1) {
       firstConsoleMessageReceived.call(this, null);
-    else
+    } else {
       SDK.consoleModel.addEventListener(SDK.ConsoleModel.Events.MessageAdded, firstConsoleMessageReceived, this);
+    }
 
 
     function firstConsoleMessageReceived(event) {
-      if (event && event.data.source === SDK.ConsoleMessage.MessageSource.Violation)
+      if (event && event.data.source === SDK.ConsoleMessage.MessageSource.Violation) {
         return;
+      }
       SDK.consoleModel.removeEventListener(SDK.ConsoleModel.Events.MessageAdded, firstConsoleMessageReceived, this);
       this.evaluateInConsole_('clickLink();', didClickLink.bind(this));
     }
@@ -562,25 +573,44 @@
   TestSuite.prototype.testPauseInSharedWorkerInitialization1 = function() {
     // Make sure the worker is loaded.
     this.takeControl();
-    this._waitForTargets(2, callback.bind(this));
+    this._waitForTargets(1, callback.bind(this));
 
     function callback() {
-      Protocol.InspectorBackend.deprecatedRunAfterPendingDispatches(this.releaseControl.bind(this));
+      Protocol.test.deprecatedRunAfterPendingDispatches(this.releaseControl.bind(this));
     }
   };
 
   TestSuite.prototype.testPauseInSharedWorkerInitialization2 = function() {
     this.takeControl();
-    this._waitForTargets(2, callback.bind(this));
+    this._waitForTargets(1, callback.bind(this));
 
     function callback() {
       const debuggerModel = SDK.targetManager.models(SDK.DebuggerModel)[0];
       if (debuggerModel.isPaused()) {
-        this.releaseControl();
+        SDK.consoleModel.addEventListener(SDK.ConsoleModel.Events.MessageAdded, onConsoleMessage, this);
+        debuggerModel.resume();
         return;
       }
-      this._waitForScriptPause(this.releaseControl.bind(this));
+      this._waitForScriptPause(callback.bind(this));
     }
+
+    function onConsoleMessage(event) {
+      const message = event.data.messageText;
+      if (message !== 'connected') {
+        this.fail('Unexpected message: ' + message);
+      }
+      this.releaseControl();
+    }
+  };
+
+  TestSuite.prototype.testSharedWorkerNetworkPanel = function() {
+    this.takeControl();
+    this.showPanel('network').then(() => {
+      if (!document.querySelector('#network-container')) {
+        this.fail('unable to find #network-container');
+      }
+      this.releaseControl();
+    });
   };
 
   TestSuite.prototype.enableTouchEmulation = function() {
@@ -591,8 +621,9 @@
 
   TestSuite.prototype.waitForDebuggerPaused = function() {
     const debuggerModel = SDK.targetManager.mainTarget().model(SDK.DebuggerModel);
-    if (debuggerModel.debuggerPausedDetails)
+    if (debuggerModel.debuggerPausedDetails) {
       return;
+    }
 
     this.takeControl();
     this._waitForScriptPause(this.releaseControl.bind(this));
@@ -692,8 +723,9 @@
         signalToShowAutofill();
       }
       // This log comes from the browser unittest code.
-      if (message === 'didShowSuggestions')
+      if (message === 'didShowSuggestions') {
         selectTopAutoFill();
+      }
     }
 
     this.takeControl();
@@ -710,11 +742,123 @@
     }
   };
 
+  TestSuite.prototype.testKeyEventUnhandled = function() {
+    function onKeyEventUnhandledKeyDown(event) {
+      this.assertEquals('keydown', event.data.type);
+      this.assertEquals('F8', event.data.key);
+      this.assertEquals(119, event.data.keyCode);
+      this.assertEquals(0, event.data.modifiers);
+      this.assertEquals('', event.data.code);
+      Host.InspectorFrontendHost.events.removeEventListener(
+          Host.InspectorFrontendHostAPI.Events.KeyEventUnhandled, onKeyEventUnhandledKeyDown, this);
+      Host.InspectorFrontendHost.events.addEventListener(
+          Host.InspectorFrontendHostAPI.Events.KeyEventUnhandled, onKeyEventUnhandledKeyUp, this);
+      SDK.targetManager.mainTarget().inputAgent().invoke_dispatchKeyEvent(
+          {type: 'keyUp', key: 'F8', code: 'F8', windowsVirtualKeyCode: 119, nativeVirtualKeyCode: 119});
+    }
+    function onKeyEventUnhandledKeyUp(event) {
+      this.assertEquals('keyup', event.data.type);
+      this.assertEquals('F8', event.data.key);
+      this.assertEquals(119, event.data.keyCode);
+      this.assertEquals(0, event.data.modifiers);
+      this.assertEquals('F8', event.data.code);
+      this.releaseControl();
+    }
+    this.takeControl();
+    Host.InspectorFrontendHost.events.addEventListener(
+        Host.InspectorFrontendHostAPI.Events.KeyEventUnhandled, onKeyEventUnhandledKeyDown, this);
+    SDK.targetManager.mainTarget().inputAgent().invoke_dispatchKeyEvent(
+        {type: 'rawKeyDown', key: 'F8', windowsVirtualKeyCode: 119, nativeVirtualKeyCode: 119});
+  };
+
   TestSuite.prototype.testDispatchKeyEventDoesNotCrash = function() {
     SDK.targetManager.mainTarget().inputAgent().invoke_dispatchKeyEvent(
         {type: 'rawKeyDown', windowsVirtualKeyCode: 0x23, key: 'End'});
     SDK.targetManager.mainTarget().inputAgent().invoke_dispatchKeyEvent(
         {type: 'keyUp', windowsVirtualKeyCode: 0x23, key: 'End'});
+  };
+
+  // Check that showing the certificate viewer does not crash, crbug.com/954874
+  TestSuite.prototype.testShowCertificate = function() {
+    Host.InspectorFrontendHost.showCertificateViewer([
+      'MIIFIDCCBAigAwIBAgIQE0TsEu6R8FUHQv+9fE7j8TANBgkqhkiG9w0BAQsF' +
+          'ADBUMQswCQYDVQQGEwJVUzEeMBwGA1UEChMVR29vZ2xlIFRydXN0IFNlcnZp' +
+          'Y2VzMSUwIwYDVQQDExxHb29nbGUgSW50ZXJuZXQgQXV0aG9yaXR5IEczMB4X' +
+          'DTE5MDMyNjEzNDEwMVoXDTE5MDYxODEzMjQwMFowZzELMAkGA1UEBhMCVVMx' +
+          'EzARBgNVBAgMCkNhbGlmb3JuaWExFjAUBgNVBAcMDU1vdW50YWluIFZpZXcx' +
+          'EzARBgNVBAoMCkdvb2dsZSBMTEMxFjAUBgNVBAMMDSouYXBwc3BvdC5jb20w' +
+          'ggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCwca7hj0kyoJVxcvyA' +
+          'a8zNKMIXcoPM3aU1KVe7mxZITtwC6/D/D/q4Oe8fBQLeZ3c6qR5Sr3M+611k' +
+          'Ab15AcGUgh1Xi0jZqERvd/5+P0aVCFJYeoLrPBzwSMZBStkoiO2CwtV8x06e' +
+          'X7qUz7Hvr3oeG+Ma9OUMmIebl//zHtC82mE0mCRBQAW0MWEgT5nOWey74tJR' +
+          'GRqUEI8ftV9grAshD5gY8kxxUoMfqrreaXVqcRF58ZPiwUJ0+SbtC5q9cJ+K' +
+          'MuYM4TCetEuk/WQsa+1EnSa40dhGRtZjxbwEwQAJ1vLOcIA7AVR/Ck22Uj8X' +
+          'UOECercjUrKdDyaAPcLp2TThAgMBAAGjggHZMIIB1TATBgNVHSUEDDAKBggr' +
+          'BgEFBQcDATCBrwYDVR0RBIGnMIGkgg0qLmFwcHNwb3QuY29tggsqLmEucnVu' +
+          'LmFwcIIVKi50aGlua3dpdGhnb29nbGUuY29tghAqLndpdGhnb29nbGUuY29t' +
+          'ghEqLndpdGh5b3V0dWJlLmNvbYILYXBwc3BvdC5jb22CB3J1bi5hcHCCE3Ro' +
+          'aW5rd2l0aGdvb2dsZS5jb22CDndpdGhnb29nbGUuY29tgg93aXRoeW91dHVi' +
+          'ZS5jb20waAYIKwYBBQUHAQEEXDBaMC0GCCsGAQUFBzAChiFodHRwOi8vcGtp' +
+          'Lmdvb2cvZ3NyMi9HVFNHSUFHMy5jcnQwKQYIKwYBBQUHMAGGHWh0dHA6Ly9v' +
+          'Y3NwLnBraS5nb29nL0dUU0dJQUczMB0GA1UdDgQWBBTGkpE5o0H9+Wjc05rF' +
+          'hNQiYDjBFjAMBgNVHRMBAf8EAjAAMB8GA1UdIwQYMBaAFHfCuFCaZ3Z2sS3C' +
+          'htCDoH6mfrpLMCEGA1UdIAQaMBgwDAYKKwYBBAHWeQIFAzAIBgZngQwBAgIw' +
+          'MQYDVR0fBCowKDAmoCSgIoYgaHR0cDovL2NybC5wa2kuZ29vZy9HVFNHSUFH' +
+          'My5jcmwwDQYJKoZIhvcNAQELBQADggEBALqoYGqWtJW/6obEzY+ehsgfyXb+' +
+          'qNIuV09wt95cRF93HlLbBlSZ/Iz8HXX44ZT1/tGAkwKnW0gDKSSab3I8U+e9' +
+          'LHbC9VXrgAFENzu89MNKNmK5prwv+MPA2HUQPu4Pad3qXmd4+nKc/EUjtg1d' +
+          '/xKGK1Vn6JX3i5ly/rduowez3LxpSAJuIwseum331aQaKC2z2ri++96B8MPU' +
+          'KFXzvV2gVGOe3ZYqmwPaG8y38Tba+OzEh59ygl8ydJJhoI6+R3itPSy0aXUU' +
+          'lMvvAbfCobXD5kBRQ28ysgbDSDOPs3fraXpAKL92QUjsABs58XBz5vka4swu' +
+          'gg/u+ZxaKOqfIm8=',
+      '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' +
+          '/H5COEBkEveegeGTLg=='
+    ]);
   };
 
   // Simple sanity check to make sure network throttling is wired up
@@ -800,10 +944,11 @@
         const color = [0, 0, 0];
         color[count % 3] = 255;
         div.style.backgroundColor = 'rgb(' + color.join(',') + ')';
-        if (++count > 10)
+        if (++count > 10) {
           requestAnimationFrame(callback);
-        else
+        } else {
           requestAnimationFrame(frame);
+        }
       }
     }
 
@@ -822,8 +967,9 @@
 
     function loadFrameImages(frames) {
       const readyImages = [];
-      for (const frame of frames)
+      for (const frame of frames) {
         frame.imageDataPromise().then(onGotImageData);
+      }
 
       function onGotImageData(data) {
         const image = new Image();
@@ -834,8 +980,9 @@
 
       function onLoad(event) {
         readyImages.push(event.target);
-        if (readyImages.length === frames.length)
+        if (readyImages.length === frames.length) {
           validateImagesAndCompleteTest(readyImages);
+        }
       }
     }
 
@@ -854,14 +1001,15 @@
         ctx.drawImage(image, 0, 0);
         const data = ctx.getImageData(0, 0, 1, 1);
         const color = Array.prototype.join.call(data.data, ',');
-        if (data.data[0] > 200)
+        if (data.data[0] > 200) {
           redCount++;
-        else if (data.data[1] > 200)
+        } else if (data.data[1] > 200) {
           greenCount++;
-        else if (data.data[2] > 200)
+        } else if (data.data[2] > 200) {
           blueCount++;
-        else
+        } else {
           test.fail('Unexpected color: ' + color);
+        }
       }
       test.assertTrue(redCount && greenCount && blueCount, 'Color sanity check failed');
       test.releaseControl();
@@ -885,8 +1033,8 @@
     }
 
     function reset() {
-      Runtime.experiments.clearForTest();
-      InspectorFrontendHost.getPreferences(gotPreferences);
+      Root.Runtime.experiments.clearForTest();
+      Host.InspectorFrontendHost.getPreferences(gotPreferences);
     }
 
     function gotPreferences(prefs) {
@@ -908,10 +1056,11 @@
     const test = this;
     test.takeControl();
     const messages = SDK.consoleModel.messages();
-    if (messages.length === 1)
+    if (messages.length === 1) {
       checkMessages();
-    else
+    } else {
       SDK.consoleModel.addEventListener(SDK.ConsoleModel.Events.MessageAdded, checkMessages.bind(this), this);
+    }
 
     function checkMessages() {
       const messages = SDK.consoleModel.messages();
@@ -930,8 +1079,9 @@
       const consoleView = Console.ConsoleView.instance();
       const selector = consoleView._consoleContextSelector;
       const values = [];
-      for (const item of selector._items)
+      for (const item of selector._items) {
         values.push(selector.titleFor(item));
+      }
       test.assertEquals('top', values[0]);
       test.assertEquals('Simple content script', values[1]);
       test.releaseControl();
@@ -953,8 +1103,9 @@
     let count = 0;
     function onResponseReceived(event) {
       const networkRequest = event.data;
-      if (!networkRequest.url().startsWith('http'))
+      if (!networkRequest.url().startsWith('http')) {
         return;
+      }
       switch (++count) {
         case 1:  // Original redirect
           test.assertEquals(301, networkRequest.statusCode);
@@ -964,7 +1115,6 @@
 
         case 2:  // HSTS internal redirect
           test.assertTrue(networkRequest.url().startsWith('http://'));
-          test.assertEquals(undefined, networkRequest.requestHeadersText());
           test.assertEquals(307, networkRequest.statusCode);
           test.assertEquals('Internal Redirect', networkRequest.statusText);
           test.assertEquals('HSTS', networkRequest.responseHeaderValue('Non-Authoritative-Reason'));
@@ -993,18 +1143,20 @@
     const messages = SDK.consoleModel.messages();
     for (let i = 0; i < messages.length; ++i) {
       const text = messages[i].messageText;
-      if (text === 'PASS')
+      if (text === 'PASS') {
         return;
-      else if (/^FAIL/.test(text))
-        this.fail(text);  // This will throw.
+      } else if (/^FAIL/.test(text)) {
+        this.fail(text);
+      }  // This will throw.
     }
     // Neither PASS nor FAIL, so wait for more messages.
     function onConsoleMessage(event) {
       const text = event.data.messageText;
-      if (text === 'PASS')
+      if (text === 'PASS') {
         this.releaseControl();
-      else if (/^FAIL/.test(text))
+      } else if (/^FAIL/.test(text)) {
         this.fail(text);
+      }
     }
 
     SDK.consoleModel.addEventListener(SDK.ConsoleModel.Events.MessageAdded, onConsoleMessage, this);
@@ -1078,7 +1230,7 @@
   };
 
   TestSuite.prototype.enableExperiment = function(name) {
-    Runtime.experiments.enableForTest(name);
+    Root.Runtime.experiments.enableForTest(name);
   };
 
   TestSuite.prototype.checkInputEventsPresent = function() {
@@ -1088,24 +1240,29 @@
     const input = asyncEvents.get(TimelineModel.TimelineModel.AsyncEventGroup.input) || [];
     const prefix = 'InputLatency::';
     for (const e of input) {
-      if (!e.name.startsWith(prefix))
+      if (!e.name.startsWith(prefix)) {
         continue;
-      if (e.steps.length < 2)
+      }
+      if (e.steps.length < 2) {
         continue;
+      }
       if (e.name.startsWith(prefix + 'Mouse') &&
-          typeof TimelineModel.TimelineData.forEvent(e.steps[0]).timeWaitingForMainThread !== 'number')
+          typeof TimelineModel.TimelineData.forEvent(e.steps[0]).timeWaitingForMainThread !== 'number') {
         throw `Missing timeWaitingForMainThread on ${e.name}`;
+      }
       expectedEvents.delete(e.name.substr(prefix.length));
     }
-    if (expectedEvents.size)
+    if (expectedEvents.size) {
       throw 'Some expected events are not found: ' + Array.from(expectedEvents.keys()).join(',');
+    }
   };
 
   TestSuite.prototype.testInspectedElementIs = async function(nodeName) {
     this.takeControl();
     await self.runtime.loadModulePromise('elements');
-    if (!Elements.ElementsPanel._firstInspectElementNodeNameForTest)
+    if (!Elements.ElementsPanel._firstInspectElementNodeNameForTest) {
       await new Promise(f => this.addSniffer(Elements.ElementsPanel, '_firstInspectElementCompletedForTest', f));
+    }
     this.assertEquals(nodeName, Elements.ElementsPanel._firstInspectElementNodeNameForTest);
     this.releaseControl();
   };
@@ -1161,7 +1318,7 @@
       browserContextIds.push(browserContextId);
 
       const {targetId} = await targetAgent.invoke_createTarget({url: 'about:blank', browserContextId});
-      await targetAgent.invoke_attachToTarget({targetId});
+      await targetAgent.invoke_attachToTarget({targetId, flatten: true});
 
       const target = SDK.targetManager.targets().find(target => target.id() === targetId);
       const pageAgent = target.pageAgent();
@@ -1233,7 +1390,7 @@
     this.releaseControl();
   };
 
-  TestSuite.prototype.testLoadResourceForFrontend = async function(baseURL) {
+  TestSuite.prototype.testLoadResourceForFrontend = async function(baseURL, fileURL) {
     const test = this;
     const loggedHeaders = new Set(['cache-control', 'pragma']);
     function testCase(url, headers, expectedStatus, expectedHeaders, expectedContent) {
@@ -1246,8 +1403,9 @@
           const headersArray = [];
           for (const name in headers) {
             const nameLower = name.toLowerCase();
-            if (loggedHeaders.has(nameLower))
+            if (loggedHeaders.has(nameLower)) {
               headersArray.push(nameLower);
+            }
           }
           headersArray.sort();
           test.assertEquals(expectedHeaders.join(', '), headersArray.join(', '));
@@ -1270,7 +1428,48 @@
     });
     await testCase(baseURL + 'echoheader?Cookie', undefined, 200, ['cache-control'], 'devtools-test-cookie=Bar');
 
+    await SDK.targetManager.mainTarget().runtimeAgent().invoke_evaluate({
+      expression: `fetch("/set-cookie?devtools-test-cookie=same-site-cookie;SameSite=Lax",
+                         {credentials: 'include'})`,
+      awaitPromise: true
+    });
+    await testCase(
+        baseURL + 'echoheader?Cookie', undefined, 200, ['cache-control'], 'devtools-test-cookie=same-site-cookie');
+    await testCase('data:text/html,<body>hello</body>', undefined, 200, [], '<body>hello</body>');
+    await testCase(fileURL, undefined, 200, [], '<html>\n<body>\nDummy page.\n</body>\n</html>\n');
+    await testCase(fileURL + 'thisfileshouldnotbefound', undefined, 404, [], '');
+
     this.releaseControl();
+  };
+
+  TestSuite.prototype.testExtensionWebSocketUserAgentOverride = async function(websocketPort) {
+    this.takeControl();
+
+    const testUserAgent = 'test user agent';
+    SDK.multitargetNetworkManager.setUserAgentOverride(testUserAgent);
+
+    function onRequestUpdated(event) {
+      const request = event.data;
+      if (request.resourceType() !== Common.resourceTypes.WebSocket) {
+        return;
+      }
+      if (!request.requestHeadersText()) {
+        return;
+      }
+
+      let actualUserAgent = 'no user-agent header';
+      for (const {name, value} of request.requestHeaders()) {
+        if (name.toLowerCase() === 'user-agent') {
+          actualUserAgent = value;
+        }
+      }
+      this.assertEquals(testUserAgent, actualUserAgent);
+      this.releaseControl();
+    }
+    SDK.targetManager.addModelListener(
+        SDK.NetworkManager, SDK.NetworkManager.Events.RequestUpdated, onRequestUpdated.bind(this));
+
+    this.evaluateInConsole_(`new WebSocket('ws://127.0.0.1:${websocketPort}')`, () => {});
   };
 
   /**
@@ -1280,8 +1479,9 @@
    */
   TestSuite.prototype.uiSourceCodesToString_ = function(uiSourceCodes) {
     const names = [];
-    for (let i = 0; i < uiSourceCodes.length; i++)
+    for (let i = 0; i < uiSourceCodes.length; i++) {
       names.push('"' + uiSourceCodes[i].url() + '"');
+    }
     return names.join(',');
   };
 
@@ -1367,10 +1567,11 @@
     const test = this;
 
     function waitForAllScripts() {
-      if (test._scriptsAreParsed(expectedScripts))
+      if (test._scriptsAreParsed(expectedScripts)) {
         callback();
-      else
+      } else {
         test.addSniffer(UI.panels.sources.sourcesView(), '_addUISourceCode', waitForAllScripts);
+      }
     }
 
     waitForAllScripts();
@@ -1380,10 +1581,11 @@
     checkTargets.call(this);
 
     function checkTargets() {
-      if (SDK.targetManager.targets().length >= n)
+      if (SDK.targetManager.targets().length >= n) {
         callback.call(null);
-      else
+      } else {
         this.addSniffer(SDK.TargetManager.prototype, 'createTarget', checkTargets.bind(this));
+      }
     }
   };
 
@@ -1392,10 +1594,11 @@
     checkForExecutionContexts.call(this);
 
     function checkForExecutionContexts() {
-      if (runtimeModel.executionContexts().length >= n)
+      if (runtimeModel.executionContexts().length >= n) {
         callback.call(null);
-      else
+      } else {
         this.addSniffer(SDK.RuntimeModel.prototype, '_executionContextCreated', checkForExecutionContexts.bind(this));
+      }
     }
   };
 

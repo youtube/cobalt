@@ -51,17 +51,17 @@
 }
 
 .scripts-debug-toolbar-drawer > [is=dt-checkbox] {
+<<<<<<< HEAD
     display: flex;
+=======
+    display: none;
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     padding-left: 3px;
     height: 28px;
 }
 
-.panel.sources .sidebar-pane-stack {
-    overflow: auto;
-}
-
-.cursor-pointer {
-    cursor: pointer;
+.scripts-debug-toolbar-drawer.expanded > [is=dt-checkbox] {
+    display: flex;
 }
 
 .cursor-auto {

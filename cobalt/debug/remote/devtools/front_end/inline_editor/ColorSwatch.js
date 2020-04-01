@@ -4,7 +4,7 @@
 /**
  * @unrestricted
  */
-InlineEditor.ColorSwatch = class extends HTMLSpanElement {
+export class ColorSwatch extends HTMLSpanElement {
   constructor() {
     super();
     const root = UI.createShadowRootWithCoreStyles(this, 'inline_editor/colorSwatch.css');
@@ -21,9 +21,10 @@ InlineEditor.ColorSwatch = class extends HTMLSpanElement {
   }
 
   /**
-   * @return {!InlineEditor.ColorSwatch}
+   * @return {!ColorSwatch}
    */
   static create() {
+<<<<<<< HEAD
     if (!InlineEditor.ColorSwatch._constructor) {
       InlineEditor.ColorSwatch._constructor =
           UI.registerCustomElement('span', 'color-swatch', InlineEditor.ColorSwatch);
@@ -31,6 +32,14 @@ InlineEditor.ColorSwatch = class extends HTMLSpanElement {
 
 
     return /** @type {!InlineEditor.ColorSwatch} */ (InlineEditor.ColorSwatch._constructor());
+=======
+    if (!ColorSwatch._constructor) {
+      ColorSwatch._constructor = UI.registerCustomElement('span', 'color-swatch', ColorSwatch);
+    }
+
+
+    return /** @type {!ColorSwatch} */ (ColorSwatch._constructor());
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   }
 
   /**
@@ -57,8 +66,9 @@ InlineEditor.ColorSwatch = class extends HTMLSpanElement {
 
       case cf.HSL:
       case cf.HSLA:
-        if (color.nickname())
+        if (color.nickname()) {
           return cf.Nickname;
+        }
         return color.detectHEXFormat();
 
       case cf.ShortHEX:
@@ -131,7 +141,7 @@ InlineEditor.ColorSwatch = class extends HTMLSpanElement {
   toggleNextFormat() {
     let currentValue;
     do {
-      this._format = InlineEditor.ColorSwatch._nextColorFormat(this._color, this._format);
+      this._format = ColorSwatch._nextColorFormat(this._color, this._format);
       currentValue = this._color.asString(this._format);
     } while (currentValue === this._colorValueElement.textContent);
     this.setText(currentValue);
@@ -148,18 +158,19 @@ InlineEditor.ColorSwatch = class extends HTMLSpanElement {
    * @param {!Event} event
    */
   _handleClick(event) {
-    if (!event.shiftKey)
+    if (!event.shiftKey) {
       return;
+    }
     event.target.parentNode.parentNode.host.toggleNextFormat();
     event.consume(true);
   }
-};
+}
 
 
 /**
  * @unrestricted
  */
-InlineEditor.BezierSwatch = class extends HTMLSpanElement {
+export class BezierSwatch extends HTMLSpanElement {
   constructor() {
     super();
     const root = UI.createShadowRootWithCoreStyles(this, 'inline_editor/bezierSwatch.css');
@@ -170,9 +181,10 @@ InlineEditor.BezierSwatch = class extends HTMLSpanElement {
   }
 
   /**
-   * @return {!InlineEditor.BezierSwatch}
+   * @return {!BezierSwatch}
    */
   static create() {
+<<<<<<< HEAD
     if (!InlineEditor.BezierSwatch._constructor) {
       InlineEditor.BezierSwatch._constructor =
           UI.registerCustomElement('span', 'bezier-swatch', InlineEditor.BezierSwatch);
@@ -180,6 +192,14 @@ InlineEditor.BezierSwatch = class extends HTMLSpanElement {
 
 
     return /** @type {!InlineEditor.BezierSwatch} */ (InlineEditor.BezierSwatch._constructor());
+=======
+    if (!BezierSwatch._constructor) {
+      BezierSwatch._constructor = UI.registerCustomElement('span', 'bezier-swatch', BezierSwatch);
+    }
+
+
+    return /** @type {!BezierSwatch} */ (BezierSwatch._constructor());
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   }
 
   /**
@@ -209,12 +229,16 @@ InlineEditor.BezierSwatch = class extends HTMLSpanElement {
   iconElement() {
     return this._iconElement;
   }
+<<<<<<< HEAD
 };
+=======
+}
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
 
 /**
  * @unrestricted
  */
-InlineEditor.CSSShadowSwatch = class extends HTMLSpanElement {
+export class CSSShadowSwatch extends HTMLSpanElement {
   constructor() {
     super();
     const root = UI.createShadowRootWithCoreStyles(this, 'inline_editor/cssShadowSwatch.css');
@@ -225,15 +249,23 @@ InlineEditor.CSSShadowSwatch = class extends HTMLSpanElement {
   }
 
   /**
-   * @return {!InlineEditor.CSSShadowSwatch}
+   * @return {!CSSShadowSwatch}
    */
   static create() {
+<<<<<<< HEAD
     if (!InlineEditor.CSSShadowSwatch._constructor) {
       InlineEditor.CSSShadowSwatch._constructor =
           UI.registerCustomElement('span', 'css-shadow-swatch', InlineEditor.CSSShadowSwatch);
     }
 
     return /** @type {!InlineEditor.CSSShadowSwatch} */ (InlineEditor.CSSShadowSwatch._constructor());
+=======
+    if (!CSSShadowSwatch._constructor) {
+      CSSShadowSwatch._constructor = UI.registerCustomElement('span', 'css-shadow-swatch', CSSShadowSwatch);
+    }
+
+    return /** @type {!CSSShadowSwatch} */ (CSSShadowSwatch._constructor());
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   }
 
   /**
@@ -253,8 +285,9 @@ InlineEditor.CSSShadowSwatch = class extends HTMLSpanElement {
     for (let i = 0; i < results.length; i++) {
       const result = results[i];
       if (result.regexIndex === 1) {
-        if (!this._colorSwatch)
-          this._colorSwatch = InlineEditor.ColorSwatch.create();
+        if (!this._colorSwatch) {
+          this._colorSwatch = ColorSwatch.create();
+        }
         this._colorSwatch.setColor(model.color());
         this._contentElement.appendChild(this._colorSwatch);
       } else {
@@ -278,9 +311,28 @@ InlineEditor.CSSShadowSwatch = class extends HTMLSpanElement {
   }
 
   /**
-   * @return {?InlineEditor.ColorSwatch}
+   * @return {?ColorSwatch}
    */
   colorSwatch() {
     return this._colorSwatch;
   }
+<<<<<<< HEAD
 };
+=======
+}
+
+/* Legacy exported object */
+self.InlineEditor = self.InlineEditor || {};
+
+/* Legacy exported object */
+InlineEditor = InlineEditor || {};
+
+/** @constructor */
+InlineEditor.ColorSwatch = ColorSwatch;
+
+/** @constructor */
+InlineEditor.BezierSwatch = BezierSwatch;
+
+/** @constructor */
+InlineEditor.CSSShadowSwatch = CSSShadowSwatch;
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02

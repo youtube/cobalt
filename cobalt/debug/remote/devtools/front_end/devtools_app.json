@@ -3,8 +3,8 @@
     // { "name": "emulation", "type": "autostart" },
     { "name": "inspector_main", "type": "autostart" },
     { "name": "mobile_throttling", "type": "autostart" },
-    { "name": "browser_components", "type": "autostart" },
 
+<<<<<<< HEAD
     // { "name": "accessibility", "type": "remote" },
     // { "name": "animation" },
     // { "name": "audits2" },
@@ -12,19 +12,38 @@
     { "name": "browser_debugger" },
     // { "name": "cookie_table" },
     // { "name": "devices" },
+=======
+    { "name": "accessibility", "type": "remote" },
+    { "name": "animation" },
+    { "name": "audits" },
+    { "name": "browser_debugger" },
+    { "name": "css_overview" },
+    { "name": "cookie_table" },
+    { "name": "dagre_layout", "type": "remote" },
+    { "name": "devices" },
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     { "name": "elements" },
     // { "name": "emulated_devices" , "type": "remote" },
     { "name": "har_importer" },
     // { "name": "help" },
     { "name": "layers" },
     { "name": "layer_viewer" },
+<<<<<<< HEAD
     // { "name": "network" },
     // { "name": "performance_monitor" },
     // { "name": "product_registry_impl", "type": "remote" },
     // { "name": "resources" },
     // { "name": "security" },
+=======
+    { "name": "network" },
+    { "name": "performance_monitor" },
+    { "name": "resources" },
+    { "name": "security" },
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     { "name": "timeline" },
-    { "name": "timeline_model" }
+    { "name": "timeline_model" },
+    { "name": "web_audio" },
+    { "name": "media" }
   ],
   "extends": "shell",
   "has_html": true

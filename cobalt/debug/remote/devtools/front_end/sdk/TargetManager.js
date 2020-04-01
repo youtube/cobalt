@@ -4,40 +4,42 @@
  * found in the LICENSE file.
  */
 
-SDK.TargetManager = class extends Common.Object {
+export default class TargetManager extends Common.Object {
   constructor() {
     super();
     /** @type {!Array.<!SDK.Target>} */
     this._targets = [];
-    /** @type {!Array.<!SDK.TargetManager.Observer>} */
+    /** @type {!Array.<!Observer>} */
     this._observers = [];
-    this._observerCapabiliesMaskSymbol = Symbol('observerCapabilitiesMask');
-    /** @type {!Multimap<symbol, !{modelClass: !Function, thisObject: (!Object|undefined), listener: function(!Common.Event)}>} */
-    this._modelListeners = new Multimap();
-    /** @type {!Multimap<function(new:SDK.SDKModel, !SDK.Target), !SDK.SDKModelObserver>} */
-    this._modelObservers = new Multimap();
+    /** @type {!Platform.Multimap<symbol, !{modelClass: !Function, thisObject: (!Object|undefined), listener: function(!Common.Event)}>} */
+    this._modelListeners = new Platform.Multimap();
+    /** @type {!Platform.Multimap<function(new:SDK.SDKModel, !SDK.Target), !SDKModelObserver>} */
+    this._modelObservers = new Platform.Multimap();
     this._isSuspended = false;
   }
 
   /**
+   * @param {string=} reason - optionally provide a reason, so targets can respond accordingly
    * @return {!Promise}
    */
-  suspendAllTargets() {
-    if (this._isSuspended)
+  suspendAllTargets(reason) {
+    if (this._isSuspended) {
       return Promise.resolve();
+    }
     this._isSuspended = true;
-    this.dispatchEventToListeners(SDK.TargetManager.Events.SuspendStateChanged);
-    return Promise.all(this._targets.map(target => target.suspend()));
+    this.dispatchEventToListeners(Events.SuspendStateChanged);
+    return Promise.all(this._targets.map(target => target.suspend(reason)));
   }
 
   /**
    * @return {!Promise}
    */
   resumeAllTargets() {
-    if (!this._isSuspended)
+    if (!this._isSuspended) {
       return Promise.resolve();
+    }
     this._isSuspended = false;
-    this.dispatchEventToListeners(SDK.TargetManager.Events.SuspendStateChanged);
+    this.dispatchEventToListeners(Events.SuspendStateChanged);
     return Promise.all(this._targets.map(target => target.resume()));
   }
 
@@ -57,8 +59,9 @@ SDK.TargetManager = class extends Common.Object {
     const result = [];
     for (let i = 0; i < this._targets.length; ++i) {
       const model = this._targets[i].model(modelClass);
-      if (model)
+      if (model) {
         result.push(model);
+      }
     }
     return result;
   }
@@ -72,19 +75,20 @@ SDK.TargetManager = class extends Common.Object {
 
   /**
    * @param {function(new:T,!SDK.Target)} modelClass
-   * @param {!SDK.SDKModelObserver<T>} observer
+   * @param {!SDKModelObserver<T>} observer
    * @template T
    */
   observeModels(modelClass, observer) {
     const models = this.models(modelClass);
     this._modelObservers.set(modelClass, observer);
-    for (const model of models)
+    for (const model of models) {
       observer.modelAdded(model);
+    }
   }
 
   /**
    * @param {function(new:T,!SDK.Target)} modelClass
-   * @param {!SDK.SDKModelObserver<T>} observer
+   * @param {!SDKModelObserver<T>} observer
    * @template T
    */
   unobserveModels(modelClass, observer) {
@@ -97,8 +101,9 @@ SDK.TargetManager = class extends Common.Object {
    * @param {!SDK.SDKModel} model
    */
   modelAdded(target, modelClass, model) {
-    for (const observer of this._modelObservers.get(modelClass).valuesArray())
+    for (const observer of this._modelObservers.get(modelClass).valuesArray()) {
       observer.modelAdded(model);
+    }
   }
 
   /**
@@ -107,8 +112,9 @@ SDK.TargetManager = class extends Common.Object {
    * @param {!SDK.SDKModel} model
    */
   _modelRemoved(target, modelClass, model) {
-    for (const observer of this._modelObservers.get(modelClass).valuesArray())
+    for (const observer of this._modelObservers.get(modelClass).valuesArray()) {
       observer.modelRemoved(model);
+    }
   }
 
   /**
@@ -120,8 +126,9 @@ SDK.TargetManager = class extends Common.Object {
   addModelListener(modelClass, eventType, listener, thisObject) {
     for (let i = 0; i < this._targets.length; ++i) {
       const model = this._targets[i].model(modelClass);
-      if (model)
+      if (model) {
         model.addEventListener(eventType, listener, thisObject);
+      }
     }
     this._modelListeners.set(eventType, {modelClass: modelClass, thisObject: thisObject, listener: listener});
   }
@@ -133,66 +140,78 @@ SDK.TargetManager = class extends Common.Object {
    * @param {!Object=} thisObject
    */
   removeModelListener(modelClass, eventType, listener, thisObject) {
-    if (!this._modelListeners.has(eventType))
+    if (!this._modelListeners.has(eventType)) {
       return;
+    }
 
     for (let i = 0; i < this._targets.length; ++i) {
       const model = this._targets[i].model(modelClass);
-      if (model)
+      if (model) {
         model.removeEventListener(eventType, listener, thisObject);
+      }
     }
 
     for (const info of this._modelListeners.get(eventType)) {
-      if (info.modelClass === modelClass && info.listener === listener && info.thisObject === thisObject)
+      if (info.modelClass === modelClass && info.listener === listener && info.thisObject === thisObject) {
         this._modelListeners.delete(eventType, info);
+      }
     }
   }
 
   /**
-   * @param {!SDK.TargetManager.Observer} targetObserver
-   * @param {number=} capabilitiesMask
+   * @param {!Observer} targetObserver
    */
-  observeTargets(targetObserver, capabilitiesMask) {
-    if (this._observerCapabiliesMaskSymbol in targetObserver)
+  observeTargets(targetObserver) {
+    if (this._observers.indexOf(targetObserver) !== -1) {
       throw new Error('Observer can only be registered once');
-    targetObserver[this._observerCapabiliesMaskSymbol] = capabilitiesMask || 0;
-    this.targets(capabilitiesMask).forEach(targetObserver.targetAdded.bind(targetObserver));
+    }
+    for (const target of this._targets) {
+      targetObserver.targetAdded(target);
+    }
     this._observers.push(targetObserver);
   }
 
   /**
-   * @param {!SDK.TargetManager.Observer} targetObserver
+   * @param {!Observer} targetObserver
    */
   unobserveTargets(targetObserver) {
-    delete targetObserver[this._observerCapabiliesMaskSymbol];
     this._observers.remove(targetObserver);
   }
 
   /**
    * @param {string} id
    * @param {string} name
-   * @param {number} capabilitiesMask
-   * @param {!Protocol.InspectorBackend.Connection.Factory} connectionFactory
+   * @param {!SDK.Target.Type} type
    * @param {?SDK.Target} parentTarget
+   * @param {string=} sessionId
+   * @param {boolean=} waitForDebuggerInPage
+   * @param {!Protocol.Connection=} connection
    * @return {!SDK.Target}
    */
-  createTarget(id, name, capabilitiesMask, connectionFactory, parentTarget) {
-    const target = new SDK.Target(this, id, name, capabilitiesMask, connectionFactory, parentTarget, this._isSuspended);
+  createTarget(id, name, type, parentTarget, sessionId, waitForDebuggerInPage, connection) {
+    const target =
+        new SDK.Target(this, id, name, type, parentTarget, sessionId || '', this._isSuspended, connection || null);
+    if (waitForDebuggerInPage) {
+      target.pageAgent().waitForDebugger();
+    }
     target.createModels(new Set(this._modelObservers.keysArray()));
     this._targets.push(target);
 
-    const copy = this._observersForTarget(target);
-    for (let i = 0; i < copy.length; ++i)
-      copy[i].targetAdded(target);
+    const copy = this._observers.slice(0);
+    for (const observer of copy) {
+      observer.targetAdded(target);
+    }
 
-    for (const modelClass of target.models().keys())
+    for (const modelClass of target.models().keys()) {
       this.modelAdded(target, modelClass, target.models().get(modelClass));
+    }
 
     for (const key of this._modelListeners.keysArray()) {
       for (const info of this._modelListeners.get(key)) {
         const model = target.model(info.modelClass);
-        if (model)
+        if (model) {
           model.addEventListener(key, info.listener, info.thisObject);
+        }
       }
     }
 
@@ -201,46 +220,37 @@ SDK.TargetManager = class extends Common.Object {
 
   /**
    * @param {!SDK.Target} target
-   * @return {!Array<!SDK.TargetManager.Observer>}
-   */
-  _observersForTarget(target) {
-    return this._observers.filter(
-        observer => target.hasAllCapabilities(observer[this._observerCapabiliesMaskSymbol] || 0));
-  }
-
-  /**
-   * @param {!SDK.Target} target
    */
   removeTarget(target) {
-    if (!this._targets.includes(target))
+    if (!this._targets.includes(target)) {
       return;
+    }
 
     this._targets.remove(target);
-    for (const modelClass of target.models().keys())
+    for (const modelClass of target.models().keys()) {
       this._modelRemoved(target, modelClass, target.models().get(modelClass));
+    }
 
-    const copy = this._observersForTarget(target);
-    for (let i = 0; i < copy.length; ++i)
-      copy[i].targetRemoved(target);
+    const copy = this._observers.slice(0);
+    for (const observer of copy) {
+      observer.targetRemoved(target);
+    }
 
     for (const key of this._modelListeners.keysArray()) {
       for (const info of this._modelListeners.get(key)) {
         const model = target.model(info.modelClass);
-        if (model)
+        if (model) {
           model.removeEventListener(key, info.listener, info.thisObject);
+        }
       }
     }
   }
 
   /**
-   * @param {number=} capabilitiesMask
    * @return {!Array.<!SDK.Target>}
    */
-  targets(capabilitiesMask) {
-    if (!capabilitiesMask)
-      return this._targets.slice();
-    else
-      return this._targets.filter(target => target.hasAllCapabilities(capabilitiesMask || 0));
+  targets() {
+    return this._targets.slice();
   }
 
   /**
@@ -250,8 +260,9 @@ SDK.TargetManager = class extends Common.Object {
   targetById(id) {
     // TODO(dgozman): add a map id -> target.
     for (let i = 0; i < this._targets.length; ++i) {
-      if (this._targets[i].id() === id)
+      if (this._targets[i].id() === id) {
         return this._targets[i];
+      }
     }
     return null;
   }
@@ -262,10 +273,10 @@ SDK.TargetManager = class extends Common.Object {
   mainTarget() {
     return this._targets[0] || null;
   }
-};
+}
 
 /** @enum {symbol} */
-SDK.TargetManager.Events = {
+export const Events = {
   AvailableTargetsChanged: Symbol('AvailableTargetsChanged'),
   InspectedURLChanged: Symbol('InspectedURLChanged'),
   NameChanged: Symbol('NameChanged'),
@@ -275,39 +286,57 @@ SDK.TargetManager.Events = {
 /**
  * @interface
  */
-SDK.TargetManager.Observer = function() {};
-
-SDK.TargetManager.Observer.prototype = {
+export class Observer {
   /**
    * @param {!SDK.Target} target
    */
-  targetAdded(target) {},
+  targetAdded(target) {
+  }
 
   /**
    * @param {!SDK.Target} target
    */
-  targetRemoved(target) {},
-};
+  targetRemoved(target) {
+  }
+}
 
 /**
  * @interface
  * @template T
  */
-SDK.SDKModelObserver = function() {};
-
-SDK.SDKModelObserver.prototype = {
+export class SDKModelObserver {
   /**
    * @param {!T} model
    */
-  modelAdded(model) {},
+  modelAdded(model) {
+  }
 
   /**
    * @param {!T} model
    */
-  modelRemoved(model) {},
-};
+  modelRemoved(model) {
+  }
+}
+
+/* Legacy exported object */
+self.SDK = self.SDK || {};
+
+/* Legacy exported object */
+SDK = SDK || {};
+
+/** @constructor */
+SDK.TargetManager = TargetManager;
+
+/** @enum {symbol} */
+SDK.TargetManager.Events = Events;
+
+/** @interface */
+SDK.TargetManager.Observer = Observer;
+
+/** @interface */
+SDK.SDKModelObserver = SDKModelObserver;
 
 /**
- * @type {!SDK.TargetManager}
+ * @type {!TargetManager}
  */
-SDK.targetManager = new SDK.TargetManager();
+SDK.targetManager = new TargetManager();

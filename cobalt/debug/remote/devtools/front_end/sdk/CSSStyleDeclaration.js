@@ -1,12 +1,13 @@
 // Copyright 2016 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-SDK.CSSStyleDeclaration = class {
+
+export default class CSSStyleDeclaration {
   /**
    * @param {!SDK.CSSModel} cssModel
    * @param {?SDK.CSSRule} parentRule
    * @param {!Protocol.CSS.CSSStyle} payload
-   * @param {!SDK.CSSStyleDeclaration.Type} type
+   * @param {!Type} type
    */
   constructor(cssModel, parentRule, payload, type) {
     this._cssModel = cssModel;
@@ -35,14 +36,16 @@ SDK.CSSStyleDeclaration = class {
    * @param {!SDK.CSSModel.Edit} edit
    */
   rebase(edit) {
-    if (this.styleSheetId !== edit.styleSheetId || !this.range)
+    if (this.styleSheetId !== edit.styleSheetId || !this.range) {
       return;
+    }
     if (edit.oldRange.equal(this.range)) {
       this._reinitialize(/** @type {!Protocol.CSS.CSSStyle} */ (edit.payload));
     } else {
       this.range = this.range.rebaseAfterTextEdit(edit.oldRange, edit.newRange);
-      for (let i = 0; i < this._allProperties.length; ++i)
+      for (let i = 0; i < this._allProperties.length; ++i) {
         this._allProperties[i].rebase(edit);
+      }
     }
   }
 
@@ -58,8 +61,9 @@ SDK.CSSStyleDeclaration = class {
     this._shorthandIsImportant = new Set();
     for (let i = 0; i < shorthandEntries.length; ++i) {
       this._shorthandValues.set(shorthandEntries[i].name, shorthandEntries[i].value);
-      if (shorthandEntries[i].important)
+      if (shorthandEntries[i].important) {
         this._shorthandIsImportant.add(shorthandEntries[i].name);
+      }
     }
 
     this._allProperties = [];
@@ -77,8 +81,9 @@ SDK.CSSStyleDeclaration = class {
       }
       parseUnusedText.call(this, cssText, start.line, start.column, this.range.endLine, this.range.endColumn);
     } else {
-      for (const cssProperty of payload.cssProperties)
+      for (const cssProperty of payload.cssProperties) {
         this._allProperties.push(SDK.CSSProperty.parsePayload(this, this._allProperties.length, cssProperty));
+      }
     }
 
     this._generateSyntheticPropertiesIfNeeded();
@@ -86,8 +91,9 @@ SDK.CSSStyleDeclaration = class {
 
     this._activePropertyMap = new Map();
     for (const property of this._allProperties) {
-      if (!property.activeInStyle())
+      if (!property.activeInStyle()) {
         continue;
+      }
       this._activePropertyMap.set(property.name, property);
     }
 
@@ -95,7 +101,7 @@ SDK.CSSStyleDeclaration = class {
     this._leadingProperties = null;
 
     /**
-     * @this {SDK.CSSStyleDeclaration}
+     * @this {CSSStyleDeclaration}
      * @param {!TextUtils.Text} cssText
      * @param {number} startLine
      * @param {number} startColumn
@@ -162,15 +168,18 @@ SDK.CSSStyleDeclaration = class {
   }
 
   _generateSyntheticPropertiesIfNeeded() {
-    if (this.range)
+    if (this.range) {
       return;
+    }
 
-    if (!this._shorthandValues.size)
+    if (!this._shorthandValues.size) {
       return;
+    }
 
     const propertiesSet = new Set();
-    for (const property of this._allProperties)
+    for (const property of this._allProperties) {
       propertiesSet.add(property.name);
+    }
 
     const generatedProperties = [];
     // For style-based properties, generate shorthands with values when possible.
@@ -178,11 +187,13 @@ SDK.CSSStyleDeclaration = class {
       // For style-based properties, try generating shorthands.
       const shorthands = SDK.cssMetadata().shorthands(property.name) || [];
       for (const shorthand of shorthands) {
-        if (propertiesSet.has(shorthand))
-          continue;  // There already is a shorthand this longhands falls under.
+        if (propertiesSet.has(shorthand)) {
+          continue;
+        }  // There already is a shorthand this longhands falls under.
         const shorthandValue = this._shorthandValues.get(shorthand);
-        if (!shorthandValue)
-          continue;  // Never generate synthetic shorthands when no value is available.
+        if (!shorthandValue) {
+          continue;
+        }  // Never generate synthetic shorthands when no value is available.
 
         // Generate synthetic shorthand we have a value for.
         const shorthandImportance = !!this._shorthandIsImportant.has(shorthand);
@@ -207,8 +218,9 @@ SDK.CSSStyleDeclaration = class {
       return !!property.range;
     }
 
-    if (this.range)
+    if (this.range) {
       return this._allProperties.filter(propertyHasRange);
+    }
 
     const leadingProperties = [];
     for (const property of this._allProperties) {
@@ -220,8 +232,9 @@ SDK.CSSStyleDeclaration = class {
           break;
         }
       }
-      if (!belongToAnyShorthand)
+      if (!belongToAnyShorthand) {
         leadingProperties.push(property);
+      }
     }
 
     return leadingProperties;
@@ -231,8 +244,9 @@ SDK.CSSStyleDeclaration = class {
    * @return {!Array.<!SDK.CSSProperty>}
    */
   leadingProperties() {
-    if (!this._leadingProperties)
+    if (!this._leadingProperties) {
       this._leadingProperties = this._computeLeadingProperties();
+    }
     return this._leadingProperties;
   }
 
@@ -305,8 +319,9 @@ SDK.CSSStyleDeclaration = class {
     const result = [];
     for (let i = 0; longhands && i < longhands.length; ++i) {
       const property = this._activePropertyMap.get(longhands[i]);
-      if (property)
+      if (property) {
         result.push(property);
+      }
     }
     return result;
   }
@@ -324,8 +339,9 @@ SDK.CSSStyleDeclaration = class {
    */
   pastLastSourcePropertyIndex() {
     for (let i = this.allProperties().length - 1; i >= 0; --i) {
-      if (this.allProperties()[i].range)
+      if (this.allProperties()[i].range) {
         return i + 1;
+      }
     }
     return 0;
   }
@@ -356,8 +372,9 @@ SDK.CSSStyleDeclaration = class {
    * @return {!Promise.<boolean>}
    */
   setText(text, majorChange) {
-    if (!this.range || !this.styleSheetId)
+    if (!this.range || !this.styleSheetId) {
       return Promise.resolve(false);
+    }
     return this._cssModel.setStyleText(this.styleSheetId, this.range, text, majorChange);
   }
 
@@ -379,11 +396,23 @@ SDK.CSSStyleDeclaration = class {
   appendProperty(name, value, userCallback) {
     this.insertPropertyAt(this.allProperties().length, name, value, userCallback);
   }
-};
+}
 
 /** @enum {string} */
-SDK.CSSStyleDeclaration.Type = {
+export const Type = {
   Regular: 'Regular',
   Inline: 'Inline',
   Attributes: 'Attributes'
 };
+
+/* Legacy exported object */
+self.SDK = self.SDK || {};
+
+/* Legacy exported object */
+SDK = SDK || {};
+
+/** @constructor */
+SDK.CSSStyleDeclaration = CSSStyleDeclaration;
+
+/** @enum {string} */
+SDK.CSSStyleDeclaration.Type = Type;

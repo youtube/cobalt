@@ -26,19 +26,21 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+import {ComputedStyle, ComputedStyleModel, Events} from './ComputedStyleModel.js';  // eslint-disable-line no-unused-vars
+import {PlatformFontsWidget} from './PlatformFontsWidget.js';
+import {StylePropertiesSection, StylesSidebarPane, StylesSidebarPropertyRenderer} from './StylesSidebarPane.js';
 
 /**
  * @unrestricted
  */
-Elements.ComputedStyleWidget = class extends UI.ThrottledWidget {
+export class ComputedStyleWidget extends UI.ThrottledWidget {
   constructor() {
     super(true);
     this.registerRequiredCSS('elements/computedStyleSidebarPane.css');
     this._alwaysShowComputedProperties = {'display': true, 'height': true, 'width': true};
 
-    this._computedStyleModel = new Elements.ComputedStyleModel();
-    this._computedStyleModel.addEventListener(
-        Elements.ComputedStyleModel.Events.ComputedStyleChanged, this.update, this);
+    this._computedStyleModel = new ComputedStyleModel();
+    this._computedStyleModel.addEventListener(Events.ComputedStyleChanged, this.update, this);
 
     this._showInheritedComputedStylePropertiesSetting =
         Common.settings.createSetting('showInheritedComputedStyleProperties', false);
@@ -47,8 +49,7 @@ Elements.ComputedStyleWidget = class extends UI.ThrottledWidget {
 
     const hbox = this.contentElement.createChild('div', 'hbox styles-sidebar-pane-toolbar');
     const filterContainerElement = hbox.createChild('div', 'styles-sidebar-pane-filter-box');
-    const filterInput =
-        Elements.StylesSidebarPane.createPropertyFilterElement(ls`Filter`, hbox, filterCallback.bind(this));
+    const filterInput = StylesSidebarPane.createPropertyFilterElement(ls`Filter`, hbox, filterCallback.bind(this));
     UI.ARIAUtils.setAccessibleName(filterInput, Common.UIString('Filter Computed Styles'));
     filterContainerElement.appendChild(filterInput);
     this.setDefaultFocusedElement(filterInput);
@@ -62,23 +63,33 @@ Elements.ComputedStyleWidget = class extends UI.ThrottledWidget {
 
     this._propertiesOutline = new UI.TreeOutlineInShadow();
     this._propertiesOutline.hideOverflow();
+    this._propertiesOutline.setShowSelectionOnKeyboardFocus(true);
+    this._propertiesOutline.setFocusable(true);
     this._propertiesOutline.registerRequiredCSS('elements/computedStyleWidgetTree.css');
     this._propertiesOutline.element.classList.add('monospace', 'computed-properties');
     this.contentElement.appendChild(this._propertiesOutline.element);
 
-    this._linkifier = new Components.Linkifier(Elements.ComputedStyleWidget._maxLinkLength);
+    this._linkifier = new Components.Linkifier(_maxLinkLength);
 
     /**
      * @param {?RegExp} regex
-     * @this {Elements.ComputedStyleWidget}
+     * @this {ComputedStyleWidget}
      */
     function filterCallback(regex) {
       this._filterRegex = regex;
       this._updateFilter(regex);
     }
 
-    const fontsWidget = new Elements.PlatformFontsWidget(this._computedStyleModel);
+    const fontsWidget = new PlatformFontsWidget(this._computedStyleModel);
     fontsWidget.show(this.contentElement);
+  }
+
+  /**
+   * @override
+   */
+  onResize() {
+    const isNarrow = this.contentElement.offsetWidth < 260;
+    this._propertiesOutline.contentElement.classList.toggle('computed-narrow', isNarrow);
   }
 
   _showInheritedComputedStyleChanged() {
@@ -99,15 +110,16 @@ Elements.ComputedStyleWidget = class extends UI.ThrottledWidget {
    */
   _fetchMatchedCascade() {
     const node = this._computedStyleModel.node();
-    if (!node || !this._computedStyleModel.cssModel())
+    if (!node || !this._computedStyleModel.cssModel()) {
       return Promise.resolve(/** @type {?SDK.CSSMatchedStyles} */ (null));
+    }
 
     return this._computedStyleModel.cssModel().cachedMatchedCascadeForNode(node).then(validateStyles.bind(this));
 
     /**
      * @param {?SDK.CSSMatchedStyles} matchedStyles
      * @return {?SDK.CSSMatchedStyles}
-     * @this {Elements.ComputedStyleWidget}
+     * @this {ComputedStyleWidget}
      */
     function validateStyles(matchedStyles) {
       return matchedStyles && matchedStyles.node() === this._computedStyleModel.node() ? matchedStyles : null;
@@ -120,8 +132,9 @@ Elements.ComputedStyleWidget = class extends UI.ThrottledWidget {
    */
   _processColor(text) {
     const color = Common.Color.parse(text);
-    if (!color)
+    if (!color) {
       return createTextNode(text);
+    }
     const swatch = InlineEditor.ColorSwatch.create();
     swatch.setColor(color);
     swatch.setFormat(Common.Color.detectColorFormat(color));
@@ -129,23 +142,27 @@ Elements.ComputedStyleWidget = class extends UI.ThrottledWidget {
   }
 
   /**
-   * @param {?Elements.ComputedStyleModel.ComputedStyle} nodeStyle
+   * @param {?ComputedStyle} nodeStyle
    * @param {?SDK.CSSMatchedStyles} matchedStyles
    */
   _innerRebuildUpdate(nodeStyle, matchedStyles) {
     /** @type {!Set<string>} */
     const expandedProperties = new Set();
     for (const treeElement of this._propertiesOutline.rootElement().children()) {
-      if (!treeElement.expanded)
+      if (!treeElement.expanded) {
         continue;
-      const propertyName = treeElement[Elements.ComputedStyleWidget._propertySymbol].name;
+      }
+      const propertyName = treeElement[_propertySymbol].name;
       expandedProperties.add(propertyName);
     }
+    const hadFocus = this._propertiesOutline.element.hasFocus();
     this._propertiesOutline.removeChildren();
     this._linkifier.reset();
     const cssModel = this._computedStyleModel.cssModel();
-    if (!nodeStyle || !matchedStyles || !cssModel)
+    if (!nodeStyle || !matchedStyles || !cssModel) {
+      this._noMatchesElement.classList.remove('hidden');
       return;
+    }
 
     const uniqueProperties = nodeStyle.computedStyle.keysArray();
     uniqueProperties.sort(propertySorter);
@@ -158,25 +175,28 @@ Elements.ComputedStyleWidget = class extends UI.ThrottledWidget {
       const propertyValue = nodeStyle.computedStyle.get(propertyName);
       const canonicalName = SDK.cssMetadata().canonicalPropertyName(propertyName);
       const inherited = !inhertiedProperties.has(canonicalName);
-      if (!showInherited && inherited && !(propertyName in this._alwaysShowComputedProperties))
+      if (!showInherited && inherited && !(propertyName in this._alwaysShowComputedProperties)) {
         continue;
-      if (!showInherited && propertyName.startsWith('--'))
+      }
+      if (!showInherited && propertyName.startsWith('--')) {
         continue;
-      if (propertyName !== canonicalName && propertyValue === nodeStyle.computedStyle.get(canonicalName))
+      }
+      if (propertyName !== canonicalName && propertyValue === nodeStyle.computedStyle.get(canonicalName)) {
         continue;
+      }
 
       const propertyElement = createElement('div');
       propertyElement.classList.add('computed-style-property');
       propertyElement.classList.toggle('computed-style-property-inherited', inherited);
-      const renderer = new Elements.StylesSidebarPropertyRenderer(
-          null, nodeStyle.node, propertyName, /** @type {string} */ (propertyValue));
+      const renderer =
+          new StylesSidebarPropertyRenderer(null, nodeStyle.node, propertyName, /** @type {string} */ (propertyValue));
       renderer.setColorHandler(this._processColor.bind(this));
       const propertyNameElement = renderer.renderName();
       propertyNameElement.classList.add('property-name');
       propertyElement.appendChild(propertyNameElement);
 
       const colon = createElementWithClass('span', 'delimeter');
-      colon.textContent = ':';
+      colon.textContent = ': ';
       propertyNameElement.appendChild(colon);
 
       const propertyValueElement = propertyElement.createChild('span', 'property-value');
@@ -190,12 +210,14 @@ Elements.ComputedStyleWidget = class extends UI.ThrottledWidget {
       propertyValueElement.appendChild(semicolon);
 
       const treeElement = new UI.TreeElement();
-      treeElement.selectable = false;
       treeElement.title = propertyElement;
-      treeElement[Elements.ComputedStyleWidget._propertySymbol] = {name: propertyName, value: propertyValue};
+      treeElement[_propertySymbol] = {name: propertyName, value: propertyValue};
       const isOdd = this._propertiesOutline.rootElement().children().length % 2 === 0;
       treeElement.listItemElement.classList.toggle('odd-row', isOdd);
       this._propertiesOutline.appendChild(treeElement);
+      if (!this._propertiesOutline.selectedTreeElement) {
+        treeElement.select(!hadFocus);
+      }
 
       const trace = propertyTraces.get(propertyName);
       if (trace) {
@@ -203,11 +225,14 @@ Elements.ComputedStyleWidget = class extends UI.ThrottledWidget {
         treeElement.listItemElement.addEventListener('mousedown', e => e.consume(), false);
         treeElement.listItemElement.addEventListener('dblclick', e => e.consume(), false);
         treeElement.listItemElement.addEventListener('click', handleClick.bind(null, treeElement), false);
+        treeElement.listItemElement.addEventListener(
+            'contextmenu', this._handleContextMenuEvent.bind(this, matchedStyles, activeProperty));
         const gotoSourceElement = UI.Icon.create('mediumicon-arrow-in-circle', 'goto-source-icon');
         gotoSourceElement.addEventListener('click', this._navigateToSource.bind(this, activeProperty));
         propertyValueElement.appendChild(gotoSourceElement);
-        if (expandedProperties.has(propertyName))
+        if (expandedProperties.has(propertyName)) {
           treeElement.expand();
+        }
       }
     }
 
@@ -219,10 +244,12 @@ Elements.ComputedStyleWidget = class extends UI.ThrottledWidget {
      * @return {number}
      */
     function propertySorter(a, b) {
-      if (a.startsWith('--') ^ b.startsWith('--'))
+      if (a.startsWith('--') ^ b.startsWith('--')) {
         return a.startsWith('--') ? 1 : -1;
-      if (a.startsWith('-webkit') ^ b.startsWith('-webkit'))
+      }
+      if (a.startsWith('-webkit') ^ b.startsWith('-webkit')) {
         return a.startsWith('-webkit') ? 1 : -1;
+      }
       const canonical1 = SDK.cssMetadata().canonicalPropertyName(a);
       const canonical2 = SDK.cssMetadata().canonicalPropertyName(b);
       return canonical1.compareTo(canonical2);
@@ -233,10 +260,11 @@ Elements.ComputedStyleWidget = class extends UI.ThrottledWidget {
      * @param {!Event} event
      */
     function handleClick(treeElement, event) {
-      if (!treeElement.expanded)
+      if (!treeElement.expanded) {
         treeElement.expand();
-      else
+      } else {
         treeElement.collapse();
+      }
       event.consume();
     }
   }
@@ -263,13 +291,14 @@ Elements.ComputedStyleWidget = class extends UI.ThrottledWidget {
     for (const property of tracedProperties) {
       const trace = createElement('div');
       trace.classList.add('property-trace');
-      if (matchedStyles.propertyState(property) === SDK.CSSMatchedStyles.PropertyState.Overloaded)
+      if (matchedStyles.propertyState(property) === SDK.CSSMatchedStyles.PropertyState.Overloaded) {
         trace.classList.add('property-trace-inactive');
-      else
+      } else {
         activeProperty = property;
+      }
 
       const renderer =
-          new Elements.StylesSidebarPropertyRenderer(null, node, property.name, /** @type {string} */ (property.value));
+          new StylesSidebarPropertyRenderer(null, node, property.name, /** @type {string} */ (property.value));
       renderer.setColorHandler(this._processColor.bind(this));
       const valueElement = renderer.renderValue();
       valueElement.classList.add('property-trace-value');
@@ -287,16 +316,39 @@ Elements.ComputedStyleWidget = class extends UI.ThrottledWidget {
 
       if (rule) {
         const linkSpan = trace.createChild('span', 'trace-link');
-        linkSpan.appendChild(
-            Elements.StylePropertiesSection.createRuleOriginNode(matchedStyles, this._linkifier, rule));
+        linkSpan.appendChild(StylePropertiesSection.createRuleOriginNode(matchedStyles, this._linkifier, rule));
       }
 
       const traceTreeElement = new UI.TreeElement();
       traceTreeElement.title = trace;
-      traceTreeElement.selectable = false;
+
+      traceTreeElement.listItemElement.addEventListener(
+          'contextmenu', this._handleContextMenuEvent.bind(this, matchedStyles, property));
       rootTreeElement.appendChild(traceTreeElement);
     }
     return /** @type {!SDK.CSSProperty} */ (activeProperty);
+  }
+
+  /**
+   * @param {!SDK.CSSMatchedStyles} matchedStyles
+   * @param {!SDK.CSSProperty} property
+   * @param {!Event} event
+   */
+  _handleContextMenuEvent(matchedStyles, property, event) {
+    const contextMenu = new UI.ContextMenu(event);
+    const rule = property.ownerStyle.parentRule;
+
+    if (rule) {
+      const header = rule.styleSheetId ? matchedStyles.cssModel().styleSheetHeaderForId(rule.styleSheetId) : null;
+      if (header && !header.isAnonymousInlineStyleSheet()) {
+        contextMenu.defaultSection().appendItem(ls`Navigate to selector source`, () => {
+          StylePropertiesSection.tryNavigateToRuleLocation(matchedStyles, rule);
+        });
+      }
+    }
+
+    contextMenu.defaultSection().appendItem(ls`Navigate to style`, () => Common.Revealer.reveal(property));
+    contextMenu.show();
   }
 
   /**
@@ -308,10 +360,12 @@ Elements.ComputedStyleWidget = class extends UI.ThrottledWidget {
     for (const style of matchedStyles.nodeStyles()) {
       const allProperties = style.allProperties();
       for (const property of allProperties) {
-        if (!property.activeInStyle() || !matchedStyles.propertyState(property))
+        if (!property.activeInStyle() || !matchedStyles.propertyState(property)) {
           continue;
-        if (!result.has(property.name))
+        }
+        if (!result.has(property.name)) {
           result.set(property.name, []);
+        }
         result.get(property.name).push(property);
       }
     }
@@ -326,8 +380,9 @@ Elements.ComputedStyleWidget = class extends UI.ThrottledWidget {
     const result = new Set();
     for (const style of matchedStyles.nodeStyles()) {
       for (const property of style.allProperties()) {
-        if (!matchedStyles.propertyState(property))
+        if (!matchedStyles.propertyState(property)) {
           continue;
+        }
         result.add(SDK.cssMetadata().canonicalPropertyName(property.name));
       }
     }
@@ -341,15 +396,15 @@ Elements.ComputedStyleWidget = class extends UI.ThrottledWidget {
     const children = this._propertiesOutline.rootElement().children();
     let hasMatch = false;
     for (const child of children) {
-      const property = child[Elements.ComputedStyleWidget._propertySymbol];
+      const property = child[_propertySymbol];
       const matched = !regex || regex.test(property.name) || regex.test(property.value);
       child.hidden = !matched;
       hasMatch |= matched;
     }
-    this._noMatchesElement.classList.toggle('hidden', hasMatch);
+    this._noMatchesElement.classList.toggle('hidden', !!hasMatch);
   }
-};
+}
 
-Elements.ComputedStyleWidget._maxLinkLength = 30;
-
-Elements.ComputedStyleWidget._propertySymbol = Symbol('property');
+const _maxLinkLength = 30;
+const _propertySymbol = Symbol('property');
+ComputedStyleWidget._propertySymbol = _propertySymbol;

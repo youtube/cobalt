@@ -5,7 +5,7 @@
 /**
  * @unrestricted
  */
-Animation.AnimationModel = class extends SDK.SDKModel {
+export default class AnimationModel extends SDK.SDKModel {
   /**
    * @param {!SDK.Target} target
    */
@@ -24,15 +24,16 @@ Animation.AnimationModel = class extends SDK.SDKModel {
     const resourceTreeModel = /** @type {!SDK.ResourceTreeModel} */ (target.model(SDK.ResourceTreeModel));
     resourceTreeModel.addEventListener(SDK.ResourceTreeModel.Events.MainFrameNavigated, this._reset, this);
     const screenCaptureModel = target.model(SDK.ScreenCaptureModel);
-    if (screenCaptureModel)
-      this._screenshotCapture = new Animation.AnimationModel.ScreenshotCapture(this, screenCaptureModel);
+    if (screenCaptureModel) {
+      this._screenshotCapture = new ScreenshotCapture(this, screenCaptureModel);
+    }
   }
 
   _reset() {
     this._animationsById.clear();
     this._animationGroups.clear();
     this._pendingAnimations = [];
-    this.dispatchEventToListeners(Animation.AnimationModel.Events.ModelReset);
+    this.dispatchEventToListeners(Events.ModelReset);
   }
 
   /**
@@ -55,18 +56,20 @@ Animation.AnimationModel = class extends SDK.SDKModel {
    */
   animationStarted(payload) {
     // We are not interested in animations without effect or target.
-    if (!payload.source || !payload.source.backendNodeId)
+    if (!payload.source || !payload.source.backendNodeId) {
       return;
+    }
 
-    const animation = Animation.AnimationModel.Animation.parsePayload(this, payload);
+    const animation = AnimationImpl.parsePayload(this, payload);
 
     // Ignore Web Animations custom effects & groups.
     if (animation.type() === 'WebAnimation' && animation.source().keyframesRule().keyframes().length === 0) {
       this._pendingAnimations.remove(animation.id());
     } else {
       this._animationsById.set(animation.id(), animation);
-      if (this._pendingAnimations.indexOf(animation.id()) === -1)
+      if (this._pendingAnimations.indexOf(animation.id()) === -1) {
         this._pendingAnimations.push(animation.id());
+      }
     }
 
     this._flushPendingAnimationsIfNeeded();
@@ -74,12 +77,14 @@ Animation.AnimationModel = class extends SDK.SDKModel {
 
   _flushPendingAnimationsIfNeeded() {
     for (const id of this._pendingAnimations) {
-      if (!this._animationsById.get(id))
+      if (!this._animationsById.get(id)) {
         return;
+      }
     }
 
-    while (this._pendingAnimations.length)
+    while (this._pendingAnimations.length) {
       this._matchExistingGroups(this._createGroupFromPendingAnimations());
+    }
   }
 
   /**
@@ -98,10 +103,11 @@ Animation.AnimationModel = class extends SDK.SDKModel {
 
     if (!matchedGroup) {
       this._animationGroups.set(incomingGroup.id(), incomingGroup);
-      if (this._screenshotCapture)
+      if (this._screenshotCapture) {
         this._screenshotCapture.captureScreenshots(incomingGroup.finiteDuration(), incomingGroup._screenshots);
+      }
     }
-    this.dispatchEventToListeners(Animation.AnimationModel.Events.AnimationGroupStarted, matchedGroup || incomingGroup);
+    this.dispatchEventToListeners(Events.AnimationGroupStarted, matchedGroup || incomingGroup);
     return !!matchedGroup;
   }
 
@@ -114,13 +120,14 @@ Animation.AnimationModel = class extends SDK.SDKModel {
     const remainingAnimations = [];
     for (const id of this._pendingAnimations) {
       const anim = this._animationsById.get(id);
-      if (anim.startTime() === groupedAnimations[0].startTime())
+      if (anim.startTime() === groupedAnimations[0].startTime()) {
         groupedAnimations.push(anim);
-      else
+      } else {
         remainingAnimations.push(id);
+      }
     }
     this._pendingAnimations = remainingAnimations;
-    return new Animation.AnimationModel.AnimationGroup(this, groupedAnimations[0].id(), groupedAnimations);
+    return new AnimationGroup(this, groupedAnimations[0].id(), groupedAnimations);
   }
 
   /**
@@ -152,32 +159,31 @@ Animation.AnimationModel = class extends SDK.SDKModel {
    * @return {!Promise}
    */
   resumeModel() {
-    if (!this._enabled)
+    if (!this._enabled) {
       return Promise.resolve();
+    }
     return this._agent.enable();
   }
 
   ensureEnabled() {
-    if (this._enabled)
+    if (this._enabled) {
       return;
+    }
     this._agent.enable();
     this._enabled = true;
   }
-};
-
-SDK.SDKModel.register(Animation.AnimationModel, SDK.Target.Capability.DOM, false);
+}
 
 /** @enum {symbol} */
-Animation.AnimationModel.Events = {
+export const Events = {
   AnimationGroupStarted: Symbol('AnimationGroupStarted'),
   ModelReset: Symbol('ModelReset')
 };
 
-
 /**
  * @unrestricted
  */
-Animation.AnimationModel.Animation = class {
+export class AnimationImpl {
   /**
    * @param {!Animation.AnimationModel} animationModel
    * @param {!Protocol.Animation.Animation} payload
@@ -185,8 +191,8 @@ Animation.AnimationModel.Animation = class {
   constructor(animationModel, payload) {
     this._animationModel = animationModel;
     this._payload = payload;
-    this._source = new Animation.AnimationModel.AnimationEffect(
-        animationModel, /** @type {!Protocol.Animation.AnimationEffect} */ (this._payload.source));
+    this._source =
+        new AnimationEffect(animationModel, /** @type {!Protocol.Animation.AnimationEffect} */ (this._payload.source));
   }
 
   /**
@@ -195,7 +201,7 @@ Animation.AnimationModel.Animation = class {
    * @return {!Animation.AnimationModel.Animation}
    */
   static parsePayload(animationModel, payload) {
-    return new Animation.AnimationModel.Animation(animationModel, payload);
+    return new AnimationImpl(animationModel, payload);
   }
 
   /**
@@ -258,8 +264,9 @@ Animation.AnimationModel.Animation = class {
    * @return {number}
    */
   endTime() {
-    if (!this.source().iterations)
+    if (!this.source().iterations) {
       return Infinity;
+    }
     return this.startTime() + this.source().delay() + this.source().duration() * this.source().iterations() +
         this.source().endDelay();
   }
@@ -299,8 +306,9 @@ Animation.AnimationModel.Animation = class {
    */
   overlaps(animation) {
     // Infinite animations
-    if (!this.source().iterations() || !animation.source().iterations())
+    if (!this.source().iterations() || !animation.source().iterations()) {
       return true;
+    }
 
     const firstAnimation = this.startTime() < animation.startTime() ? this : animation;
     const secondAnimation = firstAnimation === this ? animation : this;
@@ -325,12 +333,13 @@ Animation.AnimationModel.Animation = class {
    */
   _updateNodeStyle(duration, delay, node) {
     let animationPrefix;
-    if (this.type() === Animation.AnimationModel.Animation.Type.CSSTransition)
+    if (this.type() === Type.CSSTransition) {
       animationPrefix = 'transition-';
-    else if (this.type() === Animation.AnimationModel.Animation.Type.CSSAnimation)
+    } else if (this.type() === Type.CSSAnimation) {
       animationPrefix = 'animation-';
-    else
+    } else {
       return;
+    }
 
     const cssModel = node.domModel().cssModel();
     cssModel.setEffectivePropertyValueForNode(node.id, animationPrefix + 'duration', duration + 'ms');
@@ -351,11 +360,10 @@ Animation.AnimationModel.Animation = class {
   _cssId() {
     return this._payload.cssId || '';
   }
-};
-
+}
 
 /** @enum {string} */
-Animation.AnimationModel.Animation.Type = {
+export const Type = {
   CSSTransition: 'CSSTransition',
   CSSAnimation: 'CSSAnimation',
   WebAnimation: 'WebAnimation'
@@ -364,7 +372,7 @@ Animation.AnimationModel.Animation.Type = {
 /**
  * @unrestricted
  */
-Animation.AnimationModel.AnimationEffect = class {
+export class AnimationEffect {
   /**
    * @param {!Animation.AnimationModel} animationModel
    * @param {!Protocol.Animation.AnimationEffect} payload
@@ -372,8 +380,9 @@ Animation.AnimationModel.AnimationEffect = class {
   constructor(animationModel, payload) {
     this._animationModel = animationModel;
     this._payload = payload;
-    if (payload.keyframesRule)
-      this._keyframesRule = new Animation.AnimationModel.KeyframesRule(payload.keyframesRule);
+    if (payload.keyframesRule) {
+      this._keyframesRule = new KeyframesRule(payload.keyframesRule);
+    }
     this._delay = this._payload.delay;
     this._duration = this._payload.duration;
   }
@@ -404,8 +413,9 @@ Animation.AnimationModel.AnimationEffect = class {
    */
   iterations() {
     // Animations with zero duration, zero delays and infinite iterations can't be shown.
-    if (!this.delay() && !this.endDelay() && !this.duration())
+    if (!this.delay() && !this.endDelay() && !this.duration()) {
       return 0;
+    }
     return this._payload.iterations || Infinity;
   }
 
@@ -434,8 +444,9 @@ Animation.AnimationModel.AnimationEffect = class {
    * @return {!Promise.<!SDK.DOMNode>}
    */
   node() {
-    if (!this._deferredNode)
+    if (!this._deferredNode) {
       this._deferredNode = new SDK.DeferredDOMNode(this._animationModel.target(), this.backendNodeId());
+    }
     return this._deferredNode.resolvePromise();
   }
 
@@ -466,19 +477,19 @@ Animation.AnimationModel.AnimationEffect = class {
   easing() {
     return this._payload.easing;
   }
-};
+}
 
 /**
  * @unrestricted
  */
-Animation.AnimationModel.KeyframesRule = class {
+export class KeyframesRule {
   /**
    * @param {!Protocol.Animation.KeyframesRule} payload
    */
   constructor(payload) {
     this._payload = payload;
     this._keyframes = this._payload.keyframes.map(function(keyframeStyle) {
-      return new Animation.AnimationModel.KeyframeStyle(keyframeStyle);
+      return new KeyframeStyle(keyframeStyle);
     });
   }
 
@@ -487,7 +498,7 @@ Animation.AnimationModel.KeyframesRule = class {
    */
   _setKeyframesPayload(payload) {
     this._keyframes = payload.map(function(keyframeStyle) {
-      return new Animation.AnimationModel.KeyframeStyle(keyframeStyle);
+      return new KeyframeStyle(keyframeStyle);
     });
   }
 
@@ -504,12 +515,12 @@ Animation.AnimationModel.KeyframesRule = class {
   keyframes() {
     return this._keyframes;
   }
-};
+}
 
 /**
  * @unrestricted
  */
-Animation.AnimationModel.KeyframeStyle = class {
+export class KeyframeStyle {
   /**
    * @param {!Protocol.Animation.KeyframeStyle} payload
    */
@@ -545,12 +556,12 @@ Animation.AnimationModel.KeyframeStyle = class {
   easing() {
     return this._payload.easing;
   }
-};
+}
 
 /**
  * @unrestricted
  */
-Animation.AnimationModel.AnimationGroup = class {
+export class AnimationGroup {
   /**
    * @param {!Animation.AnimationModel} animationModel
    * @param {string} id
@@ -611,8 +622,9 @@ Animation.AnimationModel.AnimationGroup = class {
    */
   finiteDuration() {
     let maxDuration = 0;
-    for (let i = 0; i < this._animations.length; ++i)
+    for (let i = 0; i < this._animations.length; ++i) {
       maxDuration = Math.max(maxDuration, this._animations[i]._finiteDuration());
+    }
     return maxDuration;
   }
 
@@ -634,8 +646,9 @@ Animation.AnimationModel.AnimationGroup = class {
    * @param {boolean} paused
    */
   togglePause(paused) {
-    if (paused === this._paused)
+    if (paused === this._paused) {
       return;
+    }
     this._paused = paused;
     this._animationModel._agent.setPaused(this._animationIds(), paused);
   }
@@ -646,8 +659,9 @@ Animation.AnimationModel.AnimationGroup = class {
   currentTimePromise() {
     let longestAnim = null;
     for (const anim of this._animations) {
-      if (!longestAnim || anim.endTime() > longestAnim.endTime())
+      if (!longestAnim || anim.endTime() > longestAnim.endTime()) {
         longestAnim = anim;
+      }
     }
     return this._animationModel._agent.getCurrentTime(longestAnim.id()).then(currentTime => currentTime || 0);
   }
@@ -662,19 +676,22 @@ Animation.AnimationModel.AnimationGroup = class {
      * @return {string}
      */
     function extractId(anim) {
-      if (anim.type() === Animation.AnimationModel.Animation.Type.WebAnimation)
+      if (anim.type() === Type.WebAnimation) {
         return anim.type() + anim.id();
-      else
+      } else {
         return anim._cssId();
+      }
     }
 
-    if (this._animations.length !== group._animations.length)
+    if (this._animations.length !== group._animations.length) {
       return false;
+    }
     const left = this._animations.map(extractId).sort();
     const right = group._animations.map(extractId).sort();
     for (let i = 0; i < left.length; i++) {
-      if (left[i] !== right[i])
+      if (left[i] !== right[i]) {
         return false;
+      }
     }
     return true;
   }
@@ -699,13 +716,13 @@ Animation.AnimationModel.AnimationGroup = class {
     this._screenshots = [];
     return this._screenshotImages;
   }
-};
+}
 
 /**
  * @implements {Protocol.AnimationDispatcher}
  * @unrestricted
  */
-Animation.AnimationDispatcher = class {
+export class AnimationDispatcher {
   constructor(animationModel) {
     this._animationModel = animationModel;
   }
@@ -733,12 +750,12 @@ Animation.AnimationDispatcher = class {
   animationStarted(payload) {
     this._animationModel.animationStarted(payload);
   }
-};
+}
 
 /**
  * @unrestricted
  */
-Animation.AnimationModel.ScreenshotCapture = class {
+export class ScreenshotCapture {
   /**
    * @param {!Animation.AnimationModel} animationModel
    * @param {!SDK.ScreenCaptureModel} screenCaptureModel
@@ -748,7 +765,7 @@ Animation.AnimationModel.ScreenshotCapture = class {
     this._requests = [];
     this._screenCaptureModel = screenCaptureModel;
     this._animationModel = animationModel;
-    this._animationModel.addEventListener(Animation.AnimationModel.Events.ModelReset, this._stopScreencast, this);
+    this._animationModel.addEventListener(Events.ModelReset, this._stopScreencast, this);
   }
 
   /**
@@ -766,8 +783,9 @@ Animation.AnimationModel.ScreenshotCapture = class {
       this._endTime = endTime;
     }
 
-    if (this._capturing)
+    if (this._capturing) {
       return;
+    }
     this._capturing = true;
     this._screenCaptureModel.startScreencast(
         'jpeg', 80, undefined, 300, 2, this._screencastFrame.bind(this), visible => {});
@@ -786,18 +804,21 @@ Animation.AnimationModel.ScreenshotCapture = class {
       return request.endTime >= now;
     }
 
-    if (!this._capturing)
+    if (!this._capturing) {
       return;
+    }
 
     const now = window.performance.now();
     this._requests = this._requests.filter(isAnimating);
-    for (const request of this._requests)
+    for (const request of this._requests) {
       request.screenshots.push(base64Data);
+    }
   }
 
   _stopScreencast() {
-    if (!this._capturing)
+    if (!this._capturing) {
       return;
+    }
 
     delete this._stopTimer;
     delete this._endTime;
@@ -805,7 +826,61 @@ Animation.AnimationModel.ScreenshotCapture = class {
     this._capturing = false;
     this._screenCaptureModel.stopScreencast();
   }
-};
+}
+
+SDK.SDKModel.register(AnimationModel, SDK.Target.Capability.DOM, false);
+
+/* Legacy exported object */
+self.Animation = self.Animation || {};
+
+/* Legacy exported object */
+Animation = Animation || {};
+
+/**
+ * @constructor
+ */
+Animation.AnimationModel = AnimationModel;
+
+/** @enum {symbol} */
+Animation.AnimationModel.Events = Events;
+
+/**
+ * @constructor
+ */
+Animation.AnimationModel.Animation = AnimationImpl;
+
+/** @enum {string} */
+Animation.AnimationModel.Animation.Type = Type;
+
+/**
+ * @constructor
+ */
+Animation.AnimationModel.AnimationEffect = AnimationEffect;
+
+/**
+ * @constructor
+ */
+Animation.AnimationModel.KeyframesRule = KeyframesRule;
+
+/**
+ * @constructor
+ */
+Animation.AnimationModel.KeyframeStyle = KeyframeStyle;
+
+/**
+ * @constructor
+ */
+Animation.AnimationModel.AnimationGroup = AnimationGroup;
+
+/**
+ * @constructor
+ */
+Animation.AnimationModel.ScreenshotCapture = ScreenshotCapture;
 
 /** @typedef {{ endTime: number, screenshots: !Array.<string>}} */
 Animation.AnimationModel.ScreenshotCapture.Request;
+
+/**
+ * @constructor
+ */
+Animation.AnimationDispatcher = AnimationDispatcher;

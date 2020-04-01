@@ -2,13 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-Persistence.PersistenceActions = {};
-
 /**
  * @implements {UI.ContextMenu.Provider}
  * @unrestricted
  */
-Persistence.PersistenceActions.ContextMenuProvider = class {
+export class ContextMenuProvider {
   /**
    * @override
    * @param {!Event} event
@@ -18,16 +16,21 @@ Persistence.PersistenceActions.ContextMenuProvider = class {
   appendApplicableItems(event, contextMenu, target) {
     const contentProvider = /** @type {!Common.ContentProvider} */ (target);
     async function saveAs() {
-      if (contentProvider instanceof Workspace.UISourceCode)
+      if (contentProvider instanceof Workspace.UISourceCode) {
         /** @type {!Workspace.UISourceCode} */ (contentProvider).commitWorkingCopy();
-      const content = await contentProvider.requestContent();
+      }
+      let content = (await contentProvider.requestContent()).content || '';
+      if (await contentProvider.contentEncoded()) {
+        content = window.atob(content);
+      }
       const url = contentProvider.contentURL();
       Workspace.fileManager.save(url, /** @type {string} */ (content), true);
       Workspace.fileManager.close(url);
     }
 
-    if (contentProvider.contentType().isDocumentOrScriptOrStyleSheet())
+    if (contentProvider.contentType().isDocumentOrScriptOrStyleSheet()) {
       contextMenu.saveSection().appendItem(Common.UIString('Save as...'), saveAs);
+    }
 
     // Retrieve uiSourceCode by URL to pick network resources everywhere.
     const uiSourceCode = Workspace.workspace.uiSourceCodeForURL(contentProvider.contentURL());
@@ -45,7 +48,18 @@ Persistence.PersistenceActions.ContextMenuProvider = class {
     if (fileURL.startsWith('file://')) {
       const path = Common.ParsedURL.urlToPlatformPath(fileURL, Host.isWin());
       contextMenu.revealSection().appendItem(
-          Common.UIString('Open in containing folder'), () => InspectorFrontendHost.showItemInFolder(path));
+          Common.UIString('Open in containing folder'), () => Host.InspectorFrontendHost.showItemInFolder(path));
     }
   }
-};
+}
+
+/* Legacy exported object */
+self.Persistence = self.Persistence || {};
+
+/* Legacy exported object */
+Persistence = Persistence || {};
+
+Persistence.PersistenceActions = {};
+
+/** @constructor */
+Persistence.PersistenceActions.ContextMenuProvider = ContextMenuProvider;

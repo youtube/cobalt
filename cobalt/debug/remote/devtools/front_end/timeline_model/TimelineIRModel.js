@@ -1,20 +1,21 @@
 // Copyright 2016 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
 /**
  * @unrestricted
  */
-TimelineModel.TimelineIRModel = class {
+export class TimelineIRModel {
   constructor() {
     this.reset();
   }
 
   /**
    * @param {!SDK.TracingModel.Event} event
-   * @return {!TimelineModel.TimelineIRModel.Phases}
+   * @return {!Phases}
    */
   static phaseForEvent(event) {
-    return event[TimelineModel.TimelineIRModel._eventIRPhase];
+    return event[TimelineIRModel._eventIRPhase];
   }
 
   /**
@@ -23,11 +24,13 @@ TimelineModel.TimelineIRModel = class {
    */
   populate(inputLatencies, animations) {
     this.reset();
-    if (!inputLatencies)
+    if (!inputLatencies) {
       return;
+    }
     this._processInputLatencies(inputLatencies);
-    if (animations)
+    if (animations) {
       this._processAnimations(animations);
+    }
     const range = new Common.SegmentedRange();
     range.appendRange(this._drags);  // Drags take lower precedence than animation, as we can't detect them reliably.
     range.appendRange(this._cssAnimations);
@@ -40,9 +43,9 @@ TimelineModel.TimelineIRModel = class {
    * @param {!Array<!SDK.TracingModel.AsyncEvent>} events
    */
   _processInputLatencies(events) {
-    const eventTypes = TimelineModel.TimelineIRModel.InputEvents;
-    const phases = TimelineModel.TimelineIRModel.Phases;
-    const thresholdsMs = TimelineModel.TimelineIRModel._mergeThresholdsMs;
+    const eventTypes = InputEvents;
+    const phases = Phases;
+    const thresholdsMs = TimelineIRModel._mergeThresholdsMs;
 
     let scrollStart;
     let flingStart;
@@ -54,8 +57,9 @@ TimelineModel.TimelineIRModel = class {
 
     for (let i = 0; i < events.length; ++i) {
       const event = events[i];
-      if (i > 0 && events[i].startTime < events[i - 1].startTime)
+      if (i > 0 && events[i].startTime < events[i - 1].startTime) {
         console.assert(false, 'Unordered input events');
+      }
       const type = this._inputEventType(event.name);
       switch (type) {
         case eventTypes.ScrollBegin:
@@ -64,10 +68,11 @@ TimelineModel.TimelineIRModel = class {
           break;
 
         case eventTypes.ScrollEnd:
-          if (scrollStart)
+          if (scrollStart) {
             this._scrolls.append(this._segmentForEventRange(scrollStart, event, phases.Scroll));
-          else
+          } else {
             this._scrolls.append(this._segmentForEvent(event, phases.Scroll));
+          }
           scrollStart = null;
           break;
 
@@ -87,8 +92,9 @@ TimelineModel.TimelineIRModel = class {
 
         case eventTypes.FlingCancel:
           // FIXME: also process renderer fling events.
-          if (!flingStart)
+          if (!flingStart) {
             break;
+          }
           this._scrolls.append(this._segmentForEventRange(flingStart, event, phases.Fling));
           flingStart = null;
           break;
@@ -117,7 +123,7 @@ TimelineModel.TimelineIRModel = class {
             break;
           }
           touchStart = event;
-          event.steps[0][TimelineModel.TimelineIRModel._eventIRPhase] = phases.Response;
+          event.steps[0][TimelineIRModel._eventIRPhase] = phases.Response;
           firstTouchMove = null;
           break;
 
@@ -160,10 +166,11 @@ TimelineModel.TimelineIRModel = class {
 
         case eventTypes.MouseWheel:
           // Do not consider first MouseWheel as trace viewer's implementation does -- in case of MouseWheel it's not really special.
-          if (mouseWheel && canMerge(thresholdsMs.mouse, mouseWheel, event))
+          if (mouseWheel && canMerge(thresholdsMs.mouse, mouseWheel, event)) {
             this._scrolls.append(this._segmentForEventRange(mouseWheel, event, phases.Scroll));
-          else
+          } else {
             this._scrolls.append(this._segmentForEvent(event, phases.Scroll));
+          }
           mouseWheel = event;
           break;
       }
@@ -184,13 +191,14 @@ TimelineModel.TimelineIRModel = class {
    * @param {!Array<!SDK.TracingModel.AsyncEvent>} events
    */
   _processAnimations(events) {
-    for (let i = 0; i < events.length; ++i)
-      this._cssAnimations.append(this._segmentForEvent(events[i], TimelineModel.TimelineIRModel.Phases.Animation));
+    for (let i = 0; i < events.length; ++i) {
+      this._cssAnimations.append(this._segmentForEvent(events[i], Phases.Animation));
+    }
   }
 
   /**
    * @param {!SDK.TracingModel.AsyncEvent} event
-   * @param {!TimelineModel.TimelineIRModel.Phases} phase
+   * @param {!Phases} phase
    * @return {!Common.Segment}
    */
   _segmentForEvent(event, phase) {
@@ -201,7 +209,7 @@ TimelineModel.TimelineIRModel = class {
   /**
    * @param {!SDK.TracingModel.AsyncEvent} startEvent
    * @param {!SDK.TracingModel.AsyncEvent} endEvent
-   * @param {!TimelineModel.TimelineIRModel.Phases} phase
+   * @param {!Phases} phase
    * @return {!Common.Segment}
    */
   _segmentForEventRange(startEvent, endEvent, phase) {
@@ -212,10 +220,10 @@ TimelineModel.TimelineIRModel = class {
 
   /**
    * @param {!SDK.TracingModel.AsyncEvent} asyncEvent
-   * @param {!TimelineModel.TimelineIRModel.Phases} phase
+   * @param {!Phases} phase
    */
   _setPhaseForEvent(asyncEvent, phase) {
-    asyncEvent.steps[0][TimelineModel.TimelineIRModel._eventIRPhase] = phase;
+    asyncEvent.steps[0][TimelineIRModel._eventIRPhase] = phase;
   }
 
   /**
@@ -226,7 +234,7 @@ TimelineModel.TimelineIRModel = class {
   }
 
   reset() {
-    const thresholdsMs = TimelineModel.TimelineIRModel._mergeThresholdsMs;
+    const thresholdsMs = TimelineIRModel._mergeThresholdsMs;
 
     this._segments = [];
     this._drags = new Common.SegmentedRange(merge.bind(null, thresholdsMs.mouse));
@@ -246,24 +254,25 @@ TimelineModel.TimelineIRModel = class {
 
   /**
    * @param {string} eventName
-   * @return {?TimelineModel.TimelineIRModel.InputEvents}
+   * @return {?InputEvents}
    */
   _inputEventType(eventName) {
     const prefix = 'InputLatency::';
     if (!eventName.startsWith(prefix)) {
-      if (eventName === TimelineModel.TimelineIRModel.InputEvents.ImplSideFling)
-        return /** @type {!TimelineModel.TimelineIRModel.InputEvents} */ (eventName);
+      if (eventName === InputEvents.ImplSideFling) {
+        return /** @type {!InputEvents} */ (eventName);
+      }
       console.error('Unrecognized input latency event: ' + eventName);
       return null;
     }
-    return /** @type {!TimelineModel.TimelineIRModel.InputEvents} */ (eventName.substr(prefix.length));
+    return /** @type {!InputEvents} */ (eventName.substr(prefix.length));
   }
-};
+}
 
 /**
  * @enum {string}
  */
-TimelineModel.TimelineIRModel.Phases = {
+export const Phases = {
   Idle: 'Idle',
   Response: 'Response',
   Scroll: 'Scroll',
@@ -276,7 +285,7 @@ TimelineModel.TimelineIRModel.Phases = {
 /**
  * @enum {string}
  */
-TimelineModel.TimelineIRModel.InputEvents = {
+export const InputEvents = {
   Char: 'Char',
   Click: 'GestureClick',
   ContextMenu: 'ContextMenu',
@@ -308,9 +317,24 @@ TimelineModel.TimelineIRModel.InputEvents = {
   TouchStart: 'TouchStart'
 };
 
-TimelineModel.TimelineIRModel._mergeThresholdsMs = {
+TimelineIRModel._mergeThresholdsMs = {
   animation: 1,
   mouse: 40,
 };
 
-TimelineModel.TimelineIRModel._eventIRPhase = Symbol('eventIRPhase');
+TimelineIRModel._eventIRPhase = Symbol('eventIRPhase');
+
+/* Legacy exported object */
+self.TimelineModel = self.TimelineModel || {};
+
+/* Legacy exported object */
+TimelineModel = TimelineModel || {};
+
+/** @constructor */
+TimelineModel.TimelineIRModel = TimelineIRModel;
+
+/** @enum {string} */
+TimelineModel.TimelineIRModel.Phases = Phases;
+
+/** @enum {string} */
+TimelineModel.TimelineIRModel.InputEvents = InputEvents;

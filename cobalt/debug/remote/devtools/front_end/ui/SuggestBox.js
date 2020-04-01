@@ -30,27 +30,27 @@
 /**
  * @interface
  */
-UI.SuggestBoxDelegate = function() {};
-
-UI.SuggestBoxDelegate.prototype = {
+export class SuggestBoxDelegate {
   /**
-   * @param {string} suggestion
+   * @param {?UI.SuggestBox.Suggestion} suggestion
    * @param {boolean=} isIntermediateSuggestion
    */
-  applySuggestion(suggestion, isIntermediateSuggestion) {},
+  applySuggestion(suggestion, isIntermediateSuggestion) {
+  }
 
   /**
    * acceptSuggestion will be always called after call to applySuggestion with isIntermediateSuggestion being equal to false.
    */
-  acceptSuggestion() {},
-};
+  acceptSuggestion() {
+  }
+}
 
 /**
  * @implements {UI.ListDelegate}
  */
-UI.SuggestBox = class {
+export default class SuggestBox {
   /**
-   * @param {!UI.SuggestBoxDelegate} suggestBoxDelegate
+   * @param {!SuggestBoxDelegate} suggestBoxDelegate
    * @param {number=} maxItemsHeight
    */
   constructor(suggestBoxDelegate, maxItemsHeight) {
@@ -60,7 +60,7 @@ UI.SuggestBox = class {
     this._userEnteredText = '';
     this._defaultSelectionIsDimmed = false;
 
-    /** @type {?string} */
+    /** @type {?UI.SuggestBox.Suggestion} */
     this._onlyCompletion = null;
 
     /** @type {!UI.ListModel<!UI.SuggestBox.Suggestion>} */
@@ -116,8 +116,9 @@ UI.SuggestBox = class {
    */
   _maxWidth(items) {
     const kMaxWidth = 300;
-    if (!items.length)
+    if (!items.length) {
       return kMaxWidth;
+    }
     let maxItem;
     let maxLength = -Infinity;
     for (let i = 0; i < items.length; i++) {
@@ -137,8 +138,9 @@ UI.SuggestBox = class {
    * @suppressGlobalPropertiesCheck
    */
   _show() {
-    if (this.visible())
+    if (this.visible()) {
       return;
+    }
     // TODO(dgozman): take document as a parameter.
     this._glassPane.show(document);
     this._rowHeight =
@@ -146,8 +148,9 @@ UI.SuggestBox = class {
   }
 
   hide() {
-    if (!this.visible())
+    if (!this.visible()) {
       return;
+    }
     this._glassPane.hide();
   }
 
@@ -157,13 +160,14 @@ UI.SuggestBox = class {
    */
   _applySuggestion(isIntermediateSuggestion) {
     if (this._onlyCompletion) {
-      UI.ARIAUtils.alert(ls`${this._onlyCompletion}, suggestion`, this._element);
+      UI.ARIAUtils.alert(ls`${this._onlyCompletion.text}, suggestion`, this._element);
       this._suggestBoxDelegate.applySuggestion(this._onlyCompletion, isIntermediateSuggestion);
       return true;
     }
-    const suggestion = this._list.selectedItem() ? this._list.selectedItem().text : '';
-    if (suggestion)
-      UI.ARIAUtils.alert(ls`${suggestion}, suggestion`, this._element);
+    const suggestion = this._list.selectedItem();
+    if (suggestion && suggestion.text) {
+      UI.ARIAUtils.alert(ls`${suggestion.title || suggestion.text}, suggestion`, this._element);
+    }
     this._suggestBoxDelegate.applySuggestion(suggestion, isIntermediateSuggestion);
 
     return this.visible() && !!suggestion;
@@ -175,8 +179,9 @@ UI.SuggestBox = class {
   acceptSuggestion() {
     const result = this._applySuggestion();
     this.hide();
-    if (!result)
+    if (!result) {
       return false;
+    }
 
     this._suggestBoxDelegate.acceptSuggestion();
 
@@ -195,18 +200,21 @@ UI.SuggestBox = class {
       const icon = UI.Icon.create(item.iconType, 'suggestion-icon');
       element.appendChild(icon);
     }
-    if (item.isSecondary)
+    if (item.isSecondary) {
       element.classList.add('secondary');
+    }
     element.tabIndex = -1;
     const maxTextLength = 50 + query.length;
-    const displayText = (item.title || item.text).trim().trimEnd(maxTextLength).replace(/\n/g, '\u21B5');
+    const displayText = (item.title || item.text).trim().trimEndWithMaxLength(maxTextLength).replace(/\n/g, '\u21B5');
 
     const titleElement = element.createChild('span', 'suggestion-title');
     const index = displayText.toLowerCase().indexOf(query.toLowerCase());
-    if (index > 0)
+    if (index > 0) {
       titleElement.createChild('span').textContent = displayText.substring(0, index);
-    if (index > -1)
+    }
+    if (index > -1) {
       titleElement.createChild('span', 'query').textContent = displayText.substring(index, index + query.length);
+    }
     titleElement.createChild('span').textContent = displayText.substring(index > -1 ? index + query.length : 0);
     titleElement.createChild('span', 'spacer');
     if (item.subtitleRenderer) {
@@ -215,7 +223,7 @@ UI.SuggestBox = class {
       element.appendChild(subtitleElement);
     } else if (item.subtitle) {
       const subtitleElement = element.createChild('span', 'suggestion-subtitle');
-      subtitleElement.textContent = item.subtitle.trimEnd(maxTextLength - displayText.length);
+      subtitleElement.textContent = item.subtitle.trimEndWithMaxLength(maxTextLength - displayText.length);
     }
     return element;
   }
@@ -246,8 +254,9 @@ UI.SuggestBox = class {
    * @param {?Element} toElement
    */
   selectedItemChanged(from, to, fromElement, toElement) {
-    if (fromElement)
+    if (fromElement) {
       fromElement.classList.remove('selected', 'force-white-icons');
+    }
     if (toElement) {
       toElement.classList.add('selected');
       toElement.classList.add('force-white-icons');
@@ -256,12 +265,23 @@ UI.SuggestBox = class {
   }
 
   /**
+   * @override
+   * @param {?Element} fromElement
+   * @param {?Element} toElement
+   * @return {boolean}
+   */
+  updateSelectedItemARIA(fromElement, toElement) {
+    return false;
+  }
+
+  /**
    * @param {!Event} event
    */
   _onClick(event) {
     const item = this._list.itemForNode(/** @type {?Node} */ (event.target));
-    if (!item)
+    if (!item) {
       return;
+    }
 
     this._list.selectItem(item);
     this.acceptSuggestion();
@@ -276,15 +296,18 @@ UI.SuggestBox = class {
    * @return {boolean}
    */
   _canShowBox(completions, highestPriorityItem, canShowForSingleItem, userEnteredText) {
-    if (!completions || !completions.length)
+    if (!completions || !completions.length) {
       return false;
+    }
 
-    if (completions.length > 1)
+    if (completions.length > 1) {
       return true;
+    }
 
     if (!highestPriorityItem || highestPriorityItem.isSecondary ||
-        !highestPriorityItem.text.startsWith(userEnteredText))
+        !highestPriorityItem.text.startsWith(userEnteredText)) {
       return true;
+    }
 
     // Do not show a single suggestion if it is the same as user-entered query, even if allowed to show single-item suggest boxes.
     return canShowForSingleItem && highestPriorityItem.text !== userEnteredText;
@@ -310,13 +333,14 @@ UI.SuggestBox = class {
       this._list.invalidateItemHeight();
       this._items.replaceAll(completions);
 
-      if (highestPriorityItem && !highestPriorityItem.isSecondary)
+      if (highestPriorityItem && !highestPriorityItem.isSecondary) {
         this._list.selectItem(highestPriorityItem, true);
-      else
+      } else {
         this._list.selectItem(null);
+      }
     } else {
       if (completions.length === 1) {
-        this._onlyCompletion = completions[0].text;
+        this._onlyCompletion = completions[0];
         this._applySuggestion(true);
       }
       this.hide();
@@ -354,22 +378,36 @@ UI.SuggestBox = class {
     // to commit the input or handle it otherwise.
     return hasSelectedItem;
   }
-};
+}
+
+/* Legacy exported object*/
+self.UI = self.UI || {};
+
+/* Legacy exported object*/
+UI = UI || {};
+
+/** @constructor */
+UI.SuggestBox = SuggestBox;
+
+/** @interface */
+UI.SuggestBoxDelegate = SuggestBoxDelegate;
 
 /**
  * @typedef {{
- *      text: string,
- *      title: (string|undefined),
- *      subtitle: (string|undefined),
- *      iconType: (string|undefined),
- *      priority: (number|undefined),
- *      isSecondary: (boolean|undefined),
- *      subtitleRenderer: (function():!Element|undefined)
- * }}
- */
+  *      text: string,
+  *      title: (string|undefined),
+  *      subtitle: (string|undefined),
+  *      iconType: (string|undefined),
+  *      priority: (number|undefined),
+  *      isSecondary: (boolean|undefined),
+  *      subtitleRenderer: (function():!Element|undefined),
+  *      selectionRange: ({startColumn: number, endColumn: number}|undefined),
+  *      hideGhostText: (boolean|undefined)
+  * }}
+  */
 UI.SuggestBox.Suggestion;
 
 /**
- * @typedef {!Array<!UI.SuggestBox.Suggestion>}
- */
+  * @typedef {!Array<!UI.SuggestBox.Suggestion>}
+  */
 UI.SuggestBox.Suggestions;

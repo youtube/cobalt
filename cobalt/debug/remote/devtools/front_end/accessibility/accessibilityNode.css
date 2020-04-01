@@ -4,82 +4,77 @@
  * found in the LICENSE file.
  */
 
-.sidebar-pane.accessibility-computed {
-    background-color: rgba(0, 0, 0, 0.03);
-}
-
 .widget.ax-subpane {
-    overflow-x: hidden;
-    -webkit-user-select: text;
-}
-
-div.ax-text-alternatives {
-    margin-bottom: 3px;
-    border-bottom: 1px solid #BFBFBF;
+  overflow-x: hidden;
+  user-select: text;
 }
 
 .ax-ignored-info {
-    padding: 6px;
+  padding: 6px;
 }
 
 .ax-ignored-node-pane {
-    flex: none;
+  flex: none;
 }
 
 .invalid {
-    text-decoration: line-through;
+  text-decoration: line-through;
 }
 
 span.ax-value-undefined {
-    font-style: italic;
+  font-style: italic;
 }
 
 .ax-value-source-unused {
-    opacity: 0.7;
+  opacity: 0.7;
 }
 
 .ax-value-source-superseded,
 .ax-value-source-invalid {
-    text-decoration: line-through;
-}
-
-.sidebar-pane-stack .sidebar-pane {
-    padding-left: 4px;
+  text-decoration: line-through;
 }
 
 .tree-outline span[is=dt-icon-label] {
+<<<<<<< HEAD
     position: relative;
     left: -11px;
+=======
+  position: relative;
+  left: -11px;
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
 }
 
 .tree-outline li {
-    display: block;
-    overflow-x: hidden;
-    padding-left: 1px;
-    align-items: baseline;
+  display: block;
+  overflow-x: hidden;
+  align-items: baseline;
 }
 
 .tree-outline li::before {
-    content: "";
-    width: 14px;
-    display: inline-block;
+  content: "";
+  width: 14px;
+  display: inline-block;
 }
 
 .tree-outline li.property {
-    color: rgb(33, 33, 33);
+  color: rgb(33, 33, 33);
 }
 
 .tree-outline li.invalid {
-    position: relative;
-    left: -2px;
+  position: relative;
+  left: -2px;
 }
 
 .tree-outline span[is=dt-icon-label] + .ax-name {
+<<<<<<< HEAD
     margin-left: -11px;
+=======
+  margin-left: -11px;
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
 }
 
 .tree-outline li span {
-    flex-shrink: 0;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  flex-shrink: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

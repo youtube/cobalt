@@ -32,17 +32,17 @@
 /**
  * @unrestricted
  */
-SDK.DOMNode = class {
+export class DOMNode {
   /**
-   * @param {!SDK.DOMModel} domModel
+   * @param {!DOMModel} domModel
    */
   constructor(domModel) {
     this._domModel = domModel;
   }
 
   /**
-   * @param {!SDK.DOMModel} domModel
-   * @param {?SDK.DOMDocument} doc
+   * @param {!DOMModel} domModel
+   * @param {?DOMDocument} doc
    * @param {boolean} isInShadowTree
    * @param {!Protocol.DOM.Node} payload
    * @return {!SDK.DOMNode}
@@ -54,7 +54,7 @@ SDK.DOMNode = class {
   }
 
   /**
-   * @param {?SDK.DOMDocument} doc
+   * @param {?DOMDocument} doc
    * @param {boolean} isInShadowTree
    * @param {!Protocol.DOM.Node} payload
    */
@@ -75,13 +75,15 @@ SDK.DOMNode = class {
     this._frameOwnerFrameId = payload.frameId || null;
     this._xmlVersion = payload.xmlVersion;
     this._isSVGNode = !!payload.isSVG;
+    this._creationStackTrace = null;
 
     this._shadowRoots = [];
 
     this._attributes = [];
     this._attributesMap = {};
-    if (payload.attributes)
+    if (payload.attributes) {
       this._setAttributesPayload(payload.attributes);
+    }
 
     /** @type {!Map<string, ?>} */
     this._markers = new Map();
@@ -112,14 +114,15 @@ SDK.DOMNode = class {
     }
 
     if (payload.contentDocument) {
-      this._contentDocument = new SDK.DOMDocument(this._domModel, payload.contentDocument);
+      this._contentDocument = new DOMDocument(this._domModel, payload.contentDocument);
       this._contentDocument.parentNode = this;
       this._children = [];
-    } else if (payload.nodeName === 'IFRAME' && payload.frameId && Runtime.experiments.isEnabled('oopifInlineDOM')) {
+    } else if ((payload.nodeName === 'IFRAME' || payload.nodeName === 'PORTAL') && payload.frameId) {
       const childTarget = SDK.targetManager.targetById(payload.frameId);
-      const childModel = childTarget ? childTarget.model(SDK.DOMModel) : null;
-      if (childModel)
+      const childModel = childTarget ? childTarget.model(DOMModel) : null;
+      if (childModel) {
         this._childDocumentPromiseForTesting = childModel.requestDocument();
+      }
       this._children = [];
     }
 
@@ -129,20 +132,24 @@ SDK.DOMNode = class {
       this._children = [];
     }
 
-    if (payload.distributedNodes)
+    if (payload.distributedNodes) {
       this._setDistributedNodePayloads(payload.distributedNodes);
+    }
 
-    if (payload.children)
+    if (payload.children) {
       this._setChildrenPayload(payload.children);
+    }
 
     this._setPseudoElements(payload.pseudoElements);
 
     if (this._nodeType === Node.ELEMENT_NODE) {
       // HTML and BODY from internal iframes should not overwrite top-level ones.
-      if (this.ownerDocument && !this.ownerDocument.documentElement && this._nodeName === 'HTML')
+      if (this.ownerDocument && !this.ownerDocument.documentElement && this._nodeName === 'HTML') {
         this.ownerDocument.documentElement = this;
-      if (this.ownerDocument && !this.ownerDocument.body && this._nodeName === 'BODY')
+      }
+      if (this.ownerDocument && !this.ownerDocument.body && this._nodeName === 'BODY') {
         this.ownerDocument.body = this;
+      }
     } else if (this._nodeType === Node.DOCUMENT_TYPE_NODE) {
       this.publicId = payload.publicId;
       this.systemId = payload.systemId;
@@ -161,7 +168,20 @@ SDK.DOMNode = class {
   }
 
   /**
-   * @return {!SDK.DOMModel}
+   * @return {!Promise<?Protocol.Runtime.StackTrace>}
+   */
+  creationStackTrace() {
+    if (this._creationStackTrace) {
+      return this._creationStackTrace;
+    }
+
+    const stackTracesPromise = this._agent.invoke_getNodeStackTraces({nodeId: this.id});
+    this._creationStackTrace = stackTracesPromise.then(res => res.creation);
+    return this._creationStackTrace;
+  }
+
+  /**
+   * @return {!DOMModel}
    */
   domModel() {
     return this._domModel;
@@ -231,6 +251,13 @@ SDK.DOMNode = class {
   }
 
   /**
+   * @return {boolean}
+   */
+  isPortal() {
+    return this._nodeName === 'PORTAL';
+  }
+
+  /**
    * @return {?SDK.DOMNode}
    */
   importedDocument() {
@@ -276,8 +303,9 @@ SDK.DOMNode = class {
    * @return {?SDK.DOMNode}
    */
   beforePseudoElement() {
-    if (!this._pseudoElements)
+    if (!this._pseudoElements) {
       return null;
+    }
     return this._pseudoElements.get(SDK.DOMNode.PseudoElementNames.Before);
   }
 
@@ -285,9 +313,20 @@ SDK.DOMNode = class {
    * @return {?SDK.DOMNode}
    */
   afterPseudoElement() {
-    if (!this._pseudoElements)
+    if (!this._pseudoElements) {
       return null;
+    }
     return this._pseudoElements.get(SDK.DOMNode.PseudoElementNames.After);
+  }
+
+  /**
+   * @return {?SDK.DOMNode}
+   */
+  markerPseudoElement() {
+    if (!this._pseudoElements) {
+      return null;
+    }
+    return this._pseudoElements.get(SDK.DOMNode.PseudoElementNames.Marker);
   }
 
   /**
@@ -299,7 +338,7 @@ SDK.DOMNode = class {
   }
 
   /**
-   * @return {!Array.<!SDK.DOMNodeShortcut>}
+   * @return {!Array.<!DOMNodeShortcut>}
    */
   distributedNodes() {
     return this._distributedNodes || [];
@@ -324,12 +363,14 @@ SDK.DOMNode = class {
    * @return {?SDK.DOMNode}
    */
   ancestorShadowRoot() {
-    if (!this._isInShadowTree)
+    if (!this._isInShadowTree) {
       return null;
+    }
 
     let current = this;
-    while (current && !current.isShadowRoot())
+    while (current && !current.isShadowRoot()) {
       current = current.parentNode;
+    }
     return current;
   }
 
@@ -338,8 +379,9 @@ SDK.DOMNode = class {
    */
   ancestorUserAgentShadowRoot() {
     const ancestorShadowRoot = this.ancestorShadowRoot();
-    if (!ancestorShadowRoot)
+    if (!ancestorShadowRoot) {
       return null;
+    }
     return ancestorShadowRoot.shadowRootType() === SDK.DOMNode.ShadowRootTypes.UserAgent ? ancestorShadowRoot : null;
   }
 
@@ -362,16 +404,19 @@ SDK.DOMNode = class {
    */
   nodeNameInCorrectCase() {
     const shadowRootType = this.shadowRootType();
-    if (shadowRootType)
+    if (shadowRootType) {
       return '#shadow-root (' + shadowRootType + ')';
+    }
 
     // If there is no local name, it's case sensitive
-    if (!this.localName())
+    if (!this.localName()) {
       return this.nodeName();
+    }
 
     // If the names are different lengths, there is a prefix and it's case sensitive
-    if (this.localName().length !== this.nodeName().length)
+    if (this.localName().length !== this.nodeName().length) {
       return this.nodeName();
+    }
 
     // Return the localname, which will be case insensitive if its an html node
     return this.localName();
@@ -383,10 +428,12 @@ SDK.DOMNode = class {
    */
   setNodeName(name, callback) {
     this._agent.invoke_setNodeName({nodeId: this.id, name}).then(response => {
-      if (!response[Protocol.Error])
+      if (!response[Protocol.Error]) {
         this._domModel.markUndoableState();
-      if (callback)
+      }
+      if (callback) {
         callback(response[Protocol.Error] || null, this._domModel.nodeForId(response.nodeId));
+      }
     });
   }
 
@@ -410,10 +457,12 @@ SDK.DOMNode = class {
    */
   setNodeValue(value, callback) {
     this._agent.invoke_setNodeValue({nodeId: this.id, value}).then(response => {
-      if (!response[Protocol.Error])
+      if (!response[Protocol.Error]) {
         this._domModel.markUndoableState();
-      if (callback)
+      }
+      if (callback) {
         callback(response[Protocol.Error] || null);
+      }
     });
   }
 
@@ -433,10 +482,12 @@ SDK.DOMNode = class {
    */
   setAttribute(name, text, callback) {
     this._agent.invoke_setAttributesAsText({nodeId: this.id, text, name}).then(response => {
-      if (!response[Protocol.Error])
+      if (!response[Protocol.Error]) {
         this._domModel.markUndoableState();
-      if (callback)
+      }
+      if (callback) {
         callback(response[Protocol.Error] || null);
+      }
     });
   }
 
@@ -447,10 +498,12 @@ SDK.DOMNode = class {
    */
   setAttributeValue(name, value, callback) {
     this._agent.invoke_setAttributeValue({nodeId: this.id, name, value}).then(response => {
-      if (!response[Protocol.Error])
+      if (!response[Protocol.Error]) {
         this._domModel.markUndoableState();
-      if (callback)
+      }
+      if (callback) {
         callback(response[Protocol.Error] || null);
+      }
     });
   }
 
@@ -476,12 +529,14 @@ SDK.DOMNode = class {
    */
   async removeAttribute(name) {
     const response = await this._agent.invoke_removeAttribute({nodeId: this.id, name});
-    if (response[Protocol.Error])
+    if (response[Protocol.Error]) {
       return;
+    }
     delete this._attributesMap[name];
     const index = this._attributes.findIndex(attr => attr.name === name);
-    if (index !== -1)
+    if (index !== -1) {
       this._attributes.splice(index, 1);
+    }
     this._domModel.markUndoableState();
   }
 
@@ -521,10 +576,12 @@ SDK.DOMNode = class {
    */
   setOuterHTML(html, callback) {
     this._agent.invoke_setOuterHTML({nodeId: this.id, outerHTML: html}).then(response => {
-      if (!response[Protocol.Error])
+      if (!response[Protocol.Error]) {
         this._domModel.markUndoableState();
-      if (callback)
+      }
+      if (callback) {
         callback(response[Protocol.Error] || null);
+      }
     });
   }
 
@@ -533,10 +590,12 @@ SDK.DOMNode = class {
    */
   removeNode(callback) {
     this._agent.invoke_removeNode({nodeId: this.id}).then(response => {
-      if (!response[Protocol.Error])
+      if (!response[Protocol.Error]) {
         this._domModel.markUndoableState();
-      if (callback)
+      }
+      if (callback) {
         callback(response[Protocol.Error] || null);
+      }
     });
   }
 
@@ -545,8 +604,9 @@ SDK.DOMNode = class {
    */
   async copyNode() {
     const text = await this._agent.getOuterHTML(this.id);
-    if (text !== null)
-      InspectorFrontendHost.copyText(text);
+    if (text !== null) {
+      Host.InspectorFrontendHost.copyText(text);
+    }
     return text;
   }
 
@@ -579,13 +639,15 @@ SDK.DOMNode = class {
    * @return {boolean}
    */
   isAncestor(node) {
-    if (!node)
+    if (!node) {
       return false;
+    }
 
     let currentNode = node.parentNode;
     while (currentNode) {
-      if (this === currentNode)
+      if (this === currentNode) {
         return true;
+      }
       currentNode = currentNode.parentNode;
     }
     return false;
@@ -604,8 +666,9 @@ SDK.DOMNode = class {
    */
   frameId() {
     let node = this.parentNode || this;
-    while (!node._frameOwnerFrameId && node.parentNode)
+    while (!node._frameOwnerFrameId && node.parentNode) {
       node = node.parentNode;
+    }
     return node._frameOwnerFrameId;
   }
 
@@ -625,11 +688,13 @@ SDK.DOMNode = class {
       const value = attrs[i + 1];
       this._addAttribute(name, value);
 
-      if (attributesChanged)
+      if (attributesChanged) {
         continue;
+      }
 
-      if (!oldAttributesMap[name] || oldAttributesMap[name].value !== value)
+      if (!oldAttributesMap[name] || oldAttributesMap[name].value !== value) {
         attributesChanged = true;
+      }
     }
     return attributesChanged;
   }
@@ -663,8 +728,9 @@ SDK.DOMNode = class {
     }
     node.parentNode = null;
     this._subtreeMarkerCount -= node._subtreeMarkerCount;
-    if (node._subtreeMarkerCount)
-      this._domModel.dispatchEventToListeners(SDK.DOMModel.Events.MarkersChanged, this);
+    if (node._subtreeMarkerCount) {
+      this._domModel.dispatchEventToListeners(Events.MarkersChanged, this);
+    }
     this._renumber();
   }
 
@@ -686,8 +752,9 @@ SDK.DOMNode = class {
    */
   _setPseudoElements(payloads) {
     this._pseudoElements = new Map();
-    if (!payloads)
+    if (!payloads) {
       return;
+    }
 
     for (let i = 0; i < payloads.length; ++i) {
       const node = SDK.DOMNode.create(this._domModel, this.ownerDocument, this._isInShadowTree, payloads[i]);
@@ -703,7 +770,7 @@ SDK.DOMNode = class {
     this._distributedNodes = [];
     for (const payload of payloads) {
       this._distributedNodes.push(
-          new SDK.DOMNodeShortcut(this._domModel.target(), payload.backendNodeId, payload.nodeType, payload.nodeName));
+          new DOMNodeShortcut(this._domModel.target(), payload.backendNodeId, payload.nodeType, payload.nodeName));
     }
   }
 
@@ -741,10 +808,11 @@ SDK.DOMNode = class {
    */
   _setAttribute(name, value) {
     const attr = this._attributesMap[name];
-    if (attr)
+    if (attr) {
       attr.value = value;
-    else
+    } else {
       this._addAttribute(name, value);
+    }
   }
 
   /**
@@ -768,10 +836,12 @@ SDK.DOMNode = class {
         .invoke_copyTo(
             {nodeId: this.id, targetNodeId: targetNode.id, insertBeforeNodeId: anchorNode ? anchorNode.id : undefined})
         .then(response => {
-          if (!response[Protocol.Error])
+          if (!response[Protocol.Error]) {
             this._domModel.markUndoableState();
-          if (callback)
+          }
+          if (callback) {
             callback(response[Protocol.Error] || null, response.nodeId);
+          }
         });
   }
 
@@ -785,10 +855,12 @@ SDK.DOMNode = class {
         .invoke_moveTo(
             {nodeId: this.id, targetNodeId: targetNode.id, insertBeforeNodeId: anchorNode ? anchorNode.id : undefined})
         .then(response => {
-          if (!response[Protocol.Error])
+          if (!response[Protocol.Error]) {
             this._domModel.markUndoableState();
-          if (callback)
+          }
+          if (callback) {
             callback(response[Protocol.Error] || null, this._domModel.nodeForId(response.nodeId));
+          }
         });
   }
 
@@ -805,24 +877,29 @@ SDK.DOMNode = class {
    */
   setMarker(name, value) {
     if (value === null) {
-      if (!this._markers.has(name))
+      if (!this._markers.has(name)) {
         return;
+      }
 
       this._markers.delete(name);
-      for (let node = this; node; node = node.parentNode)
+      for (let node = this; node; node = node.parentNode) {
         --node._subtreeMarkerCount;
-      for (let node = this; node; node = node.parentNode)
-        this._domModel.dispatchEventToListeners(SDK.DOMModel.Events.MarkersChanged, node);
+      }
+      for (let node = this; node; node = node.parentNode) {
+        this._domModel.dispatchEventToListeners(Events.MarkersChanged, node);
+      }
       return;
     }
 
     if (this.parentNode && !this._markers.has(name)) {
-      for (let node = this; node; node = node.parentNode)
+      for (let node = this; node; node = node.parentNode) {
         ++node._subtreeMarkerCount;
+      }
     }
     this._markers.set(name, value);
-    for (let node = this; node; node = node.parentNode)
-      this._domModel.dispatchEventToListeners(SDK.DOMModel.Events.MarkersChanged, node);
+    for (let node = this; node; node = node.parentNode) {
+      this._domModel.dispatchEventToListeners(Events.MarkersChanged, node);
+    }
   }
 
   /**
@@ -842,14 +919,18 @@ SDK.DOMNode = class {
      * @param {!SDK.DOMNode} node
      */
     function traverse(node) {
-      if (!node._subtreeMarkerCount)
+      if (!node._subtreeMarkerCount) {
         return;
-      for (const marker of node._markers.keys())
+      }
+      for (const marker of node._markers.keys()) {
         visitor(node, marker);
-      if (!node._children)
+      }
+      if (!node._children) {
         return;
-      for (const child of node._children)
+      }
+      for (const child of node._children) {
         traverse(child);
+      }
     }
     traverse(this);
   }
@@ -859,25 +940,26 @@ SDK.DOMNode = class {
    * @return {?string}
    */
   resolveURL(url) {
-    if (!url)
+    if (!url) {
       return url;
+    }
     for (let frameOwnerCandidate = this; frameOwnerCandidate; frameOwnerCandidate = frameOwnerCandidate.parentNode) {
-      if (frameOwnerCandidate.baseURL)
+      if (frameOwnerCandidate.baseURL) {
         return Common.ParsedURL.completeURL(frameOwnerCandidate.baseURL, url);
+      }
     }
     return null;
   }
 
   /**
    * @param {string=} mode
-   * @param {!Protocol.Runtime.RemoteObjectId=} objectId
    */
-  highlight(mode, objectId) {
-    this._domModel.overlayModel().highlightDOMNode(this.id, mode, undefined, objectId);
+  highlight(mode) {
+    this._domModel.overlayModel().highlightInOverlay({node: this}, mode);
   }
 
   highlightForTwoSeconds() {
-    this._domModel.overlayModel().highlightDOMNodeForTwoSeconds(this.id);
+    this._domModel.overlayModel().highlightInOverlayForTwoSeconds({node: this});
   }
 
   /**
@@ -900,11 +982,13 @@ SDK.DOMNode = class {
     let node = this;
     while (true) {
       let ancestor = node.ancestorUserAgentShadowRoot();
-      if (!ancestor)
+      if (!ancestor) {
         break;
+      }
       ancestor = node.ancestorShadowHost();
-      if (!ancestor)
+      if (!ancestor) {
         break;
+      }
       // User agent shadow root, keep climbing up.
       node = ancestor;
     }
@@ -916,19 +1000,25 @@ SDK.DOMNode = class {
    */
   enclosingElementOrSelf() {
     let node = this;
-    if (node && node.nodeType() === Node.TEXT_NODE && node.parentNode)
+    if (node && node.nodeType() === Node.TEXT_NODE && node.parentNode) {
       node = node.parentNode;
+    }
 
-    if (node && node.nodeType() !== Node.ELEMENT_NODE)
+    if (node && node.nodeType() !== Node.ELEMENT_NODE) {
       node = null;
+    }
     return node;
   }
 
   async scrollIntoView() {
     const node = this.enclosingElementOrSelf();
-    const object = await node.resolveToObject();
-    if (!object)
+    if (!node) {
       return;
+    }
+    const object = await node.resolveToObject();
+    if (!object) {
+      return;
+    }
     object.callFunction(scrollIntoView);
     object.release();
     node.highlightForTwoSeconds();
@@ -945,9 +1035,10 @@ SDK.DOMNode = class {
   async focus() {
     const node = this.enclosingElementOrSelf();
     const object = await node.resolveToObject();
-    if (!object)
+    if (!object) {
       return;
-    await object.callFunctionPromise(focusInPage);
+    }
+    await object.callFunction(focusInPage);
     object.release();
     node.highlightForTwoSeconds();
     this._domModel.target().pageAgent().bringToFront();
@@ -966,51 +1057,52 @@ SDK.DOMNode = class {
    */
   simpleSelector() {
     const lowerCaseName = this.localName() || this.nodeName().toLowerCase();
-    if (this.nodeType() !== Node.ELEMENT_NODE)
+    if (this.nodeType() !== Node.ELEMENT_NODE) {
       return lowerCaseName;
+    }
     if (lowerCaseName === 'input' && this.getAttribute('type') && !this.getAttribute('id') &&
-        !this.getAttribute('class'))
+        !this.getAttribute('class')) {
       return lowerCaseName + '[type="' + this.getAttribute('type') + '"]';
-    if (this.getAttribute('id'))
+    }
+    if (this.getAttribute('id')) {
       return lowerCaseName + '#' + this.getAttribute('id');
+    }
     if (this.getAttribute('class')) {
       return (lowerCaseName === 'div' ? '' : lowerCaseName) + '.' +
           this.getAttribute('class').trim().replace(/\s+/g, '.');
     }
     return lowerCaseName;
   }
-};
+}
 
 /**
  * @enum {string}
  */
-SDK.DOMNode.PseudoElementNames = {
+DOMNode.PseudoElementNames = {
   Before: 'before',
-  After: 'after'
+  After: 'after',
+  Marker: 'marker'
 };
 
 /**
  * @enum {string}
  */
-SDK.DOMNode.ShadowRootTypes = {
+DOMNode.ShadowRootTypes = {
   UserAgent: 'user-agent',
   Open: 'open',
   Closed: 'closed'
 };
 
-/** @typedef {{name: string, value: string, _node: SDK.DOMNode}} */
-SDK.DOMNode.Attribute;
-
 /**
  * @unrestricted
  */
-SDK.DeferredDOMNode = class {
+export class DeferredDOMNode {
   /**
    * @param {!SDK.Target} target
    * @param {number} backendNodeId
    */
   constructor(target, backendNodeId) {
-    this._domModel = /** @type {!SDK.DOMModel} */ (target.model(SDK.DOMModel));
+    this._domModel = /** @type {!DOMModel} */ (target.model(DOMModel));
     this._backendNodeId = backendNodeId;
   }
 
@@ -1037,21 +1129,21 @@ SDK.DeferredDOMNode = class {
   }
 
   /**
-   * @return {!SDK.DOMModel}
+   * @return {!DOMModel}
    */
   domModel() {
     return this._domModel;
   }
 
   highlight() {
-    this._domModel.overlayModel().highlightDOMNode(undefined, undefined, this._backendNodeId);
+    this._domModel.overlayModel().highlightInOverlay({deferredNode: this});
   }
-};
+}
 
 /**
  * @unrestricted
  */
-SDK.DOMNodeShortcut = class {
+export class DOMNodeShortcut {
   /**
    * @param {!SDK.Target} target
    * @param {number} backendNodeId
@@ -1063,14 +1155,14 @@ SDK.DOMNodeShortcut = class {
     this.nodeName = nodeName;
     this.deferredNode = new SDK.DeferredDOMNode(target, backendNodeId);
   }
-};
+}
 
 /**
  * @unrestricted
  */
-SDK.DOMDocument = class extends SDK.DOMNode {
+export class DOMDocument extends DOMNode {
   /**
-   * @param {!SDK.DOMModel} domModel
+   * @param {!DOMModel} domModel
    * @param {!Protocol.DOM.Node} payload
    */
   constructor(domModel, payload) {
@@ -1079,12 +1171,12 @@ SDK.DOMDocument = class extends SDK.DOMNode {
     this.documentURL = payload.documentURL || '';
     this.baseURL = payload.baseURL || '';
   }
-};
+}
 
 /**
  * @unrestricted
  */
-SDK.DOMModel = class extends SDK.SDKModel {
+export default class DOMModel extends SDK.SDKModel {
   /**
    * @param {!SDK.Target} target
    */
@@ -1095,16 +1187,21 @@ SDK.DOMModel = class extends SDK.SDKModel {
 
     /** @type {!Object.<number, !SDK.DOMNode>} */
     this._idToDOMNode = {};
-    /** @type {?SDK.DOMDocument} */
+    /** @type {?DOMDocument} */
     this._document = null;
     /** @type {!Set<number>} */
     this._attributeLoadNodeIds = new Set();
-    target.registerDOMDispatcher(new SDK.DOMDispatcher(this));
+    target.registerDOMDispatcher(new DOMDispatcher(this));
 
     this._runtimeModel = /** @type {!SDK.RuntimeModel} */ (target.model(SDK.RuntimeModel));
 
-    if (!target.suspended())
+    if (!target.suspended()) {
       this._agent.enable();
+    }
+
+    if (Root.Runtime.experiments.isEnabled('captureNodeCreationStacks')) {
+      this._agent.setNodeStackTracesEnabled(true);
+    }
   }
 
   /**
@@ -1129,53 +1226,59 @@ SDK.DOMModel = class extends SDK.SDKModel {
   }
 
   static cancelSearch() {
-    for (const domModel of SDK.targetManager.models(SDK.DOMModel))
+    for (const domModel of SDK.targetManager.models(DOMModel)) {
       domModel._cancelSearch();
+    }
   }
 
   /**
    * @param {!SDK.DOMNode} node
    */
   _scheduleMutationEvent(node) {
-    if (!this.hasEventListeners(SDK.DOMModel.Events.DOMMutated))
+    if (!this.hasEventListeners(Events.DOMMutated)) {
       return;
+    }
 
     this._lastMutationId = (this._lastMutationId || 0) + 1;
     Promise.resolve().then(callObserve.bind(this, node, this._lastMutationId));
 
     /**
-     * @this {SDK.DOMModel}
+     * @this {DOMModel}
      * @param {!SDK.DOMNode} node
      * @param {number} mutationId
      */
     function callObserve(node, mutationId) {
-      if (!this.hasEventListeners(SDK.DOMModel.Events.DOMMutated) || this._lastMutationId !== mutationId)
+      if (!this.hasEventListeners(Events.DOMMutated) || this._lastMutationId !== mutationId) {
         return;
+      }
 
-      this.dispatchEventToListeners(SDK.DOMModel.Events.DOMMutated, node);
+      this.dispatchEventToListeners(Events.DOMMutated, node);
     }
   }
 
   /**
-   * @return {!Promise<!SDK.DOMDocument>}
+   * @return {!Promise<!DOMDocument>}
    */
   requestDocument() {
-    if (this._document)
+    if (this._document) {
       return Promise.resolve(this._document);
-    if (!this._pendingDocumentRequestPromise)
+    }
+    if (!this._pendingDocumentRequestPromise) {
       this._pendingDocumentRequestPromise = this._requestDocument();
+    }
     return this._pendingDocumentRequestPromise;
   }
 
   /**
-   * @return {!Promise<!SDK.DOMDocument>}
+   * @return {!Promise<?DOMDocument>}
    */
   async _requestDocument() {
     const documentPayload = await this._agent.getDocument();
     delete this._pendingDocumentRequestPromise;
 
-    if (documentPayload)
+    if (documentPayload) {
       this._setDocument(documentPayload);
+    }
     if (!this._document) {
       console.error('No document');
       return null;
@@ -1185,8 +1288,9 @@ SDK.DOMModel = class extends SDK.SDKModel {
     if (parentModel && !this._frameOwnerNode) {
       await parentModel.requestDocument();
       const response = await parentModel._agent.invoke_getFrameOwner({frameId: this.target().id()});
-      if (!response[Protocol.Error])
+      if (!response[Protocol.Error]) {
         this._frameOwnerNode = parentModel.nodeForId(response.nodeId);
+      }
     }
 
     // Document could have been cleared by now.
@@ -1196,17 +1300,16 @@ SDK.DOMModel = class extends SDK.SDKModel {
       this._frameOwnerNode._children = [];
       if (this._document) {
         this._document.parentNode = this._frameOwnerNode;
-        this.dispatchEventToListeners(SDK.DOMModel.Events.NodeInserted, this._document);
+        this.dispatchEventToListeners(Events.NodeInserted, this._document);
       } else if (oldDocument) {
-        this.dispatchEventToListeners(
-            SDK.DOMModel.Events.NodeRemoved, {node: oldDocument, parent: this._frameOwnerNode});
+        this.dispatchEventToListeners(Events.NodeRemoved, {node: oldDocument, parent: this._frameOwnerNode});
       }
     }
     return this._document;
   }
 
   /**
-   * @return {?SDK.DOMDocument}
+   * @return {?DOMDocument}
    */
   existingDocument() {
     return this._document;
@@ -1238,13 +1341,15 @@ SDK.DOMModel = class extends SDK.SDKModel {
     await this.requestDocument();
     const backendNodeIdsArray = backendNodeIds.valuesArray();
     const nodeIds = await this._agent.pushNodesByBackendIdsToFrontend(backendNodeIdsArray);
-    if (!nodeIds)
+    if (!nodeIds) {
       return null;
+    }
     /** @type {!Map<number, ?SDK.DOMNode>} */
     const map = new Map();
     for (let i = 0; i < nodeIds.length; ++i) {
-      if (nodeIds[i])
+      if (nodeIds[i]) {
         map.set(backendNodeIdsArray[i], this.nodeForId(nodeIds[i]));
+      }
     }
     return map;
   }
@@ -1274,11 +1379,12 @@ SDK.DOMModel = class extends SDK.SDKModel {
    */
   _attributeModified(nodeId, name, value) {
     const node = this._idToDOMNode[nodeId];
-    if (!node)
+    if (!node) {
       return;
+    }
 
     node._setAttribute(name, value);
-    this.dispatchEventToListeners(SDK.DOMModel.Events.AttrModified, {node: node, name: name});
+    this.dispatchEventToListeners(Events.AttrModified, {node: node, name: name});
     this._scheduleMutationEvent(node);
   }
 
@@ -1288,10 +1394,11 @@ SDK.DOMModel = class extends SDK.SDKModel {
    */
   _attributeRemoved(nodeId, name) {
     const node = this._idToDOMNode[nodeId];
-    if (!node)
+    if (!node) {
       return;
+    }
     node._removeAttribute(name);
-    this.dispatchEventToListeners(SDK.DOMModel.Events.AttrRemoved, {node: node, name: name});
+    this.dispatchEventToListeners(Events.AttrRemoved, {node: node, name: name});
     this._scheduleMutationEvent(node);
   }
 
@@ -1300,8 +1407,9 @@ SDK.DOMModel = class extends SDK.SDKModel {
    */
   _inlineStyleInvalidated(nodeIds) {
     this._attributeLoadNodeIds.addAll(nodeIds);
-    if (!this._loadNodeAttributesTimeout)
+    if (!this._loadNodeAttributesTimeout) {
       this._loadNodeAttributesTimeout = setTimeout(this._loadNodeAttributes.bind(this), 20);
+    }
   }
 
   _loadNodeAttributes() {
@@ -1313,10 +1421,11 @@ SDK.DOMModel = class extends SDK.SDKModel {
           return;
         }
         const node = this._idToDOMNode[nodeId];
-        if (!node)
+        if (!node) {
           return;
+        }
         if (node._setAttributesPayload(attributes)) {
-          this.dispatchEventToListeners(SDK.DOMModel.Events.AttrModified, {node: node, name: 'style'});
+          this.dispatchEventToListeners(Events.AttrModified, {node: node, name: 'style'});
           this._scheduleMutationEvent(node);
         }
       });
@@ -1331,7 +1440,7 @@ SDK.DOMModel = class extends SDK.SDKModel {
   _characterDataModified(nodeId, newValue) {
     const node = this._idToDOMNode[nodeId];
     node._nodeValue = newValue;
-    this.dispatchEventToListeners(SDK.DOMModel.Events.CharacterDataModified, node);
+    this.dispatchEventToListeners(Events.CharacterDataModified, node);
     this._scheduleMutationEvent(node);
   }
 
@@ -1348,8 +1457,9 @@ SDK.DOMModel = class extends SDK.SDKModel {
     // if it hits backend post document update, it will contain most recent result.
     const documentWasRequested = this._document || this._pendingDocumentRequestPromise;
     this._setDocument(null);
-    if (this.parentModel() && documentWasRequested)
+    if (this.parentModel() && documentWasRequested) {
       this.requestDocument();
+    }
   }
 
   /**
@@ -1357,24 +1467,27 @@ SDK.DOMModel = class extends SDK.SDKModel {
    */
   _setDocument(payload) {
     this._idToDOMNode = {};
-    if (payload && 'nodeId' in payload)
-      this._document = new SDK.DOMDocument(this, payload);
-    else
+    if (payload && 'nodeId' in payload) {
+      this._document = new DOMDocument(this, payload);
+    } else {
       this._document = null;
+    }
     SDK.domModelUndoStack._dispose(this);
 
-    if (!this.parentModel())
-      this.dispatchEventToListeners(SDK.DOMModel.Events.DocumentUpdated, this);
+    if (!this.parentModel()) {
+      this.dispatchEventToListeners(Events.DocumentUpdated, this);
+    }
   }
 
   /**
    * @param {!Protocol.DOM.Node} payload
    */
   _setDetachedRoot(payload) {
-    if (payload.nodeName === '#document')
-      new SDK.DOMDocument(this, payload);
-    else
+    if (payload.nodeName === '#document') {
+      new DOMDocument(this, payload);
+    } else {
       SDK.DOMNode.create(this, null, false, payload);
+    }
   }
 
   /**
@@ -1398,7 +1511,7 @@ SDK.DOMModel = class extends SDK.SDKModel {
   _childNodeCountUpdated(nodeId, newValue) {
     const node = this._idToDOMNode[nodeId];
     node._childNodeCount = newValue;
-    this.dispatchEventToListeners(SDK.DOMModel.Events.ChildNodeCountUpdated, node);
+    this.dispatchEventToListeners(Events.ChildNodeCountUpdated, node);
     this._scheduleMutationEvent(node);
   }
 
@@ -1412,7 +1525,7 @@ SDK.DOMModel = class extends SDK.SDKModel {
     const prev = this._idToDOMNode[prevId];
     const node = parent._insertChild(prev, payload);
     this._idToDOMNode[node.id] = node;
-    this.dispatchEventToListeners(SDK.DOMModel.Events.NodeInserted, node);
+    this.dispatchEventToListeners(Events.NodeInserted, node);
     this._scheduleMutationEvent(node);
   }
 
@@ -1425,7 +1538,7 @@ SDK.DOMModel = class extends SDK.SDKModel {
     const node = this._idToDOMNode[nodeId];
     parent._removeChild(node);
     this._unbind(node);
-    this.dispatchEventToListeners(SDK.DOMModel.Events.NodeRemoved, {node: node, parent: parent});
+    this.dispatchEventToListeners(Events.NodeRemoved, {node: node, parent: parent});
     this._scheduleMutationEvent(node);
   }
 
@@ -1435,13 +1548,14 @@ SDK.DOMModel = class extends SDK.SDKModel {
    */
   _shadowRootPushed(hostId, root) {
     const host = this._idToDOMNode[hostId];
-    if (!host)
+    if (!host) {
       return;
+    }
     const node = SDK.DOMNode.create(this, host.ownerDocument, true, root);
     node.parentNode = host;
     this._idToDOMNode[node.id] = node;
     host._shadowRoots.unshift(node);
-    this.dispatchEventToListeners(SDK.DOMModel.Events.NodeInserted, node);
+    this.dispatchEventToListeners(Events.NodeInserted, node);
     this._scheduleMutationEvent(node);
   }
 
@@ -1451,14 +1565,16 @@ SDK.DOMModel = class extends SDK.SDKModel {
    */
   _shadowRootPopped(hostId, rootId) {
     const host = this._idToDOMNode[hostId];
-    if (!host)
+    if (!host) {
       return;
+    }
     const root = this._idToDOMNode[rootId];
-    if (!root)
+    if (!root) {
       return;
+    }
     host._removeChild(root);
     this._unbind(root);
-    this.dispatchEventToListeners(SDK.DOMModel.Events.NodeRemoved, {node: root, parent: host});
+    this.dispatchEventToListeners(Events.NodeRemoved, {node: root, parent: host});
     this._scheduleMutationEvent(root);
   }
 
@@ -1468,14 +1584,15 @@ SDK.DOMModel = class extends SDK.SDKModel {
    */
   _pseudoElementAdded(parentId, pseudoElement) {
     const parent = this._idToDOMNode[parentId];
-    if (!parent)
+    if (!parent) {
       return;
+    }
     const node = SDK.DOMNode.create(this, parent.ownerDocument, false, pseudoElement);
     node.parentNode = parent;
     this._idToDOMNode[node.id] = node;
     console.assert(!parent._pseudoElements.get(node.pseudoType()));
     parent._pseudoElements.set(node.pseudoType(), node);
-    this.dispatchEventToListeners(SDK.DOMModel.Events.NodeInserted, node);
+    this.dispatchEventToListeners(Events.NodeInserted, node);
     this._scheduleMutationEvent(node);
   }
 
@@ -1485,14 +1602,16 @@ SDK.DOMModel = class extends SDK.SDKModel {
    */
   _pseudoElementRemoved(parentId, pseudoElementId) {
     const parent = this._idToDOMNode[parentId];
-    if (!parent)
+    if (!parent) {
       return;
+    }
     const pseudoElement = this._idToDOMNode[pseudoElementId];
-    if (!pseudoElement)
+    if (!pseudoElement) {
       return;
+    }
     parent._removeChild(pseudoElement);
     this._unbind(pseudoElement);
-    this.dispatchEventToListeners(SDK.DOMModel.Events.NodeRemoved, {node: pseudoElement, parent: parent});
+    this.dispatchEventToListeners(Events.NodeRemoved, {node: pseudoElement, parent: parent});
     this._scheduleMutationEvent(pseudoElement);
   }
 
@@ -1502,10 +1621,11 @@ SDK.DOMModel = class extends SDK.SDKModel {
    */
   _distributedNodesUpdated(insertionPointId, distributedNodes) {
     const insertionPoint = this._idToDOMNode[insertionPointId];
-    if (!insertionPoint)
+    if (!insertionPoint) {
       return;
+    }
     insertionPoint._setDistributedNodePayloads(distributedNodes);
-    this.dispatchEventToListeners(SDK.DOMModel.Events.DistributedNodesChanged, insertionPoint);
+    this.dispatchEventToListeners(Events.DistributedNodesChanged, insertionPoint);
     this._scheduleMutationEvent(insertionPoint);
   }
 
@@ -1514,15 +1634,19 @@ SDK.DOMModel = class extends SDK.SDKModel {
    */
   _unbind(node) {
     delete this._idToDOMNode[node.id];
-    for (let i = 0; node._children && i < node._children.length; ++i)
+    for (let i = 0; node._children && i < node._children.length; ++i) {
       this._unbind(node._children[i]);
-    for (let i = 0; i < node._shadowRoots.length; ++i)
+    }
+    for (let i = 0; i < node._shadowRoots.length; ++i) {
       this._unbind(node._shadowRoots[i]);
+    }
     const pseudoElements = node.pseudoElements();
-    for (const value of pseudoElements.values())
+    for (const value of pseudoElements.values()) {
       this._unbind(value);
-    if (node._templateContent)
+    }
+    if (node._templateContent) {
       this._unbind(node._templateContent);
+    }
   }
 
   /**
@@ -1532,8 +1656,9 @@ SDK.DOMModel = class extends SDK.SDKModel {
    */
   async performSearch(query, includeUserAgentShadowDOM) {
     const response = await this._agent.invoke_performSearch({query, includeUserAgentShadowDOM});
-    if (!response[Protocol.Error])
+    if (!response[Protocol.Error]) {
       this._searchId = response.searchId;
+    }
     return response[Protocol.Error] ? 0 : response.resultCount;
   }
 
@@ -1542,15 +1667,17 @@ SDK.DOMModel = class extends SDK.SDKModel {
    * @return {!Promise<?SDK.DOMNode>}
    */
   async searchResult(index) {
-    if (!this._searchId)
+    if (!this._searchId) {
       return null;
+    }
     const nodeIds = await this._agent.getSearchResults(this._searchId, index, index + 1);
     return nodeIds && nodeIds.length === 1 ? this.nodeForId(nodeIds[0]) : null;
   }
 
   _cancelSearch() {
-    if (!this._searchId)
+    if (!this._searchId) {
       return;
+    }
     this._agent.discardSearchResults(this._searchId);
     delete this._searchId;
   }
@@ -1594,9 +1721,12 @@ SDK.DOMModel = class extends SDK.SDKModel {
    * @param {boolean} includeUserAgentShadowDOM
    * @return {!Promise<?SDK.DOMNode>}
    */
-  nodeForLocation(x, y, includeUserAgentShadowDOM) {
-    return this._agent.getNodeForLocation(x, y, includeUserAgentShadowDOM)
-        .then(nodeId => nodeId ? this.nodeForId(nodeId) : null);
+  async nodeForLocation(x, y, includeUserAgentShadowDOM) {
+    const response = await this._agent.invoke_getNodeForLocation({x, y, includeUserAgentShadowDOM});
+    if (response[Protocol.Error] || !response.nodeId) {
+      return null;
+    }
+    return this.nodeForId(response.nodeId);
   }
 
   /**
@@ -1631,20 +1761,16 @@ SDK.DOMModel = class extends SDK.SDKModel {
   }
 
   /**
-   * @return {?SDK.DOMModel}
+   * @return {?DOMModel}
    */
   parentModel() {
-    if (!Runtime.experiments.isEnabled('oopifInlineDOM'))
-      return null;
     const parentTarget = this.target().parentTarget();
-    return parentTarget ? parentTarget.model(SDK.DOMModel) : null;
+    return parentTarget ? parentTarget.model(DOMModel) : null;
   }
-};
-
-SDK.SDKModel.register(SDK.DOMModel, SDK.Target.Capability.DOM, true);
+}
 
 /** @enum {symbol} */
-SDK.DOMModel.Events = {
+export const Events = {
   AttrModified: Symbol('AttrModified'),
   AttrRemoved: Symbol('AttrRemoved'),
   CharacterDataModified: Symbol('CharacterDataModified'),
@@ -1657,14 +1783,13 @@ SDK.DOMModel.Events = {
   MarkersChanged: Symbol('MarkersChanged')
 };
 
-
 /**
  * @implements {Protocol.DOMDispatcher}
  * @unrestricted
  */
-SDK.DOMDispatcher = class {
+class DOMDispatcher {
   /**
-   * @param {!SDK.DOMModel} domModel
+   * @param {!DOMModel} domModel
    */
   constructor(domModel) {
     this._domModel = domModel;
@@ -1794,19 +1919,19 @@ SDK.DOMDispatcher = class {
   distributedNodesUpdated(insertionPointId, distributedNodes) {
     this._domModel._distributedNodesUpdated(insertionPointId, distributedNodes);
   }
-};
+}
 
-SDK.DOMModelUndoStack = class {
+class DOMModelUndoStack {
   constructor() {
-    /** @type {!Array<!SDK.DOMModel>} */
+    /** @type {!Array<!DOMModel>} */
     this._stack = [];
     this._index = 0;
-    /** @type {?SDK.DOMModel} */
+    /** @type {?DOMModel} */
     this._lastModelWithMinorChange = null;
   }
 
   /**
-   * @param {!SDK.DOMModel} model
+   * @param {!DOMModel} model
    * @param {boolean} minorChange
    */
   _markUndoableState(model, minorChange) {
@@ -1818,8 +1943,9 @@ SDK.DOMModelUndoStack = class {
     }
 
     // Previous minor change is already in the stack.
-    if (minorChange && this._lastModelWithMinorChange === model)
+    if (minorChange && this._lastModelWithMinorChange === model) {
       return;
+    }
 
     this._stack = this._stack.slice(0, this._index);
     this._stack.push(model);
@@ -1839,8 +1965,9 @@ SDK.DOMModelUndoStack = class {
    * @return {!Promise}
    */
   undo() {
-    if (this._index === 0)
+    if (this._index === 0) {
       return Promise.resolve();
+    }
     --this._index;
     this._lastModelWithMinorChange = null;
     return this._stack[this._index]._agent.undo();
@@ -1850,27 +1977,59 @@ SDK.DOMModelUndoStack = class {
    * @return {!Promise}
    */
   redo() {
-    if (this._index >= this._stack.length)
+    if (this._index >= this._stack.length) {
       return Promise.resolve();
+    }
     ++this._index;
     this._lastModelWithMinorChange = null;
     return this._stack[this._index - 1]._agent.redo();
   }
 
   /**
-   * @param {!SDK.DOMModel} model
+   * @param {!DOMModel} model
    */
   _dispose(model) {
     let shift = 0;
     for (let i = 0; i < this._index; ++i) {
-      if (this._stack[i] === model)
+      if (this._stack[i] === model) {
         ++shift;
+      }
     }
     this._stack.remove(model);
     this._index -= shift;
-    if (this._lastModelWithMinorChange === model)
+    if (this._lastModelWithMinorChange === model) {
       this._lastModelWithMinorChange = null;
+    }
   }
-};
+}
 
-SDK.domModelUndoStack = new SDK.DOMModelUndoStack();
+/* Legacy exported object */
+self.SDK = self.SDK || {};
+
+/* Legacy exported object */
+SDK = SDK || {};
+
+/** @constructor */
+SDK.DOMModel = DOMModel;
+
+/** @enum {symbol} */
+SDK.DOMModel.Events = Events;
+
+/** @constructor */
+SDK.DeferredDOMNode = DeferredDOMNode;
+
+/** @constructor */
+SDK.DOMNodeShortcut = DOMNodeShortcut;
+
+/** @constructor */
+SDK.DOMDocument = DOMDocument;
+
+/** @constructor */
+SDK.DOMNode = DOMNode;
+
+SDK.domModelUndoStack = new DOMModelUndoStack();
+
+/** @typedef {{name: string, value: string, _node: SDK.DOMNode}} */
+SDK.DOMNode.Attribute;
+
+SDK.SDKModel.register(DOMModel, SDK.Target.Capability.DOM, true);

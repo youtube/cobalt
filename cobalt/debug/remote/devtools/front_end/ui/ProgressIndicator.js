@@ -31,7 +31,7 @@
  * @implements {Common.Progress}
  * @unrestricted
  */
-UI.ProgressIndicator = class {
+export default class ProgressIndicator {
   constructor() {
     this.element = createElementWithClass('div', 'progress-indicator');
     this._shadowRoot = UI.createShadowRootWithCoreStyles(this.element, 'ui/progressIndicator.css');
@@ -58,8 +58,9 @@ UI.ProgressIndicator = class {
    * @override
    */
   done() {
-    if (this._isDone)
+    if (this._isDone) {
       return;
+    }
     this._isDone = true;
     this.element.remove();
   }
@@ -100,8 +101,9 @@ UI.ProgressIndicator = class {
   setWorked(worked, title) {
     this._worked = worked;
     this._progressElement.value = worked;
-    if (title)
+    if (title) {
       this.setTitle(title);
+    }
   }
 
   /**
@@ -111,4 +113,13 @@ UI.ProgressIndicator = class {
   worked(worked) {
     this.setWorked(this._worked + (worked || 1));
   }
-};
+}
+
+/* Legacy exported object*/
+self.UI = self.UI || {};
+
+/* Legacy exported object*/
+UI = UI || {};
+
+/** @constructor */
+UI.ProgressIndicator = ProgressIndicator;
