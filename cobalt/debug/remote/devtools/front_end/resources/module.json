@@ -6,7 +6,8 @@
             "id": "resources",
             "title": "Application",
             "order": 70,
-            "className": "Resources.ResourcesPanel"
+            "className": "Resources.ResourcesPanel",
+            "tags": "pwa"
         },
         {
             "type": "@Common.Revealer",
@@ -15,6 +16,46 @@
             ],
             "destination": "Application panel",
             "className": "Resources.ResourcesPanel.ResourceRevealer"
+        },
+        {
+            "type": "action",
+            "category": "Resources",
+            "actionId": "resources.clear",
+            "title": "Clear site data",
+            "className": "Resources.ClearStorageView.ActionDelegate"
+        },
+        {
+          "type": "action",
+          "actionId": "background-service.toggle-recording",
+          "iconClass": "largeicon-start-recording",
+          "toggleable": true,
+          "toggledIconClass": "largeicon-stop-recording",
+          "toggleWithRedColor": true,
+          "contextTypes": [
+              "Resources.BackgroundServiceView"
+          ],
+          "className": "Resources.BackgroundServiceView.ActionDelegate",
+          "category": "Background Services",
+          "options": [
+              {
+                  "value": true,
+                  "title": "Start recording events"
+              },
+              {
+                  "value": false,
+                  "title": "Stop recording events"
+              }
+          ],
+          "bindings": [
+              {
+                  "platform": "windows,linux",
+                  "shortcut": "Ctrl+E"
+              },
+              {
+                  "platform": "mac",
+                  "shortcut": "Meta+E"
+              }
+          ]
         }
     ],
     "dependencies": [
@@ -33,6 +74,8 @@
         "ApplicationCacheModel.js",
         "AppManifestView.js",
         "ApplicationCacheItemsView.js",
+        "BackgroundServiceModel.js",
+        "BackgroundServiceView.js",
         "ClearStorageView.js",
         "StorageItemsView.js",
         "CookieItemsView.js",
@@ -51,11 +94,13 @@
     ],
     "resources": [
         "appManifestView.css",
+        "backgroundServiceView.css",
         "clearStorageView.css",
         "indexedDBViews.css",
         "resourcesPanel.css",
         "resourcesSidebar.css",
         "serviceWorkerCacheViews.css",
-        "serviceWorkersView.css"
+        "serviceWorkersView.css",
+        "cookieItemsView.css"
     ]
 }

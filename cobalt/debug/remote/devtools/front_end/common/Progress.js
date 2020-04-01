@@ -27,49 +27,53 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 /**
  * @interface
  */
-Common.Progress = function() {};
-
-Common.Progress.prototype = {
+export class Progress {
   /**
    * @param {number} totalWork
    */
-  setTotalWork(totalWork) {},
+  setTotalWork(totalWork) {
+  }
 
   /**
    * @param {string} title
    */
-  setTitle(title) {},
+  setTitle(title) {
+  }
 
   /**
    * @param {number} worked
    * @param {string=} title
    */
-  setWorked(worked, title) {},
+  setWorked(worked, title) {
+  }
 
   /**
    * @param {number=} worked
    */
-  worked(worked) {},
+  worked(worked) {
+  }
 
-  done() {},
+  done() {
+  }
 
   /**
    * @return {boolean}
    */
   isCanceled() {
     return false;
-  },
-};
+  }
+}
 
 /**
  * @unrestricted
  */
-Common.CompositeProgress = class {
+export class CompositeProgress {
   /**
-   * @param {!Common.Progress} parent
+   * @param {!Progress} parent
    */
   constructor(parent) {
     this._parent = parent;
@@ -80,17 +84,18 @@ Common.CompositeProgress = class {
   }
 
   _childDone() {
-    if (++this._childrenDone !== this._children.length)
+    if (++this._childrenDone !== this._children.length) {
       return;
+    }
     this._parent.done();
   }
 
   /**
    * @param {number=} weight
-   * @return {!Common.SubProgress}
+   * @return {!SubProgress}
    */
   createSubProgress(weight) {
-    const child = new Common.SubProgress(this, weight);
+    const child = new SubProgress(this, weight);
     this._children.push(child);
     return child;
   }
@@ -101,21 +106,22 @@ Common.CompositeProgress = class {
 
     for (let i = 0; i < this._children.length; ++i) {
       const child = this._children[i];
-      if (child._totalWork)
+      if (child._totalWork) {
         done += child._weight * child._worked / child._totalWork;
+      }
       totalWeights += child._weight;
     }
     this._parent.setWorked(done / totalWeights);
   }
-};
+}
 
 /**
- * @implements {Common.Progress}
+ * @implements {Progress}
  * @unrestricted
  */
-Common.SubProgress = class {
+export class SubProgress {
   /**
-   * @param {!Common.CompositeProgress} composite
+   * @param {!CompositeProgress} composite
    * @param {number=} weight
    */
   constructor(composite, weight) {
@@ -164,8 +170,9 @@ Common.SubProgress = class {
    */
   setWorked(worked, title) {
     this._worked = worked;
-    if (typeof title !== 'undefined')
+    if (typeof title !== 'undefined') {
       this.setTitle(title);
+    }
     this._composite._update();
   }
 
@@ -176,15 +183,15 @@ Common.SubProgress = class {
   worked(worked) {
     this.setWorked(this._worked + (worked || 1));
   }
-};
+}
 
 /**
- * @implements {Common.Progress}
+ * @implements {Progress}
  * @unrestricted
  */
-Common.ProgressProxy = class {
+export class ProgressProxy {
   /**
-   * @param {?Common.Progress} delegate
+   * @param {?Progress} delegate
    * @param {function()=} doneCallback
    */
   constructor(delegate, doneCallback) {
@@ -205,18 +212,21 @@ Common.ProgressProxy = class {
    * @param {string} title
    */
   setTitle(title) {
-    if (this._delegate)
+    if (this._delegate) {
       this._delegate.setTitle(title);
+    }
   }
 
   /**
    * @override
    */
   done() {
-    if (this._delegate)
+    if (this._delegate) {
       this._delegate.done();
-    if (this._doneCallback)
+    }
+    if (this._doneCallback) {
       this._doneCallback();
+    }
   }
 
   /**
@@ -224,8 +234,9 @@ Common.ProgressProxy = class {
    * @param {number} totalWork
    */
   setTotalWork(totalWork) {
-    if (this._delegate)
+    if (this._delegate) {
       this._delegate.setTotalWork(totalWork);
+    }
   }
 
   /**
@@ -234,8 +245,9 @@ Common.ProgressProxy = class {
    * @param {string=} title
    */
   setWorked(worked, title) {
-    if (this._delegate)
+    if (this._delegate) {
       this._delegate.setWorked(worked, title);
+    }
   }
 
   /**
@@ -243,7 +255,8 @@ Common.ProgressProxy = class {
    * @param {number=} worked
    */
   worked(worked) {
-    if (this._delegate)
+    if (this._delegate) {
       this._delegate.worked(worked);
+    }
   }
-};
+}

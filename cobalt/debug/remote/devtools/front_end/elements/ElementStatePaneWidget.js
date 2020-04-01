@@ -1,10 +1,12 @@
 // Copyright (c) 2015 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import {ElementsPanel} from './ElementsPanel.js';
+
 /**
  * @unrestricted
  */
-Elements.ElementStatePaneWidget = class extends UI.Widget {
+export class ElementStatePaneWidget extends UI.Widget {
   constructor() {
     super(true);
     this.registerRequiredCSS('elements/elementStatePaneWidget.css');
@@ -20,8 +22,9 @@ Elements.ElementStatePaneWidget = class extends UI.Widget {
      */
     function clickListener(event) {
       const node = UI.context.flavor(SDK.DOMNode);
-      if (!node)
+      if (!node) {
         return;
+      }
       node.domModel().cssModel().forcePseudoState(node, event.target.state, event.target.checked);
     }
 
@@ -64,13 +67,16 @@ Elements.ElementStatePaneWidget = class extends UI.Widget {
    * @param {?SDK.CSSModel} cssModel
    */
   _updateModel(cssModel) {
-    if (this._cssModel === cssModel)
+    if (this._cssModel === cssModel) {
       return;
-    if (this._cssModel)
+    }
+    if (this._cssModel) {
       this._cssModel.removeEventListener(SDK.CSSModel.Events.PseudoStateForced, this._update, this);
+    }
     this._cssModel = cssModel;
-    if (this._cssModel)
+    if (this._cssModel) {
       this._cssModel.addEventListener(SDK.CSSModel.Events.PseudoStateForced, this._update, this);
+    }
   }
 
   /**
@@ -81,12 +87,14 @@ Elements.ElementStatePaneWidget = class extends UI.Widget {
   }
 
   _update() {
-    if (!this.isShowing())
+    if (!this.isShowing()) {
       return;
+    }
 
     let node = UI.context.flavor(SDK.DOMNode);
-    if (node)
+    if (node) {
       node = node.enclosingElementOrSelf();
+    }
 
     this._updateModel(node ? node.domModel().cssModel() : null);
     if (node) {
@@ -102,23 +110,23 @@ Elements.ElementStatePaneWidget = class extends UI.Widget {
       }
     }
   }
-};
+}
 
 /**
  * @implements {UI.ToolbarItem.Provider}
  * @unrestricted
  */
-Elements.ElementStatePaneWidget.ButtonProvider = class {
+export class ButtonProvider {
   constructor() {
     this._button = new UI.ToolbarToggle(Common.UIString('Toggle Element State'), '');
     this._button.setText(Common.UIString(':hov'));
     this._button.addEventListener(UI.ToolbarButton.Events.Click, this._clicked, this);
     this._button.element.classList.add('monospace');
-    this._view = new Elements.ElementStatePaneWidget();
+    this._view = new ElementStatePaneWidget();
   }
 
   _clicked() {
-    Elements.ElementsPanel.instance().showToolbarPane(!this._view.isShowing() ? this._view : null, this._button);
+    ElementsPanel.instance().showToolbarPane(!this._view.isShowing() ? this._view : null, this._button);
   }
 
   /**
@@ -128,4 +136,4 @@ Elements.ElementStatePaneWidget.ButtonProvider = class {
   item() {
     return this._button;
   }
-};
+}

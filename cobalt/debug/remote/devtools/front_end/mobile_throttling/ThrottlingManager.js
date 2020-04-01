@@ -5,7 +5,7 @@
 /**
  * @implements {SDK.SDKModelObserver<!SDK.EmulationModel>}
  */
-MobileThrottling.ThrottlingManager = class extends Common.Object {
+export class ThrottlingManager extends Common.Object {
   constructor() {
     super();
     /** @type {!MobileThrottling.CPUThrottlingRates} */
@@ -54,11 +54,14 @@ MobileThrottling.ThrottlingManager = class extends Common.Object {
         for (const conditions of group.items) {
           const title = conditions.title;
           const option = new Option(title, title);
+          UI.ARIAUtils.setAccessibleName(option, ls`${group.title}: ${title}`);
           groupElement.appendChild(option);
           options.push(conditions);
         }
         if (i === groups.length - 1) {
-          groupElement.appendChild(new Option(Common.UIString('Add\u2026'), Common.UIString('Add\u2026')));
+          const option = new Option(ls`Add\u2026`, ls`Add\u2026`);
+          UI.ARIAUtils.setAccessibleName(option, ls`Add ${group.title}`);
+          groupElement.appendChild(option);
           options.push(null);
         }
       }
@@ -66,18 +69,20 @@ MobileThrottling.ThrottlingManager = class extends Common.Object {
     }
 
     function optionSelected() {
-      if (selectElement.selectedIndex === selectElement.options.length - 1)
+      if (selectElement.selectedIndex === selectElement.options.length - 1) {
         selector.revealAndUpdate();
-      else
+      } else {
         selector.optionSelected(options[selectElement.selectedIndex]);
+      }
     }
 
     /**
      * @param {number} index
      */
     function select(index) {
-      if (selectElement.selectedIndex !== index)
+      if (selectElement.selectedIndex !== index) {
         selectElement.selectedIndex = index;
+      }
     }
   }
 
@@ -92,13 +97,14 @@ MobileThrottling.ThrottlingManager = class extends Common.Object {
     checkbox.setChecked(SDK.multitargetNetworkManager.networkConditions() === SDK.NetworkManager.OfflineConditions);
 
     /**
-     * @this {!MobileThrottling.ThrottlingManager}
+     * @this {!ThrottlingManager}
      */
     function forceOffline() {
-      if (checkbox.checked())
+      if (checkbox.checked()) {
         SDK.multitargetNetworkManager.setNetworkConditions(SDK.NetworkManager.OfflineConditions);
-      else
+      } else {
         SDK.multitargetNetworkManager.setNetworkConditions(this._lastNetworkThrottlingConditions);
+      }
     }
 
     function networkConditionsChanged() {
@@ -131,11 +137,13 @@ MobileThrottling.ThrottlingManager = class extends Common.Object {
     function appendItems(contextMenu) {
       for (let index = 0; index < options.length; ++index) {
         const conditions = options[index];
-        if (!conditions)
+        if (!conditions) {
           continue;
+        }
         if (conditions.title === MobileThrottling.CustomConditions.title &&
-            conditions.description === MobileThrottling.CustomConditions.description)
+            conditions.description === MobileThrottling.CustomConditions.description) {
           continue;
+        }
         contextMenu.defaultSection().appendCheckboxItem(
             Common.UIString(conditions.title),
             selector.optionSelected.bind(selector, /** @type {!MobileThrottling.Conditions} */ (conditions)),
@@ -150,8 +158,9 @@ MobileThrottling.ThrottlingManager = class extends Common.Object {
     function populate(groups) {
       options = [];
       for (const group of groups) {
-        for (const conditions of group.items)
+        for (const conditions of group.items) {
           options.push(conditions);
+        }
         options.push(null);
       }
       return options;
@@ -179,8 +188,9 @@ MobileThrottling.ThrottlingManager = class extends Common.Object {
    */
   setCPUThrottlingRate(rate) {
     this._cpuThrottlingRate = rate;
-    for (const emulationModel of SDK.targetManager.models(SDK.EmulationModel))
+    for (const emulationModel of SDK.targetManager.models(SDK.EmulationModel)) {
       emulationModel.setCPUThrottlingRate(this._cpuThrottlingRate);
+    }
     let icon = null;
     if (this._cpuThrottlingRate !== MobileThrottling.CPUThrottlingRates.NoThrottling) {
       Host.userMetrics.actionTaken(Host.UserMetrics.Action.CpuThrottlingEnabled);
@@ -188,10 +198,11 @@ MobileThrottling.ThrottlingManager = class extends Common.Object {
       icon.title = Common.UIString('CPU throttling is enabled');
     }
     const index = this._cpuThrottlingRates.indexOf(this._cpuThrottlingRate);
-    for (const control of this._cpuThrottlingControls)
+    for (const control of this._cpuThrottlingControls) {
       control.setSelectedIndex(index);
+    }
     UI.inspectorView.setPanelIcon('timeline', icon);
-    this.dispatchEventToListeners(MobileThrottling.ThrottlingManager.Events.RateChanged, this._cpuThrottlingRate);
+    this.dispatchEventToListeners(Events.RateChanged, this._cpuThrottlingRate);
   }
 
   /**
@@ -199,8 +210,9 @@ MobileThrottling.ThrottlingManager = class extends Common.Object {
    * @param {!SDK.EmulationModel} emulationModel
    */
   modelAdded(emulationModel) {
-    if (this._cpuThrottlingRate !== MobileThrottling.CPUThrottlingRates.NoThrottling)
+    if (this._cpuThrottlingRate !== MobileThrottling.CPUThrottlingRates.NoThrottling) {
       emulationModel.setCPUThrottlingRate(this._cpuThrottlingRate);
+    }
   }
 
   /**
@@ -215,7 +227,7 @@ MobileThrottling.ThrottlingManager = class extends Common.Object {
    */
   createCPUThrottlingSelector() {
     const control = new UI.ToolbarComboBox(
-        event => this.setCPUThrottlingRate(this._cpuThrottlingRates[event.target.selectedIndex]));
+        event => this.setCPUThrottlingRate(this._cpuThrottlingRates[event.target.selectedIndex]), ls`CPU throttling`);
     this._cpuThrottlingControls.add(control);
     const currentRate = this._cpuThrottlingRate;
 
@@ -224,22 +236,23 @@ MobileThrottling.ThrottlingManager = class extends Common.Object {
       const title = rate === 1 ? Common.UIString('No throttling') : Common.UIString('%d\xD7 slowdown', rate);
       const option = control.createOption(title);
       control.addOption(option);
-      if (currentRate === rate)
+      if (currentRate === rate) {
         control.setSelectedIndex(i);
+      }
     }
     return control;
   }
-};
+}
 
 /** @enum {symbol} */
-MobileThrottling.ThrottlingManager.Events = {
+export const Events = {
   RateChanged: Symbol('RateChanged')
 };
 
 /**
  * @implements {UI.ActionDelegate}
  */
-MobileThrottling.ThrottlingManager.ActionDelegate = class {
+export class ActionDelegate {
   /**
    * @override
    * @param {!UI.Context} context
@@ -265,11 +278,27 @@ MobileThrottling.ThrottlingManager.ActionDelegate = class {
     }
     return false;
   }
-};
+}
 
 /**
- * @return {!MobileThrottling.ThrottlingManager}
+ * @return {!ThrottlingManager}
  */
-MobileThrottling.throttlingManager = function() {
-  return self.singleton(MobileThrottling.ThrottlingManager);
-};
+export function throttlingManager() {
+  return self.singleton(ThrottlingManager);
+}
+
+/* Legacy exported object */
+self.MobileThrottling = self.MobileThrottling || {};
+
+/* Legacy exported object */
+MobileThrottling = MobileThrottling || {};
+
+/** @constructor */
+MobileThrottling.ThrottlingManager = ThrottlingManager;
+
+MobileThrottling.ThrottlingManager.Events = Events;
+
+/** @constructor */
+MobileThrottling.ThrottlingManager.ActionDelegate = ActionDelegate;
+
+MobileThrottling.throttlingManager = throttlingManager;

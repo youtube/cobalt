@@ -4,7 +4,7 @@
 /**
  * @unrestricted
  */
-Emulation.DeviceModeToolbar = class {
+export default class DeviceModeToolbar {
   /**
    * @param {!Emulation.DeviceModeModel} model
    * @param {!Common.Setting} showMediaInspectorSetting
@@ -94,7 +94,7 @@ Emulation.DeviceModeToolbar = class {
     widthInput.maxLength = 4;
     widthInput.title = Common.UIString('Width');
     this._updateWidthInput =
-        UI.bindInput(widthInput, this._applyWidth.bind(this), Emulation.DeviceModeModel.deviceSizeValidator, true);
+        UI.bindInput(widthInput, this._applyWidth.bind(this), Emulation.DeviceModeModel.widthValidator, true);
     this._widthInput = widthInput;
     this._widthItem = this._wrapToolbarItem(widthInput);
     toolbar.appendToolbarItem(this._widthItem);
@@ -114,10 +114,13 @@ Emulation.DeviceModeToolbar = class {
 
     /**
      * @param {string} value
-     * @return {boolean}
+     * @return {{valid: boolean, errorMessage: (string|undefined)}}
      */
     function validateHeight(value) {
-      return !value || Emulation.DeviceModeModel.deviceSizeValidator(value);
+      if (!value) {
+        return {valid: true};
+      }
+      return Emulation.DeviceModeModel.heightValidator(value);
     }
   }
 
@@ -305,7 +308,7 @@ Emulation.DeviceModeToolbar = class {
     contextMenu.appendItemsAtLocation('deviceModeMenu');
     contextMenu.footerSection().appendItem(Common.UIString('Reset to defaults'), this._reset.bind(this));
     contextMenu.footerSection().appendItem(
-        ls`Close DevTools`, InspectorFrontendHost.closeWindow.bind(InspectorFrontendHost));
+        ls`Close DevTools`, Host.InspectorFrontendHost.closeWindow.bind(Host.InspectorFrontendHost));
 
     /**
      * @param {!UI.ContextMenuSection} section
@@ -315,8 +318,9 @@ Emulation.DeviceModeToolbar = class {
      * @param {boolean=} disabled
      */
     function appendToggleItem(section, setting, title1, title2, disabled) {
-      if (typeof disabled === 'undefined')
+      if (typeof disabled === 'undefined') {
         disabled = model.type() === Emulation.DeviceModeModel.Type.None;
+      }
       section.appendItem(setting.get() ? title1 : title2, setting.set.bind(setting, !setting.get()), disabled);
     }
   }
@@ -405,8 +409,9 @@ Emulation.DeviceModeToolbar = class {
      * @this {Emulation.DeviceModeToolbar}
      */
     function appendGroup(devices) {
-      if (!devices.length)
+      if (!devices.length) {
         return;
+      }
       const section = contextMenu.section();
       for (const device of devices) {
         section.appendCheckboxItem(
@@ -420,15 +425,17 @@ Emulation.DeviceModeToolbar = class {
    */
   _deviceListChanged() {
     const device = this._model.device();
-    if (!device)
+    if (!device) {
       return;
+    }
 
     const devices = this._allDevices();
     if (devices.indexOf(device) === -1) {
-      if (devices.length)
+      if (devices.length) {
         this._emulateDevice(devices[0]);
-      else
+      } else {
         this._model.emulate(Emulation.DeviceModeModel.Type.Responsive, null, null);
+      }
     }
   }
 
@@ -479,13 +486,15 @@ Emulation.DeviceModeToolbar = class {
      */
     function addOrientation(orientation, title) {
       const modes = device.modesForOrientation(orientation);
-      if (!modes.length)
+      if (!modes.length) {
         return;
+      }
       if (modes.length === 1) {
         addMode(modes[0], title);
       } else {
-        for (let index = 0; index < modes.length; index++)
+        for (let index = 0; index < modes.length; index++) {
           addMode(modes[index], title + ' \u2013 ' + modes[index].title);
+        }
       }
     }
 
@@ -554,10 +563,12 @@ Emulation.DeviceModeToolbar = class {
     }
 
     let deviceItemTitle = Common.UIString('None');
-    if (this._model.type() === Emulation.DeviceModeModel.Type.Responsive)
+    if (this._model.type() === Emulation.DeviceModeModel.Type.Responsive) {
       deviceItemTitle = Common.UIString('Responsive');
-    if (this._model.type() === Emulation.DeviceModeModel.Type.Device)
+    }
+    if (this._model.type() === Emulation.DeviceModeModel.Type.Device) {
       deviceItemTitle = this._model.device().title;
+    }
     this._deviceSelectItem.setText(deviceItemTitle);
 
     if (this._model.device() !== this._cachedModelDevice) {
@@ -608,4 +619,15 @@ Emulation.DeviceModeToolbar = class {
 
     this._model.emulate(Emulation.DeviceModeModel.Type.Responsive, null, null);
   }
-};
+}
+
+/* Legacy exported object */
+self.Emulation = self.Emulation || {};
+
+/* Legacy exported object */
+Emulation = Emulation || {};
+
+/**
+ * @constructor
+ */
+Emulation.DeviceModeToolbar = DeviceModeToolbar;

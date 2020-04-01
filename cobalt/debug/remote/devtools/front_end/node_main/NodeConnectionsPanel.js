@@ -13,8 +13,8 @@ NodeMain.NodeConnectionsPanel = class extends UI.Panel {
     const image = container.createChild('img', 'node-panel-logo');
     image.src = 'https://nodejs.org/static/images/logos/nodejs-new-pantone-black.png';
 
-    InspectorFrontendHost.events.addEventListener(
-        InspectorFrontendHostAPI.Events.DevicesDiscoveryConfigChanged, this._devicesDiscoveryConfigChanged, this);
+    Host.InspectorFrontendHost.events.addEventListener(
+        Host.InspectorFrontendHostAPI.Events.DevicesDiscoveryConfigChanged, this._devicesDiscoveryConfigChanged, this);
 
     /** @type {!Adb.Config} */
     this._config;
@@ -23,12 +23,12 @@ NodeMain.NodeConnectionsPanel = class extends UI.Panel {
     this.setDefaultFocusedElement(this.contentElement);
 
     // Trigger notification once.
-    InspectorFrontendHost.setDevicesUpdatesEnabled(false);
-    InspectorFrontendHost.setDevicesUpdatesEnabled(true);
+    Host.InspectorFrontendHost.setDevicesUpdatesEnabled(false);
+    Host.InspectorFrontendHost.setDevicesUpdatesEnabled(true);
 
     this._networkDiscoveryView = new NodeMain.NodeConnectionsView(config => {
       this._config.networkDiscoveryConfig = config;
-      InspectorFrontendHost.setDevicesDiscoveryConfig(this._config);
+      Host.InspectorFrontendHost.setDevicesDiscoveryConfig(this._config);
     });
     this._networkDiscoveryView.show(container);
   }
@@ -55,11 +55,10 @@ NodeMain.NodeConnectionsView = class extends UI.VBox {
     this.element.classList.add('network-discovery-view');
 
     const networkDiscoveryFooter = this.element.createChild('div', 'network-discovery-footer');
-    networkDiscoveryFooter.createChild('span').textContent =
-        Common.UIString('Specify network endpoint and DevTools will connect to it automatically. ');
-    const link = networkDiscoveryFooter.createChild('span', 'link');
-    link.textContent = Common.UIString('Learn more');
-    link.addEventListener('click', () => InspectorFrontendHost.openInNewTab('https://nodejs.org/en/docs/inspector/'));
+    const documentationLink = UI.XLink.create('https://nodejs.org/en/docs/inspector/', ls`Node.js debugging guide`);
+    networkDiscoveryFooter.appendChild(UI.formatLocalized(
+        'Specify network endpoint and DevTools will connect to it automatically. Read %s to learn more.',
+        [documentationLink]));
 
     /** @type {!UI.ListWidget<!Adb.PortForwardingRule>} */
     this._list = new UI.ListWidget(this);
@@ -136,8 +135,9 @@ NodeMain.NodeConnectionsView = class extends UI.VBox {
    */
   commitEdit(rule, editor, isNew) {
     rule.address = editor.control('address').value.trim();
-    if (isNew)
+    if (isNew) {
       this._networkDiscoveryConfig.push(rule);
+    }
     this._update();
   }
 
@@ -156,14 +156,15 @@ NodeMain.NodeConnectionsView = class extends UI.VBox {
    * @return {!UI.ListWidget.Editor<!Adb.PortForwardingRule>}
    */
   _createEditor() {
-    if (this._editor)
+    if (this._editor) {
       return this._editor;
+    }
 
     const editor = new UI.ListWidget.Editor();
     this._editor = editor;
     const content = editor.contentElement();
     const fields = content.createChild('div', 'network-discovery-edit-row');
-    const input = editor.createInput('address', 'text', 'Network address (e.g. localhost:9229)', addressValidator);
+    const input = editor.createInput('address', 'text', ls`Network address (e.g. localhost:9229)`, addressValidator);
     fields.createChild('div', 'network-discovery-value network-discovery-address').appendChild(input);
     return editor;
 
@@ -171,14 +172,15 @@ NodeMain.NodeConnectionsView = class extends UI.VBox {
      * @param {!Adb.PortForwardingRule} rule
      * @param {number} index
      * @param {!HTMLInputElement|!HTMLSelectElement} input
-     * @return {boolean}
+     * @return {!UI.ListWidget.ValidatorResult}
      */
     function addressValidator(rule, index, input) {
       const match = input.value.trim().match(/^([a-zA-Z0-9\.\-_]+):(\d+)$/);
-      if (!match)
-        return false;
+      if (!match) {
+        return {valid: false};
+      }
       const port = parseInt(match[2], 10);
-      return port <= 65535;
+      return {valid: port <= 65535};
     }
   }
 };

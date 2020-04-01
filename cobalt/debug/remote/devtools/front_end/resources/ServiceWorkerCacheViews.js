@@ -32,21 +32,7 @@ Resources.ServiceWorkerCacheView = class extends UI.SimpleView {
     this._cache = cache;
     /** @type {?DataGrid.DataGrid} */
     this._dataGrid = null;
-    /** @type {?number} */
-    this._lastPageSize = null;
-    /** @type {?number} */
-    this._lastSkipCount = null;
     this._refreshThrottler = new Common.Throttler(300);
-
-    this._pageBackButton = new UI.ToolbarButton(Common.UIString('Show previous page'), 'largeicon-play-back');
-    this._pageBackButton.addEventListener(UI.ToolbarButton.Events.Click, this._pageBackButtonClicked, this);
-    editorToolbar.appendToolbarItem(this._pageBackButton);
-
-    this._pageForwardButton = new UI.ToolbarButton(Common.UIString('Show next page'), 'largeicon-play');
-    this._pageForwardButton.setEnabled(false);
-    this._pageForwardButton.addEventListener(UI.ToolbarButton.Events.Click, this._pageForwardButtonClicked, this);
-    editorToolbar.appendToolbarItem(this._pageForwardButton);
-
     this._refreshButton = new UI.ToolbarButton(Common.UIString('Refresh'), 'largeicon-refresh');
     this._refreshButton.addEventListener(UI.ToolbarButton.Events.Click, this._refreshButtonClicked, this);
     editorToolbar.appendToolbarItem(this._refreshButton);
@@ -55,10 +41,32 @@ Resources.ServiceWorkerCacheView = class extends UI.SimpleView {
     this._deleteSelectedButton.addEventListener(UI.ToolbarButton.Events.Click, () => this._deleteButtonClicked(null));
     editorToolbar.appendToolbarItem(this._deleteSelectedButton);
 
-    this._pageSize = 50;
-    this._skipCount = 0;
+    const entryPathFilterBox = new UI.ToolbarInput(ls`Filter by Path`, '', 1);
+    editorToolbar.appendToolbarItem(entryPathFilterBox);
+    const entryPathFilterThrottler = new Common.Throttler(300);
+    this._entryPathFilter = '';
+    entryPathFilterBox.addEventListener(UI.ToolbarInput.Event.TextChanged, () => {
+      entryPathFilterThrottler.schedule(() => {
+        this._entryPathFilter = entryPathFilterBox.value();
+        return this._updateData(true);
+      });
+    });
+
+    this._returnCount = /** @type {?number} */ (null);
+    this._summaryBarElement = /** @type {?Element} */ (null);
+    this._loadingPromise = /** @type {?Promise} */ (null);
 
     this.update(cache);
+  }
+
+  _resetDataGrid() {
+    if (this._dataGrid) {
+      this._dataGrid.asWidget().detach();
+    }
+    this._dataGrid = this._createDataGrid();
+    const dataGridWidget = this._dataGrid.asWidget();
+    this._splitWidget.setSidebarWidget(dataGridWidget);
+    dataGridWidget.setMinimumSize(0, 250);
   }
 
   /**
@@ -82,12 +90,15 @@ Resources.ServiceWorkerCacheView = class extends UI.SimpleView {
    * @param {?UI.Widget} preview
    */
   _showPreview(preview) {
-    if (this._preview === preview)
+    if (preview && this._preview === preview) {
       return;
-    if (this._preview)
+    }
+    if (this._preview) {
       this._preview.detach();
-    if (!preview)
+    }
+    if (!preview) {
       preview = new UI.EmptyWidget(Common.UIString('Select a cache entry above to preview'));
+    }
     this._preview = preview;
     this._preview.show(this._previewPanel.element);
   }
@@ -97,7 +108,9 @@ Resources.ServiceWorkerCacheView = class extends UI.SimpleView {
    */
   _createDataGrid() {
     const columns = /** @type {!Array<!DataGrid.DataGrid.ColumnDescriptor>} */ ([
-      {id: 'path', title: Common.UIString('Path'), weight: 4, sortable: true},
+      {id: 'number', title: '#', sortable: false, width: '3px'},
+      {id: 'name', title: Common.UIString('Name'), weight: 4, sortable: true},
+      {id: 'responseType', title: ls`Response-Type`, weight: 1, align: DataGrid.DataGrid.Align.Right, sortable: true},
       {id: 'contentType', title: Common.UIString('Content-Type'), weight: 1, sortable: true}, {
         id: 'contentLength',
         title: Common.UIString('Content-Length'),
@@ -126,20 +139,24 @@ Resources.ServiceWorkerCacheView = class extends UI.SimpleView {
   }
 
   _sortingChanged() {
-    if (!this._dataGrid)
+    if (!this._dataGrid) {
       return;
+    }
 
     const accending = this._dataGrid.isSortOrderAscending();
     const columnId = this._dataGrid.sortColumnId();
     let comparator;
-    if (columnId === 'path')
-      comparator = (a, b) => a._path.localeCompare(b._path);
-    else if (columnId === 'contentType')
+    if (columnId === 'name') {
+      comparator = (a, b) => a._name.localeCompare(b._name);
+    } else if (columnId === 'contentType') {
       comparator = (a, b) => a.data.mimeType.localeCompare(b.data.mimeType);
-    else if (columnId === 'contentLength')
+    } else if (columnId === 'contentLength') {
       comparator = (a, b) => a.data.resourceSize - b.data.resourceSize;
-    else if (columnId === 'responseTime')
+    } else if (columnId === 'responseTime') {
       comparator = (a, b) => a.data.endTime - b.data.endTime;
+    } else if (columnId === 'responseType') {
+      comparator = (a, b) => a._responseType.localeCompare(b._responseType);
+    }
 
     const children = this._dataGrid.rootNode().children.slice();
     this._dataGrid.rootNode().removeChildren();
@@ -151,29 +168,14 @@ Resources.ServiceWorkerCacheView = class extends UI.SimpleView {
   }
 
   /**
-   * @param {!Common.Event} event
-   */
-  _pageBackButtonClicked(event) {
-    this._skipCount = Math.max(0, this._skipCount - this._pageSize);
-    this._updateData(false);
-  }
-
-  /**
-   * @param {!Common.Event} event
-   */
-  _pageForwardButtonClicked(event) {
-    this._skipCount = this._skipCount + this._pageSize;
-    this._updateData(false);
-  }
-
-  /**
    * @param {?DataGrid.DataGridNode} node
    */
   async _deleteButtonClicked(node) {
     if (!node) {
       node = this._dataGrid && this._dataGrid.selectedNode;
-      if (!node)
+      if (!node) {
         return;
+      }
     }
     await this._model.deleteCacheEntry(this._cache, /** @type {string} */ (node.data.url()));
     node.remove();
@@ -184,69 +186,89 @@ Resources.ServiceWorkerCacheView = class extends UI.SimpleView {
    */
   update(cache) {
     this._cache = cache;
-
-    if (this._dataGrid)
-      this._dataGrid.asWidget().detach();
-    this._dataGrid = this._createDataGrid();
-    this._splitWidget.setSidebarWidget(this._dataGrid.asWidget());
-    this._skipCount = 0;
+    this._resetDataGrid();
     this._updateData(true);
+  }
+
+  _updateSummaryBar() {
+    if (!this._summaryBarElement) {
+      this._summaryBarElement = this.element.createChild('div', 'cache-storage-summary-bar');
+    }
+    this._summaryBarElement.removeChildren();
+
+    const span = this._summaryBarElement.createChild('span');
+    if (this._entryPathFilter) {
+      span.textContent = ls`Matching entries: ${this._returnCount}`;
+    } else {
+      span.textContent = ls`Total entries: ${this._returnCount}`;
+    }
   }
 
   /**
    * @param {number} skipCount
    * @param {!Array<!Protocol.CacheStorage.DataEntry>} entries
-   * @param {boolean} hasMore
+   * @param {number} returnCount
    * @this {Resources.ServiceWorkerCacheView}
    */
-  _updateDataCallback(skipCount, entries, hasMore) {
+  _updateDataCallback(skipCount, entries, returnCount) {
     const selected = this._dataGrid.selectedNode && this._dataGrid.selectedNode.data.url();
     this._refreshButton.setEnabled(true);
     this._entriesForTest = entries;
+    this._returnCount = returnCount;
+    this._updateSummaryBar();
 
     /** @type {!Map<string, !DataGrid.DataGridNode>} */
     const oldEntries = new Map();
     const rootNode = this._dataGrid.rootNode();
-    for (const node of rootNode.children)
+    for (const node of rootNode.children) {
       oldEntries.set(node.data.url, node);
+    }
     rootNode.removeChildren();
     let selectedNode = null;
-    for (const entry of entries) {
+    for (let i = 0; i < entries.length; ++i) {
+      const entry = entries[i];
       let node = oldEntries.get(entry.requestURL);
       if (!node || node.data.responseTime !== entry.responseTime) {
-        node = new Resources.ServiceWorkerCacheView.DataGridNode(this._createRequest(entry));
+        node = new Resources.ServiceWorkerCacheView.DataGridNode(i, this._createRequest(entry), entry.responseType);
         node.selectable = true;
+      } else {
+        node.data.number = i;
       }
       rootNode.appendChild(node);
-      if (entry.requestURL === selected)
+      if (entry.requestURL === selected) {
         selectedNode = node;
+      }
     }
-    this._pageBackButton.setEnabled(!!skipCount);
-    this._pageForwardButton.setEnabled(hasMore);
-    if (!selectedNode)
+    if (!selectedNode) {
       this._showPreview(null);
-    else
+    } else {
       selectedNode.revealAndSelect();
+    }
     this._updatedForTest();
   }
 
   /**
    * @param {boolean} force
    */
-  _updateData(force) {
-    const pageSize = this._pageSize;
-    let skipCount = this._skipCount;
-
-    if (!force && this._lastPageSize === pageSize && this._lastSkipCount === skipCount)
-      return;
-    this._refreshButton.setEnabled(false);
-    if (this._lastPageSize !== pageSize) {
-      skipCount = 0;
-      this._skipCount = 0;
+  async _updateData(force) {
+    if (!force && this._loadingPromise) {
+      return this._loadingPromise;
     }
-    this._lastPageSize = pageSize;
-    this._lastSkipCount = skipCount;
-    this._model.loadCacheData(this._cache, skipCount, pageSize, this._updateDataCallback.bind(this, skipCount));
+    this._refreshButton.setEnabled(false);
+
+    if (this._loadingPromise) {
+      return this._loadingPromise;
+    }
+
+    this._loadingPromise = new Promise(resolve => {
+      this._model.loadAllCacheData(this._cache, this._entryPathFilter, (entries, returnCount) => {
+        resolve([entries, returnCount]);
+      });
+    });
+
+    const [entries, returnCount] = await this._loadingPromise;
+    this._updateDataCallback(0, entries, returnCount);
+    this._loadingPromise = null;
   }
 
   /**
@@ -261,8 +283,9 @@ Resources.ServiceWorkerCacheView = class extends UI.SimpleView {
    */
   _cacheContentUpdated(event) {
     const nameAndOrigin = event.data;
-    if (this._cache.securityOrigin !== nameAndOrigin.origin || this._cache.cacheName !== nameAndOrigin.cacheName)
+    if (this._cache.securityOrigin !== nameAndOrigin.origin || this._cache.cacheName !== nameAndOrigin.cacheName) {
       return;
+    }
     this._refreshThrottler.schedule(() => Promise.resolve(this._updateData(true)), true);
   }
 
@@ -277,8 +300,9 @@ Resources.ServiceWorkerCacheView = class extends UI.SimpleView {
     }
 
     // It is possible that table selection changes before the preview opens.
-    if (request === this._dataGrid.selectedNode.data)
+    if (request === this._dataGrid.selectedNode.data) {
       this._showPreview(preview);
+    }
   }
 
   /**
@@ -304,8 +328,9 @@ Resources.ServiceWorkerCacheView = class extends UI.SimpleView {
     request.resourceSize = (header && header.value) | 0;
 
     let resourceType = Common.ResourceType.fromMimeType(contentType);
-    if (!resourceType)
+    if (!resourceType) {
       resourceType = Common.ResourceType.fromURL(entry.requestURL) || Common.resourceTypes.Other;
+    }
     request.setResourceType(resourceType);
     request.setContentDataProvider(this._requestContent.bind(this, request));
     return request;
@@ -318,9 +343,10 @@ Resources.ServiceWorkerCacheView = class extends UI.SimpleView {
   async _requestContent(request) {
     const isText = request.resourceType().isTextType();
     const contentData = {error: null, content: null, encoded: !isText};
-    const response = await this._cache.requestCachedResponse(request.url());
-    if (response)
+    const response = await this._cache.requestCachedResponse(request.url(), request.requestHeaders());
+    if (response) {
       contentData.content = isText ? window.atob(response.body) : response.body;
+    }
     return contentData;
   }
 
@@ -330,20 +356,23 @@ Resources.ServiceWorkerCacheView = class extends UI.SimpleView {
 
 Resources.ServiceWorkerCacheView._previewSymbol = Symbol('preview');
 
-Resources.ServiceWorkerCacheView._RESPONSE_CACHE_SIZE = 10;
-
 Resources.ServiceWorkerCacheView.DataGridNode = class extends DataGrid.DataGridNode {
   /**
+   * @param {number} number
    * @param {!SDK.NetworkRequest} request
+   * @param {!Protocol.CacheStorage.CachedResponseType} responseType
    */
-  constructor(request) {
+  constructor(number, request, responseType) {
     super(request);
-    this._path = Common.ParsedURL.extractPath(request.url());
-    if (!this._path)
-      this._path = request.url();
-    if (this._path.length > 1 && this._path.startsWith('/'))
-      this._path = this._path.substring(1);
+    this._number = number;
+    const parsed = new Common.ParsedURL(request.url());
+    if (parsed.isValid) {
+      this._name = request.url().trimURL(parsed.domain());
+    } else {
+      this._name = request.url();
+    }
     this._request = request;
+    this._responseType = responseType;
   }
 
   /**
@@ -354,15 +383,27 @@ Resources.ServiceWorkerCacheView.DataGridNode = class extends DataGrid.DataGridN
   createCell(columnId) {
     const cell = this.createTD(columnId);
     let value;
-    if (columnId === 'path')
-      value = this._path;
-    else if (columnId === 'contentType')
+    if (columnId === 'number') {
+      value = String(this._number);
+    } else if (columnId === 'name') {
+      value = this._name;
+    } else if (columnId === 'responseType') {
+      if (this._responseType === 'opaqueResponse') {
+        value = 'opaque';
+      } else if (this._responseType === 'opaqueRedirect') {
+        value = 'opaqueredirect';
+      } else {
+        value = this._responseType;
+      }
+    } else if (columnId === 'contentType') {
       value = this._request.mimeType;
-    else if (columnId === 'contentLength')
+    } else if (columnId === 'contentLength') {
       value = (this._request.resourceSize | 0).toLocaleString('en-US');
-    else if (columnId === 'responseTime')
+    } else if (columnId === 'responseTime') {
       value = new Date(this._request.endTime * 1000).toLocaleString();
+    }
     DataGrid.DataGrid.setElementText(cell, value || '', true);
+    cell.title = this._request.url();
     return cell;
   }
 };
@@ -395,15 +436,18 @@ Resources.ServiceWorkerCacheView.RequestView = class extends UI.VBox {
    * @param {string=} tabId
    */
   _selectTab(tabId) {
-    if (!tabId)
+    if (!tabId) {
       tabId = this._resourceViewTabSetting.get();
-    if (!this._tabbedPane.selectTab(tabId))
+    }
+    if (!this._tabbedPane.selectTab(tabId)) {
       this._tabbedPane.selectTab('headers');
+    }
   }
 
   _tabSelected(event) {
-    if (!event.data.isUserGesture)
+    if (!event.data.isUserGesture) {
       return;
+    }
     this._resourceViewTabSetting.set(event.data.tabId);
   }
 };

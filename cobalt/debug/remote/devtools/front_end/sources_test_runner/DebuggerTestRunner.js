@@ -10,8 +10,9 @@
 SourcesTestRunner.startDebuggerTest = function(callback, quiet) {
   console.assert(TestRunner.debuggerModel.debuggerEnabled(), 'Debugger has to be enabled');
 
-  if (quiet !== undefined)
+  if (quiet !== undefined) {
     SourcesTestRunner._quiet = quiet;
+  }
 
   UI.viewManager.showView('sources');
   TestRunner.addSniffer(SDK.DebuggerModel.prototype, '_pausedScript', SourcesTestRunner._pausedScript, true);
@@ -139,10 +140,11 @@ SourcesTestRunner.waitUntilPausedNextTime = function(callback) {
 SourcesTestRunner.waitUntilPaused = function(callback) {
   callback = TestRunner.safeWrap(callback);
 
-  if (SourcesTestRunner._pausedScriptArguments)
+  if (SourcesTestRunner._pausedScriptArguments) {
     callback.apply(callback, SourcesTestRunner._pausedScriptArguments);
-  else
+  } else {
     SourcesTestRunner._waitUntilPausedCallback = callback;
+  }
 };
 
 SourcesTestRunner.waitUntilPausedPromise = function() {
@@ -156,10 +158,11 @@ SourcesTestRunner.waitUntilResumedNextTime = function(callback) {
 SourcesTestRunner.waitUntilResumed = function(callback) {
   callback = TestRunner.safeWrap(callback);
 
-  if (!SourcesTestRunner._pausedScriptArguments)
+  if (!SourcesTestRunner._pausedScriptArguments) {
     callback();
-  else
+  } else {
     SourcesTestRunner._waitUntilResumedCallback = callback;
+  }
 };
 
 SourcesTestRunner.waitUntilResumedPromise = function() {
@@ -167,8 +170,9 @@ SourcesTestRunner.waitUntilResumedPromise = function() {
 };
 
 SourcesTestRunner.resumeExecution = function(callback) {
-  if (UI.panels.sources.paused())
+  if (UI.panels.sources.paused()) {
     UI.panels.sources._togglePause();
+  }
 
   SourcesTestRunner.waitUntilResumed(callback);
 };
@@ -184,16 +188,18 @@ SourcesTestRunner.waitUntilPausedAndDumpStackAndResume = function(callback, opti
     const statusElement = this.element.querySelector('.paused-message');
     caption = statusElement.deepTextContent();
 
-    if (callFrames)
+    if (callFrames) {
       step1();
+    }
   }
 
   function paused(frames, reason, breakpointIds, async) {
     callFrames = frames;
     asyncStackTrace = async;
 
-    if (typeof caption === 'string')
+    if (typeof caption === 'string') {
       step1();
+    }
   }
 
   function step1() {
@@ -248,8 +254,9 @@ SourcesTestRunner.waitUntilPausedAndPerformSteppingActions = function(actions, c
       SourcesTestRunner.captureStackTrace(callFrames, asyncStackTrace);
       TestRunner.addResult('');
 
-      while (action === 'Print')
+      while (action === 'Print') {
         action = actions.shift();
+      }
     }
 
     if (!action) {
@@ -299,10 +306,12 @@ SourcesTestRunner.captureStackTraceIntoString = function(callFrames, asyncStackT
       const location = locationFunction.call(frame);
       const script = location.script();
       const uiLocation = Bindings.debuggerWorkspaceBinding.rawLocationToUILocation(location);
-      const isFramework = Bindings.blackboxManager.isBlackboxedRawLocation(location);
+      const isFramework =
+          uiLocation ? Bindings.blackboxManager.isBlackboxedUISourceCode(uiLocation.uiSourceCode) : false;
 
-      if (options.dropFrameworkCallFrames && isFramework)
+      if (options.dropFrameworkCallFrames && isFramework) {
         continue;
+      }
 
       let url;
       let lineNumber;
@@ -320,14 +329,16 @@ SourcesTestRunner.captureStackTraceIntoString = function(callFrames, asyncStackT
       s = s.replace(/scheduleTestFunction.+$/, 'scheduleTestFunction <omitted>');
       results.push(s);
 
-      if (options.printReturnValue && returnValueFunction && returnValueFunction.call(frame))
+      if (options.printReturnValue && returnValueFunction && returnValueFunction.call(frame)) {
         results.push('       <return>: ' + returnValueFunction.call(frame).description);
+      }
 
       if (frame.functionName === 'scheduleTestFunction') {
         const remainingFrames = callFrames.length - 1 - i;
 
-        if (remainingFrames)
+        if (remainingFrames) {
           results.push('    <... skipped remaining frames ...>');
+        }
 
         break;
       }
@@ -348,8 +359,9 @@ SourcesTestRunner.captureStackTraceIntoString = function(callFrames, asyncStackT
     results.push('    [' + (asyncStackTrace.description || 'Async Call') + ']');
     const printed = printCallFrames(asyncStackTrace.callFrames, runtimeCallFramePosition);
 
-    if (!printed)
+    if (!printed) {
       results.pop();
+    }
 
     asyncStackTrace = asyncStackTrace.parent;
   }
@@ -361,15 +373,17 @@ SourcesTestRunner.dumpSourceFrameContents = function(sourceFrame) {
   TestRunner.addResult('==Source frame contents start==');
   const textEditor = sourceFrame._textEditor;
 
-  for (let i = 0; i < textEditor.linesCount; ++i)
+  for (let i = 0; i < textEditor.linesCount; ++i) {
     TestRunner.addResult(textEditor.line(i));
+  }
 
   TestRunner.addResult('==Source frame contents end==');
 };
 
 SourcesTestRunner._pausedScript = function(callFrames, reason, auxData, breakpointIds, asyncStackTrace) {
-  if (!SourcesTestRunner._quiet)
+  if (!SourcesTestRunner._quiet) {
     TestRunner.addResult('Script execution paused.');
+  }
 
   const debuggerModel = this.target().model(SDK.DebuggerModel);
   SourcesTestRunner._pausedScriptArguments = [
@@ -385,8 +399,9 @@ SourcesTestRunner._pausedScript = function(callFrames, reason, auxData, breakpoi
 };
 
 SourcesTestRunner._resumedScript = function() {
-  if (!SourcesTestRunner._quiet)
+  if (!SourcesTestRunner._quiet) {
     TestRunner.addResult('Script execution resumed.');
+  }
 
   delete SourcesTestRunner._pausedScriptArguments;
 
@@ -402,10 +417,11 @@ SourcesTestRunner.showUISourceCode = function(uiSourceCode, callback) {
   panel.showUISourceCode(uiSourceCode);
   const sourceFrame = panel.visibleView;
 
-  if (sourceFrame.loaded)
+  if (sourceFrame.loaded) {
     callback(sourceFrame);
-  else
+  } else {
     TestRunner.addSniffer(sourceFrame, 'setContent', callback && callback.bind(null, sourceFrame));
+  }
 };
 
 SourcesTestRunner.showUISourceCodePromise = function(uiSourceCode) {
@@ -432,8 +448,9 @@ SourcesTestRunner.waitForScriptSource = function(scriptName, callback) {
   const uiSourceCodes = panel._workspace.uiSourceCodes();
 
   for (let i = 0; i < uiSourceCodes.length; ++i) {
-    if (uiSourceCodes[i].project().type() === Workspace.projectTypes.Service)
+    if (uiSourceCodes[i].project().type() === Workspace.projectTypes.Service) {
       continue;
+    }
 
     if (uiSourceCodes[i].name() === scriptName) {
       callback(uiSourceCodes[i]);
@@ -446,15 +463,28 @@ SourcesTestRunner.waitForScriptSource = function(scriptName, callback) {
       SourcesTestRunner.waitForScriptSource.bind(SourcesTestRunner, scriptName, callback));
 };
 
+SourcesTestRunner.objectForPopover = function(sourceFrame, lineNumber, columnNumber) {
+  const debuggerPlugin = SourcesTestRunner.debuggerPlugin(sourceFrame);
+  const {x, y} = debuggerPlugin._textEditor.cursorPositionToCoordinates(lineNumber, columnNumber);
+  const promise = TestRunner.addSnifferPromise(ObjectUI.ObjectPopoverHelper, 'buildObjectPopover');
+  debuggerPlugin._getPopoverRequest({x, y}).show(new UI.GlassPane());
+  return promise;
+};
+
 SourcesTestRunner.setBreakpoint = function(sourceFrame, lineNumber, condition, enabled) {
   const debuggerPlugin = SourcesTestRunner.debuggerPlugin(sourceFrame);
-  if (!debuggerPlugin._muted)
+  if (!debuggerPlugin._muted) {
     debuggerPlugin._setBreakpoint(lineNumber, 0, condition, enabled);
+  }
 };
 
 SourcesTestRunner.removeBreakpoint = function(sourceFrame, lineNumber) {
   const debuggerPlugin = SourcesTestRunner.debuggerPlugin(sourceFrame);
-  debuggerPlugin._breakpointManager.findBreakpoints(sourceFrame._uiSourceCode, lineNumber)[0].remove();
+  const breakpointLocations = debuggerPlugin._breakpointManager.allBreakpointLocations();
+  const breakpointLocation = breakpointLocations.find(
+      breakpointLocation => breakpointLocation.uiLocation.uiSourceCode === sourceFrame._uiSourceCode &&
+          breakpointLocation.uiLocation.lineNumber === lineNumber);
+  breakpointLocation.breakpoint.remove();
 };
 
 SourcesTestRunner.createNewBreakpoint = function(sourceFrame, lineNumber, condition, enabled) {
@@ -467,8 +497,9 @@ SourcesTestRunner.createNewBreakpoint = function(sourceFrame, lineNumber, condit
 
 SourcesTestRunner.toggleBreakpoint = function(sourceFrame, lineNumber, disableOnly) {
   const debuggerPlugin = SourcesTestRunner.debuggerPlugin(sourceFrame);
-  if (!debuggerPlugin._muted)
+  if (!debuggerPlugin._muted) {
     debuggerPlugin._toggleBreakpoint(lineNumber, disableOnly);
+  }
 };
 
 SourcesTestRunner.waitBreakpointSidebarPane = function(waitUntilResolved) {
@@ -478,12 +509,14 @@ SourcesTestRunner.waitBreakpointSidebarPane = function(waitUntilResolved) {
       .then(checkIfReady);
 
   function checkIfReady() {
-    if (!waitUntilResolved)
+    if (!waitUntilResolved) {
       return;
+    }
 
-    for (const breakpoint of Bindings.breakpointManager._allBreakpoints()) {
-      if (breakpoint._fakePrimaryLocation && breakpoint.enabled())
+    for (const {breakpoint} of Bindings.breakpointManager.allBreakpointLocations()) {
+      if (breakpoint._uiLocations.size === 0 && breakpoint.enabled()) {
         return SourcesTestRunner.waitBreakpointSidebarPane();
+      }
     }
   }
 };
@@ -492,8 +525,9 @@ SourcesTestRunner.breakpointsSidebarPaneContent = function() {
   const paneElement = self.runtime.sharedInstance(Sources.JavaScriptBreakpointsSidebarPane).contentElement;
   const empty = paneElement.querySelector('.gray-info-message');
 
-  if (empty)
+  if (empty) {
     return TestRunner.textContentWithLineBreaks(empty);
+  }
 
   const entries = Array.from(paneElement.querySelectorAll('.breakpoint-entry'));
   return entries.map(TestRunner.textContentWithLineBreaks).join('\n');
@@ -508,33 +542,37 @@ SourcesTestRunner.dumpScopeVariablesSidebarPane = function() {
   TestRunner.addResult('Scope variables sidebar pane:');
   const sections = SourcesTestRunner.scopeChainSections();
 
-  for (let i = 0; i < sections.length; ++i) {
-    const textContent = TestRunner.textContentWithLineBreaks(sections[i].element);
+  SourcesTestRunner.dumpSectionsWithIndent(sections, 0);
+};
+
+SourcesTestRunner.dumpSectionsWithIndent = function(treeElements, depth) {
+  if (!treeElements || treeElements.length === 0) {
+    return;
+  }
+
+  for (const treeElement of treeElements) {
+    const textContent = TestRunner.textContentWithLineBreaks(treeElement.listItemElement);
     const text = TestRunner.clearSpecificInfoFromStackFrames(textContent);
-
-    if (text.length > 0)
-      TestRunner.addResult(text);
-
-    if (!sections[i].objectTreeElement().expanded)
+    if (text.length > 0) {
+      TestRunner.addResult('    '.repeat(depth) + text);
+    }
+    if (!treeElement.expanded && depth === 0) {
       TestRunner.addResult('    <section collapsed>');
+    }
+    SourcesTestRunner.dumpSectionsWithIndent(treeElement.children(), depth + 1);
   }
 };
 
 SourcesTestRunner.scopeChainSections = function() {
-  const children = self.runtime.sharedInstance(Sources.ScopeChainSidebarPane).contentElement.children;
-  const sections = [];
-
-  for (let i = 0; i < children.length; ++i)
-    sections.push(children[i]._section);
-
-  return sections;
+  return self.runtime.sharedInstance(Sources.ScopeChainSidebarPane)._treeOutline.rootElement().children();
 };
 
 SourcesTestRunner.expandScopeVariablesSidebarPane = function(callback) {
   const sections = SourcesTestRunner.scopeChainSections();
 
-  for (let i = 0; i < sections.length - 1; ++i)
+  for (let i = 0; i < sections.length - 1; ++i) {
     sections[i].expand();
+  }
 
   TestRunner.deprecatedRunAfterPendingDispatches(callback);
 };
@@ -584,8 +622,9 @@ SourcesTestRunner._findChildPropertyTreeElement = function(parent, childName) {
     const treeElement = children[i];
     const property = treeElement.property;
 
-    if (property.name === childName)
+    if (property.name === childName) {
       return treeElement;
+    }
   }
 };
 
@@ -616,11 +655,12 @@ SourcesTestRunner.createScriptMock = function(
 
   script.requestContent = function() {
     const trimmedSource = SDK.Script._trimSourceURLComment(source);
-    return Promise.resolve(trimmedSource);
+    return Promise.resolve({content: trimmedSource, isEncoded: false});
   };
 
-  if (preRegisterCallback)
+  if (preRegisterCallback) {
     preRegisterCallback(script);
+  }
 
   debuggerModel._registerScript(script);
   return script;
@@ -652,8 +692,9 @@ SourcesTestRunner.checkUILocation = function(uiSourceCode, lineNumber, columnNum
 SourcesTestRunner.scriptFormatter = function() {
   return self.runtime.allInstances(Sources.SourcesView.EditorAction).then(function(editorActions) {
     for (let i = 0; i < editorActions.length; ++i) {
-      if (editorActions[i] instanceof Sources.ScriptFormatterEditorAction)
+      if (editorActions[i] instanceof Sources.ScriptFormatterEditorAction) {
         return editorActions[i];
+      }
     }
 
     return null;
@@ -677,25 +718,25 @@ SourcesTestRunner.waitForExecutionContextInTarget = function(target, callback) {
 };
 
 SourcesTestRunner.selectThread = function(target) {
-  const threadsPane = self.runtime.sharedInstance(Sources.ThreadsSidebarPane);
-  threadsPane._list.selectItem(target.model(SDK.DebuggerModel));
+  UI.context.setFlavor(SDK.Target, target);
 };
 
 SourcesTestRunner.evaluateOnCurrentCallFrame = function(code) {
   return TestRunner.debuggerModel.evaluateOnSelectedCallFrame({expression: code, objectGroup: 'console'});
 };
 
-SourcesTestRunner.waitDebuggerPluginBreakpoints = function(sourceFrame) {
-  return waitUpdate().then(checkIfReady);
+SourcesTestRunner.waitDebuggerPluginDecorations = function(sourceFrame) {
+  return TestRunner.addSnifferPromise(Sources.DebuggerPlugin.prototype, '_breakpointDecorationsUpdatedForTest');
+};
 
-  async function waitUpdate() {
-    await TestRunner.addSnifferPromise(Sources.DebuggerPlugin.prototype, '_breakpointDecorationsUpdatedForTest');
-  }
+SourcesTestRunner.waitDebuggerPluginBreakpoints = function(sourceFrame) {
+  return SourcesTestRunner.waitDebuggerPluginDecorations().then(checkIfReady);
 
   function checkIfReady() {
-    for (const breakpoint of Bindings.breakpointManager._allBreakpoints()) {
-      if (breakpoint._fakePrimaryLocation && breakpoint.enabled())
-        return waitUpdate().then(checkIfReady);
+    for (const {breakpoint} of Bindings.breakpointManager.allBreakpointLocations()) {
+      if (breakpoint._uiLocations.size === 0 && breakpoint.enabled()) {
+        return SourcesTestRunner.waitDebuggerPluginDecorations().then(checkIfReady);
+      }
     }
 
     return Promise.resolve();
@@ -706,8 +747,9 @@ SourcesTestRunner.dumpDebuggerPluginBreakpoints = function(sourceFrame) {
   const textEditor = sourceFrame._textEditor;
 
   for (let lineNumber = 0; lineNumber < textEditor.linesCount; ++lineNumber) {
-    if (!textEditor.hasLineClass(lineNumber, 'cm-breakpoint'))
+    if (!textEditor.hasLineClass(lineNumber, 'cm-breakpoint')) {
       continue;
+    }
 
     const disabled = textEditor.hasLineClass(lineNumber, 'cm-breakpoint-disabled');
     const conditional = textEditor.hasLineClass(lineNumber, 'cm-breakpoint-conditional');
@@ -752,8 +794,9 @@ SourcesTestRunner.debuggerPlugin = function(sourceFrame) {
 };
 
 SourcesTestRunner.waitUntilDebuggerPluginLoaded = async function(sourceFrame) {
-  while (!SourcesTestRunner.debuggerPlugin(sourceFrame))
+  while (!SourcesTestRunner.debuggerPlugin(sourceFrame)) {
     await TestRunner.addSnifferPromise(sourceFrame, '_ensurePluginsLoaded');
+  }
   return SourcesTestRunner.debuggerPlugin(sourceFrame);
 };
 
@@ -762,8 +805,9 @@ SourcesTestRunner.setEventListenerBreakpoint = function(id, enabled, targetName)
 
   const auxData = {'eventName': id};
 
-  if (targetName)
+  if (targetName) {
     auxData.targetName = targetName;
+  }
 
   const breakpoint = SDK.domDebuggerManager.resolveEventListenerBreakpoint(auxData);
 

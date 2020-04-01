@@ -18,7 +18,7 @@
             "className": "Elements.ElementsPanel.ContextMenuProvider"
         },
         {
-            "type": "@Common.Renderer",
+            "type": "@UI.Renderer",
             "contextTypes": [
                 "SDK.DOMNode",
                 "SDK.DeferredDOMNode"
@@ -50,40 +50,6 @@
             ],
             "destination": "styles sidebar",
             "className": "Elements.ElementsPanel.CSSPropertyRevealer"
-        },
-        {
-            "type": "setting",
-            "category": "Elements",
-            "order": 0,
-            "title": "Color format:",
-            "settingName": "colorFormat",
-            "settingType": "enum",
-            "defaultValue": "original",
-            "options": [
-                {
-                    "title": "Set color format as authored",
-                    "text": "As authored",
-                    "value": "original"
-                },
-                {
-                    "title": "Set color format to HEX",
-                    "text": "HEX: #dac0de",
-                    "value": "hex",
-                    "raw": true
-                },
-                {
-                    "title": "Set color format to RGB",
-                    "text": "RGB: rgb(128, 255, 255)",
-                    "value": "rgb",
-                    "raw": true
-                },
-                {
-                    "title": "Set color format to HSL",
-                    "text": "HSL: hsl(300, 80%, 90%)",
-                    "value": "hsl",
-                    "raw": true
-                }
-            ]
         },
         {
             "type": "setting",
@@ -138,6 +104,15 @@
             "order": 4,
             "title": "Reveal DOM node on hover",
             "settingName": "highlightNodeOnHoverInOverlay",
+            "settingType": "boolean",
+            "defaultValue": true
+        },
+        {
+            "type": "setting",
+            "category": "Elements",
+            "order": 5,
+            "title": "Show detailed inspect tooltip",
+            "settingName": "showDetailedInspectTooltip",
             "settingType": "boolean",
             "defaultValue": true
         },
@@ -242,6 +217,7 @@
         {
             "type": "action",
             "actionId": "elements.toggle-element-search",
+            "toggleable": true,
             "className": "Elements.InspectElementModeController.ToggleSearchActionDelegate",
             "title": "Select an element in the page to inspect it",
             "iconClass": "largeicon-node-search",
@@ -257,6 +233,13 @@
             ]
         },
         {
+            "type": "action",
+            "actionId": "elements.capture-area-screenshot",
+            "className": "Elements.InspectElementModeController.ToggleSearchActionDelegate",
+            "title": "Capture area screenshot",
+            "category": "Screenshot"
+        },
+        {
             "type": "@UI.ToolbarItem.Provider",
             "actionId": "elements.toggle-element-search",
             "location": "main-toolbar-left",
@@ -268,6 +251,7 @@
             "category": "Elements",
             "className": "Elements.ElementsPanel"
         },
+<<<<<<< HEAD
         // {
         //     "type": "view",
         //     "location": "elements-sidebar",
@@ -287,15 +271,49 @@
         //     "persistence": "permanent",
         //     "className": "Elements.PropertiesWidget"
         // }
+=======
+        {
+            "type": "view",
+            "location": "elements-sidebar",
+            "id": "elements.eventListeners",
+            "title": "Event Listeners",
+            "order": 5,
+            "hasToolbar": true,
+            "persistence": "permanent",
+            "className": "Elements.EventListenersWidget"
+        },
+        {
+            "type": "view",
+            "location": "elements-sidebar",
+            "id": "elements.domProperties",
+            "title": "Properties",
+            "order": 7,
+            "persistence": "permanent",
+            "className": "Elements.PropertiesWidget"
+        },
+        {
+            "type": "view",
+            "experiment": "captureNodeCreationStacks",
+            "location": "elements-sidebar",
+            "id": "elements.domCreation",
+            "title": "Stack Trace",
+            "order": 10,
+            "persistence": "permanent",
+            "className": "Elements.NodeStackTraceWidget"
+        }
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     ],
     "dependencies": [
-        "browser_components",
+        "components",
         "extensions",
         "inline_editor",
         "color_picker",
         "event_listeners"
     ],
-    "scripts": [
+    "scripts": [],
+    "modules": [
+        "elements.js",
+        "elements-legacy.js",
         "InspectElementModeController.js",
         "ColorSwatchPopoverIcon.js",
         "ComputedStyleModel.js",
@@ -310,6 +328,7 @@
         "MetricsSidebarPane.js",
         "PlatformFontsWidget.js",
         "PropertiesWidget.js",
+        "NodeStackTraceWidget.js",
         "StylePropertyHighlighter.js",
         "StylesSidebarPane.js",
         "StylePropertyTreeElement.js",
@@ -331,6 +350,7 @@
         "metricsSidebarPane.css",
         "platformFontsWidget.css",
         "propertiesWidget.css",
+        "nodeStackTraceWidget.css",
         "stylesSectionTree.css",
         "stylesSidebarPane.css"
     ]

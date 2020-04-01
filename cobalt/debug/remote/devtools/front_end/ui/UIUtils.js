@@ -28,8 +28,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-UI.highlightedSearchResultClassName = 'highlighted-search-result';
-UI.highlightedCurrentSearchResultClassName = 'current-search-result';
+export const highlightedSearchResultClassName = 'highlighted-search-result';
+export const highlightedCurrentSearchResultClassName = 'current-search-result';
 
 /**
  * @param {!Element} element
@@ -40,34 +40,38 @@ UI.highlightedCurrentSearchResultClassName = 'current-search-result';
  * @param {?string=} hoverCursor
  * @param {number=} startDelay
  */
-UI.installDragHandle = function(
+export function installDragHandle(
     element, elementDragStart, elementDrag, elementDragEnd, cursor, hoverCursor, startDelay) {
   /**
    * @param {!Event} event
    */
   function onMouseDown(event) {
-    const dragHandler = new UI.DragHandler();
+    const dragHandler = new DragHandler();
     const dragStart = dragHandler.elementDragStart.bind(
         dragHandler, element, elementDragStart, elementDrag, elementDragEnd, cursor, event);
-    if (startDelay)
+    if (startDelay) {
       startTimer = setTimeout(dragStart, startDelay);
-    else
+    } else {
       dragStart();
+    }
   }
 
   function onMouseUp() {
-    if (startTimer)
+    if (startTimer) {
       clearTimeout(startTimer);
+    }
     startTimer = null;
   }
 
   let startTimer;
   element.addEventListener('mousedown', onMouseDown, false);
-  if (startDelay)
+  if (startDelay) {
     element.addEventListener('mouseup', onMouseUp, false);
-  if (hoverCursor !== null)
+  }
+  if (hoverCursor !== null) {
     element.style.cursor = hoverCursor || cursor || '';
-};
+  }
+}
 
 /**
  * @param {!Element} targetElement
@@ -77,15 +81,15 @@ UI.installDragHandle = function(
  * @param {?string} cursor
  * @param {!Event} event
  */
-UI.elementDragStart = function(targetElement, elementDragStart, elementDrag, elementDragEnd, cursor, event) {
-  const dragHandler = new UI.DragHandler();
+export function elementDragStart(targetElement, elementDragStart, elementDrag, elementDragEnd, cursor, event) {
+  const dragHandler = new DragHandler();
   dragHandler.elementDragStart(targetElement, elementDragStart, elementDrag, elementDragEnd, cursor, event);
-};
+}
 
 /**
  * @unrestricted
  */
-UI.DragHandler = class {
+class DragHandler {
   constructor() {
     this._elementDragMove = this._elementDragMove.bind(this);
     this._elementDragEnd = this._elementDragEnd.bind(this);
@@ -94,22 +98,24 @@ UI.DragHandler = class {
 
   _createGlassPane() {
     this._glassPaneInUse = true;
-    if (!UI.DragHandler._glassPaneUsageCount++) {
-      UI.DragHandler._glassPane = new UI.GlassPane();
-      UI.DragHandler._glassPane.setPointerEventsBehavior(UI.GlassPane.PointerEventsBehavior.BlockedByGlassPane);
-      UI.DragHandler._glassPane.show(UI.DragHandler._documentForMouseOut);
+    if (!DragHandler._glassPaneUsageCount++) {
+      DragHandler._glassPane = new UI.GlassPane();
+      DragHandler._glassPane.setPointerEventsBehavior(UI.GlassPane.PointerEventsBehavior.BlockedByGlassPane);
+      DragHandler._glassPane.show(DragHandler._documentForMouseOut);
     }
   }
 
   _disposeGlassPane() {
-    if (!this._glassPaneInUse)
+    if (!this._glassPaneInUse) {
       return;
+    }
     this._glassPaneInUse = false;
-    if (--UI.DragHandler._glassPaneUsageCount)
+    if (--DragHandler._glassPaneUsageCount) {
       return;
-    UI.DragHandler._glassPane.hide();
-    delete UI.DragHandler._glassPane;
-    delete UI.DragHandler._documentForMouseOut;
+    }
+    DragHandler._glassPane.hide();
+    delete DragHandler._glassPane;
+    delete DragHandler._documentForMouseOut;
   }
 
   /**
@@ -122,21 +128,24 @@ UI.DragHandler = class {
    */
   elementDragStart(targetElement, elementDragStart, elementDrag, elementDragEnd, cursor, event) {
     // Only drag upon left button. Right will likely cause a context menu. So will ctrl-click on mac.
-    if (event.button || (Host.isMac() && event.ctrlKey))
+    if (event.button || (Host.isMac() && event.ctrlKey)) {
       return;
+    }
 
-    if (this._elementDraggingEventListener)
+    if (this._elementDraggingEventListener) {
       return;
+    }
 
-    if (elementDragStart && !elementDragStart(/** @type {!MouseEvent} */ (event)))
+    if (elementDragStart && !elementDragStart(/** @type {!MouseEvent} */ (event))) {
       return;
+    }
 
     const targetDocument = event.target.ownerDocument;
     this._elementDraggingEventListener = elementDrag;
     this._elementEndDraggingEventListener = elementDragEnd;
     console.assert(
-        (UI.DragHandler._documentForMouseOut || targetDocument) === targetDocument, 'Dragging on multiple documents.');
-    UI.DragHandler._documentForMouseOut = targetDocument;
+        (DragHandler._documentForMouseOut || targetDocument) === targetDocument, 'Dragging on multiple documents.');
+    DragHandler._documentForMouseOut = targetDocument;
     this._dragEventsTargetDocument = targetDocument;
     try {
       this._dragEventsTargetDocumentTop = targetDocument.defaultView.top.document;
@@ -147,8 +156,9 @@ UI.DragHandler = class {
     targetDocument.addEventListener('mousemove', this._elementDragMove, true);
     targetDocument.addEventListener('mouseup', this._elementDragEnd, true);
     targetDocument.addEventListener('mouseout', this._mouseOutWhileDragging, true);
-    if (targetDocument !== this._dragEventsTargetDocumentTop)
+    if (targetDocument !== this._dragEventsTargetDocumentTop) {
       this._dragEventsTargetDocumentTop.addEventListener('mouseup', this._elementDragEnd, true);
+    }
 
     if (typeof cursor === 'string') {
       this._restoreCursorAfterDrag = restoreCursor.bind(this, targetElement.style.cursor);
@@ -157,7 +167,7 @@ UI.DragHandler = class {
     }
     /**
      * @param {string} oldCursor
-     * @this {UI.DragHandler}
+     * @this {DragHandler}
      */
     function restoreCursor(oldCursor) {
       targetDocument.body.style.removeProperty('cursor');
@@ -173,18 +183,21 @@ UI.DragHandler = class {
   }
 
   _unregisterMouseOutWhileDragging() {
-    if (!UI.DragHandler._documentForMouseOut)
+    if (!DragHandler._documentForMouseOut) {
       return;
-    UI.DragHandler._documentForMouseOut.removeEventListener('mouseout', this._mouseOutWhileDragging, true);
+    }
+    DragHandler._documentForMouseOut.removeEventListener('mouseout', this._mouseOutWhileDragging, true);
   }
 
   _unregisterDragEvents() {
-    if (!this._dragEventsTargetDocument)
+    if (!this._dragEventsTargetDocument) {
       return;
+    }
     this._dragEventsTargetDocument.removeEventListener('mousemove', this._elementDragMove, true);
     this._dragEventsTargetDocument.removeEventListener('mouseup', this._elementDragEnd, true);
-    if (this._dragEventsTargetDocument !== this._dragEventsTargetDocumentTop)
+    if (this._dragEventsTargetDocument !== this._dragEventsTargetDocumentTop) {
       this._dragEventsTargetDocumentTop.removeEventListener('mouseup', this._elementDragEnd, true);
+    }
     delete this._dragEventsTargetDocument;
     delete this._dragEventsTargetDocumentTop;
   }
@@ -197,8 +210,9 @@ UI.DragHandler = class {
       this._elementDragEnd(event);
       return;
     }
-    if (this._elementDraggingEventListener(/** @type {!MouseEvent} */ (event)))
+    if (this._elementDraggingEventListener(/** @type {!MouseEvent} */ (event))) {
       this._cancelDragEvents(event);
+    }
   }
 
   /**
@@ -208,8 +222,9 @@ UI.DragHandler = class {
     this._unregisterDragEvents();
     this._unregisterMouseOutWhileDragging();
 
-    if (this._restoreCursorAfterDrag)
+    if (this._restoreCursorAfterDrag) {
       this._restoreCursorAfterDrag();
+    }
 
     this._disposeGlassPane();
 
@@ -224,118 +239,132 @@ UI.DragHandler = class {
     const elementDragEnd = this._elementEndDraggingEventListener;
     this._cancelDragEvents(/** @type {!MouseEvent} */ (event));
     event.preventDefault();
-    if (elementDragEnd)
+    if (elementDragEnd) {
       elementDragEnd(/** @type {!MouseEvent} */ (event));
+    }
   }
-};
+}
 
-UI.DragHandler._glassPaneUsageCount = 0;
+DragHandler._glassPaneUsageCount = 0;
 
 /**
  * @param {?Node=} node
  * @return {boolean}
  */
-UI.isBeingEdited = function(node) {
-  if (!node || node.nodeType !== Node.ELEMENT_NODE)
+export function isBeingEdited(node) {
+  if (!node || node.nodeType !== Node.ELEMENT_NODE) {
     return false;
+  }
   let element = /** {!Element} */ (node);
-  if (element.classList.contains('text-prompt') || element.nodeName === 'INPUT' || element.nodeName === 'TEXTAREA')
+  if (element.classList.contains('text-prompt') || element.nodeName === 'INPUT' || element.nodeName === 'TEXTAREA') {
     return true;
+  }
 
-  if (!UI.__editingCount)
+  if (!UI.__editingCount) {
     return false;
+  }
 
   while (element) {
-    if (element.__editing)
+    if (element.__editing) {
       return true;
+    }
     element = element.parentElementOrShadowHost();
   }
   return false;
-};
+}
 
 /**
  * @return {boolean}
  * @suppressGlobalPropertiesCheck
  */
-UI.isEditing = function() {
-  if (UI.__editingCount)
+export function isEditing() {
+  if (UI.__editingCount) {
     return true;
+  }
 
   const focused = document.deepActiveElement();
-  if (!focused)
+  if (!focused) {
     return false;
+  }
   return focused.classList.contains('text-prompt') || focused.nodeName === 'INPUT' || focused.nodeName === 'TEXTAREA';
-};
+}
 
 /**
  * @param {!Element} element
  * @param {boolean} value
  * @return {boolean}
  */
-UI.markBeingEdited = function(element, value) {
+export function markBeingEdited(element, value) {
   if (value) {
-    if (element.__editing)
+    if (element.__editing) {
       return false;
+    }
     element.classList.add('being-edited');
     element.__editing = true;
     UI.__editingCount = (UI.__editingCount || 0) + 1;
   } else {
-    if (!element.__editing)
+    if (!element.__editing) {
       return false;
+    }
     element.classList.remove('being-edited');
     delete element.__editing;
     --UI.__editingCount;
   }
   return true;
-};
+}
 
 // Avoids Infinity, NaN, and scientific notation (e.g. 1e20), see crbug.com/81165.
-UI._numberRegex = /^(-?(?:\d+(?:\.\d+)?|\.\d+))$/;
+const _numberRegex = /^(-?(?:\d+(?:\.\d+)?|\.\d+))$/;
 
-UI.StyleValueDelimiters = ' \xA0\t\n"\':;,/()';
+export const StyleValueDelimiters = ' \xA0\t\n"\':;,/()';
 
 /**
  * @param {!Event} event
  * @return {?string}
  */
-UI._valueModificationDirection = function(event) {
+function _valueModificationDirection(event) {
   let direction = null;
   if (event.type === 'mousewheel') {
     // When shift is pressed while spinning mousewheel, delta comes as wheelDeltaX.
-    if (event.wheelDeltaY > 0 || event.wheelDeltaX > 0)
+    if (event.wheelDeltaY > 0 || event.wheelDeltaX > 0) {
       direction = 'Up';
-    else if (event.wheelDeltaY < 0 || event.wheelDeltaX < 0)
+    } else if (event.wheelDeltaY < 0 || event.wheelDeltaX < 0) {
       direction = 'Down';
+    }
   } else {
-    if (event.key === 'ArrowUp' || event.key === 'PageUp')
+    if (event.key === 'ArrowUp' || event.key === 'PageUp') {
       direction = 'Up';
-    else if (event.key === 'ArrowDown' || event.key === 'PageDown')
+    } else if (event.key === 'ArrowDown' || event.key === 'PageDown') {
       direction = 'Down';
+    }
   }
   return direction;
-};
+}
 
 /**
  * @param {string} hexString
  * @param {!Event} event
  * @return {?string}
  */
-UI._modifiedHexValue = function(hexString, event) {
-  const direction = UI._valueModificationDirection(event);
-  if (!direction)
+function _modifiedHexValue(hexString, event) {
+  const direction = _valueModificationDirection(event);
+  if (!direction) {
     return null;
+  }
 
   const mouseEvent = /** @type {!MouseEvent} */ (event);
   const number = parseInt(hexString, 16);
-  if (isNaN(number) || !isFinite(number))
+  if (isNaN(number) || !isFinite(number)) {
     return null;
+  }
 
   const hexStrLen = hexString.length;
   const channelLen = hexStrLen / 3;
 
   // Colors are either rgb or rrggbb.
-  if (channelLen !== 1 && channelLen !== 2)
+  if (channelLen !== 1 && channelLen !== 2) {
     return null;
+  }
 
   // Precision modifier keys work with both mousewheel and up/down keys.
   // When ctrl is pressed, increase R by 1.
@@ -344,16 +373,21 @@ UI._modifiedHexValue = function(hexString, event) {
   // If no shortcut keys are pressed then increase hex value by 1.
   // Keys can be pressed together to increase RGB channels. e.g trying different shades.
   let delta = 0;
-  if (UI.KeyboardShortcut.eventHasCtrlOrMeta(mouseEvent))
+  if (UI.KeyboardShortcut.eventHasCtrlOrMeta(mouseEvent)) {
     delta += Math.pow(16, channelLen * 2);
-  if (mouseEvent.shiftKey)
+  }
+  if (mouseEvent.shiftKey) {
     delta += Math.pow(16, channelLen);
-  if (mouseEvent.altKey)
+  }
+  if (mouseEvent.altKey) {
     delta += 1;
-  if (delta === 0)
+  }
+  if (delta === 0) {
     delta = 1;
-  if (direction === 'Down')
+  }
+  if (direction === 'Down') {
     delta *= -1;
+  }
 
   // Increase hex value by 1 and clamp from 0 ... maxValue.
   const maxValue = Math.pow(16, hexStrLen) - 1;
@@ -361,10 +395,11 @@ UI._modifiedHexValue = function(hexString, event) {
 
   // Ensure the result length is the same as the original hex value.
   let resultString = result.toString(16).toUpperCase();
-  for (let i = 0, lengthDelta = hexStrLen - resultString.length; i < lengthDelta; ++i)
+  for (let i = 0, lengthDelta = hexStrLen - resultString.length; i < lengthDelta; ++i) {
     resultString = '0' + resultString;
+  }
   return resultString;
-};
+}
 
 /**
  * @param {number} number
@@ -372,10 +407,11 @@ UI._modifiedHexValue = function(hexString, event) {
  * @param {number=} modifierMultiplier
  * @return {?number}
  */
-UI._modifiedFloatNumber = function(number, event, modifierMultiplier) {
-  const direction = UI._valueModificationDirection(event);
-  if (!direction)
+function _modifiedFloatNumber(number, event, modifierMultiplier) {
+  const direction = _valueModificationDirection(event);
+  if (!direction) {
     return null;
+  }
 
   const mouseEvent = /** @type {!MouseEvent} */ (event);
 
@@ -385,25 +421,29 @@ UI._modifiedFloatNumber = function(number, event, modifierMultiplier) {
   // When alt is pressed, increase by 0.1.
   // Otherwise increase by 1.
   let delta = 1;
-  if (UI.KeyboardShortcut.eventHasCtrlOrMeta(mouseEvent))
+  if (UI.KeyboardShortcut.eventHasCtrlOrMeta(mouseEvent)) {
     delta = 100;
-  else if (mouseEvent.shiftKey)
+  } else if (mouseEvent.shiftKey) {
     delta = 10;
-  else if (mouseEvent.altKey)
+  } else if (mouseEvent.altKey) {
     delta = 0.1;
+  }
 
-  if (direction === 'Down')
+  if (direction === 'Down') {
     delta *= -1;
-  if (modifierMultiplier)
+  }
+  if (modifierMultiplier) {
     delta *= modifierMultiplier;
+  }
 
   // Make the new number and constrain it to a precision of 6, this matches numbers the engine returns.
   // Use the Number constructor to forget the fixed precision, so 1.100000 will print as 1.1.
   const result = Number((number + delta).toFixed(6));
-  if (!String(result).match(UI._numberRegex))
+  if (!String(result).match(_numberRegex)) {
     return null;
+  }
   return result;
-};
+}
 
 /**
  * @param {string} wordString
@@ -411,7 +451,7 @@ UI._modifiedFloatNumber = function(number, event, modifierMultiplier) {
  * @param {function(string, number, string):string=} customNumberHandler
  * @return {?string}
  */
-UI.createReplacementString = function(wordString, event, customNumberHandler) {
+export function createReplacementString(wordString, event, customNumberHandler) {
   let prefix;
   let suffix;
   let number;
@@ -420,15 +460,16 @@ UI.createReplacementString = function(wordString, event, customNumberHandler) {
   if (matches && matches.length) {
     prefix = matches[1];
     suffix = matches[3];
-    number = UI._modifiedHexValue(matches[2], event);
-    if (number !== null)
+    number = _modifiedHexValue(matches[2], event);
+    if (number !== null) {
       replacementString = prefix + number + suffix;
+    }
   } else {
     matches = /(.*?)(-?(?:\d+(?:\.\d+)?|\.\d+))(.*)/.exec(wordString);
     if (matches && matches.length) {
       prefix = matches[1];
       suffix = matches[3];
-      number = UI._modifiedFloatNumber(parseFloat(matches[2]), event);
+      number = _modifiedFloatNumber(parseFloat(matches[2]), event);
       if (number !== null) {
         replacementString =
             customNumberHandler ? customNumberHandler(prefix, number, suffix) : prefix + number + suffix;
@@ -436,7 +477,7 @@ UI.createReplacementString = function(wordString, event, customNumberHandler) {
     }
   }
   return replacementString;
-};
+}
 
 /**
  * @param {!Event} event
@@ -446,7 +487,7 @@ UI.createReplacementString = function(wordString, event, customNumberHandler) {
  * @param {function(string, number, string):string=} customNumberHandler
  * @return {boolean}
  */
-UI.handleElementValueModifications = function(event, element, finishHandler, suggestionHandler, customNumberHandler) {
+export function handleElementValueModifications(event, element, finishHandler, suggestionHandler, customNumberHandler) {
   /**
    * @return {?Range}
    * @suppressGlobalPropertiesCheck
@@ -458,26 +499,30 @@ UI.handleElementValueModifications = function(event, element, finishHandler, sug
   const arrowKeyOrMouseWheelEvent =
       (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.type === 'mousewheel');
   const pageKeyPressed = (event.key === 'PageUp' || event.key === 'PageDown');
-  if (!arrowKeyOrMouseWheelEvent && !pageKeyPressed)
+  if (!arrowKeyOrMouseWheelEvent && !pageKeyPressed) {
     return false;
+  }
 
   const selection = element.getComponentSelection();
-  if (!selection.rangeCount)
+  if (!selection.rangeCount) {
     return false;
+  }
 
   const selectionRange = selection.getRangeAt(0);
-  if (!selectionRange.commonAncestorContainer.isSelfOrDescendant(element))
+  if (!selectionRange.commonAncestorContainer.isSelfOrDescendant(element)) {
     return false;
+  }
 
   const originalValue = element.textContent;
   const wordRange =
-      selectionRange.startContainer.rangeOfWord(selectionRange.startOffset, UI.StyleValueDelimiters, element);
+      selectionRange.startContainer.rangeOfWord(selectionRange.startOffset, StyleValueDelimiters, element);
   const wordString = wordRange.toString();
 
-  if (suggestionHandler && suggestionHandler(wordString))
+  if (suggestionHandler && suggestionHandler(wordString)) {
     return false;
+  }
 
-  const replacementString = UI.createReplacementString(wordString, event, customNumberHandler);
+  const replacementString = createReplacementString(wordString, event, customNumberHandler);
 
   if (replacementString) {
     const replacementTextNode = createTextNode(replacementString);
@@ -495,13 +540,14 @@ UI.handleElementValueModifications = function(event, element, finishHandler, sug
     event.handled = true;
     event.preventDefault();
 
-    if (finishHandler)
+    if (finishHandler) {
       finishHandler(originalValue, replacementString);
+    }
 
     return true;
   }
   return false;
-};
+}
 
 /**
  * @param {number} ms
@@ -515,25 +561,25 @@ Number.preciseMillisToString = function(ms, precision) {
 };
 
 /** @type {!Common.UIStringFormat} */
-UI._microsFormat = new Common.UIStringFormat('%.0f\xa0\u03bcs');
+export const _microsFormat = new Common.UIStringFormat('%.0f\xa0\u03bcs');
 
 /** @type {!Common.UIStringFormat} */
-UI._subMillisFormat = new Common.UIStringFormat('%.2f\xa0ms');
+export const _subMillisFormat = new Common.UIStringFormat('%.2f\xa0ms');
 
 /** @type {!Common.UIStringFormat} */
-UI._millisFormat = new Common.UIStringFormat('%.0f\xa0ms');
+export const _millisFormat = new Common.UIStringFormat('%.0f\xa0ms');
 
 /** @type {!Common.UIStringFormat} */
-UI._secondsFormat = new Common.UIStringFormat('%.2f\xa0s');
+export const _secondsFormat = new Common.UIStringFormat('%.2f\xa0s');
 
 /** @type {!Common.UIStringFormat} */
-UI._minutesFormat = new Common.UIStringFormat('%.1f\xa0min');
+export const _minutesFormat = new Common.UIStringFormat('%.1f\xa0min');
 
 /** @type {!Common.UIStringFormat} */
-UI._hoursFormat = new Common.UIStringFormat('%.1f\xa0hrs');
+export const _hoursFormat = new Common.UIStringFormat('%.1f\xa0hrs');
 
 /** @type {!Common.UIStringFormat} */
-UI._daysFormat = new Common.UIStringFormat('%.1f\xa0days');
+export const _daysFormat = new Common.UIStringFormat('%.1f\xa0days');
 
 /**
  * @param {number} ms
@@ -541,33 +587,41 @@ UI._daysFormat = new Common.UIStringFormat('%.1f\xa0days');
  * @return {string}
  */
 Number.millisToString = function(ms, higherResolution) {
-  if (!isFinite(ms))
+  if (!isFinite(ms)) {
     return '-';
+  }
 
-  if (ms === 0)
+  if (ms === 0) {
     return '0';
+  }
 
-  if (higherResolution && ms < 0.1)
-    return UI._microsFormat.format(ms * 1000);
-  if (higherResolution && ms < 1000)
-    return UI._subMillisFormat.format(ms);
-  if (ms < 1000)
-    return UI._millisFormat.format(ms);
+  if (higherResolution && ms < 0.1) {
+    return _microsFormat.format(ms * 1000);
+  }
+  if (higherResolution && ms < 1000) {
+    return _subMillisFormat.format(ms);
+  }
+  if (ms < 1000) {
+    return _millisFormat.format(ms);
+  }
 
   const seconds = ms / 1000;
-  if (seconds < 60)
-    return UI._secondsFormat.format(seconds);
+  if (seconds < 60) {
+    return _secondsFormat.format(seconds);
+  }
 
   const minutes = seconds / 60;
-  if (minutes < 60)
-    return UI._minutesFormat.format(minutes);
+  if (minutes < 60) {
+    return _minutesFormat.format(minutes);
+  }
 
   const hours = minutes / 60;
-  if (hours < 24)
-    return UI._hoursFormat.format(hours);
+  if (hours < 24) {
+    return _hoursFormat.format(hours);
+  }
 
   const days = hours / 24;
-  return UI._daysFormat.format(days);
+  return _daysFormat.format(days);
 };
 
 /**
@@ -576,8 +630,9 @@ Number.millisToString = function(ms, higherResolution) {
  * @return {string}
  */
 Number.secondsToString = function(seconds, higherResolution) {
-  if (!isFinite(seconds))
+  if (!isFinite(seconds)) {
     return '-';
+  }
   return Number.millisToString(seconds * 1000, higherResolution);
 };
 
@@ -586,20 +641,24 @@ Number.secondsToString = function(seconds, higherResolution) {
  * @return {string}
  */
 Number.bytesToString = function(bytes) {
-  if (bytes < 1024)
+  if (bytes < 1024) {
     return Common.UIString('%.0f\xa0B', bytes);
+  }
 
   const kilobytes = bytes / 1024;
-  if (kilobytes < 100)
+  if (kilobytes < 100) {
     return Common.UIString('%.1f\xa0KB', kilobytes);
-  if (kilobytes < 1024)
+  }
+  if (kilobytes < 1024) {
     return Common.UIString('%.0f\xa0KB', kilobytes);
+  }
 
   const megabytes = kilobytes / 1024;
-  if (megabytes < 100)
+  if (megabytes < 100) {
     return Common.UIString('%.1f\xa0MB', megabytes);
-  else
+  } else {
     return Common.UIString('%.0f\xa0MB', megabytes);
+  }
 };
 
 /**
@@ -609,8 +668,9 @@ Number.bytesToString = function(bytes) {
 Number.withThousandsSeparator = function(num) {
   let str = num + '';
   const re = /(\d+)(\d{3})/;
-  while (str.match(re))
-    str = str.replace(re, '$1\xa0$2');  // \xa0 is a non-breaking space
+  while (str.match(re)) {
+    str = str.replace(re, '$1\xa0$2');
+  }  // \xa0 is a non-breaking space
   return str;
 };
 
@@ -619,7 +679,7 @@ Number.withThousandsSeparator = function(num) {
  * @param {?ArrayLike} substitutions
  * @return {!Element}
  */
-UI.formatLocalized = function(format, substitutions) {
+export function formatLocalized(format, substitutions) {
   const formatters = {s: substitution => substitution};
   /**
    * @param {!Element} a
@@ -632,72 +692,84 @@ UI.formatLocalized = function(format, substitutions) {
   }
   return String.format(Common.UIString(format), substitutions, formatters, createElement('span'), append)
       .formattedResult;
-};
+}
 
 /**
  * @return {string}
  */
-UI.openLinkExternallyLabel = function() {
+export function openLinkExternallyLabel() {
   return Common.UIString('Open in new tab');
-};
+}
 
 /**
  * @return {string}
  */
-UI.copyLinkAddressLabel = function() {
+export function copyLinkAddressLabel() {
   return Common.UIString('Copy link address');
-};
+}
 
 /**
  * @return {string}
  */
-UI.anotherProfilerActiveLabel = function() {
+export function anotherProfilerActiveLabel() {
   return Common.UIString('Another profiler is already active');
-};
+}
 
 /**
  * @param {string|undefined} description
  * @return {string}
  */
-UI.asyncStackTraceLabel = function(description) {
+export function asyncStackTraceLabel(description) {
   if (description) {
-    if (description === 'Promise.resolve')
-      description = Common.UIString('Promise resolved');
-    else if (description === 'Promise.reject')
-      description = Common.UIString('Promise rejected');
-    return description + ' ' + Common.UIString('(async)');
+    if (description === 'Promise.resolve') {
+      return ls`Promise resolved (async)`;
+    } else if (description === 'Promise.reject') {
+      return ls`Promise rejected (async)`;
+    }
+    return ls`${description} (async)`;
   }
   return Common.UIString('Async Call');
-};
+}
 
 /**
  * @param {!Element} element
  */
+<<<<<<< HEAD
 UI.installComponentRootStyles = function(element) {
   UI._injectCoreStyles(element);
+=======
+export function installComponentRootStyles(element) {
+  _injectCoreStyles(element);
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   element.classList.add('platform-' + Host.platform());
 
   // Detect overlay scrollbar enable by checking for nonzero scrollbar width.
-  if (!Host.isMac() && UI.measuredScrollbarWidth(element.ownerDocument) === 0)
+  if (!Host.isMac() && measuredScrollbarWidth(element.ownerDocument) === 0) {
     element.classList.add('overlay-scrollbar-enabled');
-};
+  }
+}
+
+/** @type {number} */
+let _measuredScrollbarWidth;
 
 /**
  * @param {?Document} document
  * @return {number}
  */
-UI.measuredScrollbarWidth = function(document) {
-  if (typeof UI._measuredScrollbarWidth === 'number')
-    return UI._measuredScrollbarWidth;
-  if (!document)
+export function measuredScrollbarWidth(document) {
+  if (typeof _measuredScrollbarWidth === 'number') {
+    return _measuredScrollbarWidth;
+  }
+  if (!document) {
     return 16;
+  }
   const scrollDiv = document.createElement('div');
   scrollDiv.setAttribute('style', 'width: 100px; height: 100px; overflow: scroll;');
   document.body.appendChild(scrollDiv);
-  UI._measuredScrollbarWidth = scrollDiv.offsetWidth - scrollDiv.clientWidth;
+  _measuredScrollbarWidth = scrollDiv.offsetWidth - scrollDiv.clientWidth;
   document.body.removeChild(scrollDiv);
-  return UI._measuredScrollbarWidth;
-};
+  return _measuredScrollbarWidth;
+}
 
 /**
  * @param {!Element} element
@@ -705,14 +777,34 @@ UI.measuredScrollbarWidth = function(document) {
  * @param {boolean=} delegatesFocus
  * @return {!DocumentFragment}
  */
+<<<<<<< HEAD
 UI.createShadowRootWithCoreStyles = function(element, cssFile, delegatesFocus) {
   const shadowRoot = element.attachShadow({mode: 'open', delegatesFocus});
   UI._injectCoreStyles(shadowRoot);
   if (cssFile)
     UI.appendStyle(shadowRoot, cssFile);
   shadowRoot.addEventListener('focus', UI._focusChanged.bind(UI), true);
+=======
+export function createShadowRootWithCoreStyles(element, cssFile, delegatesFocus) {
+  const shadowRoot = element.attachShadow({mode: 'open', delegatesFocus});
+  _injectCoreStyles(shadowRoot);
+  if (cssFile) {
+    appendStyle(shadowRoot, cssFile);
+  }
+  shadowRoot.addEventListener('focus', _focusChanged.bind(UI), true);
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   return shadowRoot;
-};
+}
+
+/**
+ * @param {!Element|!ShadowRoot} root
+ */
+function _injectCoreStyles(root) {
+  appendStyle(root, 'ui/inspectorCommon.css');
+  appendStyle(root, 'ui/textButton.css');
+  UI.themeSupport.injectHighlightStyleSheets(root);
+  UI.themeSupport.injectCustomStyleSheets(root);
+}
 
 /**
  * @param {!Element|!ShadowRoot} root
@@ -728,14 +820,16 @@ UI._injectCoreStyles = function(root) {
  * @param {!Document} document
  * @param {!Event} event
  */
-UI._windowFocused = function(document, event) {
-  if (event.target.document.nodeType === Node.DOCUMENT_NODE)
+function _windowFocused(document, event) {
+  if (event.target.document.nodeType === Node.DOCUMENT_NODE) {
     document.body.classList.remove('inactive');
+  }
   UI._keyboardFocus = true;
   const listener = () => {
     const activeElement = document.deepActiveElement();
-    if (activeElement)
+    if (activeElement) {
       activeElement.removeAttribute('data-keyboard-focus');
+    }
     UI._keyboardFocus = false;
   };
   document.defaultView.requestAnimationFrame(() => {
@@ -743,28 +837,34 @@ UI._windowFocused = function(document, event) {
     document.removeEventListener('mousedown', listener, true);
   });
   document.addEventListener('mousedown', listener, true);
-
-};
+}
 
 /**
  * @param {!Document} document
  * @param {!Event} event
  */
-UI._windowBlurred = function(document, event) {
-  if (event.target.document.nodeType === Node.DOCUMENT_NODE)
+function _windowBlurred(document, event) {
+  if (event.target.document.nodeType === Node.DOCUMENT_NODE) {
     document.body.classList.add('inactive');
-};
+  }
+}
 
 /**
  * @param {!Event} event
  */
-UI._focusChanged = function(event) {
+function _focusChanged(event) {
   const document = event.target && event.target.ownerDocument;
   const element = document ? document.deepActiveElement() : null;
   UI.Widget.focusWidgetForNode(element);
   UI.XWidget.focusWidgetForNode(element);
-  if (!UI._keyboardFocus)
+  if (!UI._keyboardFocus) {
     return;
+  }
+
+  UI.markAsFocusedByKeyboard(element);
+}
+
+UI.markAsFocusedByKeyboard = function(element) {
   element.setAttribute('data-keyboard-focus', 'true');
   element.addEventListener('blur', () => element.removeAttribute('data-keyboard-focus'), {once: true, capture: true});
 };
@@ -772,7 +872,7 @@ UI._focusChanged = function(event) {
 /**
  * @unrestricted
  */
-UI.ElementFocusRestorer = class {
+export class ElementFocusRestorer {
   /**
    * @param {!Element} element
    */
@@ -783,14 +883,16 @@ UI.ElementFocusRestorer = class {
   }
 
   restore() {
-    if (!this._element)
+    if (!this._element) {
       return;
-    if (this._element.hasFocus() && this._previous)
+    }
+    if (this._element.hasFocus() && this._previous) {
       this._previous.focus();
+    }
     this._previous = null;
     this._element = null;
   }
-};
+}
 
 /**
  * @param {!Element} element
@@ -799,10 +901,10 @@ UI.ElementFocusRestorer = class {
  * @param {!Array.<!Object>=} domChanges
  * @return {?Element}
  */
-UI.highlightSearchResult = function(element, offset, length, domChanges) {
-  const result = UI.highlightSearchResults(element, [new TextUtils.SourceRange(offset, length)], domChanges);
+export function highlightSearchResult(element, offset, length, domChanges) {
+  const result = highlightSearchResults(element, [new TextUtils.SourceRange(offset, length)], domChanges);
   return result.length ? result[0] : null;
-};
+}
 
 /**
  * @param {!Element} element
@@ -810,26 +912,27 @@ UI.highlightSearchResult = function(element, offset, length, domChanges) {
  * @param {!Array.<!Object>=} changes
  * @return {!Array.<!Element>}
  */
-UI.highlightSearchResults = function(element, resultRanges, changes) {
-  return UI.highlightRangesWithStyleClass(element, resultRanges, UI.highlightedSearchResultClassName, changes);
-};
+export function highlightSearchResults(element, resultRanges, changes) {
+  return highlightRangesWithStyleClass(element, resultRanges, highlightedSearchResultClassName, changes);
+}
 
 /**
  * @param {!Element} element
  * @param {string} className
  */
-UI.runCSSAnimationOnce = function(element, className) {
+export function runCSSAnimationOnce(element, className) {
   function animationEndCallback() {
     element.classList.remove(className);
     element.removeEventListener('webkitAnimationEnd', animationEndCallback, false);
   }
 
-  if (element.classList.contains(className))
+  if (element.classList.contains(className)) {
     element.classList.remove(className);
+  }
 
   element.addEventListener('webkitAnimationEnd', animationEndCallback, false);
   element.classList.add(className);
-};
+}
 
 /**
  * @param {!Element} element
@@ -838,7 +941,7 @@ UI.runCSSAnimationOnce = function(element, className) {
  * @param {!Array.<!Object>=} changes
  * @return {!Array.<!Element>}
  */
-UI.highlightRangesWithStyleClass = function(element, resultRanges, styleClass, changes) {
+export function highlightRangesWithStyleClass(element, resultRanges, styleClass, changes) {
   changes = changes || [];
   const highlightNodes = [];
   const textNodes = element.childTextNodes();
@@ -849,8 +952,9 @@ UI.highlightRangesWithStyleClass = function(element, resultRanges, styleClass, c
                        .join('');
   const ownerDocument = element.ownerDocument;
 
-  if (textNodes.length === 0)
+  if (textNodes.length === 0) {
     return highlightNodes;
+  }
 
   const nodeRanges = [];
   let rangeEndOffset = 0;
@@ -868,13 +972,16 @@ UI.highlightRangesWithStyleClass = function(element, resultRanges, styleClass, c
     const endOffset = startOffset + resultRanges[i].length;
 
     while (startIndex < textNodes.length &&
-           nodeRanges[startIndex].offset + nodeRanges[startIndex].length <= startOffset)
+           nodeRanges[startIndex].offset + nodeRanges[startIndex].length <= startOffset) {
       startIndex++;
+    }
     let endIndex = startIndex;
-    while (endIndex < textNodes.length && nodeRanges[endIndex].offset + nodeRanges[endIndex].length < endOffset)
+    while (endIndex < textNodes.length && nodeRanges[endIndex].offset + nodeRanges[endIndex].length < endOffset) {
       endIndex++;
-    if (endIndex === textNodes.length)
+    }
+    if (endIndex === textNodes.length) {
       break;
+    }
 
     const highlightNode = ownerDocument.createElement('span');
     highlightNode.className = styleClass;
@@ -919,9 +1026,9 @@ UI.highlightRangesWithStyleClass = function(element, resultRanges, styleClass, c
     nodeRanges[startIndex].length = lastTextNode.textContent.length;
   }
   return highlightNodes;
-};
+}
 
-UI.applyDomChanges = function(domChanges) {
+export function applyDomChanges(domChanges) {
   for (let i = 0, size = domChanges.length; i < size; ++i) {
     const entry = domChanges[i];
     switch (entry.type) {
@@ -933,9 +1040,9 @@ UI.applyDomChanges = function(domChanges) {
         break;
     }
   }
-};
+}
 
-UI.revertDomChanges = function(domChanges) {
+export function revertDomChanges(domChanges) {
   for (let i = domChanges.length - 1; i >= 0; --i) {
     const entry = domChanges[i];
     switch (entry.type) {
@@ -947,14 +1054,14 @@ UI.revertDomChanges = function(domChanges) {
         break;
     }
   }
-};
+}
 
 /**
  * @param {!Element} element
  * @param {?Element=} containerElement
  * @return {!UI.Size}
  */
-UI.measurePreferredSize = function(element, containerElement) {
+export function measurePreferredSize(element, containerElement) {
   const oldParent = element.parentElement;
   const oldNextSibling = element.nextSibling;
   containerElement = containerElement || element.ownerDocument.body;
@@ -963,17 +1070,18 @@ UI.measurePreferredSize = function(element, containerElement) {
   const result = element.getBoundingClientRect();
 
   element.positionAt(undefined, undefined);
-  if (oldParent)
+  if (oldParent) {
     oldParent.insertBefore(element, oldNextSibling);
-  else
+  } else {
     element.remove();
+  }
   return new UI.Size(result.width, result.height);
-};
+}
 
 /**
  * @unrestricted
  */
-UI.InvokeOnceHandlers = class {
+class InvokeOnceHandlers {
   /**
    * @param {boolean} autoInvoke
    */
@@ -989,8 +1097,9 @@ UI.InvokeOnceHandlers = class {
   add(object, method) {
     if (!this._handlers) {
       this._handlers = new Map();
-      if (this._autoInvoke)
+      if (this._autoInvoke) {
         this.scheduleInvoke();
+      }
     }
     let methods = this._handlers.get(object);
     if (!methods) {
@@ -1004,8 +1113,9 @@ UI.InvokeOnceHandlers = class {
    * @suppressGlobalPropertiesCheck
    */
   scheduleInvoke() {
-    if (this._handlers)
+    if (this._handlers) {
       requestAnimationFrame(this._invoke.bind(this));
+    }
   }
 
   _invoke() {
@@ -1015,36 +1125,40 @@ UI.InvokeOnceHandlers = class {
     for (let i = 0; i < keys.length; ++i) {
       const object = keys[i];
       const methods = handlers.get(object).valuesArray();
-      for (let j = 0; j < methods.length; ++j)
+      for (let j = 0; j < methods.length; ++j) {
         methods[j].call(object);
+      }
     }
   }
-};
+}
 
-UI._coalescingLevel = 0;
-UI._postUpdateHandlers = null;
+let _coalescingLevel = 0;
+let _postUpdateHandlers = null;
 
-UI.startBatchUpdate = function() {
-  if (!UI._coalescingLevel++)
-    UI._postUpdateHandlers = new UI.InvokeOnceHandlers(false);
-};
+export function startBatchUpdate() {
+  if (!_coalescingLevel++) {
+    _postUpdateHandlers = new InvokeOnceHandlers(false);
+  }
+}
 
-UI.endBatchUpdate = function() {
-  if (--UI._coalescingLevel)
+export function endBatchUpdate() {
+  if (--_coalescingLevel) {
     return;
-  UI._postUpdateHandlers.scheduleInvoke();
-  UI._postUpdateHandlers = null;
-};
+  }
+  _postUpdateHandlers.scheduleInvoke();
+  _postUpdateHandlers = null;
+}
 
 /**
  * @param {!Object} object
  * @param {function()} method
  */
-UI.invokeOnceAfterBatchUpdate = function(object, method) {
-  if (!UI._postUpdateHandlers)
-    UI._postUpdateHandlers = new UI.InvokeOnceHandlers(true);
-  UI._postUpdateHandlers.add(object, method);
-};
+export function invokeOnceAfterBatchUpdate(object, method) {
+  if (!_postUpdateHandlers) {
+    _postUpdateHandlers = new InvokeOnceHandlers(true);
+  }
+  _postUpdateHandlers.add(object, method);
+}
 
 /**
  * @param {!Window} window
@@ -1054,34 +1168,37 @@ UI.invokeOnceAfterBatchUpdate = function(object, method) {
  * @param {function()=} animationComplete
  * @return {function()}
  */
-UI.animateFunction = function(window, func, params, duration, animationComplete) {
+export function animateFunction(window, func, params, duration, animationComplete) {
   const start = window.performance.now();
   let raf = window.requestAnimationFrame(animationStep);
 
   function animationStep(timestamp) {
     const progress = Number.constrain((timestamp - start) / duration, 0, 1);
     func(...params.map(p => p.from + (p.to - p.from) * progress));
-    if (progress < 1)
+    if (progress < 1) {
       raf = window.requestAnimationFrame(animationStep);
-    else if (animationComplete)
+    } else if (animationComplete) {
       animationComplete();
+    }
   }
 
   return () => window.cancelAnimationFrame(raf);
-};
+}
 
 /**
  * @unrestricted
  */
-UI.LongClickController = class extends Common.Object {
+export class LongClickController extends Common.Object {
   /**
    * @param {!Element} element
    * @param {function(!Event)} callback
+   * @param {function(!Event)} isEditKeyFunc
    */
-  constructor(element, callback) {
+  constructor(element, callback, isEditKeyFunc = event => isEnterOrSpaceKey(event)) {
     super();
     this._element = element;
     this._callback = callback;
+    this._editKey = isEditKeyFunc;
     this._enable();
   }
 
@@ -1093,12 +1210,18 @@ UI.LongClickController = class extends Common.Object {
   }
 
   _enable() {
-    if (this._longClickData)
+    if (this._longClickData) {
       return;
+    }
+    const boundKeyDown = keyDown.bind(this);
+    const boundKeyUp = keyUp.bind(this);
     const boundMouseDown = mouseDown.bind(this);
     const boundMouseUp = mouseUp.bind(this);
     const boundReset = this.reset.bind(this);
 
+
+    this._element.addEventListener('keydown', boundKeyDown, false);
+    this._element.addEventListener('keyup', boundKeyUp, false);
     this._element.addEventListener('mousedown', boundMouseDown, false);
     this._element.addEventListener('mouseout', boundReset, false);
     this._element.addEventListener('mouseup', boundMouseUp, false);
@@ -1108,67 +1231,96 @@ UI.LongClickController = class extends Common.Object {
 
     /**
      * @param {!Event} e
-     * @this {UI.LongClickController}
+     * @this {LongClickController}
      */
-    function mouseDown(e) {
-      if (e.which !== 1)
-        return;
-      const callback = this._callback;
-      this._longClickInterval = setTimeout(callback.bind(null, e), 200);
+    function keyDown(e) {
+      if (this._editKey(e)) {
+        e.consume(true);
+        const callback = this._callback;
+        this._longClickInterval = setTimeout(callback.bind(null, e), LongClickController.TIME_MS);
+      }
     }
 
     /**
      * @param {!Event} e
      * @this {UI.LongClickController}
      */
-    function mouseUp(e) {
-      if (e.which !== 1)
+    function keyUp(e) {
+      if (this._editKey(e)) {
+        e.consume(true);
+        this.reset();
+      }
+    }
+
+    /**
+     * @param {!Event} e
+     * @this {UI.LongClickController}
+     */
+    function mouseDown(e) {
+      if (e.which !== 1) {
         return;
+      }
+      const callback = this._callback;
+      this._longClickInterval = setTimeout(callback.bind(null, e), LongClickController.TIME_MS);
+    }
+
+    /**
+     * @param {!Event} e
+     * @this {LongClickController}
+     */
+    function mouseUp(e) {
+      if (e.which !== 1) {
+        return;
+      }
       this.reset();
     }
   }
 
   dispose() {
-    if (!this._longClickData)
+    if (!this._longClickData) {
       return;
+    }
     this._element.removeEventListener('mousedown', this._longClickData.mouseDown, false);
     this._element.removeEventListener('mouseout', this._longClickData.reset, false);
     this._element.removeEventListener('mouseup', this._longClickData.mouseUp, false);
     this._element.addEventListener('click', this._longClickData.reset, true);
     delete this._longClickData;
   }
-};
+}
+
+LongClickController.TIME_MS = 200;
 
 /**
  * @param {!Document} document
  * @param {!Common.Setting} themeSetting
  */
-UI.initializeUIUtils = function(document, themeSetting) {
+export function initializeUIUtils(document, themeSetting) {
   document.body.classList.toggle('inactive', !document.hasFocus());
-  document.defaultView.addEventListener('focus', UI._windowFocused.bind(UI, document), false);
-  document.defaultView.addEventListener('blur', UI._windowBlurred.bind(UI, document), false);
-  document.addEventListener('focus', UI._focusChanged.bind(UI), true);
+  document.defaultView.addEventListener('focus', _windowFocused.bind(UI, document), false);
+  document.defaultView.addEventListener('blur', _windowBlurred.bind(UI, document), false);
+  document.addEventListener('focus', _focusChanged.bind(UI), true);
   document.addEventListener('keydown', event => {
     UI._keyboardFocus = true;
     document.defaultView.requestAnimationFrame(() => void(UI._keyboardFocus = false));
   }, true);
 
-  if (!UI.themeSupport)
-    UI.themeSupport = new UI.ThemeSupport(themeSetting);
+  if (!UI.themeSupport) {
+    UI.themeSupport = new ThemeSupport(themeSetting);
+  }
   UI.themeSupport.applyTheme(document);
 
   const body = /** @type {!Element} */ (document.body);
-  UI.appendStyle(body, 'ui/inspectorStyle.css');
+  appendStyle(body, 'ui/inspectorStyle.css');
   UI.GlassPane.setContainer(/** @type {!Element} */ (document.body));
-};
+}
 
 /**
  * @param {string} name
  * @return {string}
  */
-UI.beautifyFunctionName = function(name) {
+export function beautifyFunctionName(name) {
   return name || Common.UIString('(anonymous)');
-};
+}
 
 /**
  * @param {string} localName
@@ -1177,7 +1329,11 @@ UI.beautifyFunctionName = function(name) {
  * @return {function()}
  * @suppressGlobalPropertiesCheck
  */
+<<<<<<< HEAD
 UI.registerCustomElement = function(localName, typeExtension, definition) {
+=======
+export function registerCustomElement(localName, typeExtension, definition) {
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   self.customElements.define(typeExtension, class extends definition {
     constructor() {
       super();
@@ -1186,7 +1342,11 @@ UI.registerCustomElement = function(localName, typeExtension, definition) {
     }
   }, {extends: localName});
   return () => createElement(localName, typeExtension);
+<<<<<<< HEAD
 };
+=======
+}
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
 
 /**
  * @param {string} text
@@ -1195,31 +1355,61 @@ UI.registerCustomElement = function(localName, typeExtension, definition) {
  * @param {boolean=} primary
  * @return {!Element}
  */
+<<<<<<< HEAD
 UI.createTextButton = function(text, clickHandler, className, primary) {
   const element = createElementWithClass('button', className || '');
   element.textContent = text;
   element.classList.add('text-button');
   if (primary)
+=======
+export function createTextButton(text, clickHandler, className, primary) {
+  const element = createElementWithClass('button', className || '');
+  element.textContent = text;
+  element.classList.add('text-button');
+  if (primary) {
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     element.classList.add('primary-button');
-  if (clickHandler)
+  }
+  if (clickHandler) {
     element.addEventListener('click', clickHandler, false);
+<<<<<<< HEAD
+=======
+  }
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   element.type = 'button';
   return element;
-};
+}
 
 /**
  * @param {string=} className
  * @param {string=} type
  * @return {!Element}
  */
-UI.createInput = function(className, type) {
+export function createInput(className, type) {
   const element = createElementWithClass('input', className || '');
   element.spellcheck = false;
   element.classList.add('harmony-input');
-  if (type)
+  if (type) {
     element.type = type;
+  }
   return element;
-};
+}
+
+/**
+ * @param {string} title
+ * @param {string=} className
+ * @param {!Element=} associatedControl
+ * @return {!Element}
+ */
+export function createLabel(title, className, associatedControl) {
+  const element = createElementWithClass('label', className || '');
+  element.textContent = title;
+  if (associatedControl) {
+    UI.ARIAUtils.bindLabelToControl(element, associatedControl);
+  }
+
+  return element;
+}
 
 /**
  * @param {string} name
@@ -1227,25 +1417,33 @@ UI.createInput = function(className, type) {
  * @param {boolean=} checked
  * @return {!Element}
  */
+<<<<<<< HEAD
 UI.createRadioLabel = function(name, title, checked) {
+=======
+export function createRadioLabel(name, title, checked) {
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   const element = createElement('span', 'dt-radio');
   element.radioElement.name = name;
   element.radioElement.checked = !!checked;
   element.labelElement.createTextChild(title);
   return element;
-};
+}
 
 /**
  * @param {string} title
  * @param {string} iconClass
  * @return {!Element}
  */
+<<<<<<< HEAD
 UI.createLabel = function(title, iconClass) {
+=======
+export function createIconLabel(title, iconClass) {
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   const element = createElement('span', 'dt-icon-label');
   element.createChild('span').textContent = title;
   element.type = iconClass;
   return element;
-};
+}
 
 /**
  * @return {!Element}
@@ -1253,39 +1451,46 @@ UI.createLabel = function(title, iconClass) {
  * @param {number} max
  * @param {number} tabIndex
  */
+<<<<<<< HEAD
 UI.createSlider = function(min, max, tabIndex) {
+=======
+export function createSlider(min, max, tabIndex) {
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   const element = createElement('span', 'dt-slider');
   element.sliderElement.min = min;
   element.sliderElement.max = max;
   element.sliderElement.step = 1;
   element.sliderElement.tabIndex = tabIndex;
   return element;
-};
+}
 
 /**
  * @param {!Node} node
  * @param {string} cssFile
  * @suppressGlobalPropertiesCheck
  */
-UI.appendStyle = function(node, cssFile) {
-  const content = Runtime.cachedResources[cssFile] || '';
-  if (!content)
+export function appendStyle(node, cssFile) {
+  const content = Root.Runtime.cachedResources[cssFile] || '';
+  if (!content) {
     console.error(cssFile + ' not preloaded. Check module.json');
+  }
   let styleElement = createElement('style');
-  styleElement.type = 'text/css';
   styleElement.textContent = content;
   node.appendChild(styleElement);
 
   const themeStyleSheet = UI.themeSupport.themeStyleSheet(cssFile, content);
   if (themeStyleSheet) {
     styleElement = createElement('style');
-    styleElement.type = 'text/css';
-    styleElement.textContent = themeStyleSheet + '\n' + Runtime.resolveSourceURL(cssFile + '.theme');
+    styleElement.textContent = themeStyleSheet + '\n' + Root.Runtime.resolveSourceURL(cssFile + '.theme');
     node.appendChild(styleElement);
   }
-};
+}
 
+<<<<<<< HEAD
 UI.CheckboxLabel = class extends HTMLSpanElement {
+=======
+export class CheckboxLabel extends HTMLSpanElement {
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   constructor() {
     super();
     /** @type {!DocumentFragment} */
@@ -1294,9 +1499,15 @@ UI.CheckboxLabel = class extends HTMLSpanElement {
     this.checkboxElement;
     /** @type {!Element} */
     this.textElement;
+<<<<<<< HEAD
     UI.CheckboxLabel._lastId = (UI.CheckboxLabel._lastId || 0) + 1;
     const id = 'ui-checkbox-label' + UI.CheckboxLabel._lastId;
     this._shadowRoot = UI.createShadowRootWithCoreStyles(this, 'ui/checkboxTextLabel.css');
+=======
+    CheckboxLabel._lastId = (CheckboxLabel._lastId || 0) + 1;
+    const id = 'ui-checkbox-label' + CheckboxLabel._lastId;
+    this._shadowRoot = createShadowRootWithCoreStyles(this, 'ui/checkboxTextLabel.css');
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     this.checkboxElement = /** @type {!HTMLInputElement} */ (this._shadowRoot.createChild('input'));
     this.checkboxElement.type = 'checkbox';
     this.checkboxElement.setAttribute('id', id);
@@ -1309,17 +1520,25 @@ UI.CheckboxLabel = class extends HTMLSpanElement {
    * @param {string=} title
    * @param {boolean=} checked
    * @param {string=} subtitle
-   * @return {!UI.CheckboxLabel}
+   * @return {!CheckboxLabel}
    */
   static create(title, checked, subtitle) {
+<<<<<<< HEAD
     if (!UI.CheckboxLabel._constructor)
       UI.CheckboxLabel._constructor = UI.registerCustomElement('span', 'dt-checkbox', UI.CheckboxLabel);
     const element = /** @type {!UI.CheckboxLabel} */ (UI.CheckboxLabel._constructor());
+=======
+    if (!CheckboxLabel._constructor) {
+      CheckboxLabel._constructor = registerCustomElement('span', 'dt-checkbox', CheckboxLabel);
+    }
+    const element = /** @type {!CheckboxLabel} */ (CheckboxLabel._constructor());
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     element.checkboxElement.checked = !!checked;
     if (title !== undefined) {
       element.textElement.textContent = title;
-      if (subtitle !== undefined)
+      if (subtitle !== undefined) {
         element.textElement.createChild('div', 'dt-checkbox-subtitle').textContent = subtitle;
+      }
     }
     return element;
   }
@@ -1352,11 +1571,15 @@ UI.CheckboxLabel = class extends HTMLSpanElement {
     this.checkboxElement.classList.add('dt-checkbox-themed');
     this.checkboxElement.style.borderColor = color;
   }
-};
+}
 
 (function() {
 let labelId = 0;
+<<<<<<< HEAD
 UI.registerCustomElement('span', 'dt-radio', class extends HTMLSpanElement {
+=======
+registerCustomElement('span', 'dt-radio', class extends HTMLSpanElement {
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   constructor() {
     super();
     this.radioElement = this.createChild('input', 'dt-radio-button');
@@ -1366,7 +1589,11 @@ UI.registerCustomElement('span', 'dt-radio', class extends HTMLSpanElement {
     this.radioElement.id = id;
     this.radioElement.type = 'radio';
     this.labelElement.htmlFor = id;
+<<<<<<< HEAD
     const root = UI.createShadowRootWithCoreStyles(this, 'ui/radioButton.css');
+=======
+    const root = createShadowRootWithCoreStyles(this, 'ui/radioButton.css');
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     root.createChild('slot');
     this.addEventListener('click', radioClickHandler, false);
   }
@@ -1378,16 +1605,29 @@ UI.registerCustomElement('span', 'dt-radio', class extends HTMLSpanElement {
    * @this {Element}
    */
 function radioClickHandler(event) {
+<<<<<<< HEAD
   if (this.radioElement.checked || this.radioElement.disabled)
     return;
+=======
+  if (this.radioElement.checked || this.radioElement.disabled) {
+    return;
+  }
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   this.radioElement.checked = true;
   this.radioElement.dispatchEvent(new Event('change'));
 }
 
+<<<<<<< HEAD
 UI.registerCustomElement('span', 'dt-icon-label', class extends HTMLSpanElement {
   constructor() {
     super();
     const root = UI.createShadowRootWithCoreStyles(this);
+=======
+registerCustomElement('span', 'dt-icon-label', class extends HTMLSpanElement {
+  constructor() {
+    super();
+    const root = createShadowRootWithCoreStyles(this);
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     this._iconElement = UI.Icon.create();
     this._iconElement.style.setProperty('margin-right', '4px');
     root.appendChild(this._iconElement);
@@ -1403,10 +1643,17 @@ UI.registerCustomElement('span', 'dt-icon-label', class extends HTMLSpanElement 
   }
 });
 
+<<<<<<< HEAD
 UI.registerCustomElement('span', 'dt-slider', class extends HTMLSpanElement {
   constructor() {
     super();
     const root = UI.createShadowRootWithCoreStyles(this, 'ui/slider.css');
+=======
+registerCustomElement('span', 'dt-slider', class extends HTMLSpanElement {
+  constructor() {
+    super();
+    const root = createShadowRootWithCoreStyles(this, 'ui/slider.css');
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     this.sliderElement = createElementWithClass('input', 'dt-range-input');
     this.sliderElement.type = 'range';
     root.appendChild(this.sliderElement);
@@ -1428,10 +1675,17 @@ UI.registerCustomElement('span', 'dt-slider', class extends HTMLSpanElement {
   }
 });
 
+<<<<<<< HEAD
 UI.registerCustomElement('span', 'dt-small-bubble', class extends HTMLSpanElement {
   constructor() {
     super();
     const root = UI.createShadowRootWithCoreStyles(this, 'ui/smallBubble.css');
+=======
+registerCustomElement('span', 'dt-small-bubble', class extends HTMLSpanElement {
+  constructor() {
+    super();
+    const root = createShadowRootWithCoreStyles(this, 'ui/smallBubble.css');
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     this._textElement = root.createChild('div');
     this._textElement.className = 'info';
     this._textElement.createChild('slot');
@@ -1446,11 +1700,21 @@ UI.registerCustomElement('span', 'dt-small-bubble', class extends HTMLSpanElemen
   }
 });
 
+<<<<<<< HEAD
 UI.registerCustomElement('div', 'dt-close-button', class extends HTMLDivElement {
   constructor() {
     super();
     const root = UI.createShadowRootWithCoreStyles(this, 'ui/closeButton.css');
     this._buttonElement = root.createChild('div', 'close-button');
+=======
+registerCustomElement('div', 'dt-close-button', class extends HTMLDivElement {
+  constructor() {
+    super();
+    const root = createShadowRootWithCoreStyles(this, 'ui/closeButton.css');
+    this._buttonElement = root.createChild('div', 'close-button');
+    UI.ARIAUtils.setAccessibleName(this._buttonElement, ls`Close`);
+    UI.ARIAUtils.markAsButton(this._buttonElement);
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     const regularIcon = UI.Icon.create('smallicon-cross', 'default-icon');
     this._hoverIcon = UI.Icon.create('mediumicon-red-cross-hover', 'hover-icon');
     this._activeIcon = UI.Icon.create('mediumicon-red-cross-active', 'active-icon');
@@ -1472,18 +1736,41 @@ UI.registerCustomElement('div', 'dt-close-button', class extends HTMLDivElement 
       this._activeIcon.setIconType('mediumicon-red-cross-active');
     }
   }
+<<<<<<< HEAD
+=======
+
+  /**
+   * @param {string} name
+   * @this {Element}
+   */
+  setAccessibleName(name) {
+    UI.ARIAUtils.setAccessibleName(this._buttonElement, name);
+  }
+
+  /**
+   * @param {boolean} tabbable
+   * @this {Element}
+   */
+  setTabbable(tabbable) {
+    if (tabbable) {
+      this._buttonElement.tabIndex = 0;
+    } else {
+      this._buttonElement.tabIndex = -1;
+    }
+  }
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
 });
 })();
 
 /**
  * @param {!Element} input
  * @param {function(string)} apply
- * @param {function(string):boolean} validate
+ * @param {function(string):{valid: boolean, errorMessage: (string|undefined)}} validate
  * @param {boolean} numeric
  * @param {number=} modifierMultiplier
  * @return {function(string)}
  */
-UI.bindInput = function(input, apply, validate, numeric, modifierMultiplier) {
+export function bindInput(input, apply, validate, numeric, modifierMultiplier) {
   input.addEventListener('change', onChange, false);
   input.addEventListener('input', onInput, false);
   input.addEventListener('keydown', onKeyDown, false);
@@ -1494,10 +1781,11 @@ UI.bindInput = function(input, apply, validate, numeric, modifierMultiplier) {
   }
 
   function onChange() {
-    const valid = validate(input.value);
+    const {valid} = validate(input.value);
     input.classList.toggle('error-input', !valid);
-    if (valid)
+    if (valid) {
       apply(input.value);
+    }
   }
 
   /**
@@ -1505,19 +1793,24 @@ UI.bindInput = function(input, apply, validate, numeric, modifierMultiplier) {
    */
   function onKeyDown(event) {
     if (isEnterKey(event)) {
-      if (validate(input.value))
+      const {valid} = validate(input.value);
+      if (valid) {
         apply(input.value);
+      }
       event.preventDefault();
       return;
     }
 
-    if (!numeric)
+    if (!numeric) {
       return;
+    }
 
-    const value = UI._modifiedFloatNumber(parseFloat(input.value), event, modifierMultiplier);
+    const value = _modifiedFloatNumber(parseFloat(input.value), event, modifierMultiplier);
     const stringValue = value ? String(value) : '';
-    if (!validate(stringValue) || !value)
+    const {valid} = validate(stringValue);
+    if (!valid || !value) {
       return;
+    }
 
     input.value = stringValue;
     apply(input.value);
@@ -1528,15 +1821,16 @@ UI.bindInput = function(input, apply, validate, numeric, modifierMultiplier) {
    * @param {string} value
    */
   function setValue(value) {
-    if (value === input.value)
+    if (value === input.value) {
       return;
-    const valid = validate(value);
+    }
+    const {valid} = validate(value);
     input.classList.toggle('error-input', !valid);
     input.value = value;
   }
 
   return setValue;
-};
+}
 
 /**
  * @param {!CanvasRenderingContext2D} context
@@ -1545,15 +1839,18 @@ UI.bindInput = function(input, apply, validate, numeric, modifierMultiplier) {
  * @param {function(string, number):string} trimFunction
  * @return {string}
  */
-UI.trimText = function(context, text, maxWidth, trimFunction) {
+export function trimText(context, text, maxWidth, trimFunction) {
   const maxLength = 200;
-  if (maxWidth <= 10)
+  if (maxWidth <= 10) {
     return '';
-  if (text.length > maxLength)
+  }
+  if (text.length > maxLength) {
     text = trimFunction(text, maxLength);
-  const textWidth = UI.measureTextWidth(context, text);
-  if (textWidth <= maxWidth)
+  }
+  const textWidth = measureTextWidth(context, text);
+  if (textWidth <= maxWidth) {
     return text;
+  }
 
   let l = 0;
   let r = text.length;
@@ -1561,7 +1858,7 @@ UI.trimText = function(context, text, maxWidth, trimFunction) {
   let rv = textWidth;
   while (l < r && lv !== rv && lv !== maxWidth) {
     const m = Math.ceil(l + (r - l) * (maxWidth - lv) / (rv - lv));
-    const mv = UI.measureTextWidth(context, trimFunction(text, m));
+    const mv = measureTextWidth(context, trimFunction(text, m));
     if (mv <= maxWidth) {
       l = m;
       lv = mv;
@@ -1572,7 +1869,7 @@ UI.trimText = function(context, text, maxWidth, trimFunction) {
   }
   text = trimFunction(text, l);
   return text !== '\u2026' ? text : '';
-};
+}
 
 /**
  * @param {!CanvasRenderingContext2D} context
@@ -1580,9 +1877,9 @@ UI.trimText = function(context, text, maxWidth, trimFunction) {
  * @param {number} maxWidth
  * @return {string}
  */
-UI.trimTextMiddle = function(context, text, maxWidth) {
-  return UI.trimText(context, text, maxWidth, (text, width) => text.trimMiddle(width));
-};
+export function trimTextMiddle(context, text, maxWidth) {
+  return trimText(context, text, maxWidth, (text, width) => text.trimMiddle(width));
+}
 
 /**
  * @param {!CanvasRenderingContext2D} context
@@ -1590,24 +1887,25 @@ UI.trimTextMiddle = function(context, text, maxWidth) {
  * @param {number} maxWidth
  * @return {string}
  */
-UI.trimTextEnd = function(context, text, maxWidth) {
-  return UI.trimText(context, text, maxWidth, (text, width) => text.trimEnd(width));
-};
+export function trimTextEnd(context, text, maxWidth) {
+  return trimText(context, text, maxWidth, (text, width) => text.trimEndWithMaxLength(width));
+}
 
 /**
  * @param {!CanvasRenderingContext2D} context
  * @param {string} text
  * @return {number}
  */
-UI.measureTextWidth = function(context, text) {
+export function measureTextWidth(context, text) {
   const maxCacheableLength = 200;
-  if (text.length > maxCacheableLength)
+  if (text.length > maxCacheableLength) {
     return context.measureText(text).width;
+  }
 
-  let widthCache = UI.measureTextWidth._textWidthCache;
+  let widthCache = measureTextWidth._textWidthCache;
   if (!widthCache) {
     widthCache = new Map();
-    UI.measureTextWidth._textWidthCache = widthCache;
+    measureTextWidth._textWidthCache = widthCache;
   }
   const font = context.font;
   let textWidths = widthCache.get(font);
@@ -1621,17 +1919,18 @@ UI.measureTextWidth = function(context, text) {
     textWidths.set(text, width);
   }
   return width;
-};
+}
 
 /**
  * @unrestricted
  */
-UI.ThemeSupport = class {
+export class ThemeSupport {
   /**
    * @param {!Common.Setting} setting
    */
   constructor(setting) {
-    this._themeName = setting.get() || 'default';
+    const systemPreferredTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default';
+    this._themeName = setting.get() === 'systemPreferred' ? systemPreferredTheme : setting.get();
     this._themableProperties = new Set([
       'color', 'box-shadow', 'text-shadow', 'outline-color', 'background-image', 'background-color',
       'border-left-color', 'border-right-color', 'border-top-color', 'border-bottom-color', '-webkit-border-image',
@@ -1662,9 +1961,10 @@ UI.ThemeSupport = class {
    */
   injectHighlightStyleSheets(element) {
     this._injectingStyleSheet = true;
-    UI.appendStyle(element, 'ui/inspectorSyntaxHighlight.css');
-    if (this._themeName === 'dark')
-      UI.appendStyle(element, 'ui/inspectorSyntaxHighlightDark.css');
+    appendStyle(element, 'ui/inspectorSyntaxHighlight.css');
+    if (this._themeName === 'dark') {
+      appendStyle(element, 'ui/inspectorSyntaxHighlightDark.css');
+    }
     this._injectingStyleSheet = false;
   }
 
@@ -1674,7 +1974,6 @@ UI.ThemeSupport = class {
   injectCustomStyleSheets(element) {
     for (const sheet of this._customSheets){
       const styleElement = createElement('style');
-      styleElement.type = 'text/css';
       styleElement.textContent = sheet;
       element.appendChild(styleElement);
     }
@@ -1691,20 +1990,22 @@ UI.ThemeSupport = class {
    * @param {!Document} document
    */
   applyTheme(document) {
-    if (!this.hasTheme())
+    if (!this.hasTheme()) {
       return;
+    }
 
-    if (this._themeName === 'dark')
+    if (this._themeName === 'dark') {
       document.documentElement.classList.add('-theme-with-dark-background');
+    }
 
     const styleSheets = document.styleSheets;
     const result = [];
-    for (let i = 0; i < styleSheets.length; ++i)
+    for (let i = 0; i < styleSheets.length; ++i) {
       result.push(this._patchForTheme(styleSheets[i].href, styleSheets[i]));
+    }
     result.push('/*# sourceURL=inspector.css.theme */');
 
     const styleElement = createElement('style');
-    styleElement.type = 'text/css';
     styleElement.textContent = result.join('\n');
     document.head.appendChild(styleElement);
   }
@@ -1716,13 +2017,13 @@ UI.ThemeSupport = class {
    * @suppressGlobalPropertiesCheck
    */
   themeStyleSheet(id, text) {
-    if (!this.hasTheme() || this._injectingStyleSheet)
+    if (!this.hasTheme() || this._injectingStyleSheet) {
       return '';
+    }
 
     let patch = this._cachedThemePatches.get(id);
     if (!patch) {
       const styleElement = createElement('style');
-      styleElement.type = 'text/css';
       styleElement.textContent = text;
       document.body.appendChild(styleElement);
       patch = this._patchForTheme(id, styleElement.sheet);
@@ -1738,8 +2039,9 @@ UI.ThemeSupport = class {
    */
   _patchForTheme(id, styleSheet) {
     const cached = this._cachedThemePatches.get(id);
-    if (cached)
+    if (cached) {
       return cached;
+    }
 
     try {
       const rules = styleSheet.cssRules;
@@ -1752,10 +2054,12 @@ UI.ThemeSupport = class {
         const output = [];
         const style = rules[j].style;
         const selectorText = rules[j].selectorText;
-        for (let i = 0; style && i < style.length; ++i)
+        for (let i = 0; style && i < style.length; ++i) {
           this._patchProperty(selectorText, style, style[i], output);
-        if (output.length)
+        }
+        if (output.length) {
           result.push(rules[j].selectorText + '{' + output.join('') + '}');
+        }
       }
 
       const fullText = result.join('\n');
@@ -1778,53 +2082,63 @@ UI.ThemeSupport = class {
    * - One can create specializations for dark themes via body.-theme-with-dark-background selector in host context.
    */
   _patchProperty(selectorText, style, name, output) {
-    if (!this._themableProperties.has(name))
+    if (!this._themableProperties.has(name)) {
       return;
+    }
 
     const value = style.getPropertyValue(name);
-    if (!value || value === 'none' || value === 'inherit' || value === 'initial' || value === 'transparent')
+    if (!value || value === 'none' || value === 'inherit' || value === 'initial' || value === 'transparent') {
       return;
-    if (name === 'background-image' && value.indexOf('gradient') === -1)
+    }
+    if (name === 'background-image' && value.indexOf('gradient') === -1) {
       return;
+    }
 
-    if (selectorText.indexOf('-theme-') !== -1)
+    if (selectorText.indexOf('-theme-') !== -1) {
       return;
+    }
 
-    let colorUsage = UI.ThemeSupport.ColorUsage.Unknown;
-    if (name.indexOf('background') === 0 || name.indexOf('border') === 0)
-      colorUsage |= UI.ThemeSupport.ColorUsage.Background;
-    if (name.indexOf('background') === -1)
-      colorUsage |= UI.ThemeSupport.ColorUsage.Foreground;
+    let colorUsage = ThemeSupport.ColorUsage.Unknown;
+    if (name.indexOf('background') === 0 || name.indexOf('border') === 0) {
+      colorUsage |= ThemeSupport.ColorUsage.Background;
+    }
+    if (name.indexOf('background') === -1) {
+      colorUsage |= ThemeSupport.ColorUsage.Foreground;
+    }
 
     output.push(name);
     output.push(':');
     const items = value.replace(Common.Color.Regex, '\0$1\0').split('\0');
-    for (let i = 0; i < items.length; ++i)
-      output.push(this.patchColorText(items[i], colorUsage));
-    if (style.getPropertyPriority(name))
+    for (let i = 0; i < items.length; ++i) {
+      output.push(this.patchColorText(items[i], /** @type {!ThemeSupport.ColorUsage} */ (colorUsage)));
+    }
+    if (style.getPropertyPriority(name)) {
       output.push(' !important');
+    }
     output.push(';');
   }
 
   /**
    * @param {string} text
-   * @param {!UI.ThemeSupport.ColorUsage} colorUsage
+   * @param {!ThemeSupport.ColorUsage} colorUsage
    * @return {string}
    */
   patchColorText(text, colorUsage) {
     const color = Common.Color.parse(text);
-    if (!color)
+    if (!color) {
       return text;
+    }
     const outColor = this.patchColor(color, colorUsage);
     let outText = outColor.asString(null);
-    if (!outText)
+    if (!outText) {
       outText = outColor.asString(outColor.hasAlpha() ? Common.Color.Format.RGBA : Common.Color.Format.RGB);
+    }
     return outText || text;
   }
 
   /**
    * @param {!Common.Color} color
-   * @param {!UI.ThemeSupport.ColorUsage} colorUsage
+   * @param {!ThemeSupport.ColorUsage} colorUsage
    * @return {!Common.Color}
    */
   patchColor(color, colorUsage) {
@@ -1837,7 +2151,7 @@ UI.ThemeSupport = class {
 
   /**
    * @param {!Array<number>} hsla
-   * @param {!UI.ThemeSupport.ColorUsage} colorUsage
+   * @param {!ThemeSupport.ColorUsage} colorUsage
    */
   _patchHSLA(hsla, colorUsage) {
     const hue = hsla[0];
@@ -1847,13 +2161,14 @@ UI.ThemeSupport = class {
 
     switch (this._themeName) {
       case 'dark':
-        const minCap = colorUsage & UI.ThemeSupport.ColorUsage.Background ? 0.14 : 0;
-        const maxCap = colorUsage & UI.ThemeSupport.ColorUsage.Foreground ? 0.9 : 1;
+        const minCap = colorUsage & ThemeSupport.ColorUsage.Background ? 0.14 : 0;
+        const maxCap = colorUsage & ThemeSupport.ColorUsage.Foreground ? 0.9 : 1;
         lit = 1 - lit;
-        if (lit < minCap * 2)
+        if (lit < minCap * 2) {
           lit = minCap + lit / 2;
-        else if (lit > 2 * maxCap - 1)
+        } else if (lit > 2 * maxCap - 1) {
           lit = maxCap - 1 / 2 + lit / 2;
+        }
 
         break;
     }
@@ -1862,12 +2177,12 @@ UI.ThemeSupport = class {
     hsla[2] = Number.constrain(lit, 0, 1);
     hsla[3] = Number.constrain(alpha, 0, 1);
   }
-};
+}
 
 /**
  * @enum {number}
  */
-UI.ThemeSupport.ColorUsage = {
+ThemeSupport.ColorUsage = {
   Unknown: 0,
   Foreground: 1 << 0,
   Background: 1 << 1,
@@ -1878,39 +2193,36 @@ UI.ThemeSupport.ColorUsage = {
  * @param {string} title
  * @return {!Element}
  */
-UI.createDocumentationLink = function(article, title) {
+export function createDocumentationLink(article, title) {
   return UI.XLink.create('https://developers.google.com/web/tools/chrome-devtools/' + article, title);
-};
+}
 
 /**
  * @param {string} url
  * @return {!Promise<?Image>}
  */
-UI.loadImage = function(url) {
+export function loadImage(url) {
   return new Promise(fulfill => {
     const image = new Image();
     image.addEventListener('load', () => fulfill(image));
     image.addEventListener('error', () => fulfill(null));
     image.src = url;
   });
-};
+}
 
 /**
  * @param {?string} data
  * @return {!Promise<?Image>}
  */
-UI.loadImageFromData = function(data) {
-  return data ? UI.loadImage('data:image/jpg;base64,' + data) : Promise.resolve(null);
-};
-
-/** @type {!UI.ThemeSupport} */
-UI.themeSupport;
+export function loadImageFromData(data) {
+  return data ? loadImage('data:image/jpg;base64,' + data) : Promise.resolve(null);
+}
 
 /**
  * @param {function(!File)} callback
  * @return {!Node}
  */
-UI.createFileSelectorElement = function(callback) {
+export function createFileSelectorElement(callback) {
   const fileSelectorElement = createElement('input');
   fileSelectorElement.type = 'file';
   fileSelectorElement.style.display = 'none';
@@ -1920,15 +2232,15 @@ UI.createFileSelectorElement = function(callback) {
     callback(fileSelectorElement.files[0]);
   }
   return fileSelectorElement;
-};
+}
 
 /**
  * @const
  * @type {number}
  */
-UI.MaxLengthForDisplayedURLs = 150;
+export const MaxLengthForDisplayedURLs = 150;
 
-UI.MessageDialog = class {
+export class MessageDialog {
   /**
    * @param {string} message
    * @param {!Document|!Element=} where
@@ -1938,10 +2250,10 @@ UI.MessageDialog = class {
     const dialog = new UI.Dialog();
     dialog.setSizeBehavior(UI.GlassPane.SizeBehavior.MeasureContent);
     dialog.setDimmed(true);
-    const shadowRoot = UI.createShadowRootWithCoreStyles(dialog.contentElement, 'ui/confirmDialog.css');
+    const shadowRoot = createShadowRootWithCoreStyles(dialog.contentElement, 'ui/confirmDialog.css');
     const content = shadowRoot.createChild('div', 'widget');
     await new Promise(resolve => {
-      const okButton = UI.createTextButton(Common.UIString('OK'), resolve, '', true);
+      const okButton = createTextButton(Common.UIString('OK'), resolve, '', true);
       content.createChild('div', 'message').createChild('span').textContent = message;
       content.createChild('div', 'button').appendChild(okButton);
       dialog.setOutsideClickCallback(event => {
@@ -1953,9 +2265,9 @@ UI.MessageDialog = class {
     });
     dialog.hide();
   }
-};
+}
 
-UI.ConfirmDialog = class {
+export class ConfirmDialog {
   /**
    * @param {string} message
    * @param {!Document|!Element=} where
@@ -1965,13 +2277,13 @@ UI.ConfirmDialog = class {
     const dialog = new UI.Dialog();
     dialog.setSizeBehavior(UI.GlassPane.SizeBehavior.MeasureContent);
     dialog.setDimmed(true);
-    const shadowRoot = UI.createShadowRootWithCoreStyles(dialog.contentElement, 'ui/confirmDialog.css');
+    const shadowRoot = createShadowRootWithCoreStyles(dialog.contentElement, 'ui/confirmDialog.css');
     const content = shadowRoot.createChild('div', 'widget');
     content.createChild('div', 'message').createChild('span').textContent = message;
     const buttonsBar = content.createChild('div', 'button');
     const result = await new Promise(resolve => {
-      buttonsBar.appendChild(UI.createTextButton(Common.UIString('OK'), () => resolve(true), '', true));
-      buttonsBar.appendChild(UI.createTextButton(Common.UIString('Cancel'), () => resolve(false)));
+      buttonsBar.appendChild(createTextButton(Common.UIString('OK'), () => resolve(true), '', true));
+      buttonsBar.appendChild(createTextButton(Common.UIString('Cancel'), () => resolve(false)));
       dialog.setOutsideClickCallback(event => {
         event.consume();
         resolve(false);
@@ -1981,44 +2293,200 @@ UI.ConfirmDialog = class {
     dialog.hide();
     return result;
   }
-};
+}
 
 /**
- * @param {!UI.ToolbarToggle} toolbarButton
+ * @param {!UI.ToolbarButton} toolbarButton
  * @return {!Element}
  */
-UI.createInlineButton = function(toolbarButton) {
+export function createInlineButton(toolbarButton) {
   const element = createElement('span');
-  const shadowRoot = UI.createShadowRootWithCoreStyles(element, 'ui/inlineButton.css');
+  const shadowRoot = createShadowRootWithCoreStyles(element, 'ui/inlineButton.css');
   element.classList.add('inline-button');
   const toolbar = new UI.Toolbar('');
   toolbar.appendToolbarItem(toolbarButton);
   shadowRoot.appendChild(toolbar.element);
   return element;
-};
+}
 
 /**
  * @param {string} text
  * @param {number} maxLength
  * @return {!DocumentFragment}
  */
-UI.createExpandableText = function(text, maxLength) {
+export function createExpandableText(text, maxLength) {
+  const clickHandler = () => {
+    if (expandElement.parentElement) {
+      expandElement.parentElement.insertBefore(createTextNode(text.slice(maxLength)), expandElement);
+    }
+    expandElement.remove();
+  };
   const fragment = createDocumentFragment();
   fragment.textContent = text.slice(0, maxLength);
-  const hiddenText = text.slice(maxLength);
+  const expandElement = fragment.createChild('span');
+  const totalBytes = Number.bytesToString(2 * text.length);
+  if (text.length < 10000000) {
+    expandElement.setAttribute('data-text', ls`Show more (${totalBytes})`);
+    expandElement.classList.add('expandable-inline-button');
+    expandElement.addEventListener('click', clickHandler);
+    expandElement.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        clickHandler();
+      }
+    });
+    UI.ARIAUtils.markAsButton(expandElement);
 
-  const expandButton = fragment.createChild('span', 'expandable-inline-button');
-  expandButton.setAttribute('data-text', ls`Show ${Number.withThousandsSeparator(hiddenText.length)} more`);
-  expandButton.addEventListener('click', () => {
-    if (expandButton.parentElement)
-      expandButton.parentElement.insertBefore(createTextNode(hiddenText), expandButton);
-    expandButton.remove();
-  });
+  } else {
+    expandElement.setAttribute('data-text', ls`long text was truncated (${totalBytes})`);
+    expandElement.classList.add('undisplayable-text');
+  }
 
   const copyButton = fragment.createChild('span', 'expandable-inline-button');
   copyButton.setAttribute('data-text', ls`Copy`);
   copyButton.addEventListener('click', () => {
-    InspectorFrontendHost.copyText(text);
+    Host.InspectorFrontendHost.copyText(text);
   });
+  copyButton.addEventListener('keydown', event => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      Host.InspectorFrontendHost.copyText(text);
+    }
+  });
+  UI.ARIAUtils.markAsButton(copyButton);
   return fragment;
+}
+
+/**
+ * @interface
+ */
+export class Renderer {
+  /**
+   * @param {!Object} object
+   * @param {!UI.Renderer.Options=} options
+   * @return {!Promise<?{node: !Node, tree: ?UI.TreeOutline}>}
+   */
+  render(object, options) {
+  }
+}
+
+/**
+   * @param {!Object} object
+   * @param {!UI.Renderer.Options=} options
+   * @return {!Promise<?{node: !Node, tree: ?UI.TreeOutline}>}
+   */
+Renderer.render = async function(object, options) {
+  if (!object) {
+    throw new Error('Can\'t render ' + object);
+  }
+  const renderer = await self.runtime.extension(Renderer, object).instance();
+  return renderer ? renderer.render(object, options || {}) : null;
 };
+
+/**
+ * @param {number} timestamp
+ * @param {boolean} full
+ * @return {string}
+ */
+export function formatTimestamp(timestamp, full) {
+  const date = new Date(timestamp);
+  const yymmdd = date.getFullYear() + '-' + leadZero(date.getMonth() + 1, 2) + '-' + leadZero(date.getDate(), 2);
+  const hhmmssfff = leadZero(date.getHours(), 2) + ':' + leadZero(date.getMinutes(), 2) + ':' +
+      leadZero(date.getSeconds(), 2) + '.' + leadZero(date.getMilliseconds(), 3);
+  return full ? (yymmdd + ' ' + hhmmssfff) : hhmmssfff;
+
+  /**
+   * @param {number} value
+   * @param {number} length
+   * @return {string}
+   */
+  function leadZero(value, length) {
+    const valueString = String(value);
+    return valueString.padStart(length, '0');
+  }
+}
+
+/* Legacy exported object*/
+self.UI = self.UI || {};
+
+/* Legacy exported object*/
+UI = UI || {};
+
+/** @type {?ThemeSupport} */
+UI.themeSupport;
+
+UI.highlightedSearchResultClassName = highlightedSearchResultClassName;
+UI.highlightedCurrentSearchResultClassName = highlightedCurrentSearchResultClassName;
+UI.StyleValueDelimiters = StyleValueDelimiters;
+UI.MaxLengthForDisplayedURLs = MaxLengthForDisplayedURLs;
+
+/** @constructor */
+UI.ElementFocusRestorer = ElementFocusRestorer;
+
+/** @constructor */
+UI.LongClickController = LongClickController;
+
+/** @constructor */
+UI.ThemeSupport = ThemeSupport;
+
+/** @constructor */
+UI.MessageDialog = MessageDialog;
+
+/** @constructor */
+UI.ConfirmDialog = ConfirmDialog;
+
+/** @constructor */
+UI.CheckboxLabel = CheckboxLabel;
+
+/** @interface */
+UI.Renderer = Renderer;
+
+/** @typedef {!{title: (string|!Element|undefined), editable: (boolean|undefined) }} */
+UI.Renderer.Options;
+
+UI.installDragHandle = installDragHandle;
+UI.elementDragStart = elementDragStart;
+UI.isBeingEdited = isBeingEdited;
+UI.isEditing = isEditing;
+UI.markBeingEdited = markBeingEdited;
+UI.createReplacementString = createReplacementString;
+UI.handleElementValueModifications = handleElementValueModifications;
+UI.formatLocalized = formatLocalized;
+UI.openLinkExternallyLabel = openLinkExternallyLabel;
+UI.copyLinkAddressLabel = copyLinkAddressLabel;
+UI.anotherProfilerActiveLabel = anotherProfilerActiveLabel;
+UI.asyncStackTraceLabel = asyncStackTraceLabel;
+UI.installComponentRootStyles = installComponentRootStyles;
+UI.measuredScrollbarWidth = measuredScrollbarWidth;
+UI.createShadowRootWithCoreStyles = createShadowRootWithCoreStyles;
+UI.highlightSearchResult = highlightSearchResult;
+UI.highlightSearchResults = highlightSearchResults;
+UI.runCSSAnimationOnce = runCSSAnimationOnce;
+UI.highlightRangesWithStyleClass = highlightRangesWithStyleClass;
+UI.applyDomChanges = applyDomChanges;
+UI.revertDomChanges = revertDomChanges;
+UI.measurePreferredSize = measurePreferredSize;
+UI.startBatchUpdate = startBatchUpdate;
+UI.endBatchUpdate = endBatchUpdate;
+UI.invokeOnceAfterBatchUpdate = invokeOnceAfterBatchUpdate;
+UI.animateFunction = animateFunction;
+UI.initializeUIUtils = initializeUIUtils;
+UI.beautifyFunctionName = beautifyFunctionName;
+UI.registerCustomElement = registerCustomElement;
+UI.createTextButton = createTextButton;
+UI.createInput = createInput;
+UI.createLabel = createLabel;
+UI.createRadioLabel = createRadioLabel;
+UI.createIconLabel = createIconLabel;
+UI.createSlider = createSlider;
+UI.appendStyle = appendStyle;
+UI.bindInput = bindInput;
+UI.trimText = trimText;
+UI.trimTextMiddle = trimTextMiddle;
+UI.trimTextEnd = trimTextEnd;
+UI.measureTextWidth = measureTextWidth;
+UI.createDocumentationLink = createDocumentationLink;
+UI.loadImage = loadImage;
+UI.loadImageFromData = loadImageFromData;
+UI.createFileSelectorElement = createFileSelectorElement;
+UI.createInlineButton = createInlineButton;
+UI.createExpandableText = createExpandableText;
+UI.formatTimestamp = formatTimestamp;

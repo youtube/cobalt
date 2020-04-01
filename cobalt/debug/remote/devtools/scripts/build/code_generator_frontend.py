@@ -79,6 +79,8 @@ class RawTypes(object):
             return "boolean"
         elif json_type == "string":
             return "string"
+        elif json_type == "binary":
+            return "string"
         elif json_type == "array":
             return "object"
         elif json_type == "object":
@@ -227,8 +229,8 @@ class Generator:
         for member in json_enum["enum"]:
             enum_members.append("%s: \"%s\"" % (fix_camel_case(member), member))
 
-        Generator.backend_js_domain_initializer_list.append("Protocol.inspectorBackend.registerEnum(\"%s\", {%s});\n" %
-                                                            (enum_name, ", ".join(enum_members)))
+        Generator.backend_js_domain_initializer_list.append(
+            "Protocol.inspectorBackend.registerEnum(\"%s\", {%s});\n" % (enum_name, ", ".join(enum_members)))
 
     @staticmethod
     def process_event(json_event, domain_name):
@@ -289,7 +291,6 @@ Generator.go()
 backend_js_file = open(output_js_dirname + "/InspectorBackendCommands.js", "w")
 
 backend_js_file.write(
-    Templates.backend_js.substitute(
-        None, domainInitializers="".join(Generator.backend_js_domain_initializer_list)))
+    Templates.backend_js.substitute(None, domainInitializers="".join(Generator.backend_js_domain_initializer_list)))
 
 backend_js_file.close()

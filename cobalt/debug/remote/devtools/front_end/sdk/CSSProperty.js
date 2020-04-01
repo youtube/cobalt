@@ -4,7 +4,7 @@
 /**
  * @unrestricted
  */
-SDK.CSSProperty = class {
+export default class CSSProperty {
   /**
    * @param {!SDK.CSSStyleDeclaration} ownerStyle
    * @param {number} index
@@ -37,7 +37,7 @@ SDK.CSSProperty = class {
    * @param {!SDK.CSSStyleDeclaration} ownerStyle
    * @param {number} index
    * @param {!Protocol.CSS.CSSProperty} payload
-   * @return {!SDK.CSSProperty}
+   * @return {!CSSProperty}
    */
   static parsePayload(ownerStyle, index, payload) {
     // The following default field values are used in the payload:
@@ -45,24 +45,27 @@ SDK.CSSProperty = class {
     // parsedOk: true
     // implicit: false
     // disabled: false
-    const result = new SDK.CSSProperty(
+    const result = new CSSProperty(
         ownerStyle, index, payload.name, payload.value, payload.important || false, payload.disabled || false,
         ('parsedOk' in payload) ? !!payload.parsedOk : true, !!payload.implicit, payload.text, payload.range);
     return result;
   }
 
   _ensureRanges() {
-    if (this._nameRange && this._valueRange)
+    if (this._nameRange && this._valueRange) {
       return;
+    }
     const range = this.range;
     const text = this.text ? new TextUtils.Text(this.text) : null;
-    if (!range || !text)
+    if (!range || !text) {
       return;
+    }
 
     const nameIndex = text.value().indexOf(this.name);
     const valueIndex = text.value().lastIndexOf(this.value);
-    if (nameIndex === -1 || valueIndex === -1 || nameIndex > valueIndex)
+    if (nameIndex === -1 || valueIndex === -1 || nameIndex > valueIndex) {
       return;
+    }
 
     const nameSourceRange = new TextUtils.SourceRange(nameIndex, this.name.length);
     const valueSourceRange = new TextUtils.SourceRange(valueIndex, this.value.length);
@@ -107,10 +110,12 @@ SDK.CSSProperty = class {
    * @param {!SDK.CSSModel.Edit} edit
    */
   rebase(edit) {
-    if (this.ownerStyle.styleSheetId !== edit.styleSheetId)
+    if (this.ownerStyle.styleSheetId !== edit.styleSheetId) {
       return;
-    if (this.range)
+    }
+    if (this.range) {
       this.range = this.range.rebaseAfterTextEdit(edit.oldRange, edit.newRange);
+    }
   }
 
   /**
@@ -121,11 +126,13 @@ SDK.CSSProperty = class {
   }
 
   get propertyText() {
-    if (this.text !== undefined)
+    if (this.text !== undefined) {
       return this.text;
+    }
 
-    if (this.name === '')
+    if (this.name === '') {
       return '';
+    }
     return this.name + ': ' + this.value + (this.important ? ' !important' : '') + ';';
   }
 
@@ -142,18 +149,22 @@ SDK.CSSProperty = class {
    * @param {boolean=} overwrite
    * @return {!Promise.<boolean>}
    */
-  setText(propertyText, majorChange, overwrite) {
-    if (!this.ownerStyle)
+  async setText(propertyText, majorChange, overwrite) {
+    if (!this.ownerStyle) {
       return Promise.reject(new Error('No ownerStyle for property'));
+    }
 
-    if (!this.ownerStyle.styleSheetId)
+    if (!this.ownerStyle.styleSheetId) {
       return Promise.reject(new Error('No owner style id'));
+    }
 
-    if (!this.range || !this.ownerStyle.range)
+    if (!this.range || !this.ownerStyle.range) {
       return Promise.reject(new Error('Style not editable'));
+    }
 
-    if (majorChange)
+    if (majorChange) {
       Host.userMetrics.actionTaken(Host.UserMetrics.Action.StyleRuleEdited);
+    }
 
     if (overwrite && propertyText === this.propertyText) {
       this.ownerStyle.cssModel().domModel().markUndoableState(!majorChange);
@@ -167,19 +178,9 @@ SDK.CSSProperty = class {
     const text = new TextUtils.Text(this.ownerStyle.cssText || '');
     const newStyleText = text.replaceRange(range, String.sprintf(';%s;', propertyText));
 
-    return self.runtime.extension(TextUtils.TokenizerFactory)
-        .instance()
-        .then(this._formatStyle.bind(this, newStyleText, indentation, endIndentation))
-        .then(setStyleText.bind(this));
-
-    /**
-     * @param {string} styleText
-     * @this {SDK.CSSProperty}
-     * @return {!Promise.<boolean>}
-     */
-    function setStyleText(styleText) {
-      return this.ownerStyle.setText(styleText, majorChange);
-    }
+    const tokenizerFactory = await self.runtime.extension(TextUtils.TokenizerFactory).instance();
+    const styleText = CSSProperty._formatStyle(newStyleText, indentation, endIndentation, tokenizerFactory);
+    return this.ownerStyle.setText(styleText, majorChange);
   }
 
   /**
@@ -189,17 +190,22 @@ SDK.CSSProperty = class {
    * @param {!TextUtils.TokenizerFactory} tokenizerFactory
    * @return {string}
    */
-  _formatStyle(styleText, indentation, endIndentation, tokenizerFactory) {
-    if (indentation)
+  static _formatStyle(styleText, indentation, endIndentation, tokenizerFactory) {
+    const doubleIndent = indentation.substring(endIndentation.length) + indentation;
+    if (indentation) {
       indentation = '\n' + indentation;
+    }
     let result = '';
+    let propertyName = '';
     let propertyText;
     let insideProperty = false;
+    let needsSemi = false;
     const tokenize = tokenizerFactory.createTokenizer('text/css');
 
     tokenize('*{' + styleText + '}', processToken);
-    if (insideProperty)
+    if (insideProperty) {
       result += propertyText;
+    }
     result = result.substring(2, result.length - 1).trimRight();
     return result + (indentation ? '\n' + endIndentation : '');
 
@@ -220,18 +226,36 @@ SDK.CSSProperty = class {
         } else if (isPropertyStart) {
           insideProperty = true;
           propertyText = token;
-        } else if (token !== ';') {
+        } else if (token !== ';' || needsSemi) {
           result += token;
+          if (token.trim() && !(tokenType && tokenType.includes('css-comment'))) {
+            needsSemi = token !== ';';
+          }
+        }
+        if (token === '{' && !tokenType) {
+          needsSemi = false;
         }
         return;
       }
 
       if (token === '}' || token === ';') {
         result = result.trimRight() + indentation + propertyText.trim() + ';';
+        needsSemi = false;
         insideProperty = false;
-        if (token === '}')
+        propertyName = '';
+        if (token === '}') {
           result += '}';
+        }
       } else {
+        if (SDK.cssMetadata().isGridAreaDefiningProperty(propertyName)) {
+          const rowResult = SDK.CSSMetadata.GridAreaRowRegex.exec(token);
+          if (rowResult && rowResult.index === 0 && !propertyText.trimRight().endsWith(']')) {
+            propertyText = propertyText.trimRight() + '\n' + doubleIndent;
+          }
+        }
+        if (!propertyName && token === ':') {
+          propertyName = propertyText;
+        }
         propertyText += token;
       }
     }
@@ -242,8 +266,9 @@ SDK.CSSProperty = class {
      */
     function isDisabledProperty(text) {
       const colon = text.indexOf(':');
-      if (colon === -1)
+      if (colon === -1) {
         return false;
+      }
       const propertyName = text.substring(2, colon).trim();
       return SDK.cssMetadata().isCSSPropertyName(propertyName);
     }
@@ -255,8 +280,9 @@ SDK.CSSProperty = class {
    */
   _detectIndentation(text) {
     const lines = text.split('\n');
-    if (lines.length < 2)
+    if (lines.length < 2) {
       return '';
+    }
     return TextUtils.TextUtils.lineIndent(lines[1]);
   }
 
@@ -276,12 +302,23 @@ SDK.CSSProperty = class {
    * @return {!Promise.<boolean>}
    */
   setDisabled(disabled) {
-    if (!this.ownerStyle)
+    if (!this.ownerStyle) {
       return Promise.resolve(false);
-    if (disabled === this.disabled)
+    }
+    if (disabled === this.disabled) {
       return Promise.resolve(true);
+    }
     const propertyText = this.text.trim();
     const text = disabled ? '/* ' + propertyText + ' */' : this.text.substring(2, propertyText.length - 2).trim();
     return this.setText(text, true, true);
   }
-};
+}
+
+/* Legacy exported object */
+self.SDK = self.SDK || {};
+
+/* Legacy exported object */
+SDK = SDK || {};
+
+/** @constructor */
+SDK.CSSProperty = CSSProperty;

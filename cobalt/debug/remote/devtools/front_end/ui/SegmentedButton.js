@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-UI.SegmentedButton = class extends UI.HBox {
+export default class SegmentedButton extends UI.HBox {
   constructor() {
     super(true);
     /** @type {!Map<string, !Element>} */
@@ -31,11 +31,13 @@ UI.SegmentedButton = class extends UI.HBox {
    * @param {string} value
    */
   select(value) {
-    if (this._selected === value)
+    if (this._selected === value) {
       return;
+    }
     this._selected = value;
-    for (const key of this._buttons.keys())
+    for (const key of this._buttons.keys()) {
       this._buttons.get(key).classList.toggle('segmented-button-segment-selected', key === this._selected);
+    }
   }
 
   /**
@@ -44,4 +46,10 @@ UI.SegmentedButton = class extends UI.HBox {
   selected() {
     return this._selected;
   }
-};
+}
+
+/* Legacy exported object*/
+self.UI = self.UI || {};
+
+/* Legacy exported object*/
+UI = UI || {};

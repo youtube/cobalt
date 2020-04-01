@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-ColorPicker.ContrastDetails = class {
+export class ContrastDetails extends Common.Object {
   /**
    * @param {!ColorPicker.ContrastInfo} contrastInfo
    * @param {!Element} contentElement
@@ -10,6 +10,7 @@ ColorPicker.ContrastDetails = class {
    * @param {function()} expandedChangedCallback
    */
   constructor(contrastInfo, contentElement, toggleMainColorPickerCallback, expandedChangedCallback) {
+    super();
     /** @type {!ColorPicker.ContrastInfo} */
     this._contrastInfo = contrastInfo;
 
@@ -61,7 +62,6 @@ ColorPicker.ContrastDetails = class {
     expandToolbar.appendToolbarItem(this._expandButton);
 
     this._expandedDetails = this._element.createChild('div', 'expanded-details');
-    this._expandedDetails.id = 'expanded-contrast-details';
     UI.ARIAUtils.setControls(this._expandButton.element, this._expandedDetails);
 
     this._contrastThresholds = this._expandedDetails.createChild('div', 'contrast-thresholds');
@@ -81,11 +81,11 @@ ColorPicker.ContrastDetails = class {
     this._bgColorPickerButton =
         new UI.ToolbarToggle(Common.UIString('Toggle background color picker'), 'largeicon-eyedropper');
     this._bgColorPickerButton.addEventListener(
-        UI.ToolbarButton.Events.Click, this._toggleBackgroundColorPicker.bind(this, undefined));
+        UI.ToolbarButton.Events.Click, this._toggleBackgroundColorPicker.bind(this, undefined, true));
     pickerToolbar.appendToolbarItem(this._bgColorPickerButton);
     this._bgColorPickedBound = this._bgColorPicked.bind(this);
 
-    this._bgColorSwatch = new ColorPicker.ContrastDetails.Swatch(bgColorContainer);
+    this._bgColorSwatch = new Swatch(bgColorContainer);
 
     this._contrastInfo.addEventListener(ColorPicker.ContrastInfo.Events.ContrastInfoUpdated, this._update.bind(this));
   }
@@ -99,8 +99,9 @@ ColorPicker.ContrastDetails = class {
     this.setVisible(true);
 
     const contrastRatio = this._contrastInfo.contrastRatio();
+    const fgColor = this._contrastInfo.color();
     const bgColor = this._contrastInfo.bgColor();
-    if (!contrastRatio || !bgColor) {
+    if (!contrastRatio || !bgColor || !fgColor) {
       this._contrastUnknown = true;
       this._contrastValue.textContent = '';
       this._contrastValueBubble.classList.add('contrast-unknown');
@@ -115,8 +116,7 @@ ColorPicker.ContrastDetails = class {
     this._contrastValueBubble.classList.remove('contrast-unknown');
     this._contrastValue.textContent = contrastRatio.toFixed(2);
 
-    this._bgColorSwatch.setBackgroundColor(bgColor);
-    this._bgColorSwatch.setTextColor(this._contrastInfo.colorString());
+    this._bgColorSwatch.setColors(fgColor, bgColor);
 
     const aa = this._contrastInfo.contrastRatioThreshold('aa');
     this._passesAA = this._contrastInfo.contrastRatio() >= aa;
@@ -124,10 +124,11 @@ ColorPicker.ContrastDetails = class {
     const labelAA = this._contrastPassFailAA.createChild('span', 'contrast-link-label');
     labelAA.textContent = Common.UIString('AA');
     this._contrastPassFailAA.createChild('span').textContent = Common.UIString(': %s', aa.toFixed(1));
-    if (this._passesAA)
+    if (this._passesAA) {
       this._contrastPassFailAA.appendChild(UI.Icon.create('smallicon-checkmark-square'));
-    else
+    } else {
       this._contrastPassFailAA.appendChild(UI.Icon.create('smallicon-no'));
+    }
 
     const aaa = this._contrastInfo.contrastRatioThreshold('aaa');
     const passesAAA = this._contrastInfo.contrastRatio() >= aaa;
@@ -135,10 +136,11 @@ ColorPicker.ContrastDetails = class {
     const labelAAA = this._contrastPassFailAAA.createChild('span', 'contrast-link-label');
     labelAAA.textContent = Common.UIString('AAA');
     this._contrastPassFailAAA.createChild('span').textContent = Common.UIString(': %s', aaa.toFixed(1));
-    if (passesAAA)
+    if (passesAAA) {
       this._contrastPassFailAAA.appendChild(UI.Icon.create('smallicon-checkmark-square'));
-    else
+    } else {
       this._contrastPassFailAAA.appendChild(UI.Icon.create('smallicon-no'));
+    }
 
     [labelAA, labelAAA].forEach(e => e.addEventListener('click', event => ColorPicker.ContrastDetails._showHelp()));
 
@@ -148,7 +150,7 @@ ColorPicker.ContrastDetails = class {
   }
 
   static _showHelp() {
-    InspectorFrontendHost.openInNewTab(
+    Host.InspectorFrontendHost.openInNewTab(
         'https://developers.google.com/web/fundamentals/accessibility/accessible-styles#color_and_contrast');
   }
 
@@ -199,8 +201,9 @@ ColorPicker.ContrastDetails = class {
       this._toggleMainColorPicker(false);
       this._expandButton.setGlyph('smallicon-expand-less');
       this._expandButton.setTitle(Common.UIString('Show less'));
-      if (this._contrastUnknown)
+      if (this._contrastUnknown) {
         this._toggleBackgroundColorPicker(true);
+      }
     } else {
       this._toggleBackgroundColorPicker(false);
       this._expandButton.setGlyph('smallicon-expand-more');
@@ -223,19 +226,41 @@ ColorPicker.ContrastDetails = class {
   }
 
   /**
-   * @param {boolean=} enabled
+   * @returns {boolean}
    */
-  _toggleBackgroundColorPicker(enabled) {
-    if (enabled === undefined)
+  backgroundColorPickerEnabled() {
+    return this._bgColorPickerButton.toggled();
+  }
+
+  /**
+   * @param {boolean} enabled
+   */
+
+  toggleBackgroundColorPicker(enabled) {
+    this._toggleBackgroundColorPicker(enabled, false);
+  }
+
+  /**
+   * @param {boolean=} enabled
+   * @param {boolean=} shouldTriggerEvent
+   */
+  _toggleBackgroundColorPicker(enabled, shouldTriggerEvent = true) {
+    if (enabled === undefined) {
       enabled = !this._bgColorPickerButton.toggled();
+    }
     this._bgColorPickerButton.setToggled(enabled);
-    InspectorFrontendHost.setEyeDropperActive(enabled);
+
+    if (shouldTriggerEvent) {
+      this.dispatchEventToListeners(Events.BackgroundColorPickerWillBeToggled, enabled);
+    }
+
+    Host.InspectorFrontendHost.setEyeDropperActive(enabled);
     if (enabled) {
-      InspectorFrontendHost.events.addEventListener(
-          InspectorFrontendHostAPI.Events.EyeDropperPickedColor, this._bgColorPickedBound);
+      Host.InspectorFrontendHost.events.addEventListener(
+          Host.InspectorFrontendHostAPI.Events.EyeDropperPickedColor, this._bgColorPickedBound);
     } else {
-      InspectorFrontendHost.events.removeEventListener(
-          InspectorFrontendHostAPI.Events.EyeDropperPickedColor, this._bgColorPickedBound);
+      Host.InspectorFrontendHost.events.removeEventListener(
+          Host.InspectorFrontendHostAPI.Events.EyeDropperPickedColor, this._bgColorPickedBound);
     }
   }
 
@@ -248,11 +273,15 @@ ColorPicker.ContrastDetails = class {
     const color = Common.Color.fromRGBA(rgba);
     this._contrastInfo.setBgColor(color);
     this._toggleBackgroundColorPicker(false);
-    InspectorFrontendHost.bringToFront();
+    Host.InspectorFrontendHost.bringToFront();
   }
+}
+
+export const Events = {
+  BackgroundColorPickerWillBeToggled: Symbol('BackgroundColorPickerWillBeToggled')
 };
 
-ColorPicker.ContrastDetails.Swatch = class {
+export class Swatch {
   /**
    * @param {!Element} parentElement
    */
@@ -265,19 +294,28 @@ ColorPicker.ContrastDetails.Swatch = class {
   }
 
   /**
-   * @param {!Common.Color} color
+   * @param {!Common.Color} fgColor
+   * @param {!Common.Color} bgColor
    */
-  setBackgroundColor(color) {
-    this._swatchInnerElement.style.background =
-        /** @type {string} */ (color.asString(Common.Color.Format.RGBA));
+  setColors(fgColor, bgColor) {
+    this._textPreview.style.color = /** @type {string} */ (fgColor.asString(Common.Color.Format.RGBA));
+    this._swatchInnerElement.style.backgroundColor =
+        /** @type {string} */ (bgColor.asString(Common.Color.Format.RGBA));
     // Show border if the swatch is white.
-    this._swatchElement.classList.toggle('swatch-inner-white', color.hsla()[2] > 0.9);
+    this._swatchElement.classList.toggle('swatch-inner-white', bgColor.hsla()[2] > 0.9);
   }
+}
 
-  /**
-   * @param {string} colorString
-   */
-  setTextColor(colorString) {
-    this._textPreview.style.color = colorString;
-  }
-};
+/* Legacy exported object */
+self.ColorPicker = self.ColorPicker || {};
+
+/* Legacy exported object */
+ColorPicker = ColorPicker || {};
+
+/** @constructor */
+ColorPicker.ContrastDetails = ContrastDetails;
+
+ColorPicker.ContrastDetails.Events = Events;
+
+/** @constructor */
+ColorPicker.ContrastDetails.Swatch = Swatch;

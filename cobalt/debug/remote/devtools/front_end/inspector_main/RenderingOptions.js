@@ -28,37 +28,48 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-InspectorMain.RenderingOptionsView = class extends UI.VBox {
+export class RenderingOptionsView extends UI.VBox {
   constructor() {
     super(true);
     this.registerRequiredCSS('inspector_main/renderingOptions.css');
 
     this._appendCheckbox(
-        Common.UIString('Paint flashing'),
-        Common.UIString('Highlights areas of the page (green) that need to be repainted'),
+        ls`Paint flashing`,
+        ls
+        `Highlights areas of the page (green) that need to be repainted. May not be suitable for people prone to photosensitive epilepsy.`,
         Common.moduleSetting('showPaintRects'));
     this._appendCheckbox(
-        Common.UIString('Layer borders'), Common.UIString('Shows layer borders (orange/olive) and tiles (cyan)'),
-        Common.moduleSetting('showDebugBorders'));
+        ls`Layout Shift Regions`,
+        ls
+        `Highlights areas of the page (blue) that were shifted. May not be suitable for people prone to photosensitive epilepsy.`,
+        Common.moduleSetting('showLayoutShiftRegions'));
+        this._appendCheckbox(
+            ls`Layer borders`, ls`Shows layer borders (orange/olive) and tiles (cyan).`,
+            Common.moduleSetting('showDebugBorders'));
+        this._appendCheckbox(
+            ls`FPS meter`, ls`Plots frames per second, frame rate distribution, and GPU memory.`,
+            Common.moduleSetting('showFPSCounter'));
     this._appendCheckbox(
-        Common.UIString('FPS meter'),
-        Common.UIString('Plots frames per second, frame rate distribution, and GPU memory'),
-        Common.moduleSetting('showFPSCounter'));
-    this._appendCheckbox(
-        Common.UIString('Scrolling performance issues'),
-        Common.UIString(
-            'Highlights elements (teal) that can slow down scrolling, including touch & wheel event handlers and other main-thread scrolling situations.'),
+        ls`Scrolling performance issues`,
+        ls
+        `Highlights elements (teal) that can slow down scrolling, including touch & wheel event handlers and other main-thread scrolling situations.`,
         Common.moduleSetting('showScrollBottleneckRects'));
-    this.contentElement.createChild('div').classList.add('panel-section-separator');
+        this._appendCheckbox(
+            ls`Highlight ad frames`, ls`Highlights frames (red) detected to be ads.`,
+            Common.moduleSetting('showAdHighlights'));
+        this._appendCheckbox(
+            ls`Hit-test borders`, ls`Shows borders around hit-test regions.`,
+            Common.moduleSetting('showHitTestBorders'));
+        this.contentElement.createChild('div').classList.add('panel-section-separator');
 
-    const mediaSetting = Common.moduleSetting('emulatedCSSMedia');
-    const mediaSelect = UI.SettingsUI.createControlForSetting(mediaSetting);
-    if (mediaSelect) {
-      const mediaRow = this.contentElement.createChild('span', 'media-row');
-      mediaRow.createChild('label').textContent = Common.UIString('Emulate CSS media');
-      mediaRow.createChild('p').textContent = Common.UIString('Forces media type for testing print and screen styles');
-      mediaRow.appendChild(mediaSelect);
-    }
+        this._appendSelect(
+            ls`Forces media type for testing print and screen styles`, Common.moduleSetting('emulatedCSSMedia'));
+        this._appendSelect(
+            ls`Forces CSS prefers-color-scheme media feature`,
+            Common.moduleSetting('emulatedCSSMediaFeaturePrefersColorScheme'));
+        this._appendSelect(
+            ls`Forces CSS prefers-reduced-motion media feature`,
+            Common.moduleSetting('emulatedCSSMediaFeaturePrefersReducedMotion'));
   }
 
   /**
@@ -71,4 +82,26 @@ InspectorMain.RenderingOptionsView = class extends UI.VBox {
     UI.SettingsUI.bindCheckbox(checkboxLabel.checkboxElement, setting);
     this.contentElement.appendChild(checkboxLabel);
   }
-};
+
+  /**
+   * @param {string} label
+   * @param {!Common.Setting} setting
+   */
+  _appendSelect(label, setting) {
+    const control = UI.SettingsUI.createControlForSetting(setting, label);
+    if (control) {
+      this.contentElement.appendChild(control);
+    }
+  }
+}
+
+/* Legacy exported object */
+self.InspectorMain = self.InspectorMain || {};
+
+/* Legacy exported object */
+InspectorMain = InspectorMain || {};
+
+/**
+ * @constructor
+ */
+InspectorMain.RenderingOptionsView = RenderingOptionsView;

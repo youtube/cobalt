@@ -4,7 +4,7 @@
 /**
  * @unrestricted
  */
-SDK.CPUProfileNode = class extends SDK.ProfileNode {
+export class CPUProfileNode extends SDK.ProfileNode {
   /**
    * @param {!Protocol.Profiler.ProfileNode} node
    * @param {number} sampleTime
@@ -25,17 +25,18 @@ SDK.CPUProfileNode = class extends SDK.ProfileNode {
     // Compatibility: legacy backends could provide "no reason" for optimized functions.
     this.deoptReason = node.deoptReason && node.deoptReason !== 'no reason' ? node.deoptReason : null;
   }
-};
+}
 
 /**
  * @unrestricted
  */
-SDK.CPUProfileDataModel = class extends SDK.ProfileTreeModel {
+export default class CPUProfileDataModel extends SDK.ProfileTreeModel {
   /**
    * @param {!Protocol.Profiler.Profile} profile
+   * @param {?SDK.Target} target
    */
-  constructor(profile) {
-    super();
+  constructor(profile, target) {
+    super(target);
     const isLegacyFormat = !!profile['head'];
     if (isLegacyFormat) {
       // Legacy format contains raw timestamps and start/stop times are in seconds.
@@ -50,6 +51,7 @@ SDK.CPUProfileDataModel = class extends SDK.ProfileTreeModel {
       this.timestamps = this._convertTimeDeltas(profile);
     }
     this.samples = profile.samples;
+    this.lines = profile.lines;
     this.totalHitCount = 0;
     this.profileHead = this._translateProfileTree(profile.nodes);
     this.initialize(this.profileHead);
@@ -66,8 +68,9 @@ SDK.CPUProfileDataModel = class extends SDK.ProfileTreeModel {
    * @param {!Protocol.Profiler.Profile} profile
    */
   _compatibilityConversionHeadToNodes(profile) {
-    if (!profile.head || profile.nodes)
+    if (!profile.head || profile.nodes) {
       return;
+    }
     /** @type {!Array<!Protocol.Profiler.ProfileNode>} */
     const nodes = [];
     convertNodesTree(profile.head);
@@ -89,8 +92,9 @@ SDK.CPUProfileDataModel = class extends SDK.ProfileTreeModel {
    * @return {?Array<number>}
    */
   _convertTimeDeltas(profile) {
-    if (!profile.timeDeltas)
+    if (!profile.timeDeltas) {
       return null;
+    }
     let lastTimeUsec = profile.startTime;
     const timestamps = new Array(profile.timeDeltas.length);
     for (let i = 0; i < profile.timeDeltas.length; ++i) {
@@ -102,7 +106,7 @@ SDK.CPUProfileDataModel = class extends SDK.ProfileTreeModel {
 
   /**
    * @param {!Array<!Protocol.Profiler.ProfileNode>} nodes
-   * @return {!SDK.CPUProfileNode}
+   * @return {!CPUProfileNode}
    */
   _translateProfileTree(nodes) {
     /**
@@ -110,32 +114,56 @@ SDK.CPUProfileDataModel = class extends SDK.ProfileTreeModel {
      * @return {boolean}
      */
     function isNativeNode(node) {
-      if (node.callFrame)
+      if (node.callFrame) {
         return !!node.callFrame.url && node.callFrame.url.startsWith('native ');
+      }
       return !!node['url'] && node['url'].startsWith('native ');
     }
+
     /**
      * @param {!Array<!Protocol.Profiler.ProfileNode>} nodes
      */
     function buildChildrenFromParents(nodes) {
-      if (nodes[0].children)
+      if (nodes[0].children) {
         return;
+      }
       nodes[0].children = [];
       for (let i = 1; i < nodes.length; ++i) {
         const node = nodes[i];
         const parentNode = nodeByIdMap.get(node.parent);
-        if (parentNode.children)
+        if (parentNode.children) {
           parentNode.children.push(node.id);
-        else
+        } else {
           parentNode.children = [node.id];
+        }
       }
     }
+
+    /**
+     * @param {!Array<!Protocol.Profiler.ProfileNode>} nodes
+     * @param {!Array<number>|undefined} samples
+     */
+    function buildHitCountFromSamples(nodes, samples) {
+      if (typeof (nodes[0].hitCount) === 'number') {
+        return;
+      }
+      console.assert(samples, 'Error: Neither hitCount nor samples are present in profile.');
+      for (let i = 0; i < nodes.length; ++i) {
+        nodes[i].hitCount = 0;
+      }
+      for (let i = 0; i < samples.length; ++i) {
+        ++nodeByIdMap.get(samples[i]).hitCount;
+      }
+    }
+
     /** @type {!Map<number, !Protocol.Profiler.ProfileNode>} */
     const nodeByIdMap = new Map();
     for (let i = 0; i < nodes.length; ++i) {
       const node = nodes[i];
       nodeByIdMap.set(node.id, node);
     }
+
+    buildHitCountFromSamples(nodes, this.samples);
     buildChildrenFromParents(nodes);
     this.totalHitCount = nodes.reduce((acc, node) => acc + node.hitCount, 0);
     const sampleTime = (this.profileEndTime - this.profileStartTime) / this.totalHitCount;
@@ -143,15 +171,16 @@ SDK.CPUProfileDataModel = class extends SDK.ProfileTreeModel {
     const root = nodes[0];
     /** @type {!Map<number, number>} */
     const idMap = new Map([[root.id, root.id]]);
-    const resultRoot = new SDK.CPUProfileNode(root, sampleTime);
+    const resultRoot = new CPUProfileNode(root, sampleTime);
     const parentNodeStack = root.children.map(() => resultRoot);
     const sourceNodeStack = root.children.map(id => nodeByIdMap.get(id));
     while (sourceNodeStack.length) {
       let parentNode = parentNodeStack.pop();
       const sourceNode = sourceNodeStack.pop();
-      if (!sourceNode.children)
+      if (!sourceNode.children) {
         sourceNode.children = [];
-      const targetNode = new SDK.CPUProfileNode(sourceNode, sampleTime);
+      }
+      const targetNode = new CPUProfileNode(sourceNode, sampleTime);
       if (keepNatives || !isNativeNode(sourceNode)) {
         parentNode.children.push(targetNode);
         parentNode = targetNode;
@@ -162,22 +191,25 @@ SDK.CPUProfileDataModel = class extends SDK.ProfileTreeModel {
       parentNodeStack.push.apply(parentNodeStack, sourceNode.children.map(() => parentNode));
       sourceNodeStack.push.apply(sourceNodeStack, sourceNode.children.map(id => nodeByIdMap.get(id)));
     }
-    if (this.samples)
+    if (this.samples) {
       this.samples = this.samples.map(id => idMap.get(id));
+    }
     return resultRoot;
   }
 
   _sortSamples() {
     const timestamps = this.timestamps;
-    if (!timestamps)
+    if (!timestamps) {
       return;
+    }
     const samples = this.samples;
     const indices = timestamps.map((x, index) => index);
-    indices.stableSort((a, b) => timestamps[a] - timestamps[b]);
+    indices.sort((a, b) => timestamps[a] - timestamps[b]);
     for (let i = 0; i < timestamps.length; ++i) {
       let index = indices[i];
-      if (index === i)
+      if (index === i) {
         continue;
+      }
       // Move items in a cycle.
       const savedTimestamp = timestamps[i];
       const savedSample = samples[i];
@@ -202,15 +234,17 @@ SDK.CPUProfileDataModel = class extends SDK.ProfileTreeModel {
       const profileStartTime = this.profileStartTime;
       const interval = (this.profileEndTime - profileStartTime) / this.samples.length;
       timestamps = new Float64Array(this.samples.length + 1);
-      for (let i = 0; i < timestamps.length; ++i)
+      for (let i = 0; i < timestamps.length; ++i) {
         timestamps[i] = profileStartTime + i * interval;
+      }
       this.timestamps = timestamps;
       return;
     }
 
     // Convert samples from usec to msec
-    for (let i = 0; i < timestamps.length; ++i)
+    for (let i = 0; i < timestamps.length; ++i) {
       timestamps[i] /= 1000;
+    }
     if (this.samples.length === timestamps.length) {
       // Support for a legacy format where were no timeDeltas.
       // Add an extra timestamp used to calculate the last sample duration.
@@ -222,7 +256,7 @@ SDK.CPUProfileDataModel = class extends SDK.ProfileTreeModel {
   }
 
   _buildIdToNodeMap() {
-    /** @type {!Map<number, !SDK.CPUProfileNode>} */
+    /** @type {!Map<number, !CPUProfileNode>} */
     this._idToNode = new Map();
     const idToNode = this._idToNode;
     const stack = [this.profileHead];
@@ -237,12 +271,13 @@ SDK.CPUProfileDataModel = class extends SDK.ProfileTreeModel {
     const topLevelNodes = this.profileHead.children;
     for (let i = 0; i < topLevelNodes.length && !(this.gcNode && this.programNode && this.idleNode); i++) {
       const node = topLevelNodes[i];
-      if (node.functionName === '(garbage collector)')
+      if (node.functionName === '(garbage collector)') {
         this.gcNode = node;
-      else if (node.functionName === '(program)')
+      } else if (node.functionName === '(program)') {
         this.programNode = node;
-      else if (node.functionName === '(idle)')
+      } else if (node.functionName === '(idle)') {
         this.idleNode = node;
+      }
     }
   }
 
@@ -255,8 +290,9 @@ SDK.CPUProfileDataModel = class extends SDK.ProfileTreeModel {
     // with the preceeding sample.
     const samples = this.samples;
     const samplesCount = samples.length;
-    if (!this.programNode || samplesCount < 3)
+    if (!this.programNode || samplesCount < 3) {
       return;
+    }
     const idToNode = this._idToNode;
     const programNodeId = this.programNode.id;
     const gcNodeId = this.gcNode ? this.gcNode.id : -1;
@@ -274,15 +310,17 @@ SDK.CPUProfileDataModel = class extends SDK.ProfileTreeModel {
       prevNodeId = nodeId;
       nodeId = nextNodeId;
     }
-    if (count)
+    if (count) {
       Common.console.warn(ls`DevTools: CPU profile parser is fixing ${count} missing samples.`);
+    }
     /**
      * @param {!SDK.ProfileNode} node
      * @return {!SDK.ProfileNode}
      */
     function bottomNode(node) {
-      while (node.parent && node.parent.parent)
+      while (node.parent && node.parent.parent) {
         node = node.parent;
+      }
       return node;
     }
     /**
@@ -295,14 +333,15 @@ SDK.CPUProfileDataModel = class extends SDK.ProfileTreeModel {
   }
 
   /**
-   * @param {function(number, !SDK.CPUProfileNode, number)} openFrameCallback
-   * @param {function(number, !SDK.CPUProfileNode, number, number, number)} closeFrameCallback
+   * @param {function(number, !CPUProfileNode, number)} openFrameCallback
+   * @param {function(number, !CPUProfileNode, number, number, number)} closeFrameCallback
    * @param {number=} startTime
    * @param {number=} stopTime
    */
   forEachFrame(openFrameCallback, closeFrameCallback, startTime, stopTime) {
-    if (!this.profileHead || !this.samples)
+    if (!this.profileHead || !this.samples) {
       return;
+    }
 
     startTime = startTime || 0;
     stopTime = stopTime || Infinity;
@@ -321,22 +360,26 @@ SDK.CPUProfileDataModel = class extends SDK.ProfileTreeModel {
     // Extra slots for gc being put on top,
     // and one at the bottom to allow safe stackTop-1 access.
     const stackDepth = this.maxDepth + 3;
-    if (!this._stackStartTimes)
+    if (!this._stackStartTimes) {
       this._stackStartTimes = new Float64Array(stackDepth);
+    }
     const stackStartTimes = this._stackStartTimes;
-    if (!this._stackChildrenDuration)
+    if (!this._stackChildrenDuration) {
       this._stackChildrenDuration = new Float64Array(stackDepth);
+    }
     const stackChildrenDuration = this._stackChildrenDuration;
 
     let node;
     let sampleIndex;
     for (sampleIndex = startIndex; sampleIndex < samplesCount; sampleIndex++) {
       sampleTime = timestamps[sampleIndex];
-      if (sampleTime >= stopTime)
+      if (sampleTime >= stopTime) {
         break;
+      }
       const id = samples[sampleIndex];
-      if (id === prevId)
+      if (id === prevId) {
         continue;
+      }
       node = idToNode.get(id);
       let prevNode = idToNode.get(prevId);
 
@@ -372,7 +415,7 @@ SDK.CPUProfileDataModel = class extends SDK.ProfileTreeModel {
         const duration = sampleTime - start;
         stackChildrenDuration[stackTop - 1] += duration;
         closeFrameCallback(
-            prevNode.depth, /** @type {!SDK.CPUProfileNode} */ (prevNode), start, duration,
+            prevNode.depth, /** @type {!CPUProfileNode} */ (prevNode), start, duration,
             duration - stackChildrenDuration[stackTop]);
         --stackTop;
         if (node.depth === prevNode.depth) {
@@ -408,7 +451,7 @@ SDK.CPUProfileDataModel = class extends SDK.ProfileTreeModel {
       const duration = sampleTime - start;
       stackChildrenDuration[stackTop - 1] += duration;
       closeFrameCallback(
-          node.depth, /** @type {!SDK.CPUProfileNode} */ (node), start, duration,
+          node.depth, /** @type {!CPUProfileNode} */ (node), start, duration,
           duration - stackChildrenDuration[stackTop]);
       --stackTop;
     }
@@ -416,9 +459,21 @@ SDK.CPUProfileDataModel = class extends SDK.ProfileTreeModel {
 
   /**
    * @param {number} index
-   * @return {?SDK.CPUProfileNode}
+   * @return {?CPUProfileNode}
    */
   nodeByIndex(index) {
     return this._idToNode.get(this.samples[index]) || null;
   }
-};
+}
+
+/* Legacy exported object */
+self.SDK = self.SDK || {};
+
+/* Legacy exported object */
+SDK = SDK || {};
+
+/** @constructor */
+SDK.CPUProfileDataModel = CPUProfileDataModel;
+
+/** @constructor */
+SDK.CPUProfileNode = CPUProfileNode;

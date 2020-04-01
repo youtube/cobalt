@@ -4,7 +4,7 @@
 /**
  * @unrestricted
  */
-Accessibility.ARIAMetadata = class {
+export default class ARIAMetadata {
   /**
    * @param {?Object} config
    */
@@ -12,8 +12,9 @@ Accessibility.ARIAMetadata = class {
     /** @type {!Map<string, !Accessibility.ARIAMetadata.Attribute>} */
     this._attributes = new Map();
 
-    if (config)
+    if (config) {
       this._initialize(config);
+    }
   }
 
   /**
@@ -24,8 +25,9 @@ Accessibility.ARIAMetadata = class {
 
     const booleanEnum = ['true', 'false'];
     for (const attributeConfig of attributes) {
-      if (attributeConfig.type === 'boolean')
+      if (attributeConfig.type === 'boolean') {
         attributeConfig.enum = booleanEnum;
+      }
       this._attributes.set(attributeConfig.name, new Accessibility.ARIAMetadata.Attribute(attributeConfig));
     }
 
@@ -38,29 +40,32 @@ Accessibility.ARIAMetadata = class {
    * @return {!Array<string>}
    */
   valuesForProperty(property) {
-    if (this._attributes.has(property))
+    if (this._attributes.has(property)) {
       return this._attributes.get(property).getEnum();
+    }
 
-    if (property === 'role')
+    if (property === 'role') {
       return this._roleNames;
+    }
 
     return [];
   }
-};
+}
 
 /**
  * @return {!Accessibility.ARIAMetadata}
  */
-Accessibility.ariaMetadata = function() {
-  if (!Accessibility.ARIAMetadata._instance)
+export function ariaMetadata() {
+  if (!Accessibility.ARIAMetadata._instance) {
     Accessibility.ARIAMetadata._instance = new Accessibility.ARIAMetadata(Accessibility.ARIAMetadata._config || null);
+  }
   return Accessibility.ARIAMetadata._instance;
-};
+}
 
 /**
  * @unrestricted
  */
-Accessibility.ARIAMetadata.Attribute = class {
+export class Attribute {
   /**
    * @param {!Object} config
    */
@@ -68,8 +73,9 @@ Accessibility.ARIAMetadata.Attribute = class {
     /** @type {!Array<string>} */
     this._enum = [];
 
-    if ('enum' in config)
+    if ('enum' in config) {
       this._enum = config.enum;
+    }
   }
 
   /**
@@ -78,4 +84,26 @@ Accessibility.ARIAMetadata.Attribute = class {
   getEnum() {
     return this._enum;
   }
-};
+}
+
+/* Legacy exported object */
+self.Accessibility = self.Accessibility || {};
+
+/* Legacy exported object */
+Accessibility = Accessibility || {};
+
+/**
+ * @constructor
+ */
+Accessibility.ARIAMetadata = ARIAMetadata;
+
+/**
+ * @unrestricted
+ * @constructor
+ */
+Accessibility.ARIAMetadata.Attribute = Attribute;
+
+/**
+ * @return {!Accessibility.ARIAMetadata}
+ */
+Accessibility.ariaMetadata = ariaMetadata;

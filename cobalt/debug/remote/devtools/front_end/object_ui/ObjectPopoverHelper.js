@@ -28,7 +28,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-ObjectUI.ObjectPopoverHelper = class {
+export default class ObjectPopoverHelper {
   /**
    * @param {?Components.Linkifier} linkifier
    * @param {boolean} resultHighlightedAsDOM
@@ -39,19 +39,21 @@ ObjectUI.ObjectPopoverHelper = class {
   }
 
   dispose() {
-    if (this._resultHighlightedAsDOM)
+    if (this._resultHighlightedAsDOM) {
       SDK.OverlayModel.hideDOMNodeHighlight();
-    if (this._linkifier)
+    }
+    if (this._linkifier) {
       this._linkifier.dispose();
+    }
   }
 
   /**
    * @param {!SDK.RemoteObject} result
    * @param {!UI.GlassPane} popover
-   * @return {!Promise<?ObjectUI.ObjectPopoverHelper>}
+   * @return {!Promise<?ObjectPopoverHelper>}
    */
   static async buildObjectPopover(result, popover) {
-    const description = result.description.trimEnd(ObjectUI.ObjectPopoverHelper.MaxPopoverTextLength);
+    const description = result.description.trimEndWithMaxLength(MaxPopoverTextLength);
     let popoverContentElement = null;
     if (result.type === 'object') {
       let linkifier = null;
@@ -71,7 +73,8 @@ ObjectUI.ObjectPopoverHelper = class {
         const titleElement = popoverContentElement.createChild('div', 'monospace object-popover-title');
         titleElement.createChild('span').textContent = description;
         linkifier = new Components.Linkifier();
-        const section = new ObjectUI.ObjectPropertiesSection(result, '', linkifier);
+        const section = new ObjectUI.ObjectPropertiesSection(
+            result, '', linkifier, undefined, undefined, undefined, true /* showOverflow */);
         section.element.classList.add('object-popover-tree');
         section.titleLessMode();
         popoverContentElement.appendChild(section.element);
@@ -79,7 +82,7 @@ ObjectUI.ObjectPopoverHelper = class {
       popover.setMaxContentSize(new UI.Size(300, 250));
       popover.setSizeBehavior(UI.GlassPane.SizeBehavior.SetExactSize);
       popover.contentElement.appendChild(popoverContentElement);
-      return new ObjectUI.ObjectPopoverHelper(linkifier, resultHighlightedAsDOM);
+      return new ObjectPopoverHelper(linkifier, resultHighlightedAsDOM);
     }
 
     popoverContentElement = createElement('span');
@@ -88,20 +91,22 @@ ObjectUI.ObjectPopoverHelper = class {
     const valueElement = popoverContentElement.createChild('span', 'monospace object-value-' + result.type);
     valueElement.style.whiteSpace = 'pre';
 
-    if (result.type === 'string')
+    if (result.type === 'string') {
       valueElement.createTextChildren(`"${description}"`);
-    else if (result.type !== 'function')
+    } else if (result.type !== 'function') {
       valueElement.textContent = description;
+    }
 
     if (result.type !== 'function') {
       popover.contentElement.appendChild(popoverContentElement);
-      return new ObjectUI.ObjectPopoverHelper(null, false);
+      return new ObjectPopoverHelper(null, false);
     }
 
     ObjectUI.ObjectPropertiesSection.formatObjectAsFunction(result, valueElement, true);
     const response = await result.debuggerModel().functionDetailsPromise(result);
-    if (!response)
+    if (!response) {
       return null;
+    }
 
     const container = createElementWithClass('div', 'object-popover-container');
     const title = container.createChild('div', 'function-popover-title source-code');
@@ -114,12 +119,22 @@ ObjectUI.ObjectPopoverHelper = class {
     let linkifier = null;
     if (sourceURL) {
       linkifier = new Components.Linkifier();
-      linkContainer.appendChild(linkifier.linkifyRawLocation(rawLocation, sourceURL));
+      linkContainer.appendChild(
+          linkifier.linkifyRawLocation(/** @type {!SDK.DebuggerModel.Location} */ (rawLocation), sourceURL));
     }
     container.appendChild(popoverContentElement);
     popover.contentElement.appendChild(container);
-    return new ObjectUI.ObjectPopoverHelper(linkifier, false);
+    return new ObjectPopoverHelper(linkifier, false);
   }
-};
+}
 
-ObjectUI.ObjectPopoverHelper.MaxPopoverTextLength = 10000;
+const MaxPopoverTextLength = 10000;
+
+/* Legacy exported object */
+self.ObjectUI = self.ObjectUI || {};
+
+/* Legacy exported object */
+ObjectUI = ObjectUI || {};
+
+/** @constructor */
+ObjectUI.ObjectPopoverHelper = ObjectPopoverHelper;

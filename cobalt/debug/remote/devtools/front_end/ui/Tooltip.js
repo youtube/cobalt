@@ -4,7 +4,7 @@
 /**
  * @unrestricted
  */
-UI.Tooltip = class {
+export default class Tooltip {
   /**
    * @param {!Document} doc
    */
@@ -25,7 +25,7 @@ UI.Tooltip = class {
    * @param {!Document} doc
    */
   static installHandler(doc) {
-    new UI.Tooltip(doc);
+    new Tooltip(doc);
   }
 
   /**
@@ -36,17 +36,17 @@ UI.Tooltip = class {
    */
   static install(element, tooltipContent, actionId, options) {
     if (!tooltipContent) {
-      delete element[UI.Tooltip._symbol];
+      delete element[_symbol];
       return;
     }
-    element[UI.Tooltip._symbol] = {content: tooltipContent, actionId: actionId, options: options || {}};
+    element[_symbol] = {content: tooltipContent, actionId: actionId, options: options || {}};
   }
 
   /**
    * @param {!Element} element
    */
   static addNativeOverrideContainer(element) {
-    UI.Tooltip._nativeOverrideContainer.push(element);
+    _nativeOverrideContainer.push(element);
   }
 
   /**
@@ -55,18 +55,33 @@ UI.Tooltip = class {
   _mouseMove(event) {
     const mouseEvent = /** @type {!MouseEvent} */ (event);
     const path = mouseEvent.composedPath();
+<<<<<<< HEAD
     if (!path || mouseEvent.buttons !== 0 || (mouseEvent.movementX === 0 && mouseEvent.movementY === 0))
+=======
+    if (!path || mouseEvent.buttons !== 0 || (mouseEvent.movementX === 0 && mouseEvent.movementY === 0)) {
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
       return;
+    }
 
-    if (this._anchorElement && path.indexOf(this._anchorElement) === -1)
+    if (this._anchorElement && path.indexOf(this._anchorElement) === -1) {
       this._hide(false);
+    }
 
     for (const element of path) {
+<<<<<<< HEAD
       // The offsetParent is null when the element or an ancestor has 'display: none'.
       if (!(element instanceof Element) || element === this._anchorElement ||
           (element.nodeName !== 'SLOT' && element.offsetParent === null)) {
+=======
+      if (element === this._anchorElement) {
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
         return;
-      } else if (element[UI.Tooltip._symbol]) {
+      }
+      // The offsetParent is null when the element or an ancestor has 'display: none'.
+      if (!(element instanceof Element) || element.offsetParent === null) {
+        continue;
+      }
+      if (element[_symbol]) {
         this._show(element, mouseEvent);
         return;
       }
@@ -78,23 +93,24 @@ UI.Tooltip = class {
    * @param {!Event} event
    */
   _show(anchorElement, event) {
-    const tooltip = anchorElement[UI.Tooltip._symbol];
+    const tooltip = anchorElement[_symbol];
     this._anchorElement = anchorElement;
     this._tooltipElement.removeChildren();
 
     // Check if native tooltips should be used.
-    for (const element of UI.Tooltip._nativeOverrideContainer) {
+    for (const element of _nativeOverrideContainer) {
       if (this._anchorElement.isSelfOrDescendant(element)) {
-        Object.defineProperty(this._anchorElement, 'title', UI.Tooltip._nativeTitle);
+        Object.defineProperty(this._anchorElement, 'title', /** @type {!Object} */ (_nativeTitle));
         this._anchorElement.title = tooltip.content;
         return;
       }
     }
 
-    if (typeof tooltip.content === 'string')
+    if (typeof tooltip.content === 'string') {
       this._tooltipElement.setTextContentTruncatedIfNeeded(tooltip.content);
-    else
+    } else {
       this._tooltipElement.appendChild(tooltip.content);
+    }
 
     if (tooltip.actionId) {
       const shortcuts = UI.shortcutRegistry.shortcutDescriptorsForAction(tooltip.actionId);
@@ -110,9 +126,9 @@ UI.Tooltip = class {
 
     // Show tooltip instantly if a tooltip was shown recently.
     const now = Date.now();
-    const instant = (this._tooltipLastClosed && now - this._tooltipLastClosed < UI.Tooltip.Timing.InstantThreshold);
+    const instant = (this._tooltipLastClosed && now - this._tooltipLastClosed < Timing.InstantThreshold);
     this._tooltipElement.classList.toggle('instant', instant);
-    this._tooltipLastOpened = instant ? now : now + UI.Tooltip.Timing.OpeningDelay;
+    this._tooltipLastOpened = instant ? now : now + Timing.OpeningDelay;
 
     // Get container element.
     const container = UI.GlassPane.container(/** @type {!Document} */ (anchorElement.ownerDocument));
@@ -151,10 +167,12 @@ UI.Tooltip = class {
   _hide(removeInstant) {
     delete this._anchorElement;
     this._tooltipElement.classList.remove('shown');
-    if (Date.now() > this._tooltipLastOpened)
+    if (Date.now() > this._tooltipLastOpened) {
       this._tooltipLastClosed = Date.now();
-    if (removeInstant)
+    }
+    if (removeInstant) {
       delete this._tooltipLastClosed;
+    }
   }
 
   _reset() {
@@ -163,22 +181,21 @@ UI.Tooltip = class {
     this._tooltipElement.style.maxWidth = '0';
     this._tooltipElement.style.maxHeight = '0';
   }
-};
+}
 
-UI.Tooltip.Timing = {
+const Timing = {
   // Max time between tooltips showing that no opening delay is required.
   'InstantThreshold': 300,
   // Wait time before opening a tooltip.
   'OpeningDelay': 600
 };
 
-UI.Tooltip._symbol = Symbol('Tooltip');
-
+const _symbol = Symbol('Tooltip');
 
 /** @type {!Array.<!Element>} */
-UI.Tooltip._nativeOverrideContainer = [];
-UI.Tooltip._nativeTitle =
-    /** @type {!ObjectPropertyDescriptor} */ (Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'title'));
+const _nativeOverrideContainer = [];
+
+const _nativeTitle = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'title');
 
 Object.defineProperty(HTMLElement.prototype, 'title', {
   /**
@@ -195,6 +212,17 @@ Object.defineProperty(HTMLElement.prototype, 'title', {
    * @this {!Element}
    */
   set: function(x) {
-    UI.Tooltip.install(this, x);
+    Tooltip.install(this, x);
   }
 });
+
+/* Legacy exported object*/
+self.UI = self.UI || {};
+
+/* Legacy exported object*/
+UI = UI || {};
+
+/** @constructor */
+UI.Tooltip = Tooltip;
+
+UI.Tooltip._symbol = _symbol;

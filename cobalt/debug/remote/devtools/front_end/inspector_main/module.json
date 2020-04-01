@@ -14,7 +14,7 @@
             "bindings": [
                 {
                     "platform": "windows,linux",
-                    "shortcut": "F5 Ctrl+R"
+                    "shortcut": "Ctrl+R F5"
                 },
                 {
                     "platform": "mac",
@@ -31,7 +31,7 @@
             "bindings": [
                 {
                     "platform": "windows,linux",
-                    "shortcut": "Shift+F5 Ctrl+F5 Ctrl+Shift+F5 Shift+Ctrl+R"
+                    "shortcut": "Shift+Ctrl+R Shift+F5 Ctrl+F5 Ctrl+Shift+F5"
                 },
                 {
                     "platform": "mac",
@@ -85,6 +85,26 @@
         },
         {
             "type": "setting",
+            "category": "DevTools",
+            "title": "Emulate a focused page",
+            "settingName": "emulatePageFocus",
+            "settingType": "boolean",
+            "storageType": "session",
+            "order": 2,
+            "defaultValue": false,
+            "options": [
+                {
+                    "value": true,
+                    "title": "Emulate a focused page"
+                },
+                {
+                    "value": false,
+                    "title": "Do not emulate a focused page"
+                }
+            ]
+        },
+        {
+            "type": "setting",
             "category": "Appearance",
             "title": "Don't show Chrome Data Saver warning",
             "settingName": "disableDataSaverInfobar",
@@ -99,6 +119,7 @@
             "settingType": "boolean",
             "defaultValue": false
         },
+<<<<<<< HEAD
         // {
         //     "type": "view",
         //     "location": "drawer-view",
@@ -115,14 +136,32 @@
         //     "className": "InspectorMain.RequestAppBannerActionDelegate",
         //     "title": "Add to homescreen"
         // }
+=======
+        {
+            "type": "view",
+            "location": "drawer-view",
+            "id": "rendering",
+            "title": "Rendering",
+            "persistence": "closeable",
+            "order": 50,
+            "className": "InspectorMain.RenderingOptionsView"
+        }
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     ],
     "dependencies": [
         "components",
         "mobile_throttling"
     ],
+<<<<<<< HEAD
     "scripts": [
         // "RenderingOptions.js",
         "RequestAppBannerActionDelegate.js",
+=======
+    "scripts": [],
+    "modules": [
+        "inspector_main.js",
+        "RenderingOptions.js",
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
         "InspectorMain.js"
     ],
     "resources": [
