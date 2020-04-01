@@ -1001,6 +1001,17 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #endif
 #endif
 
+#if SB_API_VERSION >= SB_FEATURE_GYP_CONFIGURATION_VERSION
+#if defined(COBALT_MAX_CPU_USAGE_IN_BYTES)
+#error "|max_cobalt_cpu_usage| is deprecated "
+#error "SbSystemGetTotalCPUMemory() instead."
+#endif
+#if defined(COBALT_MAX_GPU_USAGE_IN_BYTES)
+#error "|max_cobalt_gpu_usage| is deprecated. "
+#error "Implement SbSystemGetTotalGPUMemory() instead."
+#endif
+#endif  // SB_API_VERSION >= SB_FEATURE_GYP_CONFIGURATION_VERSION
+
 #if defined(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET)
 #error "COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET is deprecated."
 #error "Implement |SbMediaGetAudioBufferBudget| instead."
