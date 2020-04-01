@@ -178,7 +178,7 @@ function postProcess() {
     } else {
       for (const parent in methods[name]) {
         if (parent.endsWith('Constructor'))
-          functions.push({name, signatures: methods[name][parent], static: true, receiver: constructor});
+          functions.push({name, signatures: methods[name][parent], static: true, receiver: parent.substring(0, parent.length - 'Constructor'.length)});
         else
           functions.push({name, signatures: methods[name][parent], receiver: parent});
       }
@@ -188,5 +188,14 @@ function postProcess() {
   fs.writeFileSync(
       path.join(__dirname, '..', '..', 'front_end', 'javascript_metadata', 'NativeFunctions.js'),
       `// Generated from ${path.relative(path.join(__dirname, '..', '..'), __filename)}
-JavaScriptMetadata.NativeFunctions = ${JSON.stringify(functions)};`);
+export const NativeFunctions = ${JSON.stringify(functions)};
+
+/* Legacy exported object */
+self.JavaScriptMetadata = self.JavaScriptMetadata || {};
+
+/* Legacy exported object */
+JavaScriptMetadata = JavaScriptMetadata || {};
+
+JavaScriptMetadata.NativeFunctions = NativeFunctions;
+`);
 }

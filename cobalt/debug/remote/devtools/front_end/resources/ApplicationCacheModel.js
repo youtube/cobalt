@@ -63,8 +63,9 @@ Resources.ApplicationCacheModel = class extends SDK.SDKModel {
 
     const frameId = frame.id;
     const manifestURL = await this._agent.getManifestForFrame(frameId);
-    if (manifestURL !== null && !manifestURL)
+    if (manifestURL !== null && !manifestURL) {
       this._frameManifestRemoved(frameId);
+    }
   }
 
   /**
@@ -83,8 +84,9 @@ Resources.ApplicationCacheModel = class extends SDK.SDKModel {
 
   async _mainFrameNavigated() {
     const framesWithManifests = await this._agent.getFramesWithManifests();
-    for (const frame of framesWithManifests || [])
+    for (const frame of framesWithManifests || []) {
       this._frameManifestUpdated(frame.frameId, frame.manifestURL, frame.status);
+    }
   }
 
   /**
@@ -93,16 +95,18 @@ Resources.ApplicationCacheModel = class extends SDK.SDKModel {
    * @param {number} status
    */
   _frameManifestUpdated(frameId, manifestURL, status) {
-    if (status === applicationCache.UNCACHED) {
+    if (status === Resources.ApplicationCacheModel.UNCACHED) {
       this._frameManifestRemoved(frameId);
       return;
     }
 
-    if (!manifestURL)
+    if (!manifestURL) {
       return;
+    }
 
-    if (this._manifestURLsByFrame[frameId] && manifestURL !== this._manifestURLsByFrame[frameId])
+    if (this._manifestURLsByFrame[frameId] && manifestURL !== this._manifestURLsByFrame[frameId]) {
       this._frameManifestRemoved(frameId);
+    }
 
     const statusChanged = this._statuses[frameId] !== status;
     this._statuses[frameId] = status;
@@ -112,16 +116,18 @@ Resources.ApplicationCacheModel = class extends SDK.SDKModel {
       this.dispatchEventToListeners(Resources.ApplicationCacheModel.Events.FrameManifestAdded, frameId);
     }
 
-    if (statusChanged)
+    if (statusChanged) {
       this.dispatchEventToListeners(Resources.ApplicationCacheModel.Events.FrameManifestStatusUpdated, frameId);
+    }
   }
 
   /**
    * @param {string} frameId
    */
   _frameManifestRemoved(frameId) {
-    if (!this._manifestURLsByFrame[frameId])
+    if (!this._manifestURLsByFrame[frameId]) {
       return;
+    }
 
     delete this._manifestURLsByFrame[frameId];
     delete this._statuses[frameId];
@@ -142,7 +148,7 @@ Resources.ApplicationCacheModel = class extends SDK.SDKModel {
    * @return {number}
    */
   frameManifestStatus(frameId) {
-    return this._statuses[frameId] || applicationCache.UNCACHED;
+    return this._statuses[frameId] || Resources.ApplicationCacheModel.UNCACHED;
   }
 
   /**
@@ -216,3 +222,10 @@ Resources.ApplicationCacheDispatcher = class {
     this._applicationCacheModel._networkStateUpdated(isNowOnline);
   }
 };
+
+Resources.ApplicationCacheModel.UNCACHED = 0;
+Resources.ApplicationCacheModel.IDLE = 1;
+Resources.ApplicationCacheModel.CHECKING = 2;
+Resources.ApplicationCacheModel.DOWNLOADING = 3;
+Resources.ApplicationCacheModel.UPDATEREADY = 4;
+Resources.ApplicationCacheModel.OBSOLETE = 5;

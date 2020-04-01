@@ -29,8 +29,48 @@
  */
 
 .network-log-grid.data-grid {
-    border: none;
+    border: none !important;
     flex: auto;
+}
+
+.network-log-grid.data-grid.no-selection[data-keyboard-focus="true"]:focus {
+    border: none !important;
+}
+
+#network-container {
+    border: 1px solid rgb(204, 204, 204);
+}
+
+#network-container.no-node-selected:focus-within {
+    border: 1px solid var(--accent-color);
+}
+
+.network-log-grid {
+    --network-grid-default-color: rgba(255, 255, 255, 1.0);
+    --network-grid-stripe-color: rgba(245, 245, 245, 1.0);
+    --network-grid-navigation-color: rgba(221, 238, 255, 1.0);
+    --network-grid-hovered-color: rgba(235, 242, 252, 0.7);
+    --network-grid-initiator-path-color: rgba(58, 217, 58, 0.4);
+    --network-grid-initiated-path-color: rgba(217, 58, 58, 0.4);
+    --network-grid-selected-color: rgba(219, 219, 219, .6);
+    --network-grid-focus-selected-color: var(--selection-bg-color);
+    --network-grid-focus-selected-color-has-error: rgb(255, 240, 240, 1.0);
+    --network-grid-from-frame-color: rgba(224, 247, 250, .4);
+    --network-grid-is-product-color: rgba(255, 252, 225, .6);
+}
+
+.-theme-with-dark-background .network-log-grid {
+    --network-grid-default-color: rgba(36, 36, 36, 1.0);
+    --network-grid-stripe-color: rgba(41, 41, 41, 1.0);
+    --network-grid-navigation-color: rgba(221, 238, 255, 1.0);
+    --network-grid-hovered-color: rgba(20, 37, 63, 0.7);
+    --network-grid-initiator-path-color: rgba(58, 217, 58, 0.4);
+    --network-grid-initiated-path-color: rgba(217, 58, 58, 0.4);
+    --network-grid-selected-color: rgba(57, 57, 57, .6);
+    --network-grid-focus-selected-color: var(--selection-bg-color);
+    --network-grid-focus-selected-color-has-error: rgba(217, 58, 58, 0.15);
+    --network-grid-from-frame-color: rgba(224, 247, 250, .4);
+    --network-grid-is-product-color: rgba(255, 252, 225, .6);
 }
 
 .network-summary-bar {
@@ -42,8 +82,16 @@
     white-space: nowrap;
     text-overflow: ellipsis;
     overflow: hidden;
+    user-select: text;
 }
 
+<<<<<<< HEAD
+=======
+.panel.network .toolbar.network-summary-bar {
+    border-bottom: 0px;
+}
+
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
 .network-summary-bar span[is=dt-icon-label] {
     margin-right: 6px;
 }
@@ -73,6 +121,10 @@
 .network-waterfall-header, .network-log-grid.data-grid th {
     border-bottom: 1px solid rgb(205, 205, 205);
     border-left: 1px solid rgb(205, 205, 205);
+}
+
+.network-log-grid.data-grid table.data th {
+    border-bottom: none;
 }
 
 .network-waterfall-header, .network-log-grid.data-grid .header-container {
@@ -126,10 +178,18 @@
 }
 
 .network-error-row,
-.network-error-row .network-cell-subtitle {
-    color: rgb(230, 0, 0);
+.network-error-row .network-cell-subtitle ,
+.network-log-grid.data-grid tr.selected.network-error-row,
+.network-log-grid.data-grid tr.selected.network-error-row .network-cell-subtitle,
+.network-log-grid.data-grid tr.selected.network-error-row .network-dim-cell {
+    color: rgb(230, 0, 0) !important;
 }
 
+.network-log-grid.data-grid:focus tr.selected.network-error-row,
+.network-log-grid.data-grid:focus tr.selected.network-error-row .network-cell-subtitle,
+.network-log-grid.data-grid:focus tr.selected.network-error-row .network-dim-cell {
+    color: rgb(230, 0, 0) !important;
+}
 .initiator-column .devtools-link {
     color: inherit;
 }
@@ -137,13 +197,13 @@
 .network-log-grid.data-grid tr.selected,
 .network-log-grid.data-grid tr.selected .network-cell-subtitle,
 .network-log-grid.data-grid tr.selected .network-dim-cell {
-    color: inherit !important;
+    color: inherit;
 }
 
 .network-log-grid.data-grid:focus tr.selected,
 .network-log-grid.data-grid:focus tr.selected .network-cell-subtitle,
 .network-log-grid.data-grid:focus tr.selected .network-dim-cell {
-    color: var(--selection-fg-color) !important;
+    color: var(--selection-fg-color);
 }
 
 .network-log-grid tr.highlighted-row {
@@ -264,10 +324,6 @@
     color: grey;
 }
 
-.network-summary-bar .summary-red {
-    color: red;
-}
-
 .network-frame-divider {
     width: 2px;
     background-color: #FCCC49;
@@ -277,14 +333,6 @@
 
 #network-container:not(.brief-mode) .data-container {
     overflow: hidden;
-}
-
-.network-summary-bar .summary-blue {
-    color: blue;
-}
-
-.-theme-with-dark-background .network-summary-bar .summary-blue {
-    color: #03A9F4;
 }
 
 .network-log-grid.data-grid .resources-dividers {

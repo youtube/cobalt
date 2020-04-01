@@ -40,12 +40,42 @@
             "type": "action",
             "category": "Drawer",
             "actionId": "main.toggle-drawer",
-            "className": "UI.InspectorView.DrawerToggleActionDelegate",
+            "className": "UI.InspectorView.ActionDelegate",
             "order": 101,
             "title": "Toggle drawer",
             "bindings": [
                 {
                     "shortcut": "Esc"
+                }
+            ]
+        },
+        {
+            "type": "action",
+            "actionId": "main.next-tab",
+            "className": "UI.InspectorView.ActionDelegate",
+            "bindings": [
+                {
+                    "platform": "windows,linux",
+                    "shortcut": "Ctrl+]"
+                },
+                {
+                    "platform": "mac",
+                    "shortcut": "Meta+]"
+                }
+            ]
+        },
+        {
+            "type": "action",
+            "actionId": "main.previous-tab",
+            "className": "UI.InspectorView.ActionDelegate",
+            "bindings": [
+                {
+                    "platform": "windows,linux",
+                    "shortcut": "Ctrl+["
+                },
+                {
+                    "platform": "mac",
+                    "shortcut": "Meta+["
                 }
             ]
         },
@@ -155,6 +185,14 @@
                 {
                     "platform": "mac",
                     "shortcut": "Meta+G"
+                },
+                {
+                    "platform": "windows,linux",
+                    "shortcut": "Ctrl+G"
+                },
+                {
+                    "platform": "windows,linux",
+                    "shortcut": "F3"
                 }
             ]
         },
@@ -166,6 +204,14 @@
                 {
                     "platform": "mac",
                     "shortcut": "Meta+Shift+G"
+                },
+                {
+                    "platform": "windows,linux",
+                    "shortcut": "Ctrl+Shift+G"
+                },
+                {
+                    "platform": "windows,linux",
+                    "shortcut": "Shift+F3"
                 }
             ]
         },
@@ -199,8 +245,13 @@
             "title": "Theme:",
             "settingName": "uiTheme",
             "settingType": "enum",
-            "defaultValue": "default",
+            "defaultValue": "systemPreferred",
             "options": [
+                {
+                    "title": "Switch to system preferred color theme",
+                    "text": "System preference",
+                    "value": "systemPreferred"
+                },
                 {
                     "title": "Switch to light theme",
                     "text": "Light",
@@ -236,6 +287,39 @@
                     "title": "Use automatic panel layout",
                     "text": "auto",
                     "value": "auto"
+                }
+            ]
+        },
+        {
+            "type": "setting",
+            "category": "Appearance",
+            "title": "Color format:",
+            "settingName": "colorFormat",
+            "settingType": "enum",
+            "defaultValue": "original",
+            "options": [
+                {
+                    "title": "Set color format as authored",
+                    "text": "As authored",
+                    "value": "original"
+                },
+                {
+                    "title": "Set color format to HEX",
+                    "text": "HEX: #dac0de",
+                    "value": "hex",
+                    "raw": true
+                },
+                {
+                    "title": "Set color format to RGB",
+                    "text": "RGB: rgb(128, 255, 255)",
+                    "value": "rgb",
+                    "raw": true
+                },
+                {
+                    "title": "Set color format to HSL",
+                    "text": "HSL: hsl(300, 80%, 90%)",
+                    "value": "hsl",
+                    "raw": true
                 }
             ]
         },
@@ -303,9 +387,11 @@
         "sdk",
         "persistence"
     ],
-    "scripts": [
+    "scripts": [],
+    "modules": [
+        "main.js",
         "SimpleApp.js",
         "ExecutionContextSelector.js",
-        "Main.js"
+        "MainImpl.js"
     ]
 }

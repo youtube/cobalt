@@ -112,6 +112,7 @@
     color: white;
 }
 
+<<<<<<< HEAD
 
 .profile-launcher-view {
     overflow: auto;
@@ -181,6 +182,8 @@ body.inactive .profile-launcher-view-content button.running:not(.toolbar-item) {
     color: rgb(220, 130, 130);
 }
 
+=======
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
 .highlighted-row {
     -webkit-animation: row_highlight 2s 0s;
 }
@@ -190,6 +193,7 @@ body.inactive .profile-launcher-view-content button.running:not(.toolbar-item) {
     to { background-color: rgba(255, 255, 120, 0); }
 }
 
+<<<<<<< HEAD
 .profile-canvas-decoration span[is=dt-icon-label] {
     margin-right: 4px;
 }
@@ -210,6 +214,8 @@ body.inactive .profile-launcher-view-content button.running:not(.toolbar-item) {
     margin: 8px 16px 8px 0;
 }
 
+=======
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
 .cpu-profile-flame-chart-overview-container {
     overflow: hidden;
     position: absolute;
@@ -236,4 +242,12 @@ body.inactive .profile-launcher-view-content button.running:not(.toolbar-item) {
 
 .cpu-profile-flame-chart-overview-pane {
     flex: 0 0 80px !important;
+}
+
+.profile-text-view {
+    padding: 10px;
+    overflow: auto;
+    margin: 0;
+    user-select: text;
+    cursor: text;
 }

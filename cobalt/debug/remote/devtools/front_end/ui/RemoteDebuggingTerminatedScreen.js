@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-UI.RemoteDebuggingTerminatedScreen = class extends UI.VBox {
+export default class RemoteDebuggingTerminatedScreen extends UI.VBox {
   /**
    * @param {string} reason
    */
@@ -10,8 +10,9 @@ UI.RemoteDebuggingTerminatedScreen = class extends UI.VBox {
     super(true);
     this.registerRequiredCSS('ui/remoteDebuggingTerminatedScreen.css');
     const message = this.contentElement.createChild('div', 'message');
-    message.createChild('span').textContent = Common.UIString('Debugging connection was closed. Reason: ');
-    message.createChild('span', 'reason').textContent = reason;
+    const reasonElement = message.createChild('span', 'reason');
+    reasonElement.textContent = reason;
+    message.appendChild(UI.formatLocalized('Debugging connection was closed. Reason: %s', [reasonElement]));
     this.contentElement.createChild('div', 'message').textContent =
         Common.UIString('Reconnect when ready by reopening DevTools.');
     const button = UI.createTextButton(Common.UIString('Reconnect DevTools'), () => window.location.reload());
@@ -26,7 +27,16 @@ UI.RemoteDebuggingTerminatedScreen = class extends UI.VBox {
     dialog.setSizeBehavior(UI.GlassPane.SizeBehavior.MeasureContent);
     dialog.addCloseButton();
     dialog.setDimmed(true);
-    new UI.RemoteDebuggingTerminatedScreen(reason).show(dialog.contentElement);
+    new RemoteDebuggingTerminatedScreen(reason).show(dialog.contentElement);
     dialog.show();
   }
-};
+}
+
+/* Legacy exported object*/
+self.UI = self.UI || {};
+
+/* Legacy exported object*/
+UI = UI || {};
+
+/** @constructor */
+UI.RemoteDebuggingTerminatedScreen = RemoteDebuggingTerminatedScreen;

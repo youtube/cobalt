@@ -31,7 +31,7 @@
  * @implements {Bindings.DebuggerSourceMapping}
  * @unrestricted
  */
-Bindings.CompilerScriptMapping = class {
+export default class CompilerScriptMapping {
   /**
    * @param {!SDK.DebuggerModel} debuggerModel
    * @param {!Workspace.Workspace} workspace
@@ -52,9 +52,9 @@ Bindings.CompilerScriptMapping = class {
     Bindings.NetworkProject.setTargetForProject(this._regularProject, target);
     Bindings.NetworkProject.setTargetForProject(this._contentScriptsProject, target);
 
-    /** @type {!Map<string, !Bindings.CompilerScriptMapping.Binding>} */
+    /** @type {!Map<string, !Binding>} */
     this._regularBindings = new Map();
-    /** @type {!Map<string, !Bindings.CompilerScriptMapping.Binding>} */
+    /** @type {!Map<string, !Binding>} */
     this._contentScriptsBindings = new Map();
 
     /** @type {!Map<!SDK.Script, !Workspace.UISourceCode>} */
@@ -102,9 +102,10 @@ Bindings.CompilerScriptMapping = class {
    * @return {?string}
    */
   static uiSourceCodeOrigin(uiSourceCode) {
-    const sourceMap = uiSourceCode[Bindings.CompilerScriptMapping._sourceMapSymbol];
-    if (!sourceMap)
+    const sourceMap = uiSourceCode[_sourceMapSymbol];
+    if (!sourceMap) {
       return null;
+    }
     return sourceMap.compiledURL();
   }
 
@@ -115,9 +116,11 @@ Bindings.CompilerScriptMapping = class {
   mapsToSourceCode(rawLocation) {
     const script = rawLocation.script();
     const sourceMap = script ? this._sourceMapManager.sourceMapForClient(script) : null;
-    if (!sourceMap)
+    if (!sourceMap) {
       return true;
-    return !!sourceMap.findEntry(rawLocation.lineNumber, rawLocation.columnNumber);
+    }
+    const entry = sourceMap.findEntry(rawLocation.lineNumber, rawLocation.columnNumber);
+    return !!entry && entry.lineNumber === rawLocation.lineNumber && entry.columnNumber === rawLocation.columnNumber;
   }
 
   /**
@@ -136,28 +139,34 @@ Bindings.CompilerScriptMapping = class {
    */
   rawLocationToUILocation(rawLocation) {
     const script = rawLocation.script();
-    if (!script)
+    if (!script) {
       return null;
+    }
 
     const lineNumber = rawLocation.lineNumber - script.lineOffset;
     let columnNumber = rawLocation.columnNumber;
-    if (!lineNumber)
+    if (!lineNumber) {
       columnNumber -= script.columnOffset;
+    }
 
     const stubUISourceCode = this._stubUISourceCodes.get(script);
-    if (stubUISourceCode)
+    if (stubUISourceCode) {
       return new Workspace.UILocation(stubUISourceCode, lineNumber, columnNumber);
+    }
 
     const sourceMap = this._sourceMapManager.sourceMapForClient(script);
-    if (!sourceMap)
+    if (!sourceMap) {
       return null;
+    }
     const entry = sourceMap.findEntry(lineNumber, columnNumber);
-    if (!entry || !entry.sourceURL)
+    if (!entry || !entry.sourceURL) {
       return null;
+    }
     const uiSourceCode = script.isContentScript() ? this._contentScriptsProject.uiSourceCodeForURL(entry.sourceURL) :
                                                     this._regularProject.uiSourceCodeForURL(entry.sourceURL);
-    if (!uiSourceCode)
+    if (!uiSourceCode) {
       return null;
+    }
     return uiSourceCode.uiLocation(
         /** @type {number} */ (entry.sourceLineNumber), /** @type {number} */ (entry.sourceColumnNumber));
   }
@@ -167,22 +176,25 @@ Bindings.CompilerScriptMapping = class {
    * @param {!Workspace.UISourceCode} uiSourceCode
    * @param {number} lineNumber
    * @param {number} columnNumber
-   * @return {?SDK.DebuggerModel.Location}
+   * @return {!Array<!SDK.DebuggerModel.Location>}
    */
-  uiLocationToRawLocation(uiSourceCode, lineNumber, columnNumber) {
-    const sourceMap = uiSourceCode[Bindings.CompilerScriptMapping._sourceMapSymbol];
-    if (!sourceMap)
-      return null;
+  uiLocationToRawLocations(uiSourceCode, lineNumber, columnNumber) {
+    const sourceMap = uiSourceCode[_sourceMapSymbol];
+    if (!sourceMap) {
+      return [];
+    }
     const scripts = this._sourceMapManager.clientsForSourceMap(sourceMap);
-    const script = scripts.length ? scripts[0] : null;
-    if (!script)
-      return null;
+    if (!scripts.length) {
+      return [];
+    }
     const entry = sourceMap.sourceLineMapping(uiSourceCode.url(), lineNumber, columnNumber);
-    if (!entry)
-      return null;
-    return this._debuggerModel.createRawLocation(
-        script, entry.lineNumber + script.lineOffset,
-        !entry.lineNumber ? entry.columnNumber + script.columnOffset : entry.columnNumber);
+    if (!entry) {
+      return [];
+    }
+    return scripts.map(
+        script => this._debuggerModel.createRawLocation(
+            script, entry.lineNumber + script.lineOffset,
+            !entry.lineNumber ? entry.columnNumber + script.columnOffset : entry.columnNumber));
   }
 
   /**
@@ -211,9 +223,10 @@ Bindings.CompilerScriptMapping = class {
     const sourceMap = /** @type {!SDK.SourceMap} */ (event.data.sourceMap);
     this._removeStubUISourceCode(script);
 
-    if (Bindings.blackboxManager.isBlackboxedURL(script.sourceURL, script.isContentScript()))
+    if (Bindings.blackboxManager.isBlackboxedURL(script.sourceURL, script.isContentScript())) {
+      this._sourceMapAttachedForTest(sourceMap);
       return;
-    Bindings.blackboxManager.sourceMapLoaded(script, sourceMap);
+    }
 
     this._populateSourceMapSources(script, sourceMap);
     this._sourceMapAttachedForTest(sourceMap);
@@ -224,14 +237,17 @@ Bindings.CompilerScriptMapping = class {
    */
   _sourceMapDetached(event) {
     const script = /** @type {!SDK.Script} */ (event.data.client);
-    const frameId = script[Bindings.CompilerScriptMapping._frameIdSymbol];
+    const frameId = script[_frameIdSymbol];
     const sourceMap = /** @type {!SDK.SourceMap} */ (event.data.sourceMap);
     const bindings = script.isContentScript() ? this._contentScriptsBindings : this._regularBindings;
     for (const sourceURL of sourceMap.sourceURLs()) {
       const binding = bindings.get(sourceURL);
-      binding.removeSourceMap(sourceMap, frameId);
-      if (!binding._uiSourceCode)
-        bindings.delete(sourceURL);
+      if (binding) {
+        binding.removeSourceMap(sourceMap, frameId);
+        if (!binding._uiSourceCode) {
+          bindings.delete(sourceURL);
+        }
+      }
     }
     this._debuggerWorkspaceBinding.updateLocations(script);
   }
@@ -242,16 +258,6 @@ Bindings.CompilerScriptMapping = class {
    */
   sourceMapForScript(script) {
     return this._sourceMapManager.sourceMapForClient(script);
-  }
-
-  /**
-   * @param {!SDK.Script} script
-   */
-  maybeLoadSourceMap(script) {
-    const sourceMap = this._sourceMapManager.sourceMapForClient(script);
-    if (!sourceMap)
-      return;
-    this._populateSourceMapSources(script, sourceMap);
   }
 
   /**
@@ -266,13 +272,13 @@ Bindings.CompilerScriptMapping = class {
    */
   _populateSourceMapSources(script, sourceMap) {
     const frameId = Bindings.frameIdForScript(script);
-    script[Bindings.CompilerScriptMapping._frameIdSymbol] = frameId;
+    script[_frameIdSymbol] = frameId;
     const project = script.isContentScript() ? this._contentScriptsProject : this._regularProject;
     const bindings = script.isContentScript() ? this._contentScriptsBindings : this._regularBindings;
     for (const sourceURL of sourceMap.sourceURLs()) {
       let binding = bindings.get(sourceURL);
       if (!binding) {
-        binding = new Bindings.CompilerScriptMapping.Binding(project, sourceURL);
+        binding = new Binding(project, sourceURL);
         bindings.set(sourceURL, binding);
       }
       binding.addSourceMap(sourceMap, frameId);
@@ -281,15 +287,15 @@ Bindings.CompilerScriptMapping = class {
   }
 
   /**
-   * @override
    * @param {!Workspace.UISourceCode} uiSourceCode
    * @param {number} lineNumber
    * @return {boolean}
    */
   static uiLineHasMapping(uiSourceCode, lineNumber) {
-    const sourceMap = uiSourceCode[Bindings.CompilerScriptMapping._sourceMapSymbol];
-    if (!sourceMap)
+    const sourceMap = uiSourceCode[_sourceMapSymbol];
+    if (!sourceMap) {
       return true;
+    }
     return !!sourceMap.sourceLineMapping(uiSourceCode.url(), lineNumber, 0);
   }
 
@@ -299,13 +305,12 @@ Bindings.CompilerScriptMapping = class {
     this._contentScriptsProject.dispose();
     this._stubProject.dispose();
   }
-};
+}
 
-Bindings.CompilerScriptMapping._frameIdSymbol = Symbol('Bindings.CompilerScriptMapping._frameIdSymbol');
-Bindings.CompilerScriptMapping._sourceMapSymbol = Symbol('Bindings.CompilerScriptMapping._sourceMapSymbol');
+const _frameIdSymbol = Symbol('_frameIdSymbol');
+const _sourceMapSymbol = Symbol('_sourceMapSymbol');
 
-
-Bindings.CompilerScriptMapping.Binding = class {
+class Binding {
   /**
    * @param {!Bindings.ContentProviderBasedProject} project
    * @param {string} url
@@ -325,12 +330,13 @@ Bindings.CompilerScriptMapping.Binding = class {
    */
   _recreateUISourceCodeIfNeeded(frameId) {
     const sourceMap = this._referringSourceMaps.peekLast();
-    if (this._activeSourceMap === sourceMap)
+    if (this._activeSourceMap === sourceMap) {
       return;
+    }
     this._activeSourceMap = sourceMap;
 
     const newUISourceCode = this._project.createUISourceCode(this._url, Common.resourceTypes.SourceMapScript);
-    newUISourceCode[Bindings.CompilerScriptMapping._sourceMapSymbol] = sourceMap;
+    newUISourceCode[_sourceMapSymbol] = sourceMap;
     const contentProvider = sourceMap.sourceContentProvider(this._url, Common.resourceTypes.SourceMapScript);
     const mimeType = Common.ResourceType.mimeFromURL(this._url) || 'text/javascript';
     const embeddedContent = sourceMap.embeddedContentByURL(this._url);
@@ -352,8 +358,9 @@ Bindings.CompilerScriptMapping.Binding = class {
    * @param {string} frameId
    */
   addSourceMap(sourceMap, frameId) {
-    if (this._uiSourceCode)
+    if (this._uiSourceCode) {
       Bindings.NetworkProject.addFrameAttribution(this._uiSourceCode, frameId);
+    }
     this._referringSourceMaps.push(sourceMap);
     this._recreateUISourceCodeIfNeeded(frameId);
   }
@@ -366,8 +373,9 @@ Bindings.CompilerScriptMapping.Binding = class {
     Bindings.NetworkProject.removeFrameAttribution(
         /** @type {!Workspace.UISourceCode} */ (this._uiSourceCode), frameId);
     const lastIndex = this._referringSourceMaps.lastIndexOf(sourceMap);
-    if (lastIndex !== -1)
+    if (lastIndex !== -1) {
       this._referringSourceMaps.splice(lastIndex, 1);
+    }
     if (!this._referringSourceMaps.length) {
       this._project.removeFile(this._uiSourceCode.url());
       this._uiSourceCode = null;
@@ -375,4 +383,13 @@ Bindings.CompilerScriptMapping.Binding = class {
       this._recreateUISourceCodeIfNeeded(frameId);
     }
   }
-};
+}
+
+/* Legacy exported object */
+self.Bindings = self.Bindings || {};
+
+/* Legacy exported object */
+Bindings = Bindings || {};
+
+/** @constructor */
+Bindings.CompilerScriptMapping = CompilerScriptMapping;

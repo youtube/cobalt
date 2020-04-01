@@ -85,8 +85,9 @@ Resources.ApplicationCacheItemsView = class extends UI.SimpleView {
   }
 
   _maybeUpdate() {
-    if (!this.isShowing() || !this._viewDirty)
+    if (!this.isShowing() || !this._viewDirty) {
       return;
+    }
 
     this._update();
     this._viewDirty = false;
@@ -105,21 +106,28 @@ Resources.ApplicationCacheItemsView = class extends UI.SimpleView {
 
     const statusInformation = {};
     // We should never have UNCACHED status, since we remove frames with UNCACHED application cache status from the tree.
-    statusInformation[applicationCache.UNCACHED] = {type: 'smallicon-red-ball', text: 'UNCACHED'};
-    statusInformation[applicationCache.IDLE] = {type: 'smallicon-green-ball', text: 'IDLE'};
-    statusInformation[applicationCache.CHECKING] = {type: 'smallicon-orange-ball', text: 'CHECKING'};
-    statusInformation[applicationCache.DOWNLOADING] = {type: 'smallicon-orange-ball', text: 'DOWNLOADING'};
-    statusInformation[applicationCache.UPDATEREADY] = {type: 'smallicon-green-ball', text: 'UPDATEREADY'};
-    statusInformation[applicationCache.OBSOLETE] = {type: 'smallicon-red-ball', text: 'OBSOLETE'};
+    statusInformation[Resources.ApplicationCacheModel.UNCACHED] = {type: 'smallicon-red-ball', text: 'UNCACHED'};
+    statusInformation[Resources.ApplicationCacheModel.IDLE] = {type: 'smallicon-green-ball', text: 'IDLE'};
+    statusInformation[Resources.ApplicationCacheModel.CHECKING] = {type: 'smallicon-orange-ball', text: 'CHECKING'};
+    statusInformation[Resources.ApplicationCacheModel.DOWNLOADING] = {
+      type: 'smallicon-orange-ball',
+      text: 'DOWNLOADING'
+    };
+    statusInformation[Resources.ApplicationCacheModel.UPDATEREADY] = {
+      type: 'smallicon-green-ball',
+      text: 'UPDATEREADY'
+    };
+    statusInformation[Resources.ApplicationCacheModel.OBSOLETE] = {type: 'smallicon-red-ball', text: 'OBSOLETE'};
 
-    const info = statusInformation[status] || statusInformation[applicationCache.UNCACHED];
+    const info = statusInformation[status] || statusInformation[Resources.ApplicationCacheModel.UNCACHED];
 
     this._statusIcon.type = info.type;
     this._statusIcon.textContent = info.text;
 
-    if (this.isShowing() && this._status === applicationCache.IDLE &&
-        (oldStatus === applicationCache.UPDATEREADY || !this._resources))
+    if (this.isShowing() && this._status === Resources.ApplicationCacheModel.IDLE &&
+        (oldStatus === Resources.ApplicationCacheModel.UPDATEREADY || !this._resources)) {
       this._markDirty();
+    }
     this._maybeUpdate();
   }
 
@@ -148,8 +156,9 @@ Resources.ApplicationCacheItemsView = class extends UI.SimpleView {
 
       this._emptyWidget.show(this.element);
       this._deleteButton.setVisible(false);
-      if (this._dataGrid)
+      if (this._dataGrid) {
         this._dataGrid.element.classList.add('hidden');
+      }
       return;
     }
     // FIXME: are these variables needed anywhere else?
@@ -159,8 +168,9 @@ Resources.ApplicationCacheItemsView = class extends UI.SimpleView {
     this._size = applicationCache.size;
     this._resources = applicationCache.resources;
 
-    if (!this._dataGrid)
+    if (!this._dataGrid) {
       this._createDataGrid();
+    }
 
     this._populateDataGrid();
     this._dataGrid.autoSizeColumns(20, 80);
@@ -231,16 +241,18 @@ Resources.ApplicationCacheItemsView = class extends UI.SimpleView {
       }
     }
 
-    if (!nodeToSelect && this._dataGrid.rootNode().children.length)
+    if (!nodeToSelect && this._dataGrid.rootNode().children.length) {
       this._dataGrid.rootNode().children[0].selected = true;
+    }
   }
 
   /**
    * @param {!Common.Event} event
    */
   _deleteButtonClicked(event) {
-    if (!this._dataGrid || !this._dataGrid.selectedNode)
+    if (!this._dataGrid || !this._dataGrid.selectedNode) {
       return;
+    }
 
     // FIXME: Delete Button semantics are not yet defined. (Delete a single, or all?)
     this._deleteCallback(this._dataGrid.selectedNode);

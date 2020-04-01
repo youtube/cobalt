@@ -28,7 +28,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-Network.RequestPreviewView = class extends Network.RequestResponseView {
+export default class RequestPreviewView extends Network.RequestResponseView {
   /**
    * @param {!SDK.NetworkRequest} request
    */
@@ -43,11 +43,13 @@ Network.RequestPreviewView = class extends Network.RequestResponseView {
    */
   async showPreview() {
     const view = await super.showPreview();
-    if (!(view instanceof UI.SimpleView))
+    if (!(view instanceof UI.SimpleView)) {
       return view;
+    }
     const toolbar = new UI.Toolbar('network-item-preview-toolbar', this.element);
-    for (const item of view.syncToolbarItems())
+    for (const item of view.syncToolbarItems()) {
       toolbar.appendToolbarItem(item);
+    }
     return view;
   }
 
@@ -56,20 +58,26 @@ Network.RequestPreviewView = class extends Network.RequestResponseView {
    */
   async _htmlPreview() {
     const contentData = await this.request.contentData();
-    if (contentData.error)
+    if (contentData.error) {
       return new UI.EmptyWidget(Common.UIString('Failed to load response data'));
+    }
 
     const whitelist = new Set(['text/html', 'text/plain', 'application/xhtml+xml']);
-    if (!whitelist.has(this.request.mimeType))
+    if (!whitelist.has(this.request.mimeType)) {
       return null;
+    }
+
+    const content = contentData.encoded ? window.atob(/** @type {string} */ (contentData.content)) :
+                                          /** @type {string} */ (contentData.content);
 
     // http://crbug.com/767393 - DevTools should recognize JSON regardless of the content type
-    const jsonView = await SourceFrame.JSONView.createView(contentData.content);
-    if (jsonView)
+    const jsonView = await SourceFrame.JSONView.createView(content);
+    if (jsonView) {
       return jsonView;
+    }
 
     const dataURL = Common.ContentProvider.contentAsDataURL(
-        contentData.content, this.request.mimeType, contentData.encoded, contentData.encoded ? 'utf-8' : null);
+        contentData.content, this.request.mimeType, contentData.encoded, this.request.charset());
     return dataURL ? new Network.RequestHTMLView(dataURL) : null;
   }
 
@@ -79,21 +87,31 @@ Network.RequestPreviewView = class extends Network.RequestResponseView {
    * @return {!Promise<!UI.Widget>}
    */
   async createPreview() {
-    if (this.request.signedExchangeInfo())
+    if (this.request.signedExchangeInfo()) {
       return new Network.SignedExchangeInfoView(this.request);
+    }
 
     const htmlErrorPreview = await this._htmlPreview();
-    if (htmlErrorPreview)
+    if (htmlErrorPreview) {
       return htmlErrorPreview;
+    }
 
-    // Try provider before the source view - so JSON and XML are not shown in generic editor
     const provided = await SourceFrame.PreviewFactory.createPreview(this.request, this.request.mimeType);
-    if (provided)
+    if (provided) {
       return provided;
+    }
 
-    const sourceView = await Network.RequestResponseView.sourceViewForRequest(this.request);
-    if (sourceView)
-      return sourceView;
     return new UI.EmptyWidget(Common.UIString('Preview not available'));
   }
-};
+}
+
+/* Legacy exported object */
+self.Network = self.Network || {};
+
+/* Legacy exported object */
+Network = Network || {};
+
+/**
+ * @constructor
+ */
+Network.RequestPreviewView = RequestPreviewView;

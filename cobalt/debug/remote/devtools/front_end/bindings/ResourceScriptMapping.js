@@ -31,7 +31,7 @@
  * @implements {Bindings.DebuggerSourceMapping}
  * @unrestricted
  */
-Bindings.ResourceScriptMapping = class {
+export default class ResourceScriptMapping {
   /**
    * @param {!SDK.DebuggerModel} debuggerModel
    * @param {!Workspace.Workspace} workspace
@@ -41,7 +41,7 @@ Bindings.ResourceScriptMapping = class {
     this._debuggerModel = debuggerModel;
     this._workspace = workspace;
     this._debuggerWorkspaceBinding = debuggerWorkspaceBinding;
-    /** @type {!Map.<!Workspace.UISourceCode, !Bindings.ResourceScriptFile>} */
+    /** @type {!Map.<!Workspace.UISourceCode, !ResourceScriptFile>} */
     this._uiSourceCodeToScriptFile = new Map();
 
     /** @type {!Map<string, !Bindings.ContentProviderBasedProject>} */
@@ -52,8 +52,6 @@ Bindings.ResourceScriptMapping = class {
     const runtimeModel = debuggerModel.runtimeModel();
     this._eventListeners = [
       this._debuggerModel.addEventListener(SDK.DebuggerModel.Events.ParsedScriptSource, this._parsedScriptSource, this),
-      this._debuggerModel.addEventListener(
-          SDK.DebuggerModel.Events.FailedToParseScriptSource, this._parsedScriptSource, this),
       this._debuggerModel.addEventListener(
           SDK.DebuggerModel.Events.GlobalObjectCleared, this._globalObjectCleared, this),
       runtimeModel.addEventListener(
@@ -66,7 +64,7 @@ Bindings.ResourceScriptMapping = class {
    * @return {!Bindings.ContentProviderBasedProject}
    */
   _project(script) {
-    const frameId = script[Bindings.ResourceScriptMapping._frameIdSymbol];
+    const frameId = script[_frameIdSymbol];
     const prefix = script.isContentScript() ? 'js:extensions:' : 'js::';
     const projectId = prefix + this._debuggerModel.target().id() + ':' + frameId;
     let project = this._projects.get(projectId);
@@ -88,23 +86,29 @@ Bindings.ResourceScriptMapping = class {
    */
   rawLocationToUILocation(rawLocation) {
     const script = rawLocation.script();
-    if (!script)
+    if (!script) {
       return null;
+    }
     const project = this._project(script);
     const uiSourceCode = project.uiSourceCodeForURL(script.sourceURL);
-    if (!uiSourceCode)
+    if (!uiSourceCode) {
       return null;
+    }
     const scriptFile = this._uiSourceCodeToScriptFile.get(uiSourceCode);
-    if (!scriptFile)
+    if (!scriptFile) {
       return null;
-    if ((scriptFile.hasDivergedFromVM() && !scriptFile.isMergingToVM()) || scriptFile.isDivergingFromVM())
+    }
+    if ((scriptFile.hasDivergedFromVM() && !scriptFile.isMergingToVM()) || scriptFile.isDivergingFromVM()) {
       return null;
-    if (!scriptFile._hasScripts([script]))
+    }
+    if (!scriptFile._hasScripts([script])) {
       return null;
+    }
     const lineNumber = rawLocation.lineNumber - (script.isInlineScriptWithSourceURL() ? script.lineOffset : 0);
     let columnNumber = rawLocation.columnNumber || 0;
-    if (script.isInlineScriptWithSourceURL() && !lineNumber && columnNumber)
+    if (script.isInlineScriptWithSourceURL() && !lineNumber && columnNumber) {
       columnNumber -= script.columnOffset;
+    }
     return uiSourceCode.uiLocation(lineNumber, columnNumber);
   }
 
@@ -113,18 +117,19 @@ Bindings.ResourceScriptMapping = class {
    * @param {!Workspace.UISourceCode} uiSourceCode
    * @param {number} lineNumber
    * @param {number} columnNumber
-   * @return {?SDK.DebuggerModel.Location}
+   * @return {!Array<!SDK.DebuggerModel.Location>}
    */
-  uiLocationToRawLocation(uiSourceCode, lineNumber, columnNumber) {
+  uiLocationToRawLocations(uiSourceCode, lineNumber, columnNumber) {
     const scriptFile = this._uiSourceCodeToScriptFile.get(uiSourceCode);
-    if (!scriptFile)
-      return null;
+    if (!scriptFile) {
+      return [];
+    }
     const script = scriptFile._script;
     if (script.isInlineScriptWithSourceURL()) {
-      return this._debuggerModel.createRawLocation(
-          script, lineNumber + script.lineOffset, lineNumber ? columnNumber : columnNumber + script.columnOffset);
+      return [this._debuggerModel.createRawLocation(
+          script, lineNumber + script.lineOffset, lineNumber ? columnNumber : columnNumber + script.columnOffset)];
     }
-    return this._debuggerModel.createRawLocation(script, lineNumber, columnNumber);
+    return [this._debuggerModel.createRawLocation(script, lineNumber, columnNumber)];
   }
 
   /**
@@ -132,13 +137,15 @@ Bindings.ResourceScriptMapping = class {
    * @return {boolean}
    */
   _acceptsScript(script) {
-    if (!script.sourceURL || script.isLiveEdit() || (script.isInlineScript() && !script.hasSourceURL))
+    if (!script.sourceURL || script.isLiveEdit() || (script.isInlineScript() && !script.hasSourceURL)) {
       return false;
+    }
     // Filter out embedder injected content scripts.
     if (script.isContentScript() && !script.hasSourceURL) {
       const parsedURL = new Common.ParsedURL(script.sourceURL);
-      if (!parsedURL.isValid)
+      if (!parsedURL.isValid) {
         return false;
+      }
     }
     return true;
   }
@@ -148,12 +155,13 @@ Bindings.ResourceScriptMapping = class {
    */
   _parsedScriptSource(event) {
     const script = /** @type {!SDK.Script} */ (event.data);
-    if (!this._acceptsScript(script))
+    if (!this._acceptsScript(script)) {
       return;
+    }
     this._acceptedScripts.add(script);
     const originalContentProvider = script.originalContentProvider();
     const frameId = Bindings.frameIdForScript(script);
-    script[Bindings.ResourceScriptMapping._frameIdSymbol] = frameId;
+    script[_frameIdSymbol] = frameId;
 
     const url = script.sourceURL;
     const project = this._project(script);
@@ -171,7 +179,7 @@ Bindings.ResourceScriptMapping = class {
     const metadata = Bindings.metadataForURL(this._debuggerModel.target(), frameId, url);
 
     // Bind UISourceCode to scripts.
-    const scriptFile = new Bindings.ResourceScriptFile(this, uiSourceCode, [script]);
+    const scriptFile = new ResourceScriptFile(this, uiSourceCode, [script]);
     this._uiSourceCodeToScriptFile.set(uiSourceCode, scriptFile);
 
     project.addUISourceCodeWithProvider(uiSourceCode, originalContentProvider, metadata, 'text/javascript');
@@ -180,7 +188,7 @@ Bindings.ResourceScriptMapping = class {
 
   /**
    * @param {!Workspace.UISourceCode} uiSourceCode
-   * @return {?Bindings.ResourceScriptFile}
+   * @return {?ResourceScriptFile}
    */
   scriptFile(uiSourceCode) {
     return this._uiSourceCodeToScriptFile.get(uiSourceCode) || null;
@@ -190,8 +198,9 @@ Bindings.ResourceScriptMapping = class {
    * @param {!SDK.Script} script
    */
   _removeScript(script) {
-    if (!this._acceptedScripts.has(script))
+    if (!this._acceptedScripts.has(script)) {
       return;
+    }
     this._acceptedScripts.delete(script);
     const project = this._project(script);
     const uiSourceCode = /** @type {!Workspace.UISourceCode} */ (project.uiSourceCodeForURL(script.sourceURL));
@@ -208,8 +217,9 @@ Bindings.ResourceScriptMapping = class {
   _executionContextDestroyed(event) {
     const executionContext = /** @type {!SDK.ExecutionContext} */ (event.data);
     const scripts = this._debuggerModel.scriptsForExecutionContext(executionContext);
-    for (const script of scripts)
+    for (const script of scripts) {
       this._removeScript(script);
+    }
   }
 
   /**
@@ -217,33 +227,37 @@ Bindings.ResourceScriptMapping = class {
    */
   _globalObjectCleared(event) {
     const scripts = Array.from(this._acceptedScripts);
-    for (const script of scripts)
+    for (const script of scripts) {
       this._removeScript(script);
+    }
   }
 
   resetForTest() {
     const scripts = Array.from(this._acceptedScripts);
-    for (const script of scripts)
+    for (const script of scripts) {
       this._removeScript(script);
+    }
   }
 
   dispose() {
     Common.EventTarget.removeEventListeners(this._eventListeners);
     const scripts = Array.from(this._acceptedScripts);
-    for (const script of scripts)
+    for (const script of scripts) {
       this._removeScript(script);
-    for (const project of this._projects.values())
+    }
+    for (const project of this._projects.values()) {
       project.removeProject();
+    }
     this._projects.clear();
   }
-};
+}
 
 /**
  * @unrestricted
  */
-Bindings.ResourceScriptFile = class extends Common.Object {
+export class ResourceScriptFile extends Common.Object {
   /**
-   * @param {!Bindings.ResourceScriptMapping} resourceScriptMapping
+   * @param {!ResourceScriptMapping} resourceScriptMapping
    * @param {!Workspace.UISourceCode} uiSourceCode
    * @param {!Array.<!SDK.Script>} scripts
    */
@@ -254,8 +268,9 @@ Bindings.ResourceScriptFile = class extends Common.Object {
     this._resourceScriptMapping = resourceScriptMapping;
     this._uiSourceCode = uiSourceCode;
 
-    if (this._uiSourceCode.contentType().isScript())
+    if (this._uiSourceCode.contentType().isScript()) {
       this._script = scripts[scripts.length - 1];
+    }
 
     this._uiSourceCode.addEventListener(
         Workspace.UISourceCode.Events.WorkingCopyChanged, this._workingCopyChanged, this);
@@ -275,19 +290,24 @@ Bindings.ResourceScriptFile = class extends Common.Object {
    * @return {boolean}
    */
   _isDiverged() {
-    if (this._uiSourceCode.isDirty())
+    if (this._uiSourceCode.isDirty()) {
       return true;
-    if (!this._script)
+    }
+    if (!this._script) {
       return false;
-    if (typeof this._scriptSource === 'undefined')
+    }
+    if (typeof this._scriptSource === 'undefined') {
       return false;
+    }
     const workingCopy = this._uiSourceCode.workingCopy();
-    if (!workingCopy)
+    if (!workingCopy) {
       return false;
+    }
 
     // Match ignoring sourceURL.
-    if (!workingCopy.startsWith(this._scriptSource.trimRight()))
+    if (!workingCopy.startsWith(this._scriptSource.trimRight())) {
       return true;
+    }
     const suffix = this._uiSourceCode.workingCopy().substr(this._scriptSource.length);
     return !!suffix.length && !suffix.match(SDK.Script.sourceURLRegex);
   }
@@ -303,23 +323,27 @@ Bindings.ResourceScriptFile = class extends Common.Object {
    * @param {!Common.Event} event
    */
   _workingCopyCommitted(event) {
-    if (this._uiSourceCode.project().canSetFileContent())
+    if (this._uiSourceCode.project().canSetFileContent()) {
       return;
-    if (!this._script)
+    }
+    if (!this._script) {
       return;
+    }
     const debuggerModel = this._resourceScriptMapping._debuggerModel;
-    const breakpoints = Bindings.breakpointManager.breakpointsForUISourceCode(this._uiSourceCode);
+    const breakpoints = Bindings.breakpointManager.breakpointLocationsForUISourceCode(this._uiSourceCode)
+                            .map(breakpointLocation => breakpointLocation.breakpoint);
     const source = this._uiSourceCode.workingCopy();
     debuggerModel.setScriptSource(this._script.scriptId, source, scriptSourceWasSet.bind(this));
 
     /**
      * @param {?string} error
      * @param {!Protocol.Runtime.ExceptionDetails=} exceptionDetails
-     * @this {Bindings.ResourceScriptFile}
+     * @this {ResourceScriptFile}
      */
     async function scriptSourceWasSet(error, exceptionDetails) {
-      if (!error && !exceptionDetails)
+      if (!error && !exceptionDetails) {
         this._scriptSource = source;
+      }
       this._update();
 
       if (!error && !exceptionDetails) {
@@ -340,10 +364,11 @@ Bindings.ResourceScriptFile = class extends Common.Object {
   }
 
   _update() {
-    if (this._isDiverged() && !this._hasDivergedFromVM)
+    if (this._isDiverged() && !this._hasDivergedFromVM) {
       this._divergeFromVM();
-    else if (!this._isDiverged() && this._hasDivergedFromVM)
+    } else if (!this._isDiverged() && this._hasDivergedFromVM) {
       this._mergeToVM();
+    }
   }
 
   _divergeFromVM() {
@@ -351,7 +376,7 @@ Bindings.ResourceScriptFile = class extends Common.Object {
     this._resourceScriptMapping._debuggerWorkspaceBinding.updateLocations(this._script);
     delete this._isDivergingFromVM;
     this._hasDivergedFromVM = true;
-    this.dispatchEventToListeners(Bindings.ResourceScriptFile.Events.DidDivergeFromVM, this._uiSourceCode);
+    this.dispatchEventToListeners(ResourceScriptFile.Events.DidDivergeFromVM, this._uiSourceCode);
   }
 
   _mergeToVM() {
@@ -359,7 +384,7 @@ Bindings.ResourceScriptFile = class extends Common.Object {
     this._isMergingToVM = true;
     this._resourceScriptMapping._debuggerWorkspaceBinding.updateLocations(this._script);
     delete this._isMergingToVM;
-    this.dispatchEventToListeners(Bindings.ResourceScriptFile.Events.DidMergeToVM, this._uiSourceCode);
+    this.dispatchEventToListeners(ResourceScriptFile.Events.DidMergeToVM, this._uiSourceCode);
   }
 
   /**
@@ -388,17 +413,11 @@ Bindings.ResourceScriptFile = class extends Common.Object {
       this._mappingCheckedForTest();
       return;
     }
-    this._script.requestContent().then(callback.bind(this));
-
-    /**
-     * @param {?string} source
-     * @this {Bindings.ResourceScriptFile}
-     */
-    function callback(source) {
-      this._scriptSource = source;
+    this._script.requestContent().then(deferredContent => {
+      this._scriptSource = deferredContent.content;
       this._update();
       this._mappingCheckedForTest();
-    }
+    });
   }
 
   _mappingCheckedForTest() {
@@ -415,8 +434,9 @@ Bindings.ResourceScriptFile = class extends Common.Object {
    * @param {string} sourceMapURL
    */
   addSourceMapURL(sourceMapURL) {
-    if (!this._script)
+    if (!this._script) {
       return;
+    }
     this._script.debuggerModel.setSourceMapURL(this._script, sourceMapURL);
   }
 
@@ -426,12 +446,24 @@ Bindings.ResourceScriptFile = class extends Common.Object {
   hasSourceMapURL() {
     return this._script && !!this._script.sourceMapURL;
   }
-};
+}
 
-Bindings.ResourceScriptMapping._frameIdSymbol = Symbol('frameid');
+const _frameIdSymbol = Symbol('frameid');
 
 /** @enum {symbol} */
-Bindings.ResourceScriptFile.Events = {
+ResourceScriptFile.Events = {
   DidMergeToVM: Symbol('DidMergeToVM'),
   DidDivergeFromVM: Symbol('DidDivergeFromVM'),
 };
+
+/* Legacy exported object */
+self.Bindings = self.Bindings || {};
+
+/* Legacy exported object */
+Bindings = Bindings || {};
+
+/** @constructor */
+Bindings.ResourceScriptMapping = ResourceScriptMapping;
+
+/** @constructor */
+Bindings.ResourceScriptFile = ResourceScriptFile;

@@ -27,7 +27,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-.panel.network .toolbar {
+ .panel.network .toolbar {
     background-color: var(--toolbar-bg-color);
     border-bottom: var(--divider-border);
 }
@@ -37,7 +37,7 @@
 }
 
 .network-details-view-tall-header {
-    margin-top: 4px;
+    border-top: 4px solid var(--toolbar-bg-color);
 }
 
 .network-item-view {
@@ -87,11 +87,6 @@
     flex: 0 0 60px;
 }
 
-.network-overview .overview-grid-window,
-.network-overview .overview-grid-dividers-background {
-    height: 100%;
-}
-
 .network-overview .resources-dividers-label-bar {
     background-color: rgba(255, 255, 255, 0.95);
 }
@@ -119,30 +114,24 @@
     flex-shrink: 0;
 }
 
-.network-blocked-urls {
-    border-top: var(--divider-border);
-    flex: 104px 0 0;
-}
-
-.open-search-view {
-    align-items: center;
-    background-color: hsl(50, 100%, 88%);
-    border-bottom: var(--divider-border);
-    cursor: pointer;
-    flex-grow: 0;
-    padding: 4px;
-}
-
-.open-search-view > * {
-    margin: 0 4px;
-}
-
-.open-search-view .search-suggestion {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
 .network-tabbed-pane {
     background-color: var(--toolbar-bg-color);
+}
+
+.network-settings-pane {
+    flex: none;
+    background-color: var(--toolbar-bg-color);
+}
+
+.network-settings-pane .toolbar {
+    flex: 1 1;
+}
+
+.network-toolbar-container {
+    display: flex;
+    flex: none;
+}
+
+.network-toolbar-container > :first-child {
+    flex: 1 1 auto;
 }

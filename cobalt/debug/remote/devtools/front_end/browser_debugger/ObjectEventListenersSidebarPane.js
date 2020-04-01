@@ -5,15 +5,16 @@
  * @implements {UI.ToolbarItem.ItemsProvider}
  * @unrestricted
  */
-BrowserDebugger.ObjectEventListenersSidebarPane = class extends UI.VBox {
+export class ObjectEventListenersSidebarPane extends UI.VBox {
   constructor() {
     super();
-    this._refreshButton = new UI.ToolbarButton(Common.UIString('Refresh'), 'largeicon-refresh');
+    this._refreshButton = new UI.ToolbarButton(ls`Refresh global listeners`, 'largeicon-refresh');
     this._refreshButton.addEventListener(UI.ToolbarButton.Events.Click, this._refreshClick, this);
     this._refreshButton.setEnabled(false);
 
     this._eventListenersView = new EventListeners.EventListenersView(this.update.bind(this));
     this._eventListenersView.show(this.element);
+    this.setDefaultFocusedChild(this._eventListenersView);
   }
 
   /**
@@ -26,8 +27,7 @@ BrowserDebugger.ObjectEventListenersSidebarPane = class extends UI.VBox {
 
   update() {
     if (this._lastRequestedContext) {
-      this._lastRequestedContext.runtimeModel.releaseObjectGroup(
-          BrowserDebugger.ObjectEventListenersSidebarPane._objectGroupName);
+      this._lastRequestedContext.runtimeModel.releaseObjectGroup(_objectGroupName);
       delete this._lastRequestedContext;
     }
     const executionContext = UI.context.flavor(SDK.ExecutionContext);
@@ -69,7 +69,7 @@ BrowserDebugger.ObjectEventListenersSidebarPane = class extends UI.VBox {
         .evaluate(
             {
               expression: 'self',
-              objectGroup: BrowserDebugger.ObjectEventListenersSidebarPane._objectGroupName,
+              objectGroup: _objectGroupName,
               includeCommandLineAPI: false,
               silent: true,
               returnByValue: false,
@@ -87,6 +87,19 @@ BrowserDebugger.ObjectEventListenersSidebarPane = class extends UI.VBox {
     event.data.consume();
     this.update();
   }
-};
+}
 
-BrowserDebugger.ObjectEventListenersSidebarPane._objectGroupName = 'object-event-listeners-sidebar-pane';
+export const _objectGroupName = 'object-event-listeners-sidebar-pane';
+
+/* Legacy exported object */
+self.BrowserDebugger = self.BrowserDebugger || {};
+
+/* Legacy exported object */
+BrowserDebugger = BrowserDebugger || {};
+
+/**
+ * @constructor
+ */
+BrowserDebugger.ObjectEventListenersSidebarPane = ObjectEventListenersSidebarPane;
+
+BrowserDebugger.ObjectEventListenersSidebarPane._objectGroupName = _objectGroupName;

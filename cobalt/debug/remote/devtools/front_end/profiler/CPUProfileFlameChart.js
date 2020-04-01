@@ -215,6 +215,9 @@ Profiler.CPUProfileFlameChart = class extends UI.VBox {
     this._mainPane.setTextPadding(2);
     this._mainPane.show(this.element);
     this._mainPane.addEventListener(PerfUI.FlameChart.Events.EntrySelected, this._onEntrySelected, this);
+    this._mainPane.addEventListener(PerfUI.FlameChart.Events.EntryInvoked, this._onEntryInvoked, this);
+    this._entrySelected = false;
+    this._mainPane.addEventListener(PerfUI.FlameChart.Events.CanvasFocused, this._onEntrySelected, this);
     this._overviewPane.addEventListener(PerfUI.OverviewGrid.Events.WindowChanged, this._onWindowChanged, this);
     this._dataProvider = dataProvider;
     this._searchResults = [];
@@ -248,7 +251,26 @@ Profiler.CPUProfileFlameChart = class extends UI.VBox {
    * @param {!Common.Event} event
    */
   _onEntrySelected(event) {
-    this.dispatchEventToListeners(PerfUI.FlameChart.Events.EntrySelected, event.data);
+    if (event.data) {
+      const eventIndex = Number(event.data);
+      this._mainPane.setSelectedEntry(eventIndex);
+      if (eventIndex === -1) {
+        this._entrySelected = false;
+      } else {
+        this._entrySelected = true;
+      }
+    } else if (!this._entrySelected) {
+      this._mainPane.setSelectedEntry(0);
+      this._entrySelected = true;
+    }
+  }
+
+  /**
+   * @param {!Common.Event} event
+   */
+  _onEntryInvoked(event) {
+    this._onEntrySelected(event);
+    this.dispatchEventToListeners(PerfUI.FlameChart.Events.EntryInvoked, event.data);
   }
 
   update() {
@@ -269,14 +291,16 @@ Profiler.CPUProfileFlameChart = class extends UI.VBox {
     this._searchResults = [];
     const entriesCount = this._dataProvider._entryNodes.length;
     for (let index = 0; index < entriesCount; ++index) {
-      if (this._dataProvider.entryTitle(index).match(matcher))
+      if (this._dataProvider.entryTitle(index).match(matcher)) {
         this._searchResults.push(index);
+      }
     }
 
     if (this._searchResults.length) {
       this._searchResultIndex = this._searchResults.indexOf(selectedEntryIndex);
-      if (this._searchResultIndex === -1)
+      if (this._searchResultIndex === -1) {
         this._searchResultIndex = jumpBackwards ? this._searchResults.length - 1 : 0;
+      }
       this._mainPane.setSelectedEntry(this._searchResults[this._searchResultIndex]);
     } else {
       this.searchCanceled();
@@ -412,11 +436,11 @@ Profiler.CPUProfileFlameChart.OverviewPane = class extends UI.VBox {
     super();
     this.element.classList.add('cpu-profile-flame-chart-overview-pane');
     this._overviewContainer = this.element.createChild('div', 'cpu-profile-flame-chart-overview-container');
-    this._overviewGrid = new PerfUI.OverviewGrid('cpu-profile-flame-chart');
+    this._overviewCalculator = new Profiler.CPUProfileFlameChart.OverviewCalculator(dataProvider);
+    this._overviewGrid = new PerfUI.OverviewGrid('cpu-profile-flame-chart', this._overviewCalculator);
     this._overviewGrid.element.classList.add('fill');
     this._overviewCanvas = this._overviewContainer.createChild('canvas', 'cpu-profile-flame-chart-overview-canvas');
     this._overviewContainer.appendChild(this._overviewGrid.element);
-    this._overviewCalculator = new Profiler.CPUProfileFlameChart.OverviewCalculator(dataProvider);
     this._dataProvider = dataProvider;
     this._overviewGrid.addEventListener(PerfUI.OverviewGrid.Events.WindowChanged, this._onWindowChanged, this);
   }
@@ -460,13 +484,11 @@ Profiler.CPUProfileFlameChart.OverviewPane = class extends UI.VBox {
    * @param {!Common.Event} event
    */
   _onWindowChanged(event) {
-    const startTime = this._dataProvider.minimumBoundary();
-    const totalTime = this._dataProvider.totalTime();
-    const data = {
-      windowTimeLeft: startTime + this._overviewGrid.windowLeft() * totalTime,
-      windowTimeRight: startTime + this._overviewGrid.windowRight() * totalTime
-    };
-    this.dispatchEventToListeners(PerfUI.OverviewGrid.Events.WindowChanged, data);
+    const windowPosition = {windowTimeLeft: event.data.rawStartValue, windowTimeRight: event.data.rawEndValue};
+    this._windowTimeLeft = windowPosition.windowTimeLeft;
+    this._windowTimeRight = windowPosition.windowTimeRight;
+
+    this.dispatchEventToListeners(PerfUI.OverviewGrid.Events.WindowChanged, windowPosition);
   }
 
   /**
@@ -484,16 +506,18 @@ Profiler.CPUProfileFlameChart.OverviewPane = class extends UI.VBox {
   }
 
   _scheduleUpdate() {
-    if (this._updateTimerId)
+    if (this._updateTimerId) {
       return;
+    }
     this._updateTimerId = this.element.window().requestAnimationFrame(this.update.bind(this));
   }
 
   update() {
     this._updateTimerId = 0;
     const timelineData = this._timelineData();
-    if (!timelineData)
+    if (!timelineData) {
       return;
+    }
     this._resetCanvas(
         this._overviewContainer.clientWidth, this._overviewContainer.clientHeight - PerfUI.FlameChart.HeaderHeight);
     this._overviewCalculator._updateBoundaries(this);
@@ -548,8 +572,9 @@ Profiler.CPUProfileFlameChart.OverviewPane = class extends UI.VBox {
       const start = Math.floor((entryStartTimes[entryIndex] - minimumBoundary) * scaleFactor);
       const finish =
           Math.floor((entryStartTimes[entryIndex] - minimumBoundary + entryTotalTimes[entryIndex]) * scaleFactor);
-      for (let x = start; x <= finish; ++x)
+      for (let x = start; x <= finish; ++x) {
         drawData[x] = Math.max(drawData[x], entryLevels[entryIndex] + 1);
+      }
     }
     return drawData;
   }

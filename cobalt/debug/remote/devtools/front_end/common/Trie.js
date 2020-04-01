@@ -1,10 +1,11 @@
 // Copyright 2016 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
 /**
  * @unrestricted
  */
-Common.Trie = class {
+export class Trie {
   constructor() {
     this.clear();
   }
@@ -41,8 +42,9 @@ Common.Trie = class {
    * @return {boolean}
    */
   remove(word) {
-    if (!this.has(word))
+    if (!this.has(word)) {
       return false;
+    }
     let node = this._root;
     --this._wordsInSubtree[this._root];
     for (let i = 0; i < word.length; ++i) {
@@ -66,8 +68,9 @@ Common.Trie = class {
     let node = this._root;
     for (let i = 0; i < word.length; ++i) {
       node = this._edges[node][word[i]];
-      if (!node)
+      if (!node) {
         return false;
+      }
     }
     return this._isWord[node];
   }
@@ -81,8 +84,9 @@ Common.Trie = class {
     let node = this._root;
     for (let i = 0; i < prefix.length; ++i) {
       node = this._edges[node][prefix[i]];
-      if (!node)
+      if (!node) {
         return [];
+      }
     }
     const results = [];
     this._dfs(node, prefix, results);
@@ -95,11 +99,13 @@ Common.Trie = class {
    * @param {!Array<string>} results
    */
   _dfs(node, prefix, results) {
-    if (this._isWord[node])
+    if (this._isWord[node]) {
       results.push(prefix);
+    }
     const edges = this._edges[node];
-    for (const edge in edges)
+    for (const edge in edges) {
       this._dfs(edges[edge], prefix + edge, results);
+    }
   }
 
   /**
@@ -112,10 +118,12 @@ Common.Trie = class {
     let wordIndex = 0;
     for (let i = 0; i < word.length; ++i) {
       node = this._edges[node][word[i]];
-      if (!node)
+      if (!node) {
         break;
-      if (!fullWordOnly || this._isWord[node])
+      }
+      if (!fullWordOnly || this._isWord[node]) {
         wordIndex = i + 1;
+      }
     }
     return word.substring(0, wordIndex);
   }
@@ -132,4 +140,4 @@ Common.Trie = class {
     /** @type {!Array<number>} */
     this._freeNodes = [];
   }
-};
+}

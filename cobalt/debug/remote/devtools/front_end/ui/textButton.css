@@ -4,15 +4,19 @@
  * found in the LICENSE file.
  */
 
+<<<<<<< HEAD
  .text-button {
+=======
+.text-button {
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     margin: 2px;
     height: 24px;
     font-size: 12px;
     border: 1px solid rgba(0, 0, 0, 0.2);
-    border-radius: 2px;
+    border-radius: 4px;
     padding: 0px 12px;
     font-weight: 500;
-    color: #333;
+    color: var(--accent-fg-color);
     background-color: #fff;
     flex: none;
     white-space: nowrap;
@@ -39,9 +43,30 @@
 }
 
 .text-button.primary-button, -theme-preserve {
+<<<<<<< HEAD
     background-color: #4285F4;
+=======
+    background-color: var(--accent-color);
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     border: none;
     color: #fff;
+}
+
+<<<<<<< HEAD
+.text-button.primary-button:not(:disabled):focus,
+.text-button.primary-button:not(:disabled):hover,
+.text-button.primary-button:not(:disabled):active, -theme-preserve {
+    background-color: var(--accent-color-hover);
+}
+
+=======
+.text-button.link-style {
+  background: none;
+  border: none;
+  padding: 0!important;
+  font: inherit;
+  cursor: pointer;
+  height: 18px;
 }
 
 .text-button.primary-button:not(:disabled):focus,
@@ -50,6 +75,7 @@
     background-color: var(--accent-color-hover);
 }
 
+>>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
 .-theme-with-dark-background .text-button:not(.primary-button):not(:disabled):focus,
 .-theme-with-dark-background .text-button:not(.primary-button):not(:disabled):hover,
 .-theme-with-dark-background .text-button:not(.primary-button):not(:disabled):active {

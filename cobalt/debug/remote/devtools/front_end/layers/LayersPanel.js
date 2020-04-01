@@ -31,7 +31,7 @@
  * @implements {SDK.TargetManager.Observer}
  * @unrestricted
  */
-Layers.LayersPanel = class extends UI.PanelWithSidebar {
+export default class LayersPanel extends UI.PanelWithSidebar {
   constructor() {
     super('layers', 225);
 
@@ -41,6 +41,8 @@ Layers.LayersPanel = class extends UI.PanelWithSidebar {
     SDK.targetManager.observeTargets(this);
     this._layerViewHost = new LayerViewer.LayerViewHost();
     this._layerTreeOutline = new LayerViewer.LayerTreeOutline(this._layerViewHost);
+    this._layerTreeOutline.addEventListener(
+        LayerViewer.LayerTreeOutline.Events.PaintProfilerRequested, this._onPaintProfileRequested, this);
     this.panelSidebarElement().appendChild(this._layerTreeOutline.element);
     this.setDefaultFocusedElement(this._layerTreeOutline.element);
 
@@ -79,16 +81,18 @@ Layers.LayersPanel = class extends UI.PanelWithSidebar {
    */
   wasShown() {
     super.wasShown();
-    if (this._model)
+    if (this._model) {
       this._model.enable();
+    }
   }
 
   /**
    * @override
    */
   willHide() {
-    if (this._model)
+    if (this._model) {
       this._model.disable();
+    }
     super.willHide();
   }
 
@@ -97,15 +101,18 @@ Layers.LayersPanel = class extends UI.PanelWithSidebar {
    * @param {!SDK.Target} target
    */
   targetAdded(target) {
-    if (this._model)
+    if (this._model) {
       return;
+    }
     this._model = target.model(Layers.LayerTreeModel);
-    if (!this._model)
+    if (!this._model) {
       return;
+    }
     this._model.addEventListener(Layers.LayerTreeModel.Events.LayerTreeChanged, this._onLayerTreeUpdated, this);
     this._model.addEventListener(Layers.LayerTreeModel.Events.LayerPainted, this._onLayerPainted, this);
-    if (this.isShowing())
+    if (this.isShowing()) {
       this._model.enable();
+    }
   }
 
   /**
@@ -113,8 +120,9 @@ Layers.LayersPanel = class extends UI.PanelWithSidebar {
    * @param {!SDK.Target} target
    */
   targetRemoved(target) {
-    if (!this._model || this._model.target() !== target)
+    if (!this._model || this._model.target() !== target) {
       return;
+    }
     this._model.removeEventListener(Layers.LayerTreeModel.Events.LayerTreeChanged, this._onLayerTreeUpdated, this);
     this._model.removeEventListener(Layers.LayerTreeModel.Events.LayerPainted, this._onLayerPainted, this);
     this._model.disable();
@@ -129,8 +137,9 @@ Layers.LayersPanel = class extends UI.PanelWithSidebar {
    * @return {!Promise<*>}
    */
   _update() {
-    if (this._model)
+    if (this._model) {
       this._layerViewHost.setLayerTree(this._model.layerTree());
+    }
     return Promise.resolve();
   }
 
@@ -138,11 +147,13 @@ Layers.LayersPanel = class extends UI.PanelWithSidebar {
    * @param {!Common.Event} event
    */
   _onLayerPainted(event) {
-    if (!this._model)
+    if (!this._model) {
       return;
+    }
     const layer = /** @type {!SDK.Layer} */ (event.data);
-    if (this._layerViewHost.selection() && this._layerViewHost.selection().layer() === layer)
+    if (this._layerViewHost.selection() && this._layerViewHost.selection().layer() === layer) {
       this._layerDetailsView.update();
+    }
     this._layers3DView.updateLayerSnapshot(layer);
   }
 
@@ -152,8 +163,9 @@ Layers.LayersPanel = class extends UI.PanelWithSidebar {
   _onPaintProfileRequested(event) {
     const selection = /** @type {!LayerViewer.LayerView.Selection} */ (event.data);
     this._layers3DView.snapshotForSelection(selection).then(snapshotWithRect => {
-      if (!snapshotWithRect)
+      if (!snapshotWithRect) {
         return;
+      }
       this._layerBeingProfiled = selection.layer();
       if (!this._tabbedPane.hasTab(Layers.LayersPanel.DetailsViewTabs.Profiler)) {
         this._tabbedPane.appendTab(
@@ -169,8 +181,9 @@ Layers.LayersPanel = class extends UI.PanelWithSidebar {
    * @param {!Common.Event} event
    */
   _onTabClosed(event) {
-    if (event.data.tabId !== Layers.LayersPanel.DetailsViewTabs.Profiler || !this._layerBeingProfiled)
+    if (event.data.tabId !== Layers.LayersPanel.DetailsViewTabs.Profiler || !this._layerBeingProfiled) {
       return;
+    }
     this._paintProfilerView.reset();
     this._layers3DView.showImageForLayer(this._layerBeingProfiled, undefined);
     this._layerBeingProfiled = null;
@@ -189,9 +202,22 @@ Layers.LayersPanel = class extends UI.PanelWithSidebar {
   _onScaleChanged(event) {
     this._paintProfilerView.setScale(/** @type {number} */ (event.data));
   }
-};
+}
 
-Layers.LayersPanel.DetailsViewTabs = {
+export const DetailsViewTabs = {
   Details: 'details',
   Profiler: 'profiler'
 };
+
+/* Legacy exported object */
+self.Layers = self.Layers || {};
+
+/* Legacy exported object */
+Layers = Layers || {};
+
+/**
+ * @constructor
+ */
+Layers.LayersPanel = LayersPanel;
+
+Layers.LayersPanel.DetailsViewTabs = DetailsViewTabs;

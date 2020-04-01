@@ -30,7 +30,7 @@
 /**
  * @unrestricted
  */
-Elements.PropertiesWidget = class extends UI.ThrottledWidget {
+export class PropertiesWidget extends UI.ThrottledWidget {
   constructor() {
     super(true /* isWebComponent */);
     this.registerRequiredCSS('elements/propertiesWidget.css');
@@ -43,6 +43,16 @@ Elements.PropertiesWidget = class extends UI.ThrottledWidget {
         SDK.DOMModel, SDK.DOMModel.Events.ChildNodeCountUpdated, this._onNodeChange, this);
     UI.context.addFlavorChangeListener(SDK.DOMNode, this._setNode, this);
     this._node = UI.context.flavor(SDK.DOMNode);
+
+    this._treeOutline = new ObjectUI.ObjectPropertiesSectionsTreeOutline({readOnly: true});
+    this._treeOutline.setShowSelectionOnKeyboardFocus(/* show */ true, /* preventTabOrder */ false);
+    this._expandController = new ObjectUI.ObjectPropertiesSectionsTreeExpandController(this._treeOutline);
+    this.contentElement.appendChild(this._treeOutline.element);
+
+    this._treeOutline.addEventListener(UI.TreeOutline.Events.ElementExpanded, () => {
+      Host.userMetrics.actionTaken(Host.UserMetrics.Action.DOMPropertiesExpanded);
+    });
+
     this.update();
   }
 
@@ -57,119 +67,106 @@ Elements.PropertiesWidget = class extends UI.ThrottledWidget {
   /**
    * @override
    * @protected
-   * @return {!Promise.<?>}
+   * @return {!Promise<undefined>}
    */
-  doUpdate() {
+  async doUpdate() {
     if (this._lastRequestedNode) {
-      this._lastRequestedNode.domModel().runtimeModel().releaseObjectGroup(Elements.PropertiesWidget._objectGroupName);
+      this._lastRequestedNode.domModel().runtimeModel().releaseObjectGroup(_objectGroupName);
       delete this._lastRequestedNode;
     }
 
     if (!this._node) {
       this.contentElement.removeChildren();
-      this.sections = [];
-      return Promise.resolve();
+      return;
     }
 
     this._lastRequestedNode = this._node;
-    return this._node.resolveToObject(Elements.PropertiesWidget._objectGroupName).then(nodeResolved.bind(this));
+    const object = await this._node.resolveToObject(_objectGroupName);
+    if (!object) {
+      return;
+    }
 
-    /**
-     * @param {?SDK.RemoteObject} object
-     * @this {Elements.PropertiesWidget}
-     */
-    function nodeResolved(object) {
-      if (!object)
-        return;
+    const result = await object.callFunction(protoList);
+    object.release();
 
-      /**
-       * @suppressReceiverCheck
-       * @this {*}
-       */
-      function protoList() {
-        let proto = this;
-        const result = {__proto__: null};
-        let counter = 1;
-        while (proto) {
-          result[counter++] = proto;
-          proto = proto.__proto__;
-        }
-        return result;
+    if (!result.object || result.wasThrown) {
+      return;
+    }
+
+    const propertiesResult = await result.object.getOwnProperties(false /* generatePreview */);
+    result.object.release();
+
+    if (!propertiesResult || !propertiesResult.properties) {
+      return;
+    }
+
+    const properties = propertiesResult.properties;
+    this._treeOutline.removeChildren();
+
+    let selected = false;
+    // Get array of property user-friendly names.
+    for (let i = 0; i < properties.length; ++i) {
+      if (!parseInt(properties[i].name, 10)) {
+        continue;
       }
-      const promise = object.callFunctionPromise(protoList).then(nodePrototypesReady.bind(this));
-      object.release();
-      return promise;
+      const property = properties[i].value;
+      let title = property.description;
+      title = title.replace(/Prototype$/, '');
+
+      const section = this._createSectionTreeElement(property, title);
+      this._treeOutline.appendChild(section);
+      if (!selected) {
+        section.select(/* omitFocus= */ true, /* selectedByUser= */ false);
+        selected = true;
+      }
     }
 
     /**
-     * @param {!{object: ?SDK.RemoteObject, wasThrown: (boolean|undefined)}} result
-     * @this {Elements.PropertiesWidget}
+     * @suppressReceiverCheck
+     * @this {*}
      */
-    function nodePrototypesReady(result) {
-      if (!result.object || result.wasThrown)
-        return;
-
-      const promise = result.object.getOwnPropertiesPromise(false /* generatePreview */).then(fillSection.bind(this));
-      result.object.release();
-      return promise;
-    }
-
-    /**
-     * @param {!{properties: ?Array.<!SDK.RemoteObjectProperty>, internalProperties: ?Array.<!SDK.RemoteObjectProperty>}} result
-     * @this {Elements.PropertiesWidget}
-     */
-    function fillSection(result) {
-      if (!result || !result.properties)
-        return;
-
-      const properties = result.properties;
-      const expanded = [];
-      const sections = this.sections || [];
-      for (let i = 0; i < sections.length; ++i)
-        expanded.push(sections[i].expanded);
-
-      this.contentElement.removeChildren();
-      this.sections = [];
-
-      // Get array of property user-friendly names.
-      for (let i = 0; i < properties.length; ++i) {
-        if (!parseInt(properties[i].name, 10))
-          continue;
-        const property = properties[i].value;
-        let title = property.description;
-        title = title.replace(/Prototype$/, '');
-        const section = new ObjectUI.ObjectPropertiesSection(property, title);
-        section.element.classList.add('properties-widget-section');
-        this.sections.push(section);
-        this.contentElement.appendChild(section.element);
-        if (expanded[this.sections.length - 1])
-          section.expand();
-        section.addEventListener(UI.TreeOutline.Events.ElementExpanded, this._propertyExpanded, this);
+    function protoList() {
+      let proto = this;
+      const result = {__proto__: null};
+      let counter = 1;
+      while (proto) {
+        result[counter++] = proto;
+        proto = proto.__proto__;
       }
+      return result;
     }
   }
 
   /**
-   * @param {!Common.Event} event
+   * @param {!SDK.RemoteObject} property
+   * @param {string} title
+   * @returns {!ObjectUI.ObjectPropertiesSection.RootElement}
    */
-  _propertyExpanded(event) {
-    Host.userMetrics.actionTaken(Host.UserMetrics.Action.DOMPropertiesExpanded);
-    for (const section of this.sections)
-      section.removeEventListener(UI.TreeOutline.Events.ElementExpanded, this._propertyExpanded, this);
+  _createSectionTreeElement(property, title) {
+    const titleElement = createElementWithClass('span', 'tree-element-title');
+    titleElement.textContent = title;
+
+    const section = new ObjectUI.ObjectPropertiesSection.RootElement(property);
+    section.title = titleElement;
+    this._expandController.watchSection(title, section);
+
+    return section;
   }
 
   /**
    * @param {!Common.Event} event
    */
   _onNodeChange(event) {
-    if (!this._node)
+    if (!this._node) {
       return;
+    }
     const data = event.data;
     const node = /** @type {!SDK.DOMNode} */ (data instanceof SDK.DOMNode ? data : data.node);
-    if (this._node !== node)
+    if (this._node !== node) {
       return;
+    }
     this.update();
   }
-};
+}
 
-Elements.PropertiesWidget._objectGroupName = 'properties-sidebar-pane';
+export const _objectGroupName = 'properties-sidebar-pane';
