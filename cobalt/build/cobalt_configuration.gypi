@@ -350,15 +350,15 @@
     'mozjs_garbage_collection_threshold_in_bytes%': 8 * 1024 * 1024,
 
     # Max Cobalt CPU usage specifies that the cobalt program should
-    # keep it's size below the specified size. A value of -1 causes this
-    # value to be assumed from the starboard API function:
-    # SbSystemGetTotalCPUMemory().
+    # keep it's size below the specified size.
+    # This setting is deprecated. Implement starboard API function
+    # SbSystemGetTotalCPUMemory() instead.
     'max_cobalt_cpu_usage%': -1,
 
     # Max Cobalt GPU usage specifies that the cobalt program should
-    # keep it's size below the specified size. A value of -1 causes this
-    # value to be assumed from the starboard API function:
-    # SbSystemGetTotalGPUMemory().
+    # keep it's size below the specified size.
+    # This setting is deprecated. Implement starboard API function
+    # SbSystemGetTotalGPUMemory() instead.
     'max_cobalt_gpu_usage%': -1,
 
     # When specified this value will reduce the cpu memory consumption by

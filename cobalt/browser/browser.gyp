@@ -121,8 +121,6 @@
         'COBALT_OFFSCREEN_TARGET_CACHE_SIZE_IN_BYTES=<(offscreen_target_cache_size_in_bytes)',
         'COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES=<(software_surface_cache_size_in_bytes)',
         'COBALT_JS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES=<(mozjs_garbage_collection_threshold_in_bytes)',
-        'COBALT_MAX_CPU_USAGE_IN_BYTES=<(max_cobalt_cpu_usage)',
-        'COBALT_MAX_GPU_USAGE_IN_BYTES=<(max_cobalt_gpu_usage)',
         'COBALT_REDUCE_CPU_MEMORY_BY=<(reduce_cpu_memory_by)',
         'COBALT_REDUCE_GPU_MEMORY_BY=<(reduce_gpu_memory_by)',
       ],
@@ -180,6 +178,12 @@
         '<(SHARED_INTERMEDIATE_DIR)',
       ],
       'conditions': [
+        ['max_cobalt_cpu_usage != -1', {
+          'defines': [ 'COBALT_MAX_CPU_USAGE_IN_BYTES' ],
+        }],
+        ['max_cobalt_gpu_usage != -1', {
+          'defines': [ 'COBALT_MAX_GPU_USAGE_IN_BYTES' ],
+        }],
         ['enable_about_scheme == 1', {
           'defines': [ 'ENABLE_ABOUT_SCHEME' ],
         }],
