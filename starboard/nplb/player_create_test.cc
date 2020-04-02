@@ -244,13 +244,7 @@ TEST_F(SbPlayerTest, NullCallbacks) {
   }
 }
 
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
-    defined(SB_HAS_AUDIOLESS_VIDEO)
 TEST_F(SbPlayerTest, Audioless) {
-  if (!kSbHasAudiolessVideo) {
-    return;
-  }
-
   SbMediaVideoCodec kVideoCodec = kSbMediaVideoCodecH264;
 
   SbPlayerOutputMode output_modes[] = {kSbPlayerOutputModeDecodeToTexture,
@@ -278,8 +272,6 @@ TEST_F(SbPlayerTest, Audioless) {
     SbPlayerDestroy(player);
   }
 }
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
-        // defined(SB_HAS_AUDIOLESS_VIDEO)
 
 TEST_F(SbPlayerTest, AudioOnly) {
   SbMediaAudioSampleInfo audio_sample_info =

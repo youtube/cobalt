@@ -55,9 +55,6 @@ const bool kSbHasAc3Audio = true;
 // Specifies whether this platform updates audio frames asynchronously.
 const bool kSbHasAsyncAudioFramesReporting = false;
 
-// Allow playing audioless video.
-const bool kSbHasAudiolessVideo = true;
-
 // Specifies whether this platform has webm/vp9 support.  This should be set to
 // non-zero on platforms with webm/vp9 support.
 const bool kSbHasMediaWebmVp9Support = false;
