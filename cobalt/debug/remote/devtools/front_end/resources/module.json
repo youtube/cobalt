@@ -1,22 +1,22 @@
 {
     "extensions": [
-        {
-            "type": "view",
-            "location": "panel",
-            "id": "resources",
-            "title": "Application",
-            "order": 70,
-            "className": "Resources.ResourcesPanel",
-            "tags": "pwa"
-        },
-        {
-            "type": "@Common.Revealer",
-            "contextTypes": [
-                "SDK.Resource"
-            ],
-            "destination": "Application panel",
-            "className": "Resources.ResourcesPanel.ResourceRevealer"
-        },
+        // {
+        //     "type": "view",
+        //     "location": "panel",
+        //     "id": "resources",
+        //     "title": "Application",
+        //     "order": 70,
+        //     "className": "Resources.ResourcesPanel",
+        //     "tags": "pwa"
+        // },
+        // {
+        //     "type": "@Common.Revealer",
+        //     "contextTypes": [
+        //         "SDK.Resource"
+        //     ],
+        //     "destination": "Application panel",
+        //     "className": "Resources.ResourcesPanel.ResourceRevealer"
+        // },
         {
             "type": "action",
             "category": "Resources",
