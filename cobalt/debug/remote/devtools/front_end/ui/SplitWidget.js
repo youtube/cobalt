@@ -44,19 +44,11 @@ export default class SplitWidget extends UI.Widget {
     this.registerRequiredCSS('ui/splitWidget.css');
 
     this.contentElement.classList.add('shadow-split-widget');
-<<<<<<< HEAD
-    this._mainElement =
-        this.contentElement.createChild('div', 'shadow-split-widget-contents shadow-split-widget-main vbox');
-    this._mainElement.createChild('slot').name = 'insertion-point-main';
-    this._sidebarElement =
-        this.contentElement.createChild('div', 'shadow-split-widget-contents shadow-split-widget-sidebar vbox');
-=======
     this._sidebarElement =
         this.contentElement.createChild('div', 'shadow-split-widget-contents shadow-split-widget-sidebar vbox');
     this._mainElement =
         this.contentElement.createChild('div', 'shadow-split-widget-contents shadow-split-widget-main vbox');
     this._mainElement.createChild('slot').name = 'insertion-point-main';
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     this._sidebarElement.createChild('slot').name = 'insertion-point-sidebar';
     this._resizerElement = this.contentElement.createChild('div', 'shadow-split-widget-resizer');
     this._resizerElementSize = null;
@@ -179,11 +171,7 @@ export default class SplitWidget extends UI.Widget {
     this._mainWidget = widget;
     if (widget) {
       widget.element.slot = 'insertion-point-main';
-<<<<<<< HEAD
-      if (this._showMode === UI.SplitWidget.ShowMode.OnlyMain || this._showMode === UI.SplitWidget.ShowMode.Both)
-=======
       if (this._showMode === ShowMode.OnlyMain || this._showMode === ShowMode.Both) {
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
         widget.show(this.element);
       }
     }
@@ -204,11 +192,7 @@ export default class SplitWidget extends UI.Widget {
     this._sidebarWidget = widget;
     if (widget) {
       widget.element.slot = 'insertion-point-sidebar';
-<<<<<<< HEAD
-      if (this._showMode === UI.SplitWidget.ShowMode.OnlySidebar || this._showMode === UI.SplitWidget.ShowMode.Both)
-=======
       if (this._showMode === ShowMode.OnlySidebar || this._showMode === ShowMode.Both) {
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
         widget.show(this.element);
       }
     }

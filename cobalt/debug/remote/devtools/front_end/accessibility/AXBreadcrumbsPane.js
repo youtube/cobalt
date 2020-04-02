@@ -117,12 +117,8 @@ export default class AXBreadcrumbsPane extends Accessibility.AccessibilitySubPan
   _onKeyDown(event) {
     if (!this._preselectedBreadcrumb) {
       return;
-<<<<<<< HEAD
-    if (!event.composedPath().some(element => element === this._preselectedBreadcrumb.element()))
-=======
     }
     if (!event.composedPath().some(element => element === this._preselectedBreadcrumb.element())) {
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
       return;
     }
     if (event.shiftKey || event.metaKey || event.ctrlKey) {

@@ -78,11 +78,7 @@ export class CSSShadowEditor extends UI.VBox {
    * @return {!Element}
    */
   _createSlider(field) {
-<<<<<<< HEAD
-    const slider = UI.createSlider(0, InlineEditor.CSSShadowEditor.maxRange, -1);
-=======
     const slider = UI.createSlider(0, maxRange, -1);
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     slider.addEventListener('input', this._onSliderInput.bind(this), false);
     field.appendChild(slider);
     return slider;

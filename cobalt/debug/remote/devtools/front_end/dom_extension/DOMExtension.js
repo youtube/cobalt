@@ -316,14 +316,9 @@ Node.prototype.hasSelection = function() {
   if (this instanceof Element) {
     const slots = this.querySelectorAll('slot');
     for (const slot of slots) {
-<<<<<<< HEAD
-      if (Array.prototype.some.call(slot.assignedNodes(), node => node.hasSelection()))
-        return true;
-=======
       if (Array.prototype.some.call(slot.assignedNodes(), node => node.hasSelection())) {
         return true;
       }
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     }
   }
 
@@ -355,15 +350,9 @@ Element.prototype.removeChildren = function() {
  * @suppress {checkTypes}
  * @suppressGlobalPropertiesCheck
  */
-<<<<<<< HEAD
-function createElement(tagName, customElementType) {
-  return document.createElement(tagName, {is: customElementType});
-}
-=======
 self.createElement = function(tagName, customElementType) {
   return document.createElement(tagName, {is: customElementType});
 };
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
 
 /**
  * @param {number|string} data
@@ -383,11 +372,7 @@ self.createTextNode = function(data) {
  */
 Document.prototype.createElementWithClass = function(elementName, className, customElementType) {
   const element = this.createElement(elementName, {is: customElementType});
-<<<<<<< HEAD
-  if (className)
-=======
   if (className) {
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     element.className = className;
   }
   return element;
@@ -760,14 +745,9 @@ Node.prototype.traverseNextNode = function(stayWithin) {
    * @return {?Node}
    */
   function nextSibling(node) {
-<<<<<<< HEAD
-    if (!node.assignedSlot)
-      return node.nextSibling;
-=======
     if (!node.assignedSlot) {
       return node.nextSibling;
     }
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     const distributedNodes = node.assignedSlot.assignedNodes();
 
     const position = Array.prototype.indexOf.call(distributedNodes, node);

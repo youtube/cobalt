@@ -55,11 +55,7 @@ export default class Tooltip {
   _mouseMove(event) {
     const mouseEvent = /** @type {!MouseEvent} */ (event);
     const path = mouseEvent.composedPath();
-<<<<<<< HEAD
-    if (!path || mouseEvent.buttons !== 0 || (mouseEvent.movementX === 0 && mouseEvent.movementY === 0))
-=======
     if (!path || mouseEvent.buttons !== 0 || (mouseEvent.movementX === 0 && mouseEvent.movementY === 0)) {
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
       return;
     }
 
@@ -68,13 +64,7 @@ export default class Tooltip {
     }
 
     for (const element of path) {
-<<<<<<< HEAD
-      // The offsetParent is null when the element or an ancestor has 'display: none'.
-      if (!(element instanceof Element) || element === this._anchorElement ||
-          (element.nodeName !== 'SLOT' && element.offsetParent === null)) {
-=======
       if (element === this._anchorElement) {
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
         return;
       }
       // The offsetParent is null when the element or an ancestor has 'display: none'.
