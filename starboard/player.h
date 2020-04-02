@@ -352,17 +352,10 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 //   This can be set to |kSbMediaVideoCodecNone| to play a video with only an
 //   audio track.
 //
-// |audio_codec|: The audio codec used for the player. The value should never
-//   be |kSbMediaAudioCodecNone|. In addition, the caller must provide a
-//   populated |audio_sample_info| if the audio codec is
-//   |kSbMediaAudioCodecAac|.
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
-    SB_HAS(AUDIOLESS_VIDEO)
-//   If |kSbHasAudiolessVideo| is |true| or SB_HAS(AUDIOLESS_VIDEO), this can
-//   be set to |kSbMediaAudioCodecNone| to play a video without any audio
+// |audio_codec|: The audio codec used for the player. The caller must provide a
+//   populated |audio_sample_info| if audio codec is |kSbMediaAudioCodecAac|.
+//   Can be set to |kSbMediaAudioCodecNone| to play a video without any audio
 //   track.  In such case |audio_sample_info| must be NULL.
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
-        // SB_HAS(AUDIOLESS_VIDEO)
 //
 // |drm_system|: If the media stream has encrypted portions, then this
 //   parameter provides an appropriate DRM system, created with
@@ -370,18 +363,26 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 //   then |drm_system| may be |kSbDrmSystemInvalid|.
 //
 #if SB_API_VERSION < 11
+//
 // |audio_header|: |audio_header| is same as |audio_sample_info| in old
-// starboard version.
+//   starboard version. When |audio_codec| is |kSbMediaAudioCodecNone|, this
+//   must be set to NULL.
+//
 #else   // SB_API_VERSION < 11
+//
 // |audio_sample_info|: Note that the caller must provide a populated
 //   |audio_sample_info| if the audio codec is |kSbMediaAudioCodecAac|.
 //   Otherwise, |audio_sample_info| can be NULL. See media.h for the format of
 //   the |SbMediaAudioSampleInfo| struct.
+//
 #endif  // SB_API_VERSION < 11
+//
 //   Note that |audio_specific_config| is a pointer and the content it points to
 //   is no longer valid after this function returns.  The implementation has to
 //   make a copy of the content if it is needed after the function returns.
+//
 #if SB_API_VERSION >= 11
+//
 // |max_video_capabilities|: This string communicates the max video capabilities
 //   required to the platform. The web app will not provide a video stream
 //   exceeding the maximums described by this parameter. Allows the platform to
@@ -393,12 +394,7 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 //   second higher than 15 fps. When the maximums are unknown, this will be set
 //   to NULL.
 #endif  // SB_API_VERSION >= 11
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
-    SB_HAS(AUDIOLESS_VIDEO)
-//   If |kSbHasAudiolessVideo| is |true| or SB_HAS(AUDIOLESS_VIDEO), when
-//   |audio_codec| is |kSbMediaAudioCodecNone|, this must be set to NULL.
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
-        // SB_HAS(AUDIOLESS_VIDEO)
+
 //
 // |sample_deallocator_func|: If not |NULL|, the player calls this function
 //   on an internal thread to free the sample buffers passed into

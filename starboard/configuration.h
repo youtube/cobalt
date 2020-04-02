@@ -905,8 +905,6 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
     "version 10 or later."
 #endif  // !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
 
-#define SB_HAS_AUDIOLESS_VIDEO 1
-
 #if !defined(SB_HAS_THREAD_PRIORITY_SUPPORT)
 #error "Your platform must define SB_HAS_THREAD_PRIORITY_SUPPORT."
 #endif

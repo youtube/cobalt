@@ -64,9 +64,6 @@ extern const bool kSbHasAc3Audio;
 // Specifies whether this platform updates audio frames asynchronously.
 extern const bool kSbHasAsyncAudioFramesReporting;
 
-// Allow playing audioless video.
-extern const bool kSbHasAudiolessVideo;
-
 // Specifies whether this platform has webm/vp9 support.  This should be set to
 // non-zero on platforms with webm/vp9 support.
 extern const bool kSbHasMediaWebmVp9Support;
