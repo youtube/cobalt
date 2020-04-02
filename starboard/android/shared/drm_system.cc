@@ -291,6 +291,27 @@ DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
   return kSuccess;
 }
 
+const void* DrmSystem::GetMetrics(int* size) {
+  JniEnvExt* env = JniEnvExt::Get();
+  jbyteArray j_metrics = static_cast<jbyteArray>(env->CallObjectMethodOrAbort(
+      j_media_drm_bridge_, "getMetricsInBase64", "()[B"));
+
+  if (!j_metrics) {
+    *size = 0;
+    return nullptr;
+  }
+
+  jbyte* metrics_elements = env->GetByteArrayElements(j_metrics, NULL);
+  jsize metrics_size = env->GetArrayLength(j_metrics);
+  SB_DCHECK(metrics_elements);
+
+  metrics_.assign(metrics_elements, metrics_elements + metrics_size);
+
+  env->ReleaseByteArrayElements(j_metrics, metrics_elements, JNI_ABORT);
+  *size = static_cast<int>(metrics_.size());
+  return metrics_.data();
+}
+
 void DrmSystem::CallUpdateRequestCallback(int ticket,
                                           SbDrmSessionRequestType request_type,
                                           const void* session_id,

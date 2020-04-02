@@ -360,6 +360,7 @@
         '<(DEPTH)/starboard/shared/starboard/drm/drm_close_session.cc',
         '<(DEPTH)/starboard/shared/starboard/drm/drm_destroy_system.cc',
         '<(DEPTH)/starboard/shared/starboard/drm/drm_generate_session_update_request.cc',
+        '<(DEPTH)/starboard/shared/starboard/drm/drm_get_metrics.cc',
         '<(DEPTH)/starboard/shared/starboard/drm/drm_is_server_certificate_updatable.cc',
         '<(DEPTH)/starboard/shared/starboard/drm/drm_system_internal.h',
         '<(DEPTH)/starboard/shared/starboard/drm/drm_update_server_certificate.cc',

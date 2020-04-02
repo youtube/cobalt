@@ -366,6 +366,31 @@ SB_EXPORT void SbDrmUpdateServerCertificate(SbDrmSystem drm_system,
                                             const void* certificate,
                                             int certificate_size);
 
+#if SB_API_VERSION >= 12
+// Get the metrics of the underlying drm system.
+//
+// When it is called on an implementation that supports drm system metrics, it
+// should return a pointer containing the metrics as a blob, encoded using url
+// safe base64 without padding and line wrapping, with the size of the encoded
+// result in |size| on return. For example, on Android API level 28 or later, it
+// should return the result of MediaDrm.getPropertyByteArray("metrics"), encoded
+// using url safe base64 without padding and line wrapping. On systems using
+// Widevine CE CDM with oemcrypto 16 or later, it should return the metrics
+// retrieved via Cdm::getMetrics(), encoded using url safe base64 without
+// padding and line wrapping.  The returned pointer should remain valid and its
+// content should remain unmodified until the next time this function is called
+// on the associated |drm_system| or the |drm_system| is destroyed.
+//
+// When the metrics is empty on supported system, it should return a non-null
+// pointer with |size| set to 0.
+//
+// It should return NULL when there is no metrics support in the underlying drm
+// system, or when the drm system implementation fails to retrieve the metrics.
+//
+// The caller will never set |size| to NULL.
+SB_EXPORT const void* SbDrmGetMetrics(SbDrmSystem drm_system, int* size);
+#endif  // SB_API_VERSION >= 12
+
 // Destroys |drm_system|, which implicitly removes all keys installed in it and
 // invalidates all outstanding session update requests. A DRM system cannot be
 // destroyed unless any associated SbPlayer or SbDecoder has first been

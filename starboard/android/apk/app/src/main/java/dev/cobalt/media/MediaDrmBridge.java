@@ -29,6 +29,7 @@ import android.media.MediaDrmException;
 import android.media.NotProvisionedException;
 import android.media.UnsupportedSchemeException;
 import android.os.Build;
+import android.util.Base64;
 import androidx.annotation.RequiresApi;
 import dev.cobalt.coat.CobaltHttpHelper;
 import dev.cobalt.util.Log;
@@ -344,6 +345,21 @@ public class MediaDrmBridge {
     }
     mSessionIds.remove(ByteBuffer.wrap(sessionId));
     Log.d(TAG, String.format("Session %s closed", bytesToHexString(sessionId)));
+  }
+
+  @UsedByNative
+  byte[] getMetricsInBase64() {
+    if (Build.VERSION.SDK_INT < 28) {
+      return null;
+    }
+    byte[] metrics;
+    try {
+      metrics = mMediaDrm.getPropertyByteArray("metrics");
+    } catch (Exception e) {
+      Log.e(TAG, "Failed to retrieve DRM Metrics.");
+      return null;
+    }
+    return Base64.encode(metrics, Base64.NO_PADDING | Base64.NO_WRAP | Base64.URL_SAFE);
   }
 
   @UsedByNative
