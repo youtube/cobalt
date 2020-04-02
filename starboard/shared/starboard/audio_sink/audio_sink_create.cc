@@ -72,6 +72,7 @@ SbAudioSink SbAudioSinkCreate(
 
   auto audio_sink_type = SbAudioSinkPrivate::GetPreferredType();
   if (!audio_sink_type) {
+    SB_LOG(WARNING) << "Preferred Sink Type is invalid.";
     return kSbAudioSinkInvalid;
   }
   SbAudioSink audio_sink = audio_sink_type->Create(
@@ -88,6 +89,7 @@ SbAudioSink SbAudioSinkCreate(
   audio_sink_type->Destroy(audio_sink);
   auto fallback_audio_sink_type = SbAudioSinkPrivate::GetFallbackType();
   if (!fallback_audio_sink_type) {
+    SB_LOG(WARNING) << "Fallback Sink Type is invalid.";
     return kSbAudioSinkInvalid;
   }
   audio_sink = fallback_audio_sink_type->Create(
