@@ -1,0 +1,21 @@
+name: "linux-syscall-support"
+description:
+  "Linux Syscall Support allows for direct Linux system calls required for "
+  "Crashpad."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/third_party/linux-syscall-support_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://chromium.googlesource.com/linux-syscall-support"
+  }
+  version: "fd00dbbd0c06a309c657d89e9430143b179ff6db"
+  last_upgrade_date {
+    year: 2020
+    month: 3
+    day: 11
+  }
+}
