@@ -13,6 +13,12 @@
 # limitations under the License.
 
 {
+  'variables': {
+    'variables': {
+      'sb_evergreen_compatible': '<!(python <(DEPTH)/build/file_exists.py <(DEPTH)/starboard/elf_loader/evergreen_info.gyp)',
+    },
+  },
+
   'target_defaults': {
     'default_configuration': 'raspi-2_debug',
     'configurations': {
