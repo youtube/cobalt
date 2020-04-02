@@ -734,13 +734,8 @@ export function asyncStackTraceLabel(description) {
 /**
  * @param {!Element} element
  */
-<<<<<<< HEAD
-UI.installComponentRootStyles = function(element) {
-  UI._injectCoreStyles(element);
-=======
 export function installComponentRootStyles(element) {
   _injectCoreStyles(element);
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   element.classList.add('platform-' + Host.platform());
 
   // Detect overlay scrollbar enable by checking for nonzero scrollbar width.
@@ -777,14 +772,6 @@ export function measuredScrollbarWidth(document) {
  * @param {boolean=} delegatesFocus
  * @return {!DocumentFragment}
  */
-<<<<<<< HEAD
-UI.createShadowRootWithCoreStyles = function(element, cssFile, delegatesFocus) {
-  const shadowRoot = element.attachShadow({mode: 'open', delegatesFocus});
-  UI._injectCoreStyles(shadowRoot);
-  if (cssFile)
-    UI.appendStyle(shadowRoot, cssFile);
-  shadowRoot.addEventListener('focus', UI._focusChanged.bind(UI), true);
-=======
 export function createShadowRootWithCoreStyles(element, cssFile, delegatesFocus) {
   const shadowRoot = element.attachShadow({mode: 'open', delegatesFocus});
   _injectCoreStyles(shadowRoot);
@@ -792,7 +779,6 @@ export function createShadowRootWithCoreStyles(element, cssFile, delegatesFocus)
     appendStyle(shadowRoot, cssFile);
   }
   shadowRoot.addEventListener('focus', _focusChanged.bind(UI), true);
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   return shadowRoot;
 }
 
@@ -805,16 +791,6 @@ function _injectCoreStyles(root) {
   UI.themeSupport.injectHighlightStyleSheets(root);
   UI.themeSupport.injectCustomStyleSheets(root);
 }
-
-/**
- * @param {!Element|!ShadowRoot} root
- */
-UI._injectCoreStyles = function(root) {
-  UI.appendStyle(root, 'ui/inspectorCommon.css');
-  UI.appendStyle(root, 'ui/textButton.css');
-  UI.themeSupport.injectHighlightStyleSheets(root);
-  UI.themeSupport.injectCustomStyleSheets(root);
-};
 
 /**
  * @param {!Document} document
@@ -1329,11 +1305,7 @@ export function beautifyFunctionName(name) {
  * @return {function()}
  * @suppressGlobalPropertiesCheck
  */
-<<<<<<< HEAD
-UI.registerCustomElement = function(localName, typeExtension, definition) {
-=======
 export function registerCustomElement(localName, typeExtension, definition) {
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   self.customElements.define(typeExtension, class extends definition {
     constructor() {
       super();
@@ -1342,11 +1314,7 @@ export function registerCustomElement(localName, typeExtension, definition) {
     }
   }, {extends: localName});
   return () => createElement(localName, typeExtension);
-<<<<<<< HEAD
-};
-=======
 }
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
 
 /**
  * @param {string} text
@@ -1355,27 +1323,16 @@ export function registerCustomElement(localName, typeExtension, definition) {
  * @param {boolean=} primary
  * @return {!Element}
  */
-<<<<<<< HEAD
-UI.createTextButton = function(text, clickHandler, className, primary) {
-  const element = createElementWithClass('button', className || '');
-  element.textContent = text;
-  element.classList.add('text-button');
-  if (primary)
-=======
 export function createTextButton(text, clickHandler, className, primary) {
   const element = createElementWithClass('button', className || '');
   element.textContent = text;
   element.classList.add('text-button');
   if (primary) {
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     element.classList.add('primary-button');
   }
   if (clickHandler) {
     element.addEventListener('click', clickHandler, false);
-<<<<<<< HEAD
-=======
   }
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   element.type = 'button';
   return element;
 }
@@ -1417,11 +1374,7 @@ export function createLabel(title, className, associatedControl) {
  * @param {boolean=} checked
  * @return {!Element}
  */
-<<<<<<< HEAD
-UI.createRadioLabel = function(name, title, checked) {
-=======
 export function createRadioLabel(name, title, checked) {
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   const element = createElement('span', 'dt-radio');
   element.radioElement.name = name;
   element.radioElement.checked = !!checked;
@@ -1434,11 +1387,7 @@ export function createRadioLabel(name, title, checked) {
  * @param {string} iconClass
  * @return {!Element}
  */
-<<<<<<< HEAD
-UI.createLabel = function(title, iconClass) {
-=======
 export function createIconLabel(title, iconClass) {
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   const element = createElement('span', 'dt-icon-label');
   element.createChild('span').textContent = title;
   element.type = iconClass;
@@ -1451,11 +1400,7 @@ export function createIconLabel(title, iconClass) {
  * @param {number} max
  * @param {number} tabIndex
  */
-<<<<<<< HEAD
-UI.createSlider = function(min, max, tabIndex) {
-=======
 export function createSlider(min, max, tabIndex) {
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   const element = createElement('span', 'dt-slider');
   element.sliderElement.min = min;
   element.sliderElement.max = max;
@@ -1486,11 +1431,7 @@ export function appendStyle(node, cssFile) {
   }
 }
 
-<<<<<<< HEAD
-UI.CheckboxLabel = class extends HTMLSpanElement {
-=======
 export class CheckboxLabel extends HTMLSpanElement {
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   constructor() {
     super();
     /** @type {!DocumentFragment} */
@@ -1499,15 +1440,9 @@ export class CheckboxLabel extends HTMLSpanElement {
     this.checkboxElement;
     /** @type {!Element} */
     this.textElement;
-<<<<<<< HEAD
-    UI.CheckboxLabel._lastId = (UI.CheckboxLabel._lastId || 0) + 1;
-    const id = 'ui-checkbox-label' + UI.CheckboxLabel._lastId;
-    this._shadowRoot = UI.createShadowRootWithCoreStyles(this, 'ui/checkboxTextLabel.css');
-=======
     CheckboxLabel._lastId = (CheckboxLabel._lastId || 0) + 1;
     const id = 'ui-checkbox-label' + CheckboxLabel._lastId;
     this._shadowRoot = createShadowRootWithCoreStyles(this, 'ui/checkboxTextLabel.css');
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     this.checkboxElement = /** @type {!HTMLInputElement} */ (this._shadowRoot.createChild('input'));
     this.checkboxElement.type = 'checkbox';
     this.checkboxElement.setAttribute('id', id);
@@ -1523,16 +1458,10 @@ export class CheckboxLabel extends HTMLSpanElement {
    * @return {!CheckboxLabel}
    */
   static create(title, checked, subtitle) {
-<<<<<<< HEAD
-    if (!UI.CheckboxLabel._constructor)
-      UI.CheckboxLabel._constructor = UI.registerCustomElement('span', 'dt-checkbox', UI.CheckboxLabel);
-    const element = /** @type {!UI.CheckboxLabel} */ (UI.CheckboxLabel._constructor());
-=======
     if (!CheckboxLabel._constructor) {
       CheckboxLabel._constructor = registerCustomElement('span', 'dt-checkbox', CheckboxLabel);
     }
     const element = /** @type {!CheckboxLabel} */ (CheckboxLabel._constructor());
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     element.checkboxElement.checked = !!checked;
     if (title !== undefined) {
       element.textElement.textContent = title;
@@ -1575,11 +1504,7 @@ export class CheckboxLabel extends HTMLSpanElement {
 
 (function() {
 let labelId = 0;
-<<<<<<< HEAD
-UI.registerCustomElement('span', 'dt-radio', class extends HTMLSpanElement {
-=======
 registerCustomElement('span', 'dt-radio', class extends HTMLSpanElement {
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   constructor() {
     super();
     this.radioElement = this.createChild('input', 'dt-radio-button');
@@ -1589,11 +1514,7 @@ registerCustomElement('span', 'dt-radio', class extends HTMLSpanElement {
     this.radioElement.id = id;
     this.radioElement.type = 'radio';
     this.labelElement.htmlFor = id;
-<<<<<<< HEAD
-    const root = UI.createShadowRootWithCoreStyles(this, 'ui/radioButton.css');
-=======
     const root = createShadowRootWithCoreStyles(this, 'ui/radioButton.css');
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     root.createChild('slot');
     this.addEventListener('click', radioClickHandler, false);
   }
@@ -1605,29 +1526,17 @@ registerCustomElement('span', 'dt-radio', class extends HTMLSpanElement {
    * @this {Element}
    */
 function radioClickHandler(event) {
-<<<<<<< HEAD
-  if (this.radioElement.checked || this.radioElement.disabled)
-    return;
-=======
   if (this.radioElement.checked || this.radioElement.disabled) {
     return;
   }
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   this.radioElement.checked = true;
   this.radioElement.dispatchEvent(new Event('change'));
 }
 
-<<<<<<< HEAD
-UI.registerCustomElement('span', 'dt-icon-label', class extends HTMLSpanElement {
-  constructor() {
-    super();
-    const root = UI.createShadowRootWithCoreStyles(this);
-=======
 registerCustomElement('span', 'dt-icon-label', class extends HTMLSpanElement {
   constructor() {
     super();
     const root = createShadowRootWithCoreStyles(this);
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     this._iconElement = UI.Icon.create();
     this._iconElement.style.setProperty('margin-right', '4px');
     root.appendChild(this._iconElement);
@@ -1643,17 +1552,10 @@ registerCustomElement('span', 'dt-icon-label', class extends HTMLSpanElement {
   }
 });
 
-<<<<<<< HEAD
-UI.registerCustomElement('span', 'dt-slider', class extends HTMLSpanElement {
-  constructor() {
-    super();
-    const root = UI.createShadowRootWithCoreStyles(this, 'ui/slider.css');
-=======
 registerCustomElement('span', 'dt-slider', class extends HTMLSpanElement {
   constructor() {
     super();
     const root = createShadowRootWithCoreStyles(this, 'ui/slider.css');
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     this.sliderElement = createElementWithClass('input', 'dt-range-input');
     this.sliderElement.type = 'range';
     root.appendChild(this.sliderElement);
@@ -1675,17 +1577,10 @@ registerCustomElement('span', 'dt-slider', class extends HTMLSpanElement {
   }
 });
 
-<<<<<<< HEAD
-UI.registerCustomElement('span', 'dt-small-bubble', class extends HTMLSpanElement {
-  constructor() {
-    super();
-    const root = UI.createShadowRootWithCoreStyles(this, 'ui/smallBubble.css');
-=======
 registerCustomElement('span', 'dt-small-bubble', class extends HTMLSpanElement {
   constructor() {
     super();
     const root = createShadowRootWithCoreStyles(this, 'ui/smallBubble.css');
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     this._textElement = root.createChild('div');
     this._textElement.className = 'info';
     this._textElement.createChild('slot');
@@ -1700,13 +1595,6 @@ registerCustomElement('span', 'dt-small-bubble', class extends HTMLSpanElement {
   }
 });
 
-<<<<<<< HEAD
-UI.registerCustomElement('div', 'dt-close-button', class extends HTMLDivElement {
-  constructor() {
-    super();
-    const root = UI.createShadowRootWithCoreStyles(this, 'ui/closeButton.css');
-    this._buttonElement = root.createChild('div', 'close-button');
-=======
 registerCustomElement('div', 'dt-close-button', class extends HTMLDivElement {
   constructor() {
     super();
@@ -1714,7 +1602,6 @@ registerCustomElement('div', 'dt-close-button', class extends HTMLDivElement {
     this._buttonElement = root.createChild('div', 'close-button');
     UI.ARIAUtils.setAccessibleName(this._buttonElement, ls`Close`);
     UI.ARIAUtils.markAsButton(this._buttonElement);
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     const regularIcon = UI.Icon.create('smallicon-cross', 'default-icon');
     this._hoverIcon = UI.Icon.create('mediumicon-red-cross-hover', 'hover-icon');
     this._activeIcon = UI.Icon.create('mediumicon-red-cross-active', 'active-icon');
@@ -1736,8 +1623,6 @@ registerCustomElement('div', 'dt-close-button', class extends HTMLDivElement {
       this._activeIcon.setIconType('mediumicon-red-cross-active');
     }
   }
-<<<<<<< HEAD
-=======
 
   /**
    * @param {string} name
@@ -1758,7 +1643,6 @@ registerCustomElement('div', 'dt-close-button', class extends HTMLDivElement {
       this._buttonElement.tabIndex = -1;
     }
   }
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
 });
 })();
 

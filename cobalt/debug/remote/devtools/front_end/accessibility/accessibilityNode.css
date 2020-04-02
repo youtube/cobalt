@@ -35,13 +35,8 @@ span.ax-value-undefined {
 }
 
 .tree-outline span[is=dt-icon-label] {
-<<<<<<< HEAD
-    position: relative;
-    left: -11px;
-=======
   position: relative;
   left: -11px;
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
 }
 
 .tree-outline li {
@@ -66,11 +61,7 @@ span.ax-value-undefined {
 }
 
 .tree-outline span[is=dt-icon-label] + .ax-name {
-<<<<<<< HEAD
-    margin-left: -11px;
-=======
   margin-left: -11px;
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
 }
 
 .tree-outline li span {

@@ -24,22 +24,12 @@ export class ColorSwatch extends HTMLSpanElement {
    * @return {!ColorSwatch}
    */
   static create() {
-<<<<<<< HEAD
-    if (!InlineEditor.ColorSwatch._constructor) {
-      InlineEditor.ColorSwatch._constructor =
-          UI.registerCustomElement('span', 'color-swatch', InlineEditor.ColorSwatch);
-    }
-
-
-    return /** @type {!InlineEditor.ColorSwatch} */ (InlineEditor.ColorSwatch._constructor());
-=======
     if (!ColorSwatch._constructor) {
       ColorSwatch._constructor = UI.registerCustomElement('span', 'color-swatch', ColorSwatch);
     }
 
 
     return /** @type {!ColorSwatch} */ (ColorSwatch._constructor());
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   }
 
   /**
@@ -184,22 +174,12 @@ export class BezierSwatch extends HTMLSpanElement {
    * @return {!BezierSwatch}
    */
   static create() {
-<<<<<<< HEAD
-    if (!InlineEditor.BezierSwatch._constructor) {
-      InlineEditor.BezierSwatch._constructor =
-          UI.registerCustomElement('span', 'bezier-swatch', InlineEditor.BezierSwatch);
-    }
-
-
-    return /** @type {!InlineEditor.BezierSwatch} */ (InlineEditor.BezierSwatch._constructor());
-=======
     if (!BezierSwatch._constructor) {
       BezierSwatch._constructor = UI.registerCustomElement('span', 'bezier-swatch', BezierSwatch);
     }
 
 
     return /** @type {!BezierSwatch} */ (BezierSwatch._constructor());
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   }
 
   /**
@@ -229,11 +209,7 @@ export class BezierSwatch extends HTMLSpanElement {
   iconElement() {
     return this._iconElement;
   }
-<<<<<<< HEAD
-};
-=======
 }
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
 
 /**
  * @unrestricted
@@ -252,20 +228,11 @@ export class CSSShadowSwatch extends HTMLSpanElement {
    * @return {!CSSShadowSwatch}
    */
   static create() {
-<<<<<<< HEAD
-    if (!InlineEditor.CSSShadowSwatch._constructor) {
-      InlineEditor.CSSShadowSwatch._constructor =
-          UI.registerCustomElement('span', 'css-shadow-swatch', InlineEditor.CSSShadowSwatch);
-    }
-
-    return /** @type {!InlineEditor.CSSShadowSwatch} */ (InlineEditor.CSSShadowSwatch._constructor());
-=======
     if (!CSSShadowSwatch._constructor) {
       CSSShadowSwatch._constructor = UI.registerCustomElement('span', 'css-shadow-swatch', CSSShadowSwatch);
     }
 
     return /** @type {!CSSShadowSwatch} */ (CSSShadowSwatch._constructor());
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   }
 
   /**
@@ -316,9 +283,6 @@ export class CSSShadowSwatch extends HTMLSpanElement {
   colorSwatch() {
     return this._colorSwatch;
   }
-<<<<<<< HEAD
-};
-=======
 }
 
 /* Legacy exported object */
@@ -335,4 +299,3 @@ InlineEditor.BezierSwatch = BezierSwatch;
 
 /** @constructor */
 InlineEditor.CSSShadowSwatch = CSSShadowSwatch;
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02

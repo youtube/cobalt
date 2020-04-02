@@ -85,13 +85,10 @@
     user-select: text;
 }
 
-<<<<<<< HEAD
-=======
 .panel.network .toolbar.network-summary-bar {
     border-bottom: 0px;
 }
 
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
 .network-summary-bar span[is=dt-icon-label] {
     margin-right: 6px;
 }

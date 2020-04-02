@@ -22,10 +22,7 @@ export default class SoftDropDown {
     this._titleElement = this.element.createChild('span', 'title');
     const dropdownArrowIcon = UI.Icon.create('smallicon-triangle-down');
     this.element.appendChild(dropdownArrowIcon);
-<<<<<<< HEAD
-=======
     UI.ARIAUtils.setExpanded(this.element, false);
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
 
     this._glassPane = new UI.GlassPane();
     this._glassPane.setMarginBehavior(UI.GlassPane.MarginBehavior.NoMargin);

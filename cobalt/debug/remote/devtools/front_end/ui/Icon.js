@@ -2,21 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-<<<<<<< HEAD
-UI.Icon = class extends HTMLSpanElement {
-  constructor() {
-    super();
-    /** @type {?UI.Icon.Descriptor} */
-    this._descriptor = null;
-    /** @type {?UI.Icon.SpriteSheet} */
-=======
 export default class Icon extends HTMLSpanElement {
   constructor() {
     super();
     /** @type {?Icon.Descriptor} */
     this._descriptor = null;
     /** @type {?Icon.SpriteSheet} */
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     this._spriteSheet = null;
     /** @type {string} */
     this._iconType = '';
@@ -28,20 +19,12 @@ export default class Icon extends HTMLSpanElement {
    * @return {!Icon}
    */
   static create(iconType, className) {
-<<<<<<< HEAD
-    if (!UI.Icon._constructor)
-      UI.Icon._constructor = UI.registerCustomElement('span', 'ui-icon', UI.Icon);
-
-    const icon = /** @type {!UI.Icon} */ (UI.Icon._constructor());
-    if (className)
-=======
     if (!Icon._constructor) {
       Icon._constructor = UI.registerCustomElement('span', 'ui-icon', Icon);
     }
 
     const icon = /** @type {!Icon} */ (Icon._constructor());
     if (className) {
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
       icon.className = className;
     }
     if (iconType) {

@@ -118,8 +118,7 @@
             "settingName": "disablePausedStateOverlay",
             "settingType": "boolean",
             "defaultValue": false
-        },
-<<<<<<< HEAD
+        }
         // {
         //     "type": "view",
         //     "location": "drawer-view",
@@ -128,40 +127,16 @@
         //     "persistence": "closeable",
         //     "order": 50,
         //     "className": "InspectorMain.RenderingOptionsView"
-        // },
-        // {
-        //     "type": "action",
-        //     "category": "Mobile",
-        //     "actionId": "components.request-app-banner",
-        //     "className": "InspectorMain.RequestAppBannerActionDelegate",
-        //     "title": "Add to homescreen"
         // }
-=======
-        {
-            "type": "view",
-            "location": "drawer-view",
-            "id": "rendering",
-            "title": "Rendering",
-            "persistence": "closeable",
-            "order": 50,
-            "className": "InspectorMain.RenderingOptionsView"
-        }
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     ],
     "dependencies": [
         "components",
         "mobile_throttling"
     ],
-<<<<<<< HEAD
-    "scripts": [
-        // "RenderingOptions.js",
-        "RequestAppBannerActionDelegate.js",
-=======
     "scripts": [],
     "modules": [
         "inspector_main.js",
-        "RenderingOptions.js",
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
+        // "RenderingOptions.js",
         "InspectorMain.js"
     ],
     "resources": [
