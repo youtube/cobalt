@@ -9,7 +9,7 @@
     // { "name": "audits" },
     { "name": "browser_debugger" },
     { "name": "css_overview" },
-    // { "name": "cookie_table" },
+    { "name": "cookie_table" },
     // { "name": "dagre_layout", "type": "remote" },
     // { "name": "devices" },
     { "name": "elements" },
