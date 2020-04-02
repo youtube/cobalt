@@ -104,6 +104,9 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbDrmCreateSystem);
   REGISTER_SYMBOL(SbDrmDestroySystem);
   REGISTER_SYMBOL(SbDrmGenerateSessionUpdateRequest);
+#if SB_API_VERSION >= 12
+  REGISTER_SYMBOL(SbDrmGetMetrics);
+#endif  // SB_API_VERSION >= 12
   REGISTER_SYMBOL(SbDrmUpdateSession);
   REGISTER_SYMBOL(SbEventCancel);
   REGISTER_SYMBOL(SbEventSchedule);

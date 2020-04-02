@@ -143,6 +143,7 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
   void UpdateServerCertificate(
       const uint8_t* certificate, int certificate_size,
       ServerCertificateUpdatedCallback server_certificate_updated_callback);
+  bool GetMetrics(std::vector<uint8_t>* metrics);
 
  private:
   // Stores context of |GenerateSessionUpdateRequest|.

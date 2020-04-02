@@ -15,6 +15,7 @@
 #include "cobalt/dom/eme/media_keys.h"
 
 #include "base/bind.h"
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/eme/eme_helpers.h"
 #include "cobalt/dom/eme/media_key_session.h"
@@ -26,7 +27,7 @@ namespace eme {
 MediaKeys::MediaKeys(script::EnvironmentSettings* settings,
                      const scoped_refptr<media::DrmSystem>& drm_system,
                      script::ScriptValueFactory* script_value_factory)
-    : settings_(settings),
+    : dom_settings_(base::polymorphic_downcast<DOMSettings*>(settings)),
       script_value_factory_(script_value_factory),
       drm_system_(drm_system) {
   SB_DCHECK(drm_system_->is_valid())
@@ -48,7 +49,7 @@ scoped_refptr<MediaKeySession> MediaKeys::CreateSession(
   // |MediaKeys| are passed to |MediaKeySession| as weak pointer because the
   // order of destruction is not guaranteed due to JavaScript memory management.
   scoped_refptr<MediaKeySession> session(new MediaKeySession(
-      settings_, drm_system_, script_value_factory_,
+      dom_settings_, drm_system_, script_value_factory_,
       base::Bind(&MediaKeys::OnSessionClosed, AsWeakPtr())));
   open_sessions_.push_back(session);
   return session;
@@ -93,6 +94,17 @@ MediaKeys::BoolPromiseHandle MediaKeys::SetServerCertificate(
   // 5.3 and 5.4 are pending processing in OnServerCertificateUpdated().
   // 6. Return promise.
   return promise;
+}
+
+script::Handle<script::Uint8Array> MediaKeys::GetMetrics(
+    script::ExceptionState* exception_state) {
+  std::vector<uint8_t> metrics;
+  if (drm_system_->GetMetrics(&metrics)) {
+    return script::Uint8Array::New(dom_settings_->global_environment(),
+                                   metrics.data(), metrics.size());
+  }
+  DOMException::Raise(DOMException::kNotSupportedErr, exception_state);
+  return script::Handle<script::Uint8Array>();
 }
 
 void MediaKeys::OnSessionClosed(MediaKeySession* session) {

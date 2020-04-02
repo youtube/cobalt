@@ -118,6 +118,7 @@
         'double_is_finite_test.cc',
         'double_is_nan_test.cc',
         'drm_create_system_test.cc',
+        'drm_get_metrics_test.cc',
         'drm_helpers.cc',
         'drm_helpers.h',
         'drm_is_server_certificate_updatable_test.cc',

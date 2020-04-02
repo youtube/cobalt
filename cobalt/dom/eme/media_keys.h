@@ -21,11 +21,13 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/dom/buffer_source.h"
+#include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/eme/media_key_session.h"
 #include "cobalt/dom/eme/media_key_session_type.h"
 #include "cobalt/media/base/drm_system.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/script_value_factory.h"
+#include "cobalt/script/typed_arrays.h"
 #include "cobalt/script/wrappable.h"
 #include "starboard/drm.h"
 
@@ -56,6 +58,8 @@ class MediaKeys : public script::Wrappable,
       script::ExceptionState* exception_state);
   BoolPromiseHandle SetServerCertificate(
       const BufferSource& server_certificate);
+  script::Handle<script::Uint8Array> GetMetrics(
+      script::ExceptionState* exception_state);
 
   DEFINE_WRAPPABLE_TYPE(MediaKeys);
   void TraceMembers(script::Tracer* tracer) override;
@@ -68,7 +72,7 @@ class MediaKeys : public script::Wrappable,
       BoolPromiseValue::Reference* promise_reference, SbDrmStatus status,
       const std::string& error_message);
 
-  script::EnvironmentSettings* settings_;
+  DOMSettings* dom_settings_;
   script::ScriptValueFactory* script_value_factory_;
   scoped_refptr<media::DrmSystem> drm_system_;
 
