@@ -85,6 +85,8 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
                                const void* certificate,
                                int certificate_size) override;
 
+  const void* GetMetrics(int* size) override { return NULL; }
+
  private:
   // Stores the data necessary to call GenerateSessionUpdateRequestInternal().
   struct GenerateSessionUpdateRequestData {

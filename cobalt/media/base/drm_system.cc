@@ -140,6 +140,32 @@ void DrmSystem::UpdateServerCertificate(
                                certificate_size);
 }
 
+bool DrmSystem::GetMetrics(std::vector<uint8_t>* metrics) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(metrics);
+
+#if SB_API_VERSION < 12
+
+  return false;
+
+#else  // SB_API_VERSION < 12
+
+  int size = 0;
+  const uint8_t* raw_metrics =
+      static_cast<const uint8_t*>(SbDrmGetMetrics(wrapped_drm_system_, &size));
+  if (!raw_metrics) {
+    return false;
+  }
+  SB_DCHECK(size >= 0);
+  if (size < 0) {
+    return false;
+  }
+  metrics->assign(raw_metrics, raw_metrics + size);
+  return true;
+
+#endif  // SB_API_VERSION < 12
+}
+
 void DrmSystem::GenerateSessionUpdateRequest(
     const base::WeakPtr<Session>& session, const std::string& type,
     const uint8_t* init_data, int init_data_length,

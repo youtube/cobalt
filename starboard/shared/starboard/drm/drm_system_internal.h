@@ -46,6 +46,8 @@ struct SbDrmSystemPrivate {
   virtual void UpdateServerCertificate(int ticket,
                                        const void* certificate,
                                        int certificate_size) = 0;
+
+  virtual const void* GetMetrics(int* size) = 0;
 };
 
 #endif  // STARBOARD_SHARED_STARBOARD_DRM_DRM_SYSTEM_INTERNAL_H_

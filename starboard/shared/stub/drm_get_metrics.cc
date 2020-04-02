@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2020 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/encrypted-media/#mediakeys-interface
+#include "starboard/drm.h"
 
-interface MediaKeys {
-  [RaisesException] MediaKeySession createSession(
-      optional MediaKeySessionType sessionType = "temporary");
-  Promise<boolean> setServerCertificate(BufferSource serverCertificate);
-  [RaisesException] Uint8Array getMetrics();
-};
+#if SB_API_VERSION >= 12
+
+const void* SbDrmGetMetrics(SbDrmSystem drm_system, int* size) {
+  if (size != NULL) {
+    *size = 0;
+  }
+
+  return NULL;
+}
+
+#endif  // SB_API_VERSION >= 12

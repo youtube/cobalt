@@ -87,6 +87,8 @@ class DrmSystemPlayready : public SbDrmSystemPrivate {
                                int certificate_size) override {
   }
 
+  const void* GetMetrics(int* size) override { return NULL; }
+
  private:
   std::string GenerateAndAdvanceSessionId();
   // Note: requires mutex_ to be held
