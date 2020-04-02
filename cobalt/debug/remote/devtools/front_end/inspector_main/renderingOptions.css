@@ -9,13 +9,8 @@
  }
 
 [is=dt-checkbox] {
-<<<<<<< HEAD
-    margin: 0px 0px 10px 0px;
-    flex: none;
-=======
   margin: 0 0 10px 0;
   flex: none;
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
 }
 
 .panel-section-separator {

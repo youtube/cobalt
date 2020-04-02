@@ -6,11 +6,7 @@ import {ComputedStyleModel, Events} from './ComputedStyleModel.js';
 /**
  * @unrestricted
  */
-<<<<<<< HEAD
-Elements.ElementsSidebarPane = class extends UI.VBox {
-=======
 export class ElementsSidebarPane extends UI.VBox {
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
   /**
    * @param {boolean=} delegatesFocus
    */

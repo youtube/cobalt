@@ -57,10 +57,7 @@ export default class WarningErrorCounter {
    */
   _createItem(shadowRoot, iconType) {
     const item = createElementWithClass('span', 'counter-item');
-<<<<<<< HEAD
-=======
     UI.ARIAUtils.markAsHidden(item);
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     const icon = item.createChild('span', '', 'dt-icon-label');
     icon.type = iconType;
     const text = icon.createChild('span');

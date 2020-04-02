@@ -10,7 +10,6 @@ Builds applications in debug mode:
 - Copies app.html as-is.
 """
 
-import json
 from os import path
 from os.path import join
 import os
@@ -37,22 +36,6 @@ def main(argv):
     with open(build_stamp_path, 'w') as file:
         file.write('stamp')
 
-<<<<<<< HEAD
-def copy_json_file(src, dest):
-    parsed_json = modular_build.load_and_parse_json(src)
-    with open(dest, 'wt') as output:
-        json.dump(parsed_json, output, indent=2, separators=(',', ': '),
-                  sort_keys=True)
-
-
-def symlink_or_copy_file(src, dest, safe=False):
-    if safe and path.exists(dest):
-        os.remove(dest)
-    if path.splitext(src)[1] == '.json':
-        copy_json_file(src, dest)
-    elif hasattr(os, 'symlink'):
-        os.symlink(src, dest)
-=======
 
 def symlink_dir_or_copy(src, dest):
     if hasattr(os, 'symlink'):
@@ -62,7 +45,6 @@ def symlink_dir_or_copy(src, dest):
             else:
                 shutil.rmtree(dest)
         os.symlink(join(os.getcwd(), src), dest)
->>>>>>> bc9bfbcd01448b108b9f2f03cc440b2b92016b02
     else:
         for filename in os.listdir(src):
             new_src = join(os.getcwd(), src, filename)
