@@ -1,0 +1,22 @@
+name: "mini_chromium"
+description:
+  "Mini Chromium can function as a stand alone environment outside of Chromium "
+  "without having to treat all of Chromium as a dependency. Crashpad is "
+  "dependent on mini_chromium."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/third_party/mini_chromium_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://chromium.googlesource.com/chromium/mini_chromium"
+  }
+  version: "731e08f0695801347a26d2b204d5c18f51c98282"
+  last_upgrade_date {
+    year: 2020
+    month: 3
+    day: 31
+  }
+}
