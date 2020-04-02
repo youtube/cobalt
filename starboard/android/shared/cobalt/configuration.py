@@ -60,6 +60,7 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
         # Disabled because of: Fail (Tests do not account for player with url?).
         ('csp/WebPlatformTest.Run/'
          'content_security_policy_media_src_media_src_allowed_html'),
+        ('websockets/WebPlatformTest.Run/websockets_*'),
 
         # Temporarily disable wpt on Android since it's not running correctly.
         test_filter.DISABLE_TESTING,
