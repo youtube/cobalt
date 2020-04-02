@@ -906,7 +906,7 @@
         "event_listeners",
         "object_ui",
         "formatter",
-        "coverage"
+        // "coverage"
     ],
     "scripts": [
         "AddSourceMapURLDialog.js",
