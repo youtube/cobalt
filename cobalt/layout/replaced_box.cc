@@ -35,6 +35,7 @@
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/image_node.h"
+#include "cobalt/render_tree/lottie_node.h"
 #include "cobalt/render_tree/map_to_mesh_filter.h"
 #include "cobalt/render_tree/punch_through_video_node.h"
 #include "cobalt/render_tree/rect_node.h"
@@ -46,6 +47,7 @@ namespace layout {
 using render_tree::CompositionNode;
 using render_tree::FilterNode;
 using render_tree::ImageNode;
+using render_tree::LottieNode;
 using render_tree::MapToMeshFilter;
 using render_tree::Node;
 using render_tree::PunchThroughVideoNode;
@@ -103,8 +105,8 @@ ReplacedBox::ReplacedBox(
     const base::Optional<LayoutUnit>& maybe_intrinsic_height,
     const base::Optional<float>& maybe_intrinsic_ratio,
     UsedStyleProvider* used_style_provider,
-    base::Optional<bool> is_video_punched_out, const math::SizeF& content_size,
-    LayoutStatTracker* layout_stat_tracker)
+    base::Optional<bool> is_video_punched_out, bool is_lottie,
+    const math::SizeF& content_size, LayoutStatTracker* layout_stat_tracker)
     : Box(css_computed_style_declaration, used_style_provider,
           layout_stat_tracker),
       maybe_intrinsic_width_(maybe_intrinsic_width),
@@ -118,6 +120,7 @@ ReplacedBox::ReplacedBox(
       paragraph_(paragraph),
       text_position_(text_position),
       is_video_punched_out_(is_video_punched_out),
+      is_lottie_(is_lottie),
       content_size_(content_size) {}
 
 WrapResult ReplacedBox::TryWrapAt(
@@ -282,6 +285,18 @@ void AnimateVideoWithLetterboxing(
   }
 }
 
+void AnimateLottie(const ReplacedBox::ReplaceImageCB& replace_image_cb,
+                   math::RectF destination_rect,
+                   LottieNode::Builder* node_builder,
+                   base::TimeDelta time_elapsed) {
+  scoped_refptr<render_tree::Image> animation = replace_image_cb.Run();
+  node_builder->animation =
+      base::polymorphic_downcast<render_tree::LottieAnimation*>(
+          animation.get());
+  node_builder->destination_rect = destination_rect;
+  node_builder->animation_time = time_elapsed;
+}
+
 }  // namespace
 
 void ReplacedBox::RenderAndAnimateContent(
@@ -292,6 +307,18 @@ void ReplacedBox::RenderAndAnimateContent(
   }
 
   if (replace_image_cb_.is_null()) {
+    return;
+  }
+
+  if (is_lottie_) {
+    AnimateNode::Builder animate_node_builder;
+    scoped_refptr<LottieNode> lottie_node =
+        new LottieNode(nullptr, math::RectF());
+    animate_node_builder.Add(lottie_node,
+                             base::Bind(&AnimateLottie, replace_image_cb_,
+                                        math::RectF(content_box_size())));
+    border_node_builder->AddChild(
+        new AnimateNode(animate_node_builder, lottie_node));
     return;
   }
 

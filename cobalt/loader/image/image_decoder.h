@@ -41,6 +41,7 @@ class ImageDecoder : public Decoder {
     kImageTypeInvalid,
     kImageTypeGIF,
     kImageTypeJPEG,
+    kImageTypeJSON,
     kImageTypePNG,
     kImageTypeWebP,
   };

@@ -68,6 +68,7 @@ class HTMLStyleElement;
 class HTMLTitleElement;
 class HTMLUnknownElement;
 class HTMLVideoElement;
+class LottiePlayer;
 
 // The enum PseudoElementType is used to track the type of pseudo element
 enum PseudoElementType {
@@ -226,6 +227,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   virtual scoped_refptr<HTMLTitleElement> AsHTMLTitleElement();
   virtual scoped_refptr<HTMLUnknownElement> AsHTMLUnknownElement();
   virtual scoped_refptr<HTMLVideoElement> AsHTMLVideoElement();
+  virtual scoped_refptr<LottiePlayer> AsLottiePlayer();
 
   // Returns the directionality of the element, which is based upon the
   // element's "dir" attribute if it was set, or that of the parent's if not
