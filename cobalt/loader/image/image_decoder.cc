@@ -23,6 +23,7 @@
 #include "cobalt/loader/image/dummy_gif_image_decoder.h"
 #include "cobalt/loader/image/image_decoder_starboard.h"
 #include "cobalt/loader/image/jpeg_image_decoder.h"
+#include "cobalt/loader/image/lottie_animation_decoder.h"
 #include "cobalt/loader/image/png_image_decoder.h"
 #include "cobalt/loader/image/stub_image_decoder.h"
 #include "cobalt/loader/image/webp_image_decoder.h"
@@ -57,6 +58,10 @@ ImageDecoder::ImageType DetermineImageType(const uint8* header) {
     return ImageDecoder::kImageTypeJPEG;
   } else if (!memcmp(header, "GIF87a", 6) || !memcmp(header, "GIF89a", 6)) {
     return ImageDecoder::kImageTypeGIF;
+  } else if (!memcmp(header, "{", 1)) {
+    // TODO: Improve heuristics for determining whether the file contains valid
+    // Lottie JSON.
+    return ImageDecoder::kImageTypeJSON;
   } else if (!memcmp(header, "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A", 8)) {
     return ImageDecoder::kImageTypePNG;
   } else if (!memcmp(header, "RIFF", 4) && !memcmp(header + 8, "WEBPVP", 6)) {
@@ -263,6 +268,8 @@ const char* GetMimeTypeFromImageType(ImageDecoder::ImageType image_type) {
       return "image/png";
     case ImageDecoder::kImageTypeGIF:
       return "image/gif";
+    case ImageDecoder::kImageTypeJSON:
+      return "application/json";
     case ImageDecoder::kImageTypeWebP:
       return "image/webp";
     case ImageDecoder::kImageTypeInvalid:
@@ -334,6 +341,9 @@ std::unique_ptr<ImageDataDecoder> CreateImageDecoderFromImageType(
   } else if (image_type == ImageDecoder::kImageTypeGIF) {
     return std::unique_ptr<ImageDataDecoder>(
         new DummyGIFImageDecoder(resource_provider));
+  } else if (image_type == ImageDecoder::kImageTypeJSON) {
+    return std::unique_ptr<ImageDataDecoder>(
+        new LottieAnimationDecoder(resource_provider));
   } else {
     return std::unique_ptr<ImageDataDecoder>();
   }

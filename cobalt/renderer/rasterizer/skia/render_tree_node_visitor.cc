@@ -718,7 +718,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::LottieNode* lottie_node) {
   skia::SkottieAnimation* animation =
       base::polymorphic_downcast<skia::SkottieAnimation*>(
           lottie_node->data().animation.get());
-  animation->SetAnimationTime(lottie_node->data().current_animation_time);
+  animation->SetAnimationTime(lottie_node->data().animation_time);
 
   sk_sp<skottie::Animation> skottie = animation->GetSkottieAnimation();
   SkCanvas* render_target = draw_state_.render_target;

@@ -56,6 +56,7 @@
 #include "cobalt/dom/html_title_element.h"
 #include "cobalt/dom/html_unknown_element.h"
 #include "cobalt/dom/html_video_element.h"
+#include "cobalt/dom/lottie_player.h"
 #include "cobalt/dom/rule_matching.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/loader/image/animated_image_tracker.h"
@@ -878,6 +879,8 @@ scoped_refptr<HTMLUnknownElement> HTMLElement::AsHTMLUnknownElement() {
 scoped_refptr<HTMLVideoElement> HTMLElement::AsHTMLVideoElement() {
   return NULL;
 }
+
+scoped_refptr<LottiePlayer> HTMLElement::AsLottiePlayer() { return NULL; }
 
 void HTMLElement::ClearRuleMatchingState() {
   ClearRuleMatchingStateInternal(true /*invalidate_descendants*/);
