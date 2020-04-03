@@ -160,7 +160,11 @@ void CrxDownloader::VerifyResponse(bool is_handled,
   // handling the error.
   result.error = static_cast<int>(CrxDownloaderError::BAD_HASH);
   download_metrics.error = result.error;
+#if defined(OS_STARBOARD)
+  base::DeleteFile(result.response, false);
+#else
   DeleteFileAndEmptyParentDirectory(result.response);
+#endif
   result.response.clear();
 
   main_task_runner()->PostTask(
