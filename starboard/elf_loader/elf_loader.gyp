@@ -21,8 +21,6 @@
         'elf_hash_table.cc',
         'elf_loader.h',
         'elf_loader.cc',
-        'elf_loader_shims.h',
-        'elf_loader_shims.cc',
         'elf_loader_switches.h',
         'elf_loader_switches.cc',
         'exported_symbols.cc',
@@ -56,6 +54,7 @@
         'src/src/',
       ],
       'dependencies': [
+        '<(DEPTH)/starboard/elf_loader/evergreen_config.gyp:evergreen_config',
         '<(DEPTH)/starboard/elf_loader/evergreen_info.gyp:evergreen_info',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
       ],
@@ -74,6 +73,7 @@
         'src/src/',
       ],
       'dependencies': [
+        '<(DEPTH)/starboard/elf_loader/evergreen_config.gyp:evergreen_config',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
       ],
       'sources': [
@@ -113,11 +113,11 @@
       # To properly function the system loader requires the starboard
       # symbols to be exported from the binary.
       # To allow symbols to be exported remove the '-fvisibility=hidden' flag
-      # from your compiler_flags.gypi.
+      # from your compiler_flags.gypi. For Linux this would be:
+      #   starboard/linux/shared/compiler_flags.gypi
       # Example run:
       # export LD_LIBRARY_PATH=.
-      # out/linux-x64x11_qa/elf_loader_sys_sandbox out/evergreen-x64-sbversion-12_qa/lib/libcobalt_evergreen.so
-      #
+      # ./elf_loader_sys_sandbox --evergreen_library=app/cobalt/lib/libcobalt.so --evergreen_content=app/cobalt/content
       'target_name': 'elf_loader_sys_sandbox',
       'type': '<(final_executable_type)',
       'include_dirs': [

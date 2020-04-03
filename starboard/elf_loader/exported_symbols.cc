@@ -28,7 +28,6 @@
 #include "starboard/directory.h"
 #include "starboard/double.h"
 #include "starboard/egl.h"
-#include "starboard/elf_loader/elf_loader_shims.h"
 #include "starboard/event.h"
 #include "starboard/file.h"
 #include "starboard/gles.h"
@@ -52,11 +51,10 @@
 #include "starboard/ui_navigation.h"
 #include "starboard/window.h"
 
-#define REGISTER_SYMBOL(s) REGISTER_SYMBOL_AS(s, s)
-#define REGISTER_SYMBOL_AS(k, v)                    \
-    do {                                            \
-      map_[#k] = reinterpret_cast<const void*>(&v); \
-    } while (0)
+#define REGISTER_SYMBOL(s)                        \
+  do {                                            \
+    map_[#s] = reinterpret_cast<const void*>(&s); \
+  } while (0)
 
 namespace starboard {
 namespace elf_loader {
@@ -289,7 +287,7 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbWindowGetPlatformHandle);
   REGISTER_SYMBOL(SbWindowGetSize);
   REGISTER_SYMBOL(SbWindowSetDefaultOptions);
-  REGISTER_SYMBOL_AS(SbSystemGetPath, SbSystemGetPathShim);
+  REGISTER_SYMBOL(SbSystemGetPath);
 
 #if SB_API_VERSION >= 11
   REGISTER_SYMBOL(SbGetEglInterface);
@@ -420,13 +418,7 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbAudioSinkGetMinBufferSizeInFrames);
   REGISTER_SYMBOL(SbCPUFeaturesGet);
   REGISTER_SYMBOL(SbMediaSetAudioWriteDuration);
-
-  if (custom_get_extension != NULL) {
-    REGISTER_SYMBOL_AS(SbSystemGetExtension, *custom_get_extension);
-  } else {
-    REGISTER_SYMBOL(SbSystemGetExtension);
-  }
-
+  REGISTER_SYMBOL(SbSystemGetExtension);
   REGISTER_SYMBOL(SbSystemSignWithCertificationSecretKey);
   REGISTER_SYMBOL(SbThreadContextGetPointer);
   REGISTER_SYMBOL(SbThreadSamplerCreate);

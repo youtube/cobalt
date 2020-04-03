@@ -15,6 +15,17 @@
 # This files contains all targets that should be created by gyp_cobalt by
 # default.
 {
+  'variables': {
+    'common_loader_app_sources': [
+        'loader_app.cc',
+        'system_get_extension_shim.h',
+        'system_get_extension_shim.cc',
+    ],
+    'common_loader_app_dependencies': [
+        '<(DEPTH)/starboard/loader_app/installation_manager.gyp:installation_manager',
+        '<(DEPTH)/starboard/starboard.gyp:starboard',
+    ],
+  },
   'targets': [
     {
       'target_name': 'loader_app',
@@ -22,14 +33,11 @@
       'conditions': [
         ['target_arch in ["x86", "x64", "arm", "arm64"] ', {
           'sources': [
-            'loader_app.cc',
-            'system_get_extension_shim.h',
-            'system_get_extension_shim.cc',
+            '<@(common_loader_app_sources)',
           ],
           'dependencies': [
             '<(DEPTH)/starboard/elf_loader/elf_loader.gyp:elf_loader',
-            '<(DEPTH)/starboard/loader_app/installation_manager.gyp:installation_manager',
-            '<(DEPTH)/starboard/starboard.gyp:starboard',
+            '<@(common_loader_app_dependencies)',
             # TODO: Remove this dependency once MediaSession is migrated to use CobaltExtensions.
             '<@(cobalt_platform_dependencies)',
           ],
@@ -44,6 +52,38 @@
       ],
       'variables': {
         'executable_name': 'loader_app',
+      },
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
+    },
+    {
+      'target_name': 'loader_app_sys',
+      'type': '<(final_executable_type)',
+      'conditions': [
+        ['target_arch in ["x86", "x64", "arm", "arm64"] ', {
+          'sources': [
+            '<@(common_loader_app_sources)',
+          ],
+          'dependencies': [
+            '<(DEPTH)/starboard/elf_loader/elf_loader.gyp:elf_loader_sys',
+            '<@(common_loader_app_dependencies)',
+            # TODO: Remove this dependency once MediaSession is migrated to use CobaltExtensions.
+            '<@(cobalt_platform_dependencies)',
+          ],
+          'ldflags': [
+            '-Wl,--dynamic-list=<(DEPTH)/starboard/starboard.syms',
+            '-ldl' ,
+          ],
+        }],
+      ],
+    },
+    {
+      'target_name': 'loader_app_sys_deploy',
+      'type': 'none',
+      'dependencies': [
+        'loader_app',
+      ],
+      'variables': {
+        'executable_name': 'loader_app_sys',
       },
       'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },

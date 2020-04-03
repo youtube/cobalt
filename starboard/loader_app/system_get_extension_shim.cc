@@ -40,12 +40,7 @@ const void* SbSystemGetExtensionShim(const char* name) {
   if (SbStringCompareAll(name, kCobaltExtensionInstallationManagerName) == 0) {
     return &kInstallationManagerApi;
   }
-#if SB_API_VERSION >= 11
-  return SbSystemGetExtension(name);
-#else
-  SB_NOTREACHED() << "SbSystemGetExtension is not supported";
   return NULL;
-#endif
 }
 }  // namespace loader_app
 }  // namespace starboard
