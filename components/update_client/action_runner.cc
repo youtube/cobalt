@@ -5,10 +5,12 @@
 #include "components/update_client/action_runner.h"
 
 #include <iterator>
+#include <stack>
 #include <utility>
 
 #include "base/bind.h"
 #include "base/command_line.h"
+#include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
 #include "base/location.h"
 #include "base/logging.h"
@@ -24,6 +26,33 @@
 #include "components/update_client/unzipper.h"
 #include "components/update_client/update_client.h"
 #include "components/update_client/update_engine.h"
+
+namespace {
+
+#if defined(OS_STARBOARD)
+void CleanupDirectory(base::FilePath& dir) {
+  std::stack<std::string> directories;
+  base::FileEnumerator file_enumerator(
+      dir, true,
+      base::FileEnumerator::FILES | base::FileEnumerator::DIRECTORIES);
+  for (auto path = file_enumerator.Next(); !path.value().empty();
+       path = file_enumerator.Next()) {
+    base::FileEnumerator::FileInfo info(file_enumerator.GetInfo());
+
+    if (info.IsDirectory()) {
+      directories.push(path.value());
+    } else {
+      SbFileDelete(path.value().c_str());
+    }
+  }
+  while (!directories.empty()) {
+    SbFileDelete(directories.top().c_str());
+    directories.pop();
+  }
+}
+#endif
+
+}  // namespace
 
 namespace update_client {
 
@@ -94,7 +123,11 @@ void ActionRunner::RunRecoveryCRXElevated(const base::FilePath& crx_path) {
 }
 
 void ActionRunner::RunCommand(const base::CommandLine& cmdline) {
+#if defined(OS_STARBOARD)
+  CleanupDirectory(unpack_path_);
+#else
   base::DeleteFile(unpack_path_, true);
+#endif
   main_task_runner_->PostTask(
       FROM_HERE, base::BindOnce(std::move(run_complete_), false, -1, 0));
 }
