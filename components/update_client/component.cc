@@ -181,7 +181,12 @@ void UnpackCompleteOnBlockingTaskRunner(
     scoped_refptr<CrxInstaller> installer,
     InstallOnBlockingTaskRunnerCompleteCallback callback,
     const ComponentUnpacker::Result& result) {
+
+#if defined(OS_STARBOARD)
+  base::DeleteFile(crx_path, false);
+#else
   update_client::DeleteFileAndEmptyParentDirectory(crx_path);
+#endif
 
   if (result.error != UnpackerError::kNone) {
     main_task_runner->PostTask(

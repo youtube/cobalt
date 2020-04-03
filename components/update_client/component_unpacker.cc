@@ -185,7 +185,7 @@ void ComponentUnpacker::EndUnpacking() {
     base::DeleteFile(unpack_path_, true);
 #else
   // Write the version of the unpacked update package to the persisted data.
-  if (metadata_ != nullptr) {
+  if (error_ == UnpackerError::kNone && metadata_ != nullptr) {
     metadata_->SetLastUnpackedVersion(id_, update_version_);
   }
 #endif
