@@ -453,6 +453,7 @@
       }],
       ['sb_evergreen_compatible == 1', {
         'starboard_platform_dependencies': [
+          '<(DEPTH)/starboard/elf_loader/evergreen_config.gyp:evergreen_config',
           '<(DEPTH)/third_party/llvm-project/libunwind/libunwind.gyp:unwind_starboard',
        ]},
       ],

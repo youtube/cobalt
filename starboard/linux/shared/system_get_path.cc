@@ -26,6 +26,9 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
+#if SB_IS(EVERGREEN_COMPATIBLE)
+#include "starboard/elf_loader/evergreen_config.h"
+#endif
 #include "starboard/user.h"
 
 namespace {
@@ -86,6 +89,29 @@ bool GetExecutablePath(char* out_path, int path_size) {
   SbStringCopy(out_path, path.data(), path_size);
   return true;
 }
+
+#if SB_IS(EVERGREEN_COMPATIBLE)
+// May override the content path if there is EvergreenConfig published.
+// The override allows for switching to different content paths based
+// on the Evergreen binary executed.
+// Returns false if it failed.
+bool GetEvergreenContentPathOverride(char* out_path, int path_size) {
+  const starboard::elf_loader::EvergreenConfig* evergreen_config =
+      starboard::elf_loader::EvergreenConfig::GetInstance();
+  if (!evergreen_config) {
+    return true;
+  }
+  if (evergreen_config->content_path_.empty()) {
+    return true;
+  }
+
+  if (SbStringCopy(out_path, evergreen_config->content_path_.c_str(),
+                   path_size) >= path_size) {
+    return false;
+  }
+  return true;
+}
+#endif
 
 // Places up to |path_size| - 1 characters of the path to the directory
 // containing the current executable in |out_path|, ensuring it is
@@ -156,6 +182,12 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       if (SbStringConcat(path.data(), "/content", kPathSize) >= kPathSize) {
         return false;
       }
+#if SB_IS(EVERGREEN_COMPATIBLE)
+      if (!GetEvergreenContentPathOverride(path.data(), kPathSize)) {
+        return false;
+      }
+
+#endif
       break;
 
     case kSbSystemPathCacheDirectory:

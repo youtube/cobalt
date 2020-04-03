@@ -20,6 +20,7 @@
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/elf_loader/elf_loader_impl.h"
+#include "starboard/elf_loader/evergreen_config.h"
 #include "starboard/elf_loader/file_impl.h"
 
 namespace starboard {
@@ -72,6 +73,9 @@ bool ElfLoader::Load(const std::string& library_path,
     SB_LOG(ERROR) << "|library_path_| and |content_path_| cannot be empty.";
     return false;
   }
+  EvergreenConfig::Create(library_path_.c_str(), content_path_.c_str(),
+                          custom_get_extension);
+  SB_LOG(INFO) << "evergreen_config: content_path=" << content_path_;
   return impl_->Load(library_path_.c_str(), custom_get_extension);
 }
 
