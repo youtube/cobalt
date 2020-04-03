@@ -379,7 +379,6 @@ SB_EXPORT SbSystemConnectionType SbSystemGetConnectionType();
 // |out_path|: The platform-defined system path specified by |path_id|.
 // |path_length|: The length of the system path.
 
-// presubmit: allow sb_export mismatch
 SB_EXPORT bool SbSystemGetPath(SbSystemPathId path_id,
                                char* out_path,
                                int path_length);
