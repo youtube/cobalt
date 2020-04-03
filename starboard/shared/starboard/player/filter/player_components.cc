@@ -316,8 +316,7 @@ void PlayerComponents::Factory::GetAudioRendererParams(
           ? kSbMediaAudioSampleTypeFloat32
           : kSbMediaAudioSampleTypeInt16Deprecated,
       creation_parameters.audio_sample_info().samples_per_second);
-  *max_cached_frames = std::max(min_frames_required + *min_frames_per_append,
-                                static_cast<int>(min_frames_required * 1.35));
+  *max_cached_frames = min_frames_required + *min_frames_per_append * 2;
 #else   // SB_API_VERSION >= 11
   *max_cached_frames = 8 * 1024;
   *min_frames_per_append = 1024;
