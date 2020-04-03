@@ -10,6 +10,8 @@
 
 #include "base/basictypes.h"
 #include "base/optional.h"
+#include "cobalt/math/rect.h"
+#include "cobalt/math/size.h"
 #include "cobalt/media/base/color_space.h"
 #include "cobalt/media/base/encryption_scheme.h"
 #include "cobalt/media/base/hdr_metadata.h"
@@ -18,8 +20,6 @@
 #include "cobalt/media/base/video_types.h"
 #include "cobalt/media/formats/webm/webm_colour_parser.h"
 #include "starboard/types.h"
-#include "ui/gfx/rect.h"
-#include "ui/gfx/size.h"
 
 namespace cobalt {
 namespace media {
@@ -37,8 +37,9 @@ class MEDIA_EXPORT VideoDecoderConfig {
   // |extra_data|, otherwise the memory is copied.
   VideoDecoderConfig(VideoCodec codec, VideoCodecProfile profile,
                      VideoPixelFormat format, ColorSpace color_space,
-                     const gfx::Size& coded_size, const gfx::Rect& visible_rect,
-                     const gfx::Size& natural_size,
+                     const math::Size& coded_size,
+                     const math::Rect& visible_rect,
+                     const math::Size& natural_size,
                      const std::vector<uint8_t>& extra_data,
                      const EncryptionScheme& encryption_scheme);
 
@@ -47,8 +48,8 @@ class MEDIA_EXPORT VideoDecoderConfig {
   // Resets the internal state of this object.
   void Initialize(VideoCodec codec, VideoCodecProfile profile,
                   VideoPixelFormat format, ColorSpace color_space,
-                  const gfx::Size& coded_size, const gfx::Rect& visible_rect,
-                  const gfx::Size& natural_size,
+                  const math::Size& coded_size, const math::Rect& visible_rect,
+                  const math::Size& natural_size,
                   const std::vector<uint8_t>& extra_data,
                   const EncryptionScheme& encryption_scheme);
 
@@ -81,14 +82,14 @@ class MEDIA_EXPORT VideoDecoderConfig {
 
   // Width and height of video frame immediately post-decode. Not all pixels
   // in this region are valid.
-  gfx::Size coded_size() const { return coded_size_; }
+  math::Size coded_size() const { return coded_size_; }
 
   // Region of |coded_size_| that is visible.
-  gfx::Rect visible_rect() const { return visible_rect_; }
+  math::Rect visible_rect() const { return visible_rect_; }
 
   // Final visible width and height of a video frame with aspect ratio taken
   // into account.
-  gfx::Size natural_size() const { return natural_size_; }
+  math::Size natural_size() const { return natural_size_; }
 
   // Optional byte data required to initialize video decoders, such as H.264
   // AVCC data.
@@ -124,9 +125,9 @@ class MEDIA_EXPORT VideoDecoderConfig {
   // TODO(servolk): Deprecated, use color_space_info_ instead.
   ColorSpace color_space_;
 
-  gfx::Size coded_size_;
-  gfx::Rect visible_rect_;
-  gfx::Size natural_size_;
+  math::Size coded_size_;
+  math::Rect visible_rect_;
+  math::Size natural_size_;
 
   std::vector<uint8_t> extra_data_;
 

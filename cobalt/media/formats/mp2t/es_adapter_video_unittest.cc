@@ -26,9 +26,9 @@ namespace mp2t {
 namespace {
 
 VideoDecoderConfig CreateFakeVideoConfig() {
-  gfx::Size coded_size(320, 240);
-  gfx::Rect visible_rect(0, 0, 320, 240);
-  gfx::Size natural_size(320, 240);
+  math::Size coded_size(320, 240);
+  math::Rect visible_rect(0, 0, 320, 240);
+  math::Size natural_size(320, 240);
   return VideoDecoderConfig(kCodecH264, H264PROFILE_MAIN, PIXEL_FORMAT_I420,
                             COLOR_SPACE_UNSPECIFIED, coded_size, visible_rect,
                             natural_size, EmptyExtraData(), Unencrypted());

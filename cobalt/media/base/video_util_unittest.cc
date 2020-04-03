@@ -16,7 +16,7 @@ namespace {
 
 // Initialize a plane's visible rect with value circularly from 0 to 255.
 void FillPlaneWithPattern(uint8_t* data, int stride,
-                          const gfx::Size& visible_size) {
+                          const math::Size& visible_size) {
   DCHECK(data && visible_size.width() <= stride);
 
   uint32_t val = 0;
@@ -32,8 +32,8 @@ void FillPlaneWithPattern(uint8_t* data, int stride,
 // |VideoFrame::CreateColorFrame()| where the entrire VideoFrame is filled
 // with a given color.
 scoped_refptr<media::VideoFrame> CreateFrameWithPatternFilled(
-    media::VideoPixelFormat format, const gfx::Size& coded_size,
-    const gfx::Rect& visible_rect, const gfx::Size& natural_size,
+    media::VideoPixelFormat format, const math::Size& coded_size,
+    const math::Rect& visible_rect, const math::Size& natural_size,
     base::TimeDelta timestamp) {
   scoped_refptr<media::VideoFrame> frame(media::VideoFrame::CreateFrame(
       format, coded_size, visible_rect, natural_size, timestamp));
@@ -58,10 +58,10 @@ scoped_refptr<media::VideoFrame> CreateFrameWithPatternFilled(
 // visible region and padding the remaining area.
 bool VerifyPlanCopyWithPadding(const uint8_t* src, size_t src_stride,
                                // Size of visible region.
-                               const gfx::Size& src_size, const uint8_t* dst,
+                               const math::Size& src_size, const uint8_t* dst,
                                size_t dst_stride,
                                // Coded size of |dst|.
-                               const gfx::Size& dst_size) {
+                               const math::Size& dst_size) {
   if (!src || !dst) return false;
 
   const size_t src_width = src_size.width();
@@ -156,9 +156,9 @@ class VideoUtilTest : public testing::Test {
   }
 
   void CreateDestinationFrame(int width, int height) {
-    gfx::Size size(width, height);
+    math::Size size(width, height);
     destination_frame_ = VideoFrame::CreateFrame(
-        PIXEL_FORMAT_YV12, size, gfx::Rect(size), size, base::TimeDelta());
+        PIXEL_FORMAT_YV12, size, math::Rect(size), size, base::TimeDelta());
   }
 
  private:
@@ -177,32 +177,32 @@ class VideoUtilTest : public testing::Test {
 };
 
 TEST_F(VideoUtilTest, GetNaturalSize) {
-  gfx::Size visible_size(320, 240);
+  math::Size visible_size(320, 240);
 
   // Test 0 sizes.
-  EXPECT_EQ(gfx::Size(0, 0), GetNaturalSize(gfx::Size(0, 0), 1, 1));
-  EXPECT_EQ(gfx::Size(0, 1), GetNaturalSize(gfx::Size(0, 1), 1, 1));
-  EXPECT_EQ(gfx::Size(1, 0), GetNaturalSize(gfx::Size(1, 0), 1, 1));
+  EXPECT_EQ(math::Size(0, 0), GetNaturalSize(math::Size(0, 0), 1, 1));
+  EXPECT_EQ(math::Size(0, 1), GetNaturalSize(math::Size(0, 1), 1, 1));
+  EXPECT_EQ(math::Size(1, 0), GetNaturalSize(math::Size(1, 0), 1, 1));
 
   // Test abnormal ratios.
-  EXPECT_EQ(gfx::Size(0, 0), GetNaturalSize(visible_size, 0, 0));
-  EXPECT_EQ(gfx::Size(0, 0), GetNaturalSize(visible_size, 1, 0));
-  EXPECT_EQ(gfx::Size(0, 0), GetNaturalSize(visible_size, 1, -1));
-  EXPECT_EQ(gfx::Size(0, 0), GetNaturalSize(visible_size, -1, 1));
+  EXPECT_EQ(math::Size(0, 0), GetNaturalSize(visible_size, 0, 0));
+  EXPECT_EQ(math::Size(0, 0), GetNaturalSize(visible_size, 1, 0));
+  EXPECT_EQ(math::Size(0, 0), GetNaturalSize(visible_size, 1, -1));
+  EXPECT_EQ(math::Size(0, 0), GetNaturalSize(visible_size, -1, 1));
 
   // Test normal sizes and ratios.
-  EXPECT_EQ(gfx::Size(0, 240), GetNaturalSize(visible_size, 0, 1));
-  EXPECT_EQ(gfx::Size(320, 240), GetNaturalSize(visible_size, 1, 1));
-  EXPECT_EQ(gfx::Size(640, 240), GetNaturalSize(visible_size, 2, 1));
-  EXPECT_EQ(gfx::Size(160, 240), GetNaturalSize(visible_size, 1, 2));
-  EXPECT_EQ(gfx::Size(427, 240), GetNaturalSize(visible_size, 4, 3));
-  EXPECT_EQ(gfx::Size(240, 240), GetNaturalSize(visible_size, 3, 4));
-  EXPECT_EQ(gfx::Size(569, 240), GetNaturalSize(visible_size, 16, 9));
-  EXPECT_EQ(gfx::Size(180, 240), GetNaturalSize(visible_size, 9, 16));
+  EXPECT_EQ(math::Size(0, 240), GetNaturalSize(visible_size, 0, 1));
+  EXPECT_EQ(math::Size(320, 240), GetNaturalSize(visible_size, 1, 1));
+  EXPECT_EQ(math::Size(640, 240), GetNaturalSize(visible_size, 2, 1));
+  EXPECT_EQ(math::Size(160, 240), GetNaturalSize(visible_size, 1, 2));
+  EXPECT_EQ(math::Size(427, 240), GetNaturalSize(visible_size, 4, 3));
+  EXPECT_EQ(math::Size(240, 240), GetNaturalSize(visible_size, 3, 4));
+  EXPECT_EQ(math::Size(569, 240), GetNaturalSize(visible_size, 16, 9));
+  EXPECT_EQ(math::Size(180, 240), GetNaturalSize(visible_size, 9, 16));
 
   // Test some random ratios.
-  EXPECT_EQ(gfx::Size(495, 240), GetNaturalSize(visible_size, 17, 11));
-  EXPECT_EQ(gfx::Size(207, 240), GetNaturalSize(visible_size, 11, 17));
+  EXPECT_EQ(math::Size(495, 240), GetNaturalSize(visible_size, 17, 11));
+  EXPECT_EQ(math::Size(207, 240), GetNaturalSize(visible_size, 11, 17));
 }
 
 namespace {
@@ -374,82 +374,84 @@ INSTANTIATE_TEST_CASE_P(, VideoUtilRotationTest,
 // Tests the ComputeLetterboxRegion function.  Also, because of shared code
 // internally, this also tests ScaleSizeToFitWithinTarget().
 TEST_F(VideoUtilTest, ComputeLetterboxRegion) {
+  EXPECT_EQ(math::Rect(166, 0, 667, 500),
+            ComputeLetterboxRegion(math::Rect(0, 0, 1000, 500),
+                                   math::Size(640, 480)));
+  EXPECT_EQ(math::Rect(0, 312, 500, 375),
+            ComputeLetterboxRegion(math::Rect(0, 0, 500, 1000),
+                                   math::Size(640, 480)));
+  EXPECT_EQ(math::Rect(55, 0, 889, 500),
+            ComputeLetterboxRegion(math::Rect(0, 0, 1000, 500),
+                                   math::Size(1920, 1080)));
   EXPECT_EQ(
-      gfx::Rect(166, 0, 667, 500),
-      ComputeLetterboxRegion(gfx::Rect(0, 0, 1000, 500), gfx::Size(640, 480)));
-  EXPECT_EQ(
-      gfx::Rect(0, 312, 500, 375),
-      ComputeLetterboxRegion(gfx::Rect(0, 0, 500, 1000), gfx::Size(640, 480)));
-  EXPECT_EQ(gfx::Rect(55, 0, 889, 500),
-            ComputeLetterboxRegion(gfx::Rect(0, 0, 1000, 500),
-                                   gfx::Size(1920, 1080)));
-  EXPECT_EQ(
-      gfx::Rect(0, 12, 100, 75),
-      ComputeLetterboxRegion(gfx::Rect(0, 0, 100, 100), gfx::Size(400, 300)));
-  EXPECT_EQ(gfx::Rect(0, 250000000, 2000000000, 1500000000),
-            ComputeLetterboxRegion(gfx::Rect(0, 0, 2000000000, 2000000000),
-                                   gfx::Size(40000, 30000)));
-  EXPECT_TRUE(ComputeLetterboxRegion(gfx::Rect(0, 0, 2000000000, 2000000000),
-                                     gfx::Size(0, 0))
+      math::Rect(0, 12, 100, 75),
+      ComputeLetterboxRegion(math::Rect(0, 0, 100, 100), math::Size(400, 300)));
+  EXPECT_EQ(math::Rect(0, 250000000, 2000000000, 1500000000),
+            ComputeLetterboxRegion(math::Rect(0, 0, 2000000000, 2000000000),
+                                   math::Size(40000, 30000)));
+  EXPECT_TRUE(ComputeLetterboxRegion(math::Rect(0, 0, 2000000000, 2000000000),
+                                     math::Size(0, 0))
                   .IsEmpty());
 }
 
 TEST_F(VideoUtilTest, ScaleSizeToEncompassTarget) {
   EXPECT_EQ(
-      gfx::Size(1000, 750),
-      ScaleSizeToEncompassTarget(gfx::Size(640, 480), gfx::Size(1000, 500)));
+      math::Size(1000, 750),
+      ScaleSizeToEncompassTarget(math::Size(640, 480), math::Size(1000, 500)));
   EXPECT_EQ(
-      gfx::Size(1333, 1000),
-      ScaleSizeToEncompassTarget(gfx::Size(640, 480), gfx::Size(500, 1000)));
+      math::Size(1333, 1000),
+      ScaleSizeToEncompassTarget(math::Size(640, 480), math::Size(500, 1000)));
+  EXPECT_EQ(math::Size(1000, 563),
+            ScaleSizeToEncompassTarget(math::Size(1920, 1080),
+                                       math::Size(1000, 500)));
   EXPECT_EQ(
-      gfx::Size(1000, 563),
-      ScaleSizeToEncompassTarget(gfx::Size(1920, 1080), gfx::Size(1000, 500)));
-  EXPECT_EQ(gfx::Size(133, 100), ScaleSizeToEncompassTarget(
-                                     gfx::Size(400, 300), gfx::Size(100, 100)));
-  EXPECT_EQ(gfx::Size(266666667, 200000000),
-            ScaleSizeToEncompassTarget(gfx::Size(40000, 30000),
-                                       gfx::Size(200000000, 200000000)));
-  EXPECT_TRUE(ScaleSizeToEncompassTarget(gfx::Size(0, 0),
-                                         gfx::Size(2000000000, 2000000000))
+      math::Size(133, 100),
+      ScaleSizeToEncompassTarget(math::Size(400, 300), math::Size(100, 100)));
+  EXPECT_EQ(math::Size(266666667, 200000000),
+            ScaleSizeToEncompassTarget(math::Size(40000, 30000),
+                                       math::Size(200000000, 200000000)));
+  EXPECT_TRUE(ScaleSizeToEncompassTarget(math::Size(0, 0),
+                                         math::Size(2000000000, 2000000000))
                   .IsEmpty());
 }
 
 TEST_F(VideoUtilTest, PadToMatchAspectRatio) {
-  EXPECT_EQ(gfx::Size(640, 480),
-            PadToMatchAspectRatio(gfx::Size(640, 480), gfx::Size(640, 480)));
-  EXPECT_EQ(gfx::Size(640, 480),
-            PadToMatchAspectRatio(gfx::Size(640, 480), gfx::Size(4, 3)));
-  EXPECT_EQ(gfx::Size(960, 480),
-            PadToMatchAspectRatio(gfx::Size(640, 480), gfx::Size(1000, 500)));
-  EXPECT_EQ(gfx::Size(640, 1280),
-            PadToMatchAspectRatio(gfx::Size(640, 480), gfx::Size(500, 1000)));
-  EXPECT_EQ(gfx::Size(2160, 1080),
-            PadToMatchAspectRatio(gfx::Size(1920, 1080), gfx::Size(1000, 500)));
-  EXPECT_EQ(gfx::Size(400, 400),
-            PadToMatchAspectRatio(gfx::Size(400, 300), gfx::Size(100, 100)));
-  EXPECT_EQ(gfx::Size(400, 400),
-            PadToMatchAspectRatio(gfx::Size(300, 400), gfx::Size(100, 100)));
-  EXPECT_EQ(gfx::Size(40000, 40000),
-            PadToMatchAspectRatio(gfx::Size(40000, 30000),
-                                  gfx::Size(2000000000, 2000000000)));
-  EXPECT_TRUE(PadToMatchAspectRatio(gfx::Size(40000, 30000), gfx::Size(0, 0))
+  EXPECT_EQ(math::Size(640, 480),
+            PadToMatchAspectRatio(math::Size(640, 480), math::Size(640, 480)));
+  EXPECT_EQ(math::Size(640, 480),
+            PadToMatchAspectRatio(math::Size(640, 480), math::Size(4, 3)));
+  EXPECT_EQ(math::Size(960, 480),
+            PadToMatchAspectRatio(math::Size(640, 480), math::Size(1000, 500)));
+  EXPECT_EQ(math::Size(640, 1280),
+            PadToMatchAspectRatio(math::Size(640, 480), math::Size(500, 1000)));
+  EXPECT_EQ(
+      math::Size(2160, 1080),
+      PadToMatchAspectRatio(math::Size(1920, 1080), math::Size(1000, 500)));
+  EXPECT_EQ(math::Size(400, 400),
+            PadToMatchAspectRatio(math::Size(400, 300), math::Size(100, 100)));
+  EXPECT_EQ(math::Size(400, 400),
+            PadToMatchAspectRatio(math::Size(300, 400), math::Size(100, 100)));
+  EXPECT_EQ(math::Size(40000, 40000),
+            PadToMatchAspectRatio(math::Size(40000, 30000),
+                                  math::Size(2000000000, 2000000000)));
+  EXPECT_TRUE(PadToMatchAspectRatio(math::Size(40000, 30000), math::Size(0, 0))
                   .IsEmpty());
 }
 
 TEST_F(VideoUtilTest, LetterboxYUV) {
   int width = 40;
   int height = 30;
-  gfx::Size size(width, height);
+  math::Size size(width, height);
   scoped_refptr<VideoFrame> frame(VideoFrame::CreateFrame(
-      PIXEL_FORMAT_YV12, size, gfx::Rect(size), size, base::TimeDelta()));
+      PIXEL_FORMAT_YV12, size, math::Rect(size), size, base::TimeDelta()));
 
   for (int left_margin = 0; left_margin <= 10; left_margin += 10) {
     for (int right_margin = 0; right_margin <= 10; right_margin += 10) {
       for (int top_margin = 0; top_margin <= 10; top_margin += 10) {
         for (int bottom_margin = 0; bottom_margin <= 10; bottom_margin += 10) {
-          gfx::Rect view_area(left_margin, top_margin,
-                              width - left_margin - right_margin,
-                              height - top_margin - bottom_margin);
+          math::Rect view_area(left_margin, top_margin,
+                               width - left_margin - right_margin,
+                               height - top_margin - bottom_margin);
           FillYUV(frame.get(), 0x1, 0x2, 0x3);
           LetterboxYUV(frame.get(), view_area);
           for (int x = 0; x < width; x++) {
@@ -477,32 +479,32 @@ TEST_F(VideoUtilTest, LetterboxYUV) {
 }
 
 TEST_F(VideoUtilTest, I420CopyWithPadding) {
-  gfx::Size visible_size(40, 30);
+  math::Size visible_size(40, 30);
   scoped_refptr<VideoFrame> src_frame = CreateFrameWithPatternFilled(
-      PIXEL_FORMAT_I420, visible_size, gfx::Rect(visible_size), visible_size,
+      PIXEL_FORMAT_I420, visible_size, math::Rect(visible_size), visible_size,
       base::TimeDelta());
   // Expect to return false when copying to an empty buffer.
   EXPECT_FALSE(I420CopyWithPadding(*src_frame, NULL));
 
   scoped_refptr<VideoFrame> dst_frame = CreateFrameWithPatternFilled(
-      PIXEL_FORMAT_I420, visible_size, gfx::Rect(visible_size), visible_size,
+      PIXEL_FORMAT_I420, visible_size, math::Rect(visible_size), visible_size,
       base::TimeDelta());
   EXPECT_TRUE(I420CopyWithPadding(*src_frame, dst_frame.get()));
   EXPECT_TRUE(VerifyCopyWithPadding(*src_frame, *dst_frame));
 
-  gfx::Size coded_size(60, 40);
+  math::Size coded_size(60, 40);
   dst_frame = CreateFrameWithPatternFilled(PIXEL_FORMAT_I420, coded_size,
-                                           gfx::Rect(visible_size), coded_size,
+                                           math::Rect(visible_size), coded_size,
                                            base::TimeDelta());
   EXPECT_TRUE(I420CopyWithPadding(*src_frame, dst_frame.get()));
   EXPECT_TRUE(VerifyCopyWithPadding(*src_frame, *dst_frame));
 
-  gfx::Size odd_size(39, 31);
+  math::Size odd_size(39, 31);
   src_frame = CreateFrameWithPatternFilled(PIXEL_FORMAT_I420, odd_size,
-                                           gfx::Rect(odd_size), odd_size,
+                                           math::Rect(odd_size), odd_size,
                                            base::TimeDelta());
   dst_frame = CreateFrameWithPatternFilled(PIXEL_FORMAT_I420, coded_size,
-                                           gfx::Rect(odd_size), coded_size,
+                                           math::Rect(odd_size), coded_size,
                                            base::TimeDelta());
   EXPECT_TRUE(I420CopyWithPadding(*src_frame, dst_frame.get()));
   EXPECT_TRUE(VerifyCopyWithPadding(*src_frame, *dst_frame));

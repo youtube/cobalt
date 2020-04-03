@@ -14,18 +14,18 @@
 namespace cobalt {
 namespace media {
 
-gfx::Size GetNaturalSize(const gfx::Size& visible_size,
-                         int aspect_ratio_numerator,
-                         int aspect_ratio_denominator) {
+math::Size GetNaturalSize(const math::Size& visible_size,
+                          int aspect_ratio_numerator,
+                          int aspect_ratio_denominator) {
   if (aspect_ratio_denominator == 0 || aspect_ratio_numerator < 0 ||
       aspect_ratio_denominator < 0)
-    return gfx::Size();
+    return math::Size();
 
   double aspect_ratio =
       aspect_ratio_numerator / static_cast<double>(aspect_ratio_denominator);
 
-  return gfx::Size(round(visible_size.width() * aspect_ratio),
-                   visible_size.height());
+  return math::Size(round(visible_size.width() * aspect_ratio),
+                    visible_size.height());
 }
 
 void RotatePlaneByPixels(const uint8_t* src, uint8_t* dest, int width,

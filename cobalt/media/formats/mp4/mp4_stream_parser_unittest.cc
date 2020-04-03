@@ -419,7 +419,7 @@ TEST_F(MP4StreamParserTest, NaturalSizeWithoutPASP) {
 
   EXPECT_MEDIA_LOG(VideoCodecLog("avc1.64001E"));
   EXPECT_TRUE(AppendDataInPieces(buffer->data(), buffer->data_size(), 512));
-  EXPECT_EQ(gfx::Size(639, 360), video_decoder_config_.natural_size());
+  EXPECT_EQ(math::Size(639, 360), video_decoder_config_.natural_size());
 }
 
 TEST_F(MP4StreamParserTest, NaturalSizeWithPASP) {
@@ -434,7 +434,7 @@ TEST_F(MP4StreamParserTest, NaturalSizeWithPASP) {
 
   EXPECT_MEDIA_LOG(VideoCodecLog("avc1.64001E"));
   EXPECT_TRUE(AppendDataInPieces(buffer->data(), buffer->data_size(), 512));
-  EXPECT_EQ(gfx::Size(639, 360), video_decoder_config_.natural_size());
+  EXPECT_EQ(math::Size(639, 360), video_decoder_config_.natural_size());
 }
 
 TEST_F(MP4StreamParserTest, DemuxingAC3) {

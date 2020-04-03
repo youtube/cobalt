@@ -17,8 +17,8 @@
 #ifndef COBALT_MEDIA_BASE_VIDEO_RESOLUTION_H_
 #define COBALT_MEDIA_BASE_VIDEO_RESOLUTION_H_
 
+#include "cobalt/math/size.h"
 #include "starboard/media.h"
-#include "ui/gfx/size.h"
 
 namespace cobalt {
 namespace media {
@@ -46,7 +46,7 @@ inline VideoResolution GetVideoResolution(int width, int height) {
   return kVideoResolutionInvalid;
 }
 
-inline VideoResolution GetVideoResolution(const gfx::Size& size) {
+inline VideoResolution GetVideoResolution(const math::Size& size) {
   return GetVideoResolution(size.width(), size.height());
 }
 

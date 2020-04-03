@@ -15,13 +15,13 @@
 
 #include "base/basictypes.h"
 #include "base/optional.h"
+#include "cobalt/math/rect.h"
+#include "cobalt/math/size.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/ranges.h"
 #include "cobalt/media/base/video_codecs.h"
 #include "cobalt/media/filters/h264_bit_reader.h"
 #include "starboard/types.h"
-#include "ui/gfx/rect.h"
-#include "ui/gfx/size.h"
 
 namespace cobalt {
 namespace media {
@@ -174,8 +174,8 @@ struct MEDIA_EXPORT H264SPS {
   // Helpers to compute frequently-used values. These methods return
   // base::nullopt if they encounter integer overflow. They do not verify that
   // the results are in-spec for the given profile or level.
-  base::Optional<gfx::Size> GetCodedSize() const;
-  base::Optional<gfx::Rect> GetVisibleRect() const;
+  base::Optional<math::Size> GetCodedSize() const;
+  base::Optional<math::Rect> GetVisibleRect() const;
 };
 
 struct MEDIA_EXPORT H264PPS {
