@@ -51,7 +51,7 @@ class ReplacedBox : public Box {
               const base::Optional<LayoutUnit>& maybe_intrinsic_height,
               const base::Optional<float>& maybe_intrinsic_ratio,
               UsedStyleProvider* used_style_provider,
-              base::Optional<bool> is_video_punched_out,
+              base::Optional<bool> is_video_punched_out, bool is_lottie,
               const math::SizeF& content_size,
               LayoutStatTracker* layout_stat_tracker);
 
@@ -120,6 +120,7 @@ class ReplacedBox : public Box {
   const scoped_refptr<Paragraph> paragraph_;
   int32 text_position_;
   base::Optional<bool> is_video_punched_out_;
+  bool is_lottie_;
   math::SizeF content_size_;
 };
 

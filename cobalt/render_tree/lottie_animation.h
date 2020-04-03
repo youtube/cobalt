@@ -15,8 +15,8 @@
 #ifndef COBALT_RENDER_TREE_LOTTIE_ANIMATION_H_
 #define COBALT_RENDER_TREE_LOTTIE_ANIMATION_H_
 
-#include "base/memory/ref_counted.h"
 #include "base/time/time.h"
+#include "cobalt/render_tree/image.h"
 
 namespace cobalt {
 namespace render_tree {
@@ -25,9 +25,9 @@ namespace render_tree {
 // Lottie animation. When constructing a render tree, external Lottie animations
 // can be introduced by adding an LottieNode and associating it with a specific
 // LottieAnimation object.
-class LottieAnimation : public base::RefCountedThreadSafe<LottieAnimation> {
+class LottieAnimation : public Image {
  public:
-  virtual void SetAnimationTime(base::TimeDelta animation_time) const = 0;
+  virtual void SetAnimationTime(base::TimeDelta animation_time) = 0;
 
  protected:
   virtual ~LottieAnimation() {}

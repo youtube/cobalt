@@ -210,6 +210,8 @@
         'local_storage_database.h',
         'location.cc',
         'location.h',
+        'lottie_player.cc',
+        'lottie_player.h',
         'media_query_list.cc',
         'media_query_list.h',
         'media_source.cc',

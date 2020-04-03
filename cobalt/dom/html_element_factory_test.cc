@@ -40,6 +40,7 @@
 #include "cobalt/dom/html_title_element.h"
 #include "cobalt/dom/html_unknown_element.h"
 #include "cobalt/dom/html_video_element.h"
+#include "cobalt/dom/lottie_player.h"
 #include "cobalt/dom/testing/stub_css_parser.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/testing/stub_script_runner.h"
@@ -173,6 +174,11 @@ TEST_F(HTMLElementFactoryTest, CreateHTMLElement) {
   EXPECT_TRUE(html_element->AsHTMLVideoElement());
   EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
             "[object HTMLVideoElement]");
+  html_element = html_element_factory_.CreateHTMLElement(
+      document_, base::Token("lottie-player"));
+  EXPECT_TRUE(html_element->AsLottiePlayer());
+  EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
+            "[object LottiePlayer]");
 
   html_element =
       html_element_factory_.CreateHTMLElement(document_, base::Token("h1"));

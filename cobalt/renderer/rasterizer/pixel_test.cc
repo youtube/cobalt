@@ -4110,7 +4110,7 @@ TEST_F(PixelTest, SimpleLottieAnimationTest) {
           reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
-  node_builder.SetAnimationTime(base::TimeDelta::FromSecondsD(0.25));
+  node_builder.animation_time = base::TimeDelta::FromSecondsD(0.25);
   scoped_refptr<LottieNode> lottie_node = new LottieNode(node_builder);
   TestTree(lottie_node);
 }

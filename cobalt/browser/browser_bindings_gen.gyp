@@ -114,6 +114,7 @@
         '../dom/intersection_observer_entry.idl',
         '../dom/keyboard_event.idl',
         '../dom/location.idl',
+        '../dom/lottie_player.idl',
         '../dom/media_error.idl',
         '../dom/media_query_list.idl',
         '../dom/media_source.idl',

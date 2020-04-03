@@ -35,29 +35,23 @@ class LottieNode : public Node {
 
     bool operator==(const Builder& other) const {
       return animation == other.animation &&
-             current_animation_time == other.current_animation_time &&
-             destination_rect == other.destination_rect;
-    }
-
-    void SetAnimationTime(base::TimeDelta animation_time) {
-      current_animation_time = animation_time;
+             destination_rect == other.destination_rect &&
+             animation_time == other.animation_time;
     }
 
     // Information about the contents of the original animation file.
     scoped_refptr<LottieAnimation> animation;
 
-    // The time that the animation should be playing at, in seconds.
-    base::TimeDelta current_animation_time;
-
     // The destination rectangle into which the animation will be rasterized.
     math::RectF destination_rect;
+
+    // The time that the animation should currently be playing at.
+    base::TimeDelta animation_time;
   };
 
   // Forwarding constructor to the set of Builder constructors.
   template <typename... Args>
   LottieNode(Args&&... args) : data_(std::forward<Args>(args)...) {}
-
-  explicit LottieNode(const Builder& builder) : data_(builder) {}
 
   void Accept(NodeVisitor* visitor) override;
   math::RectF GetBounds() const override;

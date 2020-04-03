@@ -20,10 +20,14 @@ namespace rasterizer {
 namespace skia {
 
 SkottieAnimation::SkottieAnimation(const char* data, size_t length) {
-  skottie_animation_ = skottie::Animation::Builder().make(data, length);
+  skottie::Animation::Builder builder;
+  skottie_animation_ = builder.make(data, length);
+  animation_size_ = math::Size(skottie_animation_->size().width(),
+                               skottie_animation_->size().height());
+  json_size_in_bytes_ = builder.getStats().fJsonSize;
 }
 
-void SkottieAnimation::SetAnimationTime(base::TimeDelta animation_time) const {
+void SkottieAnimation::SetAnimationTime(base::TimeDelta animation_time) {
   skottie_animation_->seekFrameTime(animation_time.InSecondsF());
 }
 

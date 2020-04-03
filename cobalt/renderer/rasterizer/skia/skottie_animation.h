@@ -29,12 +29,22 @@ class SkottieAnimation : public render_tree::LottieAnimation {
  public:
   SkottieAnimation(const char* data, size_t length);
 
-  void SetAnimationTime(base::TimeDelta animation_time) const override;
+  const math::Size& GetSize() const override { return animation_size_; }
+
+  uint32 GetEstimatedSizeInBytes() const override {
+    return json_size_in_bytes_;
+  }
+
+  bool IsOpaque() const override { return false; }
+
+  void SetAnimationTime(base::TimeDelta animation_time) override;
 
   sk_sp<skottie::Animation> GetSkottieAnimation() { return skottie_animation_; }
 
  private:
   sk_sp<skottie::Animation> skottie_animation_;
+  math::Size animation_size_;
+  uint32 json_size_in_bytes_;
 };
 
 }  // namespace skia
