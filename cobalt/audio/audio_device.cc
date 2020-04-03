@@ -93,8 +93,7 @@ AudioDevice::Impl::Impl(int number_of_channels, RenderCallback* callback)
 #if SB_API_VERSION >= 11
       frames_per_channel_(std::max(SbAudioSinkGetMinBufferSizeInFrames(
                                        number_of_channels, output_sample_type_,
-                                       kStandardOutputSampleRate) +
-                                       kRenderBufferSizeFrames,
+                                       kStandardOutputSampleRate),
                                    kDefaultFramesPerChannel)),
 #else  // SB_API_VERSION >= 11
       frames_per_channel_(kDefaultFramesPerChannel),
