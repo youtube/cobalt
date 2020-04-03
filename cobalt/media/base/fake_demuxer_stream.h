@@ -96,7 +96,7 @@ class FakeDemuxerStream : public DemuxerStream {
   base::TimeDelta duration_;
   base::TimeDelta splice_timestamp_;
 
-  gfx::Size next_coded_size_;
+  math::Size next_coded_size_;
   VideoDecoderConfig video_decoder_config_;
 
   ReadCB read_cb_;

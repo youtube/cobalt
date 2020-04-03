@@ -18,12 +18,12 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
+#include "cobalt/math/rect.h"
+#include "cobalt/math/size.h"
 #include "cobalt/media/base/ranges.h"
 #include "cobalt/media/base/video_frame_provider.h"
 #include "cobalt/media/filters/chunk_demuxer.h"
 #include "cobalt/media/player/buffered_data_source.h"
-#include "ui/gfx/rect.h"
-#include "ui/gfx/size.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -35,7 +35,7 @@ class WebMediaPlayer {
  public:
   // Return true if the punch through box should be rendered.  Return false if
   // no punch through box should be rendered.
-  typedef base::Callback<bool(const gfx::Rect&)> SetBoundsCB;
+  typedef base::Callback<bool(const math::Rect&)> SetBoundsCB;
 
   enum NetworkState {
     kNetworkStateEmpty,
@@ -122,7 +122,7 @@ class WebMediaPlayer {
   virtual bool HasAudio() const = 0;
 
   // Dimension of the video.
-  virtual gfx::Size GetNaturalSize() const = 0;
+  virtual math::Size GetNaturalSize() const = 0;
 
   // Getters of playback state.
   virtual bool IsPaused() const = 0;

@@ -12,12 +12,12 @@
 #include "base/test/test_timeouts.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "cobalt/math/rect.h"
 #include "cobalt/media/base/audio_buffer.h"
 #include "cobalt/media/base/bind_to_current_loop.h"
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/media_util.h"
 #include "starboard/types.h"
-#include "ui/gfx/rect.h"
 
 using ::testing::_;
 using ::testing::StrictMock;
@@ -126,10 +126,10 @@ void Waitablebase::MessageLoopEvent::OnTimeout() {
   run_loop_->Quit();
 }
 
-static VideoDecoderConfig GetTestConfig(VideoCodec codec, gfx::Size coded_size,
+static VideoDecoderConfig GetTestConfig(VideoCodec codec, math::Size coded_size,
                                         bool is_encrypted) {
-  gfx::Rect visible_rect(coded_size.width(), coded_size.height());
-  gfx::Size natural_size = coded_size;
+  math::Rect visible_rect(coded_size.width(), coded_size.height());
+  math::Size natural_size = coded_size;
 
   return VideoDecoderConfig(
       codec, VIDEO_CODEC_PROFILE_UNKNOWN, PIXEL_FORMAT_YV12,
@@ -138,8 +138,8 @@ static VideoDecoderConfig GetTestConfig(VideoCodec codec, gfx::Size coded_size,
       is_encrypted ? AesCtrEncryptionScheme() : Unencrypted());
 }
 
-static const gfx::Size kNormalSize(320, 240);
-static const gfx::Size kLargeSize(640, 480);
+static const math::Size kNormalSize(320, 240);
+static const math::Size kLargeSize(640, 480);
 
 // static
 VideoDecoderConfig TestVideoConfig::Invalid() {
@@ -167,10 +167,10 @@ VideoDecoderConfig TestVideoConfig::LargeEncrypted() {
 }
 
 // static
-gfx::Size TestVideoConfig::NormalCodedSize() { return kNormalSize; }
+math::Size TestVideoConfig::NormalCodedSize() { return kNormalSize; }
 
 // static
-gfx::Size TestVideoConfig::LargeCodedSize() { return kLargeSize; }
+math::Size TestVideoConfig::LargeCodedSize() { return kLargeSize; }
 
 // static
 AudioParameters TestAudioParameters::Normal() {

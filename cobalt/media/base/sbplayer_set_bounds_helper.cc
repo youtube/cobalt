@@ -36,7 +36,7 @@ void SbPlayerSetBoundsHelper::SetPlayer(StarboardPlayer* player) {
   }
 }
 
-bool SbPlayerSetBoundsHelper::SetBounds(const gfx::Rect& rect) {
+bool SbPlayerSetBoundsHelper::SetBounds(const math::Rect& rect) {
   base::AutoLock auto_lock(lock_);
   rect_ = rect;
   if (player_) {

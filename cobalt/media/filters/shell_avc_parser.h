@@ -38,9 +38,9 @@ class ShellAVCParser : public ShellParser {
   virtual ~ShellAVCParser();
 
   struct ShellSPSRecord {
-    gfx::Size coded_size;
-    gfx::Rect visible_rect;
-    gfx::Size natural_size;
+    math::Size coded_size;
+    math::Rect visible_rect;
+    math::Size natural_size;
     uint32 num_ref_frames;
   };
   static bool ParseSPS(const uint8* sps, size_t sps_size,

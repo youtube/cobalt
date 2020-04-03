@@ -58,6 +58,7 @@
 #include "base/message_loop/message_loop.h"
 #include "base/threading/thread.h"
 #include "base/time/time.h"
+#include "cobalt/math/size.h"
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/demuxer.h"
 #include "cobalt/media/base/eme_constants.h"
@@ -66,7 +67,6 @@
 #include "cobalt/media/base/video_frame_provider.h"
 #include "cobalt/media/player/web_media_player.h"
 #include "cobalt/media/player/web_media_player_delegate.h"
-#include "ui/gfx/size.h"
 #include "url/gurl.h"
 
 #if defined(OS_STARBOARD)
@@ -147,7 +147,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   bool HasAudio() const override;
 
   // Dimensions of the video.
-  gfx::Size GetNaturalSize() const override;
+  math::Size GetNaturalSize() const override;
 
   // Getters of playback state.
   bool IsPaused() const override;

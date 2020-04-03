@@ -13,6 +13,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/threading/non_thread_safe.h"
+#include "cobalt/math/size.h"
 #include "cobalt/media/base/audio_parameters.h"
 #include "cobalt/media/base/channel_layout.h"
 #include "cobalt/media/base/media_log.h"
@@ -21,7 +22,6 @@
 #include "cobalt/media/base/video_decoder_config.h"
 #include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
-#include "ui/gfx/size.h"
 
 namespace base {
 class RunLoop;
@@ -93,8 +93,8 @@ class TestVideoConfig {
   static VideoDecoderConfig LargeEncrypted();
 
   // Returns coded size for Normal and Large config.
-  static gfx::Size NormalCodedSize();
-  static gfx::Size LargeCodedSize();
+  static math::Size NormalCodedSize();
+  static math::Size LargeCodedSize();
 
  private:
   DISALLOW_COPY_AND_ASSIGN(TestVideoConfig);

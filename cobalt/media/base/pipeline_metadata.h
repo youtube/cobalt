@@ -6,8 +6,8 @@
 #define COBALT_MEDIA_BASE_PIPELINE_METADATA_H_
 
 #include "base/time/time.h"
+#include "cobalt/math/size.h"
 #include "cobalt/media/base/video_rotation.h"
-#include "ui/gfx/size.h"
 
 namespace cobalt {
 namespace media {
@@ -19,7 +19,7 @@ struct PipelineMetadata {
 
   bool has_audio;
   bool has_video;
-  gfx::Size natural_size;
+  math::Size natural_size;
   VideoRotation video_rotation;
   base::Time timeline_offset;
 };
