@@ -15,7 +15,7 @@ namespace cobalt {
 namespace media {
 
 namespace {
-const gfx::Size kCodedSize(321, 243);
+const math::Size kCodedSize(321, 243);
 
 struct CodecTestParams {
   VideoCodecProfile profile;
@@ -67,7 +67,7 @@ TEST_P(WebMVideoClientTest, InitializeConfigVP9Profiles) {
 
   VideoDecoderConfig expected_config(
       kCodecVP9, profile, PIXEL_FORMAT_YV12, COLOR_SPACE_HD_REC709, kCodedSize,
-      gfx::Rect(kCodedSize), kCodedSize, codec_private, Unencrypted());
+      math::Rect(kCodedSize), kCodedSize, codec_private, Unencrypted());
 
   EXPECT_TRUE(config.Matches(expected_config))
       << "Config (" << config.AsHumanReadableString()

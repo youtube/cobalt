@@ -26,6 +26,7 @@
 #include "base/task_runner.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/math/size.h"
 #include "cobalt/media/base/audio_decoder_config.h"
 #include "cobalt/media/base/bind_to_current_loop.h"
 #include "cobalt/media/base/channel_layout.h"
@@ -41,7 +42,6 @@
 #include "cobalt/media/base/starboard_player.h"
 #include "cobalt/media/base/video_decoder_config.h"
 #include "starboard/configuration_constants.h"
-#include "ui/gfx/size.h"
 
 namespace cobalt {
 namespace media {
@@ -126,7 +126,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 #if SB_HAS(PLAYER_WITH_URL)
   TimeDelta GetMediaStartDate() const override;
 #endif  // SB_HAS(PLAYER_WITH_URL)
-  void GetNaturalVideoSize(gfx::Size* out_size) const override;
+  void GetNaturalVideoSize(math::Size* out_size) const override;
 
   bool DidLoadingProgress() const override;
   PipelineStatistics GetStatistics() const override;
@@ -207,7 +207,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   mutable bool did_loading_progress_;
 
   // Video's natural width and height.  Set by filters.
-  gfx::Size natural_size_;
+  math::Size natural_size_;
 
   // Current volume level (from 0.0f to 1.0f).  This value is set immediately
   // via SetVolume() and a task is dispatched on the message loop to notify the
@@ -605,7 +605,7 @@ TimeDelta SbPlayerPipeline::GetMediaTime() {
     player_->GetVideoResolution(&frame_width, &frame_height);
     if (frame_width != natural_size_.width() ||
         frame_height != natural_size_.height()) {
-      natural_size_ = gfx::Size(frame_width, frame_height);
+      natural_size_ = math::Size(frame_width, frame_height);
       content_size_change_cb_.Run();
     }
   }
@@ -677,7 +677,7 @@ TimeDelta SbPlayerPipeline::GetMediaStartDate() const {
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-void SbPlayerPipeline::GetNaturalVideoSize(gfx::Size* out_size) const {
+void SbPlayerPipeline::GetNaturalVideoSize(math::Size* out_size) const {
   CHECK(out_size);
   base::AutoLock auto_lock(lock_);
   *out_size = natural_size_;
@@ -1191,7 +1191,7 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
         player_->GetVideoResolution(&frame_width, &frame_height);
         bool natural_size_changed = (frame_width != natural_size_.width() ||
                                      frame_height != natural_size_.height());
-        natural_size_ = gfx::Size(frame_width, frame_height);
+        natural_size_ = math::Size(frame_width, frame_height);
         if (natural_size_changed) {
           content_size_change_cb_.Run();
         }

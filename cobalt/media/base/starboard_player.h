@@ -96,7 +96,7 @@ class StarboardPlayer {
   void WriteBuffer(DemuxerStream::Type type,
                    const scoped_refptr<DecoderBuffer>& buffer);
 
-  void SetBounds(int z_index, const gfx::Rect& rect);
+  void SetBounds(int z_index, const math::Rect& rect);
 
   void PrepareForSeek();
   void Seek(base::TimeDelta time);
@@ -250,7 +250,7 @@ class StarboardPlayer {
 
   // Stores the |z_index| and |rect| parameters of the latest SetBounds() call.
   base::Optional<int> set_bounds_z_index_;
-  base::Optional<gfx::Rect> set_bounds_rect_;
+  base::Optional<math::Rect> set_bounds_rect_;
   State state_ = kPlaying;
   SbPlayer player_;
   uint32 cached_video_frames_decoded_;

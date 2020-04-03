@@ -245,7 +245,7 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
   WriteBufferInternal(type, buffer);
 }
 
-void StarboardPlayer::SetBounds(int z_index, const gfx::Rect& rect) {
+void StarboardPlayer::SetBounds(int z_index, const math::Rect& rect) {
   base::AutoLock auto_lock(lock_);
 
   set_bounds_z_index_ = z_index;

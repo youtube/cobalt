@@ -18,7 +18,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
-#include "ui/gfx/rect.h"
+#include "cobalt/math/rect.h"
 
 namespace cobalt {
 namespace media {
@@ -31,12 +31,12 @@ class SbPlayerSetBoundsHelper
   SbPlayerSetBoundsHelper() {}
 
   void SetPlayer(StarboardPlayer* player);
-  bool SetBounds(const gfx::Rect& rect);
+  bool SetBounds(const math::Rect& rect);
 
  private:
   base::Lock lock_;
   StarboardPlayer* player_ = nullptr;
-  base::Optional<gfx::Rect> rect_;
+  base::Optional<math::Rect> rect_;
 
   DISALLOW_COPY_AND_ASSIGN(SbPlayerSetBoundsHelper);
 };

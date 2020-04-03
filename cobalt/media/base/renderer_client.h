@@ -6,8 +6,8 @@
 #define COBALT_MEDIA_BASE_RENDERER_CLIENT_H_
 
 #include "base/time/time.h"
+#include "cobalt/math/size.h"
 #include "cobalt/media/base/pipeline_status.h"
-#include "ui/gfx/size.h"
 
 namespace cobalt {
 namespace media {
@@ -33,7 +33,7 @@ class RendererClient {
 
   // Executed for the first video frame and whenever natural size changes.
   // Only used if media stream contains video track.
-  virtual void OnVideoNaturalSizeChange(const gfx::Size& size) = 0;
+  virtual void OnVideoNaturalSizeChange(const math::Size& size) = 0;
 
   // Executed for the first video frame and whenever opacity changes.
   // Only used if media stream contains video track.

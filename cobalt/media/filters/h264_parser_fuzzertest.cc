@@ -4,10 +4,10 @@
 
 #include "base/numerics/safe_conversions.h"
 #include "base/optional.h"
+#include "cobalt/math/rect.h"
+#include "cobalt/math/size.h"
 #include "cobalt/media/filters/h264_parser.h"
 #include "starboard/types.h"
-#include "ui/gfx/rect.h"
-#include "ui/gfx/size.h"
 
 static volatile size_t volatile_sink;
 
@@ -41,10 +41,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         if (!sps) break;
         // Also test the SPS helper methods. We make sure that the results are
         // used so that the calls are not optimized away.
-        base::Optional<gfx::Size> coded_size = sps->GetCodedSize();
-        volatile_sink = coded_size.value_or(gfx::Size()).ToString().length();
-        base::Optional<gfx::Rect> visible_rect = sps->GetVisibleRect();
-        volatile_sink = visible_rect.value_or(gfx::Rect()).ToString().length();
+        base::Optional<math::Size> coded_size = sps->GetCodedSize();
+        volatile_sink = coded_size.value_or(math::Size()).ToString().length();
+        base::Optional<math::Rect> visible_rect = sps->GetVisibleRect();
+        volatile_sink = visible_rect.value_or(math::Rect()).ToString().length();
         break;
       }
 
