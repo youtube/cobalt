@@ -53,23 +53,25 @@ void V8cHeapTracer::TracePrologue() {
   // manually decide to trace the from the global object.
   MaybeAddToFrontier(
       V8cGlobalEnvironment::GetFromIsolate(isolate_)->global_wrappable());
-
-  for (Traceable* traceable : roots_) {
-    MaybeAddToFrontier(traceable);
-  }
-  for (v8::TracedGlobal<v8::Value>* traced_global : globals_) {
-    RegisterEmbedderReference(*traced_global);
-  }
 }
 
 bool V8cHeapTracer::AdvanceTracing(double deadline_in_ms) {
   TRACE_EVENT0("cobalt::script", "V8cHeapTracer::AdvanceTracing");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
+  double start_time = platform_->MonotonicallyIncreasingTime();
   if (disabled_) {
     return true;
   }
-  double start_time = platform_->MonotonicallyIncreasingTime();
+
+  // Objects that we want to keep alive.
+  for (Traceable* traceable : roots_) {
+    MaybeAddToFrontier(traceable);
+  }
+  for (v8::TracedGlobal<v8::Value>* traced_global : globals_) {
+    RegisterEmbedderReference(*traced_global);
+  }
+
   while (platform_->MonotonicallyIncreasingTime() - start_time <
          deadline_in_ms) {
     if (frontier_.empty()) {
