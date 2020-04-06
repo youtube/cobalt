@@ -60,6 +60,8 @@ bool CobaltGcZealDefault();
 
 const char* CobaltRasterizerTypeDefault();
 
+bool CobaltEnableJitDefault();
+
 }  // namespace common
 }  // namespace starboard
 

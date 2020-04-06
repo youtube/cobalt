@@ -32,6 +32,10 @@ bool CobaltGcZeal() {
   return true;
 }
 
+bool CobaltEnableJit() {
+  return true;
+}
+
 const CobaltExtensionConfigurationApi kConfigurationApi = {
     kCobaltExtensionConfigurationName,
     1,
@@ -56,6 +60,7 @@ const CobaltExtensionConfigurationApi kConfigurationApi = {
     &common::CobaltReduceGpuMemoryByDefault,
     &CobaltGcZeal,
     &common::CobaltRasterizerTypeDefault,
+    &CobaltEnableJit,
 };
 
 }  // namespace

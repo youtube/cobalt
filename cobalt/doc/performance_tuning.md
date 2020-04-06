@@ -42,14 +42,16 @@ consume around 10MB more memory than SpiderMonkey.
 
 To enable V8, you must modify the `GetVariables()` method in your
 `gyp_configuration.py` file and ensure that the variables dictionary that is
-returned contains the following key/value pairs:
+returned contains the following key/value pair:
 
 ```
 {
   'javascript_engine': 'v8',
-  'cobalt_enable_jit': 1,
 }
 ```
+
+Additionally, you must implement the `CobaltExtensionConfigurationApi` such
+that the `CobaltEnableJit()` method returns `true`.
 
 Note also that use of V8 requires Starboard version 10 or higher.
 
@@ -171,8 +173,8 @@ the best or fastest thing to do.  Enabling JIT can result in Cobalt using
 more memory (to store compiled code) and can also actually slow down
 JavaScript execution (e.g. time must now be spent compiling code).  It is
 recommended that JIT support be left disabled, but you can experiment with
-it by setting the `cobalt_enable_jit` `gyp_configuration.gypi` variable to `1`
-to enable JIT, or `0` to disable it.
+it by implementing the CobaltExtensionConfigurationApi method
+`CobaltEnableJit()` to return `true` to enable JIT, or `false` to disable it.
 
 **Tags:** *gyp_configuration.gypi, startup, browse-to-watch, input latency,
            cpu memory.*

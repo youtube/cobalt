@@ -214,6 +214,11 @@ typedef struct CobaltExtensionConfigurationApi {
   //   'stub'        -- Stub graphics rasterization.  A rasterizer object will
   //                    still be available and valid, but it will do nothing.
   const char* (*CobaltRasterizerType)();
+
+  // Controls whether or not just in time code should be used.
+  // See "cobalt/doc/performance_tuning.md" for more information on when this
+  // should be used.
+  bool (*CobaltEnableJit)();
 } CobaltExtensionConfigurationApi;
 
 #ifdef __cplusplus

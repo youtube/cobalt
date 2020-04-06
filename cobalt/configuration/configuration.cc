@@ -324,5 +324,20 @@ const char* Configuration::CobaltRasterizerType() {
 #endif
 }
 
+bool Configuration::CobaltEnableJit() {
+  if (configuration_api_) {
+    return configuration_api_->CobaltEnableJit();
+  }
+#if SB_API_VERSION >= SB_FEATURE_GYP_CONFIGURATION_VERSION
+  return false;
+#elif defined(ENGINE_SUPPORTS_JIT)
+  return true;
+#elif defined(COBALT_DISABLE_JIT)
+  return false;
+#else
+  return false;
+#endif
+}
+
 }  // namespace configuration
 }  // namespace cobalt
