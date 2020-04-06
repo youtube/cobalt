@@ -31,6 +31,10 @@ int CobaltSkiaGlyphAtlasHeight() {
   return 2048;
 }
 
+bool CobaltEnableJit() {
+  return true;
+}
+
 const CobaltExtensionConfigurationApi kConfigurationApi = {
     kCobaltExtensionConfigurationName,
     1,
@@ -55,6 +59,7 @@ const CobaltExtensionConfigurationApi kConfigurationApi = {
     &common::CobaltReduceGpuMemoryByDefault,
     &common::CobaltGcZealDefault,
     &common::CobaltRasterizerTypeDefault,
+    &CobaltEnableJit,
 };
 
 }  // namespace

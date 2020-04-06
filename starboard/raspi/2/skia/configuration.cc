@@ -59,6 +59,7 @@ const CobaltExtensionConfigurationApi kConfigurationApi = {
     &common::CobaltReduceGpuMemoryByDefault,
     &common::CobaltGcZealDefault,
     &CobaltRasterizerType,
+    &common::CobaltEnableJitDefault,
 };
 
 }  // namespace

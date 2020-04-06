@@ -27,6 +27,10 @@ int CobaltEglSwapInterval() {
   return 0;
 }
 
+bool CobaltEnableJit() {
+  return true;
+}
+
 const CobaltExtensionConfigurationApi kConfigurationApi = {
     kCobaltExtensionConfigurationName,
     1,
@@ -51,6 +55,7 @@ const CobaltExtensionConfigurationApi kConfigurationApi = {
     &common::CobaltReduceGpuMemoryByDefault,
     &common::CobaltGcZealDefault,
     &common::CobaltRasterizerTypeDefault,
+    &CobaltEnableJit,
 };
 
 }  // namespace
