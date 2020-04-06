@@ -35,9 +35,6 @@ const jint HDR_TYPE_HLG = 3;
 
 bool IsHDRTransferCharacteristicsSupported(SbMediaVideoCodec video_codec,
                                            SbMediaTransferId transfer_id) {
-  SB_DCHECK(transfer_id != kSbMediaTransferIdBt709 &&
-            transfer_id != kSbMediaTransferIdUnspecified);
-
   const char* mime = SupportedVideoCodecToMimeType(video_codec);
   if (!mime) {
     return false;
