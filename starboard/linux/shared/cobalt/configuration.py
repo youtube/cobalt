@@ -48,7 +48,9 @@ class CobaltLinuxConfiguration(cobalt_configuration.CobaltConfiguration):
     filters = super(CobaltLinuxConfiguration, self).GetTestFilters()
     filters.extend([
         test_filter.TestFilter(
-            'net_unittests', 'HostResolverImplDnsTest.DnsTaskUnspec')
+            'net_unittests', 'HostResolverImplDnsTest.DnsTaskUnspec'),
+        test_filter.TestFilter(
+            'net_unittests', 'TCPListenSocketTest.ServerSendMultiple'),
     ])
     return filters
 
