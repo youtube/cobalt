@@ -50,6 +50,8 @@ class CobaltLinuxConfiguration(cobalt_configuration.CobaltConfiguration):
         test_filter.TestFilter(
             'net_unittests', 'HostResolverImplDnsTest.DnsTaskUnspec'),
         test_filter.TestFilter(
+            'net_unittests', 'TCPListenSocketTest.ServerSendMultiple'),
+        test_filter.TestFilter(
             'web_platform_tests', 'xhr/WebPlatformTest.Run/130', 'debug'),
         test_filter.TestFilter(
             'web_platform_tests', 'streams/WebPlatformTest.Run/11', 'debug'),
