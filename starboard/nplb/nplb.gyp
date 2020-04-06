@@ -152,6 +152,7 @@
         # TODO: Separate functions tested by media buffer test into multiple
         # files.
         'media_buffer_test.cc',
+        'media_can_play_mime_and_key_system_test.cc',
         'memory_align_to_page_size_test.cc',
         'memory_allocate_aligned_test.cc',
         'memory_allocate_test.cc',
