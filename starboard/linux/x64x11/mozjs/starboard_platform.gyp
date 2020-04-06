@@ -15,4 +15,16 @@
   'includes': [
     '../shared/starboard_platform_target.gypi',
   ],
+  'variables': {
+    'starboard_platform_sources': [
+      '<(DEPTH)/starboard/linux/x64x11/mozjs/configuration.cc',
+      '<(DEPTH)/starboard/linux/x64x11/mozjs/configuration.h',
+      '<(DEPTH)/starboard/linux/x64x11/mozjs/system_get_extensions.cc',
+    ],
+    'starboard_platform_sources!': [
+      '<(DEPTH)/starboard/linux/shared/configuration.cc',
+      '<(DEPTH)/starboard/linux/shared/configuration.h',
+      '<(DEPTH)/starboard/linux/shared/system_get_extensions.cc',
+    ],
+  },
 }

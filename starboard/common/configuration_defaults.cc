@@ -101,5 +101,9 @@ const char* CobaltRasterizerTypeDefault() {
   return "direct-gles";
 }
 
+bool CobaltEnableJitDefault() {
+  return true;
+}
+
 }  // namespace common
 }  // namespace starboard
