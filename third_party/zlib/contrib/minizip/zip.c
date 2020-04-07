@@ -25,18 +25,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/eztime_poem.h"
-#include "third_party/zlib/contrib/minizip/iostarboard.h"
-#else
-#include <time.h>
-#endif
 #if defined(USE_SYSTEM_ZLIB)
 #include <zlib.h>
 #else
 #endif
 #include "third_party/zlib/zlib.h"
 #include "zip.h"
+
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/eztime_poem.h"
+#include "third_party/zlib/contrib/minizip/iostarboard.h"
+#else
+#include <time.h>
+#endif
 
 #ifdef STDC
 #  include <stddef.h>

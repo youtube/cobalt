@@ -52,7 +52,7 @@
 #include "deflate.h"
 #include "x86.h"
 
-#if (defined(__ARM_NEON__) || defined(__ARM_NEON))
+#if (defined(__ARM_NEON__) || defined(__ARM_NEON)) || defined(STARBOARD)
 #include "contrib/optimizations/slide_hash_neon.h"
 #endif
 /* We need crypto extension crc32 to implement optimized hash in
@@ -61,6 +61,10 @@
 #if defined(CRC32_ARMV8_CRC32)
 #include "arm_features.h"
 #include "crc32_simd.h"
+#endif
+
+#if defined(STARBOARD)
+#include "arm_features.h"
 #endif
 
 const char deflate_copyright[] =
@@ -251,9 +255,17 @@ local INLINE Pos insert_string(deflate_state *const s, const Pos str)
 local void slide_hash(s)
     deflate_state *s;
 {
-#if (defined(__ARM_NEON__) || defined(__ARM_NEON))
+#if (defined(__ARM_NEON__) || defined(__ARM_NEON)) || defined(STARBOARD)
+#if defined(STARBOARD)
+    if (arm_cpu_enable_neon) {
+        /* NEON based hash table rebase. */
+        neon_slide_hash(s->head, s->prev, s->w_size, s->hash_size);
+        return;
+    }
+#else
     /* NEON based hash table rebase. */
     return neon_slide_hash(s->head, s->prev, s->w_size, s->hash_size);
+#endif
 #endif
     unsigned n, m;
     Posf *p;
