@@ -70,15 +70,8 @@ typedef enum SbPlayerState {
 
   // The player has been destroyed, and will send no more callbacks.
   kSbPlayerStateDestroyed,
-#if !SB_HAS(PLAYER_ERROR_MESSAGE)
-  // The player encountered an error. It expects an SbPlayerDestroy() call
-  // to tear down the player. Calls to other functions may be ignored and
-  // callbacks may not be triggered.
-  kSbPlayerStateError,
-#endif  // !SB_HAS(PLAYER_ERROR_MESSAGE)
 } SbPlayerState;
 
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
 typedef enum SbPlayerError {
   kSbPlayerErrorDecode,
   // The playback capability of the player has changed, likely because of a
@@ -92,7 +85,6 @@ typedef enum SbPlayerError {
   kSbPlayerErrorMax,
 #endif  // SB_API_VERSION >= 11
 } SbPlayerError;
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
 typedef enum SbPlayerOutputMode {
   // Requests for SbPlayer to produce an OpenGL texture that the client must
@@ -285,7 +277,6 @@ typedef void (*SbPlayerStatusFunc)(SbPlayer player,
                                    SbPlayerState state,
                                    int ticket);
 
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
 // Callback for player errors, that may set a |message|.
 // |error|: indicates the error code.
 // |message|: provides specific informative diagnostic message about the error
@@ -295,7 +286,6 @@ typedef void (*SbPlayerErrorFunc)(SbPlayer player,
                                   void* context,
                                   SbPlayerError error,
                                   const char* message);
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
 // Callback to free the given sample buffer data.  When more than one buffer
 // are sent in SbPlayerWriteSample(), the implementation only has to call this
@@ -410,11 +400,9 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 //   should be done on this thread. Rather, it should just signal the client
 //   thread interacting with the decoder.
 //
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
 // |player_error_func|: If not |NULL|, the player calls this function on an
 //   internal thread to provide an update on the error status. This callback is
 //   responsible for setting the media error message.
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 //
 // |context|: This is passed to all callbacks and is generally used to point
 //   at a class or struct that contains state associated with the player.
@@ -467,9 +455,7 @@ SbPlayerCreate(SbWindow window,
                SbPlayerDeallocateSampleFunc sample_deallocate_func,
                SbPlayerDecoderStatusFunc decoder_status_func,
                SbPlayerStatusFunc player_status_func,
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
                SbPlayerErrorFunc player_error_func,
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
                void* context,
                SbPlayerOutputMode output_mode,
                SbDecodeTargetGraphicsContextProvider* context_provider);

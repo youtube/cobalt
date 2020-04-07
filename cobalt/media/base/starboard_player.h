@@ -47,10 +47,8 @@ class StarboardPlayer {
    public:
     virtual void OnNeedData(DemuxerStream::Type type) = 0;
     virtual void OnPlayerStatus(SbPlayerState state) = 0;
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
     virtual void OnPlayerError(SbPlayerError error,
                                const std::string& message) = 0;
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
    protected:
     ~Host() {}
@@ -139,10 +137,8 @@ class StarboardPlayer {
     void OnDecoderStatus(SbPlayer player, SbMediaType type,
                          SbPlayerDecoderState state, int ticket);
     void OnPlayerStatus(SbPlayer player, SbPlayerState state, int ticket);
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
     void OnPlayerError(SbPlayer player, SbPlayerError error,
                        const std::string& message);
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
     void OnDeallocateSample(const void* sample_buffer);
 
     void ResetPlayer();
@@ -187,20 +183,16 @@ class StarboardPlayer {
   void OnDecoderStatus(SbPlayer player, SbMediaType type,
                        SbPlayerDecoderState state, int ticket);
   void OnPlayerStatus(SbPlayer player, SbPlayerState state, int ticket);
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
   void OnPlayerError(SbPlayer player, SbPlayerError error,
                      const std::string& message);
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
   void OnDeallocateSample(const void* sample_buffer);
 
   static void DecoderStatusCB(SbPlayer player, void* context, SbMediaType type,
                               SbPlayerDecoderState state, int ticket);
   static void PlayerStatusCB(SbPlayer player, void* context,
                              SbPlayerState state, int ticket);
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
   static void PlayerErrorCB(SbPlayer player, void* context, SbPlayerError error,
                             const char* message);
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
   static void DeallocateSampleCB(SbPlayer player, void* context,
                                  const void* sample_buffer);
 

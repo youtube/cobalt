@@ -188,11 +188,7 @@ void AdaptiveAudioDecoder::InitializeAudioDecoder(
       audio_decoder_creator_(input_audio_sample_info_, drm_system_);
 
   if (!audio_decoder_) {
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
     error_cb_(kSbPlayerErrorDecode, "Decoder adapter cannot create decoder.");
-#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
-    error_cb_();
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
     return;
   }
   audio_decoder_->Initialize(

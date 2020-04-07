@@ -257,13 +257,9 @@ bool VideoDecoderImpl<FFMPEG>::DecodePacket(AVPacket* packet) {
   if (decode_result < 0) {
     SB_DLOG(ERROR) << "avcodec_decode_video2() failed with result "
                    << decode_result;
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
     error_cb_(kSbPlayerErrorDecode,
               FormatString("avcodec_decode_video2() failed with result %d.",
                            decode_result));
-#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
-    error_cb_();
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
     error_occured_ = true;
     return false;
   }
@@ -273,12 +269,8 @@ bool VideoDecoderImpl<FFMPEG>::DecodePacket(AVPacket* packet) {
 
   if (av_frame_->opaque == NULL) {
     SB_DLOG(ERROR) << "Video frame was produced yet has invalid frame data.";
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
     error_cb_(kSbPlayerErrorDecode,
               "Video frame was produced yet has invalid frame data.");
-#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
-    error_cb_();
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
     error_occured_ = true;
     return false;
   }
