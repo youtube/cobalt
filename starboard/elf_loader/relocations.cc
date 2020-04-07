@@ -234,11 +234,6 @@ bool Relocations::ApplyResolvedReloc(const Rela* rela, Addr sym_addr) {
                     << " bias=" << base_memory_address_ + addend;
       *target = base_memory_address_ + addend;
       break;
-
-    case R_AARCH64_COPY:
-      // NOTE: These relocations are forbidden in shared libraries.
-      SB_LOG(ERROR) << "Invalid R_AARCH64_COPY relocation in shared library";
-      return false;
 #endif
 
 #if SB_IS(ARCH_X64)
@@ -319,14 +314,6 @@ bool Relocations::ApplyResolvedReloc(const Rel* rel, Addr sym_addr) {
                     << *target << " bias=" << base_memory_address_;
       *target += base_memory_address_;
       break;
-
-    case R_ARM_COPY:
-      // NOTE: These relocations are forbidden in shared libraries.
-      // The Android linker has special code to deal with this, which
-      // is not needed here.
-      SB_LOG(ERROR) << "Invalid R_ARM_COPY relocation in shared library";
-
-      return false;
 #endif
 
 #if SB_IS(ARCH_X86)

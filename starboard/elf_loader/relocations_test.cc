@@ -28,48 +28,358 @@ namespace elf_loader {
 
 namespace {
 
-// TODO: implement
+// Test constants used as sample data.
+const Addr kTestAddress = 34;
+const Sword kTestAddend = 5;
+
 class RelocationsTest : public ::testing::Test {
  protected:
-  RelocationsTest() {}
+  RelocationsTest() {
+    SbMemorySet(buf_, 'A', sizeof(buf_));
+    base_addr_ = reinterpret_cast<Addr>(&buf_);
+    dynamic_table_[0].d_tag = DT_REL;
+
+    dynamic_section_.reset(
+        new DynamicSection(base_addr_, dynamic_table_, 1, 0));
+    dynamic_section_->InitDynamicSection();
+
+    exported_symbols_.reset(new ExportedSymbols());
+    relocations_.reset(new Relocations(base_addr_, dynamic_section_.get(),
+                                       exported_symbols_.get()));
+  }
   ~RelocationsTest() {}
 
+  void VerifySymAddress(const rel_t* rel, Addr sym_addr) {
+    Addr target_addr = base_addr_ + rel->r_offset;
+    Addr target_value = sym_addr;
+    EXPECT_EQ(target_value, *reinterpret_cast<Addr*>(target_addr));
+  }
+
+#ifdef USE_RELA
+  void VerifySymAddressPlusAddend(const rel_t* rel, Addr sym_addr) {
+    Addr target_addr = base_addr_ + rel->r_offset;
+    Addr target_value = sym_addr + rel->r_addend;
+    EXPECT_EQ(target_value, *reinterpret_cast<Addr*>(target_addr));
+  }
+
+  void VerifyBaseAddressPlusAddend(const rel_t* rel) {
+    Addr target_addr = base_addr_ + rel->r_offset;
+    Addr target_value = base_addr_ + rel->r_addend;
+    EXPECT_EQ(target_value, *reinterpret_cast<Addr*>(target_addr));
+  }
+
+  void VerifySymAddressPlusAddendDelta(const rel_t* rel, Addr sym_addr) {
+    Addr target_addr = base_addr_ + rel->r_offset;
+    Addr offset_rel = rel->r_offset + base_addr_;
+    Addr target_value = sym_addr + (rel->r_addend - offset_rel);
+    EXPECT_EQ(target_value, *reinterpret_cast<Addr*>(target_addr));
+  }
+#endif
+
+ protected:
   scoped_ptr<Relocations> relocations_;
+  Addr base_addr_;
+
+ private:
+  char buf_[128];
+  Dyn dynamic_table_[10];
+  scoped_ptr<DynamicSection> dynamic_section_;
+  scoped_ptr<ExportedSymbols> exported_symbols_;
 };
 
-#if SB_IS(ARCH_X64)
-TEST_F(RelocationsTest, Initialize_X86_64) {
-  char buff[1024] = "AAAAAAAAAAAAAAAAAAA";
-  Addr load_bias = reinterpret_cast<Addr>(&buff);
-  Dyn dynamic_table[10];
-  Dyn entry1;
-  entry1.d_tag = DT_REL;
+#if SB_IS(ARCH_ARM)
+TEST_F(RelocationsTest, R_ARM_JUMP_SLOT) {
+  rel_t rel;
+  rel.r_offset = 0;
+  rel.r_info = R_ARM_JUMP_SLOT;
+  Addr sym_addr = kTestAddress;
 
-  dynamic_table[0] = entry1;
-  Dyn* dyn = dynamic_table;
-  size_t dyn_count = 1;
-  Word dyn_flags = 0;
+  // Expected relocation calculation:
+  //   *target = sym_addr;
+  relocations_->ApplyResolvedReloc(&rel, sym_addr);
 
-  scoped_ptr<DynamicSection> dynamic_section(
-      new DynamicSection(load_bias, dyn, dyn_count, dyn_flags));
-  dynamic_section->InitDynamicSection();
-
-  scoped_ptr<ExportedSymbols> exported_symbols(new ExportedSymbols());
-  relocations_.reset(new Relocations(load_bias, dynamic_section.get(),
-                                     exported_symbols.get()));
-  Rela rela;
-  rela.r_offset = 2;
-  rela.r_info = R_X86_64_JMP_SLOT;
-  rela.r_addend = 5;
-  Addr sym_addr = 34;
-
-  Addr target = rela.r_offset + load_bias;
-  SB_LOG(INFO) << "target= " << reinterpret_cast<char*>(target);
-  relocations_->ApplyResolvedReloc(&rela, sym_addr);
-  EXPECT_EQ(39, *reinterpret_cast<Elf64_Sxword*>(buff + 2));
-  SB_LOG(INFO) << "buffer= " << *reinterpret_cast<Elf64_Sxword*>(buff + 2);
+  VerifySymAddress(&rel, sym_addr);
 }
-#endif
+
+TEST_F(RelocationsTest, R_ARM_GLOB_DAT) {
+  rel_t rel;
+  rel.r_offset = 1;
+  rel.r_info = R_ARM_GLOB_DAT;
+  Addr sym_addr = kTestAddress;
+
+  // Expected relocation calculation:
+  //   *target = sym_addr;
+  relocations_->ApplyResolvedReloc(&rel, sym_addr);
+
+  VerifySymAddress(&rel, sym_addr);
+}
+
+TEST_F(RelocationsTest, R_ARM_ABS32) {
+  rel_t rel;
+  rel.r_offset = 2;
+  rel.r_info = R_ARM_ABS32;
+  Addr sym_addr = kTestAddress;
+
+  Addr target_addr = base_addr_ + rel.r_offset;
+  Addr target_value = *reinterpret_cast<Addr*>(target_addr);
+  target_value += sym_addr;
+
+  // Expected relocation calculation:
+  //   *target += sym_addr;
+  relocations_->ApplyResolvedReloc(&rel, sym_addr);
+
+  EXPECT_EQ(target_value, *reinterpret_cast<Addr*>(target_addr));
+}
+
+TEST_F(RelocationsTest, R_ARM_REL32) {
+  rel_t rel;
+  rel.r_offset = 3;
+  rel.r_info = R_ARM_REL32;
+  Addr sym_addr = kTestAddress;
+
+  Addr target_addr = base_addr_ + rel.r_offset;
+  Addr target_value = *reinterpret_cast<Addr*>(target_addr);
+  target_value += sym_addr - rel.r_offset;
+
+  // Expected relocation calculation:
+  //   *target += sym_addr - rel->r_offset;
+  relocations_->ApplyResolvedReloc(&rel, sym_addr);
+
+  EXPECT_EQ(target_value, *reinterpret_cast<Addr*>(target_addr));
+}
+
+TEST_F(RelocationsTest, R_ARM_RELATIVE) {
+  rel_t rel;
+  rel.r_offset = 4;
+  rel.r_info = R_ARM_RELATIVE;
+  Addr sym_addr = kTestAddress;
+
+  Addr target_addr = base_addr_ + rel.r_offset;
+  Addr target_value = *reinterpret_cast<Addr*>(target_addr);
+  target_value += base_addr_;
+
+  // Expected relocation calculation:
+  //   *target += base_memory_address_;
+  relocations_->ApplyResolvedReloc(&rel, sym_addr);
+
+  EXPECT_EQ(target_value, *reinterpret_cast<Addr*>(target_addr));
+}
+#endif  // SB_IS(ARCH_ARM)
+
+#if SB_IS(ARCH_ARM64) && defined(USE_RELA)
+TEST_F(RelocationsTest, R_AARCH64_JUMP_SLOT) {
+  rel_t rel;
+  rel.r_offset = 0;
+  rel.r_info = R_AARCH64_JUMP_SLOT;
+  rel.r_addend = kTestAddend;
+  Addr sym_addr = kTestAddress;
+
+  // Expected relocation calculation:
+  //   *target = sym_addr + addend;
+  relocations_->ApplyResolvedReloc(&rel, sym_addr);
+
+  VerifySymAddressPlusAddend(&rel, sym_addr);
+}
+
+TEST_F(RelocationsTest, R_AARCH64_GLOB_DAT) {
+  rel_t rel;
+  rel.r_offset = 1;
+  rel.r_info = R_AARCH64_GLOB_DAT;
+  rel.r_addend = kTestAddend;
+  Addr sym_addr = kTestAddress;
+
+  // Expected relocation calculation:
+  //   *target = sym_addr + addend;
+  relocations_->ApplyResolvedReloc(&rel, sym_addr);
+
+  VerifySymAddressPlusAddend(&rel, sym_addr);
+}
+
+TEST_F(RelocationsTest, R_AARCH64_ABS64) {
+  rel_t rel;
+  rel.r_offset = 2;
+  rel.r_info = R_AARCH64_ABS64;
+  rel.r_addend = kTestAddend;
+  Addr sym_addr = kTestAddress;
+
+  Addr target_addr = base_addr_ + rel.r_offset;
+  Addr target_value = *reinterpret_cast<Addr*>(target_addr);
+  target_value += sym_addr + rel.r_addend;
+
+  // Expected relocation calculation:
+  //   *target += sym_addr + addend;
+  relocations_->ApplyResolvedReloc(&rel, sym_addr);
+
+  EXPECT_EQ(target_value, *reinterpret_cast<Addr*>(target_addr));
+}
+
+TEST_F(RelocationsTest, R_AARCH64_RELATIVE) {
+  rel_t rel;
+  rel.r_offset = 3;
+  rel.r_info = R_AARCH64_RELATIVE;
+  rel.r_addend = kTestAddend;
+  Addr sym_addr = kTestAddress;
+
+  // Expected relocation calculation:
+  //   *target = base_memory_address_ + addend;
+  relocations_->ApplyResolvedReloc(&rel, sym_addr);
+
+  VerifyBaseAddressPlusAddend(&rel);
+}
+
+#endif  // SB_IS(ARCH_ARM64) && defined(USE_RELA)
+
+#if SB_IS(ARCH_X86)
+TEST_F(RelocationsTest, R_386_JMP_SLOT) {
+  rel_t rel;
+  rel.r_offset = 0;
+  rel.r_info = R_386_JMP_SLOT;
+  Addr sym_addr = kTestAddress;
+
+  // Expected relocation calculation:
+  //   *target = sym_addr;
+  relocations_->ApplyResolvedReloc(&rel, sym_addr);
+
+  VerifySymAddress(&rel, sym_addr);
+}
+
+TEST_F(RelocationsTest, R_386_GLOB_DAT) {
+  rel_t rel;
+  rel.r_offset = 1;
+  rel.r_info = R_386_GLOB_DAT;
+  Addr sym_addr = kTestAddress;
+
+  // Expected relocation calculation:
+  //   *target = sym_addr;
+  relocations_->ApplyResolvedReloc(&rel, sym_addr);
+
+  VerifySymAddress(&rel, sym_addr);
+}
+
+TEST_F(RelocationsTest, R_386_RELATIVE) {
+  rel_t rel;
+  rel.r_offset = 2;
+  rel.r_info = R_386_RELATIVE;
+  Addr sym_addr = kTestAddress;
+
+  Addr target_addr = base_addr_ + rel.r_offset;
+  Addr target_value = *reinterpret_cast<Addr*>(target_addr);
+  target_value += base_addr_;
+
+  // Expected relocation calculation:
+  //   *target += base_memory_address_;
+  relocations_->ApplyResolvedReloc(&rel, sym_addr);
+
+  EXPECT_EQ(target_value, *reinterpret_cast<Addr*>(target_addr));
+}
+
+TEST_F(RelocationsTest, R_386_32) {
+  rel_t rel;
+  rel.r_offset = 3;
+  rel.r_info = R_386_32;
+  Addr sym_addr = kTestAddress;
+
+  Addr target_addr = base_addr_ + rel.r_offset;
+  Addr target_value = *reinterpret_cast<Addr*>(target_addr);
+  target_value += sym_addr;
+
+  // Expected relocation calculation:
+  //   *target += sym_addr;
+  relocations_->ApplyResolvedReloc(&rel, sym_addr);
+
+  EXPECT_EQ(target_value, *reinterpret_cast<Addr*>(target_addr));
+}
+
+TEST_F(RelocationsTest, R_386_PC32) {
+  rel_t rel;
+  rel.r_offset = 4;
+  rel.r_info = R_386_PC32;
+  Addr sym_addr = kTestAddress;
+
+  Addr target_addr = base_addr_ + rel.r_offset;
+  Addr target_value = *reinterpret_cast<Addr*>(target_addr);
+  Addr reloc = static_cast<Addr>(rel.r_offset + base_addr_);
+  target_value += (sym_addr - reloc);
+
+  // Expected relocation calculation:
+  //   *target += (sym_addr - reloc);
+  relocations_->ApplyResolvedReloc(&rel, sym_addr);
+
+  EXPECT_EQ(target_value, *reinterpret_cast<Addr*>(target_addr));
+}
+#endif  // SB_IS(ARCH_X86)
+
+#if SB_IS(ARCH_X64) && defined(USE_RELA)
+TEST_F(RelocationsTest, R_X86_64_JMP_SLOT) {
+  rel_t rel;
+  rel.r_offset = 0;
+  rel.r_info = R_X86_64_JMP_SLOT;
+  rel.r_addend = kTestAddend;
+  Addr sym_addr = kTestAddress;
+
+  // Expected relocation calculation:
+  //   *target = sym_addr + addend;
+  relocations_->ApplyResolvedReloc(&rel, sym_addr);
+
+  VerifySymAddressPlusAddend(&rel, sym_addr);
+}
+
+TEST_F(RelocationsTest, R_X86_64_GLOB_DAT) {
+  rel_t rel;
+  rel.r_offset = 1;
+  rel.r_info = R_X86_64_GLOB_DAT;
+  rel.r_addend = kTestAddend;
+  Addr sym_addr = kTestAddress;
+
+  // Expected relocation calculation:
+  //   *target = sym_addr + addend;
+  relocations_->ApplyResolvedReloc(&rel, sym_addr);
+
+  VerifySymAddressPlusAddend(&rel, sym_addr);
+}
+
+TEST_F(RelocationsTest, R_X86_64_RELATIVE) {
+  rel_t rel;
+  rel.r_offset = 2;
+  rel.r_info = R_X86_64_RELATIVE;
+  rel.r_addend = kTestAddend;
+  Addr sym_addr = kTestAddress;
+
+  // Expected relocation calculation:
+  //   *target = base_memory_address_ + addend;
+  relocations_->ApplyResolvedReloc(&rel, sym_addr);
+
+  VerifyBaseAddressPlusAddend(&rel);
+}
+
+TEST_F(RelocationsTest, R_X86_64_64) {
+  rel_t rel;
+  rel.r_offset = 3;
+  rel.r_info = R_X86_64_64;
+  rel.r_addend = kTestAddend;
+  Addr sym_addr = kTestAddress;
+
+  // Expected relocation calculation:
+  //   *target = sym_addr + addend;
+  relocations_->ApplyResolvedReloc(&rel, sym_addr);
+
+  VerifySymAddressPlusAddend(&rel, sym_addr);
+}
+
+TEST_F(RelocationsTest, R_X86_64_PC32) {
+  rel_t rel;
+  rel.r_offset = 4;
+  rel.r_info = R_X86_64_PC32;
+  rel.r_addend = kTestAddend;
+  Addr sym_addr = kTestAddress;
+
+  relocations_->ApplyResolvedReloc(&rel, sym_addr);
+
+  // Expected relocation calculation:
+  //   *target = sym_addr + (addend - reloc);
+  VerifySymAddressPlusAddendDelta(&rel, sym_addr);
+}
+#endif  // SB_IS(ARCH_X64) && defined(USE_RELA)
 
 }  // namespace
 }  // namespace elf_loader
