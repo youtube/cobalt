@@ -16,7 +16,6 @@
 
 #include <limits>
 
-#if SB_HAS(PLAYER_FILTER_TESTS)
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -289,4 +288,3 @@ void Write(const WriteCB& write_cb,
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
-#endif  // SB_HAS(PLAYER_FILTER_TESTS)

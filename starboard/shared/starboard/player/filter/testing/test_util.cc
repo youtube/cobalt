@@ -14,8 +14,6 @@
 
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
 
-#if SB_HAS(PLAYER_FILTER_TESTS)
-
 #include "starboard/common/log.h"
 #include "starboard/directory.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
@@ -210,5 +208,3 @@ bool CreateAudioComponents(bool using_stub_decoder,
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
-
-#endif  // SB_HAS(PLAYER_FILTER_TESTS)
