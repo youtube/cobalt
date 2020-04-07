@@ -125,11 +125,7 @@ bool FilterBasedPlayerWorkerHandler::Init(
   update_media_info_cb_ = update_media_info_cb;
   get_player_state_cb_ = get_player_state_cb;
   update_player_state_cb_ = update_player_state_cb;
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
   update_player_error_cb_ = update_player_error_cb;
-#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
-  SB_DCHECK(!update_player_error_cb);
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
   scoped_ptr<PlayerComponents::Factory> factory =
       PlayerComponents::Factory::Create();
@@ -185,11 +181,7 @@ bool FilterBasedPlayerWorkerHandler::Init(
     SB_LOG(INFO) << "Initialize audio renderer with volume " << volume_;
 
     audio_renderer_->Initialize(
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
         std::bind(&FilterBasedPlayerWorkerHandler::OnError, this, _1, _2),
-#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
-        std::bind(&FilterBasedPlayerWorkerHandler::OnError, this),
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
         std::bind(&FilterBasedPlayerWorkerHandler::OnPrerolled, this,
                   kSbMediaTypeAudio),
         std::bind(&FilterBasedPlayerWorkerHandler::OnEnded, this,
@@ -202,11 +194,7 @@ bool FilterBasedPlayerWorkerHandler::Init(
     SB_LOG(INFO) << "Initialize video renderer.";
 
     video_renderer_->Initialize(
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
         std::bind(&FilterBasedPlayerWorkerHandler::OnError, this, _1, _2),
-#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
-        std::bind(&FilterBasedPlayerWorkerHandler::OnError, this),
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
         std::bind(&FilterBasedPlayerWorkerHandler::OnPrerolled, this,
                   kSbMediaTypeVideo),
         std::bind(&FilterBasedPlayerWorkerHandler::OnEnded, this,
@@ -432,7 +420,6 @@ bool FilterBasedPlayerWorkerHandler::SetBounds(
   return true;
 }
 
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
 void FilterBasedPlayerWorkerHandler::OnError(SbPlayerError error,
                                              const std::string& error_message) {
   if (!BelongsToCurrentThread()) {
@@ -447,16 +434,6 @@ void FilterBasedPlayerWorkerHandler::OnError(SbPlayerError error,
                                        : error_message);
   }
 }
-#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
-void FilterBasedPlayerWorkerHandler::OnError() {
-  if (!BelongsToCurrentThread()) {
-    Schedule(std::bind(&FilterBasedPlayerWorkerHandler::OnError, this));
-    return;
-  }
-
-  update_player_state_cb_(kSbPlayerStateError);
-}
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
 void FilterBasedPlayerWorkerHandler::OnPrerolled(SbMediaType media_type) {
   if (!BelongsToCurrentThread()) {

@@ -163,9 +163,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // StarboardPlayer::Host implementation.
   void OnNeedData(DemuxerStream::Type type) override;
   void OnPlayerStatus(SbPlayerState state) override;
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
   void OnPlayerError(SbPlayerError error, const std::string& message) override;
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
   // Used to make a delayed call to OnNeedData() if |audio_read_delayed_| is
   // true. If |audio_read_delayed_| is false, that means the delayed call has
@@ -1192,16 +1190,9 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
       break;
     case kSbPlayerStateDestroyed:
       break;
-#if !SB_HAS(PLAYER_ERROR_MESSAGE)
-    case kSbPlayerStateError:
-      ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_DECODE,
-                           "Pipeline player state error.");
-      break;
-#endif  // !SB_HAS(PLAYER_ERROR_MESSAGE)
   }
 }
 
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
 void SbPlayerPipeline::OnPlayerError(SbPlayerError error,
                                      const std::string& message) {
   DCHECK(task_runner_->BelongsToCurrentThread());
@@ -1240,7 +1231,6 @@ void SbPlayerPipeline::OnPlayerError(SbPlayerError error,
 #endif  // SB_API_VERSION >= 11
   }
 }
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
 void SbPlayerPipeline::DelayedNeedData() {
   DCHECK(task_runner_->BelongsToCurrentThread());

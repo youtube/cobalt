@@ -65,13 +65,9 @@ class PlayerWorker {
         UpdateMediaInfoCB;
     typedef std::function<SbPlayerState()> GetPlayerStateCB;
     typedef std::function<void(SbPlayerState player_state)> UpdatePlayerStateCB;
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
     typedef std::function<void(SbPlayerError error,
                                const std::string& error_message)>
         UpdatePlayerErrorCB;
-#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
-    typedef std::function<void()> UpdatePlayerErrorCB;
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
     virtual ~Handler() {}
 
     // All the following functions return false to signal a fatal error.  The
@@ -107,9 +103,7 @@ class PlayerWorker {
       UpdateMediaInfoCB update_media_info_cb,
       SbPlayerDecoderStatusFunc decoder_status_func,
       SbPlayerStatusFunc player_status_func,
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
       SbPlayerErrorFunc player_error_func,
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
       SbPlayer player,
       void* context);
 
@@ -170,9 +164,7 @@ class PlayerWorker {
                UpdateMediaInfoCB update_media_info_cb,
                SbPlayerDecoderStatusFunc decoder_status_func,
                SbPlayerStatusFunc player_status_func,
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
                SbPlayerErrorFunc player_error_func,
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
                SbPlayer player,
                void* context);
 
@@ -180,11 +172,7 @@ class PlayerWorker {
 
   SbPlayerState player_state() const { return player_state_; }
   void UpdatePlayerState(SbPlayerState player_state);
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
   void UpdatePlayerError(SbPlayerError error, const std::string& message);
-#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
-  void UpdatePlayerError(const std::string& message);
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
   static void* ThreadEntryPoint(void* context);
   void RunLoop();
@@ -211,9 +199,7 @@ class PlayerWorker {
 
   SbPlayerDecoderStatusFunc decoder_status_func_;
   SbPlayerStatusFunc player_status_func_;
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
   SbPlayerErrorFunc player_error_func_;
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
   bool error_occurred_ = false;
   SbPlayer player_;
   void* context_;

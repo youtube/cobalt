@@ -137,13 +137,9 @@ void OpusAudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
     // TODO: Consider fill it with silence.
     SB_LOG(ERROR) << kDecodeFunctionName
                   << "() failed with error code: " << decoded_frames;
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
     error_cb_(kSbPlayerErrorDecode,
               FormatString("%s() failed with error code: %d",
                            kDecodeFunctionName, decoded_frames));
-#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
-    error_cb_();
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
     return;
   }
 

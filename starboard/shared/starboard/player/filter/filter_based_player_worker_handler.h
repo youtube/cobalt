@@ -75,11 +75,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   void Stop() override;
 
   void Update();
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
   void OnError(SbPlayerError error, const std::string& error_message);
-#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
-  void OnError();
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
   void OnPrerolled(SbMediaType media_type);
   void OnEnded(SbMediaType media_type);
 

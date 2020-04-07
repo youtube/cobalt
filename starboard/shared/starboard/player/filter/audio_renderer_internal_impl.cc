@@ -541,12 +541,8 @@ void AudioRendererImpl::OnFirstOutput(
       reinterpret_cast<SbAudioSinkFrameBuffers>(frame_buffers_),
       max_cached_frames_, this);
   if (!audio_renderer_sink_->HasStarted()) {
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
     SB_LOG(ERROR) << "Failed to start audio sink.";
     error_cb_(kSbPlayerErrorDecode, "failed to start audio sink");
-#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
-    error_cb_();
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
   }
 }
 
