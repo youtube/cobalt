@@ -19,8 +19,7 @@ import sys
 # except ImportError:
 #     import json
 PYJSON5_DIR = os.path.join(os.path.dirname(__file__),
-                           '..', '..', '..', '..', '..', '..',
-                           'third_party', 'pyjson5')
+                           '..', '..', 'third_party', 'pyjson5', 'src')
 sys.path.append(PYJSON5_DIR)
 import json5 as json # pylint: disable=import-error
 
