@@ -13,6 +13,9 @@
 // limitations under the License.
 
 #include "starboard/configuration.h"
+
+#if SB_API_VERSION < SB_CRYPTOAPI_DEPRECATED_VERSION
+
 #include "starboard/cryptography.h"
 
 void SbCryptographySetInitializationVector(
@@ -23,3 +26,5 @@ void SbCryptographySetInitializationVector(
   SB_UNREFERENCED_PARAMETER(initialization_vector);
   SB_UNREFERENCED_PARAMETER(initialization_vector_size);
 }
+
+#endif  // SB_CRYPTOAPI_DEPRECATED_VERSION

@@ -63,6 +63,10 @@
 #ifndef STARBOARD_SHARED_STARBOARD_CRYPTOGRAPHY_SOFTWARE_AES_H_
 #define STARBOARD_SHARED_STARBOARD_CRYPTOGRAPHY_SOFTWARE_AES_H_
 
+#if SB_API_VERSION >= SB_CRYPTOAPI_DEPRECATED_VERSION
+#error "Starboard Crypto API is deprecated"
+#else
+
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/types.h"
@@ -211,5 +215,7 @@ void AES_gcm128_tag(GCM128_CONTEXT *ctx, void *tag, size_t len);
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
+
+#endif  // SB_CRYPTOAPI_DEPRECATED_VERSION
 
 #endif  // STARBOARD_SHARED_STARBOARD_CRYPTOGRAPHY_SOFTWARE_AES_H_

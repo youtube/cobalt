@@ -13,6 +13,9 @@
 // limitations under the License.
 
 #include "starboard/configuration.h"
+
+#if SB_API_VERSION < SB_CRYPTOAPI_DEPRECATED_VERSION
+
 #include "starboard/cryptography.h"
 #include "starboard/shared/starboard/cryptography/cryptography_internal.h"
 #include "starboard/shared/starboard/cryptography/software_aes.h"
@@ -32,3 +35,5 @@ bool SbCryptographyGetTag(
   AES_gcm128_tag(&transformer->gcm_context, out_tag, out_tag_size);
   return true;
 }
+
+#endif  // SB_CRYPTOAPI_DEPRECATED_VERSION
