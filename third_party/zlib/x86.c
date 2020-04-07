@@ -14,6 +14,44 @@
 int ZLIB_INTERNAL x86_cpu_enable_ssse3 = 0;
 int ZLIB_INTERNAL x86_cpu_enable_simd = 0;
 
+#ifdef STARBOARD
+#include "starboard/log.h"
+#include "starboard/once.h"
+
+#if SB_API_VERSION >= 11
+#include "starboard/cpu_features.h"
+#endif
+
+SbOnceControl cpu_check_inited_once = SB_ONCE_INITIALIZER;
+static void _x86_check_features(void);
+
+void x86_check_features(void)
+{
+  SbOnce(&cpu_check_inited_once, _x86_check_features);
+}
+
+static void _x86_check_features(void)
+{
+#if SB_API_VERSION >= 11
+  SbCPUFeatures features;
+
+  if (SbCPUFeaturesGet(&features)) {
+    x86_cpu_enable_ssse3 = features.x86.has_ssse3;
+    x86_cpu_enable_simd = features.x86.has_sse2 &&
+                          features.x86.has_sse42 &&
+                          /* TODO: Update when SbCPUFeatures supports
+                           * has_pclmulqdq. */
+                          false;
+  }
+#endif
+
+  if (!x86_cpu_enable_ssse3 || !x86_cpu_enable_simd) {
+    SbLogFormatF("Not all Zlib optimizations enabled: ssse3 is %i, simd is %i."
+                 "\n", x86_cpu_enable_ssse3, x86_cpu_enable_simd);
+    SbLogFlush();
+  }
+}
+#else
 #ifndef _MSC_VER
 #include <pthread.h>
 
@@ -99,3 +137,4 @@ static BOOL CALLBACK _x86_check_features(PINIT_ONCE once,
     return TRUE;
 }
 #endif  /* _MSC_VER */
+#endif  /* STARBOARD */

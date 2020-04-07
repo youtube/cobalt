@@ -5,6 +5,10 @@
 {
   'variables': {
     'optimize_target_for_speed': 1,
+    'use_system_minizip%': 0,
+    'use_arm_neon_optimizations%': 0,
+    'use_x86_x64_optimizations%': 0,
+
     'conditions': [
       [ 'OS == "none"', {
         # Because we have a patched zlib, we cannot use the system libz.
@@ -14,12 +18,272 @@
       }, {
         'use_system_zlib%': 0,
       }],
+      # Disable all optimizations temporarily to allow before-and-after metric
+      # from all platforms without having to personally build each.
+      ['target_arch=="x86" or target_arch=="x64"', {
+        'use_x86_x64_optimizations%': 0,
+      }],
+      ['target_arch=="arm" or target_arch=="arm64"', {
+        'use_arm_neon_optimizations%': 0,
+      }],
     ],
-    'use_system_minizip%': 0,
-    'use_x86_x64_optimizations%': 0,
-    'use_arm_neon_optimizations%': 0,
   },
   'targets': [
+    # zlib_force_neon_fpu forces dependent targets to compile with the Advanced
+    # SIMD extension.
+    {
+      'target_name': 'zlib_force_neon_fpu',
+      'type': 'none',
+      'conditions': [
+        ['target_arch=="arm" and \
+          use_arm_neon_optimizations==1 and \
+          floating_point_fpu!="neon" and \
+          floating_point_fpu!="neon-fp16" and \
+          floating_point_fpu!="neon-vfpv4" and \
+          floating_point_fpu!="crypto-neon-fp-armv8"', {
+          'direct_dependent_settings': {
+            'cflags!': [
+              '-mfpu=<(floating_point_fpu)',
+            ],
+            'cflags': [
+              '-mfpu=neon',
+            ],
+          },
+        }],
+      ],
+    },
+    {
+      'target_name': 'zlib_adler32_simd',
+      'type': 'static_library',
+      'defines': [
+        'ZLIB_IMPLEMENTATION',
+      ],
+      'conditions': [
+        ['use_x86_x64_optimizations==1', {
+          'defines': [
+            'ADLER32_SIMD_SSSE3',
+          ],
+          'sources': [
+            'adler32_simd.c',
+            'adler32_simd.h',
+          ],
+          'direct_dependent_settings': {
+            'defines': [
+              'ADLER32_SIMD_SSSE3',
+            ],
+          },
+          'conditions': [
+            ['OS!="win" or clang==1', {
+              'cflags': [
+                '-mssse3',
+              ],
+            }],
+          ],
+        }],
+        ['use_arm_neon_optimizations==1', {
+          'defines': [
+            'ADLER32_SIMD_NEON',
+          ],
+          'dependencies': [
+            ':zlib_force_neon_fpu',
+          ],
+          'sources': [
+            'adler32_simd.c',
+            'adler32_simd.h',
+          ],
+          'direct_dependent_settings': {
+            'defines': [
+              'ADLER32_SIMD_NEON',
+            ],
+          },
+          'conditions': [
+            ['cobalt_config!="debug"', {
+              'variables': {
+                'optimize_target_for_speed': 1
+              },
+            }],
+          ],
+        }],
+      ],
+    },
+    {
+      'target_name': 'zlib_arm_crc32',
+      'type': 'static_library',
+      'conditions': [
+        ['use_arm_neon_optimizations==1', {
+          'include_dirs': [
+            '.',
+          ],
+          'dependencies': [
+            ':zlib_force_neon_fpu',
+          ],
+          'sources': [
+            'contrib/optimizations/slide_hash_neon.c',
+            'contrib/optimizations/slide_hash_neon.h',
+          ],
+          'conditions': [
+            # CRC (cyclic redundancy check) instructions are only available for
+            # ARM versions 8 and later.
+            ['OS!="ios" and arm_version>=8', {
+              'defines': [
+                'CRC32_ARMV8_CRC32',
+                'ZLIB_IMPLEMENTATION',
+              ],
+              'sources': [
+                'crc32_simd.c',
+                'crc32_simd.h',
+              ],
+              'direct_dependent_settings': {
+                'defines': [
+                  'CRC32_ARMV8_CRC32',
+                ],
+              },
+              'conditions': [
+                ['OS=="android"', {
+                  'defines': [
+                    'ARMV8_OS_ANDROID',
+                  ],
+                  'dependencies': [
+                    '<(android_ndk_root)/android_tools_ndk.gyp:cpu_features',
+                  ],
+                }],
+                ['OS=="linux"', {
+                  'defines': [
+                    'ARMV8_OS_LINUX',
+                  ],
+                }],
+                ['OS=="fuchsia"', {
+                  'defines': [
+                    'ARMV8_OS_FUCHSIA',
+                  ],
+                }],
+                ['OS=="windows"', {
+                  'defines': [
+                    'ARMV8_OS_WINDOWS',
+                  ],
+                }],
+                ['OS!="windows" and clang!=1', {
+                  'cflags_c': [
+                    '-march=armv8-a+crc',
+                  ],
+                }],
+                ['cobalt_config!="debug"', {
+                  'variables': {
+                    'optimize_target_for_speed': 1,
+                  },
+                }],
+              ],
+            }],
+          ],
+        }],
+      ],
+    },
+    {
+      'target_name': 'zlib_inflate_chunk_simd',
+      'type': 'static_library',
+      'defines': [
+        'ZLIB_IMPLEMENTATION',
+      ],
+      'conditions': [
+        ['use_x86_x64_optimizations==1 or use_arm_neon_optimizations==1', {
+          'include_dirs': [
+            '.',
+          ],
+          'sources': [
+            'contrib/optimizations/chunkcopy.h',
+            'contrib/optimizations/inffast_chunk.c',
+            'contrib/optimizations/inffast_chunk.h',
+            'contrib/optimizations/inflate.c',
+          ],
+        }],
+        ['use_x86_x64_optimizations==1', {
+          'defines': [
+            'INFLATE_CHUNK_SIMD_SSE2',
+          ],
+          'conditions': [
+            ['target_arch=="x64"', {
+              'defines': [
+                'INFLATE_CHUNK_READ_64LE',
+              ],
+            }],
+          ],
+        }],
+        ['use_arm_neon_optimizations==1', {
+          'defines': [
+            'INFLATE_CHUNK_SIMD_NEON',
+          ],
+          'dependencies': [
+            ':zlib_force_neon_fpu',
+          ],
+          'conditions': [
+            ['target_arch=="arm64"', {
+              'defines': [
+                'INFLATE_CHUNK_READ_64LE',
+              ],
+            }],
+            ['cobalt_config!="debug"', {
+              'variables': {
+                'optimize_target_for_speed': 1,
+              },
+            }],
+          ],
+        }],
+      ],
+    },
+    {
+      'target_name': 'zlib_crc32_simd',
+      'type': 'static_library',
+      'defines': [
+        'ZLIB_IMPLEMENTATION',
+      ],
+      'conditions': [
+        ['use_x86_x64_optimizations==1', {
+          'defines': [
+            'CRC32_SIMD_SSE42_PCLMUL',
+          ],
+          'sources': [
+            'crc32_simd.c',
+            'crc32_simd.h',
+          ],
+          'direct_dependent_settings': {
+            'defines': [
+              'CRC32_SIMD_SSE42_PCLMUL',
+            ],
+          },
+          'conditions': [
+            ['OS!="win" or clang==1', {
+              'cflags': [
+                '-msse4.2',
+                '-mpclmul',
+              ],
+            }],
+          ],
+        }],
+      ],
+    },
+    {
+      'target_name': 'zlib_x86_simd',
+      'type': 'static_library',
+      'defines': [
+        'ZLIB_IMPLEMENTATION',
+      ],
+      'conditions': [
+        ['use_x86_x64_optimizations==1', {
+          'sources': [
+            'crc_folding.c',
+            'fill_window_sse.c',
+          ],
+          'conditions': [
+            ['OS!="win" or clang==1', {
+              'cflags': [
+                '-msse4.2',
+                '-mpclmul',
+              ],
+            }],
+          ],
+        }],
+      ],
+    },
     {
       'target_name': 'zlib',
       'type': 'static_library',
@@ -38,6 +302,7 @@
             'inffast.h',
             'inffixed.h',
             'inflate.h',
+            'inflate.c',
             'inftrees.c',
             'inftrees.h',
             'trees.c',
@@ -55,7 +320,7 @@
           'all_dependent_settings': {
             'defines': [
                # To prevent Zlib ever from redefining const keyword in zconf.h
-              'STDC'
+              'STDC',
             ]
           },
           'direct_dependent_settings': {
@@ -65,6 +330,9 @@
           },
           'defines': [
             'ZLIB_IMPLEMENTATION',
+          ],
+          'dependencies': [
+            ':zlib_x86_simd',
           ],
           'conditions': [
             ['OS!="win"', {
@@ -83,20 +351,40 @@
               ],
             }],
             ['use_x86_x64_optimizations==1', {
-              # TODO: Enable optimizaitons for x86_x64.
-              'sources': [],
+              'defines': [
+                'USE_X86_X64_OPTIMIZATIONS=1',
+              ],
+              'dependencies': [
+                ':zlib_adler32_simd',
+                ':zlib_crc32_simd',
+                ':zlib_inflate_chunk_simd',
+              ],
+              'sources': [
+                'x86.c',
+              ],
             }, {
               'sources': [
                 'simd_stub.c',
               ],
             }],
             ['use_arm_neon_optimizations==1', {
-              # TODO: Enable optimizaitons for x86_x64.
-              'sources': [],
-            }],
-            ['use_x86_x64_optimizations==0 and use_arm_neon_optimizations==0', {
+              'defines': [
+                'USE_ARM_NEON_OPTIMIZATIONS=1',
+              ],
+              'dependencies': [
+                ':zlib_adler32_simd',
+                ':zlib_arm_crc32',
+                ':zlib_inflate_chunk_simd',
+              ],
               'sources': [
-                'inflate.c',
+                # slide_hash_neon.h has been moved to zlib_arm_crc32 so that it
+                # can be compiled with ARM NEON support.
+                'arm_features.c',
+                'arm_features.h',
+              ],
+            }, {
+              'sources': [
+                'arm_stub.c',
               ],
             }],
           ],
@@ -146,7 +434,7 @@
           'conditions': [
             ['OS!="win"', {
               'sources!': [
-                'contrib/minizip/iowin32.c'
+                'contrib/minizip/iowin32.c',
               ],
             }],
             ['OS=="android"', {
@@ -173,7 +461,7 @@
           # fseeko64. We use fopen, ftell, and fseek instead on these
           # systems.
           'defines': [
-            'USE_FILE32API'
+            'USE_FILE32API',
           ],
         }],
         ['clang==1', {

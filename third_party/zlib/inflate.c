@@ -85,6 +85,11 @@
 #include "inflate.h"
 #include "inffast.h"
 
+#if defined(STARBOARD)
+#include "arm_features.h"
+#include "x86.h"
+#endif
+
 #ifdef MAKEFIXED
 #  ifndef BUILDFIXED
 #    define BUILDFIXED
@@ -624,6 +629,11 @@ int ZEXPORT inflate(strm, flush)
 z_streamp strm;
 int flush;
 {
+#if defined(STARBOARD) && \
+    (defined(USE_X86_X64_OPTIMIZATIONS) || defined(USE_ARM_NEON_OPTIMIZATIONS))
+    if ((arm_cpu_enable_neon && arm_cpu_enable_crc32) || x86_cpu_enable_simd)
+        return inflate_contrib(strm, flush);
+#endif
     struct inflate_state FAR *state;
     z_const unsigned char FAR *next;    /* next input */
     unsigned char FAR *put;     /* next output */
