@@ -62,6 +62,10 @@
 
 // This test is adapted from BoringSSL's crypto/fipsmodule/modes/gcm_test.cc
 
+#include "starboard/configuration.h"
+
+#if SB_API_VERSION < SB_CRYPTOAPI_DEPRECATED_VERSION
+
 #include "starboard/cryptography.h"
 
 #include "starboard/common/log.h"
@@ -443,3 +447,5 @@ INSTANTIATE_TEST_CASE_P(
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif  // SB_CRYPTOAPI_DEPRECATED_VERSION

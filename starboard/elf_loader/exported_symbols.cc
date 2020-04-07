@@ -23,7 +23,6 @@
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/cpu_features.h"
-#include "starboard/cryptography.h"
 #include "starboard/decode_target.h"
 #include "starboard/directory.h"
 #include "starboard/double.h"
@@ -89,12 +88,6 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbConditionVariableSignal);
   REGISTER_SYMBOL(SbConditionVariableWait);
   REGISTER_SYMBOL(SbConditionVariableWaitTimed);
-  REGISTER_SYMBOL(SbCryptographyCreateTransformer);
-  REGISTER_SYMBOL(SbCryptographyDestroyTransformer);
-  REGISTER_SYMBOL(SbCryptographyGetTag);
-  REGISTER_SYMBOL(SbCryptographySetAuthenticatedData);
-  REGISTER_SYMBOL(SbCryptographySetInitializationVector);
-  REGISTER_SYMBOL(SbCryptographyTransform);
   REGISTER_SYMBOL(SbDecodeTargetGetInfo);
   REGISTER_SYMBOL(SbDecodeTargetRelease);
   REGISTER_SYMBOL(SbDirectoryCanOpen);

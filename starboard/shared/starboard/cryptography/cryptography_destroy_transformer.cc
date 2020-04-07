@@ -13,6 +13,9 @@
 // limitations under the License.
 
 #include "starboard/configuration.h"
+
+#if SB_API_VERSION < SB_CRYPTOAPI_DEPRECATED_VERSION
+
 #include "starboard/cryptography.h"
 #include "starboard/shared/starboard/cryptography/cryptography_internal.h"
 
@@ -23,3 +26,5 @@ void SbCryptographyDestroyTransformer(SbCryptographyTransformer transformer) {
 
   delete transformer;
 }
+
+#endif  // SB_CRYPTOAPI_DEPRECATED_VERSION

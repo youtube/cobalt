@@ -13,6 +13,9 @@
 // limitations under the License.
 
 #include "starboard/configuration.h"
+
+#if SB_API_VERSION < SB_CRYPTOAPI_DEPRECATED_VERSION
+
 #include "starboard/cryptography.h"
 #include "starboard/shared/starboard/cryptography/cryptography_internal.h"
 #include "starboard/shared/starboard/cryptography/software_aes.h"
@@ -110,3 +113,5 @@ int SbCryptographyTransform(SbCryptographyTransformer transformer,
 
   return in_data_size;
 }
+
+#endif  // SB_CRYPTOAPI_DEPRECATED_VERSION

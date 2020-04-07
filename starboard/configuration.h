@@ -97,6 +97,10 @@
 // interface instead.
 #define SB_BLITTER_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Crypto API is no longer supported on any platform. BoringSSL CPU
+// optimizations are used instead.
+#define SB_CRYPTOAPI_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // Require the captions API.
 // The system must implement the captions functions in
 // `starboard/accessibility.h` or use the provided stub implementations.
