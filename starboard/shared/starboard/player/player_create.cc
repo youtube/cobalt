@@ -22,9 +22,9 @@
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
-#if SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
+#if SB_PLAYER_ENABLE_VIDEO_DUMPER
 #include "starboard/shared/starboard/player/video_dmp_writer.h"
-#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
+#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
 using starboard::shared::media_session::
     UpdateActiveSessionPlatformPlaybackState;
@@ -81,9 +81,9 @@ SbPlayer SbPlayerCreate(SbWindow window,
 
   SbMediaAudioCodec audio_codec = creation_param->audio_sample_info.codec;
   SbMediaVideoCodec video_codec = creation_param->video_sample_info.codec;
-#if SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
+#if SB_PLAYER_ENABLE_VIDEO_DUMPER
   SbDrmSystem drm_system = creation_param->drm_system;
-#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
+#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
   const SbMediaAudioSampleInfo* audio_sample_info =
       &creation_param->audio_sample_info;
   const auto output_mode = creation_param->output_mode;
@@ -201,11 +201,11 @@ SbPlayer SbPlayerCreate(SbWindow window,
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
       context, handler.Pass());
 
-#if SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
+#if SB_PLAYER_ENABLE_VIDEO_DUMPER
   using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
   VideoDmpWriter::OnPlayerCreate(player, audio_codec, video_codec, drm_system,
                                  audio_sample_info);
-#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
+#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
   return player;
 }

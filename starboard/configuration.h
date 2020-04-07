@@ -1137,7 +1137,9 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #error "SB_HAS_ON_SCREEN_KEYBOARD not supported in this API version."
 #endif
 
-#define SB_HAS_PLAYER_FILTER_TESTS 1
+#if defined(SB_HAS_PLAYER_FILTER_TESTS)
+#error "SB_HAS_PLAYER_FILTER_TESTS should not be defined in API versions >= 10."
+#endif  // defined(SB_HAS_PLAYER_FILTER_TESTS)
 
 #define SB_HAS_PLAYER_ERROR_MESSAGE 1
 

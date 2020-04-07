@@ -20,8 +20,6 @@
 
 #include "starboard/player.h"
 
-#if SB_HAS(PLAYER_FILTER_TESTS)
-
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
 
@@ -60,7 +58,5 @@ bool CreateAudioComponents(bool using_stub_decoder,
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
-
-#endif  // SB_HAS(PLAYER_FILTER_TESTS)
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_TESTING_TEST_UTIL_H_

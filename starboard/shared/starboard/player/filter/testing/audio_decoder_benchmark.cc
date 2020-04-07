@@ -14,8 +14,6 @@
 
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 
-#if SB_HAS(PLAYER_FILTER_TESTS)
-
 #include <algorithm>
 
 #include "starboard/common/log.h"
@@ -157,5 +155,3 @@ BENCHMARK_CAPTURE(BM_AudioDecoder,
 BENCHMARK_CAPTURE(BM_AudioDecoder,
                   opus_stereo,
                   "beneath_the_canopy_opus_stereo.dmp");
-
-#endif  // SB_HAS(PLAYER_FILTER_TESTS)

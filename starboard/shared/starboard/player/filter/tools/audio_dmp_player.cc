@@ -27,8 +27,6 @@
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/system.h"
 
-#if SB_HAS(PLAYER_FILTER_TESTS)
-
 namespace {
 
 using starboard::shared::starboard::player::video_dmp::VideoDmpReader;
@@ -188,20 +186,3 @@ void SbEventHandle(const SbEvent* event) {
       break;
   }
 }
-
-#else  // SB_HAS(PLAYER_FILTER_TESTS)
-
-void SbEventHandle(const SbEvent* event) {
-  switch (event->type) {
-    case kSbEventTypeStart:
-      SB_LOG(INFO) << "\"audio_dmp_player\" is only support in SB_API_VERSION"
-                   << " 10 or later, or when SB_HAS_PLAYER_FILTER_TESTS is"
-                   << " defined.";
-      SbSystemRequestStop(0);
-      break;
-    default:
-      break;
-  }
-}
-
-#endif  // SB_HAS(PLAYER_FILTER_TESTS)
