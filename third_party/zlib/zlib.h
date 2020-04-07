@@ -397,6 +397,15 @@ ZEXTERN int ZEXPORT inflateInit OF((z_streamp strm));
 */
 
 
+/*
+   We must declare inflate_contrib(), a renamed inflate() from
+   //third_party/zlib/contrib/optimizations/inflate.c, since we need both
+   definitions so that we can choose which one to use at runtime.
+ */
+#if defined(STARBOARD)
+ZEXTERN int ZEXPORT inflate_contrib OF((z_streamp strm, int flush));
+#endif
+
 ZEXTERN int ZEXPORT inflate OF((z_streamp strm, int flush));
 /*
     inflate decompresses as much data as possible, and stops when the input

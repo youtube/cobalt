@@ -2,29 +2,15 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the Chromium source repository LICENSE file.
  */
-#ifndef __SLIDE_HASH__NEON__
-#define __SLIDE_HASH__NEON__
 
-#include "deflate.h"
+#include "slide_hash_neon.h"
 
-/*
-   For Starboard we want to check NEON availability at runtime, and this means
-   we do not want to inline functions that use NEON instructions in the rest of
-   the code. This should be compiled separately.
- */
 #if defined(STARBOARD)
-void ZLIB_INTERNAL neon_slide_hash_update(Posf *hash,
-                                          const uInt hash_size,
-                                          const ush w_size);
-void ZLIB_INTERNAL neon_slide_hash(Posf *head, Posf *prev,
-                                   const unsigned short w_size,
-                                   const uInt hash_size);
-#else
 #include <arm_neon.h>
 
-inline static void ZLIB_INTERNAL neon_slide_hash_update(Posf *hash,
-                                                        const uInt hash_size,
-                                                        const ush w_size)
+void ZLIB_INTERNAL neon_slide_hash_update(Posf *hash,
+                                          const uInt hash_size,
+                                          const ush w_size)
 {
    /* NEON 'Q' registers allow to store 128 bits, so we can load 8x16-bits
      * values. For further details, check:
@@ -55,9 +41,9 @@ inline static void ZLIB_INTERNAL neon_slide_hash_update(Posf *hash,
 }
 
 
-inline static void ZLIB_INTERNAL neon_slide_hash(Posf *head, Posf *prev,
-                                                 const unsigned short w_size,
-                                                 const uInt hash_size)
+void ZLIB_INTERNAL neon_slide_hash(Posf *head, Posf *prev,
+                                   const unsigned short w_size,
+                                   const uInt hash_size)
 {
     /*
      * SIMD implementation for hash table rebase assumes:
@@ -75,6 +61,4 @@ inline static void ZLIB_INTERNAL neon_slide_hash(Posf *head, Posf *prev,
     neon_slide_hash_update(prev, w_size, w_size);
 #endif
 }
-#endif
-
 #endif

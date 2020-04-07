@@ -8,6 +8,9 @@
 #include "zlib.h"
 
 extern int arm_cpu_enable_crc32;
+#if defined(STARBOARD)
+extern int arm_cpu_enable_neon;
+#endif
 extern int arm_cpu_enable_pmull;
 
 void arm_check_features(void);

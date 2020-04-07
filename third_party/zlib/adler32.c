@@ -66,6 +66,10 @@ local uLong adler32_combine_ OF((uLong adler1, uLong adler2, z_off64_t len2));
 #include "adler32_simd.h"
 #endif
 
+#if defined(STARBOARD)
+#include "arm_features.h"
+#endif
+
 /* ========================================================================= */
 uLong ZEXPORT adler32_z(adler, buf, len)
     uLong adler;
@@ -79,7 +83,11 @@ uLong ZEXPORT adler32_z(adler, buf, len)
     if (x86_cpu_enable_ssse3 && buf && len >= 64)
         return adler32_simd_(adler, buf, len);
 #elif defined(ADLER32_SIMD_NEON)
+#if defined(STARBOARD)
+    if (arm_cpu_enable_neon && buf && len >= 64)
+#else
     if (buf && len >= 64)
+#endif
         return adler32_simd_(adler, buf, len);
 #endif
 

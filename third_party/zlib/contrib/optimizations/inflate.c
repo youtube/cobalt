@@ -86,6 +86,10 @@
 #include "contrib/optimizations/inffast_chunk.h"
 #include "contrib/optimizations/chunkcopy.h"
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/string_poem.h"
+#endif
+
 #ifdef MAKEFIXED
 #  ifndef BUILDFIXED
 #    define BUILDFIXED
@@ -116,6 +120,14 @@ z_streamp strm;
         return 1;
     return 0;
 }
+
+/*
+   When building for Starboard we include both //third_party/zlib/inflate.c and
+   //third_party/zlib/contrib/optimizations/inflate.c so that we can check for
+   optimizations at runtime. This results in multiple symbol definitions. Since
+   they are largely identical we remove them where possible.
+ */
+#if !defined(STARBOARD)
 
 int ZEXPORT inflateResetKeep(strm)
 z_streamp strm;
@@ -266,6 +278,8 @@ int value;
     state->bits += (uInt)bits;
     return Z_OK;
 }
+
+#endif /* !defined(STARBOARD) */
 
 /*
    Return state with length and distance decoding tables and index sizes set to
@@ -631,7 +645,15 @@ unsigned copy;
    will return Z_BUF_ERROR if it has not reached the end of the stream.
  */
 
+/*
+   inflate() has been renamed to be inflate_contrib() to prevent a symbol name
+   clash since this function *must* be exported.
+ */
+#if defined(STARBOARD)
+int ZEXPORT inflate_contrib(strm, flush)
+#else
 int ZEXPORT inflate(strm, flush)
+#endif
 z_streamp strm;
 int flush;
 {
@@ -1296,6 +1318,12 @@ int flush;
     return ret;
 }
 
+/*
+   Please see documentation towards the top of the file for why these functions
+   are remove.
+ */
+#if !defined(STARBOARD)
+
 int ZEXPORT inflateEnd(strm)
 z_streamp strm;
 {
@@ -1581,3 +1609,5 @@ z_streamp strm;
     state = (struct inflate_state FAR *)strm->state;
     return (unsigned long)(state->next - state->codes);
 }
+
+#endif /* !defined(STARBOARD) */
