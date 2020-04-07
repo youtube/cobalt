@@ -44,13 +44,9 @@ MediaKeySession::MediaKeySession(
       drm_system_(drm_system),
       drm_system_session_(drm_system->CreateSession(
           base::Bind(&MediaKeySession::OnSessionUpdateKeyStatuses,
-                     base::AsWeakPtr(this))
-#if SB_HAS(DRM_SESSION_CLOSED)
-              ,
+                     base::AsWeakPtr(this)),
           base::Bind(&MediaKeySession::OnSessionClosed,
-                     base::AsWeakPtr(this))
-#endif             // SB_HAS(DRM_SESSION_CLOSED)
-              )),  // NOLINT(whitespace/parens)
+                     base::AsWeakPtr(this)))),
       script_value_factory_(script_value_factory),
       uninitialized_(true),
       callable_(false),
@@ -58,8 +54,7 @@ MediaKeySession::MediaKeySession(
       closed_callback_(closed_callback),
       ALLOW_THIS_IN_INITIALIZER_LIST(closed_promise_reference_(
           this, script_value_factory->CreateBasicPromise<void>())),
-      initiated_by_generate_request_(false) {
-}
+      initiated_by_generate_request_(false) {}
 
 // According to the step 3.1 of
 // https://www.w3.org/TR/encrypted-media/#dom-mediakeys-createsession,
@@ -214,11 +209,6 @@ script::Handle<script::Promise<void>> MediaKeySession::Close() {
 
   // 5.2. Use CDM to close the key session associated with session.
   drm_system_session_->Close();
-
-#if !SB_HAS(DRM_SESSION_CLOSED)
-  // 5.3.1. Run the Session Closed algorithm on the session.
-  OnSessionClosed();
-#endif  // !SB_HAS(DRM_SESSION_CLOSED)
 
   // 5.3.2. Resolve promise.
   promise->Resolve();

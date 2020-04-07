@@ -29,23 +29,15 @@ DECLARE_INSTANCE_COUNTER(DrmSystem);
 
 DrmSystem::Session::Session(
     DrmSystem* drm_system,
-    SessionUpdateKeyStatusesCallback update_key_statuses_callback
-#if SB_HAS(DRM_SESSION_CLOSED)
-    ,
-    SessionClosedCallback session_closed_callback
-#endif  // SB_HAS(DRM_SESSION_CLOSED)
-    )
+    SessionUpdateKeyStatusesCallback update_key_statuses_callback,
+    SessionClosedCallback session_closed_callback)
     : drm_system_(drm_system),
       update_key_statuses_callback_(update_key_statuses_callback),
-#if SB_HAS(DRM_SESSION_CLOSED)
       session_closed_callback_(session_closed_callback),
-#endif  // SB_HAS(DRM_SESSION_CLOSED)
       closed_(false),
       weak_factory_(this) {
   DCHECK(!update_key_statuses_callback_.is_null());
-#if SB_HAS(DRM_SESSION_CLOSED)
   DCHECK(!session_closed_callback_.is_null());
-#endif  // SB_HAS(DRM_SESSION_CLOSED)
 }
 
 DrmSystem::Session::~Session() {
@@ -88,18 +80,10 @@ void DrmSystem::Session::Close() {
 }
 
 DrmSystem::DrmSystem(const char* key_system)
-    : wrapped_drm_system_(SbDrmCreateSystem(key_system, this,
-                                            OnSessionUpdateRequestGeneratedFunc,
-                                            OnSessionUpdatedFunc
-                                            ,
-                                            OnSessionKeyStatusesChangedFunc
-                                            ,
-                                            OnServerCertificateUpdatedFunc
-#if SB_HAS(DRM_SESSION_CLOSED)
-                                            ,
-                                            OnSessionClosedFunc
-#endif                                           // SB_HAS(DRM_SESSION_CLOSED)
-                                            )),  // NOLINT(whitespace/parens)
+    : wrapped_drm_system_(SbDrmCreateSystem(
+          key_system, this, OnSessionUpdateRequestGeneratedFunc,
+          OnSessionUpdatedFunc, OnSessionKeyStatusesChangedFunc,
+          OnServerCertificateUpdatedFunc, OnSessionClosedFunc)),
       message_loop_(base::MessageLoop::current()->task_runner()),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       weak_this_(weak_ptr_factory_.GetWeakPtr()) {
@@ -120,22 +104,11 @@ DrmSystem::~DrmSystem() {
 }
 
 std::unique_ptr<DrmSystem::Session> DrmSystem::CreateSession(
-    SessionUpdateKeyStatusesCallback session_update_key_statuses_callback
-#if SB_HAS(DRM_SESSION_CLOSED)
-    ,
-    SessionClosedCallback session_closed_callback
-#endif   // SB_HAS(DRM_SESSION_CLOSED)
-    ) {  // NOLINT(whitespace/parens)
+    SessionUpdateKeyStatusesCallback session_update_key_statuses_callback,
+    SessionClosedCallback session_closed_callback) {
   DCHECK(message_loop_->BelongsToCurrentThread());
   return std::unique_ptr<DrmSystem::Session>(new Session(
-      this
-      ,
-      session_update_key_statuses_callback
-#if SB_HAS(DRM_SESSION_CLOSED)
-      ,
-      session_closed_callback
-#endif     // SB_HAS(DRM_SESSION_CLOSED)
-      ));  // NOLINT(whitespace/parens)
+      this, session_update_key_statuses_callback, session_closed_callback));
 }
 
 bool DrmSystem::IsServerCertificateUpdatable() {
@@ -219,9 +192,6 @@ void DrmSystem::UpdateSession(
 
 void DrmSystem::CloseSession(const std::string& session_id) {
   DCHECK(message_loop_->BelongsToCurrentThread());
-#if !SB_HAS(DRM_SESSION_CLOSED)
-  id_to_session_map_.erase(session_id);
-#endif  // !SB_HAS(DRM_SESSION_CLOSED)
 
   LOG(INFO) << "Close session of drm system (" << wrapped_drm_system_
             << "), session id: " << session_id;
@@ -371,7 +341,6 @@ void DrmSystem::OnSessionKeyStatusChanged(
   }
 }
 
-#if SB_HAS(DRM_SESSION_CLOSED)
 void DrmSystem::OnSessionClosed(const std::string& session_id) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
@@ -392,7 +361,6 @@ void DrmSystem::OnSessionClosed(const std::string& session_id) {
   }
   id_to_session_map_.erase(session_iterator);
 }
-#endif  // SB_HAS(DRM_SESSION_CLOSED)
 
 void DrmSystem::OnServerCertificateUpdated(int ticket, SbDrmStatus status,
                                            const std::string& error_message) {
@@ -505,7 +473,6 @@ void DrmSystem::OnServerCertificateUpdatedFunc(SbDrmSystem wrapped_drm_system,
                             error_message ? std::string(error_message) : ""));
 }
 
-#if SB_HAS(DRM_SESSION_CLOSED)
 // static
 void DrmSystem::OnSessionClosedFunc(SbDrmSystem wrapped_drm_system,
                                     void* context, const void* session_id,
@@ -524,7 +491,6 @@ void DrmSystem::OnSessionClosedFunc(SbDrmSystem wrapped_drm_system,
       FROM_HERE, base::Bind(&DrmSystem::OnSessionClosed, drm_system->weak_this_,
                             session_id_copy));
 }
-#endif  // SB_HAS(DRM_SESSION_CLOSED)
 
 }  // namespace media
 }  // namespace cobalt

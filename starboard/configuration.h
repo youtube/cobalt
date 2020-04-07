@@ -1111,11 +1111,7 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #endif  // SB_API_VERSION >= 11
 
 #if defined(SB_HAS_DRM_SESSION_CLOSED)
-#if !SB_HAS(DRM_SESSION_CLOSED)
-#error "SB_HAS_DRM_SESSION_CLOSED is required in this API version."
-#endif  // !SB_HAS(DRM_SESSION_CLOSED)
-#else   // defined(SB_HAS_DRM_SESSION_CLOSED)
-#define SB_HAS_DRM_SESSION_CLOSED 1
+#error "SB_HAS_DRM_SESSION_CLOSED should not be defined for API version >= 10."
 #endif  // defined(SB_HAS_DRM_SESSION_CLOSED)
 
 #if SB_API_VERSION < SB_SPEECH_RECOGNIZER_IS_REQUIRED && SB_API_VERSION >= 5
