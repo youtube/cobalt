@@ -42,11 +42,6 @@ SbDrmSystem SbDrmCreateSystem(
   }
   return new DrmSystemWidevine(
       context, update_request_callback, session_updated_callback,
-      key_statuses_changed_callback, server_certificate_updated_callback
-#if SB_HAS(DRM_SESSION_CLOSED)
-      ,
-      session_closed_callback
-#endif  // SB_HAS(DRM_SESSION_CLOSED)
-      ,
-      "Linux", "Linux");
+      key_statuses_changed_callback, server_certificate_updated_callback,
+      session_closed_callback, "Linux", "Linux");
 }

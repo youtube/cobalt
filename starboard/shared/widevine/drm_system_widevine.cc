@@ -204,14 +204,9 @@ DrmSystemWidevine::DrmSystemWidevine(
     void* context,
     SbDrmSessionUpdateRequestFunc session_update_request_callback,
     SbDrmSessionUpdatedFunc session_updated_callback,
-    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback
-    ,
-    SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback
-#if SB_HAS(DRM_SESSION_CLOSED)
-    ,
-    SbDrmSessionClosedFunc session_closed_callback
-#endif  // SB_HAS(DRM_SESSION_CLOSED)
-    ,
+    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
+    SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback,
+    SbDrmSessionClosedFunc session_closed_callback,
     const std::string& company_name,
     const std::string& model_name)
     : context_(context),
@@ -219,9 +214,7 @@ DrmSystemWidevine::DrmSystemWidevine(
       session_updated_callback_(session_updated_callback),
       key_statuses_changed_callback_(key_statuses_changed_callback),
       server_certificate_updated_callback_(server_certificate_updated_callback),
-#if SB_HAS(DRM_SESSION_CLOSED)
       session_closed_callback_(session_closed_callback),
-#endif  // SB_HAS(DRM_SESSION_CLOSED)
       ticket_thread_id_(SbThreadGetId()) {
   SB_DCHECK(!company_name.empty());
   SB_DCHECK(!model_name.empty());
@@ -342,10 +335,8 @@ void DrmSystemWidevine::CloseSession(const void* sb_drm_session_id,
   if (succeeded) {
     cdm_->close(wvcdm_session_id);
   }
-#if SB_HAS(DRM_SESSION_CLOSED)
   session_closed_callback_(this, context_, sb_drm_session_id,
                            sb_drm_session_id_size);
-#endif  // SB_HAS(DRM_SESSION_CLOSED)
 }
 
 void DrmSystemWidevine::UpdateServerCertificate(int ticket,
