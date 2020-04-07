@@ -198,13 +198,11 @@ typedef void (*SbDrmSessionKeyStatusesChangedFunc)(
     const SbDrmKeyStatus* key_statuses);
 
 // A callback for signalling that a session has been closed by the SbDrmSystem
-#if SB_HAS(DRM_SESSION_CLOSED)
 typedef void (*SbDrmSessionClosedFunc)(
     SbDrmSystem drm_system,
     void* context,
     const void* session_id,
     int session_id_size);
-#endif  // SB_HAS(DRM_SESSION_CLOSED))
 
 // A callback to notify the caller of SbDrmUpdateServerCertificate() whether the
 // update has been successfully updated or not.
@@ -340,7 +338,6 @@ SB_EXPORT void SbDrmUpdateSession(SbDrmSystem drm_system,
 SB_EXPORT void SbDrmCloseSession(SbDrmSystem drm_system,
                                  const void* session_id,
                                  int session_id_size);
-
 
 // Returns true if server certificate of |drm_system| can be updated via
 // SbDrmUpdateServerCertificate().  The return value should remain the same
