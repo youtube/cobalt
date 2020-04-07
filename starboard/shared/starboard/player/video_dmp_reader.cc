@@ -19,7 +19,6 @@
 
 #include "starboard/shared/starboard/player/file_cache_reader.h"
 
-#if SB_HAS(PLAYER_FILTER_TESTS)
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -262,4 +261,3 @@ VideoDmpReader::VideoAccessUnit VideoDmpReader::ReadVideoAccessUnit() {
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
-#endif  // SB_HAS(PLAYER_FILTER_TESTS)

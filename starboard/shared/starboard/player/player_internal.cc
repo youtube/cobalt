@@ -17,9 +17,9 @@
 #include <functional>
 
 #include "starboard/common/log.h"
-#if SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
+#if SB_PLAYER_ENABLE_VIDEO_DUMPER
 #include "starboard/shared/starboard/player/video_dmp_writer.h"
-#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
+#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
 namespace {
 
@@ -123,10 +123,10 @@ void SbPlayerPrivate::WriteSample(const SbPlayerSampleInfo& sample_info) {
   }
   starboard::scoped_refptr<InputBuffer> input_buffer =
       new InputBuffer(sample_deallocate_func_, this, context_, sample_info);
-#if SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
+#if SB_PLAYER_ENABLE_VIDEO_DUMPER
   using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
   VideoDmpWriter::OnPlayerWriteSample(this, input_buffer);
-#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
+#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
   worker_->WriteSample(input_buffer);
 }
 #else  // SB_API_VERSION >= 11
@@ -140,10 +140,10 @@ void SbPlayerPrivate::WriteSample(SbMediaType sample_type,
   starboard::scoped_refptr<InputBuffer> input_buffer =
       new InputBuffer(sample_type, sample_deallocate_func_, this, context_,
                       sample_info, &audio_sample_info_);
-#if SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
+#if SB_PLAYER_ENABLE_VIDEO_DUMPER
   using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
   VideoDmpWriter::OnPlayerWriteSample(this, input_buffer);
-#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
+#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
   worker_->WriteSample(input_buffer);
 }
 #endif  // SB_API_VERSION >= 11

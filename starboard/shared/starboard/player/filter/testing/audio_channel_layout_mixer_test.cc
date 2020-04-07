@@ -22,8 +22,6 @@
 #include "starboard/shared/starboard/player/filter/audio_channel_layout_mixer.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_HAS(PLAYER_FILTER_TESTS)
-
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -343,5 +341,3 @@ INSTANTIATE_TEST_CASE_P(AudioChannelLayoutMixerTests,
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
-
-#endif  // SB_HAS(PLAYER_FILTER_TESTS)

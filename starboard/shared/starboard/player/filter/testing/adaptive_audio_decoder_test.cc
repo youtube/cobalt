@@ -32,8 +32,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 // TODO: Implement AudioDecoderMock and refactor the test accordingly.
-#if SB_HAS(PLAYER_FILTER_TESTS) && \
-    SB_API_VERSION >= 11
+#if SB_API_VERSION >= 11
 
 namespace starboard {
 namespace shared {
@@ -403,5 +402,4 @@ INSTANTIATE_TEST_CASE_P(AdaptiveAudioDecoderTests,
 }  // namespace shared
 }  // namespace starboard
 
-#endif  // SB_HAS(PLAYER_FILTER_TESTS) &&
-        // SB_API_VERSION >= 11
+#endif  // SB_API_VERSION >= 11
