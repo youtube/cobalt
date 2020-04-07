@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/configuration.h"
+
+#if SB_API_VERSION < SB_CRYPTOAPI_DEPRECATED_VERSION
+
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-#include "starboard/configuration.h"
 #include "starboard/cryptography.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/cryptography/cryptography_internal.h"
@@ -119,3 +122,5 @@ SbCryptographyTransformer SbCryptographyCreateTransformer(
 
   return transformer;
 }
+
+#endif  // SB_CRYPTOAPI_DEPRECATED_VERSION
