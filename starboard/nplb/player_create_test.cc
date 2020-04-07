@@ -48,12 +48,10 @@ void DummyStatusFunc(SbPlayer player,
                      SbPlayerState state,
                      int ticket) {}
 
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
 void DummyErrorFunc(SbPlayer player,
                     void* context,
                     SbPlayerError error,
                     const char* message) {}
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
 SbPlayer CallSbPlayerCreate(
     SbWindow window,
@@ -99,9 +97,7 @@ SbPlayer CallSbPlayerCreate(
 #endif  // SB_API_VERSION >= 11
                         sample_deallocate_func, decoder_status_func,
                         player_status_func,
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
                         DummyErrorFunc,
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
                         context, output_mode, context_provider);
 
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
@@ -202,8 +198,6 @@ TEST_F(SbPlayerTest, NullCallbacks) {
       SbPlayerDestroy(player);
     }
 
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
-
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
     {
@@ -239,8 +233,6 @@ TEST_F(SbPlayerTest, NullCallbacks) {
     }
 
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
   }
 }
 

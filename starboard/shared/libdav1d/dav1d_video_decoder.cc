@@ -199,11 +199,7 @@ void VideoDecoder::ReleasePicture(Dav1dPicture* picture) const {
 
 void VideoDecoder::ReportError(const std::string& error_message) {
   SB_LOG(ERROR) << error_message;
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
   Schedule(std::bind(error_cb_, kSbPlayerErrorDecode, error_message));
-#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
-  Schedule(error_cb_);
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 }
 
 void VideoDecoder::InitializeCodec() {

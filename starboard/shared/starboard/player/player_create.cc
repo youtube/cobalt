@@ -101,9 +101,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbPlayerDeallocateSampleFunc sample_deallocate_func,
                         SbPlayerDecoderStatusFunc decoder_status_func,
                         SbPlayerStatusFunc player_status_func,
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
                         SbPlayerErrorFunc player_error_func,
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
                         void* context,
                         SbPlayerOutputMode output_mode,
                         SbDecodeTargetGraphicsContextProvider* provider) {
@@ -120,9 +118,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
 #endif  // SB_API_VERSION >= 11
 
   if (!sample_deallocate_func || !decoder_status_func || !player_status_func
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
       || !player_error_func
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
       ) {
     return kSbPlayerInvalid;
   }
@@ -196,9 +192,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
   SbPlayer player = SbPlayerPrivate::CreateInstance(
       audio_codec, video_codec, audio_sample_info, sample_deallocate_func,
       decoder_status_func, player_status_func,
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
       player_error_func,
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
       context, handler.Pass());
 
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER

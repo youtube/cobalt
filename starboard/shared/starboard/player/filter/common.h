@@ -27,13 +27,9 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
 typedef std::function<void(SbPlayerError error,
                            const std::string& error_message)>
     ErrorCB;
-#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
-typedef std::function<void()> ErrorCB;
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 typedef std::function<void()> PrerolledCB;
 typedef std::function<void()> EndedCB;
 

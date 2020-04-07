@@ -80,9 +80,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
                << "\".";
 
   if (!sample_deallocate_func || !decoder_status_func || !player_status_func
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
       || !player_error_func
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
       ) {
     return kSbPlayerInvalid;
   }

@@ -141,11 +141,7 @@ void VideoDecoder::ReportError(const std::string& error_message) {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
 
   error_occured_ = true;
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
   Schedule(std::bind(error_cb_, kSbPlayerErrorDecode, error_message));
-#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
-  Schedule(error_cb_);
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 }
 
 void VideoDecoder::InitializeCodec() {
