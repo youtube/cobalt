@@ -101,10 +101,23 @@ class Runtime {
         {
           reject(new Error('While loading from url ' + url + ' server responded with a status of ' + status));
         } else {
-          fulfill(response);
+          fulfill(cleanJson(response));
         }
       }
       xhr.send(null);
+    }
+
+    function cleanJson(response) {
+      if (!asBinary && url.endsWith('.json')) {
+        // Matches commented-out lines.
+        let commented_line_re = /\s*\/\/.*/g;
+        // Matches trailing commas before closing of arrays/objects.
+        let trailing_comma_re = /,(?=\s*[\]}])/g
+        return response
+            .replace(commented_line_re, '')
+            .replace(trailing_comma_re, '');
+      }
+      return response;
     }
   }
 
