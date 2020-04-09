@@ -309,20 +309,5 @@ bool Configuration::CobaltGcZeal() {
 #endif
 }
 
-const char* Configuration::CobaltRasterizerType() {
-  if (configuration_api_) {
-    return configuration_api_->CobaltRasterizerType();
-  }
-#if SB_API_VERSION >= SB_FEATURE_GYP_CONFIGURATION_VERSION
-  return "direct-gles";
-#elif defined(COBALT_FORCE_STUB_RASTERIZER)
-  return "stub";
-#elif defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
-  return "direct-gles";
-#else
-  return "hardware";
-#endif
-}
-
 }  // namespace configuration
 }  // namespace cobalt

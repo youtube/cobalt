@@ -13,14 +13,12 @@
 // limitations under the License.
 
 #include <memory>
-#include <string>
 
 #include "cobalt/renderer/renderer_module.h"
 
 #include "base/memory/ptr_util.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/browser/memory_settings/calculations.h"
-#include "cobalt/configuration/configuration.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
 #include "cobalt/renderer/rasterizer/skia/software_rasterizer.h"
@@ -40,14 +38,13 @@ RendererModule::Options::Options()
   skia_cache_size_in_bytes = 4 * 1024 * 1024;
 
 #if SB_HAS(GLES2)
-  if (std::string(configuration::Configuration::GetInstance()
-                      ->CobaltRasterizerType()) == "direct-gles") {
-    software_surface_cache_size_in_bytes = 0;
-    offscreen_target_cache_size_in_bytes = 4 * 1024 * 1024;
-  } else {
-    software_surface_cache_size_in_bytes = 0;
-    offscreen_target_cache_size_in_bytes = 0;
-  }
+#if defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
+  software_surface_cache_size_in_bytes = 0;
+  offscreen_target_cache_size_in_bytes = 4 * 1024 * 1024;
+#else
+  software_surface_cache_size_in_bytes = 0;
+  offscreen_target_cache_size_in_bytes = 0;
+#endif
 #else
   software_surface_cache_size_in_bytes = 8 * 1024 * 1024;
   offscreen_target_cache_size_in_bytes = 0;

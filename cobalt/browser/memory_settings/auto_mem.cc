@@ -36,7 +36,6 @@
 #include "cobalt/browser/memory_settings/pretty_print.h"
 #include "cobalt/browser/memory_settings/scaling_function.h"
 #include "cobalt/browser/switches.h"
-#include "cobalt/configuration/configuration.h"
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/math/clamp.h"
 
@@ -558,13 +557,12 @@ void AutoMem::ConstructSettings(const math::Size& ui_resolution,
           CalculateOffscreenTargetCacheSizeInBytes(ui_resolution));
   offscreen_target_cache_size_in_bytes_->set_memory_scaling_function(
       MakeLinearMemoryScaler(0.25, 1.0));
-  if (std::string(configuration::Configuration::GetInstance()
-                      ->CobaltRasterizerType()) == "direct-gles") {
-    offscreen_target_cache_size_in_bytes_->set_memory_type(MemorySetting::kGPU);
-  } else {
-    offscreen_target_cache_size_in_bytes_->set_memory_type(
-        MemorySetting::kNotApplicable);
-  }
+#if defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
+  offscreen_target_cache_size_in_bytes_->set_memory_type(MemorySetting::kGPU);
+#else
+  offscreen_target_cache_size_in_bytes_->set_memory_type(
+      MemorySetting::kNotApplicable);
+#endif
   EnsureValuePositive(offscreen_target_cache_size_in_bytes_.get());
 
   // Final stage: Check that all constraining functions are monotonically
