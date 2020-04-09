@@ -1,0 +1,9 @@
+# Copyright 2018 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# This file is needed to establish a root directory for a gn-based
+# tree; the contents of buildconfig will be available in all BUILD.gn
+# files. See also https://gn.googlesource.com/gn/
+
+buildconfig = "//BUILDCONFIG.gn"
