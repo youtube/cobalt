@@ -77,6 +77,14 @@ class EvergreenArm64Configuration(shared_configuration.EvergreenConfiguration):
     # pylint: disable=useless-super-delegation
     return super(EvergreenArm64Configuration, self).GetTestFilters()
 
+  def GetVariables(self, configuration):
+    variables = super(EvergreenArm64Configuration, self).GetVariables(configuration)
+    variables.update({
+        'include_path_platform_deploy_gypi':
+            'starboard/evergreen/arm64/platform_deploy.gypi',
+    })
+    return variables
+
 
 def CreatePlatformConfig():
   return EvergreenArm64Configuration(

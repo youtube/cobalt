@@ -83,11 +83,11 @@ class EvergreenArmConfiguration(shared_configuration.EvergreenConfiguration):
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
-  def GetVariables(self, config_name):
-    variables = super(EvergreenArmConfiguration, self).GetVariables(config_name)
+  def GetVariables(self, configuration):
+    variables = super(EvergreenArmConfiguration, self).GetVariables(configuration)
     variables.update({
-        'include_path_platform_deploy_postprocess_gypi':
-            'starboard/evergreen/arm/shared/platform_deploy_postprocess.gypi',
+        'include_path_platform_deploy_gypi':
+            'starboard/evergreen/arm/shared/platform_deploy.gypi',
     })
     return variables
 

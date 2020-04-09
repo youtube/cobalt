@@ -96,6 +96,14 @@ class EvergreenX64Configuration(shared_configuration.EvergreenConfiguration):
         filters.remove(test_filter)
     return filters
 
+  def GetVariables(self, configuration):
+    variables = super(EvergreenX64Configuration, self).GetVariables(configuration)
+    variables.update({
+        'include_path_platform_deploy_gypi':
+            'starboard/evergreen/x64/platform_deploy.gypi',
+    })
+    return variables
+
 
 def CreatePlatformConfig():
   return EvergreenX64Configuration(
