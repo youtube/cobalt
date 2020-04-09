@@ -27,6 +27,10 @@ const char* CobaltFallbackSplashScreenUrl() {
   return "file:///cobalt/browser/splash_screen/youtube_splash_screen.html";
 }
 
+const char* CobaltRasterizerType() {
+  return "hardware";
+}
+
 const CobaltExtensionConfigurationApi kConfigurationApi = {
     kCobaltExtensionConfigurationName,
     1,
@@ -50,6 +54,7 @@ const CobaltExtensionConfigurationApi kConfigurationApi = {
     &common::CobaltReduceCpuMemoryByDefault,
     &common::CobaltReduceGpuMemoryByDefault,
     &common::CobaltGcZealDefault,
+    &CobaltRasterizerType,
 };
 
 }  // namespace

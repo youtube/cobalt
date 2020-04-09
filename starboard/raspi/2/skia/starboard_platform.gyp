@@ -15,4 +15,16 @@
   'includes': [
     '../../shared/starboard_platform.gypi',
   ],
+  'target_defaults': {
+    'sources': [
+      '<(DEPTH)/starboard/raspi/2/skia/configuration.cc',
+      '<(DEPTH)/starboard/raspi/2/skia/configuration.h',
+      '<(DEPTH)/starboard/raspi/2/skia/system_get_extensions.cc',
+    ],
+    'sources!': [
+      '<(DEPTH)/starboard/raspi/shared/configuration.cc',
+      '<(DEPTH)/starboard/raspi/shared/configuration.h',
+      '<(DEPTH)/starboard/raspi/shared/system_get_extensions.cc',
+    ],
+  },
 }
