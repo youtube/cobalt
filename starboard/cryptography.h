@@ -153,6 +153,8 @@ static SB_C_INLINE bool SbCryptographyIsTransformerValid(
 // |initialization_vector_size|: The size, in bytes, of the IV.
 // |key|: The key to use for this transformation.
 // |key_size|: The size, in bytes, of the key.
+//
+// presubmit: allow sb_export mismatch
 SB_EXPORT SbCryptographyTransformer
 SbCryptographyCreateTransformer(const char* algorithm,
                                 int block_size_bits,
@@ -164,6 +166,8 @@ SbCryptographyCreateTransformer(const char* algorithm,
                                 int key_size);
 
 // Destroys the given |transformer| instance.
+//
+// presubmit: allow sb_export mismatch
 SB_EXPORT void SbCryptographyDestroyTransformer(
     SbCryptographyTransformer transformer);
 
@@ -181,6 +185,8 @@ SB_EXPORT void SbCryptographyDestroyTransformer(
 // |out_data|: A buffer where the transformed data should be placed. Must have
 // at least capacity for |in_data_size| bytes. May point to the same memory as
 // |in_data|.
+//
+// presubmit: allow sb_export mismatch
 SB_EXPORT int SbCryptographyTransform(
     SbCryptographyTransformer transformer,
     const void* in_data,
@@ -191,6 +197,8 @@ SB_EXPORT int SbCryptographyTransform(
 // internally-set IV. The block cipher mode algorithm will update the IV
 // appropriately after every block, so this is not necessary unless the stream
 // is discontiguous in some way. This happens with AES-GCM in TLS.
+//
+// presubmit: allow sb_export mismatch
 SB_EXPORT void SbCryptographySetInitializationVector(
     SbCryptographyTransformer transformer,
     const void* initialization_vector,
@@ -200,6 +208,8 @@ SB_EXPORT void SbCryptographySetInitializationVector(
 // modes that support it (GCM). Returns whether the data was successfully
 // set. This can fail if the chaining mode doesn't support AAD, if the
 // parameters are invalid, or if the internal state is invalid for setting AAD.
+//
+// presubmit: allow sb_export mismatch
 SB_EXPORT bool SbCryptographySetAuthenticatedData(
     SbCryptographyTransformer transformer,
     const void* data,
@@ -209,6 +219,8 @@ SB_EXPORT bool SbCryptographySetAuthenticatedData(
 // |out_tag_size| bytes of it in |out_tag|. Returns whether it was able to get
 // the tag, which mainly has to do with whether it is compatible with the
 // current block cipher mode.
+//
+// presubmit: allow sb_export mismatch
 SB_EXPORT bool SbCryptographyGetTag(
     SbCryptographyTransformer transformer,
     void* out_tag,
