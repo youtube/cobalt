@@ -68,5 +68,25 @@
         'updater.h',
       ],
     },
+    {
+      'target_name': 'crash_sandbox',
+      'type': '<(final_executable_type)',
+      'dependencies': [
+        '<(DEPTH)/starboard/starboard.gyp:starboard',
+      ],
+      'sources': [
+        'crash_sandbox.cc',
+      ],
+    },
+    {
+      'target_name': 'noop_sandbox',
+      'type': '<(final_executable_type)',
+      'dependencies': [
+        '<(DEPTH)/starboard/starboard.gyp:starboard',
+      ],
+      'sources': [
+        'noop_sandbox.cc',
+      ],
+    },
   ]
 }
