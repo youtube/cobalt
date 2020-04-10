@@ -21,13 +21,20 @@
       'target_name': 'rasterizer',
       'type': 'none',
 
-      'dependencies': [
-        '<(DEPTH)/cobalt/renderer/rasterizer/stub/rasterizer.gyp:rasterizer',
-        '<(DEPTH)/cobalt/renderer/rasterizer/skia/rasterizer.gyp:hardware_rasterizer',
-        '<(DEPTH)/cobalt/renderer/rasterizer/egl/rasterizer.gyp:software_rasterizer',
-        '<(DEPTH)/cobalt/renderer/rasterizer/egl/rasterizer.gyp:hardware_rasterizer',
-        '<(DEPTH)/cobalt/renderer/rasterizer/blitter/rasterizer.gyp:hardware_rasterizer',
-        '<(DEPTH)/cobalt/renderer/rasterizer/blitter/rasterizer.gyp:software_rasterizer',
+      'conditions': [
+        ['rasterizer_type == "stub"', {
+          'dependencies': [
+            '<(DEPTH)/cobalt/renderer/rasterizer/stub/rasterizer.gyp:rasterizer',
+          ],
+        }, {
+          'dependencies': [
+            '<(DEPTH)/cobalt/renderer/rasterizer/skia/rasterizer.gyp:hardware_rasterizer',
+            '<(DEPTH)/cobalt/renderer/rasterizer/egl/rasterizer.gyp:software_rasterizer',
+            '<(DEPTH)/cobalt/renderer/rasterizer/egl/rasterizer.gyp:hardware_rasterizer',
+            '<(DEPTH)/cobalt/renderer/rasterizer/blitter/rasterizer.gyp:hardware_rasterizer',
+            '<(DEPTH)/cobalt/renderer/rasterizer/blitter/rasterizer.gyp:software_rasterizer',
+          ]
+        }],
       ],
     },
   ],

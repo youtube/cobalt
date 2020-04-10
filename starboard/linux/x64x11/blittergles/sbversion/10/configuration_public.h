@@ -71,10 +71,6 @@
 // textures. These textures typically originate from video decoders.
 #define SB_HAS_NV12_TEXTURE_SUPPORT 1
 
-#ifndef COBALT_FORCE_DIRECT_GLES_RASTERIZER
-#define COBALT_FORCE_DIRECT_GLES_RASTERIZER 1
-#endif
-
 // --- Shared Configuration and Overrides ------------------------------------
 
 // Include the Linux configuration that's common between all Desktop Linuxes.
