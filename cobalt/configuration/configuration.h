@@ -57,6 +57,7 @@ class Configuration {
   int CobaltReduceCpuMemoryBy();
   int CobaltReduceGpuMemoryBy();
   bool CobaltGcZeal();
+  const char* CobaltRasterizerType();
 
  private:
   Configuration();

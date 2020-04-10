@@ -18,25 +18,17 @@
       'target_name': 'renderer_platform_backend',
       'type': 'static_library',
 
-      'conditions': [
-        ['rasterizer_type == "stub"', {
-          'sources': [
-            'default_graphics_system_stub.cc',
-          ],
-        }, {
-          'includes': [
-            '../../renderer_parameters_setup.gypi',
-          ],
+      'includes': [
+        '../../renderer_parameters_setup.gypi',
+      ],
 
-          'dependencies': [
-            '../blitter/blitter_backend.gyp:blitter_backend',
-            '../egl/egl_backend.gyp:egl_backend',
-          ],
+      'dependencies': [
+        '../blitter/blitter_backend.gyp:blitter_backend',
+        '../egl/egl_backend.gyp:egl_backend',
+      ],
 
-          'sources': [
-            'default_graphics_system.cc',
-          ]
-        }],
+      'sources': [
+        'default_graphics_system.cc',
       ],
     },
   ],
