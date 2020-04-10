@@ -37,12 +37,15 @@ const std::set<std::string> valid_channels = {
     "test",
     // Test an update with mismatched sabi
     "tmsabi",
-    // Test an update whose updater module is broken
-    "tbupdater",
+    // Test an update that does nothing
+    "tnoop",
     // Test an update that crashes
     "tcrash",
     // Test an update that fails verification
     "tfailv",
+    // Test a series of continuous updates with two channels
+    "tseries1",
+    "tseries2",
     // Test an update that's larger than the available storage on the device
     "tistore",
 };
