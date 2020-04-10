@@ -12,31 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/configuration.h"
+#include "starboard/raspi/2/skia/configuration.h"
 
 #include "cobalt/extension/configuration.h"
 #include "starboard/common/configuration_defaults.h"
 
 namespace starboard {
-namespace android {
-namespace shared {
+namespace raspi {
+namespace skia {
 
 namespace {
 
-const char* CobaltUserOnExitStrategy() {
-  return "suspend";
+int CobaltSkiaGlyphAtlasWidth() {
+  return 2048;
 }
 
-int CobaltEglSwapInterval() {
-  return 0;
+int CobaltSkiaGlyphAtlasHeight() {
+  return 2048;
+}
+
+const char* CobaltRasterizerType() {
+  return "hardware";
 }
 
 const CobaltExtensionConfigurationApi kConfigurationApi = {
     kCobaltExtensionConfigurationName,
     1,
-    &CobaltUserOnExitStrategy,
+    &common::CobaltUserOnExitStrategyDefault,
     &common::CobaltRenderDirtyRegionOnlyDefault,
-    &CobaltEglSwapInterval,
+    &common::CobaltEglSwapIntervalDefault,
     &common::CobaltFallbackSplashScreenUrlDefault,
     &common::CobaltEnableQuicDefault,
     &common::CobaltSkiaCacheSizeInBytesDefault,
@@ -48,13 +52,13 @@ const CobaltExtensionConfigurationApi kConfigurationApi = {
     &common::CobaltMeshCacheSizeInBytesDefault,
     &common::CobaltSoftwareSurfaceCacheSizeInBytesDefault,
     &common::CobaltImageCacheCapacityMultiplierWhenPlayingVideoDefault,
-    &common::CobaltSkiaGlyphAtlasWidthDefault,
-    &common::CobaltSkiaGlyphAtlasHeightDefault,
+    &CobaltSkiaGlyphAtlasWidth,
+    &CobaltSkiaGlyphAtlasHeight,
     &common::CobaltJsGarbageCollectionThresholdInBytesDefault,
     &common::CobaltReduceCpuMemoryByDefault,
     &common::CobaltReduceGpuMemoryByDefault,
     &common::CobaltGcZealDefault,
-    &common::CobaltRasterizerTypeDefault,
+    &CobaltRasterizerType,
 };
 
 }  // namespace
@@ -63,6 +67,6 @@ const void* GetConfigurationApi() {
   return &kConfigurationApi;
 }
 
-}  // namespace shared
-}  // namespace android
+}  // namespace skia
+}  // namespace raspi
 }  // namespace starboard

@@ -58,6 +58,8 @@ int CobaltReduceGpuMemoryByDefault();
 
 bool CobaltGcZealDefault();
 
+const char* CobaltRasterizerTypeDefault();
+
 }  // namespace common
 }  // namespace starboard
 
