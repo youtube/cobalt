@@ -199,6 +199,21 @@ typedef struct CobaltExtensionConfigurationApi {
   // to occur much more frequently than normal, for the purpose of finding or
   // reproducing bugs.
   bool (*CobaltGcZeal)();
+
+  // Defines what kind of rasterizer will be used.  This can be adjusted to
+  // force a stub graphics implementation.
+  // It can be one of the following options:
+  //   'direct-gles' -- Uses a light wrapper over OpenGL ES to handle most
+  //                    draw elements. This will fall back to the skia hardware
+  //                    rasterizer for some render tree node types, but is
+  //                    generally faster on the CPU and GPU. This can handle
+  //                    360 rendering.
+  //   'hardware'    -- As much hardware acceleration of graphics commands as
+  //                    possible. This uses skia to wrap OpenGL ES commands.
+  //                    Required for 360 rendering.
+  //   'stub'        -- Stub graphics rasterization.  A rasterizer object will
+  //                    still be available and valid, but it will do nothing.
+  const char* (*CobaltRasterizerType)();
 } CobaltExtensionConfigurationApi;
 
 #ifdef __cplusplus
