@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
+#include "base/memory/weak_ptr.h"
 #include "base/optional.h"
 #include "cobalt/script/error_report.h"
 #include "cobalt/script/script_value.h"
@@ -35,7 +36,8 @@ class JavaScriptEngine;
 class SourceCode;
 
 // Manages a handle to a JavaScript engine's global object.
-class GlobalEnvironment : public base::RefCounted<GlobalEnvironment> {
+class GlobalEnvironment : public base::RefCounted<GlobalEnvironment>,
+                          public base::SupportsWeakPtr<GlobalEnvironment> {
  public:
   typedef base::Callback<bool(const ErrorReport& error_report)>
       ReportErrorCallback;
@@ -126,17 +128,19 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment> {
    public:
     ScopedPreventGarbageCollection(GlobalEnvironment* global_environment,
                                    Wrappable* wrappable)
-        : global_environment(global_environment), wrappable(wrappable) {
+        : global_environment(global_environment->AsWeakPtr()), wrappable(wrappable) {
       global_environment->PreventGarbageCollection(
           base::WrapRefCounted(wrappable));
     }
 
     ~ScopedPreventGarbageCollection() {
-      global_environment->AllowGarbageCollection(wrappable);
+      if (global_environment) {
+        global_environment->AllowGarbageCollection(wrappable);
+      }
     }
 
    private:
-    GlobalEnvironment* global_environment;
+    base::WeakPtr<GlobalEnvironment> global_environment;
     Wrappable* wrappable;
   };
 
