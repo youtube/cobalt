@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# See Chromium: third_party/blink/renderer/core/inspector/BUILD.gn
+# See Chromium:
+# https://chromium.googlesource.com/chromium/src.git/+/refs/tags/80.0.3987.148/third_party/blink/public/devtools_protocol/BUILD.gn
 
 {
   'variables': {
     'sb_pedantic_warnings': 1,
+    'v8_inspector_js_protocol_file': '<(DEPTH)/v8/include/js_protocol.pdl',
   },
   'targets': [
     {
@@ -28,10 +30,9 @@
           'script_path': '<(DEPTH)/third_party/inspector_protocol/check_protocol_compatibility.py',
           'input_files': [
             'browser_protocol.pdl',
-            'browser_protocol-1.3.json',
-            '<(DEPTH)/v8/include/js_protocol.pdl',
+            '<(v8_inspector_js_protocol_file)',
           ],
-          'stamp_file': '<(SHARED_INTERMEDIATE_DIR)/cobalt/debug/remote/inspector_protocol/browser_protocol.stamp',
+          'stamp_file': '<(SHARED_INTERMEDIATE_DIR)/cobalt/debug/remote/devtools/inspector_protocol/browser_protocol.stamp',
         },
         'inputs': [ '<(script_path)', '<@(input_files)' ],
         'outputs': [ '<(stamp_file)' ],
@@ -46,7 +47,7 @@
     },
 
     {
-      'target_name': 'inspector_protocol',
+      'target_name': 'protocol_version',
       'type': 'none',
       'dependencies': [
         'protocol_compatibility_check',
@@ -57,9 +58,9 @@
           'script_path': '<(DEPTH)/third_party/inspector_protocol/concatenate_protocols.py',
           'input_files': [
             'browser_protocol.pdl',
-            '<(DEPTH)/v8/include/js_protocol.pdl',
+            '<(v8_inspector_js_protocol_file)',
           ],
-          'output_file': '<(SHARED_INTERMEDIATE_DIR)/cobalt/debug/remote/inspector_protocol/inspector_protocol.json',
+          'output_file': '<(SHARED_INTERMEDIATE_DIR)/cobalt/debug/remote/devtools/inspector_protocol/protocol.json',
         },
         'inputs': [ '<(script_path)', '<@(input_files)' ],
         'outputs': [ '<(output_file)' ],
