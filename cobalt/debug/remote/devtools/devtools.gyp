@@ -2126,13 +2126,13 @@
       'target_name': 'frontend_protocol_sources',
       'type': 'none',
       'dependencies': [
-        'inspector_protocol/inspector_protocol.gyp:inspector_protocol'
+        'inspector_protocol/inspector_protocol.gyp:protocol_version'
       ],
       'actions': [{
         'action_name': 'code_generator_frontend',
         'variables': {
           'script_path': 'scripts/build/code_generator_frontend.py',
-          'input_files': [ '<(SHARED_INTERMEDIATE_DIR)/cobalt/debug/remote/inspector_protocol/inspector_protocol.json' ],
+          'input_files': [ '<(SHARED_INTERMEDIATE_DIR)/cobalt/debug/remote/devtools/inspector_protocol/protocol.json' ],
           'output_file': '<(resources_out_dir)/InspectorBackendCommands.js',
         },
         'inputs': [ '<(script_path)', '<@(input_files)' ],
