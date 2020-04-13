@@ -19,10 +19,13 @@ namespace starboard {
 namespace nplb {
 
 TEST(SbAudioSinkGetMaxChannelsTest, SunnyDay) {
-  int max_channels = SbAudioSinkGetMaxChannels();
-  EXPECT_GT(max_channels, 0);
-  // See if it reports anything ridiculous.
-  EXPECT_LT(max_channels, 99);
+  // Call the function a few times to ensure that it works consistently
+  for (int i = 0; i < 4; ++i) {
+    int max_channels = SbAudioSinkGetMaxChannels();
+    EXPECT_GT(max_channels, 0);
+    // See if it reports anything ridiculous.
+    EXPECT_LT(max_channels, 99);
+  }
 }
 
 }  // namespace nplb
