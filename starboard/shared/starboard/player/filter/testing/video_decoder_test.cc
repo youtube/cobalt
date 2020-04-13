@@ -725,10 +725,11 @@ TEST_P(VideoDecoderTest, ResetBeforeInput) {
 }
 
 TEST_P(VideoDecoderTest, ResetAfterInput) {
-  const size_t kMaxInputToWrite = 10;
+  const size_t max_inputs_to_write =
+      std::min<size_t>(dmp_reader_.number_of_video_buffers(), 10);
   bool error_occurred = false;
   WriteMultipleInputs(
-      0, kMaxInputToWrite, [&](const Event& event, bool* continue_process) {
+      0, max_inputs_to_write, [&](const Event& event, bool* continue_process) {
         if (event.status == kTimeout || event.status == kError) {
           error_occurred = true;
           *continue_process = false;
@@ -742,7 +743,9 @@ TEST_P(VideoDecoderTest, ResetAfterInput) {
 }
 
 TEST_P(VideoDecoderTest, MultipleResets) {
-  for (int max_inputs = 1; max_inputs < 10; ++max_inputs) {
+  const size_t max_inputs_to_write =
+      std::min<size_t>(dmp_reader_.number_of_video_buffers(), 10);
+  for (int max_inputs = 1; max_inputs < max_inputs_to_write; ++max_inputs) {
     bool error_occurred = false;
     WriteMultipleInputs(
         0, max_inputs, [&](const Event& event, bool* continue_process) {
