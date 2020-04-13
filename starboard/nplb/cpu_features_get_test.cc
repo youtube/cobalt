@@ -67,6 +67,9 @@ void ExpectX86Invalid(const SbCPUFeatures& features) {
   EXPECT_EQ(false, features.x86.has_sse2);
   EXPECT_EQ(false, features.x86.has_tsc);
   EXPECT_EQ(false, features.x86.has_sse3);
+#if defined(SB_CPU_FEATURE_PCLMULQDQ)
+  EXPECT_EQ(false, features.x86.has_pclmulqdq);
+#endif  // defined(SB_CPU_FEATURE_PCLMULQDQ)
   EXPECT_EQ(false, features.x86.has_ssse3);
   EXPECT_EQ(false, features.x86.has_sse41);
   EXPECT_EQ(false, features.x86.has_sse42);

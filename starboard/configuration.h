@@ -276,6 +276,10 @@
 // available, but will otherwise fall back onto default values.
 #define SB_FEATURE_GYP_CONFIGURATION_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Add the PCLMULQDQ instruction feature to the Starboard CPU features interface
+// for x86 architectures.
+#define SB_CPU_FEATURE_PCLMULQDQ SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
