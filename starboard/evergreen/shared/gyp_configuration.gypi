@@ -20,6 +20,10 @@
     'sb_evergreen': 1,
     'sb_speech_supported': 0,
 
+    # Override that omits the "data" subdirectory.
+    # TODO: Remove when omitted for all platforms in base_configuration.gypi.
+    'sb_static_contents_output_data_dir': '<(PRODUCT_DIR)/content',
+
     'final_executable_type': 'shared_library',
     'gtest_target_type': 'shared_library',
 
