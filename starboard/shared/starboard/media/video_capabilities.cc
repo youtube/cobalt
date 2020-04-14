@@ -28,10 +28,10 @@ VideoCapabilities::Rule::Rule(SbMediaVideoCodec codec,
                               int height,
                               int fps)
     : codec_(codec), width_(width), height_(height), fps_(fps) {
+  SB_DCHECK(width >= 0);
+  SB_DCHECK(height >= 0);
+  SB_DCHECK(fps >= 0);
   SB_DCHECK(codec_ != kSbMediaVideoCodecNone);
-  SB_DCHECK(width_ > 0);
-  SB_DCHECK(height_ > 0);
-  SB_DCHECK(fps_ > 0);
 }
 
 std::string VideoCapabilities::Rule::AsString() const {
@@ -48,6 +48,9 @@ void VideoCapabilities::AddSdrRule(SbMediaVideoCodec codec,
                                    int width,
                                    int height,
                                    int fps) {
+  SB_DCHECK(width > 0);
+  SB_DCHECK(height > 0);
+  SB_DCHECK(fps > 0);
   AddRule(Rule(codec, width, height, fps), &sdr_rules_);
 }
 
@@ -55,6 +58,9 @@ void VideoCapabilities::AddHdrRule(SbMediaVideoCodec codec,
                                    int width,
                                    int height,
                                    int fps) {
+  SB_DCHECK(width > 0);
+  SB_DCHECK(height > 0);
+  SB_DCHECK(fps > 0);
   AddRule(Rule(codec, width, height, fps), &hdr_rules_);
 }
 
