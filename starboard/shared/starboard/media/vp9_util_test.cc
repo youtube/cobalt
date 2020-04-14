@@ -39,7 +39,8 @@ uint8_t CreateSuperframeMarker(size_t bytes_of_size,
   SB_DCHECK(number_of_subframes > 0);
   SB_DCHECK(number_of_subframes <= Vp9FrameParser::kMaxNumberOfSubFrames);
 
-  return 0b11000000 | ((bytes_of_size - 1) << 3) | (number_of_subframes - 1);
+  return static_cast<uint8_t>(0b11000000 | ((bytes_of_size - 1) << 3) |
+                              (number_of_subframes - 1));
 }
 
 std::vector<uint8_t> ConvertSizeToBytes(size_t size, size_t bytes_of_size) {

@@ -25,7 +25,7 @@ namespace starboard {
 namespace media {
 namespace {
 
-const auto kIdrStartCode = 0x65;
+const uint8_t kIdrStartCode = 0x65;
 const auto kSpsStartCode = AvcParameterSets::kSpsStartCode;
 const auto kPpsStartCode = AvcParameterSets::kPpsStartCode;
 const auto kAnnexB = AvcParameterSets::kAnnexB;
