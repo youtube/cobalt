@@ -114,6 +114,77 @@ TEST(VideoCapabilitiesTest, H264SdrWithRedundantRules) {
       kSbMediaVideoCodecVp9, kSbMediaTransferIdBt709, 640, 480, 30));
 }
 
+TEST(VideoCapabilitiesTest, IsSupportedWithZeroValues) {
+  VideoCapabilities video_capabilities;
+
+  video_capabilities.AddSdrRule(kSbMediaVideoCodecH264, 1920, 1080, 60);
+  video_capabilities.AddHdrRule(kSbMediaVideoCodecH264, 1920, 1080, 60);
+  video_capabilities.AddSdrRule(kSbMediaVideoCodecVp9, 1920, 1080, 60);
+  video_capabilities.AddHdrRule(kSbMediaVideoCodecVp9, 1920, 1080, 60);
+
+  EXPECT_TRUE(video_capabilities.IsSupported(kSbMediaVideoCodecH264,
+                                             kSbMediaTransferIdBt709, 0, 0, 0));
+  EXPECT_TRUE(video_capabilities.IsSupported(
+      kSbMediaVideoCodecH264, kSbMediaTransferIdBt709, 1920, 0, 0));
+  EXPECT_TRUE(video_capabilities.IsSupported(
+      kSbMediaVideoCodecH264, kSbMediaTransferIdBt709, 1920, 1080, 0));
+  EXPECT_TRUE(video_capabilities.IsSupported(
+      kSbMediaVideoCodecH264, kSbMediaTransferIdBt709, 1920, 1080, 60));
+  EXPECT_TRUE(video_capabilities.IsSupported(
+      kSbMediaVideoCodecH264, kSbMediaTransferIdBt709, 0, 1080, 0));
+
+  EXPECT_TRUE(video_capabilities.IsSupported(
+      kSbMediaVideoCodecH264, kSbMediaTransferId10BitBt2020, 0, 0, 0));
+  EXPECT_TRUE(video_capabilities.IsSupported(
+      kSbMediaVideoCodecH264, kSbMediaTransferId10BitBt2020, 1920, 0, 0));
+  EXPECT_TRUE(video_capabilities.IsSupported(
+      kSbMediaVideoCodecH264, kSbMediaTransferId10BitBt2020, 1920, 1080, 0));
+  EXPECT_TRUE(video_capabilities.IsSupported(
+      kSbMediaVideoCodecH264, kSbMediaTransferId10BitBt2020, 1920, 1080, 60));
+  EXPECT_TRUE(video_capabilities.IsSupported(
+      kSbMediaVideoCodecH264, kSbMediaTransferId10BitBt2020, 0, 1080, 0));
+
+  EXPECT_TRUE(video_capabilities.IsSupported(kSbMediaVideoCodecVp9,
+                                             kSbMediaTransferIdBt709, 0, 0, 0));
+  EXPECT_TRUE(video_capabilities.IsSupported(
+      kSbMediaVideoCodecVp9, kSbMediaTransferIdBt709, 1920, 0, 0));
+  EXPECT_TRUE(video_capabilities.IsSupported(
+      kSbMediaVideoCodecVp9, kSbMediaTransferIdBt709, 1920, 1080, 0));
+  EXPECT_TRUE(video_capabilities.IsSupported(
+      kSbMediaVideoCodecVp9, kSbMediaTransferIdBt709, 1920, 1080, 60));
+  EXPECT_TRUE(video_capabilities.IsSupported(
+      kSbMediaVideoCodecVp9, kSbMediaTransferIdBt709, 0, 1080, 0));
+
+  EXPECT_TRUE(video_capabilities.IsSupported(
+      kSbMediaVideoCodecVp9, kSbMediaTransferId10BitBt2020, 0, 0, 0));
+  EXPECT_TRUE(video_capabilities.IsSupported(
+      kSbMediaVideoCodecVp9, kSbMediaTransferId10BitBt2020, 1920, 0, 0));
+  EXPECT_TRUE(video_capabilities.IsSupported(
+      kSbMediaVideoCodecVp9, kSbMediaTransferId10BitBt2020, 1920, 1080, 0));
+  EXPECT_TRUE(video_capabilities.IsSupported(
+      kSbMediaVideoCodecVp9, kSbMediaTransferId10BitBt2020, 1920, 1080, 60));
+  EXPECT_TRUE(video_capabilities.IsSupported(
+      kSbMediaVideoCodecVp9, kSbMediaTransferId10BitBt2020, 0, 1080, 0));
+
+  EXPECT_TRUE(video_capabilities.IsSupported(
+      kSbMediaVideoCodecH264, kSbMediaTransferIdBt709, 1920, 0, 60));
+  EXPECT_TRUE(video_capabilities.IsSupported(
+      kSbMediaVideoCodecH264, kSbMediaTransferIdBt709, 0, 1080, 60));
+  EXPECT_TRUE(video_capabilities.IsSupported(
+      kSbMediaVideoCodecH264, kSbMediaTransferId10BitBt2020, 1920, 0, 60));
+  EXPECT_TRUE(video_capabilities.IsSupported(
+      kSbMediaVideoCodecH264, kSbMediaTransferId10BitBt2020, 0, 1080, 60));
+
+  EXPECT_TRUE(video_capabilities.IsSupported(
+      kSbMediaVideoCodecVp9, kSbMediaTransferIdBt709, 1920, 0, 60));
+  EXPECT_TRUE(video_capabilities.IsSupported(
+      kSbMediaVideoCodecVp9, kSbMediaTransferIdBt709, 0, 1080, 60));
+  EXPECT_TRUE(video_capabilities.IsSupported(
+      kSbMediaVideoCodecVp9, kSbMediaTransferId10BitBt2020, 1920, 0, 60));
+  EXPECT_TRUE(video_capabilities.IsSupported(
+      kSbMediaVideoCodecVp9, kSbMediaTransferId10BitBt2020, 0, 1080, 60));
+}
+
 TEST(VideoCapabilitiesTest, MultiCodecsAndDynamicRanges) {
   VideoCapabilities video_capabilities;
 
