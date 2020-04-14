@@ -56,10 +56,16 @@ class ExecutableLinker(DynamicLinkerBase, abstract.ExecutableLinker):
 
   def __init__(self, **kwargs):
     super(ExecutableLinker, self).__init__(**kwargs)
+    # Groups archives to be searched until all references are resolved.
+    self._write_group = kwargs.get('write_group', False)
 
   def GetCommand(self, path, extra_flags, flags, shell):
     del shell  # Not used.
-    return '{0} {1} {2} @$rspfile -o $out'.format(path, extra_flags, flags)
+    if self._write_group:
+      return ('{0} {1} {2} -Wl,--start-group @$rspfile -Wl,--end-group -o $out'
+              .format(path, extra_flags, flags))
+    else:
+      return '{0} {1} {2} @$rspfile -o $out'.format(path, extra_flags, flags)
 
 
 class SharedLibraryLinker(DynamicLinkerBase, abstract.SharedLibraryLinker):
