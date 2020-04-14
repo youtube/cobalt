@@ -500,9 +500,27 @@ pa_stream* PulseAudioSinkType::CreateNewStream(
     pa_stream_flags_t flags,
     pa_stream_request_cb_t stream_request_cb,
     void* userdata) {
+  pa_channel_map channel_map = {sample_spec->channels};
+
+  if (sample_spec->channels == 6) {
+    // Assume the incoming layout is always "FL FR FC LFE BL BR".
+    channel_map.map[0] = PA_CHANNEL_POSITION_FRONT_LEFT;
+    channel_map.map[1] = PA_CHANNEL_POSITION_FRONT_RIGHT;
+    channel_map.map[2] = PA_CHANNEL_POSITION_FRONT_CENTER;
+    // Note that this should really be |PA_CHANNEL_POSITION_LFE|, but there is
+    // usually no lfe device on desktop so set it to rear center to make it
+    // audible.
+    channel_map.map[3] = PA_CHANNEL_POSITION_REAR_CENTER;
+    // Rear left and rear left are the same as back left and back right.
+    channel_map.map[4] = PA_CHANNEL_POSITION_REAR_LEFT;
+    channel_map.map[5] = PA_CHANNEL_POSITION_REAR_RIGHT;
+  }
+
   ScopedLock lock(mutex_);
+
   pa_stream* stream =
-      pa_stream_new(context_, "cobalt_stream", sample_spec, NULL);
+      pa_stream_new(context_, "cobalt_stream", sample_spec,
+                    sample_spec->channels == 6 ? &channel_map : NULL);
   if (!stream) {
     SB_LOG(ERROR) << "Pulse audio error: cannot create stream.";
     return NULL;
