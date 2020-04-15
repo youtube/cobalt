@@ -20,6 +20,7 @@
 #include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/color_rgba.h"
 #include "starboard/blitter.h"
+#include "starboard/configuration_constants.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -112,7 +113,7 @@ class LinearGradientCacheFixture : public ::testing::Test {
 
   virtual void SetUp() {
     pixel_format = kSbBlitterInvalidPixelDataFormat;
-    switch (SB_PREFERRED_RGBA_BYTE_ORDER) {
+    switch (kSbPreferredRgbaByteOrder) {
       case SB_PREFERRED_RGBA_BYTE_ORDER_RGBA:
         pixel_format = kSbBlitterPixelDataFormatRGBA8;
         break;
