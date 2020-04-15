@@ -122,6 +122,12 @@ class MinidumpMemoryListWriter final : public internal::MinidumpStreamWriter {
   MinidumpMemoryListWriter();
   ~MinidumpMemoryListWriter() override;
 
+  static bool CoalesceOwnedMemoryHelper(
+      std::unique_ptr<
+          crashpad::SnapshotMinidumpMemoryWriter,
+          std::default_delete<crashpad::SnapshotMinidumpMemoryWriter>>
+          snapshot);
+
   //! \brief Adds a concrete initialized SnapshotMinidumpMemoryWriter for each
   //!     memory snapshot in \a memory_snapshots to the MINIDUMP_MEMORY_LIST.
   //!
