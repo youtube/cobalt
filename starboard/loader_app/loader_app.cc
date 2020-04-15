@@ -60,7 +60,6 @@ void LoadLibraryAndInitialize() {
 
   // Loop by priority.
   int current_installation = ImGetCurrentInstallationIndex();
-  SB_LOG(INFO) << "current_installation=" << current_installation;
   while (current_installation != IM_ERROR) {
     // if not successful and num_tries_left > 0 decrement and try to
     // load the library.
@@ -79,6 +78,7 @@ void LoadLibraryAndInitialize() {
     }
 
     SB_LOG(INFO) << "Try to load the Cobalt binary";
+    SB_LOG(INFO) << "current_installation=" << current_installation;
 
     //  Try to load the image. Failures here discard the image.
     std::vector<char> installation_path(kSbFileMaxPath);
