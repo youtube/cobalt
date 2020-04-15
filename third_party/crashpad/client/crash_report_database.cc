@@ -16,6 +16,7 @@
 
 #include "base/logging.h"
 #include "build/build_config.h"
+#include "nb/cpp14oncpp11.h"
 
 namespace crashpad {
 
