@@ -754,13 +754,6 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
-#if defined(SB_HAS_AUDIOLESS_VIDEO)
-#error \
-    "SB_HAS_AUDIOLESS_VIDEO should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbHasAudiolessVideo in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
 #if defined(SB_HAS_MEDIA_WEBM_VP9_SUPPORT)
 #error \
     "SB_HAS_MEDIA_WEBM_VP9_SUPPORT should not be defined in Starboard " \
@@ -1097,6 +1090,10 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #if defined(SB_MEDIA_GPU_BUFFER_BUDGET)
 #error "SB_MEDIA_GPU_BUFFER_BUDGET is deprecated."
 #endif  // defined(SB_MEDIA_GPU_BUFFER_BUDGET)
+
+#if defined(SB_HAS_AUDIOLESS_VIDEO)
+#error "SB_HAS_AUDIOLESS_VIDEO is deprecated."
+#endif  // defined(SB_HAS_AUDIOLESS_VIDEO)
 
 #if SB_API_VERSION >= 11
 #if defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
