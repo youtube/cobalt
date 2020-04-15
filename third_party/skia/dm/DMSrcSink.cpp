@@ -347,11 +347,11 @@ static bool get_decode_info(SkImageInfo* decodeInfo, SkColorType canvasColorType
                     || kRGBA_F16_SkColorType == canvasColorType) {
                 return false;
             }
-            if (GetSkPmcolor() == SkPmcolorIsRgba) {
-                *decodeInfo = decodeInfo->makeColorType(kBGRA_8888_SkColorType);
-            } else {
-                *decodeInfo = decodeInfo->makeColorType(kRGBA_8888_SkColorType);
-            }
+#ifdef SK_PMCOLOR_IS_RGBA
+            *decodeInfo = decodeInfo->makeColorType(kBGRA_8888_SkColorType);
+#else
+            *decodeInfo = decodeInfo->makeColorType(kRGBA_8888_SkColorType);
+#endif
             break;
         default:
             if (kRGB_565_SkColorType == canvasColorType &&

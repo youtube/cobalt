@@ -13,7 +13,7 @@
 #include "tests/Test.h"
 
 DEF_TEST(GetColor, reporter) {
-    static constexpr struct Rec {
+    static const struct Rec {
         SkColorType fColorType;
         SkColor     fInColor;
         SkColor     fOutColor;
