@@ -139,5 +139,10 @@ const char kSbPathSepChar = ':';
 // The string form of SB_PATH_SEP_CHAR.
 const char* kSbPathSepString = ":";
 
+// Specifies the preferred byte order of color channels in a pixel. Refer to
+// starboard/configuration.h for the possible values. EGL/GLES platforms should
+// generally prefer a byte order of RGBA, regardless of endianness.
+const int kSbPreferredRgbaByteOrder = SB_PREFERRED_RGBA_BYTE_ORDER_RGBA;
+
 // The maximum number of users that can be signed in at the same time.
 const uint32_t kSbUserMaxSignedIn = 1;

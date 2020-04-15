@@ -19,6 +19,7 @@
 
 #if defined(STARBOARD)
 #include "starboard/configuration.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/types.h"
 #endif
 
@@ -110,7 +111,7 @@
 
 #if defined(STARBOARD) && SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 const uint8_t r32_or_bendian_a32_shift =
-    SB_PREFERRED_RGBA_BYTE_ORDER == SB_PREFERRED_RGBA_BYTE_ORDER_BGRA ? 16 : 0;
+    kSbPreferredRgbaByteOrder == SB_PREFERRED_RGBA_BYTE_ORDER_BGRA ? 16 : 0;
 
 #ifdef SK_CPU_BENDIAN
 #define SK_R32_SHIFT 24
@@ -125,7 +126,7 @@ const uint8_t r32_or_bendian_a32_shift =
 #endif
 
 #elif defined(STARBOARD) && \
-    SB_PREFERRED_RGBA_BYTE_ORDER == SB_PREFERRED_RGBA_BYTE_ORDER_BGRA
+    kSbPreferredRgbaByteOrder == SB_PREFERRED_RGBA_BYTE_ORDER_BGRA
 #ifdef SK_CPU_BENDIAN
 #define SK_R32_SHIFT 24
 #define SK_G32_SHIFT 0
@@ -141,7 +142,7 @@ const uint8_t r32_or_bendian_a32_shift =
 #else
 
 // Default to RGBA otherwise.  Skia only supports either BGRA or RGBA, so if
-// SB_PREFERRED_RGBA_BYTE_ORDER is neither, we default it to RGBA and we will
+// kSbPreferredRgbaByteOrder is neither, we default it to RGBA and we will
 // have to do color conversions at runtime.
 #ifdef SK_CPU_BENDIAN
 #define SK_R32_SHIFT 24
