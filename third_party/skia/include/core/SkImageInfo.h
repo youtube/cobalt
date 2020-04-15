@@ -98,6 +98,7 @@ enum SkColorType {
 
     kLastEnum_SkColorType     = kR16G16B16A16_unorm_SkColorType, //!< last valid value
 
+#if !defined(STARBOARD) || SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 #if SK_PMCOLOR_BYTE_ORDER(B,G,R,A)
     kN32_SkColorType          = kBGRA_8888_SkColorType,//!< native ARGB 32-bit encoding
 
@@ -107,7 +108,13 @@ enum SkColorType {
 #else
     #error "SK_*32_SHIFT values must correspond to BGRA or RGBA byte order"
 #endif
+#endif
 };
+
+#if defined(STARBOARD) && SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#define kN32_SkColorType \
+    (GetSkPmcolor() == SkPmcolorIsBgra ? kBGRA_8888_SkColorType : kRGBA_8888_SkColorType)
+#endif
 
 /** Returns the number of bytes required to store a pixel, including unused padding.
     Returns zero if ct is kUnknown_SkColorType or invalid.
