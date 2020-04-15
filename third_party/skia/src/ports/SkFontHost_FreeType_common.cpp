@@ -332,10 +332,9 @@ inline SkMask::Format SkMaskFormat_for_SkColorType(SkColorType colorType) {
     switch (colorType) {
         case kAlpha_8_SkColorType:
             return SkMask::kA8_Format;
+        case kN32_SkColorType:
+            return SkMask::kARGB32_Format;
         default:
-            if (colorType == kN32_SkColorType) {
-                return SkMask::kARGB32_Format;
-            }
             SkDEBUGFAIL("unsupported SkBitmap::Config");
             return SkMask::kA8_Format;
     }

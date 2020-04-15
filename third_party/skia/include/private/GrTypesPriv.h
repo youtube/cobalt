@@ -10,7 +10,6 @@
 
 #include <chrono>
 #include "include/core/SkCanvas.h"
-#include "include/core/SkColorPriv.h"
 #include "include/core/SkImage.h"
 #include "include/core/SkImageInfo.h"
 #include "include/core/SkPath.h"
@@ -74,17 +73,12 @@ static const int kGrPixelConfigCnt = kLast_GrPixelConfig + 1;
 #ifndef SK_CPU_LENDIAN
 #error "Skia gpu currently assumes little endian"
 #endif
-#if defined(STARBOARD) && SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-static const GrPixelConfig kSkia8888_GrPixelConfig =
-        (GetSkPmcolor() == SkPmcolorIsBgra) ? kBGRA_8888_GrPixelConfig : kRGBA_8888_GrPixelConfig;
-#else
 #if SK_PMCOLOR_BYTE_ORDER(B,G,R,A)
 static const GrPixelConfig kSkia8888_GrPixelConfig = kBGRA_8888_GrPixelConfig;
 #elif SK_PMCOLOR_BYTE_ORDER(R,G,B,A)
 static const GrPixelConfig kSkia8888_GrPixelConfig = kRGBA_8888_GrPixelConfig;
 #else
     #error "SK_*32_SHIFT values must correspond to GL_BGRA or GL_RGBA format."
-#endif
 #endif
 
 /**

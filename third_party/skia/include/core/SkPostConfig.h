@@ -10,11 +10,6 @@
 #ifndef SkPostConfig_DEFINED
 #define SkPostConfig_DEFINED
 
-#if defined(STARBOARD) && SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-#include "base/logging.h"
-#include "include/core/SkTypes.h"
-#endif
-
 #if !defined(SK_DEBUG) && !defined(SK_RELEASE)
     #ifdef NDEBUG
         #define SK_RELEASE
@@ -145,9 +140,7 @@
 // If SK_R32_SHIFT is set, we'll use that to choose RGBA or BGRA.
 // If not, we'll default to RGBA everywhere except BGRA on Windows.
 #if defined(SK_R32_SHIFT)
-#if !defined(STARBOARD) || SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
     static_assert(SK_R32_SHIFT == 0 || SK_R32_SHIFT == 16, "");
-#endif
 #elif defined(SK_BUILD_FOR_WIN)
     #define SK_R32_SHIFT 16
 #else
@@ -155,9 +148,7 @@
 #endif
 
 #if defined(SK_B32_SHIFT)
-#if !defined(STARBOARD) || SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
     static_assert(SK_B32_SHIFT == (16-SK_R32_SHIFT), "");
-#endif
 #else
     #define SK_B32_SHIFT (16-SK_R32_SHIFT)
 #endif
@@ -193,21 +184,6 @@
          SK_ ## C1 ## 32_SHIFT == 8  &&             \
          SK_ ## C2 ## 32_SHIFT == 16 &&             \
          SK_ ## C3 ## 32_SHIFT == 24)
-#endif
-
-#if defined(STARBOARD) && SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-typedef enum SkPmcolor { SkPmcolorIsRgba, SkPmcolorIsBgra } SkPmColor;
-
-inline SkPmcolor GetSkPmcolor() {
-    if (SK_PMCOLOR_BYTE_ORDER(R,G,B,A)) {
-        return SkPmcolorIsRgba;
-    } else if (SK_PMCOLOR_BYTE_ORDER(B,G,R,A)) {
-        return SkPmcolorIsBgra;
-    } else {
-        DCHECK(false) << "SK shift values do not correspond to a supported byte order.";
-        return (SkPmcolor)NULL;
-    }
-}
 #endif
 
 //////////////////////////////////////////////////////////////////////////////////////////////
