@@ -55,7 +55,7 @@ struct Coordinates {
     }
 };
 
-static constexpr Pair gPairs[] = {
+static const Pair gPairs[] = {
     { kUnknown_SkColorType,     "0000000"  },
     { kAlpha_8_SkColorType,     "0100000"  },
     { kRGB_565_SkColorType,     "0101011"  },
