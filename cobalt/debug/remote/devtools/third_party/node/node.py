@@ -4,12 +4,28 @@
 # found in the LICENSE file.
 
 from os import path as os_path
+import os
 import platform
 import subprocess
 import sys
 
 
 def GetBinaryPath():
+    """Searches $PATH for the binary returned by GetLocalBinary() if missing.
+
+    Look for the system version of Node in the $PATH if it's not found in this
+    subdirectory, where the Chromium DEPS would drop it, but the Cobalt DEPS
+    does not.
+    """
+    local_path, binary_name = os.path.split(GetLocalBinary())
+    search_paths = [local_path] + os.getenv('PATH').split(os.path.pathsep)
+    for binary_path in [os.path.join(p, binary_name) for p in search_paths]:
+        if os.access(binary_path, os.X_OK):
+            return binary_path
+    raise RuntimeError('%s not found in PATH' % binary_name)
+
+
+def GetLocalBinary():
     return os_path.join(
         os_path.dirname(__file__), *{
             'Darwin': ('mac', 'node-darwin-x64', 'bin', 'node'),
