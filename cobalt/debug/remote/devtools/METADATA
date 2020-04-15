@@ -9,12 +9,12 @@ third_party {
   }
   url {
     type: GIT
-    value: "https://chromium.googlesource.com/chromium/src/third_party/blink/renderer/devtools"
+    value: "https://github.com/ChromeDevTools/devtools-frontend"
   }
-  version: "fc673662ca9017b56bfdf0f961591f8e87a27346"
+  version: "757e0e1e1ffc4a0d36d005d120de5f73c1b910e0"
   last_upgrade_date {
-    year: 2018
-    month: 7
-    day: 3
+    year: 2019
+    month: 12
+    day: 12
   }
 }
