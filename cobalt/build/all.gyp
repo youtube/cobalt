@@ -88,6 +88,8 @@
         '<(DEPTH)/third_party/boringssl/boringssl_tool.gyp:*',
         '<(DEPTH)/net/net.gyp:net_unittests_deploy',
         '<(DEPTH)/sql/sql.gyp:sql_unittests_deploy',
+        '<(DEPTH)/starboard/elf_loader/elf_loader.gyp:elf_loader_test_deploy',
+        '<(DEPTH)/starboard/loader_app/loader_app.gyp:loader_app'
       ],
       'conditions': [
         ['sb_evergreen != 1', {

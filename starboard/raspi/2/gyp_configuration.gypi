@@ -15,7 +15,7 @@
 {
   'variables': {
     'variables': {
-      'sb_evergreen_compatible': '<!(python <(DEPTH)/build/file_exists.py <(DEPTH)/starboard/elf_loader/evergreen_info.gyp)',
+      'sb_evergreen_compatible': 1,
     },
   },
 
