@@ -35,7 +35,7 @@ static voidpf  ZCALLBACK starboard_open_file_func (voidpf opaque, const char* fi
     } else if (mode & ZLIB_FILEFUNC_MODE_EXISTING){
       flags = kSbFileRead | kSbFileWrite | kSbFileOpenOnly;
     } else if (mode & ZLIB_FILEFUNC_MODE_CREATE) {
-      flags = kSbFileRead | kSbFileWrite | kSbFileCreateAlways | kSbFileOpenTruncated;
+      flags = kSbFileRead | kSbFileWrite | kSbFileCreateAlways;
     }
 
     if ((filename!=NULL) && (flags != 0)) {
@@ -52,7 +52,7 @@ static voidpf  ZCALLBACK starboard_open64_file_func (voidpf opaque, const void* 
     } else if (mode & ZLIB_FILEFUNC_MODE_EXISTING){
       flags = kSbFileRead | kSbFileWrite | kSbFileOpenOnly;
     } else if (mode & ZLIB_FILEFUNC_MODE_CREATE) {
-      flags = kSbFileRead | kSbFileWrite | kSbFileCreateAlways | kSbFileOpenTruncated;
+      flags = kSbFileRead | kSbFileWrite | kSbFileCreateAlways;
     }
 
     if ((filename!=NULL) && (flags != 0)) {
