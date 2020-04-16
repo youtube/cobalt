@@ -4066,6 +4066,8 @@ TEST_F(PixelTest, ClearRectNodeTest) {
   TestTree(new CompositionNode(std::move(composition_node_builder)));
 }
 
+#if !SB_HAS(BLITTER)
+
 namespace {
 
 base::FilePath GetTestFilePath(const char* file_name) {
@@ -4112,6 +4114,8 @@ TEST_F(PixelTest, SimpleLottieAnimationTest) {
   scoped_refptr<LottieNode> lottie_node = new LottieNode(node_builder);
   TestTree(lottie_node);
 }
+
+#endif  // !SB_HAS(BLITTER)
 
 }  // namespace rasterizer
 }  // namespace renderer
