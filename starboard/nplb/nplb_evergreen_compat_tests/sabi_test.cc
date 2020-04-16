@@ -40,6 +40,18 @@ const char* kSabiJsonIdArmHardfp =
     "\"size_of_short\":2,\"target_arch\":\"arm\",\"target_arch_sub\":\"v7a\","
     "\"word_size\":32}";
 
+const char* kSabiJsonIdArmSoftfp =
+    "{\"alignment_char\":1,\"alignment_double\":8,\"alignment_float\":4,"
+    "\"alignment_int\":4,\"alignment_llong\":8,\"alignment_long\":4,"
+    "\"alignment_pointer\":4,\"alignment_short\":2,\"calling_convention\":"
+    "\"eabi\",\"endianness\":\"little\",\"floating_point_abi\":\"softfp\","
+    "\"floating_point_fpu\":\"vfpv3\",\"sb_api_version\":12,\"signedness_of_"
+    "char\":\"signed\",\"signedness_of_enum\":\"signed\",\"size_of_char\":1,"
+    "\"size_of_double\":8,\"size_of_enum\":4,\"size_of_float\":4,\"size_of_"
+    "int\":4,\"size_of_llong\":8,\"size_of_long\":4,\"size_of_pointer\":4,"
+    "\"size_of_short\":2,\"target_arch\":\"arm\",\"target_arch_sub\":\"v7a\","
+    "\"word_size\":32}";
+
 const char* kSabiJsonIdArm64 =
     "{\"alignment_char\":1,\"alignment_double\":8,\"alignment_float\":4,"
     "\"alignment_int\":4,\"alignment_llong\":8,\"alignment_long\":8,"
@@ -83,6 +95,7 @@ class SabiTest : public ::testing::Test {
 TEST_F(SabiTest, VerifySABI) {
   std::set<std::string> sabi_set;
   sabi_set.insert(kSabiJsonIdArmHardfp);
+  sabi_set.insert(kSabiJsonIdArmSoftfp);
   sabi_set.insert(kSabiJsonIdArm64);
   sabi_set.insert(kSabiJsonIdX86);
   sabi_set.insert(kSabiJsonIdX64Sysv);
@@ -93,6 +106,7 @@ TEST_F(SabiTest, VerifySABI) {
       << std::endl
       << "Currently supported are: " << std::endl
       << "  starboard/sabi/arm/hardfp/sabi.json" << std::endl
+      << "  starboard/sabi/arm/softfp/sabi.json" << std::endl
       << "  starboard/sabi/arm64/sabi.json" << std::endl
       << "  starboard/sabi/x86/sabi.json" << std::endl
       << "  starboard/sabi/x64/sysv/sabi.json" << std::endl;
