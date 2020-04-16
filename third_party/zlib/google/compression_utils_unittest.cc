@@ -11,6 +11,7 @@
 
 #include "base/logging.h"
 #include "base/stl_util.h"
+#include "starboard/common/log.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace compression {
@@ -86,6 +87,39 @@ TEST(CompressionUtilsTest, LargeInput) {
 
   EXPECT_EQ(data, uncompressed_data);
 }
+
+#if defined(OS_STARBOARD)
+// Outputs the duration of GzipCompress() and GzipUncompress() with 32MiB of
+// data.
+TEST(CompressionUtilsTest, OutputCompressionAndDecompressionDuration) {
+  // The Cobalt binary is around 32MiB for some platforms.
+  const size_t kSize = 32 * 1024 * 1024;
+
+  // Generate a data string of |kSize| filled with garbage data for testing.
+  std::string data;
+  data.resize(kSize);
+  for (size_t i = 0; i < kSize; ++i)
+    data[i] = static_cast<char>(i & 0xFF);
+
+  SbTime begin = SbTimeGetNow();
+
+  std::string compressed_data;
+  EXPECT_TRUE(GzipCompress(data, &compressed_data));
+
+  SB_LOG(INFO) << "GzipCompress() of 32MiB took "
+               << (SbTimeGetNow() - begin) / kSbTimeMillisecond
+               << " milliseconds.";
+
+  begin = SbTimeGetNow();
+
+  std::string uncompressed_data;
+  EXPECT_TRUE(GzipUncompress(compressed_data, &uncompressed_data));
+
+  SB_LOG(INFO) << "GzipUncompress() of 32MiB took "
+               << (SbTimeGetNow() - begin) / kSbTimeMillisecond
+               << " milliseconds.";
+}
+#endif
 
 TEST(CompressionUtilsTest, InPlace) {
   const std::string original_data(reinterpret_cast<const char*>(kData),

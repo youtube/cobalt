@@ -499,5 +499,53 @@
         '<(DEPTH)/third_party/zlib/zlib.gyp:minizip',
       ],
     },
+    {
+      'target_name': 'zip_unittests',
+      'type': '<(gtest_target_type)',
+      'sources': [
+        'google/compression_utils_unittest.cc',
+        'google/zip_reader_unittest.cc',
+        'google/zip_unittest.cc',
+
+        # Required by the tests but not used elsewhere.
+        'google/compression_utils.cc',
+        'google/compression_utils.h',
+        'google/compression_utils_portable.cc',
+        'google/compression_utils_portable.h',
+      ],
+      'dependencies': [
+        'minizip',
+        'zip',
+        'zlib',
+        '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/base/base.gyp:test_support_base',
+        '<(DEPTH)/starboard/common/common.gyp:common',
+        '<(DEPTH)/testing/gmock.gyp:gmock',
+        '<(DEPTH)/testing/gtest.gyp:gtest',
+      ],
+      'includes': ['<(DEPTH)/base/test/test.gypi'],
+      'conditions': [
+        ['cobalt_copy_test_data == 1', {
+          'variables': {
+            'content_test_input_files': [
+              '<(DEPTH)/third_party/zlib/google/test/data',
+            ],
+            'content_test_output_subdir': 'third_party/zlib/google/test',
+          },
+          'includes': [ '<(DEPTH)/starboard/build/copy_test_data.gypi' ],
+        }],
+      ],
+    },
+    {
+      'target_name': 'zip_unittests_deploy',
+      'type': 'none',
+      'dependencies': [
+        'zip_unittests',
+      ],
+      'variables': {
+        'executable_name': 'zip_unittests',
+      },
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
+    },
   ],
 }

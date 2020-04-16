@@ -165,7 +165,11 @@ class ZipTest : public PlatformTest {
   }
 
   bool GetTestDataDirectory(base::FilePath* path) {
+#if defined(OS_STARBOARD)
+    bool success = base::PathService::Get(base::DIR_TEST_DATA, path);
+#else
     bool success = base::PathService::Get(base::DIR_SOURCE_ROOT, path);
+#endif
     EXPECT_TRUE(success);
     if (!success)
       return false;
@@ -272,7 +276,11 @@ class ZipTest : public PlatformTest {
     EXPECT_TRUE(base::Time::FromLocalExploded(now_parts, &now_time));
 
     EXPECT_EQ(1, base::WriteFile(src_file, "1", 1));
+
+// No Starboardized implementation of base::TouchFile.
+#if !defined(OS_STARBOARD)
     EXPECT_TRUE(base::TouchFile(src_file, base::Time::Now(), test_mtime));
+#endif
 
     EXPECT_TRUE(zip::Zip(src_dir, zip_file, true));
     ASSERT_TRUE(zip::Unzip(zip_file, out_dir));
@@ -392,10 +400,15 @@ TEST_F(ZipTest, UnzipWithDelegates) {
       test_dir_);
   base::FilePath path;
   ASSERT_TRUE(GetTestDataDirectory(&path));
+#if defined(OS_STARBOARD)
+  ASSERT_TRUE(zip::UnzipWithFilterAndWriters(
+      path.AppendASCII("test.zip"), writer, dir_creator, filter, false));
+#else
   base::File file(path.AppendASCII("test.zip"),
                   base::File::Flags::FLAG_OPEN | base::File::Flags::FLAG_READ);
   ASSERT_TRUE(zip::UnzipWithFilterAndWriters(file.GetPlatformFile(), writer,
                                              dir_creator, filter, false));
+#endif
   base::FilePath dir = test_dir_;
   base::FilePath dir_foo = dir.AppendASCII("foo");
   base::FilePath dir_foo_bar = dir_foo.AppendASCII("bar");
@@ -434,6 +447,8 @@ TEST_F(ZipTest, ZipIgnoreHidden) {
   TestUnzipFile(zip_file, false);
 }
 
+// No Starboardized implementation of base::CopyDirectory or base::CopyFile.
+#if !defined(OS_STARBOARD)
 TEST_F(ZipTest, ZipNonASCIIDir) {
   base::FilePath src_dir;
   ASSERT_TRUE(GetTestDataDirectory(&src_dir));
@@ -450,7 +465,10 @@ TEST_F(ZipTest, ZipNonASCIIDir) {
   EXPECT_TRUE(zip::Zip(src_dir_russian, zip_file, true));
   TestUnzipFile(zip_file, true);
 }
+#endif
 
+// No Starboardized implementation of base::TouchFile.
+#if !defined(OS_STARBOARD)
 TEST_F(ZipTest, ZipTimeStamp) {
   // The dates tested are arbitrary, with some constraints. The zip format can
   // only store years from 1980 to 2107 and an even number of seconds, due to it
@@ -472,6 +490,7 @@ TEST_F(ZipTest, ZipTimeStamp) {
   // in all platforms reliably.
   TestTimeStamp("02 Jan 2038 23:59:58", VALID_YEAR);
 }
+#endif
 
 #if defined(OS_POSIX)
 TEST_F(ZipTest, ZipFiles) {

@@ -73,4 +73,11 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
           # run it on Android platforms.
           'StressTest.TooManyTextures',
       ],
+      'zip_unittests': [
+          # These tests rely on the ability to correctly iterate through a
+          # directory tree, a behavior not fully supported on Android yet for
+          # static content.
+          'ZipTest.Zip',
+          'ZipTest.ZipIgnoreHidden',
+      ],
   }

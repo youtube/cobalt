@@ -15,19 +15,26 @@
 #include "base/files/file.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
-#include "base/hash/md5.h"
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/stl_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 #include "third_party/zlib/google/zip_internal.h"
+
+#if defined(OS_STARBOARD)
+#include "base/md5.h"
+#include "base/test/scoped_task_environment.h"
+#include "starboard/common/log.h"
+#else
+#include "base/hash/md5.h"
+#include "base/test/task_environment.h"
+#endif
 
 using ::testing::Return;
 using ::testing::_;
@@ -174,7 +181,11 @@ class ZipReaderTest : public PlatformTest {
   }
 
   bool GetTestDataDirectory(base::FilePath* path) {
+#if defined(OS_STARBOARD)
+    bool success = base::PathService::Get(base::DIR_TEST_DATA, path);
+#else
     bool success = base::PathService::Get(base::DIR_SOURCE_ROOT, path);
+#endif
     EXPECT_TRUE(success);
     if (!success)
       return false;
@@ -214,7 +225,11 @@ class ZipReaderTest : public PlatformTest {
 
   base::ScopedTempDir temp_dir_;
 
+#if defined(OS_STARBOARD)
+  base::test::ScopedTaskEnvironment scoped_task_environment_;
+#else
   base::test::TaskEnvironment task_environment_;
+#endif
 };
 
 TEST_F(ZipReaderTest, Open_ValidZipFile) {
@@ -222,11 +237,15 @@ TEST_F(ZipReaderTest, Open_ValidZipFile) {
   ASSERT_TRUE(reader.Open(test_zip_file_));
 }
 
+// No Starboardized and fully implemented base::PlatformFile implementation is
+// available.
+#if !defined(OS_STARBOARD)
 TEST_F(ZipReaderTest, Open_ValidZipPlatformFile) {
   ZipReader reader;
   FileWrapper zip_fd_wrapper(test_zip_file_, FileWrapper::READ_ONLY);
   ASSERT_TRUE(reader.OpenFromPlatformFile(zip_fd_wrapper.platform_file()));
 }
+#endif
 
 TEST_F(ZipReaderTest, Open_NonExistentFile) {
   ZipReader reader;
@@ -256,6 +275,9 @@ TEST_F(ZipReaderTest, Iteration) {
   EXPECT_EQ(test_zip_contents_, actual_contents);
 }
 
+// No Starboardized and fully implemented base::PlatformFile implementation is
+// available.
+#if !defined(OS_STARBOARD)
 // Open the test zip file from a file descriptor, iterate through its contents,
 // and compare that they match the expected contents.
 TEST_F(ZipReaderTest, PlatformFileIteration) {
@@ -274,6 +296,7 @@ TEST_F(ZipReaderTest, PlatformFileIteration) {
   EXPECT_EQ(test_zip_contents_.size(), actual_contents.size());
   EXPECT_EQ(test_zip_contents_, actual_contents);
 }
+#endif
 
 TEST_F(ZipReaderTest, current_entry_info_RegularFile) {
   ZipReader reader;
@@ -634,10 +657,19 @@ class FileWriterDelegateTest : public ::testing::Test {
     file_.Initialize(temp_file_path_, (base::File::FLAG_CREATE_ALWAYS |
                                        base::File::FLAG_READ |
                                        base::File::FLAG_WRITE |
-                                       base::File::FLAG_TEMPORARY |
-                                       base::File::FLAG_DELETE_ON_CLOSE));
+                                       base::File::FLAG_TEMPORARY
+#if !defined(OS_STARBOARD)
+                                       | base::File::FLAG_DELETE_ON_CLOSE
+#endif
+                     ));
     ASSERT_TRUE(file_.IsValid());
   }
+
+#if defined(OS_STARBOARD)
+  void TearDown() override {
+    ASSERT_TRUE(base::DeleteFile(temp_file_path_, false));
+  }
+#endif
 
   // Writes data to the file, leaving the current position at the end of the
   // write.
