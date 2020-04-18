@@ -147,8 +147,13 @@ AvcParameterSets AvcParameterSets::ConvertTo(Format new_format) const {
 }
 
 bool AvcParameterSets::operator==(const AvcParameterSets& that) const {
-  SB_DCHECK(is_valid());
-  SB_DCHECK(that.is_valid());
+  if (is_valid() != that.is_valid()) {
+    return false;
+  }
+  if (!is_valid()) {
+    return true;
+  }
+
   SB_DCHECK(format() == that.format());
 
   if (parameter_sets_ == that.parameter_sets_) {
