@@ -609,8 +609,10 @@ VideoConfig::VideoConfig(const SbMediaVideoSampleInfo& video_sample_info,
 #endif  // SB_API_VERSION >= 11
 
 bool VideoConfig::operator==(const VideoConfig& that) const {
-  SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
-
+  if (video_codec_ == kSbMediaVideoCodecNone &&
+      that.video_codec_ == kSbMediaVideoCodecNone) {
+    return true;
+  }
   return video_codec_ == that.video_codec_ &&
          avc_parameter_sets_ == that.avc_parameter_sets_ &&
          width_ == that.width_ && height_ == that.height_;
