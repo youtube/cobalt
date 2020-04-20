@@ -32,13 +32,6 @@
 #include "third_party/zlib/zlib.h"
 #include "zip.h"
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/eztime_poem.h"
-#include "third_party/zlib/contrib/minizip/iostarboard.h"
-#else
-#include <time.h>
-#endif
-
 #ifdef STDC
 #  include <stddef.h>
 #  include <string.h>
@@ -48,6 +41,14 @@
     extern int errno;
 #else
 #   include <errno.h>
+#endif
+
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/eztime_poem.h"
+#include "starboard/client_porting/poem/stdio_poem.h"
+#include "third_party/zlib/contrib/minizip/iostarboard.h"
+#else
+#include <time.h>
 #endif
 
 
