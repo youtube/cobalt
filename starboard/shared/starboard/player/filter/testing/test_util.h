@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_TESTING_TEST_UTIL_H_
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "starboard/player.h"
@@ -30,10 +31,7 @@ namespace player {
 namespace filter {
 namespace testing {
 
-struct VideoTestParam {
-  SbPlayerOutputMode output_mode;
-  const char* filename;
-};
+typedef std::pair<const char*, SbPlayerOutputMode> VideoTestParam;
 
 // The function doesn't free the buffer, it assumes that the lifetime of the
 // buffer is actually managed by other code.  It can be used in the places where
