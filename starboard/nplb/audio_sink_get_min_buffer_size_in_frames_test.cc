@@ -19,6 +19,9 @@ namespace starboard {
 namespace nplb {
 
 #if SB_API_VERSION >= 11
+
+const int kMaxAllowedMinRequiredFrames = 16 * 1024;
+
 TEST(SbAudioSinkGetMinBufferSizeInFramesTest, SunnyDay) {
   SbMediaAudioSampleType sample_type = kSbMediaAudioSampleTypeFloat32;
   if (!SbAudioSinkIsAudioSampleTypeSupported(sample_type)) {
@@ -31,7 +34,7 @@ TEST(SbAudioSinkGetMinBufferSizeInFramesTest, SunnyDay) {
       SbAudioSinkGetNearestSupportedSampleFrequency(kDefaultSampleFrequency));
 
   EXPECT_GT(min_required_frames, 0);
-  EXPECT_LE(min_required_frames, 10 * 1024);
+  EXPECT_LE(min_required_frames, kMaxAllowedMinRequiredFrames);
 
   if (max_channels > 1) {
     min_required_frames = SbAudioSinkGetMinBufferSizeInFrames(
@@ -39,7 +42,7 @@ TEST(SbAudioSinkGetMinBufferSizeInFramesTest, SunnyDay) {
         SbAudioSinkGetNearestSupportedSampleFrequency(kDefaultSampleFrequency));
 
     EXPECT_GT(min_required_frames, 0);
-    EXPECT_LE(min_required_frames, 10 * 1024);
+    EXPECT_LE(min_required_frames, kMaxAllowedMinRequiredFrames);
   }
   if (max_channels > 2) {
     min_required_frames = SbAudioSinkGetMinBufferSizeInFrames(
@@ -47,7 +50,7 @@ TEST(SbAudioSinkGetMinBufferSizeInFramesTest, SunnyDay) {
         SbAudioSinkGetNearestSupportedSampleFrequency(kDefaultSampleFrequency));
 
     EXPECT_GT(min_required_frames, 0);
-    EXPECT_LE(min_required_frames, 10 * 1024);
+    EXPECT_LE(min_required_frames, kMaxAllowedMinRequiredFrames);
   }
 }
 #endif  // SB_API_VERSION >= 11
