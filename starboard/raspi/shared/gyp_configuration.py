@@ -15,10 +15,16 @@
 
 import os
 
-from starboard.build import clang
+from starboard.build import clang as clang_specification
 from starboard.build import platform_configuration
 from starboard.tools import build
 from starboard.tools.testing import test_filter
+from starboard.tools.toolchain import ar
+from starboard.tools.toolchain import bash
+from starboard.tools.toolchain import clang
+from starboard.tools.toolchain import clangxx
+from starboard.tools.toolchain import cp
+from starboard.tools.toolchain import touch
 
 # Use a bogus path instead of None so that anything based on $RASPI_HOME won't
 # inadvertently end up pointing to something in the root directory, and this
@@ -60,7 +66,7 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
 
   def GetEnvironmentVariables(self):
     env_variables = build.GetHostCompilerEnvironment(
-        clang.GetClangSpecification(), False)
+        clang_specification.GetClangSpecification(), False)
     toolchain = os.path.realpath(
         os.path.join(
             self.raspi_home,
@@ -81,6 +87,42 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
     if not os.path.isdir(self.sysroot):
       raise RuntimeError('RasPi builds require $RASPI_HOME/sysroot '
                          'to be a valid directory.')
+
+  def GetTargetToolchain(self):
+    environment_variables = self.GetEnvironmentVariables()
+    cc_path = environment_variables['CC']
+    cxx_path = environment_variables['CXX']
+
+    return [
+        clang.CCompiler(path=cc_path),
+        clang.CxxCompiler(path=cxx_path),
+        clang.AssemblerWithCPreprocessor(path=cc_path),
+        ar.StaticThinLinker(),
+        ar.StaticLinker(),
+        clangxx.ExecutableLinker(path=cxx_path, write_group=True),
+        clangxx.SharedLibraryLinker(path=cxx_path),
+        cp.Copy(),
+        touch.Stamp(),
+        bash.Shell(),
+    ]
+
+  def GetHostToolchain(self):
+    environment_variables = self.GetEnvironmentVariables()
+    cc_path = environment_variables['CC_host']
+    cxx_path = environment_variables['CXX_host']
+
+    return [
+        clang.CCompiler(path=cc_path),
+        clang.CxxCompiler(path=cxx_path),
+        clang.AssemblerWithCPreprocessor(path=cc_path),
+        ar.StaticThinLinker(),
+        ar.StaticLinker(),
+        clangxx.ExecutableLinker(path=cxx_path, write_group=True),
+        clangxx.SharedLibraryLinker(path=cxx_path),
+        cp.Copy(),
+        touch.Stamp(),
+        bash.Shell(),
+    ]
 
   def GetLauncherPath(self):
     """Gets the path to the launcher module for this platform."""
