@@ -114,7 +114,7 @@ void VideoRenderAlgorithmImpl::Render(
 
   if (is_audio_eos_played) {
     while (frames->size() > 1) {
-      frames->pop_back();
+      frames->pop_front();
     }
   }
 
@@ -168,7 +168,8 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
   SbTime media_time = media_time_provider->GetCurrentMediaTime(
       &is_audio_playing, &is_audio_eos_played, &is_underflow);
 
-  while (frames->size() > 1 && frames->front()->timestamp() < media_time) {
+  while (frames->size() > 1 && !frames->front()->is_end_of_stream() &&
+         frames->front()->timestamp() < media_time) {
     auto second_iter = frames->begin();
     ++second_iter;
 
@@ -244,7 +245,23 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
 
   if (is_audio_eos_played) {
     while (frames->size() > 1) {
-      frames->pop_back();
+      frames->pop_front();
+    }
+  }
+
+  if (frames->size() == 2) {
+    // When there are only two frames and the second one is end of stream, we
+    // want to advance to it explicitly if the current media time is later than
+    // the timestamp of the first frame, and the first frame has been displayed.
+    // This ensures that the video can be properly ended when there is no audio
+    // stream, where |is_audio_eos_played| will never be true.
+    auto second_iter = frames->begin();
+    ++second_iter;
+
+    if ((*second_iter)->is_end_of_stream() &&
+        media_time >= frames->front()->timestamp() &&
+        current_frame_rendered_times_ > 0) {
+      frames->pop_front();
     }
   }
 
