@@ -33,6 +33,10 @@
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "cobalt/renderer/egl_and_gles.h"
 
+#if defined(GLES3_SUPPORTED) && SB_API_VERSION >= SB_GLES3_DEPRECATED_VERSION
+#error "Support for gles3 features has been deprecated."
+#endif
+
 namespace cobalt {
 namespace renderer {
 namespace backend {
@@ -56,7 +60,7 @@ GraphicsContextEGL::GraphicsContextEGL(GraphicsSystem* parent_system,
       display_(display),
       config_(config),
       is_current_(false) {
-#if defined(GLES3_SUPPORTED)
+#if SB_API_VERSION < SB_GLES3_DEPRECATED_VERSION && defined(GLES3_SUPPORTED)
   context_ = CreateGLES3Context(display, config, resource_context->context());
 #else
   // Create an OpenGL ES 2.0 context.

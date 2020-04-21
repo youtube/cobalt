@@ -105,7 +105,8 @@
     # The source of EGL and GLES headers and libraries.
     # Valid values (case and everything sensitive!):
     #   'none'   - No EGL + GLES implementation is available on this platform.
-    #   'system_gles3' - Use the system implementation of EGL + GLES3. The
+    #   'system_gles3' - Deprecated. Use system_gles2 instead.
+    #                    Use the system implementation of EGL + GLES3. The
     #                    headers and libraries must be on the system include and
     #                    link paths.
     #   'system_gles2' - Use the system implementation of EGL + GLES2. The

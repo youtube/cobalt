@@ -26,7 +26,6 @@
       ],
       'direct_dependent_settings': {
         'defines': [
-          'GLES3_SUPPORTED',
           'GL_GLEXT_PROTOTYPES',
         ],
       },
