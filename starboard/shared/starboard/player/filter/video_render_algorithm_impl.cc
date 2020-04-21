@@ -168,21 +168,20 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
   SbTime media_time = media_time_provider->GetCurrentMediaTime(
       &is_audio_playing, &is_audio_eos_played, &is_underflow);
 
-  while (frames->size() > 1 && !frames->front()->is_end_of_stream() &&
-         frames->front()->timestamp() < media_time) {
-    frame_rate_estimate_.Update(*frames);
-    auto frame_rate = frame_rate_estimate_.frame_rate();
-    SB_DCHECK(frame_rate != VideoFrameRateEstimator::kInvalidFrameRate);
-    cadence_pattern_generator_.UpdateRefreshRateAndMaybeReset(refresh_rate);
-    cadence_pattern_generator_.UpdateFrameRate(frame_rate);
-    SB_DCHECK(cadence_pattern_generator_.has_cadence());
-
+  while (frames->size() > 1 && frames->front()->timestamp() < media_time) {
     auto second_iter = frames->begin();
     ++second_iter;
 
     if ((*second_iter)->is_end_of_stream()) {
       break;
     }
+
+    frame_rate_estimate_.Update(*frames);
+    auto frame_rate = frame_rate_estimate_.frame_rate();
+    SB_DCHECK(frame_rate != VideoFrameRateEstimator::kInvalidFrameRate);
+    cadence_pattern_generator_.UpdateRefreshRateAndMaybeReset(refresh_rate);
+    cadence_pattern_generator_.UpdateFrameRate(frame_rate);
+    SB_DCHECK(cadence_pattern_generator_.has_cadence());
 
     auto frame_duration =
         static_cast<SbTime>(kSbTimeSecond / refresh_rate);
