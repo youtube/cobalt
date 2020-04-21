@@ -15,16 +15,10 @@
 {
   'targets': [
     {
+      # Though we support as a valid gl_type option, it will use neither GLES3
+      # features nor GLES3 egl context currently.
       'target_name': 'egl_and_gles_implementation',
       'type': 'none',
-
-      # Use the system-provided implementation of GLES3.
-
-      'direct_dependent_settings': {
-        'defines': [
-          'GLES3_SUPPORTED',
-        ],
-      },
     },
   ],
 }

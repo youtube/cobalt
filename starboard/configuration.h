@@ -285,6 +285,9 @@
 #define SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION \
   SB_EXPERIMENTAL_API_VERSION
 
+// Deprecate support for gles3 features.
+#define SB_GLES3_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
