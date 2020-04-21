@@ -36,7 +36,6 @@
         ['target_os=="win" and enable_d3d11_feature_level_11==1', {
           'direct_dependent_settings': {
             'defines': [
-              'GLES3_SUPPORTED',
               'GL_GLEXT_PROTOTYPES',
             ],
           },

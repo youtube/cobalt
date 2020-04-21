@@ -237,7 +237,7 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   EGLint context_attrib_list[] = {
       EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE,
   };
-#if defined(GLES3_SUPPORTED)
+#if SB_API_VERSION < SB_GLES3_DEPRECATED_VERSION && defined(GLES3_SUPPORTED)
   // Attempt to create an OpenGL ES 3.0 context.
   context_ = EGL_CALL_SIMPLE(eglCreateContext(
       display_, config, EGL_NO_CONTEXT, context_attrib_list));

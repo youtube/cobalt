@@ -33,12 +33,10 @@
     # Android.
     'default_font_cache_limit%': '(1*1024*1024)',
   },
+  'dependencies': [
+    '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
+  ],
   'conditions': [
-    ['gl_type != "none"', {
-      'dependencies': [
-        '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
-      ],
-    }],
     ['target_arch == "win"', {
       'variables': {
         'skia_export_defines': [

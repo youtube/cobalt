@@ -24,11 +24,6 @@
 #include "base/trace_event/trace_event.h"
 #endif
 #include "starboard/common/optional.h"
-#if defined(GLES3_SUPPORTED)
-#include "cobalt/renderer/backend/egl/texture_data_pbo.h"
-#else
-#include "cobalt/renderer/backend/egl/texture_data_cpu.h"
-#endif
 
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/renderer/backend/egl/display.h"
@@ -40,6 +35,15 @@
 #endif
 
 #include "cobalt/renderer/egl_and_gles.h"
+
+#if defined(GLES3_SUPPORTED)
+#if SB_API_VERSION >= SB_GLES3_DEPRECATED_VERSION
+#error "Support for gles3 features has been deprecated."
+#endif
+#include "cobalt/renderer/backend/egl/texture_data_pbo.h"
+#else
+#include "cobalt/renderer/backend/egl/texture_data_cpu.h"
+#endif
 
 namespace cobalt {
 namespace renderer {
@@ -168,11 +172,12 @@ GraphicsSystemEGL::GraphicsSystemEGL(
     EGL_ALPHA_SIZE,
     8,
     EGL_RENDERABLE_TYPE,
-#if defined(GLES3_SUPPORTED)
+#if SB_API_VERSION < SB_GLES3_DEPRECATED_VERSION && defined(GLES3_SUPPORTED)
     EGL_OPENGL_ES3_BIT,
 #else
     EGL_OPENGL_ES2_BIT,
-#endif  // #if defined(GLES3_SUPPORTED)
+#endif  // #if SB_API_VERSION < SB_GLES3_DEPRECATED_VERSION &&
+        // defined(GLES3_SUPPORTED)
     EGL_NONE
   };
 
@@ -202,7 +207,7 @@ GraphicsSystemEGL::GraphicsSystemEGL(
   system_window_ = system_window;
   window_surface_ = choose_config_results->window_surface;
 
-#if defined(GLES3_SUPPORTED)
+#if SB_API_VERSION < SB_GLES3_DEPRECATED_VERSION && defined(GLES3_SUPPORTED)
   resource_context_.emplace(display_, config_);
 #endif
 }
@@ -241,7 +246,7 @@ std::unique_ptr<GraphicsContext> GraphicsSystemEGL::CreateGraphicsContext() {
 // that data from graphics contexts created through this method, we must
 // enable sharing between them and the resource context, which is why we
 // must pass it in here.
-#if defined(GLES3_SUPPORTED)
+#if SB_API_VERSION < SB_GLES3_DEPRECATED_VERSION && defined(GLES3_SUPPORTED)
   ResourceContext* resource_context = &(resource_context_.value());
 #else
   ResourceContext* resource_context = NULL;
@@ -252,7 +257,7 @@ std::unique_ptr<GraphicsContext> GraphicsSystemEGL::CreateGraphicsContext() {
 
 std::unique_ptr<TextureDataEGL> GraphicsSystemEGL::AllocateTextureData(
     const math::Size& size, GLenum format) {
-#if defined(GLES3_SUPPORTED)
+#if SB_API_VERSION < SB_GLES3_DEPRECATED_VERSION && defined(GLES3_SUPPORTED)
   std::unique_ptr<TextureDataEGL> texture_data(
       new TextureDataPBO(&(resource_context_.value()), size, format));
 #else
@@ -269,7 +274,7 @@ std::unique_ptr<TextureDataEGL> GraphicsSystemEGL::AllocateTextureData(
 std::unique_ptr<RawTextureMemoryEGL>
 GraphicsSystemEGL::AllocateRawTextureMemory(size_t size_in_bytes,
                                             size_t alignment) {
-#if defined(GLES3_SUPPORTED)
+#if SB_API_VERSION < SB_GLES3_DEPRECATED_VERSION && defined(GLES3_SUPPORTED)
   return std::unique_ptr<RawTextureMemoryEGL>(new RawTextureMemoryPBO(
       &(resource_context_.value()), size_in_bytes, alignment));
 #else
