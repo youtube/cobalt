@@ -179,12 +179,12 @@ scoped_refptr<Node> Node::CloneNode(bool deep) const {
 }
 
 bool Node::Contains(const scoped_refptr<Node>& other_node) const {
-  const Node* child = first_child_.get();
-  while (child) {
-    if (child == other_node || child->Contains(other_node)) {
+  const Node* candidate = other_node.get();
+  while (candidate) {
+    if (this == candidate) {
       return true;
     }
-    child = child->next_sibling_.get();
+    candidate = candidate->parent_node();
   }
   return false;
 }

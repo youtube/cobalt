@@ -158,8 +158,8 @@ TEST_F(NodeTest, Contains) {
 
   EXPECT_TRUE(root->Contains(child1));
   EXPECT_TRUE(root->Contains(child2));
+  EXPECT_TRUE(root->Contains(root));
 
-  EXPECT_FALSE(root->Contains(root));
   EXPECT_FALSE(root->Contains(node));
 }
 
