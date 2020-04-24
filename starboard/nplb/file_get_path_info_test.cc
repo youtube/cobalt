@@ -106,6 +106,27 @@ TEST(SbFileGetPathInfoTest, WorksOnADirectory) {
   }
 }
 
+TEST(SbFileGetPathInfoTest, WorksOnStaticContentFiles) {
+  for (auto filename : GetFileTestsFilePaths()) {
+    SbFileInfo info = {0};
+    bool result = SbFileGetPathInfo(filename.c_str(), &info);
+    size_t content_length = GetTestFileExpectedContent(filename).length();
+    EXPECT_EQ(content_length, info.size);
+    EXPECT_FALSE(info.is_directory);
+    EXPECT_FALSE(info.is_symbolic_link);
+  }
+}
+
+TEST(SbFileGetPathInfoTest, WorksOnStaticContentDirectories) {
+  for (auto path : GetFileTestsDirectoryPaths()) {
+    SbFileInfo info = {0};
+    bool result = SbFileGetPathInfo(path.data(), &info);
+    EXPECT_LE(0, info.size);
+    EXPECT_TRUE(info.is_directory);
+    EXPECT_FALSE(info.is_symbolic_link);
+  }
+}
+
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard

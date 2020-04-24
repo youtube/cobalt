@@ -52,6 +52,20 @@ TEST(SbFileCanOpenTest, ExistingFileSucceeds) {
   EXPECT_TRUE(result);
 }
 
+TEST(SbFileCanOpenTest, NonExistingStaticContentFileFails) {
+  std::string directory_path = GetFileTestsDataDir();
+  std::string missing_file = directory_path + kSbFileSepChar + "missing_file";
+  EXPECT_FALSE(
+      SbFileCanOpen(missing_file.c_str(), kSbFileOpenOnly | kSbFileRead));
+}
+
+TEST(SbFileCanOpenTest, ExistingStaticContentFileSucceeds) {
+  for (auto path : GetFileTestsFilePaths()) {
+    EXPECT_TRUE(SbFileCanOpen(path.c_str(), kSbFileOpenOnly | kSbFileRead))
+        << "Can't open: " << path;
+  }
+}
+
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
