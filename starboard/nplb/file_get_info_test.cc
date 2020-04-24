@@ -82,6 +82,23 @@ TEST(SbFileGetInfoTest, WorksOnARegularFile) {
   }
 }
 
+TEST(SbFileGetInfoTest, WorksOnStaticContentFiles) {
+  for (auto filename : GetFileTestsFilePaths()) {
+    SbFile file =
+        SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
+    ASSERT_TRUE(SbFileIsValid(file));
+
+    SbFileInfo info = {0};
+    bool result = SbFileGetInfo(file, &info);
+    size_t content_length = GetTestFileExpectedContent(filename).length();
+    EXPECT_EQ(content_length, info.size);
+    EXPECT_FALSE(info.is_directory);
+    EXPECT_FALSE(info.is_symbolic_link);
+
+    EXPECT_TRUE(SbFileClose(file));
+  }
+}
+
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard

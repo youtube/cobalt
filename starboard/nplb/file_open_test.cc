@@ -145,6 +145,18 @@ TEST(SbFileOpenTest, WorksWithNullOutParams) {
   }
 }
 
+TEST(SbFileOpenTest, OpenOnlyDoesNotOpenNonExistingStaticContentFile) {
+  std::string path = GetFileTestsDataDir();
+  std::string missing_file = path + kSbFileSepChar + "missing_file";
+  bool created = true;
+  SbFileError error = kSbFileErrorMax;
+  SbFile file = SbFileOpen(missing_file.c_str(), kSbFileOpenOnly | kSbFileRead,
+                           &created, &error);
+  EXPECT_FALSE(SbFileIsValid(file));
+  EXPECT_FALSE(created);
+  EXPECT_NE(kSbFileOk, error);
+}
+
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
