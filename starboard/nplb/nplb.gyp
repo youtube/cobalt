@@ -318,6 +318,7 @@
         '<(DEPTH)/starboard/starboard.gyp:starboard',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
+        'copy_nplb_file_tests_data',
       ],
       'conditions': [
         ['sb_evergreen != 1', {
@@ -335,6 +336,17 @@
         }],
       ],
       'includes': [ '<(DEPTH)/starboard/nplb/sabi/sabi.gypi' ],
+    },
+    {
+      'target_name': 'copy_nplb_file_tests_data',
+      'type': 'none',
+      'variables': {
+        'content_test_input_files': [
+          '<(DEPTH)/starboard/nplb/testdata/file_tests/',
+        ],
+        'content_test_output_subdir': 'starboard/nplb/file_tests',
+      },
+      'includes': [ '<(DEPTH)/starboard/build/copy_test_data.gypi' ],
     },
     {
       'target_name': 'nplb_deploy',

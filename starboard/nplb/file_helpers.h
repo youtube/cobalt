@@ -16,6 +16,7 @@
 #define STARBOARD_NPLB_FILE_HELPERS_H_
 
 #include <string>
+#include <vector>
 
 #include "starboard/file.h"
 
@@ -24,6 +25,18 @@ namespace nplb {
 
 // Gets the temporary directory in which ScopedRandomFile places its files.
 std::string GetTempDir();
+
+// Gets the directory in which static data for files tests is stored.
+std::string GetFileTestsDataDir();
+
+// Gets the paths of files in the static data for files tests.
+std::vector<std::string> GetFileTestsFilePaths();
+
+// Gets the paths of directories in the static data for files tests.
+std::vector<std::string> GetFileTestsDirectoryPaths();
+
+// Gets the expected content in a static data test file.
+std::string GetTestFileExpectedContent(const std::string& path);
 
 // Creates a random file of the given length, and deletes it when the instance
 // falls out of scope.

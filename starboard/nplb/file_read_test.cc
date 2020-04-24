@@ -231,6 +231,66 @@ TYPED_TEST(SbFileReadTest, ReadFromMiddle) {
   EXPECT_TRUE(result);
 }
 
+TYPED_TEST(SbFileReadTest, ReadStaticContent) {
+  for (auto filename : GetFileTestsFilePaths()) {
+    SbFile file =
+        SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
+    ASSERT_TRUE(SbFileIsValid(file)) << "Can't open: " << filename;
+
+    // Create a bigger buffer than necessary, so we can test the memory around
+    // the portion given to SbFileRead.
+    const int kRealBufferLength = kBufferLength * 2;
+    char real_buffer[kRealBufferLength] = {0};
+    const int kBufferOffset = kBufferLength / 2;
+    char* buffer = real_buffer + kBufferOffset;
+
+    // Initialize to some arbitrary pattern so we can verify it later.
+    for (int i = 0; i < kRealBufferLength; ++i) {
+      real_buffer[i] = '\xCD';
+    }
+
+    // Read and check the whole file.
+    std::string content;
+    int total = 0;
+    int max = 0;
+    while (true) {
+      int bytes_read = TypeParam::Read(file, buffer, kBufferLength);
+      if (bytes_read == 0) {
+        break;
+      }
+
+      // Check that we didn't read more than the buffer size.
+      EXPECT_GE(kBufferLength, bytes_read);
+
+      // Check that we didn't get an error.
+      EXPECT_LT(0, bytes_read);
+
+      // Do some accounting to check later.
+      total += bytes_read;
+      if (bytes_read > max) {
+        max = bytes_read;
+      }
+
+      // Accumulate the content of the whole file.
+      content.append(buffer, bytes_read);
+    }
+
+    // Check that we didn't write over any other parts of the buffer.
+    for (int i = 0; i < kBufferOffset; ++i) {
+      EXPECT_EQ('\xCD', real_buffer[i]);
+    }
+
+    for (int i = kBufferOffset + max; i < kRealBufferLength; ++i) {
+      EXPECT_EQ('\xCD', real_buffer[i]);
+    }
+
+    EXPECT_EQ(GetTestFileExpectedContent(filename), content);
+
+    bool result = SbFileClose(file);
+    EXPECT_TRUE(result);
+  }
+}
+
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
