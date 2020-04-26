@@ -280,6 +280,11 @@
 // for x86 architectures.
 #define SB_CPU_FEATURE_PCLMULQDQ SB_EXPERIMENTAL_API_VERSION
 
+// |content_type| is added to SbMediaIsVideoSupported() and
+// SbMediaIsAudioSupported().
+#define SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION \
+  SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------

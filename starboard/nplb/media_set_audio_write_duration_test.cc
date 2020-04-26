@@ -313,6 +313,9 @@ std::vector<const char*> GetSupportedTests() {
     VideoDmpReader dmp_reader(ResolveTestFileName(filename).c_str());
     SB_DCHECK(dmp_reader.number_of_audio_buffers() > 0);
     if (SbMediaIsAudioSupported(dmp_reader.audio_codec(),
+#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+                                "",  // content_type
+#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
                                 dmp_reader.audio_bitrate())) {
       test_params.push_back(filename);
     }

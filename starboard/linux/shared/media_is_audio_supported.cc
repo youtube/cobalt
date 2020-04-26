@@ -14,11 +14,23 @@
 
 #include "starboard/shared/starboard/media/media_support_internal.h"
 
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/media.h"
 
-bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec, int64_t bitrate) {
+bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
+#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+                             const char* content_type,
+#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+                             int64_t bitrate) {
+#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+  if (!content_type) {
+    SB_LOG(WARNING) << "|content_type| cannot be nullptr.";
+    return false;
+  }
+#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+
   if (audio_codec == kSbMediaAudioCodecAac) {
     return bitrate <= kSbMediaMaxAudioBitrateInBitsPerSecond;
   }
