@@ -56,6 +56,7 @@ class MimeType {
 
   explicit MimeType(const std::string& content_type);
 
+  const std::string& raw_content_type() const { return raw_content_type_; }
   bool is_valid() const { return is_valid_; }
 
   const std::string& type() const { return type_; }
@@ -90,6 +91,7 @@ class MimeType {
 
   int GetParamIndexByName(const char* name) const;
 
+  const std::string raw_content_type_;
   bool is_valid_;
   std::string type_;
   std::string subtype_;

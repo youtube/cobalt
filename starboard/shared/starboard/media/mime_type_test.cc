@@ -22,6 +22,19 @@ namespace starboard {
 namespace media {
 namespace {
 
+TEST(MimeTypeTest, RawContentType) {
+  {
+    const char kContentTypeWithSpace[] = " video/mp4; name0=123; name1=123.4 ";
+    MimeType mime_type(kContentTypeWithSpace);
+    EXPECT_EQ(mime_type.raw_content_type(), kContentTypeWithSpace);
+  }
+  {
+    const char kInvalidContentType[] = "video /mp4";
+    MimeType mime_type(kInvalidContentType);
+    EXPECT_EQ(mime_type.raw_content_type(), kInvalidContentType);
+  }
+}
+
 TEST(MimeTypeTest, EmptyString) {
   MimeType mime_type("");
   EXPECT_FALSE(mime_type.is_valid());

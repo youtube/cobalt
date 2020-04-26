@@ -14,6 +14,7 @@
 
 #include "starboard/shared/starboard/media/media_support_internal.h"
 
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #if SB_API_VERSION >= 11
@@ -31,6 +32,9 @@ using starboard::shared::starboard::media::IsSDRVideo;
 using starboard::shared::vpx::is_vpx_supported;
 
 bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
+#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+                             const char* content_type,
+#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
                              int profile,
                              int level,
@@ -51,6 +55,13 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
   SB_UNREFERENCED_PARAMETER(profile);
   SB_UNREFERENCED_PARAMETER(level);
+
+#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+  if (!content_type) {
+    SB_LOG(WARNING) << "|content_type| cannot be nullptr.";
+    return false;
+  }
+#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
 
   if (!IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id)) {
     if (bit_depth != 10 && bit_depth != 12) {

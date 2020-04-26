@@ -125,7 +125,11 @@ SbPlayer SbPlayerCreate(SbWindow window,
 
   const int64_t kDefaultBitRate = 0;
   if (audio_codec != kSbMediaAudioCodecNone &&
-      !SbMediaIsAudioSupported(audio_codec, kDefaultBitRate)) {
+      !SbMediaIsAudioSupported(audio_codec,
+#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+                               audio_mime,
+#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+                               kDefaultBitRate)) {
     SB_LOG(ERROR) << "Unsupported audio codec " << audio_codec;
     return kSbPlayerInvalid;
   }
@@ -139,6 +143,9 @@ SbPlayer SbPlayerCreate(SbWindow window,
   if (video_codec != kSbMediaVideoCodecNone &&
       !SbMediaIsVideoSupported(
           video_codec,
+#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+          video_mime,
+#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
           kDefaultProfile, kDefaultLevel, kDefaultColorDepth,
           kSbMediaPrimaryIdUnspecified, kSbMediaTransferIdUnspecified,
