@@ -18,7 +18,15 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/media.h"
 
-bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec, int64_t bitrate) {
+bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
+#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+                             const char* content_type,
+#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+                             int64_t bitrate) {
+#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+  SB_UNREFERENCED_PARAMETER(content_type);
+#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+
   return audio_codec == kSbMediaAudioCodecAac &&
          bitrate <= kSbMediaMaxAudioBitrateInBitsPerSecond;
 }

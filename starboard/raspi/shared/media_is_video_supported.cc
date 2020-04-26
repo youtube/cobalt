@@ -20,6 +20,7 @@
 #include "starboard/shared/starboard/media/media_util.h"
 
 bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
+                             const char* content_type,
                              int profile,
                              int level,
                              int bit_depth,
@@ -31,6 +32,7 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                              int64_t bitrate,
                              int fps,
                              bool decode_to_texture_required) {
+  SB_UNREFERENCED_PARAMETER(content_type);
   SB_UNREFERENCED_PARAMETER(profile);
   SB_UNREFERENCED_PARAMETER(level);
 
