@@ -122,7 +122,7 @@ scoped_refptr<HTMLScriptElement> HTMLScriptElement::AsHTMLScriptElement() {
 scoped_refptr<Node> HTMLScriptElement::Duplicate() const {
   // The cloning steps for script elements must set the "already started" flag
   // on the copy if it is set on the element being cloned.
-  //   https://www.w3.org/TR/html5/scripting-1.html#already-started
+  //   https://www.w3.org/TR/html50/scripting-1.html#already-started
   scoped_refptr<HTMLScriptElement> new_script = HTMLElement::Duplicate()
                                                     ->AsElement()
                                                     ->AsHTMLElement()
@@ -150,7 +150,7 @@ HTMLScriptElement::~HTMLScriptElement() {
 }
 
 // Algorithm for Prepare:
-//   https://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
+//   https://www.w3.org/TR/html50/scripting-1.html#prepare-a-script
 void HTMLScriptElement::Prepare() {
   TRACK_MEMORY_SCOPE("DOM");
   // Custom, not in any spec.
@@ -450,7 +450,7 @@ void HTMLScriptElement::OnSyncLoadingComplete(
 }
 
 // Algorithm for OnContentProduced:
-//   https://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
+//   https://www.w3.org/TR/html50/scripting-1.html#prepare-a-script
 void HTMLScriptElement::OnContentProduced(
     const loader::Origin& last_url_origin,
     std::unique_ptr<std::string> content) {
@@ -552,7 +552,7 @@ void HTMLScriptElement::OnContentProduced(
 }
 
 // Algorithm for OnLoadingComplete:
-//   https://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
+//   https://www.w3.org/TR/html50/scripting-1.html#prepare-a-script
 void HTMLScriptElement::OnLoadingComplete(
     const base::Optional<std::string>& error) {
   if (!error) return;
@@ -611,7 +611,7 @@ void HTMLScriptElement::ExecuteInternal() {
 }
 
 // Algorithm for Execute:
-//   https://www.w3.org/TR/html5/scripting-1.html#execute-the-script-block
+//   https://www.w3.org/TR/html50/scripting-1.html#execute-the-script-block
 void HTMLScriptElement::Execute(const std::string& content,
                                 const base::SourceLocation& script_location,
                                 bool is_external) {
@@ -621,7 +621,7 @@ void HTMLScriptElement::Execute(const std::string& content,
   // When inserted using the document.write() method, script elements execute
   // (typically synchronously), but when inserted using innerHTML and
   // outerHTML attributes, they do not execute at all.
-  // https://www.w3.org/TR/html5/scripting-1.html#the-script-element.
+  // https://www.w3.org/TR/html50/scripting-1.html#the-script-element.
   if (!should_execute_) {
     return;
   }

@@ -264,7 +264,7 @@ const scoped_refptr<Location>& Window::location() const {
 
 const scoped_refptr<History>& Window::history() const { return history_; }
 
-// https://www.w3.org/TR/html5/browsers.html#dom-window-close
+// https://www.w3.org/TR/html50/browsers.html#dom-window-close
 void Window::Close() {
   LOG(INFO) << __func__;
   if (!window_close_callback_.is_null()) {
@@ -555,7 +555,7 @@ bool Window::ReportScriptError(const script::ErrorReport& error_report) {
   // Runtime script errors: when the user agent is required to report an error
   // for a particular script, it must run these steps, after which the error is
   // either handled or not handled:
-  //   https://www.w3.org/TR/html5/webappapis.html#runtime-script-errors
+  //   https://www.w3.org/TR/html50/webappapis.html#runtime-script-errors
 
   // 1. If target is in error reporting mode, then abort these steps; the error
   //    is not handled.

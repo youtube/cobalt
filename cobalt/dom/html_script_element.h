@@ -33,7 +33,7 @@ namespace dom {
 
 // The script element allows authors to include dynamic script and data blocks
 // in their documents.
-//   https://www.w3.org/TR/html5/scripting-1.html#the-script-element
+//   https://www.w3.org/TR/html50/scripting-1.html#the-script-element
 class HTMLScriptElement : public HTMLElement {
  public:
   static const char kTagName[];

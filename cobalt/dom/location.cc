@@ -31,7 +31,7 @@ Location::Location(const GURL& url, const base::Closure& hashchange_callback,
       security_callback_(security_callback) {}
 
 // Algorithm for Replace:
-//   https://www.w3.org/TR/html5/browsers.html#dom-location-replace
+//   https://www.w3.org/TR/html50/browsers.html#dom-location-replace
 void Location::Replace(const std::string& url) {
   // When the replace(url) method is invoked, the UA must resolve the argument,
   // relative to the API base URL specified by the entry settings object, and if
@@ -46,7 +46,7 @@ void Location::Replace(const std::string& url) {
   const GURL& old_url = url_utils_.url();
 
   // The following codes correspond to navigating the browsing context in HTML5.
-  //   https://www.w3.org/TR/html5/browsers.html#navigate
+  //   https://www.w3.org/TR/html50/browsers.html#navigate
   // Since navigation in Cobalt always goes through Location interface, it is
   // implemented here.
 

@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/html5/webappapis.html#windowtimers
+// https://www.w3.org/TR/html50/webappapis.html#windowtimers
 
 [NoInterfaceObject]
 interface WindowTimers {
   // TODO: Change the following methods back to their original form in the spec,
   // when "Function" and "any" are supported.
-  //   https://www.w3.org/TR/html5/webappapis.html#timers
+  //   https://www.w3.org/TR/html50/webappapis.html#timers
   long setTimeout(TimerCallback handler, optional long timeout);
   void clearTimeout(long handle);
   long setInterval(TimerCallback handler, optional long timeout);

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/html5/embedded-content-0.html#mediaerror
+// https://www.w3.org/TR/html50/embedded-content-0.html#mediaerror
 
 interface MediaError {
   const unsigned short MEDIA_ERR_ABORTED = 1;

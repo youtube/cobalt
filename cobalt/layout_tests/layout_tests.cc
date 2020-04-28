@@ -331,7 +331,7 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::ValuesIn(EnumerateLayoutTests("the-dir-attribute")),
     GetTestName());
 
-// JavaScript HTML5 WebAPIs (https://www.w3.org/TR/html5/webappapis.html) test
+// JavaScript HTML5 WebAPIs (https://www.w3.org/TR/html50/webappapis.html) test
 // cases.
 INSTANTIATE_TEST_CASE_P(
     WebAppAPIsLayoutTests, Layout,

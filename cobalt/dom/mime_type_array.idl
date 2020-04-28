@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/html5/webappapis.html#mimetypearray
+// https://www.w3.org/TR/html50/webappapis.html#mimetypearray
 
 // A MimeTypeArray object represents the MIME types explicitly supported by
 // plugins supported by the user agent, each of which is represented by a

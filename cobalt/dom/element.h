@@ -183,7 +183,7 @@ class Element : public Node {
 
   // Used to ensure that the style attribute value reflects the style
   // declaration.
-  //   https://www.w3.org/TR/html5/dom.html#the-style-attribute
+  //   https://www.w3.org/TR/html50/dom.html#the-style-attribute
   virtual base::Optional<std::string> GetStyleAttribute() const;
   virtual void SetStyleAttribute(const std::string& value);
   virtual void RemoveStyleAttribute();
@@ -216,7 +216,7 @@ class Element : public Node {
   ~Element() override;
 
   // Getting and setting boolean attribute.
-  //   https://www.w3.org/TR/html5/infrastructure.html#boolean-attribute
+  //   https://www.w3.org/TR/html50/infrastructure.html#boolean-attribute
   bool GetBooleanAttribute(const std::string& name) const;
   void SetBooleanAttribute(const std::string& name, bool value);
 

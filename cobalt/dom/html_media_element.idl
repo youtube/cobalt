@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/html5/embedded-content-0.html#media-elements
+// https://www.w3.org/TR/html50/embedded-content-0.html#media-elements
 
 interface HTMLMediaElement : HTMLElement {
   // error state

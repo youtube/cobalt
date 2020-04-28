@@ -27,7 +27,7 @@ class Document;
 // The div element has no special meaning at all. It represents its children. It
 // can be used with the class, lang, and title attributes to mark up semantics
 // common to a group of consecutive elements.
-//   https://www.w3.org/TR/html5/grouping-content.html#the-div-element
+//   https://www.w3.org/TR/html50/grouping-content.html#the-div-element
 class HTMLDivElement : public HTMLElement {
  public:
   static const char kTagName[];
