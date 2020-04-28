@@ -157,12 +157,12 @@
                     'ARMV8_OS_FUCHSIA',
                   ],
                 }],
-                ['OS=="windows"', {
+                ['OS=="win"', {
                   'defines': [
                     'ARMV8_OS_WINDOWS',
                   ],
                 }],
-                ['OS!="windows" and clang!=1', {
+                ['OS!="win" and clang!=1', {
                   'cflags_c': [
                     '-march=armv8-a+crc',
                   ],
@@ -431,10 +431,14 @@
               '.',
             ],
           },
+          'dependencies': [
+            ':zlib',
+          ],
           'conditions': [
             ['OS!="win"', {
               'sources!': [
                 'contrib/minizip/iowin32.c',
+                'contrib/minizip/iowin32.h',
               ],
             }],
             ['OS=="android"', {
