@@ -29,7 +29,7 @@ class Document;
 // for example in a user's history or bookmarks, or in search results. The
 // document's title is often different from its first heading, since the first
 // heading does not have to stand alone when taken out of context.
-//   https://www.w3.org/TR/html5/document-metadata.html#the-title-element
+//   https://www.w3.org/TR/html50/document-metadata.html#the-title-element
 class HTMLTitleElement : public HTMLElement {
  public:
   static const char kTagName[];

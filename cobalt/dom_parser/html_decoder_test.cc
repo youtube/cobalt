@@ -428,7 +428,7 @@ TEST_F(HTMLDecoderTest, CanParseUTF8SplitInChunks) {
 }
 
 // Misnested tags: <b><i></b></i>
-//   https://www.w3.org/TR/html5/syntax.html#misnested-tags:-b-i-/b-/i
+//   https://www.w3.org/TR/html50/syntax.html#misnested-tags:-b-i-/b-/i
 //
 // The current version DOES NOT handle the error as outlined in the link above.
 TEST_F(HTMLDecoderTest, CanParseMisnestedTags1) {
@@ -455,7 +455,7 @@ TEST_F(HTMLDecoderTest, CanParseMisnestedTags1) {
 }
 
 // Misnested tags: <b><p></b></p>
-//   https://www.w3.org/TR/html5/syntax.html#misnested-tags:-b-p-/b-/p
+//   https://www.w3.org/TR/html50/syntax.html#misnested-tags:-b-p-/b-/p
 //
 // The current version DOES NOT handle the error as outlined in the link above.
 TEST_F(HTMLDecoderTest, CanParseMisnestedTags2) {

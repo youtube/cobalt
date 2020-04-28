@@ -596,7 +596,7 @@ void MozjsGlobalEnvironment::ReportError(const char* message,
   // an uncaught exception, that would be the object that was thrown; in the
   // case of a JavaScript error that would be an Error object. If there is no
   // corresponding object, then the null value must be used instead.
-  //   https://www.w3.org/TR/html5/webappapis.html#runtime-script-errors
+  //   https://www.w3.org/TR/html50/webappapis.html#runtime-script-errors
   if (exception.isObject()) {
     error_report.error.reset(new MozjsValueHandleHolder(context_, exception));
   }
@@ -615,7 +615,7 @@ void MozjsGlobalEnvironment::ReportError(const char* message,
   }
 
   // If the error is not handled, then the error may be reported to the user.
-  //   https://www.w3.org/TR/html5/webappapis.html#runtime-script-errors-in-documents
+  //   https://www.w3.org/TR/html50/webappapis.html#runtime-script-errors-in-documents
   std::string new_error_message = base::StringPrintf(
       "%s:%u:%u: %s", error_report.filename.c_str(), error_report.line_number,
       error_report.column_number, error_report.message.c_str());

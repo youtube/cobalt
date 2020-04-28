@@ -127,7 +127,7 @@ class EventTarget : public script::Wrappable,
   // Web API: GlobalEventHandlers (implements)
   // Many objects can have event handlers specified. These act as non-capture
   // event listeners for the object on which they are specified.
-  //   https://www.w3.org/TR/html5/webappapis.html#globaleventhandlers
+  //   https://www.w3.org/TR/html50/webappapis.html#globaleventhandlers
   //
   const EventListenerScriptValue* onblur() {
     return GetAttributeEventListener(base::Tokens::blur());

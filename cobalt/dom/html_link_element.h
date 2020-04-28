@@ -34,7 +34,7 @@ namespace dom {
 class Document;
 
 // The link element allows authors to link their document to other resources.
-//   https://www.w3.org/TR/html5/document-metadata.html#the-link-element
+//   https://www.w3.org/TR/html50/document-metadata.html#the-link-element
 class HTMLLinkElement : public HTMLElement {
  public:
   static const char kTagName[];

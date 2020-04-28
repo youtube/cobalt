@@ -21,8 +21,8 @@ namespace cobalt {
 namespace dom {
 
 // The History object can be used to maintain browser session history.
-// https://www.w3.org/TR/html5/browsers.html#the-history-interface
-// https://www.w3.org/TR/html5/browsers.html#history-1
+// https://www.w3.org/TR/html50/browsers.html#the-history-interface
+// https://www.w3.org/TR/html50/browsers.html#history-1
 // This implementation is extremely basic.
 class History : public script::Wrappable {
  public:

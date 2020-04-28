@@ -43,7 +43,7 @@ typedef media::WebMediaPlayer WebMediaPlayer;
 typedef media::WebMediaPlayerClient WebMediaPlayerClient;
 
 // The HTMLMediaElement is the base of HTMLAudioElement and HTMLVideoElement.
-//   https://www.w3.org/TR/html5/embedded-content-0.html#media-element
+//   https://www.w3.org/TR/html50/embedded-content-0.html#media-element
 class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
  public:
   HTMLMediaElement(Document* document, base::Token tag_name);

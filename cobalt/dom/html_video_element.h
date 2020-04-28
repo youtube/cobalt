@@ -27,7 +27,7 @@ namespace cobalt {
 namespace dom {
 
 // The HTMLVideoElement is used to play videos.
-//   https://www.w3.org/TR/html5/embedded-content-0.html#the-video-element
+//   https://www.w3.org/TR/html50/embedded-content-0.html#the-video-element
 class HTMLVideoElement : public HTMLMediaElement {
  public:
   typedef media::VideoFrameProvider VideoFrameProvider;

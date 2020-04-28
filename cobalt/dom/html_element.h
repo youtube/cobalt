@@ -80,7 +80,7 @@ enum PseudoElementType {
 
 // The basic interface, from which all the HTML elements' interfaces inherit,
 // and which must be used by elements that have no additional requirements.
-//   https://www.w3.org/TR/html5/dom.html#htmlelement
+//   https://www.w3.org/TR/html50/dom.html#htmlelement
 class HTMLElement : public Element, public cssom::MutationObserver {
  public:
   typedef cssom::SelectorTree::Nodes SelectorTreeNodes;
@@ -355,7 +355,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   }
 
   // Returns true if the element is the root element as defined in
-  // https://www.w3.org/TR/html5/semantics.html#the-root-element.
+  // https://www.w3.org/TR/html50/semantics.html#the-root-element.
   bool IsRootElement();
 
   // Returns true if this is a document element.

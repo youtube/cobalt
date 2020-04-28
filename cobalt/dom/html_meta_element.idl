@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/html5/document-metadata.html#the-meta-element
+// https://www.w3.org/TR/html50/document-metadata.html#the-meta-element
 
 interface HTMLMetaElement : HTMLElement {
   attribute DOMString name;

@@ -12,6 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/html5/grouping-content.html#the-div-element
+// https://www.w3.org/TR/html50/grouping-content.html#the-div-element
 
 interface HTMLDivElement : HTMLElement {};
