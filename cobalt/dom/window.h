@@ -103,7 +103,7 @@ class Storage;
 class WindowTimers;
 
 // The window object represents a window containing a DOM document.
-//   https://www.w3.org/TR/html5/browsers.html#the-window-object
+//   https://www.w3.org/TR/html50/browsers.html#the-window-object
 //
 // TODO: Properly handle viewport resolution change event.
 class Window : public EventTarget,
@@ -280,7 +280,7 @@ class Window : public EventTarget,
                             script::ExceptionState* exception_state);
 
   // Web API: WindowTimers (implements)
-  //   https://www.w3.org/TR/html5/webappapis.html#timers
+  //   https://www.w3.org/TR/html50/webappapis.html#timers
   //
   int SetTimeout(const WindowTimers::TimerCallbackArg& handler) {
     return SetTimeout(handler, 0);
@@ -363,7 +363,7 @@ class Window : public EventTarget,
   void SetApplicationState(base::ApplicationState state);
 
   // Performs the steps specified for runtime script errors:
-  //   https://www.w3.org/TR/html5/webappapis.html#runtime-script-errors
+  //   https://www.w3.org/TR/html50/webappapis.html#runtime-script-errors
   // Returns whether or not the script was handled.
   bool ReportScriptError(const script::ErrorReport& error_report);
 

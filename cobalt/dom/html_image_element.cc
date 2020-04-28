@@ -78,7 +78,7 @@ void HTMLImageElement::OnRemoveAttribute(const std::string& name) {
 }
 
 // Algorithm for UpdateTheImageData:
-//   https://www.w3.org/TR/html5/embedded-content-0.html#update-the-image-data
+//   https://www.w3.org/TR/html50/embedded-content-0.html#update-the-image-data
 void HTMLImageElement::UpdateImageData() {
   DCHECK(base::MessageLoop::current());
   DCHECK(node_document());

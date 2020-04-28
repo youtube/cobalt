@@ -12,6 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/html5/embedded-content-0.html#the-video-element
+// https://www.w3.org/TR/html50/embedded-content-0.html#the-video-element
 
 interface HTMLAudioElement : HTMLMediaElement {};

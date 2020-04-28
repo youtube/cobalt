@@ -28,7 +28,7 @@ const char kDataPrefix[] = "data-";
 const size_t kDataPrefixLength = sizeof(kDataPrefix) - 1;
 
 // See "The algorithm for getting the list of name-value pairs" at
-// https://www.w3.org/TR/html5/dom.html#dom-dataset.
+// https://www.w3.org/TR/html50/dom.html#dom-dataset.
 base::Optional<std::string> TryConvertAttributeNameToPropertyName(
     const std::string& attribute_name) {
   // First five characters of attribute name should be "data-".
@@ -85,7 +85,7 @@ base::Optional<std::string> TryConvertAttributeNameToPropertyName(
 }
 
 // See "The algorithm for setting names to certain values" at
-// https://www.w3.org/TR/html5/dom.html#dom-dataset.
+// https://www.w3.org/TR/html50/dom.html#dom-dataset.
 base::Optional<std::string> TryConvertPropertyNameToAttributeName(
     const std::string& property_name) {
   // Insert the string "data-" at the front of attribute name.

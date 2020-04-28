@@ -28,7 +28,7 @@ namespace dom {
 // Whenever an uncaught runtime script error occurs in one of the scripts
 // associated with a Document, the user agent must report the error for the
 // relevant script.
-//   https://www.w3.org/TR/html5/webappapis.html#errorevent
+//   https://www.w3.org/TR/html50/webappapis.html#errorevent
 class ErrorEvent : public Event {
  public:
   explicit ErrorEvent(const std::string& type)

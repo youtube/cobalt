@@ -29,7 +29,7 @@ class Document;
 
 // The style element allows authors to embed style information in their
 // documents.
-//   https://www.w3.org/TR/html5/document-metadata.html#the-style-element
+//   https://www.w3.org/TR/html50/document-metadata.html#the-style-element
 class HTMLStyleElement : public HTMLElement {
  public:
   static const char kTagName[];

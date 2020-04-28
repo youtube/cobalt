@@ -34,7 +34,7 @@ namespace layout {
 // The class represents a Replaced element in the layout tree. It is used to
 // render elements like embed, iframe or video. Currently it renders the element
 // as an image retrieved from a callback passed into its ctor.
-//   https://www.w3.org/TR/html5/rendering.html#replaced-elements
+//   https://www.w3.org/TR/html50/rendering.html#replaced-elements
 //
 // TODO: Make ReplacedBox support elements other than media element.
 class ReplacedBox : public Box {

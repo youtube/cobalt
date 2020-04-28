@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/html5/browsers.html#the-location-interface
+// https://www.w3.org/TR/html50/browsers.html#the-location-interface
 
 [Unforgeable] interface Location {
   void assign(DOMString url);
