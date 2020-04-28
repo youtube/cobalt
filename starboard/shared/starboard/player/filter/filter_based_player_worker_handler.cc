@@ -535,6 +535,9 @@ void FilterBasedPlayerWorkerHandler::Stop() {
 }
 
 SbDecodeTarget FilterBasedPlayerWorkerHandler::GetCurrentDecodeTarget() {
+  if (output_mode_ != kSbPlayerOutputModeDecodeToTexture) {
+    return kSbDecodeTargetInvalid;
+  }
   SbDecodeTarget decode_target = kSbDecodeTargetInvalid;
   if (player_components_existence_mutex_.AcquireTry()) {
     if (video_renderer_) {
