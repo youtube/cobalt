@@ -32,6 +32,8 @@ class Shell(abstract.Shell):
     # whitelist common OK ones and quote anything else.
     if re.match(r'^[a-zA-Z0-9_=.,\\/+-]+$', argument):
       return argument  # No quoting necessary.
+    if re.match(r'^--gcc-toolchain', argument):
+      return argument.replace("'", "'\"'\"'")  # Do not surround with quotes
     return "'" + argument.replace("'", "'\"'\"'") + "'"
 
   def Join(self, command):
