@@ -25,6 +25,7 @@
 #include "base/command_line.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "base/metrics/statistics_recorder.h"
 #include "base/optional.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
@@ -451,6 +452,11 @@ const char kMemoryTrackerCommandLongHelp[] =
 
 }  // namespace
 
+// Helper stub to disable histogram tracking in StatisticsRecorder
+struct RecordCheckerStub : public base::RecordHistogramChecker {
+  bool ShouldRecord(uint64_t) const override { return false; }
+};
+
 // Static user logs
 ssize_t Application::available_memory_ = 0;
 int64 Application::lifetime_in_ms_ = 0;
@@ -519,6 +525,11 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   // Get the system language and initialize our localized strings.
   std::string language = base::GetSystemLanguage();
   base::LocalizedStrings::GetInstance()->Initialize(language);
+
+  // Disable histogram tracking before TaskScheduler creates StatisticsRecorder
+  // instances.
+  auto record_checker = std::make_unique<RecordCheckerStub>();
+  base::StatisticsRecorder::SetRecordChecker(std::move(record_checker));
 
   // A one-per-process task scheduler is needed for usage of APIs in
   // base/post_task.h which will be used by some net APIs like
