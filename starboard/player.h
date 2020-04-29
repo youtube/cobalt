@@ -492,14 +492,14 @@ SB_EXPORT bool SbPlayerOutputModeSupported(SbPlayerOutputMode output_mode,
                                            SbDrmSystem drm_system);
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
-// Destroys |player|, freeing all associated resources. Each callback must
-// receive one more callback to say that the player was destroyed. Callbacks
-// may be in-flight when SbPlayerDestroy is called, and should be ignored once
-// this function is called.
-//
-// It is not allowed to pass |player| into any other |SbPlayer| function once
-// SbPlayerDestroy has been called on that player.
-//
+// Destroys |player|, freeing all associated resources.
+//  * Upon calling this method, there should be one call to the player status
+//    callback (i.e. |player_status_func| used in the creation of the player)
+//    which indicates the player is destroyed. Note, the callback has to be
+//    in-flight when SbPlayerDestroyed is called.
+//  * No more other callbacks should be issued after this function returns.
+//  * It is not allowed to pass |player| into any other |SbPlayer| function
+//    once SbPlayerDestroy has been called on that player.
 // |player|: The player to be destroyed.
 SB_EXPORT void SbPlayerDestroy(SbPlayer player);
 
