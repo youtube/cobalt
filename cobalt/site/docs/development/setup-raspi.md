@@ -23,6 +23,12 @@ Cobalt as the sysroot system libraries will differ in the latest version of
 Raspbian.
 </aside>
 
+Configure the Raspberry Pi memory split.
+
+1.  `sudo raspi-config`
+1.  Go to Advanced
+1.  Memory Split: 256 for RasPi-0, 512 for all others.
+
 Cobalt assumes the Raspberry Pi is configured to use non-default thread
 schedulers and priorities. Ensure that **/etc/security/limits.conf** sets
 **rtprio** and **nice** limits for the user. For example, if the user is **pi**,
