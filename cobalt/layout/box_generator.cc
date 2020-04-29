@@ -174,18 +174,18 @@ namespace {
 
 class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
  public:
-  ReplacedBoxGenerator(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
-                           css_computed_style_declaration,
-                       const ReplacedBox::ReplaceImageCB& replace_image_cb,
-                       const ReplacedBox::SetBoundsCB& set_bounds_cb,
-                       const scoped_refptr<Paragraph>& paragraph,
-                       int32 text_position,
-                       const base::Optional<LayoutUnit>& maybe_intrinsic_width,
-                       const base::Optional<LayoutUnit>& maybe_intrinsic_height,
-                       const base::Optional<float>& maybe_intrinsic_ratio,
-                       const BoxGenerator::Context* context,
-                       base::Optional<bool> is_video_punched_out,
-                       bool is_lottie, math::SizeF content_size)
+  ReplacedBoxGenerator(
+      const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+          css_computed_style_declaration,
+      const ReplacedBox::ReplaceImageCB& replace_image_cb,
+      const ReplacedBox::SetBoundsCB& set_bounds_cb,
+      const scoped_refptr<Paragraph>& paragraph, int32 text_position,
+      const base::Optional<LayoutUnit>& maybe_intrinsic_width,
+      const base::Optional<LayoutUnit>& maybe_intrinsic_height,
+      const base::Optional<float>& maybe_intrinsic_ratio,
+      const BoxGenerator::Context* context,
+      base::Optional<ReplacedBox::ReplacedBoxMode> replaced_box_mode,
+      math::SizeF content_size)
       : css_computed_style_declaration_(css_computed_style_declaration),
         replace_image_cb_(replace_image_cb),
         set_bounds_cb_(set_bounds_cb),
@@ -195,8 +195,7 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
         maybe_intrinsic_height_(maybe_intrinsic_height),
         maybe_intrinsic_ratio_(maybe_intrinsic_ratio),
         context_(context),
-        is_video_punched_out_(is_video_punched_out),
-        is_lottie_(is_lottie),
+        replaced_box_mode_(replaced_box_mode),
         content_size_(content_size) {}
 
   void VisitKeyword(cssom::KeywordValue* keyword) override;
@@ -214,8 +213,7 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
   const base::Optional<LayoutUnit> maybe_intrinsic_height_;
   const base::Optional<float> maybe_intrinsic_ratio_;
   const BoxGenerator::Context* context_;
-  base::Optional<bool> is_video_punched_out_;
-  bool is_lottie_;
+  base::Optional<ReplacedBox::ReplacedBoxMode> replaced_box_mode_;
   math::SizeF content_size_;
 
   scoped_refptr<ReplacedBox> replaced_box_;
@@ -231,8 +229,8 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
           css_computed_style_declaration_, replace_image_cb_, set_bounds_cb_,
           paragraph_, text_position_, maybe_intrinsic_width_,
           maybe_intrinsic_height_, maybe_intrinsic_ratio_,
-          context_->used_style_provider, is_video_punched_out_, is_lottie_,
-          content_size_, context_->layout_stat_tracker));
+          context_->used_style_provider, replaced_box_mode_, content_size_,
+          context_->layout_stat_tracker));
       break;
     // Generate an inline-level replaced box. There is no need to distinguish
     // between inline replaced elements and inline-block replaced elements
@@ -245,8 +243,8 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
           css_computed_style_declaration_, replace_image_cb_, set_bounds_cb_,
           paragraph_, text_position_, maybe_intrinsic_width_,
           maybe_intrinsic_height_, maybe_intrinsic_ratio_,
-          context_->used_style_provider, is_video_punched_out_, is_lottie_,
-          content_size_, context_->layout_stat_tracker));
+          context_->used_style_provider, replaced_box_mode_, content_size_,
+          context_->layout_stat_tracker));
       break;
     // The element generates no boxes and has no effect on layout.
     case cssom::KeywordValue::kNone:
@@ -343,12 +341,15 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
 
   // If the optional is disengaged, then we don't know if punch out is enabled
   // or not.
-  base::Optional<bool> is_punch_out;
+  base::Optional<ReplacedBox::ReplacedBoxMode> replaced_box_mode;
   if (video_element->GetVideoFrameProvider()) {
     VideoFrameProvider::OutputMode output_mode =
         video_element->GetVideoFrameProvider()->GetOutputMode();
     if (output_mode != VideoFrameProvider::kOutputModeInvalid) {
-      is_punch_out = output_mode == VideoFrameProvider::kOutputModePunchOut;
+      replaced_box_mode =
+          (output_mode == VideoFrameProvider::kOutputModePunchOut)
+              ? ReplacedBox::ReplacedBoxMode::kPunchOutVideo
+              : ReplacedBox::ReplacedBoxMode::kVideo;
     }
   }
 
@@ -359,8 +360,8 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
                        resource_provider)
           : ReplacedBox::ReplaceImageCB(),
       video_element->GetSetBoundsCB(), *paragraph_, text_position,
-      base::nullopt, base::nullopt, base::nullopt, context_, is_punch_out,
-      false, video_element->GetVideoSize());
+      base::nullopt, base::nullopt, base::nullopt, context_, replaced_box_mode,
+      video_element->GetVideoSize());
   video_element->computed_style()->display()->Accept(&replaced_box_generator);
 
   scoped_refptr<ReplacedBox> replaced_box =
@@ -435,7 +436,8 @@ void BoxGenerator::VisitLottiePlayer(dom::LottiePlayer* lottie_player) {
                        lottie_player->cached_image()->TryGetResource())
           : ReplacedBox::ReplaceImageCB(),
       ReplacedBox::SetBoundsCB(), *paragraph_, text_position, base::nullopt,
-      base::nullopt, base::nullopt, context_, base::nullopt, true,
+      base::nullopt, base::nullopt, context_,
+      ReplacedBox::ReplacedBoxMode::kLottie,
       math::Size() /* only relevant to punch out video */);
   lottie_player->computed_style()->display()->Accept(&replaced_box_generator);
 
