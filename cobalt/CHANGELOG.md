@@ -4,6 +4,12 @@ This document records all notable changes made to Cobalt since the last release.
 
 ## Version 21
 
+ - **SpiderMonkey(mozjs-45) JavaScript Engine is no longer supported.**
+   We will only support V8 from now on. For platforms without Just-In-Time
+   compilation ability, please use JIT-less V8 instead. Overriding
+   `cobalt_enable_jit` environment variable in `gyp_configuration.py` will
+   switch V8 to use JIT-less mode. V8 requires at least Starboard version 10.
+
  - **scratch_surface_cache_size_in_bytes is removed.**
 
    Because it never ended up being used, scratch_suface_cache_size_in_bytes has
