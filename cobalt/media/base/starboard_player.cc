@@ -784,8 +784,10 @@ void StarboardPlayer::OnDecoderStatus(SbPlayer player, SbMediaType type,
     case kSbPlayerDecoderStateBufferFull:
       DLOG(WARNING) << "kSbPlayerDecoderStateBufferFull has been deprecated.";
       return;
+#if SB_API_VERSION < SB_PLAYER_DECODER_STATE_DESTROYED_REMOVED_VERSION
     case kSbPlayerDecoderStateDestroyed:
       return;
+#endif  // SB_API_VERSION < SB_PLAYER_DECODER_STATE_DESTROYED_REMOVED_VERSION
   }
 
   if (state_ == kResuming) {

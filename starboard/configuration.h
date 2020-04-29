@@ -288,6 +288,11 @@
 // Deprecate support for gles3 features.
 #define SB_GLES3_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Deprecate unused enum |kSbPlayerDecoderStateDestroyed| for indicating the
+// destruction of the player from the decoder.
+#define SB_PLAYER_DECODER_STATE_DESTROYED_REMOVED_VERSION \
+  SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------

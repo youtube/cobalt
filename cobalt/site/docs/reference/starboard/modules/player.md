@@ -40,7 +40,9 @@ An indicator of whether the decoder can accept more samples.
     should no longer use this value.
 *   `kSbPlayerDecoderStateDestroyed`
 
-    The player has been destroyed, and will send no more callbacks.
+    The player has been destroyed, and will send no more callbacks. Note that
+    this enum value has been deprecated and the SbPlayer implementation should
+    no longer use this value.
 
 ### SbPlayerState ###
 
