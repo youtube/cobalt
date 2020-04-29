@@ -42,6 +42,8 @@ class ReplacedBox : public Box {
   typedef base::Callback<scoped_refptr<render_tree::Image>()> ReplaceImageCB;
   typedef render_tree::PunchThroughVideoNode::SetBoundsCB SetBoundsCB;
 
+  enum class ReplacedBoxMode { kVideo, kPunchOutVideo, kLottie };
+
   ReplacedBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
                   css_computed_style_declaration,
               const ReplaceImageCB& replace_image_cb,
@@ -51,7 +53,7 @@ class ReplacedBox : public Box {
               const base::Optional<LayoutUnit>& maybe_intrinsic_height,
               const base::Optional<float>& maybe_intrinsic_ratio,
               UsedStyleProvider* used_style_provider,
-              base::Optional<bool> is_video_punched_out, bool is_lottie,
+              base::Optional<ReplacedBoxMode> replaced_box_mode,
               const math::SizeF& content_size,
               LayoutStatTracker* layout_stat_tracker);
 
@@ -119,8 +121,7 @@ class ReplacedBox : public Box {
 
   const scoped_refptr<Paragraph> paragraph_;
   int32 text_position_;
-  base::Optional<bool> is_video_punched_out_;
-  bool is_lottie_;
+  base::Optional<ReplacedBoxMode> replaced_box_mode_;
   math::SizeF content_size_;
 };
 
