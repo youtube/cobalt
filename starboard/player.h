@@ -43,9 +43,10 @@ typedef enum SbPlayerDecoderState {
   // Note that this enum value has been deprecated and the SbPlayer
   // implementation should no longer use this value.
   kSbPlayerDecoderStateBufferFull,
-
+#if SB_API_VERSION < SB_PLAYER_DECODER_STATE_DESTROYED_REMOVED_VERSION
   // The player has been destroyed, and will send no more callbacks.
   kSbPlayerDecoderStateDestroyed,
+#endif  // SB_API_VERSION < SB_PLAYER_DECODER_STATE_DESTROYED_REMOVED_VERSION
 } SbPlayerDecoderState;
 
 // An indicator of the general playback state.
